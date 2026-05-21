@@ -1,17 +1,19 @@
 import { PrismaClient } from '@prisma/client'
-import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
 
+// 预生成的 admin123 bcrypt hash（避免 standalone 模式下找不到 bcryptjs）
+// 如需修改密码，请登录后台修改
+const ADMIN_PASSWORD_HASH = '$2a$10$1nwsaZ4SDtsUmEDBml2MMuGK2WZb1MlJJxmrxQfIexqqV/fHqyiei'
+
 async function main() {
-  // 创建管理员账户
-  const adminPassword = await bcrypt.hash('admin123', 10)
+  // 创建管理员账户（默认密码 admin123，登录后请立即修改）
   const admin = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
     create: {
       email: 'admin@example.com',
-      passwordHash: adminPassword,
+      passwordHash: ADMIN_PASSWORD_HASH,
       nickname: '管理员',
       role: 'ADMIN',
     },
