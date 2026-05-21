@@ -24,6 +24,7 @@ model User {
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   orders       Order[]
+  gameScores   GameScore[]
 
   @@map("users")
 }
@@ -132,6 +133,24 @@ model Payment {
   order        Order     @relation(fields: [orderId], references: [id])
 
   @@map("payments")
+}
+
+// 游戏分数排行榜
+model GameScore {
+  id         Int      @id @default(autoincrement())
+  gameId     String   @map("game_id") @db.VarChar(50)
+  userId     Int?     @map("user_id")
+  playerName String   @map("player_name") @db.VarChar(50)
+  score      Int
+  duration   Int?     // 用时（秒）
+  metadata   String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([gameId, score])
+  @@index([gameId, createdAt])
+  @@map("game_scores")
 }
 
 // 系统配置表
