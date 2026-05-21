@@ -1,6 +1,7 @@
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { FloatingContact } from '@/components/floating-contact'
+import { LiveOrderNotification } from '@/components/live-order-notification'
 
 export default function ShopLayout({
   children,
@@ -13,6 +14,7 @@ export default function ShopLayout({
       <main className="flex-1">{children}</main>
       <Footer />
       <FloatingContact />
+      <LiveOrderNotification />
     </div>
   )
 }

@@ -4,6 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { ArrowRight, Sparkles, Zap, Shield, Clock } from 'lucide-react'
+import { TiltCard } from '@/components/tilt-card'
+import { Typewriter } from '@/components/typewriter'
+import { MouseSpotlight } from '@/components/mouse-spotlight'
+import { CountUp } from '@/components/count-up'
 
 interface Product {
   id: number
@@ -62,6 +66,9 @@ export default function HomePage() {
 
   return (
     <div className="relative overflow-hidden">
+      {/* 全局鼠标跟随光晕 */}
+      <MouseSpotlight />
+
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 grid-bg" />
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-[128px] animate-pulse-glow" />
@@ -98,7 +105,14 @@ export default function HomePage() {
             >
               <span className="gradient-text">解锁</span>
               <br />
-              <span className="gradient-text-accent">AI 无限可能</span>
+              <span className="gradient-text-accent">
+                <Typewriter
+                  texts={['AI 无限可能', 'Claude 智能体验', 'ChatGPT 顶级服务', '未来生产力']}
+                  typeSpeed={150}
+                  deleteSpeed={80}
+                  pauseTime={2500}
+                />
+              </span>
             </motion.h1>
 
             <motion.p
@@ -204,10 +218,10 @@ export default function HomePage() {
                     transition={{ duration: 0.6, delay: index * 0.1 }}
                   >
                     <Link href={`/products/${product.id}`}>
-                      <div className="group relative h-full">
+                      <TiltCard maxTilt={8} scale={1.03} className="group h-full">
                         <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500`} />
 
-                        <div className="relative h-full glass rounded-2xl p-6 hover-lift">
+                        <div className="relative h-full glass rounded-2xl p-6">
                           <div className={`inline-flex px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient} mb-4`}>
                             {tag}
                           </div>
@@ -240,7 +254,7 @@ export default function HomePage() {
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </div>
                         </div>
-                      </div>
+                      </TiltCard>
                     </Link>
                   </motion.div>
                 )
@@ -254,12 +268,16 @@ export default function HomePage() {
         <div className="container">
           <div className="flex flex-wrap justify-center items-center gap-12 text-white/20">
             <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-1">1000+</div>
+              <div className="text-4xl font-bold text-white mb-1">
+                <CountUp end={1000} duration={2000} suffix="+" />
+              </div>
               <div className="text-sm">服务用户</div>
             </div>
             <div className="w-px h-12 bg-white/10" />
             <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-1">99.9%</div>
+              <div className="text-4xl font-bold text-white mb-1">
+                <CountUp end={99.9} duration={2200} suffix="%" decimals={1} />
+              </div>
               <div className="text-sm">成功率</div>
             </div>
             <div className="w-px h-12 bg-white/10" />
@@ -269,7 +287,9 @@ export default function HomePage() {
             </div>
             <div className="w-px h-12 bg-white/10" />
             <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-1">10min</div>
+              <div className="text-4xl font-bold text-white mb-1">
+                <CountUp end={10} duration={1500} suffix="min" />
+              </div>
               <div className="text-sm">极速开通</div>
             </div>
           </div>
