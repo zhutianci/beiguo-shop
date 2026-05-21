@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 3%;
+    --foreground: 0 0% 98%;
+    --muted: 0 0% 15%;
+    --accent: 262 83% 58%;
+    --accent-secondary: 180 100% 50%;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-black text-white antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  ::selection {
+    @apply bg-purple-500/30;
+  }
+}
+
+@layer components {
+  .container {
+    @apply mx-auto max-w-7xl px-6 lg:px-8;
+  }
+
+  /* 渐变文字 */
+  .gradient-text {
+    @apply bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent;
+  }
+
+  .gradient-text-accent {
+    @apply bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 bg-clip-text text-transparent;
+  }
+
+  /* 玻璃态效果 */
+  .glass {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10;
+  }
+
+  .glass-strong {
+    @apply bg-white/10 backdrop-blur-2xl border border-white/20;
+  }
+
+  /* 发光边框 */
+  .glow-border {
+    @apply relative;
+  }
+
+  .glow-border::before {
+    content: '';
+    @apply absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 opacity-0 blur-sm transition-opacity duration-500;
+  }
+
+  .glow-border:hover::before {
+    @apply opacity-70;
+  }
+
+  /* 悬浮卡片 */
+  .hover-lift {
+    @apply transition-all duration-500 ease-out;
+  }
+
+  .hover-lift:hover {
+    @apply -translate-y-2;
+  }
+
+  /* 磁性按钮效果 */
+  .magnetic-btn {
+    @apply relative overflow-hidden transition-all duration-300;
+  }
+
+  .magnetic-btn::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 transition-opacity duration-300;
+  }
+
+  .magnetic-btn:hover::before {
+    @apply opacity-100;
+  }
+
+  /* 文字动画 */
+  .text-reveal {
+    @apply overflow-hidden;
+  }
+
+  .text-reveal span {
+    @apply inline-block transition-transform duration-700;
+  }
+
+  /* 网格背景 */
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+
+  /* 光晕效果 */
+  .glow-purple {
+    box-shadow: 0 0 60px rgba(168, 85, 247, 0.4);
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 60px rgba(34, 211, 238, 0.3);
+  }
+
+  /* 噪点纹理 */
+  .noise {
+    position: relative;
+  }
+
+  .noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+    opacity: 0.02;
+    pointer-events: none;
+  }
+}
+
+/* 自定义光标 */
+.cursor {
+  @apply fixed w-4 h-4 bg-white rounded-full pointer-events-none z-[9999] mix-blend-difference;
+  transform: translate(-50%, -50%);
+}
+
+.cursor-follower {
+  @apply fixed w-10 h-10 border border-white/50 rounded-full pointer-events-none z-[9998];
+  transform: translate(-50%, -50%);
+  transition: transform 0.15s ease-out, width 0.3s, height 0.3s;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-black;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/20 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-white/30;
+}
+
+/* 页面过渡 */
+.page-transition {
+  @apply fixed inset-0 bg-black z-[100] pointer-events-none;
+  transform: scaleY(0);
+  transform-origin: bottom;
+}
+
+/* 动画关键帧 */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-shift 8s ease infinite;
+}
+
+/* 响应式字体 */
+.text-display {
+  @apply text-5xl md:text-7xl lg:text-8xl xl:text-9xl font-bold tracking-tighter;
+}
+
+.text-headline {
+  @apply text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight;
+}
+
+.text-body-lg {
+  @apply text-lg md:text-xl text-white/60;
+}
