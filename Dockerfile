@@ -2,9 +2,13 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
+# 配置 npm 使用国内镜像（加速国内服务器构建）
+RUN npm config set registry https://registry.npmmirror.com
+
 # Install dependencies
+# 使用 npm install 而不是 npm ci，跨平台时更宽容（lock 文件可能含平台特定依赖）
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm install --no-audit --no-fund
 
 # Stage 2: Builder
 FROM node:20-alpine AS builder
