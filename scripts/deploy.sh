@@ -47,12 +47,13 @@ done
 
 echo ""
 echo "[5/5] 初始化数据库..."
-docker compose exec -T app npx prisma db push --accept-data-loss
+# 锁定 Prisma 5.22.0 版本（与项目依赖一致，避免 npx 拉取最新 7.x）
+docker compose exec -T app npx -y prisma@5.22.0 db push --accept-data-loss --schema=./prisma/schema.prisma
 
 echo ""
 read -p "是否初始化种子数据（首次部署选 y）？(y/n): " init_seed
 if [ "$init_seed" = "y" ]; then
-    docker compose exec -T app npx tsx prisma/seed.ts
+    docker compose exec -T app npx -y tsx prisma/seed.ts
 fi
 
 echo ""
