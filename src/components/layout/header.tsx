@@ -16,7 +16,7 @@ const navLinks = [
 
 export function Header() {
   const pathname = usePathname()
-  const { user, logout } = useUserStore()
+  const { user, setUser, logout } = useUserStore()
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -27,6 +27,20 @@ export function Header() {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
+
+  // 页面加载时与服务端同步登录状态（避免本地 user 与 cookie 不同步）
+  useEffect(() => {
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.data?.user) {
+          setUser(data.data.user)
+        } else {
+          setUser(null)
+        }
+      })
+      .catch(() => {})
+  }, [setUser])
 
   return (
     <>

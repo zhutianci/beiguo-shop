@@ -75,6 +75,15 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
           remark: `支付方式: ${payMethod === 'wechat' ? '微信' : '支付宝'}`,
         }),
       })
+
+      // 401: 服务端 cookie 失效（本地状态脏数据），清理并跳转登录
+      if (res.status === 401) {
+        useUserStore.getState().setUser(null)
+        onClose()
+        router.push(`/login?redirect=/products/${product.id}`)
+        return
+      }
+
       const data = await res.json()
 
       if (!data.success) {
