@@ -50,11 +50,12 @@ export async function POST(request: NextRequest) {
       role: user.role,
     })
 
-    // 设置 cookie
+    // 设置 cookie（HTTPS 站点启用 secure，HTTP 站点不能开启 secure 否则浏览器拒绝）
+    const useSecure = (process.env.NEXT_PUBLIC_APP_URL || '').startsWith('https://')
     const cookieStore = await cookies()
     cookieStore.set('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: useSecure,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
     })
