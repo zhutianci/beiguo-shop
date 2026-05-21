@@ -15,6 +15,8 @@ interface Product {
   price: string | number
   originalPrice: string | number | null
   features: string | null
+  stock: number
+  sales: number
   category: { id: number; name: string }
 }
 
@@ -293,6 +295,19 @@ export default function ProductDetailPage() {
                       <span className="text-xs text-white/40">限时优惠</span>
                     </div>
                   )}
+
+                  {/* 销量 + 库存 */}
+                  <div className="flex items-center gap-4 mt-4 text-sm text-white/50">
+                    <span>已售 <span className="text-white/80 font-medium">{product.sales}</span></span>
+                    <span className="text-white/20">·</span>
+                    <span>
+                      {product.stock === -1
+                        ? '现货充足'
+                        : product.stock === 0
+                          ? '已售罄'
+                          : `余量 ${product.stock}`}
+                    </span>
+                  </div>
                 </div>
 
                 <button

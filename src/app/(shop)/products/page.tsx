@@ -20,6 +20,8 @@ interface Product {
   price: string | number
   originalPrice: string | number | null
   features: string | null
+  stock: number
+  sales: number
   category: { id: number; name: string }
 }
 
@@ -197,7 +199,7 @@ export default function ProductsPage() {
                         </p>
 
                         {features.length > 0 && (
-                          <div className="flex-1 grid grid-cols-2 gap-2 mb-6">
+                          <div className="flex-1 grid grid-cols-2 gap-2 mb-4">
                             {features.map((feature, i) => (
                               <div
                                 key={i}
@@ -211,6 +213,18 @@ export default function ProductsPage() {
                             ))}
                           </div>
                         )}
+
+                        {/* 销量 + 库存 */}
+                        <div className="flex items-center justify-between text-xs text-white/40 mb-4 px-1">
+                          <span>已售 {product.sales}</span>
+                          <span>
+                            {product.stock === -1
+                              ? '现货充足'
+                              : product.stock === 0
+                                ? '已售罄'
+                                : `余量 ${product.stock}`}
+                          </span>
+                        </div>
 
                         <div
                           className={`flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r ${gradient} font-medium group-hover:shadow-lg group-hover:shadow-purple-500/20 transition-all`}

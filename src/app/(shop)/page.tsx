@@ -12,6 +12,8 @@ interface Product {
   price: string | number
   originalPrice: string | number | null
   features: string | null
+  stock: number
+  sales: number
 }
 
 const gradients = [
@@ -213,12 +215,24 @@ export default function HomePage() {
                           <h3 className="text-2xl font-bold mb-2">{product.name}</h3>
                           <p className="text-white/50 text-sm mb-6">{product.description}</p>
 
-                          <div className="flex items-baseline gap-2 mb-6">
+                          <div className="flex items-baseline gap-2 mb-4">
                             <span className="text-4xl font-bold">¥{Number(product.price).toFixed(0)}</span>
                             {product.originalPrice && (
                               <span className="text-white/30 line-through">¥{Number(product.originalPrice).toFixed(0)}</span>
                             )}
                             <span className="text-xs text-white/40">/月</span>
+                          </div>
+
+                          {/* 销量 + 库存 */}
+                          <div className="flex items-center justify-between text-xs text-white/40 mb-4 px-1">
+                            <span>已售 {product.sales}</span>
+                            <span>
+                              {product.stock === -1
+                                ? '现货充足'
+                                : product.stock === 0
+                                  ? '已售罄'
+                                  : `余量 ${product.stock}`}
+                            </span>
                           </div>
 
                           <div className={`flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r ${gradient} font-medium group-hover:shadow-lg transition-shadow`}>
