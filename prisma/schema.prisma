@@ -135,6 +135,24 @@ model Payment {
   @@map("payments")
 }
 
+// 外部订单（从腾讯文档批量导入）
+model ExternalOrder {
+  id               Int      @id @default(autoincrement())
+  startDate        DateTime @map("start_date") @db.Date           // 开通时间
+  expireDate       DateTime @map("expire_date") @db.Date          // 到期时间（开通时间 + 1 个月）
+  subscriptionType String   @map("subscription_type") @db.VarChar(100)  // 订阅类型
+  xianyuNickname   String?  @map("xianyu_nickname") @db.VarChar(100)    // 闲鱼昵称
+  claudeAccount    String   @map("claude_account") @db.VarChar(255)     // 账户邮箱
+  sourceKey        String   @unique @map("source_key") @db.VarChar(128) // 去重键
+  importBatch      String?  @map("import_batch") @db.VarChar(32)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([claudeAccount])
+  @@index([expireDate])
+  @@map("external_orders")
+}
+
 // 游戏分数排行榜
 model GameScore {
   id         Int      @id @default(autoincrement())

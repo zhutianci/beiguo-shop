@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
-import { ArrowRight, Sparkles, Zap, Shield, Clock } from 'lucide-react'
+import { ArrowRight, Sparkles, Zap, Shield, Clock, Search, Mail } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { TiltCard } from '@/components/tilt-card'
 import { Typewriter } from '@/components/typewriter'
 import { MouseSpotlight } from '@/components/mouse-spotlight'
@@ -51,10 +52,21 @@ const features = [
 ]
 
 export default function HomePage() {
+  const router = useRouter()
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll()
   const y = useTransform(scrollYProgress, [0, 1], ['0%', '50%'])
   const [products, setProducts] = useState<Product[]>([])
+  const [lookupEmail, setLookupEmail] = useState('')
+
+  const handleLookup = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (lookupEmail.trim()) {
+      router.push(`/lookup?email=${encodeURIComponent(lookupEmail.trim())}`)
+    } else {
+      router.push('/lookup')
+    }
+  }
 
   useEffect(() => {
     fetch('/api/products')
@@ -145,6 +157,37 @@ export default function HomePage() {
                   了解更多
                 </button>
               </Link>
+            </motion.div>
+
+            {/* 订单查询入口 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.75 }}
+              className="mt-10 flex justify-center"
+            >
+              <form onSubmit={handleLookup} className="relative w-full max-w-md">
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500/40 via-pink-500/40 to-cyan-500/40 rounded-full blur-sm opacity-50" />
+                <div className="relative flex items-center gap-1 p-1.5 glass-strong rounded-full">
+                  <div className="flex-1 flex items-center gap-2 pl-4">
+                    <Mail className="w-4 h-4 text-white/40 flex-shrink-0" />
+                    <input
+                      type="email"
+                      value={lookupEmail}
+                      onChange={(e) => setLookupEmail(e.target.value)}
+                      placeholder="已下单？输入邮箱查询订阅状态"
+                      className="flex-1 bg-transparent border-0 outline-none text-sm text-white placeholder:text-white/40 py-2 min-w-0"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="px-5 py-2 rounded-full bg-white text-black text-sm font-semibold flex items-center gap-1.5 hover:scale-105 transition-transform"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    查询
+                  </button>
+                </div>
+              </form>
             </motion.div>
 
             <motion.div
