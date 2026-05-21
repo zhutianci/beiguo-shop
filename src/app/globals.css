@@ -126,6 +126,18 @@
   }
 }
 
+/* 后台管理区域：浅色主题下的输入框样式覆盖 */
+.admin-area input:not([type="checkbox"]):not([type="radio"]),
+.admin-area textarea,
+.admin-area select {
+  color: #111827 !important;
+}
+
+.admin-area input::placeholder,
+.admin-area textarea::placeholder {
+  color: #9ca3af !important;
+}
+
 /* 自定义光标 */
 .cursor {
   @apply fixed w-4 h-4 bg-white rounded-full pointer-events-none z-[9999] mix-blend-difference;

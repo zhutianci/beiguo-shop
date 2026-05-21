@@ -30,7 +30,7 @@ export default function AdminLayout({
   const pathname = usePathname()
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="admin-area flex min-h-screen bg-gray-100">
       {/* 侧边栏 */}
       <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-gray-200 bg-white">
         {/* Logo */}

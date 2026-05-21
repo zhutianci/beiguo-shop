@@ -1,5 +1,6 @@
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
+import { FloatingContact } from '@/components/floating-contact'
 
 export default function ShopLayout({
   children,
@@ -11,6 +12,7 @@ export default function ShopLayout({
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
+      <FloatingContact />
     </div>
   )
 }
