@@ -41,17 +41,15 @@ services:
     networks:
       - app-network
 
-  # Nginx 反向代理
+  # Nginx 反向代理（监听 8080 给 Cloudflare 回源用，避开阿里云对 80/443 的拦截）
   nginx:
     image: nginx:alpine
     container_name: beiguo-nginx
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - app
     networks:
