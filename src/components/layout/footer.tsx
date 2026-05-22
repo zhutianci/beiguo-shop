@@ -41,7 +41,7 @@ export function Footer() {
 
             {/* Links */}
             <div>
-              <h4 className="font-semibold mb-4">服务</h4>
+              <h4 className="font-semibold mb-4">商品</h4>
               <ul className="space-y-3">
                 <li>
                   <Link href="/products?category=1" className="text-white/40 hover:text-white text-sm transition-colors">
@@ -55,23 +55,28 @@ export function Footer() {
                 </li>
                 <li>
                   <Link href="/products" className="text-white/40 hover:text-white text-sm transition-colors">
-                    全部服务
+                    全部商品
                   </Link>
                 </li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-semibold mb-4">支持</h4>
+              <h4 className="font-semibold mb-4">客户服务</h4>
               <ul className="space-y-3">
                 <li>
-                  <Link href="/about" className="text-white/40 hover:text-white text-sm transition-colors">
-                    关于我们
+                  <Link href="/lookup" className="text-white/40 hover:text-white text-sm transition-colors">
+                    订阅查询
                   </Link>
                 </li>
                 <li>
-                  <Link href="/faq" className="text-white/40 hover:text-white text-sm transition-colors">
+                  <Link href="/support" className="text-white/40 hover:text-white text-sm transition-colors">
                     常见问题
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/about" className="text-white/40 hover:text-white text-sm transition-colors">
+                    关于我们
                   </Link>
                 </li>
                 <li>

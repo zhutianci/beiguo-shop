@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Mail, Sparkles, Package, CheckCircle, Clock } from 'lucide-react'
+import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar } from 'lucide-react'
 
 interface ExternalOrder {
   id: number
@@ -20,10 +20,37 @@ function formatDate(s: string) {
   return new Date(s).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 
-function daysUntil(s: string): number {
-  const now = new Date()
-  const target = new Date(s)
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+function formatFullDateTime(d: Date) {
+  return d.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
+interface Remaining {
+  total: number
+  days: number
+  hours: number
+  minutes: number
+  seconds: number
+  expired: boolean
+}
+
+function getRemaining(target: string, now: Date): Remaining {
+  const diff = new Date(target).getTime() - now.getTime()
+  if (diff <= 0) {
+    return { total: diff, days: 0, hours: 0, minutes: 0, seconds: 0, expired: true }
+  }
+  const days = Math.floor(diff / 86400000)
+  const hours = Math.floor((diff % 86400000) / 3600000)
+  const minutes = Math.floor((diff % 3600000) / 60000)
+  const seconds = Math.floor((diff % 60000) / 1000)
+  return { total: diff, days, hours, minutes, seconds, expired: false }
 }
 
 export default function LookupPage() {
@@ -42,6 +69,13 @@ function LookupForm() {
   const [searched, setSearched] = useState(false)
   const [orders, setOrders] = useState<ExternalOrder[]>([])
   const [errorMsg, setErrorMsg] = useState('')
+  const [now, setNow] = useState<Date>(new Date())
+
+  // 实时刷新当前时间
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault()
@@ -101,7 +135,7 @@ function LookupForm() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           onSubmit={handleSearch}
-          className="mb-10"
+          className="mb-8"
         >
           <div className="relative">
             <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-2xl blur-md opacity-30" />
@@ -137,6 +171,28 @@ function LookupForm() {
         <AnimatePresence mode="wait">
           {searched && (
             <motion.div key="result" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              {/* 实时当前时间 */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex items-center justify-between mb-4 px-2"
+              >
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="w-4 h-4 text-purple-400" />
+                  <span className="text-white/40">当前时间</span>
+                  <span className="font-mono text-white/80 tabular-nums">{formatFullDateTime(now)}</span>
+                  <span className="inline-flex items-center gap-1.5 ml-1 px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    实时
+                  </span>
+                </div>
+                {orders.length > 0 && (
+                  <div className="text-sm text-white/60">
+                    共 <span className="text-white font-bold">{orders.length}</span> 条
+                  </div>
+                )}
+              </motion.div>
+
               {orders.length === 0 ? (
                 <div className="glass rounded-2xl p-12 text-center">
                   <Package className="w-12 h-12 text-white/20 mx-auto mb-4" />
@@ -146,86 +202,90 @@ function LookupForm() {
                   </p>
                 </div>
               ) : (
-                <>
-                  <div className="mb-4 text-sm text-white/60">
-                    找到 <span className="text-white font-bold">{orders.length}</span> 条订阅记录
-                  </div>
-                  <div className="space-y-4">
-                    {orders.map((order, i) => {
-                      const days = daysUntil(order.expireDate)
-                      const expired = days < 0
-                      const expiringSoon = days >= 0 && days <= 7
-                      return (
-                        <motion.div
-                          key={order.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ duration: 0.4, delay: i * 0.05 }}
-                          className="relative group"
-                        >
-                          <div
-                            className={`absolute -inset-[1px] rounded-2xl blur-md opacity-30 ${
-                              expired
-                                ? 'bg-gradient-to-r from-gray-500 to-gray-700'
-                                : expiringSoon
-                                  ? 'bg-gradient-to-r from-amber-500 to-orange-500'
-                                  : 'bg-gradient-to-r from-purple-500 to-pink-500'
-                            }`}
-                          />
-                          <div className="relative glass rounded-2xl p-6">
-                            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                              <div className="flex items-center gap-3">
-                                <h3 className="font-bold text-xl">{order.subscriptionType}</h3>
-                                {expired ? (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-500/20 border border-gray-500/30 text-gray-300">
-                                    已过期
-                                  </span>
-                                ) : expiringSoon ? (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/20 border border-amber-500/30 text-amber-300">
-                                    <Clock className="w-3 h-3" />
-                                    {days} 天后到期
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/20 border border-green-500/30 text-green-300">
-                                    <CheckCircle className="w-3 h-3" />
-                                    使用中
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-right">
-                                <div className="text-xs text-white/40">剩余</div>
-                                <div className={`text-2xl font-bold ${expired ? 'text-gray-400' : 'gradient-text-accent'}`}>
-                                  {expired ? '0 天' : `${days} 天`}
-                                </div>
-                              </div>
+                <div className="space-y-4">
+                  {orders.map((order, i) => {
+                    const r = getRemaining(order.expireDate, now)
+                    const expiringSoon = !r.expired && r.days <= 7
+                    return (
+                      <motion.div
+                        key={order.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.4, delay: i * 0.05 }}
+                        className="relative group"
+                      >
+                        <div
+                          className={`absolute -inset-[1px] rounded-2xl blur-md opacity-30 ${
+                            r.expired
+                              ? 'bg-gradient-to-r from-gray-500 to-gray-700'
+                              : expiringSoon
+                                ? 'bg-gradient-to-r from-amber-500 to-orange-500'
+                                : 'bg-gradient-to-r from-purple-500 to-pink-500'
+                          }`}
+                        />
+                        <div className="relative glass rounded-2xl p-6">
+                          <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                            <div className="flex items-center gap-3">
+                              <h3 className="font-bold text-xl">{order.subscriptionType}</h3>
+                              {r.expired ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-500/20 border border-gray-500/30 text-gray-300">
+                                  已过期
+                                </span>
+                              ) : expiringSoon ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/20 border border-amber-500/30 text-amber-300">
+                                  <Clock className="w-3 h-3" />
+                                  即将到期
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/20 border border-green-500/30 text-green-300">
+                                  <CheckCircle className="w-3 h-3" />
+                                  使用中
+                                </span>
+                              )}
                             </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                              <div className="flex items-center gap-2">
-                                <span className="text-white/40 w-20">开通时间</span>
-                                <span className="text-white/80">{formatDate(order.startDate)}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-white/40 w-20">到期时间</span>
-                                <span className={expired ? 'text-gray-400' : 'text-white/80'}>{formatDate(order.expireDate)}</span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-white/40 w-20">账户</span>
-                                <span className="font-mono text-white/80 break-all">{order.claudeAccount}</span>
-                              </div>
-                              {order.xianyuNickname && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-white/40 w-20">闲鱼昵称</span>
-                                  <span className="text-white/80">{order.xianyuNickname}</span>
+                            <div className="text-right">
+                              <div className="text-xs text-white/40 mb-0.5">剩余</div>
+                              {r.expired ? (
+                                <div className="text-2xl font-bold text-gray-400 tabular-nums">已过期</div>
+                              ) : (
+                                <div className="flex items-baseline gap-1 tabular-nums">
+                                  <span className="text-2xl font-bold gradient-text-accent">{r.days}</span>
+                                  <span className="text-sm text-white/50">天</span>
+                                  <span className="text-lg font-bold text-white/80 ml-1">{String(r.hours).padStart(2, '0')}</span>
+                                  <span className="text-xs text-white/40">:</span>
+                                  <span className="text-lg font-bold text-white/80">{String(r.minutes).padStart(2, '0')}</span>
+                                  <span className="text-xs text-white/40">:</span>
+                                  <span className="text-lg font-bold text-white/60">{String(r.seconds).padStart(2, '0')}</span>
                                 </div>
                               )}
                             </div>
                           </div>
-                        </motion.div>
-                      )
-                    })}
-                  </div>
-                </>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/40 w-20">开通时间</span>
+                              <span className="text-white/80">{formatDate(order.startDate)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/40 w-20">到期时间</span>
+                              <span className={r.expired ? 'text-gray-400' : 'text-white/80'}>{formatDate(order.expireDate)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-white/40 w-20">账户</span>
+                              <span className="font-mono text-white/80 break-all">{order.claudeAccount}</span>
+                            </div>
+                            {order.xianyuNickname && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-white/40 w-20">闲鱼昵称</span>
+                                <span className="text-white/80">{order.xianyuNickname}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
               )}
             </motion.div>
           )}

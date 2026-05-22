@@ -10,7 +10,8 @@ import { cn } from '@/lib/utils'
 
 const navLinks = [
   { href: '/', label: '首页' },
-  { href: '/products', label: '服务' },
+  { href: '/products', label: '商品' },
+  { href: '/support', label: '客户服务' },
   { href: '/games', label: '游戏' },
   { href: '/about', label: '关于' },
 ]
