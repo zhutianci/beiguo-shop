@@ -41,13 +41,15 @@ services:
     networks:
       - app-network
 
-  # Nginx 反向代理（仅供 cloudflared 内部访问，不对外暴露任何端口）
+  # Nginx 反向代理
+  # - cloudflared 通过容器网络访问 nginx:80（用户走域名时）
+  # - 80 端口对外暴露，供 IP 直接访问（用户走公网IP时）
   nginx:
     image: nginx:alpine
     container_name: beiguo-nginx
     restart: unless-stopped
-    expose:
-      - "80"
+    ports:
+      - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
