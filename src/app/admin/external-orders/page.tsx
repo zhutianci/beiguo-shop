@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckCircle, AlertCircle, Trash2, Search, FileText, Sparkles } from 'lucide-react'
+import { CheckCircle, AlertCircle, Trash2, Search, FileText, Sparkles, Pencil, X } from 'lucide-react'
 
 interface ParsedRow {
   startDate: string // ISO date YYYY-MM-DD
@@ -25,6 +25,15 @@ interface ExternalOrder {
   claudeAccount: string
   importBatch: string | null
   updatedAt: string
+}
+
+interface EditingOrder {
+  id: number
+  startDate: string  // YYYY-MM-DD
+  expireDate: string // YYYY-MM-DD
+  subscriptionType: string
+  xianyuNickname: string
+  claudeAccount: string
 }
 
 // 解析 "2026年4月23日" 或 "2026-04-23" 或 "2026/04/23"
@@ -56,8 +65,9 @@ function addOneMonth(d: Date): Date {
 }
 
 function parseLine(raw: string): ParsedRow {
-  // 用任意空白字符（包括 tab）分割，至少 4 段
-  const parts = raw.trim().split(/\s+/)
+  // ✨ 只用 Tab 分隔（从 Excel / 表格复制就是 Tab）
+  // 这样订阅类型/昵称里可以包含空格而不会被错误拆分
+  const parts = raw.split(/\t+/).map((p) => p.trim())
   if (parts.length < 4) {
     return {
       raw,
@@ -66,15 +76,11 @@ function parseLine(raw: string): ParsedRow {
       subscriptionType: '',
       xianyuNickname: '',
       claudeAccount: '',
-      error: '至少需要 4 个字段',
+      error: '需要 4 个字段，用 Tab 分隔（直接从 Excel / 表格复制即可）',
     }
   }
 
-  // 第一段为日期，第二段为类型，倒数第一为邮箱，剩下的是昵称（昵称可能含空格）
-  const startStr = parts[0]
-  const subscriptionType = parts[1]
-  const claudeAccount = parts[parts.length - 1]
-  const xianyuNickname = parts.slice(2, -1).join(' ')
+  const [startStr, subscriptionType, xianyuNickname, claudeAccount] = parts
 
   const startDate = parseDate(startStr)
   if (!startDate) {
@@ -106,9 +112,9 @@ function parseLine(raw: string): ParsedRow {
     raw,
     startDate: toIsoDate(startDate),
     expireDate: toIsoDate(expireDate),
-    subscriptionType,
-    xianyuNickname,
-    claudeAccount,
+    subscriptionType: subscriptionType.trim(),
+    xianyuNickname: xianyuNickname.trim(),
+    claudeAccount: claudeAccount.trim(),
   }
 }
 
@@ -121,12 +127,17 @@ export default function ExternalOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState('')
 
+  // 编辑/删除状态
+  const [editing, setEditing] = useState<EditingOrder | null>(null)
+  const [savingEdit, setSavingEdit] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
   const parsed = useMemo(() => {
     if (!text.trim()) return []
     return text
       .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
+      .map((line) => line.replace(/\s+$/, '')) // 只去尾空，保留行内 Tab
+      .filter((line) => line.trim().length > 0)
       .map(parseLine)
   }, [text])
 
@@ -137,8 +148,8 @@ export default function ExternalOrdersPage() {
     setLoading(true)
     try {
       const url = keyword
-        ? `/api/admin/external-orders?keyword=${encodeURIComponent(keyword)}&pageSize=100`
-        : `/api/admin/external-orders?pageSize=100`
+        ? `/api/admin/external-orders?keyword=${encodeURIComponent(keyword)}&pageSize=200`
+        : `/api/admin/external-orders?pageSize=200`
       const res = await fetch(url)
       const data = await res.json()
       if (data.success) setOrders(data.data.list)
@@ -149,6 +160,7 @@ export default function ExternalOrdersPage() {
 
   useEffect(() => {
     loadOrders()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleImport = async () => {
@@ -196,7 +208,71 @@ export default function ExternalOrdersPage() {
     }
   }
 
+  const handleStartEdit = (o: ExternalOrder) => {
+    setEditError(null)
+    setEditing({
+      id: o.id,
+      startDate: o.startDate.slice(0, 10),
+      expireDate: o.expireDate.slice(0, 10),
+      subscriptionType: o.subscriptionType,
+      xianyuNickname: o.xianyuNickname || '',
+      claudeAccount: o.claudeAccount,
+    })
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editing) return
+    setSavingEdit(true)
+    setEditError(null)
+    try {
+      const res = await fetch(`/api/admin/external-orders/${editing.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          startDate: editing.startDate,
+          expireDate: editing.expireDate,
+          subscriptionType: editing.subscriptionType,
+          xianyuNickname: editing.xianyuNickname || null,
+          claudeAccount: editing.claudeAccount,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setEditing(null)
+        loadOrders()
+      } else {
+        setEditError(data.error || '更新失败')
+      }
+    } catch (e) {
+      setEditError(e instanceof Error ? e.message : '更新失败')
+    } finally {
+      setSavingEdit(false)
+    }
+  }
+
+  const handleDeleteOne = async (o: ExternalOrder) => {
+    if (!confirm(`确定删除订单：\n${o.subscriptionType} · ${o.claudeAccount} · ${o.startDate.slice(0, 10)}？`)) return
+    const res = await fetch(`/api/admin/external-orders/${o.id}`, { method: 'DELETE' })
+    const data = await res.json()
+    if (data.success) {
+      loadOrders()
+    } else {
+      alert(data.error || '删除失败')
+    }
+  }
+
   const isExpired = (expire: string) => new Date(expire) < new Date()
+
+  // 当编辑开通时间时，自动更新到期时间为 +1 月（用户仍可手动改）
+  const handleEditStartDateChange = (v: string) => {
+    if (!editing) return
+    const d = parseDate(v.replace(/-/g, '-')) || new Date(v)
+    if (isNaN(d.getTime())) {
+      setEditing({ ...editing, startDate: v })
+      return
+    }
+    setEditing({ ...editing, startDate: v, expireDate: toIsoDate(addOneMonth(d)) })
+  }
 
   return (
     <div className="space-y-6">
@@ -212,15 +288,14 @@ export default function ExternalOrdersPage() {
                 使用说明
               </div>
               <ol className="list-decimal list-inside space-y-1 text-blue-800">
-                <li>每行一条订单，字段用<strong>空格或 Tab</strong>分隔</li>
-                <li>字段顺序：<code className="bg-blue-100 px-1 rounded">开通时间 订阅类型 闲鱼昵称 Claude账户</code></li>
-                <li>到期时间会自动计算（开通时间 + 1 个月）</li>
-                <li>已存在的订单（按账户+开通时间+类型识别）会自动更新</li>
+                <li>每行一条订单，字段用 <strong>Tab</strong> 分隔（从 Excel / 表格直接复制即可）</li>
+                <li>字段顺序：<code className="bg-blue-100 px-1 rounded">开通时间 ⇥ 订阅类型 ⇥ 闲鱼昵称 ⇥ Claude账户</code></li>
+                <li>订阅类型与昵称内可以包含空格</li>
+                <li>到期时间自动计算（开通时间 + 1 个月）</li>
+                <li>已存在的订单（账户+开通时间+类型）会自动更新</li>
               </ol>
-              <div className="mt-3 p-2 bg-blue-100 rounded font-mono text-xs">
-                2026年4月23日    max100    hijkkkk    linyanan421@gmail.com<br />
-                2026年5月23日    max100    hijkkkk    linyanan421@gmail.com<br />
-                2026年1月13日    pro    爱吃啤酒肉丝的清潭    liaoliang226@gmail.com
+              <div className="mt-3 p-2 bg-blue-100 rounded font-mono text-xs whitespace-pre">
+                {'2026年4月23日\tClaude Max 20x\thijkkkk\tlinyanan421@gmail.com\n2026年5月23日\tClaude Pro\t黄河清不清\tInnifredIenow5213@outlook.com\n2026年1月13日\tChatGPT Plus\t爱吃啤酒肉丝的清潭\tliaoliang226@gmail.com'}
               </div>
             </div>
 
@@ -228,8 +303,8 @@ export default function ExternalOrdersPage() {
               <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="在这里粘贴订单数据，每行一条..."
-                className="w-full px-4 py-3 rounded-lg border border-gray-300 font-mono text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                placeholder={'在这里粘贴订单数据，每行一条（Tab 分隔）...'}
+                className="w-full px-4 py-3 rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-400 font-mono text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 rows={10}
               />
             </div>
@@ -237,7 +312,7 @@ export default function ExternalOrdersPage() {
             {parsed.length > 0 && (
               <div className="border rounded-lg p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium">
+                  <div className="text-sm font-medium text-gray-700">
                     解析结果：
                     <span className="text-green-600 ml-2">✓ {validRows.length} 条有效</span>
                     {errorRows.length > 0 && (
@@ -246,7 +321,6 @@ export default function ExternalOrdersPage() {
                   </div>
                 </div>
 
-                {/* 错误行 */}
                 {errorRows.length > 0 && (
                   <div className="rounded-lg bg-red-50 p-3 space-y-1 text-xs">
                     {errorRows.slice(0, 10).map((r, i) => (
@@ -261,10 +335,9 @@ export default function ExternalOrdersPage() {
                   </div>
                 )}
 
-                {/* 有效预览 */}
                 {validRows.length > 0 && (
                   <div className="overflow-x-auto">
-                    <table className="text-xs w-full">
+                    <table className="text-xs w-full text-gray-800">
                       <thead>
                         <tr className="bg-gray-100">
                           <th className="px-2 py-1 text-left">开通时间</th>
@@ -348,31 +421,48 @@ export default function ExternalOrdersPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm text-gray-800">
                 <thead>
                   <tr className="border-b text-left text-gray-500 text-xs">
-                    <th className="pb-2">开通时间</th>
-                    <th className="pb-2">到期时间</th>
-                    <th className="pb-2">订阅类型</th>
-                    <th className="pb-2">闲鱼昵称</th>
-                    <th className="pb-2">Claude账户</th>
-                    <th className="pb-2">状态</th>
+                    <th className="pb-2 pr-3">开通时间</th>
+                    <th className="pb-2 pr-3">到期时间</th>
+                    <th className="pb-2 pr-3">订阅类型</th>
+                    <th className="pb-2 pr-3">闲鱼昵称</th>
+                    <th className="pb-2 pr-3">Claude账户</th>
+                    <th className="pb-2 pr-3">状态</th>
+                    <th className="pb-2 text-right">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {orders.map((o) => (
-                    <tr key={o.id} className="border-b">
-                      <td className="py-2">{o.startDate.slice(0, 10)}</td>
-                      <td className="py-2">{o.expireDate.slice(0, 10)}</td>
-                      <td className="py-2 font-medium">{o.subscriptionType}</td>
-                      <td className="py-2">{o.xianyuNickname || '-'}</td>
-                      <td className="py-2 font-mono">{o.claudeAccount}</td>
-                      <td className="py-2">
+                    <tr key={o.id} className="border-b hover:bg-gray-50/60 transition-colors">
+                      <td className="py-2 pr-3">{o.startDate.slice(0, 10)}</td>
+                      <td className="py-2 pr-3">{o.expireDate.slice(0, 10)}</td>
+                      <td className="py-2 pr-3 font-medium">{o.subscriptionType}</td>
+                      <td className="py-2 pr-3">{o.xianyuNickname || '-'}</td>
+                      <td className="py-2 pr-3 font-mono text-xs">{o.claudeAccount}</td>
+                      <td className="py-2 pr-3">
                         {isExpired(o.expireDate) ? (
                           <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-red-100 text-red-700">已过期</span>
                         ) : (
                           <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-green-100 text-green-700">有效</span>
                         )}
+                      </td>
+                      <td className="py-2 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => handleStartEdit(o)}
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          编辑
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOne(o)}
+                          className="ml-1 inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          删除
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -382,6 +472,101 @@ export default function ExternalOrdersPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 编辑弹窗 */}
+      {editing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={() => !savingEdit && setEditing(null)}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-semibold text-gray-900">编辑订单 #{editing.id}</h3>
+              <button
+                onClick={() => !savingEdit && setEditing(null)}
+                className="p-1 rounded hover:bg-gray-100 text-gray-500"
+                aria-label="关闭"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">开通时间</label>
+                  <input
+                    type="date"
+                    value={editing.startDate}
+                    onChange={(e) => handleEditStartDateChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">到期时间</label>
+                  <input
+                    type="date"
+                    value={editing.expireDate}
+                    onChange={(e) => setEditing({ ...editing, expireDate: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">订阅类型</label>
+                <input
+                  type="text"
+                  value={editing.subscriptionType}
+                  onChange={(e) => setEditing({ ...editing, subscriptionType: e.target.value })}
+                  placeholder="如：Claude Max 20x"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">闲鱼昵称</label>
+                <input
+                  type="text"
+                  value={editing.xianyuNickname}
+                  onChange={(e) => setEditing({ ...editing, xianyuNickname: e.target.value })}
+                  placeholder="选填"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Claude 账户</label>
+                <input
+                  type="email"
+                  value={editing.claudeAccount}
+                  onChange={(e) => setEditing({ ...editing, claudeAccount: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-mono focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                />
+              </div>
+
+              {editError && (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  {editError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setEditing(null)} disabled={savingEdit}>
+                  取消
+                </Button>
+                <Button onClick={handleSaveEdit} loading={savingEdit}>
+                  保存
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
