@@ -60,6 +60,7 @@ export default function RemindersPage() {
   const [config, setConfig] = useState<ConfigStatus>({ email: false, sms: false })
   const [withinDays, setWithinDays] = useState(7)
   const [expiredDays, setExpiredDays] = useState(30)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'unreminded' | 'reminded'>('all')
   const [counts, setCounts] = useState<{ upcoming: number; expired: number }>({ upcoming: 0, expired: 0 })
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -89,6 +90,10 @@ export default function RemindersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const visibleRows = rows.filter((r) =>
+    statusFilter === 'unreminded' ? !r.reminded : statusFilter === 'reminded' ? r.reminded : true
+  )
+
   const toggle = (id: number) => {
     const next = new Set(selected)
     if (next.has(id)) next.delete(id)
@@ -97,8 +102,8 @@ export default function RemindersPage() {
   }
 
   const toggleAll = () => {
-    const sendable = rows.filter((r) => r.hasChannel).map((r) => r.id)
-    if (selected.size === sendable.length) setSelected(new Set())
+    const sendable = visibleRows.filter((r) => r.hasChannel).map((r) => r.id)
+    if (sendable.every((id) => selected.has(id))) setSelected(new Set())
     else setSelected(new Set(sendable))
   }
 
@@ -157,7 +162,7 @@ export default function RemindersPage() {
     }
   }
 
-  const sendableCount = rows.filter((r) => r.hasChannel).length
+  const sendableCount = visibleRows.filter((r) => r.hasChannel).length
 
   return (
     <div className="space-y-6">
@@ -224,6 +229,18 @@ export default function RemindersPage() {
                 <option value={3650}>全部</option>
               </select>
             </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>提醒状态</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'unreminded' | 'reminded')}
+                className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
+              >
+                <option value="all">全部</option>
+                <option value="unreminded">仅未提醒</option>
+                <option value="reminded">仅已提醒</option>
+              </select>
+            </div>
           </div>
           {msg && (
             <div
@@ -246,7 +263,8 @@ export default function RemindersPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>
-            待提醒订单（即将到期 {counts.upcoming} · 已过期 {counts.expired}）
+            待提醒订单（即将到期 {counts.upcoming} · 已过期 {counts.expired}
+            {statusFilter !== 'all' && ` · 当前显示 ${visibleRows.length}`}）
           </CardTitle>
           <Button size="sm" onClick={handleBatchSend} loading={batchSending} disabled={selected.size === 0}>
             <Send className="w-4 h-4 mr-1" />
@@ -256,10 +274,14 @@ export default function RemindersPage() {
         <CardContent>
           {loading ? (
             <div className="text-center py-12 text-gray-400">加载中...</div>
-          ) : rows.length === 0 ? (
+          ) : visibleRows.length === 0 ? (
             <div className="text-center py-12 text-gray-400 flex flex-col items-center gap-2">
               <CheckCircle className="w-8 h-8 text-green-400" />
-              太好了，当前没有需要提醒的订单
+              {statusFilter === 'unreminded'
+                ? '没有未提醒的订单'
+                : statusFilter === 'reminded'
+                  ? '没有已提醒的订单'
+                  : '太好了，当前没有需要提醒的订单'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -283,7 +305,7 @@ export default function RemindersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map((r) => (
+                  {visibleRows.map((r) => (
                     <tr key={r.id} className="border-b hover:bg-gray-50/60 transition-colors align-top">
                       <td className="py-3 pr-3">
                         <input
