@@ -35,17 +35,25 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // 取商品价格做售价匹配 + 取已有发票记录
-    const [products, invoices] = await Promise.all([
+    const orderIds = orders.map((o) => o.id)
+    // 取商品价格做售价匹配 + 已有发票 + 已有收据
+    const [products, invoices, receipts] = await Promise.all([
       prisma.product.findMany({ where: { status: 1 }, select: { name: true, price: true } }),
-      orders.length
+      orderIds.length
         ? prisma.invoice.findMany({
-            where: { externalOrderId: { in: orders.map((o) => o.id) } },
+            where: { externalOrderId: { in: orderIds } },
             select: { id: true, externalOrderId: true, status: true },
+          })
+        : Promise.resolve([]),
+      orderIds.length
+        ? prisma.receipt.findMany({
+            where: { externalOrderId: { in: orderIds } },
+            select: { id: true, externalOrderId: true },
           })
         : Promise.resolve([]),
     ])
     const invoiceMap = new Map(invoices.map((iv) => [iv.externalOrderId, iv]))
+    const receiptMap = new Map(receipts.map((r) => [r.externalOrderId, r]))
 
     const list = orders.map((o) => {
       const price = matchPriceFromProducts(products, o.subscriptionType)
@@ -65,6 +73,7 @@ export async function GET(request: NextRequest) {
         invoiceStatus = existing ? existing.status : 'UNAPPLIED'
       }
 
+      const receipt = receiptMap.get(o.id)
       return {
         ...o,
         canInvoice: price != null,
@@ -73,6 +82,8 @@ export async function GET(request: NextRequest) {
         taxFee,
         invoiceStatus,
         invoiceId: existing?.id ?? null,
+        canReceipt: price != null,
+        receiptId: receipt?.id ?? null,
       }
     })
 

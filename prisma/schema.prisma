@@ -262,6 +262,26 @@ model Invoice {
   @@map("invoices")
 }
 
+// 收据（买家提交抬头后出具，加盖公章；一笔订单仅一张，仅管理员可删除重开）
+model Receipt {
+  id               Int       @id @default(autoincrement())
+  receiptNo        String    @unique @map("receipt_no") @db.VarChar(32)
+  externalOrderId  Int?      @map("external_order_id")
+  sourceKey        String?   @map("source_key") @db.VarChar(128)
+  claudeAccount    String    @map("claude_account") @db.VarChar(255)
+  subscriptionType String    @map("subscription_type") @db.VarChar(100)
+  orderStartDate   DateTime? @map("order_start_date") @db.Date
+  orderExpireDate  DateTime? @map("order_expire_date") @db.Date
+  payerTitle       String    @map("payer_title") @db.VarChar(200) // 付款人（买家抬头）
+  payee            String    @db.VarChar(200)                      // 收款人
+  amount           Decimal   @db.Decimal(10, 2)                    // 付款金额（= 商品售价）
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([claudeAccount])
+  @@index([externalOrderId])
+  @@map("receipts")
+}
+
 // ============ 论坛 / 社区反馈 ============
 
 // 论坛板块

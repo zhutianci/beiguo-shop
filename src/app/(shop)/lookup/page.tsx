@@ -20,6 +20,8 @@ interface ExternalOrder {
   taxFee: number | null
   invoiceStatus: string // UNAPPLIED | AWAIT_PAY | SUBMITTED | ISSUED | CANNOT
   invoiceId: number | null
+  canReceipt: boolean
+  receiptId: number | null
 }
 
 const INVOICE_LABELS: Record<string, string> = {
@@ -85,6 +87,7 @@ function LookupForm() {
   const [errorMsg, setErrorMsg] = useState('')
   const [now, setNow] = useState<Date>(new Date())
   const [invoiceOrder, setInvoiceOrder] = useState<ExternalOrder | null>(null)
+  const [receiptOrder, setReceiptOrder] = useState<ExternalOrder | null>(null)
 
   // 实时刷新当前时间
   useEffect(() => {
@@ -328,6 +331,42 @@ function LookupForm() {
                               <PayTaxButton invoiceId={order.invoiceId} />
                             )}
                           </div>
+
+                          {/* 收据 */}
+                          <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-2 text-sm">
+                              <FileText className="w-4 h-4 text-white/40" />
+                              <span className="text-white/40">收据</span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs ${
+                                  order.receiptId
+                                    ? 'bg-green-500/15 text-green-300'
+                                    : order.canReceipt
+                                      ? 'bg-white/10 text-white/60'
+                                      : 'bg-gray-500/15 text-gray-400'
+                                }`}
+                              >
+                                {order.receiptId ? '已开具' : order.canReceipt ? '可开具' : '不可开具'}
+                              </span>
+                            </div>
+                            {order.receiptId ? (
+                              <a
+                                href={`/receipt/${order.receiptId}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-4 py-1.5 rounded-lg glass text-sm font-medium hover:bg-white/10 transition-colors"
+                              >
+                                查看收据
+                              </a>
+                            ) : order.canReceipt ? (
+                              <button
+                                onClick={() => setReceiptOrder(order)}
+                                className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(34,211,238,0.3)] transition-all"
+                              >
+                                申请收据
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
                       </motion.div>
                     )
@@ -355,6 +394,7 @@ function LookupForm() {
       {invoiceOrder && (
         <InvoiceModal order={invoiceOrder} defaultEmail={email} onClose={() => setInvoiceOrder(null)} />
       )}
+      {receiptOrder && <ReceiptModal order={receiptOrder} onClose={() => setReceiptOrder(null)} />}
     </div>
   )
 }
@@ -708,6 +748,95 @@ function InvoiceModal({
           提交发票并支付税费 ¥{order.taxFee?.toFixed(2)}
         </button>
         <p className="text-xs text-white/30 text-center mt-2">提交后将跳转支付宝支付 6% 税费，支付完成即提交开票</p>
+      </motion.div>
+    </div>
+  )
+}
+
+// 收据申请弹窗（仅填抬头，提交后生成并跳转收据页）
+function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () => void }) {
+  const [payerTitle, setPayerTitle] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const submit = async () => {
+    setErr(null)
+    if (!payerTitle.trim()) return setErr('请填写付款人抬头')
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/receipts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ externalOrderId: order.id, payerTitle: payerTitle.trim() }),
+      })
+      const data = await res.json()
+      if (data.success && data.data?.receiptId) {
+        window.open(`/receipt/${data.data.receiptId}`, '_blank')
+        onClose()
+        return
+      }
+      setErr(data.error || '生成失败')
+    } catch {
+      setErr('网络错误，请重试')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md glass-strong rounded-3xl p-6"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <FileText className="w-5 h-5 text-cyan-400" /> 申请收据
+          </h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="glass rounded-2xl p-4 mb-4 text-sm space-y-2">
+          <div className="flex justify-between"><span className="text-white/40">收款人</span><span className="text-white/80 text-right">益阳市赫山区必高科技有限公司</span></div>
+          <div className="flex justify-between"><span className="text-white/40">订阅</span><span className="text-white/80">{order.subscriptionType}</span></div>
+          <div className="flex justify-between"><span className="text-white/40">账户</span><span className="text-white/70 font-mono text-xs break-all">{order.claudeAccount}</span></div>
+          <div className="flex justify-between"><span className="text-white/40">开通 / 到期</span><span className="text-white/70">{formatDate(order.startDate)} ~ {formatDate(order.expireDate)}</span></div>
+          <div className="flex justify-between"><span className="text-white/40">付款金额</span><span className="text-white/90 font-bold">¥{order.sellingPrice?.toFixed(2)}</span></div>
+        </div>
+
+        <div>
+          <label className="block text-xs text-white/50 mb-1">
+            付款人抬头<span className="text-red-400 ml-0.5">*</span>
+          </label>
+          <input
+            value={payerTitle}
+            onChange={(e) => setPayerTitle(e.target.value)}
+            placeholder="公司名称 / 个人姓名"
+            maxLength={200}
+            className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/25 outline-none focus:border-cyan-500/50 text-sm"
+          />
+        </div>
+
+        {err && (
+          <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
+            <AlertCircle className="w-4 h-4" /> {err}
+          </div>
+        )}
+
+        <button
+          onClick={submit}
+          disabled={submitting}
+          className="mt-5 w-full py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 font-semibold flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] transition-all disabled:opacity-50"
+        >
+          {submitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
+          生成收据
+        </button>
+        <p className="text-xs text-white/30 text-center mt-2">收据仅可开具一次，生成后不可修改；如需重开请联系客服</p>
       </motion.div>
     </div>
   )
