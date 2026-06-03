@@ -25,6 +25,9 @@ model User {
 
   orders       Order[]
   gameScores   GameScore[]
+  forumPosts    ForumPost[]
+  forumComments ForumComment[]
+  forumLikes    ForumLike[]
 
   @@map("users")
 }
@@ -218,4 +221,99 @@ model Setting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
+}
+
+// ============ 论坛 / 社区反馈 ============
+
+// 论坛板块
+model ForumCategory {
+  id          Int      @id @default(autoincrement())
+  name        String   @db.VarChar(50)
+  slug        String   @unique @db.VarChar(50)
+  description String?  @db.VarChar(255)
+  icon        String?  @db.VarChar(20) // emoji
+  color       String?  @db.VarChar(20) // 主题色（tailwind 渐变前缀或 hex）
+  sortOrder   Int      @default(0) @map("sort_order")
+  status      Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  posts       ForumPost[]
+
+  @@map("forum_categories")
+}
+
+// 帖子
+model ForumPost {
+  id           Int      @id @default(autoincrement())
+  categoryId   Int      @map("category_id")
+  userId       Int?     @map("user_id")        // 登录用户；匿名为 null
+  authorName   String   @map("author_name") @db.VarChar(50)   // 显示名（用户昵称或匿名昵称）
+  authorEmail  String?  @map("author_email") @db.VarChar(100) // 匿名可选邮箱（不公开展示）
+  title        String   @db.VarChar(200)
+  content      String   @db.Text                // Markdown
+  images       String?  @db.Text                // JSON: 图片 URL 数组
+  tags         String?  @db.VarChar(255)        // 逗号分隔
+  pinned       Boolean  @default(false)         // 置顶
+  featured     Boolean  @default(false)         // 精华
+  locked       Boolean  @default(false)         // 锁帖（禁止回复）
+  status       Int      @default(1)             // 1 正常 0 隐藏
+  views        Int      @default(0)
+  likeCount    Int      @default(0) @map("like_count")
+  commentCount Int      @default(0) @map("comment_count")
+  lastReplyAt  DateTime? @map("last_reply_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  category     ForumCategory  @relation(fields: [categoryId], references: [id])
+  user         User?          @relation(fields: [userId], references: [id])
+  comments     ForumComment[]
+  likes        ForumLike[]
+
+  @@index([categoryId])
+  @@index([status, pinned, lastReplyAt])
+  @@index([createdAt])
+  @@map("forum_posts")
+}
+
+// 评论 / 楼中楼回复
+model ForumComment {
+  id         Int      @id @default(autoincrement())
+  postId     Int      @map("post_id")
+  parentId   Int?     @map("parent_id")     // 回复某条评论（楼中楼）
+  userId     Int?     @map("user_id")
+  authorName String   @map("author_name") @db.VarChar(50)
+  content    String   @db.Text
+  likeCount  Int      @default(0) @map("like_count")
+  status     Int      @default(1)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  post       ForumPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user       User?         @relation(fields: [userId], references: [id])
+  parent     ForumComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    ForumComment[] @relation("CommentReplies")
+  likes      ForumLike[]
+
+  @@index([postId])
+  @@index([parentId])
+  @@map("forum_comments")
+}
+
+// 点赞（帖子或评论；登录用 userId，匿名用 anonId 去重）
+model ForumLike {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  anonId    String?  @map("anon_id") @db.VarChar(64)
+  postId    Int?     @map("post_id")
+  commentId Int?     @map("comment_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User?         @relation(fields: [userId], references: [id])
+  post      ForumPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment   ForumComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([commentId])
+  @@index([userId])
+  @@map("forum_likes")
 }

@@ -26,6 +26,9 @@ services:
       # 阿里云短信
       - ALIYUN_SMS_SIGN_NAME=${ALIYUN_SMS_SIGN_NAME}
       - ALIYUN_SMS_TEMPLATE_CODE=${ALIYUN_SMS_TEMPLATE_CODE}
+    volumes:
+      # 论坛上传图片持久化（容器重建不丢）
+      - forum_uploads:/app/public/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -105,3 +108,4 @@ networks:
 
 volumes:
   mysql_data:
+  forum_uploads:

@@ -216,3 +216,54 @@
 .text-body-lg {
   @apply text-lg md:text-xl text-white/60;
 }
+
+/* ============ 论坛 Markdown 渲染 ============ */
+.prose-forum {
+  font-size: 15px;
+  line-height: 1.8;
+  word-break: break-word;
+}
+.prose-forum .md-p { margin: 0 0 0.9em; }
+.prose-forum .md-h { font-weight: 700; line-height: 1.3; margin: 1.2em 0 0.6em; color: #fff; }
+.prose-forum .md-h1 { font-size: 1.6em; }
+.prose-forum .md-h2 { font-size: 1.35em; }
+.prose-forum .md-h3 { font-size: 1.18em; }
+.prose-forum .md-h4, .prose-forum .md-h5, .prose-forum .md-h6 { font-size: 1.05em; }
+.prose-forum .md-ul, .prose-forum .md-ol { margin: 0 0 0.9em; padding-left: 1.5em; }
+.prose-forum .md-ul { list-style: disc; }
+.prose-forum .md-ol { list-style: decimal; }
+.prose-forum li { margin: 0.25em 0; }
+.prose-forum .md-link { color: #c4b5fd; text-decoration: underline; text-underline-offset: 2px; }
+.prose-forum .md-link:hover { color: #ddd6fe; }
+.prose-forum .md-img { max-width: 100%; border-radius: 12px; margin: 0.6em 0; border: 1px solid rgba(255,255,255,0.1); }
+.prose-forum .md-code {
+  background: rgba(255,255,255,0.1);
+  padding: 0.15em 0.4em;
+  border-radius: 6px;
+  font-size: 0.88em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #f0abfc;
+}
+.prose-forum .md-pre {
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 1em;
+  overflow-x: auto;
+  margin: 0 0 0.9em;
+}
+.prose-forum .md-pre code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  color: rgba(255,255,255,0.85);
+  white-space: pre;
+}
+.prose-forum .md-quote {
+  border-left: 3px solid rgba(168,85,247,0.6);
+  padding: 0.2em 0 0.2em 1em;
+  margin: 0 0 0.9em;
+  color: rgba(255,255,255,0.6);
+}
+.prose-forum .md-hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 1.2em 0; }
+.prose-forum strong { color: #fff; font-weight: 700; }
+.prose-forum a img { display: inline; }

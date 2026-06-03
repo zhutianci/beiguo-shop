@@ -46,6 +46,9 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
+# 论坛图片上传目录（命名卷首次挂载会继承此目录的 nextjs 属主，保证可写）
+RUN mkdir -p ./public/uploads/forum && chown -R nextjs:nodejs ./public/uploads
+
 USER nextjs
 
 EXPOSE 3000
