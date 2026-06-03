@@ -30,12 +30,14 @@ export interface SendResult {
   detail: string // 成功时为 RequestId，失败时为错误信息
 }
 
-// 阿里云要求的百分号编码（RFC3986）
+// 阿里云要求的百分号编码（严格 RFC3986）
+// encodeURIComponent 不会编码 ! ' ( ) *，但阿里云签名要求这些必须编码，
+// 否则含这些字符的参数（如 HTML 邮件正文里的 rgba()、'Segoe UI'）会导致 SignatureDoesNotMatch
 function percentEncode(s: string): string {
-  return encodeURIComponent(s)
-    .replace(/\+/g, '%20')
-    .replace(/\*/g, '%2A')
-    .replace(/%7E/g, '~')
+  return encodeURIComponent(s).replace(
+    /[!'()*]/g,
+    (c) => '%' + c.charCodeAt(0).toString(16).toUpperCase()
+  )
 }
 
 function isoTimestamp(): string {
