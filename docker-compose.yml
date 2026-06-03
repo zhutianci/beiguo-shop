@@ -14,6 +14,18 @@ services:
       - NEXT_PUBLIC_APP_NAME=贝果科技
       - NEXT_PUBLIC_APP_URL=${APP_URL}
       - NODE_ENV=production
+      # 定时任务密钥
+      - CRON_SECRET=${CRON_SECRET}
+      # 阿里云（邮件 + 短信共用一对 AccessKey）
+      - ALIYUN_ACCESS_KEY_ID=${ALIYUN_ACCESS_KEY_ID}
+      - ALIYUN_ACCESS_KEY_SECRET=${ALIYUN_ACCESS_KEY_SECRET}
+      - ALIYUN_REGION=${ALIYUN_REGION}
+      # 阿里云邮件推送 DirectMail
+      - ALIYUN_DM_ACCOUNT=${ALIYUN_DM_ACCOUNT}
+      - ALIYUN_DM_FROM_ALIAS=${ALIYUN_DM_FROM_ALIAS}
+      # 阿里云短信
+      - ALIYUN_SMS_SIGN_NAME=${ALIYUN_SMS_SIGN_NAME}
+      - ALIYUN_SMS_TEMPLATE_CODE=${ALIYUN_SMS_TEMPLATE_CODE}
     depends_on:
       db:
         condition: service_healthy
@@ -52,6 +64,25 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - app
+    networks:
+      - app-network
+
+  # 定时任务容器：每天中午 12:00（北京时间）内网调用提醒接口
+  cron:
+    image: alpine:3.20
+    container_name: beiguo-cron
+    restart: unless-stopped
+    environment:
+      - CRON_SECRET=${CRON_SECRET}
+    # 安装 curl + 时区，写入 crontab（0 12 * * * = 每天 12:00），前台运行 crond
+    command: >
+      sh -c "apk add --no-cache curl tzdata >/dev/null 2>&1 &&
+      cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&
+      echo 'Asia/Shanghai' > /etc/timezone &&
+      printf '0 12 * * * curl -fsS -X POST -H \"x-cron-secret: %s\" http://app:3000/api/cron/remind >> /var/log/cron.log 2>&1\n' \"$$CRON_SECRET\" > /etc/crontabs/root &&
+      crond -f -l 8"
     depends_on:
       - app
     networks:

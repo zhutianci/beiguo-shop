@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar } from 'lucide-react'
+import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar, BellRing, Smartphone, Save } from 'lucide-react'
 
 interface ExternalOrder {
   id: number
@@ -287,6 +287,8 @@ function LookupForm() {
                   })}
                 </div>
               )}
+
+              {orders.length > 0 && <ReminderSettings account={orders[0].claudeAccount} />}
             </motion.div>
           )}
         </AnimatePresence>
@@ -303,5 +305,167 @@ function LookupForm() {
         </motion.div>
       </div>
     </div>
+  )
+}
+
+// 到期提醒设置：用户填写邮箱 / 手机，到期前自动收到续费提醒
+function ReminderSettings({ account }: { account: string }) {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [notifyEmail, setNotifyEmail] = useState(true)
+  const [notifyPhone, setNotifyPhone] = useState(false)
+  const [email, setEmail] = useState(account)
+  const [phone, setPhone] = useState('')
+  const [feedback, setFeedback] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setFeedback(null)
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/external-orders/contact?email=${encodeURIComponent(account)}`)
+        const data = await res.json()
+        if (!cancelled && data.success) {
+          const c = data.data.contact
+          setNotifyEmail(c.notifyEmail)
+          setNotifyPhone(c.notifyPhone)
+          setEmail(c.email || account)
+          setPhone(c.phone || '')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [account])
+
+  const handleSave = async () => {
+    setFeedback(null)
+    if (!notifyEmail && !notifyPhone) {
+      setFeedback({ type: 'err', text: '请至少选择一种提醒方式' })
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch('/api/external-orders/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claudeAccount: account,
+          notifyEmail,
+          notifyPhone,
+          email: email.trim() || account,
+          phone: phone.trim() || null,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setFeedback({ type: 'ok', text: '已保存，到期前会自动提醒你续费 🎉' })
+      } else {
+        setFeedback({ type: 'err', text: data.error || '保存失败' })
+      }
+    } catch {
+      setFeedback({ type: 'err', text: '网络错误，请重试' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: 0.1 }}
+      className="mt-8"
+    >
+      <div className="relative">
+        <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500/40 to-cyan-500/40 rounded-2xl blur-md opacity-30" />
+        <div className="relative glass rounded-2xl p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <BellRing className="w-5 h-5 text-purple-400" />
+            <h3 className="font-bold text-lg">设置到期提醒</h3>
+          </div>
+          <p className="text-white/40 text-sm mb-5">
+            订阅到期前 7 天内，我们会通过你选择的方式提醒你续费，避免服务中断。
+          </p>
+
+          {loading ? (
+            <div className="text-white/40 text-sm py-4">加载中...</div>
+          ) : (
+            <div className="space-y-4">
+              {/* 邮箱提醒 */}
+              <div className="rounded-xl border border-white/10 p-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifyEmail}
+                    onChange={(e) => setNotifyEmail(e.target.checked)}
+                    className="w-4 h-4 rounded accent-purple-500"
+                  />
+                  <Mail className="w-4 h-4 text-white/60" />
+                  <span className="text-white/90 font-medium">邮箱提醒</span>
+                  <span className="text-white/30 text-xs">（推荐）</span>
+                </label>
+                {notifyEmail && (
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="提醒邮箱（默认为你的账户邮箱）"
+                    className="mt-3 w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder:text-white/30 outline-none focus:border-purple-500/50"
+                  />
+                )}
+              </div>
+
+              {/* 短信提醒 */}
+              <div className="rounded-xl border border-white/10 p-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifyPhone}
+                    onChange={(e) => setNotifyPhone(e.target.checked)}
+                    className="w-4 h-4 rounded accent-purple-500"
+                  />
+                  <Smartphone className="w-4 h-4 text-white/60" />
+                  <span className="text-white/90 font-medium">短信提醒</span>
+                </label>
+                {notifyPhone && (
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="请输入手机号"
+                    maxLength={11}
+                    className="mt-3 w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white placeholder:text-white/30 outline-none focus:border-purple-500/50"
+                  />
+                )}
+              </div>
+
+              {feedback && (
+                <p className={`text-sm ${feedback.type === 'ok' ? 'text-green-400' : 'text-red-400'}`}>
+                  {feedback.text}
+                </p>
+              )}
+
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="w-full px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {saving ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                保存提醒设置
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
   )
 }

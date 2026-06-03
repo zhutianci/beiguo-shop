@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   FileUp,
+  BellRing,
 } from 'lucide-react'
 
 const sidebarItems = [
@@ -20,6 +21,7 @@ const sidebarItems = [
   { href: '/admin/categories', label: '分类管理', icon: FolderTree },
   { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
   { href: '/admin/external-orders', label: '订单导入', icon: FileUp },
+  { href: '/admin/reminders', label: '到期提醒', icon: BellRing },
   { href: '/admin/users', label: '用户管理', icon: Users },
   { href: '/admin/settings', label: '系统设置', icon: Settings },
 ]

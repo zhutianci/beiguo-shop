@@ -145,12 +145,50 @@ model ExternalOrder {
   claudeAccount    String   @map("claude_account") @db.VarChar(255)     // 账户邮箱
   sourceKey        String   @unique @map("source_key") @db.VarChar(128) // 去重键
   importBatch      String?  @map("import_batch") @db.VarChar(32)
+  remindedExpireDate DateTime? @map("reminded_expire_date") @db.Date    // 已提醒过的到期日（用于跳过自动提醒；续费后到期日变化即重新生效）
+  lastRemindedAt   DateTime? @map("last_reminded_at")                   // 最后一次提醒时间（含手动）
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
+
+  reminderLogs     ReminderLog[]
 
   @@index([claudeAccount])
   @@index([expireDate])
   @@map("external_orders")
+}
+
+// 账户联系方式（用户在前台自助填写，决定到期提醒发到哪里）
+model AccountContact {
+  id            Int      @id @default(autoincrement())
+  claudeAccount String   @unique @map("claude_account") @db.VarChar(255) // 关联 ExternalOrder.claudeAccount
+  email         String?  @db.VarChar(255)  // 邮箱提醒地址（默认 = Claude 账户邮箱）
+  phone         String?  @db.VarChar(20)   // 短信提醒手机号
+  notifyEmail   Boolean  @default(true)  @map("notify_email")  // 是否启用邮箱提醒
+  notifyPhone   Boolean  @default(false) @map("notify_phone")  // 是否启用短信提醒
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("account_contacts")
+}
+
+// 提醒发送记录
+model ReminderLog {
+  id            Int      @id @default(autoincrement())
+  orderId       Int      @map("order_id")
+  claudeAccount String   @map("claude_account") @db.VarChar(255)
+  channel       String   @db.VarChar(20)   // email | sms
+  target        String   @db.VarChar(255)  // 实际发送到的邮箱 / 手机号
+  trigger       String   @db.VarChar(20)   // auto | manual
+  status        String   @db.VarChar(20)   // success | failed
+  detail        String?  @db.Text          // 错误信息或回执 RequestId
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  order         ExternalOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([claudeAccount])
+  @@index([createdAt])
+  @@map("reminder_logs")
 }
 
 // 游戏分数排行榜
