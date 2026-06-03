@@ -21,7 +21,7 @@ interface ExternalOrder {
   invoiceStatus: string // UNAPPLIED | AWAIT_PAY | SUBMITTED | ISSUED | CANNOT
   invoiceId: number | null
   canReceipt: boolean
-  receiptId: number | null
+  receiptToken: string | null
 }
 
 const INVOICE_LABELS: Record<string, string> = {
@@ -339,19 +339,19 @@ function LookupForm() {
                               <span className="text-white/40">收据</span>
                               <span
                                 className={`px-2 py-0.5 rounded-full text-xs ${
-                                  order.receiptId
+                                  order.receiptToken
                                     ? 'bg-green-500/15 text-green-300'
                                     : order.canReceipt
                                       ? 'bg-white/10 text-white/60'
                                       : 'bg-gray-500/15 text-gray-400'
                                 }`}
                               >
-                                {order.receiptId ? '已开具' : order.canReceipt ? '可开具' : '不可开具'}
+                                {order.receiptToken ? '已开具' : order.canReceipt ? '可开具' : '不可开具'}
                               </span>
                             </div>
-                            {order.receiptId ? (
+                            {order.receiptToken ? (
                               <a
-                                href={`/receipt/${order.receiptId}`}
+                                href={`/receipt/${order.receiptToken}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="px-4 py-1.5 rounded-lg glass text-sm font-medium hover:bg-white/10 transition-colors"
@@ -770,8 +770,8 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
         body: JSON.stringify({ externalOrderId: order.id, payerTitle: payerTitle.trim() }),
       })
       const data = await res.json()
-      if (data.success && data.data?.receiptId) {
-        window.open(`/receipt/${data.data.receiptId}`, '_blank')
+      if (data.success && data.data?.token) {
+        window.open(`/receipt/${data.data.token}`, '_blank')
         onClose()
         return
       }

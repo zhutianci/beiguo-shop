@@ -7,6 +7,11 @@ export function genReceiptNo(): string {
   return 'SJ' + Date.now().toString(36).toUpperCase() + crypto.randomBytes(2).toString('hex').toUpperCase()
 }
 
+// 不可枚举的公开访问令牌（128-bit）
+export function genReceiptToken(): string {
+  return crypto.randomBytes(16).toString('hex')
+}
+
 // 金额转人民币大写
 export function rmbCapital(n: number): string {
   if (!isFinite(n)) return ''

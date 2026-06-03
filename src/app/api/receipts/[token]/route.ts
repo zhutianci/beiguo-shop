@@ -5,15 +5,16 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { rmbCapital } from '@/lib/receipt'
 
-// 查看收据数据（用于渲染收据页）
-export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+// 按不可枚举的 token 查看收据
+export async function GET(_request: NextRequest, { params }: { params: { token: string } }) {
   try {
-    const id = parseInt(params.id)
-    if (!id) return error('ID 无效')
-    const r = await prisma.receipt.findUnique({ where: { id } })
+    const token = (params.token || '').trim()
+    if (!token || token.length < 16) return error('收据不存在', 404)
+
+    const r = await prisma.receipt.findUnique({ where: { token } })
     if (!r) return error('收据不存在', 404)
+
     return success({
-      id: r.id,
       receiptNo: r.receiptNo,
       payerTitle: r.payerTitle,
       payee: r.payee,

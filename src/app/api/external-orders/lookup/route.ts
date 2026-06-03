@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
       orderIds.length
         ? prisma.receipt.findMany({
             where: { externalOrderId: { in: orderIds } },
-            select: { id: true, externalOrderId: true },
+            select: { token: true, externalOrderId: true },
           })
         : Promise.resolve([]),
     ])
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         invoiceStatus,
         invoiceId: existing?.id ?? null,
         canReceipt: price != null,
-        receiptId: receipt?.id ?? null,
+        receiptToken: receipt?.token ?? null,
       }
     })
 

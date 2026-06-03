@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { matchPriceFromProducts } from '@/lib/invoice'
-import { PAYEE, genReceiptNo } from '@/lib/receipt'
+import { PAYEE, genReceiptNo, genReceiptToken } from '@/lib/receipt'
 
 const schema = z.object({
   externalOrderId: z.number().int().positive('缺少订单'),
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     const receipt = await prisma.receipt.create({
       data: {
         receiptNo: genReceiptNo(),
+        token: genReceiptToken(),
         externalOrderId: order.id,
         sourceKey: order.sourceKey,
         claudeAccount: order.claudeAccount,
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    return success({ receiptId: receipt.id }, '收据已生成')
+    return success({ token: receipt.token }, '收据已生成')
   } catch (err) {
     console.error('Create receipt error:', err)
     return error('生成收据失败')

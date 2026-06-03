@@ -9,6 +9,7 @@ import { Search, ExternalLink, Trash2 } from 'lucide-react'
 interface Receipt {
   id: number
   receiptNo: string
+  token: string | null
   claudeAccount: string
   subscriptionType: string
   payerTitle: string
@@ -103,7 +104,7 @@ export default function AdminReceiptsPage() {
                       <td className="py-2 pr-3">¥{Number(r.amount).toFixed(2)}</td>
                       <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">{fmt(r.createdAt)}</td>
                       <td className="py-2 text-right whitespace-nowrap">
-                        <a href={`/receipt/${r.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50" title="查看收据">
+                        <a href={`/receipt/${r.token}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50" title="查看收据">
                           <ExternalLink className="w-3.5 h-3.5" /> 查看
                         </a>
                         <button onClick={() => del(r.id)} className="ml-1 inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-red-600 hover:bg-red-50" title="删除重开">

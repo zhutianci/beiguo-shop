@@ -23,13 +23,13 @@ function fmtDate(s: string | null) {
 
 export default function ReceiptPage() {
   const params = useParams()
-  const id = Number(params.id)
+  const token = String(params.token || '')
   const [r, setR] = useState<Receipt | null>(null)
   const [state, setState] = useState<'loading' | 'ok' | 'notfound'>('loading')
   const [sealOk, setSealOk] = useState(true)
 
   useEffect(() => {
-    fetch(`/api/receipts/${id}`)
+    fetch(`/api/receipts/${token}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
@@ -38,7 +38,7 @@ export default function ReceiptPage() {
         } else setState('notfound')
       })
       .catch(() => setState('notfound'))
-  }, [id])
+  }, [token])
 
   if (state === 'loading') return <div className="min-h-screen flex items-center justify-center text-gray-400">加载中...</div>
   if (state === 'notfound' || !r)
@@ -79,10 +79,7 @@ export default function ReceiptPage() {
             <Row label="会员开通日期" value={fmtDate(r.orderStartDate)} />
             <Row label="会员到期日期" value={fmtDate(r.orderExpireDate)} />
             <Row label="付款金额（大写）" value={r.amountCapital} />
-            <Row
-              label="付款金额（小写）"
-              value={<span className="font-bold text-lg">¥ {r.amount.toFixed(2)}</span>}
-            />
+            <Row label="付款金额（小写）" value={<span className="font-bold text-lg">¥ {r.amount.toFixed(2)}</span>} />
           </tbody>
         </table>
 
@@ -91,7 +88,6 @@ export default function ReceiptPage() {
           <div className="text-right text-sm text-gray-700 leading-8 relative">
             <div>收款单位：{r.payee}</div>
             <div>开具日期：{fmtDate(r.createdAt)}</div>
-            {/* 公章 */}
             {sealOk && (
               <img
                 src="/seal-bigo.png"
@@ -124,9 +120,7 @@ export default function ReceiptPage() {
 function Row({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <tr>
-      <td className="border border-gray-300 bg-gray-50 px-4 py-3 w-40 text-gray-500 align-top whitespace-nowrap">
-        {label}
-      </td>
+      <td className="border border-gray-300 bg-gray-50 px-4 py-3 w-40 text-gray-500 align-top whitespace-nowrap">{label}</td>
       <td className={`border border-gray-300 px-4 py-3 ${mono ? 'font-mono break-all' : ''}`}>{value}</td>
     </tr>
   )
