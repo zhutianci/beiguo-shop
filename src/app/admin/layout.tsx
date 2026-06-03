@@ -14,6 +14,7 @@ import {
   FileUp,
   BellRing,
   MessagesSquare,
+  Receipt,
 } from 'lucide-react'
 
 const sidebarItems = [
@@ -23,6 +24,7 @@ const sidebarItems = [
   { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
   { href: '/admin/external-orders', label: '订单导入', icon: FileUp },
   { href: '/admin/reminders', label: '到期提醒', icon: BellRing },
+  { href: '/admin/invoices', label: '发票管理', icon: Receipt },
   { href: '/admin/forum', label: '论坛管理', icon: MessagesSquare },
   { href: '/admin/users', label: '用户管理', icon: Users },
   { href: '/admin/settings', label: '系统设置', icon: Settings },

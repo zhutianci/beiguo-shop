@@ -223,6 +223,45 @@ model Setting {
   @@map("settings")
 }
 
+// 发票申请
+model Invoice {
+  id               Int       @id @default(autoincrement())
+  invoiceNo        String    @unique @map("invoice_no") @db.VarChar(32) // 也用作税费支付的 out_trade_no
+  // 关联外部订单（存快照，避免重导丢失）
+  externalOrderId  Int?      @map("external_order_id")
+  sourceKey        String?   @map("source_key") @db.VarChar(128)
+  claudeAccount    String    @map("claude_account") @db.VarChar(255)
+  subscriptionType String    @map("subscription_type") @db.VarChar(100)
+  orderStartDate   DateTime? @map("order_start_date") @db.Date
+  orderExpireDate  DateTime? @map("order_expire_date") @db.Date
+  // 金额
+  sellingPrice     Decimal   @map("selling_price") @db.Decimal(10, 2)   // 售价
+  invoiceAmount    Decimal   @map("invoice_amount") @db.Decimal(10, 2)  // 开票金额（含税）= 售价 * 1.06
+  taxFee           Decimal   @map("tax_fee") @db.Decimal(10, 2)         // 应付税费 = 售价 * 0.06
+  // 抬头信息
+  title            String    @db.VarChar(200)   // 抬头（必填）
+  taxNumber        String    @map("tax_number") @db.VarChar(64) // 税号（必填）
+  address          String?   @db.VarChar(255)   // 地址
+  phone            String?   @db.VarChar(50)     // 电话
+  bankName         String?   @map("bank_name") @db.VarChar(128) // 开户行
+  bankAccount      String?   @map("bank_account") @db.VarChar(64) // 卡号
+  email            String    @db.VarChar(255)   // 接收邮箱（必填）
+  // 状态：AWAIT_PAY 待支付税费 / SUBMITTED 已提交开票 / ISSUED 已开具 / CANNOT 不可开据
+  status           String    @default("AWAIT_PAY") @db.VarChar(20)
+  // 税费支付
+  payStatus        String    @default("UNPAID") @map("pay_status") @db.VarChar(20)
+  tradeNo          String?   @map("trade_no") @db.VarChar(64)
+  paidAt           DateTime? @map("paid_at")
+  issuedAt         DateTime? @map("issued_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([claudeAccount])
+  @@index([externalOrderId])
+  @@index([status])
+  @@map("invoices")
+}
+
 // ============ 论坛 / 社区反馈 ============
 
 // 论坛板块

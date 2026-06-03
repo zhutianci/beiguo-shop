@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar, BellRing, Smartphone, Save } from 'lucide-react'
+import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar, BellRing, Smartphone, Save, FileText, X, AlertCircle } from 'lucide-react'
 
 interface ExternalOrder {
   id: number
@@ -14,6 +14,20 @@ interface ExternalOrder {
   claudeAccount: string
   createdAt: string
   updatedAt: string
+  canInvoice: boolean
+  sellingPrice: number | null
+  invoiceAmount: number | null
+  taxFee: number | null
+  invoiceStatus: string // UNAPPLIED | AWAIT_PAY | SUBMITTED | ISSUED | CANNOT
+  invoiceId: number | null
+}
+
+const INVOICE_LABELS: Record<string, string> = {
+  UNAPPLIED: '可开据·未开发票',
+  AWAIT_PAY: '可开据·待支付税费',
+  SUBMITTED: '可开具·已提交开票',
+  ISSUED: '已开具',
+  CANNOT: '不可开据',
 }
 
 function formatDate(s: string) {
@@ -70,6 +84,7 @@ function LookupForm() {
   const [orders, setOrders] = useState<ExternalOrder[]>([])
   const [errorMsg, setErrorMsg] = useState('')
   const [now, setNow] = useState<Date>(new Date())
+  const [invoiceOrder, setInvoiceOrder] = useState<ExternalOrder | null>(null)
 
   // 实时刷新当前时间
   useEffect(() => {
@@ -281,6 +296,38 @@ function LookupForm() {
                               </div>
                             )}
                           </div>
+
+                          {/* 发票 */}
+                          <div className="mt-4 pt-4 border-t border-white/10 flex items-center justify-between gap-3 flex-wrap">
+                            <div className="flex items-center gap-2 text-sm">
+                              <FileText className="w-4 h-4 text-white/40" />
+                              <span className="text-white/40">发票</span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs ${
+                                  order.invoiceStatus === 'ISSUED'
+                                    ? 'bg-green-500/15 text-green-300'
+                                    : order.invoiceStatus === 'CANNOT'
+                                      ? 'bg-gray-500/15 text-gray-400'
+                                      : order.invoiceStatus === 'SUBMITTED'
+                                        ? 'bg-cyan-500/15 text-cyan-300'
+                                        : 'bg-amber-500/15 text-amber-300'
+                                }`}
+                              >
+                                {INVOICE_LABELS[order.invoiceStatus] || order.invoiceStatus}
+                              </span>
+                            </div>
+                            {order.invoiceStatus === 'UNAPPLIED' && (
+                              <button
+                                onClick={() => setInvoiceOrder(order)}
+                                className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all"
+                              >
+                                申请发票
+                              </button>
+                            )}
+                            {order.invoiceStatus === 'AWAIT_PAY' && order.invoiceId && (
+                              <PayTaxButton invoiceId={order.invoiceId} />
+                            )}
+                          </div>
                         </div>
                       </motion.div>
                     )
@@ -304,6 +351,10 @@ function LookupForm() {
           </p>
         </motion.div>
       </div>
+
+      {invoiceOrder && (
+        <InvoiceModal order={invoiceOrder} defaultEmail={email} onClose={() => setInvoiceOrder(null)} />
+      )}
     </div>
   )
 }
@@ -467,5 +518,197 @@ function ReminderSettings({ account }: { account: string }) {
         </div>
       </div>
     </motion.div>
+  )
+}
+
+// 待支付税费：直接跳转支付宝
+function PayTaxButton({ invoiceId }: { invoiceId: number }) {
+  const [loading, setLoading] = useState(false)
+  const pay = async () => {
+    setLoading(true)
+    try {
+      const channel = typeof window !== 'undefined' && window.innerWidth < 768 ? 'wap' : 'page'
+      const res = await fetch(`/api/invoices/${invoiceId}/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel }),
+      })
+      const data = await res.json()
+      if (data.success && data.data?.payUrl) {
+        window.location.href = data.data.payUrl
+      } else {
+        alert(data.error || '发起支付失败')
+        setLoading(false)
+      }
+    } catch {
+      alert('网络错误，请重试')
+      setLoading(false)
+    }
+  }
+  return (
+    <button
+      onClick={pay}
+      disabled={loading}
+      className="px-4 py-1.5 rounded-lg bg-[#1677FF] text-white text-sm font-medium hover:bg-[#0e5fd8] transition-colors disabled:opacity-60"
+    >
+      {loading ? '处理中...' : '去支付税费'}
+    </button>
+  )
+}
+
+// 发票申请弹窗
+function InvoiceModal({
+  order,
+  defaultEmail,
+  onClose,
+}: {
+  order: ExternalOrder
+  defaultEmail: string
+  onClose: () => void
+}) {
+  const [title, setTitle] = useState('')
+  const [taxNumber, setTaxNumber] = useState('')
+  const [address, setAddress] = useState('')
+  const [phone, setPhone] = useState('')
+  const [bankName, setBankName] = useState('')
+  const [bankAccount, setBankAccount] = useState('')
+  const [email, setEmail] = useState(defaultEmail || order.claudeAccount)
+  const [submitting, setSubmitting] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  const submit = async () => {
+    setErr(null)
+    if (!title.trim()) return setErr('请填写发票抬头')
+    if (!taxNumber.trim()) return setErr('请填写税号')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setErr('请填写正确的接收邮箱')
+    setSubmitting(true)
+    try {
+      const channel = typeof window !== 'undefined' && window.innerWidth < 768 ? 'wap' : 'page'
+      const res = await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          externalOrderId: order.id,
+          title: title.trim(),
+          taxNumber: taxNumber.trim(),
+          address: address.trim() || null,
+          phone: phone.trim() || null,
+          bankName: bankName.trim() || null,
+          bankAccount: bankAccount.trim() || null,
+          email: email.trim(),
+          channel,
+        }),
+      })
+      const data = await res.json()
+      if (data.success && data.data?.payUrl) {
+        window.location.href = data.data.payUrl
+        return
+      }
+      setErr(data.error || '提交失败')
+    } catch {
+      setErr('网络错误，请重试')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const field = (
+    label: string,
+    value: string,
+    setter: (v: string) => void,
+    opts?: { required?: boolean; placeholder?: string; type?: string }
+  ) => (
+    <div>
+      <label className="block text-xs text-white/50 mb-1">
+        {label}
+        {opts?.required && <span className="text-red-400 ml-0.5">*</span>}
+      </label>
+      <input
+        type={opts?.type || 'text'}
+        value={value}
+        onChange={(e) => setter(e.target.value)}
+        placeholder={opts?.placeholder}
+        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/25 outline-none focus:border-purple-500/50 text-sm"
+      />
+    </div>
+  )
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-lg glass-strong rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            <FileText className="w-5 h-5 text-purple-400" /> 申请发票
+          </h3>
+          <button onClick={onClose} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* 订单信息 + 金额 */}
+        <div className="glass rounded-2xl p-4 mb-4 text-sm space-y-2">
+          <div className="flex justify-between">
+            <span className="text-white/40">订阅</span>
+            <span className="text-white/80 font-medium">{order.subscriptionType}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-white/40">账户</span>
+            <span className="text-white/70 font-mono text-xs break-all">{order.claudeAccount}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-white/40">开通 / 到期</span>
+            <span className="text-white/70">{formatDate(order.startDate)} ~ {formatDate(order.expireDate)}</span>
+          </div>
+          <div className="h-px bg-white/10 my-1" />
+          <div className="flex justify-between">
+            <span className="text-white/40">售价</span>
+            <span className="text-white/80">¥{order.sellingPrice?.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-white/40">开票金额（含税）</span>
+            <span className="text-white/90 font-semibold">¥{order.invoiceAmount?.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-amber-300/80">需支付税费（6%）</span>
+            <span className="text-amber-300 font-bold">¥{order.taxFee?.toFixed(2)}</span>
+          </div>
+        </div>
+
+        {/* 抬头信息 */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="sm:col-span-2">{field('抬头', title, setTitle, { required: true, placeholder: '公司名称 / 个人' })}</div>
+          <div className="sm:col-span-2">{field('税号', taxNumber, setTaxNumber, { required: true, placeholder: '纳税人识别号' })}</div>
+          {field('地址', address, setAddress, { placeholder: '选填' })}
+          {field('电话', phone, setPhone, { placeholder: '选填' })}
+          {field('开户行', bankName, setBankName, { placeholder: '选填' })}
+          {field('卡号', bankAccount, setBankAccount, { placeholder: '选填' })}
+          <div className="sm:col-span-2">{field('接收邮箱', email, setEmail, { required: true, type: 'email', placeholder: '发票将发送到此邮箱' })}</div>
+        </div>
+
+        {err && (
+          <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
+            <AlertCircle className="w-4 h-4" /> {err}
+          </div>
+        )}
+
+        <button
+          onClick={submit}
+          disabled={submitting}
+          className="mt-5 w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all disabled:opacity-50"
+        >
+          {submitting ? (
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : null}
+          提交发票并支付税费 ¥{order.taxFee?.toFixed(2)}
+        </button>
+        <p className="text-xs text-white/30 text-center mt-2">提交后将跳转支付宝支付 6% 税费，支付完成即提交开票</p>
+      </motion.div>
+    </div>
   )
 }
