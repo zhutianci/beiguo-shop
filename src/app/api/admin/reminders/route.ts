@@ -16,14 +16,16 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const days = Math.min(parseInt(searchParams.get('days') || String(REMIND_WITHIN_DAYS)), 60)
+    // 已过期回溯天数：0=不显示过期，3650≈全部
+    const expiredDays = Math.min(Math.max(parseInt(searchParams.get('expiredDays') || '30'), 0), 3650)
 
     const now = new Date()
     const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
-    const today = new Date(todayUtc)
+    const min = new Date(todayUtc - expiredDays * 86400000)
     const max = new Date(todayUtc + (days + 1) * 86400000)
 
     const orders = await prisma.externalOrder.findMany({
-      where: { expireDate: { gte: today, lt: max } },
+      where: { expireDate: { gte: min, lt: max } },
       orderBy: { expireDate: 'asc' },
     })
 
@@ -36,6 +38,7 @@ export async function GET(request: NextRequest) {
     const list = orders.map((o) => {
       const resolved = resolveContact(o.claudeAccount, contactMap.get(o.claudeAccount) || null)
       const autoReminded = isSameUtcDate(o.remindedExpireDate, o.expireDate)
+      const daysLeft = daysUntilExpire(o.expireDate)
       const hasChannel =
         (resolved.notifyEmail && !!resolved.email) || (resolved.notifyPhone && !!resolved.phone)
       return {
@@ -45,8 +48,10 @@ export async function GET(request: NextRequest) {
         subscriptionType: o.subscriptionType,
         xianyuNickname: o.xianyuNickname,
         claudeAccount: o.claudeAccount,
-        daysLeft: daysUntilExpire(o.expireDate),
+        daysLeft,
+        expired: daysLeft < 0,   // 已过期（自动任务不发，仅后台手动）
         lastRemindedAt: o.lastRemindedAt,
+        reminded: !!o.lastRemindedAt, // 是否提醒过（含手动）
         autoReminded,            // 已自动提醒（本周期），自动任务会跳过
         contact: {
           email: resolved.email,
@@ -63,6 +68,9 @@ export async function GET(request: NextRequest) {
       list,
       total: list.length,
       withinDays: days,
+      expiredDays,
+      upcomingCount: list.filter((r) => !r.expired).length,
+      expiredCount: list.filter((r) => r.expired).length,
       config: {
         email: emailConfigured(),
         sms: smsConfigured(),

@@ -72,8 +72,14 @@ export function resolveContact(
 function buildEmail(order: ExternalOrder): { subject: string; html: string } {
   const days = daysUntilExpire(order.expireDate)
   const expStr = formatDate(order.expireDate)
-  const daysText = days <= 0 ? '今天' : `还有 ${days} 天`
-  const subject = `【贝果科技】你的 ${order.subscriptionType} ${daysText}到期，请及时续费`
+  const expired = days < 0
+  const subject = expired
+    ? `【贝果科技】你的 ${order.subscriptionType} 已过期 ${-days} 天，请尽快续费`
+    : days === 0
+      ? `【贝果科技】你的 ${order.subscriptionType} 今天到期，请及时续费`
+      : `【贝果科技】你的 ${order.subscriptionType} 还有 ${days} 天到期，请及时续费`
+  const introText = expired ? '你的以下订阅已过期，请尽快续费恢复使用：' : '你好，你的以下订阅即将到期：'
+  const daysCell = expired ? `已过期 ${-days} 天` : days === 0 ? '今天到期' : `${days} 天`
   const lookupUrl = `${APP_URL}/lookup?email=${encodeURIComponent(order.claudeAccount)}`
   const html = `
   <div style="max-width:560px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
@@ -81,12 +87,12 @@ function buildEmail(order: ExternalOrder): { subject: string; html: string } {
       <div style="color:#fff;font-size:20px;font-weight:700;">贝果科技 · 订阅到期提醒</div>
     </div>
     <div style="border:1px solid #eee;border-top:none;border-radius:0 0 16px 16px;padding:24px;">
-      <p style="font-size:15px;line-height:1.7;margin:0 0 16px;">你好，你的以下订阅即将到期：</p>
+      <p style="font-size:15px;line-height:1.7;margin:0 0 16px;">${introText}</p>
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
         <tr><td style="padding:8px 0;color:#6b7280;width:90px;">订阅类型</td><td style="padding:8px 0;font-weight:600;">${order.subscriptionType}</td></tr>
         <tr><td style="padding:8px 0;color:#6b7280;">账户</td><td style="padding:8px 0;font-family:monospace;">${order.claudeAccount}</td></tr>
         <tr><td style="padding:8px 0;color:#6b7280;">到期时间</td><td style="padding:8px 0;font-weight:600;color:#dc2626;">${expStr}</td></tr>
-        <tr><td style="padding:8px 0;color:#6b7280;">剩余</td><td style="padding:8px 0;font-weight:600;">${days <= 0 ? '今天到期' : days + ' 天'}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">${expired ? '状态' : '剩余'}</td><td style="padding:8px 0;font-weight:600;${expired || days === 0 ? 'color:#dc2626;' : ''}">${daysCell}</td></tr>
       </table>
       <div style="margin:24px 0;text-align:center;">
         <a href="${lookupUrl}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;font-size:15px;">查看订阅状态</a>

@@ -23,7 +23,9 @@ interface ReminderRow {
   xianyuNickname: string | null
   claudeAccount: string
   daysLeft: number
+  expired: boolean
   lastRemindedAt: string | null
+  reminded: boolean
   autoReminded: boolean
   contact: {
     email: string | null
@@ -57,6 +59,8 @@ export default function RemindersPage() {
   const [rows, setRows] = useState<ReminderRow[]>([])
   const [config, setConfig] = useState<ConfigStatus>({ email: false, sms: false })
   const [withinDays, setWithinDays] = useState(7)
+  const [expiredDays, setExpiredDays] = useState(30)
+  const [counts, setCounts] = useState<{ upcoming: number; expired: number }>({ upcoming: 0, expired: 0 })
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [sendingId, setSendingId] = useState<number | null>(null)
@@ -64,14 +68,15 @@ export default function RemindersPage() {
   const [runningAuto, setRunningAuto] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
 
-  const load = async (days = withinDays) => {
+  const load = async (days = withinDays, exp = expiredDays) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/reminders?days=${days}`)
+      const res = await fetch(`/api/admin/reminders?days=${days}&expiredDays=${exp}`)
       const data = await res.json()
       if (data.success) {
         setRows(data.data.list)
         setConfig(data.data.config)
+        setCounts({ upcoming: data.data.upcomingCount, expired: data.data.expiredCount })
         setSelected(new Set())
       }
     } finally {
@@ -170,9 +175,10 @@ export default function RemindersPage() {
             <ConfigBadge label="阿里云短信服务" ok={config.sms} icon={<Smartphone className="w-4 h-4" />} />
           </div>
           <div className="rounded-lg bg-blue-50 p-4 text-sm text-blue-900 space-y-1">
-            <p>• 系统每天 <strong>中午 12:00</strong> 自动提醒所有 <strong>{withinDays} 日内</strong>到期的用户。</p>
+            <p>• 系统每天 <strong>中午 12:00</strong> 自动提醒所有 <strong>{withinDays} 日内</strong>即将到期的用户。</p>
+            <p>• <strong>已过期</strong>订单不会自动群发，仅在下方列表显示，可 <strong>手动提醒</strong>。</p>
             <p>• 已提醒过的订单不会重复自动提醒；续费后到期日变化会重新纳入提醒。</p>
-            <p>• 下方可对单条 / 批量订单 <strong>手动提醒</strong>（手动不受“已提醒”限制）。</p>
+            <p>• 下方可对单条 / 批量订单 <strong>手动提醒</strong>（手动不受“已提醒/已过期”限制）。</p>
             <p>• 用户未填写联系方式时，默认发送到其 Claude 账户邮箱。</p>
           </div>
           <div className="flex flex-wrap items-center gap-3 mt-4">
@@ -185,13 +191,13 @@ export default function RemindersPage() {
               刷新
             </Button>
             <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span>显示范围</span>
+              <span>即将到期</span>
               <select
                 value={withinDays}
                 onChange={(e) => {
                   const d = parseInt(e.target.value)
                   setWithinDays(d)
-                  load(d)
+                  load(d, expiredDays)
                 }}
                 className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
               >
@@ -199,6 +205,23 @@ export default function RemindersPage() {
                 <option value={7}>7 日内</option>
                 <option value={15}>15 日内</option>
                 <option value={30}>30 日内</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>已过期</span>
+              <select
+                value={expiredDays}
+                onChange={(e) => {
+                  const d = parseInt(e.target.value)
+                  setExpiredDays(d)
+                  load(withinDays, d)
+                }}
+                className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
+              >
+                <option value={0}>不显示</option>
+                <option value={7}>近 7 天</option>
+                <option value={30}>近 30 天</option>
+                <option value={3650}>全部</option>
               </select>
             </div>
           </div>
@@ -223,7 +246,7 @@ export default function RemindersPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>
-            {withinDays} 日内到期（共 {rows.length} 条）
+            待提醒订单（即将到期 {counts.upcoming} · 已过期 {counts.expired}）
           </CardTitle>
           <Button size="sm" onClick={handleBatchSend} loading={batchSending} disabled={selected.size === 0}>
             <Send className="w-4 h-4 mr-1" />
@@ -236,7 +259,7 @@ export default function RemindersPage() {
           ) : rows.length === 0 ? (
             <div className="text-center py-12 text-gray-400 flex flex-col items-center gap-2">
               <CheckCircle className="w-8 h-8 text-green-400" />
-              太好了，{withinDays} 日内没有即将到期的订单
+              太好了，当前没有需要提醒的订单
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -277,7 +300,9 @@ export default function RemindersPage() {
                       </td>
                       <td className="py-3 pr-3 whitespace-nowrap">{fmtDate(r.expireDate)}</td>
                       <td className="py-3 pr-3 whitespace-nowrap">
-                        {r.daysLeft <= 0 ? (
+                        {r.expired ? (
+                          <span className="text-red-600 font-semibold">已过期 {-r.daysLeft} 天</span>
+                        ) : r.daysLeft === 0 ? (
                           <span className="text-red-600 font-semibold">今天</span>
                         ) : (
                           <span className={r.daysLeft <= 3 ? 'text-amber-600 font-semibold' : ''}>
@@ -308,7 +333,12 @@ export default function RemindersPage() {
                         </div>
                       </td>
                       <td className="py-3 pr-3 whitespace-nowrap">
-                        {r.autoReminded ? (
+                        {r.expired ? (
+                          <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-red-50 text-red-700">
+                            <AlertCircle className="w-3 h-3" />
+                            已过期{r.reminded ? '·已提醒' : '·未提醒'}
+                          </span>
+                        ) : r.autoReminded ? (
                           <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs bg-gray-100 text-gray-600">
                             <CheckCircle className="w-3 h-3" />
                             已自动提醒
