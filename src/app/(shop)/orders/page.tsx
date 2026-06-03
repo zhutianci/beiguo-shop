@@ -125,6 +125,30 @@ export default function OrdersPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [contactOpen, setContactOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [payingNo, setPayingNo] = useState<string | null>(null)
+
+  const handleAlipay = async (order: Order) => {
+    setPayingNo(order.orderNo)
+    try {
+      // 手机端用 wap，桌面端用 page
+      const channel = typeof window !== 'undefined' && window.innerWidth < 768 ? 'wap' : 'page'
+      const res = await fetch('/api/pay/alipay/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderNo: order.orderNo, channel }),
+      })
+      const data = await res.json()
+      if (data.success && data.data?.payUrl) {
+        window.location.href = data.data.payUrl
+      } else {
+        alert(data.error || '发起支付失败')
+        setPayingNo(null)
+      }
+    } catch {
+      alert('网络错误，请重试')
+      setPayingNo(null)
+    }
+  }
 
   useEffect(() => {
     if (!user) {
@@ -338,6 +362,18 @@ export default function OrdersPage() {
                             <div className="text-xs text-white/40">订单金额</div>
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2">
+                            {order.payStatus === 'UNPAID' && (
+                              <button
+                                onClick={() => handleAlipay(order)}
+                                disabled={payingNo === order.orderNo}
+                                className="px-4 py-2 rounded-lg bg-[#1677FF] text-white text-sm font-medium hover:bg-[#0e5fd8] transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+                              >
+                                {payingNo === order.orderNo ? (
+                                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                ) : null}
+                                支付宝支付
+                              </button>
+                            )}
                             {order.payStatus === 'UNPAID' && (
                               <button
                                 onClick={() => {
