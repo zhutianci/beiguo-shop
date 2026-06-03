@@ -374,17 +374,6 @@ export default function OrdersPage() {
                                 支付宝支付
                               </button>
                             )}
-                            {order.payStatus === 'UNPAID' && (
-                              <button
-                                onClick={() => {
-                                  setSelectedOrder(order)
-                                  setContactOpen(true)
-                                }}
-                                className={`px-4 py-2 rounded-lg bg-gradient-to-r ${gradient} text-sm font-medium hover:shadow-lg transition-shadow`}
-                              >
-                                联系客服支付
-                              </button>
-                            )}
                             <button
                               onClick={() => setSelectedOrder(order)}
                               className="px-4 py-2 rounded-lg glass hover:bg-white/10 text-sm font-medium transition-colors flex items-center gap-1.5"
@@ -418,7 +407,7 @@ export default function OrdersPage() {
                         <div className="mt-4 pt-4 border-t border-white/10">
                           <div className="flex items-center gap-2 text-sm text-yellow-400">
                             <AlertCircle className="w-4 h-4" />
-                            <span>请联系客服微信 GenuineMarxist 完成支付</span>
+                            <span>请点击「支付宝支付」完成付款</span>
                           </div>
                         </div>
                       )}
