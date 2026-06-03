@@ -107,6 +107,90 @@ function buildEmail(order: ExternalOrder): { subject: string; html: string } {
   return { subject, html }
 }
 
+// 充值/续费成功确认邮件
+function buildRechargeEmail(order: ExternalOrder): { subject: string; html: string } {
+  const startStr = formatDate(order.startDate)
+  const expStr = formatDate(order.expireDate)
+  const subject = `【贝果科技】充值成功 · ${order.subscriptionType} 已开通至 ${expStr}`
+  const lookupUrl = `${APP_URL}/lookup?email=${encodeURIComponent(order.claudeAccount)}`
+  const html = `
+  <div style="max-width:560px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1f2937;">
+    <div style="background:linear-gradient(135deg,#059669,#10b981);padding:28px 24px;border-radius:16px 16px 0 0;">
+      <div style="color:#fff;font-size:20px;font-weight:700;">贝果科技 · 充值成功 🎉</div>
+    </div>
+    <div style="border:1px solid #eee;border-top:none;border-radius:0 0 16px 16px;padding:24px;">
+      <p style="font-size:15px;line-height:1.7;margin:0 0 16px;">你好，你的订阅已成功开通 / 续费，详情如下：</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <tr><td style="padding:8px 0;color:#6b7280;width:90px;">订阅类型</td><td style="padding:8px 0;font-weight:600;">${order.subscriptionType}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">账户</td><td style="padding:8px 0;font-family:monospace;">${order.claudeAccount}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">开通时间</td><td style="padding:8px 0;">${startStr}</td></tr>
+        <tr><td style="padding:8px 0;color:#6b7280;">有效期至</td><td style="padding:8px 0;font-weight:600;color:#059669;">${expStr}</td></tr>
+      </table>
+      <div style="margin:24px 0;text-align:center;">
+        <a href="${lookupUrl}" style="display:inline-block;background:linear-gradient(135deg,#059669,#10b981);color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;font-size:15px;">查看订阅状态</a>
+      </div>
+      <p style="font-size:13px;color:#6b7280;line-height:1.7;margin:16px 0 0;">
+        感谢你的支持！到期前我们会再次提醒你续费。<br/>
+        如有疑问请联系客服微信：<b style="color:#059669;">${SERVICE_WECHAT}</b>
+      </p>
+    </div>
+    <p style="text-align:center;font-size:12px;color:#9ca3af;margin:16px 0;">此邮件由系统自动发送，如有疑问请联系客服。</p>
+  </div>`
+  return { subject, html }
+}
+
+export interface RechargeOutcome {
+  orderId: number
+  claudeAccount: string
+  ok: boolean
+  target: string
+  detail: string
+}
+
+// 给单个订单发送“充值成功”确认邮件（始终走邮箱，发到联系邮箱或账户邮箱）
+export async function sendRechargeForOrder(
+  order: ExternalOrder,
+  contact: ResolvedContact
+): Promise<RechargeOutcome> {
+  const target = contact.email || order.claudeAccount
+  const { subject, html } = buildRechargeEmail(order)
+  const r = await sendDirectMail(target, subject, html)
+  await prisma.reminderLog.create({
+    data: {
+      orderId: order.id,
+      claudeAccount: order.claudeAccount,
+      channel: 'email',
+      target,
+      trigger: 'recharge',
+      status: r.ok ? 'success' : 'failed',
+      detail: r.detail.slice(0, 1000),
+    },
+  })
+  return { orderId: order.id, claudeAccount: order.claudeAccount, ok: r.ok, target, detail: r.detail }
+}
+
+// 批量发送充值成功邮件（导入新增订单后调用）
+export async function sendRechargeForOrders(
+  orders: ExternalOrder[]
+): Promise<{ total: number; sent: number; failed: number }> {
+  if (orders.length === 0) return { total: 0, sent: 0, failed: 0 }
+  const accounts = Array.from(new Set(orders.map((o) => o.claudeAccount)))
+  const contacts = await prisma.accountContact.findMany({
+    where: { claudeAccount: { in: accounts } },
+  })
+  const contactMap = new Map(contacts.map((c) => [c.claudeAccount, c]))
+
+  let sent = 0
+  let failed = 0
+  for (const order of orders) {
+    const contact = resolveContact(order.claudeAccount, contactMap.get(order.claudeAccount) || null)
+    const r = await sendRechargeForOrder(order, contact)
+    if (r.ok) sent++
+    else failed++
+  }
+  return { total: orders.length, sent, failed }
+}
+
 function smsTemplateParam(order: ExternalOrder): Record<string, string> {
   // 阿里云短信模板需在控制台审核通过，变量名需与模板一致。
   // 建议模板示例："您购买的${type}订阅还剩${days}天到期，请及时续费续期。"

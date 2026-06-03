@@ -5,6 +5,8 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { sendRechargeForOrders } from '@/lib/reminder'
+import type { ExternalOrder } from '@prisma/client'
 
 const itemSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式错误'),
@@ -16,6 +18,7 @@ const itemSchema = z.object({
 
 const importSchema = z.object({
   items: z.array(itemSchema).min(1),
+  notify: z.boolean().optional().default(true), // 是否对新增订单发送充值成功邮件
 })
 
 function hashKey(claudeAccount: string, startDate: string, subscriptionType: string): string {
@@ -37,6 +40,7 @@ export async function POST(request: NextRequest) {
     let created = 0
     let updated = 0
     let skipped = 0
+    const createdOrders: ExternalOrder[] = [] // 新增的订单，用于发送充值成功邮件
 
     // 提前查出哪些 sourceKey 已存在
     const allKeys = parsed.data.items.map((it) =>
@@ -52,7 +56,7 @@ export async function POST(request: NextRequest) {
       const sourceKey = hashKey(item.claudeAccount, item.startDate, item.subscriptionType)
       const isExisting = existingSet.has(sourceKey)
       try {
-        await prisma.externalOrder.upsert({
+        const order = await prisma.externalOrder.upsert({
           where: { sourceKey },
           create: {
             startDate: new Date(item.startDate),
@@ -72,15 +76,32 @@ export async function POST(request: NextRequest) {
             importBatch: batch,
           },
         })
-        if (isExisting) updated++
-        else created++
+        if (isExisting) {
+          updated++
+        } else {
+          created++
+          createdOrders.push(order)
+        }
       } catch (e) {
         console.error('Import item failed:', item, e)
         skipped++
       }
     }
 
-    return success({ batch, created, updated, skipped, total: parsed.data.items.length }, '导入完成')
+    // 对新增订单发送“充值成功”邮件（默认开启，可在导入页关闭）
+    let notified = { total: 0, sent: 0, failed: 0 }
+    if (parsed.data.notify && createdOrders.length > 0) {
+      try {
+        notified = await sendRechargeForOrders(createdOrders)
+      } catch (e) {
+        console.error('Send recharge emails failed:', e)
+      }
+    }
+
+    return success(
+      { batch, created, updated, skipped, total: parsed.data.items.length, notified },
+      '导入完成'
+    )
   } catch (err) {
     console.error('Import error:', err)
     return error('导入失败')

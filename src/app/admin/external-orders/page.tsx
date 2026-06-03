@@ -121,7 +121,8 @@ function parseLine(raw: string): ParsedRow {
 export default function ExternalOrdersPage() {
   const [text, setText] = useState('')
   const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<{ created: number; updated: number; skipped: number; total: number } | null>(null)
+  const [notifyOnImport, setNotifyOnImport] = useState(true)
+  const [importResult, setImportResult] = useState<{ created: number; updated: number; skipped: number; total: number; notified?: { total: number; sent: number; failed: number } } | null>(null)
 
   const [orders, setOrders] = useState<ExternalOrder[]>([])
   const [loading, setLoading] = useState(true)
@@ -181,7 +182,7 @@ export default function ExternalOrdersPage() {
       const res = await fetch('/api/admin/external-orders/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items }),
+        body: JSON.stringify({ items, notify: notifyOnImport }),
       })
       const data = await res.json()
       if (data.success) {
@@ -365,6 +366,16 @@ export default function ExternalOrdersPage() {
                   </div>
                 )}
 
+                <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={notifyOnImport}
+                    onChange={(e) => setNotifyOnImport(e.target.checked)}
+                    className="w-4 h-4 rounded accent-primary-600"
+                  />
+                  导入后给<strong>新增</strong>订单发送「充值成功」邮件（重复导入的不发）
+                </label>
+
                 <Button onClick={handleImport} loading={importing} className="w-full" disabled={validRows.length === 0}>
                   导入 {validRows.length} 条订单
                 </Button>
@@ -379,6 +390,14 @@ export default function ExternalOrdersPage() {
                   <div className="mt-1">
                     共 {importResult.total} 条 · 新增 {importResult.created} · 更新 {importResult.updated} · 跳过 {importResult.skipped}
                   </div>
+                  {importResult.notified && importResult.notified.total > 0 && (
+                    <div className="mt-1">
+                      充值成功邮件：发送 {importResult.notified.sent} 封
+                      {importResult.notified.failed > 0 && (
+                        <span className="text-red-600"> · 失败 {importResult.notified.failed}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
