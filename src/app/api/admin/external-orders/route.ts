@@ -31,8 +31,27 @@ export async function GET(request: NextRequest) {
       prisma.externalOrder.count({ where }),
     ])
 
+    // 附带发票信息（每笔订单最多关联一张发票）
+    const ids = list.map((o) => o.id)
+    const invoices = ids.length
+      ? await prisma.invoice.findMany({
+          where: { externalOrderId: { in: ids } },
+          select: { externalOrderId: true, status: true, invoiceNo: true },
+        })
+      : []
+    const invoiceMap = new Map(invoices.map((iv) => [iv.externalOrderId, iv]))
+
+    const enriched = list.map((o) => {
+      const iv = invoiceMap.get(o.id)
+      return {
+        ...o,
+        invoiceStatus: iv?.status ?? null,
+        invoiceNo: iv?.invoiceNo ?? null,
+      }
+    })
+
     return success({
-      list,
+      list: enriched,
       total,
       page,
       pageSize,

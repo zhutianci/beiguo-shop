@@ -14,6 +14,9 @@ const itemSchema = z.object({
   subscriptionType: z.string().min(1),
   xianyuNickname: z.string().optional().nullable(),
   claudeAccount: z.string().email(),
+  cost: z.number().optional().nullable(),
+  quote: z.number().optional().nullable(),
+  profit: z.number().optional().nullable(),
 })
 
 const importSchema = z.object({
@@ -55,6 +58,13 @@ export async function POST(request: NextRequest) {
     for (const item of parsed.data.items) {
       const sourceKey = hashKey(item.claudeAccount, item.startDate, item.subscriptionType)
       const isExisting = existingSet.has(sourceKey)
+      // 利润：传了就用；否则报价、成本都有则自动计算
+      const cost = item.cost ?? null
+      const quote = item.quote ?? null
+      let profit = item.profit ?? null
+      if (profit == null && quote != null && cost != null) {
+        profit = Math.round((quote - cost) * 100) / 100
+      }
       try {
         const order = await prisma.externalOrder.upsert({
           where: { sourceKey },
@@ -64,6 +74,9 @@ export async function POST(request: NextRequest) {
             subscriptionType: item.subscriptionType.trim(),
             xianyuNickname: item.xianyuNickname?.trim() || null,
             claudeAccount: item.claudeAccount.trim().toLowerCase(),
+            cost,
+            quote,
+            profit,
             sourceKey,
             importBatch: batch,
           },
@@ -73,6 +86,9 @@ export async function POST(request: NextRequest) {
             subscriptionType: item.subscriptionType.trim(),
             xianyuNickname: item.xianyuNickname?.trim() || null,
             claudeAccount: item.claudeAccount.trim().toLowerCase(),
+            cost,
+            quote,
+            profit,
             importBatch: batch,
           },
         })

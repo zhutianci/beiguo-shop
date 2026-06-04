@@ -43,6 +43,16 @@ export default function OrdersPage() {
   const [deliveryInfo, setDeliveryInfo] = useState('')
   const [deliveryStatus, setDeliveryStatus] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  // 交付完成时同步导入「订单」所需信息
+  const [extSubscriptionType, setExtSubscriptionType] = useState('')
+  const [extStartDate, setExtStartDate] = useState('')
+  const [extXianyuNickname, setExtXianyuNickname] = useState('')
+  const [extClaudeAccount, setExtClaudeAccount] = useState('')
+
+  const todayIso = () => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
 
   const loadData = async () => {
     setLoading(true)
@@ -73,11 +83,22 @@ export default function OrdersPage() {
     setSelectedOrder(order)
     setDeliveryInfo(order.deliveryInfo || '')
     setDeliveryStatus(order.deliveryStatus)
+    // 预填导入「订单」的默认值
+    setExtSubscriptionType(order.productName)
+    setExtStartDate(todayIso())
+    setExtXianyuNickname(order.user.nickname || order.user.email || '')
+    setExtClaudeAccount('')
     setShowDetailModal(true)
   }
 
   const handleUpdate = async () => {
     if (!selectedOrder) return
+
+    // 标记为「已完成」时要求填写 Claude 账户，才能同步导入到「订单」
+    const willDeliver = deliveryStatus === 'DELIVERED'
+    if (willDeliver && selectedOrder.deliveryStatus !== 'DELIVERED' && !extClaudeAccount.trim()) {
+      if (!confirm('未填写 Claude 账户，将不会同步导入到「订单」列表。仍要继续吗？')) return
+    }
 
     setSubmitting(true)
     try {
@@ -87,6 +108,14 @@ export default function OrdersPage() {
         body: JSON.stringify({
           deliveryStatus,
           deliveryInfo: deliveryInfo || null,
+          external: willDeliver
+            ? {
+                subscriptionType: extSubscriptionType.trim() || null,
+                startDate: extStartDate || null,
+                xianyuNickname: extXianyuNickname.trim() || null,
+                claudeAccount: extClaudeAccount.trim() || null,
+              }
+            : undefined,
         }),
       })
       const data = await res.json()
@@ -94,6 +123,10 @@ export default function OrdersPage() {
       if (!data.success) {
         alert(data.error || '更新失败')
         return
+      }
+
+      if (data.data?.imported) {
+        alert('已保存，并已同步导入到「订单」列表')
       }
 
       setShowDetailModal(false)
@@ -271,6 +304,63 @@ export default function OrdersPage() {
                   placeholder="请输入交付信息..."
                 />
               </div>
+
+              {deliveryStatus === 'DELIVERED' && (
+                <div className="rounded-lg border border-primary-200 bg-primary-50/50 p-4 space-y-3">
+                  <div className="text-sm font-medium text-primary-800">
+                    同步导入到「订单」列表
+                    <span className="ml-1 font-normal text-xs text-primary-600">
+                      （标记为「已完成」后自动写入订单管理，可在订单页继续维护成本/报价、开发票等）
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">订阅类型</label>
+                      <input
+                        type="text"
+                        value={extSubscriptionType}
+                        onChange={(e) => setExtSubscriptionType(e.target.value)}
+                        placeholder="默认 = 商品名称"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">开通时间</label>
+                      <input
+                        type="date"
+                        value={extStartDate}
+                        onChange={(e) => setExtStartDate(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">闲鱼昵称</label>
+                      <input
+                        type="text"
+                        value={extXianyuNickname}
+                        onChange={(e) => setExtXianyuNickname(e.target.value)}
+                        placeholder="默认 = 用户名称"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-gray-600">
+                        Claude 账户 <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={extClaudeAccount}
+                        onChange={(e) => setExtClaudeAccount(e.target.value)}
+                        placeholder="开通的 Claude 账户邮箱"
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    到期时间将按「开通时间 + 1 个月」自动计算；报价默认取本订单金额 ¥{Number(selectedOrder.amount).toFixed(2)}。
+                  </p>
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-4">
                 <Button variant="outline" onClick={() => setShowDetailModal(false)}>

@@ -12,6 +12,9 @@ interface ParsedRow {
   subscriptionType: string
   xianyuNickname: string
   claudeAccount: string
+  cost: number | null
+  quote: number | null
+  profit: number | null
   error?: string
   raw: string
 }
@@ -23,7 +26,12 @@ interface ExternalOrder {
   subscriptionType: string
   xianyuNickname: string | null
   claudeAccount: string
+  cost: string | number | null
+  quote: string | number | null
+  profit: string | number | null
   importBatch: string | null
+  invoiceStatus?: string | null
+  invoiceNo?: string | null
   updatedAt: string
 }
 
@@ -34,6 +42,27 @@ interface EditingOrder {
   subscriptionType: string
   xianyuNickname: string
   claudeAccount: string
+  cost: string
+  quote: string
+  profit: string
+}
+
+// 发票状态文案（与 lib/invoice 保持一致；此处独立定义避免把 node crypto 引入客户端包）
+const INVOICE_STATUS_LABELS: Record<string, string> = {
+  UNAPPLIED: '可开据·未开发票',
+  AWAIT_PAY: '可开据·待支付税费',
+  SUBMITTED: '可开具·已提交开票',
+  ISSUED: '已开具',
+  CANNOT: '不可开据',
+}
+
+// 解析金额，空 / 非数字返回 null
+function parseNum(s: string | undefined): number | null {
+  if (s == null) return null
+  const t = s.replace(/[¥,\s]/g, '').trim()
+  if (!t) return null
+  const n = Number(t)
+  return isFinite(n) ? n : null
 }
 
 // 解析 "2026年4月23日" 或 "2026-04-23" 或 "2026/04/23"
@@ -68,43 +97,40 @@ function parseLine(raw: string): ParsedRow {
   // ✨ 只用 Tab 分隔（从 Excel / 表格复制就是 Tab）
   // 这样订阅类型/昵称里可以包含空格而不会被错误拆分
   const parts = raw.split(/\t+/).map((p) => p.trim())
+  const fail = (error: string): ParsedRow => ({
+    raw,
+    startDate: '',
+    expireDate: '',
+    subscriptionType: '',
+    xianyuNickname: '',
+    claudeAccount: '',
+    cost: null,
+    quote: null,
+    profit: null,
+    error,
+  })
+
   if (parts.length < 4) {
-    return {
-      raw,
-      startDate: '',
-      expireDate: '',
-      subscriptionType: '',
-      xianyuNickname: '',
-      claudeAccount: '',
-      error: '需要 4 个字段，用 Tab 分隔（直接从 Excel / 表格复制即可）',
-    }
+    return fail('至少需要 4 个字段，用 Tab 分隔（直接从 Excel / 表格复制即可）')
   }
 
-  const [startStr, subscriptionType, xianyuNickname, claudeAccount] = parts
+  const [startStr, subscriptionType, xianyuNickname, claudeAccount, costStr, quoteStr, profitStr] = parts
 
   const startDate = parseDate(startStr)
   if (!startDate) {
-    return {
-      raw,
-      startDate: '',
-      expireDate: '',
-      subscriptionType: '',
-      xianyuNickname: '',
-      claudeAccount: '',
-      error: `无法解析日期 "${startStr}"`,
-    }
+    return fail(`无法解析日期 "${startStr}"`)
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(claudeAccount)) {
-    return {
-      raw,
-      startDate: '',
-      expireDate: '',
-      subscriptionType: '',
-      xianyuNickname: '',
-      claudeAccount: '',
-      error: `账户邮箱格式不正确 "${claudeAccount}"`,
-    }
+    return fail(`账户邮箱格式不正确 "${claudeAccount}"`)
+  }
+
+  const cost = parseNum(costStr)
+  const quote = parseNum(quoteStr)
+  // 利润：粘贴了就用粘贴的；否则若有报价和成本则自动计算
+  let profit = parseNum(profitStr)
+  if (profit == null && quote != null && cost != null) {
+    profit = Math.round((quote - cost) * 100) / 100
   }
 
   const expireDate = addOneMonth(startDate)
@@ -115,6 +141,9 @@ function parseLine(raw: string): ParsedRow {
     subscriptionType: subscriptionType.trim(),
     xianyuNickname: xianyuNickname.trim(),
     claudeAccount: claudeAccount.trim(),
+    cost,
+    quote,
+    profit,
   }
 }
 
@@ -178,6 +207,9 @@ export default function ExternalOrdersPage() {
         subscriptionType: r.subscriptionType,
         xianyuNickname: r.xianyuNickname || null,
         claudeAccount: r.claudeAccount,
+        cost: r.cost,
+        quote: r.quote,
+        profit: r.profit,
       }))
       const res = await fetch('/api/admin/external-orders/import', {
         method: 'POST',
@@ -218,6 +250,9 @@ export default function ExternalOrdersPage() {
       subscriptionType: o.subscriptionType,
       xianyuNickname: o.xianyuNickname || '',
       claudeAccount: o.claudeAccount,
+      cost: o.cost == null ? '' : String(o.cost),
+      quote: o.quote == null ? '' : String(o.quote),
+      profit: o.profit == null ? '' : String(o.profit),
     })
   }
 
@@ -235,6 +270,9 @@ export default function ExternalOrdersPage() {
           subscriptionType: editing.subscriptionType,
           xianyuNickname: editing.xianyuNickname || null,
           claudeAccount: editing.claudeAccount,
+          cost: parseNum(editing.cost),
+          quote: parseNum(editing.quote),
+          profit: parseNum(editing.profit),
         }),
       })
       const data = await res.json()
@@ -290,13 +328,14 @@ export default function ExternalOrdersPage() {
               </div>
               <ol className="list-decimal list-inside space-y-1 text-blue-800">
                 <li>每行一条订单，字段用 <strong>Tab</strong> 分隔（从 Excel / 表格直接复制即可）</li>
-                <li>字段顺序：<code className="bg-blue-100 px-1 rounded">开通时间 ⇥ 订阅类型 ⇥ 闲鱼昵称 ⇥ Claude账户</code></li>
+                <li>字段顺序：<code className="bg-blue-100 px-1 rounded">开通时间 ⇥ 订阅类型 ⇥ 闲鱼昵称 ⇥ Claude账户 ⇥ 本单成本 ⇥ 报价 ⇥ 利润</code></li>
                 <li>订阅类型与昵称内可以包含空格</li>
                 <li>到期时间自动计算（开通时间 + 1 个月）</li>
+                <li><strong>本单成本 / 报价 / 利润</strong> 为选填；利润留空时自动按「报价 − 成本」计算</li>
                 <li>已存在的订单（账户+开通时间+类型）会自动更新</li>
               </ol>
               <div className="mt-3 p-2 bg-blue-100 rounded font-mono text-xs whitespace-pre">
-                {'2026年4月23日\tClaude Max 20x\thijkkkk\tlinyanan421@gmail.com\n2026年5月23日\tClaude Pro\t黄河清不清\tInnifredIenow5213@outlook.com\n2026年1月13日\tChatGPT Plus\t爱吃啤酒肉丝的清潭\tliaoliang226@gmail.com'}
+                {'2026年4月23日\tClaude Max 20x\thijkkkk\tlinyanan421@gmail.com\t120\t199\t79\n2026年5月23日\tClaude Pro\t黄河清不清\tInnifredIenow5213@outlook.com\t60\t99\n2026年1月13日\tChatGPT Plus\t爱吃啤酒肉丝的清潭\tliaoliang226@gmail.com'}
               </div>
             </div>
 
@@ -346,6 +385,9 @@ export default function ExternalOrdersPage() {
                           <th className="px-2 py-1 text-left">订阅类型</th>
                           <th className="px-2 py-1 text-left">闲鱼昵称</th>
                           <th className="px-2 py-1 text-left">Claude账户</th>
+                          <th className="px-2 py-1 text-right">成本</th>
+                          <th className="px-2 py-1 text-right">报价</th>
+                          <th className="px-2 py-1 text-right">利润</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -356,6 +398,9 @@ export default function ExternalOrdersPage() {
                             <td className="px-2 py-1">{r.subscriptionType}</td>
                             <td className="px-2 py-1">{r.xianyuNickname}</td>
                             <td className="px-2 py-1 font-mono">{r.claudeAccount}</td>
+                            <td className="px-2 py-1 text-right">{r.cost ?? '-'}</td>
+                            <td className="px-2 py-1 text-right">{r.quote ?? '-'}</td>
+                            <td className="px-2 py-1 text-right">{r.profit ?? '-'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -448,6 +493,10 @@ export default function ExternalOrdersPage() {
                     <th className="pb-2 pr-3">订阅类型</th>
                     <th className="pb-2 pr-3">闲鱼昵称</th>
                     <th className="pb-2 pr-3">Claude账户</th>
+                    <th className="pb-2 pr-3 text-right">成本</th>
+                    <th className="pb-2 pr-3 text-right">报价</th>
+                    <th className="pb-2 pr-3 text-right">利润</th>
+                    <th className="pb-2 pr-3">发票</th>
                     <th className="pb-2 pr-3">状态</th>
                     <th className="pb-2 text-right">操作</th>
                   </tr>
@@ -460,6 +509,18 @@ export default function ExternalOrdersPage() {
                       <td className="py-2 pr-3 font-medium">{o.subscriptionType}</td>
                       <td className="py-2 pr-3">{o.xianyuNickname || '-'}</td>
                       <td className="py-2 pr-3 font-mono text-xs">{o.claudeAccount}</td>
+                      <td className="py-2 pr-3 text-right text-gray-600">{o.cost == null ? '-' : `¥${Number(o.cost).toFixed(2)}`}</td>
+                      <td className="py-2 pr-3 text-right text-gray-600">{o.quote == null ? '-' : `¥${Number(o.quote).toFixed(2)}`}</td>
+                      <td className="py-2 pr-3 text-right font-medium text-green-600">{o.profit == null ? '-' : `¥${Number(o.profit).toFixed(2)}`}</td>
+                      <td className="py-2 pr-3">
+                        {o.invoiceStatus && o.invoiceStatus !== 'CANNOT' && o.invoiceStatus !== 'UNAPPLIED' ? (
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-purple-100 text-purple-700" title={o.invoiceNo || ''}>
+                            {INVOICE_STATUS_LABELS[o.invoiceStatus] || o.invoiceStatus}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="py-2 pr-3">
                         {isExpired(o.expireDate) ? (
                           <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-red-100 text-red-700">已过期</span>
@@ -565,6 +626,55 @@ export default function ExternalOrdersPage() {
                   onChange={(e) => setEditing({ ...editing, claudeAccount: e.target.value })}
                   className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm font-mono focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">本单成本</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editing.cost}
+                    onChange={(e) => {
+                      const cost = e.target.value
+                      // 报价与成本都有值且利润为空时自动补利润
+                      const q = parseNum(editing.quote)
+                      const c = parseNum(cost)
+                      const profit = !editing.profit && q != null && c != null ? String(Math.round((q - c) * 100) / 100) : editing.profit
+                      setEditing({ ...editing, cost, profit })
+                    }}
+                    placeholder="选填"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">报价</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editing.quote}
+                    onChange={(e) => {
+                      const quote = e.target.value
+                      const q = parseNum(quote)
+                      const c = parseNum(editing.cost)
+                      const profit = !editing.profit && q != null && c != null ? String(Math.round((q - c) * 100) / 100) : editing.profit
+                      setEditing({ ...editing, quote, profit })
+                    }}
+                    placeholder="选填"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">利润</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editing.profit}
+                    onChange={(e) => setEditing({ ...editing, profit: e.target.value })}
+                    placeholder="自动 = 报价−成本"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  />
+                </div>
               </div>
 
               {editError && (

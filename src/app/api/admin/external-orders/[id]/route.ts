@@ -12,6 +12,9 @@ const updateSchema = z.object({
   subscriptionType: z.string().min(1, '订阅类型必填'),
   xianyuNickname: z.string().optional().nullable(),
   claudeAccount: z.string().email('账户邮箱格式不正确'),
+  cost: z.number().optional().nullable(),
+  quote: z.number().optional().nullable(),
+  profit: z.number().optional().nullable(),
 })
 
 function hashKey(claudeAccount: string, startDate: string, subscriptionType: string): string {
@@ -43,6 +46,13 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       return error('已存在相同账户+开通时间+订阅类型的订单，请检查')
     }
 
+    const cost = data.cost ?? null
+    const quote = data.quote ?? null
+    let profit = data.profit ?? null
+    if (profit == null && quote != null && cost != null) {
+      profit = Math.round((quote - cost) * 100) / 100
+    }
+
     const updated = await prisma.externalOrder.update({
       where: { id },
       data: {
@@ -51,6 +61,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         subscriptionType,
         xianyuNickname: data.xianyuNickname?.trim() || null,
         claudeAccount,
+        cost,
+        quote,
+        profit,
         sourceKey: newSourceKey,
       },
     })

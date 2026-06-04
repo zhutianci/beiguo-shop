@@ -146,6 +146,9 @@ model ExternalOrder {
   subscriptionType String   @map("subscription_type") @db.VarChar(100)  // 订阅类型
   xianyuNickname   String?  @map("xianyu_nickname") @db.VarChar(100)    // 闲鱼昵称
   claudeAccount    String   @map("claude_account") @db.VarChar(255)     // 账户邮箱
+  cost             Decimal? @db.Decimal(10, 2)                          // 本单成本
+  quote            Decimal? @db.Decimal(10, 2)                          // 报价
+  profit           Decimal? @db.Decimal(10, 2)                          // 利润（默认 = 报价 - 成本，可手填）
   sourceKey        String   @unique @map("source_key") @db.VarChar(128) // 去重键
   importBatch      String?  @map("import_batch") @db.VarChar(32)
   remindedExpireDate DateTime? @map("reminded_expire_date") @db.Date    // 已提醒过的到期日（用于跳过自动提醒；续费后到期日变化即重新生效）
