@@ -4,7 +4,6 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { matchPriceFromProducts } from '@/lib/invoice'
 import { PAYEE, genReceiptNo, genReceiptToken } from '@/lib/receipt'
 
 const schema = z.object({
@@ -26,10 +25,13 @@ export async function POST(request: NextRequest) {
     const existing = await prisma.receipt.findFirst({ where: { externalOrderId: order.id } })
     if (existing) return error('该订单已开具收据，如需重开请联系客服', 409)
 
-    // 金额 = 商品售价
-    const products = await prisma.product.findMany({ where: { status: 1 }, select: { name: true, price: true } })
-    const price = matchPriceFromProducts(products, order.subscriptionType)
-    if (price == null) return error('该订单暂不可开具收据')
+    // 计费基准 = 报价(quote)；若发票已开具，则按发票金额（含税 = 报价×1.06）出具收据
+    const quote = order.quote == null ? null : Number(order.quote)
+    if (quote == null) return error('该订单暂不可开具收据')
+
+    const invoice = await prisma.invoice.findUnique({ where: { externalOrderId: order.id } })
+    const amount =
+      invoice && invoice.status === 'ISSUED' ? Number(invoice.invoiceAmount) : quote
 
     const receipt = await prisma.receipt.create({
       data: {
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
         orderExpireDate: order.expireDate,
         payerTitle: d.payerTitle,
         payee: PAYEE,
-        amount: price,
+        amount,
       },
     })
 

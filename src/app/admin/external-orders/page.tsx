@@ -289,6 +289,17 @@ export default function ExternalOrdersPage() {
     }
   }
 
+  const handleSetInvoiceStatus = async (orderId: number, status: string) => {
+    const res = await fetch(`/api/admin/invoices/by-order/${orderId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }),
+    })
+    const data = await res.json()
+    if (data.success) loadOrders()
+    else alert(data.error || '更新发票状态失败')
+  }
+
   const handleDeleteOne = async (o: ExternalOrder) => {
     if (!confirm(`确定删除订单：\n${o.subscriptionType} · ${o.claudeAccount} · ${o.startDate.slice(0, 10)}？`)) return
     const res = await fetch(`/api/admin/external-orders/${o.id}`, { method: 'DELETE' })
@@ -513,13 +524,16 @@ export default function ExternalOrdersPage() {
                       <td className="py-2 pr-3 text-right text-gray-600">{o.quote == null ? '-' : `¥${Number(o.quote).toFixed(2)}`}</td>
                       <td className="py-2 pr-3 text-right font-medium text-green-600">{o.profit == null ? '-' : `¥${Number(o.profit).toFixed(2)}`}</td>
                       <td className="py-2 pr-3">
-                        {o.invoiceStatus && o.invoiceStatus !== 'CANNOT' && o.invoiceStatus !== 'UNAPPLIED' ? (
-                          <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-purple-100 text-purple-700" title={o.invoiceNo || ''}>
-                            {INVOICE_STATUS_LABELS[o.invoiceStatus] || o.invoiceStatus}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-gray-400">—</span>
-                        )}
+                        <select
+                          value={o.invoiceStatus || 'UNAPPLIED'}
+                          onChange={(e) => handleSetInvoiceStatus(o.id, e.target.value)}
+                          title={o.invoiceNo || '设置发票状态'}
+                          className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900"
+                        >
+                          {Object.keys(INVOICE_STATUS_LABELS).map((s) => (
+                            <option key={s} value={s}>{INVOICE_STATUS_LABELS[s]}</option>
+                          ))}
+                        </select>
                       </td>
                       <td className="py-2 pr-3">
                         {isExpired(o.expireDate) ? (

@@ -4,23 +4,27 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, CheckCircle, XCircle, Trash2, Eye, X } from 'lucide-react'
+import { Search, Eye, X } from 'lucide-react'
 
-interface Invoice {
-  id: number
-  invoiceNo: string
+interface InvoiceRow {
+  externalOrderId: number
+  invoiceId: number | null
+  invoiceNo: string | null
   claudeAccount: string
   subscriptionType: string
-  sellingPrice: string | number
-  invoiceAmount: string | number
-  taxFee: string | number
-  title: string
-  taxNumber: string
+  xianyuNickname: string | null
+  orderStartDate: string | null
+  orderExpireDate: string | null
+  title: string | null
+  taxNumber: string | null
   address: string | null
   phone: string | null
   bankName: string | null
   bankAccount: string | null
-  email: string
+  email: string | null
+  sellingPrice: number | null
+  invoiceAmount: number | null
+  taxFee: number | null
   status: string
   payStatus: string
   paidAt: string | null
@@ -28,39 +32,55 @@ interface Invoice {
   createdAt: string
 }
 
+interface Totals {
+  count: Record<string, number>
+  paidTaxFee: number
+  issuedInvoiceAmount: number
+}
+
 const STATUS_LABELS: Record<string, string> = {
+  UNAPPLIED: '未开发票',
   AWAIT_PAY: '待支付税费',
   SUBMITTED: '已提交开票',
   ISSUED: '已开具',
   CANNOT: '不可开据',
 }
 const STATUS_STYLES: Record<string, string> = {
+  UNAPPLIED: 'bg-gray-100 text-gray-600',
   AWAIT_PAY: 'bg-amber-100 text-amber-700',
   SUBMITTED: 'bg-cyan-100 text-cyan-700',
   ISSUED: 'bg-green-100 text-green-700',
-  CANNOT: 'bg-gray-100 text-gray-500',
+  CANNOT: 'bg-gray-200 text-gray-500',
 }
+const STATUS_OPTIONS = ['UNAPPLIED', 'AWAIT_PAY', 'SUBMITTED', 'ISSUED', 'CANNOT']
 
 function fmt(s: string) {
   return new Date(s).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
 }
+function money(n: number | null) {
+  return n == null ? '-' : `¥${Number(n).toFixed(2)}`
+}
 
 export default function AdminInvoicesPage() {
-  const [list, setList] = useState<Invoice[]>([])
+  const [list, setList] = useState<InvoiceRow[]>([])
+  const [totals, setTotals] = useState<Totals | null>(null)
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [loading, setLoading] = useState(true)
-  const [detail, setDetail] = useState<Invoice | null>(null)
+  const [detail, setDetail] = useState<InvoiceRow | null>(null)
 
   const load = async () => {
     setLoading(true)
     try {
-      const q = new URLSearchParams({ pageSize: '100' })
+      const q = new URLSearchParams({ pageSize: '500' })
       if (keyword) q.set('keyword', keyword)
       if (statusFilter) q.set('status', statusFilter)
       const res = await fetch(`/api/admin/invoices?${q}`)
       const data = await res.json()
-      if (data.success) setList(data.data.list)
+      if (data.success) {
+        setList(data.data.list)
+        setTotals(data.data.totals)
+      }
     } finally {
       setLoading(false)
     }
@@ -71,9 +91,9 @@ export default function AdminInvoicesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const action = async (id: number, status: string) => {
-    const res = await fetch(`/api/admin/invoices/${id}`, {
-      method: 'PATCH',
+  const setStatus = async (externalOrderId: number, status: string) => {
+    const res = await fetch(`/api/admin/invoices/by-order/${externalOrderId}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     })
@@ -84,26 +104,41 @@ export default function AdminInvoicesPage() {
     } else alert(data.error || '操作失败')
   }
 
-  const del = async (id: number) => {
-    if (!confirm('确定删除这条发票申请？')) return
-    const res = await fetch(`/api/admin/invoices/${id}`, { method: 'DELETE' })
-    const data = await res.json()
-    if (data.success) load()
-    else alert(data.error || '删除失败')
-  }
-
   return (
     <div className="space-y-6">
+      {totals && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {STATUS_OPTIONS.map((s) => (
+            <div key={s} className="rounded-xl border border-gray-100 bg-white p-3">
+              <div className="text-xs text-gray-500">{STATUS_LABELS[s]}</div>
+              <div className="text-xl font-semibold text-gray-900">{totals.count[s] || 0}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {totals && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+            <div className="text-xs text-amber-700">已支付税费合计（报价×0.06）</div>
+            <div className="text-xl font-semibold text-amber-800">¥{totals.paidTaxFee.toFixed(2)}</div>
+          </div>
+          <div className="rounded-xl border border-green-100 bg-green-50 p-3">
+            <div className="text-xs text-green-700">已开具发票金额合计（含税，报价×1.06）</div>
+            <div className="text-xl font-semibold text-green-800">¥{totals.issuedInvoiceAmount.toFixed(2)}</div>
+          </div>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle>发票管理（共 {list.length} 条）</CardTitle>
+          <CardTitle>发票管理（共 {list.length} 条 · 同步全部订单）</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="搜索账户/抬头/税号/发票号..."
+                placeholder="搜索账户/订阅类型/闲鱼昵称..."
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && load()}
@@ -116,10 +151,9 @@ export default function AdminInvoicesPage() {
               className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900"
             >
               <option value="">全部状态</option>
-              <option value="AWAIT_PAY">待支付税费</option>
-              <option value="SUBMITTED">已提交开票</option>
-              <option value="ISSUED">已开具</option>
-              <option value="CANNOT">不可开据</option>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+              ))}
             </select>
             <Button variant="outline" onClick={load}>
               <Search className="w-4 h-4 mr-1" /> 查询
@@ -129,7 +163,7 @@ export default function AdminInvoicesPage() {
           {loading ? (
             <div className="text-center py-12 text-gray-400">加载中...</div>
           ) : list.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">暂无发票申请</div>
+            <div className="text-center py-12 text-gray-400">暂无订单</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-gray-800">
@@ -137,24 +171,24 @@ export default function AdminInvoicesPage() {
                   <tr className="border-b text-left text-gray-500 text-xs">
                     <th className="pb-2 pr-3">抬头 / 账户</th>
                     <th className="pb-2 pr-3">订阅</th>
-                    <th className="pb-2 pr-3">开票金额</th>
-                    <th className="pb-2 pr-3">税费</th>
+                    <th className="pb-2 pr-3 text-right">开票金额(含税)</th>
+                    <th className="pb-2 pr-3 text-right">税费</th>
                     <th className="pb-2 pr-3">状态</th>
-                    <th className="pb-2 pr-3">申请时间</th>
-                    <th className="pb-2 text-right">操作</th>
+                    <th className="pb-2 pr-3">设置状态</th>
+                    <th className="pb-2 text-right">详情</th>
                   </tr>
                 </thead>
                 <tbody>
                   {list.map((iv) => (
-                    <tr key={iv.id} className="border-b hover:bg-gray-50/60">
+                    <tr key={iv.externalOrderId} className="border-b hover:bg-gray-50/60">
                       <td className="py-2 pr-3">
-                        <div className="font-medium">{iv.title}</div>
+                        <div className="font-medium">{iv.title || <span className="text-gray-400">（未填抬头）</span>}</div>
                         <div className="text-xs text-gray-400 font-mono">{iv.claudeAccount}</div>
                       </td>
                       <td className="py-2 pr-3 text-xs">{iv.subscriptionType}</td>
-                      <td className="py-2 pr-3">¥{Number(iv.invoiceAmount).toFixed(2)}</td>
-                      <td className="py-2 pr-3">
-                        ¥{Number(iv.taxFee).toFixed(2)}
+                      <td className="py-2 pr-3 text-right">{money(iv.invoiceAmount)}</td>
+                      <td className="py-2 pr-3 text-right whitespace-nowrap">
+                        {money(iv.taxFee)}
                         <span className={`ml-1 text-xs ${iv.payStatus === 'PAID' ? 'text-green-600' : 'text-gray-400'}`}>
                           {iv.payStatus === 'PAID' ? '已付' : '未付'}
                         </span>
@@ -164,23 +198,20 @@ export default function AdminInvoicesPage() {
                           {STATUS_LABELS[iv.status] || iv.status}
                         </span>
                       </td>
-                      <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">{fmt(iv.createdAt)}</td>
+                      <td className="py-2 pr-3">
+                        <select
+                          value={iv.status}
+                          onChange={(e) => setStatus(iv.externalOrderId, e.target.value)}
+                          className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs text-gray-900"
+                        >
+                          {STATUS_OPTIONS.map((s) => (
+                            <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="py-2 text-right whitespace-nowrap">
                         <button onClick={() => setDetail(iv)} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-gray-600 hover:bg-gray-100" title="详情">
                           <Eye className="w-3.5 h-3.5" />
-                        </button>
-                        {iv.status === 'SUBMITTED' && (
-                          <button onClick={() => action(iv.id, 'ISSUED')} className="ml-1 inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-green-600 hover:bg-green-50" title="标记已开具">
-                            <CheckCircle className="w-3.5 h-3.5" /> 开具
-                          </button>
-                        )}
-                        {iv.status !== 'CANNOT' && iv.status !== 'ISSUED' && (
-                          <button onClick={() => action(iv.id, 'CANNOT')} className="ml-1 inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-100" title="不可开据">
-                            <XCircle className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <button onClick={() => del(iv.id)} className="ml-1 inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-red-600 hover:bg-red-50" title="删除">
-                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
@@ -202,19 +233,19 @@ export default function AdminInvoicesPage() {
             </div>
             <div className="space-y-2 text-sm text-gray-800">
               {[
-                ['发票号', detail.invoiceNo],
-                ['抬头', detail.title],
-                ['税号', detail.taxNumber],
-                ['接收邮箱', detail.email],
+                ['发票号', detail.invoiceNo || '-'],
+                ['抬头', detail.title || '-'],
+                ['税号', detail.taxNumber || '-'],
+                ['接收邮箱', detail.email || '-'],
                 ['地址', detail.address || '-'],
                 ['电话', detail.phone || '-'],
                 ['开户行', detail.bankName || '-'],
                 ['卡号', detail.bankAccount || '-'],
                 ['订阅', detail.subscriptionType],
                 ['账户', detail.claudeAccount],
-                ['售价', `¥${Number(detail.sellingPrice).toFixed(2)}`],
-                ['开票金额（含税）', `¥${Number(detail.invoiceAmount).toFixed(2)}`],
-                ['税费（6%）', `¥${Number(detail.taxFee).toFixed(2)} · ${detail.payStatus === 'PAID' ? '已支付' : '未支付'}`],
+                ['报价（售价）', money(detail.sellingPrice)],
+                ['开票金额（含税 = 报价×1.06）', money(detail.invoiceAmount)],
+                ['发票税费（报价×0.06）', `${money(detail.taxFee)} · ${detail.payStatus === 'PAID' ? '已支付' : '未支付'}`],
                 ['状态', STATUS_LABELS[detail.status] || detail.status],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4 border-b border-gray-100 py-1.5">
@@ -223,15 +254,12 @@ export default function AdminInvoicesPage() {
                 </div>
               ))}
             </div>
-            <div className="flex justify-end gap-2 pt-5">
-              {detail.status === 'SUBMITTED' && (
-                <Button onClick={() => action(detail.id, 'ISSUED')}>
-                  <CheckCircle className="w-4 h-4 mr-1" /> 标记已开具
+            <div className="flex flex-wrap justify-end gap-2 pt-5">
+              {STATUS_OPTIONS.filter((s) => s !== detail.status).map((s) => (
+                <Button key={s} variant="outline" onClick={() => setStatus(detail.externalOrderId, s)}>
+                  改为「{STATUS_LABELS[s]}」
                 </Button>
-              )}
-              {detail.status !== 'CANNOT' && detail.status !== 'ISSUED' && (
-                <Button variant="outline" onClick={() => action(detail.id, 'CANNOT')}>不可开据</Button>
-              )}
+              ))}
             </div>
           </div>
         </div>

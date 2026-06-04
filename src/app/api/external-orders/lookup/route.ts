@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { matchPriceFromProducts, calcInvoiceAmounts } from '@/lib/invoice'
+import { calcInvoiceAmounts } from '@/lib/invoice'
 
 const querySchema = z.object({
   email: z.string().email('请输入正确的邮箱'),
@@ -30,15 +30,15 @@ export async function GET(request: NextRequest) {
         subscriptionType: true,
         xianyuNickname: true,
         claudeAccount: true,
+        quote: true,
         createdAt: true,
         updatedAt: true,
       },
     })
 
     const orderIds = orders.map((o) => o.id)
-    // 取商品价格做售价匹配 + 已有发票 + 已有收据
-    const [products, invoices, receipts] = await Promise.all([
-      prisma.product.findMany({ where: { status: 1 }, select: { name: true, price: true } }),
+    // 发票/收据均以「报价(quote)」为计费基准
+    const [invoices, receipts] = await Promise.all([
       orderIds.length
         ? prisma.invoice.findMany({
             where: { externalOrderId: { in: orderIds } },
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     const receiptMap = new Map(receipts.map((r) => [r.externalOrderId, r]))
 
     const list = orders.map((o) => {
-      const price = matchPriceFromProducts(products, o.subscriptionType)
+      const price = o.quote == null ? null : Number(o.quote)
       const existing = invoiceMap.get(o.id)
       let invoiceStatus: string
       let sellingPrice: number | null = null
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
       let taxFee: number | null = null
 
       if (price == null) {
-        invoiceStatus = 'CANNOT' // 匹配不到售价 → 不可开据
+        invoiceStatus = existing ? existing.status : 'CANNOT' // 无报价 → 暂不可开据
       } else {
         sellingPrice = price
         const amt = calcInvoiceAmounts(price)
@@ -74,9 +74,10 @@ export async function GET(request: NextRequest) {
       }
 
       const receipt = receiptMap.get(o.id)
+      const { quote: _quote, ...rest } = o
       return {
-        ...o,
-        canInvoice: price != null,
+        ...rest,
+        canInvoice: price != null && invoiceStatus !== 'CANNOT',
         sellingPrice,
         invoiceAmount,
         taxFee,

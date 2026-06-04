@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { matchPriceFromProducts, calcInvoiceAmounts, genInvoiceNo } from '@/lib/invoice'
+import { calcInvoiceAmounts, genInvoiceNo } from '@/lib/invoice'
 import { alipayConfigured, buildPayUrl } from '@/lib/alipay'
 
 const schema = z.object({
@@ -44,23 +44,41 @@ export async function POST(request: NextRequest) {
     const order = await prisma.externalOrder.findUnique({ where: { id: d.externalOrderId } })
     if (!order) return error('订单不存在')
 
-    // 售价匹配
-    const products = await prisma.product.findMany({ where: { status: 1 }, select: { name: true, price: true } })
-    const price = matchPriceFromProducts(products, order.subscriptionType)
+    // 计费基准 = 报价(quote)
+    const price = order.quote == null ? null : Number(order.quote)
     if (price == null) return error('该订单暂不可开具发票')
     const { invoiceAmount, taxFee } = calcInvoiceAmounts(price)
 
-    // 是否已存在有效发票
-    const existing = await prisma.invoice.findFirst({
-      where: { externalOrderId: order.id, status: { not: 'CANNOT' } },
-    })
+    const email = d.email.trim().toLowerCase()
+    const buyerFields = {
+      title: d.title,
+      taxNumber: d.taxNumber,
+      address: d.address || null,
+      phone: d.phone || null,
+      bankName: d.bankName || null,
+      bankAccount: d.bankAccount || null,
+      email,
+      sellingPrice: price,
+      invoiceAmount,
+      taxFee,
+    }
+
+    // 一笔订单一张发票
+    const existing = await prisma.invoice.findUnique({ where: { externalOrderId: order.id } })
     if (existing) {
-      if (existing.status === 'AWAIT_PAY') {
-        // 未支付的，返回继续支付链接
-        const payUrl = payUrlForInvoice(existing.invoiceNo, Number(existing.taxFee), order.subscriptionType, existing.email, channel)
-        return success({ invoiceId: existing.id, payUrl, taxFee: Number(existing.taxFee), reused: true }, '继续支付税费')
+      if (existing.status === 'ISSUED' || existing.status === 'SUBMITTED') {
+        return error('该订单已申请发票，请勿重复提交')
       }
-      return error('该订单已申请发票，请勿重复提交')
+      if (existing.status === 'CANNOT') {
+        return error('该订单暂不可开具发票，请联系客服')
+      }
+      // UNAPPLIED 或 AWAIT_PAY：补全买家信息并进入待支付税费
+      const updated = await prisma.invoice.update({
+        where: { id: existing.id },
+        data: { ...buyerFields, status: 'AWAIT_PAY' },
+      })
+      const payUrl = payUrlForInvoice(updated.invoiceNo, Number(updated.taxFee), order.subscriptionType, email, channel)
+      return success({ invoiceId: updated.id, payUrl, taxFee: Number(updated.taxFee), reused: true }, '请支付税费')
     }
 
     const invoiceNo = genInvoiceNo()
@@ -73,22 +91,13 @@ export async function POST(request: NextRequest) {
         subscriptionType: order.subscriptionType,
         orderStartDate: order.startDate,
         orderExpireDate: order.expireDate,
-        sellingPrice: price,
-        invoiceAmount,
-        taxFee,
-        title: d.title,
-        taxNumber: d.taxNumber,
-        address: d.address || null,
-        phone: d.phone || null,
-        bankName: d.bankName || null,
-        bankAccount: d.bankAccount || null,
-        email: d.email.trim().toLowerCase(),
+        ...buyerFields,
         status: 'AWAIT_PAY',
         payStatus: 'UNPAID',
       },
     })
 
-    const payUrl = payUrlForInvoice(invoiceNo, taxFee, order.subscriptionType, invoice.email, channel)
+    const payUrl = payUrlForInvoice(invoiceNo, taxFee, order.subscriptionType, email, channel)
     return success({ invoiceId: invoice.id, payUrl, taxFee }, '已提交，请支付税费')
   } catch (err) {
     console.error('Create invoice error:', err)

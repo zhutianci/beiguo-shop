@@ -33,8 +33,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       subject: `发票税费-${invoice.subscriptionType}`.slice(0, 256),
       channel,
       notifyUrl: `${appUrl}/api/pay/alipay/invoice-notify`,
-      returnUrl: `${appUrl}/lookup?email=${encodeURIComponent(invoice.email)}`,
-      quitUrl: `${appUrl}/lookup?email=${encodeURIComponent(invoice.email)}`,
+      returnUrl: `${appUrl}/lookup?email=${encodeURIComponent(invoice.email || invoice.claudeAccount)}`,
+      quitUrl: `${appUrl}/lookup?email=${encodeURIComponent(invoice.email || invoice.claudeAccount)}`,
     })
     return success({ payUrl, taxFee: Number(invoice.taxFee) })
   } catch (err) {
