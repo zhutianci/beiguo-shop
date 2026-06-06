@@ -130,16 +130,14 @@ export default function OrdersPage() {
   const handleAlipay = async (order: Order) => {
     setPayingNo(order.orderNo)
     try {
-      // 手机端用 wap，桌面端用 page
-      const channel = typeof window !== 'undefined' && window.innerWidth < 768 ? 'wap' : 'page'
-      const res = await fetch('/api/pay/alipay/create', {
+      const res = await fetch('/api/pay/vmq/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNo: order.orderNo, channel }),
+        body: JSON.stringify({ orderNo: order.orderNo }),
       })
       const data = await res.json()
       if (data.success && data.data?.payUrl) {
-        window.location.href = data.data.payUrl
+        router.push(data.data.payUrl)
       } else {
         alert(data.error || '发起支付失败')
         setPayingNo(null)

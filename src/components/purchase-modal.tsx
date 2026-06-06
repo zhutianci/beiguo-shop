@@ -67,20 +67,19 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
         return
       }
 
-      // 2) 发起支付宝支付（手机用 WAP，桌面用电脑网站支付）
-      const channel = typeof window !== 'undefined' && window.innerWidth < 768 ? 'wap' : 'page'
-      const payRes = await fetch('/api/pay/alipay/create', {
+      // 2) 发起收款，拿到收银台地址
+      const payRes = await fetch('/api/pay/vmq/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNo: data.data.order.orderNo, channel }),
+        body: JSON.stringify({ orderNo: data.data.order.orderNo }),
       })
       const payData = await payRes.json()
       if (payData.success && payData.data?.payUrl) {
-        // 3) 直接跳转支付宝收银台
-        window.location.href = payData.data.payUrl
+        // 3) 跳转到收银台（扫码支付）
+        router.push(payData.data.payUrl)
         return
       }
-      // 支付未配置等：退回订单页，可在订单页再次支付
+      // 发起失败：退回订单页，可在订单页再次支付
       setError(payData.error || '发起支付失败，请到「我的订单」重试')
     } catch {
       setError('网络错误，请重试')

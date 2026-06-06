@@ -233,6 +233,35 @@ model GameScore {
   @@map("game_scores")
 }
 
+// V免签式收款订单（监控个人收款码到账，按唯一金额匹配）
+model VmqOrder {
+  id          Int      @id @default(autoincrement())
+  orderId     String   @unique @map("order_id") @db.VarChar(40)  // 云端订单号（不可枚举）
+  bizType     String   @map("biz_type") @db.VarChar(20)          // order | invoice
+  bizId       Int      @map("biz_id")                            // Order.id 或 Invoice.id
+  outTradeNo  String   @map("out_trade_no") @db.VarChar(40)      // 业务单号（orderNo / invoiceNo）
+  type        Int      @default(2)                               // 1 微信 2 支付宝（本项目仅 2）
+  price       Decimal  @db.Decimal(10, 2)                        // 原始应付金额
+  reallyPrice Decimal  @map("really_price") @db.Decimal(10, 2)   // 实付唯一金额（原价基础上 +0.01 递增）
+  state       Int      @default(0)                               // 0 待支付 1 已支付 -1 已过期
+  createdAt   DateTime @default(now()) @map("created_at")
+  payDate     DateTime? @map("pay_date")
+
+  @@index([bizType, bizId, state])
+  @@index([state, type])
+  @@map("vmq_orders")
+}
+
+// 金额占用锁（保证同一时刻同金额唯一；靠唯一约束做原子分配）
+model VmqLock {
+  id        Int      @id @default(autoincrement())
+  lockKey   String   @unique @map("lock_key") @db.VarChar(40) // "<分>-<type>"
+  orderId   String   @map("order_id") @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("vmq_locks")
+}
+
 // 系统配置表
 model Setting {
   id        Int      @id @default(autoincrement())

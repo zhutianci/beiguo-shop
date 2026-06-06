@@ -1,0 +1,203 @@
+import crypto from 'crypto'
+import { Prisma } from '@prisma/client'
+import { prisma } from './db'
+
+// ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
+
+export const VMQ_KEY = process.env.VMQ_KEY || ''
+export const VMQ_TIMEOUT_MIN = parseInt(process.env.VMQ_PAY_TIMEOUT || '5') // 订单有效期（分钟）
+export const VMQ_REQUIRE_MONITOR = process.env.VMQ_REQUIRE_MONITOR !== '0'   // 是否要求监控端在线才能下单
+export const VMQ_TYPE_ALIPAY = 2
+
+export function vmqConfigured(): boolean {
+  return !!VMQ_KEY
+}
+
+export function md5(s: string): string {
+  return crypto.createHash('md5').update(s, 'utf8').digest('hex')
+}
+
+export function genOrderId(): string {
+  // 时间 + 随机，保证不可枚举
+  return Date.now().toString() + crypto.randomBytes(4).toString('hex')
+}
+
+function centsOf(price: number | string | Prisma.Decimal): number {
+  return Math.round(Number(price) * 100)
+}
+
+// ---- 监控端心跳状态（存 Setting 表）----
+async function getSetting(key: string): Promise<string | null> {
+  const r = await prisma.setting.findUnique({ where: { key } })
+  return r?.value ?? null
+}
+async function setSetting(key: string, value: string) {
+  await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } })
+}
+
+export async function touchHeartbeat() {
+  await setSetting('vmq_lastheart', String(Date.now()))
+}
+
+export async function monitorAlive(): Promise<boolean> {
+  const last = await getSetting('vmq_lastheart')
+  if (!last) return false
+  return Date.now() - Number(last) < 60_000 // 60s 内有心跳视为在线
+}
+
+// ---- 过期订单清理 + 释放金额锁 ----
+export async function closeExpired(): Promise<number> {
+  const cutoff = new Date(Date.now() - VMQ_TIMEOUT_MIN * 60_000)
+  const expired = await prisma.vmqOrder.findMany({
+    where: { state: 0, createdAt: { lt: cutoff } },
+    select: { id: true, orderId: true },
+  })
+  if (expired.length === 0) return 0
+  await prisma.$transaction([
+    prisma.vmqOrder.updateMany({ where: { id: { in: expired.map((e) => e.id) } }, data: { state: -1 } }),
+    prisma.vmqLock.deleteMany({ where: { orderId: { in: expired.map((e) => e.orderId) } } }),
+  ])
+  return expired.length
+}
+
+// ---- 分配唯一金额并加锁 ----
+async function allocateAmount(basePrice: number, type: number, orderId: string): Promise<number> {
+  let cents = centsOf(basePrice)
+  for (let i = 0; i < 50; i++) {
+    const lockKey = `${cents}-${type}`
+    try {
+      await prisma.vmqLock.create({ data: { lockKey, orderId } })
+      return cents
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        cents += 1 // 该金额被占用，+0.01 重试
+        continue
+      }
+      throw e
+    }
+  }
+  throw new Error('当前下单人数较多，请稍后重试')
+}
+
+export class VmqError extends Error {}
+
+// ---- 创建或复用 V免签订单 ----
+// 同一业务单已有「待支付」订单则复用，避免重复占用金额
+export async function createOrGetVmqOrder(params: {
+  bizType: 'order' | 'invoice'
+  bizId: number
+  outTradeNo: string
+  price: number
+  type?: number
+}): Promise<{ orderId: string; reallyPrice: number; price: number; state: number; createdAt: Date }> {
+  const type = params.type ?? VMQ_TYPE_ALIPAY
+  if (!vmqConfigured()) throw new VmqError('收款未配置（缺少 VMQ_KEY）')
+  if (params.price <= 0) throw new VmqError('金额必须大于 0')
+
+  await closeExpired()
+
+  if (VMQ_REQUIRE_MONITOR && !(await monitorAlive())) {
+    throw new VmqError('收款监控端当前离线，暂时无法发起支付，请稍后再试或联系客服')
+  }
+
+  // 复用未过期的待支付订单
+  const existing = await prisma.vmqOrder.findFirst({
+    where: { bizType: params.bizType, bizId: params.bizId, state: 0 },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (existing) {
+    return {
+      orderId: existing.orderId,
+      reallyPrice: Number(existing.reallyPrice),
+      price: Number(existing.price),
+      state: existing.state,
+      createdAt: existing.createdAt,
+    }
+  }
+
+  const orderId = genOrderId()
+  const cents = await allocateAmount(params.price, type, orderId)
+  const reallyPrice = cents / 100
+
+  const created = await prisma.vmqOrder.create({
+    data: {
+      orderId,
+      bizType: params.bizType,
+      bizId: params.bizId,
+      outTradeNo: params.outTradeNo,
+      type,
+      price: new Prisma.Decimal(params.price.toFixed(2)),
+      reallyPrice: new Prisma.Decimal(reallyPrice.toFixed(2)),
+      state: 0,
+    },
+  })
+
+  return {
+    orderId: created.orderId,
+    reallyPrice: Number(created.reallyPrice),
+    price: Number(created.price),
+    state: created.state,
+    createdAt: created.createdAt,
+  }
+}
+
+// ---- 到账：按金额匹配并标记业务已支付 ----
+// 返回是否匹配到订单
+export async function markPaidByAmount(price: string, type: number): Promise<boolean> {
+  const cents = centsOf(price)
+
+  // 取该渠道所有待支付单，按 cents 精确匹配（避免浮点误差）
+  const pendings = await prisma.vmqOrder.findMany({ where: { state: 0, type } })
+  const target = pendings.find((o) => centsOf(o.reallyPrice) === cents)
+  if (!target) return false
+
+  // 标记 vmq 订单已支付 + 释放金额锁
+  await prisma.$transaction([
+    prisma.vmqOrder.update({ where: { id: target.id }, data: { state: 1, payDate: new Date() } }),
+    prisma.vmqLock.deleteMany({ where: { orderId: target.orderId } }),
+  ])
+
+  // 履约对应业务
+  try {
+    if (target.bizType === 'order') {
+      await fulfillOrder(target.bizId)
+    } else if (target.bizType === 'invoice') {
+      await fulfillInvoice(target.bizId)
+    }
+  } catch (e) {
+    console.error('[vmq] 履约失败', target.bizType, target.bizId, e)
+  }
+  return true
+}
+
+async function fulfillOrder(orderId: number) {
+  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order || order.payStatus === 'PAID') return
+  await prisma.$transaction([
+    prisma.order.update({
+      where: { id: order.id },
+      data: { payStatus: 'PAID', payMethod: 'ALIPAY', deliveryStatus: 'PROCESSING', paidAt: new Date() },
+    }),
+    prisma.payment.create({
+      data: { orderId: order.id, payMethod: 'ALIPAY', amount: order.amount, status: 1 },
+    }),
+    prisma.product.update({ where: { id: order.productId }, data: { sales: { increment: order.quantity } } }),
+  ])
+}
+
+async function fulfillInvoice(invoiceId: number) {
+  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } })
+  if (!invoice || invoice.payStatus === 'PAID') return
+  await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: { payStatus: 'PAID', status: 'SUBMITTED', paidAt: new Date() },
+  })
+}
+
+// ---- 签名校验 ----
+export function checkHeartSign(t: string, sign: string): boolean {
+  return md5(t + VMQ_KEY) === sign
+}
+export function checkPushSign(type: string, price: string, t: string, sign: string): boolean {
+  return md5(type + price + t + VMQ_KEY) === sign
+}

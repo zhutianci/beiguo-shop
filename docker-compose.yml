@@ -26,11 +26,10 @@ services:
       # 阿里云短信
       - ALIYUN_SMS_SIGN_NAME=${ALIYUN_SMS_SIGN_NAME}
       - ALIYUN_SMS_TEMPLATE_CODE=${ALIYUN_SMS_TEMPLATE_CODE}
-      # 支付宝（手机/电脑网站支付，普通公钥模式 RSA2）
-      - ALIPAY_APP_ID=${ALIPAY_APP_ID}
-      - ALIPAY_PRIVATE_KEY=${ALIPAY_PRIVATE_KEY}
-      - ALIPAY_PUBLIC_KEY=${ALIPAY_PUBLIC_KEY}
-      - ALIPAY_GATEWAY=${ALIPAY_GATEWAY}
+      # V免签式收款（监控个人支付宝收款码到账，按唯一金额匹配）
+      - VMQ_KEY=${VMQ_KEY}
+      - VMQ_PAY_TIMEOUT=${VMQ_PAY_TIMEOUT}
+      - VMQ_REQUIRE_MONITOR=${VMQ_REQUIRE_MONITOR}
     volumes:
       # 论坛上传图片持久化（容器重建不丢）
       - forum_uploads:/app/public/uploads
@@ -89,7 +88,7 @@ services:
       sh -c "apk add --no-cache curl tzdata >/dev/null 2>&1 &&
       cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&
       echo 'Asia/Shanghai' > /etc/timezone &&
-      printf '0 12 * * * curl -fsS -X POST -H \"x-cron-secret: %s\" http://app:3000/api/cron/remind >> /var/log/cron.log 2>&1\n' \"$$CRON_SECRET\" > /etc/crontabs/root &&
+      printf '0 12 * * * curl -fsS -X POST -H \"x-cron-secret: %s\" http://app:3000/api/cron/remind >> /var/log/cron.log 2>&1\n* * * * * curl -fsS \"http://app:3000/api/cron/vmq-close?secret=%s\" >> /var/log/cron.log 2>&1\n' \"$$CRON_SECRET\" \"$$CRON_SECRET\" > /etc/crontabs/root &&
       crond -f -l 8"
     depends_on:
       - app
