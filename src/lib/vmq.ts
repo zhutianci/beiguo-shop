@@ -61,22 +61,34 @@ export async function closeExpired(): Promise<number> {
 }
 
 // ---- 分配唯一金额并加锁 ----
+// 先预查占用情况避免无谓的唯一约束冲突日志；遇到陈旧锁（占用者已支付/过期）自动清理复用
 async function allocateAmount(basePrice: number, type: number, orderId: string): Promise<number> {
   let cents = centsOf(basePrice)
   for (let i = 0; i < 50; i++) {
     const lockKey = `${cents}-${type}`
+    const existing = await prisma.vmqLock.findUnique({ where: { lockKey } })
+    if (existing) {
+      const live = await prisma.vmqOrder.findFirst({ where: { orderId: existing.orderId, state: 0 } })
+      if (live) {
+        cents += 1 // 真有待支付订单占用该金额 → 换金额
+        continue
+      }
+      // 陈旧锁（订单已支付/过期/不存在）→ 清理后复用该金额
+      await prisma.vmqLock.delete({ where: { lockKey } }).catch(() => {})
+    }
     try {
       await prisma.vmqLock.create({ data: { lockKey, orderId } })
       return cents
     } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        cents += 1 // 该金额被占用，+0.01 重试
+      // 并发兜底：用 code 判定（避免跨模块实例导致 instanceof 失效）
+      if ((e as { code?: string })?.code === 'P2002') {
+        cents += 1
         continue
       }
       throw e
     }
   }
-  throw new Error('当前下单人数较多，请稍后重试')
+  throw new VmqError('当前下单人数较多，请稍后重试')
 }
 
 export class VmqError extends Error {}
