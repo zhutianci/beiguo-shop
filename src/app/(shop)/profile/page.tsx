@@ -18,6 +18,7 @@ import {
   Save,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
+import AccountBindings from '@/components/account-bindings'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -226,6 +227,15 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
+            </motion.div>
+
+            {/* 绑定账户管理 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+            >
+              <AccountBindings />
             </motion.div>
 
             {/* 快捷功能 */}

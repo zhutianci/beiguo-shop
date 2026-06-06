@@ -28,8 +28,26 @@ model User {
   forumPosts    ForumPost[]
   forumComments ForumComment[]
   forumLikes    ForumLike[]
+  boundAccounts UserAccount[]
 
   @@map("users")
+}
+
+// 用户绑定的订阅账户（Claude / ChatGPT 邮箱），用于在个人中心管理
+model UserAccount {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  accountEmail String   @map("account_email") @db.VarChar(255) // 绑定的 Claude/ChatGPT 邮箱（关联 ExternalOrder.claudeAccount）
+  platform     String   @default("CLAUDE") @db.VarChar(20)     // CLAUDE | CHATGPT | OTHER
+  label        String?  @db.VarChar(50)                        // 备注名（可选）
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, accountEmail])
+  @@index([accountEmail])
+  @@map("user_accounts")
 }
 
 enum UserRole {
