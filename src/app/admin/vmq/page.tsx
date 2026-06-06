@@ -34,9 +34,13 @@ interface VmqConfig {
     paidCount: number
   }
   recent: RecentOrder[]
+  webhookUrl: string
+  webhookToken: string
+  webhookBody: string
   diag: {
     lastPush: { price: string; type: number; cents: number; at: number } | null
-    lastUnmatched: { price: string; type: number; cents: number; pending: number[]; at: number } | null
+    lastUnmatched: { price?: string; type?: number; cents?: number; pending?: number[]; raw?: string; reason?: string; at: number } | null
+    lastWebhook: { raw: string; amount: string | null; type: number; at: number } | null
   }
 }
 
@@ -78,6 +82,13 @@ export default function AdminVmqPage() {
     navigator.clipboard.writeText(cfg.configString)
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
+  }
+
+  const [copiedKey, setCopiedKey] = useState('')
+  const copyText = (text: string, key: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedKey(key)
+    setTimeout(() => setCopiedKey(''), 1500)
   }
 
   const complete = async (id: number) => {
@@ -145,10 +156,64 @@ export default function AdminVmqPage() {
         </CardContent>
       </Card>
 
-      {/* 扫码配置 */}
+      {/* SmsForwarder Webhook（推荐） */}
       <Card>
         <CardHeader>
-          <CardTitle>监控端扫码配置</CardTitle>
+          <CardTitle>SmsForwarder 通知转发配置（推荐）</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading || !cfg ? (
+            <div className="text-center py-8 text-gray-400">加载中...</div>
+          ) : (
+            <div className="space-y-4 text-sm">
+              <p className="text-gray-500">
+                在手机装 <a href="https://github.com/pppscn/SmsForwarder" target="_blank" rel="noreferrer" className="text-primary-600 underline">SmsForwarder</a>，
+                添加「应用通知」监听规则（来源选支付宝），发送通道选 <b>Webhook</b>，按下面填写。金额由服务端解析匹配。
+              </p>
+
+              <div>
+                <div className="text-gray-500 mb-1">请求地址（WebServer）· POST</div>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 break-all rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">{cfg.webhookUrl}</code>
+                  <Button variant="outline" size="sm" onClick={() => copyText(cfg.webhookUrl, 'url')}>
+                    {copiedKey === 'url' ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-gray-500 mb-1">请求头（Headers）</div>
+                <code className="block break-all rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">Content-Type: application/json</code>
+              </div>
+
+              <div>
+                <div className="text-gray-500 mb-1">请求体（WebParams，JSON 模板）</div>
+                <div className="flex items-start gap-2">
+                  <pre className="flex-1 overflow-x-auto rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-xs">{cfg.webhookBody}</pre>
+                  <Button variant="outline" size="sm" onClick={() => copyText(cfg.webhookBody, 'body')}>
+                    {copiedKey === 'body' ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  <code>[content]</code> 是通知内容(含到账金额)、<code>[from]</code> 来源、<code>[org_content]</code> 原始内容；<code>token</code> 必须等于 VMQ_KEY。
+                </p>
+              </div>
+
+              <div className="rounded-lg bg-amber-50 border border-amber-100 p-3 text-xs text-amber-800 space-y-1">
+                <div className="font-medium">重要</div>
+                <div>· SmsForwarder 没有"心跳"，请把 <code>VMQ_REQUIRE_MONITOR=0</code>（否则下单会被"监控端离线"拦截）。</div>
+                <div>· 给 SmsForwarder 开启「通知使用权」，并允许读取支付宝通知；支付宝里开「支付助手 → 接收付款消息提醒」，保证到账消息进系统通知栏。</div>
+                <div>· 配好后先用 App 的「测试」发一条，下方「最近一次通知转发」应出现记录。</div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 扫码配置（VmqApk，备选） */}
+      <Card>
+        <CardHeader>
+          <CardTitle>VmqApk 扫码配置（备选）</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -206,9 +271,22 @@ export default function AdminVmqPage() {
           <CardTitle>到账诊断与收款单</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="rounded-lg border border-gray-100 p-3 text-sm">
+            <div className="text-gray-500 mb-1">最近一次通知转发（SmsForwarder）</div>
+            {diag?.lastWebhook ? (
+              <div className="text-gray-900">
+                解析金额：{diag.lastWebhook.amount ? `¥${diag.lastWebhook.amount}` : <span className="text-red-600">未解析到金额</span>}
+                （type={diag.lastWebhook.type}）· {fmt(new Date(diag.lastWebhook.at).toISOString())}
+                <div className="text-xs text-gray-400 mt-1 break-all">原文：{diag.lastWebhook.raw}</div>
+              </div>
+            ) : (
+              <div className="text-gray-400">尚未收到任何通知转发。若 App 已配置仍为空：检查 SmsForwarder 是否有「应用通知」监听权限、规则是否命中支付宝、Webhook 地址/token 是否正确。</div>
+            )}
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="rounded-lg border border-gray-100 p-3 text-sm">
-              <div className="text-gray-500 mb-1">最近一次到账推送</div>
+              <div className="text-gray-500 mb-1">最近一次到账推送(VmqApk)</div>
               {diag?.lastPush ? (
                 <div className="text-gray-900">
                   ¥{diag.lastPush.price}（type={diag.lastPush.type}）· {fmt(new Date(diag.lastPush.at).toISOString())}
@@ -220,10 +298,17 @@ export default function AdminVmqPage() {
             <div className="rounded-lg border border-gray-100 p-3 text-sm">
               <div className="text-gray-500 mb-1">最近一次「未匹配」到账</div>
               {diag?.lastUnmatched ? (
-                <div className="text-amber-700">
-                  收到 ¥{diag.lastUnmatched.price}，但当时待支付金额为 [{diag.lastUnmatched.pending.join(', ') || '空'}] · {fmt(new Date(diag.lastUnmatched.at).toISOString())}
-                  <div className="text-xs text-amber-600 mt-1">说明买家付的金额与收银台显示的「唯一金额」不一致，或订单已过期。</div>
-                </div>
+                diag.lastUnmatched.reason === 'no_amount' ? (
+                  <div className="text-amber-700">
+                    收到通知但<b>没解析到金额</b> · {fmt(new Date(diag.lastUnmatched.at).toISOString())}
+                    <div className="text-xs text-amber-600 mt-1 break-all">原文：{diag.lastUnmatched.raw}</div>
+                  </div>
+                ) : (
+                  <div className="text-amber-700">
+                    收到 ¥{diag.lastUnmatched.price}，但当时待支付金额为 [{(diag.lastUnmatched.pending || []).join(', ') || '空'}] · {fmt(new Date(diag.lastUnmatched.at).toISOString())}
+                    <div className="text-xs text-amber-600 mt-1">说明买家付的金额与收银台显示的「唯一金额」不一致，或订单已过期。</div>
+                  </div>
+                )
               ) : (
                 <div className="text-gray-400">无</div>
               )}

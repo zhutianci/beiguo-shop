@@ -27,6 +27,17 @@ export async function GET(request: NextRequest) {
       qrSvg = await QRCode.toString(configString, { type: 'svg', margin: 1, width: 240 })
     }
 
+    // SmsForwarder（通知转发）Webhook 配置
+    const origin = appUrl || (host ? `https://${host}` : '')
+    const webhookToken = process.env.VMQ_WEBHOOK_TOKEN || VMQ_KEY
+    const webhookUrl = origin ? `${origin}/api/pay/sms-notify` : '/api/pay/sms-notify'
+    // SmsForwarder 用 [xxx] 占位符：[content]=通知内容(含金额)、[from]=来源、[org_content]=原始内容
+    const webhookBody = JSON.stringify(
+      { token: webhookToken, content: '[content]', from: '[from]', org: '[org_content]' },
+      null,
+      2
+    )
+
     // 监控端状态 + 收款统计
     const [lastHeartS, pendingCount, paidCount, lastPaid] = await Promise.all([
       prisma.setting.findUnique({ where: { key: 'vmq_lastheart' } }),
@@ -42,6 +53,9 @@ export async function GET(request: NextRequest) {
     return success({
       recent,
       diag,
+      webhookUrl,
+      webhookToken,
+      webhookBody,
       configured,
       host,
       key: VMQ_KEY,

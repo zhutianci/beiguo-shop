@@ -26,7 +26,29 @@ VMQ_REQUIRE_MONITOR=1      # 1=监控端离线时禁止下单(防漏单)；0=不
 
 把你的支付宝「个人收款码」截图保存为 **`public/vmq-alipay-qr.png`**（随镜像构建进去，或挂载）。收银台会显示该图片。
 
-## 四、监控端 App（必须，7×24 在线）
+## 四、监控端二选一
+
+### 方式 B（推荐）：SmsForwarder 通知转发 → Webhook
+
+[SmsForwarder](https://github.com/pppscn/SmsForwarder) 活跃维护、可监听应用通知并自定义 HTTP 请求。金额解析放在**服务端**（比老 APK 死文案宽松）。
+
+1. 服务端设置 **`VMQ_REQUIRE_MONITOR=0`**（SmsForwarder 没有心跳；不设为 0 会被"监控端离线"拦截下单）。`VMQ_WEBHOOK_TOKEN` 留空则复用 `VMQ_KEY`。
+2. 手机装 SmsForwarder → 「通知使用权」授权 → 允许读取支付宝通知。
+3. 支付宝：开「支付助手 → 接收付款消息提醒」，保证到账消息进**系统通知栏**。
+4. SmsForwarder 加一条「应用通知」转发规则（来源=支付宝），发送通道选 **Webhook**：
+   - 请求地址：`https://bigolab.com/api/pay/sms-notify`
+   - 请求方式：`POST`
+   - 请求头：`Content-Type: application/json`
+   - 请求体（WebParams，用 SmsForwarder 的 `[...]` 占位符）：
+     ```json
+     {"token":"<VMQ_KEY>","content":"[content]","from":"[from]","org":"[org_content]"}
+     ```
+   > `[content]`=通知内容(含金额)、`[from]`=来源、`[org_content]`=原始内容。后台「收款监控」页有现成可复制的地址/Body。
+5. 用 App「测试」发一条，后台「收款监控 → 最近一次通知转发」应出现记录（含解析金额）。
+
+> 服务端解析：从文案里优先取「收款/到账/¥…元」附近的金额，按 `金额+渠道` 匹配待支付订单。渠道含"微信"判为微信，否则支付宝。
+
+### 方式 A：VmqApk（备选，7×24 在线）
 
 1. 安装监控端：https://github.com/szvone/VmqApk （安卓真机或模拟器）。
 2. **后台 →「收款监控」页** 会显示扫码配置二维码 + 监控端在线状态。

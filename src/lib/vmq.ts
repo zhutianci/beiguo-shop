@@ -229,11 +229,63 @@ export async function recentVmqOrders(limit = 15) {
 }
 
 export async function getDiag() {
-  const [lastpay, lastunmatched] = await Promise.all([getSetting('vmq_lastpay'), getSetting('vmq_lastunmatched')])
-  return {
-    lastPush: lastpay ? JSON.parse(lastpay) : null,
-    lastUnmatched: lastunmatched ? JSON.parse(lastunmatched) : null,
+  const [lastpay, lastunmatched, lastwebhook] = await Promise.all([
+    getSetting('vmq_lastpay'),
+    getSetting('vmq_lastunmatched'),
+    getSetting('vmq_lastwebhook'),
+  ])
+  const safe = (s: string | null) => {
+    if (!s) return null
+    try {
+      return JSON.parse(s)
+    } catch {
+      return null
+    }
   }
+  return {
+    lastPush: safe(lastpay),
+    lastUnmatched: safe(lastunmatched),
+    lastWebhook: safe(lastwebhook),
+  }
+}
+
+// ============ SmsForwarder 等「通知转发」Webhook 模式 ============
+// 服务端解析通知文案中的金额（比监控端 App 死文案宽松），按金额匹配订单
+
+export function detectChannel(text: string): number {
+  if (/微信|wechat|weixin|tenpay|com\.tencent\.mm|收款助手/i.test(text)) return 1
+  return 2 // 默认支付宝
+}
+
+// 从通知文案解析金额；优先「收款/到账/¥/…元」附近的数字，兜底取最后一个带小数的数字
+export function parseAmount(text: string): string | null {
+  if (!text) return null
+  const t = text.replace(/,/g, '')
+  const patterns = [
+    /(?:成功收款|收款|到账|入账|收钱|付款|转账)[^0-9]{0,8}(\d+(?:\.\d{1,2})?)/,
+    /[¥￥]\s*(\d+(?:\.\d{1,2})?)/,
+    /(\d+(?:\.\d{1,2})?)\s*元/,
+  ]
+  for (const re of patterns) {
+    const m = t.match(re)
+    if (m) return m[1]
+  }
+  const all = t.match(/\d+\.\d{1,2}/g)
+  if (all && all.length) return all[all.length - 1]
+  return null
+}
+
+export async function handleWebhookNotify(content: string): Promise<{ matched: boolean; amount: string | null; type: number }> {
+  const type = detectChannel(content)
+  const amount = parseAmount(content)
+  await setSetting('vmq_lastwebhook', JSON.stringify({ raw: content.slice(0, 300), amount, type, at: Date.now() }))
+  await touchHeartbeat() // 收到转发即视为监控在线
+  if (!amount) {
+    await setSetting('vmq_lastunmatched', JSON.stringify({ raw: content.slice(0, 300), reason: 'no_amount', at: Date.now() }))
+    return { matched: false, amount: null, type }
+  }
+  const matched = await markPaidByAmount(amount, type)
+  return { matched, amount, type }
 }
 
 async function fulfillOrder(orderId: number) {
