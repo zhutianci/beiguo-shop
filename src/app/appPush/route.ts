@@ -12,7 +12,9 @@ async function handle(req: NextRequest) {
   const price = p.price || ''
   const sign = p.sign || ''
 
+  console.log(`[vmq] /appPush 收到推送 type=${type} price=${price} t=${t}`)
   if (!t || !type || !price || !sign || !checkPushSign(type, price, t, sign)) {
+    console.warn('[vmq] /appPush 签名校验不通过', { type, price, t })
     return NextResponse.json({ code: -1, msg: '签名校验不通过' })
   }
 

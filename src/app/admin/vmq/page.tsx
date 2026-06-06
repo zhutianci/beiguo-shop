@@ -5,6 +5,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Copy, CheckCircle2, AlertTriangle, Wifi, WifiOff } from 'lucide-react'
 
+interface RecentOrder {
+  id: number
+  orderId: string
+  bizType: string
+  bizId: number
+  outTradeNo: string
+  price: number
+  reallyPrice: number
+  state: number
+  createdAt: string
+  payDate: string | null
+}
+
 interface VmqConfig {
   configured: boolean
   host: string
@@ -20,6 +33,17 @@ interface VmqConfig {
     pendingCount: number
     paidCount: number
   }
+  recent: RecentOrder[]
+  diag: {
+    lastPush: { price: string; type: number; cents: number; at: number } | null
+    lastUnmatched: { price: string; type: number; cents: number; pending: number[]; at: number } | null
+  }
+}
+
+const STATE_LABELS: Record<number, { label: string; cls: string }> = {
+  0: { label: '待支付', cls: 'bg-amber-100 text-amber-700' },
+  1: { label: '已支付', cls: 'bg-green-100 text-green-700' },
+  [-1]: { label: '已过期', cls: 'bg-gray-100 text-gray-500' },
 }
 
 function fmt(s: string | null) {
@@ -56,7 +80,20 @@ export default function AdminVmqPage() {
     setTimeout(() => setCopied(false), 1500)
   }
 
+  const complete = async (id: number) => {
+    if (!confirm('确认这笔已到账并完成履约？仅在确实已收到款时操作。')) return
+    const res = await fetch('/api/admin/vmq/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    })
+    const data = await res.json()
+    if (data.success) load()
+    else alert(data.error || '补单失败')
+  }
+
   const m = cfg?.monitor
+  const diag = cfg?.diag
 
   return (
     <div className="space-y-6">
@@ -160,6 +197,89 @@ export default function AdminVmqPage() {
               </div>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* 到账诊断 + 最近收款单 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>到账诊断与收款单</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border border-gray-100 p-3 text-sm">
+              <div className="text-gray-500 mb-1">最近一次到账推送</div>
+              {diag?.lastPush ? (
+                <div className="text-gray-900">
+                  ¥{diag.lastPush.price}（type={diag.lastPush.type}）· {fmt(new Date(diag.lastPush.at).toISOString())}
+                </div>
+              ) : (
+                <div className="text-gray-400">尚未收到任何到账推送。若支付后这里一直为空，说明监控端没解析到支付宝「成功收款」通知（多为通知权限/支付助手提醒未开，或通知文案不被识别）。</div>
+              )}
+            </div>
+            <div className="rounded-lg border border-gray-100 p-3 text-sm">
+              <div className="text-gray-500 mb-1">最近一次「未匹配」到账</div>
+              {diag?.lastUnmatched ? (
+                <div className="text-amber-700">
+                  收到 ¥{diag.lastUnmatched.price}，但当时待支付金额为 [{diag.lastUnmatched.pending.join(', ') || '空'}] · {fmt(new Date(diag.lastUnmatched.at).toISOString())}
+                  <div className="text-xs text-amber-600 mt-1">说明买家付的金额与收银台显示的「唯一金额」不一致，或订单已过期。</div>
+                </div>
+              ) : (
+                <div className="text-gray-400">无</div>
+              )}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-gray-800">
+              <thead>
+                <tr className="border-b text-left text-gray-500 text-xs">
+                  <th className="pb-2 pr-3">类型</th>
+                  <th className="pb-2 pr-3">业务单号</th>
+                  <th className="pb-2 pr-3 text-right">应付</th>
+                  <th className="pb-2 pr-3 text-right">实付(唯一)</th>
+                  <th className="pb-2 pr-3">状态</th>
+                  <th className="pb-2 pr-3">创建</th>
+                  <th className="pb-2 text-right">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(cfg?.recent || []).map((o) => (
+                  <tr key={o.id} className="border-b hover:bg-gray-50/60">
+                    <td className="py-2 pr-3 text-xs">{o.bizType === 'invoice' ? '发票税费' : '商品订单'}</td>
+                    <td className="py-2 pr-3 font-mono text-xs">{o.outTradeNo}</td>
+                    <td className="py-2 pr-3 text-right text-gray-500">¥{o.price.toFixed(2)}</td>
+                    <td className="py-2 pr-3 text-right font-semibold">¥{o.reallyPrice.toFixed(2)}</td>
+                    <td className="py-2 pr-3">
+                      <span className={`inline-flex rounded-full px-2 py-0.5 text-xs ${STATE_LABELS[o.state]?.cls || ''}`}>
+                        {STATE_LABELS[o.state]?.label || o.state}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">{fmt(o.createdAt)}</td>
+                    <td className="py-2 text-right whitespace-nowrap">
+                      {o.state !== 1 && (
+                        <button
+                          onClick={() => complete(o.id)}
+                          className="text-xs px-2 py-1 rounded text-green-600 hover:bg-green-50"
+                          title="手动确认到账并履约"
+                        >
+                          补单
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {(!cfg?.recent || cfg.recent.length === 0) && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-gray-400">暂无收款单</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-400">
+            提示：支付成功后商品订单会变为「处理中」（已付款待发货/开通），不会自动变「已完成」——「已完成」需在「订单管理」里交付后才会显示。
+          </p>
         </CardContent>
       </Card>
     </div>

@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import QRCode from 'qrcode'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { VMQ_KEY, VMQ_TIMEOUT_MIN, VMQ_REQUIRE_MONITOR } from '@/lib/vmq'
+import { VMQ_KEY, VMQ_TIMEOUT_MIN, VMQ_REQUIRE_MONITOR, recentVmqOrders, getDiag } from '@/lib/vmq'
 
 // 监控端扫码配置：VmqApk 扫描的二维码内容为 "host/key"
 // （App 内部 scanResult.split("/") => tmp[0]=host(纯域名,无 http://), tmp[1]=key）
@@ -37,7 +37,11 @@ export async function GET(request: NextRequest) {
     const lastHeart = lastHeartS ? Number(lastHeartS.value) : 0
     const alive = lastHeart > 0 && Date.now() - lastHeart < 60_000
 
+    const [recent, diag] = await Promise.all([recentVmqOrders(15), getDiag()])
+
     return success({
+      recent,
+      diag,
       configured,
       host,
       key: VMQ_KEY,

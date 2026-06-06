@@ -145,29 +145,83 @@ export async function createOrGetVmqOrder(params: {
 // 返回是否匹配到订单
 export async function markPaidByAmount(price: string, type: number): Promise<boolean> {
   const cents = centsOf(price)
+  // 记录最近一次到账推送（用于后台诊断「监控端确实在推送」）
+  await setSetting('vmq_lastpay', JSON.stringify({ price, type, cents, at: Date.now() }))
 
   // 取该渠道所有待支付单，按 cents 精确匹配（避免浮点误差）
   const pendings = await prisma.vmqOrder.findMany({ where: { state: 0, type } })
   const target = pendings.find((o) => centsOf(o.reallyPrice) === cents)
-  if (!target) return false
-
-  // 标记 vmq 订单已支付 + 释放金额锁
-  await prisma.$transaction([
-    prisma.vmqOrder.update({ where: { id: target.id }, data: { state: 1, payDate: new Date() } }),
-    prisma.vmqLock.deleteMany({ where: { orderId: target.orderId } }),
-  ])
-
-  // 履约对应业务
-  try {
-    if (target.bizType === 'order') {
-      await fulfillOrder(target.bizId)
-    } else if (target.bizType === 'invoice') {
-      await fulfillInvoice(target.bizId)
-    }
-  } catch (e) {
-    console.error('[vmq] 履约失败', target.bizType, target.bizId, e)
+  if (!target) {
+    const pendingList = pendings.map((o) => Number(o.reallyPrice))
+    console.warn(`[vmq] 到账 ${price}(${cents}分) type=${type} 未匹配到待支付订单；当前待支付金额=`, pendingList)
+    await setSetting(
+      'vmq_lastunmatched',
+      JSON.stringify({ price, type, cents, pending: pendingList, at: Date.now() })
+    )
+    return false
   }
+
+  await markPaidVmqOrder(target.id, target.bizType, target.bizId, target.orderId)
+  console.log(`[vmq] 到账匹配成功 ${price} -> ${target.bizType}#${target.bizId} (orderId=${target.orderId})`)
   return true
+}
+
+// 标记某条 vmq 订单已支付并履约（金额匹配 / 后台补单共用）
+async function markPaidVmqOrder(id: number, bizType: string, bizId: number, orderId: string) {
+  await prisma.$transaction([
+    prisma.vmqOrder.update({ where: { id }, data: { state: 1, payDate: new Date() } }),
+    prisma.vmqLock.deleteMany({ where: { orderId } }),
+  ])
+  try {
+    if (bizType === 'order') await fulfillOrder(bizId)
+    else if (bizType === 'invoice') await fulfillInvoice(bizId)
+  } catch (e) {
+    console.error('[vmq] 履约失败', bizType, bizId, e)
+    throw e
+  }
+}
+
+// 后台手动补单（确认到账）：无视金额，强制标记该 vmq 订单已支付并履约
+export async function manualComplete(vmqOrderId: number): Promise<void> {
+  const o = await prisma.vmqOrder.findUnique({ where: { id: vmqOrderId } })
+  if (!o) throw new VmqError('收款单不存在')
+  if (o.state === 1) {
+    // 已是已支付，仅补履约（防止之前履约失败）
+    try {
+      if (o.bizType === 'order') await fulfillOrder(o.bizId)
+      else if (o.bizType === 'invoice') await fulfillInvoice(o.bizId)
+    } catch (e) {
+      console.error('[vmq] 补履约失败', e)
+      throw e
+    }
+    return
+  }
+  await markPaidVmqOrder(o.id, o.bizType, o.bizId, o.orderId)
+}
+
+// 最近收款单（后台诊断用）
+export async function recentVmqOrders(limit = 15) {
+  const list = await prisma.vmqOrder.findMany({ orderBy: { createdAt: 'desc' }, take: limit })
+  return list.map((o) => ({
+    id: o.id,
+    orderId: o.orderId,
+    bizType: o.bizType,
+    bizId: o.bizId,
+    outTradeNo: o.outTradeNo,
+    price: Number(o.price),
+    reallyPrice: Number(o.reallyPrice),
+    state: o.state,
+    createdAt: o.createdAt,
+    payDate: o.payDate,
+  }))
+}
+
+export async function getDiag() {
+  const [lastpay, lastunmatched] = await Promise.all([getSetting('vmq_lastpay'), getSetting('vmq_lastunmatched')])
+  return {
+    lastPush: lastpay ? JSON.parse(lastpay) : null,
+    lastUnmatched: lastunmatched ? JSON.parse(lastunmatched) : null,
+  }
 }
 
 async function fulfillOrder(orderId: number) {
