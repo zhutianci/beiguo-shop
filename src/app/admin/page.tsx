@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Package, ShoppingCart, Users, DollarSign } from 'lucide-react'
+import OrderAnalytics from '@/components/admin/order-analytics'
 
 interface Stats {
   totalUsers: number
@@ -95,6 +96,9 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* 订单数据分析（数据源：订单导入 / ExternalOrder） */}
+      <OrderAnalytics />
 
       <Card>
         <CardHeader>
