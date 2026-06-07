@@ -31,6 +31,7 @@ export async function GET() {
             name: true,
             image: true,
             deliveryType: true,
+            cardUsage: true,
           },
         },
       },

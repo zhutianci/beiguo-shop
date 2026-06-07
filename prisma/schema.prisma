@@ -84,6 +84,7 @@ model Product {
   sortOrder     Int       @default(0) @map("sort_order")
   status        Int       @default(1) // 1: 上架 0: 下架
   deliveryType  String    @default("MANUAL") @map("delivery_type") @db.VarChar(20) // MANUAL 手工发货 | AUTO 卡密自动发货
+  cardUsage     String?   @map("card_usage") @db.Text // 自动发货使用说明（含售后），展示给买家
   features      String?   @db.Text // JSON格式存储商品特性
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")

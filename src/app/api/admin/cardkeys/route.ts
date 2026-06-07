@@ -25,12 +25,13 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '50'), 200)
 
     const where = { productId, ...(status ? { status } : {}) }
-    const [rows, total, unused, used, disabled] = await Promise.all([
+    const [rows, total, unused, used, disabled, product] = await Promise.all([
       prisma.cardKey.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
       prisma.cardKey.count({ where }),
       prisma.cardKey.count({ where: { productId, status: 'UNUSED' } }),
       prisma.cardKey.count({ where: { productId, status: 'USED' } }),
       prisma.cardKey.count({ where: { productId, status: 'DISABLED' } }),
+      prisma.product.findUnique({ where: { id: productId }, select: { cardUsage: true } }),
     ])
 
     const list = rows.map((c) => {
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return success({ list, total, page, pageSize, stats: { unused, used, disabled } })
+    return success({ list, total, page, pageSize, stats: { unused, used, disabled }, cardUsage: product?.cardUsage ?? '' })
   } catch (err) {
     console.error('List cardkeys error:', err)
     return error('查询失败')

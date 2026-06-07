@@ -17,6 +17,7 @@ const productSchema = z.object({
   sortOrder: z.number().default(0),
   status: z.number().default(1),
   deliveryType: z.enum(['MANUAL', 'AUTO']).default('MANUAL'),
+  cardUsage: z.string().optional().nullable(),
   features: z.string().optional().nullable(),
 })
 

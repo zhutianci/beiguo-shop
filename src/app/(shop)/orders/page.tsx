@@ -34,7 +34,7 @@ interface Order {
   createdAt: string
   paidAt: string | null
   deliveredAt: string | null
-  product: { id: number; name: string; image: string | null; deliveryType?: string }
+  product: { id: number; name: string; image: string | null; deliveryType?: string; cardUsage?: string | null }
   cards?: string[]
 }
 
@@ -539,6 +539,14 @@ export default function OrdersPage() {
                       ))}
                     </div>
                     <p className="text-[11px] text-white/40 mt-2">卡密仅本人可见，请按说明使用；如有问题联系客服。</p>
+                    {selectedOrder.product?.cardUsage && (
+                      <div className="mt-3">
+                        <div className="text-white/50 mb-1.5 text-sm">使用说明</div>
+                        <div className="p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 whitespace-pre-wrap leading-relaxed">
+                          {selectedOrder.product.cardUsage}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
