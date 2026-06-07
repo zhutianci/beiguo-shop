@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     if (!order || order.userId !== user.id) return error('订单不存在')
     if (order.payStatus === 'PAID') return error('订单已支付')
     if (order.payStatus === 'REFUNDED') return error('订单已退款，无法支付')
+    if (order.deliveryStatus === 'CANCELLED') return error('订单已超时取消，请重新下单')
 
     const vmq = await createOrGetVmqOrder({
       bizType: 'order',

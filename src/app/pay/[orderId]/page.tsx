@@ -116,14 +116,25 @@ export default function VmqCashierPage() {
 
         {state === 'pending' && info && (
           <>
-            <div className="text-center mb-5">
-              <div className="text-sm text-gray-500">请使用支付宝精确支付</div>
-              <div className="text-4xl font-bold text-gray-900 mt-1">¥{info.reallyPrice.toFixed(2)}</div>
+            {/* 金额（放大强调） */}
+            <div className="text-center mb-4">
+              <div className="text-sm text-gray-500 mb-2">请用支付宝<strong className="text-red-600">精确支付以下金额</strong></div>
+              <div className="inline-flex items-baseline gap-1 rounded-2xl bg-red-50 border-2 border-red-200 px-8 py-4">
+                <span className="text-2xl font-bold text-red-500">¥</span>
+                <span className="text-6xl font-extrabold text-red-600 tracking-tight tabular-nums">{info.reallyPrice.toFixed(2)}</span>
+              </div>
               {info.reallyPrice !== info.price && (
-                <div className="text-xs text-amber-600 mt-1">
-                  为区分订单已自动微调金额（原价 ¥{info.price.toFixed(2)}），请按上方金额付款
-                </div>
+                <div className="text-xs text-gray-400 mt-2">原价 ¥{info.price.toFixed(2)}，为区分订单已自动微调几分钱</div>
               )}
+            </div>
+
+            {/* 多付/少付警告 */}
+            <div className="mb-5 rounded-xl bg-amber-50 border border-amber-300 px-4 py-3 text-center">
+              <div className="text-sm font-bold text-amber-800">⚠️ 必须按上方金额付款</div>
+              <div className="text-xs text-amber-700 mt-1">
+                金额必须<strong>分毫不差</strong>。<strong className="text-red-600">多付或少付都会导致订单识别失败</strong>，
+                款项需联系客服手动处理，请务必照金额支付。
+              </div>
             </div>
 
             <div className="flex justify-center mb-5">
@@ -145,6 +156,7 @@ export default function VmqCashierPage() {
               {remain > 0 ? (
                 <>
                   支付剩余时间 <span className="font-mono font-semibold text-gray-900">{mmss(remain)}</span>
+                  <span className="text-gray-400">（超时订单将自动取消）</span>
                 </>
               ) : (
                 '即将过期...'
@@ -153,8 +165,8 @@ export default function VmqCashierPage() {
 
             <ol className="text-xs text-gray-500 space-y-1 bg-gray-50 rounded-lg p-4">
               <li>1. 打开支付宝「扫一扫」，扫描上方收款码</li>
-              <li>2. <span className="text-red-500 font-medium">务必</span>输入金额 <span className="font-semibold text-gray-900">¥{info.reallyPrice.toFixed(2)}</span>（与上方一致）后付款</li>
-              <li>3. 付款成功后本页面会自动跳转，无需手动操作</li>
+              <li>2. <span className="text-red-500 font-medium">务必</span>输入金额 <span className="font-semibold text-gray-900">¥{info.reallyPrice.toFixed(2)}</span>（与上方完全一致）后付款</li>
+              <li>3. 付款成功本页面会自动跳转，无需手动操作</li>
             </ol>
 
             <p className="mt-4 text-center text-[11px] text-gray-400">

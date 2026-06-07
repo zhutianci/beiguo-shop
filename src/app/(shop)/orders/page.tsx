@@ -52,6 +52,15 @@ function getGradient(id: number) {
 }
 
 const getStatusConfig = (payStatus: string, deliveryStatus: string) => {
+  if (deliveryStatus === 'CANCELLED') {
+    return {
+      label: '已取消',
+      icon: XCircle,
+      color: 'text-white/40',
+      bg: 'bg-white/5',
+      border: 'border-white/10',
+    }
+  }
   if (payStatus === 'UNPAID') {
     return {
       label: '待支付',
@@ -360,7 +369,7 @@ export default function OrdersPage() {
                             <div className="text-xs text-white/40">订单金额</div>
                           </div>
                           <div className="flex flex-col sm:flex-row gap-2">
-                            {order.payStatus === 'UNPAID' && (
+                            {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
                               <button
                                 onClick={() => handleAlipay(order)}
                                 disabled={payingNo === order.orderNo}
@@ -401,11 +410,20 @@ export default function OrdersPage() {
                         </div>
                       )}
 
-                      {order.payStatus === 'UNPAID' && (
+                      {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
                         <div className="mt-4 pt-4 border-t border-white/10">
                           <div className="flex items-center gap-2 text-sm text-yellow-400">
                             <AlertCircle className="w-4 h-4" />
                             <span>请点击「支付宝支付」完成付款</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {order.deliveryStatus === 'CANCELLED' && order.payStatus === 'UNPAID' && (
+                        <div className="mt-4 pt-4 border-t border-white/10">
+                          <div className="flex items-center gap-2 text-sm text-white/40">
+                            <XCircle className="w-4 h-4" />
+                            <span>订单已超时取消，请重新下单</span>
                           </div>
                         </div>
                       )}

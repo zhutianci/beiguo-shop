@@ -5,7 +5,7 @@ import { prisma } from './db'
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
 export const VMQ_KEY = process.env.VMQ_KEY || ''
-export const VMQ_TIMEOUT_MIN = parseInt(process.env.VMQ_PAY_TIMEOUT || '5') // 订单有效期（分钟）
+export const VMQ_TIMEOUT_MIN = parseInt(process.env.VMQ_PAY_TIMEOUT || '20') // 订单有效期（分钟）
 export const VMQ_REQUIRE_MONITOR = process.env.VMQ_REQUIRE_MONITOR !== '0'   // 是否要求监控端在线才能下单
 export const VMQ_TYPE_ALIPAY = 2
 
@@ -46,16 +46,29 @@ export async function monitorAlive(): Promise<boolean> {
 }
 
 // ---- 过期订单清理 + 释放金额锁 ----
+// 超时未支付：vmq 单置 -1、释放金额锁；对应商品订单标记「已取消」(防止价格冲突/重复占用)
 export async function closeExpired(): Promise<number> {
   const cutoff = new Date(Date.now() - VMQ_TIMEOUT_MIN * 60_000)
   const expired = await prisma.vmqOrder.findMany({
     where: { state: 0, createdAt: { lt: cutoff } },
-    select: { id: true, orderId: true },
+    select: { id: true, orderId: true, bizType: true, bizId: true },
   })
   if (expired.length === 0) return 0
+
+  const orderBizIds = expired.filter((e) => e.bizType === 'order').map((e) => e.bizId)
+
   await prisma.$transaction([
     prisma.vmqOrder.updateMany({ where: { id: { in: expired.map((e) => e.id) } }, data: { state: -1 } }),
     prisma.vmqLock.deleteMany({ where: { orderId: { in: expired.map((e) => e.orderId) } } }),
+    // 商品订单：仅取消仍未支付的，避免误伤已付款订单
+    ...(orderBizIds.length
+      ? [
+          prisma.order.updateMany({
+            where: { id: { in: orderBizIds }, payStatus: 'UNPAID', deliveryStatus: { in: ['PENDING', 'PROCESSING'] } },
+            data: { deliveryStatus: 'CANCELLED' },
+          }),
+        ]
+      : []),
   ])
   return expired.length
 }
