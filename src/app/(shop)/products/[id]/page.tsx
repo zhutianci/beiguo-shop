@@ -17,6 +17,7 @@ interface Product {
   features: string | null
   stock: number
   sales: number
+  deliveryType?: string
   category: { id: number; name: string }
 }
 
@@ -105,6 +106,7 @@ export default function ProductDetailPage() {
 
   const gradient = getGradient(product.id)
   const tag = getTag(product)
+  const isAuto = product.deliveryType === 'AUTO'
   const features = parseFeatures(product.features)
   const price = Number(product.price)
   const originalPrice = product.originalPrice ? Number(product.originalPrice) : null
@@ -147,11 +149,20 @@ export default function ProductDetailPage() {
               <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-30 blur-md`} />
 
               <div className="relative glass rounded-3xl p-8 md:p-12">
-                <div className="flex items-center gap-3 mb-6">
+                <div className="flex items-center gap-3 mb-6 flex-wrap">
                   <div className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient}`}>
                     {tag}
                   </div>
                   <span className="text-sm text-white/40">{product.category.name}</span>
+                  {isAuto ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                      ⚡ 自动发货
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-white/60 border border-white/15">
+                      👤 手工发货
+                    </span>
+                  )}
                 </div>
 
                 <h1 className="text-5xl md:text-6xl font-bold mb-4 tracking-tight">
@@ -249,6 +260,12 @@ export default function ProductDetailPage() {
                 购买须知
               </h3>
               <ul className="space-y-2 text-sm text-white/60">
+                <li className="flex items-start gap-2">
+                  <span className="text-white/30 mt-1">·</span>
+                  {isAuto
+                    ? '本商品为自动发货：付款成功后系统立即发放卡密，可在「我的订单」详情中查看'
+                    : '本商品为手工发货：付款后请联系客服并提供账号信息，由客服为您开通'}
+                </li>
                 <li className="flex items-start gap-2">
                   <span className="text-white/30 mt-1">·</span>
                   开通后有效期为 30 天，到期可续费

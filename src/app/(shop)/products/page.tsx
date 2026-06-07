@@ -22,6 +22,7 @@ interface Product {
   features: string | null
   stock: number
   sales: number
+  deliveryType?: string
   category: { id: number; name: string }
 }
 
@@ -193,7 +194,18 @@ export default function ProductsPage() {
                           </div>
                         </div>
 
-                        <h3 className="text-2xl font-bold mb-2">{product.name}</h3>
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-2xl font-bold">{product.name}</h3>
+                          {product.deliveryType === 'AUTO' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
+                              ⚡ 自动发货
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-white/60 border border-white/15 whitespace-nowrap">
+                              👤 手工发货
+                            </span>
+                          )}
+                        </div>
                         <p className="text-white/50 text-sm mb-6">
                           {product.description}
                         </p>
