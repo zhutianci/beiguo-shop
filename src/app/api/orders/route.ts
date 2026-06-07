@@ -32,6 +32,7 @@ export async function GET() {
             image: true,
             deliveryType: true,
             cardUsage: true,
+            cardRedeemUrl: true,
           },
         },
       },

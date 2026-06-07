@@ -62,8 +62,9 @@ function CardKeysInner() {
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
 
-  // 使用说明
+  // 使用说明 + 充值链接
   const [usage, setUsage] = useState('')
+  const [redeemUrl, setRedeemUrl] = useState('')
   const [savingUsage, setSavingUsage] = useState(false)
   const [usageMsg, setUsageMsg] = useState('')
 
@@ -98,6 +99,7 @@ function CardKeysInner() {
         setList(data.data.list)
         setStats(data.data.stats)
         setUsage(data.data.cardUsage || '')
+        setRedeemUrl(data.data.cardRedeemUrl || '')
       }
     } finally {
       setLoading(false)
@@ -112,7 +114,7 @@ function CardKeysInner() {
       const res = await fetch(`/api/admin/products/${productId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardUsage: usage }),
+        body: JSON.stringify({ cardUsage: usage, cardRedeemUrl: redeemUrl.trim() }),
       })
       const data = await res.json()
       setUsageMsg(data.success ? '已保存' : data.error || '保存失败')
@@ -212,22 +214,35 @@ function CardKeysInner() {
           {/* 使用说明 */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">使用说明（展示给买家）</CardTitle>
+              <CardTitle className="text-base">使用说明 / 充值链接（展示给买家）</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-sm text-gray-500">
-                买家付款后会在订单详情的卡密区域看到这段说明。可写：如何使用卡密充值、注意事项、售后/客服联系方式等。
-              </p>
-              <textarea
-                value={usage}
-                onChange={(e) => setUsage(e.target.value)}
-                rows={6}
-                placeholder={'例如：\n1. 打开 xxx 官网/App，登录你的账号\n2. 进入「充值/兑换」，输入上方卡密\n3. 兑换成功即到账\n\n售后：如卡密无效，请在 24 小时内联系客服微信 xxx，并提供订单号。'}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">充值 / 兑换链接</label>
+                <input
+                  value={redeemUrl}
+                  onChange={(e) => setRedeemUrl(e.target.value)}
+                  placeholder="https://...（买家拿到卡密后点「去充值」会跳转此链接，留空则不显示按钮）"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <p className="mt-1 text-xs text-gray-400">需以 http:// 或 https:// 开头。</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">使用说明</label>
+                <p className="text-xs text-gray-500 mb-1.5">
+                  买家付款后会在订单详情的卡密区域看到。可写：如何使用卡密充值、注意事项、售后/客服联系方式等。
+                </p>
+                <textarea
+                  value={usage}
+                  onChange={(e) => setUsage(e.target.value)}
+                  rows={6}
+                  placeholder={'例如：\n1. 打开 xxx 官网/App，登录你的账号\n2. 进入「充值/兑换」，输入上方卡密\n3. 兑换成功即到账\n\n售后：如卡密无效，请在 24 小时内联系客服微信 xxx，并提供订单号。'}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+              </div>
               <div className="flex items-center gap-3">
                 <Button onClick={saveUsage} loading={savingUsage}>
-                  <Save className="w-4 h-4 mr-1" /> 保存说明
+                  <Save className="w-4 h-4 mr-1" /> 保存
                 </Button>
                 {usageMsg && <span className="text-sm text-gray-600">{usageMsg}</span>}
               </div>

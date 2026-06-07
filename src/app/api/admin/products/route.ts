@@ -18,6 +18,12 @@ const productSchema = z.object({
   status: z.number().default(1),
   deliveryType: z.enum(['MANUAL', 'AUTO']).default('MANUAL'),
   cardUsage: z.string().optional().nullable(),
+  cardRedeemUrl: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || /^https?:\/\//i.test(v), '充值链接需以 http:// 或 https:// 开头')
+    .optional()
+    .nullable(),
   features: z.string().optional().nullable(),
 })
 

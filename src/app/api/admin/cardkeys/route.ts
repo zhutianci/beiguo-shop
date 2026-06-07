@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       prisma.cardKey.count({ where: { productId, status: 'UNUSED' } }),
       prisma.cardKey.count({ where: { productId, status: 'USED' } }),
       prisma.cardKey.count({ where: { productId, status: 'DISABLED' } }),
-      prisma.product.findUnique({ where: { id: productId }, select: { cardUsage: true } }),
+      prisma.product.findUnique({ where: { id: productId }, select: { cardUsage: true, cardRedeemUrl: true } }),
     ])
 
     const list = rows.map((c) => {
@@ -54,7 +54,15 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return success({ list, total, page, pageSize, stats: { unused, used, disabled }, cardUsage: product?.cardUsage ?? '' })
+    return success({
+      list,
+      total,
+      page,
+      pageSize,
+      stats: { unused, used, disabled },
+      cardUsage: product?.cardUsage ?? '',
+      cardRedeemUrl: product?.cardRedeemUrl ?? '',
+    })
   } catch (err) {
     console.error('List cardkeys error:', err)
     return error('查询失败')

@@ -85,6 +85,7 @@ model Product {
   status        Int       @default(1) // 1: 上架 0: 下架
   deliveryType  String    @default("MANUAL") @map("delivery_type") @db.VarChar(20) // MANUAL 手工发货 | AUTO 卡密自动发货
   cardUsage     String?   @map("card_usage") @db.Text // 自动发货使用说明（含售后），展示给买家
+  cardRedeemUrl String?   @map("card_redeem_url") @db.VarChar(500) // 充值/兑换链接，买家拿到卡密后可一键跳转
   features      String?   @db.Text // JSON格式存储商品特性
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")

@@ -34,7 +34,7 @@ interface Order {
   createdAt: string
   paidAt: string | null
   deliveredAt: string | null
-  product: { id: number; name: string; image: string | null; deliveryType?: string; cardUsage?: string | null }
+  product: { id: number; name: string; image: string | null; deliveryType?: string; cardUsage?: string | null; cardRedeemUrl?: string | null }
   cards?: string[]
 }
 
@@ -538,6 +538,17 @@ export default function OrdersPage() {
                         </div>
                       ))}
                     </div>
+                    {selectedOrder.product?.cardRedeemUrl && /^https?:\/\//i.test(selectedOrder.product.cardRedeemUrl) && (
+                      <a
+                        href={selectedOrder.product.cardRedeemUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="mt-3 group flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 font-semibold hover:shadow-[0_0_24px_rgba(16,185,129,0.4)] transition-all"
+                      >
+                        去充值 / 兑换
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </a>
+                    )}
                     <p className="text-[11px] text-white/40 mt-2">卡密仅本人可见，请按说明使用；如有问题联系客服。</p>
                     {selectedOrder.product?.cardUsage && (
                       <div className="mt-3">
