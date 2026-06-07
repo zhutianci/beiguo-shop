@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
+import { syncAutoStock } from '@/lib/cardkey'
 
 const updateProductSchema = z.object({
   categoryId: z.number().optional(),
@@ -15,6 +16,7 @@ const updateProductSchema = z.object({
   stock: z.number().optional(),
   sortOrder: z.number().optional(),
   status: z.number().optional(),
+  deliveryType: z.enum(['MANUAL', 'AUTO']).optional(),
   features: z.string().optional().nullable(),
 })
 
@@ -42,6 +44,7 @@ export async function PUT(
       where: { id: productId },
       data: result.data,
     })
+    if (product.deliveryType === 'AUTO') await syncAutoStock(product.id)
 
     return success(product, '商品更新成功')
   } catch (err) {

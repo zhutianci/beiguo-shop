@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { syncAutoStock } from '@/lib/cardkey'
 
 const productSchema = z.object({
   categoryId: z.number(),
@@ -15,6 +16,7 @@ const productSchema = z.object({
   stock: z.number().default(-1),
   sortOrder: z.number().default(0),
   status: z.number().default(1),
+  deliveryType: z.enum(['MANUAL', 'AUTO']).default('MANUAL'),
   features: z.string().optional().nullable(),
 })
 
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
     const product = await prisma.product.create({
       data: result.data,
     })
+    if (product.deliveryType === 'AUTO') await syncAutoStock(product.id)
 
     return success(product, '商品创建成功')
   } catch (err) {

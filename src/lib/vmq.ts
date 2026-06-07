@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from './db'
+import { syncAutoStock } from './cardkey'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
@@ -301,19 +302,60 @@ export async function handleWebhookNotify(content: string): Promise<{ matched: b
   return { matched, amount, type }
 }
 
+// 原子领取未使用卡密（条件更新 where status=UNUSED 防并发重复发放）
+async function allocateCards(productId: number, orderId: number, quantity: number): Promise<number> {
+  let claimed = 0
+  for (let attempt = 0; claimed < quantity && attempt < quantity + 10; attempt++) {
+    const card = await prisma.cardKey.findFirst({
+      where: { productId, status: 'UNUSED' },
+      orderBy: { id: 'asc' },
+      select: { id: true },
+    })
+    if (!card) break
+    const r = await prisma.cardKey.updateMany({
+      where: { id: card.id, status: 'UNUSED' },
+      data: { status: 'USED', orderId, usedAt: new Date() },
+    })
+    if (r.count === 1) claimed++ // 抢到；否则被并发领走，继续下一张
+  }
+  return claimed
+}
+
 async function fulfillOrder(orderId: number) {
-  const order = await prisma.order.findUnique({ where: { id: orderId } })
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { product: true } })
   if (!order || order.payStatus === 'PAID') return
+
+  const auto = order.product.deliveryType === 'AUTO'
+  let delivered = false
+  let remark = order.remark
+  if (auto) {
+    const claimed = await allocateCards(order.productId, order.id, order.quantity)
+    if (claimed >= order.quantity) {
+      delivered = true
+    } else {
+      remark = `${remark ? remark + ' | ' : ''}卡密库存不足(已发${claimed}/${order.quantity})，待人工补发`
+    }
+  }
+
   await prisma.$transaction([
     prisma.order.update({
       where: { id: order.id },
-      data: { payStatus: 'PAID', payMethod: 'ALIPAY', deliveryStatus: 'PROCESSING', paidAt: new Date() },
+      data: {
+        payStatus: 'PAID',
+        payMethod: 'ALIPAY',
+        paidAt: new Date(),
+        deliveryStatus: delivered ? 'DELIVERED' : 'PROCESSING',
+        ...(delivered ? { deliveredAt: new Date() } : {}),
+        ...(auto ? { remark } : {}),
+      },
     }),
     prisma.payment.create({
       data: { orderId: order.id, payMethod: 'ALIPAY', amount: order.amount, status: 1 },
     }),
     prisma.product.update({ where: { id: order.productId }, data: { sales: { increment: order.quantity } } }),
   ])
+
+  if (auto) await syncAutoStock(order.productId)
 }
 
 async function fulfillInvoice(invoiceId: number) {

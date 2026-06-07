@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, Pencil, Trash2, Search } from 'lucide-react'
+import Link from 'next/link'
+import { Plus, Pencil, Trash2, Search, KeyRound } from 'lucide-react'
 
 interface Product {
   id: number
@@ -17,6 +18,7 @@ interface Product {
   sales: number
   sortOrder: number
   status: number
+  deliveryType?: string
   features: string | null
   category: { id: number; name: string }
 }
@@ -35,6 +37,7 @@ const emptyForm = {
   stock: -1,
   sortOrder: 0,
   status: 1,
+  deliveryType: 'MANUAL',
   features: '',
 }
 
@@ -81,6 +84,7 @@ export default function ProductsPage() {
       stock: product.stock,
       sortOrder: product.sortOrder,
       status: product.status,
+      deliveryType: product.deliveryType || 'MANUAL',
       features: product.features || '',
     })
     setShowModal(true)
@@ -209,7 +213,8 @@ export default function ProductsPage() {
                     <th className="pb-3 font-medium">商品名称</th>
                     <th className="pb-3 font-medium">分类</th>
                     <th className="pb-3 font-medium">售价</th>
-                    <th className="pb-3 font-medium">原价</th>
+                    <th className="pb-3 font-medium">发货</th>
+                    <th className="pb-3 font-medium">库存</th>
                     <th className="pb-3 font-medium">销量</th>
                     <th className="pb-3 font-medium">状态</th>
                     <th className="pb-3 font-medium">操作</th>
@@ -222,8 +227,21 @@ export default function ProductsPage() {
                       <td className="py-4 font-medium text-gray-900">{product.name}</td>
                       <td className="py-4 text-gray-600">{product.category.name}</td>
                       <td className="py-4 text-gray-900">¥{Number(product.price).toFixed(2)}</td>
-                      <td className="py-4 text-gray-400">
-                        {product.originalPrice ? `¥${Number(product.originalPrice).toFixed(2)}` : '-'}
+                      <td className="py-4">
+                        {product.deliveryType === 'AUTO' ? (
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-blue-100 text-blue-700">自动发卡密</span>
+                        ) : (
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-gray-100 text-gray-600">手工发货</span>
+                        )}
+                      </td>
+                      <td className="py-4 text-gray-600">
+                        {product.deliveryType === 'AUTO' ? (
+                          <span title="可用卡密数">{product.stock}</span>
+                        ) : product.stock === -1 ? (
+                          '无限'
+                        ) : (
+                          product.stock
+                        )}
                       </td>
                       <td className="py-4 text-gray-600">{product.sales}</td>
                       <td className="py-4">
@@ -240,6 +258,15 @@ export default function ProductsPage() {
                       </td>
                       <td className="py-4">
                         <div className="flex items-center gap-2">
+                          {product.deliveryType === 'AUTO' && (
+                            <Link
+                              href={`/admin/cardkeys?productId=${product.id}`}
+                              className="rounded p-1 text-blue-500 hover:bg-blue-50"
+                              title="管理卡密"
+                            >
+                              <KeyRound className="h-4 w-4" />
+                            </Link>
+                          )}
                           <button
                             onClick={() => handleEdit(product)}
                             className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -350,6 +377,25 @@ export default function ProductsPage() {
                   rows={2}
                   placeholder='["特性1","特性2"]'
                 />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">发货方式</label>
+                <select
+                  value={formData.deliveryType}
+                  onChange={(e) => setFormData({ ...formData, deliveryType: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                >
+                  <option value="MANUAL">手工发货（买家下单后联系客服处理）</option>
+                  <option value="AUTO">自动发货（付款后自动发卡密）</option>
+                </select>
+                {formData.deliveryType === 'AUTO' && (
+                  <p className="mt-1 text-xs text-blue-600">
+                    自动发货商品的「库存」由卡密数量自动管理；保存后到列表点
+                    <KeyRound className="inline w-3 h-3 mx-0.5" />
+                    录入卡密。
+                  </p>
+                )}
               </div>
 
               <div>

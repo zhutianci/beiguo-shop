@@ -34,7 +34,8 @@ interface Order {
   createdAt: string
   paidAt: string | null
   deliveredAt: string | null
-  product: { id: number; name: string; image: string | null }
+  product: { id: number; name: string; image: string | null; deliveryType?: string }
+  cards?: string[]
 }
 
 const gradients = [
@@ -517,6 +518,30 @@ export default function OrdersPage() {
                     <span>{formatDate(selectedOrder.deliveredAt)}</span>
                   </div>
                 )}
+                {selectedOrder.cards && selectedOrder.cards.length > 0 && (
+                  <div>
+                    <div className="text-white/50 mb-2 flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-400" /> 卡密（请妥善保管）
+                    </div>
+                    <div className="space-y-2">
+                      {selectedOrder.cards.map((card, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <div className="flex-1 p-3 rounded-lg bg-white/5 border border-green-500/30 font-mono text-xs break-all">
+                            {card}
+                          </div>
+                          <button
+                            onClick={() => navigator.clipboard.writeText(card)}
+                            className="px-3 py-2 rounded-lg glass hover:bg-white/10 text-xs whitespace-nowrap"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-white/40 mt-2">卡密仅本人可见，请按说明使用；如有问题联系客服。</p>
+                  </div>
+                )}
+
                 {selectedOrder.deliveryInfo && (
                   <div>
                     <div className="text-white/50 mb-2">交付信息</div>

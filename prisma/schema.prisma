@@ -83,14 +83,37 @@ model Product {
   sales         Int       @default(0)
   sortOrder     Int       @default(0) @map("sort_order")
   status        Int       @default(1) // 1: 上架 0: 下架
+  deliveryType  String    @default("MANUAL") @map("delivery_type") @db.VarChar(20) // MANUAL 手工发货 | AUTO 卡密自动发货
   features      String?   @db.Text // JSON格式存储商品特性
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
   category      Category  @relation(fields: [categoryId], references: [id])
   orders        Order[]
+  cardKeys      CardKey[]
 
   @@map("products")
+}
+
+// 卡密（自动发货）：内容加密存储，仅订单所有者/管理员可解密查看
+model CardKey {
+  id          Int       @id @default(autoincrement())
+  productId   Int       @map("product_id")
+  content     String    @db.Text                         // AES-256-GCM 加密后的卡密（iv:tag:cipher，base64）
+  contentHash String    @map("content_hash") @db.VarChar(64) // sha256(明文+盐)，用于同商品内去重，不可逆
+  status      String    @default("UNUSED") @db.VarChar(20)   // UNUSED 未使用 | USED 已发出 | DISABLED 已停用
+  orderId     Int?      @map("order_id")                 // 被哪个订单消费
+  usedAt      DateTime? @map("used_at")
+  batch       String?   @db.VarChar(40)
+  remark      String?   @db.VarChar(255)
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, contentHash])
+  @@index([productId, status])
+  @@index([orderId])
+  @@map("card_keys")
 }
 
 // 订单表

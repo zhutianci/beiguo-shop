@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { generateOrderNo } from '@/lib/utils'
+import { decryptCardContent } from '@/lib/cardkey'
 
 const createOrderSchema = z.object({
   productId: z.number(),
@@ -29,13 +30,36 @@ export async function GET() {
             id: true,
             name: true,
             image: true,
+            deliveryType: true,
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     })
 
-    return success(orders)
+    // 自动发货：把已发给本人订单的卡密解密返回（仅本人、已支付订单可见）
+    const paidIds = orders.filter((o) => o.payStatus === 'PAID').map((o) => o.id)
+    const cardMap = new Map<number, string[]>()
+    if (paidIds.length) {
+      const cards = await prisma.cardKey.findMany({
+        where: { orderId: { in: paidIds }, status: 'USED' },
+        orderBy: { id: 'asc' },
+      })
+      for (const c of cards) {
+        let plain = ''
+        try {
+          plain = decryptCardContent(c.content)
+        } catch {
+          plain = '(卡密解密失败，请联系客服)'
+        }
+        const arr = cardMap.get(c.orderId as number) || []
+        arr.push(plain)
+        cardMap.set(c.orderId as number, arr)
+      }
+    }
+
+    const withCards = orders.map((o) => ({ ...o, cards: cardMap.get(o.id) || [] }))
+    return success(withCards)
   } catch (err) {
     console.error('Get orders error:', err)
     return error('获取订单列表失败')
