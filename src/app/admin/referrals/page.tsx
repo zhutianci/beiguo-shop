@@ -44,10 +44,54 @@ interface BaseRow {
   override: number | null
 }
 
+interface DefBaseRow {
+  productId: number
+  name: string
+  websitePrice: number
+  base: number | null
+}
+
 export default function AdminReferralsPage() {
   const [data, setData] = useState<Data | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(0)
+
+  // 全局默认基础价
+  const [defRows, setDefRows] = useState<DefBaseRow[]>([])
+  const [defInputs, setDefInputs] = useState<Record<number, string>>({})
+  const [defSaving, setDefSaving] = useState(false)
+  const [defMsg, setDefMsg] = useState('')
+
+  const loadDefaultBase = async () => {
+    const res = await fetch('/api/admin/referrals/default-base')
+    const d = await res.json()
+    if (d.success) {
+      setDefRows(d.data.products)
+      const map: Record<number, string> = {}
+      d.data.products.forEach((p: DefBaseRow) => (map[p.productId] = p.base != null ? String(p.base) : ''))
+      setDefInputs(map)
+    }
+  }
+
+  const saveDefaultBase = async () => {
+    setDefSaving(true)
+    setDefMsg('')
+    try {
+      const prices = defRows.map((p) => {
+        const v = (defInputs[p.productId] ?? '').trim()
+        return { productId: p.productId, price: v === '' ? null : Number(v) }
+      })
+      const res = await fetch('/api/admin/referrals/default-base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prices }),
+      })
+      const d = await res.json()
+      setDefMsg(d.success ? '已保存，所有推广人默认按此基础价' : d.error || '保存失败')
+    } finally {
+      setDefSaving(false)
+    }
+  }
 
   // 单独基础价编辑
   const [baseFor, setBaseFor] = useState<Referrer | null>(null)
@@ -160,6 +204,8 @@ export default function AdminReferralsPage() {
   }
   useEffect(() => {
     load()
+    loadDefaultBase()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const copy = (text: string, id: number) => {
@@ -170,6 +216,50 @@ export default function AdminReferralsPage() {
 
   return (
     <div className="space-y-6">
+      {/* 全局默认基础价（初始设置） */}
+      <Card>
+        <CardHeader>
+          <CardTitle>默认基础价（适用所有推广人）</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-500 mb-3">
+            在此为每个商品设一个统一的「推广人基础价(进货价)」。所有生成内推链接的人默认按此价进货，返现 = 售价 − 基础价，无需逐个设置。
+            个别重量级推广人可在下方列表「基础价」单独覆盖。留空 = 用网站售价。
+          </p>
+          {defRows.length === 0 ? (
+            <div className="text-center py-6 text-gray-400 text-sm">暂无上架商品</div>
+          ) : (
+            <>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {defRows.map((p) => (
+                  <div key={p.productId} className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{p.name}</div>
+                      <div className="text-xs text-gray-400">网站售价 ¥{p.websitePrice.toFixed(2)}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-400 text-sm">¥</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={defInputs[p.productId] ?? ''}
+                        onChange={(e) => setDefInputs({ ...defInputs, [p.productId]: e.target.value })}
+                        placeholder={`默认 ${p.websitePrice.toFixed(2)}`}
+                        className="w-28 px-3 py-1.5 rounded-lg border border-gray-300 text-sm"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-3 mt-4">
+                <Button onClick={saveDefaultBase} loading={defSaving}>保存默认基础价</Button>
+                {defMsg && <span className="text-sm text-gray-600">{defMsg}</span>}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
       {data && (
         <div className="grid grid-cols-3 gap-3 max-w-2xl">
           <div className="rounded-xl border border-gray-100 bg-white p-4">
