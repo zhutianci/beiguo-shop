@@ -40,15 +40,34 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   if (!product) return null
 
   // 确认支付：建单 → 发起支付宝 → 直接跳转收银台
-  const handleConfirmPay = async () => {
-    if (!user) {
-      onClose()
-      router.push(`/login?redirect=/products/${product.id}`)
-      return
-    }
+  const bounceLogin = () => {
+    onClose()
+    router.push(`/login?redirect=/products/${product.id}`)
+  }
 
+  const handleConfirmPay = async () => {
     setSubmitting(true)
     setError('')
+
+    // 本地登录态可能与服务端 cookie 不同步：本地为空时先向服务端二次确认，避免误弹登录
+    if (!user) {
+      try {
+        const me = await fetch('/api/auth/me')
+        const md = await me.json()
+        if (md.success && md.data?.user) {
+          useUserStore.getState().setUser(md.data.user)
+        } else {
+          setSubmitting(false)
+          bounceLogin()
+          return
+        }
+      } catch {
+        setSubmitting(false)
+        bounceLogin()
+        return
+      }
+    }
+
     try {
       // 1) 创建订单
       const res = await fetch('/api/orders', {

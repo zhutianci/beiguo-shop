@@ -19,8 +19,28 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash)
 }
 
+export const AUTH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 天
+
 export function signToken(payload: JwtPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' })
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '30d' })
+}
+
+// 是否用 secure cookie：按真实请求协议判断（兼容 http 直连 IP / https 域名）
+export function isHttpsRequest(request: { headers: { get(name: string): string | null } }): boolean {
+  const proto = request.headers.get('x-forwarded-proto')
+  if (proto) return proto.split(',')[0].trim() === 'https'
+  return (process.env.NEXT_PUBLIC_APP_URL || '').startsWith('https://')
+}
+
+// 统一的登录 cookie 选项
+export function authCookieOptions(request: { headers: { get(name: string): string | null } }) {
+  return {
+    httpOnly: true,
+    secure: isHttpsRequest(request),
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: AUTH_COOKIE_MAX_AGE,
+  }
 }
 
 export function verifyToken(token: string): JwtPayload | null {
