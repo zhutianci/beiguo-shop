@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { ArrowLeft, ArrowRight, Check, ShieldCheck, Clock, Headphones, Sparkles, Star } from 'lucide-react'
 import { PurchaseModal } from '@/components/purchase-modal'
 import { ContactModal } from '@/components/contact-modal'
+import { captureRefFromUrl } from '@/lib/ref'
 
 interface Product {
   id: number
@@ -71,7 +72,8 @@ export default function ProductDetailPage() {
   const [contactOpen, setContactOpen] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/products/${params.id}`)
+    const r = captureRefFromUrl()
+    fetch(`/api/products/${params.id}${r ? `?ref=${encodeURIComponent(r)}` : ''}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.success) {

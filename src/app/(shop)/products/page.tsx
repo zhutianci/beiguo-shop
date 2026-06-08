@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Filter, Sparkles } from 'lucide-react'
 import { ContactModal } from '@/components/contact-modal'
+import { captureRefFromUrl } from '@/lib/ref'
 
 interface Category {
   id: number
@@ -66,11 +67,14 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState(0)
   const [contactOpen, setContactOpen] = useState(false)
+  const [ref, setRef] = useState<string | null>(null)
 
   useEffect(() => {
+    const r = captureRefFromUrl()
+    setRef(r)
     Promise.all([
-      fetch('/api/products').then((r) => r.json()),
-      fetch('/api/categories').then((r) => r.json()),
+      fetch(`/api/products${r ? `?ref=${encodeURIComponent(r)}` : ''}`).then((res) => res.json()),
+      fetch('/api/categories').then((res) => res.json()),
     ])
       .then(([productsData, categoriesData]) => {
         if (productsData.success) setProducts(productsData.data)
@@ -109,6 +113,12 @@ export default function ProductsPage() {
             专业团队，正规渠道，快速开通，售后无忧
           </p>
         </motion.div>
+
+        {ref && (
+          <div className="max-w-xl mx-auto mb-8 text-center text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-4 py-2">
+            🎁 您正在通过专属推广链接访问，已为您应用专属价格
+          </div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

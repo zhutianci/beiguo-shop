@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, CreditCard, ArrowRight } from 'lucide-react'
 import { useUserStore } from '@/store/user'
+import { getRef } from '@/lib/ref'
 
 interface PurchaseModalProps {
   open: boolean
@@ -53,7 +54,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, quantity: 1, remark: '支付方式: 支付宝' }),
+        body: JSON.stringify({ productId: product.id, quantity: 1, remark: '支付方式: 支付宝', ref: getRef() }),
       })
       if (res.status === 401) {
         useUserStore.getState().setUser(null)

@@ -1,0 +1,83 @@
+export const dynamic = 'force-dynamic'
+
+import { prisma } from '@/lib/db'
+import { success, error } from '@/lib/api'
+
+// 内推总览：推广人列表（链接/收益）+ 返现明细
+export async function GET() {
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bigolab.com'
+
+    const [referrerUsers, grouped, rewards] = await Promise.all([
+      prisma.user.findMany({
+        where: { referralCode: { not: null } },
+        select: { id: true, nickname: true, email: true, referralCode: true, balance: true },
+      }),
+      prisma.referralReward.groupBy({
+        by: ['referrerId'],
+        where: { status: 'SETTLED' },
+        _sum: { amount: true },
+        _count: true,
+      }),
+      prisma.referralReward.findMany({ orderBy: { id: 'desc' }, take: 200 }),
+    ])
+
+    const sumMap = new Map(grouped.map((g) => [g.referrerId, { sum: Number(g._sum.amount ?? 0), count: g._count }]))
+
+    // 名称映射
+    const uid = new Set<number>()
+    rewards.forEach((r) => {
+      uid.add(r.referrerId)
+      uid.add(r.buyerId)
+    })
+    const pids = Array.from(new Set(rewards.map((r) => r.productId)))
+    const [users, products] = await Promise.all([
+      prisma.user.findMany({ where: { id: { in: Array.from(uid) } }, select: { id: true, nickname: true, email: true } }),
+      prisma.product.findMany({ where: { id: { in: pids } }, select: { id: true, name: true } }),
+    ])
+    const uname = new Map(users.map((u) => [u.id, u.nickname || u.email || `用户#${u.id}`]))
+    const pname = new Map(products.map((p) => [p.id, p.name]))
+
+    const referrers = referrerUsers
+      .map((u) => {
+        const s = sumMap.get(u.id)
+        return {
+          id: u.id,
+          name: u.nickname || u.email || `用户#${u.id}`,
+          code: u.referralCode,
+          link: `${appUrl}/products?ref=${u.referralCode}`,
+          balance: Number(u.balance),
+          settledTotal: s?.sum ?? 0,
+          settledCount: s?.count ?? 0,
+        }
+      })
+      .sort((a, b) => b.settledTotal - a.settledTotal)
+
+    const rewardList = rewards.map((r) => ({
+      id: r.id,
+      orderId: r.orderId,
+      referrer: uname.get(r.referrerId) || `用户#${r.referrerId}`,
+      buyer: uname.get(r.buyerId) || `用户#${r.buyerId}`,
+      product: pname.get(r.productId) || `商品#${r.productId}`,
+      amount: Number(r.amount),
+      status: r.status,
+      createdAt: r.createdAt,
+      settledAt: r.settledAt,
+    }))
+
+    const totalSettled = grouped.reduce((s, g) => s + Number(g._sum.amount ?? 0), 0)
+
+    return success({
+      referrers,
+      rewards: rewardList,
+      totals: {
+        settledTotal: Math.round(totalSettled * 100) / 100,
+        rewardCount: rewards.length,
+        referrerCount: referrerUsers.length,
+      },
+    })
+  } catch (err) {
+    console.error('Admin referrals error:', err)
+    return error('查询失败')
+  }
+}

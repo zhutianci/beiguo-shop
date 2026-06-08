@@ -12,6 +12,7 @@ const createOrderSchema = z.object({
   productId: z.number(),
   quantity: z.number().min(1).default(1),
   remark: z.string().optional(),
+  ref: z.string().trim().optional().nullable(), // 内推码
 })
 
 // 获取用户订单列表
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
       return error(result.error.errors[0].message)
     }
 
-    const { productId, quantity, remark } = result.data
+    const { productId, quantity, remark, ref } = result.data
 
     // 获取商品信息
     const product = await prisma.product.findUnique({
@@ -99,8 +100,32 @@ export async function POST(request: NextRequest) {
       return error('库存不足')
     }
 
-    // 计算金额
-    const amount = Number(product.price) * quantity
+    // 内推：通过推广人链接下单，使用其「专属价」，差额作为返现归推广人
+    const base = Number(product.price)
+    let unitPrice = base
+    let referrerId: number | null = null
+    let referralReward: number | null = null
+    if (ref) {
+      const referrer = await prisma.user.findUnique({
+        where: { referralCode: ref },
+        select: { id: true, status: true },
+      })
+      if (referrer && referrer.status === 1 && referrer.id !== user.id) {
+        const rp = await prisma.referralPrice.findUnique({
+          where: { userId_productId: { userId: referrer.id, productId } },
+        })
+        if (rp) {
+          const custom = Number(rp.price)
+          if (custom >= base) {
+            unitPrice = custom
+            referrerId = referrer.id
+            referralReward = Math.round((custom - base) * 100) / 100 * quantity
+          }
+        }
+      }
+    }
+
+    const amount = Math.round(unitPrice * quantity * 100) / 100
 
     // 创建待支付订单（默认 payStatus: UNPAID, deliveryStatus: PENDING）
     const order = await prisma.order.create({
@@ -113,6 +138,8 @@ export async function POST(request: NextRequest) {
         quantity,
         amount,
         remark,
+        referrerId,
+        referralReward: referralReward && referralReward > 0 ? referralReward : null,
       },
     })
 

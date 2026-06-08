@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { ContactModal } from '@/components/contact-modal'
+import OrderChat from '@/components/order-chat'
 
 interface Order {
   id: number
@@ -570,6 +571,13 @@ export default function OrdersPage() {
                   </div>
                 )}
               </div>
+              {selectedOrder.payStatus === 'PAID' && (
+                <div className="mt-6 pt-5 border-t border-white/10">
+                  <div className="text-white/50 mb-2 text-sm">和客服沟通（本订单）</div>
+                  <OrderChat apiBase={`/api/orders/${selectedOrder.id}/messages`} selfRole="BUYER" theme="dark" />
+                </div>
+              )}
+
               <button
                 onClick={() => setSelectedOrder(null)}
                 className="w-full mt-6 py-3 rounded-xl glass hover:bg-white/10 text-sm font-medium transition-colors"

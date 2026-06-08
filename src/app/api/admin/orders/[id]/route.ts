@@ -5,11 +5,13 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
+import { settleReferral } from '@/lib/referral'
 
 const updateOrderSchema = z.object({
   payStatus: z.enum(['UNPAID', 'PAID', 'REFUNDED']).optional(),
   deliveryStatus: z.enum(['PENDING', 'PROCESSING', 'DELIVERED', 'CANCELLED']).optional(),
   deliveryInfo: z.string().optional().nullable(),
+  amount: z.number().positive('金额必须大于0').optional(), // 改价（仅待支付订单）
   // 交付完成时同步导入到「订单（外部订单）」所需的信息
   external: z
     .object({
@@ -68,14 +70,23 @@ export async function PUT(
       return notFound('订单不存在')
     }
 
-    const { external, ...orderFields } = result.data
+    const { external, amount, ...orderFields } = result.data
     const data: {
       payStatus?: 'UNPAID' | 'PAID' | 'REFUNDED'
       deliveryStatus?: 'PENDING' | 'PROCESSING' | 'DELIVERED' | 'CANCELLED'
       deliveryInfo?: string | null
       deliveredAt?: Date | null
       paidAt?: Date | null
+      amount?: number
     } = { ...orderFields }
+
+    // 改价：仅待支付订单可改
+    if (amount != null) {
+      if (currentOrder.payStatus !== 'UNPAID') {
+        return error('只有待支付订单可以改价')
+      }
+      data.amount = amount
+    }
 
     const wasDelivered = currentOrder.deliveryStatus === 'DELIVERED'
     const willBeDelivered = result.data.deliveryStatus === 'DELIVERED'
@@ -172,6 +183,15 @@ export async function PUT(
         } catch (e) {
           console.error('Auto-import external order failed:', e)
         }
+      }
+    }
+
+    // 交付完成 → 结算内推返现（自动进推广人余额，幂等）
+    if (!wasDelivered && willBeDelivered) {
+      try {
+        await settleReferral(orderId)
+      } catch (e) {
+        console.error('Settle referral failed:', e)
       }
     }
 

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, Eye } from 'lucide-react'
+import OrderChat from '@/components/order-chat'
 
 interface Order {
   id: number
@@ -42,6 +43,7 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [deliveryInfo, setDeliveryInfo] = useState('')
   const [deliveryStatus, setDeliveryStatus] = useState('')
+  const [amount, setAmount] = useState('')
   const [submitting, setSubmitting] = useState(false)
   // 交付完成时同步导入「订单」所需信息
   const [extSubscriptionType, setExtSubscriptionType] = useState('')
@@ -83,6 +85,7 @@ export default function OrdersPage() {
     setSelectedOrder(order)
     setDeliveryInfo(order.deliveryInfo || '')
     setDeliveryStatus(order.deliveryStatus)
+    setAmount(String(Number(order.amount)))
     // 预填导入「订单」的默认值
     setExtSubscriptionType(order.productName)
     setExtStartDate(todayIso())
@@ -108,6 +111,9 @@ export default function OrdersPage() {
         body: JSON.stringify({
           deliveryStatus,
           deliveryInfo: deliveryInfo || null,
+          ...(selectedOrder.payStatus === 'UNPAID' && amount && Number(amount) !== Number(selectedOrder.amount)
+            ? { amount: Number(amount) }
+            : {}),
           external: willDeliver
             ? {
                 subscriptionType: extSubscriptionType.trim() || null,
@@ -276,6 +282,24 @@ export default function OrdersPage() {
                 </div>
               )}
 
+              {selectedOrder.payStatus === 'UNPAID' && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                    改价（仅待支付订单，单位元）
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    原价 ¥{Number(selectedOrder.amount).toFixed(2)}；改价后买家按新金额支付。
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
                   交付状态
@@ -359,6 +383,13 @@ export default function OrdersPage() {
                   <p className="text-xs text-gray-500">
                     到期时间将按「开通时间 + 1 个月」自动计算；报价默认取本订单金额 ¥{Number(selectedOrder.amount).toFixed(2)}。
                   </p>
+                </div>
+              )}
+
+              {selectedOrder.payStatus === 'PAID' && (
+                <div className="pt-2">
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">订单沟通（与买家）</label>
+                  <OrderChat apiBase={`/api/admin/orders/${selectedOrder.id}/messages`} selfRole="ADMIN" theme="light" />
                 </div>
               )}
 

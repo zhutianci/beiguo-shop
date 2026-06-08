@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from './db'
 import { syncAutoStock } from './cardkey'
+import { settleReferral } from './referral'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
@@ -356,6 +357,15 @@ async function fulfillOrder(orderId: number) {
   ])
 
   if (auto) await syncAutoStock(order.productId)
+
+  // 自动发货已交付 → 结算内推返现
+  if (delivered) {
+    try {
+      await settleReferral(order.id)
+    } catch (e) {
+      console.error('[vmq] settle referral failed', e)
+    }
+  }
 }
 
 async function fulfillInvoice(invoiceId: number) {

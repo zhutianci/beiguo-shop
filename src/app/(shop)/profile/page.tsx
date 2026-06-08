@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import AccountBindings from '@/components/account-bindings'
+import ReferralPanel from '@/components/referral-panel'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -227,6 +228,15 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
+            </motion.div>
+
+            {/* 内推 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.12 }}
+            >
+              <ReferralPanel />
             </motion.div>
 
             {/* 绑定账户管理 */}

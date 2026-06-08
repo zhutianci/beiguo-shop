@@ -32,6 +32,20 @@ export async function GET(
       return notFound('商品不存在')
     }
 
+    // 内推：带 ?ref=CODE 时用推广人专属价覆盖
+    const ref = new URL(request.url).searchParams.get('ref')?.trim()
+    if (ref) {
+      const referrer = await prisma.user.findUnique({ where: { referralCode: ref }, select: { id: true, status: true } })
+      if (referrer && referrer.status === 1) {
+        const rp = await prisma.referralPrice.findUnique({
+          where: { userId_productId: { userId: referrer.id, productId } },
+        })
+        if (rp) {
+          return success({ ...product, price: rp.price, originalPrice: product.originalPrice ?? product.price })
+        }
+      }
+    }
+
     return success(product)
   } catch (err) {
     console.error('Get product error:', err)

@@ -17,6 +17,7 @@ model User {
   nickname     String?   @db.VarChar(50)
   avatar       String?   @db.VarChar(255)
   balance      Decimal   @default(0) @db.Decimal(10, 2)
+  referralCode String?   @unique @map("referral_code") @db.VarChar(20) // 内推码
   vipLevel     Int       @default(0) @map("vip_level")
   role         UserRole  @default(USER)
   status       Int       @default(1) // 1: 正常 0: 禁用
@@ -133,6 +134,8 @@ model Order {
   deliveryStatus DeliveryStatus @default(PENDING) @map("delivery_status")
   deliveryInfo   String?       @map("delivery_info") @db.Text // 交付信息（如账号密码）
   remark         String?       @db.VarChar(255)
+  referrerId     Int?          @map("referrer_id")     // 内推：推广人用户ID
+  referralReward Decimal?      @map("referral_reward") @db.Decimal(10, 2) // 内推返现金额快照（= 专属价−基础售价）
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
   paidAt         DateTime?     @map("paid_at")
@@ -141,8 +144,57 @@ model Order {
   user           User          @relation(fields: [userId], references: [id])
   product        Product       @relation(fields: [productId], references: [id])
   payments       Payment[]
+  messages       OrderMessage[]
 
+  @@index([referrerId])
   @@map("orders")
+}
+
+// 订单聊天消息（每订单唯一标识；买家在订单内、卖家在后台回复）
+model OrderMessage {
+  id          Int      @id @default(autoincrement())
+  orderId     Int      @map("order_id")
+  sender      String   @db.VarChar(10) // BUYER | ADMIN
+  content     String   @db.Text
+  readByAdmin Boolean  @default(false) @map("read_by_admin")
+  readByBuyer Boolean  @default(false) @map("read_by_buyer")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_messages")
+}
+
+// 内推：推广人为某商品设置的专属价格
+model ReferralPrice {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  productId Int      @map("product_id")
+  price     Decimal  @db.Decimal(10, 2) // 专属价（≥ 基础售价）
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("referral_prices")
+}
+
+// 内推返现记录（订单已完成后产生，金额= 专属价−基础售价，自动进推广人余额）
+model ReferralReward {
+  id         Int      @id @default(autoincrement())
+  orderId    Int      @unique @map("order_id")
+  referrerId Int      @map("referrer_id")
+  buyerId    Int      @map("buyer_id")
+  productId  Int      @map("product_id")
+  amount     Decimal  @db.Decimal(10, 2)
+  status     String   @default("SETTLED") @db.VarChar(20) // SETTLED 已结算(入余额) | CANCELLED
+  createdAt  DateTime @default(now()) @map("created_at")
+  settledAt  DateTime? @map("settled_at")
+
+  @@index([referrerId])
+  @@index([status])
+  @@map("referral_rewards")
 }
 
 enum PayMethod {
