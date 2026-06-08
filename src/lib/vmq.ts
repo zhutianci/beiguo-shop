@@ -272,21 +272,24 @@ export function detectChannel(text: string): number {
   return 2 // 默认支付宝
 }
 
-// 从通知文案解析金额；优先「收款/到账/¥/…元」附近的数字，兜底取最后一个带小数的数字
+// 从通知文案解析金额。注意支付宝到账通知里常带「收钱码/收钱N笔」等促销语，
+// 所以优先匹配「金额+元」与「成功收款 金额」，避免被「收钱1笔」之类误伤。
 export function parseAmount(text: string): string | null {
   if (!text) return null
   const t = text.replace(/,/g, '')
   const patterns = [
-    /(?:成功收款|收款|到账|入账|收钱|付款|转账)[^0-9]{0,8}(\d+(?:\.\d{1,2})?)/,
+    /(?:成功收款|实收|收款金额|到账金额|入账)\D{0,4}(\d+(?:\.\d{1,2})?)\s*元/, // 强信号：成功收款…元
+    /(\d+(?:\.\d{1,2})?)\s*元/, // 金额+元（最可靠）
+    /(?:成功收款|收款|到账|入账|收入)\D{0,4}(\d+(?:\.\d{1,2})?)/,
     /[¥￥]\s*(\d+(?:\.\d{1,2})?)/,
-    /(\d+(?:\.\d{1,2})?)\s*元/,
   ]
   for (const re of patterns) {
     const m = t.match(re)
     if (m) return m[1]
   }
-  const all = t.match(/\d+\.\d{1,2}/g)
-  if (all && all.length) return all[all.length - 1]
+  // 兜底：取最后一个带两位小数的金额
+  const dec = t.match(/\d+\.\d{2}/g)
+  if (dec && dec.length) return dec[dec.length - 1]
   return null
 }
 

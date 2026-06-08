@@ -167,6 +167,20 @@ model OrderMessage {
   @@map("order_messages")
 }
 
+// 用户余额变动流水（内推返现入账 / 管理员调整 / 提现扣减）
+model BalanceLog {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  delta        Decimal  @db.Decimal(10, 2)             // 变动额：正=增加，负=提现/扣减
+  balanceAfter Decimal  @map("balance_after") @db.Decimal(10, 2)
+  type         String   @db.VarChar(20)                // REFERRAL | ADJUST | WITHDRAW
+  note         String?  @db.VarChar(255)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("balance_logs")
+}
+
 // 内推：推广人为某商品设置的专属价格
 model ReferralPrice {
   id        Int      @id @default(autoincrement())

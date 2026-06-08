@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Copy, CheckCircle2, SlidersHorizontal, X } from 'lucide-react'
+import { RefreshCw, Copy, CheckCircle2, SlidersHorizontal, X, Wallet, Trash2 } from 'lucide-react'
 
 interface Referrer {
   id: number
@@ -97,6 +97,57 @@ export default function AdminReferralsPage() {
     }
   }
 
+  // 余额提现/调整
+  const [balFor, setBalFor] = useState<Referrer | null>(null)
+  const [bal, setBal] = useState<{ balance: number; logs: { id: number; delta: number; balanceAfter: number; type: string; note: string | null; createdAt: string }[] } | null>(null)
+  const [balDelta, setBalDelta] = useState('')
+  const [balNote, setBalNote] = useState('')
+  const [balBusy, setBalBusy] = useState(false)
+
+  const openBal = async (r: Referrer) => {
+    setBalFor(r)
+    setBal(null)
+    setBalDelta('')
+    setBalNote('')
+    const res = await fetch(`/api/admin/referrals/balance?userId=${r.id}`)
+    const d = await res.json()
+    if (d.success) setBal(d.data)
+  }
+  const saveBal = async () => {
+    if (!balFor) return
+    const delta = Number(balDelta)
+    if (!delta) return alert('请输入变动金额（提现填负数，如 -50）')
+    setBalBusy(true)
+    try {
+      const res = await fetch('/api/admin/referrals/balance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: balFor.id, delta, note: balNote.trim() || null }),
+      })
+      const d = await res.json()
+      if (d.success) {
+        await openBal(balFor)
+        setBalDelta('')
+        setBalNote('')
+        load()
+      } else alert(d.error || '操作失败')
+    } finally {
+      setBalBusy(false)
+    }
+  }
+
+  const delLink = async (r: Referrer) => {
+    if (!confirm(`删除「${r.name}」的内推链接？其专属价/基础价将清除，链接失效（返现历史与余额保留）。`)) return
+    const res = await fetch('/api/admin/referrals/link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: r.id }),
+    })
+    const d = await res.json()
+    if (d.success) load()
+    else alert(d.error || '删除失败')
+  }
+
   const load = async () => {
     setLoading(true)
     try {
@@ -171,8 +222,15 @@ export default function AdminReferralsPage() {
                       <td className="py-2 pr-3 text-right text-gray-600">{r.settledCount}</td>
                       <td className="py-2 text-right whitespace-nowrap">
                         <button
+                          onClick={() => openBal(r)}
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-emerald-600 hover:bg-emerald-50"
+                          title="提现/调整余额"
+                        >
+                          <Wallet className="w-3.5 h-3.5" /> 提现/调整
+                        </button>
+                        <button
                           onClick={() => openBase(r)}
-                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-purple-600 hover:bg-purple-50"
+                          className="ml-1 inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-purple-600 hover:bg-purple-50"
                           title="为该推广人单独设置基础价"
                         >
                           <SlidersHorizontal className="w-3.5 h-3.5" /> 基础价
@@ -184,6 +242,13 @@ export default function AdminReferralsPage() {
                         >
                           {copied === r.id ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
                           复制链接
+                        </button>
+                        <button
+                          onClick={() => delLink(r)}
+                          className="ml-1 inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-red-600 hover:bg-red-50"
+                          title="删除内推链接"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> 删除
                         </button>
                       </td>
                     </tr>
@@ -280,6 +345,85 @@ export default function AdminReferralsPage() {
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setBaseFor(null)} disabled={baseSaving}>取消</Button>
               <Button onClick={saveBase} loading={baseSaving}>保存</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 提现/调整余额弹窗 */}
+      {balFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !balBusy && setBalFor(null)}>
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">「{balFor.name}」余额管理</h3>
+              <button onClick={() => !balBusy && setBalFor(null)} className="p-1 rounded hover:bg-gray-100 text-gray-500">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 mb-4">
+              <div className="text-xs text-emerald-700">当前余额</div>
+              <div className="text-3xl font-bold text-emerald-700">¥{bal ? bal.balance.toFixed(2) : '...'}</div>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <label className="block text-sm font-medium text-gray-700">变动金额（提现/扣减填负数，如 -50；补偿填正数）</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={balDelta}
+                  onChange={(e) => setBalDelta(e.target.value)}
+                  placeholder="如 -50"
+                  className="w-40 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <input
+                  value={balNote}
+                  onChange={(e) => setBalNote(e.target.value)}
+                  placeholder="备注（如：已微信打款）"
+                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                />
+                <Button onClick={saveBal} loading={balBusy}>提交</Button>
+              </div>
+              <p className="text-xs text-gray-400">提现是你线下打款后，在此把对应金额从余额扣减（填负数）。扣减后余额不能为负。</p>
+            </div>
+
+            <div>
+              <div className="text-sm font-medium text-gray-700 mb-2">余额流水</div>
+              {!bal ? (
+                <div className="text-center py-6 text-gray-400 text-sm">加载中...</div>
+              ) : bal.logs.length === 0 ? (
+                <div className="text-center py-6 text-gray-400 text-sm">暂无流水</div>
+              ) : (
+                <div className="max-h-60 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-gray-400 border-b">
+                        <th className="pb-1 pr-2">类型</th>
+                        <th className="pb-1 pr-2 text-right">变动</th>
+                        <th className="pb-1 pr-2 text-right">余额</th>
+                        <th className="pb-1">备注/时间</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bal.logs.map((l) => (
+                        <tr key={l.id} className="border-b border-gray-50">
+                          <td className="py-1.5 pr-2 text-xs">
+                            {l.type === 'REFERRAL' ? '返现' : l.type === 'WITHDRAW' ? '提现' : '调整'}
+                          </td>
+                          <td className={`py-1.5 pr-2 text-right font-medium ${l.delta < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {l.delta > 0 ? '+' : ''}{l.delta.toFixed(2)}
+                          </td>
+                          <td className="py-1.5 pr-2 text-right text-gray-600">{l.balanceAfter.toFixed(2)}</td>
+                          <td className="py-1.5 text-xs text-gray-400">
+                            {l.note || '-'} · {fmt(l.createdAt)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         </div>

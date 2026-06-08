@@ -49,6 +49,9 @@ export async function settleReferral(orderId: number): Promise<void> {
   const existing = await prisma.referralReward.findUnique({ where: { orderId } })
   if (existing) return // 已结算
 
+  const referrer = await prisma.user.findUnique({ where: { id: order.referrerId }, select: { balance: true } })
+  const balanceAfter = Math.round((Number(referrer?.balance ?? 0) + reward) * 100) / 100
+
   try {
     await prisma.$transaction([
       prisma.referralReward.create({
@@ -63,6 +66,9 @@ export async function settleReferral(orderId: number): Promise<void> {
         },
       }),
       prisma.user.update({ where: { id: order.referrerId }, data: { balance: { increment: reward } } }),
+      prisma.balanceLog.create({
+        data: { userId: order.referrerId, delta: reward, balanceAfter, type: 'REFERRAL', note: `订单#${orderId} 内推返现` },
+      }),
     ])
   } catch (e) {
     if ((e as { code?: string })?.code === 'P2002') return // 并发重复
