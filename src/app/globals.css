@@ -126,6 +126,12 @@
   }
 }
 
+/* 后台管理区域：浅色主题。仅设默认色（靠继承），避免继承全站 body 的白色导致文字看不见。
+   只放在 .admin-area 上，文字若显式用了 text-* 工具类（含彩色/按钮上的 text-white）仍正常生效。 */
+.admin-area {
+  color: #1f2937; /* gray-800 */
+}
+
 /* 后台管理区域：浅色主题下的输入框样式覆盖 */
 .admin-area input:not([type="checkbox"]):not([type="radio"]),
 .admin-area textarea,
