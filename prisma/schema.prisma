@@ -85,6 +85,7 @@ model Product {
   sortOrder     Int       @default(0) @map("sort_order")
   status        Int       @default(1) // 1: 上架 0: 下架
   deliveryType  String    @default("MANUAL") @map("delivery_type") @db.VarChar(20) // MANUAL 手工发货 | AUTO 卡密自动发货
+  referrerBasePrice Decimal? @map("referrer_base_price") @db.Decimal(10, 2) // 推广人默认基础价（进货价；null 则用网站售价）
   cardUsage     String?   @map("card_usage") @db.Text // 自动发货使用说明（含售后），展示给买家
   cardRedeemUrl String?   @map("card_redeem_url") @db.VarChar(500) // 充值/兑换链接，买家拿到卡密后可一键跳转
   features      String?   @db.Text // JSON格式存储商品特性
@@ -180,7 +181,21 @@ model ReferralPrice {
   @@map("referral_prices")
 }
 
-// 内推返现记录（订单已完成后产生，金额= 专属价−基础售价，自动进推广人余额）
+// 推广人专属基础价（进货价）：管理员为重量级推广人单独设置，覆盖商品默认
+model ReferrerBasePrice {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  productId Int      @map("product_id")
+  price     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("referrer_base_prices")
+}
+
+// 内推返现记录（订单已完成后产生，金额= 专属价−推广人基础价，自动进推广人余额）
 model ReferralReward {
   id         Int      @id @default(autoincrement())
   orderId    Int      @unique @map("order_id")

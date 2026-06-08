@@ -17,6 +17,7 @@ const updateProductSchema = z.object({
   sortOrder: z.number().optional(),
   status: z.number().optional(),
   deliveryType: z.enum(['MANUAL', 'AUTO']).optional(),
+  referrerBasePrice: z.number().nonnegative().optional().nullable(),
   cardUsage: z.string().optional().nullable(),
   cardRedeemUrl: z
     .string()

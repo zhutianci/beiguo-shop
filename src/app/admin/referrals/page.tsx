@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { RefreshCw, Copy, CheckCircle2 } from 'lucide-react'
+import { RefreshCw, Copy, CheckCircle2, SlidersHorizontal, X } from 'lucide-react'
 
 interface Referrer {
   id: number
@@ -36,10 +36,66 @@ function fmt(s: string | null) {
   return new Date(s).toLocaleString('zh-CN', { hour12: false })
 }
 
+interface BaseRow {
+  productId: number
+  name: string
+  websitePrice: number
+  defaultBase: number
+  override: number | null
+}
+
 export default function AdminReferralsPage() {
   const [data, setData] = useState<Data | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(0)
+
+  // 单独基础价编辑
+  const [baseFor, setBaseFor] = useState<Referrer | null>(null)
+  const [baseRows, setBaseRows] = useState<BaseRow[]>([])
+  const [baseInputs, setBaseInputs] = useState<Record<number, string>>({})
+  const [baseLoading, setBaseLoading] = useState(false)
+  const [baseSaving, setBaseSaving] = useState(false)
+
+  const openBase = async (r: Referrer) => {
+    setBaseFor(r)
+    setBaseLoading(true)
+    setBaseRows([])
+    try {
+      const res = await fetch(`/api/admin/referrals/base?userId=${r.id}`)
+      const d = await res.json()
+      if (d.success) {
+        setBaseRows(d.data.products)
+        const map: Record<number, string> = {}
+        d.data.products.forEach((p: BaseRow) => (map[p.productId] = p.override != null ? String(p.override) : ''))
+        setBaseInputs(map)
+      }
+    } finally {
+      setBaseLoading(false)
+    }
+  }
+
+  const saveBase = async () => {
+    if (!baseFor) return
+    setBaseSaving(true)
+    try {
+      const prices = baseRows.map((p) => {
+        const v = (baseInputs[p.productId] ?? '').trim()
+        return { productId: p.productId, price: v === '' ? null : Number(v) }
+      })
+      const res = await fetch('/api/admin/referrals/base', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: baseFor.id, prices }),
+      })
+      const d = await res.json()
+      if (d.success) {
+        setBaseFor(null)
+        load()
+      } else alert(d.error || '保存失败')
+    } finally {
+      setBaseSaving(false)
+    }
+  }
 
   const load = async () => {
     setLoading(true)
@@ -113,10 +169,17 @@ export default function AdminReferralsPage() {
                       <td className="py-2 pr-3 text-right">¥{r.balance.toFixed(2)}</td>
                       <td className="py-2 pr-3 text-right text-green-600">¥{r.settledTotal.toFixed(2)}</td>
                       <td className="py-2 pr-3 text-right text-gray-600">{r.settledCount}</td>
-                      <td className="py-2 text-right">
+                      <td className="py-2 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => openBase(r)}
+                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-purple-600 hover:bg-purple-50"
+                          title="为该推广人单独设置基础价"
+                        >
+                          <SlidersHorizontal className="w-3.5 h-3.5" /> 基础价
+                        </button>
                         <button
                           onClick={() => copy(r.link, r.id)}
-                          className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50"
+                          className="ml-1 inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-blue-600 hover:bg-blue-50"
                           title={r.link}
                         >
                           {copied === r.id ? <CheckCircle2 className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -177,6 +240,50 @@ export default function AdminReferralsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 单独基础价编辑弹窗 */}
+      {baseFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => !baseSaving && setBaseFor(null)}>
+          <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">为「{baseFor.name}」设置单独基础价</h3>
+              <button onClick={() => !baseSaving && setBaseFor(null)} className="p-1 rounded hover:bg-gray-100 text-gray-500">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">留空 = 使用商品默认推广价。基础价越低，推广人加价空间越大、你每单留存越少。不影响网站售价。</p>
+            {baseLoading ? (
+              <div className="text-center py-10 text-gray-400">加载中...</div>
+            ) : (
+              <div className="space-y-2">
+                {baseRows.map((p) => (
+                  <div key={p.productId} className="flex items-center gap-3 rounded-lg border border-gray-100 px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{p.name}</div>
+                      <div className="text-xs text-gray-400">网站售价 ¥{p.websitePrice.toFixed(2)} · 默认基础价 ¥{p.defaultBase.toFixed(2)}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-400 text-sm">¥</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={baseInputs[p.productId] ?? ''}
+                        onChange={(e) => setBaseInputs({ ...baseInputs, [p.productId]: e.target.value })}
+                        placeholder={p.defaultBase.toFixed(2)}
+                        className="w-28 px-3 py-1.5 rounded-lg border border-gray-300 text-sm"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setBaseFor(null)} disabled={baseSaving}>取消</Button>
+              <Button onClick={saveBase} loading={baseSaving}>保存</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { generateOrderNo } from '@/lib/utils'
 import { decryptCardContent } from '@/lib/cardkey'
+import { effectiveBasePrice } from '@/lib/referral'
 
 const createOrderSchema = z.object({
   productId: z.number(),
@@ -116,11 +117,12 @@ export async function POST(request: NextRequest) {
         })
         if (rp) {
           const custom = Number(rp.price)
-          if (custom >= base) {
-            unitPrice = custom
-            referrerId = referrer.id
-            referralReward = Math.round((custom - base) * 100) / 100 * quantity
-          }
+          // 返现以「推广人基础价」为准（而非网站售价）
+          const effBase = (await effectiveBasePrice(referrer.id, productId)) ?? base
+          unitPrice = custom // 买家按专属价付款
+          referrerId = referrer.id
+          const per = Math.max(0, Math.round((custom - effBase) * 100) / 100)
+          referralReward = per * quantity
         }
       }
     }

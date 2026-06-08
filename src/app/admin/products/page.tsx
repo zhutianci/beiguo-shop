@@ -19,6 +19,7 @@ interface Product {
   sortOrder: number
   status: number
   deliveryType?: string
+  referrerBasePrice?: string | number | null
   features: string | null
   category: { id: number; name: string }
 }
@@ -38,6 +39,7 @@ const emptyForm = {
   sortOrder: 0,
   status: 1,
   deliveryType: 'MANUAL',
+  referrerBasePrice: '' as string | number,
   features: '',
 }
 
@@ -85,6 +87,7 @@ export default function ProductsPage() {
       sortOrder: product.sortOrder,
       status: product.status,
       deliveryType: product.deliveryType || 'MANUAL',
+      referrerBasePrice: product.referrerBasePrice != null ? Number(product.referrerBasePrice) : '',
       features: product.features || '',
     })
     setShowModal(true)
@@ -125,6 +128,7 @@ export default function ProductsPage() {
         stock: Number(formData.stock),
         sortOrder: Number(formData.sortOrder),
         status: Number(formData.status),
+        referrerBasePrice: formData.referrerBasePrice === '' ? null : Number(formData.referrerBasePrice),
         description: formData.description || null,
         features: formData.features || null,
       }
@@ -396,6 +400,21 @@ export default function ProductsPage() {
                     录入卡密。
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">推广人默认基础价（进货价，选填）</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.referrerBasePrice}
+                  onChange={(e) => setFormData({ ...formData, referrerBasePrice: e.target.value })}
+                  placeholder="留空则用网站售价作为推广人基础价"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  推广人收益 = 他设的专属价 − 基础价。可在「内推管理」为重量级推广人单独设更低基础价。不影响网站售价。
+                </p>
               </div>
 
               <div>

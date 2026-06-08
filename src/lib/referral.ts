@@ -23,6 +23,20 @@ export async function ensureReferralCode(userId: number): Promise<string> {
   throw new Error('生成内推码失败')
 }
 
+// 某推广人对某商品的「基础价(进货价)」：单独覆盖 → 商品默认推广价 → 网站售价
+export async function effectiveBasePrice(userId: number, productId: number): Promise<number | null> {
+  const override = await prisma.referrerBasePrice.findUnique({
+    where: { userId_productId: { userId, productId } },
+  })
+  if (override) return Number(override.price)
+  const p = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { referrerBasePrice: true, price: true },
+  })
+  if (!p) return null
+  return Number(p.referrerBasePrice ?? p.price)
+}
+
 // 订单「已完成」后结算内推返现：自动进推广人余额，幂等
 export async function settleReferral(orderId: number): Promise<void> {
   const order = await prisma.order.findUnique({ where: { id: orderId } })
