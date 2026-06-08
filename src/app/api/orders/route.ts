@@ -115,15 +115,14 @@ export async function POST(request: NextRequest) {
         const rp = await prisma.referralPrice.findUnique({
           where: { userId_productId: { userId: referrer.id, productId } },
         })
-        if (rp) {
-          const custom = Number(rp.price)
-          // 返现以「推广人基础价」为准（而非网站售价）
-          const effBase = (await effectiveBasePrice(referrer.id, productId)) ?? base
-          unitPrice = custom // 买家按专属价付款
-          referrerId = referrer.id
-          const per = Math.max(0, Math.round((custom - effBase) * 100) / 100)
-          referralReward = per * quantity
-        }
+        // 专属价默认 = 网站售价（推广人未单独设价时也按网站价卖）
+        const sellUnit = rp ? Number(rp.price) : base
+        // 返现 = 售卖价 − 我给推广人的基础价
+        const effBase = (await effectiveBasePrice(referrer.id, productId)) ?? base
+        unitPrice = sellUnit
+        referrerId = referrer.id
+        const per = Math.max(0, Math.round((sellUnit - effBase) * 100) / 100)
+        referralReward = per * quantity
       }
     }
 

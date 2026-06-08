@@ -34,6 +34,7 @@ export async function GET() {
     const list = products.map((p) => ({
       productId: p.id,
       name: p.name,
+      websitePrice: Number(p.price), // 网站售价（专属价默认值）
       // 我的基础价(进货价)：单独覆盖 → 商品默认推广价 → 网站售价
       basePrice: baseOverride.has(p.id)
         ? baseOverride.get(p.id)!

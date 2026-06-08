@@ -6,6 +6,7 @@ import { Gift, Copy, CheckCircle2, Loader2, Wallet } from 'lucide-react'
 interface ProductPrice {
   productId: number
   name: string
+  websitePrice: number
   basePrice: number
   customPrice: number | null
 }
@@ -132,37 +133,39 @@ export default function ReferralPanel() {
                 {copied ? '已复制' : '复制'}
               </button>
             </div>
-            <p className="text-xs text-white/40 mt-2">别人通过此链接下单并完成后，「专属价 − 基础售价」的差额会自动进你的余额。</p>
+            <p className="text-xs text-white/40 mt-2">别人通过此链接下单(默认按网站售价)并完成后，「售价 − 你的进货价」的差额会自动进你的余额。你也可在下方给商品单独设更高售价。</p>
           </div>
 
           {/* 专属价设置 */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="text-sm text-white/50">设置各商品专属价（不低于基础售价，留空=不参与）</label>
+              <label className="text-sm text-white/50">设置各商品专属售价（留空=按网站售价卖；不低于你的进货价）</label>
             </div>
             <div className="space-y-2">
-              {data.products.map((p) => (
-                <div key={p.productId} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{p.name}</div>
-                    <div className="text-xs text-white/40">基础售价 ¥{p.basePrice.toFixed(2)}</div>
+              {data.products.map((p) => {
+                const sell = inputs[p.productId] ? Number(inputs[p.productId]) : p.websitePrice
+                const reward = Math.max(0, sell - p.basePrice)
+                return (
+                  <div key={p.productId} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{p.name}</div>
+                      <div className="text-xs text-white/40">网站售价 ¥{p.websitePrice.toFixed(2)} · 我的进货价 ¥{p.basePrice.toFixed(2)}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-white/40 text-sm">¥</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={inputs[p.productId] ?? ''}
+                        onChange={(e) => setInputs({ ...inputs, [p.productId]: e.target.value })}
+                        placeholder={p.websitePrice.toFixed(2)}
+                        className="w-28 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm outline-none focus:border-purple-500/50"
+                      />
+                    </div>
+                    <span className="text-xs text-emerald-400 whitespace-nowrap w-20 text-right">返 ¥{reward.toFixed(2)}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-white/40 text-sm">¥</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={inputs[p.productId] ?? ''}
-                      onChange={(e) => setInputs({ ...inputs, [p.productId]: e.target.value })}
-                      placeholder={p.basePrice.toFixed(2)}
-                      className="w-28 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm outline-none focus:border-purple-500/50"
-                    />
-                  </div>
-                  {inputs[p.productId] && Number(inputs[p.productId]) >= p.basePrice && (
-                    <span className="text-xs text-emerald-400 whitespace-nowrap">返 ¥{(Number(inputs[p.productId]) - p.basePrice).toFixed(2)}</span>
-                  )}
-                </div>
-              ))}
+                )
+              })}
             </div>
             <div className="flex items-center gap-3 mt-4">
               <button
