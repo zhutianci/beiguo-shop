@@ -20,6 +20,7 @@ import {
 import { useUserStore } from '@/store/user'
 import { ContactModal } from '@/components/contact-modal'
 import OrderChat from '@/components/order-chat'
+import OrderSms from '@/components/order-sms'
 
 interface Order {
   id: number
@@ -571,6 +572,12 @@ export default function OrdersPage() {
                   </div>
                 )}
               </div>
+              {selectedOrder.payStatus === 'PAID' && selectedOrder.product?.deliveryType === 'SMS' && (
+                <div className="mt-6 pt-5 border-t border-white/10">
+                  <div className="text-white/50 mb-2 text-sm">短信接码</div>
+                  <OrderSms orderId={selectedOrder.id} />
+                </div>
+              )}
               {selectedOrder.payStatus === 'PAID' && (
                 <div className="mt-6 pt-5 border-t border-white/10">
                   <div className="text-white/50 mb-2 text-sm">和客服沟通（本订单）</div>

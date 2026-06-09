@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from './db'
 import { syncAutoStock } from './cardkey'
 import { settleReferral } from './referral'
+import { acquireForOrder } from './sms'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
@@ -330,6 +331,7 @@ async function fulfillOrder(orderId: number) {
   if (!order || order.payStatus === 'PAID') return
 
   const auto = order.product.deliveryType === 'AUTO'
+  const sms = order.product.deliveryType === 'SMS'
   let delivered = false
   let remark = order.remark
   if (auto) {
@@ -340,6 +342,7 @@ async function fulfillOrder(orderId: number) {
       remark = `${remark ? remark + ' | ' : ''}卡密库存不足(已发${claimed}/${order.quantity})，待人工补发`
     }
   }
+  // SMS 接码：付款后保持「处理中」，下面单独取号，收到验证码后才标记完成
 
   await prisma.$transaction([
     prisma.order.update({
@@ -360,6 +363,15 @@ async function fulfillOrder(orderId: number) {
   ])
 
   if (auto) await syncAutoStock(order.productId)
+
+  // SMS 接码：付款成功后自动取号（保持处理中，收到验证码后再完成）
+  if (sms) {
+    try {
+      await acquireForOrder(order.id, order.product.smsService || '', order.product.smsCountry || '')
+    } catch (e) {
+      console.error('[vmq] sms acquire failed', e)
+    }
+  }
 
   // 自动发货已交付 → 结算内推返现
   if (delivered) {

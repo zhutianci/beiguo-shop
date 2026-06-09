@@ -16,7 +16,9 @@ const productSchema = z.object({
   stock: z.number().default(-1),
   sortOrder: z.number().default(0),
   status: z.number().default(1),
-  deliveryType: z.enum(['MANUAL', 'AUTO']).default('MANUAL'),
+  deliveryType: z.enum(['MANUAL', 'AUTO', 'SMS']).default('MANUAL'),
+  smsService: z.string().trim().max(40).optional().nullable(),
+  smsCountry: z.string().trim().max(40).optional().nullable(),
   referrerBasePrice: z.number().nonnegative().optional().nullable(),
   cardUsage: z.string().optional().nullable(),
   cardRedeemUrl: z

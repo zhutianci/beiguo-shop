@@ -84,7 +84,9 @@ model Product {
   sales         Int       @default(0)
   sortOrder     Int       @default(0) @map("sort_order")
   status        Int       @default(1) // 1: 上架 0: 下架
-  deliveryType  String    @default("MANUAL") @map("delivery_type") @db.VarChar(20) // MANUAL 手工发货 | AUTO 卡密自动发货
+  deliveryType  String    @default("MANUAL") @map("delivery_type") @db.VarChar(20) // MANUAL 手工发货 | AUTO 卡密自动发货 | SMS 短信接码
+  smsService    String?   @map("sms_service") @db.VarChar(40)  // 接码：hero-sms 服务代码（如 OpenAI）
+  smsCountry    String?   @map("sms_country") @db.VarChar(40)  // 接码：hero-sms 国家/卡类代码（如美国物理卡）
   referrerBasePrice Decimal? @map("referrer_base_price") @db.Decimal(10, 2) // 推广人默认基础价（进货价；null 则用网站售价）
   cardUsage     String?   @map("card_usage") @db.Text // 自动发货使用说明（含售后），展示给买家
   cardRedeemUrl String?   @map("card_redeem_url") @db.VarChar(500) // 充值/兑换链接，买家拿到卡密后可一键跳转
@@ -165,6 +167,27 @@ model OrderMessage {
 
   @@index([orderId])
   @@map("order_messages")
+}
+
+// 短信接码会话（每订单一个；对接 hero-sms）
+model SmsActivation {
+  id           Int       @id @default(autoincrement())
+  orderId      Int       @unique @map("order_id")
+  activationId String    @map("activation_id") @db.VarChar(64) // hero-sms 取号 ID
+  phone        String    @db.VarChar(40)
+  service      String    @db.VarChar(40)
+  country      String    @db.VarChar(40)
+  status       String    @default("WAITING") @db.VarChar(20) // WAITING 等码 | CODE 已收码 | TIMEOUT 超时 | CANCELLED 取消 | FAILED 取号失败
+  code         String?   @db.VarChar(255)
+  cost         Decimal?  @db.Decimal(10, 2)
+  raw          String?   @db.Text                              // 最近一次原始返回，便于排查
+  expireAt     DateTime  @map("expire_at")
+  codeAt       DateTime? @map("code_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("sms_activations")
 }
 
 // 用户余额变动流水（内推返现入账 / 管理员调整 / 提现扣减）

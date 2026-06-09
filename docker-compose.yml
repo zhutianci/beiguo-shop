@@ -33,6 +33,10 @@ services:
       - VMQ_WEBHOOK_TOKEN=${VMQ_WEBHOOK_TOKEN}
       # 卡密加密密钥（自动发货；务必设置且勿丢失，丢失则已存卡密无法解密）
       - CARDKEY_SECRET=${CARDKEY_SECRET}
+      # 短信接码 hero-sms
+      - HEROSMS_API_KEY=${HEROSMS_API_KEY}
+      - HEROSMS_BASE=${HEROSMS_BASE}
+      - HEROSMS_TIMEOUT_MIN=${HEROSMS_TIMEOUT_MIN}
     volumes:
       # 论坛上传图片持久化（容器重建不丢）
       - forum_uploads:/app/public/uploads
@@ -91,7 +95,7 @@ services:
       sh -c "apk add --no-cache curl tzdata >/dev/null 2>&1 &&
       cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&
       echo 'Asia/Shanghai' > /etc/timezone &&
-      printf '0 12 * * * curl -fsS -X POST -H \"x-cron-secret: %s\" http://app:3000/api/cron/remind >> /var/log/cron.log 2>&1\n* * * * * curl -fsS \"http://app:3000/api/cron/vmq-close?secret=%s\" >> /var/log/cron.log 2>&1\n' \"$$CRON_SECRET\" \"$$CRON_SECRET\" > /etc/crontabs/root &&
+      printf '0 12 * * * curl -fsS -X POST -H \"x-cron-secret: %s\" http://app:3000/api/cron/remind >> /var/log/cron.log 2>&1\n* * * * * curl -fsS \"http://app:3000/api/cron/vmq-close?secret=%s\" >> /var/log/cron.log 2>&1\n* * * * * curl -fsS \"http://app:3000/api/cron/sms-poll?secret=%s\" >> /var/log/cron.log 2>&1\n' \"$$CRON_SECRET\" \"$$CRON_SECRET\" \"$$CRON_SECRET\" > /etc/crontabs/root &&
       crond -f -l 8"
     depends_on:
       - app

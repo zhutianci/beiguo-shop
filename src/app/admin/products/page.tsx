@@ -19,6 +19,8 @@ interface Product {
   sortOrder: number
   status: number
   deliveryType?: string
+  smsService?: string | null
+  smsCountry?: string | null
   referrerBasePrice?: string | number | null
   features: string | null
   category: { id: number; name: string }
@@ -39,6 +41,8 @@ const emptyForm = {
   sortOrder: 0,
   status: 1,
   deliveryType: 'MANUAL',
+  smsService: '',
+  smsCountry: '',
   referrerBasePrice: '' as string | number,
   features: '',
 }
@@ -87,6 +91,8 @@ export default function ProductsPage() {
       sortOrder: product.sortOrder,
       status: product.status,
       deliveryType: product.deliveryType || 'MANUAL',
+      smsService: product.smsService || '',
+      smsCountry: product.smsCountry || '',
       referrerBasePrice: product.referrerBasePrice != null ? Number(product.referrerBasePrice) : '',
       features: product.features || '',
     })
@@ -234,6 +240,8 @@ export default function ProductsPage() {
                       <td className="py-4">
                         {product.deliveryType === 'AUTO' ? (
                           <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-blue-100 text-blue-700">自动发卡密</span>
+                        ) : product.deliveryType === 'SMS' ? (
+                          <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-teal-100 text-teal-700">短信接码</span>
                         ) : (
                           <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-gray-100 text-gray-600">手工发货</span>
                         )}
@@ -392,6 +400,7 @@ export default function ProductsPage() {
                 >
                   <option value="MANUAL">手工发货（买家下单后联系客服处理）</option>
                   <option value="AUTO">自动发货（付款后自动发卡密）</option>
+                  <option value="SMS">短信接码（付款后自动取号、收验证码）</option>
                 </select>
                 {formData.deliveryType === 'AUTO' && (
                   <p className="mt-1 text-xs text-blue-600">
@@ -401,6 +410,34 @@ export default function ProductsPage() {
                   </p>
                 )}
               </div>
+
+              {formData.deliveryType === 'SMS' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">hero-sms 服务代码</label>
+                    <input
+                      type="text"
+                      value={formData.smsService}
+                      onChange={(e) => setFormData({ ...formData, smsService: e.target.value })}
+                      placeholder="如 OpenAI 的 service code"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">hero-sms 国家/卡类代码</label>
+                    <input
+                      type="text"
+                      value={formData.smsCountry}
+                      onChange={(e) => setFormData({ ...formData, smsCountry: e.target.value })}
+                      placeholder="如 美国物理卡的 country code"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
+                  <p className="col-span-2 text-xs text-blue-600">
+                    付款成功后系统自动向 hero-sms 取号并展示给买家；收到验证码自动完成订单，超时未收到自动取消并标记待退款。代码可在 hero-sms 后台/价格表查到。
+                  </p>
+                </div>
+              )}
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">推广人默认基础价（进货价，选填）</label>
