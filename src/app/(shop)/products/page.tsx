@@ -210,6 +210,10 @@ export default function ProductsPage() {
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
                               ⚡ 自动发货
                             </span>
+                          ) : product.deliveryType === 'SMS' ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-teal-500/15 text-teal-300 border border-teal-500/30 whitespace-nowrap">
+                              📱 短信接码
+                            </span>
                           ) : (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-white/60 border border-white/15 whitespace-nowrap">
                               👤 手工发货

@@ -109,6 +109,7 @@ export default function ProductDetailPage() {
   const gradient = getGradient(product.id)
   const tag = getTag(product)
   const isAuto = product.deliveryType === 'AUTO'
+  const isSms = product.deliveryType === 'SMS'
   const features = parseFeatures(product.features)
   const price = Number(product.price)
   const originalPrice = product.originalPrice ? Number(product.originalPrice) : null
@@ -159,6 +160,10 @@ export default function ProductDetailPage() {
                   {isAuto ? (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                       ⚡ 自动发货
+                    </span>
+                  ) : isSms ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-500/15 text-teal-300 border border-teal-500/30">
+                      📱 短信接码
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-white/60 border border-white/15">
@@ -266,7 +271,9 @@ export default function ProductDetailPage() {
                   <span className="text-white/30 mt-1">·</span>
                   {isAuto
                     ? '本商品为自动发货：付款成功后系统立即发放卡密，可在「我的订单」详情中查看'
-                    : '本商品为手工发货：付款后请联系客服并提供账号信息，由客服为您开通'}
+                    : isSms
+                      ? '本商品为短信接码：付款成功后系统自动取号，在「我的订单」详情查看号码并接收验证码'
+                      : '本商品为手工发货：付款后请联系客服并提供账号信息，由客服为您开通'}
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-white/30 mt-1">·</span>
