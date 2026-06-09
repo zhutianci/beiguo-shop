@@ -388,7 +388,7 @@ async function fulfillInvoice(invoiceId: number) {
   if (!invoice || invoice.payStatus === 'PAID') return
   await prisma.invoice.update({
     where: { id: invoice.id },
-    data: { payStatus: 'PAID', status: 'SUBMITTED', paidAt: new Date() },
+    data: { payStatus: 'PAID', status: 'SUBMITTED', paidAt: new Date(), submittedAt: new Date() },
   })
 }
 

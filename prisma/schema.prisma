@@ -431,6 +431,7 @@ model Invoice {
   payStatus        String    @default("UNPAID") @map("pay_status") @db.VarChar(20)
   tradeNo          String?   @map("trade_no") @db.VarChar(64)
   paidAt           DateTime? @map("paid_at")
+  submittedAt      DateTime? @map("submitted_at") // 提交开票时间（状态变为 SUBMITTED 时）
   issuedAt         DateTime? @map("issued_at")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")

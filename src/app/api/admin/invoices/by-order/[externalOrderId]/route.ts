@@ -45,6 +45,7 @@ export async function PUT(request: NextRequest, { params }: { params: { external
         data: {
           status,
           ...(status === 'ISSUED' ? { issuedAt: new Date() } : {}),
+          ...(status === 'SUBMITTED' && !existing.submittedAt ? { submittedAt: new Date() } : {}),
         },
       })
       return success({ status: updated.status }, '发票状态已更新')
@@ -65,6 +66,7 @@ export async function PUT(request: NextRequest, { params }: { params: { external
         status,
         payStatus: 'UNPAID',
         ...(status === 'ISSUED' ? { issuedAt: new Date() } : {}),
+        ...(status === 'SUBMITTED' ? { submittedAt: new Date() } : {}),
       },
     })
     return success({ status: created.status }, '发票状态已更新')

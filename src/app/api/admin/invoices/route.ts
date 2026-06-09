@@ -87,12 +87,18 @@ export async function GET(request: NextRequest) {
         status: st,
         payStatus,
         paidAt: iv?.paidAt ?? null,
+        submittedAt: iv?.submittedAt ?? null,
         issuedAt: iv?.issuedAt ?? null,
         createdAt: iv?.createdAt ?? o.createdAt,
       }
     })
 
     if (status) rows = rows.filter((r) => r.status === status)
+
+    // 按提交时间倒序（无提交时间的回退到 paidAt / createdAt）
+    const sortKey = (r: (typeof rows)[number]) =>
+      new Date(r.submittedAt ?? r.paidAt ?? r.createdAt).getTime()
+    rows.sort((a, b) => sortKey(b) - sortKey(a))
 
     // 统计：各状态数量 + 已支付税费合计 + 已开具发票金额（含税）合计
     const totals = {

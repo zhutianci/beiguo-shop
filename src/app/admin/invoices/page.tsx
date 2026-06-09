@@ -28,6 +28,7 @@ interface InvoiceRow {
   status: string
   payStatus: string
   paidAt: string | null
+  submittedAt: string | null
   issuedAt: string | null
   createdAt: string
 }
@@ -65,7 +66,7 @@ export default function AdminInvoicesPage() {
   const [list, setList] = useState<InvoiceRow[]>([])
   const [totals, setTotals] = useState<Totals | null>(null)
   const [keyword, setKeyword] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('SUBMITTED')
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<InvoiceRow | null>(null)
 
@@ -174,6 +175,7 @@ export default function AdminInvoicesPage() {
                     <th className="pb-2 pr-3 text-right">开票金额(含税)</th>
                     <th className="pb-2 pr-3 text-right">税费</th>
                     <th className="pb-2 pr-3">状态</th>
+                    <th className="pb-2 pr-3">提交时间</th>
                     <th className="pb-2 pr-3">设置状态</th>
                     <th className="pb-2 text-right">详情</th>
                   </tr>
@@ -198,6 +200,7 @@ export default function AdminInvoicesPage() {
                           {STATUS_LABELS[iv.status] || iv.status}
                         </span>
                       </td>
+                      <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">{iv.submittedAt ? fmt(iv.submittedAt) : '—'}</td>
                       <td className="py-2 pr-3">
                         <select
                           value={iv.status}
@@ -247,6 +250,7 @@ export default function AdminInvoicesPage() {
                 ['开票金额（含税 = 报价×1.06）', money(detail.invoiceAmount)],
                 ['发票税费（报价×0.06）', `${money(detail.taxFee)} · ${detail.payStatus === 'PAID' ? '已支付' : '未支付'}`],
                 ['状态', STATUS_LABELS[detail.status] || detail.status],
+                ['提交开票时间', detail.submittedAt ? fmt(detail.submittedAt) : '—'],
               ].map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-4 border-b border-gray-100 py-1.5">
                   <span className="text-gray-500 shrink-0">{k}</span>
