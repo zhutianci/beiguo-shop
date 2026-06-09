@@ -87,6 +87,7 @@ model Product {
   deliveryType  String    @default("MANUAL") @map("delivery_type") @db.VarChar(20) // MANUAL 手工发货 | AUTO 卡密自动发货 | SMS 短信接码
   smsService    String?   @map("sms_service") @db.VarChar(40)  // 接码：hero-sms 服务代码（如 OpenAI）
   smsCountry    String?   @map("sms_country") @db.VarChar(40)  // 接码：hero-sms 国家/卡类代码（如美国物理卡）
+  smsMaxPrice   Decimal?  @map("sms_max_price") @db.Decimal(10, 2) // 接码：取号最高价 maxPrice
   referrerBasePrice Decimal? @map("referrer_base_price") @db.Decimal(10, 2) // 推广人默认基础价（进货价；null 则用网站售价）
   cardUsage     String?   @map("card_usage") @db.Text // 自动发货使用说明（含售后），展示给买家
   cardRedeemUrl String?   @map("card_redeem_url") @db.VarChar(500) // 充值/兑换链接，买家拿到卡密后可一键跳转

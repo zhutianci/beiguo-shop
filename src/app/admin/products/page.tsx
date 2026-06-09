@@ -21,6 +21,7 @@ interface Product {
   deliveryType?: string
   smsService?: string | null
   smsCountry?: string | null
+  smsMaxPrice?: string | number | null
   referrerBasePrice?: string | number | null
   features: string | null
   category: { id: number; name: string }
@@ -43,6 +44,7 @@ const emptyForm = {
   deliveryType: 'MANUAL',
   smsService: '',
   smsCountry: '',
+  smsMaxPrice: '' as string | number,
   referrerBasePrice: '' as string | number,
   features: '',
 }
@@ -93,6 +95,7 @@ export default function ProductsPage() {
       deliveryType: product.deliveryType || 'MANUAL',
       smsService: product.smsService || '',
       smsCountry: product.smsCountry || '',
+      smsMaxPrice: product.smsMaxPrice != null ? Number(product.smsMaxPrice) : '',
       referrerBasePrice: product.referrerBasePrice != null ? Number(product.referrerBasePrice) : '',
       features: product.features || '',
     })
@@ -134,6 +137,7 @@ export default function ProductsPage() {
         stock: Number(formData.stock),
         sortOrder: Number(formData.sortOrder),
         status: Number(formData.status),
+        smsMaxPrice: formData.smsMaxPrice === '' ? null : Number(formData.smsMaxPrice),
         referrerBasePrice: formData.referrerBasePrice === '' ? null : Number(formData.referrerBasePrice),
         description: formData.description || null,
         features: formData.features || null,
@@ -433,8 +437,19 @@ export default function ProductsPage() {
                       className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                     />
                   </div>
+                  <div className="col-span-2">
+                    <label className="mb-1.5 block text-sm font-medium text-gray-700">最高价 maxPrice（选填）</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.smsMaxPrice}
+                      onChange={(e) => setFormData({ ...formData, smsMaxPrice: e.target.value })}
+                      placeholder="留空=不限价；填后只接受不超过此价的号码"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
                   <p className="col-span-2 text-xs text-blue-600">
-                    付款成功后系统自动向 hero-sms 取号并展示给买家；收到验证码自动完成订单，超时未收到自动取消并标记待退款。代码可在 hero-sms 后台/价格表查到。
+                    付款成功后系统自动向 hero-sms 取号（带上 maxPrice 控成本）并展示给买家；收到验证码自动完成订单，超时未收到自动取消并标记待退款。代码/价格可在 hero-sms 后台查到。
                   </p>
                 </div>
               )}

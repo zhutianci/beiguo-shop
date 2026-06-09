@@ -367,7 +367,12 @@ async function fulfillOrder(orderId: number) {
   // SMS 接码：付款成功后自动取号（保持处理中，收到验证码后再完成）
   if (sms) {
     try {
-      await acquireForOrder(order.id, order.product.smsService || '', order.product.smsCountry || '')
+      await acquireForOrder(
+        order.id,
+        order.product.smsService || '',
+        order.product.smsCountry || '',
+        order.product.smsMaxPrice != null ? Number(order.product.smsMaxPrice) : null
+      )
     } catch (e) {
       console.error('[vmq] sms acquire failed', e)
     }

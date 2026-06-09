@@ -19,7 +19,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       select: {
         userId: true,
         payStatus: true,
-        product: { select: { deliveryType: true, smsService: true, smsCountry: true } },
+        product: { select: { deliveryType: true, smsService: true, smsCountry: true, smsMaxPrice: true } },
       },
     })
     if (!order || order.userId !== user.id) return notFound('订单不存在')
@@ -30,7 +30,12 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     const existing = await prisma.smsActivation.findUnique({ where: { orderId } })
     if (!existing) {
       try {
-        await acquireForOrder(orderId, order.product.smsService || '', order.product.smsCountry || '')
+        await acquireForOrder(
+          orderId,
+          order.product.smsService || '',
+          order.product.smsCountry || '',
+          order.product.smsMaxPrice != null ? Number(order.product.smsMaxPrice) : null
+        )
       } catch (e) {
         console.error('[sms] on-demand acquire failed', e)
       }

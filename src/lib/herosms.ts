@@ -32,10 +32,12 @@ export interface GetNumberResult {
   raw: string
 }
 
-// 取号
-export async function getNumber(service: string, country: string): Promise<GetNumberResult> {
+// 取号（maxPrice：愿意接受的最高单价，传给 hero-sms 控成本）
+export async function getNumber(service: string, country: string, maxPrice?: number | null): Promise<GetNumberResult> {
   if (!heroSmsConfigured()) return { ok: false, error: '未配置 HEROSMS_API_KEY', raw: '' }
-  const { raw, json } = await call('getNumber', { service, country })
+  const params: Record<string, string | number> = { service, country }
+  if (maxPrice != null && maxPrice > 0) params.maxPrice = maxPrice
+  const { raw, json } = await call('getNumber', params)
 
   // JSON 形态：{ activationId, phoneNumber/phone/number, activationCost/cost }
   if (json && typeof json === 'object') {

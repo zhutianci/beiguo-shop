@@ -7,7 +7,7 @@ function appendRemark(old: string | null, msg: string): string {
 }
 
 // 付款成功后为 SMS 接码订单取号
-export async function acquireForOrder(orderId: number, service: string, country: string) {
+export async function acquireForOrder(orderId: number, service: string, country: string, maxPrice?: number | null) {
   const exists = await prisma.smsActivation.findUnique({ where: { orderId } })
   if (exists) return exists
 
@@ -19,7 +19,7 @@ export async function acquireForOrder(orderId: number, service: string, country:
     })
   }
 
-  const r = await getNumber(service, country)
+  const r = await getNumber(service, country, maxPrice)
   if (!r.ok) {
     const order = await prisma.order.findUnique({ where: { id: orderId }, select: { remark: true } })
     await prisma.order.update({

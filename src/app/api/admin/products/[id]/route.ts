@@ -19,6 +19,7 @@ const updateProductSchema = z.object({
   deliveryType: z.enum(['MANUAL', 'AUTO', 'SMS']).optional(),
   smsService: z.string().trim().max(40).optional().nullable(),
   smsCountry: z.string().trim().max(40).optional().nullable(),
+  smsMaxPrice: z.number().nonnegative().optional().nullable(),
   referrerBasePrice: z.number().nonnegative().optional().nullable(),
   cardUsage: z.string().optional().nullable(),
   cardRedeemUrl: z
