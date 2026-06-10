@@ -6,11 +6,14 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { hashPassword, signToken, authCookieOptions } from '@/lib/auth'
 import { success, error } from '@/lib/api'
+import { consumeCode } from '@/lib/verify-code'
+import { systemEmailConfigured } from '@/lib/mail'
 
 const registerSchema = z.object({
   email: z.string().email('请输入有效的邮箱地址'),
   password: z.string().min(6, '密码长度不能少于6位'),
   nickname: z.string().optional(),
+  code: z.string().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -22,7 +25,8 @@ export async function POST(request: NextRequest) {
       return error(result.error.errors[0].message)
     }
 
-    const { email, password, nickname } = result.data
+    const { password, nickname } = result.data
+    const email = result.data.email.trim().toLowerCase()
 
     // 检查邮箱是否已注册
     const existingUser = await prisma.user.findUnique({
@@ -31,6 +35,13 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       return error('该邮箱已被注册')
+    }
+
+    // 邮箱验证码校验（邮件服务已配置时强制）
+    if (systemEmailConfigured()) {
+      if (!result.data.code) return error('请填写邮箱验证码')
+      const ok = await consumeCode(email, 'REGISTER', result.data.code)
+      if (!ok) return error('验证码错误或已过期')
     }
 
     // 创建用户

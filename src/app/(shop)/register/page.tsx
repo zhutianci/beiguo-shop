@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowRight, Mail, Lock, User, Sparkles } from 'lucide-react'
+import { ArrowRight, Mail, Lock, User, Sparkles, ShieldCheck } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 
 export default function RegisterPage() {
@@ -17,7 +17,45 @@ export default function RegisterPage() {
     password: '',
     confirmPassword: '',
     nickname: '',
+    code: '',
   })
+  const [sending, setSending] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
+  const [codeMsg, setCodeMsg] = useState('')
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cooldown])
+
+  const sendCode = async () => {
+    setError('')
+    setCodeMsg('')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setError('请先填写正确的邮箱')
+      return
+    }
+    setSending(true)
+    try {
+      const res = await fetch('/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, purpose: 'REGISTER' }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setCodeMsg('验证码已发送，请查收邮箱（含垃圾箱）')
+        setCooldown(60)
+      } else {
+        setError(data.error || '验证码发送失败')
+      }
+    } catch {
+      setError('网络错误，请重试')
+    } finally {
+      setSending(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,6 +81,7 @@ export default function RegisterPage() {
           email: formData.email,
           password: formData.password,
           nickname: formData.nickname,
+          code: formData.code,
         }),
       })
 
@@ -119,6 +158,33 @@ export default function RegisterPage() {
                   required
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-white/70 mb-2">邮箱验证码</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    placeholder="6 位邮箱验证码"
+                    required
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={sendCode}
+                  disabled={sending || cooldown > 0}
+                  className="shrink-0 px-4 rounded-xl border border-white/10 bg-white/5 text-sm text-white/80 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  {sending ? '发送中...' : cooldown > 0 ? `${cooldown}s` : '发送验证码'}
+                </button>
+              </div>
+              {codeMsg && <p className="mt-1.5 text-xs text-green-400">{codeMsg}</p>}
             </div>
 
             <div>

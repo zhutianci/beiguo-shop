@@ -392,6 +392,20 @@ model VmqLock {
   @@map("vmq_locks")
 }
 
+// 邮箱验证码（注册 / 找回密码）
+model EmailCode {
+  id        Int      @id @default(autoincrement())
+  email     String   @db.VarChar(255)
+  code      String   @db.VarChar(10)
+  purpose   String   @db.VarChar(20) // REGISTER | RESET
+  used      Boolean  @default(false)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email, purpose])
+  @@map("email_codes")
+}
+
 // 系统配置表
 model Setting {
   id        Int      @id @default(autoincrement())

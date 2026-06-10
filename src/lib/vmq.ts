@@ -1,9 +1,10 @@
 import crypto from 'crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from './db'
-import { syncAutoStock } from './cardkey'
+import { syncAutoStock, decryptCardContent } from './cardkey'
 import { settleReferral } from './referral'
 import { acquireForOrder } from './sms'
+import { sendOrderPaidEmail } from './mail'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
@@ -341,7 +342,7 @@ async function allocateCards(productId: number, orderId: number, quantity: numbe
 }
 
 async function fulfillOrder(orderId: number) {
-  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { product: true } })
+  const order = await prisma.order.findUnique({ where: { id: orderId }, include: { product: true, user: true } })
   if (!order || order.payStatus === 'PAID') return
 
   const auto = order.product.deliveryType === 'AUTO'
@@ -398,6 +399,33 @@ async function fulfillOrder(orderId: number) {
       await settleReferral(order.id)
     } catch (e) {
       console.error('[vmq] settle referral failed', e)
+    }
+  }
+
+  // 交易通知邮件（付款成功）
+  if (order.user.email) {
+    try {
+      let cards: string[] | undefined
+      if (auto && delivered) {
+        const cks = await prisma.cardKey.findMany({ where: { orderId: order.id, status: 'USED' }, orderBy: { id: 'asc' } })
+        cards = cks.map((c) => {
+          try {
+            return decryptCardContent(c.content)
+          } catch {
+            return '(卡密解密失败，请在订单查看或联系客服)'
+          }
+        })
+      }
+      await sendOrderPaidEmail(order.user.email, {
+        orderNo: order.orderNo,
+        productName: order.productName,
+        amount: Number(order.amount),
+        deliveryType: order.product.deliveryType,
+        cards,
+        cardUsage: order.product.cardUsage,
+      })
+    } catch (e) {
+      console.error('[vmq] order paid email failed', e)
     }
   }
 }

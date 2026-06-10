@@ -10,7 +10,8 @@ const ACCESS_KEY_SECRET = process.env.ALIYUN_ACCESS_KEY_SECRET || ''
 const REGION = process.env.ALIYUN_REGION || 'cn-hangzhou'
 
 // DirectMail
-const DM_ACCOUNT = process.env.ALIYUN_DM_ACCOUNT || '' // 发信地址，如 notice@mail.bigolab.com
+const DM_ACCOUNT = process.env.ALIYUN_DM_ACCOUNT || '' // 发信地址，如 remind@mail.bigolab.com（到期/营销类）
+const DM_NOREPLY = process.env.ALIYUN_DM_NOREPLY || '' // 触发类发信地址 no-reply@mail.bigolab.com（注册/交易/找密等系统通知）
 const DM_FROM_ALIAS = process.env.ALIYUN_DM_FROM_ALIAS || '贝果科技'
 
 // 短信
@@ -99,15 +100,17 @@ async function rpcRequest(
 export async function sendDirectMail(
   to: string,
   subject: string,
-  htmlBody: string
+  htmlBody: string,
+  fromAccount?: string
 ): Promise<SendResult> {
-  if (!emailConfigured()) {
+  const account = fromAccount || DM_ACCOUNT
+  if (!ACCESS_KEY_ID || !ACCESS_KEY_SECRET || !account) {
     return { ok: false, detail: '邮件服务未配置（缺少 AccessKey 或发信地址）' }
   }
   return rpcRequest('https://dm.aliyuncs.com/', {
     Action: 'SingleSendMail',
     Version: '2015-11-23',
-    AccountName: DM_ACCOUNT,
+    AccountName: account,
     AddressType: '1', // 1 = 使用发信地址（需在控制台验证）
     ReplyToAddress: 'false',
     ToAddress: to,
@@ -115,6 +118,15 @@ export async function sendDirectMail(
     HtmlBody: htmlBody,
     FromAlias: DM_FROM_ALIAS,
   })
+}
+
+// 系统/触发类通知邮件（注册验证码、交易通知、找回密码等），用 no-reply 发件地址
+export function systemEmailConfigured(): boolean {
+  return !!(ACCESS_KEY_ID && ACCESS_KEY_SECRET && (DM_NOREPLY || DM_ACCOUNT))
+}
+
+export async function sendSystemEmail(to: string, subject: string, htmlBody: string): Promise<SendResult> {
+  return sendDirectMail(to, subject, htmlBody, DM_NOREPLY || DM_ACCOUNT)
 }
 
 export async function sendSms(

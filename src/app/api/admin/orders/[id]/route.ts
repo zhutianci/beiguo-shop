@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { settleReferral } from '@/lib/referral'
 import { invalidatePendingVmq } from '@/lib/vmq'
+import { sendOrderDeliveredEmail } from '@/lib/mail'
 
 const updateOrderSchema = z.object({
   payStatus: z.enum(['UNPAID', 'PAID', 'REFUNDED']).optional(),
@@ -196,12 +197,24 @@ export async function PUT(
       }
     }
 
-    // 交付完成 → 结算内推返现（自动进推广人余额，幂等）
+    // 交付完成 → 结算内推返现（自动进推广人余额，幂等）+ 交付通知邮件
     if (!wasDelivered && willBeDelivered) {
       try {
         await settleReferral(orderId)
       } catch (e) {
         console.error('Settle referral failed:', e)
+      }
+      if (currentOrder.user.email) {
+        try {
+          await sendOrderDeliveredEmail(currentOrder.user.email, {
+            orderNo: currentOrder.orderNo,
+            productName: currentOrder.productName,
+            amount: Number(currentOrder.amount),
+            deliveryInfo: data.deliveryInfo ?? currentOrder.deliveryInfo,
+          })
+        } catch (e) {
+          console.error('Order delivered email failed:', e)
+        }
       }
     }
 

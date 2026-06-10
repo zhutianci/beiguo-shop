@@ -133,6 +133,12 @@ function LoginForm() {
               </div>
             </div>
 
+            <div className="text-right -mt-1">
+              <Link href="/forgot-password" className="text-xs text-white/50 hover:text-purple-300 transition-colors">
+                忘记密码？
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={loading}
