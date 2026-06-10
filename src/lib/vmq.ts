@@ -169,6 +169,20 @@ export async function createOrGetVmqOrder(params: {
   }
 }
 
+// 作废某业务单已存在的「待支付」收款单（如改价后，强制下次按新价重建）
+export async function invalidatePendingVmq(bizType: 'order' | 'invoice', bizId: number): Promise<number> {
+  const pendings = await prisma.vmqOrder.findMany({
+    where: { bizType, bizId, state: 0 },
+    select: { id: true, orderId: true },
+  })
+  if (pendings.length === 0) return 0
+  await prisma.$transaction([
+    prisma.vmqOrder.updateMany({ where: { id: { in: pendings.map((p) => p.id) } }, data: { state: -1 } }),
+    prisma.vmqLock.deleteMany({ where: { orderId: { in: pendings.map((p) => p.orderId) } } }),
+  ])
+  return pendings.length
+}
+
 // ---- 到账：按金额匹配并标记业务已支付 ----
 // 返回是否匹配到订单
 export async function markPaidByAmount(price: string, type: number): Promise<boolean> {

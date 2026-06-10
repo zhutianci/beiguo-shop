@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { settleReferral } from '@/lib/referral'
+import { invalidatePendingVmq } from '@/lib/vmq'
 
 const updateOrderSchema = z.object({
   payStatus: z.enum(['UNPAID', 'PAID', 'REFUNDED']).optional(),
@@ -138,6 +139,15 @@ export async function PUT(
       where: { id: orderId },
       data,
     })
+
+    // 改价：作废已存在的待支付收款单，使下次支付按新价重建
+    if (data.amount != null) {
+      try {
+        await invalidatePendingVmq('order', orderId)
+      } catch (e) {
+        console.error('Invalidate pending vmq after price change failed:', e)
+      }
+    }
 
     // 交付状态变为「已完成」时，自动导入到「订单（外部订单）」
     let imported: { externalOrderId: number } | null = null
