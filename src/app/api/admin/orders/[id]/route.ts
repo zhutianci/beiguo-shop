@@ -6,7 +6,7 @@ import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { settleReferral } from '@/lib/referral'
-import { invalidatePendingVmq } from '@/lib/vmq'
+import { updatePendingVmqAmount } from '@/lib/vmq'
 import { sendOrderDeliveredEmail } from '@/lib/mail'
 
 const updateOrderSchema = z.object({
@@ -141,12 +141,12 @@ export async function PUT(
       data,
     })
 
-    // 改价：作废已存在的待支付收款单，使下次支付按新价重建
+    // 改价：原地更新同一张待支付收款单的金额（保持同付款链接），用户付款页轮询会自动刷新成新价
     if (data.amount != null) {
       try {
-        await invalidatePendingVmq('order', orderId)
+        await updatePendingVmqAmount('order', orderId, amount!)
       } catch (e) {
-        console.error('Invalidate pending vmq after price change failed:', e)
+        console.error('Update pending vmq amount after price change failed:', e)
       }
     }
 

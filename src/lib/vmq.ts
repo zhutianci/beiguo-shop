@@ -184,6 +184,62 @@ export async function invalidatePendingVmq(bizType: 'order' | 'invoice', bizId: 
   return pendings.length
 }
 
+// 改价：原地更新某业务单「待支付」收款单的金额，保持同一张收款单（同 orderId / 同付款链接），
+// 并把金额锁从旧金额迁移到新分配的唯一金额。收银台轮询会自动刷新成新价、倒计时不重置。
+// 返回更新后的收款单信息；若当前无待支付收款单则返回 null（下次发起支付时按新价创建）。
+export async function updatePendingVmqAmount(
+  bizType: 'order' | 'invoice',
+  bizId: number,
+  newPrice: number
+): Promise<{ orderId: string; reallyPrice: number; price: number } | null> {
+  if (newPrice <= 0) throw new VmqError('金额必须大于 0')
+
+  const pendings = await prisma.vmqOrder.findMany({
+    where: { bizType, bizId, state: 0 },
+    orderBy: { createdAt: 'desc' },
+  })
+  if (pendings.length === 0) return null
+
+  const target = pendings[0]
+  const stale = pendings.slice(1)
+
+  // 极端并发兜底：同业务存在多张待支付单时，只保留最新一张，其余作废
+  if (stale.length) {
+    await prisma.$transaction([
+      prisma.vmqOrder.updateMany({ where: { id: { in: stale.map((p) => p.id) } }, data: { state: -1 } }),
+      prisma.vmqLock.deleteMany({ where: { orderId: { in: stale.map((p) => p.orderId) } } }),
+    ])
+  }
+
+  // 价格未变（精确到分）→ 无需迁移金额锁，直接返回现状
+  if (centsOf(target.reallyPrice) === centsOf(newPrice) && centsOf(target.price) === centsOf(newPrice)) {
+    return {
+      orderId: target.orderId,
+      reallyPrice: Number(target.reallyPrice),
+      price: Number(target.price),
+    }
+  }
+
+  // 释放本单旧金额锁，再为新价分配唯一金额（仍挂在同一 orderId 上）
+  await prisma.vmqLock.deleteMany({ where: { orderId: target.orderId } })
+  const cents = await allocateAmount(newPrice, target.type, target.orderId)
+  const reallyPrice = cents / 100
+
+  const updated = await prisma.vmqOrder.update({
+    where: { id: target.id },
+    data: {
+      price: new Prisma.Decimal(newPrice.toFixed(2)),
+      reallyPrice: new Prisma.Decimal(reallyPrice.toFixed(2)),
+    },
+  })
+
+  return {
+    orderId: updated.orderId,
+    reallyPrice: Number(updated.reallyPrice),
+    price: Number(updated.price),
+  }
+}
+
 // ---- 到账：按金额匹配并标记业务已支付 ----
 // 返回是否匹配到订单
 export async function markPaidByAmount(price: string, type: number): Promise<boolean> {
