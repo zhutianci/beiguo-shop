@@ -73,7 +73,8 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies()
     cookieStore.set('token', token, authCookieOptions(request))
 
-    return success({ user }, '注册成功')
+    // 同时下发 token，供 WebView（如微信）以 Authorization 头兜底鉴权
+    return success({ user, token }, '注册成功')
   } catch (err) {
     console.error('Register error:', err)
     return error('注册失败，请重试')

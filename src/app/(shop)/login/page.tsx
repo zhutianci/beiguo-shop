@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, Mail, Lock, Sparkles } from 'lucide-react'
 import { useUserStore } from '@/store/user'
+import { setToken } from '@/lib/auth-token'
 
 export default function LoginPage() {
   return (
@@ -50,6 +51,7 @@ function LoginForm() {
         return
       }
 
+      setToken(data.data.token || null)
       setUser(data.data.user)
       router.push(redirect)
     } catch {

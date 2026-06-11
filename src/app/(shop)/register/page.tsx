@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, Mail, Lock, User, Sparkles, ShieldCheck } from 'lucide-react'
 import { useUserStore } from '@/store/user'
+import { setToken } from '@/lib/auth-token'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -92,6 +93,7 @@ export default function RegisterPage() {
         return
       }
 
+      setToken(data.data.token || null)
       setUser(data.data.user)
       router.push('/')
     } catch {

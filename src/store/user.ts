@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { clearToken } from '@/lib/auth-token'
 
 interface User {
   id: number
@@ -23,6 +24,7 @@ export const useUserStore = create<UserState>()(
       setUser: (user) => set({ user }),
       logout: () => {
         set({ user: null })
+        clearToken()
         fetch('/api/auth/logout', { method: 'POST' })
       },
     }),

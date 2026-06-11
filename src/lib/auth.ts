@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { prisma } from './db'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key'
@@ -53,7 +53,16 @@ export function verifyToken(token: string): JwtPayload | null {
 
 export async function getCurrentUser() {
   const cookieStore = await cookies()
-  const token = cookieStore.get('token')?.value
+  let token = cookieStore.get('token')?.value
+
+  // 兜底：微信等 WebView 不持久化 cookie 时，客户端会以 Authorization: Bearer 携带 token
+  if (!token) {
+    const h = await headers()
+    const auth = h.get('authorization')
+    if (auth && auth.startsWith('Bearer ')) {
+      token = auth.slice(7).trim()
+    }
+  }
 
   if (!token) return null
 

@@ -63,6 +63,8 @@ export async function POST(request: NextRequest) {
         avatar: user.avatar,
         role: user.role,
       },
+      // 同时下发 token，供 WebView（如微信）以 Authorization 头兜底鉴权
+      token,
     }, '登录成功')
   } catch (err) {
     console.error('Login error:', err)
