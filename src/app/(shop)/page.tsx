@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
-import { ArrowRight, Sparkles, Zap, Shield, Clock, Search, Mail } from 'lucide-react'
+import { ArrowRight, Sparkles, Zap, Shield, Clock, Search, Mail, Network, ArrowUpRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { TiltCard } from '@/components/tilt-card'
 import { Typewriter } from '@/components/typewriter'
 import { MouseSpotlight } from '@/components/mouse-spotlight'
 import { CountUp } from '@/components/count-up'
+import { ipToolGroups, ipToolCount } from '@/lib/iptools'
 
 interface Product {
   id: number
@@ -304,6 +305,59 @@ export default function HomePage() {
               })}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* IP 工具入口 */}
+      <section className="relative py-24">
+        <div className="absolute inset-0 grid-bg opacity-30" />
+        <div className="absolute top-0 left-1/3 w-[500px] h-[300px] bg-cyan-500/15 rounded-full blur-[128px]" />
+
+        <div className="container relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.8 }}
+          >
+            <Link href="/iptools" className="group block">
+              <div className="relative glass rounded-3xl p-8 md:p-12 overflow-hidden transition-colors hover:bg-white/[0.07]">
+                <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500 -z-10" />
+
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
+                  <div className="max-w-xl">
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass mb-5">
+                      <Network className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs text-white/70">网络诊断工具合集 · 共 {ipToolCount} 项</span>
+                    </div>
+                    <h2 className="text-headline mb-3">
+                      <span className="gradient-text">IP 工具</span>
+                    </h2>
+                    <p className="text-white/50 text-base md:text-lg mb-6">
+                      IP 查询、分流出口、Claude 可用性、DNS / WebRTC 泄露、全球 Ping 与服务状态，一站排查网络环境。
+                    </p>
+                    <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-cyan-600 to-purple-600 font-medium group-hover:shadow-[0_0_30px_rgba(34,211,238,0.35)] transition-shadow">
+                      查看全部工具
+                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+
+                  {/* 工具速览标签 */}
+                  <div className="flex flex-wrap gap-2 md:max-w-xs md:justify-end">
+                    {ipToolGroups[0].tools.slice(0, 6).map((tool) => (
+                      <span
+                        key={tool.url}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full glass text-xs text-white/60"
+                      >
+                        {tool.name}
+                        <ArrowUpRight className="w-3 h-3 text-white/30" />
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </Link>
+          </motion.div>
         </div>
       </section>
 

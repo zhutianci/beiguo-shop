@@ -58,6 +58,11 @@ export function Footer() {
                     全部商品
                   </Link>
                 </li>
+                <li>
+                  <Link href="/iptools" className="text-white/40 hover:text-white text-sm transition-colors">
+                    IP 工具
+                  </Link>
+                </li>
               </ul>
             </div>
 
