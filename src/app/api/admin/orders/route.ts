@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { decryptCardContent } from '@/lib/cardkey'
 
 // 获取所有订单
 export async function GET(request: NextRequest) {
@@ -42,8 +43,30 @@ export async function GET(request: NextRequest) {
       prisma.order.count({ where }),
     ])
 
+    // 附带每张订单实际发出的卡密（自动发货），便于核对「发了哪个卡密 / 是否误发多张」
+    const paidIds = orders.filter((o) => o.payStatus === 'PAID').map((o) => o.id)
+    const cardMap = new Map<number, string[]>()
+    if (paidIds.length) {
+      const cards = await prisma.cardKey.findMany({
+        where: { orderId: { in: paidIds }, status: 'USED' },
+        orderBy: { id: 'asc' },
+      })
+      for (const c of cards) {
+        let plain = ''
+        try {
+          plain = decryptCardContent(c.content)
+        } catch {
+          plain = '(卡密解密失败)'
+        }
+        const arr = cardMap.get(c.orderId as number) || []
+        arr.push(plain)
+        cardMap.set(c.orderId as number, arr)
+      }
+    }
+    const list = orders.map((o) => ({ ...o, cards: cardMap.get(o.id) || [] }))
+
     return success({
-      list: orders,
+      list,
       total,
       page,
       pageSize,

@@ -267,10 +267,14 @@ export async function markPaidByAmount(price: string, type: number): Promise<boo
 
 // 标记某条 vmq 订单已支付并履约（金额匹配 / 后台补单共用）
 async function markPaidVmqOrder(id: number, bizType: string, bizId: number, orderId: string) {
-  await prisma.$transaction([
-    prisma.vmqOrder.update({ where: { id }, data: { state: 1, payDate: new Date() } }),
-    prisma.vmqLock.deleteMany({ where: { orderId } }),
-  ])
+  // 原子翻转：state 0→1。并发下（同一笔到账被重复推送）只有一次能成功，
+  // 其余 count===0 直接跳过履约，从入口处就避免重复发货。
+  const flip = await prisma.vmqOrder.updateMany({
+    where: { id, state: 0 },
+    data: { state: 1, payDate: new Date() },
+  })
+  await prisma.vmqLock.deleteMany({ where: { orderId } })
+  if (flip.count !== 1) return // 已被并发的另一次到账处理，跳过
   try {
     if (bizType === 'order') await fulfillOrder(bizId)
     else if (bizType === 'invoice') await fulfillInvoice(bizId)
@@ -280,22 +284,23 @@ async function markPaidVmqOrder(id: number, bizType: string, bizId: number, orde
   }
 }
 
-// 后台手动补单（确认到账）：无视金额，强制标记该 vmq 订单已支付并履约
+// 后台手动补单（确认到账）：无视金额/状态，强制标记该 vmq 订单已支付并履约
 export async function manualComplete(vmqOrderId: number): Promise<void> {
   const o = await prisma.vmqOrder.findUnique({ where: { id: vmqOrderId } })
   if (!o) throw new VmqError('收款单不存在')
-  if (o.state === 1) {
-    // 已是已支付，仅补履约（防止之前履约失败）
-    try {
-      if (o.bizType === 'order') await fulfillOrder(o.bizId)
-      else if (o.bizType === 'invoice') await fulfillInvoice(o.bizId)
-    } catch (e) {
-      console.error('[vmq] 补履约失败', e)
-      throw e
-    }
-    return
+  // 管理员强制确认：无条件标记已支付 + 释放金额锁（即使已过期 state=-1 也能补单）
+  await prisma.$transaction([
+    prisma.vmqOrder.update({ where: { id: o.id }, data: { state: 1, payDate: o.payDate ?? new Date() } }),
+    prisma.vmqLock.deleteMany({ where: { orderId: o.orderId } }),
+  ])
+  try {
+    // fulfillOrder 自身幂等（原子占单 + 只补缺口），重复调用不会重复发卡/记账
+    if (o.bizType === 'order') await fulfillOrder(o.bizId)
+    else if (o.bizType === 'invoice') await fulfillInvoice(o.bizId)
+  } catch (e) {
+    console.error('[vmq] 补履约失败', e)
+    throw e
   }
-  await markPaidVmqOrder(o.id, o.bizType, o.bizId, o.orderId)
 }
 
 // 最近收款单（后台诊断用）
@@ -398,45 +403,60 @@ async function allocateCards(productId: number, orderId: number, quantity: numbe
 }
 
 async function fulfillOrder(orderId: number) {
+  const order0 = await prisma.order.findUnique({ where: { id: orderId } })
+  if (!order0) return
+
+  // ① 原子占单 + 记账：在一个事务内把订单 UNPAID→PAID，并创建支付流水、增加销量。
+  // 只有把状态翻转成功（count===1）的那一次调用是「赢家」，会执行首次记账。
+  // 这是根除「重复到账通知 → 并发重复发卡/重复记账」的关键：竞态中其余调用 count===0。
+  const won = await prisma.$transaction(async (tx) => {
+    const c = await tx.order.updateMany({
+      where: { id: orderId, payStatus: 'UNPAID' },
+      data: { payStatus: 'PAID', payMethod: 'ALIPAY', paidAt: new Date() },
+    })
+    if (c.count !== 1) return false
+    await tx.payment.create({
+      data: { orderId, payMethod: 'ALIPAY', amount: order0.amount, status: 1 },
+    })
+    await tx.product.update({ where: { id: order0.productId }, data: { sales: { increment: order0.quantity } } })
+    return true
+  })
+
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { product: true, user: true } })
-  if (!order || order.payStatus === 'PAID') return
+  if (!order) return
+  // 非赢家且订单已完整交付 → 直接返回，杜绝重复发卡
+  if (!won && order.deliveryStatus === 'DELIVERED') return
 
   const auto = order.product.deliveryType === 'AUTO'
   const sms = order.product.deliveryType === 'SMS'
+
+  // ② 自动发货：幂等发卡——只补足该订单「尚缺」的数量（已发 = 该订单已占用的卡密数）。
+  // 即使本函数被重复进入，也绝不会让一张订单的卡密总数超过其 quantity。
   let delivered = false
-  let remark = order.remark
   if (auto) {
-    const claimed = await allocateCards(order.productId, order.id, order.quantity)
-    if (claimed >= order.quantity) {
-      delivered = true
-    } else {
-      remark = `${remark ? remark + ' | ' : ''}卡密库存不足(已发${claimed}/${order.quantity})，待人工补发`
+    const already = await prisma.cardKey.count({ where: { orderId: order.id, status: 'USED' } })
+    let owned = already
+    if (already < order.quantity) {
+      owned += await allocateCards(order.productId, order.id, order.quantity - already)
     }
+    delivered = owned >= order.quantity
+    if (delivered) {
+      await prisma.order.update({
+        where: { id: order.id },
+        data: { deliveryStatus: 'DELIVERED', deliveredAt: new Date() },
+      })
+    } else {
+      const remark = `${order.remark ? order.remark + ' | ' : ''}卡密库存不足(已发${owned}/${order.quantity})，待人工补发`
+      await prisma.order.update({ where: { id: order.id }, data: { deliveryStatus: 'PROCESSING', remark } })
+    }
+    await syncAutoStock(order.productId)
+  } else if (won) {
+    // 非自动发货（人工/短信）：付款后置为处理中，等待人工/短信流程
+    await prisma.order.update({ where: { id: order.id }, data: { deliveryStatus: 'PROCESSING' } })
   }
-  // SMS 接码：付款后保持「处理中」，下面单独取号，收到验证码后才标记完成
 
-  await prisma.$transaction([
-    prisma.order.update({
-      where: { id: order.id },
-      data: {
-        payStatus: 'PAID',
-        payMethod: 'ALIPAY',
-        paidAt: new Date(),
-        deliveryStatus: delivered ? 'DELIVERED' : 'PROCESSING',
-        ...(delivered ? { deliveredAt: new Date() } : {}),
-        ...(auto ? { remark } : {}),
-      },
-    }),
-    prisma.payment.create({
-      data: { orderId: order.id, payMethod: 'ALIPAY', amount: order.amount, status: 1 },
-    }),
-    prisma.product.update({ where: { id: order.productId }, data: { sales: { increment: order.quantity } } }),
-  ])
-
-  if (auto) await syncAutoStock(order.productId)
-
-  // SMS 接码：付款成功后自动取号（保持处理中，收到验证码后再完成）
-  if (sms) {
+  // SMS 接码：付款成功后自动取号（仅首次付款时取号，避免重复取号）
+  if (sms && won) {
     try {
       await acquireForOrder(
         order.id,
@@ -458,8 +478,8 @@ async function fulfillOrder(orderId: number) {
     }
   }
 
-  // 交易通知邮件（付款成功）
-  if (order.user.email) {
+  // 交易通知邮件（仅首次付款发送，避免重复到账时重复发信）
+  if (won && order.user.email) {
     try {
       let cards: string[] | undefined
       if (auto && delivered) {

@@ -16,9 +16,11 @@ interface Order {
   deliveryStatus: string
   deliveryInfo: string | null
   remark: string | null
+  quantity?: number
   createdAt: string
   user: { id: number; email: string | null; nickname: string | null }
   product: { id: number; name: string }
+  cards?: string[] // 自动发货实际发出的卡密
 }
 
 const payStatusMap: Record<string, { label: string; className: string }> = {
@@ -279,6 +281,35 @@ export default function OrdersPage() {
                 <div className="text-sm">
                   <div className="text-gray-500 mb-1">用户备注：</div>
                   <div className="rounded-lg bg-gray-50 p-3">{selectedOrder.remark}</div>
+                </div>
+              )}
+
+              {selectedOrder.cards && selectedOrder.cards.length > 0 && (
+                <div className="text-sm">
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="text-gray-500">已发卡密（自动发货）：</span>
+                    <span className="text-xs text-gray-400">
+                      共 {selectedOrder.cards.length} 张
+                      {selectedOrder.quantity ? ` / 应发 ${selectedOrder.quantity} 张` : ''}
+                    </span>
+                    {selectedOrder.quantity != null &&
+                      selectedOrder.cards.length > selectedOrder.quantity && (
+                        <span className="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                          ⚠ 发卡数量异常（超出应发）
+                        </span>
+                      )}
+                  </div>
+                  <div className="space-y-1.5 rounded-lg bg-gray-50 p-3">
+                    {selectedOrder.cards.map((c, i) => (
+                      <div
+                        key={i}
+                        className="flex items-start gap-2 break-all font-mono text-xs text-gray-800"
+                      >
+                        <span className="select-none text-gray-400">{i + 1}.</span>
+                        <span>{c}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
