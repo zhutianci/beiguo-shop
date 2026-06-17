@@ -44,11 +44,23 @@ export function notifyBuyerMessage(p: NotifyPayload): void {
   }
 
   // 不 await：避免拖慢买家发送响应
+  const started = Date.now()
   fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  }).catch((e) => {
-    console.error('[order-notify] webhook 推送失败', e)
+    signal: AbortSignal.timeout(8000),
   })
+    .then((res) => {
+      if (!res.ok) {
+        console.error(`[order-notify] webhook 返回非 2xx: ${res.status} ${res.statusText} url=${url}`)
+      } else {
+        console.log(`[order-notify] webhook 已推送 ${res.status} (${Date.now() - started}ms) url=${url}`)
+      }
+    })
+    .catch((e) => {
+      // undici 的 "fetch failed" 真正原因在 e.cause 里（ENOTFOUND/ECONNREFUSED/证书等）
+      const cause = (e as { cause?: unknown }).cause
+      console.error('[order-notify] webhook 推送失败 url=' + url, e?.message || e, 'cause=', cause)
+    })
 }
