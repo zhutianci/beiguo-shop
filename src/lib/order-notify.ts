@@ -1,9 +1,12 @@
 // 订单留言外推通知：买家在订单内发来消息时，POST 到配置的 webhook 地址。
 // 通过环境变量 ORDER_MSG_WEBHOOK_URL 配置（留空则不推送）。
-// 为兼容大多数 webhook 接收端（自建接口 / SmsForwarder / Server酱 等），
-// 同时附带多种常见字段名（text/content/desp/message）的人类可读文案。
-// 注：钉钉/企业微信群机器人需要特定的嵌套格式，如使用请告知以单独适配。
 //
+// 自动识别接收端并采用其专属格式：
+//  - 企业微信群机器人 (qyapi.weixin.qq.com)：{msgtype:"markdown", markdown:{content}}
+//  - 钉钉群机器人      (oapi.dingtalk.com)   ：{msgtype:"text", text:{content}}
+//  - 其它（自建/Server酱/Bark 等）          ：通用 JSON，含 text/content/desp/message
+//
+// 注意：企业微信/钉钉对任何请求都返回 HTTP 200，真正成败看返回体 errcode。
 // 失败不抛出、不阻塞留言主流程（fire-and-forget）。
 
 interface NotifyPayload {
@@ -29,18 +32,42 @@ export function notifyBuyerMessage(p: NotifyPayload): void {
     `内容：${p.content}\n` +
     `处理：${adminUrl}`
 
-  // 多字段兼容：text / content / desp / message + 结构化字段
-  const body = {
-    title,
-    text,
-    content: text,
-    desp: text,
-    message: p.content,
-    orderId: p.orderId,
-    orderNo: p.orderNo,
-    productName: p.productName,
-    buyer: p.buyer,
-    url: adminUrl,
+  let host = ''
+  try {
+    host = new URL(url).host
+  } catch {
+    console.error('[order-notify] ORDER_MSG_WEBHOOK_URL 不是合法地址:', url)
+    return
+  }
+
+  let body: Record<string, unknown>
+  if (host.includes('qyapi.weixin.qq.com')) {
+    // 企业微信群机器人：markdown 格式，链接可点击
+    const md =
+      `## 🔔 新订单留言\n` +
+      `**商品**：${p.productName}\n` +
+      `**订单号**：${p.orderNo}\n` +
+      `**买家**：${p.buyer}\n` +
+      `**内容**：<font color="warning">${p.content}</font>\n` +
+      `[点此前往后台处理](${adminUrl})`
+    body = { msgtype: 'markdown', markdown: { content: md } }
+  } else if (host.includes('oapi.dingtalk.com')) {
+    // 钉钉群机器人：text 格式
+    body = { msgtype: 'text', text: { content: text } }
+  } else {
+    // 通用：多字段兼容
+    body = {
+      title,
+      text,
+      content: text,
+      desp: text,
+      message: p.content,
+      orderId: p.orderId,
+      orderNo: p.orderNo,
+      productName: p.productName,
+      buyer: p.buyer,
+      url: adminUrl,
+    }
   }
 
   // 不 await：避免拖慢买家发送响应
@@ -51,11 +78,22 @@ export function notifyBuyerMessage(p: NotifyPayload): void {
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(8000),
   })
-    .then((res) => {
-      if (!res.ok) {
-        console.error(`[order-notify] webhook 返回非 2xx: ${res.status} ${res.statusText} url=${url}`)
+    .then(async (res) => {
+      const respText = await res.text().catch(() => '')
+      // 企业微信/钉钉：errcode===0 才算真成功
+      let errcode: number | undefined
+      try {
+        errcode = JSON.parse(respText)?.errcode
+      } catch {
+        /* 非 JSON 返回（自建接口）忽略 */
+      }
+      const ok = res.ok && (errcode === undefined || errcode === 0)
+      if (ok) {
+        console.log(`[order-notify] webhook 已送达 ${res.status} (${Date.now() - started}ms)`)
       } else {
-        console.log(`[order-notify] webhook 已推送 ${res.status} (${Date.now() - started}ms) url=${url}`)
+        console.error(
+          `[order-notify] webhook 被拒 http=${res.status} errcode=${errcode} resp=${respText.slice(0, 300)}`
+        )
       }
     })
     .catch((e) => {
