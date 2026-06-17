@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Copy,
   Eye,
+  MessageSquare,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { ContactModal } from '@/components/contact-modal'
@@ -38,6 +39,7 @@ interface Order {
   deliveredAt: string | null
   product: { id: number; name: string; image: string | null; deliveryType?: string; cardUsage?: string | null; cardRedeemUrl?: string | null }
   cards?: string[]
+  unreadCount?: number // 客服发来、买家未读的回复数
 }
 
 const gradients = [
@@ -346,6 +348,12 @@ export default function OrdersPage() {
                               <status.icon className="w-3 h-3" />
                               {status.label}
                             </div>
+                            {!!order.unreadCount && order.unreadCount > 0 && (
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/15 border border-red-500/30 text-red-400">
+                                <MessageSquare className="w-3 h-3" />
+                                客服新回复 {order.unreadCount}
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-white/40 flex-wrap">
                             <div className="flex items-center gap-1">
@@ -385,11 +393,24 @@ export default function OrdersPage() {
                               </button>
                             )}
                             <button
-                              onClick={() => setSelectedOrder(order)}
-                              className="px-4 py-2 rounded-lg glass hover:bg-white/10 text-sm font-medium transition-colors flex items-center gap-1.5"
+                              onClick={() => {
+                                setSelectedOrder(order)
+                                if (order.unreadCount) {
+                                  setOrders((prev) =>
+                                    prev.map((o) => (o.id === order.id ? { ...o, unreadCount: 0 } : o))
+                                  )
+                                }
+                              }}
+                              className="relative px-4 py-2 rounded-lg glass hover:bg-white/10 text-sm font-medium transition-colors flex items-center gap-1.5"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               详情
+                              {!!order.unreadCount && order.unreadCount > 0 && (
+                                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+                                </span>
+                              )}
                             </button>
                           </div>
                         </div>

@@ -62,7 +62,23 @@ export async function GET() {
       }
     }
 
-    const withCards = orders.map((o) => ({ ...o, cards: cardMap.get(o.id) || [] }))
+    // 统计每张订单「客服发来、买家未读」的留言数，用于订单列表红点提醒
+    const allIds = orders.map((o) => o.id)
+    const unreadMap = new Map<number, number>()
+    if (allIds.length) {
+      const grouped = await prisma.orderMessage.groupBy({
+        by: ['orderId'],
+        where: { orderId: { in: allIds }, sender: 'ADMIN', readByBuyer: false },
+        _count: { _all: true },
+      })
+      for (const g of grouped) unreadMap.set(g.orderId, g._count._all)
+    }
+
+    const withCards = orders.map((o) => ({
+      ...o,
+      cards: cardMap.get(o.id) || [],
+      unreadCount: unreadMap.get(o.id) || 0,
+    }))
     return success(withCards)
   } catch (err) {
     console.error('Get orders error:', err)

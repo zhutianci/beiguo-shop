@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized, notFound } from '@/lib/api'
+import { notifyBuyerMessage } from '@/lib/order-notify'
 
 async function ownedPaidOrder(orderId: number, userId: number) {
   const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, userId: true, payStatus: true } })
@@ -59,6 +60,26 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const msg = await prisma.orderMessage.create({
       data: { orderId, sender: 'BUYER', content: parsed.data.content, readByBuyer: true, readByAdmin: false },
     })
+
+    // 外推通知商家：买家有新留言（fire-and-forget，失败不影响发送）
+    try {
+      const full = await prisma.order.findUnique({
+        where: { id: orderId },
+        select: { orderNo: true, productName: true, user: { select: { nickname: true, email: true } } },
+      })
+      if (full) {
+        notifyBuyerMessage({
+          orderId,
+          orderNo: full.orderNo,
+          productName: full.productName,
+          buyer: full.user?.nickname || full.user?.email || `用户#${user.id}`,
+          content: parsed.data.content,
+        })
+      }
+    } catch (e) {
+      console.error('[order-notify] 组装通知失败', e)
+    }
+
     return success({ message: msg })
   } catch (err) {
     console.error('Send order message error:', err)

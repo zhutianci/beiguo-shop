@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Eye } from 'lucide-react'
+import { Search, Eye, MessageSquare } from 'lucide-react'
 import OrderChat from '@/components/order-chat'
 
 interface Order {
@@ -21,6 +21,7 @@ interface Order {
   user: { id: number; email: string | null; nickname: string | null }
   product: { id: number; name: string }
   cards?: string[] // 自动发货实际发出的卡密
+  unreadCount?: number // 买家发来、商家未读的留言数
 }
 
 const payStatusMap: Record<string, { label: string; className: string }> = {
@@ -196,7 +197,20 @@ export default function OrdersPage() {
                 <tbody className="text-sm">
                   {filteredOrders.map((order) => (
                     <tr key={order.id} className="border-b border-gray-50">
-                      <td className="py-4 font-medium text-gray-900">{order.orderNo}</td>
+                      <td className="py-4 font-medium text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <span>{order.orderNo}</span>
+                          {!!order.unreadCount && order.unreadCount > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full bg-red-500 px-2 py-0.5 text-xs font-medium text-white"
+                              title={`买家有 ${order.unreadCount} 条未读留言`}
+                            >
+                              <MessageSquare className="h-3 w-3" />
+                              {order.unreadCount}
+                            </span>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-4 text-gray-600">{order.user.nickname || order.user.email}</td>
                       <td className="py-4 text-gray-600">{order.productName}</td>
                       <td className="py-4 text-gray-900">¥{Number(order.amount).toFixed(2)}</td>
