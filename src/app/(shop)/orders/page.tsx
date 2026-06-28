@@ -384,6 +384,28 @@ export default function OrdersPage() {
                                 客服新回复 {order.unreadCount}
                               </div>
                             )}
+
+                            {/* 发票标识 */}
+                            {order.billing && order.billing.invoiceStatus === 'ISSUED' && (
+                              <BillingChip color="green" label="发票已开具" />
+                            )}
+                            {order.billing && order.billing.invoiceStatus === 'AWAIT_PAY' && (
+                              <BillingChip color="amber" label="发票待付税费" />
+                            )}
+                            {order.billing && order.billing.invoiceStatus === 'SUBMITTED' && (
+                              <BillingChip color="cyan" label="发票已提交" />
+                            )}
+                            {order.billing &&
+                              order.billing.invoiceStatus === 'UNAPPLIED' &&
+                              order.billing.canInvoice && <BillingChip color="purple" label="可开发票" />}
+
+                            {/* 收据标识 */}
+                            {order.billing &&
+                              (order.billing.receiptToken ? (
+                                <BillingChip color="green" label="收据已开具" />
+                              ) : order.billing.canReceipt ? (
+                                <BillingChip color="cyan" label="可开收据" />
+                              ) : null)}
                           </div>
                           <div className="flex items-center gap-4 text-sm text-white/40 flex-wrap">
                             <div className="flex items-center gap-1">
@@ -751,6 +773,22 @@ export default function OrdersPage() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  )
+}
+
+// 订单列表上的票据小标识
+function BillingChip({ color, label }: { color: 'green' | 'amber' | 'cyan' | 'purple'; label: string }) {
+  const cls: Record<string, string> = {
+    green: 'bg-green-500/15 border-green-500/30 text-green-300',
+    amber: 'bg-amber-500/15 border-amber-500/30 text-amber-300',
+    cyan: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300',
+    purple: 'bg-purple-500/15 border-purple-500/30 text-purple-300',
+  }
+  return (
+    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cls[color]}`}>
+      <FileText className="w-3 h-3" />
+      {label}
     </div>
   )
 }
