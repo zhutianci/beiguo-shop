@@ -8,6 +8,8 @@ import { success, error, unauthorized } from '@/lib/api'
 import { generateOrderNo } from '@/lib/utils'
 import { decryptCardContent } from '@/lib/cardkey'
 import { effectiveBasePrice } from '@/lib/referral'
+import { calcInvoiceAmounts } from '@/lib/invoice'
+import { shopOrderSourceKey } from '@/lib/order-billing'
 
 const createOrderSchema = z.object({
   productId: z.number(),
@@ -74,11 +76,67 @@ export async function GET() {
       for (const g of grouped) unreadMap.set(g.orderId, g._count._all)
     }
 
-    const withCards = orders.map((o) => ({
-      ...o,
-      cards: cardMap.get(o.id) || [],
-      unreadCount: unreadMap.get(o.id) || 0,
-    }))
+    // 发票/收据状态：买家订单通过背书外部订单(sourceKey=`order:<id>`)挂接，
+    // 已申请过的订单查出其发票状态与收据令牌，用于订单页显示对应按钮
+    const invByOrderId = new Map<number, { id: number; status: string }>()
+    const receiptByOrderId = new Map<number, string>()
+    if (paidIds.length) {
+      const exts = await prisma.externalOrder.findMany({
+        where: { sourceKey: { in: paidIds.map((id) => shopOrderSourceKey(id)) } },
+        select: { id: true, sourceKey: true },
+      })
+      if (exts.length) {
+        const extIdToOrderId = new Map<number, number>()
+        for (const e of exts) {
+          const oid = parseInt(e.sourceKey.slice('order:'.length))
+          if (oid) extIdToOrderId.set(e.id, oid)
+        }
+        const extIds = exts.map((e) => e.id)
+        const [invs, recs] = await Promise.all([
+          prisma.invoice.findMany({
+            where: { externalOrderId: { in: extIds } },
+            select: { id: true, externalOrderId: true, status: true },
+          }),
+          prisma.receipt.findMany({
+            where: { externalOrderId: { in: extIds } },
+            select: { externalOrderId: true, token: true },
+          }),
+        ])
+        for (const iv of invs) {
+          const oid = iv.externalOrderId != null ? extIdToOrderId.get(iv.externalOrderId) : undefined
+          if (oid) invByOrderId.set(oid, { id: iv.id, status: iv.status })
+        }
+        for (const r of recs) {
+          const oid = r.externalOrderId != null ? extIdToOrderId.get(r.externalOrderId) : undefined
+          if (oid && r.token) receiptByOrderId.set(oid, r.token)
+        }
+      }
+    }
+
+    const withCards = orders.map((o) => {
+      const paid = o.payStatus === 'PAID'
+      const price = Number(o.amount)
+      const inv = invByOrderId.get(o.id)
+      const amt = paid ? calcInvoiceAmounts(price) : null
+      return {
+        ...o,
+        cards: cardMap.get(o.id) || [],
+        unreadCount: unreadMap.get(o.id) || 0,
+        // 票据信息（仅已支付订单可申请）
+        billing: paid
+          ? {
+              canInvoice: price > 0,
+              canReceipt: price > 0,
+              sellingPrice: price,
+              invoiceAmount: amt!.invoiceAmount,
+              taxFee: amt!.taxFee,
+              invoiceStatus: inv ? inv.status : 'UNAPPLIED',
+              invoiceId: inv?.id ?? null,
+              receiptToken: receiptByOrderId.get(o.id) ?? null,
+            }
+          : null,
+      }
+    })
     return success(withCards)
   } catch (err) {
     console.error('Get orders error:', err)
