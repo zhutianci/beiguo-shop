@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -15,10 +15,10 @@ import {
   AlertCircle,
   ChevronRight,
   Copy,
-  Eye,
   MessageSquare,
   FileText,
   X,
+  type LucideIcon,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { ContactModal } from '@/components/contact-modal'
@@ -55,6 +55,9 @@ interface Billing {
   invoiceId: number | null
   receiptToken: string | null
 }
+
+// 弹窗类型：发货详情 / 发票收据 / 在线沟通
+type PanelType = 'delivery' | 'billing' | 'chat'
 
 const INVOICE_LABELS: Record<string, string> = {
   UNAPPLIED: '可开据·未开发票',
@@ -160,7 +163,7 @@ export default function OrdersPage() {
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [contactOpen, setContactOpen] = useState(false)
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [panel, setPanel] = useState<{ order: Order; type: PanelType } | null>(null)
   const [payingNo, setPayingNo] = useState<string | null>(null)
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null)
@@ -172,6 +175,14 @@ export default function OrdersPage() {
       if (data.success) setOrders(data.data)
     } finally {
       setLoading(false)
+    }
+  }
+
+  // 打开某订单的弹窗；打开「在线沟通」时顺手清掉本订单的未读红点
+  const openPanel = (order: Order, type: PanelType) => {
+    setPanel({ order, type })
+    if (type === 'chat' && order.unreadCount) {
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, unreadCount: 0 } : o)))
     }
   }
 
@@ -355,6 +366,7 @@ export default function OrdersPage() {
               {filteredOrders.map((order, index) => {
                 const status = getStatusConfig(order.payStatus, order.deliveryStatus)
                 const gradient = getGradient(order.productId)
+                const paid = order.payStatus === 'PAID'
                 return (
                   <motion.div
                     key={order.id}
@@ -431,78 +443,71 @@ export default function OrdersPage() {
                             <div className="text-2xl font-bold">¥{Number(order.amount).toFixed(0)}</div>
                             <div className="text-xs text-white/40">订单金额</div>
                           </div>
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
-                              <button
-                                onClick={() => handleAlipay(order)}
-                                disabled={payingNo === order.orderNo}
-                                className="px-4 py-2 rounded-lg bg-[#1677FF] text-white text-sm font-medium hover:bg-[#0e5fd8] transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
-                              >
-                                {payingNo === order.orderNo ? (
-                                  <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                                ) : null}
-                                支付宝支付
-                              </button>
-                            )}
+                          {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
                             <button
-                              onClick={() => {
-                                setSelectedOrder(order)
-                                if (order.unreadCount) {
-                                  setOrders((prev) =>
-                                    prev.map((o) => (o.id === order.id ? { ...o, unreadCount: 0 } : o))
-                                  )
-                                }
-                              }}
-                              className="relative px-4 py-2 rounded-lg glass hover:bg-white/10 text-sm font-medium transition-colors flex items-center gap-1.5"
+                              onClick={() => handleAlipay(order)}
+                              disabled={payingNo === order.orderNo}
+                              className="px-4 py-2 rounded-lg bg-[#1677FF] text-white text-sm font-medium hover:bg-[#0e5fd8] transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
                             >
-                              <Eye className="w-3.5 h-3.5" />
-                              详情
-                              {!!order.unreadCount && order.unreadCount > 0 && (
-                                <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
-                                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
-                                </span>
-                              )}
+                              {payingNo === order.orderNo ? (
+                                <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                              ) : null}
+                              支付宝支付
                             </button>
-                          </div>
+                          )}
                         </div>
                       </div>
 
-                      {order.deliveryStatus === 'DELIVERED' && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                          <div className="flex items-center gap-2 text-sm text-green-400">
+                      {/* 状态提示 + 操作按钮（不点开详情，直接分项处理） */}
+                      <div className="mt-4 pt-4 border-t border-white/10">
+                        {order.deliveryStatus === 'DELIVERED' && (
+                          <div className="flex items-center gap-2 text-sm text-green-400 mb-3">
                             <CheckCircle className="w-4 h-4" />
                             <span>服务已交付</span>
                           </div>
-                        </div>
-                      )}
-
-                      {order.payStatus === 'PAID' && order.deliveryStatus === 'PROCESSING' && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                          <div className="flex items-center gap-2 text-sm text-blue-400">
+                        )}
+                        {order.payStatus === 'PAID' && order.deliveryStatus === 'PROCESSING' && (
+                          <div className="flex items-center gap-2 text-sm text-blue-400 mb-3">
                             <Clock className="w-4 h-4" />
                             <span>正在为你开通服务，预计 10 分钟内完成</span>
                           </div>
-                        </div>
-                      )}
-
-                      {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                          <div className="flex items-center gap-2 text-sm text-yellow-400">
+                        )}
+                        {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
+                          <div className="flex items-center gap-2 text-sm text-yellow-400 mb-3">
                             <AlertCircle className="w-4 h-4" />
                             <span>请点击「支付宝支付」完成付款</span>
                           </div>
-                        </div>
-                      )}
-
-                      {order.deliveryStatus === 'CANCELLED' && order.payStatus === 'UNPAID' && (
-                        <div className="mt-4 pt-4 border-t border-white/10">
-                          <div className="flex items-center gap-2 text-sm text-white/40">
+                        )}
+                        {order.deliveryStatus === 'CANCELLED' && order.payStatus === 'UNPAID' && (
+                          <div className="flex items-center gap-2 text-sm text-white/40 mb-3">
                             <XCircle className="w-4 h-4" />
                             <span>订单已超时取消，请重新下单</span>
                           </div>
+                        )}
+
+                        <div className="flex flex-wrap gap-2">
+                          <ActionButton
+                            icon={Package}
+                            label="发货详情"
+                            onClick={() => openPanel(order, 'delivery')}
+                          />
+                          {paid && order.billing && (
+                            <ActionButton
+                              icon={FileText}
+                              label="开具发票 / 收据"
+                              onClick={() => openPanel(order, 'billing')}
+                            />
+                          )}
+                          {paid && (
+                            <ActionButton
+                              icon={MessageSquare}
+                              label="与客服在线沟通"
+                              onClick={() => openPanel(order, 'chat')}
+                              badge={order.unreadCount}
+                            />
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
                   </motion.div>
                 )
@@ -523,7 +528,7 @@ export default function OrdersPage() {
             </p>
             <button
               onClick={() => {
-                setSelectedOrder(null)
+                setPanel(null)
                 setContactOpen(true)
               }}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all"
@@ -537,6 +542,27 @@ export default function OrdersPage() {
         )}
       </div>
 
+      {/* 发货详情弹窗 */}
+      {panel && panel.type === 'delivery' && (
+        <DeliveryPanel order={panel.order} onClose={() => setPanel(null)} />
+      )}
+
+      {/* 发票 / 收据弹窗 */}
+      {panel && panel.type === 'billing' && panel.order.billing && (
+        <BillingPanel
+          order={panel.order}
+          onClose={() => setPanel(null)}
+          onApplyInvoice={() => setInvoiceOrder(panel.order)}
+          onApplyReceipt={() => setReceiptOrder(panel.order)}
+        />
+      )}
+
+      {/* 在线沟通弹窗 */}
+      {panel && panel.type === 'chat' && (
+        <ChatPanel order={panel.order} onClose={() => setPanel(null)} />
+      )}
+
+      {/* 发票表单（叠加在「发票/收据」弹窗之上） */}
       {invoiceOrder && invoiceOrder.billing && (
         <InvoiceModal
           order={invoiceOrder}
@@ -557,9 +583,9 @@ export default function OrdersPage() {
                   : o
               )
             )
-            setSelectedOrder((prev) =>
-              prev && prev.id === receiptOrder.id && prev.billing
-                ? { ...prev, billing: { ...prev.billing, receiptToken: token } }
+            setPanel((prev) =>
+              prev && prev.order.id === receiptOrder.id && prev.order.billing
+                ? { ...prev, order: { ...prev.order, billing: { ...prev.order.billing, receiptToken: token } } }
                 : prev
             )
             setReceiptOrder(null)
@@ -570,209 +596,8 @@ export default function OrdersPage() {
 
       <ContactModal
         open={contactOpen}
-        onClose={() => {
-          setContactOpen(false)
-          setSelectedOrder(null)
-        }}
+        onClose={() => setContactOpen(false)}
       />
-
-      {/* 订单详情弹窗 */}
-      <AnimatePresence>
-        {selectedOrder && !contactOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            onClick={() => setSelectedOrder(null)}
-          >
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-md glass-strong rounded-3xl p-8"
-            >
-              <h3 className="text-xl font-bold mb-6">订单详情</h3>
-              <div className="space-y-4 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-white/50">订单号</span>
-                  <span className="font-mono">{selectedOrder.orderNo}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/50">商品</span>
-                  <span className="font-medium">{selectedOrder.productName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/50">金额</span>
-                  <span className="font-bold text-lg">¥{Number(selectedOrder.amount).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-white/50">下单时间</span>
-                  <span>{formatDate(selectedOrder.createdAt)}</span>
-                </div>
-                {selectedOrder.paidAt && (
-                  <div className="flex justify-between">
-                    <span className="text-white/50">支付时间</span>
-                    <span>{formatDate(selectedOrder.paidAt)}</span>
-                  </div>
-                )}
-                {selectedOrder.deliveredAt && (
-                  <div className="flex justify-between">
-                    <span className="text-white/50">交付时间</span>
-                    <span>{formatDate(selectedOrder.deliveredAt)}</span>
-                  </div>
-                )}
-                {selectedOrder.cards && selectedOrder.cards.length > 0 && (
-                  <div>
-                    <div className="text-white/50 mb-2 flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-green-400" /> 卡密（请妥善保管）
-                    </div>
-                    <div className="space-y-2">
-                      {selectedOrder.cards.map((card, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <div className="flex-1 p-3 rounded-lg bg-white/5 border border-green-500/30 font-mono text-xs break-all">
-                            {card}
-                          </div>
-                          <button
-                            onClick={() => navigator.clipboard.writeText(card)}
-                            className="px-3 py-2 rounded-lg glass hover:bg-white/10 text-xs whitespace-nowrap"
-                          >
-                            <Copy className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                    {selectedOrder.product?.cardRedeemUrl && /^https?:\/\//i.test(selectedOrder.product.cardRedeemUrl) && (
-                      <a
-                        href={selectedOrder.product.cardRedeemUrl}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="mt-3 group flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 font-semibold hover:shadow-[0_0_24px_rgba(16,185,129,0.4)] transition-all"
-                      >
-                        去充值 / 兑换
-                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                      </a>
-                    )}
-                    <p className="text-[11px] text-white/40 mt-2">卡密仅本人可见，请按说明使用；如有问题联系客服。</p>
-                    {selectedOrder.product?.cardUsage && (
-                      <div className="mt-3">
-                        <div className="text-white/50 mb-1.5 text-sm">使用说明</div>
-                        <div className="p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 whitespace-pre-wrap leading-relaxed">
-                          {selectedOrder.product.cardUsage}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {selectedOrder.deliveryInfo && (
-                  <div>
-                    <div className="text-white/50 mb-2">交付信息</div>
-                    <div className="p-3 rounded-lg bg-white/5 border border-white/10 font-mono text-xs whitespace-pre-wrap">
-                      {selectedOrder.deliveryInfo}
-                    </div>
-                  </div>
-                )}
-              </div>
-              {selectedOrder.payStatus === 'PAID' && selectedOrder.product?.deliveryType === 'SMS' && (
-                <div className="mt-6 pt-5 border-t border-white/10">
-                  <div className="text-white/50 mb-2 text-sm">短信接码</div>
-                  <OrderSms orderId={selectedOrder.id} />
-                </div>
-              )}
-              {selectedOrder.payStatus === 'PAID' && selectedOrder.billing && (
-                <div className="mt-6 pt-5 border-t border-white/10">
-                  <div className="text-white/50 mb-3 text-sm">发票 / 收据</div>
-
-                  {/* 发票 */}
-                  <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <FileText className="w-4 h-4 text-white/40" />
-                      <span className="text-white/50">发票</span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs ${
-                          selectedOrder.billing.invoiceStatus === 'ISSUED'
-                            ? 'bg-green-500/15 text-green-300'
-                            : selectedOrder.billing.invoiceStatus === 'CANNOT'
-                              ? 'bg-gray-500/15 text-gray-400'
-                              : selectedOrder.billing.invoiceStatus === 'SUBMITTED'
-                                ? 'bg-cyan-500/15 text-cyan-300'
-                                : 'bg-amber-500/15 text-amber-300'
-                        }`}
-                      >
-                        {INVOICE_LABELS[selectedOrder.billing.invoiceStatus] || selectedOrder.billing.invoiceStatus}
-                      </span>
-                    </div>
-                    {selectedOrder.billing.invoiceStatus === 'UNAPPLIED' && selectedOrder.billing.canInvoice && (
-                      <button
-                        onClick={() => setInvoiceOrder(selectedOrder)}
-                        className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all"
-                      >
-                        申请发票
-                      </button>
-                    )}
-                    {selectedOrder.billing.invoiceStatus === 'AWAIT_PAY' && selectedOrder.billing.invoiceId && (
-                      <PayTaxButton invoiceId={selectedOrder.billing.invoiceId} />
-                    )}
-                  </div>
-
-                  {/* 收据 */}
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div className="flex items-center gap-2 text-sm">
-                      <FileText className="w-4 h-4 text-white/40" />
-                      <span className="text-white/50">收据</span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs ${
-                          selectedOrder.billing.receiptToken
-                            ? 'bg-green-500/15 text-green-300'
-                            : selectedOrder.billing.canReceipt
-                              ? 'bg-white/10 text-white/60'
-                              : 'bg-gray-500/15 text-gray-400'
-                        }`}
-                      >
-                        {selectedOrder.billing.receiptToken ? '已开具' : selectedOrder.billing.canReceipt ? '可开具' : '不可开具'}
-                      </span>
-                    </div>
-                    {selectedOrder.billing.receiptToken ? (
-                      <a
-                        href={`/receipt/${selectedOrder.billing.receiptToken}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-4 py-1.5 rounded-lg glass text-sm font-medium hover:bg-white/10 transition-colors"
-                      >
-                        查看收据
-                      </a>
-                    ) : selectedOrder.billing.canReceipt ? (
-                      <button
-                        onClick={() => setReceiptOrder(selectedOrder)}
-                        className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(34,211,238,0.3)] transition-all"
-                      >
-                        申请收据
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              )}
-
-              {selectedOrder.payStatus === 'PAID' && (
-                <div className="mt-6 pt-5 border-t border-white/10">
-                  <div className="text-white/50 mb-2 text-sm">和客服沟通（本订单）</div>
-                  <OrderChat apiBase={`/api/orders/${selectedOrder.id}/messages`} selfRole="BUYER" theme="dark" />
-                </div>
-              )}
-
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="w-full mt-6 py-3 rounded-xl glass hover:bg-white/10 text-sm font-medium transition-colors"
-              >
-                关闭
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   )
 }
@@ -790,6 +615,285 @@ function BillingChip({ color, label }: { color: 'green' | 'amber' | 'cyan' | 'pu
       <FileText className="w-3 h-3" />
       {label}
     </div>
+  )
+}
+
+// 订单卡片上的操作按钮（发货详情 / 发票收据 / 在线沟通）
+function ActionButton({
+  icon: Icon,
+  label,
+  onClick,
+  badge,
+}: {
+  icon: LucideIcon
+  label: string
+  onClick: () => void
+  badge?: number
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="relative inline-flex items-center gap-1.5 px-4 py-2 rounded-lg glass hover:bg-white/10 text-sm font-medium transition-colors"
+    >
+      <Icon className="w-4 h-4" />
+      {label}
+      {!!badge && badge > 0 && (
+        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+        </span>
+      )}
+    </button>
+  )
+}
+
+// 通用弹窗外壳（标题栏 + 关闭按钮 + 可滚动内容区）
+function PanelModal({
+  title,
+  icon,
+  onClose,
+  children,
+  maxW = 'max-w-md',
+}: {
+  title: string
+  icon: ReactNode
+  onClose: () => void
+  children: ReactNode
+  maxW?: string
+}) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className={`relative w-full ${maxW} glass-strong rounded-3xl p-6 max-h-[90vh] overflow-y-auto`}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-xl font-bold flex items-center gap-2">
+            {icon}
+            {title}
+          </h3>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        {children}
+      </motion.div>
+    </div>
+  )
+}
+
+function InfoRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-white/50 flex-shrink-0">{label}</span>
+      <span className="text-right break-all">{value}</span>
+    </div>
+  )
+}
+
+// 发货详情：订单信息 + 卡密 + 交付信息 + 短信接码
+function DeliveryPanel({ order, onClose }: { order: Order; onClose: () => void }) {
+  const hasCards = !!order.cards && order.cards.length > 0
+  const showHint = !hasCards && !order.deliveryInfo && order.product?.deliveryType !== 'SMS'
+  return (
+    <PanelModal title="发货详情" icon={<Package className="w-5 h-5 text-emerald-400" />} onClose={onClose}>
+      <div className="space-y-4 text-sm">
+        <InfoRow label="订单号" value={<span className="font-mono">{order.orderNo}</span>} />
+        <InfoRow label="商品" value={<span className="font-medium">{order.productName}</span>} />
+        <InfoRow label="金额" value={<span className="font-bold text-lg">¥{Number(order.amount).toFixed(2)}</span>} />
+        <InfoRow label="下单时间" value={formatDate(order.createdAt)} />
+        {order.paidAt && <InfoRow label="支付时间" value={formatDate(order.paidAt)} />}
+        {order.deliveredAt && <InfoRow label="交付时间" value={formatDate(order.deliveredAt)} />}
+
+        {hasCards && (
+          <div>
+            <div className="text-white/50 mb-2 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-400" /> 卡密（请妥善保管）
+            </div>
+            <div className="space-y-2">
+              {order.cards!.map((card, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <div className="flex-1 p-3 rounded-lg bg-white/5 border border-green-500/30 font-mono text-xs break-all">
+                    {card}
+                  </div>
+                  <button
+                    onClick={() => navigator.clipboard.writeText(card)}
+                    className="px-3 py-2 rounded-lg glass hover:bg-white/10 text-xs whitespace-nowrap"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {order.product?.cardRedeemUrl && /^https?:\/\//i.test(order.product.cardRedeemUrl) && (
+              <a
+                href={order.product.cardRedeemUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-3 group flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 font-semibold hover:shadow-[0_0_24px_rgba(16,185,129,0.4)] transition-all"
+              >
+                去充值 / 兑换
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </a>
+            )}
+            <p className="text-[11px] text-white/40 mt-2">卡密仅本人可见，请按说明使用；如有问题联系客服。</p>
+            {order.product?.cardUsage && (
+              <div className="mt-3">
+                <div className="text-white/50 mb-1.5 text-sm">使用说明</div>
+                <div className="p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 whitespace-pre-wrap leading-relaxed">
+                  {order.product.cardUsage}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {order.deliveryInfo && (
+          <div>
+            <div className="text-white/50 mb-2">交付信息</div>
+            <div className="p-3 rounded-lg bg-white/5 border border-white/10 font-mono text-xs whitespace-pre-wrap">
+              {order.deliveryInfo}
+            </div>
+          </div>
+        )}
+
+        {order.payStatus === 'PAID' && order.product?.deliveryType === 'SMS' && (
+          <div className="pt-1">
+            <div className="text-white/50 mb-2">短信接码</div>
+            <OrderSms orderId={order.id} />
+          </div>
+        )}
+
+        {showHint && (
+          <div className="text-xs text-white/40 pt-1">
+            {order.payStatus !== 'PAID'
+              ? '订单支付后将在此显示发货信息'
+              : order.deliveryStatus === 'DELIVERED'
+                ? '本订单已交付，如未收到请联系客服'
+                : '商家正在为你开通服务，请稍候或联系客服'}
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={onClose}
+        className="w-full mt-6 py-3 rounded-xl glass hover:bg-white/10 text-sm font-medium transition-colors"
+      >
+        关闭
+      </button>
+    </PanelModal>
+  )
+}
+
+// 发票 / 收据：状态与申请入口
+function BillingPanel({
+  order,
+  onClose,
+  onApplyInvoice,
+  onApplyReceipt,
+}: {
+  order: Order
+  onClose: () => void
+  onApplyInvoice: () => void
+  onApplyReceipt: () => void
+}) {
+  const b = order.billing!
+  return (
+    <PanelModal title="发票 / 收据" icon={<FileText className="w-5 h-5 text-purple-400" />} onClose={onClose}>
+      <div className="glass rounded-2xl p-4 mb-4 text-sm space-y-2">
+        <div className="flex justify-between"><span className="text-white/40">商品</span><span className="text-white/80 font-medium text-right">{order.productName}</span></div>
+        <div className="flex justify-between"><span className="text-white/40">订单号</span><span className="text-white/70 font-mono text-xs break-all text-right">{order.orderNo}</span></div>
+        <div className="flex justify-between"><span className="text-white/40">售价</span><span className="text-white/90 font-semibold">¥{b.sellingPrice.toFixed(2)}</span></div>
+      </div>
+
+      {/* 发票 */}
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+        <div className="flex items-center gap-2 text-sm">
+          <FileText className="w-4 h-4 text-white/40" />
+          <span className="text-white/50">发票</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs ${
+              b.invoiceStatus === 'ISSUED'
+                ? 'bg-green-500/15 text-green-300'
+                : b.invoiceStatus === 'CANNOT'
+                  ? 'bg-gray-500/15 text-gray-400'
+                  : b.invoiceStatus === 'SUBMITTED'
+                    ? 'bg-cyan-500/15 text-cyan-300'
+                    : 'bg-amber-500/15 text-amber-300'
+            }`}
+          >
+            {INVOICE_LABELS[b.invoiceStatus] || b.invoiceStatus}
+          </span>
+        </div>
+        {b.invoiceStatus === 'UNAPPLIED' && b.canInvoice && (
+          <button
+            onClick={onApplyInvoice}
+            className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all"
+          >
+            申请发票
+          </button>
+        )}
+        {b.invoiceStatus === 'AWAIT_PAY' && b.invoiceId && <PayTaxButton invoiceId={b.invoiceId} />}
+      </div>
+
+      {/* 收据 */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 text-sm">
+          <FileText className="w-4 h-4 text-white/40" />
+          <span className="text-white/50">收据</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-xs ${
+              b.receiptToken
+                ? 'bg-green-500/15 text-green-300'
+                : b.canReceipt
+                  ? 'bg-white/10 text-white/60'
+                  : 'bg-gray-500/15 text-gray-400'
+            }`}
+          >
+            {b.receiptToken ? '已开具' : b.canReceipt ? '可开具' : '不可开具'}
+          </span>
+        </div>
+        {b.receiptToken ? (
+          <a
+            href={`/receipt/${b.receiptToken}`}
+            target="_blank"
+            rel="noreferrer"
+            className="px-4 py-1.5 rounded-lg glass text-sm font-medium hover:bg-white/10 transition-colors"
+          >
+            查看收据
+          </a>
+        ) : b.canReceipt ? (
+          <button
+            onClick={onApplyReceipt}
+            className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(34,211,238,0.3)] transition-all"
+          >
+            申请收据
+          </button>
+        ) : null}
+      </div>
+
+      <p className="text-[11px] text-white/30 mt-4 leading-relaxed">
+        发票需在线支付 6% 税费后由商家开具并发送至邮箱；收据可即时生成、仅可开具一次。如有疑问请联系客服。
+      </p>
+    </PanelModal>
+  )
+}
+
+// 在线沟通：本订单专属客服会话
+function ChatPanel({ order, onClose }: { order: Order; onClose: () => void }) {
+  return (
+    <PanelModal title="与客服在线沟通" icon={<MessageSquare className="w-5 h-5 text-cyan-400" />} onClose={onClose} maxW="max-w-lg">
+      <p className="text-xs text-white/40 mb-3">
+        {order.productName} · 订单号 <span className="font-mono">{order.orderNo}</span>
+      </p>
+      <OrderChat apiBase={`/api/orders/${order.id}/messages`} selfRole="BUYER" theme="dark" />
+    </PanelModal>
   )
 }
 
@@ -1021,7 +1125,7 @@ function ReceiptModal({
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md glass-strong rounded-3xl p-6"
+        className="relative w-full max-w-md glass-strong rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold flex items-center gap-2">
