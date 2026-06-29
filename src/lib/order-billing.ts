@@ -104,12 +104,15 @@ export async function submitReceiptForExternalOrder(externalOrderId: number, pay
   const existing = await prisma.receipt.findFirst({ where: { externalOrderId: order.id } })
   if (existing) throw new BillingError('该订单已开具收据，如需重开请联系客服', 409)
 
-  // 计费基准 = 报价(quote)；若发票已开具，则按发票金额（含税）出具收据
+  // 计费基准 = 报价(quote, 即售价)。
+  // 若买家已支付发票税费（invoice.payStatus=PAID，对应状态 SUBMITTED/ISSUED），
+  // 则其实付总额 = 售价 + 6%税费 = 含税开票金额，收据应按含税金额出具；
+  // 仅申请未付税费(AWAIT_PAY)时仍按售价。
   const quote = order.quote == null ? null : Number(order.quote)
   if (quote == null) throw new BillingError('该订单暂不可开具收据')
 
   const invoice = await prisma.invoice.findUnique({ where: { externalOrderId: order.id } })
-  const amount = invoice && invoice.status === 'ISSUED' ? Number(invoice.invoiceAmount) : quote
+  const amount = invoice && invoice.payStatus === 'PAID' ? Number(invoice.invoiceAmount) : quote
 
   const receipt = await prisma.receipt.create({
     data: {

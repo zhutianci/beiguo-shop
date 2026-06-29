@@ -51,6 +51,7 @@ interface Billing {
   sellingPrice: number
   invoiceAmount: number
   taxFee: number
+  receiptAmount: number // 收据应开金额：已付发票税费=含税开票金额，否则=售价
   invoiceStatus: string // UNAPPLIED | AWAIT_PAY | SUBMITTED | ISSUED | CANNOT
   invoiceId: number | null
   receiptToken: string | null
@@ -1140,7 +1141,13 @@ function ReceiptModal({
           <div className="flex justify-between"><span className="text-white/40">收款人</span><span className="text-white/80 text-right">益阳市赫山区必高科技有限公司</span></div>
           <div className="flex justify-between"><span className="text-white/40">商品</span><span className="text-white/80">{order.productName}</span></div>
           <div className="flex justify-between"><span className="text-white/40">订单号</span><span className="text-white/70 font-mono text-xs break-all">{order.orderNo}</span></div>
-          <div className="flex justify-between"><span className="text-white/40">付款金额</span><span className="text-white/90 font-bold">¥{b.sellingPrice.toFixed(2)}</span></div>
+          {b.receiptAmount > b.sellingPrice && (
+            <>
+              <div className="flex justify-between"><span className="text-white/40">商品售价</span><span className="text-white/70">¥{b.sellingPrice.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">已付发票税费（6%）</span><span className="text-white/70">¥{(b.receiptAmount - b.sellingPrice).toFixed(2)}</span></div>
+            </>
+          )}
+          <div className="flex justify-between"><span className="text-white/40">付款金额</span><span className="text-white/90 font-bold">¥{b.receiptAmount.toFixed(2)}</span></div>
         </div>
 
         <div>

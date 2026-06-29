@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       orderIds.length
         ? prisma.invoice.findMany({
             where: { externalOrderId: { in: orderIds } },
-            select: { id: true, externalOrderId: true, status: true },
+            select: { id: true, externalOrderId: true, status: true, payStatus: true },
           })
         : Promise.resolve([]),
       orderIds.length
@@ -75,12 +75,17 @@ export async function GET(request: NextRequest) {
 
       const receipt = receiptMap.get(o.id)
       const { quote: _quote, ...rest } = o
+      // 收据金额：买家已付发票税费(payStatus=PAID) → 含税开票金额；否则售价。
+      // 须与 submitReceiptForExternalOrder 中的服务端计费口径保持一致。
+      const receiptAmount =
+        existing?.payStatus === 'PAID' && invoiceAmount != null ? invoiceAmount : sellingPrice
       return {
         ...rest,
         canInvoice: price != null && invoiceStatus !== 'CANNOT',
         sellingPrice,
         invoiceAmount,
         taxFee,
+        receiptAmount,
         invoiceStatus,
         invoiceId: existing?.id ?? null,
         canReceipt: price != null,

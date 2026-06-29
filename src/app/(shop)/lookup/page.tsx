@@ -18,6 +18,7 @@ interface ExternalOrder {
   sellingPrice: number | null
   invoiceAmount: number | null
   taxFee: number | null
+  receiptAmount: number | null // 收据应开金额：已付发票税费=含税开票金额，否则=售价
   invoiceStatus: string // UNAPPLIED | AWAIT_PAY | SUBMITTED | ISSUED | CANNOT
   invoiceId: number | null
   canReceipt: boolean
@@ -806,7 +807,13 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
           <div className="flex justify-between"><span className="text-white/40">订阅</span><span className="text-white/80">{order.subscriptionType}</span></div>
           <div className="flex justify-between"><span className="text-white/40">账户</span><span className="text-white/70 font-mono text-xs break-all">{order.claudeAccount}</span></div>
           <div className="flex justify-between"><span className="text-white/40">开通 / 到期</span><span className="text-white/70">{formatDate(order.startDate)} ~ {formatDate(order.expireDate)}</span></div>
-          <div className="flex justify-between"><span className="text-white/40">付款金额</span><span className="text-white/90 font-bold">¥{order.sellingPrice?.toFixed(2)}</span></div>
+          {order.receiptAmount != null && order.sellingPrice != null && order.receiptAmount > order.sellingPrice && (
+            <>
+              <div className="flex justify-between"><span className="text-white/40">售价</span><span className="text-white/70">¥{order.sellingPrice.toFixed(2)}</span></div>
+              <div className="flex justify-between"><span className="text-white/40">已付发票税费（6%）</span><span className="text-white/70">¥{(order.receiptAmount - order.sellingPrice).toFixed(2)}</span></div>
+            </>
+          )}
+          <div className="flex justify-between"><span className="text-white/40">付款金额</span><span className="text-white/90 font-bold">¥{(order.receiptAmount ?? order.sellingPrice)?.toFixed(2)}</span></div>
         </div>
 
         <div>

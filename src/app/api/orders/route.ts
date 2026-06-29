@@ -78,7 +78,7 @@ export async function GET() {
 
     // 发票/收据状态：买家订单通过背书外部订单(sourceKey=`order:<id>`)挂接，
     // 已申请过的订单查出其发票状态与收据令牌，用于订单页显示对应按钮
-    const invByOrderId = new Map<number, { id: number; status: string }>()
+    const invByOrderId = new Map<number, { id: number; status: string; payStatus: string }>()
     const receiptByOrderId = new Map<number, string>()
     if (paidIds.length) {
       const exts = await prisma.externalOrder.findMany({
@@ -95,7 +95,7 @@ export async function GET() {
         const [invs, recs] = await Promise.all([
           prisma.invoice.findMany({
             where: { externalOrderId: { in: extIds } },
-            select: { id: true, externalOrderId: true, status: true },
+            select: { id: true, externalOrderId: true, status: true, payStatus: true },
           }),
           prisma.receipt.findMany({
             where: { externalOrderId: { in: extIds } },
@@ -104,7 +104,7 @@ export async function GET() {
         ])
         for (const iv of invs) {
           const oid = iv.externalOrderId != null ? extIdToOrderId.get(iv.externalOrderId) : undefined
-          if (oid) invByOrderId.set(oid, { id: iv.id, status: iv.status })
+          if (oid) invByOrderId.set(oid, { id: iv.id, status: iv.status, payStatus: iv.payStatus })
         }
         for (const r of recs) {
           const oid = r.externalOrderId != null ? extIdToOrderId.get(r.externalOrderId) : undefined
@@ -118,6 +118,9 @@ export async function GET() {
       const price = Number(o.amount)
       const inv = invByOrderId.get(o.id)
       const amt = paid ? calcInvoiceAmounts(price) : null
+      // 收据金额：买家已付发票税费(payStatus=PAID) → 含税开票金额；否则售价。
+      // 须与 submitReceiptForExternalOrder 中的服务端计费口径保持一致。
+      const invoicePaid = inv?.payStatus === 'PAID'
       return {
         ...o,
         cards: cardMap.get(o.id) || [],
@@ -130,6 +133,7 @@ export async function GET() {
               sellingPrice: price,
               invoiceAmount: amt!.invoiceAmount,
               taxFee: amt!.taxFee,
+              receiptAmount: invoicePaid ? amt!.invoiceAmount : price,
               invoiceStatus: inv ? inv.status : 'UNAPPLIED',
               invoiceId: inv?.id ?? null,
               receiptToken: receiptByOrderId.get(o.id) ?? null,
