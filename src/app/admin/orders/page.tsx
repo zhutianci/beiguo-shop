@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -41,7 +41,12 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [onlyUnreplied, setOnlyUnreplied] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [deliveryInfo, setDeliveryInfo] = useState('')
@@ -59,30 +64,45 @@ export default function OrdersPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   }
 
+  const abortRef = useRef<AbortController | null>(null)
+
   const loadData = async () => {
+    // 取消上一次仍在进行的请求，避免旧响应后到、覆盖新结果（检索竞态）
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     try {
-      const url = filterStatus
-        ? `/api/admin/orders?status=${filterStatus}`
-        : '/api/admin/orders'
-      const res = await fetch(url)
+      const params = new URLSearchParams()
+      if (filterStatus) params.set('status', filterStatus)
+      if (debouncedSearch) params.set('keyword', debouncedSearch)
+      if (onlyUnreplied) params.set('unreplied', '1')
+      params.set('page', String(page))
+      const res = await fetch(`/api/admin/orders?${params.toString()}`, { signal: controller.signal })
       const data = await res.json()
-      if (data.success) setOrders(data.data.list)
+      // 仅当本次仍是最新请求时才应用结果
+      if (data.success && abortRef.current === controller) {
+        setOrders(data.data.list)
+        setTotalPages(data.data.totalPages || 1)
+        setTotal(data.data.total || 0)
+      }
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return // 已被更新的请求取代
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) setLoading(false)
     }
   }
 
+  // 输入防抖：停止输入 350ms 后才真正发起服务端检索
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchTerm])
+
   useEffect(() => {
     loadData()
-  }, [filterStatus])
-
-  const filteredOrders = orders.filter(
-    (o) =>
-      o.orderNo.includes(searchTerm) ||
-      (o.user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.productName.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, filterStatus, onlyUnreplied, page])
 
   const handleViewDetail = (order: Order) => {
     setSelectedOrder(order)
@@ -156,15 +176,21 @@ export default function OrdersPage() {
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
-                placeholder="搜索订单号/用户/商品..."
+                placeholder="搜索订单号 / 邮箱 / 用户名 / 商品..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setPage(1)
+                }}
                 className="pl-10"
               />
             </div>
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => {
+                setFilterStatus(e.target.value)
+                setPage(1)
+              }}
               className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
             >
               <option value="">全部状态</option>
@@ -173,12 +199,30 @@ export default function OrdersPage() {
               <option value="DELIVERED">已完成</option>
               <option value="CANCELLED">已取消</option>
             </select>
+            <button
+              type="button"
+              onClick={() => {
+                setOnlyUnreplied((v) => !v)
+                setPage(1)
+              }}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
+                onlyUnreplied
+                  ? 'border-red-500 bg-red-50 text-red-600'
+                  : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+              title="仅显示有买家留言且商家未读/未回复的订单"
+            >
+              <MessageSquare className="h-4 w-4" />
+              只看未回复
+            </button>
           </div>
 
           {loading ? (
             <div className="text-center py-12 text-gray-400">加载中...</div>
-          ) : filteredOrders.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">暂无订单</div>
+          ) : orders.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              {debouncedSearch || filterStatus || onlyUnreplied ? '没有符合条件的订单' : '暂无订单'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -195,7 +239,7 @@ export default function OrdersPage() {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {filteredOrders.map((order) => (
+                  {orders.map((order) => (
                     <tr key={order.id} className="border-b border-gray-50">
                       <td className="py-4 font-medium text-gray-900">
                         <div className="flex items-center gap-2">
@@ -248,6 +292,30 @@ export default function OrdersPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {!loading && orders.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm text-gray-500">
+              <div>
+                共 {total} 条 · 第 {page} / {totalPages} 页
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                  disabled={page <= 1}
+                >
+                  上一页
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                  disabled={page >= totalPages}
+                >
+                  下一页
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

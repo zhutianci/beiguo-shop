@@ -1,21 +1,37 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
+import { Prisma, DeliveryStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { decryptCardContent } from '@/lib/cardkey'
 
-// 获取所有订单
+// 获取所有订单（服务端检索 + 筛选 + 分页）
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '20')
+    const keyword = (searchParams.get('keyword') || '').trim()
+    const unreplied = ['1', 'true'].includes((searchParams.get('unreplied') || '').toLowerCase())
+    const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20') || 20, 1), 100)
 
-    const where: { deliveryStatus?: 'PENDING' | 'PROCESSING' | 'DELIVERED' | 'CANCELLED' } = {}
+    const where: Prisma.OrderWhereInput = {}
     if (status && ['PENDING', 'PROCESSING', 'DELIVERED', 'CANCELLED'].includes(status)) {
-      where.deliveryStatus = status as 'PENDING' | 'PROCESSING' | 'DELIVERED' | 'CANCELLED'
+      where.deliveryStatus = status as DeliveryStatus
+    }
+    // 关键词跨全表检索：订单号 / 商品名 / 用户邮箱 / 用户昵称（MySQL 默认排序规则大小写不敏感）
+    if (keyword) {
+      where.OR = [
+        { orderNo: { contains: keyword } },
+        { productName: { contains: keyword } },
+        { user: { email: { contains: keyword } } },
+        { user: { nickname: { contains: keyword } } },
+      ]
+    }
+    // 只看「未回复」：存在买家发来且商家未读的留言
+    if (unreplied) {
+      where.messages = { some: { sender: 'BUYER', readByAdmin: false } }
     }
 
     const [orders, total] = await Promise.all([
@@ -86,7 +102,7 @@ export async function GET(request: NextRequest) {
       total,
       page,
       pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      totalPages: Math.max(Math.ceil(total / pageSize), 1),
     })
   } catch (err) {
     console.error('Get orders error:', err)
