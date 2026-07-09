@@ -91,6 +91,7 @@ model Product {
   referrerBasePrice Decimal? @map("referrer_base_price") @db.Decimal(10, 2) // 推广人默认基础价（进货价；null 则用网站售价）
   cardUsage     String?   @map("card_usage") @db.Text // 自动发货使用说明（含售后），展示给买家
   cardRedeemUrl String?   @map("card_redeem_url") @db.VarChar(500) // 充值/兑换链接，买家拿到卡密后可一键跳转
+  apiSku        String?   @unique @map("api_sku") @db.VarChar(64) // 对外发卡编码：外部站点按此调库存 API 领卡，共用同一批卡密（仅 AUTO 有意义）
   features      String?   @db.Text // JSON格式存储商品特性
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
@@ -109,7 +110,8 @@ model CardKey {
   content     String    @db.Text                         // AES-256-GCM 加密后的卡密（iv:tag:cipher，base64）
   contentHash String    @map("content_hash") @db.VarChar(64) // sha256(明文+盐)，用于同商品内去重，不可逆
   status      String    @default("UNUSED") @db.VarChar(20)   // UNUSED 未使用 | USED 已发出 | DISABLED 已停用
-  orderId     Int?      @map("order_id")                 // 被哪个订单消费
+  orderId     Int?      @map("order_id")                 // 被本站哪个订单消费（外部站点发卡为空，改看 externalRef）
+  externalRef String?   @map("external_ref") @db.VarChar(120) // 外部站点发卡归属：<client>:<orderNo>；本地订单为空
   usedAt      DateTime? @map("used_at")
   batch       String?   @db.VarChar(40)
   remark      String?   @db.VarChar(255)
@@ -120,7 +122,27 @@ model CardKey {
   @@unique([productId, contentHash])
   @@index([productId, status])
   @@index([orderId])
+  @@index([externalRef])
   @@map("card_keys")
+}
+
+// 外部站点发卡记录（共用库存）：唯一(client, externalNo) 做幂等闸，防同一外部订单重复领卡
+model ExternalDispense {
+  id         Int      @id @default(autoincrement())
+  client     String   @db.VarChar(40)                      // 调用方标识（哪个站，如 "site2"）
+  externalNo String   @map("external_no") @db.VarChar(64)  // 外部站订单号（幂等键）
+  productId  Int      @map("product_id")
+  apiSku     String?  @map("api_sku") @db.VarChar(64)
+  quantity   Int                                           // 首次请求确定的应发数量（后续须一致）
+  delivered  Int      @default(0)                          // 已成功发出的卡密数
+  cardIds    String   @default("") @map("card_ids") @db.VarChar(1000) // 发出的 CardKey id，逗号分隔（审计用）
+  status     String   @default("PENDING") @db.VarChar(20)  // PENDING 待处理 | PROCESSING 发卡中(锁) | FULFILLED 已足额 | PARTIAL 库存不足/待补
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@unique([client, externalNo])
+  @@index([productId])
+  @@map("external_dispenses")
 }
 
 // 订单表

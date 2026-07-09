@@ -23,6 +23,7 @@ interface Product {
   smsCountry?: string | null
   smsMaxPrice?: string | number | null
   referrerBasePrice?: string | number | null
+  apiSku?: string | null
   features: string | null
   category: { id: number; name: string }
 }
@@ -46,6 +47,7 @@ const emptyForm = {
   smsCountry: '',
   smsMaxPrice: '' as string | number,
   referrerBasePrice: '' as string | number,
+  apiSku: '',
   features: '',
 }
 
@@ -97,6 +99,7 @@ export default function ProductsPage() {
       smsCountry: product.smsCountry || '',
       smsMaxPrice: product.smsMaxPrice != null ? Number(product.smsMaxPrice) : '',
       referrerBasePrice: product.referrerBasePrice != null ? Number(product.referrerBasePrice) : '',
+      apiSku: product.apiSku || '',
       features: product.features || '',
     })
     setShowModal(true)
@@ -414,6 +417,22 @@ export default function ProductsPage() {
                   </p>
                 )}
               </div>
+
+              {formData.deliveryType === 'AUTO' && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">对外发卡 SKU（选填）</label>
+                  <input
+                    type="text"
+                    value={formData.apiSku}
+                    onChange={(e) => setFormData({ ...formData, apiSku: e.target.value })}
+                    placeholder="外部站点按此编码调库存 API 领卡，如 claude-pro-1m"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    留空则该商品不对外共享库存。多个站点用同一 SKU 即共用这批卡密，付款先到先得，绝不重复发卡。仅允许字母、数字和 _ . - :
+                  </p>
+                </div>
+              )}
 
               {formData.deliveryType === 'SMS' && (
                 <div className="grid grid-cols-2 gap-4">

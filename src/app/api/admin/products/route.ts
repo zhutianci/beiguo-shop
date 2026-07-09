@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
@@ -26,6 +27,13 @@ const productSchema = z.object({
     .string()
     .trim()
     .refine((v) => v === '' || /^https?:\/\//i.test(v), '充值链接需以 http:// 或 https:// 开头')
+    .optional()
+    .nullable(),
+  apiSku: z
+    .string()
+    .trim()
+    .max(64)
+    .regex(/^[A-Za-z0-9_.:-]*$/, '对外发卡 SKU 仅允许字母、数字和 _ . - :')
     .optional()
     .nullable(),
   features: z.string().optional().nullable(),
@@ -66,13 +74,18 @@ export async function POST(request: NextRequest) {
       return error(result.error.errors[0].message)
     }
 
-    const product = await prisma.product.create({
-      data: result.data,
-    })
+    // 空 SKU 归一为 null（唯一约束下多个 '' 会冲突，多个 null 不会）
+    const { apiSku, ...rest } = result.data
+    const data = { ...rest, apiSku: apiSku ? apiSku : null }
+
+    const product = await prisma.product.create({ data })
     if (product.deliveryType === 'AUTO') await syncAutoStock(product.id)
 
     return success(product, '商品创建成功')
   } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+      return error('对外发卡 SKU 已被占用，请换一个')
+    }
     console.error('Create product error:', err)
     return error('创建商品失败')
   }
