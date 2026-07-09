@@ -19,12 +19,14 @@ import {
   QrCode,
   KeyRound,
   Gift,
+  Share2,
 } from 'lucide-react'
 
 const sidebarItems = [
   { href: '/admin', label: '仪表盘', icon: LayoutDashboard },
   { href: '/admin/products', label: '商品管理', icon: Package },
   { href: '/admin/cardkeys', label: '卡密管理', icon: KeyRound },
+  { href: '/admin/dispenses', label: '外部发卡', icon: Share2 },
   { href: '/admin/categories', label: '分类管理', icon: FolderTree },
   { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
   { href: '/admin/referrals', label: '内推管理', icon: Gift },
