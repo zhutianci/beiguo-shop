@@ -13,9 +13,14 @@ export function cardKeyConfigured(): boolean {
   return SECRET.length >= 8
 }
 
+// scryptSync 是刻意设计成慢的（本机实测约 22ms/次）。密钥只由 SECRET+SALT 决定、进程内恒定，
+// 每次加解密都重算会让「列表 200 行逐条解密」变成数秒的同步阻塞，期间 Node 单线程整站无响应。
+let cachedKey: Buffer | null = null
+
 function getKey(): Buffer {
   if (!cardKeyConfigured()) throw new Error('CARDKEY_SECRET 未配置（至少 8 位）')
-  return crypto.scryptSync(SECRET, SALT, 32)
+  if (!cachedKey) cachedKey = crypto.scryptSync(SECRET, SALT, 32)
+  return cachedKey
 }
 
 export function encryptCardContent(plain: string): string {

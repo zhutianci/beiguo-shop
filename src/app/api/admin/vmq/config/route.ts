@@ -1,16 +1,15 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
-import QRCode from 'qrcode'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { VMQ_KEY, VMQ_TIMEOUT_MIN, VMQ_REQUIRE_MONITOR, recentVmqOrders, getDiag } from '@/lib/vmq'
+import { VMQ_KEY, VMQ_TIMEOUT_MIN, recentVmqOrders, getDiag } from '@/lib/vmq'
 
-// 监控端扫码配置：VmqApk 扫描的二维码内容为 "host/key"
-// （App 内部 scanResult.split("/") => tmp[0]=host(纯域名,无 http://), tmp[1]=key）
+// 收款监控配置：到账通知统一走 SmsForwarder → POST /api/pay/sms-notify。
+// VmqApk（/appHeart + /appPush + 扫码配置二维码）已移除。
 export async function GET(request: NextRequest) {
   try {
-    // 域名：优先用 APP_URL，去掉协议与路径，只留 host[:port]
+    // 域名：优先用 APP_URL，去掉协议与路径，只留 host[:port]；供 webhookUrl 兜底
     let host = ''
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
     try {
@@ -19,13 +18,6 @@ export async function GET(request: NextRequest) {
       /* ignore */
     }
     if (!host) host = request.headers.get('host') || ''
-
-    const configured = !!VMQ_KEY
-    const configString = configured ? `${host}/${VMQ_KEY}` : ''
-    let qrSvg = ''
-    if (configString) {
-      qrSvg = await QRCode.toString(configString, { type: 'svg', margin: 1, width: 240 })
-    }
 
     // SmsForwarder（通知转发）Webhook 配置
     const origin = appUrl || (host ? `https://${host}` : '')
@@ -38,15 +30,17 @@ export async function GET(request: NextRequest) {
       2
     )
 
-    // 监控端状态 + 收款统计
+    // 最近一次收到转发的时间 + 收款统计
     const [lastHeartS, pendingCount, paidCount, lastPaid] = await Promise.all([
       prisma.setting.findUnique({ where: { key: 'vmq_lastheart' } }),
       prisma.vmqOrder.count({ where: { state: 0 } }),
       prisma.vmqOrder.count({ where: { state: 1 } }),
       prisma.vmqOrder.findFirst({ where: { state: 1 }, orderBy: { payDate: 'desc' }, select: { payDate: true } }),
     ])
-    const lastHeart = lastHeartS ? Number(lastHeartS.value) : 0
-    const alive = lastHeart > 0 && Date.now() - lastHeart < 60_000
+    const lastNotify = lastHeartS ? Number(lastHeartS.value) : 0
+    // SmsForwarder 没有心跳，只有真实到账才会刷新时间戳，所以这里用 24 小时窗口表示「近期有转发进来」，
+    // 且它只是展示信息，不再作为下单门禁。
+    const recentlyActive = lastNotify > 0 && Date.now() - lastNotify < 24 * 3600_000
 
     const [recent, diag] = await Promise.all([recentVmqOrders(15), getDiag()])
 
@@ -56,16 +50,12 @@ export async function GET(request: NextRequest) {
       webhookUrl,
       webhookToken,
       webhookBody,
-      configured,
+      configured: !!VMQ_KEY,
       host,
-      key: VMQ_KEY,
-      configString,
-      qrSvg,
       timeoutMin: VMQ_TIMEOUT_MIN,
-      requireMonitor: VMQ_REQUIRE_MONITOR,
       monitor: {
-        alive,
-        lastHeartAt: lastHeart ? new Date(lastHeart).toISOString() : null,
+        recentlyActive,
+        lastNotifyAt: lastNotify ? new Date(lastNotify).toISOString() : null,
         lastPaidAt: lastPaid?.payDate ?? null,
         pendingCount,
         paidCount,

@@ -39,25 +39,49 @@ const productSchema = z.object({
   features: z.string().optional().nullable(),
 })
 
-// 获取所有商品
-export async function GET() {
+// 获取商品列表
+// 向后兼容：默认仍返回裸数组（卡密管理页、卡密分析组件依赖这个形状）；
+// 传 paged=1 时才返回分页结构 { list, total, page, pageSize, totalPages }。
+export async function GET(request: NextRequest) {
   try {
-    const products = await prisma.product.findMany({
-      include: {
-        category: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: [
-        { sortOrder: 'asc' },
-        { createdAt: 'desc' },
-      ],
-    })
+    const { searchParams } = new URL(request.url)
+    const paged = searchParams.get('paged') === '1'
+    const keyword = searchParams.get('keyword')?.trim()
+    const categoryId = parseInt(searchParams.get('categoryId') || '0')
+    const status = searchParams.get('status')
 
-    return success(products)
+    const where: Prisma.ProductWhereInput = {}
+    if (keyword) where.name = { contains: keyword }
+    if (categoryId) where.categoryId = categoryId
+    if (status === '0' || status === '1') where.status = parseInt(status)
+
+    const include = { category: { select: { id: true, name: true } } }
+    const orderBy: Prisma.ProductOrderByWithRelationInput[] = [
+      { sortOrder: 'asc' },
+      { createdAt: 'desc' },
+    ]
+
+    if (!paged) {
+      // 旧调用方：无参数调用，行为不变（仅加 take 上限兜底）
+      const products = await prisma.product.findMany({ where, include, orderBy, take: 1000 })
+      return success(products)
+    }
+
+    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20'), 1), 100)
+
+    const [list, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        include,
+        orderBy,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.product.count({ where }),
+    ])
+
+    return success({ list, total, page, pageSize, totalPages: Math.ceil(total / pageSize) })
   } catch (err) {
     console.error('Get products error:', err)
     return error('获取商品列表失败')

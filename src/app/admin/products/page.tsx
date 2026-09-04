@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -51,37 +51,67 @@ const emptyForm = {
   features: '',
 }
 
+const PAGE_SIZE = 20
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [formData, setFormData] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const loadData = async () => {
+  // 搜索防抖
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchTerm])
+
+  // 商品列表：服务端分页 + 服务端搜索/分类筛选
+  const loadData = useCallback(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
-        fetch('/api/admin/products').then((r) => r.json()),
-        fetch('/api/admin/categories').then((r) => r.json()),
-      ])
-      if (productsRes.success) setProducts(productsRes.data)
-      if (categoriesRes.success) setCategories(categoriesRes.data)
+      const q = new URLSearchParams({ paged: '1', page: String(page), pageSize: String(PAGE_SIZE) })
+      if (debouncedSearch) q.set('keyword', debouncedSearch)
+      if (categoryFilter) q.set('categoryId', categoryFilter)
+      const res = await fetch(`/api/admin/products?${q}`, { signal: controller.signal })
+      const data = await res.json()
+      if (data.success && abortRef.current === controller) {
+        setProducts(data.data.list)
+        setTotal(data.data.total || 0)
+        setTotalPages(data.data.totalPages || 1)
+      }
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) setLoading(false)
     }
-  }
+  }, [page, debouncedSearch, categoryFilter])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
 
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // 分类数量很少，一次性拉取即可（新建/编辑商品的下拉框依赖它）
+  useEffect(() => {
+    fetch('/api/admin/categories')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) setCategories(d.data)
+      })
+      .catch(() => {})
+  }, [])
 
   const handleEdit = (product: Product) => {
     setEditingId(product.id)
@@ -198,28 +228,46 @@ export default function ProductsPage() {
     <div className="space-y-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>商品列表</CardTitle>
+          <CardTitle>商品列表（共 {total} 条）</CardTitle>
           <Button onClick={handleAdd}>
             <Plus className="mr-2 h-4 w-4" />
             添加商品
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="mb-6 flex items-center gap-4">
+          <div className="mb-6 flex flex-wrap items-center gap-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
                 placeholder="搜索商品..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setPage(1)
+                }}
                 className="pl-10"
               />
             </div>
+            <select
+              value={categoryFilter}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value)
+                setPage(1)
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900"
+            >
+              <option value="">全部分类</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           {loading ? (
             <div className="text-center py-12 text-gray-400">加载中...</div>
-          ) : filteredProducts.length === 0 ? (
+          ) : products.length === 0 ? (
             <div className="text-center py-12 text-gray-400">暂无商品</div>
           ) : (
             <div className="overflow-x-auto">
@@ -238,7 +286,7 @@ export default function ProductsPage() {
                   </tr>
                 </thead>
                 <tbody className="text-sm">
-                  {filteredProducts.map((product) => (
+                  {products.map((product) => (
                     <tr key={product.id} className="border-b border-gray-50">
                       <td className="py-4 text-gray-500">{product.id}</td>
                       <td className="py-4 font-medium text-gray-900">{product.name}</td>
@@ -304,6 +352,23 @@ export default function ProductsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* 分页 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4">
+              <span className="text-sm text-gray-500">
+                共 {total} 条 · 第 {page} / {totalPages} 页
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(p - 1, 1))}>
+                  上一页
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(p + 1, totalPages))}>
+                  下一页
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

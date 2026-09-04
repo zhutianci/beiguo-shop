@@ -19,9 +19,25 @@ interface Order {
   quantity?: number
   createdAt: string
   user: { id: number; email: string | null; nickname: string | null }
-  product: { id: number; name: string }
+  product: { id: number; name: string; categoryId?: number; category?: { id: number; name: string } | null }
   cards?: string[] // 自动发货实际发出的卡密
   unreadCount?: number // 买家发来、商家未读的留言数
+  cardCost?: number | null // 卡密成本合计（无卡密订单为 null）
+  cardProfit?: number | null // 卡密利润合计（含未知利润的卡时为 null）
+  cardProfitUnknown?: boolean // 该单存在利润未知的卡（外部站发卡）
+}
+
+interface Category {
+  id: number
+  name: string
+}
+
+interface Totals {
+  orders: number
+  amount: number
+  cost: number | null
+  profit: number | null
+  truncated: boolean
 }
 
 const payStatusMap: Record<string, { label: string; className: string }> = {
@@ -44,6 +60,11 @@ export default function OrdersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [onlyUnreplied, setOnlyUnreplied] = useState(false)
+  const [fromDate, setFromDate] = useState('')
+  const [toDate, setToDate] = useState('')
+  const [categoryId, setCategoryId] = useState(0)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [totals, setTotals] = useState<Totals | null>(null)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
@@ -53,6 +74,7 @@ export default function OrdersPage() {
   const [deliveryStatus, setDeliveryStatus] = useState('')
   const [amount, setAmount] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [refilling, setRefilling] = useState(false)
   // 交付完成时同步导入「订单」所需信息
   const [extSubscriptionType, setExtSubscriptionType] = useState('')
   const [extStartDate, setExtStartDate] = useState('')
@@ -77,6 +99,9 @@ export default function OrdersPage() {
       if (filterStatus) params.set('status', filterStatus)
       if (debouncedSearch) params.set('keyword', debouncedSearch)
       if (onlyUnreplied) params.set('unreplied', '1')
+      if (fromDate) params.set('from', fromDate)
+      if (toDate) params.set('to', toDate)
+      if (categoryId) params.set('categoryId', String(categoryId))
       params.set('page', String(page))
       const res = await fetch(`/api/admin/orders?${params.toString()}`, { signal: controller.signal })
       const data = await res.json()
@@ -85,6 +110,7 @@ export default function OrdersPage() {
         setOrders(data.data.list)
         setTotalPages(data.data.totalPages || 1)
         setTotal(data.data.total || 0)
+        setTotals(data.data.totals || null)
       }
     } catch (e) {
       if ((e as { name?: string })?.name === 'AbortError') return // 已被更新的请求取代
@@ -102,7 +128,17 @@ export default function OrdersPage() {
   useEffect(() => {
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, filterStatus, onlyUnreplied, page])
+  }, [debouncedSearch, filterStatus, onlyUnreplied, fromDate, toDate, categoryId, page])
+
+  // 分类下拉数据
+  useEffect(() => {
+    fetch('/api/categories')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) setCategories(Array.isArray(d.data) ? d.data : d.data?.list || [])
+      })
+      .catch(() => {})
+  }, [])
 
   const handleViewDetail = (order: Order) => {
     setSelectedOrder(order)
@@ -115,6 +151,25 @@ export default function OrdersPage() {
     setExtXianyuNickname(order.user.nickname || order.user.email || '')
     setExtClaudeAccount('')
     setShowDetailModal(true)
+  }
+
+  // 补发卡密：只对已付款、尚未交付、卡密未发满的自动发货订单可用
+  const handleRefill = async () => {
+    if (!selectedOrder) return
+    setRefilling(true)
+    try {
+      const res = await fetch(`/api/admin/orders/${selectedOrder.id}/refill`, { method: 'PUT' })
+      const data = await res.json()
+      if (data.success) {
+        alert(data.message || '已补发')
+        setShowDetailModal(false)
+        loadData()
+      } else {
+        alert(data.error || '补发失败')
+      }
+    } finally {
+      setRefilling(false)
+    }
   }
 
   const handleUpdate = async () => {
@@ -215,7 +270,89 @@ export default function OrdersPage() {
               <MessageSquare className="h-4 w-4" />
               只看未回复
             </button>
+            <select
+              value={categoryId}
+              onChange={(e) => {
+                setCategoryId(Number(e.target.value))
+                setPage(1)
+              }}
+              className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+            >
+              <option value={0}>全部分类</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="whitespace-nowrap">下单时间</span>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => {
+                  setFromDate(e.target.value)
+                  setPage(1)
+                }}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+              <span>—</span>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => {
+                  setToDate(e.target.value)
+                  setPage(1)
+                }}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+              />
+              {(fromDate || toDate || categoryId) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFromDate('')
+                    setToDate('')
+                    setCategoryId(0)
+                    setPage(1)
+                  }}
+                  className="text-xs text-gray-400 hover:text-gray-600 underline"
+                >
+                  清除
+                </button>
+              )}
+            </div>
           </div>
+
+          {/* 当前筛选范围的汇总：流水来自订单金额，成本/利润来自卡密上落库的字段 */}
+          {totals && (
+            <div className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div className="text-xs text-gray-500">订单数</div>
+                <div className="text-xl font-bold text-gray-800">{totals.orders}</div>
+              </div>
+              <div className="rounded-xl border border-blue-100 bg-blue-50 p-3">
+                <div className="text-xs text-blue-700">流水合计</div>
+                <div className="text-xl font-bold text-blue-700">¥{totals.amount.toFixed(2)}</div>
+              </div>
+              <div className="rounded-xl border border-orange-100 bg-orange-50 p-3">
+                <div className="text-xs text-orange-700">成本合计</div>
+                <div className="text-xl font-bold text-orange-700">
+                  {totals.cost == null ? '—' : `¥${totals.cost.toFixed(2)}`}
+                </div>
+              </div>
+              <div className="rounded-xl border border-green-100 bg-green-50 p-3">
+                <div className="text-xs text-green-700">利润合计</div>
+                <div className="text-xl font-bold text-green-700">
+                  {totals.profit == null ? '—' : `¥${totals.profit.toFixed(2)}`}
+                </div>
+              </div>
+              {totals.truncated && (
+                <p className="col-span-2 sm:col-span-4 text-xs text-amber-600">
+                  结果集过大（超过 10000 单），未统计成本与利润，请缩小日期范围后查看。
+                </p>
+              )}
+            </div>
+          )}
 
           {loading ? (
             <div className="text-center py-12 text-gray-400">加载中...</div>
@@ -232,6 +369,8 @@ export default function OrdersPage() {
                     <th className="pb-3 font-medium">用户</th>
                     <th className="pb-3 font-medium">商品</th>
                     <th className="pb-3 font-medium">金额</th>
+                    <th className="pb-3 font-medium">成本</th>
+                    <th className="pb-3 font-medium">利润</th>
                     <th className="pb-3 font-medium">支付状态</th>
                     <th className="pb-3 font-medium">交付状态</th>
                     <th className="pb-3 font-medium">下单时间</th>
@@ -256,8 +395,38 @@ export default function OrdersPage() {
                         </div>
                       </td>
                       <td className="py-4 text-gray-600">{order.user.nickname || order.user.email}</td>
-                      <td className="py-4 text-gray-600">{order.productName}</td>
+                      <td className="py-4 text-gray-600">
+                        <div>{order.productName}</div>
+                        {order.product?.category?.name && (
+                          <div className="text-xs text-gray-400">{order.product.category.name}</div>
+                        )}
+                      </td>
                       <td className="py-4 text-gray-900">¥{Number(order.amount).toFixed(2)}</td>
+                      <td className="py-4 text-gray-600">
+                        {order.cardCost == null ? (
+                          <span className="text-gray-300">—</span>
+                        ) : (
+                          `¥${order.cardCost.toFixed(2)}`
+                        )}
+                      </td>
+                      <td className="py-4">
+                        {order.cardProfit == null ? (
+                          <span
+                            className="text-gray-300"
+                            title={
+                              order.cardProfitUnknown
+                                ? '该订单含外部站发出的卡密，收入未回传，利润未知'
+                                : '该订单没有卡密（非自动发货），无法按卡密核算利润'
+                            }
+                          >
+                            —
+                          </span>
+                        ) : (
+                          <span className={order.cardProfit >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                            ¥{order.cardProfit.toFixed(2)}
+                          </span>
+                        )}
+                      </td>
                       <td className="py-4">
                         <span
                           className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
@@ -505,6 +674,24 @@ export default function OrdersPage() {
                   <OrderChat apiBase={`/api/admin/orders/${selectedOrder.id}/messages`} selfRole="ADMIN" theme="light" />
                 </div>
               )}
+
+              {/* 缺货停在「处理中」的自动发货订单：补货后从这里补齐缺口，
+                  不必再绕到「收款监控 → 补单」。fulfillOrder 幂等，不会超发。 */}
+              {selectedOrder.payStatus === 'PAID' &&
+                selectedOrder.deliveryStatus !== 'DELIVERED' &&
+                (selectedOrder.cards?.length ?? 0) < (selectedOrder.quantity ?? 1) && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <div className="text-sm text-amber-800">
+                      该订单已付款，但卡密只发出 {selectedOrder.cards?.length ?? 0}/{selectedOrder.quantity ?? 1} 张
+                      （通常是付款时库存不足）。补货后可点右侧补发。
+                    </div>
+                    <div className="mt-2 flex justify-end">
+                      <Button variant="outline" size="sm" loading={refilling} onClick={handleRefill}>
+                        补发卡密
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
               <div className="flex justify-end gap-3 pt-4">
                 <Button variant="outline" onClick={() => setShowDetailModal(false)}>

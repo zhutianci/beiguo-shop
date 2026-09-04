@@ -112,9 +112,14 @@ model CardKey {
   status      String    @default("UNUSED") @db.VarChar(20)   // UNUSED 未使用 | USED 已发出 | DISABLED 已停用
   orderId     Int?      @map("order_id")                 // 被本站哪个订单消费（外部站点发卡为空，改看 externalRef）
   externalRef String?   @map("external_ref") @db.VarChar(120) // 外部站点发卡归属：<client>:<orderNo>；本地订单为空
-  usedAt      DateTime? @map("used_at")
+  usedAt      DateTime? @map("used_at")                  // 发出时间（createdAt 是创建/导入时间，两者语义不同，勿合并）
   batch       String?   @db.VarChar(40)
   remark      String?   @db.VarChar(255)
+  // ---- 成本 / 利润（落库，不在列表现算）----
+  cost        Decimal?  @db.Decimal(10, 2)                    // 进货成本，批量导入时按批录入；历史卡回填为 0
+  soldPrice   Decimal?  @map("sold_price") @db.Decimal(10, 2) // 发出时的单卡售价快照；外部站发卡拿不到售价，保持 null
+  profit      Decimal?  @db.Decimal(10, 2)                    // = soldPrice - cost；null 表示「利润未知」，不要写 0
+  redeemUrl   String?   @map("redeem_url") @db.VarChar(500)   // 本批专属兑换地址；为空则回落 Product.cardRedeemUrl
   createdAt   DateTime  @default(now()) @map("created_at")
 
   product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -123,6 +128,8 @@ model CardKey {
   @@index([productId, status])
   @@index([orderId])
   @@index([externalRef])
+  @@index([status, usedAt])      // 每日成本/利润按发出时间区间聚合
+  @@index([productId, batch])    // 按批次批量改成本
   @@map("card_keys")
 }
 
@@ -173,6 +180,8 @@ model Order {
   messages       OrderMessage[]
 
   @@index([referrerId])
+  @@index([createdAt])         // 后台订单列表 orderBy createdAt desc + skip 深翻页
+  @@index([payStatus, paidAt]) // 按到账日聚合
   @@map("orders")
 }
 
@@ -428,6 +437,23 @@ model EmailCode {
   @@map("email_codes")
 }
 
+// 站点公告：后台发布，买家进入前台任意页面时弹窗展示
+model Announcement {
+  id        Int       @id @default(autoincrement())
+  title     String    @db.VarChar(200)
+  content   String    @db.Text                      // 纯文本，换行原样展示
+  level     String    @default("INFO") @db.VarChar(20) // INFO 通知 | WARN 警示 | SUCCESS 喜报
+  enabled   Boolean   @default(false)               // 未启用即不展示
+  pinned    Boolean   @default(false)               // 强提醒：每次进入都弹，忽略「不再提示」
+  startAt   DateTime? @map("start_at")              // 生效时间，空=立即
+  endAt     DateTime? @map("end_at")                // 失效时间，空=长期
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at") // 内容有更新时会重新弹给已读过的买家
+
+  @@index([enabled, startAt, endAt])
+  @@map("announcements")
+}
+
 // 系统配置表
 model Setting {
   id        Int      @id @default(autoincrement())
@@ -462,6 +488,9 @@ model Invoice {
   bankName         String?   @map("bank_name") @db.VarChar(128) // 开户行
   bankAccount      String?   @map("bank_account") @db.VarChar(64) // 卡号
   email            String?   @db.VarChar(255)   // 接收邮箱
+  // 买家申请时必选：发票内容是否展示 ChatGPT/Claude 等字眼。
+  // 可空而非 default(true)：历史发票与管理员凭空建的空壳记录应显示「-」，不能误标成买家已选择展示。
+  showAiWording    Boolean?  @map("show_ai_wording")
   // 状态：UNAPPLIED 未开发票 / AWAIT_PAY 待支付税费 / SUBMITTED 已提交开票 / ISSUED 已开具 / CANNOT 不可开据
   status           String    @default("UNAPPLIED") @db.VarChar(20)
   // 税费支付
@@ -485,17 +514,25 @@ model Receipt {
   token            String?   @unique @db.VarChar(64) // 不可枚举的公开访问令牌
   externalOrderId  Int?      @map("external_order_id")
   sourceKey        String?   @map("source_key") @db.VarChar(128)
-  claudeAccount    String    @map("claude_account") @db.VarChar(255)
-  subscriptionType String    @map("subscription_type") @db.VarChar(100)
+  // 手动开具（DIY）的收据没有订阅账户/类型，故两列放宽为可空
+  claudeAccount    String?   @map("claude_account") @db.VarChar(255)
+  subscriptionType String?   @map("subscription_type") @db.VarChar(100)
   orderStartDate   DateTime? @map("order_start_date") @db.Date
   orderExpireDate  DateTime? @map("order_expire_date") @db.Date
-  payerTitle       String    @map("payer_title") @db.VarChar(200) // 付款人（买家抬头）
+  payerTitle       String    @map("payer_title") @db.VarChar(200) // 付款人（抬头）
   payee            String    @db.VarChar(200)                      // 收款人
-  amount           Decimal   @db.Decimal(10, 2)                    // 付款金额（= 商品售价）
+  amount           Decimal   @db.Decimal(10, 2)                    // 付款金额
+  // ---- 来源 / 自定义条目 ----
+  source           String    @default("BUYER") @db.VarChar(20)     // BUYER 买家提交 | MANUAL 手动开具
+  items            String?   @db.Text                              // JSON: [{label,value}] 有序数组，手动开具的 DIY 条目
+  remark           String?   @db.VarChar(500)
+  issuedAt         DateTime? @map("issued_at")                     // 手动开具时可指定的开具时间；为空则用 createdAt
   createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime? @updatedAt @map("updated_at")         // 必须可空：已有行 ALTER 时无 DB 层 default
 
   @@index([claudeAccount])
   @@index([externalOrderId])
+  @@index([source])
   @@map("receipts")
 }
 

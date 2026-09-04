@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Gift, Copy, CheckCircle2, Loader2, Wallet } from 'lucide-react'
 
 interface ProductPrice {
@@ -17,37 +17,53 @@ interface ReferralData {
   totalReward: number
   rewardCount: number
   products: ProductPrice[]
+  productTotal: number
+  productPage: number
+  productPageSize: number
+  productTotalPages: number
 }
+
+// 商品专属价每页条数（分段懒加载）
+const PAGE_SIZE = 20
 
 export default function ReferralPanel() {
   const [data, setData] = useState<ReferralData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [inputs, setInputs] = useState<Record<number, string>>({})
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [copied, setCopied] = useState(false)
 
-  const load = async () => {
-    setLoading(true)
+  // 拉某一页；append=true 把商品追加到列表尾部
+  const load = useCallback(async (targetPage = 1, append = false) => {
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     try {
-      const res = await fetch('/api/account/referral')
+      const res = await fetch(`/api/account/referral?page=${targetPage}&pageSize=${PAGE_SIZE}`)
       const d = await res.json()
       if (d.success) {
-        setData(d.data)
-        const map: Record<number, string> = {}
-        d.data.products.forEach((p: ProductPrice) => {
-          map[p.productId] = p.customPrice != null ? String(p.customPrice) : ''
+        const next = d.data as ReferralData
+        setData((prev) =>
+          append && prev ? { ...next, products: [...prev.products, ...next.products] } : next
+        )
+        setInputs((prev) => {
+          const map: Record<number, string> = append ? { ...prev } : {}
+          next.products.forEach((p) => {
+            map[p.productId] = p.customPrice != null ? String(p.customPrice) : ''
+          })
+          return map
         })
-        setInputs(map)
       }
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const copy = () => {
     if (!data) return
@@ -73,7 +89,18 @@ export default function ReferralPanel() {
       const d = await res.json()
       if (d.success) {
         setMsg('已保存')
-        load()
+        // 本地同步专属价，避免重新拉取把已「加载更多」的商品丢掉
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                products: prev.products.map((p) => {
+                  const v = (inputs[p.productId] ?? '').trim()
+                  return { ...p, customPrice: v === '' ? null : Number(v) }
+                }),
+              }
+            : prev
+        )
       } else setMsg(d.error || '保存失败')
     } finally {
       setSaving(false)
@@ -167,6 +194,30 @@ export default function ReferralPanel() {
                 )
               })}
             </div>
+
+            {/* 分段加载 */}
+            {data.productTotal > data.products.length ? (
+              <div className="mt-3 flex flex-col items-center gap-2">
+                <button
+                  onClick={() => load(data.productPage + 1, true)}
+                  disabled={loadingMore}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 disabled:opacity-40"
+                >
+                  {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {loadingMore ? '加载中...' : '加载更多商品'}
+                </button>
+                <span className="text-xs text-white/30">
+                  已显示 {data.products.length} / {data.productTotal} 个商品
+                </span>
+              </div>
+            ) : (
+              data.productTotal > PAGE_SIZE && (
+                <p className="mt-3 text-center text-xs text-white/30">
+                  已显示全部 {data.productTotal} 个商品
+                </p>
+              )
+            )}
+
             <div className="flex items-center gap-3 mt-4">
               <button
                 onClick={save}

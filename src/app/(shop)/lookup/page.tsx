@@ -614,6 +614,8 @@ function InvoiceModal({
   const [bankName, setBankName] = useState('')
   const [bankAccount, setBankAccount] = useState('')
   const [email, setEmail] = useState(defaultEmail || order.claudeAccount)
+  // 必选项：发票中是否展示 ChatGPT/Claude 相关字眼。null = 尚未选择
+  const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -622,9 +624,9 @@ function InvoiceModal({
     if (!title.trim()) return setErr('请填写发票抬头')
     if (!taxNumber.trim()) return setErr('请填写税号')
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setErr('请填写正确的接收邮箱')
+    if (showAiWording === null) return setErr('请选择发票中是否展示 ChatGPT/Claude 相关字眼')
     setSubmitting(true)
     try {
-      const channel = typeof window !== 'undefined' && window.innerWidth < 768 ? 'wap' : 'page'
       const res = await fetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -637,7 +639,9 @@ function InvoiceModal({
           bankName: bankName.trim() || null,
           bankAccount: bankAccount.trim() || null,
           email: email.trim(),
-          channel,
+          showAiWording,
+          // 归属凭证：证明调用方知道该订单的账户邮箱（匿名邮箱查询流程本就有这个信息）
+          accountEmail: order.claudeAccount,
         }),
       })
       const data = await res.json()
@@ -730,6 +734,33 @@ function InvoiceModal({
           {field('开户行', bankName, setBankName, { placeholder: '选填' })}
           {field('卡号', bankAccount, setBankAccount, { placeholder: '选填' })}
           <div className="sm:col-span-2">{field('接收邮箱', email, setEmail, { required: true, type: 'email', placeholder: '发票将发送到此邮箱' })}</div>
+
+          {/* 必选：发票内容是否展示 AI 平台字眼 */}
+          <div className="sm:col-span-2">
+            <label className="block text-xs text-white/50 mb-1.5">
+              发票中是否展示 ChatGPT/Claude 相关字眼<span className="text-red-400 ml-0.5">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { v: true, label: '展示', desc: '发票项目按实际订阅名称开具' },
+                { v: false, label: '不展示', desc: '发票项目使用通用名称' },
+              ].map((opt) => (
+                <button
+                  key={String(opt.v)}
+                  type="button"
+                  onClick={() => setShowAiWording(opt.v)}
+                  className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                    showAiWording === opt.v
+                      ? 'border-purple-500/60 bg-purple-500/15'
+                      : 'border-white/10 bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="text-sm font-medium text-white/90">{opt.label}</div>
+                  <div className="text-[11px] text-white/40 mt-0.5">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {err && (
@@ -768,7 +799,12 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
       const res = await fetch('/api/receipts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ externalOrderId: order.id, payerTitle: payerTitle.trim() }),
+        body: JSON.stringify({
+          externalOrderId: order.id,
+          payerTitle: payerTitle.trim(),
+          // 归属凭证：证明调用方知道该订单的账户邮箱
+          accountEmail: order.claudeAccount,
+        }),
       })
       const data = await res.json()
       if (data.success && data.data?.token) {

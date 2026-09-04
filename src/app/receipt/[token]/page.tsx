@@ -3,16 +3,25 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 
+interface ReceiptItem {
+  label: string
+  value: string
+}
+
 interface Receipt {
   receiptNo: string
+  source: string // BUYER 买家提交 | MANUAL 手动开具
   payerTitle: string
   payee: string
-  claudeAccount: string
-  subscriptionType: string
+  claudeAccount: string | null
+  subscriptionType: string | null
   orderStartDate: string | null
   orderExpireDate: string | null
+  items: ReceiptItem[]
+  remark: string | null
   amount: number
   amountCapital: string
+  issuedAt: string
   createdAt: string
 }
 
@@ -66,20 +75,25 @@ export default function ReceiptPage() {
         </div>
         <div className="flex justify-between text-sm text-gray-500 mb-8 mt-4">
           <span>No. {r.receiptNo}</span>
-          <span>开具日期：{fmtDate(r.createdAt)}</span>
+          <span>开具日期：{fmtDate(r.issuedAt)}</span>
         </div>
 
-        {/* 表格 */}
+        {/* 表格：固定行 + 订单行/DIY 条目，两种来源的展示格式保持一致 */}
         <table className="w-full text-[15px] text-gray-800 border-collapse">
           <tbody>
             <Row label="付款人" value={r.payerTitle} />
             <Row label="收款人" value={r.payee} />
-            <Row label="账户" value={r.claudeAccount} mono />
-            <Row label="项目" value={`${r.subscriptionType} 会员订阅`} />
-            <Row label="会员开通日期" value={fmtDate(r.orderStartDate)} />
-            <Row label="会员到期日期" value={fmtDate(r.orderExpireDate)} />
+            {r.claudeAccount && <Row label="账户" value={r.claudeAccount} mono />}
+            {r.subscriptionType && <Row label="项目" value={`${r.subscriptionType} 会员订阅`} />}
+            {r.orderStartDate && <Row label="会员开通日期" value={fmtDate(r.orderStartDate)} />}
+            {r.orderExpireDate && <Row label="会员到期日期" value={fmtDate(r.orderExpireDate)} />}
+            {/* 手动开具的自定义条目，按管理员拖动排定的顺序渲染 */}
+            {r.items.map((it, i) => (
+              <Row key={`${it.label}-${i}`} label={it.label} value={it.value} />
+            ))}
             <Row label="付款金额（大写）" value={r.amountCapital} />
             <Row label="付款金额（小写）" value={<span className="font-bold text-lg">¥ {r.amount.toFixed(2)}</span>} />
+            {r.remark && <Row label="备注" value={r.remark} />}
           </tbody>
         </table>
 
@@ -87,7 +101,7 @@ export default function ReceiptPage() {
         <div className="mt-12 flex justify-end relative">
           <div className="text-right text-sm text-gray-700 leading-8 relative">
             <div>收款单位：{r.payee}</div>
-            <div>开具日期：{fmtDate(r.createdAt)}</div>
+            <div>开具日期：{fmtDate(r.issuedAt)}</div>
             {sealOk && (
               <img
                 src="/seal-bigo.png"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -55,6 +55,8 @@ function fmtDateTime(s: string) {
   })
 }
 
+const PAGE_SIZE = 20
+
 export default function RemindersPage() {
   const [rows, setRows] = useState<ReminderRow[]>([])
   const [config, setConfig] = useState<ConfigStatus>({ email: false, sms: false })
@@ -62,37 +64,54 @@ export default function RemindersPage() {
   const [expiredDays, setExpiredDays] = useState(30)
   const [statusFilter, setStatusFilter] = useState<'all' | 'unreminded' | 'reminded'>('all')
   const [counts, setCounts] = useState<{ upcoming: number; expired: number }>({ upcoming: 0, expired: 0 })
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [sendingId, setSendingId] = useState<number | null>(null)
   const [batchSending, setBatchSending] = useState(false)
   const [runningAuto, setRunningAuto] = useState(false)
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const load = async (days = withinDays, exp = expiredDays) => {
+  // 分段懒加载：每页 20 条，时间窗与提醒状态筛选全部走服务端
+  const load = useCallback(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/reminders?days=${days}&expiredDays=${exp}`)
+      const q = new URLSearchParams({
+        days: String(withinDays),
+        expiredDays: String(expiredDays),
+        page: String(page),
+        pageSize: String(PAGE_SIZE),
+      })
+      if (statusFilter !== 'all') q.set('reminded', statusFilter)
+      const res = await fetch(`/api/admin/reminders?${q}`, { signal: controller.signal })
       const data = await res.json()
-      if (data.success) {
+      if (data.success && abortRef.current === controller) {
         setRows(data.data.list)
         setConfig(data.data.config)
         setCounts({ upcoming: data.data.upcomingCount, expired: data.data.expiredCount })
+        setTotal(data.data.total || 0)
+        setTotalPages(data.data.totalPages || 1)
         setSelected(new Set())
       }
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) setLoading(false)
     }
-  }
+  }, [withinDays, expiredDays, statusFilter, page])
 
   useEffect(() => {
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [load])
 
-  const visibleRows = rows.filter((r) =>
-    statusFilter === 'unreminded' ? !r.reminded : statusFilter === 'reminded' ? r.reminded : true
-  )
+  // 服务端已按提醒状态筛选，本页数据直接展示
+  const visibleRows = rows
 
   const toggle = (id: number) => {
     const next = new Set(selected)
@@ -200,9 +219,8 @@ export default function RemindersPage() {
               <select
                 value={withinDays}
                 onChange={(e) => {
-                  const d = parseInt(e.target.value)
-                  setWithinDays(d)
-                  load(d, expiredDays)
+                  setWithinDays(parseInt(e.target.value))
+                  setPage(1)
                 }}
                 className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
               >
@@ -217,9 +235,8 @@ export default function RemindersPage() {
               <select
                 value={expiredDays}
                 onChange={(e) => {
-                  const d = parseInt(e.target.value)
-                  setExpiredDays(d)
-                  load(withinDays, d)
+                  setExpiredDays(parseInt(e.target.value))
+                  setPage(1)
                 }}
                 className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
               >
@@ -233,7 +250,10 @@ export default function RemindersPage() {
               <span>提醒状态</span>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as 'all' | 'unreminded' | 'reminded')}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as 'all' | 'unreminded' | 'reminded')
+                  setPage(1)
+                }}
                 className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-900"
               >
                 <option value="all">全部</option>
@@ -264,7 +284,7 @@ export default function RemindersPage() {
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>
             待提醒订单（即将到期 {counts.upcoming} · 已过期 {counts.expired}
-            {statusFilter !== 'all' && ` · 当前显示 ${visibleRows.length}`}）
+            {statusFilter !== 'all' && ` · 筛选后 ${total}`}）
           </CardTitle>
           <Button size="sm" onClick={handleBatchSend} loading={batchSending} disabled={selected.size === 0}>
             <Send className="w-4 h-4 mr-1" />
@@ -393,6 +413,23 @@ export default function RemindersPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* 分页（勾选仅作用于当前页） */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4">
+              <span className="text-sm text-gray-500">
+                共 {total} 条 · 第 {page} / {totalPages} 页
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(p - 1, 1))}>
+                  上一页
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(p + 1, totalPages))}>
+                  下一页
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

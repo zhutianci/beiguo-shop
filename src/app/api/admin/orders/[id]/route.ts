@@ -101,15 +101,21 @@ export async function PUT(
         data.paidAt = new Date()
       }
 
-      await prisma.product.update({
-        where: { id: currentOrder.productId },
-        data: {
-          sales: { increment: currentOrder.quantity },
-          ...(currentOrder.product.stock !== -1
-            ? { stock: { decrement: currentOrder.quantity } }
-            : {}),
-        },
-      })
+      // 销量只在「这一单从未被支付流程记过账」时才在这里加。
+      // 付款履约 fulfillOrder 已经在 UNPAID→PAID 的事务里 sales++ 过一次，
+      // 若这里无条件再加，凡是先付款、后由管理员点「已完成」的订单销量都会翻倍。
+      const alreadyCountedByPayment = currentOrder.payStatus === 'PAID'
+      if (!alreadyCountedByPayment) {
+        await prisma.product.update({
+          where: { id: currentOrder.productId },
+          data: {
+            sales: { increment: currentOrder.quantity },
+            ...(currentOrder.product.stock !== -1 && currentOrder.product.deliveryType !== 'AUTO'
+              ? { stock: { decrement: currentOrder.quantity } }
+              : {}),
+          },
+        })
+      }
     }
 
     // 从已交付撤回：减销量 + 恢复库存 + 清除交付时间

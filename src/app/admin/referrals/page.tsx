@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Copy, CheckCircle2, SlidersHorizontal, X, Wallet, Trash2 } from 'lucide-react'
@@ -28,8 +28,12 @@ interface Reward {
 interface Data {
   referrers: Referrer[]
   rewards: Reward[]
+  rewardPage: { page: number; pageSize: number; total: number; totalPages: number }
   totals: { settledTotal: number; rewardCount: number; referrerCount: number }
 }
+
+// 返现明细每页条数
+const REWARD_PAGE_SIZE = 20
 
 function fmt(s: string | null) {
   if (!s) return '—'
@@ -55,6 +59,9 @@ export default function AdminReferralsPage() {
   const [data, setData] = useState<Data | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(0)
+  // 返现明细分页
+  const [page, setPage] = useState(1)
+  const abortRef = useRef<AbortController | null>(null)
 
   // 全局默认基础价
   const [defRows, setDefRows] = useState<DefBaseRow[]>([])
@@ -192,18 +199,28 @@ export default function AdminReferralsPage() {
     else alert(d.error || '删除失败')
   }
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     try {
-      const res = await fetch('/api/admin/referrals')
+      const q = new URLSearchParams({ page: String(page), pageSize: String(REWARD_PAGE_SIZE) })
+      const res = await fetch(`/api/admin/referrals?${q}`, { signal: controller.signal })
       const d = await res.json()
-      if (d.success) setData(d.data)
+      if (d.success && abortRef.current === controller) setData(d.data)
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) setLoading(false)
     }
-  }
+  }, [page])
+
   useEffect(() => {
     load()
+  }, [load])
+
+  useEffect(() => {
     loadDefaultBase()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -352,7 +369,7 @@ export default function AdminReferralsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>返现明细</CardTitle>
+          <CardTitle>返现明细{data ? `（共 ${data.rewardPage.total} 条）` : ''}</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -391,6 +408,28 @@ export default function AdminReferralsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* 分页 */}
+          {data && data.rewardPage.totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4">
+              <span className="text-sm text-gray-500">
+                共 {data.rewardPage.total} 条 · 第 {page} / {data.rewardPage.totalPages} 页
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(p - 1, 1))}>
+                  上一页
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= data.rewardPage.totalPages}
+                  onClick={() => setPage((p) => Math.min(p + 1, data.rewardPage.totalPages))}
+                >
+                  下一页
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

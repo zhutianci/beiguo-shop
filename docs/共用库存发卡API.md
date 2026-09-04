@@ -131,31 +131,16 @@ curl "https://bigolab.com/api/inventory/stock?sku=claude-pro-1m,gpt-plus-1m" \
 
 ---
 
-## beiguo 侧部署
+## 附件：sku表
 
-1. **配密钥**：服务器 `.env` 增加
-   ```env
-   DISPENSE_API_SECRET=<openssl rand -hex 32 的输出>
-   ```
-2. **建表**（新增字段/表，全部可空，对既有数据安全，不需迁移脚本）：
-   ```bash
-   cd /opt/beiguo/beiguo-shop
-   git pull
-   docker compose exec app npx prisma db push --skip-generate   # 或按项目现有 db push 流程
-   docker compose up -d --build
-   ```
-3. **配 SKU**：后台 → 商品管理 → 编辑「自动发货」商品 → 填「对外发卡 SKU」。
-4. **自测**：
-   ```bash
-   curl -X POST https://bigolab.com/api/inventory/dispense \
-     -H "Authorization: Bearer $DISPENSE_API_SECRET" -H "Content-Type: application/json" \
-     -d '{"client":"test","orderNo":"probe-1","sku":"<你的SKU>","quantity":1}'
-   # 再用同一 orderNo 调一次，应返回同一张卡且 reused:true（验证幂等）
-   ```
-
----
-
-## 审计
-
-- 每次外部发卡记录在 `external_dispenses` 表（`client`/`externalNo`/`productId`/`delivered`/`status`/`cardIds`）。
-- 每张被外部领走的卡密，`card_keys.external_ref` = `<client>:<orderNo>`（本站订单发的卡此字段为空，改看 `order_id`），可据此追溯「哪张卡发给了哪个站的哪个订单」。
+测试时请使用支付测试验证（sku_test）
+| 商品 | sku |
+|--------|------|
+| `支付测试验证` | sku_test |
+| `Claude pro 自助充值 | iOS订阅` | claude_pro_ios_bigo |
+| `ChatGPT Plus自助充值 | 信用卡冲` | chatgpt_plus_creditcards_bigo |
+| `ChatGPT Plus自助充值 | iOS订阅` | chatgpt_plus_ios_bigo |
+| `Claude Max 20x成品号 | 自动发货` | claude_max20x_prebuilt_bigo |
+| `Claude Max 5x成品号 | 自动发货` | claude_max5x_prebuilt_bigo |
+| `ChatGPT Pro 5x 自助充值 | iOS订阅` | chatgpt_pro5x_ios_bigo |
+| `ChatGPT Pro 20x 自助充值 | iOS订阅` | chatgpt_pro5x_ios_bigo |

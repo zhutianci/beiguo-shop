@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Package, ShoppingCart, Users, DollarSign } from 'lucide-react'
 import OrderAnalytics from '@/components/admin/order-analytics'
+import CardKeyAnalytics from '@/components/admin/cardkey-analytics'
 
 interface Stats {
   totalUsers: number
@@ -97,8 +98,27 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* 订单数据分析（数据源：订单导入 / ExternalOrder） */}
-      <OrderAnalytics />
+      {/* ① 外部订单导入（数据源：ExternalOrder，人工/脚本导入的代开单） */}
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">外部订单导入</h2>
+          <p className="text-xs text-gray-500">
+            数据源：ExternalOrder（闲鱼等渠道代开的订阅单），按开通时间统计。
+          </p>
+        </div>
+        <OrderAnalytics />
+      </div>
+
+      {/* ② 网站自助下单（数据源：CardKey，买家在站内下单后自动发货的卡密） */}
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">网站自助下单（卡密）</h2>
+          <p className="text-xs text-gray-500">
+            数据源：CardKey 发出记录（站内自动发货 + 外部站调库存 API 领卡），按发出时间统计成本 / 流水 / 利润。
+          </p>
+        </div>
+        <CardKeyAnalytics />
+      </div>
 
       <Card>
         <CardHeader>

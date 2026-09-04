@@ -70,11 +70,13 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    fetch('/api/products')
+    // 首页只展示 6 个精选商品，直接按分页取，避免拉全表
+    fetch('/api/products?page=1&pageSize=6')
       .then((r) => r.json())
       .then((data) => {
-        if (data.success) setProducts(data.data.slice(0, 6))
+        if (data.success) setProducts(data.data.list)
       })
+      .catch(() => {})
   }, [])
 
   return (

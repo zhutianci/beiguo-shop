@@ -1,14 +1,19 @@
 export const dynamic = 'force-dynamic'
 
+import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 
-// 内推总览：推广人列表（链接/收益）+ 返现明细
-export async function GET() {
+// 内推总览：推广人列表（链接/收益）+ 返现明细（明细分页，合计走 aggregate/count）
+export async function GET(request: NextRequest) {
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bigolab.com'
 
-    const [referrerUsers, grouped, rewards] = await Promise.all([
+    const { searchParams } = new URL(request.url)
+    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20'), 1), 100)
+
+    const [referrerUsers, grouped, rewards, rewardTotal, settledAgg] = await Promise.all([
       prisma.user.findMany({
         where: { referralCode: { not: null } },
         select: { id: true, nickname: true, email: true, referralCode: true, balance: true },
@@ -19,12 +24,19 @@ export async function GET() {
         _sum: { amount: true },
         _count: true,
       }),
-      prisma.referralReward.findMany({ orderBy: { id: 'desc' }, take: 200 }),
+      // 返现明细：分页取当前页，不再一次性 take 200
+      prisma.referralReward.findMany({
+        orderBy: { id: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.referralReward.count(),
+      prisma.referralReward.aggregate({ _sum: { amount: true }, where: { status: 'SETTLED' } }),
     ])
 
     const sumMap = new Map(grouped.map((g) => [g.referrerId, { sum: Number(g._sum.amount ?? 0), count: g._count }]))
 
-    // 名称映射
+    // 名称映射（只针对当前页明细）
     const uid = new Set<number>()
     rewards.forEach((r) => {
       uid.add(r.referrerId)
@@ -65,14 +77,20 @@ export async function GET() {
       settledAt: r.settledAt,
     }))
 
-    const totalSettled = grouped.reduce((s, g) => s + Number(g._sum.amount ?? 0), 0)
-
     return success({
       referrers,
       rewards: rewardList,
+      // 返现明细的分页信息
+      rewardPage: {
+        page,
+        pageSize,
+        total: rewardTotal,
+        totalPages: Math.max(Math.ceil(rewardTotal / pageSize), 1),
+      },
       totals: {
-        settledTotal: Math.round(totalSettled * 100) / 100,
-        rewardCount: rewards.length,
+        // 真实合计/条数：来自 aggregate / count，而不是被截断的数组
+        settledTotal: Math.round(Number(settledAgg._sum.amount ?? 0) * 100) / 100,
+        rewardCount: rewardTotal,
         referrerCount: referrerUsers.length,
       },
     })

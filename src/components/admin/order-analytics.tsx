@@ -21,7 +21,7 @@ interface Summary {
   withoutQuote: number
 }
 interface AnalyticsData {
-  range: { start: string; end: string; granularity: 'day' | 'month' }
+  range: { start: string; end: string; granularity: 'day' | 'month'; excludeShop?: boolean }
   summary: Summary
   series: SeriesPoint[]
   byType: TypeRow[]
@@ -44,20 +44,23 @@ export default function OrderAnalytics() {
   const [start, setStart] = useState(iso(firstOfMonth))
   const [end, setEnd] = useState(iso(today))
   const [granularity, setGranularity] = useState<Granularity>('day')
+  // 默认不勾：网站自助订单（importBatch=SHOP/WEB）已经在「卡密数据分析」里统计过，
+  // 算进来会和卡密那块重复计数。勾上则看两个渠道的合并总量。
+  const [includeShop, setIncludeShop] = useState(false)
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const q = new URLSearchParams({ start, end, granularity })
+      const q = new URLSearchParams({ start, end, granularity, excludeShop: includeShop ? '0' : '1' })
       const res = await fetch(`/api/admin/analytics/orders?${q}`)
       const json = await res.json()
       if (json.success) setData(json.data)
     } finally {
       setLoading(false)
     }
-  }, [start, end, granularity])
+  }, [start, end, granularity, includeShop])
 
   // 区间/粒度变化（含快捷区间）自动重新查询；首次挂载也会触发
   useEffect(() => {
@@ -129,7 +132,9 @@ export default function OrderAnalytics() {
         <CardTitle className="flex items-center gap-2">
           <Coins className="w-5 h-5 text-amber-500" />
           订单数据分析
-          <span className="text-xs font-normal text-gray-400">（数据源：订单导入）</span>
+          <span className="text-xs font-normal text-gray-400">
+            （数据源：订单导入{includeShop ? '，含网站自助订单' : '，不含网站自助订单'}）
+          </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -161,6 +166,18 @@ export default function OrderAnalytics() {
             </div>
           </div>
           <Button onClick={load} loading={loading}>查询</Button>
+          <label
+            className="inline-flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none py-2"
+            title="网站自助下单（导入批次 SHOP / WEB）默认不计入，避免与「卡密数据分析」重复计数"
+          >
+            <input
+              type="checkbox"
+              checked={includeShop}
+              onChange={(e) => setIncludeShop(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            包含网站自助订单
+          </label>
           <div className="flex flex-wrap gap-1.5">
             {presets.map((p) => (
               <button

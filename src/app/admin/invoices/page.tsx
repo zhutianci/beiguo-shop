@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,7 @@ interface InvoiceRow {
   bankName: string | null
   bankAccount: string | null
   email: string | null
+  showAiWording: boolean | null
   sellingPrice: number | null
   invoiceAmount: number | null
   taxFee: number | null
@@ -62,35 +63,54 @@ function money(n: number | null) {
   return n == null ? '-' : `¥${Number(n).toFixed(2)}`
 }
 
+const PAGE_SIZE = 20
+
 export default function AdminInvoicesPage() {
   const [list, setList] = useState<InvoiceRow[]>([])
   const [totals, setTotals] = useState<Totals | null>(null)
   const [keyword, setKeyword] = useState('')
+  const [debouncedKeyword, setDebouncedKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('SUBMITTED')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<InvoiceRow | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const load = async () => {
+  // 搜索防抖
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedKeyword(keyword.trim()), 350)
+    return () => clearTimeout(t)
+  }, [keyword])
+
+  const load = useCallback(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     try {
-      const q = new URLSearchParams({ pageSize: '500' })
-      if (keyword) q.set('keyword', keyword)
+      const q = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
+      if (debouncedKeyword) q.set('keyword', debouncedKeyword)
       if (statusFilter) q.set('status', statusFilter)
-      const res = await fetch(`/api/admin/invoices?${q}`)
+      const res = await fetch(`/api/admin/invoices?${q}`, { signal: controller.signal })
       const data = await res.json()
-      if (data.success) {
+      if (data.success && abortRef.current === controller) {
         setList(data.data.list)
         setTotals(data.data.totals)
+        setTotal(data.data.total || 0)
+        setTotalPages(data.data.totalPages || 1)
       }
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) setLoading(false)
     }
-  }
+  }, [page, debouncedKeyword, statusFilter])
 
   useEffect(() => {
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [load])
 
   const setStatus = async (externalOrderId: number, status: string) => {
     const res = await fetch(`/api/admin/invoices/by-order/${externalOrderId}`, {
@@ -132,7 +152,7 @@ export default function AdminInvoicesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>发票管理（共 {list.length} 条 · 同步全部订单）</CardTitle>
+          <CardTitle>发票管理（共 {total} 条 · 同步全部订单）</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -141,14 +161,19 @@ export default function AdminInvoicesPage() {
               <Input
                 placeholder="搜索账户/订阅类型/闲鱼昵称..."
                 value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && load()}
+                onChange={(e) => {
+                  setKeyword(e.target.value)
+                  setPage(1)
+                }}
                 className="pl-10"
               />
             </div>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setPage(1)
+              }}
               className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900"
             >
               <option value="">全部状态</option>
@@ -157,7 +182,7 @@ export default function AdminInvoicesPage() {
               ))}
             </select>
             <Button variant="outline" onClick={load}>
-              <Search className="w-4 h-4 mr-1" /> 查询
+              <Search className="w-4 h-4 mr-1" /> 刷新
             </Button>
           </div>
 
@@ -223,6 +248,23 @@ export default function AdminInvoicesPage() {
               </table>
             </div>
           )}
+
+          {/* 分页 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4">
+              <span className="text-sm text-gray-500">
+                共 {total} 条 · 第 {page} / {totalPages} 页
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(p - 1, 1))}>
+                  上一页
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(p + 1, totalPages))}>
+                  下一页
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -240,6 +282,10 @@ export default function AdminInvoicesPage() {
                 ['抬头', detail.title || '-'],
                 ['税号', detail.taxNumber || '-'],
                 ['接收邮箱', detail.email || '-'],
+                [
+                  '发票展示 ChatGPT/Claude 字眼',
+                  detail.showAiWording == null ? '—（申请前的历史记录）' : detail.showAiWording ? '展示' : '不展示',
+                ],
                 ['地址', detail.address || '-'],
                 ['电话', detail.phone || '-'],
                 ['开户行', detail.bankName || '-'],

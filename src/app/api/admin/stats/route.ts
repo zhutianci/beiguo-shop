@@ -9,20 +9,29 @@ export async function GET() {
       totalUsers,
       totalProducts,
       totalOrders,
-      paidOrders,
+      revenueAgg,
       recentOrders,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.product.count(),
       prisma.order.count(),
-      prisma.order.findMany({
+      // 总收入：交给数据库 SUM，不再把所有 PAID 订单拉进内存 reduce
+      prisma.order.aggregate({
         where: { payStatus: 'PAID' },
-        select: { amount: true },
+        _sum: { amount: true },
       }),
+      // 最近订单：只取 5 条，并只 select 前端真正用到的字段（避免带出 deliveryInfo 等大字段）
       prisma.order.findMany({
         take: 5,
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+          id: true,
+          orderNo: true,
+          productName: true,
+          amount: true,
+          payStatus: true,
+          deliveryStatus: true,
+          createdAt: true,
           user: {
             select: { email: true, nickname: true },
           },
@@ -30,10 +39,7 @@ export async function GET() {
       }),
     ])
 
-    const totalRevenue = paidOrders.reduce(
-      (sum, order) => sum + Number(order.amount),
-      0
-    )
+    const totalRevenue = Number(revenueAgg._sum.amount ?? 0)
 
     return success({
       totalUsers,

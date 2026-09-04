@@ -13,6 +13,8 @@ const categorySchema = z.object({
 })
 
 // 获取所有分类
+// 分类是运营手工维护的枚举型数据（十几条量级），不做分页；仅加 take 上限兜底，
+// 保证异常情况下也不会一次性把整表读进内存。返回仍是裸数组（商品页的分类下拉依赖它）。
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({
@@ -22,6 +24,7 @@ export async function GET() {
         },
       },
       orderBy: { sortOrder: 'asc' },
+      take: 200,
     })
 
     return success(categories)

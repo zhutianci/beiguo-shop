@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
@@ -20,18 +21,46 @@ export async function GET(request: NextRequest) {
     const productId = parseInt(searchParams.get('productId') || '0')
     if (!productId) return error('请选择商品')
     const status = searchParams.get('status')?.trim()
+    const batch = (searchParams.get('batch') || '').trim()
+    const keyword = (searchParams.get('keyword') || '').trim()
+    const hasOrder = (searchParams.get('hasOrder') || '').trim() // '1' 已关联订单 | '0' 未关联
     const reveal = searchParams.get('reveal') === '1'
-    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
-    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '50'), 200)
+    const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '50') || 50, 1), 200)
 
-    const where = { productId, ...(status ? { status } : {}) }
-    const [rows, total, unused, used, disabled, product] = await Promise.all([
-      prisma.cardKey.findMany({ where, orderBy: { id: 'desc' }, skip: (page - 1) * pageSize, take: pageSize }),
+    const where: Prisma.CardKeyWhereInput = { productId }
+    if (status) where.status = status
+    if (batch) where.batch = batch
+    if (keyword) {
+      // 关键词按备注 / 批次模糊（卡密本身是密文，无法模糊检索）
+      where.OR = [{ remark: { contains: keyword } }, { batch: { contains: keyword } }]
+    }
+    if (hasOrder === '1') where.orderId = { not: null }
+    else if (hasOrder === '0') where.orderId = null
+
+    // 统计口径：数量按商品全量（不随筛选变化，便于随时看到总盘子）；
+    // 成本合计 = 该商品全部卡密的进货成本；流水/利润合计 = 已发出卡密的售价/利润之和。
+    // 利润是落库列，这里只做 aggregate 求和，绝不在应用层逐行现算。
+    const [rows, total, unused, used, disabled, costAgg, soldAgg, product] = await Promise.all([
+      prisma.cardKey.findMany({
+        where,
+        orderBy: { id: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
       prisma.cardKey.count({ where }),
       prisma.cardKey.count({ where: { productId, status: 'UNUSED' } }),
       prisma.cardKey.count({ where: { productId, status: 'USED' } }),
       prisma.cardKey.count({ where: { productId, status: 'DISABLED' } }),
-      prisma.product.findUnique({ where: { id: productId }, select: { cardUsage: true, cardRedeemUrl: true } }),
+      prisma.cardKey.aggregate({ where: { productId }, _sum: { cost: true } }),
+      prisma.cardKey.aggregate({
+        where: { productId, status: 'USED' },
+        _sum: { soldPrice: true, profit: true },
+      }),
+      prisma.product.findUnique({
+        where: { id: productId },
+        select: { cardUsage: true, cardRedeemUrl: true },
+      }),
     ])
 
     const list = rows.map((c) => {
@@ -44,13 +73,19 @@ export async function GET(request: NextRequest) {
       }
       return {
         id: c.id,
+        productId: c.productId,
         status: c.status,
         secret,
         orderId: c.orderId,
+        externalRef: c.externalRef, // 外部站发卡归属：<client>:<orderNo>；有它说明卡不是本站订单发的
         batch: c.batch,
         remark: c.remark,
-        usedAt: c.usedAt,
-        createdAt: c.createdAt,
+        cost: c.cost != null ? Number(c.cost) : null,
+        soldPrice: c.soldPrice != null ? Number(c.soldPrice) : null,
+        profit: c.profit != null ? Number(c.profit) : null, // null = 利润未知，前端不要显示 0
+        redeemUrl: c.redeemUrl,
+        usedAt: c.usedAt, // 发出时间
+        createdAt: c.createdAt, // 创建/导入时间
       }
     })
 
@@ -59,7 +94,15 @@ export async function GET(request: NextRequest) {
       total,
       page,
       pageSize,
-      stats: { unused, used, disabled },
+      totalPages: Math.max(Math.ceil(total / pageSize), 1),
+      stats: {
+        unused,
+        used,
+        disabled,
+        totalCost: Number(costAgg._sum.cost ?? 0),
+        totalRevenue: Number(soldAgg._sum.soldPrice ?? 0),
+        totalProfit: Number(soldAgg._sum.profit ?? 0),
+      },
       cardUsage: product?.cardUsage ?? '',
       cardRedeemUrl: product?.cardRedeemUrl ?? '',
     })
@@ -74,6 +117,16 @@ const importSchema = z.object({
   content: z.string().min(1, '请粘贴卡密，每行一条'),
   batch: z.string().trim().max(40).optional().nullable(),
   remark: z.string().trim().max(255).optional().nullable(),
+  // 本批进货成本（元/张）；不填按 0 记，保证历史口径一致
+  cost: z.number().min(0, '成本不能为负').max(999999).optional(),
+  // 本批专属兑换地址；留空则买家侧回落到 Product.cardRedeemUrl
+  redeemUrl: z
+    .string()
+    .trim()
+    .max(500)
+    .refine((v) => v === '' || /^https?:\/\//i.test(v), '兑换地址需以 http:// 或 https:// 开头')
+    .optional()
+    .nullable(),
 })
 
 // 批量导入卡密（加密入库，同商品内去重）
@@ -84,7 +137,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const parsed = importSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
-    const { productId, content, batch, remark } = parsed.data
+    const { productId, content, batch, remark, cost, redeemUrl } = parsed.data
 
     const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } })
     if (!product) return error('商品不存在')
@@ -110,6 +163,10 @@ export async function POST(request: NextRequest) {
     const existsSet = new Set(existing.map((e) => e.contentHash))
     const fresh = items.filter((i) => !existsSet.has(i.hash))
 
+    // 成本按批录入，落库为定点小数；未填按 0（与历史卡回填口径一致）
+    const batchCost = new Prisma.Decimal((cost ?? 0).toFixed(2))
+    const batchRedeemUrl = redeemUrl?.trim() || null
+
     if (fresh.length > 0) {
       await prisma.cardKey.createMany({
         data: fresh.map((i) => ({
@@ -119,6 +176,8 @@ export async function POST(request: NextRequest) {
           status: 'UNUSED',
           batch: batch || null,
           remark: remark || null,
+          cost: batchCost,
+          redeemUrl: batchRedeemUrl,
         })),
         skipDuplicates: true,
       })

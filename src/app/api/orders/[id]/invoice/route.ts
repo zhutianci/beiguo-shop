@@ -20,6 +20,8 @@ const schema = z.object({
   bankName: z.string().trim().max(128).optional().nullable(),
   bankAccount: z.string().trim().max(64).optional().nullable(),
   email: z.string().email('接收邮箱格式不正确'),
+  // 必选：发票内容是否展示 ChatGPT/Claude 等字眼
+  showAiWording: z.boolean({ required_error: '请选择发票中是否展示 ChatGPT/Claude 相关字眼' }),
 })
 
 // 买家从「我的订单」直接申请发票（无需邮箱查询）

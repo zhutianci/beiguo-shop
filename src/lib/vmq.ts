@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import { Prisma } from '@prisma/client'
 import { prisma } from './db'
 import { syncAutoStock, decryptCardContent } from './cardkey'
+import { round2, splitAmount } from './money'
 import { settleReferral } from './referral'
 import { acquireForOrder } from './sms'
 import { sendOrderPaidEmail } from './mail'
@@ -10,15 +11,10 @@ import { sendOrderPaidEmail } from './mail'
 
 export const VMQ_KEY = process.env.VMQ_KEY || ''
 export const VMQ_TIMEOUT_MIN = parseInt(process.env.VMQ_PAY_TIMEOUT || '20') // 订单有效期（分钟）
-export const VMQ_REQUIRE_MONITOR = process.env.VMQ_REQUIRE_MONITOR !== '0'   // 是否要求监控端在线才能下单
 export const VMQ_TYPE_ALIPAY = 2
 
 export function vmqConfigured(): boolean {
   return !!VMQ_KEY
-}
-
-export function md5(s: string): string {
-  return crypto.createHash('md5').update(s, 'utf8').digest('hex')
 }
 
 export function genOrderId(): string {
@@ -39,14 +35,16 @@ async function setSetting(key: string, value: string) {
   await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } })
 }
 
+// SmsForwarder 没有心跳接口，这个时间戳现在由「收到一次通知转发」刷新，
+// 语义是「最近一次收到转发的时间」，仅用于后台展示，不再作为下单门禁。
 export async function touchHeartbeat() {
   await setSetting('vmq_lastheart', String(Date.now()))
 }
 
-export async function monitorAlive(): Promise<boolean> {
+/** 最近一次收到通知转发的时间（后台展示用；null 表示从未收到过） */
+export async function lastNotifyAt(): Promise<number | null> {
   const last = await getSetting('vmq_lastheart')
-  if (!last) return false
-  return Date.now() - Number(last) < 60_000 // 60s 内有心跳视为在线
+  return last ? Number(last) : null
 }
 
 // ---- 过期订单清理 + 释放金额锁 ----
@@ -125,9 +123,9 @@ export async function createOrGetVmqOrder(params: {
 
   await closeExpired()
 
-  if (VMQ_REQUIRE_MONITOR && !(await monitorAlive())) {
-    throw new VmqError('收款监控端当前离线，暂时无法发起支付，请稍后再试或联系客服')
-  }
+  // 注意：这里曾有「监控端离线则禁止下单」的拦截。SmsForwarder 没有心跳，
+  // touchHeartbeat() 只在真实到账时被调用，而在线窗口只有 60 秒 —— 一分钟没进账就会把
+  // 下单 / 再支付 / 发票税费 / 开票四条链路全部拦死。已随 VmqApk 一并移除，不要靠 env 兜。
 
   // 复用未过期的待支付订单
   const existing = await prisma.vmqOrder.findFirst({
@@ -349,60 +347,120 @@ export function detectChannel(text: string): number {
   return 2 // 默认支付宝
 }
 
-// 从通知文案解析金额。注意支付宝到账通知里常带「收钱码/收钱N笔」等促销语，
-// 所以优先匹配「金额+元」与「成功收款 金额」，避免被「收钱1笔」之类误伤。
-export function parseAmount(text: string): string | null {
-  if (!text) return null
+export type AmountReject = 'empty' | 'broadcast_rejected' | 'no_strong_signal'
+export type AmountParse = { ok: true; amount: string } | { ok: false; reason: AmountReject }
+
+// 支付宝收钱码会发两类通知，只有第二类代表「这一笔钱到账了」：
+//   ①「上一笔播报：支付宝到账 1430.00 元。收钱提醒助手正在为您服务」
+//      —— 这是上一笔订单的金额，拿来匹配会把别人的订单标记成已支付，必须拒绝。
+//   ②「已转入余额 可兑1000收款免费额度>> 你已成功收款1430.00元（老顾客消费）」
+//      —— 这才是本次实收金额。
+// 又因为 SmsForwarder 会把 content / org_content / title / from 拼成一长串，同一金额会出现 2~3 次、
+// 且不同来源的文本混在一起，所以只能做「强信号词 + 紧邻金额」的匹配，不能对整串跑宽松正则。
+const STRONG_SIGNAL = /(?:你已成功收款|已成功收款|成功收款)\s*[¥￥]?\s*(\d+(?:\.\d{1,2})?)\s*元/g
+// 播报类关键词：出现在强信号词之前的近距离窗口内，说明这是「上一笔」的回顾而非本次到账
+const BROADCAST_HINT = /上一笔|上笔播报|历史播报|最近一笔/
+
+export function parseAmountDetailed(text: string): AmountParse {
+  if (!text || !text.trim()) return { ok: false, reason: 'empty' }
   const t = text.replace(/,/g, '')
-  const patterns = [
-    /(?:成功收款|实收|收款金额|到账金额|入账)\D{0,4}(\d+(?:\.\d{1,2})?)\s*元/, // 强信号：成功收款…元
-    /(\d+(?:\.\d{1,2})?)\s*元/, // 金额+元（最可靠）
-    /(?:成功收款|收款|到账|入账|收入)\D{0,4}(\d+(?:\.\d{1,2})?)/,
-    /[¥￥]\s*(\d+(?:\.\d{1,2})?)/,
-  ]
-  for (const re of patterns) {
-    const m = t.match(re)
-    if (m) return m[1]
+
+  STRONG_SIGNAL.lastIndex = 0
+  let m: RegExpExecArray | null
+  let sawStrong = false
+  while ((m = STRONG_SIGNAL.exec(t)) !== null) {
+    sawStrong = true
+    // 强信号词前 24 字内出现「上一笔」之类 → 这一处是播报回顾，跳过继续找下一处
+    if (BROADCAST_HINT.test(t.slice(Math.max(0, m.index - 24), m.index))) continue
+    return { ok: true, amount: m[1] }
   }
-  // 兜底：取最后一个带两位小数的金额
-  const dec = t.match(/\d+\.\d{2}/g)
-  if (dec && dec.length) return dec[dec.length - 1]
-  return null
+
+  // 有强信号但全被播报前缀否掉
+  if (sawStrong) return { ok: false, reason: 'broadcast_rejected' }
+  // 没有强信号，但明显是播报/到账类文案（如「上一笔播报：支付宝到账 1430.00 元」）→ 明确标注原因，
+  // 便于后台区分「被新规则拒了」和「文案没覆盖到」
+  if (BROADCAST_HINT.test(t) || /到账|收钱提醒/.test(t)) return { ok: false, reason: 'broadcast_rejected' }
+  return { ok: false, reason: 'no_strong_signal' }
 }
 
-export async function handleWebhookNotify(content: string): Promise<{ matched: boolean; amount: string | null; type: number }> {
+/** 兼容旧调用：只要金额字符串 */
+export function parseAmount(text: string): string | null {
+  const r = parseAmountDetailed(text)
+  return r.ok ? r.amount : null
+}
+
+export const AMOUNT_REJECT_LABELS: Record<AmountReject, string> = {
+  empty: '空内容',
+  broadcast_rejected: '播报类通知（上一笔金额），已按规则拒绝',
+  no_strong_signal: '未出现「你已成功收款X元」强信号，未取用',
+}
+
+export async function handleWebhookNotify(
+  content: string
+): Promise<{ matched: boolean; amount: string | null; type: number; reason?: AmountReject }> {
   const type = detectChannel(content)
-  const amount = parseAmount(content)
-  await setSetting('vmq_lastwebhook', JSON.stringify({ raw: content.slice(0, 300), amount, type, at: Date.now() }))
-  await touchHeartbeat() // 收到转发即视为监控在线
-  if (!amount) {
-    await setSetting('vmq_lastunmatched', JSON.stringify({ raw: content.slice(0, 300), reason: 'no_amount', at: Date.now() }))
-    return { matched: false, amount: null, type }
+  const parsed = parseAmountDetailed(content)
+  // 原文保留 1000 字（Setting.value 是 Text，长度不是瓶颈），便于上线初期核对文案
+  await setSetting(
+    'vmq_lastwebhook',
+    JSON.stringify({
+      raw: content.slice(0, 1000),
+      amount: parsed.ok ? parsed.amount : null,
+      reason: parsed.ok ? null : parsed.reason,
+      type,
+      at: Date.now(),
+    })
+  )
+  await touchHeartbeat() // 收到转发即视为监控端仍在工作
+  if (!parsed.ok) {
+    await setSetting(
+      'vmq_lastunmatched',
+      JSON.stringify({ raw: content.slice(0, 1000), reason: parsed.reason, at: Date.now() })
+    )
+    console.warn(`[vmq] 通知未取用 reason=${parsed.reason} raw=${content.slice(0, 200)}`)
+    return { matched: false, amount: null, type, reason: parsed.reason }
   }
-  const matched = await markPaidByAmount(amount, type)
-  return { matched, amount, type }
+  const matched = await markPaidByAmount(parsed.amount, type)
+  return { matched, amount: parsed.amount, type }
 }
 
 // 原子领取未使用卡密（条件更新 where status=UNUSED 防并发重复发放）
-async function allocateCards(productId: number, orderId: number, quantity: number): Promise<number> {
+// unitPrices：本次要发的每张卡的售价快照（已按「分」整数分摊，长度 = 本次待发数量）。
+// 发卡的同时把 soldPrice / profit 落库，列表与报表不再现算。
+async function allocateCards(
+  productId: number,
+  orderId: number,
+  quantity: number,
+  unitPrices: number[]
+): Promise<number> {
   let claimed = 0
   for (let attempt = 0; claimed < quantity && attempt < quantity + 10; attempt++) {
     const card = await prisma.cardKey.findFirst({
       where: { productId, status: 'UNUSED' },
       orderBy: { id: 'asc' },
-      select: { id: true },
+      select: { id: true, cost: true },
     })
     if (!card) break
+    const soldPrice = unitPrices[claimed] ?? 0
+    const cost = Number(card.cost ?? 0)
     const r = await prisma.cardKey.updateMany({
       where: { id: card.id, status: 'UNUSED' },
-      data: { status: 'USED', orderId, usedAt: new Date() },
+      data: {
+        status: 'USED',
+        orderId,
+        usedAt: new Date(),
+        soldPrice: new Prisma.Decimal(soldPrice.toFixed(2)),
+        profit: new Prisma.Decimal(round2(soldPrice - cost).toFixed(2)),
+      },
     })
     if (r.count === 1) claimed++ // 抢到；否则被并发领走，继续下一张
   }
   return claimed
 }
 
-async function fulfillOrder(orderId: number) {
+// 导出供后台「补发卡密」使用：本函数幂等（原子占单 + 只补缺口），
+// 对已 PAID 的订单重复调用不会重复记账、不会超发。
+export async function fulfillOrder(orderId: number) {
   const order0 = await prisma.order.findUnique({ where: { id: orderId } })
   if (!order0) return
 
@@ -437,7 +495,9 @@ async function fulfillOrder(orderId: number) {
     const already = await prisma.cardKey.count({ where: { orderId: order.id, status: 'USED' } })
     let owned = already
     if (already < order.quantity) {
-      owned += await allocateCards(order.productId, order.id, order.quantity - already)
+      // 单卡售价 = 订单总额按张数整数分摊；补发时只取「尚缺」的那几份，保证 Σ 单卡售价 === order.amount
+      const unitPrices = splitAmount(Number(order.amount), order.quantity).slice(already)
+      owned += await allocateCards(order.productId, order.id, order.quantity - already, unitPrices)
     }
     delivered = owned >= order.quantity
     if (delivered) {
@@ -515,10 +575,5 @@ async function fulfillInvoice(invoiceId: number) {
   })
 }
 
-// ---- 签名校验 ----
-export function checkHeartSign(t: string, sign: string): boolean {
-  return md5(t + VMQ_KEY) === sign
-}
-export function checkPushSign(type: string, price: string, t: string, sign: string): boolean {
-  return md5(type + price + t + VMQ_KEY) === sign
-}
+// 说明：VmqApk 的 /appHeart、/appPush 协议与其签名校验（checkHeartSign / checkPushSign）
+// 已随 VmqApk 一并移除。到账通知统一走 SmsForwarder → POST /api/pay/sms-notify（token 鉴权）。

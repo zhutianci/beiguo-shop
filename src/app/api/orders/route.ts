@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
@@ -18,17 +19,63 @@ const createOrderSchema = z.object({
   ref: z.string().trim().optional().nullable(), // 内推码
 })
 
-// 获取用户订单列表
-export async function GET() {
+// 获取用户订单列表（分页 + 服务端筛选/检索）
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
     if (!user) {
       return unauthorized()
     }
 
+    const { searchParams } = new URL(request.url)
+    const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '10') || 10, 1), 50)
+    const filter = (searchParams.get('filter') || '').trim() // all | UNPAID | PROCESSING | DELIVERED
+    const keyword = (searchParams.get('keyword') || '').trim()
+
+    // 「处理中」是复合条件（已付款但尚未交付），没法用单个字段表达，这里集中定义一次，
+    // 列表筛选与顶部徽标计数共用，避免两处口径漂移。
+    const FILTERS: Record<string, Prisma.OrderWhereInput> = {
+      UNPAID: { payStatus: 'UNPAID' },
+      PROCESSING: { payStatus: 'PAID', deliveryStatus: { in: ['PENDING', 'PROCESSING'] } },
+      DELIVERED: { deliveryStatus: 'DELIVERED' },
+    }
+
+    const base: Prisma.OrderWhereInput = { userId: user.id }
+    const where: Prisma.OrderWhereInput = { ...base }
+    if (FILTERS[filter]) Object.assign(where, FILTERS[filter])
+    if (keyword) {
+      where.OR = [{ orderNo: { contains: keyword } }, { productName: { contains: keyword } }]
+    }
+
+    // 顶部徽标计数：必须是「全部订单」的口径，不能随分页变成本页计数
+    const [total, cAll, cUnpaid, cProcessing, cDelivered] = await Promise.all([
+      prisma.order.count({ where }),
+      prisma.order.count({ where: base }),
+      prisma.order.count({ where: { ...base, ...FILTERS.UNPAID } }),
+      prisma.order.count({ where: { ...base, ...FILTERS.PROCESSING } }),
+      prisma.order.count({ where: { ...base, ...FILTERS.DELIVERED } }),
+    ])
+
+    // 显式 select：不要用 include + {...o} 整行外泄。Order 上的 referrerId / referralReward
+    // 属于内部成本口径，将来若再加成本/利润列，整行序列化会直接把毛利发给买家。
     const orders = await prisma.order.findMany({
-      where: { userId: user.id },
-      include: {
+      where,
+      select: {
+        id: true,
+        orderNo: true,
+        productId: true,
+        productName: true,
+        productPrice: true,
+        quantity: true,
+        amount: true,
+        payStatus: true,
+        deliveryStatus: true,
+        deliveryInfo: true,
+        remark: true,
+        createdAt: true,
+        paidAt: true,
+        deliveredAt: true,
         product: {
           select: {
             id: true,
@@ -41,11 +88,15 @@ export async function GET() {
         },
       },
       orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     })
 
     // 自动发货：把已发给本人订单的卡密解密返回（仅本人、已支付订单可见）
+    // cards 保持 string[]（旧字段，前端沿用）；cardItems 额外带上每张卡的专属兑换地址，
+    // 买家侧展示时应优先用 card.redeemUrl，为空才回落 product.cardRedeemUrl。
     const paidIds = orders.filter((o) => o.payStatus === 'PAID').map((o) => o.id)
-    const cardMap = new Map<number, string[]>()
+    const cardMap = new Map<number, { secret: string; redeemUrl: string | null }[]>()
     if (paidIds.length) {
       const cards = await prisma.cardKey.findMany({
         where: { orderId: { in: paidIds }, status: 'USED' },
@@ -59,7 +110,7 @@ export async function GET() {
           plain = '(卡密解密失败，请联系客服)'
         }
         const arr = cardMap.get(c.orderId as number) || []
-        arr.push(plain)
+        arr.push({ secret: plain, redeemUrl: c.redeemUrl || null })
         cardMap.set(c.orderId as number, arr)
       }
     }
@@ -121,9 +172,11 @@ export async function GET() {
       // 收据金额：买家已付发票税费(payStatus=PAID) → 含税开票金额；否则售价。
       // 须与 submitReceiptForExternalOrder 中的服务端计费口径保持一致。
       const invoicePaid = inv?.payStatus === 'PAID'
+      const items = cardMap.get(o.id) || []
       return {
         ...o,
-        cards: cardMap.get(o.id) || [],
+        cards: items.map((c) => c.secret),
+        cardItems: items, // [{ secret, redeemUrl }]：redeemUrl 为空则回落 product.cardRedeemUrl
         unreadCount: unreadMap.get(o.id) || 0,
         // 票据信息（仅已支付订单可申请）
         billing: paid
@@ -141,7 +194,14 @@ export async function GET() {
           : null,
       }
     })
-    return success(withCards)
+    return success({
+      list: withCards,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(Math.ceil(total / pageSize), 1),
+      counts: { all: cAll, UNPAID: cUnpaid, PROCESSING: cProcessing, DELIVERED: cDelivered },
+    })
   } catch (err) {
     console.error('Get orders error:', err)
     return error('获取订单列表失败')

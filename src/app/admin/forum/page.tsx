@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,38 +35,64 @@ interface AdminPost {
   createdAt: string
 }
 
+const PAGE_SIZE = 20
+
 export default function AdminForumPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [posts, setPosts] = useState<AdminPost[]>([])
   const [keyword, setKeyword] = useState('')
+  const [debouncedKeyword, setDebouncedKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState<Partial<Category> | null>(null)
   const [saving, setSaving] = useState(false)
   const [catErr, setCatErr] = useState<string | null>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const loadCategories = async () => {
     const res = await fetch('/api/admin/forum/categories')
     const data = await res.json()
     if (data.success) setCategories(data.data)
   }
-  const loadPosts = async () => {
+
+  // 搜索防抖
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedKeyword(keyword.trim()), 350)
+    return () => clearTimeout(t)
+  }, [keyword])
+
+  const loadPosts = useCallback(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     try {
-      const q = new URLSearchParams({ pageSize: '50' })
-      if (keyword) q.set('keyword', keyword)
+      const q = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
+      if (debouncedKeyword) q.set('keyword', debouncedKeyword)
       if (statusFilter) q.set('status', statusFilter)
-      const res = await fetch(`/api/admin/forum/posts?${q}`)
+      const res = await fetch(`/api/admin/forum/posts?${q}`, { signal: controller.signal })
       const data = await res.json()
-      if (data.success) setPosts(data.data.list)
+      if (data.success && abortRef.current === controller) {
+        setPosts(data.data.list)
+        setTotal(data.data.total || 0)
+        setTotalPages(data.data.totalPages || 1)
+      }
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) setLoading(false)
     }
-  }
+  }, [page, debouncedKeyword, statusFilter])
+
+  useEffect(() => {
+    loadPosts()
+  }, [loadPosts])
 
   useEffect(() => {
     loadCategories()
-    loadPosts()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -184,7 +210,7 @@ export default function AdminForumPage() {
       {/* 帖子管理 */}
       <Card>
         <CardHeader>
-          <CardTitle>帖子管理（共 {posts.length} 条）</CardTitle>
+          <CardTitle>帖子管理（共 {total} 条）</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -193,14 +219,19 @@ export default function AdminForumPage() {
               <Input
                 placeholder="搜索标题/作者..."
                 value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && loadPosts()}
+                onChange={(e) => {
+                  setKeyword(e.target.value)
+                  setPage(1)
+                }}
                 className="pl-10"
               />
             </div>
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setPage(1)
+              }}
               className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900"
             >
               <option value="">全部状态</option>
@@ -208,7 +239,7 @@ export default function AdminForumPage() {
               <option value="0">已隐藏</option>
             </select>
             <Button variant="outline" onClick={loadPosts}>
-              <Search className="w-4 h-4 mr-1" /> 查询
+              <Search className="w-4 h-4 mr-1" /> 刷新
             </Button>
           </div>
 
@@ -260,6 +291,23 @@ export default function AdminForumPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* 分页 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4">
+              <span className="text-sm text-gray-500">
+                共 {total} 条 · 第 {page} / {totalPages} 页
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(p - 1, 1))}>
+                  上一页
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(p + 1, totalPages))}>
+                  下一页
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

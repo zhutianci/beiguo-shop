@@ -1,8 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Trash2, Bell, Link2, ChevronDown, Loader2, ExternalLink, CheckCircle2 } from 'lucide-react'
+
+interface OrderBrief {
+  id: number
+  subscriptionType: string
+  startDate: string
+  expireDate: string
+}
 
 interface Binding {
   id: number
@@ -11,9 +18,13 @@ interface Binding {
   label: string | null
   orderCount: number
   latest: { subscriptionType: string; startDate: string; expireDate: string } | null
+  recent: OrderBrief[]
   active: boolean
   contact: { email: string; phone: string; notifyEmail: boolean; notifyPhone: boolean }
 }
+
+// 绑定账户每页条数（分段懒加载）
+const PAGE_SIZE = 10
 
 const PLATFORM_LABELS: Record<string, string> = { CLAUDE: 'Claude', CHATGPT: 'ChatGPT', OTHER: '其他' }
 const PLATFORM_STYLES: Record<string, string> = {
@@ -30,6 +41,10 @@ function fmtDate(s: string | null) {
 export default function AccountBindings() {
   const [list, setList] = useState<Binding[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
   const [expanded, setExpanded] = useState<number | null>(null)
 
   // 新增绑定表单
@@ -39,20 +54,29 @@ export default function AccountBindings() {
   const [binding, setBinding] = useState(false)
   const [err, setErr] = useState('')
 
-  const load = async () => {
-    setLoading(true)
+  // 拉某一页；append=true 追加到列表尾部
+  const load = useCallback(async (targetPage = 1, append = false) => {
+    if (append) setLoadingMore(true)
+    else setLoading(true)
     try {
-      const res = await fetch('/api/account/bindings')
+      const res = await fetch(`/api/account/bindings?page=${targetPage}&pageSize=${PAGE_SIZE}`)
       const data = await res.json()
-      if (data.success) setList(data.data.list)
+      if (data.success) {
+        const d = data.data as { list: Binding[]; total: number; page: number; totalPages: number }
+        setList((prev) => (append ? [...prev, ...d.list] : d.list))
+        setPage(d.page)
+        setTotalPages(d.totalPages)
+        setTotal(d.total)
+      }
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
   const handleBind = async () => {
     setErr('')
@@ -204,10 +228,58 @@ export default function AccountBindings() {
               </div>
 
               {expanded === b.id && (
-                <ReminderEditor binding={b} onSaved={load} />
+                <>
+                  {b.recent.length > 0 && (
+                    <div className="border-t border-white/10 bg-white/[0.02] px-4 py-3">
+                      <p className="text-xs text-white/40 mb-2">
+                        最近订单（{b.recent.length} / 共 {b.orderCount} 笔）
+                      </p>
+                      <div className="space-y-1">
+                        {b.recent.map((o) => (
+                          <div key={o.id} className="flex items-center justify-between text-xs text-white/60">
+                            <span className="truncate">{o.subscriptionType}</span>
+                            <span className="text-white/40 whitespace-nowrap ml-3">
+                              {fmtDate(o.startDate)} ~ {fmtDate(o.expireDate)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {b.orderCount > b.recent.length && (
+                        <Link
+                          href={`/lookup?email=${encodeURIComponent(b.accountEmail)}`}
+                          className="mt-2 inline-block text-xs text-purple-300 hover:text-purple-200"
+                        >
+                          查看全部订单 →
+                        </Link>
+                      )}
+                    </div>
+                  )}
+                  <ReminderEditor binding={b} onSaved={() => load()} />
+                </>
               )}
             </div>
           ))}
+
+          {/* 分段加载 */}
+          <div className="pt-2 flex flex-col items-center gap-2">
+            {page < totalPages ? (
+              <button
+                onClick={() => load(page + 1, true)}
+                disabled={loadingMore}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 disabled:opacity-40"
+              >
+                {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
+                {loadingMore ? '加载中...' : '加载更多'}
+              </button>
+            ) : (
+              total > PAGE_SIZE && <span className="text-xs text-white/30">没有更多了</span>
+            )}
+            {total > PAGE_SIZE && (
+              <span className="text-xs text-white/30">
+                已显示 {list.length} / {total} 个账户
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>

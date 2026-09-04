@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -41,6 +41,7 @@ interface Order {
   deliveredAt: string | null
   product: { id: number; name: string; image: string | null; deliveryType?: string; cardUsage?: string | null; cardRedeemUrl?: string | null }
   cards?: string[]
+  cardItems?: { secret: string; redeemUrl: string | null }[] // 每张卡的专属兑换地址，为空回落 product.cardRedeemUrl
   unreadCount?: number // 客服发来、买家未读的回复数
   billing?: Billing | null
 }
@@ -161,23 +162,55 @@ export default function OrdersPage() {
   const { user } = useUserStore()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  // 徽标计数来自服务端全量口径，不能用当前页的数组长度算
+  const [counts, setCounts] = useState({ all: 0, UNPAID: 0, PROCESSING: 0, DELIVERED: 0 })
   const [activeFilter, setActiveFilter] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const abortRef = useRef<AbortController | null>(null)
   const [contactOpen, setContactOpen] = useState(false)
   const [panel, setPanel] = useState<{ order: Order; type: PanelType } | null>(null)
   const [payingNo, setPayingNo] = useState<string | null>(null)
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null)
 
-  const loadOrders = async () => {
-    try {
-      const r = await fetch('/api/orders')
-      const data = await r.json()
-      if (data.success) setOrders(data.data)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // 服务端分页 + 服务端筛选/检索。分段加载：翻页追加到列表尾部（「加载更多」式），
+  // 切筛选/改关键词时从第 1 页重新开始。
+  const loadOrders = useCallback(
+    async (opts?: { append?: boolean }) => {
+      abortRef.current?.abort()
+      const ac = new AbortController()
+      abortRef.current = ac
+      if (opts?.append) setLoadingMore(true)
+      else setLoading(true)
+      try {
+        const q = new URLSearchParams({ page: String(opts?.append ? page + 1 : 1), pageSize: '10' })
+        if (activeFilter !== 'all') q.set('filter', activeFilter)
+        if (debouncedSearch) q.set('keyword', debouncedSearch)
+        const r = await fetch(`/api/orders?${q}`, { signal: ac.signal })
+        const data = await r.json()
+        if (ac.signal.aborted) return
+        if (data.success) {
+          const d = data.data
+          setOrders((prev) => (opts?.append ? [...prev, ...d.list] : d.list))
+          setPage(d.page)
+          setTotalPages(d.totalPages || 1)
+          setCounts(d.counts)
+        }
+      } catch (e) {
+        if ((e as Error).name === 'AbortError') return
+      } finally {
+        if (!ac.signal.aborted) {
+          setLoading(false)
+          setLoadingMore(false)
+        }
+      }
+    },
+    [page, activeFilter, debouncedSearch]
+  )
 
   // 打开某订单的弹窗；打开「在线沟通」时顺手清掉本订单的未读红点
   const openPanel = (order: Order, type: PanelType) => {
@@ -208,27 +241,22 @@ export default function OrdersPage() {
     }
   }
 
+  // 搜索防抖，避免每敲一个字就打一次服务端
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 350)
+    return () => clearTimeout(t)
+  }, [searchTerm])
+
   useEffect(() => {
     if (!user) {
       router.push('/login?redirect=/orders')
       return
     }
-
     loadOrders()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, router])
+  }, [user, router, activeFilter, debouncedSearch])
 
   if (!user) return null
-
-  // 计算各状态数量
-  const counts = {
-    all: orders.length,
-    UNPAID: orders.filter((o) => o.payStatus === 'UNPAID').length,
-    PROCESSING: orders.filter(
-      (o) => o.payStatus === 'PAID' && (o.deliveryStatus === 'PENDING' || o.deliveryStatus === 'PROCESSING')
-    ).length,
-    DELIVERED: orders.filter((o) => o.deliveryStatus === 'DELIVERED').length,
-  }
 
   const statusFilters = [
     { id: 'all', label: '全部', count: counts.all },
@@ -237,25 +265,8 @@ export default function OrdersPage() {
     { id: 'DELIVERED', label: '已完成', count: counts.DELIVERED },
   ]
 
-  const filteredOrders = orders.filter((order) => {
-    let matchesFilter = true
-    if (activeFilter === 'UNPAID') {
-      matchesFilter = order.payStatus === 'UNPAID'
-    } else if (activeFilter === 'PROCESSING') {
-      matchesFilter =
-        order.payStatus === 'PAID' &&
-        (order.deliveryStatus === 'PENDING' || order.deliveryStatus === 'PROCESSING')
-    } else if (activeFilter === 'DELIVERED') {
-      matchesFilter = order.deliveryStatus === 'DELIVERED'
-    }
-
-    const matchesSearch =
-      !searchTerm ||
-      order.orderNo.includes(searchTerm) ||
-      order.productName.toLowerCase().includes(searchTerm.toLowerCase())
-
-    return matchesFilter && matchesSearch
-  })
+  // 筛选与检索已下推到服务端，这里直接用返回的当前列表
+  const filteredOrders = orders
 
   const copyOrderNo = (orderNo: string) => {
     navigator.clipboard.writeText(orderNo)
@@ -517,6 +528,26 @@ export default function OrdersPage() {
           )}
         </AnimatePresence>
 
+        {/* 分段加载：每次追加一页，避免订单多时一次性拉全量 */}
+        {!loading && orders.length > 0 && (
+          <div className="mt-6 flex flex-col items-center gap-2">
+            {page < totalPages ? (
+              <button
+                onClick={() => loadOrders({ append: true })}
+                disabled={loadingMore}
+                className="px-6 py-3 rounded-xl glass hover:bg-white/10 text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+              >
+                {loadingMore && (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                )}
+                {loadingMore ? '加载中...' : '加载更多订单'}
+              </button>
+            ) : (
+              <span className="text-xs text-white/30">没有更多了</span>
+            )}
+          </div>
+        )}
+
         {!loading && orders.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -700,7 +731,16 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
 
 // 发货详情：订单信息 + 卡密 + 交付信息 + 短信接码
 function DeliveryPanel({ order, onClose }: { order: Order; onClose: () => void }) {
-  const hasCards = !!order.cards && order.cards.length > 0
+  // 兼容：新接口返回 cardItems（带每张卡的专属兑换地址），旧数据只有 cards: string[]
+  const cardRows: { secret: string; redeemUrl: string | null }[] =
+    order.cardItems && order.cardItems.length > 0
+      ? order.cardItems
+      : (order.cards || []).map((s) => ({ secret: s, redeemUrl: null }))
+  const hasCards = cardRows.length > 0
+  const isHttp = (u?: string | null) => !!u && /^https?:\/\//i.test(u)
+  const fallbackRedeemUrl = isHttp(order.product?.cardRedeemUrl) ? order.product!.cardRedeemUrl! : null
+  // 兑换地址优先级：卡密自带 → 商品级默认
+  const primaryRedeemUrl = cardRows.find((c) => isHttp(c.redeemUrl))?.redeemUrl || fallbackRedeemUrl
   const showHint = !hasCards && !order.deliveryInfo && order.product?.deliveryType !== 'SMS'
   return (
     <PanelModal title="发货详情" icon={<Package className="w-5 h-5 text-emerald-400" />} onClose={onClose}>
@@ -718,23 +758,38 @@ function DeliveryPanel({ order, onClose }: { order: Order; onClose: () => void }
               <CheckCircle className="w-4 h-4 text-green-400" /> 卡密（请妥善保管）
             </div>
             <div className="space-y-2">
-              {order.cards!.map((card, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <div className="flex-1 p-3 rounded-lg bg-white/5 border border-green-500/30 font-mono text-xs break-all">
-                    {card}
+              {cardRows.map((row, i) => (
+                <div key={i}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 p-3 rounded-lg bg-white/5 border border-green-500/30 font-mono text-xs break-all">
+                      {row.secret}
+                    </div>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(row.secret)}
+                      className="px-3 py-2 rounded-lg glass hover:bg-white/10 text-xs whitespace-nowrap"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => navigator.clipboard.writeText(card)}
-                    className="px-3 py-2 rounded-lg glass hover:bg-white/10 text-xs whitespace-nowrap"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                  </button>
+                  {/* 该卡有专属兑换地址且与商品默认不同时，单独给一个入口 */}
+                  {row.redeemUrl && row.redeemUrl !== fallbackRedeemUrl && (
+                    <a
+                      href={row.redeemUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="mt-1.5 inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
+                    >
+                      本卡兑换地址
+                      <ChevronRight className="w-3 h-3" />
+                    </a>
+                  )}
                 </div>
               ))}
             </div>
-            {order.product?.cardRedeemUrl && /^https?:\/\//i.test(order.product.cardRedeemUrl) && (
+            {/* 统一入口：优先用第一张卡的专属地址，没有才回落商品级默认链接 */}
+            {primaryRedeemUrl && (
               <a
-                href={order.product.cardRedeemUrl}
+                href={primaryRedeemUrl}
                 target="_blank"
                 rel="noreferrer noopener"
                 className="mt-3 group flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 font-semibold hover:shadow-[0_0_24px_rgba(16,185,129,0.4)] transition-all"
@@ -951,6 +1006,8 @@ function InvoiceModal({
   const [bankName, setBankName] = useState('')
   const [bankAccount, setBankAccount] = useState('')
   const [email, setEmail] = useState(defaultEmail || '')
+  // 必选项：发票中是否展示 ChatGPT/Claude 相关字眼。null = 尚未选择（不给默认值，强制买家表态）
+  const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -959,6 +1016,7 @@ function InvoiceModal({
     if (!title.trim()) return setErr('请填写发票抬头')
     if (!taxNumber.trim()) return setErr('请填写税号')
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setErr('请填写正确的接收邮箱')
+    if (showAiWording === null) return setErr('请选择发票中是否展示 ChatGPT/Claude 相关字眼')
     setSubmitting(true)
     try {
       const res = await fetch(`/api/orders/${order.id}/invoice`, {
@@ -972,6 +1030,7 @@ function InvoiceModal({
           bankName: bankName.trim() || null,
           bankAccount: bankAccount.trim() || null,
           email: email.trim(),
+          showAiWording,
         }),
       })
       const data = await res.json()
@@ -1058,6 +1117,33 @@ function InvoiceModal({
           {field('开户行', bankName, setBankName, { placeholder: '选填' })}
           {field('卡号', bankAccount, setBankAccount, { placeholder: '选填' })}
           <div className="sm:col-span-2">{field('接收邮箱', email, setEmail, { required: true, type: 'email', placeholder: '发票将发送到此邮箱' })}</div>
+
+          {/* 必选：发票内容是否展示 AI 平台字眼 */}
+          <div className="sm:col-span-2">
+            <label className="block text-xs text-white/50 mb-1.5">
+              发票中是否展示 ChatGPT/Claude 相关字眼<span className="text-red-400 ml-0.5">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { v: true, label: '展示', desc: '发票项目按实际订阅名称开具' },
+                { v: false, label: '不展示', desc: '发票项目使用通用名称' },
+              ].map((opt) => (
+                <button
+                  key={String(opt.v)}
+                  type="button"
+                  onClick={() => setShowAiWording(opt.v)}
+                  className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                    showAiWording === opt.v
+                      ? 'border-purple-500/60 bg-purple-500/15'
+                      : 'border-white/10 bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="text-sm font-medium text-white/90">{opt.label}</div>
+                  <div className="text-[11px] text-white/40 mt-0.5">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {err && (

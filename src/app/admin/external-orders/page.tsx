@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -93,6 +93,8 @@ function addOneMonth(d: Date): Date {
   return r
 }
 
+const PAGE_SIZE = 20
+
 function parseLine(raw: string): ParsedRow {
   // ✨ 只用 Tab 分隔（从 Excel / 表格复制就是 Tab）
   // 这样订阅类型/昵称里可以包含空格而不会被错误拆分
@@ -156,6 +158,12 @@ export default function ExternalOrdersPage() {
   const [orders, setOrders] = useState<ExternalOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [keyword, setKeyword] = useState('')
+  const [debouncedKeyword, setDebouncedKeyword] = useState('')
+  const [statusFilter, setStatusFilter] = useState('') // '' | valid | expired
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
+  const abortRef = useRef<AbortController | null>(null)
 
   // 编辑/删除状态
   const [editing, setEditing] = useState<EditingOrder | null>(null)
@@ -174,24 +182,39 @@ export default function ExternalOrdersPage() {
   const validRows = parsed.filter((p) => !p.error)
   const errorRows = parsed.filter((p) => p.error)
 
-  const loadOrders = async () => {
+  // 搜索防抖
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedKeyword(keyword.trim()), 350)
+    return () => clearTimeout(t)
+  }, [keyword])
+
+  // 分段懒加载：每页 20 条，搜索/筛选全部走服务端
+  const loadOrders = useCallback(async () => {
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
     setLoading(true)
     try {
-      const url = keyword
-        ? `/api/admin/external-orders?keyword=${encodeURIComponent(keyword)}&pageSize=200`
-        : `/api/admin/external-orders?pageSize=200`
-      const res = await fetch(url)
+      const q = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
+      if (debouncedKeyword) q.set('keyword', debouncedKeyword)
+      if (statusFilter) q.set('status', statusFilter)
+      const res = await fetch(`/api/admin/external-orders?${q}`, { signal: controller.signal })
       const data = await res.json()
-      if (data.success) setOrders(data.data.list)
+      if (data.success && abortRef.current === controller) {
+        setOrders(data.data.list)
+        setTotal(data.data.total || 0)
+        setTotalPages(data.data.totalPages || 1)
+      }
+    } catch (e) {
+      if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
-      setLoading(false)
+      if (abortRef.current === controller) setLoading(false)
     }
-  }
+  }, [page, debouncedKeyword, statusFilter])
 
   useEffect(() => {
     loadOrders()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [loadOrders])
 
   const handleImport = async () => {
     if (validRows.length === 0) {
@@ -220,6 +243,7 @@ export default function ExternalOrdersPage() {
       if (data.success) {
         setImportResult(data.data)
         setText('')
+        setPage(1)
         loadOrders()
       } else {
         alert(data.error || '导入失败')
@@ -235,6 +259,7 @@ export default function ExternalOrdersPage() {
     const data = await res.json()
     if (data.success) {
       alert(data.message)
+      setPage(1)
       loadOrders()
     } else {
       alert(data.error || '清空失败')
@@ -463,27 +488,41 @@ export default function ExternalOrdersPage() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>当前订单（共 {orders.length} 条）</CardTitle>
+          <CardTitle>当前订单（共 {total} 条）</CardTitle>
           <Button variant="danger" size="sm" onClick={handleClearAll}>
             <Trash2 className="w-4 h-4 mr-1" />
             清空全部
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex flex-wrap items-center gap-2 mb-4">
             <div className="relative flex-1 max-w-sm">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <Input
                 placeholder="搜索账户/昵称/订阅类型..."
                 value={keyword}
-                onChange={(e) => setKeyword(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && loadOrders()}
+                onChange={(e) => {
+                  setKeyword(e.target.value)
+                  setPage(1)
+                }}
                 className="pl-10"
               />
             </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setPage(1)
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            >
+              <option value="">全部状态</option>
+              <option value="valid">有效</option>
+              <option value="expired">已过期</option>
+            </select>
             <Button onClick={loadOrders} variant="outline">
               <Search className="w-4 h-4 mr-1" />
-              搜索
+              刷新
             </Button>
           </div>
 
@@ -562,6 +601,23 @@ export default function ExternalOrdersPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* 分页 */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4">
+              <span className="text-sm text-gray-500">
+                共 {total} 条 · 第 {page} / {totalPages} 页
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(p - 1, 1))}>
+                  上一页
+                </Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(p + 1, totalPages))}>
+                  下一页
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

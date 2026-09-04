@@ -7,26 +7,45 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { ensureReferralCode } from '@/lib/referral'
 
-// GET：内推码 + 收益概览 + 各商品基础价/我的专属价
-export async function GET() {
+// GET：内推码 + 收益概览 + 各商品基础价/我的专属价（商品分页）
+export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
+
+    const { searchParams } = new URL(request.url)
+    const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20') || 20, 1), 50)
 
     const code = await ensureReferralCode(user.id)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bigolab.com'
     const link = `${appUrl}/products?ref=${code}`
 
-    const [me, products, myPrices, myBases, rewards] = await Promise.all([
+    const productWhere = { status: 1 }
+    const [me, products, productTotal, rewardAgg] = await Promise.all([
       prisma.user.findUnique({ where: { id: user.id }, select: { balance: true } }),
       prisma.product.findMany({
-        where: { status: 1 },
+        where: productWhere,
         select: { id: true, name: true, price: true, referrerBasePrice: true },
-        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
+        // id 兜底，保证翻页稳定（不重不漏）
+        orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
       }),
-      prisma.referralPrice.findMany({ where: { userId: user.id } }),
-      prisma.referrerBasePrice.findMany({ where: { userId: user.id } }),
-      prisma.referralReward.findMany({ where: { referrerId: user.id, status: 'SETTLED' }, select: { amount: true } }),
+      prisma.product.count({ where: productWhere }),
+      // 返现汇总走聚合，不把明细拉进内存
+      prisma.referralReward.aggregate({
+        where: { referrerId: user.id, status: 'SETTLED' },
+        _sum: { amount: true },
+        _count: { _all: true },
+      }),
+    ])
+
+    // 专属价/基础价只查本页商品
+    const productIds = products.map((p) => p.id)
+    const [myPrices, myBases] = await Promise.all([
+      prisma.referralPrice.findMany({ where: { userId: user.id, productId: { in: productIds } } }),
+      prisma.referrerBasePrice.findMany({ where: { userId: user.id, productId: { in: productIds } } }),
     ])
 
     const priceMap = new Map(myPrices.map((p) => [p.productId, Number(p.price)]))
@@ -42,15 +61,19 @@ export async function GET() {
       customPrice: priceMap.has(p.id) ? priceMap.get(p.id)! : null,
     }))
 
-    const totalReward = rewards.reduce((s, r) => s + Number(r.amount), 0)
+    const totalReward = Number(rewardAgg._sum.amount ?? 0)
 
     return success({
       code,
       link,
       balance: Number(me?.balance ?? 0),
       totalReward: Math.round(totalReward * 100) / 100,
-      rewardCount: rewards.length,
+      rewardCount: rewardAgg._count._all,
       products: list,
+      productTotal,
+      productPage: page,
+      productPageSize: pageSize,
+      productTotalPages: Math.max(Math.ceil(productTotal / pageSize), 1),
     })
   } catch (err) {
     console.error('Get referral error:', err)

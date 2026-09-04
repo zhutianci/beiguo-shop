@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowRight, Filter, Sparkles } from 'lucide-react'
+import { ArrowRight, Filter, Loader2, Sparkles } from 'lucide-react'
 import { ContactModal } from '@/components/contact-modal'
 import { captureRefFromUrl } from '@/lib/ref'
 
@@ -61,32 +61,79 @@ function parseFeatures(features: string | null): string[] {
   }
 }
 
+// 每次加载的商品数量（分段懒加载）
+const PAGE_SIZE = 12
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
   const [selectedCategory, setSelectedCategory] = useState(0)
   const [contactOpen, setContactOpen] = useState(false)
   const [ref, setRef] = useState<string | null>(null)
+  // 内推码要在浏览器里读，读到之前先不发商品请求，避免重复拉一次
+  const [refReady, setRefReady] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
+  // 首次挂载：读内推码 + 拉分类
   useEffect(() => {
-    const r = captureRefFromUrl()
-    setRef(r)
-    Promise.all([
-      fetch(`/api/products${r ? `?ref=${encodeURIComponent(r)}` : ''}`).then((res) => res.json()),
-      fetch('/api/categories').then((res) => res.json()),
-    ])
-      .then(([productsData, categoriesData]) => {
-        if (productsData.success) setProducts(productsData.data)
-        if (categoriesData.success) setCategories(categoriesData.data)
+    setRef(captureRefFromUrl())
+    setRefReady(true)
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setCategories(data.data)
       })
-      .finally(() => setLoading(false))
+      .catch(() => {})
   }, [])
 
-  const filteredProducts =
-    selectedCategory === 0
-      ? products
-      : products.filter((p) => p.categoryId === selectedCategory)
+  // 拉某一页商品：append=true 追加到列表尾部（加载更多）
+  const loadPage = useCallback(
+    async (targetPage: number, append: boolean) => {
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
+      if (append) setLoadingMore(true)
+      else setLoading(true)
+      try {
+        const q = new URLSearchParams({ page: String(targetPage), pageSize: String(PAGE_SIZE) })
+        if (selectedCategory) q.set('categoryId', String(selectedCategory))
+        if (ref) q.set('ref', ref)
+        const res = await fetch(`/api/products?${q}`, { signal: controller.signal })
+        const data = await res.json()
+        if (data.success && abortRef.current === controller) {
+          const d = data.data as { list: Product[]; total: number; page: number; totalPages: number }
+          setProducts((prev) => (append ? [...prev, ...d.list] : d.list))
+          setPage(d.page)
+          setTotalPages(d.totalPages)
+          setTotal(d.total)
+        }
+      } catch (e) {
+        if ((e as { name?: string })?.name === 'AbortError') return
+      } finally {
+        if (abortRef.current === controller) {
+          setLoading(false)
+          setLoadingMore(false)
+        }
+      }
+    },
+    [selectedCategory, ref]
+  )
+
+  // 切换分类（或拿到内推码后）：清空并重新从第 1 页拉
+  useEffect(() => {
+    if (!refReady) return
+    setProducts([])
+    setPage(1)
+    setTotalPages(1)
+    loadPage(1, false)
+  }, [refReady, loadPage])
+
+  const hasMore = page < totalPages
 
   return (
     <div className="min-h-screen pt-32 pb-20">
@@ -156,7 +203,7 @@ export default function ProductsPage() {
 
         {loading ? (
           <div className="text-center py-20 text-white/40">加载中...</div>
-        ) : filteredProducts.length === 0 ? (
+        ) : products.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -167,7 +214,7 @@ export default function ProductsPage() {
           </motion.div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredProducts.map((product, index) => {
+            {products.map((product, index) => {
               const gradient = getGradient(product.id)
               const tag = getTag(product)
               const features = parseFeatures(product.features)
@@ -176,7 +223,7 @@ export default function ProductsPage() {
                   key={product.id}
                   initial={{ opacity: 0, y: 40 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
+                  transition={{ duration: 0.6, delay: (index % PAGE_SIZE) * 0.05 }}
                   layout
                 >
                   <Link href={`/products/${product.id}`}>
@@ -264,6 +311,27 @@ export default function ProductsPage() {
                 </motion.div>
               )
             })}
+          </div>
+        )}
+
+        {/* 分段加载：加载更多 */}
+        {!loading && products.length > 0 && (
+          <div className="mt-12 flex flex-col items-center gap-3">
+            {hasMore ? (
+              <button
+                onClick={() => loadPage(page + 1, true)}
+                disabled={loadingMore}
+                className="inline-flex items-center gap-2 px-8 py-3 rounded-full glass text-sm text-white/80 hover:bg-white/10 disabled:opacity-40 transition-colors"
+              >
+                {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
+                {loadingMore ? '加载中...' : '加载更多'}
+              </button>
+            ) : (
+              <span className="text-sm text-white/30">没有更多了</span>
+            )}
+            <span className="text-xs text-white/30">
+              已显示 {products.length} / {total} 件商品
+            </span>
           </div>
         )}
 

@@ -43,6 +43,16 @@ interface Detail {
   createdAt: string
 }
 
+// 评论每页条数（顶层评论，楼中楼回复跟随父评论返回）
+const COMMENT_PAGE_SIZE = 20
+
+interface CommentPage {
+  list: Comment[]
+  total: number
+  page: number
+  totalPages: number
+}
+
 export default function PostDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -54,6 +64,13 @@ export default function PostDetailPage() {
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
+  // 评论分段加载状态
+  const [cPage, setCPage] = useState(1) // 已加载到第几页
+  const [cTotalPages, setCTotalPages] = useState(1)
+  const [cTotal, setCTotal] = useState(0)
+  const [cLoading, setCLoading] = useState(false)
+  const [cHint, setCHint] = useState('')
+
   const loadPost = useCallback(async () => {
     const res = await forumFetch(`/api/forum/posts/${id}`)
     const data = await res.json()
@@ -61,15 +78,77 @@ export default function PostDetailPage() {
     else setNotFound(true)
   }, [id])
 
-  const loadComments = useCallback(async () => {
-    const res = await forumFetch(`/api/forum/posts/${id}/comments`)
-    const data = await res.json()
-    if (data.success) setComments(data.data.list)
-  }, [id])
+  const fetchCommentPage = useCallback(
+    async (target: number): Promise<CommentPage | null> => {
+      const res = await forumFetch(
+        `/api/forum/posts/${id}/comments?page=${target}&pageSize=${COMMENT_PAGE_SIZE}`
+      )
+      const data = await res.json()
+      return data.success ? (data.data as CommentPage) : null
+    },
+    [id]
+  )
+
+  // 重新拉取「第 1 页 ~ 第 upTo 页」，保持已展开的评论范围不丢
+  const reloadComments = useCallback(
+    async (upTo: number) => {
+      const last = Math.max(upTo, 1)
+      setCLoading(true)
+      try {
+        const pages = await Promise.all(
+          Array.from({ length: last }, (_, i) => fetchCommentPage(i + 1))
+        )
+        if (pages.some((p) => p === null)) return
+        const ok = pages as CommentPage[]
+        setComments(ok.flatMap((p) => p.list))
+        const tail = ok[ok.length - 1]
+        setCPage(tail.page)
+        setCTotalPages(tail.totalPages)
+        setCTotal(tail.total)
+      } finally {
+        setCLoading(false)
+      }
+    },
+    [fetchCommentPage]
+  )
+
+  // 加载更多评论：追加到列表尾部
+  const loadMoreComments = useCallback(async () => {
+    setCLoading(true)
+    setCHint('')
+    try {
+      const d = await fetchCommentPage(cPage + 1)
+      if (!d) return
+      setComments((prev) => [...prev, ...d.list])
+      setCPage(d.page)
+      setCTotalPages(d.totalPages)
+      setCTotal(d.total)
+    } finally {
+      setCLoading(false)
+    }
+  }, [fetchCommentPage, cPage])
+
+  // 发表/删除评论后刷新：新顶层评论排在最后，尽量把它所在的页也拉出来
+  const refreshAfterChange = useCallback(
+    async (isNewTopComment: boolean) => {
+      setCHint('')
+      const needPages = Math.max(Math.ceil((cTotal + 1) / COMMENT_PAGE_SIZE), 1)
+      // 新顶层评论排在最末页：最多往后多拉一页，避免中间出现空档
+      // 回复/删除只影响已加载范围，原样刷新即可
+      const upTo = isNewTopComment ? Math.min(needPages, cPage + 1) : cPage
+      await reloadComments(upTo)
+      if (isNewTopComment && needPages > upTo) {
+        setCHint('评论已发表，点击下方「加载更多评论」即可看到')
+      }
+    },
+    [cTotal, cPage, reloadComments]
+  )
 
   useEffect(() => {
-    Promise.all([loadPost(), loadComments()]).finally(() => setLoading(false))
-  }, [loadPost, loadComments])
+    Promise.all([loadPost(), reloadComments(1)]).finally(() => setLoading(false))
+    // 仅在帖子 id 变化时重新初始化
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const toggleLike = async () => {
     if (!post) return
@@ -200,16 +279,40 @@ export default function PostDetailPage() {
               <Lock className="w-4 h-4 inline mr-1" /> 该帖已锁定，暂不可回复
             </div>
           ) : (
-            <CommentBox postId={id} onDone={() => { loadComments(); loadPost() }} userName={user?.nickname || user?.email || null} />
+            <CommentBox postId={id} onDone={() => { refreshAfterChange(true); loadPost() }} userName={user?.nickname || user?.email || null} />
+          )}
+
+          {cHint && (
+            <p className="mt-3 text-center text-xs text-emerald-300/80">{cHint}</p>
           )}
 
           {/* 评论列表 */}
           <div className="space-y-4 mt-6">
             {comments.map((c) => (
-              <CommentItem key={c.id} comment={c} postId={id} locked={post.locked && !post.isAdmin} userName={user?.nickname || user?.email || null} onChange={() => { loadComments(); loadPost() }} />
+              <CommentItem key={c.id} comment={c} postId={id} locked={post.locked && !post.isAdmin} userName={user?.nickname || user?.email || null} onChange={() => { refreshAfterChange(false); loadPost() }} />
             ))}
-            {comments.length === 0 && <p className="text-center text-white/30 py-8 text-sm">还没有评论，来抢沙发～</p>}
+            {comments.length === 0 && !cLoading && <p className="text-center text-white/30 py-8 text-sm">还没有评论，来抢沙发～</p>}
           </div>
+
+          {/* 分段加载：加载更多评论 */}
+          {comments.length > 0 && (
+            <div className="mt-6 flex flex-col items-center gap-2">
+              {cPage < cTotalPages ? (
+                <button
+                  onClick={loadMoreComments}
+                  disabled={cLoading}
+                  className="px-6 py-2.5 rounded-xl glass text-sm text-white/70 hover:text-white hover:bg-white/10 disabled:opacity-40 transition-colors"
+                >
+                  {cLoading ? '加载中...' : '加载更多评论'}
+                </button>
+              ) : (
+                <span className="text-xs text-white/25">没有更多评论了</span>
+              )}
+              <span className="text-xs text-white/25">
+                已显示 {comments.length} / {cTotal} 条主楼评论
+              </span>
+            </div>
+          )}
         </section>
       </div>
     </div>

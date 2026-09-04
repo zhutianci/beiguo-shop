@@ -30,7 +30,6 @@ services:
       # V免签式收款（监控个人支付宝收款码到账，按唯一金额匹配）
       - VMQ_KEY=${VMQ_KEY}
       - VMQ_PAY_TIMEOUT=${VMQ_PAY_TIMEOUT}
-      - VMQ_REQUIRE_MONITOR=${VMQ_REQUIRE_MONITOR}
       - VMQ_WEBHOOK_TOKEN=${VMQ_WEBHOOK_TOKEN}
       # 卡密加密密钥（自动发货；务必设置且勿丢失，丢失则已存卡密无法解密）
       - CARDKEY_SECRET=${CARDKEY_SECRET}

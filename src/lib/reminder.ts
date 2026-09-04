@@ -1,7 +1,7 @@
 // 到期提醒核心逻辑：筛选即将到期订单、解析联系人、发送邮件/短信、记录日志、更新提醒状态
 import { prisma } from './db'
 import { sendDirectMail, sendSms } from './aliyun'
-import type { ExternalOrder } from '@prisma/client'
+import type { AccountContact, ExternalOrder } from '@prisma/client'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://bigolab.com'
 const SERVICE_WECHAT = 'GenuineMarxist'
@@ -169,24 +169,38 @@ export async function sendRechargeForOrder(
   return { orderId: order.id, claudeAccount: order.claudeAccount, ok: r.ok, target, detail: r.detail }
 }
 
-// 批量发送充值成功邮件（导入新增订单后调用）
+// 单批处理条数（分批游标 / 分批查联系人，避免一次性把整张表拉进内存）
+const BATCH_SIZE = 200
+
+// 只查询本批订单涉及到的账户联系人，返回 claudeAccount -> AccountContact 映射
+async function loadContactMap(
+  orders: { claudeAccount: string }[]
+): Promise<Map<string, AccountContact>> {
+  const accounts = Array.from(new Set(orders.map((o) => o.claudeAccount)))
+  if (accounts.length === 0) return new Map()
+  const contacts = await prisma.accountContact.findMany({
+    where: { claudeAccount: { in: accounts } },
+  })
+  return new Map(contacts.map((c) => [c.claudeAccount, c]))
+}
+
+// 批量发送充值成功邮件（导入新增订单后调用）：按 200 条一批，逐批查联系人
 export async function sendRechargeForOrders(
   orders: ExternalOrder[]
 ): Promise<{ total: number; sent: number; failed: number }> {
   if (orders.length === 0) return { total: 0, sent: 0, failed: 0 }
-  const accounts = Array.from(new Set(orders.map((o) => o.claudeAccount)))
-  const contacts = await prisma.accountContact.findMany({
-    where: { claudeAccount: { in: accounts } },
-  })
-  const contactMap = new Map(contacts.map((c) => [c.claudeAccount, c]))
 
   let sent = 0
   let failed = 0
-  for (const order of orders) {
-    const contact = resolveContact(order.claudeAccount, contactMap.get(order.claudeAccount) || null)
-    const r = await sendRechargeForOrder(order, contact)
-    if (r.ok) sent++
-    else failed++
+  for (let i = 0; i < orders.length; i += BATCH_SIZE) {
+    const batch = orders.slice(i, i + BATCH_SIZE)
+    const contactMap = await loadContactMap(batch)
+    for (const order of batch) {
+      const contact = resolveContact(order.claudeAccount, contactMap.get(order.claudeAccount) || null)
+      const r = await sendRechargeForOrder(order, contact)
+      if (r.ok) sent++
+      else failed++
+    }
   }
   return { total: orders.length, sent, failed }
 }
@@ -284,42 +298,52 @@ export interface AutoRunSummary {
 }
 
 // 自动提醒任务：7 日内到期且未提醒过的订单
+// 分批游标处理：每批 200 条、按 id 递增游标推进，直到该到期区间内的订单处理完；
+// 每批只查询本批涉及账户的 AccountContact，避免整表扫描。
+// 判定逻辑与旧实现完全一致（到期区间 [今天, 今天+8天)，跳过 remindedExpireDate == expireDate 的订单）。
 export async function runAutoReminders(): Promise<AutoRunSummary> {
   const today = new Date(todayUtcMs())
   const max = new Date(todayUtcMs() + (REMIND_WITHIN_DAYS + 1) * 86400000)
 
-  const orders = await prisma.externalOrder.findMany({
-    where: { expireDate: { gte: today, lt: max } },
-    orderBy: { expireDate: 'asc' },
-  })
-
-  // 排除已针对当前到期日提醒过的（续费后 expireDate 改变会重新生效）
-  const eligible = orders.filter(
-    (o) => !isSameUtcDate(o.remindedExpireDate, o.expireDate)
-  )
-
-  const accounts = Array.from(new Set(eligible.map((o) => o.claudeAccount)))
-  const contacts = await prisma.accountContact.findMany({
-    where: { claudeAccount: { in: accounts } },
-  })
-  const contactMap = new Map(contacts.map((c) => [c.claudeAccount, c]))
-
   const summary: AutoRunSummary = {
-    total: orders.length,
-    eligible: eligible.length,
+    total: 0,
+    eligible: 0,
     sent: 0,
     failed: 0,
     skipped: 0,
     outcomes: [],
   }
 
-  for (const order of eligible) {
-    const contact = resolveContact(order.claudeAccount, contactMap.get(order.claudeAccount) || null)
-    const outcome = await sendReminderForOrder(order, contact, 'auto')
-    summary.outcomes.push(outcome)
-    if (outcome.skippedReason) summary.skipped++
-    else if (outcome.emailResult?.ok || outcome.smsResult?.ok) summary.sent++
-    else summary.failed++
+  let cursorId = 0
+  // 游标按 id 递增：sendReminderForOrder 只会改 lastRemindedAt / remindedExpireDate，
+  // 不影响 expireDate 区间筛选，因此已处理的行不会重复进入后续批次。
+  for (;;) {
+    const batch = await prisma.externalOrder.findMany({
+      where: { expireDate: { gte: today, lt: max }, id: { gt: cursorId } },
+      orderBy: { id: 'asc' },
+      take: BATCH_SIZE,
+    })
+    if (batch.length === 0) break
+    cursorId = batch[batch.length - 1].id
+    summary.total += batch.length
+
+    // 排除已针对当前到期日提醒过的（续费后 expireDate 改变会重新生效）
+    const eligible = batch.filter((o) => !isSameUtcDate(o.remindedExpireDate, o.expireDate))
+    summary.eligible += eligible.length
+
+    if (eligible.length > 0) {
+      const contactMap = await loadContactMap(eligible)
+      for (const order of eligible) {
+        const contact = resolveContact(order.claudeAccount, contactMap.get(order.claudeAccount) || null)
+        const outcome = await sendReminderForOrder(order, contact, 'auto')
+        summary.outcomes.push(outcome)
+        if (outcome.skippedReason) summary.skipped++
+        else if (outcome.emailResult?.ok || outcome.smsResult?.ok) summary.sent++
+        else summary.failed++
+      }
+    }
+
+    if (batch.length < BATCH_SIZE) break
   }
 
   return summary
