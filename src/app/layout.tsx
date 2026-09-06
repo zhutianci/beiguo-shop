@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { AuthFetchPatch } from '@/components/auth-fetch-patch'
@@ -23,6 +23,15 @@ const DESCRIPTION =
  * （零依赖手写 PNG 编码，不用 next/og：standalone 下它有内存泄漏，
  * satori 的 WASM 还会把 CPU 打到 300%，这台 1.8G 内存的机器扛不住）。
  */
+// 明确告诉浏览器前台是深色页面。
+// 不声明的话，iOS Safari / 微信内置浏览器在系统暗夜模式下会对页面做自动反色：
+// bg-white/5 这类近乎透明的底色被强制成不透明浅色、文字仍是白色，
+// 买家看到的就是白底白字——卡密区曾因此完全不可见。
+export const viewport: Viewport = {
+  colorScheme: 'dark',
+  themeColor: '#000000',
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin()),
   // 刻意不用 title.template：新闻详情页的 <title> 会被微信直接当分享标题读走，

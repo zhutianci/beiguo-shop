@@ -152,7 +152,17 @@ export async function acquireStageLock(stage: string, ttlMs: number): Promise<st
       if ((e as { code?: string })?.code !== 'P2002') throw e
       const existing = await prisma.vmqLock.findUnique({ where: { lockKey } })
       if (!existing) continue // 刚被别人释放，再抢一次
-      if (Date.now() - existing.createdAt.getTime() < ttlMs) return null // 有人正在跑
+
+      // 用绝对值判断「陈旧」，而不是 now - createdAt < ttl。
+      //
+      // 原因：MySQL 的 DATETIME 不带时区，一旦进程 TZ 变了（本项目就把 app 容器
+      // 从 UTC 改成了 Asia/Shanghai），改动前写入的行会被按新时区重新解释，
+      // createdAt 可能落到「未来」。那时 now - createdAt 是负数，恒小于 ttl，
+      // 锁就永远不会自愈——线上出现过持有 27 分钟仍不释放的 compose 锁，
+      // 而 MySQL 自己算出来的 TIMESTAMPDIFF 明明已经 27 分钟。
+      // 时间戳落在未来本身就说明这行不可信，按陈旧处理才是对的。
+      const age = Math.abs(Date.now() - existing.createdAt.getTime())
+      if (age < ttlMs) return null // 有人正在跑
       // 陈旧锁（上一轮进程被杀）→ 精确按 id 清理后重试，避免误删刚续上的新锁
       await prisma.vmqLock.deleteMany({ where: { id: existing.id, orderId: existing.orderId } }).catch(() => {})
     }

@@ -9,10 +9,25 @@
     --muted: 0 0% 15%;
     --accent: 262 83% 58%;
     --accent-secondary: 180 100% 50%;
+
+    /*
+     * 必须声明：前台是深色设计，但不告诉浏览器的话，
+     * iOS Safari / 微信内置浏览器在系统暗夜模式下会对页面做一次「自动反色」，
+     * 把 bg-white/5 这类近乎透明的底色强制成不透明浅色，而文字仍是白色
+     * —— 结果就是买家看到一片白底白字，卡密完全不可见（真实故障）。
+     * 声明之后浏览器知道页面已是深色，不再插手。
+     */
+    color-scheme: dark;
   }
 
   html {
     scroll-behavior: smooth;
+    color-scheme: dark;
+  }
+
+  /* 后台是浅色，单独覆盖，否则会继承上面的深色声明导致表单控件配色错乱 */
+  .admin-area {
+    color-scheme: light;
   }
 
   body {
