@@ -42,10 +42,14 @@ export const SEED_SOURCES: SeedSource[] = [
   { key: 'arxiv-ai', name: 'arXiv cs.AI', feedUrl: 'https://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=submittedDate&sortOrder=descending&max_results=25', homepage: 'https://arxiv.org/list/cs.AI/recent', kind: 'ATOM', lang: 'en', tier: 1, weight: 1.1 },
 
   // ---------- 英文 · 专业媒体 ----------
-  { key: 'techcrunch', name: 'TechCrunch', feedUrl: 'https://techcrunch.com/feed/', homepage: 'https://techcrunch.com', lang: 'en', tier: 2 },
-  { key: 'verge', name: 'The Verge', feedUrl: 'https://www.theverge.com/rss/index.xml', homepage: 'https://www.theverge.com', kind: 'ATOM', lang: 'en', tier: 2 },
-  { key: 'arstechnica', name: 'Ars Technica', feedUrl: 'https://feeds.arstechnica.com/arstechnica/index', homepage: 'https://arstechnica.com', lang: 'en', tier: 2 },
+  // 用「AI 专版」而不是全站 RSS：全站版里手机/汽车/游戏等无关内容占大头，
+  // 每一条都要花一次分诊调用才能被剔除，等于为噪音付费。专版实测条目数相近但几乎全是 AI 内容。
+  { key: 'techcrunch', name: 'TechCrunch：AI', feedUrl: 'https://techcrunch.com/category/artificial-intelligence/feed/', homepage: 'https://techcrunch.com/category/artificial-intelligence/', lang: 'en', tier: 2 },
+  { key: 'verge', name: 'The Verge：AI', feedUrl: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', homepage: 'https://www.theverge.com/ai-artificial-intelligence', kind: 'ATOM', lang: 'en', tier: 2 },
+  { key: 'arstechnica', name: 'Ars Technica：AI', feedUrl: 'https://arstechnica.com/ai/feed/', homepage: 'https://arstechnica.com/ai/', lang: 'en', tier: 2 },
   { key: 'mit-tr', name: 'MIT Technology Review', feedUrl: 'https://www.technologyreview.com/feed/', homepage: 'https://www.technologyreview.com', lang: 'en', tier: 2 },
+  { key: 'thedecoder', name: 'The Decoder', feedUrl: 'https://the-decoder.com/feed/', homepage: 'https://the-decoder.com', lang: 'en', tier: 2, weight: 0.9 },
+  { key: 'ithome', name: 'IT之家', feedUrl: 'https://www.ithome.com/rss/', homepage: 'https://www.ithome.com', lang: 'zh', tier: 2, weight: 0.8 },
 
   // ---------- 英文 · 从业者与社区 ----------
   { key: 'simonw', name: 'Simon Willison', feedUrl: 'https://simonwillison.net/atom/everything/', homepage: 'https://simonwillison.net', kind: 'ATOM', lang: 'en', tier: 3, weight: 0.9 },
@@ -55,10 +59,16 @@ export const SEED_SOURCES: SeedSource[] = [
   // ---------- 需中继（境内直连不通，实测超时） ----------
   // X 上的研究者与官方账号是英文圈最快的一手信源，但大陆 ECS 连不上，
   // 必须经 Cloudflare Worker 中继。未配置 NEWS_RELAY_URL 时这些源保持禁用。
-  { key: 'x-openai', name: 'X：OpenAI 官方', feedUrl: 'x:OpenAI', kind: 'X', lang: 'en', tier: 1, weight: 1.5, viaRelay: true, enabled: false },
-  { key: 'x-anthropic', name: 'X：Anthropic 官方', feedUrl: 'x:AnthropicAI', kind: 'X', lang: 'en', tier: 1, weight: 1.5, viaRelay: true, enabled: false },
-  { key: 'x-sama', name: 'X：Sam Altman（OpenAI CEO）', feedUrl: 'x:sama', kind: 'X', lang: 'en', tier: 1, weight: 1.4, viaRelay: true, enabled: false },
-  { key: 'x-karpathy', name: 'X：Andrej Karpathy', feedUrl: 'x:karpathy', kind: 'X', lang: 'en', tier: 3, weight: 1.0, viaRelay: true, enabled: false },
+  // 账号清单参考了 aihot.virxact.com 公开引用的信源列表（只取「去哪儿看」，不取其内容）
+  { key: 'x-openai', name: 'X：OpenAI (@OpenAI)', feedUrl: 'x:OpenAI', kind: 'X', lang: 'en', tier: 1, weight: 1.5, viaRelay: true, enabled: false },
+  { key: 'x-openaidevs', name: 'X：OpenAI Developers (@OpenAIDevs)', feedUrl: 'x:OpenAIDevs', kind: 'X', lang: 'en', tier: 1, weight: 1.4, viaRelay: true, enabled: false },
+  { key: 'x-anthropic', name: 'X：Anthropic (@AnthropicAI)', feedUrl: 'x:AnthropicAI', kind: 'X', lang: 'en', tier: 1, weight: 1.5, viaRelay: true, enabled: false },
+  { key: 'x-sama', name: 'X：Sam Altman（OpenAI CEO）(@sama)', feedUrl: 'x:sama', kind: 'X', lang: 'en', tier: 1, weight: 1.4, viaRelay: true, enabled: false },
+  { key: 'x-gdb', name: 'X：Greg Brockman（OpenAI 总裁）(@gdb)', feedUrl: 'x:gdb', kind: 'X', lang: 'en', tier: 1, weight: 1.3, viaRelay: true, enabled: false },
+  { key: 'x-karpathy', name: 'X：Andrej Karpathy (@karpathy)', feedUrl: 'x:karpathy', kind: 'X', lang: 'en', tier: 3, weight: 1.0, viaRelay: true, enabled: false },
+  { key: 'x-thomwolf', name: 'X：Thomas Wolf（Hugging Face 联创/CSO）(@Thom_Wolf)', feedUrl: 'x:Thom_Wolf', kind: 'X', lang: 'en', tier: 3, weight: 1.0, viaRelay: true, enabled: false },
+  { key: 'x-rohanpaul', name: 'X：Rohan Paul (@rohanpaul_ai)', feedUrl: 'x:rohanpaul_ai', kind: 'X', lang: 'en', tier: 3, weight: 0.9, viaRelay: true, enabled: false },
+  { key: 'x-testingcatalog', name: 'X：Testing Catalog (@testingcatalog)', feedUrl: 'x:testingcatalog', kind: 'X', lang: 'en', tier: 3, weight: 0.9, viaRelay: true, enabled: false },
   { key: 'huggingface', name: 'Hugging Face 每日论文', feedUrl: 'https://huggingface.co/api/daily_papers', kind: 'JSON', lang: 'en', tier: 1, weight: 1.2, viaRelay: true, enabled: false },
   { key: 'deepmind', name: 'Google DeepMind', feedUrl: 'https://deepmind.google/blog/rss.xml', lang: 'en', tier: 1, weight: 1.5, viaRelay: true, enabled: false },
   { key: 'reddit-llm', name: 'Reddit r/LocalLLaMA', feedUrl: 'https://www.reddit.com/r/LocalLLaMA/top.json?limit=25&t=day', kind: 'JSON', lang: 'en', tier: 3, role: 'signal', weight: 0.7, viaRelay: true, enabled: false },
