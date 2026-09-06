@@ -51,6 +51,11 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 # 论坛图片上传目录（命名卷首次挂载会继承此目录的 nextjs 属主，保证可写）
 RUN mkdir -p ./public/uploads/forum && chown -R nextjs:nodejs ./public/uploads
 
+# Next 的预渲染/fetch 缓存目录。COPY 进来的 .next 属主是 root，而运行时是 nextjs 用户，
+# 不给写权限就会每次请求都报 EACCES: mkdir '/app/.next/cache' 并退化成完全不缓存。
+# 之前全站是 'use client' + force-dynamic 所以没暴露，新闻栏目引入 Server Component 后才出现。
+RUN mkdir -p ./.next/cache && chown -R nextjs:nodejs ./.next
+
 USER nextjs
 
 EXPOSE 3000
