@@ -396,7 +396,12 @@ export async function collect(): Promise<CollectResult> {
 
 // ============ ② triage：批量分诊（判断题，用便宜模型） ============
 
-const TRIAGE_BATCH = 8
+// 一次让模型判断几条。
+// 实测 glm-4-flash 配上完整的分诊提示词（黑名单 + 六个分类 + 实体抽取规则）时，
+// 无论给 8 条还是 6 条，都只答第一条——批量越大浪费越多，而不是越省。
+// 降到 3 条后每批答全，且单次响应变短、延迟从 13s 降下来，总耗时反而更少。
+// 换更强的模型（如 glm-4-plus）可以把这个值调大，故做成可配。
+const TRIAGE_BATCH = Math.max(1, Math.min(Number(process.env.NEWS_TRIAGE_BATCH || 3), 20))
 const TRIAGE_MAX_ITEMS = 40
 const TRIAGE_STALE_DAYS = 7
 
@@ -578,15 +583,17 @@ export async function triage(): Promise<TriageResult> {
         res.processed++
       }
 
-      // 模型漏答的条目标 FAILED：留在 RAW 会每小时重复计费，且永远不会自愈
+      // 模型漏答的条目留在 RAW 等下一轮重试，不再直接判死。
+      //
+      // 原来标 FAILED 的理由是「留 RAW 会每小时重复计费」，但线上第一次跑就暴露了代价：
+      // glm-4-flash 每批只答第一条，40 条里 35 条被永久判死、再也不会被处理。
+      // 漏答是模型的脾气问题（换批量大小就好了），不是这条内容本身有问题，
+      // 为此永久丢弃内容不划算。
+      //
+      // 重复计费的上限由 TRIAGE_STALE_DAYS 的陈旧清理兜住：超过 7 天仍是 RAW 的
+      // 会被扫成 SKIP，所以最坏情况是重试若干轮后自动退出，不会无限烧钱。
       const missed = batch.filter((_, idx) => !answered.has(idx))
-      if (missed.length) {
-        await prisma.newsItem.updateMany({
-          where: { id: { in: missed.map((m) => m.id) } },
-          data: { triageState: 'FAILED' },
-        })
-        res.failed += missed.length
-      }
+      if (missed.length) res.failed += missed.length
     } catch (e) {
       // 调用失败：条目留在 RAW，下一轮重试（SKILL §8）
       res.error = errMsg(e)
