@@ -3,7 +3,8 @@ import { Prisma } from '@prisma/client'
 import { prisma } from './db'
 import { syncAutoStock, decryptCardContent } from './cardkey'
 import { round2, splitAmount } from './money'
-import { notifyOrderPaid, notifyInvoicePaid, notifyLowStock } from './notify'
+import { notifyOrderPaid, notifyInvoiceReady, notifyLowStock } from './notify'
+import { financeInvoiceUrl } from './action-token'
 import { settleReferral } from './referral'
 import { acquireForOrder } from './sms'
 import { sendOrderPaidEmail } from './mail'
@@ -599,13 +600,38 @@ async function fulfillInvoice(invoiceId: number) {
     where: { id: invoice.id },
     data: { payStatus: 'PAID', status: 'SUBMITTED', paidAt, submittedAt: paidAt },
   })
-  // 税费到账 = 这张票真的要开了，此时才需要提醒去开票
-  notifyInvoicePaid({
-    invoiceNo: invoice.invoiceNo,
-    title: invoice.title || '—',
-    taxFee: invoice.taxFee,
-    paidAt,
-  })
+
+  // 税费到账 = 这张票真的要开了。此时才推送，且一次给全：
+  // 本单完整信息 + 当前全部待开清单 + 财务可直接操作的链接。
+  try {
+    const pending = await prisma.invoice.findMany({
+      where: { status: 'SUBMITTED', payStatus: 'PAID' },
+      orderBy: { paidAt: 'asc' },
+      take: 50,
+      select: { invoiceNo: true, title: true, subscriptionType: true, invoiceAmount: true },
+    })
+    notifyInvoiceReady({
+      invoiceNo: invoice.invoiceNo,
+      title: invoice.title || '—',
+      taxNumber: invoice.taxNumber,
+      showAiWording: invoice.showAiWording,
+      subscriptionType: invoice.subscriptionType,
+      invoiceAmount: invoice.invoiceAmount,
+      taxFee: invoice.taxFee,
+      email: invoice.email,
+      paidAt,
+      pending: pending.map((x) => ({
+        invoiceNo: x.invoiceNo,
+        title: x.title || '—',
+        subscriptionType: x.subscriptionType,
+        invoiceAmount: x.invoiceAmount == null ? null : Number(x.invoiceAmount),
+      })),
+      financeUrl: financeInvoiceUrl(),
+    })
+  } catch (e) {
+    // 通知失败绝不能影响「税费已到账」这个既成事实
+    console.error('[notify] 发票可开具通知组装失败', e)
+  }
 }
 
 // 说明：VmqApk 的 /appHeart、/appPush 协议与其签名校验（checkHeartSign / checkPushSign）

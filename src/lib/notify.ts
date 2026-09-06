@@ -233,52 +233,64 @@ export function notifyOrderPaid(p: {
   )
 }
 
-export function notifyInvoiceSubmitted(p: {
+/**
+ * 发票可开具通知。
+ *
+ * 刻意不在「买家提交申请」时推送——那时税费还没付、申请不一定成立，
+ * 推了只会制造一批需要人工判断「这单到底付没付」的噪音。
+ * 只在税费到账时推一次，并且一次给全：本单完整信息 + 当前所有待开清单 +
+ * 一条财务可直接操作的链接。
+ */
+export interface PendingInvoiceBrief {
   invoiceNo: string
   title: string
-  taxNumber: string
-  showAiWording: boolean | null
-  productName: string
-  invoiceAmount: unknown
-  taxFee: unknown
-  submittedAt: Date
-}): void {
-  notify(
-    'invoice.submitted',
-    [
-      { label: '发票号', value: p.invoiceNo },
-      { label: '抬头', value: p.title },
-      { label: '税号', value: p.taxNumber },
-      {
-        label: '展示 ChatGPT/Claude 字眼',
-        value: p.showAiWording == null ? '未选择' : p.showAiWording ? '展示' : '不展示',
-        color: p.showAiWording === false ? 'warning' : undefined,
-      },
-      { label: '商品', value: p.productName },
-      { label: '开票金额（含税）', value: money(p.invoiceAmount), color: 'warning' },
-      { label: '应付税费', value: money(p.taxFee) },
-      { label: '提交时间', value: fmtTime(p.submittedAt) },
-    ],
-    { link: '/admin/invoices', linkText: '前往开票' }
-  )
+  subscriptionType: string
+  invoiceAmount: number | null
 }
 
-export function notifyInvoicePaid(p: {
+export function notifyInvoiceReady(p: {
   invoiceNo: string
   title: string
+  taxNumber: string | null
+  showAiWording: boolean | null
+  subscriptionType: string
+  invoiceAmount: unknown
   taxFee: unknown
+  email: string | null
   paidAt: Date
+  pending: PendingInvoiceBrief[]
+  financeUrl: string
 }): void {
-  notify(
-    'invoice.paid',
-    [
-      { label: '发票号', value: p.invoiceNo },
-      { label: '抬头', value: p.title },
-      { label: '已付税费', value: money(p.taxFee), color: 'warning' },
-      { label: '支付时间', value: fmtTime(p.paidAt) },
-    ],
-    { link: '/admin/invoices', linkText: '前往开票' }
-  )
+  const rows: NotifyRow[] = [
+    { label: '发票号', value: p.invoiceNo },
+    { label: '抬头', value: p.title },
+    { label: '税号', value: p.taxNumber || '—' },
+    {
+      label: '展示 ChatGPT/Claude 字眼',
+      value: p.showAiWording == null ? '未选择' : p.showAiWording ? '展示' : '不展示',
+      color: p.showAiWording === false ? 'warning' : undefined,
+    },
+    { label: '商品', value: p.subscriptionType },
+    { label: '开票金额（含税）', value: money(p.invoiceAmount), color: 'warning' },
+    { label: '已付税费', value: money(p.taxFee) },
+    { label: '接收邮箱', value: p.email || '—' },
+    { label: '税费到账时间', value: fmtTime(p.paidAt) },
+  ]
+
+  // 待开清单：让财务一眼看清还有多少张要开，不用回翻历史消息逐条数
+  if (p.pending.length) {
+    rows.push({ label: '当前待开发票', value: `${p.pending.length} 张`, color: 'warning' })
+    const lines = p.pending
+      .slice(0, 8)
+      .map((x, i) => `${i + 1}. ${x.invoiceNo} · ${x.title} · ${money(x.invoiceAmount)}`)
+      .join('\n')
+    const more = p.pending.length > 8 ? `\n… 另有 ${p.pending.length - 8} 张，见链接` : ''
+    rows.push({ label: '清单', value: '\n' + lines + more })
+  } else {
+    rows.push({ label: '当前待开发票', value: '仅本张' })
+  }
+
+  notify('invoice.paid', rows, { link: p.financeUrl, linkText: '财务开票台（查看全部并标记已开）' })
 }
 
 export function notifyReceiptCreated(p: {

@@ -2,7 +2,7 @@ import { prisma } from './db'
 import { calcInvoiceAmounts, genInvoiceNo } from './invoice'
 import { PAYEE, genReceiptNo, genReceiptToken } from './receipt'
 import { createOrGetVmqOrder } from './vmq'
-import { notifyInvoiceSubmitted, notifyReceiptCreated } from './notify'
+import { notifyReceiptCreated } from './notify'
 
 // 发票/收据业务错误（带可选 HTTP 状态）
 export class BillingError extends Error {
@@ -123,17 +123,8 @@ export async function submitInvoiceForExternalOrder(externalOrderId: number, d: 
     })
   }
 
-  // 企业微信通知：买家刚提交开票申请（此时税费尚未支付，税费到账另有一条 invoice.paid）
-  notifyInvoiceSubmitted({
-    invoiceNo: invoice.invoiceNo,
-    title: d.title,
-    taxNumber: d.taxNumber,
-    showAiWording: d.showAiWording,
-    productName: order.subscriptionType,
-    invoiceAmount,
-    taxFee,
-    submittedAt: new Date(),
-  })
+  // 这里刻意不推企业微信：此刻税费还没付，申请不一定成立，推了只会制造
+  // 需要人工判断「这单到底付没付」的噪音。推送统一放在税费到账时（见 vmq.ts 的 fulfillInvoice）。
 
   // 发起 V免签 收款（支付税费）
   const vmq = await createOrGetVmqOrder({

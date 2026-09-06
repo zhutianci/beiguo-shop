@@ -100,3 +100,54 @@ export async function sendOrderDeliveredEmail(to: string, o: OrderInfo) {
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string))
 }
+
+// 发票已开具通知。
+// 特意提醒查看垃圾箱：发票邮件常带附件与「发票」字样，是垃圾箱的常客，
+// 客户找不到就会来问客服，等于把成本转回给自己。
+export interface InvoiceIssuedInfo {
+  invoiceNo: string
+  title: string
+  taxNumber: string | null
+  subscriptionType: string
+  invoiceAmount: number | null
+  issuedAt: Date
+}
+
+export async function sendInvoiceIssuedEmail(to: string, iv: InvoiceIssuedInfo) {
+  const row = (k: string, v: string) =>
+    `<tr><td style="color:#6b7280;padding:4px 0;">${k}</td><td style="text-align:right;">${v}</td></tr>`
+  const rows =
+    row('发票号', `<span style="font-family:monospace;">${escapeHtml(iv.invoiceNo)}</span>`) +
+    row('抬头', escapeHtml(iv.title)) +
+    (iv.taxNumber ? row('税号', `<span style="font-family:monospace;">${escapeHtml(iv.taxNumber)}</span>`) : '') +
+    row('项目', escapeHtml(iv.subscriptionType)) +
+    (iv.invoiceAmount != null
+      ? row('开票金额（含税）', `<b>¥${Number(iv.invoiceAmount).toFixed(2)}</b>`)
+      : '') +
+    row(
+      '开具时间',
+      iv.issuedAt.toLocaleString('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+      })
+    )
+
+  const html = layout(
+    '发票已开具',
+    `<p>您申请的发票已开具完成，详情如下：</p>
+     <table style="width:100%;border-collapse:collapse;margin-top:8px;">${rows}</table>
+     <div style="margin-top:16px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;color:#92400e;">
+       <div style="font-weight:600;margin-bottom:4px;">没收到发票邮件？</div>
+       电子发票会由开票系统单独发送到本邮箱。若收件箱里没有，请检查
+       <b>垃圾邮件 / 广告邮件 / 促销</b> 分类，并搜索关键词「发票」或本发票号。
+       仍未找到可在订单内联系客服，我们会重新发送。
+     </div>
+     <div style="margin-top:18px;"><a href="${APP_URL}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`
+  )
+  return sendSystemEmail(to, `【${BRAND}】发票已开具 · ${iv.invoiceNo}`, html)
+}
