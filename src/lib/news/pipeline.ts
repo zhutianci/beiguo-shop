@@ -12,6 +12,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { llmJson, LlmError, budgetExhausted } from '@/lib/llm'
 import { fetchText, parseFeed, urlHash, eventSlug, FetchFeedError, type FeedEntry } from './feed'
+import { fetchArticles } from './extract'
 import { SEED_SOURCES, relayUrl, relayConfigured } from './sources'
 import { CATEGORIES, CATEGORY_SLUGS, TOPIC_BLOCKLIST, TAG_WHITELIST } from './constants'
 import { computeScore, overlapRatio, unsupportedNumbers, needsReview } from './score'
@@ -880,11 +881,24 @@ const COMPOSE_SYSTEM = [
   '5. 不得出现「记者」「编辑部」「独家」「爆料」「本站原创」「本网讯」等字样，不做标题党。',
   '6. 只陈述企业经营动态与技术事实，不做政策解读、不做投资建议、不评价政治议题。',
   '',
+  '【什么叫写得好】',
+  '读者看完摘要就能判断「这事跟我有没有关系、要不要点开原文」，而不是只知道「发生了某件事」。',
+  '所以要优先保留材料里的【具体信息】：版本号、参数量、价格、百分比、时间跨度、',
+  '与谁对比、提升多少、什么时候可用、面向谁开放。',
+  '反例（空话，不要这样写）：「该模型性能有所提升，受到业内关注。」',
+  '正例（有信息量）：「上下文从 12.8 万扩到 100 万 token，定价不变，即日起对 Pro 订阅用户开放。」',
+  '材料里若有正文，请从正文里取这些细节；材料确实只有一句话时，写短即可，不要凑字数。',
+  '',
   '【输出 json 字段】',
   'headline：不超过 40 个字，事件级描述，说清「谁做了什么」。',
-  'summary：80 到 200 个字，一段话讲清事实。材料少就写少，不许扩写。',
+  'summary：120 到 260 个字，一段话讲清事实，密度优先于长度。材料少就写少，不许扩写。',
   'whyItMatters：不超过 60 个字的推荐理由，说明这件事为什么值得看。',
-  'aiScore：0 到 100 的整数，你对这件事重要性的判断，会展示给用户。',
+  'aiScore：0 到 100 的整数，这件事对 AI 从业者的重要性。请拉开差距，不要都给 70 分：',
+  '  90-100 头部厂商发布新一代模型、行业格局级变化',
+  '  75-89  重要产品/能力更新、有影响力的开源发布、大额融资并购',
+  '  60-74  常规版本迭代、值得一看的技术方法或评测',
+  '  40-59  小范围工具更新、个人项目、单一视角的观点',
+  '  0-39   与 AI 产业关系很弱，或信息量太少不值得单独成条',
   'facts：2 到 5 条关键事实，每条形如 {"text":"事实","sourceIndex":材料编号}，',
   '      sourceIndex 必须是该事实真正的出处编号，供人工一键复核。',
   '',
@@ -897,7 +911,22 @@ interface Material {
   tier: number
   title: string
   desc: string
+  /** 抓到的原文正文（仅用于让模型读懂，不落库、不对外展示） */
+  body?: string
 }
+
+/**
+ * 是否抓原文正文当素材。
+ *
+ * 关掉的话，摘要的信息量上限就是 feed 给的那一两句话——换再强的模型也写不出
+ * 原文里没有的细节，只会被逼着扩写。抓正文是为了「读懂」，输出仍是自写摘要 + 外链，
+ * 与整篇转载是两回事（SKILL.md §1.1）。出问题时可用 NEWS_FETCH_BODY=0 一键退回。
+ */
+const FETCH_BODY = process.env.NEWS_FETCH_BODY !== '0'
+/** 每个事件最多抓几篇原文：多源事件抓前几个代表即可，再多是浪费 token */
+const BODY_MAX_SOURCES = Math.max(1, Math.min(Number(process.env.NEWS_BODY_SOURCES || 3), 5))
+/** 单篇正文喂给模型的上限 */
+const BODY_CLIP = 2400
 
 async function eventMaterials(eventId: number): Promise<{
   materials: Material[]
@@ -912,6 +941,7 @@ async function eventMaterials(eventId: number): Promise<{
     select: {
       id: true,
       urlHash: true,
+      url: true,
       title: true,
       summaryRaw: true,
       confidence: true,
@@ -927,7 +957,32 @@ async function eventMaterials(eventId: number): Promise<{
     title: clip(r.title, 160),
     desc: clip(r.summaryRaw || '', 400),
   }))
-  const text = materials.map((m) => `[${m.index}] 来源：${m.sourceName}\n标题：${m.title}\n摘要：${m.desc || '（无）'}`).join('\n\n')
+
+  // 抓原文正文补充素材。抓不到就沿用 description，绝不因此中断——
+  // 素材薄一点只是摘要写得短，抓取失败让整段挂掉才是事故。
+  if (FETCH_BODY && reps.length) {
+    const targets = reps.slice(0, BODY_MAX_SOURCES)
+    try {
+      const fetched = await fetchArticles(targets.map((r) => r.url))
+      fetched.forEach((f, i) => {
+        if (f.ok && f.text.length > (materials[i].desc?.length || 0)) {
+          materials[i].body = clip(f.text, BODY_CLIP)
+        }
+      })
+    } catch (e) {
+      console.warn('[news] 正文抓取整体失败，退回 feed 摘要', e)
+    }
+  }
+
+  const text = materials
+    .map((m) => {
+      const head = `[${m.index}] 来源：${m.sourceName}\n标题：${m.title}`
+      // 有正文就以正文为主，description 往往只是正文首句的截断，两者都给等于重复占 token
+      return m.body
+        ? `${head}\n原文正文：\n${m.body}`
+        : `${head}\n摘要：${m.desc || '（无）'}`
+    })
+    .join('\n\n---\n\n')
   const confidences = items.map((i) => (i.confidence == null ? 1 : Number(i.confidence))).filter((n) => !isNaN(n))
   return {
     materials,
