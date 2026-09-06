@@ -30,7 +30,9 @@ export const SEED_SOURCES: SeedSource[] = [
   { key: '36kr', name: '36氪', feedUrl: 'https://36kr.com/feed', homepage: 'https://36kr.com', lang: 'zh', tier: 2, weight: 0.9 },
   { key: 'aibase', name: 'AIbase', feedUrl: 'https://www.aibase.com/zh/news', homepage: 'https://www.aibase.com/zh', lang: 'zh', tier: 2, weight: 0.8 },
   { key: 'sspai', name: '少数派', feedUrl: 'https://sspai.com/feed', homepage: 'https://sspai.com', lang: 'zh', tier: 3, weight: 0.7 },
-  { key: 'oschina', name: '开源中国', feedUrl: 'https://www.oschina.net/news/rss', homepage: 'https://www.oschina.net', lang: 'zh', tier: 3, weight: 0.7 },
+  // 默认停用：实测它的 news feed 是码云项目发布流水（「灵界 OS v4.0.0」「某某平台发布第一版」），
+  // 题材与「AI 圈大事」不符，还会把时间轴刷满。需要时可在后台信源管理里启用。
+  { key: 'oschina', name: '开源中国', feedUrl: 'https://www.oschina.net/news/rss', homepage: 'https://www.oschina.net', lang: 'zh', tier: 3, weight: 0.7, enabled: false },
 
   // ---------- 中文 · 一手官方 ----------
   { key: 'qwen', name: '通义千问官方博客', feedUrl: 'https://qwen.ai/blog', homepage: 'https://qwen.ai', lang: 'zh', tier: 1, weight: 1.5 },
@@ -52,7 +54,7 @@ export const SEED_SOURCES: SeedSource[] = [
   { key: 'ithome', name: 'IT之家', feedUrl: 'https://www.ithome.com/rss/', homepage: 'https://www.ithome.com', lang: 'zh', tier: 2, weight: 0.8 },
 
   // ---------- 英文 · 从业者与社区 ----------
-  { key: 'simonw', name: 'Simon Willison', feedUrl: 'https://simonwillison.net/atom/everything/', homepage: 'https://simonwillison.net', kind: 'ATOM', lang: 'en', tier: 3, weight: 0.9 },
+  { key: 'simonw', name: 'Simon Willison', feedUrl: 'https://simonwillison.net/atom/everything/', homepage: 'https://simonwillison.net', kind: 'ATOM', lang: 'en', tier: 3, weight: 0.6 },
   // HN 只做热度信号，不产时间轴条目，否则时间轴会被英文技术贴稀释
   { key: 'hn', name: 'Hacker News', feedUrl: 'https://hnrss.org/frontpage?points=100', homepage: 'https://news.ycombinator.com', kind: 'HN', lang: 'en', tier: 3, role: 'signal', weight: 0.7 },
 
