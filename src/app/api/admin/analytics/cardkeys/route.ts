@@ -22,8 +22,9 @@ import { round2 } from '@/lib/money'
  * 3. 行数可控：先 count，超过 MAX_ROWS 直接要求缩小区间，不会无限拉数据到内存。
  */
 
-// 业务时区固定东八区（docker-compose 里容器 TZ 也是 Asia/Shanghai），
-// 不依赖进程 TZ，避免换机器/换镜像后日切点漂移。
+// 业务时区固定东八区。下面所有换算都在 UTC 上做固定偏移的算术，
+// 不调用任何本地时间方法，因此与进程 TZ 无关——换机器、换镜像、容器没设 TZ 都不会漂移。
+// （app 容器现已显式设置 TZ=Asia/Shanghai，但这里刻意不依赖它。）
 const TZ_OFFSET_MIN = 8 * 60
 const DAY_MS = 86400000
 // 单次分析最多拉取的卡密行数，超过则要求缩小区间（保护内存）
