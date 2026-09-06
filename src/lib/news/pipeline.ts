@@ -417,7 +417,26 @@ function toNum(v: number | null | undefined, fallback: number, min: number, max:
   return typeof v === 'number' && isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback
 }
 
-const triageSchema = z.object({
+/**
+ * 兼容各家模型的包装形态。实测 glm-4-flash 会直接吐裸对象
+ * {"index":0,"isAiRelated":...} 而不是 {"results":[...]}，
+ * 别家还可能用 items / data / list，或者直接给一个数组。
+ * 与其和每个供应商的脾气较劲，不如在入口统一归一化。
+ */
+const unwrapResults = (raw: unknown): unknown => {
+  if (Array.isArray(raw)) return { results: raw }
+  if (raw && typeof raw === 'object') {
+    const o = raw as Record<string, unknown>
+    for (const k of ['results', 'items', 'data', 'list']) {
+      if (Array.isArray(o[k])) return { results: o[k] }
+    }
+    // 裸的单条结果对象：认 index 字段
+    if ('index' in o || 'isAiRelated' in o) return { results: [o] }
+  }
+  return raw
+}
+
+const triageShape = z.object({
   results: z
     .array(
       z.object({
@@ -434,6 +453,12 @@ const triageSchema = z.object({
     )
     .max(TRIAGE_BATCH * 2),
 })
+
+// z.preprocess 会把输出类型擦成 unknown，这里显式标注回来，调用处才能拿到 r.data.results
+const triageSchema: z.ZodType<z.infer<typeof triageShape>> = z.preprocess(
+  unwrapResults,
+  triageShape
+) as z.ZodType<z.infer<typeof triageShape>>
 
 const TRIAGE_SYSTEM = [
   '你是 AI 行业资讯的分诊员。你只做判断，不写作，不做任何解读。',
@@ -458,9 +483,12 @@ const TRIAGE_SYSTEM = [
   '',
   '【confidence】0 到 1 的小数，表示你对上述判断的把握。',
   '',
-  '输出 json，形如 {"results":[{"index":0,"isAiRelated":true,"blocked":false,"blockReason":null,',
-  '"category":"ai-models","entities":["OpenAI","GPT-6"],"confidence":0.9}]}。',
+  // 这个示例必须完整地在同一行里。实测把它拆成两行后，glm-4-flash 会认成内层对象的形状，
+  // 直接吐一个裸的 {"index":0,...} 且只答第一条——最外层的 results 数组整个丢掉。
+  '输出 json，形如 {"results":[{"index":0,"isAiRelated":true,"blocked":false,"blockReason":null,"category":"ai-models","entities":["OpenAI","GPT-6"],"confidence":0.9}]}。',
+  '最外层必须是带 results 数组的对象，不要直接输出单个结果对象。',
   '必须为每一条输入返回一个对象，index 与输入的编号严格一一对应，不要遗漏、不要合并。',
+  'results 数组的长度必须严格等于本次输入的条数。',
 ].join('\n')
 
 export interface TriageResult {
