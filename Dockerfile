@@ -30,11 +30,13 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 
-# 运行时也需要 openssl
-RUN apk add --no-cache openssl libc6-compat
+# 运行时也需要 openssl；tzdata 必须装，否则 alpine(musl) 找不到 /usr/share/zoneinfo，
+# TZ=Asia/Shanghai 会被静默忽略、进程仍跑在 UTC
+RUN apk add --no-cache openssl libc6-compat tzdata
 
 ENV NODE_ENV production
 ENV NEXT_TELEMETRY_DISABLED 1
+ENV TZ Asia/Shanghai
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
