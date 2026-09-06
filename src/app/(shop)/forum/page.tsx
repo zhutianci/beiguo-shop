@@ -97,9 +97,10 @@ export default function ForumPage() {
       <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
 
-      <div className="container relative max-w-5xl">
+      {/* xl 起放宽到 6xl：板块侧栏 + 帖子列表两栏在 1440px 上才不至于挤在中间一条窄带里 */}
+      <div className="container relative max-w-5xl xl:max-w-6xl">
         {/* 标题 */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10 lg:mb-14">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-4">
             <MessageSquare className="w-4 h-4 text-purple-400" />
             <span className="text-sm text-white/80">社区论坛</span>
@@ -108,12 +109,14 @@ export default function ForumPage() {
             <span className="gradient-text">交流</span>
             <span className="gradient-text-accent"> · 反馈 · 分享</span>
           </h1>
-          <p className="text-white/50">已有 {totalPostCount} 个主题，欢迎一起讨论</p>
+          <p className="text-white/50 lg:text-lg">已有 {totalPostCount} 个主题，欢迎一起讨论</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
-          {/* 侧栏：板块 */}
-          <aside className="space-y-2">
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] xl:grid-cols-[240px_1fr] gap-6 lg:gap-8">
+          {/* 侧栏：板块。
+              lg 起吸顶跟随滚动——桌面端列表很长，板块切换不该要求用户先滚回顶部。
+              grid 子项默认 stretch，会让 sticky 失效，所以必须配 lg:self-start。 */}
+          <aside className="space-y-2 lg:sticky lg:top-28 lg:self-start">
             <button
               onClick={() => {
                 setCat('all')
@@ -218,7 +221,7 @@ export default function ForumPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
                   >
-                    <Link href={`/forum/${p.id}`} className="block glass rounded-2xl p-5 hover:bg-white/[0.07] transition-colors">
+                    <Link href={`/forum/${p.id}`} className="block glass rounded-2xl p-5 lg:p-6 hover:bg-white/[0.07] transition-colors">
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -237,9 +240,14 @@ export default function ForumPage() {
                             </span>
                             {p.locked && <Lock className="w-3 h-3 text-white/40" />}
                           </div>
-                          <h3 className="font-semibold text-lg text-white truncate">{p.title}</h3>
-                          {p.excerpt && <p className="text-sm text-white/40 mt-1 line-clamp-2">{p.excerpt}</p>}
-                          <div className="flex items-center gap-3 mt-3 text-xs text-white/40 flex-wrap">
+                          {/* 桌面端主区有 800px+，标题与摘要各上一档才拉得开层级 */}
+                          <h3 className="font-semibold text-lg lg:text-xl text-white truncate">{p.title}</h3>
+                          {p.excerpt && (
+                            <p className="text-sm lg:text-[15px] text-white/40 mt-1 lg:mt-1.5 line-clamp-2 lg:leading-relaxed">
+                              {p.excerpt}
+                            </p>
+                          )}
+                          <div className="flex items-center gap-3 mt-3 text-xs lg:text-[13px] text-white/40 flex-wrap">
                             <span className="text-white/60">{p.authorName}{!p.isMember && ' · 匿名'}</span>
                             <span>{timeAgo(p.lastReplyAt || p.createdAt)}</span>
                             {p.tags.map((t) => (
@@ -247,7 +255,7 @@ export default function ForumPage() {
                             ))}
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1.5 text-xs text-white/40 shrink-0">
+                        <div className="flex flex-col items-end gap-1.5 text-xs lg:text-[13px] lg:gap-2 text-white/40 shrink-0">
                           <span className="inline-flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5" />{p.commentCount}</span>
                           <span className="inline-flex items-center gap-1"><ThumbsUp className="w-3.5 h-3.5" />{p.likeCount}</span>
                           <span className="inline-flex items-center gap-1"><Eye className="w-3.5 h-3.5" />{p.views}</span>

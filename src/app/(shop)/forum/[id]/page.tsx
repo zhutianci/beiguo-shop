@@ -189,13 +189,18 @@ export default function PostDetailPage() {
     <div className="min-h-screen pt-32 pb-20">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
+      {/*
+        帖子详情属于正文型页面：桌面端不放宽容器（max-w-3xl ≈ 768px，
+        在 16.5px 正文下约 40 个汉字 / 一行，正好是阅读舒适区），
+        只把字号、行高与留白往上提一档。
+      */}
       <div className="container relative max-w-3xl">
-        <Link href="/forum" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm">
+        <Link href="/forum" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm lg:text-[15px]">
           <ArrowLeft className="w-4 h-4" /> 返回论坛
         </Link>
 
         {/* 帖子主体 */}
-        <article className="glass rounded-2xl p-6 md:p-8">
+        <article className="glass rounded-2xl p-6 md:p-8 lg:p-10">
           <div className="flex items-center gap-2 flex-wrap mb-3">
             {post.pinned && <Badge color="red" icon={Pin}>置顶</Badge>}
             {post.featured && <Badge color="amber" icon={Star}>精华</Badge>}
@@ -206,9 +211,9 @@ export default function PostDetailPage() {
             </Link>
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-bold mb-4">{post.title}</h1>
+          <h1 className="text-2xl md:text-3xl lg:text-[34px] lg:leading-tight font-bold mb-4 lg:mb-5">{post.title}</h1>
 
-          <div className="flex items-center gap-3 text-sm text-white/40 mb-6 flex-wrap">
+          <div className="flex items-center gap-3 text-sm text-white/40 mb-6 lg:mb-8 flex-wrap">
             <span className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white">
               {post.authorName.slice(0, 1)}
             </span>
@@ -218,8 +223,14 @@ export default function PostDetailPage() {
             <span className="inline-flex items-center gap-1">· <Eye className="w-3.5 h-3.5" />{post.views}</span>
           </div>
 
-          {/* 正文 */}
-          <div className="prose-forum text-white/90" dangerouslySetInnerHTML={{ __html: post.html }} />
+          {/* 正文。
+              .prose-forum 的 font-size/line-height 是 globals.css 里的普通规则，
+              写在 @tailwind utilities 之后，同优先级下会按源码顺序压过 lg:text-*，
+              所以这里必须用 `!` 才能在桌面端把 15px 提到 16.5px。 */}
+          <div
+            className="prose-forum text-white/90 lg:!text-[16.5px] lg:!leading-[1.85]"
+            dangerouslySetInnerHTML={{ __html: post.html }}
+          />
 
           {/* 标签 */}
           {post.tags.length > 0 && (
@@ -268,8 +279,8 @@ export default function PostDetailPage() {
         </article>
 
         {/* 评论区 */}
-        <section className="mt-8">
-          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+        <section className="mt-8 lg:mt-12">
+          <h2 className="text-lg lg:text-xl font-bold mb-4 lg:mb-5 flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-purple-400" /> {post.commentCount} 条评论
           </h2>
 
@@ -432,7 +443,7 @@ function CommentItem({
   }
 
   return (
-    <div className="glass rounded-2xl p-4">
+    <div className="glass rounded-2xl p-4 lg:p-5">
       <div className="flex items-start gap-3">
         <span className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
           {comment.authorName.slice(0, 1)}
@@ -443,7 +454,10 @@ function CommentItem({
             {comment.isMember && <ShieldCheck className="w-3 h-3 text-cyan-400" />}
             <span className="text-white/30 text-xs">{timeAgo(comment.createdAt)}</span>
           </div>
-          <p className="text-white/80 text-sm mt-1.5 whitespace-pre-wrap break-words">{comment.content}</p>
+          {/* 评论正文在桌面端提到 15px/1.8：14px 在 1440px 屏上偏小、行距也偏挤 */}
+          <p className="text-white/80 text-sm lg:text-[15px] lg:leading-[1.8] mt-1.5 whitespace-pre-wrap break-words">
+            {comment.content}
+          </p>
           <div className="flex items-center gap-4 mt-2 text-xs text-white/40">
             <button onClick={toggleLike} className={`inline-flex items-center gap-1 hover:text-white ${liked ? 'text-purple-400' : ''}`}>
               <ThumbsUp className="w-3.5 h-3.5" /> {likeCount > 0 ? likeCount : '赞'}
@@ -514,7 +528,9 @@ function ReplyItem({ reply, onChange }: { reply: Comment; onChange: () => void }
         {reply.isMember && <ShieldCheck className="w-3 h-3 text-cyan-400" />}
         <span className="text-white/30 text-xs">{timeAgo(reply.createdAt)}</span>
       </div>
-      <p className="text-white/75 text-sm mt-1 whitespace-pre-wrap break-words">{reply.content}</p>
+      <p className="text-white/75 text-sm lg:text-[15px] lg:leading-[1.8] mt-1 whitespace-pre-wrap break-words">
+        {reply.content}
+      </p>
       <div className="flex items-center gap-4 mt-1.5 text-xs text-white/40">
         <button onClick={toggleLike} className={`inline-flex items-center gap-1 hover:text-white ${liked ? 'text-purple-400' : ''}`}>
           <ThumbsUp className="w-3 h-3" /> {likeCount > 0 ? likeCount : '赞'}

@@ -124,27 +124,32 @@ function LookupForm() {
   }, [])
 
   return (
-    <div className="min-h-screen pt-32 pb-20">
+    /* pt-32 保持不动：固定头部移动端 112px(py-6+64 药丸)、lg 起 96px(py-4+64)，
+       128px 的顶部留白在手机上只余 16px，在桌面上已自动余出 32px ——
+       头部变矮腾出的空间就是桌面端的呼吸位，再往上加就成了「顶部一片空」 */
+    <div className="min-h-screen pt-32 pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
 
-      <div className="container relative max-w-4xl">
+      {/* 表单型页面：宽度以「够用」为准而不是铺满。896 → xl 放宽到 1024，
+          刚好让结果卡里的 md:grid-cols-2 信息行不再挤，再宽就只剩两侧空白了 */}
+      <div className="container relative max-w-4xl xl:max-w-5xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6">
-            <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-white/80">订单查询</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 lg:px-5 lg:py-2.5 rounded-full glass mb-6">
+            <Sparkles className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-purple-400" />
+            <span className="text-sm lg:text-base text-white/80">订单查询</span>
           </div>
           <h1 className="text-headline mb-4">
             <span className="gradient-text">查询你的</span>
             <span className="gradient-text-accent"> 订阅状态</span>
           </h1>
-          <p className="text-white/50 text-lg max-w-xl mx-auto">
+          <p className="text-white/50 text-lg lg:text-xl max-w-xl lg:max-w-2xl mx-auto">
             输入你的 Claude / ChatGPT 账户邮箱，查看订阅类型与到期时间
           </p>
         </motion.div>
@@ -154,11 +159,13 @@ function LookupForm() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           onSubmit={handleSearch}
-          className="mb-8"
+          className="mb-8 lg:mb-12"
         >
-          <div className="relative">
+          {/* 单字段表单在桌面端不该被拉满整个容器宽：md 起收到 2xl(672px) 并居中，
+              输入框与按钮的比例才合理；手机端仍是整条占满，不受影响 */}
+          <div className="relative md:max-w-2xl md:mx-auto">
             <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-2xl blur-md opacity-30" />
-            <div className="relative flex items-center gap-2 p-2 glass-strong rounded-2xl">
+            <div className="relative flex items-center gap-2 p-2 lg:p-2.5 glass-strong rounded-2xl">
               <div className="flex-1 flex items-center gap-3 px-4">
                 <Mail className="w-5 h-5 text-white/40" />
                 <input
@@ -167,13 +174,13 @@ function LookupForm() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="输入你的账户邮箱"
                   required
-                  className="flex-1 bg-transparent border-0 outline-none text-white placeholder:text-white/30 py-3"
+                  className="flex-1 bg-transparent border-0 outline-none text-white placeholder:text-white/30 py-3 lg:text-[15px]"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold flex items-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 lg:px-8 lg:py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold flex items-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -184,7 +191,7 @@ function LookupForm() {
               </button>
             </div>
           </div>
-          {errorMsg && <p className="text-red-400 text-sm mt-3 ml-4">{errorMsg}</p>}
+          {errorMsg && <p className="text-red-400 text-sm mt-3 ml-4 md:max-w-2xl md:mx-auto">{errorMsg}</p>}
         </motion.form>
 
         <AnimatePresence mode="wait">
@@ -221,7 +228,7 @@ function LookupForm() {
                   </p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-4 lg:space-y-5">
                   {orders.map((order, i) => {
                     const r = getRemaining(order.expireDate, now)
                     const expiringSoon = !r.expired && r.days <= 7
@@ -242,10 +249,11 @@ function LookupForm() {
                                 : 'bg-gradient-to-r from-purple-500 to-pink-500'
                           }`}
                         />
-                        <div className="relative glass rounded-2xl p-6">
+                        {/* 桌面端卡片约 1000px 宽，p-6 会让两列信息浮在中间；lg 起加到 p-7 */}
+                        <div className="relative glass rounded-2xl p-6 lg:p-7">
                           <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                             <div className="flex items-center gap-3">
-                              <h3 className="font-bold text-xl">{order.subscriptionType}</h3>
+                              <h3 className="font-bold text-xl lg:text-2xl">{order.subscriptionType}</h3>
                               {r.expired ? (
                                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-500/20 border border-gray-500/30 text-gray-300">
                                   已过期
@@ -265,10 +273,10 @@ function LookupForm() {
                             <div className="text-right">
                               <div className="text-xs text-white/40 mb-0.5">剩余</div>
                               {r.expired ? (
-                                <div className="text-2xl font-bold text-gray-400 tabular-nums">已过期</div>
+                                <div className="text-2xl lg:text-3xl font-bold text-gray-400 tabular-nums">已过期</div>
                               ) : (
                                 <div className="flex items-baseline gap-1 tabular-nums">
-                                  <span className="text-2xl font-bold gradient-text-accent">{r.days}</span>
+                                  <span className="text-2xl lg:text-3xl font-bold gradient-text-accent">{r.days}</span>
                                   <span className="text-sm text-white/50">天</span>
                                   <span className="text-lg font-bold text-white/80 ml-1">{String(r.hours).padStart(2, '0')}</span>
                                   <span className="text-xs text-white/40">:</span>
@@ -280,7 +288,7 @@ function LookupForm() {
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 lg:gap-x-10 gap-y-3 lg:gap-y-4 text-sm lg:text-[15px]">
                             <div className="flex items-center gap-2">
                               <span className="text-white/40 w-20">开通时间</span>
                               <span className="text-white/80">{formatDate(order.startDate)}</span>
@@ -384,7 +392,7 @@ function LookupForm() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-12 glass rounded-2xl p-6 text-center"
+          className="mt-12 lg:mt-16 glass rounded-2xl p-6 lg:p-8 text-center"
         >
           <p className="text-sm text-white/60">
             查询不到订单？联系客服微信 <span className="font-mono text-purple-400">GenuineMarxist</span>
@@ -475,7 +483,7 @@ function ReminderSettings({ account }: { account: string }) {
     >
       <div className="relative">
         <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500/40 to-cyan-500/40 rounded-2xl blur-md opacity-30" />
-        <div className="relative glass rounded-2xl p-6">
+        <div className="relative glass rounded-2xl p-6 lg:p-8">
           <div className="flex items-center gap-2 mb-2">
             <BellRing className="w-5 h-5 text-purple-400" />
             <h3 className="font-bold text-lg">设置到期提醒</h3>

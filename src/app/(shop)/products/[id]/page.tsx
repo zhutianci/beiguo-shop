@@ -121,7 +121,10 @@ export default function ProductDetailPage() {
   }))
 
   return (
-    <div className="min-h-screen pt-32 pb-20">
+    /* pt-32 保持不动：固定头部移动端 112px(py-6+64 药丸)、lg 起 96px(py-4+64)，
+       128px 的顶部留白在手机上只余 16px，在桌面上已自动余出 32px ——
+       头部变矮腾出的空间就是桌面端的呼吸位，再往上加就成了「顶部一片空」 */
+    <div className="min-h-screen pt-32 pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
@@ -141,7 +144,9 @@ export default function ProductDetailPage() {
           </Link>
         </motion.div>
 
-        <div className="grid lg:grid-cols-3 gap-8">
+        {/* 桌面端「左内容 / 右下单卡」两栏：lg 起 2:1 分栏，右栏 sticky 跟随滚动，
+            购买入口在整页任何位置都留在视野内；xl 再把栏间距拉到 40px，避免两栏黏在一起 */}
+        <div className="grid lg:grid-cols-3 gap-8 xl:gap-10">
           <div className="lg:col-span-2 space-y-8">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -176,7 +181,7 @@ export default function ProductDetailPage() {
                   {product.name}
                 </h1>
                 {product.description && (
-                  <p className="text-white/50 text-lg mb-8">{product.description}</p>
+                  <p className="text-white/50 text-lg lg:text-xl lg:leading-relaxed max-w-2xl mb-8">{product.description}</p>
                 )}
 
                 {features.length > 0 && (
@@ -184,7 +189,7 @@ export default function ProductDetailPage() {
                     {features.map((feature, i) => (
                       <div
                         key={i}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-white/80"
+                        className="inline-flex items-center gap-2 px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-white/5 border border-white/10 text-sm lg:text-[15px] text-white/80"
                       >
                         <Check className="w-3.5 h-3.5 text-green-400" />
                         {feature}
@@ -201,8 +206,8 @@ export default function ProductDetailPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.1 }}
               >
-                <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
+                <h2 className="text-2xl lg:text-3xl font-bold mb-6 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 lg:w-6 lg:h-6 text-purple-400" />
                   服务亮点
                 </h2>
                 <div className="grid sm:grid-cols-2 gap-4">
@@ -212,7 +217,7 @@ export default function ProductDetailPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.4, delay: 0.2 + i * 0.1 }}
-                      className="glass rounded-2xl p-6 hover:bg-white/10 transition-colors"
+                      className="glass rounded-2xl p-6 lg:p-7 hover:bg-white/10 transition-colors lg:transition-all lg:duration-300 lg:hover:-translate-y-1"
                     >
                       <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4`}>
                         <Star className="w-5 h-5" />
@@ -230,8 +235,8 @@ export default function ProductDetailPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
             >
-              <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-                <Clock className="w-5 h-5 text-cyan-400" />
+              <h2 className="text-2xl lg:text-3xl font-bold mb-6 flex items-center gap-2">
+                <Clock className="w-5 h-5 lg:w-6 lg:h-6 text-cyan-400" />
                 开通流程
               </h2>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -241,7 +246,7 @@ export default function ProductDetailPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: 0.4 + i * 0.1 }}
-                    className="relative glass rounded-2xl p-6"
+                    className="relative glass rounded-2xl p-6 lg:p-7"
                   >
                     <div className={`text-3xl font-bold mb-3 bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}>
                       {item.step}
@@ -260,13 +265,17 @@ export default function ProductDetailPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.5 }}
-              className="glass rounded-2xl p-6"
+              className="glass rounded-2xl p-6 lg:p-8"
             >
-              <h3 className="font-bold mb-4 flex items-center gap-2">
+              <h3 className="font-bold lg:text-lg mb-4 flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-green-400" />
                 购买须知
               </h3>
-              <ul className="space-y-2 text-sm text-white/60">
+              {/* 这是本页唯一的正文型区块。桌面端左栏宽约 810px，14px 字号下一行能塞进
+                  50+ 个汉字，远超中文舒适阅读区（约 35~45 字）。所以 lg 起做两件事：
+                  字号提到 16px、行高放开，并把行长封顶在 680px（≈42 字）。
+                  用 px 而不是 ch，是因为 ch 按西文 "0" 宽度算，对中文会算出接近一半的实际字数。 */}
+              <ul className="space-y-2 lg:space-y-2.5 text-sm lg:text-base lg:leading-relaxed lg:max-w-[680px] text-white/60">
                 <li className="flex items-start gap-2">
                   <span className="text-white/30 mt-1">·</span>
                   {isAuto
@@ -304,11 +313,11 @@ export default function ProductDetailPage() {
             <div className="relative">
               <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-50 blur-md`} />
 
-              <div className="relative glass rounded-3xl p-8">
+              <div className="relative glass rounded-3xl p-8 xl:p-9">
                 <div className="mb-6">
                   <div className="text-sm text-white/50 mb-2">服务价格</div>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-5xl font-bold">¥{price.toFixed(0)}</span>
+                    <span className="text-5xl xl:text-6xl font-bold">¥{price.toFixed(0)}</span>
                     {originalPrice && (
                       <span className="text-lg text-white/30 line-through">¥{originalPrice.toFixed(0)}</span>
                     )}
@@ -338,14 +347,14 @@ export default function ProductDetailPage() {
 
                 <button
                   onClick={() => setPurchaseOpen(true)}
-                  className={`group w-full py-4 rounded-xl font-semibold bg-gradient-to-r ${gradient} flex items-center justify-center gap-2 hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all mb-3`}
+                  className={`group w-full py-4 xl:py-[18px] xl:text-lg rounded-xl font-semibold bg-gradient-to-r ${gradient} flex items-center justify-center gap-2 hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all mb-3`}
                 >
                   立即购买
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </button>
                 <button
                   onClick={() => setContactOpen(true)}
-                  className="w-full py-4 rounded-xl font-medium glass hover:bg-white/10 transition-colors"
+                  className="w-full py-4 xl:py-[18px] xl:text-lg rounded-xl font-medium glass hover:bg-white/10 transition-colors"
                 >
                   联系客服
                 </button>

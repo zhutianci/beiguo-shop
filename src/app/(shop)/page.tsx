@@ -102,15 +102,18 @@ export default function HomePage() {
         />
 
         <motion.div style={{ y }} className="container relative z-10">
-          <div className="max-w-5xl mx-auto text-center">
+          {/* 桌面端：text-display 在 xl 是 9xl(128px)，打字机长句在 max-w-5xl(1024px) 内会临界折行、
+              每敲一个字抖一下；xl 起放宽到 6xl 既止住抖动，也让 hero 在 1920 宽屏下不再只占中间一窄条 */}
+          <div className="max-w-5xl xl:max-w-6xl mx-auto text-center">
+            {/* 徽标在桌面端跟着 hero 一起放大：否则 128px 大标题上顶着一个 12px 小胶囊，比例失衡 */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-8"
+              className="inline-flex items-center gap-2 px-4 py-2 lg:px-5 lg:py-2.5 rounded-full glass mb-8"
             >
-              <Sparkles className="w-4 h-4 text-purple-400" />
-              <span className="text-sm text-white/80">AI 订阅服务专家</span>
+              <Sparkles className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-purple-400" />
+              <span className="text-sm lg:text-base text-white/80">AI 订阅服务专家</span>
             </motion.div>
 
             <motion.h1
@@ -131,11 +134,13 @@ export default function HomePage() {
               </span>
             </motion.h1>
 
+            {/* 副标题在 xl 提到 2xl(24px)：text-body-lg 最大只到 20px，压在 128px 标题下面显得断层；
+                同时放宽到 3xl，让两行文案在宽屏里保持在舒适行长内 */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-body-lg max-w-2xl mx-auto mb-12"
+              className="text-body-lg xl:text-2xl max-w-2xl xl:max-w-3xl mx-auto mb-12"
             >
               专业提供 Claude Pro、MAX、ChatGPT Plus、Pro 订阅服务
               <br />
@@ -146,18 +151,20 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
-              className="flex flex-col sm:flex-row gap-4 justify-center"
+              className="flex flex-col sm:flex-row gap-4 lg:gap-5 justify-center"
             >
+              {/* 主 CTA 在 lg 起放大到 20px/更大内边距：桌面端鼠标点击不需要 44px 触控保底，
+                  但在 128px 标题下面，16px 的按钮会显得像个次要链接，撑不起转化入口的分量 */}
               <Link href="/products">
-                <button className="group relative px-8 py-4 bg-white text-black font-semibold rounded-full overflow-hidden transition-transform hover:scale-105">
+                <button className="group relative px-8 py-4 lg:px-10 lg:py-5 lg:text-lg bg-white text-black font-semibold rounded-full overflow-hidden transition-transform hover:scale-105">
                   <span className="relative z-10 flex items-center gap-2">
                     立即选购
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 group-hover:translate-x-1 transition-transform" />
                   </span>
                 </button>
               </Link>
               <Link href="/about">
-                <button className="px-8 py-4 glass rounded-full font-medium hover:bg-white/10 transition-colors">
+                <button className="px-8 py-4 lg:px-10 lg:py-5 lg:text-lg glass rounded-full font-medium hover:bg-white/10 transition-colors">
                   了解更多
                 </button>
               </Link>
@@ -170,42 +177,47 @@ export default function HomePage() {
               transition={{ duration: 0.6, delay: 0.75 }}
               className="mt-10 flex justify-center"
             >
-              <form onSubmit={handleLookup} className="relative w-full max-w-md">
+              {/* 订单查询框：手机端 w-full 才够放下这句 placeholder，桌面端不该继续「占满」，
+                  但 max-w-md(448px) 在 16px 字号下又会把 placeholder 挤到省略号，
+                  所以 md 起给到 lg(512px) 并同步把字号提到 base —— 宽度是为了容纳文案，不是为了铺满 */}
+              <form onSubmit={handleLookup} className="relative w-full max-w-md md:max-w-lg">
                 <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500/40 via-pink-500/40 to-cyan-500/40 rounded-full blur-sm opacity-50" />
-                <div className="relative flex items-center gap-1 p-1.5 glass-strong rounded-full">
+                <div className="relative flex items-center gap-1 p-1.5 md:p-2 glass-strong rounded-full">
                   <div className="flex-1 flex items-center gap-2 pl-4">
-                    <Mail className="w-4 h-4 text-white/40 flex-shrink-0" />
+                    <Mail className="w-4 h-4 md:w-[18px] md:h-[18px] text-white/40 flex-shrink-0" />
                     <input
                       type="email"
                       value={lookupEmail}
                       onChange={(e) => setLookupEmail(e.target.value)}
                       placeholder="已下单？输入邮箱查询订阅状态"
-                      className="flex-1 bg-transparent border-0 outline-none text-sm text-white placeholder:text-white/40 py-2 min-w-0"
+                      className="flex-1 bg-transparent border-0 outline-none text-sm md:text-base text-white placeholder:text-white/40 py-2 min-w-0"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-full bg-white text-black text-sm font-semibold flex items-center gap-1.5 hover:scale-105 transition-transform"
+                    className="px-5 py-2 md:px-6 md:py-2.5 rounded-full bg-white text-black text-sm md:text-base font-semibold flex items-center gap-1.5 hover:scale-105 transition-transform"
                   >
-                    <Search className="w-3.5 h-3.5" />
+                    <Search className="w-3.5 h-3.5 md:w-4 md:h-4" />
                     查询
                   </button>
                 </div>
               </form>
             </motion.div>
 
+            {/* 三个卖点：手机端换行紧排，桌面端拉开间距并整体放大一档，
+                让这一排在 1920 宽屏里成为 hero 的「底座」，而不是缩在中间的一行小字 */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.8 }}
-              className="flex flex-wrap justify-center gap-8 mt-16"
+              className="flex flex-wrap justify-center gap-8 lg:gap-14 xl:gap-20 mt-16"
             >
               {features.map((feature, i) => (
-                <div key={i} className="flex items-center gap-3 text-white/60">
-                  <feature.icon className="w-5 h-5 text-purple-400" />
+                <div key={i} className="flex items-center gap-3 lg:gap-4 text-white/60">
+                  <feature.icon className="w-5 h-5 lg:w-6 lg:h-6 text-purple-400" />
                   <div className="text-left">
-                    <div className="text-sm font-medium text-white">{feature.title}</div>
-                    <div className="text-xs">{feature.desc}</div>
+                    <div className="text-sm lg:text-base font-medium text-white">{feature.title}</div>
+                    <div className="text-xs lg:text-sm">{feature.desc}</div>
                   </div>
                 </div>
               ))}
@@ -246,13 +258,15 @@ export default function HomePage() {
             <h2 className="text-headline mb-4">
               <span className="gradient-text">精选服务</span>
             </h2>
-            <p className="text-white/50 text-lg">选择适合你的 AI 订阅方案</p>
+            <p className="text-white/50 text-lg lg:text-xl">选择适合你的 AI 订阅方案</p>
           </motion.div>
 
           {products.length === 0 ? (
             <div className="text-center py-20 text-white/40">加载中...</div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            /* 首页只放 6 个精选，lg 三列正好两行整齐收口，所以 xl 不再加列；
+               只把间距在 xl 放大，避免 1280+ 时三张卡贴在一起像一块整板 */
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 xl:gap-8">
               {products.map((product, index) => {
                 const gradient = getGradient(product.id)
                 const tag = getTag(product.name)
@@ -268,13 +282,15 @@ export default function HomePage() {
                       <TiltCard maxTilt={8} scale={1.03} className="group h-full">
                         <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500`} />
 
-                        <div className="relative h-full glass rounded-2xl p-6">
+                        {/* 卡片内边距/字号在 lg 起加一档：桌面端单卡宽约 400px，
+                            继续沿用手机端的 p-6 + text-sm 会显得内容缩在正中、四周全是空白 */}
+                        <div className="relative h-full glass rounded-2xl p-6 lg:p-7 xl:p-8">
                           <div className={`inline-flex px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient} mb-4`}>
                             {tag}
                           </div>
 
-                          <h3 className="text-2xl font-bold mb-2">{product.name}</h3>
-                          <p className="text-white/50 text-sm mb-6">{product.description}</p>
+                          <h3 className="text-2xl xl:text-3xl font-bold mb-2">{product.name}</h3>
+                          <p className="text-white/50 text-sm lg:text-[15px] lg:leading-relaxed mb-6">{product.description}</p>
 
                           <div className="flex items-baseline gap-2 mb-4">
                             <span className="text-4xl font-bold">¥{Number(product.price).toFixed(0)}</span>
@@ -285,7 +301,7 @@ export default function HomePage() {
                           </div>
 
                           {/* 销量 + 库存 */}
-                          <div className="flex items-center justify-between text-xs text-white/40 mb-4 px-1">
+                          <div className="flex items-center justify-between text-xs lg:text-sm text-white/40 mb-4 px-1">
                             <span>已售 {product.sales}</span>
                             <span>
                               {product.stock === -1
@@ -296,7 +312,7 @@ export default function HomePage() {
                             </span>
                           </div>
 
-                          <div className={`flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r ${gradient} font-medium group-hover:shadow-lg transition-shadow`}>
+                          <div className={`flex items-center justify-center gap-2 py-3 lg:py-3.5 lg:text-[15px] rounded-xl bg-gradient-to-r ${gradient} font-medium group-hover:shadow-lg transition-shadow`}>
                             立即购买
                             <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                           </div>
@@ -330,8 +346,10 @@ export default function HomePage() {
               <div className="relative glass rounded-3xl p-8 md:p-12 overflow-hidden transition-colors hover:bg-white/[0.07]">
                 <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500 -z-10" />
 
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-                  <div className="max-w-xl">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 lg:gap-12">
+                  {/* 文案列限制在 xl 也不超过 2xl(672px)：这是段正文，行长超过 80 字符就难读，
+                      多出来的横向空间留给右侧工具标签，而不是把这段拉成一条长线 */}
+                  <div className="max-w-xl xl:max-w-2xl">
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass mb-5">
                       <Network className="w-4 h-4 text-cyan-400" />
                       <span className="text-xs text-white/70">网络诊断工具合集 · 共 {ipToolCount} 项</span>
@@ -339,7 +357,7 @@ export default function HomePage() {
                     <h2 className="text-headline mb-3">
                       <span className="gradient-text">IP 工具</span>
                     </h2>
-                    <p className="text-white/50 text-base md:text-lg mb-6">
+                    <p className="text-white/50 text-base md:text-lg xl:text-xl lg:leading-relaxed mb-6">
                       IP 查询、分流出口、Claude 可用性、DNS / WebRTC 泄露、全球 Ping 与服务状态，一站排查网络环境。
                     </p>
                     <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-cyan-600 to-purple-600 font-medium group-hover:shadow-[0_0_30px_rgba(34,211,238,0.35)] transition-shadow">
@@ -349,11 +367,11 @@ export default function HomePage() {
                   </div>
 
                   {/* 工具速览标签 */}
-                  <div className="flex flex-wrap gap-2 md:max-w-xs md:justify-end">
+                  <div className="flex flex-wrap gap-2 lg:gap-2.5 md:max-w-xs lg:max-w-sm md:justify-end">
                     {ipToolGroups[0].tools.slice(0, 6).map((tool) => (
                       <span
                         key={tool.url}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full glass text-xs text-white/60"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 lg:px-4 lg:py-2 rounded-full glass text-xs lg:text-sm text-white/60"
                       >
                         {tool.name}
                         <ArrowUpRight className="w-3 h-3 text-white/30" />
@@ -369,31 +387,33 @@ export default function HomePage() {
 
       <section className="py-20 border-t border-white/5">
         <div className="container">
-          <div className="flex flex-wrap justify-center items-center gap-12 text-white/20">
+          {/* 数字统计：手机端 gap-12 已经够挤，桌面端把间距和数字都放大一档，
+              让这条横向数据带撑住 1280+ 的容器宽度，而不是四个小数字挤在正中 */}
+          <div className="flex flex-wrap justify-center items-center gap-12 lg:gap-20 xl:gap-28 text-white/20">
             <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-1">
+              <div className="text-4xl lg:text-5xl font-bold text-white mb-1">
                 <CountUp end={1000} duration={2000} suffix="+" />
               </div>
-              <div className="text-sm">服务用户</div>
+              <div className="text-sm lg:text-base">服务用户</div>
             </div>
             <div className="w-px h-12 bg-white/10" />
             <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-1">
+              <div className="text-4xl lg:text-5xl font-bold text-white mb-1">
                 <CountUp end={99.9} duration={2200} suffix="%" decimals={1} />
               </div>
-              <div className="text-sm">成功率</div>
+              <div className="text-sm lg:text-base">成功率</div>
             </div>
             <div className="w-px h-12 bg-white/10" />
             <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-1">24/7</div>
-              <div className="text-sm">客服支持</div>
+              <div className="text-4xl lg:text-5xl font-bold text-white mb-1">24/7</div>
+              <div className="text-sm lg:text-base">客服支持</div>
             </div>
             <div className="w-px h-12 bg-white/10" />
             <div className="text-center">
-              <div className="text-4xl font-bold text-white mb-1">
+              <div className="text-4xl lg:text-5xl font-bold text-white mb-1">
                 <CountUp end={10} duration={1500} suffix="min" />
               </div>
-              <div className="text-sm">极速开通</div>
+              <div className="text-sm lg:text-base">极速开通</div>
             </div>
           </div>
         </div>
@@ -414,14 +434,14 @@ export default function HomePage() {
             <h2 className="text-headline mb-6">
               准备好开始了吗？
             </h2>
-            <p className="text-white/50 text-lg mb-10">
+            <p className="text-white/50 text-lg lg:text-xl mb-10">
               立即注册，解锁 AI 的无限可能
             </p>
             <Link href="/register">
-              <button className="group px-10 py-5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full font-semibold text-lg hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-shadow">
+              <button className="group px-10 py-5 lg:px-12 lg:py-6 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full font-semibold text-lg lg:text-xl hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-shadow">
                 <span className="flex items-center gap-3">
                   开始使用
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-5 h-5 lg:w-6 lg:h-6 group-hover:translate-x-1 transition-transform" />
                 </span>
               </button>
             </Link>

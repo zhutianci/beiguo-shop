@@ -100,23 +100,30 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
       <div className="pointer-events-none fixed inset-0 grid-bg opacity-60" />
       <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px]" />
 
+      {/*
+        正文页刻意 **不** 跟着列表页一起放宽：max-w-3xl（768px）在桌面端 18px 字号下
+        约合 40 个汉字 / 72 个英文字符一行，正好落在阅读舒适区。
+        桌面端要补的不是宽度而是字号——把正文从 17px 提到 18px、行高提到 1.95，
+        视觉重量才配得上大屏，而不是让文字一路铺到 1400px。
+      */}
       <div className="container relative max-w-3xl">
         <Link
           href="/news"
-          className="inline-flex items-center gap-1.5 text-sm text-white/45 transition-colors hover:text-white/80"
+          className="inline-flex items-center gap-1.5 text-sm text-white/45 transition-colors hover:text-white/80 lg:text-[15px]"
         >
           <ArrowLeft className="h-4 w-4" />
           AI 圈大事记
         </Link>
 
-        <article className="mt-5">
+        <article className="mt-5 lg:mt-7">
           {/* ============ 标题 ============ */}
-          <h1 className="text-balance text-[26px] font-bold leading-tight tracking-tight sm:text-4xl">
+          {/* 桌面端标题必须明显大于移动端，否则和正文拉不开层级 */}
+          <h1 className="text-balance text-[26px] font-bold leading-tight tracking-tight sm:text-4xl lg:text-[42px] lg:leading-[1.18]">
             {ev.headline}
           </h1>
 
           {/* ============ 元信息条 ============ */}
-          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-white/40">
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-[13px] text-white/40 lg:mt-5 lg:gap-x-3.5 lg:text-sm">
             <time dateTime={ev.happenedAt} className="tabular-nums text-white/55">
               {formatDayHeading(dayKey(ev.happenedAt))} {formatClock(ev.happenedAt)}
             </time>
@@ -144,35 +151,36 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           </div>
 
           {/* ============ AI 提示条（法定位置：正文开头） ============ */}
-          <div className="mt-6 flex gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+          <div className="mt-6 flex gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 lg:mt-7 lg:px-5 lg:py-3.5">
             <span className="mt-px shrink-0 rounded-full bg-purple-500/15 px-2 py-0.5 text-[11px] font-medium text-purple-200/90">
               {AI_BADGE}
             </span>
-            <p className="text-[13px] leading-relaxed text-white/50">
+            <p className="text-[13px] leading-relaxed text-white/50 lg:text-sm">
               {AI_NOTICE}整理者：{AUTHOR_NAME}。
             </p>
           </div>
 
           {/* ============ 摘要正文 ============ */}
-          <div className="mt-7 whitespace-pre-line text-[16px] leading-[1.9] text-white/80 sm:text-[17px]">
+          {/* 正文是全页阅读密度最高的一块：桌面端 18px / 行高 1.95，长段落才不费眼 */}
+          <div className="mt-7 whitespace-pre-line text-[16px] leading-[1.9] text-white/80 sm:text-[17px] lg:mt-9 lg:text-[18px] lg:leading-[1.95]">
             {ev.summary}
           </div>
 
           {/* ============ 为什么值得看 ============ */}
           {ev.whyItMatters && (
-            <section className="mt-7 rounded-2xl border border-white/10 bg-white/[0.04] p-5">
-              <h2 className="mb-2 text-sm font-semibold tracking-wide text-purple-200/90">为什么值得看</h2>
-              <p className="text-[15px] leading-relaxed text-white/65">{ev.whyItMatters}</p>
+            <section className="mt-7 rounded-2xl border border-white/10 bg-white/[0.04] p-5 lg:mt-9 lg:p-6">
+              <h2 className="mb-2 text-sm font-semibold tracking-wide text-purple-200/90 lg:mb-2.5 lg:text-[15px]">为什么值得看</h2>
+              <p className="text-[15px] leading-relaxed text-white/65 lg:text-base lg:leading-[1.85]">{ev.whyItMatters}</p>
             </section>
           )}
 
           {/* ============ 标签 ============ */}
           {ev.tags.length > 0 && (
-            <div className="mt-5 flex flex-wrap gap-2">
+            <div className="mt-5 flex flex-wrap gap-2 lg:mt-6">
               {ev.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/45"
+                  className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-white/45 lg:text-[13px]"
                 >
                   {tag}
                 </span>
@@ -181,38 +189,38 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           )}
 
           {/* ============ 信源列表：全部媒体名 + 可点外链（硬要求，SKILL.md §6） ============ */}
-          <section className="mt-9">
-            <h2 className="mb-3 text-sm font-semibold tracking-wide text-white/85">
+          <section className="mt-9 lg:mt-12">
+            <h2 className="mb-3 text-sm font-semibold tracking-wide text-white/85 lg:mb-4 lg:text-base">
               信源
-              <span className="ml-2 text-xs font-normal tabular-nums text-white/35">
+              <span className="ml-2 text-xs font-normal tabular-nums text-white/35 lg:text-[13px]">
                 {ev.sources.length || ev.sourceCount} 家
               </span>
             </h2>
             {ev.sources.length === 0 ? (
-              <p className="text-sm text-white/35">信源信息缺失，请以各家原文为准。</p>
+              <p className="text-sm text-white/35 lg:text-[15px]">信源信息缺失，请以各家原文为准。</p>
             ) : (
-              <ol className="space-y-2">
+              <ol className="space-y-2 lg:space-y-2.5">
                 {ev.sources.map((s, i) => (
                   <li key={`${s.name}-${i}`} id={`src-${i + 1}`} className="scroll-mt-28">
                     <a
                       href={s.url}
                       target="_blank"
                       rel="noopener noreferrer nofollow"
-                      className="group flex gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-colors hover:border-white/20 hover:bg-white/[0.07]"
+                      className="group flex gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-colors hover:border-white/20 hover:bg-white/[0.07] lg:px-5 lg:py-3.5"
                     >
                       <span className="mt-0.5 shrink-0 font-mono text-[11px] tabular-nums text-white/25">
                         [{i + 1}]
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
-                          <span className="text-[13px] font-medium text-white/80">{s.name}</span>
+                          <span className="text-[13px] font-medium text-white/80 lg:text-sm">{s.name}</span>
                           {s.tier === 1 && (
                             <span className="rounded-full bg-emerald-500/12 px-1.5 py-0.5 text-[10px] text-emerald-300/85">
                               一手信源
                             </span>
                           )}
                         </span>
-                        <span className="mt-0.5 block truncate text-[13px] text-white/45 group-hover:text-white/65">
+                        <span className="mt-0.5 block truncate text-[13px] text-white/45 group-hover:text-white/65 lg:text-sm">
                           {s.title}
                         </span>
                       </span>
@@ -226,16 +234,16 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
 
           {/* ============ 关键事实：每条标注来自第几个信源，可一键跳转复核 ============ */}
           {ev.facts.length > 0 && (
-            <section className="mt-8">
-              <h2 className="mb-3 text-sm font-semibold tracking-wide text-white/85">关键事实</h2>
-              <ul className="space-y-2.5">
+            <section className="mt-8 lg:mt-12">
+              <h2 className="mb-3 text-sm font-semibold tracking-wide text-white/85 lg:mb-4 lg:text-base">关键事实</h2>
+              <ul className="space-y-2.5 lg:space-y-3">
                 {ev.facts.map((f, i) => {
                   const idx = Math.min(Math.max(f.sourceIndex, 0), Math.max(ev.sources.length - 1, 0))
                   const src = ev.sources[idx]
                   return (
-                    <li key={i} className="flex gap-3 rounded-xl bg-white/[0.03] px-4 py-3">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-400/60" />
-                      <p className="text-[14px] leading-relaxed text-white/65">
+                    <li key={i} className="flex gap-3 rounded-xl bg-white/[0.03] px-4 py-3 lg:px-5 lg:py-3.5">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-purple-400/60 lg:mt-2" />
+                      <p className="text-[14px] leading-relaxed text-white/65 lg:text-[15px] lg:leading-[1.8]">
                         {f.text}
                         {src && (
                           <a
@@ -256,21 +264,22 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
 
           {/* ============ 相关事件 ============ */}
           {related.length > 0 && (
-            <section className="mt-9">
-              <h2 className="mb-3 text-sm font-semibold tracking-wide text-white/85">
+            <section className="mt-9 lg:mt-12">
+              <h2 className="mb-3 text-sm font-semibold tracking-wide text-white/85 lg:mb-4 lg:text-base">
                 相关 · {ev.categoryLabel}
               </h2>
-              <div className="grid gap-2 sm:grid-cols-2">
+              {/* 相关事件在窄屏是单列，sm 起两列；桌面端只把内边距和字号放开，保持两列可扫读 */}
+              <div className="grid gap-2 sm:grid-cols-2 lg:gap-3">
                 {related.map((r) => (
                   <Link
                     key={r.slug}
                     href={`/news/${r.slug}`}
-                    className="group rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-colors hover:border-white/20 hover:bg-white/[0.07]"
+                    className="group rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-colors hover:border-white/20 hover:bg-white/[0.07] lg:px-5 lg:py-4"
                   >
-                    <h3 className="line-clamp-2 text-balance text-[14px] font-medium leading-snug text-white/80 group-hover:text-white">
+                    <h3 className="line-clamp-2 text-balance text-[14px] font-medium leading-snug text-white/80 group-hover:text-white lg:text-[15px]">
                       {r.headline}
                     </h3>
-                    <div className="mt-1.5 flex items-center gap-2 text-[11px] tabular-nums text-white/30">
+                    <div className="mt-1.5 flex items-center gap-2 text-[11px] tabular-nums text-white/30 lg:text-[12px]">
                       <span>{formatDayHeading(dayKey(r.happenedAt))}</span>
                       <span>·</span>
                       <span>AI {r.aiScore}</span>
@@ -282,13 +291,13 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           )}
 
           {/* ============ 免责声明（法定位置：正文末尾） ============ */}
-          <p className="mt-9 border-t border-white/10 pt-5 text-[12px] leading-relaxed text-white/35">
+          <p className="mt-9 border-t border-white/10 pt-5 text-[12px] leading-relaxed text-white/35 lg:mt-12 lg:pt-6 lg:text-[13px]">
             {AI_DISCLAIMER}
           </p>
         </article>
 
         {/* ============ 分享：复制文案里带「AI 摘要」字样由 buildShareText 统一保证 ============ */}
-        <div className="mt-8">
+        <div className="mt-8 lg:mt-10">
           <ShareBar
             eventId={ev.id}
             slug={ev.slug}

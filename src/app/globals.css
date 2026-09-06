@@ -45,6 +45,81 @@
     @apply mx-auto max-w-7xl px-6 lg:px-8;
   }
 
+  /*
+   * 正文型页面的阅读容器（新闻详情 / 关于 / 支持 / 隐私 / 条款 …）。
+   *
+   * 为什么不能继续用 .container：max-w-7xl 是 1280px，是给卡片墙和栅格用的宽度。
+   * 纯段落文字撑到 1280px 时一行超过 100 个半角字符，眼睛从行尾回扫到下一行行首
+   * 很容易串行；排版上的舒适区是 65~80 字符（中文约 35~40 字）。
+   *
+   * max-width 用 ch 而不是 px：ch 跟着元素自身字号走，
+   * 页面把正文从 16px 调到 18px 时行长自动跟着变，不用再改容器。
+   * 额外加上左右 gutter 是因为 Tailwind 全局 border-box，
+   * max-width 会把 padding 算进去，不补的话文字实际只有 72ch - 3rem 宽。
+   *
+   * 用法：整页正文用 .container-prose（自带左右安全边距，不要再套 .container）；
+   * 已经在 .container 里、只想收窄某一段的用 .prose-width。
+   * 注意：不要替换现有页面的 .container，那由各页面负责人决定。
+   */
+  .container-prose {
+    @apply mx-auto w-full px-6 lg:px-8;
+    max-width: calc(72ch + 3rem);
+  }
+
+  /* 1024px = Tailwind 默认 lg 断点（tailwind.config.ts 未覆盖 screens） */
+  @media (min-width: 1024px) {
+    .container-prose {
+      max-width: calc(72ch + 4rem);
+    }
+  }
+
+  /* .container 内部使用的窄正文块，不带 gutter（外层已经有了） */
+  .prose-width {
+    @apply mx-auto w-full;
+    max-width: 72ch;
+  }
+
+  /*
+   * ---- 固定头部高度：单一事实来源 ----
+   * 头部是 fixed 的，页面必须自己让出这段高度。现在这个数字散落在各页面的
+   * pt-32、以及 news / support 里的 scroll-mt-28、scroll-mt-24 上，
+   * 改一次头部要追七八个文件。这里收敛成 --header-h，由前台外壳
+   * （src/app/(shop)/layout.tsx 上的 .shop-shell）挂到整棵子树上。
+   *
+   * 实测头部盒高 = 上下外边距 + 药丸 64px（药丸内容固定 40px + py-3）：
+   *   移动端 / md   24 + 64 + 24 = 112px（滚动后 96px）
+   *   lg 以上       16 + 64 + 16 =  96px（滚动后 88px，lg 把外边距收了一档）
+   * 用未滚动的高度做基准：首屏第一眼看到的就是未滚动状态。
+   */
+  .shop-shell {
+    --header-h: 7rem; /* 112px */
+  }
+
+  @media (min-width: 1024px) {
+    .shop-shell {
+      --header-h: 6rem; /* 96px */
+    }
+  }
+
+  /*
+   * 页面首屏让位。现有页面写死的 pt-32(128px) 是按移动端 112px 头部定的，
+   * lg 上头部矮了 16px 留白却没跟着收，1366×768 这类「宽而矮」的笔记本屏
+   * 会被白白吃掉一块首屏。
+   *   移动端：112 + 16 = 128px，和原来的 pt-32 完全一致（移动端零变化）
+   *   lg 起：96 + 16 = 112px，药丸底边在 80px，视觉间隙 32px，
+   *          与移动端 40px 间隙的比例一致，不会显得贴脸。
+   * 各页面把 `pt-32` 换成 `page-top` 即可；不换也不会坏，只是桌面端偏空。
+   */
+  .page-top {
+    padding-top: calc(var(--header-h, 7rem) + 1rem);
+  }
+
+  /* 锚点跳转的让位。页面里散着 scroll-mt-28 / scroll-mt-24，
+     换成这个类之后跟着 --header-h 走，头部改高度不用再逐个文件调。 */
+  .scroll-below-header {
+    scroll-margin-top: calc(var(--header-h, 7rem) + 1rem);
+  }
+
   /* 渐变文字 */
   .gradient-text {
     @apply bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent;

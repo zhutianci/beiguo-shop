@@ -182,10 +182,10 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
     <>
       {/* ============ 重点层：时间流之上的高亮，不是另一个割裂的列表 ============ */}
       {hasRail && (
-        <section className="mb-10">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <section className="mb-10 lg:mb-14">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2 lg:mb-4">
             <div className="flex items-center gap-3">
-              <h2 className="flex items-center gap-1.5 text-base font-semibold text-white/90">
+              <h2 className="flex items-center gap-1.5 text-base font-semibold text-white/90 lg:text-lg">
                 <Flame className="h-4 w-4 text-amber-400" />
                 重点
               </h2>
@@ -219,12 +219,18 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
               {rail === 'today' ? '今日还没有够格进重点的条目' : '本周还没有够格进重点的条目'}
             </div>
           ) : (
-            <div className="news-rail -mx-6 flex gap-3 px-6 pb-2 sm:mx-0 sm:px-0">
+            /*
+              横滑只是移动端的空间妥协：md 起屏幕放得下，就该平铺成网格，
+              否则桌面端用户既看不出还有内容在右边、又没有触摸可以滑。
+              `!` 是必需的——.news-rail 的 display:flex / overflow-x:auto 写在 globals.css
+              里 @tailwind utilities 之后，同优先级下按源码顺序会压过 md:grid。
+            */
+            <div className="news-rail -mx-6 flex gap-3 px-6 pb-2 sm:mx-0 sm:px-0 md:!grid md:grid-cols-2 md:!overflow-visible md:pb-0 lg:grid-cols-3 lg:gap-4">
               {railItems.map((ev, i) => (
                 <button
                   key={ev.id}
                   onClick={() => openHighlight(ev)}
-                  className="news-in group w-[264px] shrink-0 snap-start rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-white/20 hover:bg-white/[0.07] sm:w-[300px]"
+                  className="news-in group w-[264px] shrink-0 snap-start rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-left transition-colors hover:border-white/20 hover:bg-white/[0.07] sm:w-[300px] md:w-auto lg:p-5"
                   style={{ animationDelay: `${Math.min(i, 6) * 45}ms` }}
                 >
                   <div className="flex items-center justify-between">
@@ -233,13 +239,13 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
                     </span>
                     <ScorePill score={ev.aiScore} compact />
                   </div>
-                  <h3 className="mt-2 line-clamp-3 text-balance text-sm font-semibold leading-snug text-white/90">
+                  <h3 className="mt-2 line-clamp-3 text-balance text-sm font-semibold leading-snug text-white/90 lg:text-[15px]">
                     {ev.headline}
                   </h3>
-                  <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-white/45">
+                  <p className="mt-2 line-clamp-2 text-[12px] leading-relaxed text-white/45 lg:text-[13px]">
                     {ev.whyItMatters || ev.summary}
                   </p>
-                  <div className="mt-3 flex items-center gap-1.5 text-[11px] text-white/30">
+                  <div className="mt-3 flex items-center gap-1.5 text-[11px] text-white/30 lg:text-[12px]">
                     <span className="truncate">{sourceLabel(ev.sources, ev.sourceCount)}</span>
                     <span>·</span>
                     <span className="shrink-0 tabular-nums">{relativeTime(ev.happenedAt, nowDate)}</span>
@@ -252,14 +258,15 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
       )}
 
       {/* ============ 分类芯片 ============ */}
-      <div className="news-rail -mx-6 mb-6 flex gap-2 px-6 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+      {/* sm 起已经换行平铺；桌面端只需把间距和字号放开一档，避免一排小胶囊挤在一起 */}
+      <div className="news-rail -mx-6 mb-6 flex gap-2 px-6 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 lg:mb-8 lg:gap-2.5">
         {CATEGORY_CHIPS.map((c) => (
           <button
             key={c.slug || 'all'}
             onClick={() => switchCat(c.slug)}
             title={c.hint || undefined}
             className={cn(
-              'shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors',
+              'shrink-0 rounded-full px-4 py-1.5 text-sm font-medium transition-colors lg:px-5 lg:py-2 lg:text-[15px]',
               cat === c.slug
                 ? 'bg-white text-black'
                 : 'border border-white/10 bg-white/[0.04] text-white/55 hover:bg-white/[0.08] hover:text-white/85'
@@ -272,7 +279,8 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
 
       {/* ============ 时间流 ============ */}
       {loading ? (
-        <div className="space-y-3">
+        // 骨架屏跟真实列表用同一套栅格，切分类时才不会先单列闪一下再变两列
+        <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="h-[172px] animate-pulse rounded-2xl border border-white/10 bg-white/[0.03]" />
           ))}
@@ -300,18 +308,20 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
           )}
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-8 lg:space-y-12">
           {groups.map((group) => {
             const tag = dayRelativeTag(group.key, nowDate)
             return (
               <section key={group.key}>
-                {/* 全页唯一允许 backdrop-blur 的地方 */}
-                <div className="sticky top-[72px] z-20 -mx-1 mb-3 px-1 py-1">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/70 px-3.5 py-1.5 backdrop-blur-md">
-                    <h2 className="text-sm font-semibold tracking-wide text-white/90">
+                {/* 全页唯一允许 backdrop-blur 的地方。
+                    lg 起吸顶位置下移到 96px：滚动后的固定头部在 lg 上高 88px（py-3 + 64px 药丸），
+                    仍用 72px 的话日期胶囊会有一截压在头部底下（头部 z-50 盖住它）。 */}
+                <div className="sticky top-[72px] z-20 -mx-1 mb-3 px-1 py-1 lg:top-24 lg:mb-4">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/70 px-3.5 py-1.5 backdrop-blur-md lg:px-4 lg:py-2">
+                    <h2 className="text-sm font-semibold tracking-wide text-white/90 lg:text-[15px]">
                       {formatDayHeading(group.key)}
                     </h2>
-                    <span className="text-xs tabular-nums text-white/35">· {group.items.length} 条</span>
+                    <span className="text-xs tabular-nums text-white/35 lg:text-[13px]">· {group.items.length} 条</span>
                     {tag && (
                       <span className="rounded-full bg-purple-500/15 px-2 py-0.5 text-[11px] text-purple-200/90">
                         {tag}
@@ -320,7 +330,13 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                {/*
+                  lg 起同一天的条目改成两列：容器已放宽到 1024/1152px，
+                  再单列的话每条摘要会拉到 70+ 个汉字/行，既难读又浪费右半屏。
+                  两列后单列宽度回到 ~520px（≈35 字/行），仍在舒适区。
+                  space-y 与 grid 会重复叠加间距，所以 lg 下要把 space-y 归零。
+                */}
+                <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
                   {group.items.map((ev, i) => (
                     <EventCard
                       key={ev.id}
@@ -340,12 +356,12 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
 
       {/* ============ 加载更多（追加式） ============ */}
       {!loading && !failed && list.length > 0 && (
-        <div className="mt-8 flex flex-col items-center gap-2">
+        <div className="mt-8 flex flex-col items-center gap-2 lg:mt-12">
           {page < totalPages ? (
             <button
               onClick={() => load(cat, page + 1, true)}
               disabled={loadingMore}
-              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-6 py-2.5 text-sm font-medium text-white/80 transition-colors hover:bg-white/[0.09] disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-6 py-2.5 text-sm font-medium text-white/80 transition-colors hover:bg-white/[0.09] disabled:opacity-50 lg:px-8 lg:py-3 lg:text-[15px]"
             >
               {loadingMore && <Loader2 className="h-4 w-4 animate-spin" />}
               {loadingMore ? '加载中...' : '加载更多'}
@@ -401,8 +417,9 @@ function EventCard({
         focused ? 'news-flash border-purple-400/50' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.06]'
       )}
     >
-      <Link href={`/news/${ev.slug}`} onClick={onOpen} className="block p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px] text-white/40">
+      {/* 桌面端卡片内边距与字号整体上一档：手机上的紧凑排版在 1440px 上会显得又小又挤 */}
+      <Link href={`/news/${ev.slug}`} onClick={onOpen} className="block p-4 sm:p-5 lg:p-6">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12px] text-white/40 lg:gap-x-3 lg:text-[13px]">
           <time dateTime={ev.happenedAt} className="tabular-nums text-white/55">
             {formatClock(ev.happenedAt)}
           </time>
@@ -423,30 +440,35 @@ function EventCard({
 
         <h3
           className={cn(
-            'mt-2 text-balance text-[17px] font-semibold leading-snug transition-colors sm:text-lg',
+            'mt-2 text-balance text-[17px] font-semibold leading-snug transition-colors sm:text-lg lg:mt-2.5 lg:text-[19px]',
             read ? 'text-white/50' : 'text-white'
           )}
         >
           {ev.headline}
         </h3>
 
-        <p className={cn('mt-1.5 line-clamp-3 text-sm leading-relaxed', read ? 'text-white/35' : 'text-white/55')}>
+        <p
+          className={cn(
+            'mt-1.5 line-clamp-3 text-sm leading-relaxed lg:mt-2 lg:text-[15px] lg:leading-[1.75]',
+            read ? 'text-white/35' : 'text-white/55'
+          )}
+        >
           {ev.summary}
         </p>
 
         {ev.whyItMatters && (
-          <div className="mt-3 flex gap-2.5 rounded-xl border-l-2 border-purple-400/40 bg-white/[0.03] px-3 py-2">
-            <span className="mt-px shrink-0 text-[11px] font-medium text-purple-300/75">推荐理由</span>
-            <p className="text-[13px] leading-relaxed text-white/55">{ev.whyItMatters}</p>
+          <div className="mt-3 flex gap-2.5 rounded-xl border-l-2 border-purple-400/40 bg-white/[0.03] px-3 py-2 lg:px-4 lg:py-2.5">
+            <span className="mt-px shrink-0 text-[11px] font-medium text-purple-300/75 lg:text-[12px]">推荐理由</span>
+            <p className="text-[13px] leading-relaxed text-white/55 lg:text-sm">{ev.whyItMatters}</p>
           </div>
         )}
 
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between lg:mt-4">
           {/* AI 标识的第 1 处法定位置：列表卡片徽章 */}
-          <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] text-white/40">
+          <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[11px] text-white/40 lg:text-[12px]">
             {AI_BADGE}
           </span>
-          <span className="inline-flex items-center gap-0.5 text-[12px] text-white/30 transition-colors group-hover:text-white/70">
+          <span className="inline-flex items-center gap-0.5 text-[12px] text-white/30 transition-colors group-hover:text-white/70 lg:text-[13px]">
             展开
             <ChevronRight className="h-3.5 w-3.5" />
           </span>

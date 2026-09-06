@@ -273,12 +273,18 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen pt-32 pb-20">
+    /* pt-32 保持不动：固定头部移动端 112px(py-6+64 药丸)、lg 起 96px(py-4+64)，
+       128px 的顶部留白在手机上只余 16px，在桌面上已自动余出 32px ——
+       头部变矮腾出的空间就是桌面端的呼吸位，再往上加就成了「顶部一片空」 */
+    <div className="min-h-screen pt-32 pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
 
-      <div className="container relative max-w-5xl">
+      {/* 订单卡是「一行一条记录」的横向布局，不是正文，行长约束不适用：
+          xl 起把容器从 1024 放宽到 1152，让订单号+时间+金额+按钮排在同一视觉行内，
+          横向空白转成信息密度；再宽就没意义了（右侧金额会离左侧商品名太远） */}
+      <div className="container relative max-w-5xl xl:max-w-6xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -299,17 +305,19 @@ export default function OrdersPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="flex flex-col md:flex-row gap-4 mb-8"
+          className="flex flex-col md:flex-row md:items-center gap-4 mb-8 lg:mb-10"
         >
-          <div className="flex-1 flex gap-2 overflow-x-auto pb-1">
+          {/* 手机端筛选条要能横滑，所以基础样式保留 overflow-x-auto；
+              桌面端一行放得下，改成换行排布并去掉滚动条占位，胶囊也放大一档 */}
+          <div className="flex-1 flex gap-2 overflow-x-auto md:overflow-visible md:flex-wrap pb-1 md:pb-0">
             {statusFilters.map((filter) => (
               <button
                 key={filter.id}
                 onClick={() => setActiveFilter(filter.id)}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                className={`inline-flex items-center gap-2 px-4 py-2.5 lg:px-5 lg:py-3 rounded-full text-sm lg:text-[15px] font-medium whitespace-nowrap transition-all ${
                   activeFilter === filter.id
                     ? 'bg-white text-black'
-                    : 'glass text-white/60 hover:text-white'
+                    : 'glass text-white/60 hover:text-white lg:hover:bg-white/10'
                 }`}
               >
                 {filter.label}
@@ -324,14 +332,14 @@ export default function OrdersPage() {
             ))}
           </div>
 
-          <div className="relative md:w-72">
+          <div className="relative md:w-72 lg:w-80 md:shrink-0">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="搜索订单号或商品..."
-              className="w-full pl-11 pr-4 py-2.5 rounded-full bg-white/5 border border-white/10 text-sm placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+              className="w-full pl-11 pr-4 py-2.5 lg:py-3 rounded-full bg-white/5 border border-white/10 text-sm lg:text-[15px] placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
             />
           </div>
         </motion.div>
@@ -373,7 +381,7 @@ export default function OrdersPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="space-y-4"
+              className="space-y-4 lg:space-y-5"
             >
               {filteredOrders.map((order, index) => {
                 const status = getStatusConfig(order.payStatus, order.deliveryStatus)
@@ -389,15 +397,17 @@ export default function OrdersPage() {
                   >
                     <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-30 blur-md transition-opacity`} />
 
-                    <div className="relative glass rounded-2xl p-6 hover:bg-white/10 transition-colors">
-                      <div className="flex flex-col md:flex-row md:items-center gap-4">
-                        <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
-                          <Sparkles className="w-7 h-7" />
+                    {/* 桌面端卡片宽度到 1088px，沿用手机端 p-6 + 14px 正文会让内容浮在中间一条；
+                        lg 起加大内边距、图标与标题，把信息「铺开」到实际可用宽度上 */}
+                    <div className="relative glass rounded-2xl p-6 lg:p-7 hover:bg-white/10 transition-colors">
+                      <div className="flex flex-col md:flex-row md:items-center gap-4 lg:gap-6">
+                        <div className={`w-14 h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
+                          <Sparkles className="w-7 h-7 lg:w-8 lg:h-8" />
                         </div>
 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 flex-wrap mb-2">
-                            <h3 className="font-bold text-lg">{order.productName}</h3>
+                            <h3 className="font-bold text-lg lg:text-xl">{order.productName}</h3>
                             <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.bg} ${status.border} border ${status.color}`}>
                               <status.icon className="w-3 h-3" />
                               {status.label}
@@ -431,7 +441,7 @@ export default function OrdersPage() {
                                 <BillingChip color="cyan" label="可开收据" />
                               ) : null)}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-white/40 flex-wrap">
+                          <div className="flex items-center gap-4 lg:gap-6 text-sm text-white/40 flex-wrap">
                             <div className="flex items-center gap-1">
                               <span>订单号:</span>
                               <span className="font-mono text-white/60">{order.orderNo}</span>
@@ -450,16 +460,16 @@ export default function OrdersPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between md:justify-end gap-4">
+                        <div className="flex items-center justify-between md:justify-end gap-4 lg:gap-6">
                           <div className="text-right">
-                            <div className="text-2xl font-bold">¥{Number(order.amount).toFixed(0)}</div>
+                            <div className="text-2xl lg:text-3xl font-bold">¥{Number(order.amount).toFixed(0)}</div>
                             <div className="text-xs text-white/40">订单金额</div>
                           </div>
                           {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
                             <button
                               onClick={() => handleAlipay(order)}
                               disabled={payingNo === order.orderNo}
-                              className="px-4 py-2 rounded-lg bg-[#1677FF] text-white text-sm font-medium hover:bg-[#0e5fd8] transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5"
+                              className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg bg-[#1677FF] text-white text-sm lg:text-[15px] font-medium hover:bg-[#0e5fd8] transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 md:whitespace-nowrap"
                             >
                               {payingNo === order.orderNo ? (
                                 <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
@@ -471,33 +481,37 @@ export default function OrdersPage() {
                       </div>
 
                       {/* 状态提示 + 操作按钮（不点开详情，直接分项处理） */}
-                      <div className="mt-4 pt-4 border-t border-white/10">
+                      {/* 状态提示与操作按钮：手机端必须上下堆叠（横向放不下），
+                          但桌面端卡片有 1000px 可用宽，堆叠会白白多占一行、右侧还全是空白。
+                          lg 起改成「左提示 / 右按钮」一行 —— 这就是桌面端信息密度的主要来源。
+                          四个提示互斥（同一时刻最多渲染一个），没有提示时按钮组自然回到左侧 */}
+                      <div className="mt-4 lg:mt-5 pt-4 lg:pt-5 border-t border-white/10 lg:flex lg:items-center lg:justify-between lg:gap-6">
                         {order.deliveryStatus === 'DELIVERED' && (
-                          <div className="flex items-center gap-2 text-sm text-green-400 mb-3">
+                          <div className="flex items-center gap-2 text-sm lg:text-[15px] text-green-400 mb-3 lg:mb-0">
                             <CheckCircle className="w-4 h-4" />
                             <span>服务已交付</span>
                           </div>
                         )}
                         {order.payStatus === 'PAID' && order.deliveryStatus === 'PROCESSING' && (
-                          <div className="flex items-center gap-2 text-sm text-blue-400 mb-3">
+                          <div className="flex items-center gap-2 text-sm lg:text-[15px] text-blue-400 mb-3 lg:mb-0">
                             <Clock className="w-4 h-4" />
                             <span>正在为你开通服务，预计 10 分钟内完成</span>
                           </div>
                         )}
                         {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
-                          <div className="flex items-center gap-2 text-sm text-yellow-400 mb-3">
+                          <div className="flex items-center gap-2 text-sm lg:text-[15px] text-yellow-400 mb-3 lg:mb-0">
                             <AlertCircle className="w-4 h-4" />
                             <span>请点击「支付宝支付」完成付款</span>
                           </div>
                         )}
                         {order.deliveryStatus === 'CANCELLED' && order.payStatus === 'UNPAID' && (
-                          <div className="flex items-center gap-2 text-sm text-white/40 mb-3">
+                          <div className="flex items-center gap-2 text-sm lg:text-[15px] text-white/40 mb-3 lg:mb-0">
                             <XCircle className="w-4 h-4" />
                             <span>订单已超时取消，请重新下单</span>
                           </div>
                         )}
 
-                        <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2 lg:shrink-0">
                           <ActionButton
                             icon={Package}
                             label="发货详情"
@@ -535,7 +549,7 @@ export default function OrdersPage() {
               <button
                 onClick={() => loadOrders({ append: true })}
                 disabled={loadingMore}
-                className="px-6 py-3 rounded-xl glass hover:bg-white/10 text-sm font-medium disabled:opacity-50 flex items-center gap-2"
+                className="px-6 py-3 lg:px-10 lg:py-3.5 rounded-xl glass hover:bg-white/10 lg:hover:border-white/25 text-sm lg:text-base font-medium disabled:opacity-50 flex items-center gap-2"
               >
                 {loadingMore && (
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -665,7 +679,7 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className="relative inline-flex items-center gap-1.5 px-4 py-2 rounded-lg glass hover:bg-white/10 text-sm font-medium transition-colors"
+      className="relative inline-flex items-center gap-1.5 px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg glass hover:bg-white/10 lg:hover:border-white/25 text-sm lg:text-[15px] font-medium transition-colors"
     >
       <Icon className="w-4 h-4" />
       {label}
@@ -680,12 +694,17 @@ function ActionButton({
 }
 
 // 通用弹窗外壳（标题栏 + 关闭按钮 + 可滚动内容区）
+//
+// 弹窗宽度按断点递进的原因：w-full + max-w-md 在手机上是被屏幕宽度先卡住的，
+// 448px 这个上限只有桌面端才真正生效 —— 于是 1920 屏上同一个弹窗就变成正中一条细长条，
+// 卡密/订单号这类等宽长串还会被迫折行。所以 sm 起 512、lg 起 576，手机端表现完全不变。
+// 高度同理：90vh 在 1080p 上等于顶天立地，lg 收到 82vh 让弹窗四周留出可见的暗底边界。
 function PanelModal({
   title,
   icon,
   onClose,
   children,
-  maxW = 'max-w-md',
+  maxW = 'max-w-md sm:max-w-lg lg:max-w-xl',
 }: {
   title: string
   icon: ReactNode
@@ -694,22 +713,22 @@ function PanelModal({
   maxW?: string
 }) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className={`relative w-full ${maxW} glass-strong rounded-3xl p-6 max-h-[90vh] overflow-y-auto`}
+        className={`relative w-full ${maxW} glass-strong rounded-3xl p-6 lg:p-8 max-h-[90vh] lg:max-h-[82vh] overflow-y-auto`}
       >
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-xl font-bold flex items-center gap-2">
+        <div className="flex items-center justify-between mb-5 lg:mb-6">
+          <h3 className="text-xl lg:text-2xl font-bold flex items-center gap-2">
             {icon}
             {title}
           </h3>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10"
+            className="w-8 h-8 lg:w-9 lg:h-9 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -944,7 +963,7 @@ function BillingPanel({
 // 在线沟通：本订单专属客服会话
 function ChatPanel({ order, onClose }: { order: Order; onClose: () => void }) {
   return (
-    <PanelModal title="与客服在线沟通" icon={<MessageSquare className="w-5 h-5 text-cyan-400" />} onClose={onClose} maxW="max-w-lg">
+    <PanelModal title="与客服在线沟通" icon={<MessageSquare className="w-5 h-5 text-cyan-400" />} onClose={onClose} maxW="max-w-lg lg:max-w-2xl">
       <p className="text-xs text-white/40 mb-3">
         {order.productName} · 订单号 <span className="font-mono">{order.orderNo}</span>
       </p>
@@ -1053,7 +1072,7 @@ function InvoiceModal({
     opts?: { required?: boolean; placeholder?: string; type?: string }
   ) => (
     <div>
-      <label className="block text-xs text-white/50 mb-1">
+      <label className="block text-xs lg:text-[13px] text-white/50 mb-1 lg:mb-1.5">
         {label}
         {opts?.required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
@@ -1062,23 +1081,23 @@ function InvoiceModal({
         value={value}
         onChange={(e) => setter(e.target.value)}
         placeholder={opts?.placeholder}
-        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/25 outline-none focus:border-purple-500/50 text-sm"
+        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 lg:px-4 lg:py-2.5 text-white placeholder:text-white/25 outline-none focus:border-purple-500/50 text-sm lg:text-[15px]"
       />
     </div>
   )
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-lg glass-strong rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-lg lg:max-w-2xl glass-strong rounded-3xl p-6 lg:p-8 max-h-[90vh] lg:max-h-[85vh] overflow-y-auto"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold flex items-center gap-2">
-            <FileText className="w-5 h-5 text-purple-400" /> 申请发票
+        <div className="flex items-center justify-between mb-4 lg:mb-5">
+          <h3 className="text-xl lg:text-2xl font-bold flex items-center gap-2">
+            <FileText className="w-5 h-5 lg:w-6 lg:h-6 text-purple-400" /> 申请发票
           </h3>
           <button onClick={onClose} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10">
             <X className="w-4 h-4" />
@@ -1109,7 +1128,7 @@ function InvoiceModal({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
           <div className="sm:col-span-2">{field('抬头', title, setTitle, { required: true, placeholder: '公司名称 / 个人' })}</div>
           <div className="sm:col-span-2">{field('税号', taxNumber, setTaxNumber, { required: true, placeholder: '纳税人识别号' })}</div>
           {field('地址', address, setAddress, { placeholder: '选填' })}
@@ -1206,17 +1225,17 @@ function ReceiptModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md glass-strong rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
+        className="relative w-full max-w-md lg:max-w-lg glass-strong rounded-3xl p-6 lg:p-8 max-h-[90vh] overflow-y-auto"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold flex items-center gap-2">
-            <FileText className="w-5 h-5 text-cyan-400" /> 申请收据
+        <div className="flex items-center justify-between mb-4 lg:mb-5">
+          <h3 className="text-xl lg:text-2xl font-bold flex items-center gap-2">
+            <FileText className="w-5 h-5 lg:w-6 lg:h-6 text-cyan-400" /> 申请收据
           </h3>
           <button onClick={onClose} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10">
             <X className="w-4 h-4" />

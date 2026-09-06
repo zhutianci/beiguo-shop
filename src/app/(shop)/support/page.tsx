@@ -221,7 +221,8 @@ export default function SupportPage() {
             <span className="gradient-text">购买之后，</span>
             <span className="gradient-text-accent">我们继续陪伴</span>
           </h1>
-          <p className="text-white/50 text-lg max-w-2xl mx-auto">
+          {/* 导语跟着标题一起放大一档，并放宽到 3xl，避免在 1152px 容器里被压成两行小字 */}
+          <p className="text-white/50 text-lg lg:text-xl lg:leading-[1.8] max-w-2xl lg:max-w-3xl mx-auto">
             从订阅查询到故障处理，从续费提醒到使用指南 —— 全流程为老客户提供持续保障
           </p>
         </motion.div>
@@ -236,7 +237,7 @@ export default function SupportPage() {
           <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
             <Megaphone className="w-5 h-5" />
           </div>
-          <div className="flex-1 text-sm">
+          <div className="flex-1 text-sm lg:text-[15px]">
             <span className="text-amber-300 font-semibold mr-2">服务公告</span>
             <span className="text-white/70">客服在线时间 9:00~22:00，紧急问题请微信留言，会在第一时间处理。</span>
           </div>
@@ -283,7 +284,7 @@ export default function SupportPage() {
           className="mb-20"
         >
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">服务列表</h2>
+            <h2 className="text-2xl lg:text-3xl font-bold">服务列表</h2>
             <div className="flex items-center gap-2 text-sm text-white/50">
               <Sparkles className="w-4 h-4 text-purple-400" />
               <span>共 {services.length} 项服务</span>
@@ -305,9 +306,10 @@ export default function SupportPage() {
                   <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} mb-4`}>
                     <s.icon className="w-6 h-6" />
                   </div>
-                  <h3 className="font-bold text-lg mb-2">{s.title}</h3>
-                  <p className="text-white/50 text-sm leading-relaxed mb-4">{s.desc}</p>
-                  <div className="flex items-center gap-1 text-sm font-medium gradient-text-accent">
+                  <h3 className="font-bold text-lg lg:text-xl mb-2">{s.title}</h3>
+                  {/* 三列卡片在 lg 下单列约 350px，14px 说明偏小，桌面端提到 15px */}
+                  <p className="text-white/50 text-sm lg:text-[15px] leading-relaxed mb-4">{s.desc}</p>
+                  <div className="flex items-center gap-1 text-sm lg:text-[15px] font-medium gradient-text-accent">
                     立即前往
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                   </div>
@@ -327,7 +329,7 @@ export default function SupportPage() {
           className="mb-20 scroll-mt-24"
         >
           <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
-            <h2 className="text-2xl font-bold flex items-center gap-3">
+            <h2 className="text-2xl lg:text-3xl font-bold flex items-center gap-3">
               <BookOpen className="w-6 h-6 text-amber-400" />
               使用教程
             </h2>
@@ -359,11 +361,11 @@ export default function SupportPage() {
                   className="relative group"
                 >
                   <div className="absolute -inset-[1px] bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur-md opacity-20" />
-                  <div className="relative glass rounded-2xl p-6">
-                    <h3 className="font-bold text-lg mb-4">{g.title}</h3>
-                    <ol className="space-y-3">
+                  <div className="relative glass rounded-2xl p-6 lg:p-7">
+                    <h3 className="font-bold text-lg lg:text-xl mb-4">{g.title}</h3>
+                    <ol className="space-y-3 lg:space-y-3.5">
                       {g.steps.map((step, j) => (
-                        <li key={j} className="flex gap-3 text-sm">
+                        <li key={j} className="flex gap-3 text-sm lg:text-[15px]">
                           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-amber-500/30 to-orange-500/30 border border-amber-500/30 flex items-center justify-center text-xs font-bold text-amber-300">
                             {j + 1}
                           </span>
@@ -387,11 +389,17 @@ export default function SupportPage() {
           transition={{ duration: 0.6 }}
           className="mb-20 scroll-mt-24"
         >
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+          <h2 className="text-2xl lg:text-3xl font-bold mb-6 flex items-center gap-3">
             <HelpCircle className="w-6 h-6 text-emerald-400" />
             常见问题
           </h2>
-          <div className="space-y-3">
+          {/*
+            单列手风琴在 1152px 容器里答案会拉到 70+ 字/行，且右半屏全空。
+            lg 起改两列（单列 ≈560px ≈ 37 字/行）：
+            - space-y 与 grid gap 会叠加，所以 lg 下把 space-y 归零；
+            - items-start 必需，否则同一行两张卡会被拉成等高，收起的那张底部留一大块空白。
+          */}
+          <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3 lg:space-y-0">
             {faqs.map((faq, i) => {
               const open = openFaq === i
               return (
@@ -409,7 +417,8 @@ export default function SupportPage() {
                   >
                     <div className="flex items-center gap-3 flex-1">
                       <CheckCircle2 className={`w-4 h-4 flex-shrink-0 ${open ? 'text-emerald-400' : 'text-white/30'}`} />
-                      <span className={`font-medium ${open ? 'text-white' : 'text-white/80'}`}>{faq.q}</span>
+                      {/* 问题本身继承 16px；桌面端提到 17px，和 15px 的答案拉开层级 */}
+                      <span className={`font-medium lg:text-[17px] ${open ? 'text-white' : 'text-white/80'}`}>{faq.q}</span>
                     </div>
                     <ChevronDown
                       className={`w-4 h-4 text-white/40 transition-transform flex-shrink-0 ml-3 ${open ? 'rotate-180' : ''}`}
@@ -424,7 +433,9 @@ export default function SupportPage() {
                         transition={{ duration: 0.25 }}
                         className="overflow-hidden"
                       >
-                        <div className="px-5 pb-4 pl-12 text-sm text-white/60 leading-relaxed">{faq.a}</div>
+                        <div className="px-5 pb-4 pl-12 text-sm lg:text-[15px] text-white/60 leading-relaxed lg:leading-[1.8]">
+                          {faq.a}
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -443,12 +454,12 @@ export default function SupportPage() {
           className="relative"
         >
           <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-3xl blur-lg opacity-30" />
-          <div className="relative glass-strong rounded-3xl p-10 text-center">
+          <div className="relative glass-strong rounded-3xl p-10 lg:p-14 text-center">
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 mb-5">
               <MessageCircle className="w-7 h-7" />
             </div>
-            <h3 className="text-2xl font-bold mb-3">没找到你需要的答案？</h3>
-            <p className="text-white/60 mb-6 max-w-md mx-auto">
+            <h3 className="text-2xl lg:text-3xl font-bold mb-3">没找到你需要的答案？</h3>
+            <p className="text-white/60 lg:text-lg mb-6 max-w-md lg:max-w-lg mx-auto">
               微信扫码或搜索 <span className="font-mono text-purple-400">GenuineMarxist</span>，专属客服 1 对 1 服务
             </p>
             <div className="flex items-center justify-center gap-3 flex-wrap">

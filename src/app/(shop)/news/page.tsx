@@ -109,28 +109,37 @@ export default async function NewsPage() {
       <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px]" />
       <div className="pointer-events-none fixed bottom-1/4 right-10 h-[380px] w-[380px] rounded-full bg-cyan-500/[0.07] blur-[128px]" />
 
-      <div className="container relative max-w-3xl">
+      {/*
+        列表页是「卡片流」而不是「正文」，所以桌面端应当放宽而不是死守单栏阅读宽度：
+        - 768px（max-w-3xl）以下保持移动端单列不动；
+        - lg 起放宽到 5xl、xl 起 6xl，配合下面时间流的两列网格，
+          1440/1920 屏上就不会只剩中间一条窄带、两侧全是空白。
+        真正需要控行长的是 /news/[slug] 正文页，那边保持 3xl 不动。
+      */}
+      <div className="container relative max-w-3xl lg:max-w-5xl xl:max-w-6xl">
         {/* ============ 栏目头 ============ */}
-        <header className="mb-8">
+        <header className="mb-8 lg:mb-12">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3.5 py-1.5">
             <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-            <span className="text-xs text-white/65">公开信源聚合 · 每小时更新</span>
+            <span className="text-xs text-white/65 lg:text-[13px]">公开信源聚合 · 每小时更新</span>
           </div>
-          <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
+          {/* 桌面端屏幕更远、可视面积更大，标题再上一档才拉得开层级 */}
+          <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
             <span className="gradient-text">AI 圈</span>
             <span className="gradient-text-accent">大事记</span>
           </h1>
-          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/50">
+          {/* 容器变宽后导语跟着放宽到 2xl（≈672px），仍在 40 个汉字/行以内，不会拉成长条 */}
+          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/50 lg:mt-4 lg:max-w-2xl lg:text-[17px] lg:leading-[1.85]">
             把一天里 AI 圈发生的事按事件聚合到一起——模型发布、产品更新、论文与工具，
             同一件事的多家信源并成一条，省掉重复阅读。
           </p>
 
           {/* AI 聚合说明条（AI 标识法定位置之一，见 SKILL.md §6） */}
-          <div className="mt-5 flex gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+          <div className="mt-5 flex gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 lg:max-w-3xl lg:px-5 lg:py-3.5">
             <span className="mt-px shrink-0 rounded-full bg-purple-500/15 px-2 py-0.5 text-[11px] font-medium text-purple-200/90">
               AI 聚合
             </span>
-            <p className="text-[13px] leading-relaxed text-white/50">
+            <p className="text-[13px] leading-relaxed text-white/50 lg:text-sm">
               {AI_NOTICE}整理者：{AUTHOR_NAME}。
             </p>
           </div>

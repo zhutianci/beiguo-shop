@@ -83,7 +83,8 @@ export default function ProfilePage() {
       <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
 
-      <div className="container relative max-w-5xl">
+      {/* xl 起放宽到 6xl：右侧信息栏内容很长，1440px 上多出来的宽度能明显减少纵向滚动 */}
+      <div className="container relative max-w-5xl xl:max-w-6xl">
         {/* 页面标题 */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -101,13 +102,16 @@ export default function ProfilePage() {
           </h1>
         </motion.div>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* 用户信息卡片 */}
+        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+          {/* 用户信息卡片。
+              lg 起吸顶：右栏（账户信息 + 内推 + 绑定 + 快捷功能 + 统计）在桌面端很长，
+              头像卡跟着滚走的话，退出登录等操作就得滚回顶部。
+              grid 子项默认 stretch 会让 sticky 失效，所以要配 lg:self-start。 */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            className="lg:col-span-1"
+            className="lg:col-span-1 lg:sticky lg:top-28 lg:self-start"
           >
             <div className="relative">
               <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-30 blur-md" />
@@ -157,7 +161,7 @@ export default function ProfilePage() {
               className="glass rounded-3xl p-8"
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold">账户信息</h2>
+                <h2 className="text-xl lg:text-2xl font-bold">账户信息</h2>
                 {!isEditing ? (
                   <button
                     onClick={() => setIsEditing(true)}
@@ -177,8 +181,13 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className="space-y-5">
-                <div>
+              {/*
+                三个字段在桌面端右栏（约 640-720px 宽）单列铺开会又长又空，
+                lg 起改两列：邮箱整行、昵称与手机号并排。
+                space-y 与 grid gap 会叠加，所以 lg 下把 space-y 归零。
+              */}
+              <div className="space-y-5 lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0">
+                <div className="lg:col-span-2">
                   <label className="block text-sm text-white/50 mb-2">邮箱</label>
                   <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10">
                     <Mail className="w-4 h-4 text-white/40" />
@@ -254,7 +263,7 @@ export default function ProfilePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              <h2 className="text-xl font-bold mb-4">快捷功能</h2>
+              <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-5">快捷功能</h2>
               <div className="grid sm:grid-cols-3 gap-4">
                 {menuItems.map((item, i) => (
                   <Link key={i} href={item.href}>
@@ -268,7 +277,7 @@ export default function ProfilePage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="font-medium mb-1">{item.label}</div>
-                          <div className="text-xs text-white/40">{item.desc}</div>
+                          <div className="text-xs lg:text-[13px] text-white/40">{item.desc}</div>
                         </div>
                         <ChevronRight className="w-4 h-4 text-white/30 group-hover:translate-x-1 transition-transform" />
                       </div>
@@ -285,19 +294,19 @@ export default function ProfilePage() {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="glass rounded-3xl p-8"
             >
-              <h2 className="text-xl font-bold mb-6">账户统计</h2>
+              <h2 className="text-xl lg:text-2xl font-bold mb-6">账户统计</h2>
               <div className="grid grid-cols-3 gap-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold gradient-text-accent mb-1">0</div>
-                  <div className="text-sm text-white/50">总订单</div>
+                  <div className="text-3xl lg:text-4xl font-bold gradient-text-accent mb-1">0</div>
+                  <div className="text-sm lg:text-[15px] text-white/50">总订单</div>
                 </div>
                 <div className="text-center border-x border-white/10">
-                  <div className="text-3xl font-bold gradient-text-accent mb-1">¥0</div>
-                  <div className="text-sm text-white/50">累计消费</div>
+                  <div className="text-3xl lg:text-4xl font-bold gradient-text-accent mb-1">¥0</div>
+                  <div className="text-sm lg:text-[15px] text-white/50">累计消费</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold gradient-text-accent mb-1">0</div>
-                  <div className="text-sm text-white/50">活跃订阅</div>
+                  <div className="text-3xl lg:text-4xl font-bold gradient-text-accent mb-1">0</div>
+                  <div className="text-sm lg:text-[15px] text-white/50">活跃订阅</div>
                 </div>
               </div>
             </motion.div>

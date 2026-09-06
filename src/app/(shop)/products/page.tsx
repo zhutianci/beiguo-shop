@@ -136,11 +136,20 @@ export default function ProductsPage() {
   const hasMore = page < totalPages
 
   return (
-    <div className="min-h-screen pt-32 pb-20">
+    /* pt-32 保持不动：固定头部移动端 112px(py-6+64 药丸)、lg 起 96px(py-4+64)，
+       128px 的顶部留白在手机上只余 16px，在桌面上已自动余出 32px ——
+       头部变矮腾出的空间就是桌面端的呼吸位，再往上加就成了「顶部一片空」 */
+    <div className="min-h-screen pt-32 pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
 
+      {/* 商品列表是「网格型」而不是「正文型」页面，行长约束不适用：
+          2xl(≥1536) 把容器从 max-w-7xl(1280) 放宽到 1600，配合下面的四列网格填满宽屏，
+          否则 1920 屏上三列卡片两侧各留 320px 纯空白 */}
+      {/* 刻意不在 2xl 放宽到 1600px：页头页脚是 max-w-7xl(1280)，
+          商品网格一旦更宽，超宽屏上就会比导航栏探出去一截、左右对不齐。
+          「填满宽屏」不值得用整站对齐去换。 */}
       <div className="container relative">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -156,7 +165,7 @@ export default function ProductsPage() {
             <span className="gradient-text">选择你的</span>
             <span className="gradient-text-accent"> AI 助手</span>
           </h1>
-          <p className="text-white/50 text-lg max-w-xl mx-auto">
+          <p className="text-white/50 text-lg lg:text-xl max-w-xl lg:max-w-2xl mx-auto">
             专业团队，正规渠道，快速开通，售后无忧
           </p>
         </motion.div>
@@ -171,15 +180,18 @@ export default function ProductsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="flex justify-center mb-12"
+          className="flex justify-center mb-12 lg:mb-16"
         >
-          <div className="inline-flex items-center gap-2 p-1.5 rounded-full glass flex-wrap justify-center">
+          {/* 分类筛选保持「居中胶囊组」而不是改侧边栏：分类数量少（个位数），
+              侧边栏会在桌面端割掉一整列宽度、还得为手机端再写一套折叠逻辑，得不偿失。
+              桌面端只把胶囊本身放宽、字号提到 15px，并给非选中项一个可见的 hover 底色 */}
+          <div className="inline-flex items-center gap-2 p-1.5 lg:p-2 rounded-full glass flex-wrap justify-center">
             <button
               onClick={() => setSelectedCategory(0)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+              className={`flex items-center gap-2 px-5 py-2.5 lg:px-6 lg:py-3 rounded-full text-sm lg:text-[15px] font-medium transition-all ${
                 selectedCategory === 0
                   ? 'bg-white text-black'
-                  : 'text-white/60 hover:text-white'
+                  : 'text-white/60 hover:text-white lg:hover:bg-white/10'
               }`}
             >
               <span>✨</span>
@@ -189,10 +201,10 @@ export default function ProductsPage() {
               <button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-5 py-2.5 lg:px-6 lg:py-3 rounded-full text-sm lg:text-[15px] font-medium transition-all ${
                   selectedCategory === category.id
                     ? 'bg-white text-black'
-                    : 'text-white/60 hover:text-white'
+                    : 'text-white/60 hover:text-white lg:hover:bg-white/10'
                 }`}
               >
                 <span>{category.name}</span>
@@ -213,7 +225,11 @@ export default function ProductsPage() {
             <p className="text-white/40">该分类下暂无商品</p>
           </motion.div>
         ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          /* 列数递进：md 两列 → lg 三列 → 2xl 四列。
+             xl(1280) 不加第四列，是因为容器此时仍是 1280，四列后单卡只剩约 296px，
+             卡内的 features 是 grid-cols-2，会被压到一行两三个字换行。
+             等 2xl 把容器放宽到 1600 再上四列，单卡约 360px，仍然放得下两列特性 */
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 xl:gap-8">
             {products.map((product, index) => {
               const gradient = getGradient(product.id)
               const tag = getTag(product)
@@ -232,7 +248,8 @@ export default function ProductsPage() {
                         className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500`}
                       />
 
-                      <div className="relative h-full glass rounded-2xl p-6 hover-lift flex flex-col">
+                      {/* 桌面端单卡宽 380~400px，p-6 会让内容缩在中间；lg 起加到 p-7 */}
+                      <div className="relative h-full glass rounded-2xl p-6 lg:p-7 hover-lift flex flex-col">
                         <div className="flex items-start justify-between mb-4">
                           <div
                             className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient}`}
@@ -240,7 +257,8 @@ export default function ProductsPage() {
                             {tag}
                           </div>
                           <div className="text-right">
-                            <div className="text-2xl font-bold">
+                            {/* 价格是卡片的视觉锚点，lg 起提到 30px，和放大的卡片保持比例 */}
+                            <div className="text-2xl lg:text-3xl font-bold">
                               ¥{Number(product.price).toFixed(0)}
                             </div>
                             {product.originalPrice && (
@@ -267,12 +285,12 @@ export default function ProductsPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-white/50 text-sm mb-6">
+                        <p className="text-white/50 text-sm lg:text-[15px] lg:leading-relaxed mb-6">
                           {product.description}
                         </p>
 
                         {features.length > 0 && (
-                          <div className="flex-1 grid grid-cols-2 gap-2 mb-4">
+                          <div className="flex-1 grid grid-cols-2 gap-2 lg:gap-x-4 lg:gap-y-2.5 mb-4">
                             {features.map((feature, i) => (
                               <div
                                 key={i}
@@ -288,7 +306,7 @@ export default function ProductsPage() {
                         )}
 
                         {/* 销量 + 库存 */}
-                        <div className="flex items-center justify-between text-xs text-white/40 mb-4 px-1">
+                        <div className="flex items-center justify-between text-xs lg:text-sm text-white/40 mb-4 px-1">
                           <span>已售 {product.sales}</span>
                           <span>
                             {product.stock === -1
@@ -300,7 +318,7 @@ export default function ProductsPage() {
                         </div>
 
                         <div
-                          className={`flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r ${gradient} font-medium group-hover:shadow-lg group-hover:shadow-purple-500/20 transition-all`}
+                          className={`flex items-center justify-center gap-2 py-3 lg:py-3.5 lg:text-[15px] rounded-xl bg-gradient-to-r ${gradient} font-medium group-hover:shadow-lg group-hover:shadow-purple-500/20 transition-all`}
                         >
                           立即购买
                           <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
@@ -316,12 +334,14 @@ export default function ProductsPage() {
 
         {/* 分段加载：加载更多 */}
         {!loading && products.length > 0 && (
-          <div className="mt-12 flex flex-col items-center gap-3">
+          <div className="mt-12 lg:mt-16 flex flex-col items-center gap-3">
+            {/* 「加载更多」在桌面端保持居中：它是网格的收口，靠边会破坏对称。
+                只把按钮尺寸放大到和四列网格相称，并加上 hover 边框反馈（桌面端才有指针） */}
             {hasMore ? (
               <button
                 onClick={() => loadPage(page + 1, true)}
                 disabled={loadingMore}
-                className="inline-flex items-center gap-2 px-8 py-3 rounded-full glass text-sm text-white/80 hover:bg-white/10 disabled:opacity-40 transition-colors"
+                className="inline-flex items-center gap-2 px-8 py-3 lg:px-12 lg:py-4 rounded-full glass text-sm lg:text-base text-white/80 hover:bg-white/10 lg:hover:border-white/25 disabled:opacity-40 transition-colors"
               >
                 {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
                 {loadingMore ? '加载中...' : '加载更多'}
@@ -343,7 +363,7 @@ export default function ProductsPage() {
         >
           <button
             onClick={() => setContactOpen(true)}
-            className="inline-flex items-center gap-6 px-8 py-4 rounded-full glass hover:bg-white/10 text-sm text-white/60 transition-colors"
+            className="inline-flex items-center gap-6 lg:gap-8 px-8 py-4 lg:px-10 rounded-full glass hover:bg-white/10 text-sm lg:text-[15px] text-white/60 transition-colors"
           >
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
