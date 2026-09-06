@@ -1,0 +1,25 @@
+# 行尾规范化。
+#
+# 起因：cron/crontab 是挂进容器直接给 busybox crond 读的。一旦在 Windows 上被检出成
+# CRLF，crond 会把 \r 当成命令的一部分，curl 拿到带 \r 的 URL 必然失败，
+# 而 crond 对此不会有任何报错 —— 任务就是不跑，还极难排查。
+#
+# 曾经试图在容器启动命令里用 tr -d '\r' 兜底，结果反斜杠被 YAML 折叠 + shell 双引号
+# 两层处理吃掉，变成 tr -d 'r'，把 crontab 里所有字母 r 都删了（curl→cul、cron→con），
+# 后果比它要防的问题更严重。正确做法是在这里一次性规定死行尾。
+
+* text=auto
+
+# 这些文件会被 Linux 容器直接执行/读取，必须是 LF，不受本地 core.autocrlf 影响
+cron/crontab   text eol=lf
+*.sh           text eol=lf
+Dockerfile     text eol=lf
+docker-compose.yml text eol=lf
+
+# 二进制文件不做任何转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary

@@ -134,12 +134,17 @@ services:
     # 既不用把密钥写进版本库里的 crontab，也不必赌 busybox crond 会不会把环境变量传给子进程。
     # 任务表没挂上时 cp 会失败、整条 && 链断掉、容器起不来 —— 这是故意的：
     # 宁可容器反复重启被一眼看见，也不要 crond 起来了却一条任务都没有。
+    #
+    # ⚠️ 这里曾经写的是 tr -d '\r' 做 CRLF 防护，结果 YAML 折叠 + shell 双引号两层处理
+    # 把反斜杠吃掉，变成 tr -d 'r'，把 crontab 里所有字母 r 删了：curl→cul、cron→con，
+    # 全部任务静默失效且 crond 不报错。CRLF 防护改由 .gitattributes 强制 LF 承担，
+    # 这里只用 cp —— 不要再往这条命令里加任何带反斜杠转义的东西。
     command: >
       sh -c "apk add --no-cache curl tzdata >/dev/null 2>&1 &&
       cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&
       echo 'Asia/Shanghai' > /etc/timezone &&
       printf '%s' \"$$CRON_SECRET\" > /run/cron_secret && chmod 600 /run/cron_secret &&
-      tr -d '\r' < /etc/cron.d/beiguo > /etc/crontabs/root &&
+      cp /etc/cron.d/beiguo /etc/crontabs/root &&
       crond -f -l 8"
     depends_on:
       - app
