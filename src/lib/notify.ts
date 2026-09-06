@@ -14,6 +14,8 @@
  *  ② 全部 fire-and-forget，绝不 await、绝不抛出 —— 通知挂了不能拖慢或中断交易主流程
  */
 
+import { quickReplyUrl } from './quick-reply'
+
 export type NotifyEvent =
   | 'order.created'
   | 'order.paid'
@@ -302,11 +304,22 @@ export function notifyReceiptCreated(p: {
 }
 
 export function notifyBuyerMessage(p: {
+  orderId: number
   orderNo: string
   productName: string
   buyer: string
   content: string
 }): void {
+  // 群机器人是单向的（只能发、收不到群里的回复），所以带一条免登录的快捷回复链接：
+  // 在企微里看到留言 → 点链接 → 手机端直接回，客户在订单页立刻看到。
+  let link = '/admin/orders'
+  let linkText = '前往后台处理'
+  try {
+    link = quickReplyUrl(p.orderId)
+    linkText = '点此直接回复'
+  } catch {
+    /* JWT_SECRET 未配置时签不出令牌，回落到后台链接 */
+  }
   notify(
     'message.buyer',
     [
@@ -315,7 +328,7 @@ export function notifyBuyerMessage(p: {
       { label: '买家', value: p.buyer },
       { label: '内容', value: p.content, color: 'warning' },
     ],
-    { link: '/admin/orders' }
+    { link, linkText }
   )
 }
 

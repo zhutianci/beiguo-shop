@@ -117,6 +117,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       })
       if (full) {
         notifyBuyerMessage({
+          orderId,
           orderNo: full.orderNo,
           productName: full.productName,
           buyer: full.user?.nickname || full.user?.email || `用户#${user.id}`,
