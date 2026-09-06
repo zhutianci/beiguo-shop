@@ -264,7 +264,11 @@ export async function llmJson<T>(opts: ChatOpts<T>): Promise<LlmResult<T>> {
       }
       const parsed = opts.schema.safeParse(JSON.parse(jsonText))
       if (!parsed.success) {
-        lastErr = `结构校验失败: ${parsed.error.errors[0]?.message}`
+        // 把出错路径和原始返回一起记下来。只写「结构校验失败: Required」等于没说，
+        // 排查时既不知道是哪个字段、也不知道模型到底吐了什么——换供应商/换模型时这是最常踩的坑。
+        const e = parsed.error.errors[0]
+        const path = e?.path?.length ? e.path.join('.') : '(根)'
+        lastErr = `结构校验失败 字段=${path} 原因=${e?.message} 原始返回=${jsonText.slice(0, 400)}`
         continue
       }
 
@@ -280,6 +284,8 @@ export async function llmJson<T>(opts: ChatOpts<T>): Promise<LlmResult<T>> {
     }
   }
 
+  // 记账列只有 300 字，原始返回会被截掉；完整内容打到应用日志，docker compose logs app 可查
+  console.error(`[llm] ${opts.stage} 调用失败 model=${model} :: ${lastErr}`)
   await record(opts.stage, c, model, promptTokens, completionTokens, 0, Date.now() - started, false, lastErr)
   throw new LlmError(lastErr || '调用失败')
 }
@@ -306,7 +312,7 @@ async function record(
         costMilli,
         ms,
         ok,
-        error: error ? error.slice(0, 300) : null,
+        error: error ? error.slice(0, 300) : null, // 列宽 300；更长的原始返回在应用日志里
       },
     })
   } catch {
