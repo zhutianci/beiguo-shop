@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { cardKeyConfigured } from '@/lib/cardkey'
 import { vmqConfigured, VMQ_TIMEOUT_MIN } from '@/lib/vmq'
+import { notifyConfigured } from '@/lib/notify'
 
 // 系统状态（只读）。原来的 /admin/settings 是一个按钮点了没反应的静态假表单，
 // 这里换成真实可用的运行时自检：只报「已配置/未配置」和非敏感的数值，
@@ -48,6 +49,12 @@ export async function GET() {
           label: '到账通知转发 token',
           configured: has(process.env.VMQ_WEBHOOK_TOKEN) || vmqConfigured(),
           note: '未单独设置 VMQ_WEBHOOK_TOKEN 时回落使用 VMQ_KEY。配置详见「收款监控」页。',
+        },
+        {
+          key: 'wecom',
+          label: '企业微信机器人通知',
+          configured: notifyConfigured(),
+          note: '下单、支付、开票、收据、留言、库存告警等动态推送到群机器人。地址 WECOM_WEBHOOK_URL（回落 ORDER_MSG_WEBHOOK_URL），可用 NOTIFY_EVENTS 按事件名筛选。',
         },
         {
           key: 'mail',

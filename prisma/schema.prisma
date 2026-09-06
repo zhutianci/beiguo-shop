@@ -437,6 +437,167 @@ model EmailCode {
   @@map("email_codes")
 }
 
+// ============ AI圈大事记 ============
+// 规范见 .claude/skills/ai-news-pipeline/SKILL.md。核心设计：把内容建模成【事件】而非【文章】，
+// 同一件事聚合多家信源成一条 NewsEvent，时间脉络、跨源热度、版权安全三个问题一次解决。
+
+// 信源
+model NewsSource {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique @db.VarChar(40)  // 稳定标识，如 qbitai
+  name        String   @db.VarChar(80)          // 展示名，如「量子位」
+  homepage    String?  @db.VarChar(300)
+  feedUrl     String   @db.VarChar(500)
+  kind        String   @default("RSS") @db.VarChar(20) // RSS | ATOM | JSON | HN | GITHUB | X
+  lang        String   @default("zh") @db.VarChar(10)
+  tier        Int      @default(2)              // 1 一手官方 | 2 专业媒体 | 3 从业者社区
+  role        String   @default("feed") @db.VarChar(10) // feed 产条目 | signal 只加热度 | both
+  weight      Decimal  @default(1.00) @db.Decimal(4, 2)
+  viaRelay    Boolean  @default(false) @map("via_relay") // 经 Cloudflare Worker 中继（境内直连不通的源）
+  enabled     Boolean  @default(true)
+  // 运行状态：连续失败会自动禁用并在后台标红
+  lastFetchAt DateTime? @map("last_fetch_at")
+  lastOkAt    DateTime? @map("last_ok_at")
+  failCount   Int      @default(0) @map("fail_count")
+  lastError   String?  @map("last_error") @db.VarChar(500)
+  itemCount   Int      @default(0) @map("item_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items       NewsItem[]
+
+  @@index([enabled, role])
+  @@map("news_sources")
+}
+
+// 原始条目：一个信源的一条 feed entry。只存标题与 feed 自带的 description，不抓原文正文。
+model NewsItem {
+  id          Int       @id @default(autoincrement())
+  sourceId    Int       @map("source_id")
+  guid        String    @db.VarChar(255)
+  url         String    @db.VarChar(1000)
+  urlHash     String    @map("url_hash") @db.VarChar(64) // 规范化 URL 的 sha256，用于跨源撞同一篇原文
+  title       String    @db.VarChar(500)
+  summaryRaw  String?   @map("summary_raw") @db.Text
+  author      String?   @db.VarChar(120)
+  publishedAt DateTime  @map("published_at")
+  fetchedAt   DateTime  @default(now()) @map("fetched_at")
+  // 分诊结果
+  triageState String    @default("RAW") @map("triage_state") @db.VarChar(20) // RAW|OK|BLOCKED|SKIP|FAILED
+  blocked     Boolean   @default(false)  // 命中选题黑名单
+  blockReason String?   @map("block_reason") @db.VarChar(200)
+  category    String?   @db.VarChar(20)
+  entities    String?   @db.Text         // JSON string[]，聚类指纹
+  confidence  Decimal?  @db.Decimal(3, 2)
+  // 热度信号（HN points / GitHub stars 等）
+  points      Int       @default(0)
+  comments    Int       @default(0)
+  eventId     Int?      @map("event_id")
+
+  source      NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  event       NewsEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  @@unique([sourceId, urlHash]) // 刻意不是全局唯一：同一篇原文会同时出现在多个源里
+  @@index([triageState, publishedAt])
+  @@index([eventId])
+  @@index([publishedAt])
+  @@index([urlHash])
+  @@map("news_items")
+}
+
+// 事件：一件事 + 它的全部信源
+model NewsEvent {
+  id           Int       @id @default(autoincrement())
+  slug         String    @unique @db.VarChar(90)
+  headline     String    @db.VarChar(300)
+  summary      String    @db.Text
+  whyItMatters String?   @map("why_it_matters") @db.VarChar(300) // 推荐理由
+  facts        String?   @db.Text  // JSON [{text, sourceIndex}]，供人工一键复核
+  category     String    @default("industry") @db.VarChar(20)
+  tags         String?   @db.VarChar(300) // 逗号分隔，取自白名单词表
+  aiScore      Int       @default(0) @map("ai_score") // 模型给的重要性 0-100，展示给用户
+  // 热度（可解释：每一项独立成列，明细落 scoreDebug）
+  score        Decimal   @default(0) @db.Decimal(8, 3)
+  scoreDebug   String?   @map("score_debug") @db.Text
+  sourceCount  Int       @default(1) @map("source_count") // 先按 urlHash 去重再数 distinct sourceId
+  tier1Count   Int       @default(0) @map("tier1_count")
+  hnPoints     Int       @default(0) @map("hn_points")
+  viewCount    Int       @default(0) @map("view_count")
+  shareCount   Int       @default(0) @map("share_count")
+  likeCount    Int       @default(0) @map("like_count")
+  // 状态：全自动发布，可疑条目仍发布但不进首页与重点榜
+  status       String    @default("PUBLISHED") @db.VarChar(20) // DRAFT|PUBLISHED|UNLISTED
+  needsReview  Boolean   @default(false) @map("needs_review")
+  reviewNote   String?   @map("review_note") @db.VarChar(300)
+  reviewedAt   DateTime? @map("reviewed_at")
+  pinned       Boolean   @default(false)
+  composeState String    @default("RAW") @map("compose_state") @db.VarChar(20) // RAW|DONE|FAILED
+  rewriteCount Int       @default(0) @map("rewrite_count") // 终身最多重写 1 次
+  happenedAt   DateTime  @map("happened_at") // 最早信源的发布时间，时间轴按它排
+  publishedAt  DateTime? @map("published_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  items        NewsItem[]
+
+  @@index([status, happenedAt])
+  @@index([status, score])
+  @@index([category, status, happenedAt])
+  @@index([composeState])
+  @@map("news_events")
+}
+
+// 日报 / 周报
+model NewsDigest {
+  id          Int      @id @default(autoincrement())
+  type        String   @db.VarChar(10) // DAILY | WEEKLY
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd   DateTime @map("period_end") @db.Date
+  title       String   @db.VarChar(200)
+  intro       String?  @db.Text
+  eventIds    String   @map("event_ids") @db.Text // JSON number[]，按榜单顺序
+  status      String   @default("PUBLISHED") @db.VarChar(20)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([type, periodStart]) // 保证重跑幂等
+  @@index([type, periodStart])
+  @@map("news_digests")
+}
+
+// LLM 调用记账：预算闸门与成本审计的依据
+model NewsLlmCall {
+  id               Int      @id @default(autoincrement())
+  stage            String   @db.VarChar(20) // triage|cluster|compose|digest
+  provider         String   @db.VarChar(20)
+  model            String   @db.VarChar(60)
+  promptTokens     Int      @default(0) @map("prompt_tokens")
+  completionTokens Int      @default(0) @map("completion_tokens")
+  costMilli        Int      @default(0) @map("cost_milli") // 千分之一分，整数避免浮点
+  ms               Int      @default(0)
+  ok               Boolean  @default(true)
+  error            String?  @db.VarChar(300)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@index([stage, createdAt])
+  @@map("news_llm_calls")
+}
+
+// 浏览去重：爬虫不执行 JS，前端停留 3 秒后 sendBeacon 上报，按小时桶去重
+model NewsView {
+  id         Int      @id @default(autoincrement())
+  eventId    Int      @map("event_id")
+  viewerKey  String   @map("viewer_key") @db.VarChar(64)
+  hourBucket String   @map("hour_bucket") @db.VarChar(13) // YYYY-MM-DDTHH
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([eventId, viewerKey, hourBucket])
+  @@index([eventId])
+  @@index([createdAt])
+  @@map("news_views")
+}
+
 // 站点公告：后台发布，买家进入前台任意页面时弹窗展示
 model Announcement {
   id        Int       @id @default(autoincrement())

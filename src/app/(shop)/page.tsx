@@ -9,6 +9,7 @@ import { TiltCard } from '@/components/tilt-card'
 import { Typewriter } from '@/components/typewriter'
 import { MouseSpotlight } from '@/components/mouse-spotlight'
 import { CountUp } from '@/components/count-up'
+import { NewsHotSection } from '@/components/news-hot-section'
 import { ipToolGroups, ipToolCount } from '@/lib/iptools'
 
 interface Product {
@@ -309,6 +310,9 @@ export default function HomePage() {
           )}
         </div>
       </section>
+
+      {/* AI 圈今日热点：内部固定高度 skeleton 占位；接口失败或暂无内容整块静默隐藏，不影响卖货主线 */}
+      <NewsHotSection />
 
       {/* IP 工具入口 */}
       <section className="relative py-24">

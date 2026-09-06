@@ -273,3 +273,61 @@
 .prose-forum .md-hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 1.2em 0; }
 .prose-forum strong { color: #fff; font-weight: 700; }
 .prose-forum a img { display: inline; }
+
+/* ============ AI圈大事记 ============ */
+
+/* 列表入场：整列表一次 stagger，靠 animation-delay 错开，不给每张卡挂 JS 动画。
+   低端安卓上 20+ 个 framer-motion 实例的开销远大于一条 CSS keyframes。 */
+@keyframes news-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.news-in {
+  animation: news-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 从「重点」跳到时间流对应条目时的高亮闪烁 */
+@keyframes news-flash {
+  0%, 100% { background-color: rgba(255, 255, 255, 0.04); }
+  30% { background-color: rgba(168, 85, 247, 0.14); }
+}
+.news-flash {
+  animation: news-flash 2.2s ease-out 1;
+}
+
+/* 尊重系统的减弱动态偏好：动画一律取消，不是放慢 */
+@media (prefers-reduced-motion: reduce) {
+  .news-in,
+  .news-flash {
+    animation: none !important;
+  }
+}
+
+/* 横向卡片条：移动端横滑对齐，隐藏滚动条 */
+.news-rail {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.news-rail > * {
+  scroll-snap-align: start;
+}
+.news-rail::-webkit-scrollbar {
+  display: none;
+}
+
+/* 微信抓取缩略图用的隐藏首图。
+   微信取的是 body 中靠前、实际渲染尺寸 ≥300×300 的 img，
+   所以只能用 visibility:hidden（display:none 的图不参与布局，微信不认）。 */
+.news-wx-thumb {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 600px;
+  height: 315px;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}

@@ -1,0 +1,41 @@
+# beiguo 定时任务表（busybox crond，容器内 TZ=Asia/Shanghai，下面全是北京时间）
+#
+# 这个文件由 docker-compose.yml 的 cron 服务挂载到 /etc/cron.d/beiguo，
+# 容器启动时用 tr -d '\r' 落到 /etc/crontabs/root（去 CR 是必须的：
+# 一旦在 Windows 上检出成 CRLF，crond 会把 \r 当命令的一部分，curl 拿到带 \r 的 URL 必然失败，
+# 而 crond 对此不会有任何报错）。之所以改成挂文件而不是继续用 printf 拼：
+# 原来那条 printf 里 \" / %s / $$CRON_SECRET 混排，%s 个数必须和参数严格对齐，
+# 写错了 crond 不报错、任务就是不跑 —— 这是最难查的一类故障。
+#
+# 密钥不写在这个文件里（它进版本库）。容器启动时把 $CRON_SECRET 写进 /run/cron_secret，
+# 任务里用 $(cat /run/cron_secret) 现取。busybox crond 用 /bin/sh -c 执行命令，
+# 命令替换可用；也就不必赌 crond 会不会把容器环境变量传给子进程。
+#
+# 每条 curl 都必须带 --max-time：抓取类任务变慢时宁可漏一轮，也不能让请求越堆越多。
+# 分钟级任务给 50s（小于调度间隔，天然不重叠），新闻管线给 540s（硬上限）。
+#
+# 改完必须重建 cron 容器才生效：docker compose up -d --force-recreate cron
+# 自检：docker compose logs -f cron，以及 docker compose exec cron cat /etc/crontabs/root
+
+# ---------- 既有任务 ----------
+# 每天 12:00 自动续费提醒
+0 12 * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/remind >> /var/log/cron.log 2>&1
+# 每分钟 兜底关闭过期收款单
+* * * * * curl -fsS --max-time 50 "http://app:3000/api/cron/vmq-close?secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+# 每分钟 轮询等待中的接码
+* * * * * curl -fsS --max-time 50 "http://app:3000/api/cron/sms-poll?secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+
+# ---------- AI圈大事记 内容管线 ----------
+# 五段错峰，各自独立抢锁，任何一段失败都不影响其他段（规范见 .claude/skills/ai-news-pipeline/SKILL.md §3）
+# 每小时 05 分 抓取 + 分诊
+5 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=collect,triage&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+# 每小时 15 分 同事件聚合
+15 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=cluster&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+# 每小时 25 分 写摘要
+25 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=compose&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+# 每 15 分钟 重算热度分（纯计算，不花钱）
+*/15 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=rank&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+# 每天 21:00 生成日报
+0 21 * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=digest&type=DAILY&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+# 每周一 09:00 生成上周周报
+0 9 * * 1 curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=digest&type=WEEKLY&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1

@@ -101,6 +101,26 @@ export default function AdminSettingsPage() {
   const [loadingList, setLoadingList] = useState(true)
   const [editing, setEditing] = useState<Announcement | 'new' | null>(null)
 
+  const [testing, setTesting] = useState(false)
+  const [testMsg, setTestMsg] = useState('')
+  const [testOk, setTestOk] = useState(false)
+
+  const testNotify = async () => {
+    setTesting(true)
+    setTestMsg('')
+    try {
+      const res = await fetch('/api/admin/settings/test-notify', { method: 'POST' })
+      const d = await res.json()
+      setTestOk(!!d.success)
+      setTestMsg(d.success ? d.message || '已发送' : d.error || '发送失败')
+    } catch {
+      setTestOk(false)
+      setTestMsg('网络错误')
+    } finally {
+      setTesting(false)
+    }
+  }
+
   const loadStatus = async () => {
     setLoading(true)
     try {
@@ -338,6 +358,16 @@ export default function AdminSettingsPage() {
                       </span>
                     </div>
                     <p className="mt-1.5 text-xs text-gray-500 leading-relaxed">{f.note}</p>
+                    {f.key === 'wecom' && f.configured && (
+                      <div className="mt-2 flex items-center gap-2">
+                        <Button variant="outline" size="sm" loading={testing} onClick={testNotify}>
+                          发送测试消息
+                        </Button>
+                        {testMsg && (
+                          <span className={`text-xs ${testOk ? 'text-green-700' : 'text-red-600'}`}>{testMsg}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { hashPassword, signToken, authCookieOptions } from '@/lib/auth'
 import { success, error } from '@/lib/api'
+import { notifyUserRegistered } from '@/lib/notify'
 import { consumeCode } from '@/lib/verify-code'
 import { systemEmailConfigured } from '@/lib/mail'
 
@@ -74,6 +75,12 @@ export async function POST(request: NextRequest) {
     cookieStore.set('token', token, authCookieOptions(request))
 
     // 同时下发 token，供 WebView（如微信）以 Authorization 头兜底鉴权
+    notifyUserRegistered({
+      email: user.email || '—',
+      nickname: user.nickname,
+      createdAt: new Date(), // 注册接口的 select 不含 createdAt，此处即注册时刻
+    })
+
     return success({ user, token }, '注册成功')
   } catch (err) {
     console.error('Register error:', err)

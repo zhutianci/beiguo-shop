@@ -11,6 +11,7 @@ import { decryptCardContent } from '@/lib/cardkey'
 import { effectiveBasePrice } from '@/lib/referral'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { shopOrderSourceKey } from '@/lib/order-billing'
+import { notifyOrderCreated } from '@/lib/notify'
 
 const createOrderSchema = z.object({
   productId: z.number(),
@@ -280,6 +281,17 @@ export async function POST(request: NextRequest) {
         referrerId,
         referralReward: referralReward && referralReward > 0 ? referralReward : null,
       },
+    })
+
+    // 企业微信通知（fire-and-forget，不 await，通知挂了不能影响下单）
+    notifyOrderCreated({
+      orderNo: order.orderNo,
+      buyer: user.nickname || user.email || `用户#${user.id}`,
+      productName: product.name,
+      quantity,
+      amount,
+      createdAt: order.createdAt,
+      stock: product.stock,
     })
 
     // 销量在支付完成后再增加

@@ -8,15 +8,27 @@ import { Menu, X, User, ShoppingBag } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { cn } from '@/lib/utils'
 
+// 标签刻意短：桌面导航 8 项，768~900px 之间靠缩短文案 + 收紧间距才不换行
 const navLinks = [
   { href: '/', label: '首页' },
   { href: '/products', label: '商品' },
+  { href: '/news', label: 'AI圈大事记' },
   { href: '/iptools', label: 'IP工具' },
   { href: '/forum', label: '论坛' },
-  { href: '/support', label: '客户服务' },
+  { href: '/support', label: '客服' },
   { href: '/games', label: '游戏' },
   { href: '/about', label: '关于' },
 ]
+
+/**
+ * 导航高亮判定。原来是 pathname === link.href 的精确相等，
+ * 结果 /news/xxx、/products/12 这类详情页不会点亮所属导航项。
+ * 非根路径改为「相等或以 href + '/' 开头」，'/' 仍必须精确匹配，否则会一直亮着。
+ */
+function isNavActive(pathname: string, href: string) {
+  if (href === '/') return pathname === '/'
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
 
 export function Header() {
   const pathname = usePathname()
@@ -70,22 +82,23 @@ export function Header() {
                 <span className="relative z-10">贝</span>
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-pink-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <span className="font-bold text-lg hidden sm:block">贝果科技</span>
+              {/* md 区间要把宽度让给 8 项导航，品牌名只在 lg 以上出现 */}
+              <span className="font-bold text-lg hidden lg:block">贝果科技</span>
             </Link>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden md:flex items-center gap-0.5 lg:gap-1">
               {navLinks.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    'relative px-5 py-2 text-sm font-medium transition-colors',
-                    pathname === link.href ? 'text-white' : 'text-white/60 hover:text-white'
+                    'relative whitespace-nowrap px-2.5 lg:px-4 py-2 text-[13px] lg:text-sm font-medium transition-colors',
+                    isNavActive(pathname, link.href) ? 'text-white' : 'text-white/60 hover:text-white'
                   )}
                 >
                   {link.label}
-                  {pathname === link.href && (
+                  {isNavActive(pathname, link.href) && (
                     <motion.div
                       layoutId="navbar-indicator"
                       className="absolute inset-0 rounded-full bg-white/10"
@@ -169,7 +182,8 @@ export function Header() {
             className="fixed inset-0 z-40 md:hidden"
           >
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
-            <nav className="relative flex flex-col items-center justify-center h-full gap-8">
+            {/* 8 项在小屏上会顶满，收紧行距并允许滚动，避免最后一项被裁掉 */}
+            <nav className="relative flex h-full flex-col items-center justify-center gap-6 overflow-y-auto py-24">
               {navLinks.map((link, index) => (
                 <motion.div
                   key={link.href}
@@ -181,8 +195,8 @@ export function Header() {
                     href={link.href}
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={cn(
-                      'text-3xl font-bold',
-                      pathname === link.href ? 'gradient-text-accent' : 'text-white/60'
+                      'text-2xl sm:text-3xl font-bold',
+                      isNavActive(pathname, link.href) ? 'gradient-text-accent' : 'text-white/60'
                     )}
                   >
                     {link.label}

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from './db'
 import { syncAutoStock, decryptCardContent } from './cardkey'
 import { round2, splitAmount } from './money'
+import { notifyOrderPaid, notifyInvoicePaid, notifyLowStock } from './notify'
 import { settleReferral } from './referral'
 import { acquireForOrder } from './sms'
 import { sendOrderPaidEmail } from './mail'
@@ -515,6 +516,30 @@ export async function fulfillOrder(orderId: number) {
     await prisma.order.update({ where: { id: order.id }, data: { deliveryStatus: 'PROCESSING' } })
   }
 
+  // ②.5 企业微信通知。只在 won（首次把订单翻成 PAID）时推送——
+  // 重复到账通知会让本函数被多次进入，但老板的手机不该被重复打扰。
+  if (won) {
+    const fresh = await prisma.product.findUnique({
+      where: { id: order.productId },
+      select: { name: true, stock: true },
+    })
+    notifyOrderPaid({
+      orderNo: order.orderNo,
+      buyer: order.user.nickname || order.user.email || `用户#${order.userId}`,
+      productName: order.productName,
+      quantity: order.quantity,
+      amount: order.amount,
+      paidAt: order.paidAt ?? new Date(),
+      stock: fresh?.stock ?? null,
+      delivered,
+    })
+    // 自动发货商品的库存 = 未使用卡密数，见底就要补货
+    const threshold = Number(process.env.LOW_STOCK_THRESHOLD || 3)
+    if (auto && fresh && fresh.stock >= 0 && fresh.stock <= threshold) {
+      notifyLowStock({ productName: fresh.name, stock: fresh.stock, threshold })
+    }
+  }
+
   // SMS 接码：付款成功后自动取号（仅首次付款时取号，避免重复取号）
   if (sms && won) {
     try {
@@ -569,9 +594,17 @@ export async function fulfillOrder(orderId: number) {
 async function fulfillInvoice(invoiceId: number) {
   const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } })
   if (!invoice || invoice.payStatus === 'PAID') return
+  const paidAt = new Date()
   await prisma.invoice.update({
     where: { id: invoice.id },
-    data: { payStatus: 'PAID', status: 'SUBMITTED', paidAt: new Date(), submittedAt: new Date() },
+    data: { payStatus: 'PAID', status: 'SUBMITTED', paidAt, submittedAt: paidAt },
+  })
+  // 税费到账 = 这张票真的要开了，此时才需要提醒去开票
+  notifyInvoicePaid({
+    invoiceNo: invoice.invoiceNo,
+    title: invoice.title || '—',
+    taxFee: invoice.taxFee,
+    paidAt,
   })
 }
 

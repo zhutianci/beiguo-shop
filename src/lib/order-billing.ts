@@ -2,6 +2,7 @@ import { prisma } from './db'
 import { calcInvoiceAmounts, genInvoiceNo } from './invoice'
 import { PAYEE, genReceiptNo, genReceiptToken } from './receipt'
 import { createOrGetVmqOrder } from './vmq'
+import { notifyInvoiceSubmitted, notifyReceiptCreated } from './notify'
 
 // 发票/收据业务错误（带可选 HTTP 状态）
 export class BillingError extends Error {
@@ -122,6 +123,18 @@ export async function submitInvoiceForExternalOrder(externalOrderId: number, d: 
     })
   }
 
+  // 企业微信通知：买家刚提交开票申请（此时税费尚未支付，税费到账另有一条 invoice.paid）
+  notifyInvoiceSubmitted({
+    invoiceNo: invoice.invoiceNo,
+    title: d.title,
+    taxNumber: d.taxNumber,
+    showAiWording: d.showAiWording,
+    productName: order.subscriptionType,
+    invoiceAmount,
+    taxFee,
+    submittedAt: new Date(),
+  })
+
   // 发起 V免签 收款（支付税费）
   const vmq = await createOrGetVmqOrder({
     bizType: 'invoice',
@@ -186,6 +199,15 @@ export async function submitReceiptForExternalOrder(externalOrderId: number, pay
     await prisma.receipt.delete({ where: { id: receipt.id } }).catch(() => {})
     throw new BillingError('该订单已开具收据，如需重开请联系客服', 409)
   }
+
+  notifyReceiptCreated({
+    receiptNo: receipt.receiptNo,
+    payerTitle: receipt.payerTitle,
+    amount: receipt.amount,
+    source: 'BUYER',
+    account: receipt.claudeAccount,
+    createdAt: receipt.createdAt,
+  })
 
   return { token: receipt.token }
 }

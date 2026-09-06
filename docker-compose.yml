@@ -46,6 +46,33 @@ services:
       - HEROSMS_API_KEY=${HEROSMS_API_KEY}
       - HEROSMS_BASE=${HEROSMS_BASE}
       - HEROSMS_TIMEOUT_MIN=${HEROSMS_TIMEOUT_MIN}
+      # 以下一律用「裸变量名」写法（不带 =${...}）。
+      # 原因：Next standalone 会把 .env.production 打进镜像，server.js 启动时用
+      # loadEnvConfig 读进 process.env，而 dotenv 遵循「已存在的 env 优先」——
+      # 若这里写成 - FOO=${FOO} 而 FOO 恰好没在 --env-file 里定义，
+      # 容器会拿到 FOO=""（空字符串也算已存在），反而把镜像内 .env 里的真实值遮蔽掉。
+      # 裸变量名的语义是「有就传、没有就完全不定义」，不会误伤已有配置。
+      #
+      # 企业微信群机器人通知（下单/支付/开票/收据/留言/库存告警/注册）
+      - WECOM_WEBHOOK_URL
+      - ORDER_MSG_WEBHOOK_URL
+      - NOTIFY_EVENTS
+      - LOW_STOCK_THRESHOLD
+      # AI圈大事记：LLM 供应商与境外信源中继
+      - LLM_PROVIDER
+      - LLM_API_KEY
+      - LLM_BASE_URL
+      - LLM_FAST_MODEL
+      - LLM_WRITE_MODEL
+      - NEWS_DAILY_BUDGET_CENTS
+      - NEWS_RELAY_URL
+      - NEWS_RELAY_TOKEN
+      - LLM_IN_PRICE
+      - LLM_OUT_PRICE
+      - UPLOAD_MAX_TOTAL_MB
+      # 说明：以上全部留空也能正常起。lib/llm.ts 每项都有 || 兜底；
+      # 缺 LLM_API_KEY 时管线只抓取去重、不写摘要，站点不会因此挂掉。
+      # 缺 NEWS_RELAY_URL 时 viaRelay 的境外源全部跳过，中文源照常。
     volumes:
       # 论坛上传图片持久化（容器重建不丢）
       - forum_uploads:/app/public/uploads
@@ -92,19 +119,27 @@ services:
     networks:
       - app-network
 
-  # 定时任务容器：每天中午 12:00（北京时间）内网调用提醒接口
+  # 定时任务容器：续费提醒 / 收款单清理 / 接码轮询 / AI圈大事记内容管线
+  # 任务表见 ./cron/crontab（挂载进来，不再用 printf 拼接 —— 那种写法 %s 个数
+  # 和参数只要对不齐，crond 不报错、任务就是不跑，是最难查的一类故障）
   cron:
     image: alpine:3.20
     container_name: beiguo-cron
     restart: unless-stopped
     environment:
       - CRON_SECRET=${CRON_SECRET}
-    # 安装 curl + 时区，写入 crontab（0 12 * * * = 每天 12:00），前台运行 crond
+    volumes:
+      - ./cron/crontab:/etc/cron.d/beiguo:ro
+    # 密钥落到 /run/cron_secret，任务里用 $(cat ...) 现取：
+    # 既不用把密钥写进版本库里的 crontab，也不必赌 busybox crond 会不会把环境变量传给子进程。
+    # 任务表没挂上时 cp 会失败、整条 && 链断掉、容器起不来 —— 这是故意的：
+    # 宁可容器反复重启被一眼看见，也不要 crond 起来了却一条任务都没有。
     command: >
       sh -c "apk add --no-cache curl tzdata >/dev/null 2>&1 &&
       cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&
       echo 'Asia/Shanghai' > /etc/timezone &&
-      printf '0 12 * * * curl -fsS -X POST -H \"x-cron-secret: %s\" http://app:3000/api/cron/remind >> /var/log/cron.log 2>&1\n* * * * * curl -fsS \"http://app:3000/api/cron/vmq-close?secret=%s\" >> /var/log/cron.log 2>&1\n* * * * * curl -fsS \"http://app:3000/api/cron/sms-poll?secret=%s\" >> /var/log/cron.log 2>&1\n' \"$$CRON_SECRET\" \"$$CRON_SECRET\" \"$$CRON_SECRET\" > /etc/crontabs/root &&
+      printf '%s' \"$$CRON_SECRET\" > /run/cron_secret && chmod 600 /run/cron_secret &&
+      tr -d '\r' < /etc/cron.d/beiguo > /etc/crontabs/root &&
       crond -f -l 8"
     depends_on:
       - app
