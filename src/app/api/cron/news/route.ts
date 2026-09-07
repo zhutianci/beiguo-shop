@@ -9,6 +9,7 @@ import {
   triage,
   cluster,
   compose,
+  composeDetails,
   rank,
   buildDigest,
   seedSources,
@@ -19,7 +20,7 @@ import {
 
 /**
  * 【AI圈大事记】管线入口。由 cron 容器调用，用 ?stage= 分派：
- *   ?stage=collect|triage|cluster|compose|rank|digest|seed
+ *   ?stage=collect|triage|cluster|compose|detail|rank|digest|seed
  *   支持逗号串联：?stage=collect,triage —— 逐段独立执行，任何一段失败都不影响其他段
  *   ?stage=digest&type=DAILY|WEEKLY
  *
@@ -27,11 +28,11 @@ import {
  * 防重叠：每段用 VmqLock 同款的唯一约束抢锁，本轮没抢到就直接返回，不排队。
  */
 
-const STAGES = ['collect', 'triage', 'cluster', 'compose', 'rank', 'digest', 'seed'] as const
+const STAGES = ['collect', 'triage', 'cluster', 'compose', 'detail', 'rank', 'digest', 'seed'] as const
 type Stage = (typeof STAGES)[number]
 
 /** 需要花钱的段：预算耗尽时直接跳过，降级为「只抓取去重、不写摘要」的简讯站 */
-const LLM_STAGES: Stage[] = ['triage', 'cluster', 'compose']
+const LLM_STAGES: Stage[] = ['triage', 'cluster', 'compose', 'detail']
 
 interface StageOutcome {
   stage: Stage
@@ -72,6 +73,9 @@ async function runStage(stage: Stage, digestType: 'DAILY' | 'WEEKLY', budgetOut:
         break
       case 'compose':
         data = await compose()
+        break
+      case 'detail':
+        data = await composeDetails()
         break
       case 'rank':
         data = await rank()

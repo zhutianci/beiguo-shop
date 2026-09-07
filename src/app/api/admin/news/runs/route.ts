@@ -36,7 +36,8 @@ const STAGES = [
   { key: 'triage', label: '② 分诊 triage', desc: '是否 AI 相关 / 是否命中黑名单 / 归类' },
   { key: 'cluster', label: '③ 聚类 cluster', desc: '实体指纹召回 + 小模型判定是否同一事件' },
   { key: 'compose', label: '④ 摘要 compose', desc: '为够格的事件写摘要与推荐理由' },
-  { key: 'rank', label: '⑤ 排序 rank', desc: '重算热度分' },
+  { key: 'detail', label: '⑤ 全文 detail', desc: '给已发布的老事件补写全文层（NEWS_DETAIL_BACKFILL 开关控制）' },
+  { key: 'rank', label: '⑥ 排序 rank', desc: '重算热度分' },
   { key: 'digest', label: '日报 / 周报 digest', desc: '每日 21:00 生成日报，每周一 09:00 生成周报' },
   { key: 'seed', label: '导入种子信源 seed', desc: '把 SEED_SOURCES 按 key 幂等 upsert 进信源表' },
 ] as const
@@ -172,6 +173,8 @@ export async function GET() {
       triage: { at: llmMaxMap.get('triage') ?? null, how: '按最近一次 triage LLM 调用推断' },
       cluster: { at: llmMaxMap.get('cluster') ?? null, how: '按最近一次 cluster LLM 调用推断' },
       compose: { at: llmMaxMap.get('compose') ?? null, how: '按最近一次 compose LLM 调用推断' },
+      // detail 段复用 compose 的记账 stage 名（同一个写作模型），所以推断依据相同
+      detail: { at: llmMaxMap.get('compose') ?? null, how: '按最近一次写作类 LLM 调用推断' },
       rank: { at: evMax._max.updatedAt, how: '按事件最近更新时间推断' },
       digest: { at: digestMax._max.createdAt, how: '按最近生成的日报/周报推断' },
       seed: { at: srcMax._max.createdAt, how: '按最近新增的信源推断' },
@@ -276,7 +279,7 @@ export async function GET() {
 // ---------- POST 手动触发某一段 ----------
 
 const triggerSchema = z.object({
-  stage: z.enum(['collect', 'triage', 'cluster', 'compose', 'rank', 'digest', 'seed']),
+  stage: z.enum(['collect', 'triage', 'cluster', 'compose', 'detail', 'rank', 'digest', 'seed']),
   /** digest 段专用：日报还是周报 */
   type: z.enum(['DAILY', 'WEEKLY']).optional(),
 })

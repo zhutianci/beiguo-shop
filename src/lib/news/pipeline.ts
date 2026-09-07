@@ -136,6 +136,8 @@ export const STAGE_LOCK_TTL_MS: Record<string, number> = {
   triage: 12 * 60000,
   cluster: 12 * 60000,
   compose: 15 * 60000,
+  // 自己的墙钟是 4 分钟，锁给 12 分钟余量；仍远小于 curl 的 --max-time 540
+  detail: 12 * 60000,
   rank: 8 * 60000,
   digest: 12 * 60000,
   seed: 5 * 60000,
@@ -1527,9 +1529,6 @@ export async function compose(): Promise<ComposeResult> {
     where: { composeState: 'RAW', status: { in: ['DRAFT', 'PUBLISHED'] } },
   })
 
-  // 老事件补写全文层。放在主循环之后，用剩下的墙钟余量做，抢不到时间就下轮再说。
-  await backfillDetails(res, deadline)
-
   console.log('[news/compose]', JSON.stringify(res))
   return res
 }
@@ -1537,7 +1536,14 @@ export async function compose(): Promise<ComposeResult> {
 /** 是否给老事件补写 detail。默认关：单价没核准之前不放开批量写作调用（见 .env.production.example） */
 const DETAIL_BACKFILL_ON = process.env.NEWS_DETAIL_BACKFILL === '1'
 /** 每轮最多补几条 */
-const DETAIL_BACKFILL_TAKE = 2
+/**
+ * 每轮补几条。独立成段之后不再和 compose 抢时间，可以给大一些 ——
+ * 线上待补 125 条，给 2 的时候一轮只出 1 条，照那个速度要跑几个月。
+ * 给 8 配 4 分钟墙钟：单条约 10-15s（抓原文 + 一次写作调用），跑得完还有余量。
+ */
+const DETAIL_BACKFILL_TAKE = 8
+/** 本段自己的墙钟。crontab 给它单独一条任务，--max-time 540 仍是硬上限 */
+const DETAIL_DEADLINE_MS = 4 * 60000
 /** 只在当日预算用掉不到这个比例时才补 —— 回填永远排在当天的新闻后面 */
 const DETAIL_BACKFILL_BUDGET_RATIO = 0.4
 
@@ -1552,16 +1558,52 @@ const DETAIL_BACKFILL_BUDGET_RATIO = 0.4
  * 【为什么不重写 summary】老事件的 summary 已经发出去了，slug 也是外链地址。
  * 这条通道只碰 detail 三列，headline/summary/slug/rewriteCount 一个都不动。
  */
-async function backfillDetails(res: ComposeResult, deadline: number): Promise<void> {
-  if (!DETAIL_BACKFILL_ON) return
-  if (Date.now() >= deadline) return
+export interface DetailResult {
+  /** 本轮补了几条 */
+  filled: number
+  /** 校验不过被丢弃 */
+  rejected: number
+  /** 素材不足直接判 SKIP */
+  skipped: number
+  /** 还有多少条已发布事件没有全文 */
+  pending: number
+  timedOut?: boolean
+  disabled?: string
+  error?: string
+}
+
+/**
+ * ⑦ detail：给已发布的老事件补写全文层。**独立成段，不再挂在 compose 后面**。
+ *
+ * 【为什么要拆出来】原来它跑在 compose 主循环之后、共用同一个墙钟。
+ * 而 compose 的主循环本来就要吃掉大部分预算（一轮 8 条、每条要抓原文再写作），
+ * 结果就是回填几乎永远轮不到 —— 线上实测开了开关之后一轮只补出 1 条，
+ * 而待补的有 125 条，照这个速度要跑几个月。
+ *
+ * 拆开之后两者各有各的锁与时间预算，谁也不挤谁：compose 保证「今天的新闻当小时出来」，
+ * detail 用自己的窗口慢慢把存量补齐。
+ */
+export async function composeDetails(): Promise<DetailResult> {
+  const res: DetailResult = { filled: 0, rejected: 0, skipped: 0, pending: 0 }
+  res.pending = await prisma.newsEvent.count({
+    where: { status: 'PUBLISHED', detailState: 'RAW', detailTries: { lt: DETAIL_MAX_TRIES } },
+  })
+  if (!DETAIL_BACKFILL_ON) {
+    res.disabled = '未开启（NEWS_DETAIL_BACKFILL=1 开启）'
+    return res
+  }
+  const deadline = Date.now() + DETAIL_DEADLINE_MS
 
   // 预算闸：回填是「有余力才做」的事，绝不和当天的新闻抢预算
   try {
     const [spent, budget] = [await spentTodayMilli(), dailyBudgetMilli()]
-    if (budget > 0 && spent > budget * DETAIL_BACKFILL_BUDGET_RATIO) return
+    if (budget > 0 && spent > budget * DETAIL_BACKFILL_BUDGET_RATIO) {
+      res.disabled = `当日已用掉 ${Math.round((spent / budget) * 100)}% 预算，超过 ${DETAIL_BACKFILL_BUDGET_RATIO * 100}% 就不补了`
+      return res
+    }
   } catch {
-    return // 预算查不出来就不做，不赌
+    res.disabled = '预算查询失败，本轮不补'
+    return res // 预算查不出来就不做，不赌
   }
 
   const rows = await prisma.newsEvent.findMany({
@@ -1580,14 +1622,15 @@ async function backfillDetails(res: ComposeResult, deadline: number): Promise<vo
   for (const ev of rows) {
     if (Date.now() >= deadline) {
       res.timedOut = true
-      return
+      break
     }
     try {
       const mat = await eventMaterials(ev.id)
       if (!mat.materials.length || !mat.hasFeed || !mat.hasMaterial) {
         // 素材撑不起 600 字全文。这是内容性结论，写 SKIP 不再重试 ——
-        // 与主循环那边「留 RAW 等下一轮」不同：那边等的是摘要，这边只是少一块可选区块。
+        // 与 compose 那边「留 RAW 等下一轮」不同：那边等的是摘要，这边只是少一块可选区块。
         await prisma.newsEvent.update({ where: { id: ev.id }, data: { detailState: 'SKIP' } })
+        res.skipped++
         continue
       }
 
@@ -1602,8 +1645,9 @@ async function backfillDetails(res: ComposeResult, deadline: number): Promise<vo
       })
 
       const det = normalizeDetail(r.data.detail, mat.text)
-      if (det.reject) res.detailRejected++
-      if (det.sections.length) res.detailed++
+      if (det.reject) res.rejected++
+      if (det.sections.length) res.filled++
+      else res.skipped++
       await prisma.newsEvent.update({
         where: { id: ev.id },
         data: {
@@ -1624,10 +1668,17 @@ async function backfillDetails(res: ComposeResult, deadline: number): Promise<vo
         })
         .catch(() => {})
       res.error = errMsg(e)
-      if (isFatalLlmError(e)) return
+      if (isFatalLlmError(e)) break
     }
     await yieldTick()
   }
+
+  // 收尾再数一次：这个值是「还要跑多少轮才能补完」的唯一依据，后台会展示
+  res.pending = await prisma.newsEvent.count({
+    where: { status: 'PUBLISHED', detailState: 'RAW', detailTries: { lt: DETAIL_MAX_TRIES } },
+  })
+  console.log('[news/detail]', JSON.stringify(res))
+  return res
 }
 
 const detailOnlySchema = z.object({

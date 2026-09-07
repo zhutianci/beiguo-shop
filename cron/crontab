@@ -36,6 +36,9 @@
 #   ② compose 自带 5 分钟墙钟，主动在 --max-time 540 之前收工
 # 时间预算：collect ~1s + triage ~20s + cluster ~60s + compose ≤300s ≈ 380s，留足余量。
 5 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=collect,triage,cluster,compose&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+# 每小时 35 分 给老事件补全文层（独立成段，不和写摘要抢时间预算）
+# 开关是 NEWS_DETAIL_BACKFILL，关着的时候这条任务会立刻返回、不花钱
+35 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=detail&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
 # 每 15 分钟 重算热度分（纯计算，不花钱）
 */15 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=rank&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
 # 每天 21:00 生成日报
