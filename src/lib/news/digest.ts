@@ -80,20 +80,15 @@ function toPeriod(d: Date): string {
 /** 取一期。找不到返回 null（调用方去 notFound） */
 export async function getDigest(type: DigestType, period: string): Promise<DigestDto | null> {
   if (!DIGEST_PERIOD_RE.test(period)) return null
-  const row = await prisma.newsDigest.findFirst({
-    where: { type, status: 'PUBLISHED' },
-    orderBy: { periodStart: 'desc' },
-    // periodStart 是 @db.Date，直接按字符串比较不可靠，取回来后用 dayKey 比对
-    take: 30,
-  })
-  // findFirst + take 不能同时用来做「按 period 精确查」，所以退回精确查询：
-  // periodStart 存的是 Date 类型的当天零点（UTC），用范围匹配避开时区解释差异
+
+  // periodStart 是 @db.Date（只有日期没有时间）。用「当天 00:00 ≤ x < 次日 00:00」的
+  // 范围匹配，而不是等值匹配：Date 列在驱动层被解释成哪个时刻取决于连接时区，
+  // 等值比较会在时区口径变化时静默查不到（交接文档第六节记过一次同类事故）。
   const start = new Date(`${period}T00:00:00.000Z`)
   const end = new Date(start.getTime() + 86400000)
-  const hit = await prisma.newsDigest.findFirst({
+  const target = await prisma.newsDigest.findFirst({
     where: { type, status: 'PUBLISHED', periodStart: { gte: start, lt: end } },
   })
-  const target = hit || (row && toPeriod(row.periodStart) === period ? row : null)
   if (!target) return null
 
   const { events, missing } = await loadEventsInOrder(parseIds(target.eventIds))

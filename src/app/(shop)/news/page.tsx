@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { CalendarDays, Sparkles } from 'lucide-react'
+import { CalendarDays, CalendarRange, Sparkles } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { AiNoticeBlock } from '@/components/news/ai-notice-block'
 import {
@@ -19,6 +19,7 @@ import {
   weekStartUtc,
   type NewsEventDto,
 } from '@/lib/news/format'
+import { DIGEST_SLUG, formatPeriodLabel, listDigests } from '@/lib/news/digest'
 import { NewsStream } from './news-stream'
 
 /** 与 /api/news/list 共用，不要在这里写死数字（见 format.ts 的注释） */
@@ -71,6 +72,7 @@ export default async function NewsPage() {
   let week: NewsEventDto[] = []
   let backfills: NewsEventDto[] = []
   let months: { key: string; count: number }[] = []
+  let digests: { type: 'DAILY' | 'WEEKLY'; period: string; periodStart: string; periodEnd: string; title: string; count: number }[] = []
   let fallbackRange: string | null = null
   let dbFailed = false
 
@@ -135,6 +137,9 @@ export default async function NewsPage() {
       // 否则会出现「列在补录区里、卡片上却没有补录角标」这种自相矛盾的展示
       backfills = backfillRows.map(toEventDto).filter((e) => e.backfilled).slice(0, BACKFILL_TAKE)
       months = monthRows.map((r) => ({ key: r.k, count: Number(r.n) }))
+      // 最近 3 期日报 + 最近 1 期周报。管线一直在生成，之前没有任何前台入口
+      const [d, w] = await Promise.all([listDigests('DAILY', 3), listDigests('WEEKLY', 1)])
+      digests = [...d, ...w]
     } catch (e) {
       console.error('[news/page extras]', e)
     }
@@ -212,6 +217,40 @@ export default async function NewsPage() {
               highlights={{ today, week, fallbackRange }}
               backfills={backfills}
             />
+
+            {/*
+              ============ 日报 / 周报入口 ============
+              管线每天 21:00 生成日报、每周一 09:00 生成周报，数据早就在 news_digests 里，
+              但此前没有任何前台入口 —— 生成了却没人看得到。
+            */}
+            {digests.length > 0 && (
+              <nav aria-label="速览与周报" className="mt-12 border-t border-white/10 pt-6 lg:mt-16 lg:pt-8">
+                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/70 lg:mb-4 lg:text-[15px]">
+                  <CalendarRange className="h-4 w-4 text-white/40" />
+                  速览与周报
+                </h2>
+                <div className="grid gap-2 sm:grid-cols-2 lg:gap-3">
+                  {digests.map((d) => (
+                    <Link
+                      key={`${d.type}-${d.period}`}
+                      href={`/news/digest/${DIGEST_SLUG[d.type]}/${d.period}`}
+                      className="group rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-colors hover:border-white/20 hover:bg-white/[0.07] lg:px-5 lg:py-3.5"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-purple-500/12 px-2 py-0.5 text-[10px] text-purple-200/85">
+                          {d.type === 'DAILY' ? '日报' : '周报'}
+                        </span>
+                        <span className="text-[13px] tabular-nums text-white/40">{formatPeriodLabel(d)}</span>
+                        <span className="ml-auto text-[11px] tabular-nums text-white/30">{d.count} 条</span>
+                      </div>
+                      <h3 className="mt-1.5 line-clamp-1 text-[14px] font-medium text-white/80 group-hover:text-white lg:text-[15px]">
+                        {d.title}
+                      </h3>
+                    </Link>
+                  ))}
+                </div>
+              </nav>
+            )}
 
             {/*
               ============ 按月归档入口 ============

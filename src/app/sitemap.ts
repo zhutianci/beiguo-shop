@@ -88,6 +88,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Sitemap news archive query error:', err)
   }
 
+  // 日报 / 周报。每天一期，收录最近 60 期足够 —— 更旧的靠页内「往期」互链走到
+  let digestPages: MetadataRoute.Sitemap = []
+  try {
+    const rows = await prisma.newsDigest.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { type: true, periodStart: true, updatedAt: true },
+      orderBy: { periodStart: 'desc' },
+      take: 60,
+    })
+    digestPages = rows.map((r) => ({
+      url: absUrl(
+        `/news/digest/${r.type === 'WEEKLY' ? 'weekly' : 'daily'}/${new Date(
+          r.periodStart.getTime() + 8 * 3600000
+        )
+          .toISOString()
+          .slice(0, 10)}`
+      ),
+      lastModified: r.updatedAt,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    }))
+  } catch (err) {
+    console.error('Sitemap news digest query error:', err)
+  }
+
   // 商品详情页
   let productPages: MetadataRoute.Sitemap = []
   try {
@@ -107,5 +132,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Sitemap product query error:', err)
   }
 
-  return staticPages.concat(eventPages, archivePages, productPages)
+  return staticPages.concat(eventPages, archivePages, digestPages, productPages)
 }
