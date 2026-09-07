@@ -12,12 +12,15 @@ import { effectiveBasePrice } from '@/lib/referral'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { shopOrderSourceKey } from '@/lib/order-billing'
 import { notifyOrderCreated } from '@/lib/notify'
+import { calcCoupon, grantUsable, parseProductIds, rejectReason, type GrantState } from '@/lib/coupon'
 
 const createOrderSchema = z.object({
   productId: z.number(),
   quantity: z.number().min(1).default(1),
   remark: z.string().optional(),
   ref: z.string().trim().optional().nullable(), // 内推码
+  /** 要使用的券实例 id（CouponGrant.id）。只对本人有效，服务端会校验归属 */
+  couponGrantId: z.number().int().positive().optional().nullable(),
 })
 
 // 获取用户订单列表（分页 + 服务端筛选/检索）
@@ -265,23 +268,107 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const amount = Math.round(unitPrice * quantity * 100) / 100
+    const referralAmount = Math.round(unitPrice * quantity * 100) / 100
+    const baseAmount = Math.round(base * quantity * 100) / 100
+    let amount = referralAmount
+
+    /*
+     * ============ 优惠券 ============
+     * 落点选在建单这一步，而不是站长说的「提交收款监控前」，原因是站长同时要求
+     * 「订单记录为优惠后的价格」—— order.amount 在建单时就必须是优惠价，
+     * 否则收款监控拿到的是原价，买家付了优惠价永远匹配不上到账。
+     * 提交收款监控那一步会再复验一次（见 /api/pay/vmq/create），两道都在。
+     *
+     * 锁定用 updateMany 的条件更新做 CAS：条件里带 userId 与 state='AVAILABLE'，
+     * 抢不到就说明这张券已经被另一笔订单占用。**绝不能先 findFirst 再 update** ——
+     * 买家开两个标签同时下单，两个请求都会查到「可用」，然后各自用掉同一张券。
+     */
+    let couponGrantId: number | null = null
+    let couponDiscount: number | null = null
+    let originalAmount: number | null = null
+
+    if (result.data.couponGrantId) {
+      const grant = await prisma.couponGrant.findFirst({
+        where: { id: result.data.couponGrantId, userId: user.id },
+        include: {
+          coupon: { select: { kind: true, minAmount: true, discount: true, productIds: true, status: true } },
+        },
+      })
+      if (!grant) return error('优惠券不存在')
+      if (grant.coupon.status === 'ENDED') return error('该券所属活动已结束')
+
+      const ok = grantUsable({ state: grant.state as GrantState, expiresAt: grant.expiresAt })
+      if (!ok.ok) return error(ok.reason)
+
+      const calc = calcCoupon(
+        {
+          kind: grant.coupon.kind as 'THRESHOLD' | 'PRODUCT',
+          minAmount: Number(grant.coupon.minAmount),
+          discount: Number(grant.coupon.discount),
+          productIds: parseProductIds(grant.coupon.productIds),
+        },
+        { productId: product.id, baseAmount, referralAmount }
+      )
+      if (!calc.usable) {
+        return error(calc.reject ? rejectReason(calc.reject) : '该券不适用于本单')
+      }
+
+      // CAS 抢锁。orderId 先留空，建单成功后回填 —— 订单号这时还没有
+      const locked = await prisma.couponGrant.updateMany({
+        where: { id: grant.id, userId: user.id, state: 'AVAILABLE' },
+        data: { state: 'LOCKED', lockedAt: new Date() },
+      })
+      if (locked.count !== 1) return error('该券正被另一笔待支付订单占用')
+
+      couponGrantId = grant.id
+      couponDiscount = calc.discount
+      originalAmount = referralAmount
+      amount = calc.amount
+    }
 
     // 创建待支付订单（默认 payStatus: UNPAID, deliveryStatus: PENDING）
-    const order = await prisma.order.create({
-      data: {
-        orderNo: generateOrderNo(),
-        userId: user.id,
-        productId: product.id,
-        productName: product.name,
-        productPrice: product.price,
-        quantity,
-        amount,
-        remark,
-        referrerId,
-        referralReward: referralReward && referralReward > 0 ? referralReward : null,
-      },
-    })
+    let order
+    try {
+      order = await prisma.order.create({
+        data: {
+          orderNo: generateOrderNo(),
+          userId: user.id,
+          productId: product.id,
+          productName: product.name,
+          productPrice: product.price,
+          quantity,
+          amount,
+          remark,
+          referrerId,
+          // 券胜出时内推返现不再计入：站长定的是「不叠加，取更优的一个」
+          referralReward:
+            couponGrantId === null && referralReward && referralReward > 0 ? referralReward : null,
+          couponGrantId,
+          couponDiscount,
+          originalAmount,
+        },
+      })
+    } catch (e) {
+      // 建单失败要把刚锁上的券放回去，否则买家的券会凭空变成「被占用」且永远不释放
+      if (couponGrantId) {
+        await prisma.couponGrant
+          .updateMany({
+            where: { id: couponGrantId, state: 'LOCKED', orderId: null },
+            data: { state: 'AVAILABLE', lockedAt: null },
+          })
+          .catch(() => {})
+      }
+      throw e
+    }
+
+    // 回填订单关联：券锁定与建单不在同一个事务里（建单还要发通知、算内推），
+    // 所以用「先锁后填」的两步。中间窗口内券是 LOCKED 且 orderId 为空，
+    // 释放逻辑对这种状态是认的（见 releaseCouponForOrder）
+    if (couponGrantId) {
+      await prisma.couponGrant
+        .updateMany({ where: { id: couponGrantId, state: 'LOCKED' }, data: { orderId: order.id } })
+        .catch(() => {})
+    }
 
     // 企业微信通知（fire-and-forget，不 await，通知挂了不能影响下单）
     notifyOrderCreated({

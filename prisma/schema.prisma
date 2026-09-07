@@ -169,6 +169,12 @@ model Order {
   remark         String?        @db.VarChar(255)
   referrerId     Int?           @map("referrer_id") // 内推：推广人用户ID
   referralReward Decimal?       @map("referral_reward") @db.Decimal(10, 2) // 内推返现金额快照（= 专属价−基础售价）
+  // ---- 优惠券 ----
+  // amount 记录的是**优惠后**的实付价（站长要求）。原价与减免额单独留痕，
+  // 否则后台看到一个比商品定价低的数字，无法区分是内推专属价还是用了券。
+  couponGrantId  Int?           @map("coupon_grant_id") // 用掉的券实例
+  couponDiscount Decimal?       @map("coupon_discount") @db.Decimal(10, 2) // 本单减免额快照
+  originalAmount Decimal?       @map("original_amount") @db.Decimal(10, 2) // 未用券时应付的金额
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
   paidAt         DateTime?      @map("paid_at")
@@ -822,4 +828,97 @@ model ForumLike {
   @@index([commentId])
   @@index([userId])
   @@map("forum_likes")
+}
+
+// ============ 优惠券 ============
+// 设计要点见 docs/优惠券设计.md。三条不可动摇的：
+//  ① 一张券只能被用一次 —— 靠 updateMany 的 CAS 条件保证，不是靠先查后写
+//  ② 三限（IP/账户/浏览器）靠**唯一约束**保证，不是靠先查后插
+//  ③ 与内推不叠加，取对买家更优的一个
+
+// 券批次：后台建一批，生成一条共享领取链接，谁点谁领
+model Coupon {
+  id         Int       @id @default(autoincrement())
+  // 领取链接里的短码，如 /coupon/spring100。刻意不用自增 id：
+  // 自增 id 可被遍历，别人能扫出所有在办的活动
+  code       String    @unique @db.VarChar(32)
+  name       String    @db.VarChar(80) // 后台展示用，如「双十一无门槛」
+  // THRESHOLD 满减券 | PRODUCT 商品券
+  kind       String    @default("THRESHOLD") @db.VarChar(20)
+  // 满减：订单满 minAmount 减 discount。minAmount=0 即无门槛
+  // 商品券：minAmount 无意义，discount 是对指定商品的减免额
+  minAmount  Decimal   @default(0) @map("min_amount") @db.Decimal(10, 2)
+  discount   Decimal   @db.Decimal(10, 2)
+  // 商品券限定的商品 id，逗号分隔。为空表示不限商品（满减券就是这种）
+  productIds String?   @map("product_ids") @db.VarChar(500)
+  total      Int // 发行数量
+  claimed    Int       @default(0) // 已领数量，原子自增
+  // 有效期。两个都为空 = 长期有效
+  startAt    DateTime? @map("start_at")
+  endAt      DateTime? @map("end_at")
+  // ACTIVE 可领可用 | PAUSED 停止发放（已领的仍可用）| ENDED 作废（已领的一并失效）
+  status     String    @default("ACTIVE") @db.VarChar(20)
+  note       String?   @db.VarChar(300)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  grants CouponGrant[]
+  claims CouponClaim[]
+
+  @@index([status, endAt])
+  @@map("coupons")
+}
+
+// 用户领到的券实例。这是「一张券」的真正载体，状态机也在这一层
+model CouponGrant {
+  id          Int       @id @default(autoincrement())
+  couponId    Int       @map("coupon_id")
+  userId      Int       @map("user_id")
+  // AVAILABLE 可用 | LOCKED 已锁定（挂在某张待支付订单上）| USED 已核销
+  // | EXPIRED 已过期 | VOID 已作废（管理员操作或批次被 ENDED）
+  state       String    @default("AVAILABLE") @db.VarChar(20)
+  // 锁定/核销时关联的订单。释放时置回 null
+  orderId     Int?      @map("order_id")
+  lockedAt    DateTime? @map("locked_at")
+  usedAt      DateTime? @map("used_at")
+  // 有效期**快照**：从批次拷过来。批次后来改期不影响已经发出去的券，
+  // 否则买家手里那张券的到期时间会在他不知情的情况下变动
+  expiresAt   DateTime? @map("expires_at")
+  // 审计用，出争议时能查到是谁在哪领的
+  claimIp     String?   @map("claim_ip") @db.VarChar(64)
+  claimDevice String?   @map("claim_device") @db.VarChar(64)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  // 每个账户对同一批次只能有一张。这是「每账户一张」的数据库级保证
+  @@unique([couponId, userId])
+  @@index([userId, state])
+  @@index([state, expiresAt])
+  @@index([orderId])
+  @@map("coupon_grants")
+}
+
+// 领取限制的去重记录。
+// 【为什么单独一张表而不是在 CouponGrant 上加索引】三限的口径不同：
+// 账户可以直接用 [couponId, userId] 唯一约束，但 IP 与浏览器指纹不是 Grant 的属性，
+// 且一个账户可能换 IP。把三个维度拍平成 (couponId, scope, value) 的唯一约束，
+// 领取时在同一个事务里插三行，任一冲突即判定「已领过」——
+// 这样并发领取被数据库挡住，而不是靠「先查再插」那种必然有竞态的写法。
+model CouponClaim {
+  id        Int      @id @default(autoincrement())
+  couponId  Int      @map("coupon_id")
+  // USER | IP | DEVICE
+  scope     String   @db.VarChar(10)
+  // 取值的哈希。IP 与设备指纹都算个人信息，落哈希不落原文
+  value     String   @db.VarChar(64)
+  grantId   Int?     @map("grant_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, scope, value])
+  @@index([grantId])
+  @@map("coupon_claims")
 }

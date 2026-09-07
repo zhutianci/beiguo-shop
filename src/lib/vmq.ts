@@ -4,6 +4,7 @@ import { prisma } from './db'
 import { syncAutoStock, decryptCardContent } from './cardkey'
 import { round2, splitAmount } from './money'
 import { notifyOrderPaid, notifyInvoiceReady, notifyLowStock } from './notify'
+import { consumeCouponForOrder, releaseCouponForOrder } from './coupon'
 import { financeInvoiceUrl } from './action-token'
 import { settleReferral } from './referral'
 import { acquireForOrder } from './sms'
@@ -74,6 +75,14 @@ export async function closeExpired(): Promise<number> {
         ]
       : []),
   ])
+
+  // 订单超时取消 → 把它占用的券放回去。
+  // 放在事务之后单独做：券释放失败不该让「关闭过期收款单」这件事整个回滚，
+  // 那会导致金额锁一直占着、后面的订单分配不到金额。券卡住只影响一个买家，
+  // 金额锁卡住影响所有人 —— 两害相权。
+  for (const id of orderBizIds) {
+    await releaseCouponForOrder(id).catch((e) => console.error('[coupon] 超时释放失败', id, e))
+  }
   return expired.length
 }
 
@@ -515,6 +524,12 @@ export async function fulfillOrder(orderId: number) {
   } else if (won) {
     // 非自动发货（人工/短信）：付款后置为处理中，等待人工/短信流程
     await prisma.order.update({ where: { id: order.id }, data: { deliveryStatus: 'PROCESSING' } })
+  }
+
+  // ②.4 券核销。CAS 保证只核销一次，重复到账回调不会重复计数。
+  // 放在发货之后、通知之前：核销失败不影响买家拿到货，但要留下日志
+  if (won) {
+    await consumeCouponForOrder(order.id).catch((e) => console.error('[coupon] 核销失败', order.id, e))
   }
 
   // ②.5 企业微信通知。只在 won（首次把订单翻成 PAID）时推送——

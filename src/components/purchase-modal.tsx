@@ -3,9 +3,20 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, CreditCard, ArrowRight } from 'lucide-react'
+import { X, CreditCard, ArrowRight, Ticket } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { getRef } from '@/lib/ref'
+
+/** 结算页可选的券。形状与 /api/coupons/mine 返回一致 */
+interface UsableCoupon {
+  id: number
+  label: string
+  applicable: boolean | null
+  applicableDiscount: number
+  reason: string | null
+  expiresAt: string | null
+  forever: boolean
+}
 
 interface PurchaseModalProps {
   open: boolean
@@ -24,6 +35,39 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   const { user } = useUserStore()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>('')
+  const [coupons, setCoupons] = useState<UsableCoupon[]>([])
+  const [couponId, setCouponId] = useState<number | null>(null)
+
+  /*
+   * 打开弹窗时拉一次「我的可用券」。
+   * 让服务端算「这一单能不能用、能减多少」，前端不复刻规则 ——
+   * 复刻就一定会出现「页面显示能减 20、下单却报不可用」这种最伤信任的偏差。
+   */
+  useEffect(() => {
+    if (!open || !product || !user) {
+      setCoupons([])
+      setCouponId(null)
+      return
+    }
+    let alive = true
+    fetch(`/api/coupons/mine?usableOnly=1&productId=${product.id}&quantity=1`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive || !d?.success) return
+        const list: UsableCoupon[] = d.data.list || []
+        setCoupons(list)
+        // 默认替买家选中减得最多的那张。买家仍可改选或不用 ——
+        // 默认不选等于把优惠藏起来，多数人不会主动点开这一栏
+        const best = list
+          .filter((c) => c.applicable)
+          .sort((a, b) => b.applicableDiscount - a.applicableDiscount)[0]
+        setCouponId(best ? best.id : null)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [open, product, user])
 
   useEffect(() => {
     if (open) {
@@ -38,6 +82,11 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   }, [open])
 
   if (!product) return null
+
+  // 展示用的应付价。真正的金额由服务端在建单时算 ——
+  // 这里只是让买家在点「确认支付」之前看到会变成多少，不作为下单依据
+  const chosen = coupons.find((c) => c.id === couponId && c.applicable) || null
+  const payable = Math.max(0.01, Math.round((product.price - (chosen?.applicableDiscount || 0)) * 100) / 100)
 
   // 确认支付：建单 → 发起支付宝 → 直接跳转收银台
   const bounceLogin = () => {
@@ -73,7 +122,13 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, quantity: 1, remark: '支付方式: 支付宝', ref: getRef() }),
+        body: JSON.stringify({
+          productId: product.id,
+          quantity: 1,
+          remark: '支付方式: 支付宝',
+          ref: getRef(),
+          couponGrantId: couponId,
+        }),
       })
       if (res.status === 401) {
         useUserStore.getState().setUser(null)
@@ -152,17 +207,80 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                     <div className="text-white/60 text-sm">商品</div>
                     <div className="font-semibold">{product.name}</div>
                   </div>
+                  {chosen && (
+                    <>
+                      <div className="h-px bg-white/10 my-3" />
+                      <div className="flex items-center justify-between">
+                        <div className="text-white/60 text-sm">优惠券</div>
+                        <div className="text-sm text-emerald-300">−¥{chosen.applicableDiscount.toFixed(2)}</div>
+                      </div>
+                    </>
+                  )}
                   <div className="h-px bg-white/10 my-3" />
                   <div className="flex items-center justify-between">
                     <div className="text-white/60 text-sm">应付金额</div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold">¥{product.price}</span>
-                      {product.originalPrice > product.price && (
-                        <span className="text-sm text-white/30 line-through">¥{product.originalPrice}</span>
+                      <span className="text-2xl font-bold">¥{payable.toFixed(2)}</span>
+                      {chosen ? (
+                        <span className="text-sm text-white/30 line-through">¥{product.price}</span>
+                      ) : (
+                        product.originalPrice > product.price && (
+                          <span className="text-sm text-white/30 line-through">¥{product.originalPrice}</span>
+                        )
                       )}
                     </div>
                   </div>
                 </div>
+
+                {/* 优惠券选择。只有确实持有可用券时才出现，没有券的人看不到多余的一栏 */}
+                {coupons.length > 0 && (
+                  <div className="glass rounded-2xl p-5 mb-6">
+                    <div className="mb-3 flex items-center gap-2">
+                      <Ticket className="h-4 w-4 text-purple-300" />
+                      <span className="text-sm font-medium">使用优惠券</span>
+                    </div>
+                    <div className="space-y-2">
+                      {coupons.map((c) => {
+                        const active = couponId === c.id
+                        const usable = !!c.applicable
+                        return (
+                          <button
+                            key={c.id}
+                            type="button"
+                            disabled={!usable}
+                            onClick={() => setCouponId(active ? null : c.id)}
+                            className={`flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                              active
+                                ? 'border-purple-400/50 bg-purple-500/12'
+                                : usable
+                                  ? 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
+                                  : 'cursor-not-allowed border-white/5 bg-white/[0.02] opacity-45'
+                            }`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block text-sm text-white/85">{c.label}</span>
+                              <span className="mt-0.5 block text-xs text-white/40">
+                                {usable
+                                  ? c.forever
+                                    ? '长期有效'
+                                    : `${new Date(c.expiresAt as string).toLocaleDateString('zh-CN')} 前有效`
+                                  : c.reason || '本单不可用'}
+                              </span>
+                            </span>
+                            {usable && (
+                              <span className="shrink-0 text-sm text-emerald-300">
+                                −¥{c.applicableDiscount.toFixed(2)}
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <p className="mt-3 text-xs leading-relaxed text-white/35">
+                      与推广专属价不叠加，系统会自动为你采用更便宜的那个；最终以下单结果为准。
+                    </p>
+                  </div>
+                )}
 
                 {/* 支付方式：仅支付宝 */}
                 <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-blue-500/40 mb-6">
@@ -193,7 +311,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                   ) : (
                     <>
                       <CreditCard className="w-4 h-4" />
-                      确认支付 ¥{product.price}
+                      确认支付 ¥{payable.toFixed(2)}
                       <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                     </>
                   )}
