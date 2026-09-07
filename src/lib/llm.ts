@@ -328,15 +328,24 @@ export async function llmJson<T>(opts: ChatOpts<T>): Promise<LlmResult<T>> {
       promptTokens += r.promptTokens
       completionTokens += r.completionTokens
 
-      // glm-5.3 系列关不掉思考（错误码 1210）。这不是配置写错，是模型本身的限制，
-      // 所以就地改用最低档重试一次，而不是把这次尝试算作失败 ——
-      // 否则换一次模型就会把三级降级全耗在同一个参数问题上，白花三次钱。
-      if (r.status === 400 && thinking === 'disabled' && isAlwaysThinkingError(r.text)) {
-        thinking = 'low'
-        console.warn(`[llm] ${model} 不支持关闭思考，本次起改用 reasoning_effort=low`)
-        r = await callOnce(c, model, system, opts.user, rf, maxTokens, temperature, timeoutMs, thinking)
-        promptTokens += r.promptTokens
-        completionTokens += r.completionTokens
+      // 思考参数与模型不匹配时就地纠正，**不占用三级降级的机会**。
+      // 否则换一次模型就会把三次降级全耗在同一个参数问题上，白花三次钱还是失败。
+      //
+      // 两种不匹配都见过：
+      //   ① glm-5.3 系列关不掉思考（错误码 1210）→ 改用最低档
+      //   ② 老模型（glm-4-plus / glm-4-flash）压根不认这些字段 → 干脆不传
+      // 纠正后的档位保留到本次调用的后续降级里，不必每一级都撞一次墙。
+      if (r.status === 400 && thinking !== 'off') {
+        const next: ThinkingMode = isAlwaysThinkingError(r.text) ? 'low' : 'off'
+        if (next !== thinking) {
+          console.warn(
+            `[llm] ${model} 不接受当前思考档位（${thinking}），本次起改用 ${next}。原始返回：${r.text.slice(0, 120)}`
+          )
+          thinking = next
+          r = await callOnce(c, model, system, opts.user, rf, maxTokens, temperature, timeoutMs, thinking)
+          promptTokens += r.promptTokens
+          completionTokens += r.completionTokens
+        }
       }
 
       if (r.status !== 200) {
