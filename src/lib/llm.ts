@@ -105,9 +105,14 @@ export function llmConfigured(): boolean {
 export function llmInfo() {
   const name = llmProviderName()
   const c = PROVIDERS[name]
+  // thinking 一并暴露：它对成本的影响比换模型还大（实测 glm-4.7 开/关差 5.3 倍输出 token），
+  // 后台状态页看不到它就等于看不到真实成本结构
   return c
-    ? { provider: name, fastModel: c.fastModel, writeModel: c.writeModel, configured: !!c.apiKey, baseUrl: c.baseUrl }
-    : { provider: name, fastModel: '-', writeModel: '-', configured: false, baseUrl: '-' }
+    ? {
+        provider: name, fastModel: c.fastModel, writeModel: c.writeModel,
+        configured: !!c.apiKey, baseUrl: c.baseUrl, thinking: thinkingMode(),
+      }
+    : { provider: name, fastModel: '-', writeModel: '-', configured: false, baseUrl: '-', thinking: thinkingMode() }
 }
 
 // ---- 预算闸门 ----
@@ -185,6 +190,48 @@ interface ChatOpts<T> {
   timeoutMs?: number
 }
 
+/**
+ * 思考（推理链）控制。
+ *
+ * 【为什么必须显式控制，不能靠默认值】2026-09-07 从生产 ECS 实测智谱各模型：
+ *
+ *   glm-4.7        默认开思考 → 单次输出 2534 token（其中 3626 字推理链）；
+ *                  关掉之后 476 token，质量反而更好。差 5.3 倍，全是白花的钱。
+ *   glm-5.3 系列   **强制思考，关不掉**。不带控制参数直接把 max_tokens 烧穿，
+ *                  返回被截断的 JSON → 走三级降级 → 三次全废。等于管线瘫痪。
+ *   glm-4-plus     不支持这些参数，多传会 400。
+ *
+ * 两种模型两套参数名，这是实测出来的，不是文档抄的：
+ *   关思考   → thinking: { type: 'disabled' }
+ *   调档位   → reasoning_effort: 'low' | 'high' | 'max'
+ *             （给强制思考的模型传 thinking:{type:'low'} 会被 400 拒绝，
+ *               错误码 1210「该模型始终思考，不支持关闭思考；请使用 low、high 或 max」）
+ *
+ * 配置：LLM_THINKING = disabled | low | high | max | off
+ *   off / 留空 = 一个字段都不传（老模型如 glm-4-plus / glm-4-flash 用这个）
+ */
+type ThinkingMode = 'disabled' | 'low' | 'high' | 'max' | 'off'
+
+function thinkingMode(): ThinkingMode {
+  const v = (process.env.LLM_THINKING || '').trim().toLowerCase()
+  return v === 'disabled' || v === 'low' || v === 'high' || v === 'max' ? v : 'off'
+}
+
+/** 把档位翻译成请求字段。两种模型两套参数名，见上方注释 */
+function thinkingPayload(mode: ThinkingMode): Record<string, unknown> {
+  if (mode === 'off') return {}
+  if (mode === 'disabled') return { thinking: { type: 'disabled' } }
+  return { reasoning_effort: mode }
+}
+
+/**
+ * 该错误是不是「这个模型关不掉思考」。
+ * 命中后调用方会自动改用最低档重试一次 —— 换模型时不至于因为一个参数名把整段打挂。
+ */
+function isAlwaysThinkingError(body: string): boolean {
+  return body.includes('1210') || body.includes('始终思考')
+}
+
 async function callOnce(
   c: ProviderConf,
   model: string,
@@ -193,7 +240,8 @@ async function callOnce(
   responseFormat: Record<string, unknown> | undefined,
   maxTokens: number,
   temperature: number,
-  timeoutMs: number
+  timeoutMs: number,
+  thinking: ThinkingMode
 ): Promise<{ text: string; promptTokens: number; completionTokens: number; status: number }> {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), timeoutMs)
@@ -214,6 +262,7 @@ async function callOnce(
         temperature,
         max_tokens: maxTokens,
         ...(responseFormat ? { response_format: responseFormat } : {}),
+        ...thinkingPayload(thinking),
       }),
       signal: ac.signal,
     })
@@ -270,11 +319,25 @@ export async function llmJson<T>(opts: ChatOpts<T>): Promise<LlmResult<T>> {
     undefined,
   ]
 
+  // 思考档位。遇到「该模型始终思考」的 400 会就地降到最低档重试，不算掉一次降级机会
+  let thinking = thinkingMode()
+
   for (const rf of attempts) {
     try {
-      const r = await callOnce(c, model, system, opts.user, rf, maxTokens, temperature, timeoutMs)
+      let r = await callOnce(c, model, system, opts.user, rf, maxTokens, temperature, timeoutMs, thinking)
       promptTokens += r.promptTokens
       completionTokens += r.completionTokens
+
+      // glm-5.3 系列关不掉思考（错误码 1210）。这不是配置写错，是模型本身的限制，
+      // 所以就地改用最低档重试一次，而不是把这次尝试算作失败 ——
+      // 否则换一次模型就会把三级降级全耗在同一个参数问题上，白花三次钱。
+      if (r.status === 400 && thinking === 'disabled' && isAlwaysThinkingError(r.text)) {
+        thinking = 'low'
+        console.warn(`[llm] ${model} 不支持关闭思考，本次起改用 reasoning_effort=low`)
+        r = await callOnce(c, model, system, opts.user, rf, maxTokens, temperature, timeoutMs, thinking)
+        promptTokens += r.promptTokens
+        completionTokens += r.completionTokens
+      }
 
       if (r.status !== 200) {
         lastErr = `HTTP ${r.status}: ${r.text.slice(0, 200)}`

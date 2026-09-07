@@ -69,6 +69,7 @@ services:
       - NEWS_RELAY_TOKEN
       - LLM_IN_PRICE
       - LLM_OUT_PRICE
+      - LLM_THINKING
       # 全文层：抓正文当素材 / 每事件抓几篇 / 分诊批量 / 老事件回填开关。
       # 一律写**裸变量名**，不要写成 `- FOO=${FOO}` —— 后者在 FOO 未定义时会给容器一个
       # 空字符串，而 dotenv 遵循「已存在的 env 优先」，反而把镜像内 .env 的真实值遮蔽掉，
