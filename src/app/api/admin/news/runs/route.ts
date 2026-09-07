@@ -320,8 +320,18 @@ export async function POST(request: NextRequest) {
     const stage = parsed.data.stage
     const type = parsed.data.type || 'DAILY'
 
-    const secret = process.env.CRON_SECRET
-    if (!secret) return error('CRON_SECRET 未配置，无法触发管线', 500)
+    const secret = (process.env.CRON_SECRET || '').trim()
+    if (!secret) {
+      // 这条报错在 2026-09-07 之前一直挡着后台的手动触发按钮，而真正的原因藏在两处：
+      // `.env.production` 里没有 CRON_SECRET 这一行，compose 又写的是 `- CRON_SECRET=${CRON_SECRET}`
+      // （插值写法在变量未定义时会给容器一个空字符串）。所以把排查路径直接写进提示里，
+      // 不要让下一个人再去翻三个文件才知道该改哪儿。
+      return error(
+        'CRON_SECRET 未配置，无法触发管线。请在服务器 .env.production 里补一行 ' +
+          'CRON_SECRET=<随机串>，然后重启 app 与 cron 两个容器（docker compose up -d app cron）。',
+        503
+      )
+    }
 
     const url = cronUrl(stage, type)
     const started = Date.now()

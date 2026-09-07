@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
 import { success, error } from '@/lib/api'
+import { assertCronAuth } from '@/lib/cron-auth'
 import { budgetExhausted, dailyBudgetMilli, llmInfo } from '@/lib/llm'
 import {
   collect,
@@ -95,12 +96,12 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url)
 
-    const secret = process.env.CRON_SECRET
-    if (secret) {
-      const auth = request.headers.get('authorization')
-      const qs = url.searchParams.get('secret')
-      if (auth !== `Bearer ${secret}` && qs !== secret) return error('无权限', 401)
-    }
+    // 鉴权统一走 lib/cron-auth：密钥缺失时**拒绝**而不是放行。
+    // 原来写的是 `if (secret) {...}`，而 .env.production 里根本没有 CRON_SECRET 这一行、
+    // compose 又用了 `- CRON_SECRET=${CRON_SECRET}` 的插值写法，容器拿到空字符串，
+    // 于是整块校验被跳过 —— 这个接口对公网敞开过，任何人都能反复触发管线烧 LLM 预算。
+    const auth = assertCronAuth(request)
+    if (!auth.ok) return error(auth.message, auth.status)
 
     const raw = (url.searchParams.get('stage') || '').trim()
     if (!raw) return error(`缺少 stage 参数（可选 ${STAGES.join(' | ')}，支持逗号串联）`, 400)
