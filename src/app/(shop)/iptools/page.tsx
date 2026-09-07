@@ -65,7 +65,7 @@ export default function IpToolsPage() {
       <div className="absolute top-24 left-1/4 w-[28rem] h-[28rem] bg-cyan-500/20 rounded-full blur-[140px]" />
       <div className="absolute bottom-1/4 right-1/5 w-[26rem] h-[26rem] bg-purple-500/20 rounded-full blur-[140px]" />
 
-      <div className="container relative z-10 pt-32 pb-24 max-w-6xl">
+      <div className="container relative z-10 page-top pb-24 max-w-6xl">
         {/* 标题 */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}

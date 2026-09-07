@@ -176,17 +176,17 @@ export default function PostDetailPage() {
     else alert(data.error || '删除失败')
   }
 
-  if (loading) return <div className="min-h-screen pt-32 text-center text-white/40">加载中...</div>
+  if (loading) return <div className="min-h-screen page-top text-center text-white/40">加载中...</div>
   if (notFound || !post)
     return (
-      <div className="min-h-screen pt-32 text-center">
+      <div className="min-h-screen page-top text-center">
         <p className="text-white/50 mb-4">帖子不存在或已被删除</p>
         <Link href="/forum" className="text-purple-400">返回论坛</Link>
       </div>
     )
 
   return (
-    <div className="min-h-screen pt-32 pb-20">
+    <div className="min-h-screen page-top pb-20">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-1/4 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       {/*

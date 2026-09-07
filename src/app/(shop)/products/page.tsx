@@ -136,10 +136,10 @@ export default function ProductsPage() {
   const hasMore = page < totalPages
 
   return (
-    /* pt-32 保持不动：固定头部移动端 112px(py-6+64 药丸)、lg 起 96px(py-4+64)，
-       128px 的顶部留白在手机上只余 16px，在桌面上已自动余出 32px ——
-       头部变矮腾出的空间就是桌面端的呼吸位，再往上加就成了「顶部一片空」 */
-    <div className="min-h-screen pt-32 pb-20 lg:pb-28">
+    /* 顶部留白走 .page-top，不再写死 pt-32：它从 globals.css 的 --header-h 推导，
+       移动端仍是 112+16=128px（与原来的 pt-32 完全一致），lg 起跟着矮下来的
+       头部收到 96+16=112px。以后改头部高度只改 --header-h 一处，不用再追七八个文件 */
+    <div className="min-h-screen page-top pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />

@@ -87,6 +87,9 @@ interface EventDetail {
     summary: string
     whyItMatters: string | null
     facts: { text: string; sourceIndex: number }[]
+    detail: { heading: string; body: string }[]
+    detailState: string
+    detailTries: number
     category: string
     tags: string[]
     aiScore: number
@@ -147,6 +150,10 @@ export default function AdminNewsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [pendingReview, setPendingReview] = useState(0)
   const [pendingCap, setPendingCap] = useState(20)
+  // 积压观测：compose 双车道到底有没有在消化老事件，只能靠这三个数看，不要靠猜
+  const [composeBacklog, setComposeBacklog] = useState(0)
+  const [basePending, setBasePending] = useState(0)
+  const [detailPending, setDetailPending] = useState(0)
   const [loading, setLoading] = useState(false)
   const [detailId, setDetailId] = useState<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -176,6 +183,9 @@ export default function AdminNewsPage() {
         setTotalPages(data.data.totalPages || 1)
         setPendingReview(data.data.stats?.pendingReview || 0)
         setPendingCap(data.data.stats?.pendingCap || 20)
+        setComposeBacklog(data.data.stats?.composeBacklog || 0)
+        setBasePending(data.data.stats?.basePending || 0)
+        setDetailPending(data.data.stats?.detailPending || 0)
       }
     } catch (e) {
       if ((e as { name?: string })?.name === 'AbortError') return
@@ -232,6 +242,32 @@ export default function AdminNewsPage() {
               </span>
             </div>
           )}
+
+          {/*
+            管线健康度。这三个数是本次「去掉 7 天窗口」改造的验收指标：
+            · 待写摘要：compose 的 RAW 积压。每小时消化 5 条（新鲜 3 + 积压 2），
+              连续几天不降就说明名额不够或素材有系统性问题。
+            · 待补热度基准：rank 冷层每轮补 200 条，正常几轮就归零；
+              长期不降说明 RANK_SELECT 漏了 baseScore，护栏失效、每轮在全量写 TEXT 列。
+            · 待写全文：还没有 detail 的已发布事件。回填默认关闭（NEWS_DETAIL_BACKFILL=1 开启），
+              关着的时候这个数只会随新事件下降，不会归零，属正常。
+          */}
+          <div className="flex flex-wrap gap-x-6 gap-y-1.5 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-600">
+            <span>
+              待写摘要（积压）
+              <span className={composeBacklog > 50 ? 'ml-1.5 font-bold text-red-600' : 'ml-1.5 font-semibold text-gray-800'}>
+                {composeBacklog}
+              </span>
+            </span>
+            <span>
+              待补热度基准
+              <span className="ml-1.5 font-semibold text-gray-800">{basePending}</span>
+            </span>
+            <span>
+              待写全文
+              <span className="ml-1.5 font-semibold text-gray-800">{detailPending}</span>
+            </span>
+          </div>
 
           {/* 筛选栏 */}
           <div className="flex flex-wrap items-center gap-3">
@@ -518,6 +554,7 @@ function EventDetailModal({ id, onClose, onChanged }: { id: number; onClose: () 
   const [headline, setHeadline] = useState('')
   const [summary, setSummary] = useState('')
   const [whyItMatters, setWhyItMatters] = useState('')
+  const [detail, setDetail] = useState<{ heading: string; body: string }[]>([])
   const [category, setCategory] = useState('industry')
   const [tags, setTags] = useState<string[]>([])
 
@@ -527,13 +564,16 @@ function EventDetailModal({ id, onClose, onChanged }: { id: number; onClose: () 
       const res = await fetch(`/api/admin/news/events/${id}`)
       const d = await res.json()
       if (d.success) {
-        const detail = d.data as EventDetail
-        setData(detail)
-        setHeadline(detail.event.headline)
-        setSummary(detail.event.summary)
-        setWhyItMatters(detail.event.whyItMatters || '')
-        setCategory(detail.event.category)
-        setTags(detail.event.tags)
+        // 变量名叫 payload 而不是 detail：detail 现在是「全文层」这个字段的名字，
+        // 两个同名不同义的东西放一个作用域里迟早改错
+        const payload = d.data as EventDetail
+        setData(payload)
+        setHeadline(payload.event.headline)
+        setSummary(payload.event.summary)
+        setWhyItMatters(payload.event.whyItMatters || '')
+        setDetail(payload.event.detail || [])
+        setCategory(payload.event.category)
+        setTags(payload.event.tags)
         setSelected([])
       } else {
         alert(d.error || '加载失败')
@@ -553,7 +593,7 @@ function EventDetailModal({ id, onClose, onChanged }: { id: number; onClose: () 
       const res = await fetch('/api/admin/news/events', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, headline, summary, whyItMatters, category, tags }),
+        body: JSON.stringify({ id, headline, summary, whyItMatters, detail, category, tags }),
       })
       const d = await res.json()
       if (!d.success) return alert(d.error || '保存失败')
@@ -702,6 +742,82 @@ function EventDetailModal({ id, onClose, onChanged }: { id: number; onClose: () 
                 onChange={(e) => setWhyItMatters(e.target.value)}
                 maxLength={300}
               />
+
+              {/*
+                全文层（详情页用）。
+                这里只做人工编辑，**没有「重新生成」按钮** —— 那会是一个无次数上限的
+                付费入口，而成本控制靠的是「只对 RAW 状态调用大模型」这条数据库级约束
+                （SKILL.md §5.3）。删光所有段落 = 这条不要全文，管线不会再自动补写回来。
+              */}
+              <div>
+                <div className="mb-1.5 flex flex-wrap items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700">全文梳理（详情页）</label>
+                  <span className="text-xs text-gray-400">
+                    {detail.length} 段 · 共 {detail.reduce((n, s) => n + s.body.length, 0)} 字 · 状态{' '}
+                    {data.event.detailState}
+                    {data.event.detailTries > 0 && ` · 已尝试 ${data.event.detailTries} 次`}
+                  </span>
+                </div>
+                {detail.length === 0 ? (
+                  <p className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-400">
+                    这条还没有全文层。详情页会自动省略这一块，不会出现空白区域。
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {detail.map((sec, i) => (
+                      <div key={i} className="rounded-lg border border-gray-200 p-3">
+                        <div className="mb-2 flex items-center gap-2">
+                          <input
+                            value={sec.heading}
+                            maxLength={20}
+                            placeholder="小标题（≤20 字）"
+                            onChange={(e) =>
+                              setDetail((prev) => prev.map((x, j) => (j === i ? { ...x, heading: e.target.value } : x)))
+                            }
+                            className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm font-medium focus:border-primary-500 focus:outline-none"
+                          />
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setDetail((prev) => prev.filter((_, j) => j !== i))}
+                          >
+                            删除本段
+                          </Button>
+                        </div>
+                        <textarea
+                          value={sec.body}
+                          rows={5}
+                          maxLength={2000}
+                          onChange={(e) =>
+                            setDetail((prev) => prev.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)))
+                          }
+                          className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none"
+                        />
+                        <p className="mt-1 text-xs text-gray-400">{sec.body.length} 字</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="mt-2 flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={detail.length >= 6}
+                    onClick={() => setDetail((prev) => [...prev, { heading: '', body: '' }])}
+                  >
+                    加一段
+                  </Button>
+                  {detail.length > 0 && (
+                    <Button size="sm" variant="outline" onClick={() => setDetail([])}>
+                      清空全文层
+                    </Button>
+                  )}
+                  <span className="text-xs text-gray-400">
+                    自写梳理，不得整段复制原文；不要出现「记者」「编辑部」「独家」等采编口径字眼
+                  </span>
+                </div>
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">分类</label>

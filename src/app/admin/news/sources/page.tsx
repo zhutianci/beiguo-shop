@@ -59,7 +59,7 @@ interface TestResult {
   message: string
 }
 
-const KINDS = ['RSS', 'ATOM', 'JSON', 'HN', 'GITHUB', 'X']
+const KINDS = ['RSS', 'ATOM', 'JSON', 'HN', 'GITHUB', 'X', 'AIHOT']
 
 function fmt(s: string | null) {
   if (!s) return '—'

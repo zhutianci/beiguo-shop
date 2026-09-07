@@ -32,7 +32,7 @@ export default function EditPostPage() {
   }, [id])
 
   return (
-    <div className="min-h-screen pt-32 pb-20">
+    <div className="min-h-screen page-top pb-20">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="container relative max-w-3xl">
         <Link href={`/forum/${id}`} className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm">

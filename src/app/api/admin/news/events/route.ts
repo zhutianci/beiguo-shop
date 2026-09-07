@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
         ? [{ score: 'desc' }, { happenedAt: 'desc' }]
         : [{ happenedAt: 'desc' }, { id: 'desc' }]
 
-    const [rows, total, pendingReview, capSetting] = await Promise.all([
+    const [rows, total, pendingReview, capSetting, composeBacklog, basePending, detailPending] = await Promise.all([
       prisma.newsEvent.findMany({
         where,
         orderBy,
@@ -83,6 +83,7 @@ export async function GET(request: NextRequest) {
           reviewedAt: true,
           pinned: true,
           composeState: true,
+          detailState: true,
           happenedAt: true,
           publishedAt: true,
           updatedAt: true,
@@ -92,6 +93,15 @@ export async function GET(request: NextRequest) {
       prisma.newsEvent.count({ where: { needsReview: true } }),
       // 待审队列上限：堆到三位数管理员就会放弃审核，这是所有人工审核机制的真实死法
       prisma.setting.findUnique({ where: { key: 'news_pending_cap' }, select: { value: true } }),
+      // 【积压深度】compose 去掉 7 天窗口后改成「新鲜 + 积压」双车道，
+      // 这个数就是判断「积压到底有没有在消化」的唯一指标。
+      // 连续几天不降 = 名额给少了，或者素材有系统性问题（比如某批源正文抓不到），要人来看。
+      prisma.newsEvent.count({ where: { composeState: 'RAW', status: { in: ['DRAFT', 'PUBLISHED'] } } }),
+      // baseScore 待补数。rank 的冷层每轮补 200 条，正常应该很快归零；
+      // 长期不降说明 RANK_SELECT 漏了 baseScore（那会让护栏失效、每轮全量写 TEXT 列）。
+      prisma.newsEvent.count({ where: { baseScore: null } }),
+      // 还没写全文层的已发布事件
+      prisma.newsEvent.count({ where: { status: 'PUBLISHED', detailState: 'RAW' } }),
     ])
 
     return success({
@@ -107,6 +117,9 @@ export async function GET(request: NextRequest) {
       stats: {
         pendingReview,
         pendingCap: Number(capSetting?.value || 20) || 20,
+        composeBacklog,
+        basePending,
+        detailPending,
       },
     })
   } catch (err) {
@@ -121,6 +134,23 @@ const patchSchema = z.object({
   id: z.coerce.number().int().positive(),
   headline: z.string().trim().min(2, '标题至少 2 个字').max(300, '标题最多 300 字').optional(),
   summary: z.string().trim().max(4000, '摘要过长').optional(),
+  /**
+   * 全文层，按段编辑。
+   *
+   * 【只允许人工改，不提供「清空并重新生成」按钮】那会是一个无终身上限的付费入口：
+   * 点一次就是一次大模型写作调用，而 SKILL.md §5.3 的成本保证正是靠
+   * 「只对 RAW 状态调用」这条数据库级约束。手改不花钱，也不会绕过任何闸门。
+   * 清空（传空数组）会把 detailState 置 SKIP，管线不会再自动补写回来。
+   */
+  detail: z
+    .array(
+      z.object({
+        heading: z.string().trim().min(1, '小标题不能为空').max(20, '小标题最多 20 字'),
+        body: z.string().trim().min(1, '段落正文不能为空').max(2000, '单段最多 2000 字'),
+      })
+    )
+    .max(6, '最多 6 段')
+    .optional(),
   whyItMatters: z.string().trim().max(300, '推荐理由最多 300 字').nullable().optional(),
   category: z.string().optional(),
   tags: z.union([z.string(), z.array(z.string())]).optional(),
@@ -161,6 +191,13 @@ export async function PATCH(request: NextRequest) {
     const data: Prisma.NewsEventUpdateInput = {
       ...(d.headline !== undefined ? { headline: d.headline } : {}),
       ...(d.summary !== undefined ? { summary: d.summary } : {}),
+      ...(d.detail !== undefined
+        ? {
+            detail: d.detail.length ? JSON.stringify(d.detail) : null,
+            // 人工改过就置终态，管线不再碰它：DONE 有内容、SKIP 是「就是不要这块」
+            detailState: d.detail.length ? 'DONE' : 'SKIP',
+          }
+        : {}),
       ...(d.whyItMatters !== undefined ? { whyItMatters: d.whyItMatters || null } : {}),
       ...(d.category !== undefined ? { category: d.category } : {}),
       ...(tags !== undefined ? { tags: tags || null } : {}),

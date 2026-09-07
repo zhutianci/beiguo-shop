@@ -200,7 +200,7 @@ export default function SupportPage() {
   const filteredGuides = guides.filter((g) => g.product === activeProduct)
 
   return (
-    <div className="min-h-screen pt-32 pb-20">
+    <div className="min-h-screen page-top pb-20">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
@@ -326,7 +326,7 @@ export default function SupportPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mb-20 scroll-mt-24"
+          className="mb-20 scroll-below-header"
         >
           <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
             <h2 className="text-2xl lg:text-3xl font-bold flex items-center gap-3">
@@ -387,7 +387,7 @@ export default function SupportPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mb-20 scroll-mt-24"
+          className="mb-20 scroll-below-header"
         >
           <h2 className="text-2xl lg:text-3xl font-bold mb-6 flex items-center gap-3">
             <HelpCircle className="w-6 h-6 text-emerald-400" />

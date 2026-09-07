@@ -27,13 +27,20 @@ export class FetchFeedError extends Error {
   }
 }
 
-/** 抓取文本，带超时、体积上限与 UA。境外源应传入中继后的 URL。 */
-export async function fetchText(url: string, timeoutMs = 8000): Promise<string> {
+/**
+ * 抓取文本，带超时、体积上限与 UA。境外源应传入中继后的 URL。
+ * headers 用于个别源要带额外请求头的情况（如 AIHOT 线索要带授权号），传入的键会覆盖默认值。
+ */
+export async function fetchText(url: string, timeoutMs = 8000, headers?: Record<string, string>): Promise<string> {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), timeoutMs)
   try {
     const res = await fetch(url, {
-      headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, application/json;q=0.9, */*;q=0.8' },
+      headers: {
+        'User-Agent': UA,
+        Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, application/json;q=0.9, */*;q=0.8',
+        ...(headers || {}),
+      },
       signal: ac.signal,
       redirect: 'follow',
     })

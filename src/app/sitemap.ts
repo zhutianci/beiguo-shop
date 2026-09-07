@@ -62,6 +62,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Sitemap news query error:', err)
   }
 
+  // 按月归档页。
+  // 这是 RECENT_DAYS=90 的必要补充：90 天之前的事件本身不进 sitemap，
+  // 但它们的归档页进，爬虫顺着归档页仍然能走到每一条旧内容。
+  // 月份分组必须用业务时区（+8），否则每月 1 号的凌晨 8 小时会被归到上个月。
+  let archivePages: MetadataRoute.Sitemap = []
+  try {
+    const rows = await prisma.$queryRaw<{ k: string; latest: Date }[]>`
+      SELECT DATE_FORMAT(DATE_ADD(happened_at, INTERVAL 8 HOUR), '%Y-%m') AS k, MAX(updated_at) AS latest
+      FROM news_events
+      WHERE status = 'PUBLISHED'
+      GROUP BY k
+      ORDER BY k DESC
+      LIMIT 24
+    `
+    const thisMonth = new Date(now.getTime() + 8 * 3600000).toISOString().slice(0, 7)
+    archivePages = rows.map((r) => ({
+      url: absUrl(`/news/archive/${r.k}`),
+      lastModified: r.latest || now,
+      // 当月还在长，历史月份定型了
+      changeFrequency: r.k === thisMonth ? ('daily' as const) : ('monthly' as const),
+      priority: 0.6,
+    }))
+  } catch (err) {
+    console.error('Sitemap news archive query error:', err)
+  }
+
   // 商品详情页
   let productPages: MetadataRoute.Sitemap = []
   try {
@@ -81,5 +107,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Sitemap product query error:', err)
   }
 
-  return staticPages.concat(eventPages, productPages)
+  return staticPages.concat(eventPages, archivePages, productPages)
 }

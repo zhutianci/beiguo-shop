@@ -10,22 +10,22 @@ datasource db {
 
 // 用户表
 model User {
-  id           Int       @id @default(autoincrement())
-  phone        String?   @unique @db.VarChar(20)
-  email        String?   @unique @db.VarChar(100)
-  passwordHash String    @map("password_hash") @db.VarChar(255)
-  nickname     String?   @db.VarChar(50)
-  avatar       String?   @db.VarChar(255)
-  balance      Decimal   @default(0) @db.Decimal(10, 2)
-  referralCode String?   @unique @map("referral_code") @db.VarChar(20) // 内推码
-  vipLevel     Int       @default(0) @map("vip_level")
-  role         UserRole  @default(USER)
-  status       Int       @default(1) // 1: 正常 0: 禁用
-  createdAt    DateTime  @default(now()) @map("created_at")
-  updatedAt    DateTime  @updatedAt @map("updated_at")
+  id           Int      @id @default(autoincrement())
+  phone        String?  @unique @db.VarChar(20)
+  email        String?  @unique @db.VarChar(100)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  nickname     String?  @db.VarChar(50)
+  avatar       String?  @db.VarChar(255)
+  balance      Decimal  @default(0) @db.Decimal(10, 2)
+  referralCode String?  @unique @map("referral_code") @db.VarChar(20) // 内推码
+  vipLevel     Int      @default(0) @map("vip_level")
+  role         UserRole @default(USER)
+  status       Int      @default(1) // 1: 正常 0: 禁用
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  orders       Order[]
-  gameScores   GameScore[]
+  orders        Order[]
+  gameScores    GameScore[]
   forumPosts    ForumPost[]
   forumComments ForumComment[]
   forumLikes    ForumLike[]
@@ -39,12 +39,12 @@ model UserAccount {
   id           Int      @id @default(autoincrement())
   userId       Int      @map("user_id")
   accountEmail String   @map("account_email") @db.VarChar(255) // 绑定的 Claude/ChatGPT 邮箱（关联 ExternalOrder.claudeAccount）
-  platform     String   @default("CLAUDE") @db.VarChar(20)     // CLAUDE | CHATGPT | OTHER
-  label        String?  @db.VarChar(50)                        // 备注名（可选）
+  platform     String   @default("CLAUDE") @db.VarChar(20) // CLAUDE | CHATGPT | OTHER
+  label        String?  @db.VarChar(50) // 备注名（可选）
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, accountEmail])
   @@index([accountEmail])
@@ -58,47 +58,47 @@ enum UserRole {
 
 // 商品分类表
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @db.VarChar(50)
-  icon      String?   @db.VarChar(255)
-  sortOrder Int       @default(0) @map("sort_order")
-  status    Int       @default(1) // 1: 启用 0: 禁用
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(50)
+  icon      String?  @db.VarChar(255)
+  sortOrder Int      @default(0) @map("sort_order")
+  status    Int      @default(1) // 1: 启用 0: 禁用
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-  products  Product[]
+  products Product[]
 
   @@map("categories")
 }
 
 // 商品表
 model Product {
-  id            Int       @id @default(autoincrement())
-  categoryId    Int       @map("category_id")
-  name          String    @db.VarChar(100)
-  description   String?   @db.Text
-  price         Decimal   @db.Decimal(10, 2)
-  originalPrice Decimal?  @map("original_price") @db.Decimal(10, 2)
-  image         String?   @db.VarChar(255)
-  stock         Int       @default(-1) // -1表示无限库存
-  sales         Int       @default(0)
-  sortOrder     Int       @default(0) @map("sort_order")
-  status        Int       @default(1) // 1: 上架 0: 下架
-  deliveryType  String    @default("MANUAL") @map("delivery_type") @db.VarChar(20) // MANUAL 手工发货 | AUTO 卡密自动发货 | SMS 短信接码
-  smsService    String?   @map("sms_service") @db.VarChar(40)  // 接码：hero-sms 服务代码（如 OpenAI）
-  smsCountry    String?   @map("sms_country") @db.VarChar(40)  // 接码：hero-sms 国家/卡类代码（如美国物理卡）
-  smsMaxPrice   Decimal?  @map("sms_max_price") @db.Decimal(10, 2) // 接码：取号最高价 maxPrice
+  id                Int      @id @default(autoincrement())
+  categoryId        Int      @map("category_id")
+  name              String   @db.VarChar(100)
+  description       String?  @db.Text
+  price             Decimal  @db.Decimal(10, 2)
+  originalPrice     Decimal? @map("original_price") @db.Decimal(10, 2)
+  image             String?  @db.VarChar(255)
+  stock             Int      @default(-1) // -1表示无限库存
+  sales             Int      @default(0)
+  sortOrder         Int      @default(0) @map("sort_order")
+  status            Int      @default(1) // 1: 上架 0: 下架
+  deliveryType      String   @default("MANUAL") @map("delivery_type") @db.VarChar(20) // MANUAL 手工发货 | AUTO 卡密自动发货 | SMS 短信接码
+  smsService        String?  @map("sms_service") @db.VarChar(40) // 接码：hero-sms 服务代码（如 OpenAI）
+  smsCountry        String?  @map("sms_country") @db.VarChar(40) // 接码：hero-sms 国家/卡类代码（如美国物理卡）
+  smsMaxPrice       Decimal? @map("sms_max_price") @db.Decimal(10, 2) // 接码：取号最高价 maxPrice
   referrerBasePrice Decimal? @map("referrer_base_price") @db.Decimal(10, 2) // 推广人默认基础价（进货价；null 则用网站售价）
-  cardUsage     String?   @map("card_usage") @db.Text // 自动发货使用说明（含售后），展示给买家
-  cardRedeemUrl String?   @map("card_redeem_url") @db.VarChar(500) // 充值/兑换链接，买家拿到卡密后可一键跳转
-  apiSku        String?   @unique @map("api_sku") @db.VarChar(64) // 对外发卡编码：外部站点按此调库存 API 领卡，共用同一批卡密（仅 AUTO 有意义）
-  features      String?   @db.Text // JSON格式存储商品特性
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  cardUsage         String?  @map("card_usage") @db.Text // 自动发货使用说明（含售后），展示给买家
+  cardRedeemUrl     String?  @map("card_redeem_url") @db.VarChar(500) // 充值/兑换链接，买家拿到卡密后可一键跳转
+  apiSku            String?  @unique @map("api_sku") @db.VarChar(64) // 对外发卡编码：外部站点按此调库存 API 领卡，共用同一批卡密（仅 AUTO 有意义）
+  features          String?  @db.Text // JSON格式存储商品特性
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
 
-  category      Category  @relation(fields: [categoryId], references: [id])
-  orders        Order[]
-  cardKeys      CardKey[]
+  category Category  @relation(fields: [categoryId], references: [id])
+  orders   Order[]
+  cardKeys CardKey[]
 
   @@map("products")
 }
@@ -107,43 +107,43 @@ model Product {
 model CardKey {
   id          Int       @id @default(autoincrement())
   productId   Int       @map("product_id")
-  content     String    @db.Text                         // AES-256-GCM 加密后的卡密（iv:tag:cipher，base64）
+  content     String    @db.Text // AES-256-GCM 加密后的卡密（iv:tag:cipher，base64）
   contentHash String    @map("content_hash") @db.VarChar(64) // sha256(明文+盐)，用于同商品内去重，不可逆
-  status      String    @default("UNUSED") @db.VarChar(20)   // UNUSED 未使用 | USED 已发出 | DISABLED 已停用
-  orderId     Int?      @map("order_id")                 // 被本站哪个订单消费（外部站点发卡为空，改看 externalRef）
+  status      String    @default("UNUSED") @db.VarChar(20) // UNUSED 未使用 | USED 已发出 | DISABLED 已停用
+  orderId     Int?      @map("order_id") // 被本站哪个订单消费（外部站点发卡为空，改看 externalRef）
   externalRef String?   @map("external_ref") @db.VarChar(120) // 外部站点发卡归属：<client>:<orderNo>；本地订单为空
-  usedAt      DateTime? @map("used_at")                  // 发出时间（createdAt 是创建/导入时间，两者语义不同，勿合并）
+  usedAt      DateTime? @map("used_at") // 发出时间（createdAt 是创建/导入时间，两者语义不同，勿合并）
   batch       String?   @db.VarChar(40)
   remark      String?   @db.VarChar(255)
   // ---- 成本 / 利润（落库，不在列表现算）----
-  cost        Decimal?  @db.Decimal(10, 2)                    // 进货成本，批量导入时按批录入；历史卡回填为 0
+  cost        Decimal?  @db.Decimal(10, 2) // 进货成本，批量导入时按批录入；历史卡回填为 0
   soldPrice   Decimal?  @map("sold_price") @db.Decimal(10, 2) // 发出时的单卡售价快照；外部站发卡拿不到售价，保持 null
-  profit      Decimal?  @db.Decimal(10, 2)                    // = soldPrice - cost；null 表示「利润未知」，不要写 0
-  redeemUrl   String?   @map("redeem_url") @db.VarChar(500)   // 本批专属兑换地址；为空则回落 Product.cardRedeemUrl
+  profit      Decimal?  @db.Decimal(10, 2) // = soldPrice - cost；null 表示「利润未知」，不要写 0
+  redeemUrl   String?   @map("redeem_url") @db.VarChar(500) // 本批专属兑换地址；为空则回落 Product.cardRedeemUrl
   createdAt   DateTime  @default(now()) @map("created_at")
 
-  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productId, contentHash])
   @@index([productId, status])
   @@index([orderId])
   @@index([externalRef])
-  @@index([status, usedAt])      // 每日成本/利润按发出时间区间聚合
-  @@index([productId, batch])    // 按批次批量改成本
+  @@index([status, usedAt]) // 每日成本/利润按发出时间区间聚合
+  @@index([productId, batch]) // 按批次批量改成本
   @@map("card_keys")
 }
 
 // 外部站点发卡记录（共用库存）：唯一(client, externalNo) 做幂等闸，防同一外部订单重复领卡
 model ExternalDispense {
   id         Int      @id @default(autoincrement())
-  client     String   @db.VarChar(40)                      // 调用方标识（哪个站，如 "site2"）
-  externalNo String   @map("external_no") @db.VarChar(64)  // 外部站订单号（幂等键）
+  client     String   @db.VarChar(40) // 调用方标识（哪个站，如 "site2"）
+  externalNo String   @map("external_no") @db.VarChar(64) // 外部站订单号（幂等键）
   productId  Int      @map("product_id")
   apiSku     String?  @map("api_sku") @db.VarChar(64)
-  quantity   Int                                           // 首次请求确定的应发数量（后续须一致）
-  delivered  Int      @default(0)                          // 已成功发出的卡密数
+  quantity   Int // 首次请求确定的应发数量（后续须一致）
+  delivered  Int      @default(0) // 已成功发出的卡密数
   cardIds    String   @default("") @map("card_ids") @db.VarChar(1000) // 发出的 CardKey id，逗号分隔（审计用）
-  status     String   @default("PENDING") @db.VarChar(20)  // PENDING 待处理 | PROCESSING 发卡中(锁) | FULFILLED 已足额 | PARTIAL 库存不足/待补
+  status     String   @default("PENDING") @db.VarChar(20) // PENDING 待处理 | PROCESSING 发卡中(锁) | FULFILLED 已足额 | PARTIAL 库存不足/待补
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
@@ -154,33 +154,33 @@ model ExternalDispense {
 
 // 订单表
 model Order {
-  id             Int           @id @default(autoincrement())
-  orderNo        String        @unique @map("order_no") @db.VarChar(32)
-  userId         Int           @map("user_id")
-  productId      Int           @map("product_id")
-  productName    String        @map("product_name") @db.VarChar(100)
-  productPrice   Decimal       @map("product_price") @db.Decimal(10, 2)
-  quantity       Int           @default(1)
-  amount         Decimal       @db.Decimal(10, 2)
-  payMethod      PayMethod?    @map("pay_method")
-  payStatus      PayStatus     @default(UNPAID) @map("pay_status")
+  id             Int            @id @default(autoincrement())
+  orderNo        String         @unique @map("order_no") @db.VarChar(32)
+  userId         Int            @map("user_id")
+  productId      Int            @map("product_id")
+  productName    String         @map("product_name") @db.VarChar(100)
+  productPrice   Decimal        @map("product_price") @db.Decimal(10, 2)
+  quantity       Int            @default(1)
+  amount         Decimal        @db.Decimal(10, 2)
+  payMethod      PayMethod?     @map("pay_method")
+  payStatus      PayStatus      @default(UNPAID) @map("pay_status")
   deliveryStatus DeliveryStatus @default(PENDING) @map("delivery_status")
-  deliveryInfo   String?       @map("delivery_info") @db.Text // 交付信息（如账号密码）
-  remark         String?       @db.VarChar(255)
-  referrerId     Int?          @map("referrer_id")     // 内推：推广人用户ID
-  referralReward Decimal?      @map("referral_reward") @db.Decimal(10, 2) // 内推返现金额快照（= 专属价−基础售价）
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
-  paidAt         DateTime?     @map("paid_at")
-  deliveredAt    DateTime?     @map("delivered_at")
+  deliveryInfo   String?        @map("delivery_info") @db.Text // 交付信息（如账号密码）
+  remark         String?        @db.VarChar(255)
+  referrerId     Int?           @map("referrer_id") // 内推：推广人用户ID
+  referralReward Decimal?       @map("referral_reward") @db.Decimal(10, 2) // 内推返现金额快照（= 专属价−基础售价）
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  paidAt         DateTime?      @map("paid_at")
+  deliveredAt    DateTime?      @map("delivered_at")
 
-  user           User          @relation(fields: [userId], references: [id])
-  product        Product       @relation(fields: [productId], references: [id])
-  payments       Payment[]
-  messages       OrderMessage[]
+  user     User           @relation(fields: [userId], references: [id])
+  product  Product        @relation(fields: [productId], references: [id])
+  payments Payment[]
+  messages OrderMessage[]
 
   @@index([referrerId])
-  @@index([createdAt])         // 后台订单列表 orderBy createdAt desc + skip 深翻页
+  @@index([createdAt]) // 后台订单列表 orderBy createdAt desc + skip 深翻页
   @@index([payStatus, paidAt]) // 按到账日聚合
   @@map("orders")
 }
@@ -195,7 +195,7 @@ model OrderMessage {
   readByBuyer Boolean  @default(false) @map("read_by_buyer")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@map("order_messages")
@@ -212,7 +212,7 @@ model SmsActivation {
   status       String    @default("WAITING") @db.VarChar(20) // WAITING 等码 | CODE 已收码 | TIMEOUT 超时 | CANCELLED 取消 | FAILED 取号失败
   code         String?   @db.VarChar(255)
   cost         Decimal?  @db.Decimal(10, 2)
-  raw          String?   @db.Text                              // 最近一次原始返回，便于排查
+  raw          String?   @db.Text // 最近一次原始返回，便于排查
   expireAt     DateTime  @map("expire_at")
   codeAt       DateTime? @map("code_at")
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -226,9 +226,9 @@ model SmsActivation {
 model BalanceLog {
   id           Int      @id @default(autoincrement())
   userId       Int      @map("user_id")
-  delta        Decimal  @db.Decimal(10, 2)             // 变动额：正=增加，负=提现/扣减
+  delta        Decimal  @db.Decimal(10, 2) // 变动额：正=增加，负=提现/扣减
   balanceAfter Decimal  @map("balance_after") @db.Decimal(10, 2)
-  type         String   @db.VarChar(20)                // REFERRAL | ADJUST | WITHDRAW
+  type         String   @db.VarChar(20) // REFERRAL | ADJUST | WITHDRAW
   note         String?  @db.VarChar(255)
   createdAt    DateTime @default(now()) @map("created_at")
 
@@ -266,14 +266,14 @@ model ReferrerBasePrice {
 
 // 内推返现记录（订单已完成后产生，金额= 专属价−推广人基础价，自动进推广人余额）
 model ReferralReward {
-  id         Int      @id @default(autoincrement())
-  orderId    Int      @unique @map("order_id")
-  referrerId Int      @map("referrer_id")
-  buyerId    Int      @map("buyer_id")
-  productId  Int      @map("product_id")
-  amount     Decimal  @db.Decimal(10, 2)
-  status     String   @default("SETTLED") @db.VarChar(20) // SETTLED 已结算(入余额) | CANCELLED
-  createdAt  DateTime @default(now()) @map("created_at")
+  id         Int       @id @default(autoincrement())
+  orderId    Int       @unique @map("order_id")
+  referrerId Int       @map("referrer_id")
+  buyerId    Int       @map("buyer_id")
+  productId  Int       @map("product_id")
+  amount     Decimal   @db.Decimal(10, 2)
+  status     String    @default("SETTLED") @db.VarChar(20) // SETTLED 已结算(入余额) | CANCELLED
+  createdAt  DateTime  @default(now()) @map("created_at")
   settledAt  DateTime? @map("settled_at")
 
   @@index([referrerId])
@@ -312,30 +312,30 @@ model Payment {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  order        Order     @relation(fields: [orderId], references: [id])
+  order Order @relation(fields: [orderId], references: [id])
 
   @@map("payments")
 }
 
 // 外部订单（从腾讯文档批量导入）
 model ExternalOrder {
-  id               Int      @id @default(autoincrement())
-  startDate        DateTime @map("start_date") @db.Date           // 开通时间
-  expireDate       DateTime @map("expire_date") @db.Date          // 到期时间（开通时间 + 1 个月）
-  subscriptionType String   @map("subscription_type") @db.VarChar(100)  // 订阅类型
-  xianyuNickname   String?  @map("xianyu_nickname") @db.VarChar(100)    // 闲鱼昵称
-  claudeAccount    String   @map("claude_account") @db.VarChar(255)     // 账户邮箱
-  cost             Decimal? @db.Decimal(10, 2)                          // 本单成本
-  quote            Decimal? @db.Decimal(10, 2)                          // 报价
-  profit           Decimal? @db.Decimal(10, 2)                          // 利润（默认 = 报价 - 成本，可手填）
-  sourceKey        String   @unique @map("source_key") @db.VarChar(128) // 去重键
-  importBatch      String?  @map("import_batch") @db.VarChar(32)
-  remindedExpireDate DateTime? @map("reminded_expire_date") @db.Date    // 已提醒过的到期日（用于跳过自动提醒；续费后到期日变化即重新生效）
-  lastRemindedAt   DateTime? @map("last_reminded_at")                   // 最后一次提醒时间（含手动）
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  id                 Int       @id @default(autoincrement())
+  startDate          DateTime  @map("start_date") @db.Date // 开通时间
+  expireDate         DateTime  @map("expire_date") @db.Date // 到期时间（开通时间 + 1 个月）
+  subscriptionType   String    @map("subscription_type") @db.VarChar(100) // 订阅类型
+  xianyuNickname     String?   @map("xianyu_nickname") @db.VarChar(100) // 闲鱼昵称
+  claudeAccount      String    @map("claude_account") @db.VarChar(255) // 账户邮箱
+  cost               Decimal?  @db.Decimal(10, 2) // 本单成本
+  quote              Decimal?  @db.Decimal(10, 2) // 报价
+  profit             Decimal?  @db.Decimal(10, 2) // 利润（默认 = 报价 - 成本，可手填）
+  sourceKey          String    @unique @map("source_key") @db.VarChar(128) // 去重键
+  importBatch        String?   @map("import_batch") @db.VarChar(32)
+  remindedExpireDate DateTime? @map("reminded_expire_date") @db.Date // 已提醒过的到期日（用于跳过自动提醒；续费后到期日变化即重新生效）
+  lastRemindedAt     DateTime? @map("last_reminded_at") // 最后一次提醒时间（含手动）
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  reminderLogs     ReminderLog[]
+  reminderLogs ReminderLog[]
 
   @@index([claudeAccount])
   @@index([expireDate])
@@ -346,10 +346,10 @@ model ExternalOrder {
 model AccountContact {
   id            Int      @id @default(autoincrement())
   claudeAccount String   @unique @map("claude_account") @db.VarChar(255) // 关联 ExternalOrder.claudeAccount
-  email         String?  @db.VarChar(255)  // 邮箱提醒地址（默认 = Claude 账户邮箱）
-  phone         String?  @db.VarChar(20)   // 短信提醒手机号
-  notifyEmail   Boolean  @default(true)  @map("notify_email")  // 是否启用邮箱提醒
-  notifyPhone   Boolean  @default(false) @map("notify_phone")  // 是否启用短信提醒
+  email         String?  @db.VarChar(255) // 邮箱提醒地址（默认 = Claude 账户邮箱）
+  phone         String?  @db.VarChar(20) // 短信提醒手机号
+  notifyEmail   Boolean  @default(true) @map("notify_email") // 是否启用邮箱提醒
+  notifyPhone   Boolean  @default(false) @map("notify_phone") // 是否启用短信提醒
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
@@ -361,14 +361,14 @@ model ReminderLog {
   id            Int      @id @default(autoincrement())
   orderId       Int      @map("order_id")
   claudeAccount String   @map("claude_account") @db.VarChar(255)
-  channel       String   @db.VarChar(20)   // email | sms
-  target        String   @db.VarChar(255)  // 实际发送到的邮箱 / 手机号
-  trigger       String   @db.VarChar(20)   // auto | manual
-  status        String   @db.VarChar(20)   // success | failed
-  detail        String?  @db.Text          // 错误信息或回执 RequestId
+  channel       String   @db.VarChar(20) // email | sms
+  target        String   @db.VarChar(255) // 实际发送到的邮箱 / 手机号
+  trigger       String   @db.VarChar(20) // auto | manual
+  status        String   @db.VarChar(20) // success | failed
+  detail        String?  @db.Text // 错误信息或回执 RequestId
   createdAt     DateTime @default(now()) @map("created_at")
 
-  order         ExternalOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order ExternalOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
   @@index([claudeAccount])
@@ -383,11 +383,11 @@ model GameScore {
   userId     Int?     @map("user_id")
   playerName String   @map("player_name") @db.VarChar(50)
   score      Int
-  duration   Int?     // 用时（秒）
+  duration   Int? // 用时（秒）
   metadata   String?  @db.Text
   createdAt  DateTime @default(now()) @map("created_at")
 
-  user       User?    @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
 
   @@index([gameId, score])
   @@index([gameId, createdAt])
@@ -396,16 +396,16 @@ model GameScore {
 
 // V免签式收款订单（监控个人收款码到账，按唯一金额匹配）
 model VmqOrder {
-  id          Int      @id @default(autoincrement())
-  orderId     String   @unique @map("order_id") @db.VarChar(40)  // 云端订单号（不可枚举）
-  bizType     String   @map("biz_type") @db.VarChar(20)          // order | invoice
-  bizId       Int      @map("biz_id")                            // Order.id 或 Invoice.id
-  outTradeNo  String   @map("out_trade_no") @db.VarChar(40)      // 业务单号（orderNo / invoiceNo）
-  type        Int      @default(2)                               // 1 微信 2 支付宝（本项目仅 2）
-  price       Decimal  @db.Decimal(10, 2)                        // 原始应付金额
-  reallyPrice Decimal  @map("really_price") @db.Decimal(10, 2)   // 实付唯一金额（原价基础上 +0.01 递增）
-  state       Int      @default(0)                               // 0 待支付 1 已支付 -1 已过期
-  createdAt   DateTime @default(now()) @map("created_at")
+  id          Int       @id @default(autoincrement())
+  orderId     String    @unique @map("order_id") @db.VarChar(40) // 云端订单号（不可枚举）
+  bizType     String    @map("biz_type") @db.VarChar(20) // order | invoice
+  bizId       Int       @map("biz_id") // Order.id 或 Invoice.id
+  outTradeNo  String    @map("out_trade_no") @db.VarChar(40) // 业务单号（orderNo / invoiceNo）
+  type        Int       @default(2) // 1 微信 2 支付宝（本项目仅 2）
+  price       Decimal   @db.Decimal(10, 2) // 原始应付金额
+  reallyPrice Decimal   @map("really_price") @db.Decimal(10, 2) // 实付唯一金额（原价基础上 +0.01 递增）
+  state       Int       @default(0) // 0 待支付 1 已支付 -1 已过期
+  createdAt   DateTime  @default(now()) @map("created_at")
   payDate     DateTime? @map("pay_date")
 
   @@index([bizType, bizId, state])
@@ -443,28 +443,28 @@ model EmailCode {
 
 // 信源
 model NewsSource {
-  id          Int      @id @default(autoincrement())
-  key         String   @unique @db.VarChar(40)  // 稳定标识，如 qbitai
-  name        String   @db.VarChar(80)          // 展示名，如「量子位」
-  homepage    String?  @db.VarChar(300)
-  feedUrl     String   @db.VarChar(500)
-  kind        String   @default("RSS") @db.VarChar(20) // RSS | ATOM | JSON | HN | GITHUB | X
-  lang        String   @default("zh") @db.VarChar(10)
-  tier        Int      @default(2)              // 1 一手官方 | 2 专业媒体 | 3 从业者社区
-  role        String   @default("feed") @db.VarChar(10) // feed 产条目 | signal 只加热度 | both
-  weight      Decimal  @default(1.00) @db.Decimal(4, 2)
-  viaRelay    Boolean  @default(false) @map("via_relay") // 经 Cloudflare Worker 中继（境内直连不通的源）
-  enabled     Boolean  @default(true)
+  id          Int       @id @default(autoincrement())
+  key         String    @unique @db.VarChar(40) // 稳定标识，如 qbitai
+  name        String    @db.VarChar(80) // 展示名，如「量子位」
+  homepage    String?   @db.VarChar(300)
+  feedUrl     String    @db.VarChar(500)
+  kind        String    @default("RSS") @db.VarChar(20) // RSS | ATOM | JSON | HN | GITHUB | X
+  lang        String    @default("zh") @db.VarChar(10)
+  tier        Int       @default(2) // 1 一手官方 | 2 专业媒体 | 3 从业者社区
+  role        String    @default("feed") @db.VarChar(10) // feed 产条目 | signal 只加热度 | both
+  weight      Decimal   @default(1.00) @db.Decimal(4, 2)
+  viaRelay    Boolean   @default(false) @map("via_relay") // 经 Cloudflare Worker 中继（境内直连不通的源）
+  enabled     Boolean   @default(true)
   // 运行状态：连续失败会自动禁用并在后台标红
   lastFetchAt DateTime? @map("last_fetch_at")
   lastOkAt    DateTime? @map("last_ok_at")
-  failCount   Int      @default(0) @map("fail_count")
-  lastError   String?  @map("last_error") @db.VarChar(500)
-  itemCount   Int      @default(0) @map("item_count")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  failCount   Int       @default(0) @map("fail_count")
+  lastError   String?   @map("last_error") @db.VarChar(500)
+  itemCount   Int       @default(0) @map("item_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  items       NewsItem[]
+  items NewsItem[]
 
   @@index([enabled, role])
   @@map("news_sources")
@@ -472,30 +472,39 @@ model NewsSource {
 
 // 原始条目：一个信源的一条 feed entry。只存标题与 feed 自带的 description，不抓原文正文。
 model NewsItem {
-  id          Int       @id @default(autoincrement())
-  sourceId    Int       @map("source_id")
-  guid        String    @db.VarChar(255)
-  url         String    @db.VarChar(1000)
-  urlHash     String    @map("url_hash") @db.VarChar(64) // 规范化 URL 的 sha256，用于跨源撞同一篇原文
-  title       String    @db.VarChar(500)
-  summaryRaw  String?   @map("summary_raw") @db.Text
-  author      String?   @db.VarChar(120)
-  publishedAt DateTime  @map("published_at")
-  fetchedAt   DateTime  @default(now()) @map("fetched_at")
+  id               Int      @id @default(autoincrement())
+  sourceId         Int      @map("source_id")
+  guid             String   @db.VarChar(255)
+  url              String   @db.VarChar(1000)
+  urlHash          String   @map("url_hash") @db.VarChar(64) // 规范化 URL 的 sha256，用于跨源撞同一篇原文
+  title            String   @db.VarChar(500)
+  summaryRaw       String?  @map("summary_raw") @db.Text
+  author           String?  @db.VarChar(120)
+  publishedAt      DateTime @map("published_at")
+  fetchedAt        DateTime @default(now()) @map("fetched_at")
   // 分诊结果
-  triageState String    @default("RAW") @map("triage_state") @db.VarChar(20) // RAW|OK|BLOCKED|SKIP|FAILED
-  blocked     Boolean   @default(false)  // 命中选题黑名单
-  blockReason String?   @map("block_reason") @db.VarChar(200)
-  category    String?   @db.VarChar(20)
-  entities    String?   @db.Text         // JSON string[]，聚类指纹
-  confidence  Decimal?  @db.Decimal(3, 2)
+  triageState      String   @default("RAW") @map("triage_state") @db.VarChar(20) // RAW|OK|BLOCKED|SKIP|FAILED
+  blocked          Boolean  @default(false) // 命中选题黑名单
+  blockReason      String?  @map("block_reason") @db.VarChar(200)
+  category         String?  @db.VarChar(20)
+  entities         String?  @db.Text // JSON string[]，聚类指纹
+  confidence       Decimal? @db.Decimal(3, 2)
   // 热度信号（HN points / GitHub stars 等）
-  points      Int       @default(0)
-  comments    Int       @default(0)
-  eventId     Int?      @map("event_id")
+  points           Int      @default(0)
+  comments         Int      @default(0)
+  eventId          Int?     @map("event_id")
+  // ---- 线索中介（第三方选题发现信号，见 docs/AIHOT线索接入.md）----
+  // 我们**只**从对方拿「去哪儿看」：标题 / 原文链接 / 原发布者名 / 发布时间。
+  // 对方写的 summary 与 reason 一个字都不取——那超出授权范围，也违反 SKILL.md §1.1「只能自写摘要」。
+  // 所以这类条目的 summaryRaw 天然是 NULL，**这是设计不是 bug**，不要「顺手补上」。
+  leadVia          String?  @map("lead_via") @db.VarChar(20) // 线索中介标识，如 'AIHOT'；空 = 我们自己的 feed 直接抓到
+  leadUrl          String?  @map("lead_url") @db.VarChar(300) // 授权要求的回链地址，落库前校验 host
+  originSourceName String?  @map("origin_source_name") @db.VarChar(120) // 原发布者名，如「公众号：数字生命卡兹克」
+  // 为什么 originSourceName 不是可选项：SKILL.md §6 硬要求展示「全部信源的媒体名」。
+  // 不落这一列，详情页只能显示中介名「AIHOT」，那是把线索中介冒充成原发布者。
 
-  source      NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  event       NewsEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  source NewsSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  event  NewsEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@unique([sourceId, urlHash]) // 刻意不是全局唯一：同一篇原文会同时出现在多个源里
   @@index([triageState, publishedAt])
@@ -512,12 +521,30 @@ model NewsEvent {
   headline     String    @db.VarChar(300)
   summary      String    @db.Text
   whyItMatters String?   @map("why_it_matters") @db.VarChar(300) // 推荐理由
-  facts        String?   @db.Text  // JSON [{text, sourceIndex}]，供人工一键复核
+  facts        String?   @db.Text // JSON [{text, sourceIndex}]，供人工一键复核
+  // 全文层：JSON [{heading, body}]，2-4 段带小标题，详情页用。
+  // 仍是自写的、不是原文（SKILL.md §1.1），素材来自 compose 抓到的原文正文。
+  // 与 summary 的分工：summary 120-260 字给列表卡片，detail 600-1200 字撑详情页。
+  detail       String?   @db.Text
+  // 全文层的状态机。**刻意与 composeState 分开**：detail 是「可丢弃区块」——
+  // 校验不过就不要这一块，事件本身照常发布，不能因为 detail 写砸了把整条判死。
+  //   RAW  还没写（老事件默认落在这里，等回填）
+  //   DONE 写好了
+  //   SKIP 内容性结论：素材不足或校验不过，不再重试（区别于瞬时失败）
+  // 瞬时失败（超时/限流/5xx）不写终态，只 detailTries+1 下轮重来——
+  // 交接文档第四节踩坑 3「漏答条目被永久判死」就是把瞬时失败写成终态导致 40 条丢 35 条。
+  detailState  String    @default("RAW") @map("detail_state") @db.VarChar(20)
+  detailTries  Int       @default(0) @map("detail_tries") // 达到上限转 SKIP，防止无终态死循环
   category     String    @default("industry") @db.VarChar(20)
   tags         String?   @db.VarChar(300) // 逗号分隔，取自白名单词表
   aiScore      Int       @default(0) @map("ai_score") // 模型给的重要性 0-100，展示给用户
   // 热度（可解释：每一项独立成列，明细落 scoreDebug）
   score        Decimal   @default(0) @db.Decimal(8, 3)
+  // 不含时间衰减的原始分。为什么要单独一列：score 是 Decimal(8,3)，
+  // 36 小时半衰期算下来约三周后所有老事件的 score 都 round 成 0.000，
+  // 归档页要按热度排就再也排不出先后。baseScore 不随时间变，是老事件唯一稳定的排序键。
+  // 可空：历史行为 NULL，由 rank 的冷层每轮补 200 条自愈，不写一次性回填脚本。
+  baseScore    Decimal?  @map("base_score") @db.Decimal(8, 3)
   scoreDebug   String?   @map("score_debug") @db.Text
   sourceCount  Int       @default(1) @map("source_count") // 先按 urlHash 去重再数 distinct sourceId
   tier1Count   Int       @default(0) @map("tier1_count")
@@ -538,12 +565,17 @@ model NewsEvent {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  items        NewsItem[]
+  items NewsItem[]
 
   @@index([status, happenedAt])
   @@index([status, score])
   @@index([category, status, happenedAt])
   @@index([composeState])
+  // 「最近补录」查的是「happenedAt 很旧、publishedAt 很新」，上面按 happenedAt 的索引帮不上。
+  // 注意：现有 @@index([composeState]) 看着像下面这条的前缀冗余，**也不要删** ——
+  // 删任何一条现有索引都会让 migrate diff 产出 DROP INDEX，而 deploy.sh 写死了 --accept-data-loss。
+  @@index([status, publishedAt])
+  @@index([detailState])
   @@map("news_events")
 }
 
@@ -602,12 +634,12 @@ model NewsView {
 model Announcement {
   id        Int       @id @default(autoincrement())
   title     String    @db.VarChar(200)
-  content   String    @db.Text                      // 纯文本，换行原样展示
+  content   String    @db.Text // 纯文本，换行原样展示
   level     String    @default("INFO") @db.VarChar(20) // INFO 通知 | WARN 警示 | SUCCESS 喜报
-  enabled   Boolean   @default(false)               // 未启用即不展示
-  pinned    Boolean   @default(false)               // 强提醒：每次进入都弹，忽略「不再提示」
-  startAt   DateTime? @map("start_at")              // 生效时间，空=立即
-  endAt     DateTime? @map("end_at")                // 失效时间，空=长期
+  enabled   Boolean   @default(false) // 未启用即不展示
+  pinned    Boolean   @default(false) // 强提醒：每次进入都弹，忽略「不再提示」
+  startAt   DateTime? @map("start_at") // 生效时间，空=立即
+  endAt     DateTime? @map("end_at") // 失效时间，空=长期
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at") // 内容有更新时会重新弹给已读过的买家
 
@@ -638,17 +670,17 @@ model Invoice {
   orderStartDate   DateTime? @map("order_start_date") @db.Date
   orderExpireDate  DateTime? @map("order_expire_date") @db.Date
   // 金额（以订单报价 quote 为基准；管理员手动标记状态且订单无报价时可为空）
-  sellingPrice     Decimal?  @map("selling_price") @db.Decimal(10, 2)   // 售价 = 报价
-  invoiceAmount    Decimal?  @map("invoice_amount") @db.Decimal(10, 2)  // 开票金额（含税）= 报价 * 1.06
-  taxFee           Decimal?  @map("tax_fee") @db.Decimal(10, 2)         // 应付税费 = 报价 * 0.06
+  sellingPrice     Decimal?  @map("selling_price") @db.Decimal(10, 2) // 售价 = 报价
+  invoiceAmount    Decimal?  @map("invoice_amount") @db.Decimal(10, 2) // 开票金额（含税）= 报价 * 1.06
+  taxFee           Decimal?  @map("tax_fee") @db.Decimal(10, 2) // 应付税费 = 报价 * 0.06
   // 抬头信息（买家申请时必填；管理员手动改状态/同步生成的记录可为空）
-  title            String?   @db.VarChar(200)   // 抬头
+  title            String?   @db.VarChar(200) // 抬头
   taxNumber        String?   @map("tax_number") @db.VarChar(64) // 税号
-  address          String?   @db.VarChar(255)   // 地址
-  phone            String?   @db.VarChar(50)     // 电话
+  address          String?   @db.VarChar(255) // 地址
+  phone            String?   @db.VarChar(50) // 电话
   bankName         String?   @map("bank_name") @db.VarChar(128) // 开户行
   bankAccount      String?   @map("bank_account") @db.VarChar(64) // 卡号
-  email            String?   @db.VarChar(255)   // 接收邮箱
+  email            String?   @db.VarChar(255) // 接收邮箱
   // 买家申请时必选：发票内容是否展示 ChatGPT/Claude 等字眼。
   // 可空而非 default(true)：历史发票与管理员凭空建的空壳记录应显示「-」，不能误标成买家已选择展示。
   showAiWording    Boolean?  @map("show_ai_wording")
@@ -681,15 +713,15 @@ model Receipt {
   orderStartDate   DateTime? @map("order_start_date") @db.Date
   orderExpireDate  DateTime? @map("order_expire_date") @db.Date
   payerTitle       String    @map("payer_title") @db.VarChar(200) // 付款人（抬头）
-  payee            String    @db.VarChar(200)                      // 收款人
-  amount           Decimal   @db.Decimal(10, 2)                    // 付款金额
+  payee            String    @db.VarChar(200) // 收款人
+  amount           Decimal   @db.Decimal(10, 2) // 付款金额
   // ---- 来源 / 自定义条目 ----
-  source           String    @default("BUYER") @db.VarChar(20)     // BUYER 买家提交 | MANUAL 手动开具
-  items            String?   @db.Text                              // JSON: [{label,value}] 有序数组，手动开具的 DIY 条目
+  source           String    @default("BUYER") @db.VarChar(20) // BUYER 买家提交 | MANUAL 手动开具
+  items            String?   @db.Text // JSON: [{label,value}] 有序数组，手动开具的 DIY 条目
   remark           String?   @db.VarChar(500)
-  issuedAt         DateTime? @map("issued_at")                     // 手动开具时可指定的开具时间；为空则用 createdAt
+  issuedAt         DateTime? @map("issued_at") // 手动开具时可指定的开具时间；为空则用 createdAt
   createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime? @updatedAt @map("updated_at")         // 必须可空：已有行 ALTER 时无 DB 层 default
+  updatedAt        DateTime? @updatedAt @map("updated_at") // 必须可空：已有行 ALTER 时无 DB 层 default
 
   @@index([claudeAccount])
   @@index([externalOrderId])
@@ -712,37 +744,37 @@ model ForumCategory {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  posts       ForumPost[]
+  posts ForumPost[]
 
   @@map("forum_categories")
 }
 
 // 帖子
 model ForumPost {
-  id           Int      @id @default(autoincrement())
-  categoryId   Int      @map("category_id")
-  userId       Int?     @map("user_id")        // 登录用户；匿名为 null
-  authorName   String   @map("author_name") @db.VarChar(50)   // 显示名（用户昵称或匿名昵称）
-  authorEmail  String?  @map("author_email") @db.VarChar(100) // 匿名可选邮箱（不公开展示）
-  title        String   @db.VarChar(200)
-  content      String   @db.Text                // Markdown
-  images       String?  @db.Text                // JSON: 图片 URL 数组
-  tags         String?  @db.VarChar(255)        // 逗号分隔
-  pinned       Boolean  @default(false)         // 置顶
-  featured     Boolean  @default(false)         // 精华
-  locked       Boolean  @default(false)         // 锁帖（禁止回复）
-  status       Int      @default(1)             // 1 正常 0 隐藏
-  views        Int      @default(0)
-  likeCount    Int      @default(0) @map("like_count")
-  commentCount Int      @default(0) @map("comment_count")
+  id           Int       @id @default(autoincrement())
+  categoryId   Int       @map("category_id")
+  userId       Int?      @map("user_id") // 登录用户；匿名为 null
+  authorName   String    @map("author_name") @db.VarChar(50) // 显示名（用户昵称或匿名昵称）
+  authorEmail  String?   @map("author_email") @db.VarChar(100) // 匿名可选邮箱（不公开展示）
+  title        String    @db.VarChar(200)
+  content      String    @db.Text // Markdown
+  images       String?   @db.Text // JSON: 图片 URL 数组
+  tags         String?   @db.VarChar(255) // 逗号分隔
+  pinned       Boolean   @default(false) // 置顶
+  featured     Boolean   @default(false) // 精华
+  locked       Boolean   @default(false) // 锁帖（禁止回复）
+  status       Int       @default(1) // 1 正常 0 隐藏
+  views        Int       @default(0)
+  likeCount    Int       @default(0) @map("like_count")
+  commentCount Int       @default(0) @map("comment_count")
   lastReplyAt  DateTime? @map("last_reply_at")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
-  category     ForumCategory  @relation(fields: [categoryId], references: [id])
-  user         User?          @relation(fields: [userId], references: [id])
-  comments     ForumComment[]
-  likes        ForumLike[]
+  category ForumCategory  @relation(fields: [categoryId], references: [id])
+  user     User?          @relation(fields: [userId], references: [id])
+  comments ForumComment[]
+  likes    ForumLike[]
 
   @@index([categoryId])
   @@index([status, pinned, lastReplyAt])
@@ -754,7 +786,7 @@ model ForumPost {
 model ForumComment {
   id         Int      @id @default(autoincrement())
   postId     Int      @map("post_id")
-  parentId   Int?     @map("parent_id")     // 回复某条评论（楼中楼）
+  parentId   Int?     @map("parent_id") // 回复某条评论（楼中楼）
   userId     Int?     @map("user_id")
   authorName String   @map("author_name") @db.VarChar(50)
   content    String   @db.Text
@@ -762,11 +794,11 @@ model ForumComment {
   status     Int      @default(1)
   createdAt  DateTime @default(now()) @map("created_at")
 
-  post       ForumPost     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user       User?         @relation(fields: [userId], references: [id])
-  parent     ForumComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies    ForumComment[] @relation("CommentReplies")
-  likes      ForumLike[]
+  post    ForumPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user    User?          @relation(fields: [userId], references: [id])
+  parent  ForumComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies ForumComment[] @relation("CommentReplies")
+  likes   ForumLike[]
 
   @@index([postId])
   @@index([parentId])
@@ -782,9 +814,9 @@ model ForumLike {
   commentId Int?     @map("comment_id")
   createdAt DateTime @default(now()) @map("created_at")
 
-  user      User?         @relation(fields: [userId], references: [id])
-  post      ForumPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  comment   ForumComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User?         @relation(fields: [userId], references: [id])
+  post    ForumPost?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment ForumComment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@index([postId])
   @@index([commentId])

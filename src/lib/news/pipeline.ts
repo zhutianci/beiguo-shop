@@ -10,12 +10,13 @@
  */
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { llmJson, LlmError, budgetExhausted } from '@/lib/llm'
+import { llmJson, LlmError, budgetExhausted, spentTodayMilli, dailyBudgetMilli } from '@/lib/llm'
 import { fetchText, parseFeed, urlHash, eventSlug, FetchFeedError, type FeedEntry } from './feed'
 import { fetchArticles } from './extract'
 import { SEED_SOURCES, relayUrl, relayConfigured } from './sources'
+import { AIHOT_HEADERS, AIHOT_LEAD_VIA, aihotFetchUrl, parseAihotLeads } from './aihot'
 import { CATEGORIES, CATEGORY_SLUGS, TOPIC_BLOCKLIST, TAG_WHITELIST } from './constants'
-import { computeScore, overlapRatio, unsupportedNumbers, needsReview } from './score'
+import { computeScore, overlapRatio, unsupportedNumbers, needsReview, forbiddenHit, blocklistHit } from './score'
 
 // ============ 通用常量与小工具 ============
 
@@ -184,6 +185,12 @@ const MAX_FAIL_BEFORE_DISABLE = 3
  * 只收 7 天内的条目。两个原因：
  * 1) 比 30 天保留期短，避免「purge 删掉 → 下一轮又插回来 → 再花一次分诊的钱」
  * 2) 与 TRIAGE_STALE_DAYS 对齐，收进来的条目都还在值得分诊的窗口内
+ *
+ * 【2026-09-07 · 不要把这个当成「7 天窗口」一起去掉】
+ * 本轮去掉的是 compose / rank 的**处理窗口**（超期事件永远轮不到，积压出不来）。
+ * 这一条是**收集窗口**，性质完全不同：它咬合着 ITEM_RETENTION_DAYS(30) 与
+ * TRIAGE_STALE_DAYS，放宽只会把 feed 里的陈年条目重新收进来，
+ * 先花一次分诊的钱、再被保留期删掉、下一轮又插回来。
  */
 const MAX_ITEM_AGE_DAYS = 7
 const ITEM_RETENTION_DAYS = 30
@@ -302,9 +309,9 @@ export async function collect(): Promise<CollectResult> {
         continue
       }
 
-      const url = s.viaRelay ? relayUrl(s.feedUrl) : s.feedUrl
-      const text = await fetchText(url, FETCH_TIMEOUT_MS)
-      const entries: RawEntry[] = s.kind === 'JSON' ? parseJsonFeed(text) : parseFeed(text)
+      const isAihot = s.kind === 'AIHOT'
+      const url = isAihot ? aihotFetchUrl(s.feedUrl) : s.viaRelay ? relayUrl(s.feedUrl) : s.feedUrl
+      const text = await fetchText(url, FETCH_TIMEOUT_MS, isAihot ? AIHOT_HEADERS : undefined)
 
       // 同一批次内可能有重复 urlHash（少数源会重复推同一条），先在内存里去重
       const seen = new Set<string>()
@@ -319,30 +326,68 @@ export async function collect(): Promise<CollectResult> {
         publishedAt: Date
         points: number
         comments: number
+        leadVia?: string | null
+        leadUrl?: string | null
+        originSourceName?: string | null
       }[] = []
       const hnRefresh: { urlHash: string; points: number; comments: number }[] = []
 
-      for (const e of entries) {
-        // 有的源发布时间带错时区，落在未来会污染时间轴排序，向前钳到当前时刻
-        const pub = e.publishedAt.getTime() > now + HOUR_MS ? new Date(now) : e.publishedAt
-        if (pub < minPublished) continue
-        const h = urlHash(e.url)
-        const sig = s.kind === 'HN' ? hnSignals(e.summary) : { points: e.points ?? 0, comments: e.comments ?? 0 }
-        if (sig.points > 0 || sig.comments > 0) hnRefresh.push({ urlHash: h, ...sig })
-        if (seen.has(h)) continue
-        seen.add(h)
-        rows.push({
-          sourceId: s.id,
-          guid: e.guid.slice(0, 255),
-          url: e.url.slice(0, 1000),
-          urlHash: h,
-          title: e.title.slice(0, 500),
-          summaryRaw: e.summary ? e.summary.slice(0, 4000) : null,
-          author: e.author ? e.author.slice(0, 120) : null,
-          publishedAt: pub,
-          points: sig.points,
-          comments: sig.comments,
-        })
+      if (isAihot) {
+        // 线索源单独一条路径，**不与普通 feed 共用循环**。
+        // 共用的话早晚有人在那个循环里给 summaryRaw 赋个值，一步就破掉授权边界
+        // （只取选题发现信号，不取对方写的摘要，见 lib/news/aihot.ts 文件头）。
+        for (const lead of parseAihotLeads(text)) {
+          const pub = lead.publishedAt.getTime() > now + HOUR_MS ? new Date(now) : lead.publishedAt
+          if (pub < minPublished) continue
+          const h = urlHash(lead.url)
+          if (seen.has(h)) continue
+          seen.add(h)
+          rows.push({
+            sourceId: s.id,
+            guid: lead.guid,
+            url: lead.url,
+            urlHash: h,
+            title: lead.title,
+            // 写死 null，不是「暂时没有」。对方的 summary 不在授权范围内，
+            // 素材由 triage/compose 自己抓原文获得。
+            summaryRaw: null,
+            author: null,
+            publishedAt: pub,
+            points: 0,
+            comments: 0,
+            leadVia: AIHOT_LEAD_VIA,
+            leadUrl: lead.leadUrl,
+            originSourceName: lead.originSourceName || null,
+          })
+        }
+        // 对方改了响应形状时会静默变 0 条。不抛错（抛了会被熔断禁用），但要让后台看得见
+        if (!rows.length && text.length > 0) {
+          res.details.push({ key: s.key, skipped: `取回 ${text.length} 字节但解析出 0 条线索，检查对方 API 形状是否变更` })
+        }
+      } else {
+        const entries: RawEntry[] = s.kind === 'JSON' ? parseJsonFeed(text) : parseFeed(text)
+        for (const e of entries) {
+          // 有的源发布时间带错时区，落在未来会污染时间轴排序，向前钳到当前时刻
+          const pub = e.publishedAt.getTime() > now + HOUR_MS ? new Date(now) : e.publishedAt
+          if (pub < minPublished) continue
+          const h = urlHash(e.url)
+          const sig = s.kind === 'HN' ? hnSignals(e.summary) : { points: e.points ?? 0, comments: e.comments ?? 0 }
+          if (sig.points > 0 || sig.comments > 0) hnRefresh.push({ urlHash: h, ...sig })
+          if (seen.has(h)) continue
+          seen.add(h)
+          rows.push({
+            sourceId: s.id,
+            guid: e.guid.slice(0, 255),
+            url: e.url.slice(0, 1000),
+            urlHash: h,
+            title: e.title.slice(0, 500),
+            summaryRaw: e.summary ? e.summary.slice(0, 4000) : null,
+            author: e.author ? e.author.slice(0, 120) : null,
+            publishedAt: pub,
+            points: sig.points,
+            comments: sig.comments,
+          })
+        }
       }
 
       // 去重靠 @@unique([sourceId, urlHash])，skipDuplicates 交给数据库判，不做 select 预查
@@ -374,8 +419,18 @@ export async function collect(): Promise<CollectResult> {
     } catch (e) {
       // 熔断隔离：单源失败只记账，绝不中断整批
       const msg = errMsg(e)
-      const failCount = s.failCount + 1
-      const disable = failCount >= MAX_FAIL_BEFORE_DISABLE
+      /**
+       * 限流与临时不可用不累加失败次数。
+       *
+       * 429 / 503 说的是「现在别来」，不是「这个源坏了」。计进熔断计数的话，
+       * 对方限一次流我们就扣一次分，连着三次就把一个完全正常的源永久禁用了 ——
+       * 而禁用之后没有任何东西会把它自动打开，只能靠人去后台发现。
+       * 这类响应只更新 lastError 让后台看得见，failCount 保持不动。
+       */
+      const status = e instanceof FetchFeedError ? e.status : 0
+      const transient = status === 429 || status === 503
+      const failCount = transient ? s.failCount : s.failCount + 1
+      const disable = !transient && failCount >= MAX_FAIL_BEFORE_DISABLE
       await prisma.newsSource
         .update({
           where: { id: s.id },
@@ -389,7 +444,7 @@ export async function collect(): Promise<CollectResult> {
         .catch(() => {})
       res.failed++
       if (disable) res.disabled.push(s.key)
-      res.details.push({ key: s.key, error: msg.slice(0, 200) })
+      res.details.push({ key: s.key, error: `${msg.slice(0, 180)}${transient ? '（限流/暂不可用，不计入熔断）' : ''}` })
     } finally {
       await yieldTick()
     }
@@ -516,11 +571,82 @@ export interface TriageResult {
   failed: number
   stale: number
   batches: number
+  /** 线索条目里本轮成功抓到原文正文的条数 */
+  leadBodies: number
+  /** 线索条目里因为抓不到正文被判 SKIP 的条数。持续偏高说明域名黑名单该更新了 */
+  leadDropped: number
+  /** 超出本轮抓取名额、推迟到下一轮再分诊的线索条数。持续不为 0 说明 LEAD_BODY_MAX 给小了 */
+  leadDeferred: number
   error?: string
 }
 
+/** 一轮最多为几条线索抓正文。这是 triage 段新增的网络开销，要卡住上限 */
+const LEAD_BODY_MAX = 12
+
+/**
+ * 为线索条目抓原文正文。
+ *
+ * 线索条目（leadVia 非空）没有 description，因为对方写的摘要不在授权范围内。
+ * 分诊只看标题的话，黑名单判定会明显变松，而判错的代价是合规风险，不是内容质量。
+ *
+ * 抓不到就地判 SKIP：没有素材 → compose 写不出自写摘要 → 只会产生空壳条目。
+ * 【这里绝不能退回去用对方的摘要】那是越过授权边界，也违反 SKILL.md §1.1。
+ */
+async function fetchLeadBodies(
+  pending: { id: number; url: string; leadVia: string | null }[],
+  res: TriageResult
+): Promise<{ text: Map<number, string>; skip: Set<number> }> {
+  const text = new Map<number, string>()
+  const skip = new Set<number>()
+  const allLeads = pending.filter((p) => p.leadVia)
+  if (!allLeads.length) return { text, skip }
+
+  const leads = allLeads.slice(0, LEAD_BODY_MAX)
+  /**
+   * 【超出名额的线索必须推迟，不能就这么送进分诊】
+   *
+   * collect 一轮最多插入 AIHOT_LIMIT=30 条线索，而这里的抓取名额只有 12。
+   * 剩下那些如果只是「没抓到正文」就放行，它们会落进下面那条
+   * `摘要：${summaryRaw || '（无）'}` 的分支 —— 而线索条目的 summaryRaw 是
+   * collect 写死的 null，所以素材恒为「（无）」，等于**只拿标题做黑名单判定**，
+   * 正是本函数开头说的「判定会明显变松，而判错的代价是合规风险」。
+   *
+   * 所以留在 RAW 等下一轮（TRIAGE_STALE_DAYS=7 会兜底清理，不会无限滞留）。
+   * 代价只是一条线索晚一小时进队列，换来的是它一定带着正文被判。
+   */
+  const deferred = new Set(allLeads.slice(LEAD_BODY_MAX).map((l) => l.id))
+  res.leadDeferred = deferred.size
+
+  const fetched = await fetchArticles(leads.map((l) => l.url))
+  const skipIds: number[] = []
+  fetched.forEach((f, i) => {
+    const item = leads[i]
+    if (f.ok && f.text.length >= 120) {
+      text.set(item.id, f.text)
+    } else {
+      skipIds.push(item.id)
+    }
+  })
+  if (skipIds.length) {
+    await prisma.newsItem
+      .updateMany({ where: { id: { in: skipIds } }, data: { triageState: 'SKIP' } })
+      .catch(() => {})
+  }
+  res.leadBodies = text.size
+  res.leadDropped = skipIds.length
+  res.skipped += skipIds.length
+
+  // 返回「本轮不要送进分诊的 id」= 抓不到正文的（已判 SKIP）+ 超名额推迟的（仍是 RAW）
+  skipIds.forEach((id) => skip.add(id))
+  deferred.forEach((id) => skip.add(id))
+  return { text, skip }
+}
+
 export async function triage(): Promise<TriageResult> {
-  const res: TriageResult = { pending: 0, processed: 0, ok: 0, blocked: 0, skipped: 0, failed: 0, stale: 0, batches: 0 }
+  const res: TriageResult = {
+    pending: 0, processed: 0, ok: 0, blocked: 0, skipped: 0, failed: 0, stale: 0, batches: 0,
+    leadBodies: 0, leadDropped: 0, leadDeferred: 0,
+  }
 
   // 太旧的条目不值得再花钱分诊，直接归档为 SKIP，避免队列越积越长
   const stale = await prisma.newsItem.updateMany({
@@ -533,18 +659,34 @@ export async function triage(): Promise<TriageResult> {
     where: { triageState: 'RAW' },
     orderBy: { publishedAt: 'desc' },
     take: TRIAGE_MAX_ITEMS,
-    select: { id: true, title: true, summaryRaw: true, source: { select: { name: true } } },
+    select: {
+      id: true,
+      title: true,
+      url: true,
+      summaryRaw: true,
+      leadVia: true,
+      originSourceName: true,
+      source: { select: { name: true } },
+    },
   })
   res.pending = pending.length
   if (!pending.length) return res
 
+  // 线索条目没有 description（对方的摘要不在授权范围内，collect 写死 null），
+  // 只拿一个标题去分诊，命中黑名单的判定会明显变松 —— 而黑名单判错的代价是合规风险。
+  // 所以在分诊之前先把原文正文抓来当输入；抓不到就直接判 SKIP，不进后续任何环节：
+  // 没有素材就写不出自写摘要，留着只会变成空壳条目。
+  const leadBodies = await fetchLeadBodies(pending, res)
+
   for (let i = 0; i < pending.length; i += TRIAGE_BATCH) {
-    const batch = pending.slice(i, i + TRIAGE_BATCH)
+    const batch = pending.slice(i, i + TRIAGE_BATCH).filter((it) => !leadBodies.skip.has(it.id))
+    if (!batch.length) continue
     const user = batch
-      .map(
-        (it, idx) =>
-          `[${idx}] 标题：${clip(it.title, 160)}\n来源：${it.source.name}\n摘要：${clip(it.summaryRaw || '', 500) || '（无）'}`
-      )
+      .map((it, idx) => {
+        const body = leadBodies.text.get(it.id)
+        const material = body ? `原文正文节选：${clip(body, 800)}` : `摘要：${clip(it.summaryRaw || '', 500) || '（无）'}`
+        return `[${idx}] 标题：${clip(it.title, 160)}\n来源：${it.originSourceName || it.source.name}\n${material}`
+      })
       .join('\n\n')
 
     try {
@@ -624,6 +766,16 @@ const CLUSTER_WINDOW_MS = 48 * HOUR_MS
 const CLUSTER_MAX_CANDIDATES = 3
 /** signal 源（HN / Reddit）只加热度不产条目，超过这个时长还没匹配上就不再尝试 */
 const SIGNAL_GIVE_UP_MS = 72 * HOUR_MS
+/**
+ * 队列出口：分诊通过但一直没排上聚类的条目，最多留这么久。
+ *
+ * 原来这里写死 7 天，且**没有出口** —— 超过 7 天的 OK 条目会被查询直接跳过，
+ * 永远停在 eventId=null 上，既不成事件也不被清理（保留期 purge 只删孤儿条目，
+ * 而它们的 triageState 是 OK，正是「等着成事件」的状态）。
+ * 现在放宽到 14 天，并给超龄条目一个显式终态 SKIP：宁可承认「这条没赶上」，
+ * 也不要留一堆状态上活着、实际永远不会被处理的行。
+ */
+const CLUSTER_ITEM_MAX_AGE_DAYS = 14
 
 const clusterSchema = z.object({
   matchIndex: z.coerce.number().int(),
@@ -652,6 +804,8 @@ export interface ClusterResult {
   created: number
   gaveUp: number
   llmCalls: number
+  /** 超过 CLUSTER_ITEM_MAX_AGE_DAYS 仍未聚类、本轮被判 SKIP 的条目数 */
+  expired: number
   error?: string
 }
 
@@ -669,14 +823,25 @@ export async function recomputeEventAggregates(eventId: number): Promise<void> {
       sourceId: true,
       points: true,
       publishedAt: true,
+      leadVia: true,
       source: { select: { tier: true, kind: true, role: true } },
     },
   })
   if (!items.length) return
 
   const reps = dedupeByUrl(bestFirst(items))
-  const sourceCount = new Set(reps.map((r) => r.sourceId)).size
-  const tier1Count = new Set(reps.filter((r) => r.source.tier === 1).map((r) => r.sourceId)).size
+  /**
+   * 【线索条目不计入 sourceCount】sourceCount 的语义是「有几家**独立媒体**报了这件事」，
+   * 它是热度分里权重最高的一项（×2.0），也是 §7 那条「单源 + tier3 → 标待复核」的判据。
+   *
+   * 线索中介不是一家独立报道的媒体，它只是告诉我们「去哪儿看」。
+   * 把它算进去的直接后果是：一条只有单一原发布者的线索会记成 sourceCount=2，
+   * 从此永远不满足「单源」条件，那道人工复核闸门对所有线索条目**一次都不会触发**——
+   * 而线索恰恰是最需要复核的那一类。
+   */
+  const realSources = reps.filter((r) => !r.leadVia)
+  const sourceCount = Math.max(1, new Set(realSources.map((r) => r.sourceId)).size)
+  const tier1Count = new Set(realSources.filter((r) => r.source.tier === 1).map((r) => r.sourceId)).size
   const hnPoints = items.reduce((m, i) => (i.source.kind === 'HN' && i.points > m ? i.points : m), 0)
   const happenedAt = items.reduce((m, i) => (i.publishedAt < m ? i.publishedAt : m), items[0].publishedAt)
 
@@ -697,15 +862,28 @@ async function uniqueSlug(base: string): Promise<string> {
 }
 
 export async function cluster(): Promise<ClusterResult> {
-  const res: ClusterResult = { pending: 0, attachedByUrl: 0, attachedByLlm: 0, created: 0, gaveUp: 0, llmCalls: 0 }
+  const res: ClusterResult = { pending: 0, attachedByUrl: 0, attachedByLlm: 0, created: 0, gaveUp: 0, llmCalls: 0, expired: 0 }
+
+  // 队列出口：先把超龄仍未聚类的条目判 SKIP，再取待处理。
+  // 顺序不能反 —— 反了的话超龄条目会先被 take 30 占掉名额，新条目反而排不进来。
+  const expired = await prisma.newsItem.updateMany({
+    where: {
+      triageState: 'OK',
+      eventId: null,
+      publishedAt: { lt: new Date(Date.now() - CLUSTER_ITEM_MAX_AGE_DAYS * DAY_MS) },
+    },
+    data: { triageState: 'SKIP' },
+  })
+  res.expired = expired.count
 
   const pending = await prisma.newsItem.findMany({
     where: {
       triageState: 'OK',
       blocked: false,
       eventId: null,
-      publishedAt: { gte: new Date(Date.now() - 7 * DAY_MS) },
+      publishedAt: { gte: new Date(Date.now() - CLUSTER_ITEM_MAX_AGE_DAYS * DAY_MS) },
     },
+    // 新条目优先：老条目已经等了几天，再多等一轮的代价远小于让今天的新闻晚一小时出现
     orderBy: { publishedAt: 'desc' },
     take: CLUSTER_MAX_ITEMS,
     select: {
@@ -725,6 +903,11 @@ export async function cluster(): Promise<ClusterResult> {
 
   // 候选池：一次性拉出时间窗内已归属事件的条目，在内存里做实体交集召回，
   // 避免每条 pending 都打一次库。本轮新建的事件也会即时加进来。
+  //
+  // 【take 的余量要跟着 pending 的时间跨度走】pending 现在可能横跨 14 天，
+  // 池子的边界是 pending 的 min/max ± 48h，也就是最多约 18 天的已聚类条目。
+  // 按当前每天几十条的产出，18 天上限在千条量级；take 截断会让老条目的真实邻居
+  // 被切掉、从而重复建事件，所以这里留足余量而不是卡着用。
   const minPub = pending.reduce((m, p) => (p.publishedAt < m ? p.publishedAt : m), pending[0].publishedAt)
   const maxPub = pending.reduce((m, p) => (p.publishedAt > m ? p.publishedAt : m), pending[0].publishedAt)
   const neighbours = await prisma.newsItem.findMany({
@@ -734,7 +917,7 @@ export async function cluster(): Promise<ClusterResult> {
       publishedAt: { gte: new Date(minPub.getTime() - CLUSTER_WINDOW_MS), lte: new Date(maxPub.getTime() + CLUSTER_WINDOW_MS) },
     },
     orderBy: { publishedAt: 'desc' },
-    take: 1200,
+    take: 3000,
     select: { eventId: true, entities: true, title: true, publishedAt: true },
   })
   const pool = neighbours.map((n) => ({
@@ -866,11 +1049,36 @@ export async function cluster(): Promise<ClusterResult> {
 
 // ============ ④ compose：写摘要（唯一的写作题，用好一点的模型） ============
 
-const COMPOSE_MAX_EVENTS = 6
+/**
+ * 双车道名额。总量比改造前的 6 少，是因为每条现在还要多写一层 detail
+ * （maxTokens 900 → 2200），单条耗时明显变长，而单轮的墙钟预算没有变。
+ *
+ * 【新鲜车道】保证今天的新闻当小时就能出来 —— 这是这个模块的主职责。
+ * 【积压车道】保证老事件总有名额，不会被源源不断的新事件永远挤在后面。
+ * 两条道的名额是**固定切分**而不是「优先新鲜、有剩再给积压」：后者在信源稳定产出时
+ * 永远剩不下名额，正是改造前「只有最近一批」的成因。
+ */
+const COMPOSE_FRESH_TAKE = 3
+const COMPOSE_BACKLOG_TAKE = 2
+/** 多新算「新鲜」。超过这个岁数的 RAW 事件走积压车道 */
+const COMPOSE_FRESH_DAYS = 3
 const COMPOSE_MAX_REWRITES = 2
+/** 重写候选仍然限定窗口：重写是锦上添花，不该和积压消化抢名额 */
+const REWRITE_WINDOW_DAYS = 14
 /** LLM 不可用且事件已经放了这么久，就降级发「来源摘要」，不能让时间轴一直空着 */
 const COMPOSE_DEGRADE_AFTER_MS = 6 * HOUR_MS
 const MATERIAL_MAX_SOURCES = 8
+/**
+ * 单轮墙钟预算。
+ *
+ * 【为什么是 7 分钟，以及为什么不能靠加长锁 TTL 解决超时】
+ * crontab 里每条 curl 都带 `--max-time 540`（9 分钟），那是**硬上限**：
+ * 到点 curl 就断开，服务端却还在跑并占着锁。锁 TTL 一旦大于 540s，
+ * 就会出现「curl 早断了、锁还在、下一轮抢不到」的假死。
+ * 所以正确做法是让 compose 自己在 540s 之前收工，把余量留给收尾写库。
+ * 去掉 7 天窗口后候选池可能很深，没有这道闸就会一直往下做直到被 curl 掐断。
+ */
+const COMPOSE_DEADLINE_MS = 7 * 60000
 
 const composeSchema = z.object({
   headline: z.string().min(2).max(500),
@@ -878,6 +1086,9 @@ const composeSchema = z.object({
   whyItMatters: z.string().nullish(),
   aiScore: z.coerce.number().nullish(),
   facts: z.array(z.object({ text: z.string().max(500), sourceIndex: z.coerce.number().int().min(0) })).nullish(),
+  detail: z
+    .array(z.object({ heading: z.string().max(200), body: z.string().max(4000) }))
+    .nullish(),
 })
 
 const COMPOSE_SYSTEM = [
@@ -911,9 +1122,83 @@ const COMPOSE_SYSTEM = [
   '  0-39   与 AI 产业关系很弱，或信息量太少不值得单独成条',
   'facts：2 到 5 条关键事实，每条形如 {"text":"事实","sourceIndex":材料编号}，',
   '      sourceIndex 必须是该事实真正的出处编号，供人工一键复核。',
+  'detail：详情页用的全文梳理，2 到 4 段，总字数 600 到 1200 字。',
+  '      形如 {"detail":[{"heading":"小标题","body":"这一段的正文"}]} —— 注意这是一整行的示例，照此形状输出。',
+  '      heading 不超过 14 个字，是这一段讲什么的概括，不要写成「一、二、三」或「背景/分析/总结」这类空壳。',
+  '      body 每段 200 到 400 字。段与段之间不要重复同一件事。',
+  '      【detail 与 summary 的分工】summary 是「一句话讲清发生了什么」，',
+  '      detail 是「把材料里的细节按逻辑铺开」：具体做法、关键数字的来龙去脉、',
+  '      与已有方案的对比、适用范围与限制、对读者意味着什么。',
+  '      【detail 不是把 summary 拉长】重复 summary 已经说过的话没有价值。',
+  '      【材料不够就少写几段甚至不写】材料只有一两句话时，返回 "detail":[] 而不是硬凑 600 字。',
+  '      硬约束 1-6 对 detail 同样适用，而且更要当心：篇幅越长越容易滑向编造与照抄。',
   '',
   '输出 json，不要任何解释文字。',
 ].join('\n')
+
+/** detail 的段数与字数边界。校验不过就丢掉 detail，事件本身照常发布 */
+const DETAIL_MIN_SECTIONS = 2
+const DETAIL_MAX_SECTIONS = 4
+const DETAIL_MIN_CHARS = 400
+const DETAIL_MAX_CHARS = 1600
+const DETAIL_HEADING_MAX = 20
+/** detail 与原文的连续重合阈值：比 summary 的 20 字更严，因为篇幅长、照抄的空间也大 */
+const DETAIL_RUN_CHARS = 18
+/** 瞬时失败重试上限，超过转 SKIP —— 防止某条事件每轮都来烧一次钱 */
+const DETAIL_MAX_TRIES = 3
+
+export interface DetailSection {
+  heading: string
+  body: string
+}
+
+/**
+ * 把模型返回的 detail 规整成可落库的形状，不合格就返回 null（= 不要这一块）。
+ *
+ * 【为什么校验不过是「丢弃」而不是「标记待复核」】detail 是可丢弃区块：
+ * 丢掉之后页面回到「只有摘要」的今天这个状态，本身完全合规，没有需要人工确认的残留。
+ * 把它塞进 needsReview 队列，只会用一个未标定的长文阈值去挤占那 20 条的人工审核名额，
+ * 而待审队列堆到三位数就等于没有人工审核（SKILL.md §7）。
+ */
+function normalizeDetail(
+  raw: { heading: string; body: string }[] | null | undefined,
+  materials: string
+): { sections: DetailSection[]; reject: string | null } {
+  const list = (raw ?? [])
+    .map((s) => ({ heading: clip(toStr(s?.heading), DETAIL_HEADING_MAX), body: toStr(s?.body).trim() }))
+    .filter((s) => s.heading && s.body.length >= 40)
+    .slice(0, DETAIL_MAX_SECTIONS)
+
+  // 模型明确表示材料不够（返回空数组）不是错误，是它按要求做了正确的事
+  if (!list.length) return { sections: [], reject: null }
+  if (list.length < DETAIL_MIN_SECTIONS) return { sections: [], reject: `只写出 ${list.length} 段` }
+
+  const total = list.reduce((n, s) => n + s.body.length, 0)
+  if (total < DETAIL_MIN_CHARS) return { sections: [], reject: `全文仅 ${total} 字，未达下限` }
+  if (total > DETAIL_MAX_CHARS) return { sections: [], reject: `全文 ${total} 字，超出上限` }
+
+  const text = list.map((s) => `${s.heading}\n${s.body}`).join('\n')
+  // 抄袭防线：篇幅一长，「与原文连续 N 字重合」比重合率更能抓到整段搬运
+  const run = sharedRun(text, materials, DETAIL_RUN_CHARS)
+  if (run) return { sections: [], reject: `与原文连续 ${DETAIL_RUN_CHARS} 字重合：「${clip(run, 20)}」` }
+  // 幻觉防线：detail 里的数字同样必须在材料里找得到
+  const bad = unsupportedNumbers(text, materials)
+  if (bad.length) return { sections: [], reject: `含原文未出现的数字：${bad.slice(0, 3).join('、')}` }
+  // §1.1 禁词：篇幅越长越容易滑出「聚合工具」的口径
+  const forbidden = forbiddenHit(text)
+  if (forbidden) return { sections: [], reject: `出现采编口径字样「${forbidden}」` }
+  // §1.2 选题黑名单的兜底。triage 只看过标题与 description，没看过原文正文，
+  // 而 detail 恰恰是从正文扩写出来的 —— 正文里带出政策/管制/裁员话题的情况必须在这里拦一道
+  const blocked = blocklistHit(text)
+  if (blocked) return { sections: [], reject: `正文扩写命中选题黑名单「${blocked}」` }
+
+  return { sections: list, reject: null }
+}
+
+/** 落库形状：JSON 字符串，与 facts 同款（不新增列存结构化数据） */
+export function serializeDetail(sections: DetailSection[]): string {
+  return JSON.stringify(sections)
+}
 
 interface Material {
   index: number
@@ -944,6 +1229,8 @@ async function eventMaterials(eventId: number): Promise<{
   tiers: number[]
   minConfidence: number
   hasFeed: boolean
+  /** 是否真有可写的素材（有正文，或有超过一句话的 description）。见下方注释 */
+  hasMaterial: boolean
 }> {
   const items = await prisma.newsItem.findMany({
     where: { eventId },
@@ -955,6 +1242,8 @@ async function eventMaterials(eventId: number): Promise<{
       title: true,
       summaryRaw: true,
       confidence: true,
+      leadVia: true,
+      originSourceName: true,
       source: { select: { name: true, tier: true, role: true } },
     },
   })
@@ -962,10 +1251,13 @@ async function eventMaterials(eventId: number): Promise<{
   const reps = dedupeByUrl(bestFirst(items)).slice(0, MATERIAL_MAX_SOURCES)
   const materials: Material[] = reps.map((r, i) => ({
     index: i,
-    sourceName: r.source.name,
+    // 展示名用原发布者，不是我们内部的信源名 —— 线索条目的 source.name 是中介名
+    sourceName: (r.originSourceName || '').trim() || r.source.name,
     tier: r.source.tier,
     title: clip(r.title, 160),
-    desc: clip(r.summaryRaw || '', 400),
+    // 【线索条目的 desc 恒为空】对方写的摘要不在授权范围内，不取也不存。
+    // 这里显式写成空串而不是依赖 summaryRaw 恰好为 null，是为了让边界在代码里看得见。
+    desc: r.leadVia ? '' : clip(r.summaryRaw || '', 400),
   }))
 
   // 抓原文正文补充素材。抓不到就沿用 description，绝不因此中断——
@@ -994,12 +1286,24 @@ async function eventMaterials(eventId: number): Promise<{
     })
     .join('\n\n---\n\n')
   const confidences = items.map((i) => (i.confidence == null ? 1 : Number(i.confidence))).filter((n) => !isNaN(n))
+  /**
+   * 有没有真正可写的素材。
+   *
+   * 【为什么需要这道闸】页面上写着「摘要由本站抓取原文后自行撰写」。
+   * 如果所有信源都只剩一个标题（线索条目正文没抓到、feed 也没给 description），
+   * 模型只能靠标题硬编 —— 那句公开声明就变成了不实陈述。
+   * 素材不够时宁可让事件停在 DRAFT 等下一轮，也不要发一条编出来的摘要。
+   * 门槛取 80 字：feed 的一句话 description 大多在 60-120 字之间，
+   * 低于这个数基本等同于「只有标题」。
+   */
+  const hasMaterial = materials.some((m) => (m.body?.length ?? 0) >= 200 || m.desc.length >= 80)
   return {
     materials,
     text,
     tiers: reps.map((r) => r.source.tier),
     minConfidence: confidences.length ? Math.min(...confidences) : 1,
     hasFeed: items.some((i) => i.source.role !== 'signal'),
+    hasMaterial,
   }
 }
 
@@ -1037,19 +1341,48 @@ export interface ComposeResult {
   degraded: number
   flagged: number
   skipped: number
+  /** 本轮从积压车道取了几条（新鲜车道 = candidates - backlog - 重写数） */
+  backlog: number
+  /** 还有多少条 RAW 事件在排队。这是判断「积压有没有在消化」的唯一指标，会在后台展示 */
+  backlogLeft: number
+  /** 写出 detail 的条数 */
+  detailed: number
+  /** detail 校验不过被丢弃的条数（事件本身照常发布） */
+  detailRejected: number
+  /** 因为墙钟到点提前收工 */
+  timedOut?: boolean
   error?: string
 }
 
 export async function compose(): Promise<ComposeResult> {
-  const res: ComposeResult = { candidates: 0, composed: 0, rewritten: 0, degraded: 0, flagged: 0, skipped: 0 }
-  const since = new Date(Date.now() - 7 * DAY_MS)
+  const res: ComposeResult = {
+    candidates: 0, composed: 0, rewritten: 0, degraded: 0, flagged: 0, skipped: 0,
+    backlog: 0, backlogLeft: 0, detailed: 0, detailRejected: 0,
+  }
+  const deadline = Date.now() + COMPOSE_DEADLINE_MS
+  const freshFloor = new Date(Date.now() - COMPOSE_FRESH_DAYS * DAY_MS)
 
-  // 只对 composeState='RAW' 的事件调用大模型 —— 这是成本的数据库级保证
+  // 只对 composeState='RAW' 的事件调用大模型 —— 这是成本的数据库级保证。
+  //
+  // 【新鲜车道】过去 COMPOSE_FRESH_DAYS 天内的事件，保证当天的新闻不积压。
   const fresh = await prisma.newsEvent.findMany({
-    where: { composeState: 'RAW', status: { in: ['DRAFT', 'PUBLISHED'] }, happenedAt: { gte: since } },
+    where: { composeState: 'RAW', status: { in: ['DRAFT', 'PUBLISHED'] }, happenedAt: { gte: freshFloor } },
     orderBy: [{ sourceCount: 'desc' }, { happenedAt: 'desc' }],
-    take: COMPOSE_MAX_EVENTS,
+    take: COMPOSE_FRESH_TAKE,
   })
+
+  // 【积压车道】更老的 RAW 事件。原来这里有一道 7 天窗口，超期事件永远轮不到，
+  // 表现就是「只有最近一批」。现在不设上界，靠固定名额逐轮消化。
+  //
+  // 【为什么按 sourceCount / tier1Count 排而不是按 score】score 带 36 小时半衰期，
+  // 跨越 3 天到几十天的候选之间 decay 差了好几个数量级，按 score 排等价于纯按时间排，
+  // 那会让「多家媒体都报了、但当时没写出来」的重要事件永远排在最后。
+  const backlog = await prisma.newsEvent.findMany({
+    where: { composeState: 'RAW', status: { in: ['DRAFT', 'PUBLISHED'] }, happenedAt: { lt: freshFloor } },
+    orderBy: [{ sourceCount: 'desc' }, { tier1Count: 'desc' }, { happenedAt: 'desc' }],
+    take: COMPOSE_BACKLOG_TAKE,
+  })
+  res.backlog = backlog.length
 
   // 重写候选：先用列条件粗筛，再用 rewriteReason 精确判定
   const maybeRewrite = await prisma.newsEvent.findMany({
@@ -1057,14 +1390,15 @@ export async function compose(): Promise<ComposeResult> {
       composeState: 'DONE',
       rewriteCount: 0,
       publishedAt: { not: null },
-      happenedAt: { gte: since },
+      happenedAt: { gte: new Date(Date.now() - REWRITE_WINDOW_DAYS * DAY_MS) },
       OR: [{ sourceCount: { gte: 3 } }, { tier1Count: { gte: 1 } }],
     },
     orderBy: { score: 'desc' },
     take: COMPOSE_MAX_REWRITES * 3,
   })
 
-  const jobs: { ev: (typeof fresh)[number]; rewrite: string | null }[] = fresh.map((ev) => ({ ev, rewrite: null }))
+  const picked = [...fresh, ...backlog]
+  const jobs: { ev: (typeof fresh)[number]; rewrite: string | null }[] = picked.map((ev) => ({ ev, rewrite: null }))
   for (const ev of maybeRewrite) {
     if (jobs.filter((j) => j.rewrite).length >= COMPOSE_MAX_REWRITES) break
     const reason = await rewriteReason(ev)
@@ -1073,11 +1407,22 @@ export async function compose(): Promise<ComposeResult> {
   res.candidates = jobs.length
 
   for (const { ev, rewrite } of jobs) {
+    // 墙钟闸：宁可这一轮少做一条，也不要被 curl 的 --max-time 540 从中间掐断
+    if (Date.now() >= deadline) {
+      res.timedOut = true
+      break
+    }
     try {
       const mat = await eventMaterials(ev.id)
       // 只由 signal 源构成的事件不该存在（cluster 不会建），保险起见跳过，不浪费写作模型
       if (!mat.materials.length || !mat.hasFeed) {
         await prisma.newsEvent.update({ where: { id: ev.id }, data: { composeState: 'FAILED', status: 'UNLISTED' } })
+        res.skipped++
+        continue
+      }
+      // 素材只剩标题时不写。**留在 RAW 等下一轮**（原文可能只是这次抓失败了），
+      // 不判 FAILED —— 判死会让一次网络抖动永久吃掉一条事件。
+      if (!mat.hasMaterial) {
         res.skipped++
         continue
       }
@@ -1088,7 +1433,10 @@ export async function compose(): Promise<ComposeResult> {
         user: `以下是同一件事的 ${mat.materials.length} 份材料：\n\n${mat.text}`,
         schema: composeSchema,
         write: true,
-        maxTokens: 900,
+        // 900 只够 summary。detail 要 600-1200 字中文（约 900-1800 token），
+        // 加上 headline/facts/JSON 结构本身，2200 是实测下来不会被截断的最小值。
+        // 截断的表现是 JSON 不闭合 → 走三级降级 → 白花三次钱，所以这里宁可给足。
+        maxTokens: 2200,
         temperature: 0.3,
       })
 
@@ -1112,8 +1460,19 @@ export async function compose(): Promise<ComposeResult> {
         maxTier: mat.tiers.length ? Math.max(...mat.tiers) : 3,
       })
       const run = sharedRun(summary, mat.text, 20)
-      const flag = review.flag || !!run
-      const note = review.reason || (run ? `与原文连续 20 字重合：「${clip(run, 24)}」` : null)
+      // 禁词对 summary 也要查：命中不丢弃（丢了这条就没正文了），标待复核让人来改
+      const forbidden = forbiddenHit(`${headline} ${summary} ${whyItMatters}`)
+      const flag = review.flag || !!run || !!forbidden
+      const note =
+        review.reason ||
+        (run ? `与原文连续 20 字重合：「${clip(run, 24)}」` : null) ||
+        (forbidden ? `摘要出现采编口径字样「${forbidden}」` : null)
+
+      // 全文层。校验不过就只丢这一块，事件本身照常发布 —— 详情页退回「只有摘要」，
+      // 与改造前逐像素一致，没有半成品可言，所以**不进 needsReview 队列**。
+      const det = normalizeDetail(r.data.detail, mat.text)
+      if (det.reject) res.detailRejected++
+      if (det.sections.length) res.detailed++
 
       const tags = pickTags(`${headline} ${summary}`, facts.map((f) => f.text))
       // DRAFT 首发时用最终标题重算 slug；已发布事件的 slug 是外链地址，绝不改
@@ -1127,6 +1486,10 @@ export async function compose(): Promise<ComposeResult> {
           summary,
           whyItMatters: whyItMatters || null,
           facts: facts.length ? JSON.stringify(facts) : null,
+          detail: det.sections.length ? serializeDetail(det.sections) : null,
+          // 有内容就 DONE；没写出来（材料不够或校验不过）就 SKIP —— 都是内容性结论，不再重试。
+          // 只有**瞬时失败**（超时/限流/5xx，走下面的 catch）才留着下轮重来。
+          detailState: det.sections.length ? 'DONE' : 'SKIP',
           tags: tags || null,
           aiScore,
           status: 'PUBLISHED',
@@ -1151,13 +1514,148 @@ export async function compose(): Promise<ComposeResult> {
     await yieldTick()
   }
 
+  // 还剩多少积压。这是「双车道到底有没有在消化」的唯一可观测指标，后台会展示；
+  // 连续几天不降就说明名额给少了或者素材有系统性问题，要人来看，不要靠猜。
+  res.backlogLeft = await prisma.newsEvent.count({
+    where: { composeState: 'RAW', status: { in: ['DRAFT', 'PUBLISHED'] } },
+  })
+
+  // 老事件补写全文层。放在主循环之后，用剩下的墙钟余量做，抢不到时间就下轮再说。
+  await backfillDetails(res, deadline)
+
   console.log('[news/compose]', JSON.stringify(res))
   return res
 }
 
+/** 是否给老事件补写 detail。默认关：单价没核准之前不放开批量写作调用（见 .env.production.example） */
+const DETAIL_BACKFILL_ON = process.env.NEWS_DETAIL_BACKFILL === '1'
+/** 每轮最多补几条 */
+const DETAIL_BACKFILL_TAKE = 2
+/** 只在当日预算用掉不到这个比例时才补 —— 回填永远排在当天的新闻后面 */
+const DETAIL_BACKFILL_BUDGET_RATIO = 0.4
+
+/**
+ * 给已发布但还没有全文层的老事件补写 detail。
+ *
+ * 【为什么单独一条通道，而不是塞进主循环】主循环的准入条件是 composeState='RAW'，
+ * 那是「摘要还没写」的意思；这些老事件的摘要早就写好了（composeState='DONE'），
+ * 只是没有 detail。混在一起会破坏「只对 RAW 调用大模型」这条成本的数据库级保证（SKILL §5.3），
+ * 所以这里换一把独立的、更严的闸：预算比例 + 每轮条数 + 终身重试上限，三道都卡死。
+ *
+ * 【为什么不重写 summary】老事件的 summary 已经发出去了，slug 也是外链地址。
+ * 这条通道只碰 detail 三列，headline/summary/slug/rewriteCount 一个都不动。
+ */
+async function backfillDetails(res: ComposeResult, deadline: number): Promise<void> {
+  if (!DETAIL_BACKFILL_ON) return
+  if (Date.now() >= deadline) return
+
+  // 预算闸：回填是「有余力才做」的事，绝不和当天的新闻抢预算
+  try {
+    const [spent, budget] = [await spentTodayMilli(), dailyBudgetMilli()]
+    if (budget > 0 && spent > budget * DETAIL_BACKFILL_BUDGET_RATIO) return
+  } catch {
+    return // 预算查不出来就不做，不赌
+  }
+
+  const rows = await prisma.newsEvent.findMany({
+    where: {
+      composeState: 'DONE',
+      status: 'PUBLISHED',
+      detailState: 'RAW',
+      detailTries: { lt: DETAIL_MAX_TRIES },
+    },
+    // 先补热门的：读得最多的页面最值得有全文
+    orderBy: [{ sourceCount: 'desc' }, { aiScore: 'desc' }, { happenedAt: 'desc' }],
+    take: DETAIL_BACKFILL_TAKE,
+    select: { id: true, detailTries: true },
+  })
+
+  for (const ev of rows) {
+    if (Date.now() >= deadline) {
+      res.timedOut = true
+      return
+    }
+    try {
+      const mat = await eventMaterials(ev.id)
+      if (!mat.materials.length || !mat.hasFeed || !mat.hasMaterial) {
+        // 素材撑不起 600 字全文。这是内容性结论，写 SKIP 不再重试 ——
+        // 与主循环那边「留 RAW 等下一轮」不同：那边等的是摘要，这边只是少一块可选区块。
+        await prisma.newsEvent.update({ where: { id: ev.id }, data: { detailState: 'SKIP' } })
+        continue
+      }
+
+      const r = await llmJson({
+        stage: 'compose',
+        system: DETAIL_ONLY_SYSTEM,
+        user: `以下是同一件事的 ${mat.materials.length} 份材料：\n\n${mat.text}`,
+        schema: detailOnlySchema,
+        write: true,
+        maxTokens: 1800,
+        temperature: 0.3,
+      })
+
+      const det = normalizeDetail(r.data.detail, mat.text)
+      if (det.reject) res.detailRejected++
+      if (det.sections.length) res.detailed++
+      await prisma.newsEvent.update({
+        where: { id: ev.id },
+        data: {
+          detail: det.sections.length ? serializeDetail(det.sections) : null,
+          detailState: det.sections.length ? 'DONE' : 'SKIP',
+          detailTries: { increment: 1 },
+        },
+      })
+    } catch (e) {
+      // 【瞬时失败绝不写终态】超时、限流、5xx 都属于这一类，下一轮还要重试。
+      // 只把 detailTries 往上加，到 DETAIL_MAX_TRIES 时上面的 where 自然把它排除掉。
+      // 交接文档第四节踩坑 3（40 条丢 35 条）就是把瞬时失败当成内容性结论写死导致的。
+      const tries = ev.detailTries + 1
+      await prisma.newsEvent
+        .update({
+          where: { id: ev.id },
+          data: { detailTries: tries, ...(tries >= DETAIL_MAX_TRIES ? { detailState: 'SKIP' } : {}) },
+        })
+        .catch(() => {})
+      res.error = errMsg(e)
+      if (isFatalLlmError(e)) return
+    }
+    await yieldTick()
+  }
+}
+
+const detailOnlySchema = z.object({
+  detail: z.array(z.object({ heading: z.string().max(200), body: z.string().max(4000) })).nullish(),
+})
+
+/** 回填专用提示词：只要 detail，不要模型再动标题与摘要（它们已经发出去了） */
+const DETAIL_ONLY_SYSTEM = [
+  '你是 AI 行业资讯的撰写员。只依据给定材料写作，不使用任何外部知识，不做推测。',
+  '',
+  '【硬约束，违反即作废】',
+  '1. 材料不足就少写，宁可只写两段也不要补充材料里没有的信息。',
+  '2. 不得出现材料中没有的数字、版本号、日期、人名、公司名。',
+  '3. 不得使用「据悉」「业内人士称」「有消息表示」「据了解」等无主语转述。',
+  `4. 与任何一条原文连续 ${DETAIL_RUN_CHARS} 个字不得重合，必须用自己的话重新组织。`,
+  '5. 不得出现「记者」「编辑部」「独家」「爆料」「本站原创」「本网讯」等字样。',
+  '6. 只陈述企业经营动态与技术事实，不做政策解读、不做投资建议、不评价政治议题。',
+  '   材料正文里若涉及监管立法、出口管制、制裁、大规模裁员、政治人物，一律略过不写。',
+  '',
+  '【任务】把材料里的细节按逻辑铺开，供详情页阅读。2 到 4 段，总字数 600 到 1200 字。',
+  '每段先给一个不超过 14 个字的小标题，再写 200 到 400 字正文。',
+  '要写的是：具体做法、关键数字的来龙去脉、与已有方案的对比、适用范围与限制、对读者意味着什么。',
+  '不要写「背景/分析/总结」这类空壳小标题，也不要复述同一件事。',
+  '',
+  '输出 json，形如 {"detail":[{"heading":"小标题","body":"这一段的正文"}]}，不要任何解释文字。',
+  '材料确实只有一两句话时，返回 {"detail":[]}，不要硬凑字数。',
+].join('\n')
+
 /**
  * 降级发布：LLM 连续不可用时，直接引用 feed 自带的 description（本就是站点主动发布供订阅的摘要），
  * 前缀显式标注「未经 AI 摘要」。composeState 仍留在 RAW，等模型恢复后会被真正的摘要覆盖。
+ *
+ * 【注意 composeState 没有被改写】这不是疏漏，是刻意的：降级只是先把内容露出来，
+ * 事件仍然排在 RAW 队列里等模型恢复后写真正的摘要。任何基于「降级后就不再占写作名额」
+ * 的队列设计都是错的 —— 它照样占名额，而且应该占。
  */
 async function degradePublish(ev: { id: number; status: string; happenedAt: Date; publishedAt: Date | null }): Promise<boolean> {
   if (ev.status === 'PUBLISHED' || ev.publishedAt) return false
@@ -1180,34 +1678,84 @@ async function degradePublish(ev: { id: number; status: string; happenedAt: Date
 
 // ============ ⑤ rank：重算热度分 ============
 
-const RANK_WINDOW_DAYS = 7
-const RANK_MAX_EVENTS = 1000
+/**
+ * 分层重算。原来这里是一道 7 天窗口 + take 1000 的全量扫描，
+ * 去掉窗口之后如果继续全表扫，rank 每 15 分钟就要把一年的事件算一遍，
+ * 而 scoreDebug 是 TEXT 列，无谓写入直接变成 binlog 与磁盘压力。
+ *
+ * 分层的依据是热度分自身的形状：score = base × 0.5^(age/36h)。
+ *   热层（72h 内）  衰减每分钟都在变，站内浏览也在涨 —— 每轮都要算
+ *   温层（72h~14d） 衰减已经很平，每小时算一次足够
+ *   冷层（14d 以上）decay 早已趋近 0，score 在 Decimal(8,3) 下全是 0.000，
+ *                   再算多少遍都不会变。只补 baseScore 为空的那部分，补完就不再碰。
+ */
+const RANK_HOT_HOURS = 72
+const RANK_WARM_DAYS = 14
+const RANK_MAX_EVENTS = 600
+/** 冷层每轮补几条 baseScore。99 条历史数据一轮就能补完，留 200 是给将来积累后用的 */
+const RANK_COLD_BACKFILL = 200
+
+/** 热度重算要读的列。**必须含 baseScore**：漏了它 baseStale 恒真，护栏失效，每轮全量写 TEXT 列 */
+const RANK_SELECT = {
+  id: true,
+  score: true,
+  baseScore: true,
+  sourceCount: true,
+  tier1Count: true,
+  hnPoints: true,
+  viewCount: true,
+  shareCount: true,
+  likeCount: true,
+  aiScore: true,
+  happenedAt: true,
+} as const
 
 export interface RankResult {
   scanned: number
   updated: number
+  /** 本轮补了几条历史事件的 baseScore（补完会归零，持续不为 0 说明冷层没补动） */
+  baseFilled: number
+  /** 还有多少条 baseScore 为空 */
+  basePending: number
 }
 
 export async function rank(): Promise<RankResult> {
-  const since = new Date(Date.now() - RANK_WINDOW_DAYS * DAY_MS)
-  const events = await prisma.newsEvent.findMany({
-    where: { happenedAt: { gte: since } },
+  const now = new Date()
+  // rank 每 15 分钟一轮。温层只在每小时的第一轮参与，靠分钟数判断，不需要额外状态。
+  const warmTurn = now.getMinutes() < 15
+
+  const hotFloor = new Date(now.getTime() - RANK_HOT_HOURS * HOUR_MS)
+  const warmFloor = new Date(now.getTime() - RANK_WARM_DAYS * DAY_MS)
+
+  const hot = await prisma.newsEvent.findMany({
+    where: { happenedAt: { gte: hotFloor } },
     orderBy: { happenedAt: 'desc' },
     take: RANK_MAX_EVENTS,
-    select: {
-      id: true,
-      score: true,
-      sourceCount: true,
-      tier1Count: true,
-      hnPoints: true,
-      viewCount: true,
-      shareCount: true,
-      likeCount: true,
-      aiScore: true,
-      happenedAt: true,
-    },
+    select: RANK_SELECT,
   })
-  if (!events.length) return { scanned: 0, updated: 0 }
+
+  const warm = warmTurn
+    ? await prisma.newsEvent.findMany({
+        where: { happenedAt: { gte: warmFloor, lt: hotFloor } },
+        orderBy: { happenedAt: 'desc' },
+        take: RANK_MAX_EVENTS,
+        select: RANK_SELECT,
+      })
+    : []
+
+  // 冷层只做一件事：把 baseScore 为空的历史事件补上。补完就永远不会再被选中，
+  // 所以这是自愈式回填，不需要写一次性脚本、也不需要在部署时人工跑。
+  const cold = await prisma.newsEvent.findMany({
+    where: { happenedAt: { lt: warmFloor }, baseScore: null },
+    orderBy: { happenedAt: 'desc' },
+    take: RANK_COLD_BACKFILL,
+    select: RANK_SELECT,
+  })
+
+  const events = [...hot, ...warm, ...cold]
+  if (!events.length) {
+    return { scanned: 0, updated: 0, baseFilled: 0, basePending: 0 }
+  }
 
   // 站内浏览以 news_views 的去重行数为准（唯一约束 [eventId, viewerKey, hourBucket] 已做小时桶去重）。
   // 取 max(已存, 去重行数)：前台上报若已经自增过 viewCount，这里不会把它抹掉；
@@ -1216,8 +1764,8 @@ export async function rank(): Promise<RankResult> {
   const grouped = await prisma.newsView.groupBy({ by: ['eventId'], where: { eventId: { in: ids } }, _count: { _all: true } })
   const viewMap = new Map<number, number>(grouped.map((g) => [g.eventId, g._count._all]))
 
-  const now = new Date()
   let updated = 0
+  let baseFilled = 0
   const CHUNK = 20
   for (let i = 0; i < events.length; i += CHUNK) {
     const chunk = events.slice(i, i + CHUNK)
@@ -1235,12 +1783,15 @@ export async function rank(): Promise<RankResult> {
           happenedAt: e.happenedAt,
           now,
         })
+        const baseStale = e.baseScore == null || Math.abs(Number(e.baseScore) - bd.base) >= 0.0005
         // 分数没变就不写，rank 每 15 分钟跑一次，无谓写入会白白产生 binlog 与磁盘压力
-        if (Math.abs(Number(e.score) - bd.score) < 0.0005 && viewCount === e.viewCount) return
+        if (!baseStale && Math.abs(Number(e.score) - bd.score) < 0.0005 && viewCount === e.viewCount) return
+        if (e.baseScore == null) baseFilled++
         await prisma.newsEvent.update({
           where: { id: e.id },
           data: {
             score: bd.score,
+            baseScore: bd.base,
             viewCount,
             scoreDebug: JSON.stringify({ at: now.toISOString(), ...bd }),
           },
@@ -1251,8 +1802,10 @@ export async function rank(): Promise<RankResult> {
     await yieldTick()
   }
 
-  console.log('[news/rank]', JSON.stringify({ scanned: events.length, updated }))
-  return { scanned: events.length, updated }
+  const basePending = await prisma.newsEvent.count({ where: { baseScore: null } })
+  const out: RankResult = { scanned: events.length, updated, baseFilled, basePending }
+  console.log('[news/rank]', JSON.stringify({ ...out, hot: hot.length, warm: warm.length, cold: cold.length }))
+  return out
 }
 
 // ============ ⑥ digest：日报 / 周报 ============

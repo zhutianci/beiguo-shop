@@ -209,7 +209,7 @@ export default function SnakePage() {
   }, [])
 
   return (
-    <div className="min-h-screen pt-32 pb-20">
+    <div className="min-h-screen page-top pb-20">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[128px] pointer-events-none" />
 

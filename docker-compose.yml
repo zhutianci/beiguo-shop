@@ -69,6 +69,14 @@ services:
       - NEWS_RELAY_TOKEN
       - LLM_IN_PRICE
       - LLM_OUT_PRICE
+      # 全文层：抓正文当素材 / 每事件抓几篇 / 分诊批量 / 老事件回填开关。
+      # 一律写**裸变量名**，不要写成 `- FOO=${FOO}` —— 后者在 FOO 未定义时会给容器一个
+      # 空字符串，而 dotenv 遵循「已存在的 env 优先」，反而把镜像内 .env 的真实值遮蔽掉，
+      # 让本来正常的功能失效（交接文档第六节踩过这个坑）。
+      - NEWS_FETCH_BODY
+      - NEWS_BODY_SOURCES
+      - NEWS_TRIAGE_BATCH
+      - NEWS_DETAIL_BACKFILL
       - UPLOAD_MAX_TOTAL_MB
       # 说明：以上全部留空也能正常起。lib/llm.ts 每项都有 || 兜底；
       # 缺 LLM_API_KEY 时管线只抓取去重、不写摘要，站点不会因此挂掉。

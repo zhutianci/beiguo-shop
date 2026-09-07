@@ -40,7 +40,17 @@ interface ProviderConf {
   fastModel: string
   /** 写作题用的模型 */
   writeModel: string
-  /** 每百万 token 价格（分），用于记账。上线前请到控制台核对。 */
+  /**
+   * 每百万 token 价格（**分**），用于记账。
+   *
+   * 【这两个数必须到控制台核对，不能沿用默认值】它们不影响调用本身，只影响记账，
+   * 而记账是 budgetExhausted() 这道最后兜底的唯一依据 —— 单价填小 50 倍，
+   * 预算闸门就形同虚设，真实花费会一路跑到供应商欠费为止。
+   * 下面的默认值是写代码时的估算，**不是核对过的报价**。
+   * 生产环境请在 .env.production 里显式设 LLM_IN_PRICE / LLM_OUT_PRICE。
+   * 供应商还会改价、也会把 `glm-4-plus` 这类别名重指到新版本（SKILL.md §5.4），
+   * 所以这是个需要定期回看的数字，不是一次性配置。
+   */
   inPricePerM: number
   outPricePerM: number
 }
@@ -102,10 +112,20 @@ export function llmInfo() {
 
 // ---- 预算闸门 ----
 
-/** 当日已花费（毫分）。超预算时管线降级为「只去重、不写摘要」，而不是继续烧钱。 */
+/**
+ * 当日已花费（毫分）。超预算时管线降级为「只去重、不写摘要」，而不是继续烧钱。
+ *
+ * 【日界用固定 +8 算术，不依赖进程 TZ】原来这里是 `new Date(y, m, d)`，
+ * 它取的是**进程本地时区**的零点。容器虽然设了 TZ=Asia/Shanghai，但 alpine 镜像
+ * 不装 tzdata 时 TZ 会被静默忽略、进程仍跑 UTC（交接文档第六节踩过）——
+ * 那样日界会偏 8 小时，预算在每天 08:00 才归零，凌晨那几小时算在前一天头上。
+ * 与 news/format.ts、analytics 的口径统一成显式偏移算术，换机器不漂移。
+ */
 export async function spentTodayMilli(): Promise<number> {
   const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const TZ_OFFSET_MS = 8 * 3600000
+  const dayKey = new Date(now.getTime() + TZ_OFFSET_MS).toISOString().slice(0, 10)
+  const start = new Date(Date.parse(`${dayKey}T00:00:00.000Z`) - TZ_OFFSET_MS)
   const agg = await prisma.newsLlmCall.aggregate({
     where: { createdAt: { gte: start } },
     _sum: { costMilli: true },
@@ -231,9 +251,15 @@ export async function llmJson<T>(opts: ChatOpts<T>): Promise<LlmResult<T>> {
   const system = `${opts.system}\n\n只输出一个 JSON 对象，不要任何解释文字或 markdown 围栏。`
 
   const started = Date.now()
+  // 【累加，不是覆盖】下面是三级降级循环，每一级都是一次真实的、供应商会计费的调用。
+  // 原来这里写的是 `promptTokens = r.promptTokens`，后一次直接覆盖前一次，
+  // 结果「试了三次才成功」在账上只留下最后一次的用量 —— 预算闸门看到的是被低估的数字。
   let promptTokens = 0
   let completionTokens = 0
   let lastErr = ''
+
+  const cost = (pt: number, ct: number) =>
+    Math.round((pt / 1_000_000) * c.inPricePerM * 1000 + (ct / 1_000_000) * c.outPricePerM * 1000)
 
   // 三级降级
   const attempts: (Record<string, unknown> | undefined)[] = [
@@ -247,8 +273,8 @@ export async function llmJson<T>(opts: ChatOpts<T>): Promise<LlmResult<T>> {
   for (const rf of attempts) {
     try {
       const r = await callOnce(c, model, system, opts.user, rf, maxTokens, temperature, timeoutMs)
-      promptTokens = r.promptTokens
-      completionTokens = r.completionTokens
+      promptTokens += r.promptTokens
+      completionTokens += r.completionTokens
 
       if (r.status !== 200) {
         lastErr = `HTTP ${r.status}: ${r.text.slice(0, 200)}`
@@ -273,9 +299,7 @@ export async function llmJson<T>(opts: ChatOpts<T>): Promise<LlmResult<T>> {
       }
 
       const ms = Date.now() - started
-      const costMilli = Math.round(
-        (promptTokens / 1_000_000) * c.inPricePerM * 1000 + (completionTokens / 1_000_000) * c.outPricePerM * 1000
-      )
+      const costMilli = cost(promptTokens, completionTokens)
       await record(opts.stage, c, model, promptTokens, completionTokens, costMilli, ms, true, null)
       return { data: parsed.data, promptTokens, completionTokens, costMilli, ms }
     } catch (e) {
@@ -286,7 +310,14 @@ export async function llmJson<T>(opts: ChatOpts<T>): Promise<LlmResult<T>> {
 
   // 记账列只有 300 字，原始返回会被截掉；完整内容打到应用日志，docker compose logs app 可查
   console.error(`[llm] ${opts.stage} 调用失败 model=${model} :: ${lastErr}`)
-  await record(opts.stage, c, model, promptTokens, completionTokens, 0, Date.now() - started, false, lastErr)
+  // 【失败也要按真实用量记费】原来这里写死 costMilli=0。可供应商是按 token 计费的，
+  // 请求发出去、模型吐了字、只是我们没解析出想要的 JSON —— 这笔钱照付。
+  // 记 0 的后果是：失败率一升高，真实花费涨、账面花费反而不动，
+  // budgetExhausted() 这道最后的兜底就永远不会触发。
+  await record(
+    opts.stage, c, model, promptTokens, completionTokens,
+    cost(promptTokens, completionTokens), Date.now() - started, false, lastErr
+  )
   throw new LlmError(lastErr || '调用失败')
 }
 

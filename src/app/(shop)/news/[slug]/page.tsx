@@ -10,15 +10,17 @@ import { ArrowLeft, ArrowUpRight, ChevronRight, MessagesSquare, ShoppingBag } fr
 import { prisma } from '@/lib/db'
 import { ArticleJsonLd } from '@/components/news/article-jsonld'
 import { ShareBar } from '@/components/news/share-bar'
-import { AI_BADGE, AI_DISCLAIMER, AI_NOTICE, AUTHOR_NAME } from '@/lib/news/constants'
+import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
 import { withNewsRef } from '@/lib/news/attribution'
 import { newsUrl } from '@/lib/news/seo'
+import { AiNoticeBlock, LeadCredit } from '@/components/news/ai-notice-block'
 import {
-  EVENT_SELECT,
+  EVENT_DETAIL_SELECT,
   dayKey,
   formatClock,
   formatDayHeading,
   ogImageForCategory,
+  parseDetail,
   siteOrigin,
   sourceLabel,
   toEventDto,
@@ -30,10 +32,18 @@ import { ViewBeacon } from './detail-client'
  * UNLISTED / DRAFT 一律按不存在处理——下线是保留证据用的，不是给外部继续访问的。
  */
 const getEvent = cache(async (slug: string) => {
-  return prisma.newsEvent.findFirst({
-    where: { slug, status: 'PUBLISHED' },
-    select: EVENT_SELECT,
-  })
+  try {
+    return await prisma.newsEvent.findFirst({
+      where: { slug, status: 'PUBLISHED' },
+      select: EVENT_DETAIL_SELECT,
+    })
+  } catch (e) {
+    // 查询失败一律按「不存在」处理，绝不让整页 500。
+    // 最现实的触发场景是发版时序错了：新镜像先于新列上线，select 里的列还不存在。
+    // 那种时候给爬虫和买家一个 404 也比一个错误页强，而且列建好后自动恢复。
+    console.error('[news/detail getEvent]', e)
+    return null
+  }
 })
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
@@ -73,6 +83,10 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
   const image = ogImageForCategory(ev.category)
   // 绝对地址统一走 seo.ts 的 newsUrl，别在这里再拼一次域名——换域名时最容易漏改的就是这种散落拼接
   const shareUrl = newsUrl(ev.slug)
+  const detail = parseDetail(row.detail)
+  // 这条事件里有没有来自第三方线索的信源。有才标注、才回链 —— 授权条件是「用了要标」，
+  // 没用还标等于对读者虚构一个来源。
+  const lead = ev.sources.find((s) => s.leadVia)
 
   // 相关事件：同分类的近期条目。查询失败不能拖垮正文
   let related: { slug: string; headline: string; happenedAt: Date; aiScore: number }[] = []
@@ -88,7 +102,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
   }
 
   return (
-    <div className="relative min-h-screen pb-20 pt-28 sm:pt-32">
+    <div className="relative min-h-screen pb-20 pt-28 sm:page-top">
       {/*
         微信抓缩略图的实测行为是「取 body 中靠前的、实际尺寸 ≥300×300 的 img」。
         这张图必须真的有渲染尺寸，所以用 position:absolute + visibility:hidden，
@@ -151,20 +165,65 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           </div>
 
           {/* ============ AI 提示条（法定位置：正文开头） ============ */}
-          <div className="mt-6 flex gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 lg:mt-7 lg:px-5 lg:py-3.5">
-            <span className="mt-px shrink-0 rounded-full bg-purple-500/15 px-2 py-0.5 text-[11px] font-medium text-purple-200/90">
-              {AI_BADGE}
-            </span>
-            <p className="text-[13px] leading-relaxed text-white/50 lg:text-sm">
-              {AI_NOTICE}整理者：{AUTHOR_NAME}。
-            </p>
-          </div>
+          <AiNoticeBlock
+            className="mt-6 lg:mt-7"
+            leadNote={
+              /*
+                措辞必须在**所有**发布路径下都成立，包括 degradePublish 那条降级路径
+                （模型不可用时会直接引用信源自带的 description，并在摘要开头标「未经 AI 摘要」）。
+                所以这里不写「摘要由本站撰写」这种绝对断言 —— 那句话在降级路径下会和
+                正文里的「以下摘自 XX」当场打架，而这是挂着授权号给授权方看的书面声明。
+                只陈述两件永远为真的事：线索方的摘要我们没用；本页内容依据下方信源。
+              */
+              lead ? (
+                <>
+                  本条选题由第三方线索发现；线索方提供的摘要未被采用，本页内容依据下方信源整理。
+                  <LeadCredit href={lead.leadUrl} className="ml-1" />
+                </>
+              ) : undefined
+            }
+          />
 
-          {/* ============ 摘要正文 ============ */}
+          {/* ============ 摘要 ============ */}
           {/* 正文是全页阅读密度最高的一块：桌面端 18px / 行高 1.95，长段落才不费眼 */}
           <div className="mt-7 whitespace-pre-line text-[16px] leading-[1.9] text-white/80 sm:text-[17px] lg:mt-9 lg:text-[18px] lg:leading-[1.95]">
             {ev.summary}
           </div>
+
+          {/*
+            ============ 全文梳理（detail）============
+            没有就整块不渲染 —— 老事件（2026-09-07 之前的）本来就没有这一层，
+            页面回到「只有摘要」的样子，与改造前完全一致，不会出现空标题或占位块。
+
+            这一块同样是 AI 生成的，所以自带徽章与一句说明：
+            标识义务是按「内容」算的，不是按「页面」算的，正文里多出一大块生成内容
+            却只靠页头那一条提示，说服力不够。
+          */}
+          {detail.length > 0 && (
+            <section className="mt-9 lg:mt-12">
+              <div className="mb-4 flex flex-wrap items-center gap-2 lg:mb-5">
+                <h2 className="text-base font-semibold tracking-wide text-white/85 lg:text-lg">全文梳理</h2>
+                <span className="rounded-full bg-purple-500/15 px-2 py-0.5 text-[11px] font-medium text-purple-200/90">
+                  {AI_BADGE}
+                </span>
+                <span className="text-[12px] text-white/35 lg:text-[13px]">
+                  依据下方信源原文自动整理，非原文转载
+                </span>
+              </div>
+              <div className="space-y-6 lg:space-y-8">
+                {detail.map((sec, i) => (
+                  <div key={i}>
+                    <h3 className="mb-2 text-[15px] font-semibold text-white/80 lg:mb-2.5 lg:text-[17px]">
+                      {sec.heading}
+                    </h3>
+                    <p className="whitespace-pre-line text-[15px] leading-[1.9] text-white/65 sm:text-[16px] lg:text-[17px] lg:leading-[1.95]">
+                      {sec.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* ============ 为什么值得看 ============ */}
           {ev.whyItMatters && (
@@ -201,7 +260,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
             ) : (
               <ol className="space-y-2 lg:space-y-2.5">
                 {ev.sources.map((s, i) => (
-                  <li key={`${s.name}-${i}`} id={`src-${i + 1}`} className="scroll-mt-28">
+                  <li key={`${s.name}-${i}`} id={`src-${i + 1}`} className="scroll-below-header">
                     <a
                       href={s.url}
                       target="_blank"
@@ -212,11 +271,18 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
                         [{i + 1}]
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-2">
+                        <span className="flex flex-wrap items-center gap-2">
                           <span className="text-[13px] font-medium text-white/80 lg:text-sm">{s.name}</span>
                           {s.tier === 1 && (
                             <span className="rounded-full bg-emerald-500/12 px-1.5 py-0.5 text-[10px] text-emerald-300/85">
                               一手信源
+                            </span>
+                          )}
+                          {/* 线索标注挂在具体那一条上：读者要能看出「哪一条是别人帮我们发现的」，
+                              而 s.name 始终是原发布者，不能被中介名顶替 */}
+                          {s.leadVia && (
+                            <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-white/45">
+                              线索来自 {s.leadVia}
                             </span>
                           )}
                         </span>

@@ -3,11 +3,14 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
-import { Sparkles } from 'lucide-react'
+import Link from 'next/link'
+import { CalendarDays, Sparkles } from 'lucide-react'
 import { prisma } from '@/lib/db'
-import { AI_NOTICE, AUTHOR_NAME } from '@/lib/news/constants'
+import { AiNoticeBlock } from '@/components/news/ai-notice-block'
 import {
   EVENT_SELECT,
+  NEWS_PAGE_SIZE,
+  formatMonthHeading,
   hoursAgo,
   ogImageForCategory,
   siteOrigin,
@@ -18,7 +21,8 @@ import {
 } from '@/lib/news/format'
 import { NewsStream } from './news-stream'
 
-const PAGE_SIZE = 20
+/** 与 /api/news/list 共用，不要在这里写死数字（见 format.ts 的注释） */
+const PAGE_SIZE = NEWS_PAGE_SIZE
 const HIGHLIGHT_TAKE = 6
 
 const TITLE = 'AI 圈大事记 - 每日 AI 动态聚合'
@@ -45,6 +49,19 @@ export const metadata: Metadata = {
 const HIGHLIGHT_WHERE = { status: 'PUBLISHED', needsReview: false }
 const HIGHLIGHT_ORDER = [{ pinned: 'desc' as const }, { score: 'desc' as const }]
 
+/**
+ * 「最近补录」的判据：事件本身发生得早（36 小时以前），摘要却是最近 7 天才写出来的。
+ *
+ * 去掉 compose 的 7 天窗口之后，积压车道会持续把老事件补写出来。这类条目按 happenedAt
+ * 排会插进时间流中间，用户在首屏根本看不见 —— 「刚发布」和「时间轴位置」对不上。
+ *
+ * 【必须复用 HIGHLIGHT_WHERE】这是一个重点位，needsReview=true 的条目不能进（SKILL.md §7）。
+ * 而「happenedAt 很旧 + publishedAt 很新」几乎就是降级发布条目的特征
+ * （degradePublish 写的正是 needsReview=true），不过滤的话这一行会精准地
+ * 把最不该推的那批条目推上去。所以这里展开常量而不是重写一遍字面量。
+ */
+const BACKFILL_TAKE = 5
+
 export default async function NewsPage() {
   const now = new Date()
 
@@ -52,6 +69,8 @@ export default async function NewsPage() {
   let total = 0
   let today: NewsEventDto[] = []
   let week: NewsEventDto[] = []
+  let backfills: NewsEventDto[] = []
+  let months: { key: string; count: number }[] = []
   let fallbackRange: string | null = null
   let dbFailed = false
 
@@ -83,6 +102,43 @@ export default async function NewsPage() {
     today = todayRows.map(toEventDto)
     week = weekRows.map(toEventDto)
 
+    // 最近补录 + 归档月份。两个查询都不能拖垮主列表，所以放在主查询之后单独 try。
+    try {
+      const [backfillRows, monthRows] = await Promise.all([
+        prisma.newsEvent.findMany({
+          where: {
+            ...HIGHLIGHT_WHERE,
+            publishedAt: { gte: hoursAgo(24 * 7, now) },
+            happenedAt: { lt: hoursAgo(36, now) },
+          },
+          select: EVENT_SELECT,
+          orderBy: [{ publishedAt: 'desc' }],
+          // 多取一些再在内存里按 isBackfilled 精筛。
+          // 【为什么不能只靠 where】上面两个条件是「事件较早」且「最近发布」，
+          // 而 isBackfilled 判的是「两者相差 ≥36h」——不是一回事：
+          // happenedAt=37h前、publishedAt=36h前 满足 where，但间隔只有 1 小时，不算补录。
+          // 而「两列相减再比较」在 Prisma 里表达不出来，只能查宽一点再筛。
+          take: BACKFILL_TAKE * 4,
+        }),
+        // 有哪些月份有内容。用原生 SQL 做 GROUP BY —— Prisma 的 groupBy 没法按
+        // 「东八区的月份」分组，而这里必须用业务时区，否则每月 1 号的凌晨 8 小时会归到上个月。
+        prisma.$queryRaw<{ k: string; n: bigint }[]>`
+          SELECT DATE_FORMAT(DATE_ADD(happened_at, INTERVAL 8 HOUR), '%Y-%m') AS k, COUNT(*) AS n
+          FROM news_events
+          WHERE status = 'PUBLISHED'
+          GROUP BY k
+          ORDER BY k DESC
+          LIMIT 12
+        `,
+      ])
+      // 精筛：口径与卡片上的「补录」角标（toEventDto 里的 backfilled）必须是同一套，
+      // 否则会出现「列在补录区里、卡片上却没有补录角标」这种自相矛盾的展示
+      backfills = backfillRows.map(toEventDto).filter((e) => e.backfilled).slice(0, BACKFILL_TAKE)
+      months = monthRows.map((r) => ({ key: r.k, count: Number(r.n) }))
+    } catch (e) {
+      console.error('[news/page extras]', e)
+    }
+
     // 今日为空（凌晨、或当天信源都没产出）就回退到最近 72 小时，
     // 前端据 fallbackRange 文案化说明，而不是给用户一个空列表
     if (today.length === 0) {
@@ -104,7 +160,7 @@ export default async function NewsPage() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   return (
-    <div className="min-h-screen pb-20 pt-28 sm:pt-32">
+    <div className="min-h-screen pb-20 pt-28 sm:page-top">
       <div className="pointer-events-none fixed inset-0 grid-bg opacity-60" />
       <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px]" />
       <div className="pointer-events-none fixed bottom-1/4 right-10 h-[380px] w-[380px] rounded-full bg-cyan-500/[0.07] blur-[128px]" />
@@ -135,14 +191,7 @@ export default async function NewsPage() {
           </p>
 
           {/* AI 聚合说明条（AI 标识法定位置之一，见 SKILL.md §6） */}
-          <div className="mt-5 flex gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 lg:max-w-3xl lg:px-5 lg:py-3.5">
-            <span className="mt-px shrink-0 rounded-full bg-purple-500/15 px-2 py-0.5 text-[11px] font-medium text-purple-200/90">
-              AI 聚合
-            </span>
-            <p className="text-[13px] leading-relaxed text-white/50 lg:text-sm">
-              {AI_NOTICE}整理者：{AUTHOR_NAME}。
-            </p>
-          </div>
+          <AiNoticeBlock className="mt-5 lg:max-w-3xl" />
         </header>
 
         {dbFailed ? (
@@ -154,13 +203,43 @@ export default async function NewsPage() {
             <p className="text-sm text-white/45">内容正在整理中，稍后回来看看。</p>
           </div>
         ) : (
-          <NewsStream
-            initial={timeline}
-            initialTotalPages={totalPages}
-            total={total}
-            now={now.toISOString()}
-            highlights={{ today, week, fallbackRange }}
-          />
+          <>
+            <NewsStream
+              initial={timeline}
+              initialTotalPages={totalPages}
+              total={total}
+              now={now.toISOString()}
+              highlights={{ today, week, fallbackRange }}
+              backfills={backfills}
+            />
+
+            {/*
+              ============ 按月归档入口 ============
+              内容会持续累积（compose 不再有 7 天窗口），但时间流默认只出一页，
+              「攒下来的东西」在页面上是看不见的。这一排就是把累积量变成可见的结构，
+              同时给搜索引擎一条能走到旧内容的路。
+            */}
+            {months.length > 1 && (
+              <nav aria-label="按月归档" className="mt-12 border-t border-white/10 pt-6 lg:mt-16 lg:pt-8">
+                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-white/70 lg:mb-4 lg:text-[15px]">
+                  <CalendarDays className="h-4 w-4 text-white/40" />
+                  按月回看
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {months.map((m) => (
+                    <Link
+                      key={m.key}
+                      href={`/news/archive/${m.key}`}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 text-[13px] text-white/60 transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-white/85"
+                    >
+                      {formatMonthHeading(m.key)}
+                      <span className="tabular-nums text-white/30">{m.count}</span>
+                    </Link>
+                  ))}
+                </div>
+              </nav>
+            )}
+          </>
         )}
       </div>
     </div>

@@ -12,10 +12,10 @@ export default function ShopLayout({
   // shop-shell 只做一件事：把「固定头部有多高」以 --header-h 的形式挂到整棵前台子树上
   // （移动端/md 112px，lg 起 96px，定义见 globals.css）。
   //
-  // 顶部留白没有直接写在这里，是因为各页面自己带着 pt-32——写在 main 上会和页面的
-  // padding 叠加，首屏直接空出 256px。正确做法是页面把 pt-32 换成 .page-top，
-  // 它从 --header-h 推导：移动端仍是 128px（零变化），lg 收到 112px。
-  // 页面级替换由各页面负责人来做，这里先把变量和工具类备好。
+  // 顶部留白刻意不写在 main 上：写在这里会和页面自己的 padding 叠加，首屏直接空出 256px。
+  // 各前台页面统一用 .page-top（/news 那两页要保留手机端贴头部的节奏，写 `pt-28 sm:page-top`），
+  // 它从 --header-h 推导：移动端 128px（与旧的 pt-32 完全一致），lg 收到 112px。
+  // 全站 pt-32 已于 2026-09-07 迁移完毕，新页面请直接用 .page-top，不要再写死数值。
   return (
     <div className="shop-shell flex min-h-screen flex-col">
       <Header />

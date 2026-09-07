@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, Flame, Loader2 } from 'lucide-react'
+import { ChevronRight, Flame, History, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { AI_BADGE } from '@/lib/news/constants'
 import { loadReadIds, saveReadIds } from '@/lib/news/read-state'
@@ -42,13 +42,21 @@ interface Props {
     /** 今日无重点时回退到最近 72 小时，前端据此文案化说明，而不是渲染空列表 */
     fallbackRange: string | null
   }
+  /**
+   * 最近补录：事件发生得早、摘要是最近才写出来的。
+   *
+   * compose 去掉 7 天窗口后，积压车道会持续把老事件补写出来，而它们按 happenedAt
+   * 排会插进时间流中间，用户在首屏完全看不到。这一行是它们唯一的露出位置。
+   * 默认折叠成一行，展开才列出来 —— 展开会占掉重点层下面整整一屏。
+   */
+  backfills?: NewsEventDto[]
 }
 
 function prefersReducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-export function NewsStream({ initial, initialTotalPages, total, now, highlights }: Props) {
+export function NewsStream({ initial, initialTotalPages, total, now, highlights, backfills = [] }: Props) {
   const router = useRouter()
   const nowDate = useMemo(() => new Date(now), [now])
   const [list, setList] = useState<NewsEventDto[]>(initial)
@@ -62,6 +70,7 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
   const [readIds, setReadIds] = useState<Set<number>>(new Set())
   const [focusId, setFocusId] = useState<number | null>(null)
   const [rail, setRail] = useState<'today' | 'week'>('today')
+  const [showBackfills, setShowBackfills] = useState(false)
 
   const abortRef = useRef<AbortController | null>(null)
   const pendingFocusRef = useRef<NewsEventDto | null>(null)
@@ -257,6 +266,59 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights 
         </section>
       )}
 
+      {/*
+        ============ 最近补录 ============
+        折叠成一行，点开才列出。这些是「刚写出来但事件本身很旧」的条目，
+        在按时间排的流里会沉到中间，不给它一个入口等于白写。
+      */}
+      {backfills.length > 0 && (
+        <section className="mb-8 lg:mb-10">
+          <button
+            onClick={() => setShowBackfills((v) => !v)}
+            aria-expanded={showBackfills}
+            className="flex w-full items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-2.5 text-left transition-colors hover:bg-white/[0.06] lg:px-5 lg:py-3"
+          >
+            <History className="h-4 w-4 shrink-0 text-white/35" />
+            <span className="text-[13px] text-white/60 lg:text-sm">
+              最近补录 <span className="tabular-nums text-white/40">{backfills.length}</span> 条
+              <span className="ml-1.5 text-white/30">（事件较早，摘要是最近才写出来的）</span>
+            </span>
+            <ChevronRight
+              className={cn(
+                'ml-auto h-4 w-4 shrink-0 text-white/30 transition-transform',
+                showBackfills && 'rotate-90'
+              )}
+            />
+          </button>
+
+          {showBackfills && (
+            <ul className="mt-2 space-y-2">
+              {backfills.map((ev) => (
+                <li key={ev.id}>
+                  <Link
+                    href={`/news/${ev.slug}`}
+                    className="group flex items-start gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-colors hover:border-white/20 hover:bg-white/[0.07]"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="line-clamp-2 text-[14px] font-medium leading-snug text-white/80 group-hover:text-white lg:text-[15px]">
+                        {ev.headline}
+                      </span>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] tabular-nums text-white/30 lg:text-xs">
+                        <span>{formatDayHeading(dayKey(ev.happenedAt))}</span>
+                        <span>·</span>
+                        <span>{sourceLabel(ev.sources, ev.sourceCount)}</span>
+                        <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-white/35">补录</span>
+                      </span>
+                    </span>
+                    <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-white/20 transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       {/* ============ 分类芯片 ============ */}
       {/* sm 起已经换行平铺；桌面端只需把间距和字号放开一档，避免一排小胶囊挤在一起 */}
       <div className="news-rail -mx-6 mb-6 flex gap-2 px-6 pb-1 sm:mx-0 sm:flex-wrap sm:px-0 lg:mb-8 lg:gap-2.5">
@@ -413,7 +475,7 @@ function EventCard({
       id={`ev-${ev.id}`}
       style={{ animationDelay: `${Math.min(index, 8) * 35}ms` }}
       className={cn(
-        'news-in group scroll-mt-28 rounded-2xl border bg-white/[0.04] transition-colors',
+        'news-in group scroll-below-header rounded-2xl border bg-white/[0.04] transition-colors',
         focused ? 'news-flash border-purple-400/50' : 'border-white/10 hover:border-white/20 hover:bg-white/[0.06]'
       )}
     >

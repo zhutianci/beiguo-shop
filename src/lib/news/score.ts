@@ -102,6 +102,53 @@ export function unsupportedNumbers(summary: string, materials: string): string[]
   return Array.from(new Set(bad))
 }
 
+/**
+ * §1.1 禁词回查：页面上出现「记者」「编辑部」「独家」这类字样，等于自证在做采编发布。
+ * 提示词里已经写了不许用，但提示词是软约束 —— 这是落库前的硬闸。
+ * 命中返回那个词，没命中返回 null。
+ */
+const FORBIDDEN_WORDS = ['记者', '编辑部', '独家', '爆料', '本站原创', '本网讯', '本报讯', '特约撰稿'] as const
+
+export function forbiddenHit(text: string): string | null {
+  const t = (text || '').replace(/\s+/g, '')
+  for (const w of FORBIDDEN_WORDS) {
+    if (t.includes(w)) return w
+  }
+  return null
+}
+
+/**
+ * §1.2 选题黑名单的**兜底**回查（不是主闸，主闸在 triage）。
+ *
+ * 【为什么需要这一道】triage 判定时看到的只有标题 + feed 的 description；
+ * 而 compose 会去抓原文正文，detail 更是直接从正文扩写。
+ * 一篇标题看着是「某公司发布新模型」的稿子，正文里完全可能带出出口管制、
+ * 监管处罚、大规模裁员 —— 那部分内容 triage 从来没看过。
+ *
+ * 这里用关键词兜，刻意从严：宁可丢掉一段 detail，也不要让政策解读进正文。
+ * 关键词表是 TOPIC_BLOCKLIST 的可机检子集，两者要一起维护。
+ */
+const BLOCKLIST_KEYWORDS = [
+  // 监管与立法
+  '监管立法', 'AI 法案', 'AI法案', '算法备案', '行政处罚', '合规罚款', '反垄断调查', '被约谈', '责令整改',
+  // 出口管制与制裁
+  '出口管制', '实体清单', '制裁', '贸易战', '技术封锁', '禁售', '断供',
+  // 国家级与军事
+  '国防部', '军方采购', '政府采购', '国家战略', '军事应用', '情报机构',
+  // 劳资
+  '大规模裁员', '集体诉讼', '罢工', '劳资纠纷',
+  // 平台处置
+  '应用下架', '被下架', '数据泄露处罚',
+] as const
+
+export function blocklistHit(text: string): string | null {
+  const t = (text || '').replace(/\s+/g, '')
+  for (const w of BLOCKLIST_KEYWORDS) {
+    if (t.includes(w.replace(/\s+/g, ''))) return w
+  }
+  return null
+}
+
 /** 是否需要人工复核（全自动发布，但可疑条目不进首页与重点榜） */
 export function needsReview(opts: {
   confidence: number

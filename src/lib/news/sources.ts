@@ -13,7 +13,7 @@ export interface SeedSource {
   name: string
   feedUrl: string
   homepage?: string
-  kind?: 'RSS' | 'ATOM' | 'JSON' | 'HN' | 'GITHUB' | 'X'
+  kind?: 'RSS' | 'ATOM' | 'JSON' | 'HN' | 'GITHUB' | 'X' | 'AIHOT'
   lang?: 'zh' | 'en'
   tier: 1 | 2 | 3
   role?: 'feed' | 'signal' | 'both'
@@ -74,6 +74,26 @@ export const SEED_SOURCES: SeedSource[] = [
   { key: 'huggingface', name: 'Hugging Face 每日论文', feedUrl: 'https://huggingface.co/api/daily_papers', kind: 'JSON', lang: 'en', tier: 1, weight: 1.2, viaRelay: true, enabled: false },
   { key: 'deepmind', name: 'Google DeepMind', feedUrl: 'https://deepmind.google/blog/rss.xml', lang: 'en', tier: 1, weight: 1.5, viaRelay: true, enabled: false },
   { key: 'reddit-llm', name: 'Reddit r/LocalLLaMA', feedUrl: 'https://www.reddit.com/r/LocalLLaMA/top.json?limit=25&t=day', kind: 'JSON', lang: 'en', tier: 3, role: 'signal', weight: 0.7, viaRelay: true, enabled: false },
+
+  // ---------- 线索中介（只给选题发现信号，不产内容）----------
+  // AIHOT：拿到商业使用书面授权（授权号 AIHOTAPI20260907001，2026-09-07），
+  // 授权范围与实现边界见 docs/AIHOT线索接入.md 与 lib/news/aihot.ts 文件头。
+  // 我们只取「去哪儿看」：标题 / 原文链接 / 原发布者名 / 发布时间；摘要一律自己抓原文写。
+  //
+  // tier 3 / weight 0.5：它不是一家报道媒体，只是发现渠道，不该给交叉验证权重。
+  // 出厂 enabled: false —— A1 的积压消化上线并观察一周后，在后台信源管理里手动开启。
+  // 先开会让 triage/cluster/compose 三段的队列同时变长，把刚修好的积压问题重新压出来。
+  {
+    key: 'aihot',
+    name: 'AIHOT 线索',
+    feedUrl: 'https://aihot.virxact.com/api/v1/items?limit=30',
+    homepage: 'https://aihot.virxact.com',
+    kind: 'AIHOT',
+    lang: 'zh',
+    tier: 3,
+    weight: 0.5,
+    enabled: false,
+  },
 ]
 
 /** 境外中继：把原始 URL 包装成 Worker 地址。未配置则原样返回。 */

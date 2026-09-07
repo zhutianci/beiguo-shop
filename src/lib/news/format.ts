@@ -42,6 +42,51 @@ export function hoursAgo(hours: number, now: Date = new Date()): Date {
   return new Date(now.getTime() - hours * 3600000)
 }
 
+// ============ 按月归档 ============
+
+/** 把绝对时刻归到业务时区的哪个月，YYYY-MM */
+export function monthKey(d: Date | string): string {
+  return dayKey(d).slice(0, 7)
+}
+
+/** 归档月份的合法形状。**必须锚定首尾**，否则会误吃 /news/[slug]（形如 2026-09-06-a1b2c3d4e5） */
+export const ARCHIVE_MONTH_RE = /^\d{4}-(0[1-9]|1[0-2])$/
+
+/** 该月 00:00 对应的 UTC 时刻（含） */
+export function monthStartUtc(key: string): Date {
+  return new Date(Date.parse(`${key}-01T00:00:00.000Z`) - TZ_OFFSET_MS)
+}
+
+/** 下个月 00:00 对应的 UTC 时刻（不含）。用「下月首日」而不是「本月末日 23:59」，避开闰秒与末日天数 */
+export function monthEndUtc(key: string): Date {
+  const [y, m] = key.split('-').map(Number)
+  const ny = m === 12 ? y + 1 : y
+  const nm = m === 12 ? 1 : m + 1
+  return new Date(Date.parse(`${ny}-${String(nm).padStart(2, '0')}-01T00:00:00.000Z`) - TZ_OFFSET_MS)
+}
+
+/** 「2026 年 9 月」 */
+export function formatMonthHeading(key: string): string {
+  const [y, m] = key.split('-')
+  return `${y} 年 ${Number(m)} 月`
+}
+
+/**
+ * 是否属于「补录」：事件本身发生得早，却是最近才写出摘要发布的。
+ *
+ * 去掉 compose 的 7 天窗口之后，积压车道会把很老的事件补写出来。这类条目按 happenedAt
+ * 排会插进时间流的中间，用户在首屏根本看不见 —— 「刚发布」和「在时间轴上的位置」对不上。
+ * 前台据此在首屏单开一行「最近补录」，让新写出来的老事件也有露出。
+ */
+const BACKFILL_GAP_MS = 36 * 3600000
+
+export function isBackfilled(happenedAt: Date | string, publishedAt: Date | string | null): boolean {
+  if (!publishedAt) return false
+  const h = typeof happenedAt === 'string' ? Date.parse(happenedAt) : happenedAt.getTime()
+  const p = typeof publishedAt === 'string' ? Date.parse(publishedAt) : publishedAt.getTime()
+  return p - h >= BACKFILL_GAP_MS
+}
+
 /** 「9月6日 周六」 */
 export function formatDayHeading(key: string): string {
   const t = Date.parse(`${key}T00:00:00.000Z`)
@@ -86,6 +131,19 @@ export interface NewsSourceDto {
   title: string
   tier: number
   publishedAt: string
+  /**
+   * 线索中介。非空表示「这条原文是某个第三方帮我们发现的」，
+   * 页面必须标注并回链（这是授权条件，不是可选装饰）。见 docs/AIHOT线索接入.md。
+   * name 始终是**原发布者**的名字，中介名放这里，两者不能混。
+   */
+  leadVia?: string | null
+  leadUrl?: string | null
+}
+
+/** 全文层的一段。detail 是自写的分段梳理，不是原文（SKILL.md §1.1） */
+export interface NewsDetailSectionDto {
+  heading: string
+  body: string
 }
 
 /** 关键事实：标注来自第几个信源，供人工一键复核 */
@@ -109,6 +167,9 @@ export interface NewsEventDto {
   needsReview: boolean
   pinned: boolean
   happenedAt: string
+  publishedAt: string | null
+  /** 老事件被积压车道补写出来的：happenedAt 很旧但 publishedAt 很新 */
+  backfilled: boolean
   tags: string[]
   sources: NewsSourceDto[]
   facts: NewsFactDto[]
@@ -131,20 +192,32 @@ export interface NewsEventRow {
   needsReview: boolean
   pinned: boolean
   happenedAt: Date
+  publishedAt?: Date | null
+  /** 全文层（JSON 字符串）。只有详情页会 select 它，列表不取——一次 20 条会白白拖几十 KB */
+  detail?: string | null
   items?: {
     url: string
     title: string
     publishedAt: Date
     source: { name: string; tier: number }
+    leadVia?: string | null
+    leadUrl?: string | null
+    originSourceName?: string | null
   }[]
 }
 
-/** 同一家媒体在一个事件里可能有多条抓取记录，展示时按媒体名去重，保留最早一条 */
+/**
+ * 同一家媒体在一个事件里可能有多条抓取记录，展示时按媒体名去重，保留最早一条。
+ *
+ * 【展示名的取法】优先 originSourceName（原发布者），回落到我们自己的信源名。
+ * 线索类条目的 source.name 是中介名（如「AIHOT 线索」），拿它当展示名等于
+ * 把中介冒充成原发布者，既误导读者也违反 SKILL.md §6 的来源标注要求。
+ */
 function toSources(items: NewsEventRow['items']): NewsSourceDto[] {
   if (!items?.length) return []
   const seen = new Map<string, NewsSourceDto>()
   for (const it of items) {
-    const name = it.source?.name || '公开信源'
+    const name = (it.originSourceName || '').trim() || it.source?.name || '公开信源'
     if (seen.has(name)) continue
     seen.set(name, {
       name,
@@ -152,9 +225,26 @@ function toSources(items: NewsEventRow['items']): NewsSourceDto[] {
       title: it.title,
       tier: it.source?.tier ?? 3,
       publishedAt: it.publishedAt.toISOString(),
+      leadVia: it.leadVia ?? null,
+      leadUrl: it.leadUrl ?? null,
     })
   }
   return Array.from(seen.values()).sort((a, b) => a.tier - b.tier)
+}
+
+/** 解析全文层。任何异常都当作「没有全文」，详情页少一块区块，绝不因此报错 */
+export function parseDetail(raw: string | null | undefined): NewsDetailSectionDto[] {
+  if (!raw) return []
+  try {
+    const arr = JSON.parse(raw)
+    if (!Array.isArray(arr)) return []
+    return arr
+      .filter((s) => s && typeof s.heading === 'string' && typeof s.body === 'string' && s.body.trim())
+      .map((s) => ({ heading: String(s.heading).trim(), body: String(s.body).trim() }))
+      .slice(0, 6)
+  } catch {
+    return []
+  }
 }
 
 function parseFacts(raw: string | null | undefined): NewsFactDto[] {
@@ -196,6 +286,8 @@ export function toEventDto(row: NewsEventRow): NewsEventDto {
     needsReview: row.needsReview,
     pinned: row.pinned,
     happenedAt: row.happenedAt.toISOString(),
+    publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
+    backfilled: isBackfilled(row.happenedAt, row.publishedAt ?? null),
     tags: parseTags(row.tags),
     sources: toSources(row.items),
     facts: parseFacts(row.facts),
@@ -219,16 +311,29 @@ export const EVENT_SELECT = {
   needsReview: true,
   pinned: true,
   happenedAt: true,
+  publishedAt: true,
   items: {
     select: {
       url: true,
       title: true,
       publishedAt: true,
       source: { select: { name: true, tier: true } },
+      leadVia: true,
+      leadUrl: true,
+      originSourceName: true,
     },
     orderBy: { publishedAt: 'asc' },
   },
 } as const
+
+/**
+ * 详情页专用：在 EVENT_SELECT 基础上多取 detail。
+ *
+ * 【为什么不直接并进 EVENT_SELECT】detail 是 600-1200 字的 TEXT 列，
+ * 列表一次 20 条就要多传几十 KB，而卡片上一个字都不显示。
+ * 两条渲染路径共用 toEventDto，只是详情页多喂一个字段进去。
+ */
+export const EVENT_DETAIL_SELECT = { ...EVENT_SELECT, detail: true } as const
 
 // ============ 文案 ============
 
@@ -266,6 +371,17 @@ export function siteOrigin(): string {
   }
   return origin
 }
+
+/**
+ * 列表分页的页大小。**首屏直出与「加载更多」接口必须用同一个数**。
+ *
+ * 【为什么要收敛成一个常量】首屏由 Server Component 自己 take，翻页走 /api/news/list
+ * 自己 skip/take。两边各写一份就会漂：页大小不一致时按 `page+1` 翻页算出的偏移是错的，
+ * 症状是「重复渲染若干条 + 尾部条目永远拿不到」，而页面不报错、还会显示「已全部列出」。
+ * 归档页就踩过这个（首屏 30、接口 20）。route.ts 不能导出常量（多导出一个非 handler
+ * 会让 next build 报「不是合法的 Route export」），所以放在这里。
+ */
+export const NEWS_PAGE_SIZE = 20
 
 /** 分类芯片用（含「全部」） */
 export const CATEGORY_CHIPS = [{ slug: '', label: '全部', hint: '' }, ...CATEGORIES]

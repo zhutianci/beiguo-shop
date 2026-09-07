@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { fetchText, parseFeed, FetchFeedError } from '@/lib/news/feed'
 import { relayConfigured, relayUrl } from '@/lib/news/sources'
+import { AIHOT_HEADERS, aihotFetchUrl, parseAihotLeads } from '@/lib/news/aihot'
 
 /**
  * 「立即测试该源」：拉一次 feed，返回 HTTP 状态、耗时、解析出的条目数与前 3 条标题。
@@ -19,7 +20,7 @@ const bodySchema = z.object({
   id: z.coerce.number().int().positive().optional(),
   feedUrl: z.string().trim().max(500).optional(),
   viaRelay: z.boolean().optional(),
-  kind: z.enum(['RSS', 'ATOM', 'JSON', 'HN', 'GITHUB', 'X']).optional(),
+  kind: z.enum(['RSS', 'ATOM', 'JSON', 'HN', 'GITHUB', 'X', 'AIHOT']).optional(),
 })
 
 const TEST_TIMEOUT_MS = 10_000
@@ -132,10 +133,13 @@ export async function POST(request: NextRequest) {
       if (bad) return error(bad)
     }
 
+    const isAihot = kind === 'AIHOT'
+    if (isAihot) target = aihotFetchUrl(feedUrl)
+
     const started = Date.now()
     let text = ''
     try {
-      text = await fetchText(target, TEST_TIMEOUT_MS)
+      text = await fetchText(target, TEST_TIMEOUT_MS, isAihot ? AIHOT_HEADERS : undefined)
     } catch (e) {
       const ms = Date.now() - started
       const status = e instanceof FetchFeedError ? e.status : 0
@@ -151,6 +155,28 @@ export async function POST(request: NextRequest) {
       })
     }
     const ms = Date.now() - started
+
+    // 线索源单独看：走 aihot.ts 的白名单解析器，顺带把「域名过滤掉了多少」显示出来。
+    // 这个差值是判断「对方这阵子是不是全在推 x.com」的唯一入口——
+    // 过滤后为 0 不代表接入坏了，而是这批线索我们都抓不到正文。
+    if (isAihot) {
+      const leads = parseAihotLeads(text, 40)
+      return success({
+        ok: leads.length > 0,
+        status: 200,
+        ms,
+        bytes: text.length,
+        count: leads.length,
+        titles: leads.slice(0, 3).map((l) => `${l.originSourceName}｜${l.title}`),
+        format: 'AIHOT 线索',
+        target,
+        latest: leads[0]?.publishedAt ?? null,
+        message:
+          leads.length > 0
+            ? `域名过滤后剩 ${leads.length} 条可用线索（只取标题/原文链接/原发布者/时间，不取对方摘要）`
+            : '连接成功但过滤后为 0 条——多半是这批线索都指向 x.com / 微信公众号，本机抓不到正文，已按设计丢弃',
+      })
+    }
 
     // JSON 源单独看：parseFeed 只认 RSS / Atom
     const looksJson = kind === 'JSON' || /^\s*[[{]/.test(text)

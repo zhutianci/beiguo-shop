@@ -46,7 +46,7 @@ const team = [
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen pt-32 pb-20">
+    <div className="min-h-screen page-top pb-20">
       {/* 背景 */}
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-1/4 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
