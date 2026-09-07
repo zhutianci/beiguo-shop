@@ -63,6 +63,9 @@ export type CouponReject =
   | 'KIND_PRODUCT_MISMATCH'
   | 'BELOW_THRESHOLD'
   | 'NO_DISCOUNT'
+  /** 券本身没问题，只是算下来没有推广专属价便宜 —— 与 NO_DISCOUNT 要分开，
+   *  否则会对着一张明明能减钱的券说「抵扣不了金额」，买家只会以为系统坏了 */
+  | 'NOT_BETTER_THAN_REFERRAL'
 
 export interface CouponCalc {
   /** 能不能用 */
@@ -84,6 +87,8 @@ export function rejectReason(r: CouponReject): string {
       return '订单金额未达到该券的使用门槛'
     case 'NO_DISCOUNT':
       return '该券在这一单上抵扣不了金额'
+    case 'NOT_BETTER_THAN_REFERRAL':
+      return '推广专属价比用这张券更便宜，本单已按专属价计算'
   }
 }
 
@@ -127,8 +132,74 @@ export function calcCoupon(rule: CouponRule, ctx: OrderContext): CouponCalc {
   if (cents(couponAmount) <= cents(ctx.referralAmount)) {
     return { usable: true, amount: couponAmount, discount: yuan(cut), applied: 'coupon' }
   }
-  return { ...noCoupon, usable: false, reject: 'NO_DISCOUNT' }
+  return { ...noCoupon, usable: false, reject: 'NOT_BETTER_THAN_REFERRAL' }
 }
+
+/**
+ * 报价：给定商品与可选的券，算出**服务端最终会收多少钱**。
+ *
+ * 【为什么必须单独有这个函数】结算页此前自己拿 `product.price − 券面额` 算展示价，
+ * 而带 ?ref= 访问时 `/api/products` 会把 `p.price` **覆盖成推广专属价**
+ * （见 api/products/route.ts 的内推分支）。于是页面算的是「专属价 − 券」、
+ * 服务端算的是「定价 − 券」—— 两个数不一样，买家看到的和实际扣的对不上。
+ * 现在结算页与下单接口都调这一个函数，不可能再分叉。
+ */
+export interface QuoteInput {
+  productId: number
+  /** 商品**定价**（数据库里的 price，不是被 ref 覆盖过的那个） */
+  listPrice: number
+  quantity: number
+  /** 推广专属价单价；没有内推时传 null */
+  referralUnitPrice: number | null
+  rule: CouponRule | null
+}
+
+export interface Quote {
+  /** 不用券时应付（已考虑内推） */
+  baseline: number
+  /** 用券后实付；券不适用时等于 baseline */
+  amount: number
+  discount: number
+  applied: 'coupon' | 'referral' | 'none'
+  /** 券为什么没用上；用上了则为 null */
+  reject: CouponReject | null
+}
+
+export function quoteOrder(input: QuoteInput): Quote {
+  const baseAmount = yuan(cents(input.listPrice) * input.quantity)
+  const referralAmount =
+    input.referralUnitPrice == null ? baseAmount : yuan(cents(input.referralUnitPrice) * input.quantity)
+  const baseline = Math.min(baseAmount, referralAmount)
+
+  if (!input.rule) {
+    return {
+      baseline,
+      amount: baseline,
+      discount: 0,
+      applied: referralAmount < baseAmount ? 'referral' : 'none',
+      reject: null,
+    }
+  }
+
+  const calc = calcCoupon(input.rule, { productId: input.productId, baseAmount, referralAmount })
+  const amount = calc.usable ? calc.amount : baseline
+
+  /*
+   * 【discount 必须是「相对 baseline 少付了多少」，不能直接用券面额】
+   * calcCoupon 的 discount 是券相对**定价**减了多少（如 1450 → 1350，减 100），
+   * 但 baseline 是定价与专属价里更低的那个（如 1400）。直接透传券面额就会得到
+   * 「原价 1400、优惠 100、实付 1350」这种自己都对不上的三个数 ——
+   * 订单详情、发票、结算页都会显示这组数字，对不上就是客服工单。
+   */
+  return {
+    baseline,
+    amount,
+    discount: yuan(cents(baseline) - cents(amount)),
+    applied: calc.applied,
+    reject: calc.usable ? null : (calc.reject ?? null),
+  }
+}
+
 
 /**
  * 券在「现在」是否处于可用状态。

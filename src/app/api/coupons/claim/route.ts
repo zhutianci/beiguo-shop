@@ -120,10 +120,23 @@ export async function POST(request: NextRequest) {
     } catch (e) {
       if (e instanceof ClaimError) return error(e.message)
       // P2002 = 唯一约束冲突。三限里任意一条命中都会走到这里。
-      // 不区分是哪一限：告诉用户「你已经领过」就够了，
-      // 细分到「你这个 IP 领过」反而是在教人怎么绕过。
+      //
+      // 【三限都只在本批次内生效】唯一约束是 [couponId, scope, value]，
+      // 换个批次（不同 couponId）就是另一组键，领过第一批不影响领第二批。
+      // 文案必须把「本次活动」讲出来 —— 只说「你已经领过了」，
+      // 买家会以为整个站只能领一张，把正常的多批次活动当成 bug。
       if ((e as { code?: string })?.code === 'P2002') {
-        return error('你已经领过这张券了')
+        // 自己已经持有本批次的券：可以直说，反正「我的优惠券」里本来就看得到
+        const mine = await prisma.couponGrant.findFirst({
+          where: { couponId: coupon.id, userId: user.id },
+          select: { id: true },
+        })
+        return error(
+          mine
+            ? '你已经领过本次活动的券了，可在「我的优惠券」中查看'
+            : // 撞的是 IP 或设备那一限。不点破是哪一条 —— 说清楚等于在教人绕过
+              '本次活动每人限领 1 张，你所在的网络或这台设备已经领取过'
+        )
       }
       throw e
     }

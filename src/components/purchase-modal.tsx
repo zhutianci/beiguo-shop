@@ -13,6 +13,8 @@ interface UsableCoupon {
   label: string
   applicable: boolean | null
   applicableDiscount: number
+  /** 选这张券后服务端会收的钱。前台直接用，不要自己拿 product.price 去减 */
+  finalAmount: number | null
   reason: string | null
   expiresAt: string | null
   forever: boolean
@@ -37,6 +39,8 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   const [error, setError] = useState<string>('')
   const [coupons, setCoupons] = useState<UsableCoupon[]>([])
   const [couponId, setCouponId] = useState<number | null>(null)
+  /** 不用券时应付多少（服务端算，已含内推专属价） */
+  const [baseline, setBaseline] = useState<number | null>(null)
 
   /*
    * 打开弹窗时拉一次「我的可用券」。
@@ -47,20 +51,29 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
     if (!open || !product || !user) {
       setCoupons([])
       setCouponId(null)
+      setBaseline(null)
       return
     }
     let alive = true
-    fetch(`/api/coupons/mine?usableOnly=1&productId=${product.id}&quantity=1`)
+    // 【必须带上 ref】带内推码访问时 product.price 已经是专属价，
+    // 拿它去减券面额就成了「专属价 − 券」，而服务端算的是「定价 − 券」——
+    // 两边差出来的钱会让买家在收银台看到跟弹窗不一样的数字。
+    // 把 ref 交给服务端，让它把这一单的最终价直接算好返回。
+    const ref = getRef()
+    const qs = new URLSearchParams({ usableOnly: '1', productId: String(product.id), quantity: '1' })
+    if (ref) qs.set('ref', ref)
+    fetch(`/api/coupons/mine?${qs.toString()}`)
       .then((r) => r.json())
       .then((d) => {
         if (!alive || !d?.success) return
         const list: UsableCoupon[] = d.data.list || []
         setCoupons(list)
+        setBaseline(typeof d.data.baseline === 'number' ? d.data.baseline : null)
         // 默认替买家选中减得最多的那张。买家仍可改选或不用 ——
         // 默认不选等于把优惠藏起来，多数人不会主动点开这一栏
         const best = list
           .filter((c) => c.applicable)
-          .sort((a, b) => b.applicableDiscount - a.applicableDiscount)[0]
+          .sort((a, b) => (a.finalAmount ?? Infinity) - (b.finalAmount ?? Infinity))[0]
         setCouponId(best ? best.id : null)
       })
       .catch(() => {})
@@ -83,10 +96,14 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
 
   if (!product) return null
 
-  // 展示用的应付价。真正的金额由服务端在建单时算 ——
-  // 这里只是让买家在点「确认支付」之前看到会变成多少，不作为下单依据
+  /*
+   * 展示用的应付价，**一律取服务端算好的数**，前端不再做任何减法。
+   * 服务端和这里用的是同一个 quoteOrder，所以弹窗上的数字就是建单时会写进订单的数字。
+   * baseline / finalAmount 拿不到时（接口还没回来、未登录）才退回 product.price 兜底显示。
+   */
   const chosen = coupons.find((c) => c.id === couponId && c.applicable) || null
-  const payable = Math.max(0.01, Math.round((product.price - (chosen?.applicableDiscount || 0)) * 100) / 100)
+  const noCouponPrice = baseline ?? product.price
+  const payable = chosen?.finalAmount ?? noCouponPrice
 
   // 确认支付：建单 → 发起支付宝 → 直接跳转收银台
   const bounceLogin = () => {
@@ -222,7 +239,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-bold">¥{payable.toFixed(2)}</span>
                       {chosen ? (
-                        <span className="text-sm text-white/30 line-through">¥{product.price}</span>
+                        <span className="text-sm text-white/30 line-through">¥{noCouponPrice.toFixed(2)}</span>
                       ) : (
                         product.originalPrice > product.price && (
                           <span className="text-sm text-white/30 line-through">¥{product.originalPrice}</span>

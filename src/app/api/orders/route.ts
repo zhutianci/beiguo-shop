@@ -12,7 +12,7 @@ import { effectiveBasePrice } from '@/lib/referral'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { shopOrderSourceKey } from '@/lib/order-billing'
 import { notifyOrderCreated } from '@/lib/notify'
-import { calcCoupon, grantUsable, parseProductIds, rejectReason, type GrantState } from '@/lib/coupon'
+import { quoteOrder, grantUsable, parseProductIds, rejectReason, type GrantState } from '@/lib/coupon'
 
 const createOrderSchema = z.object({
   productId: z.number(),
@@ -286,6 +286,8 @@ export async function POST(request: NextRequest) {
     let couponGrantId: number | null = null
     let couponDiscount: number | null = null
     let originalAmount: number | null = null
+    /** 券没用上时给前台的说明，随响应返回 */
+    let couponNote: string | null = null
 
     if (result.data.couponGrantId) {
       const grant = await prisma.couponGrant.findFirst({
@@ -300,30 +302,43 @@ export async function POST(request: NextRequest) {
       const ok = grantUsable({ state: grant.state as GrantState, expiresAt: grant.expiresAt })
       if (!ok.ok) return error(ok.reason)
 
-      const calc = calcCoupon(
-        {
+      const quote = quoteOrder({
+        productId: product.id,
+        listPrice: base,
+        quantity,
+        referralUnitPrice: referrerId ? unitPrice : null,
+        rule: {
           kind: grant.coupon.kind as 'THRESHOLD' | 'PRODUCT',
           minAmount: Number(grant.coupon.minAmount),
           discount: Number(grant.coupon.discount),
           productIds: parseProductIds(grant.coupon.productIds),
         },
-        { productId: product.id, baseAmount, referralAmount }
-      )
-      if (!calc.usable) {
-        return error(calc.reject ? rejectReason(calc.reject) : '该券不适用于本单')
-      }
-
-      // CAS 抢锁。orderId 先留空，建单成功后回填 —— 订单号这时还没有
-      const locked = await prisma.couponGrant.updateMany({
-        where: { id: grant.id, userId: user.id, state: 'AVAILABLE' },
-        data: { state: 'LOCKED', lockedAt: new Date() },
       })
-      if (locked.count !== 1) return error('该券正被另一笔待支付订单占用')
 
-      couponGrantId = grant.id
-      couponDiscount = calc.discount
-      originalAmount = referralAmount
-      amount = calc.amount
+      /*
+       * 【券没用上不等于下单失败】原来这里是 `if (!calc.usable) return error(...)`，
+       * 于是「买家选了券、但推广专属价本来就更便宜」会直接把订单拒掉 ——
+       * 买家什么都没做错，只是挑了张不划算的券，却连单都下不了。
+       *
+       * 现在改成：券用不上就按 baseline（已含内推）成交，券原样留在账户里不锁定，
+       * 并把原因随响应返回，前台提示一句。少赚一点也好过丢一单。
+       */
+      if (quote.applied !== 'coupon') {
+        amount = quote.baseline
+        couponNote = quote.reject ? rejectReason(quote.reject) : '推广专属价更优惠，本单未使用优惠券'
+      } else {
+        // CAS 抢锁。orderId 先留空，建单成功后回填 —— 订单号这时还没有
+        const locked = await prisma.couponGrant.updateMany({
+          where: { id: grant.id, userId: user.id, state: 'AVAILABLE' },
+          data: { state: 'LOCKED', lockedAt: new Date() },
+        })
+        if (locked.count !== 1) return error('该券正被另一笔待支付订单占用')
+
+        couponGrantId = grant.id
+        couponDiscount = quote.discount
+        originalAmount = quote.baseline
+        amount = quote.amount
+      }
     }
 
     // 创建待支付订单（默认 payStatus: UNPAID, deliveryStatus: PENDING）
@@ -382,7 +397,7 @@ export async function POST(request: NextRequest) {
     })
 
     // 销量在支付完成后再增加
-    return success({ order }, '订单创建成功')
+    return success({ order, couponNote }, couponNote || '订单创建成功')
   } catch (err) {
     console.error('Create order error:', err)
     return error('创建订单失败')

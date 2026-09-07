@@ -112,7 +112,7 @@ export default function ProfilePage() {
 
         <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
           {/* 用户信息卡片。
-              lg 起吸顶：右栏（账户信息 + 内推 + 绑定 + 快捷功能 + 统计）在桌面端很长，
+              lg 起吸顶：右栏（账户信息 + 快捷功能 + 内推 + 绑定 + 统计）在桌面端很长，
               头像卡跟着滚走的话，退出登录等操作就得滚回顶部。
               grid 子项默认 stretch 会让 sticky 失效，所以要配 lg:self-start。 */}
           <motion.div
@@ -247,29 +247,12 @@ export default function ProfilePage() {
               </div>
             </motion.div>
 
-            {/* 内推 */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.12 }}
-            >
-              <ReferralPanel />
-            </motion.div>
-
-            {/* 绑定账户管理 */}
+            {/* 快捷功能。位置紧跟账户信息 —— 这几个入口是买家最常点的，
+                排在内推/绑定这些低频块后面会让人以为个人中心只有一堆设置项 */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.15 }}
-            >
-              <AccountBindings />
-            </motion.div>
-
-            {/* 快捷功能 */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
             >
               <h2 className="text-xl lg:text-2xl font-bold mb-4 lg:mb-5">快捷功能</h2>
               <div className="grid sm:grid-cols-3 gap-4">
@@ -293,6 +276,24 @@ export default function ProfilePage() {
                   </Link>
                 ))}
               </div>
+            </motion.div>
+
+            {/* 内推 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.12 }}
+            >
+              <ReferralPanel />
+            </motion.div>
+
+            {/* 绑定账户管理 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15 }}
+            >
+              <AccountBindings />
             </motion.div>
 
             {/* 账户统计 */}

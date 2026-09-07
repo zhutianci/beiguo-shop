@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
-import { calcCoupon, couponLabel, grantUsable, parseProductIds, type GrantState } from '@/lib/coupon'
+import { quoteOrder, couponLabel, grantUsable, parseProductIds, rejectReason, type GrantState } from '@/lib/coupon'
 
 /**
  * 我的券。个人中心与结算页共用这一个接口。
@@ -24,6 +24,8 @@ const schema = z.object({
   quantity: z.coerce.number().int().min(1).max(99).default(1),
   /** 只看可用的（结算页用）还是全部（个人中心用） */
   usableOnly: z.enum(['0', '1']).default('0'),
+  /** 内推码。带了才能算出「服务端真正会收多少」，否则结算页会显示错的价 */
+  ref: z.string().trim().max(40).optional(),
 })
 
 export async function GET(request: NextRequest) {
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
 
     const parsed = schema.safeParse(Object.fromEntries(request.nextUrl.searchParams))
     if (!parsed.success) return error(parsed.error.errors[0].message)
-    const { productId, quantity, usableOnly } = parsed.data
+    const { productId, quantity, usableOnly, ref } = parsed.data
 
     const now = new Date()
 
@@ -60,11 +62,33 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // 结算页场景：算出这一单能不能用、减多少
-    let baseAmount = 0
+    /*
+     * 结算页场景：算出这一单能不能用、减多少、最终付多少。
+     *
+     * 【必须自己查定价，不能信前端传来的价】带 ?ref= 访问时 /api/products 会把
+     * 返回给前端的 price **覆盖成推广专属价**，前端手里那个数不是定价。
+     * 这里直接读库拿定价，再单独查专属价，两者都交给 quoteOrder ——
+     * 这样结算页显示的就是服务端建单时会算出的同一个数。
+     */
+    let listPrice = 0
+    let referralUnitPrice: number | null = null
     if (productId) {
       const product = await prisma.product.findUnique({ where: { id: productId }, select: { price: true } })
-      if (product) baseAmount = Math.round(Number(product.price) * quantity * 100) / 100
+      if (product) listPrice = Number(product.price)
+
+      if (ref && listPrice > 0) {
+        const referrer = await prisma.user.findUnique({
+          where: { referralCode: ref },
+          select: { id: true, status: true },
+        })
+        if (referrer && referrer.status === 1 && referrer.id !== user.id) {
+          const rp = await prisma.referralPrice.findUnique({
+            where: { userId_productId: { userId: referrer.id, productId } },
+          })
+          // 推广人没单独设价时按网站定价卖，与下单接口口径一致
+          referralUnitPrice = rp ? Number(rp.price) : listPrice
+        }
+      }
     }
 
     const list = grants.map((g) => {
@@ -80,23 +104,25 @@ export async function GET(request: NextRequest) {
 
       let applicable: boolean | null = null
       let discount = 0
+      let finalAmount: number | null = null
       let reason: string | null = usable.ok ? null : usable.reason
       if (batchDead) {
         applicable = false
         reason = '该活动已结束'
-      } else if (productId && baseAmount > 0 && usable.ok) {
-        // 这里只判「券本身能不能用在这个商品/金额上」，不比内推 ——
-        // 内推与券取更优是下单时的事，结算页展示券面额即可，否则文案会很难解释
-        const calc = calcCoupon(rule, { productId, baseAmount, referralAmount: baseAmount })
-        applicable = calc.usable
-        discount = calc.discount
-        if (!calc.usable && calc.reject) {
+      } else if (productId && listPrice > 0 && usable.ok) {
+        // 用与下单接口**同一个** quoteOrder，保证页面显示的价就是将来实收的价
+        const q = quoteOrder({ productId, listPrice, quantity, referralUnitPrice, rule })
+        applicable = q.applied === 'coupon'
+        discount = q.discount
+        finalAmount = q.amount
+        if (!applicable) {
+          // 门槛类单独给一句带具体金额的话，比通用文案更好懂；其余走全站统一的 rejectReason
           reason =
-            calc.reject === 'KIND_PRODUCT_MISMATCH'
-              ? '该券只能用于指定商品'
-              : calc.reject === 'BELOW_THRESHOLD'
-                ? `订单需满 ¥${rule.minAmount.toFixed(2)} 才能使用`
-                : '该券在这一单上抵扣不了金额'
+            q.reject === 'BELOW_THRESHOLD'
+              ? `订单需满 ¥${rule.minAmount.toFixed(2)} 才能使用`
+              : q.reject
+                ? rejectReason(q.reject)
+                : '本单用不上这张券'
         }
       }
 
@@ -114,12 +140,21 @@ export async function GET(request: NextRequest) {
         forever: !g.expiresAt,
         applicable,
         applicableDiscount: discount,
+        /** 选了这张券之后服务端会收的钱。前台直接显示这个数，不要自己再算 */
+        finalAmount,
         reason,
       }
     })
 
+    const baselineQuote =
+      productId && listPrice > 0
+        ? quoteOrder({ productId, listPrice, quantity, referralUnitPrice, rule: null })
+        : null
+
     return success({
       list: usableOnly === '1' ? list.filter((c) => c.state === 'AVAILABLE') : list,
+      /** 不使用任何券时应付多少（已含内推专属价）。前台用它做「不使用优惠券」那一项 */
+      baseline: baselineQuote ? baselineQuote.amount : null,
       counts: {
         available: list.filter((c) => c.state === 'AVAILABLE').length,
         locked: list.filter((c) => c.state === 'LOCKED').length,
