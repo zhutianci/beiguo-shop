@@ -6,6 +6,7 @@ import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { settleReferral } from '@/lib/referral'
+import { consumeCouponForOrder, releaseCouponForOrder } from '@/lib/coupon'
 import { updatePendingVmqAmount } from '@/lib/vmq'
 import { sendOrderDeliveredEmail } from '@/lib/mail'
 
@@ -146,6 +147,21 @@ export async function PUT(
       where: { id: orderId },
       data,
     })
+
+    /*
+     * 管理员把订单改成已取消 → 把它占用的优惠券放回去。
+     *
+     * 这是券释放的第三条路径（另两条：超时取消、建单失败回滚）。三条都要有，
+     * 少一条的表现是买家的券永远卡在「占用中」，他自己解不开、只能来找客服。
+     * releaseCouponForOrder 是幂等的，重复调用不会出错。
+     */
+    if (result.data.deliveryStatus === 'CANCELLED' && currentOrder.deliveryStatus !== 'CANCELLED') {
+      await releaseCouponForOrder(orderId).catch((e) => console.error('[coupon] 后台取消释放失败', orderId, e))
+    }
+    // 人工确认到账的路径（不走 vmq 那条）也要核销券
+    if (result.data.payStatus === 'PAID' && currentOrder.payStatus !== 'PAID') {
+      await consumeCouponForOrder(orderId).catch((e) => console.error('[coupon] 后台核销失败', orderId, e))
+    }
 
     // 改价：原地更新同一张待支付收款单的金额（保持同付款链接），用户付款页轮询会自动刷新成新价
     if (data.amount != null) {

@@ -4,7 +4,7 @@ import { prisma } from './db'
 import { syncAutoStock, decryptCardContent } from './cardkey'
 import { round2, splitAmount } from './money'
 import { notifyOrderPaid, notifyInvoiceReady, notifyLowStock } from './notify'
-import { consumeCouponForOrder, releaseCouponForOrder } from './coupon'
+import { consumeCouponForOrder, releaseCouponForOrder, sweepStuckCoupons } from './coupon'
 import { financeInvoiceUrl } from './action-token'
 import { settleReferral } from './referral'
 import { acquireForOrder } from './sms'
@@ -58,7 +58,13 @@ export async function closeExpired(): Promise<number> {
     where: { state: 0, createdAt: { lt: cutoff } },
     select: { id: true, orderId: true, bizType: true, bizId: true },
   })
-  if (expired.length === 0) return 0
+  // 【注意这个提前 return】没有过期收款单时也必须先跑一遍券的兜底清扫 ——
+  // 恰恰是「买家下单后从未提交收款监控」这种情况根本不会产生 VmqOrder，
+  // 也就永远不会有 expired，如果在这里直接返回，那类卡死的券就永远清不掉
+  if (expired.length === 0) {
+    await sweepStuckCoupons().catch((e) => console.error('[coupon] 兜底清扫失败', e))
+    return 0
+  }
 
   const orderBizIds = expired.filter((e) => e.bizType === 'order').map((e) => e.bizId)
 
@@ -83,6 +89,13 @@ export async function closeExpired(): Promise<number> {
   for (const id of orderBizIds) {
     await releaseCouponForOrder(id).catch((e) => console.error('[coupon] 超时释放失败', id, e))
   }
+
+  // 兜底清扫卡死的券。放在这里是因为这个函数已经由 cron 每分钟调用，
+  // 不必再为它单开一条定时任务。它按时间判定、不依赖订单关联，
+  // 能救回「下单后从未提交收款监控」和「锁券后回填 orderId 失败」这两类
+  // 靠上面那个循环永远够不着的券
+  await sweepStuckCoupons().catch((e) => console.error('[coupon] 兜底清扫失败', e))
+
   return expired.length
 }
 

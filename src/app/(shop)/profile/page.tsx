@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Sparkles,
   Save,
+  Ticket,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import AccountBindings from '@/components/account-bindings'
@@ -66,6 +67,13 @@ export default function ProfilePage() {
       desc: '查看余额详情',
       href: '/wallet',
       gradient: 'from-cyan-500 to-blue-500',
+    },
+    {
+      icon: Ticket,
+      label: '我的优惠券',
+      desc: '查看可用的券',
+      href: '/coupons',
+      gradient: 'from-emerald-500 to-teal-500',
     },
     {
       icon: Crown,

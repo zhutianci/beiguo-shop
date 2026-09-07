@@ -21,6 +21,7 @@ import {
   Gift,
   Share2,
   Newspaper,
+  Ticket,
 } from 'lucide-react'
 
 const sidebarItems = [
@@ -31,6 +32,7 @@ const sidebarItems = [
   { href: '/admin/categories', label: '分类管理', icon: FolderTree },
   { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
   { href: '/admin/referrals', label: '内推管理', icon: Gift },
+  { href: '/admin/coupons', label: '优惠券', icon: Ticket },
   { href: '/admin/external-orders', label: '订单导入', icon: FileUp },
   { href: '/admin/vmq', label: '收款监控', icon: QrCode },
   { href: '/admin/reminders', label: '到期提醒', icon: BellRing },

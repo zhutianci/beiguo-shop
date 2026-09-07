@@ -264,3 +264,78 @@ export async function assertCouponForPayment(
   }
   return { ok: true }
 }
+
+/**
+ * 锁定超时时间。比收款单的超时（VMQ_PAY_TIMEOUT，默认几十分钟）留足余量 ——
+ * 券的释放要晚于订单的取消，否则会出现「券已经放回去了、订单还能付款」的短暂窗口，
+ * 那时买家付了优惠价，而券已经可以再用一次。
+ */
+const LOCK_SWEEP_MINUTES = Number(process.env.COUPON_LOCK_SWEEP_MIN || 120)
+
+/**
+ * 兜底清扫：把卡死的 LOCKED 券放回去。
+ *
+ * 【为什么必须有这一道，而不是靠 releaseCouponForOrder 就够】
+ * releaseCouponForOrder 依赖「有一张订单、且这张订单走到了取消」。但有两条路径
+ * 绕过了它，实测都会让买家的券**永久**卡在「占用中」，他自己解不开、只能找客服：
+ *
+ *  ① 买家下了单但**从未提交收款监控**（没点付款就关了页面）。
+ *     这种订单没有对应的 VmqOrder，而 closeExpired 是遍历过期 VmqOrder 来关单的 ——
+ *     它根本看不到这张订单，于是订单和券一起停在原地。
+ *
+ *  ② 建单时「先锁券、后回填 orderId」这两步之间进程崩了或写库失败。
+ *     券是 LOCKED 但 orderId 为空，没有任何按订单查找的逻辑能定位到它。
+ *
+ * 所以这里按**时间**兜底，不依赖订单关联：锁了太久还没走到终态的，一律放回。
+ * 判定时要看订单的真实状态，别把已经付款的券误放回去。
+ */
+export async function sweepStuckCoupons(now: Date = new Date()): Promise<{ released: number; consumed: number }> {
+  const cutoff = new Date(now.getTime() - LOCK_SWEEP_MINUTES * 60_000)
+  const stuck = await prisma.couponGrant.findMany({
+    where: { state: 'LOCKED', lockedAt: { lt: cutoff } },
+    select: { id: true, orderId: true, expiresAt: true },
+    take: 200,
+  })
+  if (!stuck.length) return { released: 0, consumed: 0 }
+
+  // 一次把相关订单查出来，不在循环里逐个打库
+  const orderIds = stuck.map((g) => g.orderId).filter((v): v is number => typeof v === 'number')
+  const orders = orderIds.length
+    ? await prisma.order.findMany({
+        where: { id: { in: orderIds } },
+        select: { id: true, payStatus: true, deliveryStatus: true },
+      })
+    : []
+  const orderMap = new Map(orders.map((o) => [o.id, o]))
+
+  let released = 0
+  let consumed = 0
+  for (const g of stuck) {
+    const order = g.orderId ? orderMap.get(g.orderId) : null
+
+    // 订单其实已经付过款了 → 补一次核销，而不是把券放回去。
+    // 这种情况说明核销那一步当时失败了，这里顺手自愈
+    if (order && order.payStatus === 'PAID') {
+      const r = await prisma.couponGrant.updateMany({
+        where: { id: g.id, state: 'LOCKED' },
+        data: { state: 'USED', usedAt: now },
+      })
+      consumed += r.count
+      continue
+    }
+
+    // 其余情况（订单不存在 / 订单已取消 / 订单还挂着但早已超时）一律放回。
+    // 过期的直接判 EXPIRED，不放回可用 —— 放回去买家也只会选中后报错
+    const expired = !!g.expiresAt && g.expiresAt.getTime() <= now.getTime()
+    const r = await prisma.couponGrant.updateMany({
+      where: { id: g.id, state: 'LOCKED' },
+      data: { state: expired ? 'EXPIRED' : 'AVAILABLE', orderId: null, lockedAt: null },
+    })
+    released += r.count
+  }
+
+  if (released || consumed) {
+    console.log('[coupon/sweep]', JSON.stringify({ released, consumed, cutoffMin: LOCK_SWEEP_MINUTES }))
+  }
+  return { released, consumed }
+}
