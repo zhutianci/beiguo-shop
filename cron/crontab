@@ -26,13 +26,16 @@
 * * * * * curl -fsS --max-time 50 "http://app:3000/api/cron/sms-poll?secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
 
 # ---------- AI圈大事记 内容管线 ----------
-# 五段错峰，各自独立抢锁，任何一段失败都不影响其他段（规范见 .claude/skills/ai-news-pipeline/SKILL.md §3）
-# 每小时 05 分 抓取 + 分诊
-5 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=collect,triage&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
-# 每小时 15 分 同事件聚合
-15 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=cluster&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
-# 每小时 25 分 写摘要
-25 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=compose&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+# 【2026-09-07 改为单趟串联】原来是 :05 抓取分诊、:15 聚类、:25 写作三段错峰。
+# 错峰的本意是避免长任务重叠，但代价是「一条 17:00 的新闻最快也要 17:25 之后才可能出现」，
+# 而且它还要排在写作队列里等 —— 实测队列里积压过 29 条，表现就是「定时抓取好像没用」。
+#
+# 现在一趟跑完 collect→triage→cluster→compose：整点抓到的东西，同一趟就写出来发布。
+# 重叠风险由两道机制兜住，不再需要错峰：
+#   ① 每段各自用 VmqLock 同款唯一约束抢锁，上一轮没跑完这一轮直接跳过
+#   ② compose 自带 5 分钟墙钟，主动在 --max-time 540 之前收工
+# 时间预算：collect ~1s + triage ~20s + cluster ~60s + compose ≤300s ≈ 380s，留足余量。
+5 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=collect,triage,cluster,compose&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
 # 每 15 分钟 重算热度分（纯计算，不花钱）
 */15 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=rank&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
 # 每天 21:00 生成日报

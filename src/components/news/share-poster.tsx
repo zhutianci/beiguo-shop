@@ -27,7 +27,8 @@ import {
  */
 
 interface Props {
-  eventId: number
+  /** 事件 id。日报/周报没有事件，留空即可 */
+  eventId?: number
   slug: string
   headline: string
   summary?: string | null

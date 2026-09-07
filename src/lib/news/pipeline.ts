@@ -1054,11 +1054,14 @@ export async function cluster(): Promise<ClusterResult> {
  * （maxTokens 900 → 2200），单条耗时明显变长，而单轮的墙钟预算没有变。
  *
  * 【新鲜车道】保证今天的新闻当小时就能出来 —— 这是这个模块的主职责。
+ * 名额给到 6：实测每小时新进 2-4 个事件，6 个名额能吃下一个小时的量还有富余，
+ * 这样「整点抓到的内容当趟发布」才真的成立；给 3 的时候赶上一波集中发布就会积压，
+ * 而积压表现出来就是用户看到的「定时抓取好像没用」。
  * 【积压车道】保证老事件总有名额，不会被源源不断的新事件永远挤在后面。
  * 两条道的名额是**固定切分**而不是「优先新鲜、有剩再给积压」：后者在信源稳定产出时
  * 永远剩不下名额，正是改造前「只有最近一批」的成因。
  */
-const COMPOSE_FRESH_TAKE = 3
+const COMPOSE_FRESH_TAKE = 6
 const COMPOSE_BACKLOG_TAKE = 2
 /** 多新算「新鲜」。超过这个岁数的 RAW 事件走积压车道 */
 const COMPOSE_FRESH_DAYS = 3
@@ -1071,14 +1074,18 @@ const MATERIAL_MAX_SOURCES = 8
 /**
  * 单轮墙钟预算。
  *
- * 【为什么是 7 分钟，以及为什么不能靠加长锁 TTL 解决超时】
+ * 【为什么是 5 分钟，以及为什么不能靠加长锁 TTL 解决超时】
  * crontab 里每条 curl 都带 `--max-time 540`（9 分钟），那是**硬上限**：
  * 到点 curl 就断开，服务端却还在跑并占着锁。锁 TTL 一旦大于 540s，
  * 就会出现「curl 早断了、锁还在、下一轮抢不到」的假死。
  * 所以正确做法是让 compose 自己在 540s 之前收工，把余量留给收尾写库。
  * 去掉 7 天窗口后候选池可能很深，没有这道闸就会一直往下做直到被 curl 掐断。
+ *
+ * 【2026-09-07 从 7 分钟收到 5 分钟】crontab 改成了单趟串联
+ * （collect→triage→cluster→compose 一次跑完，让整点抓到的新闻当小时就发布），
+ * 于是这 540s 要四段分。前三段实测约 80s，留 300s 给 compose 还剩 160s 余量。
  */
-const COMPOSE_DEADLINE_MS = 7 * 60000
+const COMPOSE_DEADLINE_MS = 5 * 60000
 
 const composeSchema = z.object({
   headline: z.string().min(2).max(500),

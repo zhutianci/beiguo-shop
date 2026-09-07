@@ -172,7 +172,10 @@ export function reportNewsView(eventId: number): void {
 }
 
 /** 分享上报。服务端会按「同一读者 + 同一事件 24 小时」去重，这里不必自己防重复点 */
-export function reportNewsShare(eventId: number, channel: ShareChannel): void {
+export function reportNewsShare(eventId: number | undefined, channel: ShareChannel): void {
+  // 日报/周报也复用这套分享 UI，但它们不是事件、没有 eventId，也就没有分享数可记。
+  // 静默跳过而不是报错：分享按钮本身要照常可用。
+  if (!eventId) return
   try {
     fetch('/api/news/share', {
       method: 'POST',
