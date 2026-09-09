@@ -30,6 +30,15 @@ export class FetchFeedError extends Error {
 /**
  * 抓取文本，带超时、体积上限与 UA。境外源应传入中继后的 URL。
  * headers 用于个别源要带额外请求头的情况（如 AIHOT 线索要带授权号），传入的键会覆盖默认值。
+ *
+ * 【cache: 'no-store' 一个字都不能少】2026-09-09 靠它查出一次两天的静默宕机：
+ * App Router 会把裸 fetch 的响应写进磁盘上的数据缓存（.next/cache/fetch-cache）并**无限期**复用。
+ * 9-07 那天容器重启后第一轮抓取，量子位回了一个 text/html 的拦截页（不是 RSS），
+ * 这个响应被缓存住，此后 39 小时里每一次「抓取」都在读同一份 9-07 的 HTML：
+ * 解析出 0 条 → 入库 0 条 → 而 collect 依然报告 ok:16 / failed:0，后台一切正常。
+ *
+ * 抓的是**每小时都在变的外部内容**，缓存在这里没有任何意义，只会把某一秒的意外冻成永久状态。
+ * 路由段上的 dynamic='force-dynamic' 挡不住这里 —— 别指望它，就在发请求的地方写死。
  */
 export async function fetchText(url: string, timeoutMs = 8000, headers?: Record<string, string>): Promise<string> {
   const ac = new AbortController()
@@ -43,6 +52,14 @@ export async function fetchText(url: string, timeoutMs = 8000, headers?: Record<
       },
       signal: ac.signal,
       redirect: 'follow',
+      /*
+       * 【只写 no-store，绝对不要再叠一个 next:{revalidate:0}】
+       * 两个一起传不是「重复但无害」，而是**直接把这行修复作废**：
+       * patch-fetch.js 里同时收到 cache 与 revalidate 时，只打一条 warn，
+       * 然后执行 `_cache = undefined` —— 你的 no-store 被丢掉，缓存又开回来了。
+       * 日志里那条 warn 没人会看，于是看起来修了、其实没修。
+       */
+      cache: 'no-store',
     })
     if (!res.ok) throw new FetchFeedError(`HTTP ${res.status}`, res.status)
 

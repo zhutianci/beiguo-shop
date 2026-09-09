@@ -81,6 +81,9 @@ async function rpcRequest(
   try {
     const res = await fetch(endpoint, {
       method: 'POST',
+      // 同 lib/llm.ts 里的说明：POST 不会自动跳过 Next 的数据缓存。
+      // 发短信/邮件的响应缓存一年没有任何意义，只会白占磁盘（签名带随机串，键还每次都不同）
+      cache: 'no-store',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body,
     })

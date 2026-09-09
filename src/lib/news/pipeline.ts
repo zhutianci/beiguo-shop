@@ -205,9 +205,28 @@ export interface CollectResult {
   failed: number
   skipped: number
   inserted: number
+  /** 本轮所有源一共解析出多少条（入库前）。见 details.parsed 的说明 */
+  parsed: number
+  /** 抓回来了、但一条都解析不出的源。空数组才是正常 */
+  unparsable: string[]
   disabled: string[]
   purged: number
-  details: { key: string; inserted?: number; error?: string; skipped?: string }[]
+  details: {
+    key: string
+    /**
+     * 【parsed / bytes 是 2026-09-09 那次宕机之后加的】当时全部 16 个源连续 39 小时
+     * 报告 ok、inserted:0，而 inserted:0 有两种截然不同的含义：
+     *   ① 抓到了 30 条，但都已经在库里 —— 完全正常
+     *   ② 抓回来的根本不是 feed，一条都没解析出来 —— 已经宕机两天了
+     * 光看 inserted 这两种情况长得一模一样，于是没人看得出出事了。
+     * 记下 parsed 与 bytes，两者就再也混不到一起。
+     */
+    parsed?: number
+    bytes?: number
+    inserted?: number
+    error?: string
+    skipped?: string
+  }[]
 }
 
 /** hnrss 的 description 里带 "Points: 123" 与 "# Comments: 45"，解析出来做热度信号 */
@@ -290,6 +309,8 @@ export async function collect(): Promise<CollectResult> {
     failed: 0,
     skipped: 0,
     inserted: 0,
+    parsed: 0,
+    unparsable: [],
     disabled: [],
     purged: 0,
     details: [],
@@ -333,12 +354,17 @@ export async function collect(): Promise<CollectResult> {
         originSourceName?: string | null
       }[] = []
       const hnRefresh: { urlHash: string; points: number; comments: number }[] = []
+      // 解析出的原始条数（过滤时间窗、批内去重**之前**）。0 就意味着抓回来的不是 feed
+      let parsedCount = 0
+      let aihotShapeWarn: string | null = null
 
       if (isAihot) {
         // 线索源单独一条路径，**不与普通 feed 共用循环**。
         // 共用的话早晚有人在那个循环里给 summaryRaw 赋个值，一步就破掉授权边界
         // （只取选题发现信号，不取对方写的摘要，见 lib/news/aihot.ts 文件头）。
-        for (const lead of parseAihotLeads(text)) {
+        const leads = parseAihotLeads(text)
+        parsedCount = leads.length
+        for (const lead of leads) {
           const pub = lead.publishedAt.getTime() > now + HOUR_MS ? new Date(now) : lead.publishedAt
           if (pub < minPublished) continue
           const h = urlHash(lead.url)
@@ -362,12 +388,15 @@ export async function collect(): Promise<CollectResult> {
             originSourceName: lead.originSourceName || null,
           })
         }
-        // 对方改了响应形状时会静默变 0 条。不抛错（抛了会被熔断禁用），但要让后台看得见
-        if (!rows.length && text.length > 0) {
-          res.details.push({ key: s.key, skipped: `取回 ${text.length} 字节但解析出 0 条线索，检查对方 API 形状是否变更` })
+        // 对方改了响应形状时会静默变 0 条。不抛错（抛了会被熔断禁用），但要让后台看得见。
+        // 通用的 unparsable 也会记一笔，这里额外给一句针对性的话：AIHOT 是 JSON API，
+        // 解析不出多半是对方改了字段名，而不是我们读到了拦截页。
+        if (!parsedCount && text.length > 0) {
+          aihotShapeWarn = `取回 ${text.length} 字节但解析出 0 条线索，检查对方 API 形状是否变更`
         }
       } else {
         const entries: RawEntry[] = s.kind === 'JSON' ? parseJsonFeed(text) : parseFeed(text)
+        parsedCount = entries.length
         for (const e of entries) {
           // 有的源发布时间带错时区，落在未来会污染时间轴排序，向前钳到当前时刻
           const pub = e.publishedAt.getTime() > now + HOUR_MS ? new Date(now) : e.publishedAt
@@ -417,7 +446,23 @@ export async function collect(): Promise<CollectResult> {
       })
       res.ok++
       res.inserted += created.count
-      res.details.push({ key: s.key, inserted: created.count })
+      res.parsed += parsedCount
+      /*
+       * 【抓回来了但一条都解析不出 = 出事了，哪怕 HTTP 是 200】
+       * 拿到字节却解析出 0 条，意味着对方返回的不是 feed（拦截页、改版、或者我们读到了缓存）。
+       * 以前这种情况和「本来就没有新内容」一样只体现为 inserted:0，静默了整整两天。
+       * 现在把它单独拎出来，日志和后台都看得见。
+       *
+       * 不抛错、也不计入熔断：这类响应换一轮可能就好了，把源禁用掉反而要人工去后台捞回来。
+       */
+      if (parsedCount === 0 && text.length > 0) res.unparsable.push(s.key)
+      res.details.push({
+        key: s.key,
+        parsed: parsedCount,
+        bytes: text.length,
+        inserted: created.count,
+        ...(aihotShapeWarn ? { skipped: aihotShapeWarn } : {}),
+      })
     } catch (e) {
       // 熔断隔离：单源失败只记账，绝不中断整批
       const msg = errMsg(e)
@@ -458,7 +503,18 @@ export async function collect(): Promise<CollectResult> {
   })
   res.purged = purged.count
 
-  console.log('[news/collect]', JSON.stringify({ ok: res.ok, failed: res.failed, inserted: res.inserted, purged: res.purged }))
+  console.log(
+    '[news/collect]',
+    JSON.stringify({
+      ok: res.ok,
+      failed: res.failed,
+      parsed: res.parsed,
+      inserted: res.inserted,
+      // 这一项不为空就该有人去看：抓到了字节却解析不出条目
+      unparsable: res.unparsable,
+      purged: res.purged,
+    })
+  )
   return res
 }
 

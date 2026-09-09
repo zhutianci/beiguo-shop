@@ -248,6 +248,17 @@ async function callOnce(
   try {
     const res = await fetch(`${c.baseUrl}/chat/completions`, {
       method: 'POST',
+      /*
+       * 【POST 不会自动跳过 Next 的数据缓存，别想当然】
+       * patch-fetch 里的 autoNoCache 是 `(有 authorization 头 || 非 GET) && store.revalidate === 0`，
+       * 两个条件是**与**。我们的路由没导出 revalidate，store.revalidate 是 false 而不是 0，
+       * 所以这个自动豁免根本不成立 —— POST 一样会被写进磁盘缓存，键里含 body，缓存一年。
+       *
+       * 对 LLM 调用的后果：同一个 prompt 重试会拿回**上一次那份**回复。
+       * 上次要是返回了一段解析不了的 JSON，重试多少次都还是它，永远修不好。
+       * 2026-09-09 抓取那次就是这么冻住两天的，只是冻的是 feed（见 lib/news/feed.ts）。
+       */
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${c.apiKey}`,

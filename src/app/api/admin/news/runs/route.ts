@@ -346,6 +346,18 @@ export async function POST(request: NextRequest) {
         method: 'GET',
         headers: { Authorization: `Bearer ${secret}` },
         signal: ac.signal,
+        /*
+         * 【必须 no-store，理由和 lib/news/feed.ts 里那条一样，但后果更坏】
+         * cronUrl(stage) 是完全确定的地址、GET、固定请求头、无 body —— 每次点同一段
+         * 就是一模一样的缓存键。一旦第一次的响应被写进数据缓存，之后每次点击都会拿回
+         * 那份旧 JSON：`res.ok` 为真、`payload.success` 不为假，于是走成功分支、
+         * 写一条 ok:true 的 news_run_* 记录、界面提示「已执行」——
+         * 而 cron 路由**根本没有被进入**，锁没抢过，管线一步都没跑。
+         *
+         * 也就是说：管线出问题时，你点这个按钮永远看到绿色的「已执行」。
+         * 这正是 2026-09-09 那次静默宕机里最不该失灵的一个工具。
+         */
+        cache: 'no-store',
       })
       const text = (await res.text()).slice(0, 4000)
       const ms = Date.now() - started
