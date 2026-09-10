@@ -45,6 +45,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
+# 批量开票用的税局官方模板。**必须显式 COPY**：standalone 的文件追踪只看 import/require
+# 的依赖图，fs.readFile 读的文件它一无所知，不写这一行镜像里就没有，
+# 导出接口会在运行时才报 ENOENT。放 templates/ 而不是 public/ 是为了不让它被公网直接下载
+COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 

@@ -23,3 +23,8 @@ docker-compose.yml text eol=lf
 *.gif binary
 *.webp binary
 *.ico binary
+# xlsx/xls 本质是 zip 包。漏掉这一条，上面的 `* text=auto` 会把它当文本做行尾转换，
+# 压缩流里的 0x0A 被改成 0x0D0A，包就废了 —— 而且要等到有人下载导出文件、
+# Excel 报「文件已损坏」时才会发现。批量开票模板就存在 templates/ 下。
+*.xlsx binary
+*.xls binary

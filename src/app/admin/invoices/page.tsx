@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Eye, X } from 'lucide-react'
+import { Search, Eye, X, Download } from 'lucide-react'
 
 interface InvoiceRow {
   externalOrderId: number
@@ -71,6 +71,8 @@ export default function AdminInvoicesPage() {
   const [keyword, setKeyword] = useState('')
   const [debouncedKeyword, setDebouncedKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('SUBMITTED')
+  const [exporting, setExporting] = useState(false)
+  const [exportTip, setExportTip] = useState<{ ok: boolean; text: string } | null>(null)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -111,6 +113,49 @@ export default function AdminInvoicesPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  /*
+   * 导出当前所有待开发票（status=SUBMITTED 且税费已到账）为税局官方批量导入模板。
+   *
+   * 【不能照抄本页其它请求的 `const data = await res.json()`】成功时服务端返回的是
+   * xlsx 二进制，json() 会直接抛。所以先看 res.ok：成功走 blob 下载，
+   * 失败才按 JSON 解析错误信息 —— 服务端出错时确实返回 JSON。
+   */
+  const exportPending = async () => {
+    setExporting(true)
+    setExportTip(null)
+    try {
+      const res = await fetch('/api/admin/invoices/export')
+      if (!res.ok) {
+        const d = await res.json().catch(() => null)
+        setExportTip({ ok: false, text: d?.error || `导出失败（HTTP ${res.status}）` })
+        return
+      }
+      const blob = await res.blob()
+      // 文件名由服务端用 RFC 5987 给出（含中文），这里解出来；解不出就用一个兜底名
+      const cd = res.headers.get('Content-Disposition') || ''
+      const m = cd.match(/filename\*=UTF-8''([^;]+)/i)
+      const filename = m ? decodeURIComponent(m[1]) : `待开发票批量导入.xlsx`
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      // 立刻 revoke 在部分浏览器上会打断尚未开始的下载，挪到下一轮事件循环
+      setTimeout(() => URL.revokeObjectURL(url), 10_000)
+
+      const n = res.headers.get('X-Invoice-Count')
+      setExportTip({ ok: true, text: `已导出 ${n || ''} 张待开发票，请用该文件在开票系统里批量导入` })
+    } catch {
+      setExportTip({ ok: false, text: '网络错误，请重试' })
+    } finally {
+      setExporting(false)
+      setTimeout(() => setExportTip(null), 8000)
+    }
+  }
 
   const setStatus = async (externalOrderId: number, status: string) => {
     const res = await fetch(`/api/admin/invoices/by-order/${externalOrderId}`, {
@@ -184,7 +229,20 @@ export default function AdminInvoicesPage() {
             <Button variant="outline" onClick={load}>
               <Search className="w-4 h-4 mr-1" /> 刷新
             </Button>
+            <Button variant="outline" onClick={exportPending} loading={exporting}>
+              <Download className="w-4 h-4 mr-1" /> 导出待开发票
+            </Button>
           </div>
+
+          {exportTip && (
+            <div
+              className={`mb-4 rounded-lg px-3 py-2 text-sm ${
+                exportTip.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+              }`}
+            >
+              {exportTip.text}
+            </div>
+          )}
 
           {loading ? (
             <div className="text-center py-12 text-gray-400">加载中...</div>
