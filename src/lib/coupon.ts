@@ -53,19 +53,17 @@ export interface CouponRule {
 
 export interface OrderContext {
   productId: number
-  /** 未用券、未走内推时的原价合计 */
+  /** 定价合计（单价 × 数量）。内推单不会走到 calcCoupon，所以这里不需要专属价 */
   baseAmount: number
-  /** 走了内推专属价之后的合计。没有内推时与 baseAmount 相同 */
-  referralAmount: number
 }
 
 export type CouponReject =
   | 'KIND_PRODUCT_MISMATCH'
   | 'BELOW_THRESHOLD'
   | 'NO_DISCOUNT'
-  /** 券本身没问题，只是算下来没有推广专属价便宜 —— 与 NO_DISCOUNT 要分开，
-   *  否则会对着一张明明能减钱的券说「抵扣不了金额」，买家只会以为系统坏了 */
-  | 'NOT_BETTER_THAN_REFERRAL'
+  /** 这是一张内推单，按规则券整体不可用。与 NO_DISCOUNT 要分开：
+   *  券本身完全正常，只是这一单不让用，文案必须能解释清楚 */
+  | 'REFERRAL_ORDER'
 
 export interface CouponCalc {
   /** 能不能用 */
@@ -75,7 +73,7 @@ export interface CouponCalc {
   amount: number
   /** 实际减免额（可能因为触底而小于券面额） */
   discount: number
-  /** 最终采用的是券还是内推。不叠加，取对买家更优的一个 */
+  /** 这一单最终按什么算钱。内推与券互斥，不存在两者都生效的情况 */
   applied: 'coupon' | 'referral' | 'none'
 }
 
@@ -87,28 +85,27 @@ export function rejectReason(r: CouponReject): string {
       return '订单金额未达到该券的使用门槛'
     case 'NO_DISCOUNT':
       return '该券在这一单上抵扣不了金额'
-    case 'NOT_BETTER_THAN_REFERRAL':
-      return '推广专属价比用这张券更便宜，本单已按专属价计算'
+    case 'REFERRAL_ORDER':
+      return '通过推广链接下单已享专属价，本单不叠加优惠券'
   }
 }
 
 /**
- * 算一单用券后要付多少。
+ * 算一单用券后要付多少。**只管券，不管内推。**
  *
- * 【与内推不叠加，取更优的一个】这是站长拍板的规则。两者量纲不同：
- * 内推是「改单价」，券是「减总额」，不能简单相加。做法是各自算出最终应付金额，
- * 取更低的那个 —— 对买家而言「更优」就是「付得更少」，口径最直白也最好解释。
+ * 内推单根本不会走到这里 —— `quoteOrder` 在最前面就短路返回专属价了（券不可用）。
+ * 所以这里只需要回答一个问题：这张券用在这个金额上，能减多少。
  *
- * 注意券是按**原价**判门槛与抵扣的，不是按内推价：
- * 否则「走了内推链接反而用不了满减券」会让买家觉得被坑，而且两条优惠互相影响
- * 会让规则说不清楚。分别算、取更优，规则只有一句话。
+ * 【这里曾经有一段「券后价 vs 内推价取更优」的比较，已删】那段逻辑要求
+ * 同时理解两套优惠，结果是结算页和建单各算各的、算出不同的数。
+ * 现在两者互斥，这个函数少了一个入参，也少了一整类对不上的可能。
  */
 export function calcCoupon(rule: CouponRule, ctx: OrderContext): CouponCalc {
   const noCoupon: CouponCalc = {
     usable: false,
-    amount: Math.min(ctx.baseAmount, ctx.referralAmount),
+    amount: ctx.baseAmount,
     discount: 0,
-    applied: ctx.referralAmount < ctx.baseAmount ? 'referral' : 'none',
+    applied: 'none',
   }
 
   // 商品券：只对限定商品生效
@@ -117,7 +114,7 @@ export function calcCoupon(rule: CouponRule, ctx: OrderContext): CouponCalc {
       return { ...noCoupon, reject: 'KIND_PRODUCT_MISMATCH' }
     }
   } else if (cents(ctx.baseAmount) < cents(rule.minAmount)) {
-    // 满减券：按原价判门槛。minAmount = 0 时恒成立，即无门槛券
+    // 满减券：按定价判门槛。minAmount = 0 时恒成立，即无门槛券
     return { ...noCoupon, reject: 'BELOW_THRESHOLD' }
   }
 
@@ -126,13 +123,7 @@ export function calcCoupon(rule: CouponRule, ctx: OrderContext): CouponCalc {
   const cut = Math.min(cents(rule.discount), Math.max(0, maxCut))
   if (cut <= 0) return { ...noCoupon, reject: 'NO_DISCOUNT' }
 
-  const couponAmount = yuan(cents(ctx.baseAmount) - cut)
-
-  // 取更优：券后价 vs 内推价
-  if (cents(couponAmount) <= cents(ctx.referralAmount)) {
-    return { usable: true, amount: couponAmount, discount: yuan(cut), applied: 'coupon' }
-  }
-  return { ...noCoupon, usable: false, reject: 'NOT_BETTER_THAN_REFERRAL' }
+  return { usable: true, amount: yuan(cents(ctx.baseAmount) - cut), discount: yuan(cut), applied: 'coupon' }
 }
 
 /**
@@ -165,37 +156,52 @@ export interface Quote {
   reject: CouponReject | null
 }
 
+/**
+ * 全站唯一定价口径。商品页、结算页、建单三处都必须走它，谁也不许自己算。
+ *
+ * 规则只有两条（2026-09-11 站长拍板，取代了原来的「取更优」）：
+ *   ① 走内推链接下单 → 一律按**专属价**，优惠券**不可用**
+ *   ② 没走内推      → 按定价，可以选券；不选就是定价
+ *
+ * 【为什么废掉「取更优」】原来写的是 `baseline = Math.min(定价, 专属价)`，
+ * 前提是「专属价一定比定价便宜」—— 这个前提是错的。线上有 19 个商品的专属价
+ * **高于**定价（推广人自己加价，差额就是他的返现）。于是出现了这一幕：
+ *   商品页 1800（专属价） → 结算页 1700（min 取了定价） → 收银台 1800（服务端按专属价建单）
+ * 同一单三个价格，买家完全不知道该信哪个。
+ *
+ * 现在这个函数里**没有 min、没有比较**：走内推就是专属价，不走就是定价。
+ * 少一个分支，就少一处能对不上的地方。
+ */
 export function quoteOrder(input: QuoteInput): Quote {
   const baseAmount = yuan(cents(input.listPrice) * input.quantity)
-  const referralAmount =
-    input.referralUnitPrice == null ? baseAmount : yuan(cents(input.referralUnitPrice) * input.quantity)
-  const baseline = Math.min(baseAmount, referralAmount)
 
-  if (!input.rule) {
+  // ① 内推单：专属价说了算，无论它比定价高还是低；券一律不参与
+  if (input.referralUnitPrice != null) {
+    const referralAmount = yuan(cents(input.referralUnitPrice) * input.quantity)
     return {
-      baseline,
-      amount: baseline,
+      baseline: referralAmount,
+      amount: referralAmount,
       discount: 0,
-      applied: referralAmount < baseAmount ? 'referral' : 'none',
-      reject: null,
+      applied: 'referral',
+      // 没传券时不算「被拒」，传了券才告诉前台为什么没用上
+      reject: input.rule ? 'REFERRAL_ORDER' : null,
     }
   }
 
-  const calc = calcCoupon(input.rule, { productId: input.productId, baseAmount, referralAmount })
-  const amount = calc.usable ? calc.amount : baseline
+  // ② 普通单：不选券就是定价
+  if (!input.rule) {
+    return { baseline: baseAmount, amount: baseAmount, discount: 0, applied: 'none', reject: null }
+  }
 
-  /*
-   * 【discount 必须是「相对 baseline 少付了多少」，不能直接用券面额】
-   * calcCoupon 的 discount 是券相对**定价**减了多少（如 1450 → 1350，减 100），
-   * 但 baseline 是定价与专属价里更低的那个（如 1400）。直接透传券面额就会得到
-   * 「原价 1400、优惠 100、实付 1350」这种自己都对不上的三个数 ——
-   * 订单详情、发票、结算页都会显示这组数字，对不上就是客服工单。
-   */
+  const calc = calcCoupon(input.rule, { productId: input.productId, baseAmount })
+  const amount = calc.usable ? calc.amount : baseAmount
+
+  // discount 恒等于 baseline − amount，保证订单详情/发票上「原价−优惠=实付」三个数对得上
   return {
-    baseline,
+    baseline: baseAmount,
     amount,
-    discount: yuan(cents(baseline) - cents(amount)),
-    applied: calc.applied,
+    discount: yuan(cents(baseAmount) - cents(amount)),
+    applied: calc.usable ? 'coupon' : 'none',
     reject: calc.usable ? null : (calc.reject ?? null),
   }
 }

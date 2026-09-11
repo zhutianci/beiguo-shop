@@ -151,9 +151,20 @@ export async function GET(request: NextRequest) {
         ? quoteOrder({ productId, listPrice, quantity, referralUnitPrice, rule: null })
         : null
 
+    /*
+     * 【内推单直接把券列表清空】规则是「走内推就不能用券」。
+     * 与其返回一串全都标着「本单不可用」的券让买家在结算页上困惑，
+     * 不如一张都不给 —— 前台据 referral 标志整块隐藏优惠券区。
+     * usableOnly=1 是结算页在问，个人中心（usableOnly=0）仍要看到自己所有的券。
+     */
+    const isReferral = referralUnitPrice != null
+    const visible = usableOnly === '1' ? (isReferral ? [] : list.filter((c) => c.state === 'AVAILABLE')) : list
+
     return success({
-      list: usableOnly === '1' ? list.filter((c) => c.state === 'AVAILABLE') : list,
-      /** 不使用任何券时应付多少（已含内推专属价）。前台用它做「不使用优惠券」那一项 */
+      list: visible,
+      /** 这一单是不是内推单。true 时前台应隐藏整个优惠券区并说明原因 */
+      referral: isReferral,
+      /** 不使用任何券时应付多少（内推单即专属价）。前台直接显示这个数，不要自己算 */
       baseline: baselineQuote ? baselineQuote.amount : null,
       counts: {
         available: list.filter((c) => c.state === 'AVAILABLE').length,

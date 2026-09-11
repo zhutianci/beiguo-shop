@@ -39,8 +39,10 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   const [error, setError] = useState<string>('')
   const [coupons, setCoupons] = useState<UsableCoupon[]>([])
   const [couponId, setCouponId] = useState<number | null>(null)
-  /** 不用券时应付多少（服务端算，已含内推专属价） */
+  /** 不用券时应付多少（服务端算；内推单即专属价） */
   const [baseline, setBaseline] = useState<number | null>(null)
+  /** 这一单是不是通过内推链接下的。内推单按专属价成交，整块优惠券区不展示 */
+  const [referral, setReferral] = useState(false)
 
   /*
    * 打开弹窗时拉一次「我的可用券」。
@@ -52,13 +54,15 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
       setCoupons([])
       setCouponId(null)
       setBaseline(null)
+      setReferral(false)
       return
     }
     let alive = true
-    // 【必须带上 ref】带内推码访问时 product.price 已经是专属价，
-    // 拿它去减券面额就成了「专属价 − 券」，而服务端算的是「定价 − 券」——
-    // 两边差出来的钱会让买家在收银台看到跟弹窗不一样的数字。
-    // 把 ref 交给服务端，让它把这一单的最终价直接算好返回。
+    /*
+     * 【必须带上 ref】带内推码访问时 product.price 已经被 /api/products 覆盖成专属价，
+     * 前端手里那个数不是定价，拿它做任何加减都会和服务端算出不同的结果。
+     * 把 ref 交给服务端，由它判定这是不是内推单、并把最终价直接算好返回。
+     */
     const ref = getRef()
     const qs = new URLSearchParams({ usableOnly: '1', productId: String(product.id), quantity: '1' })
     if (ref) qs.set('ref', ref)
@@ -68,13 +72,15 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
         if (!alive || !d?.success) return
         const list: UsableCoupon[] = d.data.list || []
         setCoupons(list)
+        setReferral(!!d.data.referral)
         setBaseline(typeof d.data.baseline === 'number' ? d.data.baseline : null)
-        // 默认替买家选中减得最多的那张。买家仍可改选或不用 ——
-        // 默认不选等于把优惠藏起来，多数人不会主动点开这一栏
-        const best = list
-          .filter((c) => c.applicable)
-          .sort((a, b) => (a.finalAmount ?? Infinity) - (b.finalAmount ?? Infinity))[0]
-        setCouponId(best ? best.id : null)
+        /*
+         * 【默认不勾选任何券】站长 2026-09-11 定的规则。
+         * 之前是自动选中最省钱的那张，看似贴心，但买家点开弹窗时价格已经被改过，
+         * 和他在商品页看到的数字对不上 —— 少一次「这价怎么变了」的困惑，
+         * 比多省几十块更重要。券要用，买家自己点。
+         */
+        setCouponId(null)
       })
       .catch(() => {})
     return () => {
@@ -250,7 +256,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 </div>
 
                 {/* 优惠券选择。只有确实持有可用券时才出现，没有券的人看不到多余的一栏 */}
-                {coupons.length > 0 && (
+                {!referral && coupons.length > 0 && (
                   <div className="glass rounded-2xl p-5 mb-6">
                     <div className="mb-3 flex items-center gap-2">
                       <Ticket className="h-4 w-4 text-purple-300" />
@@ -294,7 +300,18 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                       })}
                     </div>
                     <p className="mt-3 text-xs leading-relaxed text-white/35">
-                      与推广专属价不叠加，系统会自动为你采用更便宜的那个；最终以下单结果为准。
+                      默认不使用优惠券，选中后上方应付金额会同步更新；一单只能用一张。
+                    </p>
+                  </div>
+                )}
+
+                {/* 内推单：不展示券，但要讲清楚为什么，否则买家会以为自己的券没了 */}
+                {referral && (
+                  <div className="glass rounded-2xl p-4 mb-6 flex items-start gap-2">
+                    <Ticket className="h-4 w-4 mt-0.5 shrink-0 text-purple-300" />
+                    <p className="text-xs leading-relaxed text-white/45">
+                      本单通过推广链接下单，已按专属价计算，不再叠加优惠券。
+                      你账户里的优惠券不受影响，直接从商品页下单时可以使用。
                     </p>
                   </div>
                 )}

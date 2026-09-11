@@ -45,8 +45,7 @@ const productCoupon = (cut: number, ids: number[]): CouponRule => ({
   discount: cut,
   productIds: ids,
 })
-/** 没有内推时 referralAmount = baseAmount */
-const plain = (productId: number, amount: number) => ({ productId, baseAmount: amount, referralAmount: amount })
+const plain = (productId: number, amount: number) => ({ productId, baseAmount: amount })
 
 console.log('\n【满减券】')
 {
@@ -108,25 +107,12 @@ console.log('\n【商品券】')
   ok('商品券未限定商品：视为不限，可用', r.usable)
 }
 
-console.log('\n【与内推不叠加，取更优的一个】')
+console.log('\n【内推与券互斥】—— 2026-09-11 起的新规则')
 {
-  // 原价 200，内推专属价合计 180，券是满100减50 → 券后 150 更优
-  const r = calcCoupon(threshold(100, 50), { productId: 1, baseAmount: 200, referralAmount: 180 })
-  ok('券更优：采用券', r.usable && r.applied === 'coupon')
+  // calcCoupon 已经不认识内推了：它只回答「这张券用在这个金额上能减多少」
+  const r = calcCoupon(threshold(100, 50), { productId: 1, baseAmount: 200 })
+  ok('普通单：券正常生效', r.usable && r.applied === 'coupon')
   eq('  实付', r.amount, 150)
-}
-{
-  // 原价 200，内推价 120，券只减 10 → 内推更优，不用券
-  const r = calcCoupon(threshold(100, 10), { productId: 1, baseAmount: 200, referralAmount: 120 })
-  ok('内推更优：不采用券', !r.usable)
-  eq('  实付走内推价', r.amount, 120)
-  eq('  采用', r.applied, 'referral')
-}
-{
-  // 两者相等时取券（<= 判定），因为券是买家主动选的，用掉才符合预期
-  const r = calcCoupon(threshold(0, 20), { productId: 1, baseAmount: 100, referralAmount: 80 })
-  ok('券后价与内推价相等：采用券', r.usable && r.applied === 'coupon')
-  eq('  实付', r.amount, 80)
 }
 
 console.log('\n【浮点与取整】—— 金额必须按分算，不能出现 0.1+0.2 那种尾数')
@@ -177,84 +163,105 @@ eq('无门槛', couponLabel({ kind: 'THRESHOLD', minAmount: 0, discount: 10 }), 
 eq('商品券', couponLabel({ kind: 'PRODUCT', minAmount: 0, discount: 30 }), '指定商品减 ¥30.00')
 
 
-console.log('\n【quoteOrder：结算页与下单接口的唯一价格来源】')
+console.log('\n【quoteOrder：全站唯一定价口径】')
 /*
- * 这一组是在线上抓到真实缺陷之后补的。
- * 缺陷本身：/api/products?ref=CODE 会把返回给前端的 price **覆盖成推广专属价**，
- * 结算页于是拿「专属价 − 券面额」显示，而服务端拿「定价 − 券面额」建单 ——
- * 买家在弹窗看到 1300、实际被收 1350。两边现在都必须走 quoteOrder。
+ * 规则只有两条（2026-09-11 起）：
+ *   ① 走内推 → 按专属价，券不可用
+ *   ② 不走内推 → 按定价，券可选
+ * 这一组钉死这两条。以前那版「取更优」已废，原因见下面的回归用例。
  */
 const T: CouponRule = { kind: 'THRESHOLD', minAmount: 0, discount: 100, productIds: [] }
 const q = (rp: number | null, rule: CouponRule | null, qty = 1) =>
   quoteOrder({ productId: 1, listPrice: 1450, quantity: qty, referralUnitPrice: rp, rule })
 
-eq('无内推无券：按定价', q(null, null).amount, 1450)
-eq('无内推有券：定价 − 券', q(null, T).amount, 1350)
-ok('无内推有券：标记为用了券', q(null, T).applied === 'coupon')
+console.log('  — 普通单（没走内推）')
+eq('不选券：就是定价', q(null, null).amount, 1450)
+eq('选了券：定价 − 券', q(null, T).amount, 1350)
+ok('选了券：标记为 coupon', q(null, T).applied === 'coupon')
+eq('不选券时 baseline 也是定价', q(null, null).baseline, 1450)
+eq('选券后 discount = 券面额', q(null, T).discount, 100)
 
-// 专属价 1400、券减 100 → 应付 1350（定价 − 券），**不是** 1300（专属价 − 券）
-eq('内推 + 券：不叠加，取更优的一个', q(1400, T).amount, 1350)
-eq('内推 + 券：baseline 是专属价', q(1400, T).baseline, 1400)
-eq('内推 + 券：减免以 baseline 为准', q(1400, T).discount, 50)
-ok('内推 + 券：用券更优时判为 coupon', q(1400, T).applied === 'coupon')
+console.log('  — 内推单：专属价说了算，券一律不可用')
+eq('内推不选券：按专属价', q(1400, null).amount, 1400)
+eq('内推选了券：仍按专属价，券不生效', q(1400, T).amount, 1400)
+eq('内推：不产生任何减免', q(1400, T).discount, 0)
+ok('内推：标记为 referral', q(1400, T).applied === 'referral')
+ok('内推 + 传了券：给出可解释的 reject', q(1400, T).reject === 'REFERRAL_ORDER')
+ok('内推 + 没传券：不算被拒', q(1400, null).reject === null)
+eq('内推：baseline 就是专属价', q(1400, T).baseline, 1400)
 
-// 券太小、专属价更划算 —— 必须走专属价，且不能因此把订单拒掉
-const small: CouponRule = { ...T, discount: 5 }
-eq('券不如专属价：按专属价收', q(1400, small).amount, 1400)
-eq('券不如专属价：不产生减免', q(1400, small).discount, 0)
-ok('券不如专属价：标记为 referral', q(1400, small).applied === 'referral')
-ok('券不如专属价：给出可解释的 reject', q(1400, small).reject === 'NOT_BETTER_THAN_REFERRAL')
+/*
+ * 【回归用例：站长 2026-09-11 报的那一单】
+ * 定价 1700、专属价 1800（推广人加价，差额是他的返现）。
+ * 旧代码 `baseline = Math.min(定价, 专属价)` 会取 1700，于是：
+ *   商品页 1800 → 结算页 1700 → 收银台 1800，同一单三个价。
+ * 现在专属价高于定价也照样按专属价，三处必须都是 1800。
+ */
+console.log('  — 回归：专属价【高于】定价（旧的 min 逻辑就是死在这里）')
+const hi = (rule: CouponRule | null) =>
+  quoteOrder({ productId: 1, listPrice: 1700, quantity: 1, referralUnitPrice: 1800, rule })
+eq('专属价高于定价：按专属价 1800，不是 min 取的 1700', hi(null).amount, 1800)
+eq('专属价高于定价：baseline 同样是 1800', hi(null).baseline, 1800)
+eq('专属价高于定价 + 带券：还是 1800', hi(T).amount, 1800)
+ok('专属价高于定价：不会被误判成 coupon', hi(T).applied === 'referral')
 
-// 专属价 = 定价（推广人没单独设价）时，券照常生效
-eq('专属价等于定价：券仍生效', q(1450, T).amount, 1350)
+console.log('  — 专属价等于定价（推广人没单独设价）')
+eq('仍按专属价', q(1450, null).amount, 1450)
+ok('仍视为内推单，券不可用', q(1450, T).applied === 'referral')
+eq('券不生效', q(1450, T).amount, 1450)
 
-// 多件：券按整单抵扣一次，不随数量翻倍
-eq('买 2 件：基准翻倍', q(null, null, 2).amount, 2900)
-eq('买 2 件：券只减一次', q(null, T, 2).amount, 2800)
-eq('买 2 件 + 内推：仍取更优', q(1400, T, 2).amount, 2800)
+console.log('  — 多件')
+eq('普通单买 2 件', q(null, null, 2).amount, 2900)
+eq('券按整单只减一次，不随数量翻倍', q(null, T, 2).amount, 2800)
+eq('内推单买 2 件 = 专属价 × 2', q(1400, null, 2).amount, 2800)
+eq('内推单买 2 件带券仍不减', q(1400, T, 2).amount, 2800)
 
-// 券面额大于应付时兜底到 MIN_PAYABLE —— V免签靠唯一金额对账，¥0 的单永远收不到款
+console.log('  — 触底与边界')
 const huge: CouponRule = { ...T, discount: 99999 }
 eq('券大于应付：兜底到最低可支付金额', q(null, huge).amount, MIN_PAYABLE)
 ok('券大于应付：仍算作用了券', q(null, huge).applied === 'coupon')
-eq('券大于应付：减免 = 基准 − 兜底价', q(null, huge).discount, Math.round((1450 - MIN_PAYABLE) * 100) / 100)
+eq('券大于应付：减免 = 定价 − 兜底价', q(null, huge).discount, Math.round((1450 - MIN_PAYABLE) * 100) / 100)
+ok('实付恒为正（V免签靠唯一金额对账，0 元付不了款）', q(null, huge).amount > 0)
 
-// 商品券只对指定商品生效
+console.log('  — 商品券 / 门槛（只在普通单里判）')
 const pOnly: CouponRule = { kind: 'PRODUCT', minAmount: 0, discount: 100, productIds: [2] }
 const qp = (pid: number) =>
   quoteOrder({ productId: pid, listPrice: 1450, quantity: 1, referralUnitPrice: null, rule: pOnly })
 ok('商品券不匹配：不生效', qp(1).applied !== 'coupon')
-eq('商品券不匹配：按原价', qp(1).amount, 1450)
+eq('商品券不匹配：按定价', qp(1).amount, 1450)
+ok('商品券不匹配：reject 可解释', qp(1).reject === 'KIND_PRODUCT_MISMATCH')
 eq('商品券匹配：正常抵扣', qp(2).amount, 1350)
 
+const gate: CouponRule = { kind: 'THRESHOLD', minAmount: 2000, discount: 100, productIds: [] }
+ok('未达门槛：不生效', q(null, gate).applied !== 'coupon')
+eq('未达门槛：按定价收，不报错', q(null, gate).amount, 1450)
+ok('未达门槛：reject 是 BELOW_THRESHOLD', q(null, gate).reject === 'BELOW_THRESHOLD')
+
 /*
- * 门槛按**商品定价**判定，不按专属价 —— 这是 calcCoupon 里写死的口径，这里钉住它。
- * 定价 1450 达到了 1420 的门槛，所以哪怕专属价 1400 低于门槛，券照样能用：
- * 「走了内推链接反而用不了满减券」买家无法理解，而两条优惠互相影响会让规则说不清。
- * 两者仍然不叠加 —— 1350 是「定价 − 券」，不是「专属价 − 券」的 1300。
+ * 这条恒等式是给订单详情、发票、结算页三处共用的：
+ * 它们都会显示「原价 / 优惠 / 实付」，对不上就是客服工单。
  */
-const gate: CouponRule = { kind: 'THRESHOLD', minAmount: 1420, discount: 100, productIds: [] }
-ok('门槛按定价判：专属价低于门槛也不影响用券', q(1400, gate).applied === 'coupon')
-eq('门槛按定价判：仍是定价减券，不是专属价减券', q(1400, gate).amount, 1350)
-eq('门槛按定价判：减免相对专属价只有 50', q(1400, gate).discount, 50)
-
-// 定价本身就没到门槛：券用不了，按 baseline 收，且不能因此拒单
-const gate2: CouponRule = { kind: 'THRESHOLD', minAmount: 2000, discount: 100, productIds: [] }
-ok('定价未达门槛：不生效', q(1400, gate2).applied !== 'coupon')
-eq('定价未达门槛：按专属价收', q(1400, gate2).amount, 1400)
-ok('定价未达门槛：reject 是 BELOW_THRESHOLD', q(1400, gate2).reject === 'BELOW_THRESHOLD')
-
-// baseline − discount 必须恒等于 amount，否则订单详情三个数对不上
-const consistency: Array<[number | null, CouponRule | null]> = [
-  [null, null], [null, T], [1400, T], [1400, small], [1400, gate], [1400, gate2], [null, huge],
+console.log('  — 恒等式')
+const cases: Array<[number | null, CouponRule | null, number]> = [
+  [null, null, 1], [null, T, 1], [1400, null, 1], [1400, T, 1],
+  [1800, T, 1], [null, huge, 1], [null, gate, 1], [1400, T, 3], [null, T, 2],
 ]
 ok(
   'baseline − discount === amount（所有分支）',
-  consistency.every(([rp, rule]) => {
-    const r = q(rp, rule)
+  cases.every(([rp, rule, qty]) => {
+    const r = q(rp, rule, qty)
     return Math.abs(r.baseline - r.discount - r.amount) < 1e-9
   })
 )
+ok(
+  '内推单的 discount 恒为 0',
+  cases.filter(([rp]) => rp != null).every(([rp, rule, qty]) => q(rp, rule, qty).discount === 0)
+)
+ok(
+  '任何分支都不会算出负数或 0',
+  cases.every(([rp, rule, qty]) => q(rp, rule, qty).amount > 0)
+)
+
 console.log(`\n${'='.repeat(46)}`)
 console.log(`通过 ${pass} 条，失败 ${fail} 条`)
 console.log('='.repeat(46))

@@ -316,16 +316,16 @@ export async function POST(request: NextRequest) {
       })
 
       /*
-       * 【券没用上不等于下单失败】原来这里是 `if (!calc.usable) return error(...)`，
-       * 于是「买家选了券、但推广专属价本来就更便宜」会直接把订单拒掉 ——
-       * 买家什么都没做错，只是挑了张不划算的券，却连单都下不了。
+       * 【券没用上不等于下单失败】券用不上就按 baseline 成交，
+       * 券原样留在账户里**不锁定**，把原因随响应返回、前台提示一句。少赚一点也好过丢一单。
        *
-       * 现在改成：券用不上就按 baseline（已含内推）成交，券原样留在账户里不锁定，
-       * 并把原因随响应返回，前台提示一句。少赚一点也好过丢一单。
+       * 内推单走的就是这条路：quoteOrder 对内推单一律返回 applied='referral'，
+       * 于是这里按专属价成交、券完好无损地留着，下次普通下单还能用。
+       * 前台在内推场景下本来就不展示券，能走到这里的只有手工构造的请求。
        */
       if (quote.applied !== 'coupon') {
         amount = quote.baseline
-        couponNote = quote.reject ? rejectReason(quote.reject) : '推广专属价更优惠，本单未使用优惠券'
+        couponNote = quote.reject ? rejectReason(quote.reject) : '本单未使用优惠券'
       } else {
         // CAS 抢锁。orderId 先留空，建单成功后回填 —— 订单号这时还没有
         const locked = await prisma.couponGrant.updateMany({
