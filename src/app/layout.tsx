@@ -48,6 +48,24 @@ export const metadata: Metadata = {
     shortcut: ['/logo-square.png'],
     apple: [{ url: '/logo-square.png', sizes: '512x512' }],
   },
+  /*
+   * 站长平台的归属验证 meta。值从环境变量来，没配就整条不输出。
+   *
+   * 【为什么走 meta 而不是上传 HTML 文件】验证文件一旦丢了（换服务器、清 public/）
+   * 站点会被静默移出站长平台，而这件事没有任何告警。meta 跟着代码走，重建镜像就还在。
+   *
+   * 取值方法：
+   *   Google → Search Console 添加「网址前缀」资源 → 选「HTML 标记」→
+   *            复制 content="..." 里的那串，填进 GOOGLE_SITE_VERIFICATION
+   *   Bing   → Webmaster Tools 可直接从 Google Search Console 导入，
+   *            要手动验证就取 msvalidate.01 的值填 BING_SITE_VERIFICATION
+   */
+  verification: {
+    google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
+    other: process.env.BING_SITE_VERIFICATION
+      ? { 'msvalidate.01': process.env.BING_SITE_VERIFICATION }
+      : undefined,
+  },
   openGraph: {
     type: 'website',
     siteName: SITE_NAME,

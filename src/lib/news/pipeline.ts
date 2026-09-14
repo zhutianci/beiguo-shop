@@ -1410,6 +1410,12 @@ export interface ComposeResult {
   backlog: number
   /** 还有多少条 RAW 事件在排队。这是判断「积压有没有在消化」的唯一指标，会在后台展示 */
   backlogLeft: number
+  /**
+   * 本轮真正发布出去的页面 slug。
+   * 只为 IndexNow 推送而存在：发布方是这里，只有这里知道哪些 slug 是新的。
+   * 调用方（api/cron/news）拿去推给必应，推不推、推失败都不影响管线。
+   */
+  publishedSlugs: string[]
   /** 写出 detail 的条数 */
   detailed: number
   /** detail 校验不过被丢弃的条数（事件本身照常发布） */
@@ -1422,7 +1428,7 @@ export interface ComposeResult {
 export async function compose(): Promise<ComposeResult> {
   const res: ComposeResult = {
     candidates: 0, composed: 0, rewritten: 0, degraded: 0, flagged: 0, skipped: 0,
-    backlog: 0, backlogLeft: 0, detailed: 0, detailRejected: 0,
+    backlog: 0, backlogLeft: 0, detailed: 0, detailRejected: 0, publishedSlugs: [],
   }
   const deadline = Date.now() + COMPOSE_DEADLINE_MS
   const freshFloor = new Date(Date.now() - COMPOSE_FRESH_DAYS * DAY_MS)
@@ -1565,6 +1571,9 @@ export async function compose(): Promise<ComposeResult> {
           ...(rewrite ? { rewriteCount: { increment: 1 } } : {}),
         },
       })
+
+      // 首发才推送：已发布事件的重写不产生新 URL，推了也是浪费配额
+      if (!ev.publishedAt) res.publishedSlugs.push(slug)
 
       if (flag) res.flagged++
       if (rewrite) res.rewritten++

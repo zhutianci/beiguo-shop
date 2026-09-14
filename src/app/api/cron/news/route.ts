@@ -4,6 +4,9 @@ import { NextRequest } from 'next/server'
 import { success, error } from '@/lib/api'
 import { assertCronAuth } from '@/lib/cron-auth'
 import { budgetExhausted, dailyBudgetMilli, llmInfo } from '@/lib/llm'
+import { indexNowConfigured, submitUrls } from '@/lib/indexnow'
+import { newsUrl } from '@/lib/news/seo'
+import { siteOrigin } from '@/lib/news/format'
 import {
   collect,
   triage,
@@ -128,10 +131,28 @@ export async function GET(request: NextRequest) {
       results.push(await runStage(stage, typeParam, budgetOut))
     }
 
+    /*
+     * 新发布的页面推给 IndexNow（必应/Yandex 等，**Google 不支持这个协议**）。
+     * 放在所有段跑完之后、以 await 方式执行：Serverless/容器环境里，
+     * 响应返回后没跑完的 Promise 可能随请求上下文一起被丢掉。
+     * 它自己有 8s 超时且所有异常就地吞掉，最坏情况就是这一轮不推，不影响管线结果。
+     */
+    const published = results.flatMap((r) =>
+      r.stage === 'compose' && r.ok && r.data && typeof r.data === 'object'
+        ? ((r.data as { publishedSlugs?: string[] }).publishedSlugs ?? [])
+        : []
+    )
+    let indexNow = 0
+    if (published.length && indexNowConfigured()) {
+      indexNow = await submitUrls(published.map(newsUrl), siteOrigin())
+    }
+
     return success({
       stages: results,
       llm: llmInfo(),
       budgetExhausted: budgetOut,
+      /** 本轮推给 IndexNow 的条数（0 = 没新页面、或未配置 INDEXNOW_KEY） */
+      indexNow,
     })
   } catch (err) {
     console.error('[cron/news] 入口异常:', err)
