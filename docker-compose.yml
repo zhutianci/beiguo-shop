@@ -58,6 +58,13 @@ services:
       - ORDER_MSG_WEBHOOK_URL
       - NOTIFY_EVENTS
       - LOW_STOCK_THRESHOLD
+      # SEO：站长平台归属验证 + IndexNow 主动推送
+      # 【必须列在这里】--env-file 只负责 compose 文件里的变量替换，
+      # 不会自动把变量塞进容器。漏了这三行，.env.production 里配了也等于没配，
+      # 而且表现是「静默不生效」：验证 meta 不输出、IndexNow 永远推 0 条。
+      - GOOGLE_SITE_VERIFICATION
+      - BING_SITE_VERIFICATION
+      - INDEXNOW_KEY
       # AI圈大事记：LLM 供应商与境外信源中继
       - LLM_PROVIDER
       - LLM_API_KEY
