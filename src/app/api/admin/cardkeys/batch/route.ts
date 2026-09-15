@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { syncAutoStock } from '@/lib/cardkey'
+import { hasProvider } from '@/lib/redeem/registry'
 import { round2 } from '@/lib/money'
 
 // 卡密批量操作。
@@ -13,18 +14,26 @@ import { round2 } from '@/lib/money'
 //   REUSE / DISABLE / DELETE  仅对 status !== 'USED' 的卡生效，已发出的一律跳过
 //   SET_COST                  任意状态可改；若已发出且有售价快照，同步重算 profit
 //   SET_PRICE                 仅对 status === 'USED' 的卡生效（未发出的卡没有售价概念）
+//   SET_PROVIDER              任意状态可改；它只是路由标注，不影响库存也不影响金额
 const batchSchema = z
   .object({
     ids: z.array(z.number().int().positive()).min(1, '请先选择卡密').max(500, '单次最多操作 500 条'),
-    action: z.enum(['REUSE', 'DISABLE', 'DELETE', 'SET_COST', 'SET_PRICE']),
+    action: z.enum(['REUSE', 'DISABLE', 'DELETE', 'SET_COST', 'SET_PRICE', 'SET_PROVIDER']),
     cost: z.number().min(0, '成本不能为负').max(999999).optional(),
     soldPrice: z.number().min(0, '售价不能为负').max(999999).optional(),
+    // 充值系统标识；显式传 null 表示「清空，回到跳转外链的方式」。
+    // 用 nullable 而不是把空串当清空：空串和「没传这个字段」在 JSON 里太容易混淆
+    redeemProvider: z.string().trim().max(20).nullable().optional(),
   })
   .refine((v) => v.action !== 'SET_COST' || typeof v.cost === 'number', {
     message: '请填写成本',
   })
   .refine((v) => v.action !== 'SET_PRICE' || typeof v.soldPrice === 'number', {
     message: '请填写售价',
+  })
+  // 注意判的是 undefined 而不是真值：null 是合法入参（清空）
+  .refine((v) => v.action !== 'SET_PROVIDER' || v.redeemProvider !== undefined, {
+    message: '请选择充值系统',
   })
 
 /** 元 → Decimal(10,2)，统一走 round2 再定点，避免浮点尾差 */
@@ -37,7 +46,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const parsed = batchSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
-    const { action, cost, soldPrice } = parsed.data
+    const { action, cost, soldPrice, redeemProvider } = parsed.data
     const ids = Array.from(new Set(parsed.data.ids))
 
     const cards = await prisma.cardKey.findMany({
@@ -109,6 +118,25 @@ export async function POST(request: NextRequest) {
         affected += r.count
       }
       if (recalc.length > 0) reasons.push(`${recalc.length} 条已发出卡密的利润已按新成本重算`)
+    } else if (action === 'SET_PROVIDER') {
+      /*
+       * 改的是「这批卡该去哪个兑换页」，不是钱也不是状态，所以任意状态都能改：
+       * 已发出的卡改了，买家订单页的「去充值」立刻指向站内兑换页；
+       * 未发出的卡改了，将来发出去就直接带上。
+       *
+       * 【必须校验平台存在】这个值决定订单页往哪跳、兑换页找哪个适配器。
+       * 写进一个没有适配器的 key，买家点过去就是 404，而且要等投诉才会发现。
+       */
+      const target = redeemProvider?.trim() || null
+      if (target && !hasProvider(target)) return error('所选充值系统不存在，请刷新页面后重试')
+
+      eligible = cards.length
+      const r = await prisma.cardKey.updateMany({
+        where: { id: { in: cards.map((c) => c.id) } },
+        data: { redeemProvider: target },
+      })
+      affected = r.count
+      reasons.push(target ? `已标注为站内兑换（${target}）` : '已清空充值系统，恢复为跳转兑换链接')
     } else {
       // SET_PRICE：只有已发出的卡才有售价
       const priceVal = soldPrice as number
@@ -142,9 +170,12 @@ export async function POST(request: NextRequest) {
       reasons.push(`${eligible - affected} 条在处理期间状态已变化，未生效`)
     }
 
-    // 状态变化会影响自动发货商品的库存，涉及到的商品各同步一次
-    for (const pid of productIds) {
-      await syncAutoStock(pid)
+    // 状态变化会影响自动发货商品的库存，涉及到的商品各同步一次。
+    // SET_PROVIDER / SET_COST / SET_PRICE 不动状态，库存不可能变，跳过这轮写库
+    if (action === 'REUSE' || action === 'DISABLE' || action === 'DELETE') {
+      for (const pid of productIds) {
+        await syncAutoStock(pid)
+      }
     }
 
     return success(

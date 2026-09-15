@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
         soldPrice: c.soldPrice != null ? Number(c.soldPrice) : null,
         profit: c.profit != null ? Number(c.profit) : null, // null = 利润未知，前端不要显示 0
         redeemUrl: c.redeemUrl,
+        redeemProvider: c.redeemProvider, // 非空 = 走站内兑换页；空 = 跳转 redeemUrl / 商品默认链接
         usedAt: c.usedAt, // 发出时间
         createdAt: c.createdAt, // 创建/导入时间
       }

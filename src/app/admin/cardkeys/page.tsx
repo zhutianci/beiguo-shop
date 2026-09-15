@@ -25,6 +25,8 @@ interface CardRow {
   soldPrice: number | null
   profit: number | null
   redeemUrl: string | null
+  /** 非空 = 该卡走站内兑换页；空 = 跳转 redeemUrl / 商品默认链接 */
+  redeemProvider: string | null
   usedAt: string | null
   createdAt: string
 }
@@ -360,9 +362,10 @@ function CardKeysInner() {
   }
 
   const runBatch = async (payload: {
-    action: 'REUSE' | 'DISABLE' | 'DELETE' | 'SET_COST' | 'SET_PRICE'
+    action: 'REUSE' | 'DISABLE' | 'DELETE' | 'SET_COST' | 'SET_PRICE' | 'SET_PROVIDER'
     cost?: number
     soldPrice?: number
+    redeemProvider?: string | null
   }) => {
     if (selected.size === 0) return
     setBatchBusy(true)
@@ -721,6 +724,36 @@ function CardKeysInner() {
                   >
                     <Tag className="mr-1 h-3.5 w-3.5" /> 批量改售价
                   </Button>
+                  {/*
+                    批量设置充值系统。选了就把这批卡标成站内兑换，订单页的「去充值」
+                    会指向 /redeem/<平台>；选「不使用」则清空，回到跳转外链的老方式。
+                    任意状态的卡都能改 —— 它只是路由标注，不动金额也不动库存。
+                  */}
+                  <select
+                    disabled={batchBusy || providers.length === 0}
+                    value=""
+                    onChange={(e) => {
+                      const v = e.target.value
+                      if (!v) return
+                      e.target.value = ''
+                      const label =
+                        v === '__none__'
+                          ? '清空充值系统（恢复为跳转兑换链接）'
+                          : `设为「${providers.find((p) => p.key === v)?.label || v}」`
+                      if (!confirm(`确认对选中的 ${selected.size} 条卡密${label}？`)) return
+                      void runBatch({ action: 'SET_PROVIDER', redeemProvider: v === '__none__' ? null : v })
+                    }}
+                    className="rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs text-gray-700 disabled:opacity-50"
+                    title="把选中的卡密标注为由某个充值系统在站内兑换"
+                  >
+                    <option value="">批量设充值系统…</option>
+                    {providers.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.label}
+                      </option>
+                    ))}
+                    <option value="__none__">不使用站内兑换（清空）</option>
+                  </select>
                   <Button variant="ghost" size="sm" disabled={batchBusy} onClick={() => setSelected(new Set())}>
                     取消选择
                   </Button>
@@ -746,6 +779,7 @@ function CardKeysInner() {
                         <th className="pb-2 pr-3">卡密</th>
                         <th className="pb-2 pr-3">状态</th>
                         <th className="pb-2 pr-3">批次</th>
+                        <th className="pb-2 pr-3">充值系统</th>
                         <th className="pb-2 pr-3 whitespace-nowrap">创建时间</th>
                         <th className="pb-2 pr-3 whitespace-nowrap">发出时间</th>
                         <th className="pb-2 pr-3 text-right whitespace-nowrap">成本</th>
@@ -787,6 +821,20 @@ function CardKeysInner() {
                               </span>
                             </td>
                             <td className="py-2 pr-3 text-xs text-gray-500">{c.batch || '—'}</td>
+                            <td className="py-2 pr-3 text-xs">
+                              {c.redeemProvider ? (
+                                <span
+                                  className="rounded bg-emerald-50 px-1.5 py-0.5 text-emerald-700"
+                                  title="该卡走站内兑换页"
+                                >
+                                  {providers.find((p) => p.key === c.redeemProvider)?.label || c.redeemProvider}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400" title="未标注，买家点「去充值」会跳转外部兑换链接">
+                                  跳转外链
+                                </span>
+                              )}
+                            </td>
                             <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">{fmt(c.createdAt)}</td>
                             <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">{fmt(c.usedAt)}</td>
                             <td className="py-2 pr-3 text-right text-xs whitespace-nowrap">{money(c.cost)}</td>
