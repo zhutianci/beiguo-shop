@@ -22,6 +22,7 @@ import {
   Share2,
   Newspaper,
   Ticket,
+  Link2,
 } from 'lucide-react'
 
 const sidebarItems = [
@@ -40,6 +41,7 @@ const sidebarItems = [
   { href: '/admin/receipts', label: '收据管理', icon: Stamp },
   { href: '/admin/forum', label: '论坛管理', icon: MessagesSquare },
   { href: '/admin/news', label: 'AI大事记', icon: Newspaper },
+  { href: '/admin/links', label: '友链与招商', icon: Link2 },
   { href: '/admin/users', label: '用户管理', icon: Users },
   { href: '/admin/settings', label: '系统设置', icon: Settings },
 ]

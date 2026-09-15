@@ -40,6 +40,14 @@ let cachedBytes = -1
 let cachedAt = 0
 const RECHECK_MS = 10 * 60 * 1000
 
+/**
+ * 统计 uploads 根目录下的总用量（含各业务子目录）。
+ *
+ * 【为什么要递归一层】以前只有 uploads/forum 一个目录，直接数文件就够了。
+ * 加了 uploads/links 之后，若仍只数 forum，总量上限就形同虚设——
+ * 两个目录各自逼近上限，磁盘照样会被写满，而写满磁盘会连带打挂同机的 MySQL。
+ * 子目录只可能是这里 SCOPES 里列的那几个，一层足够，不做无限递归。
+ */
 async function dirSize(dir: string): Promise<number> {
   let total = 0
   let entries: string[]
@@ -49,9 +57,22 @@ async function dirSize(dir: string): Promise<number> {
     return 0 // 目录还不存在
   }
   for (const name of entries) {
+    const full = path.join(dir, name)
     try {
-      const s = await stat(path.join(dir, name))
-      if (s.isFile()) total += s.size
+      const s = await stat(full)
+      if (s.isFile()) {
+        total += s.size
+      } else if (s.isDirectory()) {
+        const sub = await readdir(full)
+        for (const f of sub) {
+          try {
+            const fs2 = await stat(path.join(full, f))
+            if (fs2.isFile()) total += fs2.size
+          } catch {
+            /* 文件刚被删掉之类，忽略 */
+          }
+        }
+      }
     } catch {
       /* 文件刚被删掉之类，忽略 */
     }
@@ -90,7 +111,18 @@ function rateLimited(key: string): boolean {
   return false
 }
 
-// 图片上传：保存到 public/uploads/forum，返回可访问 URL
+/**
+ * 业务子目录白名单。
+ *
+ * 【为什么不能直接用表单传来的目录名】那就是任意路径写入：`../../` 能把图片写到
+ * 代码目录甚至覆盖掉构建产物。白名单是这里唯一可接受的做法，多一个业务就在这里加一行。
+ */
+const SCOPES: Record<string, string> = {
+  forum: 'forum', // 论坛发帖配图（允许匿名）
+  links: 'links', // 友链 / 招商位的站点 logo（后台录入）
+}
+
+// 图片上传：保存到 public/uploads/<scope>，返回可访问 URL
 export async function POST(request: NextRequest) {
   try {
     // 身份：登录用户优先，其次匿名 id，最后回落到 IP。仅用于限流，不做准入。
@@ -116,12 +148,19 @@ export async function POST(request: NextRequest) {
     const ext = sniff(bytes)
     if (!ext) return error('文件内容不是有效的图片')
 
-    const dir = path.join(process.cwd(), 'public', 'uploads', 'forum')
+    const scope = SCOPES[String(form.get('scope') || 'forum')] || 'forum'
+    const root = path.join(process.cwd(), 'public', 'uploads')
+    const dir = path.join(root, scope)
     await mkdir(dir, { recursive: true })
 
-    const used = await usedBytes(dir)
-    if (used + bytes.length > MAX_TOTAL_BYTES) {
-      console.warn(`[upload] 上传目录已达上限：${used} / ${MAX_TOTAL_BYTES}`)
+    // 用量按 uploads 根目录统计（各子目录共用同一块磁盘），但**不共用同一条线**：
+    // 论坛允许匿名传图，任由它涨到 100% 就会连带把后台的友链 logo 一起堵死。
+    // 给匿名来源留 90% 的线，后台来源可以用满——这样先撑爆的一定是匿名那一侧，
+    // 而管理员仍有空间处理善后（清图、调大 UPLOAD_MAX_TOTAL_MB）。
+    const quota = scope === 'forum' ? Math.floor(MAX_TOTAL_BYTES * 0.9) : MAX_TOTAL_BYTES
+    const used = await usedBytes(root)
+    if (used + bytes.length > quota) {
+      console.warn(`[upload] 上传目录已达上限：${used} / ${quota}（scope=${scope}，总上限 ${MAX_TOTAL_BYTES}）`)
       return error('图片存储空间已满，请联系管理员', 507)
     }
 
@@ -129,7 +168,7 @@ export async function POST(request: NextRequest) {
     await writeFile(path.join(dir, name), bytes)
     cachedBytes = used + bytes.length // 增量累加，下次重算前保持准确
 
-    const url = `/uploads/forum/${name}`
+    const url = `/uploads/${scope}/${name}`
     return success({ url }, '上传成功')
   } catch (err) {
     console.error('Upload error:', err)

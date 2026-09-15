@@ -8,7 +8,12 @@ import { Menu, X, User, ShoppingBag } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { cn } from '@/lib/utils'
 
-// 标签刻意短：桌面导航 8 项，768~900px 之间靠缩短文案 + 收紧间距才不换行
+// 标签刻意短：桌面导航 7 项，768~900px 之间靠缩短文案 + 收紧间距才不换行。
+//
+// 2026-09-15：下架「游戏」「关于」，新增「友链」。
+// 页面本身都还在（/games、/about 仍可直达，footer 与首页也还留着关于的入口），
+// 这里只是把主导航让给更常用的入口——导航是稀缺位，8 项在 768px 上已经只剩几十像素余量。
+// 「友链」刻意用两个字而不是「友情链接」，就是为了不把这点余量再吃掉。
 const navLinks = [
   { href: '/', label: '首页' },
   { href: '/products', label: '商品' },
@@ -16,8 +21,7 @@ const navLinks = [
   { href: '/iptools', label: 'IP工具' },
   { href: '/forum', label: '论坛' },
   { href: '/support', label: '客服' },
-  { href: '/games', label: '游戏' },
-  { href: '/about', label: '关于' },
+  { href: '/links', label: '友链' },
 ]
 
 /**
@@ -75,7 +79,7 @@ export function Header() {
         <div className="container">
           <div
             className={cn(
-              // 药丸内边距：md(768~1023) 是最挤的一段——8 项导航 + 登录/注册要塞进
+              // 药丸内边距：md(768~1023) 是最挤的一段——7 项导航 + 登录/注册要塞进
               // 不到 500px，所以这里反而比移动端收窄一点，把宽度让给导航文字；
               // lg 回到 px-6，xl 再放开到 px-8，让药丸和更大的字号成比例。
               'flex items-center justify-between px-6 md:px-5 lg:px-6 xl:px-8 py-3 rounded-full transition-all duration-500',
@@ -92,7 +96,7 @@ export function Header() {
                 <span className="relative z-10">贝</span>
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-pink-400 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              {/* md 区间要把宽度让给 8 项导航，品牌名只在 lg 以上出现；
+              {/* md 区间要把宽度让给 7 项导航，品牌名只在 lg 以上出现；
                   xl 上导航字号升到 16px，品牌名同步升一档才不会被导航压过去。
                   中文标题字距默认偏松，tracking-tight 让四个字更像一个整体 */}
               <span className="hidden lg:block font-bold text-lg xl:text-xl tracking-tight">贝果科技</span>
@@ -224,7 +228,7 @@ export function Header() {
             className="fixed inset-0 z-40 md:hidden"
           >
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
-            {/* 8 项在小屏上会顶满，收紧行距并允许滚动，避免最后一项被裁掉 */}
+            {/* 项目多时在小屏上会顶满，收紧行距并允许滚动，避免最后一项被裁掉 */}
             <nav className="relative flex h-full flex-col items-center justify-center gap-6 overflow-y-auto py-24">
               {navLinks.map((link, index) => (
                 <motion.div

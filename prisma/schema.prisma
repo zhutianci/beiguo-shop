@@ -954,3 +954,56 @@ model CouponClaim {
   @@index([grantId])
   @@map("coupon_claims")
 }
+
+// 友情链接 / 招商合作位。
+//
+// 【为什么一张表装两种东西】友链和招商位的字段重合度超过八成（站名、地址、logo、
+// 简介、排序、状态、联系方式），真正的差别只有「要不要收钱、有没有到期时间」。
+// 拆两张表意味着列表、审核、排序、回链巡检各写两遍，而后台其实是同一个审核队列
+// ——申请人自己也分不清该投哪个口子。所以用 slot 区分展示位置，其余共用。
+//
+// 【为什么带审核状态】友链页是对外开放申请的，任何人都能提交。没有 PENDING 这一档，
+// 要么关掉申请入口（那就失去了互挂的意义），要么让陌生站点直接出现在自己站上
+// ——出站链接指到赌博/诈骗页面，赔上的是自己域名的信誉。
+model FriendLink {
+  id          Int     @id @default(autoincrement())
+  name        String  @db.VarChar(60) // 站点名称
+  url         String  @db.VarChar(300) // 站点地址，入库前统一补协议并去掉多余尾斜杠
+  logo        String? @db.VarChar(300) // 图标：本站上传的 /uploads/links/xxx 或对方的外链地址
+  description String? @db.VarChar(200) // 一句话简介，卡片上只展示两行
+  // FRIEND 普通友链（友链墙） | SPONSOR 招商位（页面顶部的赞助区，位置更显眼）
+  slot        String  @default("FRIEND") @db.VarChar(16)
+  // PENDING 待审核 | APPROVED 展示中 | REJECTED 已拒绝 | OFFLINE 已下线
+  // 拒绝与下线分开：拒绝是「没通过」，下线是「通过过但现在不挂了」（对方撤链、站点挂了、
+  // 赞助到期）。合并成一个状态就查不出「这家是不是曾经互挂过」，续约和追责都没依据。
+  status      String  @default("PENDING") @db.VarChar(16)
+  // ADMIN 后台手工添加 | APPLY 前台表单申请
+  source      String  @default("ADMIN") @db.VarChar(10)
+  // 出站链接是否加 rel="nofollow"。默认加：来路不明的申请先不给权重，
+  // 确认对方是真实互链、内容干净之后再由管理员放开。招商位另有 rel="sponsored"，
+  // 那是 Google 对付费链接的硬性要求，与这个开关无关、不可关闭。
+  nofollow    Boolean @default(true)
+  sortOrder   Int     @default(0) @map("sort_order")
+  clicks      Int     @default(0) // 前台点击数，用来判断哪家真的在给我们导流
+  // 申请人联系方式（微信/QQ/邮箱，原样存），只在后台可见，绝不出现在前台接口里
+  contact     String? @db.VarChar(100)
+  remark      String? @db.VarChar(255) // 后台备注 / 拒绝理由
+  // ---- 回链巡检结果：对方页面上还挂着我们吗 ----
+  // null = 从未检测。互挂友链最常见的纠纷就是「对方悄悄把我们撤了」，
+  // 靠人工点开一家家看根本不可持续，所以把结论落库、列表上直接标红。
+  backlinkOk   Boolean?  @map("backlink_ok")
+  backlinkNote String?   @map("backlink_note") @db.VarChar(255) // 检测详情：HTTP 状态 / 未找到本站域名 / 超时
+  checkedAt    DateTime? @map("checked_at")
+  // ---- 招商位的有效期。FRIEND 一般留空表示长期 ----
+  startAt   DateTime? @map("start_at")
+  endAt     DateTime? @map("end_at")
+  applyIp   String?   @map("apply_ip") @db.VarChar(64) // 审计用：谁提交的申请
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // 前台只查 (status=APPROVED, slot) 再按 sortOrder 排，一条索引全覆盖
+  @@index([status, slot, sortOrder])
+  // 后台的待审核队列按提交时间倒序
+  @@index([status, createdAt])
+  @@map("friend_links")
+}

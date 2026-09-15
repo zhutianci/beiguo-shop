@@ -42,3 +42,7 @@ next-env.d.ts
 /nginx/ssl/*.pem
 /nginx/ssl/*.key
 /nginx/ssl/*.crt
+
+# 用户/管理员上传物。线上挂在 docker named volume(forum_uploads) 上，
+# 本地 dev 跑出来的图片不该进仓库（论坛配图、友链 logo 都落这里）
+/public/uploads/

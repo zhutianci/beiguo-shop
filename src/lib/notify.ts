@@ -26,6 +26,7 @@ export type NotifyEvent =
   | 'message.buyer'
   | 'stock.low'
   | 'user.registered'
+  | 'link.applied'
 
 const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.created': { emoji: '🛒', title: '新订单' },
@@ -37,6 +38,7 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'message.buyer': { emoji: '🔔', title: '新订单留言' },
   'stock.low': { emoji: '⚠️', title: '库存告警' },
   'user.registered': { emoji: '👤', title: '新用户注册' },
+  'link.applied': { emoji: '🤝', title: '新的友链申请' },
 }
 
 function webhookUrl(): string {
@@ -365,5 +367,51 @@ export function notifyUserRegistered(p: { email: string; nickname: string | null
       { label: '注册时间', value: fmtTime(p.createdAt) },
     ],
     { link: '/admin/users', linkText: '查看用户' }
+  )
+}
+
+/**
+ * 友链申请里的站名/简介/联系方式全是陌生人填的，而企业微信这一路是按 markdown 渲染的：
+ * 一个 `[点我领奖](http://evil)` 就能在管理员群里伪造出一条可点击链接，
+ * 后面紧跟着的还是我们自己的「前往后台处理」，可信度拉满。落地前先把语法字符打断。
+ */
+function plainify(v: string | null | undefined, max = 120): string {
+  if (!v) return '—'
+  return v
+    .replace(/\s+/g, ' ')
+    .replace(/[[\]()<>`*_#|]/g, ' ')
+    .trim()
+    .slice(0, max)
+}
+
+/**
+ * 地址同样要防注入，但不能像正文那样把 _ # 之类一并抹掉 —— 那些在 URL 里太常见了，
+ * 洗完管理员就点不开。只打断构成 markdown 链接语法的那几个字符和空白。
+ */
+function plainUrl(v: string | null | undefined, max = 300): string {
+  if (!v) return '—'
+  return v
+    .replace(/\s+/g, '')
+    .replace(/[[\]()<>`]/g, '')
+    .slice(0, max)
+}
+
+export function notifyLinkApplied(p: {
+  name: string
+  url: string
+  slot: string
+  contact: string | null
+  description: string | null
+}): void {
+  notify(
+    'link.applied',
+    [
+      { label: '站点', value: plainify(p.name, 60) },
+      { label: '地址', value: plainUrl(p.url) },
+      { label: '申请位置', value: p.slot === 'SPONSOR' ? '招商位' : '友情链接', color: p.slot === 'SPONSOR' ? 'warning' : undefined },
+      { label: '联系方式', value: plainify(p.contact, 100) },
+      { label: '简介', value: plainify(p.description, 200), color: 'comment' },
+    ],
+    { link: '/admin/links', linkText: '前往审核' }
   )
 }

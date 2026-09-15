@@ -32,6 +32,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absUrl('/forum'), lastModified: now, changeFrequency: 'daily', priority: 0.7 },
     { url: absUrl('/about'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     { url: absUrl('/support'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+    // /links 是对外交换友链的落地页，必须可被收录：长期 noindex 的页面 Google
+    // 最终会停止跟随其上的链接，对方拿不到任何权重，互挂也就没人愿意做了
+    { url: absUrl('/links'), lastModified: now, changeFrequency: 'weekly', priority: 0.4 },
+    // 游戏与关于已从顶部导航下架，但页面还在、仍值得收录，sitemap 保持原样
     { url: absUrl('/games'), lastModified: now, changeFrequency: 'weekly', priority: 0.3 },
     { url: absUrl('/iptools'), lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
   ]

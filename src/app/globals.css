@@ -385,6 +385,13 @@
   animation: news-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* 同一条入场动画的通用别名。友链墙（/links）用它：那里的卡片数量会随合作方增长，
+   一旦过了二十来张，framer-motion 逐卡实例化的开销就明显高于一条 CSS keyframes。
+   用法：className="rise-in" style={{ animationDelay: `${i * 0.03}s` }} */
+.rise-in {
+  animation: news-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 /* 从「重点」跳到时间流对应条目时的高亮闪烁 */
 @keyframes news-flash {
   0%, 100% { background-color: rgba(255, 255, 255, 0.04); }
@@ -397,6 +404,7 @@
 /* 尊重系统的减弱动态偏好：动画一律取消，不是放慢 */
 @media (prefers-reduced-motion: reduce) {
   .news-in,
+  .rise-in,
   .news-flash {
     animation: none !important;
   }

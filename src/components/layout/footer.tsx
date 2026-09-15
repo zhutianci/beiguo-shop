@@ -92,8 +92,14 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
+                  {/* 「关于」已从顶部导航下架，页面本身还在，入口靠这里和首页保留 */}
                   <Link href="/about" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
                     关于我们
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/links" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                    友情链接
                   </Link>
                 </li>
                 <li>
