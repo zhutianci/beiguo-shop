@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
+import { hasProvider } from '@/lib/redeem/registry'
 import { success, error } from '@/lib/api'
 import {
   cardKeyConfigured,
@@ -127,6 +128,9 @@ const importSchema = z.object({
     .refine((v) => v === '' || /^https?:\/\//i.test(v), '兑换地址需以 http:// 或 https:// 开头')
     .optional()
     .nullable(),
+  // 本批走站内兑换时的充值平台标识（lib/redeem/registry.ts 的 key）。
+  // 留空 = 不走站内兑换，回落到 redeemUrl / 商品默认链接的跳转方式
+  redeemProvider: z.string().trim().max(20).optional().nullable(),
 })
 
 // 批量导入卡密（加密入库，同商品内去重）
@@ -137,7 +141,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const parsed = importSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
-    const { productId, content, batch, remark, cost, redeemUrl } = parsed.data
+    const { productId, content, batch, remark, cost, redeemUrl, redeemProvider } = parsed.data
 
     const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } })
     if (!product) return error('商品不存在')
@@ -167,6 +171,16 @@ export async function POST(request: NextRequest) {
     const batchCost = new Prisma.Decimal((cost ?? 0).toFixed(2))
     const batchRedeemUrl = redeemUrl?.trim() || null
 
+    /*
+     * 【必须校验平台存在】这个字符串会原样进数据库并决定兑换页去找哪个适配器。
+     * 写进一个没有适配器的 key，整批卡密的兑换页会永远报「充值系统不存在」，
+     * 而且要等买家投诉才会被发现。宁可在导入这一步就拒掉。
+     */
+    const batchProvider = redeemProvider?.trim() || null
+    if (batchProvider && !hasProvider(batchProvider)) {
+      return error('所选充值系统不存在，请刷新页面后重试')
+    }
+
     if (fresh.length > 0) {
       await prisma.cardKey.createMany({
         data: fresh.map((i) => ({
@@ -175,6 +189,7 @@ export async function POST(request: NextRequest) {
           contentHash: i.hash,
           status: 'UNUSED',
           batch: batch || null,
+          redeemProvider: batchProvider,
           remark: remark || null,
           cost: batchCost,
           redeemUrl: batchRedeemUrl,

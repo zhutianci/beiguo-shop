@@ -173,6 +173,9 @@ function CardKeysInner() {
   const [batch, setBatch] = useState('')
   const [importCost, setImportCost] = useState('')
   const [importRedeemUrl, setImportRedeemUrl] = useState('')
+  /** 本批走站内兑换时选的充值系统。空 = 沿用旧的跳转外链方式 */
+  const [importProvider, setImportProvider] = useState('')
+  const [providers, setProviders] = useState<{ key: string; label: string }[]>([])
   const [importing, setImporting] = useState(false)
   const [importMsg, setImportMsg] = useState('')
 
@@ -186,6 +189,16 @@ function CardKeysInner() {
   const [detail, setDetail] = useState<CardOrderDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailErr, setDetailErr] = useState('')
+
+  // 充值系统清单。加了新适配器后刷新后台就能在下拉里看到，不用改这个页面
+  useEffect(() => {
+    fetch('/api/admin/redeem/providers')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success) setProviders(d.data.list || [])
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     fetch('/api/admin/products')
@@ -295,6 +308,7 @@ function CardKeysInner() {
           batch: batch.trim() || null,
           cost: costNum,
           redeemUrl: url || null,
+          redeemProvider: importProvider || null,
         }),
       })
       const data = await res.json()
@@ -552,7 +566,27 @@ function CardKeysInner() {
                     onChange={(e) => setImportRedeemUrl(e.target.value)}
                     placeholder="https://...，留空回落商品默认链接"
                     className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+                    disabled={!!importProvider}
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">本批充值系统（选填）</label>
+                  <select
+                    value={importProvider}
+                    onChange={(e) => setImportProvider(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                  >
+                    <option value="">不走站内兑换（跳转上面的地址）</option>
+                    {providers.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                    选了就在本站内完成兑换，买家看到的是「贝果科技·AI会员自助充值系统」，不会知道是哪家。
+                    选了之后上面的兑换地址不再生效。
+                  </p>
                 </div>
               </div>
               <div className="flex flex-wrap items-center gap-3">

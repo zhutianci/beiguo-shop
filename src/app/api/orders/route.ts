@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { hasProvider } from '@/lib/redeem/registry'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { generateOrderNo } from '@/lib/utils'
@@ -97,10 +98,16 @@ export async function GET(request: NextRequest) {
     })
 
     // 自动发货：把已发给本人订单的卡密解密返回（仅本人、已支付订单可见）
-    // cards 保持 string[]（旧字段，前端沿用）；cardItems 额外带上每张卡的专属兑换地址，
-    // 买家侧展示时应优先用 card.redeemUrl，为空才回落 product.cardRedeemUrl。
+    // cards 保持 string[]（旧字段，前端沿用）；cardItems 额外带上兑换入口。
+    //
+    // 【兑换入口的优先级，服务端在这里就定好，前端不要再判一遍】
+    //   1. redeemProvider 非空 → 站内兑换页 /redeem/<provider>?cdk=...
+    //   2. 否则 redeemUrl（本批专属外链）
+    //   3. 否则 product.cardRedeemUrl（商品默认外链，前端兜底）
+    // 之所以把卡密拼进 URL：买家从订单页点过去就已经填好了，少一次复制粘贴。
+    // 这个链接本身不构成泄漏 —— 能看到这个页面的人本来就已经看到卡密明文了。
     const paidIds = orders.filter((o) => o.payStatus === 'PAID').map((o) => o.id)
-    const cardMap = new Map<number, { secret: string; redeemUrl: string | null }[]>()
+    const cardMap = new Map<number, { secret: string; redeemUrl: string | null; inSite: boolean }[]>()
     if (paidIds.length) {
       const cards = await prisma.cardKey.findMany({
         where: { orderId: { in: paidIds }, status: 'USED' },
@@ -114,7 +121,14 @@ export async function GET(request: NextRequest) {
           plain = '(卡密解密失败，请联系客服)'
         }
         const arr = cardMap.get(c.orderId as number) || []
-        arr.push({ secret: plain, redeemUrl: c.redeemUrl || null })
+        const inSite = !!c.redeemProvider && hasProvider(c.redeemProvider)
+        arr.push({
+          secret: plain,
+          redeemUrl: inSite
+            ? `/redeem/${c.redeemProvider}?cdk=${encodeURIComponent(plain)}`
+            : c.redeemUrl || null,
+          inSite,
+        })
         cardMap.set(c.orderId as number, arr)
       }
     }
@@ -180,7 +194,7 @@ export async function GET(request: NextRequest) {
       return {
         ...o,
         cards: items.map((c) => c.secret),
-        cardItems: items, // [{ secret, redeemUrl }]：redeemUrl 为空则回落 product.cardRedeemUrl
+        cardItems: items, // [{ secret, redeemUrl, inSite }]：redeemUrl 为空才回落 product.cardRedeemUrl
         unreadCount: unreadMap.get(o.id) || 0,
         // 票据信息（仅已支付订单可申请）
         billing: paid

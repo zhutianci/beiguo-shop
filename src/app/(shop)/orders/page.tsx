@@ -41,7 +41,9 @@ interface Order {
   deliveredAt: string | null
   product: { id: number; name: string; image: string | null; deliveryType?: string; cardUsage?: string | null; cardRedeemUrl?: string | null }
   cards?: string[]
-  cardItems?: { secret: string; redeemUrl: string | null }[] // 每张卡的专属兑换地址，为空回落 product.cardRedeemUrl
+  // 每张卡的兑换入口。inSite=true 表示 redeemUrl 是站内兑换页的相对地址（/redeem/...），
+  // 应在本站打开；否则是外链。为空则回落 product.cardRedeemUrl
+  cardItems?: { secret: string; redeemUrl: string | null; inSite?: boolean }[]
   unreadCount?: number // 客服发来、买家未读的回复数
   billing?: Billing | null
 }
@@ -751,15 +753,24 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
 // 发货详情：订单信息 + 卡密 + 交付信息 + 短信接码
 function DeliveryPanel({ order, onClose }: { order: Order; onClose: () => void }) {
   // 兼容：新接口返回 cardItems（带每张卡的专属兑换地址），旧数据只有 cards: string[]
-  const cardRows: { secret: string; redeemUrl: string | null }[] =
+  const cardRows: { secret: string; redeemUrl: string | null; inSite?: boolean }[] =
     order.cardItems && order.cardItems.length > 0
       ? order.cardItems
       : (order.cards || []).map((s) => ({ secret: s, redeemUrl: null }))
   const hasCards = cardRows.length > 0
+  /*
+   * 【站内兑换地址是相对路径，不能只认 http(s)】
+   * 服务端现在会把走站内兑换的卡返回成 /redeem/<平台>?cdk=...，
+   * 老的 isHttp 正则会把它整个滤掉，表现就是「有卡密但没有兑换按钮」。
+   */
   const isHttp = (u?: string | null) => !!u && /^https?:\/\//i.test(u)
+  const isUsable = (u?: string | null) => isHttp(u) || (!!u && u.startsWith('/'))
   const fallbackRedeemUrl = isHttp(order.product?.cardRedeemUrl) ? order.product!.cardRedeemUrl! : null
-  // 兑换地址优先级：卡密自带 → 商品级默认
-  const primaryRedeemUrl = cardRows.find((c) => isHttp(c.redeemUrl))?.redeemUrl || fallbackRedeemUrl
+  // 兑换入口优先级：卡密自带（站内兑换页或本批外链）→ 商品级默认外链
+  const primary = cardRows.find((c) => isUsable(c.redeemUrl))
+  const primaryRedeemUrl = primary?.redeemUrl || fallbackRedeemUrl
+  // 站内兑换在本站打开，外链才新开标签页
+  const primaryInSite = !!primary?.inSite
   const showHint = !hasCards && !order.deliveryInfo && order.product?.deliveryType !== 'SMS'
   return (
     <PanelModal title="发货详情" icon={<Package className="w-5 h-5 text-emerald-400" />} onClose={onClose}>
@@ -791,14 +802,13 @@ function DeliveryPanel({ order, onClose }: { order: Order; onClose: () => void }
                     </button>
                   </div>
                   {/* 该卡有专属兑换地址且与商品默认不同时，单独给一个入口 */}
-                  {row.redeemUrl && row.redeemUrl !== fallbackRedeemUrl && (
+                  {isUsable(row.redeemUrl) && row.redeemUrl !== fallbackRedeemUrl && (
                     <a
-                      href={row.redeemUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
+                      href={row.redeemUrl!}
+                      {...(row.inSite ? {} : { target: '_blank', rel: 'noreferrer noopener' })}
                       className="mt-1.5 inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
                     >
-                      本卡兑换地址
+                      {row.inSite ? '在本站兑换这张卡' : '本卡兑换地址'}
                       <ChevronRight className="w-3 h-3" />
                     </a>
                   )}
@@ -809,8 +819,7 @@ function DeliveryPanel({ order, onClose }: { order: Order; onClose: () => void }
             {primaryRedeemUrl && (
               <a
                 href={primaryRedeemUrl}
-                target="_blank"
-                rel="noreferrer noopener"
+                {...(primaryInSite ? {} : { target: '_blank', rel: 'noreferrer noopener' })}
                 className="mt-3 group flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 font-semibold hover:shadow-[0_0_24px_rgba(16,185,129,0.4)] transition-all"
               >
                 去充值 / 兑换

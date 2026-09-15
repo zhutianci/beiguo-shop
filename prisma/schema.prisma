@@ -120,6 +120,10 @@ model CardKey {
   soldPrice   Decimal?  @map("sold_price") @db.Decimal(10, 2) // 发出时的单卡售价快照；外部站发卡拿不到售价，保持 null
   profit      Decimal?  @db.Decimal(10, 2) // = soldPrice - cost；null 表示「利润未知」，不要写 0
   redeemUrl   String?   @map("redeem_url") @db.VarChar(500) // 本批专属兑换地址；为空则回落 Product.cardRedeemUrl
+  // 站内兑换用的充值平台标识（lib/redeem/registry.ts 里的 key，如 sysa）。
+  // 优先级：redeemProvider（站内兑换页）> redeemUrl（跳转外链）> Product.cardRedeemUrl。
+  // 值一旦写入就不能改动对应适配器的 key，否则历史卡密会找不到适配器。
+  redeemProvider String? @map("redeem_provider") @db.VarChar(20)
   createdAt   DateTime  @default(now()) @map("created_at")
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -130,6 +134,10 @@ model CardKey {
   @@index([externalRef])
   @@index([status, usedAt]) // 每日成本/利润按发出时间区间聚合
   @@index([productId, batch]) // 按批次批量改成本
+  // 兑换页要凭卡密明文的哈希反查这张卡是不是我们卖出去的。
+  // 既有的 @@unique([productId, contentHash]) 前导列是 productId，
+  // 单独按 contentHash 查用不上它 —— 没有这个索引就是每次兑换全表扫。
+  @@index([contentHash])
   @@map("card_keys")
 }
 
@@ -704,6 +712,30 @@ model Invoice {
   @@index([claudeAccount])
   @@index([status])
   @@map("invoices")
+}
+
+// 卡密兑换尝试记录。
+//
+// 【绝对不存这两样东西】
+//  · 卡密明文 —— 只存 cardKeyId，要看卡密去 card_keys 走解密
+//  · 买家的账号凭据（Claude sessionKey / ChatGPT session JSON）——
+//    那是账号级凭据，落库就是一个等着被拖走的密码库。它只在内存里过一趟就丢掉。
+//
+// requestId 是上游的追踪号，对方文档明确要求排查时连同卡密一起提供。
+model RedeemLog {
+  id        Int      @id @default(autoincrement())
+  cardKeyId Int?     @map("card_key_id")
+  provider  String   @db.VarChar(20)
+  action    String   @db.VarChar(16) // CHECK | ACTIVATE | REBIND
+  state     String   @db.VarChar(20) // RedeemState
+  message   String?  @db.VarChar(255)
+  requestId String?  @map("request_id") @db.VarChar(64)
+  ip        String?  @db.VarChar(64)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([cardKeyId])
+  @@index([createdAt])
+  @@map("redeem_logs")
 }
 
 // 收据（买家提交抬头后出具，加盖公章；一笔订单仅一张，仅管理员可删除重开）
