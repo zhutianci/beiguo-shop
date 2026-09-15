@@ -131,11 +131,27 @@ export async function POST(request: NextRequest) {
       if (target && !hasProvider(target)) return error('所选充值系统不存在，请刷新页面后重试')
 
       eligible = cards.length
-      const r = await prisma.cardKey.updateMany({
-        where: { id: { in: cards.map((c) => c.id) } },
+      const targetIds = cards.map((c) => c.id)
+      await prisma.cardKey.updateMany({
+        where: { id: { in: targetIds } },
         data: { redeemProvider: target },
       })
-      affected = r.count
+
+      /*
+       * 【不能拿 updateMany 的 count 当「成功条数」】
+       * MySQL 的 UPDATE 返回的是**实际改变的行数**，不是匹配的行数
+       * （Prisma 的 MySQL 连接器没有开 CLIENT_FOUND_ROWS）。
+       * 而「把已经是 sysa 的卡再设成 sysa」正是这个功能最常见的用法 ——
+       * 全选一页时必然有几条本来就对。那些行 count 不计，于是
+       * affected < eligible，下面的对账会报「N 条在处理期间状态已变化，未生效」：
+       * 一次完全成功的操作被说成失败，还附赠一个编造的并发解释。
+       *
+       * 改成写完之后数一遍「现在确实是目标值的行」。这个数才是站长要的
+       * 「有多少条现在是对的」，而且天然幂等 —— 重复执行结果一样。
+       */
+      affected = await prisma.cardKey.count({
+        where: { id: { in: targetIds }, redeemProvider: target },
+      })
       reasons.push(target ? `已标注为站内兑换（${target}）` : '已清空充值系统，恢复为跳转兑换链接')
     } else {
       // SET_PRICE：只有已发出的卡才有售价
@@ -164,10 +180,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 兜底对账：并发下有卡在本次筛选之后被领走/删除，updateMany 就打不中，这部分算跳过
+    /*
+     * 兜底对账：并发下有卡在本次筛选之后被领走/删除，就会打不中，这部分算跳过。
+     *
+     * 【原因文案要分支说】带状态条件的那几支（REUSE/DISABLE/DELETE/SET_PRICE）
+     * 确实可能因为卡被领走而打不中；SET_PROVIDER 的 where 里**没有状态条件**，
+     * 唯一能让它少掉的只有「行被删了」。两种说法混用会把排查引到错误方向。
+     */
     if (affected < eligible) {
       skipped += eligible - affected
-      reasons.push(`${eligible - affected} 条在处理期间状态已变化，未生效`)
+      reasons.push(
+        action === 'SET_PROVIDER'
+          ? `${eligible - affected} 条在处理期间已被删除，未生效`
+          : `${eligible - affected} 条在处理期间状态已变化，未生效`
+      )
     }
 
     // 状态变化会影响自动发货商品的库存，涉及到的商品各同步一次。
