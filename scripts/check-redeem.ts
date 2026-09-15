@@ -12,7 +12,7 @@ import { __test } from '../src/lib/redeem/providers/sysa'
 import { getProvider, hasProvider, listProvidersForAdmin, PUBLIC_SYSTEM_NAME } from '../src/lib/redeem/registry'
 import { normalizeCdk, validCdkShape } from '../src/lib/redeem/service'
 
-const { fieldsFor, pickAccountArgs, STATE_BY_CODE, STATE_BY_USE_STATUS, MESSAGES, TERMINAL_CODES } = __test
+const { fieldsFor, pickAccountArgs, guideFor, STATE_BY_CODE, STATE_BY_USE_STATUS, MESSAGES, TERMINAL_CODES } = __test
 
 let pass = 0
 let fail = 0
@@ -62,8 +62,14 @@ eq('claude_s 只要 sessionKey', fieldsFor('claude_s').map((f) => f.name), ['ses
 ok('claude_s 的 sessionKey 是必填', fieldsFor('claude_s')[0].required)
 eq('grok 只要 uid', fieldsFor('grok').map((f) => f.name), ['uid'])
 eq('claude 两条通道，推荐项在前', fieldsFor('claude').map((f) => f.name), ['session_key', 'uid'])
-eq('gpt 两条通道，推荐项在前', fieldsFor('gpt').map((f) => f.name), ['session_json', 'uid'])
+// 只看账号字段；force 是开关型，不属于「二选一」的那两条通道
+eq(
+  'gpt 两条账号通道，推荐项在前',
+  fieldsFor('gpt').filter((f) => f.kind !== 'toggle').map((f) => f.name),
+  ['session_json', 'uid']
+)
 ok('二选一的字段都不标必填（由 pickAccountArgs 兜底）', fieldsFor('claude').every((f) => !f.required))
+ok('gpt 的账号字段同样都不标必填', fieldsFor('gpt').filter((f) => f.kind !== 'toggle').every((f) => !f.required))
 ok('每个字段都有说明文案', ['claude', 'claude_s', 'gpt', 'grok'].every((a) =>
   fieldsFor(a as any).every((f) => f.help.length > 5)))
 
@@ -157,6 +163,36 @@ ok(`文档里的 ${rebindCodes.length} 个重绑机器码都有文案`, missingR
 // 货源保护：任何一条买家可见的文案都不能出现上游的品牌或域名
 const leaky = Object.entries(MESSAGES).filter(([, v]) => /redeemgpt|gift|礼物/i.test(v))
 ok('文案里不出现上游品牌/域名/内部术语', leaky.length === 0, leaky.map(([k]) => k).join(', '))
+
+console.log('\n【取号指引】—— 两个产品路径不同，所以必须按产品给')
+eq('Claude 是 6 步', guideFor('claude').steps.length, 6)
+eq('claude_s 与 claude 共用同一套', guideFor('claude_s').steps.length, 6)
+eq('ChatGPT 是 4 步', guideFor('gpt').steps.length, 4)
+ok('每一步都有标题和说明', ['claude', 'gpt', 'grok'].every((a) =>
+  guideFor(a as any).steps.every((st: any) => st.title.length > 1 && st.detail.length > 5)))
+ok('Claude 指引指向 claude.ai', guideFor('claude').steps.some((st: any) => st.link?.url.includes('claude.ai')))
+ok('ChatGPT 指引给出 session 取值地址',
+  guideFor('gpt').steps.some((st: any) => st.link?.url === 'https://chatgpt.com/api/auth/session'))
+ok('指引里不出现上游品牌',
+  ['claude', 'claude_s', 'gpt', 'grok'].every((a) =>
+    !/redeemgpt/i.test(JSON.stringify(guideFor(a as any)))))
+
+console.log('\n【GPT 强制充值 force】—— 账号已有订阅时的唯一出路')
+ok('gpt 的字段里有 force 开关', fieldsFor('gpt').some((f) => f.name === 'force' && f.kind === 'toggle'))
+ok('force 不是必填', fieldsFor('gpt').find((f) => f.name === 'force')?.required === false)
+ok('force 文案讲清代价（剩余时间作废）',
+  /作废|放弃/.test(fieldsFor('gpt').find((f) => f.name === 'force')?.help || ''))
+ok('只有 gpt 有 force', ['claude', 'claude_s', 'grok'].every((a) =>
+  !fieldsFor(a as any).some((f) => f.name === 'force')))
+
+eq('勾了 force + session → 带上 force=1', pickAccountArgs('gpt', { session_json: '{"a":1}', force: '1' }), {
+  session_info: '{"a":1}', force: '1',
+})
+eq('没勾 force → 不带这个参数', pickAccountArgs('gpt', { session_json: '{"a":1}' }), { session_info: '{"a":1}' })
+// force 对 UID 直充无意义，上游也不参与 plan 校验，带上去只是噪音
+eq('UID 直充不带 force', pickAccountArgs('gpt', { uid: 'u-1', force: '1' }), { uid: 'u-1' })
+// 【只勾 force 不填账号，必须抛错】否则会带着空凭据提交上去
+throws('只勾 force 不填账号 → 抛错', () => pickAccountArgs('gpt', { force: '1' }))
 
 console.log(`\n${'='.repeat(46)}`)
 console.log(`通过 ${pass} 条，失败 ${fail} 条`)

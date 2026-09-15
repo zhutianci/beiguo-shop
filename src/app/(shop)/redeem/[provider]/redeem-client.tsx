@@ -17,7 +17,7 @@ import { useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { KeyRound, ShieldCheck, CheckCircle2, AlertTriangle, Clock, Loader2, LifeBuoy } from 'lucide-react'
+import { KeyRound, ShieldCheck, CheckCircle2, AlertTriangle, Clock, LifeBuoy, ExternalLink } from 'lucide-react'
 
 interface RedeemField {
   name: string
@@ -29,11 +29,18 @@ interface RedeemField {
   required: boolean
   multiline?: boolean
 }
+interface GuideStep {
+  title: string
+  detail: string
+  link?: { label: string; url: string }
+}
 interface CheckResult {
   state: string
   message: string
   productName?: string
   fields: RedeemField[]
+  guide?: GuideStep[]
+  guideIntro?: string
   account?: string
   completedAt?: string
   cooldownSeconds?: number
@@ -166,11 +173,13 @@ export default function RedeemClient({
       setErr(`请填写${missing[0].label}`)
       return
     }
-    if (activeFields.length > 0 && activeFields.every((f) => !f.required)) {
-      // either/or 组：至少填一个
-      const any = activeFields.some((f) => (values[f.name] || '').trim())
+    // 【either/or 判定必须排除 toggle】不排除的话，买家只勾了「强制充值」
+    // 就会被当成「已经填了账号」，然后带着空凭据提交上去
+    const accountFields = activeFields.filter((f) => f.kind !== 'toggle')
+    if (accountFields.length > 0 && accountFields.every((f) => !f.required)) {
+      const any = accountFields.some((f) => (values[f.name] || '').trim())
       if (!any) {
-        setErr(`请至少填写「${activeFields[0].label}」`)
+        setErr(`请至少填写「${accountFields[0].label}」`)
         return
       }
     }
@@ -246,12 +255,64 @@ export default function RedeemClient({
 
             {check?.notice && !result && <Banner tone="warn">{check.notice.text}</Banner>}
 
+            {/* 取号指引。内容由适配器按产品给出 —— Claude 6 步、ChatGPT 4 步 */}
+            {showForm && !rebindMode && check?.guide && check.guide.length > 0 && (
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                <div className="mb-3 text-sm font-medium text-white/80">操作指南</div>
+                {check.guideIntro && (
+                  <p className="mb-3 text-xs leading-relaxed text-white/45">{check.guideIntro}</p>
+                )}
+                <ol className="space-y-3">
+                  {check.guide.map((g, i) => (
+                    <li key={i} className="flex gap-3">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-purple-500/20 text-[11px] font-semibold text-purple-300">
+                        {i + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-medium text-white/75">{g.title}</div>
+                        <div className="mt-0.5 text-xs leading-relaxed text-white/45">{g.detail}</div>
+                        {g.link && (
+                          <a
+                            href={g.link.url}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="mt-1 inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
+                          >
+                            {g.link.label}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
             {showForm && (
               <div className="space-y-4">
-                {activeFields.length > 1 && (
+                {activeFields.filter((f) => f.kind !== 'toggle').length > 1 && (
                   <p className="text-xs text-white/40">以下两项任选其一填写，推荐使用第一项。</p>
                 )}
-                {activeFields.map((f) => (
+                {activeFields.map((f) =>
+                  f.kind === 'toggle' ? (
+                    // 开关型字段（如 GPT 的强制充值）。默认关闭，文案要把代价说在前面
+                    <label
+                      key={f.name}
+                      className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={values[f.name] === '1'}
+                        onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.checked ? '1' : '' }))}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-amber-500"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-xs font-medium text-amber-200">{f.label}</span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-amber-200/55">{f.help}</span>
+                      </span>
+                    </label>
+                  ) : (
                   <div key={f.name}>
                     <label className="mb-1.5 block text-sm text-white/70">
                       {f.label}
@@ -277,7 +338,8 @@ export default function RedeemClient({
                     )}
                     <p className="mt-1.5 text-xs leading-relaxed text-white/35">{f.help}</p>
                   </div>
-                ))}
+                  )
+                )}
 
                 <Banner tone="info">
                   你填写的账号凭据只用于本次充值，<b>不会被保存</b>。充值完成后建议到账号设置里

@@ -23,6 +23,8 @@ export type RedeemFieldKind =
   | 'session_json'
   /** 标准 UUID（Claude Organization ID / Grok userId）*/
   | 'uuid'
+  /** 开关选项（如 GPT 的「放弃剩余会员时间强制充值」）。提交时值为 '1' / '' */
+  | 'toggle'
 
 export interface RedeemField {
   /** 提交时用的字段名。**这是我们自己的名字**，不是上游的 —— 适配器负责映射 */
@@ -62,6 +64,22 @@ export interface RedeemNotice {
   text: string
 }
 
+/**
+ * 取号指引的一步。
+ *
+ * 【为什么指引也由适配器提供，而不是写死在页面里】
+ * 不同产品的取值路径完全不同：Claude 要开 F12 从 Cookie 里翻 sessionKey（6 步），
+ * ChatGPT 只要打开一个 URL 复制整段 JSON（4 步）。
+ * 写死在页面里，接第二家平台、或上游换了取值方式，就得改前端 ——
+ * 而那正是这套抽象要避免的事。
+ */
+export interface RedeemGuideStep {
+  title: string
+  detail: string
+  /** 可直达的官方页面，如「打开 AuthSession 页面」 */
+  link?: { label: string; url: string }
+}
+
 export interface RedeemCheckResult {
   state: RedeemState
   /** 给买家看的一句话。已经是我们自己的文案，可直接渲染 */
@@ -70,6 +88,10 @@ export interface RedeemCheckResult {
   productName?: string
   /** 该填哪些账号字段。state=READY 时才有意义 */
   fields: RedeemField[]
+  /** 分步取号指引。按产品不同而不同，由适配器给出 */
+  guide?: RedeemGuideStep[]
+  /** 指引的一句话总述 */
+  guideIntro?: string
   /** 已完成时的账号展示值（邮箱或 UID） */
   account?: string
   completedAt?: string

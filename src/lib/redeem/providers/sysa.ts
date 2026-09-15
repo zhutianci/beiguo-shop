@@ -20,6 +20,7 @@ import {
   type RedeemActivateResult,
   type RedeemCheckResult,
   type RedeemField,
+  type RedeemGuideStep,
   type RedeemProvider,
   type RedeemState,
 } from '../types'
@@ -204,6 +205,19 @@ function fieldsFor(app: UpstreamApp): RedeemField[] {
           pattern: UUID_RE,
           required: false,
         },
+        /*
+         * 【force：账号已有订阅时的唯一出路】上游默认要求 GPT 账号为 personal 且 plan=free，
+         * 否则直接返回 account.plan_not_allowed。不给这个开关，
+         * 手上还有剩余会员时间的买家会被卡死在那条错误上、而且看不懂为什么。
+         * 代价是剩余时间作废，所以文案必须把这一点说在前面。只对 Session 通道有效。
+         */
+        {
+          name: 'force',
+          kind: 'toggle',
+          label: '放弃剩余会员时间，强制充值',
+          help: '仅当账号已有订阅、提示「套餐不支持充值」时才勾选。勾选后原有会员的剩余时间会作废，且不可恢复。',
+          required: false,
+        },
       ]
     case 'grok':
       return [
@@ -217,6 +231,51 @@ function fieldsFor(app: UpstreamApp): RedeemField[] {
           multiline: true,
         },
       ]
+  }
+}
+
+/**
+ * 分步取号指引。内容参照上游官方页面的引导整理，措辞是我们自己的。
+ *
+ * 【两个产品的步数不一样，这正是指引必须按产品给的原因】
+ * Claude 要开发者工具翻 Cookie（6 步），ChatGPT 打开一个 URL 复制整段 JSON（4 步）。
+ * 把它写死在页面里，接第二家平台就得改前端。
+ */
+function guideFor(app: UpstreamApp): { intro: string; steps: RedeemGuideStep[] } {
+  if (app === 'gpt') {
+    return {
+      intro: '跟着 4 步完成：先确认卡密，再登录账号取一段 Session 信息贴进来。',
+      steps: [
+        { title: '确认卡密', detail: '上一步已经查过了，确认上面显示的商品与你购买的一致。' },
+        {
+          title: '登录 ChatGPT',
+          detail: '先登录要充值的那个 ChatGPT 账号，确保处于已登录状态。',
+          link: { label: '打开 ChatGPT', url: 'https://chatgpt.com/' },
+        },
+        {
+          title: '获取 Session 信息',
+          detail: '登录状态下打开下面这个地址，把页面上**整段 JSON** 全选复制（不要只复制其中一段）。',
+          link: { label: '打开 Session 页面', url: 'https://chatgpt.com/api/auth/session' },
+        },
+        { title: '粘贴并提交', detail: '把整段 JSON 粘进下面的输入框，确认账号无误后提交，通常 1 分钟左右到账。' },
+      ],
+    }
+  }
+  // claude / claude_s 共用同一套取值路径
+  return {
+    intro: '跟着 6 步完成：登录 Claude 后，从浏览器开发者工具里复制 sessionKey。',
+    steps: [
+      { title: '确认卡密', detail: '上一步已经查过了，确认上面显示的商品与你购买的一致。' },
+      {
+        title: '登录 Claude',
+        detail: '打开 claude.ai，登录要充值的那个账号。',
+        link: { label: '打开 Claude', url: 'https://claude.ai/' },
+      },
+      { title: '打开开发者工具', detail: '按 F12，切到顶部的「Application / 应用」面板。' },
+      { title: '进入 Cookies', detail: '左侧 Storage → Cookies → 点 https://claude.ai。' },
+      { title: '复制 sessionKey', detail: '在列表里找到名为 sessionKey 的那一行，复制它完整的 Value（sk-ant-sid… 开头）。' },
+      { title: '粘贴并提交', detail: '把复制的内容粘进下面的输入框，确认无误后提交。' },
+    ],
   }
 }
 
@@ -245,7 +304,9 @@ function pickAccountArgs(app: UpstreamApp, values: Record<string, string>): Reco
     throw new RedeemError('请填写 Claude SessionKey 或 Organization ID', 'ERROR')
   }
   // gpt
-  if (sj) return { session_info: sj }
+  // force 只对 Session 通道有效，UID 直充不参与 plan 校验，带上去是噪音
+  const force = (values.force || '').trim() === '1'
+  if (sj) return force ? { session_info: sj, force: '1' } : { session_info: sj }
   if (uid) return { uid }
   throw new RedeemError('请填写 ChatGPT 账号 Session 或 UID', 'ERROR')
 }
@@ -357,6 +418,8 @@ export const sysa: RedeemProvider = {
       message: copy(code, body.success ? '卡密有效' : '无法查询该卡密，请稍后再试或联系客服'),
       productName: str(data.gift_name),
       fields: state === 'READY' ? fieldsFor(app) : [],
+      guide: state === 'READY' ? guideFor(app).steps : undefined,
+      guideIntro: state === 'READY' ? guideFor(app).intro : undefined,
       account: str(data.account),
       completedAt: str(data.completed_at),
       cooldownSeconds: data.in_cooldown === true ? cooldown : undefined,
@@ -476,4 +539,4 @@ export const sysa: RedeemProvider = {
  * 这些是纯函数（不发请求），但它们决定「把哪个凭据发到哪条通道」，
  * 错一次就是把 Claude 的 sk 发进 GPT 的接口，必须有断言守着。
  */
-export const __test = { fieldsFor, pickAccountArgs, STATE_BY_CODE, STATE_BY_USE_STATUS, MESSAGES, TERMINAL_CODES }
+export const __test = { fieldsFor, pickAccountArgs, guideFor, STATE_BY_CODE, STATE_BY_USE_STATUS, MESSAGES, TERMINAL_CODES }
