@@ -46,6 +46,21 @@ export function cardContentHash(plain: string): string {
   return crypto.createHash('sha256').update(`${SALT}|${plain}`).digest('hex')
 }
 
+/**
+ * 导出文件专用的强脱敏：一个明文字符都不给，只留长度。
+ *
+ * 【为什么不复用 maskSecret】maskSecret 露前 4 + 后 4，是给管理员自己屏幕上做视觉提示的
+ * ——只停留一瞬。而「脱敏版」导出文件的定位是「可以发给财务 / 合作方」的那一份，
+ * 露 8 个字符就成了实打实的凭据片段：12 位兑换码只剩 4 位未知（36^4≈168 万，可枚举），
+ * 账号密码型卡还会把账号开头和密码结尾漏出去。导出文件里必须一个字符都不留。
+ */
+export function maskSecretForExport(plain: string): string {
+  // 用 .length（UTF-16 长度）而不是展开成码点：tsconfig target 低，展开字符串会触发
+  // downlevelIteration 报错（见交接文档踩过的坑）；卡密都是 ASCII/base64，长度显示没差别
+  const n = (plain || '').length
+  return n > 0 ? `****（共 ${n} 位）` : ''
+}
+
 // 列表展示用的脱敏（不解密也能给个提示；这里对已解密明文做掩码）
 export function maskSecret(plain: string): string {
   if (!plain) return ''

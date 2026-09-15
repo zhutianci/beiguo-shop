@@ -27,6 +27,7 @@ export type NotifyEvent =
   | 'stock.low'
   | 'user.registered'
   | 'link.applied'
+  | 'cardkey.exported'
 
 const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.created': { emoji: '🛒', title: '新订单' },
@@ -39,6 +40,7 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'stock.low': { emoji: '⚠️', title: '库存告警' },
   'user.registered': { emoji: '👤', title: '新用户注册' },
   'link.applied': { emoji: '🤝', title: '新的友链申请' },
+  'cardkey.exported': { emoji: '🔐', title: '卡密被导出' },
 }
 
 function webhookUrl(): string {
@@ -414,4 +416,37 @@ export function notifyLinkApplied(p: {
     ],
     { link: '/admin/links', linkText: '前往审核' }
   )
+}
+
+/**
+ * 卡密导出告警。
+ *
+ * 【为什么导出这种「只读操作」也要推送】导出来的文件里是明文卡密，
+ * 等于把一整批商品本体装进一个可以随手转发的 xlsx。后台没有操作日志表，
+ * 这条推送就是唯一的痕迹——真出事时，「什么时候被导走过、导了多少」
+ * 比任何事后分析都关键。它也是一层威慑：干这件事会留下声响。
+ */
+export function notifyCardKeyExported(p: {
+  operator: string
+  count: number
+  scope: string
+  masked: boolean
+  ip: string
+  undecryptable: number
+  filters: string
+}): void {
+  const rows = [
+    { label: '操作人', value: plainify(p.operator, 100), color: 'warning' as const },
+    { label: '范围', value: plainify(p.scope, 60) },
+    { label: '数量', value: `${p.count} 张`, color: 'warning' as const },
+    { label: '内容', value: p.masked ? '已脱敏' : '含明文卡密', color: (p.masked ? 'comment' : 'warning') as 'comment' | 'warning' },
+    { label: '筛选', value: p.filters ? plainify(p.filters, 120) : '无（全量）' },
+    // IP 仅参考：Cloudflare Tunnel 后请求方可伪造，追责以操作人为准
+    { label: '来源 IP', value: plainify(p.ip, 64) },
+    { label: '时间', value: fmtTime(new Date()) },
+  ]
+  if (p.undecryptable > 0) {
+    rows.push({ label: '异常', value: `${p.undecryptable} 张无法解密`, color: 'warning' as const })
+  }
+  notify('cardkey.exported', rows, { link: '/admin/cardkeys', linkText: '查看卡密管理' })
 }

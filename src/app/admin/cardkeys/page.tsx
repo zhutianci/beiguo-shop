@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Eye, EyeOff, Trash2, Ban, RotateCcw, Upload, Save, Search, X, Coins, Tag } from 'lucide-react'
+import { Eye, EyeOff, Trash2, Ban, RotateCcw, Upload, Save, Search, X, Coins, Tag, Download } from 'lucide-react'
 
 interface Product {
   id: number
@@ -170,6 +170,16 @@ function CardKeysInner() {
   const [batchMsg, setBatchMsg] = useState('')
   const [priceModal, setPriceModal] = useState<{ action: 'SET_COST' | 'SET_PRICE'; value: string } | null>(null)
 
+  // 导出。
+  // exporting 记的是「哪个入口在跑」而不是布尔：两个按钮共用一个 boolean 的话，
+  // 点上面那个，下面那个也会转圈并变灰，看着像整页卡住了。
+  // exportTip 同理带上 scope —— 提示必须出现在用户刚点的那个按钮旁边，
+  // 显示在屏幕另一头等于没提示。
+  // 取值形如 'all' / 'all-masked' / 'current'：区分到具体按钮，避免点一个另外几个跟着转圈
+  type ExportKey = 'all' | 'all-masked' | 'current' | 'current-masked'
+  const [exporting, setExporting] = useState<ExportKey | null>(null)
+  const [exportTip, setExportTip] = useState<{ ok: boolean; text: string; scope: 'all' | 'current' } | null>(null)
+
   // 导入
   const [importText, setImportText] = useState('')
   const [batch, setBatch] = useState('')
@@ -288,6 +298,85 @@ function CardKeysInner() {
       setUsageMsg(data.success ? '已保存' : data.error || '保存失败')
     } finally {
       setSavingUsage(false)
+    }
+  }
+
+  /**
+   * 导出 xlsx。
+   *
+   * 【不能照抄本页其它请求的 `await res.json()`】成功时服务端返回的是 xlsx 二进制，
+   * json() 会直接抛。先看 res.ok：成功走 blob 下载，失败才按 JSON 解析错误信息
+   * —— 服务端出错时确实返回 JSON（与发票导出同款约定）。
+   *
+   * @param scope 'all' 忽略所有筛选、导全站所有商品的卡密；'current' 按当前筛选导
+   */
+  const doExport = async (scope: 'all' | 'current', masked: boolean) => {
+    const q = new URLSearchParams()
+    if (masked) q.set('mask', '1')
+    if (scope === 'current') {
+      if (productId) q.set('productId', String(productId))
+      if (statusFilter) q.set('status', statusFilter)
+      if (batchFilter.trim()) q.set('batch', batchFilter.trim())
+      if (debouncedSearch) q.set('keyword', debouncedSearch)
+      if (hasOrder) q.set('hasOrder', hasOrder)
+    }
+
+    // 明文导出前必须过一道确认：这个文件等于一整批商品本体，
+    // 点错一次的代价不是「多下一个文件」，而是卡密散出去
+    if (!masked) {
+      const what = scope === 'all' ? '全站所有商品的卡密' : '当前筛选条件下的卡密'
+      // confirm 是纯文本对话框，不要在这里写 markdown 强调（** ** 会原样显示成星号）
+      if (
+        !confirm(
+          `即将导出${what}。\n\n` +
+            `文件里是「明文卡密」，拿到就能直接使用，等于一整批商品本体。\n` +
+            `请只下载到自己的电脑、不要转发、用完及时删除。\n` +
+            `本次导出会向企业微信推送一条记录。\n\n` +
+            `确定继续？`
+        )
+      )
+        return
+    }
+
+    setExporting((masked ? `${scope}-masked` : scope) as ExportKey)
+    setExportTip(null)
+    try {
+      const res = await fetch(`/api/admin/cardkeys/export?${q}`)
+      if (!res.ok) {
+        const d = await res.json().catch(() => null)
+        setExportTip({ ok: false, text: d?.error || `导出失败（HTTP ${res.status}）`, scope })
+        return
+      }
+      const blob = await res.blob()
+      // 文件名由服务端用 RFC 5987 给出（含中文），这里解出来；解不出就用兜底名
+      const cd = res.headers.get('Content-Disposition') || ''
+      const m = cd.match(/filename\*=UTF-8''([^;]+)/i)
+      const filename = m ? decodeURIComponent(m[1]) : '卡密导出.xlsx'
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      // 立刻 revoke 在部分浏览器上会打断尚未开始的下载，挪到下一轮事件循环
+      setTimeout(() => URL.revokeObjectURL(url), 10_000)
+
+      const n = res.headers.get('X-Cardkey-Count')
+      const bad = parseInt(res.headers.get('X-Cardkey-Undecryptable') || '0') || 0
+      setExportTip({
+        ok: true,
+        text:
+          `已导出 ${n || ''} 张卡密${masked ? '（已脱敏）' : '（含明文，请妥善保管）'}` +
+          (bad > 0 ? `，其中 ${bad} 张无法解密（密钥可能已变更）` : ''),
+        scope,
+      })
+    } catch {
+      setExportTip({ ok: false, text: '网络错误，请重试', scope })
+    } finally {
+      setExporting(null)
+      setTimeout(() => setExportTip(null), 8000)
     }
   }
 
@@ -449,7 +538,45 @@ function CardKeysInner() {
             {products.length === 0 && (
               <span className="text-sm text-gray-400">暂无「自动发货」商品，请先在商品管理把发货方式设为自动发货。</span>
             )}
+
+            {/* 全量导出：不挑商品、不看筛选，就是「导出所有卡密」。
+                放在商品选择器这一行，因为它是**跨商品**的操作，
+                和下面那个「按当前筛选导出」不是一回事，不能挤在一起让人点错 */}
+            <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                loading={exporting === 'all'}
+                disabled={!!exporting}
+                onClick={() => doExport('all', false)}
+              >
+                <Download className="mr-1 h-4 w-4" /> 导出所有卡密
+              </Button>
+              {/* 脱敏版：单独做成一个次要按钮而不是小字链接。小字链接点击区太小（<24px），
+                  且没有自己的 loading 态时，点它转圈的是旁边那个明文按钮，看着像点错了 */}
+              <Button
+                variant="ghost"
+                size="sm"
+                loading={exporting === 'all-masked'}
+                disabled={!!exporting}
+                onClick={() => doExport('all', true)}
+                aria-label="导出所有卡密（脱敏版，卡密列打码）"
+                title="导出同样的表格，但卡密列完全打码（只留位数），适合只要台账、不要卡密本体的场景"
+              >
+                脱敏版
+              </Button>
+            </div>
           </div>
+
+          {exportTip?.scope === 'all' && (
+            <div
+              className={`rounded-lg border px-3 py-2 text-sm ${
+                exportTip.ok ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-600'
+              }`}
+            >
+              {exportTip.text}
+            </div>
+          )}
 
           {stats && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -605,11 +732,37 @@ function CardKeysInner() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">卡密列表（共 {total}）</CardTitle>
-              <Button variant="outline" size="sm" onClick={() => setReveal((v) => !v)}>
-                {reveal ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
-                {reveal ? '隐藏明文' : '显示明文'}
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* 按当前筛选导出：所见即所得，导出来的就是列表里这一批
+                    （跨全部页码，不只是当前这一页） */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={exporting === 'current'}
+                  disabled={!!exporting || total === 0}
+                  onClick={() => doExport('current', false)}
+                >
+                  <Download className="w-4 h-4 mr-1" /> 导出这 {total} 张
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setReveal((v) => !v)}>
+                  {reveal ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+                  {reveal ? '隐藏明文' : '显示明文'}
+                </Button>
+              </div>
             </CardHeader>
+            {exportTip?.scope === 'current' && (
+              <div className="px-6 pt-3">
+                <div
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    exportTip.ok
+                      ? 'border-green-200 bg-green-50 text-green-700'
+                      : 'border-red-200 bg-red-50 text-red-600'
+                  }`}
+                >
+                  {exportTip.text}
+                </div>
+              </div>
+            )}
             <CardContent className="space-y-4">
               {/* 筛选栏 */}
               <div className="flex flex-wrap items-center gap-3">
