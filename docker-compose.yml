@@ -58,6 +58,11 @@ services:
       - ORDER_MSG_WEBHOOK_URL
       - NOTIFY_EVENTS
       - LOW_STOCK_THRESHOLD
+      # 卡密兑换：sysb（HongyunAI V2）的 Bearer Token。
+      # 【只能放服务端】上游文档原文：「不要放在网页、App、小程序、浏览器插件、
+      # Git、日志或截图里」。所以值写在 .env.production 里，仓库里只有这个名字。
+      # 没配时兑换页会提示「充值服务暂未配置」，不会把请求发出去。
+      - SYSB_API_TOKEN
       # SEO：站长平台归属验证 + IndexNow 主动推送
       # 【必须列在这里】--env-file 只负责 compose 文件里的变量替换，
       # 不会自动把变量塞进容器。漏了这三行，.env.production 里配了也等于没配，

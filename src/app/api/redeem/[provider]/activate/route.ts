@@ -9,7 +9,9 @@ import {
   logRedeem,
   normalizeCdk,
   redeemRateLimited,
+  loadOrderRef,
   resolveCard,
+  saveOrderRef,
   toActivateFailure,
   validCdkShape,
 } from '@/lib/redeem/service'
@@ -31,6 +33,8 @@ const schema = z.object({
   cdk: z.string().min(1).max(200),
   /** 键是适配器 check() 返回的 fields[].name。放宽长度是因为 GPT 的 session JSON 很长 */
   values: z.record(z.string().max(8000)).default({}),
+  /** 买家选中的充值渠道（适配器返回了 variants 时必填） */
+  variant: z.string().trim().max(40).optional(),
   /** true = 走售后重绑通道而不是首次激活 */
   rebind: z.boolean().optional(),
 })
@@ -44,7 +48,7 @@ export async function POST(request: NextRequest, { params }: { params: { provide
     const parsed = schema.safeParse(body)
     if (!parsed.success) return error('提交内容不完整，请检查后重试')
 
-    const { values, rebind } = parsed.data
+    const { values, rebind, variant } = parsed.data
     const cdk = normalizeCdk(parsed.data.cdk)
     if (!validCdkShape(cdk)) return error('卡密格式不正确，请检查是否复制完整')
 
@@ -79,7 +83,18 @@ export async function POST(request: NextRequest, { params }: { params: { provide
       result =
         rebind && provider.rebind
           ? await provider.rebind({ cdk, values })
-          : await provider.activate({ cdk, values })
+          : await provider.activate({
+              cdk,
+              values,
+              variant,
+              cardKeyId: resolved.card.id,
+              /*
+               * 异步下单的平台靠这两个回调实现幂等：下单前先读回原订单号去查，
+               * 已有未结订单就绝不重新下单。少了它，买家多点一次提交可能被扣两张卡。
+               */
+              loadOrderRef: () => loadOrderRef(resolved.card.id, provider.key),
+              saveOrderRef: (ref) => saveOrderRef(resolved.card.id, provider.key, ref, ip),
+            })
     } catch (e) {
       result = toActivateFailure(e)
     }
@@ -91,10 +106,11 @@ export async function POST(request: NextRequest, { params }: { params: { provide
       state: result.state,
       message: result.message,
       requestId: result.requestId,
+      orderRef: result.orderRef,
       ip,
     })
 
-    const { requestId: _omit, ...pub } = result
+    const { requestId: _omitReq, orderRef: _omitRef, ...pub } = result
     return success(pub)
   } catch (err) {
     // 【注意】这里绝不能打印 request body —— 里面有凭据

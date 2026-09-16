@@ -80,6 +80,28 @@ export interface RedeemGuideStep {
   link?: { label: string; url: string }
 }
 
+/**
+ * 一条充值渠道。
+ *
+ * 【为什么需要这个概念】sysa 靠卡密自己就能判出产品（响应里带 app 字段），
+ * 但 sysb 不行 —— 它的文档明确写着**不要预检卡密**，而 ChatGPT 的
+ * 「信用卡通道」和「iOS 通道」是两个不同的产品，卡密前缀（PLUS-/5X-）
+ * 只说明档位、区分不了通道。上游自己的页面也是让用户先选「按购买的卡密类型选择」。
+ *
+ * 所以：适配器给得出唯一路径时就不返回 variants（sysa 就是这样，前端毫无变化）；
+ * 给不出时返回多条，前端渲染成渠道选择，选中哪条就用哪条的 fields 与 guide。
+ */
+export interface RedeemVariant {
+  /** 渠道标识，提交时原样回传给适配器 */
+  code: string
+  label: string
+  /** 一句话说明这条渠道对应什么卡 */
+  hint?: string
+  fields: RedeemField[]
+  guide?: RedeemGuideStep[]
+  guideIntro?: string
+}
+
 export interface RedeemCheckResult {
   state: RedeemState
   /** 给买家看的一句话。已经是我们自己的文案，可直接渲染 */
@@ -92,6 +114,14 @@ export interface RedeemCheckResult {
   guide?: RedeemGuideStep[]
   /** 指引的一句话总述 */
   guideIntro?: string
+  /**
+   * 多条充值渠道，买家需要先选一条。为空/缺省表示只有一条路径，
+   * 直接用上面的 fields / guide（sysa 就是这种）。
+   */
+  variants?: RedeemVariant[]
+  /** 渠道选择区的标题与说明 */
+  variantLabel?: string
+  variantHint?: string
   /** 已完成时的账号展示值（邮箱或 UID） */
   account?: string
   completedAt?: string
@@ -119,6 +149,8 @@ export interface RedeemActivateResult {
    */
   retriable: boolean
   requestId?: string
+  /** 上游订单号（异步平台）。只用于排查与续查，不展示给买家 */
+  orderRef?: string
 }
 
 /** 适配器抛出的、可直接展示的错误。用它避免把上游的原始异常泄漏到前端 */
@@ -158,8 +190,21 @@ export interface RedeemProvider {
   /** 查询卡密状态，并告诉前端该收集哪些账号字段 */
   check(cdk: string): Promise<RedeemCheckResult>
 
-  /** 提交激活。values 的键是 check() 返回的 fields[].name */
-  activate(input: { cdk: string; values: Record<string, string> }): Promise<RedeemActivateResult>
+  /**
+   * 提交激活。values 的键是 check() 返回的 fields[].name；
+   * variant 是买家选中的渠道 code（适配器没返回 variants 时为 undefined）。
+   */
+  activate(input: {
+    cdk: string
+    values: Record<string, string>
+    variant?: string
+    /** 本站卡密 id。异步下单的平台用它拼出稳定的幂等订单号 */
+    cardKeyId?: number
+    /** 读回这张卡上一次的上游订单号；没有则返回 null */
+    loadOrderRef?: () => Promise<string | null>
+    /** 记下本次的上游订单号，供下次续查 */
+    saveOrderRef?: (ref: string) => Promise<void>
+  }): Promise<RedeemActivateResult>
 
   /**
    * 可选：售后重绑 / 刷新订阅。

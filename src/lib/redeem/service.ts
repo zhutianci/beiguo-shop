@@ -130,6 +130,7 @@ export async function logRedeem(input: {
   state: string
   message?: string
   requestId?: string
+  orderRef?: string
   ip?: string
 }): Promise<void> {
   try {
@@ -141,6 +142,7 @@ export async function logRedeem(input: {
         state: input.state.slice(0, 20),
         message: input.message?.slice(0, 255) || null,
         requestId: input.requestId?.slice(0, 64) || null,
+        orderRef: input.orderRef?.slice(0, 64) || null,
         ip: input.ip?.slice(0, 64) || null,
       },
     })
@@ -148,6 +150,40 @@ export async function logRedeem(input: {
     // 日志写不进去绝不能挡住兑换本身 —— 买家的钱已经花了，落不了日志是我们的问题
     console.error('[redeem] 写日志失败:', err)
   }
+}
+
+/**
+ * 读回这张卡上一次的上游订单号。
+ *
+ * 【这是防重复扣卡的关键一环】异步下单的平台（sysb）要求「超时后先查原订单，
+ * 不能换新订单号重下」。没有这个函数，买家多点一次提交就可能被扣两张卡。
+ * 取最近一条非空的，因为失败后允许用新内容再下一单，那时会写入新的订单号。
+ */
+export async function loadOrderRef(cardKeyId: number, provider: string): Promise<string | null> {
+  const row = await prisma.redeemLog.findFirst({
+    where: { cardKeyId, provider, orderRef: { not: null } },
+    orderBy: { id: 'desc' },
+    select: { orderRef: true },
+  })
+  return row?.orderRef ?? null
+}
+
+/** 记下上游订单号。**下单之前就要写**，否则 POST 超时后无从查起 */
+export async function saveOrderRef(
+  cardKeyId: number,
+  provider: string,
+  orderRef: string,
+  ip?: string
+): Promise<void> {
+  await logRedeem({
+    cardKeyId,
+    provider,
+    action: 'ACTIVATE',
+    state: 'SUBMITTING',
+    message: '已生成上游订单号，准备提交',
+    orderRef,
+    ip,
+  })
 }
 
 /** 把适配器抛出的异常收敛成可展示的结果，避免上游的原始异常泄漏到前端 */

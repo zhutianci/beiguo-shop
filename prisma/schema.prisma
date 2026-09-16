@@ -730,6 +730,9 @@ model RedeemLog {
   state     String   @db.VarChar(20) // RedeemState
   message   String?  @db.VarChar(255)
   requestId String?  @map("request_id") @db.VarChar(64)
+  // 异步下单平台（如 sysb）的上游订单号。它是幂等的锚：
+  // 同一张卡重试时必须复用原订单号续查，换新号重下就是重复扣卡。
+  orderRef  String?  @map("order_ref") @db.VarChar(64)
   ip        String?  @db.VarChar(64)
   createdAt DateTime @default(now()) @map("created_at")
 

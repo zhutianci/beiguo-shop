@@ -22,7 +22,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { KeyRound, ShieldCheck, CheckCircle2, AlertTriangle, Clock, LifeBuoy, ExternalLink, Loader2 } from 'lucide-react'
+import { KeyRound, ShieldCheck, CheckCircle2, AlertTriangle, Clock, LifeBuoy, ExternalLink, Loader2, UserCheck } from 'lucide-react'
 
 interface RedeemField {
   name: string
@@ -39,6 +39,14 @@ interface GuideStep {
   detail: string
   link?: { label: string; url: string }
 }
+interface Variant {
+  code: string
+  label: string
+  hint?: string
+  fields: RedeemField[]
+  guide?: GuideStep[]
+  guideIntro?: string
+}
 interface CheckResult {
   state: string
   message: string
@@ -46,6 +54,9 @@ interface CheckResult {
   fields: RedeemField[]
   guide?: GuideStep[]
   guideIntro?: string
+  variants?: Variant[]
+  variantLabel?: string
+  variantHint?: string
   account?: string
   completedAt?: string
   cooldownSeconds?: number
@@ -109,6 +120,8 @@ export default function RedeemClient({
   const [result, setResult] = useState<ActivateResult | null>(null)
   const [err, setErr] = useState('')
   const [rebindMode, setRebindMode] = useState(false)
+  /** 买家选中的充值渠道。只有适配器返回 variants 的平台才用得上 */
+  const [variant, setVariant] = useState('')
 
   const doCheck = useCallback(
     async (key: string) => {
@@ -123,6 +136,7 @@ export default function RedeemClient({
       setCheck(null)
       setValues({})
       setRebindMode(false)
+      setVariant('')
       try {
         const res = await fetch(`/api/redeem/${providerKey}/check`, {
           method: 'POST',
@@ -159,6 +173,10 @@ export default function RedeemClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const selectedVariant = check?.variants?.find((v) => v.code === variant) || null
+  const activeGuide = rebindMode ? undefined : check?.variants ? selectedVariant?.guide : check?.guide
+  const activeGuideIntro = rebindMode ? undefined : check?.variants ? selectedVariant?.guideIntro : check?.guideIntro
+
   const activeFields: RedeemField[] = rebindMode
     ? [
         {
@@ -171,7 +189,9 @@ export default function RedeemClient({
           multiline: true,
         },
       ]
-    : check?.fields || []
+    : check?.variants
+      ? selectedVariant?.fields || []
+      : check?.fields || []
 
   const submit = async () => {
     setErr('')
@@ -196,7 +216,7 @@ export default function RedeemClient({
       const res = await fetch(`/api/redeem/${providerKey}/activate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cdk: cdk.trim(), values, rebind: rebindMode }),
+        body: JSON.stringify({ cdk: cdk.trim(), values, rebind: rebindMode, variant: variant || undefined }),
       })
       const d = await res.json()
       if (!d.success) {
@@ -214,6 +234,25 @@ export default function RedeemClient({
   }
 
   const showForm = !result && (rebindMode || check?.state === 'READY') && activeFields.length > 0
+
+  /**
+   * 从粘贴的 Session JSON 里自动认出账号邮箱。
+   *
+   * 【纯前端解析，不发给服务端】这一步的全部价值是让买家在**提交之前**
+   * 看见「我这是在给哪个号充值」。卡密一旦提交就扣掉了，充错账号无法撤回 ——
+   * 多一行确认，少一单客诉。解析不出来也不拦，只是不显示。
+   */
+  const detectEmail = (raw: string): string | null => {
+    const t = (raw || '').trim()
+    if (!t.startsWith('{')) return null
+    try {
+      const o = JSON.parse(t) as { user?: { email?: unknown }; email?: unknown }
+      const e = o?.user?.email ?? o?.email
+      return typeof e === 'string' && e.includes('@') ? e : null
+    } catch {
+      return null
+    }
+  }
 
   return (
     <div className="pt-28 sm:page-top pb-20">
@@ -269,12 +308,12 @@ export default function RedeemClient({
           {check?.notice && !result && <Banner tone="warn">{check.notice.text}</Banner>}
 
           {/* 取号指引。内容由适配器按产品给出 —— Claude 6 步、ChatGPT 4 步 */}
-          {showForm && !rebindMode && check?.guide && check.guide.length > 0 && (
+          {showForm && !rebindMode && activeGuide && activeGuide.length > 0 && (
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
               <div className="mb-3 text-sm font-medium text-white/80">操作指南</div>
-              {check.guideIntro && <p className="mb-3 text-xs leading-relaxed text-white/45">{check.guideIntro}</p>}
+              {activeGuideIntro && <p className="mb-3 text-xs leading-relaxed text-white/45">{activeGuideIntro}</p>}
               <ol className="space-y-3">
-                {check.guide.map((g, i) => (
+                {activeGuide.map((g, i) => (
                   <li key={i} className="flex gap-3">
                     <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-purple-500/20 text-[11px] font-semibold text-purple-200">
                       {i + 1}
@@ -349,6 +388,30 @@ export default function RedeemClient({
                         className={`${FIELD_CLS} font-mono`}
                       />
                     )}
+                    {/*
+                      自动认出账号邮箱。卡密一旦提交就扣掉了、充错账号无法撤回，
+                      所以在提交前把「这是在给哪个号充值」明确摆出来。
+                      纯前端解析，这个值不会发给服务端。
+                    */}
+                    {f.kind === 'session_json' &&
+                      (values[f.name] || '').trim() &&
+                      (detectEmail(values[f.name] || '') ? (
+                        <div className="mt-2 flex items-start gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] px-3 py-2">
+                          <UserCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-300" />
+                          <span className="text-xs leading-relaxed text-emerald-200">
+                            将为这个账号充值：
+                            <b className="ml-1 break-all font-medium">{detectEmail(values[f.name] || '')}</b>
+                            <span className="mt-0.5 block text-emerald-200/55">请确认是你要充值的号，充错无法撤回。</span>
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.08] px-3 py-2">
+                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
+                          <span className="text-xs leading-relaxed text-amber-200">
+                            没能从这段内容里识别出账号邮箱，可能没复制完整。请回到 session 页面全选复制整段 JSON。
+                          </span>
+                        </div>
+                      ))}
                     <p className="mt-1.5 text-xs leading-relaxed text-white/35">{f.help}</p>
                   </div>
                 )
