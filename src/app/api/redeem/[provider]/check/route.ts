@@ -6,6 +6,7 @@ import { success, error } from '@/lib/api'
 import { clientIp } from '@/lib/news/rate-limit'
 import {
   getProvider,
+  loadOrderRef,
   logRedeem,
   normalizeCdk,
   redeemRateLimited,
@@ -64,7 +65,16 @@ export async function POST(request: NextRequest, { params }: { params: { provide
 
     let result
     try {
-      result = await provider.check(cdk)
+      result = await provider.check(cdk, {
+        cardKeyId: resolved.card.id,
+        productName: resolved.card.productName,
+        /*
+         * 【这就是「已充过的卡不该再显示表单」的依据】
+         * sysb 的上游没有验卡接口，我们唯一知道这张卡充过没有的途径，
+         * 就是本站记下的上游订单号 —— 有它就能查出真实状态。
+         */
+        loadOrderRef: () => loadOrderRef(resolved.card.id, provider.key),
+      })
     } catch (e) {
       result = toCheckFailure(e)
     }

@@ -119,6 +119,8 @@ export interface RedeemCheckResult {
    * 直接用上面的 fields / guide（sysa 就是这种）。
    */
   variants?: RedeemVariant[]
+  /** 已自动判定的渠道 code。前端应默认选中它，买家仍可改 */
+  variantDefault?: string
   /** 渠道选择区的标题与说明 */
   variantLabel?: string
   variantHint?: string
@@ -187,8 +189,22 @@ export interface RedeemProvider {
    */
   readonly adminLabel: string
 
-  /** 查询卡密状态，并告诉前端该收集哪些账号字段 */
-  check(cdk: string): Promise<RedeemCheckResult>
+  /**
+   * 查询卡密状态，并告诉前端该收集哪些账号字段。
+   *
+   * ctx 是可选的本站上下文。异步下单的平台（sysb）上游**没有验卡接口**，
+   * 它判断「这张卡是不是已经充过了」的唯一依据，就是我们自己记下的上游订单号。
+   */
+  check(
+    cdk: string,
+    ctx?: {
+      cardKeyId?: number
+      /** 本站商品名。适配器可据此自动判定渠道，省掉让买家选的那一步 */
+      productName?: string
+      /** 读回这张卡上一次的上游订单号；没有则返回 null */
+      loadOrderRef?: () => Promise<string | null>
+    }
+  ): Promise<RedeemCheckResult>
 
   /**
    * 提交激活。values 的键是 check() 返回的 fields[].name；

@@ -213,6 +213,40 @@ const VARIANTS: RedeemVariant[] = [
 ]
 
 /**
+ * 从**本站商品名**判断这张卡该走哪条充值渠道。
+ *
+ * 【为什么不去「轮流查三个渠道」】上游的 V2 partner API 根本没有验卡接口，
+ * 文档还明确写着「无需提前调用验卡或账户预检」。他们网页上那个验卡步骤走的是
+ * /api/v1/sub/verifyCdk、/gateway/claude、/gateway/gpt 三个**内部前端接口**，
+ * 不在给代理的授权范围内、随时可能改；而且他们页面自己写着
+ * 「验证后会锁定当前 CDK 约 3 分钟」—— 拿买家的卡去挨个试，是在用真卡做探测。
+ *
+ * 我们手上本来就有更可靠的依据：这张卡是从**我们自己的哪个商品**发出去的，
+ * 而商品名里就写着渠道。线上实际的商品名：
+ *   ChatGPT Plus自助充值 | 信用卡冲                  → chatgpt_card
+ *   ChatGPT Pro 20x 自助充值 | 信用卡充值（…）        → chatgpt_card
+ *   ChatGPT Pro 5x 自助充值 | iOS订阅充值（可覆盖plus）→ chatgpt_ios
+ *   Claude pro 自助充值 | iOS订阅充值                 → claude_ios
+ *   Claude Pro 自助充值                               → claude_ios
+ *
+ * 判定顺序有讲究：**先判 Claude**。因为 Claude 的商品名里也常带「iOS订阅充值」，
+ * 先匹配 iOS 会把 Claude 的卡错判成 ChatGPT iOS 通道。
+ *
+ * 判不出来就返回 null，退回让买家自己选 —— 宁可多问一步，也不要猜错渠道。
+ */
+export function detectVariant(productName: string | undefined): Product | null {
+  const n = (productName || '').toLowerCase()
+  if (!n) return null
+  // Claude 在 sysb 只有一条通道，认出是 Claude 就够了
+  if (n.includes('claude')) return 'claude_ios'
+  const isGpt = n.includes('chatgpt') || n.includes('gpt')
+  if (!isGpt) return null // Grok、成品号、谷歌邮箱这些 sysb 根本不支持
+  if (n.includes('信用卡')) return 'chatgpt_card'
+  if (n.includes('ios')) return 'chatgpt_ios'
+  return null
+}
+
+/**
  * 拼出这一单的上游订单号。
  *
  * 规则：`BG-<卡密id>-<内容指纹>`，满足上游的 8–64 位、仅 [A-Za-z0-9._:-]。
@@ -296,7 +330,55 @@ export const sysb: RedeemProvider = {
    *   1. 确认服务可用（/account 与 /products 都是只读，不消耗卡密）
    *   2. 把充值渠道列出来让买家选 —— 卡密前缀只说明档位，区分不了通道
    */
-  async check(): Promise<RedeemCheckResult> {
+  async check(_cdk, ctx): Promise<RedeemCheckResult> {
+    /*
+     * 【第一件事：看这张卡是不是已经充过了】
+     *
+     * 上游没有验卡接口，所以「已充过的卡」唯一的判据是我们自己记下的订单号。
+     * 有订单号就直接查它，把真实状态显示出来 —— 而不是若无其事地再摆一遍充值表单。
+     * 少了这一步，买家会对着一张已经用掉的卡反复填账号、反复提交，
+     * 最后以为是我们的系统坏了。
+     *
+     * 只对「本站充的」有效：卡若是在别处充掉的，我们没有订单号，也就无从得知 ——
+     * 这是上游不提供验卡接口的直接后果，不是这里的疏漏。
+     */
+    const prevRef = ctx?.loadOrderRef ? await ctx.loadOrderRef() : null
+    if (prevRef) {
+      const q = await call('GET', `/orders/${encodeURIComponent(prevRef)}`)
+      if (q.status === 200 && q.body.ok) {
+        const d = (q.body.data || {}) as OrderData
+        const status = d.status || ''
+        if (status === 'succeeded') {
+          return {
+            state: 'COMPLETED',
+            message: '这张卡密已经充值成功，无需重复提交',
+            fields: [],
+            requestId: q.body.request_id,
+          }
+        }
+        if (status === 'pending' || status === 'processing') {
+          const wait = typeof d.next_poll_seconds === 'number' ? Math.max(15, d.next_poll_seconds) : 15
+          return {
+            state: 'PROCESSING',
+            message: `这张卡密正在充值中，请等待约 ${wait} 秒后再次点「查询」，不要重复提交`,
+            fields: [],
+            cooldownSeconds: wait,
+            requestId: q.body.request_id,
+          }
+        }
+        if (status === 'manual_review') {
+          return {
+            state: 'ERROR',
+            message: '这笔充值需要人工核对，请联系客服并提供卡密，我们会尽快处理',
+            fields: [],
+            requestId: q.body.request_id,
+          }
+        }
+        // failed：卡可能还能再充一次（上游会自己判），所以继续往下走、正常出表单
+      }
+      // 404 或查询失败：当作没充过，继续正常流程
+    }
+
     const [acct, prods] = await Promise.all([call('GET', '/account'), call('GET', '/products')])
 
     if (acct.status === 401 || acct.body.error?.code === 'TOKEN_INVALID') {
@@ -319,18 +401,45 @@ export const sysb: RedeemProvider = {
       throw new RedeemError('当前没有可用的充值渠道，请稍后再试', 'OUT_OF_STOCK')
     }
 
+    const notice =
+      a.service_status === 'degraded'
+        ? { level: 'unstable' as const, text: '充值服务当前状态不稳定，可以提交但可能需要等待更久' }
+        : null
+
+    /*
+     * 【能自动判出渠道就别让买家选】站长的原话：「应该输入卡密之后，直接展示是
+     * 哪个渠道的，而不是让买家去选择」。依据是本站商品名，见 detectVariant。
+     * 判出来了就只返回这一条渠道 —— 前端看到只有一条时不渲染选择器，
+     * 直接出对应的表单与指引。
+     */
+    const detected = detectVariant(ctx?.productName)
+    const hit = detected ? variants.find((v) => v.code === detected) : null
+    if (hit) {
+      return {
+        state: 'READY',
+        // 刻意不说「卡密有效」—— 上游没有验卡接口，我们根本没查过，说了就是骗人
+        message: `已识别为「${hit.label}」，请按下面的步骤填写要充值的账号`,
+        fields: hit.fields,
+        guide: hit.guide,
+        guideIntro: hit.guideIntro,
+        // 仍然把全部渠道带上：万一识别错了，买家可以自己改（默认选中识别出的那条）
+        variants,
+        variantDefault: hit.code,
+        variantLabel: '充值渠道',
+        variantHint: '已按你购买的商品自动选好。如果不对，可以点其它渠道切换。',
+        notice,
+        requestId: acct.body.request_id,
+      }
+    }
+
     return {
       state: 'READY',
-      // 刻意不说「卡密有效」—— 我们根本没查过，说了就是骗人
       message: '请选择与你卡密对应的充值渠道，然后填写要充值的账号',
       fields: [],
       variants,
       variantLabel: '充值渠道',
       variantHint: '按你购买的卡密类型选择。选错渠道会充值失败，但不会扣卡。',
-      notice:
-        a.service_status === 'degraded'
-          ? { level: 'unstable', text: '充值服务当前状态不稳定，可以提交但可能需要等待更久' }
-          : null,
+      notice,
       requestId: acct.body.request_id,
     }
   },
@@ -447,4 +556,4 @@ export const sysb: RedeemProvider = {
 }
 
 /** 仅供自测使用的内部导出 */
-export const __test = { buildOrderId, ORDER_ID_RE, VARIANTS, ERRORS, TERMINAL_ERRORS, toResult }
+export const __test = { buildOrderId, detectVariant, ORDER_ID_RE, VARIANTS, ERRORS, TERMINAL_ERRORS, toResult }

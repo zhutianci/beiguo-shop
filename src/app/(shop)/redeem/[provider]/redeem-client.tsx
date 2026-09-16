@@ -55,6 +55,7 @@ interface CheckResult {
   guide?: GuideStep[]
   guideIntro?: string
   variants?: Variant[]
+  variantDefault?: string
   variantLabel?: string
   variantHint?: string
   account?: string
@@ -148,7 +149,13 @@ export default function RedeemClient({
           setErr(d.error || '查询失败')
           return
         }
-        setCheck(d.data as CheckResult)
+        const data = d.data as CheckResult
+        setCheck(data)
+        /*
+         * 服务端按本站商品名自动判出了渠道，就直接选上 —— 买家不用自己选。
+         * 判不出来时 variantDefault 为空，下面的选择器才会让他挑。
+         */
+        if (data.variantDefault) setVariant(data.variantDefault)
       } catch {
         setErr('网络错误，请重试')
       } finally {
@@ -317,7 +324,14 @@ export default function RedeemClient({
           */}
           {!result && !rebindMode && check?.variants && check.variants.length > 0 && (
             <div>
-              <label className="mb-2 block text-sm text-white/70">{check.variantLabel || '充值渠道'}</label>
+              <label className="mb-2 block text-sm text-white/70">
+                {check.variantLabel || '充值渠道'}
+                {check.variantDefault && (
+                  <span className="ml-2 rounded bg-emerald-500/15 px-1.5 py-0.5 text-[11px] text-emerald-300">
+                    已自动识别
+                  </span>
+                )}
+              </label>
               <div className="grid gap-2 sm:grid-cols-3">
                 {check.variants.map((v) => {
                   const on = v.code === variant

@@ -30,6 +30,8 @@ const MAX_CDK_LEN = 200
 export interface ResolvedCard {
   id: number
   productId: number
+  /** 本站商品名。sysb 用它自动判断该走哪条充值渠道，免得让买家自己选 */
+  productName: string
   /** 导入时标注的充值系统；可能为空 —— 空不影响兑换，见 resolveCard 的说明 */
   provider: string | null
   status: string
@@ -69,7 +71,13 @@ export async function resolveCard(
 
   const card = await prisma.cardKey.findFirst({
     where: { contentHash: cardContentHash(cdk) },
-    select: { id: true, productId: true, redeemProvider: true, status: true },
+    select: {
+      id: true,
+      productId: true,
+      redeemProvider: true,
+      status: true,
+      product: { select: { name: true } },
+    },
   })
 
   if (!card) {
@@ -87,7 +95,16 @@ export async function resolveCard(
     // UNUSED = 还躺在库存里没发出去。买家手上不该有这张卡
     return { ok: false, reason: 'NOT_DELIVERED', message: '该卡密尚未发出，请确认是否从本站购买' }
   }
-  return { ok: true, card: { id: card.id, productId: card.productId, provider: card.redeemProvider, status: card.status } }
+  return {
+    ok: true,
+    card: {
+      id: card.id,
+      productId: card.productId,
+      productName: card.product?.name || '',
+      provider: card.redeemProvider,
+      status: card.status,
+    },
+  }
 }
 
 /** 规范化买家粘贴进来的卡密：去首尾空白。**不做其它改写** —— 上游明确要求原样传 */
