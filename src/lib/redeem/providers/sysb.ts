@@ -5,8 +5,9 @@
  *   sysa：无鉴权、可以先查卡、同步出结果
  *   sysb：Bearer Token 鉴权、**文档明确禁止预检卡密**、异步下单后轮询
  *
- * 所以这个适配器的 check() **查不了卡密**：它只能确认服务可用、并让买家
- * 先选充值渠道。真正的结果要等 activate() 下单之后轮询。
+ * V2 本身**查不了卡密**。查卡的能力来自另一套只读接口（见 sysb-lookup.ts，
+ * 站长授权使用 V1），它同时回答了两件事：这张卡用过没有、它属于哪条通道。
+ * 真正的充值结果仍然要等 activate() 下单之后轮询 V2。
  *
  * ================== 三条不能破的规则 ==================
  *
@@ -29,6 +30,7 @@ import {
   type RedeemProvider,
   type RedeemVariant,
 } from '../types'
+import { lookupSysbCard, type SysbLookupHit } from './sysb-lookup'
 
 const BASE = 'https://hongyunai.pro/api/v2'
 const TIMEOUT_MS = 30_000
@@ -213,16 +215,14 @@ const VARIANTS: RedeemVariant[] = [
 ]
 
 /**
- * 从**本站商品名**判断这张卡该走哪条充值渠道。
+ * 从**本站商品名**猜这张卡该走哪条充值渠道。
  *
- * 【为什么不去「轮流查三个渠道」】上游的 V2 partner API 根本没有验卡接口，
- * 文档还明确写着「无需提前调用验卡或账户预检」。他们网页上那个验卡步骤走的是
- * /api/v1/sub/verifyCdk、/gateway/claude、/gateway/gpt 三个**内部前端接口**，
- * 不在给代理的授权范围内、随时可能改；而且他们页面自己写着
- * 「验证后会锁定当前 CDK 约 3 分钟」—— 拿买家的卡去挨个试，是在用真卡做探测。
+ * 【这只是提示，不是结论】真正的结论来自 sysb-lookup.ts：直接问上游
+ * 「你认不认得这张卡」，三条通道里只有一条认得。这里判出的通道有两个用处：
+ *   1. 决定**先查哪条通道** —— 猜对了就只发一次请求
+ *   2. 上游三条都查不到时（接口改版、超时）的兜底，此时会把三条渠道都列出来让买家能改
  *
- * 我们手上本来就有更可靠的依据：这张卡是从**我们自己的哪个商品**发出去的，
- * 而商品名里就写着渠道。线上实际的商品名：
+ * 线上实际的商品名：
  *   ChatGPT Plus自助充值 | 信用卡冲                  → chatgpt_card
  *   ChatGPT Pro 20x 自助充值 | 信用卡充值（…）        → chatgpt_card
  *   ChatGPT Pro 5x 自助充值 | iOS订阅充值（可覆盖plus）→ chatgpt_ios
@@ -244,6 +244,82 @@ export function detectVariant(productName: string | undefined): Product | null {
   if (n.includes('信用卡')) return 'chatgpt_card'
   if (n.includes('ios')) return 'chatgpt_ios'
   return null
+}
+
+/** 上游给的是 ISO 时间，直接显示太丑。统一按北京时间展示 */
+function fmtTime(raw: string | undefined): string | undefined {
+  if (!raw) return undefined
+  const d = new Date(raw)
+  if (Number.isNaN(d.getTime())) return raw
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(d)
+}
+
+/**
+ * V1 只读查询的结果 → 买家看到的状态页。
+ *
+ * 【返回非 null 就等于「到此为止，不出表单」】站长的原话：
+ * 「核销完的卡密去查询的话，直接展示充值状态，不要进入到下一步填账号信息」。
+ * 所以这里每一条分支的 fields 都是空数组，state 也都不是 READY ——
+ * 前端的 showForm 同时要求这两点，少一个就会漏出表单。
+ *
+ * 只有 UNUSED 返回 null：那是唯一一个「可以继续去充」的状态。
+ */
+function fromLookup(hit: SysbLookupHit): RedeemCheckResult | null {
+  if (hit.status === 'UNUSED') return null
+
+  const label = VARIANTS.find((v) => v.code === hit.channel)?.label || '充值'
+  const base = {
+    fields: [] as RedeemField[],
+    productName: hit.planName,
+    account: hit.account,
+    completedAt: fmtTime(hit.usedAt),
+  }
+  switch (hit.status) {
+    case 'USED_OK':
+      return { ...base, state: 'COMPLETED', message: `这张卡密已经充值完成（${label}），无需重复提交` }
+    case 'USED_PENDING':
+      return {
+        ...base,
+        state: 'PROCESSING',
+        message: `这张卡密已经提交充值（${label}），上游仍在处理中，请稍后再点「查询」，不要重复提交`,
+        cooldownSeconds: 30,
+      }
+    case 'USED_FAILED':
+      /*
+       * 卡已经被消耗掉了，但那一笔没成功。让买家再填一遍账号只会再失败一次 ——
+       * 这是售后，不是重试。
+       */
+      return {
+        ...base,
+        state: 'ERROR',
+        message: `这张卡密已核销（${label}），但那一笔充值没有成功。请联系客服并提供卡密，我们会跟进处理`,
+      }
+    case 'LOCKED':
+      return {
+        ...base,
+        state: 'PROCESSING',
+        message: '这张卡密正在处理上一笔请求，请稍后再点「查询」',
+        cooldownSeconds: 60,
+      }
+    case 'VOID':
+      return { ...base, state: 'VOID', message: '这张卡密已被换卡作废，请联系客服处理' }
+    case 'UNCONFIRMED':
+      return {
+        ...base,
+        state: 'PROCESSING',
+        message: '上游正在核对这张卡密的状态，请稍后再点「查询」',
+        cooldownSeconds: 60,
+      }
+  }
 }
 
 /**
@@ -325,22 +401,24 @@ export const sysb: RedeemProvider = {
   adminLabel: 'B 系统（HongyunAI）',
 
   /**
-   * 【这里查不了卡密】上游文档明确写着「无需提前调用验卡或账户预检」，
-   * V2 也根本没有验卡接口。所以 check() 做的是另外两件事：
-   *   1. 确认服务可用（/account 与 /products 都是只读，不消耗卡密）
-   *   2. 把充值渠道列出来让买家选 —— 卡密前缀只说明档位，区分不了通道
+   * check() 按这个顺序回答「这张卡现在能不能充、该走哪条通道」：
+   *
+   *   1. 本站记下的上游订单号 —— 最权威，但只覆盖「从我们站里充的」卡
+   *   2. V1 只读查询（sysb-lookup.ts）—— 覆盖**在任何地方**充掉的卡，
+   *      顺便由上游直接告诉我们这张卡属于哪条通道
+   *   3. /account + /products —— 确认服务与通道此刻能接单
+   *
+   * 前两步任何一步认定「已核销 / 处理中 / 已作废」，就**只展示状态、不出表单**。
    */
-  async check(_cdk, ctx): Promise<RedeemCheckResult> {
+  async check(cdk, ctx): Promise<RedeemCheckResult> {
     /*
-     * 【第一件事：看这张卡是不是已经充过了】
+     * 【第一件事：这张卡是不是从我们站里充过】
      *
-     * 上游没有验卡接口，所以「已充过的卡」唯一的判据是我们自己记下的订单号。
-     * 有订单号就直接查它，把真实状态显示出来 —— 而不是若无其事地再摆一遍充值表单。
-     * 少了这一步，买家会对着一张已经用掉的卡反复填账号、反复提交，
-     * 最后以为是我们的系统坏了。
+     * 本站记下的上游订单号是最权威的判据 —— 它直接对应 V2 的一笔真实订单，
+     * 能拿到 pending / processing / manual_review 这些中间态。
+     * 覆盖面窄（只认从我们站里充的卡），但只要有，就以它为准。
      *
-     * 只对「本站充的」有效：卡若是在别处充掉的，我们没有订单号，也就无从得知 ——
-     * 这是上游不提供验卡接口的直接后果，不是这里的疏漏。
+     * 在别处充掉的卡由下面那一步（V1 只读查询）负责。
      */
     const prevRef = ctx?.loadOrderRef ? await ctx.loadOrderRef() : null
     if (prevRef) {
@@ -379,6 +457,24 @@ export const sysb: RedeemProvider = {
       // 404 或查询失败：当作没充过，继续正常流程
     }
 
+    /*
+     * 【第二件事：问上游这张卡到底什么状态】
+     *
+     * 上面那一步只认得「从我们站里充的」卡。卡如果是在别处充掉的 ——
+     * 站长给的 PLUS-1160C3F21B78B903 就是这种 —— 我们没有订单号，
+     * 于是照样摆出充值表单，买家反复填账号。这正是站长指出的问题。
+     *
+     * V1 的只读查询接口能覆盖这种情况，而且顺带把**通道**也告诉了我们：
+     * 三条通道里只有一条认得这张卡。见 sysb-lookup.ts。
+     *
+     * 【查不到不等于卡是坏的】接口可能改版、可能超时，所以 hit 为 null 时
+     * 一律退回原来的流程，绝不拒绝买家。
+     */
+    const hint = detectVariant(ctx?.productName)
+    const hit = await lookupSysbCard(cdk, hint)
+    const blocked = hit ? fromLookup(hit) : null
+    if (blocked) return blocked
+
     const [acct, prods] = await Promise.all([call('GET', '/account'), call('GET', '/products')])
 
     if (acct.status === 401 || acct.body.error?.code === 'TOKEN_INVALID') {
@@ -407,24 +503,51 @@ export const sysb: RedeemProvider = {
         : null
 
     /*
-     * 【能自动判出渠道就别让买家选】站长的原话：「应该输入卡密之后，直接展示是
-     * 哪个渠道的，而不是让买家去选择」。依据是本站商品名，见 detectVariant。
-     * 判出来了就只返回这一条渠道 —— 前端看到只有一条时不渲染选择器，
-     * 直接出对应的表单与指引。
+     * 【上游已经确认了通道 —— 不给选择器，直接出表单】
+     * hit.status === 'UNUSED' 意味着某一条通道认得这张卡、且它还没被用掉。
+     * 这是上游亲口说的，不是我们猜的，没有第二种可能，**没有让买家选的余地**。
+     * 只返回这一条渠道，前端看到只有一条就不渲染选择器。
      */
-    const detected = detectVariant(ctx?.productName)
-    const hit = detected ? variants.find((v) => v.code === detected) : null
-    if (hit) {
+    if (hit && hit.status === 'UNUSED') {
+      const only = VARIANTS.find((v) => v.code === hit.channel)
+      if (only) {
+        if (!accepting.has(only.code)) {
+          // 通道认得这张卡，但此刻停开了。列别的渠道给他选毫无意义 —— 那些渠道不认这张卡
+          throw new RedeemError(`「${only.label}」通道暂时停止接单，请稍后再试`, 'OUT_OF_STOCK')
+        }
+        return {
+          state: 'READY',
+          message: `卡密有效，已确认为「${only.label}」，请按下面的步骤填写要充值的账号`,
+          productName: hit.planName,
+          fields: only.fields,
+          guide: only.guide,
+          guideIntro: only.guideIntro,
+          variants: [only],
+          variantDefault: only.code,
+          variantLabel: '充值渠道',
+          variantHint: '已按卡密自动确认，无需选择。',
+          notice,
+          requestId: acct.body.request_id,
+        }
+      }
+    }
+
+    /*
+     * 上游没认出来（接口改版、超时、或这张卡属于我们还没接的通道）。
+     * 退回到按**本站商品名**猜：猜得出就默认选上，仍把三条渠道都列出来让他能改；
+     * 猜不出就老老实实让他选 —— 宁可多问一步，也不要猜错渠道。
+     */
+    const guess = hint ? variants.find((v) => v.code === hint) : null
+    if (guess) {
       return {
         state: 'READY',
-        // 刻意不说「卡密有效」—— 上游没有验卡接口，我们根本没查过，说了就是骗人
-        message: `已识别为「${hit.label}」，请按下面的步骤填写要充值的账号`,
-        fields: hit.fields,
-        guide: hit.guide,
-        guideIntro: hit.guideIntro,
-        // 仍然把全部渠道带上：万一识别错了，买家可以自己改（默认选中识别出的那条）
+        // 刻意不说「卡密有效」—— 这一条路径上我们并没有从上游查到这张卡
+        message: `已按你购买的商品识别为「${guess.label}」，请按下面的步骤填写要充值的账号`,
+        fields: guess.fields,
+        guide: guess.guide,
+        guideIntro: guess.guideIntro,
         variants,
-        variantDefault: hit.code,
+        variantDefault: guess.code,
         variantLabel: '充值渠道',
         variantHint: '已按你购买的商品自动选好。如果不对，可以点其它渠道切换。',
         notice,
@@ -484,6 +607,20 @@ export const sysb: RedeemProvider = {
         }
       }
       // 404 = 上游没有这笔单，说明上次根本没提交成功，可以正常下单
+    }
+
+    /*
+     * 【提交前再问一次上游：这张卡还在不在】
+     * 页面上不出表单只挡住了正常买家；直接打 /activate 的请求绕得过去。
+     * 这一步用的还是那三个只读查询接口，命中即停，通常只多一次请求。
+     *
+     * **只在上游明确说「不是未使用」时才拦**。查不到、超时、接口改版一律放行 ——
+     * 一个非正式接口不该有权力让买家充不了值（见 sysb-lookup.ts 规则二）。
+     */
+    const guard = await lookupSysbCard(cdk, product)
+    if (guard && guard.status !== 'UNUSED') {
+      const blocked = fromLookup(guard)
+      if (blocked) throw new RedeemError(blocked.message, blocked.state, false)
     }
 
     // ---- 组装凭据 ----
@@ -556,4 +693,14 @@ export const sysb: RedeemProvider = {
 }
 
 /** 仅供自测使用的内部导出 */
-export const __test = { buildOrderId, detectVariant, ORDER_ID_RE, VARIANTS, ERRORS, TERMINAL_ERRORS, toResult }
+export const __test = {
+  buildOrderId,
+  detectVariant,
+  ORDER_ID_RE,
+  VARIANTS,
+  ERRORS,
+  TERMINAL_ERRORS,
+  toResult,
+  fromLookup,
+  fmtTime,
+}

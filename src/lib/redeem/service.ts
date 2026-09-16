@@ -214,7 +214,14 @@ export function toCheckFailure(e: unknown): RedeemCheckResult {
 
 export function toActivateFailure(e: unknown): RedeemActivateResult {
   if (e instanceof RedeemError) {
-    return { state: e.state === 'COOLDOWN' ? 'COOLDOWN' : 'ERROR', message: e.message, retriable: e.retriable }
+    /*
+     * 【COMPLETED / PROCESSING 不能压成 ERROR】适配器在提交前查出「这张卡已经
+     * 充完了」「上游还在处理」时，走的也是抛异常这条路。压成 ERROR 会把一条
+     * 好消息染成红色报错，买家看了以为充失败，转头就来开工单。
+     */
+    const state: RedeemActivateResult['state'] =
+      e.state === 'COMPLETED' || e.state === 'PROCESSING' || e.state === 'COOLDOWN' ? e.state : 'ERROR'
+    return { state, message: e.message, retriable: e.retriable }
   }
   console.error('[redeem] activate 异常:', e)
   return { state: 'ERROR', message: '兑换服务暂时不可用，请稍后再试', retriable: true }

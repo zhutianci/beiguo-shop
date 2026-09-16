@@ -315,14 +315,15 @@ export default function RedeemClient({
           {check?.notice && !result && <Banner tone="warn">{check.notice.text}</Banner>}
 
           {/*
-            渠道选择。只有适配器返回 variants 的平台才出现（sysb 有三条通道）。
+            渠道选择。只有适配器返回**两条以上** variants 时才出现。
             sysa 只有一条路径、不返回 variants，这一块自动不渲染 —— 前端零改动。
 
-            【为什么必须让买家选】sysb 的上游明确禁止预检卡密，我们无从得知
-            这张卡属于哪条通道；而 ChatGPT 的信用卡通道与 iOS 通道是两个不同产品，
-            卡密前缀（PLUS-/5X-）只说明档位、区分不了通道。
+            【只有一条时绝不渲染选择器】适配器只返回一条，意思是「这条已经确定了」
+            （sysb 是上游亲口确认的通道）。摆一个只有一个选项的单选框，
+            等于把一件已经确定的事又推回给买家 —— 站长明确要求不要这样。
+            识别不确定时，适配器会把三条都带上，选择器自然出现，默认选中猜中的那条。
           */}
-          {!result && !rebindMode && check?.variants && check.variants.length > 0 && (
+          {!result && !rebindMode && check?.variants && check.variants.length > 1 && (
             <div>
               <label className="mb-2 block text-sm text-white/70">
                 {check.variantLabel || '充值渠道'}
