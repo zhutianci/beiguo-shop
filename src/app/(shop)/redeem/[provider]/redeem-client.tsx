@@ -307,6 +307,49 @@ export default function RedeemClient({
 
           {check?.notice && !result && <Banner tone="warn">{check.notice.text}</Banner>}
 
+          {/*
+            渠道选择。只有适配器返回 variants 的平台才出现（sysb 有三条通道）。
+            sysa 只有一条路径、不返回 variants，这一块自动不渲染 —— 前端零改动。
+
+            【为什么必须让买家选】sysb 的上游明确禁止预检卡密，我们无从得知
+            这张卡属于哪条通道；而 ChatGPT 的信用卡通道与 iOS 通道是两个不同产品，
+            卡密前缀（PLUS-/5X-）只说明档位、区分不了通道。
+          */}
+          {!result && !rebindMode && check?.variants && check.variants.length > 0 && (
+            <div>
+              <label className="mb-2 block text-sm text-white/70">{check.variantLabel || '充值渠道'}</label>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {check.variants.map((v) => {
+                  const on = v.code === variant
+                  return (
+                    <button
+                      key={v.code}
+                      type="button"
+                      onClick={() => {
+                        setVariant(v.code)
+                        // 换渠道要清掉已填内容：不同渠道要的凭据类型不一样，
+                        // 留着上一条的值只会连着提交上去
+                        setValues({})
+                        setErr('')
+                      }}
+                      className={`rounded-xl border px-3 py-3 text-left transition-colors ${
+                        on
+                          ? 'border-purple-400/60 bg-purple-500/15'
+                          : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.08]'
+                      }`}
+                    >
+                      <span className={`block text-xs font-medium ${on ? 'text-purple-100' : 'text-white/80'}`}>
+                        {v.label}
+                      </span>
+                      {v.hint && <span className="mt-0.5 block text-[11px] leading-relaxed text-white/40">{v.hint}</span>}
+                    </button>
+                  )
+                })}
+              </div>
+              {check.variantHint && <p className="mt-2 text-xs leading-relaxed text-white/35">{check.variantHint}</p>}
+            </div>
+          )}
+
           {/* 取号指引。内容由适配器按产品给出 —— Claude 6 步、ChatGPT 4 步 */}
           {showForm && !rebindMode && activeGuide && activeGuide.length > 0 && (
             <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
