@@ -524,7 +524,8 @@ export const sysb: RedeemProvider = {
      * 这是上游亲口说的，不是我们猜的，没有第二种可能，**没有让买家选的余地**。
      * 只返回这一条渠道，前端看到只有一条就不渲染选择器。
      */
-    if (hit && hit.status === 'UNUSED') {
+    // RETRYABLE 的卡上游同样认得它属于哪条通道，没有让买家再选一遍的道理
+    if (hit && (hit.status === 'UNUSED' || hit.status === 'RETRYABLE')) {
       const only = VARIANTS.find((v) => v.code === hit.channel)
       if (only) {
         if (!accepting.has(only.code)) {
@@ -533,7 +534,10 @@ export const sysb: RedeemProvider = {
         }
         return {
           state: 'READY',
-          message: `卡密有效，已确认为「${only.label}」，请按下面的步骤填写要充值的账号`,
+          message:
+            hit.status === 'RETRYABLE'
+              ? `上一笔充值没有成功，但这张卡密没有被消耗。已确认为「${only.label}」，可以重新提交一次`
+              : `卡密有效，已确认为「${only.label}」，请按下面的步骤填写要充值的账号`,
           productName: hit.planName,
           fields: only.fields,
           guide: only.guide,
@@ -566,7 +570,7 @@ export const sysb: RedeemProvider = {
         variantDefault: guess.code,
         variantLabel: '充值渠道',
         variantHint: '已按你购买的商品自动选好。如果不对，可以点其它渠道切换。',
-        notice,
+        notice: retryNotice || notice,
         requestId: acct.body.request_id,
       }
     }
@@ -578,7 +582,7 @@ export const sysb: RedeemProvider = {
       variants,
       variantLabel: '充值渠道',
       variantHint: '按你购买的卡密类型选择。选错渠道会充值失败，但不会扣卡。',
-      notice,
+      notice: retryNotice || notice,
       requestId: acct.body.request_id,
     }
   },
