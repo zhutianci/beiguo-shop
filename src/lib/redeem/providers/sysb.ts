@@ -275,7 +275,13 @@ function fmtTime(raw: string | undefined): string | undefined {
  * 只有 UNUSED 返回 null：那是唯一一个「可以继续去充」的状态。
  */
 function fromLookup(hit: SysbLookupHit): RedeemCheckResult | null {
-  if (hit.status === 'UNUSED') return null
+  /*
+   * 这两个状态都是「可以继续去充」，所以返回 null 让流程往下走、正常出表单。
+   * RETRYABLE 是上一笔失败了、但上游**明说卡没被消耗、可以重新提交**
+   * （customer_state=safe_retry）。把它当成「已核销」拦下来，
+   * 就是把一张还能用的卡判死 —— 卡#1771 就是这么被判死的。
+   */
+  if (hit.status === 'UNUSED' || hit.status === 'RETRYABLE') return null
 
   const label = VARIANTS.find((v) => v.code === hit.channel)?.label || '充值'
   const base = {
@@ -476,6 +482,15 @@ export const sysb: RedeemProvider = {
     const blocked = hit ? fromLookup(hit) : null
     if (blocked) return blocked
 
+    /*
+     * 上一笔失败了、但上游明说卡没被消耗（customer_state=safe_retry）。
+     * 表单照出，但要把这句实话告诉买家 —— 否则他会以为自己在重复充值。
+     */
+    const retryNotice =
+      hit?.status === 'RETRYABLE'
+        ? { level: 'unstable' as const, text: '上一笔充值没有成功，但这张卡密没有被消耗，可以重新提交一次。' }
+        : null
+
     const [acct, prods] = await Promise.all([call('GET', '/account'), call('GET', '/products')])
 
     if (acct.status === 401 || acct.body.error?.code === 'TOKEN_INVALID') {
@@ -527,7 +542,7 @@ export const sysb: RedeemProvider = {
           variantDefault: only.code,
           variantLabel: '充值渠道',
           variantHint: '已按卡密自动确认，无需选择。',
-          notice,
+          notice: retryNotice || notice,
           requestId: acct.body.request_id,
         }
       }
@@ -603,7 +618,8 @@ export const sysb: RedeemProvider = {
      */
     if (product === 'chatgpt_card' && cardV1Enabled()) {
       const hit = await lookupSysbCard(cdk, 'chatgpt_card')
-      if (hit && hit.status !== 'UNUSED') {
+      // RETRYABLE = 上游明说卡没被消耗、可以重来，不能拦
+      if (hit && hit.status !== 'UNUSED' && hit.status !== 'RETRYABLE') {
         // 卡已经不是「可充」状态了，直接把真实状态回给买家，绝不提交
         const blocked = fromLookup(hit)
         if (blocked) throw new RedeemError(blocked.message, blocked.state, false)

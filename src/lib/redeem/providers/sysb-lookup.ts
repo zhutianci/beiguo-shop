@@ -46,6 +46,18 @@ export type SysbCardStatus =
   | 'LOCKED' // 正在处理上一笔请求
   | 'VOID' // 已换卡作废
   | 'UNCONFIRMED' // 上游认得这张卡，但状态它自己也还没核对完
+  /**
+   * 上一笔失败了，但**上游明确说卡没被消耗、可以重新提交**。
+   *
+   * 【这个状态是踩了坑之后加的】卡#1771 上游返回
+   *   cdk_status=activated, order.status=failed,
+   *   customer_state='safe_retry', error='本次充值未完成，卡密未消耗；请返回后重新提交'
+   * 原来的代码只看 cdk_status + order.status，把它判成「已核销但失败，请联系客服」——
+   * 等于把一张上游说还能用的卡判死了。
+   *
+   * 判据只认上游的显式表态（customer_state / safe_to_retry），不自己推断。
+   */
+  | 'RETRYABLE'
 
 export interface SysbLookupHit {
   channel: SysbChannel
@@ -166,36 +178,62 @@ export function parseCard(d: Record<string, unknown> | null, cdk: string): SysbL
   const planName = firstString(row.product_name)
   // backend 跟着卡走，决定这张卡付卡该走 V1 还是 V2
   const backend = firstString(row.backend)
+  const order = (row.order && typeof row.order === 'object' ? row.order : {}) as Record<string, unknown>
+
+  /*
+   * 【判定顺序照抄上游自己的分类器】它们前端的 classifyUncertainCardQuery 是这么分的：
+   *   processing = customer_state==='verifying'
+   *             || order.status ∈ {processing,pending,created,running,retrying,unknown}
+   *             || cdk_status   ∈ {processing,locked,reserved}
+   *   completed  = customer_state==='success' || order.status ∈ {success,completed,complete}
+   *   consumed   = cdk_status ∈ {activated,redeemed,used}
+   *   成功必须 completed && consumed **两个都成立**；
+   *   然后才轮到 action_required / safe_retry；都不是才算 unknown。
+   *
+   * 我们原来只看 cdk_status 与 order.status 两个字段，比这套窄，
+   * 结果把 cdk_status=activated + order.status=failed + customer_state=safe_retry
+   * 的卡判成了「已核销但失败」—— 而上游那一行的 error 原文是
+   * 「本次充值未完成，卡密未消耗；请返回后重新提交」。
+   */
+  const orderStatus = String(order.status || '').trim().toLowerCase()
+  const customerState = String(order.customer_state || row.customer_state || '').trim().toLowerCase()
+  const safeToRetry = order.safe_to_retry === true || row.safe_to_retry === true
+  const consumed = ['activated', 'redeemed', 'used'].includes(cdkStatus)
+  const completed = customerState === 'success' || ['success', 'completed', 'complete'].includes(orderStatus)
+  const processing =
+    customerState === 'verifying' ||
+    ['processing', 'pending', 'created', 'running', 'retrying', 'unknown'].includes(orderStatus) ||
+    ['processing', 'locked', 'reserved'].includes(cdkStatus)
+
+  const withOrder = (status: SysbCardStatus): SysbLookupHit => ({
+    channel: 'chatgpt_card',
+    status,
+    backend,
+    account: maskAccount(order.account),
+    usedAt: firstString(order.updated_at, order.started_at, order.created_at),
+    planName: firstString(order.product_name, row.product_name),
+  })
+
+  // ① 成功：两个条件都成立才算，这是上游自己的口径
+  if (completed && consumed) return withOrder('USED_OK')
+  // ② 还在跑
+  if (processing) return withOrder(consumed || row.order ? 'USED_PENDING' : 'LOCKED')
+  /*
+   * ③ 上游**显式表态**可以重来。只认它自己给的信号，绝不自己推断 ——
+   *    上游源码里那句注释说得很清楚：「卡还是 unused 不能当作没扣款的证据，
+   *    只有服务端显式的 safe-to-retry 才能重开这条流程」。反过来也成立：
+   *    它既然显式说了 safe_retry，我们就不该把卡判死。
+   *    action_required 同理（上游文案是「请返回修改资料，本次未提交支付」）。
+   */
+  if (customerState === 'safe_retry' || safeToRetry || customerState === 'action_required') {
+    return withOrder('RETRYABLE')
+  }
+  // ④ 还没被用掉
   if (['unused', 'available'].includes(cdkStatus)) {
     return { channel: 'chatgpt_card', status: 'UNUSED', planName, backend }
   }
-  if (['locked', 'reserved'].includes(cdkStatus)) {
-    return { channel: 'chatgpt_card', status: 'LOCKED', planName, backend }
-  }
-  if (['activated', 'redeemed', 'used'].includes(cdkStatus)) {
-    const order = (row.order && typeof row.order === 'object' ? row.order : {}) as Record<string, unknown>
-    const orderStatus = String(order.status || '').trim().toLowerCase()
-    /*
-     * 【已核销 + 订单失败，仍然不出表单】卡确实被消耗掉了（cdk_status 还是
-     * activated），上游也没把它放回未使用。这时候让买家再填一遍账号，
-     * 只会换来一次「卡密已使用」的失败 —— 该走的是售后。
-     */
-    const status: SysbCardStatus = ['success', 'completed', 'complete'].includes(orderStatus)
-      ? 'USED_OK'
-      : ['processing', 'pending', 'created', 'running', 'retrying'].includes(orderStatus)
-        ? 'USED_PENDING'
-        : ['failed', 'failure', 'error', 'cancelled', 'canceled'].includes(orderStatus)
-          ? 'USED_FAILED'
-          : 'USED_PENDING'
-    return {
-      channel: 'chatgpt_card',
-      status,
-      backend,
-      account: maskAccount(order.account),
-      usedAt: firstString(order.updated_at, order.started_at, order.created_at),
-      planName: firstString(order.product_name, row.product_name),
-    }
-  }
+  // ⑤ 卡被消耗了，上游又没说能重来 —— 只能走售后
+  if (consumed) return withOrder('USED_FAILED')
   // 上游认得这张卡，但自己也还没核对完
   return { channel: 'chatgpt_card', status: 'UNCONFIRMED', planName, backend }
 }
