@@ -30,10 +30,25 @@ import {
  * 那就是在给自己攒一个等着被拖走的密码库。
  */
 
+/**
+ * 单个字段的长度上限。
+ *
+ * 【这个数字踩过坑，别再往回调】原来是 8000，理由是「GPT 的 session JSON 很长」——
+ * 但 8000 根本不够。线上实测一份真实的 ChatGPT AuthSession 是 **6213 字符**，
+ * 其中 sessionToken（JWE）就占 3635、accessToken（JWT）占 1692，
+ * 而这两个都是**变长**的：账号信息越多越长。于是体积稍大的账号就会被挡在门外，
+ * 买家看到的还是一句「提交内容不完整」，他越是重新复制越是过不去。
+ *
+ * 现在给到 100KB：比实测值大 16 倍，任何正常 session 都装得下；
+ * 同时仍然有界 —— 上游对整个请求体的上限是 256KB，真超了那边会回 PAYLOAD_TOO_LARGE，
+ * 而 nginx 的 client_max_body_size 是 20m，不会在更外层先被截断。
+ */
+const MAX_FIELD_LEN = 100_000
+
 const schema = z.object({
   cdk: z.string().min(1).max(200),
-  /** 键是适配器 check() 返回的 fields[].name。放宽长度是因为 GPT 的 session JSON 很长 */
-  values: z.record(z.string().max(8000)).default({}),
+  /** 键是适配器 check() 返回的 fields[].name */
+  values: z.record(z.string().max(MAX_FIELD_LEN)).default({}),
   /** 买家选中的充值渠道（适配器返回了 variants 时必填） */
   variant: z.string().trim().max(40).optional(),
   /** true = 走售后重绑通道而不是首次激活 */
@@ -47,7 +62,22 @@ export async function POST(request: NextRequest, { params }: { params: { provide
 
     const body = await request.json().catch(() => ({}))
     const parsed = schema.safeParse(body)
-    if (!parsed.success) return error('提交内容不完整，请检查后重试')
+    if (!parsed.success) {
+      /*
+       * 【文案必须说对方向】「太长」和「不完整」是相反的两件事。
+       * 之前一律回「提交内容不完整，请检查后重试」，买家于是回去一遍遍重新复制 ——
+       * 而内容其实是超长，他怎么复制都不可能过。这一条把两者分开。
+       *
+       * 【只看长度，绝不碰内容】values 里装的是等同账号密码的凭据，
+       * 这里只读 issue 的类型与 maximum，不读、不记、不回显任何值。
+       */
+      const tooBig = parsed.error.issues.find((i) => i.code === 'too_big')
+      return error(
+        tooBig
+          ? '粘贴的内容过长，请确认只粘贴了 session 页面上的那一段 JSON，不要把整个网页一起复制进来'
+          : '提交内容不完整，请检查后重试'
+      )
+    }
 
     const { values, rebind, variant } = parsed.data
     const cdk = normalizeCdk(parsed.data.cdk)
