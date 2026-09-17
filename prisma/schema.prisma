@@ -124,6 +124,19 @@ model CardKey {
   // 优先级：redeemProvider（站内兑换页）> redeemUrl（跳转外链）> Product.cardRedeemUrl。
   // 值一旦写入就不能改动对应适配器的 key，否则历史卡密会找不到适配器。
   redeemProvider String? @map("redeem_provider") @db.VarChar(20)
+  // 「这张卡已经被提交给上游、可能已经消耗」的原子占位时间戳。
+  //
+  // 【为什么必须有这一列】走 V2 时，防重复扣卡靠的是上游按 order_id 去重；
+  // 但卡付通道改走 V1 之后（见 lib/redeem/providers/sysb-card-v1.ts），
+  // V1 **没有任何幂等键** —— 同一张卡并发提交两次就是两笔真实扣款。
+  // 唯一能挡住它的是我们自己先做一次原子占位：
+  //   UPDATE card_keys SET redeem_lock_at=? WHERE id=? AND redeem_lock_at IS NULL
+  // 受影响行数为 1 才算抢到。这件事没有别的列可以借用 ——
+  // externalRef 已经是外部站发卡的归属，含义完全不同，不能挪用。
+  //
+  // 占位写在 precheckAccount **之前**：上游的注释写明 prepare gate 会在
+  // 「reserving a card」之前校验登录，也就是 precheck 一成功卡就被预留了。
+  redeemLockAt DateTime? @map("redeem_lock_at")
   createdAt   DateTime  @default(now()) @map("created_at")
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)

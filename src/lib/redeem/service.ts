@@ -203,6 +203,37 @@ export async function saveOrderRef(
   })
 }
 
+/**
+ * 原子占位：宣告「这张卡要被提交给上游了，可能会被消耗」。
+ *
+ * 【为什么必须是一条 UPDATE】卡付走 V1 之后没有任何幂等键（V2 靠 order_id 去重，
+ * V1 什么都没有），同一张卡并发提交两次就是两笔真实扣款。
+ * 先读再写的写法挡不住并发 —— 两个请求会同时读到「没锁」。
+ * 这里靠 `WHERE redeem_lock_at IS NULL` 让数据库来裁决，只有一个请求能改到那一行。
+ *
+ * 【为什么给过期时间】万一我们在 precheck 与 redeem 之间崩了，锁会永远留在那儿。
+ * 15 分钟后允许再抢一次：上游的 activation_token 只活 15 分钟（实测 exp-iat=900 秒），
+ * 那时候原来那笔无论如何都已经结束了。
+ *
+ * 返回 false = 没抢到，**绝对不能继续往上游提交**。
+ */
+export async function claimForIrreversibleRedeem(cardKeyId: number): Promise<boolean> {
+  const staleBefore = new Date(Date.now() - 15 * 60_000)
+  const r = await prisma.cardKey.updateMany({
+    where: {
+      id: cardKeyId,
+      OR: [{ redeemLockAt: null }, { redeemLockAt: { lt: staleBefore } }],
+    },
+    data: { redeemLockAt: new Date() },
+  })
+  /*
+   * 【这里可以放心用 count】MySQL 返回的是 changed-rows 而不是 matched-rows
+   * （踩过这个坑），但我们每次都写一个新的时间戳，值必然变化，
+   * 所以「匹配到」等价于「改动了」。
+   */
+  return r.count === 1
+}
+
 /** 把适配器抛出的异常收敛成可展示的结果，避免上游的原始异常泄漏到前端 */
 export function toCheckFailure(e: unknown): RedeemCheckResult {
   if (e instanceof RedeemError) {

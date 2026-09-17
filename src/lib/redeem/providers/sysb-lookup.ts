@@ -50,6 +50,12 @@ export type SysbCardStatus =
 export interface SysbLookupHit {
   channel: SysbChannel
   status: SysbCardStatus
+  /**
+   * 上游的后端标识（目前见到 'gpt1' 与 'autosub'）。**它是卡自带的属性**，
+   * 由上游按卡密判定，我们无从指定 —— V2 的 POST /orders 里根本没有这个字段。
+   * 用途：决定卡付单走 V1 还是 V2。gpt1 走 V2 实测 0/3 成功，autosub 走 V2 实测成功。
+   */
+  backend?: string
   /** 已打码的充值账号，如 tan***@163.com */
   account?: string
   /** 核销时间，原样来自上游 */
@@ -158,11 +164,13 @@ export function parseCard(d: Record<string, unknown> | null, cdk: string): SysbL
   if (!cdkStatus) return null // 没有状态 = 这条通道不认识这张卡
 
   const planName = firstString(row.product_name)
+  // backend 跟着卡走，决定这张卡付卡该走 V1 还是 V2
+  const backend = firstString(row.backend)
   if (['unused', 'available'].includes(cdkStatus)) {
-    return { channel: 'chatgpt_card', status: 'UNUSED', planName }
+    return { channel: 'chatgpt_card', status: 'UNUSED', planName, backend }
   }
   if (['locked', 'reserved'].includes(cdkStatus)) {
-    return { channel: 'chatgpt_card', status: 'LOCKED', planName }
+    return { channel: 'chatgpt_card', status: 'LOCKED', planName, backend }
   }
   if (['activated', 'redeemed', 'used'].includes(cdkStatus)) {
     const order = (row.order && typeof row.order === 'object' ? row.order : {}) as Record<string, unknown>
@@ -182,13 +190,14 @@ export function parseCard(d: Record<string, unknown> | null, cdk: string): SysbL
     return {
       channel: 'chatgpt_card',
       status,
+      backend,
       account: maskAccount(order.account),
       usedAt: firstString(order.updated_at, order.started_at, order.created_at),
       planName: firstString(order.product_name, row.product_name),
     }
   }
   // 上游认得这张卡，但自己也还没核对完
-  return { channel: 'chatgpt_card', status: 'UNCONFIRMED', planName }
+  return { channel: 'chatgpt_card', status: 'UNCONFIRMED', planName, backend }
 }
 
 /** iOS 通道：读 POST /gateway/gpt?action=query 的响应 */

@@ -31,6 +31,7 @@ import {
   type RedeemVariant,
 } from '../types'
 import { lookupSysbCard, type SysbLookupHit } from './sysb-lookup'
+import { cardV1Enabled, redeemCardV1 } from './sysb-card-v1'
 
 const BASE = 'https://hongyunai.pro/api/v2'
 const TIMEOUT_MS = 30_000
@@ -567,7 +568,15 @@ export const sysb: RedeemProvider = {
     }
   },
 
-  async activate({ cdk, values, variant, cardKeyId, loadOrderRef, saveOrderRef }): Promise<RedeemActivateResult> {
+  async activate({
+    cdk,
+    values,
+    variant,
+    cardKeyId,
+    loadOrderRef,
+    saveOrderRef,
+    claimIrreversible,
+  }): Promise<RedeemActivateResult> {
     const product = (variant || '') as Product
     if (!VARIANTS.some((v) => v.code === product)) {
       throw new RedeemError('请选择充值渠道', 'ERROR')
@@ -575,6 +584,56 @@ export const sysb: RedeemProvider = {
     if (typeof cardKeyId !== 'number') {
       // 订单号要靠卡密 id 才能稳定复现，拿不到就不能下单
       throw new RedeemError('兑换服务异常，请联系客服', 'ERROR', false)
+    }
+
+    /*
+     * ============ 卡付 gpt1：改走 V1 三段式 ============
+     *
+     * 【为什么要分叉】V2 的 chatgpt_card 对 gpt1 的卡实测 0 成功 / 3 失败：
+     * 三笔都是 pending 约 6 分 26 秒、从未进入 processing、失败后连订单都没建出来。
+     * 同一张卡在官网走 V1 是 51 秒成功。详见 sysb-card-v1.ts 的文件头。
+     *
+     * 【为什么必须放在这里，在 V2 查原单之前】V1 存下来的订单号是 TASK00027056 这种，
+     * 拿它去打 GET /v2/orders/{id} 必然 404，而下面那段对 404 的处理是
+     * 「上游没有这笔单，可以正常下单」—— 那就会在一张 V1 已经扣掉的卡上再下一单。
+     * 两套协议的单号绝不能流进对方的查单逻辑。
+     *
+     * 【autosub 不走这里】autosub 的卡走 V2 是实测成功过的（BG-1759，55 秒），
+     * 那条路没坏，不要动它。backend 从只读查卡拿，不额外调写接口。
+     */
+    if (product === 'chatgpt_card' && cardV1Enabled()) {
+      const hit = await lookupSysbCard(cdk, 'chatgpt_card')
+      if (hit && hit.status !== 'UNUSED') {
+        // 卡已经不是「可充」状态了，直接把真实状态回给买家，绝不提交
+        const blocked = fromLookup(hit)
+        if (blocked) throw new RedeemError(blocked.message, blocked.state, false)
+      }
+      if (hit?.backend === 'gpt1') {
+        if (!claimIrreversible) throw new RedeemError('兑换服务异常，请联系客服', 'ERROR', false)
+        return redeemCardV1({
+          cdk,
+          sessionRaw: values.session_json || '',
+          /*
+           * 占位必须发生在 precheckAccount 之前 —— 那一步一成功，上游就预留了卡。
+           * 抢不到说明同一张卡已经有一次提交在路上（或刚崩在半路），
+           * 这时候再发一次就是第二笔真实扣款。
+           */
+          markIrreversible: async () => {
+            const ok = await claimIrreversible()
+            if (!ok) {
+              throw new RedeemError(
+                '这张卡密已经提交过一次充值，正在处理中。请不要重复提交，稍后回到本页点「查询」确认结果',
+                'PROCESSING',
+                true
+              )
+            }
+          },
+          saveOrderRef: async (ref) => {
+            if (saveOrderRef) await saveOrderRef(ref)
+          },
+        })
+      }
+      // backend 不是 gpt1（或查不到）→ 落回下面的 V2 流程
     }
 
     /*

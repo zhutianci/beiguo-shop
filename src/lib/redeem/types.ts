@@ -220,6 +220,15 @@ export interface RedeemProvider {
     loadOrderRef?: () => Promise<string | null>
     /** 记下本次的上游订单号，供下次续查 */
     saveOrderRef?: (ref: string) => Promise<void>
+    /**
+     * 原子占位：宣告「这张卡要被提交给上游了，可能会被消耗」。返回 false = 没抢到。
+     *
+     * 【只有没有幂等键的上游才需要它】V2 靠 order_id 去重，天然安全；
+     * 但卡付改走 V1 之后上游**不接受任何幂等键**，同一张卡并发提交两次
+     * 就是两笔真实扣款。适配器必须在发起不可逆调用**之前**拿到这个占位，
+     * 拿不到就绝不能继续。
+     */
+    claimIrreversible?: () => Promise<boolean>
   }): Promise<RedeemActivateResult>
 
   /**
