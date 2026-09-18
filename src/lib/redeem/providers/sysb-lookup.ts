@@ -74,6 +74,52 @@ export interface SysbLookupHit {
   usedAt?: string
   /** 上游的套餐/产品名，用来让买家确认卡对不对 */
   planName?: string
+  /**
+   * 上一笔失败的**真实原因**（已翻成我们自己的文案）。
+   *
+   * 【为什么非要它不可】V2 的订单只会回一句笼统的「订单执行失败」，
+   * 而上游自己的查卡接口里带着真正的原因：
+   *   卡#1909 三笔单全是 order.error="Payment was not approved" ——
+   *   上游拿信用卡给那个 ChatGPT 账号付款被拒了。
+   * 我们却对买家说「充值未完成，请联系客服处理」，
+   * 于是每一次拒付都变成站长的一张工单，而且谁都不知道该怎么办。
+   */
+  failureReason?: string
+}
+
+/**
+ * 上游的失败原因 → 我们自己的文案。
+ * 前一半是他们前端 friendlyRechargeFailure 里的 reason_code；
+ * 后一半是 order.error 里实际出现过的英文原文（reason_code 并不总是有值）。
+ */
+const FAILURE_REASONS: Record<string, string> = {
+  payment_declined: '上游用于付款的银行卡这次没有通过，卡密没有被消耗，可以稍后再试一次',
+  payment_not_submitted: '上游的支付通道当时繁忙，本次没有提交支付，卡密没有被消耗，可以稍后再试',
+  inventory_unavailable: '上游充值资源当时繁忙，卡密没有被消耗，可以稍后再试',
+  no_charge_released: '上游未确认扣款、也没查到会员，卡密已经恢复，可以重新提交',
+  review_timeout_released: '上游核对结束但未确认扣款，卡密已经恢复，可以重新提交',
+  membership_not_found_released: '上游没查到会员到账，卡密已经恢复，可以重新提交',
+  already_member: '这个账号已经是会员了，请更换一个没有订阅的账号',
+  unsupported_region: '这个账号暂不支持该通道充值，请更换其它账号',
+  token_expired: '账号登录内容已过期，请重新复制一份新的 Session 再提交',
+  login_content_invalid: '账号登录内容不完整，请从官方页面重新复制完整内容',
+}
+
+/** order.error 里出现过的英文原文 → 我们的文案。reason_code 为空时靠它 */
+const FAILURE_TEXTS: [RegExp, string][] = [
+  [/payment\s+was\s+not\s+approved|payment\s+declined/i, FAILURE_REASONS.payment_declined],
+  [/already\s+(a\s+)?(member|subscriber)/i, FAILURE_REASONS.already_member],
+  [/token\s+expired|session\s+expired/i, FAILURE_REASONS.token_expired],
+  [/卡密未消耗/, '这一笔没有成功，但卡密没有被消耗，可以重新提交'],
+]
+
+function failureReasonOf(order: Record<string, unknown>): string | undefined {
+  const code = String(order.reason_code || '').trim().toLowerCase()
+  if (code && FAILURE_REASONS[code]) return FAILURE_REASONS[code]
+  const raw = String(order.error || '').trim()
+  if (!raw) return undefined
+  for (const [re, text] of FAILURE_TEXTS) if (re.test(raw)) return text
+  return undefined
 }
 
 /** 单个通道的超时。Claude 那条上游自己就慢，页面给了 35s，这里压到 20s */
@@ -209,6 +255,7 @@ export function parseCard(d: Record<string, unknown> | null, cdk: string): SysbL
     channel: 'chatgpt_card',
     status,
     backend,
+    failureReason: failureReasonOf(order),
     account: maskAccount(order.account),
     usedAt: firstString(order.updated_at, order.started_at, order.created_at),
     planName: firstString(order.product_name, row.product_name),
@@ -352,4 +399,4 @@ export async function lookupSysbCard(cdk: string, hint: SysbChannel | null): Pro
 }
 
 /** 仅供自测使用的内部导出 */
-export const __test = { maskAccount, lookupOrder, parseCard, parseGptIos, parseClaude, CARD_PAY_SHAPE }
+export const __test = { maskAccount, lookupOrder, parseCard, parseGptIos, parseClaude, CARD_PAY_SHAPE, failureReasonOf, FAILURE_REASONS }

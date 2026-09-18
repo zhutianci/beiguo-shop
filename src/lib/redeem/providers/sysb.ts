@@ -603,8 +603,10 @@ export const sysb: RedeemProvider = {
      * 上一笔失败了、但上游明说卡没被消耗（customer_state=safe_retry）。
      * 表单照出，但要把这句实话告诉买家 —— 否则他会以为自己在重复充值。
      */
-    const retryNotice =
-      hit?.status === 'RETRYABLE'
+    const retryNotice = hit?.failureReason
+      ? // 上游给了具体死因就照实说，比「上一笔没成功」有用得多
+        { level: 'unstable' as const, text: `上一笔没有成功：${hit.failureReason}` }
+      : hit?.status === 'RETRYABLE'
         ? { level: 'unstable' as const, text: '上一笔充值没有成功，但这张卡密没有被消耗，可以重新提交一次。' }
         : null
 
@@ -946,7 +948,21 @@ export const sysb: RedeemProvider = {
     const res = await call('POST', '/orders', payload)
 
     if (res.status === 202 || res.status === 200) {
-      if (res.body.ok) return toResult((res.body.data || {}) as OrderData, res.body.request_id, orderId)
+      if (res.body.ok) {
+        const out = toResult((res.body.data || {}) as OrderData, res.body.request_id, orderId)
+        /*
+         * 【失败时把真实原因补上】V2 的订单只回一句笼统的「订单执行失败」，
+         * 而上游自己的查卡接口里带着真正的死因 —— 卡#1909 连着三笔都是
+         * order.error="Payment was not approved"（上游拿信用卡付款被拒）。
+         * 我们却对买家说「充值未完成，请联系客服处理」，
+         * 于是每一次拒付都变成站长的一张工单，谁都不知道该怎么办。
+         */
+        if (out.state === 'ERROR') {
+          const why = await lookupSysbCard(cdk, product)
+          if (why?.failureReason) return { ...out, message: why.failureReason }
+        }
+        return out
+      }
     }
     if (res.status === 429) {
       return {
