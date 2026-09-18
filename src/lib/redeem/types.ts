@@ -239,6 +239,8 @@ export interface RedeemProvider {
     loadOrderRef?: () => Promise<string | null>
     /** 记下本次的上游订单号，供下次续查 */
     saveOrderRef?: (ref: string) => Promise<void>
+    /** 这张卡一共下过几笔不同的上游订单。用来给「失败后重试」封顶 */
+    countOrderRefs?: () => Promise<number>
     /**
      * 原子占位：宣告「这张卡要被提交给上游了，可能会被消耗」。返回 false = 没抢到。
      *

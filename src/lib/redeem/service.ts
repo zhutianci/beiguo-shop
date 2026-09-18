@@ -185,6 +185,19 @@ export async function loadOrderRef(cardKeyId: number, provider: string): Promise
   return row?.orderRef ?? null
 }
 
+/**
+ * 这张卡在这个平台上一共下过几笔**不同的**上游订单。
+ * 用来给「失败后重试」封顶：连着失败几次就该转人工，而不是让买家无限点下去。
+ */
+export async function countOrderRefs(cardKeyId: number, provider: string): Promise<number> {
+  const rows = await prisma.redeemLog.findMany({
+    where: { cardKeyId, provider, orderRef: { not: null } },
+    distinct: ['orderRef'],
+    select: { orderRef: true },
+  })
+  return rows.length
+}
+
 /** 记下上游订单号。**下单之前就要写**，否则 POST 超时后无从查起 */
 export async function saveOrderRef(
   cardKeyId: number,

@@ -395,10 +395,39 @@ export function decideCardRoute(
  * 【但换号重下由上层把关】真正防重复扣卡的是 activate() 里「先查原单」那一步，
  * 订单号只是让「同样内容的重试」天然安全。
  */
-function buildOrderId(cardKeyId: number, product: Product, cdk: string, credential: string): string {
-  const fp = crypto.createHash('sha256').update(`${product}|${cdk}|${credential}`).digest('hex').slice(0, 20)
+function buildOrderId(
+  cardKeyId: number,
+  product: Product,
+  cdk: string,
+  credential: string,
+  /**
+   * 重试盐：上一笔**已终结失败**的订单号。
+   *
+   * 【为什么非要它不可】指纹本来只由内容决定，于是买家原样再提交一次会算出
+   * **同一个 order_id**，上游按幂等重放那笔已经失败的单，把旧的失败原样还给他 ——
+   * 卡#1907 就是这样：上游说「CDK 正在使用中，请稍后再试」，
+   * 买家照做再试，却永远拿回同一条失败，因为根本没产生新订单。
+   *
+   * 【为什么用「上一笔失败单号」而不是计数器】它让并发天然安全：
+   * 同时点两下，两个请求读到的 prevRef 与凭据都一样 → 算出同一个新单号 →
+   * 上游去重，只会有一笔。换成计数器，两下就会拿到两个号、下出两笔单。
+   *
+   * 【只在上游明确说「这笔已终结且失败」时才加盐】其余情况一律不加，
+   * 于是「超时后原样重发」仍然复用原单号，不触犯上游「不得换号重发」的规则。
+   */
+  retrySalt?: string
+): string {
+  const base = `${product}|${cdk}|${credential}`
+  const fp = crypto
+    .createHash('sha256')
+    .update(retrySalt ? `${base}|retry:${retrySalt}` : base)
+    .digest('hex')
+    .slice(0, 20)
   return `BG-${cardKeyId}-${fp}`
 }
+
+/** 一张卡最多下几笔上游订单。超过就该转人工，而不是让买家无限点下去 */
+const MAX_ORDER_ATTEMPTS = 3
 
 const ORDER_ID_RE = /^[A-Za-z0-9._:-]{8,64}$/
 
@@ -682,6 +711,7 @@ export const sysb: RedeemProvider = {
     loadOrderRef,
     saveOrderRef,
     claimIrreversible,
+    countOrderRefs,
   }): Promise<RedeemActivateResult> {
     const product = (variant || '') as Product
     if (!VARIANTS.some((v) => v.code === product)) {
@@ -771,6 +801,8 @@ export const sysb: RedeemProvider = {
      *   · 已失败   → 才允许这次用新内容重新下单
      * 少了这一步，买家多点一次「提交」就可能被扣两张卡。
      */
+    /** 上一笔已终结失败的订单号；有它才说明这次是一次「重试」 */
+    let retrySalt: string | undefined
     const prev = loadOrderRef ? await loadOrderRef() : null
     if (prev) {
       const q = await call('GET', `/orders/${encodeURIComponent(prev)}`)
@@ -801,6 +833,12 @@ export const sysb: RedeemProvider = {
          * 卡已消耗/处理中就直接拦下，根本走不到这里。
          */
         if (d.status !== 'failed') return r
+        /*
+         * 到这里说明上游已经明确判定这笔单**终结且失败**。
+         * 记下它的单号当作重试盐 —— 没有这一步，买家用同样的凭据再提交
+         * 只会算出同一个 order_id，被上游幂等重放，永远拿回同一条失败。
+         */
+        retrySalt = prev
       } else if (q.status !== 404) {
         // 查不动就别乱下单 —— 宁可让买家等，也不能冒重复扣卡的险
         return {
@@ -860,7 +898,22 @@ export const sysb: RedeemProvider = {
       credFingerprint = raw
     }
 
-    const orderId = buildOrderId(cardKeyId, product, cdk, credFingerprint)
+    if (retrySalt) {
+      /*
+       * 连着失败这么多次，再让买家点下去也只是重复撞同一堵墙。
+       * 页面上会同时出现「去备用网站充值」的按钮，他不会没有出路。
+       */
+      const attempts = countOrderRefs ? await countOrderRefs() : 1
+      if (attempts >= MAX_ORDER_ATTEMPTS) {
+        throw new RedeemError(
+          `这张卡密已经连续提交失败 ${attempts} 次。为免反复无效提交，请联系客服处理，或使用下方的备用充值入口`,
+          'ERROR',
+          false
+        )
+      }
+    }
+
+    const orderId = buildOrderId(cardKeyId, product, cdk, credFingerprint, retrySalt)
     if (!ORDER_ID_RE.test(orderId)) {
       throw new RedeemError('兑换服务异常，请联系客服', 'ERROR', false)
     }
@@ -910,5 +963,6 @@ export const __test = {
   toResult,
   fromLookup,
   decideCardRoute,
+  MAX_ORDER_ATTEMPTS,
   fmtTime,
 }

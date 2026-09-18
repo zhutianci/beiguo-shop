@@ -10,6 +10,7 @@ import {
   normalizeCdk,
   redeemRateLimited,
   claimForIrreversibleRedeem,
+  countOrderRefs,
   loadOrderRef,
   resolveCard,
   saveOrderRef,
@@ -125,6 +126,7 @@ export async function POST(request: NextRequest, { params }: { params: { provide
                */
               loadOrderRef: () => loadOrderRef(resolved.card.id, provider.key),
               saveOrderRef: (ref) => saveOrderRef(resolved.card.id, provider.key, ref, ip),
+              countOrderRefs: () => countOrderRefs(resolved.card.id, provider.key),
               /*
                * 卡付走 V1 时上游没有幂等键，防重复扣卡全靠这一次原子占位。
                * 见 lib/redeem/service.ts 的 claimForIrreversibleRedeem。
