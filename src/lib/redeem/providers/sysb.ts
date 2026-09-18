@@ -423,7 +423,13 @@ function toResult(d: OrderData, requestId: string | undefined, orderRef: string)
     return {
       state: 'PROCESSING',
       // 文档要求至少间隔 15 秒查一次，且 next_poll_seconds 更大时以它为准
-      message: `正在为你充值，请等待约 ${nextPoll} 秒后在本页点「查询结果」，不要重复提交`,
+      /*
+       * 【别把 next_poll_seconds 说成「多久能好」】它是上游要求的**最小轮询间隔**，
+       * 不是预计耗时。实测：Claude 30~50 秒、卡付 autosub 约 1 分钟、
+       * 卡付 gpt1 要 6 分半。原来写「请等待约 15 秒」，买家 15 秒后一看还没好，
+       * 就以为卡住了、开始反复提交 —— 卡#1907 的买家就是这么被误导的。
+       */
+      message: '正在为你充值，请稍候，随后在本页点「查询结果」。通常 1 分钟内出结果，个别渠道可能要几分钟，请不要重复提交',
       retryAfter: nextPoll,
       // 可重试 = 可以再点一次「查询结果」续查；不会重新下单
       retriable: true,
@@ -509,7 +515,7 @@ export const sysb: RedeemProvider = {
           const wait = typeof d.next_poll_seconds === 'number' ? Math.max(15, d.next_poll_seconds) : 15
           return {
             state: 'PROCESSING',
-            message: `这张卡密正在充值中，请等待约 ${wait} 秒后再次点「查询」，不要重复提交`,
+            message: '这张卡密正在充值中，请稍候再点「查询」。通常 1 分钟内出结果，个别渠道可能要几分钟，请不要重复提交',
             fields: [],
             cooldownSeconds: wait,
             requestId: q.body.request_id,
@@ -771,9 +777,30 @@ export const sysb: RedeemProvider = {
       if (q.status === 200 && q.body.ok) {
         const d = (q.body.data || {}) as OrderData
         const r = toResult(d, q.body.request_id, prev)
-        // 只有「明确失败且上游说可重试」才放行去下新单；其余一律返回现状
-        const canResubmit = d.status === 'failed' && d.failure?.retryable === true
-        if (!canResubmit) return r
+        /*
+         * 终态失败之后，允许买家再提交一次。其余状态（pending / processing /
+         * manual_review / succeeded）一律原样返回，绝不重下。
+         *
+         * 【为什么这样是安全的 —— 依据是 buildOrderId 的构造】
+         * order_id = BG-<卡id>-sha256(product|cdk|凭据) 的前 20 位，
+         * 它是**内容的纯函数**。于是：
+         *   · 买家原样再提交一次 → 算出同一个 order_id → 上游按幂等重放那笔已终结的单，
+         *     返回同样的失败。**不可能产生第二次扣款。**
+         *   · 买家换了一份新的 session 再提交 → 另一个 order_id → 这本来就是
+         *     他自己决定发起的一次新尝试。
+         * 上游文档禁止的是「因为超时就换一个新单号重发同一笔内容」——
+         * 我们从不为相同内容换号，所以不触犯它。
+         *
+         * 【原来那行是死代码】判据是 d.failure?.retryable === true，
+         * 而 openapi-v2.json 把 Failure.retryable 定义为 {"type":"boolean","enum":[false]} ——
+         * 它永远是 false。于是任何一次失败都变成永久死路：
+         * 卡#1907 的上游原话是「CDK 正在使用中，**请稍后再试**」，
+         * 我们却回他「请联系客服处理」，而且再也不让他提交。
+         *
+         * 【卡是否还能用，由下面那道只读查卡守卫把关】它会在真正下单前再问一次上游，
+         * 卡已消耗/处理中就直接拦下，根本走不到这里。
+         */
+        if (d.status !== 'failed') return r
       } else if (q.status !== 404) {
         // 查不动就别乱下单 —— 宁可让买家等，也不能冒重复扣卡的险
         return {
@@ -797,7 +824,8 @@ export const sysb: RedeemProvider = {
      * 一个非正式接口不该有权力让买家充不了值（见 sysb-lookup.ts 规则二）。
      */
     const guard = await lookupSysbCard(cdk, product)
-    if (guard && guard.status !== 'UNUSED') {
+    // RETRYABLE = 上游明说卡没被消耗、可以重来，不能拦（与 V1 分支同一口径）
+    if (guard && guard.status !== 'UNUSED' && guard.status !== 'RETRYABLE') {
       const blocked = fromLookup(guard)
       if (blocked) throw new RedeemError(blocked.message, blocked.state, false)
     }
