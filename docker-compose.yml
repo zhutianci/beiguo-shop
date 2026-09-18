@@ -63,6 +63,13 @@ services:
       # Git、日志或截图里」。所以值写在 .env.production 里，仓库里只有这个名字。
       # 没配时兑换页会提示「充值服务暂未配置」，不会把请求发出去。
       - SYSB_API_TOKEN
+      # 卡付 gpt1 走 V1 三段式的开关（'1' 才开）。
+      # 【必须写成裸变量名】写 - FOO=${FOO} 在 FOO 未定义时会给容器一个空字符串，
+      # 而 dotenv 遵循「已存在的 env 优先」，反而把镜像内 .env 的真实值遮蔽掉。
+      # 【也必须写在这里】只改 .env.production 是不够的：那份文件是构建时
+      # 打进镜像的，构建之后再改宿主机上的它，容器里读到的还是旧值。
+      - SYSB_CARD_V1
+      - SYSB_CARD_CLIENT_SITE
       # SEO：站长平台归属验证 + IndexNow 主动推送
       # 【必须列在这里】--env-file 只负责 compose 文件里的变量替换，
       # 不会自动把变量塞进容器。漏了这三行，.env.production 里配了也等于没配，
