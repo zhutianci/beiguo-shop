@@ -353,11 +353,33 @@ export type CardRoute = 'v1' | 'v2' | 'block' | 'unknown'
 export function decideCardRoute(
   product: string,
   v1Enabled: boolean,
-  hit: SysbLookupHit | null
+  hit: SysbLookupHit | null,
+  /** 这张卡有没有留下过 V1 的单号（TASK…）。有 = 它确实走过 V1 */
+  hasV1Ref: boolean
 ): CardRoute {
   // 其它通道与开关关闭时，行为与改动前完全一致
   if (product !== 'chatgpt_card' || !v1Enabled) return 'v2'
-  if (!hit) return 'unknown'
+
+  if (!hit) {
+    /*
+     * 查不到这张卡的状态。
+     *
+     * 【只有走过 V1 的卡才必须停下】那种情况下落回 V2，loadOrderRef 会读到
+     * V1 的 TASK 单号，拿它打 GET /v2/orders 必然 404，而那段代码对 404 的处置是
+     * 「没下过单，可以正常下单」—— 于是在一张 V1 可能已经扣掉的卡上再下一单。
+     *
+     * 【从没走过 V1 的卡落回 V2 是安全的】V2 有自己的 order_id 幂等，
+     * 不需要这一层保护。
+     *
+     * 【这个区分是踩了坑之后补的】原来写成「查不到就一律拦」，
+     * 而实测发现 **autosub 的「未使用」卡在上游 queryOrder 里根本查不到**
+     * （返回 {"code":200,"results":[]}，要等它有订单之后才出现）。
+     * 一律拦的后果是把本来能充的 Pro 5x 卡全堵死 —— 卡#1907 的买家连试 7 次，
+     * 每次都被挡在门外，而那张卡完全正常。
+     */
+    return hasV1Ref ? 'unknown' : 'v2'
+  }
+
   // 卡已经不是「可充」状态，两条路都不该走，直接把真实状态回给买家
   if (hit.status !== 'UNUSED' && hit.status !== 'RETRYABLE') return 'block'
   return hit.backend === 'gpt1' ? 'v1' : 'v2'
@@ -681,7 +703,13 @@ export const sysb: RedeemProvider = {
      */
     if (product === 'chatgpt_card' && cardV1Enabled()) {
       const hit = await lookupSysbCard(cdk, 'chatgpt_card')
-      const route = decideCardRoute(product, true, hit)
+      /*
+       * V1 存的是上游的 TASK… 单号，V2 存的是我们自己的 BG-… 单号。
+       * 只有前者存在，才说明这张卡确实走过 V1、落回 V2 会有重复扣卡的风险。
+       */
+      const prevRefForRoute = loadOrderRef ? await loadOrderRef() : null
+      const hasV1Ref = !!prevRefForRoute && !prevRefForRoute.startsWith('BG-')
+      const route = decideCardRoute(product, true, hit, hasV1Ref)
 
       if (route === 'unknown') {
         /*
@@ -689,7 +717,7 @@ export const sysb: RedeemProvider = {
          * 落回 V2 会让 V1 的 TASK 单号撞上 404，被当成「没下过单」而重复提交。
          */
         throw new RedeemError(
-          '暂时无法确认这张卡密的状态，请稍等一会儿回到本页点「查询」，不要重复提交',
+          '这张卡密上一次的充值结果还没确认，请稍等一会儿回到本页点「查询」，不要重复提交',
           'PROCESSING',
           true
         )
