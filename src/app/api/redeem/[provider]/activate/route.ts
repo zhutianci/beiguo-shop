@@ -146,6 +146,17 @@ export async function POST(request: NextRequest, { params }: { params: { provide
       ip,
     })
 
+    /*
+     * 充值失败时，如果这个平台给了备用出口，就附上去。
+     * 【放在这里而不是适配器内部】失败有两条路径：适配器 return 一个 ERROR 结果，
+     * 或者 throw RedeemError 被 toActivateFailure 接住 —— 后者在 service.ts 里，
+     * 看不见是哪个适配器。只有在这里统一加，两条路径才都覆盖得到。
+     */
+    if (result.state === 'ERROR' && typeof provider.fallbackFor === 'function') {
+      const fb = provider.fallbackFor()
+      if (fb) result = { ...result, fallback: fb }
+    }
+
     const { requestId: _omitReq, orderRef: _omitRef, ...pub } = result
     return success(pub)
   } catch (err) {

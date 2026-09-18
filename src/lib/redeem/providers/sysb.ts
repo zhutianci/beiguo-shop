@@ -629,6 +629,23 @@ export const sysb: RedeemProvider = {
     }
   },
 
+  /**
+   * 站内失败时的备用出口。只在 activate 返回 ERROR 时由路由附加。
+   *
+   * 【为什么给这条路】卡付 gpt1 走 V2 实测 0 成功 / 6 次，每一次都是买家等 6 分半
+   * 然后由站长人工告诉他「去官网充」。与其如此，不如页面直接给按钮。
+   * 现在 V1 通道已经接上，这条主要是兜底：V1 也失败时买家仍有路可走。
+   */
+  fallbackFor() {
+    const url = (process.env.SYSB_FALLBACK_URL || 'https://hongyunai.pro/').trim()
+    if (!url) return null
+    return {
+      text: '当前服务器更新中，请到备用充值网站完成充值。你的卡密仍然有效，可直接在该网站使用。',
+      label: '前往 hongyunai.pro 充值',
+      url,
+    }
+  },
+
   async activate({
     cdk,
     values,

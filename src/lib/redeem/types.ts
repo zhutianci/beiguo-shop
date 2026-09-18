@@ -137,6 +137,23 @@ export interface RedeemCheckResult {
   requestId?: string
 }
 
+/**
+ * 站内充值失败时给买家的备用出口。
+ *
+ * 【这是唯一一处刻意暴露上游的地方，别当成 bug 修掉】
+ * 本文件开头写着「买家永远看不到上游是谁」，这条是站长的明确决定下的例外：
+ * 卡付 gpt1 通道在本站失败时，与其让买家开工单干等，不如直接给他一条能走通的路 ——
+ * 何况这个商品历史上本来就给过买家同一个兑换链接。
+ * 只在**充值失败**时出现；成功、处理中、卡已消耗这些情况都不显示。
+ */
+export interface RedeemFallback {
+  /** 给买家看的一句话 */
+  text: string
+  /** 按钮文案 */
+  label: string
+  url: string
+}
+
 export interface RedeemActivateResult {
   state: Extract<RedeemState, 'COMPLETED' | 'PROCESSING' | 'COOLDOWN' | 'ERROR'>
   message: string
@@ -153,6 +170,8 @@ export interface RedeemActivateResult {
   requestId?: string
   /** 上游订单号（异步平台）。只用于排查与续查，不展示给买家 */
   orderRef?: string
+  /** 充值失败时的备用出口。由路由按适配器的 fallbackFor() 统一附加，适配器自己不用管 */
+  fallback?: RedeemFallback
 }
 
 /** 适配器抛出的、可直接展示的错误。用它避免把上游的原始异常泄漏到前端 */
@@ -239,4 +258,15 @@ export interface RedeemProvider {
 
   /** 可选：rebind 需要买家填什么。有 rebind 就必须有这个 */
   rebindFields?(): RedeemField[]
+
+  /**
+   * 可选：本站充值失败时，给买家的备用出口。
+   *
+   * 【为什么做成适配器上的一个方法，而不是在结果里逐处拼】
+   * 失败有两条返回路径：适配器 return 一个 ERROR 结果，或者直接 throw RedeemError
+   * （后者会被 service.ts 的 toActivateFailure 接住，那里看不见适配器）。
+   * 放在适配器上、由路由在最后统一附加，两条路径才都能覆盖到。
+   * 返回 null = 这个平台没有备用出口（sysa 就是）。
+   */
+  fallbackFor?(): RedeemFallback | null
 }

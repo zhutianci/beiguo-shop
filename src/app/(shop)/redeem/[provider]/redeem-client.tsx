@@ -70,6 +70,8 @@ interface ActivateResult {
   completedAt?: string
   retryAfter?: number
   retriable: boolean
+  /** 站内充值失败时的备用出口。由服务端按平台给出，前端只负责渲染 */
+  fallback?: { text: string; label: string; url: string }
 }
 
 /** 深色主题下的输入框样式。CDK 输入框与多行凭据框共用，保证视觉一致 */
@@ -510,6 +512,29 @@ export default function RedeemClient({
                 >
                   重新查询状态
                 </button>
+              )}
+
+              {/*
+                站内充值失败时的备用出口。只有服务端给了 fallback 才出现 ——
+                成功、处理中、卡已消耗这些情况都不会带这个字段。
+                用 <a> 而不是 button：买家可以右键在新标签打开，也能复制链接。
+              */}
+              {result.fallback && (
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                  <p className="text-sm leading-relaxed text-amber-100">{result.fallback.text}</p>
+                  <a
+                    href={result.fallback.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                  >
+                    {result.fallback.label}
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                  <p className="mt-2 text-center text-xs text-amber-200/60">
+                    卡密：<span className="font-mono">{cdk.trim()}</span>
+                  </p>
+                </div>
               )}
             </>
           )}
