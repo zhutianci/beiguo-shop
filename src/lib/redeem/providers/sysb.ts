@@ -551,9 +551,27 @@ export const sysb: RedeemProvider = {
           }
         }
         if (status === 'manual_review') {
+          /*
+           * 【manual_review 一律不重下，但必须把卡的真实状态说出来】
+           * 上游文档明令「停止自动处理，不重新提交，联系管理员」，这条不动。
+           * 但原来的文案只说「需要人工核对，请联系客服」，只字不提卡还在不在 ——
+           * 于是买家和站长都默认卡已经烧了。
+           *
+           * 卡#1880 就是这样：上游那笔单 manual_review（执行中断待核对），
+           * 而同一时刻上游自己的查卡接口说这张卡 status="unused"、
+           * msg="未使用 [ChatGPT PRO (200刀)]"、can_replace=true —— 卡根本没被消耗。
+           * 这句话对买家和客服都是最要紧的信息，不该藏着。
+           *
+           * 【为什么仍然不给重试入口】「执行中断」意味着那笔可能还会落地。
+           * 卡此刻未使用不等于它一定不会被扣 —— 这正是上游要人工核对的原因。
+           */
+          const still = await lookupSysbCard(cdk, detectVariant(ctx?.productName))
+          const untouched = still?.status === 'UNUSED' || still?.status === 'RETRYABLE'
           return {
             state: 'ERROR',
-            message: '这笔充值需要人工核对，请联系客服并提供卡密，我们会尽快处理',
+            message: untouched
+              ? '这笔充值被中断了，上游正在人工核对。**你的卡密目前仍是未使用状态**，请联系客服并提供卡密，不要重复提交。'
+              : '这笔充值需要人工核对，请联系客服并提供卡密，我们会尽快处理',
             fields: [],
             requestId: q.body.request_id,
           }
