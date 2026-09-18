@@ -329,6 +329,40 @@ function fromLookup(hit: SysbLookupHit): RedeemCheckResult | null {
   }
 }
 
+/** 卡付单该走哪条路 */
+export type CardRoute = 'v1' | 'v2' | 'block' | 'unknown'
+
+/**
+ * 决定一张卡该走 V1 还是 V2。**纯函数，为的是能被穷举断言**。
+ *
+ * 站长问的是「改完之后会不会变成只有 Plus 能充、5x 和 iOS 反而坏了」。
+ * 这个函数就是那个问题的答案，scripts/check-redeem.ts 里对它做了穷举：
+ *
+ *   chatgpt_ios / claude_ios  → 永远 'v2'，**一行分叉逻辑都不进**，零影响
+ *   开关关闭                   → 永远 'v2'，等于这次改动不存在
+ *   chatgpt_card + autosub     → 'v2'（这条实测能成：BG-1759、BG-1874）
+ *   chatgpt_card + gpt1        → 'v1'（这条走 V2 实测 0 成功 / 6 次）
+ *
+ * 【查不到时必须 'unknown'，绝不能落回 V2】这是一个会重复扣卡的洞：
+ * 只读查卡失败会返回 null，而这张卡可能正走在 V1 的半路上。
+ * 落回 V2 之后，loadOrderRef 会读到 V1 的 TASK 单号，
+ * 拿它打 GET /v2/orders 必然 404，而那段代码对 404 的处置是
+ * 「上游没有这笔单，可以正常下单」—— 于是在一张 V1 可能已经扣掉的卡上再下一单。
+ * 宁可让买家等一会儿再点一次「查询」，也不能冒这个险。
+ */
+export function decideCardRoute(
+  product: string,
+  v1Enabled: boolean,
+  hit: SysbLookupHit | null
+): CardRoute {
+  // 其它通道与开关关闭时，行为与改动前完全一致
+  if (product !== 'chatgpt_card' || !v1Enabled) return 'v2'
+  if (!hit) return 'unknown'
+  // 卡已经不是「可充」状态，两条路都不该走，直接把真实状态回给买家
+  if (hit.status !== 'UNUSED' && hit.status !== 'RETRYABLE') return 'block'
+  return hit.backend === 'gpt1' ? 'v1' : 'v2'
+}
+
 /**
  * 拼出这一单的上游订单号。
  *
@@ -428,7 +462,15 @@ export const sysb: RedeemProvider = {
      * 在别处充掉的卡由下面那一步（V1 只读查询）负责。
      */
     const prevRef = ctx?.loadOrderRef ? await ctx.loadOrderRef() : null
-    if (prevRef) {
+    /*
+     * 【只有 V2 自己下的单才拿去查 V2】我们的 V2 订单号一律是 BG- 开头（buildOrderId），
+     * 而卡付走 V1 时存下来的是上游的 TASK00027056 这种。
+     * 拿 TASK 号去打 GET /v2/orders 是没意义的，而且这段代码的走向
+     * 完全取决于对方回 404 还是别的码 —— 回别的码就会让买家永远停在
+     * 「正在确认上一次的充值结果」。不赌这个，按前缀直接分开。
+     * V1 的单由下面那一步（只读查卡）负责，它本来就能查到真实状态。
+     */
+    if (prevRef && prevRef.startsWith('BG-')) {
       const q = await call('GET', `/orders/${encodeURIComponent(prevRef)}`)
       if (q.status === 200 && q.body.ok) {
         const d = (q.body.data || {}) as OrderData
@@ -622,13 +664,26 @@ export const sysb: RedeemProvider = {
      */
     if (product === 'chatgpt_card' && cardV1Enabled()) {
       const hit = await lookupSysbCard(cdk, 'chatgpt_card')
-      // RETRYABLE = 上游明说卡没被消耗、可以重来，不能拦
-      if (hit && hit.status !== 'UNUSED' && hit.status !== 'RETRYABLE') {
-        // 卡已经不是「可充」状态了，直接把真实状态回给买家，绝不提交
+      const route = decideCardRoute(product, true, hit)
+
+      if (route === 'unknown') {
+        /*
+         * 查不到这张卡的状态就必须停下 —— 见 decideCardRoute 的说明：
+         * 落回 V2 会让 V1 的 TASK 单号撞上 404，被当成「没下过单」而重复提交。
+         */
+        throw new RedeemError(
+          '暂时无法确认这张卡密的状态，请稍等一会儿回到本页点「查询」，不要重复提交',
+          'PROCESSING',
+          true
+        )
+      }
+
+      if (route === 'block' && hit) {
         const blocked = fromLookup(hit)
         if (blocked) throw new RedeemError(blocked.message, blocked.state, false)
       }
-      if (hit?.backend === 'gpt1') {
+
+      if (route === 'v1') {
         if (!claimIrreversible) throw new RedeemError('兑换服务异常，请联系客服', 'ERROR', false)
         return redeemCardV1({
           cdk,
@@ -653,7 +708,7 @@ export const sysb: RedeemProvider = {
           },
         })
       }
-      // backend 不是 gpt1（或查不到）→ 落回下面的 V2 流程
+      // route === 'v2'：明确是 autosub，落回下面那条实测能成的老路
     }
 
     /*
@@ -781,5 +836,6 @@ export const __test = {
   TERMINAL_ERRORS,
   toResult,
   fromLookup,
+  decideCardRoute,
   fmtTime,
 }

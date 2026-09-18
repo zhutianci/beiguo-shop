@@ -197,6 +197,62 @@ export function parseSession(raw: string): { raw: string; email: string; idp: st
   return { raw: text, email, idp: typeof idp === 'string' ? idp : '' }
 }
 
+/**
+ * 拼出 precheckAccount 与 redeem 共用的那一组字段。
+ *
+ * 【字段表逐字来自站长提供的成功充值 HAR】不是从前端 JS 推的：
+ *   {"token": <AuthSession 原文 6213 字符>, "cdk": "PLUS-…",
+ *    "activation_token": "hyg1.…", "idp": "google-oauth2",
+ *    "force_recharge": false, "confirm_duplicate": false,
+ *    "client_journey_id": "flow_<uuid>", "client_site": "hongyunai"}
+ *
+ * 【token 必须是原文字符串，不是对象】上游 gpt1 分支收的是 AuthSession 原文
+ * （autosub 才压成 zstd64）。重新序列化会改键序、丢掉我们不认识的字段 ——
+ * 那份 JSON 里有 sessionToken、account、WARNING_BANNER 一堆东西。
+ *
+ * 【force_recharge / confirm_duplicate 固定 false】官网卡付通道的「覆盖订阅」
+ * 勾选框是隐藏的，实际也发 false；重复充值确认必须由人点，见下面 activate 里的处理。
+ */
+export function buildCommon(a: {
+  sessionRaw: string
+  cdk: string
+  activationToken: string
+  idp: string
+  journeyId: string
+  site: string
+}): Record<string, unknown> {
+  return {
+    token: a.sessionRaw,
+    cdk: a.cdk,
+    activation_token: a.activationToken,
+    idp: a.idp,
+    force_recharge: false,
+    confirm_duplicate: false,
+    client_journey_id: a.journeyId,
+    client_site: a.site,
+  }
+}
+
+/**
+ * redeem 的请求体 = common + prepare_token + backend。
+ * 【refreshed_token 有就用】官网原样：`String(data.refreshed_token || token)`。
+ * 抓到的那份 HAR 里 precheck 没返回这个字段，于是 redeem 的 token 与 precheck 完全相同
+ * （两处 len 都是 6213）—— 与这里的逻辑一致。
+ */
+export function buildRedeemBody(
+  common: Record<string, unknown>,
+  prepareToken: string,
+  backend: string,
+  refreshedToken: unknown
+): Record<string, unknown> {
+  return {
+    ...common,
+    token: typeof refreshedToken === 'string' && refreshedToken ? refreshedToken : common.token,
+    prepare_token: prepareToken,
+    backend,
+  }
+}
+
 export interface CardV1Input {
   cdk: string
   /** 买家粘贴的 AuthSession 原文。**只在内存里，不落库** */
@@ -250,16 +306,14 @@ export async function redeemCardV1(input: CardV1Input): Promise<RedeemActivateRe
   await input.markIrreversible()
 
   // ---------- 第二步：账号预检，拿 prepare_token（此步会预留卡） ----------
-  const common = {
-    token: session.raw,
+  const common = buildCommon({
+    sessionRaw: session.raw,
     cdk: input.cdk,
-    activation_token: activationToken,
+    activationToken,
     idp: session.idp,
-    force_recharge: false,
-    confirm_duplicate: false,
-    client_journey_id: journeyId,
-    client_site: site,
-  }
+    journeyId,
+    site,
+  })
   const p = await post('/api/v1/sub/precheckAccount', common, TIMEOUT.precheck)
 
   if (p.requires_duplicate_confirm === true) {
@@ -285,13 +339,7 @@ export async function redeemCardV1(input: CardV1Input): Promise<RedeemActivateRe
   // ---------- 第三步：确认充值 ----------
   const r = await post(
     '/api/v1/sub/redeem',
-    {
-      ...common,
-      // 预检可能返回一份刷新过的登录凭据，有就用它
-      token: typeof p.refreshed_token === 'string' && p.refreshed_token ? p.refreshed_token : session.raw,
-      prepare_token: prepareToken,
-      backend,
-    },
+    buildRedeemBody(common, prepareToken, backend, p.refreshed_token),
     TIMEOUT.redeem
   )
 
@@ -327,4 +375,4 @@ export async function redeemCardV1(input: CardV1Input): Promise<RedeemActivateRe
 }
 
 /** 仅供自测使用的内部导出 */
-export const __test = { parseSession, ERRORS, copy, newNonce, newJourneyId }
+export const __test = { parseSession, ERRORS, copy, newNonce, newJourneyId, buildCommon, buildRedeemBody }
