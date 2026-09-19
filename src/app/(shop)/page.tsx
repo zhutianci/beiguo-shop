@@ -73,6 +73,9 @@ export default async function HomePage() {
             </h2>
             <p className="mb-8 text-sm text-white/40 lg:text-[15px]">
               每一项都有独立的说明页，写清楚了当前价格、该选哪个档位，以及兑换前必须先确认的事。
+              <br />
+              <strong className="text-white/60">所有标价均为不含税价</strong>
+              ，需要发票的在售价之外另付 6% 税费，收据不涉及税费。
             </p>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

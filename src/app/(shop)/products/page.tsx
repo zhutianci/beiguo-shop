@@ -104,8 +104,10 @@ export default async function ProductsPage() {
               全部商品与价格一览
             </h2>
             <p className="text-white/40 text-sm lg:text-[15px] mb-8">
+              <strong className="text-white/70">表中价格均为不含税价</strong>
+              ，需要增值税发票的，须在售价之外另付 6% 税费（开票金额 = 售价 × 1.06），收据不涉及税费。
               价格随上游成本与汇率浮动，以下单时页面显示的实付金额为准。带「自助充值」字样的商品下单后发放卡密，
-              你可以随时自行兑换；未使用的卡密长期有效。
+              你可以随时自行兑换；卡密有效期以对应商品页的说明为准。
             </p>
 
             {Array.from(groups.entries()).map(([categoryName, items]) => (
