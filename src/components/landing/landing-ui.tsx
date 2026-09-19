@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { ArrowRight, Check, ShieldAlert } from 'lucide-react'
 import { inStock, type LandingProduct } from '@/lib/landing/products'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
+import type { RedeemErrorGroup } from '@/lib/landing/redeem-errors'
 
 /**
  * 充值落地页的公共积木。
@@ -262,7 +263,9 @@ export function Warning({ children }: { children: ReactNode }) {
  * 「它们是一个真实的站点结构」才成立，而不是一批为关键词而生的孤岛。
  */
 export function RelatedLandings({ currentSlug }: { currentSlug?: string }) {
-  const others = LANDINGS.filter((l) => l.slug !== currentSlug).slice(0, 6)
+  // 【不要再截断】落地页数量已经超过原来写死的 6 个，再 slice 就是靠数组顺序
+  // 决定谁拿不到内链——最后加的那一页永远第一个被砍。全部展示，栅格自己会排。
+  const others = LANDINGS.filter((l) => l.slug !== currentSlug)
   return (
     <section className="mb-14">
       <h2 className="text-2xl lg:text-3xl font-bold mb-6">其他充值与账号服务</h2>
@@ -312,14 +315,83 @@ export function BrandDisclaimer() {
   return (
     <p className="mt-12 border-t border-white/10 pt-6 text-xs leading-relaxed text-white/30">
       贝果科技（益阳市赫山区必高科技有限公司）是独立的第三方充值服务商，
-      与 OpenAI、Anthropic 及其他 AI 服务提供商
+      与 OpenAI、Anthropic、Google 及其他服务提供商
       <strong className="text-white/40">没有任何隶属、授权或合作关系</strong>。
-      ChatGPT、Claude、Codex 等名称与商标归其各自权利人所有，本页使用这些名称仅用于说明所充值服务的对象。
+      ChatGPT、Claude、Codex、Gemini、Google 等名称与商标归其各自权利人所有，本页使用这些名称仅用于说明所充值服务的对象。
       各服务的功能范围、账号状态与政策由其提供方自行决定。下单前请阅读{' '}
       <Link href="/terms" className="text-white/50 underline underline-offset-2 hover:text-white/70">
         服务条款
       </Link>
       。
     </p>
+  )
+}
+
+// ============ 兑换报错对照 ============
+
+/**
+ * 兑换报错对照表。
+ *
+ * 【这一块是有意做成表格而不是 FAQ 的】买家兑换失败时的行为是
+ * 「把错误提示整句复制、粘进搜索框」。所以每一行的第一列必须是**提示原话**，
+ * 而且要能被文本匹配到——折叠起来、或者改写成「XX 问题怎么办」都会丢掉这个入口。
+ *
+ * 数据来自 lib/landing/redeem-errors.ts，那边有维护约定。
+ */
+export function RedeemErrorHelp({ groups, scope }: { groups: RedeemErrorGroup[]; scope: string }) {
+  return (
+    <div className="space-y-10">
+      {/* 【这一句不能省】站内注册了两家兑换适配器，文案不同；而且多数档位根本不在站内兑换、
+          会跳到对应的兑换站点，那边是第三方自己的措辞。不写清楚作用域，
+          这张表就是在误导另一半买家。 */}
+      <p className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm leading-[1.9] text-white/50">
+        {scope}
+      </p>
+      {groups.map((g) => (
+        <div key={g.title}>
+          <h3 className="mb-2 text-lg lg:text-xl font-semibold text-white">{g.title}</h3>
+          <p className="mb-4 text-white/55 leading-[1.9]">{g.intro}</p>
+          <div className="overflow-x-auto rounded-2xl border border-white/10">
+            <table className="w-full text-sm lg:text-[15px]">
+              <thead>
+                <tr className="bg-white/5 text-left text-white/50">
+                  <th scope="col" className="px-4 py-3 font-medium">什么情况 / 你可能看到的提示</th>
+                  <th scope="col" className="px-4 py-3 font-medium">这是什么意思</th>
+                  <th scope="col" className="px-4 py-3 font-medium">该怎么办</th>
+                  <th scope="col" className="px-4 py-3 font-medium whitespace-nowrap">卡密</th>
+                </tr>
+              </thead>
+              <tbody className="text-white/70">
+                {g.items.map((e) => (
+                  <tr key={e.situation} className="border-t border-white/5 align-top">
+                    <td className="px-4 py-3 min-w-[15rem]">
+                      <div className="font-medium text-white/85">{e.situation}</div>
+                      {/* 实际措辞按通道不同，逐条列出来是为了让人能对上号——
+                          有人就是把屏幕上那句话整段粘进搜索框的 */}
+                      <ul className="mt-2 space-y-1">
+                        {e.seen.map((m) => (
+                          <li key={m} className="text-xs leading-relaxed text-white/40">
+                            「{m}」
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                    <td className="px-4 py-3 leading-[1.8] min-w-[15rem]">{e.meaning}</td>
+                    <td className="px-4 py-3 leading-[1.8] min-w-[15rem]">{e.action}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {e.cardStatus === 'safe' ? (
+                        <span className="text-emerald-400">不消耗</span>
+                      ) : (
+                        <span className="text-amber-300">看提示</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }

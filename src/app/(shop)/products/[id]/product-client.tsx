@@ -6,8 +6,18 @@
  * 与 Product 结构化数据 —— 客户端组件用不了它们，导致此前每个商品页的
  * <title> 和 <meta description> 全站一模一样。
  *
- * 这里的逻辑一行没动：仍然靠 useParams() 拿 id、自己 fetch 数据。
- * 外壳只负责 <head> 里的东西，不接管取数，避免把一个能跑的页面改出问题。
+ * 2026-09-19 再改一次：外壳把商品数据作为 initialProduct 传进来。
+ *
+ * 【为什么必须这么做】客户端组件在 Next 里**是会被服务端渲染的**，
+ * 但此前数据来自 useEffect 里的 fetch —— SSR 那一刻 product 还是 null，
+ * 渲染出来的是「加载中…」。结果是全站最赚钱的一类页面，
+ * 服务端 HTML 里既没有 H1、也没有商品名、价格、说明，一个字都没有
+ * （线上实测 /products/16：`<h1` 出现 0 次）。
+ *
+ * 传了 initialProduct 之后，SSR 直接用真实数据渲染整页，H1 与正文都进 HTML；
+ * 挂载后那次 fetch 照常跑——它还有用：带 ?ref= 时要把价格换成推广人的专属价。
+ * 也就是说服务端 HTML 里永远是公开定价（与 canonical、JSON-LD 一致），
+ * 专属价在水合之后才出现，这正是我们要的。
  */
 
 import { useEffect, useState } from 'react'
@@ -66,17 +76,34 @@ function parseFeatures(features: string | null): string[] {
   }
 }
 
+/*
+ * 【这四步对全部商品无条件渲染，所以只能写各档都成立的话】
+ * 原文有两处是编的，而且在这一页改成 SSR 直出之后，它们第一次进了服务端 HTML：
+ *   · 「填写您的账号邮箱」—— 下单根本不填邮箱（createOrderSchema 只收
+ *     productId/quantity/remark/ref/couponGrantId），邮件发到登录账号的邮箱。
+ *   · 「10分钟内完成开通」—— 没有任何依据，而且对好几档明显不成立：
+ *     KYC 认证那一档后台写的是「付款后半小时内完成」且是人工对接；
+ *     接码档是付款后服务端自动取号；卡池不足时自动发货还会转人工补发。
+ *     一句写死的时效同时对三种交付方式撒谎。
+ * 具体时效各商品页自己的说明里有，这里只讲流程骨架。
+ */
 const defaultProcess = [
-  { step: '01', title: '下单支付', desc: '选择服务并完成支付' },
-  { step: '02', title: '提供信息', desc: '填写您的账号邮箱' },
-  { step: '03', title: '快速开通', desc: '10分钟内完成开通' },
-  { step: '04', title: '开始使用', desc: '收到确认即可使用' },
+  { step: '01', title: '下单支付', desc: '登录后选择档位，用支付宝完成付款' },
+  { step: '02', title: '提供信息', desc: '按商品要求提供充值所需信息' },
+  { step: '03', title: '交付', desc: '按该商品的交付方式发放，时效见商品说明' },
+  { step: '04', title: '开始使用', desc: '按说明完成兑换或登录即可使用' },
 ]
 
-export default function ProductDetailClient() {
+export default function ProductDetailClient({
+  initialProduct = null,
+}: {
+  /** 外壳查库后传进来的公开定价版本：用于 SSR 直出，顺带免掉首屏那一下「加载中」 */
+  initialProduct?: Product | null
+}) {
   const params = useParams<{ id: string }>()
-  const [product, setProduct] = useState<Product | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [product, setProduct] = useState<Product | null>(initialProduct)
+  // 有初始数据就不能再进 loading 分支——否则 SSR 渲染出来仍然是「加载中」，等于白传
+  const [loading, setLoading] = useState(!initialProduct)
   const [notFound, setNotFound] = useState(false)
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [contactOpen, setContactOpen] = useState(false)

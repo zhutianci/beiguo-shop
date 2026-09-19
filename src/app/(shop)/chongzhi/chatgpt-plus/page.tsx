@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getLandingProducts, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
+import { REDEEM_ERROR_GROUPS, REDEEM_ERROR_SCOPE, redeemErrorCount } from '@/lib/landing/redeem-errors'
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
@@ -14,6 +15,7 @@ import {
   FaqList,
   LandingShell,
   PriceTable,
+  RedeemErrorHelp,
   RelatedLandings,
   Section,
   Steps,
@@ -104,6 +106,10 @@ const FAQS: { q: string; a: string }[] = [
   {
     q: '卡密买了没用完会过期吗？',
     a: '未使用的卡密不设统一有效期，具体以对应商品页的说明为准（Claude Pro 那一档明示永久有效）。但请注意：一旦卡密已被上游核销（也就是充值动作已经发生），无论结果如何都不能退。所以兑换前务必先核对账户状态。',
+  },
+  {
+    q: '兑换失败了，卡密还能用吗？会不会白花钱？',
+    a: '分三种情况看。一是账号状态类的报错（已有订阅、账单异常、10 分钟内刚充过、要求先完成身份验证），卡密不消耗，把账号那一侧处理好再提交就行。二是凭据类的报错（session 无效或过期、UID 格式不对），同样不消耗，按商品说明重新取一次凭据即可——iOS 订阅档更容易遇到这一类。三是兑换页明确提示「本次充值需要人工确认，请联系客服并提供卡密」，这一类要立刻带着订单号联系客服，不要重复提交，重复提交可能真的消耗掉第二张卡密。已被上游核销的卡密不退，无论充值成功与否。本页「兑换报错了」那一节按情况列了对照表（各通道措辞不完全一样，按意思对号入座），报错之后先去那里对一遍。',
   },
   {
     q: 'ChatGPT 代充到底靠不靠谱，会不会被骗？',
@@ -275,6 +281,31 @@ export default async function ChatgptPlusLandingPage() {
               },
             ]}
           />
+        </Section>
+
+        <Section id="redeem-errors" heading="兑换报错了：对照这张表，先别急着提交第二次">
+          <p>
+            这一页的两个档位走的是两条不同的链路，所以在兑换页上会撞见的报错也不一样：
+            这一页两个档位走的兑换通道不同，措辞也不同，但失败的原因高度集中在「账号这一侧不满足条件」——已有订阅、账单异常、
+            十分钟内刚充过；iOS 订阅充值那一档还会多出一类凭据问题，session 复制不全、
+            或者取完放太久失效，都会被挡在这一步。两类都不是你手上这张卡密坏了。
+          </p>
+          <p>
+            下面这 {redeemErrorCount()} 条是兑换页会
+            <strong className="text-white/80">原样显示</strong>的提示语，第一列就是你屏幕上那句话，
+            按它找即可；后面三列分别是这句话到底在说什么、该怎么处理，
+            以及你最关心的那件事——这张卡密还在不在。
+          </p>
+
+          <RedeemErrorHelp groups={REDEEM_ERROR_GROUPS} scope={REDEEM_ERROR_SCOPE} />
+
+          <p className="pt-2">
+            表里绝大多数报错都不消耗卡密，按「该怎么办」那一列处理完再提交一次就行。
+            唯独看到「本次充值需要人工确认，请联系客服并提供卡密」这类提示时要停手：
+            它说明上游那边的状态还没有明确回落，
+            <strong className="text-white/80">不要重复提交，重复提交可能真的消耗掉第二张卡密</strong>
+            ，而已核销的卡密不退。正确的做法是把订单号和卡密一起发给客服，由我们去追这一笔。
+          </p>
         </Section>
 
         <Section id="card-declined" heading="信用卡被拒、付款未获批准：先分清是哪一种">

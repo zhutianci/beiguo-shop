@@ -44,44 +44,89 @@ import ProductDetailClient from './product-client'
  */
 type ProductLookup = SeoProduct | 'missing' | 'error'
 
-const getProduct = cache(async (id: number): Promise<ProductLookup> => {
-  if (!Number.isInteger(id) || id <= 0) return 'missing'
-  try {
-    const p = await prisma.product.findFirst({
-      where: { id, status: 1 },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        price: true,
-        originalPrice: true,
-        stock: true,
-        image: true,
-        category: { select: { name: true } },
-      },
-    })
-    if (!p) return 'missing'
-    return {
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      price: Number(p.price),
-      originalPrice: p.originalPrice == null ? null : Number(p.originalPrice),
-      stock: p.stock,
-      image: p.image,
-      categoryName: p.category?.name ?? null,
+/**
+ * 客户端组件需要的完整形状。
+ *
+ * 【为什么要和 SeoProduct 分开】SeoProduct 是给 <head> 用的子集；
+ * 客户端那 400 多行还要 features / sales / deliveryType / category.id。
+ * 一次查库同时喂两边，不要为了省字段再打一次 MySQL。
+ *
+ * 【Decimal 必须转成 number】Prisma 的 Decimal 跨不过 Server → Client 的序列化边界，
+ * 直接传会在运行时报「Only plain objects can be passed to Client Components」。
+ */
+export interface ClientProduct {
+  id: number
+  name: string
+  description: string | null
+  price: number
+  originalPrice: number | null
+  features: string | null
+  stock: number
+  sales: number
+  deliveryType?: string
+  category: { id: number; name: string }
+}
+
+const getProduct = cache(
+  async (id: number): Promise<{ seo: ProductLookup; client: ClientProduct | null }> => {
+    if (!Number.isInteger(id) || id <= 0) return { seo: 'missing', client: null }
+    try {
+      const p = await prisma.product.findFirst({
+        where: { id, status: 1 },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          price: true,
+          originalPrice: true,
+          stock: true,
+          sales: true,
+          image: true,
+          features: true,
+          deliveryType: true,
+          category: { select: { id: true, name: true } },
+        },
+      })
+      if (!p) return { seo: 'missing', client: null }
+      const price = Number(p.price)
+      const originalPrice = p.originalPrice == null ? null : Number(p.originalPrice)
+      return {
+        seo: {
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price,
+          originalPrice,
+          stock: p.stock,
+          image: p.image,
+          categoryName: p.category?.name ?? null,
+        },
+        client: {
+          id: p.id,
+          name: p.name,
+          description: p.description,
+          price,
+          originalPrice,
+          features: p.features,
+          stock: p.stock,
+          sales: p.sales,
+          deliveryType: p.deliveryType ?? undefined,
+          category: p.category ?? { id: 0, name: '' },
+        },
+      }
+    } catch (err) {
+      // 库挂了不能让商品页整页 500，也不能让它退回全站默认标题（那就是一个重复标题页）：
+      // 返回 'error'，由调用方给一份带 canonical 的降级 metadata，
+      // 页面照常渲染——客户端组件挂载后自己还会再取一次数
+      console.error('Product SEO query error:', err)
+      return { seo: 'error', client: null }
     }
-  } catch (err) {
-    // 库挂了不能让商品页整页 500，也不能让它退回全站默认标题（那就是一个重复标题页）：
-    // 返回 'error'，由调用方给一份带 canonical 的降级 metadata，页面照常渲染
-    console.error('Product SEO query error:', err)
-    return 'error'
   }
-})
+)
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const id = Number(params.id)
-  const product = await getProduct(id)
+  const { seo: product } = await getProduct(id)
 
   // 商品不存在：页面体会 notFound()，这里只需要一个不参与索引的标题
   if (product === 'missing') {
@@ -122,11 +167,11 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 export default async function ProductDetailPage({ params }: { params: { id: string } }) {
-  const lookup = await getProduct(Number(params.id))
+  const { seo, client } = await getProduct(Number(params.id))
   // 商品真的不存在就返回 404。返回 200 的空壳既误导买家，也会被搜索引擎收录成软 404。
-  if (lookup === 'missing') notFound()
+  if (seo === 'missing') notFound()
   // 查库失败时不 404：库一会儿就回来了，而 404 一旦被抓到是要花很久才能撤销的
-  const product = lookup === 'error' ? null : lookup
+  const product = seo === 'error' ? null : seo
 
   return (
     <>
@@ -150,7 +195,11 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
           ]}
         />
       )}
-      <ProductDetailClient />
+      {/* initialProduct 是这一页能被搜索引擎读到的关键：客户端组件会被 SSR，
+          但此前它的数据来自 useEffect 里的 fetch，SSR 那一刻还是 null，
+          渲染出来只有「加载中…」——H1、商品名、价格、说明一个都不在 HTML 里。
+          传了之后整页直出；带 ?ref= 的专属价仍由客户端挂载后那次 fetch 覆盖。 */}
+      <ProductDetailClient initialProduct={client} />
     </>
   )
 }

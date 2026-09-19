@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getLandingProducts, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
+import { REDEEM_ERROR_GROUPS, REDEEM_ERROR_SCOPE, redeemErrorCount } from '@/lib/landing/redeem-errors'
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
@@ -14,6 +15,7 @@ import {
   FaqList,
   LandingShell,
   PriceTable,
+  RedeemErrorHelp,
   RelatedLandings,
   Section,
   Steps,
@@ -107,6 +109,10 @@ function buildFaqs(low: number | null): { q: string; a: string }[] {
     {
       q: '卡密买了先不用，会过期吗？',
       a: '未使用的卡密永久有效，不会过期，可以先买着等当期会员到期再用。反过来说，一旦提交核销就不能退 —— 所以宁可放着，也不要在账户状态没核对清楚的时候先试一下。',
+    },
+    {
+      q: '充值没到账、兑换页还报了错，这张卡密会不会白白没了？',
+      a: '看报的是哪一类。账号状态类的报错 —— 会员还没到期、账单里有逾期账单、短时间内刚充值成功过 —— 卡密不消耗，把账号那一侧处理干净再提交即可。凭据填写类的报错（要填的信息无效、过期或格式不对）同样不消耗，按兑换页提示重新取一次就行。只有一种情况要立刻停手：兑换页提示「本次充值需要人工确认，请联系客服并提供卡密」，这说明上游状态还没有明确回落，请带着订单号和卡密联系客服，不要重复提交 —— 重复提交可能真的消耗掉第二张卡密。已被上游核销的卡密不退。未使用的卡密永久有效，所以「先放着问清楚」永远比「再试一次」划算。',
     },
     {
       q: 'Claude Pro 能升级成 Max 吗？怎么升？',
@@ -432,6 +438,31 @@ export default async function ClaudeProLandingPage() {
               },
             ]}
           />
+        </Section>
+
+        <Section id="redeem-errors" heading="兑换报错了：对照这张表，先别急着提交第二次">
+          <p>
+            这一档的兑换报错，绝大多数落在前面「兑换前必须核对的两件事」上：会员还没到期、
+            账单里有逾期账单。兑换页不会用我们这个说法，它的提示大意是
+            「该账号已有订阅或状态异常，无法充值」和「该账号存在账单异常，暂时无法绑定」——
+            后面这一句最容易被误会成卡密有问题，它说的其实是账号那边还有没结清的账。
+            这两类都不消耗卡密，把账号状态处理干净再提交即可。
+          </p>
+          <p>
+            下面这 {redeemErrorCount()} 条覆盖本站各档位在兑换页上会出现的提示语，
+            并不是每一条你都会遇到。第一列是「这一类是什么情况」，下面附了几种已知措辞，按意思对号入座；
+            后面依次是这句话的实际含义、该怎么处理，以及这张卡密还在不在。
+          </p>
+
+          <RedeemErrorHelp groups={REDEEM_ERROR_GROUPS} scope={REDEEM_ERROR_SCOPE} />
+
+          <p className="pt-2">
+            前面说过未使用的卡密永久有效，所以遇到报错时最不划算的动作就是「再试一次」——
+            卡放着不会烂，重复提交才会出事。尤其看到
+            「本次充值需要人工确认，请联系客服并提供卡密」这类提示时要立刻停：
+            <strong className="text-white/80">不要重复提交，重复提交可能真的消耗掉第二张卡密</strong>
+            ，而已核销的卡密不退。把订单号和卡密一起发给客服，由我们去追这一笔。
+          </p>
         </Section>
 
         <Section id="trust" heading="Claude Pro 代充靠不靠谱：可以核验的几件事">

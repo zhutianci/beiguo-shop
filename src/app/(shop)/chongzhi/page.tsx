@@ -121,8 +121,10 @@ export default async function ChongzhiHubPage() {
             <p>
               这一页是全站充值服务的总入口：ChatGPT Plus / Pro、Claude Pro / Max 的会员充值，
               以及注册环节要用到的接码、家宽普号与 KYC 认证代办。
-              全部走<strong className="text-white/80">卡密自助兑换</strong>——
-              你用支付宝付人民币，拿到兑换码自己充，不需要任何境外支付方式，也不用把账号交出去。
+              绝大多数档位走<strong className="text-white/80">卡密自助兑换</strong>——
+              你用支付宝付人民币，拿到兑换码自己充，不需要任何境外支付方式，也不用把账号交出去；
+              账号类商品（如谷歌账号）发的是账号本身，接码类付款后由系统自动取号，
+              KYC 认证是人工对接。各档的交付方式写在对应页面上。
             </p>
             <p>
               按你要充的东西点进去，每一页都有当前真实价格、该走哪个档位、

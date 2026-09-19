@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getLandingProducts, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
+import { REDEEM_ERROR_GROUPS, REDEEM_ERROR_SCOPE, redeemErrorCount } from '@/lib/landing/redeem-errors'
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
@@ -14,6 +15,7 @@ import {
   FaqList,
   LandingShell,
   PriceTable,
+  RedeemErrorHelp,
   RelatedLandings,
   Section,
   Steps,
@@ -113,6 +115,10 @@ const FAQS: { q: string; a: string }[] = [
   {
     q: '充上去之后掉订阅了、或者账号被封了怎么算？',
     a: '订阅期间掉订阅，扣掉已经用掉的天数，按剩余未使用天数折算退款。账号被官方封禁不质保——封号通常是账号本身或使用方式的问题，和这一笔充值无关，这一条 Pro 档金额大，尤其要先想清楚能不能接受。规则写在服务条款里，不接受就别下单。',
+  },
+  {
+    q: '兑换页报错了，我这张 Pro 卡密是不是就废了？',
+    a: '多数情况下没废。兑换页的报错分三类：账号状态类（账号上已有订阅、当前套餐挡住了这次绑定、账单里有异常、10 分钟内刚充过）不消耗卡密，把账号状态理顺再提交即可；凭据类（兑换页要求填的账号信息无效、过期或格式不对）同样不消耗，按提示重新取一次就行；只有当兑换页提示「本次充值需要人工确认，请联系客服并提供卡密」时才要立刻停手，带上订单号和卡密找客服，不要重复提交——重复提交可能真的消耗掉第二张卡密，而已被上游核销的卡密不退。Pro 档一张卡密就是几百块，多点一次的代价是再买一张，别赌。',
   },
   {
     q: 'ChatGPT Pro 代充靠不靠谱，会不会收了钱不办事？',
@@ -451,6 +457,30 @@ export default async function ChatgptProLandingPage() {
               },
             ]}
           />
+        </Section>
+
+        <Section id="redeem-errors" heading="兑换报错了：对照这张表，先别急着提交第二次">
+          <p>
+            Pro 档在兑换页上最常见的那一类提示，其实是前面「可覆盖 / 不可覆盖」那一节没对上的后果：
+            账号上还留着生效中的 Plus 或 Pro，而你手上这张卡密盖不动它，兑换页会拦下来，措辞按通道不同，大意是
+            「该账号已有订阅或状态异常，无法充值」或者「该账号当前套餐不支持充值，请换用未订阅的账号」。
+            好消息是这一类不消耗卡密——先把订阅状态弄清楚，再决定该走哪个档位、要不要用【强制充值】。
+          </p>
+          <p>
+            下面这 {redeemErrorCount()} 条覆盖本站各档位在兑换页上会出现的提示语，你不一定每条都碰得到。
+            第一列是「这一类是什么情况」，下面附了几种已知措辞，按意思对号入座；最后一列写的是「这张卡密还在不在」——
+            在 Pro 这个价位上，这一列比别的都重要，先看它再决定下一步。
+          </p>
+
+          <RedeemErrorHelp groups={REDEEM_ERROR_GROUPS} scope={REDEEM_ERROR_SCOPE} />
+
+          <p className="pt-2">
+            处理顺序永远是「先看卡密那一列，再决定要不要重新提交」。看到
+            「本次充值需要人工确认，请联系客服并提供卡密」这一类提示时立刻停手：
+            <strong className="text-white/80">不要重复提交，重复提交可能真的消耗掉第二张卡密</strong>
+            ，而已核销的卡密不退。把订单号和卡密一起发给客服，由我们向上游追这一笔，
+            比你自己在兑换页上多点两次划算得多。
+          </p>
         </Section>
 
         <Section id="warranty" heading="质保与退款：把难听的话说在前面">

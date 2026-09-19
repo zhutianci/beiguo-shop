@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getLandingProducts, inStock, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
+import { REDEEM_ERROR_GROUPS, REDEEM_ERROR_SCOPE, redeemErrorCount } from '@/lib/landing/redeem-errors'
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
@@ -14,6 +15,7 @@ import {
   FaqList,
   LandingShell,
   PriceTable,
+  RedeemErrorHelp,
   RelatedLandings,
   Section,
   Steps,
@@ -123,6 +125,10 @@ const FAQS: { q: string; a: string }[] = [
   {
     q: '卡密买了先放着不兑换，会过期吗？可以退吗？',
     a: '未使用的卡密不设统一有效期，具体以对应商品页的说明为准（Claude Pro 那一档明示永久有效），没用过的也可以按服务条款申请退款。但一旦卡密被上游核销——也就是充值动作已经发生——无论结果是成功还是失败都不能退。所以真正要紧的不是有效期，而是兑换前把四项检查过一遍。',
+  },
+  {
+    q: 'Max 卡密提交之后报错，这几百块是不是打水漂了？',
+    a: '大多数报错不消耗卡密。账号状态类的（账号上有生效中的订阅、Billing 里有未结清或异常记录、10 分钟内刚充值成功过还在节流里）不消耗，把状态处理干净再提交即可；凭据填写类的（要填的账号信息无效、过期或格式不对）也不消耗，按兑换页提示重新取一次就行。真正要小心的只有一种：兑换页提示「本次充值需要人工确认，请联系客服并提供卡密」，这时请立刻带着订单号和卡密联系客服，不要重复提交——重复提交可能真的消耗掉第二张卡密，而已被上游核销的卡密无论结果如何都不退。本页「兑换报错了」那一节按情况列了对照表（各通道措辞不完全一样，按意思对号入座），报错之后先去那里对一遍，再决定下一步。',
   },
 ]
 
@@ -462,6 +468,31 @@ export default async function ClaudeMaxLandingPage() {
               },
             ]}
           />
+        </Section>
+
+        <Section id="redeem-errors" heading="兑换报错了：对照这张表，先别急着提交第二次">
+          <p>
+            Max 档单价高，一次失误的代价比别处大：同样是「看到报错顺手再点一次」，
+            在便宜的档位上亏掉的是几十块，在这里亏掉的是一整张 Max 卡密。
+            前面那四项检查没过就提交，兑换页大多会回给你
+            「该账号已有订阅或状态异常，无法充值」或者「该账号存在账单异常，暂时无法绑定」——
+            对应的正是第一条和第二条。好消息是这两类都不消耗卡密，把账号状态处理干净再来一次就行。
+          </p>
+          <p>
+            下面这 {redeemErrorCount()} 条是兑换页会原样显示的提示语，覆盖本站各个档位，
+            你不一定每条都遇得到。第一列就是你屏幕上那句话，直接按它找；
+            最后一列是「这张卡密还在不在」——在 Max 这个金额上，先看这一列再决定下一步。
+          </p>
+
+          <RedeemErrorHelp groups={REDEEM_ERROR_GROUPS} scope={REDEEM_ERROR_SCOPE} />
+
+          <p className="pt-2">
+            表里没有专门对应第三条（Organization ID 被 shadow ban）的那一行，
+            因为它不会以一句明确的提示出现在兑换页上，只能靠你自己在兑换前到官网发一条消息去测。
+            真正要停手的信号是「本次充值需要人工确认，请联系客服并提供卡密」这一类提示：
+            <strong className="text-white/80">不要重复提交，重复提交可能真的消耗掉第二张卡密</strong>
+            ，而已核销的卡密不退。把订单号和卡密一起发给客服，由我们向上游追这一笔。
+          </p>
         </Section>
 
         <Section id="risk" heading="质保到哪儿、不质保什么">

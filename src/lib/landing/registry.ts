@@ -134,6 +134,21 @@ export const LANDINGS = [
     blurb: 'Codex 注册卡在验证码，多半是号码类型的问题，不是运气问题。',
     match: { categoryName: '短信接码', nameAny: ['codex'] },
   },
+  {
+    slug: 'google-zhanghao',
+    navLabel: '谷歌账号',
+    h1: '谷歌账号购买：成品号是什么、2FA 与辅助邮箱怎么登、买来开 Gemini 要注意什么',
+    title: '谷歌账号购买：成品号怎么登录、多少钱 - 贝果科技',
+    description:
+      '谷歌账号购买：2020-2025 年注册的成品号 ￥30 起，支持支付宝，付款后即时发货。讲清 2FA 与辅助邮箱两种登录方式怎么分、到手先登录再改密码的顺序、「质保 3 天内首登」到底保什么，以及买号开 Gemini 前该知道的边界。',
+    blurb: '买成品号最容易踩的坑是登录方式。2FA 和辅助邮箱怎么分、到手先做什么，这一页讲清。',
+    // 【slug 用 zhanghao 不用 youxiang】2026-09-19 实测：`谷歌邮箱购买` 联想数为 0，
+    // 而 `谷歌账号购买` 有真实联想并带出三个修饰词。后台商品名叫「谷歌邮箱成品号」，
+    // 用的正是那个零需求词——商品名暂时不动，但对外的页面主词必须是「谷歌账号购买」。
+    // 【为什么按分类匹配】这一类目前只有一个 SKU，但很可能按注册年份或登录方式拆档位，
+    // 按分类匹配的话新档位会自动进价格表，不用回来改这里。
+    match: { categoryName: '谷歌邮箱' },
+  },
 ] as const satisfies readonly LandingDef[]
 
 export function landingPath(slug: string): string {
