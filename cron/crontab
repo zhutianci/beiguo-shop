@@ -45,3 +45,7 @@
 0 21 * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=digest&type=DAILY&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
 # 每周一 09:00 生成上周周报
 0 9 * * 1 curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=digest&type=WEEKLY&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+
+# 流量数据保留期清理：每天 03:40（低峰）。page_views 90 天、visitors 一年不活跃。
+# 保留期与 /privacy 里对买家的承诺绑定，改这里之前先去改那一页。
+40 3 * * * curl -fsS --max-time 240 "http://app:3000/api/cron/cleanup?secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
