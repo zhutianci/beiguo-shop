@@ -140,19 +140,37 @@ export default function ProductDetailClient() {
       <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
 
       <div className="container relative">
-        <motion.div
+        {/* 面包屑。原来这里只有一个「返回商品列表」，换成完整路径有两个收益：
+            ① 页面外壳（page.tsx）里输出的 BreadcrumbList 结构化数据必须对应
+               页面上**看得见**的面包屑，否则属于「标记了用户看不到的内容」，是违规标记；
+            ② 搜索结果里那行 `贝果科技 › 商品 › ChatGPT` 会替换掉裸 URL，点击率更好。
+            返回箭头保留在最前面，移动端的返回手感不变。 */}
+        <motion.nav
+          aria-label="面包屑"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
+          className="flex items-center gap-2 text-sm text-white/40 mb-12 flex-wrap"
         >
-          <Link
-            href="/products"
-            className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-12 group"
-          >
+          <Link href="/products" className="text-white/60 hover:text-white transition-colors group inline-flex items-center gap-1.5">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            返回商品列表
+            返回
           </Link>
-        </motion.div>
+          <span className="text-white/20">|</span>
+          <Link href="/" className="hover:text-white transition-colors">
+            首页
+          </Link>
+          <span className="text-white/20">/</span>
+          <Link href="/products" className="hover:text-white transition-colors">
+            全部商品
+          </Link>
+          {/* 【这里刻意没有分类那一级】分类是 /products?category=N 这个筛选视图，
+              它的 canonical 指回 /products。把它写进层级，页面上可见的面包屑
+              就会比 page.tsx 里输出的 BreadcrumbList 多一级，两边对不上——
+              而「标记与页面不一致」本身就是结构化数据政策要挡的东西。 */}
+          <span className="text-white/20">/</span>
+          <span className="text-white/70 truncate max-w-[16rem]">{product.name}</span>
+        </motion.nav>
 
         {/* 桌面端「左内容 / 右下单卡」两栏：lg 起 2:1 分栏，右栏 sticky 跟随滚动，
             购买入口在整页任何位置都留在视野内；xl 再把栏间距拉到 40px，避免两栏黏在一起 */}
@@ -304,7 +322,7 @@ export default function ProductDetailClient() {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-white/30 mt-1">·</span>
-                  支持支付宝、微信支付
+                  支持支付宝付款
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-white/30 mt-1">·</span>
