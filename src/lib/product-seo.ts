@@ -62,7 +62,7 @@ export function productDescription(p: SeoProduct): string {
   const desc = (p.description || '').replace(/\s+/g, ' ').trim()
   if (desc) return desc.length > 150 ? `${desc.slice(0, 147)}…` : desc
   const price = Number.isFinite(p.price) ? `￥${p.price.toFixed(2)}` : ''
-  return `${p.name} ${price}。${SITE_NAME}提供 Claude、ChatGPT 订阅代开与充值服务，下单后人工核验发货，支持开具发票。`.trim()
+  return `${p.name} ${price}。${SITE_NAME}提供 ChatGPT Plus / Claude Pro 等 AI 会员充值与代充，卡密自助兑换，支持支付宝，可开发票。`.trim()
 }
 
 /**

@@ -28,12 +28,21 @@ export default function robots(): MetadataRoute.Robots {
           '/pay/', // 支付页：含订单号，且对爬虫无意义
           '/admin', // 后台
           '/api/', // 接口
-          '/orders', // 我的订单（需登录，收录无意义且可能带参数泄漏）
-          '/profile', // 个人中心
-          '/lookup', // 订单查询：query 里会带邮箱
-          '/login',
-          '/register',
-          '/forgot-password',
+          '/lookup', // 订单查询：query 里会带邮箱，属于「抓到就可能泄漏」那一类，必须挡住
+          /*
+           * 【/orders /profile /login /register /forgot-password 为什么不在这里了】
+           * 2026-09-19 从 Disallow 里移出，改为在各自的路由 layout 上声明 noindex
+           * （见 src/lib/seo/private-page.ts）。
+           *
+           * 原因是这两者**互斥而不是双保险**：Disallow 的含义是「别来抓」，
+           * Googlebot 根本不会请求这个地址，于是也永远读不到页面上的 noindex——
+           * 而 Google 明确说过，被 Disallow 的 URL 只要有外链指过来，
+           * 仍然可能以「只有标题没有摘要」的形式留在搜索结果里，且无法通过 noindex 清掉。
+           * 真正能让一个页面**退出索引**的只有 noindex，前提是它能被抓到。
+           *
+           * 这五条既不带 token 也不带隐私参数（背后都是登录态，爬虫看到的就是登录页），
+           * 放开抓取没有任何代价。/receipt/ /pay/ /lookup 则相反，保持 Disallow 不动。
+           */
           // 分享渠道（?s=）与新闻归因（?n=）只是同一个页面的带参副本，
           // 内容与不带参时一模一样。放任收录就是自己给自己制造重复内容，
           // 稀释真正那条 URL 的权重。canonical 也会指回去，这里是双保险。

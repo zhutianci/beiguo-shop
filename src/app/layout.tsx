@@ -7,9 +7,18 @@ import { siteOrigin } from '@/lib/news/format'
 const inter = Inter({ subsets: ['latin'] })
 
 const SITE_NAME = '贝果科技'
-const TITLE = '贝果科技 - Claude & ChatGPT AI 订阅服务'
+const TITLE = '贝果科技 - ChatGPT Plus / Claude Pro 充值与代充'
+/*
+ * 【2026-09-19 改词，不是润色】原文写的是「AI 服务代开平台」。
+ * 实测 Google 中文下拉建议：`chatgpt代开`、`claude代开` 的联想数都是 **0**，
+ * 而同位置 `chatgpt充值` 有 8 条、`chatgpt plus 购买` 有 10 条、`chatgpt代充` 有 3 条。
+ * 也就是说「代开」这个词没有人搜——全站把主营业务写成了一个零需求词，
+ * 搜索引擎没有任何 query 能把这个站匹配进来。
+ * 主词改为「充值 / 购买」，「代充」作为次要说法保留（搜它的人是在查你靠不靠谱，
+ * 是转化率很高的一批），「代开 / 代购 / 代订阅」全部删掉。
+ */
 const DESCRIPTION =
-  '贝果科技 - 专业的 AI 服务代开平台，提供 Claude Pro、Claude MAX、ChatGPT Plus、ChatGPT Pro 等订阅服务'
+  '贝果科技提供 ChatGPT Plus / Pro、Claude Pro / Max 会员充值与代充：卡密自助兑换，支持支付宝付款，无需信用卡，可开增值税发票。'
 
 /**
  * 站点级 metadata。子页面（如 /news/[slug] 的 generateMetadata）只需要覆盖
@@ -38,7 +47,8 @@ export const metadata: Metadata = {
   // 再自动追加一截站名只会把它挤爆。各页面自己写全标题。
   title: TITLE,
   description: DESCRIPTION,
-  keywords: '贝果科技,Claude,ChatGPT,AI,代开,订阅,Pro,MAX,Plus',
+  // keywords 这个 meta 谷歌 2009 年就公开说过完全不参与排序，留着只是不让它写错。
+  keywords: '贝果科技,ChatGPT Plus 充值,ChatGPT 代充,Claude Pro 充值,Claude 会员,AI 订阅充值',
   applicationName: SITE_NAME,
   // 这里刻意不写 alternates.canonical：Next 的 metadata 是逐段继承的，
   // 在根布局写死 canonical:'/' 会让全站每个页面都自称「我是首页的副本」，

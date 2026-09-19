@@ -30,6 +30,9 @@ const TITLE = 'AI 圈大事记 - 每日 AI 动态聚合'
 const DESC = '把一天里 AI 圈发生的事按事件聚合到一起：模型发布、产品更新、论文与工具。全部来自公开信源，由 AI 自动整理摘要。'
 
 export const metadata: Metadata = {
+  // 自指 canonical：/news 会被带 ?s= / ?n= 分享出去，也会被 sitemap 提交，
+  // 没有它就是 sitemap 里唯一一条不声明规范地址的 URL
+  alternates: { canonical: '/news' },
   metadataBase: new URL(siteOrigin()),
   title: TITLE,
   description: DESC,
