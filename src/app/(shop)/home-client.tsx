@@ -130,13 +130,16 @@ export default function HomeClient() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="text-display leading-[0.9] mb-8"
             >
-              {/* 两行各自是一个完整短语，而不是「产品名 + 换行 + 动词」：
-                  H1 会被当成一句话读（搜索引擎、读屏软件、微信分享标题都一样），
-                  拆成半句的写法在任何一个场景里都不成立。
-                  两行分别用「充值」和「代充」，一次覆盖两个同义主词。 */}
-              <span className="gradient-text">ChatGPT Plus 充值</span>
+              {/* 【两行拼起来必须是一句通顺的话】H1 在搜索引擎、读屏软件、微信分享标题里
+                  都是被当成一整句读的，<br> 只是视觉换行，不产生语义停顿。
+                  之前写成「ChatGPT Plus 充值」+「Claude Pro 代充」，两行各自成立，
+                  连起来读却是「…充值Claude Pro 代充」，两个词干硬撞在一起。
+                  现在上行是宾语（产品名）、下行是谓语（动作），
+                  连读是「ChatGPT Plus、Claude Pro 充值与代充」，
+                  同时覆盖「充值」和「代充」两个同义主词。 */}
+              <span className="gradient-text">ChatGPT Plus、Claude Pro</span>
               <br />
-              <span className="gradient-text-accent">Claude Pro 代充</span>
+              <span className="gradient-text-accent">充值与代充</span>
             </motion.h1>
 
             {/* 副标题在 xl 提到 2xl(24px)：text-body-lg 最大只到 20px，压在 128px 标题下面显得断层；
