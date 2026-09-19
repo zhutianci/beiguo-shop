@@ -7,8 +7,62 @@
 const SELF_HOSTS = ['bigolab.com', 'www.bigolab.com']
 
 /**
- * 搜索引擎识别。key 是 host 里的特征串，value 是归一化后的名字。
- * 顺序有意义：先匹配到的算数，所以更长、更具体的写在前面。
+ * host 与规则的匹配。两种写法，不要再用 includes：
+ *
+ *   'chatgpt.com'   精确域名——命中 chatgpt.com 本身及其子域
+ *   'google.'       品牌段——host 里有一整段正好等于 google，
+ *                   用来覆盖 google.com / google.com.hk / google.co.jp 这种多顶级域的情况
+ *
+ * 【为什么必须这样写】第一版用的是 `host.includes(needle)`，于是
+ * `chatgpt.com` 命中了推特短链 `t.co`（chatgp**t.co**m），ChatGPT 带来的流量
+ * 整段被记成「社交/社区」。同类误伤还有 `netflix.com` 命中 `x.com`、
+ * `support.com` 命中 `t.co`、`also.com` 命中 `so.com`。
+ * 子串匹配在域名上永远是错的，因为域名的边界是点，不是字符。
+ */
+function hostMatches(host: string, pattern: string): boolean {
+  if (pattern.endsWith('.')) return host.split('.').includes(pattern.slice(0, -1))
+  return host === pattern || host.endsWith(`.${pattern}`)
+}
+
+/**
+ * AI 助手 / AI 搜索。
+ *
+ * 【为什么单独一类，而且要排在搜索引擎前面】
+ * 2026-09-19 上线埋点当天，chatgpt.com 就是本站第一大外部来源
+ * （12 次浏览 / 3 个访客，超过 Google 与 Bing 之和，其中一个访客一路走到了登录和订单页）。
+ * 这批人不是点广告来的，是 ChatGPT 在回答「国内怎么充 ChatGPT Plus」时把本站作为来源引用了。
+ * 把它混进「社交」或「外链引荐」，等于看不见一条正在增长的获客渠道。
+ *
+ * 排在搜索引擎之前是必须的：`gemini.google.com` 会被品牌段规则 `google.` 判成 Google 搜索。
+ */
+const AI_ASSISTANTS: [string, string][] = [
+  ['chatgpt.com', 'chatgpt'],
+  ['openai.com', 'chatgpt'], // 老链接 chat.openai.com 现在跳 chatgpt.com，但 referrer 仍可能是它
+  ['claude.ai', 'claude'],
+  ['gemini.google.com', 'gemini'],
+  ['aistudio.google.com', 'gemini'],
+  ['copilot.microsoft.com', 'copilot'],
+  ['perplexity.ai', 'perplexity'],
+  ['grok.com', 'grok'],
+  ['x.ai', 'grok'],
+  ['deepseek.com', 'deepseek'],
+  ['doubao.com', 'doubao'],
+  ['kimi.com', 'kimi'],
+  ['moonshot.cn', 'kimi'],
+  ['yuanbao.tencent.com', 'yuanbao'],
+  ['tongyi.com', 'tongyi'],
+  ['tongyi.aliyun.com', 'tongyi'],
+  ['chatglm.cn', 'zhipu'],
+  ['metaso.cn', 'metaso'],
+  ['felo.ai', 'felo'],
+  ['poe.com', 'poe'],
+  ['you.com', 'you'],
+  ['phind.com', 'phind'],
+]
+
+/**
+ * 搜索引擎识别。key 是域名或品牌段（写法见 hostMatches），value 是归一化后的名字。
+ * 顺序有意义：先匹配到的算数。
  */
 const SEARCH_ENGINES: [string, string][] = [
   ['google.', 'google'],
@@ -25,27 +79,27 @@ const SEARCH_ENGINES: [string, string][] = [
 ]
 
 /** 社交/社区来源。这一类在中文场景里是重要的转化来源，不该被塞进 referral 大杂烩 */
-const SOCIAL_HOSTS: [string, string][] = [
-  ['zhihu.com', 'zhihu'],
-  ['weibo.', 'weibo'],
-  ['v2ex.com', 'v2ex'],
-  ['linux.do', 'linuxdo'],
-  ['xiaohongshu.com', 'xiaohongshu'],
-  ['bilibili.com', 'bilibili'],
-  ['douban.com', 'douban'],
-  ['t.co', 'twitter'],
-  ['x.com', 'twitter'],
-  ['twitter.com', 'twitter'],
-  ['t.me', 'telegram'],
-  ['qq.com', 'qq'],
-  ['csdn.net', 'csdn'],
-  ['juejin.cn', 'juejin'],
-  ['segmentfault.com', 'segmentfault'],
-  ['github.com', 'github'],
-  ['reddit.com', 'reddit'],
+const SOCIAL_HOSTS: string[] = [
+  'zhihu.com',
+  'weibo.',
+  'v2ex.com',
+  'linux.do',
+  'xiaohongshu.com',
+  'bilibili.com',
+  'douban.com',
+  't.co',
+  'x.com',
+  'twitter.com',
+  't.me',
+  'qq.com',
+  'csdn.net',
+  'juejin.cn',
+  'segmentfault.com',
+  'github.com',
+  'reddit.com',
 ]
 
-export type TrafficSource = 'search' | 'direct' | 'social' | 'referral' | 'internal'
+export type TrafficSource = 'search' | 'ai' | 'direct' | 'social' | 'referral' | 'internal'
 
 export interface Classified {
   source: TrafficSource
@@ -59,8 +113,15 @@ export interface Classified {
  * 【direct 这个类目名不准确，但沿用行业惯例】它其实是「拿不到 referrer」，
  * 包含直接输网址、从书签进、从 App 内打开、以及从 https 跳到本站时对方设了
  * referrer policy 的情况。看这个数字时心里要有数，它不等于「记住了你网址的人」。
+ *
+ * @param selfHost 本次请求自己的 Host 头。域名之外还能从公网 IP 直连本站
+ *                 （nginx 80 端口对外开着），那种情况下 referrer 是 IP，
+ *                 不在 SELF_HOSTS 里，不传这个参数就会把站内跳转记成外链引荐。
  */
-export function classifyReferrer(referrer: string | null | undefined): Classified {
+export function classifyReferrer(
+  referrer: string | null | undefined,
+  selfHost?: string | null
+): Classified {
   if (!referrer) return { source: 'direct', engine: null, refHost: null }
 
   let host: string
@@ -72,13 +133,19 @@ export function classifyReferrer(referrer: string | null | undefined): Classifie
   }
   if (!host) return { source: 'direct', engine: null, refHost: null }
 
-  if (SELF_HOSTS.includes(host)) return { source: 'internal', engine: null, refHost: host }
-
-  for (const [needle, name] of SEARCH_ENGINES) {
-    if (host.includes(needle)) return { source: 'search', engine: name, refHost: host }
+  const self = selfHost?.toLowerCase().trim()
+  if (SELF_HOSTS.includes(host) || (self && host === self)) {
+    return { source: 'internal', engine: null, refHost: host }
   }
-  for (const [needle] of SOCIAL_HOSTS) {
-    if (host.includes(needle)) return { source: 'social', engine: null, refHost: host }
+
+  for (const [pattern, name] of AI_ASSISTANTS) {
+    if (hostMatches(host, pattern)) return { source: 'ai', engine: name, refHost: host }
+  }
+  for (const [pattern, name] of SEARCH_ENGINES) {
+    if (hostMatches(host, pattern)) return { source: 'search', engine: name, refHost: host }
+  }
+  for (const pattern of SOCIAL_HOSTS) {
+    if (hostMatches(host, pattern)) return { source: 'social', engine: null, refHost: host }
   }
   return { source: 'referral', engine: null, refHost: host }
 }

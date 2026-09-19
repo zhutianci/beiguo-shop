@@ -336,9 +336,13 @@ function parse(raw: unknown): TrafficData | null {
 
 const SOURCE_META: Record<string, { label: string; color: string }> = {
   search: { label: '搜索引擎', color: '#10b981' },
+  // AI 助手单列一类：上线埋点第一天 chatgpt.com 就是最大的外部来源，
+  // 混进「社交」或「外链引荐」等于看不见这条渠道
+  ai: { label: 'AI 助手 / AI 搜索', color: '#ec4899' },
   direct: { label: '直接访问', color: '#9ca3af' },
   social: { label: '社交 / 社区', color: '#8b5cf6' },
   referral: { label: '外链引荐', color: '#f59e0b' },
+  // 会话归因之后新数据基本不会再出现这一类，留着是为了旧数据还能正常显示
   internal: { label: '站内跳转', color: '#38bdf8' },
 }
 const ENGINE_LABEL: Record<string, string> = {
@@ -1211,8 +1215,16 @@ export default function TrafficAnalytics() {
             ：它真正的含义是「拿不到 referrer」，包含直接输网址、书签、App 内打开、
             以及对方站设了 referrer policy 的 https 跳转，是个大杂烩。
             判断 SEO 成效只看 <span className="text-gray-500">search 的绝对值和它的环比</span>，
-            别拿 direct 的涨跌说事。internal 是站内跳转，不是新流量；
+            别拿 direct 的涨跌说事。
             展开 search 能看到各引擎分布——国内站如果 Google 远多于百度，说明百度那边还没被收录。
+            <br />
+            <span className="text-gray-500">来源是会话归因</span>
+            ：一次访问从哪进来，这次访问里的每一页都算那个来源，
+            所以这张表回答的是「人是谁带来的」，不是「上一页点的是哪」。
+            <span className="text-gray-500">AI 助手</span>
+            这一类是 ChatGPT、Claude、Perplexity、豆包这些在回答里引用本站带来的点击，
+            现在它已经是最大的外部来源，值得单独盯。
+            internal 是 2026-09-19 改成会话归因之前留下的旧数据，新数据基本不会再有这一类。
           </Hint>
         </CardContent>
       </Card>

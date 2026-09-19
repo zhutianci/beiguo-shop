@@ -1052,9 +1052,12 @@ model PageView {
   // 天键 YYYY-MM-DD（东八区）。单独存一列是为了按天聚合能走索引，
   // 而不是对 created_at 做函数运算——MySQL 那样用不上索引
   dayKey     String   @map("day_key") @db.VarChar(10)
-  // 来源分类：search / direct / social / referral / internal
+  // 来源分类：search / ai / direct / social / referral / internal
+  // 口径是「这次访问从哪进来的」（会话归因），整个访问期间每条浏览都带同一个来源，
+  // 不是逐跳归因——理由写在 components/page-view-beacon.tsx 里
   source     String   @db.VarChar(12)
-  // 搜索引擎名（source=search 时才有）：google / bing / baidu / sogou / yandex / other
+  // source=search 时是搜索引擎名（google / bing / baidu / sogou / yandex / other）；
+  // source=ai 时是 AI 助手名（chatgpt / perplexity / gemini / doubao …）
   engine     String?  @db.VarChar(12)
   // 来源域名，只存 host 不存完整 URL（完整 URL 可能带别人站的隐私参数）
   refHost    String?  @map("ref_host") @db.VarChar(120)

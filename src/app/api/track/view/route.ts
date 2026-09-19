@@ -38,7 +38,7 @@ function dayKeyOf(d: Date): string {
 
 const bodySchema = z.object({
   p: z.string().min(1).max(300), // 路径
-  r: z.string().max(500).optional(), // document.referrer
+  r: z.string().max(500).optional(), // 本次访问的入口 referrer（口径见 page-view-beacon.tsx）
   k: z.string().min(8).max(64).optional(), // 前端 localStorage 里的匿名 id
 })
 
@@ -78,7 +78,10 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date()
-    const { source, engine, refHost } = classifyReferrer(parsed.data.r)
+    // 把本次请求自己的 Host 传进去：除了域名，本站还能从公网 IP 直连（nginx 80 对外开着），
+    // 那种情况下站内跳转的 referrer 是 IP，不传就会被记成「外链引荐」
+    const selfHost = request.headers.get('x-forwarded-host') || request.headers.get('host')
+    const { source, engine, refHost } = classifyReferrer(parsed.data.r, selfHost)
     const device = classifyDevice(request.headers.get('user-agent'))
 
     try {
