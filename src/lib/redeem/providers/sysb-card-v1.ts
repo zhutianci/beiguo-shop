@@ -193,8 +193,83 @@ export function parseSession(raw: string): { raw: string; email: string; idp: st
     // 官网同样在本地就拒掉，理由一致：这类账号这条通道根本充不了
     throw new RedeemError('暂不支持 Team、Enterprise 或工作区账号，请使用普通个人账号', 'ERROR')
   }
+  /*
+   * 【有效期必须在本地就判，而且必须在上锁之前】2026-09-19 线上事故的根因就在这儿。
+   *
+   * 买家粘了一份快过期的 Session，本地这一串校验全过，于是流程往下走到
+   * markIrreversible() 把卡锁了 15 分钟，紧接着 precheckAccount 被上游拒掉
+   * （上游原话「更新后的登录凭据有效期不足，请重新登录；本次未提交支付」）。
+   * 这时**什么都没有提交**，但锁已经落下了。买家重新取一份 Session 再提交，
+   * 撞上锁，看到的是「这张卡密已经提交过一次充值，正在处理中」——
+   * 一句完全错误、而且让人以为是本站故障的提示。
+   *
+   * 把有效期挪到这里判，这一类就根本走不到上锁那一步。
+   *
+   * 【阈值取 5 分钟，而且只拒明确不够的】上游要求的最短剩余时长没有公开，
+   * 猜大了会把本来能成的 Session 拒掉——那比现在更糟。所以只拦两种铁定不行的：
+   * 已经过期、以及剩余不足 5 分钟（整条链路跑完约 7 秒，但买家从复制到提交
+   * 常常要一两分钟，再留点余量）。介于中间的仍然交给上游判。
+   */
+  assertSessionFresh(o, accessToken)
+
   const idp = user.idp || o.idp || auth.idp
   return { raw: text, email, idp: typeof idp === 'string' ? idp : '' }
+}
+
+/** 至少要剩这么久才允许提交。理由见 assertSessionFresh 的调用处 */
+const MIN_SESSION_REMAIN_MS = 5 * 60_000
+
+/**
+ * 从 JWT 里读 exp。**不验签**——我们不是在鉴权，只是想在动卡之前
+ * 尽早发现「这份凭据已经过期了」。读不出来就返回 null，交给上游判。
+ */
+function jwtExpMs(token: string): number | null {
+  const parts = token.split('.')
+  if (parts.length < 2) return null
+  try {
+    const json = Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')
+    const exp = (JSON.parse(json) as { exp?: unknown }).exp
+    return typeof exp === 'number' && Number.isFinite(exp) ? exp * 1000 : null
+  } catch {
+    return null
+  }
+}
+
+function assertSessionFresh(o: Record<string, unknown>, accessToken: string): void {
+  // 两个来源都看：session JSON 顶层的 expires（ISO 字符串），以及 accessToken 里的 exp。
+  // 取**更早**的那个——任何一个到期，这份凭据就不能用了。
+  const candidates: number[] = []
+
+  const expires = o.expires
+  if (typeof expires === 'string') {
+    const t = Date.parse(expires)
+    if (Number.isFinite(t)) candidates.push(t)
+  }
+  const jwtExp = jwtExpMs(accessToken)
+  if (jwtExp != null) candidates.push(jwtExp)
+
+  // 一个都读不出来：不猜，交给上游。这里宁可漏判也不能误拒。
+  if (!candidates.length) return
+
+  const expiresAt = Math.min(...candidates)
+  const remain = expiresAt - Date.now()
+
+  if (remain <= 0) {
+    throw new RedeemError(
+      '这份登录凭据已经过期了。请回到 ChatGPT 的 session 页面重新复制一份再提交——' +
+        '本次没有提交，卡密没有被消耗。',
+      'ERROR',
+      true
+    )
+  }
+  if (remain < MIN_SESSION_REMAIN_MS) {
+    throw new RedeemError(
+      '这份登录凭据的剩余有效期太短，提交过程中很可能就失效了。' +
+        '请回到 ChatGPT 的 session 页面重新复制一份再提交——本次没有提交，卡密没有被消耗。',
+      'ERROR',
+      true
+    )
+  }
 }
 
 /**
