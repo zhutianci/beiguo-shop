@@ -172,8 +172,16 @@ services:
     # 把反斜杠吃掉，变成 tr -d 'r'，把 crontab 里所有字母 r 删了：curl→cul、cron→con，
     # 全部任务静默失效且 crond 不报错。CRLF 防护改由 .gitattributes 强制 LF 承担，
     # 这里只用 cp —— 不要再往这条命令里加任何带反斜杠转义的东西。
+    # ⚠️ 2026-09-19 事故：这个容器**每次启动都要联网装包**，而默认源
+    # dl-cdn.alpinelinux.org 在这台机器上会卡死（db push 那条链路早就踩过，
+    # 交接文档第五节记着「apk 要换阿里云源」）。apk 卡住时 && 链停在第一步，
+    # cp 和 crond 都不会执行 —— 而容器状态仍然是 Up，
+    # 表现为「所有定时任务静默全停，但看上去一切正常」，比直接崩溃难发现得多。
+    # 所以装包前先把源换成阿里云。sed 用单引号，不要往这条命令里加任何反斜杠转义
+    # （理由见上面那段「反斜杠被两层处理吃掉」的事故记录）。
     command: >
-      sh -c "apk add --no-cache curl tzdata >/dev/null 2>&1 &&
+      sh -c "sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories &&
+      apk add --no-cache curl tzdata >/dev/null 2>&1 &&
       cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime &&
       echo 'Asia/Shanghai' > /etc/timezone &&
       printf '%s' \"$$CRON_SECRET\" > /run/cron_secret && chmod 600 /run/cron_secret &&
