@@ -444,7 +444,7 @@ export default async function ClaudeProLandingPage() {
             items={[
               <>
                 <strong className="text-white/80">有可核验的经营主体</strong>
-                ：本站由益阳市赫山区必高科技有限公司运营，能开具增值税发票，票据上盖的是这家公司的章。
+                ：本站由益阳市赫山区必高科技有限公司运营，能开具增值税发票（页面标价不含税，开票需另付 6% 税费），票据上盖的是这家公司的章。
               </>,
               <>
                 <strong className="text-white/80">交付卡密，不碰你的账号密码</strong>

@@ -74,9 +74,17 @@ export default function TermsPage() {
 
       <LegalSection heading="三、价格与支付">
         <ul className="list-disc pl-6 space-y-2">
-          <li>页面标示价格为人民币含税价，以下单时页面显示的实付金额为准。</li>
+          <li>
+            <strong className="text-white">页面标示价格为不含税价</strong>
+            ，以下单时页面显示的实付金额为准。
+          </li>
           <li>价格随上游成本与汇率浮动，我们可随时调整，已完成的订单不受后续调价影响。</li>
-          <li>可开具增值税发票或收据，在订单完成后通过站内入口或联系客服申请。</li>
+          <li>
+            <strong className="text-white">需要发票的，须在售价之外另行支付 6% 税费。</strong>
+            开票金额为「售价 × 1.06」，税费在申请开票时单独支付。
+            收据不涉及税费。两者都在订单完成后通过站内入口或联系客服申请，
+            发票抬头由你自己填写。
+          </li>
         </ul>
       </LegalSection>
 

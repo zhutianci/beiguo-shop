@@ -130,14 +130,12 @@ export default function HomeClient() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="text-display leading-[0.9] mb-8"
             >
-              {/* 【两行拼起来必须是一句通顺的话】H1 在搜索引擎、读屏软件、微信分享标题里
-                  都是被当成一整句读的，<br> 只是视觉换行，不产生语义停顿。
-                  之前写成「ChatGPT Plus 充值」+「Claude Pro 代充」，两行各自成立，
-                  连起来读却是「…充值Claude Pro 代充」，两个词干硬撞在一起。
-                  现在上行是宾语（产品名）、下行是谓语（动作），
-                  连读是「ChatGPT Plus、Claude Pro 充值与代充」，
-                  同时覆盖「充值」和「代充」两个同义主词。 */}
-              {/* 【为什么 H1 里不写 Plus / Pro / Max 这些档位】首页要说的是「这门生意是什么」，
+              {/* 【两行拼起来必须是一句通顺的话】<br> 只是视觉换行，不产生语义停顿——
+                  搜索引擎、读屏软件、微信分享标题读到的都是连起来的那一串。
+                  所以上行是宾语（产品名）、下行是谓语（动作），连读为
+                  「ChatGPT、Claude 充值与代充」，两个同义主词都在。
+
+                  【为什么 H1 里不写 Plus / Pro / Max 这些档位】首页要说的是「这门生意是什么」，
                   写死两个档位会让人以为只做那两档（实际还有 Pro 5x、年费、接码、注册、KYC）。
                   档位词交给 /chongzhi 下面那 7 个子页各自去吃——首页吃宽词、子页吃精确词，
                   这是信息架构该有的分工，不是放弃关键词。
@@ -163,7 +161,7 @@ export default function HomeClient() {
               卡密自助兑换，支付宝付款，
               <span className="gradient-text-accent">
                 <Typewriter
-                  texts={['无需信用卡', '最快 10 分钟到账', '可开增值税发票', '未使用卡密长期有效']}
+                  texts={['无需信用卡', '最快 10 分钟到账', '可开增值税发票（税费另付）', '未使用卡密长期有效']}
                   typeSpeed={150}
                   deleteSpeed={80}
                   pauseTime={2500}
