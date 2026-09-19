@@ -13,6 +13,7 @@ import { ShareBar } from '@/components/news/share-bar'
 import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
 import { withNewsRef } from '@/lib/news/attribution'
 import { newsUrl } from '@/lib/news/seo'
+import { shouldNoindexEvent } from '@/lib/news/thin'
 import { AiNoticeBlock, LeadCredit } from '@/components/news/ai-notice-block'
 import {
   EVENT_DETAIL_SELECT,
@@ -53,11 +54,19 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const ev = toEventDto(row)
   const description = ev.summary.replace(/\s+/g, ' ').slice(0, 110)
   const image = ogImageForCategory(ev.category)
+  // 没有全文层的事件不进索引（保留 follow）。理由与开关见 lib/news/thin.ts——
+  // 简单说：97% 的站点 URL 是每小时批量产出的 147 字 AI 摘要页，
+  // 这组特征正对着 Google 的 scaled content abuse，而那种判定是**站点级**的，
+  // 真掉下去的是商品页。补齐 detail 后这里会自动恢复可索引，不需要回填。
+  const noindex = shouldNoindexEvent(parseDetail(row.detail))
 
   return {
     metadataBase: new URL(siteOrigin()),
     title: `${ev.headline} - AI 圈大事记`,
     description,
+    ...(noindex
+      ? { robots: { index: false, follow: true, googleBot: { index: false, follow: true } } }
+      : {}),
     alternates: { canonical: `/news/${ev.slug}` },
     openGraph: {
       type: 'article',

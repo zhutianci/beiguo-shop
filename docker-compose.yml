@@ -77,6 +77,11 @@ services:
       - GOOGLE_SITE_VERIFICATION
       - BING_SITE_VERIFICATION
       - INDEXNOW_KEY
+      # 薄新闻页（没有全文层的）是否加 noindex。默认开启，设成 0 才关闭。
+      # 详见 src/lib/news/thin.ts：97% 的站点 URL 是每小时批量产出的
+      # 147 字 AI 摘要页，这组特征正对着 Google 的 scaled content abuse，
+      # 而那种判定是站点级的——真掉下去的是商品页和充值落地页。
+      - NEWS_THIN_NOINDEX
       # AI圈大事记：LLM 供应商与境外信源中继
       - LLM_PROVIDER
       - LLM_API_KEY
