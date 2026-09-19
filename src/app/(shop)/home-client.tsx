@@ -137,7 +137,17 @@ export default function HomeClient() {
                   现在上行是宾语（产品名）、下行是谓语（动作），
                   连读是「ChatGPT Plus、Claude Pro 充值与代充」，
                   同时覆盖「充值」和「代充」两个同义主词。 */}
-              <span className="gradient-text">ChatGPT Plus、Claude Pro</span>
+              {/* 【为什么 H1 里不写 Plus / Pro / Max 这些档位】首页要说的是「这门生意是什么」，
+                  写死两个档位会让人以为只做那两档（实际还有 Pro 5x、年费、接码、注册、KYC）。
+                  档位词交给 /chongzhi 下面那 7 个子页各自去吃——首页吃宽词、子页吃精确词，
+                  这是信息架构该有的分工，不是放弃关键词。
+                  副标题里已经把 Plus / Pro / Max 5x / 接码 / KYC 全列了一遍，覆盖不丢。
+
+                  一个已知的不对称：`chatgpt充值` 有 8 条下拉联想，而 `claude充值` 是 0 条
+                  —— Claude 侧用户不搜裸品牌词，必须带档位（claude pro充值 才有联想）。
+                  所以「Claude 充值」这半句匹配不到真实 query，它在这里的作用是把业务说完整，
+                  真正接 Claude 流量的是 /chongzhi/claude-pro 与 /chongzhi/claude-max。 */}
+              <span className="gradient-text">ChatGPT、Claude</span>
               <br />
               <span className="gradient-text-accent">充值与代充</span>
             </motion.h1>
@@ -160,7 +170,11 @@ export default function HomeClient() {
                 />
               </span>
               <br />
-              <span className="text-white/40">ChatGPT Plus / Pro · Claude Pro / Max 5x · 注册接码与 KYC 认证</span>
+              {/* H1 只说宽词，业务的完整面靠这一行列全——漏一项就等于对外少一门生意。
+                  加商品时记得回来补（当前：ChatGPT 三档、Claude 两档、接码、KYC、谷歌账号）。 */}
+              <span className="text-white/40">
+                ChatGPT Plus / Pro · Claude Pro / Max 5x · 注册接码 · KYC 认证 · 谷歌账号
+              </span>
             </motion.p>
 
             <motion.div
