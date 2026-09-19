@@ -5,6 +5,9 @@ export const dynamic = 'force-dynamic'
 import type { MetadataRoute } from 'next'
 import { prisma } from '@/lib/db'
 import { absUrl } from '@/lib/news/seo'
+import { shouldNoindexEvent, thinNoindexEnabled } from '@/lib/news/thin'
+import { parseDetail } from '@/lib/news/format'
+import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 
 /**
  * 站点地图。
@@ -25,16 +28,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date()
 
   // 主要静态页面。登录/注册/找回密码/订单/个人中心刻意不收录
+  //
+  // 【priority 的现实】Google 早就公开说过基本忽略 sitemap 里的 priority 与 changeFrequency。
+  // 这里继续认真填，图的是它是一份人读得懂的「站点重要性清单」——
+  // 下次有人加页面时能照着判断该给什么档，而不是随手抄一个 0.8。
   const staticPages: MetadataRoute.Sitemap = [
     { url: absUrl('/'), lastModified: now, changeFrequency: 'daily', priority: 1 },
+    // 充值落地页是这一轮新增的商业主力页，权重仅次于首页
+    { url: absUrl(LANDING_HUB.path), lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    ...LANDINGS.map((l) => ({
+      url: absUrl(landingPath(l.slug)),
+      lastModified: now,
+      changeFrequency: 'weekly' as const,
+      priority: 0.9,
+    })),
     { url: absUrl('/products'), lastModified: now, changeFrequency: 'daily', priority: 0.9 },
-    { url: absUrl('/news'), lastModified: now, changeFrequency: 'hourly', priority: 0.9 },
-    { url: absUrl('/forum'), lastModified: now, changeFrequency: 'daily', priority: 0.7 },
+    { url: absUrl('/news'), lastModified: now, changeFrequency: 'hourly', priority: 0.7 },
+    { url: absUrl('/support'), lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
+    { url: absUrl('/forum'), lastModified: now, changeFrequency: 'daily', priority: 0.6 },
     { url: absUrl('/about'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
-    { url: absUrl('/support'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
     // /links 是对外交换友链的落地页，必须可被收录：长期 noindex 的页面 Google
     // 最终会停止跟随其上的链接，对方拿不到任何权重，互挂也就没人愿意做了
     { url: absUrl('/links'), lastModified: now, changeFrequency: 'weekly', priority: 0.4 },
+    // 条款页不指望带流量，但要可被收录：对一个卖虚拟商品的站点，
+    // 「有没有公开的条款与隐私政策」是 Google 判断主体可信度时会看的东西
+    { url: absUrl('/terms'), lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: absUrl('/privacy'), lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     // 游戏与关于已从顶部导航下架，但页面还在、仍值得收录，sitemap 保持原样
     { url: absUrl('/games'), lastModified: now, changeFrequency: 'weekly', priority: 0.3 },
     { url: absUrl('/iptools'), lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
@@ -51,17 +70,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     const since = new Date(now.getTime() - RECENT_DAYS * 86400000)
     const events = await prisma.newsEvent.findMany({
-      where: { status: 'PUBLISHED', happenedAt: { gte: since } },
-      select: { slug: true, updatedAt: true, happenedAt: true },
+      where: {
+        status: 'PUBLISHED',
+        happenedAt: { gte: since },
+        // 没有全文层的事件带 noindex（见 lib/news/thin.ts），
+        // 把 noindex 的地址塞进 sitemap 是自相矛盾的信号：一边说「请收录这一批」，
+        // 一边在页面上说「别收录我」。Search Console 会把它们报成
+        // 「已提交的网址被标记为 noindex」的错误，白白污染覆盖率报告。
+        //
+        // 这里只做一次**粗筛**（能走索引、不拉 TEXT），真正的判定在下面用
+        // shouldNoindexEvent 做——必须和详情页用同一个谓词，
+        // 否则两处各写一套规则，改动其中一处就会静默漂移出「sitemap 收了一条 noindex 页」。
+        ...(thinNoindexEnabled() ? { detailState: 'DONE' } : {}),
+      },
+      select: { slug: true, updatedAt: true, happenedAt: true, detail: true },
       orderBy: { happenedAt: 'desc' },
       take: MAX_EVENTS,
     })
-    eventPages = events.map((e) => ({
-      url: absUrl(`/news/${e.slug}`),
-      lastModified: e.updatedAt || e.happenedAt,
-      changeFrequency: 'weekly' as const,
-      priority: 0.8,
-    }))
+    eventPages = events
+      // 与 news/[slug] 的 generateMetadata 共用同一个判定，杜绝两份规则漂移
+      .filter((e) => !shouldNoindexEvent(parseDetail(e.detail)))
+      .map((e) => ({
+        url: absUrl(`/news/${e.slug}`),
+        lastModified: e.updatedAt || e.happenedAt,
+        changeFrequency: 'weekly' as const,
+        priority: 0.8,
+      }))
   } catch (err) {
     console.error('Sitemap news query error:', err)
   }

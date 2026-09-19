@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { ContactModal } from '@/components/contact-modal'
+import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 
 export function Footer() {
   const [contactOpen, setContactOpen] = useState(false)
@@ -15,14 +16,16 @@ export function Footer() {
 
         <div className="container relative py-16 lg:py-20 xl:py-24">
           {/*
-            md(768~1023)：沿用 4 栏，品牌占 2 栏。
-            lg 起换 12 栅格：品牌 5 栏 + 链接组从第 7 栏起（3+3），
-            中间空出的一栏在 1440px 以上把「品牌」和「链接」明确分成两块，
-            否则 4 等分会让三块内容摊得又平又散，右侧还贴不到容器边。
+            md(768~1023)：两栏，四个块正好排成 2×2（品牌块不再独占整行，
+            否则会变成 1 + 2 + 1 的残行，最后一列空着）。lg 起换 12 栅格，品牌 3 栏 + 三组链接各 3 栏。
+            2026-09-19 从「品牌 5 + 两组链接」改成「品牌 3 + 三组链接」：
+            新增的充值落地页必须有一个稳定的站内入口。这不是排版偏好——
+            Google 判定 doorway page 的第四条看的就是这些页面有没有进入
+            一个清晰、可浏览的层级；只挂在 sitemap 里、页脚点不到的关键词页正是被点名的形态。
           */}
-          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-12 gap-12 lg:gap-x-10 xl:gap-x-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-x-8 xl:gap-x-12">
             {/* Brand */}
-            <div className="md:col-span-2 lg:col-span-5">
+            <div className="lg:col-span-3">
               <Link href="/" className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-lg lg:text-xl">
                   贝
@@ -52,7 +55,28 @@ export function Footer() {
                 桌面端鼠标目标比手指小，但阅读距离更远，字太小反而更难扫读。
                 标题在 lg 起用 white/90 + 更松的字距，和下面 white/40 的链接拉开层级；
                 移动端一律不动，保持原样。 */}
-            <div className="lg:col-span-3 lg:col-start-7">
+            {/* 充值落地页。从注册表渲染，新增一页不用回来改这里 */}
+            <div className="lg:col-span-3">
+              <h4 className="font-semibold mb-4 lg:mb-5 lg:text-[15px] lg:text-white/90 lg:tracking-wide">
+                <Link href={LANDING_HUB.path} className="hover:text-purple-300 transition-colors">
+                  {LANDING_HUB.navLabel}
+                </Link>
+              </h4>
+              <ul className="space-y-3 lg:space-y-3.5">
+                {LANDINGS.map((l) => (
+                  <li key={l.slug}>
+                    <Link
+                      href={landingPath(l.slug)}
+                      className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors"
+                    >
+                      {l.navLabel}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="lg:col-span-3">
               <h4 className="font-semibold mb-4 lg:mb-5 lg:text-[15px] lg:text-white/90 lg:tracking-wide">商品</h4>
               <ul className="space-y-3 lg:space-y-3.5">
                 <li>
