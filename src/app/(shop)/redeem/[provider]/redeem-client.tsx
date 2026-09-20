@@ -125,6 +125,10 @@ export default function RedeemClient({
   const [rebindMode, setRebindMode] = useState(false)
   /** 买家选中的充值渠道。只有适配器返回 variants 的平台才用得上 */
   const [variant, setVariant] = useState('')
+  /** 自动轮询已经等了多少秒。只用于显示，让买家看得出页面还活着 */
+  const [waitSec, setWaitSec] = useState(0)
+  /** 自动轮询是否已经放弃（等太久了）。放弃后把手动按钮还给买家 */
+  const [pollGaveUp, setPollGaveUp] = useState(false)
 
   const doCheck = useCallback(
     async (key: string) => {
@@ -140,6 +144,8 @@ export default function RedeemClient({
       setValues({})
       setRebindMode(false)
       setVariant('')
+      setWaitSec(0)
+      setPollGaveUp(false)
       try {
         const res = await fetch(`/api/redeem/${providerKey}/check`, {
           method: 'POST',
@@ -221,6 +227,8 @@ export default function RedeemClient({
     }
 
     setSubmitting(true)
+    setWaitSec(0)
+    setPollGaveUp(false)
     try {
       const res = await fetch(`/api/redeem/${providerKey}/activate`, {
         method: 'POST',
@@ -242,7 +250,84 @@ export default function RedeemClient({
     }
   }
 
-  const showForm = !result && (rebindMode || check?.state === 'READY') && activeFields.length > 0
+  /**
+   * 是不是正等着上游出结果。
+   * 两种来源：刚提交完（result）、或者买家重新打开页面时这张卡本来就在处理中（check）。
+   */
+  const waiting =
+    !pollGaveUp && (result?.state === 'PROCESSING' || (!result && check?.state === 'PROCESSING'))
+
+  /*
+   * 【自动轮询】原来要买家自己过一会儿点一次「查询」，等于把我们的活推给他，
+   * 而且他根本不知道该等多久 —— 实测 Claude 30~50 秒、卡付 autosub 约 1 分钟、
+   * 卡付 gpt1 要 6 分半。页面自己去查，出结果直接翻页。
+   *
+   * 【只打 check，绝不打 activate】check 是只读的，重复调用没有副作用；
+   * activate 会真的去上游下单。这条线不能混。
+   *
+   * 【间隔不低于 15 秒】上游文档要求查单至少间隔 15 秒（next_poll_seconds 更大时听它的），
+   * 而且本站对单卡的 check 限流是每分钟 6 次 —— 15 秒一次正好安全。
+   */
+  useEffect(() => {
+    if (!waiting) return
+    let cancelled = false
+    const startedAt = Date.now()
+    // 最长等 10 分钟：最慢的卡付 gpt1 实测 6 分半，留足余量后就该把控制权还给买家
+    const MAX_WAIT_MS = 10 * 60_000
+    const delayMs = () => Math.max(15, result?.retryAfter ?? check?.cooldownSeconds ?? 15) * 1000
+    let timer: ReturnType<typeof setTimeout>
+
+    const tick = async () => {
+      if (cancelled) return
+      if (Date.now() - startedAt > MAX_WAIT_MS) {
+        setPollGaveUp(true)
+        return
+      }
+      try {
+        const res = await fetch(`/api/redeem/${providerKey}/check`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cdk: cdk.trim() }),
+        })
+        const d = await res.json()
+        if (cancelled) return
+        if (d.success) {
+          const data = d.data as CheckResult
+          if (data.state !== 'PROCESSING') {
+            /*
+             * 出终态了。清掉 result、改由 check 驱动界面 ——
+             * 成功就显示账号与完成时间，失败就带上原因和表单，买家不用再点一下。
+             */
+            setCheck(data)
+            setResult(null)
+            if (data.variantDefault) setVariant(data.variantDefault)
+            return
+          }
+          setCheck(data)
+        }
+      } catch {
+        // 网络抖一下不算数，下一轮继续
+      }
+      if (!cancelled) timer = setTimeout(tick, delayMs())
+    }
+
+    timer = setTimeout(tick, delayMs())
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting, providerKey, cdk])
+
+  /** 等待时每秒走一下，纯粹让买家看得出页面没死 */
+  useEffect(() => {
+    if (!waiting) return
+    const t = setInterval(() => setWaitSec((n) => n + 1), 1000)
+    return () => clearInterval(t)
+  }, [waiting])
+
+  const showForm =
+    !result && !waiting && (rebindMode || check?.state === 'READY') && activeFields.length > 0
 
   /**
    * 从粘贴的 Session JSON 里自动认出账号邮箱。
@@ -494,6 +579,39 @@ export default function RedeemClient({
             </div>
           )}
 
+          {/*
+            等待面板。买家提交完就停在这儿，页面自己每 15 秒去查一次，
+            出结果直接翻页 —— 不用他隔一阵手动点「查询」。
+          */}
+          {waiting && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-center">
+              <Loader2 className="mx-auto h-7 w-7 animate-spin text-amber-300" />
+              <p className="mt-3 text-sm font-medium text-amber-100">正在为你充值，请保持本页打开</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-amber-200/70">
+                结果出来会自动显示，不需要手动刷新。通常 1 分钟内完成，个别渠道要几分钟。
+              </p>
+              <p className="mt-3 font-mono text-xs tabular-nums text-amber-200/60">
+                已等待 {Math.floor(waitSec / 60)} 分 {String(waitSec % 60).padStart(2, '0')} 秒
+              </p>
+            </div>
+          )}
+
+          {/* 等太久了，把控制权还给买家，免得他以为页面死了 */}
+          {pollGaveUp && (
+            <div className="rounded-xl border border-white/12 bg-white/[0.04] p-4">
+              <p className="text-sm leading-relaxed text-white/70">
+                这一笔等得比平常久。充值可能仍在进行，**请不要重复提交**，点下面的按钮查一下最新状态。
+              </p>
+              <button
+                type="button"
+                onClick={() => void doCheck(cdk)}
+                className="mt-3 w-full rounded-xl border border-white/12 bg-white/[0.06] py-3 text-sm text-white/80 transition-colors hover:bg-white/[0.12]"
+              >
+                查询最新状态
+              </button>
+            </div>
+          )}
+
           {result && (
             <>
               <Banner tone={STATE_TONE[result.state] || 'info'}>
@@ -504,7 +622,8 @@ export default function RedeemClient({
                   <div className="mt-1 text-xs opacity-70">请等待约 {result.retryAfter} 秒后再试</div>
                 ) : null}
               </Banner>
-              {result.retriable && (
+              {/* 正在自动轮询时不给手动按钮 —— 页面自己在查，再放个按钮只会让人乱点 */}
+              {result.retriable && !waiting && (
                 <button
                   type="button"
                   onClick={() => void doCheck(cdk)}
