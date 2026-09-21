@@ -7,26 +7,26 @@ import { ArrowRight, Sparkles, Shield, Zap, Heart, Users, Award, Target } from '
 const values = [
   {
     icon: Shield,
-    title: '安全可靠',
-    desc: '所有服务通过正规渠道，账号安全有保障',
+    title: '账号不经手',
+    desc: '交付卡密，兑换你自己发起，我们拿不到你的账号密码',
     gradient: 'from-violet-500 to-purple-500',
   },
   {
     icon: Zap,
-    title: '极速响应',
+    title: '即时发卡',
     desc: '卡密档付款后即时发放，兑换由你自己发起',
     gradient: 'from-purple-500 to-pink-500',
   },
   {
     icon: Heart,
-    title: '用心服务',
-    desc: '7×12小时专属客服，售后无忧',
+    title: '规则写在明处',
+    desc: '退款口径、质保边界、发票税费，全部公开在服务条款里',
     gradient: 'from-pink-500 to-rose-500',
   },
   {
     icon: Award,
-    title: '品质保障',
-    desc: '长期稳定运营，持续优化服务质量',
+    title: '主体可核验',
+    desc: '持营业执照经营，可开具增值税发票，抬头与主体一致',
     gradient: 'from-cyan-500 to-blue-500',
   },
 ]
