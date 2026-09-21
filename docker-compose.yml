@@ -12,6 +12,15 @@ services:
     # 超限只会重启 app（restart: unless-stopped），数据库不受牵连。
     mem_limit: 1024m
     mem_reservation: 256m
+    # 整机内存耗尽时，让内核优先挑 app 下手。
+    # 【为什么需要这个】上面那条 mem_limit 只挡得住「app 自己的 cgroup 超限」，
+    # 挡不住整机 OOM。实测 2026-09-16 至 09-21 的 dmesg：内核 OOM 触发 9 次，
+    # **每一次被杀的都是 mysqld**——因为全局 OOM 按 RSS 挑目标，
+    # MySQL 常驻 430MB，是这台机器上最肥的那个。触发点几乎都是在本机构建镜像。
+    # 结果就是上面那段注释预判的失败模式换了条路径照样发生：应用出事 → 数据库挂掉。
+    # 两害相权：app 被杀是几秒钟重启，MySQL 被杀是几十秒到几分钟外加 InnoDB 恢复，
+    # 期间全站报错。所以把 app 标成首选受害者，把 db 保护起来（见 db 服务）。
+    oom_score_adj: 500
     expose:
       - "3000"
     environment:
@@ -121,6 +130,11 @@ services:
     image: mysql:8.0
     container_name: beiguo-db
     restart: unless-stopped
+    # 保护数据库不被整机 OOM 挑中。理由见 app 服务里那段。
+    # 不用 -1000（那等于完全豁免）：真到了内存耗尽的地步，内核总得杀掉点什么，
+    # 豁免 MySQL 会把目标推给 dockerd 或 sshd，那比杀 MySQL 更糟——
+    # dockerd 一死整机两个站点全下线，而且连补救的通道都没了。
+    oom_score_adj: -800
     command: --default-authentication-plugin=mysql_native_password
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
