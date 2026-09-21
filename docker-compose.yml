@@ -76,6 +76,7 @@ services:
       # 而且表现是「静默不生效」：验证 meta 不输出、IndexNow 永远推 0 条。
       - GOOGLE_SITE_VERIFICATION
       - BING_SITE_VERIFICATION
+      - BAIDU_SITE_VERIFICATION
       - INDEXNOW_KEY
       # 薄新闻页（没有全文层的）是否加 noindex。默认开启，设成 0 才关闭。
       # 详见 src/lib/news/thin.ts：97% 的站点 URL 是每小时批量产出的

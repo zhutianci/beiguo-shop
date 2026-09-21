@@ -41,6 +41,20 @@ export const viewport: Viewport = {
   themeColor: '#000000',
 }
 
+/**
+ * 各站长平台的归属验证 meta。值全部来自服务端环境变量，没配就不输出那一条。
+ * 这些串是公开值（会明文出现在 HTML 里），不是密钥，但仍然走环境变量——
+ * 换域名、换验证方式时不用改代码。
+ */
+function otherVerification(): Record<string, string> | undefined {
+  const out: Record<string, string> = {}
+  if (process.env.BING_SITE_VERIFICATION) out['msvalidate.01'] = process.env.BING_SITE_VERIFICATION
+  if (process.env.BAIDU_SITE_VERIFICATION) {
+    out['baidu-site-verification'] = process.env.BAIDU_SITE_VERIFICATION
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin()),
   // 刻意不用 title.template：新闻详情页的 <title> 会被微信直接当分享标题读走，
@@ -69,12 +83,16 @@ export const metadata: Metadata = {
    *            复制 content="..." 里的那串，填进 GOOGLE_SITE_VERIFICATION
    *   Bing   → Webmaster Tools 可直接从 Google Search Console 导入，
    *            要手动验证就取 msvalidate.01 的值填 BING_SITE_VERIFICATION
+   *   百度   → 百度搜索资源平台 → 站点管理 → 添加网站 → 选「HTML 标签验证」→
+   *            取 baidu-site-verification 的值填 BAIDU_SITE_VERIFICATION
+   *
+   * 【为什么用一个对象拼而不是三个三元表达式】Next 的 verification.other 是一条
+   * Record，给它 undefined 才会整段不输出。用展开的方式拼，缺哪个就少哪个键，
+   * 再在最后判断「一个都没有就返回 undefined」——否则空对象会渲染出一个空的 meta 容器。
    */
   verification: {
     google: process.env.GOOGLE_SITE_VERIFICATION || undefined,
-    other: process.env.BING_SITE_VERIFICATION
-      ? { 'msvalidate.01': process.env.BING_SITE_VERIFICATION }
-      : undefined,
+    other: otherVerification(),
   },
   openGraph: {
     type: 'website',
