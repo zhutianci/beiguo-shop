@@ -8,7 +8,7 @@ import { ArrowLeft, CalendarRange, ChevronRight, ListOrdered } from 'lucide-reac
 import { AiNoticeBlock } from '@/components/news/ai-notice-block'
 import { ShareBar } from '@/components/news/share-bar'
 import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
-import { absUrl } from '@/lib/news/seo'
+import { absUrl, clipDescription } from '@/lib/news/seo'
 import { dayKey, formatDayHeading, ogImageForCategory, siteOrigin, sourceLabel } from '@/lib/news/format'
 import {
   DIGEST_SLUG,
@@ -49,9 +49,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const hit = await load(params).catch(() => null)
   if (!hit) return { title: '内容不存在 - AI 圈大事记' }
   const { digest } = hit
-  const description = (digest.intro || `本期收录 ${digest.events.length} 条 AI 行业动态。`)
-    .replace(/\s+/g, ' ')
-    .slice(0, 110)
+  const description = clipDescription(
+    digest.intro || `本期收录 ${digest.events.length} 条 AI 行业动态。`
+  )
   const path = `/news/digest/${DIGEST_SLUG[digest.type]}/${digest.period}`
   return {
     metadataBase: new URL(siteOrigin()),

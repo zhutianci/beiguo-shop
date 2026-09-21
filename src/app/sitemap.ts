@@ -32,31 +32,38 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 【priority 的现实】Google 早就公开说过基本忽略 sitemap 里的 priority 与 changeFrequency。
   // 这里继续认真填，图的是它是一份人读得懂的「站点重要性清单」——
   // 下次有人加页面时能照着判断该给什么档，而不是随手抄一个 0.8。
+  //
+  // 【这些静态页刻意不写 lastModified】原来每一条都写 `lastModified: now`，
+  // 意思是「每次爬虫来拉 sitemap，全站每个静态页都刚刚改过」。这是一个伪造的信号，
+  // 而且自相矛盾：/terms 标着 changeFrequency: 'yearly' 却天天报告「今天改的」。
+  // Google 的口径是 lastmod 必须准确，一眼看去不可信（比如所有 URL 都是当前时间）
+  // 就会被整体忽略——连带那些**真实**的 lastmod（新闻、商品）一起失去可信度。
+  // 手填一个常量日期同样不行：那是引入第二个必然腐烂的事实源，改完页面没人记得回来改它。
+  // 所以这里干脆省略。下面 DB 驱动的条目继续带真实时间。
   const staticPages: MetadataRoute.Sitemap = [
-    { url: absUrl('/'), lastModified: now, changeFrequency: 'daily', priority: 1 },
+    { url: absUrl('/'), changeFrequency: 'daily', priority: 1 },
     // 充值落地页是这一轮新增的商业主力页，权重仅次于首页
-    { url: absUrl(LANDING_HUB.path), lastModified: now, changeFrequency: 'weekly', priority: 0.9 },
+    { url: absUrl(LANDING_HUB.path), changeFrequency: 'weekly', priority: 0.9 },
     ...LANDINGS.map((l) => ({
       url: absUrl(landingPath(l.slug)),
-      lastModified: now,
       changeFrequency: 'weekly' as const,
       priority: 0.9,
     })),
-    { url: absUrl('/products'), lastModified: now, changeFrequency: 'daily', priority: 0.9 },
-    { url: absUrl('/news'), lastModified: now, changeFrequency: 'hourly', priority: 0.7 },
-    { url: absUrl('/support'), lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: absUrl('/forum'), lastModified: now, changeFrequency: 'daily', priority: 0.6 },
-    { url: absUrl('/about'), lastModified: now, changeFrequency: 'monthly', priority: 0.5 },
+    { url: absUrl('/products'), changeFrequency: 'daily', priority: 0.9 },
+    { url: absUrl('/news'), changeFrequency: 'hourly', priority: 0.7 },
+    { url: absUrl('/support'), changeFrequency: 'monthly', priority: 0.7 },
+    { url: absUrl('/forum'), changeFrequency: 'daily', priority: 0.6 },
+    { url: absUrl('/about'), changeFrequency: 'monthly', priority: 0.5 },
     // /links 是对外交换友链的落地页，必须可被收录：长期 noindex 的页面 Google
     // 最终会停止跟随其上的链接，对方拿不到任何权重，互挂也就没人愿意做了
-    { url: absUrl('/links'), lastModified: now, changeFrequency: 'weekly', priority: 0.4 },
+    { url: absUrl('/links'), changeFrequency: 'weekly', priority: 0.4 },
     // 条款页不指望带流量，但要可被收录：对一个卖虚拟商品的站点，
     // 「有没有公开的条款与隐私政策」是 Google 判断主体可信度时会看的东西
-    { url: absUrl('/terms'), lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
-    { url: absUrl('/privacy'), lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
+    { url: absUrl('/terms'), changeFrequency: 'yearly', priority: 0.3 },
+    { url: absUrl('/privacy'), changeFrequency: 'yearly', priority: 0.3 },
     // 游戏与关于已从顶部导航下架，但页面还在、仍值得收录，sitemap 保持原样
-    { url: absUrl('/games'), lastModified: now, changeFrequency: 'weekly', priority: 0.3 },
-    { url: absUrl('/iptools'), lastModified: now, changeFrequency: 'monthly', priority: 0.3 },
+    { url: absUrl('/games'), changeFrequency: 'weekly', priority: 0.3 },
+    { url: absUrl('/iptools'), changeFrequency: 'monthly', priority: 0.3 },
   ]
 
   // 【为什么没有分类页】/news 的分类筛选是 NewsStream 里的客户端状态，不进 URL，

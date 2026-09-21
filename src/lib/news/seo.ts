@@ -100,3 +100,42 @@ export function articleJsonLd(e: ArticleJsonLdInput): Record<string, unknown> {
     })),
   }
 }
+
+/**
+ * meta description 收口。
+ *
+ * 【原来是 `.slice(0, 110)` 硬切】中文摘要是按 120–260 字的模板产出的，
+ * 所以几乎每一条都被切在句子中间，搜索结果里长这样：
+ *   「……OpenAI 宣布该功能将于下月面向所有 Plus 用户开放，同时公司表示将继续优化推」
+ * 一条断在半个词上的描述，点击率和可信度都要打折，而这是纯粹的显示问题，
+ * 和内容质量无关。
+ *
+ * 【为什么不按字数硬切到更短】更短只会切得更多。正确做法是**按句子收口**：
+ * 在上限内找最后一个句末标点，从那里断开；找不到句号就退而求其次找逗号；
+ * 都没有才硬切并补省略号。
+ *
+ * 【为什么上限是 120 而不是 160】那个 160 是拉丁字母的经验值。中文字符更宽，
+ * Google 中文结果里实际能显示的大约是 75–80 个汉字，多写的部分不会显示。
+ * 这里留到 120 是因为超出部分虽然不显示，但仍会参与匹配。
+ */
+const DESC_MAX = 120
+/** 短于这个长度就别再往回找句号了，否则会把一句完整的话砍成一小截 */
+const DESC_MIN = 45
+
+export function clipDescription(raw: string | null | undefined, max = DESC_MAX): string {
+  const t = (raw || '').replace(/\s+/g, ' ').trim()
+  if (t.length <= max) return t
+
+  const head = t.slice(0, max)
+  // 句末标点优先（中英文都认），其次是分句标点
+  const hard = Math.max(
+    head.lastIndexOf('。'), head.lastIndexOf('！'), head.lastIndexOf('？'),
+    head.lastIndexOf('；'), head.lastIndexOf('!'), head.lastIndexOf('?')
+  )
+  if (hard >= DESC_MIN) return head.slice(0, hard + 1)
+
+  const soft = Math.max(head.lastIndexOf('，'), head.lastIndexOf('、'), head.lastIndexOf(','))
+  if (soft >= DESC_MIN) return `${head.slice(0, soft)}…`
+
+  return `${head.slice(0, max - 1)}…`
+}

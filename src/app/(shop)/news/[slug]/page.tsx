@@ -12,7 +12,7 @@ import { ArticleJsonLd } from '@/components/news/article-jsonld'
 import { ShareBar } from '@/components/news/share-bar'
 import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
 import { withNewsRef } from '@/lib/news/attribution'
-import { newsUrl } from '@/lib/news/seo'
+import { clipDescription, newsUrl } from '@/lib/news/seo'
 import { shouldNoindexEvent } from '@/lib/news/thin'
 import { AiNoticeBlock, LeadCredit } from '@/components/news/ai-notice-block'
 import {
@@ -52,7 +52,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   if (!row) return { title: '内容不存在 - AI 圈大事记' }
 
   const ev = toEventDto(row)
-  const description = ev.summary.replace(/\s+/g, ' ').slice(0, 110)
+  // 按句子收口，不再硬切在半个词上（实现与理由见 lib/news/seo.ts 的 clipDescription）
+  const description = clipDescription(ev.summary)
   const image = ogImageForCategory(ev.category)
   // 没有全文层的事件不进索引（保留 follow）。理由与开关见 lib/news/thin.ts——
   // 简单说：97% 的站点 URL 是每小时批量产出的 147 字 AI 摘要页，
