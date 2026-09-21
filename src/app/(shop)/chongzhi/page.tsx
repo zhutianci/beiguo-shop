@@ -17,6 +17,7 @@ import {
   Section,
   SubSection,
 } from '@/components/landing/landing-ui'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 充值总览页——这一批落地页的 hub。
@@ -47,12 +48,13 @@ export async function generateMetadata(): Promise<Metadata> {
     description: LANDING_HUB.description,
     alternates: { canonical: LANDING_HUB.path },
     openGraph: {
+      images: OG_IMAGES,
       type: 'website',
       title: LANDING_HUB.title,
       description: LANDING_HUB.description,
       url: LANDING_HUB.path,
     },
-    twitter: { card: 'summary_large_image', title: LANDING_HUB.title, description: LANDING_HUB.description },
+    twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title: LANDING_HUB.title, description: LANDING_HUB.description },
   }
 }
 

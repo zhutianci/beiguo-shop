@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalPage, LegalSection } from '@/components/legal-page'
 import { SITE_NAME } from '@/lib/product-seo'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 隐私政策。
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/privacy' },
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/privacy' },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/privacy' },
 }
 
 export default function PrivacyPage() {

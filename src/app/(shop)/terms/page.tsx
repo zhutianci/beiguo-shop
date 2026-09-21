@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalPage, LegalSection } from '@/components/legal-page'
 import { SITE_NAME } from '@/lib/product-seo'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 服务条款。
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/terms' },
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/terms' },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/terms' },
 }
 
 export default function TermsPage() {

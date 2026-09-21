@@ -22,6 +22,7 @@ import {
   SubSection,
   Warning,
 } from '@/components/landing/landing-ui'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * ChatGPT Pro 5x 充值落地页——客单价最高、也最容易买错的一页。
@@ -68,12 +69,13 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
+      images: OG_IMAGES,
       type: 'website',
       title: DEF.title,
       description,
       url: landingPath(DEF.slug),
     },
-    twitter: { card: 'summary_large_image', title: DEF.title, description },
+    twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title: DEF.title, description },
   }
 }
 

@@ -17,7 +17,8 @@
  * 但它是销量不是评分，不能拿来充数。
  */
 import { absUrl, SITE_LOGO } from './news/seo'
-import { siteOrigin } from './news/format'
+// ORG_ID 来自站点级结构化数据模块。graph.ts 不反向依赖本文件，不存在循环引用。
+import { ORG_ID } from './seo/graph'
 
 export interface SeoProduct {
   id: number
@@ -54,15 +55,35 @@ export function productTitle(p: SeoProduct): string {
   return name.length > 40 ? name : `${name} - ${SITE_NAME}`
 }
 
+/** 商品简介短于这个长度就不够当 meta description 用，要拼模板补齐 */
+const MIN_USEFUL_DESC = 40
+
 /**
- * 商品页描述。优先用商品自己的简介，没有就按模板兜底。
- * 控制在 ~150 字内：超出部分 Google 会截断，写了也不显示。
+ * 商品页描述。控制在 ~150 字内：超出部分 Google 会截断，写了也不显示。
+ *
+ * 【原来这里有个 bug，而且刚好打在主力商品上】判断写的是 `if (desc) return desc`——
+ * 只要商品有**任何**简介就直接用。而后台大量商品的简介只有三五个字：
+ * 商品 16「Claude pro 自助充值」（215 单，主力档）的简介就是「自助充值」四个字，
+ * 于是它在搜索结果里的描述就是这四个字，下面那段带价格、支付宝、发票的模板
+ * 永远不会触发。搜索结果里一条四个字的描述，点击率可想而知。
+ *
+ * 改成按「够不够用」判断而不是「有没有」：
+ *   · 简介够长 → 直接用（作者写的肯定比模板贴切）
+ *   · 简介太短 → 用它当开头，后面补上价格与这个站真正的卖点
+ *   · 完全没有 → 纯模板
+ * 卖点部分只写能兑现的：卡密自助兑换、支付宝、可开票且标价不含税。
+ * 不写「最快 X 分钟」这类做不到的承诺（站上其他地方已经因此清理过一轮）。
  */
 export function productDescription(p: SeoProduct): string {
   const desc = (p.description || '').replace(/\s+/g, ' ').trim()
-  if (desc) return desc.length > 150 ? `${desc.slice(0, 147)}…` : desc
+  const clip = (t: string) => (t.length > 150 ? `${t.slice(0, 147)}…` : t)
+
+  if (desc.length >= MIN_USEFUL_DESC) return clip(desc)
+
   const price = Number.isFinite(p.price) ? `￥${p.price.toFixed(2)}` : ''
-  return `${p.name} ${price}。${SITE_NAME}提供 ChatGPT Plus / Claude Pro 等 AI 会员充值与代充，卡密自助兑换，支持支付宝，可开发票。`.trim()
+  const head = [p.name, price].filter(Boolean).join(' ')
+  const lead = desc ? `${head}：${desc}。` : `${head}。`
+  return clip(`${lead}${SITE_NAME}卡密自助兑换，无需信用卡，支付宝付款；可开增值税发票（标价不含税，税费另付）。`)
 }
 
 /**
@@ -81,7 +102,14 @@ export function productJsonLd(p: SeoProduct): Record<string, unknown> {
     priceCurrency: 'CNY',
     price: p.price.toFixed(2),
     availability: inStock ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-    seller: { '@type': 'Organization', name: SITE_NAME, url: siteOrigin() },
+    /*
+     * seller 用 @id 引用 Organization 节点，而不是在这里再写一个匿名组织。
+     * 前提是商品页同时输出 organizationJsonLd()——那一份里带着 legalName
+     *「益阳市赫山区必高科技有限公司」。对一个卖 AI 会员的站，
+     * 「卖家是谁、能不能查」是买家和检索系统共同关心的第一件事，
+     * 而此前这条信息在商品页的 HTML 里一次都没出现过。
+     */
+    seller: { '@id': ORG_ID },
   }
 
   const json: Record<string, unknown> = {

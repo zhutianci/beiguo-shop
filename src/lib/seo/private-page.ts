@@ -25,14 +25,24 @@ import { SITE_NAME } from '@/lib/product-seo'
  * 【顺带把标题写对】这些页此前也全都继承首页标题。就算不进索引，
  * 浏览器标签页、书签、微信分享出去的标题也是买家看得见的东西。
  */
+/**
+ * 【为什么是 follow: true 而不是 nofollow】这两件事是分开的：
+ *   index:false  —— 别把这一页收进索引（这是我们要的）
+ *   follow:false —— 别跟随这一页上的链接（这是我们不要的）
+ * 这些页面上挂着完整的页头页脚导航，nofollow 等于把一条站内爬取通路掐断。
+ * 2026-09-21 的日志里 OAI-SearchBot 抓了 /register 15 次、Googlebot 4 次、
+ * bingbot 5 次——爬虫是真的会来这些页，而它们走到这里就走不下去了。
+ * 私密页的风险是「内容被收录」，不是「链接被跟随」（爬虫登不进去，
+ * 跟随到的也只是站内公开页面），所以正确组合是 noindex + follow。
+ */
 export function privatePageMetadata(pageTitle: string, description?: string): Metadata {
   return {
     title: `${pageTitle} - ${SITE_NAME}`,
     description,
     robots: {
       index: false,
-      follow: false,
-      googleBot: { index: false, follow: false },
+      follow: true,
+      googleBot: { index: false, follow: true },
     },
   }
 }

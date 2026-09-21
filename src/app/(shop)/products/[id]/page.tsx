@@ -16,8 +16,9 @@ import {
   type SeoProduct,
 } from '@/lib/product-seo'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { breadcrumbJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd, organizationJsonLd } from '@/lib/seo/graph'
 import ProductDetailClient from './product-client'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 商品详情页。
@@ -153,12 +154,14 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
      */
     alternates: { canonical: productPath(product.id) },
     openGraph: {
+      images: OG_IMAGES,
       type: 'website',
       title: productTitle(product),
       description: productDescription(product),
       url: productPath(product.id),
     },
     twitter: {
+      images: TWITTER_IMAGES,
       card: 'summary_large_image',
       title: productTitle(product),
       description: productDescription(product),
@@ -187,6 +190,15 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
         <JsonLd
           data={[
             productJsonLd(product),
+            /*
+             * Organization 在这里必须跟着一起输出。
+             * Offer.seller 现在写的是 { '@id': ORG_ID } —— 一个引用；
+             * 如果这一页不输出被引用的那个节点，引用就是悬空的，等于没写卖家。
+             * 而这一份里带着 legalName「益阳市赫山区必高科技有限公司」：
+             * 在此之前，商品页的 HTML 里从来没出现过经营主体是谁。
+             * 对一个卖 AI 会员的站，这条信息是相对无照个人卖家唯一的结构性优势。
+             */
+            organizationJsonLd(),
             breadcrumbJsonLd([
               { name: '首页', path: '/' },
               { name: '全部商品', path: '/products' },

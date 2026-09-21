@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/product-seo'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 论坛列表页。详情页 /forum/[id] 是用户发的内容，标题各不相同才有意义，
@@ -20,7 +21,7 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/forum' },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/forum' },
 }
 
 export default function ForumLayout({ children }: { children: React.ReactNode }) {

@@ -19,6 +19,7 @@ import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/product-seo'
 import { getLinksPageData } from '@/lib/friend-link'
 import LinksClient from './links-client'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 const TITLE = `友情链接 · 招商合作 - ${SITE_NAME}`
 const DESCRIPTION =
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/links' },
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/links' },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/links' },
 }
 
 export default async function LinksPage() {

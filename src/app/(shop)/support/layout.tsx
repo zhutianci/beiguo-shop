@@ -4,6 +4,7 @@ import { breadcrumbJsonLd, faqJsonLd } from '@/lib/seo/graph'
 import { SITE_NAME } from '@/lib/product-seo'
 import { supportFaqs } from '@/lib/support-faq'
 import { Breadcrumbs } from '@/components/landing/landing-ui'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 客服中心。这一页是全站信息型内容最扎实的一块（8 条真实问答 + 4 份上手指引），
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/support' },
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/support' },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/support' },
 }
 
 export default function SupportLayout({ children }: { children: React.ReactNode }) {

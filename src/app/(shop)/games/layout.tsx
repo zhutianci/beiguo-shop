@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/product-seo'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 小游戏已从主导航下架，页面仍在、仍在 sitemap 里。
@@ -18,7 +19,7 @@ const DESCRIPTION = '贝果科技提供的免费在线小游戏：2048、贪吃�
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/games' },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/games' },
 }
 
 export default function GamesLayout({ children }: { children: React.ReactNode }) {

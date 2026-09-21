@@ -12,6 +12,7 @@ import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
 import { Breadcrumbs } from '@/components/landing/landing-ui'
 import ProductsClient from './products-client'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 商品列表页。
@@ -62,7 +63,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   // 列表页会被带 ?ref= / ?category= 分享与抓取，canonical 一律指回干净地址
   alternates: { canonical: '/products' },
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/products' },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/products' },
 }
 
 export default async function ProductsPage() {

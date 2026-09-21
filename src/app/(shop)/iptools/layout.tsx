@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/product-seo'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * IP 工具页是站上少有的「非商业但有真实搜索需求」的内容：
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/iptools' },
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/iptools' },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/iptools' },
 }
 
 export default function IpToolsLayout({ children }: { children: React.ReactNode }) {

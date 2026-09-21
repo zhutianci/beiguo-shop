@@ -22,6 +22,7 @@ import {
   SubSection,
   Warning,
 } from '@/components/landing/landing-ui'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * ChatGPT Plus 充值落地页——这一批页面里的主力页。
@@ -65,12 +66,13 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
+      images: OG_IMAGES,
       type: 'website',
       title: DEF.title,
       description,
       url: landingPath(DEF.slug),
     },
-    twitter: { card: 'summary_large_image', title: DEF.title, description },
+    twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title: DEF.title, description },
   }
 }
 

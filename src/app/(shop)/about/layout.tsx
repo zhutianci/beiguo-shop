@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/product-seo'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 【为什么用 layout 而不是把 page 拆成 server 外壳】
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/about' },
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/about' },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/about' },
 }
 
 export default function AboutLayout({ children }: { children: React.ReactNode }) {

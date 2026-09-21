@@ -12,6 +12,7 @@ import { organizationJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 import { getLandingProducts, inStock, lowestPrice, matchProducts } from '@/lib/landing/products'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import HomeClient from './home-client'
+import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 首页标题与描述。
@@ -37,8 +38,8 @@ export const metadata: Metadata = {
   // 根 layout 刻意不写 canonical（写了会让全站每页都自称首页副本），
   // 所以首页自己的 canonical 只能写在这里。带 ?ref= / ?s= 的分享链接全部指回这条干净地址。
   alternates: { canonical: '/' },
-  openGraph: { type: 'website', title: TITLE, description: DESCRIPTION, url: '/' },
-  twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
+  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/' },
+  twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
 }
 
 export default async function HomePage() {
