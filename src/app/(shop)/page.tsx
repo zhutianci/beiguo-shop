@@ -50,13 +50,21 @@ export default async function HomePage() {
     return { def: l, low: lowestPrice(items), hasStock: items.some(inStock) }
   })
 
+  // 首页那条信任数据带的数字。复用上面同一份快照，不额外打库。
+  // 传给客户端组件是有意的：客户端组件同样会被服务端渲染，值会进服务端 HTML——
+  // 而这正是要解决的问题（原来写死 useState(0)，爬虫读到的是「0 个用户」）。
+  const stats = {
+    totalSales: all.reduce((n, p) => n + (p.sales || 0), 0),
+    skuCount: all.length,
+  }
+
   return (
     <>
       {/* Organization 与 WebSite 全站只在首页输出一次，其余页面通过 @id 引用即可。
           每页都重复一遍不会加分，只会让每一页多出几百字节。 */}
       <JsonLd data={[organizationJsonLd(), webSiteJsonLd()]} />
 
-      <HomeClient />
+      <HomeClient stats={stats} />
 
       {/*
         服务端直出的「按服务找」区块。

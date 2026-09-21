@@ -431,8 +431,9 @@ export default function ProductDetailClient({
                       <Clock className="w-4 h-4 text-cyan-400" />
                     </div>
                     <div>
-                      <div className="font-medium">极速开通</div>
-                      <div className="text-xs text-white/40">最快 10 分钟到账</div>
+                      <div className="font-medium">即时发卡</div>
+                      {/* 原来写「最快 10 分钟到账」，没有依据且对人工档不成立（见本文件顶部注释） */}
+                      <div className="text-xs text-white/40">付款后立即发放</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-sm">

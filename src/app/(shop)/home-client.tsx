@@ -48,12 +48,25 @@ function getTag(name: string) {
 }
 
 const features = [
-  { icon: Zap, title: '极速开通', desc: '最快10分钟' },
+  // 「最快10分钟」是编的，而且对年费档、接码档、KYC 代办都不成立。
+  // 换成真的：卡密档付款后即时发放，这句比原来那句还强。
+  { icon: Zap, title: '即时发卡', desc: '付款后立即到账' },
   { icon: Shield, title: '安全保障', desc: '正规渠道' },
   { icon: Clock, title: '持续服务', desc: '长期稳定' },
 ]
 
-export default function HomeClient() {
+/**
+ * 首页信任数据。值由服务端算好传进来（page.tsx 复用 getLandingProducts 的同一份快照，
+ * 不额外打库），所以这几个数字会实实在在出现在服务端 HTML 里。
+ */
+export interface HomeStats {
+  /** 累计成交笔数：在售商品 sales 之和，和落地页价格表里那一列同源 */
+  totalSales: number
+  /** 在售档位数 */
+  skuCount: number
+}
+
+export default function HomeClient({ stats }: { stats: HomeStats }) {
   const router = useRouter()
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll()
@@ -161,7 +174,7 @@ export default function HomeClient() {
               卡密自助兑换，支付宝付款，
               <span className="gradient-text-accent">
                 <Typewriter
-                  texts={['无需信用卡', '最快 10 分钟到账', '可开增值税发票（税费另付）', '未使用卡密长期有效']}
+                  texts={['无需信用卡', '付款后即时发卡', '可开增值税发票（税费另付）', '未使用卡密长期有效']}
                   typeSpeed={150}
                   deleteSpeed={80}
                   pauseTime={2500}
@@ -417,31 +430,32 @@ export default function HomeClient() {
         <div className="container">
           {/* 数字统计：手机端 gap-12 已经够挤，桌面端把间距和数字都放大一档，
               让这条横向数据带撑住 1280+ 的容器宽度，而不是四个小数字挤在正中 */}
+          {/*
+            这四个数字原来是「1000+ 服务用户 / 99.9% 成功率 / 24/7 客服支持 / 10min 极速开通」，
+            四个里有三个编不出依据：1000 是拍的、99.9% 没有任何口径、
+            「10 分钟开通」对年费档、接码档、KYC 代办全都不成立（那几档本来就要人工或等短信）。
+            这不只是 SEO 问题——「最快 10 分钟到账」写在页面上而实际做不到，是可被投诉的表述。
+            换成库里真能查到的两个数，宁可少两块。
+          */}
           <div className="flex flex-wrap justify-center items-center gap-12 lg:gap-20 xl:gap-28 text-white/20">
             <div className="text-center">
               <div className="text-4xl lg:text-5xl font-bold text-white mb-1">
-                <CountUp end={1000} duration={2000} suffix="+" />
+                <CountUp end={stats.totalSales} duration={2000} suffix="+" />
               </div>
-              <div className="text-sm lg:text-base">服务用户</div>
+              <div className="text-sm lg:text-base">累计成交</div>
             </div>
             <div className="w-px h-12 bg-white/10" />
             <div className="text-center">
               <div className="text-4xl lg:text-5xl font-bold text-white mb-1">
-                <CountUp end={99.9} duration={2200} suffix="%" decimals={1} />
+                <CountUp end={stats.skuCount} duration={1600} />
               </div>
-              <div className="text-sm lg:text-base">成功率</div>
+              <div className="text-sm lg:text-base">在售档位</div>
             </div>
             <div className="w-px h-12 bg-white/10" />
             <div className="text-center">
+              {/* 这一条是真的：卡密付款后即时发放，兑换由买家自己发起，不受客服上下班限制 */}
               <div className="text-4xl lg:text-5xl font-bold text-white mb-1">24/7</div>
-              <div className="text-sm lg:text-base">客服支持</div>
-            </div>
-            <div className="w-px h-12 bg-white/10" />
-            <div className="text-center">
-              <div className="text-4xl lg:text-5xl font-bold text-white mb-1">
-                <CountUp end={10} duration={1500} suffix="min" />
-              </div>
-              <div className="text-sm lg:text-base">极速开通</div>
+              <div className="text-sm lg:text-base">自助兑换</div>
             </div>
           </div>
         </div>

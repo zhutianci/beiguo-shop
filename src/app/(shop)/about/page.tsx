@@ -14,7 +14,7 @@ const values = [
   {
     icon: Zap,
     title: '极速响应',
-    desc: '最快10分钟完成开通，不让你等待',
+    desc: '卡密档付款后即时发放，兑换由你自己发起',
     gradient: 'from-purple-500 to-pink-500',
   },
   {
@@ -31,17 +31,30 @@ const values = [
   },
 ]
 
+/*
+ * 这四个数字原来是「1000+ 服务用户 / 99.9% 成功率 / 24/7 客服支持 / 10min 极速开通」，
+ * 没有一个能拿出依据。一个卖 AI 会员的站，买家最大的顾虑就是「会不会被骗」，
+ * 而一个关于页上摆着四个编出来的数字，恰好是最容易被识破、也最伤信任的东西。
+ * 换成可核验的：经营主体是公开可查的，交付方式和收款方式是页面上就能验证的。
+ * 累计成交数不写死在这里——它在首页和各落地页由库里实时取，两处写死迟早会打架。
+ */
 const stats = [
-  { value: '1000+', label: '服务用户' },
-  { value: '99.9%', label: '成功率' },
-  { value: '24/7', label: '客服支持' },
-  { value: '10min', label: '极速开通' },
+  { value: '持照经营', label: '益阳市赫山区必高科技有限公司' },
+  { value: '卡密交付', label: '账号始终在你自己手里' },
+  { value: '支付宝', label: '人民币付款，无需境外支付方式' },
+  { value: '可开票', label: '增值税发票与收据（税费另付 6%）' },
 ]
 
+/*
+ * 原来这里是「AI 专家团队 / 资深技术团队 / 深耕 AI 领域多年」三个虚构的团队卡片。
+ * 这种东西对这个品类是净负资产：买家点开关于页就是来查你是不是骗子的，
+ * 看到三张没有名字、没有任何可核验信息的「团队」卡片，只会更怀疑。
+ * 换成这个站真正能说清楚、且买家真正关心的三件事。
+ */
 const team = [
-  { name: 'AI 专家团队', role: '资深技术团队', desc: '深耕 AI 领域多年' },
-  { name: '客服团队', role: '7×12 小时在线', desc: '专业贴心服务' },
-  { name: '运营团队', role: '高效响应', desc: '快速解决问题' },
+  { name: '我们做什么', role: '转售 AI 会员充值卡密', desc: '你在本站付人民币，拿到兑换码自己充，全程不用交出账号' },
+  { name: '我们不做什么', role: '不代管账号、不保证不封号', desc: '封号不在质保范围内，这一条写在每个商品页和服务条款里' },
+  { name: '出了问题找谁', role: '站内工单与客服微信', desc: '订单号可查，经营主体可核验，退款规则公开写在服务条款' },
 ]
 
 export default function AboutPage() {
@@ -94,7 +107,9 @@ export default function AboutPage() {
               transition={{ duration: 0.4, delay: i * 0.1 }}
               className="glass rounded-2xl p-6 text-center"
             >
-              <div className="text-4xl md:text-5xl font-bold gradient-text-accent mb-2">
+              {/* 这四格从「数字 + 标签」改成了「事实 + 说明」，字号要跟着降一档：
+                  48px 对四个汉字来说在手机端两列布局里会顶格 */}
+              <div className="text-2xl md:text-3xl font-bold gradient-text-accent mb-2">
                 {stat.value}
               </div>
               <div className="text-sm text-white/50">{stat.label}</div>
@@ -133,8 +148,8 @@ export default function AboutPage() {
               </div>
               <h3 className="text-2xl lg:text-3xl font-bold mb-4">我们的愿景</h3>
               <p className="text-white/60 leading-relaxed lg:text-[17px] lg:leading-[1.9]">
-                成为中国最值得信赖的 AI 服务平台，
-                贝果科技以专业、安全、高效的服务，助力每一位用户拥抱 AI 时代。
+                把「谁来付这笔美元」和「谁在用这个账号」拆开，
+                让没有境外支付方式的人也能用上这些服务——用人民币，用自己的账号。
               </p>
             </div>
           </div>
@@ -189,9 +204,9 @@ export default function AboutPage() {
             className="text-center mb-12"
           >
             <h2 className="text-headline mb-4">
-              <span className="gradient-text">专业团队</span>
+              <span className="gradient-text">下单前该知道的三件事</span>
             </h2>
-            <p className="text-white/50 lg:text-lg">为你提供优质服务</p>
+            <p className="text-white/50 lg:text-lg">包括我们不做什么</p>
           </motion.div>
 
           <div className="grid md:grid-cols-3 gap-6">

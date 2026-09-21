@@ -13,7 +13,7 @@ import { SITE_NAME } from '@/lib/product-seo'
  */
 const TITLE = `关于贝果科技 - AI 会员代充服务商 - ${SITE_NAME}`
 const DESCRIPTION =
-  '贝果科技（bigolab.com）由益阳市赫山区必高科技有限公司运营，提供 ChatGPT Plus / Pro、Claude Pro / Max 等 AI 会员代充值与订阅开通服务，已服务 1000+ 用户，支持开具增值税发票。'
+  '贝果科技（bigolab.com）由益阳市赫山区必高科技有限公司运营，提供 ChatGPT Plus / Pro、Claude Pro / Max 等 AI 会员充值与代充：卡密自助兑换，账号不经手，支付宝付款，可开增值税发票（标价不含税，税费另付）。'
 
 export const metadata: Metadata = {
   title: TITLE,
