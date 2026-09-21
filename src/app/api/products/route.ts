@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { PUBLIC_PRODUCT_SELECT } from '@/lib/product-select'
 
 // 商品列表
 // 向后兼容：不传 page 时返回裸数组（旧行为）；传了 page 才返回 { list, total, page, pageSize, totalPages }
@@ -27,14 +28,9 @@ export async function GET(request: NextRequest) {
     const [products, total] = await Promise.all([
       prisma.product.findMany({
         where,
-        include: {
-          category: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
+        // 【必须 select 白名单，不能 include】理由与清单见 lib/product-select.ts：
+        // include 会把 referrerBasePrice（内推底价）和 cardRedeemUrl（上游货源站）一起发给外网。
+        select: PUBLIC_PRODUCT_SELECT,
         orderBy: [
           { sortOrder: 'asc' },
           { createdAt: 'desc' },
