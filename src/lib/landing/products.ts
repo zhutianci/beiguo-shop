@@ -69,7 +69,9 @@ function norm(v: string): string {
 
 export function matchProducts(all: LandingProduct[], m: ProductMatch): LandingProduct[] {
   return all.filter((p) => {
-    if (m.categoryName && norm(p.categoryName ?? '') !== norm(m.categoryName)) return false
+    const cat = norm(p.categoryName ?? '')
+    if (m.categoryName && cat !== norm(m.categoryName)) return false
+    if (m.categoryAny && !m.categoryAny.some((c) => cat === norm(c))) return false
     const name = norm(p.name)
     if (m.nameAny && !m.nameAny.some((k) => name.includes(norm(k)))) return false
     if (m.nameNone && m.nameNone.some((k) => name.includes(norm(k)))) return false
