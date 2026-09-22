@@ -258,6 +258,41 @@ export default function OrdersPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, router, activeFilter, debouncedSearch])
 
+  /*
+   * 客服回话时，让正开着这一页的买家也能看见。
+   *
+   * 【为什么不直接定时 loadOrders()】买家可能已经点了几次「加载更多」，
+   * 重新拉第 1 页会把列表打回十条、还会把他正在看的位置顶掉。
+   * 所以这里只拉一个总数，发现比页面上已显示的未读多，就浮一条提示条，
+   * 让买家自己决定什么时候刷新——不替他动列表。
+   *
+   * 【30 秒、且只在页面可见时】客服回话不是秒级的事，切到后台就停。
+   */
+  const shownUnread = orders.reduce((n, o) => n + (o.unreadCount || 0), 0)
+  const [serverUnread, setServerUnread] = useState(0)
+  useEffect(() => {
+    if (!user) return
+    let alive = true
+    const pull = () => {
+      if (document.visibilityState !== 'visible') return
+      fetch('/api/account/unread')
+        .then((r) => r.json())
+        .then((d) => {
+          if (alive && d?.success) setServerUnread(Number(d.data?.messages) || 0)
+        })
+        .catch(() => {})
+    }
+    pull()
+    const id = setInterval(pull, 30_000)
+    document.addEventListener('visibilitychange', pull)
+    return () => {
+      alive = false
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', pull)
+    }
+  }, [user])
+  const hasNewerMessages = serverUnread > shownUnread
+
   if (!user) return null
 
   const statusFilters = [
@@ -345,6 +380,18 @@ export default function OrdersPage() {
             />
           </div>
         </motion.div>
+
+        {/* 客服在你开着这一页的时候回了话。只提示、不自动刷新——
+            买家可能已经「加载更多」翻了好几页，替他重拉会把列表打回第一页。 */}
+        {hasNewerMessages && !loading && (
+          <button
+            onClick={() => loadOrders()}
+            className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-3 text-sm text-cyan-200 transition-colors hover:bg-cyan-400/15"
+          >
+            <MessageSquare className="h-4 w-4" />
+            客服有 {serverUnread} 条新留言，点击刷新查看
+          </button>
+        )}
 
         <AnimatePresence mode="wait">
           {loading ? (

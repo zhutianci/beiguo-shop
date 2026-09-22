@@ -240,6 +240,14 @@ model SmsActivation {
   code         String?   @db.VarChar(255)
   cost         Decimal?  @db.Decimal(10, 2)
   raw          String?   @db.Text // 最近一次原始返回，便于排查
+  // 买家主动换号的次数。每换一次会先取新号、再取消旧号（旧号未收码会退费），
+  // 但换号本身有次数与冷却限制，理由见 lib/sms.ts 的 retryActivation
+  retryCount   Int       @default(0) @map("retry_count")
+  // 当前这个号码是什么时候取到的。换号会刷新它。
+  // 【为什么不拿 createdAt 或 expireAt 推】createdAt 是首次取号的时间，换号后就不对了；
+  // 用 expireAt 减去超时分钟数来推也不行——HEROSMS_TIMEOUT_MIN 是环境变量，
+  // 改过之后历史行推出来的时间就是错的，而冷却判断依赖它
+  numberAt     DateTime? @map("number_at")
   expireAt     DateTime  @map("expire_at")
   codeAt       DateTime? @map("code_at")
   createdAt    DateTime  @default(now()) @map("created_at")

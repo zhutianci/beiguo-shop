@@ -43,6 +43,44 @@ function isNavActive(pathname: string, href: string) {
 export function Header() {
   const pathname = usePathname()
   const { user, setUser, logout } = useUserStore()
+
+  /*
+   * 客服留言未读数。
+   *
+   * 【为什么放在页头】订单卡片上早就有「客服新回复 N」的红点，但那个只在
+   * 买家主动打开订单页时才看得见。客服回了话而买家正在别的页面逛，
+   * 他是完全不知道的——页头这个点是唯一覆盖得到那一段的位置。
+   *
+   * 【60 秒一次，且只在页面可见时跑】客服回话不是秒级的事，轮询太密只是白烧
+   * 服务器（这台机器只有 1.8G）。切到后台就停，回到前台立刻补一次——
+   * 不然买家切回来还要再等一整个周期才看到红点。
+   * 路由变化时也拉一次：买家刚从订单页出来，红点应该当场清掉。
+   */
+  const [unread, setUnread] = useState(0)
+  useEffect(() => {
+    if (!user) {
+      setUnread(0)
+      return
+    }
+    let alive = true
+    const pull = () => {
+      if (document.visibilityState !== 'visible') return
+      fetch('/api/account/unread')
+        .then((r) => r.json())
+        .then((d) => {
+          if (alive && d?.success) setUnread(Number(d.data?.messages) || 0)
+        })
+        .catch(() => {})
+    }
+    pull()
+    const id = setInterval(pull, 60_000)
+    document.addEventListener('visibilitychange', pull)
+    return () => {
+      alive = false
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', pull)
+    }
+  }, [user, pathname])
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
@@ -166,10 +204,19 @@ export function Header() {
                 <>
                   <Link
                     href="/orders"
-                    aria-label="我的订单"
-                    className="w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                    aria-label={unread > 0 ? `我的订单，有 ${unread} 条客服新留言` : '我的订单'}
+                    className="relative w-10 h-10 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                   >
                     <ShoppingBag className="w-4 h-4" />
+                    {unread > 0 && (
+                      // aria-label 已经把未读数说清楚了，这里对读屏隐藏，免得读两遍
+                      <span
+                        aria-hidden="true"
+                        className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[11px] font-bold leading-[18px] text-center text-white ring-2 ring-black/60"
+                      >
+                        {unread > 9 ? '9+' : unread}
+                      </span>
+                    )}
                   </Link>
                   <div className="relative group">
                     <button
@@ -187,8 +234,13 @@ export function Header() {
                       <Link href="/profile" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
                         个人中心
                       </Link>
-                      <Link href="/orders" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
-                        我的订单
+                      <Link href="/orders" className="flex items-center justify-between gap-2 px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                        <span>我的订单</span>
+                        {unread > 0 && (
+                          <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[11px] font-medium text-red-300">
+                            {unread} 条新留言
+                          </span>
+                        )}
                       </Link>
                       <button
                         onClick={logout}

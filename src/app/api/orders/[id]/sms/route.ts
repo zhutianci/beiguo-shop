@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized, notFound } from '@/lib/api'
-import { pollActivation, acquireForOrder } from '@/lib/sms'
+import { pollActivation, acquireForOrder, SMS_MAX_RETRY, SMS_RETRY_COOLDOWN_SEC } from '@/lib/sms'
 
 // 买家拉取本订单接码状态（号码 + 验证码）；缺号时按需补取号，并实时查码/超时取消
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
@@ -44,6 +44,10 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     const a = await pollActivation(orderId)
     if (!a) return success({ exists: false })
 
+    // 换号相关的状态一起返回，前端据此决定按钮是可点、冷却中、还是次数已用完。
+    // canRetryAt 给的是绝对时间而不是剩余秒数：前端自己倒计时，
+    // 不会因为轮询间隔（5 秒）而让倒计时一跳一跳的
+    const issuedAt = a.numberAt ?? a.createdAt
     return success({
       exists: true,
       status: a.status,
@@ -52,6 +56,9 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       expireAt: a.expireAt,
       service: a.service,
       country: a.country,
+      retryCount: a.retryCount,
+      maxRetry: SMS_MAX_RETRY,
+      canRetryAt: new Date(issuedAt.getTime() + SMS_RETRY_COOLDOWN_SEC * 1000),
     })
   } catch (err) {
     console.error('Get order sms error:', err)
