@@ -55,6 +55,9 @@ function otherVerification(): Record<string, string> | undefined {
   return Object.keys(out).length ? out : undefined
 }
 
+/** 换站标时 +1。理由见下面 icons 那段注释 */
+const ICON_VERSION = 2
+
 export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin()),
   // 刻意不用 title.template：新闻详情页的 <title> 会被微信直接当分享标题读走，
@@ -67,10 +70,17 @@ export const metadata: Metadata = {
   // 这里刻意不写 alternates.canonical：Next 的 metadata 是逐段继承的，
   // 在根布局写死 canonical:'/' 会让全站每个页面都自称「我是首页的副本」，
   // 结果是除首页外全部被搜索引擎丢弃。canonical 只能由各页面自己声明。
+  /*
+   * 【图标地址必须带版本号】favicon 是浏览器缓存得最狠的一类资源：地址不变时
+   * 即使服务端文件已经换了，老访客的标签页上仍然是旧图标，可能挂好几周，
+   * 而且 Ctrl+F5 都不一定刷得掉（favicon 走的是独立的缓存）。
+   * 2026-09-22 换站标时就撞上了这个：服务端发的明明是新图，页面上还是旧的。
+   * 换图标时把 ?v= 往上加一位，这是唯一可靠的办法。
+   */
   icons: {
-    icon: [{ url: '/logo-square.png', type: 'image/png', sizes: '512x512' }],
-    shortcut: ['/logo-square.png'],
-    apple: [{ url: '/logo-square.png', sizes: '512x512' }],
+    icon: [{ url: `/logo-square.png?v=${ICON_VERSION}`, type: 'image/png', sizes: '512x512' }],
+    shortcut: [`/logo-square.png?v=${ICON_VERSION}`],
+    apple: [{ url: `/logo-square.png?v=${ICON_VERSION}`, sizes: '512x512' }],
   },
   /*
    * 站长平台的归属验证 meta。值从环境变量来，没配就整条不输出。
