@@ -62,6 +62,7 @@ export interface ClientProduct {
   price: number
   originalPrice: number | null
   features: string | null
+  image: string | null
   stock: number
   sales: number
   deliveryType?: string
@@ -109,6 +110,8 @@ const getProduct = cache(
           price,
           originalPrice,
           features: p.features,
+          // image 要跟着一起下发：详情页主视觉用它，漏了就永远是渐变块
+          image: p.image,
           stock: p.stock,
           sales: p.sales,
           deliveryType: p.deliveryType ?? undefined,

@@ -37,6 +37,7 @@ interface Product {
   price: string | number
   originalPrice: string | number | null
   features: string | null
+  image?: string | null
   stock: number
   sales: number
   deliveryType?: string
@@ -213,6 +214,19 @@ export default function ProductDetailClient({
               <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-30 blur-md`} />
 
               <div className="relative glass rounded-3xl p-8 md:p-12">
+                {/* 商品主图。此前这一页只有渐变色块，买家在决定要不要付几百上千块的那一屏上
+                    看不到任何具体的东西。有图就放图，没有仍然是渐变——不为「有个图」而硬造。
+                    宽高写死防止加载时把下面的标题顶下去（CLS）。 */}
+                {product.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    width={176}
+                    height={176}
+                    className="mb-6 h-32 w-32 rounded-2xl border border-white/10 object-cover md:h-44 md:w-44"
+                  />
+                )}
                 <div className="flex items-center gap-3 mb-6 flex-wrap">
                   <div className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient}`}>
                     {tag}
