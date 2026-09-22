@@ -213,21 +213,23 @@ export default function ProductDetailClient({
             >
               <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-30 blur-md`} />
 
-              <div className="relative glass rounded-3xl p-8 md:p-12">
-                {/* 商品主图。此前这一页只有渐变色块，买家在决定要不要付几百上千块的那一屏上
-                    看不到任何具体的东西。有图就放图，没有仍然是渐变——不为「有个图」而硬造。
-                    宽高写死防止加载时把下面的标题顶下去（CLS）。 */}
-                {product.image && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    width={176}
-                    height={176}
-                    className="mb-6 h-32 w-32 rounded-2xl border border-white/10 object-cover md:h-44 md:w-44"
-                  />
-                )}
-                <div className="flex items-center gap-3 mb-6 flex-wrap">
+              {/*
+                主视觉。结构照着「标题整行 → 图片左 / 说明右」来：
+                图片单独占一块正方形，而不是浮在标题上方的一个小方块——
+                之前那版就是这么写的，图片孤零零挂在左上角，和整张卡片没有任何关系。
+
+                【右栏必须有「一定有内容」的东西】库里多数商品的 description 只有几个字
+                （商品 16 就四个字「自助充值」），features 目前全是空的。
+                如果右栏只放描述，两栏会比一栏更空。所以右栏底部固定放一组关键信息
+                （交付方式 / 库存 / 累计成交 / 分类）——这些每个商品都有，
+                而且正好是买家在这一屏想确认的事。
+
+                【没有图时不留空格】不是把图片换成占位块，而是整块退回单栏——
+                占位块只是把「空」换了个位置。
+              */}
+              <div className="relative glass rounded-3xl p-6 sm:p-8 md:p-10">
+                {/* 徽章行 */}
+                <div className="flex items-center gap-2.5 mb-5 flex-wrap">
                   <div className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient}`}>
                     {tag}
                   </div>
@@ -247,26 +249,90 @@ export default function ProductDetailClient({
                   )}
                 </div>
 
-                <h1 className="text-5xl md:text-6xl font-bold mb-4 tracking-tight">
+                {/* 标题整行。原来是 text-5xl/6xl（48–60px）——那个尺寸压在一张
+                    240px 的图上面，比例是失衡的，长商品名还会占掉三四行。
+                    降一档之后标题仍然是这一屏的第一视觉，但不再压住下面整块。 */}
+                <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight leading-[1.15]">
                   {product.name}
                 </h1>
-                {product.description && (
-                  <p className="text-white/50 text-lg lg:text-xl lg:leading-relaxed max-w-2xl mb-8">{product.description}</p>
-                )}
 
-                {features.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {features.map((feature, i) => (
+                {/* 图片左 / 说明右。没有图时整块退回单栏 */}
+                <div
+                  className={
+                    product.image
+                      ? 'mt-7 grid gap-6 sm:gap-8 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] md:items-start'
+                      : 'mt-7'
+                  }
+                >
+                  {product.image && (
+                    <div className="relative mx-auto w-full max-w-[15rem] md:mx-0">
+                      {/* 图片背后压一层同色渐变辉光：让它和整张卡片是一体的，
+                          而不是「一张贴上去的图」。blur 之后只剩氛围，不会喧宾夺主 */}
                       <div
-                        key={i}
-                        className="inline-flex items-center gap-2 px-4 py-2 lg:px-5 lg:py-2.5 rounded-full bg-white/5 border border-white/10 text-sm lg:text-[15px] text-white/80"
-                      >
-                        <Check className="w-3.5 h-3.5 text-green-400" />
-                        {feature}
+                        className={`absolute -inset-2 rounded-3xl bg-gradient-to-br ${gradient} opacity-20 blur-xl`}
+                        aria-hidden="true"
+                      />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={product.image}
+                        alt={product.name}
+                        width={480}
+                        height={480}
+                        className="relative aspect-square w-full rounded-2xl border border-white/10 object-cover"
+                      />
+                    </div>
+                  )}
+
+                  <div className="min-w-0">
+                    {product.description && (
+                      <p className="text-white/60 text-[15px] sm:text-base leading-relaxed">
+                        {product.description}
+                      </p>
+                    )}
+
+                    {features.length > 0 && (
+                      <div className="mt-5 flex flex-wrap gap-2">
+                        {features.map((feature, i) => (
+                          <div
+                            key={i}
+                            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-sm text-white/80"
+                          >
+                            <Check className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                            {feature}
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
+
+                    {/* 关键信息。每个商品都有，右栏不会因为描述短就空掉 */}
+                    <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.07] pt-5 text-sm">
+                      <div>
+                        <dt className="text-white/35 text-xs mb-1">交付方式</dt>
+                        <dd className="text-white/80">
+                          {isAuto ? '付款后即时发卡' : isSms ? '付款后自动取号' : '人工对接'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-white/35 text-xs mb-1">库存</dt>
+                        <dd>
+                          <span
+                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STOCK_TONE_CLASS[stockLevel(product.stock).tone]}`}
+                          >
+                            {stockLevel(product.stock).label}
+                          </span>
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-white/35 text-xs mb-1">累计成交</dt>
+                        <dd className="text-white/80">{product.sales} 笔</dd>
+                      </div>
+                      <div>
+                        <dt className="text-white/35 text-xs mb-1">所属分类</dt>
+                        <dd className="text-white/80 truncate">{product.category.name}</dd>
+                      </div>
+                    </dl>
                   </div>
-                )}
+                </div>
               </div>
             </motion.div>
 
