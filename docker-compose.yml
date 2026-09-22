@@ -162,6 +162,10 @@ services:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # 用户上传的图片直接由 nginx 发（理由见 nginx.conf 里 location /uploads/ 那段：
+      # Next 不服务运行时新增的 public 文件，传完要等重启才可见）。
+      # 只读挂载：nginx 只负责发，写入仍然只能走 /api/upload。
+      - forum_uploads:/var/www/uploads:ro
     depends_on:
       - app
     networks:
