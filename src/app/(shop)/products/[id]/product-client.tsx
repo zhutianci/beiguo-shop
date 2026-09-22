@@ -260,7 +260,7 @@ export default function ProductDetailClient({
                 <div
                   className={
                     product.image
-                      ? 'mt-7 grid gap-6 sm:gap-8 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] md:items-start'
+                      ? 'mt-7 grid gap-6 sm:gap-8 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]'
                       : 'mt-7'
                   }
                 >
@@ -283,7 +283,10 @@ export default function ProductDetailClient({
                     </div>
                   )}
 
-                  <div className="min-w-0">
+                  {/* flex 列 + 下面那块 mt-auto：让关键信息贴着图片底边。
+                      多数商品的描述只有几个字，不这么做右下角会空掉一大块，
+                      整张卡片看起来像是没排完 */}
+                  <div className="flex min-w-0 flex-col">
                     {product.description && (
                       <p className="text-white/60 text-[15px] sm:text-base leading-relaxed">
                         {product.description}
@@ -305,7 +308,7 @@ export default function ProductDetailClient({
                     )}
 
                     {/* 关键信息。每个商品都有，右栏不会因为描述短就空掉 */}
-                    <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.07] pt-5 text-sm">
+                    <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.07] pt-5 text-sm md:mt-auto">
                       <div>
                         <dt className="text-white/35 text-xs mb-1">交付方式</dt>
                         <dd className="text-white/80">
