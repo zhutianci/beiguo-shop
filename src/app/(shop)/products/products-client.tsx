@@ -128,7 +128,10 @@ export default function ProductsClient({ products }: { products: ListProduct[] }
   }, [visible, refPrice])
 
   return (
-    <div className="min-h-screen page-top pb-20 lg:pb-28">
+    /* 【不要在这里再写 page-top】page.tsx 里那个面包屑容器已经带了一层
+       （padding-top = --header-h + 1rem = 128px）。两层叠起来是 256px 的顶部空白，
+       首屏进来看到的是一大片黑。这里只留一点和面包屑之间的呼吸感。 */
+    <div className="min-h-screen pt-4 pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
@@ -160,7 +163,12 @@ export default function ProductsClient({ products }: { products: ListProduct[] }
 
         {/* 分类 + 视图切换。sticky 让它在长列表里一直够得着，
             top 跟着 --header-h 走，不写死数值 */}
-        <div className="sticky z-20 mb-8 -mx-4 px-4 py-3 backdrop-blur-xl" style={{ top: 'var(--header-h, 96px)' }}>
+        {/* 吸顶只在 sm 以上开。手机端头部本身就占 112px（--header-h），
+            再吸一条筛选栏，812px 的屏幕去掉三分之一，列表反而看不见几行。 */}
+        <div
+          className="z-20 mb-8 -mx-4 px-4 py-3 sm:sticky sm:backdrop-blur-xl"
+          style={{ top: 'var(--header-h, 96px)' }}
+        >
           <div className="flex flex-wrap items-center justify-center gap-3">
             <div className="inline-flex items-center gap-1.5 p-1.5 rounded-full glass flex-wrap justify-center">
               <CatBtn active={category === ALL} onClick={() => setCategory(ALL)}>
@@ -300,7 +308,16 @@ function StockPill({ stock }: { stock: number }) {
   )
 }
 
-/** 列表模式的一行。整行可点，命中区域比「只有标题是链接」大得多 */
+/**
+ * 列表模式的一行。整行可点，命中区域比「只有标题是链接」大得多。
+ *
+ * 【手机端要单独想过】375px 宽下，把「名称 + 档位标签 + 交付方式 + 描述 + 库存 + 价格」
+ * 挤在一行里会换到三行、缩略图和价格错位、整行高度失控。实测之后改成：
+ *   · 名称单行截断（truncate + min-w-0），保证每一行等高、缩略图和价格永远对齐
+ *   · 第二行放交付方式和库存档位——这两条是下单前必须看见的，不能藏
+ *   · 描述和档位标签属于「有更好、没有也不影响决策」，只在 sm 以上出现
+ * 库存档位原来写的是 hidden sm:block，等于手机端完全看不到库存，这是漏的。
+ */
 function ProductRow({ p, price }: { p: ListProduct; price: number }) {
   const badge = deliveryBadge(p.deliveryType || undefined)
   const tag = productTag(p.name)
@@ -308,44 +325,49 @@ function ProductRow({ p, price }: { p: ListProduct; price: number }) {
   return (
     <Link
       href={`/products/${p.id}`}
-      className="group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:bg-white/[0.06] sm:px-5"
+      className="group grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none sm:gap-4 sm:px-5 sm:py-4"
     >
-      <ProductThumb id={p.id} name={p.name} image={p.image} size={52} />
+      <ProductThumb id={p.id} name={p.name} image={p.image} size={44} className="sm:hidden" />
+      <ProductThumb id={p.id} name={p.name} image={p.image} size={52} className="hidden sm:block" />
 
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="font-medium text-white/90 transition-colors group-hover:text-white">
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-medium text-white/90 transition-colors group-hover:text-white">
             {p.name}
           </span>
           {tag && (
             <span
-              className={`rounded px-1.5 py-px text-[10px] font-bold text-white bg-gradient-to-r ${PRODUCT_GRADIENT(p.id)}`}
+              className={`hidden shrink-0 rounded px-1.5 py-px text-[10px] font-bold text-white sm:inline bg-gradient-to-r ${PRODUCT_GRADIENT(p.id)}`}
             >
               {tag}
             </span>
           )}
-          <span className={`rounded-full border px-2 py-0.5 text-[11px] ${badge.cls}`}>{badge.label}</span>
         </div>
-        {p.description && (
-          <p className="mt-1 truncate text-sm text-white/40">{p.description}</p>
-        )}
+        <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
+          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] ${badge.cls}`}>
+            {badge.label}
+          </span>
+          <StockPill stock={p.stock} />
+          {p.description && (
+            <span className="hidden truncate text-xs text-white/30 sm:inline">{p.description}</span>
+          )}
+        </div>
       </div>
 
-      <div className="hidden shrink-0 sm:block">
-        <StockPill stock={p.stock} />
-      </div>
-
-      <div className="shrink-0 text-right">
-        <div className="whitespace-nowrap text-lg font-bold text-white">￥{price.toFixed(0)}</div>
-        {cut && (
-          <div className="whitespace-nowrap text-xs text-white/30 line-through">
-            ￥{p.originalPrice!.toFixed(0)}
+      <div className="flex items-center gap-2">
+        <div className="text-right">
+          <div className="whitespace-nowrap text-base font-bold text-white sm:text-lg">
+            ￥{price.toFixed(0)}
           </div>
-        )}
-        <div className="mt-0.5 text-[11px] text-white/30">已售 {p.sales}</div>
+          {cut && (
+            <div className="whitespace-nowrap text-[11px] text-white/30 line-through">
+              ￥{p.originalPrice!.toFixed(0)}
+            </div>
+          )}
+          <div className="whitespace-nowrap text-[11px] text-white/30">已售 {p.sales}</div>
+        </div>
+        <ArrowRight className="hidden h-4 w-4 shrink-0 text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:text-white/60 sm:block" />
       </div>
-
-      <ArrowRight className="hidden h-4 w-4 shrink-0 text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:text-white/60 sm:block" />
     </Link>
   )
 }
