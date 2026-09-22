@@ -98,10 +98,17 @@ export function Header() {
               href="/"
               className="flex shrink-0 items-center gap-3 group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
-              <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-lg overflow-hidden">
-                <span className="relative z-10">贝</span>
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-400 to-pink-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
+              {/* 站标。用 <img> 而不是 next/image：这台机器只有 1.8G 内存，
+                  图片优化管线的 CPU/内存开销不值得为一张 20KB 的小图付（同 gen-og-image.js 的取舍）。
+                  写死 width/height 防止加载时抖动（CLS）。
+                  这张图是透明底 PNG，所以深浅背景都能直接用。 */}
+              <img
+                src="/logo-mark.png"
+                alt=""
+                width={40}
+                height={40}
+                className="w-10 h-10 shrink-0 transition-transform duration-300 group-hover:scale-105"
+              />
               {/* md 区间要把宽度让给 7 项导航，品牌名只在 lg 以上出现；
                   xl 上导航字号升到 16px，品牌名同步升一档才不会被导航压过去。
                   中文标题字距默认偏松，tracking-tight 让四个字更像一个整体 */}

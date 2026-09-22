@@ -26,11 +26,17 @@ export function Footer() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-12 lg:gap-x-8 xl:gap-x-12">
             {/* Brand */}
             <div className="lg:col-span-3">
-              <Link href="/" className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 lg:w-11 lg:h-11 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-lg lg:text-xl">
-                  贝
-                </div>
-                <span className="font-bold text-xl lg:text-2xl lg:tracking-tight">贝果科技</span>
+              {/* 页脚用完整字标（图标 + bigo tech + 域名 + 副标）。
+                  它是透明底 PNG，而页脚是深色，白色字标在这里正好成立。
+                  alt 写全称：这是页脚唯一一处品牌名，图挂了也要读得出是谁。 */}
+              <Link href="/" className="inline-flex items-center mb-6">
+                <img
+                  src="/logo-full.png"
+                  alt="贝果科技 bigo tech - bigolab.com"
+                  width={640}
+                  height={628}
+                  className="h-28 w-auto lg:h-32"
+                />
               </Link>
               {/* 简介是纯正文：max-w-sm(384px) 在 1920px 下会被强行断成很多短行，
                   lg 放宽到 max-w-md 并把字号/行高抬一档，行长落在 40 字左右的舒适区 */}

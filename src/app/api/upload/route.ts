@@ -120,6 +120,7 @@ function rateLimited(key: string): boolean {
 const SCOPES: Record<string, string> = {
   forum: 'forum', // 论坛发帖配图（允许匿名）
   links: 'links', // 友链 / 招商位的站点 logo（后台录入）
+  products: 'products', // 商品主图（后台录入，展示在商品列表与详情页）
 }
 
 // 图片上传：保存到 public/uploads/<scope>，返回可访问 URL

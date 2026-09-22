@@ -28,6 +28,7 @@ import { ArrowLeft, ArrowRight, Check, ShieldCheck, Clock, Headphones, Sparkles,
 import { PurchaseModal } from '@/components/purchase-modal'
 import { ContactModal } from '@/components/contact-modal'
 import { captureRefFromUrl } from '@/lib/ref'
+import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
 
 interface Product {
   id: number
@@ -386,17 +387,22 @@ export default function ProductDetailClient({
                     </div>
                   )}
 
-                  {/* 销量 + 库存 */}
-                  <div className="flex items-center gap-4 mt-4 text-sm text-white/50">
+                  {/* 销量 + 库存。
+                      库存只给档位不给具体数字——理由见 lib/stock-level.ts：
+                      具体数量对买家没用，对同行有用。能不能下单仍由服务端按真实库存判定。 */}
+                  <div className="flex items-center gap-3 mt-4 text-sm text-white/50">
                     <span>已售 <span className="text-white/80 font-medium">{product.sales}</span></span>
                     <span className="text-white/20">·</span>
-                    <span>
-                      {product.stock === -1
-                        ? '现货充足'
-                        : product.stock === 0
-                          ? '已售罄'
-                          : `余量 ${product.stock}`}
-                    </span>
+                    {(() => {
+                      const lv = stockLevel(product.stock)
+                      return (
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STOCK_TONE_CLASS[lv.tone]}`}
+                        >
+                          {lv.label}
+                        </span>
+                      )
+                    })()}
                   </div>
                 </div>
 

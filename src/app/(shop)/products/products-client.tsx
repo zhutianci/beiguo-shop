@@ -1,366 +1,223 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { ArrowRight, Filter, Loader2, Sparkles } from 'lucide-react'
+import { ArrowRight, LayoutGrid, List as ListIcon, Sparkles } from 'lucide-react'
 import { ContactModal } from '@/components/contact-modal'
 import { captureRefFromUrl } from '@/lib/ref'
+import { ProductThumb } from '@/components/products/product-thumb'
+import { PRODUCT_GRADIENT, deliveryBadge, productTag } from '@/components/products/gradient'
+import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
 
-interface Category {
-  id: number
-  name: string
-  icon: string | null
-}
+/**
+ * 商品列表页。
+ *
+ * 【这一版把取数从客户端搬回了服务端】原来整页靠 useEffect + fetch('/api/products')
+ * 分页拉数据，有三个问题：
+ *   1. 服务端 HTML 里一个商品名都没有（robots.txt 还 disallow 了 /api/，
+ *      「Google 会执行 JS」这条退路不成立）；
+ *   2. 每次切分类都要发一次请求，肉眼可见的等待；
+ *   3. 首屏要等一个往返才有内容。
+ * 现在 20 个在售商品由服务端一次取好当 props 传进来——客户端组件同样会被 SSR，
+ * 所以商品名、价格、分类全部落在首屏 HTML 里。切分类、换视图都是内存操作，零请求。
+ * 商品只有二十来个，全量下发比分页简单得多，也快得多；真涨到几百个再谈分页。
+ *
+ * 【两种视图】列表模式信息密度高（一屏扫完型号和价格），是默认；
+ * 卡片模式是原来那套，保留给习惯它的人。选择记在 localStorage。
+ * 服务端固定渲染列表模式，客户端挂载后才读偏好——避免 hydration 不一致。
+ *
+ * 【库存只给档位不给数字】理由见 lib/stock-level.ts。
+ * 能不能下单仍由服务端下单接口按真实库存判定，这里只管显示。
+ */
 
-interface Product {
+export interface ListProduct {
   id: number
   categoryId: number
   name: string
   description: string | null
-  price: string | number
-  originalPrice: string | number | null
-  features: string | null
+  price: number
+  originalPrice: number | null
+  image: string | null
   stock: number
   sales: number
-  deliveryType?: string
-  category: { id: number; name: string }
+  deliveryType?: string | null
+  categoryName: string
 }
 
-const gradients = [
-  'from-violet-600 to-purple-600',
-  'from-purple-600 to-pink-600',
-  'from-pink-600 to-rose-600',
-  'from-emerald-600 to-teal-600',
-  'from-teal-600 to-cyan-600',
-  'from-cyan-600 to-blue-600',
-  'from-amber-600 to-orange-600',
-]
+type ViewMode = 'list' | 'card'
+const VIEW_KEY = 'bg_products_view'
+const ALL = 0
 
-function getGradient(id: number) {
-  return gradients[id % gradients.length]
-}
-
-function getTag(product: Product) {
-  const name = product.name.toLowerCase()
-  if (name.includes('20x')) return 'ULTIMATE'
-  if (name.includes('5x')) return '5X POWER'
-  if (name.includes('pro') && name.includes('chatgpt')) return 'o1 ACCESS'
-  if (name.includes('plus')) return 'GPT-4'
-  if (name.includes('pro')) return 'POPULAR'
-  return 'NEW'
-}
-
-function parseFeatures(features: string | null): string[] {
-  if (!features) return []
-  try {
-    const parsed = JSON.parse(features)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-// 每次加载的商品数量（分段懒加载）
-const PAGE_SIZE = 12
-
-export default function ProductsClient() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [selectedCategory, setSelectedCategory] = useState(0)
+export default function ProductsClient({ products }: { products: ListProduct[] }) {
+  const [mode, setMode] = useState<ViewMode>('list')
+  const [category, setCategory] = useState<number>(ALL)
   const [contactOpen, setContactOpen] = useState(false)
   const [ref, setRef] = useState<string | null>(null)
-  // 内推码要在浏览器里读，读到之前先不发商品请求，避免重复拉一次
-  const [refReady, setRefReady] = useState(false)
-  const abortRef = useRef<AbortController | null>(null)
+  /** 内推专属价覆盖表：productId → price。拿不到就用列表价，不阻塞渲染 */
+  const [refPrice, setRefPrice] = useState<Record<number, number>>({})
 
-  // 首次挂载：读内推码 + 拉分类
+  // 挂载后再读偏好与内推码：这两样都只存在于浏览器，在渲染期读会造成 hydration 不一致
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_KEY)
+      if (saved === 'card' || saved === 'list') setMode(saved)
+    } catch {
+      // 隐私模式下 localStorage 会抛，用默认值就行
+    }
     setRef(captureRefFromUrl())
-    setRefReady(true)
-    fetch('/api/categories')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) setCategories(data.data)
-      })
-      .catch(() => {})
   }, [])
 
-  // 拉某一页商品：append=true 追加到列表尾部（加载更多）
-  const loadPage = useCallback(
-    async (targetPage: number, append: boolean) => {
-      abortRef.current?.abort()
-      const controller = new AbortController()
-      abortRef.current = controller
-      if (append) setLoadingMore(true)
-      else setLoading(true)
-      try {
-        const q = new URLSearchParams({ page: String(targetPage), pageSize: String(PAGE_SIZE) })
-        if (selectedCategory) q.set('categoryId', String(selectedCategory))
-        if (ref) q.set('ref', ref)
-        const res = await fetch(`/api/products?${q}`, { signal: controller.signal })
-        const data = await res.json()
-        if (data.success && abortRef.current === controller) {
-          const d = data.data as { list: Product[]; total: number; page: number; totalPages: number }
-          setProducts((prev) => (append ? [...prev, ...d.list] : d.list))
-          setPage(d.page)
-          setTotalPages(d.totalPages)
-          setTotal(d.total)
-        }
-      } catch (e) {
-        if ((e as { name?: string })?.name === 'AbortError') return
-      } finally {
-        if (abortRef.current === controller) {
-          setLoading(false)
-          setLoadingMore(false)
-        }
-      }
-    },
-    [selectedCategory, ref]
+  // 带内推码时覆盖价格。只发这一次，失败就沿用列表价（宁可显示原价，也不要空白）
+  useEffect(() => {
+    if (!ref) return
+    let alive = true
+    fetch(`/api/products?ref=${encodeURIComponent(ref)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive || !d?.success) return
+        const rows = Array.isArray(d.data) ? d.data : d.data?.list
+        if (!Array.isArray(rows)) return
+        const map: Record<number, number> = {}
+        for (const p of rows) map[p.id] = Number(p.price)
+        setRefPrice(map)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [ref])
+
+  function pick(m: ViewMode) {
+    setMode(m)
+    try {
+      localStorage.setItem(VIEW_KEY, m)
+    } catch {
+      /* 存不下不影响使用 */
+    }
+  }
+
+  const priceOf = (p: ListProduct) => refPrice[p.id] ?? p.price
+
+  // 分类取自商品本身，不另查一张表：这样不会出现「点进去是空的」的分类
+  const categories = useMemo(() => {
+    const m = new Map<number, string>()
+    for (const p of products) if (!m.has(p.categoryId)) m.set(p.categoryId, p.categoryName)
+    return Array.from(m, ([id, name]) => ({ id, name }))
+  }, [products])
+
+  const visible = useMemo(
+    () => (category === ALL ? products : products.filter((p) => p.categoryId === category)),
+    [products, category]
   )
 
-  // 切换分类（或拿到内推码后）：清空并重新从第 1 页拉
-  useEffect(() => {
-    if (!refReady) return
-    setProducts([])
-    setPage(1)
-    setTotalPages(1)
-    loadPage(1, false)
-  }, [refReady, loadPage])
-
-  const hasMore = page < totalPages
+  /** 列表模式：按分类分组，组内按价格升序（便宜的在前，买家先看得起的那一档） */
+  const grouped = useMemo(() => {
+    const m = new Map<string, ListProduct[]>()
+    for (const p of visible) {
+      const arr = m.get(p.categoryName)
+      if (arr) arr.push(p)
+      else m.set(p.categoryName, [p])
+    }
+    // 用 Array.from 而不是 for...of 直接迭代 Map：tsconfig 的 target 不开
+    // downlevelIteration，直接迭代 MapIterator 编译不过
+    const entries = Array.from(m.entries())
+    for (const [, arr] of entries) arr.sort((a, b) => priceOf(a) - priceOf(b))
+    return entries
+    // priceOf 依赖 refPrice，内推价到了要重排
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, refPrice])
 
   return (
-    /* 顶部留白走 .page-top，不再写死 pt-32：它从 globals.css 的 --header-h 推导，
-       移动端仍是 112+16=128px（与原来的 pt-32 完全一致），lg 起跟着矮下来的
-       头部收到 96+16=112px。以后改头部高度只改 --header-h 一处，不用再追七八个文件 */
     <div className="min-h-screen page-top pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
 
-      {/* 商品列表是「网格型」而不是「正文型」页面，行长约束不适用：
-          2xl(≥1536) 把容器从 max-w-7xl(1280) 放宽到 1600，配合下面的四列网格填满宽屏，
-          否则 1920 屏上三列卡片两侧各留 320px 纯空白 */}
-      {/* 刻意不在 2xl 放宽到 1600px：页头页脚是 max-w-7xl(1280)，
-          商品网格一旦更宽，超宽屏上就会比导航栏探出去一截、左右对不齐。
-          「填满宽屏」不值得用整站对齐去换。 */}
       <div className="container relative">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
-        >
+        <div className="text-center mb-10 lg:mb-14">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span className="text-sm text-white/80">精选订阅服务</span>
+            <span className="text-sm text-white/80">全部在售商品</span>
           </div>
           <h1 className="text-headline mb-4">
-            <span className="gradient-text">选择你的</span>
-            <span className="gradient-text-accent"> AI 助手</span>
+            <span className="gradient-text">AI 会员充值</span>
+            <span className="gradient-text-accent"> 价目表</span>
           </h1>
-          <p className="text-white/50 text-lg lg:text-xl max-w-xl lg:max-w-2xl mx-auto">
-            专业团队，正规渠道，快速开通，售后无忧
+          {/* 原来这里写的是「专业团队，正规渠道，快速开通，售后无忧」——四句都无从核验。
+              换成买家真正要确认的三件事，每一条页面上都兑现得了 */}
+          <p className="text-white/50 text-base lg:text-lg max-w-2xl mx-auto leading-relaxed">
+            卡密自助兑换，账号不经手；支付宝付款，无需境外支付方式；
+            <br className="hidden sm:block" />
+            标价均为不含税价，需要增值税发票的另付 6% 税费。
           </p>
-        </motion.div>
+        </div>
 
         {ref && (
           <div className="max-w-xl mx-auto mb-8 text-center text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-full px-4 py-2">
-            🎁 您正在通过专属推广链接访问，已为您应用专属价格
+            🎁 你正在通过专属推广链接访问，已应用专属价格
           </div>
         )}
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-          className="flex justify-center mb-12 lg:mb-16"
-        >
-          {/* 分类筛选保持「居中胶囊组」而不是改侧边栏：分类数量少（个位数），
-              侧边栏会在桌面端割掉一整列宽度、还得为手机端再写一套折叠逻辑，得不偿失。
-              桌面端只把胶囊本身放宽、字号提到 15px，并给非选中项一个可见的 hover 底色 */}
-          <div className="inline-flex items-center gap-2 p-1.5 lg:p-2 rounded-full glass flex-wrap justify-center">
-            <button
-              onClick={() => setSelectedCategory(0)}
-              className={`flex items-center gap-2 px-5 py-2.5 lg:px-6 lg:py-3 rounded-full text-sm lg:text-[15px] font-medium transition-all ${
-                selectedCategory === 0
-                  ? 'bg-white text-black'
-                  : 'text-white/60 hover:text-white lg:hover:bg-white/10'
-              }`}
-            >
-              <span>✨</span>
-              <span>全部</span>
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
-                className={`flex items-center gap-2 px-5 py-2.5 lg:px-6 lg:py-3 rounded-full text-sm lg:text-[15px] font-medium transition-all ${
-                  selectedCategory === category.id
-                    ? 'bg-white text-black'
-                    : 'text-white/60 hover:text-white lg:hover:bg-white/10'
-                }`}
-              >
-                <span>{category.name}</span>
-              </button>
+        {/* 分类 + 视图切换。sticky 让它在长列表里一直够得着，
+            top 跟着 --header-h 走，不写死数值 */}
+        <div className="sticky z-20 mb-8 -mx-4 px-4 py-3 backdrop-blur-xl" style={{ top: 'var(--header-h, 96px)' }}>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="inline-flex items-center gap-1.5 p-1.5 rounded-full glass flex-wrap justify-center">
+              <CatBtn active={category === ALL} onClick={() => setCategory(ALL)}>
+                全部
+                <span className="ml-1.5 text-[11px] opacity-50">{products.length}</span>
+              </CatBtn>
+              {categories.map((c) => {
+                const n = products.filter((p) => p.categoryId === c.id).length
+                return (
+                  <CatBtn key={c.id} active={category === c.id} onClick={() => setCategory(c.id)}>
+                    {c.name}
+                    <span className="ml-1.5 text-[11px] opacity-50">{n}</span>
+                  </CatBtn>
+                )
+              })}
+            </div>
+
+            <div className="inline-flex items-center gap-1 p-1.5 rounded-full glass" role="group" aria-label="展示方式">
+              <ViewBtn active={mode === 'list'} onClick={() => pick('list')} label="列表模式">
+                <ListIcon className="w-4 h-4" />
+              </ViewBtn>
+              <ViewBtn active={mode === 'card'} onClick={() => pick('card')} label="卡片模式">
+                <LayoutGrid className="w-4 h-4" />
+              </ViewBtn>
+            </div>
+          </div>
+        </div>
+
+        {visible.length === 0 ? (
+          <p className="text-center py-20 text-white/40">该分类下暂无在售商品</p>
+        ) : mode === 'list' ? (
+          <div className="mx-auto max-w-5xl space-y-10">
+            {grouped.map(([cat, items]) => (
+              <section key={cat} aria-labelledby={`cat-${cat}`}>
+                <div className="mb-3 flex items-baseline gap-3">
+                  <h2 id={`cat-${cat}`} className="text-lg lg:text-xl font-semibold text-white/90">
+                    {cat}
+                  </h2>
+                  <span className="text-xs text-white/30">{items.length} 款 · 按价格从低到高</span>
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-white/10 divide-y divide-white/[0.06]">
+                  {items.map((p) => (
+                    <ProductRow key={p.id} p={p} price={priceOf(p)} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
-        </motion.div>
-
-        {loading ? (
-          <div className="text-center py-20 text-white/40">加载中...</div>
-        ) : products.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-20"
-          >
-            <Filter className="w-12 h-12 text-white/20 mx-auto mb-4" />
-            <p className="text-white/40">该分类下暂无商品</p>
-          </motion.div>
         ) : (
-          /* 列数递进：md 两列 → lg 三列 → 2xl 四列。
-             xl(1280) 不加第四列，是因为容器此时仍是 1280，四列后单卡只剩约 296px，
-             卡内的 features 是 grid-cols-2，会被压到一行两三个字换行。
-             等 2xl 把容器放宽到 1600 再上四列，单卡约 360px，仍然放得下两列特性 */
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 xl:gap-8">
-            {products.map((product, index) => {
-              const gradient = getGradient(product.id)
-              const tag = getTag(product)
-              const features = parseFeatures(product.features)
-              return (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: (index % PAGE_SIZE) * 0.05 }}
-                  layout
-                >
-                  <Link href={`/products/${product.id}`}>
-                    <div className="group relative h-full">
-                      <div
-                        className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500`}
-                      />
-
-                      {/* 桌面端单卡宽 380~400px，p-6 会让内容缩在中间；lg 起加到 p-7 */}
-                      <div className="relative h-full glass rounded-2xl p-6 lg:p-7 hover-lift flex flex-col">
-                        <div className="flex items-start justify-between mb-4">
-                          <div
-                            className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient}`}
-                          >
-                            {tag}
-                          </div>
-                          <div className="text-right">
-                            {/* 价格是卡片的视觉锚点，lg 起提到 30px，和放大的卡片保持比例 */}
-                            <div className="text-2xl lg:text-3xl font-bold">
-                              ¥{Number(product.price).toFixed(0)}
-                            </div>
-                            {product.originalPrice && (
-                              <div className="text-sm text-white/30 line-through">
-                                ¥{Number(product.originalPrice).toFixed(0)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-2xl font-bold">{product.name}</h3>
-                          {product.deliveryType === 'AUTO' ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
-                              ⚡ 自动发货
-                            </span>
-                          ) : product.deliveryType === 'SMS' ? (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-teal-500/15 text-teal-300 border border-teal-500/30 whitespace-nowrap">
-                              📱 短信接码
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-white/60 border border-white/15 whitespace-nowrap">
-                              👤 手工发货
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-white/50 text-sm lg:text-[15px] lg:leading-relaxed mb-6">
-                          {product.description}
-                        </p>
-
-                        {features.length > 0 && (
-                          <div className="flex-1 grid grid-cols-2 gap-2 lg:gap-x-4 lg:gap-y-2.5 mb-4">
-                            {features.map((feature, i) => (
-                              <div
-                                key={i}
-                                className="flex items-center gap-2 text-sm text-white/60"
-                              >
-                                <div
-                                  className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${gradient}`}
-                                />
-                                {feature}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* 销量 + 库存 */}
-                        <div className="flex items-center justify-between text-xs lg:text-sm text-white/40 mb-4 px-1">
-                          <span>已售 {product.sales}</span>
-                          <span>
-                            {product.stock === -1
-                              ? '现货充足'
-                              : product.stock === 0
-                                ? '已售罄'
-                                : `余量 ${product.stock}`}
-                          </span>
-                        </div>
-
-                        <div
-                          className={`flex items-center justify-center gap-2 py-3 lg:py-3.5 lg:text-[15px] rounded-xl bg-gradient-to-r ${gradient} font-medium group-hover:shadow-lg group-hover:shadow-purple-500/20 transition-all`}
-                        >
-                          立即购买
-                          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                </motion.div>
-              )
-            })}
+            {visible.map((p) => (
+              <ProductCard key={p.id} p={p} price={priceOf(p)} />
+            ))}
           </div>
         )}
 
-        {/* 分段加载：加载更多 */}
-        {!loading && products.length > 0 && (
-          <div className="mt-12 lg:mt-16 flex flex-col items-center gap-3">
-            {/* 「加载更多」在桌面端保持居中：它是网格的收口，靠边会破坏对称。
-                只把按钮尺寸放大到和四列网格相称，并加上 hover 边框反馈（桌面端才有指针） */}
-            {hasMore ? (
-              <button
-                onClick={() => loadPage(page + 1, true)}
-                disabled={loadingMore}
-                className="inline-flex items-center gap-2 px-8 py-3 lg:px-12 lg:py-4 rounded-full glass text-sm lg:text-base text-white/80 hover:bg-white/10 lg:hover:border-white/25 disabled:opacity-40 transition-colors"
-              >
-                {loadingMore && <Loader2 className="w-4 h-4 animate-spin" />}
-                {loadingMore ? '加载中...' : '加载更多'}
-              </button>
-            ) : (
-              <span className="text-sm text-white/30">没有更多了</span>
-            )}
-            <span className="text-xs text-white/30">
-              已显示 {products.length} / {total} 件商品
-            </span>
-          </div>
-        )}
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.5 }}
-          className="mt-20 text-center"
-        >
+        <div className="mt-16 lg:mt-20 text-center">
           <button
             onClick={() => setContactOpen(true)}
             className="inline-flex items-center gap-6 lg:gap-8 px-8 py-4 lg:px-10 rounded-full glass hover:bg-white/10 text-sm lg:text-[15px] text-white/60 transition-colors"
@@ -374,10 +231,173 @@ export default function ProductsClient() {
             <div className="w-px h-4 bg-white/10" />
             <div>9:00 - 22:00</div>
           </button>
-        </motion.div>
+        </div>
       </div>
 
       <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
     </div>
+  )
+}
+
+/* ---------------------------------------------------------------- */
+
+function CatBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+        active ? 'bg-white text-black' : 'text-white/60 hover:text-white hover:bg-white/10'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function ViewBtn({
+  active,
+  onClick,
+  label,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  label: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      aria-label={label}
+      title={label}
+      className={`rounded-full p-2 transition-colors ${
+        active ? 'bg-white text-black' : 'text-white/50 hover:text-white hover:bg-white/10'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function StockPill({ stock }: { stock: number }) {
+  const s = stockLevel(stock)
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${STOCK_TONE_CLASS[s.tone]}`}
+    >
+      {s.label}
+    </span>
+  )
+}
+
+/** 列表模式的一行。整行可点，命中区域比「只有标题是链接」大得多 */
+function ProductRow({ p, price }: { p: ListProduct; price: number }) {
+  const badge = deliveryBadge(p.deliveryType || undefined)
+  const tag = productTag(p.name)
+  const cut = p.originalPrice != null && p.originalPrice > price
+  return (
+    <Link
+      href={`/products/${p.id}`}
+      className="group flex items-center gap-4 px-4 py-4 transition-colors hover:bg-white/[0.04] focus-visible:outline-none focus-visible:bg-white/[0.06] sm:px-5"
+    >
+      <ProductThumb id={p.id} name={p.name} image={p.image} size={52} />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-medium text-white/90 transition-colors group-hover:text-white">
+            {p.name}
+          </span>
+          {tag && (
+            <span
+              className={`rounded px-1.5 py-px text-[10px] font-bold text-white bg-gradient-to-r ${PRODUCT_GRADIENT(p.id)}`}
+            >
+              {tag}
+            </span>
+          )}
+          <span className={`rounded-full border px-2 py-0.5 text-[11px] ${badge.cls}`}>{badge.label}</span>
+        </div>
+        {p.description && (
+          <p className="mt-1 truncate text-sm text-white/40">{p.description}</p>
+        )}
+      </div>
+
+      <div className="hidden shrink-0 sm:block">
+        <StockPill stock={p.stock} />
+      </div>
+
+      <div className="shrink-0 text-right">
+        <div className="whitespace-nowrap text-lg font-bold text-white">￥{price.toFixed(0)}</div>
+        {cut && (
+          <div className="whitespace-nowrap text-xs text-white/30 line-through">
+            ￥{p.originalPrice!.toFixed(0)}
+          </div>
+        )}
+        <div className="mt-0.5 text-[11px] text-white/30">已售 {p.sales}</div>
+      </div>
+
+      <ArrowRight className="hidden h-4 w-4 shrink-0 text-white/25 transition-transform group-hover:translate-x-0.5 group-hover:text-white/60 sm:block" />
+    </Link>
+  )
+}
+
+/** 卡片模式。保留原来的观感，只把库存换成档位、图片接进来 */
+function ProductCard({ p, price }: { p: ListProduct; price: number }) {
+  const gradient = PRODUCT_GRADIENT(p.id)
+  const badge = deliveryBadge(p.deliveryType || undefined)
+  const cut = p.originalPrice != null && p.originalPrice > price
+  return (
+    <Link href={`/products/${p.id}`} className="group block h-full">
+      <div className="relative h-full">
+        <div
+          className={`absolute -inset-[1px] rounded-2xl bg-gradient-to-r ${gradient} opacity-0 blur-sm transition-opacity duration-500 group-hover:opacity-100`}
+        />
+        <div className="relative flex h-full flex-col rounded-2xl glass p-6 hover-lift lg:p-7">
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <ProductThumb id={p.id} name={p.name} image={p.image} size={48} />
+            <div className="text-right">
+              <div className="text-2xl font-bold lg:text-3xl">￥{price.toFixed(0)}</div>
+              {cut && (
+                <div className="text-sm text-white/30 line-through">￥{p.originalPrice!.toFixed(0)}</div>
+              )}
+            </div>
+          </div>
+
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <h3 className="text-xl font-bold">{p.name}</h3>
+            <span className={`rounded-full border px-2 py-0.5 text-[11px] ${badge.cls}`}>
+              {badge.label}
+            </span>
+          </div>
+
+          {p.description && (
+            <p className="mb-6 flex-1 text-sm leading-relaxed text-white/50 lg:text-[15px]">
+              {p.description}
+            </p>
+          )}
+
+          <div className="mb-4 flex items-center justify-between px-1 text-xs text-white/40 lg:text-sm">
+            <span>已售 {p.sales}</span>
+            <StockPill stock={p.stock} />
+          </div>
+
+          <div
+            className={`flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r ${gradient} py-3 font-medium transition-all group-hover:shadow-lg group-hover:shadow-purple-500/20 lg:py-3.5 lg:text-[15px]`}
+          >
+            查看详情
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </div>
+        </div>
+      </div>
+    </Link>
   )
 }

@@ -12,6 +12,7 @@ interface Product {
   categoryId: number
   name: string
   description: string | null
+  image: string | null
   price: string | number
   originalPrice: string | number | null
   stock: number
@@ -37,6 +38,7 @@ const emptyForm = {
   categoryId: 0,
   name: '',
   description: '',
+  image: '',
   price: 0,
   originalPrice: 0,
   stock: -1,
@@ -65,6 +67,7 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [showModal, setShowModal] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState(emptyForm)
   const [submitting, setSubmitting] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
@@ -119,6 +122,7 @@ export default function ProductsPage() {
       categoryId: product.categoryId,
       name: product.name,
       description: product.description || '',
+      image: product.image || '',
       price: Number(product.price),
       originalPrice: product.originalPrice ? Number(product.originalPrice) : 0,
       stock: product.stock,
@@ -133,6 +137,28 @@ export default function ProductsPage() {
       features: product.features || '',
     })
     setShowModal(true)
+  }
+
+  /**
+   * 商品主图上传。走 /api/upload 的 products 目录（白名单在那边）。
+   * 失败只提示不清空已有地址——图传坏了不该顺手把原来那张也弄没。
+   */
+  const uploadImage = async (file: File | undefined) => {
+    if (!file) return
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('scope', 'products')
+      const res = await fetch('/api/upload', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (data.success) setFormData((f) => ({ ...f, image: data.data.url }))
+      else alert(data.error || '上传失败')
+    } catch {
+      alert('上传失败')
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleAdd = () => {
@@ -173,6 +199,8 @@ export default function ProductsPage() {
         smsMaxPrice: formData.smsMaxPrice === '' ? null : Number(formData.smsMaxPrice),
         referrerBasePrice: formData.referrerBasePrice === '' ? null : Number(formData.referrerBasePrice),
         description: formData.description || null,
+        // 空串必须转 null：前台 <img src=""> 会被浏览器当成「请求当前页面」再发一次请求
+        image: formData.image.trim() || null,
         features: formData.features || null,
       }
 
@@ -448,6 +476,54 @@ export default function ProductsPage() {
                   rows={3}
                   placeholder="请输入商品描述"
                 />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">商品主图</label>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                    {formData.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={formData.image} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-xs text-gray-400">无图</span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <input
+                      type="text"
+                      value={formData.image}
+                      onChange={(e) => setFormData({ ...formData, image: e.target.value })}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                      placeholder="留空则前台显示品牌渐变占位图"
+                    />
+                    <div className="flex items-center gap-2">
+                      <label className="inline-flex cursor-pointer items-center rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                        {uploading ? '上传中…' : '上传图片'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploading}
+                          onChange={(e) => {
+                            void uploadImage(e.target.files?.[0])
+                            e.target.value = ''
+                          }}
+                        />
+                      </label>
+                      {formData.image && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, image: '' })}
+                          className="text-sm text-gray-400 hover:text-red-500"
+                        >
+                          移除
+                        </button>
+                      )}
+                      <span className="text-xs text-gray-400">建议正方形，展示时按 1:1 裁切</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div>

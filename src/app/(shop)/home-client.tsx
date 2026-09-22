@@ -11,6 +11,7 @@ import { MouseSpotlight } from '@/components/mouse-spotlight'
 import { CountUp } from '@/components/count-up'
 import { NewsHotSection } from '@/components/news-hot-section'
 import { ipToolGroups, ipToolCount } from '@/lib/iptools'
+import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
 
 interface Product {
   id: number
@@ -341,15 +342,13 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
                             <span className="text-xs text-white/40">/月</span>
                           </div>
 
-                          {/* 销量 + 库存 */}
+                          {/* 销量 + 库存。库存只给档位不给数字，口径见 lib/stock-level.ts */}
                           <div className="flex items-center justify-between text-xs lg:text-sm text-white/40 mb-4 px-1">
                             <span>已售 {product.sales}</span>
-                            <span>
-                              {product.stock === -1
-                                ? '现货充足'
-                                : product.stock === 0
-                                  ? '已售罄'
-                                  : `余量 ${product.stock}`}
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${STOCK_TONE_CLASS[stockLevel(product.stock).tone]}`}
+                            >
+                              {stockLevel(product.stock).label}
                             </span>
                           </div>
 

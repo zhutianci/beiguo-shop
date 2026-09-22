@@ -24,24 +24,34 @@ import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
  * 结果就是：全站最该吃「ChatGPT 代充」「Claude 充值」这类词的列表页，
  * 正文里没有任何一个商品词、没有任何一个价格。
  *
- * 【改法：加一张服务端直出的价格表，而不是重写那 383 行】
- * 让客户端组件接收服务端数据要改它的取数、筛选、分页三条逻辑，风险不划算。
- * 这里在卡片区下面补一张「全部商品与价格一览」——
- *   · 对买家：一屏扫完所有型号与价格，比翻卡片快，本来就是列表页该有的东西；
- *   · 对爬虫：商品名、价格、库存状态、内链全部落在首屏 HTML 里。
- * 它**不是**给爬虫看的隐藏内容（那是 cloaking，会吃处罚），是真实可见的一块内容。
+ * 【现在的做法：服务端一次取好，客户端只管展示与切换】
+ * 曾经的折中是「客户端卡片区 + 服务端补一张价格表」，两块内容重复、维护两套。
+ * 现在把数据一次性传给客户端组件——客户端组件同样会被 SSR，
+ * 所以商品名、价格、分类全部落在首屏 HTML 里，同时切分类/换视图不再发请求。
+ * 在售商品只有二十来个，全量下发比分页简单也快；真涨到几百个再谈分页。
+ *
+ * 【默认列表模式】信息密度高，一屏扫完型号与价格；卡片模式保留，选择记在 localStorage。
+ * 服务端固定渲染列表模式，避免 hydration 不一致。
  */
 
 const getProducts = cache(async () => {
   try {
     return await prisma.product.findMany({
       where: { status: 1 },
+      // 字段与 components/products 里 ListProduct 对齐。刻意不取 cardUsage /
+      // cardRedeemUrl / referrerBasePrice 这些内部字段——列表页用不到，
+      // 而它们会随 props 一起进到客户端 HTML 里（和 api/products 泄露是同一类问题）
       select: {
         id: true,
+        categoryId: true,
         name: true,
+        description: true,
         price: true,
         originalPrice: true,
+        image: true,
         stock: true,
+        sales: true,
+        deliveryType: true,
         category: { select: { id: true, name: true } },
       },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }],
@@ -67,107 +77,55 @@ export const metadata: Metadata = {
 }
 
 export default async function ProductsPage() {
-  const products = await getProducts()
+  const rows = await getProducts()
 
-  // 按分类分组，价格表按分类分段展示（买家找型号是按「我要充 ChatGPT 还是 Claude」找的）
-  const groups = new Map<string, typeof products>()
-  for (const p of products) {
-    const key = p.category?.name || '其他'
-    const arr = groups.get(key)
-    if (arr) arr.push(p)
-    else groups.set(key, [p])
-  }
+  // 映射成客户端组件的形状。Decimal 必须在服务端转成 number：
+  // Prisma 的 Decimal 不是可序列化的普通值，直接当 props 传会报
+  //「Only plain objects can be passed to Client Components」
+  const products = rows.map((p) => ({
+    id: p.id,
+    categoryId: p.categoryId,
+    name: p.name,
+    description: p.description,
+    price: Number(p.price),
+    originalPrice: p.originalPrice == null ? null : Number(p.originalPrice),
+    image: p.image,
+    stock: p.stock,
+    sales: p.sales,
+    deliveryType: p.deliveryType ?? null,
+    categoryName: p.category?.name ?? '其他',
+  }))
 
   return (
     <>
       <JsonLd
         data={[
-          // 库不可达时 products 是空数组，这时不要输出一个 numberOfItems:0 的空 ItemList——
+          // 库不可达时 rows 是空数组，这时不要输出一个 numberOfItems:0 的空 ItemList——
           // 那等于主动告诉搜索引擎「这个列表页什么都没有」，比不输出更糟
-          ...(products.length
-            ? [productItemListJsonLd(products, '/products')]
-            : []),
+          ...(rows.length ? [productItemListJsonLd(rows, '/products')] : []),
           breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: '全部商品' }]),
         ]}
       />
       {/* 可见面包屑。上面输出了 BreadcrumbList，页面上就必须真的有这一条——
-          标记用户看不到的内容是 Google 结构化数据政策明令禁止的。
-          放在客户端组件之前，它自己带 page-top 顶部留白，这里只占一行。 */}
+          标记用户看不到的内容是 Google 结构化数据政策明令禁止的。 */}
       <div className="container relative page-top pb-0">
         <Breadcrumbs crumbs={[{ name: '首页', path: '/' }, { name: '全部商品' }]} />
       </div>
-      <ProductsClient />
 
-      {products.length > 0 && (
-        <section className="container relative pb-20" aria-labelledby="price-table-heading">
-          <div className="max-w-5xl mx-auto">
-            <h2 id="price-table-heading" className="text-2xl lg:text-3xl font-bold mb-3">
-              全部商品与价格一览
-            </h2>
-            <p className="text-white/40 text-sm lg:text-[15px] mb-8">
-              <strong className="text-white/70">表中价格均为不含税价</strong>
-              ，需要增值税发票的，须在售价之外另付 6% 税费（开票金额 = 售价 × 1.06），收据不涉及税费。
-              价格随上游成本与汇率浮动，以下单时页面显示的实付金额为准。带「自助充值」字样的商品下单后发放卡密，
-              你可以随时自行兑换；卡密有效期以对应商品页的说明为准。
-            </p>
+      <ProductsClient products={products} />
 
-            {Array.from(groups.entries()).map(([categoryName, items]) => (
-              <div key={categoryName} className="mb-10">
-                <h3 className="text-lg font-semibold text-white/90 mb-4">{categoryName}</h3>
-                <div className="overflow-x-auto rounded-2xl border border-white/10">
-                  <table className="w-full text-sm lg:text-[15px]">
-                    <thead>
-                      <tr className="bg-white/5 text-white/50 text-left">
-                        <th scope="col" className="px-4 py-3 font-medium">商品</th>
-                        <th scope="col" className="px-4 py-3 font-medium whitespace-nowrap">价格</th>
-                        <th scope="col" className="px-4 py-3 font-medium whitespace-nowrap">状态</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((p) => {
-                        const inStock = p.stock === -1 || p.stock > 0
-                        return (
-                          <tr key={p.id} className="border-t border-white/5">
-                            <td className="px-4 py-3">
-                              <Link
-                                href={`/products/${p.id}`}
-                                className="text-white/80 hover:text-white transition-colors"
-                              >
-                                {p.name}
-                              </Link>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap font-semibold text-white">
-                              ￥{Number(p.price).toFixed(0)}
-                              {p.originalPrice != null && Number(p.originalPrice) > Number(p.price) && (
-                                <span className="ml-2 text-white/30 font-normal line-through">
-                                  ￥{Number(p.originalPrice).toFixed(0)}
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap">
-                              {inStock ? (
-                                <span className="text-emerald-400">有货</span>
-                              ) : (
-                                <span className="text-white/30">补货中</span>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-
-            <p className="text-white/40 text-sm">
-              不确定该买哪一个？先看{' '}
-              <Link href="/support" className="text-purple-400 hover:text-purple-300">
-                常见问题
-              </Link>
-              ，或直接联系客服微信 <span className="font-mono text-white/60">GenuineMarxist</span>。
-            </p>
-          </div>
+      {rows.length > 0 && (
+        <section className="container relative pb-20">
+          <p className="mx-auto max-w-5xl text-sm text-white/40">
+            价格随上游成本与汇率浮动，以下单时页面显示的实付金额为准；
+            <strong className="text-white/70">标价均为不含税价</strong>
+            ，需要增值税发票的须在售价之外另付 6% 税费（开票金额 = 售价 × 1.06），收据不涉及税费。
+            不确定该买哪一个？先看{' '}
+            <Link href="/support" className="text-purple-400 hover:text-purple-300">
+              常见问题
+            </Link>
+            ，或直接联系客服微信 <span className="font-mono text-white/60">GenuineMarxist</span>。
+          </p>
         </section>
       )}
     </>
