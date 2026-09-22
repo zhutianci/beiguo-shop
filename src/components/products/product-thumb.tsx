@@ -17,15 +17,19 @@ export function ProductThumb({
   name,
   image,
   size = 56,
+  sizeClass,
   className = '',
 }: {
   id: number
   name: string
   image?: string | null
+  /** 固有尺寸。始终写进 width/height 属性用于防抖动（CLS），即使用 sizeClass 控制显示 */
   size?: number
+  /** 给了就用 class 控制盒子大小（响应式用），不再写内联宽高 */
+  sizeClass?: string
   className?: string
 }) {
-  const box = `${className} shrink-0 overflow-hidden rounded-xl`
+  const box = `${className} ${sizeClass || ''} shrink-0 overflow-hidden rounded-xl`
   if (image) {
     return (
       <img
@@ -36,7 +40,7 @@ export function ProductThumb({
         loading="lazy"
         decoding="async"
         className={`${box} bg-white/5 object-cover`}
-        style={{ width: size, height: size }}
+        style={sizeClass ? undefined : { width: size, height: size }}
       />
     )
   }
@@ -45,8 +49,8 @@ export function ProductThumb({
   return (
     <div
       aria-hidden="true"
-      className={`${box} flex items-center justify-center bg-gradient-to-br ${PRODUCT_GRADIENT(id)} font-bold text-white/90`}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
+      className={`${box} flex items-center justify-center bg-gradient-to-br ${PRODUCT_GRADIENT(id)} text-lg font-bold text-white/90`}
+      style={sizeClass ? undefined : { width: size, height: size, fontSize: Math.round(size * 0.4) }}
     >
       {glyph}
     </div>

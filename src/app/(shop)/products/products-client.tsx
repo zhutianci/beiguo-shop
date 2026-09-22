@@ -325,10 +325,19 @@ function ProductRow({ p, price }: { p: ListProduct; price: number }) {
   return (
     <Link
       href={`/products/${p.id}`}
-      className="group grid grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none sm:gap-4 sm:px-5 sm:py-4"
+      /* min-h 统一行高：有划线原价的行比没有的高 6px，扫一列价格时会觉得在抖。
+         用最小高度拉平，而不是给没打折的行塞一个空行占位。 */
+      className="group grid min-h-[84px] grid-cols-[auto_1fr_auto] items-center gap-3 px-4 py-3.5 transition-colors hover:bg-white/[0.04] focus-visible:bg-white/[0.06] focus-visible:outline-none sm:min-h-[92px] sm:gap-4 sm:px-5 sm:py-4"
     >
-      <ProductThumb id={p.id} name={p.name} image={p.image} size={44} className="sm:hidden" />
-      <ProductThumb id={p.id} name={p.name} image={p.image} size={52} className="hidden sm:block" />
+      {/* 一个元素靠 class 做响应式，不要为手机/桌面各渲染一个——
+          两个都在 DOM 里，屏幕阅读器和文本提取会读到两遍首字母 */}
+      <ProductThumb
+        id={p.id}
+        name={p.name}
+        image={p.image}
+        size={52}
+        sizeClass="h-11 w-11 sm:h-[52px] sm:w-[52px]"
+      />
 
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
