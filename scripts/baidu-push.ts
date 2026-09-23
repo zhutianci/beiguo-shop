@@ -24,6 +24,11 @@
  * 然后 BAIDU_PUSH_SITE 填裸域。推一批会 301 的 www 地址是在浪费配额。
  * 本脚本会在 URL 的 host 与 BAIDU_PUSH_SITE 不一致时直接拒绝发送。
  *
+ * 【2026-09-24 更新】裸域站点已验证通过，实测可推：
+ *   site=https://bigolab.com → {"remain":0,"success":9}
+ * 在那之前一直返回 401 site error——那个错只代表「站点没验证」，
+ * 和 token 无关（token 错时返回的是 token is not valid，两者要分清）。
+ *
  * 【关于 token】接口只有 http，没有 https，所以 token 会以明文出现在请求行里。
  * 这是百度的限制，不是这里的疏忽。token 放 .env.production，不要进版本库。
  */
@@ -66,19 +71,23 @@ function sleep(ms: number): Promise<void> {
  * 商品详情页不写死 id（会变），由 --with-products 从 sitemap 里取。
  */
 const PRIORITY_PATHS: string[] = [
+  // 前 10 条正好用满一天的配额。2026-09-24 已按这个顺序推过一轮
   '/chongzhi',
   '/chongzhi/chatgpt-plus',
-  '/chongzhi/claude-pro',
   '/chongzhi/chatgpt-pro',
+  '/chongzhi/claude-pro',
   '/chongzhi/claude-max',
-  '/chongzhi/codex-jiema',
   '/chongzhi/claude-kyc',
   '/chongzhi/claude-zhuce',
+  '/chongzhi/codex-jiema',
   '/chongzhi/google-zhanghao',
-  '/',
+  '/chongzhi/grok-super',
+  // 下面这些留给第二天。首页不在列表里：百度验证站点时就抓过根地址，
+  // 不必再花一条配额去告诉它首页存在
   '/products',
   '/support',
   '/terms',
+  '/about',
 ]
 
 async function push(site: string, token: string, urls: string[]): Promise<PushResult> {
