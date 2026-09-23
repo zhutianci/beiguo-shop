@@ -4,6 +4,9 @@
  *   npx tsx prisma/backfill-tax-number.ts            # 只看会改什么，不写库
  *   npx tsx prisma/backfill-tax-number.ts --apply    # 真正写库
  *
+ * 生产（容器内，prisma/ 目录已随镜像带进去）：
+ *   docker compose --env-file .env.production run --rm --no-deps -T app  *     npx -y tsx prisma/backfill-tax-number.ts [--apply]
+ *
  * 【为什么需要它】买家常把税号按四位一组敲成「9111 0108 MAER 0M7A 3L」，
  * 从 PDF/微信里粘贴还会带全角空格和零宽字符。这些字符在页面上看不出来，
  * 却让税局批量导入报「购买方纳税人识别号长度不能超过20」，而且是**整批退回**。
@@ -15,7 +18,20 @@
  * 脚本替人改数据只会把问题藏起来 —— 打印出来让人去核实。
  */
 import { PrismaClient } from '@prisma/client'
-import { normalizeTaxNumber, TAX_NUMBER_MAX_LEN } from '../src/lib/invoice'
+
+/*
+ * 【这两个定义是 src/lib/tax-number.ts 的副本，是有意的】
+ * 运行时镜像只 COPY 了 prisma/ public/ .next/standalone templates/ 与 prisma client，
+ * **没有 src/**（见 Dockerfile 第 44-53 行）。从 ../src/lib/... import 的脚本
+ * 在生产容器里会直接 MODULE_NOT_FOUND 挂掉 —— prisma/backfill-cardkey-cost.ts
+ * 只 import @prisma/client 就是这个原因。
+ * 改规则时两处要一起改；scripts/check-invoice.ts 里有对应断言。
+ */
+const TAX_NUMBER_MAX_LEN = 20
+function normalizeTaxNumber(s: string | null | undefined): string {
+  // 一律写成 \u 转义：字符类里直接放真实的全角空格/零宽字符，在编辑器、终端、diff 里全都看不见，改坏了也发现不了
+  return (s || '').replace(/[\s\u3000\u00A0\u180E\u200B-\u200D\u2060\uFEFF]/g, '')
+}
 
 const prisma = new PrismaClient()
 const APPLY = process.argv.includes('--apply')
