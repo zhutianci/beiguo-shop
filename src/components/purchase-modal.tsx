@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, CreditCard, ArrowRight, Ticket, FileText, Check } from 'lucide-react'
+import { X, CreditCard, ArrowRight, Ticket, FileText, Check, ChevronDown } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { getRef } from '@/lib/ref'
 import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
@@ -81,6 +81,13 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   /** 发票中是否展示 ChatGPT/Claude 字眼。null = 还没选，不给默认值 */
   const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
   const [saveTitle, setSaveTitle] = useState(true)
+  /*
+   * 地址/电话/开户行/卡号默认折叠。
+   * 这四项只有「需要在票面上展示购买方信息」的公司才填，绝大多数买家用不到，
+   * 四行字段却要占掉整整两行栅格 —— 弹窗长到屏幕装不下，主要就是它们撑的。
+   * 已保存抬头里带了这些内容时自动展开，否则买家会以为带入丢了东西。
+   */
+  const [showMoreFields, setShowMoreFields] = useState(false)
 
   /*
    * 打开弹窗时拉一次「我的可用券」。
@@ -138,6 +145,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
       setForm({ ...EMPTY_FORM })
       setShowAiWording(null)
       setSaveTitle(true)
+      setShowMoreFields(false)
       touched.current = false
     }
     return () => {
@@ -161,6 +169,8 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
 
   const applyTitle = (t: SavedTitle) => {
     setTitleId(t.id)
+    // 带了选填项就展开给买家看，免得他以为这些内容没被带进来
+    if (t.address || t.phone || t.bankName || t.bankAccount) setShowMoreFields(true)
     setForm({
       title: t.title,
       taxNumber: t.taxNumber,
@@ -369,27 +379,36 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ duration: 0.3 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-md"
+            /* 勾了开票会多出一整张表单。不放宽的话 max-w-md 里每个字段都独占一行，
+               弹窗直接长过屏幕 —— 放宽到 2xl 后表单走两列，高度差不多砍掉一半 */
+            className={`relative w-full transition-[max-width] duration-300 ${
+              wantInvoice ? 'max-w-md sm:max-w-2xl' : 'max-w-md'
+            }`}
           >
             <div className={`absolute -inset-[1px] bg-gradient-to-r ${product.gradient} rounded-3xl blur-md opacity-60`} />
 
-            <div className="relative glass-strong rounded-3xl p-8 overflow-hidden">
+            {/*
+             * 【限高 + 主体滚动 + 底栏钉住】原来是一个不限高、不滚动的 p-8 容器，
+             * 内容一多就直接长过视口，桌面端下半截（含「确认支付」按钮）根本够不着。
+             * 现在：整卡最高 88vh，中间主体自己滚，付款按钮永远在底部看得见。
+             */}
+            <div className="relative glass-strong rounded-3xl overflow-hidden flex max-h-[88vh] flex-col">
               <button
                 onClick={onClose}
-                className="absolute top-4 right-4 w-9 h-9 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors z-10"
+                className="absolute top-4 right-4 w-9 h-9 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors z-20"
               >
                 <X className="w-4 h-4" />
               </button>
 
               <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br ${product.gradient} opacity-20 rounded-full blur-[80px] pointer-events-none`} />
 
-              <div className="relative">
-                <div className="mb-6">
+              <div className="relative min-h-0 flex-1 overflow-y-auto px-6 pt-7 pb-4 sm:px-8 sm:pt-8">
+                <div className="mb-5">
                   <h2 className="text-2xl font-bold mb-1">确认订单</h2>
                   <p className="text-white/50 text-sm">使用支付宝完成支付</p>
                 </div>
 
-                <div className="glass rounded-2xl p-5 mb-6">
+                <div className="glass rounded-2xl p-4 mb-4 sm:p-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-white/60 text-sm">商品</div>
                     <div className="font-semibold">{product.name}</div>
@@ -440,7 +459,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 </div>
 
                 {/* 开发票。放在金额下面、券上面：它直接改变「应付金额」，要让买家先看到钱再看到券 */}
-                <div className="glass rounded-2xl p-5 mb-6">
+                <div className="glass rounded-2xl p-4 mb-4 sm:p-5">
                   <button
                     type="button"
                     onClick={() => setWantInvoice((v) => !v)}
@@ -478,10 +497,8 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                       )}
 
                       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div className="sm:col-span-2">
-                          {field('抬头', form.title, setF('title'), { required: true, placeholder: '公司名称 / 个人' })}
-                        </div>
-                        <div className="sm:col-span-2">
+                        {field('抬头', form.title, setF('title'), { required: true, placeholder: '公司名称 / 个人' })}
+                        <div>
                           {field('税号', form.taxNumber, setF('taxNumber'), {
                             required: true,
                             placeholder: '纳税人识别号（带空格会自动去掉）',
@@ -492,10 +509,6 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                             </p>
                           )}
                         </div>
-                        {field('地址', form.address, setF('address'), { placeholder: '选填' })}
-                        {field('电话', form.phone, setF('phone'), { placeholder: '选填' })}
-                        {field('开户行', form.bankName, setF('bankName'), { placeholder: '选填' })}
-                        {field('卡号', form.bankAccount, setF('bankAccount'), { placeholder: '选填' })}
                         <div className="sm:col-span-2">
                           {field('接收邮箱', form.email, setF('email'), {
                             required: true,
@@ -517,7 +530,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                                 key={String(opt.v)}
                                 type="button"
                                 onClick={() => setShowAiWording(opt.v)}
-                                className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                                className={`rounded-lg border px-3 py-2 text-left transition-colors ${
                                   showAiWording === opt.v
                                     ? 'border-purple-500/60 bg-purple-500/15'
                                     : 'border-white/10 bg-white/5 hover:bg-white/10'
@@ -529,6 +542,25 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                             ))}
                           </div>
                         </div>
+
+                        {/* 选填四项默认收起：只有需要在票面展示购买方信息的公司才用得到 */}
+                        {showMoreFields ? (
+                          <>
+                            {field('地址', form.address, setF('address'), { placeholder: '选填' })}
+                            {field('电话', form.phone, setF('phone'), { placeholder: '选填' })}
+                            {field('开户行', form.bankName, setF('bankName'), { placeholder: '选填' })}
+                            {field('卡号', form.bankAccount, setF('bankAccount'), { placeholder: '选填' })}
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setShowMoreFields(true)}
+                            className="sm:col-span-2 flex items-center gap-1 text-left text-xs text-white/45 transition-colors hover:text-white/70"
+                          >
+                            <ChevronDown className="h-3.5 w-3.5" />
+                            填写地址 / 电话 / 开户行 / 卡号（票面需要展示这些信息时才填）
+                          </button>
+                        )}
                       </div>
 
                       {user && titleId === null && (
@@ -553,7 +585,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
 
                 {/* 优惠券选择。只有确实持有可用券时才出现，没有券的人看不到多余的一栏 */}
                 {!referral && coupons.length > 0 && (
-                  <div className="glass rounded-2xl p-5 mb-6">
+                  <div className="glass rounded-2xl p-4 mb-4 sm:p-5">
                     <div className="mb-3 flex items-center gap-2">
                       <Ticket className="h-4 w-4 text-purple-300" />
                       <span className="text-sm font-medium">使用优惠券</span>
@@ -603,7 +635,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
 
                 {/* 内推单：不展示券，但要讲清楚为什么，否则买家会以为自己的券没了 */}
                 {referral && (
-                  <div className="glass rounded-2xl p-4 mb-6 flex items-start gap-2">
+                  <div className="glass rounded-2xl p-4 mb-4 flex items-start gap-2">
                     <Ticket className="h-4 w-4 mt-0.5 shrink-0 text-purple-300" />
                     <p className="text-xs leading-relaxed text-white/45">
                       本单通过推广链接下单，已按专属价计算，不再叠加优惠券。
@@ -613,7 +645,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 )}
 
                 {/* 支付方式：仅支付宝 */}
-                <div className="flex items-center gap-3 p-4 rounded-xl bg-white/5 border border-blue-500/40 mb-6">
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white/5 border border-blue-500/40">
                   <div className="w-10 h-10 rounded-lg bg-[#1677FF] flex items-center justify-center">
                     <svg className="w-6 h-6" fill="white" viewBox="0 0 24 24">
                       <path d="M22.97 17.96c-.83-.27-3.05-.96-5.85-1.97 1.65-2.85 2.39-5.97 1.66-6.6-.83-.71-3.05.45-4.91 1.55-.94-1.36-2.18-2.7-3.6-3.6.93-.5 1.95-.92 2.84-1.16.78-.22 1.56-.27 2.18-.07.43.14.66.39.66.74 0 .42-.39.96-1.31 1.43-.18.09-.27.31-.18.5.07.13.21.2.36.2.07 0 .14-.02.21-.05 1.13-.59 1.78-1.28 1.94-2.03.12-.61-.07-1.21-.55-1.66-.62-.55-1.64-.83-2.88-.55-1.13.27-2.43.84-3.62 1.55C9.07 5.51 8.04 5 7.04 4.71c-1.36-.4-2.61-.13-3.34.71-1.27 1.43-.5 4.21 1.91 6.84-.36.16-.7.34-1.01.52-1.86 1.09-2.98 2.41-3.13 3.75-.13 1.14.43 2.17 1.55 2.86 1.14.7 2.71.83 4.46.36 1.7-.45 3.55-1.45 5.21-2.81.16.18.32.36.48.52 2.43 2.43 5.55 3.74 7.13 2.16 1.45-1.45.21-3.81-2.07-6.21l3.94-1.59c.18-.07.29-.27.21-.45-.07-.21-.27-.32-.43-.25z" />
@@ -625,8 +657,12 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                   </div>
                 </div>
 
+              </div>
+
+              {/* 底栏：不随主体滚动。买家不管翻到哪里，都能看到要付多少、以及付款按钮 */}
+              <div className="relative shrink-0 border-t border-white/10 bg-black/25 px-6 py-4 sm:px-8 sm:py-5">
                 {error && (
-                  <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                  <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                     {error}
                   </div>
                 )}
@@ -634,7 +670,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 <button
                   onClick={handleConfirmPay}
                   disabled={submitting}
-                  className={`group w-full py-4 rounded-xl font-semibold bg-gradient-to-r ${product.gradient} flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`group w-full py-3.5 rounded-xl font-semibold bg-gradient-to-r ${product.gradient} flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {submitting ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -648,7 +684,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 </button>
 
                 {!user && (
-                  <p className="text-xs text-white/40 text-center mt-3">未登录用户将跳转到登录页</p>
+                  <p className="text-xs text-white/40 text-center mt-2.5">未登录用户将跳转到登录页</p>
                 )}
               </div>
             </div>
