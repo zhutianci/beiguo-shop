@@ -319,7 +319,21 @@ export async function runAutoReminders(): Promise<AutoRunSummary> {
   // 不影响 expireDate 区间筛选，因此已处理的行不会重复进入后续批次。
   for (;;) {
     const batch = await prisma.externalOrder.findMany({
-      where: { expireDate: { gte: today, lt: max }, id: { gt: cursorId } },
+      where: {
+        expireDate: { gte: today, lt: max },
+        id: { gt: cursorId },
+        /*
+         * 【排除背书行】sourceKey 以 order: 开头的那些是买家在本站下单后，
+         * 为了让发票/收据有开通-到期日期可印而造出来的，expireDate 是
+         * 「付款日 + 1 个月」硬写的假日期，跟真实订阅周期没有关系。
+         * 按它发提醒，就是给买了一次性卡密/接码的客户发「你的订阅即将到期，请续费」。
+         *
+         * 新建的行已经出厂预置 remindedExpireDate 来跳过（lib/order-invoice.ts），
+         * 但那要靠「每一个写入路径都记得设」；这一条是结构性的，不依赖任何人记得。
+         * 后台的提醒列表与发送接口有同样的过滤（api/admin/reminders/*）。
+         */
+        NOT: { sourceKey: { startsWith: 'order:' } },
+      },
       orderBy: { id: 'asc' },
       take: BATCH_SIZE,
     })

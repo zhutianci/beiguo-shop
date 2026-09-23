@@ -11,18 +11,16 @@ import {
   submitInvoiceForExternalOrder,
   BillingError,
 } from '@/lib/order-billing'
+import { settlePrepaidOrderInvoice } from '@/lib/order-invoice'
+import {
+  buyerInvoiceSubmitSchema,
+  normalizeInvoiceFields,
+  afterInvoiceSubmitted,
+} from '@/lib/invoice-input'
 
-const schema = z.object({
-  title: z.string().trim().min(1, '抬头必填').max(200),
-  taxNumber: z.string().trim().min(1, '税号必填').max(64),
-  address: z.string().trim().max(255).optional().nullable(),
-  phone: z.string().trim().max(50).optional().nullable(),
-  bankName: z.string().trim().max(128).optional().nullable(),
-  bankAccount: z.string().trim().max(64).optional().nullable(),
-  email: z.string().email('接收邮箱格式不正确'),
-  // 必选：发票内容是否展示 ChatGPT/Claude 等字眼
-  showAiWording: z.boolean({ required_error: '请选择发票中是否展示 ChatGPT/Claude 相关字眼' }),
-})
+// 字段校验统一在 lib/invoice-input（route.ts 不能导出 handler 以外的东西，
+// 而三个开票入口必须共用同一套规则 —— 尤其是税号去空格，漏一处等于没做）
+const schema = buyerInvoiceSubmitSchema
 
 // 买家从「我的订单」直接申请发票（无需邮箱查询）
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -44,6 +42,22 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const body = await request.json()
     const parsed = schema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
+    const fields = normalizeInvoiceFields(parsed.data)
+
+    /*
+     * 【防重复收税】这一单在结账时勾过「同时开发票」，6% 已经跟货款一起收过了。
+     * 绝不能再开一张待付税费的收款单 —— 那是向同一个买家收第二遍。
+     * 顺手把当初的草稿补落成正式发票（万一履约那一下失败过），
+     * 并用这次填的抬头覆盖（票还没开出去时），买家填的内容不会白填。
+     */
+    const prepaid = await settlePrepaidOrderInvoice(order.id, fields)
+    if (prepaid) {
+      await afterInvoiceSubmitted(user.id, parsed.data, fields)
+      return success(
+        { alreadyPaid: true },
+        '该订单下单时已选择开发票、税费也已随货款付清，无需再次支付；抬头已按本次填写更新'
+      )
+    }
 
     // 为该订单生成/复用背书外部订单，复用现有发票体系
     const ext = await ensureExternalOrderForShopOrder({
@@ -55,7 +69,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       user: order.user,
     })
 
-    const result = await submitInvoiceForExternalOrder(ext.id, parsed.data)
+    const result = await submitInvoiceForExternalOrder(ext.id, fields, { userId: user.id })
+    await afterInvoiceSubmitted(user.id, parsed.data, fields)
     return success(result, '已提交，请支付税费')
   } catch (err) {
     if (err instanceof BillingError) return error(err.message, err.status)

@@ -7,8 +7,10 @@ import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { settleReferral } from '@/lib/referral'
 import { consumeCouponForOrder, releaseCouponForOrder } from '@/lib/coupon'
-import { updatePendingVmqAmount } from '@/lib/vmq'
+import { updatePendingVmqAmount, submitInvoiceForPaidOrder } from '@/lib/vmq'
 import { sendOrderDeliveredEmail } from '@/lib/mail'
+import { calcInvoiceAmounts } from '@/lib/invoice'
+import { parseOrderInvoiceDraft } from '@/lib/order-invoice'
 
 const updateOrderSchema = z.object({
   payStatus: z.enum(['UNPAID', 'PAID', 'REFUNDED']).optional(),
@@ -81,14 +83,33 @@ export async function PUT(
       deliveredAt?: Date | null
       paidAt?: Date | null
       amount?: number
+      invoiceTaxFee?: number | null
+      invoiceInfo?: string | null
     } = { ...orderFields }
 
-    // 改价：仅待支付订单可改
+    /*
+     * 改价：仅待支付订单可改。
+     *
+     * 【改价必须同时重算开票税费】买家下单时勾了「同时开发票」的订单，
+     * 税费单独记在 order.invoiceTaxFee 上、收银台收的是 amount + invoiceTaxFee。
+     * 只改 amount 不改税费的话，下面 updatePendingVmqAmount 会把收款金额刷成纯货款，
+     * 买家付了不含税的钱，付款到账后 materializeOrderInvoice 照样开出一张含税发票 ——
+     * 等于白送 6%。
+     */
+    let newTaxFee: number | null = null
     if (amount != null) {
       if (currentOrder.payStatus !== 'UNPAID') {
         return error('只有待支付订单可以改价')
       }
       data.amount = amount
+      const draft = parseOrderInvoiceDraft(currentOrder.invoiceInfo)
+      if (draft) {
+        const { taxFee } = calcInvoiceAmounts(amount)
+        newTaxFee = taxFee
+        data.invoiceTaxFee = taxFee
+        // 草稿里的 taxFee 只是排查时的对照值，一并刷新避免两个数字打架
+        data.invoiceInfo = JSON.stringify({ ...draft, taxFee })
+      }
     }
 
     const wasDelivered = currentOrder.deliveryStatus === 'DELIVERED'
@@ -138,8 +159,9 @@ export async function PUT(
       })
     }
 
-    // 手动标记支付状态变更（独立于交付状态）
-    if (result.data.payStatus === 'PAID' && currentOrder.payStatus !== 'PAID') {
+    // 手动标记支付状态变更（独立于交付状态）。
+    // 判 data.payStatus 而非请求体：上面「标成已交付 → 自动置已支付」那一步写的是 data
+    if (data.payStatus === 'PAID' && currentOrder.payStatus !== 'PAID' && !data.paidAt) {
       data.paidAt = new Date()
     }
 
@@ -158,15 +180,36 @@ export async function PUT(
     if (result.data.deliveryStatus === 'CANCELLED' && currentOrder.deliveryStatus !== 'CANCELLED') {
       await releaseCouponForOrder(orderId).catch((e) => console.error('[coupon] 后台取消释放失败', orderId, e))
     }
-    // 人工确认到账的路径（不走 vmq 那条）也要核销券
-    if (result.data.payStatus === 'PAID' && currentOrder.payStatus !== 'PAID') {
+    /*
+     * 人工确认到账的路径（不走 vmq 那条）要核销券、要落地发票。
+     *
+     * 【判据必须是 data.payStatus，不是 result.data.payStatus】
+     * 后台订单页的保存按钮只发 deliveryStatus / deliveryInfo / amount / external，
+     * **从不发 payStatus**（全仓库没有任何前端发过 payStatus:'PAID'）。
+     * 「标成已交付时自动置为已支付」是本路由在上面第 ~122 行自己补上的，写在 data 里。
+     * 按请求体判的话这个分支在后台 UI 上是死代码 —— 券不核销（旧有问题），
+     * 而且买家结账时预付的 6% 永远开不出票：invoices 表没有行、财务台看不到、
+     * 买家订单页却因为 invoiceTaxFee 已写入而显示「已提交开票」并隐藏申请入口，
+     * 没有任何一方能发现，也没有任何一条路能补救。
+     */
+    if (data.payStatus === 'PAID' && currentOrder.payStatus !== 'PAID') {
       await consumeCouponForOrder(orderId).catch((e) => console.error('[coupon] 后台核销失败', orderId, e))
+      // 这条路不经过 fulfillOrder，下单时勾的开票草稿得在这里补一次落地，
+      // 否则买家勾了开发票、被后台手工标成已支付，发票就凭空消失了。函数自身幂等
+      await submitInvoiceForPaidOrder(orderId).catch((e) =>
+        console.error('[invoice] 后台标记已支付后落地发票失败', orderId, e)
+      )
     }
 
-    // 改价：原地更新同一张待支付收款单的金额（保持同付款链接），用户付款页轮询会自动刷新成新价
+    // 改价：原地更新同一张待支付收款单的金额（保持同付款链接），用户付款页轮询会自动刷新成新价。
+    // 收的仍是 货款 + 开票税费，与 api/pay/vmq/create 同一口径
     if (data.amount != null) {
       try {
-        await updatePendingVmqAmount('order', orderId, amount!)
+        await updatePendingVmqAmount(
+          'order',
+          orderId,
+          Math.round((amount! + (newTaxFee ?? 0)) * 100) / 100
+        )
       } catch (e) {
         console.error('Update pending vmq amount after price change failed:', e)
       }
@@ -193,12 +236,16 @@ export async function PUT(
           const ext = await prisma.externalOrder.upsert({
             where: { sourceKey },
             create: {
+              // 指回站内订单：没有它，买家从「邮箱查订阅」点进这一条时
+              // 「这单的 6% 结账时已收过」这个事实就查不到，会被收第二次税
+              shopOrderId: orderId,
               startDate: new Date(startDate),
               expireDate: new Date(expireDate),
               subscriptionType,
               xianyuNickname,
               claudeAccount,
-              quote: currentOrder.amount, // 报价 = 订单金额
+              // 用改价后的值：currentOrder 是 update 之前读的，同一次保存里既改价又标已完成时它是旧价
+              quote: order.amount, // 报价 = 订单金额
               sourceKey,
               importBatch: 'WEB',
             },
@@ -208,7 +255,9 @@ export async function PUT(
               subscriptionType,
               xianyuNickname,
               claudeAccount,
-              quote: currentOrder.amount,
+              // 用改价后的值：currentOrder 是 update 之前读的，同一次保存里既改价又标已完成时它是旧价
+              quote: order.amount,
+              shopOrderId: orderId,
               importBatch: 'WEB',
             },
           })
@@ -231,7 +280,9 @@ export async function PUT(
           await sendOrderDeliveredEmail(currentOrder.user.email, {
             orderNo: currentOrder.orderNo,
             productName: currentOrder.productName,
-            amount: Number(currentOrder.amount),
+            // 用改价后的值：currentOrder 是 update 之前读的
+            amount: Number(order.amount),
+            invoiceTaxFee: order.invoiceTaxFee == null ? null : Number(order.invoiceTaxFee),
             deliveryInfo: data.deliveryInfo ?? currentOrder.deliveryInfo,
           })
         } catch (e) {

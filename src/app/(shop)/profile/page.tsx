@@ -17,6 +17,7 @@ import {
   Sparkles,
   Save,
   Ticket,
+  BookUser,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import AccountBindings from '@/components/account-bindings'
@@ -74,6 +75,13 @@ export default function ProfilePage() {
       desc: '查看可用的券',
       href: '/coupons',
       gradient: 'from-emerald-500 to-teal-500',
+    },
+    {
+      icon: BookUser,
+      label: '抬头管理',
+      desc: '开票抬头一键填',
+      href: '/profile/invoice-titles',
+      gradient: 'from-sky-500 to-indigo-500',
     },
     {
       icon: Crown,

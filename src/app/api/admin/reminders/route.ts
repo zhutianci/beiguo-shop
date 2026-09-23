@@ -31,8 +31,27 @@ export async function GET(request: NextRequest) {
     const min = new Date(todayUtc - expiredDays * 86400000)
     const max = new Date(todayUtc + (days + 1) * 86400000)
 
+    /*
+     * 【排除「背书外部订单」】sourceKey 以 order: 开头的那些行，是买家在本站下单后
+     * 为了让发票/收据有开通-到期日期可印而造出来的，expireDate 是「付款日 + 1 个月」
+     * 硬写的假日期，跟真实订阅周期没有任何关系。
+     *
+     * 自动提醒那条路已经靠 remindedExpireDate 跳过它们（见 lib/order-invoice.ts），
+     * 但**后台这条路没防住**：本列表按 lastRemindedAt 判「未提醒」，背书行是 null，
+     * 于是它们会挤满「仅未提醒」筛选；管理员一次「全选 → 发送提醒」，
+     * 就会给一批买了一次性卡密的真实客户群发「你的订阅即将到期，请续费」。
+     *
+     * 自从结算页加了「同时开具增值税发票」的复选框，这种行的产生量级和改造前
+     * 完全不是一个数量级（原来要买家主动点「申请发票/收据」才会有一条）。
+     */
+    const notEndorsement: Prisma.ExternalOrderWhereInput = {
+      NOT: { sourceKey: { startsWith: 'order:' } },
+    }
     // 时间窗（统计口径：不受提醒状态筛选影响，与旧版一致）
-    const rangeWhere: Prisma.ExternalOrderWhereInput = { expireDate: { gte: min, lt: max } }
+    const rangeWhere: Prisma.ExternalOrderWhereInput = {
+      expireDate: { gte: min, lt: max },
+      ...notEndorsement,
+    }
     // 列表口径：时间窗 + 提醒状态
     const where: Prisma.ExternalOrderWhereInput = { ...rangeWhere }
     if (remindFilter === 'unreminded') where.lastRemindedAt = null
@@ -46,8 +65,8 @@ export async function GET(request: NextRequest) {
         take: pageSize,
       }),
       prisma.externalOrder.count({ where }),
-      prisma.externalOrder.count({ where: { expireDate: { gte: min, lt: today } } }),
-      prisma.externalOrder.count({ where: { expireDate: { gte: today, lt: max } } }),
+      prisma.externalOrder.count({ where: { expireDate: { gte: min, lt: today }, ...notEndorsement } }),
+      prisma.externalOrder.count({ where: { expireDate: { gte: today, lt: max }, ...notEndorsement } }),
     ])
 
     const accounts = Array.from(new Set(orders.map((o) => o.claudeAccount)))

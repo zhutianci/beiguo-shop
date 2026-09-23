@@ -12,6 +12,13 @@ import { decryptCardContent } from '@/lib/cardkey'
 import { effectiveBasePrice } from '@/lib/referral'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { shopOrderSourceKey } from '@/lib/order-billing'
+import { BillingError } from '@/lib/order-invoice'
+import {
+  invoiceFieldsSchema,
+  normalizeInvoiceFields,
+  saveInvoiceTitle,
+  touchInvoiceTitle,
+} from '@/lib/invoice-input'
 import { notifyOrderCreated } from '@/lib/notify'
 import { quoteOrder, grantUsable, parseProductIds, rejectReason, type GrantState } from '@/lib/coupon'
 
@@ -22,6 +29,20 @@ const createOrderSchema = z.object({
   ref: z.string().trim().optional().nullable(), // 内推码
   /** 要使用的券实例 id（CouponGrant.id）。只对本人有效，服务端会校验归属 */
   couponGrantId: z.number().int().positive().optional().nullable(),
+  /**
+   * 下单时勾选「同时开具增值税发票」。给了这一块就按 货款+6%税费 一次收清，
+   * 付款成功后发货与提交开票同时发生（见 lib/vmq.ts 的 fulfillOrder）。
+   * 不给 = 不开票，买家日后仍可从订单页按老流程单独申请。
+   */
+  invoice: invoiceFieldsSchema
+    .extend({
+      /** 本次用的已保存抬头 id（仅用于刷新使用时间，归属会校验） */
+      titleId: z.number().int().positive().optional().nullable(),
+      /** 把这次填的抬头存进个人中心 */
+      saveTitle: z.boolean().optional().default(false),
+    })
+    .optional()
+    .nullable(),
 })
 
 // 获取用户订单列表（分页 + 服务端筛选/检索）
@@ -74,6 +95,9 @@ export async function GET(request: NextRequest) {
         productPrice: true,
         quantity: true,
         amount: true,
+        // 下单时勾了开发票的未支付订单，收银台会收 amount + invoiceTaxFee。
+        // 不把这个数发给前台，订单页会显示一个比实际扣款少 6% 的金额
+        invoiceTaxFee: true,
         payStatus: true,
         deliveryStatus: true,
         deliveryInfo: true,
@@ -185,14 +209,25 @@ export async function GET(request: NextRequest) {
     const withCards = orders.map((o) => {
       const paid = o.payStatus === 'PAID'
       const price = Number(o.amount)
+      const pendingTax = o.invoiceTaxFee == null ? 0 : Number(o.invoiceTaxFee)
       const inv = invByOrderId.get(o.id)
       const amt = paid ? calcInvoiceAmounts(price) : null
       // 收据金额：买家已付发票税费(payStatus=PAID) → 含税开票金额；否则售价。
       // 须与 submitReceiptForExternalOrder 中的服务端计费口径保持一致。
-      const invoicePaid = inv?.payStatus === 'PAID'
+      //
+      // 【预收过税费的订单，即使 Invoice 行还没落地也算「已提交」】
+      // 履约里的落地是 try 住的，失败时会出现「税费已到账、invoices 表却没有行」的状态。
+      // 只看有没有 Invoice 行的话这里会返回 UNAPPLIED，订单页就会再显示一次「申请发票」，
+      // 买家点下去就是第二次付 6%。服务端那道闸（settlePrepaidOrderInvoice）会挡住，
+      // 但不该让这个按钮出现在买家眼前。
+      const prepaidTax = pendingTax > 0 && paid
+      const invoicePaid = inv?.payStatus === 'PAID' || prepaidTax
       const items = cardMap.get(o.id) || []
       return {
         ...o,
+        invoiceTaxFee: pendingTax || null,
+        /** 未支付订单的实际应付 = 货款 + 下单时勾选的开票税费 */
+        payable: Math.round((price + pendingTax) * 100) / 100,
         cards: items.map((c) => c.secret),
         cardItems: items, // [{ secret, redeemUrl, inSite }]：redeemUrl 为空才回落 product.cardRedeemUrl
         unreadCount: unreadMap.get(o.id) || 0,
@@ -205,7 +240,9 @@ export async function GET(request: NextRequest) {
               invoiceAmount: amt!.invoiceAmount,
               taxFee: amt!.taxFee,
               receiptAmount: invoicePaid ? amt!.invoiceAmount : price,
-              invoiceStatus: inv ? inv.status : 'UNAPPLIED',
+              invoiceStatus: inv ? inv.status : prepaidTax ? 'SUBMITTED' : 'UNAPPLIED',
+              /** 结账时已随货款付清 6%，事后不需要也不允许再交一次税费 */
+              invoicePrepaid: prepaidTax,
               invoiceId: inv?.id ?? null,
               receiptToken: receiptByOrderId.get(o.id) ?? null,
             }
@@ -224,6 +261,24 @@ export async function GET(request: NextRequest) {
     console.error('Get orders error:', err)
     return error('获取订单列表失败')
   }
+}
+
+/**
+ * 把刚 CAS 锁上、但订单还没建成的券放回去。
+ *
+ * 建单流程里「锁券」与「建单」不在同一个事务（建单还要发通知、算内推），
+ * 中间任何一条 return / throw 都必须经过这里，否则买家的券会停在 LOCKED、
+ * 他自己解不开，只能等 sweepStuckCoupons 的 120 分钟兜底或者来找客服。
+ * 条件里带 orderId: null，确保只回滚「还没挂上订单」的那把锁。
+ */
+async function releaseLockedCoupon(couponGrantId: number | null) {
+  if (!couponGrantId) return
+  await prisma.couponGrant
+    .updateMany({
+      where: { id: couponGrantId, state: 'LOCKED', orderId: null },
+      data: { state: 'AVAILABLE', lockedAt: null },
+    })
+    .catch(() => {})
 }
 
 // 创建订单
@@ -279,6 +334,28 @@ export async function POST(request: NextRequest) {
         referrerId = referrer.id
         const per = Math.max(0, Math.round((sellUnit - effBase) * 100) / 100)
         referralReward = per * quantity
+      }
+    }
+
+    /*
+     * 开票字段的**纯字段校验**必须赶在优惠券 CAS 抢锁之前做。
+     *
+     * 券一旦被 updateMany 置成 LOCKED（下面那段），到 prisma.order.create 之间
+     * 任何一条 return 都会把券永久留在「占用中」—— 只有 order.create 的 catch 里
+     * 有回滚逻辑，兜底则要等 sweepStuckCoupons 的 120 分钟。
+     * 而这条路极易触发：税号超过 20 位在前台不一定拦得住，服务端一 return，
+     * 买家的券就凭空卡死两小时，他自己解不开，只能来找客服。
+     *
+     * 金额相关的那半（calcInvoiceAmounts）依赖最终 amount，仍留在券结算之后。
+     */
+    const invoiceIn = result.data.invoice
+    let invoiceFields = null
+    if (invoiceIn) {
+      try {
+        invoiceFields = normalizeInvoiceFields(invoiceIn)
+      } catch (e) {
+        if (e instanceof BillingError) return error(e.message, e.status)
+        throw e
       }
     }
 
@@ -355,6 +432,31 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    /*
+     * ============ 下单时勾选开发票 ============
+     * 必须放在券结算**之后**：税费的基准是这一单最终实际成交的 amount，
+     * 而 amount 到这里才定下来（内推专属价 → 券优惠价）。
+     *
+     * 【内推单天然按专属价算税】amount 对内推单就是推广人的专属价，
+     * 所以 amount*1.06 即「按内推价格的 1.06 收款」，不需要单独分支。
+     *
+     * 【只存草稿，不建 Invoice 行】理由写在 schema 的 Order.invoiceInfo 注释里：
+     * 建 Invoice 要先建 ExternalOrder，而未付款的订单混进 external_orders
+     * 会被到期提醒扫到，给没付过钱的人发续费提醒。
+     */
+    let invoiceTaxFee: number | null = null
+    let invoiceInfo: string | null = null
+    if (invoiceFields) {
+      const { taxFee } = calcInvoiceAmounts(amount)
+      if (taxFee <= 0) {
+        // 走到这里券可能已经 LOCKED 了，先放回去再报错，别把买家的券卡死两小时
+        await releaseLockedCoupon(couponGrantId)
+        return error('该订单金额无法开具发票')
+      }
+      invoiceTaxFee = taxFee
+      invoiceInfo = JSON.stringify({ ...invoiceFields, taxFee })
+    }
+
     // 创建待支付订单（默认 payStatus: UNPAID, deliveryStatus: PENDING）
     let order
     try {
@@ -366,7 +468,10 @@ export async function POST(request: NextRequest) {
           productName: product.name,
           productPrice: product.price,
           quantity,
+          // amount 永远是不含税货款。税费单独一列，收银台收 amount + invoiceTaxFee
           amount,
+          invoiceTaxFee,
+          invoiceInfo,
           remark,
           referrerId,
           // 券胜出时内推返现不再计入：站长定的是「不叠加，取更优的一个」
@@ -399,6 +504,17 @@ export async function POST(request: NextRequest) {
         .catch(() => {})
     }
 
+    // 抬头档案的副作用。建单已经成功了，这里出任何问题都只记日志：
+    // 「抬头没存上」远不如「下单失败」严重，不能让它把订单一起带走。
+    if (invoiceIn && invoiceFields) {
+      try {
+        await touchInvoiceTitle(user.id, invoiceIn.titleId)
+        if (invoiceIn.saveTitle) await saveInvoiceTitle(user.id, invoiceFields)
+      } catch (e) {
+        console.error('[invoice-title] 下单时保存抬头失败（不影响订单）', e)
+      }
+    }
+
     // 企业微信通知（fire-and-forget，不 await，通知挂了不能影响下单）
     notifyOrderCreated({
       orderNo: order.orderNo,
@@ -410,8 +526,12 @@ export async function POST(request: NextRequest) {
       stock: product.stock,
     })
 
-    // 销量在支付完成后再增加
-    return success({ order, couponNote }, couponNote || '订单创建成功')
+    // 销量在支付完成后再增加。
+    // payable 是收银台真正会收的数（货款 + 开票税费），前台据此显示「应付」
+    return success(
+      { order, couponNote, invoiceTaxFee, payable: Math.round((amount + (invoiceTaxFee ?? 0)) * 100) / 100 },
+      couponNote || '订单创建成功'
+    )
   } catch (err) {
     console.error('Create order error:', err)
     return error('创建订单失败')

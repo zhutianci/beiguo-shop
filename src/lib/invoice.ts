@@ -1,5 +1,9 @@
 import crypto from 'crypto'
 
+// 税号归一化拆在无依赖的 ./tax-number 里，前台组件要用同一份规则
+// （本文件 import 了 node:crypto，客户端组件不能直接引）
+export { normalizeTaxNumber, TAX_NUMBER_MAX_LEN } from './tax-number'
+
 export const TAX_RATE = 0.06 // 6% 税点
 
 // 归一化名称用于匹配（小写 + 去掉非字母数字）："Claude MAX 5x" -> "claudemax5x"
@@ -28,11 +32,25 @@ export function matchPriceFromProducts(
   return best ? best.price : null
 }
 
+/**
+ * 售价 → { 含税开票金额, 应付税费 }。
+ *
+ * 【必须在「分」上算，且税费由减法导出，不能两边各自四舍五入】
+ * 原来写的是 round2(p*1.06) 与 round2(p*0.06) 两次独立取整，
+ * 0.01~5000.00 区间里有 **2030 个价格**（全是 .25/.75 结尾）会让
+ * `售价 + 税费 ≠ 开票金额`：p=2.75 时开票 2.92、税费 0.16，加起来 2.91。
+ * 原因是 2.75*0.06 在双精度下是 0.16499999999999998，四舍五入掉到 0.16。
+ *
+ * 以前这一分钱看不见 —— 货款和税费是两笔分开收的，没人把它们加起来。
+ * 现在下单可以「货款+税费一次付清」，买家实付的那个数必须精确等于票面金额，
+ * 否则公司报销时付款记录和发票对不上，正是这次改造要解决的问题本身。
+ */
 export function calcInvoiceAmounts(sellingPrice: number) {
-  const round2 = (n: number) => Math.round(n * 100) / 100
+  const sellCents = Math.round(sellingPrice * 100)
+  const invoiceCents = Math.round(sellCents * (1 + TAX_RATE)) // 含税 售价*1.06
   return {
-    invoiceAmount: round2(sellingPrice * (1 + TAX_RATE)), // 含税 售价*1.06
-    taxFee: round2(sellingPrice * TAX_RATE), // 应付 售价*0.06
+    invoiceAmount: invoiceCents / 100,
+    taxFee: (invoiceCents - sellCents) / 100, // 恒等于 开票金额 − 售价
   }
 }
 

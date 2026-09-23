@@ -10,6 +10,7 @@ import {
   assertExternalOrderAccess,
   BillingError,
 } from '@/lib/order-billing'
+import { settlePrepaidInvoiceByExternalOrder } from '@/lib/order-invoice'
 
 const schema = z.object({
   externalOrderId: z.number().int().positive('缺少订单'),
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     const order = await prisma.externalOrder.findUnique({
       where: { id: d.externalOrderId },
-      select: { id: true, sourceKey: true, claudeAccount: true },
+      select: { id: true, sourceKey: true, claudeAccount: true, shopOrderId: true },
     })
     if (!order) return notFound('订单不存在')
 
@@ -38,6 +39,16 @@ export async function POST(request: NextRequest) {
       userEmail: user?.email ?? null,
       claimedEmail: d.accountEmail ?? null,
     })
+
+    /*
+     * 【收据金额的口径要先对齐】三个兄弟路径都做了这一步，唯独这条漏了就不成体系。
+     *
+     * 结账时预收过 6% 的订单，买家实付的是含税额。submitReceiptForExternalOrder
+     * 的判据是「这条外部订单上有没有一张 payStatus=PAID 的发票」—— 万一履约时那张
+     * 发票没落地，它会退回按不含税的 quote 出具，买家拿到一张比实付少 6% 的收据。
+     * 而收据一笔订单只能开一张、开错了改不回来，正是报销最怕的情况。
+     */
+    await settlePrepaidInvoiceByExternalOrder(order)
 
     const result = await submitReceiptForExternalOrder(d.externalOrderId, d.payerTitle)
     return success(result, '收据已生成')

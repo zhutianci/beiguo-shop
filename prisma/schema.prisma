@@ -30,6 +30,7 @@ model User {
   forumComments ForumComment[]
   forumLikes    ForumLike[]
   boundAccounts UserAccount[]
+  invoiceTitles InvoiceTitle[]
 
   @@map("users")
 }
@@ -196,6 +197,16 @@ model Order {
   couponGrantId  Int?           @map("coupon_grant_id") // 用掉的券实例
   couponDiscount Decimal?       @map("coupon_discount") @db.Decimal(10, 2) // 本单减免额快照
   originalAmount Decimal?       @map("original_amount") @db.Decimal(10, 2) // 未用券时应付的金额
+  // ---- 下单时勾选的「同时开发票」----
+  // amount 永远是**不含税的货款**，绝不把 6% 折进去：它同时是 Payment.amount、
+  // 单卡售价分摊(splitAmount)、内推返现、后台流水与利润的基准，折进去这些会全部虚高。
+  // 税费单独放这一列，收银台收 amount + invoiceTaxFee 一笔。
+  invoiceTaxFee  Decimal?       @map("invoice_tax_fee") @db.Decimal(10, 2)
+  // 开票信息草稿（JSON 快照：title/taxNumber/address/phone/bankName/bankAccount/email/showAiWording）。
+  // 【刻意不在下单时就建 Invoice 行】那样要先建 ExternalOrder，而未付款的订单混进
+  // external_orders 会被到期提醒扫到（lib/reminder.ts 按 expireDate 查），给没付钱的人发续费提醒。
+  // 草稿在付款履约时才落成真正的 Invoice，见 lib/order-billing.ts 的 materializeOrderInvoice。
+  invoiceInfo    String?        @map("invoice_info") @db.Text
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
   paidAt         DateTime?      @map("paid_at")
@@ -364,6 +375,15 @@ model ExternalOrder {
   quote              Decimal?  @db.Decimal(10, 2) // 报价
   profit             Decimal?  @db.Decimal(10, 2) // 利润（默认 = 报价 - 成本，可手填）
   sourceKey          String    @unique @map("source_key") @db.VarChar(128) // 去重键
+  // 关联的站内订单（有则表示这条「外部订单」其实是本站某笔订单的背书行）。
+  //
+  // 【为什么不能只靠 sourceKey 推】同一笔站内订单可能对应**两条** external_orders：
+  //   · `order:<id>` —— 买家点「申请发票/收据」时由 ensureExternalOrderForShopOrder 造的
+  //   · `hashKey(账户,开通日,类型)` —— 管理员把订单标成「已完成」时按真实订阅周期导入的
+  // 第二条身上没有任何线索指回 Order.id，于是「这单的 6% 在结账时已经收过了」这个事实
+  // 在它上面是不可知的 —— 买家从「邮箱查订阅」点进那一条，就会被收第二次税。
+  // 这一列就是那条线索：两个写入路径都填它，查重时统一读它。
+  shopOrderId        Int?      @map("shop_order_id")
   importBatch        String?   @map("import_batch") @db.VarChar(32)
   remindedExpireDate DateTime? @map("reminded_expire_date") @db.Date // 已提醒过的到期日（用于跳过自动提醒；续费后到期日变化即重新生效）
   lastRemindedAt     DateTime? @map("last_reminded_at") // 最后一次提醒时间（含手动）
@@ -374,6 +394,7 @@ model ExternalOrder {
 
   @@index([claudeAccount])
   @@index([expireDate])
+  @@index([shopOrderId])
   @@map("external_orders")
 }
 
@@ -699,6 +720,13 @@ model Invoice {
   invoiceNo        String    @unique @map("invoice_no") @db.VarChar(32) // 也用作税费支付的 out_trade_no
   // 关联外部订单（一笔订单一张发票；存快照，避免重导丢失）
   externalOrderId  Int?      @unique @map("external_order_id")
+  // 申请人（本站登录用户）。历史行与闲鱼匿名流程为 null —— 那些单的归属仍靠
+  // claudeAccount 字符串匹配（见 order-billing.assertExternalOrderAccess）。
+  // 新增它是为了让「我的发票/我的抬头」这类按人查的功能有一个不随邮箱变更而失效的主键。
+  userId           Int?      @map("user_id")
+  // 来源：BUYER 买家自助申请 / MANUAL 管理员手动录入（站外客户，无关联订单）。
+  // 历史行为 null，语义等同 BUYER。与 Receipt.source 的取值风格保持一致。
+  source           String?   @db.VarChar(10)
   sourceKey        String?   @map("source_key") @db.VarChar(128)
   claudeAccount    String    @map("claude_account") @db.VarChar(255)
   subscriptionType String    @map("subscription_type") @db.VarChar(100)
@@ -732,7 +760,39 @@ model Invoice {
 
   @@index([claudeAccount])
   @@index([status])
+  @@index([userId])
+  // 后台「手动开票」筛选：where { source: 'MANUAL' } 分页取出
+  @@index([source, status])
   @@map("invoices")
+}
+
+// 发票抬头档案（买家在个人中心维护，开票时一键带入）
+//
+// 【为什么单独建表而不是从历史发票里回捞】历史发票的抬头是「那一单开成了什么样」的存档，
+// 改过、废过、写错过的都在里面；抬头档案是「我以后想用什么」，两者语义不同。
+// 混用会出现「删不掉的错抬头」——历史发票不能改，而它又一直出现在下次开票的候选里。
+//
+// 按 userId 归属，不按邮箱：邮箱可以改，改了不能让人丢掉自己的抬头。
+// 因此**匿名「邮箱查订阅」流程没有抬头档案**（那条路径根本没有身份），只能手填。
+model InvoiceTitle {
+  id          Int      @id @default(autoincrement())
+  userId      Int      @map("user_id")
+  title       String   @db.VarChar(200) // 抬头（公司名 / 个人）
+  taxNumber   String   @map("tax_number") @db.VarChar(64) // 税号，入库前已去掉所有空白字符
+  address     String?  @db.VarChar(255)
+  phone       String?  @db.VarChar(50)
+  bankName    String?  @map("bank_name") @db.VarChar(128)
+  bankAccount String?  @map("bank_account") @db.VarChar(64)
+  email       String?  @db.VarChar(255) // 默认接收邮箱
+  isDefault   Boolean  @default(false) @map("is_default") // 开票时默认选中的那一条
+  lastUsedAt  DateTime? @map("last_used_at") // 最近一次用它开票的时间，列表按此排序
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isDefault])
+  @@map("invoice_titles")
 }
 
 // 卡密兑换尝试记录。

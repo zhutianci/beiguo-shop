@@ -3,7 +3,9 @@ import { Prisma } from '@prisma/client'
 import { prisma } from './db'
 import { syncAutoStock, decryptCardContent } from './cardkey'
 import { round2, splitAmount } from './money'
-import { notifyOrderPaid, notifyInvoiceReady, notifyLowStock } from './notify'
+import { notifyOrderPaid, notifyInvoiceReady, notifyInvoiceFailed, notifyLowStock } from './notify'
+// 叶子模块，绝不能换成 './order-billing' —— 那个文件 import 了本文件，会形成循环依赖
+import { materializeOrderInvoice } from './order-invoice'
 import { consumeCouponForOrder, releaseCouponForOrder, sweepStuckCoupons } from './coupon'
 import { financeInvoiceUrl } from './action-token'
 import { settleReferral } from './referral'
@@ -506,6 +508,31 @@ export async function fulfillOrder(orderId: number) {
 
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { product: true, user: true } })
   if (!order) return
+
+  /*
+   * ①.5 下单时勾了「同时开发票」的，此刻税费已随货款一并到账 → 发票申请正式成立。
+   *
+   * 【必须放在下面那条「已交付就返回」之前】自动发货商品在本次调用里就会被置成
+   * DELIVERED，之后任何一次重入（重复到账推送、后台补发卡密、手动补单）都会在那一行
+   * 提前返回。开票要是排在它后面，首次调用只要抛一次异常（网络抖动、连接池耗尽），
+   * 这张买家已经付过税费的发票就**再也没有任何一条路能补出来**。
+   *
+   * 放在前面是安全的：submitInvoiceForPaidOrder 只读订单、只写 invoices/external_orders，
+   * 不碰发货，且靠 Invoice.externalOrderId 的唯一约束做幂等，重复进入只会返回 null。
+   *
+   * 【整块 try 住】开票失败绝不能影响发货 —— 买家的货不该为一张发票买单。
+   */
+  await submitInvoiceForPaidOrder(order.id).catch((e) => {
+    console.error('[vmq] 下单开票落地失败（发货不受影响）', order.id, e)
+    // 【必须告警】失败是静默的：钱已到账、invoices 表没有行、财务台看不到，
+    // 而买家订单页因为 invoiceTaxFee 已写入仍显示「已提交开票」。不推送就没人会发现
+    notifyInvoiceFailed({
+      orderNo: order.orderNo,
+      taxFee: order.invoiceTaxFee ?? 0,
+      reason: e instanceof Error ? e.message : String(e),
+    })
+  })
+
   // 非赢家且订单已完整交付 → 直接返回，杜绝重复发卡
   if (!won && order.deliveryStatus === 'DELIVERED') return
 
@@ -545,7 +572,10 @@ export async function fulfillOrder(orderId: number) {
     await consumeCouponForOrder(order.id).catch((e) => console.error('[coupon] 核销失败', order.id, e))
   }
 
+  // ②.45 下单时勾了「同时开发票」的，此刻税费已随货款一并到账 → 发票申请正式成立。
+  // 【整块 try 住】开票失败绝不能影响已经完成的发货 —— 买家的货不该为一张发票买单。
   // ②.5 企业微信通知。只在 won（首次把订单翻成 PAID）时推送——
+  // （下单勾选开票的落地在 ①.5，已挪到「已交付就返回」那道短路之前）
   // 重复到账通知会让本函数被多次进入，但老板的手机不该被重复打扰。
   if (won) {
     const fresh = await prisma.product.findUnique({
@@ -558,6 +588,8 @@ export async function fulfillOrder(orderId: number) {
       productName: order.productName,
       quantity: order.quantity,
       amount: order.amount,
+      // 勾了开票的单支付宝到账的是 货款+6%，推送要和银行流水对得上
+      invoiceTaxFee: order.invoiceTaxFee == null ? null : Number(order.invoiceTaxFee),
       paidAt: order.paidAt ?? new Date(),
       stock: fresh?.stock ?? null,
       delivered,
@@ -610,6 +642,8 @@ export async function fulfillOrder(orderId: number) {
         orderNo: order.orderNo,
         productName: order.productName,
         amount: Number(order.amount),
+        // 勾了开票的订单实收的是 货款 + 6%，邮件要和支付宝账单对得上
+        invoiceTaxFee: order.invoiceTaxFee == null ? null : Number(order.invoiceTaxFee),
         deliveryType: order.product.deliveryType,
         cards,
         cardUsage: order.product.cardUsage,
@@ -620,18 +654,65 @@ export async function fulfillOrder(orderId: number) {
   }
 }
 
+/**
+ * 订单已付款 → 把下单时勾的「同时开发票」草稿落成一张已成立的发票，并推送财务。
+ *
+ * **幂等，可以随便重复调用。** 三条路会进来：
+ *   · 正常到账履约（fulfillOrder）
+ *   · 后台「补发卡密」/「确认到账补单」（同样经 fulfillOrder）
+ *   · 后台手工把订单标成已支付（api/admin/orders/[id]，那条路不走 fulfillOrder）
+ *
+ * 【不依赖 fulfillOrder 里的 won 标记】补单场景下 won 是 false，靠它兜的话补单
+ * 进来的订单永远不会开票。幂等由 Invoice.externalOrderId 的唯一约束保证。
+ */
+export async function submitInvoiceForPaidOrder(orderId: number) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      userId: true,
+      productName: true,
+      amount: true,
+      paidAt: true,
+      createdAt: true,
+      payStatus: true,
+      invoiceInfo: true,
+      user: { select: { email: true, nickname: true } },
+    },
+  })
+  // 没付款就不该有发票：税费是跟货款一笔收的，钱没到账这张票不成立
+  if (!order || order.payStatus !== 'PAID' || !order.invoiceInfo) return
+  const created = await materializeOrderInvoice(order)
+  if (created) await pushInvoiceReady(created.id)
+}
+
 async function fulfillInvoice(invoiceId: number) {
-  const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } })
-  if (!invoice || invoice.payStatus === 'PAID') return
+  // 【条件更新，不是「先查后写」】原来是 findUnique → 判 payStatus → update。
+  // 重复到账推送、后台补单（manualComplete 没有入口处的 CAS 闸门）、两个管理员同时点，
+  // 都可能让两次调用同时通过那个判断，于是企业微信收到两条一模一样的「可开具」推送，
+  // 每条还各带一个新的免登录财务台链接。改成 updateMany 由数据库定胜负。
   const paidAt = new Date()
-  await prisma.invoice.update({
-    where: { id: invoice.id },
+  const flip = await prisma.invoice.updateMany({
+    where: { id: invoiceId, payStatus: { not: 'PAID' } },
     data: { payStatus: 'PAID', status: 'SUBMITTED', paidAt, submittedAt: paidAt },
   })
+  if (flip.count !== 1) return // 已被并发的另一次履约处理
 
-  // 税费到账 = 这张票真的要开了。此时才推送，且一次给全：
-  // 本单完整信息 + 当前全部待开清单 + 财务可直接操作的链接。
+  await pushInvoiceReady(invoiceId)
+}
+
+/**
+ * 「这张票可以开了」的企业微信推送：本单完整信息 + 当前全部待开清单 + 财务台链接。
+ *
+ * 两条路进来：单独支付税费（fulfillInvoice）、下单时勾开票随货款一起付清
+ * （fulfillOrder → materializeOrderInvoice）。两条路的终态一样，推送也该一样。
+ *
+ * 调用方必须已经赢得幂等竞争，本函数不再自查 —— 它只负责推送。
+ */
+async function pushInvoiceReady(invoiceId: number) {
   try {
+    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } })
+    if (!invoice) return
     const pending = await prisma.invoice.findMany({
       where: { status: 'SUBMITTED', payStatus: 'PAID' },
       orderBy: { paidAt: 'asc' },
@@ -647,7 +728,7 @@ async function fulfillInvoice(invoiceId: number) {
       invoiceAmount: invoice.invoiceAmount,
       taxFee: invoice.taxFee,
       email: invoice.email,
-      paidAt,
+      paidAt: invoice.paidAt ?? new Date(),
       pending: pending.map((x) => ({
         invoiceNo: x.invoiceNo,
         title: x.title || '—',

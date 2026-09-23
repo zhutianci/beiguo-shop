@@ -22,6 +22,7 @@ export type NotifyEvent =
   | 'order.delivered'
   | 'invoice.submitted'
   | 'invoice.paid'
+  | 'invoice.failed'
   | 'receipt.created'
   | 'message.buyer'
   | 'stock.low'
@@ -35,6 +36,8 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.delivered': { emoji: '📦', title: '订单已交付' },
   'invoice.submitted': { emoji: '🧾', title: '新的开票申请' },
   'invoice.paid': { emoji: '✅', title: '发票税费已支付' },
+  // 税费已随货款到账、但发票没能落地。默认必须推 —— 不推就没人会发现
+  'invoice.failed': { emoji: '🚨', title: '发票落地失败（税费已收）' },
   'receipt.created': { emoji: '📄', title: '新开具收据' },
   'message.buyer': { emoji: '🔔', title: '新订单留言' },
   'stock.low': { emoji: '⚠️', title: '库存告警' },
@@ -217,18 +220,31 @@ export function notifyOrderPaid(p: {
   buyer: string
   productName: string
   quantity: number
+  /** 商品金额（不含税） */
   amount: unknown
+  /** 下单时勾了开票的订单随货款一起收的 6%；没勾为空 */
+  invoiceTaxFee?: number | null
   paidAt: Date
   stock: number | null
   delivered: boolean
 }): void {
+  // 勾了开票的单，支付宝到账的是 货款 + 6%。推送只写货款的话，
+  // 老板拿着手机对不上银行流水 —— 拆开写，并标明这一单会自动进待开清单
+  const tax = Number(p.invoiceTaxFee || 0)
   notify(
     'order.paid',
     [
       { label: '订单号', value: p.orderNo },
       { label: '用户', value: p.buyer },
       { label: '商品', value: `${p.productName}${p.quantity > 1 ? ` × ${p.quantity}` : ''}` },
-      { label: '金额', value: money(p.amount), color: 'warning' },
+      ...(tax > 0
+        ? [
+            { label: '商品金额', value: money(p.amount) },
+            { label: '发票税费', value: money(tax), color: 'info' as const },
+            { label: '实收金额', value: money(Number(p.amount) + tax), color: 'warning' as const },
+            { label: '开票', value: '已随单提交，见待开清单', color: 'info' as const },
+          ]
+        : [{ label: '金额', value: money(p.amount), color: 'warning' as const }]),
       { label: '支付时间', value: fmtTime(p.paidAt) },
       { label: '发货', value: p.delivered ? '已自动发货' : '待人工处理', color: p.delivered ? 'info' : 'warning' },
       { label: '剩余库存', value: stockText(p.stock), color: p.stock != null && p.stock >= 0 && p.stock <= 3 ? 'warning' : undefined },
@@ -250,6 +266,30 @@ export interface PendingInvoiceBrief {
   title: string
   subscriptionType: string
   invoiceAmount: number | null
+}
+
+/**
+ * 「税费收到了，但发票没能落地」告警。
+ *
+ * 开票落地被刻意包在 try 里，绝不能影响已经完成的发货。代价是失败会静默：
+ * 钱进了支付宝、invoices 表里没有行、财务台看不到、买家订单页却显示「已提交开票」。
+ * 没有这条推送，就没有任何一方会发现。
+ */
+export function notifyInvoiceFailed(p: {
+  orderNo: string
+  taxFee: unknown
+  reason: string
+}): void {
+  notify(
+    'invoice.failed',
+    [
+      { label: '订单号', value: p.orderNo },
+      { label: '已收税费', value: money(p.taxFee), color: 'warning' },
+      { label: '原因', value: p.reason.slice(0, 200), color: 'warning' },
+      { label: '处理', value: '到「订单管理」重新保存该订单即可重试落地' },
+    ],
+    { link: '/admin/orders', extraTitle: '发票落地失败' }
+  )
 }
 
 export function notifyInvoiceReady(p: {

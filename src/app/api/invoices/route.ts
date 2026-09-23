@@ -11,19 +11,16 @@ import {
   assertExternalOrderAccess,
   BillingError,
 } from '@/lib/order-billing'
+import { settlePrepaidInvoiceByExternalOrder } from '@/lib/order-invoice'
+import {
+  buyerInvoiceSubmitSchema,
+  normalizeInvoiceFields,
+  afterInvoiceSubmitted,
+} from '@/lib/invoice-input'
 
-const schema = z.object({
+// 抬头字段共用 lib/invoice-input 的定义，本路由只多两样：订单号与匿名归属凭证
+const schema = buyerInvoiceSubmitSchema.extend({
   externalOrderId: z.number().int().positive('缺少订单'),
-  title: z.string().trim().min(1, '抬头必填').max(200),
-  taxNumber: z.string().trim().min(1, '税号必填').max(64),
-  address: z.string().trim().max(255).optional().nullable(),
-  phone: z.string().trim().max(50).optional().nullable(),
-  bankName: z.string().trim().max(128).optional().nullable(),
-  bankAccount: z.string().trim().max(64).optional().nullable(),
-  email: z.string().email('接收邮箱格式不正确'),
-  // 必选：发票内容是否展示 ChatGPT/Claude 等字眼。
-  // 用 boolean 而非 optional，缺失时 zod 会直接报「请选择…」，不允许静默默认。
-  showAiWording: z.boolean({ required_error: '请选择发票中是否展示 ChatGPT/Claude 相关字眼' }),
   // 匿名「邮箱查订阅」流程的归属凭证
   accountEmail: z.string().trim().email().optional().nullable(),
 })
@@ -39,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     const order = await prisma.externalOrder.findUnique({
       where: { id: d.externalOrderId },
-      select: { id: true, sourceKey: true, claudeAccount: true },
+      select: { id: true, sourceKey: true, claudeAccount: true, shopOrderId: true },
     })
     if (!order) return notFound('订单不存在')
 
@@ -50,7 +47,28 @@ export async function POST(request: NextRequest) {
       claimedEmail: d.accountEmail ?? null,
     })
 
-    const result = await submitInvoiceForExternalOrder(d.externalOrderId, d)
+    const fields = normalizeInvoiceFields(d)
+
+    /*
+     * 【防重复收税】这条外部订单背后的站内订单若在结账时已经预收过 6%，
+     * 这条路就不能再收第二遍。与 /api/orders/[id]/invoice 同一道闸。
+     * 走 shopOrderId 而不是解析 sourceKey —— 管理员交付时导入的那条外部订单
+     * sourceKey 是 hashKey(账户,开通日,类型)，里面没有订单号。
+     * 把本次填的抬头一并传进去：票还没开出去时就地覆盖，买家填的不会白填。
+     */
+    const prepaid = await settlePrepaidInvoiceByExternalOrder(order, fields)
+    if (prepaid) {
+      await afterInvoiceSubmitted(user?.id ?? null, d, fields)
+      return success(
+        { alreadyPaid: true },
+        '该订单下单时已选择开发票、税费也已随货款付清，无需再次支付；抬头已按本次填写更新'
+      )
+    }
+    const result = await submitInvoiceForExternalOrder(d.externalOrderId, fields, {
+      userId: user?.id ?? null,
+    })
+    // 匿名流程没有身份，存不了抬头档案；登录用户走这条路时照常能存
+    await afterInvoiceSubmitted(user?.id ?? null, d, fields)
     return success(result, '已提交，请支付税费')
   } catch (err) {
     if (err instanceof BillingError) return error(err.message, err.status)

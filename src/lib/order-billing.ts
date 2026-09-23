@@ -1,30 +1,22 @@
 import { prisma } from './db'
-import { calcInvoiceAmounts, genInvoiceNo } from './invoice'
+import { calcInvoiceAmounts, genInvoiceNo, normalizeTaxNumber } from './invoice'
 import { PAYEE, genReceiptNo, genReceiptToken } from './receipt'
 import { createOrGetVmqOrder } from './vmq'
 import { notifyReceiptCreated } from './notify'
+import { BillingError, type BuyerInvoiceFields } from './order-invoice'
 
-// 发票/收据业务错误（带可选 HTTP 状态）
-export class BillingError extends Error {
-  status: number
-  constructor(message: string, status = 400) {
-    super(message)
-    this.name = 'BillingError'
-    this.status = status
-  }
-}
-
-export interface BuyerInvoiceFields {
-  title: string
-  taxNumber: string
-  address?: string | null
-  phone?: string | null
-  bankName?: string | null
-  bankAccount?: string | null
-  email: string
-  /** 发票内容是否展示 ChatGPT/Claude 等字眼（买家申请时必选，无默认值） */
-  showAiWording: boolean
-}
+// BillingError / BuyerInvoiceFields / ensureExternalOrderForShopOrder 等已迁到 ./order-invoice
+// （见那个文件顶部的说明：为了不让 lib/vmq.ts 与本文件形成循环依赖）。
+// 这里原样再导出一遍，调用方不用改 import 路径。
+export {
+  BillingError,
+  shopOrderSourceKey,
+  ensureExternalOrderForShopOrder,
+  parseOrderInvoiceDraft,
+  materializeOrderInvoice,
+  createManualInvoice,
+} from './order-invoice'
+export type { BuyerInvoiceFields, OrderInvoiceDraft, ManualInvoiceInput } from './order-invoice'
 
 // ---- 订单归属校验 ----
 // /api/invoices 与 /api/receipts 服务于「邮箱查订阅」的匿名流程（买家多来自闲鱼，未注册），
@@ -68,11 +60,18 @@ export async function assertExternalOrderAccess(
 
 // 以「订单（外部订单）」为基准创建/更新发票并发起税费收款。
 // 邮箱查询路径与买家订单路径共用此逻辑，避免分叉。
-export async function submitInvoiceForExternalOrder(externalOrderId: number, d: BuyerInvoiceFields) {
+export async function submitInvoiceForExternalOrder(
+  externalOrderId: number,
+  d: BuyerInvoiceFields,
+  opts: { userId?: number | null } = {}
+) {
   const order = await prisma.externalOrder.findUnique({ where: { id: externalOrderId } })
   if (!order) throw new BillingError('订单不存在')
 
-  // 计费基准 = 报价(quote)
+  // 计费基准 = 报价(quote)。
+  // 【内推单天然按专属价开票】本站订单的 quote 由 ensureExternalOrderForShopOrder
+  // 写成 order.amount，而内推单的 amount 建单时就已经是推广人的专属价
+  // （见 api/orders/route.ts 的 unitPrice），所以开票金额 = 专属价*1.06，无需额外分支。
   const price = order.quote == null ? null : Number(order.quote)
   if (price == null) throw new BillingError('该订单暂不可开具发票')
   const { invoiceAmount, taxFee } = calcInvoiceAmounts(price)
@@ -80,7 +79,9 @@ export async function submitInvoiceForExternalOrder(externalOrderId: number, d: 
   const email = d.email.trim().toLowerCase()
   const buyerFields = {
     title: d.title,
-    taxNumber: d.taxNumber,
+    // 兜底再归一化一次：这个函数是所有买家开票路径的唯一出口，
+    // 将来多出一个调用方忘了走 invoice-input，税号也不会带着空格进库
+    taxNumber: normalizeTaxNumber(d.taxNumber),
     address: d.address || null,
     phone: d.phone || null,
     bankName: d.bankName || null,
@@ -104,7 +105,9 @@ export async function submitInvoiceForExternalOrder(externalOrderId: number, d: 
     }
     invoice = await prisma.invoice.update({
       where: { id: existing.id },
-      data: { ...buyerFields, status: 'AWAIT_PAY' },
+      // userId 只补不覆盖：历史匿名单第一次被登录用户接手时记上归属，
+      // 但已有归属的不能被后来的调用改掉
+      data: { ...buyerFields, status: 'AWAIT_PAY', userId: existing.userId ?? opts.userId ?? null },
     })
   } else {
     invoice = await prisma.invoice.create({
@@ -117,6 +120,8 @@ export async function submitInvoiceForExternalOrder(externalOrderId: number, d: 
         orderStartDate: order.startDate,
         orderExpireDate: order.expireDate,
         ...buyerFields,
+        userId: opts.userId ?? null,
+        source: 'BUYER',
         status: 'AWAIT_PAY',
         payStatus: 'UNPAID',
       },
@@ -262,51 +267,4 @@ export function parseReceiptItems(raw: string | null | undefined): ManualReceipt
   } catch {
     return []
   }
-}
-
-// 买家从「我的订单」申请发票/收据时，为该订单生成/复用一条背书 ExternalOrder，
-// 使其复用现有发票/收据/开票/管理员后台体系。sourceKey 固定为 `order:<id>`，幂等。
-interface ShopOrderForBilling {
-  id: number
-  productName: string
-  amount: unknown // Prisma.Decimal | number
-  paidAt: Date | null
-  createdAt: Date
-  user: { email: string | null; nickname: string | null }
-}
-
-export function shopOrderSourceKey(orderId: number): string {
-  return `order:${orderId}`
-}
-
-export async function ensureExternalOrderForShopOrder(o: ShopOrderForBilling) {
-  const sourceKey = shopOrderSourceKey(o.id)
-  const claudeAccount = (o.user.email || `order-${o.id}@bigolab.local`).toLowerCase()
-  const subscriptionType = o.productName
-  const xianyuNickname = o.user.nickname || o.user.email || null
-
-  // 开通时间取支付时间（无则下单时间），到期时间默认 +1 个月，仅用于票据展示
-  const base = o.paidAt ?? o.createdAt
-  const startDate = new Date(base.getFullYear(), base.getMonth(), base.getDate())
-  const expireDate = new Date(base.getFullYear(), base.getMonth() + 1, base.getDate())
-
-  return prisma.externalOrder.upsert({
-    where: { sourceKey },
-    create: {
-      startDate,
-      expireDate,
-      subscriptionType,
-      xianyuNickname,
-      claudeAccount,
-      quote: o.amount as never, // 报价 = 订单金额
-      sourceKey,
-      importBatch: 'SHOP',
-    },
-    // 复用时只刷新报价/类型/昵称，保持开通-到期日期稳定（避免已开票据的周期变动）
-    update: {
-      quote: o.amount as never,
-      subscriptionType,
-      xianyuNickname,
-    },
-  })
 }

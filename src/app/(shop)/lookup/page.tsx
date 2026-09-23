@@ -1,9 +1,10 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar, BellRing, Smartphone, Save, FileText, X, AlertCircle } from 'lucide-react'
+import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar, BellRing, Smartphone, Save, FileText, X, AlertCircle, Check } from 'lucide-react'
+import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
 
 interface ExternalOrder {
   id: number
@@ -337,7 +338,7 @@ function LookupForm() {
                               </button>
                             )}
                             {order.invoiceStatus === 'AWAIT_PAY' && order.invoiceId && (
-                              <PayTaxButton invoiceId={order.invoiceId} />
+                              <PayTaxButton invoiceId={order.invoiceId} accountEmail={order.claudeAccount} />
                             )}
                           </div>
 
@@ -571,7 +572,7 @@ function ReminderSettings({ account }: { account: string }) {
 }
 
 // 待支付税费：直接跳转支付宝
-function PayTaxButton({ invoiceId }: { invoiceId: number }) {
+function PayTaxButton({ invoiceId, accountEmail }: { invoiceId: number; accountEmail: string }) {
   const [loading, setLoading] = useState(false)
   const pay = async () => {
     setLoading(true)
@@ -580,7 +581,8 @@ function PayTaxButton({ invoiceId }: { invoiceId: number }) {
       const res = await fetch(`/api/invoices/${invoiceId}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel }),
+        // accountEmail 是匿名流程的归属凭证，与「申请发票」用的是同一个
+        body: JSON.stringify({ channel, accountEmail }),
       })
       const data = await res.json()
       if (data.success && data.data?.payUrl) {
@@ -627,6 +629,54 @@ function InvoiceModal({
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
+  /*
+   * 已保存的抬头。
+   * 【这一页大多数访客是未登录的闲鱼买家】接口会回 401，useSavedTitles 把它当空数组，
+   * 于是整块选择器不渲染，页面和改造前一模一样。
+   * 只有「登录了、又恰好从邮箱查单进来」的人才会看到快捷选择 —— 多给一点，不少给一点。
+   */
+  const { titles, loaded: titlesLoaded, authed } = useSavedTitles(true)
+  const [titleId, setTitleId] = useState<number | null>(null)
+  const [saveTitle, setSaveTitle] = useState(true)
+  /** 买家动过任何一个字段后，就不再让迟到的接口结果覆盖他填的内容 */
+  const touched = useRef(false)
+
+  const applyTitle = (t: SavedTitle) => {
+    setTitleId(t.id)
+    setTitle(t.title)
+    setTaxNumber(t.taxNumber)
+    setAddress(t.address || '')
+    setPhone(t.phone || '')
+    setBankName(t.bankName || '')
+    setBankAccount(t.bankAccount || '')
+    setEmail(t.email || defaultEmail || order.claudeAccount)
+    setSaveTitle(false)
+  }
+
+  const startNewTitle = () => {
+    // 标记 touched：这是买家的明确选择，不能再被迟到的「自动带入默认抬头」盖回去
+    touched.current = true
+    setTitleId(null)
+    setTitle('')
+    setTaxNumber('')
+    setAddress('')
+    setPhone('')
+    setBankName('')
+    setBankAccount('')
+    setEmail(defaultEmail || order.claudeAccount)
+    setSaveTitle(true)
+  }
+
+  // 自动带入默认抬头。
+  // 【守的是 touched 而不是「抬头填了没」】买家完全可能先敲税号或邮箱，
+  // 这时接口才返回，只看 title 的话会把他已经填好的其它字段整片盖掉。
+  useEffect(() => {
+    if (!titlesLoaded || titleId !== null || touched.current) return
+    const def = titles.find((t) => t.isDefault) || titles[0]
+    if (def) applyTitle(def)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [titlesLoaded, titles])
+
   const submit = async () => {
     setErr(null)
     if (!title.trim()) return setErr('请填写发票抬头')
@@ -648,6 +698,9 @@ function InvoiceModal({
           bankAccount: bankAccount.trim() || null,
           email: email.trim(),
           showAiWording,
+          titleId,
+          // 未登录时服务端会忽略这个字段（存抬头需要身份）
+          saveTitle: titleId === null && saveTitle,
           // 归属凭证：证明调用方知道该订单的账户邮箱（匿名邮箱查询流程本就有这个信息）
           accountEmail: order.claudeAccount,
         }),
@@ -657,12 +710,32 @@ function InvoiceModal({
         window.location.href = data.data.payUrl
         return
       }
+      // 结账时已经把 6% 跟货款一起付清的订单：服务端直接把发票落成「已提交」，
+      // 不会再给收款链接。这是成功，不是失败——别让买家看到一个红色「提交失败」
+      if (data.success) {
+        alert(data.message || '发票申请已提交，税费已随订单支付，无需再付')
+        onClose()
+        return
+      }
       setErr(data.error || '提交失败')
     } catch {
       setErr('网络错误，请重试')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  /**
+   * 包一层字段 setter：标记「买家动过表单」，并把「用的是哪条已保存抬头」清掉。
+   * 后者很重要 —— 改过内容之后最终开出去的已经不是那条抬头了，
+   * 再带着 titleId 提交会让候选里那条被错误地标成「刚用过」。
+   */
+  const edit = (setter: (v: string) => void, identity = false) => (v: string) => {
+    touched.current = true
+    // 只有抬头/税号会让它「不再是那条已保存抬头」。改地址电话仍是同一个抬头，
+    // 清掉 titleId 只会让这条常用抬头的「最近使用时间」刷不上、在候选里一路下沉
+    if (identity) setTitleId(null)
+    setter(v)
   }
 
   const field = (
@@ -734,14 +807,21 @@ function InvoiceModal({
         </div>
 
         {/* 抬头信息 */}
+        {/* 已保存抬头：点一下整份填入。未登录时 titles 为空，整块不渲染 */}
+        <InvoiceTitlePicker titles={titles} selectedId={titleId} onPick={applyTitle} onNew={startNewTitle} />
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="sm:col-span-2">{field('抬头', title, setTitle, { required: true, placeholder: '公司名称 / 个人' })}</div>
-          <div className="sm:col-span-2">{field('税号', taxNumber, setTaxNumber, { required: true, placeholder: '纳税人识别号' })}</div>
-          {field('地址', address, setAddress, { placeholder: '选填' })}
-          {field('电话', phone, setPhone, { placeholder: '选填' })}
-          {field('开户行', bankName, setBankName, { placeholder: '选填' })}
-          {field('卡号', bankAccount, setBankAccount, { placeholder: '选填' })}
-          <div className="sm:col-span-2">{field('接收邮箱', email, setEmail, { required: true, type: 'email', placeholder: '发票将发送到此邮箱' })}</div>
+          <div className="sm:col-span-2">
+            {field('抬头', title, edit(setTitle, true), { required: true, placeholder: '公司名称 / 个人' })}
+          </div>
+          <div className="sm:col-span-2">
+            {field('税号', taxNumber, edit(setTaxNumber, true), { required: true, placeholder: '纳税人识别号（带空格会自动去掉）' })}
+          </div>
+          {field('地址', address, edit(setAddress), { placeholder: '选填' })}
+          {field('电话', phone, edit(setPhone), { placeholder: '选填' })}
+          {field('开户行', bankName, edit(setBankName), { placeholder: '选填' })}
+          {field('卡号', bankAccount, edit(setBankAccount), { placeholder: '选填' })}
+          <div className="sm:col-span-2">{field('接收邮箱', email, edit(setEmail), { required: true, type: 'email', placeholder: '发票将发送到此邮箱' })}</div>
 
           {/* 必选：发票内容是否展示 AI 平台字眼 */}
           <div className="sm:col-span-2">
@@ -771,6 +851,24 @@ function InvoiceModal({
           </div>
         </div>
 
+        {/* 【按真实登录态判断，不是按「有没有存过抬头」】已登录但一条都没存的人
+            才是最需要这个开关的 —— 用 titles.length 当替身会让他们永远存不上第一条 */}
+        {authed && titleId === null && (
+          <button
+            type="button"
+            onClick={() => setSaveTitle((v) => !v)}
+            className="mt-3 flex items-center gap-2 text-left text-xs text-white/50 hover:text-white/70"
+          >
+            <span
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                saveTitle ? 'border-purple-400 bg-purple-500' : 'border-white/25 bg-white/5'
+              }`}
+            >
+              {saveTitle && <Check className="h-3 w-3" />}
+            </span>
+            保存这个抬头，下次开票一键填入
+          </button>
+        )}
         {err && (
           <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">
             <AlertCircle className="w-4 h-4" /> {err}

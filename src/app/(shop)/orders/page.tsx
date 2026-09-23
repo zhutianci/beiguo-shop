@@ -18,12 +18,14 @@ import {
   MessageSquare,
   FileText,
   X,
+  Check,
   type LucideIcon,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { ContactModal } from '@/components/contact-modal'
 import OrderChat from '@/components/order-chat'
 import OrderSms from '@/components/order-sms'
+import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
 
 interface Order {
   id: number
@@ -32,6 +34,10 @@ interface Order {
   productName: string
   productPrice: string | number
   amount: string | number
+  /** 下单时勾了开发票 → 待支付的 6% 税费；没勾为 null */
+  invoiceTaxFee: number | null
+  /** 实际应付 = amount + invoiceTaxFee */
+  payable: number
   payStatus: string
   deliveryStatus: string
   deliveryInfo: string | null
@@ -55,7 +61,9 @@ interface Billing {
   invoiceAmount: number
   taxFee: number
   receiptAmount: number // 收据应开金额：已付发票税费=含税开票金额，否则=售价
-  invoiceStatus: string // UNAPPLIED | AWAIT_PAY | SUBMITTED | ISSUED | CANNOT
+  invoiceStatus: string
+  /** 结账时已随货款付清 6%：不再显示「申请发票」，也不会再收一次税费 */
+  invoicePrepaid?: boolean // UNAPPLIED | AWAIT_PAY | SUBMITTED | ISSUED | CANNOT
   invoiceId: number | null
   receiptToken: string | null
 }
@@ -480,7 +488,8 @@ export default function OrdersPage() {
                             )}
                             {order.billing &&
                               order.billing.invoiceStatus === 'UNAPPLIED' &&
-                              order.billing.canInvoice && <BillingChip color="purple" label="可开发票" />}
+                              order.billing.canInvoice &&
+                              !order.billing.invoicePrepaid && <BillingChip color="purple" label="可开发票" />}
 
                             {/* 收据标识 */}
                             {order.billing &&
@@ -511,7 +520,12 @@ export default function OrdersPage() {
 
                         <div className="flex items-center justify-between md:justify-end gap-4 lg:gap-6">
                           <div className="text-right">
-                            <div className="text-2xl lg:text-3xl font-bold">¥{Number(order.amount).toFixed(0)}</div>
+                            <div className="text-2xl lg:text-3xl font-bold">
+                              ¥{Number(order.payStatus === 'UNPAID' ? order.payable : order.amount).toFixed(0)}
+                            </div>
+                            {order.payStatus === 'UNPAID' && order.invoiceTaxFee ? (
+                              <div className="mt-0.5 text-[11px] text-amber-300/80">含发票税费 ¥{order.invoiceTaxFee.toFixed(2)}</div>
+                            ) : null}
                             <div className="text-xs text-white/40">订单金额</div>
                           </div>
                           {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
@@ -662,7 +676,12 @@ export default function OrdersPage() {
         <InvoiceModal
           order={invoiceOrder}
           defaultEmail={user.email || ''}
-          onClose={() => setInvoiceOrder(null)}
+          onClose={(refresh) => {
+            setInvoiceOrder(null)
+            // 「税费已随订单付清、发票直接落地」那条路不会跳转收银台，
+            // 页面还停在原地，必须重新拉一次才能看到状态变成「已提交开票」
+            if (refresh) loadOrders()
+          }}
         />
       )}
       {receiptOrder && receiptOrder.billing && (
@@ -825,6 +844,19 @@ function DeliveryPanel({ order, onClose }: { order: Order; onClose: () => void }
         <InfoRow label="订单号" value={<span className="font-mono">{order.orderNo}</span>} />
         <InfoRow label="商品" value={<span className="font-medium">{order.productName}</span>} />
         <InfoRow label="金额" value={<span className="font-bold text-lg">¥{Number(order.amount).toFixed(2)}</span>} />
+        {/* 【已付订单也要显示】这一行是买家对账用的：他支付宝里扣的是含税的那个数，
+            付款后就把它藏起来，等于让他拿着一份对不上的材料去报销 */}
+        {order.invoiceTaxFee ? (
+          <InfoRow
+            label="发票税费"
+            value={
+              <span className="text-amber-300">
+                +¥{order.invoiceTaxFee.toFixed(2)} ·{' '}
+                {order.payStatus === 'UNPAID' ? '应付' : '实付'} ¥{Number(order.payable).toFixed(2)}
+              </span>
+            }
+          />
+        ) : null}
         <InfoRow label="下单时间" value={formatDate(order.createdAt)} />
         {order.paidAt && <InfoRow label="支付时间" value={formatDate(order.paidAt)} />}
         {order.deliveredAt && <InfoRow label="交付时间" value={formatDate(order.deliveredAt)} />}
@@ -962,13 +994,19 @@ function BillingPanel({
             {INVOICE_LABELS[b.invoiceStatus] || b.invoiceStatus}
           </span>
         </div>
-        {b.invoiceStatus === 'UNAPPLIED' && b.canInvoice && (
+        {/* 【b.invoicePrepaid 的单不给这个按钮】结账时勾过开发票的订单，6% 已经跟货款
+            一起付清了，再点一次就是第二次收税。服务端也有同一道闸
+            （lib/order-invoice.settlePrepaidOrderInvoice），这里只是不让按钮出现在眼前。 */}
+        {b.invoiceStatus === 'UNAPPLIED' && b.canInvoice && !b.invoicePrepaid && (
           <button
             onClick={onApplyInvoice}
             className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all"
           >
             申请发票
           </button>
+        )}
+        {b.invoicePrepaid && (
+          <span className="text-xs text-white/40">税费已随订单支付，无需再付</span>
         )}
         {b.invoiceStatus === 'AWAIT_PAY' && b.invoiceId && <PayTaxButton invoiceId={b.invoiceId} />}
       </div>
@@ -1071,7 +1109,8 @@ function InvoiceModal({
 }: {
   order: Order
   defaultEmail: string
-  onClose: () => void
+  /** refresh=true 表示状态已在服务端改变，调用方需要重新拉列表 */
+  onClose: (refresh?: boolean) => void
 }) {
   const b = order.billing!
   const [title, setTitle] = useState('')
@@ -1085,6 +1124,58 @@ function InvoiceModal({
   const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+
+  // 已保存的抬头：点一下把整份信息填进表单，省掉每次重敲税号
+  const { titles, loaded: titlesLoaded, authed } = useSavedTitles(true)
+  const [titleId, setTitleId] = useState<number | null>(null)
+  const [saveTitle, setSaveTitle] = useState(true)
+  /** 买家动过任何一个字段后，就不再让迟到的接口结果覆盖他填的内容 */
+  const touched = useRef(false)
+
+  const applyTitle = (t: SavedTitle) => {
+    setTitleId(t.id)
+    setTitle(t.title)
+    setTaxNumber(t.taxNumber)
+    setAddress(t.address || '')
+    setPhone(t.phone || '')
+    setBankName(t.bankName || '')
+    setBankAccount(t.bankAccount || '')
+    setEmail(t.email || defaultEmail || '')
+    setSaveTitle(false) // 已经存过的不用再存
+  }
+
+  const startNewTitle = () => {
+    // 标记 touched：这是买家的明确选择，不能再被迟到的「自动带入默认抬头」盖回去
+    touched.current = true
+    setTitleId(null)
+    setTitle('')
+    setTaxNumber('')
+    setAddress('')
+    setPhone('')
+    setBankName('')
+    setBankAccount('')
+    setEmail(defaultEmail || '')
+    setSaveTitle(true)
+  }
+
+  // 打开弹窗时自动带入默认抬头。
+  // 【守的是 touched 而不是「抬头填了没」】买家完全可能先敲税号或邮箱，
+  // 这时接口才返回，只看 title 的话会把他已经填好的其它字段整片盖掉。
+  useEffect(() => {
+    if (!titlesLoaded || titleId !== null || touched.current) return
+    const def = titles.find((t) => t.isDefault) || titles[0]
+    if (def) applyTitle(def)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [titlesLoaded, titles])
+
+  /** 字段 setter 外套一层：标记买家动过表单，并清掉「用的是哪条已保存抬头」 */
+  const edit = (setter: (v: string) => void, identity = false) => (v: string) => {
+    touched.current = true
+    // 只有抬头/税号会让它「不再是那条已保存抬头」。改地址电话仍是同一个抬头，
+    // 清掉 titleId 只会让这条常用抬头的「最近使用时间」刷不上、在候选里一路下沉
+    if (identity) setTitleId(null)
+    setter(v)
+  }
 
   const submit = async () => {
     setErr(null)
@@ -1106,11 +1197,20 @@ function InvoiceModal({
           bankAccount: bankAccount.trim() || null,
           email: email.trim(),
           showAiWording,
+          titleId,
+          saveTitle: titleId === null && saveTitle,
         }),
       })
       const data = await res.json()
       if (data.success && data.data?.payUrl) {
         window.location.href = data.data.payUrl
+        return
+      }
+      // 结账时已经把 6% 跟货款一起付清的订单：服务端直接把发票落成「已提交」，
+      // 不会再给收款链接。这是成功，不是失败——别让买家看到一个红色「提交失败」
+      if (data.success) {
+        alert(data.message || '发票申请已提交，税费已随订单支付，无需再付')
+        onClose(true)
         return
       }
       setErr(data.error || '提交失败')
@@ -1142,8 +1242,12 @@ function InvoiceModal({
     </div>
   )
 
+  // 【不要把 onClose 直接当 onClick 用】它的入参是「要不要刷新列表」，
+  // 而 onClick 会把 MouseEvent 传进去 —— 那是个真值，等于每次点关闭都白拉一次列表
+  const dismiss = () => onClose()
+
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6" onClick={dismiss}>
       <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
@@ -1155,7 +1259,7 @@ function InvoiceModal({
           <h3 className="text-xl lg:text-2xl font-bold flex items-center gap-2">
             <FileText className="w-5 h-5 lg:w-6 lg:h-6 text-purple-400" /> 申请发票
           </h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10">
+          <button onClick={dismiss} className="w-8 h-8 rounded-full glass flex items-center justify-center hover:bg-white/10">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -1184,14 +1288,20 @@ function InvoiceModal({
           </div>
         </div>
 
+        <InvoiceTitlePicker titles={titles} selectedId={titleId} onPick={applyTitle} onNew={startNewTitle} />
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
-          <div className="sm:col-span-2">{field('抬头', title, setTitle, { required: true, placeholder: '公司名称 / 个人' })}</div>
-          <div className="sm:col-span-2">{field('税号', taxNumber, setTaxNumber, { required: true, placeholder: '纳税人识别号' })}</div>
-          {field('地址', address, setAddress, { placeholder: '选填' })}
-          {field('电话', phone, setPhone, { placeholder: '选填' })}
-          {field('开户行', bankName, setBankName, { placeholder: '选填' })}
-          {field('卡号', bankAccount, setBankAccount, { placeholder: '选填' })}
-          <div className="sm:col-span-2">{field('接收邮箱', email, setEmail, { required: true, type: 'email', placeholder: '发票将发送到此邮箱' })}</div>
+          <div className="sm:col-span-2">
+            {field('抬头', title, edit(setTitle, true), { required: true, placeholder: '公司名称 / 个人' })}
+          </div>
+          <div className="sm:col-span-2">
+            {field('税号', taxNumber, edit(setTaxNumber, true), { required: true, placeholder: '纳税人识别号（带空格会自动去掉）' })}
+          </div>
+          {field('地址', address, edit(setAddress), { placeholder: '选填' })}
+          {field('电话', phone, edit(setPhone), { placeholder: '选填' })}
+          {field('开户行', bankName, edit(setBankName), { placeholder: '选填' })}
+          {field('卡号', bankAccount, edit(setBankAccount), { placeholder: '选填' })}
+          <div className="sm:col-span-2">{field('接收邮箱', email, edit(setEmail), { required: true, type: 'email', placeholder: '发票将发送到此邮箱' })}</div>
 
           {/* 必选：发票内容是否展示 AI 平台字眼 */}
           <div className="sm:col-span-2">
@@ -1220,6 +1330,23 @@ function InvoiceModal({
             </div>
           </div>
         </div>
+
+        {authed && titleId === null && (
+          <button
+            type="button"
+            onClick={() => setSaveTitle((v) => !v)}
+            className="mt-3 flex items-center gap-2 text-left text-xs text-white/50 hover:text-white/70"
+          >
+            <span
+              className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${
+                saveTitle ? 'border-purple-400 bg-purple-500' : 'border-white/25 bg-white/5'
+              }`}
+            >
+              {saveTitle && <Check className="h-3 w-3" />}
+            </span>
+            保存这个抬头，下次开票一键填入（可在个人中心管理）
+          </button>
+        )}
 
         {err && (
           <div className="mt-3 flex items-center gap-2 text-red-400 text-sm">

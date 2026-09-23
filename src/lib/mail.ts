@@ -45,7 +45,10 @@ export async function sendVerifyCodeEmail(to: string, code: string, purpose: 'RE
 interface OrderInfo {
   orderNo: string
   productName: string
+  /** 商品金额（不含税） */
   amount: number | string
+  /** 下单时勾了「同时开发票」的订单，随货款一起收的 6%；没勾为空 */
+  invoiceTaxFee?: number | null
   deliveryType?: string | null
   cards?: string[]
   cardUsage?: string | null
@@ -54,10 +57,27 @@ interface OrderInfo {
 
 // 订单已支付通知
 export async function sendOrderPaidEmail(to: string, o: OrderInfo) {
+  /*
+   * 【勾了开票的订单要拆成三行】这封邮件和支付宝账单是买家拿去报销的同一套材料。
+   * 「实付金额」若只写不含税的货款，就和他账单上的数字差 6% —— 让报销材料自洽
+   * 正是这次改造的出发点，不能在最后一步把它弄丢。
+   */
+  const tax = Number(o.invoiceTaxFee || 0)
   const rows = `
     <tr><td style="color:#6b7280;padding:4px 0;">订单号</td><td style="text-align:right;font-family:monospace;">${o.orderNo}</td></tr>
     <tr><td style="color:#6b7280;padding:4px 0;">商品</td><td style="text-align:right;">${o.productName}</td></tr>
-    <tr><td style="color:#6b7280;padding:4px 0;">实付金额</td><td style="text-align:right;font-weight:700;">¥${Number(o.amount).toFixed(2)}</td></tr>`
+    ${
+      tax > 0
+        ? `<tr><td style="color:#6b7280;padding:4px 0;">商品金额</td><td style="text-align:right;">¥${Number(o.amount).toFixed(2)}</td></tr>
+    <tr><td style="color:#6b7280;padding:4px 0;">发票税费（6%）</td><td style="text-align:right;">¥${tax.toFixed(2)}</td></tr>`
+        : ''
+    }
+    <tr><td style="color:#6b7280;padding:4px 0;">实付金额</td><td style="text-align:right;font-weight:700;">¥${(Number(o.amount) + tax).toFixed(2)}</td></tr>
+    ${
+      tax > 0
+        ? `<tr><td colspan="2" style="color:#9ca3af;font-size:12px;padding-top:6px;">发票申请已随本单提交，开具后会发到你填写的接收邮箱。</td></tr>`
+        : ''
+    }`
 
   let extra = ''
   if (o.deliveryType === 'AUTO' && o.cards && o.cards.length) {

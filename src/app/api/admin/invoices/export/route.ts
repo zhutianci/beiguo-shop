@@ -50,6 +50,8 @@ const SELECT = {
   showAiWording: true,
   subscriptionType: true,
   invoiceAmount: true,
+  // 手动录入的发票规格型号直接用原文，不走商品名清洗（见 lib/invoice-export.itemRow）
+  source: true,
 } as const
 
 export async function GET(_request: NextRequest) {

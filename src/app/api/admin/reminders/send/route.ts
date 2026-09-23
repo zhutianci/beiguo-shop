@@ -17,8 +17,14 @@ export async function POST(request: NextRequest) {
     const parsed = bodySchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
 
+    /*
+     * 【背书行不发提醒】即使前端传了它们的 id 也不发 —— 这是最后一道闸。
+     * 那些行（sourceKey = order:<id>）的到期日是「付款日 + 1 个月」硬写的假日期，
+     * 按它发出去的就是给买了一次性卡密的客户发「你的订阅即将到期」。
+     * 列表接口已经把它们过滤掉了，这里再挡一次，防的是旧页面缓存与手工构造的请求。
+     */
     const orders = await prisma.externalOrder.findMany({
-      where: { id: { in: parsed.data.orderIds } },
+      where: { id: { in: parsed.data.orderIds }, NOT: { sourceKey: { startsWith: 'order:' } } },
     })
     if (orders.length === 0) return error('未找到对应订单')
 

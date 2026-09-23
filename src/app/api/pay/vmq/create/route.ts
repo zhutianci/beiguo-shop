@@ -33,14 +33,31 @@ export async function POST(request: NextRequest) {
     const couponOk = await assertCouponForPayment(order.id, user.id)
     if (!couponOk.ok) return error(couponOk.message)
 
+    /*
+     * 【收的是 货款 + 开票税费】下单时勾了「同时开发票」的订单，
+     * 税费在 order.invoiceTaxFee 上单独记着，这里一次收清 —— 买家只需要一条付款记录，
+     * 这正是这次改造的出发点（公司报销不接受分两次付）。
+     *
+     * order.amount 本身**不含税**，绝不能把 6% 折进去：它同时是支付流水、
+     * 单卡售价分摊、内推返现与后台利润的基准，折进去这些数字会全部虚高。
+     */
+    const taxFee = order.invoiceTaxFee == null ? 0 : Number(order.invoiceTaxFee)
+    const payable = Math.round((Number(order.amount) + taxFee) * 100) / 100
+
     const vmq = await createOrGetVmqOrder({
       bizType: 'order',
       bizId: order.id,
       outTradeNo: order.orderNo,
-      price: Number(order.amount),
+      price: payable,
     })
 
-    return success({ payUrl: `/pay/${vmq.orderId}`, orderId: vmq.orderId, reallyPrice: vmq.reallyPrice })
+    return success({
+      payUrl: `/pay/${vmq.orderId}`,
+      orderId: vmq.orderId,
+      reallyPrice: vmq.reallyPrice,
+      goodsAmount: Number(order.amount),
+      taxFee,
+    })
   } catch (err) {
     if (err instanceof VmqError) return error(err.message)
     console.error('Vmq create error:', err)

@@ -1,3 +1,5 @@
+import { normalizeTaxNumber } from './invoice'
+
 /**
  * 批量开票导出：把「待开发票」写进税局官方的批量导入模板。
  *
@@ -116,6 +118,8 @@ export interface ExportInvoice {
   invoiceNo: string
   title?: string | null
   taxNumber?: string | null
+  /** 'MANUAL' = 管理员手动录入的站外客户发票，开票内容是人手打的，不走商品名清洗 */
+  source?: string | null
   address?: string | null
   phone?: string | null
   bankName?: string | null
@@ -143,7 +147,11 @@ export function baseRow(inv: ExportInvoice): string[] {
   r[BASE_COL.发票类型] = 发票类型_普通
   r[BASE_COL.是否含税] = 是否含税_是
   r[BASE_COL.购买方名称] = (inv.title || '').trim()
-  r[BASE_COL.购买方税号] = (inv.taxNumber || '').trim()
+  // 【税号在这里再去一次空格】登记侧已经过滤过（lib/invoice-input.assertTaxNumber），
+  // 但库里还躺着改造之前存进去的「9111 0108 MAER 0M7A 3L」这类历史数据，
+  // 而税局导入就是在这一列上报「购买方纳税人识别号长度不能超过20」——
+  // 且是整批退回，不是只退这一行。导出这一侧必须自己兜住。
+  r[BASE_COL.购买方税号] = normalizeTaxNumber(inv.taxNumber)
   r[BASE_COL.购买方地址] = (inv.address || '').trim()
   r[BASE_COL.购买方电话] = (inv.phone || '').trim()
   r[BASE_COL.购买方开户银行] = (inv.bankName || '').trim()
@@ -165,7 +173,15 @@ export function itemRow(inv: ExportInvoice): string[] {
 
   // 买家选了「不展示」就三列全空，发票上只剩「技术咨询服务」，看不出买的是什么
   if (inv.showAiWording === true) {
-    const spec = specModel(inv.subscriptionType)
+    /*
+     * 【手动录入的直接用原文，不过 specModel】specModel 里有一道
+     * 「不含 claude/chatgpt/gpt/codex 就返回空」的守卫 —— 那是为了挡住
+     * 运营在后台随手起的、其实不是订阅的商品名。但站外客户的开票内容是管理员
+     * 在弹窗里亲手打的（「企业订阅服务」「技术服务费」），过那道守卫会被整个丢掉：
+     * 管理员明明选了「展示」，开出来的票上却只有「技术咨询服务」，前后台都没有提示。
+     */
+    const spec =
+      inv.source === 'MANUAL' ? (inv.subscriptionType || '').trim() : specModel(inv.subscriptionType)
     if (spec) {
       r[ITEM_COL.规格型号] = spec
       r[ITEM_COL.单位] = 单位_月
