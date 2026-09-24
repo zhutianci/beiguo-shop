@@ -80,10 +80,20 @@ export async function getCurrentUser() {
       balance: true,
       vipLevel: true,
       role: true,
+      status: true,
     },
   })
 
-  return user
+  /*
+   * 【被禁用的账户一律按「未登录」处理】原来只有登录接口拦 status，而 token 有效期 30 天 ——
+   * 管理员禁用一个账户后，他手里的旧 token 还能继续下单、领券、发起支付。
+   * 这里是所有买家接口与 requireAdmin 的共同入口，在这一处拦住就全站生效
+   * （被禁用的管理员同样过不了 requireAdmin）。
+   * status 只用于这一个判断，不放进返回值：返回的字段与原来完全一致，调用方不受影响。
+   */
+  if (!user || user.status !== 1) return null
+  const { status: _status, ...rest } = user
+  return rest
 }
 
 export async function requireAuth() {

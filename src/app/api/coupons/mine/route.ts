@@ -57,7 +57,15 @@ export async function GET(request: NextRequest) {
       take: 100,
       include: {
         coupon: {
-          select: { kind: true, minAmount: true, discount: true, productIds: true, name: true, status: true },
+          select: {
+            kind: true,
+            minAmount: true,
+            discount: true,
+            productIds: true,
+            name: true,
+            status: true,
+            source: true,
+          },
         },
       },
     })
@@ -143,6 +151,9 @@ export async function GET(request: NextRequest) {
         /** 选了这张券之后服务端会收的钱。前台直接显示这个数，不要自己再算 */
         finalAmount,
         reason,
+        /** 批次来源：null = 公开领取的活动券；'LOTTERY' = 「下单有奖」抽中的券 */
+        source: g.coupon.source,
+        fromLottery: g.coupon.source === 'LOTTERY',
       }
     })
 

@@ -22,7 +22,7 @@ import {
   SubSection,
   Warning,
 } from '@/components/landing/landing-ui'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * Claude Max 充值落地页（5x 与 20x 两档都在售）——这一批页面里客单价最高、但搜索量最窄的一页。
@@ -70,16 +70,19 @@ const DEF = findLanding('claude-max')
 export async function generateMetadata(): Promise<Metadata> {
   const all = await getLandingProducts()
   const items = matchProducts(all, DEF.match)
-  const low = lowestPrice(items)
-  // description 里的价格取实时最低价，不写死：Max 这一档单价高，
+  // description 里的价格取实时价，不写死：Max 这一档单价高，
   // 上游成本一动就是几十块，SERP 上挂一个过期数字比不挂数字更糟。
-  const description = withLivePrice(DEF.description, low)
+  // 【只能取 5x 档的价】原文是「Claude Max 5x 会员充值￥950」，而表里还有 20x。
+  // 用整组最低价的话，5x 售罄那天描述就成了「Max 5x 会员充值￥1900」——那是 20x 的价
+  // （同 codex 页只替换实体卡那一档价格的做法）。
+  const description = withLivePrice(DEF.description, lowestPrice(items.filter((p) => /5x/i.test(p.name))))
 
   return {
     title: DEF.title,
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
+      ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: DEF.title,
@@ -99,7 +102,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'Claude Max 5x 和 20x 有什么区别，值得直接上 20x 吗？',
-    a: '官方是用「相对 Pro 的倍数」来描述这两档的，5x 大约是 Pro 用量的五倍、20x 大约是二十倍，价格也正好是 100 和 200 美元的关系——注意价格翻一倍、额度翻四倍，所以真把 5x 用满的人上 20x 单位成本更低。但反过来说，如果你现在连 Pro 的额度都不是天天用完，20x 的钱基本是浪费。稳妥的顺序是先上 5x 跑满一个周期，看看到底会不会撞到上限——本站两档都有货，先 5x 后升 20x 不影响什么。',
+    a: '官方是用「相对 Pro 的倍数」来描述这两档的，5x 大约是 Pro 用量的五倍、20x 大约是二十倍，价格也正好是 100 和 200 美元的关系——注意价格翻一倍、额度翻四倍，所以真把 5x 用满的人上 20x 单位成本更低。但反过来说，如果你现在连 Pro 的额度都不是天天用完，20x 的钱基本是浪费。稳妥的顺序是先上 5x 跑满一个周期，看看到底会不会撞到上限。',
   },
   {
     q: '我现在用 Claude Pro，什么情况下该升到 Max？',

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { CATEGORY_SLUGS, EVENT_STATUS, TAG_WHITELIST } from '@/lib/news/constants'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 【AI圈大事记】事件管理：列表检索 + 单条编辑。
@@ -33,6 +34,8 @@ function normalizeTags(input: string | string[]): { ok: true; value: string } | 
 // ---------- GET 列表 ----------
 
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const keyword = (searchParams.get('keyword') || '').trim()
@@ -162,6 +165,8 @@ const patchSchema = z.object({
 })
 
 export async function PATCH(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = patchSchema.safeParse(body)

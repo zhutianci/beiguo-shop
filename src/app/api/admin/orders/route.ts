@@ -6,9 +6,12 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { decryptCardContent } from '@/lib/cardkey'
 import { round2 } from '@/lib/money'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 获取所有订单（服务端检索 + 筛选 + 分页）
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')

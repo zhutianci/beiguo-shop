@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Search, Eye, MessageSquare } from 'lucide-react'
+import { Search, Eye, MessageSquare, Loader2 } from 'lucide-react'
 import OrderChat from '@/components/order-chat'
 
 interface Order {
@@ -25,6 +27,107 @@ interface Order {
   cardCost?: number | null // 卡密成本合计（无卡密订单为 null）
   cardProfit?: number | null // 卡密利润合计（含未知利润的卡时为 null）
   cardProfitUnknown?: boolean // 该单存在利润未知的卡（外部站发卡）
+  invoiceTaxFee?: string | number | null // 下单时勾选「同时开发票」预收的税费（不计入 amount）
+  cardCount?: number // 仅深链打开时有：不在当前页的订单拿不到卡密明文，只知道发了几张
+}
+
+/** GET /api/admin/orders/[id]/detail 的返回（Decimal 已转 number，时间是 ISO 字符串） */
+interface InvoiceBrief {
+  id: number
+  invoiceNo: string
+  externalOrderId: number | null
+  status: string
+  payStatus: string
+  source: string | null
+  title: string | null
+  taxNumber: string | null
+  email: string | null
+  sellingPrice: number | null
+  invoiceAmount: number | null
+  taxFee: number | null
+  paidAt: string | null
+  submittedAt: string | null
+  issuedAt: string | null
+  createdAt: string
+}
+
+interface OrderDetail {
+  order: {
+    id: number
+    orderNo: string
+    productName: string
+    productPrice: number
+    quantity: number
+    amount: number
+    invoiceTaxFee: number | null
+    payable: number
+    payMethod: string | null
+    payStatus: string
+    deliveryStatus: string
+    deliveryInfo: string | null
+    remark: string | null
+    referrerId: number | null
+    referralReward: number | null
+    couponGrantId: number | null
+    couponDiscount: number | null
+    originalAmount: number | null
+    createdAt: string
+    paidAt: string | null
+    deliveredAt: string | null
+  }
+  user: { id: number; email: string | null; nickname: string | null; phone: string | null }
+  product: { id: number; name: string; deliveryType: string }
+  payments: { id: number; tradeNo: string | null; payMethod: string; amount: number; status: number; createdAt: string }[]
+  coupon: {
+    grantId: number
+    state: string
+    grantOrderId: number | null
+    usedAt: string | null
+    name: string
+    code: string
+    source: string | null
+    label: string
+  } | null
+  referral: {
+    referrer: { id: number; email: string | null; nickname: string | null }
+    referrerMissing: boolean
+    rewardSnapshot: number | null
+    rewardRow: { amount: number; status: string; createdAt: string; settledAt: string | null } | null
+  } | null
+  invoices: InvoiceBrief[]
+  invoiceDraft: { title: string; taxNumber: string; email: string } | null
+  externalOrders: { id: number; sourceKey: string; importBatch: string | null; claudeAccount: string }[]
+  receipts: {
+    id: number
+    receiptNo: string
+    amount: number
+    payerTitle: string
+    issuedAt: string | null
+    createdAt: string
+    link: string | null
+  }[]
+  lottery: {
+    state: string
+    won: boolean | null
+    prizeName: string | null
+    prizeType: string | null
+    prizeLabel: string | null
+    fulfillState: string | null
+    fulfilledAt: string | null
+    fulfillNote: string | null
+    drawnAt: string | null
+    couponGrantId: number | null
+    couponGrant: { id: number; state: string; expiresAt: string | null; usedAt: string | null } | null
+  } | null
+  vmqOrders: {
+    id: number
+    state: number
+    price: number
+    reallyPrice: number
+    createdAt: string
+    payDate: string | null
+  }[]
+  cardCount: number
 }
 
 interface Category {
@@ -53,7 +156,70 @@ const deliveryStatusMap: Record<string, { label: string; className: string }> = 
   CANCELLED: { label: '已取消', className: 'bg-gray-100 text-gray-600' },
 }
 
+// 与 /admin/invoices 页同一套文案与配色
+const invoiceStatusMap: Record<string, { label: string; className: string }> = {
+  UNAPPLIED: { label: '未开发票', className: 'bg-gray-100 text-gray-600' },
+  AWAIT_PAY: { label: '待支付税费', className: 'bg-amber-100 text-amber-700' },
+  SUBMITTED: { label: '已提交开票', className: 'bg-cyan-100 text-cyan-700' },
+  ISSUED: { label: '已开具', className: 'bg-green-100 text-green-700' },
+  CANNOT: { label: '不可开据', className: 'bg-gray-200 text-gray-500' },
+}
+
+const GRANT_STATE: Record<string, string> = {
+  AVAILABLE: '未使用',
+  LOCKED: '已锁定（挂在待付款订单上）',
+  USED: '已使用',
+  EXPIRED: '已过期',
+  VOID: '已作废',
+}
+
+const PAY_METHOD: Record<string, string> = { ALIPAY: '支付宝', WECHAT: '微信', BALANCE: '余额' }
+const PAYMENT_STATUS: Record<number, string> = { 0: '待支付', 1: '成功', 2: '失败' }
+const VMQ_STATE: Record<number, string> = { 0: '待支付', 1: '已支付', [-1]: '已过期' }
+
+function yuan(n: number | string | null | undefined) {
+  return n == null ? '—' : `¥${Number(n).toFixed(2)}`
+}
+
+function fmtTime(s: string | null | undefined) {
+  if (!s) return '—'
+  return new Date(s).toLocaleString('zh-CN', { hour12: false })
+}
+
+/** 深链打开时订单不一定在当前页：由详情接口的数据拼出弹窗需要的列表行形状 */
+function orderFromDetail(d: OrderDetail): Order {
+  return {
+    id: d.order.id,
+    orderNo: d.order.orderNo,
+    productName: d.order.productName,
+    amount: d.order.amount,
+    payStatus: d.order.payStatus,
+    deliveryStatus: d.order.deliveryStatus,
+    deliveryInfo: d.order.deliveryInfo,
+    remark: d.order.remark,
+    quantity: d.order.quantity,
+    createdAt: d.order.createdAt,
+    user: { id: d.user.id, email: d.user.email, nickname: d.user.nickname },
+    product: { id: d.product.id, name: d.product.name },
+    invoiceTaxFee: d.order.invoiceTaxFee,
+    cardCount: d.cardCount,
+  }
+}
+
+// useSearchParams 必须包在 Suspense 里，否则整页在构建时退化为纯客户端渲染并报警（与卡密页同一写法）
 export default function OrdersPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12 text-gray-400">加载中...</div>}>
+      <OrdersInner />
+    </Suspense>
+  )
+}
+
+function OrdersInner() {
+  const sp = useSearchParams()
+  const router = useRouter()
+  /** 深链 /admin/orders?orderId=123：从发票详情、余额流水等处直接打开某张订单 */
+  const deepLinkId = sp.get('orderId')
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -80,6 +246,11 @@ export default function OrdersPage() {
   const [extStartDate, setExtStartDate] = useState('')
   const [extXianyuNickname, setExtXianyuNickname] = useState('')
   const [extClaudeAccount, setExtClaudeAccount] = useState('')
+  // 弹窗里的只读明细（金额 / 发票 / 券 / 内推 / 抽奖），打开时单独拉一次
+  const [detail, setDetail] = useState<OrderDetail | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState('')
+  const detailSeq = useRef(0)
 
   const todayIso = () => {
     const d = new Date()
@@ -140,7 +311,31 @@ export default function OrdersPage() {
       .catch(() => {})
   }, [])
 
-  const handleViewDetail = (order: Order) => {
+  // 拉订单明细。序号防串：快速切换订单时，只认最后一次请求的结果
+  const loadDetail = async (id: number): Promise<OrderDetail | null> => {
+    const seq = ++detailSeq.current
+    setDetailLoading(true)
+    setDetailError('')
+    try {
+      const res = await fetch(`/api/admin/orders/${id}/detail`)
+      const data = await res.json()
+      if (seq !== detailSeq.current) return null
+      if (data.success) {
+        setDetail(data.data as OrderDetail)
+        return data.data as OrderDetail
+      }
+      setDetailError(data.error || '明细加载失败')
+      return null
+    } catch {
+      if (seq === detailSeq.current) setDetailError('网络错误，明细加载失败')
+      return null
+    } finally {
+      if (seq === detailSeq.current) setDetailLoading(false)
+    }
+  }
+
+  /** preloaded：深链路径已经拿到了明细，不必再拉一次 */
+  const handleViewDetail = (order: Order, preloaded?: OrderDetail) => {
     setSelectedOrder(order)
     setDeliveryInfo(order.deliveryInfo || '')
     setDeliveryStatus(order.deliveryStatus)
@@ -151,7 +346,48 @@ export default function OrdersPage() {
     setExtXianyuNickname(order.user.nickname || order.user.email || '')
     setExtClaudeAccount('')
     setShowDetailModal(true)
+    if (preloaded) {
+      detailSeq.current++ // 作废可能还在路上的旧请求
+      setDetail(preloaded)
+      setDetailError('')
+      setDetailLoading(false)
+    } else {
+      setDetail(null)
+      loadDetail(order.id)
+    }
   }
+
+  // 关弹窗时顺手去掉地址栏的 ?orderId=，否则刷新页面会再弹一次
+  const closeDetail = () => {
+    setShowDetailModal(false)
+    if (deepLinkId) router.replace('/admin/orders', { scroll: false })
+  }
+
+  // 深链：按 id 直接拉明细开弹窗，不依赖这张订单是否在当前列表页
+  useEffect(() => {
+    const id = parseInt(deepLinkId || '')
+    if (!Number.isSafeInteger(id) || id <= 0) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/admin/orders/${id}/detail`)
+        const data = await res.json()
+        if (cancelled) return
+        if (!data.success) {
+          alert(data.error || '订单不存在')
+          return
+        }
+        const d = data.data as OrderDetail
+        handleViewDetail(orderFromDetail(d), d)
+      } catch {
+        if (!cancelled) alert('网络错误，订单详情加载失败')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkId])
 
   // 补发卡密：只对已付款、尚未交付、卡密未发满的自动发货订单可用
   const handleRefill = async () => {
@@ -162,7 +398,7 @@ export default function OrdersPage() {
       const data = await res.json()
       if (data.success) {
         alert(data.message || '已补发')
-        setShowDetailModal(false)
+        closeDetail()
         loadData()
       } else {
         alert(data.error || '补发失败')
@@ -189,7 +425,12 @@ export default function OrdersPage() {
         body: JSON.stringify({
           deliveryStatus,
           deliveryInfo: deliveryInfo || null,
-          ...(selectedOrder.payStatus === 'UNPAID' && amount && Number(amount) !== Number(selectedOrder.amount)
+          // 已取消（或这次就要改成已取消）的订单不发改价：接口会拒绝，买家也已经不能再付款
+          ...(selectedOrder.payStatus === 'UNPAID' &&
+          selectedOrder.deliveryStatus !== 'CANCELLED' &&
+          deliveryStatus !== 'CANCELLED' &&
+          amount &&
+          Number(amount) !== Number(selectedOrder.amount)
             ? { amount: Number(amount) }
             : {}),
           external: willDeliver
@@ -213,7 +454,7 @@ export default function OrdersPage() {
         alert('已保存，并已同步导入到「订单」列表')
       }
 
-      setShowDetailModal(false)
+      closeDetail()
       loadData()
     } finally {
       setSubmitting(false)
@@ -401,7 +642,17 @@ export default function OrdersPage() {
                           <div className="text-xs text-gray-400">{order.product.category.name}</div>
                         )}
                       </td>
-                      <td className="py-4 text-gray-900">¥{Number(order.amount).toFixed(2)}</td>
+                      <td className="py-4 text-gray-900 whitespace-nowrap">
+                        ¥{Number(order.amount).toFixed(2)}
+                        {Number(order.invoiceTaxFee || 0) > 0 && (
+                          <span
+                            className="ml-1 rounded bg-amber-50 px-1 py-0.5 text-[10px] font-medium text-amber-700"
+                            title={`下单时勾选了随单开票，另收税费 ¥${Number(order.invoiceTaxFee).toFixed(2)}（不计入金额）`}
+                          >
+                            +税
+                          </span>
+                        )}
+                      </td>
                       <td className="py-4 text-gray-600">
                         {order.cardCost == null ? (
                           <span className="text-gray-300">—</span>
@@ -492,7 +743,7 @@ export default function OrdersPage() {
 
       {showDetailModal && selectedOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-2xl rounded-xl bg-white p-6 max-h-[90vh] overflow-y-auto">
             <h3 className="mb-4 text-lg font-semibold">订单详情</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -527,6 +778,26 @@ export default function OrdersPage() {
                   </span>
                 </div>
               </div>
+
+              {/* 只读明细：金额构成 / 发票 / 抽奖。加载失败不影响下面的编辑控件 */}
+              {detail && detail.order.id === selectedOrder.id ? (
+                <OrderDetailSections d={detail} />
+              ) : detailError ? (
+                <div className="flex items-center justify-between rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                  <span>{detailError}</span>
+                  <button
+                    type="button"
+                    onClick={() => loadDetail(selectedOrder.id)}
+                    className="text-xs underline hover:text-red-900"
+                  >
+                    重试
+                  </button>
+                </div>
+              ) : detailLoading ? (
+                <div className="flex items-center gap-2 py-3 text-sm text-gray-400">
+                  <Loader2 className="h-4 w-4 animate-spin" /> 加载金额、发票明细...
+                </div>
+              ) : null}
 
               {selectedOrder.remark && (
                 <div className="text-sm">
@@ -564,7 +835,16 @@ export default function OrdersPage() {
                 </div>
               )}
 
-              {selectedOrder.payStatus === 'UNPAID' && (
+              {/* 深链打开、订单不在当前页：详情接口刻意不回传卡密明文（明文只在列表里解密展示），只给张数 */}
+              {!selectedOrder.cards && (selectedOrder.cardCount ?? 0) > 0 && (
+                <div className="rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
+                  已发卡密 {selectedOrder.cardCount} 张
+                  {selectedOrder.quantity ? ` / 应发 ${selectedOrder.quantity} 张` : ''}。
+                  <span className="text-xs text-gray-400">卡密内容请在列表中按订单号搜索后查看。</span>
+                </div>
+              )}
+
+              {selectedOrder.payStatus === 'UNPAID' && selectedOrder.deliveryStatus !== 'CANCELLED' && (
                 <div>
                   <label className="mb-1.5 block text-sm font-medium text-gray-700">
                     改价（仅待支付订单，单位元）
@@ -679,10 +959,12 @@ export default function OrdersPage() {
                   不必再绕到「收款监控 → 补单」。fulfillOrder 幂等，不会超发。 */}
               {selectedOrder.payStatus === 'PAID' &&
                 selectedOrder.deliveryStatus !== 'DELIVERED' &&
-                (selectedOrder.cards?.length ?? 0) < (selectedOrder.quantity ?? 1) && (
+                (selectedOrder.cards?.length ?? selectedOrder.cardCount ?? 0) < (selectedOrder.quantity ?? 1) &&
+                // 明细到手后才知道发货方式：人工 / 接码商品没有卡密可补（补发接口也会拒绝），不再误显示
+                !(detail && detail.order.id === selectedOrder.id && detail.product.deliveryType !== 'AUTO') && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <div className="text-sm text-amber-800">
-                      该订单已付款，但卡密只发出 {selectedOrder.cards?.length ?? 0}/{selectedOrder.quantity ?? 1} 张
+                      该订单已付款，但卡密只发出 {selectedOrder.cards?.length ?? selectedOrder.cardCount ?? 0}/{selectedOrder.quantity ?? 1} 张
                       （通常是付款时库存不足）。补货后可点右侧补发。
                     </div>
                     <div className="mt-2 flex justify-end">
@@ -694,7 +976,7 @@ export default function OrdersPage() {
                 )}
 
               <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowDetailModal(false)}>
+                <Button variant="outline" onClick={closeDetail}>
                   关闭
                 </Button>
                 <Button onClick={handleUpdate} loading={submitting}>
@@ -707,4 +989,291 @@ export default function OrdersPage() {
       )}
     </div>
   )
+}
+
+// ============ 订单详情弹窗里的只读明细 ============
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-gray-200 p-4 text-sm">
+      <h4 className="mb-2 font-medium text-gray-800">{title}</h4>
+      {children}
+    </div>
+  )
+}
+
+function KV({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-gray-100 py-1.5 last:border-b-0">
+      <span className="shrink-0 text-gray-500">{k}</span>
+      <span className="break-all text-right font-medium text-gray-900">{v}</span>
+    </div>
+  )
+}
+
+function Pill({ label, className }: { label: string; className: string }) {
+  return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${className}`}>{label}</span>
+}
+
+function OrderDetailSections({ d }: { d: OrderDetail }) {
+  const o = d.order
+  const paid = o.payStatus === 'PAID'
+  const taxFee = o.invoiceTaxFee ?? 0
+
+  return (
+    <div className="space-y-3">
+      <Section title="金额明细">
+        <KV k="商品标价" v={`${yuan(o.productPrice)} × ${o.quantity}`} />
+        <KV k="货款（不含税）" v={yuan(o.amount)} />
+        <KV
+          k="随单发票税费"
+          v={taxFee > 0 ? `${yuan(taxFee)}（下单时勾选了同时开发票）` : <span className="text-gray-400">—</span>}
+        />
+        <KV
+          k={paid ? '实付' : '应付'}
+          v={
+            <span className="text-primary-600">
+              {yuan(o.payable)}
+              {taxFee > 0 && <span className="ml-1 text-xs font-normal text-gray-400">= 货款 + 税费</span>}
+            </span>
+          }
+        />
+        {d.coupon && (
+          <KV
+            k="优惠券"
+            v={
+              <span>
+                原价 {yuan(o.originalAmount)} · 减免 −{yuan(o.couponDiscount)}
+                <span className="block text-xs font-normal text-gray-500">
+                  {d.coupon.name}（{d.coupon.label}）
+                  {d.coupon.source === 'LOTTERY' ? ' · 下单有奖奖品' : ''} · 券{GRANT_STATE[d.coupon.state] || d.coupon.state}
+                  {d.coupon.grantOrderId != null && d.coupon.grantOrderId !== o.id
+                    ? ` · 现挂在订单 #${d.coupon.grantOrderId}`
+                    : ''}
+                </span>
+              </span>
+            }
+          />
+        )}
+        {d.referral && <ReferralRow d={d} />}
+        {d.payments.length > 0 && (
+          <div className="mt-2 rounded bg-gray-50 p-2 text-xs text-gray-600">
+            <div className="mb-1 text-gray-400">付款记录</div>
+            {d.payments.map((p) => (
+              <div key={p.id} className="flex flex-wrap gap-x-2">
+                <span>{PAY_METHOD[p.payMethod] || p.payMethod}</span>
+                <span>{yuan(p.amount)}</span>
+                <span>{PAYMENT_STATUS[p.status] ?? p.status}</span>
+                <span className="font-mono text-gray-400">{p.tradeNo || '—'}</span>
+                <span className="text-gray-400">{fmtTime(p.createdAt)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {d.vmqOrders.length > 0 && (
+          <div className="mt-2 rounded bg-gray-50 p-2 text-xs text-gray-600">
+            <div className="mb-1 text-gray-400">收款单（含重新发起的）</div>
+            {d.vmqOrders.map((v) => (
+              <div key={v.id} className="flex flex-wrap gap-x-2">
+                <span>{VMQ_STATE[v.state] ?? v.state}</span>
+                <span>
+                  应付 {yuan(v.price)} · 实付(唯一) {yuan(v.reallyPrice)}
+                </span>
+                <span className="text-gray-400">创建 {fmtTime(v.createdAt)}</span>
+                {v.payDate && <span className="text-gray-400">到账 {fmtTime(v.payDate)}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      <InvoiceSection d={d} />
+
+      {d.lottery && <LotterySection d={d} />}
+    </div>
+  )
+}
+
+function ReferralRow({ d }: { d: OrderDetail }) {
+  const r = d.referral!
+  const snap = r.rewardSnapshot ?? 0
+  const who = r.referrer.nickname || r.referrer.email || `用户#${r.referrer.id}`
+  let settle: React.ReactNode
+  if (r.rewardRow) {
+    settle =
+      r.rewardRow.status === 'SETTLED' ? (
+        <span className="text-green-700">
+          已入推广人余额 {yuan(r.rewardRow.amount)}（{fmtTime(r.rewardRow.settledAt || r.rewardRow.createdAt)}）
+        </span>
+      ) : (
+        <span className="text-gray-500">
+          {r.rewardRow.status === 'CANCELLED' ? '已取消' : r.rewardRow.status} · {yuan(r.rewardRow.amount)}
+        </span>
+      )
+  } else if (snap <= 0) {
+    // 建单时用了券就不记返现快照（api/orders 建单处：couponGrantId 非空 → referralReward 置空）
+    settle = (
+      <span className="text-gray-400">{d.coupon ? '无返现（本单用了优惠券，不计返现）' : '无返现（返现为 0）'}</span>
+    )
+  } else if (d.order.deliveryStatus === 'DELIVERED') {
+    settle = <span className="text-amber-700">订单已交付，但返现未入账</span>
+  } else {
+    settle = <span className="text-gray-500">待结算（订单交付完成时自动计入推广人余额）</span>
+  }
+  return (
+    <KV
+      k="内推"
+      v={
+        <span>
+          推广人{' '}
+          <Link href={`/admin/users/${r.referrer.id}`} className="text-primary-600 hover:underline">
+            {who}
+          </Link>
+          {r.referrerMissing && <span className="text-xs text-red-600">（该用户已不存在）</span>} · 返现快照{' '}
+          {snap > 0 ? yuan(snap) : '—'}
+          <span className="block text-xs font-normal">{settle}</span>
+        </span>
+      }
+    />
+  )
+}
+
+function InvoiceSection({ d }: { d: OrderDetail }) {
+  const o = d.order
+  const taxFee = o.invoiceTaxFee ?? 0
+
+  let body: React.ReactNode
+  if (d.invoices.length > 0) {
+    body = (
+      <div className="space-y-3">
+        {d.invoices.length > 1 && (
+          <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-700">
+            这张订单关联了 {d.invoices.length} 张发票记录，请核对是否重复开票 / 重复收取税费。
+          </div>
+        )}
+        {d.invoices.map((iv) => {
+          const st = invoiceStatusMap[iv.status] || { label: iv.status, className: 'bg-gray-100 text-gray-600' }
+          return (
+            <div key={iv.id} className="rounded-lg bg-gray-50 px-3 py-2">
+              <KV k="发票号" v={<span className="font-mono text-xs">{iv.invoiceNo}</span>} />
+              <KV k="状态" v={<Pill label={st.label} className={st.className} />} />
+              <KV k="抬头" v={iv.title || <span className="text-gray-400">（未填）</span>} />
+              <KV k="税号" v={iv.taxNumber || <span className="text-gray-400">（未填）</span>} />
+              <KV k="开票金额（含税）" v={yuan(iv.invoiceAmount)} />
+              <KV k="税费 · 支付状态" v={`${yuan(iv.taxFee)} · ${iv.payStatus === 'PAID' ? '已支付' : '未支付'}`} />
+              <KV k="提交 / 开具时间" v={`${fmtTime(iv.submittedAt)} / ${fmtTime(iv.issuedAt)}`} />
+              <div className="pt-1.5 text-right">
+                <Link
+                  href={`/admin/invoices?invoiceId=${iv.id}`}
+                  className="text-xs text-primary-600 hover:underline"
+                >
+                  在发票管理中查看 →
+                </Link>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  } else if (d.invoiceDraft && o.payStatus !== 'PAID') {
+    body = (
+      <div className="space-y-1">
+        <div className="text-gray-700">
+          {o.payStatus === 'UNPAID' ? '已勾选随单开票（待付款）' : '已勾选随单开票（订单已退款，未开票）'}
+        </div>
+        <KV k="抬头（草稿）" v={d.invoiceDraft.title} />
+        <KV k="税号（草稿）" v={d.invoiceDraft.taxNumber} />
+      </div>
+    )
+  } else if (taxFee > 0 && o.payStatus === 'PAID' && o.deliveryStatus !== 'CANCELLED') {
+    body = (
+      <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-700">
+        税费已随单收取，但发票记录未落地 —— 重新保存该订单可重试
+      </div>
+    )
+  } else {
+    body = <div className="text-gray-400">未申请发票</div>
+  }
+
+  return (
+    <Section title="发票">
+      {body}
+      {d.receipts.length > 0 && (
+        <div className="mt-3 rounded bg-gray-50 p-2 text-xs text-gray-600">
+          <div className="mb-1 text-gray-400">收据</div>
+          {d.receipts.map((r) => (
+            <div key={r.id} className="flex flex-wrap items-center gap-x-2">
+              <span className="font-mono">{r.receiptNo}</span>
+              <span>{yuan(r.amount)}</span>
+              <span>付款人 {r.payerTitle}</span>
+              <span className="text-gray-400">{fmtTime(r.issuedAt || r.createdAt)}</span>
+              {r.link && (
+                <a href={r.link} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                  查看收据 →
+                </a>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {d.externalOrders.length > 0 && (
+        <div className="mt-2 text-xs text-gray-400">
+          关联的外部订单行：
+          {d.externalOrders
+            .map(
+              (e) =>
+                `#${e.id} ${e.claudeAccount}（${
+                  e.importBatch === 'SHOP' ? '开票背书行' : e.importBatch === 'WEB' ? '标记完成时导入' : e.importBatch || '导入'
+                }）`
+            )
+            .join('；')}
+        </div>
+      )}
+    </Section>
+  )
+}
+
+function LotterySection({ d }: { d: OrderDetail }) {
+  const l = d.lottery!
+  let body: React.ReactNode
+  if (l.state === 'PENDING') {
+    body = <div className="text-gray-700">有抽奖资格，买家尚未抽奖</div>
+  } else if (l.state === 'VOID') {
+    body = <div className="text-gray-500">抽奖资格已作废，不能再抽</div>
+  } else if (!l.won) {
+    body = <div className="text-gray-700">已抽奖 · 未中奖（{fmtTime(l.drawnAt)}）</div>
+  } else {
+    const fulfill: Record<string, string> = { PENDING: '待兑现', DONE: '已兑现', VOID: '已作废' }
+    body = (
+      <div>
+        <KV k="结果" v={<span className="text-green-700">中奖：{l.prizeName || '—'}</span>} />
+        {l.prizeLabel && l.prizeLabel !== l.prizeName && <KV k="奖品说明" v={l.prizeLabel} />}
+        <KV k="抽奖时间" v={fmtTime(l.drawnAt)} />
+        {l.prizeType === 'COUPON' ? (
+          <KV
+            k="奖券状态"
+            v={
+              l.couponGrant
+                ? `${GRANT_STATE[l.couponGrant.state] || l.couponGrant.state}${
+                    l.couponGrant.expiresAt ? ` · ${fmtTime(l.couponGrant.expiresAt)} 到期` : ' · 长期有效'
+                  }`
+                : '—'
+            }
+          />
+        ) : (
+          <KV
+            k="兑现状态"
+            v={
+              <span>
+                {l.fulfillState ? fulfill[l.fulfillState] || l.fulfillState : '—'}
+                {l.fulfilledAt ? `（${fmtTime(l.fulfilledAt)}）` : ''}
+                {l.fulfillNote && <span className="block text-xs font-normal text-gray-500">{l.fulfillNote}</span>}
+              </span>
+            }
+          />
+        )}
+      </div>
+    )
+  }
+  return <Section title="下单有奖">{body}</Section>
 }

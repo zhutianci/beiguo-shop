@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { dailyBudgetMilli, llmInfo, spentTodayMilli } from '@/lib/llm'
 import { relayConfigured } from '@/lib/news/sources'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 管线状态与成本（SKILL.md §9）。
@@ -110,6 +111,8 @@ function parseRun(stage: string, key: string | null, raw: string | null): RunSta
 // ---------- GET 状态与成本 ----------
 
 export async function GET() {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const now = new Date()
     const todayStart = dayStartUtc(dayKey(now))
@@ -316,6 +319,8 @@ async function recordRun(stage: string, payload: Record<string, unknown>) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json().catch(() => ({}))
     const parsed = triggerSchema.safeParse(body)

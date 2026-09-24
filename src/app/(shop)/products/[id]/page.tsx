@@ -18,7 +18,10 @@ import {
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, organizationJsonLd } from '@/lib/seo/graph'
 import ProductDetailClient from './product-client'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
+import { getLandingProducts } from '@/lib/landing/products'
+import { buildProductIntro, isAccountProduct } from '@/lib/product-intro'
+import { ProductIntroSection } from '@/components/products/product-intro'
 
 /**
  * 商品详情页。
@@ -28,7 +31,8 @@ import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
  * 完全一样（都是 layout.tsx 的全站默认值），结构化数据 0 条。
  * 对搜索引擎来说，所有商品页是同一个页面，没有任何一个能靠自己的商品词排上去。
  *
- * 交互逻辑仍全部留在 product-client.tsx 里，一行没改。这个文件只负责 <head>。
+ * 交互逻辑仍全部留在 product-client.tsx 里。这个文件负责 <head>，
+ * 以及（2026-09-24 起）服务端直出的「商品介绍」区——见页面体里的注释。
  *
  * 【generateMetadata 与客户端各查一次库是可接受的】外壳查库只取 SEO 需要的几个字段，
  * 且用 React cache 去重（同一次请求内只打一次 MySQL）。
@@ -102,6 +106,10 @@ const getProduct = cache(
           stock: p.stock,
           image: p.image,
           categoryName: p.category?.name ?? null,
+          // 描述模板按交付方式分口径：接码 / 人工商品不发卡密，不能跟着写「卡密自助兑换」
+          deliveryType: p.deliveryType ?? null,
+          // 发账号信息的自动发货商品（成品号 / 普号）同样没有卡密可兑换
+          accountLike: isAccountProduct({ name: p.name, categoryName: p.category?.name ?? null, deliveryType: p.deliveryType }),
         },
         client: {
           id: p.id,
@@ -157,6 +165,8 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
      */
     alternates: { canonical: productPath(product.id) },
     openGraph: {
+      // siteName / locale 必须每页带上：子页面的 openGraph 是整块替换根 layout 的那一份
+      ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: productTitle(product),
@@ -178,6 +188,25 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
   if (seo === 'missing') notFound()
   // 查库失败时不 404：库一会儿就回来了，而 404 一旦被抓到是要花很久才能撤销的
   const product = seo === 'error' ? null : seo
+
+  /*
+   * 「商品介绍」区：交付方式与时效、购买步骤、价格与发票、购买须知、同系列其他档位、常见问题，
+   * 以及指向对应充值落地页的「完整购买指南」。内容由 lib/product-intro.ts 按交付方式与
+   * 匹配到的落地页装配，每一句的出处写在那边的注释里。
+   *
+   * 【为什么在外壳里做、而不是在客户端组件里】它必须进服务端 HTML，而且不该带上任何客户端 JS。
+   * 作为 children 传给 ProductDetailClient，由它摆进左栏——客户端组件只负责「放在哪」。
+   *
+   * 同系列档位用的是落地页那份在售快照（React cache，与落地页价格表同一份数据、同一套匹配规则）。
+   * 快照查询失败时返回空数组，那一小节不渲染，其余照常。
+   */
+  const catalog = product ? await getLandingProducts() : []
+  const intro = product
+    ? buildProductIntro(
+        { id: product.id, name: product.name, categoryName: product.categoryName, deliveryType: product.deliveryType },
+        catalog
+      )
+    : null
 
   return (
     <>
@@ -214,7 +243,9 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
           但此前它的数据来自 useEffect 里的 fetch，SSR 那一刻还是 null，
           渲染出来只有「加载中…」——H1、商品名、价格、说明一个都不在 HTML 里。
           传了之后整页直出；带 ?ref= 的专属价仍由客户端挂载后那次 fetch 覆盖。 */}
-      <ProductDetailClient initialProduct={client} />
+      <ProductDetailClient initialProduct={client}>
+        {intro && product && <ProductIntroSection intro={intro} productId={product.id} />}
+      </ProductDetailClient>
     </>
   )
 }

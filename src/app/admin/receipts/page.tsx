@@ -14,6 +14,8 @@ interface Receipt {
   source: string
   claudeAccount: string | null
   subscriptionType: string | null
+  /** 买家申请时选的「是否展示 ChatGPT/Claude 字眼」；null = 历史收据 / DIY 收据 */
+  showAiWording?: boolean | null
   payerTitle: string
   payee: string
   amount: number
@@ -183,6 +185,15 @@ export default function AdminReceiptsPage() {
                           <td className="py-2 pr-3 font-mono text-xs">{r.claudeAccount || '—'}</td>
                           <td className="py-2 pr-3 text-xs">
                             {r.subscriptionType || (r.itemCount > 0 ? `自定义 ${r.itemCount} 项` : '—')}
+                            {/* 收据上实际印的是「技术咨询服务」而不是上面的订阅类型，给管理员一个提示 */}
+                            {r.showAiWording === false && (
+                              <span
+                                className="ml-1.5 inline-flex rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700"
+                                title="买家选择不展示 ChatGPT/Claude 字眼：收据「项目」一栏印「技术咨询服务」"
+                              >
+                                不展示字眼
+                              </span>
+                            )}
                           </td>
                           <td className="py-2 pr-3">¥{r.amount.toFixed(2)}</td>
                           <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">{fmt(r.issuedAt)}</td>

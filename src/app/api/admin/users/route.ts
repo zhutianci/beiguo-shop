@@ -4,9 +4,12 @@ import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 获取所有用户：关键词（服务端检索，避免只搜当前页）+ 分页
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const keyword = (searchParams.get('keyword') || '').trim()

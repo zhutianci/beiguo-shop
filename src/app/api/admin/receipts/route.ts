@@ -6,8 +6,11 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { createManualReceipt, parseReceiptItems, BillingError } from '@/lib/order-billing'
+import { adminGuard } from '@/lib/admin-guard'
 
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
@@ -44,6 +47,8 @@ export async function GET(request: NextRequest) {
       source: r.source,
       claudeAccount: r.claudeAccount,
       subscriptionType: r.subscriptionType,
+      // 买家申请时的选择：false = 收据「项目」只印「技术咨询服务」；null = 历史收据 / DIY，按原样
+      showAiWording: r.showAiWording,
       payerTitle: r.payerTitle,
       payee: r.payee,
       amount: Number(r.amount),
@@ -87,6 +92,8 @@ const manualSchema = z.object({
 
 // 管理员手动开具（DIY）收据
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = manualSchema.safeParse(body)

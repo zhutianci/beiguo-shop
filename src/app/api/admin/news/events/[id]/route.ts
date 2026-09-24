@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { computeScore } from '@/lib/news/score'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 事件详情：事件本体 + 它的全部原始信源条目 + 热度分明细。
@@ -27,6 +28,8 @@ function parseJson<T>(raw: string | null, fallback: T): T {
 }
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('事件无效')

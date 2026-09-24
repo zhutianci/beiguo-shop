@@ -3,11 +3,11 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { Prisma } from '@prisma/client'
-import type { ExternalOrder, Invoice } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { calcInvoiceAmounts } from '@/lib/invoice'
+import { requireAdmin } from '@/lib/auth'
 import { createManualInvoice, BillingError } from '@/lib/order-invoice'
+import { buildAdminInvoiceRows, type AdminInvoiceRowSource } from '@/lib/admin-invoice-row'
 
 // 发票管理：以「订单」为主表，同步展示所有订单的发票状态（无发票记录的默认「未开发票」）
 // 性能约定：筛选 / 检索 / 排序 / 分页全部下推到数据库，绝不把整张 external_orders 读进内存。
@@ -18,99 +18,6 @@ import { createManualInvoice, BillingError } from '@/lib/order-invoice'
 // 却在后台列表里查无此人 —— 那是最危险的一种「看不见的数据」。
 
 const ALL_STATUSES = ['UNAPPLIED', 'AWAIT_PAY', 'SUBMITTED', 'ISSUED', 'CANNOT'] as const
-
-// 把「订单 + 可选发票」拼成前端需要的一行（字段与旧版逐个对齐，不可增删）
-function buildRow(o: ExternalOrder, iv: Invoice | null) {
-  const quote = o.quote == null ? null : Number(o.quote)
-
-  let st: string
-  let sellingPrice: number | null
-  let invoiceAmount: number | null
-  let taxFee: number | null
-  let payStatus: string
-  if (iv) {
-    st = iv.status
-    sellingPrice = Number(iv.sellingPrice)
-    invoiceAmount = Number(iv.invoiceAmount)
-    taxFee = Number(iv.taxFee)
-    payStatus = iv.payStatus
-  } else {
-    st = 'UNAPPLIED'
-    payStatus = 'UNPAID'
-    if (quote != null) {
-      sellingPrice = quote
-      const amt = calcInvoiceAmounts(quote)
-      invoiceAmount = amt.invoiceAmount
-      taxFee = amt.taxFee
-    } else {
-      sellingPrice = null
-      invoiceAmount = null
-      taxFee = null
-    }
-  }
-
-  return {
-    externalOrderId: o.id,
-    invoiceId: iv?.id ?? null,
-    invoiceNo: iv?.invoiceNo ?? null,
-    claudeAccount: o.claudeAccount,
-    subscriptionType: o.subscriptionType,
-    xianyuNickname: o.xianyuNickname,
-    orderStartDate: o.startDate,
-    orderExpireDate: o.expireDate,
-    title: iv?.title ?? null,
-    taxNumber: iv?.taxNumber ?? null,
-    address: iv?.address ?? null,
-    phone: iv?.phone ?? null,
-    bankName: iv?.bankName ?? null,
-    bankAccount: iv?.bankAccount ?? null,
-    email: iv?.email ?? null,
-    // 买家申请时的必选项；历史发票与管理员凭空建的记录为 null，前端显示「—」
-    showAiWording: iv?.showAiWording ?? null,
-    sellingPrice,
-    invoiceAmount,
-    taxFee,
-    status: st,
-    payStatus,
-    paidAt: iv?.paidAt ?? null,
-    submittedAt: iv?.submittedAt ?? null,
-    issuedAt: iv?.issuedAt ?? null,
-    createdAt: iv?.createdAt ?? o.createdAt,
-  }
-}
-
-/** 手动录入的发票（没有订单）→ 前端同一行形状。字段与 buildRow 一一对应，缺的置 null */
-function buildManualRow(iv: Invoice) {
-  return {
-    externalOrderId: null as number | null,
-    invoiceId: iv.id,
-    invoiceNo: iv.invoiceNo,
-    claudeAccount: iv.claudeAccount,
-    subscriptionType: iv.subscriptionType,
-    xianyuNickname: null as string | null,
-    orderStartDate: iv.orderStartDate,
-    orderExpireDate: iv.orderExpireDate,
-    title: iv.title,
-    taxNumber: iv.taxNumber,
-    address: iv.address,
-    phone: iv.phone,
-    bankName: iv.bankName,
-    bankAccount: iv.bankAccount,
-    email: iv.email,
-    showAiWording: iv.showAiWording,
-    sellingPrice: iv.sellingPrice == null ? null : Number(iv.sellingPrice),
-    invoiceAmount: iv.invoiceAmount == null ? null : Number(iv.invoiceAmount),
-    taxFee: iv.taxFee == null ? null : Number(iv.taxFee),
-    status: iv.status,
-    payStatus: iv.payStatus,
-    paidAt: iv.paidAt,
-    submittedAt: iv.submittedAt,
-    issuedAt: iv.issuedAt,
-    createdAt: iv.createdAt,
-    /** 前端据此隐藏「按订单改状态」的下拉（那条路要 externalOrderId），改用按发票 id 的接口 */
-    manual: true,
-  }
-}
 
 // 汇总统计：全部订单口径（不受当前状态/关键词筛选影响），全部走 groupBy / aggregate
 async function loadTotals() {
@@ -158,10 +65,18 @@ async function loadTotals() {
 }
 
 export async function GET(request: NextRequest) {
+  // 中间件之外再验一次（CVE-2025-29927：带特定请求头可整个跳过 middleware）
+  try {
+    await requireAdmin()
+  } catch {
+    return error('无管理员权限', 403)
+  }
+
   try {
     const { searchParams } = new URL(request.url)
-    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
-    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20'), 1), 200)
+    // `|| 1`：?page=abc 时 parseInt 得 NaN，不兜底会一路传进 skip，Prisma 直接报错
+    const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20') || 20, 1), 200)
     const keyword = searchParams.get('keyword')?.trim()
     const status = searchParams.get('status')?.trim()
     /** 'MANUAL' = 只看手动录入的（站外客户，没有订单）。与 status 互斥 */
@@ -179,7 +94,8 @@ export async function GET(request: NextRequest) {
         }
       : {}
 
-    let list: (ReturnType<typeof buildRow> | ReturnType<typeof buildManualRow>)[] = []
+    // 先收集「外部订单 + 发票」原料，最后统一拼行 —— 关联的站内订单要按整页批量查
+    let sources: AdminInvoiceRowSource[] = []
     let total = 0
 
     if (source === 'MANUAL') {
@@ -206,7 +122,7 @@ export async function GET(request: NextRequest) {
         prisma.invoice.count({ where }),
       ])
       total = cnt
-      list = invoices.map(buildManualRow)
+      sources = invoices.map((iv) => ({ ext: null, iv }))
     } else if (status && status !== 'UNAPPLIED') {
       // —— 有发票记录的状态：以 Invoice 为主表分页，再 join 回订单 ——
       // 发票表体量远小于订单表，先用它把候选订单圈定，关键词再在候选集里筛（主键 IN，代价可控）
@@ -266,18 +182,15 @@ export async function GET(request: NextRequest) {
       //   · source='MANUAL' —— 管理员手动录入的站外客户发票，要展示
       //   · 其余 —— 订单被删除后留下的孤儿记录，旧版就不展示，继续不展示
       // 至于「有 externalOrderId 但订单已删」的，同样按孤儿跳过。
-      list = invoices.reduce<(ReturnType<typeof buildRow> | ReturnType<typeof buildManualRow>)[]>(
-        (acc, iv) => {
-          if (iv.externalOrderId == null) {
-            if (iv.source === 'MANUAL') acc.push(buildManualRow(iv))
-            return acc
-          }
-          const o = orderMap.get(iv.externalOrderId)
-          if (o) acc.push(buildRow(o, iv))
+      sources = invoices.reduce<AdminInvoiceRowSource[]>((acc, iv) => {
+        if (iv.externalOrderId == null) {
+          if (iv.source === 'MANUAL') acc.push({ ext: null, iv })
           return acc
-        },
-        []
-      )
+        }
+        const o = orderMap.get(iv.externalOrderId)
+        if (o) acc.push({ ext: o, iv })
+        return acc
+      }, [])
     } else {
       // —— 不筛状态 / 筛「未开发票」：以 ExternalOrder 为主表分页，再按本页 id 批量取发票 ——
       const where: Prisma.ExternalOrderWhereInput = { ...keywordWhere }
@@ -313,12 +226,19 @@ export async function GET(request: NextRequest) {
           .filter((iv) => iv.externalOrderId != null)
           .map((iv) => [iv.externalOrderId as number, iv])
       )
-      list = orders.map((o) => buildRow(o, invMap.get(o.id) ?? null))
+      sources = orders.map((o) => ({ ext: o, iv: invMap.get(o.id) ?? null }))
     }
 
-    const totals = await loadTotals()
+    const [list, totals] = await Promise.all([buildAdminInvoiceRows(sources), loadTotals()])
 
-    return success({ list, total, page, pageSize, totalPages: Math.ceil(total / pageSize), totals })
+    return success({
+      list,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.max(Math.ceil(total / pageSize), 1),
+      totals,
+    })
   } catch (err) {
     console.error('Admin list invoices error:', err)
     return error('查询失败')
@@ -331,7 +251,7 @@ export async function GET(request: NextRequest) {
  * 金额一栏填的是**开票金额（含税）** —— 客户线下实付多少就填多少，这个数原样进税局模板。
  * 不含税额与税额由服务端按 1.06 倒推，只用于后台展示与「已收税费」统计。
  *
- * 鉴权靠 src/middleware.ts 统一拦 /api/admin/*（全站后台接口都是这个写法）。
+ * 鉴权：src/middleware.ts 统一拦 /api/admin/*，handler 里再用 requireAdmin 验一次（防中间件被绕过）。
  */
 const manualSchema = z.object({
   invoiceAmount: z.number().positive('开票金额必须大于 0').max(99999999),
@@ -349,6 +269,12 @@ const manualSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  try {
+    await requireAdmin()
+  } catch {
+    return error('无管理员权限', 403)
+  }
+
   try {
     const parsed = manualSchema.safeParse(await request.json())
     if (!parsed.success) return error(parsed.error.errors[0].message)

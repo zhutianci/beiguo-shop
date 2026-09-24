@@ -276,9 +276,15 @@ model BalanceLog {
   balanceAfter Decimal  @map("balance_after") @db.Decimal(10, 2)
   type         String   @db.VarChar(20) // REFERRAL | ADJUST | WITHDRAW
   note         String?  @db.VarChar(255)
+  // 关联的站内订单（REFERRAL 流水 = 产生这笔返现的订单 Order.id）。
+  // 【为什么要单独一列】此前唯一的线索是 note 里的「订单#123 内推返现」文本，
+  // 后台要从一条流水点进订单详情只能解析字符串。2026-09-24 起 settleReferral 直接写这一列；
+  // 历史行为 NULL，读取时由 lib/balance.ts 的 referralOrderIdOf() 回退解析 note，无需回填脚本。
+  orderId      Int?     @map("order_id")
   createdAt    DateTime @default(now()) @map("created_at")
 
   @@index([userId])
+  @@index([orderId])
   @@map("balance_logs")
 }
 
@@ -763,6 +769,9 @@ model Invoice {
   @@index([userId])
   // 后台「手动开票」筛选：where { source: 'MANUAL' } 分页取出
   @@index([source, status])
+  // 订单 ↔ 发票反查的兜底线索（lib/order-link.ts）：背书外部订单被改 sourceKey 或删除后，
+  // 发票上的 sourceKey 快照是唯一能指回站内订单的东西。买家订单列表每页都会按它批量查
+  @@index([sourceKey])
   @@map("invoices")
 }
 
@@ -842,6 +851,10 @@ model Receipt {
   items            String?   @db.Text // JSON: [{label,value}] 有序数组，手动开具的 DIY 条目
   remark           String?   @db.VarChar(500)
   issuedAt         DateTime? @map("issued_at") // 手动开具时可指定的开具时间；为空则用 createdAt
+  // 买家申请收据时选择：收据上是否展示 ChatGPT/Claude 等字眼（与发票同一口径）。
+  // false → 「项目」一栏印「技术咨询服务」；true → 与原来一致（订阅类型 + 会员订阅）。
+  // 可空而非 default(true)：历史收据与手动开具（DIY）的收据没有做过这个选择，按原样展示
+  showAiWording    Boolean?  @map("show_ai_wording")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime? @updatedAt @map("updated_at") // 必须可空：已有行 ALTER 时无 DB 层 default
 
@@ -849,6 +862,35 @@ model Receipt {
   @@index([externalOrderId])
   @@index([source])
   @@map("receipts")
+}
+
+// 开票填写链接：管理员填好含税金额 → 生成一个不可枚举的链接发给站外客户 →
+// 客户自己填抬头/税号/邮箱/是否展示字眼并提交 → 落成一张 MANUAL 发票进待开清单。
+//
+// 【为什么单独一张表，而不是先建一张「待填写」状态的 Invoice】invoices 表被批量导出、
+// 财务台、后台统计、三处状态文案一起读，加一个新状态要改一圈，漏一处就是一张空抬头的
+// 发票混进导出（税局会退回整批）。链接在客户提交之前只是一个「邀请」，提交那一刻才
+// 在同一个事务里建出真正的发票 —— 发票表里永远只有填完整的行。
+model InvoiceRequest {
+  id               Int       @id @default(autoincrement())
+  // 公开链接里的令牌（128-bit 随机十六进制）。拿到链接的人就能提交，所以不可枚举是硬要求
+  token            String    @unique @db.VarChar(64)
+  invoiceAmount    Decimal   @map("invoice_amount") @db.Decimal(10, 2) // 管理员定的开票金额（含税），客户不能改
+  // 开票内容：客户选择「展示字眼」时印在发票的规格型号列；留空按「技术咨询服务」
+  subscriptionType String?   @map("subscription_type") @db.VarChar(100)
+  account          String?   @db.VarChar(255) // 客户标识（后台列表「账户」列），客户看不到
+  note             String?   @db.VarChar(255) // 后台备注，客户看不到
+  // PENDING 待客户填写 | SUBMITTED 已提交（已生成发票）| CANCELLED 管理员作废
+  status           String    @default("PENDING") @db.VarChar(20)
+  invoiceId        Int?      @unique @map("invoice_id") // 提交后生成的发票
+  expiresAt        DateTime? @map("expires_at") // 过期后不能再提交；NULL = 长期有效
+  submittedAt      DateTime? @map("submitted_at")
+  submitIp         String?   @map("submit_ip") @db.VarChar(64) // 审计用
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@map("invoice_requests")
 }
 
 // ============ 论坛 / 社区反馈 ============
@@ -950,7 +992,7 @@ model ForumLike {
 // 设计要点见 docs/优惠券设计.md。三条不可动摇的：
 //  ① 一张券只能被用一次 —— 靠 updateMany 的 CAS 条件保证，不是靠先查后写
 //  ② 三限（IP/账户/浏览器）靠**唯一约束**保证，不是靠先查后插
-//  ③ 与内推不叠加，取对买家更优的一个
+//  ③ 与内推互斥：走内推链接一律按专属价、券不可用（2026-09-11 起，见 lib/coupon.ts 的 quoteOrder）
 
 // 券批次：后台建一批，生成一条共享领取链接，谁点谁领
 model Coupon {
@@ -975,6 +1017,17 @@ model Coupon {
   // ACTIVE 可领可用 | PAUSED 停止发放（已领的仍可用）| ENDED 作废（已领的一并失效）
   status     String    @default("ACTIVE") @db.VarChar(20)
   note       String?   @db.VarChar(300)
+  // 批次来源。NULL = 后台建的普通领取批次（/coupon/<code> 公开领取）；
+  // 'LOTTERY' = 「下单有奖」中奖时系统自动建的**单张批次**（total=1，只发给中奖人）。
+  //
+  // 【为什么抽奖券要一次中奖一个批次，而不是一个奖项一个批次】
+  // CouponGrant 有 @@unique([couponId, userId])（每账户每批次一张）。同一个人下两单、
+  // 两次抽中同一个奖项时，共用批次的第二张会撞唯一约束。放宽那条约束要 DROP 索引，
+  // 而部署脚本写死了 --accept-data-loss，这类改动是本项目明令避开的。
+  //
+  // 非 NULL 的批次：领取接口与 /coupon/<code> 页一律拒绝（否则知道 code 的人就能领走别人的奖），
+  // 后台券列表默认不显示（否则会被每次中奖刷屏）。
+  source     String?   @db.VarChar(20)
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
@@ -982,6 +1035,7 @@ model Coupon {
   claims CouponClaim[]
 
   @@index([status, endAt])
+  @@index([source])
   @@map("coupons")
 }
 
@@ -1037,6 +1091,70 @@ model CouponClaim {
   @@unique([couponId, scope, value])
   @@index([grantId])
   @@map("coupon_claims")
+}
+
+// ============ 下单有奖（抽奖） ============
+// 设计与安全约束见 docs/下单有奖-抽奖设计.md。三条不可动摇的：
+//  ① 资格在**建单那一刻**确定（活动开启 + 达到门槛 → 同一事务里建一行 LotteryEntry），
+//     活动关闭期间下的单永远没有资格，事后开启也不补
+//  ② 一张订单最多抽一次 —— LotteryEntry.orderId 唯一 + 抽奖时 CAS（state PENDING→DRAWN），
+//     不是先查后写
+//  ③ 只认「本人的、已付款、未取消/退款」的订单；奖品在同一个事务里发放，失败整体回滚
+
+// 奖项（后台配置）。不设数量，只按概率；所有启用奖项概率之和 ≤ 100%，余下即「未中奖」
+model LotteryPrize {
+  id               Int      @id @default(autoincrement())
+  name             String   @db.VarChar(60) // 展示给买家的奖项名，如「无门槛 5 元券」
+  // COUPON 优惠券（中奖即发到「我的优惠券」）| CUSTOM 自定义奖品（线下兑现，后台标记已兑现）
+  type             String   @db.VarChar(20)
+  // 中奖概率，单位是**万分之一**（1 = 0.01%，10000 = 100%）。整数存储，
+  // 与金额按分计算同一个理由：浮点数累加 12.5% + 0.1% 之类会出现 12.600000000000001
+  rateBp           Int      @map("rate_bp")
+  // ---- type=COUPON：发券参数（与 Coupon 批次同口径）----
+  couponKind       String?  @map("coupon_kind") @db.VarChar(20) // THRESHOLD | PRODUCT
+  couponMinAmount  Decimal? @map("coupon_min_amount") @db.Decimal(10, 2)
+  couponDiscount   Decimal? @map("coupon_discount") @db.Decimal(10, 2)
+  couponProductIds String?  @map("coupon_product_ids") @db.VarChar(500)
+  couponValidDays  Int?     @map("coupon_valid_days") // 中奖起 N 天有效；NULL = 长期有效
+  // 奖品说明：CUSTOM 写兑奖方式（必填），COUPON 可选补充说明。展示给中奖者
+  description      String?  @db.VarChar(500)
+  enabled          Boolean  @default(true)
+  sortOrder        Int      @default(0) @map("sort_order")
+  wonCount         Int      @default(0) @map("won_count") // 已中出次数（统计用，与抽奖同一事务自增）
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([enabled, sortOrder])
+  @@map("lottery_prizes")
+}
+
+// 抽奖资格与结果：一张订单一行。行存在 = 这张订单有资格；state 记录抽没抽过
+model LotteryEntry {
+  id            Int       @id @default(autoincrement())
+  orderId       Int       @unique @map("order_id") // 一单一抽的数据库级保证
+  orderNo       String    @map("order_no") @db.VarChar(32) // 快照，后台按订单号检索用
+  userId        Int       @map("user_id")
+  // PENDING 有资格、未抽 | DRAWN 已抽 | VOID 作废（订单退款等，不可再抽）
+  state         String    @default("PENDING") @db.VarChar(20)
+  won           Boolean?
+  // ---- 抽中结果快照（奖项之后被改名/删除都不影响已中奖记录）----
+  prizeId       Int?      @map("prize_id")
+  prizeName     String?   @map("prize_name") @db.VarChar(60)
+  prizeType     String?   @map("prize_type") @db.VarChar(20)
+  prizeDetail   String?   @map("prize_detail") @db.Text // JSON：券面额/门槛/有效期 或 自定义奖品说明
+  couponGrantId Int?      @map("coupon_grant_id") // COUPON 奖发出的那张券
+  // ---- CUSTOM 奖的兑现（COUPON 奖不用这几列，券本身就是兑现）----
+  fulfillState  String?   @map("fulfill_state") @db.VarChar(20) // PENDING 待兑现 | DONE 已兑现
+  fulfilledAt   DateTime? @map("fulfilled_at")
+  fulfillNote   String?   @map("fulfill_note") @db.VarChar(255)
+  drawnAt       DateTime? @map("drawn_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId, state])
+  @@index([state, drawnAt])
+  @@index([prizeId])
+  @@map("lottery_entries")
 }
 
 // 友情链接 / 招商合作位。

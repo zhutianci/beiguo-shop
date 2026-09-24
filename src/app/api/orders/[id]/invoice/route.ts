@@ -9,9 +9,11 @@ import { vmqConfigured, VmqError } from '@/lib/vmq'
 import {
   ensureExternalOrderForShopOrder,
   submitInvoiceForExternalOrder,
+  shopOrderSourceKey,
   BillingError,
 } from '@/lib/order-billing'
 import { settlePrepaidOrderInvoice } from '@/lib/order-invoice'
+import { invoicesForOrder } from '@/lib/order-link'
 import {
   buyerInvoiceSubmitSchema,
   normalizeInvoiceFields,
@@ -57,6 +59,44 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         { alreadyPaid: true },
         '该订单下单时已选择开发票、税费也已随货款付清，无需再次支付；抬头已按本次填写更新'
       )
+    }
+
+    /*
+     * 【防重复收税 · 第二道】一张站内订单可能挂两条外部订单：背书行（sourceKey=`order:<id>`）
+     * 与管理员「标记已完成」导入的 WEB 行（只有 shopOrderId）。买家从「邮箱查订阅」
+     * 在 WEB 行上申请过发票的话，下面的 submitInvoiceForExternalOrder 只查背书行，
+     * 会再建一张、再收一次 6%。所以先把这张订单名下所有发票都拉出来看一遍
+     * （lib/order-link 两根线索都查）。这些判断都在建背书行之前，拦下来不留任何副作用。
+     */
+    const linked = await invoicesForOrder(order.id)
+    if (linked.some((iv) => iv.status === 'SUBMITTED' || iv.status === 'ISSUED')) {
+      return error('该订单已提交过发票申请，请勿重复提交')
+    }
+    // 税费已经付过、但状态被后台改乱了（如 AWAIT_PAY 且已付）：再走下去就是第二次收款
+    if (linked.some((iv) => iv.payStatus === 'PAID')) {
+      return error('该订单的发票税费已支付，请勿重复提交；如需修改发票信息请联系客服')
+    }
+    // 后台在任何一行上标了「不可开」，就是这张订单不开票（与 submitInvoiceForExternalOrder 同一句话）
+    if (linked.some((iv) => iv.status === 'CANNOT')) {
+      return error('该订单暂不可开具发票，请联系客服')
+    }
+    // 别的行上有一张待付税费的：让买家去付那一张，不另起一张。
+    // 背书行上的 AWAIT_PAY 不拦 —— 那是原有流程：重新提交会就地更新抬头并返回收款链接。
+    const awaiting = linked.filter((iv) => iv.status === 'AWAIT_PAY' && iv.externalOrderId != null)
+    if (awaiting.length) {
+      const backing = await prisma.externalOrder.findUnique({
+        where: { sourceKey: shopOrderSourceKey(order.id) },
+        select: { id: true },
+      })
+      const otherExtIds = awaiting.map((iv) => iv.externalOrderId as number).filter((id) => id !== backing?.id)
+      if (otherExtIds.length) {
+        // 只认外部订单行还在的：行被删掉的孤儿发票在付税费接口那边已经付不了（会回 404），
+        // 拦住就是死路一条
+        const alive = await prisma.externalOrder.count({ where: { id: { in: otherExtIds } } })
+        if (alive > 0) {
+          return error('该订单已有一张待支付税费的发票申请，请在订单页「开具发票 / 收据」中继续支付')
+        }
+      }
     }
 
     // 为该订单生成/复用背书外部订单，复用现有发票体系

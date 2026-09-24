@@ -2,7 +2,7 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { ArrowRight, Check, ShieldAlert } from 'lucide-react'
 import { inStock, type LandingProduct } from '@/lib/landing/products'
-import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
+import { LANDING_HUB, LANDING_REVIEWED_AT, LANDINGS, landingPath } from '@/lib/landing/registry'
 import type { RedeemErrorGroup } from '@/lib/landing/redeem-errors'
 
 /**
@@ -67,7 +67,15 @@ export function LandingShell({
       <div className="container relative">
         <Breadcrumbs crumbs={crumbs} />
         <header className="max-w-4xl mb-12">
-          <h1 className="text-3xl lg:text-5xl font-bold leading-tight mb-6">{h1}</h1>
+          <h1 className="text-3xl lg:text-5xl font-bold leading-tight mb-3">{h1}</h1>
+          {/* 【诚实的新鲜度信号】对手那几个内容站都在标题里写更新年月。我们只写真的做过的事：
+              哪一天把正文和代码、商品数据逐条对过（日期是 registry 里手动维护的常量，
+              不是每次请求的「今天」）；价格和库存本来就是实时取库的，一并说明 */}
+          <p className="mb-6 text-xs lg:text-sm text-white/35">
+            内容核对于 <time dateTime={LANDING_REVIEWED_AT}>{LANDING_REVIEWED_AT}</time>
+            <span className="text-white/20"> · </span>
+            价格与库存为实时数据
+          </p>
           <div className="text-white/60 text-base lg:text-lg leading-[1.9] space-y-4">{lede}</div>
         </header>
         {children}

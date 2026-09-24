@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 已发出卡密 → 追溯它的去向。
 // 本站订单发的卡有 orderId；外部站点通过库存 API 领走的卡 orderId 恒为 null，
@@ -10,6 +11,8 @@ import { success, error, notFound } from '@/lib/api'
 // 注意：同目录 route.ts 用的是旧式 { params: { id: string } } 签名，这里必须保持一致，
 // 同一路由段混用新旧两种写法 TS 会报错。
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

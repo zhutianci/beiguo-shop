@@ -894,12 +894,16 @@ function InvoiceModal({
 // 收据申请弹窗（仅填抬头，提交后生成并跳转收据页）
 function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () => void }) {
   const [payerTitle, setPayerTitle] = useState('')
+  // 必选项：收据中是否展示 ChatGPT/Claude 相关字眼（与发票同一口径）。
+  // null = 尚未选择 —— 收据只能开一次、开完改不了，不能替买家默认成任何一边
+  const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   const submit = async () => {
     setErr(null)
     if (!payerTitle.trim()) return setErr('请填写付款人抬头')
+    if (showAiWording === null) return setErr('请选择收据中是否展示 ChatGPT/Claude 相关字眼')
     setSubmitting(true)
     try {
       const res = await fetch('/api/receipts', {
@@ -910,6 +914,7 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
           payerTitle: payerTitle.trim(),
           // 归属凭证：证明调用方知道该订单的账户邮箱
           accountEmail: order.claudeAccount,
+          showAiWording,
         }),
       })
       const data = await res.json()
@@ -933,7 +938,8 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="relative w-full max-w-md glass-strong rounded-3xl p-6"
+        // 加了「是否展示字眼」一项后卡片变高，矮屏（375×667）上要能自己滚，否则按钮落到屏幕外
+        className="relative w-full max-w-md glass-strong rounded-3xl p-6 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold flex items-center gap-2">
@@ -969,6 +975,33 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
             maxLength={200}
             className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/25 outline-none focus:border-cyan-500/50 text-sm"
           />
+        </div>
+
+        {/* 必选：收据「项目」一栏是否展示 AI 平台字眼。说明里直接写出会印成什么，免得买家猜 */}
+        <div className="mt-4">
+          <label className="block text-xs text-white/50 mb-1.5">
+            收据中是否展示 ChatGPT/Claude 相关字眼<span className="text-red-400 ml-0.5">*</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { v: true, label: '展示', desc: `项目印「${order.subscriptionType} 会员订阅」` },
+              { v: false, label: '不展示', desc: '项目只印「技术咨询服务」' },
+            ].map((opt) => (
+              <button
+                key={String(opt.v)}
+                type="button"
+                onClick={() => setShowAiWording(opt.v)}
+                className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                  showAiWording === opt.v
+                    ? 'border-cyan-500/60 bg-cyan-500/15'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                }`}
+              >
+                <div className="text-sm font-medium text-white/90">{opt.label}</div>
+                <div className="text-[11px] text-white/40 mt-0.5 break-all">{opt.desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
 
         {err && (

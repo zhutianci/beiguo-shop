@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 本站自身产生的 ExternalOrder 导入批次：
 //   SHOP = 买家申请发票/收据时 upsert 进来的
@@ -15,6 +16,8 @@ const SHOP_BATCHES = ['SHOP', 'WEB']
 // 查询参数：start=YYYY-MM-DD, end=YYYY-MM-DD, granularity=day|month,
 //          excludeShop=1|0（默认 1，排除 importBatch 为 SHOP/WEB 的本站订单）
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const startStr = searchParams.get('start')?.trim()

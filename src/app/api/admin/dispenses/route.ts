@@ -5,9 +5,12 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { decryptCardContent, maskSecret } from '@/lib/cardkey'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 外部平台发卡记录（ExternalDispense）：检索 + 筛选 + 分页，含每条实际发出的卡密（默认脱敏）
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const keyword = (searchParams.get('keyword') || '').trim()

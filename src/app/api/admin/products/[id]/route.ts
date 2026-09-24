@@ -6,6 +6,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { syncAutoStock } from '@/lib/cardkey'
+import { FEATURES_FORMAT_ERROR, isFeaturesJson } from '@/lib/product-intro'
+import { adminGuard } from '@/lib/admin-guard'
 
 const updateProductSchema = z.object({
   categoryId: z.number().optional(),
@@ -36,7 +38,8 @@ const updateProductSchema = z.object({
     .regex(/^[A-Za-z0-9_.:-]*$/, '对外发卡 SKU 仅允许字母、数字和 _ . - :')
     .optional()
     .nullable(),
-  features: z.string().optional().nullable(),
+  // 同新建接口：必须是 JSON 字符串数组（或留空），理由见 api/admin/products/route.ts
+  features: z.string().optional().nullable().refine((v) => isFeaturesJson(v), FEATURES_FORMAT_ERROR),
 })
 
 // 更新商品
@@ -44,6 +47,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { id } = await params
     const productId = parseInt(id)
@@ -84,6 +89,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { id } = await params
     const productId = parseInt(id)

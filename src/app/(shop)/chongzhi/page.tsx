@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { getLandingProducts, inStock, matchProducts } from '@/lib/landing/products'
-import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
+import { getLandingProducts, inStock, matchProducts, type LandingProduct } from '@/lib/landing/products'
+import { CHATGPT_ANNUAL_MATCH, LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
 import {
@@ -17,7 +17,8 @@ import {
   Section,
   SubSection,
 } from '@/components/landing/landing-ui'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
+import { TAX_RATE } from '@/lib/invoice'
 
 /**
  * 充值总览页——这一批落地页的 hub。
@@ -48,6 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description: LANDING_HUB.description,
     alternates: { canonical: LANDING_HUB.path },
     openGraph: {
+      ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: LANDING_HUB.title,
@@ -85,7 +87,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: '可以开发票吗？',
-    a: '可以。订单完成后在站内申请，支持增值税发票与收据。要先说清楚：页面标价是不含税价，开发票需要在售价之外另付 6% 税费（开票金额 = 售价 × 1.06），收据不涉及税费。开发票时可以自选票面上是否展示具体服务名称，抬头由你自己填。',
+    a: '可以，支持增值税发票与收据。发票可以在结算时勾选「同时开具增值税发票」随单开具，也可以付款后在「我的订单」里申请。要先说清楚：页面标价是不含税价，开发票需要在售价之外另付 6% 税费（开票金额 = 售价 × 1.06），收据不涉及税费。开发票时可以自选票面上是否展示具体服务名称，抬头由你自己填。',
   },
   {
     q: '下单之后多久到账？',
@@ -93,17 +95,44 @@ const FAQS: { q: string; a: string }[] = [
   },
 ]
 
+/**
+ * 卡片下面列的档位：落地页价格表那一组，Plus 卡片再加上年费档
+ * （Plus 页价格表按 nameNone 排除了它，但价格说明里单独链着它——hub 上也不能让它消失）。
+ */
+function cardItems(all: LandingProduct[], l: (typeof LANDINGS)[number]): LandingProduct[] {
+  const items = matchProducts(all, l.match)
+  if (l.slug !== 'chatgpt-plus') return items
+  const ids = new Set(items.map((p) => p.id))
+  return items.concat(matchProducts(all, CHATGPT_ANNUAL_MATCH).filter((p) => !ids.has(p.id)))
+}
+
 export default async function ChongzhiHubPage() {
   const all = await getLandingProducts()
 
   // 每个子页对应哪些商品、最低价多少，直接在这里算好，卡片上给一个真实的「￥X 起」
   const cards = LANDINGS.map((l) => {
-    const items = matchProducts(all, l.match)
+    const items = cardItems(all, l)
     const available = items.filter(inStock)
     const pool = available.length ? available : items
     const low = pool.length ? Math.min(...pool.map((p) => p.price)) : null
-    return { def: l, items, low, hasStock: available.length > 0 }
+    return { def: l, items, low }
   })
+
+  /*
+   * 【ItemList 只列页面上看得见的商品】原来这里直接用了全部在售商品，而页面上只有落地页卡片、
+   * 一个商品名都没有——结构化数据标了一串用户在这一页看不到的东西。
+   * 现在每张卡片下面列出它的档位（名称、价格、库存），ItemList 取的就是这些，去重、按卡片顺序。
+   */
+  const listed: LandingProduct[] = []
+  const seen = new Set<number>()
+  cards.forEach((c) =>
+    c.items.forEach((p) => {
+      if (seen.has(p.id)) return
+      seen.add(p.id)
+      listed.push(p)
+    })
+  )
+  const taxPercent = `${Math.round(TAX_RATE * 100)}%`
 
   return (
     <>
@@ -111,7 +140,7 @@ export default async function ChongzhiHubPage() {
         data={[
           breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: LANDING_HUB.navLabel }]),
           faqJsonLd(FAQS),
-          ...(all.length ? [productItemListJsonLd(all, LANDING_HUB.path)] : []),
+          ...(listed.length ? [productItemListJsonLd(listed, LANDING_HUB.path)] : []),
         ]}
       />
 
@@ -135,30 +164,88 @@ export default async function ChongzhiHubPage() {
           </>
         }
       >
+        {/* 本页要点：四条都能在代码里找到出处（收银台只有支付宝、下单强制登录、
+            lib/invoice.ts TAX_RATE、lib/vmq.ts 的三种交付）。不是标题，不改变本页的 H2 结构 */}
+        <aside
+          aria-label="本页要点"
+          className="mb-14 max-w-4xl rounded-2xl border border-white/10 bg-white/[0.04] p-5 lg:p-6 text-[15px] leading-[1.9] text-white/70"
+        >
+          <div className="mb-3 text-sm font-semibold tracking-wide text-white/85">本页要点</div>
+          <CheckList
+            items={[
+              <>收银台只支持支付宝，下单需要先登录本站账号，不需要任何境外支付方式。</>,
+              <>
+                标价均为不含税价；需要增值税发票的，结算时勾选随单开具或付款后在「我的订单」里申请，
+                另付 {taxPercent} 税费。
+              </>,
+              <>
+                交付方式分三种：自动发货（充值类发卡密、自己兑换，账号类发账号信息）、
+                短信接码（付款后系统自动取号，不发卡密）、人工服务（如 KYC 认证代办，由客服对接）。
+              </>,
+              <>
+                经营主体是益阳市赫山区必高科技有限公司；退款与质保口径写在{' '}
+                <Link href="/terms" className="text-purple-400 hover:text-purple-300">
+                  服务条款
+                </Link>{' '}
+                里，封号不质保。
+              </>,
+            ]}
+          />
+        </aside>
+
         <Section id="catalog" heading="按服务分类">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 not-prose">
-            {cards.map(({ def, low, hasStock }) => (
-              <Link
+            {/* 卡片原来整张是一个链接，现在里面要放每个档位的商品链接——<a> 不能嵌套 <a>，
+                所以改成：标题与底部「查看详情」链到落地页，中间每一行链到商品页 */}
+            {cards.map(({ def, items, low }) => (
+              <div
                 key={def.slug}
-                href={landingPath(def.slug)}
                 className="group flex flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
               >
                 <div className="mb-2 flex items-start justify-between gap-3">
-                  <span className="font-semibold text-white transition-colors group-hover:text-purple-300">
+                  <Link
+                    href={landingPath(def.slug)}
+                    className="font-semibold text-white transition-colors hover:text-purple-300"
+                  >
                     {def.navLabel}
-                  </span>
+                  </Link>
                   {low != null && (
                     <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-white/80">
                       ￥{low.toFixed(0)} 起
                     </span>
                   )}
                 </div>
-                <span className="mb-4 flex-1 text-sm leading-relaxed text-white/45">{def.blurb}</span>
-                <span className="inline-flex items-center gap-1 text-sm text-purple-400">
-                  {hasStock ? '查看详情' : '查看详情（部分档位补货中）'}
+                <span className="mb-4 text-sm leading-relaxed text-white/45">{def.blurb}</span>
+                {items.length > 0 && (
+                  <ul className="mb-4 space-y-2 border-t border-white/[0.06] pt-3 text-[13px] leading-snug">
+                    {items.map((p) => (
+                      <li key={p.id} className="flex items-baseline gap-2">
+                        <Link
+                          href={`/products/${p.id}`}
+                          className="min-w-0 flex-1 text-white/65 transition-colors hover:text-white"
+                        >
+                          {p.name}
+                        </Link>
+                        <span className="shrink-0 whitespace-nowrap font-medium text-white/85">
+                          ￥{p.price.toFixed(0)}
+                        </span>
+                        {inStock(p) ? (
+                          <span className="shrink-0 whitespace-nowrap text-xs text-emerald-400">有货</span>
+                        ) : (
+                          <span className="shrink-0 whitespace-nowrap text-xs text-white/30">补货中</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <Link
+                  href={landingPath(def.slug)}
+                  className="mt-auto inline-flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300"
+                >
+                  查看详情
                   <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                </span>
-              </Link>
+                </Link>
+              </div>
             ))}
           </div>
           <p className="pt-6 text-sm text-white/40">

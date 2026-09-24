@@ -40,8 +40,10 @@ export function Footer() {
               </Link>
               {/* 简介是纯正文：max-w-sm(384px) 在 1920px 下会被强行断成很多短行，
                   lg 放宽到 max-w-md 并把字号/行高抬一档，行长落在 40 字左右的舒适区 */}
+              {/* 原文「专业的 AI 订阅服务平台…快速开通与持续保障」无从核验，却出现在全站每一页。
+                  换成买家查得到的事实：经营主体、做什么、怎么付钱、能不能开票 */}
               <p className="text-white/40 text-sm lg:text-[15px] max-w-sm lg:max-w-md leading-relaxed lg:leading-[1.85]">
-                贝果科技 - 专业的 AI 订阅服务平台，为您提供 Claude、ChatGPT 等顶级 AI 服务的快速开通与持续保障。
+                贝果科技（益阳市赫山区必高科技有限公司）提供 ChatGPT、Claude 等 AI 会员充值与账号服务，支付宝付款，可开增值税发票（标价不含税，开票另付 6% 税费）。
               </p>
               <div className="mt-6 lg:mt-8">
                 <button
@@ -85,14 +87,17 @@ export function Footer() {
             <div className="lg:col-span-3">
               <h4 className="font-semibold mb-4 lg:mb-5 lg:text-[15px] lg:text-white/90 lg:tracking-wide">商品</h4>
               <ul className="space-y-3 lg:space-y-3.5">
+                {/* 原来是 /products?category=1 与 ?category=2：列表页从不读这个参数（进去看到的是全部商品），
+                    canonical 又指回 /products——全站每一页各浪费两条链接。改指对应的充值页，
+                    文字用实测有量的说法（claude 会员、chatgpt充值），和左边那一栏的落地页名字错开 */}
                 <li>
-                  <Link href="/products?category=1" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
-                    Claude 订阅
+                  <Link href={landingPath('claude-pro')} className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                    Claude 会员充值
                   </Link>
                 </li>
                 <li>
-                  <Link href="/products?category=2" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
-                    ChatGPT 订阅
+                  <Link href={landingPath('chatgpt-plus')} className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                    ChatGPT 充值
                   </Link>
                 </li>
                 <li>

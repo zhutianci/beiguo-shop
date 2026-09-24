@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(50).optional(),
@@ -15,6 +16,8 @@ const patchSchema = z.object({
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -38,6 +41,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

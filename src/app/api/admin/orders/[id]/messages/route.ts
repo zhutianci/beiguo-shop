@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 聊天分段加载参数
 const DEFAULT_PAGE_SIZE = 100  // 首屏 / 「加载更早」每次取的条数
@@ -22,6 +23,8 @@ function parseCursor(v: string | null, min: number): number | null {
 // - ?after=<id>：增量轮询，只返回比该 id 新的消息
 // - ?before=<id>：加载更早的消息（向上翻页）
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const orderId = parseInt(params.id)
     if (!orderId) return error('订单无效')
@@ -79,6 +82,8 @@ const sendSchema = z.object({ content: z.string().trim().min(1, '请输入内容
 
 // 管理员回复
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const orderId = parseInt(params.id)
     if (!orderId) return error('订单无效')

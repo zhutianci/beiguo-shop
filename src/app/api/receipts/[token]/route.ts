@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { rmbCapital } from '@/lib/receipt'
+import { rmbCapital, receiptProjectLabel } from '@/lib/receipt'
 import { parseReceiptItems } from '@/lib/order-billing'
 
 // 按不可枚举的 token 查看收据
@@ -22,6 +22,11 @@ export async function GET(_request: NextRequest, { params }: { params: { token: 
       payee: r.payee,
       claudeAccount: r.claudeAccount,
       subscriptionType: r.subscriptionType,
+      // 「项目」一栏的最终文案由服务端决定（与发票导出同一口径，见 lib/receipt.ts）：
+      // 买家选了不展示字眼 → 「技术咨询服务」；历史收据（NULL）与 DIY 收据按原样。
+      // 前端只管渲染，不自己拼，免得两处口径漂移
+      project: receiptProjectLabel(r.subscriptionType, r.showAiWording),
+      showAiWording: r.showAiWording,
       orderStartDate: r.orderStartDate,
       orderExpireDate: r.orderExpireDate,
       items: parseReceiptItems(r.items), // 手动开具的 DIY 条目，按存储顺序展示

@@ -129,6 +129,16 @@ export const metadata: Metadata = {
     // iOS Safari 会把订单号、卡密里的数字串自动变成可拨打的电话链接，很难看且会误触
     telephone: false,
   },
+  /*
+   * 【百度移动适配声明】本站是响应式单 URL，同一个地址同时服务 PC 与手机。
+   * applicable-device 告诉百度「这一页两端都适用」，免得它去找一个不存在的移动版。
+   * 刻意不写 mobile-agent：那是「PC 页与移动页分属两个 URL」时才用的跳转声明，写了反而是错的。
+   * 禁止百度转码（no-transform / no-siteapp）是 http-equiv 形式，Metadata API 的 other
+   * 只能输出 name=，所以那两条写在下面 RootLayout 的 <head> 里。
+   */
+  other: {
+    'applicable-device': 'pc,mobile',
+  },
 }
 
 export default function RootLayout({
@@ -138,6 +148,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN">
+      {/* 百度转码退出声明（百度搜索资源平台的写法）：不许把页面转成它自己的「百度转码页 / site app」
+          再呈现给手机用户——转码会丢掉样式与交互，买家看到的就不是我们的页面了。
+          必须是 http-equiv：Next 的 metadata.other 只输出 name=，百度不认，所以直接写在 <head> 里，
+          Next 会把它和 metadata 生成的标签合并。 */}
+      <head>
+        <meta httpEquiv="Cache-Control" content="no-transform" />
+        <meta httpEquiv="Cache-Control" content="no-siteapp" />
+      </head>
       <body className={inter.className}>
         <AuthFetchPatch />
         {children}

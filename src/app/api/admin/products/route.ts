@@ -6,6 +6,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { syncAutoStock } from '@/lib/cardkey'
+import { FEATURES_FORMAT_ERROR, isFeaturesJson } from '@/lib/product-intro'
+import { adminGuard } from '@/lib/admin-guard'
 
 const productSchema = z.object({
   categoryId: z.number(),
@@ -36,13 +38,17 @@ const productSchema = z.object({
     .regex(/^[A-Za-z0-9_.:-]*$/, '对外发卡 SKU 仅允许字母、数字和 _ . - :')
     .optional()
     .nullable(),
-  features: z.string().optional().nullable(),
+  // 【必须是 JSON 字符串数组】商品页把每一项当文字渲染；混进一个对象（[{"title":"x"}]）
+  // 原来会让整页 SSR 报「Objects are not valid as a React child」直接 500
+  features: z.string().optional().nullable().refine((v) => isFeaturesJson(v), FEATURES_FORMAT_ERROR),
 })
 
 // 获取商品列表
 // 向后兼容：默认仍返回裸数组（卡密管理页、卡密分析组件依赖这个形状）；
 // 传 paged=1 时才返回分页结构 { list, total, page, pageSize, totalPages }。
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const paged = searchParams.get('paged') === '1'
@@ -90,6 +96,8 @@ export async function GET(request: NextRequest) {
 
 // 创建商品
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const result = productSchema.safeParse(body)

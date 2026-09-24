@@ -13,7 +13,10 @@ import {
   Gift,
   Link2,
   ShieldCheck,
+  X,
+  Loader2,
 } from 'lucide-react'
+import { BALANCE_TYPE_LABELS } from '@/lib/balance'
 
 interface DetailUser {
   id: number
@@ -59,6 +62,59 @@ interface BalanceLogRow {
   type: string
   note: string | null
   createdAt: string
+  /** REFERRAL 流水对应的站内订单 id（新流水读列，历史流水由服务端从备注解析） */
+  orderId?: number | null
+}
+
+/** GET /api/admin/balance-logs/[id] 的返回 */
+interface BalanceLogDetail {
+  log: {
+    id: number
+    userId: number
+    type: string
+    typeLabel: string
+    delta: number
+    balanceBefore: number
+    balanceAfter: number
+    note: string | null
+    createdAt: string
+    orderId: number | null
+  }
+  user: { id: number; email: string | null; nickname: string | null; balance: number } | null
+  order: {
+    id: number
+    orderNo: string
+    productName: string
+    currentProductName: string | null
+    quantity: number
+    productPrice: number
+    amount: number
+    invoiceTaxFee: number | null
+    payable: number
+    referralReward: number | null
+    referrerId: number | null
+    referrerMismatch: boolean
+    couponDiscount: number | null
+    originalAmount: number | null
+    payMethod: string | null
+    payStatus: string
+    deliveryStatus: string
+    createdAt: string
+    paidAt: string | null
+    deliveredAt: string | null
+    buyer: { id: number; email: string | null; nickname: string | null }
+    payments: { id: number; tradeNo: string | null; payMethod: string; amount: number; status: number; createdAt: string }[]
+    coupon: { grantId: number; state: string; name: string; code: string; source: string | null; label: string } | null
+  } | null
+  reward: {
+    id: number
+    referrerId: number
+    amount: number
+    status: string
+    createdAt: string
+    settledAt: string | null
+  } | null
+  warnings: string[]
 }
 
 interface BoundAccountRow {
@@ -126,10 +182,9 @@ const PAYMENT_STATUS: Record<number, { label: string; cls: string }> = {
   2: { label: '失败', cls: 'bg-red-100 text-red-600' },
 }
 
-const BALANCE_TYPE: Record<string, string> = {
-  REFERRAL: '内推返现',
-  ADJUST: '管理员调整',
-  WITHDRAW: '提现',
+const REWARD_STATUS: Record<string, string> = {
+  SETTLED: '已入余额',
+  CANCELLED: '已取消',
 }
 
 function fmt(s: string | null) {
@@ -221,6 +276,13 @@ export default function AdminUserDetailPage() {
   const [payPage, setPayPage] = useState(1)
   const [balancePage, setBalancePage] = useState(1)
 
+  // 余额流水详情弹窗
+  const [logOpen, setLogOpen] = useState(false)
+  const [logDetail, setLogDetail] = useState<BalanceLogDetail | null>(null)
+  const [logLoading, setLogLoading] = useState(false)
+  const [logError, setLogError] = useState('')
+  const logSeq = useRef(0)
+
   // 权限表单（只在首次加载时初始化，避免翻页时覆盖未保存的修改）
   const [form, setForm] = useState<{ role: string; status: number; vipLevel: number } | null>(null)
   const [saving, setSaving] = useState(false)
@@ -265,6 +327,30 @@ export default function AdminUserDetailPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  const openLog = async (logId: number) => {
+    const seq = ++logSeq.current // 连点两行时只认最后一次
+    setLogOpen(true)
+    setLogDetail(null)
+    setLogError('')
+    setLogLoading(true)
+    try {
+      const res = await fetch(`/api/admin/balance-logs/${logId}`)
+      const data = await res.json()
+      if (seq !== logSeq.current) return
+      if (data.success) setLogDetail(data.data as BalanceLogDetail)
+      else setLogError(data.error || '加载失败')
+    } catch {
+      if (seq === logSeq.current) setLogError('网络错误，加载失败')
+    } finally {
+      if (seq === logSeq.current) setLogLoading(false)
+    }
+  }
+
+  const closeLog = () => {
+    logSeq.current++
+    setLogOpen(false)
+  }
 
   const handleSavePermission = async () => {
     if (!form) return
@@ -622,12 +708,25 @@ export default function AdminUserDetailPage() {
                   {balanceLogs.list.map((b) => {
                     const delta = Number(b.delta || 0)
                     return (
-                      <tr key={b.id} className="border-b hover:bg-gray-50/60">
+                      <tr
+                        key={b.id}
+                        role="button"
+                        tabIndex={0}
+                        title="查看这条流水的详情"
+                        onClick={() => openLog(b.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            openLog(b.id)
+                          }
+                        }}
+                        className="cursor-pointer border-b hover:bg-gray-50 focus:outline-none focus-visible:bg-primary-50"
+                      >
                         <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">
                           {fmt(b.createdAt)}
                         </td>
                         <td className="py-2 pr-3 whitespace-nowrap">
-                          {BALANCE_TYPE[b.type] || b.type}
+                          {BALANCE_TYPE_LABELS[b.type] || b.type}
                         </td>
                         <td
                           className={`py-2 pr-3 font-medium whitespace-nowrap ${
@@ -638,7 +737,14 @@ export default function AdminUserDetailPage() {
                           {Math.abs(delta).toFixed(2)}
                         </td>
                         <td className="py-2 pr-3 whitespace-nowrap">{money(b.balanceAfter)}</td>
-                        <td className="py-2 text-gray-500">{b.note || '—'}</td>
+                        <td className="py-2 text-gray-500">
+                          {b.note || '—'}
+                          {b.orderId ? (
+                            <span className="ml-2 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">
+                              订单 #{b.orderId}
+                            </span>
+                          ) : null}
+                        </td>
                       </tr>
                     )
                   })}
@@ -726,6 +832,181 @@ export default function AdminUserDetailPage() {
       </div>
 
       {loading && <div className="pb-4 text-center text-xs text-gray-400">加载中...</div>}
+
+      {logOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={closeLog}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">余额流水详情</h3>
+              <button onClick={closeLog} className="rounded p-1 text-gray-500 hover:bg-gray-100" aria-label="关闭">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {logLoading ? (
+              <div className="flex items-center justify-center gap-2 py-12 text-sm text-gray-400">
+                <Loader2 className="h-5 w-5 animate-spin" /> 加载中...
+              </div>
+            ) : logError ? (
+              <p className="py-12 text-center text-sm text-red-600">{logError}</p>
+            ) : logDetail ? (
+              <BalanceLogDetailView d={logDetail} />
+            ) : null}
+            <div className="mt-6 flex justify-end">
+              <Button variant="outline" onClick={closeLog}>
+                关闭
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function KV({ k, v }: { k: string; v: React.ReactNode }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-gray-100 py-1.5 text-sm">
+      <span className="shrink-0 text-gray-500">{k}</span>
+      <span className="break-all text-right font-medium text-gray-900">{v}</span>
+    </div>
+  )
+}
+
+function BalanceLogDetailView({ d }: { d: BalanceLogDetail }) {
+  const { log, order, reward } = d
+  const up = log.delta >= 0
+  return (
+    <div className="space-y-5">
+      <div>
+        <KV k="类型" v={log.typeLabel} />
+        <KV
+          k="变动"
+          v={
+            <span className={up ? 'text-green-600' : 'text-red-600'}>
+              {up ? '+' : '-'}
+              {Math.abs(log.delta).toFixed(2)}
+            </span>
+          }
+        />
+        <KV k="变动前 → 变动后" v={`${money(log.balanceBefore)} → ${money(log.balanceAfter)}`} />
+        <KV k="备注" v={log.note || '—'} />
+        <KV k="时间" v={fmt(log.createdAt)} />
+      </div>
+
+      {d.warnings.length > 0 && (
+        <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-700">
+          {d.warnings.map((w) => (
+            <div key={w}>⚠ {w}</div>
+          ))}
+        </div>
+      )}
+
+      {log.type === 'REFERRAL' ? (
+        order ? (
+          <div>
+            <h4 className="mb-2 text-sm font-semibold text-gray-900">关联订单</h4>
+            <KV k="订单号" v={<span className="font-mono text-xs">{order.orderNo}</span>} />
+            <KV
+              k="商品"
+              v={
+                <span>
+                  {order.productName} × {order.quantity}
+                  {order.currentProductName && order.currentProductName !== order.productName && (
+                    <span className="block text-xs font-normal text-gray-400">（商品现名：{order.currentProductName}）</span>
+                  )}
+                </span>
+              }
+            />
+            <KV k="下单时标价" v={money(order.productPrice)} />
+            <KV k="货款（不含税）" v={money(order.amount)} />
+            <KV k="随单发票税费" v={order.invoiceTaxFee == null ? '—' : money(order.invoiceTaxFee)} />
+            {order.coupon && (
+              <KV
+                k="优惠券"
+                v={`${order.coupon.name}（${order.coupon.label}）· 减免 ${money(order.couponDiscount)}`}
+              />
+            )}
+            <KV k="返现快照" v={order.referralReward == null ? '—' : money(order.referralReward)} />
+            <KV
+              k="推广人"
+              v={
+                order.referrerMismatch ? (
+                  <span className="text-red-600">
+                    用户 #{order.referrerId ?? '—'}（与本流水所属用户 #{log.userId} 不一致）
+                  </span>
+                ) : (
+                  `用户 #${order.referrerId}（即本用户）`
+                )
+              }
+            />
+            <KV
+              k="买家"
+              v={
+                <Link href={`/admin/users/${order.buyer.id}`} className="text-primary-600 hover:underline">
+                  {order.buyer.email || order.buyer.nickname || `用户#${order.buyer.id}`}
+                </Link>
+              }
+            />
+            <KV
+              k="支付 / 交付"
+              v={`${PAY_STATUS[order.payStatus]?.label || order.payStatus} · ${
+                DELIVERY_STATUS[order.deliveryStatus]?.label || order.deliveryStatus
+              }`}
+            />
+            <KV k="下单时间" v={fmt(order.createdAt)} />
+            <KV k="付款时间" v={fmt(order.paidAt)} />
+            <KV k="交付时间" v={fmt(order.deliveredAt)} />
+            {order.payments.length > 0 && (
+              <div className="mt-2 rounded bg-gray-50 p-2 text-xs text-gray-600">
+                <div className="mb-1 text-gray-400">付款记录</div>
+                {order.payments.map((p) => (
+                  <div key={p.id} className="flex flex-wrap gap-x-2">
+                    <span>{PAY_METHOD[p.payMethod] || p.payMethod}</span>
+                    <span>{money(p.amount)}</span>
+                    <span>{PAYMENT_STATUS[p.status]?.label || p.status}</span>
+                    <span className="font-mono text-gray-400">{p.tradeNo || '—'}</span>
+                    <span className="text-gray-400">{fmt(p.createdAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <h4 className="mb-2 mt-4 text-sm font-semibold text-gray-900">返现记录</h4>
+            {reward ? (
+              <>
+                <KV k="金额" v={money(reward.amount)} />
+                <KV k="状态" v={REWARD_STATUS[reward.status] || reward.status} />
+                <KV k="记录时间" v={fmt(reward.createdAt)} />
+                <KV k="结算时间" v={fmt(reward.settledAt)} />
+              </>
+            ) : (
+              <p className="text-sm text-gray-400">没有找到对应的返现记录</p>
+            )}
+
+            <div className="mt-3 text-right">
+              <Link href={`/admin/orders?orderId=${order.id}`} className="text-sm text-primary-600 hover:underline">
+                打开订单详情 →
+              </Link>
+            </div>
+          </div>
+        ) : log.orderId ? null : (
+          <p className="text-sm text-gray-500">这条返现流水的备注不是系统写入的格式，无法定位到订单。</p>
+        )
+      ) : (
+        <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
+          这是管理员操作：在{' '}
+          <Link href="/admin/referrals" className="text-primary-600 hover:underline">
+            内推管理
+          </Link>{' '}
+          → 提现/调整 中录入，不对应任何订单。
+        </p>
+      )}
     </div>
   )
 }

@@ -5,9 +5,11 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
+import { requireAdmin } from '@/lib/auth'
 import { settleReferral } from '@/lib/referral'
 import { consumeCouponForOrder, releaseCouponForOrder } from '@/lib/coupon'
-import { updatePendingVmqAmount, submitInvoiceForPaidOrder } from '@/lib/vmq'
+import { updatePendingVmqAmount, submitInvoiceForPaidOrder, invalidatePendingVmq } from '@/lib/vmq'
+import { voidLotteryForOrder } from '@/lib/lottery-server'
 import { sendOrderDeliveredEmail } from '@/lib/mail'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { parseOrderInvoiceDraft } from '@/lib/order-invoice'
@@ -50,6 +52,14 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // 路由内再验一次管理员：这个接口能改价、标已支付、取消、退款，直接动钱，
+  // 不能只靠 middleware（CVE-2025-29927，见交接文档第二十三节）
+  try {
+    await requireAdmin()
+  } catch {
+    return error('无管理员权限', 403)
+  }
+
   try {
     const { id } = await params
     const orderId = parseInt(id)
@@ -101,6 +111,11 @@ export async function PUT(
       if (currentOrder.payStatus !== 'UNPAID') {
         return error('只有待支付订单可以改价')
       }
+      // 已取消（或这次保存就要一并取消）的订单买家已经不能再发起付款，改价没有意义，
+      // 只会凭空改动一张作废订单的金额（以及它的开票税费）
+      if (currentOrder.deliveryStatus === 'CANCELLED' || result.data.deliveryStatus === 'CANCELLED') {
+        return error('已取消的订单不能改价')
+      }
       data.amount = amount
       const draft = parseOrderInvoiceDraft(currentOrder.invoiceInfo)
       if (draft) {
@@ -115,48 +130,22 @@ export async function PUT(
     const wasDelivered = currentOrder.deliveryStatus === 'DELIVERED'
     const willBeDelivered = result.data.deliveryStatus === 'DELIVERED'
 
-    // 状态从未交付变为已交付：标记交付时间 + 自动标记支付 + 增加销量 / 扣减库存
+    // 状态从未交付变为已交付：标记交付时间 + 自动标记支付（销量 / 库存见下方统一规则）
     if (!wasDelivered && willBeDelivered) {
       data.deliveredAt = new Date()
       if (currentOrder.payStatus !== 'PAID') {
         data.payStatus = 'PAID'
         data.paidAt = new Date()
       }
-
-      // 销量只在「这一单从未被支付流程记过账」时才在这里加。
-      // 付款履约 fulfillOrder 已经在 UNPAID→PAID 的事务里 sales++ 过一次，
-      // 若这里无条件再加，凡是先付款、后由管理员点「已完成」的订单销量都会翻倍。
-      const alreadyCountedByPayment = currentOrder.payStatus === 'PAID'
-      if (!alreadyCountedByPayment) {
-        await prisma.product.update({
-          where: { id: currentOrder.productId },
-          data: {
-            sales: { increment: currentOrder.quantity },
-            ...(currentOrder.product.stock !== -1 && currentOrder.product.deliveryType !== 'AUTO'
-              ? { stock: { decrement: currentOrder.quantity } }
-              : {}),
-          },
-        })
-      }
     }
 
-    // 从已交付撤回：减销量 + 恢复库存 + 清除交付时间
+    // 从已交付撤回：清除交付时间（销量 / 库存见下方统一规则）
     if (
       wasDelivered &&
       result.data.deliveryStatus &&
       result.data.deliveryStatus !== 'DELIVERED'
     ) {
       data.deliveredAt = null
-
-      await prisma.product.update({
-        where: { id: currentOrder.productId },
-        data: {
-          sales: { decrement: currentOrder.quantity },
-          ...(currentOrder.product.stock !== -1
-            ? { stock: { increment: currentOrder.quantity } }
-            : {}),
-        },
-      })
     }
 
     // 手动标记支付状态变更（独立于交付状态）。
@@ -165,9 +154,116 @@ export async function PUT(
       data.paidAt = new Date()
     }
 
-    const order = await prisma.order.update({
-      where: { id: orderId },
-      data,
+    /*
+     * 【标已支付必须是 CAS】原来是开头读一次 currentOrder.payStatus、隔了好几步才写，
+     * 这期间买家的钱恰好到账，fulfillOrder 也把它翻成 PAID 并 sales++，这里再加一次 ——
+     * 销量翻倍，券核销、发票落地也各跑两遍。现在「→ PAID」单独用条件更新
+     * （where payStatus = 开头读到的值）抢一次，只有抢到的那一方记销量、跑付款副作用；
+     * 没抢到（钱已经从支付那条路进来了）就把 payStatus / paidAt 从本次写入里拿掉，
+     * 其余字段（交付状态、交付信息等）照常保存。
+     */
+    const markPaid = data.payStatus === 'PAID' && currentOrder.payStatus !== 'PAID'
+    const paidAt = data.paidAt ?? new Date()
+    if (markPaid) {
+      delete data.payStatus
+      delete data.paidAt
+    }
+
+    const prevDelivery = currentOrder.deliveryStatus
+    const nextDelivery = data.deliveryStatus ?? prevDelivery
+    const enteringCancelled = nextDelivery === 'CANCELLED' && prevDelivery !== 'CANCELLED'
+    const leavingCancelled = prevDelivery === 'CANCELLED' && nextDelivery !== 'CANCELLED'
+    const refunding = data.payStatus === 'REFUNDED' && currentOrder.payStatus !== 'REFUNDED'
+
+    /*
+     * 【先关收款通道，再写订单、再放券】取消一张待支付订单时，买家的收银台可能还开着。
+     * 原来只放券不关收款单：他照样按优惠价付款 → 到账匹配 → fulfillOrder 把这张
+     * 「已取消」的订单翻成已支付并发货，而券已经放回去了，可以再用一次。
+     * 作废待支付收款单之后，到账再也匹配不上这一单。退款同理：退了款的订单不该还能收钱。
+     * 放在所有写入之前：它失败就整个请求失败（管理员重试即可），不会出现「订单已取消、
+     * 收款单却还活着」的半截状态。
+     */
+    /*
+     * 【人工标已支付同样要关收款通道】买家第一次付错了金额（后台「未匹配」能看到）、管理员核实后
+     * 手工标成已完成 —— 收银台那张待支付收款单还开着，买家看它还在等，按正确金额又付一次：
+     * 到账匹配成功、fulfillOrder 发现订单早已付款就静默返回，第二笔钱没有任何人知道。
+     * 作废只动 state=0 的行：恰好正在到账、已翻成 1 的那一张不受影响，走下面 wonPaid=false 的分支。
+     */
+    if ((enteringCancelled && currentOrder.payStatus === 'UNPAID') || refunding || markPaid) {
+      await invalidatePendingVmq('order', orderId)
+    }
+
+    /*
+     * 销量 / 库存的统一规则（公开展示的销量是真实数字，必须守恒）：
+     *
+     *  · 销量在「付款」时记一次：付款履约 fulfillOrder 的 UNPAID→PAID 事务里，
+     *    或本路由标已支付抢到 CAS 的那一次（从 UNPAID 起算；从 REFUNDED 改回 PAID 不再加，
+     *    退款时本来也没减）
+     *  · 已交付 ↔ 待处理 / 处理中 来回改：销量、库存都不动。原来撤回「已交付」就减销量，
+     *    而再标回已交付时因为已经 PAID 不会加回来 —— 来回点一次销量就永久少一单
+     *  · 已付款的订单进入「已取消」（从任何未取消状态）：销量 −数量（条件更新，不减成负数）；
+     *    有限库存的非自动发货商品，只有从「已交付」取消时才加回库存（与原逻辑恢复库存的唯一场景一致）
+     *  · 已付款且已取消的订单被改出「已取消」：销量 +数量（取消时减掉的加回来）
+     *  · 自动发货（AUTO）商品的库存 = 未使用卡密数（lib/cardkey 的 syncAutoStock 维护），
+     *    这里一律不碰。原来撤回已交付时对它 stock++，而卡密并没有回到未使用，库存是虚的
+     */
+    const qty = currentOrder.quantity
+    const manualFiniteStock = currentOrder.product.deliveryType !== 'AUTO' && currentOrder.product.stock !== -1
+    const paidBefore = currentOrder.payStatus === 'PAID'
+
+    const { order, wonPaid } = await prisma.$transaction(async (tx) => {
+      let wonPaid = false
+      if (markPaid) {
+        const c = await tx.order.updateMany({
+          where: { id: orderId, payStatus: currentOrder.payStatus },
+          data: { payStatus: 'PAID', paidAt },
+        })
+        wonPaid = c.count === 1
+      }
+
+      const order = await tx.order.update({ where: { id: orderId }, data })
+
+      let salesDelta = 0
+      let stockDelta = 0
+      if (wonPaid && currentOrder.payStatus === 'UNPAID') {
+        salesDelta += qty
+        // 与原逻辑一致：只有「标已交付顺带标已支付」这一步扣有限库存
+        if (!wasDelivered && willBeDelivered && manualFiniteStock) stockDelta -= qty
+      }
+      // 「已付款」同时看写入前后：写入后的 order.payStatus 是本事务写完那一刻的真实状态，
+      // 能兜住「开头读到还是 UNPAID、写之前买家的钱刚好到账」—— 那一单 fulfillOrder 已经记过销量
+      if (enteringCancelled && (paidBefore || order.payStatus === 'PAID')) {
+        salesDelta -= qty
+        if (wasDelivered && manualFiniteStock) stockDelta += qty
+      }
+      if (leavingCancelled && paidBefore && order.payStatus === 'PAID') {
+        salesDelta += qty
+      }
+
+      if (salesDelta > 0) {
+        await tx.product.update({ where: { id: currentOrder.productId }, data: { sales: { increment: salesDelta } } })
+      } else if (salesDelta < 0) {
+        const dec = await tx.product.updateMany({
+          where: { id: currentOrder.productId, sales: { gte: -salesDelta } },
+          data: { sales: { decrement: -salesDelta } },
+        })
+        if (dec.count !== 1) console.warn('[order] 销量不足以扣减，已跳过（历史数据有漂移）', orderId, salesDelta)
+      }
+      if (stockDelta > 0) {
+        await tx.product.update({ where: { id: currentOrder.productId }, data: { stock: { increment: stockDelta } } })
+      } else if (stockDelta < 0) {
+        // stock = -1 是「不限库存」的哨兵值，扣成负数会让有限库存的商品变成不限量。
+        // 不够扣时直接清零（与原来无条件 decrement 的区别只在这一种情况）
+        const dec = await tx.product.updateMany({
+          where: { id: currentOrder.productId, stock: { gte: -stockDelta } },
+          data: { stock: { decrement: -stockDelta } },
+        })
+        if (dec.count !== 1) {
+          await tx.product.updateMany({ where: { id: currentOrder.productId, stock: { gt: 0 } }, data: { stock: 0 } })
+        }
+      }
+
+      return { order, wonPaid }
     })
 
     /*
@@ -176,6 +272,8 @@ export async function PUT(
      * 这是券释放的第三条路径（另两条：超时取消、建单失败回滚）。三条都要有，
      * 少一条的表现是买家的券永远卡在「占用中」，他自己解不开、只能来找客服。
      * releaseCouponForOrder 是幂等的，重复调用不会出错。
+     * 待支付收款单已在上面写订单之前作废，这里放券不会再被一笔迟到的付款钻空子；
+     * 万一钱在作废之前就已到账，consumeCouponForOrder 的兜底会把放回去的券补核销。
      */
     if (result.data.deliveryStatus === 'CANCELLED' && currentOrder.deliveryStatus !== 'CANCELLED') {
       await releaseCouponForOrder(orderId).catch((e) => console.error('[coupon] 后台取消释放失败', orderId, e))
@@ -183,22 +281,59 @@ export async function PUT(
     /*
      * 人工确认到账的路径（不走 vmq 那条）要核销券、要落地发票。
      *
-     * 【判据必须是 data.payStatus，不是 result.data.payStatus】
+     * 【判据是本次是否抢到了 → PAID 的 CAS（wonPaid），不是请求体里的 payStatus】
      * 后台订单页的保存按钮只发 deliveryStatus / deliveryInfo / amount / external，
      * **从不发 payStatus**（全仓库没有任何前端发过 payStatus:'PAID'）。
-     * 「标成已交付时自动置为已支付」是本路由在上面第 ~122 行自己补上的，写在 data 里。
+     * 「标成已交付时自动置为已支付」是本路由在上面自己补上的，写在 data 里。
      * 按请求体判的话这个分支在后台 UI 上是死代码 —— 券不核销（旧有问题），
      * 而且买家结账时预付的 6% 永远开不出票：invoices 表没有行、财务台看不到、
      * 买家订单页却因为 invoiceTaxFee 已写入而显示「已提交开票」并隐藏申请入口，
      * 没有任何一方能发现，也没有任何一条路能补救。
+     * 没抢到 CAS 通常是钱已经从支付那条路进来了，那边的 fulfillOrder 会做这两件事。
      */
-    if (data.payStatus === 'PAID' && currentOrder.payStatus !== 'PAID') {
+    if (wonPaid) {
       await consumeCouponForOrder(orderId).catch((e) => console.error('[coupon] 后台核销失败', orderId, e))
       // 这条路不经过 fulfillOrder，下单时勾的开票草稿得在这里补一次落地，
       // 否则买家勾了开发票、被后台手工标成已支付，发票就凭空消失了。函数自身幂等
       await submitInvoiceForPaidOrder(orderId).catch((e) =>
         console.error('[invoice] 后台标记已支付后落地发票失败', orderId, e)
       )
+    } else if (order.payStatus === 'PAID' && order.invoiceTaxFee != null && order.deliveryStatus !== 'CANCELLED') {
+      // 已取消的不补：线下退款后把订单改成「已取消」是常规操作，那时再落地一张「可开具」的发票
+      // 并推给财务，等于给退了款的订单开票
+      /*
+       * 【重新保存 = 重试发票落地】结账时预收了 6%、但履约时发票没能落地的订单
+       * （企业微信会推「发票落地失败」，订单详情里也有琥珀色提示），管理员打开订单点一次保存就补上。
+       * submitInvoiceForPaidOrder → materializeOrderInvoice 在发票已存在时什么都不做、
+       * 并发撞唯一约束也按无事发生处理，所以每次保存都调用是安全的
+       */
+      await submitInvoiceForPaidOrder(orderId).catch((e) =>
+        console.error('[invoice] 重新保存时补落地发票失败', orderId, e)
+      )
+    }
+
+    /*
+     * 已付款的订单被取消（后台没有「退款」按钮，线下退款后通常就是这么操作的）：
+     * 这一单抽中的、还没用掉的券作废，未兑现的自定义奖品作废，未抽的资格作废。
+     * 买家已经拿回了钱，不该还留着这一单换来的奖。已用掉的券不动（那是另一笔订单的账）。
+     * 注意：之后再把订单改回未取消，作废的资格不会恢复 —— 需要的话请人工补发。
+     */
+    if (enteringCancelled && paidBefore) {
+      await voidLotteryForOrder(orderId).catch((e) => console.error('[lottery] 取消已付款订单时作废抽奖失败', orderId, e))
+    }
+
+    /*
+     * 标成已退款（目前只有直接调接口能做到，后台页面不发 payStatus）：
+     * 收回「下单有奖」的资格与未使用的奖品（幂等）。放在写订单之后：之后开始的抽奖会在事务内
+     * 复核订单状态而被拒；恰好与这次保存并发、复核读在提交之前的那一次抽奖，
+     * 由 voidLotteryForOrder 在 CAS 没抢到时重读、按已抽的路径收回（见该函数注释）。
+     * 待支付收款单已在写订单之前作废。
+     *
+     * 【内推返现此处刻意不冲回】已入推广人余额的返现要不要扣回、怎么扣（余额可能已线下提走），
+     * 是待站长拍板的业务问题，不在代码里擅自决定。退款后请人工核对该单的 ReferralReward。
+     */
+    if (refunding) {
+      await voidLotteryForOrder(orderId).catch((e) => console.error('[lottery] 退款作废抽奖失败', orderId, e))
     }
 
     // 改价：原地更新同一张待支付收款单的金额（保持同付款链接），用户付款页轮询会自动刷新成新价。

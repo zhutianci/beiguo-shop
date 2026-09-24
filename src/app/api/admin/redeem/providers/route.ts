@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { success } from '@/lib/api'
 import { listProvidersForAdmin } from '@/lib/redeem/registry'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 后台用的充值平台清单，给导入卡密时的下拉框。
@@ -10,5 +11,7 @@ import { listProvidersForAdmin } from '@/lib/redeem/registry'
  * 买家侧任何接口都不返回它。这个路由在 /api/admin/ 下，由 middleware 统一拦截。
  */
 export async function GET() {
+  const denied = await adminGuard()
+  if (denied) return denied
   return success({ list: listProvidersForAdmin() })
 }

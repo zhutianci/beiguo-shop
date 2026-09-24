@@ -20,7 +20,7 @@ import {
   SubSection,
   Warning,
 } from '@/components/landing/landing-ui'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 谷歌账号落地页——这一批页面里唯一一个「账号类商品」页，不是充值页。
@@ -69,6 +69,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
+      ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: DEF.title,

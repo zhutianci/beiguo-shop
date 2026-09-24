@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { sendRechargeForOrders } from '@/lib/reminder'
 import type { ExternalOrder } from '@prisma/client'
+import { adminGuard } from '@/lib/admin-guard'
 
 const itemSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式错误'),
@@ -32,6 +33,8 @@ function hashKey(claudeAccount: string, startDate: string, subscriptionType: str
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = importSchema.safeParse(body)

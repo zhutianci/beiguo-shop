@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { findSameHost } from '@/lib/friend-link'
 import { LINK_SLOTS, LINK_STATUSES, normalizeLogo, normalizeUrl, parseDateInput } from '@/lib/friend-link-client'
+import { adminGuard } from '@/lib/admin-guard'
 
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(60).optional(),
@@ -24,6 +25,8 @@ const patchSchema = z.object({
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -79,6 +82,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
  * 而 REJECTED 会一直挡着。后台文案里也是这么写的。
  */
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { findSameHost } from '@/lib/friend-link'
 import { LINK_SLOTS, LINK_STATUSES, hostOf, normalizeLogo, normalizeUrl, parseDateInput } from '@/lib/friend-link-client'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 鉴权由 src/middleware.ts 统一拦在 /api/admin/* 前面，这里不再重复判断
 
@@ -14,6 +15,8 @@ const PAGE_SIZE = 20
 
 /** 列表：按状态 / 展示位 / 关键词筛选，并附带各状态的条数（后台要在 tab 上显示待审角标） */
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
@@ -83,6 +86,8 @@ const createSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json().catch(() => ({}))
     const parsed = createSchema.safeParse(body)

@@ -4,9 +4,12 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 // GET ?userId= ：某推广人各商品的 网站售价/默认基础价/单独基础价
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const userId = parseInt(new URL(request.url).searchParams.get('userId') || '0')
     if (!userId) return error('缺少 userId')
@@ -45,6 +48,8 @@ const saveSchema = z.object({
 
 // POST：为推广人设置/清除单独基础价（null/0 = 用默认）
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = saveSchema.safeParse(body)

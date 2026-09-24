@@ -10,10 +10,14 @@ import {
   submitReceiptForExternalOrder,
   BillingError,
 } from '@/lib/order-billing'
-import { settlePrepaidOrderInvoice } from '@/lib/order-invoice'
+import { settlePrepaidOrderInvoice, shopOrderSourceKey } from '@/lib/order-invoice'
+import { invoicesForOrder } from '@/lib/order-link'
 
 const schema = z.object({
   payerTitle: z.string().trim().min(1, '请填写付款人抬头').max(200),
+  // 必选、无默认：与发票同一口径。不展示 → 收据「项目」一栏只印「技术咨询服务」。
+  // 收据一笔订单只能开一次、开完改不了，所以不能替买家默认成任何一边
+  showAiWording: z.boolean({ required_error: '请选择收据中是否展示 ChatGPT/Claude 相关字眼' }),
 })
 
 // 买家从「我的订单」直接申请收据（无需邮箱查询）
@@ -44,6 +48,33 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
      */
     await settlePrepaidOrderInvoice(order.id)
 
+    /*
+     * 【一张站内订单只开一张收据 —— 要查全所有关联的外部订单行】
+     * 除了背书行（sourceKey=order:<id>），管理员「标记已完成」还会导入一条 WEB 行（只有 shopOrderId），
+     * 买家也可能从「邮箱查订阅」在那一行上开过收据。submitReceiptForExternalOrder 只查本行，
+     * 不在这里拦的话同一笔付款能开出两张收据。
+     */
+    const linkedExts = await prisma.externalOrder.findMany({
+      where: { OR: [{ shopOrderId: order.id }, { sourceKey: shopOrderSourceKey(order.id) }] },
+      select: { id: true },
+    })
+    // 还要看收据上的 sourceKey 快照：管理员删掉背书行之后，收据的 externalOrderId 指向一条已不存在的行，
+    // 只按现存行查会漏掉它，同一笔付款就能再开出第二张收据
+    const linkedIds = linkedExts.map((e) => e.id)
+    const existing = await prisma.receipt.findFirst({
+      where: {
+        source: 'BUYER',
+        OR: [
+          ...(linkedIds.length ? [{ externalOrderId: { in: linkedIds } }] : []),
+          { sourceKey: shopOrderSourceKey(order.id) },
+        ],
+      },
+      select: { id: true },
+    })
+    if (existing) return error('该订单已开具收据，如需重开请联系客服', 409)
+    // 任一关联行上已付过税费的发票 → 收据按含税额出具（背书行自己的已付发票仍优先，见 submitReceiptForExternalOrder）
+    const paidInvoice = (await invoicesForOrder(order.id)).find((iv) => iv.payStatus === 'PAID')
+
     const ext = await ensureExternalOrderForShopOrder({
       id: order.id,
       productName: order.productName,
@@ -53,7 +84,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       user: order.user,
     })
 
-    const result = await submitReceiptForExternalOrder(ext.id, parsed.data.payerTitle)
+    const result = await submitReceiptForExternalOrder(ext.id, parsed.data.payerTitle, {
+      paidInvoiceAmount: paidInvoice?.invoiceAmount ?? null,
+      showAiWording: parsed.data.showAiWording,
+    })
     return success(result, '收据已生成')
   } catch (err) {
     if (err instanceof BillingError) return error(err.message, err.status)

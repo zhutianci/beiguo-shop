@@ -4,10 +4,13 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { success, error } from '@/lib/api'
 import { defaultLinksConfig, getLinksConfig, saveLinksConfig } from '@/lib/friend-link'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 注意路由优先级：静态段 /config 会先于同级的 [id] 命中，不会被当成 id=config
 
 export async function GET() {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     return success({ config: await getLinksConfig(), defaults: defaultLinksConfig() })
   } catch (err) {
@@ -48,6 +51,8 @@ function cleanLines(v: unknown): string[] | unknown {
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const raw = (await request.json().catch(() => ({}))) as Record<string, unknown>
     const body = {

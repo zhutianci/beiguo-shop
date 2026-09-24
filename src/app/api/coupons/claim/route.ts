@@ -44,7 +44,10 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return error(parsed.error.errors[0].message)
 
     const coupon = await prisma.coupon.findUnique({ where: { code: parsed.data.code } })
-    if (!coupon) return error('活动不存在或已下线')
+    // source 非空 = 系统发的券（如「下单有奖」中奖时建的单张批次），不是公开领取活动。
+    // 必须与「不存在」同一句话、同一个状态码：否则拿到一个抽奖券 code 的人
+    // 能从报错里分辨出「这个 code 存在」，还可能领走别人的奖
+    if (!coupon || coupon.source != null) return error('活动不存在或已下线')
 
     const now = new Date()
     const claimable = couponClaimable(
@@ -76,8 +79,9 @@ export async function POST(request: NextRequest) {
       const grant = await prisma.$transaction(async (tx) => {
         // ① 原子扣减库存：条件里带 claimed < total，抢不到就是被领完了。
         //    用 updateMany 的条件更新做 CAS，不是「读出来加一再写回去」
+        //    source: null 是第二道闸：上面已经拒过系统批次，这里在写入条件上再钉一次
         const taken = await tx.coupon.updateMany({
-          where: { id: coupon.id, status: 'ACTIVE', claimed: { lt: coupon.total } },
+          where: { id: coupon.id, status: 'ACTIVE', source: null, claimed: { lt: coupon.total } },
           data: { claimed: { increment: 1 } },
         })
         if (taken.count !== 1) throw new ClaimError('已被领完')

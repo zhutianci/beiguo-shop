@@ -31,3 +31,14 @@ export const OG_IMAGES = [
 ]
 
 export const TWITTER_IMAGES = [OG_IMAGE_URL]
+
+/**
+ * og:site_name / og:locale。
+ *
+ * 和 images 是同一个坑：根 layout 的 openGraph 里写了 siteName 与 locale，
+ * 但子页面只要自己写了 `openGraph: {...}`，这两项就跟着整块被顶掉——
+ * 2026-09-24 实测 /products/16 的 HTML 里没有 og:site_name、也没有 og:locale。
+ * 覆盖 openGraph 的页面一律 `...OG_SITE` 展开进去。
+ * 值与 app/layout.tsx 里 SITE_NAME / 'zh_CN' 保持一致。
+ */
+export const OG_SITE = { siteName: '贝果科技', locale: 'zh_CN' } as const

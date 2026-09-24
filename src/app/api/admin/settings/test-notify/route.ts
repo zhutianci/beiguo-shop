@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { success, error } from '@/lib/api'
 import { notifyConfigured, fmtTime } from '@/lib/notify'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 发一条测试消息到企业微信群机器人。
@@ -11,6 +12,8 @@ import { notifyConfigured, fmtTime } from '@/lib/notify'
  * 所以必须解析返回体的 errcode 才知道是不是真的成功。
  */
 export async function POST() {
+  const denied = await adminGuard()
+  if (denied) return denied
   if (!notifyConfigured()) {
     return error('未配置 WECOM_WEBHOOK_URL（或旧的 ORDER_MSG_WEBHOOK_URL）', 400)
   }

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { round2 } from '@/lib/money'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 卡密数据分析：数据源 = CardKey 表（网站自助下单自动发货 + 外部站调库存 API 领卡），
@@ -80,6 +81,8 @@ const sealBucket = (b: Bucket) => ({
 })
 
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
 

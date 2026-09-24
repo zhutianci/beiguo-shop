@@ -2,8 +2,11 @@ export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 export async function GET() {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const [
       totalUsers,

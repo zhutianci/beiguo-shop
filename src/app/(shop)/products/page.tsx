@@ -11,8 +11,9 @@ import { SITE_NAME } from '@/lib/product-seo'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
 import { Breadcrumbs } from '@/components/landing/landing-ui'
-import ProductsClient from './products-client'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { LANDINGS, landingPath, matchProducts } from '@/lib/landing/registry'
+import ProductsClient, { type CategoryGuide } from './products-client'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * 商品列表页。
@@ -64,16 +65,82 @@ const getProducts = cache(async () => {
   }
 })
 
-const TITLE = `AI 会员代充商品与价格 - ChatGPT Plus / Claude Pro 充值 - ${SITE_NAME}`
+/*
+ * 【2026-09-24 改词】原标题是「AI 会员代充商品与价格 - …」，50 个字符，而且拿零需求词开头：
+ * 实测 ai会员代充 / ai代充 的 Google 下拉联想数为 0，百度标题又只显示前 30 个汉字左右。
+ * 现在用实测有量的说法打头：chatgpt plus 购买（10 条联想）、chatgpt plus 充值、
+ * claude pro 充值、chatgpt plus 价格（价格表 / 人民币）。
+ * 描述原来只写了「Max 5x」（20x、Pro 20x、Grok 都在卖），还用了零需求的「谷歌邮箱」，一并改掉；
+ * 「卡密自助充值」也不对全部商品成立（接码、KYC、账号类不是），改成只说充值类。
+ */
+const TITLE = `ChatGPT Plus / Claude Pro 充值与购买价格表 - ${SITE_NAME}`
 const DESCRIPTION =
-  'ChatGPT Plus / Pro、Claude Pro / Max 5x 会员代充值价目表，另有 Codex 与 Claude 注册验证码接码、谷歌邮箱成品号。卡密自助充值，支持支付宝，可开增值税发票。'
+  'ChatGPT Plus / Pro、Claude Pro / Max 会员充值与购买价格表，另有 Grok Super 充值、Codex 与 Claude 注册接码、谷歌账号。充值类为卡密自助兑换，仅支持支付宝；标价不含税，开票另付 6%。'
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   // 列表页会被带 ?ref= / ?category= 分享与抓取，canonical 一律指回干净地址
   alternates: { canonical: '/products' },
-  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/products' },
+  openGraph: {
+    ...OG_SITE,
+    images: OG_IMAGES,
+    type: 'website',
+    title: TITLE,
+    description: DESCRIPTION,
+    url: '/products',
+  },
+  // 原来没写 twitter：会继承根 layout 那份全站标题/描述，与本页的 og 对不上
+  twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
+}
+
+/**
+ * 页面上的展示顺序：按分类分组（分类按首次出现的先后），组内按价格从低到高。
+ *
+ * 【ItemList 必须和页面看到的顺序一致】原来 ItemList 用的是库里的 sortOrder 顺序，
+ * 而列表模式实际是「分组 + 组内价格升序」——结构化数据里的第 1 名和页面上的第 1 行不是同一个商品。
+ * 现在服务端先排好，ItemList 与传给客户端组件的数组是同一个顺序；
+ * 客户端分组时保持这个顺序，组内再按（可能被专属价覆盖的）价格排一次，公开价下是原样。
+ * Array.prototype.sort 是稳定的，同价商品保持库里的先后，两边一致。
+ */
+function displayOrder<T extends { categoryName: string; price: number }>(rows: T[]): T[] {
+  const groups = new Map<string, T[]>()
+  rows.forEach((p) => {
+    const arr = groups.get(p.categoryName)
+    if (arr) arr.push(p)
+    else groups.set(p.categoryName, [p])
+  })
+  // 不 for...of 直接迭代 Map：tsconfig 没开 downlevelIteration
+  const out: T[] = []
+  groups.forEach((arr) => {
+    arr.slice().sort((a, b) => a.price - b.price).forEach((p) => out.push(p))
+  })
+  return out
+}
+
+/**
+ * 每个分类组对应的选购指南（充值落地页）。
+ *
+ * 【为什么在服务端算】匹配规则在 lib/landing/registry.ts，和落地页价格表同一套；
+ * 客户端组件只拿结果。一个分类可能对应多页（Claude 分类下有 Pro / Max / KYC 三页），
+ * 按注册表顺序去重列出。此前 /products 到 9 个落地页一条站内链接都没有（页头页脚除外）。
+ */
+function guidesByCategory(
+  products: { name: string; categoryName: string }[]
+): Record<string, CategoryGuide[]> {
+  const out: Record<string, CategoryGuide[]> = {}
+  products.forEach((p) => {
+    const list = out[p.categoryName] || (out[p.categoryName] = [])
+    LANDINGS.forEach((l) => {
+      if (!matchProducts([p], l.match).length) return
+      if (list.some((g) => g.href === landingPath(l.slug))) return
+      list.push({ href: landingPath(l.slug), label: l.navLabel })
+    })
+  })
+  // 保持注册表顺序，而不是商品遍历到的顺序
+  const order = LANDINGS.map((l) => landingPath(l.slug))
+  Object.keys(out).forEach((k) => out[k].sort((a, b) => order.indexOf(a.href) - order.indexOf(b.href)))
+  return out
 }
 
 export default async function ProductsPage() {
@@ -82,19 +149,21 @@ export default async function ProductsPage() {
   // 映射成客户端组件的形状。Decimal 必须在服务端转成 number：
   // Prisma 的 Decimal 不是可序列化的普通值，直接当 props 传会报
   //「Only plain objects can be passed to Client Components」
-  const products = rows.map((p) => ({
-    id: p.id,
-    categoryId: p.categoryId,
-    name: p.name,
-    description: p.description,
-    price: Number(p.price),
-    originalPrice: p.originalPrice == null ? null : Number(p.originalPrice),
-    image: p.image,
-    stock: p.stock,
-    sales: p.sales,
-    deliveryType: p.deliveryType ?? null,
-    categoryName: p.category?.name ?? '其他',
-  }))
+  const products = displayOrder(
+    rows.map((p) => ({
+      id: p.id,
+      categoryId: p.categoryId,
+      name: p.name,
+      description: p.description,
+      price: Number(p.price),
+      originalPrice: p.originalPrice == null ? null : Number(p.originalPrice),
+      image: p.image,
+      stock: p.stock,
+      sales: p.sales,
+      deliveryType: p.deliveryType ?? null,
+      categoryName: p.category?.name ?? '其他',
+    }))
+  )
 
   return (
     <>
@@ -102,7 +171,7 @@ export default async function ProductsPage() {
         data={[
           // 库不可达时 rows 是空数组，这时不要输出一个 numberOfItems:0 的空 ItemList——
           // 那等于主动告诉搜索引擎「这个列表页什么都没有」，比不输出更糟
-          ...(rows.length ? [productItemListJsonLd(rows, '/products')] : []),
+          ...(products.length ? [productItemListJsonLd(products, '/products')] : []),
           breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: '全部商品' }]),
         ]}
       />
@@ -112,7 +181,7 @@ export default async function ProductsPage() {
         <Breadcrumbs crumbs={[{ name: '首页', path: '/' }, { name: '全部商品' }]} />
       </div>
 
-      <ProductsClient products={products} />
+      <ProductsClient products={products} guides={guidesByCategory(products)} />
 
       {rows.length > 0 && (
         <section className="container relative pb-20">

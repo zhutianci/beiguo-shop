@@ -4,7 +4,8 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { pathGroup } from '@/lib/analytics/classify'
-
+
+import { adminGuard } from '@/lib/admin-guard'
 /**
  * 站级流量分析。数据源 = page_views + visitors（由 /api/track/view 采集）。
  *
@@ -194,6 +195,8 @@ async function loadPeriod(start: string, end: string) {
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const start = searchParams.get('start')?.trim() || ''

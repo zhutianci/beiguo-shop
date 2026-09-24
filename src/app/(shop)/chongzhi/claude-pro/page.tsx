@@ -22,7 +22,7 @@ import {
   SubSection,
   Warning,
 } from '@/components/landing/landing-ui'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * Claude Pro 充值落地页。
@@ -70,6 +70,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
+      ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: DEF.title,
@@ -139,9 +140,9 @@ export default async function ClaudeProLandingPage() {
   const all = await getLandingProducts()
   const items = matchProducts(all, DEF.match)
   // Max 档位不属于这一页，但「Pro 升 Max」那一节要给一个真实的去处，所以顺手捞出来。
-  const maxItems = all.filter(
-    (p) => p.categoryName === 'Claude' && p.name.toLowerCase().includes('max'),
-  )
+  // 直接用 Max 页的匹配规则（trim + 忽略大小写）：原来是精确比较 categoryName === 'Claude'，
+  // 后台分类名多一个空格，这两处入口就静默消失
+  const maxItems = matchProducts(all, findLanding('claude-max').match)
   const low = lowestPrice(items)
   const faqs = buildFaqs(low)
 

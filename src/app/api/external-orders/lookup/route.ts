@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { calcInvoiceAmounts } from '@/lib/invoice'
+import { shopOrderSourceKey } from '@/lib/order-invoice'
+import { invoicesByOrderIds, orderIdFromSourceKey } from '@/lib/order-link'
 
 const querySchema = z.object({
   email: z.string().email('请输入正确的邮箱'),
@@ -74,6 +76,38 @@ export async function GET(request: NextRequest) {
     const invoiceMap = new Map(invoices.map((iv) => [iv.externalOrderId, iv]))
     const receiptMap = new Map(receipts.map((r) => [r.externalOrderId, r]))
 
+    /*
+     * 【同一张站内订单的「另一条行」】管理员交付时导入的 WEB 行与买家申请时造的背书行（order:<id>）
+     * 指向同一笔货款。发票/收据可能开在另一条行上 —— 那样这一行不能再给「申请」入口
+     * （服务端 /api/invoices、/api/receipts 的跨行查重也会拒，这里只是不让按钮出现）。
+     * 另一条行上收据的令牌不在这里下发：那张收据可能是站内买家以自己的抬头开的，
+     * 凭账户邮箱匿名查询的人不该拿到它的链接。
+     */
+    const shopIds = Array.from(new Set(orders.map((o) => o.shopOrderId).filter((v): v is number => v != null)))
+    const siblingInvoices = shopIds.length ? await invoicesByOrderIds(shopIds) : new Map()
+    const siblingReceiptOrderIds = new Set<number>()
+    if (shopIds.length) {
+      const sibExts = await prisma.externalOrder.findMany({
+        where: { OR: [{ shopOrderId: { in: shopIds } }, { sourceKey: { in: shopIds.map(shopOrderSourceKey) } }] },
+        select: { id: true, shopOrderId: true, sourceKey: true },
+      })
+      const extToShop = new Map<number, number>()
+      sibExts.forEach((e) => {
+        const sid = e.shopOrderId ?? orderIdFromSourceKey(e.sourceKey)
+        if (sid) extToShop.set(e.id, sid)
+      })
+      const sibRecs = extToShop.size
+        ? await prisma.receipt.findMany({
+            where: { externalOrderId: { in: Array.from(extToShop.keys()) }, source: 'BUYER' },
+            select: { externalOrderId: true },
+          })
+        : []
+      sibRecs.forEach((r) => {
+        const sid = r.externalOrderId != null ? extToShop.get(r.externalOrderId) : undefined
+        if (sid) siblingReceiptOrderIds.add(sid)
+      })
+    }
+
     const list = orders.map((o) => {
       const price = o.quote == null ? null : Number(o.quote)
       const existing = invoiceMap.get(o.id)
@@ -84,8 +118,23 @@ export async function GET(request: NextRequest) {
       let invoiceAmount: number | null = null
       let taxFee: number | null = null
 
+      // 另一条行上已提交 / 已开具 / 不可开据 / 已付税费的发票（本行自己的发票仍以本行为准）
+      const sibling =
+        !existing && o.shopOrderId != null
+          ? ((siblingInvoices.get(o.shopOrderId) || []) as { externalOrderId: number | null; status: string; payStatus: string; orphan?: boolean }[]).find(
+              (iv) =>
+                iv.externalOrderId !== o.id &&
+                (iv.payStatus === 'PAID' || iv.status === 'SUBMITTED' || iv.status === 'ISSUED' || iv.status === 'CANNOT')
+            )
+          : undefined
       if (price == null) {
         invoiceStatus = existing ? existing.status : 'CANNOT' // 无报价 → 暂不可开据
+      } else if (sibling) {
+        sellingPrice = price
+        const amt = calcInvoiceAmounts(price)
+        invoiceAmount = amt.invoiceAmount
+        taxFee = amt.taxFee
+        invoiceStatus = sibling.status === 'AWAIT_PAY' ? 'SUBMITTED' : sibling.status
       } else {
         sellingPrice = price
         const amt = calcInvoiceAmounts(price)
@@ -100,20 +149,23 @@ export async function GET(request: NextRequest) {
       const { quote: _quote, ...rest } = o
       // 收据金额：买家已付发票税费(payStatus=PAID) → 含税开票金额；否则售价。
       // 须与 submitReceiptForExternalOrder 中的服务端计费口径保持一致。
+      const siblingPaid = !!sibling && sibling.payStatus === 'PAID'
       const receiptAmount =
-        (existing?.payStatus === 'PAID' || prepaid) && invoiceAmount != null
+        (existing?.payStatus === 'PAID' || prepaid || siblingPaid) && invoiceAmount != null
           ? invoiceAmount
           : sellingPrice
+      const siblingReceipt = !receipt && o.shopOrderId != null && siblingReceiptOrderIds.has(o.shopOrderId)
       return {
         ...rest,
-        canInvoice: price != null && invoiceStatus !== 'CANNOT' && !prepaid,
+        canInvoice: price != null && invoiceStatus !== 'CANNOT' && !prepaid && !sibling,
         sellingPrice,
         invoiceAmount,
         taxFee,
         receiptAmount,
         invoiceStatus,
         invoiceId: existing?.id ?? null,
-        canReceipt: price != null,
+        // 另一条行上已开过收据：同一笔付款只开一张，不再给入口
+        canReceipt: price != null && !siblingReceipt,
         receiptToken: receipt?.token ?? null,
       }
     })

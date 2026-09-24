@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
+import { requireAdmin } from '@/lib/auth'
+import { referralOrderIdOf } from '@/lib/balance'
 
 // 每个区块自带分页，避免大户一次拉爆
 function readPager(sp: URLSearchParams, pageKey: string, sizeKey: string, defSize = 10) {
@@ -20,6 +22,13 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // 中间件之外再验一次（CVE-2025-29927：带特定请求头可整个跳过 middleware）
+  try {
+    await requireAdmin()
+  } catch {
+    return error('无管理员权限', 403)
+  }
+
   try {
     const { id } = await params
     const userId = parseInt(id)
@@ -105,9 +114,11 @@ export async function GET(
           balanceAfter: true,
           type: true,
           note: true,
+          orderId: true,
           createdAt: true,
         },
-        orderBy: { createdAt: 'desc' },
+        // id 兜底：同一秒写入的多条流水只按 createdAt 排序时顺序不稳定，翻页会重复/漏行
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: balancePager.skip,
         take: balancePager.take,
       }),
@@ -148,7 +159,7 @@ export async function GET(
     })
 
     return success({
-      user,
+      user: { ...user, balance: num(user.balance) },
       stats: {
         orderCount: orderTotal,
         paidOrderCount: paidCount,
@@ -159,7 +170,7 @@ export async function GET(
         boundAccountCount: boundAccounts.length,
       },
       orders: {
-        list: orders,
+        list: orders.map((o) => ({ ...o, amount: num(o.amount) })),
         ...pageInfo(orderTotal, orderPager),
       },
       payments: {
@@ -168,14 +179,23 @@ export async function GET(
           tradeNo: p.tradeNo,
           orderNo: p.order?.orderNo ?? null,
           payMethod: p.payMethod,
-          amount: p.amount,
+          amount: num(p.amount),
           status: p.status,
           createdAt: p.createdAt,
         })),
         ...pageInfo(payTotal, payPager),
       },
       balanceLogs: {
-        list: balanceLogs,
+        // orderId：REFERRAL 流水对应的站内订单（新流水读列，历史流水从 note 解析），前端据此展示「关联订单」
+        list: balanceLogs.map((b) => ({
+          id: b.id,
+          delta: num(b.delta),
+          balanceAfter: num(b.balanceAfter),
+          type: b.type,
+          note: b.note,
+          createdAt: b.createdAt,
+          orderId: referralOrderIdOf(b),
+        })),
         ...pageInfo(balanceTotal, balancePager),
       },
       boundAccounts,

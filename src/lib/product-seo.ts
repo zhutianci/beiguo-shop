@@ -29,6 +29,18 @@ export interface SeoProduct {
   stock: number
   image?: string | null
   categoryName?: string | null
+  /**
+   * 交付方式（AUTO / SMS / MANUAL）。描述模板按它选口径——
+   * 原来对全部商品一律写「卡密自助兑换」，而接码（SMS）与人工（MANUAL）商品根本不发卡密，
+   * 这句假话同时出现在 meta description 和 Product JSON-LD 里。
+   */
+  deliveryType?: string | null
+  /**
+   * 自动发货里「发的是账号信息」的商品（谷歌成品号、普号）：没有卡密可兑换，
+   * 描述模板不能写「卡密自助兑换」。由调用方用 lib/product-intro.ts 的 isAccountProduct 算好传进来
+   * （本文件保持纯函数，不去 import 落地页规则）
+   */
+  accountLike?: boolean
 }
 
 /** 站点名。与 layout.tsx 的标题后缀保持一致 */
@@ -71,8 +83,14 @@ const MIN_USEFUL_DESC = 40
  *   · 简介够长 → 直接用（作者写的肯定比模板贴切）
  *   · 简介太短 → 用它当开头，后面补上价格与这个站真正的卖点
  *   · 完全没有 → 纯模板
- * 卖点部分只写能兑现的：卡密自助兑换、支付宝、可开票且标价不含税。
+ * 卖点部分只写能兑现的，而且**按交付方式分口径**（见 deliveryPitch）：
+ * 支付宝、可开票且标价不含税是全站通用的；「卡密自助兑换」只对 AUTO 成立。
  * 不写「最快 X 分钟」这类做不到的承诺（站上其他地方已经因此清理过一轮）。
+ *
+ * 【两处拼接细节】
+ *   · 简介自己带了句末标点（「…无关。」）时先剥掉再补「。」，否则就是线上那种「…无关。。」
+ *   · 简介整句已经包含在商品名里（商品 16：名「Claude pro 自助充值 | …」、简介「自助充值」）
+ *     就不再重复一遍——百度摘要只有七八十个字，不该花在同一个词上两次。
  */
 export function productDescription(p: SeoProduct): string {
   const desc = (p.description || '').replace(/\s+/g, ' ').trim()
@@ -81,9 +99,35 @@ export function productDescription(p: SeoProduct): string {
   if (desc.length >= MIN_USEFUL_DESC) return clip(desc)
 
   const price = Number.isFinite(p.price) ? `￥${p.price.toFixed(2)}` : ''
-  const head = [p.name, price].filter(Boolean).join(' ')
-  const lead = desc ? `${head}：${desc}。` : `${head}。`
-  return clip(`${lead}${SITE_NAME}卡密自助兑换，无需信用卡，支付宝付款；可开增值税发票（标价不含税，税费另付）。`)
+  const head = [p.name.trim(), price].filter(Boolean).join(' ')
+  const body = desc.replace(/[\s。．.!！？?；;，,、]+$/, '')
+  const redundant = !body || p.name.toLowerCase().includes(body.toLowerCase())
+  const lead = redundant ? `${head}。` : `${head}：${body}。`
+  return clip(`${lead}${deliveryPitch(p.deliveryType, !!p.accountLike)}`)
+}
+
+/**
+ * 描述模板后半句。事实来源：lib/vmq.ts fulfillOrder（AUTO 发卡、SMS 付款后 acquireForOrder 自动取号、
+ * 其余置为处理中等人工）、收银台只有支付宝、lib/invoice.ts TAX_RATE（标价不含税）。
+ * 不认识的交付方式（老调用方没传）走中性口径，不替它声称任何交付形式。
+ */
+function deliveryPitch(t: string | null | undefined, accountLike = false): string {
+  const tail = '支付宝付款，可开增值税发票（标价不含税，税费另付）。'
+  if (t === 'AUTO' && accountLike) return `付款后自动发放账号信息，无需信用卡，${tail}`
+  if (t === 'AUTO') return `${SITE_NAME}卡密自助兑换，无需信用卡，${tail}`
+  if (t === 'SMS') return `付款后系统自动取号接码，不发卡密；${tail}`
+  if (t === 'MANUAL') return `人工服务，付款后由客服对接完成，不发卡密；${tail}`
+  return `${SITE_NAME}：无需信用卡，${tail}`
+}
+
+/**
+ * 图片转绝对地址。后台可以直接贴一个 https:// 的图片地址，
+ * absUrl 不分青红皂白地加站点前缀，会拼出「https://bigolab.com/https://…」这种坏地址。
+ */
+function absImage(src: string): string {
+  if (/^https?:\/\//i.test(src)) return src
+  if (src.startsWith('//')) return `https:${src}`
+  return absUrl(src)
 }
 
 /**
@@ -119,7 +163,7 @@ export function productJsonLd(p: SeoProduct): Record<string, unknown> {
     description: productDescription(p),
     url,
     // 没有商品图时退回站标，总比缺字段强（缺 image 会丢富摘要资格）
-    image: absUrl(p.image || SITE_LOGO),
+    image: absImage(p.image || SITE_LOGO),
     sku: String(p.id),
     brand: { '@type': 'Brand', name: SITE_NAME },
     offers: offer,

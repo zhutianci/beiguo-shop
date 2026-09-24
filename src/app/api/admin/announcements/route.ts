@@ -4,8 +4,11 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { announcementSchema, parseAnnouncementDate as parseDate } from '@/lib/announcement'
+import { adminGuard } from '@/lib/admin-guard'
 
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
@@ -28,6 +31,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = announcementSchema.safeParse(body)

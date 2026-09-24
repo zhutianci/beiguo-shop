@@ -5,6 +5,8 @@ import { z } from 'zod'
 import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
+import { shopOrderSourceKey } from '@/lib/order-invoice'
 
 const updateSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '开通时间格式错误'),
@@ -25,6 +27,8 @@ function hashKey(claudeAccount: string, startDate: string, subscriptionType: str
 }
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -75,10 +79,30 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
-    await prisma.externalOrder.delete({ where: { id } })
+    /*
+     * 【删之前先把「这张发票属于哪张站内订单」写进发票的 sourceKey 快照】
+     * 发票与外部订单行之间没有外键，行删掉后发票上只剩 sourceKey 快照这一根线索；
+     * 而管理员「标记已完成」导入的 WEB 行 sourceKey 是 hashKey(...)，里面没有订单号 ——
+     * 删掉之后，那张（买家可能已付过 6% 的）发票就再也关联不回订单，订单页又会出现「申请发票」。
+     * 快照只经 lib/order-link 的 orderIdFromSourceKey 读，改写成 order:<id> 是安全的。
+     */
+    const row = await prisma.externalOrder.findUnique({ where: { id }, select: { shopOrderId: true } })
+    await prisma.$transaction([
+      ...(row?.shopOrderId
+        ? [
+            prisma.invoice.updateMany({
+              where: { externalOrderId: id },
+              data: { sourceKey: shopOrderSourceKey(row.shopOrderId) },
+            }),
+          ]
+        : []),
+      prisma.externalOrder.delete({ where: { id } }),
+    ])
     return success({ id }, '已删除')
   } catch (err) {
     console.error('Delete external order error:', err)

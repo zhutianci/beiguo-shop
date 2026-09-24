@@ -8,6 +8,7 @@ import { success, error } from '@/lib/api'
 import { syncAutoStock } from '@/lib/cardkey'
 import { hasProvider } from '@/lib/redeem/registry'
 import { round2 } from '@/lib/money'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 卡密批量操作。
 // 规则一律在服务端强制（前端隐藏按钮只是提示，不能当作约束）：
@@ -42,6 +43,8 @@ function dec(n: number): Prisma.Decimal {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = batchSchema.safeParse(body)

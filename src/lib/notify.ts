@@ -29,6 +29,7 @@ export type NotifyEvent =
   | 'user.registered'
   | 'link.applied'
   | 'cardkey.exported'
+  | 'lottery.won'
 
 const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.created': { emoji: '🛒', title: '新订单' },
@@ -44,6 +45,7 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'user.registered': { emoji: '👤', title: '新用户注册' },
   'link.applied': { emoji: '🤝', title: '新的友链申请' },
   'cardkey.exported': { emoji: '🔐', title: '卡密被导出' },
+  'lottery.won': { emoji: '🧧', title: '下单有奖·有人中奖' },
 }
 
 function webhookUrl(): string {
@@ -489,4 +491,71 @@ export function notifyCardKeyExported(p: {
     rows.push({ label: '异常', value: `${p.undecryptable} 张无法解密`, color: 'warning' as const })
   }
   notify('cardkey.exported', rows, { link: '/admin/cardkeys', linkText: '查看卡密管理' })
+}
+
+/**
+ * 下单有奖中奖通知。
+ *
+ * 券奖项中奖即自动发到买家「我的优惠券」，这条推送只是知会；
+ * **自定义奖品**需要人工兑现（后台「抽奖管理」里标记已兑现），不推送就没人知道有人在等奖。
+ * 注意：生产若配置了 NOTIFY_EVENTS 白名单，需把 lottery.won 加进去才会推送。
+ */
+export function notifyLotteryWon(p: { orderNo: string; prizeName: string; prizeLabel: string; prizeType: string }): void {
+  const custom = p.prizeType === 'CUSTOM'
+  notify(
+    'lottery.won',
+    [
+      { label: '订单号', value: p.orderNo },
+      { label: '奖项', value: plainify(p.prizeName, 60), color: 'warning' },
+      { label: '内容', value: plainify(p.prizeLabel, 120) },
+      {
+        label: '处理',
+        value: custom ? '自定义奖品，需人工兑现后在后台标记' : '优惠券已自动发放到买家账户',
+        color: custom ? 'warning' : 'comment',
+      },
+      { label: '时间', value: fmtTime(new Date()) },
+    ],
+    { link: '/admin/lottery', linkText: '查看抽奖管理', extraTitle: p.prizeName }
+  )
+}
+
+/**
+ * 站外客户通过「开票填写链接」提交了开票信息（lib/invoice-request.ts）。
+ *
+ * 【为什么这里要推，而 notifyInvoiceReady 的注释说「买家提交申请时不推」】那条规矩防的是
+ * 「税费还没付、申请不一定成立」的噪音。这条路不一样：金额是管理员自己定的、钱是线下收过的，
+ * 客户一提交，发票就以 SUBMITTED + PAID 直接进了待开清单 —— 这一刻就是「可以开票了」。
+ *
+ * 抬头、税号、邮箱全是陌生人在公开页面上敲的，企业微信按 markdown 渲染，一律先洗掉语法字符
+ * （理由见 plainify 的注释）。邮箱用 plainUrl：zod 已经校验过邮箱格式、里面不可能有链接语法，
+ * 而 plainify 会把常见的下划线（john_doe@…）抹成空格，管理员照着抄就抄错了。
+ * 注意：生产若配置了 NOTIFY_EVENTS 白名单，需包含 invoice.submitted 才会推送。
+ */
+export function notifyInvoiceRequestSubmitted(p: {
+  invoiceNo: string
+  title: string
+  taxNumber: string
+  invoiceAmount: unknown
+  showAiWording: boolean
+  email: string
+}): void {
+  notify(
+    'invoice.submitted',
+    [
+      { label: '发票号', value: p.invoiceNo },
+      { label: '来源', value: '开票填写链接（站外客户自助填写）' },
+      { label: '抬头', value: plainify(p.title, 100) },
+      { label: '税号', value: plainify(p.taxNumber, 64) },
+      {
+        label: '展示 ChatGPT/Claude 字眼',
+        value: p.showAiWording ? '展示' : '不展示（只开「技术咨询服务」）',
+        color: p.showAiWording ? undefined : 'warning',
+      },
+      { label: '开票金额（含税）', value: money(p.invoiceAmount), color: 'warning' },
+      { label: '接收邮箱', value: plainUrl(p.email, 120) },
+      { label: '提交时间', value: fmtTime(new Date()) },
+      { label: '状态', value: '已进入待开清单，可随批量导出一起开具', color: 'info' },
+    ],
+    { link: '/admin/invoices', linkText: '前往发票管理', extraTitle: '开票填写链接' }
+  )
 }

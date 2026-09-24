@@ -3,9 +3,12 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 内推总览：推广人列表（链接/收益）+ 返现明细（明细分页，合计走 aggregate/count）
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bigolab.com'
 

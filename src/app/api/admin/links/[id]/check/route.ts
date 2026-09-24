@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { checkBacklink } from '@/lib/friend-link'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 回链巡检：去对方站点上找本站的链接，把结论记到这条友链上。
@@ -18,6 +19,8 @@ import { checkBacklink } from '@/lib/friend-link'
  * 后台的「一键巡检」在浏览器里串行调这个接口，进度看得见，中途还能停。
  */
 export async function POST(_request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

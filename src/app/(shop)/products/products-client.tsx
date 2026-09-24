@@ -44,11 +44,25 @@ export interface ListProduct {
   categoryName: string
 }
 
+/** 分类组旁边的「选购指南」链接（充值落地页），由 page.tsx 在服务端按注册表规则算好 */
+export interface CategoryGuide {
+  href: string
+  label: string
+}
+
 type ViewMode = 'list' | 'card'
 const VIEW_KEY = 'bg_products_view'
 const ALL = 0
 
-export default function ProductsClient({ products }: { products: ListProduct[] }) {
+export default function ProductsClient({
+  products,
+  guides = {},
+}: {
+  /** 已经按页面展示顺序排好（分组 + 组内价格升序），与 ItemList 结构化数据同序 */
+  products: ListProduct[]
+  /** 分类名 → 该分类对应的落地页 */
+  guides?: Record<string, CategoryGuide[]>
+}) {
   const [mode, setMode] = useState<ViewMode>('list')
   const [category, setCategory] = useState<number>(ALL)
   const [contactOpen, setContactOpen] = useState(false)
@@ -148,8 +162,9 @@ export default function ProductsClient({ products }: { products: ListProduct[] }
           </h1>
           {/* 原来这里写的是「专业团队，正规渠道，快速开通，售后无忧」——四句都无从核验。
               换成买家真正要确认的三件事，每一条页面上都兑现得了 */}
+          {/* 「卡密自助兑换」只对充值类成立：接码是付款后自动取号、KYC 是人工对接、账号类发的是账号本身 */}
           <p className="text-white/50 text-base lg:text-lg max-w-2xl mx-auto leading-relaxed">
-            卡密自助兑换，账号不经手；支付宝付款，无需境外支付方式；
+            充值类卡密自助兑换，账号不经手；仅支持支付宝，无需境外支付方式；
             <br className="hidden sm:block" />
             标价均为不含税价，需要增值税发票的另付 6% 税费。
           </p>
@@ -203,11 +218,25 @@ export default function ProductsClient({ products }: { products: ListProduct[] }
           <div className="mx-auto max-w-5xl space-y-10">
             {grouped.map(([cat, items]) => (
               <section key={cat} aria-labelledby={`cat-${cat}`}>
-                <div className="mb-3 flex items-baseline gap-3">
+                <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                   <h2 id={`cat-${cat}`} className="text-lg lg:text-xl font-semibold text-white/90">
                     {cat}
                   </h2>
                   <span className="text-xs text-white/30">{items.length} 款 · 按价格从低到高</span>
+                  {/* 每组挂上对应的充值落地页：价格表之外，档位怎么选、兑换前要核对什么都在那几页 */}
+                  {(guides[cat] || []).length > 0 && (
+                    <span className="text-xs text-white/40 sm:ml-auto">
+                      选购指南：
+                      {(guides[cat] || []).map((g, i) => (
+                        <span key={g.href}>
+                          {i > 0 && <span className="text-white/20"> · </span>}
+                          <Link href={g.href} className="text-purple-400 hover:text-purple-300">
+                            {g.label}
+                          </Link>
+                        </span>
+                      ))}
+                    </span>
+                  )}
                 </div>
                 <div className="overflow-hidden rounded-2xl border border-white/10 divide-y divide-white/[0.06]">
                   {items.map((p) => (

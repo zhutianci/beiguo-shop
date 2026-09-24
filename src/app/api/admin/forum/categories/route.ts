@@ -4,8 +4,11 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 export async function GET() {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const categories = await prisma.forumCategory.findMany({
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
@@ -40,6 +43,8 @@ const createSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = createSchema.safeParse(body)

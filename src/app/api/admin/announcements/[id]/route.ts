@@ -4,9 +4,12 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { announcementSchema, parseAnnouncementDate as parseDate } from '@/lib/announcement'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 同目录 route.ts 用的是旧式 params 签名，这里保持一致
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('公告无效')
@@ -45,6 +48,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('公告无效')

@@ -8,6 +8,7 @@ import { eventSlug } from '@/lib/news/feed'
 import { computeScore } from '@/lib/news/score'
 import { recomputeEventAggregates } from '@/lib/news/pipeline'
 import { EVENT_STATUS } from '@/lib/news/constants'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 聚类判错时的补救（SKILL.md §9）。两种操作共用这个入口：
@@ -75,6 +76,8 @@ async function rescore(id: number): Promise<void> {
 }
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const eventId = parseInt(params.id)
     if (!eventId) return error('事件无效')

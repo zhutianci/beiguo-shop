@@ -11,10 +11,13 @@ import {
   isSameUtcDate,
   resolveContact,
 } from '@/lib/reminder'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 后台：即将到期（默认 7 日内）订单列表 + 联系人 + 提醒状态 + 服务配置状态
 // 「已过期=全部」时时间窗等于全表，因此必须分页 + 用 count 统计，不能把订单全读进内存
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const days = Math.min(parseInt(searchParams.get('days') || String(REMIND_WITHIN_DAYS)), 60)

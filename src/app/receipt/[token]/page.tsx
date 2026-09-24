@@ -15,6 +15,9 @@ interface Receipt {
   payee: string
   claudeAccount: string | null
   subscriptionType: string | null
+  /** 「项目」一栏的文案（服务端按 showAiWording 算好）；null = 不印这一行。旧接口没有这个字段 */
+  project?: string | null
+  showAiWording?: boolean | null
   orderStartDate: string | null
   orderExpireDate: string | null
   items: ReceiptItem[]
@@ -53,6 +56,11 @@ export default function ReceiptPage() {
   if (state === 'notfound' || !r)
     return <div className="min-h-screen flex items-center justify-center text-gray-500">收据不存在或已被删除</div>
 
+  // 「项目」一栏以服务端给的 project 为准（它知道买家选没选展示字眼）；
+  // 字段缺席（接口还是旧版本）时退回原来的拼法，保证不会凭空少一行
+  const project =
+    r.project !== undefined ? r.project : r.subscriptionType ? `${r.subscriptionType} 会员订阅` : null
+
   return (
     <div className="min-h-screen bg-gray-100 py-8 px-4 print:bg-white print:py-0">
       {/* 操作栏（打印时隐藏） */}
@@ -84,7 +92,7 @@ export default function ReceiptPage() {
             <Row label="付款人" value={r.payerTitle} />
             <Row label="收款人" value={r.payee} />
             {r.claudeAccount && <Row label="账户" value={r.claudeAccount} mono />}
-            {r.subscriptionType && <Row label="项目" value={`${r.subscriptionType} 会员订阅`} />}
+            {project && <Row label="项目" value={project} />}
             {r.orderStartDate && <Row label="会员开通日期" value={fmtDate(r.orderStartDate)} />}
             {r.orderExpireDate && <Row label="会员到期日期" value={fmtDate(r.orderExpireDate)} />}
             {/* 手动开具的自定义条目，按管理员拖动排定的顺序渲染 */}

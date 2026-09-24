@@ -3,12 +3,19 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
+import { requireAdmin } from '@/lib/auth'
 import { fulfillOrder } from '@/lib/vmq'
 
 // 补发卡密：自动发货订单在付款时若库存不足会停在 PROCESSING（remark 标注「待人工补发」），
 // 补货之后需要一个入口把缺口补齐。原先只能绕到「收款监控 → 补单」，这里给订单页一个直接入口。
 // fulfillOrder 幂等：只补该订单「尚缺」的张数，不会重复记账、不会超发。
 export async function PUT(_request: NextRequest, { params }: { params: { id: string } }) {
+  // 路由内再验一次管理员（CVE-2025-29927，见交接文档第二十三节）：补发会从卡池里领卡
+  try {
+    await requireAdmin()
+  } catch {
+    return error('无管理员权限', 403)
+  }
   try {
     const id = parseInt(params.id)
     if (!id) return error('订单无效')
@@ -20,6 +27,9 @@ export async function PUT(_request: NextRequest, { params }: { params: { id: str
     if (!order) return notFound('订单不存在')
     if (order.product.deliveryType !== 'AUTO') return error('该订单不是自动发货商品')
     if (order.payStatus !== 'PAID') return error('订单尚未支付，无法补发')
+    // fulfillOrder 对「已付款但已取消」的订单不再发卡（那通常是线下退了款），
+    // 不拦的话这里会返回一句误导人的「已补发 0 张，仍缺 N 张（库存不足）」
+    if (order.deliveryStatus === 'CANCELLED') return error('订单已取消，请先把订单状态改回「处理中」再补发')
 
     const before = await prisma.cardKey.count({ where: { orderId: id, status: 'USED' } })
     await fulfillOrder(id)

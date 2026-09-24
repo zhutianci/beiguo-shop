@@ -68,28 +68,49 @@ export async function closeExpired(): Promise<number> {
     return 0
   }
 
-  const orderBizIds = expired.filter((e) => e.bizType === 'order').map((e) => e.bizId)
+  /*
+   * 【逐条 CAS，只处理真的由本次翻成 -1 的那几条】
+   * 原来是一条 updateMany 按 id 列表无条件写 -1。上面 findMany 与这里之间若恰好到账
+   * （markPaidVmqOrder 已把某条 0→1），那条会被覆盖成 -1，它的订单（那一刻还没来得及
+   * 翻成 PAID）被取消、券被放回；随后 fulfillOrder 照样把订单翻成 PAID ——
+   * 结果是「已支付 + 已取消」的订单，券还能再用一次。
+   * 现在条件带 state:0，没翻成功（已被到账抢先）的那条什么都不做：不删锁（到账那边自己删）、
+   * 不取消订单、不释放券。
+   *
+   * 每条一个小事务：翻状态、删金额锁、取消订单三件事同进同退。某一条失败只记日志、
+   * 下一分钟重试，不连累其它条 —— 金额锁卡住影响所有人（见下方释放券的注释）。
+   */
+  let closed = 0
+  for (const e of expired) {
+    try {
+      const outcome = await prisma.$transaction(async (tx) => {
+        const flip = await tx.vmqOrder.updateMany({ where: { id: e.id, state: 0 }, data: { state: -1 } })
+        if (flip.count !== 1) return { flipped: false, releaseCoupon: false }
+        await tx.vmqLock.deleteMany({ where: { orderId: e.orderId } })
+        if (e.bizType !== 'order') return { flipped: true, releaseCoupon: false }
+        // 商品订单：仅取消仍未支付的，避免误伤已付款订单
+        await tx.order.updateMany({
+          where: { id: e.bizId, payStatus: 'UNPAID', deliveryStatus: { in: ['PENDING', 'PROCESSING'] } },
+          data: { deliveryStatus: 'CANCELLED' },
+        })
+        // 只有订单确实没付款才放券。已付款的单（例如后台手工标了已支付、核销那步又失败了）
+        // 券若还是 LOCKED，交给 sweepStuckCoupons 按「已付款 → 补核销」自愈，不能在这里放回可用
+        const o = await tx.order.findUnique({ where: { id: e.bizId }, select: { payStatus: true } })
+        return { flipped: true, releaseCoupon: o?.payStatus === 'UNPAID' }
+      })
+      if (!outcome.flipped) continue
+      closed++
 
-  await prisma.$transaction([
-    prisma.vmqOrder.updateMany({ where: { id: { in: expired.map((e) => e.id) } }, data: { state: -1 } }),
-    prisma.vmqLock.deleteMany({ where: { orderId: { in: expired.map((e) => e.orderId) } } }),
-    // 商品订单：仅取消仍未支付的，避免误伤已付款订单
-    ...(orderBizIds.length
-      ? [
-          prisma.order.updateMany({
-            where: { id: { in: orderBizIds }, payStatus: 'UNPAID', deliveryStatus: { in: ['PENDING', 'PROCESSING'] } },
-            data: { deliveryStatus: 'CANCELLED' },
-          }),
-        ]
-      : []),
-  ])
-
-  // 订单超时取消 → 把它占用的券放回去。
-  // 放在事务之后单独做：券释放失败不该让「关闭过期收款单」这件事整个回滚，
-  // 那会导致金额锁一直占着、后面的订单分配不到金额。券卡住只影响一个买家，
-  // 金额锁卡住影响所有人 —— 两害相权。
-  for (const id of orderBizIds) {
-    await releaseCouponForOrder(id).catch((e) => console.error('[coupon] 超时释放失败', id, e))
+      // 订单超时取消 → 把它占用的券放回去。
+      // 放在事务之后单独做：券释放失败不该让「关闭过期收款单」这件事整个回滚，
+      // 那会导致金额锁一直占着、后面的订单分配不到金额。券卡住只影响一个买家，
+      // 金额锁卡住影响所有人 —— 两害相权。
+      if (outcome.releaseCoupon) {
+        await releaseCouponForOrder(e.bizId).catch((err) => console.error('[coupon] 超时释放失败', e.bizId, err))
+      }
+    } catch (err) {
+      console.error('[vmq] 关闭过期收款单失败（下一轮重试）', e.orderId, err)
+    }
   }
 
   // 兜底清扫卡死的券。放在这里是因为这个函数已经由 cron 每分钟调用，
@@ -98,7 +119,8 @@ export async function closeExpired(): Promise<number> {
   // 靠上面那个循环永远够不着的券
   await sweepStuckCoupons().catch((e) => console.error('[coupon] 兜底清扫失败', e))
 
-  return expired.length
+  // 真正由本次关掉的条数（被到账抢先的不算）
+  return closed
 }
 
 // ---- 分配唯一金额并加锁 ----
@@ -194,7 +216,8 @@ export async function createOrGetVmqOrder(params: {
   }
 }
 
-// 作废某业务单已存在的「待支付」收款单（如改价后，强制下次按新价重建）
+// 作废某业务单已存在的「待支付」收款单（如改价后，强制下次按新价重建）。
+// 后台取消 / 退款订单时也会调它，让买家还开着的收银台再也匹配不上到账。
 export async function invalidatePendingVmq(bizType: 'order' | 'invoice', bizId: number): Promise<number> {
   const pendings = await prisma.vmqOrder.findMany({
     where: { bizType, bizId, state: 0 },
@@ -202,7 +225,9 @@ export async function invalidatePendingVmq(bizType: 'order' | 'invoice', bizId: 
   })
   if (pendings.length === 0) return 0
   await prisma.$transaction([
-    prisma.vmqOrder.updateMany({ where: { id: { in: pendings.map((p) => p.id) } }, data: { state: -1 } }),
+    // 条件带 state:0：查完到这里之间恰好到账（已翻成 1）的那条不能被改写成「已过期」，
+    // 否则收款单列表上一笔真实到账会显示成过期，对账时对不上（与 closeExpired 同一个坑）
+    prisma.vmqOrder.updateMany({ where: { id: { in: pendings.map((p) => p.id) }, state: 0 }, data: { state: -1 } }),
     prisma.vmqLock.deleteMany({ where: { orderId: { in: pendings.map((p) => p.orderId) } } }),
   ])
   return pendings.length
@@ -230,7 +255,8 @@ export async function updatePendingVmqAmount(
   // 极端并发兜底：同业务存在多张待支付单时，只保留最新一张，其余作废
   if (stale.length) {
     await prisma.$transaction([
-      prisma.vmqOrder.updateMany({ where: { id: { in: stale.map((p) => p.id) } }, data: { state: -1 } }),
+      // 同 closeExpired：条件里带 state:0，查出来之后才到账的那一张不能被覆盖成「已过期」
+      prisma.vmqOrder.updateMany({ where: { id: { in: stale.map((p) => p.id) }, state: 0 }, data: { state: -1 } }),
       prisma.vmqLock.deleteMany({ where: { orderId: { in: stale.map((p) => p.orderId) } } }),
     ])
   }
@@ -284,13 +310,37 @@ export async function markPaidByAmount(price: string, type: number): Promise<boo
     return false
   }
 
-  await markPaidVmqOrder(target.id, target.bizType, target.bizId, target.orderId)
+  const settled = await markPaidVmqOrder(target.id, target.bizType, target.bizId, target.orderId)
+  if (!settled) {
+    /*
+     * 【到账了、但这张收款单在匹配的一瞬间被关掉了】findMany 时它还是待支付，
+     * 翻转时已被超时清理（closeExpired）或后台取消/改价作废成 -1。钱是真收到了，
+     * 而这一单已经取消、券可能已放回 —— 不能自动替它履约（同金额可能已分配给新订单）。
+     * 原来这里照样打「匹配成功」的日志并返回 true，这笔钱就在所有地方都看不见了。
+     * 现在记进 vmq_lastunmatched（后台「收款监控」会琥珀色高亮），由管理员核实后手动补单。
+     */
+    console.warn(`[vmq] 到账 ${price} 匹配到的收款单 ${target.orderId} 已在同一时刻被关闭，转人工核实`)
+    await setSetting(
+      'vmq_lastunmatched',
+      JSON.stringify({
+        price,
+        type,
+        cents,
+        reason: 'closed_while_matching',
+        vmqOrderId: target.orderId,
+        biz: `${target.bizType}#${target.bizId}`,
+        at: Date.now(),
+      })
+    )
+    return false
+  }
   console.log(`[vmq] 到账匹配成功 ${price} -> ${target.bizType}#${target.bizId} (orderId=${target.orderId})`)
   return true
 }
 
-// 标记某条 vmq 订单已支付并履约（金额匹配 / 后台补单共用）
-async function markPaidVmqOrder(id: number, bizType: string, bizId: number, orderId: string) {
+// 标记某条 vmq 订单已支付并履约（金额匹配 / 后台补单共用）。
+// 返回 false = 这笔到账没能记到这张收款单上（它在翻转前已被关闭成 -1），调用方要转人工
+async function markPaidVmqOrder(id: number, bizType: string, bizId: number, orderId: string): Promise<boolean> {
   // 原子翻转：state 0→1。并发下（同一笔到账被重复推送）只有一次能成功，
   // 其余 count===0 直接跳过履约，从入口处就避免重复发货。
   const flip = await prisma.vmqOrder.updateMany({
@@ -298,7 +348,12 @@ async function markPaidVmqOrder(id: number, bizType: string, bizId: number, orde
     data: { state: 1, payDate: new Date() },
   })
   await prisma.vmqLock.deleteMany({ where: { orderId } })
-  if (flip.count !== 1) return // 已被并发的另一次到账处理，跳过
+  if (flip.count !== 1) {
+    // 没抢到有两种情况，必须分开：同一笔到账被重复推送（已经是 1，正常，算匹配成功）；
+    // 或者它刚被关闭成 -1（这笔钱没有着落，返回 false 让调用方转人工）
+    const now = await prisma.vmqOrder.findUnique({ where: { id }, select: { state: true } })
+    return now?.state === 1
+  }
   try {
     if (bizType === 'order') await fulfillOrder(bizId)
     else if (bizType === 'invoice') await fulfillInvoice(bizId)
@@ -306,6 +361,7 @@ async function markPaidVmqOrder(id: number, bizType: string, bizId: number, orde
     console.error('[vmq] 履约失败', bizType, bizId, e)
     throw e
   }
+  return true
 }
 
 // 后台手动补单（确认到账）：无视金额/状态，强制标记该 vmq 订单已支付并履约
@@ -533,8 +589,31 @@ export async function fulfillOrder(orderId: number) {
     })
   })
 
-  // 非赢家且订单已完整交付 → 直接返回，杜绝重复发卡
-  if (!won && order.deliveryStatus === 'DELIVERED') return
+  /*
+   * 非赢家、而订单眼下并不是「已付款且未取消」→ 什么都不发。
+   * 非赢家的来路是后台补单（manualComplete）和补发卡密：订单若已被标成退款（REFUNDED），
+   * 或已付款后又被管理员取消，原来自动发货分支没有任何闸门，照样领卡、把订单改回已交付。
+   * 已取消的已付款单要重新发货，应先在订单页把状态改回来（那条路会把销量加回去），
+   * 而不是从这里绕过去 —— 否则销量会少算一单（取消时已减过）。
+   * 赢家不受影响：本次调用刚收到钱，哪怕订单之前是「超时取消」，也照常发货。
+   */
+  if (!won && (order.payStatus !== 'PAID' || order.deliveryStatus === 'CANCELLED')) {
+    console.warn('[vmq] 订单非「已付款且未取消」，跳过发货', order.id, order.payStatus, order.deliveryStatus)
+    return
+  }
+
+  // 非赢家且订单已完整交付 → 直接返回，杜绝重复发卡。
+  // 返回前补一次内推结算：首次交付时结算若抛过异常（网络抖动 / 连接池耗尽），
+  // 之后每次重入都会在这里返回，返现就永远补不上了。settleReferral 靠
+  // ReferralReward.orderId 唯一约束幂等，重复调用不会重复入账。
+  if (!won && order.deliveryStatus === 'DELIVERED') {
+    try {
+      await settleReferral(order.id)
+    } catch (e) {
+      console.error('[vmq] settle referral retry failed', order.id, e)
+    }
+    return
+  }
 
   const auto = order.product.deliveryType === 'AUTO'
   const sms = order.product.deliveryType === 'SMS'

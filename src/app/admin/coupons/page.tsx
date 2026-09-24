@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
 import { Check, Copy, Loader2, Plus, Search, Ticket } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,9 @@ import { Input } from '@/components/ui/input'
  * 【为什么「结束活动」要单独确认】它会把所有未使用的券作废掉，是不可撤销的。
  * 已锁定（挂在待支付订单上）和已核销的券不动 —— 前者的订单金额已经是优惠后的，
  * 作废掉会让买家按优惠价付了款却没有核销记录，对账对不上。
+ *
+ * 【两类批次分开看】默认只列后台建的公开领取批次；「抽奖发放」是「下单有奖」中奖时
+ * 系统自动建的单张批次（一次中奖一批，只发给中奖人），没有领取链接、也不能加量。
  */
 
 interface CouponRow {
@@ -33,7 +37,12 @@ interface CouponRow {
   note: string | null
   createdAt: string
   stats: { available: number; locked: number; used: number; expired: number; void: number }
-  claimPath: string
+  /** null = 公开领取批次；'LOTTERY' = 抽奖中奖时系统发的单张批次 */
+  source: string | null
+  /** 只有公开领取批次有 */
+  claimPath: string | null
+  /** 只有抽奖批次有：这张券发给了谁 */
+  winner: { userId: number; email: string | null; nickname: string | null } | null
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -54,6 +63,9 @@ export default function AdminCouponsPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [keyword, setKeyword] = useState('')
   const [status, setStatus] = useState('')
+  // '' = 公开领取批次（默认）；'LOTTERY' = 抽奖发放
+  const [source, setSource] = useState('')
+  const [sourceCounts, setSourceCounts] = useState<{ normal: number; lottery: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<number | null>(null)
@@ -64,17 +76,19 @@ export default function AdminCouponsPage() {
       const q = new URLSearchParams({ page: String(page) })
       if (keyword.trim()) q.set('keyword', keyword.trim())
       if (status) q.set('status', status)
+      if (source) q.set('source', source)
       const res = await fetch(`/api/admin/coupons?${q}`)
       const d = await res.json()
       if (d.success) {
         setList(d.data.list)
         setTotal(d.data.total)
         setTotalPages(d.data.totalPages)
+        setSourceCounts(d.data.sourceCounts ?? null)
       }
     } finally {
       setLoading(false)
     }
-  }, [page, keyword, status])
+  }, [page, keyword, status, source])
 
   useEffect(() => {
     load()
@@ -94,6 +108,7 @@ export default function AdminCouponsPage() {
   }
 
   const copyLink = async (row: CouponRow) => {
+    if (!row.claimPath) return
     const url = `${window.location.origin}${row.claimPath}`
     try {
       await navigator.clipboard.writeText(url)
@@ -115,7 +130,8 @@ export default function AdminCouponsPage() {
             </CardTitle>
             <p className="mt-1 text-sm text-gray-500">
               建一批券会生成一条共享领取链接，谁点谁领。每个 IP / 账户 / 浏览器各限领 1 张。
-              券与内推专属价不叠加，系统自动取对买家更便宜的那个。
+              {/* 与 lib/coupon.ts 的 quoteOrder 同口径（2026-09-11 起），不再是「取更便宜的」 */}
+              走推广链接下单一律按推广专属价、不能用券；不走推广链接按定价，可以选券抵扣。
             </p>
           </div>
           <div className="text-right text-sm text-gray-500">
@@ -130,7 +146,7 @@ export default function AdminCouponsPage() {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (setPage(1), load())}
-                placeholder="搜活动名或短码"
+                placeholder={source === 'LOTTERY' ? '搜券名、短码或订单号' : '搜活动名或短码'}
                 className="w-56 rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-primary-500 focus:outline-none"
               />
             </div>
@@ -147,10 +163,31 @@ export default function AdminCouponsPage() {
               <option value="PAUSED">已暂停</option>
               <option value="ENDED">已结束</option>
             </select>
-            <Button size="sm" onClick={() => setCreating(true)} className="ml-auto">
-              <Plus className="mr-1 h-4 w-4" />
-              建一批券
-            </Button>
+            <select
+              value={source}
+              onChange={(e) => {
+                setSource(e.target.value)
+                setPage(1)
+              }}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">{`普通领取批次${sourceCounts ? `（${sourceCounts.normal}）` : ''}`}</option>
+              <option value="LOTTERY">{`抽奖发放${sourceCounts ? `（${sourceCounts.lottery}）` : ''}`}</option>
+            </select>
+            {source === 'LOTTERY' ? (
+              <span className="ml-auto text-xs text-gray-400">
+                中奖时由系统自动发放，奖项在
+                <Link href="/admin/lottery" className="mx-0.5 text-primary-600 hover:underline">
+                  抽奖管理
+                </Link>
+                里配置
+              </span>
+            ) : (
+              <Button size="sm" onClick={() => setCreating(true)} className="ml-auto">
+                <Plus className="mr-1 h-4 w-4" />
+                建一批券
+              </Button>
+            )}
           </div>
 
           {loading ? (
@@ -158,7 +195,9 @@ export default function AdminCouponsPage() {
               <Loader2 className="h-5 w-5 animate-spin" />
             </div>
           ) : list.length === 0 ? (
-            <p className="py-12 text-center text-sm text-gray-400">还没有优惠券，点右上角建一批。</p>
+            <p className="py-12 text-center text-sm text-gray-400">
+              {source === 'LOTTERY' ? '还没有抽奖发出的券。' : '还没有优惠券，点右上角建一批。'}
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -166,7 +205,7 @@ export default function AdminCouponsPage() {
                   <tr className="border-b border-gray-200 text-left text-xs text-gray-500">
                     <th className="px-3 py-2">活动</th>
                     <th className="px-3 py-2">规则</th>
-                    <th className="px-3 py-2">领取情况</th>
+                    <th className="px-3 py-2">{source === 'LOTTERY' ? '中奖人' : '领取情况'}</th>
                     <th className="px-3 py-2">核销</th>
                     <th className="px-3 py-2">有效期</th>
                     <th className="px-3 py-2">状态</th>
@@ -174,98 +213,142 @@ export default function AdminCouponsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {list.map((r) => (
-                    <tr key={r.id} className="border-b border-gray-100 align-top">
-                      <td className="px-3 py-3">
-                        <div className="font-medium text-gray-900">{r.name}</div>
-                        <div className="mt-0.5 font-mono text-xs text-gray-400">{r.code}</div>
-                        {r.note && <div className="mt-1 max-w-[200px] text-xs text-gray-400">{r.note}</div>}
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="text-gray-700">{r.label}</div>
-                        {r.productIds.length > 0 && (
-                          <div className="mt-0.5 text-xs text-gray-400">限商品 {r.productIds.join(', ')}</div>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 tabular-nums">
-                        <span className="font-medium text-gray-800">{r.claimed}</span>
-                        <span className="text-gray-400"> / {r.total}</span>
-                        <div className="mt-0.5 text-xs text-gray-400">剩 {r.remaining}</div>
-                      </td>
-                      <td className="px-3 py-3 text-xs tabular-nums text-gray-500">
-                        <div>已用 {r.stats.used}</div>
-                        <div>占用中 {r.stats.locked}</div>
-                        <div>未用 {r.stats.available}</div>
-                      </td>
-                      <td className="px-3 py-3 text-xs text-gray-500">
-                        {r.forever ? (
-                          <span className="text-emerald-600">长期有效</span>
-                        ) : (
-                          new Date(r.endAt as string).toLocaleString('zh-CN', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span className={`rounded border px-2 py-0.5 text-xs ${STATUS_CLS[r.status]}`}>
-                          {STATUS_LABEL[r.status]}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex flex-wrap gap-1.5">
-                          <Button size="sm" variant="outline" onClick={() => copyLink(r)}>
-                            {copied === r.id ? (
-                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                  {list.map((r) => {
+                    const fromLottery = r.source != null
+                    return (
+                      <tr key={r.id} className="border-b border-gray-100 align-top">
+                        <td className="px-3 py-3">
+                          <div className="font-medium text-gray-900">{r.name}</div>
+                          {/* 抽奖券的名称就是买家在「我的优惠券」里看到的那一行，标出来免得被当成后台内部名 */}
+                          {fromLottery && <div className="mt-0.5 text-xs text-gray-400">买家看到的券名</div>}
+                          <div className="mt-0.5 font-mono text-xs text-gray-400">{r.code}</div>
+                          {r.note && <div className="mt-1 max-w-[200px] text-xs text-gray-400">{r.note}</div>}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="text-gray-700">{r.label}</div>
+                          {r.productIds.length > 0 && (
+                            <div className="mt-0.5 text-xs text-gray-400">限商品 {r.productIds.join(', ')}</div>
+                          )}
+                        </td>
+                        {fromLottery ? (
+                          <td className="px-3 py-3 text-xs">
+                            {r.winner ? (
+                              <>
+                                <div className="text-gray-800">
+                                  {r.winner.email || r.winner.nickname || `用户#${r.winner.userId}`}
+                                </div>
+                                {r.winner.email && r.winner.nickname && (
+                                  <div className="mt-0.5 text-gray-400">{r.winner.nickname}</div>
+                                )}
+                              </>
                             ) : (
-                              <Copy className="h-3.5 w-3.5" />
+                              <span className="text-gray-400">—</span>
                             )}
-                            <span className="ml-1">{copied === r.id ? '已复制' : '领取链接'}</span>
-                          </Button>
-                          {r.status === 'ACTIVE' && (
-                            <Button size="sm" variant="outline" onClick={() => patch(r.id, { status: 'PAUSED' })}>
-                              暂停发放
-                            </Button>
+                          </td>
+                        ) : (
+                          <td className="px-3 py-3 tabular-nums">
+                            <span className="font-medium text-gray-800">{r.claimed}</span>
+                            <span className="text-gray-400"> / {r.total}</span>
+                            <div className="mt-0.5 text-xs text-gray-400">剩 {r.remaining}</div>
+                          </td>
+                        )}
+                        <td className="px-3 py-3 text-xs tabular-nums text-gray-500">
+                          <div>已用 {r.stats.used}</div>
+                          <div>占用中 {r.stats.locked}</div>
+                          <div>未用 {r.stats.available}</div>
+                        </td>
+                        <td className="px-3 py-3 text-xs text-gray-500">
+                          {r.forever ? (
+                            <span className="text-emerald-600">长期有效</span>
+                          ) : (
+                            new Date(r.endAt as string).toLocaleString('zh-CN', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })
                           )}
-                          {r.status === 'PAUSED' && (
-                            <Button size="sm" variant="outline" onClick={() => patch(r.id, { status: 'ACTIVE' })}>
-                              恢复发放
-                            </Button>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className={`rounded border px-2 py-0.5 text-xs ${STATUS_CLS[r.status]}`}>
+                            {STATUS_LABEL[r.status]}
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          {fromLottery ? (
+                            // 抽奖券：没有领取链接、不能加量；「暂停发放」对已发出的券不起作用（暂停的批次已领的仍可用）。
+                            // 只留「作废」—— 与「结束活动」同一个接口：只作废未使用的，占用中与已核销的不动
+                            r.status !== 'ENDED' ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  patch(
+                                    r.id,
+                                    { status: 'ENDED' },
+                                    `确定作废「${r.name}」？\n\n中奖人这张券如果还没用，会立即失效，不可撤销。\n已经挂在待支付订单上或已核销的不受影响。`
+                                  )
+                                }
+                              >
+                                作废此券
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              <Button size="sm" variant="outline" onClick={() => copyLink(r)}>
+                                {copied === r.id ? (
+                                  <Check className="h-3.5 w-3.5 text-emerald-600" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5" />
+                                )}
+                                <span className="ml-1">{copied === r.id ? '已复制' : '领取链接'}</span>
+                              </Button>
+                              {r.status === 'ACTIVE' && (
+                                <Button size="sm" variant="outline" onClick={() => patch(r.id, { status: 'PAUSED' })}>
+                                  暂停发放
+                                </Button>
+                              )}
+                              {r.status === 'PAUSED' && (
+                                <Button size="sm" variant="outline" onClick={() => patch(r.id, { status: 'ACTIVE' })}>
+                                  恢复发放
+                                </Button>
+                              )}
+                              {r.status !== 'ENDED' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() =>
+                                    patch(
+                                      r.id,
+                                      { status: 'ENDED' },
+                                      `确定结束「${r.name}」？\n\n会把买家手里还没用的 ${r.stats.available} 张一并作废，不可撤销。\n已经挂在待支付订单上的 ${r.stats.locked} 张与已核销的 ${r.stats.used} 张不受影响。`
+                                    )
+                                  }
+                                >
+                                  结束活动
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  const n = prompt('追加发行多少张？（只能加不能减）')
+                                  const v = Number(n)
+                                  if (!n || !Number.isInteger(v) || v < 1) return
+                                  patch(r.id, { addTotal: v })
+                                }}
+                              >
+                                加量
+                              </Button>
+                            </div>
                           )}
-                          {r.status !== 'ENDED' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() =>
-                                patch(
-                                  r.id,
-                                  { status: 'ENDED' },
-                                  `确定结束「${r.name}」？\n\n会把买家手里还没用的 ${r.stats.available} 张一并作废，不可撤销。\n已经挂在待支付订单上的 ${r.stats.locked} 张与已核销的 ${r.stats.used} 张不受影响。`
-                                )
-                              }
-                            >
-                              结束活动
-                            </Button>
-                          )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              const n = prompt('追加发行多少张？（只能加不能减）')
-                              const v = Number(n)
-                              if (!n || !Number.isInteger(v) || v < 1) return
-                              patch(r.id, { addTotal: v })
-                            }}
-                          >
-                            加量
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

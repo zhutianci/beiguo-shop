@@ -242,6 +242,12 @@ export function Header() {
                           </span>
                         )}
                       </Link>
+                      <Link href="/profile/referral" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                        推荐有奖
+                      </Link>
+                      <Link href="/wallet" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                        账户余额
+                      </Link>
                       <button
                         onClick={logout}
                         className="w-full text-left px-4 py-2 text-sm lg:text-[15px] text-red-400 hover:bg-white/5 transition-colors"

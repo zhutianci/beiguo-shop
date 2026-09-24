@@ -7,9 +7,12 @@ import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { decryptCardContent, syncAutoStock } from '@/lib/cardkey'
 import { round2 } from '@/lib/money'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 查看单条明文（管理员）
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -62,6 +65,8 @@ function dec(n: number): Prisma.Decimal {
 //   已发出（USED）不可改状态，但可以改成本与售价，利润必须同步重算后落库；
 //   未发出的卡没有售价概念，不允许写 soldPrice。
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -102,6 +107,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 // 删除（已发出的保留以备查，不删）
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

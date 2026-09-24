@@ -19,13 +19,19 @@ import {
   FileText,
   X,
   Check,
+  Gift,
   type LucideIcon,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
+import { useHydrated } from '@/lib/use-hydrated'
 import { ContactModal } from '@/components/contact-modal'
 import OrderChat from '@/components/order-chat'
 import OrderSms from '@/components/order-sms'
 import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
+import { RedPacketButton } from '@/components/lottery/red-packet-button'
+import { LotteryModal } from '@/components/lottery/lottery-modal'
+// 只取类型：lib/lottery 间接引用了 prisma 与 node crypto，值导入会被打进前端包
+import type { BuyerLotteryView } from '@/lib/lottery'
 
 interface Order {
   id: number
@@ -52,6 +58,10 @@ interface Order {
   cardItems?: { secret: string; redeemUrl: string | null; inSite?: boolean }[]
   unreadCount?: number // 客服发来、买家未读的回复数
   billing?: Billing | null
+  /** 下单有奖：这张订单的抽奖资格与结果；不在活动范围内的订单为 null */
+  lottery?: BuyerLotteryView | null
+  /** 此刻能不能拆（服务端算好：有资格未抽 + 已付款 + 未取消）。真正的判定在 /api/lottery/draw */
+  lotteryCanDraw?: boolean
 }
 
 interface Billing {
@@ -61,11 +71,27 @@ interface Billing {
   invoiceAmount: number
   taxFee: number
   receiptAmount: number // 收据应开金额：已付发票税费=含税开票金额，否则=售价
-  invoiceStatus: string
+  invoiceStatus: string // UNAPPLIED | AWAIT_PAY | SUBMITTED | ISSUED | CANNOT
   /** 结账时已随货款付清 6%：不再显示「申请发票」，也不会再收一次税费 */
-  invoicePrepaid?: boolean // UNAPPLIED | AWAIT_PAY | SUBMITTED | ISSUED | CANNOT
+  invoicePrepaid?: boolean
   invoiceId: number | null
   receiptToken: string | null
+  /** 主发票（挂了多张时取推进得最靠后的那张）的明细；还没有发票行时为 null */
+  invoice?: BillingInvoice | null
+}
+
+interface BillingInvoice {
+  invoiceNo: string
+  status: string
+  payStatus: string
+  title: string | null
+  taxNumber: string | null
+  email: string | null
+  /** 开票金额（含税）与税费：取发票上的快照，开出去的票以它为准 */
+  invoiceAmount: number | null
+  taxFee: number | null
+  submittedAt: string | null
+  issuedAt: string | null
 }
 
 // 弹窗类型：发货详情 / 发票收据 / 在线沟通
@@ -186,6 +212,12 @@ export default function OrdersPage() {
   const [payingNo, setPayingNo] = useState<string | null>(null)
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null)
+  const [lotteryOrder, setLotteryOrder] = useState<Order | null>(null)
+
+  // 拆完红包只改这一张卡片，不整页重拉：买家可能已经「加载更多」翻了好几页
+  const handleLotteryDrawn = (orderId: number, view: BuyerLotteryView) => {
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, lottery: view, lotteryCanDraw: false } : o)))
+  }
 
   // 服务端分页 + 服务端筛选/检索。分段加载：翻页追加到列表尾部（「加载更多」式），
   // 切筛选/改关键词时从第 1 页重新开始。
@@ -257,14 +289,17 @@ export default function OrdersPage() {
     return () => clearTimeout(t)
   }, [searchTerm])
 
+  // 等挂载后再判断登录态：水合那一次渲染里 user 恒为 null，直接判会把已登录的人一刷新就踢去登录页
+  const hydrated = useHydrated()
   useEffect(() => {
+    if (!hydrated) return
     if (!user) {
       router.push('/login?redirect=/orders')
       return
     }
     loadOrders()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, router, activeFilter, debouncedSearch])
+  }, [hydrated, user, router, activeFilter, debouncedSearch])
 
   /*
    * 客服回话时，让正开着这一页的买家也能看见。
@@ -558,13 +593,30 @@ export default function OrdersPage() {
                         {order.payStatus === 'PAID' && order.deliveryStatus === 'PROCESSING' && (
                           <div className="flex items-center gap-2 text-sm lg:text-[15px] text-blue-400 mb-3 lg:mb-0">
                             <Clock className="w-4 h-4" />
-                            <span>正在为你开通服务，预计 10 分钟内完成</span>
+                            {/* 不写死时效：人工服务、接码、卡池不足转人工补发三种情况的耗时完全不同，
+                                「预计 10 分钟」对哪一种都不成立（交接文档第二十八节清理过同类承诺） */}
+                            <span>
+                              {order.product?.deliveryType === 'SMS'
+                                ? '正在为你取号，号码与验证码请在「发货详情」里查看'
+                                : order.product?.deliveryType === 'MANUAL'
+                                  ? '客服正在处理，进度可在「与客服在线沟通」里跟进'
+                                  : '正在处理中（库存补充后会由人工补发），补发后会显示在「发货详情」里'}
+                            </span>
                           </div>
                         )}
                         {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
-                          <div className="flex items-center gap-2 text-sm lg:text-[15px] text-yellow-400 mb-3 lg:mb-0">
-                            <AlertCircle className="w-4 h-4" />
-                            <span>请点击「支付宝支付」完成付款</span>
+                          <div className="mb-3 lg:mb-0">
+                            <div className="flex items-center gap-2 text-sm lg:text-[15px] text-yellow-400">
+                              <AlertCircle className="w-4 h-4" />
+                              <span>请点击「支付宝支付」完成付款</span>
+                            </div>
+                            {/* 这张单有抽奖资格：付款前只提示，不给按钮（服务端也不允许未付款的单抽） */}
+                            {order.lottery?.state === 'PENDING' && (
+                              <div className="mt-1.5 flex items-center gap-1.5 text-xs lg:text-[13px] text-amber-200/80">
+                                <Gift className="w-3.5 h-3.5 text-red-400" />
+                                <span>付款后可参与「下单有奖」抽红包</span>
+                              </div>
+                            )}
                           </div>
                         )}
                         {order.deliveryStatus === 'CANCELLED' && order.payStatus === 'UNPAID' && (
@@ -593,6 +645,14 @@ export default function OrdersPage() {
                               label="与客服在线沟通"
                               onClick={() => openPanel(order, 'chat')}
                               badge={order.unreadCount}
+                            />
+                          )}
+                          {/* 下单有奖：未拆 = 合着的红包，已拆 = 拆开的红包（点开重看结果） */}
+                          {paid && order.lottery && order.lottery.state !== 'VOID' && (
+                            <RedPacketButton
+                              view={order.lottery}
+                              canDraw={!!order.lotteryCanDraw}
+                              onClick={() => setLotteryOrder(order)}
                             />
                           )}
                         </div>
@@ -653,7 +713,11 @@ export default function OrdersPage() {
 
       {/* 发货详情弹窗 */}
       {panel && panel.type === 'delivery' && (
-        <DeliveryPanel order={panel.order} onClose={() => setPanel(null)} />
+        <DeliveryPanel
+          order={panel.order}
+          onClose={() => setPanel(null)}
+          onShowBilling={() => setPanel({ order: panel.order, type: 'billing' })}
+        />
       )}
 
       {/* 发票 / 收据弹窗 */}
@@ -704,6 +768,23 @@ export default function OrdersPage() {
             )
             setReceiptOrder(null)
             loadOrders()
+          }}
+        />
+      )}
+
+      {/* 下单有奖：拆红包 / 重看结果 */}
+      {lotteryOrder && lotteryOrder.lottery && (
+        <LotteryModal
+          orderNo={lotteryOrder.orderNo}
+          productName={lotteryOrder.productName}
+          view={lotteryOrder.lottery}
+          canDraw={!!lotteryOrder.lotteryCanDraw}
+          onClose={() => setLotteryOrder(null)}
+          onDrawn={(view) => handleLotteryDrawn(lotteryOrder.id, view)}
+          onContact={() => {
+            const o = lotteryOrder
+            setLotteryOrder(null)
+            openPanel(o, 'chat')
           }}
         />
       )}
@@ -817,7 +898,16 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
 }
 
 // 发货详情：订单信息 + 卡密 + 交付信息 + 短信接码
-function DeliveryPanel({ order, onClose }: { order: Order; onClose: () => void }) {
+function DeliveryPanel({
+  order,
+  onClose,
+  onShowBilling,
+}: {
+  order: Order
+  onClose: () => void
+  /** 切到「发票 / 收据」弹窗 */
+  onShowBilling: () => void
+}) {
   // 兼容：新接口返回 cardItems（带每张卡的专属兑换地址），旧数据只有 cards: string[]
   const cardRows: { secret: string; redeemUrl: string | null; inSite?: boolean }[] =
     order.cardItems && order.cardItems.length > 0
@@ -857,6 +947,30 @@ function DeliveryPanel({ order, onClose }: { order: Order; onClose: () => void }
             }
           />
         ) : null}
+        {/* 这张订单开过（或结账时预付过）发票：在订单详情里就能看到发票走到哪一步了，
+            不用再去猜「发票 / 收据」里有没有东西 */}
+        {order.payStatus === 'PAID' &&
+          order.billing &&
+          (order.billing.invoiceStatus !== 'UNAPPLIED' || order.billing.invoicePrepaid) && (
+            <InfoRow
+              label="发票"
+              value={
+                <span className="inline-flex items-center justify-end gap-2 flex-wrap">
+                  <span className="text-white/80">
+                    {INVOICE_LABELS[order.billing.invoiceStatus] || order.billing.invoiceStatus}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={onShowBilling}
+                    className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md glass hover:bg-white/10 text-xs text-purple-300 transition-colors"
+                  >
+                    查看
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </span>
+              }
+            />
+          )}
         <InfoRow label="下单时间" value={formatDate(order.createdAt)} />
         {order.paidAt && <InfoRow label="支付时间" value={formatDate(order.paidAt)} />}
         {order.deliveredAt && <InfoRow label="交付时间" value={formatDate(order.deliveredAt)} />}
@@ -1011,6 +1125,9 @@ function BillingPanel({
         {b.invoiceStatus === 'AWAIT_PAY' && b.invoiceId && <PayTaxButton invoiceId={b.invoiceId} />}
       </div>
 
+      {/* 发票明细：抬头、税号、邮箱都是买家自己填的，开没开、什么时候开的要让他看得到 */}
+      {b.invoice && <InvoiceDetail inv={b.invoice} prepaid={!!b.invoicePrepaid} />}
+
       {/* 收据 */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-sm">
@@ -1051,6 +1168,49 @@ function BillingPanel({
         发票需在线支付 6% 税费后由商家开具并发送至邮箱；收据可即时生成、仅可开具一次。如有疑问请联系客服。
       </p>
     </PanelModal>
+  )
+}
+
+// 「发票 / 收据」弹窗里的发票明细（主发票）
+function InvoiceDetail({ inv, prepaid }: { inv: BillingInvoice; prepaid: boolean }) {
+  const money = (n: number | null) => (n == null ? '—' : `¥${n.toFixed(2)}`)
+  // 「待支付」只对真正等着付税费的票（AWAIT_PAY）成立。后台直接改状态建出来的空壳、
+  // 或被标成「不可开据」的票 payStatus 也是 UNPAID，但买家既不该付、也付不了 —— 不能对他说「待支付」
+  const payLabel = inv.payStatus === 'PAID' || prepaid ? '已支付' : inv.status === 'AWAIT_PAY' ? '待支付' : null
+  return (
+    <div className="mb-4 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-sm space-y-2">
+      <div className="flex items-center gap-2 text-white/70 font-medium mb-1">
+        <FileText className="w-4 h-4 text-purple-400" /> 发票信息
+      </div>
+      <InfoRow label="发票号" value={<span className="font-mono text-xs">{inv.invoiceNo}</span>} />
+      <InfoRow label="状态" value={INVOICE_LABELS[inv.status] || inv.status} />
+      <InfoRow label="抬头" value={inv.title || '—'} />
+      <InfoRow label="税号" value={inv.taxNumber ? <span className="font-mono text-xs">{inv.taxNumber}</span> : '—'} />
+      <InfoRow label="接收邮箱" value={inv.email || '—'} />
+      <InfoRow label="开票金额（含税）" value={money(inv.invoiceAmount)} />
+      <InfoRow
+        label="税费"
+        value={
+          inv.taxFee == null ? (
+            '—'
+          ) : (
+            <span>
+              {money(inv.taxFee)}
+              {payLabel && (
+                <span className={payLabel === '已支付' ? 'text-green-300' : 'text-amber-300'}>
+                  {' '}· {payLabel}
+                </span>
+              )}
+            </span>
+          )
+        }
+      />
+      <InfoRow label="提交时间" value={inv.submittedAt ? formatDate(inv.submittedAt) : '—'} />
+      <InfoRow
+        label="开具时间"
+        value={inv.issuedAt ? formatDate(inv.issuedAt) : inv.status === 'ISSUED' ? '—' : <span className="text-white/40">尚未开具</span>}
+      />
+    </div>
   )
 }
 
@@ -1380,18 +1540,22 @@ function ReceiptModal({
 }) {
   const b = order.billing!
   const [payerTitle, setPayerTitle] = useState('')
+  // 必选项：收据中是否展示 ChatGPT/Claude 相关字眼（与发票同一口径）。
+  // null = 尚未选择 —— 收据只能开一次、开完改不了，不能替买家默认成任何一边
+  const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
   const submit = async () => {
     setErr(null)
     if (!payerTitle.trim()) return setErr('请填写付款人抬头')
+    if (showAiWording === null) return setErr('请选择收据中是否展示 ChatGPT/Claude 相关字眼')
     setSubmitting(true)
     try {
       const res = await fetch(`/api/orders/${order.id}/receipt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payerTitle: payerTitle.trim() }),
+        body: JSON.stringify({ payerTitle: payerTitle.trim(), showAiWording }),
       })
       const data = await res.json()
       if (data.success && data.data?.token) {
@@ -1449,6 +1613,33 @@ function ReceiptModal({
             maxLength={200}
             className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/25 outline-none focus:border-cyan-500/50 text-sm"
           />
+        </div>
+
+        {/* 必选：收据「项目」一栏是否展示 AI 平台字眼。说明里直接写出会印成什么，免得买家猜 */}
+        <div className="mt-4">
+          <label className="block text-xs text-white/50 mb-1.5">
+            收据中是否展示 ChatGPT/Claude 相关字眼<span className="text-red-400 ml-0.5">*</span>
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { v: true, label: '展示', desc: `项目印「${order.productName} 会员订阅」` },
+              { v: false, label: '不展示', desc: '项目只印「技术咨询服务」' },
+            ].map((opt) => (
+              <button
+                key={String(opt.v)}
+                type="button"
+                onClick={() => setShowAiWording(opt.v)}
+                className={`rounded-lg border px-3 py-2.5 text-left transition-colors ${
+                  showAiWording === opt.v
+                    ? 'border-cyan-500/60 bg-cyan-500/15'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                }`}
+              >
+                <div className="text-sm font-medium text-white/90">{opt.label}</div>
+                <div className="text-[11px] text-white/40 mt-0.5 break-all">{opt.desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
 
         {err && (

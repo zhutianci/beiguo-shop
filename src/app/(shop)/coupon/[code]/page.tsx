@@ -27,9 +27,15 @@ interface Params {
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const code = decodeURIComponent(params.code || '')
   const coupon = await prisma.coupon
-    .findUnique({ where: { code }, select: { name: true, kind: true, minAmount: true, discount: true } })
+    .findUnique({
+      where: { code },
+      select: { name: true, kind: true, minAmount: true, discount: true, source: true },
+    })
     .catch(() => null)
-  if (!coupon) return { title: '活动不存在 - 贝果科技', robots: { index: false, follow: false } }
+  // 系统批次（source 非空，如「下单有奖」的中奖券）与不存在同样处理，连标题都不能透出券名
+  if (!coupon || coupon.source != null) {
+    return { title: '活动不存在 - 贝果科技', robots: { index: false, follow: false } }
+  }
   const label = couponLabel({
     kind: coupon.kind,
     minAmount: Number(coupon.minAmount),
@@ -47,7 +53,9 @@ export default async function CouponClaimPage({ params }: Params) {
   if (!code || code.length > 32) notFound()
 
   const coupon = await prisma.coupon.findUnique({ where: { code } }).catch(() => null)
-  if (!coupon) notFound()
+  // source 非空 = 系统发给某个具体买家的券（「下单有奖」中奖券等），不是公开领取活动：
+  // 按不存在处理，领取接口那边同样拒绝（api/coupons/claim）
+  if (!coupon || coupon.source != null) notFound()
 
   const now = new Date()
   const claimable = couponClaimable(

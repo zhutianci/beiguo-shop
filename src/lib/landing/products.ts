@@ -1,6 +1,10 @@
 import { cache } from 'react'
 import { prisma } from '@/lib/db'
-import type { ProductMatch } from './registry'
+import { inStock } from './registry'
+
+// 匹配与有货判定是纯函数，实现搬到了 registry.ts（理由见那边的注释）。
+// 这里原样导出，已有的 `from '@/lib/landing/products'` 调用方不用改。
+export { inStock, matchProducts } from './registry'
 
 export interface LandingProduct {
   id: number
@@ -55,34 +59,6 @@ export const getLandingProducts = cache(async (): Promise<LandingProduct[]> => {
     return []
   }
 })
-
-/**
- * 按注册表里的规则从快照里挑出这一页该展示的商品。
- *
- * 【比较一律 trim + 忽略大小写】后台的分类名和商品名是手填的，
- * 多一个空格、大小写换一下，精确比较就会让整个落地页的价格表**静默变空**——
- * 不报错、不抛异常，页面照常渲染，只是表没了。这类事故只能靠比较本身宽松一点来防。
- */
-function norm(v: string): string {
-  return v.trim().toLowerCase()
-}
-
-export function matchProducts(all: LandingProduct[], m: ProductMatch): LandingProduct[] {
-  return all.filter((p) => {
-    const cat = norm(p.categoryName ?? '')
-    if (m.categoryName && cat !== norm(m.categoryName)) return false
-    if (m.categoryAny && !m.categoryAny.some((c) => cat === norm(c))) return false
-    const name = norm(p.name)
-    if (m.nameAny && !m.nameAny.some((k) => name.includes(norm(k)))) return false
-    if (m.nameNone && m.nameNone.some((k) => name.includes(norm(k)))) return false
-    return true
-  })
-}
-
-/** 有货判定：stock === -1 是模型里「无限库存」的约定 */
-export function inStock(p: LandingProduct): boolean {
-  return p.stock === -1 || p.stock > 0
-}
 
 /** 这一组商品里的最低价，用于标题/描述里的「￥X 起」。没有商品时返回 null */
 export function lowestPrice(items: LandingProduct[]): number | null {

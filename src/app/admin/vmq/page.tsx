@@ -55,6 +55,9 @@ interface VmqConfig {
       pending?: number[]
       raw?: string
       reason?: string
+      /** reason=closed_while_matching 时：匹配到的收款单号与业务单 */
+      vmqOrderId?: string
+      biz?: string
       at: number
     } | null
     lastWebhook: {
@@ -391,7 +394,18 @@ export default function AdminVmqPage() {
             >
               <div className="text-gray-500 mb-1">最近一次「未匹配 / 未取用」</div>
               {diag?.lastUnmatched ? (
-                diag.lastUnmatched.reason ? (
+                diag.lastUnmatched.reason === 'closed_while_matching' ? (
+                  // 钱到了、金额也对上了，但那张收款单恰好在同一时刻被超时清理或后台取消关掉 ——
+                  // 系统不会自动替已取消的订单履约，需要人工核实后在下方列表里对该收款单点「补单」
+                  <div className="text-amber-900">
+                    收到 ¥{diag.lastUnmatched.price}，匹配到的收款单 <b>{diag.lastUnmatched.vmqOrderId}</b>（
+                    {diag.lastUnmatched.biz}）恰好在同一时刻被关闭（超时或后台取消） ·{' '}
+                    {fmt(new Date(diag.lastUnmatched.at).toISOString())}
+                    <div className="text-xs text-amber-700 mt-1">
+                      这笔钱已到账但没有自动履约。请核实付款截图后，在下方列表找到该收款单点「补单」，或联系买家退款。
+                    </div>
+                  </div>
+                ) : diag.lastUnmatched.reason ? (
                   <div className="text-amber-900">
                     通知<b>未取用金额</b>：{rejectLabel(diag.lastUnmatched.reason)} ·{' '}
                     {fmt(new Date(diag.lastUnmatched.at).toISOString())}

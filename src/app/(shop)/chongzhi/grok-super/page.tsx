@@ -8,7 +8,7 @@ import { getLandingProducts, lowestPrice, matchProducts, withLivePrice } from '@
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import {
   BrandDisclaimer,
   CheckList,
@@ -53,6 +53,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
+      ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: DEF.title,

@@ -3,12 +3,19 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { success, error } from '@/lib/api'
+import { requireAdmin } from '@/lib/auth'
 import { manualComplete, VmqError } from '@/lib/vmq'
 
 const schema = z.object({ id: z.number().int().positive() })
 
 // 后台手动补单：强制确认某条收款单已到账并履约
 export async function POST(request: NextRequest) {
+  // 路由内再验一次管理员（CVE-2025-29927）：这个接口能凭空把一张收款单记成「已到账」并发货
+  try {
+    await requireAdmin()
+  } catch {
+    return error('无管理员权限', 403)
+  }
   try {
     const body = await request.json()
     const parsed = schema.safeParse(body)

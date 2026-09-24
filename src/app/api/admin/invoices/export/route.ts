@@ -13,6 +13,7 @@ import {
   ROW_HARD_LIMIT,
   type ExportInvoice,
 } from '@/lib/invoice-export'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 批量开票导出：把当前所有「待开发票」写进税局官方模板，直接下载。
@@ -55,6 +56,8 @@ const SELECT = {
 } as const
 
 export async function GET(_request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const rows = await prisma.invoice.findMany({
       where: { status: 'SUBMITTED', payStatus: 'PAID' },

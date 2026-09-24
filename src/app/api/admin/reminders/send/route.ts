@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { resolveContact, sendReminderForOrder } from '@/lib/reminder'
+import { adminGuard } from '@/lib/admin-guard'
 
 const bodySchema = z.object({
   orderIds: z.array(z.number().int().positive()).min(1, '请选择要提醒的订单'),
@@ -12,6 +13,8 @@ const bodySchema = z.object({
 
 // 后台手动提醒：对指定订单立即发送，忽略“已提醒”状态（始终发送）
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = bodySchema.safeParse(body)

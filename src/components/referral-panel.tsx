@@ -1,7 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { Gift, Copy, CheckCircle2, Loader2, Wallet } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { Link2, Copy, CheckCircle2, Loader2, Wallet, ChevronRight } from 'lucide-react'
+
+/**
+ * 推广链接 + 各商品专属价设置。
+ *
+ * 2026-09-24 起只挂在「推荐有奖」页（/profile/referral）上，那一页自己有标题、玩法说明
+ * 和推广订单汇总，所以这里不再放「我的内推」大标题和三格收益统计（累计返现与页面下方的
+ * 「已到账返现」是同一个数，放两遍只会让人找不同）；余额只留一行入口，明细去 /wallet 看。
+ */
 
 interface ProductPrice {
   productId: number
@@ -33,7 +42,9 @@ export default function ReferralPanel() {
   const [inputs, setInputs] = useState<Record<number, string>>({})
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [msgOk, setMsgOk] = useState(true)
   const [copied, setCopied] = useState(false)
+  const linkRef = useRef<HTMLInputElement>(null)
 
   // 拉某一页；append=true 把商品追加到列表尾部
   const load = useCallback(async (targetPage = 1, append = false) => {
@@ -65,11 +76,17 @@ export default function ReferralPanel() {
     load()
   }, [load])
 
-  const copy = () => {
+  const copy = async () => {
     if (!data) return
-    navigator.clipboard.writeText(data.link)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    try {
+      await navigator.clipboard.writeText(data.link)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // 微信内置浏览器 / 非 https 下 clipboard 不可用：选中文本，让用户长按或 Ctrl+C 复制
+      linkRef.current?.focus()
+      linkRef.current?.select()
+    }
   }
 
   const save = async () => {
@@ -87,6 +104,7 @@ export default function ReferralPanel() {
         body: JSON.stringify({ prices }),
       })
       const d = await res.json()
+      setMsgOk(!!d.success)
       if (d.success) {
         setMsg('已保存')
         // 本地同步专属价，避免重新拉取把已「加载更多」的商品丢掉
@@ -102,19 +120,21 @@ export default function ReferralPanel() {
             : prev
         )
       } else setMsg(d.error || '保存失败')
+    } catch {
+      setMsgOk(false)
+      setMsg('网络错误，请稍后重试')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="glass rounded-3xl p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="glass rounded-3xl p-5 sm:p-8">
+      <div className="mb-6">
         <h2 className="text-xl font-bold flex items-center gap-2">
-          <Gift className="w-5 h-5 text-pink-400" />
-          我的内推
+          <Link2 className="w-5 h-5 text-pink-400" />
+          推广链接与专属价
         </h2>
-        <span className="text-xs text-white/40">分享专属链接，好友下单赚返现</span>
       </div>
 
       {loading ? (
@@ -125,58 +145,64 @@ export default function ReferralPanel() {
         <div className="text-center py-10 text-white/40">加载失败</div>
       ) : (
         <div className="space-y-6">
-          {/* 收益 */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-4 text-center">
-              <div className="text-xs text-white/50 mb-1 flex items-center justify-center gap-1">
-                <Wallet className="w-3.5 h-3.5" /> 余额
-              </div>
-              <div className="text-2xl font-bold gradient-text-accent">¥{data.balance.toFixed(2)}</div>
-            </div>
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-4 text-center">
-              <div className="text-xs text-white/50 mb-1">累计返现</div>
-              <div className="text-2xl font-bold">¥{data.totalReward.toFixed(2)}</div>
-            </div>
-            <div className="rounded-2xl bg-white/5 border border-white/10 p-4 text-center">
-              <div className="text-xs text-white/50 mb-1">成交单数</div>
-              <div className="text-2xl font-bold">{data.rewardCount}</div>
-            </div>
-          </div>
+          {/* 余额入口：返现到账后就在这里，明细与提现说明在 /wallet */}
+          <Link
+            href="/wallet"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-colors hover:bg-white/[0.08]"
+          >
+            <span className="flex items-center gap-2 text-sm text-white/60">
+              <Wallet className="w-4 h-4 text-cyan-300" />
+              账户余额
+              <span className="text-lg font-bold tabular-nums gradient-text-accent">¥{data.balance.toFixed(2)}</span>
+            </span>
+            <span className="flex shrink-0 items-center gap-0.5 text-xs text-white/45">
+              余额明细 <ChevronRight className="w-3.5 h-3.5" />
+            </span>
+          </Link>
 
           {/* 链接 */}
           <div>
             <label className="block text-sm text-white/50 mb-2">我的专属推广链接</label>
             <div className="flex items-center gap-2">
               <input
+                ref={linkRef}
                 readOnly
                 value={data.link}
-                className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm font-mono"
+                onFocus={(e) => e.currentTarget.select()}
+                className="min-w-0 flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm font-mono"
               />
               <button
                 onClick={copy}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium inline-flex items-center gap-1.5"
+                className="shrink-0 px-4 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium inline-flex items-center gap-1.5"
               >
                 {copied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copied ? '已复制' : '复制'}
               </button>
             </div>
-            <p className="text-xs text-white/40 mt-2">别人通过此链接下单(默认按网站售价)并完成后，「售价 − 你的进货价」的差额会自动进你的余额。你也可在下方给商品单独设更高售价。</p>
+            <p className="text-xs text-white/40 mt-2">
+              好友通过此链接下单按你的专属价付款（没单独设置的商品按网站售价），订单完成后
+              「专属价 − 你的基础价」的差额自动计入你的余额。
+            </p>
           </div>
 
           {/* 专属价设置 */}
           <div>
             <div className="flex items-center justify-between mb-3">
-              <label className="text-sm text-white/50">设置各商品专属售价（留空=按网站售价卖；不低于你的进货价）</label>
+              <label className="text-sm text-white/50">设置各商品专属价（留空 = 按网站售价；不能低于你的基础价）</label>
             </div>
             <div className="space-y-2">
               {data.products.map((p) => {
                 const sell = inputs[p.productId] ? Number(inputs[p.productId]) : p.websitePrice
                 const reward = Math.max(0, sell - p.basePrice)
                 return (
-                  <div key={p.productId} className="flex items-center gap-3 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5">
-                    <div className="flex-1 min-w-0">
+                  <div
+                    key={p.productId}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-white/5 border border-white/10 px-4 py-2.5"
+                  >
+                    {/* 375px 上名称 + 输入框 + 返现挤一行会把商品名截得只剩两三个字，窄屏让名称独占一行 */}
+                    <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
                       <div className="text-sm font-medium truncate">{p.name}</div>
-                      <div className="text-xs text-white/40">网站售价 ¥{p.websitePrice.toFixed(2)} · 我的进货价 ¥{p.basePrice.toFixed(2)}</div>
+                      <div className="text-xs text-white/40">网站售价 ¥{p.websitePrice.toFixed(2)} · 我的基础价 ¥{p.basePrice.toFixed(2)}</div>
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-white/40 text-sm">¥</span>
@@ -189,7 +215,7 @@ export default function ReferralPanel() {
                         className="w-28 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm outline-none focus:border-purple-500/50"
                       />
                     </div>
-                    <span className="text-xs text-emerald-400 whitespace-nowrap w-20 text-right">返 ¥{reward.toFixed(2)}</span>
+                    <span className="ml-auto text-xs text-emerald-400 whitespace-nowrap w-20 text-right">返 ¥{reward.toFixed(2)}</span>
                   </div>
                 )
               })}
@@ -227,7 +253,7 @@ export default function ReferralPanel() {
                 {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                 保存专属价
               </button>
-              {msg && <span className="text-sm text-green-400">{msg}</span>}
+              {msg && <span className={`text-sm ${msgOk ? 'text-green-400' : 'text-red-400'}`}>{msg}</span>}
             </div>
           </div>
         </div>

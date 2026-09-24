@@ -20,7 +20,7 @@ import {
   SubSection,
   Warning,
 } from '@/components/landing/landing-ui'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * Claude 注册落地页——这一批页面里唯一一个「问题页」而不是「商品页」。
@@ -71,6 +71,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
+      ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: DEF.title,
@@ -275,13 +276,16 @@ export default async function ClaudeZhuceLandingPage() {
           </SubSection>
 
           <Warning>
+            {/* 2026-09-24 修正：原文写「这张卡密就按已核销处理，退不了」——接码是 SMS 交付，全程没有卡密；
+                而且超时未收到验证码时 lib/sms.ts 会取消号码并把订单标记为待退款，「一律不退」也不对 */}
             「单次接码」的意思就是一次，而且
-            <strong>号码一旦取出、接码流程已经发起，这张卡密就按已核销处理，退不了</strong>
+            <strong>号码一旦取出就开始计时，验证码收到、这一单完成之后按已使用处理，退不了</strong>
             （通用口径见{' '}
             <Link href="/terms" className="text-amber-200 underline underline-offset-2">
               服务条款
             </Link>{' '}
-            第四节）。号码取出后的有效时间很短，以取号页当时显示的倒计时为准。
+            第四节；超时仍未收到验证码的，系统会取消这个号码并把订单标记为退款处理）。
+            号码取出后的有效时间很短，以取号页当时显示的倒计时为准。
             所以<strong>请走到注册页真的需要发验证码的那一步再下单</strong>，不要提前囤着。
             美区实体卡那一档商品页写着「包过，不成功不收费」——这说的是号码本身不可用的情况，
             由客服判定后处理；与「已经取出号码、只是你那边没走完流程」是两回事，

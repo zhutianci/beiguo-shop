@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { CheckCircle2, XCircle, RefreshCw, Megaphone, Plus, Pencil, Trash2, X, Eye, EyeOff } from 'lucide-react'
+import { CheckCircle2, XCircle, RefreshCw, Megaphone, Plus, Pencil, Trash2, X, Eye, EyeOff, Crown, RotateCcw } from 'lucide-react'
 
 // ---------------- 类型 ----------------
 
@@ -316,6 +316,9 @@ export default function AdminSettingsPage() {
         </CardContent>
       </Card>
 
+      {/* ---------- 会员等级 ---------- */}
+      <VipTiersCard />
+
       {/* ---------- 系统状态 ---------- */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -552,5 +555,244 @@ function AnnouncementEditor({
         </div>
       </div>
     </div>
+  )
+}
+
+// ---------------- 会员等级 ----------------
+
+interface VipTierRow {
+  name: string
+  minSpend: number
+  benefits: string[]
+}
+
+/** 表单态：门槛与权益都是文本框里的原始字符串，保存时再转 */
+interface VipTierForm {
+  name: string
+  minSpend: string
+  benefits: string
+}
+
+const MAX_VIP_TIERS = 8
+
+const toVipForm = (t: VipTierRow): VipTierForm => ({
+  name: t.name,
+  minSpend: String(t.minSpend),
+  benefits: t.benefits.join('\n'),
+})
+
+/**
+ * 会员等级配置（Setting 表 vip_tiers，读写都走 /api/admin/vip/config）。
+ *
+ * 买家在 /vip 与个人中心看到的等级名称、门槛、权益全部来自这里，权益文案**逐字**展示。
+ * 所以这张卡片上反复提醒：只写真正兑现得了的权益 —— 代码里没有任何按等级打折、
+ * 优先处理之类的逻辑，写上去就是对买家的虚假承诺。
+ */
+function VipTiersCard() {
+  const [tiers, setTiers] = useState<VipTierForm[]>([])
+  const [defaults, setDefaults] = useState<VipTierRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [msgOk, setMsgOk] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    setLoadFailed(false)
+    try {
+      const res = await fetch('/api/admin/vip/config')
+      const d = await res.json()
+      if (d.success) {
+        setTiers((d.data.tiers as VipTierRow[]).map(toVipForm))
+        setDefaults(d.data.defaults as VipTierRow[])
+      } else {
+        setLoadFailed(true)
+      }
+    } catch {
+      setLoadFailed(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const update = (i: number, patch: Partial<VipTierForm>) => {
+    setTiers((prev) => prev.map((t, j) => (j === i ? { ...t, ...patch } : t)))
+    setMsg('')
+  }
+
+  const addTier = () => {
+    if (tiers.length >= MAX_VIP_TIERS) return alert(`最多 ${MAX_VIP_TIERS} 个等级`)
+    setTiers((prev) => [...prev, { name: '', minSpend: '', benefits: '' }])
+    setMsg('')
+  }
+
+  const removeTier = (i: number) => {
+    if (tiers.length <= 1) return alert('至少保留一个等级')
+    const t = tiers[i]
+    if ((t.name.trim() || t.benefits.trim()) && !confirm(`删除等级「${t.name.trim() || `第 ${i + 1} 个`}」？\n\n点「保存」后才会生效。`)) return
+    setTiers((prev) => prev.filter((_, j) => j !== i))
+    setMsg('')
+  }
+
+  const restoreDefaults = () => {
+    if (!defaults.length) return
+    if (!confirm(`用默认的 ${defaults.length} 个等级覆盖当前表单？\n\n只改表单，点「保存」后才会生效。`)) return
+    setTiers(defaults.map(toVipForm))
+    setMsg('')
+  }
+
+  const save = async () => {
+    // 先在前端把能拦的拦掉：zod 的英文类型错误（Expected number…）运营看不懂
+    const payload: VipTierRow[] = []
+    for (let i = 0; i < tiers.length; i++) {
+      const t = tiers[i]
+      const name = t.name.trim()
+      if (!name) return alert(`第 ${i + 1} 个等级：请填写等级名称`)
+      const raw = t.minSpend.trim()
+      const minSpend = Number(raw)
+      if (raw === '' || !Number.isFinite(minSpend) || minSpend < 0) {
+        return alert(`第 ${i + 1} 个等级：累计消费门槛请填写不小于 0 的数字`)
+      }
+      payload.push({
+        name,
+        minSpend: Math.round(minSpend * 100) / 100,
+        benefits: t.benefits
+          .split('\n')
+          .map((b) => b.trim())
+          .filter(Boolean),
+      })
+    }
+    if (!payload.some((t) => t.minSpend === 0)) return alert('必须有一个门槛为 0 的基础等级')
+
+    setSaving(true)
+    setMsg('')
+    try {
+      const res = await fetch('/api/admin/vip/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tiers: payload }),
+      })
+      const d = await res.json()
+      setMsgOk(!!d.success)
+      if (d.success) {
+        // 以服务端整理后的为准（按门槛升序、重新编号）
+        setTiers((d.data.tiers as VipTierRow[]).map(toVipForm))
+        setMsg(d.message || '已保存')
+      } else {
+        setMsg(d.error || '保存失败')
+      }
+    } catch {
+      setMsgOk(false)
+      setMsg('网络错误')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="flex items-center gap-2">
+          <Crown className="w-5 h-5 text-amber-500" />
+          会员等级
+        </CardTitle>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={restoreDefaults} disabled={loading || !defaults.length}>
+            <RotateCcw className="w-4 h-4 mr-1" /> 恢复默认
+          </Button>
+          <Button variant="outline" size="sm" onClick={addTier} disabled={loading || tiers.length >= MAX_VIP_TIERS}>
+            <Plus className="w-4 h-4 mr-1" /> 添加等级
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-gray-500 mb-3">
+          买家按<b>已付款订单的商品金额累计</b>（不含开票税费，已取消 / 退款订单不计）自动定级，结果展示在前台「会员中心」和个人中心。
+          后台用户详情里设置的 VIP 等级数字对应下表的序号（0 = 第一行），只会把人往上调，不会往下调。
+        </p>
+        <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-700">
+          · 必须保留一个<b>累计消费门槛为 0</b> 的基础等级；保存后按门槛从低到高自动排序并重新编号，门槛不能重复。
+          <br />· 权益文案会<b>原样</b>展示给买家。系统里没有任何按等级打折、优先发货之类的逻辑，只写真正兑现得了的权益，
+          否则就是对买家的虚假承诺。
+        </div>
+
+        {loading ? (
+          <div className="text-center py-10 text-gray-400">加载中...</div>
+        ) : loadFailed ? (
+          <div className="text-center py-10 text-gray-400">
+            获取失败
+            <Button variant="outline" size="sm" className="ml-3" onClick={load}>
+              重试
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-3">
+              {tiers.map((t, i) => (
+                <div key={i} className="rounded-xl border border-gray-200 p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-medium text-gray-500">
+                      等级 {i}
+                      {t.minSpend.trim() !== '' && Number(t.minSpend) === 0 && (
+                        <span className="ml-2 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">
+                          基础等级
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      onClick={() => removeTier(i)}
+                      disabled={tiers.length <= 1}
+                      className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:hover:bg-transparent"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> 删除
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input
+                      label="等级名称"
+                      value={t.name}
+                      maxLength={20}
+                      onChange={(e) => update(i, { name: e.target.value })}
+                      placeholder="例：黄金会员"
+                    />
+                    <Input
+                      label="累计消费门槛（元）"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={t.minSpend}
+                      onChange={(e) => update(i, { minSpend: e.target.value })}
+                      placeholder="0 = 基础等级"
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">权益（一行一条，买家原样可见）</label>
+                    <textarea
+                      value={t.benefits}
+                      onChange={(e) => update(i, { benefits: e.target.value })}
+                      rows={3}
+                      placeholder="只写真正兑现的权益，每行一条，最多 12 条、每条 100 字以内"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex items-center justify-end gap-3">
+              {msg && <span className={`mr-auto text-sm ${msgOk ? 'text-green-700' : 'text-red-600'}`}>{msg}</span>}
+              <Button onClick={save} loading={saving}>
+                保存会员等级
+              </Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }

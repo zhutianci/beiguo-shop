@@ -10,7 +10,8 @@ import {
   assertExternalOrderAccess,
   BillingError,
 } from '@/lib/order-billing'
-import { settlePrepaidInvoiceByExternalOrder } from '@/lib/order-invoice'
+import { settlePrepaidInvoiceByExternalOrder, shopOrderSourceKey } from '@/lib/order-invoice'
+import { invoicesForOrder, orderIdFromSourceKey } from '@/lib/order-link'
 
 const schema = z.object({
   externalOrderId: z.number().int().positive('缺少订单'),
@@ -18,6 +19,8 @@ const schema = z.object({
   // 匿名「邮箱查订阅」流程的归属凭证：必须与该订单的账户邮箱一致。
   // 已登录且订单属于本人 / 本人邮箱 / 已绑定账户时可不传。
   accountEmail: z.string().trim().email().optional().nullable(),
+  // 必选、无默认：与发票同一口径。不展示 → 收据「项目」一栏只印「技术咨询服务」
+  showAiWording: z.boolean({ required_error: '请选择收据中是否展示 ChatGPT/Claude 相关字眼' }),
 })
 
 export async function POST(request: NextRequest) {
@@ -50,7 +53,37 @@ export async function POST(request: NextRequest) {
      */
     await settlePrepaidInvoiceByExternalOrder(order)
 
-    const result = await submitReceiptForExternalOrder(d.externalOrderId, d.payerTitle)
+    /*
+     * 【跨行查重 + 含税口径】与 /api/orders/[id]/receipt 同一套：这一行背后若是站内订单，
+     *  · 它的任一条外部订单行上已经开过买家收据 → 不再开第二张（同一笔付款只有一张收据）
+     *  · 它的任一条行上有已付税费的发票 → 收据按含税额出具（本行自己的已付发票仍优先）
+     */
+    let paidInvoiceAmount: number | null = null
+    const shopOrderId = order.shopOrderId ?? orderIdFromSourceKey(order.sourceKey)
+    if (shopOrderId) {
+      const linkedExts = await prisma.externalOrder.findMany({
+        where: { OR: [{ shopOrderId }, { sourceKey: shopOrderSourceKey(shopOrderId) }] },
+        select: { id: true },
+      })
+      const existing = await prisma.receipt.findFirst({
+        where: {
+          source: 'BUYER',
+          // 同 /api/orders/[id]/receipt：外部订单行被删后，收据上的 sourceKey 快照是唯一线索
+          OR: [
+            { externalOrderId: { in: linkedExts.map((e) => e.id).concat(order.id) } },
+            { sourceKey: shopOrderSourceKey(shopOrderId) },
+          ],
+        },
+        select: { id: true },
+      })
+      if (existing) return error('该订单已开具收据，如需重开请联系客服', 409)
+      paidInvoiceAmount = (await invoicesForOrder(shopOrderId)).find((iv) => iv.payStatus === 'PAID')?.invoiceAmount ?? null
+    }
+
+    const result = await submitReceiptForExternalOrder(d.externalOrderId, d.payerTitle, {
+      showAiWording: d.showAiWording,
+      paidInvoiceAmount,
+    })
     return success(result, '收据已生成')
   } catch (err) {
     if (err instanceof BillingError) return error(err.message, err.status)

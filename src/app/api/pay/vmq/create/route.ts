@@ -34,6 +34,24 @@ export async function POST(request: NextRequest) {
     if (!couponOk.ok) return error(couponOk.message)
 
     /*
+     * 【把券的锁定时间刷新成「开始付款」这一刻】lockedAt 原本是建单时间，兜底清扫
+     * （sweepStuckCoupons）按它判「锁太久」。买家建单后隔很久才来付款的话，清扫可能在他
+     * 付款途中把券放回去 —— 他照样按优惠价付款成功，券却还能再用一次。
+     * 刷新之后清扫窗口从这一刻重新算，远长于收款单的超时，收款单超时关单时会正常释放券。
+     *
+     * 必须放在 createOrGetVmqOrder 之前：它内部先跑 closeExpired → 清扫，放在后面的话
+     * 这一次清扫就可能先把券放掉。CAS 条件带 state/orderId：上面复验通过到这里之间券若被
+     * 释放了（count=0），就按复验失败处理，不给一张「券已不在」的订单发起收款。
+     */
+    if (order.couponGrantId) {
+      const touched = await prisma.couponGrant.updateMany({
+        where: { id: order.couponGrantId, orderId: order.id, state: 'LOCKED' },
+        data: { lockedAt: new Date() },
+      })
+      if (touched.count !== 1) return error('优惠券状态已变更，请重新下单')
+    }
+
+    /*
      * 【收的是 货款 + 开票税费】下单时勾了「同时开发票」的订单，
      * 税费在 order.invoiceTaxFee 上单独记着，这里一次收清 —— 买家只需要一条付款记录，
      * 这正是这次改造的出发点（公司报销不接受分两次付）。

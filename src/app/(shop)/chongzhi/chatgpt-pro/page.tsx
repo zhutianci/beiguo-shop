@@ -22,7 +22,7 @@ import {
   SubSection,
   Warning,
 } from '@/components/landing/landing-ui'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * ChatGPT Pro 5x 充值落地页——客单价最高、也最容易买错的一页。
@@ -52,6 +52,13 @@ import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
  * 可联系客服付费解决」全部取自后台商品 29 与商品 7 的 cardUsage 与质保文案，不是编的。
  * 除此之外的操作细节一律以兑换页提示与客服口径为准，本页不替上游作任何承诺。
  * 改这两个商品的文案时要回来核对这一页。
+ *
+ * 【2026-09-24 修正】价格表按 nameAny:['pro'] 匹配，实际列出 4 个 SKU（Pro 5x 两档 + Pro 20x 两档），
+ * 而正文通篇写「两个档位」「这两个档位最终充上去的都是 Pro 5x」，20x 一个字都没提。
+ * 改法是最小改动：把「两个档位」改成「各档位 / 两种充值方式」，对比表明确是以 5x 为例，
+ * 另加一小节讲 20x，并把 20x 各档的商品说明原文直接列出来——其中信用卡那一档
+ * 有一条额外前提（只适用于特定账号），页面不替它转述，原文实时取库。
+ * 标题、H1 与各节顺序都没动（审计要求：不知道哪一页在被 ChatGPT 引用之前，不重构落地页）。
  */
 
 const DEF = findLanding('chatgpt-pro')
@@ -59,16 +66,19 @@ const DEF = findLanding('chatgpt-pro')
 export async function generateMetadata(): Promise<Metadata> {
   const all = await getLandingProducts()
   const items = matchProducts(all, DEF.match)
-  const low = lowestPrice(items)
-  // description 里那个「￥720 起」换成实时最低价：SERP 上有个真实数字是免费的点击率优势，
+  // description 里那个「￥720 起」换成实时价：SERP 上有个真实数字是免费的点击率优势，
   // 但它必须跟页面上那张表对得上，所以取库不写死。
-  const description = withLivePrice(DEF.description, low)
+  // 【只能取 5x 档的价】原文是「ChatGPT Pro 5x 充值￥720 起」，而这一页的表里还有 20x。
+  // 用全部 Pro 档的最低价，5x 两档都售罄时就会写出「Pro 5x 充值￥1250 起」——那是 20x 的价
+  // （同 codex 页只替换实体卡那一档价格的做法）。
+  const description = withLivePrice(DEF.description, lowestPrice(items.filter((p) => /5x/i.test(p.name))))
 
   return {
     title: DEF.title,
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
+      ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: DEF.title,
@@ -84,7 +94,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const FAQS: { q: string; a: string }[] = [
   {
     q: 'ChatGPT Pro 5x 一个月多少钱？',
-    a: 'OpenAI 那边这一档的原价是每月 100 美元，是 Plus（每月 20 美元）的五倍。本站的人民币价格以本页价格表上显示的实付金额为准，两个档位不同价，价格还会随上游成本浮动，所以这里不写死数字，看表就行。',
+    a: 'OpenAI 那边这一档的原价是每月 100 美元，是 Plus（每月 20 美元）的五倍。本站的人民币价格以本页价格表上显示的实付金额为准，各档位不同价，价格还会随上游成本浮动，所以这里不写死数字，看表就行。',
   },
   {
     q: 'ChatGPT Pro 和 Plus 到底差在哪，值得升吗？',
@@ -92,7 +102,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: '我账号上已经有 Plus，能直接充 Pro 吗？',
-    a: '这正是两个档位的分水岭。商品名里写着「可覆盖plus」的那一档是为这种情况准备的；写着「不可覆盖plus」的那一档，前提是账号上没有需要被顶掉的订阅。买错了卡密会被核销，而核销之后不退。拿不准就先问客服，别自己试。',
+    a: '这正是 iOS 档与信用卡档的分水岭。商品名里写着「可覆盖plus」的档位是为这种情况准备的；写着「不可覆盖」或「无法覆盖」的档位，前提是账号上没有需要被顶掉的订阅。买错了卡密会被核销，而核销之后不退。拿不准就先问客服，别自己试。',
   },
   {
     q: '兑换页上的「强制充值」是干什么的，代价是什么？',
@@ -100,7 +110,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: '信用卡充值档和 iOS 订阅充值档，我该选哪个？',
-    a: '先看能不能覆盖：账号上已有 Plus 要顶掉，选 iOS 订阅档（商品名里标着可覆盖）；账号干净、只想要更低的价格，选信用卡档（标着不可覆盖）。其次看库存，两档库存不一样，售罄时价格表里会显示补货中。iOS 订阅档不需要你自己准备 Apple 账号。',
+    a: '先看能不能覆盖：账号上已有 Plus 要顶掉，选 iOS 订阅档（商品名里标着可覆盖）；账号干净、只想要更低的价格，选信用卡档（标着不可覆盖）。其次看库存，各档库存不一样，售罄时价格表里会显示补货中。iOS 订阅档不需要你自己准备 Apple 账号。',
   },
   {
     q: '兑换的时候提示要手机号验证码怎么办？',
@@ -131,10 +141,14 @@ const FAQS: { q: string; a: string }[] = [
 export default async function ChatgptProLandingPage() {
   const all = await getLandingProducts()
   const items = matchProducts(all, DEF.match)
+  // 对比表讲的是 5x 的两个档位；表里还有 20x（括号写法是「可覆盖plus和5x」「无法覆盖plus和5x」），
+  // 不先限定到 5x，排序一变「可覆盖」那一格就可能链到 20x 上去
+  const pro5 = items.filter((p) => /5x/i.test(p.name))
+  const pro20 = items.filter((p) => /20x/i.test(p.name))
   // 【先判「不可覆盖」再判「可覆盖」】'可覆盖plus' 是 '不可覆盖plus' 的子串，
   // 顺序反了两个档位会指向同一个商品。
-  const nonOverride = items.find((p) => p.name.includes('不可覆盖'))
-  const canOverride = items.find((p) => p.name.includes('可覆盖') && !p.name.includes('不可覆盖'))
+  const nonOverride = pro5.find((p) => p.name.includes('不可覆盖'))
+  const canOverride = pro5.find((p) => p.name.includes('可覆盖') && !p.name.includes('不可覆盖'))
   const low = lowestPrice(items)
 
   return (
@@ -166,11 +180,12 @@ export default async function ChatgptProLandingPage() {
             <p>
               ChatGPT Pro 5x 在 OpenAI 那边的原价是每月 100 美元，是 Plus 的五倍。
               这个价位上买错一次的代价不小，而这一页要讲的第一件事就是最容易买错的那个点：
-              <strong className="text-white/80">两个档位的商品名后面各跟着一句「可覆盖plus」或「不可覆盖plus」</strong>
+              <strong className="text-white/80">每个档位的商品名后面都跟着一句括号，写明能不能覆盖（如「可覆盖plus」「不可覆盖plus」）</strong>
               ——它决定了你账号上已有的 Plus 订阅会被顶掉还是会挡住这次充值。
+              {pro20.length > 0 && '本站另有原价每月 200 美元的 Pro 20x，括号的规则一样。'}
             </p>
             <p>
-              下面按顺序讲清楚：现在多少钱、两个档位差在哪、【强制充值】按下去会损失什么、
+              下面按顺序讲清楚：现在多少钱、两种充值方式差在哪、【强制充值】按下去会损失什么、
               Pro 和 Plus 的五倍价差值不值、下单到充值完成要做哪几步、哪些情况不质保
               {low ? `。当前最低 ￥${low.toFixed(0)}。` : '。'}
               交付方式是卡密（也就是常说的兑换码、充值卡），付款用支付宝，不需要你有境外银行卡。
@@ -184,8 +199,8 @@ export default async function ChatgptProLandingPage() {
             note={
               <>
                 价格随上游成本与汇率浮动，以下单时页面显示的实付金额为准。「库存」和「累计成交」都是实时的：
-                累计成交是本站真实订单数，不是摆着看的装饰数字，两个档位分别成交了多少，表里可以直接对比。
-                两档的库存并不同步，售罄时会显示补货中。
+                累计成交是本站真实订单数，不是摆着看的装饰数字，各档位分别成交了多少，表里可以直接对比。
+                各档的库存并不同步，售罄时会显示补货中。
               </>
             }
           />
@@ -201,9 +216,10 @@ export default async function ChatgptProLandingPage() {
 
         <Section id="override" heading="「可覆盖 plus」和「不可覆盖 plus」差在哪">
           <p>
-            这两个档位最终充上去的都是 ChatGPT Pro 5x，规格一样。差别在于钱是走哪条链路进到 OpenAI 那边的，
+            同一规格的两个档位（比如 Pro 5x 的信用卡档与 iOS 档）最终充上去的是同一个会员，规格一样。差别在于钱是走哪条链路进到 OpenAI 那边的，
             而这条链路决定了它对你账号当前状态的要求。用一句话概括：
             信用卡充值那一档要求账号是「干净」的，iOS 订阅充值那一档可以顶掉你现有的 Plus。
+            下面这张表以 Pro 5x 的两个档位为例。
           </p>
 
           <div className="overflow-x-auto rounded-2xl border border-white/10 my-6">
@@ -299,6 +315,32 @@ export default async function ChatgptProLandingPage() {
               别自己在兑换页上试——试错的成本是一整张卡密。
             </p>
           </SubSection>
+
+          {/* 价格表里有 20x 就必须讲 20x：原来正文一个字都没提，而 20x 信用卡档有一条别的档位都没有的前提 */}
+          {pro20.length > 0 && (
+            <SubSection heading="想上 Pro 20x，选哪个">
+              <p>
+                Pro 20x 的原价是每月 200 美元，是 Pro 5x 的两倍。本站 20x 档位的商品名括号里
+                同样写着能不能覆盖账号上已有的 plus 和 5x，判断方法和上面一样：
+                要顶掉现有订阅，看写着「可覆盖」的那一档；账号干净，才考虑写着不能覆盖（「不可覆盖」「无法覆盖」）的那一档。
+              </p>
+              <p>
+                <strong className="text-white/80">各档位的适用条件以商品说明原文为准</strong>
+                ，有的档位只适用于特定状态的账号，不满足就别下单——和 5x 一样，买错档被核销的卡密不退。
+                20x 各档位的商品说明原文（实时取自后台）：
+              </p>
+              <ul className="space-y-2">
+                {pro20.map((p) => (
+                  <li key={p.id}>
+                    <Link href={`/products/${p.id}`} className="text-purple-400 hover:text-purple-300">
+                      {p.name}
+                    </Link>
+                    ：{p.description?.trim() || '商品页暂无补充说明，下单前请先问客服。'}
+                  </li>
+                ))}
+              </ul>
+            </SubSection>
+          )}
         </Section>
 
         <Section id="force" heading="【强制充值】按下去会损失什么">

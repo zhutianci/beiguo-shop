@@ -299,15 +299,65 @@ export async function releaseCouponForOrder(orderId: number): Promise<number> {
 }
 
 /**
- * 订单支付成功 → 券核销。
- * 用 CAS（条件带 state='LOCKED'）保证只核销一次；重复回调不会重复计数。
+ * 订单支付成功 → 券核销。幂等：已经核销过（或这单没用券）返回 false，不报错。
+ *
+ * 正常路径：券锁在这一单上（LOCKED + orderId=本单），CAS 翻成 USED，只会成功一次。
+ *
+ * 【兜底：钱到的时候券已经被放回去了】以下几条路都会让「按优惠价付了款」时券不再是 LOCKED：
+ *  · 管理员取消了订单（券已释放），而买家的收银台还开着、照样付了款
+ *  · 券锁了很久，兜底清扫把它放回了 AVAILABLE / EXPIRED，之后买家才付款
+ *  · 后台对已过期 / 已取消的收款单「补单」
+ *  · 建单时「先锁券、后回填 orderId」的回填失败，券是 LOCKED 但 orderId 为空
+ * 订单金额在建单时就已经是优惠价，这笔优惠**已经给出去了**。此时券若还留在可用状态，
+ * 买家就能再用一次 —— 同一张券享受两次优惠。所以按订单上记的 couponGrantId 找回那张券，
+ * 从 AVAILABLE / EXPIRED /「LOCKED 但未挂订单」直接 CAS 成 USED，并挂回本单。
+ *
+ * 「LOCKED 但未挂订单」也收：券是按账户发的、这里还校验了 userId，锁住它的只可能是
+ * 同一个买家的另一笔建单中的订单 —— 把券判给已经付了款的这一单，另一单付款前的复验
+ * （assertCouponForPayment）会因券状态变化而拦下它，结果正是「一张券只优惠一次」。
+ *
+ * 券已经锁在别的订单上 / 已在别的订单核销 / 已作废：这一单的优惠等于被重复享受了，
+ * 这里不去抢别人的券（那会让另一单对不上账），只打 error 日志，需要人工对账。
  */
 export async function consumeCouponForOrder(orderId: number): Promise<boolean> {
+  const now = new Date()
   const r = await prisma.couponGrant.updateMany({
     where: { orderId, state: 'LOCKED' },
-    data: { state: 'USED', usedAt: new Date() },
+    data: { state: 'USED', usedAt: now },
   })
-  return r.count > 0
+  if (r.count > 0) return true
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: { couponGrantId: true, userId: true, orderNo: true },
+  })
+  if (!order?.couponGrantId) return false // 这单没用券
+  const grantId = order.couponGrantId
+
+  const healed = await prisma.couponGrant.updateMany({
+    where: {
+      id: grantId,
+      userId: order.userId,
+      OR: [{ state: { in: ['AVAILABLE', 'EXPIRED'] } }, { state: 'LOCKED', orderId: null }],
+    },
+    data: { state: 'USED', orderId, usedAt: now, lockedAt: null },
+  })
+  if (healed.count === 1) {
+    console.warn('[coupon] 付款时券已不在锁定状态（已被释放），已补核销到本单', { orderId, orderNo: order.orderNo, grantId })
+    return true
+  }
+
+  const g = await prisma.couponGrant.findUnique({
+    where: { id: grantId },
+    select: { state: true, orderId: true, userId: true },
+  })
+  // 已经核销在本单上 = 之前已处理过（重复回调 / 清扫已自愈），幂等返回
+  if (g && g.state === 'USED' && g.orderId === orderId) return false
+  console.error(
+    '[coupon] 订单已按优惠价付款，但券无法核销到本单 —— 这笔优惠可能被重复享受，需人工对账',
+    { orderId, orderNo: order.orderNo, grantId, grant: g }
+  )
+  return false
 }
 
 /**
@@ -365,6 +415,12 @@ const LOCK_SWEEP_MINUTES = Number(process.env.COUPON_LOCK_SWEEP_MIN || 120)
  *
  * 所以这里按**时间**兜底，不依赖订单关联：锁了太久还没走到终态的，一律放回。
  * 判定时要看订单的真实状态，别把已经付款的券误放回去。
+ *
+ * 【订单还挂着待支付收款单的不放】lockedAt 是建单时间，而买家可以隔很久才点付款
+ * （例：建单后第 105 分钟才打开收银台）。只按时间判的话，清扫会在他付款途中把券放回去，
+ * 他照样按优惠价付款成功，券却又能再用一次。收款单（VmqOrder state=0）还在，
+ * 就说明买家正在付款、到账随时可能匹配上 —— 等它超时关单（closeExpired 会释放券）再说。
+ * 另见 api/pay/vmq/create：发起支付时会把 lockedAt 刷新成「开始付款」的时刻。
  */
 export async function sweepStuckCoupons(now: Date = new Date()): Promise<{ released: number; consumed: number }> {
   const cutoff = new Date(now.getTime() - LOCK_SWEEP_MINUTES * 60_000)
@@ -375,15 +431,22 @@ export async function sweepStuckCoupons(now: Date = new Date()): Promise<{ relea
   })
   if (!stuck.length) return { released: 0, consumed: 0 }
 
-  // 一次把相关订单查出来，不在循环里逐个打库
+  // 一次把相关订单与其待支付收款单查出来，不在循环里逐个打库
   const orderIds = stuck.map((g) => g.orderId).filter((v): v is number => typeof v === 'number')
-  const orders = orderIds.length
-    ? await prisma.order.findMany({
-        where: { id: { in: orderIds } },
-        select: { id: true, payStatus: true, deliveryStatus: true },
-      })
-    : []
+  const [orders, livePays] = orderIds.length
+    ? await Promise.all([
+        prisma.order.findMany({
+          where: { id: { in: orderIds } },
+          select: { id: true, payStatus: true, deliveryStatus: true },
+        }),
+        prisma.vmqOrder.findMany({
+          where: { bizType: 'order', bizId: { in: orderIds }, state: 0 },
+          select: { bizId: true },
+        }),
+      ])
+    : [[], []]
   const orderMap = new Map(orders.map((o) => [o.id, o]))
+  const paying = new Set(livePays.map((v) => v.bizId))
 
   let released = 0
   let consumed = 0
@@ -400,6 +463,9 @@ export async function sweepStuckCoupons(now: Date = new Date()): Promise<{ relea
       consumed += r.count
       continue
     }
+
+    // 买家正在付款（收款单还是待支付）→ 这一轮不动，见函数头注释
+    if (order && paying.has(order.id)) continue
 
     // 其余情况（订单不存在 / 订单已取消 / 订单还挂着但早已超时）一律放回。
     // 过期的直接判 EXPIRED，不放回可用 —— 放回去买家也只会选中后报错

@@ -5,13 +5,21 @@ import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
+import { requireAdmin } from '@/lib/auth'
 import { couponLabel, parseProductIds } from '@/lib/coupon'
 
 /**
- * 优惠券批次管理。鉴权由 middleware 兜底（它拦 /api/admin/*）。
+ * 优惠券批次管理。
+ *
+ * 鉴权：middleware 拦 /api/admin/*，每个 handler 里再用 requireAdmin 独立验一次 ——
+ * Next 14.2.3 的 CVE-2025-29927 能绕过 middleware，这里建券、加量、作废都是动钱的操作。
  *
  * 分页与筛选照抄站内既有后台列表的范式（见 api/admin/news/events/route.ts），
  * 不另起一套 —— 后台十几个列表页长得一样，维护成本才低。
+ *
+ * 【两类批次分开列】Coupon.source 为 NULL 的是后台建的公开领取批次；'LOTTERY' 是
+ * 「下单有奖」中奖时系统自动建的单张批次（一次中奖一批，total=1）。默认只列前者，
+ * 否则每中一次奖列表里就多一行，真正要管的活动会被淹没。?source=LOTTERY 单独看后者。
  */
 
 const STATUSES = ['ACTIVE', 'PAUSED', 'ENDED']
@@ -46,17 +54,32 @@ const createSchema = z
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin()
+  } catch {
+    return error('无管理员权限', 403)
+  }
+
+  try {
     const { searchParams } = new URL(request.url)
     const keyword = (searchParams.get('keyword') || '').trim()
     const status = (searchParams.get('status') || '').trim()
+    const lottery = searchParams.get('source') === 'LOTTERY'
     const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20') || 20, 1), 100)
 
-    const where: Prisma.CouponWhereInput = {}
+    // 批次来源是列表的第一层切分，total 与每行的核销统计都只针对这一类，两类不混算
+    const where: Prisma.CouponWhereInput = { source: lottery ? 'LOTTERY' : null }
     if (STATUSES.includes(status)) where.status = status
-    if (keyword) where.OR = [{ name: { contains: keyword } }, { code: { contains: keyword } }]
+    if (keyword) {
+      where.OR = [
+        { name: { contains: keyword } },
+        { code: { contains: keyword } },
+        // 抽奖券的备注是「下单有奖 · 订单 <订单号>」，按订单号能直接搜到那张券
+        ...(lottery ? [{ note: { contains: keyword } }] : []),
+      ]
+    }
 
-    const [rows, total] = await Promise.all([
+    const [rows, total, normalCount, lotteryCount] = await Promise.all([
       prisma.coupon.findMany({
         where,
         orderBy: [{ id: 'desc' }],
@@ -64,6 +87,8 @@ export async function GET(request: NextRequest) {
         take: pageSize,
       }),
       prisma.coupon.count({ where }),
+      prisma.coupon.count({ where: { source: null } }),
+      prisma.coupon.count({ where: { source: 'LOTTERY' } }),
     ])
 
     // 每批的核销情况。一次 groupBy 拿全，不在循环里逐个查
@@ -80,6 +105,27 @@ export async function GET(request: NextRequest) {
       const m = statMap.get(g.couponId) || {}
       m[g.state] = g._count._all
       statMap.set(g.couponId, m)
+    }
+
+    // 抽奖券一批只发给一个人：列表里直接给出中奖人，后台不用再去用户表里翻
+    const winnerMap = new Map<number, { userId: number; email: string | null; nickname: string | null }>()
+    const lotteryIds = rows.filter((r) => r.source != null).map((r) => r.id)
+    if (lotteryIds.length) {
+      const grants = await prisma.couponGrant.findMany({
+        where: { couponId: { in: lotteryIds } },
+        select: { couponId: true, userId: true },
+      })
+      const users = grants.length
+        ? await prisma.user.findMany({
+            where: { id: { in: Array.from(new Set(grants.map((g) => g.userId))) } },
+            select: { id: true, email: true, nickname: true },
+          })
+        : []
+      const userMap = new Map(users.map((u) => [u.id, u]))
+      grants.forEach((g) => {
+        const u = userMap.get(g.userId)
+        winnerMap.set(g.couponId, { userId: g.userId, email: u?.email ?? null, nickname: u?.nickname ?? null })
+      })
     }
 
     return success({
@@ -110,14 +156,17 @@ export async function GET(request: NextRequest) {
             expired: st.EXPIRED || 0,
             void: st.VOID || 0,
           },
-          // 领取链接。后台直接复制这一条去推广
-          claimPath: `/coupon/${r.code}`,
+          source: r.source,
+          // 系统发给具体买家的券没有领取链接（/coupon/<code> 对它们一律 404），不下发，免得被复制出去
+          claimPath: r.source == null ? `/coupon/${r.code}` : null,
+          winner: r.source != null ? winnerMap.get(r.id) ?? null : null,
         }
       }),
       total,
       page,
       pageSize,
       totalPages: Math.max(Math.ceil(total / pageSize), 1),
+      sourceCounts: { normal: normalCount, lottery: lotteryCount },
     })
   } catch (err) {
     console.error('List coupons error:', err)
@@ -128,6 +177,12 @@ export async function GET(request: NextRequest) {
 // ---------- POST 建一批 ----------
 
 export async function POST(request: NextRequest) {
+  try {
+    await requireAdmin()
+  } catch {
+    return error('无管理员权限', 403)
+  }
+
   try {
     const body = await request.json().catch(() => ({}))
     const parsed = createSchema.safeParse(body)
@@ -181,6 +236,12 @@ const patchSchema = z.object({
 
 export async function PATCH(request: NextRequest) {
   try {
+    await requireAdmin()
+  } catch {
+    return error('无管理员权限', 403)
+  }
+
+  try {
     const body = await request.json().catch(() => ({}))
     const parsed = patchSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
@@ -188,6 +249,9 @@ export async function PATCH(request: NextRequest) {
 
     const cur = await prisma.coupon.findUnique({ where: { id: d.id } })
     if (!cur) return notFound('优惠券不存在')
+    // 抽奖券是「一次中奖一批、只发给中奖人」的单张批次：加量没有意义，
+    // 加出来的余量也没有任何入口能领（领取接口拒绝系统批次），只会让账面对不上
+    if (cur.source != null && d.addTotal) return error('抽奖发放的券是单张批次，不能加量')
 
     const updated = await prisma.coupon.update({
       where: { id: d.id },

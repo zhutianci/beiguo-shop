@@ -6,7 +6,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getLandingProducts, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
 import { REDEEM_ERROR_GROUPS, REDEEM_ERROR_SCOPE, redeemErrorCount } from '@/lib/landing/redeem-errors'
-import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
+import { CHATGPT_ANNUAL_MATCH, findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
 import {
@@ -22,7 +22,7 @@ import {
   SubSection,
   Warning,
 } from '@/components/landing/landing-ui'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 
 /**
  * ChatGPT Plus 充值落地页——这一批页面里的主力页。
@@ -66,6 +66,7 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
+      ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: DEF.title,
@@ -126,7 +127,9 @@ const FAQS: { q: string; a: string }[] = [
 export default async function ChatgptPlusLandingPage() {
   const all = await getLandingProducts()
   const items = matchProducts(all, DEF.match)
-  const annual = all.filter((p) => p.categoryName === 'ChatGPT' && p.name.includes('年费'))
+  // 年费档：与 matchProducts 同一套 trim + 忽略大小写的比较（原来是精确比较 categoryName === 'ChatGPT'，
+  // 后台分类名多一个空格或改个大小写，这条入口就静默消失）。规则与商品页的归类共用 CHATGPT_ANNUAL_MATCH
+  const annual = matchProducts(all, CHATGPT_ANNUAL_MATCH)
   const low = lowestPrice(items)
 
   return (
@@ -287,8 +290,8 @@ export default async function ChatgptPlusLandingPage() {
 
         <Section id="redeem-errors" heading="兑换报错了：对照这张表，先别急着提交第二次">
           <p>
-            这一页的两个档位走的是两条不同的链路，所以在兑换页上会撞见的报错也不一样：
-            这一页两个档位走的兑换通道不同，措辞也不同，但失败的原因高度集中在「账号这一侧不满足条件」——已有订阅、账单异常、
+            这一页的两个档位走的是两条不同的链路，所以在兑换页上会撞见的报错措辞也不一样，
+            但失败的原因高度集中在「账号这一侧不满足条件」——已有订阅、账单异常、
             十分钟内刚充过；iOS 订阅充值那一档还会多出一类凭据问题，session 复制不全、
             或者取完放太久失效，都会被挡在这一步。两类都不是你手上这张卡密坏了。
           </p>

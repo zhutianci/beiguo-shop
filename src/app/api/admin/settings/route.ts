@@ -5,6 +5,7 @@ import { success, error } from '@/lib/api'
 import { cardKeyConfigured } from '@/lib/cardkey'
 import { vmqConfigured, VMQ_TIMEOUT_MIN } from '@/lib/vmq'
 import { notifyConfigured } from '@/lib/notify'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 系统状态（只读）。原来的 /admin/settings 是一个按钮点了没反应的静态假表单，
 // 这里换成真实可用的运行时自检：只报「已配置/未配置」和非敏感的数值，
@@ -12,6 +13,8 @@ import { notifyConfigured } from '@/lib/notify'
 const has = (v?: string | null) => !!(v && v.trim())
 
 export async function GET() {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const [products, autoProducts, unusedCards, orders, users, receipts, invoices] = await Promise.all([
       prisma.product.count(),

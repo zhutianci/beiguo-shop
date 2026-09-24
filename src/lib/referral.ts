@@ -37,39 +37,59 @@ export async function effectiveBasePrice(userId: number, productId: number): Pro
   return Number(p.referrerBasePrice ?? p.price)
 }
 
-// 订单「已完成」后结算内推返现：自动进推广人余额，幂等
+// 订单「已付款且已完成」后结算内推返现：自动进推广人余额，幂等
 export async function settleReferral(orderId: number): Promise<void> {
   const order = await prisma.order.findUnique({ where: { id: orderId } })
   if (!order) return
-  if (order.deliveryStatus !== 'DELIVERED') return
+  // 两个条件缺一不可：只看 DELIVERED 的话，被标成退款（REFUNDED）却仍显示已交付的订单
+  // 也会给推广人入账 —— 钱没留下，返现却发出去了
+  if (order.payStatus !== 'PAID' || order.deliveryStatus !== 'DELIVERED') return
   if (!order.referrerId || order.referrerId === order.userId) return
+  const referrerId = order.referrerId
   const reward = order.referralReward ? Number(order.referralReward) : 0
   if (reward <= 0) return
 
   const existing = await prisma.referralReward.findUnique({ where: { orderId } })
   if (existing) return // 已结算
 
-  const referrer = await prisma.user.findUnique({ where: { id: order.referrerId }, select: { balance: true } })
-  const balanceAfter = Math.round((Number(referrer?.balance ?? 0) + reward) * 100) / 100
-
   try {
-    await prisma.$transaction([
-      prisma.referralReward.create({
+    /*
+     * 【balanceAfter 必须在事务里、加完之后读】原来是事务外先读余额再加 reward 算出来的，
+     * 同一个推广人两笔返现同时结算（或结算撞上后台调余额）时，两条流水会写出同一个
+     * 「变动后余额」，余额本身靠 increment 是对的，流水却对不上。
+     * 现在 update 行锁住该用户直到提交，读回来的就是本次加完之后的真实余额。
+     *
+     * 幂等仍靠 ReferralReward.orderId 唯一约束：并发的第二次在第一条 create 上 P2002，整个事务回滚。
+     * note 的文本格式不能改 —— 历史行没有 orderId 列，lib/balance.ts 的 referralOrderIdOf 靠它回退解析。
+     */
+    await prisma.$transaction(async (tx) => {
+      await tx.referralReward.create({
         data: {
           orderId,
-          referrerId: order.referrerId,
+          referrerId,
           buyerId: order.userId,
           productId: order.productId,
           amount: reward,
           status: 'SETTLED',
           settledAt: new Date(),
         },
-      }),
-      prisma.user.update({ where: { id: order.referrerId }, data: { balance: { increment: reward } } }),
-      prisma.balanceLog.create({
-        data: { userId: order.referrerId, delta: reward, balanceAfter, type: 'REFERRAL', note: `订单#${orderId} 内推返现` },
-      }),
-    ])
+      })
+      const u = await tx.user.update({
+        where: { id: referrerId },
+        data: { balance: { increment: reward } },
+        select: { balance: true },
+      })
+      await tx.balanceLog.create({
+        data: {
+          userId: referrerId,
+          delta: reward,
+          balanceAfter: u.balance,
+          type: 'REFERRAL',
+          note: `订单#${orderId} 内推返现`,
+          orderId,
+        },
+      })
+    })
   } catch (e) {
     if ((e as { code?: string })?.code === 'P2002') return // 并发重复
     throw e

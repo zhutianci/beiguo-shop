@@ -7,6 +7,7 @@ import { success, error } from '@/lib/api'
 import { fetchText, parseFeed, FetchFeedError } from '@/lib/news/feed'
 import { relayConfigured, relayUrl } from '@/lib/news/sources'
 import { AIHOT_HEADERS, aihotFetchUrl, parseAihotLeads } from '@/lib/news/aihot'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 「立即测试该源」：拉一次 feed，返回 HTTP 状态、耗时、解析出的条目数与前 3 条标题。
@@ -102,6 +103,8 @@ function peekJson(text: string): { count: number; titles: string[] } | null {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json().catch(() => ({}))
     const parsed = bodySchema.safeParse(body)

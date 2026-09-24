@@ -14,9 +14,12 @@ import {
   maskSecret,
   syncAutoStock,
 } from '@/lib/cardkey'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 列表（默认脱敏；reveal=1 返回明文，仅管理员可用，受 middleware 保护）
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { searchParams } = new URL(request.url)
     const productId = parseInt(searchParams.get('productId') || '0')
@@ -136,6 +139,8 @@ const importSchema = z.object({
 
 // 批量导入卡密（加密入库，同商品内去重）
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     if (!cardKeyConfigured()) return error('未配置 CARDKEY_SECRET，无法安全存储卡密', 500)
 

@@ -4,10 +4,13 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { VMQ_KEY, VMQ_TIMEOUT_MIN, recentVmqOrders, getDiag } from '@/lib/vmq'
+import { adminGuard } from '@/lib/admin-guard'
 
 // 收款监控配置：到账通知统一走 SmsForwarder → POST /api/pay/sms-notify。
 // VmqApk（/appHeart + /appPush + 扫码配置二维码）已移除。
 export async function GET(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     // 域名：优先用 APP_URL，去掉协议与路径，只留 host[:port]；供 webhookUrl 兜底
     let host = ''

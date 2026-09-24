@@ -2,22 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-
-// 邮箱脱敏：u***@example.com
-function maskEmail(email: string | null): string {
-  if (!email) return '匿名用户'
-  const [name, domain] = email.split('@')
-  if (!name || !domain) return '匿名用户'
-  const visible = name.slice(0, Math.min(2, name.length))
-  return `${visible}***@${domain}`
-}
-
-// 昵称脱敏：保留首尾，中间打码
-function maskNickname(nickname: string | null): string {
-  if (!nickname) return ''
-  if (nickname.length <= 2) return nickname[0] + '*'
-  return nickname[0] + '*'.repeat(Math.min(nickname.length - 2, 3)) + nickname.slice(-1)
-}
+// 脱敏函数与「推荐有奖」页共用一份，见 lib/mask.ts 顶部说明
+import { maskEmail, maskNickname } from '@/lib/mask'
 
 const FAKE_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京', '西安', '苏州', '重庆', '天津']
 

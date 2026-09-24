@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 const updateUserSchema = z.object({
   status: z.number().int().min(0).max(1).optional(),
@@ -17,6 +18,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const { id } = await params
     const userId = parseInt(id)

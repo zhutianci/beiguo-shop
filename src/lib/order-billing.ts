@@ -24,20 +24,43 @@ export type { BuyerInvoiceFields, OrderInvoiceDraft, ManualInvoiceInput } from '
 // （返回的 token 打开即可看到对方邮箱、订阅类型、金额）。
 // 折中：要求调用方证明「知道该订单的账户邮箱」——这正是邮箱查询流程本就具备的信息；
 // 已登录用户则按本人订单 / 本人邮箱 / 已绑定账户放行。
+//
+// order.shopOrderId：调用方查外部订单时顺手带上就传；不传（undefined）则这里按 id 自己补查，
+// 传 null 表示「确认没有」、不再查。老调用方（只 select 了 id/sourceKey/claudeAccount）不用改。
 export async function assertExternalOrderAccess(
-  order: { id: number; sourceKey: string; claudeAccount: string },
+  order: { id: number; sourceKey: string; claudeAccount: string; shopOrderId?: number | null },
   opts: { userId?: number | null; userEmail?: string | null; claimedEmail?: string | null }
 ): Promise<void> {
   const account = (order.claudeAccount || '').trim().toLowerCase()
 
   // 1) 本站订单背书：sourceKey = order:<id>，校验该订单确实属于当前登录用户
   const m = /^order:(\d+)$/.exec(order.sourceKey || '')
-  if (m && opts.userId) {
+  const keyOrderId = m ? parseInt(m[1]) : null
+  if (keyOrderId && opts.userId) {
     const shopOrder = await prisma.order.findUnique({
-      where: { id: parseInt(m[1]) },
+      where: { id: keyOrderId },
       select: { userId: true },
     })
     if (shopOrder && shopOrder.userId === opts.userId) return
+  }
+
+  // 1b) 本站订单关联：shopOrderId 指向的站内订单属于当前登录用户。
+  // 管理员「标记已完成」导入的 WEB 行 sourceKey 是 hashKey（里面没有订单号），
+  // 背书行被后台编辑过 sourceKey 也会变成 hashKey —— 这两种行只剩 shopOrderId 能证明归属。
+  // 没有这一条，买家在订单页看到的那张「待付税费」发票（挂在 WEB 行上）点去支付会被拒。
+  if (opts.userId) {
+    let shopOrderId = order.shopOrderId
+    if (shopOrderId === undefined) {
+      const row = await prisma.externalOrder.findUnique({ where: { id: order.id }, select: { shopOrderId: true } })
+      shopOrderId = row?.shopOrderId ?? null
+    }
+    if (shopOrderId && shopOrderId !== keyOrderId) {
+      const shopOrder = await prisma.order.findUnique({
+        where: { id: shopOrderId },
+        select: { userId: true },
+      })
+      if (shopOrder && shopOrder.userId === opts.userId) return
+    }
   }
 
   // 2) 登录用户本人邮箱即该订阅账户
@@ -148,7 +171,20 @@ export async function submitInvoiceForExternalOrder(
 }
 
 // 以「订单（外部订单）」为基准生成收据。
-export async function submitReceiptForExternalOrder(externalOrderId: number, payerTitle: string) {
+//
+// opts.paidInvoiceAmount：同一张站内订单挂在**另一条**外部订单行上的已付税费发票的含税金额。
+// 一张站内订单可能有两条外部订单行（背书行 + 管理员「标记已完成」的 WEB 行），买家可能是在
+// WEB 行上（从「邮箱查订阅」）付的 6%。只看本行发票的话，这种订单会开出一张不含税的收据，
+// 比买家实付少 6%，而收据开出去改不回来。由调用方（api/orders/[id]/receipt）查全关联行后传入。
+export async function submitReceiptForExternalOrder(
+  externalOrderId: number,
+  payerTitle: string,
+  opts: {
+    paidInvoiceAmount?: number | null
+    /** 收据上是否展示 ChatGPT/Claude 字眼（买家申请时必选，与发票同一口径）。不展示 → 项目印「技术咨询服务」 */
+    showAiWording?: boolean | null
+  } = {}
+) {
   const order = await prisma.externalOrder.findUnique({ where: { id: externalOrderId } })
   if (!order) throw new BillingError('订单不存在')
 
@@ -164,7 +200,12 @@ export async function submitReceiptForExternalOrder(externalOrderId: number, pay
   if (quote == null) throw new BillingError('该订单暂不可开具收据')
 
   const invoice = await prisma.invoice.findUnique({ where: { externalOrderId: order.id } })
-  const amount = invoice && invoice.payStatus === 'PAID' ? Number(invoice.invoiceAmount) : quote
+  const amount =
+    invoice && invoice.payStatus === 'PAID'
+      ? Number(invoice.invoiceAmount)
+      : opts.paidInvoiceAmount != null && opts.paidInvoiceAmount > 0
+        ? opts.paidInvoiceAmount
+        : quote
 
   const receipt = await prisma.receipt.create({
     data: {
@@ -180,6 +221,7 @@ export async function submitReceiptForExternalOrder(externalOrderId: number, pay
       payee: PAYEE,
       amount,
       source: 'BUYER',
+      showAiWording: opts.showAiWording ?? null,
     },
   })
 

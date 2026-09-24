@@ -87,8 +87,8 @@ export function ClaimPanel(props: Props) {
   return (
     <div className="mx-auto">
       {/* 券面 */}
-      <div className="relative overflow-hidden rounded-3xl border border-white/12 bg-gradient-to-br from-purple-600/20 via-white/[0.06] to-pink-600/15 p-6 lg:p-8">
-        <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.06] px-3 py-1">
+      <div className="relative overflow-hidden rounded-3xl border border-white/[0.12] bg-gradient-to-br from-purple-600/20 via-white/[0.06] to-pink-600/15 p-6 lg:p-8">
+        <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/[0.12] bg-white/[0.06] px-3 py-1">
           <Ticket className="h-3.5 w-3.5 text-purple-300" />
           <span className="text-xs text-white/70">{props.name}</span>
         </div>
@@ -136,8 +136,8 @@ export function ClaimPanel(props: Props) {
                 去挑一件用掉
               </Link>
               <Link
-                href="/profile"
-                className="rounded-full border border-white/12 bg-white/[0.04] px-6 py-3 text-center text-sm text-white/70 transition-colors hover:bg-white/[0.09]"
+                href="/coupons"
+                className="rounded-full border border-white/[0.12] bg-white/[0.04] px-6 py-3 text-center text-sm text-white/70 transition-colors hover:bg-white/[0.09]"
               >
                 我的券
               </Link>
@@ -170,7 +170,9 @@ export function ClaimPanel(props: Props) {
         <ul className="space-y-1">
           <li>· 每个账户限领 1 张，领取后绑定本账户，仅限本人使用</li>
           <li>· 在商品结算页选择使用，订单按优惠后的金额支付</li>
-          <li>· 与推广专属价不叠加，系统自动为你选更便宜的那个</li>
+          {/* 与 lib/coupon.ts 的 quoteOrder 同口径（2026-09-11 起）：内推单按专属价、券不参与，
+              券也不会被锁定，原样留在账户里 */}
+          <li>· 通过推广链接下单时按推广专属价计算，不能使用优惠券（券会保留在账户里）</li>
           <li>· 发票税费等场景不可使用</li>
           {props.endAt && <li>· 请在有效期内使用，过期自动失效</li>}
         </ul>

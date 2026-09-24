@@ -161,7 +161,8 @@ export function productItemListJsonLd(products: ListedProduct[], listPath: strin
     '@context': 'https://schema.org',
     '@type': 'ItemList',
     '@id': `${absUrl(listPath)}#itemlist`,
-    name: 'AI 会员代充商品',
+    // 「代充」是信任审查意图的次要词（交接文档第二十四节的实测），不适合作列表名
+    name: 'AI 会员充值商品',
     numberOfItems: products.length,
     itemListElement: products.map((p, i) => ({
       '@type': 'ListItem',

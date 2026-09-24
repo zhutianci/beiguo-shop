@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 const categorySchema = z.object({
   name: z.string().min(1, '请输入分类名称'),
@@ -16,6 +17,8 @@ const categorySchema = z.object({
 // 分类是运营手工维护的枚举型数据（十几条量级），不做分页；仅加 take 上限兜底，
 // 保证异常情况下也不会一次性把整表读进内存。返回仍是裸数组（商品页的分类下拉依赖它）。
 export async function GET() {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const categories = await prisma.category.findMany({
       include: {
@@ -36,6 +39,8 @@ export async function GET() {
 
 // 创建分类
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const result = categorySchema.safeParse(body)

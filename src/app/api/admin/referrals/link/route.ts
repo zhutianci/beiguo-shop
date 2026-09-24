@@ -4,11 +4,14 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { adminGuard } from '@/lib/admin-guard'
 
 const schema = z.object({ userId: z.number().int().positive() })
 
 // 删除内推链接：清除推广人内推码 + 其专属价/单独基础价（返现历史与余额保留）
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = schema.safeParse(body)

@@ -12,6 +12,7 @@ import {
   BillingError,
 } from '@/lib/order-billing'
 import { settlePrepaidInvoiceByExternalOrder } from '@/lib/order-invoice'
+import { crossRowInvoiceBlock, orderIdFromSourceKey } from '@/lib/order-link'
 import {
   buyerInvoiceSubmitSchema,
   normalizeInvoiceFields,
@@ -63,6 +64,16 @@ export async function POST(request: NextRequest) {
         { alreadyPaid: true },
         '该订单下单时已选择开发票、税费也已随货款付清，无需再次支付；抬头已按本次填写更新'
       )
+    }
+    /*
+     * 【跨行查重】这一行背后的站内订单，若在另一条外部订单行上已经开过 / 付过发票
+     * （最常见：买家先在「我的订单」申请并付了 6%，这里是管理员交付时导入的 WEB 行），
+     * 不能在这一行再收一次税。与 /api/orders/[id]/invoice 的跨行检查同一口径。
+     */
+    const shopOrderId = order.shopOrderId ?? orderIdFromSourceKey(order.sourceKey)
+    if (shopOrderId) {
+      const blocked = await crossRowInvoiceBlock(shopOrderId, order.id)
+      if (blocked) return error(blocked, 409)
     }
     const result = await submitInvoiceForExternalOrder(d.externalOrderId, fields, {
       userId: user?.id ?? null,

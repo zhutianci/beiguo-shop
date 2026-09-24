@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client'
 import { prisma } from './db'
 import {
   calcInvoiceAmounts,
@@ -182,6 +183,35 @@ interface PaidOrderForInvoice extends ShopOrderForBilling {
 export async function materializeOrderInvoice(o: PaidOrderForInvoice) {
   const draft = parseOrderInvoiceDraft(o.invoiceInfo)
   if (!draft) return null
+
+  /*
+   * 【先按整张订单查重，再去建背书行】下面那道「这一行上有没有发票」只认 sourceKey='order:<id>' 的背书行。
+   * 管理员在「订单（外部订单）」里编辑过背书行（PUT 会把 sourceKey 改成 hashKey）或删掉它之后，
+   * ensureExternalOrderForShopOrder 会新建一条背书行，这里就会在新行上再落地一张「已提交 + 已付款」的发票
+   * 并推给财务 —— 一笔 6% 开出两张票。而后台「重新保存订单 = 重试落地」让每次保存都会走到这里。
+   * 所以先把所有关联行（shopOrderId / 背书键）与发票上的 sourceKey 快照都查一遍，已有成立的发票就不再落地。
+   * （不 import lib/order-link：那个文件 import 了本文件，反向引用会形成循环依赖）
+   */
+  const sk = shopOrderSourceKey(o.id)
+  const linkedExts = await prisma.externalOrder.findMany({
+    where: { OR: [{ shopOrderId: o.id }, { sourceKey: sk }] },
+    select: { id: true },
+  })
+  const already = await prisma.invoice.findFirst({
+    where: {
+      AND: [
+        {
+          OR: [
+            ...(linkedExts.length ? [{ externalOrderId: { in: linkedExts.map((e) => e.id) } }] : []),
+            { sourceKey: sk },
+          ],
+        },
+        { OR: [{ payStatus: 'PAID' }, { status: { in: ['SUBMITTED', 'ISSUED', 'CANNOT'] } }] },
+      ],
+    },
+    select: { id: true },
+  })
+  if (already) return null
 
   const ext = await ensureExternalOrderForShopOrder(o)
 
@@ -375,7 +405,11 @@ export interface ManualInvoiceInput {
  * 代价是后台列表要专门为「无订单」的发票开一个分支（见 api/admin/invoices）。
  * 批量导出与财务台本来就是直接查 invoices 表，不受影响。
  */
-export async function createManualInvoice(input: ManualInvoiceInput) {
+export async function createManualInvoice(
+  input: ManualInvoiceInput,
+  /** 可传入调用方的事务（开票填写链接提交时，「链接翻成已提交」与「建发票」必须同一个事务） */
+  db: Prisma.TransactionClient = prisma
+) {
   const amount = Number(input.invoiceAmount)
   if (!isFinite(amount) || amount <= 0) throw new BillingError('开票金额必须大于 0')
 
@@ -394,7 +428,7 @@ export async function createManualInvoice(input: ManualInvoiceInput) {
   const sellCents = Math.round(invoiceCents / (1 + TAX_RATE))
   const issuedAt = new Date()
 
-  const invoice = await prisma.invoice.create({
+  const invoice = await db.invoice.create({
     data: {
       invoiceNo: genInvoiceNo(),
       externalOrderId: null,

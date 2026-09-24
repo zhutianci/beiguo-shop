@@ -17,7 +17,7 @@ import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
  * （掉订阅后扣除已用天数、按剩余天数折算退款，封号不质保等）。改商品文案时要回来核对这一页，
  * 两处不一致时以对买家更有利的一方为准。
  */
-const UPDATED_AT = '2026-09-19'
+const UPDATED_AT = '2026-09-24'
 
 const TITLE = `服务条款 - ${SITE_NAME}`
 const DESCRIPTION =
@@ -69,7 +69,7 @@ export default function TermsPage() {
             <strong className="text-white">请在提交前自行核验</strong>。
             因不满足前置条件导致充值失败且卡密已被消耗的，按第四节处理。
           </li>
-          <li>下单时填写的邮箱是我们联系你的唯一凭据，填错会导致无法收到卡密，请仔细核对。</li>
+          <li>下单需要先登录本站账号，卡密与交付通知发到你的账号邮箱（下单时不另填邮箱），请确保该邮箱能正常收信。</li>
         </ul>
       </LegalSection>
 
@@ -82,9 +82,9 @@ export default function TermsPage() {
           <li>价格随上游成本与汇率浮动，我们可随时调整，已完成的订单不受后续调价影响。</li>
           <li>
             <strong className="text-white">需要发票的，须在售价之外另行支付 6% 税费。</strong>
-            开票金额为「售价 × 1.06」，税费在申请开票时单独支付。
-            收据不涉及税费。两者都在订单完成后通过站内入口或联系客服申请，
-            发票抬头由你自己填写。
+            开票金额为「售价 × 1.06」。可以在结算时勾选「同时开具增值税发票」，税费随货款一起支付；
+            也可以付款后在「我的订单」里申请，届时单独支付税费。收据不涉及税费，
+            可在订单付款后通过站内入口或联系客服申请。发票抬头由你自己填写。
           </li>
         </ul>
       </LegalSection>

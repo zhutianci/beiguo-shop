@@ -24,6 +24,7 @@ import {
   Ticket,
   Link2,
   BarChart3,
+  PartyPopper,
 } from 'lucide-react'
 
 type NavItem = {
@@ -70,12 +71,14 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    // 优惠券和内推都是「促成一笔订单」的手段，和订单放一起才能连着看转化
+    // 优惠券、下单有奖和内推都是「促成一笔订单」的手段，和订单放一起才能连着看转化
     group: '订单与营销',
     items: [
       { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
       { href: '/admin/external-orders', label: '订单导入', icon: FileUp },
       { href: '/admin/coupons', label: '优惠券', icon: Ticket },
+      // 紧挨着优惠券：抽中的券就是优惠券系统里的单张批次
+      { href: '/admin/lottery', label: '抽奖管理', icon: PartyPopper },
       { href: '/admin/referrals', label: '内推管理', icon: Gift },
     ],
   },

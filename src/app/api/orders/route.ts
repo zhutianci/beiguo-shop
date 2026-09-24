@@ -21,10 +21,23 @@ import {
 } from '@/lib/invoice-input'
 import { notifyOrderCreated } from '@/lib/notify'
 import { quoteOrder, grantUsable, parseProductIds, rejectReason, type GrantState } from '@/lib/coupon'
+import { invoicesByOrderIds, orderIdFromSourceKey, type InvoiceBrief } from '@/lib/order-link'
+import { createEntryIfEligible, getLotteryConfig, lotteryViewsByOrderIds } from '@/lib/lottery-server'
+import type { BuyerLotteryView } from '@/lib/lottery'
 
 const createOrderSchema = z.object({
-  productId: z.number(),
-  quantity: z.number().min(1).default(1),
+  // 必须是正整数：小数/负数原本要一路走到 prisma.order.create（Int 列）才炸，
+  // 买家只能看到一句笼统的「创建订单失败」
+  productId: z
+    .number({ required_error: '缺少商品', invalid_type_error: '商品参数不正确' })
+    .int('商品参数不正确')
+    .positive('商品参数不正确'),
+  quantity: z
+    .number({ invalid_type_error: '购买数量必须是数字' })
+    .int('购买数量必须是整数')
+    .min(1, '购买数量至少为 1')
+    .max(999, '单次最多购买 999 件')
+    .default(1),
   remark: z.string().optional(),
   ref: z.string().trim().optional().nullable(), // 内推码
   /** 要使用的券实例 id（CouponGrant.id）。只对本人有效，服务端会校验归属 */
@@ -169,39 +182,60 @@ export async function GET(request: NextRequest) {
       for (const g of grouped) unreadMap.set(g.orderId, g._count._all)
     }
 
-    // 发票/收据状态：买家订单通过背书外部订单(sourceKey=`order:<id>`)挂接，
-    // 已申请过的订单查出其发票状态与收据令牌，用于订单页显示对应按钮
-    const invByOrderId = new Map<number, { id: number; status: string; payStatus: string }>()
+    /*
+     * 发票/收据状态。
+     *
+     * 【发票两根线索都要查】一张站内订单可能挂两条外部订单：买家申请时造的背书行
+     * （sourceKey=`order:<id>`），以及管理员「标记已完成」导入的 WEB 行（只有 shopOrderId）。
+     * 原来只按 sourceKey 查，WEB 行上的发票（买家从「邮箱查订阅」申请的）在这里看不见，
+     * 订单页就再给一个「申请发票」—— 点下去就是第二次付 6%。
+     * 统一走 lib/order-link.invoicesByOrderIds，列表第一张 = 推进得最靠后的那张。
+     *
+     * 查不到发票时**不能吞错**：吞掉就会显示「可开发票」，正是上面那个重复收税的入口。
+     */
     const receiptByOrderId = new Map<number, string>()
+    /** 订单 → 背书行（sourceKey=`order:<id>`）的 ext id。收据计费只认这一行，见下方 receiptAmount */
+    const backingExtByOrderId = new Map<number, number>()
+    const [invMap, lotteryMap] = await Promise.all([
+      paidIds.length ? invoicesByOrderIds(paidIds) : Promise.resolve(new Map<number, InvoiceBrief[]>()),
+      // 抽奖状态查不到只影响红包按钮显示，不能把整张订单列表带挂
+      lotteryViewsByOrderIds(allIds).catch((e) => {
+        console.error('[lottery] 订单列表读取抽奖状态失败（不影响订单列表）', e)
+        return new Map<number, BuyerLotteryView>()
+      }),
+    ])
     if (paidIds.length) {
+      // 收据是按外部订单行挂的：背书行与 WEB 行上的收据都算这张订单的
       const exts = await prisma.externalOrder.findMany({
-        where: { sourceKey: { in: paidIds.map((id) => shopOrderSourceKey(id)) } },
-        select: { id: true, sourceKey: true },
+        where: {
+          OR: [{ shopOrderId: { in: paidIds } }, { sourceKey: { in: paidIds.map((id) => shopOrderSourceKey(id)) } }],
+        },
+        select: { id: true, shopOrderId: true, sourceKey: true },
       })
       if (exts.length) {
         const extIdToOrderId = new Map<number, number>()
         for (const e of exts) {
-          const oid = parseInt(e.sourceKey.slice('order:'.length))
-          if (oid) extIdToOrderId.set(e.id, oid)
+          const oid = e.shopOrderId ?? orderIdFromSourceKey(e.sourceKey)
+          // 只收本页、本人的订单（查询条件本身已限定，这里再收一道口）
+          if (!oid || !paidIds.includes(oid)) continue
+          extIdToOrderId.set(e.id, oid)
+          if (e.sourceKey === shopOrderSourceKey(oid)) backingExtByOrderId.set(oid, e.id)
         }
-        const extIds = exts.map((e) => e.id)
-        const [invs, recs] = await Promise.all([
-          prisma.invoice.findMany({
-            where: { externalOrderId: { in: extIds } },
-            select: { id: true, externalOrderId: true, status: true, payStatus: true },
-          }),
-          prisma.receipt.findMany({
-            where: { externalOrderId: { in: extIds } },
-            select: { externalOrderId: true, token: true },
-          }),
-        ])
-        for (const iv of invs) {
-          const oid = iv.externalOrderId != null ? extIdToOrderId.get(iv.externalOrderId) : undefined
-          if (oid) invByOrderId.set(oid, { id: iv.id, status: iv.status, payStatus: iv.payStatus })
-        }
+        const extIds = Array.from(extIdToOrderId.keys())
+        const recs = extIds.length
+          ? await prisma.receipt.findMany({
+              where: { externalOrderId: { in: extIds } },
+              select: { externalOrderId: true, token: true },
+            })
+          : []
         for (const r of recs) {
           const oid = r.externalOrderId != null ? extIdToOrderId.get(r.externalOrderId) : undefined
-          if (oid && r.token) receiptByOrderId.set(oid, r.token)
+          if (!oid || !r.token) continue
+          // 背书行上的收据优先（订单页「申请收据」开在这一行）；其余行的收据只在没有时补上，
+          // 这样从「邮箱查订阅」开过收据的订单也显示「已开具」，不会再开第二张
+          if (backingExtByOrderId.get(oid) === r.externalOrderId || !receiptByOrderId.has(oid)) {
+            receiptByOrderId.set(oid, r.token)
+          }
         }
       }
     }
@@ -210,10 +244,18 @@ export async function GET(request: NextRequest) {
       const paid = o.payStatus === 'PAID'
       const price = Number(o.amount)
       const pendingTax = o.invoiceTaxFee == null ? 0 : Number(o.invoiceTaxFee)
-      const inv = invByOrderId.get(o.id)
+      const invs = invMap.get(o.id) || []
+      // 主发票：推进得最靠后的那张（ISSUED > SUBMITTED > AWAIT_PAY > CANNOT > UNAPPLIED）。
+      // 跳过「孤儿且待付税费」的：它的外部订单行已经没了，付款接口走不通，
+      // 当主发票的话订单页会卡在一个付不了的「去支付税费」上、也不再给「申请发票」。
+      // 跳过之后订单回到可申请状态，服务端（api/orders/[id]/invoice）对这种情况本来就允许重新申请
+      const inv = invs.find((iv) => !(iv.orphan && iv.status === 'AWAIT_PAY' && iv.payStatus !== 'PAID'))
       const amt = paid ? calcInvoiceAmounts(price) : null
       // 收据金额：买家已付发票税费(payStatus=PAID) → 含税开票金额；否则售价。
-      // 须与 submitReceiptForExternalOrder 中的服务端计费口径保持一致。
+      // 须与 submitReceiptForExternalOrder 中的服务端计费口径保持一致：先看**背书行**上的发票
+      // （订单页申请收据走 ensureExternalOrderForShopOrder 的那一行），背书行没有已付发票时
+      // 再看其他关联行上的已付发票。预览与实际开出的收据金额必须是同一个数
+      // （收据只能开一次，开错了改不回来）。
       //
       // 【预收过税费的订单，即使 Invoice 行还没落地也算「已提交」】
       // 履约里的落地是 try 住的，失败时会出现「税费已到账、invoices 表却没有行」的状态。
@@ -221,8 +263,15 @@ export async function GET(request: NextRequest) {
       // 买家点下去就是第二次付 6%。服务端那道闸（settlePrepaidOrderInvoice）会挡住，
       // 但不该让这个按钮出现在买家眼前。
       const prepaidTax = pendingTax > 0 && paid
-      const invoicePaid = inv?.payStatus === 'PAID' || prepaidTax
+      const backingExtId = backingExtByOrderId.get(o.id)
+      const backingInv = backingExtId != null ? invs.find((iv) => iv.externalOrderId === backingExtId) : undefined
+      // 背书行上的已付发票优先；背书行没有、但 WEB 行上有一张已付税费的发票（买家从「邮箱查订阅」
+      // 付过 6%）时，收据同样按含税额出具 —— 与 api/orders/[id]/receipt 传给
+      // submitReceiptForExternalOrder 的 paidInvoiceAmount 同一口径
+      const paidInv = backingInv?.payStatus === 'PAID' ? backingInv : invs.find((iv) => iv.payStatus === 'PAID')
+      const invoicePaid = !!paidInv || prepaidTax
       const items = cardMap.get(o.id) || []
+      const lottery = lotteryMap.get(o.id) ?? null
       return {
         ...o,
         invoiceTaxFee: pendingTax || null,
@@ -231,6 +280,10 @@ export async function GET(request: NextRequest) {
         cards: items.map((c) => c.secret),
         cardItems: items, // [{ secret, redeemUrl, inSite }]：redeemUrl 为空才回落 product.cardRedeemUrl
         unreadCount: unreadMap.get(o.id) || 0,
+        /** 下单有奖：有资格的订单才有这一块（活动外的订单为 null） */
+        lottery,
+        /** 此刻能不能抽。最终以 /api/lottery/draw 的服务端复核为准，这里只决定按钮样式 */
+        lotteryCanDraw: lottery?.state === 'PENDING' && paid && o.deliveryStatus !== 'CANCELLED',
         // 票据信息（仅已支付订单可申请）
         billing: paid
           ? {
@@ -239,12 +292,30 @@ export async function GET(request: NextRequest) {
               sellingPrice: price,
               invoiceAmount: amt!.invoiceAmount,
               taxFee: amt!.taxFee,
-              receiptAmount: invoicePaid ? amt!.invoiceAmount : price,
+              receiptAmount: paidInv?.invoiceAmount ?? (invoicePaid ? amt!.invoiceAmount : price),
               invoiceStatus: inv ? inv.status : prepaidTax ? 'SUBMITTED' : 'UNAPPLIED',
               /** 结账时已随货款付清 6%，事后不需要也不允许再交一次税费 */
               invoicePrepaid: prepaidTax,
               invoiceId: inv?.id ?? null,
               receiptToken: receiptByOrderId.get(o.id) ?? null,
+              /**
+               * 主发票的明细（买家自己填的抬头、自己付的税费，本来就该让他看见）。
+               * 金额取发票上的快照而不是按 Order.amount 现算：开出去的票以快照为准。
+               */
+              invoice: inv
+                ? {
+                    invoiceNo: inv.invoiceNo,
+                    status: inv.status,
+                    payStatus: inv.payStatus,
+                    title: inv.title,
+                    taxNumber: inv.taxNumber,
+                    email: inv.email,
+                    invoiceAmount: inv.invoiceAmount,
+                    taxFee: inv.taxFee,
+                    submittedAt: inv.submittedAt,
+                    issuedAt: inv.issuedAt,
+                  }
+                : null,
             }
           : null,
       }
@@ -333,7 +404,9 @@ export async function POST(request: NextRequest) {
         unitPrice = sellUnit
         referrerId = referrer.id
         const per = Math.max(0, Math.round((sellUnit - effBase) * 100) / 100)
-        referralReward = per * quantity
+        // 按分相乘：0.1 × 3 这类浮点乘法会得到 0.30000000000000004，写进 Decimal(10,2) 虽然会被截断，
+        // 但同一个数在内存里（通知、返回值）和库里对不上
+        referralReward = (Math.round(per * 100) * quantity) / 100
       }
     }
 
@@ -362,6 +435,13 @@ export async function POST(request: NextRequest) {
     const referralAmount = Math.round(unitPrice * quantity * 100) / 100
     const baseAmount = Math.round(base * quantity * 100) / 100
     let amount = referralAmount
+
+    /*
+     * 下单有奖的活动配置，必须在下面的优惠券 CAS 抢锁**之前**读好。
+     * 券一旦锁上，到建单之间不能再多出任何可能失败的步骤（理由同上面开票校验那段）。
+     * getLotteryConfig 自己不会抛错（读失败按「活动关闭」处理，只会少发、不会多发）。
+     */
+    const lotteryCfg = await getLotteryConfig()
 
     /*
      * ============ 优惠券 ============
@@ -458,30 +538,48 @@ export async function POST(request: NextRequest) {
     }
 
     // 创建待支付订单（默认 payStatus: UNPAID, deliveryStatus: PENDING）
+    //
+    // 【订单与抽奖资格同一个事务】资格行只在建单这一刻判定（活动开关之后怎么变都不影响
+    // 已下的单）。分两步写的话，「订单建好、资格行没建上」这张单就永远没有抽奖按钮，
+    // 而买家是看到活动才下的单。同一事务里要么都有、要么都没有；
+    // 资格行建失败 → 订单一起回滚 → 走下面的 catch 把券放回去，买家重新下单即可。
     let order
+    let lotteryEligible = false
     try {
-      order = await prisma.order.create({
-        data: {
-          orderNo: generateOrderNo(),
+      const created = await prisma.$transaction(async (tx) => {
+        const o = await tx.order.create({
+          data: {
+            orderNo: generateOrderNo(),
+            userId: user.id,
+            productId: product.id,
+            productName: product.name,
+            productPrice: product.price,
+            quantity,
+            // amount 永远是不含税货款。税费单独一列，收银台收 amount + invoiceTaxFee
+            amount,
+            invoiceTaxFee,
+            invoiceInfo,
+            remark,
+            referrerId,
+            // 券胜出时内推返现不再计入：站长定的是「不叠加，取更优的一个」
+            referralReward:
+              couponGrantId === null && referralReward && referralReward > 0 ? referralReward : null,
+            couponGrantId,
+            couponDiscount,
+            originalAmount,
+          },
+        })
+        // 门槛按不含税货款（amount）算：6% 税费是代收的，不是买家在本站的消费
+        const eligible = await createEntryIfEligible(tx, lotteryCfg, {
+          id: o.id,
+          orderNo: o.orderNo,
           userId: user.id,
-          productId: product.id,
-          productName: product.name,
-          productPrice: product.price,
-          quantity,
-          // amount 永远是不含税货款。税费单独一列，收银台收 amount + invoiceTaxFee
           amount,
-          invoiceTaxFee,
-          invoiceInfo,
-          remark,
-          referrerId,
-          // 券胜出时内推返现不再计入：站长定的是「不叠加，取更优的一个」
-          referralReward:
-            couponGrantId === null && referralReward && referralReward > 0 ? referralReward : null,
-          couponGrantId,
-          couponDiscount,
-          originalAmount,
-        },
+        })
+        return { o, eligible }
       })
+      order = created.o
+      lotteryEligible = created.eligible
     } catch (e) {
       // 建单失败要把刚锁上的券放回去，否则买家的券会凭空变成「被占用」且永远不释放
       if (couponGrantId) {
@@ -528,8 +626,30 @@ export async function POST(request: NextRequest) {
 
     // 销量在支付完成后再增加。
     // payable 是收银台真正会收的数（货款 + 开票税费），前台据此显示「应付」
+    //
+    // 【order 只回白名单字段，不要改回整行】整行里有 referrerId / referralReward
+    // 这类内部成本口径（GET 那边的显式 select 是同一个理由），以后 Order 再加成本列，
+    // 整行序列化会默认把它发给买家且不报错。目前唯一的消费方 purchase-modal 只读 order.orderNo。
     return success(
-      { order, couponNote, invoiceTaxFee, payable: Math.round((amount + (invoiceTaxFee ?? 0)) * 100) / 100 },
+      {
+        order: {
+          id: order.id,
+          orderNo: order.orderNo,
+          productId: order.productId,
+          productName: order.productName,
+          quantity: order.quantity,
+          amount: Number(order.amount),
+          invoiceTaxFee,
+          payStatus: order.payStatus,
+          deliveryStatus: order.deliveryStatus,
+          createdAt: order.createdAt,
+        },
+        couponNote,
+        invoiceTaxFee,
+        payable: Math.round((amount + (invoiceTaxFee ?? 0)) * 100) / 100,
+        /** 这一单有没有「下单有奖」资格（付款后在订单页抽） */
+        lotteryEligible,
+      },
       couponNote || '订单创建成功'
     )
   } catch (err) {

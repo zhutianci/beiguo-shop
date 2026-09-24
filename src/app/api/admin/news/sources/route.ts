@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { relayConfigured } from '@/lib/news/sources'
+import { adminGuard } from '@/lib/admin-guard'
 
 /**
  * 信源管理：列表 / 新增 / 改配置与启停（SKILL.md §2、§9）。
@@ -61,6 +62,8 @@ function validFeedUrl(u: string): boolean {
 // ---------- GET 列表 ----------
 
 export async function GET() {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const rows = await prisma.newsSource.findMany({
       orderBy: [{ enabled: 'desc' }, { tier: 'asc' }, { key: 'asc' }],
@@ -122,6 +125,8 @@ export async function GET() {
 // ---------- POST 新增 ----------
 
 export async function POST(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = createSchema.safeParse(body)
@@ -161,6 +166,8 @@ export async function POST(request: NextRequest) {
 // ---------- PATCH 改配置 ----------
 
 export async function PATCH(request: NextRequest) {
+  const denied = await adminGuard()
+  if (denied) return denied
   try {
     const body = await request.json()
     const parsed = patchSchema.safeParse(body)

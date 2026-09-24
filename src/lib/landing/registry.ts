@@ -55,6 +55,25 @@ export interface LandingDef {
 
 export const LANDING_BASE = '/chongzhi'
 
+/**
+ * 充值落地页正文最近一次逐条对照代码与商品数据核对的日期，hub 与每个子页的 H1 下面都会显示。
+ *
+ * 【这不是装饰，也不能自动取今天】它的意思是「这一天有人把页面上的说法和代码行为、
+ * 商品名、价格表逐条对过」。写成 new Date() 就成了每次请求都在自称刚核对过——
+ * 那是一个假的新鲜度信号，和编一个销量没有区别。
+ * 所以只在真的重新核对过全部落地页之后手动改这一处。
+ */
+export const LANDING_REVIEWED_AT = '2026-09-24'
+
+/**
+ * ChatGPT Plus 年费档的匹配规则。
+ *
+ * Plus 页的主规则用 nameNone:['年费'] 把它排除在价格表之外（它的前提与月付档不同：
+ * 商品说明写的是「会覆盖现有套餐」），但 Plus 页的价格说明里仍然单独给它一个入口，
+ * 商品页也要把它归到 Plus 页去。两处共用这一条，免得一边改了另一边静默失配。
+ */
+export const CHATGPT_ANNUAL_MATCH: ProductMatch = { categoryName: 'ChatGPT', nameAny: ['年费'] }
+
 export const LANDING_HUB = {
   path: LANDING_BASE,
   navLabel: 'AI 会员充值',
@@ -162,7 +181,10 @@ export const LANDINGS = [
     title: 'Grok Super 充值 - xAI Grok 会员代充多少钱 - 贝果科技',
     description:
       'xAI Grok Super 会员充值：￥210 起，另有三个月档与 Super Heavy 档。卡密自助兑换，走 iOS 订阅充值，支付宝付款，无需境外支付方式。含三档差别、兑换前必须确认的事与退款口径。',
-    blurb: 'Grok 三个档位差价很大（￥210 到 ￥1688），先看清楚区别再下单。',
+    // 【不要在 blurb 里写死价格】blurb 会出现在 hub、首页和每一页的相关链接里，
+    // 而它不走 withLivePrice——原来写的「￥210 到 ￥1688」调一次价就是一句假话。
+    // 实时价格看各页的价格表。
+    blurb: 'Grok 三个档位差价很大，先看清楚区别再下单。',
     /*
      * 【为什么用 categoryAny 而不是 categoryName】后台这个分类名手误拼成了「Gork」。
      * 写死 'Gork' 的话，哪天有人把它改回正确的「Grok」，这一页的价格表会**静默变空**
@@ -196,4 +218,44 @@ export function findLanding(slug: LandingSlug): LandingDef {
   const found = LANDINGS.find((l) => l.slug === slug)
   if (!found) throw new Error(`[landing] registry 里没有 slug=${slug}`)
   return found
+}
+
+// ============ 商品匹配（纯函数） ============
+//
+// 【为什么放在这里而不是 products.ts】products.ts 顶层 import 了 prisma 与 React 的 cache，
+// 商品页的介绍装配（lib/product-intro.ts）和 scripts/ 下的自测脚本都要用这两个函数，
+// 却不该为此把数据库客户端拖进来——在 tsx 里跑自测时 react 18 的 cache 是 undefined，
+// 一 import 就直接抛错。products.ts 原样 re-export，已有的调用方一行不用改。
+
+/** matchProducts 只看这两个字段。泛型让落地页、hub、商品页各自的商品形状都能直接传 */
+export interface MatchableProduct {
+  name: string
+  categoryName: string | null
+}
+
+/**
+ * 【比较一律 trim + 忽略大小写】后台的分类名和商品名是手填的，
+ * 多一个空格、大小写换一下，精确比较就会让整个落地页的价格表**静默变空**——
+ * 不报错、不抛异常，页面照常渲染，只是表没了。这类事故只能靠比较本身宽松一点来防。
+ */
+function norm(v: string): string {
+  return v.trim().toLowerCase()
+}
+
+/** 按注册表里的规则从商品快照里挑出这一页该展示的商品 */
+export function matchProducts<T extends MatchableProduct>(all: T[], m: ProductMatch): T[] {
+  return all.filter((p) => {
+    const cat = norm(p.categoryName ?? '')
+    if (m.categoryName && cat !== norm(m.categoryName)) return false
+    if (m.categoryAny && !m.categoryAny.some((c) => cat === norm(c))) return false
+    const name = norm(p.name)
+    if (m.nameAny && !m.nameAny.some((k) => name.includes(norm(k)))) return false
+    if (m.nameNone && m.nameNone.some((k) => name.includes(norm(k)))) return false
+    return true
+  })
+}
+
+/** 有货判定：stock === -1 是模型里「无限库存」的约定 */
+export function inStock(p: { stock: number }): boolean {
+  return p.stock === -1 || p.stock > 0
 }

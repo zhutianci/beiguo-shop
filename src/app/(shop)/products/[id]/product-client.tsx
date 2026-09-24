@@ -18,15 +18,26 @@
  * 挂载后那次 fetch 照常跑——它还有用：带 ?ref= 时要把价格换成推广人的专属价。
  * 也就是说服务端 HTML 里永远是公开定价（与 canonical、JSON-LD 一致），
  * 专属价在水合之后才出现，这正是我们要的。
+ *
+ * 2026-09-24 第三次：
+ *   · 去掉 framer-motion。它把每个 motion 元素的 initial（opacity:0）原样写进 SSR 标记，
+ *     线上 /products/16 有 10 个元素带着 style="opacity:0"——面包屑、H1 卡片、流程、
+ *     须知、整个价格框，对不执行 JS 的读者（百度基本不跑 JS）是「在 DOM 里但看不见」。
+ *     入场动效改用 globals.css 的 .rise-in（纯 CSS，SSR 标记里没有内联隐藏）。
+ *   · 「开通流程」「购买须知」搬进服务端直出的「商品介绍」区（components/products/product-intro.tsx，
+ *     经 page.tsx 作为 children 传进来），并且按交付方式分口径。
+ *     这里原来对全部商品无条件渲染「开通后有效期为 30 天」「即时发卡 / 付款后立即发放」
+ *     「正规渠道」——对年费档、接码档、人工档都不成立，「正规渠道」则无从核验。
+ *   · 保留 'use client'：购买与联系客服两个弹窗要用状态。
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { ArrowLeft, ArrowRight, Check, ShieldCheck, Clock, Headphones, Sparkles, Star } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Building2, Check, Clock, Headphones } from 'lucide-react'
 import { PurchaseModal } from '@/components/purchase-modal'
 import { ContactModal } from '@/components/contact-modal'
+import { PRODUCT_GRADIENT, deliveryBadge, productTag } from '@/components/products/gradient'
 import { captureRefFromUrl } from '@/lib/ref'
 import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
 
@@ -44,84 +55,85 @@ interface Product {
   category: { id: number; name: string }
 }
 
-const gradients = [
-  'from-violet-600 to-purple-600',
-  'from-purple-600 to-pink-600',
-  'from-pink-600 to-rose-600',
-  'from-emerald-600 to-teal-600',
-  'from-teal-600 to-cyan-600',
-  'from-cyan-600 to-blue-600',
-  'from-amber-600 to-orange-600',
-]
-
-function getGradient(id: number) {
-  return gradients[id % gradients.length]
-}
-
-function getTag(product: Product) {
-  const name = product.name.toLowerCase()
-  if (name.includes('20x')) return 'ULTIMATE'
-  if (name.includes('5x')) return '5X POWER'
-  if (name.includes('pro') && name.includes('chatgpt')) return 'o1 ACCESS'
-  if (name.includes('plus')) return 'GPT-4'
-  if (name.includes('pro')) return 'POPULAR'
-  return 'NEW'
-}
-
+/**
+ * features 是 TEXT 列里的 JSON 字符串数组。
+ *
+ * 【只保留字符串项】原来「是数组就原样返回」：后台填进 [{"title":"x"}] 这种对象数组，
+ * 渲染时就是「Objects are not valid as a React child」——整页 SSR 500。
+ * 与 lib/product-intro.ts 的 parseFeatures 同一口径（那个文件依赖 node:crypto，客户端组件不能 import），
+ * 改一处要一起改；后台保存时也已经按同一条规则校验（isFeaturesJson）。
+ */
 function parseFeatures(features: string | null): string[] {
   if (!features) return []
   try {
-    const parsed = JSON.parse(features)
-    return Array.isArray(parsed) ? parsed : []
+    const parsed: unknown = JSON.parse(features)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((x): x is string => typeof x === 'string')
+      .map((s) => s.trim())
+      .filter(Boolean)
   } catch {
     return []
   }
 }
 
-/*
- * 【这四步对全部商品无条件渲染，所以只能写各档都成立的话】
- * 原文有两处是编的，而且在这一页改成 SSR 直出之后，它们第一次进了服务端 HTML：
- *   · 「填写您的账号邮箱」—— 下单根本不填邮箱（createOrderSchema 只收
- *     productId/quantity/remark/ref/couponGrantId），邮件发到登录账号的邮箱。
- *   · 「10分钟内完成开通」—— 没有任何依据，而且对好几档明显不成立：
- *     KYC 认证那一档后台写的是「付款后半小时内完成」且是人工对接；
- *     接码档是付款后服务端自动取号；卡池不足时自动发货还会转人工补发。
- *     一句写死的时效同时对三种交付方式撒谎。
- * 具体时效各商品页自己的说明里有，这里只讲流程骨架。
+/**
+ * 价格框下面那三条「为什么可以放心下」。每一条都必须对这个商品成立：
+ * 交付那一条按交付方式分三种说法（口径同 lib/vmq.ts fulfillOrder：AUTO 发卡密、
+ * 卡池不足转人工补发；SMS 付款后自动取号；其余置为处理中等人工）。
+ * 原来这里写的是「正规渠道 / 安全可靠有保障」（无从核验）和对全部商品一样的「即时发卡」。
  */
-const defaultProcess = [
-  { step: '01', title: '下单支付', desc: '登录后选择档位，用支付宝完成付款' },
-  { step: '02', title: '提供信息', desc: '按商品要求提供充值所需信息' },
-  { step: '03', title: '交付', desc: '按该商品的交付方式发放，时效见商品说明' },
-  { step: '04', title: '开始使用', desc: '按说明完成兑换或登录即可使用' },
-]
+function deliveryPromise(t?: string): { title: string; desc: string } {
+  if (t === 'AUTO') return { title: '自动发卡', desc: '付款到账后自动发放，缺货时人工补发' }
+  if (t === 'SMS') return { title: '自动取号', desc: '付款后系统自动取号接码，不发卡密' }
+  return { title: '人工服务', desc: '付款后联系客服对接，不发卡密' }
+}
 
 export default function ProductDetailClient({
   initialProduct = null,
+  children,
 }: {
   /** 外壳查库后传进来的公开定价版本：用于 SSR 直出，顺带免掉首屏那一下「加载中」 */
   initialProduct?: Product | null
+  /** 服务端直出的「商品介绍」区（page.tsx 装配），放进左栏、主视觉下面 */
+  children?: ReactNode
 }) {
   const params = useParams<{ id: string }>()
   const [product, setProduct] = useState<Product | null>(initialProduct)
   // 有初始数据就不能再进 loading 分支——否则 SSR 渲染出来仍然是「加载中」，等于白传
   const [loading, setLoading] = useState(!initialProduct)
   const [notFound, setNotFound] = useState(false)
+  // 没有 SSR 数据（外壳查库失败）且客户端这次也没取到——给「稍后重试」而不是「商品不存在」
+  const [loadFailed, setLoadFailed] = useState(false)
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [contactOpen, setContactOpen] = useState(false)
 
   useEffect(() => {
     const r = captureRefFromUrl()
+    /*
+     * 【只有真正的 404 才算「商品不存在」】原来 success:false 一律 setNotFound(true)：
+     * 接口偶发一次库超时（error('获取商品详情失败')，HTTP 400），
+     * 就会把服务端已经正确渲染好的整页换成「商品不存在」。
+     * 现在：404 → 商品确实下架/不存在；其余失败 → 有 SSR 数据就保持原样（只是拿不到专属价），
+     * 没有 SSR 数据才提示稍后重试。
+     */
     fetch(`/api/products/${params.id}${r ? `?ref=${encodeURIComponent(r)}` : ''}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) {
+      .then(async (res) => {
+        const data = await res.json().catch(() => null)
+        if (data?.success) {
           setProduct(data.data)
-        } else {
+        } else if (res.status === 404) {
           setNotFound(true)
+        } else if (!initialProduct) {
+          setLoadFailed(true)
         }
       })
+      .catch(() => {
+        if (!initialProduct) setLoadFailed(true)
+      })
       .finally(() => setLoading(false))
+    // initialProduct 只在首屏用一次，不应该让它的引用变化触发重取
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.id])
 
   if (loading) {
@@ -136,7 +148,9 @@ export default function ProductDetailClient({
     return (
       <div className="min-h-screen page-top pb-20 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-white/40 mb-4">商品不存在</div>
+          <div className="text-white/40 mb-4">
+            {loadFailed && !notFound ? '商品信息暂时取不到，请稍后刷新重试' : '商品不存在'}
+          </div>
           <Link href="/products" className="text-purple-400 hover:text-purple-300">
             返回商品列表
           </Link>
@@ -145,19 +159,23 @@ export default function ProductDetailClient({
     )
   }
 
-  const gradient = getGradient(product.id)
-  const tag = getTag(product)
+  const gradient = PRODUCT_GRADIENT(product.id)
+  // 认不出档位就不显示标签——原来的兜底是「NEW」，挂在已售 117 单的商品上
+  const tag = productTag(product.name)
+  const badge = deliveryBadge(product.deliveryType)
   const isAuto = product.deliveryType === 'AUTO'
   const isSms = product.deliveryType === 'SMS'
   const features = parseFeatures(product.features)
   const price = Number(product.price)
-  const originalPrice = product.originalPrice ? Number(product.originalPrice) : null
-  const savings = originalPrice ? originalPrice - price : 0
-
-  const benefits = features.slice(0, 4).map((f, i) => ({
-    title: f,
-    desc: '专业服务保障',
-  }))
+  const rawOriginal = product.originalPrice == null ? null : Number(product.originalPrice)
+  /*
+   * 【划线价只在确实高于现价时显示】带 ?ref= 时接口回的是
+   * originalPrice: 公开原价 ?? 公开价——专属价高于公开价、且商品没设原价时，
+   * 原来会显示成「¥150 划线¥140」。列表页一直有这道判断，详情页漏了。
+   */
+  const originalPrice = rawOriginal != null && rawOriginal > price ? rawOriginal : null
+  const savings = originalPrice != null ? originalPrice - price : 0
+  const promise = deliveryPromise(product.deliveryType)
 
   return (
     /* 顶部留白走 .page-top，不再写死 pt-32：它从 globals.css 的 --header-h 推导，
@@ -174,13 +192,7 @@ export default function ProductDetailClient({
                页面上**看得见**的面包屑，否则属于「标记了用户看不到的内容」，是违规标记；
             ② 搜索结果里那行 `贝果科技 › 商品 › ChatGPT` 会替换掉裸 URL，点击率更好。
             返回箭头保留在最前面，移动端的返回手感不变。 */}
-        <motion.nav
-          aria-label="面包屑"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.4 }}
-          className="flex items-center gap-2 text-sm text-white/40 mb-12 flex-wrap"
-        >
+        <nav aria-label="面包屑" className="rise-in flex items-center gap-2 text-sm text-white/40 mb-12 flex-wrap">
           <Link href="/products" className="text-white/60 hover:text-white transition-colors group inline-flex items-center gap-1.5">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             返回
@@ -199,255 +211,140 @@ export default function ProductDetailClient({
               而「标记与页面不一致」本身就是结构化数据政策要挡的东西。 */}
           <span className="text-white/20">/</span>
           <span className="text-white/70 truncate max-w-[16rem]">{product.name}</span>
-        </motion.nav>
+        </nav>
 
         {/* 桌面端「左内容 / 右下单卡」两栏：lg 起 2:1 分栏，右栏 sticky 跟随滚动，
-            购买入口在整页任何位置都留在视野内；xl 再把栏间距拉到 40px，避免两栏黏在一起 */}
+            购买入口在整页任何位置都留在视野内；xl 再把栏间距拉到 40px，避免两栏黏在一起。
+
+            【三块而不是两列】主视觉 / 价格框 / 商品介绍按这个顺序写在 DOM 里：
+            手机端单列时价格框紧跟在主视觉后面——商品介绍有六七节，
+            要是价格框排在它后面，手机上得划过一整篇说明才找得到「立即购买」。
+            桌面端用显式的行列把价格框放回右栏，并让它跨两行、sticky 跟随。 */}
         <div className="grid lg:grid-cols-3 gap-8 xl:gap-10">
-          <div className="lg:col-span-2 space-y-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="relative"
-            >
-              <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-30 blur-md`} />
+          <div className="relative rise-in lg:col-span-2 lg:row-start-1">
+            <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-30 blur-md`} />
 
-              {/*
-                主视觉。结构照着「标题整行 → 图片左 / 说明右」来：
-                图片单独占一块正方形，而不是浮在标题上方的一个小方块——
-                之前那版就是这么写的，图片孤零零挂在左上角，和整张卡片没有任何关系。
+            {/*
+              主视觉。结构照着「标题整行 → 图片左 / 说明右」来：
+              图片单独占一块正方形，而不是浮在标题上方的一个小方块——
+              之前那版就是这么写的，图片孤零零挂在左上角，和整张卡片没有任何关系。
 
-                【右栏必须有「一定有内容」的东西】库里多数商品的 description 只有几个字
-                （商品 16 就四个字「自助充值」），features 目前全是空的。
-                如果右栏只放描述，两栏会比一栏更空。所以右栏底部固定放一组关键信息
-                （交付方式 / 库存 / 累计成交 / 分类）——这些每个商品都有，
-                而且正好是买家在这一屏想确认的事。
+              【右栏必须有「一定有内容」的东西】库里多数商品的 description 只有几个字
+              （商品 16 就四个字「自助充值」），features 目前全是空的。
+              如果右栏只放描述，两栏会比一栏更空。所以右栏底部固定放一组关键信息
+              （交付方式 / 库存 / 累计成交 / 分类）——这些每个商品都有，
+              而且正好是买家在这一屏想确认的事。
 
-                【没有图时不留空格】不是把图片换成占位块，而是整块退回单栏——
-                占位块只是把「空」换了个位置。
-              */}
-              <div className="relative glass rounded-3xl p-6 sm:p-8 md:p-10">
-                {/* 徽章行 */}
-                <div className="flex items-center gap-2.5 mb-5 flex-wrap">
-                  <div className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient}`}>
-                    {tag}
-                  </div>
-                  <span className="text-sm text-white/40">{product.category.name}</span>
-                  {isAuto ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                      ⚡ 自动发货
-                    </span>
-                  ) : isSms ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-teal-500/15 text-teal-300 border border-teal-500/30">
-                      📱 短信接码
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-white/60 border border-white/15">
-                      👤 手工发货
-                    </span>
-                  )}
-                </div>
-
-                {/* 标题整行。原来是 text-5xl/6xl（48–60px）——那个尺寸压在一张
-                    240px 的图上面，比例是失衡的，长商品名还会占掉三四行。
-                    降一档之后标题仍然是这一屏的第一视觉，但不再压住下面整块。 */}
-                <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight leading-[1.15]">
-                  {product.name}
-                </h1>
-
-                {/* 图片左 / 说明右。没有图时整块退回单栏 */}
-                <div
-                  className={
-                    product.image
-                      ? 'mt-7 grid gap-6 sm:gap-8 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]'
-                      : 'mt-7'
-                  }
-                >
-                  {product.image && (
-                    <div className="relative mx-auto w-full max-w-[15rem] md:mx-0">
-                      {/* 图片背后压一层同色渐变辉光：让它和整张卡片是一体的，
-                          而不是「一张贴上去的图」。blur 之后只剩氛围，不会喧宾夺主 */}
-                      <div
-                        className={`absolute -inset-2 rounded-3xl bg-gradient-to-br ${gradient} opacity-20 blur-xl`}
-                        aria-hidden="true"
-                      />
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={product.image}
-                        alt={product.name}
-                        width={480}
-                        height={480}
-                        className="relative aspect-square w-full rounded-2xl border border-white/10 object-cover"
-                      />
-                    </div>
-                  )}
-
-                  {/* flex 列 + 下面那块 mt-auto：让关键信息贴着图片底边。
-                      多数商品的描述只有几个字，不这么做右下角会空掉一大块，
-                      整张卡片看起来像是没排完 */}
-                  <div className="flex min-w-0 flex-col">
-                    {product.description && (
-                      <p className="text-white/60 text-[15px] sm:text-base leading-relaxed">
-                        {product.description}
-                      </p>
-                    )}
-
-                    {features.length > 0 && (
-                      <div className="mt-5 flex flex-wrap gap-2">
-                        {features.map((feature, i) => (
-                          <div
-                            key={i}
-                            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-sm text-white/80"
-                          >
-                            <Check className="w-3.5 h-3.5 text-green-400 shrink-0" />
-                            {feature}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* 关键信息。每个商品都有，右栏不会因为描述短就空掉 */}
-                    <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.07] pt-5 text-sm md:mt-auto">
-                      <div>
-                        <dt className="text-white/35 text-xs mb-1">交付方式</dt>
-                        <dd className="text-white/80">
-                          {isAuto ? '付款后即时发卡' : isSms ? '付款后自动取号' : '人工对接'}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-white/35 text-xs mb-1">库存</dt>
-                        <dd>
-                          <span
-                            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STOCK_TONE_CLASS[stockLevel(product.stock).tone]}`}
-                          >
-                            {stockLevel(product.stock).label}
-                          </span>
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-white/35 text-xs mb-1">累计成交</dt>
-                        <dd className="text-white/80">{product.sales} 笔</dd>
-                      </div>
-                      <div>
-                        <dt className="text-white/35 text-xs mb-1">所属分类</dt>
-                        <dd className="text-white/80 truncate">{product.category.name}</dd>
-                      </div>
-                    </dl>
-                  </div>
-                </div>
+              【没有图时不留空格】不是把图片换成占位块，而是整块退回单栏——
+              占位块只是把「空」换了个位置。
+            */}
+            <div className="relative glass rounded-3xl p-6 sm:p-8 md:p-10">
+              {/* 徽章行 */}
+              <div className="flex items-center gap-2.5 mb-5 flex-wrap">
+                {tag && (
+                  <div className={`px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient}`}>{tag}</div>
+                )}
+                <span className="text-sm text-white/40">{product.category.name}</span>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border ${badge.cls}`}>
+                  {badge.label}
+                </span>
               </div>
-            </motion.div>
 
-            {benefits.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
+              {/* 标题整行。原来是 text-5xl/6xl（48–60px）——那个尺寸压在一张
+                  240px 的图上面，比例是失衡的，长商品名还会占掉三四行。
+                  降一档之后标题仍然是这一屏的第一视觉，但不再压住下面整块。 */}
+              <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight leading-[1.15]">
+                {product.name}
+              </h1>
+
+              {/* 图片左 / 说明右。没有图时整块退回单栏 */}
+              <div
+                className={
+                  product.image
+                    ? 'mt-7 grid gap-6 sm:gap-8 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)]'
+                    : 'mt-7'
+                }
               >
-                <h2 className="text-2xl lg:text-3xl font-bold mb-6 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 lg:w-6 lg:h-6 text-purple-400" />
-                  服务亮点
-                </h2>
-                <div className="grid sm:grid-cols-2 gap-4">
-                  {benefits.map((benefit, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.2 + i * 0.1 }}
-                      className="glass rounded-2xl p-6 lg:p-7 hover:bg-white/10 transition-colors lg:transition-all lg:duration-300 lg:hover:-translate-y-1"
-                    >
-                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center mb-4`}>
-                        <Star className="w-5 h-5" />
-                      </div>
-                      <h3 className="font-bold mb-2">{benefit.title}</h3>
-                      <p className="text-sm text-white/50">{benefit.desc}</p>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+                {product.image && (
+                  <div className="relative mx-auto w-full max-w-[15rem] md:mx-0">
+                    {/* 图片背后压一层同色渐变辉光：让它和整张卡片是一体的，
+                        而不是「一张贴上去的图」。blur 之后只剩氛围，不会喧宾夺主 */}
+                    <div
+                      className={`absolute -inset-2 rounded-3xl bg-gradient-to-br ${gradient} opacity-20 blur-xl`}
+                      aria-hidden="true"
+                    />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={product.image}
+                      alt={product.name}
+                      width={480}
+                      height={480}
+                      className="relative aspect-square w-full rounded-2xl border border-white/10 object-cover"
+                    />
+                  </div>
+                )}
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
-              <h2 className="text-2xl lg:text-3xl font-bold mb-6 flex items-center gap-2">
-                <Clock className="w-5 h-5 lg:w-6 lg:h-6 text-cyan-400" />
-                开通流程
-              </h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {defaultProcess.map((item, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.4 + i * 0.1 }}
-                    className="relative glass rounded-2xl p-6 lg:p-7"
-                  >
-                    <div className={`text-3xl font-bold mb-3 bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}>
-                      {item.step}
+                {/* flex 列 + 下面那块 mt-auto：让关键信息贴着图片底边。
+                    多数商品的描述只有几个字，不这么做右下角会空掉一大块，
+                    整张卡片看起来像是没排完 */}
+                <div className="flex min-w-0 flex-col">
+                  {product.description && (
+                    <p className="text-white/60 text-[15px] sm:text-base leading-relaxed">
+                      {product.description}
+                    </p>
+                  )}
+
+                  {/* 特性只以标签的形式出现一次。原来前 4 条还会再渲染成一组「服务亮点」卡片，
+                      每张卡的说明都是同一句「专业服务保障」——重复内容加一句无从核验的空话 */}
+                  {features.length > 0 && (
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {features.map((feature, i) => (
+                        <div
+                          key={i}
+                          className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-sm text-white/80"
+                        >
+                          <Check className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                          {feature}
+                        </div>
+                      ))}
                     </div>
-                    <h3 className="font-bold mb-1">{item.title}</h3>
-                    <p className="text-xs text-white/50">{item.desc}</p>
-                    {i < defaultProcess.length - 1 && (
-                      <ArrowRight className="hidden lg:block absolute -right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20" />
-                    )}
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
+                  )}
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-              className="glass rounded-2xl p-6 lg:p-8"
-            >
-              <h3 className="font-bold lg:text-lg mb-4 flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-green-400" />
-                购买须知
-              </h3>
-              {/* 这是本页唯一的正文型区块。桌面端左栏宽约 810px，14px 字号下一行能塞进
-                  50+ 个汉字，远超中文舒适阅读区（约 35~45 字）。所以 lg 起做两件事：
-                  字号提到 16px、行高放开，并把行长封顶在 680px（≈42 字）。
-                  用 px 而不是 ch，是因为 ch 按西文 "0" 宽度算，对中文会算出接近一半的实际字数。 */}
-              <ul className="space-y-2 lg:space-y-2.5 text-sm lg:text-base lg:leading-relaxed lg:max-w-[680px] text-white/60">
-                <li className="flex items-start gap-2">
-                  <span className="text-white/30 mt-1">·</span>
-                  {isAuto
-                    ? '本商品为自动发货：付款成功后系统立即发放卡密，可在「我的订单」详情中查看'
-                    : isSms
-                      ? '本商品为短信接码：付款成功后系统自动取号，在「我的订单」详情查看号码并接收验证码'
-                      : '本商品为手工发货：付款后请联系客服并提供账号信息，由客服为您开通'}
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-white/30 mt-1">·</span>
-                  开通后有效期为 30 天，到期可续费
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-white/30 mt-1">·</span>
-                  正规渠道开通，账号安全有保障
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-white/30 mt-1">·</span>
-                  支持支付宝付款
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-white/30 mt-1">·</span>
-                  如有问题请联系客服，工作时间 9:00-22:00
-                </li>
-              </ul>
-            </motion.div>
+                  {/* 关键信息。每个商品都有，右栏不会因为描述短就空掉 */}
+                  <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.07] pt-5 text-sm md:mt-auto">
+                    <div>
+                      <dt className="text-white/35 text-xs mb-1">交付方式</dt>
+                      <dd className="text-white/80">
+                        {isAuto ? '付款后自动发卡' : isSms ? '付款后自动取号' : '人工对接'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-white/35 text-xs mb-1">库存</dt>
+                      <dd>
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${STOCK_TONE_CLASS[stockLevel(product.stock).tone]}`}
+                        >
+                          {stockLevel(product.stock).label}
+                        </span>
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-white/35 text-xs mb-1">累计成交</dt>
+                      <dd className="text-white/80">{product.sales} 笔</dd>
+                    </div>
+                    <div>
+                      <dt className="text-white/35 text-xs mb-1">所属分类</dt>
+                      <dd className="text-white/80 truncate">{product.category.name}</dd>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+            </div>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="lg:sticky lg:top-32 self-start"
+          <div
+            className="rise-in lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-32 self-start"
+            style={{ animationDelay: '0.1s' }}
           >
             <div className="relative">
               <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-50 blur-md`} />
@@ -457,18 +354,25 @@ export default function ProductDetailClient({
                   <div className="text-sm text-white/50 mb-2">服务价格</div>
                   <div className="flex items-baseline gap-3">
                     <span className="text-5xl xl:text-6xl font-bold">¥{price.toFixed(0)}</span>
-                    {originalPrice && (
+                    {originalPrice != null && (
                       <span className="text-lg text-white/30 line-through">¥{originalPrice.toFixed(0)}</span>
                     )}
                   </div>
+                  {/* 原来这里还跟着一句「限时优惠」——没有任何截止时间，不能这么写 */}
                   {savings > 0 && (
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="mt-2">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r ${gradient}`}>
                         省 ¥{savings.toFixed(0)}
                       </span>
-                      <span className="text-xs text-white/40">限时优惠</span>
                     </div>
                   )}
+
+                  {/* 计费披露就放在价格旁边：这一页就是下单页，而此前全页正文里没有一个字提到不含税。
+                      6% 即 lib/invoice.ts 的 TAX_RATE——那个文件 import 了 node:crypto，
+                      客户端组件不能直接引，只能在这里写死；改税点时这里要一起改。 */}
+                  <p className="mt-3 text-xs leading-relaxed text-white/45">
+                    标价不含税，开票另付 6% · 仅支持支付宝 · 登录后下单
+                  </p>
 
                   {/* 销量 + 库存。
                       库存只给档位不给具体数字——理由见 lib/stock-level.ts：
@@ -506,38 +410,44 @@ export default function ProductDetailClient({
                 <div className="my-6 h-px bg-white/10" />
 
                 <div className="space-y-3">
+                  {/* 原来是「正规渠道 / 安全可靠有保障」：无从核验，还和「封号不质保」自相矛盾。
+                      换成买家自己查得到的事实：经营主体。开票口径就在上面价格旁边那一行
+                      （把「能开票」当背书讲时必须跟着「标价不含税、另付 6%」，这里不再单说一遍） */}
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
-                      <ShieldCheck className="w-4 h-4 text-green-400" />
+                    <div className="w-8 h-8 shrink-0 rounded-lg bg-white/5 flex items-center justify-center">
+                      <Building2 className="w-4 h-4 text-green-400" />
                     </div>
                     <div>
-                      <div className="font-medium">正规渠道</div>
-                      <div className="text-xs text-white/40">安全可靠有保障</div>
+                      <div className="font-medium">经营主体可查</div>
+                      <div className="text-xs text-white/40">益阳市赫山区必高科技有限公司</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                    <div className="w-8 h-8 shrink-0 rounded-lg bg-white/5 flex items-center justify-center">
                       <Clock className="w-4 h-4 text-cyan-400" />
                     </div>
                     <div>
-                      <div className="font-medium">即时发卡</div>
-                      {/* 原来写「最快 10 分钟到账」，没有依据且对人工档不成立（见本文件顶部注释） */}
-                      <div className="text-xs text-white/40">付款后立即发放</div>
+                      <div className="font-medium">{promise.title}</div>
+                      <div className="text-xs text-white/40">{promise.desc}</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center">
+                    <div className="w-8 h-8 shrink-0 rounded-lg bg-white/5 flex items-center justify-center">
                       <Headphones className="w-4 h-4 text-purple-400" />
                     </div>
                     <div>
-                      <div className="font-medium">专属客服</div>
-                      <div className="text-xs text-white/40">7×12 小时支持</div>
+                      <div className="font-medium">客服时间</div>
+                      {/* 原来写「7×12 小时」，和购买须知里的「9:00-22:00」（13 小时）自相矛盾 */}
+                      <div className="text-xs text-white/40">9:00-22:00 · 微信 GenuineMarxist</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
+
+          {/* 商品介绍：服务端组件，经 page.tsx 传进来。库挂了那一次 SSR 没有它，这里就什么都不放 */}
+          {children && <div className="rise-in min-w-0 lg:col-span-2 lg:row-start-2">{children}</div>}
         </div>
       </div>
 
@@ -548,7 +458,7 @@ export default function ProductDetailClient({
           id: product.id,
           name: product.name,
           price: price,
-          originalPrice: originalPrice || price,
+          originalPrice: originalPrice ?? price,
           gradient,
         }}
       />
