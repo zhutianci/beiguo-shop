@@ -327,3 +327,27 @@ export async function crossRowInvoiceBlock(shopOrderId: number, currentExtId: nu
   }
   return null
 }
+
+/**
+ * 已付款订单被后台取消（线下退款的惯例做法）/ 标退款时：名下还没开出去的发票转「不可开据」，
+ * 不再进财务台待开列表与批量导出（两处都只按 SUBMITTED + PAID 取）。
+ * 已开具（ISSUED）的票改库里的状态没有意义（票已经在税局那边），返回票号给调用方提示人工红冲。
+ *
+ * 【调用方必须先关掉这些发票的待支付税费收款单】fulfillInvoice 只看 payStatus、不看 status，
+ * 收款单还开着的话，买家一付款这张 CANNOT 会被翻回 SUBMITTED。本文件不能 import vmq
+ * （会和 vmq → order-invoice 的依赖链绕成环），所以这一步留给调用方（后台订单路由）做。
+ */
+export async function voidOpenInvoicesForOrder(orderId: number): Promise<{ voided: number; issuedNos: string[] }> {
+  const invs = await invoicesForOrder(orderId)
+  const openIds = invs.filter((iv) => iv.status === 'SUBMITTED' || iv.status === 'AWAIT_PAY').map((iv) => iv.id)
+  let voided = 0
+  if (openIds.length) {
+    // CAS：财务恰好在这一刻开出去的（已变 ISSUED）不覆盖
+    const r = await prisma.invoice.updateMany({
+      where: { id: { in: openIds }, status: { in: ['SUBMITTED', 'AWAIT_PAY'] } },
+      data: { status: 'CANNOT' },
+    })
+    voided = r.count
+  }
+  return { voided, issuedNos: invs.filter((iv) => iv.status === 'ISSUED').map((iv) => iv.invoiceNo) }
+}

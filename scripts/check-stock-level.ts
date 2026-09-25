@@ -2,7 +2,7 @@
  * 库存档位自测。npx tsx scripts/check-stock-level.ts
  * 边界值最容易写错（1/2、5/6、10/11），逐个钉死。
  */
-import { stockLevel, STOCK_TONE_CLASS } from '../src/lib/stock-level'
+import { stockLevel, publicStock, STOCK_TONE_CLASS } from '../src/lib/stock-level'
 
 let failed = 0
 function eq(name: string, got: unknown, want: unknown) {
@@ -39,6 +39,18 @@ console.log('\n配色表完整：')
 for (const tone of ['none', 'low', 'mid', 'high', 'unlimited'] as const) {
   eq(`${tone} 有对应类名`, typeof STOCK_TONE_CLASS[tone] === 'string' && STOCK_TONE_CLASS[tone].length > 0, true)
 }
+
+console.log('\n对外下发的量化库存（publicStock）不改变任何档位，也只落在代表值集合里：')
+const REPS = new Set([-1, 0, 1, 5, 10, 11])
+let diff = 0
+for (let x = -3; x <= 60; x++) {
+  const q = publicStock(x)
+  if (JSON.stringify(stockLevel(q)) !== JSON.stringify(stockLevel(x)) || !REPS.has(q)) {
+    diff++
+    eq(`publicStock(${x})`, [q, stockLevel(q)], ['代表值之一', stockLevel(x)])
+  }
+}
+eq('publicStock 在 -3..60 上与 stockLevel 档位完全一致', diff, 0)
 
 console.log(failed === 0 ? '\n全部通过' : `\n失败 ${failed} 条`)
 process.exit(failed === 0 ? 0 : 1)

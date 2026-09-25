@@ -1,9 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { PUBLIC_PRODUCT_SELECT } from '@/lib/product-select'
+import { publicStock } from '@/lib/stock-level'
+import { effectiveBasePrice, referralSellUnit } from '@/lib/referral'
 
 export async function GET(
   request: NextRequest,
@@ -28,7 +31,9 @@ export async function GET(
     if (!product || product.status !== 1) {
       return notFound('商品不存在')
     }
-    const { status: _status, ...pub } = product
+    // 库存只下发档位代表值（lib/stock-level.ts publicStock）
+    const { status: _status, stock, ...rest } = product
+    const pub = { ...rest, stock: publicStock(stock) }
 
     // 内推：带 ?ref=CODE 时用推广人专属价覆盖
     const ref = new URL(request.url).searchParams.get('ref')?.trim()
@@ -39,7 +44,13 @@ export async function GET(
           where: { userId_productId: { userId: referrer.id, productId } },
         })
         if (rp) {
-          return success({ ...pub, price: rp.price, originalPrice: pub.originalPrice ?? pub.price })
+          // 专属价低于推广人当前基础价（站长保存后又涨了价）→ 显示基础价，与建单实收同一口径（lib/referral.ts）。
+          // 保持 Decimal 类型：JSON 形状不变；仍不单独下发 referrerBasePrice
+          const list = Number(pub.price)
+          const effBase = (await effectiveBasePrice(referrer.id, productId)) ?? list
+          const unit = referralSellUnit(Number(rp.price), effBase, list)
+          const price = unit === Number(rp.price) ? rp.price : new Prisma.Decimal(unit.toFixed(2))
+          return success({ ...pub, price, originalPrice: pub.originalPrice ?? pub.price })
         }
       }
     }

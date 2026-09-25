@@ -3,7 +3,8 @@ import { calcInvoiceAmounts, genInvoiceNo, normalizeTaxNumber } from './invoice'
 import { PAYEE, genReceiptNo, genReceiptToken } from './receipt'
 import { createOrGetVmqOrder } from './vmq'
 import { notifyReceiptCreated } from './notify'
-import { BillingError, type BuyerInvoiceFields } from './order-invoice'
+import { BillingError, assertShopOrderBillable, shopOrderIdOfExt, type BuyerInvoiceFields } from './order-invoice'
+import { hasAccountAccess } from './email-proof'
 
 // BillingError / BuyerInvoiceFields / ensureExternalOrderForShopOrder 等已迁到 ./order-invoice
 // （见那个文件顶部的说明：为了不让 lib/vmq.ts 与本文件形成循环依赖）。
@@ -19,66 +20,46 @@ export {
 export type { BuyerInvoiceFields, OrderInvoiceDraft, ManualInvoiceInput } from './order-invoice'
 
 // ---- 订单归属校验 ----
-// /api/invoices 与 /api/receipts 服务于「邮箱查订阅」的匿名流程（买家多来自闲鱼，未注册），
-// 因此不能简单要求登录。但 externalOrderId 是自增整数，只凭 ID 就能给别人的订单开票据
-// （返回的 token 打开即可看到对方邮箱、订阅类型、金额）。
-// 折中：要求调用方证明「知道该订单的账户邮箱」——这正是邮箱查询流程本就具备的信息；
-// 已登录用户则按本人订单 / 本人邮箱 / 已绑定账户放行。
+// /api/invoices、/api/receipts、/api/invoices/[id]/pay 服务于「邮箱查订阅」的匿名流程
+// （买家多来自闲鱼、未注册），因此不能简单要求登录；但 externalOrderId 是自增整数，必须证明归属。
+//
+// 【2026-09-26 起的规则（审计 G12）】
+//  A. 背后有站内订单的行（背书行 order:<id>，或 shopOrderId 指向站内订单的 WEB 行）：
+//     **只认下单本人登录**。站内订单有唯一确定的下单人（Order.userId 非空），
+//     而这类行的账户邮箱就是买家的登录邮箱——谁都可能知道，不能再当凭证。
+//  B. 纯外部行（闲鱼导入）：邮箱归属证明（lib/email-proof.ts 的 hasAccountAccess）——
+//     刚验过 LOOKUP 验证码 / 登录邮箱已验证且就是它 / 已验证的绑定。
+//     以前只要「说出账户邮箱」就放行，任何知道邮箱的人都能改别人的发票抬头、抢开盖章收据。
 //
 // order.shopOrderId：调用方查外部订单时顺手带上就传；不传（undefined）则这里按 id 自己补查，
-// 传 null 表示「确认没有」、不再查。老调用方（只 select 了 id/sourceKey/claudeAccount）不用改。
+// 传 null 表示「确认没有」、不再查。
 export async function assertExternalOrderAccess(
   order: { id: number; sourceKey: string; claudeAccount: string; shopOrderId?: number | null },
-  opts: { userId?: number | null; userEmail?: string | null; claimedEmail?: string | null }
+  opts: { user?: { id: number; email?: string | null } | null; proofDigests?: Set<string> }
 ): Promise<void> {
-  const account = (order.claudeAccount || '').trim().toLowerCase()
+  const user = opts.user ?? null
 
-  // 1) 本站订单背书：sourceKey = order:<id>，校验该订单确实属于当前登录用户
+  // A) 站内订单：只认下单本人
   const m = /^order:(\d+)$/.exec(order.sourceKey || '')
   const keyOrderId = m ? parseInt(m[1]) : null
-  if (keyOrderId && opts.userId) {
-    const shopOrder = await prisma.order.findUnique({
-      where: { id: keyOrderId },
-      select: { userId: true },
-    })
-    if (shopOrder && shopOrder.userId === opts.userId) return
+  let shopOrderId = order.shopOrderId
+  if (shopOrderId === undefined) {
+    const row = await prisma.externalOrder.findUnique({ where: { id: order.id }, select: { shopOrderId: true } })
+    shopOrderId = row?.shopOrderId ?? null
   }
-
-  // 1b) 本站订单关联：shopOrderId 指向的站内订单属于当前登录用户。
-  // 管理员「标记已完成」导入的 WEB 行 sourceKey 是 hashKey（里面没有订单号），
-  // 背书行被后台编辑过 sourceKey 也会变成 hashKey —— 这两种行只剩 shopOrderId 能证明归属。
-  // 没有这一条，买家在订单页看到的那张「待付税费」发票（挂在 WEB 行上）点去支付会被拒。
-  if (opts.userId) {
-    let shopOrderId = order.shopOrderId
-    if (shopOrderId === undefined) {
-      const row = await prisma.externalOrder.findUnique({ where: { id: order.id }, select: { shopOrderId: true } })
-      shopOrderId = row?.shopOrderId ?? null
-    }
-    if (shopOrderId && shopOrderId !== keyOrderId) {
-      const shopOrder = await prisma.order.findUnique({
-        where: { id: shopOrderId },
-        select: { userId: true },
-      })
-      if (shopOrder && shopOrder.userId === opts.userId) return
+  const linkedIds = Array.from(new Set([keyOrderId, shopOrderId].filter((v): v is number => !!v)))
+  if (linkedIds.length) {
+    const owners = await prisma.order.findMany({ where: { id: { in: linkedIds } }, select: { userId: true } })
+    if (owners.length) {
+      if (user && owners.some((o) => o.userId === user.id)) return
+      throw new BillingError('该订单为本站账号下单，请登录下单账号后操作（或在「我的订单」中开具）', 403)
     }
   }
 
-  // 2) 登录用户本人邮箱即该订阅账户
-  if (opts.userEmail && opts.userEmail.trim().toLowerCase() === account) return
+  // B) 纯外部行：邮箱归属证明
+  if (await hasAccountAccess(order.claudeAccount, user, opts.proofDigests ?? new Set())) return
 
-  // 3) 登录用户已在个人中心绑定该订阅账户
-  if (opts.userId && account) {
-    const bound = await prisma.userAccount.findFirst({
-      where: { userId: opts.userId, accountEmail: account },
-      select: { id: true },
-    })
-    if (bound) return
-  }
-
-  // 4) 匿名流程：调用方提供了正确的账户邮箱
-  if (opts.claimedEmail && opts.claimedEmail.trim().toLowerCase() === account) return
-
-  throw new BillingError('无权操作该订单，请通过「邮箱查询」进入或登录后重试', 403)
+  throw new BillingError('请先验证账户邮箱（在「邮箱查询」页获取验证码），或登录后重试', 403)
 }
 
 // 以「订单（外部订单）」为基准创建/更新发票并发起税费收款。
@@ -90,6 +71,8 @@ export async function submitInvoiceForExternalOrder(
 ) {
   const order = await prisma.externalOrder.findUnique({ where: { id: externalOrderId } })
   if (!order) throw new BillingError('订单不存在')
+  // 关联的站内订单已取消（线下退款）/ 已退款：不再开票。订单页和「邮箱查订阅」两条路都经过这里
+  await assertShopOrderBillable(shopOrderIdOfExt(order))
 
   // 计费基准 = 报价(quote)。
   // 【内推单天然按专属价开票】本站订单的 quote 由 ensureExternalOrderForShopOrder
@@ -187,6 +170,8 @@ export async function submitReceiptForExternalOrder(
 ) {
   const order = await prisma.externalOrder.findUnique({ where: { id: externalOrderId } })
   if (!order) throw new BillingError('订单不存在')
+  // 同发票：关联的站内订单已作废就不再开收据（收据盖章开出去就收不回来）
+  await assertShopOrderBillable(shopOrderIdOfExt(order))
 
   // 一笔订单仅一张收据
   const existing = await prisma.receipt.findFirst({ where: { externalOrderId: order.id } })

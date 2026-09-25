@@ -31,6 +31,35 @@ export class BillingError extends Error {
   }
 }
 
+/*
+ * 【已作废的已付款订单不能再开票 / 开收据】后台没有退款按钮，线下退款后是把已付款订单改成「已取消」
+ * （payStatus 仍是 PAID）；直接调接口还能标 REFUNDED。这两种都等于「钱已退回」，
+ * 再给它开发票、开收据，就是给退了款的订单出票。
+ * 口径：REFUNDED，或 PAID + CANCELLED。UNPAID + CANCELLED（超时取消）本来就开不了票，不在这里管。
+ * 注意：只用在买家申请入口（订单页、邮箱查订阅、税费支付）。付款履约里的发票落地
+ * （materializeOrderInvoice）不能加这道闸——超时取消后晚到付款的赢家，在翻成 PAID 的那一刻
+ * 订单还短暂是 CANCELLED，加了会丢掉买家已经付过的 6%。
+ */
+export const VOIDED_ORDER_MSG = '该订单已取消或已退款，不能再开具发票或收据；如有疑问请联系客服'
+
+/** 外部订单行指回的站内订单 id：优先 shopOrderId 列，历史数据回落解析 sourceKey（`order:<id>`） */
+export function shopOrderIdOfExt(ext: { shopOrderId: number | null; sourceKey: string | null }): number | null {
+  const m = /^order:(\d+)$/.exec(ext.sourceKey || '')
+  return ext.shopOrderId ?? (m ? parseInt(m[1]) : null)
+}
+
+/** 关联的站内订单已作废就抛 409。没有关联站内订单（纯站外单）或查不到订单时放行 */
+export async function assertShopOrderBillable(shopOrderId: number | null | undefined): Promise<void> {
+  if (!shopOrderId) return
+  const o = await prisma.order.findUnique({
+    where: { id: shopOrderId },
+    select: { payStatus: true, deliveryStatus: true },
+  })
+  if (o && (o.payStatus === 'REFUNDED' || (o.payStatus === 'PAID' && o.deliveryStatus === 'CANCELLED'))) {
+    throw new BillingError(VOIDED_ORDER_MSG, 409)
+  }
+}
+
 export interface BuyerInvoiceFields {
   title: string
   taxNumber: string
@@ -320,12 +349,18 @@ async function settlePrepaid(
       paidAt: true,
       createdAt: true,
       payStatus: true,
+      deliveryStatus: true,
       invoiceTaxFee: true,
       invoiceInfo: true,
       user: { select: { email: true, nickname: true } },
     },
   })
   if (!order) return null
+  // 已取消的已付款单（线下退款）：必须抛错而不是 return null —— 返回 null 调用方会继续往下
+  // 建一张 AWAIT_PAY 发票，等于对退了款的订单再收一次 6%。4 个调用方都 catch 了 BillingError
+  if (order.payStatus === 'PAID' && order.deliveryStatus === 'CANCELLED') {
+    throw new BillingError(VOIDED_ORDER_MSG, 409)
+  }
   if (order.invoiceTaxFee == null || order.payStatus !== 'PAID') return null
 
   // 补落地（幂等：已有发票时返回 null，不会重复建）

@@ -207,6 +207,22 @@ export interface NewsEventRow {
 }
 
 /**
+ * 只放行 http(s) 地址，其余返回 null（审计 G32）。
+ * 第三方给的地址最终渲染成 <a href>，而 Next 14 自带的 React 18.3 canary 不拦 javascript:。
+ * 写入口（aihot.hostOf）已经挡了，这里在出口再兜一次存量数据和将来可能新增的写入口。
+ * 只用 URL，浏览器端 import 本文件也没问题。
+ */
+export function safeHttpUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  try {
+    const p = new URL(raw).protocol
+    return p === 'http:' || p === 'https:' ? raw : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * 同一家媒体在一个事件里可能有多条抓取记录，展示时按媒体名去重，保留最早一条。
  *
  * 【展示名的取法】优先 originSourceName（原发布者），回落到我们自己的信源名。
@@ -226,7 +242,7 @@ function toSources(items: NewsEventRow['items']): NewsSourceDto[] {
       tier: it.source?.tier ?? 3,
       publishedAt: it.publishedAt.toISOString(),
       leadVia: it.leadVia ?? null,
-      leadUrl: it.leadUrl ?? null,
+      leadUrl: safeHttpUrl(it.leadUrl), // 不是 http(s) 就退化成不可点的纯文本「线索来源」
     })
   }
   return Array.from(seen.values()).sort((a, b) => a.tier - b.tier)

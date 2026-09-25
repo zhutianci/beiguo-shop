@@ -12,12 +12,12 @@ import {
 } from '@/lib/order-billing'
 import { settlePrepaidInvoiceByExternalOrder, shopOrderSourceKey } from '@/lib/order-invoice'
 import { invoicesForOrder, orderIdFromSourceKey } from '@/lib/order-link'
+import { readProofDigests } from '@/lib/email-proof'
 
 const schema = z.object({
   externalOrderId: z.number().int().positive('缺少订单'),
   payerTitle: z.string().trim().min(1, '请填写付款人抬头').max(200),
-  // 匿名「邮箱查订阅」流程的归属凭证：必须与该订单的账户邮箱一致。
-  // 已登录且订单属于本人 / 本人邮箱 / 已绑定账户时可不传。
+  // 已废弃：以前是匿名流程的归属凭证（「说出邮箱就算本人」），现在忽略，只为老前端照传不报 400
   accountEmail: z.string().trim().email().optional().nullable(),
   // 必选、无默认：与发票同一口径。不展示 → 收据「项目」一栏只印「技术咨询服务」
   showAiWording: z.boolean({ required_error: '请选择收据中是否展示 ChatGPT/Claude 相关字眼' }),
@@ -37,11 +37,8 @@ export async function POST(request: NextRequest) {
     if (!order) return notFound('订单不存在')
 
     const user = await getCurrentUser()
-    await assertExternalOrderAccess(order, {
-      userId: user?.id ?? null,
-      userEmail: user?.email ?? null,
-      claimedEmail: d.accountEmail ?? null,
-    })
+    // 归属凭证见 lib/email-proof.ts；body 里的 accountEmail 已不作数
+    await assertExternalOrderAccess(order, { user, proofDigests: await readProofDigests() })
 
     /*
      * 【收据金额的口径要先对齐】三个兄弟路径都做了这一步，唯独这条漏了就不成体系。

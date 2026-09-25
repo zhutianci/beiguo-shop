@@ -8,6 +8,7 @@ import { fetchText, parseFeed, FetchFeedError } from '@/lib/news/feed'
 import { relayConfigured, relayUrl } from '@/lib/news/sources'
 import { AIHOT_HEADERS, aihotFetchUrl, parseAihotLeads } from '@/lib/news/aihot'
 import { adminGuard } from '@/lib/admin-guard'
+import { publicUrlProblem } from '@/lib/net-guard'
 
 /**
  * 「立即测试该源」：拉一次 feed，返回 HTTP 状态、耗时、解析出的条目数与前 3 条标题。
@@ -26,44 +27,13 @@ const bodySchema = z.object({
 
 const TEST_TIMEOUT_MS = 10_000
 
-/**
- * 禁止把内网地址填进 feed。后台虽然只有管理员能进，但这个接口的能力是
- * 「以服务端身份发任意 GET」，指向 169.254/100.100.100.200 就能读到云厂商实例元数据。
- * 注意：只挡住字面量内网地址，挡不住解析到内网的域名与跳转，所以中继 Worker 那边的
- * 域名白名单不能省（§2.3）。
+/*
+ * 【内网防护】这个接口的能力是「以服务端身份发任意 GET」，指向 169.254 / 100.100.100.200
+ * 就能读到云厂商实例元数据。以前这里自带一份只查字面量的 blockedHost：挡不住解析到内网的域名与跳转，
+ * 还用 startsWith('fc'/'fd') 把 fc2.com、fdroid.org 误判成内网（2026-09-26 审计 G33）。
+ * 现在字面量预检用 lib/net-guard（给出更早、更友好的报错），真正的防线是 fetchText 的 publicOnly：
+ * 建连时校验 DNS 解析结果、逐跳校验跳转。中继地址来自环境变量，保持与 collect 相同的抓取方式。
  */
-function blockedHost(rawUrl: string): string | null {
-  let host = ''
-  try {
-    const u = new URL(rawUrl)
-    if (!/^https?:$/i.test(u.protocol)) return '只支持 http / https'
-    host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '')
-  } catch {
-    return '地址格式不正确'
-  }
-
-  if (host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) {
-    return '不允许访问内网地址'
-  }
-  if (host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80:')) {
-    return '不允许访问内网地址'
-  }
-  const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
-  if (m) {
-    const [a, b] = [Number(m[1]), Number(m[2])]
-    const isPrivate =
-      a === 0 ||
-      a === 127 ||
-      a === 10 ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) ||
-      (a === 169 && b === 254) ||
-      // 100.64/10 里有阿里云实例元数据 100.100.100.200
-      (a === 100 && b >= 64 && b <= 127)
-    if (isPrivate) return '不允许访问内网地址'
-  }
-  return null
-}
 
 /** JSON 源（HuggingFace / Reddit / GitHub API）没有统一结构，尽量捞出条数与标题 */
 function peekJson(text: string): { count: number; titles: string[] } | null {
@@ -132,17 +102,24 @@ export async function POST(request: NextRequest) {
       // 中继地址来自环境变量，域名白名单在 Worker 侧做
       target = relayUrl(feedUrl)
     } else {
-      const bad = blockedHost(feedUrl)
+      const bad = publicUrlProblem(feedUrl)
       if (bad) return error(bad)
     }
 
     const isAihot = kind === 'AIHOT'
-    if (isAihot) target = aihotFetchUrl(feedUrl)
+    if (isAihot) {
+      target = aihotFetchUrl(feedUrl)
+      // AIHOT 不走中继，地址由 feedUrl 推出，上面 viaRelay 分支没做的预检这里补上
+      const bad = publicUrlProblem(target)
+      if (bad) return error(bad)
+    }
+    // 只有真正发往中继的请求保持 collect 的抓取方式；其余地址都是后台手填的，走防 SSRF 抓取
+    const publicOnly = !(viaRelay && !isAihot)
 
     const started = Date.now()
     let text = ''
     try {
-      text = await fetchText(target, TEST_TIMEOUT_MS, isAihot ? AIHOT_HEADERS : undefined)
+      text = await fetchText(target, TEST_TIMEOUT_MS, isAihot ? AIHOT_HEADERS : undefined, { publicOnly })
     } catch (e) {
       const ms = Date.now() - started
       const status = e instanceof FetchFeedError ? e.status : 0

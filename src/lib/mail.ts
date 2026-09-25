@@ -26,10 +26,18 @@ function layout(title: string, bodyHtml: string): string {
 const PURPOSE_LABEL: Record<string, string> = {
   REGISTER: '注册验证',
   RESET: '找回密码',
+  LOOKUP: '订阅查询',
+}
+
+// 每封信都拆成「纯渲染 render* + 发送 send*」：scripts/check-transactional-mail.ts 用样例数据渲染，
+// 断言正文不含阿里云禁发内容（微信/QQ/二维码/群/网盘）—— 联系客服一律写「在订单内联系客服」或站内 /support。
+interface RenderedMail {
+  subject: string
+  html: string
 }
 
 // 验证码邮件
-export async function sendVerifyCodeEmail(to: string, code: string, purpose: 'REGISTER' | 'RESET') {
+export function renderVerifyCodeEmail(code: string, purpose: 'REGISTER' | 'RESET' | 'LOOKUP'): RenderedMail {
   const label = PURPOSE_LABEL[purpose] || '身份验证'
   const html = layout(
     `${label}验证码`,
@@ -39,7 +47,64 @@ export async function sendVerifyCodeEmail(to: string, code: string, purpose: 'RE
      </div>
      <p style="color:#6b7280;">验证码 10 分钟内有效，请勿泄露给他人。如非本人操作请忽略本邮件。</p>`
   )
-  return sendSystemEmail(to, `【${BRAND}】${label}验证码：${code}`, html)
+  return { subject: `【${BRAND}】${label}验证码：${code}`, html }
+}
+
+export async function sendVerifyCodeEmail(to: string, code: string, purpose: 'REGISTER' | 'RESET' | 'LOOKUP') {
+  const { subject, html } = renderVerifyCodeEmail(code, purpose)
+  return sendSystemEmail(to, subject, html)
+}
+
+/*
+ * 【防枚举的两封说明信】发码接口对「注册时邮箱已存在」「找回密码时邮箱不存在」两种情况，
+ * 以前分别直接返回「该邮箱已被注册」与另一句文案——一次请求就能判断一个邮箱是不是本站客户。
+ * 现在四种情况都恰好发出一封信、返回同一句话（时延也一样），只在邮箱本人能看到的信里说明实情。
+ * 文案不能出现微信/QQ/群等（阿里云禁发，见 scripts/check-transactional-mail.ts）。
+ */
+export function renderAccountExistsEmail(): RenderedMail {
+  const html = layout(
+    '注册提醒',
+    `<p>有人（可能是你本人）正在用这个邮箱注册${BRAND}账号，但<strong>这个邮箱已经注册过了</strong>，所以没有发送验证码。</p>
+     <p>请直接 <a href="${APP_URL}/login" style="color:#7c3aed;">登录</a>；如果忘记了密码，可以 <a href="${APP_URL}/forgot-password" style="color:#7c3aed;">找回密码</a>。</p>
+     <p style="color:#6b7280;">如非本人操作请忽略本邮件，你的账号不会有任何变化。</p>`
+  )
+  return { subject: `【${BRAND}】该邮箱已注册，请直接登录`, html }
+}
+
+export async function sendAccountExistsEmail(to: string) {
+  const { subject, html } = renderAccountExistsEmail()
+  return sendSystemEmail(to, subject, html)
+}
+
+export function renderNoAccountEmail(): RenderedMail {
+  const html = layout(
+    '找回密码提醒',
+    `<p>有人（可能是你本人）申请找回${BRAND}账号的密码，但<strong>本站没有用这个邮箱注册的账号</strong>。</p>
+     <p>如果你注册时用的是别的邮箱，请换那个邮箱再试；也可以 <a href="${APP_URL}/register" style="color:#7c3aed;">直接注册</a>。</p>
+     <p style="color:#6b7280;">如非本人操作请忽略本邮件。</p>`
+  )
+  return { subject: `【${BRAND}】找回密码提醒`, html }
+}
+
+export async function sendNoAccountEmail(to: string) {
+  const { subject, html } = renderNoAccountEmail()
+  return sendSystemEmail(to, subject, html)
+}
+
+/** 「邮箱查订阅」发码时该邮箱没有任何订阅记录：照样发一封信（与有记录时时延一致、返回同一句话），不发码 */
+export function renderNoSubscriptionEmail(): RenderedMail {
+  const html = layout(
+    '订阅查询提醒',
+    `<p>有人（可能是你本人）在${BRAND}申请查询这个邮箱的订阅记录，但<strong>本站没有这个邮箱的订阅记录</strong>，所以没有发送验证码。</p>
+     <p>如果你购买时填写的是别的账户邮箱，请换那个邮箱再查；刚下单的订单记录可能需要一段时间才会更新。</p>
+     <p style="color:#6b7280;">如非本人操作请忽略本邮件。</p>`
+  )
+  return { subject: `【${BRAND}】订阅查询提醒`, html }
+}
+
+export async function sendNoSubscriptionEmail(to: string) {
+  const { subject, html } = renderNoSubscriptionEmail()
+  return sendSystemEmail(to, subject, html)
 }
 
 interface OrderInfo {
@@ -56,7 +121,7 @@ interface OrderInfo {
 }
 
 // 订单已支付通知
-export async function sendOrderPaidEmail(to: string, o: OrderInfo) {
+export function renderOrderPaidEmail(o: OrderInfo): RenderedMail {
   /*
    * 【勾了开票的订单要拆成三行】这封邮件和支付宝账单是买家拿去报销的同一套材料。
    * 「实付金额」若只写不含税的货款，就和他账单上的数字差 6% —— 让报销材料自洽
@@ -99,11 +164,16 @@ export async function sendOrderPaidEmail(to: string, o: OrderInfo) {
      ${extra}
      <div style="margin-top:18px;"><a href="${APP_URL}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`
   )
-  return sendSystemEmail(to, `【${BRAND}】订单支付成功 · ${o.productName}`, html)
+  return { subject: `【${BRAND}】订单支付成功 · ${o.productName}`, html }
+}
+
+export async function sendOrderPaidEmail(to: string, o: OrderInfo) {
+  const { subject, html } = renderOrderPaidEmail(o)
+  return sendSystemEmail(to, subject, html)
 }
 
 // 订单已发货/已完成通知（手工发货交付时）
-export async function sendOrderDeliveredEmail(to: string, o: OrderInfo) {
+export function renderOrderDeliveredEmail(o: OrderInfo): RenderedMail {
   const html = layout(
     '订单已交付',
     `<p>您的订单已交付完成：</p>
@@ -114,7 +184,12 @@ export async function sendOrderDeliveredEmail(to: string, o: OrderInfo) {
      ${o.deliveryInfo ? `<div style="margin-top:14px;"><div style="font-weight:600;margin-bottom:6px;">交付信息</div><div style="font-family:monospace;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(o.deliveryInfo)}</div></div>` : ''}
      <div style="margin-top:18px;"><a href="${APP_URL}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`
   )
-  return sendSystemEmail(to, `【${BRAND}】订单已交付 · ${o.productName}`, html)
+  return { subject: `【${BRAND}】订单已交付 · ${o.productName}`, html }
+}
+
+export async function sendOrderDeliveredEmail(to: string, o: OrderInfo) {
+  const { subject, html } = renderOrderDeliveredEmail(o)
+  return sendSystemEmail(to, subject, html)
 }
 
 function escapeHtml(s: string): string {
@@ -133,7 +208,7 @@ export interface InvoiceIssuedInfo {
   issuedAt: Date
 }
 
-export async function sendInvoiceIssuedEmail(to: string, iv: InvoiceIssuedInfo) {
+export function renderInvoiceIssuedEmail(iv: InvoiceIssuedInfo): RenderedMail {
   const row = (k: string, v: string) =>
     `<tr><td style="color:#6b7280;padding:4px 0;">${k}</td><td style="text-align:right;">${v}</td></tr>`
   const rows =
@@ -169,5 +244,10 @@ export async function sendInvoiceIssuedEmail(to: string, iv: InvoiceIssuedInfo) 
      </div>
      <div style="margin-top:18px;"><a href="${APP_URL}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`
   )
-  return sendSystemEmail(to, `【${BRAND}】发票已开具 · ${iv.invoiceNo}`, html)
+  return { subject: `【${BRAND}】发票已开具 · ${iv.invoiceNo}`, html }
+}
+
+export async function sendInvoiceIssuedEmail(to: string, iv: InvoiceIssuedInfo) {
+  const { subject, html } = renderInvoiceIssuedEmail(iv)
+  return sendSystemEmail(to, subject, html)
 }

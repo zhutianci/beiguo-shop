@@ -19,12 +19,91 @@ interface RecentOrder {
 }
 
 // 与 src/lib/vmq.ts 的 AmountReject 保持一致（前端不 import 服务端模块，这里单独维护一份）
-type AmountReject = 'empty' | 'broadcast_rejected' | 'no_strong_signal'
+type AmountReject = 'empty' | 'broadcast_rejected' | 'no_strong_signal' | 'ambiguous' | 'untrusted_source'
 
 const AMOUNT_REJECT_LABELS: Record<AmountReject, string> = {
   empty: '空内容',
   broadcast_rejected: '播报类通知（上一笔金额），已按规则拒绝',
   no_strong_signal: '未出现「你已成功收款X元」强信号，未取用',
+  ambiguous: '同一条通知出现多个不同的到账金额，未自动取用（请核实后补单）',
+  untrusted_source: '通知来源不是支付宝 App，未取用',
+}
+
+// 与 src/lib/vmq.ts 的 UnmatchedReason / UnmatchedEntry 保持一致
+type UnmatchedReason =
+  | 'no_pending_match'
+  | 'closed_while_matching'
+  | 'maybe_duplicate'
+  | 'ambiguous_match'
+  | 'duplicate_payment'
+  | 'ambiguous_amount'
+  | 'untrusted_source'
+
+interface UnmatchedItem {
+  key: string
+  reason: UnmatchedReason
+  price: string
+  type: number
+  pending?: number[]
+  candidates?: string[]
+  vmqOrderId?: string
+  biz?: string
+  outTradeNo?: string
+  from?: string | null
+  raw?: string
+  repeatForward?: boolean
+  at: number
+  handledAt?: number | null
+  handledBy?: string | number | null
+}
+
+/** 每类未匹配到账的说明与处理建议。duplicate_payment 要退款，千万别点「补单」 */
+function unmatchedText(u: UnmatchedItem): { title: string; hint: string } {
+  const where = u.vmqOrderId ? `收款单 ${u.vmqOrderId}${u.biz ? `（${u.biz}）` : ''}` : ''
+  switch (u.reason) {
+    case 'closed_while_matching':
+      return {
+        title: `匹配到的${where}恰好在同一时刻被关闭（超时或后台取消）`,
+        hint: '这笔钱已到账但没有自动履约。请核实付款截图后，在下方列表找到该收款单点「补单」，或联系买家退款。',
+      }
+    case 'maybe_duplicate':
+      // 原文与 1 分钟内的通知一字不差：多半是重复转发（不推送），但仍进待处理让站长对一眼账——
+      // 模板里没有时间戳，1 分钟内真付两次同样金额的原文也一模一样
+      return u.repeatForward
+        ? {
+            title: `与${where}同金额、原文与 1 分钟内的通知完全相同 —— 判定为重复转发`,
+            hint: '多半是手机重复转发（未推送企业微信）。核对支付宝账单：只有一笔就直接标记已处理；确有两笔说明买家重复付款，需要退款。',
+          }
+        : {
+            title: `与${where}同金额、10 分钟内刚到过一笔，这次没有待支付单可对`,
+            hint: '可能是买家扫同一个码付了两次。核对支付宝账单：确有两笔就联系买家退款（不要点「补单」）；只有一笔说明是通知重复，直接标记已处理。',
+          }
+    case 'ambiguous_match':
+      return {
+        title: `同时命中多张待支付收款单：${(u.candidates || []).join('、')}`,
+        hint: '未自动履约。请核实付款人后在下方列表对正确的收款单点「补单」，并作废 / 取消另一张。',
+      }
+    case 'duplicate_payment':
+      return {
+        title: `记到了${where}，但该单此前已付款 / 已退款 —— 疑似重复付款`,
+        hint: '系统没有为这笔钱做任何履约。请核实支付宝账单后联系买家退款，不要点「补单」。',
+      }
+    case 'ambiguous_amount':
+      return {
+        title: '同一条通知里出现多个不同的到账金额，未自动取用',
+        hint: '请对照支付宝账单确认实收金额，再在下方列表对对应收款单点「补单」。',
+      }
+    case 'untrusted_source':
+      return {
+        title: `通知带着到账金额，但来源（${u.from || '未知'}）不是支付宝 App，未自动取用`,
+        hint: '若支付宝账单确有这笔，请补单；若手机端刚换过 SmsForwarder 版本 / 模板，每笔到账都会落到这里，请尽快核对 [from]。',
+      }
+    default:
+      return {
+        title: `当时待支付金额为 [${(u.pending || []).join(', ') || '空'}]，没有对得上的`,
+        hint: '买家付的金额与收银台显示的「唯一金额」不一致，或收款单已过期后才付款。核实后补单或退款。',
+      }
+  }
 }
 
 function rejectLabel(reason?: string | null) {
@@ -43,6 +122,8 @@ interface VmqConfig {
     paidCount: number
   }
   recent: RecentOrder[]
+  /** 待人工核实的到账（逐条留存，新的在前） */
+  unmatched?: UnmatchedItem[]
   webhookUrl: string
   webhookToken: string
   webhookBody: string
@@ -64,6 +145,7 @@ interface VmqConfig {
       raw: string
       amount: string | null
       reason?: string | null
+      from?: string | null
       type: number
       at: number
     } | null
@@ -109,8 +191,11 @@ export default function AdminVmqPage() {
     setTimeout(() => setCopiedKey(''), 1500)
   }
 
-  const complete = async (id: number) => {
-    if (!confirm('确认这笔已到账并完成履约？仅在确实已收到款时操作。')) return
+  const complete = async (id: number, paid = false) => {
+    const msg = paid
+      ? '这张收款单已是「已支付」。重新履约只会补做订单还缺的部分（订单仍待支付时改为已付款、自动发货商品补齐卡密），不会重复记账或多发卡。继续？'
+      : '确认这笔已到账并完成履约？仅在确实已收到款时操作。'
+    if (!confirm(msg)) return
     const res = await fetch('/api/admin/vmq/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -121,8 +206,22 @@ export default function AdminVmqPage() {
     else alert(data.error || '补单失败')
   }
 
+  const markHandled = async (key: string) => {
+    if (!confirm('确认这笔到账已人工处理完毕（已补单或已退款）？')) return
+    const res = await fetch('/api/admin/vmq/unmatched', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key }),
+    })
+    const data = await res.json().catch(() => null)
+    if (data?.success) load()
+    else alert(data?.error || '操作失败')
+  }
+
   const m = cfg?.monitor
   const diag = cfg?.diag
+  const unmatchedOpen = (cfg?.unmatched || []).filter((u) => !u.handledAt)
+  const unmatchedDone = (cfg?.unmatched || []).filter((u) => u.handledAt).slice(0, 20)
   // 通知被金额规则拒绝 → 需要醒目提示（有钱进来了但没被取用）
   const webhookRejected = !!diag?.lastWebhook && !diag.lastWebhook.amount
 
@@ -279,6 +378,7 @@ export default function AdminVmqPage() {
                 <p className="text-xs text-gray-400 mt-1">
                   <code>[content]</code> 是通知内容(含到账金额)、<code>[from]</code> 来源、
                   <code>[org_content]</code> 原始内容；<code>token</code> 必须等于上面的校验 token。
+                  token 只能放在请求体（或 X-Token 头），<b>不能放在 URL 上</b>（会进访问日志）；请求方式只支持 POST。
                 </p>
               </div>
 
@@ -317,8 +417,9 @@ export default function AdminVmqPage() {
             </div>
           </div>
           <p className="text-xs text-gray-500">
-            所以：买家务必按收银台显示的<b>唯一金额</b>付款；被拒绝的通知会在下方诊断里以黄色标出，
-            确认确实收到钱后可用「补单」手动履约。
+            所以：买家务必按收银台显示的<b>唯一金额</b>付款。被拒绝的通知见下方「最近一次通知转发」；
+            真实到账却没匹配上的（付错金额、收款单已过期、疑似重复付款等）会逐条进入「待人工核实的到账」并推送企业微信，
+            确认确实收到钱后可用「补单」手动履约，处理完点「标记已处理」。
           </p>
         </CardContent>
       </Card>
@@ -373,60 +474,82 @@ export default function AdminVmqPage() {
             )}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-gray-100 p-3 text-sm">
-              <div className="text-gray-500 mb-1">最近一次识别到的到账金额</div>
-              {diag?.lastPush ? (
-                <div className="text-gray-900">
-                  ¥{diag.lastPush.price}（{diag.lastPush.type === 1 ? '微信' : '支付宝'}）·{' '}
-                  {fmt(new Date(diag.lastPush.at).toISOString())}
-                </div>
-              ) : (
-                <div className="text-gray-400">
-                  尚未从任何通知里取到金额。若支付后这里一直为空，多为通知权限 / 支付助手提醒未开，或通知文案不含「你已成功收款X元」强信号。
-                </div>
+          <div className="rounded-lg border border-gray-100 p-3 text-sm">
+            <div className="text-gray-500 mb-1">最近一次识别到的到账金额</div>
+            {diag?.lastPush ? (
+              <div className="text-gray-900">
+                ¥{diag.lastPush.price}（{diag.lastPush.type === 1 ? '微信' : '支付宝'}）·{' '}
+                {fmt(new Date(diag.lastPush.at).toISOString())}
+              </div>
+            ) : (
+              <div className="text-gray-400">
+                尚未从任何通知里取到金额。若支付后这里一直为空，多为通知权限 / 支付助手提醒未开，或通知文案不含「你已成功收款X元」强信号。
+              </div>
+            )}
+          </div>
+
+          {/* 待人工核实的到账：每条单独留存，不会被下一条通知冲掉（原来只有一个「最近一次未匹配」框） */}
+          <div
+            className={`rounded-lg border p-3 text-sm ${
+              unmatchedOpen.length ? 'border-amber-300 bg-amber-50' : 'border-gray-100'
+            }`}
+          >
+            <div className="mb-2 flex items-center gap-2">
+              <span className="text-gray-500">待人工核实的到账</span>
+              {unmatchedOpen.length > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-200 px-2 py-0.5 text-xs font-medium text-amber-900">
+                  <AlertTriangle className="w-3 h-3" /> {unmatchedOpen.length} 笔待处理
+                </span>
               )}
             </div>
-            <div
-              className={`rounded-lg border p-3 text-sm ${
-                diag?.lastUnmatched ? 'border-amber-300 bg-amber-50' : 'border-gray-100'
-              }`}
-            >
-              <div className="text-gray-500 mb-1">最近一次「未匹配 / 未取用」</div>
-              {diag?.lastUnmatched ? (
-                diag.lastUnmatched.reason === 'closed_while_matching' ? (
-                  // 钱到了、金额也对上了，但那张收款单恰好在同一时刻被超时清理或后台取消关掉 ——
-                  // 系统不会自动替已取消的订单履约，需要人工核实后在下方列表里对该收款单点「补单」
-                  <div className="text-amber-900">
-                    收到 ¥{diag.lastUnmatched.price}，匹配到的收款单 <b>{diag.lastUnmatched.vmqOrderId}</b>（
-                    {diag.lastUnmatched.biz}）恰好在同一时刻被关闭（超时或后台取消） ·{' '}
-                    {fmt(new Date(diag.lastUnmatched.at).toISOString())}
-                    <div className="text-xs text-amber-700 mt-1">
-                      这笔钱已到账但没有自动履约。请核实付款截图后，在下方列表找到该收款单点「补单」，或联系买家退款。
+            {unmatchedOpen.length === 0 ? (
+              <div className="text-gray-400">无</div>
+            ) : (
+              <div className="space-y-3">
+                {unmatchedOpen.map((u) => {
+                  const t = unmatchedText(u)
+                  return (
+                    <div key={u.key} className="rounded-md border border-amber-200 bg-white/60 p-2">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 text-amber-900">
+                          <div>
+                            收到 <b>¥{u.price}</b>（{u.type === 1 ? '微信' : '支付宝'}）· {fmt(new Date(u.at).toISOString())}
+                          </div>
+                          <div className="mt-0.5 break-all">{t.title}</div>
+                          <div className="text-xs text-amber-700 mt-1">{t.hint}</div>
+                          {u.raw && <div className="text-xs text-gray-400 mt-1 break-all">原文：{u.raw}</div>}
+                        </div>
+                        <Button variant="outline" size="sm" className="shrink-0" onClick={() => markHandled(u.key)}>
+                          标记已处理
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ) : diag.lastUnmatched.reason ? (
-                  <div className="text-amber-900">
-                    通知<b>未取用金额</b>：{rejectLabel(diag.lastUnmatched.reason)} ·{' '}
-                    {fmt(new Date(diag.lastUnmatched.at).toISOString())}
-                    <div className="text-xs text-amber-700 mt-1 break-all">
-                      原文：{diag.lastUnmatched.raw}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-amber-900">
-                    收到 ¥{diag.lastUnmatched.price}，但当时待支付金额为 [
-                    {(diag.lastUnmatched.pending || []).join(', ') || '空'}] ·{' '}
-                    {fmt(new Date(diag.lastUnmatched.at).toISOString())}
-                    <div className="text-xs text-amber-700 mt-1">
-                      说明买家付的金额与收银台显示的「唯一金额」不一致，或订单已过期。
-                    </div>
-                  </div>
-                )
-              ) : (
-                <div className="text-gray-400">无</div>
-              )}
-            </div>
+                  )
+                })}
+              </div>
+            )}
+            {unmatchedDone.length > 0 && (
+              <details className="mt-3">
+                <summary className="cursor-pointer text-xs text-gray-500">
+                  已处理 / 自动归档（最近 {unmatchedDone.length} 条）
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {unmatchedDone.map((u) => {
+                    const t = unmatchedText(u)
+                    return (
+                      <div key={u.key} className="rounded-md border border-gray-100 p-2 text-xs text-gray-500">
+                        <div>
+                          ¥{u.price} · {fmt(new Date(u.at).toISOString())} ·{' '}
+                          {u.handledBy === 'auto' ? '自动归档' : `已处理（管理员 #${u.handledBy ?? '—'}）`}
+                        </div>
+                        <div className="mt-0.5 break-all">{t.title}</div>
+                        {u.reason === 'maybe_duplicate' && <div className="mt-0.5">{t.hint}</div>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </details>
+            )}
           </div>
 
           <div className="overflow-x-auto">
@@ -456,13 +579,23 @@ export default function AdminVmqPage() {
                     </td>
                     <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">{fmt(o.createdAt)}</td>
                     <td className="py-2 text-right whitespace-nowrap">
-                      {o.state !== 1 && (
+                      {o.state !== 1 ? (
                         <button
                           onClick={() => complete(o.id)}
                           className="text-xs px-2 py-1 rounded text-green-600 hover:bg-green-50"
                           title="手动确认到账并履约"
                         >
                           补单
+                        </button>
+                      ) : (
+                        // 已到账、但到账那一次履约失败时订单会停在「待支付」（cron 约 3 分钟内会自动补）。
+                        // 超过对账回看窗口（24 小时）的只能在这里手动补；manualComplete / fulfillOrder 幂等
+                        <button
+                          onClick={() => complete(o.id, true)}
+                          className="text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-50"
+                          title="已到账但订单未处理时，重新执行履约（幂等，不会重复记账或多发卡）"
+                        >
+                          重新履约
                         </button>
                       )}
                     </td>

@@ -1,0 +1,41 @@
+# docker build 的构建上下文只需要源码（Dockerfile 的 COPY . . 会把上下文整个带进 builder 阶段）。
+# 模式按上下文根目录锚定：写 docs 只排除根下的 docs/，不会误伤 src 里同名的东西。
+#
+# 【必须留在上下文里的，别往这里加】逐条对照 Dockerfile 的 COPY：
+#   package.json / package-lock.json（deps 阶段 npm ci）、src、prisma（prisma generate + 运行时 COPY）、
+#   public（运行时 COPY；只排除 public/uploads）、templates（发票批量导出读的税局模板，运行时 COPY）、
+#   next.config.js、tsconfig.json、tailwind / postcss 配置、next-env.d.ts、scripts（tsconfig include 覆盖到）。
+#
+# 【刻意不排除 .env / .env.production】运行时配置目前靠 Next standalone 把 .env.production 打进镜像
+# （见 docker-compose.yml「裸变量名」那段注释）；NEXT_PUBLIC_* 也在构建期从它内联。
+# 要等所有运行时变量都列进 compose、NEXT_PUBLIC_* 改成 build args 显式传入之后，才能排除。
+# .env.local 等本地文件这一轮也不排除：standalone 不会把它们拷进运行镜像（只拷 .env / .env.production），
+# 但 next build 会读它们做 NEXT_PUBLIC_* 内联 —— 服务器上若真有这类文件，排除掉会改变构建结果。
+# 先在服务器上 ls -la /opt/beiguo/.env* 确认没有，再考虑加进来。
+
+# 版本库与本地产物
+.git
+.gitignore
+.gitattributes
+node_modules
+.next
+*.tsbuildinfo
+npm-debug.log*
+
+# 工具与文档（src 里没有 import / readFile 过它们）
+.claude
+docs
+assets
+*.md
+*.html
+
+# 其他容器的配置：它们各自 bind-mount，不进 app 镜像
+cron
+nginx
+cloudflare
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# 本地开发时上传的图片（线上在 forum_uploads 卷里，镜像里只需要空目录，Dockerfile 自己 mkdir）
+public/uploads

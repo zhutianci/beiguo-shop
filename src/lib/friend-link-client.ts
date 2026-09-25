@@ -56,6 +56,9 @@ export function normalizeUrl(raw: string): string | null {
   // 带账号密码的地址（https://user:pass@host）不是给人访问的，直接拒
   if (u.username || u.password) return null
   if (!u.hostname.includes('.')) return null // localhost、内网主机名之类
+  // 结尾带点（localhost. / app.）能过上一行，在 docker 内置 DNS 下却会解析到回环或容器（审计 G33）。
+  // 真正的防线在服务端 safe-fetch；这里只是申请时就拒掉，省得进待审列表
+  if (u.hostname.endsWith('.')) return null
   u.hash = ''
   // 只去 path 上的尾斜杠。在整串上 replace(/\/$/,'') 会削掉查询串结尾的字符：
   // https://site.com/?next=/docs/ 会被改写成另一个地址，而这是对方给的真实链接

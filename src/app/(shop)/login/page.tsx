@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Mail, Lock, Sparkles } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { setToken } from '@/lib/auth-token'
+import { safeRedirect } from '@/lib/safe-redirect'
 
 export default function LoginPage() {
   return (
@@ -23,7 +24,8 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirect = searchParams.get('redirect') || '/'
+  // 只收站内相对路径：原样 router.push 外部值是开放重定向，javascript: 还会在本站执行脚本
+  const redirect = safeRedirect(searchParams.get('redirect'))
   const { setUser } = useUserStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')

@@ -43,8 +43,15 @@ function safeEqual(a: string, b: string): boolean {
  *   x-cron-secret: <secret>
  *   ?secret=<secret>
  *
- * query 那种会进 nginx access log 与 Cloudflare 日志，属于「能用但不该新用」，
- * 保留只是因为 crontab 里的新闻管线三条任务是这么写的，改动它要同时改 cron 容器。
+ * query 那种会进 nginx access log 与 Cloudflare 日志，属于「能用但不该新用」。
+ * 2026-09-26 起 cron/crontab 已全部改成 x-cron-secret 头，nginx 也对外 404 掉了 /api/cron/*。
+ *
+ * 【query 分支为什么还留着：部署顺序】crontab 是挂进 cron 容器的，只有重建 cron 容器才换新；
+ * 而常规发版只 `up -d app`、不碰 cron。如果先删了这里、cron 容器还跑着旧任务表，
+ * vmq-close（过期收款单兜底关闭）、sms-poll（接码轮询，买家收验证码靠它）、新闻管线、cleanup
+ * 会一直 401，直到有人想起来重建 cron —— 这是真停摆。所以分两步：
+ *   ① 重建 cron 容器、确认 /etc/crontabs/root 的任务行（排除 # 注释行）里没有 secret= 且 cron.log 没有 401；
+ *   ② 下面这条告警连续几天没出现过，再删 query 分支（删法：去掉 qs 那段与 hit 的第三个条件）。
  */
 export function assertCronAuth(request: NextRequest): CronAuthResult {
   const secret = (process.env.CRON_SECRET || '').trim()
@@ -68,10 +75,22 @@ export function assertCronAuth(request: NextRequest): CronAuthResult {
     qs = ''
   }
 
+  const byQuery = !!qs && safeEqual(qs, secret)
   const hit =
     (bearer.startsWith('Bearer ') && safeEqual(bearer.slice(7), secret)) ||
     (!!header && safeEqual(header, secret)) ||
-    (!!qs && safeEqual(qs, secret))
+    byQuery
+  if (byQuery) {
+    // 只记路径，绝不记 URL 本身（里面就是密钥）。出现这条说明还有调用方在用 ?secret=：
+    // 多半是 cron 容器没重建、还在跑旧任务表，或者有人照旧文档手工排障
+    let where = ''
+    try {
+      where = new URL(request.url).pathname
+    } catch {
+      where = '?'
+    }
+    console.warn(`[cron-auth] ${where} 仍在用 ?secret= 传密钥，请改成 x-cron-secret 头（见 cron/crontab 顶部说明）`)
+  }
 
   return hit ? { ok: true } : { ok: false, status: 401, message: '无权限' }
 }

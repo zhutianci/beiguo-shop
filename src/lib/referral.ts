@@ -95,3 +95,38 @@ export async function settleReferral(orderId: number): Promise<void> {
     throw e
   }
 }
+
+/** 批量版 effectiveBasePrice（商品列表用）：单独覆盖 → 商品默认推广价 → 网站售价 */
+export async function effectiveBasePrices(userId: number, productIds: number[]): Promise<Map<number, number>> {
+  const m = new Map<number, number>()
+  if (productIds.length === 0) return m
+  const [overrides, products] = await Promise.all([
+    prisma.referrerBasePrice.findMany({
+      where: { userId, productId: { in: productIds } },
+      select: { productId: true, price: true },
+    }),
+    prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, price: true, referrerBasePrice: true },
+    }),
+  ])
+  const ov = new Map(overrides.map((o) => [o.productId, Number(o.price)]))
+  for (const p of products) m.set(p.id, ov.has(p.id) ? (ov.get(p.id) as number) : Number(p.referrerBasePrice ?? p.price))
+  return m
+}
+
+/**
+ * 内推单的成交单价，全站唯一口径：商品列表 / 详情、结算页、建单都走它，显示价和实收价才对得上。
+ *  - 推广人没设专属价 → 网站售价（与原逻辑一致）
+ *  - 专属价低于该推广人「当前」基础价 → 抬到基础价成交，返现为 0
+ *
+ * 【为什么要在读取时兜底】专属价只在推广人保存时校验 ≥ 基础价。之后站长因进货涨价，
+ * 上调了售价 / 默认推广价 / 单独基础价，旧专属价不会跟着涨，照样按旧低价成交 ——
+ * 线上毛利本来就薄（售价 135 对基础价 132），基础价一涨，每一单都在亏。
+ * 不在后台改价时删推广人的专属价：那会删别人的数据，而且要改三个后台接口；读时兜底已经封住了。
+ * 按分比较，避免 Decimal → number 的浮点噪声误判。
+ */
+export function referralSellUnit(rpPrice: number | null, effBase: number, listPrice: number): number {
+  if (rpPrice == null) return listPrice
+  return Math.round(rpPrice * 100) < Math.round(effBase * 100) ? effBase : rpPrice
+}

@@ -13,6 +13,7 @@ import {
 } from '@/lib/order-billing'
 import { settlePrepaidInvoiceByExternalOrder } from '@/lib/order-invoice'
 import { crossRowInvoiceBlock, orderIdFromSourceKey } from '@/lib/order-link'
+import { readProofDigests } from '@/lib/email-proof'
 import {
   buyerInvoiceSubmitSchema,
   normalizeInvoiceFields,
@@ -22,7 +23,7 @@ import {
 // 抬头字段共用 lib/invoice-input 的定义，本路由只多两样：订单号与匿名归属凭证
 const schema = buyerInvoiceSubmitSchema.extend({
   externalOrderId: z.number().int().positive('缺少订单'),
-  // 匿名「邮箱查订阅」流程的归属凭证
+  // 已废弃：以前是匿名流程的归属凭证（「说出邮箱就算本人」），现在忽略，只为老前端照传不报 400
   accountEmail: z.string().trim().email().optional().nullable(),
 })
 
@@ -42,11 +43,9 @@ export async function POST(request: NextRequest) {
     if (!order) return notFound('订单不存在')
 
     const user = await getCurrentUser()
-    await assertExternalOrderAccess(order, {
-      userId: user?.id ?? null,
-      userEmail: user?.email ?? null,
-      claimedEmail: d.accountEmail ?? null,
-    })
+    // 归属凭证 = 邮箱验证码换来的证明 cookie / 已验证的登录邮箱或绑定（lib/email-proof.ts）。
+    // body 里的 accountEmail 不再作数（知道邮箱不等于是本人），老前端照传也不报错
+    await assertExternalOrderAccess(order, { user, proofDigests: await readProofDigests() })
 
     const fields = normalizeInvoiceFields(d)
 

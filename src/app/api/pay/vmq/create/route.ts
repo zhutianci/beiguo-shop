@@ -5,12 +5,23 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
-import { createOrGetVmqOrder, VmqError } from '@/lib/vmq'
+import {
+  createOrGetVmqOrder,
+  VmqError,
+  VMQ_TIMEOUT_MIN,
+  VMQ_MAX_OPEN_PER_USER,
+  countOpenOrderPayments,
+  hasOpenPayment,
+  discardVmqOrder,
+} from '@/lib/vmq'
 import { assertCouponForPayment } from '@/lib/coupon'
 
 const schema = z.object({
   orderNo: z.string().min(1, '缺少订单号'),
 })
+
+/** 从建单（或管理员最后一次改这张单）到「新发起收款」的最长间隔，默认 24 小时；配错时至少 60 分钟 */
+const ORDER_PAY_WINDOW_MIN = Math.max(60, Number(process.env.ORDER_PAY_WINDOW_MIN) || 1440)
 
 // 为商品订单发起 V免签 收款，返回收银台地址
 export async function POST(request: NextRequest) {
@@ -26,7 +37,48 @@ export async function POST(request: NextRequest) {
     if (!order || order.userId !== user.id) return error('订单不存在')
     if (order.payStatus === 'PAID') return error('订单已支付')
     if (order.payStatus === 'REFUNDED') return error('订单已退款，无法支付')
+
+    // 【钱已经到了、订单还没翻成已付款】到账那一次履约抛错时会这样（由 cron 对账约 3 分钟内补上）。
+    // 这期间买家在订单页再点「去支付」，原来会新建一张收款单、被收第二次钱。走 [bizType,bizId,state] 索引。
+    // 只加在这里、不写进 createOrGetVmqOrder：发票两条支付路径不受影响
+    const paidVmq = await prisma.vmqOrder.findFirst({
+      where: { bizType: 'order', bizId: order.id, state: 1 },
+      select: { id: true },
+    })
+    if (paidVmq) return error('这笔订单已收到付款，系统正在处理，请稍后刷新订单页；长时间未更新请联系客服')
+
     if (order.deliveryStatus === 'CANCELLED') return error('订单已超时取消，请重新下单')
+
+    // 本单已有有效期内的收款单（刷新收银台 / 订单页再点「去支付」）→ 下面原样复用，不占新金额，
+    // 下面几道闸门都不拦：收银台已经开着，那张二维码照样能到账，这时拦截只会给买家一条前后矛盾的提示
+    const reusing = await hasOpenPayment('order', order.id)
+    const tooMany = `你已有 ${VMQ_MAX_OPEN_PER_USER} 笔订单在等待付款，请先在「我的订单」完成支付，或等其超时（约 ${VMQ_TIMEOUT_MIN} 分钟）自动取消后再试`
+    if (!reusing) {
+      /*
+       * 【没发起过支付的订单不会被超时关单】closeExpired 只扫收款单，只调建单接口、不点付款的
+       * 订单会一直是待支付，可以留着等涨价或下架之后再按旧价付款，AUTO 商品还会自动发卡。
+       * 所以「新发起」一张收款单时要复核三件事。必须放在券复验和 lockedAt 刷新之前：被拒的订单不能顺手刷新券锁。
+       */
+      // updatedAt 是建单时刻；管理员改过这张单（改价、协商特价）的话就是最后一次修改的时刻。
+      // 待支付且未取消的订单只有后台能改，买家自己刷新不了这个时间
+      if (Date.now() - order.updatedAt.getTime() > ORDER_PAY_WINDOW_MIN * 60_000) {
+        return error('订单已超过支付有效期，请重新下单')
+      }
+      const product = await prisma.product.findUnique({
+        where: { id: order.productId },
+        select: { status: true, price: true },
+      })
+      if (!product || product.status !== 1) return error('该商品已下架，订单无法支付')
+      // 标价变了就不能按旧快照收款。比的是 productPrice（建单时的标价快照），不是 amount：
+      // 券价、内推专属价、含税金额都不会误判。管理员手工改过的单以管理员为准，不比这一项
+      const adminTouched = order.updatedAt.getTime() - order.createdAt.getTime() > 5_000
+      if (!adminTouched && Math.round(Number(product.price) * 100) !== Math.round(Number(order.productPrice) * 100)) {
+        return error('商品价格已调整，请重新下单')
+      }
+
+      // 每个买家同时挂着的待付款收款单有上限：每张都占一个唯一金额，而金额池只有 50 格、全站共用
+      if ((await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) return error(tooMany, 429)
+    }
 
     // 站长明确要求的那道复验：提交收款监控之前，确认「账户与券一致、券处于可用（锁定）状态」。
     // 建单时已经校验并锁定过一次，这里防的是另一件事 —— 订单与券的关联在中途被改坏。
@@ -68,6 +120,15 @@ export async function POST(request: NextRequest) {
       outTradeNo: order.orderNo,
       price: payable,
     })
+
+    // 【事后复核】预检和分配之间不是原子的，并发的一批请求会一起通过预检。分配完再数一次，超了就作废自己这张：
+    // 最后完成复核的幸存者看到的计数包含所有幸存者，所以幸存数一定 ≤ 上限。这张收款单还没交给买家，作废不影响任何在途付款。
+    // 只作废本次新建的（vmq.created）：锁内重查拿到的是同一订单另一个标签页刚建的那张，它可能已经显示成二维码，
+    // 作废了那边的收银台会变成「已过期」；它本来就被计在上面的数里，原样复用即可
+    if (!reusing && vmq.created && (await countOpenOrderPayments(user.id)) > VMQ_MAX_OPEN_PER_USER) {
+      await discardVmqOrder(vmq.orderId).catch((e) => console.error('[vmq] 超额收款单回滚失败', vmq.orderId, e))
+      return error(tooMany, 429)
+    }
 
     return success({
       payUrl: `/pay/${vmq.orderId}`,

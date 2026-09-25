@@ -7,12 +7,17 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { round2 } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
+import { settledReferralCents } from '@/lib/referral-report'
 
 /**
  * 卡密数据分析：数据源 = CardKey 表（网站自助下单自动发货 + 外部站调库存 API 领卡），
  * 口径 status='USED' 且 usedAt 落在区间内（usedAt = 发出时间，createdAt = 导入时间，勿混用）。
  *
- * 【绝不解密】统计只读 productId / usedAt / cost / soldPrice / profit / externalRef 六列，
+ * 【利润 = 卡差价 − 已结算内推返现】CardKey.profit 只是卡差价（售价 − 成本），内推单还要付给推广人一笔返现
+ * （已进余额、可提现的真钱）。这里按所属订单读 ReferralReward(SETTLED)、按张分摊后扣掉，
+ * 列本身不改（口径说明见 lib/referral-report.ts）。外部站发的卡没有 orderId，不受影响。
+ *
+ * 【绝不解密】统计只读 productId / orderId / usedAt / cost / soldPrice / profit / externalRef 七列，
  * 不碰 content，也不调用 decryptCardContent —— 一次解密上千张卡会把接口拖垮。
  *
  * 【为什么在 Node 里分组而不是 $queryRaw】
@@ -67,16 +72,20 @@ type Bucket = {
   cards: number
   cost: number
   revenue: number
+  /** 已扣内推返现 */
   profit: number
+  /** 从利润里扣掉的内推返现 */
+  referral: number
   /** 利润未知（profit IS NULL）的张数，区别于「利润为 0」 */
   unknownProfitCards: number
 }
-const newBucket = (): Bucket => ({ cards: 0, cost: 0, revenue: 0, profit: 0, unknownProfitCards: 0 })
+const newBucket = (): Bucket => ({ cards: 0, cost: 0, revenue: 0, profit: 0, referral: 0, unknownProfitCards: 0 })
 const sealBucket = (b: Bucket) => ({
   cards: b.cards,
   cost: round2(b.cost),
   revenue: round2(b.revenue),
   profit: round2(b.profit),
+  referral: round2(b.referral),
   unknownProfitCards: b.unknownProfitCards,
 })
 
@@ -125,6 +134,7 @@ export async function GET(request: NextRequest) {
       where,
       select: {
         productId: true,
+        orderId: true,
         usedAt: true,
         cost: true,
         soldPrice: true,
@@ -135,6 +145,24 @@ export async function GET(request: NextRequest) {
     })
 
     const dec = (v: Prisma.Decimal | null) => (v == null ? null : Number(v))
+
+    // 每张卡分摊的已结算内推返现（元）。返现 = round(每件返现*100) × 件数 / 100（api/orders POST），
+    // 分数必能被件数整除，每张卡的份额是精确的分；所有维度在同一个 apply 里扣，合计 = 每日之和 = 每商品之和
+    const oids = Array.from(new Set(rows.map((r) => r.orderId).filter((x): x is number => x != null)))
+    const rewardCents = await settledReferralCents(oids)
+    const qtyMap = new Map<number, number>()
+    if (rewardCents.size) {
+      const os = await prisma.order.findMany({
+        where: { id: { in: Array.from(rewardCents.keys()) } },
+        select: { id: true, quantity: true },
+      })
+      for (const o of os) qtyMap.set(o.id, Math.max(o.quantity, 1))
+    }
+    const cardReferral = (oid: number | null): number => {
+      if (oid == null) return 0
+      const c = rewardCents.get(oid)
+      return c ? Math.round(c / (qtyMap.get(oid) ?? 1)) / 100 : 0
+    }
 
     // 三个维度的桶：按天 / 按商品 / 按来源
     const dailyMap = new Map<string, Bucket>()
@@ -153,13 +181,16 @@ export async function GET(request: NextRequest) {
       const revenue = dec(r.soldPrice)
       const profit = dec(r.profit)
       const isExternal = !!r.externalRef
+      const referral = profit != null ? cardReferral(r.orderId) : 0
 
       const apply = (b: Bucket) => {
         b.cards++
         b.cost += cost
         if (revenue != null) b.revenue += revenue
-        if (profit != null) b.profit += profit
-        else b.unknownProfitCards++
+        if (profit != null) {
+          b.profit += profit - referral
+          b.referral += referral
+        } else b.unknownProfitCards++
       }
 
       apply(totals)
@@ -218,8 +249,9 @@ export async function GET(request: NextRequest) {
         cards: t.cards,
         cost: t.cost,
         revenue: t.revenue,
-        profit: t.profit,
-        // 毛利率 = 已知利润 / 已知流水
+        profit: t.profit, // 已扣内推返现
+        referral: t.referral,
+        // 毛利率 = 已知利润（已扣返现）/ 已知流水
         profitMargin: t.revenue > 0 ? round2((t.profit / t.revenue) * 100) : 0,
         // 利润未知的张数（profit IS NULL），其中外部站发卡的部分单列
         unknownProfitCards: t.unknownProfitCards,

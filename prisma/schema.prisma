@@ -10,19 +10,24 @@ datasource db {
 
 // 用户表
 model User {
-  id           Int      @id @default(autoincrement())
-  phone        String?  @unique @db.VarChar(20)
-  email        String?  @unique @db.VarChar(100)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  nickname     String?  @db.VarChar(50)
-  avatar       String?  @db.VarChar(255)
-  balance      Decimal  @default(0) @db.Decimal(10, 2)
-  referralCode String?  @unique @map("referral_code") @db.VarChar(20) // 内推码
-  vipLevel     Int      @default(0) @map("vip_level")
-  role         UserRole @default(USER)
-  status       Int      @default(1) // 1: 正常 0: 禁用
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id              Int       @id @default(autoincrement())
+  phone           String?   @unique @db.VarChar(20)
+  email           String?   @unique @db.VarChar(100)
+  passwordHash    String    @map("password_hash") @db.VarChar(255)
+  nickname        String?   @db.VarChar(50)
+  avatar          String?   @db.VarChar(255)
+  balance         Decimal   @default(0) @db.Decimal(10, 2)
+  referralCode    String?   @unique @map("referral_code") @db.VarChar(20) // 内推码
+  vipLevel        Int       @default(0) @map("vip_level")
+  role            UserRole  @default(USER)
+  status          Int       @default(1) // 1: 正常 0: 禁用
+  // 会话版本：重置密码 / 禁用账号时 +1，签发时写进 JWT 的 sv，不相等的旧 token 立即失效（2026-09-26 审计 G07）
+  sessionEpoch    Int       @default(0) @map("session_epoch")
+  // 邮箱最近一次被证明归属的时间（注册验码、找回密码验码、邮箱查询验码时写入）。
+  // 为空 = 从未验证过（2026-06-10 之前注册的账号没有验码）。「登录邮箱 = 订阅邮箱」的免验码放行只认非空
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   orders        Order[]
   gameScores    GameScore[]
@@ -37,13 +42,16 @@ model User {
 
 // 用户绑定的订阅账户（Claude / ChatGPT 邮箱），用于在个人中心管理
 model UserAccount {
-  id           Int      @id @default(autoincrement())
-  userId       Int      @map("user_id")
-  accountEmail String   @map("account_email") @db.VarChar(255) // 绑定的 Claude/ChatGPT 邮箱（关联 ExternalOrder.claudeAccount）
-  platform     String   @default("CLAUDE") @db.VarChar(20) // CLAUDE | CHATGPT | OTHER
-  label        String?  @db.VarChar(50) // 备注名（可选）
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id           Int       @id @default(autoincrement())
+  userId       Int       @map("user_id")
+  accountEmail String    @map("account_email") @db.VarChar(255) // 绑定的 Claude/ChatGPT 邮箱（关联 ExternalOrder.claudeAccount）
+  platform     String    @default("CLAUDE") @db.VarChar(20) // CLAUDE | CHATGPT | OTHER
+  label        String?   @db.VarChar(50) // 备注名（可选）
+  // 绑定时是否用邮箱验证码证明了对该订阅账户的所有权。为空 = 未验证（2026-09-26 之前的绑定一律视为未验证）：
+  // 未验证的绑定只显示「待验证」，不展示订阅记录与提醒手机号、也不作为开票开收据的归属凭证
+  verifiedAt   DateTime? @map("verified_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -784,19 +792,19 @@ model Invoice {
 // 按 userId 归属，不按邮箱：邮箱可以改，改了不能让人丢掉自己的抬头。
 // 因此**匿名「邮箱查订阅」流程没有抬头档案**（那条路径根本没有身份），只能手填。
 model InvoiceTitle {
-  id          Int      @id @default(autoincrement())
-  userId      Int      @map("user_id")
-  title       String   @db.VarChar(200) // 抬头（公司名 / 个人）
-  taxNumber   String   @map("tax_number") @db.VarChar(64) // 税号，入库前已去掉所有空白字符
-  address     String?  @db.VarChar(255)
-  phone       String?  @db.VarChar(50)
-  bankName    String?  @map("bank_name") @db.VarChar(128)
-  bankAccount String?  @map("bank_account") @db.VarChar(64)
-  email       String?  @db.VarChar(255) // 默认接收邮箱
-  isDefault   Boolean  @default(false) @map("is_default") // 开票时默认选中的那一条
+  id          Int       @id @default(autoincrement())
+  userId      Int       @map("user_id")
+  title       String    @db.VarChar(200) // 抬头（公司名 / 个人）
+  taxNumber   String    @map("tax_number") @db.VarChar(64) // 税号，入库前已去掉所有空白字符
+  address     String?   @db.VarChar(255)
+  phone       String?   @db.VarChar(50)
+  bankName    String?   @map("bank_name") @db.VarChar(128)
+  bankAccount String?   @map("bank_account") @db.VarChar(64)
+  email       String?   @db.VarChar(255) // 默认接收邮箱
+  isDefault   Boolean   @default(false) @map("is_default") // 开票时默认选中的那一条
   lastUsedAt  DateTime? @map("last_used_at") // 最近一次用它开票的时间，列表按此排序
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

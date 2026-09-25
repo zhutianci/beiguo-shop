@@ -46,7 +46,8 @@ export default function RegisterPage() {
       })
       const data = await res.json()
       if (data.success) {
-        setCodeMsg('验证码已发送，请查收邮箱（含垃圾箱）')
+        // 发码接口对已注册邮箱改发「请直接登录」的说明信（防枚举），提示里要让老用户知道去看那封信
+        setCodeMsg('邮件已发送，请查收（含垃圾箱）；若该邮箱已注册过，邮件里会提示你直接登录')
         setCooldown(60)
       } else {
         setError(data.error || '验证码发送失败')
@@ -197,8 +198,10 @@ export default function RegisterPage() {
                   type="text"
                   value={formData.nickname}
                   onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
+                  // 与个人资料页同一口径（最多 20 字）；服务端超长只截断、不报错，这里只是提示
+                  maxLength={20}
                   className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
-                  placeholder="请输入昵称"
+                  placeholder="请输入昵称（最多 20 字）"
                 />
               </div>
             </div>

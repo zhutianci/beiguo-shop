@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
 
-    // 按用户限流而不是按 IP：IP 在隧道后可伪造（见 lib/news/rate-limit 的说明）。
+    // 按用户限流而不是按 IP：换 IP 很便宜（手机流量、IPv6、代理），用户 id 换不了。
     // 正常人一分钟点不了 20 次，超了多半是脚本在拿订单号撞
     if (rateLimited(`lottery:${user.id}`, { windowMs: 60_000, max: 20 })) {
       return error('操作太频繁，请稍后再试', 429)

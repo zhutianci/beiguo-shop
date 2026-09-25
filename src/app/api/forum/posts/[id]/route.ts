@@ -5,9 +5,10 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { renderMarkdown } from '@/lib/markdown'
-import { resolveActor, normalizeTags } from '@/lib/forum'
+import { resolveActor, normalizeTags, memberDisplayName } from '@/lib/forum'
+import { forumViewCounted } from '@/lib/forum-throttle'
 
-// 帖子详情（浏览量 +1，返回渲染后的 HTML 与点赞状态）
+// 帖子详情（浏览量去重 +1，返回渲染后的 HTML 与点赞状态）
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = parseInt(params.id)
@@ -24,8 +25,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     })
     if (!post || (post.status !== 1 && !actor.isAdmin)) return error('帖子不存在或已被隐藏', 404)
 
-    // 浏览量 +1（不阻塞）
-    prisma.forumPost.update({ where: { id }, data: { views: { increment: 1 } } }).catch(() => {})
+    // 浏览量 +1（不阻塞）。同一读者同一帖 1 小时只计 1 次：以前每次 GET 都 +1，
+    // 一个刷新循环就能刷穿 sort=hot（审计 G44）；前端每次点赞/评论后 loadPost 也会重复计数。
+    // 隐藏帖只有管理员看得到，不计数
+    const counted = post.status === 1 && forumViewCounted(request.headers, actor, id)
+    if (counted) prisma.forumPost.update({ where: { id }, data: { views: { increment: 1 } } }).catch(() => {})
 
     let likedByMe = false
     if (actor.userId || actor.anonId) {
@@ -46,7 +50,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       content: post.content, // 原始 markdown（编辑用）
       html: renderMarkdown(post.content),
       images: post.images ? (JSON.parse(post.images) as string[]) : [],
-      authorName: post.authorName,
+      // 会员按当前昵称现算：库里旧快照可能是邮箱前缀（审计 G48）
+      authorName: post.userId ? memberDisplayName(post.user?.nickname, post.userId) : post.authorName,
       avatar: post.user?.avatar || null,
       isMember: !!post.userId,
       category: post.category,
@@ -56,7 +61,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       featured: post.featured,
       locked: post.locked,
       status: post.status,
-      views: post.views + 1,
+      views: post.views + (counted ? 1 : 0),
       likeCount: post.likeCount,
       commentCount: post.commentCount,
       likedByMe,

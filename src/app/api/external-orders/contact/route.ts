@@ -4,6 +4,18 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { getCurrentUser } from '@/lib/auth'
+import { hasAccountAccess, readProofDigests } from '@/lib/email-proof'
+
+/*
+ * 【2026-09-26 起必须证明邮箱归属（审计 G13）】以前两个方法都是匿名的：
+ * GET 凭邮箱就能读出别人的提醒手机号明文，POST 能把别人的续费提醒改发到自己这里。
+ * 现在与「邮箱查订阅」同一套凭证（lib/email-proof.ts）：刚验过验证码 / 已验证的登录邮箱或绑定。
+ */
+async function denied(account: string): Promise<boolean> {
+  const user = await getCurrentUser()
+  return !(await hasAccountAccess(account, user, await readProofDigests()))
+}
 
 // GET：查询某账户已保存的提醒联系方式（无记录时返回默认值：邮箱=账户邮箱）
 export async function GET(request: NextRequest) {
@@ -13,6 +25,7 @@ export async function GET(request: NextRequest) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailRaw)) {
       return error('请输入正确的邮箱')
     }
+    if (await denied(emailRaw)) return error('请先验证账户邮箱', 401)
 
     // 必须是真实下单过的账户
     const order = await prisma.externalOrder.findFirst({
@@ -67,6 +80,7 @@ export async function POST(request: NextRequest) {
 
     const d = parsed.data
     const account = d.claudeAccount.trim().toLowerCase()
+    if (await denied(account)) return error('请先验证账户邮箱', 401)
 
     // 必须是真实下单过的账户
     const order = await prisma.externalOrder.findFirst({

@@ -11,19 +11,25 @@
 # 任务里用 $(cat /run/cron_secret) 现取。busybox crond 用 /bin/sh -c 执行命令，
 # 命令替换可用；也就不必赌 crond 会不会把容器环境变量传给子进程。
 #
+# 【密钥一律走 x-cron-secret 请求头，不要再放进 URL 的 query 里】（2026-09-26 起全部任务统一）
+# query 会进访问日志；这里的请求虽然直连 app:3000、不经 nginx，但照抄这种写法去排障
+# （拿域名 + query 带密钥去调）就会把密钥写进 nginx / Cloudflare 日志。nginx 现在对外一律 404 掉 /api/cron/*。
+# GET 路由（vmq-close / sms-poll / news / cleanup）用 curl 默认的 GET，不要加 -X POST。
+#
 # 每条 curl 都必须带 --max-time：抓取类任务变慢时宁可漏一轮，也不能让请求越堆越多。
 # 分钟级任务给 50s（小于调度间隔，天然不重叠），新闻管线给 540s（硬上限）。
 #
-# 改完必须重建 cron 容器才生效：docker compose up -d --force-recreate cron
+# 改完必须重建 cron 容器才生效：docker compose --env-file .env.production up -d --no-deps --force-recreate cron
+# （--no-deps：cron 依赖 app，不带它时 compose 可能顺手把 app 也重建一遍）
 # 自检：docker compose logs -f cron，以及 docker compose exec cron cat /etc/crontabs/root
 
 # ---------- 既有任务 ----------
 # 每天 12:00 自动续费提醒
 0 12 * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/remind >> /var/log/cron.log 2>&1
 # 每分钟 兜底关闭过期收款单
-* * * * * curl -fsS --max-time 50 "http://app:3000/api/cron/vmq-close?secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+* * * * * curl -fsS --max-time 50 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/vmq-close" >> /var/log/cron.log 2>&1
 # 每分钟 轮询等待中的接码
-* * * * * curl -fsS --max-time 50 "http://app:3000/api/cron/sms-poll?secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+* * * * * curl -fsS --max-time 50 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/sms-poll" >> /var/log/cron.log 2>&1
 
 # ---------- AI圈大事记 内容管线 ----------
 # 【2026-09-07 改为单趟串联】原来是 :05 抓取分诊、:15 聚类、:25 写作三段错峰。
@@ -35,21 +41,21 @@
 #   ① 每段各自用 VmqLock 同款唯一约束抢锁，上一轮没跑完这一轮直接跳过
 #   ② compose 自带 5 分钟墙钟，主动在 --max-time 540 之前收工
 # 时间预算：collect ~1s + triage ~20s + cluster ~60s + compose ≤300s ≈ 380s，留足余量。
-5 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=collect,triage,cluster,compose&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+5 * * * * curl -fsS --max-time 540 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/news?stage=collect,triage,cluster,compose" >> /var/log/cron.log 2>&1
 # 每小时 35 分 给老事件补全文层（独立成段，不和写摘要抢时间预算）
 # 开关是 NEWS_DETAIL_BACKFILL，关着的时候这条任务会立刻返回、不花钱
-35 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=detail&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+35 * * * * curl -fsS --max-time 540 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/news?stage=detail" >> /var/log/cron.log 2>&1
 # 每 15 分钟 重算热度分（纯计算，不花钱）
-*/15 * * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=rank&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+*/15 * * * * curl -fsS --max-time 540 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/news?stage=rank" >> /var/log/cron.log 2>&1
 # 每天 21:00 生成日报
-0 21 * * * curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=digest&type=DAILY&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+0 21 * * * curl -fsS --max-time 540 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/news?stage=digest&type=DAILY" >> /var/log/cron.log 2>&1
 # 每周一 09:00 生成上周周报
-0 9 * * 1 curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=digest&type=WEEKLY&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+0 9 * * 1 curl -fsS --max-time 540 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/news?stage=digest&type=WEEKLY" >> /var/log/cron.log 2>&1
 
 # 流量与营销数据保留期清理：每天 03:40（低峰）。page_views 90 天、visitors 一年不活跃、
 # 营销邮件事件明细 90 天、营销邮件发送记录 2 年（退订留痕与抑制名单永不删）。
 # 保留期与 /privacy 里对买家的承诺绑定，改这里之前先去改那一页。
-40 3 * * * curl -fsS --max-time 240 "http://app:3000/api/cron/cleanup?secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+40 3 * * * curl -fsS --max-time 240 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/cleanup" >> /var/log/cron.log 2>&1
 
 # ---------- 营销推广（邮件）----------
 # 契约见 docs/营销推广-设计.md。两条都是 POST + x-cron-secret 头（密钥不进 URL，不进 nginx/Cloudflare 日志）。

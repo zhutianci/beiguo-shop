@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import {
@@ -58,6 +58,13 @@ export default function PostDetailPage() {
   const router = useRouter()
   const id = Number(params.id)
   const { user } = useUserStore()
+  // 「以 xxx 评论」只显示昵称，不显示邮箱（公开作者名已不再回落到邮箱，审计 G48）。
+  // 注意 userName 同时是「是否登录」的开关（为空时会冒出匿名昵称输入框），登录用户必须保持非空
+  const commentAs = user
+    ? user.nickname && !user.nickname.includes('@')
+      ? user.nickname
+      : '会员（未设置昵称）'
+    : null
 
   const [post, setPost] = useState<Detail | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
@@ -150,11 +157,20 @@ export default function PostDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
+  // 请求在途时忽略再次点击：服务端对同一人同一目标的点赞有进程内互斥，双击的第二下会拿到 429
+  // 并弹「操作过于频繁」—— 那是给刷赞的，不该让手快双击的正常用户看到
+  const likeBusy = useRef(false)
   const toggleLike = async () => {
-    if (!post) return
-    const res = await forumFetch(`/api/forum/posts/${id}/like`, { method: 'POST' })
-    const data = await res.json()
-    if (data.success) setPost({ ...post, likedByMe: data.data.liked, likeCount: data.data.likeCount })
+    if (!post || likeBusy.current) return
+    likeBusy.current = true
+    try {
+      const res = await forumFetch(`/api/forum/posts/${id}/like`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) setPost({ ...post, likedByMe: data.data.liked, likeCount: data.data.likeCount })
+      else if (data.error) alert(data.error) // 被限流（429）时让人看得到原因
+    } finally {
+      likeBusy.current = false
+    }
   }
 
   const adminAction = async (patch: Record<string, unknown>) => {
@@ -290,7 +306,7 @@ export default function PostDetailPage() {
               <Lock className="w-4 h-4 inline mr-1" /> 该帖已锁定，暂不可回复
             </div>
           ) : (
-            <CommentBox postId={id} onDone={() => { refreshAfterChange(true); loadPost() }} userName={user?.nickname || user?.email || null} />
+            <CommentBox postId={id} onDone={() => { refreshAfterChange(true); loadPost() }} userName={commentAs} />
           )}
 
           {cHint && (
@@ -300,7 +316,7 @@ export default function PostDetailPage() {
           {/* 评论列表 */}
           <div className="space-y-4 mt-6">
             {comments.map((c) => (
-              <CommentItem key={c.id} comment={c} postId={id} locked={post.locked && !post.isAdmin} userName={user?.nickname || user?.email || null} onChange={() => { refreshAfterChange(false); loadPost() }} />
+              <CommentItem key={c.id} comment={c} postId={id} locked={post.locked && !post.isAdmin} userName={commentAs} onChange={() => { refreshAfterChange(false); loadPost() }} />
             ))}
             {comments.length === 0 && !cLoading && <p className="text-center text-white/30 py-8 text-sm">还没有评论，来抢沙发～</p>}
           </div>
@@ -425,12 +441,19 @@ function CommentItem({
   const [liked, setLiked] = useState(comment.likedByMe)
   const [likeCount, setLikeCount] = useState(comment.likeCount)
 
+  const likeBusy = useRef(false) // 请求在途时忽略再次点击，理由见帖子点赞处
   const toggleLike = async () => {
-    const res = await forumFetch(`/api/forum/comments/${comment.id}/like`, { method: 'POST' })
-    const data = await res.json()
-    if (data.success) {
-      setLiked(data.data.liked)
-      setLikeCount(data.data.likeCount)
+    if (likeBusy.current) return
+    likeBusy.current = true
+    try {
+      const res = await forumFetch(`/api/forum/comments/${comment.id}/like`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        setLiked(data.data.liked)
+        setLikeCount(data.data.likeCount)
+      } else if (data.error) alert(data.error) // 被限流（429）时让人看得到原因
+    } finally {
+      likeBusy.current = false
     }
   }
 
@@ -505,12 +528,19 @@ function ReplyItem({ reply, onChange }: { reply: Comment; onChange: () => void }
   const [liked, setLiked] = useState(reply.likedByMe)
   const [likeCount, setLikeCount] = useState(reply.likeCount)
 
+  const likeBusy = useRef(false) // 请求在途时忽略再次点击，理由见帖子点赞处
   const toggleLike = async () => {
-    const res = await forumFetch(`/api/forum/comments/${reply.id}/like`, { method: 'POST' })
-    const data = await res.json()
-    if (data.success) {
-      setLiked(data.data.liked)
-      setLikeCount(data.data.likeCount)
+    if (likeBusy.current) return
+    likeBusy.current = true
+    try {
+      const res = await forumFetch(`/api/forum/comments/${reply.id}/like`, { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        setLiked(data.data.liked)
+        setLikeCount(data.data.likeCount)
+      } else if (data.error) alert(data.error) // 被限流（429）时让人看得到原因
+    } finally {
+      likeBusy.current = false
     }
   }
   const del = async () => {

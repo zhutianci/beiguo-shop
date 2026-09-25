@@ -1,70 +1,12 @@
 #!/bin/bash
-# 部署脚本：构建并启动所有服务
-
-set -e
-
-echo "=========================================="
-echo "  贝果科技 - 部署脚本"
-echo "=========================================="
-
-# 检查 .env.production
-if [ ! -f .env.production ]; then
-    echo "错误: .env.production 文件不存在"
-    echo "请复制 .env.production.example 为 .env.production 并修改配置"
-    echo "  cp .env.production.example .env.production"
-    echo "  vim .env.production"
-    exit 1
-fi
-
-# 加载环境变量
-set -a
-source .env.production
-set +a
-
-echo ""
-echo "[1/5] 拉取最新代码..."
-git pull origin main || echo "(本地版本，跳过拉取)"
-
-echo ""
-echo "[2/5] 构建 Docker 镜像（首次可能需要几分钟）..."
-docker compose --env-file .env.production build
-
-echo ""
-echo "[3/5] 启动服务..."
-docker compose --env-file .env.production up -d
-
-echo ""
-echo "[4/5] 等待数据库就绪..."
-sleep 15
-for i in {1..30}; do
-    if docker compose exec -T db mysqladmin ping -h localhost -uroot -p${MYSQL_ROOT_PASSWORD} 2>/dev/null | grep -q "alive"; then
-        echo "数据库已就绪"
-        break
-    fi
-    echo "  等待中 ($i/30)..."
-    sleep 2
-done
-
-echo ""
-echo "[5/5] 初始化数据库..."
-# 锁定 Prisma 5.22.0 版本（与项目依赖一致，避免 npx 拉取最新 7.x）
-docker compose exec -T app npx -y prisma@5.22.0 db push --accept-data-loss --schema=./prisma/schema.prisma
-
-echo ""
-read -p "是否初始化种子数据（首次部署选 y）？(y/n): " init_seed
-if [ "$init_seed" = "y" ]; then
-    docker compose exec -T app npx -y tsx prisma/seed.ts
-fi
-
-echo ""
-echo "=========================================="
-echo "  部署完成！"
-echo "  访问地址: ${APP_URL}"
-echo "  后台地址: ${APP_URL}/admin"
-echo "  管理员账号: admin@example.com / admin123"
-echo "  ⚠️  首次登录后请立即修改管理员密码！"
-echo "=========================================="
-
-echo ""
-echo "容器状态："
-docker compose ps
+# 【已停用 2026-09-26】原脚本的顺序是 build → up → db push --accept-data-loss，四个问题都出过或差点出事：
+#   1) 新镜像先于新列上线：查询新列的页面整页 500（交接文档第十一节记录过 /news/[slug] 500）；
+#   2) 用容器内（可能是回滚 checkout 的旧）schema 带 --accept-data-loss 执行 db push，会静默 DROP 新表新列；
+#   3) 在 1.8G 生产机前台全量构建会 OOM，连带杀掉站点容器，并且整栈 up 会顺带重启 nginx/cloudflared；
+#   4) 会跑 prisma/seed.ts：建出公开默认密码的管理员、覆盖真实分类、插入上架的演示商品。
+# 部署一律按 docs/交接-进度与待办.md 第十一节 / 第十四节「正确的部署顺序」手工执行：
+#   备份并校验 → 临时容器 migrate diff 预览（零 DROP）→ 不带 --accept-data-loss 执行 db push
+#   → 后台 build app → up -d app → 冒烟。
+# 旧内容在 git 历史里，不要为了「方便」把它恢复出来。
+echo "scripts/deploy.sh 已停用：请按 docs/交接-进度与待办.md 的部署清单执行（见脚本内注释）。" >&2
+exit 1

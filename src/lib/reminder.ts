@@ -4,7 +4,9 @@ import { sendDirectMail, sendSms } from './aliyun'
 import type { AccountContact, ExternalOrder } from '@prisma/client'
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://bigolab.com'
-const SERVICE_WECHAT = 'GenuineMarxist'
+// 邮件里只放站内客服页：阿里云产品规则禁止邮件正文出现微信/QQ/二维码/群/网盘，
+// 被投诉会冻结整个账号的发信地址（含发注册验证码的 no-reply）。自测：scripts/check-transactional-mail.ts
+const SUPPORT_URL = `${APP_URL}/support`
 export const REMIND_WITHIN_DAYS = 7
 
 export interface ResolvedContact {
@@ -69,7 +71,7 @@ export function resolveContact(
   }
 }
 
-function buildEmail(order: ExternalOrder): { subject: string; html: string } {
+export function buildReminderEmail(order: ExternalOrder): { subject: string; html: string } {
   const days = daysUntilExpire(order.expireDate)
   const expStr = formatDate(order.expireDate)
   const expired = days < 0
@@ -98,7 +100,7 @@ function buildEmail(order: ExternalOrder): { subject: string; html: string } {
         <a href="${lookupUrl}" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#db2777);color:#fff;text-decoration:none;padding:12px 28px;border-radius:10px;font-weight:600;font-size:15px;">查看订阅状态</a>
       </div>
       <p style="font-size:13px;color:#6b7280;line-height:1.7;margin:16px 0 0;">
-        需要续费请联系客服微信：<b style="color:#7c3aed;">${SERVICE_WECHAT}</b><br/>
+        需要续费请到 <a href="${SUPPORT_URL}" style="color:#7c3aed;font-weight:700;">客户服务中心</a> 联系客服，<br/>
         或访问 <a href="${APP_URL}" style="color:#7c3aed;">${APP_URL.replace(/^https?:\/\//, '')}</a> 重新下单。
       </p>
     </div>
@@ -108,7 +110,7 @@ function buildEmail(order: ExternalOrder): { subject: string; html: string } {
 }
 
 // 充值/续费成功确认邮件
-function buildRechargeEmail(order: ExternalOrder): { subject: string; html: string } {
+export function buildRechargeEmail(order: ExternalOrder): { subject: string; html: string } {
   const startStr = formatDate(order.startDate)
   const expStr = formatDate(order.expireDate)
   const subject = `【贝果科技】充值成功 · ${order.subscriptionType} 已开通至 ${expStr}`
@@ -131,7 +133,7 @@ function buildRechargeEmail(order: ExternalOrder): { subject: string; html: stri
       </div>
       <p style="font-size:13px;color:#6b7280;line-height:1.7;margin:16px 0 0;">
         感谢你的支持！到期前我们会再次提醒你续费。<br/>
-        如有疑问请联系客服微信：<b style="color:#059669;">${SERVICE_WECHAT}</b>
+        如有疑问请到 <a href="${SUPPORT_URL}" style="color:#059669;font-weight:700;">客户服务中心</a> 联系客服。
       </p>
     </div>
     <p style="text-align:center;font-size:12px;color:#9ca3af;margin:16px 0;">此邮件由系统自动发送，如有疑问请联系客服。</p>
@@ -244,7 +246,7 @@ export async function sendReminderForOrder(
 
   // 邮箱渠道
   if (contact.notifyEmail && contact.email && emailRe.test(contact.email)) {
-    const { subject, html } = buildEmail(order)
+    const { subject, html } = buildReminderEmail(order)
     const r = await sendDirectMail(contact.email, subject, html)
     outcome.emailResult = { ok: r.ok, detail: r.detail, target: contact.email }
     logs.push({ channel: 'email', target: contact.email, status: r.ok ? 'success' : 'failed', detail: r.detail })

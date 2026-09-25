@@ -134,10 +134,11 @@ export async function GET(
         },
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.order.count({ where: { userId, payStatus: 'PAID' } }),
+      // 已付款订单数 / 累计付款都排除「已付款 + 已取消」（线下退款的惯例做法，钱已退回）
+      prisma.order.count({ where: { userId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } } }),
       prisma.order.count({ where: { userId, deliveryStatus: 'DELIVERED' } }),
       prisma.order.aggregate({
-        where: { userId, payStatus: 'PAID' },
+        where: { userId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } },
         _sum: { amount: true },
       }),
       prisma.referralPrice.count({ where: { userId } }),

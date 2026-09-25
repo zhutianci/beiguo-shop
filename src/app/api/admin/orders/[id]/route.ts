@@ -13,6 +13,15 @@ import { voidLotteryForOrder } from '@/lib/lottery-server'
 import { sendOrderDeliveredEmail } from '@/lib/mail'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { parseOrderInvoiceDraft } from '@/lib/order-invoice'
+import { invoicesForOrder, voidOpenInvoicesForOrder } from '@/lib/order-link'
+import { cancelActivationForOrder } from '@/lib/sms'
+
+/**
+ * 改价的条件更新没抢到：开头读到的「待支付、未取消」在写入前已经变了（买家刚好付款、或超时关单）。
+ * 抛出来让整个事务回滚 —— 不能「剥掉改价、照常保存其他字段」，管理员会以为新价生效了。
+ * 不导出：route.ts 只能导出 HTTP handler
+ */
+class OrderStateChangedError extends Error {}
 
 const updateOrderSchema = z.object({
   payStatus: z.enum(['UNPAID', 'PAID', 'REFUNDED']).optional(),
@@ -92,9 +101,6 @@ export async function PUT(
       deliveryInfo?: string | null
       deliveredAt?: Date | null
       paidAt?: Date | null
-      amount?: number
-      invoiceTaxFee?: number | null
-      invoiceInfo?: string | null
     } = { ...orderFields }
 
     /*
@@ -106,7 +112,12 @@ export async function PUT(
      * 买家付了不含税的钱，付款到账后 materializeOrderInvoice 照样开出一张含税发票 ——
      * 等于白送 6%。
      */
-    let newTaxFee: number | null = null
+    /*
+     * 【改价单独放进 priceData，在事务里第一件事用 CAS 写】原来和其他字段一起无条件 update：
+     * 开头读到「待支付」、写之前买家恰好按旧价付款（fulfillOrder 已翻成 PAID、流水和发票都按旧价记了），
+     * 这里再把 amount / 税费改成新价 —— 一张已付款订单被改了价，订单、流水、发票三边对不上。
+     */
+    let priceData: { amount: number; invoiceTaxFee?: number; invoiceInfo?: string } | null = null
     if (amount != null) {
       if (currentOrder.payStatus !== 'UNPAID') {
         return error('只有待支付订单可以改价')
@@ -116,14 +127,13 @@ export async function PUT(
       if (currentOrder.deliveryStatus === 'CANCELLED' || result.data.deliveryStatus === 'CANCELLED') {
         return error('已取消的订单不能改价')
       }
-      data.amount = amount
+      priceData = { amount }
       const draft = parseOrderInvoiceDraft(currentOrder.invoiceInfo)
       if (draft) {
         const { taxFee } = calcInvoiceAmounts(amount)
-        newTaxFee = taxFee
-        data.invoiceTaxFee = taxFee
+        priceData.invoiceTaxFee = taxFee
         // 草稿里的 taxFee 只是排查时的对照值，一并刷新避免两个数字打架
-        data.invoiceInfo = JSON.stringify({ ...draft, taxFee })
+        priceData.invoiceInfo = JSON.stringify({ ...draft, taxFee })
       }
     }
 
@@ -212,6 +222,20 @@ export async function PUT(
     const paidBefore = currentOrder.payStatus === 'PAID'
 
     const { order, wonPaid } = await prisma.$transaction(async (tx) => {
+      /*
+       * 改价 CAS 必须排在「标已支付」那次 CAS 之前：同一次保存可能既改价又标已交付，
+       * 「标已交付 → 自动标已支付」先把 payStatus 翻成 PAID 的话，这里就永远抢不到
+       */
+      if (priceData) {
+        const c = await tx.order.updateMany({
+          where: { id: orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } },
+          data: priceData,
+        })
+        if (c.count !== 1) {
+          throw new OrderStateChangedError('订单状态已变化（买家可能刚付款，或订单已超时取消），本次改动未保存，请刷新后重试')
+        }
+      }
+
       let wonPaid = false
       if (markPaid) {
         const c = await tx.order.updateMany({
@@ -336,17 +360,92 @@ export async function PUT(
       await voidLotteryForOrder(orderId).catch((e) => console.error('[lottery] 退款作废抽奖失败', orderId, e))
     }
 
-    // 改价：原地更新同一张待支付收款单的金额（保持同付款链接），用户付款页轮询会自动刷新成新价。
-    // 收的仍是 货款 + 开票税费，与 api/pay/vmq/create 同一口径
-    if (data.amount != null) {
+    /** 保存成功后要让管理员知道的事（前端逐条弹出）。任何一条都不影响本次保存本身 */
+    const warnings: string[] = []
+
+    /*
+     * 【已付款订单被取消 / 标退款 → 状态与权限层面的回滚】（不自动退钱：退款是站长线下操作）
+     *  - 卡密：订单页不再显示、站内兑换被拒（读时判断，lib/redeem/service.ts 与 api/orders GET），
+     *    撤回取消后自动恢复；这里只提示「上游兑换站是公开的」
+     *  - 接码：还在等码的号立刻放掉，迟到的验证码也不会再把订单翻回已交付（lib/sms.ts）
+     *  - 发票 / 收据：未开出的发票转「不可开据」，买家侧不能再申请（lib/order-invoice.ts 的闸门）
+     *  - 营收统计：仪表盘、最近成交、用户累计付款都排除「已付款 + 已取消」
+     *  - 返现：是否扣回待站长拍板（见上面 refunding 那段注释），这里只提示金额
+     * 都放在事务之外、各自 try 住：联动失败只记日志加提示，订单本身已经保存成功。
+     */
+    const voidingPaid = (enteringCancelled && (paidBefore || order.payStatus === 'PAID')) || refunding
+    if (voidingPaid) {
       try {
-        await updatePendingVmqAmount(
-          'order',
-          orderId,
-          Math.round((amount! + (newTaxFee ?? 0)) * 100) / 100
-        )
+        // 先关税费收款单、再改 CANNOT：fulfillInvoice 只看 payStatus，收款单还开着的话买家一付就被翻回 SUBMITTED
+        for (const iv of await invoicesForOrder(orderId)) {
+          if (iv.status === 'AWAIT_PAY' && iv.payStatus !== 'PAID') await invalidatePendingVmq('invoice', iv.id)
+        }
+        const r = await voidOpenInvoicesForOrder(orderId)
+        if (r.voided) warnings.push(`已把 ${r.voided} 张未开出的发票改为「不可开据」；如需恢复请到发票管理撤回`)
+        if (r.issuedNos.length) warnings.push(`发票 ${r.issuedNos.join('、')} 已开具，需人工红冲`)
       } catch (e) {
-        console.error('Update pending vmq amount after price change failed:', e)
+        console.error('[invoice] 取消已付订单时作废发票失败', orderId, e)
+        warnings.push('作废本单发票失败，请到发票管理手动改为「不可开据」')
+      }
+      if (currentOrder.product.deliveryType === 'SMS') {
+        await cancelActivationForOrder(orderId).catch((e) => console.error('[sms] 取消已付订单时停止接码失败', orderId, e))
+      }
+      const cards = await prisma.cardKey.count({ where: { orderId, status: 'USED' } }).catch(() => 0)
+      if (cards) warnings.push(`本单已发出 ${cards} 张卡密：站内兑换已停用，但上游兑换站是公开的，请核对兑换记录`)
+      const rw = await prisma.referralReward.findUnique({ where: { orderId } }).catch(() => null)
+      if (rw?.status === 'SETTLED') {
+        warnings.push(`本单内推返现 ¥${Number(rw.amount).toFixed(2)} 已入推广人余额，未自动扣回，请人工处理`)
+      }
+    }
+    if (leavingCancelled && order.payStatus === 'PAID') {
+      const n = (await invoicesForOrder(orderId).catch(() => [])).filter((iv) => iv.status === 'CANNOT').length
+      if (n) warnings.push(`本单有 ${n} 张发票为「不可开据」，若是取消时自动转的，请到发票管理撤回为「已提交」`)
+    }
+
+    /*
+     * 【收款单金额与订单应收对齐】待支付、未取消订单的收款单金额本来就该等于 amount + invoiceTaxFee
+     * （与 api/pay/vmq/create 同一口径）。改价时原地迁移同一张收款单（保持付款链接，收银台轮询自动刷新）。
+     * 用事务返回的 order（写入后的真实值）算，并且只在收款单标价与应收不一致时才迁移：
+     *  - 普通保存（价格没变）什么都不动 —— reallyPrice 可能带着让位的几分钱，无谓迁移会让买家正在扫的码失效；
+     *  - 上次改价时同步失败的，管理员再点一次「保存」就会重试。
+     * 同步失败不再吞掉：updatePendingVmqAmount 失败时会作废这张收款单（fail closed），这里提示管理员。
+     */
+    if (order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED') {
+      const payable = Math.round((Number(order.amount) + Number(order.invoiceTaxFee ?? 0)) * 100) / 100
+      const cents = (v: unknown) => Math.round(Number(v) * 100)
+      try {
+        const pend = await prisma.vmqOrder.findFirst({
+          where: { bizType: 'order', bizId: orderId, state: 0 },
+          orderBy: { createdAt: 'desc' },
+          select: { price: true },
+        })
+        let migrated = true
+        if (pend && cents(pend.price) !== cents(payable)) {
+          migrated = !!(await updatePendingVmqAmount('order', orderId, payable))
+        }
+        if ((!pend || !migrated) && priceData) {
+          // 迁移时已经没有待支付收款单：多半是改价的同一刻买家按旧价付了款
+          const paidVmq = await prisma.vmqOrder.findFirst({
+            where: { bizType: 'order', bizId: orderId, state: 1 },
+            orderBy: { id: 'desc' },
+            select: { reallyPrice: true },
+          })
+          if (paidVmq && cents(paidVmq.reallyPrice) !== cents(payable)) {
+            warnings.push(
+              `改价保存的同一刻，买家已按收款单金额 ¥${Number(paidVmq.reallyPrice).toFixed(2)} 付款，与新应收 ¥${payable.toFixed(2)} 不一致，请核对差额`
+            )
+          }
+        }
+      } catch (e) {
+        console.error('[order] 同步收款单金额失败', orderId, e)
+        try {
+          // updatePendingVmqAmount 失败时自己已经作废过；这里再作废一次兜底（幂等，只动 state=0）
+          await invalidatePendingVmq('order', orderId)
+          warnings.push('订单已保存，但买家已打开的付款页没能同步成新金额，已将其作废：请让买家回到订单页重新点「去支付」')
+        } catch (e2) {
+          console.error('[order] 作废旧金额收款单也失败', orderId, e2)
+          warnings.push('订单已保存，但买家付款页仍是旧金额且未能作废（数据库异常）。请稍后打开本订单再点一次「保存」，会自动重试同步')
+        }
       }
     }
 
@@ -426,8 +525,9 @@ export async function PUT(
       }
     }
 
-    return success({ ...order, imported }, '订单更新成功')
+    return success({ ...order, imported, warnings }, '订单更新成功')
   } catch (err) {
+    if (err instanceof OrderStateChangedError) return error(err.message, 409)
     console.error('Update order error:', err)
     return error('更新订单失败')
   }

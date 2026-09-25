@@ -6,8 +6,12 @@ import { getCurrentUser } from '@/lib/auth'
 // 魔数识别、上传目录总量配额（含「论坛只能用到 90%」那条线）、落盘都在 lib/upload-store.ts：
 // 后台营销邮件图片上传与这里共用同一份用量计数，否则两条通道各守各的上限，合起来照样能写满磁盘
 import { sniffImage, storeUpload } from '@/lib/upload-store'
+import { clientIp, rateLimited } from '@/lib/news/rate-limit'
+import { ipKey } from '@/lib/auth-throttle'
 
 const MAX_SIZE = 5 * 1024 * 1024 // 单文件 5MB
+// 请求体上限：单文件 5MB + multipart 边界与字段头的开销。nginx 对 /api/upload 另卡 6m（nginx.conf）
+const MAX_BODY = MAX_SIZE + 64 * 1024
 // 单个身份的频率限制（进程内计数，重启即清零；配合总量上限已足够挡住滥用）
 const RATE_WINDOW_MS = 10 * 60 * 1000
 const RATE_MAX = 12
@@ -17,28 +21,6 @@ const ALLOWED: Record<string, string> = {
   'image/png': 'png',
   'image/gif': 'gif',
   'image/webp': 'webp',
-}
-
-// ---- 频率限制 ----
-const hits = new Map<string, number[]>()
-function rateLimited(key: string): boolean {
-  const now = Date.now()
-  const arr = (hits.get(key) || []).filter((t) => now - t < RATE_WINDOW_MS)
-  if (arr.length >= RATE_MAX) {
-    hits.set(key, arr)
-    return true
-  }
-  arr.push(now)
-  hits.set(key, arr)
-  // 顺手清理，避免 Map 无限增长（tsconfig target 较低，用 forEach 而非 for..of 遍历 Map）
-  if (hits.size > 5000) {
-    const stale: string[] = []
-    hits.forEach((v, k) => {
-      if (!v.some((t: number) => now - t < RATE_WINDOW_MS)) stale.push(k)
-    })
-    stale.forEach((k) => hits.delete(k))
-  }
-  return false
 }
 
 /**
@@ -59,18 +41,42 @@ const SCOPES: Record<string, string> = {
 // 图片上传：保存到 public/uploads/<scope>，返回可访问 URL
 export async function POST(request: NextRequest) {
   try {
-    // 身份：登录用户优先，其次匿名 id，最后回落到 IP。仅用于限流，不做准入。
+    // 先看 Content-Length 再 formData()：formData() 会把整个请求体读进内存，
+    // 以前是先读完再看 file.size，一批并发的 20MB 请求就能把 app 顶到 mem_limit。
+    // 浏览器用 FormData 上传一定带 Content-Length，nginx 缓冲后转发也会带上（写法同营销上传接口）
+    const declared = Number(request.headers.get('content-length') || '')
+    if (!Number.isFinite(declared) || declared <= 0) return error('请求缺少 Content-Length', 411)
+    if (declared > MAX_BODY) return error('图片不能超过 5MB', 413)
+
+    // 限流身份：登录用户按用户 id 计；匿名一律按 IP 计（IPv6 按 /64 聚合，同 auth-throttle）。
+    // 【不再认 x-anon-id】它是请求方随便填的（forum-client 里 localStorage 的 UUID），
+    // 每次换一个值就是一个新身份，每 10 分钟 12 张的限制形同虚设。
+    // 代价：同一出口 IP 后面的多个匿名用户合用这份额度，登录用户不受影响。
+    // 两种 key 前缀不同，在 rate-limit 里各占一个桶，匿名刷 IP 挤不掉登录用户的计数。
     const user = await getCurrentUser().catch(() => null)
-    const anonId = request.headers.get('x-anon-id') || ''
-    const ip =
-      request.headers.get('cf-connecting-ip') ||
-      request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-      'unknown'
-    const identity = user ? `u:${user.id}` : anonId ? `a:${anonId}` : `i:${ip}`
+    const ip = clientIp(request.headers)
+    const rateKey = user ? `upload:u:${user.id}` : `upload-ip:${ipKey(ip)}`
+    if (rateLimited(rateKey, { windowMs: RATE_WINDOW_MS, max: RATE_MAX })) {
+      return error('上传过于频繁，请稍后再试', 429)
+    }
 
-    if (rateLimited(identity)) return error('上传过于频繁，请稍后再试', 429)
+    let form: FormData
+    try {
+      form = await request.formData()
+    } catch {
+      return error('上传内容格式不正确')
+    }
 
-    const form = await request.formData()
+    // 目录白名单 + 准入：只有论坛允许匿名和普通用户上传；links / products 是后台录入，只许管理员。
+    // 以前这里不做准入，匿名请求就能往 products/links 里写，并占掉「给后台留的最后 10%」配额
+    // （quotaForScope），之后后台传商品图、友链 logo、营销邮件图全部 507。
+    // hasOwnProperty：scope 是表单值，'__proto__' / 'constructor' 不能命中原型链。
+    // getCurrentUser 会查库，不认被禁用或 sessionEpoch 已失效的账号，口径与 requireAdmin 一致；
+    // 微信 WebView 里的管理员靠 auth-fetch-patch 补的 Bearer 头也能通过。
+    const rawScope = String(form.get('scope') || 'forum')
+    const scope = Object.prototype.hasOwnProperty.call(SCOPES, rawScope) ? SCOPES[rawScope] : 'forum'
+    if (scope !== 'forum' && user?.role !== 'ADMIN') return error('无管理员权限', 403)
+
     const file = form.get('file')
     if (!file || !(file instanceof File)) return error('未找到上传文件')
 
@@ -78,17 +84,18 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_SIZE) return error('图片不能超过 5MB')
 
     const bytes = Buffer.from(await file.arrayBuffer())
+    if (bytes.length > MAX_SIZE) return error('图片不能超过 5MB')
     // 以真实文件头为准，而不是客户端声明的 Content-Type
     const ext = sniffImage(bytes)
     if (!ext) return error('文件内容不是有效的图片')
-
-    const scope = SCOPES[String(form.get('scope') || 'forum')] || 'forum'
 
     // 用量按 uploads 根目录统计、论坛只能用到 90% 的线（理由见 lib/upload-store.ts 的 quotaForScope）；
     // 超线时 storeUpload 会打一条 [upload] 告警日志
     const stored = await storeUpload(scope, bytes, ext)
     if (!stored.ok) return error('图片存储空间已满，请联系管理员', 507)
 
+    // 留痕（不入库）：论坛允许匿名传图，出了违规图要能从日志查到来源
+    console.log(`[upload] scope=${scope} name=${stored.name} size=${bytes.length} by=${user ? 'u:' + user.id : 'ip:' + ip}`)
     return success({ url: stored.url }, '上传成功')
   } catch (err) {
     console.error('Upload error:', err)

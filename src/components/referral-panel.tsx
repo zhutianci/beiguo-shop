@@ -203,6 +203,12 @@ export default function ReferralPanel() {
                     <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
                       <div className="text-sm font-medium truncate">{p.name}</div>
                       <div className="text-xs text-white/40">网站售价 ¥{p.websitePrice.toFixed(2)} · 我的基础价 ¥{p.basePrice.toFixed(2)}</div>
+                      {/* 站长上调了基础价后，旧专属价会低于它：下单时按基础价成交、没有返现（lib/referral.ts referralSellUnit） */}
+                      {p.customPrice != null && Math.round(p.customPrice * 100) < Math.round(p.basePrice * 100) && (
+                        <div className="text-xs text-amber-400 mt-0.5">
+                          专属价已低于当前基础价，将按 ¥{p.basePrice.toFixed(2)} 成交、无返现，请重新设置
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       <span className="text-white/40 text-sm">¥</span>

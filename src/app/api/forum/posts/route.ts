@@ -5,7 +5,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { plainExcerpt } from '@/lib/markdown'
-import { resolveActor, normalizeTags } from '@/lib/forum'
+import { resolveActor, normalizeTags, memberDisplayName } from '@/lib/forum'
+import { forumWriteGate } from '@/lib/forum-throttle'
 
 // 列表：支持板块筛选、标签、关键词、排序、分页
 export async function GET(request: NextRequest) {
@@ -54,7 +55,8 @@ export async function GET(request: NextRequest) {
       id: p.id,
       title: p.title,
       excerpt: plainExcerpt(p.content),
-      authorName: p.authorName,
+      // 会员按当前昵称现算：库里旧快照可能是邮箱前缀（审计 G48）
+      authorName: p.userId ? memberDisplayName(p.user?.nickname, p.userId) : p.authorName,
       avatar: p.user?.avatar || null,
       isMember: !!p.userId,
       category: p.category,
@@ -101,6 +103,10 @@ export async function POST(request: NextRequest) {
     if (category.slug === 'announce' && !actor.isAdmin) {
       return error('公告板块仅管理员可发布')
     }
+
+    // 限流放在校验之后、落库之前：校验失败不消耗额度（审计 G44，阈值见 lib/forum-throttle）
+    const denied = forumWriteGate(request.headers, actor, 'post')
+    if (denied) return error(denied, 429)
 
     let authorName = actor.nickname
     if (!actor.userId) {

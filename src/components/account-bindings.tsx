@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Trash2, Bell, Link2, ChevronDown, Loader2, ExternalLink, CheckCircle2 } from 'lucide-react'
+import { saveEmailProof } from '@/lib/email-proof-client'
 
 interface OrderBrief {
   id: number
@@ -20,7 +21,9 @@ interface Binding {
   latest: { subscriptionType: string; startDate: string; expireDate: string } | null
   recent: OrderBrief[]
   active: boolean
-  contact: { email: string; phone: string; notifyEmail: boolean; notifyPhone: boolean }
+  // 绑定时是否用验证码证明了对这个邮箱的所有权。未验证的绑定看不到订阅记录与提醒设置（2026-09-26 起）
+  verified: boolean
+  contact: { email: string; phone: string; notifyEmail: boolean; notifyPhone: boolean } | null
 }
 
 // 绑定账户每页条数（分段懒加载）
@@ -95,6 +98,7 @@ export default function AccountBindings() {
       if (data.success) {
         setNewEmail('')
         setNewLabel('')
+        if (data.data && data.data.verified === false) setExpanded(data.data.id) // 直接展开验证框
         load()
       } else setErr(data.error || '绑定失败')
     } finally {
@@ -178,9 +182,16 @@ export default function AccountBindings() {
                       </span>
                       <span className="font-mono text-sm text-white/90 truncate">{b.accountEmail}</span>
                       {b.label && <span className="text-xs text-white/40">（{b.label}）</span>}
+                      {!b.verified && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs border bg-amber-500/15 text-amber-300 border-amber-500/30">
+                          待验证
+                        </span>
+                      )}
                     </div>
                     <div className="mt-2 text-xs text-white/50 flex flex-wrap gap-x-4 gap-y-1">
-                      {b.latest ? (
+                      {!b.verified ? (
+                        <span className="text-amber-300/80">验证邮箱后可查看订阅记录并设置到期提醒</span>
+                      ) : b.latest ? (
                         <>
                           <span>订阅：{b.latest.subscriptionType}</span>
                           <span>到期：{fmtDate(b.latest.expireDate)}</span>
@@ -210,10 +221,10 @@ export default function AccountBindings() {
                     <button
                       onClick={() => setExpanded(expanded === b.id ? null : b.id)}
                       className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white/70"
-                      title="到期提醒设置"
+                      title={b.verified ? '到期提醒设置' : '验证邮箱'}
                     >
                       <Bell className="w-3.5 h-3.5" />
-                      提醒
+                      {b.verified ? '提醒' : '验证'}
                       <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded === b.id ? 'rotate-180' : ''}`} />
                     </button>
                     <button
@@ -227,7 +238,8 @@ export default function AccountBindings() {
                 </div>
               </div>
 
-              {expanded === b.id && (
+              {expanded === b.id && !b.verified && <VerifyBox binding={b} onVerified={() => load()} />}
+              {expanded === b.id && b.verified && (
                 <>
                   {b.recent.length > 0 && (
                     <div className="border-t border-white/10 bg-white/[0.02] px-4 py-3">
@@ -286,11 +298,107 @@ export default function AccountBindings() {
   )
 }
 
+// 未验证的绑定：给该邮箱发验证码、填码完成验证（与「邮箱查订阅」同一种验证码）
+function VerifyBox({ binding, onVerified }: { binding: Binding; onVerified: () => void }) {
+  const [code, setCode] = useState('')
+  const [sending, setSending] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cooldown])
+
+  const send = async () => {
+    setMsg('')
+    setErr('')
+    setSending(true)
+    try {
+      const res = await fetch('/api/account/bindings/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountEmail: binding.accountEmail }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        if (data.data?.verified) onVerified()
+        else {
+          setMsg(data.message || '验证码已发送')
+          setCooldown(60)
+        }
+      } else setErr(data.error || '发送失败')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const verify = async () => {
+    setMsg('')
+    setErr('')
+    setVerifying(true)
+    try {
+      const res = await fetch('/api/account/bindings/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountEmail: binding.accountEmail, code: code.trim() }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        saveEmailProof(data.data?.proof) // 接着去「邮箱查订阅」页，App 内置浏览器里也不用再验
+        onVerified()
+      } else setErr(data.error || '验证失败')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  return (
+    <div className="border-t border-white/10 bg-white/[0.02] p-4 space-y-3">
+      <p className="text-xs text-white/50">
+        为防止他人绑定你的邮箱查看订阅，需要向 <span className="font-mono text-white/70">{binding.accountEmail}</span> 发送验证码完成验证。
+      </p>
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          value={code}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          placeholder="6 位验证码"
+          className="flex-1 min-w-[120px] px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-white/30 outline-none focus:border-purple-500/50 text-sm font-mono tracking-widest"
+        />
+        <button
+          onClick={send}
+          disabled={sending || cooldown > 0}
+          className="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-white/70 disabled:opacity-40"
+        >
+          {sending ? '发送中…' : cooldown > 0 ? `${cooldown} 秒后重发` : '获取验证码'}
+        </button>
+        <button
+          onClick={verify}
+          disabled={verifying || code.length < 6}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {verifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+          验证
+        </button>
+      </div>
+      {msg && <p className="text-sm text-green-400">{msg}</p>}
+      {err && <p className="text-sm text-red-400">{err}</p>}
+    </div>
+  )
+}
+
 function ReminderEditor({ binding, onSaved }: { binding: Binding; onSaved: () => void }) {
-  const [notifyEmail, setNotifyEmail] = useState(binding.contact.notifyEmail)
-  const [notifyPhone, setNotifyPhone] = useState(binding.contact.notifyPhone)
-  const [email, setEmail] = useState(binding.contact.email)
-  const [phone, setPhone] = useState(binding.contact.phone)
+  // 只在已验证的绑定上渲染，contact 此时必有值；兜底给默认值
+  const c = binding.contact ?? { email: binding.accountEmail, phone: '', notifyEmail: true, notifyPhone: false }
+  const [notifyEmail, setNotifyEmail] = useState(c.notifyEmail)
+  const [notifyPhone, setNotifyPhone] = useState(c.notifyPhone)
+  const [email, setEmail] = useState(c.email)
+  const [phone, setPhone] = useState(c.phone)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')

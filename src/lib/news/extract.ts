@@ -108,7 +108,9 @@ export interface ArticleText {
  */
 export async function fetchArticleText(url: string): Promise<ArticleText> {
   try {
-    const html = await fetchText(url, FETCH_TIMEOUT)
+    // 原文地址是第三方给的（线索的原文链接、RSS 条目的 link、HN 用户提交的链接），
+    // 由 cron 全自动触发，必须走防 SSRF 的抓取（审计 G32 / G33）
+    const html = await fetchText(url, FETCH_TIMEOUT, undefined, { publicOnly: true })
     const text = extractMainText(html)
     if (text.length < 120) return { url, ok: false, text: '', error: '正文过短，可能是 SPA 或付费墙' }
     return { url, ok: true, text }

@@ -170,7 +170,10 @@ export function PostForm({ postId, initial }: { postId?: number; initial?: Initi
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-white/40">
-          {user ? `以 ${user.nickname || user.email} 身份发布` : '当前为匿名发布，登录后可管理自己的帖子'}
+          {/* 只显示昵称不显示邮箱：公开作者名已不再回落到邮箱（审计 G48），提示要和实际显示一致 */}
+          {user
+            ? `以 ${user.nickname && !user.nickname.includes('@') ? user.nickname : '会员（未设置昵称，可在个人中心设置）'} 身份发布`
+            : '当前为匿名发布，登录后可管理自己的帖子'}
         </p>
         <button
           onClick={submit}

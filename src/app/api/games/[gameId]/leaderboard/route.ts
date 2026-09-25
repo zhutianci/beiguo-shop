@@ -3,8 +3,28 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
+import { memberDisplayName } from '@/lib/forum'
 
 const VALID_GAMES = ['snake', 'tetris', '2048']
+
+/**
+ * 公开排行榜上的名字。以前会员没设昵称、提交时也没填名字，库里存的就是邮箱 @ 前面那段，
+ * 原样公开等于挂出 QQ 号（审计 G48 同类问题）。存量不改库，读取时认出来换成「会员+短码」；
+ * 玩家自己填的名字原样保留。
+ */
+function publicPlayerName(s: {
+  userId: number | null
+  playerName: string
+  user: { nickname: string | null; email: string | null } | null
+}): string {
+  if (!s.userId) return s.playerName
+  if (s.user?.nickname) return memberDisplayName(s.user.nickname, s.userId)
+  const prefix = s.user?.email ? s.user.email.split('@')[0].slice(0, 50).toLowerCase() : ''
+  if (s.playerName.includes('@') || (prefix && s.playerName.toLowerCase() === prefix)) {
+    return memberDisplayName(null, s.userId)
+  }
+  return s.playerName
+}
 
 export async function GET(
   request: NextRequest,
@@ -39,7 +59,7 @@ export async function GET(
     const list = topScores.map((s, i) => ({
       rank: i + 1,
       id: s.id,
-      playerName: s.user?.nickname || s.playerName,
+      playerName: publicPlayerName(s),
       isLoggedIn: !!s.userId,
       score: s.score,
       duration: s.duration,

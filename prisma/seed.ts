@@ -1,24 +1,20 @@
 import { PrismaClient } from '@prisma/client'
 
+// 【只允许在一次性开发库上跑】2026-09-26 审计：旧版 seed 会建出公开默认密码（admin123）的管理员、
+// 用 update 覆盖真实分类、插入上架的演示商品；而旧 scripts/deploy.sh 会在生产容器里提示跑它。
+// 生产库的首个管理员：先在前台正常注册（真实邮箱，能走找回密码），再在库里
+//   UPDATE users SET role='ADMIN' WHERE email='<你的邮箱>';
+const url = process.env.DATABASE_URL || ''
+const dbName = url.split('/').pop()?.split('?')[0] || ''
+if (!/dev|test/i.test(dbName)) {
+  console.error(`拒绝执行：数据库「${dbName}」不是一次性开发库（库名须含 dev 或 test）。生产库绝不跑 seed。`)
+  process.exit(2)
+}
+
 const prisma = new PrismaClient()
 
-// 预生成的 admin123 bcrypt hash（避免 standalone 模式下找不到 bcryptjs）
-// 如需修改密码，请登录后台修改
-const ADMIN_PASSWORD_HASH = '$2a$10$1nwsaZ4SDtsUmEDBml2MMuGK2WZb1MlJJxmrxQfIexqqV/fHqyiei'
-
 async function main() {
-  // 创建管理员账户（默认密码 admin123，登录后请立即修改）
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
-    update: {},
-    create: {
-      email: 'admin@example.com',
-      passwordHash: ADMIN_PASSWORD_HASH,
-      nickname: '管理员',
-      role: 'ADMIN',
-    },
-  })
-  console.log('Created admin:', admin.email)
+  // 不再内置任何管理员账号或密码。本地要管理员账号请用 scripts/seed-local-demo.ts（admin@demo.local）
 
   // 创建商品分类
   const categories = [
@@ -30,7 +26,7 @@ async function main() {
   for (const cat of categories) {
     await prisma.category.upsert({
       where: { id: categories.indexOf(cat) + 1 },
-      update: cat,
+      update: {}, // 不覆盖已有分类的名称、图标、排序
       create: cat,
     })
   }
@@ -87,12 +83,17 @@ async function main() {
     },
   ]
 
-  for (const product of products) {
-    await prisma.product.create({
-      data: product,
-    })
+  // 只在空库里插演示商品：重复跑不会插出重复商品
+  if ((await prisma.product.count()) === 0) {
+    for (const product of products) {
+      await prisma.product.create({
+        data: product,
+      })
+    }
+    console.log('Created products')
+  } else {
+    console.log('已有商品，跳过演示商品')
   }
-  console.log('Created products')
 
   console.log('Seed completed!')
 }

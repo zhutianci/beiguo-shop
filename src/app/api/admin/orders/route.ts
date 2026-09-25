@@ -7,6 +7,7 @@ import { success, error } from '@/lib/api'
 import { decryptCardContent } from '@/lib/cardkey'
 import { round2 } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
+import { settledReferralCents } from '@/lib/referral-report'
 
 // 获取所有订单（服务端检索 + 筛选 + 分页）
 export async function GET(request: NextRequest) {
@@ -113,6 +114,10 @@ export async function GET(request: NextRequest) {
         moneyMap.set(oid, m)
       }
     }
+    // 已结算的内推返现（分）。「利润」列要扣掉它：返现是已经进了推广人余额、可以提现的真钱，
+    // CardKey.profit 只是卡差价（口径说明见 lib/referral-report.ts）
+    const rewardMap = paidIds.length ? await settledReferralCents(paidIds) : new Map<number, number>()
+
     // 统计每张订单「买家发来、商家未读」的留言数，用于列表红点提醒
     const allIds = orders.map((o) => o.id)
     const unreadMap = new Map<number, number>()
@@ -127,13 +132,17 @@ export async function GET(request: NextRequest) {
 
     const list = orders.map((o) => {
       const m = moneyMap.get(o.id)
+      // 只对有卡的单扣返现：人工发货单本来就没有卡密利润（显示 —），扣了会凭空冒出负数
+      const refC = m ? rewardMap.get(o.id) ?? 0 : 0
       return {
         ...o,
         cards: cardMap.get(o.id) || [],
         unreadCount: unreadMap.get(o.id) || 0,
         // 卡密维度的成本/利润；非自动发货订单没有卡密，profit 为 null 表示「无卡密可核算」
         cardCost: m ? m.cost : null,
-        cardProfit: m && !m.hasUnknownProfit ? m.profit : null,
+        cardProfit: m && !m.hasUnknownProfit ? round2(m.profit - refC / 100) : null,
+        /** 该单已扣的内推返现（元）。无卡密的单为 null */
+        cardReferral: m ? refC / 100 : null,
         cardProfitUnknown: m ? m.hasUnknownProfit : false,
       }
     })
@@ -148,19 +157,35 @@ export async function GET(request: NextRequest) {
     })
     let totalsCost: number | null = null
     let totalsProfit: number | null = null
+    let totalsReferral: number | null = null
     let totalsTruncated = false
     if (total <= TOTALS_ID_CAP) {
       const ids = await prisma.order.findMany({ where, select: { id: true } })
       if (ids.length) {
-        const agg = await prisma.cardKey.aggregate({
-          where: { orderId: { in: ids.map((x) => x.id) }, status: 'USED' },
-          _sum: { cost: true, profit: true },
-        })
+        const idList = ids.map((x) => x.id)
+        const [agg, cardOrders] = await Promise.all([
+          prisma.cardKey.aggregate({
+            where: { orderId: { in: idList }, status: 'USED' },
+            _sum: { cost: true, profit: true },
+          }),
+          // 与每单口径一致：只扣「有卡密」的订单的返现
+          prisma.cardKey.findMany({
+            where: { orderId: { in: idList }, status: 'USED' },
+            select: { orderId: true },
+            distinct: ['orderId'],
+          }),
+        ])
+        const cardOrderIds = cardOrders.map((c) => c.orderId).filter((x): x is number => x != null)
+        const refMap = cardOrderIds.length ? await settledReferralCents(cardOrderIds) : new Map<number, number>()
+        let refCents = 0
+        refMap.forEach((v) => (refCents += v))
+        totalsReferral = refCents / 100
         totalsCost = round2(Number(agg._sum.cost ?? 0))
-        totalsProfit = round2(Number(agg._sum.profit ?? 0))
+        totalsProfit = round2(Number(agg._sum.profit ?? 0) - totalsReferral)
       } else {
         totalsCost = 0
         totalsProfit = 0
+        totalsReferral = 0
       }
     } else {
       totalsTruncated = true
@@ -176,7 +201,8 @@ export async function GET(request: NextRequest) {
         orders: amountAgg._count._all,
         amount: round2(Number(amountAgg._sum.amount ?? 0)),
         cost: totalsCost,
-        profit: totalsProfit,
+        profit: totalsProfit, // 已扣内推返现
+        referral: totalsReferral, // 已扣掉的内推返现合计（truncated 时为 null）
         truncated: totalsTruncated, // true = 结果集过大，未统计成本/利润，请缩小筛选范围
       },
     })

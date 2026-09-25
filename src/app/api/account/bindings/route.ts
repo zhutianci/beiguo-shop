@@ -8,6 +8,8 @@ import { getCurrentUser } from '@/lib/auth'
 
 // 每个绑定账户展示的最近订单条数
 const RECENT_ORDER_LIMIT = 5
+// 每个用户最多绑定的账户数（以前没有上限）
+const MAX_BINDINGS_PER_USER = 20
 
 // GET：当前用户绑定的账户列表（分页；每个账户只带最近 5 条订单 + 总数 + 提醒联系方式）
 export async function GET(request: NextRequest) {
@@ -31,7 +33,15 @@ export async function GET(request: NextRequest) {
       prisma.userAccount.count({ where }),
     ])
 
-    const emails = bindings.map((b) => b.accountEmail)
+    // 【只有验证过的绑定才能看订阅记录与提醒联系方式（2026-09-26 审计 G14）】
+    // 以前绑定任意邮箱不需要验证，绑上就能看对方的订阅记录与完整提醒手机号、改对方的提醒去向。
+    // 已验证 = 绑定时用验证码证明过（verifiedAt），或就是本人已验证的登录邮箱
+    const me = await prisma.user.findUnique({ where: { id: user.id }, select: { email: true, emailVerifiedAt: true } })
+    const selfEmail = (me?.email || '').trim().toLowerCase()
+    const isVerified = (b: { verifiedAt: Date | null; accountEmail: string }) =>
+      !!b.verifiedAt || (!!me?.emailVerifiedAt && !!selfEmail && selfEmail === b.accountEmail)
+    const verifiedFlags = bindings.map(isVerified)
+    const emails = bindings.filter((_, i) => verifiedFlags[i]).map((b) => b.accountEmail)
 
     // 联系方式 + 每个账户的订单总数（聚合，不拉明细）+ 每个账户最近 5 条订单
     // 每个账户只取最近 5 条（本页最多 pageSize 个小查询，走 claudeAccount 索引）
@@ -43,8 +53,10 @@ export async function GET(request: NextRequest) {
         _count: { _all: true },
       }),
       Promise.all(
-        bindings.map((b) =>
-          prisma.externalOrder.findMany({
+        bindings.map((b, i) =>
+          !verifiedFlags[i]
+            ? Promise.resolve([] as { id: number; subscriptionType: string; startDate: Date; expireDate: Date }[])
+            : prisma.externalOrder.findMany({
             where: { claudeAccount: b.accountEmail },
             orderBy: [{ expireDate: 'desc' }, { startDate: 'desc' }],
             take: RECENT_ORDER_LIMIT,
@@ -57,6 +69,7 @@ export async function GET(request: NextRequest) {
     const countMap = new Map(orderCounts.map((c) => [c.claudeAccount, c._count._all]))
     const now = new Date()
     const list = bindings.map((b, i) => {
+      const verified = verifiedFlags[i]
       const recent = recentPerAccount[i]
       const latest = recent[0] || null
       const contact = contacts.find((c) => c.claudeAccount === b.accountEmail)
@@ -65,6 +78,7 @@ export async function GET(request: NextRequest) {
         accountEmail: b.accountEmail,
         platform: b.platform,
         label: b.label,
+        verified,
         orderCount: countMap.get(b.accountEmail) ?? 0,
         latest: latest
           ? {
@@ -75,12 +89,14 @@ export async function GET(request: NextRequest) {
           : null,
         recent,
         active: latest ? new Date(latest.expireDate) >= now : false,
-        contact: {
-          email: contact?.email ?? b.accountEmail,
-          phone: contact?.phone ?? '',
-          notifyEmail: contact?.notifyEmail ?? true,
-          notifyPhone: contact?.notifyPhone ?? false,
-        },
+        contact: verified
+          ? {
+              email: contact?.email ?? b.accountEmail,
+              phone: contact?.phone ?? '',
+              notifyEmail: contact?.notifyEmail ?? true,
+              notifyPhone: contact?.notifyPhone ?? false,
+            }
+          : null,
       }
     })
 
@@ -120,17 +136,29 @@ export async function POST(request: NextRequest) {
     })
     if (existing) return error('该账户已绑定')
 
+    const count = await prisma.userAccount.count({ where: { userId: user.id } })
+    if (count >= MAX_BINDINGS_PER_USER) return error(`最多绑定 ${MAX_BINDINGS_PER_USER} 个账户`)
+
+    // 绑定本人已验证的登录邮箱：直接视为已验证；其它邮箱要收验证码（/api/account/bindings/send-code → verify）
+    const me = await prisma.user.findUnique({ where: { id: user.id }, select: { email: true, emailVerifiedAt: true } })
+    const isSelfVerified = !!me?.emailVerifiedAt && (me.email || '').trim().toLowerCase() === accountEmail
+
     const created = await prisma.userAccount.create({
       data: {
         userId: user.id,
         accountEmail,
         platform: parsed.data.platform,
         label: parsed.data.label?.trim() || null,
+        verifiedAt: isSelfVerified ? new Date() : null,
       },
     })
 
-    return success({ id: created.id }, '绑定成功')
+    return success(
+      { id: created.id, verified: isSelfVerified },
+      isSelfVerified ? '绑定成功' : '已添加，请获取验证码完成验证后查看订阅记录'
+    )
   } catch (err) {
+    if ((err as { code?: string })?.code === 'P2002') return error('该账户已绑定') // 并发重复提交靠唯一约束兜底
     console.error('Create binding error:', err)
     return error('绑定失败')
   }

@@ -7,6 +7,8 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { claimHash, couponClaimable, couponLabel, parseProductIds } from '@/lib/coupon'
+import { clientIp, rateLimited } from '@/lib/news/rate-limit'
+import { ipKey } from '@/lib/auth-throttle'
 
 /**
  * 领券。**必须登录**（站长要求：券绑定到具体账户，只能本人在有效期内使用）。
@@ -22,22 +24,15 @@ const schema = z.object({
   code: z.string().trim().min(1, '缺少活动码').max(32),
 })
 
-/** 真实客户端 IP。Cloudflare Tunnel 在最前面，cf-connecting-ip 才是来源 IP。
- *  取错了会变成全站共用一个内网地址，「每 IP 一张」这条限制就完全失效。
- *  取法与 lib/news/rate-limit.ts 保持一致，不另起一套。 */
-function clientIp(request: NextRequest): string {
-  return (
-    request.headers.get('cf-connecting-ip') ||
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-    request.headers.get('x-real-ip') ||
-    'unknown'
-  )
-}
+// 客户端 IP 用 lib/news/rate-limit 的 clientIp（与登录、发码限流同一个取法，nginx 会把三个 IP 头覆盖成核实过的地址）。
+// 原来这里自己抄了一份，两处取法迟早会漂移
 
 export async function POST(request: NextRequest) {
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
+    // 挡脚本连点：每次领取都会开事务、短暂锁住 coupon 行。真人一分钟点不到 10 次
+    if (rateLimited(`cpn-u:${user.id}`, { windowMs: 60_000, max: 10 })) return error('操作过于频繁，请稍后再试', 429)
 
     const body = await request.json().catch(() => ({}))
     const parsed = schema.safeParse(body)
@@ -65,11 +60,15 @@ export async function POST(request: NextRequest) {
     // 浏览器指纹由前端带来（与论坛匿名 id 同源，localStorage 里那个 UUID）。
     // 它拦不住「换个浏览器/开无痕」，但能拦住同一浏览器反复点 —— 这正是站长要的那一限。
     const device = (request.headers.get('x-anon-id') || '').trim().slice(0, 120)
-    const ip = clientIp(request)
+    const ip = clientIp(request.headers)
+    // 「每 IP 一张」按网段算：IPv6 按 /64 聚合，和登录、发码限流同一口径（lib/auth-throttle.ts ipKey）。
+    // 经 Cloudflare 进来的 IPv6 访客通常持有整段 /64，按单个地址限领，换个地址就绕过了。
+    // IPv4 与 ::ffff:x.x.x.x 原样还原成 IPv4，已有 IPv4 领取记录的哈希不变
+    const ipLimit = ipKey(ip)
 
     const scopes: { scope: 'USER' | 'IP' | 'DEVICE'; value: string }[] = [
       { scope: 'USER', value: String(user.id) },
-      { scope: 'IP', value: ip },
+      { scope: 'IP', value: ipLimit },
     ]
     // 前端没带指纹就不加这一限，而不是拿空串当指纹 ——
     // 空串会让「所有没带指纹的人」共用一条记录，第二个人就再也领不到了

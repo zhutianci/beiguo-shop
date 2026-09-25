@@ -33,6 +33,9 @@ export type NotifyEvent =
   | 'marketing.started'
   | 'marketing.finished'
   | 'marketing.paused'
+  | 'payment.fulfill_failed'
+  | 'payment.duplicate'
+  | 'vmq.unmatched'
 
 const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.created': { emoji: '🛒', title: '新订单' },
@@ -53,6 +56,10 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'marketing.finished': { emoji: '✅', title: '营销邮件发送完成' },
   // 熔断 / 额度用尽 / 反垃圾拒发 / 回执同步中断 —— 默认必须推，否则可能一直停着没人知道
   'marketing.paused': { emoji: '🛑', title: '营销邮件已自动暂停' },
+  // 以下三条都是「钱已经进了支付宝、系统却没能自动处理」—— 默认必须推，不推就只剩 docker 日志里的一行
+  'payment.fulfill_failed': { emoji: '🚨', title: '到账后履约失败' },
+  'payment.duplicate': { emoji: '🚨', title: '疑似重复付款（需人工退款）' },
+  'vmq.unmatched': { emoji: '🚨', title: '收款已到账但未匹配订单' },
 }
 
 function webhookUrl(): string {
@@ -111,6 +118,36 @@ export interface NotifyRow {
   value: string
   /** 企业微信 markdown 里高亮：warning 橙 / info 蓝 / comment 灰 */
   color?: 'warning' | 'info' | 'comment'
+  /**
+   * 跳过 notify() 的默认清洗、原样输出（保留换行）。
+   * 仅限代码拼装、且内部每一段用户输入都已 mdSafe 过的多行值（目前只有待开发票清单）。绝不能把用户输入原样标 raw
+   */
+  raw?: boolean
+}
+
+// eslint-disable-next-line no-control-regex
+const NOTIFY_CTRL_RE = /[\u0000-\u001f\u007f]/g
+
+/**
+ * 所有通知值的默认清洗（raw 行除外）。企业微信按 markdown 渲染：值里带换行就能另起一行伪造字段，
+ * 带 [ ] 就能伪造可点击链接（昵称填 `[前往后台处理](http://钓鱼)` 就会出现在「新用户注册」卡片里），
+ * 带 < > 就能伪造 <font> 高亮。这里只把这几类字符换成全角：没有 [ 就拼不出链接，没有换行 # 和 > 就到不了行首。
+ * ( ) _ # * 保留 —— 不用 plainify 那样的全量清洗：商品名里的括号、邮箱里的下划线、抬头里的「(北京)」
+ * 都要照常显示，财务照着抄不能抄错。
+ * 顺带截断：企业微信 markdown 最多 4096 字节，超了整条推送会被拒（2000 字的留言原来就推不到群里）。
+ */
+function mdSafe(v: unknown, max = 500): string {
+  const s = String(v ?? '')
+    .replace(NOTIFY_CTRL_RE, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\[/g, '［')
+    .replace(/\]/g, '］')
+    .replace(/</g, '＜')
+    .replace(/>/g, '＞')
+    .replace(/`/g, '｀')
+    .trim()
+  if (!s) return '—'
+  return s.length > max ? s.slice(0, max) + '…' : s
 }
 
 /**
@@ -133,41 +170,50 @@ export function notify(
     return
   }
 
-  const meta = EVENT_LABELS[event]
-  const title = `${meta.emoji} ${meta.title}${opts?.extraTitle ? ' · ' + opts.extraTitle : ''}`
-  const link = opts?.link ? (opts.link.startsWith('http') ? opts.link : `${adminBase()}${opts.link}`) : ''
-  const linkText = opts?.linkText || '前往后台处理'
-
-  const plain =
-    `${title}\n` +
-    rows.map((r) => `${r.label}：${r.value}`).join('\n') +
-    (link ? `\n${linkText}：${link}` : '')
-
+  // 【整段 try】notify() 的约定是绝不抛异常：有些调用方（如下单接口的 notifyOrderCreated）没有 try 包住，
+  // 这里一抛，已经建好的订单会给买家返回错误
   let body: Record<string, unknown>
-  if (host.includes('qyapi.weixin.qq.com')) {
-    const md =
-      `## ${title}\n` +
-      rows
-        .map((r) =>
-          r.color
-            ? `**${r.label}**：<font color="${r.color}">${r.value}</font>`
-            : `**${r.label}**：${r.value}`
-        )
-        .join('\n') +
-      (link ? `\n[${linkText}](${link})` : '')
-    body = { msgtype: 'markdown', markdown: { content: md } }
-  } else if (host.includes('oapi.dingtalk.com')) {
-    body = { msgtype: 'text', text: { content: plain } }
-  } else {
-    body = {
-      event,
-      title,
-      text: plain,
-      content: plain,
-      desp: plain,
-      data: Object.fromEntries(rows.map((r) => [r.label, r.value])),
-      url: link,
+  try {
+    const safe = rows.map((r) => ({ ...r, value: r.raw ? String(r.value ?? '') : mdSafe(r.value) }))
+    const meta = EVENT_LABELS[event]
+    const extra = opts?.extraTitle ? mdSafe(opts.extraTitle, 60) : ''
+    const title = `${meta.emoji} ${meta.title}${extra ? ' · ' + extra : ''}`
+    const link = opts?.link ? (opts.link.startsWith('http') ? opts.link : `${adminBase()}${opts.link}`) : ''
+    const linkText = opts?.linkText || '前往后台处理'
+
+    const plain =
+      `${title}\n` +
+      safe.map((r) => `${r.label}：${r.value}`).join('\n') +
+      (link ? `\n${linkText}：${link}` : '')
+
+    if (host.includes('qyapi.weixin.qq.com')) {
+      const md =
+        `## ${title}\n` +
+        safe
+          .map((r) =>
+            r.color
+              ? `**${r.label}**：<font color="${r.color}">${r.value}</font>`
+              : `**${r.label}**：${r.value}`
+          )
+          .join('\n') +
+        (link ? `\n[${linkText}](${link})` : '')
+      body = { msgtype: 'markdown', markdown: { content: md } }
+    } else if (host.includes('oapi.dingtalk.com')) {
+      body = { msgtype: 'text', text: { content: plain } }
+    } else {
+      body = {
+        event,
+        title,
+        text: plain,
+        content: plain,
+        desp: plain,
+        data: Object.fromEntries(safe.map((r) => [r.label, r.value])),
+        url: link,
+      }
     }
+  } catch (e) {
+    console.error(`[notify] ${event} 组装失败`, e)
+    return
   }
 
   const started = Date.now()
@@ -335,10 +381,11 @@ export function notifyInvoiceReady(p: {
     rows.push({ label: '当前待开发票', value: `${p.pending.length} 张`, color: 'warning' })
     const lines = p.pending
       .slice(0, 8)
-      .map((x, i) => `${i + 1}. ${x.invoiceNo} · ${x.title} · ${money(x.invoiceAmount)}`)
+      // 抬头是买家填的：逐条单独清洗并限 40 字，整行才能标 raw 保留换行
+      .map((x, i) => `${i + 1}. ${mdSafe(x.invoiceNo, 40)} · ${mdSafe(x.title, 40)} · ${money(x.invoiceAmount)}`)
       .join('\n')
     const more = p.pending.length > 8 ? `\n… 另有 ${p.pending.length - 8} 张，见链接` : ''
-    rows.push({ label: '清单', value: '\n' + lines + more })
+    rows.push({ label: '清单', value: '\n' + lines + more, raw: true })
   } else {
     rows.push({ label: '当前待开发票', value: '仅本张' })
   }
@@ -490,7 +537,7 @@ export function notifyCardKeyExported(p: {
     { label: '数量', value: `${p.count} 张`, color: 'warning' as const },
     { label: '内容', value: p.masked ? '已脱敏' : '含明文卡密', color: (p.masked ? 'comment' : 'warning') as 'comment' | 'warning' },
     { label: '筛选', value: p.filters ? plainify(p.filters, 120) : '无（全量）' },
-    // IP 仅参考：Cloudflare Tunnel 后请求方可伪造，追责以操作人为准
+    // IP 仅参考（已由 nginx 按连接核实，但对应不到具体的人），追责以操作人为准
     { label: '来源 IP', value: plainify(p.ip, 64) },
     { label: '时间', value: fmtTime(new Date()) },
   ]
@@ -584,5 +631,110 @@ export function notifyMarketing(
   notify(`marketing.${kind}` as NotifyEvent, rows, {
     link: p.campaignId != null ? `/admin/marketing/${p.campaignId}` : '/admin/marketing/settings',
     linkText: '查看营销推广',
+  })
+}
+
+/**
+ * 到账后履约失败 / 到账对账补不上。
+ *
+ * 钱已经记在收款单上（state=1），订单却可能停在「待支付」：fulfillOrder 抛错（事务超时、连接池耗尽、
+ * mysqld 被 OOM 杀掉）时原来只打一行日志，没有任何路径会自动补救。现在由 cron 的 reconcilePaidVmq
+ * 在宽限期后补做；这条推送让站长第一时间知道。
+ * 注意：生产若配置了 NOTIFY_EVENTS 白名单，需包含 payment.fulfill_failed。
+ */
+export function notifyFulfillFailed(p: {
+  biz: string
+  outTradeNo?: string | null
+  amount?: unknown
+  stage: string
+  reason: string
+  action: string
+}): void {
+  notify(
+    'payment.fulfill_failed',
+    [
+      { label: '业务单', value: `${p.outTradeNo || '—'}（${p.biz}）` },
+      ...(p.amount != null ? [{ label: '到账金额', value: money(p.amount), color: 'warning' as const }] : []),
+      { label: '环节', value: p.stage },
+      { label: '原因', value: p.reason.slice(0, 200), color: 'warning' },
+      { label: '处理', value: p.action },
+    ],
+    { link: '/admin/orders', extraTitle: p.outTradeNo || p.biz }
+  )
+}
+
+const UNMATCHED_TEXT: Record<string, string> = {
+  no_pending_match: '到账金额没有对应的待支付单：买家付错了金额，或收款单已过期后才付款',
+  closed_while_matching: '匹配到的收款单恰好在同一时刻被关闭（超时或后台取消），未自动履约',
+  ambiguous_match: '同一金额同时命中多张待支付收款单，未自动履约',
+  duplicate_payment: '钱记到了这张收款单上，但该单此前已付款/已退款，这笔钱没有产生任何履约',
+  ambiguous_amount: '同一条通知里出现多个不同的到账金额，未自动取用',
+  untrusted_source: '通知带着「成功收款」金额，但来源不是支付宝 App，未自动取用（若手机端刚换过版本/模板，每笔到账都会这样，请尽快核对）',
+  maybe_duplicate:
+    '10 分钟内同金额刚到过一笔、这次没有待支付单可对：可能是买家扫同一个码付了两次（需退款），也可能是通知被重复转发（核对支付宝账单是否真有两笔）',
+}
+
+/**
+ * 收款已到账、但系统没有自动处理（lib/vmq.ts 的 recordUnmatched）。每条都会在后台「收款监控 →
+ * 待人工核实的到账」里留一行，直到点「标记已处理」。重复付款单独用 payment.duplicate 事件，
+ * 便于站长只订阅其中一类。
+ * 注意：生产若配置了 NOTIFY_EVENTS 白名单，需包含 vmq.unmatched 与 payment.duplicate。
+ */
+/**
+ * 收款通知 webhook 的 token 校验不通过（app/api/pay/sms-notify）。调用方已按 10 分钟限流。
+ * 复用 vmq.unmatched 事件：NOTIFY_EVENTS 白名单里已经为它放行，不必再加一项。
+ */
+export function notifyWebhookRejected(p: { inQuery: boolean; amount: string | null }): void {
+  const rows: NotifyRow[] = [
+    {
+      label: '情况',
+      value: p.inQuery
+        ? '手机端转发的收款通知把 token 放在了 URL 上，服务端已不再接受，到账不会自动处理'
+        : '收到一条带「成功收款」金额的通知，但 token 校验不通过，未处理',
+      color: 'warning',
+    },
+  ]
+  if (p.amount) rows.push({ label: '通知里的金额', value: `¥${p.amount}`, color: 'warning' })
+  rows.push({
+    label: '处理',
+    value: p.inQuery
+      ? '把 SmsForwarder 的 token 改放 JSON 请求体（后台「收款监控」有现成配置）并轮换 VMQ_WEBHOOK_TOKEN；已到账的单在后台补单'
+      : '核对 SmsForwarder 的 token 与服务器 VMQ_WEBHOOK_TOKEN 是否一致；若是真实到账，在后台补单。不认识的请求可忽略',
+  })
+  notify('vmq.unmatched', rows, { link: '/admin/vmq', extraTitle: '收款通知被拒' })
+}
+
+export function notifyVmqUnmatched(p: {
+  reason: string
+  price: string
+  type: number
+  pending?: number[]
+  candidates?: string[]
+  vmqOrderId?: string
+  biz?: string
+  outTradeNo?: string
+  from?: string | null
+  at: number
+}): void {
+  const dup = p.reason === 'duplicate_payment'
+  const rows: NotifyRow[] = [
+    { label: '到账金额', value: `¥${p.price}（${p.type === 1 ? '微信' : '支付宝'}）`, color: 'warning' },
+    { label: '时间', value: fmtTime(new Date(p.at)) },
+    { label: '情况', value: UNMATCHED_TEXT[p.reason] || p.reason, color: 'warning' },
+  ]
+  if (p.vmqOrderId) rows.push({ label: '收款单', value: `${p.vmqOrderId}${p.biz ? `（${p.biz}）` : ''}` })
+  if (p.outTradeNo) rows.push({ label: '业务单号', value: p.outTradeNo })
+  if (p.candidates?.length) rows.push({ label: '命中的收款单', value: p.candidates.slice(0, 5).join('、') })
+  if (p.reason === 'no_pending_match') rows.push({ label: '当时待支付金额', value: (p.pending || []).slice(0, 20).join(', ') || '无' })
+  if (p.from) rows.push({ label: '通知来源', value: p.from })
+  rows.push({
+    label: '处理',
+    value: dup
+      ? '核实支付宝账单后联系买家退款，不要点「补单」；处理完在「收款监控」点「标记已处理」'
+      : '核实支付宝账单后在「收款监控」补单或退款，再点「标记已处理」',
+  })
+  notify(dup ? 'payment.duplicate' : 'vmq.unmatched', rows, {
+    link: '/admin/vmq',
+    extraTitle: dup ? p.outTradeNo || '需人工退款' : '需人工核实',
   })
 }

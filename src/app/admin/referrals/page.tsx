@@ -155,14 +155,30 @@ export default function AdminReferralsPage() {
   const [balNote, setBalNote] = useState('')
   const [balBusy, setBalBusy] = useState(false)
 
+  /*
+   * 【幂等请求号】弹窗打开时生成，只有提交成功后才换新的。网络异常（服务端可能已记账、页面没拿到响应）后
+   * 管理员再点提交，沿用同一个请求号，服务端按它去重，不会重复加 / 扣余额（api/admin/referrals/balance）
+   */
+  const balReqId = useRef('')
+  const newReqId = (): string => {
+    const c: Crypto = crypto
+    // randomUUID 只在安全上下文（https / localhost）里有；没有就用 32 位 hex 兜底，服务端两种格式都认
+    if (typeof c.randomUUID === 'function') return c.randomUUID()
+    return Array.from(c.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('')
+  }
+  const loadBal = async (userId: number) => {
+    const res = await fetch(`/api/admin/referrals/balance?userId=${userId}`)
+    const d = await res.json()
+    if (d.success) setBal(d.data)
+  }
+
   const openBal = async (r: Referrer) => {
     setBalFor(r)
     setBal(null)
     setBalDelta('')
     setBalNote('')
-    const res = await fetch(`/api/admin/referrals/balance?userId=${r.id}`)
-    const d = await res.json()
-    if (d.success) setBal(d.data)
+    balReqId.current = newReqId()
+    await loadBal(r.id)
   }
   const saveBal = async () => {
     if (!balFor) return
@@ -170,18 +186,28 @@ export default function AdminReferralsPage() {
     if (!delta) return alert('请输入变动金额（提现填负数，如 -50）')
     setBalBusy(true)
     try {
-      const res = await fetch('/api/admin/referrals/balance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: balFor.id, delta, note: balNote.trim() || null }),
-      })
-      const d = await res.json()
+      let d
+      try {
+        const res = await fetch('/api/admin/referrals/balance', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: balFor.id, delta, note: balNote.trim() || null, requestId: balReqId.current }),
+        })
+        d = await res.json()
+      } catch {
+        // 结果不明：服务端可能已经记账。刷新流水、保留原请求号，管理员核对后再点，服务端按请求号去重
+        await loadBal(balFor.id).catch(() => {})
+        alert('网络异常，结果未知。已刷新余额流水，请先核对；未入账可直接再点提交（不会重复记账）')
+        return
+      }
       if (d.success) {
-        await openBal(balFor)
+        if (d.data?.duplicate) alert('这笔此前已记账成功，本次未重复记账')
+        balReqId.current = newReqId() // 只有成功后才换新请求号
+        await loadBal(balFor.id)
         setBalDelta('')
         setBalNote('')
         load()
-      } else alert(d.error || '操作失败')
+      } else alert(d.error || '操作失败') // 失败（含余额不足、409）不换请求号：服务端占位已回滚，改完金额再提交照常生效
     } finally {
       setBalBusy(false)
     }

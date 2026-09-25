@@ -9,6 +9,7 @@
 import { prisma } from './db'
 import { siteOrigin } from './news/format'
 import { hostOf, outboundRel, type PublicLinkDto } from './friend-link-client'
+import { assertPublicUrl, safeGet, SafeFetchError, TIMEOUT_MESSAGE, UnsafeTargetError } from './safe-fetch'
 
 // ---------------- 页面文案配置 ----------------
 
@@ -219,45 +220,6 @@ export async function findSameHost(
 
 // ---------------- 回链巡检 ----------------
 
-/**
- * 私网 / 回环 / 链路本地地址，不允许服务端去请求。
- *
- * 十进制、八进制、十六进制那些花式 IP 写法（http://2130706433/）不用单独处理：
- * WHATWG 的 URL 解析器会先把它们规范化成点分四段，这里拿到的 hostname 已经是 127.0.0.1。
- * 但 IPv4-mapped IPv6（[::ffff:127.0.0.1]）会被规范成 ::ffff:7f00:1，
- * 点分四段的正则匹配不到，所以要单独还原一次。
- */
-function isBlockedHost(hostname: string): boolean {
-  let h = hostname.toLowerCase().replace(/^\[|\]$/g, '')
-  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return true
-  if (h === '::1' || h === '::') return true
-  // fc00::/7（ULA）与 fe80::/10（链路本地）。必须匹配到冒号：写成 startsWith('fc')
-  // 会把 fc2.com、fcc.gov、fdroid.org 这类正经域名一并当成内网地址拒掉，
-  // 后台会显示「拒绝请求内网地址」并标红，管理员误以为对方撤了链。
-  if (/^f[cd][0-9a-f]{2}:/.test(h) || /^fe[89ab][0-9a-f]:/.test(h)) return true
-
-  // ::ffff:7f00:1 → 127.0.0.1；点分写法（::ffff:127.0.0.1）解析器一般不会保留，兜一手
-  const mapped = h.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/)
-  if (mapped) {
-    const hi = parseInt(mapped[1], 16)
-    const lo = parseInt(mapped[2], 16)
-    h = `${hi >> 8}.${hi & 0xff}.${lo >> 8}.${lo & 0xff}`
-  } else if (h.startsWith('::ffff:')) {
-    h = h.slice(7)
-  }
-
-  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
-  if (!m) return false
-  const a = Number(m[1])
-  const b = Number(m[2])
-  if (a === 10 || a === 127 || a === 0) return true
-  if (a === 172 && b >= 16 && b <= 31) return true
-  if (a === 192 && b === 168) return true
-  if (a === 169 && b === 254) return true // 云厂商的元数据地址就在这一段
-  if (a === 100 && b >= 64 && b <= 127) return true
-  return false
-}
-
 const MAX_HTML_BYTES = 512 * 1024 // 只读前 512KB：友链一般挂在页脚，够了；再多就是白白吃内存
 const CHECK_TIMEOUT_MS = 10000
 
@@ -269,9 +231,11 @@ export interface BacklinkResult {
 /**
  * 去对方页面上找本站的链接。
  *
- * 【这不是完整的安全边界】虽然挡了私网地址，但域名解析后仍可能指向内网（DNS rebinding）。
- * 这个接口只有管理员能调、且不把响应体回显给调用方，风险可接受；
- * 要彻底解决得自己实现带 lookup 校验的 undici agent，代价远大于收益。
+ * 【内网防护】申请表单是公开的，站长审核时点「检测」会以服务端身份去请求对方填的地址。
+ * 以前只查 hostname 字面量、再交给 fetch(redirect:'follow')：解析到内网的域名（127.0.0.1.nip.io）、
+ * 结尾带点的容器名（http://app.:3000/）、公网 302 到 100.100.100.200 都能绕过（2026-09-26 审计 G33）。
+ * 现在走 lib/safe-fetch：建连那一刻校验 DNS 解析结果（连的就是校验过的 IP，没有 rebinding 时间差），
+ * 跳转手动跟、每一跳重新校验，最多 5 跳。
  *
  * 【为什么只看域名出现过没有，而不解析 DOM】对方可能把链接放在 JS 渲染的组件里，
  * 也可能写成 //bigolab.com 这种省略协议的形式。上正则抠 <a href> 反而漏判更多，
@@ -284,11 +248,10 @@ export async function checkBacklink(url: string): Promise<BacklinkResult> {
   } catch {
     return { ok: false, note: '地址不合法' }
   }
-  if (target.protocol !== 'http:' && target.protocol !== 'https:') {
-    return { ok: false, note: '仅支持 http/https' }
-  }
-  if (isBlockedHost(target.hostname)) {
-    return { ok: false, note: '拒绝请求内网地址' }
+  try {
+    assertPublicUrl(target)
+  } catch (e) {
+    return { ok: false, note: (e as Error).message }
   }
 
   let ourHost = ''
@@ -299,57 +262,32 @@ export async function checkBacklink(url: string): Promise<BacklinkResult> {
   }
   if (!ourHost) return { ok: false, note: '本站域名未配置（NEXT_PUBLIC_SITE_URL）' }
 
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), CHECK_TIMEOUT_MS)
   try {
-    const res = await fetch(target.toString(), {
-      signal: controller.signal,
-      redirect: 'follow',
+    // 只读前 512KB（按解压后的字节）：对方页面可能是几十 MB 的单页应用产物，整包读会把这台 1.8G 的机器推向 OOM
+    const res = await safeGet(target.toString(), {
+      timeoutMs: CHECK_TIMEOUT_MS,
+      maxBytes: MAX_HTML_BYTES,
+      maxRedirects: 5,
       headers: {
         // 不少站点对空 UA 直接 403，这里表明身份并留一个可追溯的地址
         'User-Agent': 'Mozilla/5.0 (compatible; BigolabLinkBot/1.0; +' + siteOrigin() + '/links)',
         Accept: 'text/html,application/xhtml+xml',
       },
     })
+    if (res.status < 200 || res.status >= 300) return { ok: false, note: 'HTTP ' + res.status }
 
-    // 跳转终点也要查一遍：入口地址干干净净、302 到 169.254.169.254 是绕过入口校验的经典手法
-    try {
-      const finalHost = new URL(res.url || target.toString()).hostname
-      if (isBlockedHost(finalHost)) return { ok: false, note: '跳转到了内网地址，已拒绝' }
-    } catch {
-      /* res.url 拿不到就按原地址算，入口已经查过 */
-    }
-    if (!res.ok) return { ok: false, note: 'HTTP ' + res.status }
-
-    // 流式读取并在 512KB 处截断：对方页面可能是几十 MB 的单页应用产物，
-    // 直接 res.text() 会把这台 1.8G 内存的机器推向 OOM
-    let html = ''
-    const reader = res.body?.getReader()
-    if (reader) {
-      const decoder = new TextDecoder('utf-8', { fatal: false })
-      let got = 0
-      for (;;) {
-        const chunk = await reader.read()
-        if (chunk.done) break
-        got += chunk.value?.length || 0
-        html += decoder.decode(chunk.value, { stream: true })
-        if (got >= MAX_HTML_BYTES) {
-          await reader.cancel()
-          break
-        }
-      }
-    } else {
-      html = (await res.text()).slice(0, MAX_HTML_BYTES)
-    }
-
-    const found = html.toLowerCase().includes(ourHost)
+    const found = res.body.toLowerCase().includes(ourHost)
     return found
       ? { ok: true, note: '已找到本站链接（HTTP ' + res.status + '）' }
       : { ok: false, note: '页面可访问，但未出现 ' + ourHost }
   } catch (err) {
-    const msg = (err as Error)?.name === 'AbortError' ? '超时（' + CHECK_TIMEOUT_MS / 1000 + 's）' : '无法访问'
-    return { ok: false, note: msg }
-  } finally {
-    clearTimeout(timer)
+    if (err instanceof UnsafeTargetError || (err as { code?: string })?.code === 'ESSRF') {
+      return { ok: false, note: '拒绝请求内网地址（' + (err as Error).message + '）' }
+    }
+    if (err instanceof SafeFetchError && err.message === TIMEOUT_MESSAGE) {
+      return { ok: false, note: '超时（' + CHECK_TIMEOUT_MS / 1000 + 's）' }
+    }
+    if (err instanceof SafeFetchError && err.message === '跳转次数过多') return { ok: false, note: '跳转次数过多' }
+    return { ok: false, note: '无法访问' }
   }
 }

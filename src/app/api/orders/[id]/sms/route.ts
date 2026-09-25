@@ -19,6 +19,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       select: {
         userId: true,
         payStatus: true,
+        deliveryStatus: true,
         product: { select: { deliveryType: true, smsService: true, smsCountry: true, smsMaxPrice: true } },
       },
     })
@@ -26,9 +27,11 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     if (order.payStatus !== 'PAID') return error('订单支付后才有接码信息')
     if (order.product.deliveryType !== 'SMS') return success({ exists: false })
 
-    // 自愈：已付款但还没取号（付款时未触发/手动标记支付等）→ 按需补取号
+    // 自愈：已付款但还没取号（付款时未触发/手动标记支付等）→ 按需补取号。
+    // 已取消的已付款单（线下退款的惯例做法）不补：补取号就是替一张退了款的订单继续花接码费。
+    // 已有的记录照常往下走：pollActivation 会把残留的 WAITING 放掉，页面据此显示已取消
     const existing = await prisma.smsActivation.findUnique({ where: { orderId } })
-    if (!existing) {
+    if (!existing && order.deliveryStatus !== 'CANCELLED') {
       try {
         await acquireForOrder(
           orderId,

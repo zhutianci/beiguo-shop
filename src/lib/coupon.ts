@@ -257,7 +257,9 @@ export function parseProductIds(raw: string | null | undefined): number[] {
  * 「这个值之前出现过没有」，哈希完全够用。加盐防止被彩虹表反查出 IP 段。
  */
 export function claimHash(scope: 'USER' | 'IP' | 'DEVICE', value: string): string {
-  const salt = process.env.JWT_SECRET || 'beiguo-coupon'
+  // COUPON_CLAIM_SALT 设了就用它：将来轮换 JWT_SECRET 时，写入旧的 JWT_SECRET 作为这里的盐，
+  // 进行中的券批次的 IP/设备限领记录才不会被清零。不设时与原来完全一致
+  const salt = process.env.COUPON_CLAIM_SALT || process.env.JWT_SECRET || 'beiguo-coupon'
   return crypto.createHash('sha256').update(`${salt}|${scope}|${value}`).digest('hex').slice(0, 64)
 }
 

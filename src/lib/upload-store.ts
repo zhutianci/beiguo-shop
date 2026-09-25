@@ -10,7 +10,7 @@
  *
  * 只做「存」这件事：准入（谁能传、传到哪个业务目录、单文件多大、允许哪些格式）是各接口自己的规矩。
  */
-import { writeFile, mkdir, readdir, stat } from 'fs/promises'
+import { writeFile, mkdir, readdir, stat, statfs } from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
 
@@ -123,18 +123,60 @@ async function usedBytes(dir: string): Promise<number> {
   return cachedBytes
 }
 
-/** 当前 uploads 总用量（带缓存；给后台展示或预检用） */
+// 磁盘真实剩余空间底线：低于它一律拒收，不管配额还剩多少。配额只管得住 uploads 目录自己，
+// 管不住镜像、日志、binlog 先把盘吃满、uploads 再补上最后一刀的情况（uploads 卷与 MySQL 同盘）。
+// 容器里 statfs 读到的是宿主机上卷所在文件系统的剩余空间，正是要看的那个数。
+// docker build 期间剩余空间可能短暂低于底线，这时上传返回 507，属于预期（先保 MySQL）。
+const MIN_FREE_BYTES = Number(process.env.UPLOAD_MIN_FREE_MB || 2048) * 1024 * 1024
+
+/**
+ * 所有「读用量 → 判断 → 写文件 → 回写用量」串行执行，必须是一个整体。
+ *
+ * 【出过的问题】以前中间隔着 await writeFile：并发请求读到同一个旧用量，都能通过检查、都能落盘，
+ * 最后互相覆盖计数，每批只涨一个文件的量（本地实测：论坛线 9MB，分批并发传 100 个 1MB 文件，
+ * 100 个全被接受，计数只记了 5.5MB）。配合 nginx 默认先缓冲完整请求体再转发，攻击者同时开 N 个连接，
+ * 这 N 个请求几乎同时到达，正好撞进同一个窗口 —— 总量上限形同虚设，能把与 MySQL 同盘的磁盘写满。
+ *
+ * 单文件不超过 5MB、本地盘写入是毫秒级，串行的开销可以忽略。
+ * 某次写入失败（ENOSPC 之类）会被 then(fn, fn) / then(ok, ok) 吞掉，锁照样释放，不会卡死后面的上传。
+ */
+let lock: Promise<unknown> = Promise.resolve()
+function serialized<T>(fn: () => Promise<T>): Promise<T> {
+  const run = lock.then(fn, fn)
+  lock = run.then(
+    () => undefined,
+    () => undefined
+  )
+  return run
+}
+
+/** 上传目录所在文件系统的可用字节数；读不到（平台不支持之类）返回 null，只靠配额 */
+async function freeBytes(dir: string): Promise<number | null> {
+  try {
+    const s = await statfs(dir)
+    return Number(s.bavail) * Number(s.bsize)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 当前 uploads 总用量（带缓存；给后台展示或预检用）。
+ * 也走串行锁：锁外触发的重算会和锁内的增量累加互相覆盖计数。
+ */
 export function usedUploadBytes(): Promise<number> {
-  return usedBytes(uploadRoot())
+  return serialized(() => usedBytes(uploadRoot()))
 }
 
 export type StoreResult =
   | { ok: true; name: string; url: string }
   | { ok: false; reason: 'quota'; used: number; quota: number }
+  | { ok: false; reason: 'disk'; free: number }
 
 /**
  * 把已经验过类型的图片写进 public/uploads/<scope>/，文件名由服务端生成。
- * 返回站内相对 URL（/uploads/<scope>/<name>）；超出总量线返回 {ok:false, reason:'quota'}（调用方回 507）。
+ * 返回站内相对 URL（/uploads/<scope>/<name>）；超出总量线返回 {ok:false, reason:'quota'}，
+ * 磁盘剩余空间低于底线返回 {ok:false, reason:'disk'}（调用方都回 507）。
  *
  * scope 不在白名单里直接抛错 —— 这是编程错误，不是用户输入错误。
  */
@@ -143,21 +185,31 @@ export async function storeUpload(scope: string, bytes: Buffer, ext: string): Pr
   // 扩展名只可能来自 sniffImage 的结果；这里再卡一次，防止调用方把客户端给的扩展名传进来
   if (!/^(jpg|png|gif|webp)$/.test(ext)) throw new Error(`upload-store: 非法扩展名 ${JSON.stringify(ext)}`)
 
-  const dirName = STORE_SCOPES[scope]
-  const root = uploadRoot()
-  const dir = path.join(root, dirName)
-  await mkdir(dir, { recursive: true })
+  // 上面两条是编程错误，同步抛、不进锁；下面整段在锁里（理由见 serialized）
+  return serialized(async (): Promise<StoreResult> => {
+    const dirName = STORE_SCOPES[scope]
+    const root = uploadRoot()
+    const dir = path.join(root, dirName)
+    await mkdir(dir, { recursive: true })
 
-  const quota = quotaForScope(scope)
-  const used = await usedBytes(root)
-  if (used + bytes.length > quota) {
-    console.warn(`[upload] 上传目录已达上限：${used} / ${quota}（scope=${scope}，总上限 ${MAX_TOTAL_BYTES}）`)
-    return { ok: false, reason: 'quota', used, quota }
-  }
+    const quota = quotaForScope(scope)
+    const used = await usedBytes(root)
+    if (used + bytes.length > quota) {
+      console.warn(`[upload] 上传目录已达上限：${used} / ${quota}（scope=${scope}，总上限 ${MAX_TOTAL_BYTES}）`)
+      return { ok: false, reason: 'quota', used, quota }
+    }
 
-  const name = `${Date.now().toString(36)}-${crypto.randomBytes(6).toString('hex')}.${ext}`
-  await writeFile(path.join(dir, name), bytes)
-  cachedBytes = used + bytes.length // 增量累加，下次重算前保持准确
+    const free = await freeBytes(root)
+    if (free !== null && free - bytes.length < MIN_FREE_BYTES) {
+      console.warn(`[upload] 磁盘剩余 ${free} 字节，低于底线 ${MIN_FREE_BYTES}，拒收（scope=${scope}）`)
+      return { ok: false, reason: 'disk', free }
+    }
 
-  return { ok: true, name, url: `/uploads/${dirName}/${name}` }
+    const name = `${Date.now().toString(36)}-${crypto.randomBytes(6).toString('hex')}.${ext}`
+    // wx：文件已存在就失败而不是覆盖（文件名带随机数，正常不会撞；撞了宁可报错也不覆盖别人的图）
+    await writeFile(path.join(dir, name), bytes, { flag: 'wx' })
+    cachedBytes = used + bytes.length // 增量累加，下次重算前保持准确
+
+    return { ok: true, name, url: `/uploads/${dirName}/${name}` }
+  })
 }

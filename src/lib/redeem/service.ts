@@ -42,6 +42,7 @@ export type ResolveFailure =
   | { ok: false; reason: 'NOT_OURS'; message: string }
   | { ok: false; reason: 'NOT_DELIVERED'; message: string }
   | { ok: false; reason: 'DISABLED'; message: string }
+  | { ok: false; reason: 'ORDER_VOID'; message: string }
 
 /**
  * 确认这张卡密确实是本站发出的。
@@ -76,6 +77,7 @@ export async function resolveCard(
       productId: true,
       redeemProvider: true,
       status: true,
+      orderId: true,
       product: { select: { name: true } },
     },
   })
@@ -94,6 +96,22 @@ export async function resolveCard(
   if (card.status !== 'USED') {
     // UNUSED = 还躺在库存里没发出去。买家手上不该有这张卡
     return { ok: false, reason: 'NOT_DELIVERED', message: '该卡密尚未发出，请确认是否从本站购买' }
+  }
+  /*
+   * 【所属订单已取消 / 已退款 → 不再代理兑换】后台没有退款按钮，线下退款后是把已付款订单改成
+   * 「已取消」；已发出的卡密状态又改不回来（已发出的卡不可改状态），原来买家拿了退款还能在站内照常兑换。
+   * 读时判断、不改卡状态：管理员撤回取消后自动恢复可兑换。
+   * 外部站发的卡 orderId 为空，不受影响；查不到订单时按原逻辑放行，避免误伤。
+   * 局限：上游兑换站是公开的，这里只能挡住站内这一条路（后台取消时会提示站长核对）。
+   */
+  if (card.orderId != null) {
+    const o = await prisma.order.findUnique({
+      where: { id: card.orderId },
+      select: { payStatus: true, deliveryStatus: true },
+    })
+    if (o && (o.payStatus !== 'PAID' || o.deliveryStatus === 'CANCELLED')) {
+      return { ok: false, reason: 'ORDER_VOID', message: '这张卡密所属的订单已取消或退款，无法兑换；如有疑问请联系客服' }
+    }
   }
   return {
     ok: true,

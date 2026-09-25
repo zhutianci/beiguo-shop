@@ -600,7 +600,7 @@ function CardKeysInner() {
                 <div className="text-xs text-blue-700">流水合计</div>
                 <div className="text-xl font-bold text-blue-700">{money(stats.totalRevenue)}</div>
               </div>
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3" title="已落库的利润之和（不现算）">
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3" title="卡差价之和（售价 − 成本，未扣内推返现；扣返现后的净利润见「卡密数据分析」）">
                 <div className="text-xs text-emerald-700">利润合计</div>
                 <div className={`text-xl font-bold ${stats.totalProfit < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
                   {money(stats.totalProfit)}

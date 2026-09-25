@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { VMQ_KEY, VMQ_TIMEOUT_MIN, recentVmqOrders, getDiag } from '@/lib/vmq'
+import { VMQ_KEY, VMQ_TIMEOUT_MIN, recentVmqOrders, getDiag, listUnmatched } from '@/lib/vmq'
 import { adminGuard } from '@/lib/admin-guard'
 
 // 收款监控配置：到账通知统一走 SmsForwarder → POST /api/pay/sms-notify。
@@ -45,11 +45,13 @@ export async function GET(request: NextRequest) {
     // 且它只是展示信息，不再作为下单门禁。
     const recentlyActive = lastNotify > 0 && Date.now() - lastNotify < 24 * 3600_000
 
-    const [recent, diag] = await Promise.all([recentVmqOrders(15), getDiag()])
+    // unmatched：待人工核实的到账逐条留存（lib/vmq.ts recordUnmatched），取最近 100 条，页面分「待处理 / 已处理」展示
+    const [recent, diag, unmatched] = await Promise.all([recentVmqOrders(15), getDiag(), listUnmatched(100)])
 
     return success({
       recent,
       diag,
+      unmatched,
       webhookUrl,
       webhookToken,
       webhookBody,

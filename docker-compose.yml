@@ -1,3 +1,15 @@
+# 容器 stdout 日志上限（每个容器 20m × 5 份 ≈ 100MB）。
+# 默认的 json-file 驱动不设 max-size 就不轮转：nginx 每个请求一行（含 /_next/static、RSC 预取），
+# 两次重建之间会一直涨；日志落在系统盘 /var/lib/docker/containers 下，与 mysql_data 卷同盘，盘满会连带打挂 MySQL。
+# 驱动保持 json-file，不要换成 local：部署说明里要直接 tail 原始 LogPath 文件核对访客 IP，local 是二进制格式读不了。
+# 不要加 compress: true，理由同上。
+# 只挂在 app / nginx / cron / cloudflared 上，db 刻意不加（理由见 db 服务里的注释）。
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
 services:
   # Next.js 应用
   app:
@@ -6,6 +18,7 @@ services:
       dockerfile: Dockerfile
     container_name: beiguo-app
     restart: unless-stopped
+    logging: *default-logging
     # 内存上限：整机只有 1.8G。不设限时，抓取/构建类任务把内存吃满，
     # 内核 OOM killer 会按 RSS 挑目标，MySQL(约 400MB) 反而比 app 更容易被杀，
     # 结果是「应用出 bug → 整站数据库挂掉」。限制在 app 自己的 cgroup 内，
@@ -77,6 +90,9 @@ services:
       # Git、日志或截图里」。所以值写在 .env.production 里，仓库里只有这个名字。
       # 没配时兑换页会提示「充值服务暂未配置」，不会把请求发出去。
       - SYSB_API_TOKEN
+      # 领券 IP/设备限领哈希的盐（lib/coupon.ts claimHash）。不设 = 沿用 JWT_SECRET，与原来一致；
+      # 轮换 JWT_SECRET 时把旧值写进这里，进行中的券批次限领记录才不会被清零
+      - COUPON_CLAIM_SALT
       # 卡付 gpt1 走 V1 三段式的开关（'1' 才开）。
       # 【必须写成裸变量名】写 - FOO=${FOO} 在 FOO 未定义时会给容器一个空字符串，
       # 而 dotenv 遵循「已存在的 env 优先」，反而把镜像内 .env 的真实值遮蔽掉。
@@ -118,6 +134,29 @@ services:
       - NEWS_TRIAGE_BATCH
       - NEWS_DETAIL_BACKFILL
       - UPLOAD_MAX_TOTAL_MB
+      # 上传前检查的磁盘剩余空间底线（MB，默认 2048）：低于它所有上传一律 507，先保同盘的 MySQL（lib/upload-store.ts）
+      - UPLOAD_MIN_FREE_MB
+      # 以下几项以前只靠镜像里的 .env.production 生效：改值要重新构建，回滚镜像还会把旧值一起带回来
+      # （例如轮换过 DISPENSE_API_SECRET 再回滚，二站调发卡接口就会 401）。
+      # 裸变量名：--env-file 里有就传进容器，并优先于镜像内文件（dotenv 不覆盖已有 env）；
+      # 没有就完全不定义，照旧回落到镜像内的值，行为不变。
+      # 【上线前】宿主机 .env.production 若在上次构建后改过，这几项会按宿主机的新值立即生效 ——
+      # 先比对镜像内外 .env.production 的哈希（docs/nginx-真实IP修复-部署说明.md 第九节 9.3）。
+      - APP_URL
+      - DISPENSE_API_SECRET
+      - QUICK_REPLY_TTL_DAYS
+      - FINANCE_LINK_TTL_DAYS
+      - COUPON_LOCK_SWEEP_MIN
+      - SYSB_FALLBACK_URL
+      # 收款风控三项（lib/vmq.ts、api/pay/vmq/create）：VMQ_REUSE_COOLDOWN_MIN=0 是金额冷却的回滚开关，
+      # 只有在这里列出才是「改宿主机 .env.production + docker compose up -d」即生效，不必重建镜像
+      - VMQ_REUSE_COOLDOWN_MIN
+      - VMQ_MAX_OPEN_PER_USER
+      - ORDER_PAY_WINDOW_MIN
+      # NEXT_PUBLIC_* 构建时若已定义，会被内联进产物（服务端代码也一样），这里改值不生效、仍需重建；
+      # 构建时没定义的，才按这里的运行时值走
+      - NEXT_PUBLIC_SITE_URL
+      - NEWS_INTERNAL_BASE
       # 说明：以上全部留空也能正常起。lib/llm.ts 每项都有 || 兜底；
       # 缺 LLM_API_KEY 时管线只抓取去重、不写摘要，站点不会因此挂掉。
       # 缺 NEWS_RELAY_URL 时 viaRelay 的境外源全部跳过，中文源照常。
@@ -135,6 +174,9 @@ services:
     image: mysql:8.0
     container_name: beiguo-db
     restart: unless-stopped
+    # 刻意不加 logging（日志上限见文件顶部 x-logging）：MySQL 往 stdout 写得很少；而 db 是 app 的依赖，
+    # 这里的配置一有变化，下一次常规部署 `up -d app`（不带 --no-deps）会连带把 MySQL 重建一次，
+    # 库会意外断几十秒（compose 对依赖服务的默认策略是 RecreateDiverged）。
     # 保护数据库不被整机 OOM 挑中。理由见 app 服务里那段。
     # 不用 -1000（那等于完全豁免）：真到了内存耗尽的地步，内核总得杀掉点什么，
     # 豁免 MySQL 会把目标推给 dockerd 或 sshd，那比杀 MySQL 更糟——
@@ -156,15 +198,19 @@ services:
     networks:
       - app-network
 
-  # Nginx 反向代理
-  # - cloudflared 通过容器网络访问 nginx:80（用户走域名时）
-  # - 80 端口对外暴露，供 IP 直接访问（用户走公网IP时）
+  # Nginx 反向代理：两个监听口，访客 IP 的信任只跟着监听口走（详见 nginx.conf 顶部那段）
+  # - 容器 80：cloudflared 经容器网络访问 nginx:80（用户走域名时）。受信任，**不映射到宿主机**
+  # - 容器 8080：宿主机 80 映射到这里，供公网 IP 直连与服务器上 curl http://127.0.0.1 用。
+  #   不信任客户端自带的 CF-Connecting-IP / X-Forwarded-For，一律按 TCP 对端地址算
+  # ⚠️ 不要改回 "80:80"：那是把受信任的口开到公网，任何人都能伪造 IP 绕过全站按 IP 的限流。
+  # 更新 nginx.conf 或这里的 ports 后都要 up -d --no-deps --force-recreate nginx（reload 不够，见交接文档第二十三节）
   nginx:
     image: nginx:alpine
     container_name: beiguo-nginx
     restart: unless-stopped
+    logging: *default-logging
     ports:
-      - "80:80"
+      - "80:8080"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # 用户上传的图片直接由 nginx 发（理由见 nginx.conf 里 location /uploads/ 那段：
@@ -183,6 +229,7 @@ services:
     image: alpine:3.20
     container_name: beiguo-cron
     restart: unless-stopped
+    logging: *default-logging
     environment:
       - CRON_SECRET=${CRON_SECRET}
     volumes:
@@ -221,6 +268,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: beiguo-cloudflared
     restart: unless-stopped
+    logging: *default-logging
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       - nginx

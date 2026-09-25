@@ -208,8 +208,8 @@ export async function GET(request: NextRequest) {
     const filename = `卡密导出-${scope}-${stamp}-${rows.length}张${masked ? '-脱敏' : ''}.xlsx`
 
     // ④ 审计痕迹：带上操作者身份（middleware 验完就丢了，这里从 requireAdmin 拿到）。
-    //    IP 仅作参考——Cloudflare Tunnel 后 cf-connecting-ip / x-forwarded-for 均为请求方可写，
-    //    真要追责以「操作人」为准。
+    //    IP 仅作参考——IP 头已由 nginx 按连接核实（nginx.conf 顶部），但代理/出口 NAT 后面
+    //    仍对应不到具体的人，真要追责以「操作人」为准。
     notifyCardKeyExported({
       operator: operator.email || `#${operator.id}`,
       count: rows.length,

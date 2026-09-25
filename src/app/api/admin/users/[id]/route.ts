@@ -55,7 +55,8 @@ export async function PUT(
 
     const user = await prisma.user.update({
       where: { id: userId },
-      data: result.data,
+      // 禁用时顺带让会话版本 +1：否则「禁用后再启用」会让他手里的旧 token 复活
+      data: { ...result.data, ...(result.data.status === 0 ? { sessionEpoch: { increment: 1 } } : {}) },
       select: {
         id: true,
         email: true,

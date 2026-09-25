@@ -344,6 +344,9 @@ export default function TetrisPage() {
         setSubmitted(true)
         setHighlightId(data.data.id)
         setRefreshKey((k) => k + 1)
+      } else {
+        // 提交接口有限流（429）与大小上限（413）：失败要告诉玩家原因，别让按钮点了像没反应
+        alert(data.error || '提交失败，请稍后再试')
       }
     } finally {
       setSubmitting(false)

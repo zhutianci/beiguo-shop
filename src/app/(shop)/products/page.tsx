@@ -14,6 +14,7 @@ import { Breadcrumbs } from '@/components/landing/landing-ui'
 import { LANDINGS, landingPath, matchProducts } from '@/lib/landing/registry'
 import ProductsClient, { type CategoryGuide } from './products-client'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
+import { publicStock } from '@/lib/stock-level'
 
 /**
  * 商品列表页。
@@ -158,7 +159,7 @@ export default async function ProductsPage() {
       price: Number(p.price),
       originalPrice: p.originalPrice == null ? null : Number(p.originalPrice),
       image: p.image,
-      stock: p.stock,
+      stock: publicStock(p.stock), // RSC props 会进页面源码：只给档位代表值
       sales: p.sales,
       deliveryType: p.deliveryType ?? null,
       categoryName: p.category?.name ?? '其他',

@@ -8,7 +8,12 @@ RUN apk add --no-cache openssl libc6-compat
 # 配置 npm 使用国内镜像
 RUN npm config set registry https://registry.npmmirror.com
 
-COPY package.json package-lock.json* ./
+# lock 不带 * 通配：没有 lock 就该构建失败。
+# 【暂不换成 npm ci】2026-09-26 终审实测：本地用 npm 11 生成的 lock 缺几条可选依赖条目
+# （@emnapi/*、@floating-ui/dom），node:20-alpine 自带的 npm 10 做 npm ci 会直接 EUSAGE 失败；
+# npm install 会按 lock 装并静默补齐，这几个月一直是这么构建的。要换 npm ci，先在 node:20-alpine 里
+# `npm install --package-lock-only` 重新生成 lock、再 `npm ci --dry-run` 验证通过后一起提交。
+COPY package.json package-lock.json ./
 RUN npm install --no-audit --no-fund
 
 # Stage 2: Builder

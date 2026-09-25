@@ -5,13 +5,13 @@ import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar, BellRing, Smartphone, Save, FileText, X, AlertCircle, Check } from 'lucide-react'
 import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
+import { emailProofHeaders, saveEmailProof, clearEmailProof } from '@/lib/email-proof-client'
 
 interface ExternalOrder {
   id: number
   startDate: string
   expireDate: string
   subscriptionType: string
-  xianyuNickname: string | null
   claudeAccount: string
   createdAt: string
   updatedAt: string
@@ -24,6 +24,22 @@ interface ExternalOrder {
   invoiceId: number | null
   canReceipt: boolean
   receiptToken: string | null
+  // 背后是本站账号的订单：开票 / 开收据 / 付税费只认下单本人登录（服务端 lib/order-billing.ts 规则 A）
+  ownerOnly?: boolean
+}
+
+/*
+ * 【邮箱证明过期 / 没存下来的统一出口】查订阅、开票、付税费、开收据、设提醒都认同一张 30 分钟有效的
+ * 服务端证明（lib/email-proof.ts）。子组件拿到「需要验证」类的失败时发这个事件，由页面重新弹出验证码框，
+ * 而不是各自弹一句让买家摸不着头脑的错误（例如付税费的 404「发票不存在或无权操作」）。
+ */
+const PROOF_EXPIRED_EVENT = 'lookup:proof-expired'
+function signalProofExpired() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(PROOF_EXPIRED_EVENT))
+}
+/** 这次失败是不是「需要重新证明邮箱」造成的 */
+function needsReverify(status: number, error: unknown): boolean {
+  return status === 401 || (status === 403 && typeof error === 'string' && error.includes('验证'))
 }
 
 const INVOICE_LABELS: Record<string, string> = {
@@ -97,19 +113,81 @@ function LookupForm() {
     return () => clearInterval(timer)
   }, [])
 
-  const handleSearch = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    if (!email.trim()) return
-    setLoading(true)
+  /*
+   * 【查订阅要先证明邮箱是你的（2026-09-26）】以前只凭邮箱就能查到任何人的订阅与收据。
+   * 现在接口没有证明时回 401 + needVerify：页面给这个邮箱发验证码，验过之后 30 分钟内
+   * 查询、开票、付税费、开收据、设提醒都不用再验（服务端 cookie，lib/email-proof.ts）。
+   * 登录用户查自己已验证的登录邮箱 / 已验证的绑定账户时不需要验证码。
+   */
+  const [needCode, setNeedCode] = useState(false)
+  const [code, setCode] = useState('')
+  const [codeMsg, setCodeMsg] = useState('')
+  const [sending, setSending] = useState(false)
+  const [verifying, setVerifying] = useState(false)
+  const [cooldown, setCooldown] = useState(0)
+
+  useEffect(() => {
+    if (cooldown <= 0) return
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [cooldown])
+
+  const runLookup = async (addr: string): Promise<'ok' | 'need' | 'err'> => {
+    const res = await fetch('/api/external-orders/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...emailProofHeaders() },
+      body: JSON.stringify({ email: addr }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      setOrders(data.data.orders)
+      setSearched(true)
+      setNeedCode(false)
+      return 'ok'
+    }
+    if (data.needVerify) return 'need'
+    setErrorMsg(data.error || '查询失败')
+    return 'err'
+  }
+
+  const sendCode = async (addr: string) => {
+    if (sending || cooldown > 0) return
+    setSending(true)
+    setCodeMsg('')
     setErrorMsg('')
     try {
-      const res = await fetch(`/api/external-orders/lookup?email=${encodeURIComponent(email.trim())}`)
+      const res = await fetch('/api/external-orders/lookup/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: addr }),
+      })
       const data = await res.json()
       if (data.success) {
-        setOrders(data.data.orders)
-        setSearched(true)
+        setCodeMsg('验证码已发送到该邮箱，请查收（含垃圾箱）；若该邮箱没有订阅记录，邮件里会说明')
+        setCooldown(60)
       } else {
-        setErrorMsg(data.error || '查询失败')
+        setErrorMsg(data.error || '验证码发送失败')
+      }
+    } catch {
+      setErrorMsg('网络错误，请重试')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleSearch = async (e?: React.FormEvent, opts: { autoSend?: boolean } = { autoSend: true }) => {
+    e?.preventDefault()
+    const addr = email.trim()
+    if (!addr) return
+    setLoading(true)
+    setErrorMsg('')
+    setSearched(false)
+    try {
+      const r = await runLookup(addr)
+      if (r === 'need') {
+        setNeedCode(true)
+        setCode('')
+        if (opts.autoSend) await sendCode(addr)
       }
     } catch {
       setErrorMsg('网络错误，请重试')
@@ -118,9 +196,53 @@ function LookupForm() {
     }
   }
 
-  // 如果 URL 自带 email 参数，自动查询
+  const handleVerify = async (e?: React.FormEvent) => {
+    e?.preventDefault()
+    const addr = email.trim()
+    if (!addr || !code.trim()) return
+    setVerifying(true)
+    setErrorMsg('')
+    try {
+      const res = await fetch('/api/external-orders/lookup/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: addr, code: code.trim() }),
+      })
+      const data = await res.json()
+      if (!data.success) {
+        setErrorMsg(data.error || '验证失败')
+        return
+      }
+      setCodeMsg('')
+      saveEmailProof(data.data?.proof)
+      const r = await runLookup(addr)
+      if (r === 'need') {
+        // 验证码已经用掉、服务端也认了，但浏览器没把证明 cookie 带回来（禁用了 Cookie、App 内置浏览器等）
+        setErrorMsg('验证已通过，但浏览器没有保存验证状态（可能禁用了 Cookie 或在 App 内置浏览器中打开）。请用系统浏览器打开本页，或登录后在「我的订单」查看')
+      }
+    } catch {
+      setErrorMsg('网络错误，请重试')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
   useEffect(() => {
-    if (initialEmail) handleSearch()
+    const onExpired = () => {
+      clearEmailProof()
+      setNeedCode(true)
+      setCode('')
+      setErrorMsg('邮箱验证已过期（30 分钟有效），请重新获取验证码后再操作')
+      if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+    window.addEventListener(PROOF_EXPIRED_EVENT, onExpired)
+    return () => window.removeEventListener(PROOF_EXPIRED_EVENT, onExpired)
+  }, [])
+
+  // URL 自带 email 参数（到期提醒邮件里的链接）时自动查询；需要验证时只展示验证码框，
+  // 不自动发信——邮件网关的链接预取不能替用户触发一封验证码邮件
+  useEffect(() => {
+    if (initialEmail) handleSearch(undefined, { autoSend: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -172,7 +294,12 @@ function LookupForm() {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    // 换了邮箱：之前那个邮箱的验证码框与结果都不再适用
+                    setNeedCode(false)
+                    setSearched(false)
+                  }}
                   placeholder="输入你的账户邮箱"
                   required
                   className="flex-1 bg-transparent border-0 outline-none text-white placeholder:text-white/30 py-3 lg:text-[15px]"
@@ -194,6 +321,42 @@ function LookupForm() {
           </div>
           {errorMsg && <p className="text-red-400 text-sm mt-3 ml-4 md:max-w-2xl md:mx-auto">{errorMsg}</p>}
         </motion.form>
+
+        {needCode && (
+          <form onSubmit={handleVerify} className="mb-8 lg:mb-12 md:max-w-2xl md:mx-auto glass rounded-2xl p-5 lg:p-6">
+            <p className="text-sm text-white/70 mb-3">
+              为保护订阅信息，查询前需要验证邮箱 <span className="font-mono text-white/90 break-all">{email.trim()}</span>。
+              验证后 30 分钟内查询、开票、开收据、设置提醒都不用再验证。
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="6 位验证码"
+                className="flex-1 min-w-[140px] bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 outline-none text-white placeholder:text-white/30 font-mono tracking-widest"
+              />
+              <button
+                type="button"
+                onClick={() => sendCode(email.trim())}
+                disabled={sending || cooldown > 0}
+                className="px-4 py-2.5 rounded-xl glass text-sm font-medium hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {sending ? '发送中…' : cooldown > 0 ? `${cooldown} 秒后可重发` : '获取验证码'}
+              </button>
+              <button
+                type="submit"
+                disabled={verifying || code.length < 6}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {verifying ? '验证中…' : '验证并查询'}
+              </button>
+            </div>
+            {codeMsg && <p className="text-green-300/90 text-xs mt-3">{codeMsg}</p>}
+            <p className="text-white/40 text-xs mt-2">已注册的买家也可以直接登录，在「我的订单」查看。</p>
+          </form>
+        )}
 
         <AnimatePresence mode="wait">
           {searched && (
@@ -302,12 +465,6 @@ function LookupForm() {
                               <span className="text-white/40 w-20">账户</span>
                               <span className="font-mono text-white/80 break-all">{order.claudeAccount}</span>
                             </div>
-                            {order.xianyuNickname && (
-                              <div className="flex items-center gap-2">
-                                <span className="text-white/40 w-20">闲鱼昵称</span>
-                                <span className="text-white/80">{order.xianyuNickname}</span>
-                              </div>
-                            )}
                           </div>
 
                           {/* 发票 */}
@@ -329,7 +486,14 @@ function LookupForm() {
                                 {INVOICE_LABELS[order.invoiceStatus] || order.invoiceStatus}
                               </span>
                             </div>
-                            {order.invoiceStatus === 'UNAPPLIED' && (
+                            {order.ownerOnly && (order.invoiceStatus === 'UNAPPLIED' || order.invoiceStatus === 'AWAIT_PAY') && (
+                              <a href="/orders" className="px-4 py-1.5 rounded-lg glass text-sm font-medium hover:bg-white/10 transition-colors">
+                                {order.invoiceStatus === 'AWAIT_PAY'
+                                  ? '本站订单，请登录后在「我的订单」支付税费'
+                                  : '本站订单，请登录后在「我的订单」开具'}
+                              </a>
+                            )}
+                            {!order.ownerOnly && order.invoiceStatus === 'UNAPPLIED' && (
                               <button
                                 onClick={() => setInvoiceOrder(order)}
                                 className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all"
@@ -337,7 +501,7 @@ function LookupForm() {
                                 申请发票
                               </button>
                             )}
-                            {order.invoiceStatus === 'AWAIT_PAY' && order.invoiceId && (
+                            {!order.ownerOnly && order.invoiceStatus === 'AWAIT_PAY' && order.invoiceId && (
                               <PayTaxButton invoiceId={order.invoiceId} accountEmail={order.claudeAccount} />
                             )}
                           </div>
@@ -367,6 +531,10 @@ function LookupForm() {
                                 className="px-4 py-1.5 rounded-lg glass text-sm font-medium hover:bg-white/10 transition-colors"
                               >
                                 查看收据
+                              </a>
+                            ) : order.canReceipt && order.ownerOnly ? (
+                              <a href="/orders" className="px-4 py-1.5 rounded-lg glass text-sm font-medium hover:bg-white/10 transition-colors">
+                                请登录后在「我的订单」开具
                               </a>
                             ) : order.canReceipt ? (
                               <button
@@ -425,8 +593,9 @@ function ReminderSettings({ account }: { account: string }) {
     setFeedback(null)
     ;(async () => {
       try {
-        const res = await fetch(`/api/external-orders/contact?email=${encodeURIComponent(account)}`)
+        const res = await fetch(`/api/external-orders/contact?email=${encodeURIComponent(account)}`, { headers: emailProofHeaders() })
         const data = await res.json()
+        if (!cancelled && needsReverify(res.status, data.error)) signalProofExpired()
         if (!cancelled && data.success) {
           const c = data.data.contact
           setNotifyEmail(c.notifyEmail)
@@ -453,7 +622,7 @@ function ReminderSettings({ account }: { account: string }) {
     try {
       const res = await fetch('/api/external-orders/contact', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...emailProofHeaders() },
         body: JSON.stringify({
           claudeAccount: account,
           notifyEmail,
@@ -466,6 +635,7 @@ function ReminderSettings({ account }: { account: string }) {
       if (data.success) {
         setFeedback({ type: 'ok', text: '已保存，到期前会自动提醒你续费 🎉' })
       } else {
+        if (needsReverify(res.status, data.error)) signalProofExpired()
         setFeedback({ type: 'err', text: data.error || '保存失败' })
       }
     } catch {
@@ -580,7 +750,7 @@ function PayTaxButton({ invoiceId, accountEmail }: { invoiceId: number; accountE
       const channel = typeof window !== 'undefined' && window.innerWidth < 768 ? 'wap' : 'page'
       const res = await fetch(`/api/invoices/${invoiceId}/pay`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...emailProofHeaders() },
         // accountEmail 是匿名流程的归属凭证，与「申请发票」用的是同一个
         body: JSON.stringify({ channel, accountEmail }),
       })
@@ -588,7 +758,12 @@ function PayTaxButton({ invoiceId, accountEmail }: { invoiceId: number; accountE
       if (data.success && data.data?.payUrl) {
         window.location.href = data.data.payUrl
       } else {
-        alert(data.error || '发起支付失败')
+        if (res.status === 404 || needsReverify(res.status, data.error)) {
+          // 服务端对「证明过期 / 无权」与「发票不存在」回同一个 404（防枚举）；在这一页只可能是前者
+          signalProofExpired()
+        } else {
+          alert(data.error || '发起支付失败')
+        }
         setLoading(false)
       }
     } catch {
@@ -687,7 +862,7 @@ function InvoiceModal({
     try {
       const res = await fetch('/api/invoices', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...emailProofHeaders() },
         body: JSON.stringify({
           externalOrderId: order.id,
           title: title.trim(),
@@ -714,6 +889,11 @@ function InvoiceModal({
       // 不会再给收款链接。这是成功，不是失败——别让买家看到一个红色「提交失败」
       if (data.success) {
         alert(data.message || '发票申请已提交，税费已随订单支付，无需再付')
+        onClose()
+        return
+      }
+      if (needsReverify(res.status, data.error)) {
+        signalProofExpired()
         onClose()
         return
       }
@@ -908,7 +1088,7 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
     try {
       const res = await fetch('/api/receipts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...emailProofHeaders() },
         body: JSON.stringify({
           externalOrderId: order.id,
           payerTitle: payerTitle.trim(),
@@ -920,6 +1100,11 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
       const data = await res.json()
       if (data.success && data.data?.token) {
         window.open(`/receipt/${data.data.token}`, '_blank')
+        onClose()
+        return
+      }
+      if (needsReverify(res.status, data.error)) {
+        signalProofExpired()
         onClose()
         return
       }

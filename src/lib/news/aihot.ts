@@ -116,9 +116,18 @@ export interface AihotLead {
   publishedAt: Date
 }
 
+/**
+ * 只认 http(s)，其余协议一律返回空串（审计 G32）。
+ * z.string().url() 只看 new URL() 能否解析，javascript: / data: 都能过；
+ * 而 `javascript://aihot.virxact.com/%0aalert(1)` 的 host 恰好是对方域名，只查 host 挡不住——
+ * 它会被当成回链存进库、再原样渲染成 <a href>（Next 14 自带的 React canary 不拦 javascript:）。
+ * 返回空串后，safeLeadUrl 与 parseAihotLeads 的 `if (!host) continue` 会自动把它拒掉。
+ */
 function hostOf(url: string): string {
   try {
-    return new URL(url).host.toLowerCase()
+    const u = new URL(url)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return ''
+    return u.host.toLowerCase()
   } catch {
     return ''
   }

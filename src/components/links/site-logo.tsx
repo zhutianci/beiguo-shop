@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils'
  *
  * 【为什么不用 next/image】logo 来自任意外站。走 /_next/image 等于让本站的 Node 进程
  * （output: 'standalone'）去代理抓取任意外站图片——对方超时或图片巨大就会占住优化线程，
- * 这台 1.8G 内存的机器扛不住。而且 next.config.js 的 remotePatterns 只放行 https，
- * http 的 logo 会直接 400。原生 img + lazy + onError 兜底是这里唯一合理的选择。
+ * 这台 1.8G 内存的机器扛不住。而且 next.config.js 已设 images.unoptimized（图片优化整体关闭），
+ * /_next/image 一律 404，不会替任何人去抓外站图。原生 img + lazy + onError 兜底是这里唯一合理的选择。
  *
  * 【为什么不抓 favicon】第三方 favicon 服务（google s2 之类）会把访客 IP 交给第三方，
  * 国内连通性也差；直连对方 /favicon.ico 命中率低，16×16 拉到 44px 还是糊的。

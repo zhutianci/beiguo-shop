@@ -1,26 +1,62 @@
 export const dynamic = 'force-dynamic'
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { shopOrderSourceKey } from '@/lib/order-invoice'
 import { invoicesByOrderIds, orderIdFromSourceKey } from '@/lib/order-link'
+import { getCurrentUser } from '@/lib/auth'
+import { clientIp, rateLimited } from '@/lib/news/rate-limit'
+import { emailDigest, hasAccountAccess, readProofDigests } from '@/lib/email-proof'
+import { ipKey } from '@/lib/auth-throttle'
 
 const querySchema = z.object({
   email: z.string().email('请输入正确的邮箱'),
 })
 
+// 邮箱放 body 而不是 query：query 会整串进 nginx 访问日志
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => null)
+  return lookup(request, body?.email)
+}
+
+// 兼容：发布窗口里旧页面的 JS 还在用 GET。行为与 POST 完全一样（同样要求邮箱归属证明），下个版本删掉
 export async function GET(request: NextRequest) {
+  return lookup(request, new URL(request.url).searchParams.get('email'))
+}
+
+/**
+ * 【2026-09-26 起必须证明邮箱归属（审计 G11）】以前只凭邮箱就能查到任何人的全部订阅，
+ * 还会下发收据令牌（打开即见付款人抬头与金额）——同行手里有大量客户邮箱，等于客户资料任取。
+ * 现在要求：刚用 LOOKUP 验证码验过这个邮箱（cookie 证明）/ 登录邮箱已验证且就是它 / 已验证的绑定。
+ * 没证明时回 401 + needVerify，前端引导去收验证码。
+ */
+async function lookup(request: NextRequest, rawEmail: unknown) {
   try {
-    const { searchParams } = new URL(request.url)
-    const result = querySchema.safeParse({ email: searchParams.get('email') })
+    const result = querySchema.safeParse({ email: rawEmail })
     if (!result.success) {
       return error(result.error.errors[0].message)
     }
 
     const email = result.data.email.trim().toLowerCase()
+
+    const rawIp = clientIp(request.headers)
+    const ip = rawIp !== 'unknown' ? ipKey(rawIp) : null // IPv6 按 /64 聚合，换地址绕不过
+    if (ip && rateLimited(`lookup-ip:${ip}`, { windowMs: 600_000, max: 60 })) {
+      return error('查询过于频繁，请稍后再试', 429)
+    }
+
+    const user = await getCurrentUser()
+    if (!(await hasAccountAccess(email, user, await readProofDigests()))) {
+      // 按邮箱计数只算「没证明归属」的请求：放在鉴权之前的话，知道邮箱的人刷 30 次
+      // 就能让真正的主人（已验证、已登录）也一直看到「查询过于频繁」（终审 2026-09-26）
+      if (rateLimited(`lookup-mail:${emailDigest(email)}`, { windowMs: 600_000, max: 30 })) {
+        return error('查询过于频繁，请稍后再试', 429)
+      }
+      return NextResponse.json({ success: false, error: '请先验证邮箱', needVerify: true }, { status: 401 })
+    }
 
     const orders = await prisma.externalOrder.findMany({
       where: { claudeAccount: email },
@@ -30,10 +66,10 @@ export async function GET(request: NextRequest) {
         startDate: true,
         expireDate: true,
         subscriptionType: true,
-        xianyuNickname: true,
         claudeAccount: true,
         quote: true,
         shopOrderId: true,
+        sourceKey: true, // 只用来判断 ownerOnly，不下发
         createdAt: true,
         updatedAt: true,
       },
@@ -146,7 +182,7 @@ export async function GET(request: NextRequest) {
       }
 
       const receipt = receiptMap.get(o.id)
-      const { quote: _quote, ...rest } = o
+      const { quote: _quote, shopOrderId: _sid, sourceKey: _sk, ...rest } = o
       // 收据金额：买家已付发票税费(payStatus=PAID) → 含税开票金额；否则售价。
       // 须与 submitReceiptForExternalOrder 中的服务端计费口径保持一致。
       const siblingPaid = !!sibling && sibling.payStatus === 'PAID'
@@ -167,6 +203,9 @@ export async function GET(request: NextRequest) {
         // 另一条行上已开过收据：同一笔付款只开一张，不再给入口
         canReceipt: price != null && !siblingReceipt,
         receiptToken: receipt?.token ?? null,
+        // 背后是站内订单的行：开票 / 开收据 / 付税费只认下单本人登录（lib/order-billing.ts 规则 A），
+        // 前端据此在未登录时提示「请登录下单账号」而不是给出点了必然 403 的按钮
+        ownerOnly: o.shopOrderId != null || o.sourceKey.startsWith('order:'),
       }
     })
 

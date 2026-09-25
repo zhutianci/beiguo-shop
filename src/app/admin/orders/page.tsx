@@ -25,7 +25,8 @@ interface Order {
   cards?: string[] // 自动发货实际发出的卡密
   unreadCount?: number // 买家发来、商家未读的留言数
   cardCost?: number | null // 卡密成本合计（无卡密订单为 null）
-  cardProfit?: number | null // 卡密利润合计（含未知利润的卡时为 null）
+  cardProfit?: number | null // 卡密利润合计，已扣内推返现（含未知利润的卡时为 null）
+  cardReferral?: number | null // 该单已扣的内推返现（无卡密的单为 null）
   cardProfitUnknown?: boolean // 该单存在利润未知的卡（外部站发卡）
   invoiceTaxFee?: string | number | null // 下单时勾选「同时开发票」预收的税费（不计入 amount）
   cardCount?: number // 仅深链打开时有：不在当前页的订单拿不到卡密明文，只知道发了几张
@@ -140,6 +141,8 @@ interface Totals {
   amount: number
   cost: number | null
   profit: number | null
+  /** 利润合计里已扣掉的内推返现（truncated 时为 null） */
+  referral?: number | null
   truncated: boolean
 }
 
@@ -417,6 +420,26 @@ function OrdersInner() {
       if (!confirm('未填写 Claude 账户，将不会同步导入到「订单」列表。仍要继续吗？')) return
     }
 
+    // 已付款订单改成「已取消」= 线下退款的惯例做法，会连带回滚一串东西，先让站长看清楚再点
+    if (
+      deliveryStatus === 'CANCELLED' &&
+      selectedOrder.deliveryStatus !== 'CANCELLED' &&
+      selectedOrder.payStatus === 'PAID'
+    ) {
+      const ok = confirm(
+        [
+          '这是一张已付款订单，取消后（视为已线下退款）：',
+          '· 未开出的发票会转为「不可开据」，买家不能再申请发票和收据',
+          '· 卡密的站内兑换、接码服务会停止',
+          '· 已入账的内推返现不会自动扣回',
+          '· 钱不会自动退回，请确认已线下退款',
+          '',
+          '确定要取消吗？',
+        ].join('\n')
+      )
+      if (!ok) return
+    }
+
     setSubmitting(true)
     try {
       const res = await fetch(`/api/admin/orders/${selectedOrder.id}`, {
@@ -453,6 +476,9 @@ function OrdersInner() {
       if (data.data?.imported) {
         alert('已保存，并已同步导入到「订单」列表')
       }
+      // 服务端的联动提示：改价同步收款单的异常、取消已付款单时作废了几张发票 / 需红冲 / 返现未扣回等
+      const warnings: string[] = Array.isArray(data.data?.warnings) ? data.data.warnings : []
+      if (warnings.length) alert(`已保存，请留意：\n\n${warnings.join('\n')}`)
 
       closeDetail()
       loadData()
@@ -586,6 +612,9 @@ function OrdersInner() {
                 <div className="text-xl font-bold text-green-700">
                   {totals.profit == null ? '—' : `¥${totals.profit.toFixed(2)}`}
                 </div>
+                {totals.referral != null && totals.referral > 0 && (
+                  <div className="text-[11px] text-green-700/80 mt-0.5">已扣内推返现 ¥{totals.referral.toFixed(2)}</div>
+                )}
               </div>
               {totals.truncated && (
                 <p className="col-span-2 sm:col-span-4 text-xs text-amber-600">
@@ -673,7 +702,14 @@ function OrdersInner() {
                             —
                           </span>
                         ) : (
-                          <span className={order.cardProfit >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                          <span
+                            className={order.cardProfit >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}
+                            title={
+                              order.cardReferral
+                                ? `卡差价 − 内推返现 ¥${order.cardReferral.toFixed(2)}`
+                                : '卡差价（售价 − 成本）'
+                            }
+                          >
                             ¥{order.cardProfit.toFixed(2)}
                           </span>
                         )}

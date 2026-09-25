@@ -18,9 +18,10 @@ export async function GET() {
       prisma.user.count(),
       prisma.product.count(),
       prisma.order.count(),
-      // 总收入：交给数据库 SUM，不再把所有 PAID 订单拉进内存 reduce
+      // 总收入：交给数据库 SUM，不再把所有 PAID 订单拉进内存 reduce。
+      // 排除「已付款 + 已取消」：后台没有退款按钮，线下退款后就是这么标的，钱已经退回去了
       prisma.order.aggregate({
-        where: { payStatus: 'PAID' },
+        where: { payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } },
         _sum: { amount: true },
       }),
       // 最近订单：只取 5 条，并只 select 前端真正用到的字段（避免带出 deliveryInfo 等大字段）

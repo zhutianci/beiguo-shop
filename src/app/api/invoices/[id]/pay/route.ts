@@ -7,6 +7,8 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error } from '@/lib/api'
 import { createOrGetVmqOrder, vmqConfigured, VmqError } from '@/lib/vmq'
 import { assertExternalOrderAccess, BillingError } from '@/lib/order-billing'
+import { assertShopOrderBillable, shopOrderIdOfExt } from '@/lib/order-invoice'
+import { readProofDigests } from '@/lib/email-proof'
 
 const schema = z.object({
   // 匿名「邮箱查订阅」流程的归属凭证，与 POST /api/invoices 同一套
@@ -28,9 +30,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
 
-    // 前端老版本可能不带 body，解析失败按「没给凭证」处理，不能 500
-    const parsed = schema.safeParse(await request.json().catch(() => ({})))
-    const claimedEmail = parsed.success ? parsed.data.accountEmail ?? null : null
+    // body 里的 accountEmail 已不作数（凭证改为邮箱验证码证明，lib/email-proof.ts）；
+    // 仍然解析一下只是为了兼容老前端带 body 的请求，解析失败也不能 500
+    schema.safeParse(await request.json().catch(() => ({})))
 
     /*
      * 【鉴权必须排在一切状态判断之前】否则「不存在 / 存在但不待付 / 存在且待付」
@@ -50,15 +52,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const ext = await prisma.externalOrder.findUnique({
       where: { id: invoice.externalOrderId },
-      select: { id: true, sourceKey: true, claudeAccount: true },
+      select: { id: true, sourceKey: true, claudeAccount: true, shopOrderId: true },
     })
     if (!ext) return deny()
     try {
-      await assertExternalOrderAccess(ext, {
-        userId: user?.id ?? null,
-        userEmail: user?.email ?? null,
-        claimedEmail,
-      })
+      await assertExternalOrderAccess(ext, { user, proofDigests: await readProofDigests() })
     } catch {
       return deny()
     }
@@ -68,6 +66,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return error('该发票无需支付')
     }
     if (invoice.taxFee == null) return error('发票金额异常')
+    // 关联的站内订单已取消（线下退款）/ 已退款：不再收这张发票的税费（抛 409，下面 catch 转成响应）
+    await assertShopOrderBillable(shopOrderIdOfExt(ext))
 
     const vmq = await createOrGetVmqOrder({
       bizType: 'invoice',

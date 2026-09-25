@@ -5,6 +5,7 @@
  * 每一个运行时依赖都要算账。解析只需要覆盖 RSS 2.0 与 Atom 两种主流格式。
  */
 import crypto from 'crypto'
+import { safeGet, SafeFetchError, TIMEOUT_MESSAGE, UnsafeTargetError } from '../safe-fetch'
 
 export interface FeedEntry {
   guid: string
@@ -28,6 +29,40 @@ export class FetchFeedError extends Error {
 }
 
 /**
+ * 流式读取、按字节截断。以前是 res.text() 整包读完再 slice：Content-Length 缺省（chunked）时
+ * 上限根本不生效，一个不停吐数据的响应只受超时约束，3 路并发就能把 1.8G 的机器推向 OOM（审计 G32）。
+ * TextDecoder 默认行为与 res.text() 一致（UTF-8、去 BOM）。
+ */
+async function readCapped(res: Response, max: number): Promise<string> {
+  const reader = res.body?.getReader()
+  if (!reader) return ''
+  const decoder = new TextDecoder('utf-8')
+  let out = ''
+  let got = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    const part = value.byteLength > max - got ? value.subarray(0, max - got) : value
+    got += part.byteLength
+    out += decoder.decode(part, { stream: true })
+    if (got >= max) {
+      await reader.cancel().catch(() => {})
+      break
+    }
+  }
+  return out + decoder.decode()
+}
+
+export interface FetchTextOptions {
+  /**
+   * 地址来自第三方（线索的原文链接、RSS 条目的 link、后台手填的新信源）时必须传 true：
+   * 改走 lib/safe-fetch，建连时校验 DNS 解析结果、手动跟跳转并逐跳校验，指向内网一律拒绝（审计 G32 / G33）。
+   * 不传的只剩 collect 抓后台已配置的信源与中继（公网 workers.dev），行为与以前一致。
+   */
+  publicOnly?: boolean
+}
+
+/**
  * 抓取文本，带超时、体积上限与 UA。境外源应传入中继后的 URL。
  * headers 用于个别源要带额外请求头的情况（如 AIHOT 线索要带授权号），传入的键会覆盖默认值。
  *
@@ -40,16 +75,24 @@ export class FetchFeedError extends Error {
  * 抓的是**每小时都在变的外部内容**，缓存在这里没有任何意义，只会把某一秒的意外冻成永久状态。
  * 路由段上的 dynamic='force-dynamic' 挡不住这里 —— 别指望它，就在发请求的地方写死。
  */
-export async function fetchText(url: string, timeoutMs = 8000, headers?: Record<string, string>): Promise<string> {
+export async function fetchText(
+  url: string,
+  timeoutMs = 8000,
+  headers?: Record<string, string>,
+  opts: FetchTextOptions = {}
+): Promise<string> {
+  const mergedHeaders = {
+    'User-Agent': UA,
+    Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, application/json;q=0.9, */*;q=0.8',
+    ...(headers || {}),
+  }
+  if (opts.publicOnly) return fetchTextPublic(url, timeoutMs, mergedHeaders)
+
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), timeoutMs)
   try {
     const res = await fetch(url, {
-      headers: {
-        'User-Agent': UA,
-        Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, application/json;q=0.9, */*;q=0.8',
-        ...(headers || {}),
-      },
+      headers: mergedHeaders,
       signal: ac.signal,
       redirect: 'follow',
       /*
@@ -66,15 +109,33 @@ export async function fetchText(url: string, timeoutMs = 8000, headers?: Record<
     const len = Number(res.headers.get('content-length') || 0)
     if (len && len > MAX_BYTES) throw new FetchFeedError(`响应过大 ${len} 字节`, res.status)
 
-    const text = await res.text()
-    if (text.length > MAX_BYTES) return text.slice(0, MAX_BYTES)
-    return text
+    return await readCapped(res, MAX_BYTES)
   } catch (e) {
     if (e instanceof FetchFeedError) throw e
     const msg = e instanceof Error ? e.message : String(e)
     throw new FetchFeedError(msg.includes('abort') ? `超时 ${timeoutMs}ms` : msg)
   } finally {
     clearTimeout(timer)
+  }
+}
+
+/** publicOnly 分支：错误统一翻成 FetchFeedError，调用方（collect 日志 / 测试信源 / 正文抓取）不用改 */
+async function fetchTextPublic(url: string, timeoutMs: number, headers: Record<string, string>): Promise<string> {
+  try {
+    const r = await safeGet(url, { timeoutMs, maxBytes: MAX_BYTES, maxRedirects: 5, headers })
+    if (r.status < 200 || r.status >= 300) throw new FetchFeedError(`HTTP ${r.status}`, r.status)
+    const len = Number(r.headers['content-length'] || 0)
+    if (len && len > MAX_BYTES) throw new FetchFeedError(`响应过大 ${len} 字节`, r.status)
+    return r.body
+  } catch (e) {
+    if (e instanceof FetchFeedError) throw e
+    if (e instanceof UnsafeTargetError || (e as { code?: string })?.code === 'ESSRF') {
+      throw new FetchFeedError((e as Error).message)
+    }
+    if (e instanceof SafeFetchError) {
+      throw new FetchFeedError(e.message === TIMEOUT_MESSAGE ? `超时 ${timeoutMs}ms` : e.message, e.status)
+    }
+    throw new FetchFeedError(e instanceof Error ? e.message : String(e))
   }
 }
 

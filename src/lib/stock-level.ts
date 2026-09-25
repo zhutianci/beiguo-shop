@@ -19,6 +19,24 @@
  * 前台档位怎么显示都不影响那道校验，也**不要**拿这里的结果去做任何校验。
  */
 
+/**
+ * 对外下发（API JSON / RSC props）的库存值：把真实库存量化成档位代表值。
+ *
+ * 【为什么】上面那段「不给数字」以前只在显示层做到了：/api/products 与商品页的 RSC props
+ * 下发的仍是精确 stock（AUTO 商品就是未用卡密的精确张数），匿名 curl 就能拿到（2026-09-26 审计 G22）。
+ * 保证对任意整数 x：stockLevel(publicStock(x)) 与 stockLevel(x) 完全相同，
+ * 且 -1 / <=0 / >0 三类不变（JSON-LD availability、inStock 口径不受影响）。
+ * 下单校验、后台、通知一律继续用数据库真实值，不要用这里的结果。
+ */
+export function publicStock(stock: number): number {
+  if (stock === -1) return -1
+  if (stock <= 0) return 0
+  if (stock === 1) return 1
+  if (stock <= 5) return 5
+  if (stock <= 10) return 10
+  return 11
+}
+
 export type StockTone = 'none' | 'low' | 'mid' | 'high' | 'unlimited'
 
 export interface StockLevel {

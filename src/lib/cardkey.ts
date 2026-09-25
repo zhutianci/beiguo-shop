@@ -71,8 +71,15 @@ export function maskSecret(plain: string): string {
 
 // 自动发货商品：库存 = 未使用卡密数量
 export async function syncAutoStock(productId: number) {
-  const p = await prisma.product.findUnique({ where: { id: productId }, select: { deliveryType: true } })
-  if (!p || p.deliveryType !== 'AUTO') return
-  const unused = await prisma.cardKey.count({ where: { productId, status: 'UNUSED' } })
-  await prisma.product.update({ where: { id: productId }, data: { stock: unused } })
+  /*
+   * 单语句「数 + 写」：原来 count 和 update 分两步，并发发卡 / 导入时晚到的旧计数会盖掉新的，
+   * 前台库存短暂偏高（可能多卖）。delivery_type 条件等价于原来的「非 AUTO 直接返回」。
+   * updated_at 手写：@updatedAt 由 Prisma 客户端维护，原生 SQL 不会自动刷新（sitemap 用它做商品 lastmod，保持原行为）；
+   * 传 JS Date 的写法同 lib/marketing/worker.ts。
+   */
+  await prisma.$executeRaw`
+    UPDATE products
+       SET stock = (SELECT COUNT(*) FROM card_keys WHERE product_id = ${productId} AND status = 'UNUSED'),
+           updated_at = ${new Date()}
+     WHERE id = ${productId} AND delivery_type = 'AUTO'`
 }

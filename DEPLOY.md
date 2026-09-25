@@ -117,26 +117,16 @@ openssl rand -base64 24
 
 ---
 
-## 五、一键部署
+## 五、部署（scripts/deploy.sh 已停用）
 
-```bash
-chmod +x scripts/deploy.sh
-bash scripts/deploy.sh
-```
+`scripts/deploy.sh` 已于 2026-09-26 停用：它先换镜像后建列、用 `--accept-data-loss` 执行 db push（旧 schema 会静默删表删列）、
+在 1.8G 机器前台构建会 OOM，还会跑 seed 建出公开默认密码的管理员。
 
-部署过程：
-1. 构建 Docker 镜像（首次需要 3-10 分钟）
-2. 启动 MySQL + 应用 + Nginx
-3. 初始化数据库
-4. 询问是否初始化种子数据 → **首次部署输入 `y`**
+首次安装与日常更新都按 `docs/交接-进度与待办.md` 第十一节 / 第十四节的部署清单手工执行：
+备份并校验 → 临时容器 `prisma migrate diff` 预览（零 DROP）→ 不带 `--accept-data-loss` 执行 db push → 后台 build app → `up -d app` → 冒烟。
 
-部署完成后访问：
-
-- 网站：`http://你的服务器IP`
-- 后台：`http://你的服务器IP/admin`
-- 默认管理员：`admin@example.com` / `admin123`
-
-**⚠️ 重要：首次登录后立即修改密码！**
+**首个管理员**：先在前台用真实邮箱正常注册（这样能走找回密码），再在库里执行
+`UPDATE users SET role='ADMIN' WHERE email='<你的邮箱>';`。`prisma/seed.ts` 只能在库名含 dev/test 的一次性开发库上跑。
 
 ---
 
@@ -183,14 +173,10 @@ docker compose --env-file .env.production up -d
 cd /opt/beiguo
 git pull
 docker compose --env-file .env.production build app
-docker compose --env-file .env.production up -d
+docker compose --env-file .env.production up -d app
 ```
 
-或直接运行部署脚本：
-
-```bash
-bash scripts/deploy.sh
-```
+有 schema 变更时先按部署清单执行 DDL（db push），再 build；只 `up -d app`，db / nginx / cloudflared 没改就别重启。
 
 ### 数据库备份
 

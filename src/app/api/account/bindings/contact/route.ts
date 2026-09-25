@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, unauthorized } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
+import { hasAccountAccess } from '@/lib/email-proof'
 
 const schema = z
   .object({
@@ -36,6 +37,8 @@ export async function POST(request: NextRequest) {
       where: { userId_accountEmail: { userId: user.id, accountEmail: account } },
     })
     if (!binding) return error('请先绑定该账户', 403)
+    // 未验证的绑定不能改提醒去向：否则绑上别人的邮箱就能把他的续费提醒改发到自己这里（审计 G14）
+    if (!(await hasAccountAccess(account, user, new Set()))) return error('请先完成该账户的邮箱验证', 403)
 
     const email = d.email?.trim() || account
     const phone = d.phone?.trim() || ''

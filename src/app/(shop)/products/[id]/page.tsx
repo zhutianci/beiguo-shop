@@ -22,6 +22,7 @@ import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getLandingProducts } from '@/lib/landing/products'
 import { buildProductIntro, isAccountProduct } from '@/lib/product-intro'
 import { ProductIntroSection } from '@/components/products/product-intro'
+import { publicStock } from '@/lib/stock-level'
 
 /**
  * 商品详情页。
@@ -120,7 +121,7 @@ const getProduct = cache(
           features: p.features,
           // image 要跟着一起下发：详情页主视觉用它，漏了就永远是渐变块
           image: p.image,
-          stock: p.stock,
+          stock: publicStock(p.stock), // RSC props 会进页面源码：只给档位代表值（lib/stock-level.ts）
           sales: p.sales,
           deliveryType: p.deliveryType ?? undefined,
           category: p.category ?? { id: 0, name: '' },

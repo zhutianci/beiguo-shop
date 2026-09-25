@@ -4,7 +4,8 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { resolveActor } from '@/lib/forum'
+import { resolveActor, memberDisplayName } from '@/lib/forum'
+import { forumWriteGate } from '@/lib/forum-throttle'
 
 // 评论列表（楼中楼，两层结构）
 // 顶层评论分页，楼中楼回复跟随其父评论一起返回（不单独分页）
@@ -63,7 +64,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       id: c.id,
       parentId: c.parentId,
       content: c.content,
-      authorName: c.authorName,
+      // 会员按当前昵称现算：库里旧快照可能是邮箱前缀（审计 G48）
+      authorName: c.userId ? memberDisplayName(c.user?.nickname, c.userId) : c.authorName,
       avatar: c.user?.avatar || null,
       isMember: !!c.userId,
       likeCount: c.likeCount,
@@ -127,6 +129,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       // 楼中楼只保留两层：回复某条回复时归到其顶层父级
       if (parent.parentId) d.parentId = parent.parentId
     }
+
+    // 限流放在校验之后、落库之前：校验失败不消耗额度（审计 G44，阈值见 lib/forum-throttle）
+    const denied = forumWriteGate(request.headers, actor, 'comment')
+    if (denied) return error(denied, 429)
 
     let authorName = actor.nickname
     if (!actor.userId) authorName = (d.anonName || '').trim() || '匿名用户'

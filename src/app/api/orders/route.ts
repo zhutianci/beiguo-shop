@@ -9,7 +9,9 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { generateOrderNo } from '@/lib/utils'
 import { decryptCardContent } from '@/lib/cardkey'
-import { effectiveBasePrice } from '@/lib/referral'
+import { effectiveBasePrice, referralSellUnit } from '@/lib/referral'
+import { countOpenOrderPayments, VMQ_MAX_OPEN_PER_USER, VMQ_TIMEOUT_MIN } from '@/lib/vmq'
+import { rateLimited } from '@/lib/news/rate-limit'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { shopOrderSourceKey } from '@/lib/order-billing'
 import { BillingError } from '@/lib/order-invoice'
@@ -36,9 +38,12 @@ const createOrderSchema = z.object({
     .number({ invalid_type_error: '购买数量必须是数字' })
     .int('购买数量必须是整数')
     .min(1, '购买数量至少为 1')
-    .max(999, '单次最多购买 999 件')
+    // 以前是 999：改数量就能二分出精确库存（「库存不足」在建单前返回）。前台固定只买 1 件（purchase-modal.tsx）
+    .max(10, '单次最多购买 10 件，更多请联系客服')
     .default(1),
-  remark: z.string().optional(),
+  // Order.remark 是 VarChar(255)，而履约、接码会往后追加运维备注（lib/sms.ts appendRemark 会截断）。
+  // 前台只发「支付方式: 支付宝」十来个字；这里给 200 字上限，自己构造超长备注的请求直接拦下
+  remark: z.string().max(200, '备注最多 200 字').optional(),
   ref: z.string().trim().optional().nullable(), // 内推码
   /** 要使用的券实例 id（CouponGrant.id）。只对本人有效，服务端会校验归属 */
   couponGrantId: z.number().int().positive().optional().nullable(),
@@ -144,10 +149,16 @@ export async function GET(request: NextRequest) {
     // 之所以把卡密拼进 URL：买家从订单页点过去就已经填好了，少一次复制粘贴。
     // 这个链接本身不构成泄漏 —— 能看到这个页面的人本来就已经看到卡密明文了。
     const paidIds = orders.filter((o) => o.payStatus === 'PAID').map((o) => o.id)
+    // 卡密只随「已付款且未取消」的订单下发。已付款又被取消 = 线下退款的惯例做法，
+    // 钱退了卡就不该再展示（站内兑换也会拒，见 lib/redeem/service.ts）。
+    // 发票 / 收据查询仍用 paidIds：已经开出去的票买家还要能看到
+    const cardOrderIds = orders
+      .filter((o) => o.payStatus === 'PAID' && o.deliveryStatus !== 'CANCELLED')
+      .map((o) => o.id)
     const cardMap = new Map<number, { secret: string; redeemUrl: string | null; inSite: boolean }[]>()
-    if (paidIds.length) {
+    if (cardOrderIds.length) {
       const cards = await prisma.cardKey.findMany({
-        where: { orderId: { in: paidIds }, status: 'USED' },
+        where: { orderId: { in: cardOrderIds }, status: 'USED' },
         orderBy: { id: 'asc' },
       })
       for (const c of cards) {
@@ -272,8 +283,19 @@ export async function GET(request: NextRequest) {
       const invoicePaid = !!paidInv || prepaidTax
       const items = cardMap.get(o.id) || []
       const lottery = lotteryMap.get(o.id) ?? null
+      /*
+       * 【cardUsage / cardRedeemUrl 只随已发出的卡下发】这两个字段是发货说明和兑换外链，
+       * 里面有上游货源站（见 lib/product-select.ts 的注释），公开商品接口早就不给了。
+       * 这里原来对未付款、已取消的订单也原样下发，等于注册个号、下一单不付钱就能拿到货源站。
+       * 前台只在「有卡密」时才用这两个值（orders/page.tsx 的 hasCards 分支），
+       * 所以按 items 是否非空来判断，买家可见的行为不变。
+       */
+      const delivered = items.length > 0
+      // 已付款又被取消（线下退款）：不能再申请发票 / 收据（服务端 lib/order-invoice 另有闸门兜底）
+      const voided = o.deliveryStatus === 'CANCELLED'
       return {
         ...o,
+        product: delivered ? o.product : { ...o.product, cardUsage: null, cardRedeemUrl: null },
         invoiceTaxFee: pendingTax || null,
         /** 未支付订单的实际应付 = 货款 + 下单时勾选的开票税费 */
         payable: Math.round((price + pendingTax) * 100) / 100,
@@ -287,8 +309,8 @@ export async function GET(request: NextRequest) {
         // 票据信息（仅已支付订单可申请）
         billing: paid
           ? {
-              canInvoice: price > 0,
-              canReceipt: price > 0,
+              canInvoice: price > 0 && !voided,
+              canReceipt: price > 0 && !voided,
               sellingPrice: price,
               invoiceAmount: amt!.invoiceAmount,
               taxFee: amt!.taxFee,
@@ -383,6 +405,26 @@ export async function POST(request: NextRequest) {
       return error('库存不足')
     }
 
+    /*
+     * 【每人同时挂着的待付款有上限 + 下单频率】收款靠「唯一金额」区分是谁付的，同一价位附近只有 50 格、
+     * 全站共用（lib/vmq.ts allocateAmount）。一个账号建几十单并各自发起支付，就能把真实买家挤到
+     * 「当前下单人数较多」。发起支付那一步（api/pay/vmq/create）有同样的上限和事后复核；
+     * 这里先挡一次，免得建出一张付不了的单、还把券锁上。
+     * 两道 return 都必须排在下面优惠券 CAS 抢锁之前（锁券之后不能再有 return）。
+     * 数的是「有效期内的待支付收款单」而不是 UNPAID 订单：没发起过支付的订单永远不会被自动取消，
+     * 数订单的话放弃过订单的正常买家会被永久锁住。
+     */
+    if ((await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) {
+      return error(
+        `你已有 ${VMQ_MAX_OPEN_PER_USER} 笔订单在等待付款，请先在「我的订单」完成支付，或等其超时（约 ${VMQ_TIMEOUT_MIN} 分钟）后再下单`,
+        429
+      )
+    }
+    // 防刷单、防企业微信「新订单」刷屏；正常买家 10 分钟不可能下 20 单
+    if (rateLimited(`order-create:${user.id}`, { windowMs: 10 * 60_000, max: 20 })) {
+      return error('下单过于频繁，请稍后再试', 429)
+    }
+
     // 内推：通过推广人链接下单，使用其「专属价」，差额作为返现归推广人
     const base = Number(product.price)
     let unitPrice = base
@@ -397,10 +439,16 @@ export async function POST(request: NextRequest) {
         const rp = await prisma.referralPrice.findUnique({
           where: { userId_productId: { userId: referrer.id, productId } },
         })
-        // 专属价默认 = 网站售价（推广人未单独设价时也按网站价卖）
-        const sellUnit = rp ? Number(rp.price) : base
         // 返现 = 售卖价 − 我给推广人的基础价
         const effBase = (await effectiveBasePrice(referrer.id, productId)) ?? base
+        // 专属价默认 = 网站售价（推广人未单独设价时也按网站价卖）；
+        // 专属价低于「当前」基础价（站长保存后又涨了价）→ 按基础价成交、返现为 0（lib/referral.ts referralSellUnit）
+        const sellUnit = referralSellUnit(rp ? Number(rp.price) : null, effBase, base)
+        if (rp && sellUnit !== Number(rp.price)) {
+          console.warn(
+            `[referral] 专属价低于基础价，按基础价成交 referrer=${referrer.id} product=${productId} rp=${rp.price} base=${effBase}`
+          )
+        }
         unitPrice = sellUnit
         referrerId = referrer.id
         const per = Math.max(0, Math.round((sellUnit - effBase) * 100) / 100)

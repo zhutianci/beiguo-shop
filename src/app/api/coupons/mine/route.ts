@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { quoteOrder, couponLabel, grantUsable, parseProductIds, rejectReason, type GrantState } from '@/lib/coupon'
+import { effectiveBasePrice, referralSellUnit } from '@/lib/referral'
 
 /**
  * 我的券。个人中心与结算页共用这一个接口。
@@ -93,8 +94,9 @@ export async function GET(request: NextRequest) {
           const rp = await prisma.referralPrice.findUnique({
             where: { userId_productId: { userId: referrer.id, productId } },
           })
-          // 推广人没单独设价时按网站定价卖，与下单接口口径一致
-          referralUnitPrice = rp ? Number(rp.price) : listPrice
+          // 推广人没单独设价时按网站定价卖；专属价低于当前基础价时按基础价 —— 与下单接口同一个函数、同一口径
+          const effBase = rp ? ((await effectiveBasePrice(referrer.id, productId)) ?? listPrice) : listPrice
+          referralUnitPrice = referralSellUnit(rp ? Number(rp.price) : null, effBase, listPrice)
         }
       }
     }

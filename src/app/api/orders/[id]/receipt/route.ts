@@ -34,6 +34,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     })
     if (!order || order.userId !== user.id) return notFound('订单不存在')
     if (order.payStatus !== 'PAID') return error('订单支付后才能申请收据')
+    // 已付款又被取消 = 线下退款的惯例做法。提前给明确提示；lib 里的 assertShopOrderBillable / settlePrepaid 兜底
+    if (order.deliveryStatus === 'CANCELLED') return error('订单已取消（已退款），不能申请收据', 409)
 
     const body = await request.json()
     const parsed = schema.safeParse(body)
