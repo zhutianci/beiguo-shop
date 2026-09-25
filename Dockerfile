@@ -24,7 +24,12 @@ COPY . .
 RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED 1
-RUN npm run build
+# 【构建限堆】生产机只有 1.8G、swappiness=0（几乎不用 swap），而构建进程挂在 dockerd 下（oom_score_adj -500，
+# 被保护）。不限堆时 next build 会一路长到超过机器空闲内存，内核 OOM 就先杀正在跑的站点容器
+# （2026-09-25 实测：beiguo-app、jishi-app、两个 cloudflared 被杀，停摆约 20 秒），构建也被连带取消。
+# 限到 640MB：GC 勤一点，编译照样能过（本地实测 512MB 就够，768MB 时类型检查会爆 —— 所以类型检查已挪到本地，
+# 见 next.config.js 的 typescript.ignoreBuildErrors）。只作用于这一步，不影响运行时容器。
+RUN NODE_OPTIONS=--max-old-space-size=640 npm run build
 
 # Stage 3: Runner
 FROM node:20-alpine AS runner
