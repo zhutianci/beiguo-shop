@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import { getAnonId } from '@/lib/forum-client'
+import { classifyReferrer, EMAIL_REFERRER_MARKER } from '@/lib/analytics/classify'
 
 /**
  * 站级浏览上报。挂在 (shop)/layout.tsx 上，前台每个页面都会跑。
@@ -61,6 +62,29 @@ const ENTRY_REF_KEY = 'bg_entry_ref'
 let resolved: { v: string | undefined } | null = null
 
 /**
+ * 落地 URL 是否带 utm_medium=email（营销邮件里的链接都带，见 lib/marketing/snapshot.ts）。
+ *
+ * 【必须在模块加载时取，不能等上报时再读 location】上报在停留 3 秒之后；
+ * 买家 3 秒内点进了别的页面的话，那时的 location.search 已经是新页面的，utm 早没了。
+ * 这个模块随前台布局在文档加载时执行，此刻的地址就是落地地址。
+ */
+const LANDED_FROM_EMAIL: boolean = (() => {
+  try {
+    return typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('utm_medium')?.toLowerCase() === 'email'
+  } catch {
+    return false
+  }
+})()
+
+/**
+ * 邮件带来的访问该记成什么入口 referrer：网页邮箱本身带了 referrer（mail.qq.com 等）就保留它，
+ * 仪表盘能看到是哪家邮箱；邮件客户端点开不带 referrer，或者中间隔了一层安全网关的跳转，就用标记。
+ */
+function emailEntry(raw: string, fromOutside: boolean): string {
+  return fromOutside && classifyReferrer(raw).source === 'email' ? raw : EMAIL_REFERRER_MARKER
+}
+
+/**
  * 本次访问的**入口** referrer。
  *
  * 【为什么不能直接用 document.referrer】这是上线当天就踩到的坑，而且踩得很隐蔽。
@@ -83,6 +107,9 @@ let resolved: { v: string | undefined } | null = null
  *
  * sessionStorage 被禁用（隐私模式、某些内置浏览器）时退回 document.referrer，
  * 也就是退回到旧行为：统计精度略降，但不会报错、不会丢数据。
+ *
+ * 【从营销邮件点进来】落地 URL 带 utm_medium=email 时同样算一次新的获客，覆盖缓存：
+ * 入口记成网页邮箱的 referrer 或标记 'utm:email'，服务端据此归为「邮件」来源。
  */
 function entryReferrer(): string | undefined {
   if (resolved) return resolved.v
@@ -90,7 +117,10 @@ function entryReferrer(): string | undefined {
   const fromOutside = raw !== '' && !raw.startsWith(`${location.origin}/`) && raw !== location.origin
   let v: string | undefined
   try {
-    if (fromOutside) {
+    if (LANDED_FROM_EMAIL) {
+      v = emailEntry(raw, fromOutside)
+      sessionStorage.setItem(ENTRY_REF_KEY, v)
+    } else if (fromOutside) {
       sessionStorage.setItem(ENTRY_REF_KEY, raw)
       v = raw
     } else {
@@ -104,7 +134,7 @@ function entryReferrer(): string | undefined {
       }
     }
   } catch {
-    v = raw || undefined
+    v = LANDED_FROM_EMAIL ? emailEntry(raw, fromOutside) : raw || undefined
   }
   resolved = { v }
   return v

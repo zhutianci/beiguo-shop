@@ -339,6 +339,9 @@ const SOURCE_META: Record<string, { label: string; color: string }> = {
   // AI 助手单列一类：上线埋点第一天 chatgpt.com 就是最大的外部来源，
   // 混进「社交」或「外链引荐」等于看不见这条渠道
   ai: { label: 'AI 助手 / AI 搜索', color: '#ec4899' },
+  // 营销邮件与交易邮件里的链接：网页邮箱的 referrer + 落地 URL 带 utm_medium=email 的访问
+  //（口径见 lib/analytics/classify.ts 的 WEBMAIL_HOSTS / EMAIL_REFERRER_MARKER）
+  email: { label: '邮件', color: '#ef4444' },
   direct: { label: '直接访问', color: '#9ca3af' },
   social: { label: '社交 / 社区', color: '#8b5cf6' },
   referral: { label: '外链引荐', color: '#f59e0b' },

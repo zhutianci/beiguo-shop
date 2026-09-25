@@ -1,7 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Check, Copy, Loader2, Plus, Search, Ticket } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,8 +15,13 @@ import { Input } from '@/components/ui/input'
  * 已锁定（挂在待支付订单上）和已核销的券不动 —— 前者的订单金额已经是优惠后的，
  * 作废掉会让买家按优惠价付了款却没有核销记录，对账对不上。
  *
- * 【两类批次分开看】默认只列后台建的公开领取批次；「抽奖发放」是「下单有奖」中奖时
- * 系统自动建的单张批次（一次中奖一批，只发给中奖人），没有领取链接、也不能加量。
+ * 【三类批次分开看】默认只列后台建的公开领取批次；「抽奖发放」是「下单有奖」中奖时
+ * 系统自动建的单张批次（一次中奖一批，只发给中奖人）；「邮件直发」是营销活动发信前
+ * 系统逐个放进收件人账户的批次（一个活动一批，source='CAMPAIGN'）。后两类都是系统批次：
+ * 没有领取链接、也不能加量。
+ *
+ * 【判断来源一律显式比较】以前「source 非空 = 抽奖」，加了 CAMPAIGN 之后这个推断就错了
+ * （营销券会被当成抽奖券显示「中奖人」）。现在每处都写明 === 'LOTTERY' / === 'CAMPAIGN'。
  */
 
 interface CouponRow {
@@ -37,8 +43,14 @@ interface CouponRow {
   note: string | null
   createdAt: string
   stats: { available: number; locked: number; used: number; expired: number; void: number }
-  /** null = 公开领取批次；'LOTTERY' = 抽奖中奖时系统发的单张批次 */
+  /** null = 公开领取批次；'LOTTERY' = 抽奖中奖时系统发的单张批次；'CAMPAIGN' = 营销邮件直发 */
   source: string | null
+  /** 只有 CAMPAIGN 批次有：对应的营销活动 id */
+  campaignId?: number | null
+  /** CAMPAIGN 批次：已核销张数（接口直接给出，与 stats.used 同口径） */
+  usedCount?: number
+  /** CAMPAIGN 批次且「到账后 N 天」模式：N（批次本身 endAt=null，每张券按到账时刻算）；取不到为 null */
+  grantDays?: number | null
   /** 只有公开领取批次有 */
   claimPath: string | null
   /** 只有抽奖批次有：这张券发给了谁 */
@@ -56,16 +68,32 @@ const STATUS_CLS: Record<string, string> = {
   ENDED: 'bg-gray-100 text-gray-500 border-gray-200',
 }
 
+// useSearchParams 必须包在 Suspense 里（与订单页、卡密页同一写法）
 export default function AdminCouponsPage() {
+  return (
+    <Suspense fallback={<div className="py-12 text-center text-gray-400">加载中...</div>}>
+      <AdminCouponsInner />
+    </Suspense>
+  )
+}
+
+type SourceFilter = '' | 'LOTTERY' | 'CAMPAIGN'
+
+function AdminCouponsInner() {
+  const sp = useSearchParams()
   const [list, setList] = useState<CouponRow[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [keyword, setKeyword] = useState('')
+  // 深链：营销报表里「直发券 已发 N / 已用 M」会带 ?source=CAMPAIGN&keyword=<短码> 过来
+  const [keyword, setKeyword] = useState(() => sp.get('keyword') || '')
   const [status, setStatus] = useState('')
-  // '' = 公开领取批次（默认）；'LOTTERY' = 抽奖发放
-  const [source, setSource] = useState('')
-  const [sourceCounts, setSourceCounts] = useState<{ normal: number; lottery: number } | null>(null)
+  // '' = 公开领取批次（默认）；'LOTTERY' = 抽奖发放；'CAMPAIGN' = 营销邮件直发
+  const [source, setSource] = useState<SourceFilter>(() => {
+    const v = sp.get('source')
+    return v === 'LOTTERY' || v === 'CAMPAIGN' ? v : ''
+  })
+  const [sourceCounts, setSourceCounts] = useState<{ normal: number; lottery: number; campaign?: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<number | null>(null)
@@ -146,7 +174,7 @@ export default function AdminCouponsPage() {
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (setPage(1), load())}
-                placeholder={source === 'LOTTERY' ? '搜券名、短码或订单号' : '搜活动名或短码'}
+                placeholder={source === 'LOTTERY' ? '搜券名、短码或订单号' : source === 'CAMPAIGN' ? '搜券名、短码或活动编号' : '搜活动名或短码'}
                 className="w-56 rounded-lg border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-primary-500 focus:outline-none"
               />
             </div>
@@ -166,15 +194,24 @@ export default function AdminCouponsPage() {
             <select
               value={source}
               onChange={(e) => {
-                setSource(e.target.value)
+                setSource(e.target.value as SourceFilter)
                 setPage(1)
               }}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm"
             >
               <option value="">{`普通领取批次${sourceCounts ? `（${sourceCounts.normal}）` : ''}`}</option>
               <option value="LOTTERY">{`抽奖发放${sourceCounts ? `（${sourceCounts.lottery}）` : ''}`}</option>
+              <option value="CAMPAIGN">{`邮件直发${sourceCounts?.campaign != null ? `（${sourceCounts.campaign}）` : ''}`}</option>
             </select>
-            {source === 'LOTTERY' ? (
+            {source === 'CAMPAIGN' ? (
+              <span className="ml-auto text-xs text-gray-400">
+                营销活动发信前由系统放进收件人账户，一个活动一批，券面额在
+                <Link href="/admin/marketing" className="mx-0.5 text-primary-600 hover:underline">
+                  营销推广
+                </Link>
+                的优惠券区块里设置
+              </span>
+            ) : source === 'LOTTERY' ? (
               <span className="ml-auto text-xs text-gray-400">
                 中奖时由系统自动发放，奖项在
                 <Link href="/admin/lottery" className="mx-0.5 text-primary-600 hover:underline">
@@ -196,7 +233,11 @@ export default function AdminCouponsPage() {
             </div>
           ) : list.length === 0 ? (
             <p className="py-12 text-center text-sm text-gray-400">
-              {source === 'LOTTERY' ? '还没有抽奖发出的券。' : '还没有优惠券，点右上角建一批。'}
+              {source === 'LOTTERY'
+                ? '还没有抽奖发出的券。'
+                : source === 'CAMPAIGN'
+                  ? '还没有营销邮件直发的券。'
+                  : '还没有优惠券，点右上角建一批。'}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -205,7 +246,7 @@ export default function AdminCouponsPage() {
                   <tr className="border-b border-gray-200 text-left text-xs text-gray-500">
                     <th className="px-3 py-2">活动</th>
                     <th className="px-3 py-2">规则</th>
-                    <th className="px-3 py-2">{source === 'LOTTERY' ? '中奖人' : '领取情况'}</th>
+                    <th className="px-3 py-2">{source === 'LOTTERY' ? '中奖人' : source === 'CAMPAIGN' ? '发放情况' : '领取情况'}</th>
                     <th className="px-3 py-2">核销</th>
                     <th className="px-3 py-2">有效期</th>
                     <th className="px-3 py-2">状态</th>
@@ -214,13 +255,16 @@ export default function AdminCouponsPage() {
                 </thead>
                 <tbody>
                   {list.map((r) => {
-                    const fromLottery = r.source != null
+                    // 来源显式比较，不再用「source 非空」推断（见文件头）
+                    const fromLottery = r.source === 'LOTTERY'
+                    const fromCampaign = r.source === 'CAMPAIGN'
+                    const systemBatch = r.source != null
                     return (
                       <tr key={r.id} className="border-b border-gray-100 align-top">
                         <td className="px-3 py-3">
                           <div className="font-medium text-gray-900">{r.name}</div>
-                          {/* 抽奖券的名称就是买家在「我的优惠券」里看到的那一行，标出来免得被当成后台内部名 */}
-                          {fromLottery && <div className="mt-0.5 text-xs text-gray-400">买家看到的券名</div>}
+                          {/* 系统券的名称就是买家在「我的优惠券」里看到的那一行，标出来免得被当成后台内部名 */}
+                          {systemBatch && <div className="mt-0.5 text-xs text-gray-400">买家看到的券名</div>}
                           <div className="mt-0.5 font-mono text-xs text-gray-400">{r.code}</div>
                           {r.note && <div className="mt-1 max-w-[200px] text-xs text-gray-400">{r.note}</div>}
                         </td>
@@ -230,7 +274,21 @@ export default function AdminCouponsPage() {
                             <div className="mt-0.5 text-xs text-gray-400">限商品 {r.productIds.join(', ')}</div>
                           )}
                         </td>
-                        {fromLottery ? (
+                        {fromCampaign ? (
+                          <td className="px-3 py-3 text-xs tabular-nums">
+                            <div className="text-gray-800">
+                              已发 <span className="font-medium">{r.claimed}</span> / 已用{' '}
+                              <span className="font-medium">{r.usedCount ?? r.stats.used}</span>
+                            </div>
+                            {r.campaignId ? (
+                              <Link href={`/admin/marketing/${r.campaignId}`} className="mt-0.5 inline-block text-primary-600 hover:underline">
+                                营销活动 #{r.campaignId} →
+                              </Link>
+                            ) : (
+                              <div className="mt-0.5 text-gray-400">未关联活动</div>
+                            )}
+                          </td>
+                        ) : fromLottery ? (
                           <td className="px-3 py-3 text-xs">
                             {r.winner ? (
                               <>
@@ -259,7 +317,14 @@ export default function AdminCouponsPage() {
                         </td>
                         <td className="px-3 py-3 text-xs text-gray-500">
                           {r.forever ? (
-                            <span className="text-emerald-600">长期有效</span>
+                            // 审查 C25：营销直发的「到账后 N 天」批次没有截止时间，但每张券会过期 —— 不能显示「长期有效」
+                            fromCampaign ? (
+                              <span className="text-gray-600">
+                                {r.grantDays ? `到账后 ${r.grantDays} 天内有效（按张计算）` : '按张计算（到账后 N 天，见活动）'}
+                              </span>
+                            ) : (
+                              <span className="text-emerald-600">长期有效</span>
+                            )
                           ) : (
                             new Date(r.endAt as string).toLocaleString('zh-CN', {
                               year: 'numeric',
@@ -276,7 +341,17 @@ export default function AdminCouponsPage() {
                           </span>
                         </td>
                         <td className="px-3 py-3">
-                          {fromLottery ? (
+                          {fromCampaign ? (
+                            // 营销券不在这里作废：邮件已经告诉收件人「券已放入账户」，作废等于食言；
+                            // 要停止继续发券，去活动页暂停或取消（已发出的券保留，与邮件承诺一致）
+                            r.campaignId ? (
+                              <Link href={`/admin/marketing/${r.campaignId}`} className="text-xs text-primary-600 hover:underline">
+                                在活动页管理
+                              </Link>
+                            ) : (
+                              <span className="text-xs text-gray-400">—</span>
+                            )
+                          ) : fromLottery ? (
                             // 抽奖券：没有领取链接、不能加量；「暂停发放」对已发出的券不起作用（暂停的批次已领的仍可用）。
                             // 只留「作废」—— 与「结束活动」同一个接口：只作废未使用的，占用中与已核销的不动
                             r.status !== 'ENDED' ? (

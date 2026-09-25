@@ -46,6 +46,18 @@
 # 每周一 09:00 生成上周周报
 0 9 * * 1 curl -fsS --max-time 540 "http://app:3000/api/cron/news?stage=digest&type=WEEKLY&secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
 
-# 流量数据保留期清理：每天 03:40（低峰）。page_views 90 天、visitors 一年不活跃。
+# 流量与营销数据保留期清理：每天 03:40（低峰）。page_views 90 天、visitors 一年不活跃、
+# 营销邮件事件明细 90 天、营销邮件发送记录 2 年（退订留痕与抑制名单永不删）。
 # 保留期与 /privacy 里对买家的承诺绑定，改这里之前先去改那一页。
 40 3 * * * curl -fsS --max-time 240 "http://app:3000/api/cron/cleanup?secret=$(cat /run/cron_secret)" >> /var/log/cron.log 2>&1
+
+# ---------- 营销推广（邮件）----------
+# 契约见 docs/营销推广-设计.md。两条都是 POST + x-cron-secret 头（密钥不进 URL，不进 nginx/Cloudflare 日志）。
+# --max-time 58 而不是别的分钟级任务用的 50：设计里的时间不变量是
+#   「SENDING 回收阈值 5 分钟 > 锁 TTL 3 分钟 > 单趟最长 60 秒」，worker 单趟 35 秒后不再开始新发送、
+#   单封 HTTP 最多 10 秒，最坏 ~45 秒收尾；58 秒仍小于调度间隔，两趟天然不重叠（锁是第二道保险）。
+# 每分钟 发送 worker（每秒至多 1 封、只在发送时段内真的发；不在时段 / 急停 / 关闭时几毫秒就返回）
+* * * * * curl -fsS --max-time 58 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/marketing >> /var/log/cron.log 2>&1
+# 每 5 分钟 阿里云回执与名单同步（投递结果、投诉/退订屏蔽名单、无效地址、账户额度；单趟 ≤45 秒）。
+# worker 发现同步超过 60 分钟没成功会自动急停 —— 这条任务停了，营销发送也会跟着停，这是故意的
+*/5 * * * * curl -fsS --max-time 58 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/marketing-sync >> /var/log/cron.log 2>&1

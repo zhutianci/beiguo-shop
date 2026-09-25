@@ -30,6 +30,9 @@ export type NotifyEvent =
   | 'link.applied'
   | 'cardkey.exported'
   | 'lottery.won'
+  | 'marketing.started'
+  | 'marketing.finished'
+  | 'marketing.paused'
 
 const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.created': { emoji: '🛒', title: '新订单' },
@@ -46,6 +49,10 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'link.applied': { emoji: '🤝', title: '新的友链申请' },
   'cardkey.exported': { emoji: '🔐', title: '卡密被导出' },
   'lottery.won': { emoji: '🧧', title: '下单有奖·有人中奖' },
+  'marketing.started': { emoji: '📣', title: '营销邮件开始发送' },
+  'marketing.finished': { emoji: '✅', title: '营销邮件发送完成' },
+  // 熔断 / 额度用尽 / 反垃圾拒发 / 回执同步中断 —— 默认必须推，否则可能一直停着没人知道
+  'marketing.paused': { emoji: '🛑', title: '营销邮件已自动暂停' },
 }
 
 function webhookUrl(): string {
@@ -558,4 +565,24 @@ export function notifyInvoiceRequestSubmitted(p: {
     ],
     { link: '/admin/invoices', linkText: '前往发票管理', extraTitle: '开票填写链接' }
   )
+}
+
+/**
+ * 营销邮件的三类通知：开始 / 完成 / 自动暂停（含全局急停）。只按活动推，绝不按封推。
+ * 不带任何收件人邮箱：statusNote 里可能有阿里云原始报错，先经 plainify 截断。
+ * 注意：生产若配置了 NOTIFY_EVENTS 白名单，需包含 marketing.started / marketing.finished / marketing.paused。
+ */
+export function notifyMarketing(
+  kind: 'started' | 'finished' | 'paused',
+  p: { campaignId: number | null; campaignName?: string | null; rows?: NotifyRow[]; reason?: string | null }
+): void {
+  const rows: NotifyRow[] = []
+  if (p.campaignName) rows.push({ label: '活动', value: plainify(p.campaignName, 60) })
+  if (p.campaignId != null) rows.push({ label: '编号', value: '#' + p.campaignId })
+  if (p.reason) rows.push({ label: '原因', value: plainify(p.reason, 200), color: 'warning' })
+  for (const r of p.rows || []) rows.push({ ...r, value: plainify(r.value, 120) })
+  notify(`marketing.${kind}` as NotifyEvent, rows, {
+    link: p.campaignId != null ? `/admin/marketing/${p.campaignId}` : '/admin/marketing/settings',
+    linkText: '查看营销推广',
+  })
 }

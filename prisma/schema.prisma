@@ -1276,3 +1276,208 @@ model Visitor {
   @@index([lastSeen])
   @@map("visitors")
 }
+
+// ============================================================
+// 营销推广（邮件）—— 契约见 docs/营销推广-设计.md
+// 全部是新增表，不与任何已有表建外键关系（部署只有 CREATE TABLE）。
+// 用于时间比较的字段一律由应用写 new Date()，@default(now()) 只作展示。
+// ============================================================
+
+/// 用户对营销邮件的偏好。没有行 ≡ status=DEFAULT、无主题限制、未暂停。
+model MarketingConsent {
+  id          Int       @id @default(autoincrement())
+  userId      Int       @unique @map("user_id")
+  // DEFAULT 未明确表态（能否发由 marketing_config.defaultEligible 决定）
+  // SUBSCRIBED 用户亲手点过「确认订阅」；UNSUBSCRIBED 已退订。
+  // 只调主题 / 暂停不改变 status —— 否则 opt-out 下的一次微调会被误记成明确同意
+  status      String    @default("DEFAULT") @db.VarChar(16)
+  topicsOff   String?   @map("topics_off") @db.VarChar(64) // 逗号分隔：PROMO,PRODUCT,NEWS
+  pausedUntil DateTime? @map("paused_until")
+  source      String    @db.VarChar(24)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@map("marketing_consents")
+}
+
+/// 告知 / 同意 / 退订留痕。只增不删（隐私政策写明：为证明依法处理而长期保存）。
+model MarketingConsentLog {
+  id            Int      @id @default(autoincrement())
+  userId        Int?     @map("user_id")
+  email         String   @db.VarChar(191)
+  action        String   @db.VarChar(20) // NOTICE | SUBSCRIBE | UNSUBSCRIBE | TOPICS | PAUSE | RESUME
+  detail        String?  @db.VarChar(255)
+  source        String   @db.VarChar(24) // register | profile | token_page | one_click | admin | complaint | aliyun_sync
+  campaignId    Int?     @map("campaign_id")
+  messageId     Int?     @map("message_id")
+  // 取自 cf-connecting-ip：走 Cloudflare 时可信，直连 80 端口时可被伪造
+  ip            String?  @db.VarChar(64)
+  ua            String?  @db.VarChar(255)
+  policyVersion String?  @map("policy_version") @db.VarChar(20)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([email])
+  @@index([messageId])
+  @@index([createdAt])
+  @@map("marketing_consent_logs")
+}
+
+/// 邮箱级抑制名单：命中即永不发营销邮件（与订阅状态无关）。email 一律小写。
+model MarketingSuppression {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique @db.VarChar(191)
+  reason     String   @db.VarChar(20) // HARD_BOUNCE | SOFT_BOUNCE | COMPLAINT | INVALID | MANUAL
+  detail     String?  @db.VarChar(500)
+  source     String   @db.VarChar(24) // send | aliyun_sync | admin
+  campaignId Int?     @map("campaign_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([reason])
+  @@map("marketing_suppressions")
+}
+
+/// 另存的模板（内置模板写在 lib/marketing/presets.ts，不入库）
+model MarketingTemplate {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(80)
+  topic     String   @default("PROMO") @db.VarChar(16)
+  subject   String?  @db.VarChar(200)
+  preheader String?  @db.VarChar(200)
+  doc       String   @db.LongText
+  createdBy Int?     @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("marketing_templates")
+}
+
+model MarketingCampaign {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(100) // 只给后台看：绝不进邮件、券名、UTM
+  topic          String    @default("PROMO") @db.VarChar(16) // PROMO | PRODUCT | NEWS
+  subject        String    @db.VarChar(200) // 不含 (AD) 前缀，可含 {{nickname}}
+  preheader      String?   @db.VarChar(200)
+  doc            String    @db.LongText // EmailDoc JSON
+  audience       String    @db.Text // AudienceSpec JSON
+  // DRAFT | SCHEDULED | SENDING | PAUSED | COMPLETED | CANCELLED —— 每次写入都是条件更新（CAS）
+  status         String    @default("DRAFT") @db.VarChar(16)
+  statusNote     String?   @map("status_note") @db.VarChar(500)
+  scheduledAt    DateTime? @map("scheduled_at")
+  materializedAt DateTime? @map("materialized_at")
+  startedAt      DateTime? @map("started_at")
+  completedAt    DateTime? @map("completed_at")
+  // —— launch 时冻结的快照 ——
+  html           String?   @db.LongText
+  text           String?   @db.LongText
+  finalSubject   String?   @map("final_subject") @db.VarChar(255)
+  refs           String?   @db.Text // CampaignRefs JSON：发送期间每趟复核商品与券
+  contentHash    String?   @map("content_hash") @db.VarChar(64)
+  testedHash     String?   @map("tested_hash") @db.VarChar(64)
+  testedAt       DateTime? @map("tested_at")
+  couponId       Int?      @map("coupon_id") // 直发券批次（coupons.source='CAMPAIGN'）
+  recipientCount Int       @default(0) @map("recipient_count")
+  // —— 风控 ——
+  breakerResetAt DateTime? @map("breaker_reset_at")
+  canaryDay      String?   @map("canary_day") @db.VarChar(10) // 北京日期：当天试探已放行
+  failStreak     Int       @default(0) @map("fail_streak")
+  createdBy      Int?      @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([status, scheduledAt])
+  @@map("marketing_campaigns")
+}
+
+/// 发件箱：一个收件人一行（状态机见设计文档 5.2）
+model MarketingMessage {
+  id             Int       @id @default(autoincrement())
+  campaignId     Int       @map("campaign_id")
+  userId         Int?      @map("user_id")
+  email          String    @db.VarChar(191) // 小写
+  domain         String    @db.VarChar(100)
+  token          String    @unique @db.VarChar(32) // 128 位随机 hex：退订 / 偏好页的凭证（只出现在退订链接与 List-Unsubscribe 头里）
+  // 打开像素与点击跳转用的另一枚凭证。和 token 分开：收件人转发/分享邮件里的商品链接时，
+  // 拿到链接的人不能顺手改人家的订阅状态（审查 C5）。Prisma 端生成，建行时不用显式给
+  trackToken     String    @unique @default(uuid()) @map("track_token") @db.VarChar(36)
+  // 这封信实际用的营销发信地址（ALIYUN_DM_MARKETING 的当时值）。换发信地址（如迁到独立子域）后，
+  // 回执与投诉同步要按每封信自己的地址去查，否则旧地址发出的信永远拿不到回执（审查 C15）
+  sender         String?   @db.VarChar(191)
+  // QUEUED | CLAIMED | SENDING | SENT | FAILED | SKIPPED | CANCELLED | UNKNOWN
+  status         String    @default("QUEUED") @db.VarChar(12)
+  skipReason     String?   @map("skip_reason") @db.VarChar(32)
+  sortKey        Int       @default(0) @map("sort_key")
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime? @map("next_attempt_at")
+  claimedAt      DateTime? @map("claimed_at")
+  sentAt         DateTime? @map("sent_at")
+  subjectSent    String?   @map("subject_sent") @db.VarChar(255)
+  envId          String?   @map("env_id") @db.VarChar(64)
+  errorCode      String?   @map("error_code") @db.VarChar(64)
+  errorMsg       String?   @map("error_msg") @db.VarChar(500)
+  delivery       String?   @db.VarChar(12) // DELIVERED | INVALID | SPAM | FAILED
+  deliveryDetail String?   @map("delivery_detail") @db.VarChar(255)
+  deliveryAt     DateTime? @map("delivery_at")
+  openedAt       DateTime? @map("opened_at")
+  openCount      Int       @default(0) @map("open_count")
+  clickedAt      DateTime? @map("clicked_at")
+  lastClickAt    DateTime? @map("last_click_at")
+  clickCount     Int       @default(0) @map("click_count")
+  unsubscribedAt DateTime? @map("unsubscribed_at")
+  complainedAt   DateTime? @map("complained_at")
+  couponGrantId  Int?      @map("coupon_grant_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([campaignId, email])
+  @@index([campaignId, status, sortKey])
+  @@index([status, claimedAt])
+  @@index([email, sentAt])
+  @@index([userId, sentAt])
+  @@index([sentAt])
+  @@index([deliveryAt])
+  @@map("marketing_messages")
+}
+
+/// 活动里的每个可点击链接。点击跳转只认这里存的 URL（不存在开放重定向）
+model MarketingLink {
+  id         Int     @id @default(autoincrement())
+  campaignId Int     @map("campaign_id")
+  idx        Int
+  url        String  @db.VarChar(2000)
+  label      String? @db.VarChar(120)
+  clicks     Int     @default(0)
+
+  @@unique([campaignId, idx])
+  @@map("marketing_links")
+}
+
+/// 原始事件，保留 90 天（与隐私政策「技术日志 90 天」绑定）
+model MarketingEvent {
+  id         Int      @id @default(autoincrement())
+  campaignId Int      @map("campaign_id")
+  messageId  Int      @map("message_id")
+  type       String   @db.VarChar(12) // OPEN | CLICK | UNSUB
+  linkIdx    Int?     @map("link_idx")
+  bot        Boolean  @default(false)
+  ua         String?  @db.VarChar(255)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([campaignId, type])
+  @@index([messageId])
+  @@index([createdAt])
+  @@map("marketing_events")
+}
+
+model MarketingAudit {
+  id         Int      @id @default(autoincrement())
+  actorId    Int?     @map("actor_id")
+  action     String   @db.VarChar(32)
+  campaignId Int?     @map("campaign_id")
+  detail     String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([campaignId])
+  @@index([action, createdAt])
+  @@map("marketing_audits")
+}

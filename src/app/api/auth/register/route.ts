@@ -9,6 +9,8 @@ import { success, error } from '@/lib/api'
 import { notifyUserRegistered } from '@/lib/notify'
 import { consumeCode } from '@/lib/verify-code'
 import { systemEmailConfigured } from '@/lib/mail'
+import { clientIp } from '@/lib/news/rate-limit'
+import { logRegisterNotice } from '@/lib/marketing/consent'
 
 const registerSchema = z.object({
   email: z.string().email('请输入有效的邮箱地址'),
@@ -73,6 +75,20 @@ export async function POST(request: NextRequest) {
     // 设置登录 cookie（按真实协议决定 secure，30 天有效期）
     const cookieStore = await cookies()
     cookieStore.set('token', token, authCookieOptions(request))
+
+    // 营销邮件告知留痕：注册页按钮下方写明了「可能发送优惠活动信息、可随时退订」，
+    // 这里记一条 NOTICE（含隐私政策版本、IP、UA），出争议时能证明告知过。
+    // 留痕失败绝不能挡住注册：账号已经建好、cookie 已下发，只记日志（不含邮箱）
+    try {
+      const ip = clientIp(request.headers)
+      await logRegisterNotice(
+        { id: user.id, email: email },
+        ip && ip !== 'unknown' ? ip.slice(0, 64) : null,
+        (request.headers.get('user-agent') || '').slice(0, 255) || null
+      )
+    } catch (e) {
+      console.error('[register] 营销告知留痕失败 user=%d:', user.id, (e as Error)?.message)
+    }
 
     // 同时下发 token，供 WebView（如微信）以 Authorization 头兜底鉴权
     notifyUserRegistered({

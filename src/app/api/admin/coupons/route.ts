@@ -17,15 +17,48 @@ import { couponLabel, parseProductIds } from '@/lib/coupon'
  * 分页与筛选照抄站内既有后台列表的范式（见 api/admin/news/events/route.ts），
  * 不另起一套 —— 后台十几个列表页长得一样，维护成本才低。
  *
- * 【两类批次分开列】Coupon.source 为 NULL 的是后台建的公开领取批次；'LOTTERY' 是
- * 「下单有奖」中奖时系统自动建的单张批次（一次中奖一批，total=1）。默认只列前者，
- * 否则每中一次奖列表里就多一行，真正要管的活动会被淹没。?source=LOTTERY 单独看后者。
+ * 【三类批次分开列】Coupon.source 为 NULL 的是后台建的公开领取批次；'LOTTERY' 是
+ * 「下单有奖」中奖时系统自动建的单张批次（一次中奖一批，total=1）；'CAMPAIGN' 是营销邮件
+ * 「直发到账户」的批次（一个活动一批，发信前逐人发券，total/claimed 随发券同步 +1）。
+ * 默认只列公开批次，否则每中一次奖、每做一场活动列表里就多一行，真正要管的活动会被淹没。
+ * ?source=LOTTERY / ?source=CAMPAIGN 单独看后两类。
+ *
+ * 【source 非空 ≠ 抽奖】以前只有抽奖一种系统批次，代码里「source != null」就等于抽奖。
+ * 有了 CAMPAIGN 之后，凡是抽奖专属的逻辑（中奖人、按订单号搜）都显式判断 'LOTTERY'；
+ * 两类系统批次共有的规矩（没有公开领取链接、不能加量）才用「source != null」。
  */
 
 const STATUSES = ['ACTIVE', 'PAUSED', 'ENDED']
 
+/** 列表的来源筛选：'' = 公开领取批次（source IS NULL） */
+const SOURCES = ['', 'LOTTERY', 'CAMPAIGN'] as const
+type SourceFilter = (typeof SOURCES)[number]
+
 /** 短码：只允许小写字母数字与连字符。要进 URL，也要能念得出来 */
 const CODE_RE = /^[a-z0-9-]{3,32}$/
+
+/**
+ * 营销直发券「到账后 N 天有效」的 N（审查 C25）。days 模式的批次 endAt=null（每张券自己的 expiresAt 管有效期），
+ * 天数只在活动冻结的文档里：取文档里 mode='grant' 的券区块的 grant.validity。
+ *
+ * 只用于列表展示，故意宽松解析（不过严格 zod）：以后文档 schema 收紧时，旧活动冻结的文档过不了新校验，
+ * 这里也不该因此显示不出天数。解析不了 → null，页面显示笼统的「按张计算」。
+ * （lib/marketing/coupon.ts 的 grantValidityOf 没有导出，且带缓存、按批次逐个查，列表里不合用）
+ */
+function grantDaysOfDoc(docJson: string): number | null {
+  try {
+    const doc = JSON.parse(docJson) as { blocks?: unknown }
+    if (!Array.isArray(doc?.blocks)) return null
+    for (const b of doc.blocks as { type?: unknown; mode?: unknown; grant?: { validity?: { mode?: unknown; days?: unknown } } }[]) {
+      if (!b || b.type !== 'coupon' || b.mode !== 'grant' || !b.grant) continue
+      const v = b.grant.validity
+      return v?.mode === 'days' && typeof v.days === 'number' && Number.isInteger(v.days) && v.days > 0 ? v.days : null
+    }
+    return null
+  } catch {
+    return null
+  }
+}
 
 const createSchema = z
   .object({
@@ -63,23 +96,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const keyword = (searchParams.get('keyword') || '').trim()
     const status = (searchParams.get('status') || '').trim()
-    const lottery = searchParams.get('source') === 'LOTTERY'
+    // 不认识的取值一律当作公开批次（与以前「不是 LOTTERY 就列公开批次」的行为一致）
+    const rawSource = searchParams.get('source') || ''
+    const source: SourceFilter = (SOURCES as readonly string[]).includes(rawSource) ? (rawSource as SourceFilter) : ''
     const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20') || 20, 1), 100)
 
-    // 批次来源是列表的第一层切分，total 与每行的核销统计都只针对这一类，两类不混算
-    const where: Prisma.CouponWhereInput = { source: lottery ? 'LOTTERY' : null }
+    // 批次来源是列表的第一层切分，total 与每行的核销统计都只针对这一类，几类不混算
+    const where: Prisma.CouponWhereInput = { source: source || null }
     if (STATUSES.includes(status)) where.status = status
     if (keyword) {
       where.OR = [
         { name: { contains: keyword } },
         { code: { contains: keyword } },
-        // 抽奖券的备注是「下单有奖 · 订单 <订单号>」，按订单号能直接搜到那张券
-        ...(lottery ? [{ note: { contains: keyword } }] : []),
+        // 抽奖券的备注是「下单有奖 · 订单 <订单号>」，按订单号能直接搜到那张券；
+        // 营销直发券的备注是「营销活动 #<id>」，按活动编号能搜到那一批
+        ...(source === 'LOTTERY' || source === 'CAMPAIGN' ? [{ note: { contains: keyword } }] : []),
       ]
     }
 
-    const [rows, total, normalCount, lotteryCount] = await Promise.all([
+    const [rows, total, normalCount, lotteryCount, campaignCount] = await Promise.all([
       prisma.coupon.findMany({
         where,
         orderBy: [{ id: 'desc' }],
@@ -89,6 +125,7 @@ export async function GET(request: NextRequest) {
       prisma.coupon.count({ where }),
       prisma.coupon.count({ where: { source: null } }),
       prisma.coupon.count({ where: { source: 'LOTTERY' } }),
+      prisma.coupon.count({ where: { source: 'CAMPAIGN' } }),
     ])
 
     // 每批的核销情况。一次 groupBy 拿全，不在循环里逐个查
@@ -107,9 +144,10 @@ export async function GET(request: NextRequest) {
       statMap.set(g.couponId, m)
     }
 
-    // 抽奖券一批只发给一个人：列表里直接给出中奖人，后台不用再去用户表里翻
+    // 抽奖券一批只发给一个人：列表里直接给出中奖人，后台不用再去用户表里翻。
+    // 只对 LOTTERY：营销直发批次一批发给成百上千人，没有「中奖人」这回事（逐人查也会把这里拖慢）
     const winnerMap = new Map<number, { userId: number; email: string | null; nickname: string | null }>()
-    const lotteryIds = rows.filter((r) => r.source != null).map((r) => r.id)
+    const lotteryIds = rows.filter((r) => r.source === 'LOTTERY').map((r) => r.id)
     if (lotteryIds.length) {
       const grants = await prisma.couponGrant.findMany({
         where: { couponId: { in: lotteryIds } },
@@ -125,6 +163,37 @@ export async function GET(request: NextRequest) {
       grants.forEach((g) => {
         const u = userMap.get(g.userId)
         winnerMap.set(g.couponId, { userId: g.userId, email: u?.email ?? null, nickname: u?.nickname ?? null })
+      })
+    }
+
+    // 营销直发批次 → 对应的活动（列表里「已发 N / 已用 M」旁边链到活动报表）。
+    // 活动表与券表之间没有外键（营销模块只建新表），靠 marketing_campaigns.coupon_id 反查
+    const campaignByCoupon = new Map<number, number>()
+    // 审查 C25：days 模式的营销批次 endAt=null，不能按「没有截止 = 长期有效」显示；天数从活动文档里取
+    const grantDaysByCoupon = new Map<number, number>()
+    const campaignCouponIds = rows.filter((r) => r.source === 'CAMPAIGN').map((r) => r.id)
+    // 只有不设截止（days 模式）的批次才要读文档；文档是 LongText，until 模式的不白读
+    const daysModeCouponIds = rows.filter((r) => r.source === 'CAMPAIGN' && !r.endAt).map((r) => r.id)
+    if (campaignCouponIds.length) {
+      const [camps, docs] = await Promise.all([
+        prisma.marketingCampaign.findMany({
+          where: { couponId: { in: campaignCouponIds } },
+          select: { id: true, couponId: true },
+        }),
+        daysModeCouponIds.length
+          ? prisma.marketingCampaign.findMany({
+              where: { couponId: { in: daysModeCouponIds } },
+              select: { couponId: true, doc: true },
+            })
+          : Promise.resolve([] as { couponId: number | null; doc: string }[]),
+      ])
+      camps.forEach((c) => {
+        if (c.couponId != null) campaignByCoupon.set(c.couponId, c.id)
+      })
+      docs.forEach((c) => {
+        if (c.couponId == null) return
+        const days = grantDaysOfDoc(c.doc)
+        if (days != null) grantDaysByCoupon.set(c.couponId, days)
       })
     }
 
@@ -145,6 +214,7 @@ export async function GET(request: NextRequest) {
           remaining: Math.max(0, r.total - r.claimed),
           startAt: r.startAt,
           endAt: r.endAt,
+          // 「批次没有截止时间」。营销直发批次没截止不代表券长期有效（每张按到账日算，见 grantDays），页面据 source 区分
           forever: !r.endAt,
           status: r.status,
           note: r.note,
@@ -157,16 +227,21 @@ export async function GET(request: NextRequest) {
             void: st.VOID || 0,
           },
           source: r.source,
-          // 系统发给具体买家的券没有领取链接（/coupon/<code> 对它们一律 404），不下发，免得被复制出去
+          // 系统发给具体买家的券（抽奖、营销直发）没有领取链接（/coupon/<code> 对它们一律 404），不下发，免得被复制出去
           claimPath: r.source == null ? `/coupon/${r.code}` : null,
-          winner: r.source != null ? winnerMap.get(r.id) ?? null : null,
+          winner: r.source === 'LOTTERY' ? winnerMap.get(r.id) ?? null : null,
+          // 营销直发：来自哪个活动、已被用掉几张（已发 = claimed，发券与 claimed+1 同事务）
+          campaignId: r.source === 'CAMPAIGN' ? campaignByCoupon.get(r.id) ?? null : null,
+          usedCount: st.USED || 0,
+          // 营销直发 days 模式：每张券到账后 N 天内有效（批次本身没有截止时间，forever 对它不成立）；其余一律 null
+          grantDays: r.source === 'CAMPAIGN' ? grantDaysByCoupon.get(r.id) ?? null : null,
         }
       }),
       total,
       page,
       pageSize,
       totalPages: Math.max(Math.ceil(total / pageSize), 1),
-      sourceCounts: { normal: normalCount, lottery: lotteryCount },
+      sourceCounts: { normal: normalCount, lottery: lotteryCount, campaign: campaignCount },
     })
   } catch (err) {
     console.error('List coupons error:', err)
@@ -249,9 +324,10 @@ export async function PATCH(request: NextRequest) {
 
     const cur = await prisma.coupon.findUnique({ where: { id: d.id } })
     if (!cur) return notFound('优惠券不存在')
-    // 抽奖券是「一次中奖一批、只发给中奖人」的单张批次：加量没有意义，
-    // 加出来的余量也没有任何入口能领（领取接口拒绝系统批次），只会让账面对不上
-    if (cur.source != null && d.addTotal) return error('抽奖发放的券是单张批次，不能加量')
+    // 系统批次（抽奖：一次中奖一批、只发给中奖人；营销直发：发信前逐人发券，total 随发券 +1）
+    // 都是「按人发放」的：加量没有意义，加出来的余量也没有任何入口能领（领取接口拒绝系统批次），
+    // 只会让账面对不上 —— 营销批次还会让「已发 N 张」的口径（total=claimed）失真
+    if (cur.source != null && d.addTotal) return error('系统发放的券批次（抽奖 / 营销邮件直发）是按人发放的，不能加量')
 
     const updated = await prisma.coupon.update({
       where: { id: d.id },

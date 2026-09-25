@@ -78,6 +78,52 @@ const SEARCH_ENGINES: [string, string][] = [
   ['yahoo.', 'yahoo'],
 ]
 
+/**
+ * 网页版邮箱。营销邮件（以及订单、到期提醒邮件）里的链接被点开时，referrer 是这些域名。
+ *
+ * 【为什么要排在 AI / 搜索 / 社交之前】QQ 邮箱是 mail.qq.com，会被社交规则 `qq.com` 吞掉；
+ * Gmail 是 mail.google.com、雅虎邮箱是 mail.yahoo.com，会被品牌段 `google.` / `yahoo.` 判成搜索。
+ * 不先挡住，邮件带来的流量会整段记成「社交」或「Google 自然搜索」—— 图上看不出任何异常。
+ *
+ * 只列「邮箱」子域，不列品牌根域：qq.com / 163.com / google.com 本身不是邮箱。
+ * 客户端（Outlook、iOS 邮件、手机 QQ 邮箱 App）点开链接不带 referrer，那部分靠落地 URL 上的
+ * utm_medium=email 识别（见 EMAIL_REFERRER_MARKER）。
+ */
+const WEBMAIL_HOSTS: string[] = [
+  'mail.qq.com',
+  'wx.mail.qq.com',
+  'exmail.qq.com',
+  'mail.163.com',
+  'mail.126.com',
+  'mail.yeah.net',
+  'mail.sina.com.cn',
+  'mail.sina.com',
+  'mail.sohu.com',
+  'mail.aliyun.com',
+  'qiye.aliyun.com',
+  'mail.google.com',
+  'outlook.live.com',
+  'outlook.office.com',
+  'outlook.office365.com',
+  'mail.yahoo.com',
+  'mail.139.com',
+  'mail.189.cn',
+  'mail.foxmail.com',
+  'mail.wo.cn',
+  'mail.tom.com',
+  'mail.icloud.com',
+  'mail.proton.me',
+  'mail.zoho.com',
+  'mail.yandex.ru',
+]
+
+/**
+ * 伪 referrer：前端发现落地 URL 带 utm_medium=email 时，把本次访问的入口来源记成这个标记
+ * （见 components/page-view-beacon.tsx）。邮件客户端点开链接不带 referrer，
+ * 没有它，大部分邮件流量会被记成「直接访问」。它不是合法 URL，classifyReferrer 最先认它。
+ */
+export const EMAIL_REFERRER_MARKER = 'utm:email'
+
 /** 社交/社区来源。这一类在中文场景里是重要的转化来源，不该被塞进 referral 大杂烩 */
 const SOCIAL_HOSTS: string[] = [
   'zhihu.com',
@@ -99,7 +145,7 @@ const SOCIAL_HOSTS: string[] = [
   'reddit.com',
 ]
 
-export type TrafficSource = 'search' | 'ai' | 'direct' | 'social' | 'referral' | 'internal'
+export type TrafficSource = 'search' | 'ai' | 'email' | 'direct' | 'social' | 'referral' | 'internal'
 
 export interface Classified {
   source: TrafficSource
@@ -123,6 +169,8 @@ export function classifyReferrer(
   selfHost?: string | null
 ): Classified {
   if (!referrer) return { source: 'direct', engine: null, refHost: null }
+  // 落地 URL 带 utm_medium=email 的访问（前端换成的标记，见 EMAIL_REFERRER_MARKER）
+  if (referrer === EMAIL_REFERRER_MARKER) return { source: 'email', engine: null, refHost: null }
 
   let host: string
   try {
@@ -138,6 +186,10 @@ export function classifyReferrer(
     return { source: 'internal', engine: null, refHost: host }
   }
 
+  // 网页邮箱必须最先判：mail.qq.com 会被社交的 qq.com、mail.google.com 会被搜索的 google. 吞掉
+  for (const pattern of WEBMAIL_HOSTS) {
+    if (hostMatches(host, pattern)) return { source: 'email', engine: null, refHost: host }
+  }
   for (const [pattern, name] of AI_ASSISTANTS) {
     if (hostMatches(host, pattern)) return { source: 'ai', engine: name, refHost: host }
   }
@@ -207,6 +259,8 @@ export function shouldSkipPath(path: string): boolean {
     path.startsWith('/pay/') ||
     path.startsWith('/reply/') ||
     path.startsWith('/finance/') ||
+    // 营销邮件的退订页：路径里的 token 就是凭证。页面本身不在 (shop) 里、不挂埋点，这里是第二道
+    path.startsWith('/unsubscribe/') ||
     path.startsWith('/_next')
   )
 }

@@ -4,6 +4,7 @@ import { FloatingContact } from '@/components/floating-contact'
 import { LiveOrderNotification } from '@/components/live-order-notification'
 import { AnnouncementModal } from '@/components/announcement-modal'
 import { PageViewBeacon } from '@/components/page-view-beacon'
+import { MailLanding } from '@/components/mail-landing'
 
 export default function ShopLayout({
   children,
@@ -29,6 +30,8 @@ export default function ShopLayout({
       {/* 流量埋点：停留 3 秒后上报。放在前台 layout 上，后台与带 token 的页面不会经过这里；
           服务端还会再按 shouldSkipPath 挡一道 */}
       <PageViewBeacon />
+      {/* 从营销邮件（链接带 via=mail）点进来时清掉本机旧的推广码：邮件里的券与价格不能被它顶掉 */}
+      <MailLanding />
     </div>
   )
 }

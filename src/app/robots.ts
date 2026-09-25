@@ -26,6 +26,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           '/receipt/', // 带 token 的收据页：收录即泄漏
           '/invoice-request/', // 开票填写链接：令牌即凭证，提交后页面上有抬头税号，同收据页
+          '/unsubscribe/', // 营销邮件订阅设置页：令牌即凭证（凭它能改收件人的订阅），页面上还有打码邮箱
           '/pay/', // 支付页：含订单号，且对爬虫无意义
           '/admin', // 后台
           '/api/', // 接口

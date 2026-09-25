@@ -27,6 +27,9 @@ import { prisma } from '@/lib/db'
 
 const PAGE_VIEW_RETENTION_DAYS = 90
 const VISITOR_INACTIVE_DAYS = 365
+// 营销邮件：事件明细 90 天、发送记录 2 年（/privacy 四、保存多久；docs/营销推广-设计.md 第 12 节第 9 条）
+const MKT_EVENT_RETENTION_DAYS = 90
+const MKT_MESSAGE_RETENTION_DAYS = 730
 const BATCH = 5000
 const MAX_BATCHES = 20
 
@@ -76,7 +79,45 @@ export async function GET(request: NextRequest) {
       if (batch.length < BATCH) break
     }
 
-    return success({ pageViews, visitors, pvCutoff, visitorCutoff })
+    /*
+     * 营销邮件的保留期（与 /privacy「四、保存多久」逐字对应，改之前先改那一页）：
+     *   · marketing_events（每次打开/点击的时间与 UA）90 天
+     *   · marketing_messages（发给了谁、是否送达、首次打开/点击时间）2 年
+     * 【绝不删】marketing_consent_logs（告知/退订留痕）与 marketing_suppressions（不再发送名单）：
+     * 那是「依法处理、不再打扰」的证据，隐私政策写明长期保存；删掉抑制名单还会让退过信、投诉过的地址重新收到邮件。
+     *
+     * 删发送记录意味着两年前那封信里的退订链接会失效 —— 退订页对无效链接会引导去个人中心退订。
+     * 两步都按主键分批，同上面的理由；按 created_at 圈定（保留期以天计，差几个小时的时区无所谓）。
+     */
+    const mktEventCutoff = new Date(now - MKT_EVENT_RETENTION_DAYS * 86400000)
+    const mktMessageCutoff = new Date(now - MKT_MESSAGE_RETENTION_DAYS * 86400000)
+    let marketingEvents = 0
+    for (let i = 0; i < MAX_BATCHES; i++) {
+      const batch = await prisma.marketingEvent.findMany({
+        where: { createdAt: { lt: mktEventCutoff } },
+        select: { id: true },
+        take: BATCH,
+      })
+      if (!batch.length) break
+      const { count } = await prisma.marketingEvent.deleteMany({ where: { id: { in: batch.map((r) => r.id) } } })
+      marketingEvents += count
+      if (batch.length < BATCH) break
+    }
+
+    let marketingMessages = 0
+    for (let i = 0; i < MAX_BATCHES; i++) {
+      const batch = await prisma.marketingMessage.findMany({
+        where: { createdAt: { lt: mktMessageCutoff } },
+        select: { id: true },
+        take: BATCH,
+      })
+      if (!batch.length) break
+      const { count } = await prisma.marketingMessage.deleteMany({ where: { id: { in: batch.map((r) => r.id) } } })
+      marketingMessages += count
+      if (batch.length < BATCH) break
+    }
+
+    return success({ pageViews, visitors, marketingEvents, marketingMessages, pvCutoff, visitorCutoff })
   } catch (err) {
     console.error('Cleanup cron error:', err)
     return error('清理失败')

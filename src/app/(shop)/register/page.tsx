@@ -247,6 +247,20 @@ export default function RegisterPage() {
                 </>
               )}
             </button>
+
+            {/* 注册告知语（营销邮件，设计文档 10.2）。注册成功时服务端会记一条 NOTICE 留痕，
+                证明注册人看到的就是这段话 —— 改这里的措辞要同步改隐私政策并更新 lib/legal.ts 的日期 */}
+            <p className="text-xs leading-relaxed text-white/40">
+              注册即表示你同意
+              <Link href="/terms" target="_blank" className="text-cyan-400/80 hover:text-cyan-300 transition-colors">
+                《服务条款》
+              </Link>
+              与
+              <Link href="/privacy" target="_blank" className="text-cyan-400/80 hover:text-cyan-300 transition-colors">
+                《隐私政策》
+              </Link>
+              。我们可能会向你的邮箱发送优惠活动信息（标题带 AD），注册后可在个人中心或邮件底部随时一键退订。
+            </p>
           </form>
 
           {/* 分隔线 */}

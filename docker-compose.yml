@@ -42,6 +42,11 @@ services:
       - ALIYUN_DM_ACCOUNT=${ALIYUN_DM_ACCOUNT}
       - ALIYUN_DM_NOREPLY=${ALIYUN_DM_NOREPLY}
       - ALIYUN_DM_FROM_ALIAS=${ALIYUN_DM_FROM_ALIAS}
+      # 营销邮件专用发信地址（控制台里须为「批量邮件」类型并已验证），如 marketing@mail.bigolab.com。
+      # 没配时营销模块直接停发，绝不回落到 no-reply@ / remind@（docs/营销推广-设计.md 第 6 节）。
+      # 用裸变量名写法，理由见下方「以下一律用裸变量名」那段注释。
+      # MARKETING_DRY_RUN 刻意不出现在这里：它只给本地/预发用，进了生产 compose 等于埋一颗「假装发送」的雷
+      - ALIYUN_DM_MARKETING
       # 阿里云短信
       - ALIYUN_SMS_SIGN_NAME=${ALIYUN_SMS_SIGN_NAME}
       - ALIYUN_SMS_TEMPLATE_CODE=${ALIYUN_SMS_TEMPLATE_CODE}

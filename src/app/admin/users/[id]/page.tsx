@@ -17,6 +17,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { BALANCE_TYPE_LABELS } from '@/lib/balance'
+import { UserMarketingCard } from '@/components/admin/marketing/user-marketing-card'
 
 interface DetailUser {
   id: number
@@ -830,6 +831,12 @@ export default function AdminUserDetailPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/*
+        营销邮件卡单独取数（/api/admin/marketing/users/<id>）：不跟着订单/流水翻页重拉，
+        营销接口出错也只影响这一张卡，不拖垮整页。
+      */}
+      <UserMarketingCard userId={user.id} />
 
       {loading && <div className="pb-4 text-center text-xs text-gray-400">加载中...</div>}
 

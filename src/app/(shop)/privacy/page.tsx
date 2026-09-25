@@ -2,7 +2,8 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalPage, LegalSection } from '@/components/legal-page'
 import { SITE_NAME } from '@/lib/product-seo'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { OG_IMAGES } from '@/lib/seo/og'
+import { PRIVACY_UPDATED_AT } from '@/lib/legal'
 
 /**
  * 隐私政策。
@@ -10,15 +11,20 @@ import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
  * 【内容口径】这一页只写站点**实际在做的事**：收什么、为什么收、给了谁、存多久。
  * 抄一份通用模板塞满「我们高度重视您的隐私」是负资产——条款与实际行为对不上，
  * 一旦被买家或监管对照就是把柄，而且对 Google 的可信度判断也没有任何加分。
- * 每一条都对应代码里真实存在的行为（订单邮箱、支付回调、上游充值平台、邮件提醒）。
+ * 每一条都对应代码里真实存在的行为（订单邮箱、支付回调、上游充值平台、邮件提醒、营销邮件）。
  *
- * 改动前先确认站点行为真的变了，并同步 UPDATED_AT。
+ * 【2026-09-25 营销邮件改写】上线营销邮件后，原文里「不会用于商业推广」「邮件服务只发订单与到期提醒」
+ * 「撤回同意只针对提醒类邮件」等 11 处与新行为矛盾，按 docs/营销推广-设计.md 10.5 逐句改写。
+ * 其中的保存期限与代码绑定：营销事件 90 天、发送记录 2 年（api/cron/cleanup），
+ * 退订/告知留痕与抑制名单长期保存 —— 改保留期先改这里。
+ *
+ * 版本号在 lib/legal.ts（PRIVACY_UPDATED_AT）：Page 文件不能导出额外的名字，
+ * 而营销告知/退订留痕要引用同一个版本号。改正文必须同步改那个日期。
  */
-const UPDATED_AT = '2026-09-19'
 
 const TITLE = `隐私政策 - ${SITE_NAME}`
 const DESCRIPTION =
-  '贝果科技隐私政策：我们收集哪些信息、为什么收集、与哪些第三方共享、保存多久，以及你如何查询和删除自己的数据。'
+  '贝果科技隐私政策：我们收集哪些信息、为什么收集、与哪些第三方共享、保存多久，以及你如何查询、删除自己的数据和退订营销邮件。'
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -31,12 +37,12 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="隐私政策"
-      updatedAt={UPDATED_AT}
+      updatedAt={PRIVACY_UPDATED_AT}
       intro={
         <p>
           本政策说明益阳市赫山区必高科技有限公司（下称「我们」，经营站点 bigolab.com「贝果科技」）
           在你使用本站服务时会收集哪些信息、如何使用与共享，以及你可以行使哪些权利。
-          请在使用本站前阅读。继续下单即视为你已了解本政策。
+          请在使用本站前阅读。注册、下单或继续使用本站，即视为你已了解本政策。
         </p>
       }
     >
@@ -61,7 +67,14 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-white">技术日志</strong>：访问时间、IP 地址、浏览器与设备类型、访问的页面。
-            用于排障、风控与防止刷单，不用于画像广告。
+            用于排障、风控与防止刷单。
+          </li>
+          <li>
+            <strong className="text-white">营销邮件记录</strong>：向你发送营销邮件时，我们会记录这封邮件是否送达、
+            是否被打开、点击了其中哪些链接，以及你的订阅、暂停与退订设置和操作记录。
+            挑选收件人时，我们会依据你在本站的注册时间、购买记录、消费档位（会员等级）等信息进行筛选
+            （例如只发给近期购买过某类商品的用户），不使用本站以外来源的数据。
+            你可以随时一键退订，退订后不会再收到营销邮件。
           </li>
         </ul>
       </LegalSection>
@@ -70,16 +83,20 @@ export default function PrivacyPage() {
         <ul className="list-disc pl-6 space-y-2">
           <li>完成你的订单：核验付款、发放卡密、执行充值、处理售后。</li>
           <li>联系你：订单状态、卡密发放、到期提醒等交易类通知（通过邮件或客服微信发送）。</li>
+          <li>
+            营销推广：向你的注册邮箱发送优惠活动、新品上架等商业信息（邮件标题标注「AD」），并控制发送频率。
+            你可以随时退订，退订立即生效，且不影响订单、验证码、发票等交易邮件。
+          </li>
           <li>安全与风控：识别重复下单、异常支付与滥用行为。</li>
           <li>履行法定义务：按税务与会计法规保存交易与票据记录。</li>
         </ul>
         <p>
-          我们<strong className="text-white">不会出售你的个人信息</strong>，也不会把你的信息用于与上述目的无关的商业推广。
+          我们<strong className="text-white">不会出售你的个人信息</strong>，也不会把它用于本政策未列明的目的。
         </p>
       </LegalSection>
 
       <LegalSection heading="三、我们与谁共享">
-        <p>只在完成服务所必需的范围内共享，且仅限以下几类接收方：</p>
+        <p>只在完成服务与本政策所述用途所必需的范围内共享，且仅限以下几类接收方：</p>
         <ul className="list-disc pl-6 space-y-2">
           <li>
             <strong className="text-white">上游充值服务商</strong>：本站部分商品通过第三方充值平台完成到账。
@@ -90,7 +107,8 @@ export default function PrivacyPage() {
             <strong className="text-white">支付渠道</strong>：支付宝，用于收款与对账。
           </li>
           <li>
-            <strong className="text-white">邮件发送服务</strong>：用于发送订单与到期提醒邮件。
+            <strong className="text-white">邮件发送服务</strong>：阿里云邮件推送，用于发送订单、到期提醒与营销邮件
+            （营销邮件只在你未退订时发送）。
           </li>
           <li>
             <strong className="text-white">依法要求</strong>：在法律法规要求或配合有权机关依法调查时提供。
@@ -108,6 +126,14 @@ export default function PrivacyPage() {
           账号信息在你要求注销后删除，但已完成交易的记录因法定留存义务会继续保留。
           技术日志一般保留 90 天以内。
         </p>
+        <ul className="list-disc pl-6 space-y-2">
+          <li>营销邮件的打开与点击明细（每一次打开、点击的时间与浏览器信息）：保留 90 天。</li>
+          <li>营销邮件的发送记录（发给了谁、是否送达、首次打开与点击的时间）：保留 2 年。</li>
+          <li>
+            你的退订记录、注册时的告知记录，以及「不再发送」名单（退信、投诉、无效地址等）：
+            为证明我们依法处理、并确保不再向已退订或投诉过的邮箱发送，会长期保存。
+          </li>
+        </ul>
       </LegalSection>
 
       <LegalSection heading="五、Cookie 与本地存储">
@@ -115,6 +141,10 @@ export default function PrivacyPage() {
           本站使用 Cookie 与浏览器本地存储来维持登录状态、记住你的购物与页面偏好。
           <strong className="text-white">本站不投放第三方广告，也不接入广告追踪代码。</strong>
           你可以在浏览器中清除或禁用它们，但禁用后将无法保持登录。
+        </p>
+        <p>
+          我们发出的营销邮件中含有用于统计打开与点击的链接和一张透明小图片，
+          相关数据仅由本站自行记录，不接入任何第三方统计或广告服务。
         </p>
       </LegalSection>
 
@@ -128,7 +158,12 @@ export default function PrivacyPage() {
           <li><strong className="text-white">更正</strong>：联系客服更正填错的邮箱或开票信息。</li>
           <li>
             <strong className="text-white">删除与注销</strong>：联系客服申请注销账号。
-            我们会删除账号相关信息，法定必须留存的交易记录除外。
+            我们会删除账号相关信息，法定必须留存的交易记录除外；
+            退订与告知记录、「不再发送」名单也会保留，以确保今后不再向你发送营销邮件。
+          </li>
+          <li>
+            <strong className="text-white">退订营销邮件</strong>：点击任意一封营销邮件底部的「退订营销邮件」，
+            或登录后在个人中心的「邮件订阅」里关闭，立即生效。你也可以只关闭部分主题或暂停一段时间。
           </li>
           <li><strong className="text-white">撤回同意</strong>：你可以随时要求停止接收提醒类邮件。</li>
         </ul>
@@ -143,7 +178,8 @@ export default function PrivacyPage() {
 
       <LegalSection heading="八、政策更新">
         <p>
-          本政策如有实质性变更，会更新本页顶部的「最后更新」日期。
+          本政策如有实质性变更，会更新本页顶部的「最后更新」日期；
+          重大变更（例如新增营销用途）还会通过站内公告告知。
           建议你在再次下单前查看本页。
         </p>
       </LegalSection>

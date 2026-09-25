@@ -25,6 +25,7 @@ import {
   Link2,
   BarChart3,
   PartyPopper,
+  Megaphone,
 } from 'lucide-react'
 
 type NavItem = {
@@ -97,6 +98,9 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/admin/users', label: '用户管理', icon: Users },
       { href: '/admin/reminders', label: '到期提醒', icon: BellRing },
+      // 营销邮件的对象是「一群用户」（按条件筛人、管订阅与退订），不是某张订单，所以跟用户放一起；
+      // 它和「到期提醒」都是往用户邮箱发信，挨着放便于对照两类邮件
+      { href: '/admin/marketing', label: '营销推广', icon: Megaphone },
     ],
   },
   {

@@ -1,10 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Search, Ban, CheckCircle, ChevronRight } from 'lucide-react'
+import { Search, Ban, CheckCircle, ChevronRight, Megaphone } from 'lucide-react'
 
 interface User {
   id: number
@@ -29,6 +29,9 @@ export default function UsersPage() {
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const abortRef = useRef<AbortController | null>(null)
+  // 多选只针对当前页（翻页、换搜索词即清空）：跨页累积的勾选看不见，容易误把上一页的人也发了
+  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [creatingCampaign, setCreatingCampaign] = useState(false)
 
   // 搜索防抖
   useEffect(() => {
@@ -48,6 +51,7 @@ export default function UsersPage() {
       const data = await res.json()
       if (data.success && abortRef.current === controller) {
         setUsers(data.data.list)
+        setSelected(new Set())
         setTotal(data.data.total || 0)
         setTotalPages(data.data.totalPages || 1)
       }
@@ -61,6 +65,51 @@ export default function UsersPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  const selectedUsers = useMemo(() => users.filter((u) => selected.has(u.id)), [users, selected])
+  const allChecked = users.length > 0 && users.every((u) => selected.has(u.id))
+  const someChecked = selected.size > 0 && !allChecked
+  const noEmailCount = selectedUsers.filter((u) => !u.email).length
+  const disabledCount = selectedUsers.filter((u) => u.status !== 1).length
+
+  const toggleOne = (id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  const toggleAll = () => {
+    setSelected((prev) => (users.every((u) => prev.has(u.id)) ? new Set<number>() : new Set(users.map((u) => u.id))))
+  }
+
+  /**
+   * 选中的用户 → 新建一个「手工指定」受众的营销草稿，直接跳过去排版。
+   * 能不能真的收到（有无邮箱、是否退订、抑制名单、频控）由营销模块在预估与发送时判断，这里不重复过滤。
+   */
+  const sendMarketing = async () => {
+    const userIds = Array.from(selected)
+    if (userIds.length === 0) return
+    setCreatingCampaign(true)
+    try {
+      const res = await fetch('/api/admin/marketing/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audience: { type: 'USERS', userIds } }),
+      })
+      const data = await res.json().catch(() => null)
+      if (!data?.success || !data.data?.id) {
+        alert(data?.error || '创建营销活动失败')
+        return
+      }
+      router.push(`/admin/marketing/${data.data.id}`)
+    } catch {
+      alert('网络错误，创建营销活动失败')
+    } finally {
+      setCreatingCampaign(false)
+    }
+  }
 
   const handleToggleStatus = async (user: User) => {
     const newStatus = user.status === 1 ? 0 : 1
@@ -107,6 +156,28 @@ export default function UsersPage() {
             </div>
           </div>
 
+          {/* 批量操作条（与卡密页同一范式） */}
+          {selected.size > 0 && (
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-primary-100 bg-primary-50/60 px-3 py-2">
+              <span className="text-sm text-gray-700">已选 {selected.size} 人（本页）</span>
+              <Button size="sm" onClick={sendMarketing} loading={creatingCampaign}>
+                <Megaphone className="mr-1 h-3.5 w-3.5" />
+                发营销邮件（{selected.size}）
+              </Button>
+              <Button variant="ghost" size="sm" disabled={creatingCampaign} onClick={() => setSelected(new Set())}>
+                取消选择
+              </Button>
+              {(noEmailCount > 0 || disabledCount > 0) && (
+                <span className="text-xs text-amber-600">
+                  {noEmailCount > 0 && `${noEmailCount} 人没有邮箱`}
+                  {noEmailCount > 0 && disabledCount > 0 && '、'}
+                  {disabledCount > 0 && `${disabledCount} 人已禁用`}
+                  ，不会收到；已退订或在抑制名单里的也会自动跳过
+                </span>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div className="py-12 text-center text-gray-400">加载中...</div>
           ) : users.length === 0 ? (
@@ -116,6 +187,19 @@ export default function UsersPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-100 text-left text-sm text-gray-500">
+                    <th className="w-8 pb-3 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={allChecked}
+                        ref={(el) => {
+                          if (el) el.indeterminate = someChecked
+                        }}
+                        onChange={toggleAll}
+                        className="h-4 w-4 cursor-pointer"
+                        title="全选本页"
+                        aria-label="全选本页"
+                      />
+                    </th>
                     <th className="pb-3 font-medium">ID</th>
                     <th className="pb-3 font-medium">邮箱</th>
                     <th className="pb-3 font-medium">昵称</th>
@@ -135,6 +219,16 @@ export default function UsersPage() {
                       className="cursor-pointer border-b border-gray-50 transition-colors hover:bg-gray-50"
                       title="查看用户详情"
                     >
+                      {/* 勾选框所在格子拦住点击冒泡：点歪一点也不会误跳详情页 */}
+                      <td className="py-4 pr-2" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selected.has(user.id)}
+                          onChange={() => toggleOne(user.id)}
+                          className="h-4 w-4 cursor-pointer"
+                          aria-label={`选择用户 ${user.id}`}
+                        />
+                      </td>
                       <td className="py-4 text-gray-500">{user.id}</td>
                       <td className="py-4 font-medium text-gray-900">{user.email || '-'}</td>
                       <td className="py-4 text-gray-600">{user.nickname || '-'}</td>

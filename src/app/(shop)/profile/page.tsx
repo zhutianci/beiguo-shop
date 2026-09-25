@@ -25,6 +25,7 @@ import {
 import { useUserStore } from '@/store/user'
 import { useHydrated } from '@/lib/use-hydrated'
 import AccountBindings from '@/components/account-bindings'
+import MarketingSubscription from '@/components/marketing-subscription'
 
 /** /api/account/overview 的返回。金额是 number（服务端已把 Decimal 转好） */
 interface Overview {
@@ -281,7 +282,7 @@ export default function ProfilePage() {
             </div>
           </motion.div>
 
-          {/* 右侧内容：账户信息 → 快捷功能 → 绑定账户 → 账户统计。
+          {/* 右侧内容：账户信息 → 快捷功能 → 绑定账户 → 账户统计 → 邮件订阅。
               内推面板已移到「推荐有奖」页，这里只在快捷功能里留入口 */}
           <div className="lg:col-span-2 space-y-6">
             {/* 账户信息 */}
@@ -468,6 +469,16 @@ export default function ProfilePage() {
                   <p className="mt-5 text-center text-xs text-white/35">累计消费按商品金额计算，不含开票税费</p>
                 </>
               )}
+            </motion.div>
+
+            {/* 邮件订阅（营销邮件的开关 / 主题 / 暂停）。低频设置，放在最后；
+                退订在邮件底部也能一键完成，这里是给想「少收一点」或想恢复的人用的 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.35 }}
+            >
+              <MarketingSubscription />
             </motion.div>
           </div>
         </div>
