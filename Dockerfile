@@ -29,7 +29,14 @@ ENV NEXT_TELEMETRY_DISABLED 1
 # （2026-09-25 实测：beiguo-app、jishi-app、两个 cloudflared 被杀，停摆约 20 秒），构建也被连带取消。
 # 限到 640MB：GC 勤一点，编译照样能过（本地实测 512MB 就够，768MB 时类型检查会爆 —— 所以类型检查已挪到本地，
 # 见 next.config.js 的 typescript.ignoreBuildErrors）。只作用于这一步，不影响运行时容器。
-RUN NODE_OPTIONS=--max-old-space-size=640 npm run build
+#
+# 【构建产物必须校验】Next 14 的 webpack 构建子进程被 OOM 杀掉时，next build 会**静默以 0 退出**，
+# 这一层于是被 BuildKit 当成成功缓存下来（里面没有 .next/standalone）—— 之后同样的源码再构建，
+# 直接命中这层坏缓存，失败在后面的 COPY 上，怎么重试都一样（2026-09-25 实测）。
+# 这里补一道校验：产物不在就让这一步失败，坏结果永远进不了缓存。
+RUN NODE_OPTIONS=--max-old-space-size=640 npm run build \
+ && test -f .next/standalone/server.js \
+ && test -d .next/static
 
 # Stage 3: Runner
 FROM node:20-alpine AS runner
