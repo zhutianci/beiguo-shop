@@ -12,7 +12,7 @@
 #      `sh build-with-swap.sh --restore` 可手工还原。
 # **这是改生产内核参数，站长已同意（设计 15.4 A.8）；每次执行前仍在群里说一声。**
 #
-# 用法（服务器上，/opt/beiguo 下，root；耗时任务一律后台跑、轮询日志，不在前台等）：
+# 用法（服务器上，必须在仓库根目录 /opt/beiguo/beiguo-shop 下执行（脚本里全是相对路径），root；耗时任务一律后台跑、轮询日志，不在前台等）：
 #   setsid nohup sh scripts/ops/build-with-swap.sh > /tmp/build-with-swap.out 2>&1 < /dev/null &
 #   （必须 setsid + </dev/null：只用 nohup … & 时 workbench exec 会话结束会把它连带取消——立刻 EXIT=1、无输出，
 #    2026-09-26 安全修复部署实录。日志为空且进程已不在时，先看 STATE_FILE 在不在，在就先 --restore 再重跑）
