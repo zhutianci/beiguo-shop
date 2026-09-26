@@ -364,8 +364,8 @@ export function sourceLabel(sources: { name: string }[], sourceCount?: number): 
 /** og 底图：按分类取静态底图，未知分类回退默认图（绝不用原文配图，见 SKILL.md §1.1） */
 export function ogImageForCategory(category: string | null | undefined): string {
   return category && (CATEGORY_SLUGS as string[]).includes(category)
-    ? `/news-og/${category}.png`
-    : '/og-default.png'
+    ? `/news-og/${category}.png?v=3` // ?v=：平台按地址缓存分享缩略图，换图（2026-09-26 新 logo）时加一位
+    : '/og-default.png?v=3'
 }
 
 const FALLBACK_ORIGIN = 'https://bigolab.com'

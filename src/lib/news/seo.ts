@@ -16,7 +16,10 @@
 import { AI_DISCLAIMER, AUTHOR_NAME, categoryLabel } from './constants'
 import { ogImageForCategory, siteOrigin } from './format'
 
-/** 方形站标：favicon / JSON-LD publisher.logo。由 scripts/gen-og-image.js 离线生成 */
+/**
+ * 方形站标：JSON-LD publisher.logo 等。由 scripts/gen-brand-assets.py 离线生成。
+ * 这里刻意不带 ?v=：结构化数据里的站标地址稳定更利于收录，搜索引擎会自行重新抓取
+ */
 export const SITE_LOGO = '/logo-square.png'
 /** 站点默认分享底图，也是 ogImageForCategory 的兜底 */
 export const OG_DEFAULT = '/og-default.png'

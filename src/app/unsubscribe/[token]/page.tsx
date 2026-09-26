@@ -386,7 +386,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <div className="mb-5 flex items-center gap-3">
           {/* 纯 <img>：这台机器内存小，不走 next/image 的服务端缩放 */}
           <img
-            src="/logo-mark.png"
+            src="/logo-mark.png?v=3"
             alt="贝果科技"
             width={40}
             height={40}

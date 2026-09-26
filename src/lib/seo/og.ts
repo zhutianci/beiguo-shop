@@ -23,8 +23,11 @@
  */
 import { absUrl } from '@/lib/news/seo'
 
-/** 站点默认分享底图。1200×630 由 scripts/gen-og-image.js 离线生成 */
-export const OG_IMAGE_URL = absUrl('/og-default.png')
+/**
+ * 站点默认分享底图。1200×630 由 scripts/gen-brand-assets.py 离线生成。
+ * 带 ?v=：微信等平台按地址缓存缩略图，换图时不改地址会一直显示旧图（与 layout.tsx 的 ICON_VERSION 同步）
+ */
+export const OG_IMAGE_URL = absUrl('/og-default.png?v=3')
 
 export const OG_IMAGES = [
   { url: OG_IMAGE_URL, width: 1200, height: 630, alt: '贝果科技 bigolab.com' },

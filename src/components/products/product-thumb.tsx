@@ -9,7 +9,7 @@ import { PRODUCT_GRADIENT } from './gradient'
  * 而且同一个商品每次渲染出来的颜色是一样的（按 id 取模，不是随机）。
  *
  * 【为什么不用 next/image】这台机器只有 1.8G 内存，图片优化管线的开销
- * 不值得为列表里几十张小图付（同 gen-og-image.js 与站标的取舍）。
+ * 不值得为列表里几十张小图付（同 gen-brand-assets.py 与站标的取舍）。
  * 宽高写死，避免图片加载时整行跳动。
  */
 export function ProductThumb({

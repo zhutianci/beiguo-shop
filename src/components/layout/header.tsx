@@ -152,11 +152,11 @@ export function Header({ catalogOpen = true, registrationOpen = true }: { catalo
               className="flex shrink-0 items-center gap-3 group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
               {/* 站标。用 <img> 而不是 next/image：这台机器只有 1.8G 内存，
-                  图片优化管线的 CPU/内存开销不值得为一张 20KB 的小图付（同 gen-og-image.js 的取舍）。
+                  图片优化管线的 CPU/内存开销不值得为一张小图付（同 gen-brand-assets.py 的取舍）。
                   写死 width/height 防止加载时抖动（CLS）。
                   这张图是透明底 PNG，所以深浅背景都能直接用。 */}
               <img
-                src="/logo-mark.png"
+                src="/logo-mark.png?v=3"
                 alt=""
                 width={40}
                 height={40}

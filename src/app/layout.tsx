@@ -41,7 +41,8 @@ const DESCRIPTION =
  * 会被 Next 原样输出成相对路径，而微信与各家爬虫都不接受相对地址的 og:image——
  * 表现是「本地预览没问题、发到群里没缩略图」，很难查。
  *
- * 【图标】public/logo-square.png 与 og-default.png 由 scripts/gen-og-image.js 离线生成
+ * 【图标】public/ 下的站标、favicon、苹果桌面图标与分享图都由 scripts/gen-brand-assets.py 从
+ *   docs/brand/bigo-logo-source.webp 离线生成（2026-09-26 换成站长定稿的新 logo）
  * （零依赖手写 PNG 编码，不用 next/og：standalone 下它有内存泄漏，
  * satori 的 WASM 还会把 CPU 打到 300%，这台 1.8G 内存的机器扛不住）。
  */
@@ -68,8 +69,8 @@ function otherVerification(): Record<string, string> | undefined {
   return Object.keys(out).length ? out : undefined
 }
 
-/** 换站标时 +1。理由见下面 icons 那段注释 */
-const ICON_VERSION = 2
+/** 换站标时 +1。理由见下面 icons 那段注释。3 = 2026-09-26 换成站长定稿的新 logo（同时用于分享图地址） */
+const ICON_VERSION = 3
 
 /**
  * 主站的站点级 metadata：与改造前的模块级常量逐字段相同（主站 origin 就是 siteOrigin()）。
@@ -98,9 +99,14 @@ function siteMetadata(origin: string, isPlatform: boolean): Metadata {
      * 换图标时把 ?v= 往上加一位，这是唯一可靠的办法。
      */
     icons: {
-      icon: [{ url: `/logo-square.png?v=${ICON_VERSION}`, type: 'image/png', sizes: '512x512' }],
-      shortcut: [`/logo-square.png?v=${ICON_VERSION}`],
-      apple: [{ url: `/logo-square.png?v=${ICON_VERSION}`, sizes: '512x512' }],
+      // favicon.ico 放在最前：多尺寸（16/32/48）的小图在标签页上比 512 缩下来的清楚；
+      // 苹果桌面图标单独一张白底图（iOS 会把透明底渲染成黑色，见 gen-brand-assets.py）
+      icon: [
+        { url: `/favicon.ico?v=${ICON_VERSION}`, sizes: '16x16 32x32 48x48' },
+        { url: `/logo-square.png?v=${ICON_VERSION}`, type: 'image/png', sizes: '512x512' },
+      ],
+      shortcut: [`/favicon.ico?v=${ICON_VERSION}`],
+      apple: [{ url: `/apple-touch-icon.png?v=${ICON_VERSION}`, sizes: '180x180' }],
     },
     /*
      * 站长平台的归属验证 meta。值从环境变量来，没配就整条不输出。
@@ -131,13 +137,13 @@ function siteMetadata(origin: string, isPlatform: boolean): Metadata {
       // 同样不写 url：继承下去会让所有页面的 og:url 都指向首页，转发链接会点错地方
       title: TITLE,
       description: DESCRIPTION,
-      images: [{ url: '/og-default.png', width: 1200, height: 630, alt: SITE_NAME }],
+      images: [{ url: `/og-default.png?v=${ICON_VERSION}`, width: 1200, height: 630, alt: SITE_NAME }],
     },
     twitter: {
       card: 'summary_large_image',
       title: TITLE,
       description: DESCRIPTION,
-      images: ['/og-default.png'],
+      images: [`/og-default.png?v=${ICON_VERSION}`],
     },
     robots: {
       index: true,
