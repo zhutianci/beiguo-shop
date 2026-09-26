@@ -6,14 +6,15 @@ import { AnnouncementModal } from '@/components/announcement-modal'
 import { PageViewBeacon } from '@/components/page-view-beacon'
 import { MailLanding } from '@/components/mail-landing'
 import { SuspendedBanner } from '@/components/storefront/suspended-banner'
-import { ClosedPageGate } from '@/components/storefront/closed-page'
+import { ClosedPageGate, DraftClosedPage } from '@/components/storefront/closed-page'
 import { getCurrentUser } from '@/lib/auth'
-import { getStorefront, requireShopStorefront } from '@/lib/storefront/resolve'
+import { getStorefront, isPreviewUser, requireShopStorefront } from '@/lib/storefront/resolve'
 import { storefrontFeatures } from '@/lib/storefront/public'
 
 /*
  * 【渠道分站：前台外壳按店面渲染（设计 4.4、6.7、11.2）】
- *  · requireShopStorefront：没有店面（严格期未知 Host、域名停用）→ 404；DRAFT 只放行 previewUserIds 里的登录用户。
+ *  · requireShopStorefront：没有店面（严格期未知 Host、域名停用）→ 404；DRAFT 只放行 previewUserIds 里的登录用户，
+ *    其余访客看到整站「本站暂停访问」（站长 2026-09-26：开业全程在后台完成，开业前公网所见与 nginx 停业页一致）。
  *    **不包进 try**（店面解析 / notFound 靠异常实现控制流，吞掉会让页面按主站结果渲染给所有 Host）。
  *  · 只有 DRAFT 店面才需要知道「你是谁」：主站与已开业渠道不为此多查一次库（每个前台页面都经过这里）。
  *  · SUSPENDED：顶部横幅；TERMINATED：首页与商品页换成停业页，订单、收据、兑换、登录照常（6.7）。
@@ -30,6 +31,14 @@ export default async function ShopLayout({
 }) {
   const probe = await getStorefront()
   const userId = probe?.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
+  /*
+   * 筹备期（DRAFT）对非预览访客：整站换成「本站暂停访问」（DraftClosedPage 注释），不渲染 children。
+   * 不渲染 children，页面本身的服务端组件就不会执行，也就不会查商品、不会 notFound。
+   * 预览用户照常往下走，由 requireShopStorefront 放行。主站永远不是 DRAFT。
+   */
+  if (probe && probe.kind === 'CHANNEL' && probe.status === 'DRAFT' && !(await isPreviewUser(probe.id, userId))) {
+    return <DraftClosedPage />
+  }
   const sf = await requireShopStorefront({ userId })
   const features = storefrontFeatures(sf)
   const isPlatform = sf.kind === 'PLATFORM'

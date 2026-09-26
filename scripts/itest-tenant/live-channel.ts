@@ -208,8 +208,16 @@ async function main() {
   const robotsLulu = await get('/robots.txt', LULU_HOST)
   check('渠道开关已开：lulu 的 robots.txt 与主站不同（noindex 口径）', robotsLulu.status === 200 && robotsLulu.text !== (await get('/robots.txt', MAIN_HOST)).text, robotsLulu.text.slice(0, 80))
 
-  section('1 DRAFT：前台对未登录者 404；渠道后台登录页可达；主站 Host 上 /partner 404、渠道 Host 上 /admin 404')
-  check('DRAFT：lulu 首页 404', (await get('/', LULU_HOST)).status === 404)
+  section('1 DRAFT：前台对未登录者整站「本站暂停访问」（接口 404）；渠道后台登录页可达；主站 Host 上 /partner 404、渠道 Host 上 /admin 404')
+  // 站长 2026-09-26：开业前公网所见须与 nginx 停业页一致，DRAFT 前台由 404 改为暂停访问页（(shop)/layout.tsx）
+  for (const p of ['/', '/products', '/products/1', '/login', '/register', '/orders']) {
+    const r = await get(p, LULU_HOST)
+    check(`DRAFT：lulu ${p} → 200「本站暂停访问」`, r.status === 200 && r.text.includes('本站暂停访问'), `${r.status}`)
+  }
+  check('DRAFT：暂停访问页不泄露商品数据（不含 "price"、不含主站商品名链接）', !(await get('/', LULU_HOST)).text.includes('/products/'))
+  // 商品接口在 DRAFT 对非预览访客返回空列表（可售判定：DRAFT 只对预览账号展示，WP2 listStorefrontProducts），不泄露任何商品
+  const draftApi = await get('/api/products', LULU_HOST)
+  check('DRAFT：lulu /api/products → 空列表', draftApi.status === 200 && /"data":\[\]/.test(draftApi.text), `${draftApi.status} ${draftApi.text.slice(0, 60)}`)
   check('DRAFT：lulu /partner/login 200', (await get('/partner/login', LULU_HOST)).status === 200)
   check('主站 /partner → 404', (await get('/partner', MAIN_HOST)).status === 404)
   check('主站 /api/partner/dashboard → 404', (await get('/api/partner/dashboard', MAIN_HOST)).status === 404)

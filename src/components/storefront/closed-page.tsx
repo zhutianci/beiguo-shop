@@ -41,6 +41,31 @@ export function ClosedPage() {
   )
 }
 
+/**
+ * 筹备期（DRAFT）店面给非预览访客看的整站页面：与 nginx/closed.html 同一句「本站暂停访问」。
+ *
+ * 【为什么不再是 404】设计 4.4 原定 DRAFT 对外 404。站长 2026-09-26 要求开业全程在超管后台完成：
+ * 应用开关与 nginx 分流一次性打开后，开不开门只由后台把状态改成 ACTIVE 决定。
+ * 这之前公网看到的必须和 N 段的静态停业页一样，不能从「本站暂停访问」变成 404。
+ * 只换展示：可售判定照旧（DRAFT 期商品接口对非预览访客返回空列表），这一页不带任何数据。
+ * 不放登录 / 注册入口：预览买家走 /partner/login?next=/，渠道主走 /partner/login（都不在 (shop) 下）。
+ */
+export function DraftClosedPage() {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4 py-24">
+      <div className="w-full max-w-md rounded-2xl glass p-8 text-center">
+        <h1 className="text-2xl font-bold">本站暂停访问</h1>
+        <p className="mt-4 text-sm leading-relaxed text-white/60">
+          站点正在维护或尚未开放，请稍后再来。
+          <br />
+          已购买的订单不受影响，如需帮助请联系原购买渠道的客服。
+        </p>
+        <div className="mt-6 text-xs tracking-widest text-white/40">贝果科技</div>
+      </div>
+    </div>
+  )
+}
+
 /** 包在 (shop) 布局的 main 里：停业店面的首页与商品页换成停业页，其余路径原样渲染 children */
 export function ClosedPageGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
