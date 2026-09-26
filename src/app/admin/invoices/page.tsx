@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { SourceBadge, SourceFilter, type SiteOption, type SourceSite } from '@/components/admin/source-site'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -47,6 +48,8 @@ interface InvoiceRow {
   shopOrder?: ShopOrderBrief | null
   /** 挂着的外部订单原始信息；手动录入 / 孤儿发票为 null */
   ext?: ExtInfo | null
+  /** 来源站（设计 12.2）：source 已被录入方式占用，所以叫 site */
+  site?: SourceSite
 }
 
 interface ShopOrderBrief {
@@ -160,6 +163,9 @@ function InvoicesInner() {
   const [statusFilter, setStatusFilter] = useState('SUBMITTED')
   /** 'MANUAL' = 只看手动录入的站外发票（与状态筛选互斥） */
   const [sourceFilter, setSourceFilter] = useState('')
+  // 来源站筛选（设计 12.2）：'' = 全部
+  const [siteFilter, setSiteFilter] = useState('')
+  const [sites, setSites] = useState<SiteOption[]>([])
   const [creating, setCreating] = useState(false)
   /** 「生成填写链接」弹窗 —— 手动录入的第二种方式：金额我定，抬头客户自己填 */
   const [linkCreating, setLinkCreating] = useState(false)
@@ -191,6 +197,7 @@ function InvoicesInner() {
       // 「手动开票」是独立视图（以发票为主表），不叠加状态筛选
       if (sourceFilter) q.set('source', sourceFilter)
       else if (statusFilter) q.set('status', statusFilter)
+      if (siteFilter) q.set('tenantId', siteFilter)
       const res = await fetch(`/api/admin/invoices?${q}`, { signal: controller.signal })
       const data = await res.json()
       if (data.success && abortRef.current === controller) {
@@ -198,13 +205,14 @@ function InvoicesInner() {
         setTotals(data.data.totals)
         setTotal(data.data.total || 0)
         setTotalPages(data.data.totalPages || 1)
+        setSites(data.data.sites || [])
       }
     } catch (e) {
       if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
       if (abortRef.current === controller) setLoading(false)
     }
-  }, [page, debouncedKeyword, statusFilter, sourceFilter])
+  }, [page, debouncedKeyword, statusFilter, sourceFilter, siteFilter])
 
   useEffect(() => {
     load()
@@ -248,7 +256,8 @@ function InvoicesInner() {
     setExporting(true)
     setExportTip(null)
     try {
-      const res = await fetch('/api/admin/invoices/export')
+      // 导出按当前来源站筛选（税局模板的列不变）
+      const res = await fetch(`/api/admin/invoices/export${siteFilter ? `?tenantId=${siteFilter}` : ''}`)
       if (!res.ok) {
         const d = await res.json().catch(() => null)
         setExportTip({ ok: false, text: d?.error || `导出失败（HTTP ${res.status}）` })
@@ -287,23 +296,57 @@ function InvoicesInner() {
    * 手动录入的也不提供「未开发票」这个目标态 —— by-order 把 UNAPPLIED 实现成
    * 「删掉发票记录」，对一条凭空录入的记录来说那等于删除，不该藏在一个下拉里。
    */
-  const setStatus = async (row: InvoiceRow, status: string) => {
+  const setStatus = async (row: InvoiceRow, status: string, taxRefund?: Record<string, unknown>) => {
+    const payload = JSON.stringify({ status, ...(taxRefund ? { taxRefund } : {}) })
     const res = byInvoiceId(row)
       ? await fetch(`/api/admin/invoices/${row.invoiceId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status }),
+          body: payload,
         })
       : await fetch(`/api/admin/invoices/by-order/${row.externalOrderId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status }),
+          body: payload,
         })
     const data = await res.json()
     if (data.success) {
       load()
       closeDetail()
-    } else alert(data.error || '操作失败')
+      return
+    }
+    /*
+     * 渠道订单的发票改「不可开据」或撤回「已开具」、而税费已收（设计 8.4 末段）：必须决定税费退不退。
+     * 退 → 同一事务冲销发票分成（要带订单的结算版本号，并发时 409）；不退 → 原因必填、写审计。
+     */
+    if (data.code === 'TAX_DECISION_REQUIRED' && !taxRefund && row.invoiceId) {
+      const v = prompt(
+        `${data.error}` + String.fromCharCode(10) + String.fromCharCode(10) + '输入要退还的税费金额（元）；输入 0 表示「保留税费、不退」：',
+        row.taxFee != null ? row.taxFee.toFixed(2) : '',
+      )
+      if (v === null) return
+      const yuan = Number(v.trim())
+      if (!Number.isFinite(yuan) || yuan < 0) {
+        alert('金额格式不正确')
+        return
+      }
+      if (yuan === 0) {
+        const reason = prompt('保留税费的原因（必填，仅超管可见）：')
+        if (!reason || reason.trim().length < 2) return
+        await setStatus(row, status, { keep: true, reason: reason.trim() })
+        return
+      }
+      const info = await fetch(`/api/admin/invoices/${row.invoiceId}`).then((r) => r.json()).catch(() => null)
+      const ver = info?.data?.channelOrder?.settleVersion
+      if (typeof ver !== 'number') {
+        alert('读取订单结算版本失败，请刷新后重试')
+        return
+      }
+      const requestId = `tx_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`
+      await setStatus(row, status, { refundTaxCents: Math.round(yuan * 100), expectedVersion: ver, requestId })
+      return
+    }
+    alert(data.error || '操作失败')
   }
 
   const removeManual = async (row: InvoiceRow) => {
@@ -384,6 +427,15 @@ function InvoicesInner() {
               ))}
               <option value="__MANUAL__">— 只看手动录入（站外）—</option>
             </select>
+            <SourceFilter
+              value={siteFilter}
+              onChange={(v) => {
+                setSiteFilter(v)
+                setPage(1)
+              }}
+              options={sites}
+              className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900"
+            />
             <Button variant="outline" onClick={load}>
               <Search className="w-4 h-4 mr-1" /> 刷新
             </Button>
@@ -418,6 +470,7 @@ function InvoicesInner() {
                 <thead>
                   <tr className="border-b text-left text-gray-500 text-xs">
                     <th className="pb-2 pr-3">抬头 / 账户</th>
+                    <th className="pb-2 pr-3">来源站</th>
                     <th className="pb-2 pr-3">订阅</th>
                     <th className="pb-2 pr-3 text-right">开票金额(含税)</th>
                     <th className="pb-2 pr-3 text-right">税费</th>
@@ -460,6 +513,9 @@ function InvoicesInner() {
                             订单 {iv.shopOrder.orderNo}
                           </Link>
                         )}
+                      </td>
+                      <td className="py-2 pr-3">
+                        <SourceBadge source={iv.site} />
                       </td>
                       <td className="py-2 pr-3 text-xs">{iv.subscriptionType}</td>
                       <td className="py-2 pr-3 text-right">{money(iv.invoiceAmount)}</td>

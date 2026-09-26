@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { EVENT_SELECT, hoursAgo, toEventDto } from '@/lib/news/format'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 首页「AI 圈今日热点」区块用的公开读接口。
@@ -21,6 +22,9 @@ const querySchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams))
   if (!parsed.success) {
     return error(parsed.error.errors[0]?.message || '参数错误')

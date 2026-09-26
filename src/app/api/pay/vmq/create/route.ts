@@ -15,6 +15,7 @@ import {
   discardVmqOrder,
 } from '@/lib/vmq'
 import { assertCouponForPayment } from '@/lib/coupon'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 const schema = z.object({
   orderNo: z.string().min(1, '缺少订单号'),
@@ -25,6 +26,9 @@ const ORDER_PAY_WINDOW_MIN = Math.max(60, Number(process.env.ORDER_PAY_WINDOW_MI
 
 // 为商品订单发起 V免签 收款，返回收银台地址
 export async function POST(request: NextRequest) {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return error('订单不存在', 404)
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
@@ -35,6 +39,9 @@ export async function POST(request: NextRequest) {
 
     const order = await prisma.order.findUnique({ where: { orderNo: parsed.data.orderNo } })
     if (!order || order.userId !== user.id) return error('订单不存在')
+    // 【店面不符 → 404】（设计 4.5、8.2）订单只能在它下单的那个站付款：收银台、到账后的跳转、邮件链接都按订单的站走。
+    // 同一账号拿 lulu 的订单号到主站发起收款（或反过来）一律当不存在，文案与上一行相同
+    if (order.tenantId !== sf.id) return error('订单不存在', 404)
     if (order.payStatus === 'PAID') return error('订单已支付')
     if (order.payStatus === 'REFUNDED') return error('订单已退款，无法支付')
 
@@ -72,7 +79,24 @@ export async function POST(request: NextRequest) {
       // 标价变了就不能按旧快照收款。比的是 productPrice（建单时的标价快照），不是 amount：
       // 券价、内推专属价、含税金额都不会误判。管理员手工改过的单以管理员为准，不比这一项
       const adminTouched = order.updatedAt.getTime() - order.createdAt.getTime() > 5_000
-      if (!adminTouched && Math.round(Number(product.price) * 100) !== Math.round(Number(order.productPrice) * 100)) {
+      /*
+       * 【渠道单比的是本店售价】渠道单的 productPrice 快照是 TenantListing.retailCents（设计 5.4），与站长的
+       * Product.price 本来就不相等，拿它比会让每一张渠道单都付不了款。所以渠道单比上架行当前售价，
+       * 并要求上架行仍授权、仍上架（渠道下架 / 站长撤销授权 = 该商品在本店已下架）。
+       * 店面状态**不看**：SUSPENDED 时已下单未付款的收银台照常可付（设计 6.7）。
+       */
+      let currentUnitCents = Math.round(Number(product.price) * 100)
+      if (order.tenantId !== 1) {
+        const listing = await prisma.tenantListing.findUnique({
+          where: { tenantId_productId: { tenantId: order.tenantId, productId: order.productId } },
+          select: { granted: true, status: true, retailCents: true },
+        })
+        if (!listing || !listing.granted || listing.status !== 1 || listing.retailCents == null) {
+          return error('该商品已下架，订单无法支付')
+        }
+        currentUnitCents = listing.retailCents
+      }
+      if (!adminTouched && currentUnitCents !== Math.round(Number(order.productPrice) * 100)) {
         return error('商品价格已调整，请重新下单')
       }
 

@@ -8,6 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, Eye, MessageSquare, Loader2 } from 'lucide-react'
 import OrderChat from '@/components/order-chat'
+import { SourceBadge, SourceFilter, type SiteOption, type SourceSite } from '@/components/admin/source-site'
+import RefundDialog, { type RefundAfterSale } from '@/components/admin/refund-dialog'
+import AfterSalePanel, { type AfterSaleRow } from '@/components/admin/after-sale-panel'
+import RedeemLogPanel from '@/components/admin/redeem-log-panel'
 
 interface Order {
   id: number
@@ -30,6 +34,15 @@ interface Order {
   cardProfitUnknown?: boolean // 该单存在利润未知的卡（外部站发卡）
   invoiceTaxFee?: string | number | null // 下单时勾选「同时开发票」预收的税费（不计入 amount）
   cardCount?: number // 仅深链打开时有：不在当前页的订单拿不到卡密明文，只知道发了几张
+  // ---- 渠道分站（设计 12.2）----
+  tenantId?: number
+  source?: SourceSite
+  /** 买家备注：buyerRemark ?? remark（设计 5.4 双写过渡） */
+  buyerRemarkText?: string | null
+  /** 打开弹窗时的 updatedAt：保存时带回去做并发检查（两人同时编辑 → 后保存的 409） */
+  updatedAt?: string
+  settleState?: string | null
+  supplyCents?: number | null
 }
 
 /** GET /api/admin/orders/[id]/detail 的返回（Decimal 已转 number，时间是 ISO 字符串） */
@@ -52,9 +65,75 @@ interface InvoiceBrief {
   createdAt: string
 }
 
+interface ChannelDetail {
+  settlement: {
+    settleState: string | null
+    invShareState: string | null
+    goodsCents: number
+    purchaseCents: number
+    invShareCents: number
+    feeCents: number
+    otherCents: number
+    balanceCents: number
+    payoutCents: number
+    releaseEta: string | null
+    bucket: string
+    statementNo: string | null
+  } | null
+  ledger: {
+    id: number
+    eventKey: string
+    leg: string
+    type: string
+    component: string
+    bucket: string
+    amountCents: number
+    memo: string | null
+    publicMemo: string | null
+    operatorId: number | null
+    statementId: number | null
+    createdAt: string
+  }[]
+  afterSales: AfterSaleRow[]
+  pendingAfterSales: number
+  partnerReplies: number
+  refundContext: {
+    amountCents: number
+    checkoutTaxCents: number
+    refundedGoodsCents: number
+    refundedTaxCents: number
+    refundedQty: number
+    quantity: number
+    supplyCents: number | null
+    shortCents: number
+    shortUnappliedCents: number
+    deliveredQty: number
+    deliveryType: string
+    costRefYuan: number | null
+  }
+}
+
 interface OrderDetail {
+  source?: SourceSite
+  channel?: ChannelDetail | null
   order: {
     id: number
+    tenantId?: number
+    updatedAt?: string
+    buyerRemarkText?: string | null
+    settleState?: string | null
+    invShareState?: string | null
+    settleVersion?: number
+    settleExcludeReason?: string | null
+    supplyUnitPrice?: number | null
+    supplyCents?: number | null
+    feeRateBp?: number | null
+    invoiceShareRateBp?: number | null
+    settleHoldDays?: number | null
+    mainPriceAtOrder?: number | null
+    escalatedAt?: string | null
+    shortCents?: number | null
+    shortChargedCents?: number | null
     orderNo: string
     productName: string
     productPrice: number
@@ -206,7 +285,22 @@ function orderFromDetail(d: OrderDetail): Order {
     product: { id: d.product.id, name: d.product.name },
     invoiceTaxFee: d.order.invoiceTaxFee,
     cardCount: d.cardCount,
+    tenantId: d.order.tenantId,
+    source: d.source,
+    buyerRemarkText: d.order.buyerRemarkText,
+    updatedAt: d.order.updatedAt,
+    settleState: d.order.settleState,
+    supplyCents: d.order.supplyCents,
   }
+}
+
+const yuanCents = (c: number | null | undefined) => (c == null ? '—' : `¥${(c / 100).toFixed(2)}`)
+/** 元（字符串）→ 分；格式不对返回 null */
+function centsOf(v: string): number | null {
+  const t = v.trim()
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null
+  const [a, b = ''] = t.split('.')
+  return Number(a) * 100 + Number((b + '00').slice(0, 2))
 }
 
 // useSearchParams 必须包在 Suspense 里，否则整页在构建时退化为纯客户端渲染并报警（与卡密页同一写法）
@@ -223,6 +317,9 @@ function OrdersInner() {
   const router = useRouter()
   /** 深链 /admin/orders?orderId=123：从发票详情、余额流水等处直接打开某张订单 */
   const deepLinkId = sp.get('orderId')
+  /** 深链 ?orderId=…&refund=1&afterSaleId=…：从售后申请列表点「处理退款」直接打开退款弹窗 */
+  const deepRefund = sp.get('refund') === '1'
+  const deepAfterSaleId = parseInt(sp.get('afterSaleId') || '') || null
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -232,6 +329,15 @@ function OrdersInner() {
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [categoryId, setCategoryId] = useState(0)
+  // 来源站筛选（设计 12.2）：'' = 全部
+  const [siteFilter, setSiteFilter] = useState('')
+  const [sites, setSites] = useState<SiteOption[]>([])
+  // 标已付（交付时自动标已付）的实收与差额承担方（设计 8.6）
+  const [receivedYuan, setReceivedYuan] = useState('')
+  const [shortBearer, setShortBearer] = useState<'' | 'CHANNEL' | 'PLATFORM'>('')
+  // 退款弹窗
+  const [refundFor, setRefundFor] = useState<{ afterSale: RefundAfterSale | null; full: '' | 'CANCELLED' | 'REFUNDED' } | null>(null)
+  const [resettling, setResettling] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
   const [totals, setTotals] = useState<Totals | null>(null)
   const [page, setPage] = useState(1)
@@ -254,6 +360,8 @@ function OrdersInner() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const detailSeq = useRef(0)
+  /** 打开弹窗后管理员是否已经动过交付状态 / 交付内容 / 金额：动过就不再用明细覆盖表单（见 handleViewDetail） */
+  const formTouched = useRef(false)
 
   const todayIso = () => {
     const d = new Date()
@@ -276,6 +384,7 @@ function OrdersInner() {
       if (fromDate) params.set('from', fromDate)
       if (toDate) params.set('to', toDate)
       if (categoryId) params.set('categoryId', String(categoryId))
+      if (siteFilter) params.set('tenantId', siteFilter)
       params.set('page', String(page))
       const res = await fetch(`/api/admin/orders?${params.toString()}`, { signal: controller.signal })
       const data = await res.json()
@@ -285,6 +394,7 @@ function OrdersInner() {
         setTotalPages(data.data.totalPages || 1)
         setTotal(data.data.total || 0)
         setTotals(data.data.totals || null)
+        setSites(data.data.sites || [])
       }
     } catch (e) {
       if ((e as { name?: string })?.name === 'AbortError') return // 已被更新的请求取代
@@ -302,7 +412,7 @@ function OrdersInner() {
   useEffect(() => {
     loadData()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, filterStatus, onlyUnreplied, fromDate, toDate, categoryId, page])
+  }, [debouncedSearch, filterStatus, onlyUnreplied, fromDate, toDate, categoryId, siteFilter, page])
 
   // 分类下拉数据
   useEffect(() => {
@@ -340,6 +450,7 @@ function OrdersInner() {
   /** preloaded：深链路径已经拿到了明细，不必再拉一次 */
   const handleViewDetail = (order: Order, preloaded?: OrderDetail) => {
     setSelectedOrder(order)
+    formTouched.current = false
     setDeliveryInfo(order.deliveryInfo || '')
     setDeliveryStatus(order.deliveryStatus)
     setAmount(String(Number(order.amount)))
@@ -348,6 +459,9 @@ function OrdersInner() {
     setExtStartDate(todayIso())
     setExtXianyuNickname(order.user.nickname || order.user.email || '')
     setExtClaudeAccount('')
+    setReceivedYuan('')
+    setShortBearer('')
+    setRefundFor(null)
     setShowDetailModal(true)
     if (preloaded) {
       detailSeq.current++ // 作废可能还在路上的旧请求
@@ -356,7 +470,23 @@ function OrdersInner() {
       setDetailLoading(false)
     } else {
       setDetail(null)
-      loadDetail(order.id)
+      loadDetail(order.id).then((d) => {
+        /*
+         * 并发基线从「打开弹窗」算起（设计 4.10 ⑤），不是从「列表加载」算起：列表加载之后订单被系统改过
+         * （买家到账、自动发卡、接码往备注里追加记录…），用列表行的 updatedAt 保存必然 409。
+         * 明细接口给的是打开这一刻的最新行：updatedAt 不同 → 弹窗基线与表单一起换成最新值
+         * （只换 updatedAt 不换表单的话，会拿列表里的旧交付状态覆盖刚被系统改过的状态，比 409 更糟）。
+         */
+        if (!d || d.order.id !== order.id || !d.order.updatedAt || d.order.updatedAt === order.updatedAt) return
+        // 明细回来之前管理员已经开始编辑：不覆盖他的输入，也不换基线——保存会得到 409「订单已变化，请刷新」，
+        // 比悄悄吞掉输入、或拿他的旧值覆盖系统刚写入的状态都安全（上线前复核 2026-09-26）
+        if (formTouched.current) return
+        const fresh = orderFromDetail(d)
+        setSelectedOrder((cur) => (cur && cur.id === order.id ? { ...cur, ...fresh } : cur))
+        setDeliveryInfo(fresh.deliveryInfo || '')
+        setDeliveryStatus(fresh.deliveryStatus)
+        setAmount(String(Number(fresh.amount)))
+      })
     }
   }
 
@@ -382,6 +512,10 @@ function OrdersInner() {
         }
         const d = data.data as OrderDetail
         handleViewDetail(orderFromDetail(d), d)
+        if (deepRefund && d.channel) {
+          const as = d.channel.afterSales.find((a) => a.id === deepAfterSaleId && a.kind === 'REFUND' && a.status === 'PENDING')
+          setRefundFor({ afterSale: as ? { id: as.id, requestNo: as.requestNo, reason: as.reason, suggestedBearer: as.suggestedBearer, suggestedGoodsCents: as.suggestedGoodsCents } : null, full: '' })
+        }
       } catch {
         if (!cancelled) alert('网络错误，订单详情加载失败')
       }
@@ -411,8 +545,61 @@ function OrdersInner() {
     }
   }
 
+  /** 渠道单（tenantId ≥ 2）：退款走弹窗、不能恢复、标已付必填实收（设计 8.4–8.6） */
+  const isChannelOrder = (o: Order | null) => !!o && o.tenantId != null && o.tenantId !== 1
+  const channelDetail = detail && selectedOrder && detail.order.id === selectedOrder.id ? detail.channel ?? null : null
+
+  const openRefund = (afterSale: RefundAfterSale | null, full: '' | 'CANCELLED' | 'REFUNDED' = '') => {
+    if (!channelDetail) {
+      alert('订单明细还没加载完，请稍候再试')
+      return
+    }
+    setRefundFor({ afterSale, full })
+  }
+
+  // 按快照补记（设计 8.3）：只对结算状态为空 / 缺失的已付渠道单
+  const handleResettle = async () => {
+    if (!selectedOrder || !confirm('按下单时的快照补记这张渠道单的结算分录？（只用订单快照，不按当前进货价重算）')) return
+    setResettling(true)
+    try {
+      const res = await fetch(`/api/admin/orders/${selectedOrder.id}/resettle`, { method: 'POST' })
+      const d = await res.json()
+      alert(d.success ? d.message || '已补记' : d.error || '补记失败')
+      if (d.success) loadDetail(selectedOrder.id)
+    } finally {
+      setResettling(false)
+    }
+  }
+
   const handleUpdate = async () => {
     if (!selectedOrder) return
+    const channel = isChannelOrder(selectedOrder)
+
+    // 渠道单已付款后「取消」= 退款：必须在退款弹窗里填金额与承担方（接口也会拒绝，这里直接引导过去）
+    if (
+      channel &&
+      deliveryStatus === 'CANCELLED' &&
+      selectedOrder.deliveryStatus !== 'CANCELLED' &&
+      selectedOrder.payStatus !== 'UNPAID'
+    ) {
+      openRefund(null, 'CANCELLED')
+      return
+    }
+    // 这次保存会不会顺带标已付（未付单标成已完成 = 人工确认到账，设计 8.6 要填实收）
+    const willMarkPaid = selectedOrder.payStatus !== 'PAID' && deliveryStatus === 'DELIVERED' && selectedOrder.deliveryStatus !== 'DELIVERED'
+    let receivedCents: number | undefined
+    if (willMarkPaid && receivedYuan.trim()) {
+      const c = centsOf(receivedYuan)
+      if (c == null) {
+        alert('实收金额格式不正确（最多两位小数）')
+        return
+      }
+      receivedCents = c
+    }
+    if (willMarkPaid && channel && receivedCents == null) {
+      alert('渠道单标已付（标为已完成）必须填写实收金额')
+      return
+    }
 
     // 标记为「已完成」时要求填写 Claude 账户，才能同步导入到「订单」
     const willDeliver = deliveryStatus === 'DELIVERED'
@@ -448,6 +635,10 @@ function OrdersInner() {
         body: JSON.stringify({
           deliveryStatus,
           deliveryInfo: deliveryInfo || null,
+          // 并发保护（设计 4.10 ⑤）：打开弹窗之后订单被别人改过 / 恰好到账 → 409，刷新后重来
+          ...(selectedOrder.updatedAt ? { expectedUpdatedAt: selectedOrder.updatedAt } : {}),
+          ...(receivedCents != null ? { receivedCents } : {}),
+          ...(willMarkPaid && channel && shortBearer ? { shortBearer } : {}),
           // 已取消（或这次就要改成已取消）的订单不发改价：接口会拒绝，买家也已经不能再付款
           ...(selectedOrder.payStatus === 'UNPAID' &&
           selectedOrder.deliveryStatus !== 'CANCELLED' &&
@@ -469,7 +660,15 @@ function OrdersInner() {
       const data = await res.json()
 
       if (!data.success) {
-        alert(data.error || '更新失败')
+        if (data.code === 'SHORT_BEARER_REQUIRED') {
+          alert(`${data.error}\n请在「实收金额」下方选择差额承担方后再保存`)
+          return
+        }
+        if (data.code === 'REFUND_REQUIRED') {
+          openRefund(null, 'CANCELLED')
+          return
+        }
+        alert(res.status === 409 ? `${data.error || '订单已变化'}\n\n请关闭弹窗、刷新列表后重试` : data.error || '更新失败')
         return
       }
 
@@ -552,6 +751,14 @@ function OrdersInner() {
                 </option>
               ))}
             </select>
+            <SourceFilter
+              value={siteFilter}
+              onChange={(v) => {
+                setSiteFilter(v)
+                setPage(1)
+              }}
+              options={sites}
+            />
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <span className="whitespace-nowrap">下单时间</span>
               <input
@@ -636,6 +843,7 @@ function OrdersInner() {
                 <thead>
                   <tr className="border-b border-gray-100 text-left text-sm text-gray-500">
                     <th className="pb-3 font-medium">订单号</th>
+                    <th className="pb-3 font-medium">来源站</th>
                     <th className="pb-3 font-medium">用户</th>
                     <th className="pb-3 font-medium">商品</th>
                     <th className="pb-3 font-medium">金额</th>
@@ -663,6 +871,9 @@ function OrdersInner() {
                             </span>
                           )}
                         </div>
+                      </td>
+                      <td className="py-4">
+                        <SourceBadge source={order.source} />
                       </td>
                       <td className="py-4 text-gray-600">{order.user.nickname || order.user.email}</td>
                       <td className="py-4 text-gray-600">
@@ -786,6 +997,7 @@ function OrdersInner() {
                 <div>
                   <span className="text-gray-500">订单号：</span>
                   <span className="font-medium">{selectedOrder.orderNo}</span>
+                  <SourceBadge source={selectedOrder.source} className="ml-2" />
                 </div>
                 <div>
                   <span className="text-gray-500">用户：</span>
@@ -835,11 +1047,40 @@ function OrdersInner() {
                 </div>
               ) : null}
 
-              {selectedOrder.remark && (
+              {/*
+               * 备注：超管看**完整的 remark**，与改造前一致（上线前复核 2026-09-26）。
+               * 不能优先 buyerRemark：主站每张新单的 buyerRemark 都是下单时的「支付方式: 支付宝」，
+               * 而 sms.ts / vmq.ts 事后往 remark 里追加的「【待退款】接码超时」「卡密库存不足，待人工补发」
+               * 只在这里看得到——优先 buyerRemark 会把这些待办提醒藏掉。
+               * remark = 买家原始备注 + 系统追加，已包含 buyerRemark；只有 remark 为空时才退回 buyerRemark。
+               * （把买家原话与内部说明分开，是渠道后台那一侧的需求，见 partner-services。）
+               */}
+              {(selectedOrder.remark ?? selectedOrder.buyerRemarkText) && (
                 <div className="text-sm">
                   <div className="text-gray-500 mb-1">用户备注：</div>
-                  <div className="rounded-lg bg-gray-50 p-3">{selectedOrder.remark}</div>
+                  <div className="rounded-lg bg-gray-50 p-3">{selectedOrder.remark ?? selectedOrder.buyerRemarkText}</div>
                 </div>
+              )}
+
+              {/* 渠道单：结算快照、分录、售后申请、退款入口（设计 12.2） */}
+              {channelDetail && detail && (
+                <>
+                  <ChannelSection
+                    d={detail}
+                    c={channelDetail}
+                    onRefund={() => openRefund(null, '')}
+                    onResettle={handleResettle}
+                    resettling={resettling}
+                  />
+                  <AfterSalePanel
+                    rows={channelDetail.afterSales}
+                    escalatedAt={detail.order.escalatedAt ?? null}
+                    onRefund={(r) =>
+                      openRefund({ id: r.id, requestNo: r.requestNo, reason: r.reason, suggestedBearer: r.suggestedBearer, suggestedGoodsCents: r.suggestedGoodsCents }, '')
+                    }
+                    onChanged={() => loadDetail(selectedOrder.id)}
+                  />
+                </>
               )}
 
               {selectedOrder.cards && selectedOrder.cards.length > 0 && (
@@ -889,7 +1130,7 @@ function OrdersInner() {
                     type="number"
                     step="0.01"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => { formTouched.current = true; setAmount(e.target.value) }}
                     className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
                   />
                   <p className="mt-1 text-xs text-gray-400">
@@ -904,15 +1145,58 @@ function OrdersInner() {
                 </label>
                 <select
                   value={deliveryStatus}
-                  onChange={(e) => setDeliveryStatus(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
+                  onChange={(e) => { formTouched.current = true; setDeliveryStatus(e.target.value) }}
+                  // 渠道单取消后不能恢复（设计 8.4）
+                  disabled={isChannelOrder(selectedOrder) && selectedOrder.deliveryStatus === 'CANCELLED'}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm disabled:bg-gray-50"
                 >
                   <option value="PENDING">待处理</option>
                   <option value="PROCESSING">处理中</option>
                   <option value="DELIVERED">已完成</option>
                   <option value="CANCELLED">已取消</option>
                 </select>
+                {isChannelOrder(selectedOrder) && selectedOrder.payStatus !== 'UNPAID' && selectedOrder.deliveryStatus !== 'CANCELLED' && (
+                  <p className="mt-1 text-xs text-gray-400">渠道单已付款：改为「已取消」会打开退款弹窗（填退款金额与承担方）；取消后不能恢复。</p>
+                )}
+                {isChannelOrder(selectedOrder) && selectedOrder.deliveryStatus === 'CANCELLED' && (
+                  <p className="mt-1 text-xs text-gray-400">渠道单取消后不能恢复；后续如需调整请走退款或调账。</p>
+                )}
               </div>
+
+              {/* 标已付的实收（设计 8.6，可感知变化 ⑥）：未付单标为「已完成」= 人工确认到账。渠道单必填，主站单选填 */}
+              {selectedOrder.payStatus !== 'PAID' && deliveryStatus === 'DELIVERED' && selectedOrder.deliveryStatus !== 'DELIVERED' && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-3 text-sm">
+                  <label className="mb-1 block font-medium text-gray-700">
+                    实收金额（元）{isChannelOrder(selectedOrder) ? <span className="text-red-500"> *</span> : <span className="text-xs font-normal text-gray-400">（选填）</span>}
+                  </label>
+                  <input
+                    value={receivedYuan}
+                    onChange={(e) => setReceivedYuan(e.target.value)}
+                    placeholder={`应收 ¥${(Number(amount || selectedOrder.amount) + Number(selectedOrder.invoiceTaxFee || 0)).toFixed(2)}（含随单税费）`}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-sm"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">标成「已完成」会同时标为已付款，并按实收补一条付款记录。</p>
+                  {isChannelOrder(selectedOrder) &&
+                    (() => {
+                      const c = centsOf(receivedYuan)
+                      const due = Math.round((Number(amount || selectedOrder.amount) + Number(selectedOrder.invoiceTaxFee || 0)) * 100)
+                      if (c == null || c >= due) return null
+                      return (
+                        <div className="mt-2">
+                          <div className="text-xs text-amber-800">实收比应收少 {yuanCents(due - c)}，请选择差额由谁承担：</div>
+                          <div className="mt-1 flex gap-4 text-xs">
+                            <label className="inline-flex items-center gap-1">
+                              <input type="radio" checked={shortBearer === 'CHANNEL'} onChange={() => setShortBearer('CHANNEL')} /> 渠道承担（从这单货款里扣）
+                            </label>
+                            <label className="inline-flex items-center gap-1">
+                              <input type="radio" checked={shortBearer === 'PLATFORM'} onChange={() => setShortBearer('PLATFORM')} /> 平台承担（先冲抵税费）
+                            </label>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                </div>
+              )}
 
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">
@@ -920,7 +1204,7 @@ function OrdersInner() {
                 </label>
                 <textarea
                   value={deliveryInfo}
-                  onChange={(e) => setDeliveryInfo(e.target.value)}
+                  onChange={(e) => { formTouched.current = true; setDeliveryInfo(e.target.value) }}
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm"
                   rows={4}
                   placeholder="请输入交付信息..."
@@ -1011,6 +1295,11 @@ function OrdersInner() {
                   </div>
                 )}
 
+              {/* 卡密使用情况（兑换日志，设计 12.2）：只有发过卡的单才有 */}
+              {((selectedOrder.cards?.length ?? selectedOrder.cardCount ?? 0) > 0 || (detail?.order.id === selectedOrder.id && detail.product.deliveryType === 'AUTO')) && (
+                <RedeemLogPanel orderId={selectedOrder.id} />
+              )}
+
               <div className="flex justify-end gap-3 pt-4">
                 <Button variant="outline" onClick={closeDetail}>
                   关闭
@@ -1022,6 +1311,31 @@ function OrdersInner() {
             </div>
           </div>
         </div>
+      )}
+
+      {refundFor && selectedOrder && channelDetail && detail && (
+        <RefundDialog
+          orderId={selectedOrder.id}
+          orderNo={selectedOrder.orderNo}
+          afterSale={refundFor.afterSale}
+          initialFull={refundFor.full}
+          ctx={{
+            ...channelDetail.refundContext,
+            taxCents: refundTaxBase(detail),
+            unitPriceCents: Math.round(Number(detail.order.productPrice) * 100),
+            settleVersion: detail.order.settleVersion ?? 0,
+            settleState: detail.order.settleState ?? null,
+            payStatus: detail.order.payStatus,
+            deliveryStatus: detail.order.deliveryStatus,
+          }}
+          onClose={() => setRefundFor(null)}
+          onDone={(msg, warnings) => {
+            setRefundFor(null)
+            alert(warnings.length ? `${msg}\n\n${warnings.join('\n')}` : msg)
+            closeDetail()
+            loadData()
+          }}
+        />
       )}
     </div>
   )
@@ -1312,4 +1626,108 @@ function LotterySection({ d }: { d: OrderDetail }) {
     )
   }
   return <Section title="下单有奖">{body}</Section>
+}
+
+// ============ 渠道单：结算快照与分录（超管视图，设计 12.2） ============
+
+/** 退款弹窗的「可退税费」基数：结账随单税费；否则取已付税费的发票（服务端 applyRefund 按关联发票复核上限） */
+function refundTaxBase(d: OrderDetail): number {
+  const checkout = d.channel?.refundContext.checkoutTaxCents ?? 0
+  if (checkout > 0) return checkout
+  const paid = d.invoices.filter((iv) => iv.payStatus === 'PAID' && (iv.taxFee ?? 0) > 0).sort((a, b) => a.id - b.id)[0]
+  return paid ? Math.round((paid.taxFee ?? 0) * 100) : 0
+}
+
+const SETTLE_LABEL: Record<string, string> = {
+  ACCRUED: '已计提（冻结中）',
+  RELEASED: '已解冻',
+  REVERSED: '已全额冲销',
+  EXCLUDED: '不计入（成员自买等）',
+  MISSING: '快照缺失（待补记）',
+}
+const COMPONENT_LABEL: Record<string, string> = {
+  SALE: '货款',
+  PURCHASE: '进货款',
+  FEE: '手续费',
+  SHORT: '少付',
+  LOSS: '平台损失',
+  INVOICE_SHARE: '发票分成',
+  INVOICE_FEE: '分成手续费',
+  MANUAL: '调整',
+  NET: '净额',
+}
+
+function ChannelSection({
+  d,
+  c,
+  onRefund,
+  onResettle,
+  resettling,
+}: {
+  d: OrderDetail
+  c: ChannelDetail
+  onRefund: () => void
+  onResettle: () => void
+  resettling: boolean
+}) {
+  const o = d.order
+  const paid = o.payStatus === 'PAID' || o.payStatus === 'REFUNDED'
+  const canResettle = paid && (o.settleState == null || o.settleState === 'MISSING')
+  const sv = c.settlement
+  const rc = c.refundContext
+  return (
+    <Section title={`渠道单结算（来源站 ${d.source?.code ?? '—'}）`}>
+      <KV k="结算状态" v={`${o.settleState ? SETTLE_LABEL[o.settleState] ?? o.settleState : '未计提'}${o.settleExcludeReason ? `（${o.settleExcludeReason}）` : ''} · v${o.settleVersion ?? 0}`} />
+      <KV k="发票分成" v={o.invShareState ?? '—'} />
+      <KV k="进货价 × 件数" v={`${yuan(o.supplyUnitPrice)} × ${o.quantity} = ${yuanCents(o.supplyCents)}`} />
+      <KV k="手续费率 / 发票分成率 / 冻结期" v={`${((o.feeRateBp ?? 0) / 100).toFixed(2)}% / ${((o.invoiceShareRateBp ?? 0) / 100).toFixed(2)}% / ${o.settleHoldDays ?? '—'} 天`} />
+      <KV k="下单时主站价" v={yuan(o.mainPriceAtOrder)} />
+      <KV
+        k="已退（货款 / 税费 / 件）"
+        v={`${yuanCents(rc.refundedGoodsCents)} / ${yuanCents(rc.refundedTaxCents)} / ${rc.refundedQty}`}
+      />
+      {(o.shortCents ?? 0) > 0 && <KV k="少付（渠道承担部分）" v={`${yuanCents(o.shortCents)}（${yuanCents(o.shortChargedCents ?? 0)}）`} />}
+      {sv && (
+        <div className="mt-2 rounded bg-gray-50 p-2 text-xs text-gray-600">
+          渠道这单：货款 {yuanCents(sv.goodsCents)} − 进货款 {yuanCents(sv.purchaseCents)} + 发票分成 {yuanCents(sv.invShareCents)}
+          {sv.otherCents ? ` ± 其他 ${yuanCents(sv.otherCents)}` : ''} = 余额 {yuanCents(sv.balanceCents)}；手续费 {yuanCents(sv.feeCents)}；预计打款{' '}
+          {yuanCents(sv.payoutCents)} · 资金位置 {sv.bucket}
+          {sv.releaseEta ? ` · 预计 ${fmtTime(sv.releaseEta)} 解冻` : ''}
+          {sv.statementNo ? ` · 结算单 ${sv.statementNo}` : ''}
+        </div>
+      )}
+      {c.ledger.length > 0 && (
+        <details className="mt-2 text-xs">
+          <summary className="cursor-pointer text-gray-500">分录明细（{c.ledger.length} 条，含内部 eventKey / memo）</summary>
+          <table className="mt-1 w-full">
+            <tbody>
+              {c.ledger.map((e) => (
+                <tr key={e.id} className="border-b border-gray-50">
+                  <td className="py-0.5 pr-2 font-mono text-gray-400">{e.eventKey}/{e.leg}</td>
+                  <td className="py-0.5 pr-2">{e.type}</td>
+                  <td className="py-0.5 pr-2">{COMPONENT_LABEL[e.component] ?? e.component}</td>
+                  <td className="py-0.5 pr-2">{e.bucket}</td>
+                  <td className={`py-0.5 pr-2 text-right font-mono ${e.amountCents < 0 ? 'text-red-600' : 'text-green-700'}`}>{yuanCents(e.amountCents)}</td>
+                  <td className="py-0.5 text-gray-400">{e.memo ?? ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
+      {c.partnerReplies > 0 && <div className="mt-2 text-xs text-violet-700">本单留言里有 {c.partnerReplies} 条是渠道成员回复（买家侧显示为「客服」）。</div>}
+      <div className="mt-3 flex flex-wrap justify-end gap-2">
+        {canResettle && (
+          <Button variant="outline" size="sm" loading={resettling} onClick={onResettle}>
+            按快照补记
+          </Button>
+        )}
+        {paid && (
+          <Button size="sm" onClick={onRefund}>
+            退款 / 部分退款
+          </Button>
+        )}
+      </div>
+    </Section>
+  )
 }

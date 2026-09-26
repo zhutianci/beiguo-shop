@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic'
 import { cache } from 'react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { SITE_NAME } from '@/lib/product-seo'
 import { JsonLd } from '@/lib/seo/jsonld'
@@ -15,6 +16,9 @@ import { LANDINGS, landingPath, matchProducts } from '@/lib/landing/registry'
 import ProductsClient, { type CategoryGuide } from './products-client'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { publicStock } from '@/lib/stock-level'
+import { getStorefront } from '@/lib/storefront/resolve'
+import { listStorefrontProducts } from '@/lib/pricing'
+import { getCurrentUser } from '@/lib/auth'
 
 /**
  * 商品列表页。
@@ -144,7 +148,57 @@ function guidesByCategory(
   return out
 }
 
+/**
+ * 渠道站的商品列表（设计 7.4、W2-6）：只列本店可售的上架行，price = 本店售价。
+ * 【传给客户端组件的 props 会进 HTML 与 RSC payload】所以这里逐字段构造，只有公开字段：
+ * 没有站长价、进货价、成本（lib/pricing.ts 的 PublicProductCard 本身就不含这些）。
+ * 查库失败与主站同样降级为空列表（客户端卡片区照常工作），但 getStorefront 本身不进 try。
+ */
+async function channelProducts(sf: NonNullable<Awaited<ReturnType<typeof getStorefront>>>) {
+  const previewUserId = sf.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
+  try {
+    const cards = await listStorefrontProducts(sf, { previewUserId })
+    return cards.map((p) => ({
+      id: p.id,
+      categoryId: p.categoryId ?? 0,
+      name: p.name,
+      description: p.description,
+      price: p.price,
+      originalPrice: p.originalPrice,
+      image: p.image,
+      stock: p.stock,
+      sales: p.sales,
+      deliveryType: p.deliveryType,
+      categoryName: p.category?.name ?? '其他',
+    }))
+  } catch (err) {
+    console.error('Channel products list query error:', err)
+    return []
+  }
+}
+
 export default async function ProductsPage() {
+  // 店面解析不进 try（设计 4.4 第 7 条）。没有店面的 Host（严格期未知 Host、域名停用）一律 404：
+  // (shop)/layout 的 requireShopStorefront 已经挡过，这里再挡一次，绝不回落成主站列表
+  const sf = await getStorefront()
+  if (!sf) notFound()
+  if (sf.kind === 'CHANNEL') {
+    const products = displayOrder(await channelProducts(sf))
+    /*
+     * 渠道站：不输出 ItemList 结构化数据（整站 noindex，设计 4.8）；不给「选购指南」链接（充值落地页在渠道站关闭，
+     * 设计 11.2——给了就是一排点进去 404 的链接）；底部说明与主站相同（统一品牌）。
+     */
+    return (
+      <>
+        <div className="container relative page-top pb-0">
+          <Breadcrumbs crumbs={[{ name: '首页', path: '/' }, { name: '全部商品' }]} />
+        </div>
+        <ProductsClient products={products} guides={{}} />
+        {products.length > 0 && <PriceNote />}
+      </>
+    )
+  }
+
   const rows = await getProducts()
 
   // 映射成客户端组件的形状。Decimal 必须在服务端转成 number：
@@ -184,20 +238,25 @@ export default async function ProductsPage() {
 
       <ProductsClient products={products} guides={guidesByCategory(products)} />
 
-      {rows.length > 0 && (
-        <section className="container relative pb-20">
-          <p className="mx-auto max-w-5xl text-sm text-white/40">
-            价格随上游成本与汇率浮动，以下单时页面显示的实付金额为准；
-            <strong className="text-white/70">标价均为不含税价</strong>
-            ，需要增值税发票的须在售价之外另付 6% 税费（开票金额 = 售价 × 1.06），收据不涉及税费。
-            不确定该买哪一个？先看{' '}
-            <Link href="/support" className="text-purple-400 hover:text-purple-300">
-              常见问题
-            </Link>
-            ，或直接联系客服微信 <span className="font-mono text-white/60">GenuineMarxist</span>。
-          </p>
-        </section>
-      )}
+      {rows.length > 0 && <PriceNote />}
     </>
+  )
+}
+
+/** 列表底部的价格与开票说明（两站相同，统一品牌） */
+function PriceNote() {
+  return (
+    <section className="container relative pb-20">
+      <p className="mx-auto max-w-5xl text-sm text-white/40">
+        价格随上游成本与汇率浮动，以下单时页面显示的实付金额为准；
+        <strong className="text-white/70">标价均为不含税价</strong>
+        ，需要增值税发票的须在售价之外另付 6% 税费（开票金额 = 售价 × 1.06），收据不涉及税费。
+        不确定该买哪一个？先看{' '}
+        <Link href="/support" className="text-purple-400 hover:text-purple-300">
+          常见问题
+        </Link>
+        ，或直接联系客服微信 <span className="font-mono text-white/60">GenuineMarxist</span>。
+      </p>
+    </section>
   )
 }

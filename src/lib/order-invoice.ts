@@ -1,5 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from './db'
+// 叶子依赖：billing-link 只依赖 db（不 import order-link，否则 order-link → 本文件 → billing-link → order-link 成环）
+import { billingTenantFields, CrossTenantBillingError } from './tenant/billing-link'
 import {
   calcInvoiceAmounts,
   genInvoiceNo,
@@ -28,6 +30,23 @@ export class BillingError extends Error {
     super(message)
     this.name = 'BillingError'
     this.status = status
+  }
+}
+
+/**
+ * 建 Invoice / Receipt 时的来源站两列（设计 5.5、9.3）：统一经 tenant/billing-link 的 billingTenantFields 取值，
+ * 跨站合并（外部订单行与站内订单不属于同一店面）转成 409 的 BillingError——调用方原有的 BillingError 处理照常生效。
+ * 边界检查第 12 条：invoice.create / receipt.create 只能出现在本文件、order-billing.ts 与超管 by-order，且都要经过这里。
+ */
+export async function billingFieldsOrThrow(
+  externalOrderId: number,
+  db?: Prisma.TransactionClient
+): Promise<{ tenantId: number; shopOrderId: number | null }> {
+  try {
+    return await billingTenantFields(externalOrderId, db)
+  } catch (e) {
+    if (e instanceof CrossTenantBillingError) throw new BillingError(e.message, 409)
+    throw e
   }
 }
 
@@ -76,6 +95,8 @@ export interface BuyerInvoiceFields {
 // 使其复用现有发票/收据/开票/管理员后台体系。sourceKey 固定为 `order:<id>`，幂等。
 interface ShopOrderForBilling {
   id: number
+  /** 来源站（渠道分站）。调用方没带时这里自己按 id 补查一次；背书行的 tenantId 必须与订单一致（跨站合并拒绝） */
+  tenantId?: number
   productName: string
   amount: unknown // Prisma.Decimal | number
   paidAt: Date | null
@@ -109,6 +130,9 @@ export async function ensureExternalOrderForShopOrder(o: ShopOrderForBilling) {
     where: { sourceKey },
     select: { id: true },
   })
+  // 背书行的来源站 = 订单的来源站（设计 5.5「由站内订单派生」）。只在新建时写；已有行不改（改了等于把票据挪站，billing-link 会拒绝不一致的行）
+  const tenantId =
+    o.tenantId ?? (await prisma.order.findUnique({ where: { id: o.id }, select: { tenantId: true } }))?.tenantId ?? 1
   const locked = existing
     ? await prisma.invoice.findFirst({
         where: { externalOrderId: existing.id, status: { in: ['SUBMITTED', 'ISSUED'] } },
@@ -127,6 +151,7 @@ export async function ensureExternalOrderForShopOrder(o: ShopOrderForBilling) {
       quote: o.amount as never, // 报价 = 订单金额
       sourceKey,
       shopOrderId: o.id,
+      tenantId,
       importBatch: 'SHOP',
       /*
        * 【出厂即视为「已提醒过」，不参与自动到期提醒】
@@ -258,11 +283,15 @@ export async function materializeOrderInvoice(o: PaidOrderForInvoice) {
   const { invoiceAmount, taxFee } = calcInvoiceAmounts(price)
 
   const paidAt = o.paidAt ?? new Date()
+  // 来源站两列：取自背书行指回的订单；跨站不一致直接抛（履约路径里被 try 住，走 notifyInvoiceFailed 告警）
+  const tf = await billingFieldsOrThrow(ext.id)
   try {
     return await prisma.invoice.create({
       data: {
         invoiceNo: genInvoiceNo(),
         externalOrderId: ext.id,
+        tenantId: tf.tenantId,
+        shopOrderId: tf.shopOrderId,
         sourceKey: ext.sourceKey,
         claudeAccount: ext.claudeAccount,
         subscriptionType: ext.subscriptionType,
@@ -352,6 +381,7 @@ async function settlePrepaid(
       deliveryStatus: true,
       invoiceTaxFee: true,
       invoiceInfo: true,
+      tenantId: true,
       user: { select: { email: true, nickname: true } },
     },
   })
@@ -467,6 +497,9 @@ export async function createManualInvoice(
     data: {
       invoiceNo: genInvoiceNo(),
       externalOrderId: null,
+      // 手工发票没有站内订单，来源站固定主站（设计 9.3：渠道不能让必高为一笔没收到的钱开票）
+      tenantId: 1,
+      shopOrderId: null,
       sourceKey: null,
       // claudeAccount 在 schema 上是 NOT NULL，站外客户没有订阅账户，用邮箱兜底
       claudeAccount: input.account?.trim() || input.email?.trim().toLowerCase() || '站外客户',

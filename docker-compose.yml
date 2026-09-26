@@ -160,9 +160,34 @@ services:
       # 说明：以上全部留空也能正常起。lib/llm.ts 每项都有 || 兜底；
       # 缺 LLM_API_KEY 时管线只抓取去重、不写摘要，站点不会因此挂掉。
       # 缺 NEWS_RELAY_URL 时 viaRelay 的境外源全部跳过，中文源照常。
+      #
+      # —— 渠道分站（docs/多渠道分销-部署说明.md；设计 4.4、4.6、4.10）——
+      # 一律裸变量名：没写进 .env.production = 完全不定义 = 代码默认值，而**默认值就是休眠**（主站行为与改造前逐字相同）。
+      # 改这几项只需 force-recreate app（运行时读，不用重新构建）。
+      # CHANNELS_ENABLED：总开关。不设 / 0 = 休眠（任何 Host 都是主站、不查 tenants 表）；1 = 按 Host 解析店面。
+      #   **开 1 之前 nginx 里渠道 Host 必须已是 closed 或 channel**（部署说明 G1；单独开它会让渠道 Host 进应用）。
+      - CHANNELS_ENABLED
+      # HOST_STRICT：1 = 严格期（未登记 Host 404）。与 nginx 的 `"" "";` **同一天**切。不设 = 观察期
+      - HOST_STRICT
+      # PLATFORM_HOSTS：主站 Host 白名单（逗号分隔）。不设 = bigolab.com,www.bigolab.com,app,localhost,127.0.0.1。
+      #   站长若用服务器公网 IP 进后台，开 CHANNELS_ENABLED 前要把 IP 加进来（否则 /admin 被 404，M14）
+      - PLATFORM_HOSTS
+      # CHANNEL_HOST_SUFFIX：只有这个后缀的 Host 才查库解析渠道（默认 .bigolab.com，只认一级子域）
+      - CHANNEL_HOST_SUFFIX
+      # JWT_LEGACY_TOKENS：不设 = accept（没有 aud 的老 token 只在主站 Host 有效）；上线 30 天后设 reject
+      - JWT_LEGACY_TOKENS
+      # TENANT_DATA_KEY：渠道收款账号 / 企业微信 webhook 的加密密钥（≥32 字节随机，hex 或 base64；主会话 D8）。
+      #   与 JWT_SECRET 解耦：轮换 JWT_SECRET 不影响已录的收款账号。缺失或过短时录入 / 查看收款账号一律拒绝（503），其余功能不受影响。
+      #   **生成后永远不要丢、不要改**（改了已录的收款账号就解不开，只能逐个重新录入）。生成：openssl rand -hex 32
+      - TENANT_DATA_KEY
+      # PRIVATE_FILES_DIR：打款凭证等私有文件目录，默认 /app/private（下面挂了持久卷）。一般不用设
+      - PRIVATE_FILES_DIR
     volumes:
       # 论坛上传图片持久化（容器重建不丢）
       - forum_uploads:/app/public/uploads
+      # 渠道结算的打款凭证等私有文件（主会话 D11；不在 public 下、nginx 不挂它，只能经超管接口读）。
+      # 命名卷首次挂载会继承镜像里 /app/private 的 nextjs 属主（Dockerfile 预建并 chown），否则写凭证报 EACCES
+      - private_files:/app/private
     depends_on:
       db:
         condition: service_healthy
@@ -217,6 +242,8 @@ services:
       # Next 不服务运行时新增的 public 文件，传完要等重启才可见）。
       # 只读挂载：nginx 只负责发，写入仍然只能走 /api/upload。
       - forum_uploads:/var/www/uploads:ro
+      # 渠道站静态停业页（nginx.conf 里 Host 为 closed 时 rewrite 到它，不进应用；设计 4.3、15.6 第 3 层）
+      - ./nginx/closed.html:/usr/share/nginx/closed/closed.html:ro
     depends_on:
       - app
     networks:
@@ -282,3 +309,4 @@ networks:
 volumes:
   mysql_data:
   forum_uploads:
+  private_files:

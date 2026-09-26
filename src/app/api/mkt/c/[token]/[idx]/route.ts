@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { siteOrigin } from '@/lib/news/format'
 import { peekClickTarget, resolveClick } from '@/lib/marketing/tracking'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 营销邮件点击跳转：GET /api/mkt/c/<trackToken>/<idx> → 302 到库里存的那条链接。
@@ -28,6 +29,9 @@ function parseIdx(raw: string | undefined): number {
 }
 
 export async function GET(request: NextRequest, { params }: { params: { token: string; idx: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   let target = `${siteOrigin()}/`
   try {
     target = await resolveClick(String(params.token || ''), parseIdx(params.idx), request.headers.get('user-agent'))
@@ -39,6 +43,9 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
 }
 
 export async function HEAD(_request: NextRequest, { params }: { params: { token: string; idx: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   let target = `${siteOrigin()}/`
   try {
     target = await peekClickTarget(String(params.token || ''), parseIdx(params.idx))

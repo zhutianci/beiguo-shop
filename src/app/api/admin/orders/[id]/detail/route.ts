@@ -3,12 +3,13 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
-import { requireAdmin } from '@/lib/auth'
 import { toCents, fromCents } from '@/lib/money'
 import { couponLabel } from '@/lib/coupon'
 import { parseOrderInvoiceDraft, shopOrderSourceKey } from '@/lib/order-invoice'
 import { invoicesForOrder } from '@/lib/order-link'
 import { parsePrizeSnapshot } from '@/lib/lottery'
+import { adminOrResponse, sourceMap, sourceOf } from '@/lib/admin/source-site'
+import { getOrderSettlementViews } from '@/lib/tenant/balances'
 
 function num(v: unknown): number | null {
   if (v == null) return null
@@ -30,12 +31,9 @@ function num(v: unknown): number | null {
  * 本文件在新建的子目录里，动态参数用 Next 14 原生的 { params: { id: string } } 写法。
  */
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
-  // 中间件之外再验一次（CVE-2025-29927：带特定请求头可整个跳过 middleware）
-  try {
-    await requireAdmin()
-  } catch {
-    return error('无管理员权限', 403)
-  }
+  // 中间件之外再验一次（CVE-2025-29927：带特定请求头可整个跳过 middleware）；渠道 Host → 404
+  const auth = await adminOrResponse()
+  if ('res' in auth) return auth.res
 
   try {
     const id = parseInt(params.id)
@@ -146,6 +144,8 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
 
     const { user, product, payments, ...o } = order
     const amount = Number(o.amount)
+    const src = sourceOf(await sourceMap([o.tenantId]), o.tenantId)
+    const channel = o.tenantId !== 1 ? await channelSection(o, product.deliveryType, cardCount) : null
     const invoiceTaxFee = num(o.invoiceTaxFee)
     const draft = parseOrderInvoiceDraft(o.invoiceInfo)
 
@@ -160,7 +160,14 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
         referralReward: num(o.referralReward),
         couponDiscount: num(o.couponDiscount),
         originalAmount: num(o.originalAmount),
+        supplyUnitPrice: num(o.supplyUnitPrice),
+        mainPriceAtOrder: num(o.mainPriceAtOrder),
+        // 买家备注：优先 buyerRemark（双写过渡，设计 5.4）；remark 可能被系统追加过内部说明
+        buyerRemarkText: o.buyerRemark ?? o.remark,
       },
+      source: src,
+      // 渠道单：结算快照、各成分分录、售后申请、退款弹窗要用的上下文（主站单为 null）
+      channel,
       user,
       product,
       payments: payments.map((p) => ({ ...p, amount: Number(p.amount) })),
@@ -245,5 +252,92 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   } catch (err) {
     console.error('Admin order detail error:', err)
     return error('获取订单详情失败')
+  }
+}
+
+/**
+ * 渠道单的超管视图（设计 12.2「渠道单详情显示结算快照、各成分分录、售后申请、escalatedAt、卡密使用情况面板」）。
+ * 这里是超管侧：分录带 eventKey / memo / 操作人，成本只作「参考：真实成本」给退款弹窗显示、**不预填** loss（设计 8.4）。
+ */
+async function channelSection(
+  o: {
+    id: number
+    tenantId: number
+    quantity: number
+    amount: unknown
+    invoiceTaxFee: unknown
+    supplyCents: number | null
+    deliveryStatus: string
+    refundedGoodsCents: number | null
+    refundedTaxCents: number | null
+    refundedQty: number | null
+    shortCents: number | null
+  },
+  deliveryType: string,
+  cardCount: number,
+) {
+  const [views, ledger, afterSales, partnerReplies, costAgg, sms, pendingAfterSales] = await Promise.all([
+    getOrderSettlementViews(o.tenantId, [o.id]).catch(() => new Map()),
+    prisma.tenantLedgerEntry.findMany({
+      where: { orderId: o.id, tenantId: o.tenantId },
+      orderBy: { id: 'asc' },
+      take: 200,
+      select: { id: true, eventKey: true, leg: true, type: true, component: true, bucket: true, amountCents: true, memo: true, publicMemo: true, operatorId: true, statementId: true, createdAt: true },
+    }),
+    prisma.tenantAfterSale.findMany({
+      where: { orderId: o.id, tenantId: o.tenantId },
+      orderBy: { id: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        requestNo: true,
+        kind: true,
+        status: true,
+        reason: true,
+        suggestedBearer: true,
+        suggestedGoodsCents: true,
+        resultNote: true,
+        bearer: true,
+        refundGoodsCents: true,
+        refundTaxCents: true,
+        lossCents: true,
+        createdAt: true,
+        handledAt: true,
+      },
+    }),
+    prisma.orderMessage.count({ where: { orderId: o.id, senderRole: 'PARTNER' } }),
+    deliveryType === 'AUTO' ? prisma.cardKey.aggregate({ where: { orderId: o.id, status: 'USED' }, _sum: { cost: true } }) : Promise.resolve(null),
+    deliveryType === 'SMS' ? prisma.smsActivation.findFirst({ where: { orderId: o.id }, orderBy: { id: 'desc' }, select: { cost: true } }) : Promise.resolve(null),
+    prisma.tenantAfterSale.count({ where: { orderId: o.id, tenantId: o.tenantId, status: 'PENDING' } }),
+  ])
+  const A = toCents(Number(o.amount))
+  const T = o.invoiceTaxFee == null ? 0 : toCents(Number(o.invoiceTaxFee))
+  const RG = o.refundedGoodsCents ?? 0
+  const Rt = o.refundedTaxCents ?? 0
+  const x = Math.max(0, o.shortCents ?? 0)
+  // 真实成本仅供参考（设计 8.4：弹窗显示「参考：真实成本 ¥x」，不预填 loss）
+  const costRef = costAgg ? Number(costAgg._sum.cost ?? 0) : sms?.cost != null ? Number(sms.cost) : null
+  return {
+    settlement: views.get(o.id) ?? null,
+    ledger,
+    afterSales,
+    pendingAfterSales,
+    partnerReplies,
+    refundContext: {
+      amountCents: A,
+      /** 结账随单税费；事后开票的税费见发票区（由服务端 applyRefund 按关联发票取基数） */
+      checkoutTaxCents: T,
+      refundedGoodsCents: RG,
+      refundedTaxCents: Rt,
+      refundedQty: o.refundedQty ?? 0,
+      quantity: o.quantity,
+      supplyCents: o.supplyCents,
+      shortCents: x,
+      /** 尚未抵扣的少付额 = x − min(x, RG + Rt)（设计 8.4 ②） */
+      shortUnappliedCents: x - Math.min(x, RG + Rt),
+      deliveredQty: deliveryType === 'AUTO' ? cardCount : o.deliveryStatus === 'DELIVERED' ? o.quantity : 0,
+      deliveryType,
+      costRefYuan: costRef,
+    },
   }
 }

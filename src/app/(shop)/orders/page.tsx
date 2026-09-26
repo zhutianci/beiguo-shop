@@ -30,6 +30,7 @@ import OrderSms from '@/components/order-sms'
 import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
 import { RedPacketButton } from '@/components/lottery/red-packet-button'
 import { LotteryModal } from '@/components/lottery/lottery-modal'
+import { useStorefront } from '@/components/storefront-provider'
 // 只取类型：lib/lottery 间接引用了 prisma 与 node crypto，值导入会被打进前端包
 import type { BuyerLotteryView } from '@/lib/lottery'
 
@@ -213,6 +214,12 @@ export default function OrdersPage() {
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null)
   const [lotteryOrder, setLotteryOrder] = useState<Order | null>(null)
+  /*
+   * 渠道分站（设计 7.6、实施分包 WP1）：抽奖在渠道站关闭——渠道单建单时就不生成抽奖资格（WP2），
+   * 这里再按 features 把「下单有奖」提示、红包按钮与弹窗整体去掉（/api/lottery/* 在渠道 Host 404，验收 W1-9）。
+   * 主站 features 全开，行为不变。
+   */
+  const { features: sfFeatures } = useStorefront()
 
   // 拆完红包只改这一张卡片，不整页重拉：买家可能已经「加载更多」翻了好几页
   const handleLotteryDrawn = (orderId: number, view: BuyerLotteryView) => {
@@ -611,7 +618,7 @@ export default function OrdersPage() {
                               <span>请点击「支付宝支付」完成付款</span>
                             </div>
                             {/* 这张单有抽奖资格：付款前只提示，不给按钮（服务端也不允许未付款的单抽） */}
-                            {order.lottery?.state === 'PENDING' && (
+                            {sfFeatures.lottery && order.lottery?.state === 'PENDING' && (
                               <div className="mt-1.5 flex items-center gap-1.5 text-xs lg:text-[13px] text-amber-200/80">
                                 <Gift className="w-3.5 h-3.5 text-red-400" />
                                 <span>付款后可参与「下单有奖」抽红包</span>
@@ -648,7 +655,7 @@ export default function OrdersPage() {
                             />
                           )}
                           {/* 下单有奖：未拆 = 合着的红包，已拆 = 拆开的红包（点开重看结果） */}
-                          {paid && order.lottery && order.lottery.state !== 'VOID' && (
+                          {sfFeatures.lottery && paid && order.lottery && order.lottery.state !== 'VOID' && (
                             <RedPacketButton
                               view={order.lottery}
                               canDraw={!!order.lotteryCanDraw}
@@ -773,7 +780,7 @@ export default function OrdersPage() {
       )}
 
       {/* 下单有奖：拆红包 / 重看结果 */}
-      {lotteryOrder && lotteryOrder.lottery && (
+      {sfFeatures.lottery && lotteryOrder && lotteryOrder.lottery && (
         <LotteryModal
           orderNo={lotteryOrder.orderNo}
           productName={lotteryOrder.productName}

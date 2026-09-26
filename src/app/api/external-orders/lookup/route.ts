@@ -11,6 +11,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { emailDigest, hasAccountAccess, readProofDigests } from '@/lib/email-proof'
 import { ipKey } from '@/lib/auth-throttle'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 const querySchema = z.object({
   email: z.string().email('请输入正确的邮箱'),
@@ -18,12 +19,18 @@ const querySchema = z.object({
 
 // 邮箱放 body 而不是 query：query 会整串进 nginx 访问日志
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   const body = await request.json().catch(() => null)
   return lookup(request, body?.email)
 }
 
 // 兼容：发布窗口里旧页面的 JS 还在用 GET。行为与 POST 完全一样（同样要求邮箱归属证明），下个版本删掉
 export async function GET(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   return lookup(request, new URL(request.url).searchParams.get('email'))
 }
 

@@ -7,6 +7,8 @@ import { success, error } from '@/lib/api'
 import { hashPassword } from '@/lib/auth'
 import { consumeCode } from '@/lib/verify-code'
 import { verifyIpLimited, clearLoginThrottle } from '@/lib/auth-throttle'
+import { getStorefront } from '@/lib/storefront/resolve'
+import { authCrossSiteReason } from '@/lib/tenant/same-origin'
 
 const schema = z.object({
   email: z.string().email('请输入有效的邮箱地址'),
@@ -19,6 +21,13 @@ const BAD_CODE = '验证码错误或已过期，多次输错请重新获取验�
 
 // 通过邮箱验证码重置密码
 export async function POST(request: NextRequest) {
+  // 渠道分站：账号是全局的，在哪个站重置都改同一个账号（sessionEpoch+1 让两站旧会话一起失效）。
+  // 这里只做店面存在性判断（没有店面的 Host 一律 404，与其他 auth 路由一致）；不包进 try。
+  // 本接口不发邮件（验证码由 send-code 按店面 origin 发出）
+  const sf = await getStorefront()
+  if (!sf) return error('资源不存在', 404)
+  // 写接口同源校验（设计 4.6 C4；集成阶段补）：挡兄弟子域发起的登录 CSRF。店面解析之后、try 之外
+  if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
   try {
     const body = await request.json()
     const parsed = schema.safeParse(body)

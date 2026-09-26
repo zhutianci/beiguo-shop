@@ -9,6 +9,7 @@ import { success, error, unauthorized } from '@/lib/api'
 import { claimHash, couponClaimable, couponLabel, parseProductIds } from '@/lib/coupon'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { ipKey } from '@/lib/auth-throttle'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 领券。**必须登录**（站长要求：券绑定到具体账户，只能本人在有效期内使用）。
@@ -28,6 +29,9 @@ const schema = z.object({
 // 原来这里自己抄了一份，两处取法迟早会漂移
 
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

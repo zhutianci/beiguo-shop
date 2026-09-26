@@ -41,6 +41,8 @@ export async function effectiveBasePrice(userId: number, productId: number): Pro
 export async function settleReferral(orderId: number): Promise<void> {
   const order = await prisma.order.findUnique({ where: { id: orderId } })
   if (!order) return
+  // 渠道单没有内推（渠道站营销全关，设计 7.6、8.3）：即使 referrerId 被写进去也绝不返现
+  if (order.tenantId !== 1) return
   // 两个条件缺一不可：只看 DELIVERED 的话，被标成退款（REFUNDED）却仍显示已交付的订单
   // 也会给推广人入账 —— 钱没留下，返现却发出去了
   if (order.payStatus !== 'PAID' || order.deliveryStatus !== 'DELIVERED') return

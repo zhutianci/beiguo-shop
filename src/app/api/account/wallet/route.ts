@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { BALANCE_TYPE_LABELS, referralOrderIdOf } from '@/lib/balance'
 import { maskOrderNo } from '@/lib/mask'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 账户余额：当前余额 + 汇总 + 余额流水（分页）。
@@ -28,6 +29,9 @@ import { maskOrderNo } from '@/lib/mask'
 const toCents = (v: unknown) => Math.round(Number(v ?? 0) * 100)
 
 export async function GET(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

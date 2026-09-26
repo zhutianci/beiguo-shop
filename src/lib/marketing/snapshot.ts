@@ -131,7 +131,11 @@ function claimStateAt(c: ClaimBatch, at: Date): 'ok' | 'not_started' | 'invalid'
   return 'invalid'
 }
 
-/** 编辑器用的商品/券目录：在售商品（公开字段白名单）、可领的公开券批次 */
+/**
+ * 编辑器用的商品/券目录：在售商品（公开字段白名单）、可领的公开券批次。
+ * 渠道分站（设计 11.3）：营销是平台专属，这里列的是 Product 上的主站价、链接用平台 origin（siteOrigin()），
+ * 不读任何渠道上架与售价——营销邮件永远只卖主站价。
+ */
 export async function loadCatalog(): Promise<CatalogResponse> {
   const origin = siteOrigin()
   const now = new Date()

@@ -1,0 +1,23 @@
+{
+  "package": "WP6",
+  "note": "WP6 新增的渠道后台接口清单（实施分包 9.4）。key = 寻址键（公开编号）；readOnlySafe = SUSPENDED 时仍放行；rate = 路由级限频。merge-routes.mjs（WP8）与 src/app/api/partner/** 实际目录比对。",
+  "routes": [
+    { "method": "GET", "path": "/api/partner/dashboard", "file": "src/app/api/partner/dashboard/route.ts", "guard": "partnerRoute", "perm": "dashboard.read", "key": null, "readOnlySafe": true },
+    { "method": "GET", "path": "/api/partner/catalog", "file": "src/app/api/partner/catalog/route.ts", "guard": "partnerRoute", "perm": "catalog.read", "key": null, "readOnlySafe": true },
+    { "method": "PATCH", "path": "/api/partner/listings/[listingNo]", "file": "src/app/api/partner/listings/[listingNo]/route.ts", "guard": "partnerRoute", "perm": "listing.write", "key": "listingNo", "readOnlySafe": false, "rate": "60/min" },
+    { "method": "POST", "path": "/api/partner/listings/status", "file": "src/app/api/partner/listings/status/route.ts", "guard": "partnerRoute", "perm": "listing.write", "key": "listingNo[]", "readOnlySafe": false, "rate": "10/min" },
+    { "method": "POST", "path": "/api/partner/listings/price/preview", "file": "src/app/api/partner/listings/price/preview/route.ts", "guard": "partnerRoute", "perm": "listing.write", "key": "listingNo[]", "readOnlySafe": false, "rate": "30/min" },
+    { "method": "POST", "path": "/api/partner/listings/price/commit", "file": "src/app/api/partner/listings/price/commit/route.ts", "guard": "partnerRoute", "perm": "listing.write", "key": "previewToken", "readOnlySafe": false, "rate": "10/min" },
+    { "method": "GET", "path": "/api/partner/orders", "file": "src/app/api/partner/orders/route.ts", "guard": "partnerRoute", "perm": "order.read", "key": null, "readOnlySafe": true },
+    { "method": "GET", "path": "/api/partner/orders/export", "file": "src/app/api/partner/orders/export/route.ts", "guard": "partnerRoute", "perm": "order.export", "key": null, "readOnlySafe": true, "rate": "10/day（按审计计数）" },
+    { "method": "GET", "path": "/api/partner/orders/[orderNo]", "file": "src/app/api/partner/orders/[orderNo]/route.ts", "guard": "partnerRoute", "perm": "order.read", "key": "orderNo", "readOnlySafe": true },
+    { "method": "GET", "path": "/api/partner/orders/[orderNo]/cards", "file": "src/app/api/partner/orders/[orderNo]/cards/route.ts", "guard": "partnerRoute", "perm": "order.cards", "key": "orderNo", "readOnlySafe": true, "rate": "60/min" },
+    { "method": "GET", "path": "/api/partner/orders/[orderNo]/messages", "file": "src/app/api/partner/orders/[orderNo]/messages/route.ts", "guard": "partnerRoute", "perm": "order.message", "key": "orderNo", "readOnlySafe": true },
+    { "method": "POST", "path": "/api/partner/orders/[orderNo]/messages", "file": "src/app/api/partner/orders/[orderNo]/messages/route.ts", "guard": "partnerRoute", "perm": "order.message", "key": "orderNo", "readOnlySafe": false, "rate": "30/min" },
+    { "method": "POST", "path": "/api/partner/orders/[orderNo]/read", "file": "src/app/api/partner/orders/[orderNo]/read/route.ts", "guard": "partnerRoute", "perm": "order.message", "key": "orderNo", "readOnlySafe": false },
+    { "method": "POST", "path": "/api/partner/orders/[orderNo]/after-sales", "file": "src/app/api/partner/orders/[orderNo]/after-sales/route.ts", "guard": "partnerRoute", "perm": "aftersale.request", "key": "orderNo", "readOnlySafe": false, "rate": "20/min" },
+    { "method": "GET", "path": "/api/partner/after-sales", "file": "src/app/api/partner/after-sales/route.ts", "guard": "partnerRoute", "perm": "order.read", "key": null, "readOnlySafe": true },
+    { "method": "POST", "path": "/api/partner/after-sales/[requestNo]/cancel", "file": "src/app/api/partner/after-sales/[requestNo]/cancel/route.ts", "guard": "partnerRoute", "perm": "aftersale.request", "key": "requestNo", "readOnlySafe": false },
+    { "method": "POST", "path": "/api/partner/invite/accept", "file": "src/app/api/partner/invite/accept/route.ts", "guard": "inviteRoute", "perm": null, "key": "token", "readOnlySafe": false }
+  ]
+}

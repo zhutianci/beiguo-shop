@@ -3,8 +3,16 @@ import { calcInvoiceAmounts, genInvoiceNo, normalizeTaxNumber } from './invoice'
 import { PAYEE, genReceiptNo, genReceiptToken } from './receipt'
 import { createOrGetVmqOrder } from './vmq'
 import { notifyReceiptCreated } from './notify'
-import { BillingError, assertShopOrderBillable, shopOrderIdOfExt, type BuyerInvoiceFields } from './order-invoice'
+import { BillingError, assertShopOrderBillable, billingFieldsOrThrow, shopOrderIdOfExt, type BuyerInvoiceFields } from './order-invoice'
 import { hasAccountAccess } from './email-proof'
+import { storefrontById } from './storefront/resolve'
+
+/** 平台群「[lulu]」标签：渠道票据用租户 code，主站为 null（消息逐字不变） */
+async function siteCodeOf(tenantId: number): Promise<string | null> {
+  if (tenantId === 1) return null
+  const sf = await storefrontById(tenantId).catch(() => null)
+  return sf?.code ?? `t${tenantId}`
+}
 
 // BillingError / BuyerInvoiceFields / ensureExternalOrderForShopOrder 等已迁到 ./order-invoice
 // （见那个文件顶部的说明：为了不让 lib/vmq.ts 与本文件形成循环依赖）。
@@ -34,7 +42,7 @@ export type { BuyerInvoiceFields, OrderInvoiceDraft, ManualInvoiceInput } from '
 // order.shopOrderId：调用方查外部订单时顺手带上就传；不传（undefined）则这里按 id 自己补查，
 // 传 null 表示「确认没有」、不再查。
 export async function assertExternalOrderAccess(
-  order: { id: number; sourceKey: string; claudeAccount: string; shopOrderId?: number | null },
+  order: { id: number; sourceKey: string; claudeAccount: string; shopOrderId?: number | null; tenantId?: number },
   opts: { user?: { id: number; email?: string | null } | null; proofDigests?: Set<string> }
 ): Promise<void> {
   const user = opts.user ?? null
@@ -43,13 +51,23 @@ export async function assertExternalOrderAccess(
   const m = /^order:(\d+)$/.exec(order.sourceKey || '')
   const keyOrderId = m ? parseInt(m[1]) : null
   let shopOrderId = order.shopOrderId
-  if (shopOrderId === undefined) {
-    const row = await prisma.externalOrder.findUnique({ where: { id: order.id }, select: { shopOrderId: true } })
-    shopOrderId = row?.shopOrderId ?? null
+  let extTenantId = order.tenantId
+  if (shopOrderId === undefined || extTenantId === undefined) {
+    const row = await prisma.externalOrder.findUnique({ where: { id: order.id }, select: { shopOrderId: true, tenantId: true } })
+    if (shopOrderId === undefined) shopOrderId = row?.shopOrderId ?? null
+    if (extTenantId === undefined) extTenantId = row?.tenantId ?? 1
   }
   const linkedIds = Array.from(new Set([keyOrderId, shopOrderId].filter((v): v is number => !!v)))
   if (linkedIds.length) {
-    const owners = await prisma.order.findMany({ where: { id: { in: linkedIds } }, select: { userId: true } })
+    const owners = await prisma.order.findMany({ where: { id: { in: linkedIds } }, select: { userId: true, tenantId: true } })
+    /*
+     * 【跨站合并一律拒绝】（设计 9.3）外部订单行的来源站必须与它指回的每一张站内订单相同。
+     * 不一致只可能是数据被改坏（或有人把 A 站订单挂到 B 站的行上），此时谁都不能拿这一行开票 / 开收据。
+     * 主站存量行 tenantId 全是 1、订单也全是 1，这道闸不改变主站行为。
+     */
+    if (owners.some((o) => o.tenantId !== extTenantId)) {
+      throw new BillingError('该订单不属于本站，不能开具票据', 404)
+    }
     if (owners.length) {
       if (user && owners.some((o) => o.userId === user.id)) return
       throw new BillingError('该订单为本站账号下单，请登录下单账号后操作（或在「我的订单」中开具）', 403)
@@ -99,6 +117,9 @@ export async function submitInvoiceForExternalOrder(
     taxFee,
   }
 
+  // 来源站两列（渠道分站）：取自外部订单行指回的站内订单；跨站不一致抛 409
+  const tf = await billingFieldsOrThrow(order.id)
+
   // 一笔订单一张发票
   const existing = await prisma.invoice.findUnique({ where: { externalOrderId: order.id } })
   let invoice
@@ -113,13 +134,15 @@ export async function submitInvoiceForExternalOrder(
       where: { id: existing.id },
       // userId 只补不覆盖：历史匿名单第一次被登录用户接手时记上归属，
       // 但已有归属的不能被后来的调用改掉
-      data: { ...buyerFields, status: 'AWAIT_PAY', userId: existing.userId ?? opts.userId ?? null },
+      data: { ...buyerFields, status: 'AWAIT_PAY', userId: existing.userId ?? opts.userId ?? null, tenantId: tf.tenantId, shopOrderId: tf.shopOrderId },
     })
   } else {
     invoice = await prisma.invoice.create({
       data: {
         invoiceNo: genInvoiceNo(),
         externalOrderId: order.id,
+        tenantId: tf.tenantId,
+        shopOrderId: tf.shopOrderId,
         sourceKey: order.sourceKey,
         claudeAccount: order.claudeAccount,
         subscriptionType: order.subscriptionType,
@@ -173,6 +196,9 @@ export async function submitReceiptForExternalOrder(
   // 同发票：关联的站内订单已作废就不再开收据（收据盖章开出去就收不回来）
   await assertShopOrderBillable(shopOrderIdOfExt(order))
 
+  // 来源站两列（渠道分站）：取自外部订单行指回的站内订单；跨站不一致抛 409
+  const tf = await billingFieldsOrThrow(order.id)
+
   // 一笔订单仅一张收据
   const existing = await prisma.receipt.findFirst({ where: { externalOrderId: order.id } })
   if (existing) throw new BillingError('该订单已开具收据，如需重开请联系客服', 409)
@@ -197,6 +223,8 @@ export async function submitReceiptForExternalOrder(
       receiptNo: genReceiptNo(),
       token: genReceiptToken(),
       externalOrderId: order.id,
+      tenantId: tf.tenantId,
+      shopOrderId: tf.shopOrderId,
       sourceKey: order.sourceKey,
       claudeAccount: order.claudeAccount,
       subscriptionType: order.subscriptionType,
@@ -230,6 +258,7 @@ export async function submitReceiptForExternalOrder(
     source: 'BUYER',
     account: receipt.claudeAccount,
     createdAt: receipt.createdAt,
+    site: await siteCodeOf(tf.tenantId),
   })
 
   return { token: receipt.token }
@@ -265,6 +294,9 @@ export async function createManualReceipt(input: ManualReceiptInput) {
       receiptNo: (input.receiptNo || '').trim() || genReceiptNo(),
       token: genReceiptToken(),
       externalOrderId: null,
+      // 手工收据没有站内订单，来源站固定主站（设计 9.3）
+      tenantId: 1,
+      shopOrderId: null,
       sourceKey: null,
       claudeAccount: input.account?.trim() || null,
       subscriptionType: null,

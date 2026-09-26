@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
+import { parseTenantFilter, INVALID_TENANT_FILTER, sourceMap, sourceOf } from '@/lib/admin/source-site'
 
 // 本站自身产生的 ExternalOrder 导入批次：
 //   SHOP = 买家申请发票/收据时 upsert 进来的
@@ -26,6 +27,9 @@ export async function GET(request: NextRequest) {
     const excludeShopParam = searchParams.get('excludeShop')?.trim()
     // 默认 true；只有显式传 0 / false 才把本站自助订单也算进来
     const excludeShop = !(excludeShopParam === '0' || excludeShopParam === 'false')
+    // 来源站（设计 12.2）：ExternalOrder.tenantId（由站内订单派生；导入行、手工行固定主站）。不传 = 全部
+    const site = parseTenantFilter(searchParams)
+    if (site === 'invalid') return error(INVALID_TENANT_FILTER)
 
     const dateRe = /^\d{4}-\d{2}-\d{2}$/
     if (!startStr || !dateRe.test(startStr)) return error('start 日期格式错误')
@@ -43,6 +47,7 @@ export async function GET(request: NextRequest) {
       ...(excludeShop
         ? { OR: [{ importBatch: null }, { importBatch: { notIn: SHOP_BATCHES } }] }
         : {}),
+      ...(site == null ? {} : { tenantId: site }),
     }
 
     const orders = await prisma.externalOrder.findMany({
@@ -55,6 +60,7 @@ export async function GET(request: NextRequest) {
         cost: true,
         quote: true,
         profit: true,
+        tenantId: true,
       },
       orderBy: { startDate: 'asc' },
     })
@@ -78,8 +84,14 @@ export async function GET(request: NextRequest) {
     // 按账户
     const acctMap = new Map<string, { account: string; nickname: string | null; count: number; quote: number; profit: number }>()
 
+    // 按来源站汇总（单数、报价合计）
+    const siteAgg = new Map<number, { count: number; quote: number }>()
     for (const o of orders) {
       const q = num(o.quote)
+      const sa = siteAgg.get(o.tenantId) ?? { count: 0, quote: 0 }
+      sa.count++
+      sa.quote += q || 0
+      siteAgg.set(o.tenantId, sa)
       const c = num(o.cost)
       // 利润：有就用；否则若报价、成本都有则推算
       let p = num(o.profit)
@@ -143,8 +155,14 @@ export async function GET(request: NextRequest) {
       withProfit,
     }
 
+    const siteSrc = await sourceMap(siteAgg.keys())
+    const bySite = Array.from(siteAgg.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([tid, v]) => ({ ...sourceOf(siteSrc, tid), count: v.count, quote: round2(v.quote) }))
+
     return success({
-      range: { start: startStr, end: endStr, granularity, excludeShop },
+      range: { start: startStr, end: endStr, granularity, excludeShop, tenantId: site ?? null },
+      bySite,
       summary,
       series,
       byType,

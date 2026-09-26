@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { notFoundOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 论坛列表页。详情页 /forum/[id] 是用户发的内容，标题各不相同才有意义，
@@ -24,6 +25,9 @@ export const metadata: Metadata = {
   openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/forum' },
 }
 
-export default function ForumLayout({ children }: { children: React.ReactNode }) {
+// 渠道分站（设计 11.2、实施分包 WP1）：本模块在渠道站关闭，渠道 Host 上整组页面 404（第一行、不包进 try）。
+// 主站（含休眠期的任何 Host）照常渲染；接口层另有 denyOnChannel 与 nginx 白名单兜底
+export default async function ForumLayout({ children }: { children: React.ReactNode }) {
+  await notFoundOnChannel()
   return <>{children}</>
 }

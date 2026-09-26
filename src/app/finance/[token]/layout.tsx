@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { notFoundOnChannel } from '@/lib/storefront/resolve'
 
 /*
  * 财务开票台（企微「发票可开具」通知里的链接）。
@@ -29,6 +30,11 @@ export const viewport: Viewport = {
   themeColor: '#0b0d12',
 }
 
-export default function FinanceLayout({ children }: { children: React.ReactNode }) {
+/*
+ * 渠道分站（设计 6.4.2 第 5 条、12.2；W4-11）：平台内部工具，渠道 Host 上整页 404（接口也各自 404）。
+ * 页面本身是客户端组件，没法在里面 notFound()，所以放在这一层；店面解析不进 try。休眠时恒放行，主站渲染不变。
+ */
+export default async function FinanceLayout({ children }: { children: React.ReactNode }) {
+  await notFoundOnChannel()
   return <>{children}</>
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Search, Ban, CheckCircle, ChevronRight, Megaphone } from 'lucide-react'
+import { SourceBadge, SourceFilter, type SiteOption, type SourceSite } from '@/components/admin/source-site'
 
 interface User {
   id: number
@@ -17,6 +18,13 @@ interface User {
   status: number
   createdAt: string
   _count: { orders: number }
+  // ---- 渠道分站（设计 5.5、12.2）----
+  registeredTenant?: SourceSite
+  siteOrderCounts?: (SourceSite & { count: number })[]
+  crossSite?: boolean
+  isMember?: boolean
+  memberOf?: (SourceSite & { role: string })[]
+  blockedIn?: number[]
 }
 
 export default function UsersPage() {
@@ -32,6 +40,13 @@ export default function UsersPage() {
   // 多选只针对当前页（翻页、换搜索词即清空）：跨页累积的勾选看不见，容易误把上一页的人也发了
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [creatingCampaign, setCreatingCampaign] = useState(false)
+  // 站点筛选（设计 12.2）：注册站、与某站有关、跨站、某站拉黑、渠道成员
+  const [sites, setSites] = useState<SiteOption[]>([])
+  const [regTenant, setRegTenant] = useState('')
+  const [siteF, setSiteF] = useState('')
+  const [blockedIn, setBlockedIn] = useState('')
+  const [crossSite, setCrossSite] = useState(false)
+  const [memberOnly, setMemberOnly] = useState(false)
 
   // 搜索防抖
   useEffect(() => {
@@ -47,6 +62,11 @@ export default function UsersPage() {
     try {
       const q = new URLSearchParams({ page: String(page), pageSize: '20' })
       if (debouncedSearch) q.set('keyword', debouncedSearch)
+      if (regTenant) q.set('regTenant', regTenant)
+      if (siteF) q.set('site', siteF)
+      if (blockedIn) q.set('blockedIn', blockedIn)
+      if (crossSite) q.set('crossSite', '1')
+      if (memberOnly) q.set('member', '1')
       const res = await fetch(`/api/admin/users?${q}`, { signal: controller.signal })
       const data = await res.json()
       if (data.success && abortRef.current === controller) {
@@ -54,13 +74,14 @@ export default function UsersPage() {
         setSelected(new Set())
         setTotal(data.data.total || 0)
         setTotalPages(data.data.totalPages || 1)
+        setSites(data.data.sites || [])
       }
     } catch (e) {
       if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
       if (abortRef.current === controller) setLoading(false)
     }
-  }, [page, debouncedSearch])
+  }, [page, debouncedSearch, regTenant, siteF, blockedIn, crossSite, memberOnly])
 
   useEffect(() => {
     load()
@@ -114,7 +135,18 @@ export default function UsersPage() {
   const handleToggleStatus = async (user: User) => {
     const newStatus = user.status === 1 ? 0 : 1
     const action = newStatus === 1 ? '启用' : '禁用'
-    if (!confirm(`确定要${action}该用户吗？`)) return
+    // 全局禁用影响所有站（设计 6.2）：列出各站订单数与渠道成员身份，让站长看清影响范围
+    const impact =
+      newStatus === 0
+        ? [
+            (user.siteOrderCounts ?? []).length
+              ? `各站订单：${(user.siteOrderCounts ?? []).map((c) => `${c.tenantId === 1 ? '主站' : c.code} ${c.count}`).join('、')}`
+              : '',
+            (user.memberOf ?? []).length ? `渠道成员：${(user.memberOf ?? []).map((m) => `${m.code}（${m.role}）`).join('、')}（禁用后将无法登录渠道后台）` : '',
+          ].filter(Boolean)
+        : []
+    const impactText = impact.length ? `\n\n全局禁用会影响所有站：\n${impact.join('\n')}` : ''
+    if (!confirm(`确定要${action}该用户吗？${impactText}`)) return
 
     const res = await fetch(`/api/admin/users/${user.id}`, {
       method: 'PUT',
@@ -142,7 +174,7 @@ export default function UsersPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-4">
-            <div className="relative w-80">
+            <div className="relative w-80 shrink-0">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
               <input
                 value={search}
@@ -154,6 +186,20 @@ export default function UsersPage() {
                 className="w-full rounded-lg border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm"
               />
             </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-gray-500">注册站</span>
+            <SourceFilter value={regTenant} onChange={(v) => { setRegTenant(v); setPage(1) }} options={sites} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+            <span className="text-gray-500">有关站点</span>
+            <SourceFilter value={siteF} onChange={(v) => { setSiteF(v); setPage(1) }} options={sites} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+            <span className="text-gray-500">被限制下单</span>
+            <SourceFilter value={blockedIn} onChange={(v) => { setBlockedIn(v); setPage(1) }} options={sites.filter((o) => o.tenantId !== 1)} className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm" />
+            <label className="inline-flex items-center gap-1">
+              <input type="checkbox" checked={crossSite} onChange={(e) => { setCrossSite(e.target.checked); setPage(1) }} /> 跨站
+            </label>
+            <label className="inline-flex items-center gap-1">
+              <input type="checkbox" checked={memberOnly} onChange={(e) => { setMemberOnly(e.target.checked); setPage(1) }} /> 渠道成员
+            </label>
           </div>
 
           {/* 批量操作条（与卡密页同一范式） */}
@@ -206,6 +252,7 @@ export default function UsersPage() {
                     <th className="pb-3 font-medium">角色</th>
                     <th className="pb-3 font-medium">余额</th>
                     <th className="pb-3 font-medium">订单数</th>
+                    <th className="pb-3 font-medium">站点</th>
                     <th className="pb-3 font-medium">状态</th>
                     <th className="pb-3 font-medium">注册时间</th>
                     <th className="pb-3 font-medium">操作</th>
@@ -245,6 +292,20 @@ export default function UsersPage() {
                       </td>
                       <td className="py-4 text-gray-900">¥{Number(user.balance).toFixed(2)}</td>
                       <td className="py-4 text-gray-600">{user._count.orders}</td>
+                      <td className="py-4">
+                        {/* 注册站 + 各站订单数徽章（「主站 5 · lulu 2」）+ 跨站 / 渠道成员 / 某站拉黑标记（设计 5.5） */}
+                        <div className="flex flex-wrap items-center gap-1">
+                          <SourceBadge source={user.registeredTenant} label={`注册:${user.registeredTenant?.tenantId === 1 ? '主站' : user.registeredTenant?.code ?? '—'}`} />
+                          {(user.siteOrderCounts ?? []).map((c) => (
+                            <SourceBadge key={c.tenantId} source={c} label={`${c.tenantId === 1 ? '主站' : c.code} ${c.count}`} />
+                          ))}
+                          {user.crossSite && <span className="rounded bg-orange-100 px-1.5 py-0.5 text-[11px] text-orange-700">跨站</span>}
+                          {user.isMember && <span className="rounded bg-violet-100 px-1.5 py-0.5 text-[11px] text-violet-700">渠道成员</span>}
+                          {(user.blockedIn ?? []).length > 0 && (
+                            <span className="rounded bg-red-100 px-1.5 py-0.5 text-[11px] text-red-700">{(user.blockedIn ?? []).length} 站拉黑</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="py-4">
                         <span
                           className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${

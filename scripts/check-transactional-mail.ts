@@ -20,6 +20,8 @@ import {
   renderAccountExistsEmail,
   renderNoAccountEmail,
   renderNoSubscriptionEmail,
+  renderOrderReplyEmail,
+  renderTenantInviteEmail,
 } from '../src/lib/mail'
 import { buildReminderEmail, buildRechargeEmail } from '../src/lib/reminder'
 
@@ -54,6 +56,8 @@ function externalOrder(expireInDays: number): ExternalOrder {
     quote: new Prisma.Decimal(150),
     profit: new Prisma.Decimal(50),
     sourceKey: 'check-transactional-mail',
+    // 渠道分站新增列（主会话 D6）：样例是主站行
+    tenantId: 1,
     shopOrderId: null,
     importBatch: null,
     remindedExpireDate: null,
@@ -64,6 +68,8 @@ function externalOrder(expireInDays: number): ExternalOrder {
 }
 
 const order = { orderNo: 'BG202609250001', productName: 'ChatGPT Plus 月卡', amount: 139 }
+/** 渠道店面 origin 样例（实际由 tenantOrigin(tenantId) 从 Tenant.origin 取） */
+const CHANNEL_ORIGIN = 'https://lulu.bigolab.com'
 
 const cases: { name: string; mail: { subject: string; html: string }; mustLinkSupport?: boolean }[] = [
   { name: '注册验证码', mail: renderVerifyCodeEmail('123456', 'REGISTER') },
@@ -104,7 +110,43 @@ const cases: { name: string; mail: { subject: string; html: string }; mustLinkSu
   { name: '到期提醒 · 今天到期', mail: buildReminderEmail(externalOrder(0)), mustLinkSupport: true },
   { name: '到期提醒 · 已过期 3 天', mail: buildReminderEmail(externalOrder(-3)), mustLinkSupport: true },
   { name: '充值成功确认', mail: buildRechargeEmail(externalOrder(30)), mustLinkSupport: true },
+  // 渠道分站新增的两类（WP3；主会话 D9）
+  { name: '客服回复提醒', mail: renderOrderReplyEmail({ orderNo: order.orderNo, productName: order.productName }) },
+  {
+    name: '渠道后台成员邀请',
+    mail: renderTenantInviteEmail({ link: `${CHANNEL_ORIGIN}/partner/invite/AbCdEfGhIjKlMnOpQrStUvWxYz012345`, expiresHours: 24 }, { origin: CHANNEL_ORIGIN }),
+  },
 ]
+
+/*
+ * 渠道店面的交易邮件（设计 4.5、11.4；主会话 D9）：链接一律按店面 origin（Tenant.origin，由调用方 tenantOrigin(tenantId) 取），
+ * 绝不从 Host 头拼。这里用渠道 origin 渲染每一封会发给渠道买家的信，断言：
+ *  · 信里每一个 href 都指向渠道 origin（不能漏一个链回主站——买家在主站没有这张订单）；
+ *  · 不合规的 origin（带路径、带引号、javascript:）回落主站常量，绝不原样拼进链接。
+ */
+const channelCases: { name: string; mail: { subject: string; html: string } }[] = [
+  { name: '渠道 · 注册验证码', mail: renderVerifyCodeEmail('123456', 'REGISTER', { origin: CHANNEL_ORIGIN }) },
+  { name: '渠道 · 找回密码验证码', mail: renderVerifyCodeEmail('654321', 'RESET', { origin: CHANNEL_ORIGIN }) },
+  { name: '渠道 · 邮箱已有账号', mail: renderAccountExistsEmail({ origin: CHANNEL_ORIGIN }) },
+  { name: '渠道 · 邮箱没有账号', mail: renderNoAccountEmail({ origin: CHANNEL_ORIGIN }) },
+  {
+    name: '渠道 · 支付成功（自动发卡、开票）',
+    mail: renderOrderPaidEmail({ ...order, invoiceTaxFee: 8.4, deliveryType: 'AUTO', cards: ['ABCD-EFGH'], cardUsage: '粘贴卡密即可。' }, { origin: CHANNEL_ORIGIN }),
+  },
+  { name: '渠道 · 支付成功（人工）', mail: renderOrderPaidEmail({ ...order, deliveryType: 'MANUAL' }, { origin: CHANNEL_ORIGIN }) },
+  { name: '渠道 · 订单已交付', mail: renderOrderDeliveredEmail({ ...order, deliveryInfo: '已开通' }, { origin: CHANNEL_ORIGIN }) },
+  {
+    name: '渠道 · 发票已开具',
+    mail: renderInvoiceIssuedEmail(
+      { invoiceNo: '26000000000012345678', title: '示例科技有限公司', taxNumber: null, subscriptionType: 'Claude Pro', invoiceAmount: 148.4, issuedAt: new Date() },
+      { origin: CHANNEL_ORIGIN },
+    ),
+  },
+  { name: '渠道 · 客服回复提醒', mail: renderOrderReplyEmail({ orderNo: order.orderNo, productName: order.productName }, { origin: CHANNEL_ORIGIN }) },
+]
+function hrefsOf(html: string): string[] {
+  return Array.from(html.matchAll(/href="([^"]*)"/g), (m) => m[1])
+}
 
 console.log('\n[自检] 词表确实能拦住旧写法（防止断言空转）')
 assert(findBannedWord('需要续费请联系客服微信：GenuineMarxist') === '微信', '「联系客服微信」被识别为「微信」')
@@ -123,5 +165,23 @@ for (const c of cases) {
   if (c.mustLinkSupport) assert(/href="https?:\/\/[^"]+\/support"/.test(html), '给出了站内客服页 /support 链接')
 }
 
-console.log(failed ? `\n✗ ${failed} 项失败\n` : `\n✓ 全部通过（${cases.length} 封邮件）\n`)
+for (const c of channelCases) {
+  console.log(`\n[${c.name}] ${c.mail.subject}`)
+  const hrefs = hrefsOf(c.mail.html)
+  assert(hrefs.length > 0, '至少有一个链接')
+  const off = hrefs.filter((h) => !h.startsWith(CHANNEL_ORIGIN + '/') && h !== CHANNEL_ORIGIN)
+  assert(off.length === 0, '每个链接都指向渠道 origin', off.join(' '))
+  assert(!/\/\/bigolab\.com/.test(c.mail.html), '正文不出现主站地址')
+  const banned = findBannedWord(c.mail.html) ?? findBannedWord(visibleTextOf(c.mail.html)) ?? findBannedWord(c.mail.subject)
+  assert(banned === null, '无禁发内容', `命中「${banned}」`)
+}
+
+console.log('\n[渠道 origin 不合规 → 回落主站常量，绝不原样拼进链接]')
+for (const bad of ['https://lulu.bigolab.com/evil', 'https://lulu.bigolab.com"><script>', 'javascript:alert(1)', 'lulu.bigolab.com']) {
+  const html = renderOrderReplyEmail({ orderNo: order.orderNo, productName: order.productName }, { origin: bad }).html
+  assert(hrefsOf(html).every((h) => !h.includes('evil') && !h.includes('<script') && !h.startsWith('javascript:') && /^https?:\/\//.test(h)), `origin=${JSON.stringify(bad)} 被拒`)
+}
+
+const total = cases.length + channelCases.length
+console.log(failed ? `\n✗ ${failed} 项失败\n` : `\n✓ 全部通过（${total} 封邮件）\n`)
 process.exit(failed ? 1 : 0)

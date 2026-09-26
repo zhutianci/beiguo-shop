@@ -2,11 +2,11 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { shopOrderSourceKey } from '@/lib/order-invoice'
+import { externalOrderSourceKey } from '@/lib/external-order-key'
 
 const updateSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '开通时间格式错误'),
@@ -18,13 +18,6 @@ const updateSchema = z.object({
   quote: z.number().optional().nullable(),
   profit: z.number().optional().nullable(),
 })
-
-function hashKey(claudeAccount: string, startDate: string, subscriptionType: string): string {
-  return crypto
-    .createHash('sha1')
-    .update(`${claudeAccount.toLowerCase()}|${startDate}|${subscriptionType}`)
-    .digest('hex')
-}
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   const denied = await adminGuard()
@@ -40,7 +33,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const data = parsed.data
     const claudeAccount = data.claudeAccount.trim().toLowerCase()
     const subscriptionType = data.subscriptionType.trim()
-    const newSourceKey = hashKey(claudeAccount, data.startDate, subscriptionType)
+    // 去重键按这一行自己的来源站算（lib/external-order-key：主站沿用旧公式，渠道行带 t<id>: 前缀，两站同邮箱同开通日不撞键）。
+    // 来源站由站内订单派生，编辑不改它
+    // （行不存在时按主站算，随后的 update 照旧抛 P2025 → 「更新失败」，与改造前一致）
+    const row = await prisma.externalOrder.findUnique({ where: { id }, select: { tenantId: true } })
+    const newSourceKey = externalOrderSourceKey({ tenantId: row?.tenantId ?? 1, claudeAccount, startDate: data.startDate, subscriptionType })
 
     // 同账户+开通时间+订阅类型不能重复（除自己外）
     const conflict = await prisma.externalOrder.findFirst({

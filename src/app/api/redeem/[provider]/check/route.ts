@@ -10,6 +10,7 @@ import {
   logRedeem,
   normalizeCdk,
   redeemRateLimited,
+  redeemProbeLimited,
   resolveCard,
   toCheckFailure,
   validCdkShape,
@@ -46,6 +47,9 @@ export async function POST(request: NextRequest, { params }: { params: { provide
     // 先限流再查库：没通过限流的请求不该产生任何数据库查询
     const limited = redeemRateLimited('check', null, ip)
     if (limited) return error(limited, 429)
+    // 同一 IP 对同一卡密前缀的试探另算一层（枚举后半截的脚本在这里被挡住）
+    const probing = redeemProbeLimited(ip, cdk)
+    if (probing) return error(probing, 429)
 
     const resolved = await resolveCard(provider.key, cdk)
     if (!resolved.ok) {

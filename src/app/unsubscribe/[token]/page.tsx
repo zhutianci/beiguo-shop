@@ -18,6 +18,7 @@ import { useParams } from 'next/navigation'
 import { AlertCircle, CheckCircle2, Clock, Loader2, MailX, XCircle } from 'lucide-react'
 import { TOPICS, TOPIC_LABEL, type PrefsState, type Topic } from '@/lib/marketing/types'
 import { bjDateCn } from '@/lib/marketing/time'
+import { useStorefront } from '@/components/storefront-provider'
 
 const TOPIC_DESC: Record<Topic, string> = {
   PROMO: '优惠券、限时折扣等活动',
@@ -43,6 +44,12 @@ function fmtDay(iso: string | null): string {
 export default function UnsubscribePage() {
   const params = useParams()
   const token = String(params.token || '')
+  /*
+   * 渠道分站（设计 11.2「平台专用令牌链接」）：开票填写 / 退订链接永远按平台 origin 生成，渠道 Host 上一律当作不存在。
+   * 本页是客户端组件，调不了 notFoundOnChannel()；服务端的真 404 在接口层（denyOnChannel）与 nginx 白名单。
+   * 这里在渠道店面直接显示「链接无效」、不发请求（主站 features 全开，行为不变）。
+   */
+  const { kind: storefrontKind } = useStorefront()
 
   const [state, setState] = useState<PrefsState | null>(null)
   const [phase, setPhase] = useState<'loading' | 'ok' | 'notfound' | 'error'>('loading')
@@ -56,6 +63,10 @@ export default function UnsubscribePage() {
   const prefsRef = useRef<HTMLDivElement>(null)
 
   const load = useCallback(async () => {
+    if (storefrontKind !== 'PLATFORM') {
+      setPhase('notfound')
+      return
+    }
     try {
       const res = await fetch(`/api/mkt/prefs/${encodeURIComponent(token)}`, { cache: 'no-store' })
       const d = await res.json().catch(() => null)
@@ -73,7 +84,7 @@ export default function UnsubscribePage() {
       setLoadErr('网络错误，请刷新重试')
       setPhase('error')
     }
-  }, [token])
+  }, [token, storefrontKind])
 
   useEffect(() => {
     load()

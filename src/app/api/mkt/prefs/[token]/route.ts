@@ -6,6 +6,7 @@ import { error } from '@/lib/api'
 import { clientIp } from '@/lib/news/rate-limit'
 import { applyPrefsByToken, getPrefsByToken, MAX_PAUSE_DAYS, type PrefsAction } from '@/lib/marketing/prefs'
 import { TOPICS } from '@/lib/marketing/types'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 退订页（/unsubscribe/[token]）的数据接口，免登录，token 即凭证。
@@ -83,6 +84,9 @@ async function readLimited(request: NextRequest): Promise<string | null> {
 }
 
 export async function GET(_request: NextRequest, { params }: { params: { token: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const state = await getPrefsByToken(String(params.token || ''))
     if (!state) return json('链接无效或已过期', 404)
@@ -94,6 +98,9 @@ export async function GET(_request: NextRequest, { params }: { params: { token: 
 }
 
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const ct = (request.headers.get('content-type') || '').toLowerCase()
     if (!ct.startsWith('application/json')) return json('请求格式不正确', 415)

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { CheckCircle, AlertCircle, Trash2, Search, FileText, Sparkles, Pencil, X } from 'lucide-react'
+import { SourceBadge, SourceFilter, type SiteOption, type SourceSite } from '@/components/admin/source-site'
 
 interface ParsedRow {
   startDate: string // ISO date YYYY-MM-DD
@@ -32,6 +33,8 @@ interface ExternalOrder {
   importBatch: string | null
   invoiceStatus?: string | null
   invoiceNo?: string | null
+  /** 来源站（设计 0.3、12.2）：接口按 ExternalOrder.tenantId 给出 */
+  source?: SourceSite | null
   updatedAt: string
 }
 
@@ -160,6 +163,9 @@ export default function ExternalOrdersPage() {
   const [keyword, setKeyword] = useState('')
   const [debouncedKeyword, setDebouncedKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('') // '' | valid | expired
+  // 来源站筛选（设计 12.2，与订单 / 发票等列表同一组件）：'' = 全部，其余为 tenantId；选项来自接口的 sites
+  const [siteFilter, setSiteFilter] = useState('')
+  const [sites, setSites] = useState<SiteOption[]>([])
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -198,10 +204,12 @@ export default function ExternalOrdersPage() {
       const q = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
       if (debouncedKeyword) q.set('keyword', debouncedKeyword)
       if (statusFilter) q.set('status', statusFilter)
+      if (siteFilter) q.set('tenantId', siteFilter)
       const res = await fetch(`/api/admin/external-orders?${q}`, { signal: controller.signal })
       const data = await res.json()
       if (data.success && abortRef.current === controller) {
         setOrders(data.data.list)
+        setSites(data.data.sites || [])
         setTotal(data.data.total || 0)
         setTotalPages(data.data.totalPages || 1)
       }
@@ -210,7 +218,7 @@ export default function ExternalOrdersPage() {
     } finally {
       if (abortRef.current === controller) setLoading(false)
     }
-  }, [page, debouncedKeyword, statusFilter])
+  }, [page, debouncedKeyword, statusFilter, siteFilter])
 
   useEffect(() => {
     loadOrders()
@@ -520,6 +528,15 @@ export default function ExternalOrdersPage() {
               <option value="valid">有效</option>
               <option value="expired">已过期</option>
             </select>
+            <SourceFilter
+              value={siteFilter}
+              onChange={(v) => {
+                setSiteFilter(v)
+                setPage(1)
+              }}
+              options={sites}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            />
             <Button onClick={loadOrders} variant="outline">
               <Search className="w-4 h-4 mr-1" />
               刷新
@@ -538,6 +555,7 @@ export default function ExternalOrdersPage() {
               <table className="w-full text-sm text-gray-800">
                 <thead>
                   <tr className="border-b text-left text-gray-500 text-xs">
+                    <th className="pb-2 pr-3">来源站</th>
                     <th className="pb-2 pr-3">开通时间</th>
                     <th className="pb-2 pr-3">到期时间</th>
                     <th className="pb-2 pr-3">订阅类型</th>
@@ -554,6 +572,9 @@ export default function ExternalOrdersPage() {
                 <tbody>
                   {orders.map((o) => (
                     <tr key={o.id} className="border-b hover:bg-gray-50/60 transition-colors">
+                      <td className="py-2 pr-3">
+                        <SourceBadge source={o.source} />
+                      </td>
                       <td className="py-2 pr-3">{o.startDate.slice(0, 10)}</td>
                       <td className="py-2 pr-3">{o.expireDate.slice(0, 10)}</td>
                       <td className="py-2 pr-3 font-medium">{o.subscriptionType}</td>

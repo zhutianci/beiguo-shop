@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -26,12 +27,19 @@ import {
   BarChart3,
   PartyPopper,
   Megaphone,
+  Store,
+  LifeBuoy,
+  Scale,
+  ScrollText,
+  PieChart,
 } from 'lucide-react'
 
 type NavItem = {
   href: string
   label: string
   icon: typeof LayoutDashboard
+  /** 菜单右侧的待办数（红点）：目前只有售后申请（设计 8.4「超管售后申请列表红点」） */
+  badge?: 'afterSales'
 }
 
 type NavGroup = {
@@ -113,8 +121,24 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
+    // 渠道分站（WP5，设计 12.2）：渠道的开通、进货价、结算都是「和某个渠道之间的事」，自成一组；
+    // 售后申请是渠道发起、站长处理的工单，跟着渠道走而不是跟着订单走（主站订单没有售后申请）。
+    // 页面在休眠期（CHANNELS_ENABLED 未设置）也能打开，只是空态——菜单多出这一组是发布说明里写明的可感知变化（实施分包 8.6）。
+    group: '渠道',
+    items: [
+      { href: '/admin/tenants', label: '渠道管理', icon: Store },
+      { href: '/admin/tenants/overview', label: '运营概览', icon: PieChart },
+      { href: '/admin/after-sales', label: '售后申请', icon: LifeBuoy, badge: 'afterSales' },
+      { href: '/admin/tenants/reconcile', label: '对账自检', icon: Scale },
+    ],
+  },
+  {
     group: '系统',
-    items: [{ href: '/admin/settings', label: '系统设置', icon: Settings }],
+    items: [
+      { href: '/admin/settings', label: '系统设置', icon: Settings },
+      // 审计日志只有站长自己看（含渠道操作、平台对渠道的操作、越权拒绝），归「系统」
+      { href: '/admin/audit', label: '审计日志', icon: ScrollText },
+    ],
   },
 ]
 
@@ -134,6 +158,31 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const pathname = usePathname()
+
+  /*
+   * 售后申请待处理数（设计 8.4：渠道发起售后后超管列表要有红点）。复用列表接口的 pendingTotal（pageSize=1，只多两次 count），
+   * 切页面时与每 60 秒各拉一次；标签页在后台时不拉。休眠期没有渠道、恒为 0，不显示任何东西。
+   * 失败静默：红点只是提醒，拉不到不影响后台其它功能。
+   */
+  const [afterSalesPending, setAfterSalesPending] = useState(0)
+  useEffect(() => {
+    let alive = true
+    const load = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+      fetch('/api/admin/after-sales?status=PENDING&pageSize=1')
+        .then((r) => r.json())
+        .then((d) => {
+          if (alive && d?.success) setAfterSalesPending(Number(d.data?.pendingTotal) || 0)
+        })
+        .catch(() => {})
+    }
+    load()
+    const t = setInterval(load, 60_000)
+    return () => {
+      alive = false
+      clearInterval(t)
+    }
+  }, [pathname])
 
   const currentItem = flatNavItems.reduce<NavItem | null>((best, item) => {
     if (!matchesPath(item.href, pathname)) return best
@@ -179,7 +228,9 @@ export default function AdminLayout({
                 </div>
                 <div className="space-y-1">
                   {group.items.map((item) => {
-                    const isActive = matchesPath(item.href, pathname)
+                    // 只高亮「最长匹配」的那一项：/admin/tenants/overview 同时命中 /admin/tenants 与 /admin/tenants/overview，
+                    // 两项一起亮会让人分不清在哪一页（原有菜单项没有父子路径，这个改动对它们没有影响）
+                    const isActive = currentItem?.href === item.href
                     return (
                       <Link
                         key={item.href}
@@ -193,6 +244,14 @@ export default function AdminLayout({
                       >
                         <item.icon className="h-5 w-5 shrink-0" />
                         <span>{item.label}</span>
+                        {item.badge === 'afterSales' && afterSalesPending > 0 && (
+                          <span
+                            className="ml-auto rounded-full bg-red-500 px-1.5 text-[11px] font-semibold leading-5 text-white"
+                            aria-label={`${afterSalesPending} 个待处理`}
+                          >
+                            {afterSalesPending > 99 ? '99+' : afterSalesPending}
+                          </span>
+                        )}
                       </Link>
                     )
                   })}

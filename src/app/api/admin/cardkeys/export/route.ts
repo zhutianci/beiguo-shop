@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { error } from '@/lib/api'
-import { requireAdmin } from '@/lib/auth'
 import { decryptCardContent, maskSecretForExport } from '@/lib/cardkey'
 import { buildXlsx, xlsxTime, type XlsxColumn, type XlsxValue } from '@/lib/xlsx'
 import { notifyCardKeyExported } from '@/lib/notify'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
+import { adminOrResponse, parseTenantFilter, INVALID_TENANT_FILTER, cardSiteWhere, cardSources } from '@/lib/admin/source-site'
 
 /**
  * 卡密导出（xlsx）。
@@ -49,13 +49,10 @@ const ROW_LIMIT = 20000
 export async function GET(request: NextRequest) {
   // ① 独立鉴权。requireAdmin 读 cookie→验 JWT→查库校验 role，失败即抛。
   //    顺带拿到操作者身份，正好补进审计（middleware 验完就把身份丢了）。
-  let operator: { id: number; email: string | null }
-  try {
-    const me = await requireAdmin()
-    operator = { id: me.id, email: me.email }
-  } catch {
-    return error('无管理员权限', 403)
-  }
+  //    渠道 Host 上 404（AdminHostError，设计 4.7），其余 403。
+  const auth = await adminOrResponse()
+  if ('res' in auth) return auth.res
+  const operator: { id: number; email: string | null } = { id: auth.user.id, email: auth.user.email }
 
   try {
     // ③ 限流。明文导出比脱敏更该收紧，但两者共用一个较紧的闸已经够挡「反复拉全量」。
@@ -77,6 +74,9 @@ export async function GET(request: NextRequest) {
     // 默认导明文——「导出卡密」这件事的意义就在明文上。
     // mask=1 是给「只想要台账、不想让文件带上商品本体」的场景准备的。
     const masked = searchParams.get('mask') === '1'
+    // 来源站筛选（设计 12.2）：与列表页同一口径；不传 = 全部
+    const site = parseTenantFilter(searchParams, 'tenantId', ['stock'] as const)
+    if (site === 'invalid') return error(INVALID_TENANT_FILTER)
 
     const where: Prisma.CardKeyWhereInput = {}
     if (productId) where.productId = productId
@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
     }
     if (hasOrder === '1') where.orderId = { not: null }
     else if (hasOrder === '0') where.orderId = null
+    if (site != null) where.AND = [await cardSiteWhere(site, productId || null)]
 
     const total = await prisma.cardKey.count({ where })
     if (total === 0) return error('当前筛选条件下没有卡密可导出')
@@ -135,6 +136,8 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    const srcOf = await cardSources(rows)
+
     const STATUS_TEXT: Record<string, string> = {
       UNUSED: '未使用',
       USED: '已发出',
@@ -147,6 +150,7 @@ export async function GET(request: NextRequest) {
       { header: '商品', width: 34 },
       { header: masked ? '卡密（已脱敏）' : '卡密', width: 46 },
       { header: '状态', width: 10 },
+      { header: '来源站', width: 12 },
       { header: '订单号', width: 22 },
       { header: '买家', width: 24 },
       { header: '外部发卡归属', width: 24 },
@@ -177,6 +181,7 @@ export async function GET(request: NextRequest) {
         c.product?.name ?? `#${c.productId}`,
         secret,
         STATUS_TEXT[c.status] || c.status,
+        srcOf(c).label,
         ord ? ord.orderNo : c.orderId != null ? `#${c.orderId}` : '',
         ord ? ord.buyer : '',
         c.externalRef ?? '',
@@ -222,6 +227,7 @@ export async function GET(request: NextRequest) {
         batch ? `批次=${batch}` : '',
         keyword ? `关键词=${keyword}` : '',
         hasOrder === '1' ? '仅已关联订单' : hasOrder === '0' ? '仅未关联订单' : '',
+        site != null ? `来源站=${site === 'stock' ? '库存' : site === 1 ? '主站' : `#${site}`}` : '',
       ]
         .filter(Boolean)
         .join('，'),

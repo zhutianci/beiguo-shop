@@ -14,6 +14,7 @@ import {
   type ExportInvoice,
 } from '@/lib/invoice-export'
 import { adminGuard } from '@/lib/admin-guard'
+import { parseTenantFilter, INVALID_TENANT_FILTER } from '@/lib/admin/source-site'
 
 /**
  * 批量开票导出：把当前所有「待开发票」写进税局官方模板，直接下载。
@@ -55,12 +56,15 @@ const SELECT = {
   source: true,
 } as const
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
   try {
+    // 按来源站筛选（设计 12.2）：?tenantId=<id>|all，默认全部；税局模板的列不变（来源站不进模板）
+    const site = parseTenantFilter(new URL(request.url).searchParams)
+    if (site === 'invalid') return error(INVALID_TENANT_FILTER)
     const rows = await prisma.invoice.findMany({
-      where: { status: 'SUBMITTED', payStatus: 'PAID' },
+      where: { status: 'SUBMITTED', payStatus: 'PAID', ...(site == null ? {} : { tenantId: site }) },
       orderBy: { paidAt: 'asc' }, // 先付先开，与财务台一致
       select: SELECT,
     })

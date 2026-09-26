@@ -1,0 +1,34 @@
+<!doctype html>
+<!--
+  渠道站静态停业页（WP8，设计 4.3 / 15.4 N 段 / 15.6 第 3 层）。
+  nginx map 里渠道 Host 为 closed 时，所有请求都 rewrite 到这里，**不进应用**：
+  N 段上线时应用还在休眠，lulu 若进了应用会按主站渲染、按主站价下单、订单记到主站（设计 4.4 第 4 条禁止的回落）。
+  纯静态、零外部资源（不引字体 / 脚本 / 图片），挂载见 docker-compose.yml 的 nginx 服务。
+  文案统一品牌「贝果科技」，不说明原因（筹备中 / 维护 / 下线都用这一页）。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>暂停访问 - 贝果科技</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f6f7f9; --card: #ffffff; --fg: #1f2328; --muted: #656d76; --line: #d8dee4; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0d1117; --card: #161b22; --fg: #e6edf3; --muted: #8d96a0; --line: #30363d; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px;
+         background: var(--bg); color: var(--fg); font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+  main { width: 100%; max-width: 440px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 32px 28px; text-align: center; }
+  h1 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
+  p { margin: 0; color: var(--muted); font-size: 14px; }
+  .brand { margin-top: 24px; font-size: 13px; color: var(--muted); letter-spacing: .08em; }
+</style>
+</head>
+<body>
+<main>
+  <h1>本站暂停访问</h1>
+  <p>站点正在维护或尚未开放，请稍后再来。<br>已购买的订单不受影响，如需帮助请联系原购买渠道的客服。</p>
+  <div class="brand">贝果科技</div>
+</main>
+</body>
+</html>

@@ -8,6 +8,7 @@ import { decryptCardContent } from '@/lib/cardkey'
 import { round2 } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
 import { settledReferralCents } from '@/lib/referral-report'
+import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 
 // 获取所有订单（服务端检索 + 筛选 + 分页）
 export async function GET(request: NextRequest) {
@@ -23,8 +24,12 @@ export async function GET(request: NextRequest) {
     const from = (searchParams.get('from') || '').trim() // YYYY-MM-DD，按下单时间
     const to = (searchParams.get('to') || '').trim()
     const categoryId = parseInt(searchParams.get('categoryId') || '0') || 0
+    // 来源站（设计 12.2）：tenantId=<id>|all，默认全部；传坏了 400，不静默退化成全站
+    const site = parseTenantFilter(searchParams)
+    if (site === 'invalid') return error(INVALID_TENANT_FILTER)
 
     const where: Prisma.OrderWhereInput = {}
+    if (site != null) where.tenantId = site
     if (status && ['PENDING', 'PROCESSING', 'DELIVERED', 'CANCELLED'].includes(status)) {
       where.deliveryStatus = status as DeliveryStatus
     }
@@ -130,6 +135,7 @@ export async function GET(request: NextRequest) {
       for (const g of grouped) unreadMap.set(g.orderId, g._count._all)
     }
 
+    const srcMap = await sourceMap(orders.map((o) => o.tenantId))
     const list = orders.map((o) => {
       const m = moneyMap.get(o.id)
       // 只对有卡的单扣返现：人工发货单本来就没有卡密利润（显示 —），扣了会凭空冒出负数
@@ -144,6 +150,10 @@ export async function GET(request: NextRequest) {
         /** 该单已扣的内推返现（元）。无卡密的单为 null */
         cardReferral: m ? refC / 100 : null,
         cardProfitUnknown: m ? m.hasUnknownProfit : false,
+        // 来源站 = 下单时的店面（设计 5.5）
+        source: sourceOf(srcMap, o.tenantId),
+        // 买家备注：新订单双写 buyerRemark，历史订单只有 remark（设计 5.4 双写过渡）；remark 之后可能被系统追加内部说明
+        buyerRemarkText: o.buyerRemark ?? o.remark,
       }
     })
 
@@ -205,6 +215,7 @@ export async function GET(request: NextRequest) {
         referral: totalsReferral, // 已扣掉的内推返现合计（truncated 时为 null）
         truncated: totalsTruncated, // true = 结果集过大，未统计成本/利润，请缩小筛选范围
       },
+      sites: await siteOptions(),
     })
   } catch (err) {
     console.error('Get orders error:', err)

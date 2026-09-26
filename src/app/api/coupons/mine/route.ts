@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { quoteOrder, couponLabel, grantUsable, parseProductIds, rejectReason, type GrantState } from '@/lib/coupon'
 import { effectiveBasePrice, referralSellUnit } from '@/lib/referral'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 我的券。个人中心与结算页共用这一个接口。
@@ -30,6 +31,9 @@ const schema = z.object({
 })
 
 export async function GET(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

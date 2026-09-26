@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { requireAdmin } from './auth'
 import { error } from './api'
 import { crossSiteReason } from './same-origin'
+import { isAdminHostError } from './tenant/admin-host-error'
 
 /**
  * 后台接口的路由内管理员校验。用法（每个 handler 第一行）：
@@ -34,7 +35,11 @@ export async function adminGuard(): Promise<Response | null> {
   try {
     await requireAdmin()
     return null
-  } catch {
+  } catch (e) {
+    // 渠道分站（设计 4.7 / 6.5.4，WP0）：requireAdmin 在非主站店面（渠道 Host）抛 AdminHostError → 404，
+    // 让渠道 Host 上的超管接口表现为「不存在」而不是「没权限」。其余错误照旧 403。
+    // 休眠（CHANNELS_ENABLED 未设置）时店面恒为主站，这个分支永远走不到，主站行为不变。
+    if (isAdminHostError(e)) return error('资源不存在', 404)
     return error('无管理员权限', 403)
   }
 }

@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { CATEGORY_SLUGS } from '@/lib/news/constants'
 import { ARCHIVE_MONTH_RE, EVENT_SELECT, NEWS_PAGE_SIZE, monthEndUtc, monthStartUtc, toEventDto } from '@/lib/news/format'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 时间流分页。/news 首屏由 Server Component 直连 prisma 渲染（SEO + 首屏速度），
@@ -38,6 +39,9 @@ const querySchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams))
   if (!parsed.success) {
     return error(parsed.error.errors[0]?.message || '参数错误')

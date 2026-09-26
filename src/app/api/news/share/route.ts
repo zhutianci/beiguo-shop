@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { rateLimited, clientIp } from '@/lib/news/rate-limit'
 import { SHARE_CHANNEL_CODES } from '@/lib/news/share'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 分享计数上报。shareCount 的权重是 1.0（SKILL.md §3.5），是全部信号里
@@ -37,6 +38,9 @@ function viewerKeyOf(anonId: string | undefined, ip: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const raw = await request.text()
     let parsedJson: unknown

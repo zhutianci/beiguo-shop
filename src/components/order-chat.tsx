@@ -8,6 +8,11 @@ interface Msg {
   sender: string // BUYER | ADMIN
   content: string
   createdAt: string
+  /**
+   * 渠道分站（设计 12.2）：谁回复的。只有后台接口返回（PLATFORM = 站长、PARTNER = 渠道成员经渠道后台回复）；
+   * 买家接口按白名单不给这个字段（WP2），买家侧两种回复都显示「客服」。
+   */
+  senderRole?: string | null
 }
 
 interface Props {
@@ -182,6 +187,7 @@ export default function OrderChat({ apiBase, selfRole, theme = 'light' }: Props)
   const boxCls = dark ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'
   const otherBubble = dark ? 'bg-white/10 text-white/90' : 'bg-white text-gray-800 border border-gray-200'
   const selfBubble = dark ? 'bg-purple-600 text-white' : 'bg-primary-600 text-white'
+  const partnerBubble = dark ? 'bg-violet-500/30 text-white' : 'bg-violet-100 text-violet-900 border border-violet-200'
   const timeCls = dark ? 'text-white/30' : 'text-gray-400'
   const moreBtnCls = dark
     ? 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
@@ -212,14 +218,16 @@ export default function OrderChat({ apiBase, selfRole, theme = 'light' }: Props)
             )}
             {messages.map((m) => {
               const isSelf = m.sender === selfRole
+              // 后台逐条标出渠道成员的回复（它们的 sender 也是 ADMIN，不标会被当成站长自己回的）
+              const isPartnerReply = selfRole === 'ADMIN' && m.sender !== 'BUYER' && m.senderRole === 'PARTNER'
               return (
                 <div key={m.id} className={`flex ${isSelf ? 'justify-end' : 'justify-start'}`}>
                   <div className="max-w-[78%]">
-                    <div className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${isSelf ? selfBubble : otherBubble}`}>
+                    <div className={`rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words ${isPartnerReply ? partnerBubble : isSelf ? selfBubble : otherBubble}`}>
                       {m.content}
                     </div>
                     <div className={`text-[10px] mt-0.5 ${timeCls} ${isSelf ? 'text-right' : 'text-left'}`}>
-                      {m.sender === 'ADMIN' ? '客服' : '买家'} · {fmt(m.createdAt)}
+                      {isPartnerReply ? '渠道回复' : m.sender === 'ADMIN' ? '客服' : '买家'} · {fmt(m.createdAt)}
                     </div>
                   </div>
                 </div>

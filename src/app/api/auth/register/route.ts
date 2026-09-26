@@ -12,6 +12,9 @@ import { systemEmailConfigured } from '@/lib/mail'
 import { clientIp } from '@/lib/news/rate-limit'
 import { verifyIpLimited } from '@/lib/auth-throttle'
 import { logRegisterNotice } from '@/lib/marketing/consent'
+import { getStorefront } from '@/lib/storefront/resolve'
+import { authCrossSiteReason } from '@/lib/tenant/same-origin'
+import { ensureTenantCustomer } from '@/lib/tenant/customer'
 
 // eslint-disable-next-line no-control-regex
 const NICK_CTRL_RE = /[\u0000-\u001f\u007f]/g
@@ -31,6 +34,19 @@ const registerSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  // 渠道分站：注册站 = 当前店面（设计 5.5）。店面解析不进 try；没有店面的 Host 不开放注册
+  const sf = await getStorefront()
+  if (!sf) return error('资源不存在', 404)
+  // 写接口同源校验（设计 4.6 C4；集成阶段补）：挡兄弟子域发起的登录 CSRF。店面解析之后、try 之外
+  if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
+  // 渠道店面 DRAFT（未开业，前台对非预览用户 404）/ TERMINATED（已停业）不开放注册。
+  // 否则直接 POST 本接口就能在一个没开张 / 已关门的站建号：写下 registeredTenantId=<该站> 与客户关系行，
+  // 还会把此人标成「渠道注册用户」、被主站营销受众排除（lib/marketing/audience.ts）。
+  // 预览买家是事先建好的老账号、停业站的买家也早已注册，挡住注册不影响任何人；SUSPENDED 是临时状态，照常注册。
+  // 一句中性提示、不区分两种状态（不借此暴露店面处于哪个阶段）
+  if (sf.kind === 'CHANNEL' && (sf.status === 'DRAFT' || sf.status === 'TERMINATED')) {
+    return error('本站暂不开放注册', 403)
+  }
   try {
     const body = await request.json()
     const result = registerSchema.safeParse(body)
@@ -63,32 +79,47 @@ export async function POST(request: NextRequest) {
     }
 
     // 创建用户
+    //
+    // 【渠道分站（设计 5.5）】registeredTenantId 记注册站（之后不变，只有超管带审计可更正）；
+    // 渠道店面注册同时建站点客户关系（joinedVia=REGISTER），与建号在**同一个事务**里：
+    // 不会出现「号建了、客户关系没建」的渠道注册用户（对账与渠道客户列表都靠这一行）。
+    // 主站 ensureTenantCustomer 第一行返回、不建行；主站 registeredTenantId=1 与列默认值相同。
     const passwordHash = await hashPassword(password)
-    const user = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        nickname: nickname || null,
-        // 邮件服务未配置时照常注册（不能挡住新客下单），只是不记已验证
-        emailVerifiedAt: emailVerified ? new Date() : null,
-      },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        nickname: true,
-        avatar: true,
-        role: true,
-      },
+    const user = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          nickname: nickname || null,
+          // 邮件服务未配置时照常注册（不能挡住新客下单），只是不记已验证
+          emailVerifiedAt: emailVerified ? new Date() : null,
+          registeredTenantId: sf.id,
+        },
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          nickname: true,
+          avatar: true,
+          role: true,
+        },
+      })
+      await ensureTenantCustomer(tx, { tenantId: sf.id, userId: created.id, via: 'REGISTER' })
+      return created
     })
 
-    // 生成 token
-    const token = signToken({
-      userId: user.id,
-      email: user.email!,
-      role: user.role,
-      sv: 0, // 新用户的 sessionEpoch 默认 0（不 select 它，免得出现在注册响应的 user 里）
-    })
+    // 生成 token（aud = 当前店面）。
+    // 「CHANNEL 店面不给 ADMIN 签发」（设计 4.7）在注册这里天然成立：已存在的邮箱（含管理员）在上面就被
+    // 「该邮箱已被注册」挡下，新建账号的 role 恒为默认值 USER；ensureTenantCustomer 对 ADMIN 也不建行
+    const token = signToken(
+      {
+        userId: user.id,
+        email: user.email!,
+        role: user.role,
+        ep: 0, // 新用户的 sessionEpoch 默认 0（不 select 它，免得出现在注册响应的 user 里）
+      },
+      sf
+    )
 
     // 设置登录 cookie（按真实协议决定 secure，30 天有效期）
     const cookieStore = await cookies()
@@ -102,7 +133,9 @@ export async function POST(request: NextRequest) {
       await logRegisterNotice(
         { id: user.id, email: email },
         ip && ip !== 'unknown' ? ip.slice(0, 64) : null,
-        (request.headers.get('user-agent') || '').slice(0, 255) || null
+        (request.headers.get('user-agent') || '').slice(0, 255) || null,
+        // 渠道站注册记 source=register:<code>（设计 11.3）；主站不传，仍是 'register'
+        sf.kind === 'PLATFORM' ? undefined : sf.code
       )
     } catch (e) {
       console.error('[register] 营销告知留痕失败 user=%d:', user.id, (e as Error)?.message)

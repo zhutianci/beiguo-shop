@@ -26,12 +26,20 @@ import { useUserStore } from '@/store/user'
 import { useHydrated } from '@/lib/use-hydrated'
 import AccountBindings from '@/components/account-bindings'
 import MarketingSubscription from '@/components/marketing-subscription'
+import { useStorefront } from '@/components/storefront-provider'
+// 只取类型：vip-server 带 prisma，值导入会把它打进前端包
+import type { OverviewDTO, PlatformOverviewDTO } from '@/lib/vip-server'
 
-/** /api/account/overview 的返回。金额是 number（服务端已把 Decimal 转好） */
-interface Overview {
-  balance: number
-  vip: { level: number; name: string; nextName: string | null; remaining: number; progress: number }
-  stats: { paidOrderCount: number; totalSpent: number; availableCoupons: number }
+/**
+ * /api/account/overview 的返回（WP2 定义，按店面两种形状）。金额是 number（服务端已把 Decimal 转好）。
+ *  · 主站：{ balance, vip, stats: { paidOrderCount, totalSpent, availableCoupons } }（与改造前相同）
+ *  · 渠道站：{ stats: { paidOrderCount, totalSpent } }——余额、会员、券、内推在渠道站全关（设计 7.6），字段本身不下发
+ */
+type Overview = OverviewDTO
+
+/** 有 vip 字段的是主站形状（与 lib/vip-server 的 isPlatformOverview 同一判据；那边是值导出，这里不能 import） */
+function platformOverview(o: Overview | null): PlatformOverviewDTO | null {
+  return o && 'vip' in o ? o : null
 }
 
 /** 统计格里放不下 ¥123456.78 这种长数字（375px 下一格只有 80px 左右），过万按「万」显示 */
@@ -52,6 +60,11 @@ function statSize(text: string): string {
 export default function ProfilePage() {
   const router = useRouter()
   const { user, setUser, logout } = useUserStore()
+  /*
+   * 渠道分站（设计 11.2、实施分包 WP1）：渠道站的个人中心不渲染余额、会员、券、推荐有奖、账户绑定、营销订阅——
+   * 这些模块在渠道站服务端关闭（接口 404），留着入口会产生 404 请求（验收 W1-9）。主站 features 全开，渲染结果不变。
+   */
+  const { kind: storefrontKind, features } = useStorefront()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     nickname: '',
@@ -97,6 +110,9 @@ export default function ProfilePage() {
   }, [userId])
 
   if (!hydrated || !user) return null
+
+  // 主站形状才有余额 / 会员 / 券；渠道站形状只有本站订单统计
+  const platformOv = platformOverview(overview)
 
   const startEdit = () => {
     setFormData({ nickname: user.nickname || '', phone: user.phone || '' })
@@ -144,8 +160,9 @@ export default function ProfilePage() {
     }
   }
 
-  // 6 项正好两行 × 3 列。推荐有奖紧跟「我的订单」：它是新入口，也是除买东西外唯一能让余额变多的地方
-  const menuItems = [
+  // 6 项正好两行 × 3 列。推荐有奖紧跟「我的订单」：它是新入口，也是除买东西外唯一能让余额变多的地方。
+  // 带 feature 的项只在该模块开着的店面出现（渠道站只剩「我的订单」「抬头管理」）
+  const allMenuItems = [
     {
       icon: ShoppingBag,
       label: '我的订单',
@@ -159,13 +176,15 @@ export default function ProfilePage() {
       desc: '分享链接赚返现',
       href: '/profile/referral',
       gradient: 'from-rose-500 to-red-500',
+      show: features.referral,
     },
     {
       icon: Wallet,
       label: '账户余额',
-      desc: overview ? `余额 ¥${overview.balance.toFixed(2)}` : '查看余额详情',
+      desc: platformOv ? `余额 ¥${platformOv.balance.toFixed(2)}` : '查看余额详情',
       href: '/wallet',
       gradient: 'from-cyan-500 to-blue-500',
+      show: features.wallet,
     },
     {
       icon: Ticket,
@@ -173,6 +192,7 @@ export default function ProfilePage() {
       desc: '查看可用的券',
       href: '/coupons',
       gradient: 'from-emerald-500 to-teal-500',
+      show: features.coupon,
     },
     {
       icon: BookUser,
@@ -187,8 +207,10 @@ export default function ProfilePage() {
       desc: '等级与权益',
       href: '/vip',
       gradient: 'from-amber-500 to-orange-500',
+      show: features.vip,
     },
   ]
+  const menuItems = allMenuItems.filter((item) => item.show !== false)
 
   return (
     <div className="min-h-screen page-top pb-20">
@@ -244,15 +266,16 @@ export default function ProfilePage() {
                 <h3 className="text-xl font-bold mb-1">{user.nickname || '未设置昵称'}</h3>
                 <p className="text-sm text-white/40 mb-6">{user.email}</p>
 
-                {/* 会员等级：此前写死「普通用户」，现在取 /api/account/overview 的真实档位 */}
+                {/* 会员等级：此前写死「普通用户」，现在取 /api/account/overview 的真实档位（渠道站不渲染：会员在渠道站关闭） */}
+                {features.vip && (
                 <div className="mb-6">
                   <Link
                     href="/vip"
                     className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-300 text-xs font-medium hover:border-amber-400/50 transition-colors"
                   >
                     <Crown className="w-3.5 h-3.5" />
-                    {overview ? (
-                      overview.vip.name
+                    {platformOv ? (
+                      platformOv.vip.name
                     ) : overviewLoading ? (
                       <Loader2 className="w-3 h-3 animate-spin" />
                     ) : (
@@ -260,12 +283,13 @@ export default function ProfilePage() {
                     )}
                     <ChevronRight className="w-3 h-3 opacity-60" />
                   </Link>
-                  {overview?.vip.nextName && (
+                  {platformOv?.vip.nextName && (
                     <p className="mt-2 text-xs text-white/40">
-                      再消费 ¥{overview.vip.remaining.toFixed(2)} 升级为{overview.vip.nextName}
+                      再消费 ¥{platformOv.vip.remaining.toFixed(2)} 升级为{platformOv.vip.nextName}
                     </p>
                   )}
                 </div>
+                )}
 
                 {/* 退出登录 */}
                 <button
@@ -411,7 +435,8 @@ export default function ProfilePage() {
 
             {/* 内推面板 2026-09-24 起移到独立的「推荐有奖」页（/profile/referral），这里只留快捷入口 */}
 
-            {/* 绑定账户管理 */}
+            {/* 绑定账户管理（渠道站关闭：设计 11.1 Q16） */}
+            {features.bindings && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -419,6 +444,7 @@ export default function ProfilePage() {
             >
               <AccountBindings />
             </motion.div>
+            )}
 
             {/* 账户统计 */}
             <motion.div
@@ -438,7 +464,8 @@ export default function ProfilePage() {
                 <p className="py-6 text-center text-sm text-white/40">统计加载失败，请刷新重试</p>
               ) : (
                 <>
-                  <div className="grid grid-cols-3 gap-3 sm:gap-6">
+                  {/* 渠道站没有「可用优惠券」这一格（券在渠道站关闭），两格排开 */}
+                  <div className={`grid ${platformOv && features.coupon ? 'grid-cols-3' : 'grid-cols-2'} gap-3 sm:gap-6`}>
                     <div className="text-center min-w-0">
                       <div
                         className={`${statSize(String(overview.stats.paidOrderCount))} font-bold tabular-nums gradient-text-accent mb-1 truncate`}
@@ -447,7 +474,7 @@ export default function ProfilePage() {
                       </div>
                       <div className="text-sm lg:text-[15px] text-white/50">已付款订单</div>
                     </div>
-                    <div className="text-center min-w-0 border-x border-white/10 px-1">
+                    <div className={`text-center min-w-0 ${platformOv && features.coupon ? 'border-x' : 'border-l'} border-white/10 px-1`}>
                       <div
                         className={`${statSize(`¥${shortMoney(overview.stats.totalSpent)}`)} font-bold tabular-nums gradient-text-accent mb-1 truncate`}
                       >
@@ -455,16 +482,18 @@ export default function ProfilePage() {
                       </div>
                       <div className="text-sm lg:text-[15px] text-white/50">累计消费</div>
                     </div>
+                    {platformOv && features.coupon && (
                     <Link href="/coupons" className="block text-center min-w-0 group">
                       <div
-                        className={`${statSize(String(overview.stats.availableCoupons))} font-bold tabular-nums gradient-text-accent mb-1 truncate`}
+                        className={`${statSize(String(platformOv.stats.availableCoupons))} font-bold tabular-nums gradient-text-accent mb-1 truncate`}
                       >
-                        {overview.stats.availableCoupons}
+                        {platformOv.stats.availableCoupons}
                       </div>
                       <div className="text-sm lg:text-[15px] text-white/50 group-hover:text-white/70 transition-colors">
                         可用优惠券
                       </div>
                     </Link>
+                    )}
                   </div>
                   <p className="mt-5 text-center text-xs text-white/35">累计消费按商品金额计算，不含开票税费</p>
                 </>
@@ -473,6 +502,8 @@ export default function ProfilePage() {
 
             {/* 邮件订阅（营销邮件的开关 / 主题 / 暂停）。低频设置，放在最后；
                 退订在邮件底部也能一键完成，这里是给想「少收一点」或想恢复的人用的 */}
+            {/* 营销邮件是平台专属（设计 11.3），渠道站不渲染 */}
+            {storefrontKind === 'PLATFORM' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -480,6 +511,7 @@ export default function ProfilePage() {
             >
               <MarketingSubscription />
             </motion.div>
+            )}
           </div>
         </div>
       </div>

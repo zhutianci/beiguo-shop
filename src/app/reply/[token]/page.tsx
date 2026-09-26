@@ -18,6 +18,8 @@ import { Send, RefreshCw, CheckCircle2, AlertCircle, User, Headphones } from 'lu
 interface Msg {
   id: number
   sender: 'BUYER' | 'ADMIN' | string
+  /** PLATFORM = 站长回复；PARTNER = 渠道成员回复（买家看到的都是「客服」）；买家留言为空 */
+  senderRole?: string | null
   content: string
   createdAt: string
 }
@@ -30,6 +32,8 @@ interface OrderInfo {
   deliveryStatus: string
   buyer: string
   createdAt: string
+  /** 来源站（渠道分站，设计 12.2）：主站 / 渠道 code */
+  source?: { tenantId: number; code: string }
 }
 
 const PAY_LABEL: Record<string, string> = { UNPAID: '待支付', PAID: '已支付', REFUNDED: '已退款' }
@@ -154,6 +158,18 @@ export default function QuickReplyPage() {
           </button>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
+          {order?.source && (
+            <span
+              className={`rounded-full border px-2 py-0.5 ${
+                order.source.tenantId === 1
+                  ? 'bg-white/5 border-white/10 text-white/60'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+              }`}
+              title="来源站：这张订单是在哪个站下的"
+            >
+              {order.source.tenantId === 1 ? '主站' : `渠道 ${order.source.code}`}
+            </span>
+          )}
           <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-white/60">
             {order?.buyer}
           </span>
@@ -193,7 +209,10 @@ export default function QuickReplyPage() {
                 >
                   {m.content}
                 </div>
-                <span className="text-[10px] text-white/25 tabular-nums px-1">{fmt(m.createdAt)}</span>
+                <span className="text-[10px] text-white/25 tabular-nums px-1">
+                  {m.senderRole === 'PARTNER' ? '渠道回复 · ' : ''}
+                  {fmt(m.createdAt)}
+                </span>
               </div>
             </div>
           )

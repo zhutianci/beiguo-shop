@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 点击打点。前台卡片点击时以 keepalive 的方式打一枪，不等返回。
@@ -16,6 +17,9 @@ import { clientIp, rateLimited } from '@/lib/news/rate-limit'
  * 这个数只用来回答「哪家在真的给我们带流量」，不是计费依据。
  */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

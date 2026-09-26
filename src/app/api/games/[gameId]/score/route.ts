@@ -8,6 +8,7 @@ import { success, error } from '@/lib/api'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { ipKey } from '@/lib/auth-throttle'
 import { memberDisplayName } from '@/lib/forum'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 const VALID_GAMES = ['snake', 'tetris', '2048']
 
@@ -28,6 +29,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ gameId: string }> }
 ) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const { gameId } = await params
 

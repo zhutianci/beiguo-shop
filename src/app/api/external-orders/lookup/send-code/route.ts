@@ -7,6 +7,7 @@ import { success, error } from '@/lib/api'
 import { createCode, tooFrequent } from '@/lib/verify-code'
 import { sendVerifyCodeEmail, sendNoSubscriptionEmail, systemEmailConfigured } from '@/lib/mail'
 import { sendCodeGate } from '@/lib/auth-throttle'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 const schema = z.object({ email: z.string().email('请输入正确的邮箱') })
 
@@ -18,6 +19,9 @@ const SENT_MSG = '邮件已发送，请查收（含垃圾箱）'
  * 以前这一页只凭邮箱就能查到任何人的全部订阅与收据（2026-09-25 审计 G11）。
  */
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     if (!systemEmailConfigured()) return error('邮件服务暂不可用，请登录后在「我的订单」查看，或联系客服', 503)
 

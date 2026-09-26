@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
 
     const cards = await prisma.cardKey.findMany({
       where: { id: { in: ids } },
-      select: { id: true, productId: true, status: true, cost: true, soldPrice: true },
+      select: { id: true, productId: true, status: true, cost: true, soldPrice: true, orderId: true },
     })
 
     const reasons: string[] = []
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
     const productIds = Array.from(new Set(cards.map((c) => c.productId)))
     let affected = 0
     let eligible = 0 // 通过规则筛选、本该被改动的条数（用于兜底对账并发变更）
+    let rejectedChannelCardIds: number[] = [] // SET_PRICE 被拒的渠道单卡（W4-9b：拒绝并列出）
 
     if (action === 'REUSE' || action === 'DISABLE' || action === 'DELETE') {
       const usable = cards.filter((c) => c.status !== 'USED')
@@ -159,13 +160,28 @@ export async function POST(request: NextRequest) {
     } else {
       // SET_PRICE：只有已发出的卡才有售价
       const priceVal = soldPrice as number
-      const usable = cards.filter((c) => c.status === 'USED')
-      eligible = usable.length
-      const blocked = cards.length - usable.length
+      const used = cards.filter((c) => c.status === 'USED')
+      const blocked = cards.length - used.length
       if (blocked > 0) {
         skipped += blocked
         reasons.push(`${blocked} 条未发出的卡密没有售价，已跳过`)
       }
+      /*
+       * 【渠道单的卡拒绝改售价】（设计 8.3、W4-9b）渠道单的单卡售价快照 = 进货价分摊，CardKey.profit 才是站长真实卡差价；
+       * 改成别的数会让卡密分析的「按进货价的收入」与渠道账对不上。逐条列出被拒的卡，其余照常处理。
+       */
+      const oids = Array.from(new Set(used.map((c) => c.orderId).filter((v): v is number => v != null)))
+      const chOrders = oids.length ? await prisma.order.findMany({ where: { id: { in: oids }, tenantId: { not: 1 } }, select: { id: true } }) : []
+      const chSet = new Set(chOrders.map((o) => o.id))
+      const channelCards = used.filter((c) => c.orderId != null && chSet.has(c.orderId))
+      const usable = used.filter((c) => !(c.orderId != null && chSet.has(c.orderId)))
+      if (channelCards.length) {
+        skipped += channelCards.length
+        const ids = channelCards.map((c) => c.id)
+        rejectedChannelCardIds = ids
+        reasons.push(`${channelCards.length} 条是渠道订单的卡（售价按进货价分摊，不能修改），已拒绝：#${ids.slice(0, 50).join('、#')}${ids.length > 50 ? ' 等' : ''}`)
+      }
+      eligible = usable.length
       // 按成本分组批量更新（成本为空按 0 计）
       const groups = new Map<number, number[]>()
       for (const c of usable) {
@@ -208,7 +224,7 @@ export async function POST(request: NextRequest) {
     }
 
     return success(
-      { affected, skipped, reasons },
+      { affected, skipped, reasons, ...(rejectedChannelCardIds.length ? { rejectedChannelCardIds } : {}) },
       affected > 0 ? `已处理 ${affected} 条${skipped ? `，跳过 ${skipped} 条` : ''}` : '没有可操作的卡密'
     )
   } catch (err) {

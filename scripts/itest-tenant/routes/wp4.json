@@ -1,0 +1,20 @@
+{
+  "package": "WP4",
+  "note": "WP4 新增的超管接口清单（实施分包 7.4）。全部在路由内鉴权：adminGuard 或 lib/admin/source-site 的 adminOrResponse（同一口径：主站店面 + 同源 + 查库复核 ADMIN；渠道 Host 上 AdminHostError → 404）。无 partner 路由。另列两个改造后在渠道 Host 上 404 的令牌接口（finance / quick-reply，denyOnChannel）。merge-routes.mjs（WP8）与实际目录比对。",
+  "routes": [
+    { "method": "GET", "path": "/api/admin/after-sales", "file": "src/app/api/admin/after-sales/route.ts", "guard": "adminGuard", "key": null },
+    { "method": "PATCH", "path": "/api/admin/after-sales/[id]", "file": "src/app/api/admin/after-sales/[id]/route.ts", "guard": "adminOrResponse", "key": "afterSaleId", "idempotency": "CAS status PENDING → REJECTED / DONE；activeKey 置 NULL" },
+    { "method": "GET", "path": "/api/admin/redeem-logs", "file": "src/app/api/admin/redeem-logs/route.ts", "guard": "adminGuard", "key": null },
+    { "method": "POST", "path": "/api/admin/orders/[id]/resettle", "file": "src/app/api/admin/orders/[id]/resettle/route.ts", "guard": "adminOrResponse", "key": "orderId", "idempotency": "CAS settleVersion + settleState IN (NULL, MISSING)" },
+    { "method": "PATCH", "path": "/api/admin/users/[id]/sites/[tenantId]", "file": "src/app/api/admin/users/[id]/sites/[tenantId]/route.ts", "guard": "adminOrResponse", "key": "userId+tenantId" },
+    { "method": "GET", "path": "/api/admin/vmq/complete", "file": "src/app/api/admin/vmq/complete/route.ts", "guard": "adminOrResponse", "key": "vmqOrderId", "note": "补单确认前查来源站（新增 GET；POST 为原有接口）" }
+  ],
+  "channelHost404": [
+    { "method": "GET", "path": "/api/finance/invoices/[token]", "file": "src/app/api/finance/invoices/[token]/route.ts", "guard": "denyOnChannel" },
+    { "method": "POST", "path": "/api/finance/invoices/[token]", "file": "src/app/api/finance/invoices/[token]/route.ts", "guard": "denyOnChannel" },
+    { "method": "GET", "path": "/api/quick-reply/[token]", "file": "src/app/api/quick-reply/[token]/route.ts", "guard": "denyOnChannel" },
+    { "method": "POST", "path": "/api/quick-reply/[token]", "file": "src/app/api/quick-reply/[token]/route.ts", "guard": "denyOnChannel" },
+    { "method": "PAGE", "path": "/finance/[token]", "file": "src/app/finance/[token]/layout.tsx", "guard": "notFoundOnChannel" },
+    { "method": "PAGE", "path": "/reply/[token]", "file": "src/app/reply/[token]/layout.tsx", "guard": "notFoundOnChannel" }
+  ]
+}

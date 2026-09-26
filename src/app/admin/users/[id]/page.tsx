@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { BALANCE_TYPE_LABELS } from '@/lib/balance'
 import { UserMarketingCard } from '@/components/admin/marketing/user-marketing-card'
+import { SourceBadge, type SourceSite, type SiteOption } from '@/components/admin/source-site'
 
 interface DetailUser {
   id: number
@@ -31,10 +32,40 @@ interface DetailUser {
   status: number
   referralCode: string | null
   createdAt: string
+  registeredTenant?: SourceSite
+}
+
+/** 用户与某个站的关系（设计 12.2「按站分 tab」；超管全字段） */
+interface SiteRelation extends SourceSite {
+  isRegistered: boolean
+  orderCount: number
+  paidOrderCount: number
+  paidAmount: number
+  cardCount: number
+  invoiceCount: number
+  receiptCount: number
+  messageCount: number
+  customer: {
+    customerNo: string
+    joinedVia: string
+    firstOrderAt: string | null
+    lastOrderAt: string | null
+    blocked: boolean
+    blockedAt: string | null
+    blockedByKind: string | null
+    blockedByLabel: string | null
+    blockReason: string | null
+    note: string | null
+    platformNote: string | null
+    tags: unknown
+    createdAt: string
+  } | null
+  member: { role: string; status: number; createdAt: string } | null
 }
 
 interface OrderRow {
   id: number
+  source?: SourceSite
   orderNo: string
   productName: string
   quantity: number
@@ -136,6 +167,8 @@ interface Paged<T> {
 
 interface UserDetail {
   user: DetailUser
+  sites?: SiteRelation[]
+  siteOptions?: SiteOption[]
   stats: {
     orderCount: number
     paidOrderCount: number
@@ -276,6 +309,8 @@ export default function AdminUserDetailPage() {
   const [orderPage, setOrderPage] = useState(1)
   const [payPage, setPayPage] = useState(1)
   const [balancePage, setBalancePage] = useState(1)
+  // 按站分 tab（设计 12.2）：'' = 全部；数字 = 只看该站的订单 / 付款
+  const [siteTab, setSiteTab] = useState('')
 
   // 余额流水详情弹窗
   const [logOpen, setLogOpen] = useState(false)
@@ -302,6 +337,7 @@ export default function AdminUserDetailPage() {
         payPage: String(payPage),
         balancePage: String(balancePage),
       })
+      if (siteTab) q.set('site', siteTab)
       const res = await fetch(`/api/admin/users/${userId}/detail?${q}`, {
         signal: controller.signal,
       })
@@ -323,7 +359,7 @@ export default function AdminUserDetailPage() {
     } finally {
       if (abortRef.current === controller) setLoading(false)
     }
-  }, [userId, orderPage, payPage, balancePage])
+  }, [userId, orderPage, payPage, balancePage, siteTab])
 
   useEffect(() => {
     load()
@@ -355,6 +391,15 @@ export default function AdminUserDetailPage() {
 
   const handleSavePermission = async () => {
     if (!form) return
+    // 全局禁用影响所有站（设计 6.2）：列出各站订单数与渠道成员身份
+    if (detail && form.status === 0 && detail.user.status === 1) {
+      const rel = detail.sites ?? []
+      const lines = rel
+        .filter((r) => r.orderCount > 0 || r.member)
+        .map((r) => `${r.tenantId === 1 ? '主站' : r.code}：${r.orderCount} 单${r.member ? `，渠道成员（${r.member.role}${r.member.status === 1 ? '' : '，已停用'}）` : ''}`)
+      const list = lines.length ? ['', ...lines].join('\n· ') : ''
+      if (!confirm(`全局禁用会影响所有站，该用户将无法在任何站登录下单${lines.length ? '：' : '。'}${list}\n\n确定禁用？`)) return
+    }
     setSaving(true)
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
@@ -551,6 +596,19 @@ export default function AdminUserDetailPage() {
         </CardContent>
       </Card>
 
+      {/* 站点关系（渠道分站，设计 12.2）：按站分 tab；渠道的客户关系可在这里推翻拉黑、写平台备注 */}
+      <SiteRelationsCard
+        userId={user.id}
+        sites={detail.sites ?? []}
+        tab={siteTab}
+        onTab={(t) => {
+          setSiteTab(t)
+          setOrderPage(1)
+          setPayPage(1)
+        }}
+        onChanged={load}
+      />
+
       {/* 订单 */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -567,6 +625,7 @@ export default function AdminUserDetailPage() {
                   <tr className="border-b text-left text-xs text-gray-500">
                     <th className="pb-2 pr-3 whitespace-nowrap">下单时间</th>
                     <th className="pb-2 pr-3">订单号</th>
+                    <th className="pb-2 pr-3">来源站</th>
                     <th className="pb-2 pr-3">商品</th>
                     <th className="pb-2 pr-3 whitespace-nowrap">数量</th>
                     <th className="pb-2 pr-3 whitespace-nowrap">金额</th>
@@ -581,7 +640,14 @@ export default function AdminUserDetailPage() {
                       <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">
                         {fmt(o.createdAt)}
                       </td>
-                      <td className="py-2 pr-3 font-mono text-xs break-all">{o.orderNo}</td>
+                      <td className="py-2 pr-3 font-mono text-xs break-all">
+                        <Link href={`/admin/orders?orderId=${o.id}`} className="hover:text-primary-600 hover:underline">
+                          {o.orderNo}
+                        </Link>
+                      </td>
+                      <td className="py-2 pr-3">
+                        <SourceBadge source={o.source} />
+                      </td>
                       <td className="py-2 pr-3">{o.productName}</td>
                       <td className="py-2 pr-3">{o.quantity}</td>
                       <td className="py-2 pr-3 whitespace-nowrap">{money(o.amount)}</td>
@@ -1015,5 +1081,172 @@ function BalanceLogDetailView({ d }: { d: BalanceLogDetail }) {
         </p>
       )}
     </div>
+  )
+}
+
+// ============ 站点关系（渠道分站，设计 5.5、6.2、12.2） ============
+
+/**
+ * 按站分 tab：「全部」+ 与该用户有关的每个站（注册站、下过单的站、是客户 / 成员的站）。
+ * 选中渠道站时显示该站的客户关系：渠道备注与标签（渠道写，这里只读）、平台备注（只有超管可见）、
+ * 本站拉黑（显示操作方：渠道 / 平台；超管可以推翻渠道的决定，也可以平台拉黑），经 PATCH /api/admin/users/[id]/sites/[tenantId]。
+ * 下方订单、付款两块随 tab 只看该站。
+ */
+function SiteRelationsCard({
+  userId,
+  sites,
+  tab,
+  onTab,
+  onChanged,
+}: {
+  userId: number
+  sites: SiteRelation[]
+  tab: string
+  onTab: (t: string) => void
+  onChanged: () => void
+}) {
+  const [busy, setBusy] = useState(false)
+  const [noteDraft, setNoteDraft] = useState<string | null>(null)
+  const cur = tab ? sites.find((s) => String(s.tenantId) === tab) ?? null : null
+
+  const patch = async (tenantId: number, body: Record<string, unknown>, okMsg: string) => {
+    setBusy(true)
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/sites/${tenantId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const d = await res.json().catch(() => null)
+      if (!d?.success) {
+        alert(d?.error || '保存失败')
+        return
+      }
+      alert(d.message || okMsg)
+      setNoteDraft(null)
+      onChanged()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (sites.length <= 1 && !sites.some((s) => s.tenantId !== 1)) {
+    // 只和主站有关（休眠期的样子）：只显示一行说明，不占版面
+    return (
+      <Card>
+        <CardContent className="py-3 text-sm text-gray-500">
+          注册站：<SourceBadge source={sites[0] ?? { tenantId: 1, code: 'main' }} /> · 没有渠道站的关系
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const tags = Array.isArray(cur?.customer?.tags) ? (cur?.customer?.tags as string[]) : []
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>站点关系</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => onTab('')}
+            className={`rounded-full border px-3 py-1 text-xs ${tab === '' ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+          >
+            全部
+          </button>
+          {sites.map((s) => (
+            <button
+              key={s.tenantId}
+              onClick={() => onTab(String(s.tenantId))}
+              className={`rounded-full border px-3 py-1 text-xs ${tab === String(s.tenantId) ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+            >
+              {s.tenantId === 1 ? '主站' : s.code} · {s.orderCount} 单{s.isRegistered ? ' · 注册站' : ''}
+              {s.customer?.blocked ? ' · 已拉黑' : ''}
+              {s.member ? ' · 成员' : ''}
+            </button>
+          ))}
+        </div>
+
+        {cur && (
+          <div className="rounded-lg border border-gray-200 p-3 text-sm">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs text-gray-600 sm:grid-cols-4">
+              <span>订单 {cur.orderCount}（已付 {cur.paidOrderCount}）</span>
+              <span>实付 ¥{cur.paidAmount.toFixed(2)}</span>
+              <span>卡密 {cur.cardCount} 张</span>
+              <span>留言 {cur.messageCount} 条</span>
+              <span>发票 {cur.invoiceCount} 张</span>
+              <span>收据 {cur.receiptCount} 张</span>
+              {cur.member && (
+                <span className="text-violet-700">
+                  渠道成员：{cur.member.role}
+                  {cur.member.status === 1 ? '' : '（已停用）'}
+                </span>
+              )}
+            </div>
+
+            {cur.tenantId !== 1 && !cur.customer && (
+              <p className="mt-2 text-xs text-gray-400">该用户不是这个渠道的客户（没有在该站注册或下单），渠道看不到他。</p>
+            )}
+
+            {cur.customer && (
+              <div className="mt-3 space-y-2">
+                <div className="text-xs text-gray-500">
+                  客户编号 <span className="font-mono">{cur.customer.customerNo}</span> · 加入方式 {cur.customer.joinedVia === 'REGISTER' ? '在该站注册' : '在该站下单'} ·
+                  首单 {fmt(cur.customer.firstOrderAt)} · 最近 {fmt(cur.customer.lastOrderAt)}
+                </div>
+                <div className="text-xs">
+                  <span className="text-gray-500">渠道备注：</span>
+                  {cur.customer.note || <span className="text-gray-300">无</span>}
+                  <span className="ml-3 text-gray-500">标签：</span>
+                  {tags.length ? tags.join('、') : <span className="text-gray-300">无</span>}
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="text-gray-500">本站下单：</span>
+                  {cur.customer.blocked ? (
+                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">
+                      已限制（操作方：{cur.customer.blockedByLabel}）{cur.customer.blockReason ? ` · ${cur.customer.blockReason}` : ''}
+                    </span>
+                  ) : (
+                    <span className="rounded bg-green-100 px-1.5 py-0.5 text-green-700">正常</span>
+                  )}
+                  {cur.customer.blocked ? (
+                    <Button size="sm" variant="outline" disabled={busy} onClick={() => confirm('解除该用户在这个渠道的下单限制？（会推翻渠道的决定，写平台审计）') && patch(cur.tenantId, { unblock: true }, '已解除')}>
+                      解除限制
+                    </Button>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      const reason = prompt('平台拉黑原因（只有超管看得到，渠道只知道「平台已限制」）：')
+                      if (reason && reason.trim().length >= 2) patch(cur.tenantId, { block: { reason: reason.trim() } }, '已限制')
+                      else if (reason !== null) alert('请填写原因（至少 2 个字）')
+                    }}
+                  >
+                    {cur.customer.blocked ? '改为平台拉黑' : '平台拉黑'}
+                  </Button>
+                </div>
+                <div className="text-xs">
+                  <div className="mb-1 text-gray-500">平台备注（只有超管可见，不覆盖渠道备注）：</div>
+                  <div className="flex gap-2">
+                    <input
+                      value={noteDraft ?? cur.customer.platformNote ?? ''}
+                      onChange={(e) => setNoteDraft(e.target.value)}
+                      maxLength={500}
+                      className="flex-1 rounded border border-gray-300 px-2 py-1"
+                    />
+                    <Button size="sm" disabled={busy || noteDraft === null} onClick={() => patch(cur.tenantId, { platformNote: (noteDraft ?? '').trim() || null }, '已保存')}>
+                      保存备注
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

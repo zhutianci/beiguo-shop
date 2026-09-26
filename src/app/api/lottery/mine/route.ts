@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { parsePrizeSnapshot } from '@/lib/lottery'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 我的奖品：本人在「下单有奖」里抽中的全部奖品（优惠券奖 + 自定义奖）。
@@ -14,6 +15,9 @@ import { parsePrizeSnapshot } from '@/lib/lottery'
  * 只读、不涉及发奖，所以不额外校验账户是否被禁用 —— 抽奖本身（drawForOrder）会校验。
  */
 export async function GET() {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

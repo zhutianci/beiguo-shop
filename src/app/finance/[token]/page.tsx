@@ -43,6 +43,8 @@ interface Invoice {
   taxFee: number | null
   paidAt: string | null
   submittedAt: string | null
+  /** 来源站（渠道分站，设计 12.2「待开列表加来源站列」）：开票主体不变，只标明是哪个站的订单 */
+  source?: { tenantId: number; code: string }
 }
 
 interface Issued {
@@ -77,6 +79,8 @@ export default function FinanceDeskPage() {
   const [open, setOpen] = useState<number | null>(null)
   const [copied, setCopied] = useState('')
   const [emailOn, setEmailOn] = useState(true)
+  // 来源站筛选：清单最多 100 张、已全部拉到本地，直接在本地筛（接口另支持 ?tenantId=，契约 7.4）
+  const [site, setSite] = useState<number | 'all'>('all')
 
   const load = useCallback(async () => {
     try {
@@ -148,7 +152,17 @@ export default function FinanceDeskPage() {
     )
   }
 
-  const totalAmount = pending.reduce((s, x) => s + (x.invoiceAmount || 0), 0)
+  /*
+   * 清单里出现渠道单才显示来源站筛选：主站独营（休眠期）时开票台界面与原来一模一样。
+   * 选中的站在刷新后没有待开票了，也照样保留在选项里，免得筛选静默跳回「全部」
+   */
+  const siteOptions = Array.from(
+    new Map(pending.filter((x) => x.source).map((x) => [x.source!.tenantId, x.source!.code] as const)).entries(),
+  ).sort((a, b) => a[0] - b[0])
+  if (site !== 'all' && !siteOptions.some(([id]) => id === site)) siteOptions.push([site, `#${site}`])
+  const showSiteFilter = siteOptions.some(([id]) => id !== 1)
+  const visible = site === 'all' ? pending : pending.filter((x) => x.source?.tenantId === site)
+  const totalAmount = visible.reduce((s, x) => s + (x.invoiceAmount || 0), 0)
 
   return (
     <div className="min-h-screen bg-[#0b0d12] text-white">
@@ -168,11 +182,26 @@ export default function FinanceDeskPage() {
         </div>
         <div className="mt-2 flex items-center gap-3 text-[12px]">
           <span className="text-white/50">
-            待开 <b className="text-amber-300 tabular-nums text-[15px]">{pending.length}</b> 张
+            待开 <b className="text-amber-300 tabular-nums text-[15px]">{visible.length}</b> 张
           </span>
           <span className="text-white/50">
             合计 <b className="text-white/80 tabular-nums">{money(totalAmount)}</b>
           </span>
+          {showSiteFilter && (
+            <select
+              value={site === 'all' ? 'all' : String(site)}
+              onChange={(e) => setSite(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              aria-label="来源站"
+              className="ml-auto rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-[12px] text-white/70"
+            >
+              <option value="all">全部来源站</option>
+              {siteOptions.map(([id, code]) => (
+                <option key={id} value={id}>
+                  {id === 1 ? '主站' : `渠道 ${code}`}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </header>
 
@@ -204,13 +233,13 @@ export default function FinanceDeskPage() {
           标记开具后邮件通知客户（含「检查垃圾箱」提示）
         </label>
 
-        {pending.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="py-16 text-center">
             <CheckCircle2 className="w-9 h-9 text-emerald-400/70 mx-auto mb-3" />
             <p className="text-white/60 text-sm">当前没有待开的发票</p>
           </div>
         ) : (
-          pending.map((iv) => {
+          visible.map((iv) => {
             const expanded = open === iv.id
             return (
               <div key={iv.id} className="rounded-2xl bg-white/[0.04] border border-white/10 overflow-hidden">
@@ -234,6 +263,17 @@ export default function FinanceDeskPage() {
                     </div>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                    {iv.source && (
+                      <span
+                        className={`rounded-full border px-2 py-0.5 ${
+                          iv.source.tenantId === 1
+                            ? 'bg-white/5 border-white/10 text-white/55'
+                            : 'bg-sky-500/12 border-sky-500/30 text-sky-300'
+                        }`}
+                      >
+                        {iv.source.tenantId === 1 ? '主站' : `渠道 ${iv.source.code}`}
+                      </span>
+                    )}
                     <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-white/55">
                       {iv.subscriptionType}
                     </span>

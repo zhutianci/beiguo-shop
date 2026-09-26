@@ -19,12 +19,27 @@ import { settleReferral } from './referral'
 // sms.ts 不反向 import 本文件，没有循环依赖；appendRemark 在那边按 Order.remark 的 255 字截断
 import { acquireForOrder, appendRemark } from './sms'
 import { sendOrderPaidEmail } from './mail'
+// 渠道分站（WP3）：计提、事后开票分成、渠道通知、按订单 tenantId 取链接 origin。平台单（tenantId=1）全部第一行返回
+import { accrueOnPaid, accrueInvoiceShare, isTxAbortingError } from './tenant/ledger'
+import { emitTenantNotice } from './tenant/notice'
+import { storefrontById } from './storefront/resolve'
+import { tenantOrigin } from './storefront/origin'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
 export const VMQ_KEY = process.env.VMQ_KEY || ''
 export const VMQ_TIMEOUT_MIN = parseInt(process.env.VMQ_PAY_TIMEOUT || '20') // 订单有效期（分钟）
 export const VMQ_TYPE_ALIPAY = 2
+
+/**
+ * 渠道单的平台群标签用租户 code（「[lulu]」）；主站返回 null（消息逐字不变）。
+ * 查不到租户行时退回 `t<id>`，宁可标签难看也不能把渠道单当主站单推。
+ */
+async function siteCodeOf(tenantId: number): Promise<string | null> {
+  if (tenantId === 1) return null
+  const sf = await storefrontById(tenantId).catch(() => null)
+  return sf?.code ?? `t${tenantId}`
+}
 
 /*
  * 金额冷却：一个金额刚被付款 / 超时 / 作废后，不马上分给下一张单。
@@ -1135,12 +1150,35 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
     // 【CAS 成功后在事务内重读】不用事务外读的订单：那次读和翻 PAID 之间若恰好提交了后台改价，
     // 流水会记旧金额，而下面发卡的单卡售价（splitAmount(order.amount)）用的是新金额，对账对不上。
     // 翻转那一刻起行已被本事务锁住，这里读到的就是最终成交的金额 / 数量
-    const cur = await tx.order.findUnique({ where: { id: orderId }, select: { amount: true, productId: true, quantity: true } })
+    const cur = await tx.order.findUnique({
+      where: { id: orderId },
+      select: { amount: true, productId: true, quantity: true, tenantId: true, listingId: true },
+    })
     if (!cur) throw new Error(`订单 ${orderId} 在翻转后不见了`)
     await tx.payment.create({
       data: { orderId, payMethod: 'ALIPAY', amount: cur.amount, status: 1 },
     })
     await tx.product.update({ where: { id: cur.productId }, data: { sales: { increment: cur.quantity } } })
+    /*
+     * 【渠道单：本渠道销量 + 计提，与翻 PAID 同一事务】（设计 8.3、10.5）
+     * 付款 CAS 是唯一「恰好一次」的点，计提放在这里就不会漏、不会重。accrueOnPaid 对普通异常不抛（→ settleState=MISSING + 告警），
+     * 所以不会把「钱到了」这件事回滚掉；listing 销量只是展示数，出错也只记日志（MySQL 单条语句失败不中止事务，itest W3-3 实测）。
+     * 【例外：死锁 / 锁等待超时 / 事务已失效必须 rethrow】这类错误数据库已把整个事务回滚（翻 PAID、Payment、销量全没了），
+     * 吞掉继续跑会让下面按「赢家」发卡、发邮件，而订单其实还是待支付（itest W3-3b 实测）。rethrow 后整个付款事务失败，
+     * 到账路径由 markPaidVmqOrder 的 catch 告警、reconcilePaidVmq 宽限期后补做 fulfillOrder。
+     * 平台单 tenantId=1，整段跳过。
+     */
+    if (cur.tenantId !== 1) {
+      if (cur.listingId != null) {
+        await tx.tenantListing
+          .updateMany({ where: { id: cur.listingId, tenantId: cur.tenantId }, data: { sales: { increment: cur.quantity } } })
+          .catch((e) => {
+            if (isTxAbortingError(e)) throw e
+            console.error('[vmq] 渠道销量累加失败（不影响付款）', orderId, e)
+          })
+      }
+      await accrueOnPaid(tx, orderId)
+    }
     return true
   })
 
@@ -1152,6 +1190,20 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
 
   const order = await prisma.order.findUnique({ where: { id: orderId }, include: { product: true, user: true } })
   if (!order) return won
+  // 渠道单：租户 code（平台群「[lulu]」标签）；主站单为 null
+  const site = await siteCodeOf(order.tenantId)
+  if (won && order.tenantId !== 1) {
+    // 渠道站内通知 + 渠道企业微信（载荷不含买家邮箱与卡密）。独立写入、不抛，失败不影响履约
+    await emitTenantNotice(null, {
+      tenantId: order.tenantId,
+      kind: 'ORDER_PAID',
+      title: `订单已支付：${order.productName}${order.quantity > 1 ? ` × ${order.quantity}` : ''}`,
+      body: `实收 ¥${(Number(order.amount) + Number(order.invoiceTaxFee ?? 0)).toFixed(2)}`,
+      refType: 'order',
+      refKey: order.orderNo,
+      dedupeKey: `paid:${order.orderNo}`,
+    })
+  }
 
   /*
    * ①.5 下单时勾了「同时开发票」的，此刻税费已随货款一并到账 → 发票申请正式成立。
@@ -1180,6 +1232,7 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
       orderNo: order.orderNo,
       taxFee: order.invoiceTaxFee ?? 0,
       reason: e instanceof Error ? e.message : String(e),
+      site,
     })
   })
 
@@ -1224,19 +1277,36 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
      * 会反复拿到「已被别的订单领走」的同一张卡，把重试耗光，把有货误判成库存不足。
      * 进程崩溃时事务自动回滚、锁自动释放，不需要过期接管；领卡中途出错也整体回滚，不会留下半截。
      */
-    const owned = await prisma.$transaction(
+    const alloc = await prisma.$transaction(
       async (tx) => {
-        await tx.$queryRaw`SELECT id FROM orders WHERE id = ${order.id} FOR UPDATE`
+        // 行锁同时读出按件退款数与渠道快照：READ COMMITTED 下锁定读拿到的是最新提交值（并发的按件退款已排在锁后面）
+        const locked = await tx.$queryRaw<{ refunded_qty: number | null; supply_cents: number | null; tenant_id: number }[]>`
+          SELECT refunded_qty, supply_cents, tenant_id FROM orders WHERE id = ${order.id} FOR UPDATE`
+        const lk = locked[0]
+        /*
+         * 【缺口 = quantity − 已按件退掉的件数 − 已发】（设计 8.3、8.4）：按件部分退款后再点「补发卡密」不得为已退的件补卡。
+         * 主站单 refundedQty 恒为空（→ 0），need === quantity，行为与改造前逐字相同。
+         */
+        const need = order.quantity - Number(lk?.refunded_qty ?? 0)
         const already = await tx.cardKey.count({ where: { orderId: order.id, status: 'USED' } })
-        if (already >= order.quantity) return already
-        // 单卡售价 = 订单总额按张数整数分摊；补发时只取「尚缺」的那几份，保证 Σ 单卡售价 === order.amount
-        const unitPrices = splitAmount(Number(order.amount), order.quantity).slice(already)
-        return already + (await allocateCards(tx, order.productId, order.id, order.quantity - already, unitPrices))
+        if (already >= need) return { owned: already, need }
+        /*
+         * 单卡售价快照：主站单 = 订单总额按张数整数分摊（Σ 单卡售价 === order.amount，不变）；
+         * 渠道单 = 进货款按张数分摊（Σ === supplyCents），于是 CardKey.profit = 进货价分摊 − cost 是站长真实的卡差价，
+         * 手续费与发票利润另在报表里加（设计 8.3，money.ts 注释同步改了口径）。补发时只取「尚缺」的那几份。
+         */
+        const channel = Number(lk?.tenant_id ?? 1) !== 1 && lk?.supply_cents != null
+        const total = channel ? Number(lk!.supply_cents) / 100 : Number(order.amount)
+        const unitPrices = splitAmount(total, order.quantity).slice(already)
+        return { owned: already + (await allocateCards(tx, order.productId, order.id, need - already, unitPrices)), need }
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, maxWait: 10_000, timeout: 20_000 }
     )
-    delivered = owned >= order.quantity
-    if (delivered) {
+    const owned = alloc.owned
+    delivered = alloc.need > 0 && owned >= alloc.need
+    if (alloc.need <= 0) {
+      // 全部件都已按件退掉：不发卡、不改交付状态（订单的取消 / 退款状态由退款弹窗决定）
+    } else if (delivered) {
       // 条件带 not DELIVERED：排队的后到者不再把 deliveredAt 改晚几毫秒
       await prisma.order.updateMany({
         where: { id: order.id, deliveryStatus: { not: 'DELIVERED' } },
@@ -1244,7 +1314,7 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
       })
     } else {
       // appendRemark 按 255 字截断（保留最新内容）：原来每次补发仍缺货都追加一段，十几次后超长报错「补发失败」
-      const remark = appendRemark(order.remark, `卡密库存不足(已发${owned}/${order.quantity})，待人工补发`)
+      const remark = appendRemark(order.remark, `卡密库存不足(已发${owned}/${alloc.need})，待人工补发`)
       await prisma.order.update({ where: { id: order.id }, data: { deliveryStatus: 'PROCESSING', remark } })
     }
     await syncAutoStock(order.productId)
@@ -1280,6 +1350,7 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
       paidAt: order.paidAt ?? new Date(),
       stock: fresh?.stock ?? null,
       delivered,
+      site,
     })
     // 自动发货商品的库存 = 未使用卡密数，见底就要补货
     const threshold = Number(process.env.LOW_STOCK_THRESHOLD || 3)
@@ -1325,16 +1396,22 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
           }
         })
       }
-      await sendOrderPaidEmail(order.user.email, {
-        orderNo: order.orderNo,
-        productName: order.productName,
-        amount: Number(order.amount),
-        // 勾了开票的订单实收的是 货款 + 6%，邮件要和支付宝账单对得上
-        invoiceTaxFee: order.invoiceTaxFee == null ? null : Number(order.invoiceTaxFee),
-        deliveryType: order.product.deliveryType,
-        cards,
-        cardUsage: order.product.cardUsage,
-      })
+      // 链接按订单所属店面（设计 4.5）：主站单不传 → mail.ts 用原常量，邮件逐字不变；渠道租户查不到时抛进下面的 catch
+      const mailOpts = order.tenantId === 1 ? undefined : { origin: await tenantOrigin(order.tenantId) }
+      await sendOrderPaidEmail(
+        order.user.email,
+        {
+          orderNo: order.orderNo,
+          productName: order.productName,
+          amount: Number(order.amount),
+          // 勾了开票的订单实收的是 货款 + 6%，邮件要和支付宝账单对得上
+          invoiceTaxFee: order.invoiceTaxFee == null ? null : Number(order.invoiceTaxFee),
+          deliveryType: order.product.deliveryType,
+          cards,
+          cardUsage: order.product.cardUsage,
+        },
+        mailOpts
+      )
     } catch (e) {
       console.error('[vmq] order paid email failed', e)
     }
@@ -1365,6 +1442,7 @@ export async function submitInvoiceForPaidOrder(orderId: number) {
       createdAt: true,
       payStatus: true,
       invoiceInfo: true,
+      tenantId: true,
       user: { select: { email: true, nickname: true } },
     },
   })
@@ -1389,6 +1467,14 @@ async function fulfillInvoice(invoiceId: number): Promise<boolean> {
 
   // 同 fulfillOrder：关掉同一张发票其余还开着的收银台，防止被付第二次
   await invalidatePendingVmq('invoice', invoiceId).catch((e) => console.error('[vmq] 作废同票其余收款单失败', invoiceId, e))
+  /*
+   * 【渠道单事后开票：税费到账 → 发票分成】（设计 9.2、10.5）flip 成功后单独事务计提，永不抛。
+   * flip 与计提之间崩溃、计提失败、当时前置不满足而跳过的，由解冻 cron 的补偿扫描补上，对账 L11 兜底。
+   * 是不是渠道单以 accrueInvoiceShare 内部 findShopOrderForInvoice 找到的**订单**的 tenantId 为准，不看 Invoice.tenantId：
+   * 票据上的来源站列一旦写错（对账 A12 会报），按它判断就会直接漏掉这次计提。主站票据在那里读一两次后返回 SKIPPED，
+   * 不写任何东西、永不抛，主站行为不变。
+   */
+  await accrueInvoiceShare(invoiceId)
   await pushInvoiceReady(invoiceId)
   return true
 }
@@ -1428,6 +1514,7 @@ async function pushInvoiceReady(invoiceId: number) {
         invoiceAmount: x.invoiceAmount == null ? null : Number(x.invoiceAmount),
       })),
       financeUrl: financeInvoiceUrl(),
+      site: await siteCodeOf(invoice.tenantId),
     })
   } catch (e) {
     // 通知失败绝不能影响「税费已到账」这个既成事实

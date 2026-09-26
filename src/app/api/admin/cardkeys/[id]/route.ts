@@ -81,6 +81,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const isUsed = c.status === 'USED'
     if (status !== undefined && isUsed) return error('已发出的卡密不可修改状态')
     if (soldPrice !== undefined && !isUsed) return error('未发出的卡密没有售价')
+    /*
+     * 渠道单的卡：单卡售价快照是进货价分摊（设计 8.3，CardKey.profit = 站长真实卡差价），不能改成别的口径。
+     * 与批量接口的 SET_PRICE 同一条规矩（W4-9b）；主站卡照旧
+     */
+    if (soldPrice !== undefined && c.orderId != null) {
+      const o = await prisma.order.findUnique({ where: { id: c.orderId }, select: { tenantId: true } })
+      if (o && o.tenantId !== 1) return error('渠道订单的卡密售价按进货价分摊，不能修改')
+    }
 
     const data: Prisma.CardKeyUpdateInput = {}
     if (status !== undefined) data.status = status

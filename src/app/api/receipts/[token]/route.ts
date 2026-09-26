@@ -5,15 +5,21 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { rmbCapital, receiptProjectLabel } from '@/lib/receipt'
 import { parseReceiptItems } from '@/lib/order-billing'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 // 按不可枚举的 token 查看收据
 export async function GET(_request: NextRequest, { params }: { params: { token: string } }) {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return error('收据不存在', 404)
   try {
     const token = (params.token || '').trim()
     if (!token || token.length < 16) return error('收据不存在', 404)
 
     const r = await prisma.receipt.findUnique({ where: { token } })
-    if (!r) return error('收据不存在', 404)
+    // 收据只在它所属的站展示（设计 4.5）：页面层（receipt/[token]/layout.tsx）已按收据的站跳转，
+    // 这里是第二道——别的站的 Host 直接调接口，与不存在同一个响应
+    if (!r || r.tenantId !== sf.id) return error('收据不存在', 404)
 
     return success({
       receiptNo: r.receiptNo,

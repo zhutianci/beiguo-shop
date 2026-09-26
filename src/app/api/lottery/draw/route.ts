@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { drawForOrder, LotteryError } from '@/lib/lottery-server'
 import { rateLimited } from '@/lib/news/rate-limit'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /*
  * 客户端只能给一个订单号。选哪个奖、有没有资格、是不是本人的单、付没付款，
@@ -22,6 +23,9 @@ const schema = z.object({
 
 // 买家在「我的订单」里拆红包（下单有奖）
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

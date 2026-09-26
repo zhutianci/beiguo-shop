@@ -1,5 +1,6 @@
 'use client'
 
+import { useStorefront } from '@/components/storefront-provider'
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus, Trash2, Bell, Link2, ChevronDown, Loader2, ExternalLink, CheckCircle2 } from 'lucide-react'
@@ -41,7 +42,7 @@ function fmtDate(s: string | null) {
   return new Date(s).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
 }
 
-export default function AccountBindings() {
+function AccountBindingsInner() {
   const [list, setList] = useState<Binding[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
@@ -470,4 +471,15 @@ function ReminderEditor({ binding, onSaved }: { binding: Binding; onSaved: () =>
       </div>
     </div>
   )
+}
+
+/**
+ * 渠道分站（实施分包 WP1）：订阅账户绑定在渠道站关闭（设计 11.1、Q16：邮箱类归属校验是探测口）。
+ * 只控制显示；对应接口在渠道 Host 上服务端 404（denyOnChannel）。组件本体改名为 AccountBindingsInner、原样不动，
+ * 由这层按店面决定挂不挂：不渲染就不会发出任何请求（验收 W1-9：渠道站页面零 404 请求）。主站恒为渲染，行为不变。
+ */
+export default function AccountBindings() {
+  const { features } = useStorefront()
+  if (!(features.bindings)) return null
+  return <AccountBindingsInner />
 }

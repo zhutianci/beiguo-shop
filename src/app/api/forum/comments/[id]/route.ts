@@ -4,9 +4,13 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { resolveActor } from '@/lib/forum'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 // 删除评论（作者或管理员）；删除顶层评论会级联删除其楼中楼
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

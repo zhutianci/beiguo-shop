@@ -7,9 +7,13 @@ import { success, error } from '@/lib/api'
 import { plainExcerpt } from '@/lib/markdown'
 import { resolveActor, normalizeTags, memberDisplayName } from '@/lib/forum'
 import { forumWriteGate } from '@/lib/forum-throttle'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 // 列表：支持板块筛选、标签、关键词、排序、分页
 export async function GET(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const { searchParams } = new URL(request.url)
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
@@ -90,6 +94,9 @@ const createSchema = z.object({
 
 // 发帖（登录或匿名）
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const actor = await resolveActor(request)
     const body = await request.json()

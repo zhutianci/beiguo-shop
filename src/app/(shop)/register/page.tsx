@@ -7,10 +7,14 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Mail, Lock, User, Sparkles, ShieldCheck } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { setToken } from '@/lib/auth-token'
+import { useStorefront } from '@/components/storefront-provider'
 
 export default function RegisterPage() {
   const router = useRouter()
   const { setUser } = useUserStore()
+  // 营销邮件是平台专属（设计 11.3）：渠道站不发、个人中心也不渲染订阅开关，注册页就不能写「可能发优惠信息、可在个人中心退订」。
+  // 没有 Provider 时回退为主站（storefront-provider.tsx），主站渲染与原来逐字相同
+  const isPlatform = useStorefront().kind === 'PLATFORM'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [formData, setFormData] = useState({
@@ -252,7 +256,8 @@ export default function RegisterPage() {
             </button>
 
             {/* 注册告知语（营销邮件，设计文档 10.2）。注册成功时服务端会记一条 NOTICE 留痕，
-                证明注册人看到的就是这段话 —— 改这里的措辞要同步改隐私政策并更新 lib/legal.ts 的日期 */}
+                证明注册人看到的就是这段话 —— 改这里的措辞要同步改隐私政策并更新 lib/legal.ts 的日期。
+                渠道站只保留条款与隐私政策那半句（营销邮件平台专属），留痕文字也按渠道站另记（lib/marketing/consent.ts） */}
             <p className="text-xs leading-relaxed text-white/40">
               注册即表示你同意
               <Link href="/terms" target="_blank" className="text-cyan-400/80 hover:text-cyan-300 transition-colors">
@@ -262,7 +267,7 @@ export default function RegisterPage() {
               <Link href="/privacy" target="_blank" className="text-cyan-400/80 hover:text-cyan-300 transition-colors">
                 《隐私政策》
               </Link>
-              。我们可能会向你的邮箱发送优惠活动信息（标题带 AD），注册后可在个人中心或邮件底部随时一键退订。
+              {isPlatform ? '。我们可能会向你的邮箱发送优惠活动信息（标题带 AD），注册后可在个人中心或邮件底部随时一键退订。' : '。'}
             </p>
           </form>
 

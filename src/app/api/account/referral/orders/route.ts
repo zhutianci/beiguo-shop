@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { maskBuyer, maskOrderNo } from '@/lib/mask'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 推广订单：别人通过「我的」推广链接下的单（Order.referrerId = 我，有索引）。
@@ -57,6 +58,9 @@ function statusOf(payStatus: string, deliveryStatus: string): BuyerStatus {
 const toCents = (v: unknown) => Math.round(Number(v ?? 0) * 100)
 
 export async function GET(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

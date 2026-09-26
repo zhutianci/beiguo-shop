@@ -8,6 +8,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { sniffImage, storeUpload } from '@/lib/upload-store'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { ipKey } from '@/lib/auth-throttle'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 const MAX_SIZE = 5 * 1024 * 1024 // 单文件 5MB
 // 请求体上限：单文件 5MB + multipart 边界与字段头的开销。nginx 对 /api/upload 另卡 6m（nginx.conf）
@@ -40,6 +41,9 @@ const SCOPES: Record<string, string> = {
 
 // 图片上传：保存到 public/uploads/<scope>，返回可访问 URL
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     // 先看 Content-Length 再 formData()：formData() 会把整个请求体读进内存，
     // 以前是先读完再看 file.size，一批并发的 20MB 请求就能把 app 顶到 mem_limit。

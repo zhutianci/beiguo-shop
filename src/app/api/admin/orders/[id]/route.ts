@@ -1,11 +1,10 @@
 export const dynamic = 'force-dynamic'
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import crypto from 'crypto'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
-import { requireAdmin } from '@/lib/auth'
 import { settleReferral } from '@/lib/referral'
 import { consumeCouponForOrder, releaseCouponForOrder } from '@/lib/coupon'
 import { updatePendingVmqAmount, submitInvoiceForPaidOrder, invalidatePendingVmq } from '@/lib/vmq'
@@ -15,6 +14,15 @@ import { calcInvoiceAmounts } from '@/lib/invoice'
 import { parseOrderInvoiceDraft } from '@/lib/order-invoice'
 import { invoicesForOrder, voidOpenInvoicesForOrder } from '@/lib/order-link'
 import { cancelActivationForOrder } from '@/lib/sms'
+import { toCents } from '@/lib/money'
+import { createHash } from 'crypto'
+import { writeAudit } from '@/lib/audit'
+import { emitTenantNotice } from '@/lib/tenant/notice'
+import { externalOrderSourceKey } from '@/lib/external-order-key'
+import { tenantOrigin } from '@/lib/storefront/origin'
+import { mulDivRound } from '@/lib/tenant/math'
+import { accrueOnPaid, applyRefund, defaultLossCents, isTxAbortingError, shortFields } from '@/lib/tenant/ledger'
+import { adminOrResponse, closeAfterSale, AfterSaleConflict, REFUND_REASON_TEXT } from '@/lib/admin/source-site'
 
 /**
  * 改价的条件更新没抢到：开头读到的「待支付、未取消」在写入前已经变了（买家刚好付款、或超时关单）。
@@ -22,6 +30,43 @@ import { cancelActivationForOrder } from '@/lib/sms'
  * 不导出：route.ts 只能导出 HTTP handler
  */
 class OrderStateChangedError extends Error {}
+/** 渠道单规则拒绝（设计 8.4–8.6）：整笔事务回滚，按 status / code 回给弹窗 */
+class OrderRuleError extends Error {
+  constructor(message: string, public status = 400, public code?: string) {
+    super(message)
+  }
+}
+/** 退款弹窗的「预览」：在事务里算完就回滚，结果带出来（与真正保存走同一段代码，数字不会两套口径） */
+/** 渠道通知里的退款承担方（与渠道后台 BEARER_TEXT 同一口径；不导出） */
+const REFUND_BEARER_TEXT: Record<string, string> = { PROPORTIONAL: '按比例分担（平台原因）', CHANNEL: '渠道承担（渠道原因）', PLATFORM: '站长承担' }
+class PreviewDone extends Error {
+  constructor(public preview: Record<string, unknown>) {
+    super('preview')
+  }
+}
+
+/**
+ * 渠道单退款（设计 8.4；契约见实施分包 7.4）。主站单忽略整个 refund 对象（行为不变）。
+ * 金额一律分；requestId 由弹窗打开时生成；expectedVersion = 弹窗打开时订单的 settleVersion（并发保存 → 409）。
+ */
+const refundSchema = z.object({
+  refundGoodsCents: z.number().int().min(0),
+  refundTaxCents: z.number().int().min(0),
+  refundQty: z.number().int().min(0).optional(),
+  bearer: z.enum(['PROPORTIONAL', 'CHANNEL', 'PLATFORM']),
+  /** CHANNEL 时的平台损失；不传 = 按进货价分摊的默认值（defaultLossCents，从不读成本） */
+  lossCents: z.number().int().min(0).optional(),
+  refundTradeNo: z.string().trim().max(64).optional().nullable(),
+  requestId: z.string().trim().regex(/^[A-Za-z0-9_-]{8,64}$/, 'requestId 格式不正确'),
+  expectedVersion: z.number().int().min(0),
+  fullStatus: z.enum(['REFUNDED', 'CANCELLED']).optional(),
+  confirmTaxKept: z.boolean().optional(),
+  afterSaleId: z.number().int().positive().optional(),
+  /** 结案说明（渠道可见，写进售后申请的 resultNote） */
+  note: z.string().trim().max(500).optional().nullable(),
+  /** 只预览（默认损失、应退现金），不落库 */
+  preview: z.boolean().optional(),
+})
 
 const updateOrderSchema = z.object({
   payStatus: z.enum(['UNPAID', 'PAID', 'REFUNDED']).optional(),
@@ -37,14 +82,15 @@ const updateOrderSchema = z.object({
       claudeAccount: z.string().email('Claude 账户邮箱格式不正确').optional().nullable(),
     })
     .optional(),
+  // ---- 渠道分站（设计 8.4–8.6、4.10 ⑤⑥）----
+  refund: refundSchema.optional(),
+  /** 标已付时的实收（分）：渠道单必填，主站单选填；同一事务补建 Payment */
+  receivedCents: z.number().int().min(0).max(100_000_000).optional(),
+  /** 实收 < 应收时渠道单必选：差额由渠道还是平台承担（设计 8.6） */
+  shortBearer: z.enum(['CHANNEL', 'PLATFORM']).optional(),
+  /** 打开弹窗时订单的 updatedAt：保存时不一致 = 期间被别人（或到账）改过 → 409（设计 4.10 ⑤）。不传 = 旧行为 */
+  expectedUpdatedAt: z.string().max(40).optional().nullable(),
 })
-
-function hashKey(claudeAccount: string, startDate: string, subscriptionType: string): string {
-  return crypto
-    .createHash('sha1')
-    .update(`${claudeAccount.toLowerCase()}|${startDate}|${subscriptionType}`)
-    .digest('hex')
-}
 
 function addOneMonthIso(iso: string): string {
   const [y, m, d] = iso.split('-').map((n) => parseInt(n))
@@ -56,18 +102,62 @@ function addOneMonthIso(iso: string): string {
   return `${yy}-${mm}-${dd}`
 }
 
+const yuan = (cents: number) => `¥${(cents / 100).toFixed(2)}`
+
+/**
+ * CHANNEL 承担时 lossCents 的默认值（设计 8.4）：本次冲回的进货款 × 本次退件中已交付件的占比。
+ * 已交付件数：自动发卡数已发出的卡；其他商品按是否已交付算整单（WP3 口径）。**不读任何成本字段**——
+ * LOSS 分录渠道看得见，按接码成本 / 卡密成本取默认值等于把成本告诉渠道。
+ */
+async function computeLossDefault(
+  tx: Prisma.TransactionClient,
+  orderId: number,
+  r: { refundGoodsCents: number; refundQty?: number },
+): Promise<{ lossDefaultCents: number; reversedPurchaseCents: number; deliveredQty: number }> {
+  const o = await tx.order.findUnique({
+    where: { id: orderId },
+    select: {
+      amount: true,
+      supplyCents: true,
+      quantity: true,
+      refundedQty: true,
+      settleRefundedCents: true,
+      deliveryStatus: true,
+      product: { select: { deliveryType: true } },
+    },
+  })
+  if (!o) return { lossDefaultCents: 0, reversedPurchaseCents: 0, deliveredQty: 0 }
+  const A = toCents(o.amount.toString())
+  const S = Math.max(0, o.supplyCents ?? 0)
+  if (A <= 0 || S <= 0) return { lossDefaultCents: 0, reversedPurchaseCents: 0, deliveredQty: 0 }
+  const Rg0 = Math.min(Math.max(0, o.settleRefundedCents ?? 0), A)
+  const Rg1 = Math.min(A, Rg0 + r.refundGoodsCents)
+  const reversed = mulDivRound(S, A - Rg0, A) - mulDivRound(S, A - Rg1, A)
+  const deliveredQty =
+    o.product.deliveryType === 'AUTO'
+      ? await tx.cardKey.count({ where: { orderId, status: 'USED' } })
+      : o.deliveryStatus === 'DELIVERED'
+        ? o.quantity
+        : 0
+  const lossDefaultCents = defaultLossCents(
+    { supplyCents: S, quantity: o.quantity, refundedQty: o.refundedQty ?? 0, deliveredQty },
+    r.refundQty ?? 0,
+    reversed,
+  )
+  return { lossDefaultCents, reversedPurchaseCents: reversed, deliveredQty }
+}
+
 // 更新订单
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   // 路由内再验一次管理员：这个接口能改价、标已支付、取消、退款，直接动钱，
-  // 不能只靠 middleware（CVE-2025-29927，见交接文档第二十三节）
-  try {
-    await requireAdmin()
-  } catch {
-    return error('无管理员权限', 403)
-  }
+  // 不能只靠 middleware（CVE-2025-29927，见交接文档第二十三节）。
+  // 渠道 Host 上 404（AdminHostError），其余 403；拿到管理员本人用于审计的 operatorId
+  const auth = await adminOrResponse()
+  if ('res' in auth) return auth.res
+  const admin = auth.user
 
   try {
     const { id } = await params
@@ -94,7 +184,21 @@ export async function PUT(
       return notFound('订单不存在')
     }
 
-    const { external, amount, ...orderFields } = result.data
+    /*
+     * 【渠道单 vs 主站单】tenantId ≥ 2 的订单挂着渠道结算账本（设计第 8、10 章）：退款必须走退款弹窗（refund），
+     * 不能回退 UNPAID、不能恢复、已解冻的不能撤回交付、标已付必须填实收。主站单忽略 refund / shortBearer，行为不变。
+     */
+    const isChannel = currentOrder.tenantId !== 1
+    const {
+      external,
+      amount,
+      refund: refundIn,
+      receivedCents,
+      shortBearer,
+      expectedUpdatedAt,
+      ...orderFields
+    } = result.data
+    const refund = isChannel ? refundIn : undefined
     const data: {
       payStatus?: 'UNPAID' | 'PAID' | 'REFUNDED'
       deliveryStatus?: 'PENDING' | 'PROCESSING' | 'DELIVERED' | 'CANCELLED'
@@ -102,6 +206,24 @@ export async function PUT(
       deliveredAt?: Date | null
       paidAt?: Date | null
     } = { ...orderFields }
+
+    let expectedAt: Date | null = null
+    if (expectedUpdatedAt) {
+      expectedAt = new Date(expectedUpdatedAt)
+      if (isNaN(expectedAt.getTime())) return error('expectedUpdatedAt 格式不正确')
+      /*
+       * 【事务外先比一次】下面「取消 / 标已付 / 退款」会在事务之前先作废待支付收款单（invalidatePendingVmq）。
+       * 只在事务里 FOR UPDATE 时才比对的话，拿着过期弹窗保存的人会先把买家还开着的收银台作废、再收到 409：
+       * 订单没取消也没标已付，买家却付不进来（或付了进「未匹配」）。开头已经读过这一行，这里零成本先拦掉；
+       * 事务里持锁后仍会再比一次（中间这一小段窗口靠那一次兜底）。
+       */
+      if (currentOrder.updatedAt.getTime() !== expectedAt.getTime()) {
+        return NextResponse.json(
+          { success: false, error: '订单已变化（可能刚有人保存或买家刚付款），本次改动未保存，请刷新后重试', code: 'CONFLICT' },
+          { status: 409 },
+        )
+      }
+    }
 
     /*
      * 改价：仅待支付订单可改。
@@ -127,6 +249,14 @@ export async function PUT(
       if (currentOrder.deliveryStatus === 'CANCELLED' || result.data.deliveryStatus === 'CANCELLED') {
         return error('已取消的订单不能改价')
       }
+      // 渠道单：新金额低于进货款拒绝（设计 8.5）；进货款与两个费率快照不变
+      if (isChannel) {
+        const newCents = toCents(amount)
+        const supply = currentOrder.supplyCents ?? 0
+        if (!(supply > 0) || newCents < supply) {
+          return error(`渠道单改价不能低于进货款 ${yuan(supply)}`)
+        }
+      }
       priceData = { amount }
       const draft = parseOrderInvoiceDraft(currentOrder.invoiceInfo)
       if (draft) {
@@ -139,11 +269,53 @@ export async function PUT(
 
     const wasDelivered = currentOrder.deliveryStatus === 'DELIVERED'
     const willBeDelivered = result.data.deliveryStatus === 'DELIVERED'
+    const curPaid = currentOrder.payStatus === 'PAID' || currentOrder.payStatus === 'REFUNDED'
+
+    // ---------------- 渠道单的规则（设计 8.4、8.5；W4-1 / W4-4） ----------------
+    const fullStatus = refund?.fullStatus
+    if (isChannel) {
+      if (result.data.payStatus === 'UNPAID' && currentOrder.payStatus !== 'UNPAID') {
+        return error('渠道单已付款，不能改回待支付；请走退款弹窗或调账')
+      }
+      // 「标已交付 → 自动标已付」同样会把 REFUNDED 翻回 PAID（下面那一步写的是 data），一并拦住
+      if (currentOrder.payStatus === 'REFUNDED' && (result.data.payStatus === 'PAID' || (willBeDelivered && !wasDelivered))) {
+        return error('渠道单已退款，不能恢复为已支付或改为已交付')
+      }
+      if (currentOrder.deliveryStatus === 'CANCELLED' && result.data.deliveryStatus && result.data.deliveryStatus !== 'CANCELLED') {
+        return error('渠道单已取消，不能恢复')
+      }
+      const cancelling = result.data.deliveryStatus === 'CANCELLED' && currentOrder.deliveryStatus !== 'CANCELLED'
+      const toRefunded = result.data.payStatus === 'REFUNDED' && currentOrder.payStatus !== 'REFUNDED'
+      if (curPaid && (cancelling || toRefunded) && !refund) {
+        return NextResponse.json(
+          { success: false, error: '渠道单已付款：取消或退款请在退款弹窗里填写退款金额与承担方后保存', code: 'REFUND_REQUIRED' },
+          { status: 400 },
+        )
+      }
+      if (refund) {
+        if (!curPaid) return error('未付款订单无需退款；取消请直接改为「已取消」')
+        if (amount != null) return error('退款保存时不能同时改价')
+        if (result.data.deliveryStatus && result.data.deliveryStatus !== currentOrder.deliveryStatus && !(result.data.deliveryStatus === 'CANCELLED' && fullStatus === 'CANCELLED')) {
+          return error('退款保存时不能同时修改交付状态（全额取消请在弹窗里选「取消订单」）')
+        }
+        if (result.data.payStatus && result.data.payStatus !== currentOrder.payStatus && !(result.data.payStatus === 'REFUNDED' && fullStatus === 'REFUNDED')) {
+          return error('退款保存时不能同时修改支付状态（全额退款请在弹窗里选「标为已退款」）')
+        }
+        // 状态由 applyRefund 在它的 CAS 里写（全额时 REFUNDED / CANCELLED），这里不再重复写
+        delete data.deliveryStatus
+        delete data.payStatus
+      }
+      // 撤回「已交付」：已解冻（RELEASED）的拒绝（事务里持锁后再核一次）
+      if (!refund && wasDelivered && result.data.deliveryStatus && result.data.deliveryStatus !== 'DELIVERED' && currentOrder.settleState === 'RELEASED') {
+        return error('该渠道单货款已解冻，不能撤回交付；请走退款或调账')
+      }
+    }
 
     // 状态从未交付变为已交付：标记交付时间 + 自动标记支付（销量 / 库存见下方统一规则）
     if (!wasDelivered && willBeDelivered) {
       data.deliveredAt = new Date()
       if (currentOrder.payStatus !== 'PAID') {
+        // 渠道单已退款的不会走到这里（上面已拒）；主站沿用原逻辑
         data.payStatus = 'PAID'
         data.paidAt = new Date()
       }
@@ -152,8 +324,8 @@ export async function PUT(
     // 从已交付撤回：清除交付时间（销量 / 库存见下方统一规则）
     if (
       wasDelivered &&
-      result.data.deliveryStatus &&
-      result.data.deliveryStatus !== 'DELIVERED'
+      data.deliveryStatus &&
+      data.deliveryStatus !== 'DELIVERED'
     ) {
       data.deliveredAt = null
     }
@@ -179,11 +351,35 @@ export async function PUT(
       delete data.paidAt
     }
 
+    /*
+     * 【标已付的实收（设计 8.6，可感知变化 ⑥）】渠道单必填：同一事务补建 Payment、写少付字段、计提。
+     * 应收 = 货款 + 随单税费（按改价后的金额算）；实收 < 应收时渠道单必选差额承担方。主站单选填，只补建 Payment。
+     */
+    let shortPlan: { shortCents: number; shortChargedCents: number } | null = null
+    if (markPaid && isChannel) {
+      if (receivedCents == null) {
+        return NextResponse.json({ success: false, error: '渠道单标已付必须填写实收金额', code: 'RECEIVED_REQUIRED' }, { status: 400 })
+      }
+      const amountCents = toCents(String(priceData ? priceData.amount : currentOrder.amount.toString()))
+      const taxCents = toCents(String(priceData?.invoiceTaxFee ?? currentOrder.invoiceTaxFee?.toString() ?? 0))
+      const due = amountCents + taxCents
+      if (receivedCents < due && !shortBearer) {
+        return NextResponse.json(
+          { success: false, error: `实收 ${yuan(receivedCents)} 少于应收 ${yuan(due)}，请选择差额承担方`, code: 'SHORT_BEARER_REQUIRED' },
+          { status: 400 },
+        )
+      }
+      const sf = shortFields({ amountCents, taxCents, supplyCents: currentOrder.supplyCents ?? 0 }, receivedCents, shortBearer ?? 'PLATFORM')
+      shortPlan = sf.shortCents > 0 ? { shortCents: sf.shortCents, shortChargedCents: sf.shortChargedCents } : null
+    }
+
     const prevDelivery = currentOrder.deliveryStatus
-    const nextDelivery = data.deliveryStatus ?? prevDelivery
+    const nextDelivery = fullStatus === 'CANCELLED' ? 'CANCELLED' : data.deliveryStatus ?? prevDelivery
     const enteringCancelled = nextDelivery === 'CANCELLED' && prevDelivery !== 'CANCELLED'
     const leavingCancelled = prevDelivery === 'CANCELLED' && nextDelivery !== 'CANCELLED'
-    const refunding = data.payStatus === 'REFUNDED' && currentOrder.payStatus !== 'REFUNDED'
+    const refunding =
+      (data.payStatus === 'REFUNDED' || fullStatus === 'REFUNDED') && currentOrder.payStatus !== 'REFUNDED'
+    const preview = !!refund?.preview
 
     /*
      * 【先关收款通道，再写订单、再放券】取消一张待支付订单时，买家的收银台可能还开着。
@@ -199,7 +395,7 @@ export async function PUT(
      * 到账匹配成功、fulfillOrder 发现订单早已付款就静默返回，第二笔钱没有任何人知道。
      * 作废只动 state=0 的行：恰好正在到账、已翻成 1 的那一张不受影响，走下面 wonPaid=false 的分支。
      */
-    if ((enteringCancelled && currentOrder.payStatus === 'UNPAID') || refunding || markPaid) {
+    if (!preview && ((enteringCancelled && currentOrder.payStatus === 'UNPAID') || refunding || markPaid)) {
       await invalidatePendingVmq('order', orderId)
     }
 
@@ -216,23 +412,64 @@ export async function PUT(
      *  · 已付款且已取消的订单被改出「已取消」：销量 +数量（取消时减掉的加回来）
      *  · 自动发货（AUTO）商品的库存 = 未使用卡密数（lib/cardkey 的 syncAutoStock 维护），
      *    这里一律不碰。原来撤回已交付时对它 stock++，而卡密并没有回到未使用，库存是虚的
+     *  · 渠道单另记 TenantListing.sales（本渠道销量）：标已付抢到时 +、已付取消时 −，与 Product.sales 同进退
      */
     const qty = currentOrder.quantity
     const manualFiniteStock = currentOrder.product.deliveryType !== 'AUTO' && currentOrder.product.stock !== -1
     const paidBefore = currentOrder.payStatus === 'PAID'
 
+    // 在事务回调里赋值：写成断言形式，免得 TS 按初值把它收窄成 null
+    let refundOutcome = null as { cashRefundCents: number; [k: string]: unknown } | null
+
     const { order, wonPaid } = await prisma.$transaction(async (tx) => {
       /*
+       * 【先锁订单行、再核对状态】（设计 4.10 ⑤、8.4）
+       *  · 弹窗打开时的 updatedAt 与现在不一致 = 期间被别人保存过（或恰好到账），后保存的人 409、刷新重来；
+       *  · 渠道单额外要求支付 / 交付状态与开头读到的一致（取消未付单时恰好到账 → 409「请刷新后按退款处理」）。
+       * 行锁在事务里一直持有：到账 fulfillOrder、解冻 cron 的 CAS 都要等这笔事务结束，不会在中间插进来。
+       */
+      const locked = await tx.$queryRaw<{ updated_at: Date; pay_status: string; delivery_status: string; settle_state: string | null }[]>`
+        SELECT updated_at, pay_status, delivery_status, settle_state FROM orders WHERE id = ${orderId} FOR UPDATE`
+      const row = locked[0]
+      if (!row) throw new OrderStateChangedError('订单不存在或已被删除，请刷新')
+      if (expectedAt && new Date(row.updated_at).getTime() !== expectedAt.getTime()) {
+        throw new OrderStateChangedError('订单已变化（可能刚有人保存或买家刚付款），本次改动未保存，请刷新后重试')
+      }
+      if (isChannel && (row.pay_status !== currentOrder.payStatus || row.delivery_status !== currentOrder.deliveryStatus)) {
+        throw new OrderStateChangedError(
+          currentOrder.payStatus === 'UNPAID' && row.pay_status !== 'UNPAID'
+            ? '订单状态已变化（可能刚到账），本次改动未保存，请刷新后按退款处理'
+            : '订单状态已变化，本次改动未保存，请刷新后重试',
+        )
+      }
+      if (isChannel && !refund && wasDelivered && data.deliveryStatus && data.deliveryStatus !== 'DELIVERED' && row.settle_state === 'RELEASED') {
+        throw new OrderRuleError('该渠道单货款已解冻，不能撤回交付；请走退款或调账')
+      }
+
+      /*
        * 改价 CAS 必须排在「标已支付」那次 CAS 之前：同一次保存可能既改价又标已交付，
-       * 「标已交付 → 自动标已支付」先把 payStatus 翻成 PAID 的话，这里就永远抢不到
+       * 「标已交付 → 自动标已支付」先把 payStatus 翻成 PAID 的话，这里就永远抢不到。
+       * settleState 必须为空（设计 8.5）：已计提的单绝不改价（主站单恒为空，条件不改变主站行为）
        */
       if (priceData) {
         const c = await tx.order.updateMany({
-          where: { id: orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } },
+          where: { id: orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' }, settleState: null },
           data: priceData,
         })
         if (c.count !== 1) {
           throw new OrderStateChangedError('订单状态已变化（买家可能刚付款，或订单已超时取消），本次改动未保存，请刷新后重试')
+        }
+        if (isChannel) {
+          await writeAudit(tx, {
+            actorUserId: admin.id,
+            actorKind: 'PLATFORM',
+            tenantId: currentOrder.tenantId,
+            action: 'order.price',
+            targetType: 'order',
+            targetId: currentOrder.orderNo,
+            diff: { from: currentOrder.amount.toString(), to: priceData.amount.toFixed(2), invoiceTaxFee: priceData.invoiceTaxFee ?? null },
+            req: request,
+          })
         }
       }
 
@@ -245,7 +482,209 @@ export async function PUT(
         wonPaid = c.count === 1
       }
 
+      /*
+       * 标已付抢到之后（同一事务）：补建 Payment（实收）；渠道单先写少付字段、再累加本渠道销量、再计提（设计 8.3、8.6）。
+       * accrueOnPaid 对普通异常不抛（→ MISSING + 告警）；死锁 / 锁超时照原样抛出，让整笔保存失败、管理员重试（WP3 口径）。
+       */
+      if (wonPaid && receivedCents != null) {
+        await tx.payment.create({
+          data: {
+            orderId,
+            payMethod: currentOrder.payMethod ?? 'ALIPAY',
+            amount: new Prisma.Decimal((receivedCents / 100).toFixed(2)),
+            status: 1,
+            callbackData: JSON.stringify({ source: 'admin', operatorId: admin.id }),
+          },
+        })
+      }
+      if (wonPaid && isChannel) {
+        if (shortPlan) {
+          await tx.order.update({ where: { id: orderId }, data: { shortCents: shortPlan.shortCents, shortChargedCents: shortPlan.shortChargedCents } })
+        }
+        if (currentOrder.listingId != null) {
+          await tx.tenantListing.updateMany({
+            where: { id: currentOrder.listingId, tenantId: currentOrder.tenantId },
+            data: { sales: { increment: qty } },
+          })
+        }
+        await accrueOnPaid(tx, orderId)
+        await writeAudit(tx, {
+          actorUserId: admin.id,
+          actorKind: 'PLATFORM',
+          tenantId: currentOrder.tenantId,
+          action: 'order.mark_paid',
+          targetType: 'order',
+          targetId: currentOrder.orderNo,
+          diff: { receivedCents, shortBearer: shortBearer ?? null, short: shortPlan },
+          req: request,
+        })
+      }
+
+      // 渠道单取消（未付）：显式 CAS（设计 8.4）。持锁核对过状态，这里抢不到只可能是数据被改坏
+      if (isChannel && !refund && enteringCancelled && currentOrder.payStatus === 'UNPAID') {
+        const c = await tx.order.updateMany({
+          where: { id: orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } },
+          data: { deliveryStatus: 'CANCELLED' },
+        })
+        if (c.count !== 1) throw new OrderStateChangedError('订单状态已变化（可能刚到账），本次改动未保存，请刷新后按退款处理')
+        delete data.deliveryStatus
+        await writeAudit(tx, {
+          actorUserId: admin.id,
+          actorKind: 'PLATFORM',
+          tenantId: currentOrder.tenantId,
+          action: 'order.cancel',
+          targetType: 'order',
+          targetId: currentOrder.orderNo,
+          diff: { from: prevDelivery, payStatus: 'UNPAID' },
+          publicDiff: { from: prevDelivery, to: 'CANCELLED' },
+          req: request,
+        })
+      }
+
+      /*
+       * 渠道单退款（设计 8.4 ③）：订单 CAS + 冲销分录（applyRefund）+ 售后申请 DONE + 审计 + 渠道通知，同一事务。
+       * applyRefund 按 settleVersion = expectedVersion CAS：两个管理员同时保存，后一个 CONFLICT → 409。
+       */
+      if (refund) {
+        const lossInfo = await computeLossDefault(tx, orderId, refund)
+        /*
+         * 手填损失只能下调（设计 8.4「未交付 = 0 … 站长只能下调」）：上限是默认值（已交付件的进货价分摊），
+         * 不是 applyRefund 校验的「本次冲回的进货款」—— 否则未交付的件也能被记成 LOSS，渠道替没收到的货买单。
+         * 用独立 code，弹窗直接显示这里带默认值的文案
+         */
+        if (refund.bearer === 'CHANNEL' && refund.lossCents != null && refund.lossCents > lossInfo.lossDefaultCents) {
+          throw new OrderRuleError(
+            `平台损失只能下调：不能高于默认值 ${yuan(lossInfo.lossDefaultCents)}（本次退件中已交付部分的进货价分摊）`,
+            400,
+            'LOSS_ABOVE_DEFAULT',
+          )
+        }
+        const lossCents = refund.bearer === 'CHANNEL' ? refund.lossCents ?? lossInfo.lossDefaultCents : 0
+        const r = await applyRefund(tx, {
+          orderId,
+          refundGoodsCents: refund.refundGoodsCents,
+          refundTaxCents: refund.refundTaxCents,
+          refundQty: refund.refundQty,
+          bearer: refund.bearer,
+          lossCents,
+          refundTradeNo: refund.refundTradeNo ?? null,
+          requestId: refund.requestId,
+          operatorId: admin.id,
+          expectedVersion: refund.expectedVersion,
+          fullStatus: refund.fullStatus,
+          confirmTaxKept: refund.confirmTaxKept,
+        })
+        if (!r.ok) {
+          const status = r.reason === 'CONFLICT' || r.reason === 'NOT_PAID' ? 409 : 400
+          throw new OrderRuleError(REFUND_REASON_TEXT[r.reason] ?? r.reason, status, r.reason)
+        }
+        refundOutcome = {
+          entries: r.entries,
+          settleState: r.settleState,
+          cashRefundCents: r.cashRefundCents,
+          lossCents,
+          lossDefaultCents: lossInfo.lossDefaultCents,
+          reversedPurchaseCents: lossInfo.reversedPurchaseCents,
+          deliveredQty: lossInfo.deliveredQty,
+        }
+        if (preview) throw new PreviewDone(refundOutcome)
+
+        // 售后申请结案：指定了就必须是本单的 PENDING 退款申请；没指定则自动结掉本单唯一的 PENDING 退款申请（若有）
+        let afterSaleId = refund.afterSaleId ?? null
+        if (afterSaleId == null) {
+          const pending = await tx.tenantAfterSale.findFirst({
+            where: { orderId, tenantId: currentOrder.tenantId, kind: 'REFUND', status: 'PENDING' },
+            select: { id: true },
+          })
+          afterSaleId = pending?.id ?? null
+        }
+        if (afterSaleId != null) {
+          await closeAfterSale(tx, {
+            id: afterSaleId,
+            result: 'DONE',
+            note: refund.note ?? `已退款 ${yuan(refund.refundGoodsCents + refund.refundTaxCents)}`,
+            operatorId: admin.id,
+            req: request,
+            expect: { tenantId: currentOrder.tenantId, orderId, kind: 'REFUND' },
+            refund: {
+              bearer: refund.bearer,
+              refundGoodsCents: refund.refundGoodsCents,
+              refundTaxCents: refund.refundTaxCents,
+              lossCents: refund.bearer === 'CHANNEL' ? lossCents : null,
+              refundTradeNo: refund.refundTradeNo ?? null,
+            },
+          })
+        }
+        /*
+         * 渠道通知（设计 8.4 ③「… + 审计 + 渠道通知」，终审第 2 轮补）：每次退款保存都发，与有没有售后申请无关。
+         * 站长直接退款（买家先找站长微信，11.4）是最常见的路径——只靠 closeAfterSale 的 AFTER_SALE_RESULT，
+         * 渠道余额被冲减（甚至变负）却收不到任何通知。与冲销分录同一事务：事务回滚则通知也不存在、不会推送。
+         * dedupeKey 用 requestId 的摘要（requestId 最长 64，加前缀会超出列宽被截断）：同一 requestId 重放只通知一次。
+         * 正文只有订单号、金额、件数、承担方：不含买家邮箱、退款流水号、站长结案说明。
+         */
+        await emitTenantNotice(tx, {
+          tenantId: currentOrder.tenantId,
+          kind: 'ORDER_REFUNDED',
+          title: `平台已退款：订单 ${currentOrder.orderNo}`,
+          body: [
+            `退货款 ${yuan(refund.refundGoodsCents)}`,
+            refund.refundTaxCents > 0 ? `退税费 ${yuan(refund.refundTaxCents)}` : null,
+            refund.refundQty ? `${refund.refundQty} 件` : null,
+            `承担方：${REFUND_BEARER_TEXT[refund.bearer] ?? refund.bearer}`,
+            refund.bearer === 'CHANNEL' && lossCents > 0 ? `平台损失 ${yuan(lossCents)}（由渠道承担）` : null,
+          ]
+            .filter(Boolean)
+            .join('；'),
+          refType: 'order',
+          refKey: currentOrder.orderNo,
+          dedupeKey: `rf:${createHash('sha256').update(refund.requestId).digest('hex').slice(0, 40)}`,
+        })
+        await writeAudit(tx, {
+          actorUserId: admin.id,
+          actorKind: 'PLATFORM',
+          tenantId: currentOrder.tenantId,
+          action: 'order.refund',
+          targetType: 'order',
+          targetId: currentOrder.orderNo,
+          reasonCode: refund.bearer,
+          diff: { ...refund, lossCents, result: refundOutcome, afterSaleId },
+          // 渠道可见摘要（设计 5.8 白名单）：这些数渠道在订单详情里本来就看得到；不含退款流水号、结案说明
+          publicDiff: {
+            refundGoodsCents: refund.refundGoodsCents,
+            refundTaxCents: refund.refundTaxCents,
+            refundQty: refund.refundQty ?? null,
+            bearer: refund.bearer,
+            lossCents,
+          },
+          req: request,
+        })
+      }
+
       const order = await tx.order.update({ where: { id: orderId }, data })
+
+      /*
+       * 【渠道单交付变更留痕】（设计 6.2「补发 / 换卡 / 重新交付 SA ✔审」、13.2「超管对渠道的操作可追溯」）
+       * 交付状态决定渠道的冻结起点（deliveredAt），交付内容是给买家的凭据：渠道单上这两样被站长改过都要能查到。
+       * 进入 CANCELLED 的由上面的 order.cancel / order.refund 记，这里不重复。diff 只记状态与「内容改过」这个布尔，
+       * 不写 deliveryInfo 原文（可能是账号密码，审计表不存凭据）。先写订单行、再写审计，与 D1「先 CAS 订单行」同序。
+       */
+      if (isChannel) {
+        const statusChanged = order.deliveryStatus !== currentOrder.deliveryStatus && order.deliveryStatus !== 'CANCELLED'
+        const infoChanged = data.deliveryInfo !== undefined && (data.deliveryInfo ?? null) !== (currentOrder.deliveryInfo ?? null)
+        if (statusChanged || infoChanged) {
+          await writeAudit(tx, {
+            actorUserId: admin.id,
+            actorKind: 'PLATFORM',
+            tenantId: currentOrder.tenantId,
+            action: 'order.deliver',
+            targetType: 'order',
+            targetId: currentOrder.orderNo,
+            diff: { from: currentOrder.deliveryStatus, to: order.deliveryStatus, deliveryInfoChanged: infoChanged },
+            publicDiff: { from: currentOrder.deliveryStatus, to: order.deliveryStatus },
+            req: request,
+          })
+        }
+      }
 
       let salesDelta = 0
       let stockDelta = 0
@@ -256,7 +695,8 @@ export async function PUT(
       }
       // 「已付款」同时看写入前后：写入后的 order.payStatus 是本事务写完那一刻的真实状态，
       // 能兜住「开头读到还是 UNPAID、写之前买家的钱刚好到账」—— 那一单 fulfillOrder 已经记过销量
-      if (enteringCancelled && (paidBefore || order.payStatus === 'PAID')) {
+      const cancelledPaid = enteringCancelled && (paidBefore || order.payStatus === 'PAID')
+      if (cancelledPaid) {
         salesDelta -= qty
         if (wasDelivered && manualFiniteStock) stockDelta += qty
       }
@@ -272,6 +712,12 @@ export async function PUT(
           data: { sales: { decrement: -salesDelta } },
         })
         if (dec.count !== 1) console.warn('[order] 销量不足以扣减，已跳过（历史数据有漂移）', orderId, salesDelta)
+      }
+      if (isChannel && cancelledPaid && currentOrder.listingId != null) {
+        await tx.tenantListing.updateMany({
+          where: { id: currentOrder.listingId, tenantId: currentOrder.tenantId, sales: { gte: qty } },
+          data: { sales: { decrement: qty } },
+        })
       }
       if (stockDelta > 0) {
         await tx.product.update({ where: { id: currentOrder.productId }, data: { stock: { increment: stockDelta } } })
@@ -299,7 +745,7 @@ export async function PUT(
      * 待支付收款单已在上面写订单之前作废，这里放券不会再被一笔迟到的付款钻空子；
      * 万一钱在作废之前就已到账，consumeCouponForOrder 的兜底会把放回去的券补核销。
      */
-    if (result.data.deliveryStatus === 'CANCELLED' && currentOrder.deliveryStatus !== 'CANCELLED') {
+    if (enteringCancelled) {
       await releaseCouponForOrder(orderId).catch((e) => console.error('[coupon] 后台取消释放失败', orderId, e))
     }
     /*
@@ -372,6 +818,7 @@ export async function PUT(
      *  - 营收统计：仪表盘、最近成交、用户累计付款都排除「已付款 + 已取消」
      *  - 返现：是否扣回待站长拍板（见上面 refunding 那段注释），这里只提示金额
      * 都放在事务之外、各自 try 住：联动失败只记日志加提示，订单本身已经保存成功。
+     * 渠道单的发票分成已在退款事务里按 applyRefund 处理（货款全退且发票未开 → 发票组冲为 0），这里改 CANNOT 只是票据状态。
      */
     const voidingPaid = (enteringCancelled && (paidBefore || order.payStatus === 'PAID')) || refunding
     if (voidingPaid) {
@@ -401,6 +848,8 @@ export async function PUT(
       const n = (await invoicesForOrder(orderId).catch(() => [])).filter((iv) => iv.status === 'CANNOT').length
       if (n) warnings.push(`本单有 ${n} 张发票为「不可开据」，若是取消时自动转的，请到发票管理撤回为「已提交」`)
     }
+    const outcome = refundOutcome as { cashRefundCents: number } | null
+    if (outcome) warnings.push(`请确认已线下原路退给买家 ${yuan(outcome.cashRefundCents)}`)
 
     /*
      * 【收款单金额与订单应收对齐】待支付、未取消订单的收款单金额本来就该等于 amount + invoiceTaxFee
@@ -449,9 +898,10 @@ export async function PUT(
       }
     }
 
-    // 交付状态变为「已完成」时，自动导入到「订单（外部订单）」
+    // 交付状态变为「已完成」时，自动导入到「订单（外部订单）」。
+    // 渠道单 P0 不导入 WEB 行、不发到期提醒（设计 9.3）：行的 tenantId、去重键都要按渠道处理，P1 再开放
     let imported: { externalOrderId: number } | null = null
-    if (!wasDelivered && willBeDelivered) {
+    if (!wasDelivered && willBeDelivered && !isChannel) {
       const claudeAccount = external?.claudeAccount?.trim().toLowerCase()
       if (claudeAccount) {
         const subscriptionType = (external?.subscriptionType?.trim() || currentOrder.productName).trim()
@@ -465,7 +915,8 @@ export async function PUT(
           currentOrder.user.nickname ||
           currentOrder.user.email ||
           null
-        const sourceKey = hashKey(claudeAccount, startDate, subscriptionType)
+        // 去重键公式统一在 lib/external-order-key（主站行与原来的 hashKey 逐字相同）
+        const sourceKey = externalOrderSourceKey({ tenantId: 1, claudeAccount, startDate, subscriptionType })
         try {
           const ext = await prisma.externalOrder.upsert({
             where: { sourceKey },
@@ -502,7 +953,7 @@ export async function PUT(
       }
     }
 
-    // 交付完成 → 结算内推返现（自动进推广人余额，幂等）+ 交付通知邮件
+    // 交付完成 → 结算内推返现（自动进推广人余额，幂等；渠道单第一行返回）+ 交付通知邮件
     if (!wasDelivered && willBeDelivered) {
       try {
         await settleReferral(orderId)
@@ -511,23 +962,36 @@ export async function PUT(
       }
       if (currentOrder.user.email) {
         try {
-          await sendOrderDeliveredEmail(currentOrder.user.email, {
-            orderNo: currentOrder.orderNo,
-            productName: currentOrder.productName,
-            // 用改价后的值：currentOrder 是 update 之前读的
-            amount: Number(order.amount),
-            invoiceTaxFee: order.invoiceTaxFee == null ? null : Number(order.invoiceTaxFee),
-            deliveryInfo: data.deliveryInfo ?? currentOrder.deliveryInfo,
-          })
+          // 渠道单的链接用渠道 origin（设计 4.5、11.4）；主站不传 = 原来的 APP_URL，邮件逐字不变
+          const mailOpts = isChannel ? { origin: await tenantOrigin(currentOrder.tenantId) } : {}
+          await sendOrderDeliveredEmail(
+            currentOrder.user.email,
+            {
+              orderNo: currentOrder.orderNo,
+              productName: currentOrder.productName,
+              // 用改价后的值：currentOrder 是 update 之前读的
+              amount: Number(order.amount),
+              invoiceTaxFee: order.invoiceTaxFee == null ? null : Number(order.invoiceTaxFee),
+              deliveryInfo: data.deliveryInfo ?? currentOrder.deliveryInfo,
+            },
+            mailOpts,
+          )
         } catch (e) {
           console.error('Order delivered email failed:', e)
         }
       }
     }
 
-    return success({ ...order, imported, warnings }, '订单更新成功')
+    return success({ ...order, imported, warnings, refund: refundOutcome }, refundOutcome ? '退款已记录' : '订单更新成功')
   } catch (err) {
-    if (err instanceof OrderStateChangedError) return error(err.message, 409)
+    if (err instanceof PreviewDone) return success({ preview: err.preview }, '预览')
+    if (err instanceof OrderStateChangedError) return NextResponse.json({ success: false, error: err.message, code: 'CONFLICT' }, { status: 409 })
+    if (err instanceof OrderRuleError) return NextResponse.json({ success: false, error: err.message, code: err.code }, { status: err.status })
+    if (err instanceof AfterSaleConflict) return NextResponse.json({ success: false, error: err.message, code: 'CONFLICT' }, { status: 409 })
+    if (isTxAbortingError(err)) {
+      console.error('Update order deadlock/timeout:', err)
+      return NextResponse.json({ success: false, error: '数据库繁忙（锁冲突），本次改动未保存，请重试', code: 'CONFLICT' }, { status: 409 })
+    }
     console.error('Update order error:', err)
     return error('更新订单失败')
   }

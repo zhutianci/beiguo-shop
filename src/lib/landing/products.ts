@@ -1,6 +1,9 @@
 import { cache } from 'react'
 import { prisma } from '@/lib/db'
 import { inStock } from './registry'
+import { getStorefront } from '@/lib/storefront/resolve'
+import { listStorefrontProducts } from '@/lib/pricing'
+import { getCurrentUser } from '@/lib/auth'
 
 // 匹配与有货判定是纯函数，实现搬到了 registry.ts（理由见那边的注释）。
 // 这里原样导出，已有的 `from '@/lib/landing/products'` 调用方不用改。
@@ -28,6 +31,33 @@ export interface LandingProduct {
  * 数据库不可达时应该少显示一张表，而不是给买家和爬虫一个 500。
  */
 export const getLandingProducts = cache(async (): Promise<LandingProduct[]> => {
+  /*
+   * 【按店面取数】（设计 7.4）商品详情页的「同系列档位」、首页统计都用这份快照：渠道站必须是本店可售的商品、
+   * 本店售价与本店销量，否则会把主站兄弟商品的价格写进渠道站 HTML（W2-6 值扫描）。
+   * 放在这里而不是让每个调用方自己判断：将来多一个调用方也不会漏。店面解析不进 try（设计 4.4 第 7 条）。
+   * 充值落地页（/chongzhi/*）在渠道站整组 404（WP1），但它们也经这里，拿到的同样是本店数据。
+   */
+  const sf = await getStorefront()
+  if (!sf) return []
+  if (sf.kind === 'CHANNEL') {
+    const previewUserId = sf.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
+    try {
+      const cards = await listStorefrontProducts(sf, { previewUserId })
+      return cards.map((p) => ({
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        originalPrice: p.originalPrice,
+        stock: p.stock, // 档位代表值：只用于 inStock 判断，-1 / 0 / >0 三类与真实库存一致
+        sales: p.sales,
+        categoryName: p.category?.name ?? null,
+      }))
+    } catch (err) {
+      console.error('Landing products (channel) query error:', err)
+      return []
+    }
+  }
   try {
     const rows = await prisma.product.findMany({
       where: { status: 1 },

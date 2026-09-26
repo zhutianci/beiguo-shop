@@ -9,7 +9,9 @@
  *  收款单记成已到账、打 referrals/balance 给自己加余额。攻击者读不到响应，但副作用已经发生。
  *
  * 【规则】返回 null = 放行；返回字符串 = 拒绝原因（只写日志，不回给客户端）
- *  1. 有 Origin：hostname 必须是本站（Host / X-Forwarded-Host / NEXT_PUBLIC_APP_URL 之一）。
+ *  1. 有 Origin：hostname 必须是本站（Host / NEXT_PUBLIC_APP_URL / APP_URL 之一）。
+ *     不认 X-Forwarded-Host（渠道分站集成阶段删除）：它是客户端可以自带的头，nginx 现在把它置空（nginx.conf），
+ *     应用层不能把「请求自己声称的 Host」当本站；Cloudflare 隧道改写 Host 的情况由 APP_URL 兜底。
  *     Origin: null（沙箱 iframe、跨站重定向后的请求）一律拒绝。
  *  2. 有 Sec-Fetch-Site：只认 same-origin 与 none（地址栏直接打开 / 书签）。
  *     same-site 恰恰是本漏洞要挡的兄弟子域，不能放。
@@ -47,7 +49,7 @@ export function hostnameOf(v: string | null | undefined): string | null {
 /** 本站认可的 hostname 集合 */
 function allowedHosts(h: HeaderLike): Set<string> {
   return new Set(
-    [hostnameOf(h.get('host')), hostnameOf(h.get('x-forwarded-host')), hostnameOf(process.env.NEXT_PUBLIC_APP_URL), hostnameOf(process.env.APP_URL)].filter(
+    [hostnameOf(h.get('host')), hostnameOf(process.env.NEXT_PUBLIC_APP_URL), hostnameOf(process.env.APP_URL)].filter(
       (x): x is string => !!x,
     ),
   )

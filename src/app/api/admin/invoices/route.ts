@@ -5,9 +5,9 @@ import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { requireAdmin } from '@/lib/auth'
 import { createManualInvoice, BillingError } from '@/lib/order-invoice'
 import { buildAdminInvoiceRows, type AdminInvoiceRowSource } from '@/lib/admin-invoice-row'
+import { adminOrResponse, parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 
 // 发票管理：以「订单」为主表，同步展示所有订单的发票状态（无发票记录的默认「未开发票」）
 // 性能约定：筛选 / 检索 / 排序 / 分页全部下推到数据库，绝不把整张 external_orders 读进内存。
@@ -19,21 +19,24 @@ import { buildAdminInvoiceRows, type AdminInvoiceRowSource } from '@/lib/admin-i
 
 const ALL_STATUSES = ['UNAPPLIED', 'AWAIT_PAY', 'SUBMITTED', 'ISSUED', 'CANNOT'] as const
 
-// 汇总统计：全部订单口径（不受当前状态/关键词筛选影响），全部走 groupBy / aggregate
-async function loadTotals() {
-  const linked: Prisma.InvoiceWhereInput = { externalOrderId: { not: null } }
+// 汇总统计：全部订单口径（不受当前状态/关键词筛选影响），全部走 groupBy / aggregate。
+// 按来源站筛选时（site 非空）统计也只算该站：外部订单行按 ExternalOrder.tenantId、发票按 Invoice.tenantId；
+// 不筛（site 为空）时查询与原来逐字相同
+async function loadTotals(site: number | null) {
+  const t = site == null ? {} : { tenantId: site }
+  const linked: Prisma.InvoiceWhereInput = { externalOrderId: { not: null }, ...t }
   // 【按 source 判定，不按 externalOrderId】两处口径必须一致：
   // 列表分支认 source==='MANUAL'，统计若按 externalOrderId 为 NULL 计数，
   // 状态标签上写着 12 张、点进去只有 11 行 —— 正是本文件头部要避免的「看不见的数据」
-  const orphan: Prisma.InvoiceWhereInput = { source: 'MANUAL' }
+  const orphan: Prisma.InvoiceWhereInput = { source: 'MANUAL', ...t }
   const [totalOrders, grouped, manualGrouped, paidAgg, issuedAgg] = await Promise.all([
-    prisma.externalOrder.count(),
+    site == null ? prisma.externalOrder.count() : prisma.externalOrder.count({ where: t }),
     prisma.invoice.groupBy({ by: ['status'], where: linked, _count: { _all: true } }),
     prisma.invoice.groupBy({ by: ['status'], where: orphan, _count: { _all: true } }),
     // 金额口径含手动录入的那些：那也是真收到的税费 / 真开出去的票，
     // 排除掉会让「已收税费合计」比实际少
-    prisma.invoice.aggregate({ _sum: { taxFee: true }, where: { payStatus: 'PAID' } }),
-    prisma.invoice.aggregate({ _sum: { invoiceAmount: true }, where: { status: 'ISSUED' } }),
+    prisma.invoice.aggregate({ _sum: { taxFee: true }, where: { payStatus: 'PAID', ...t } }),
+    prisma.invoice.aggregate({ _sum: { invoiceAmount: true }, where: { status: 'ISSUED', ...t } }),
   ])
 
   const count: Record<string, number> = {}
@@ -65,12 +68,9 @@ async function loadTotals() {
 }
 
 export async function GET(request: NextRequest) {
-  // 中间件之外再验一次（CVE-2025-29927：带特定请求头可整个跳过 middleware）
-  try {
-    await requireAdmin()
-  } catch {
-    return error('无管理员权限', 403)
-  }
+  // 中间件之外再验一次（CVE-2025-29927：带特定请求头可整个跳过 middleware）；渠道 Host → 404
+  const auth = await adminOrResponse()
+  if ('res' in auth) return auth.res
 
   try {
     const { searchParams } = new URL(request.url)
@@ -82,6 +82,10 @@ export async function GET(request: NextRequest) {
     /** 'MANUAL' = 只看手动录入的（站外客户，没有订单）。与 status 互斥 */
     const source = searchParams.get('source')?.trim()
     const skip = (page - 1) * pageSize
+    // 来源站（设计 12.2）：发票按 Invoice.tenantId、未开票的订单行按 ExternalOrder.tenantId；手动录入的固定主站
+    const site = parseTenantFilter(searchParams)
+    if (site === 'invalid') return error(INVALID_TENANT_FILTER)
+    const siteWhere = site == null ? {} : { tenantId: site }
 
     // 关键词永远按「订单」字段检索（发票表里没有闲鱼昵称）
     const keywordWhere: Prisma.ExternalOrderWhereInput = keyword
@@ -105,6 +109,7 @@ export async function GET(request: NextRequest) {
         // createManualInvoice 写死 externalOrderId=null，这里按 source 过滤即可，
         // 与 loadTotals 的 orphan、与状态分支里 buildManualRow 的判据三处同源
         source: 'MANUAL',
+        ...siteWhere,
         ...(keyword
           ? {
               OR: [
@@ -128,10 +133,10 @@ export async function GET(request: NextRequest) {
       // 发票表体量远小于订单表，先用它把候选订单圈定，关键词再在候选集里筛（主键 IN，代价可控）
       // 不再排除 externalOrderId 为 NULL 的行：手动录入的发票也要出现在状态筛选里，
       // 否则「已提交开票 12 张」点进去只有 9 张，而导出的 xlsx 里是 12 张
-      let invoiceWhere: Prisma.InvoiceWhereInput = { status }
+      let invoiceWhere: Prisma.InvoiceWhereInput = { status, ...siteWhere }
       if (keyword) {
         const candidates = await prisma.invoice.findMany({
-          where: { status, externalOrderId: { not: null } },
+          where: { status, externalOrderId: { not: null }, ...siteWhere },
           select: { externalOrderId: true },
         })
         const candidateIds = candidates
@@ -146,6 +151,7 @@ export async function GET(request: NextRequest) {
         // 带关键词时：挂订单的按订单字段匹配，手动录入的按发票自己的字段匹配，两者取并集
         invoiceWhere = {
           status,
+          ...siteWhere,
           OR: [
             { externalOrderId: { in: matched.map((m) => m.id) } },
             {
@@ -193,7 +199,7 @@ export async function GET(request: NextRequest) {
       }, [])
     } else {
       // —— 不筛状态 / 筛「未开发票」：以 ExternalOrder 为主表分页，再按本页 id 批量取发票 ——
-      const where: Prisma.ExternalOrderWhereInput = { ...keywordWhere }
+      const where: Prisma.ExternalOrderWhereInput = { ...keywordWhere, ...siteWhere }
       if (status === 'UNAPPLIED') {
         // 「未开发票」= 没有发票记录 或 发票记录本身就是 UNAPPLIED，取反集即可
         const others = await prisma.invoice.findMany({
@@ -229,10 +235,16 @@ export async function GET(request: NextRequest) {
       sources = orders.map((o) => ({ ext: o, iv: invMap.get(o.id) ?? null }))
     }
 
-    const [list, totals] = await Promise.all([buildAdminInvoiceRows(sources), loadTotals()])
+    const [rows, totals] = await Promise.all([buildAdminInvoiceRows(sources), loadTotals(site)])
+    // 来源站：有发票看发票自己的 tenantId，没开票的订单行看外部订单行的 tenantId（buildAdminInvoiceRows 与 sources 一一对应）
+    const tidOf = (i: number) => sources[i]?.iv?.tenantId ?? sources[i]?.ext?.tenantId ?? 1
+    const srcMap = await sourceMap(rows.map((_, i) => tidOf(i)))
+    // 行上的 source 已是「BUYER / MANUAL」（录入方式），来源站用 site（与分包 7.4 的 source 同形 { tenantId, code }）
+    const list = rows.map((r, i) => ({ ...r, site: sourceOf(srcMap, tidOf(i)) }))
 
     return success({
       list,
+      sites: await siteOptions(),
       total,
       page,
       pageSize,
@@ -269,11 +281,8 @@ const manualSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  try {
-    await requireAdmin()
-  } catch {
-    return error('无管理员权限', 403)
-  }
+  const auth = await adminOrResponse()
+  if ('res' in auth) return auth.res
 
   try {
     const parsed = manualSchema.safeParse(await request.json())

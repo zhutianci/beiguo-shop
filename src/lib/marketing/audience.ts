@@ -30,6 +30,47 @@ import {
 const DAY_MS = 86400_000
 const IN_CHUNK = 1000
 
+/*
+ * 【渠道分站：营销是平台专属（设计 11.3，实施分包 WP1）】
+ *  1. 受众排除「只属于渠道」的用户：registeredTenantId ≠ 1 且在主站没有已付订单的人不进受众
+ *     （ALL、SEGMENT、USERS 与粘贴解析都排除）。这些用户是渠道带来的，给他们发主站营销（可能带主站更低价）
+ *     等于挖渠道客户；在主站付过款的视为主站客户，照常可发。（Q11 未拍板，按推荐值实现）
+ *  2. 已付统计（spent / count / 最近付款）与「买过某商品 / 分类」只看主站订单 tenantId=1：渠道单的价格、
+ *     消费额不属于主站营销口径，也不该让渠道消费把人推进主站的「高消费」分群。
+ * 休眠期全部用户 registeredTenantId=1、全部订单 tenantId=1，两条都不改变任何结果（预估人数与改造前一致）。
+ */
+const PLATFORM_TENANT_ID = 1
+
+/** ids 里「只属于渠道」的用户（注册站 ≠ 主站、且在主站没有已付订单）。保序无关，返回集合 */
+async function channelOnlyUserIds(ids: number[]): Promise<Set<number>> {
+  const out = new Set<number>()
+  for (const part of chunks(ids, IN_CHUNK)) {
+    // 先按主键挑出注册站不是主站的（休眠期恒为空，第二步不执行）
+    const foreign = await prisma.user.findMany({
+      where: { id: { in: part }, registeredTenantId: { not: PLATFORM_TENANT_ID } },
+      select: { id: true },
+    })
+    if (!foreign.length) continue
+    const foreignIds = foreign.map((u) => u.id)
+    const mainBuyers = await prisma.order.groupBy({
+      by: ['userId'],
+      where: { userId: { in: foreignIds }, tenantId: PLATFORM_TENANT_ID, payStatus: 'PAID' },
+    })
+    const keep = new Set(mainBuyers.map((r) => r.userId))
+    foreignIds.forEach((id) => {
+      if (!keep.has(id)) out.add(id)
+    })
+  }
+  return out
+}
+
+/** 从 ids 中去掉「只属于渠道」的用户（保持原顺序） */
+async function excludeChannelOnly(ids: number[]): Promise<number[]> {
+  if (!ids.length) return ids
+  const drop = await channelOnlyUserIds(ids)
+  return drop.size ? ids.filter((id) => !drop.has(id)) : ids
+}
+
 function chunks<T>(arr: T[], n: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n))
@@ -52,7 +93,8 @@ async function loadPaidStats(userIds: number[]): Promise<Map<number, PaidStat>> 
   for (const part of chunks(userIds, IN_CHUNK)) {
     const rows = await prisma.order.groupBy({
       by: ['userId'],
-      where: { userId: { in: part }, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } },
+      // 只看主站订单（文件头第 2 条）
+      where: { userId: { in: part }, tenantId: PLATFORM_TENANT_ID, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } },
       _sum: { amount: true },
       _count: { _all: true },
       _max: { paidAt: true, createdAt: true },
@@ -136,6 +178,7 @@ async function resolveSegment(rules: SegmentRules, now: Date): Promise<number[]>
         where: {
           userId: { in: part },
           productId: { in: pids },
+          tenantId: PLATFORM_TENANT_ID, // 「买过」只认主站订单（文件头第 2 条）
           payStatus: 'PAID',
           deliveryStatus: { not: 'CANCELLED' },
         },
@@ -156,13 +199,14 @@ async function resolveSegment(rules: SegmentRules, now: Date): Promise<number[]>
  */
 export async function resolveAudienceUserIds(spec: AudienceSpec): Promise<number[]> {
   const now = new Date()
+  // 三种受众都排除「只属于渠道」的用户（文件头第 1 条）；手工点名（USERS）也不例外：点名只是省去筛选，不是越过平台边界
   if (spec.type === 'ALL') {
     const rows = await prisma.user.findMany({
       where: { status: 1, email: { not: null } },
       select: { id: true },
       orderBy: { id: 'asc' },
     })
-    return rows.map((r) => r.id)
+    return excludeChannelOnly(rows.map((r) => r.id))
   }
   if (spec.type === 'USERS') {
     const wanted = Array.from(new Set(spec.userIds.filter((n) => Number.isInteger(n) && n > 0))).slice(0, MAX_USERS_AUDIENCE)
@@ -171,9 +215,9 @@ export async function resolveAudienceUserIds(spec: AudienceSpec): Promise<number
       const rows = await prisma.user.findMany({ where: { id: { in: part } }, select: { id: true } })
       rows.forEach((r) => found.add(r.id))
     }
-    return wanted.filter((id) => found.has(id))
+    return excludeChannelOnly(wanted.filter((id) => found.has(id)))
   }
-  return resolveSegment(spec.rules || {}, now)
+  return excludeChannelOnly(await resolveSegment(spec.rules || {}, now))
 }
 
 function excludeInactiveOf(spec: AudienceSpec): boolean {
@@ -409,6 +453,9 @@ export async function resolvePastedUsers(text: string): Promise<{ userIds: numbe
     })
   }
 
+  // 「只属于渠道」的用户不进受众（文件头第 1 条）：在「没找到」里单独标出来，管理员能看出为什么少了人
+  const channelOnly = await channelOnlyUserIds(Array.from(new Set([...Array.from(foundIds), ...Array.from(byEmail.values())])))
+
   const userIds: number[] = []
   const seen = new Set<number>()
   const notFound: string[] = []
@@ -418,6 +465,10 @@ export async function resolvePastedUsers(text: string): Promise<{ userIds: numbe
     else if (t.includes('@')) id = byEmail.get(t.toLowerCase())
     if (id == null) {
       notFound.push(clip(t, 100) || t)
+      continue
+    }
+    if (channelOnly.has(id)) {
+      notFound.push(clip(`${t}（渠道站用户，不发主站营销）`, 100) || t)
       continue
     }
     if (!seen.has(id)) {

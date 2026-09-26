@@ -7,6 +7,8 @@ import { prisma } from '@/lib/db'
 import { verifyPasswordOrDummy, signToken, authCookieOptions } from '@/lib/auth'
 import { success, error } from '@/lib/api'
 import { loginThrottle } from '@/lib/auth-throttle'
+import { getStorefront } from '@/lib/storefront/resolve'
+import { authCrossSiteReason } from '@/lib/tenant/same-origin'
 
 const loginSchema = z.object({
   email: z.string().email('请输入有效的邮箱地址'),
@@ -18,6 +20,12 @@ const loginSchema = z.object({
 const LEGACY_SEED_HASH = '$2a$10$1nwsaZ4SDtsUmEDBml2MMuGK2WZb1MlJJxmrxQfIexqqV/fHqyiei'
 
 export async function POST(request: NextRequest) {
+  // 渠道分站（设计 4.6 C3、4.7）：token 绑定签发它的店面。店面解析不进 try（店面解析铁律，设计 4.4 第 7 条）；
+  // 没有店面的 Host（严格期未知 Host、域名停用）不签发任何 token。休眠时恒为主站
+  const sf = await getStorefront()
+  if (!sf) return error('资源不存在', 404)
+  // 写接口同源校验（设计 4.6 C4；集成阶段补）：挡兄弟子域发起的登录 CSRF。店面解析之后、try 之外
+  if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
   try {
     const body = await request.json()
     const result = loginSchema.safeParse(body)
@@ -53,13 +61,23 @@ export async function POST(request: NextRequest) {
       return error('账号已被禁用')
     }
 
-    // 生成 token
-    const token = signToken({
-      userId: user.id,
-      email: user.email!,
-      role: user.role,
-      sv: user.sessionEpoch, // 会话版本，重置密码后旧 token 失效（lib/auth.ts）
-    })
+    // 超管账号不能在渠道站登录（设计 4.7，技术阻断而非约定）：同样放在密码校验之后，
+    // 不知道密码的人拿不到「这个邮箱是管理员」这个信号。只拒绝签发，不建客户关系（登录本来就不建，T26）
+    if (sf.kind !== 'PLATFORM' && user.role === 'ADMIN') {
+      return error('管理员账号请在主站登录')
+    }
+
+    // 生成 token（aud = 当前店面；会话版本，重置密码后旧 token 失效，见 lib/auth.ts）。
+    // 登录**不**调用 ensureTenantCustomer：主站老用户在渠道站登录、浏览，不能因此成为渠道的客户（设计 5.5、T26）
+    const token = signToken(
+      {
+        userId: user.id,
+        email: user.email!,
+        role: user.role,
+        ep: user.sessionEpoch,
+      },
+      sf
+    )
 
     // 设置登录 cookie（按真实协议决定 secure，30 天有效期）
     const cookieStore = await cookies()

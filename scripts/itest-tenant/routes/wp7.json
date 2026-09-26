@@ -1,0 +1,28 @@
+{
+  "package": "WP7",
+  "note": "WP7 新增的渠道后台接口清单（实施分包 10.4）。key = 寻址键（公开编号）；readOnlySafe = SUSPENDED 时仍放行；rate = 路由级 / 服务级限频。notices/read 的他站 / 不存在编号静默跳过、同样 204（批量接口不给逐条结果）。merge-routes.mjs（WP8）与 src/app/api/partner/** 实际目录比对。",
+  "routes": [
+    {"method": "GET", "path": "/api/partner/customers", "file": "src/app/api/partner/customers/route.ts", "guard": "partnerRoute", "perm": "customer.read", "key": null, "readOnlySafe": true},
+    {"method": "GET", "path": "/api/partner/customers/export", "file": "src/app/api/partner/customers/export/route.ts", "guard": "partnerRoute", "perm": "customer.export", "key": null, "readOnlySafe": true, "rate": "5/day（按审计计数）"},
+    {"method": "GET", "path": "/api/partner/customers/[customerNo]", "file": "src/app/api/partner/customers/[customerNo]/route.ts", "guard": "partnerRoute", "perm": "customer.read", "key": "customerNo", "readOnlySafe": true},
+    {"method": "PATCH", "path": "/api/partner/customers/[customerNo]", "file": "src/app/api/partner/customers/[customerNo]/route.ts", "guard": "partnerRoute", "perm": "customer.write", "key": "customerNo", "readOnlySafe": false, "rate": "60/min"},
+    {"method": "POST", "path": "/api/partner/customers/[customerNo]/block", "file": "src/app/api/partner/customers/[customerNo]/block/route.ts", "guard": "partnerRoute", "perm": "customer.write", "key": "customerNo", "readOnlySafe": false, "rate": "60/min"},
+    {"method": "POST", "path": "/api/partner/customers/[customerNo]/unblock", "file": "src/app/api/partner/customers/[customerNo]/unblock/route.ts", "guard": "partnerRoute", "perm": "customer.write", "key": "customerNo", "readOnlySafe": false, "rate": "60/min"},
+    {"method": "POST", "path": "/api/partner/customers/[customerNo]/ban-request", "file": "src/app/api/partner/customers/[customerNo]/ban-request/route.ts", "guard": "partnerRoute", "perm": "customer.write", "key": "customerNo", "readOnlySafe": false, "rate": "20/min"},
+    {"method": "GET", "path": "/api/partner/finance/summary", "file": "src/app/api/partner/finance/summary/route.ts", "guard": "partnerRoute", "perm": "finance.read", "key": null, "readOnlySafe": true},
+    {"method": "GET", "path": "/api/partner/finance/ledger", "file": "src/app/api/partner/finance/ledger/route.ts", "guard": "partnerRoute", "perm": "finance.read", "key": null, "readOnlySafe": true},
+    {"method": "GET", "path": "/api/partner/finance/orders", "file": "src/app/api/partner/finance/orders/route.ts", "guard": "partnerRoute", "perm": "finance.read", "key": null, "readOnlySafe": true},
+    {"method": "POST", "path": "/api/partner/finance/apply", "file": "src/app/api/partner/finance/apply/route.ts", "guard": "partnerRoute", "perm": "finance.apply", "key": "requestId", "readOnlySafe": false, "rate": "10/min；3 次/天（facade 按审计计数）"},
+    {"method": "GET", "path": "/api/partner/finance/statements", "file": "src/app/api/partner/finance/statements/route.ts", "guard": "partnerRoute", "perm": "finance.read", "key": null, "readOnlySafe": true},
+    {"method": "GET", "path": "/api/partner/finance/statements/[statementNo]", "file": "src/app/api/partner/finance/statements/[statementNo]/route.ts", "guard": "partnerRoute", "perm": "finance.read", "key": "statementNo", "readOnlySafe": true},
+    {"method": "GET", "path": "/api/partner/finance/statements/[statementNo]/export", "file": "src/app/api/partner/finance/statements/[statementNo]/export/route.ts", "guard": "partnerRoute", "perm": "finance.read", "key": "statementNo", "readOnlySafe": true, "rate": "30/min"},
+    {"method": "GET", "path": "/api/partner/notices", "file": "src/app/api/partner/notices/route.ts", "guard": "partnerRoute", "perm": "notice.read", "key": null, "readOnlySafe": true},
+    {"method": "POST", "path": "/api/partner/notices/read", "file": "src/app/api/partner/notices/read/route.ts", "guard": "partnerRoute", "perm": "notice.read", "key": "noticeNo[]", "readOnlySafe": false, "rate": "60/min"},
+    {"method": "GET", "path": "/api/partner/notices/unread-count", "file": "src/app/api/partner/notices/unread-count/route.ts", "guard": "partnerRoute", "perm": "notice.read", "key": null, "readOnlySafe": true},
+    {"method": "GET", "path": "/api/partner/audit", "file": "src/app/api/partner/audit/route.ts", "guard": "partnerRoute", "perm": "audit.read", "key": null, "readOnlySafe": true},
+    {"method": "GET", "path": "/api/partner/settings", "file": "src/app/api/partner/settings/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": true},
+    {"method": "PUT", "path": "/api/partner/settings/notice", "file": "src/app/api/partner/settings/notice/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min"},
+    {"method": "PUT", "path": "/api/partner/settings/webhook", "file": "src/app/api/partner/settings/webhook/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min"},
+    {"method": "POST", "path": "/api/partner/settings/webhook/test", "file": "src/app/api/partner/settings/webhook/test/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "5/hour"}
+  ]
+}

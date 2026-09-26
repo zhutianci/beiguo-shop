@@ -25,6 +25,27 @@ export const SITE_ALT_NAMES = ['BigoLab', 'bigolab']
 export const ORG_ID = `${siteOrigin()}/#organization`
 export const SITE_ID = `${siteOrigin()}/#website`
 
+/*
+ * 【渠道分站（设计 4.5、11.1）】模块级常量是「构建 / 加载时的主站地址」，渠道站不能用：
+ *  · Organization（ORG_ID、legalName、logo）统一品牌、主体相同，**保持平台值**，两站都引用同一个主体；
+ *  · WebSite（SITE_ID、url）与站内地址（面包屑、ItemList）是「这个站点」自己的，要按当前店面 origin 生成。
+ * 下面几个函数都加了可选的 origin 参数：不传 = 主站（siteOrigin()），输出与改造前逐字相同；
+ * 渠道页面由调用方传 sf.origin（店面来自 getStorefront()，绝不从 Host 头拼地址）。
+ */
+export function siteIdFor(origin?: string): string {
+  return origin ? `${trimOrigin(origin)}/#website` : SITE_ID
+}
+
+function trimOrigin(origin: string): string {
+  return origin.replace(/\/+$/, '')
+}
+
+/** absUrl 的按店面版本：不传 origin 时就是 absUrl（主站） */
+function urlFor(path: string, origin?: string): string {
+  if (!origin) return absUrl(path)
+  return `${trimOrigin(origin)}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 /**
  * Organization。首页输出一次即可，其他页面通过 @id 引用。
  *
@@ -78,12 +99,12 @@ export function organizationJsonLd(): Record<string, unknown> {
  * 把它写成 SearchAction 等于给搜索引擎一个它抓不到、也不该抓的端点。
  * 所以这里**只输出 WebSite，不带 potentialAction** —— 站内搜索框做出来之前，这一段是空头承诺。
  */
-export function webSiteJsonLd(): Record<string, unknown> {
+export function webSiteJsonLd(origin?: string): Record<string, unknown> {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
-    '@id': SITE_ID,
-    url: siteOrigin(),
+    '@id': siteIdFor(origin),
+    url: origin ? trimOrigin(origin) : siteOrigin(),
     name: SITE_NAME,
     alternateName: SITE_ALT_NAMES,
     inLanguage: 'zh-CN',
@@ -107,7 +128,7 @@ export interface Crumb {
  * 【页面上必须真的有这条面包屑】只写 JSON-LD、页面上看不见，属于「标记了用户看不到的内容」，
  * 是 Google 结构化数据政策明令禁止的。所以落地页组件里同时渲染了可见的面包屑导航。
  */
-export function breadcrumbJsonLd(crumbs: Crumb[]): Record<string, unknown> {
+export function breadcrumbJsonLd(crumbs: Crumb[], origin?: string): Record<string, unknown> {
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -115,7 +136,7 @@ export function breadcrumbJsonLd(crumbs: Crumb[]): Record<string, unknown> {
       '@type': 'ListItem',
       position: i + 1,
       name: c.name,
-      ...(c.path ? { item: absUrl(c.path) } : {}),
+      ...(c.path ? { item: urlFor(c.path, origin) } : {}),
     })),
   }
 }
@@ -156,18 +177,18 @@ export interface ListedProduct {
  * 会与商品详情页自己的 Product 标记重复，Google 反而更难判断哪一页是该展示的那一页。
  * 列表页要交代的信息只有「这一页列了哪些东西、什么顺序」。
  */
-export function productItemListJsonLd(products: ListedProduct[], listPath: string): Record<string, unknown> {
+export function productItemListJsonLd(products: ListedProduct[], listPath: string, origin?: string): Record<string, unknown> {
   return {
     '@context': 'https://schema.org',
     '@type': 'ItemList',
-    '@id': `${absUrl(listPath)}#itemlist`,
+    '@id': `${urlFor(listPath, origin)}#itemlist`,
     // 「代充」是信任审查意图的次要词（交接文档第二十四节的实测），不适合作列表名
     name: 'AI 会员充值商品',
     numberOfItems: products.length,
     itemListElement: products.map((p, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      url: absUrl(`/products/${p.id}`),
+      url: urlFor(`/products/${p.id}`, origin),
       name: p.name,
     })),
   }

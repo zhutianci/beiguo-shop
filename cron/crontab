@@ -67,3 +67,10 @@
 # 每 5 分钟 阿里云回执与名单同步（投递结果、投诉/退订屏蔽名单、无效地址、账户额度；单趟 ≤45 秒）。
 # worker 发现同步超过 60 分钟没成功会自动急停 —— 这条任务停了，营销发送也会跟着停，这是故意的
 */5 * * * * curl -fsS --max-time 58 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/marketing-sync >> /var/log/cron.log 2>&1
+
+# ---------- 渠道分站结算账本（设计 10.5、10.12）----------
+# 两条都是 POST + x-cron-secret 头；只处理渠道单（tenantId ≥ 2），没有渠道单时几条空查询就返回。
+# 每小时第 7 分：先补偿扫描（税费已收却漏计的发票分成），再解冻到期的货款与已开票的发票分成
+7 * * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/tenant-release >> /var/log/cron.log 2>&1
+# 每天 03:00：对账不变式 L1–L13（钱类失败 → 该渠道暂停出结算单与打款 + 告警）、A1–A13（只告警）
+0 3 * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/tenant-reconcile >> /var/log/cron.log 2>&1

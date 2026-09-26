@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, unauthorized, notFound } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 const patchSchema = z.object({
   label: z.string().trim().max(50).optional().nullable(),
@@ -13,6 +14,9 @@ const patchSchema = z.object({
 
 // PATCH：修改备注名 / 平台
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
@@ -42,6 +46,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
 // DELETE：解绑
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

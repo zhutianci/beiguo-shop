@@ -4,6 +4,8 @@ import { LegalPage, LegalSection } from '@/components/legal-page'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES } from '@/lib/seo/og'
 import { PRIVACY_UPDATED_AT } from '@/lib/legal'
+import { getStorefront } from '@/lib/storefront/resolve'
+import { storefrontFeatures } from '@/lib/storefront/public'
 
 /**
  * 隐私政策。
@@ -33,7 +35,10 @@ export const metadata: Metadata = {
   openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/privacy' },
 }
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  // 「订阅查询」/lookup 在渠道站关闭（设计 11.1、Q16），渠道站的隐私页不给这个死链，改说「个人中心」。
+  // 休眠期 getStorefront 恒为主站（不查库），主站渲染逐字不变
+  const lookupOn = storefrontFeatures(await getStorefront()).lookup
   return (
     <LegalPage
       title="隐私政策"
@@ -151,9 +156,16 @@ export default function PrivacyPage() {
       <LegalSection heading="六、你的权利">
         <ul className="list-disc pl-6 space-y-2">
           <li>
-            <strong className="text-white">查询</strong>：在{' '}
-            <Link href="/lookup" className="text-purple-400 hover:text-purple-300">订阅查询</Link>{' '}
-            或登录后的个人中心查看自己的订单与账户信息。
+            <strong className="text-white">查询</strong>：
+            {lookupOn ? (
+              <>
+                在{' '}
+                <Link href="/lookup" className="text-purple-400 hover:text-purple-300">订阅查询</Link>{' '}
+                或登录后的个人中心查看自己的订单与账户信息。
+              </>
+            ) : (
+              <>登录后在个人中心查看自己的订单与账户信息。</>
+            )}
           </li>
           <li><strong className="text-white">更正</strong>：联系客服更正填错的邮箱或开票信息。</li>
           <li>

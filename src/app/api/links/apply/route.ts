@@ -8,6 +8,7 @@ import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { findSameHost, getLinksConfig } from '@/lib/friend-link'
 import { LINK_SLOTS, normalizeUrl } from '@/lib/friend-link-client'
 import { notifyLinkApplied } from '@/lib/notify'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 公开接口：提交友链 / 招商位申请。
@@ -32,6 +33,9 @@ const applySchema = z.object({
 const RATE = { windowMs: 60 * 60 * 1000, max: 3 }
 
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const cfg = await getLinksConfig()
     if (!cfg.applyOpen) return error('在线申请暂时关闭，请通过页面上的联系方式与我们沟通')

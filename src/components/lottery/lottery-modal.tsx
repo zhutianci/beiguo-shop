@@ -1,5 +1,6 @@
 'use client'
 
+import { useStorefront } from '@/components/storefront-provider'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
@@ -42,7 +43,7 @@ function formatDate(iso: string) {
  * 中奖与否只由服务端决定，这里只负责展示；抽完通过 onDrawn 把结果交回订单页更新那一张卡片，
  * 不整页重拉（买家可能已经「加载更多」翻了好几页）。
  */
-export function LotteryModal({
+function LotteryModalInner({
   orderNo,
   productName,
   view,
@@ -416,6 +417,17 @@ function ResultCard({
       {result.drawnAt && <div className="mt-4 text-[11px] text-[#9a3412]/70">抽奖时间 {formatDate(result.drawnAt)}</div>}
     </motion.div>
   )
+}
+
+/**
+ * 渠道分站（实施分包 WP1）：抽奖在渠道站关闭（设计 7.6）。
+ * 只控制显示；对应接口在渠道 Host 上服务端 404（denyOnChannel）。组件本体改名为 LotteryModalInner、原样不动，
+ * 由这层按店面决定挂不挂：不渲染就不会发出任何请求（验收 W1-9：渠道站页面零 404 请求）。主站恒为渲染，行为不变。
+ */
+export function LotteryModal(props: React.ComponentProps<typeof LotteryModalInner>) {
+  const { features } = useStorefront()
+  if (!(features.lottery)) return null
+  return <LotteryModalInner {...props} />
 }
 
 export default LotteryModal

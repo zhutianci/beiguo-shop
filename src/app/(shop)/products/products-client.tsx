@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowRight, LayoutGrid, List as ListIcon, Sparkles } from 'lucide-react'
 import { ContactModal } from '@/components/contact-modal'
 import { captureRefFromUrl } from '@/lib/ref'
+import { useStorefront } from '@/components/storefront-provider'
 import { ProductThumb } from '@/components/products/product-thumb'
 import { PRODUCT_GRADIENT, deliveryBadge, productTag } from '@/components/products/gradient'
 import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
@@ -69,6 +70,8 @@ export default function ProductsClient({
   const [ref, setRef] = useState<string | null>(null)
   /** 内推专属价覆盖表：productId → price。拿不到就用列表价，不阻塞渲染 */
   const [refPrice, setRefPrice] = useState<Record<number, number>>({})
+  /** 渠道站内推硬关（设计 7.6）：不读、不记 ref，也就不会出现「专属价」提示条与那次多余的请求 */
+  const { features } = useStorefront()
 
   // 挂载后再读偏好与内推码：这两样都只存在于浏览器，在渲染期读会造成 hydration 不一致
   useEffect(() => {
@@ -78,8 +81,8 @@ export default function ProductsClient({
     } catch {
       // 隐私模式下 localStorage 会抛，用默认值就行
     }
-    setRef(captureRefFromUrl())
-  }, [])
+    if (features.referral) setRef(captureRefFromUrl())
+  }, [features.referral])
 
   // 带内推码时覆盖价格。只发这一次，失败就沿用列表价（宁可显示原价，也不要空白）
   useEffect(() => {

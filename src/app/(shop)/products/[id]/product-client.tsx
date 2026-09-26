@@ -39,6 +39,7 @@ import { PurchaseModal } from '@/components/purchase-modal'
 import { ContactModal } from '@/components/contact-modal'
 import { PRODUCT_GRADIENT, deliveryBadge, productTag } from '@/components/products/gradient'
 import { captureRefFromUrl } from '@/lib/ref'
+import { useStorefront } from '@/components/storefront-provider'
 import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
 
 interface Product {
@@ -108,8 +109,10 @@ export default function ProductDetailClient({
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [contactOpen, setContactOpen] = useState(false)
 
+  const referralOn = useStorefront().features.referral
   useEffect(() => {
-    const r = captureRefFromUrl()
+    // 渠道站内推硬关（设计 7.6）：不读、不记 ref；服务端本来也忽略它，这里是少发一个无意义的参数
+    const r = referralOn ? captureRefFromUrl() : null
     /*
      * 【只有真正的 404 才算「商品不存在」】原来 success:false 一律 setNotFound(true)：
      * 接口偶发一次库超时（error('获取商品详情失败')，HTTP 400），

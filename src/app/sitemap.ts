@@ -8,6 +8,7 @@ import { absUrl } from '@/lib/news/seo'
 import { shouldNoindexEvent, thinNoindexEnabled } from '@/lib/news/thin'
 import { parseDetail } from '@/lib/news/format'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 /**
  * 站点地图。
@@ -25,6 +26,11 @@ const RECENT_DAYS = 90
 const MAX_EVENTS = 2000
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // 渠道站（以及没有店面的 Host）返回空 sitemap（设计 4.8）：渠道站整站 noindex，且这里的地址全是主站 origin，
+  // 在 lulu.bigolab.com/sitemap.xml 里列主站地址是跨域提交。不包进 try（理由同 robots.ts）
+  const sf = await getStorefront()
+  if (!sf || sf.kind !== 'PLATFORM') return []
+
   const now = new Date()
 
   // 主要静态页面。登录/注册/找回密码/订单/个人中心刻意不收录

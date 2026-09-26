@@ -19,6 +19,7 @@ import {
   normalizeInvoiceFields,
   afterInvoiceSubmitted,
 } from '@/lib/invoice-input'
+import { getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
 
 // 抬头字段共用 lib/invoice-input 的定义，本路由只多两样：订单号与匿名归属凭证
 const schema = buyerInvoiceSubmitSchema.extend({
@@ -28,6 +29,9 @@ const schema = buyerInvoiceSubmitSchema.extend({
 })
 
 export async function POST(request: NextRequest) {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return notFound('订单不存在')
   try {
     if (!vmqConfigured()) return error('支付未配置，暂无法提交发票', 500)
 
@@ -38,11 +42,36 @@ export async function POST(request: NextRequest) {
 
     const order = await prisma.externalOrder.findUnique({
       where: { id: d.externalOrderId },
-      select: { id: true, sourceKey: true, claudeAccount: true, shopOrderId: true },
+      select: { id: true, sourceKey: true, claudeAccount: true, shopOrderId: true, tenantId: true },
     })
     if (!order) return notFound('订单不存在')
 
     const user = await getCurrentUser()
+
+    /*
+     * 【店面归属，在路由内判】（设计 8.1、9.3、W2-5a）ExternalOrder.id 是自增整数，而 assertExternalOrderAccess 除了
+     * 「本人站内订单」还接受三条只比对邮箱的分支——渠道手里有大量买家邮箱，所以：
+     *  · 渠道站：必须登录；这一行必须属于本店（ExternalOrder.tenantId）且背后是**本人、本店**的站内订单；
+     *    邮箱类分支一律不认。成员自买单不可开票（设计 7.7）。
+     *  · 主站：拒绝属于渠道的行（行上的 tenantId，或背后站内订单的 tenantId ≠ 1），其余与改造前相同。
+     * 不满足一律按「不存在」404，响应体与找不到这一行时相同，零写入。与 /api/receipts、/api/invoices/[id]/pay 同一套判断。
+     */
+    const linkedOrderId = order.shopOrderId ?? orderIdFromSourceKey(order.sourceKey)
+    if (sf.kind === 'CHANNEL') {
+      if (!user || order.tenantId !== sf.id || !linkedOrderId) return notFound('订单不存在')
+      const own = await prisma.order.findFirst({
+        where: { id: linkedOrderId, userId: user.id, tenantId: sf.id },
+        select: { settleExcludeReason: true },
+      })
+      if (!own) return notFound('订单不存在')
+      if (own.settleExcludeReason != null) return error('该订单不支持开具发票')
+    } else {
+      if (order.tenantId !== PLATFORM_TENANT_ID) return notFound('订单不存在')
+      if (linkedOrderId) {
+        const linked = await prisma.order.findUnique({ where: { id: linkedOrderId }, select: { tenantId: true } })
+        if (linked && linked.tenantId !== PLATFORM_TENANT_ID) return notFound('订单不存在')
+      }
+    }
     // 归属凭证 = 邮箱验证码换来的证明 cookie / 已验证的登录邮箱或绑定（lib/email-proof.ts）。
     // body 里的 accountEmail 不再作数（知道邮箱不等于是本人），老前端照传也不报错
     await assertExternalOrderAccess(order, { user, proofDigests: await readProofDigests() })
@@ -69,7 +98,7 @@ export async function POST(request: NextRequest) {
      * （最常见：买家先在「我的订单」申请并付了 6%，这里是管理员交付时导入的 WEB 行），
      * 不能在这一行再收一次税。与 /api/orders/[id]/invoice 的跨行检查同一口径。
      */
-    const shopOrderId = order.shopOrderId ?? orderIdFromSourceKey(order.sourceKey)
+    const shopOrderId = linkedOrderId
     if (shopOrderId) {
       const blocked = await crossRowInvoiceBlock(shopOrderId, order.id)
       if (blocked) return error(blocked, 409)

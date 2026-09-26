@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
+import { sourceMap, sourceOf } from '@/lib/admin/source-site'
 
 // 已发出卡密 → 追溯它的去向。
 // 本站订单发的卡有 orderId；外部站点通过库存 API 领走的卡 orderId 恒为 null，
@@ -66,6 +67,8 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
           payStatus: true,
           deliveryStatus: true,
           remark: true,
+          buyerRemark: true,
+          tenantId: true,
           referrerId: true,
           referralReward: true,
           createdAt: true,
@@ -95,10 +98,13 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       if (!order) return notFound('关联订单已不存在')
 
       const cardCount = await prisma.cardKey.count({ where: { orderId: order.id, status: 'USED' } })
+      const source = sourceOf(await sourceMap([order.tenantId]), order.tenantId)
 
       return success({
         kind: 'LOCAL' as const,
         card: cardInfo,
+        // 来源站 = 售出订单的站（设计 5.5）；渠道单的单卡售价是进货价分摊（设计 8.3）
+        source,
         order: {
           id: order.id,
           orderNo: order.orderNo,
@@ -112,6 +118,8 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
           payStatus: order.payStatus,
           deliveryStatus: order.deliveryStatus,
           remark: order.remark,
+          buyerRemark: order.buyerRemark ?? order.remark,
+          tenantId: order.tenantId,
           referrerId: order.referrerId,
           referralReward: order.referralReward != null ? Number(order.referralReward) : null,
           createdAt: order.createdAt,

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized, notFound } from '@/lib/api'
+import { getStorefront } from '@/lib/storefront/resolve'
 import { vmqConfigured, VmqError } from '@/lib/vmq'
 import {
   ensureExternalOrderForShopOrder,
@@ -26,6 +27,9 @@ const schema = buyerInvoiceSubmitSchema
 
 // 买家从「我的订单」直接申请发票（无需邮箱查询）
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return notFound('订单不存在')
   try {
     if (!vmqConfigured()) return error('支付未配置，暂无法提交发票', 500)
 
@@ -34,14 +38,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const orderId = parseInt(params.id)
     if (!orderId) return error('订单无效')
 
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
+    // 归属写进 where：本人、本店（设计 8.1）。别人的单、别的站的单与不存在的单同样 404（T11）
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId: user.id, tenantId: sf.id },
       include: { user: { select: { email: true, nickname: true } } },
     })
-    if (!order || order.userId !== user.id) return notFound('订单不存在')
+    if (!order) return notFound('订单不存在')
     if (order.payStatus !== 'PAID') return error('订单支付后才能申请发票')
     // 已付款又被取消 = 线下退款的惯例做法。提前给明确提示；lib 里的 assertShopOrderBillable / settlePrepaid 兜底
     if (order.deliveryStatus === 'CANCELLED') return error('订单已取消（已退款），不能申请发票', 409)
+    // 渠道成员在自己店里下的单不可开票（设计 7.7、9.2：不计余额的单也不分发票）；主站单恒为 null
+    if (order.settleExcludeReason != null) return error('该订单不支持开具发票')
 
     const body = await request.json()
     const parsed = schema.safeParse(body)

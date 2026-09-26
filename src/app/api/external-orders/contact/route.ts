@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { hasAccountAccess, readProofDigests } from '@/lib/email-proof'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /*
  * 【2026-09-26 起必须证明邮箱归属（审计 G13）】以前两个方法都是匿名的：
@@ -19,6 +20,9 @@ async function denied(account: string): Promise<boolean> {
 
 // GET：查询某账户已保存的提醒联系方式（无记录时返回默认值：邮箱=账户邮箱）
 export async function GET(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const { searchParams } = new URL(request.url)
     const emailRaw = searchParams.get('email')?.trim().toLowerCase() || ''
@@ -73,6 +77,9 @@ const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 // POST：保存/更新提醒联系方式
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const body = await request.json()
     const parsed = saveSchema.safeParse(body)

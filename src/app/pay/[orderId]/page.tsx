@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useStorefront } from '@/components/storefront-provider'
 
 interface PayInfo {
   orderId: string
@@ -18,10 +19,28 @@ interface PayInfo {
 // 收款码图片：把你的支付宝个人收款码图片放到 public/vmq-alipay-qr.png
 const QR_IMG = '/vmq-alipay-qr.png'
 
+/**
+ * 状态接口在「这张收款单属于别的站」时只回 { redirectOrigin }（设计 4.5）。
+ * 只接受形如 https://host 的纯 origin（http 仅限本地调试），任何带路径、带账号、带奇怪字符的值一律不跳：
+ * 值来自服务端的 tenants.origin，这里再收一道，防止将来有人把别的来源接进这个字段变成开放重定向。
+ */
+function safeOrigin(v: unknown): string | null {
+  if (typeof v !== 'string' || v.length > 200) return null
+  try {
+    const u = new URL(v)
+    const okProto = u.protocol === 'https:' || (u.protocol === 'http:' && /^(localhost|127\.0\.0\.1)$/.test(u.hostname))
+    if (!okProto || u.username || u.password || (u.pathname !== '/' && u.pathname !== '') || u.search || u.hash) return null
+    return u.origin
+  } catch {
+    return null
+  }
+}
+
 export default function VmqCashierPage() {
   const params = useParams()
   const router = useRouter()
   const orderId = String(params.orderId || '')
+  const { features } = useStorefront()
   const [info, setInfo] = useState<PayInfo | null>(null)
   const [state, setState] = useState<'loading' | 'pending' | 'paid' | 'expired' | 'notfound'>('loading')
   const [remain, setRemain] = useState<number>(0)
@@ -33,6 +52,17 @@ export default function VmqCashierPage() {
       const res = await fetch(`/api/pay/vmq/status?orderId=${encodeURIComponent(orderId)}`)
       const data = await res.json()
       if (!data.success) {
+        setState('notfound')
+        return
+      }
+      // 这张收款单属于另一个站：到那个站的同一收银台地址去付（两站外观相同，买家几乎无感）
+      const redirect = safeOrigin(data.data?.redirectOrigin)
+      if (redirect) {
+        if (timer.current) clearInterval(timer.current)
+        window.location.replace(`${redirect}/pay/${encodeURIComponent(orderId)}`)
+        return
+      }
+      if (data.data?.redirectOrigin !== undefined) {
         setState('notfound')
         return
       }
@@ -69,11 +99,12 @@ export default function VmqCashierPage() {
   useEffect(() => {
     if (state === 'paid' && timer.current) {
       clearInterval(timer.current)
-      const dest = info?.bizType === 'invoice' ? '/lookup' : '/orders'
+      // 税费单付完回「邮箱查订阅」；渠道站没有那个页面（设计 11.2 关闭 /lookup），一律回「我的订单」
+      const dest = info?.bizType === 'invoice' && features.lookup ? '/lookup' : '/orders'
       const t = setTimeout(() => router.push(dest), 2500)
       return () => clearTimeout(t)
     }
-  }, [state, info, router])
+  }, [state, info, router, features.lookup])
 
   const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 

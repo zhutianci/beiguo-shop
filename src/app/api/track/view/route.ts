@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { rateLimited, clientIp } from '@/lib/news/rate-limit'
 import { classifyDevice, classifyReferrer, normalizePath, shouldSkipPath } from '@/lib/analytics/classify'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 站级浏览上报。前端停留 3 秒后用 sendBeacon 打过来。
@@ -49,6 +50,9 @@ function viewerKeyOf(anonId: string | undefined, ip: string): string {
 }
 
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     // sendBeacon 发的是 Blob，Content-Type 可能是 text/plain，不能依赖 request.json()
     const raw = await request.text()
@@ -79,8 +83,10 @@ export async function POST(request: NextRequest) {
 
     const now = new Date()
     // 把本次请求自己的 Host 传进去：除了域名，本站还能从公网 IP 直连（nginx 80 对外开着），
-    // 那种情况下站内跳转的 referrer 是 IP，不传就会被记成「外链引荐」
-    const selfHost = request.headers.get('x-forwarded-host') || request.headers.get('host')
+    // 那种情况下站内跳转的 referrer 是 IP，不传就会被记成「外链引荐」。
+    // 只读 host（设计 4.3，边界检查第 9 条）：X-Forwarded-Host 是客户端可伪造的头，nginx 改造后也不再转发它；
+    // nginx 是 proxy_set_header Host $host，host 头本身就是浏览器请求的主机名，统计口径不变
+    const selfHost = request.headers.get('host')
     const { source, engine, refHost } = classifyReferrer(parsed.data.r, selfHost)
     const device = classifyDevice(request.headers.get('user-agent'))
 

@@ -13,6 +13,7 @@ import {
 import { settlePrepaidInvoiceByExternalOrder, shopOrderSourceKey } from '@/lib/order-invoice'
 import { invoicesForOrder, orderIdFromSourceKey } from '@/lib/order-link'
 import { readProofDigests } from '@/lib/email-proof'
+import { getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
 
 const schema = z.object({
   externalOrderId: z.number().int().positive('缺少订单'),
@@ -24,6 +25,9 @@ const schema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return notFound('订单不存在')
   try {
     const body = await request.json()
     const parsed = schema.safeParse(body)
@@ -32,11 +36,30 @@ export async function POST(request: NextRequest) {
 
     const order = await prisma.externalOrder.findUnique({
       where: { id: d.externalOrderId },
-      select: { id: true, sourceKey: true, claudeAccount: true, shopOrderId: true },
+      select: { id: true, sourceKey: true, claudeAccount: true, shopOrderId: true, tenantId: true },
     })
     if (!order) return notFound('订单不存在')
 
     const user = await getCurrentUser()
+
+    /*
+     * 【店面归属，在路由内判】与 /api/invoices 同一套（设计 8.1、W2-5a）：
+     *  · 渠道站：必须登录；这一行属于本店，且背后是本人、本店的站内订单；邮箱类分支一律不认；
+     *  · 主站：拒绝属于渠道的行（行上或背后站内订单的 tenantId ≠ 1），其余与改造前相同。
+     * 不满足一律 404，零写入。
+     */
+    const linkedOrderId = order.shopOrderId ?? orderIdFromSourceKey(order.sourceKey)
+    if (sf.kind === 'CHANNEL') {
+      if (!user || order.tenantId !== sf.id || !linkedOrderId) return notFound('订单不存在')
+      const own = await prisma.order.findFirst({ where: { id: linkedOrderId, userId: user.id, tenantId: sf.id }, select: { id: true } })
+      if (!own) return notFound('订单不存在')
+    } else {
+      if (order.tenantId !== PLATFORM_TENANT_ID) return notFound('订单不存在')
+      if (linkedOrderId) {
+        const linked = await prisma.order.findUnique({ where: { id: linkedOrderId }, select: { tenantId: true } })
+        if (linked && linked.tenantId !== PLATFORM_TENANT_ID) return notFound('订单不存在')
+      }
+    }
     // 归属凭证见 lib/email-proof.ts；body 里的 accountEmail 已不作数
     await assertExternalOrderAccess(order, { user, proofDigests: await readProofDigests() })
 
@@ -56,7 +79,7 @@ export async function POST(request: NextRequest) {
      *  · 它的任一条行上有已付税费的发票 → 收据按含税额出具（本行自己的已付发票仍优先）
      */
     let paidInvoiceAmount: number | null = null
-    const shopOrderId = order.shopOrderId ?? orderIdFromSourceKey(order.sourceKey)
+    const shopOrderId = linkedOrderId
     if (shopOrderId) {
       const linkedExts = await prisma.externalOrder.findMany({
         where: { OR: [{ shopOrderId }, { sourceKey: shopOrderSourceKey(shopOrderId) }] },

@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/check-tenant-boundary.mjs",
     "build": "next build",
+    "itest:tenant": "tsx scripts/itest-tenant/run-all.ts",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",

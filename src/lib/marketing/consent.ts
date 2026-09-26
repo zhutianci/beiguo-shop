@@ -222,16 +222,29 @@ export async function applyConsentChange(
   }
 }
 
-/** 注册成功时记一条 NOTICE 留痕（证明告知语已展示） */
-export async function logRegisterNotice(user: { id: number; email: string }, ip: string | null, ua: string | null): Promise<void> {
+/**
+ * 注册成功时记一条 NOTICE 留痕（证明告知语已展示）。
+ *
+ * 【渠道分站（设计 11.3）】tenantCode 传渠道 code 时 source 写成 `register:<code>`，出争议时能看出是在哪个站注册、
+ * 看到的是哪个站的注册页。主站调用不传，source 仍是 'register'（与改造前逐字相同，休眠期主站数据零变化；
+ * 后台按 source 统计的口径也不受影响）。列宽 VarChar(24)，code 最长 20，超出部分截断。
+ * 渠道站注册页**不展示营销告知语**（营销邮件是平台专属，11.3；终审第 2 轮），detail 如实记成「只展示了条款与隐私政策」，
+ * 留痕与用户实际看到的文字一致——不能在渠道用户名下留一条「展示了营销告知语」的记录。
+ */
+export async function logRegisterNotice(
+  user: { id: number; email: string },
+  ip: string | null,
+  ua: string | null,
+  tenantCode?: string
+): Promise<void> {
   try {
     await prisma.marketingConsentLog.create({
       data: {
         userId: user.id,
         email: clip((user.email || '').trim().toLowerCase(), 191) || '',
         action: 'NOTICE',
-        detail: '注册页展示了营销邮件告知语',
-        source: 'register',
+        detail: tenantCode ? '渠道站注册页：只展示了服务条款与隐私政策（未展示营销邮件告知语）' : '注册页展示了营销邮件告知语',
+        source: tenantCode ? clip(`register:${tenantCode}`, 24) || 'register' : 'register',
         ip: clip(ip, 64),
         ua: clip(ua, 255),
         policyVersion: PRIVACY_UPDATED_AT,

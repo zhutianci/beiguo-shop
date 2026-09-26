@@ -1,0 +1,816 @@
+{
+  "note": "生成物，勿手改：node scripts/itest-tenant/merge-routes.mjs 由 scripts/itest-tenant/routes/wp*.json 合并并与实际目录比对后写出。边界检查规则 10 与 cross-tenant.ts 的 T1 矩阵读它。",
+  "sources": [
+    {
+      "package": "WP4",
+      "file": "scripts/itest-tenant/routes/wp4.json",
+      "count": 6
+    },
+    {
+      "package": "WP5",
+      "file": "scripts/itest-tenant/routes/wp5.json",
+      "count": 39
+    },
+    {
+      "package": "WP6",
+      "file": "scripts/itest-tenant/routes/wp6.json",
+      "count": 17
+    },
+    {
+      "package": "WP7",
+      "file": "scripts/itest-tenant/routes/wp7.json",
+      "count": 22
+    }
+  ],
+  "routes": [
+    {
+      "package": "WP4",
+      "method": "GET",
+      "path": "/api/admin/after-sales",
+      "file": "src/app/api/admin/after-sales/route.ts",
+      "guard": "adminGuard",
+      "key": null
+    },
+    {
+      "package": "WP4",
+      "method": "PATCH",
+      "path": "/api/admin/after-sales/[id]",
+      "file": "src/app/api/admin/after-sales/[id]/route.ts",
+      "guard": "adminOrResponse",
+      "key": "afterSaleId",
+      "idempotency": "CAS status PENDING → REJECTED / DONE；activeKey 置 NULL"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/audit",
+      "file": "src/app/api/admin/audit/route.ts",
+      "guard": "adminGuard",
+      "key": null
+    },
+    {
+      "package": "WP4",
+      "method": "POST",
+      "path": "/api/admin/orders/[id]/resettle",
+      "file": "src/app/api/admin/orders/[id]/resettle/route.ts",
+      "guard": "adminOrResponse",
+      "key": "orderId",
+      "idempotency": "CAS settleVersion + settleState IN (NULL, MISSING)"
+    },
+    {
+      "package": "WP4",
+      "method": "GET",
+      "path": "/api/admin/redeem-logs",
+      "file": "src/app/api/admin/redeem-logs/route.ts",
+      "guard": "adminGuard",
+      "key": null
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/statements/[sid]",
+      "file": "src/app/api/admin/statements/[sid]/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/statements/[sid]/bounce",
+      "file": "src/app/api/admin/statements/[sid]/bounce/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId",
+      "idempotency": "bounce:{流水号}"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/statements/[sid]/export",
+      "file": "src/app/api/admin/statements/[sid]/export/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/statements/[sid]/payee",
+      "file": "src/app/api/admin/statements/[sid]/payee/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId",
+      "note": "查看快照账号明文，写审计"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/statements/[sid]/paying",
+      "file": "src/app/api/admin/statements/[sid]/paying/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId",
+      "idempotency": "CAS state"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/statements/[sid]/payout",
+      "file": "src/app/api/admin/statements/[sid]/payout/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId",
+      "idempotency": "TenantPayout.statementId / externalTradeNo 唯一"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/statements/[sid]/proof",
+      "file": "src/app/api/admin/statements/[sid]/proof/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/statements/[sid]/proof",
+      "file": "src/app/api/admin/statements/[sid]/proof/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId",
+      "idempotency": "CAS proofFile IS NULL"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/statements/[sid]/return",
+      "file": "src/app/api/admin/statements/[sid]/return/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId",
+      "idempotency": "CAS state + ret:{sid}"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/statements/[sid]/unpaying",
+      "file": "src/app/api/admin/statements/[sid]/unpaying/route.ts",
+      "guard": "adminGuard",
+      "key": "statementId",
+      "idempotency": "CAS state"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants",
+      "file": "src/app/api/admin/tenants/route.ts",
+      "guard": "adminGuard",
+      "key": null
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants",
+      "file": "src/app/api/admin/tenants/route.ts",
+      "guard": "adminGuard",
+      "key": null,
+      "idempotency": "code 唯一"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]",
+      "file": "src/app/api/admin/tenants/[id]/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "PATCH",
+      "path": "/api/admin/tenants/[id]",
+      "file": "src/app/api/admin/tenants/[id]/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/adjust",
+      "file": "src/app/api/admin/tenants/[id]/adjust/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId",
+      "idempotency": "adj:{requestId}"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/balances",
+      "file": "src/app/api/admin/tenants/[id]/balances/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/deposit",
+      "file": "src/app/api/admin/tenants/[id]/deposit/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId",
+      "idempotency": "dep-in / dep-refund / repay:{流水号}，dep-apply:{requestId}"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/domains",
+      "file": "src/app/api/admin/tenants/[id]/domains/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/domains",
+      "file": "src/app/api/admin/tenants/[id]/domains/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId",
+      "idempotency": "host 唯一"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/invites",
+      "file": "src/app/api/admin/tenants/[id]/invites/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/invites",
+      "file": "src/app/api/admin/tenants/[id]/invites/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "PATCH",
+      "path": "/api/admin/tenants/[id]/invites",
+      "file": "src/app/api/admin/tenants/[id]/invites/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId+inviteId",
+      "idempotency": "CAS usedAt/revokedAt IS NULL"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/ledger",
+      "file": "src/app/api/admin/tenants/[id]/ledger/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/listings",
+      "file": "src/app/api/admin/tenants/[id]/listings/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "PUT",
+      "path": "/api/admin/tenants/[id]/listings",
+      "file": "src/app/api/admin/tenants/[id]/listings/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId+productId",
+      "idempotency": "CAS supplyVersion"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/listings/batch/commit",
+      "file": "src/app/api/admin/tenants/[id]/listings/batch/commit/route.ts",
+      "guard": "adminGuard",
+      "key": "previewToken",
+      "idempotency": "逐行 CAS supplyVersion；重复提交 unchanged"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/listings/batch/preview",
+      "file": "src/app/api/admin/tenants/[id]/listings/batch/preview/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/members",
+      "file": "src/app/api/admin/tenants/[id]/members/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "PATCH",
+      "path": "/api/admin/tenants/[id]/members",
+      "file": "src/app/api/admin/tenants/[id]/members/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId+userId"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/payee",
+      "file": "src/app/api/admin/tenants/[id]/payee/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/payee",
+      "file": "src/app/api/admin/tenants/[id]/payee/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId",
+      "note": "查看明文，写审计"
+    },
+    {
+      "package": "WP5",
+      "method": "PUT",
+      "path": "/api/admin/tenants/[id]/payee",
+      "file": "src/app/api/admin/tenants/[id]/payee/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/statements",
+      "file": "src/app/api/admin/tenants/[id]/statements/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/statements",
+      "file": "src/app/api/admin/tenants/[id]/statements/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId",
+      "idempotency": "TenantStatement.requestId 唯一 + openKey 唯一"
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/writeoff",
+      "file": "src/app/api/admin/tenants/[id]/writeoff/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId",
+      "idempotency": "wo:{requestId}"
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/overview",
+      "file": "src/app/api/admin/tenants/overview/route.ts",
+      "guard": "adminGuard",
+      "key": null
+    },
+    {
+      "package": "WP5",
+      "method": "GET",
+      "path": "/api/admin/tenants/reconcile",
+      "file": "src/app/api/admin/tenants/reconcile/route.ts",
+      "guard": "adminGuard",
+      "key": null
+    },
+    {
+      "package": "WP5",
+      "method": "POST",
+      "path": "/api/admin/tenants/reconcile",
+      "file": "src/app/api/admin/tenants/reconcile/route.ts",
+      "guard": "adminGuard",
+      "key": null
+    },
+    {
+      "package": "WP4",
+      "method": "PATCH",
+      "path": "/api/admin/users/[id]/sites/[tenantId]",
+      "file": "src/app/api/admin/users/[id]/sites/[tenantId]/route.ts",
+      "guard": "adminOrResponse",
+      "key": "userId+tenantId"
+    },
+    {
+      "package": "WP4",
+      "method": "GET",
+      "path": "/api/admin/vmq/complete",
+      "file": "src/app/api/admin/vmq/complete/route.ts",
+      "guard": "adminOrResponse",
+      "key": "vmqOrderId",
+      "note": "补单确认前查来源站（新增 GET；POST 为原有接口）"
+    },
+    {
+      "package": "WP6",
+      "method": "GET",
+      "path": "/api/partner/after-sales",
+      "file": "src/app/api/partner/after-sales/route.ts",
+      "guard": "partnerRoute",
+      "perm": "order.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP6",
+      "method": "POST",
+      "path": "/api/partner/after-sales/[requestNo]/cancel",
+      "file": "src/app/api/partner/after-sales/[requestNo]/cancel/route.ts",
+      "guard": "partnerRoute",
+      "perm": "aftersale.request",
+      "key": "requestNo",
+      "readOnlySafe": false
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/audit",
+      "file": "src/app/api/partner/audit/route.ts",
+      "guard": "partnerRoute",
+      "perm": "audit.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP6",
+      "method": "GET",
+      "path": "/api/partner/catalog",
+      "file": "src/app/api/partner/catalog/route.ts",
+      "guard": "partnerRoute",
+      "perm": "catalog.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/customers",
+      "file": "src/app/api/partner/customers/route.ts",
+      "guard": "partnerRoute",
+      "perm": "customer.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/customers/[customerNo]",
+      "file": "src/app/api/partner/customers/[customerNo]/route.ts",
+      "guard": "partnerRoute",
+      "perm": "customer.read",
+      "key": "customerNo",
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "PATCH",
+      "path": "/api/partner/customers/[customerNo]",
+      "file": "src/app/api/partner/customers/[customerNo]/route.ts",
+      "guard": "partnerRoute",
+      "perm": "customer.write",
+      "key": "customerNo",
+      "readOnlySafe": false,
+      "rate": "60/min"
+    },
+    {
+      "package": "WP7",
+      "method": "POST",
+      "path": "/api/partner/customers/[customerNo]/ban-request",
+      "file": "src/app/api/partner/customers/[customerNo]/ban-request/route.ts",
+      "guard": "partnerRoute",
+      "perm": "customer.write",
+      "key": "customerNo",
+      "readOnlySafe": false,
+      "rate": "20/min"
+    },
+    {
+      "package": "WP7",
+      "method": "POST",
+      "path": "/api/partner/customers/[customerNo]/block",
+      "file": "src/app/api/partner/customers/[customerNo]/block/route.ts",
+      "guard": "partnerRoute",
+      "perm": "customer.write",
+      "key": "customerNo",
+      "readOnlySafe": false,
+      "rate": "60/min"
+    },
+    {
+      "package": "WP7",
+      "method": "POST",
+      "path": "/api/partner/customers/[customerNo]/unblock",
+      "file": "src/app/api/partner/customers/[customerNo]/unblock/route.ts",
+      "guard": "partnerRoute",
+      "perm": "customer.write",
+      "key": "customerNo",
+      "readOnlySafe": false,
+      "rate": "60/min"
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/customers/export",
+      "file": "src/app/api/partner/customers/export/route.ts",
+      "guard": "partnerRoute",
+      "perm": "customer.export",
+      "key": null,
+      "readOnlySafe": true,
+      "rate": "5/day（按审计计数）"
+    },
+    {
+      "package": "WP6",
+      "method": "GET",
+      "path": "/api/partner/dashboard",
+      "file": "src/app/api/partner/dashboard/route.ts",
+      "guard": "partnerRoute",
+      "perm": "dashboard.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "POST",
+      "path": "/api/partner/finance/apply",
+      "file": "src/app/api/partner/finance/apply/route.ts",
+      "guard": "partnerRoute",
+      "perm": "finance.apply",
+      "key": "requestId",
+      "readOnlySafe": false,
+      "rate": "10/min；3 次/天（facade 按审计计数）"
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/finance/ledger",
+      "file": "src/app/api/partner/finance/ledger/route.ts",
+      "guard": "partnerRoute",
+      "perm": "finance.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/finance/orders",
+      "file": "src/app/api/partner/finance/orders/route.ts",
+      "guard": "partnerRoute",
+      "perm": "finance.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/finance/statements",
+      "file": "src/app/api/partner/finance/statements/route.ts",
+      "guard": "partnerRoute",
+      "perm": "finance.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/finance/statements/[statementNo]",
+      "file": "src/app/api/partner/finance/statements/[statementNo]/route.ts",
+      "guard": "partnerRoute",
+      "perm": "finance.read",
+      "key": "statementNo",
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/finance/statements/[statementNo]/export",
+      "file": "src/app/api/partner/finance/statements/[statementNo]/export/route.ts",
+      "guard": "partnerRoute",
+      "perm": "finance.read",
+      "key": "statementNo",
+      "readOnlySafe": true,
+      "rate": "30/min"
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/finance/summary",
+      "file": "src/app/api/partner/finance/summary/route.ts",
+      "guard": "partnerRoute",
+      "perm": "finance.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP6",
+      "method": "POST",
+      "path": "/api/partner/invite/accept",
+      "file": "src/app/api/partner/invite/accept/route.ts",
+      "guard": "inviteRoute",
+      "perm": null,
+      "key": "token",
+      "readOnlySafe": false
+    },
+    {
+      "package": "WP6",
+      "method": "PATCH",
+      "path": "/api/partner/listings/[listingNo]",
+      "file": "src/app/api/partner/listings/[listingNo]/route.ts",
+      "guard": "partnerRoute",
+      "perm": "listing.write",
+      "key": "listingNo",
+      "readOnlySafe": false,
+      "rate": "60/min"
+    },
+    {
+      "package": "WP6",
+      "method": "POST",
+      "path": "/api/partner/listings/price/commit",
+      "file": "src/app/api/partner/listings/price/commit/route.ts",
+      "guard": "partnerRoute",
+      "perm": "listing.write",
+      "key": "previewToken",
+      "readOnlySafe": false,
+      "rate": "10/min"
+    },
+    {
+      "package": "WP6",
+      "method": "POST",
+      "path": "/api/partner/listings/price/preview",
+      "file": "src/app/api/partner/listings/price/preview/route.ts",
+      "guard": "partnerRoute",
+      "perm": "listing.write",
+      "key": "listingNo[]",
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "WP6",
+      "method": "POST",
+      "path": "/api/partner/listings/status",
+      "file": "src/app/api/partner/listings/status/route.ts",
+      "guard": "partnerRoute",
+      "perm": "listing.write",
+      "key": "listingNo[]",
+      "readOnlySafe": false,
+      "rate": "10/min"
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/notices",
+      "file": "src/app/api/partner/notices/route.ts",
+      "guard": "partnerRoute",
+      "perm": "notice.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "POST",
+      "path": "/api/partner/notices/read",
+      "file": "src/app/api/partner/notices/read/route.ts",
+      "guard": "partnerRoute",
+      "perm": "notice.read",
+      "key": "noticeNo[]",
+      "readOnlySafe": false,
+      "rate": "60/min"
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/notices/unread-count",
+      "file": "src/app/api/partner/notices/unread-count/route.ts",
+      "guard": "partnerRoute",
+      "perm": "notice.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP6",
+      "method": "GET",
+      "path": "/api/partner/orders",
+      "file": "src/app/api/partner/orders/route.ts",
+      "guard": "partnerRoute",
+      "perm": "order.read",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP6",
+      "method": "GET",
+      "path": "/api/partner/orders/[orderNo]",
+      "file": "src/app/api/partner/orders/[orderNo]/route.ts",
+      "guard": "partnerRoute",
+      "perm": "order.read",
+      "key": "orderNo",
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP6",
+      "method": "POST",
+      "path": "/api/partner/orders/[orderNo]/after-sales",
+      "file": "src/app/api/partner/orders/[orderNo]/after-sales/route.ts",
+      "guard": "partnerRoute",
+      "perm": "aftersale.request",
+      "key": "orderNo",
+      "readOnlySafe": false,
+      "rate": "20/min"
+    },
+    {
+      "package": "WP6",
+      "method": "GET",
+      "path": "/api/partner/orders/[orderNo]/cards",
+      "file": "src/app/api/partner/orders/[orderNo]/cards/route.ts",
+      "guard": "partnerRoute",
+      "perm": "order.cards",
+      "key": "orderNo",
+      "readOnlySafe": true,
+      "rate": "60/min"
+    },
+    {
+      "package": "WP6",
+      "method": "GET",
+      "path": "/api/partner/orders/[orderNo]/messages",
+      "file": "src/app/api/partner/orders/[orderNo]/messages/route.ts",
+      "guard": "partnerRoute",
+      "perm": "order.message",
+      "key": "orderNo",
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP6",
+      "method": "POST",
+      "path": "/api/partner/orders/[orderNo]/messages",
+      "file": "src/app/api/partner/orders/[orderNo]/messages/route.ts",
+      "guard": "partnerRoute",
+      "perm": "order.message",
+      "key": "orderNo",
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "WP6",
+      "method": "POST",
+      "path": "/api/partner/orders/[orderNo]/read",
+      "file": "src/app/api/partner/orders/[orderNo]/read/route.ts",
+      "guard": "partnerRoute",
+      "perm": "order.message",
+      "key": "orderNo",
+      "readOnlySafe": false
+    },
+    {
+      "package": "WP6",
+      "method": "GET",
+      "path": "/api/partner/orders/export",
+      "file": "src/app/api/partner/orders/export/route.ts",
+      "guard": "partnerRoute",
+      "perm": "order.export",
+      "key": null,
+      "readOnlySafe": true,
+      "rate": "10/day（按审计计数）"
+    },
+    {
+      "package": "WP7",
+      "method": "GET",
+      "path": "/api/partner/settings",
+      "file": "src/app/api/partner/settings/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "WP7",
+      "method": "PUT",
+      "path": "/api/partner/settings/notice",
+      "file": "src/app/api/partner/settings/notice/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "WP7",
+      "method": "PUT",
+      "path": "/api/partner/settings/webhook",
+      "file": "src/app/api/partner/settings/webhook/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "WP7",
+      "method": "POST",
+      "path": "/api/partner/settings/webhook/test",
+      "file": "src/app/api/partner/settings/webhook/test/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "5/hour"
+    }
+  ]
+}

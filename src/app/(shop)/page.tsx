@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic'
 // （线上实测：首页 JSON-LD 块数 = 0）。交互与动效全留在 home-client.tsx。
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { notFound } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { organizationJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
@@ -13,6 +14,7 @@ import { getLandingProducts, inStock, lowestPrice, matchProducts } from '@/lib/l
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import HomeClient from './home-client'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 /**
  * 首页标题与描述。
@@ -43,10 +45,16 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
+  // 店面解析不进 try（设计 4.4 第 7 条）。getLandingProducts 按店面取数：渠道站是本店可售商品、本店售价与销量
+  const sf = await getStorefront()
+  // 没有店面的 Host 一律 404（(shop)/layout 已挡过一次），绝不回落成主站首页
+  if (!sf) notFound()
+  const channel = sf.kind === 'CHANNEL'
   const all = await getLandingProducts()
   // 复用 lowestPrice，不要在这里再实现一遍——两份实现迟早会漂。
   // hasStock 也要带上：唯一档位缺货的服务不能在首页被当成有货推出去。
-  const cards = LANDINGS.map((l) => {
+  // 渠道站不渲染「按服务找」：每张卡片都链到充值落地页，而落地页在渠道站关闭（设计 11.2，W1-9 要求零 404 请求）
+  const cards = channel ? [] : LANDINGS.map((l) => {
     const items = matchProducts(all, l.match)
     return { def: l, low: lowestPrice(items), hasStock: items.some(inStock) }
   })
@@ -54,6 +62,7 @@ export default async function HomePage() {
   // 首页那条信任数据带的数字。复用上面同一份快照，不额外打库。
   // 传给客户端组件是有意的：客户端组件同样会被服务端渲染，值会进服务端 HTML——
   // 而这正是要解决的问题（原来写死 useState(0)，爬虫读到的是「0 个用户」）。
+  // 渠道站：本店可售商品的本店销量之和（设计 12.3「totalSales 按店面」）
   const stats = {
     totalSales: all.reduce((n, p) => n + (p.sales || 0), 0),
     skuCount: all.length,
@@ -63,7 +72,10 @@ export default async function HomePage() {
     <>
       {/* Organization 与 WebSite 全站只在首页输出一次，其余页面通过 @id 引用即可。
           每页都重复一遍不会加分，只会让每一页多出几百字节。 */}
-      <JsonLd data={[organizationJsonLd(), webSiteJsonLd()]} />
+      {/* 渠道站传 sf.origin：WebSite 的 @id / url 必须指向本店域名（设计 4.5 SITE_ID 按请求生成），
+          否则渠道站 HTML 里会出现指向 bigolab.com 的绝对链接。主站仍不传参，输出逐字不变。
+          Organization 是平台主体（统一品牌「贝果科技」），两站同值。 */}
+      <JsonLd data={[organizationJsonLd(), channel ? webSiteJsonLd(sf.origin) : webSiteJsonLd()]} />
 
       <HomeClient stats={stats} />
 

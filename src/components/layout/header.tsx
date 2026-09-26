@@ -7,6 +7,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, User, ShoppingBag } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { cn } from '@/lib/utils'
+import { useStorefront } from '@/components/storefront-provider'
+import type { StorefrontFeatures } from '@/lib/storefront/public'
 
 // 标签刻意短：桌面导航 7 项，768~900px 之间靠缩短文案 + 收紧间距才不换行。
 //
@@ -19,15 +21,20 @@ import { cn } from '@/lib/utils'
 // 而那批页面是这个站唯一直接对着购买意图的内容。导航是站内最强的一个内部链接位置，
 // 也是买家最先扫的地方，把它让给一个每小时产出新闻的模块并不划算。
 // 标签刻意只用两个字：768~900px 那一段是最挤的，多一个字就可能换行。
-const navLinks = [
+//
+// 【feature 字段（渠道分站，设计 11.2）】带 feature 的项只在该模块开着的店面渲染：渠道站关闭了充值落地页、
+// 新闻、IP 工具、论坛、友链（它们在渠道 Host 上服务端直接 404），导航里留着入口只会让买家点进 404。
+// 主站 features 恒为全开，过滤后与原数组逐项相同（顺序不变），主站导航零变化。
+type NavLink = { href: string; label: string; feature?: keyof StorefrontFeatures }
+const navLinks: NavLink[] = [
   { href: '/', label: '首页' },
-  { href: '/chongzhi', label: '充值' },
+  { href: '/chongzhi', label: '充值', feature: 'landing' },
   { href: '/products', label: '商品' },
-  { href: '/news', label: 'AI圈大事记' },
-  { href: '/iptools', label: 'IP工具' },
-  { href: '/forum', label: '论坛' },
+  { href: '/news', label: 'AI圈大事记', feature: 'news' },
+  { href: '/iptools', label: 'IP工具', feature: 'iptools' },
+  { href: '/forum', label: '论坛', feature: 'forum' },
   { href: '/support', label: '客服' },
-  { href: '/links', label: '友链' },
+  { href: '/links', label: '友链', feature: 'links' },
 ]
 
 /**
@@ -40,9 +47,17 @@ function isNavActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-export function Header() {
+/**
+ * catalogOpen / registrationOpen 由 (shop)/layout.tsx 按店面状态给出（设计 6.7，终审第 2 轮）：
+ * 渠道店面 TERMINATED 时去掉「商品」（首页与商品页已换成停业页），TERMINATED / DRAFT 时去掉「注册」（注册接口 403）。
+ * 默认都是 true：主站恒为 ACTIVE，导航与按钮与原来逐项相同。只控制显示，拦截在服务端。
+ */
+export function Header({ catalogOpen = true, registrationOpen = true }: { catalogOpen?: boolean; registrationOpen?: boolean } = {}) {
   const pathname = usePathname()
   const { user, setUser, logout } = useUserStore()
+  // 只控制显示；真正的拦截在服务端（denyOnChannel / notFoundOnChannel）
+  const { features } = useStorefront()
+  const visibleLinks = navLinks.filter((l) => (!l.feature || features[l.feature]) && (catalogOpen || l.href !== '/products'))
 
   /*
    * 客服留言未读数。
@@ -158,7 +173,7 @@ export function Header() {
                 md 靠 px-2 + gap-0 省出的宽度把字号从原来的 13px 抬回 14px——
                 14px 是中文在深色背景上不糊的下限，比多留几像素间距重要。 */}
             <nav className="hidden md:flex items-center md:gap-0 lg:gap-1 xl:gap-1.5">
-              {navLinks.map((link) => {
+              {visibleLinks.map((link) => {
                 const active = isNavActive(pathname, link.href)
                 return (
                   <Link
@@ -242,12 +257,17 @@ export function Header() {
                           </span>
                         )}
                       </Link>
-                      <Link href="/profile/referral" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
-                        推荐有奖
-                      </Link>
-                      <Link href="/wallet" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
-                        账户余额
-                      </Link>
+                      {/* 推荐有奖、钱包在渠道站关闭（设计 7.6），入口按 features 渲染 */}
+                      {features.referral && (
+                        <Link href="/profile/referral" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                          推荐有奖
+                        </Link>
+                      )}
+                      {features.wallet && (
+                        <Link href="/wallet" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                          账户余额
+                        </Link>
+                      )}
                       <button
                         onClick={logout}
                         className="w-full text-left px-4 py-2 text-sm lg:text-[15px] text-red-400 hover:bg-white/5 transition-colors"
@@ -267,12 +287,14 @@ export function Header() {
                   >
                     登录
                   </Link>
-                  <Link
-                    href="/register"
-                    className="whitespace-nowrap px-5 md:px-4 lg:px-5 py-2 text-sm lg:text-[15px] lg:leading-5 font-medium bg-white text-black rounded-full transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-                  >
-                    注册
-                  </Link>
+                  {registrationOpen && (
+                    <Link
+                      href="/register"
+                      className="whitespace-nowrap px-5 md:px-4 lg:px-5 py-2 text-sm lg:text-[15px] lg:leading-5 font-medium bg-white text-black rounded-full transition-colors hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                    >
+                      注册
+                    </Link>
+                  )}
                 </>
               )}
 
@@ -301,7 +323,7 @@ export function Header() {
             <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
             {/* 项目多时在小屏上会顶满，收紧行距并允许滚动，避免最后一项被裁掉 */}
             <nav className="relative flex h-full flex-col items-center justify-center gap-6 overflow-y-auto py-24">
-              {navLinks.map((link, index) => (
+              {visibleLinks.map((link, index) => (
                 <motion.div
                   key={link.href}
                   initial={{ opacity: 0, y: 20 }}
@@ -334,13 +356,15 @@ export function Header() {
                   >
                     登录
                   </Link>
-                  <Link
-                    href="/register"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="px-8 py-3 bg-white text-black rounded-full font-medium"
-                  >
-                    注册
-                  </Link>
+                  {registrationOpen && (
+                    <Link
+                      href="/register"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="px-8 py-3 bg-white text-black rounded-full font-medium"
+                    >
+                      注册
+                    </Link>
+                  )}
                 </motion.div>
               )}
             </nav>

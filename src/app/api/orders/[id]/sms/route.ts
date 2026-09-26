@@ -4,18 +4,23 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized, notFound } from '@/lib/api'
+import { getStorefront } from '@/lib/storefront/resolve'
 import { pollActivation, acquireForOrder, SMS_MAX_RETRY, SMS_RETRY_COOLDOWN_SEC } from '@/lib/sms'
 
 // 买家拉取本订单接码状态（号码 + 验证码）；缺号时按需补取号，并实时查码/超时取消
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return notFound('订单不存在')
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
     const orderId = parseInt(params.id)
     if (!orderId) return error('订单无效')
 
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
+    // 归属写进 where：本人、本店（设计 8.1）。这里会按需向上游取号（花钱），别的站的会话绝不能驱动它（T11）
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId: user.id, tenantId: sf.id },
       select: {
         userId: true,
         payStatus: true,
@@ -23,7 +28,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
         product: { select: { deliveryType: true, smsService: true, smsCountry: true, smsMaxPrice: true } },
       },
     })
-    if (!order || order.userId !== user.id) return notFound('订单不存在')
+    if (!order) return notFound('订单不存在')
     if (order.payStatus !== 'PAID') return error('订单支付后才有接码信息')
     if (order.product.deliveryType !== 'SMS') return success({ exists: false })
 

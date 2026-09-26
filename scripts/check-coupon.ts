@@ -262,6 +262,34 @@ ok(
   cases.every(([rp, rule, qty]) => q(rp, rule, qty).amount > 0)
 )
 
+/*
+ * 【渠道站分支（设计 7.4、7.6，WP2）】渠道站营销全关：按售价成交、discount 恒 0、任何券都拒绝、内推被忽略。
+ * 放在 quoteOrder 最前面短路，上面主站的全部断言因此一字不动（主站调用方从不传 channelUnitCents）。
+ */
+console.log('\n【quoteOrder：渠道站分支】')
+const qc = (unitCents: number, rule: CouponRule | null, qty = 1, rp: number | null = null) =>
+  quoteOrder({ productId: 1, listPrice: 1450, quantity: qty, referralUnitPrice: rp, rule, channelUnitCents: unitCents })
+eq('渠道售价 140.00：按售价成交', qc(14000, null).amount, 140)
+ok('渠道单：标记为 channel', qc(14000, null).applied === 'channel')
+eq('渠道单：discount 恒为 0', qc(14000, T).discount, 0)
+eq('渠道单带券：券不生效，仍按售价', qc(14000, T).amount, 140)
+ok('渠道单带券：reject = CHANNEL_ORDER', qc(14000, T).reject === 'CHANNEL_ORDER')
+ok('渠道单不带券：不算被拒', qc(14000, null).reject === null)
+eq('渠道单忽略内推专属价', qc(14000, null, 1, 1400).amount, 140)
+eq('渠道单多件 = 售价 × 件数（按分）', qc(12345, null, 3).amount, 370.35)
+ok('渠道单：baseline − discount === amount', [qc(14000, T), qc(1, null, 7), qc(99999, T, 10)].every((r) => Math.abs(r.baseline - r.discount - r.amount) < 1e-9))
+let threw = 0
+for (const bad of [0, -1, 1.5, Number.NaN]) {
+  try {
+    qc(bad, null)
+  } catch {
+    threw++
+  }
+}
+eq('渠道售价非正整数分：一律抛错（不静默算出 0 元单）', threw, 4)
+ok('主站调用（不传 channelUnitCents）：行为不变', q(null, T).applied === 'coupon' && q(1400, T).applied === 'referral')
+eq('channelUnitCents 显式传 null 等同主站', quoteOrder({ productId: 1, listPrice: 1450, quantity: 1, referralUnitPrice: null, rule: T, channelUnitCents: null }).amount, 1350)
+
 console.log(`\n${'='.repeat(46)}`)
 console.log(`通过 ${pass} 条，失败 ${fail} 条`)
 console.log('='.repeat(46))

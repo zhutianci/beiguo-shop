@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized, notFound } from '@/lib/api'
+import { getStorefront } from '@/lib/storefront/resolve'
 import { retryActivation, SMS_MAX_RETRY } from '@/lib/sms'
 import { rateLimited } from '@/lib/news/rate-limit'
 
@@ -18,6 +19,9 @@ import { rateLimited } from '@/lib/news/rate-limit'
  * 这里只负责身份校验和限流——业务规则不要在路由层再写一遍，两处迟早会打架。
  */
 export async function POST(_request: NextRequest, { params }: { params: { id: string } }) {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return notFound('订单不存在')
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
@@ -25,11 +29,12 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
     const orderId = parseInt(params.id)
     if (!orderId) return error('订单无效')
 
-    const order = await prisma.order.findUnique({
-      where: { id: orderId },
+    // 归属写进 where：本人、本店（设计 8.1、T11）。换号会真的向上游取号（花钱）
+    const order = await prisma.order.findFirst({
+      where: { id: orderId, userId: user.id, tenantId: sf.id },
       select: { userId: true, payStatus: true, product: { select: { deliveryType: true } } },
     })
-    if (!order || order.userId !== user.id) return notFound('订单不存在')
+    if (!order) return notFound('订单不存在')
     if (order.payStatus !== 'PAID') return error('订单支付后才能换号')
     if (order.product.deliveryType !== 'SMS') return error('该商品不是接码商品')
 

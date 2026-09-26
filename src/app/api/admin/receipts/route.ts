@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { createManualReceipt, parseReceiptItems, BillingError } from '@/lib/order-billing'
 import { adminGuard } from '@/lib/admin-guard'
+import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 
 export async function GET(request: NextRequest) {
   const denied = await adminGuard()
@@ -17,8 +18,12 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20'), 1), 200)
     const keyword = searchParams.get('keyword')?.trim()
     const source = searchParams.get('source')?.trim() // BUYER | MANUAL
+    // 来源站（设计 12.2）：Receipt.tenantId；手动开具的固定主站。不传 = 全部，查询与原来一致
+    const site = parseTenantFilter(searchParams)
+    if (site === 'invalid') return error(INVALID_TENANT_FILTER)
 
     const where: Prisma.ReceiptWhereInput = {}
+    if (site != null) where.tenantId = site
     if (keyword) {
       where.OR = [
         { claudeAccount: { contains: keyword } },
@@ -36,12 +41,16 @@ export async function GET(request: NextRequest) {
         take: pageSize,
       }),
       prisma.receipt.count({ where }),
-      prisma.receipt.count({ where: { source: 'BUYER' } }),
-      prisma.receipt.count({ where: { source: 'MANUAL' } }),
+      // 按来源站筛选时两个计数也只算该站；不筛时与原来逐字相同
+      prisma.receipt.count({ where: { source: 'BUYER', ...(site != null ? { tenantId: site } : {}) } }),
+      prisma.receipt.count({ where: { source: 'MANUAL', ...(site != null ? { tenantId: site } : {}) } }),
     ])
 
+    const srcMap = await sourceMap(rows.map((r) => r.tenantId))
     const list = rows.map((r) => ({
       id: r.id,
+      // 来源站：这里的 source 列已被「BUYER / MANUAL」占用，所以来源站叫 site（与分包 7.4 的 source 同形）
+      site: sourceOf(srcMap, r.tenantId),
       receiptNo: r.receiptNo,
       token: r.token,
       source: r.source,
@@ -65,6 +74,7 @@ export async function GET(request: NextRequest) {
       pageSize,
       totalPages: Math.ceil(total / pageSize),
       stats: { buyer: buyerCount, manual: manualCount },
+      sites: await siteOptions(),
     })
   } catch (err) {
     console.error('Admin list receipts error:', err)

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { X, CreditCard, ArrowRight, Ticket, FileText, Check, ChevronDown } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { getRef } from '@/lib/ref'
+import { useStorefront } from '@/components/storefront-provider'
 import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
 // 无依赖的纯函数模块，与服务端校验共用同一份规则（lib/invoice.ts 引了 node:crypto，客户端不能引）
 import { normalizeTaxNumber, TAX_NUMBER_MAX_LEN } from '@/lib/tax-number'
@@ -60,6 +61,14 @@ interface PurchaseModalProps {
 export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   const router = useRouter()
   const { user } = useUserStore()
+  /*
+   * 渠道站营销全关（设计 7.6）：券与内推在服务端硬关（带券下单 400、ref 忽略、/api/coupons/* 404），
+   * 这里跟着不拉券、不渲染券区块、不发 ref / couponGrantId——否则每次打开弹窗都是一个 404 请求（W1-9 零 404）。
+   * 主站 features 全开，下面的行为与改造前逐字相同。
+   */
+  const { features } = useStorefront()
+  const couponOn = features.coupon
+  const referralOn = features.referral
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>('')
   const [coupons, setCoupons] = useState<UsableCoupon[]>([])
@@ -95,7 +104,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
    * 复刻就一定会出现「页面显示能减 20、下单却报不可用」这种最伤信任的偏差。
    */
   useEffect(() => {
-    if (!open || !product || !user) {
+    if (!open || !product || !user || !couponOn) {
       setCoupons([])
       setCouponId(null)
       setBaseline(null)
@@ -108,7 +117,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
      * 前端手里那个数不是定价，拿它做任何加减都会和服务端算出不同的结果。
      * 把 ref 交给服务端，由它判定这是不是内推单、并把最终价直接算好返回。
      */
-    const ref = getRef()
+    const ref = referralOn ? getRef() : null
     const qs = new URLSearchParams({ usableOnly: '1', productId: String(product.id), quantity: '1' })
     if (ref) qs.set('ref', ref)
     fetch(`/api/coupons/mine?${qs.toString()}`)
@@ -131,7 +140,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
     return () => {
       alive = false
     }
-  }, [open, product, user])
+  }, [open, product, user, couponOn, referralOn])
 
   useEffect(() => {
     if (open) {
@@ -286,8 +295,8 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
           productId: product.id,
           quantity: 1,
           remark: '支付方式: 支付宝',
-          ref: getRef(),
-          couponGrantId: couponId,
+          ref: referralOn ? getRef() : null,
+          couponGrantId: couponOn ? couponId : null,
           // 勾了才带这一块。服务端据此算税费、存开票草稿，
           // 付款成功后发货与提交开票同时发生（lib/vmq.ts fulfillOrder）
           invoice: wantInvoice

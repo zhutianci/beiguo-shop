@@ -7,9 +7,7 @@ import { prisma } from '@/lib/db'
 import { hasProvider } from '@/lib/redeem/registry'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
-import { generateOrderNo } from '@/lib/utils'
 import { decryptCardContent } from '@/lib/cardkey'
-import { effectiveBasePrice, referralSellUnit } from '@/lib/referral'
 import { countOpenOrderPayments, VMQ_MAX_OPEN_PER_USER, VMQ_TIMEOUT_MIN } from '@/lib/vmq'
 import { rateLimited } from '@/lib/news/rate-limit'
 import { calcInvoiceAmounts } from '@/lib/invoice'
@@ -26,6 +24,17 @@ import { quoteOrder, grantUsable, parseProductIds, rejectReason, type GrantState
 import { invoicesByOrderIds, orderIdFromSourceKey, type InvoiceBrief } from '@/lib/order-link'
 import { createEntryIfEligible, getLotteryConfig, lotteryViewsByOrderIds } from '@/lib/lottery-server'
 import type { BuyerLotteryView } from '@/lib/lottery'
+import { getStorefront, type Storefront } from '@/lib/storefront/resolve'
+import { resolveUnitPrice, siteTag } from '@/lib/pricing'
+import {
+  createShopOrder,
+  readChannelOrderConfig,
+  ShopOrderSnapshotError,
+  type CreatedShopOrder,
+} from '@/lib/order/create-shop-order'
+import { ensureTenantCustomer, isBlockedInTenant } from '@/lib/tenant/customer'
+import { alertPlatform } from '@/lib/tenant/platform-alert'
+import type { NotSellableReason } from '@/lib/tenant/types'
 
 const createOrderSchema = z.object({
   // 必须是正整数：小数/负数原本要一路走到 prisma.order.create（Int 列）才炸，
@@ -65,6 +74,9 @@ const createOrderSchema = z.object({
 
 // 获取用户订单列表（分页 + 服务端筛选/检索）
 export async function GET(request: NextRequest) {
+  // 店面解析不进 try（设计 4.4 第 7 条）：渠道 Host 查库报错必须是 500，不能被 catch 吞掉后按主站继续
+  const sf = await getStorefront()
+  if (!sf) return error('资源不存在', 404)
   try {
     const user = await getCurrentUser()
     if (!user) {
@@ -85,7 +97,8 @@ export async function GET(request: NextRequest) {
       DELIVERED: { deliveryStatus: 'DELIVERED' },
     }
 
-    const base: Prisma.OrderWhereInput = { userId: user.id }
+    // 【只看本店订单】账号两站通用，但订单按交易发生站隔离（设计 8.1、T11）：在 lulu 只见 lulu 的单，主站只见主站的单
+    const base: Prisma.OrderWhereInput = { userId: user.id, tenantId: sf.id }
     const where: Prisma.OrderWhereInput = { ...base }
     if (FILTERS[filter]) Object.assign(where, FILTERS[filter])
     if (keyword) {
@@ -123,6 +136,8 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         paidAt: true,
         deliveredAt: true,
+        // 只用于算 billing.canInvoice（成员自买单不可开票，设计 7.7），下面组装响应时剔除，不下发给买家
+        settleExcludeReason: true,
         product: {
           select: {
             id: true,
@@ -209,8 +224,8 @@ export async function GET(request: NextRequest) {
     const backingExtByOrderId = new Map<number, number>()
     const [invMap, lotteryMap] = await Promise.all([
       paidIds.length ? invoicesByOrderIds(paidIds) : Promise.resolve(new Map<number, InvoiceBrief[]>()),
-      // 抽奖状态查不到只影响红包按钮显示，不能把整张订单列表带挂
-      lotteryViewsByOrderIds(allIds).catch((e) => {
+      // 抽奖状态查不到只影响红包按钮显示，不能把整张订单列表带挂。渠道站抽奖硬关（设计 7.6），不查
+      (sf.kind === 'PLATFORM' ? lotteryViewsByOrderIds(allIds) : Promise.resolve(new Map<number, BuyerLotteryView>())).catch((e) => {
         console.error('[lottery] 订单列表读取抽奖状态失败（不影响订单列表）', e)
         return new Map<number, BuyerLotteryView>()
       }),
@@ -251,8 +266,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const withCards = orders.map((o) => {
+    const withCards = orders.map(({ settleExcludeReason, ...o }) => {
       const paid = o.payStatus === 'PAID'
+      // 渠道成员在自己店里下的单不计余额、也不可开票（设计 7.7）；主站单恒为 null，行为不变
+      const selfBuy = settleExcludeReason != null
       const price = Number(o.amount)
       const pendingTax = o.invoiceTaxFee == null ? 0 : Number(o.invoiceTaxFee)
       const invs = invMap.get(o.id) || []
@@ -309,7 +326,7 @@ export async function GET(request: NextRequest) {
         // 票据信息（仅已支付订单可申请）
         billing: paid
           ? {
-              canInvoice: price > 0 && !voided,
+              canInvoice: price > 0 && !voided && !selfBuy,
               canReceipt: price > 0 && !voided,
               sellingPrice: price,
               invoiceAmount: amt!.invoiceAmount,
@@ -374,11 +391,38 @@ async function releaseLockedCoupon(couponGrantId: number | null) {
     .catch(() => {})
 }
 
+/**
+ * 建单过程中「拒绝这一单」的信号。事务里抛它 → 事务回滚（无半条订单）→ 外层转成对应的 HTTP 响应。
+ * 只在本文件内部用（route.ts 只导出 HTTP handler）。
+ */
+class OrderReject extends Error {
+  constructor(
+    message: string,
+    readonly status = 400,
+  ) {
+    super(message)
+  }
+}
+
+/** 渠道单可售判定失败时给买家的话：不区分原因（进货价、授权、上下架都是站内配置，不该透给买家） */
+const CHANNEL_NOT_SELLABLE = '商品不存在或已下架'
+/** 「售价低于进货价」类原因：正常流程下不该出现（保存售价与调进货价都会拦 / 自动下架），出现即告警平台（设计 8.1 第 6.1 步） */
+const ALERT_REASONS: ReadonlySet<NotSellableReason> = new Set<NotSellableReason>(['BELOW_SUPPLY', 'OUT_OF_RANGE', 'NO_SUPPLY'])
+/** 渠道「本店未付单并发上限」的统计窗口（设计 8.1 第 3 步：createdAt > now − 20min） */
+const PENDING_WINDOW_MS = 20 * 60_000
+
 // 创建订单
 export async function POST(request: NextRequest) {
+  // 店面解析不进 try（设计 4.4 第 7 条）。null = 该 Host 没有店面（严格期未知 Host、域名停用）→ 404
+  const sf = await getStorefront()
+  if (!sf) return error('资源不存在', 404)
   try {
     const user = await getCurrentUser()
     if (!user) {
+      return unauthorized()
+    }
+    // 渠道站上 ADMIN 视为未登录（设计 4.7）。getCurrentUser 已按店面拦截（WP1），这里再挡一道：超管邮箱永不进渠道客户列表
+    if (sf.kind === 'CHANNEL' && user.role === 'ADMIN') {
       return unauthorized()
     }
 
@@ -388,6 +432,8 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       return error(result.error.errors[0].message)
     }
+
+    if (sf.kind === 'CHANNEL') return await createChannelOrder(sf, user, result.data)
 
     const { productId, quantity, remark, ref } = result.data
 
@@ -425,44 +471,32 @@ export async function POST(request: NextRequest) {
       return error('下单过于频繁，请稍后再试', 429)
     }
 
-    // 内推：通过推广人链接下单，使用其「专属价」，差额作为返现归推广人
+    /*
+     * 内推：通过推广人链接下单，使用其「专属价」，差额作为返现归推广人。
+     * 逻辑原样搬进了 lib/pricing.ts 的 resolveUnitPrice（主站分支，全站统一定价入口，设计 7.4），这里只取结果。
+     * 放在同一个位置调用（限流之后、锁券之前），与改造前的查询时机一致；主站下单仍在事务外定价，
+     * 因为券必须在建单前 CAS 锁定，而券后价依赖这里的单价。
+     */
     const base = Number(product.price)
     let unitPrice = base
     let referrerId: number | null = null
     let referralReward: number | null = null
-    if (ref) {
-      const referrer = await prisma.user.findUnique({
-        where: { referralCode: ref },
-        select: { id: true, status: true },
-      })
-      if (referrer && referrer.status === 1 && referrer.id !== user.id) {
-        const rp = await prisma.referralPrice.findUnique({
-          where: { userId_productId: { userId: referrer.id, productId } },
-        })
-        // 返现 = 售卖价 − 我给推广人的基础价
-        const effBase = (await effectiveBasePrice(referrer.id, productId)) ?? base
-        // 专属价默认 = 网站售价（推广人未单独设价时也按网站价卖）；
-        // 专属价低于「当前」基础价（站长保存后又涨了价）→ 按基础价成交、返现为 0（lib/referral.ts referralSellUnit）
-        const sellUnit = referralSellUnit(rp ? Number(rp.price) : null, effBase, base)
-        if (rp && sellUnit !== Number(rp.price)) {
-          console.warn(
-            `[referral] 专属价低于基础价，按基础价成交 referrer=${referrer.id} product=${productId} rp=${rp.price} base=${effBase}`
-          )
-        }
-        unitPrice = sellUnit
-        referrerId = referrer.id
-        const per = Math.max(0, Math.round((sellUnit - effBase) * 100) / 100)
-        // 按分相乘：0.1 × 3 这类浮点乘法会得到 0.30000000000000004，写进 Decimal(10,2) 虽然会被截断，
-        // 但同一个数在内存里（通知、返回值）和库里对不上
-        referralReward = (Math.round(per * 100) * quantity) / 100
-      }
+    const q = await resolveUnitPrice(sf, productId, { ref, buyerId: user.id })
+    // 上面刚确认过商品在售；两次读之间被下架时按下架处理（与改造前「商品不存在或已下架」同一句话）
+    if (!q.sellable || q.kind !== 'PLATFORM') return error('商品不存在或已下架')
+    if (q.referral) {
+      unitPrice = q.unitCents / 100
+      referrerId = q.referral.referrerId
+      // 按分相乘：0.1 × 3 这类浮点乘法会得到 0.30000000000000004，写进 Decimal(10,2) 虽然会被截断，
+      // 但同一个数在内存里（通知、返回值）和库里对不上
+      referralReward = (q.referral.rewardUnitCents * quantity) / 100
     }
 
     /*
      * 开票字段的**纯字段校验**必须赶在优惠券 CAS 抢锁之前做。
      *
-     * 券一旦被 updateMany 置成 LOCKED（下面那段），到 prisma.order.create 之间
-     * 任何一条 return 都会把券永久留在「占用中」—— 只有 order.create 的 catch 里
+     * 券一旦被 updateMany 置成 LOCKED（下面那段），到建单之间
+     * 任何一条 return 都会把券永久留在「占用中」—— 只有建单的 catch 里
      * 有回滚逻辑，兜底则要等 sweepStuckCoupons 的 120 分钟。
      * 而这条路极易触发：税号超过 20 位在前台不一定拦得住，服务端一 return，
      * 买家的券就凭空卡死两小时，他自己解不开，只能来找客服。
@@ -481,7 +515,6 @@ export async function POST(request: NextRequest) {
     }
 
     const referralAmount = Math.round(unitPrice * quantity * 100) / 100
-    const baseAmount = Math.round(base * quantity * 100) / 100
     let amount = referralAmount
 
     /*
@@ -591,31 +624,31 @@ export async function POST(request: NextRequest) {
     // 已下的单）。分两步写的话，「订单建好、资格行没建上」这张单就永远没有抽奖按钮，
     // 而买家是看到活动才下的单。同一事务里要么都有、要么都没有；
     // 资格行建失败 → 订单一起回滚 → 走下面的 catch 把券放回去，买家重新下单即可。
-    let order
+    //
+    // 【建单只经 createShopOrder】全仓唯一允许 order.create 的地方（设计 5.4）。主站单 tenantId=1、不带渠道快照，
+    // 写入的列与改造前逐项相同，另外把买家备注同时写进 buyerRemark（双写过渡）。
+    let order: CreatedShopOrder
     let lotteryEligible = false
     try {
       const created = await prisma.$transaction(async (tx) => {
-        const o = await tx.order.create({
-          data: {
-            orderNo: generateOrderNo(),
-            userId: user.id,
-            productId: product.id,
-            productName: product.name,
-            productPrice: product.price,
-            quantity,
-            // amount 永远是不含税货款。税费单独一列，收银台收 amount + invoiceTaxFee
-            amount,
-            invoiceTaxFee,
-            invoiceInfo,
-            remark,
-            referrerId,
-            // 券胜出时内推返现不再计入：站长定的是「不叠加，取更优的一个」
-            referralReward:
-              couponGrantId === null && referralReward && referralReward > 0 ? referralReward : null,
-            couponGrantId,
-            couponDiscount,
-            originalAmount,
-          },
+        const o = await createShopOrder(tx, {
+          tenantId: sf.id,
+          userId: user.id,
+          productId: product.id,
+          productName: product.name,
+          productPrice: Number(product.price),
+          quantity,
+          // amount 永远是不含税货款。税费单独一列，收银台收 amount + invoiceTaxFee
+          amount,
+          invoiceTaxFee,
+          invoiceInfo,
+          remark: remark ?? null,
+          referrerId,
+          // 券胜出时内推返现不再计入：站长定的是「不叠加，取更优的一个」
+          referralReward: couponGrantId === null && referralReward && referralReward > 0 ? referralReward : null,
+          couponGrantId,
+          couponDiscount,
+          originalAmount,
         })
         // 门槛按不含税货款（amount）算：6% 税费是代收的，不是买家在本站的消费
         const eligible = await createEntryIfEligible(tx, lotteryCfg, {
@@ -650,16 +683,7 @@ export async function POST(request: NextRequest) {
         .catch(() => {})
     }
 
-    // 抬头档案的副作用。建单已经成功了，这里出任何问题都只记日志：
-    // 「抬头没存上」远不如「下单失败」严重，不能让它把订单一起带走。
-    if (invoiceIn && invoiceFields) {
-      try {
-        await touchInvoiceTitle(user.id, invoiceIn.titleId)
-        if (invoiceIn.saveTitle) await saveInvoiceTitle(user.id, invoiceFields)
-      } catch (e) {
-        console.error('[invoice-title] 下单时保存抬头失败（不影响订单）', e)
-      }
-    }
+    await saveTitleSideEffects(user.id, invoiceIn, invoiceFields)
 
     // 企业微信通知（fire-and-forget，不 await，通知挂了不能影响下单）
     notifyOrderCreated({
@@ -674,34 +698,249 @@ export async function POST(request: NextRequest) {
 
     // 销量在支付完成后再增加。
     // payable 是收银台真正会收的数（货款 + 开票税费），前台据此显示「应付」
-    //
-    // 【order 只回白名单字段，不要改回整行】整行里有 referrerId / referralReward
-    // 这类内部成本口径（GET 那边的显式 select 是同一个理由），以后 Order 再加成本列，
-    // 整行序列化会默认把它发给买家且不报错。目前唯一的消费方 purchase-modal 只读 order.orderNo。
-    return success(
-      {
-        order: {
-          id: order.id,
-          orderNo: order.orderNo,
-          productId: order.productId,
-          productName: order.productName,
-          quantity: order.quantity,
-          amount: Number(order.amount),
-          invoiceTaxFee,
-          payStatus: order.payStatus,
-          deliveryStatus: order.deliveryStatus,
-          createdAt: order.createdAt,
-        },
-        couponNote,
-        invoiceTaxFee,
-        payable: Math.round((amount + (invoiceTaxFee ?? 0)) * 100) / 100,
-        /** 这一单有没有「下单有奖」资格（付款后在订单页抽） */
-        lotteryEligible,
-      },
-      couponNote || '订单创建成功'
-    )
+    return orderCreatedResponse(order, {
+      productId: product.id,
+      productName: product.name,
+      quantity,
+      amount,
+      invoiceTaxFee,
+      couponNote,
+      lotteryEligible,
+    })
   } catch (err) {
+    if (err instanceof OrderReject) return error(err.message, err.status)
     console.error('Create order error:', err)
     return error('创建订单失败')
   }
+}
+
+/**
+ * 抬头档案的副作用。建单已经成功了，这里出任何问题都只记日志：
+ * 「抬头没存上」远不如「下单失败」严重，不能让它把订单一起带走。
+ */
+async function saveTitleSideEffects(
+  userId: number,
+  invoiceIn: z.infer<typeof createOrderSchema>['invoice'],
+  invoiceFields: ReturnType<typeof normalizeInvoiceFields> | null,
+): Promise<void> {
+  if (!invoiceIn || !invoiceFields) return
+  try {
+    await touchInvoiceTitle(userId, invoiceIn.titleId)
+    if (invoiceIn.saveTitle) await saveInvoiceTitle(userId, invoiceFields)
+  } catch (e) {
+    console.error('[invoice-title] 下单时保存抬头失败（不影响订单）', e)
+  }
+}
+
+/**
+ * 【order 只回白名单字段，不要改回整行】整行里有 referrerId / referralReward 这类内部成本口径，
+ * 渠道单还有进货价、费率快照（设计 6.3「买家响应一律不含 tenantId、shopOrderId 等新列」）。
+ * 目前唯一的消费方 purchase-modal 只读 order.orderNo。两站响应形状相同。
+ */
+function orderCreatedResponse(
+  order: CreatedShopOrder,
+  a: {
+    productId: number
+    productName: string
+    quantity: number
+    amount: number
+    invoiceTaxFee: number | null
+    couponNote: string | null
+    lotteryEligible: boolean
+  },
+) {
+  return success(
+    {
+      order: {
+        id: order.id,
+        orderNo: order.orderNo,
+        productId: a.productId,
+        productName: a.productName,
+        quantity: a.quantity,
+        amount: a.amount,
+        invoiceTaxFee: a.invoiceTaxFee,
+        payStatus: order.payStatus,
+        deliveryStatus: order.deliveryStatus,
+        createdAt: order.createdAt,
+      },
+      couponNote: a.couponNote,
+      invoiceTaxFee: a.invoiceTaxFee,
+      payable: Math.round((a.amount + (a.invoiceTaxFee ?? 0)) * 100) / 100,
+      /** 这一单有没有「下单有奖」资格（付款后在订单页抽） */
+      lotteryEligible: a.lotteryEligible,
+    },
+    a.couponNote || '订单创建成功'
+  )
+}
+
+type Buyer = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
+
+/**
+ * 渠道站下单（设计 8.1 步骤 1–7）。与主站分支完全分开写：主站那条的每一行都没动。
+ *
+ * 顺序（所有可能失败的检查都在事务前；渠道单没有券，所以没有「锁券之后不能 return」的约束）：
+ *   1. 店面状态：DRAFT 只放行预览账号（其余 404）；SUSPENDED / TERMINATED 拒绝新下单（已下单的收银台照常可付）
+ *   3. 数量 ≤ Tenant.maxOrderQty；本店 20 分钟内未付单 < pendingOrderCap；另沿用主站的每人待付上限与下单频率
+ *   4. 本站拉黑 → 中性文案
+ *   5. 带券 → 400；ref 忽略；其余未知字段已被 zod 丢弃（没有余额支付字段，也就无从「选择余额支付」）
+ *   6. 事务（全程只用 tx，Dujiao #271）：定价与可售 → 库存预检 → 成员自买判定 → 金额 → 读费率与冻结期
+ *      → 快照断言（createShopOrder 内）→ 建单 → 客户关系（via ORDER）
+ *   7. 平台企业微信照发并打「[code]」标签；渠道站内通知不在建单时发（付款时由 WP3 发 ORDER_PAID）
+ * 不建抽奖资格；不存券；内推字段恒空。
+ */
+async function createChannelOrder(sf: Storefront, user: Buyer, input: z.infer<typeof createOrderSchema>): Promise<Response> {
+  const { productId, quantity, remark } = input
+
+  // 1. 店面状态（sf.status 是本请求开始时按主键查库的值；事务里 resolveUnitPrice 会再按最新状态判一次）
+  const t = await prisma.tenant.findUnique({
+    where: { id: sf.id },
+    select: { status: true, previewUserIds: true, maxOrderQty: true, pendingOrderCap: true },
+  })
+  if (!t) return error('资源不存在', 404)
+  if (t.status === 'DRAFT') {
+    const preview = Array.isArray(t.previewUserIds) && t.previewUserIds.some((x) => x === user.id)
+    // DRAFT 店面对非预览账号「不存在」（与前台外壳的 404 同一口径，设计 4.4、T16）
+    if (!preview) return error('资源不存在', 404)
+  } else if (t.status !== 'ACTIVE') {
+    return error('本店暂停营业，暂不接受新订单', 403)
+  }
+
+  // 3. 风控：单笔数量与本店未付单并发上限（防一个店把全站共用的唯一金额槽占满，设计 5.1）
+  if (quantity > t.maxOrderQty) return error(`本店单次最多购买 ${t.maxOrderQty} 件`)
+  const pending = await prisma.order.count({
+    where: { tenantId: sf.id, payStatus: 'UNPAID', createdAt: { gt: new Date(Date.now() - PENDING_WINDOW_MS) } },
+  })
+  if (pending >= t.pendingOrderCap) return error('当前下单人数较多，请稍后再试', 429)
+  if ((await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) {
+    return error(
+      `你已有 ${VMQ_MAX_OPEN_PER_USER} 笔订单在等待付款，请先在「我的订单」完成支付，或等其超时（约 ${VMQ_TIMEOUT_MIN} 分钟）后再下单`,
+      429
+    )
+  }
+  if (rateLimited(`order-create:${user.id}`, { windowMs: 10 * 60_000, max: 20 })) {
+    return error('下单过于频繁，请稍后再试', 429)
+  }
+
+  // 4. 本站拉黑（渠道或平台设的都算；只影响本店新下单，取卡、留言照常，T14）。文案中性，不说「被拉黑」
+  if (await isBlockedInTenant(prisma, sf.id, user.id)) {
+    return error('该账号暂无法在本站下单，请联系客服', 403)
+  }
+
+  // 5. 渠道站营销硬关：带券明确拒绝（400，不静默忽略，便于发现客户端 bug）；ref 不读
+  if (input.couponGrantId) return error('本站不支持优惠券')
+
+  // 开票字段的纯字段校验（与主站同一套规则）
+  const invoiceIn = input.invoice
+  let invoiceFields: ReturnType<typeof normalizeInvoiceFields> | null = null
+  if (invoiceIn) {
+    try {
+      invoiceFields = normalizeInvoiceFields(invoiceIn)
+    } catch (e) {
+      if (e instanceof BillingError) return error(e.message, e.status)
+      throw e
+    }
+  }
+
+  let alert = null as string | null
+  let created: { order: CreatedShopOrder; productName: string; stock: number; amount: number; invoiceTaxFee: number | null }
+  try {
+    created = await prisma.$transaction(async (tx) => {
+      // 6.1 定价与可售（同一个 tx 读 listing / product / tenant）
+      const q = await resolveUnitPrice(sf, productId, { buyerId: user.id, db: tx, previewUserId: user.id })
+      if (!q.sellable) {
+        if (ALERT_REASONS.has(q.reason)) alert = `[渠道下单] ${sf.code} 商品 ${productId} 不可售：${q.reason}（上架行配置异常，请核对进货价与售价）`
+        throw new OrderReject(q.reason === 'TENANT_INACTIVE' ? '本店暂停营业，暂不接受新订单' : CHANNEL_NOT_SELLABLE, q.reason === 'TENANT_INACTIVE' ? 403 : 400)
+      }
+      if (q.kind !== 'CHANNEL') throw new Error('[orders] 渠道店面得到了主站报价')
+
+      // 6.2 库存预检（现有逻辑：只预检不预占，设计 7.5）
+      const product = await tx.product.findUnique({ where: { id: productId }, select: { name: true, stock: true } })
+      if (!product) throw new OrderReject(CHANNEL_NOT_SELLABLE)
+      if (product.stock !== -1 && product.stock < quantity) throw new OrderReject('库存不足')
+
+      // 6.3 成员自买（设计 7.7）：不计余额（付款时 EXCLUDED），且不可开票
+      const member = await tx.tenantMember.findUnique({
+        where: { tenantId_userId: { tenantId: sf.id, userId: user.id } },
+        select: { status: true },
+      })
+      const selfBuy = member?.status === 1
+      if (selfBuy && invoiceFields) throw new OrderReject('本店成员在本店下单不支持开具发票')
+
+      // 6.4 金额：按售价成交，券与内推都不参与（quoteOrder 渠道分支，与结算弹窗同一口径）
+      const quote = quoteOrder({ productId, listPrice: 0, quantity, referralUnitPrice: null, rule: null, channelUnitCents: q.unitCents })
+      const amount = quote.amount
+      let invoiceTaxFee: number | null = null
+      let invoiceInfo: string | null = null
+      if (invoiceFields) {
+        const { taxFee } = calcInvoiceAmounts(amount)
+        if (taxFee <= 0) throw new OrderReject('该订单金额无法开具发票')
+        invoiceTaxFee = taxFee
+        invoiceInfo = JSON.stringify({ ...invoiceFields, taxFee })
+      }
+
+      // 6.5 此刻的费率与冻结期（同一个 tx；读不到整单回滚）
+      const cfg = await readChannelOrderConfig(tx, sf.id)
+
+      // 6.6 + 6.7 快照断言在 createShopOrder 里做，任何一条不满足抛 ShopOrderSnapshotError
+      const order = await createShopOrder(tx, {
+        tenantId: sf.id,
+        userId: user.id,
+        productId,
+        productName: product.name,
+        productPrice: q.unitCents / 100,
+        quantity,
+        amount,
+        invoiceTaxFee,
+        invoiceInfo,
+        remark: remark ?? null,
+        channel: {
+          listingId: q.listingId,
+          supplyUnitCents: q.supplyUnitCents,
+          supplyCents: q.supplyUnitCents * quantity,
+          feeRateBp: cfg.feeRateBp,
+          invoiceShareRateBp: cfg.invoiceShareRateBp,
+          settleHoldDays: cfg.holdDays,
+          mainPriceCents: q.mainPriceCents,
+          settleExcludeReason: selfBuy ? 'SELF' : null,
+        },
+      })
+
+      // 6.8 站点客户关系（设计 5.5：渠道 Host 建单时写，同一事务）
+      await ensureTenantCustomer(tx, { tenantId: sf.id, userId: user.id, via: 'ORDER' })
+      return { order, productName: product.name, stock: product.stock, amount, invoiceTaxFee }
+    })
+  } catch (e) {
+    if (alert) void alertPlatform(alert)
+    if (e instanceof OrderReject) return error(e.message, e.status)
+    if (e instanceof ShopOrderSnapshotError) {
+      // 快照不完整只可能是 bug：拒单 + 告警（设计 5.4）
+      void alertPlatform(`[渠道下单] ${sf.code} 快照断言失败，已拒单：${e.message}`)
+      console.error(e)
+      return error('创建订单失败，请稍后再试')
+    }
+    throw e
+  }
+
+  await saveTitleSideEffects(user.id, invoiceIn, invoiceFields)
+
+  // 7. 平台企业微信照发，打「[code]」标签（通知挂了不影响下单）
+  notifyOrderCreated({
+    orderNo: created.order.orderNo,
+    buyer: user.nickname || user.email || `用户#${user.id}`,
+    productName: `${siteTag(sf)}${created.productName}`,
+    quantity,
+    amount: created.amount,
+    createdAt: created.order.createdAt,
+    stock: created.stock,
+  })
+
+  return orderCreatedResponse(created.order, {
+    productId,
+    productName: created.productName,
+    quantity,
+    amount: created.amount,
+    invoiceTaxFee: created.invoiceTaxFee,
+    couponNote: null,
+    lotteryEligible: false,
+  })
 }

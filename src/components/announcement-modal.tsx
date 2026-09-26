@@ -1,5 +1,6 @@
 'use client'
 
+import { useStorefront } from '@/components/storefront-provider'
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Megaphone, AlertTriangle, PartyPopper, X } from 'lucide-react'
@@ -79,7 +80,7 @@ function renderContent(text: string) {
   )
 }
 
-export function AnnouncementModal() {
+function AnnouncementModalInner() {
   const [data, setData] = useState<Announcement | null>(null)
   const [open, setOpen] = useState(false)
 
@@ -176,4 +177,15 @@ export function AnnouncementModal() {
       )}
     </AnimatePresence>
   )
+}
+
+/**
+ * 渠道分站（实施分包 WP1）：公告在渠道站关闭（设计 11.1：公告常含主站券与活动）。
+ * 只控制显示；对应接口在渠道 Host 上服务端 404（denyOnChannel）。组件本体改名为 AnnouncementModalInner、原样不动，
+ * 由这层按店面决定挂不挂：不渲染就不会发出任何请求（验收 W1-9：渠道站页面零 404 请求）。主站恒为渲染，行为不变。
+ */
+export function AnnouncementModal() {
+  const { features } = useStorefront()
+  if (!(features.announcement)) return null
+  return <AnnouncementModalInner />
 }

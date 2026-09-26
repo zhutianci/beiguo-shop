@@ -5,12 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Package, ShoppingCart, Users, DollarSign } from 'lucide-react'
 import OrderAnalytics from '@/components/admin/order-analytics'
 import CardKeyAnalytics from '@/components/admin/cardkey-analytics'
+import { SourceBadge, type SourceSite } from '@/components/admin/source-site'
 
 interface Stats {
   totalUsers: number
   totalProducts: number
   totalOrders: number
   totalRevenue: number
+  /** 按来源站拆分（设计 12.2、4.10 ④）：口径同 totalRevenue（已付且未取消），各项之和 = totalRevenue */
+  mainRevenue?: number
+  channelRevenue?: number
+  revenueBySite?: Array<SourceSite & { revenue: number; orders: number }>
   recentOrders: Array<{
     id: number
     orderNo: string
@@ -19,6 +24,7 @@ interface Stats {
     payStatus: string
     deliveryStatus: string
     createdAt: string
+    source?: SourceSite
     user: { email: string | null; nickname: string | null }
   }>
 }
@@ -49,12 +55,22 @@ export default function AdminDashboard() {
       .finally(() => setLoading(false))
   }, [])
 
-  const statCards = [
+  // 有渠道销售额时才在「总收入」下分列主站 / 渠道（休眠期只有主站，卡片与原来一样）
+  const channelSites = (stats?.revenueBySite ?? []).filter((s) => s.tenantId !== 1)
+  const revenueNote =
+    stats && channelSites.length
+      ? `主站 ¥${(stats.mainRevenue ?? 0).toFixed(2)} · 渠道 ¥${(stats.channelRevenue ?? 0).toFixed(2)}（${channelSites
+          .map((s) => `${s.code} ¥${s.revenue.toFixed(2)}`)
+          .join('，')}）`
+      : null
+
+  const statCards: { title: string; value: string | number; icon: typeof DollarSign; color: string; note?: string | null }[] = [
     {
       title: '总收入',
       value: stats ? `¥${stats.totalRevenue.toFixed(2)}` : '--',
       icon: DollarSign,
       color: 'bg-green-500',
+      note: revenueNote,
     },
     {
       title: '总订单',
@@ -88,6 +104,7 @@ export default function AdminDashboard() {
                   <p className="mt-1 text-2xl font-bold text-gray-900">
                     {loading ? '加载中...' : stat.value}
                   </p>
+                  {stat.note && <p className="mt-1 text-xs text-gray-500">{stat.note}</p>}
                 </div>
                 <div className={`rounded-lg ${stat.color} p-3`}>
                   <stat.icon className="h-6 w-6 text-white" />
@@ -135,6 +152,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="border-b border-gray-100 text-left text-sm text-gray-500">
                     <th className="pb-3 font-medium">订单号</th>
+                    <th className="pb-3 font-medium">来源站</th>
                     <th className="pb-3 font-medium">用户</th>
                     <th className="pb-3 font-medium">商品</th>
                     <th className="pb-3 font-medium">金额</th>
@@ -147,6 +165,9 @@ export default function AdminDashboard() {
                   {stats.recentOrders.map((order) => (
                     <tr key={order.id} className="border-b border-gray-50">
                       <td className="py-3 font-medium text-gray-900">{order.orderNo}</td>
+                      <td className="py-3">
+                        <SourceBadge source={order.source ?? { tenantId: 1, code: 'main' }} />
+                      </td>
                       <td className="py-3 text-gray-600">{order.user.nickname || order.user.email}</td>
                       <td className="py-3 text-gray-600">{order.productName}</td>
                       <td className="py-3 text-gray-900">¥{Number(order.amount).toFixed(2)}</td>

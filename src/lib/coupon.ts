@@ -64,6 +64,8 @@ export type CouponReject =
   /** 这是一张内推单，按规则券整体不可用。与 NO_DISCOUNT 要分开：
    *  券本身完全正常，只是这一单不让用，文案必须能解释清楚 */
   | 'REFERRAL_ORDER'
+  /** 渠道站的订单：渠道站营销全关（设计 7.6，服务端硬关），券一律不可用 */
+  | 'CHANNEL_ORDER'
 
 export interface CouponCalc {
   /** 能不能用 */
@@ -87,6 +89,8 @@ export function rejectReason(r: CouponReject): string {
       return '该券在这一单上抵扣不了金额'
     case 'REFERRAL_ORDER':
       return '通过推广链接下单已享专属价，本单不叠加优惠券'
+    case 'CHANNEL_ORDER':
+      return '本站不支持优惠券'
   }
 }
 
@@ -143,6 +147,11 @@ export interface QuoteInput {
   /** 推广专属价单价；没有内推时传 null */
   referralUnitPrice: number | null
   rule: CouponRule | null
+  /**
+   * 渠道站售价（分 / 件）。非空 = 这是渠道站的订单：按售价成交、discount 恒 0、任何券都拒绝（设计 7.4、7.6）。
+   * 渠道站忽略内推，所以与 referralUnitPrice 同时出现时以它为准。主站调用方不传，行为与改造前逐字相同。
+   */
+  channelUnitCents?: number | null
 }
 
 export interface Quote {
@@ -151,7 +160,7 @@ export interface Quote {
   /** 用券后实付；券不适用时等于 baseline */
   amount: number
   discount: number
-  applied: 'coupon' | 'referral' | 'none'
+  applied: 'coupon' | 'referral' | 'none' | 'channel'
   /** 券为什么没用上；用上了则为 null */
   reject: CouponReject | null
 }
@@ -173,6 +182,15 @@ export interface Quote {
  * 少一个分支，就少一处能对不上的地方。
  */
 export function quoteOrder(input: QuoteInput): Quote {
+  // ⓪ 渠道站：售价说了算，券与内推都不参与（服务端硬关，设计 7.6）。放在最前面，主站的两条规则一字不动
+  if (input.channelUnitCents != null) {
+    if (!Number.isSafeInteger(input.channelUnitCents) || input.channelUnitCents <= 0) {
+      throw new Error(`[coupon] 渠道售价非法：${String(input.channelUnitCents)}`)
+    }
+    const channelAmount = yuan(input.channelUnitCents * input.quantity)
+    return { baseline: channelAmount, amount: channelAmount, discount: 0, applied: 'channel', reject: input.rule ? 'CHANNEL_ORDER' : null }
+  }
+
   const baseAmount = yuan(cents(input.listPrice) * input.quantity)
 
   // ① 内推单：专属价说了算，无论它比定价高还是低；券一律不参与

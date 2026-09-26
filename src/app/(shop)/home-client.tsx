@@ -10,6 +10,7 @@ import { Typewriter } from '@/components/typewriter'
 import { MouseSpotlight } from '@/components/mouse-spotlight'
 import { CountUp } from '@/components/count-up'
 import { NewsHotSection } from '@/components/news-hot-section'
+import { useStorefront } from '@/components/storefront-provider'
 import { ipToolGroups, ipToolCount } from '@/lib/iptools'
 import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
 
@@ -74,6 +75,13 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
   const y = useTransform(scrollYProgress, [0, 1], ['0%', '50%'])
   const [products, setProducts] = useState<Product[]>([])
   const [lookupEmail, setLookupEmail] = useState('')
+  /*
+   * 渠道分站（设计 11.2、实施分包 WP1）：渠道站首页不渲染已关闭模块的入口——订阅查询（/lookup）、
+   * AI 圈热点（/api/news/hot）、IP 工具（/iptools）。这些在渠道 Host 上服务端 404，留着入口就会产生 404 请求
+   * （next/link 视口预取、组件自己的 fetch；验收 W1-9）。主站 features 全开，渲染结果不变。
+   * 命名为 sfFeatures：本组件里的 features 已是「三个卖点」数组。
+   */
+  const { features: sfFeatures } = useStorefront()
 
   const handleLookup = (e: React.FormEvent) => {
     e.preventDefault()
@@ -212,7 +220,8 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
               </Link>
             </motion.div>
 
-            {/* 订单查询入口 */}
+            {/* 订单查询入口（凭邮箱查订阅：渠道站关闭，设计 11.1 Q16） */}
+            {sfFeatures.lookup && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -245,6 +254,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
                 </div>
               </form>
             </motion.div>
+            )}
 
             {/* 三个卖点：手机端换行紧排，桌面端拉开间距并整体放大一档，
                 让这一排在 1920 宽屏里成为 hero 的「底座」，而不是缩在中间的一行小字 */}
@@ -368,9 +378,10 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
       </section>
 
       {/* AI 圈今日热点：内部固定高度 skeleton 占位；接口失败或暂无内容整块静默隐藏，不影响卖货主线 */}
-      <NewsHotSection />
+      {sfFeatures.news && <NewsHotSection />}
 
-      {/* IP 工具入口 */}
+      {/* IP 工具入口（渠道站关闭） */}
+      {sfFeatures.iptools && (
       <section className="relative py-24">
         <div className="absolute inset-0 grid-bg opacity-30" />
         <div className="absolute top-0 left-1/3 w-[500px] h-[300px] bg-cyan-500/15 rounded-full blur-[128px]" />
@@ -424,6 +435,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
           </motion.div>
         </div>
       </section>
+      )}
 
       <section className="py-20 border-t border-white/5">
         <div className="container">

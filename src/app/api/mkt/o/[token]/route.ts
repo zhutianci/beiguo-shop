@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { TRANSPARENT_GIF, recordOpen } from '@/lib/marketing/tracking'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 营销邮件打开像素：GET /api/mkt/o/<trackToken>。永远回 1×1 透明 GIF。
@@ -30,6 +31,9 @@ function gifHeaders(): Record<string, string> {
 }
 
 export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     await recordOpen(String(params.token || ''), request.headers.get('user-agent'))
   } catch (err) {
@@ -39,5 +43,8 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
 }
 
 export async function HEAD() {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   return new NextResponse(null, { status: 200, headers: gifHeaders() })
 }

@@ -6,9 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, ExternalLink, Trash2, Plus, GripVertical, X, FilePlus } from 'lucide-react'
 import { rmbCapital } from '@/lib/rmb'
+import { SourceBadge, SourceFilter, appendSourceParam, type SiteOption, type SourceSite } from '@/components/admin/source-site'
 
 interface Receipt {
   id: number
+  /** 来源站（设计 12.2）：source 列已被「买家提交 / 手动开具」占用，所以接口把来源站放在 site */
+  site?: SourceSite
   receiptNo: string
   token: string | null
   source: string
@@ -61,6 +64,9 @@ export default function AdminReceiptsPage() {
   const [keyword, setKeyword] = useState('')
   const [debounced, setDebounced] = useState('')
   const [source, setSource] = useState('')
+  // 来源站筛选：'' = 全部（休眠期下拉里只有「主站」，列表与原来一致）
+  const [site, setSite] = useState('')
+  const [sites, setSites] = useState<SiteOption[] | null>(null)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [showDiy, setShowDiy] = useState(false)
@@ -81,6 +87,7 @@ export default function AdminReceiptsPage() {
       const q = new URLSearchParams({ page: String(page), pageSize: '20' })
       if (debounced) q.set('keyword', debounced)
       if (source) q.set('source', source)
+      appendSourceParam(q, site)
       const res = await fetch(`/api/admin/receipts?${q}`, { signal: ac.signal })
       const data = await res.json()
       if (ac.signal.aborted) return
@@ -89,13 +96,14 @@ export default function AdminReceiptsPage() {
         setTotal(data.data.total)
         setTotalPages(data.data.totalPages || 1)
         setStats(data.data.stats)
+        if (data.data.sites) setSites(data.data.sites)
       }
     } catch (e) {
       if ((e as Error).name !== 'AbortError') console.error(e)
     } finally {
       if (!ac.signal.aborted) setLoading(false)
     }
-  }, [page, debounced, source])
+  }, [page, debounced, source, site])
 
   useEffect(() => {
     load()
@@ -104,7 +112,7 @@ export default function AdminReceiptsPage() {
   // 筛选变更回到第 1 页，避免筛完停在空白页
   useEffect(() => {
     setPage(1)
-  }, [debounced, source])
+  }, [debounced, source, site])
 
   const del = async (id: number) => {
     if (!confirm('删除该收据？买家提交的删除后可重新申请生成。')) return
@@ -150,6 +158,12 @@ export default function AdminReceiptsPage() {
               <option value="BUYER">买家提交</option>
               <option value="MANUAL">手动开具</option>
             </select>
+            <SourceFilter
+              value={site}
+              onChange={setSite}
+              options={sites}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+            />
           </div>
 
           {loading ? (
@@ -164,6 +178,7 @@ export default function AdminReceiptsPage() {
                     <tr className="border-b text-left text-gray-500 text-xs">
                       <th className="pb-2 pr-3">收据号</th>
                       <th className="pb-2 pr-3">来源</th>
+                      <th className="pb-2 pr-3">来源站</th>
                       <th className="pb-2 pr-3">付款人(抬头)</th>
                       <th className="pb-2 pr-3">账户</th>
                       <th className="pb-2 pr-3">项目</th>
@@ -180,6 +195,9 @@ export default function AdminReceiptsPage() {
                           <td className="py-2 pr-3 font-mono text-xs">{r.receiptNo}</td>
                           <td className="py-2 pr-3">
                             <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs ${s.cls}`}>{s.label}</span>
+                          </td>
+                          <td className="py-2 pr-3">
+                            <SourceBadge source={r.site ?? { tenantId: 1, code: 'main' }} />
                           </td>
                           <td className="py-2 pr-3 font-medium">{r.payerTitle}</td>
                           <td className="py-2 pr-3 font-mono text-xs">{r.claudeAccount || '—'}</td>

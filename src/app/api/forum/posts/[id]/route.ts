@@ -7,9 +7,13 @@ import { success, error } from '@/lib/api'
 import { renderMarkdown } from '@/lib/markdown'
 import { resolveActor, normalizeTags, memberDisplayName } from '@/lib/forum'
 import { forumViewCounted } from '@/lib/forum-throttle'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 // 帖子详情（浏览量去重 +1，返回渲染后的 HTML 与点赞状态）
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -91,6 +95,9 @@ const patchSchema = z.object({
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -133,6 +140,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

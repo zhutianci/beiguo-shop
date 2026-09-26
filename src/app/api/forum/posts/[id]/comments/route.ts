@@ -6,10 +6,14 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { resolveActor, memberDisplayName } from '@/lib/forum'
 import { forumWriteGate } from '@/lib/forum-throttle'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 // 评论列表（楼中楼，两层结构）
 // 顶层评论分页，楼中楼回复跟随其父评论一起返回（不单独分页）
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -108,6 +112,9 @@ const createSchema = z.object({
 })
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

@@ -318,6 +318,18 @@ export async function shopOrdersForInvoices(
  * 只能靠 sourceKey 快照找到的孤儿发票：待付税费的那种已经付不了，不拦；已付 / 已提交 / 已开具的照拦。
  */
 export async function crossRowInvoiceBlock(shopOrderId: number, currentExtId: number | null): Promise<string | null> {
+  /*
+   * 【跨站合并拒绝】（渠道分站，设计 9.3）要开票的这一行必须与订单同一个来源站：把 zz 的订单挂到 lulu 的行上开票，
+   * 等于让 lulu 的发票里出现别的渠道的钱。建票时 billingTenantFields 也会拒绝，这里提前给出文案。
+   * 主站存量数据两边都是 1，不受影响。
+   */
+  if (currentExtId != null) {
+    const [ext, ord] = await Promise.all([
+      prisma.externalOrder.findUnique({ where: { id: currentExtId }, select: { tenantId: true } }),
+      prisma.order.findUnique({ where: { id: shopOrderId }, select: { tenantId: true } }),
+    ])
+    if (ext && ord && ext.tenantId !== ord.tenantId) return '该订单不属于本站，不能合并开具发票'
+  }
   const others = (await invoicesForOrder(shopOrderId)).filter((iv) => iv.externalOrderId == null || iv.externalOrderId !== currentExtId)
   if (others.some((iv) => iv.status === 'SUBMITTED' || iv.status === 'ISSUED')) return '该订单已提交过发票申请，请勿重复提交'
   if (others.some((iv) => iv.payStatus === 'PAID')) return '该订单的发票税费已支付，请勿重复提交；如需修改发票信息请联系客服'

@@ -1,26 +1,35 @@
 export const dynamic = 'force-dynamic'
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { requireAdmin } from '@/lib/auth'
 import { calcInvoiceAmounts, genInvoiceNo } from '@/lib/invoice'
 import { isPrepaidShopOrder, shopOrderIdOf } from '@/lib/admin-invoice-row'
+import { billingFieldsOrThrow, BillingError } from '@/lib/order-invoice'
+import {
+  adminOrResponse,
+  taxRefundSchema,
+  channelInvoiceLink,
+  needsTaxDecision,
+  applyInvoiceTaxDecision,
+  TaxDecisionError,
+} from '@/lib/admin/source-site'
 
 const schema = z.object({
   status: z.enum(['UNAPPLIED', 'AWAIT_PAY', 'SUBMITTED', 'ISSUED', 'CANNOT']),
+  /** 渠道单发票改 CANNOT / ISSUED → SUBMITTED 时必带（设计 8.4；与 admin/invoices/[id] 的 PATCH 同一口径） */
+  taxRefund: taxRefundSchema.optional(),
 })
+
+class InvoiceStateChanged extends Error {}
 
 // 管理员按「订单」直接设置发票状态（订单导入页 / 发票管理页通用）
 // 无发票记录时按需创建；置为 UNAPPLIED 时删除记录还原默认态
-// 两个 handler 都在 middleware 之外再验一次管理员（CVE-2025-29927：middleware 可被整个跳过）
+// 两个 handler 都在 middleware 之外再验一次管理员（CVE-2025-29927：middleware 可被整个跳过）；渠道 Host → 404
 export async function PUT(request: NextRequest, { params }: { params: { externalOrderId: string } }) {
-  try {
-    await requireAdmin()
-  } catch {
-    return error('无管理员权限', 403)
-  }
+  const auth = await adminOrResponse()
+  if ('res' in auth) return auth.res
 
   try {
     const externalOrderId = parseInt(params.externalOrderId)
@@ -73,17 +82,48 @@ export async function PUT(request: NextRequest, { params }: { params: { external
         : { sellingPrice: quote, ...calcInvoiceAmounts(quote) }
 
     if (existing) {
-      const updated = await prisma.invoice.update({
-        where: { id: existing.id },
-        data: {
-          status,
-          ...(status === 'ISSUED' ? { issuedAt: new Date() } : {}),
-          ...(status === 'SUBMITTED' && !existing.submittedAt ? { submittedAt: new Date() } : {}),
-        },
+      const data = {
+        status,
+        ...(status === 'ISSUED' ? { issuedAt: new Date() } : {}),
+        ...(status === 'SUBMITTED' && !existing.submittedAt ? { submittedAt: new Date() } : {}),
+      }
+      /*
+       * 【渠道单发票与账本联动】（设计 8.4 末段）改 CANNOT、或 ISSUED 撤回 SUBMITTED，而税费已经收了：
+       * 必须带 taxRefund（退税费 → 同一事务 applyRefund；保留 → 写审计），缺 → 400。主站票据走原来的单条更新。
+       */
+      const link = await channelInvoiceLink(existing.id)
+      const needDecision = !!link && needsTaxDecision(existing, status)
+      if (needDecision && !parsed.data.taxRefund) {
+        return NextResponse.json(
+          { success: false, error: '渠道订单的发票：请选择退还税费（填写金额）或保留税费（填写原因）', code: 'TAX_DECISION_REQUIRED' },
+          { status: 400 },
+        )
+      }
+      if (!needDecision) {
+        const updated = await prisma.invoice.update({ where: { id: existing.id }, data })
+        return success({ status: updated.status }, '发票状态已更新')
+      }
+      await prisma.$transaction(async (tx) => {
+        const c = await tx.invoice.updateMany({ where: { id: existing.id, status: existing.status }, data })
+        if (c.count !== 1) throw new InvoiceStateChanged()
+        await applyInvoiceTaxDecision(tx, {
+          link: link!,
+          invoiceNo: existing.invoiceNo,
+          from: existing.status,
+          to: status,
+          decision: parsed.data.taxRefund!,
+          operatorId: auth.user.id,
+          req: request,
+        })
       })
-      return success({ status: updated.status }, '发票状态已更新')
+      return success({ status }, '发票状态已更新')
     }
 
+    /*
+     * 凭空建票：来源站两列统一经 billingTenantFields 取（设计 5.5「全部写入点」、边界检查第 12 条）——
+     * 外部订单行指回的站内订单是哪个站，发票就属于哪个站；跨站合并（行与订单不同站）→ 409，绝不按任何一边建票。
+     */
+    const billing = await billingFieldsOrThrow(order.id)
     const created = await prisma.invoice.create({
       data: {
         invoiceNo: genInvoiceNo(),
@@ -98,12 +138,17 @@ export async function PUT(request: NextRequest, { params }: { params: { external
         taxFee: amounts.taxFee,
         status,
         payStatus: 'UNPAID',
+        tenantId: billing.tenantId,
+        shopOrderId: billing.shopOrderId,
         ...(status === 'ISSUED' ? { issuedAt: new Date() } : {}),
         ...(status === 'SUBMITTED' ? { submittedAt: new Date() } : {}),
       },
     })
     return success({ status: created.status }, '发票状态已更新')
   } catch (err) {
+    if (err instanceof BillingError) return error(err.message, err.status)
+    if (err instanceof InvoiceStateChanged) return NextResponse.json({ success: false, error: '发票状态已变化，请刷新后重试', code: 'CONFLICT' }, { status: 409 })
+    if (err instanceof TaxDecisionError) return NextResponse.json({ success: false, error: err.message, code: err.code }, { status: err.status })
     console.error('Set invoice status by order error:', err)
     return error('更新失败')
   }
@@ -111,11 +156,8 @@ export async function PUT(request: NextRequest, { params }: { params: { external
 
 // 删除发票记录（还原未开发票）。页面上没有调用方，但接口在；预收税费的订单同样不许删（理由见 PUT）
 export async function DELETE(_request: NextRequest, { params }: { params: { externalOrderId: string } }) {
-  try {
-    await requireAdmin()
-  } catch {
-    return error('无管理员权限', 403)
-  }
+  const auth = await adminOrResponse()
+  if ('res' in auth) return auth.res
 
   try {
     const externalOrderId = parseInt(params.externalOrderId)
@@ -128,6 +170,19 @@ export async function DELETE(_request: NextRequest, { params }: { params: { exte
       })
       if (await isPrepaidShopOrder(shopOrderIdOf(ext, existing.sourceKey))) {
         return error('该订单的税费已随货款收取，不能删除这张发票；如需停开请改为「不可开据」')
+      }
+      /*
+       * 渠道单（设计 8.4 末段；契约 7.4）：发票分成已计提（ACCRUED / RELEASED）且税费未全额退还 → 拒绝，
+       * 删了发票，对账就找不到分成的依据（L11），渠道余额里却留着那笔分成。要停开先退税费或改 CANNOT。
+       */
+      const link = await channelInvoiceLink(existing.id)
+      if (link) {
+        const o = await prisma.order.findUnique({ where: { id: link.orderId }, select: { invShareState: true, invoiceTaxFee: true, refundedTaxCents: true } })
+        const T = existing.taxFee != null ? Math.round(Number(existing.taxFee) * 100) : o?.invoiceTaxFee != null ? Math.round(Number(o.invoiceTaxFee) * 100) : 0
+        const fullyRefunded = T > 0 && (o?.refundedTaxCents ?? 0) >= T
+        if (o && (o.invShareState === 'ACCRUED' || o.invShareState === 'RELEASED') && !fullyRefunded) {
+          return error('该渠道订单的发票分成已计提且税费未全额退还：请先退还税费或改为「不可开据」')
+        }
       }
       if (existing.payStatus === 'PAID') {
         return error('该发票的税费已经收取，不能删除；如需停开请改为「不可开据」')

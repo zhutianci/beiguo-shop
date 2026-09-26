@@ -23,6 +23,9 @@ import { getLandingProducts } from '@/lib/landing/products'
 import { buildProductIntro, isAccountProduct } from '@/lib/product-intro'
 import { ProductIntroSection } from '@/components/products/product-intro'
 import { publicStock } from '@/lib/stock-level'
+import { getStorefront, type Storefront } from '@/lib/storefront/resolve'
+import { getStorefrontProduct } from '@/lib/pricing'
+import { getCurrentUser } from '@/lib/auth'
 
 /**
  * 商品详情页。
@@ -74,9 +77,57 @@ export interface ClientProduct {
   category: { id: number; name: string }
 }
 
+/**
+ * 渠道站的同一份数据（设计 7.4、W2-6）：商品必须在本店可售（上架、授权、进货价已配、站长在售），price = 本店售价。
+ * 【RSC props 会进页面源码】client 逐字段构造，只有公开字段；lib/pricing.ts 的结果本身就不含站长价、进货价、成本。
+ * sales 是本店销量（设计 7.5）。
+ */
+async function getChannelProduct(sf: Storefront, id: number): Promise<{ seo: ProductLookup; client: ClientProduct | null }> {
+  const previewUserId = sf.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
+  try {
+    const p = await getStorefrontProduct(sf, id, { previewUserId })
+    if (!p) return { seo: 'missing', client: null }
+    const categoryName = p.category?.name ?? null
+    return {
+      seo: {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        originalPrice: p.originalPrice,
+        stock: p.stock,
+        image: p.image,
+        categoryName,
+        deliveryType: p.deliveryType,
+        accountLike: isAccountProduct({ name: p.name, categoryName, deliveryType: p.deliveryType ?? undefined }),
+      },
+      client: {
+        id: p.id,
+        name: p.name,
+        description: p.description,
+        price: p.price,
+        originalPrice: p.originalPrice,
+        features: p.features,
+        image: p.image,
+        stock: p.stock,
+        sales: p.sales,
+        deliveryType: p.deliveryType ?? undefined,
+        category: p.category ?? { id: 0, name: '' },
+      },
+    }
+  } catch (err) {
+    console.error('Channel product query error:', err)
+    return { seo: 'error', client: null }
+  }
+}
+
 const getProduct = cache(
   async (id: number): Promise<{ seo: ProductLookup; client: ClientProduct | null }> => {
     if (!Number.isInteger(id) || id <= 0) return { seo: 'missing', client: null }
+    // 店面解析不进 try（设计 4.4 第 7 条）。React cache 在同一请求内按 id 去重，店面也是同一请求内记忆的
+    const sf = await getStorefront()
+    if (!sf) return { seo: 'missing', client: null }
+    if (sf.kind === 'CHANNEL') return getChannelProduct(sf, id)
     try {
       const p = await prisma.product.findFirst({
         where: { id, status: 1 },
@@ -201,13 +252,18 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
    * 同系列档位用的是落地页那份在售快照（React cache，与落地页价格表同一份数据、同一套匹配规则）。
    * 快照查询失败时返回空数组，那一小节不渲染，其余照常。
    */
+  // 同系列档位：getLandingProducts 按店面取数，渠道站只列本店可售商品、价格为本店售价（不会把主站兄弟商品价格写进渠道站 HTML，设计 7.4）
   const catalog = product ? await getLandingProducts() : []
-  const intro = product
+  const built = product
     ? buildProductIntro(
         { id: product.id, name: product.name, categoryName: product.categoryName, deliveryType: product.deliveryType },
         catalog
       )
     : null
+  // 渠道站没有充值落地页（设计 11.2 关闭 /chongzhi），「完整购买指南」链接去掉，否则是一个点进去 404 的入口
+  const sf = await getStorefront()
+  const channel = !!sf && sf.kind === 'CHANNEL'
+  const intro = built && channel ? { ...built, guide: null } : built
 
   return (
     <>
@@ -219,7 +275,8 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
           /products?category=N 这个筛选视图，canonical 指回 /products，
           写进 BreadcrumbList 等于宣称它是一个独立层级，与 canonical 自相矛盾。
           product-client.tsx 里那条可见面包屑同样没有分类级，两边必须一直对齐。 */}
-      {product && (
+      {/* 渠道站不输出 Product JSON-LD：整站 noindex，且 Offer 价是渠道价（设计 4.8） */}
+      {product && !channel && (
         <JsonLd
           data={[
             productJsonLd(product),

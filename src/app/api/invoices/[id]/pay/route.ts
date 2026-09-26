@@ -9,6 +9,8 @@ import { createOrGetVmqOrder, vmqConfigured, VmqError } from '@/lib/vmq'
 import { assertExternalOrderAccess, BillingError } from '@/lib/order-billing'
 import { assertShopOrderBillable, shopOrderIdOfExt } from '@/lib/order-invoice'
 import { readProofDigests } from '@/lib/email-proof'
+import { orderIdFromSourceKey } from '@/lib/order-link'
+import { getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
 
 const schema = z.object({
   // 匿名「邮箱查订阅」流程的归属凭证，与 POST /api/invoices 同一套
@@ -25,6 +27,9 @@ const schema = z.object({
  * 现在与提交发票走同一套归属校验：登录本人 / 已绑定账户 / 匿名需提供正确的账户邮箱。
  */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return error('发票不存在或无权操作', 404)
   try {
     if (!vmqConfigured()) return error('支付未配置', 500)
     const id = parseInt(params.id)
@@ -49,12 +54,27 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     // 后台手动录入的发票（无关联订单）不对外开放支付入口：
     // 那些单的钱是线下收的，本来就不该出现在买家侧
     if (invoice.externalOrderId == null) return deny()
+    // 税费发票只能在它所属的站付（设计 8.1「税费支付」归属写进 where、4.5 收银台按站）；不符与不存在同一句话
+    if (invoice.tenantId !== sf.id) return deny()
 
     const ext = await prisma.externalOrder.findUnique({
       where: { id: invoice.externalOrderId },
-      select: { id: true, sourceKey: true, claudeAccount: true, shopOrderId: true },
+      select: { id: true, sourceKey: true, claudeAccount: true, shopOrderId: true, tenantId: true },
     })
     if (!ext) return deny()
+    // 店面归属：与 POST /api/invoices 同一套（渠道站只认本人本店站内订单；主站拒绝渠道的行）
+    const linkedOrderId = ext.shopOrderId ?? orderIdFromSourceKey(ext.sourceKey)
+    if (sf.kind === 'CHANNEL') {
+      if (!user || ext.tenantId !== sf.id || !linkedOrderId) return deny()
+      const own = await prisma.order.findFirst({ where: { id: linkedOrderId, userId: user.id, tenantId: sf.id }, select: { id: true } })
+      if (!own) return deny()
+    } else {
+      if (ext.tenantId !== PLATFORM_TENANT_ID) return deny()
+      if (linkedOrderId) {
+        const linked = await prisma.order.findUnique({ where: { id: linkedOrderId }, select: { tenantId: true } })
+        if (linked && linked.tenantId !== PLATFORM_TENANT_ID) return deny()
+      }
+    }
     try {
       await assertExternalOrderAccess(ext, { user, proofDigests: await readProofDigests() })
     } catch {

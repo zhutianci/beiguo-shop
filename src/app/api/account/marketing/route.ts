@@ -7,6 +7,7 @@ import { success, error, unauthorized } from '@/lib/api'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { applyAccountMarketing, getAccountMarketing, MAX_PAUSE_DAYS, type AccountAction } from '@/lib/marketing/prefs'
 import { TOPICS } from '@/lib/marketing/types'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 个人中心「邮件订阅」卡：本人登录后读写自己的营销邮件偏好。
@@ -41,6 +42,9 @@ const bodySchema = z.discriminatedUnion(
 )
 
 export async function GET() {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
@@ -52,6 +56,9 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

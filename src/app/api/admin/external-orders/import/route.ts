@@ -2,12 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { sendRechargeForOrders } from '@/lib/reminder'
 import type { ExternalOrder } from '@prisma/client'
 import { adminGuard } from '@/lib/admin-guard'
+import { externalOrderSourceKey } from '@/lib/external-order-key'
 
 const itemSchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式错误'),
@@ -25,11 +25,9 @@ const importSchema = z.object({
   notify: z.boolean().optional().default(true), // 是否对新增订单发送充值成功邮件
 })
 
+// 去重键公式三处合并到 lib/external-order-key（设计 9.3）。导入的行一律是主站（tenantId=1），与旧公式逐字相同
 function hashKey(claudeAccount: string, startDate: string, subscriptionType: string): string {
-  return crypto
-    .createHash('sha1')
-    .update(`${claudeAccount.toLowerCase()}|${startDate}|${subscriptionType}`)
-    .digest('hex')
+  return externalOrderSourceKey({ tenantId: 1, claudeAccount, startDate, subscriptionType })
 }
 
 export async function POST(request: NextRequest) {

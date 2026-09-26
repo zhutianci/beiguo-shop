@@ -192,7 +192,14 @@ function iso(d: Date | null | undefined): string | null {
   return d ? d.toISOString() : null
 }
 
-const PAID_ORDER_WHERE = { payStatus: 'PAID' as const, deliveryStatus: { not: 'CANCELLED' as const }, paidAt: { not: null } }
+// 营销归因只认主站订单（渠道分站，设计 11.3）：渠道单是渠道的生意，不能记成主站营销邮件带来的成交。
+// 休眠期全部订单 tenantId=1，归因结果不变
+const PAID_ORDER_WHERE = {
+  tenantId: 1,
+  payStatus: 'PAID' as const,
+  deliveryStatus: { not: 'CANCELLED' as const },
+  paidAt: { not: null },
+}
 
 interface OrderRow {
   id: number

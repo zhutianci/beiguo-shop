@@ -82,20 +82,25 @@ export async function resolveCard(
     },
   })
 
+  /*
+   * 【「不存在 / 未售 / 停用」对外一模一样】（设计 15.2 统一文案、T24、W2-5e）
+   * 三者对外返回同一句话、同一个状态码（路由里都是 400），只在 reason（写日志用，不回给前端）里区分：
+   *  · 不存在 vs 不是本站的卡：说破了等于告诉试探者「这串在库里」；
+   *  · 未售（UNUSED，还在库存里）：以前单独回「尚未发出」——拿到一张未售卡的人（内部泄露、渠道后台误用、
+   *    猜中）就能确认它在库、而且还没卖，这比「不存在」的信息量大得多；买家手上本来就不该有这种卡；
+   *  · 停用（DISABLED）：只对库存卡操作（已发出的卡不可改状态），同理不该出现在买家手上。
+   * 真买家看到这句会去核对复制是否完整，够用了；真有问题找客服，客服按日志里的 reason 查。
+   */
+  const NOT_FOUND = '未找到该卡密，请确认是否从本站购买、且已完整复制'
   if (!card) {
-    /*
-     * 【文案刻意不区分「卡密不存在」和「不是本站的卡」】
-     * 说破了等于告诉试探者「这串在库里」，是一个可枚举的信号。
-     * 真买家看到这句会去核对复制是否完整，够用了。
-     */
-    return { ok: false, reason: 'NOT_OURS', message: '未找到该卡密，请确认是否从本站购买、且已完整复制' }
+    return { ok: false, reason: 'NOT_OURS', message: NOT_FOUND }
   }
   if (card.status === 'DISABLED') {
-    return { ok: false, reason: 'DISABLED', message: '该卡密已停用，请联系客服' }
+    return { ok: false, reason: 'DISABLED', message: NOT_FOUND }
   }
   if (card.status !== 'USED') {
     // UNUSED = 还躺在库存里没发出去。买家手上不该有这张卡
-    return { ok: false, reason: 'NOT_DELIVERED', message: '该卡密尚未发出，请确认是否从本站购买' }
+    return { ok: false, reason: 'NOT_DELIVERED', message: NOT_FOUND }
   }
   /*
    * 【所属订单已取消 / 已退款 → 不再代理兑换】后台没有退款按钮，线下退款后是把已付款订单改成
@@ -150,6 +155,25 @@ export function redeemRateLimited(action: string, cardId: number | null, ip: str
   }
   if (rateLimited('rd-all', { windowMs: 60_000, max: 300 })) {
     return '当前兑换人数较多，请稍后再试'
+  }
+  return null
+}
+
+/**
+ * 「同一 IP + 同一卡密前缀」的试探限频（设计 5.2 兑换兜底）。
+ *
+ * 【为什么要这一层】单 IP 每分钟 20 次挡的是「批量试不同的卡」；而拿到一张卡的前半截、枚举后半截的人，
+ * 请求全落在同一个前缀上——按「IP + 前 8 位」单独计数，脚本会先被挡在查库之前。
+ * 【上限 16 而不是 8】同一批卡往往共用前缀（供货方按批次编号），买家一次买多张、连着兑换时，
+ * 每张卡是「查询 + 激活」两个请求：上限 8 意味着一分钟第 5 张就被拦（上线前复核 2026-09-26）。
+ * 后半截是长随机串，每分钟 16 次与 8 次对枚举同样是杯水车薪，所以放宽到 16（约 8 张 / 分钟）。
+ * 在 resolveCard 之前调用：没通过的请求不产生任何数据库查询，也不会因为「卡在不在库」而表现不同。
+ * 前缀只进内存计数键，不落日志。
+ */
+export function redeemProbeLimited(ip: string, cdk: string): string | null {
+  const prefix = cdk.slice(0, 8)
+  if (rateLimited(`rd-pfx:${ip}:${prefix}`, { windowMs: 60_000, max: 16 })) {
+    return '操作过于频繁，请稍后再试'
   }
   return null
 }

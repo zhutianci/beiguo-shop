@@ -22,6 +22,7 @@ import {
   Megaphone,
 } from 'lucide-react'
 import { ContactModal } from '@/components/contact-modal'
+import { useStorefront } from '@/components/storefront-provider'
 // 这批问答同时要喂给 layout.tsx 里的 FAQPage 结构化数据，必须是同一份数据源
 import { supportFaqs as faqs } from '@/lib/support-faq'
 
@@ -135,6 +136,10 @@ export default function SupportPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0)
   const [activeProduct, setActiveProduct] = useState<'Claude' | 'ChatGPT'>('Claude')
   const router = useRouter()
+  // 「订阅查询」/lookup 在渠道站关闭（设计 11.1、Q16：对应入口在渠道站不渲染）：服务卡片、快速查询、底部按钮三处都按它隐藏。
+  // 没有 Provider 时回退主站全开，主站渲染不变
+  const lookupOn = useStorefront().features.lookup
+  const visibleServices = lookupOn ? services : services.filter((s) => s.href !== '/lookup')
   const [quickEmail, setQuickEmail] = useState('')
   const faqRef = useRef<HTMLDivElement>(null)
   const guidesRef = useRef<HTMLDivElement>(null)
@@ -206,6 +211,7 @@ export default function SupportPage() {
         </motion.div>
 
         {/* 快速查询 */}
+        {lookupOn && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -237,6 +243,7 @@ export default function SupportPage() {
             </div>
           </form>
         </motion.div>
+        )}
 
         {/* 6 个服务卡片 */}
         <motion.div
@@ -249,11 +256,11 @@ export default function SupportPage() {
             <h2 className="text-2xl lg:text-3xl font-bold">服务列表</h2>
             <div className="flex items-center gap-2 text-sm text-white/50">
               <Sparkles className="w-4 h-4 text-purple-400" />
-              <span>共 {services.length} 项服务</span>
+              <span>共 {visibleServices.length} 项服务</span>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {services.map((s, i) => (
+            {visibleServices.map((s, i) => (
               <motion.button
                 key={s.title}
                 onClick={() => handleServiceClick(s)}
@@ -432,13 +439,15 @@ export default function SupportPage() {
                 <MessageCircle className="w-4 h-4" />
                 联系客服
               </button>
-              <Link
-                href="/lookup"
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-full glass hover:bg-white/10 font-semibold transition-colors"
-              >
-                <Search className="w-4 h-4" />
-                查询订阅
-              </Link>
+              {lookupOn && (
+                <Link
+                  href="/lookup"
+                  className="inline-flex items-center gap-2 px-7 py-3 rounded-full glass hover:bg-white/10 font-semibold transition-colors"
+                >
+                  <Search className="w-4 h-4" />
+                  查询订阅
+                </Link>
+              )}
             </div>
             <div className="mt-6 flex items-center justify-center gap-2 text-sm text-white/40">
               <Clock className="w-4 h-4" />

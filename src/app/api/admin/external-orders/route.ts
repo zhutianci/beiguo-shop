@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { shopOrderSourceKey } from '@/lib/order-invoice'
+import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 
 export async function GET(request: NextRequest) {
   const denied = await adminGuard()
@@ -16,8 +17,12 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20'), 1), 200)
     const keyword = searchParams.get('keyword')?.trim()
     const status = searchParams.get('status')?.trim() // valid | expired | 空=全部
+    // 来源站（设计 12.2）：ExternalOrder.tenantId；不传 = 全部（与原来一致）
+    const site = parseTenantFilter(searchParams)
+    if (site === 'invalid') return error(INVALID_TENANT_FILTER)
 
     const where: Prisma.ExternalOrderWhereInput = {}
+    if (site != null) where.tenantId = site
     if (keyword) {
       where.OR = [
         { claudeAccount: { contains: keyword } },
@@ -49,10 +54,12 @@ export async function GET(request: NextRequest) {
       : []
     const invoiceMap = new Map(invoices.map((iv) => [iv.externalOrderId, iv]))
 
+    const srcMap = await sourceMap(list.map((o) => o.tenantId))
     const enriched = list.map((o) => {
       const iv = invoiceMap.get(o.id)
       return {
         ...o,
+        source: sourceOf(srcMap, o.tenantId),
         invoiceStatus: iv?.status ?? null,
         invoiceNo: iv?.invoiceNo ?? null,
       }
@@ -64,6 +71,7 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      sites: await siteOptions(),
     })
   } catch (err) {
     console.error('Get external orders error:', err)
@@ -82,8 +90,12 @@ export async function DELETE() {
      * 删掉之后，那张（买家可能已付过 6% 的）发票就再也关联不回订单，订单页又会出现「申请发票」。
      * 快照只经 lib/order-link 的 orderIdFromSourceKey 读，改写成 order:<id> 是安全的。
      */
+    /*
+     * 【只清主站的行】（设计 12.2、4.10 ⑦）渠道行由渠道站内订单派生（开票背书），清掉会让渠道单的发票 / 收据失去归属；
+     * 「清空」按钮的本意是清掉从腾讯文档导入的主站台账。休眠期全部行都是 tenantId=1，行为与原来相同。
+     */
     const linked = await prisma.externalOrder.findMany({
-      where: { shopOrderId: { not: null } },
+      where: { shopOrderId: { not: null }, tenantId: 1 },
       select: { id: true, shopOrderId: true },
     })
     const { count } = await prisma.$transaction(async (tx) => {
@@ -93,7 +105,7 @@ export async function DELETE() {
           data: { sourceKey: shopOrderSourceKey(r.shopOrderId as number) },
         })
       }
-      return tx.externalOrder.deleteMany({})
+      return tx.externalOrder.deleteMany({ where: { tenantId: 1 } })
     }, { timeout: 60_000 })
     return success({ deleted: count }, `已删除 ${count} 条记录`)
   } catch (err) {

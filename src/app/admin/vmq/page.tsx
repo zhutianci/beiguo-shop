@@ -192,9 +192,24 @@ export default function AdminVmqPage() {
   }
 
   const complete = async (id: number, paid = false) => {
-    const msg = paid
-      ? '这张收款单已是「已支付」。重新履约只会补做订单还缺的部分（订单仍待支付时改为已付款、自动发货商品补齐卡密），不会重复记账或多发卡。继续？'
-      : '确认这笔已到账并完成履约？仅在确实已收到款时操作。'
+    // 渠道分站（设计 12.2）：确认前先查这张收款单对应哪个站的哪张单，写进确认框；查不到不影响补单本身
+    let who = ''
+    try {
+      const r = await fetch(`/api/admin/vmq/complete?id=${id}`)
+      const d = await r.json()
+      if (d.success) {
+        const src = d.data.source?.tenantId === 1 ? '主站' : `渠道 ${d.data.source?.code}`
+        const no = d.data.orderNo ? `订单 ${d.data.orderNo}` : d.data.invoiceNo ? `发票 ${d.data.invoiceNo}` : '（关联单据不存在）'
+        who = `来源站：${src} · ${no}\n\n`
+      }
+    } catch {
+      /* 预查失败不拦补单 */
+    }
+    const msg =
+      who +
+      (paid
+        ? '这张收款单已是「已支付」。重新履约只会补做订单还缺的部分（订单仍待支付时改为已付款、自动发货商品补齐卡密），不会重复记账或多发卡。继续？'
+        : '确认这笔已到账并完成履约？仅在确实已收到款时操作。')
     if (!confirm(msg)) return
     const res = await fetch('/api/admin/vmq/complete', {
       method: 'POST',

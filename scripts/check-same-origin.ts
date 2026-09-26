@@ -46,7 +46,7 @@ allow('本地开发 localhost:3000', { host: 'localhost:3000', origin: 'http://l
 allow('http 直连 IP、端口不同', { host: '1.2.3.4', origin: 'http://1.2.3.4:8080' })
 allow('老浏览器只带 Origin', { host: 'bigolab.com', origin: 'https://bigolab.com' })
 allow('隧道改写了 Host，Origin 命中 APP_URL', { host: 'app:3000', origin: 'https://bigolab.com' })
-allow('命中 X-Forwarded-Host', { host: 'app:3000', 'x-forwarded-host': 'bigolab.com', origin: 'https://bigolab.com' })
+allow('隧道改写 Host 且带 X-Forwarded-Host（靠 APP_URL 放行，不靠这个头）', { host: 'app:3000', 'x-forwarded-host': 'bigolab.com', origin: 'https://bigolab.com' })
 
 console.log('\n机器调用（不带头，必须放行）：')
 allow('curl / itest / 回调', { host: 'bigolab.com' })
@@ -59,6 +59,8 @@ deny('只带兄弟子域 Origin', { host: 'bigolab.com', origin: 'https://lulu.b
 deny('外站', { host: 'bigolab.com', origin: 'https://evil.com', 'sec-fetch-site': 'cross-site' })
 deny('外站仿冒后缀', { host: 'bigolab.com', origin: 'https://bigolab.com.evil.com' })
 deny('Origin: null', { host: 'bigolab.com', origin: 'null' })
+// 渠道分站集成阶段：X-Forwarded-Host 是客户端能自带的头，不再算「本站」（nginx 也把它置空）
+deny('自带 X-Forwarded-Host 冒充本站', { host: 'bigolab.com', 'x-forwarded-host': 'lulu.bigolab.com', origin: 'https://lulu.bigolab.com' })
 deny('Origin 乱写', { host: 'bigolab.com', origin: '::::' })
 deny('Origin 同源但 Sec-Fetch-Site 说跨站（两条都要过）', { host: 'bigolab.com', origin: 'https://bigolab.com', 'sec-fetch-site': 'cross-site' })
 deny('Sec-Fetch-Site 说同源但 Origin 是外站', { host: 'bigolab.com', origin: 'https://evil.com', 'sec-fetch-site': 'same-origin' })

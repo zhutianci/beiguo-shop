@@ -12,6 +12,7 @@ import {
 } from '@/lib/invoice-request'
 import { notifyInvoiceRequestSubmitted } from '@/lib/notify'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 开票填写链接（公开，免登录）：客户看金额 + 提交抬头信息。
@@ -56,6 +57,9 @@ function firstError(err: ZodError): string {
 }
 
 export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const token = (params.token || '').trim()
     // 格式不对直接当不存在，不查库、也不占限流名额
@@ -76,6 +80,9 @@ export async function GET(request: NextRequest, { params }: { params: { token: s
 }
 
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const token = (params.token || '').trim()
     if (!INVOICE_REQUEST_TOKEN_RE.test(token)) return noStore(error('链接不存在或已失效', 404))

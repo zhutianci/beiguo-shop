@@ -12,6 +12,7 @@
  * 站点改成「只发给明确订阅者」后，DEFAULT 用户实际收不到，开关就如实显示为关。
  */
 
+import { useStorefront } from '@/components/storefront-provider'
 import { useCallback, useEffect, useState } from 'react'
 import { AlertCircle, BadgeCheck, Clock, Loader2, Mail } from 'lucide-react'
 import { useHydrated } from '@/lib/use-hydrated'
@@ -39,7 +40,7 @@ function fmtDay(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? '' : bjDateCn(d)
 }
 
-export default function MarketingSubscription() {
+function MarketingSubscriptionInner() {
   const hydrated = useHydrated()
   const [state, setState] = useState<AccountMarketingState | null>(null)
   const [loading, setLoading] = useState(true)
@@ -300,4 +301,15 @@ function Switch({
       </span>
     </button>
   )
+}
+
+/**
+ * 渠道分站（实施分包 WP1）：营销邮件是平台专属（设计 11.3），渠道站不渲染订阅设置。
+ * 只控制显示；对应接口在渠道 Host 上服务端 404（denyOnChannel）。组件本体改名为 MarketingSubscriptionInner、原样不动，
+ * 由这层按店面决定挂不挂：不渲染就不会发出任何请求（验收 W1-9：渠道站页面零 404 请求）。主站恒为渲染，行为不变。
+ */
+export default function MarketingSubscription() {
+  const { kind } = useStorefront()
+  if (!(kind === 'PLATFORM')) return null
+  return <MarketingSubscriptionInner />
 }

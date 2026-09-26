@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import type { MetadataRoute } from 'next'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 /**
  * robots.txt。
@@ -17,7 +18,57 @@ import { siteOrigin } from '@/lib/news/format'
  * 注意：robots.txt 只是「请劝退」，不是访问控制。合规爬虫会遵守，恶意抓取不会。
  * 收据页本身的 token 强度与有效期才是真正的防线，这里只负责不主动把它送进索引。
  */
-export default function robots(): MetadataRoute.Robots {
+/*
+ * 【渠道分站（设计 4.8）】robots.txt 按店面输出：
+ *  · 主站：原对象抽成 platformRobots() 原样返回（验收 W1-6：与改造前逐字相同）。
+ *  · 渠道站：见 channelRobots()。
+ * 【为什么靠 getStorefront() 转动态】Next 14.2 的 metadata loader 不转导出 robots.ts 的 segment config，
+ * 上面那行 `export const dynamic` 实际不生效，改造前的 robots.txt 很可能是构建期生成的静态文件。
+ * 调用 getStorefront()（内部 headers()）是让它按请求生成的唯一可靠办法；也因此**不能包进 try**。
+ */
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const sf = await getStorefront()
+  if (sf && sf.kind === 'PLATFORM') return platformRobots()
+  return channelRobots()
+}
+
+/**
+ * 渠道站（以及没有店面的 Host）：
+ *  · 对 AI 爬虫整站 Disallow：渠道站内容与主站相同，只是价格不同，不给训练 / 答案引擎抓一份「另一个价」；
+ *  · 对其他 UA **不写** `Disallow: /`：页面上的 noindex（根布局 robots + nginx X-Robots-Tag）要被抓到才生效，
+ *    整站 Disallow 反而会让外链指向的地址以「无摘要」形式留在搜索结果里（与上面主站那段理由相同）；
+ *    只挡带令牌 / 私密的路径、渠道后台 /partner 与接口；
+ *  · 不输出 sitemap 行（渠道站 sitemap 为空）与 host 行。
+ */
+const AI_CRAWLERS = ['GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'ClaudeBot', 'PerplexityBot', 'Google-Extended', 'CCBot', 'Bytespider']
+
+function channelRobots(): MetadataRoute.Robots {
+  return {
+    rules: [
+      { userAgent: AI_CRAWLERS, disallow: '/' },
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: [
+          '/receipt/',
+          '/invoice-request/',
+          '/unsubscribe/',
+          '/finance/',
+          '/reply/',
+          '/pay/',
+          '/admin',
+          '/partner',
+          '/api/',
+          '/lookup',
+          '/*?s=',
+          '/*?n=',
+        ],
+      },
+    ],
+  }
+}
+
+function platformRobots(): MetadataRoute.Robots {
   return {
     rules: [
       {

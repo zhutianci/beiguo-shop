@@ -2,6 +2,8 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { SourceBadge, SourceFilter, type SiteOption, type SourceSite } from '@/components/admin/source-site'
+import RedeemLogPanel from '@/components/admin/redeem-log-panel'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Eye, EyeOff, Trash2, Ban, RotateCcw, Upload, Save, Search, X, Coins, Tag, Download } from 'lucide-react'
@@ -29,6 +31,8 @@ interface CardRow {
   redeemProvider: string | null
   usedAt: string | null
   createdAt: string
+  /** 来源站：售出订单的站 / 外部站 / 库存（设计 5.5） */
+  source?: SourceSite & { kind: string; label: string }
 }
 
 interface Stats {
@@ -51,6 +55,7 @@ interface OrderPayment {
 
 interface CardOrderDetail {
   kind: 'LOCAL' | 'EXTERNAL'
+  source?: SourceSite
   card: {
     id: number
     batch: string | null
@@ -158,6 +163,9 @@ function CardKeysInner() {
   const [statusFilter, setStatusFilter] = useState('')
   const [batchFilter, setBatchFilter] = useState('')
   const [hasOrder, setHasOrder] = useState('')
+  // 来源站（设计 12.2）：'' 全部 / 站 id / 'stock' 库存
+  const [siteFilter, setSiteFilter] = useState('')
+  const [sites, setSites] = useState<SiteOption[]>([])
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [reveal, setReveal] = useState(false)
@@ -254,6 +262,7 @@ function CardKeysInner() {
       if (batchFilter.trim()) q.set('batch', batchFilter.trim())
       if (debouncedSearch) q.set('keyword', debouncedSearch)
       if (hasOrder) q.set('hasOrder', hasOrder)
+      if (siteFilter) q.set('tenantId', siteFilter)
       if (reveal) q.set('reveal', '1')
       const res = await fetch(`/api/admin/cardkeys?${q}`, { signal: controller.signal })
       const data = await res.json()
@@ -264,13 +273,14 @@ function CardKeysInner() {
         setTotalPages(data.data.totalPages || 1)
         setUsage(data.data.cardUsage || '')
         setRedeemUrl(data.data.cardRedeemUrl || '')
+        setSites(data.data.sites || [])
       }
     } catch (e) {
       if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
       if (abortRef.current === controller) setLoading(false)
     }
-  }, [productId, page, pageSize, statusFilter, batchFilter, debouncedSearch, hasOrder, reveal])
+  }, [productId, page, pageSize, statusFilter, batchFilter, debouncedSearch, hasOrder, siteFilter, reveal])
 
   useEffect(() => {
     load()
@@ -279,7 +289,7 @@ function CardKeysInner() {
   // 筛选/翻页后清空选择，避免误操作到看不见的行
   useEffect(() => {
     setSelected(new Set())
-  }, [productId, page, pageSize, statusFilter, batchFilter, debouncedSearch, hasOrder])
+  }, [productId, page, pageSize, statusFilter, batchFilter, debouncedSearch, hasOrder, siteFilter])
 
   // 筛选条件变更回到第一页
   const resetPage = () => setPage(1)
@@ -319,6 +329,7 @@ function CardKeysInner() {
       if (batchFilter.trim()) q.set('batch', batchFilter.trim())
       if (debouncedSearch) q.set('keyword', debouncedSearch)
       if (hasOrder) q.set('hasOrder', hasOrder)
+      if (siteFilter) q.set('tenantId', siteFilter)
     }
 
     // 明文导出前必须过一道确认：这个文件等于一整批商品本体，
@@ -812,6 +823,16 @@ function CardKeysInner() {
                   <option value="1">本站订单发出</option>
                   <option value="0">无本站订单（含外部站/未发出）</option>
                 </select>
+                <SourceFilter
+                  value={siteFilter}
+                  onChange={(v) => {
+                    setSiteFilter(v)
+                    resetPage()
+                  }}
+                  options={sites}
+                  withStock
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm"
+                />
                 <select
                   value={pageSize}
                   onChange={(e) => {
@@ -939,6 +960,7 @@ function CardKeysInner() {
                         <th className="pb-2 pr-3 text-right whitespace-nowrap">售价</th>
                         <th className="pb-2 pr-3 text-right whitespace-nowrap">利润</th>
                         <th className="pb-2 pr-3">订单</th>
+                        <th className="pb-2 pr-3">来源站</th>
                         <th className="pb-2 text-right">操作</th>
                       </tr>
                     </thead>
@@ -1006,6 +1028,17 @@ function CardKeysInner() {
                                 `#${c.orderId}`
                               ) : c.externalRef ? (
                                 <span className="text-purple-600" title={`外部站发卡：${c.externalRef}`}>外部站</span>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                            <td className="py-2 pr-3 text-xs">
+                              {c.source ? (
+                                c.source.kind === 'ORDER' ? (
+                                  <SourceBadge source={c.source} />
+                                ) : (
+                                  <span className={c.source.kind === 'EXTERNAL' ? 'text-purple-600' : 'text-gray-400'}>{c.source.label}</span>
+                                )
                               ) : (
                                 '—'
                               )}
@@ -1137,7 +1170,11 @@ function CardKeysInner() {
                 {detail.kind === 'LOCAL' && detail.order ? (
                   <>
                     <div className="grid grid-cols-2 gap-2">
-                      <div><span className="text-gray-500">订单号：</span><span className="font-medium">{detail.order.orderNo}</span></div>
+                      <div>
+                        <span className="text-gray-500">订单号：</span>
+                        <span className="font-medium">{detail.order.orderNo}</span>
+                        {detail.source && <SourceBadge source={detail.source} className="ml-2" />}
+                      </div>
                       <div><span className="text-gray-500">订单 ID：</span>#{detail.order.id}</div>
                       <div className="col-span-2">
                         <span className="text-gray-500">商品：</span>
@@ -1210,6 +1247,8 @@ function CardKeysInner() {
                     )}
                   </>
                 ) : null}
+                {/* 卡密使用情况（兑换日志，设计 12.2）：全字段，含 ip / requestId */}
+                <RedeemLogPanel cardKeyId={detail.card.id} />
               </div>
             ) : null}
           </div>

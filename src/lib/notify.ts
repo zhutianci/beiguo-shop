@@ -151,12 +151,24 @@ function mdSafe(v: unknown, max = 500): string {
 }
 
 /**
+ * 渠道分站的来源标签（设计 8.3、11.4）：平台群照收全部消息，渠道单在标题前打「[lulu]」。
+ * site 为空或 'main' 时不加（主站消息逐字不变）；只保留小写字母、数字、连字符，最长 20（租户 code 的形状）。
+ */
+function siteTag(site: string | null | undefined): string {
+  const code = String(site ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '')
+    .slice(0, 20)
+  return code && code !== 'main' ? `[${code}] ` : ''
+}
+
+/**
  * 发送一条通知。fire-and-forget，不返回 Promise，调用方不需要也不应该 await。
  */
 export function notify(
   event: NotifyEvent,
   rows: NotifyRow[],
-  opts?: { link?: string; linkText?: string; extraTitle?: string }
+  opts?: { link?: string; linkText?: string; extraTitle?: string; site?: string | null }
 ): void {
   const url = webhookUrl()
   if (!url) return
@@ -177,7 +189,7 @@ export function notify(
     const safe = rows.map((r) => ({ ...r, value: r.raw ? String(r.value ?? '') : mdSafe(r.value) }))
     const meta = EVENT_LABELS[event]
     const extra = opts?.extraTitle ? mdSafe(opts.extraTitle, 60) : ''
-    const title = `${meta.emoji} ${meta.title}${extra ? ' · ' + extra : ''}`
+    const title = `${meta.emoji} ${siteTag(opts?.site)}${meta.title}${extra ? ' · ' + extra : ''}`
     const link = opts?.link ? (opts.link.startsWith('http') ? opts.link : `${adminBase()}${opts.link}`) : ''
     const linkText = opts?.linkText || '前往后台处理'
 
@@ -255,6 +267,8 @@ export function notifyOrderCreated(p: {
   amount: unknown
   createdAt: Date
   stock: number | null
+  /** 渠道单的租户 code（打「[code]」标签）；主站单不传 */
+  site?: string | null
 }): void {
   notify(
     'order.created',
@@ -266,7 +280,7 @@ export function notifyOrderCreated(p: {
       { label: '下单时间', value: fmtTime(p.createdAt) },
       { label: '剩余库存', value: stockText(p.stock), color: p.stock != null && p.stock >= 0 && p.stock <= 3 ? 'warning' : undefined },
     ],
-    { link: '/admin/orders', extraTitle: p.productName }
+    { link: '/admin/orders', extraTitle: p.productName, site: p.site }
   )
 }
 
@@ -282,6 +296,8 @@ export function notifyOrderPaid(p: {
   paidAt: Date
   stock: number | null
   delivered: boolean
+  /** 渠道单的租户 code（打「[code]」标签）；主站单不传 */
+  site?: string | null
 }): void {
   // 勾了开票的单，支付宝到账的是 货款 + 6%。推送只写货款的话，
   // 老板拿着手机对不上银行流水 —— 拆开写，并标明这一单会自动进待开清单
@@ -304,7 +320,7 @@ export function notifyOrderPaid(p: {
       { label: '发货', value: p.delivered ? '已自动发货' : '待人工处理', color: p.delivered ? 'info' : 'warning' },
       { label: '剩余库存', value: stockText(p.stock), color: p.stock != null && p.stock >= 0 && p.stock <= 3 ? 'warning' : undefined },
     ],
-    { link: '/admin/orders', extraTitle: p.productName }
+    { link: '/admin/orders', extraTitle: p.productName, site: p.site }
   )
 }
 
@@ -334,6 +350,7 @@ export function notifyInvoiceFailed(p: {
   orderNo: string
   taxFee: unknown
   reason: string
+  site?: string | null
 }): void {
   notify(
     'invoice.failed',
@@ -343,7 +360,7 @@ export function notifyInvoiceFailed(p: {
       { label: '原因', value: p.reason.slice(0, 200), color: 'warning' },
       { label: '处理', value: '到「订单管理」重新保存该订单即可重试落地' },
     ],
-    { link: '/admin/orders', extraTitle: '发票落地失败' }
+    { link: '/admin/orders', extraTitle: '发票落地失败', site: p.site }
   )
 }
 
@@ -359,6 +376,7 @@ export function notifyInvoiceReady(p: {
   paidAt: Date
   pending: PendingInvoiceBrief[]
   financeUrl: string
+  site?: string | null
 }): void {
   const rows: NotifyRow[] = [
     { label: '发票号', value: p.invoiceNo },
@@ -390,7 +408,7 @@ export function notifyInvoiceReady(p: {
     rows.push({ label: '当前待开发票', value: '仅本张' })
   }
 
-  notify('invoice.paid', rows, { link: p.financeUrl, linkText: '财务开票台（查看全部并标记已开）' })
+  notify('invoice.paid', rows, { link: p.financeUrl, linkText: '财务开票台（查看全部并标记已开）', site: p.site })
 }
 
 export function notifyReceiptCreated(p: {
@@ -400,6 +418,7 @@ export function notifyReceiptCreated(p: {
   source: string
   account?: string | null
   createdAt: Date
+  site?: string | null
 }): void {
   notify(
     'receipt.created',
@@ -411,7 +430,7 @@ export function notifyReceiptCreated(p: {
       ...(p.account ? [{ label: '账户', value: p.account }] : []),
       { label: '开具时间', value: fmtTime(p.createdAt) },
     ],
-    { link: '/admin/receipts', linkText: '查看收据' }
+    { link: '/admin/receipts', linkText: '查看收据', site: p.site }
   )
 }
 
@@ -421,6 +440,7 @@ export function notifyBuyerMessage(p: {
   productName: string
   buyer: string
   content: string
+  site?: string | null
 }): void {
   // 群机器人是单向的（只能发、收不到群里的回复），所以带一条免登录的快捷回复链接：
   // 在企微里看到留言 → 点链接 → 手机端直接回，客户在订单页立刻看到。
@@ -440,7 +460,7 @@ export function notifyBuyerMessage(p: {
       { label: '买家', value: p.buyer },
       { label: '内容', value: p.content, color: 'warning' },
     ],
-    { link, linkText }
+    { link, linkText, site: p.site }
   )
 }
 
@@ -649,6 +669,7 @@ export function notifyFulfillFailed(p: {
   stage: string
   reason: string
   action: string
+  site?: string | null
 }): void {
   notify(
     'payment.fulfill_failed',
@@ -659,7 +680,7 @@ export function notifyFulfillFailed(p: {
       { label: '原因', value: p.reason.slice(0, 200), color: 'warning' },
       { label: '处理', value: p.action },
     ],
-    { link: '/admin/orders', extraTitle: p.outTradeNo || p.biz }
+    { link: '/admin/orders', extraTitle: p.outTradeNo || p.biz, site: p.site }
   )
 }
 

@@ -9,6 +9,7 @@ import {
   logRedeem,
   normalizeCdk,
   redeemRateLimited,
+  redeemProbeLimited,
   claimForIrreversibleRedeem,
   countOrderRefs,
   loadOrderRef,
@@ -89,6 +90,10 @@ export async function POST(request: NextRequest, { params }: { params: { provide
     }
 
     const ip = clientIp(request.headers)
+
+    // 同一 IP 对同一卡密前缀的试探限频，排在查库之前（与 check 同一层；激活的单卡限频仍在下面）
+    const probing = redeemProbeLimited(ip, cdk)
+    if (probing) return error(probing, 429)
 
     const resolved = await resolveCard(provider.key, cdk)
     if (!resolved.ok) {

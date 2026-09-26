@@ -1,5 +1,6 @@
 'use client'
 
+import { useStorefront } from '@/components/storefront-provider'
 import { MailOpen } from 'lucide-react'
 // 只取类型：lib/lottery 间接引用了 lib/coupon（带 prisma 与 node crypto），值导入会把它们打进前端包
 import type { BuyerLotteryView } from '@/lib/lottery'
@@ -14,7 +15,7 @@ import type { BuyerLotteryView } from '@/lib/lottery'
  * 尺寸与同一行的 ActionButton 保持一致（px-4 py-2 / lg:px-5 lg:py-2.5、text-sm / lg:text-[15px]、
  * 16px 图标位、1px 边框），同一行按钮高度不齐会很显眼。
  */
-export function RedPacketButton({
+function RedPacketButtonInner({
   view,
   canDraw,
   onClick,
@@ -72,6 +73,17 @@ export function RedPacketButton({
   }
 
   return null
+}
+
+/**
+ * 渠道分站（实施分包 WP1）：抽奖在渠道站关闭（设计 7.6）。
+ * 只控制显示；对应接口在渠道 Host 上服务端 404（denyOnChannel）。组件本体改名为 RedPacketButtonInner、原样不动，
+ * 由这层按店面决定挂不挂：不渲染就不会发出任何请求（验收 W1-9：渠道站页面零 404 请求）。主站恒为渲染，行为不变。
+ */
+export function RedPacketButton(props: React.ComponentProps<typeof RedPacketButtonInner>) {
+  const { features } = useStorefront()
+  if (!(features.lottery)) return null
+  return <RedPacketButtonInner {...props} />
 }
 
 export default RedPacketButton

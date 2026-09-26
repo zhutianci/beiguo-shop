@@ -7,11 +7,24 @@ import { success, error } from '@/lib/api'
 import { PUBLIC_PRODUCT_SELECT } from '@/lib/product-select'
 import { publicStock } from '@/lib/stock-level'
 import { effectiveBasePrices, referralSellUnit } from '@/lib/referral'
+import { getStorefront } from '@/lib/storefront/resolve'
+import { listStorefrontProducts } from '@/lib/pricing'
+import { getCurrentUser } from '@/lib/auth'
 
 // 商品列表
 // 向后兼容：不传 page 时返回裸数组（旧行为）；传了 page 才返回 { list, total, page, pageSize, totalPages }
 export async function GET(request: NextRequest) {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return error('资源不存在', 404)
   try {
+    /*
+     * 【渠道站】只列本店可售的上架行，price = 本店售价（lib/pricing.ts 统一定价入口，设计 7.4）；
+     * ref 忽略（渠道站内推硬关，设计 7.6）；响应里没有站长价、进货价、成本（W2-6 值扫描）。
+     * 响应形状（裸数组 / 分页对象、每行的键）与主站相同，前台组件不用分叉。下面的主站分支一行没动。
+     */
+    if (sf.kind === 'CHANNEL') return await channelList(sf, new URL(request.url).searchParams)
+
     const { searchParams } = new URL(request.url)
     // 分类筛选：新参数 categoryId，兼容旧参数 category
     const categoryRaw = searchParams.get('categoryId') ?? searchParams.get('category')
@@ -85,4 +98,24 @@ export async function GET(request: NextRequest) {
     console.error('Get products error:', err)
     return error('获取商品列表失败')
   }
+}
+
+async function channelList(sf: NonNullable<Awaited<ReturnType<typeof getStorefront>>>, searchParams: URLSearchParams) {
+  const categoryRaw = searchParams.get('categoryId') ?? searchParams.get('category')
+  const cid = categoryRaw ? parseInt(categoryRaw) : NaN
+  // DRAFT 店面只对预览账号展示（前台外壳同一口径）；其余状态不需要知道是谁，不查登录态
+  const previewUserId = sf.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
+  const all = await listStorefrontProducts(sf, { categoryId: Number.isNaN(cid) ? undefined : cid, previewUserId })
+
+  const pageRaw = searchParams.get('page')
+  if (pageRaw === null) return success(all)
+  const page = Math.max(parseInt(pageRaw || '1') || 1, 1)
+  const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '24') || 24, 1), 60)
+  return success({
+    list: all.slice((page - 1) * pageSize, page * pageSize),
+    total: all.length,
+    page,
+    pageSize,
+    totalPages: Math.max(Math.ceil(all.length / pageSize), 1),
+  })
 }

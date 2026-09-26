@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { userVipStatus } from '@/lib/vip-server'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 会员中心：当前等级、到下一级的进度、全部档位与权益。
@@ -10,6 +11,9 @@ import { userVipStatus } from '@/lib/vip-server'
  * 权益文案是后台「系统设置 → 会员等级」里配的原文，页面照原样展示，不额外添字。
  */
 export async function GET() {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

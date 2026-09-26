@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { siteOrigin } from '@/lib/news/format'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { oneClickUnsubscribe, TEST_TOKEN } from '@/lib/marketing/prefs'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
  * 邮件头 List-Unsubscribe 指向的地址。
@@ -65,6 +66,9 @@ function ipBucket(ip: string): number {
 }
 
 export async function GET(_request: NextRequest, { params }: { params: { token: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   const token = String(params.token || '').slice(0, 64)
   const res = NextResponse.redirect(`${siteOrigin()}/unsubscribe/${encodeURIComponent(token)}`, 302)
   res.headers.set('Cache-Control', 'no-store')
@@ -73,6 +77,9 @@ export async function GET(_request: NextRequest, { params }: { params: { token: 
 }
 
 export async function POST(request: NextRequest, { params }: { params: { token: string } }) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   const token = String(params.token || '')
   try {
     await drainBody(request)

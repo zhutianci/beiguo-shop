@@ -15,6 +15,7 @@ import {
   syncAutoStock,
 } from '@/lib/cardkey'
 import { adminGuard } from '@/lib/admin-guard'
+import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, cardSiteWhere, cardSources } from '@/lib/admin/source-site'
 
 // 列表（默认脱敏；reveal=1 返回明文，仅管理员可用，受 middleware 保护）
 export async function GET(request: NextRequest) {
@@ -31,8 +32,12 @@ export async function GET(request: NextRequest) {
     const reveal = searchParams.get('reveal') === '1'
     const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '50') || 50, 1), 200)
+    // 来源站 = 售出订单的站；'stock' = 未售（设计 5.5）。不传 = 全部，where 与原来一致
+    const site = parseTenantFilter(searchParams, 'tenantId', ['stock'] as const)
+    if (site === 'invalid') return error(INVALID_TENANT_FILTER)
 
     const where: Prisma.CardKeyWhereInput = { productId }
+    if (site != null) where.AND = [await cardSiteWhere(site, productId)]
     if (status) where.status = status
     if (batch) where.batch = batch
     if (keyword) {
@@ -67,6 +72,7 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
+    const srcOf = await cardSources(rows)
     const list = rows.map((c) => {
       let secret = ''
       try {
@@ -91,6 +97,8 @@ export async function GET(request: NextRequest) {
         redeemProvider: c.redeemProvider, // 非空 = 走站内兑换页；空 = 跳转 redeemUrl / 商品默认链接
         usedAt: c.usedAt, // 发出时间
         createdAt: c.createdAt, // 创建/导入时间
+        // 来源站：售出订单的站 / 外部站 / 库存（未售）
+        source: srcOf(c),
       }
     })
 
@@ -110,6 +118,7 @@ export async function GET(request: NextRequest) {
       },
       cardUsage: product?.cardUsage ?? '',
       cardRedeemUrl: product?.cardRedeemUrl ?? '',
+      sites: await siteOptions(),
     })
   } catch (err) {
     console.error('List cardkeys error:', err)

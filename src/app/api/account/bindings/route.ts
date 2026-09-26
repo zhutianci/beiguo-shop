@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, unauthorized } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
+import { denyOnChannel } from '@/lib/storefront/resolve'
 
 // 每个绑定账户展示的最近订单条数
 const RECENT_ORDER_LIMIT = 5
@@ -13,6 +14,9 @@ const MAX_BINDINGS_PER_USER = 20
 
 // GET：当前用户绑定的账户列表（分页；每个账户只带最近 5 条订单 + 总数 + 提醒联系方式）
 export async function GET(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
@@ -121,6 +125,9 @@ const createSchema = z.object({
 
 // POST：绑定一个账户邮箱
 export async function POST(request: NextRequest) {
+  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyOnChannel()
+  if (channelDenied) return channelDenied
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

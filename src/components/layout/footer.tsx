@@ -4,9 +4,18 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { ContactModal } from '@/components/contact-modal'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
+import { useStorefront } from '@/components/storefront-provider'
 
-export function Footer() {
+/** catalogOpen：渠道店面 TERMINATED 时为 false，去掉整栏「商品」（点进去只是停业页，设计 6.7）；主站恒为 true */
+export function Footer({ catalogOpen = true }: { catalogOpen?: boolean } = {}) {
   const [contactOpen, setContactOpen] = useState(false)
+  /*
+   * 渠道分站（设计 11.1、11.2）：页脚品牌、主体、客服与主站完全相同；只把渠道站已关闭模块的入口去掉
+   * （充值落地页、IP 工具、订阅查询、友链——它们在渠道 Host 上服务端 404）。
+   * 不只是「点进去 404」的体验问题：生产环境 next/link 会对视口内的链接预取，留着入口就会产生 404 请求（验收 W1-9）。
+   * 主站 features 全开，渲染结果与原来逐字相同。
+   */
+  const { features } = useStorefront()
 
   return (
     <>
@@ -63,7 +72,8 @@ export function Footer() {
                 桌面端鼠标目标比手指小，但阅读距离更远，字太小反而更难扫读。
                 标题在 lg 起用 white/90 + 更松的字距，和下面 white/40 的链接拉开层级；
                 移动端一律不动，保持原样。 */}
-            {/* 充值落地页。从注册表渲染，新增一页不用回来改这里 */}
+            {/* 充值落地页。从注册表渲染，新增一页不用回来改这里（渠道站不渲染：落地页带主站价，设计 11.1） */}
+            {features.landing && (
             <div className="lg:col-span-3">
               <h4 className="font-semibold mb-4 lg:mb-5 lg:text-[15px] lg:text-white/90 lg:tracking-wide">
                 <Link href={LANDING_HUB.path} className="hover:text-purple-300 transition-colors">
@@ -83,44 +93,55 @@ export function Footer() {
                 ))}
               </ul>
             </div>
+            )}
 
+            {catalogOpen && (
             <div className="lg:col-span-3">
               <h4 className="font-semibold mb-4 lg:mb-5 lg:text-[15px] lg:text-white/90 lg:tracking-wide">商品</h4>
               <ul className="space-y-3 lg:space-y-3.5">
                 {/* 原来是 /products?category=1 与 ?category=2：列表页从不读这个参数（进去看到的是全部商品），
                     canonical 又指回 /products——全站每一页各浪费两条链接。改指对应的充值页，
                     文字用实测有量的说法（claude 会员、chatgpt充值），和左边那一栏的落地页名字错开 */}
-                <li>
-                  <Link href={landingPath('claude-pro')} className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
-                    Claude 会员充值
-                  </Link>
-                </li>
-                <li>
-                  <Link href={landingPath('chatgpt-plus')} className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
-                    ChatGPT 充值
-                  </Link>
-                </li>
+                {features.landing && (
+                  <>
+                    <li>
+                      <Link href={landingPath('claude-pro')} className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                        Claude 会员充值
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href={landingPath('chatgpt-plus')} className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                        ChatGPT 充值
+                      </Link>
+                    </li>
+                  </>
+                )}
                 <li>
                   <Link href="/products" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
                     全部商品
                   </Link>
                 </li>
-                <li>
-                  <Link href="/iptools" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
-                    IP 工具
-                  </Link>
-                </li>
+                {features.iptools && (
+                  <li>
+                    <Link href="/iptools" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                      IP 工具
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
+            )}
 
             <div className="lg:col-span-3">
               <h4 className="font-semibold mb-4 lg:mb-5 lg:text-[15px] lg:text-white/90 lg:tracking-wide">客户服务</h4>
               <ul className="space-y-3 lg:space-y-3.5">
-                <li>
-                  <Link href="/lookup" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
-                    订阅查询
-                  </Link>
-                </li>
+                {features.lookup && (
+                  <li>
+                    <Link href="/lookup" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                      订阅查询
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link href="/support" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
                     常见问题
@@ -132,11 +153,13 @@ export function Footer() {
                     关于我们
                   </Link>
                 </li>
-                <li>
-                  <Link href="/links" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
-                    友情链接
-                  </Link>
-                </li>
+                {features.links && (
+                  <li>
+                    <Link href="/links" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                      友情链接
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <button
                     onClick={() => setContactOpen(true)}

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success } from '@/lib/api'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 /**
  * 当前买家有多少条「客服发来但还没看」的留言。
@@ -13,11 +14,17 @@ import { success } from '@/lib/api'
  *
  * 【只数客服发的】sender='ADMIN' 且 readByBuyer=false。买家自己发的消息
  * 建行时就写了 readByBuyer=true（见 api/orders/[id]/messages），不会自己给自己报未读。
+ * 渠道成员的回复同样写 sender='ADMIN'（买家看到的都是「客服」，设计 5.6），所以这里不用区分。
+ *
+ * 【只数本店订单】同一账号两站通用（设计 D4），但订单按交易发生站隔离：在 lulu 看到的红点只能来自 lulu 的订单（T11）。
  *
  * 【未登录返回 0 而不是 401】页头对所有人渲染，用 401 会让未登录访客的控制台里
- * 每分钟刷一条红色报错。这个接口没有任何敏感信息，返回 0 是最干净的。
+ * 每分钟刷一条红色报错。这个接口没有任何敏感信息，返回 0 是最干净的。没有店面的 Host 同理返回 0。
  */
 export async function GET() {
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  if (!sf) return success({ messages: 0 })
   try {
     const user = await getCurrentUser()
     if (!user) return success({ messages: 0 })
@@ -26,7 +33,7 @@ export async function GET() {
       where: {
         sender: 'ADMIN',
         readByBuyer: false,
-        order: { userId: user.id },
+        order: { userId: user.id, tenantId: sf.id },
       },
     })
 

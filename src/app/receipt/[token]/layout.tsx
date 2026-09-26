@@ -1,4 +1,9 @@
 import type { Metadata, Viewport } from 'next'
+import { redirect } from 'next/navigation'
+import { prisma } from '@/lib/db'
+import { getStorefront } from '@/lib/storefront/resolve'
+import { tenantOrigin } from '@/lib/storefront/origin'
+import { channelsEnabled } from '@/lib/storefront/hosts'
 
 /*
  * 收据页的 <head>。
@@ -25,6 +30,21 @@ export const metadata: Metadata = {
 // 收据是白底打印样式，根 layout 声明的是深色配色
 export const viewport: Viewport = { colorScheme: 'light' }
 
-export default function ReceiptLayout({ children }: { children: React.ReactNode }) {
+/**
+ * 【跨店面跳转】（设计 4.5、W2-9）收据属于别的站时，302 到那个站的同一收据地址：收据邮件、订单页里的链接
+ * 都按订单的站生成，买家从别处拿到链接打开时也能落到正确的站。origin 取自 tenants.origin（库里配置），
+ * 绝不从 Host 拼。页面本身是客户端组件，所以跳转放在这个服务端 layout 里做。
+ * getStorefront() 与 redirect() 都不包进 try（设计 4.4 第 7 条）。
+ * 休眠（CHANNELS_ENABLED 未开）时店面恒为主站、没有别的站可跳，不查库：行为与改造前相同（设计 4.10）。
+ */
+export default async function ReceiptLayout({ children, params }: { children: React.ReactNode; params: { token: string } }) {
+  const sf = await getStorefront()
+  const token = (params?.token || '').trim()
+  if (sf && channelsEnabled() && token.length >= 16 && token.length <= 64) {
+    const r = await prisma.receipt.findUnique({ where: { token }, select: { tenantId: true } })
+    if (r && r.tenantId !== sf.id) {
+      redirect(`${await tenantOrigin(r.tenantId)}/receipt/${encodeURIComponent(token)}`)
+    }
+  }
   return <>{children}</>
 }

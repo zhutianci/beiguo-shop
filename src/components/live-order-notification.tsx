@@ -1,5 +1,6 @@
 'use client'
 
+import { useStorefront } from '@/components/storefront-provider'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, MapPin } from 'lucide-react'
@@ -42,7 +43,7 @@ function getRelativeTime(): string {
   return choices[Math.floor(Math.random() * choices.length)]
 }
 
-export function LiveOrderNotification() {
+function LiveOrderNotificationInner() {
   const [orders, setOrders] = useState<RecentOrder[]>([])
   const [current, setCurrent] = useState<{ order: RecentOrder; relativeTime: string } | null>(null)
   const indexRef = useRef(0)
@@ -142,4 +143,15 @@ export function LiveOrderNotification() {
       )}
     </AnimatePresence>
   )
+}
+
+/**
+ * 渠道分站（实施分包 WP1）：实时成交在渠道站关闭（设计 11.1：数据是主站成交，会暴露主站单量与价格）。
+ * 只控制显示；对应接口在渠道 Host 上服务端 404（denyOnChannel）。组件本体改名为 LiveOrderNotificationInner、原样不动，
+ * 由这层按店面决定挂不挂：不渲染就不会发出任何请求（验收 W1-9：渠道站页面零 404 请求）。主站恒为渲染，行为不变。
+ */
+export function LiveOrderNotification() {
+  const { features } = useStorefront()
+  if (!(features.liveOrders)) return null
+  return <LiveOrderNotificationInner />
 }

@@ -8,6 +8,7 @@ import { success, error } from '@/lib/api'
 import { round2 } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
 import { settledReferralCents } from '@/lib/referral-report'
+import { sourceMap, sourceOf } from '@/lib/admin/source-site'
 
 /**
  * 卡密数据分析：数据源 = CardKey 表（网站自助下单自动发货 + 外部站调库存 API 领卡），
@@ -158,6 +159,13 @@ export async function GET(request: NextRequest) {
       })
       for (const o of os) qtyMap.set(o.id, Math.max(o.quantity, 1))
     }
+    // 来源站（设计 8.3、12.2）：本站订单发的卡按订单的 tenantId 分组。渠道单的 soldPrice 是进货价分摊，
+    // 所以渠道那一组的 revenue = 站长按进货价的收入（不是买家付给渠道的售价），与订单营收分开看
+    const tenantOfOrder = new Map<number, number>()
+    if (oids.length) {
+      const os = await prisma.order.findMany({ where: { id: { in: oids } }, select: { id: true, tenantId: true } })
+      for (const o of os) tenantOfOrder.set(o.id, o.tenantId)
+    }
     const cardReferral = (oid: number | null): number => {
       if (oid == null) return 0
       const c = rewardCents.get(oid)
@@ -170,6 +178,7 @@ export async function GET(request: NextRequest) {
     const productMap = new Map<number, Bucket>()
     const local = newBucket()
     const external = newBucket()
+    const siteMap = new Map<number, Bucket>()
     const totals = newBucket()
     // 外部站发卡且利润未知的张数（收入没回传，无法计入利润）
     let externalUnknownProfitCards = 0
@@ -195,6 +204,15 @@ export async function GET(request: NextRequest) {
 
       apply(totals)
       apply(isExternal ? external : local)
+      if (!isExternal) {
+        const tid = r.orderId != null ? tenantOfOrder.get(r.orderId) ?? 1 : 1
+        let sb = siteMap.get(tid)
+        if (!sb) {
+          sb = newBucket()
+          siteMap.set(tid, sb)
+        }
+        apply(sb)
+      }
       if (isExternal && profit == null) externalUnknownProfitCards++
 
       // usedAt 在 where 里已限定非空，这里再兜一层，避免 TS 报 null
@@ -234,6 +252,10 @@ export async function GET(request: NextRequest) {
     const daily = days.map((d) => ({ date: d, ...sealBucket(dailyMap.get(d)!) }))
 
     const t = sealBucket(totals)
+    const siteSrc = await sourceMap(siteMap.keys())
+    const bySite = Array.from(siteMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([tid, b]) => ({ ...sourceOf(siteSrc, tid), ...sealBucket(b) }))
 
     return success({
       range: {
@@ -266,6 +288,8 @@ export async function GET(request: NextRequest) {
         local: sealBucket(local),
         external: sealBucket(external),
       },
+      // 本站自动发卡按来源站拆分（主站 / 各渠道）；各组之和 = bySource.local
+      bySite,
     })
   } catch (err) {
     console.error('CardKey analytics error:', err)

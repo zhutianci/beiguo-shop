@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
+import { adminOrResponse } from '@/lib/admin/source-site'
+import { notifyBuyerOfReply } from '@/lib/tenant/buyer-notify'
 
 // 聊天分段加载参数
 const DEFAULT_PAGE_SIZE = 100  // 首屏 / 「加载更早」每次取的条数
@@ -82,21 +84,39 @@ const sendSchema = z.object({ content: z.string().trim().min(1, '请输入内容
 
 // 管理员回复
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const denied = await adminGuard()
-  if (denied) return denied
+  // 要记「谁回复的」（senderUserId），所以取管理员本人；渠道 Host → 404
+  const auth = await adminOrResponse()
+  if ('res' in auth) return auth.res
   try {
     const orderId = parseInt(params.id)
     if (!orderId) return error('订单无效')
-    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true } })
+    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, tenantId: true } })
     if (!order) return notFound('订单不存在')
 
     const body = await request.json()
     const parsed = sendSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
 
+    /*
+     * 渠道分站（设计 5.6）：sender 仍写 'ADMIN'（买家看到的都是「客服」，买家端未读统计认它）；
+     * 谁回复的记在 senderRole='PLATFORM' / senderUserId。渠道后台据此把站长回复与本渠道成员回复区分开。
+     */
     const msg = await prisma.orderMessage.create({
-      data: { orderId, sender: 'ADMIN', content: parsed.data.content, readByAdmin: true, readByBuyer: false },
+      data: {
+        orderId,
+        sender: 'ADMIN',
+        content: parsed.data.content,
+        readByAdmin: true,
+        readByBuyer: false,
+        senderRole: 'PLATFORM',
+        senderUserId: auth.user.id,
+      },
     })
+    /*
+     * 渠道单：与渠道成员回复同一封买家提醒（设计 11.4 售后闭环，链接用渠道 origin；同单 10 分钟一封，不抛）。
+     * 主站单不发：主站原来没有「客服回复」邮件，加上就是主站可感知变化（WP3 约定，需站长拍板后再开）
+     */
+    if (order.tenantId !== 1) void notifyBuyerOfReply(orderId)
     return success({ message: msg })
   } catch (err) {
     console.error('Admin send order message error:', err)

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { notFoundOnChannel } from '@/lib/storefront/resolve'
 
 /*
  * 开票填写链接页：URL 里的令牌就是凭证，收录即泄漏。
@@ -20,6 +21,12 @@ export const viewport: Viewport = {
   themeColor: '#f3f4f6',
 }
 
-export default function InvoiceRequestLayout({ children }: { children: React.ReactNode }) {
+/*
+ * 渠道分站（设计 7.6 / 11.2；主会话 D4）：这是平台令牌页，渠道站关闭，渠道 Host 上整页 404（背后的接口也各自 404）。
+ * 页面本身是客户端组件，没法在里面 notFound()，所以放在这一层做成异步服务端 layout；第一行、不进 try。
+ * 休眠期对任何 Host 恒放行，主站渲染不变。
+ */
+export default async function InvoiceRequestLayout({ children }: { children: React.ReactNode }) {
+  await notFoundOnChannel()
   return <>{children}</>
 }
