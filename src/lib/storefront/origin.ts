@@ -9,6 +9,7 @@
  */
 import { siteOrigin } from '../news/format'
 import { PLATFORM_TENANT_ID, storefrontById } from './resolve'
+import type { MailOpts } from '../mail'
 
 export async function tenantOrigin(tenantId: number): Promise<string> {
   if (tenantId === PLATFORM_TENANT_ID) return siteOrigin()
@@ -26,4 +27,20 @@ export async function tenantAbsUrl(tenantId: number, path: string): Promise<stri
     throw new Error(`[storefront] tenantAbsUrl 只接受站内路径：${String(path).slice(0, 80)}`)
   }
   return (await tenantOrigin(tenantId)) + path
+}
+
+/**
+ * 交易邮件的 MailOpts（二期改动 4.5）：渠道单 → { origin: Tenant.origin, supportEmail: 店面客服邮箱 }；主站 → undefined。
+ *
+ * 【主站返回 undefined】mail.ts 的 render / send 默认参数 opts = {}，传 undefined 等于不传：主站邮件逐字不变，也不查库。
+ * 【supportEmail】取店面客服信息（resolveStoreContact 的回退结果：渠道设了用渠道的，没设用主站的——主站当前没有 → 不给）。
+ *   mail.ts 页脚渲染前还会再过一次格式与禁发词（findBannedWord），这里给的值不合规也只会被丢掉，不会进信。
+ *   **微信号与二维码永远不进邮件**：这里只取 email 一项。
+ * 【渠道行不存在】与 tenantOrigin 一样抛错（绝不回落主站），由调用方已有的 catch 记日志。
+ */
+export async function tenantMailOpts(tenantId: number): Promise<MailOpts | undefined> {
+  if (tenantId === PLATFORM_TENANT_ID) return undefined
+  const sf = await storefrontById(tenantId)
+  if (!sf) throw new Error(`[storefront] 租户 ${tenantId} 不存在或配置不合规，无法生成邮件参数`)
+  return sf.contact.email ? { origin: sf.origin, supportEmail: sf.contact.email } : { origin: sf.origin }
 }

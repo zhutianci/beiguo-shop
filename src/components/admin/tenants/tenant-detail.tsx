@@ -3,8 +3,11 @@
 /**
  * /admin/tenants/[id]：渠道详情（设计 12.2）。状态机、payoutHold、结算参数、风控上限、主体与收款信息、域名、成员与邀请、预览账号。
  * 所有写操作都在服务端校验与审计（admin-tenants.ts）；这里只做输入与提示。
+ * 二期（docs/多渠道分销-二期改动.md 3.2、4.3）：推送方式只读（企业微信已配置 / 已开、邮箱已开 + 掩码地址）；
+ * 客服信息可改（与渠道设置中心同一组字段；二维码先经 /api/upload scope=contact 上传拿到地址，再 PATCH supportQrUrl）。
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { isValidContactQrUrl } from '@/lib/contact-base'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -53,6 +56,15 @@ interface Detail {
     payeeChangedAt: string | null
     payeeCooldownUntil: string | null
     hasWebhook: boolean
+    /** 二期：推送方式（只读） */
+    noticeWecomOn: boolean
+    noticeEmailOn: boolean
+    noticeEmailMasked: string | null
+    /** 二期：客服信息（渠道原值，不回退；未设 = null） */
+    supportWechat: string | null
+    supportQrUrl: string | null
+    supportEmail: string | null
+    supportHours: string | null
     previewUserIds: number[]
     createdAt: string
   }
@@ -99,8 +111,138 @@ export default function TenantDetail({ id }: { id: string }) {
         <DomainCard d={data} onDone={done} id={id} />
         <PayeeCard d={data} onDone={done} id={id} />
       </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ContactCard d={data} onDone={done} id={id} />
+        <NoticeTransportCard d={data} />
+      </div>
       <MemberCard d={data} onDone={done} id={id} />
     </div>
+  )
+}
+
+/**
+ * 客服信息（二期改动 4.3）：与渠道设置中心同一组字段，超管可代改。前台回退规则：微信号与二维码作为一组——两项都没设才显示主站客服；
+ * 邮箱、服务时间各自回退。客服邮箱会进渠道交易邮件页脚（服务端拦阿里云禁发词），微信号 / 二维码永远不进邮件。
+ */
+function ContactCard({ d, onDone, id }: { d: Detail; onDone: Done; id: string }) {
+  const t = d.tenant
+  const init = () => ({ wechat: t.supportWechat ?? '', email: t.supportEmail ?? '', hours: t.supportHours ?? '' })
+  const [f, setF] = useState(init)
+  const [busy, setBusy] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+  useEffect(() => setF(init()), [t.supportWechat, t.supportEmail, t.supportHours]) // eslint-disable-line react-hooks/exhaustive-deps
+  const qr = isValidContactQrUrl(t.supportQrUrl) ? t.supportQrUrl : null
+  const patch = async (body: Record<string, string | null>) => onDone(await api(`/api/admin/tenants/${id}`, { method: 'PATCH', body }))
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setBusy('save')
+    // 空串 = 清空（服务端 zod 归一为 null）
+    await patch({ supportWechat: f.wechat.trim(), supportEmail: f.email.trim(), supportHours: f.hours.trim() })
+    setBusy('')
+  }
+  const upload = async (file: File) => {
+    setBusy('qr')
+    const form = new FormData()
+    form.append('scope', 'contact')
+    form.append('file', file)
+    const r = await api<{ url: string }>('/api/upload', { form })
+    if (fileRef.current) fileRef.current.value = ''
+    if (!r.success) {
+      setBusy('')
+      return onDone(r)
+    }
+    await patch({ supportQrUrl: r.data.url })
+    setBusy('')
+  }
+  const clearQr = async () => {
+    if (!confirm('清除该渠道的客服二维码？（微信号也没设时，前台回退显示主站客服）')) return
+    setBusy('clear')
+    await patch({ supportQrUrl: null })
+    setBusy('')
+  }
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>客服信息</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <p className="text-xs text-gray-500">
+          渠道自己在设置中心填写，这里可代改。没填的项前台回退主站：微信号与二维码作为一组（两项都没设才显示主站的），邮箱、服务时间各自回退。
+          {!t.supportWechat && !qr ? ' 当前前台显示的是主站客服微信与二维码。' : ''}
+        </p>
+        <form onSubmit={save} className="grid gap-3 md:grid-cols-3">
+          <Field label="微信号或昵称" hint="≤30 字，字母数字下划线横线或汉字">
+            <input className={inputCls} value={f.wechat} maxLength={30} onChange={(e) => setF({ ...f, wechat: e.target.value })} placeholder="未设置" />
+          </Field>
+          <Field label="客服邮箱" hint="会进该渠道交易邮件页脚">
+            <input className={inputCls} value={f.email} maxLength={120} onChange={(e) => setF({ ...f, email: e.target.value })} placeholder="未设置" />
+          </Field>
+          <Field label="服务时间" hint="如 9:00-22:00">
+            <input className={inputCls} value={f.hours} maxLength={40} onChange={(e) => setF({ ...f, hours: e.target.value })} placeholder="未设置" />
+          </Field>
+          <div className="md:col-span-3 flex justify-end">
+            <Button type="submit" size="sm" loading={busy === 'save'}>
+              保存文字信息
+            </Button>
+          </div>
+        </form>
+        <div className="flex items-start gap-4 border-t border-gray-100 pt-3">
+          <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded border border-gray-200 bg-gray-50">
+            {qr ? <img src={qr} alt="客服二维码" className="h-full w-full object-contain" /> : <span className="text-xs text-gray-400">未上传</span>}
+          </div>
+          <div className="space-y-2">
+            <div className="text-xs text-gray-500">客服二维码：PNG / JPG / WebP，≤2MB。换图或清除后旧文件会删除（仍被其他渠道引用时保留）。</div>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) upload(file)
+              }}
+            />
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" loading={busy === 'qr'} onClick={() => fileRef.current?.click()}>
+                {qr ? '更换二维码' : '上传二维码'}
+              </Button>
+              {qr && (
+                <Button size="sm" variant="outline" loading={busy === 'clear'} onClick={clearQr}>
+                  清除
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/** 推送方式（二期改动 3.2）：渠道在自己的设置中心选，超管只读。企业微信地址是凭据不回显，通知邮箱只给掩码 */
+function NoticeTransportCard({ d }: { d: Detail }) {
+  const t = d.tenant
+  const on = (v: boolean) => (v ? <Badge tone="bg-green-100 text-green-700">已开</Badge> : <Badge tone="bg-gray-200 text-gray-600">已关</Badge>)
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>推送方式（只读）</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <p className="text-xs text-gray-500">渠道的订单、留言、注册等纯通知只推给渠道站长（不再推站长群）；需要站长处理的事项照推站长。推送方式由渠道在设置中心自选。</p>
+        <div className="flex items-center justify-between rounded border border-gray-100 px-3 py-2">
+          <span>企业微信机器人</span>
+          <span className="flex items-center gap-2">
+            {t.hasWebhook ? <Badge tone="bg-blue-100 text-blue-700">已配置</Badge> : <Badge tone="bg-gray-200 text-gray-600">未配置</Badge>}
+            {on(t.noticeWecomOn)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between rounded border border-gray-100 px-3 py-2">
+          <span>邮箱{t.noticeEmailMasked ? `（${t.noticeEmailMasked}）` : '（未设置地址）'}</span>
+          {on(t.noticeEmailOn)}
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

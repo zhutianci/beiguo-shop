@@ -10,7 +10,7 @@ import { notFound } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { organizationJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
-import { getLandingProducts, inStock, lowestPrice, matchProducts } from '@/lib/landing/products'
+import { getLandingProducts, getPlatformTotalSales, inStock, lowestPrice, matchProducts } from '@/lib/landing/products'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import HomeClient from './home-client'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
-  // 店面解析不进 try（设计 4.4 第 7 条）。getLandingProducts 按店面取数：渠道站是本店可售商品、本店售价与销量
+  // 店面解析不进 try（设计 4.4 第 7 条）。getLandingProducts 按店面取数：渠道站是本店可售商品与本店售价
   const sf = await getStorefront()
   // 没有店面的 Host 一律 404（(shop)/layout 已挡过一次），绝不回落成主站首页
   if (!sf) notFound()
@@ -62,9 +62,10 @@ export default async function HomePage() {
   // 首页那条信任数据带的数字。复用上面同一份快照，不额外打库。
   // 传给客户端组件是有意的：客户端组件同样会被服务端渲染，值会进服务端 HTML——
   // 而这正是要解决的问题（原来写死 useState(0)，爬虫读到的是「0 个用户」）。
-  // 渠道站：本店可售商品的本店销量之和（设计 12.3「totalSales 按店面」）
+  // 渠道站：与主站同一个合计 —— 全站在售商品 Product.sales 之和（二期 M1，站长要求两站显示同一个总销量），
+  // 不是只加本店上架的那几个；skuCount 仍按本店可售商品数。主站分支原样不变。
   const stats = {
-    totalSales: all.reduce((n, p) => n + (p.sales || 0), 0),
+    totalSales: channel ? await getPlatformTotalSales() : all.reduce((n, p) => n + (p.sales || 0), 0),
     skuCount: all.length,
   }
 

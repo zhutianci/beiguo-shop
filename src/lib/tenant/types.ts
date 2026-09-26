@@ -67,6 +67,10 @@ export type TenantNoticeKind =
   | 'PRODUCT_WITHDRAWN'
   | 'TENANT_STATUS'
   | 'NEGATIVE_BALANCE'
+  /** 二期改动 3.2：渠道站有新客户注册（渠道站注册不再推站长 webhook，改为这条渠道通知） */
+  | 'CUSTOMER_JOINED'
+  /** 二期改动 3.2：站长为渠道单人工发货、补发完成或标记已交付 */
+  | 'ORDER_DELIVERED'
 
 /** 运行时可枚举的列表（zod 枚举、通知偏好、下拉框用），与上面的联合类型一一对应（编译期校验见文件末尾） */
 export const TENANT_NOTICE_KINDS = [
@@ -82,7 +86,31 @@ export const TENANT_NOTICE_KINDS = [
   'PRODUCT_WITHDRAWN',
   'TENANT_STATUS',
   'NEGATIVE_BALANCE',
+  'CUSTOMER_JOINED',
+  'ORDER_DELIVERED',
 ] as const satisfies readonly TenantNoticeKind[]
+
+/**
+ * 通知类型的中文名（二期：企业微信推送、邮件推送、设置页偏好开关、通知列表共用一份，免得几处各写一套漏掉新类型）。
+ * Record<TenantNoticeKind, …>：新增类型不补这里编译失败。文案不得含「微信 / 群 / 二维码」等阿里云禁发词（会进邮件主题；
+ * scripts/check-transactional-mail.ts 逐个断言）。
+ */
+export const TENANT_NOTICE_KIND_LABEL: Readonly<Record<TenantNoticeKind, string>> = Object.freeze({
+  ORDER_PAID: '订单已支付',
+  BUYER_MESSAGE: '买家留言',
+  AFTER_SALE_RESULT: '售后处理结果',
+  ORDER_REFUNDED: '平台退款',
+  STATEMENT: '结算单',
+  PAYOUT: '打款',
+  SUPPLY_CHANGED: '进货价调整',
+  PLATFORM_LISTING: '平台调价 / 新授权',
+  AUTO_DELISTED: '商品自动下架',
+  PRODUCT_WITHDRAWN: '商品停止供货',
+  TENANT_STATUS: '店铺状态变更',
+  NEGATIVE_BALANCE: '余额为负',
+  CUSTOMER_JOINED: '新客户注册',
+  ORDER_DELIVERED: '订单已交付',
+})
 export const LEDGER_TYPES = [
   'ACCRUE',
   'ACCRUE_INV',
@@ -320,13 +348,58 @@ export interface PartnerListingDTO {
   maxRetailCents: number | null
   status: 0 | 1
   sortOrder: number
+  /** 本店销量（TenantListing.sales：只计本渠道的单） */
   sales: number
+  /** 全站销量（Product.sales：主站 + 各渠道合计，与前台显示同一个数；二期改动 1 第 3 条），只读 */
+  globalSales: number
   unitBalanceCents: number | null
   unitPayoutCents: number | null
   sellable: boolean
   reason?: NotSellableReason
   delistedReason?: string
 }
+
+// ============================== 设置中心：推送方式与客服信息（二期改动 3.2、4.3） ==============================
+
+/**
+ * 推送方式（GET /api/partner/settings 的 tenant 里原样输出；键名与 PARTNER_TENANT_SELECT 的列同名，自动进允许键表）。
+ * 两种方式可同时开；noticePrefs 对两者都生效。noticeEmail 是**已验证归属**的完整地址：settings 接口只给 OWNER（settings.write），
+ * 是店主自己填的，不打码。
+ */
+export interface PartnerNoticeTransportDTO {
+  noticeWecomOn: boolean
+  noticeEmailOn: boolean
+  noticeEmail: string | null
+}
+
+/**
+ * 客服信息：渠道自己填的原值（未设为 null）。**不做回退**——回退主站只发生在前台展示（src/lib/contact-base.ts resolveStoreContact），
+ * 设置页要让店主看清「哪些项自己没填、前台正在显示主站的」。supportQrUrl 只会是 /uploads/contact/<名>.(png|jpg|webp)。
+ */
+export interface PartnerContactDTO {
+  supportWechat: string | null
+  supportQrUrl: string | null
+  supportEmail: string | null
+  supportHours: string | null
+}
+
+/** 设置接口可能返回的动作结果（发验证码、保存通知邮箱、发送测试）。键都登记在 selects.ts 的外层键表 */
+export type PartnerNoticeEmailSaveResult =
+  | { ok: true; noticeEmail: string | null }
+  | { ok: false; reason: 'NEED_CODE' | 'BAD_CODE' | 'TOO_MANY' | 'BAD_EMAIL' }
+
+/**
+ * 超管渠道详情（tenantDetail().tenant）里的推送方式：只读。企业微信只给「已配置」布尔（hasWebhook，已有）；
+ * 邮箱只给掩码地址（src/lib/mask.ts maskEmail）。
+ */
+export interface AdminTenantNoticeView {
+  hasWebhook: boolean
+  noticeWecomOn: boolean
+  noticeEmailOn: boolean
+  noticeEmailMasked: string | null
+}
+/** 超管渠道详情里的客服信息：原值（与渠道设置页同口径，不回退），超管可改（PATCH 的 contactPatchShape） */
+export type AdminTenantContactView = PartnerContactDTO
 
 export interface PartnerCustomerRow {
   customerNo: string

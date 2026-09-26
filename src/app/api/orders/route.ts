@@ -25,7 +25,7 @@ import { invoicesByOrderIds, orderIdFromSourceKey, type InvoiceBrief } from '@/l
 import { createEntryIfEligible, getLotteryConfig, lotteryViewsByOrderIds } from '@/lib/lottery-server'
 import type { BuyerLotteryView } from '@/lib/lottery'
 import { getStorefront, type Storefront } from '@/lib/storefront/resolve'
-import { resolveUnitPrice, siteTag } from '@/lib/pricing'
+import { resolveUnitPrice } from '@/lib/pricing'
 import {
   createShopOrder,
   readChannelOrderConfig,
@@ -923,16 +923,8 @@ async function createChannelOrder(sf: Storefront, user: Buyer, input: z.infer<ty
 
   await saveTitleSideEffects(user.id, invoiceIn, invoiceFields)
 
-  // 7. 平台企业微信照发，打「[code]」标签（通知挂了不影响下单）
-  notifyOrderCreated({
-    orderNo: created.order.orderNo,
-    buyer: user.nickname || user.email || `用户#${user.id}`,
-    productName: `${siteTag(sf)}${created.productName}`,
-    quantity,
-    amount: created.amount,
-    createdAt: created.order.createdAt,
-    stock: created.stock,
-  })
+  // 7. 渠道单下单（未付款）不再推站长企业微信（docs/多渠道分销-二期改动.md 3.1）：这是纯通知、站长无须处理；
+  //    渠道站长关心的是付款之后（vmq.ts 写 ORDER_PAID 渠道通知）。配置异常 / 快照断言失败仍走上面的 alertPlatform 照推站长
 
   return orderCreatedResponse(created.order, {
     productId,

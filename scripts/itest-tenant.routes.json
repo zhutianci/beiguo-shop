@@ -1,5 +1,5 @@
 {
-  "note": "生成物，勿手改：node scripts/itest-tenant/merge-routes.mjs 由 scripts/itest-tenant/routes/wp*.json 合并并与实际目录比对后写出。边界检查规则 10 与 cross-tenant.ts 的 T1 矩阵读它。",
+  "note": "生成物，勿手改：node scripts/itest-tenant/merge-routes.mjs 由 scripts/itest-tenant/routes/{wp*,mods-*}.json 合并并与实际目录比对后写出。边界检查规则 10 与 cross-tenant.ts 的 T1 矩阵读它。",
   "sources": [
     {
       "package": "WP4",
@@ -20,6 +20,16 @@
       "package": "WP7",
       "file": "scripts/itest-tenant/routes/wp7.json",
       "count": 22
+    },
+    {
+      "package": "MODS-P2",
+      "file": "scripts/itest-tenant/routes/mods-p2.json",
+      "count": 4
+    },
+    {
+      "package": "MODS-P3",
+      "file": "scripts/itest-tenant/routes/mods-p3.json",
+      "count": 4
     }
   ],
   "routes": [
@@ -780,10 +790,97 @@
       "readOnlySafe": true
     },
     {
+      "package": "MODS-P3",
+      "method": "GET",
+      "path": "/api/partner/settings/contact",
+      "file": "src/app/api/partner/settings/contact/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "MODS-P3",
+      "method": "PUT",
+      "path": "/api/partner/settings/contact",
+      "file": "src/app/api/partner/settings/contact/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "MODS-P3",
+      "method": "POST",
+      "path": "/api/partner/settings/contact-qr",
+      "file": "src/app/api/partner/settings/contact-qr/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "20/hour（路由，按成员）+ 10/hour（facade，按渠道）"
+    },
+    {
+      "package": "MODS-P3",
+      "method": "DELETE",
+      "path": "/api/partner/settings/contact-qr",
+      "file": "src/app/api/partner/settings/contact-qr/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
       "package": "WP7",
       "method": "PUT",
       "path": "/api/partner/settings/notice",
       "file": "src/app/api/partner/settings/notice/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "MODS-P2",
+      "method": "PUT",
+      "path": "/api/partner/settings/notice-email",
+      "file": "src/app/api/partner/settings/notice-email/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "MODS-P2",
+      "method": "POST",
+      "path": "/api/partner/settings/notice-email/code",
+      "file": "src/app/api/partner/settings/notice-email/code/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "10/hour"
+    },
+    {
+      "package": "MODS-P2",
+      "method": "POST",
+      "path": "/api/partner/settings/notice-email/test",
+      "file": "src/app/api/partner/settings/notice-email/test/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "5/hour"
+    },
+    {
+      "package": "MODS-P2",
+      "method": "PUT",
+      "path": "/api/partner/settings/transport",
+      "file": "src/app/api/partner/settings/transport/route.ts",
       "guard": "partnerRoute",
       "perm": "settings.write",
       "key": null,

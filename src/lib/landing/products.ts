@@ -33,7 +33,8 @@ export interface LandingProduct {
 export const getLandingProducts = cache(async (): Promise<LandingProduct[]> => {
   /*
    * 【按店面取数】（设计 7.4）商品详情页的「同系列档位」、首页统计都用这份快照：渠道站必须是本店可售的商品、
-   * 本店售价与本店销量，否则会把主站兄弟商品的价格写进渠道站 HTML（W2-6 值扫描）。
+   * 本店售价，否则会把主站兄弟商品的价格写进渠道站 HTML（W2-6 值扫描）。销量两站同为全站 Product.sales（二期 M1）；
+   * 首页「累计销量」合计在渠道站不用这份快照求和，走下面的 getPlatformTotalSales（全站在售商品之和）。
    * 放在这里而不是让每个调用方自己判断：将来多一个调用方也不会漏。店面解析不进 try（设计 4.4 第 7 条）。
    * 充值落地页（/chongzhi/*）在渠道站整组 404（WP1），但它们也经这里，拿到的同样是本店数据。
    */
@@ -58,6 +59,15 @@ export const getLandingProducts = cache(async (): Promise<LandingProduct[]> => {
       return []
     }
   }
+  return loadPlatformLandingProducts()
+})
+
+/**
+ * 主站在售商品快照（原 getLandingProducts 的主站分支，查询与映射逐字搬出，主站行为不变）。
+ * 抽出来是为了让渠道首页的「累计销量」能拿到与主站首页**同一个查询**求出的合计（二期 M1），
+ * 而不是另写一个 aggregate —— 两份口径（如 take 上限）迟早会漂。
+ */
+const loadPlatformLandingProducts = cache(async (): Promise<LandingProduct[]> => {
   try {
     const rows = await prisma.product.findMany({
       where: { status: 1 },
@@ -89,6 +99,17 @@ export const getLandingProducts = cache(async (): Promise<LandingProduct[]> => {
     return []
   }
 })
+
+/**
+ * 全站在售商品的 Product.sales 之和 —— 与主站首页「累计销量」同一口径、同一查询（二期 M1）。
+ * 渠道首页用它：站长要求两站显示同一个总销量，所以不是「只加本店上架的那几个」。
+ * 只输出一个合计数，不带任何商品行，渠道站 HTML 不会因此多出主站的价格或商品名。
+ * 库不可达时 loadPlatformLandingProducts 已返回 []，这里得 0，与主站首页的降级一致。
+ */
+export async function getPlatformTotalSales(): Promise<number> {
+  const rows = await loadPlatformLandingProducts()
+  return rows.reduce((n, p) => n + (p.sales || 0), 0)
+}
 
 /** 这一组商品里的最低价，用于标题/描述里的「￥X 起」。没有商品时返回 null */
 export function lowestPrice(items: LandingProduct[]): number | null {

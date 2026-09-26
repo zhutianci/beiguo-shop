@@ -109,7 +109,10 @@ export default function ProductDetailClient({
   const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [contactOpen, setContactOpen] = useState(false)
 
-  const referralOn = useStorefront().features.referral
+  const sfPublic = useStorefront()
+  const referralOn = sfPublic.features.referral
+  // 右栏「客服时间」按店面取（二期改动 4.2）：主站 = PLATFORM_CONTACT，渲染与原来写死的「9:00-22:00 · 微信 GenuineMarxist」逐字相同
+  const contact = sfPublic.contact
   useEffect(() => {
     // 渠道站内推硬关（设计 7.6）：不读、不记 ref；服务端本来也忽略它，这里是少发一个无意义的参数
     const r = referralOn ? captureRefFromUrl() : null
@@ -441,7 +444,11 @@ export default function ProductDetailClient({
                     <div>
                       <div className="font-medium">客服时间</div>
                       {/* 原来写「7×12 小时」，和购买须知里的「9:00-22:00」（13 小时）自相矛盾 */}
-                      <div className="text-xs text-white/40">9:00-22:00 · 微信 GenuineMarxist</div>
+                      <div className="text-xs text-white/40">
+                        {[contact.hours, contact.wechat ? `微信 ${contact.wechat}` : null, contact.email ? `邮箱 ${contact.email}` : null]
+                          .filter(Boolean)
+                          .join(' · ') || '在「我的订单」里与客服在线沟通'}
+                      </div>
                     </div>
                   </div>
                 </div>

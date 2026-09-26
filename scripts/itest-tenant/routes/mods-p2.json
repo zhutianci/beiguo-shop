@@ -1,0 +1,10 @@
+{
+  "package": "MODS-P2",
+  "note": "二期 P2（docs/多渠道分销-二期改动.md 3.2 推送方式）新增的渠道后台接口。全部 settings.write（仅 OWNER），暂停营业时只读（不给 readOnlySafe）。notice-email/code 会往店主填的地址发验证码：路由 10/hour + facade 内按邮箱 60 秒 1 次、每天 5 次、按渠道每小时 10 次；notice-email/test 同步发信：路由 5/hour + facade 5/hour。",
+  "routes": [
+    {"method": "PUT", "path": "/api/partner/settings/transport", "file": "src/app/api/partner/settings/transport/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min"},
+    {"method": "PUT", "path": "/api/partner/settings/notice-email", "file": "src/app/api/partner/settings/notice-email/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min"},
+    {"method": "POST", "path": "/api/partner/settings/notice-email/code", "file": "src/app/api/partner/settings/notice-email/code/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "10/hour"},
+    {"method": "POST", "path": "/api/partner/settings/notice-email/test", "file": "src/app/api/partner/settings/notice-email/test/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "5/hour"}
+  ]
+}

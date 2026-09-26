@@ -5,14 +5,6 @@ import { createOrGetVmqOrder } from './vmq'
 import { notifyReceiptCreated } from './notify'
 import { BillingError, assertShopOrderBillable, billingFieldsOrThrow, shopOrderIdOfExt, type BuyerInvoiceFields } from './order-invoice'
 import { hasAccountAccess } from './email-proof'
-import { storefrontById } from './storefront/resolve'
-
-/** 平台群「[lulu]」标签：渠道票据用租户 code，主站为 null（消息逐字不变） */
-async function siteCodeOf(tenantId: number): Promise<string | null> {
-  if (tenantId === 1) return null
-  const sf = await storefrontById(tenantId).catch(() => null)
-  return sf?.code ?? `t${tenantId}`
-}
 
 // BillingError / BuyerInvoiceFields / ensureExternalOrderForShopOrder 等已迁到 ./order-invoice
 // （见那个文件顶部的说明：为了不让 lib/vmq.ts 与本文件形成循环依赖）。
@@ -251,15 +243,21 @@ export async function submitReceiptForExternalOrder(
     throw new BillingError('该订单已开具收据，如需重开请联系客服', 409)
   }
 
-  notifyReceiptCreated({
-    receiptNo: receipt.receiptNo,
-    payerTitle: receipt.payerTitle,
-    amount: receipt.amount,
-    source: 'BUYER',
-    account: receipt.claudeAccount,
-    createdAt: receipt.createdAt,
-    site: await siteCodeOf(tf.tenantId),
-  })
+  /*
+   * 买家自助开收据是纯通知、站长无须处理：只推主站单（docs/多渠道分销-二期改动.md 3.1）。
+   * 渠道单不再推站长群（原来带「[lulu]」标签照推）；主站单 site 为 null，推送内容与原来逐字相同。
+   */
+  if (tf.tenantId === 1) {
+    notifyReceiptCreated({
+      receiptNo: receipt.receiptNo,
+      payerTitle: receipt.payerTitle,
+      amount: receipt.amount,
+      source: 'BUYER',
+      account: receipt.claudeAccount,
+      createdAt: receipt.createdAt,
+      site: null,
+    })
+  }
 
   return { token: receipt.token }
 }

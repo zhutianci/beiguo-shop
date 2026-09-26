@@ -473,8 +473,23 @@ async function testMetadataRobots(w: World) {
   check('主站：robots index:true', mainMeta.robots?.index === true && mainMeta.robots?.googleBot?.index === true)
   const baseFile = baselineModule('src/app/layout.tsx')
   if (baseFile) {
-    const base = (await import(pathToFileURL(baseFile).href)) as { metadata: unknown }
-    check('主站：metadata 与改造前（git HEAD）逐字相同', stable(mainMeta) === stable(base.metadata), `${stable(mainMeta).slice(0, 120)} vs ${stable(base.metadata).slice(0, 120)}`)
+    const base = (await import(pathToFileURL(baseFile).href)) as { metadata?: unknown; generateMetadata?: () => Promise<unknown> }
+    // 一期入库之后，HEAD 的根布局本身就是 generateMetadata 版（不再有模块级 metadata 常量）：按主站 Host 调它当基线。
+    // 原写法只读 base.metadata，拿到 undefined 后 stable(undefined).slice 直接抛错，整个 wp1 中断
+    const baseMeta = base.metadata !== undefined ? base.metadata : base.generateMetadata ? await withRequest({ host: MAIN_HOST }, () => base.generateMetadata!()) : undefined
+    // 站标 / 分享图地址（icons、openGraph.images、twitter.images）由 scripts/gen-brand-assets.py 管，换 logo 时带 ?v= 版本号一起变，
+    // 与渠道改造无关：比对时剔掉这三处，其余字段仍要求逐字相同（渠道改造若误改了主站标题、robots、验证 meta 照样会被抓到）
+    const brandless = (m: unknown) => {
+      const x = JSON.parse(JSON.stringify(m ?? null)) as Record<string, Record<string, unknown> | undefined> | null
+      if (x) {
+        delete x.icons
+        if (x.openGraph) delete x.openGraph.images
+        if (x.twitter) delete x.twitter.images
+      }
+      return stable(x)
+    }
+    if (stable(mainMeta) !== stable(baseMeta) && brandless(mainMeta) === brandless(baseMeta)) console.log('  （主站 metadata 仅站标 / 分享图地址与 git HEAD 不同：属品牌素材更新，不计入渠道改造比对）')
+    check('主站：metadata 与改造前（git HEAD）逐字相同（站标素材地址除外）', brandless(mainMeta) === brandless(baseMeta), `${String(brandless(mainMeta)).slice(0, 160)} vs ${String(brandless(baseMeta)).slice(0, 160)}`)
   }
   setChannelsMode('dormant')
   try {
@@ -492,7 +507,9 @@ async function testMetadataRobots(w: World) {
   const rBase = baselineModule('src/app/robots.ts')
   if (rBase) {
     const base = (await import(pathToFileURL(rBase).href)) as { default: () => unknown }
-    check('主站 robots 与改造前逐字相同', stable(mr) === stable(base.default()))
+    // 一期入库后 HEAD 的 robots 也按 Host 取店面（要请求上下文），基线同样在主站 Host 下调用
+    const b = await withRequest({ host: MAIN_HOST }, async () => base.default())
+    check('主站 robots 与改造前逐字相同', stable(mr) === stable(b))
   }
   const ai = cr.rules?.[0]
   check('渠道 robots：AI 爬虫整站 Disallow', Array.isArray(ai?.userAgent) && ai.userAgent.includes('GPTBot') && ai.userAgent.includes('ClaudeBot') && ai.userAgent.includes('Bytespider') && ai.disallow === '/')
@@ -505,7 +522,7 @@ async function testMetadataRobots(w: World) {
   const sBase = baselineModule('src/app/sitemap.ts')
   if (sBase) {
     const base = (await import(pathToFileURL(sBase).href)) as { default: () => Promise<unknown> }
-    const b = await base.default()
+    const b = await withRequest({ host: MAIN_HOST }, () => base.default())
     check('主站 sitemap 与改造前逐字相同', stable(ms) === stable(b), `${(ms as unknown[]).length} vs ${(b as unknown[]).length}`)
   }
 }
@@ -581,6 +598,7 @@ async function testClientRender() {
   const { renderToString } = await import('react-dom/server')
   const { StorefrontProvider } = await import('../../src/components/storefront-provider')
   const { storefrontFeatures } = await import('../../src/lib/storefront/public')
+  const { PLATFORM_CONTACT } = await import('../../src/lib/contact-base')
   const { PathnameContext } = await import('next/dist/shared/lib/hooks-client-context.shared-runtime')
   const { AppRouterContext } = await import('next/dist/shared/lib/app-router-context.shared-runtime')
   const { Header } = await import('../../src/components/layout/header')
@@ -594,8 +612,9 @@ async function testClientRender() {
   const { RedPacketButton } = await import('../../src/components/lottery/red-packet-button')
   const { useUserStore } = await import('../../src/store/user')
   const h = React.createElement
-  const channel = { code: 'itl', kind: 'CHANNEL' as const, origin: 'https://itl.bigolab.com', features: storefrontFeatures({ kind: 'CHANNEL' }) }
-  const platform = { code: 'main', kind: 'PLATFORM' as const, origin: 'https://bigolab.com', features: storefrontFeatures({ kind: 'PLATFORM' }) }
+  // 二期改动 4.1：PublicStorefront 多了 contact；这里只测入口开关，客服取值用主站（渠道客服的展示由 mods-p3 覆盖）
+  const channel = { code: 'itl', kind: 'CHANNEL' as const, origin: 'https://itl.bigolab.com', features: storefrontFeatures({ kind: 'CHANNEL' }), contact: { ...PLATFORM_CONTACT } }
+  const platform = { code: 'main', kind: 'PLATFORM' as const, origin: 'https://bigolab.com', features: storefrontFeatures({ kind: 'PLATFORM' }), contact: { ...PLATFORM_CONTACT } }
   const router = { push() {}, replace() {}, prefetch() {}, back() {}, forward() {}, refresh() {} }
   const render = (sf: typeof channel | typeof platform | null, el: React.ReactElement) => {
     const inner = h(AppRouterContext.Provider, { value: router as never }, h(PathnameContext.Provider, { value: '/' }, el))
@@ -804,7 +823,7 @@ async function testMiddleware(w: World) {
 async function testShopShell(w: World) {
   const ShopLayout = (await import('../../src/app/(shop)/layout')).default as (p: { children: React.ReactNode }) => Promise<unknown>
   const { SuspendedBanner } = await import('../../src/components/storefront/suspended-banner')
-  const { ClosedPageGate, isClosedPath } = await import('../../src/components/storefront/closed-page')
+  const { ClosedPageGate, DraftClosedPage, isClosedPath } = await import('../../src/components/storefront/closed-page')
   const { PageViewBeacon } = await import('../../src/components/page-view-beacon')
   const { LiveOrderNotification } = await import('../../src/components/live-order-notification')
   const { AnnouncementModal } = await import('../../src/components/announcement-modal')
@@ -833,14 +852,17 @@ async function testShopShell(w: World) {
   const preview = await createUser('wp1-preview', { registeredTenantId: 1 })
   await prisma.tenant.update({ where: { id: draft.id }, data: { previewUserIds: [preview.id] } })
   invalidateStorefrontCache()
+  // 2026-09-26（commit 6a9ac14）起：DRAFT 对非预览访客整站换成「本站暂停访问」（DraftClosedPage，与 nginx 停业页同文案），
+  // 不再 404；判定要点不变——不渲染 children（页面服务端组件不执行、不查商品）
+  const closedOnly = (r: Awaited<ReturnType<typeof shell>>) => r.kind === 'ok' && findType(r.value, DraftClosedPage) && !JSON.stringify(r.value).includes('CHILD')
   const d1 = await shell(draft.host)
-  check('DRAFT：未登录 → 404', d1.kind === 'notFound')
+  check('DRAFT：未登录 → 本站暂停访问（不渲染页面）', closedOnly(d1))
   const d2 = await shell(draft.host, signTestToken(w.users.luluBuyer1, draft.code, draft.id))
-  check('DRAFT：非预览用户 → 404', d2.kind === 'notFound')
+  check('DRAFT：非预览用户 → 本站暂停访问', closedOnly(d2))
   const d3 = await shell(draft.host, signTestToken(preview, draft.code, draft.id))
-  check('DRAFT：预览用户 → 放行', d3.kind === 'ok')
+  check('DRAFT：预览用户 → 放行', d3.kind === 'ok' && !findType(d3.value, DraftClosedPage))
   const d4 = await shell(draft.host, signTestToken(preview, 'main'))
-  check('DRAFT：预览用户拿主站 token → 404（aud 不符 = 未登录）', d4.kind === 'notFound')
+  check('DRAFT：预览用户拿主站 token → 本站暂停访问（aud 不符 = 未登录）', closedOnly(d4))
   await prisma.tenantDomain.deleteMany({ where: { tenantId: draft.id } })
   await prisma.tenant.delete({ where: { id: draft.id } })
   invalidateStorefrontCache()

@@ -112,7 +112,9 @@ export default function TenantListings({ id }: { id: string }) {
                     <th className="pb-2 text-right font-medium">进货价</th>
                     <th className="pb-2 text-right font-medium">渠道售价</th>
                     <th className="pb-2 font-medium">上架 / 可售</th>
-                    <th className="pb-2 text-right font-medium">销量</th>
+                    {/* 这里是 TenantListing.sales（只计本渠道的单）；两站前台显示的是全站 Product.sales（二期 M1），
+                        表头写明「本渠道」免得与商品管理页的销量混淆 */}
+                    <th className="pb-2 text-right font-medium">本渠道销量</th>
                     <th className="pb-2" />
                   </tr>
                 </thead>

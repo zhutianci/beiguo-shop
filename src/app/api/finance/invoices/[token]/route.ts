@@ -8,7 +8,7 @@ import { verifyActionToken } from '@/lib/action-token'
 import { sendInvoiceIssuedEmail } from '@/lib/mail'
 import { systemEmailConfigured } from '@/lib/aliyun'
 import { denyOnChannel } from '@/lib/storefront/resolve'
-import { tenantOrigin } from '@/lib/storefront/origin'
+import { tenantMailOpts } from '@/lib/storefront/origin'
 import { sourceMap, sourceOf, parseTenantFilter, INVALID_TENANT_FILTER } from '@/lib/admin/source-site'
 
 /**
@@ -162,8 +162,9 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       mailError = '邮件服务未配置，未发送通知'
     } else {
       try {
-        // 渠道订单的发票：邮件里的链接用渠道 origin（设计 11.4「发票已开由财务台路由发出，按发票 tenantId」）
-        const mailOpts = iv.tenantId !== 1 ? { origin: await tenantOrigin(iv.tenantId) } : {}
+        // 渠道订单的发票：邮件里的链接用渠道 origin（设计 11.4「发票已开由财务台路由发出，按发票 tenantId」），
+        // 页脚带店面客服邮箱（二期改动 4.5）；主站返回 undefined，邮件逐字不变
+        const mailOpts = await tenantMailOpts(iv.tenantId)
         const r = await sendInvoiceIssuedEmail(
           iv.email,
           {

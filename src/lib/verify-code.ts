@@ -9,7 +9,9 @@ const RESEND_SECONDS = 60 // 重发冷却
 const MAX_ATTEMPTS = 5
 
 // LOOKUP：匿名「邮箱查订阅」证明邮箱归属（lib/email-proof.ts）。EmailCode.purpose 是 VarChar(20)，不用改表
-export type CodePurpose = 'REGISTER' | 'RESET' | 'LOOKUP'
+// NOTICE（二期改动 3.2）：渠道站长把「通知邮箱」设成非登录邮箱时证明归属（tenant/partner-facade.ts 发码与校验）。
+//   单独一个用途：码不能拿去注册 / 找回密码，反之亦然；lib/marketing/audience.ts 只认 REGISTER，不受影响
+export type CodePurpose = 'REGISTER' | 'RESET' | 'LOOKUP' | 'NOTICE'
 export type ConsumeResult = 'OK' | 'INVALID' | 'TOO_MANY'
 
 export function genCode(): string {

@@ -1,0 +1,10 @@
+{
+  "package": "MODS-P3",
+  "note": "二期 P3 客服信息（docs/多渠道分销-二期改动.md 4.3）新增的渠道后台接口。全部 settings.write（仅 OWNER）；写接口 SUSPENDED 时只读（不加 readOnlySafe）。contact-qr 的 POST 是 multipart（≤2MB，先查 Content-Length），另有 facade 内每渠道每小时 10 次的限频。超管侧复用已登记的 PATCH /api/admin/tenants/[id]（新增客服四字段）与 /api/upload scope=contact（范围外，不登记）。",
+  "routes": [
+    {"method": "GET", "path": "/api/partner/settings/contact", "file": "src/app/api/partner/settings/contact/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": true},
+    {"method": "PUT", "path": "/api/partner/settings/contact", "file": "src/app/api/partner/settings/contact/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min"},
+    {"method": "POST", "path": "/api/partner/settings/contact-qr", "file": "src/app/api/partner/settings/contact-qr/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "20/hour（路由，按成员）+ 10/hour（facade，按渠道）"},
+    {"method": "DELETE", "path": "/api/partner/settings/contact-qr", "file": "src/app/api/partner/settings/contact-qr/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min"}
+  ]
+}

@@ -1,4 +1,6 @@
 import { sendSystemEmail, systemEmailConfigured } from './aliyun'
+import { findBannedWord } from './marketing/lint'
+import { TENANT_NOTICE_KIND_LABEL, type TenantNoticeKind } from './tenant/types'
 
 export { systemEmailConfigured }
 
@@ -13,9 +15,15 @@ const BRAND = '贝果科技'
  *  · 不传 = 原来的 APP_URL 常量，**主站调用方不必改、主站邮件逐字不变**（默认值刻意不用 siteOrigin()：
  *    它优先读 NEXT_PUBLIC_SITE_URL，两个环境变量不一致时会改变主站邮件里的链接）。
  * origin 只接受 http(s)://host[:port]（去掉结尾的 /），不合规回落 APP_URL——绝不把外部输入拼进邮件链接。
+ *
+ * 【客服邮箱 supportEmail】（二期改动 4.5）渠道交易邮件由调用方经 tenantMailOpts(tenantId) 传入店面客服邮箱，
+ * layout() 页脚在有值时追加一行「客服邮箱：xxx」（纯文本，不做 mailto 链接：交易邮件里的链接一律指向店面 origin）。
+ * 不传 = 页脚与原来逐字相同（主站）。渲染前再过一次格式与禁发词（supportEmailOf）：不合规就整行不出，绝不让
+ * 「5 位以上数字@qq.com」之类的地址进正文。**微信号与二维码永远不进邮件**——MailOpts 里根本没有这两个字段。
  */
 export interface MailOpts {
   origin?: string
+  supportEmail?: string | null
 }
 
 function baseOf(opts?: MailOpts): string {
@@ -24,8 +32,17 @@ function baseOf(opts?: MailOpts): string {
   return APP_URL
 }
 
-// 统一邮件外壳
-function layout(title: string, bodyHtml: string, base: string = APP_URL): string {
+/** 页脚客服邮箱：格式合规、≤120 字、不命中禁发词才给（已转义）；否则 undefined（页脚与主站逐字相同） */
+function supportEmailOf(opts?: MailOpts): string | undefined {
+  const raw = (opts?.supportEmail || '').trim()
+  if (!raw || raw.length > 120) return undefined
+  if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/.test(raw)) return undefined
+  if (findBannedWord(raw)) return undefined
+  return escapeHtml(raw)
+}
+
+// 统一邮件外壳。supportEmail 必须是 supportEmailOf() 的结果（已校验、已转义）；不传时输出与二期之前逐字相同
+function layout(title: string, bodyHtml: string, base: string = APP_URL, supportEmail?: string): string {
   return `<div style="margin:0;padding:24px;background:#f5f6f8;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
   <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #eceef1;">
     <div style="background:linear-gradient(135deg,#7c3aed,#db2777);padding:20px 24px;color:#fff;">
@@ -36,7 +53,10 @@ function layout(title: string, bodyHtml: string, base: string = APP_URL): string
       ${bodyHtml}
     </div>
     <div style="padding:14px 24px;background:#fafbfc;color:#9ca3af;font-size:12px;border-top:1px solid #eceef1;">
-      本邮件由系统自动发送，请勿直接回复。 · <a href="${base}" style="color:#7c3aed;text-decoration:none;">${base.replace(/^https?:\/\//, '')}</a>
+      本邮件由系统自动发送，请勿直接回复。 · <a href="${base}" style="color:#7c3aed;text-decoration:none;">${base.replace(/^https?:\/\//, '')}</a>${
+        supportEmail ? `
+      <div style="margin-top:4px;">客服邮箱：${supportEmail}</div>` : ''
+      }
     </div>
   </div>
 </div>`
@@ -46,7 +66,12 @@ const PURPOSE_LABEL: Record<string, string> = {
   REGISTER: '注册验证',
   RESET: '找回密码',
   LOOKUP: '订阅查询',
+  // 二期改动 3.2：渠道站长把通知邮箱设为非登录邮箱时，先证明归属
+  NOTICE: '通知邮箱绑定',
 }
+
+/** 验证码用途（与 lib/verify-code.ts 的 CodePurpose 一致） */
+export type VerifyMailPurpose = 'REGISTER' | 'RESET' | 'LOOKUP' | 'NOTICE'
 
 // 每封信都拆成「纯渲染 render* + 发送 send*」：scripts/check-transactional-mail.ts 用样例数据渲染，
 // 断言正文不含阿里云禁发内容（微信/QQ/二维码/群/网盘）—— 联系客服一律写「在订单内联系客服」或站内 /support。
@@ -56,7 +81,7 @@ interface RenderedMail {
 }
 
 // 验证码邮件
-export function renderVerifyCodeEmail(code: string, purpose: 'REGISTER' | 'RESET' | 'LOOKUP', opts: MailOpts = {}): RenderedMail {
+export function renderVerifyCodeEmail(code: string, purpose: VerifyMailPurpose, opts: MailOpts = {}): RenderedMail {
   const base = baseOf(opts)
   const label = PURPOSE_LABEL[purpose] || '身份验证'
   const html = layout(
@@ -66,12 +91,13 @@ export function renderVerifyCodeEmail(code: string, purpose: 'REGISTER' | 'RESET
        <span style="display:inline-block;font-size:30px;font-weight:800;letter-spacing:8px;color:#7c3aed;background:#f5f3ff;border:1px solid #ede9fe;border-radius:10px;padding:12px 22px;">${code}</span>
      </div>
      <p style="color:#6b7280;">验证码 10 分钟内有效，请勿泄露给他人。如非本人操作请忽略本邮件。</p>`,
-    base
+    base,
+    supportEmailOf(opts)
   )
   return { subject: `【${BRAND}】${label}验证码：${code}`, html }
 }
 
-export async function sendVerifyCodeEmail(to: string, code: string, purpose: 'REGISTER' | 'RESET' | 'LOOKUP', opts: MailOpts = {}) {
+export async function sendVerifyCodeEmail(to: string, code: string, purpose: VerifyMailPurpose, opts: MailOpts = {}) {
   const { subject, html } = renderVerifyCodeEmail(code, purpose, opts)
   return sendSystemEmail(to, subject, html)
 }
@@ -89,7 +115,8 @@ export function renderAccountExistsEmail(opts: MailOpts = {}): RenderedMail {
     `<p>有人（可能是你本人）正在用这个邮箱注册${BRAND}账号，但<strong>这个邮箱已经注册过了</strong>，所以没有发送验证码。</p>
      <p>请直接 <a href="${base}/login" style="color:#7c3aed;">登录</a>；如果忘记了密码，可以 <a href="${base}/forgot-password" style="color:#7c3aed;">找回密码</a>。</p>
      <p style="color:#6b7280;">如非本人操作请忽略本邮件，你的账号不会有任何变化。</p>`,
-    base
+    base,
+    supportEmailOf(opts)
   )
   return { subject: `【${BRAND}】该邮箱已注册，请直接登录`, html }
 }
@@ -106,7 +133,8 @@ export function renderNoAccountEmail(opts: MailOpts = {}): RenderedMail {
     `<p>有人（可能是你本人）申请找回${BRAND}账号的密码，但<strong>本站没有用这个邮箱注册的账号</strong>。</p>
      <p>如果你注册时用的是别的邮箱，请换那个邮箱再试；也可以 <a href="${base}/register" style="color:#7c3aed;">直接注册</a>。</p>
      <p style="color:#6b7280;">如非本人操作请忽略本邮件。</p>`,
-    base
+    base,
+    supportEmailOf(opts)
   )
   return { subject: `【${BRAND}】找回密码提醒`, html }
 }
@@ -124,7 +152,8 @@ export function renderNoSubscriptionEmail(opts: MailOpts = {}): RenderedMail {
     `<p>有人（可能是你本人）在${BRAND}申请查询这个邮箱的订阅记录，但<strong>本站没有这个邮箱的订阅记录</strong>，所以没有发送验证码。</p>
      <p>如果你购买时填写的是别的账户邮箱，请换那个邮箱再查；刚下单的订单记录可能需要一段时间才会更新。</p>
      <p style="color:#6b7280;">如非本人操作请忽略本邮件。</p>`,
-    base
+    base,
+    supportEmailOf(opts)
   )
   return { subject: `【${BRAND}】订阅查询提醒`, html }
 }
@@ -191,7 +220,8 @@ export function renderOrderPaidEmail(o: OrderInfo, opts: MailOpts = {}): Rendere
      <table style="width:100%;border-collapse:collapse;margin-top:8px;">${rows}</table>
      ${extra}
      <div style="margin-top:18px;"><a href="${base}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`,
-    base
+    base,
+    supportEmailOf(opts)
   )
   return { subject: `【${BRAND}】订单支付成功 · ${o.productName}`, html }
 }
@@ -213,7 +243,8 @@ export function renderOrderDeliveredEmail(o: OrderInfo, opts: MailOpts = {}): Re
      </table>
      ${o.deliveryInfo ? `<div style="margin-top:14px;"><div style="font-weight:600;margin-bottom:6px;">交付信息</div><div style="font-family:monospace;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(o.deliveryInfo)}</div></div>` : ''}
      <div style="margin-top:18px;"><a href="${base}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`,
-    base
+    base,
+    supportEmailOf(opts)
   )
   return { subject: `【${BRAND}】订单已交付 · ${o.productName}`, html }
 }
@@ -275,7 +306,8 @@ export function renderInvoiceIssuedEmail(iv: InvoiceIssuedInfo, opts: MailOpts =
        仍未找到可在订单内联系客服，我们会重新发送。
      </div>
      <div style="margin-top:18px;"><a href="${base}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`,
-    base
+    base,
+    supportEmailOf(opts)
   )
   return { subject: `【${BRAND}】发票已开具 · ${iv.invoiceNo}`, html }
 }
@@ -306,7 +338,8 @@ export function renderOrderReplyEmail(o: OrderReplyInfo, opts: MailOpts = {}): R
      </table>
      <p style="margin-top:14px;color:#6b7280;">为保护您的账号信息，回复内容不在邮件中展示，请到「我的订单 → 订单详情」查看并继续沟通。</p>
      <div style="margin-top:18px;"><a href="${base}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`,
-    base
+    base,
+    supportEmailOf(opts)
   )
   return { subject: `【${BRAND}】您的订单有新的客服回复`, html }
 }
@@ -338,12 +371,86 @@ export function renderTenantInviteEmail(a: { link: string; expiresHours: number;
      <p style="margin-top:14px;color:#6b7280;word-break:break-all;">如果按钮无法点击，请复制链接到浏览器打开：${escapeHtml(a.link)}</p>
      ${registerTip}
      <p style="color:#6b7280;">如非本人预期，请忽略本邮件，链接过期后自动失效。</p>`,
-    base
+    base,
+    supportEmailOf(opts)
   )
   return { subject: `【${BRAND}】后台成员邀请`, html }
 }
 
 export async function sendTenantInviteEmail(to: string, a: { link: string; expiresHours: number; registerUrl?: string }, opts: MailOpts = {}) {
   const { subject, html } = renderTenantInviteEmail(a, opts)
+  return sendSystemEmail(to, subject, html)
+}
+
+/*
+ * 渠道后台通知邮件（二期改动 3.2）：渠道站长在设置中心打开「邮箱推送」后，tenant/notice.ts 在事务提交后按
+ * Tenant.noticeEmailOn 调 sendTenantNoticeEmail，收件人是 Tenant.noticeEmail（已验证归属）。
+ *
+ * 【内容边界】只有类型、编号、摘要和一个「前往渠道后台」按钮（Tenant.origin + 后台路径）。**不含**买家邮箱、卡密、
+ * 留言正文、免登录链接、财务台链接、微信号、二维码：
+ *  · 调用方本来就不传卡密与留言正文（通知表里就没有，设计 11.4）；
+ *  · 摘要里的邮箱替换成「[邮箱已隐藏]」、任何 URL 替换成「[链接已隐藏]」（免登录 / 财务台链接即使被误拼进正文也出不去）；
+ *  · 摘要（标题 + 正文）命中阿里云禁发词（findBannedWord：微信 / QQ / 二维码 / 群 / 网盘 …）→ 整段降级为「请登录渠道后台查看」。
+ *    例如企业微信测试消息的标题「企业微信推送测试」原样进邮件就会命中——一次投诉可能冻结整个发信账号（含验证码 no-reply）。
+ * 【链接】按钮只指向 opts.origin（渠道店面）+ 以 /partner 开头的站内路径；路径不合规回落 /partner/notices。
+ */
+export interface TenantNoticeMailInfo {
+  /** 通知类型；'TEST' 是设置中心「发送测试」专用（主题显示「推送测试」） */
+  kind: TenantNoticeKind | 'TEST'
+  title: string
+  body?: string | null
+  /** 公开编号（orderNo / statementNo / requestNo …）；不合规不显示 */
+  refKey?: string | null
+  /** 渠道后台路径，必须以 /partner 开头的站内路径（tenant/notice.ts 的 partnerPath 结果） */
+  path?: string | null
+}
+
+/** 降级文案：摘要命中禁发词时整段替换成这一句 */
+export const TENANT_NOTICE_MAIL_FALLBACK = '请登录渠道后台查看'
+
+function noticeKindLabel(kind: string): string {
+  if (kind === 'TEST') return '推送测试'
+  return (TENANT_NOTICE_KIND_LABEL as Record<string, string>)[kind] ?? '店铺通知'
+}
+
+/** 摘要脱敏：邮箱、URL 替换掉；多余空白折叠；截断到 300 字 */
+function scrubNoticeText(s: string): string {
+  return s
+    .replace(/https?:\/\/\S+/gi, '[链接已隐藏]')
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '[邮箱已隐藏]')
+    .replace(/[ \t]+/g, ' ')
+    .trim()
+    .slice(0, 300)
+}
+
+export function renderTenantNoticeEmail(n: TenantNoticeMailInfo, opts: MailOpts = {}): RenderedMail {
+  const base = baseOf(opts)
+  const label = noticeKindLabel(n.kind)
+  const title = scrubNoticeText(String(n.title ?? ''))
+  const body = n.body ? scrubNoticeText(String(n.body)) : ''
+  // 禁发词按标题 + 正文整体判断（任何一处命中都整段降级，不做局部替换：替换后的残句仍可能被判违规）
+  const banned = findBannedWord(`${title}\n${body}`)
+  const summaryHtml = banned
+    ? `<p>${TENANT_NOTICE_MAIL_FALLBACK}</p>`
+    : `${title ? `<p style="font-weight:600;">${escapeHtml(title)}</p>` : ''}${body ? `<p style="white-space:pre-wrap;color:#374151;">${escapeHtml(body)}</p>` : ''}` ||
+      `<p>${TENANT_NOTICE_MAIL_FALLBACK}</p>`
+  const refKey = n.refKey && /^[A-Za-z0-9_-]{1,40}$/.test(n.refKey) ? n.refKey : null
+  const path = n.path && /^\/partner(\/[A-Za-z0-9_\-/%.]*)?$/.test(n.path) && !n.path.includes('//') ? n.path : '/partner/notices'
+  const html = layout(
+    '店铺后台通知',
+    `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+       <tr><td style="color:#6b7280;padding:4px 0;">类型</td><td style="text-align:right;">${escapeHtml(label)}</td></tr>
+       ${refKey ? `<tr><td style="color:#6b7280;padding:4px 0;">编号</td><td style="text-align:right;font-family:monospace;">${escapeHtml(refKey)}</td></tr>` : ''}
+     </table>
+     ${summaryHtml}
+     <div style="margin-top:18px;"><a href="${base}${path}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">前往渠道后台</a></div>
+     <p style="margin-top:14px;color:#9ca3af;font-size:12px;">你收到这封邮件，是因为店铺后台「设置 → 推送方式」里打开了邮箱推送；可随时在同一处关闭或按类型关闭。</p>`,
+    base
+  )
+  return { subject: `【${BRAND}】店铺后台通知：${label}`, html }
+}
+
+export async function sendTenantNoticeEmail(to: string, n: TenantNoticeMailInfo, opts: MailOpts = {}) {
+  const { subject, html } = renderTenantNoticeEmail(n, opts)
   return sendSystemEmail(to, subject, html)
 }

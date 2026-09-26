@@ -19,6 +19,7 @@ import { publicStock } from '@/lib/stock-level'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { listStorefrontProducts } from '@/lib/pricing'
 import { getCurrentUser } from '@/lib/auth'
+import type { StoreContact } from '@/lib/contact'
 
 /**
  * 商品列表页。
@@ -194,7 +195,7 @@ export default async function ProductsPage() {
           <Breadcrumbs crumbs={[{ name: '首页', path: '/' }, { name: '全部商品' }]} />
         </div>
         <ProductsClient products={products} guides={{}} />
-        {products.length > 0 && <PriceNote />}
+        {products.length > 0 && <PriceNote contact={sf.contact} />}
       </>
     )
   }
@@ -238,13 +239,17 @@ export default async function ProductsPage() {
 
       <ProductsClient products={products} guides={guidesByCategory(products)} />
 
-      {rows.length > 0 && <PriceNote />}
+      {rows.length > 0 && <PriceNote contact={sf.contact} />}
     </>
   )
 }
 
-/** 列表底部的价格与开票说明（两站相同，统一品牌） */
-function PriceNote() {
+/**
+ * 列表底部的价格与开票说明（两站相同，统一品牌）。
+ * 末尾的客服微信按店面取（二期改动 4.2）：主站 sf.contact = PLATFORM_CONTACT，渲染与原来写死的 GenuineMarxist 逐字相同；
+ * 渠道只传了二维码没填微信号时，不写出空的微信号，改指向右下角的客服入口。
+ */
+function PriceNote({ contact }: { contact: StoreContact }) {
   return (
     <section className="container relative pb-20">
       <p className="mx-auto max-w-5xl text-sm text-white/40">
@@ -255,7 +260,13 @@ function PriceNote() {
         <Link href="/support" className="text-purple-400 hover:text-purple-300">
           常见问题
         </Link>
-        ，或直接联系客服微信 <span className="font-mono text-white/60">GenuineMarxist</span>。
+        {contact.wechat ? (
+          <>
+            ，或直接联系客服微信 <span className="font-mono text-white/60">{contact.wechat}</span>。
+          </>
+        ) : (
+          '，或直接点右下角「联系客服」。'
+        )}
       </p>
     </section>
   )

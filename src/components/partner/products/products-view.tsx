@@ -153,6 +153,10 @@ export function ProductsView({ readOnly }: { readOnly?: boolean }) {
                 <th className="px-3 py-2">状态</th>
                 <th className="px-3 py-2">排序</th>
                 <th className="px-3 py-2 text-right">本店销量</th>
+                {/* 全站销量 = 前台两站显示的那个数（二期 M1），只读；与本店销量分开，免得店主以为前台数字是自己卖的 */}
+                <th className="px-3 py-2 text-right" title="主站与各渠道合计，与前台商品页显示的销量一致">
+                  全站销量
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -299,6 +303,7 @@ function ListingRow({
         </div>
       </td>
       <td className="px-3 py-2 text-right tabular-nums">{r.sales}</td>
+      <td className="px-3 py-2 text-right tabular-nums text-gray-500">{r.globalSales}</td>
     </tr>
   )
 }

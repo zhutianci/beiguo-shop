@@ -4,6 +4,7 @@
 #
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql            # 闸门 + 打印清单
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-p0 # 另外与本期（渠道分站 P0）的预期清单逐条比对
+#   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-p2 # 渠道分站二期（docs/多渠道分销-二期改动.md）：只允许那 8 列
 #
 # 只用 POSIX sh + grep + awk + sort（不 import src/，服务器宿主机或任意容器里都能跑）。
 #
@@ -26,7 +27,7 @@ PREVIEW="${1:-}"
 MODE="${2:-}"
 
 if [ -z "$PREVIEW" ]; then
-  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0]" >&2
+  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2]" >&2
   exit 2
 fi
 if [ ! -s "$PREVIEW" ]; then
@@ -84,10 +85,25 @@ INV=$(inventory)
 echo "—— 预览清单（$(printf '%s\n' "$INV" | grep -c . ) 项）——"
 printf '%s\n' "$INV" | awk 'NF { k = $1; n[k]++ } END { for (k in n) printf "  %s × %d\n", k, n[k] }' | sort
 
-if [ "$MODE" != "--expect-p0" ]; then
-  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0）"
+if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ]; then
+  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2）"
   exit 0
 fi
+
+# ③' 二期预期清单（docs/多渠道分销-二期改动.md 3.2、4.1：tenants 7 列、tenant_notices 1 列，共 8 列，只新增、可空或带默认值；
+#     契约第 5 节写的「Tenant 8 列、共 9 列」是计数笔误——3.2 列了 3 列、4.1 列了 4 列，schema 与本清单一致；
+#     不建表、不加索引与外键）。多一条 = 有人往 schema 里塞了契约外的东西；少一条 = 库里已经有了（不是第一次发二期）
+EXPECT_P2=$(cat <<'EOF' | sort
+COLUMN tenant_notices.emailed_at
+COLUMN tenants.notice_email
+COLUMN tenants.notice_email_on
+COLUMN tenants.notice_wecom_on
+COLUMN tenants.support_email
+COLUMN tenants.support_hours
+COLUMN tenants.support_qr_url
+COLUMN tenants.support_wechat
+EOF
+)
 
 # ③ 本期预期清单（从基线 24f5b0f 的 schema 到渠道分站 P0 的 schema，设计 5.9 + 主会话 D1 的 2 条外键）
 EXPECT=$(cat <<'EOF' | sort
@@ -149,6 +165,13 @@ FK tenant_ledger_entries.order_id -> orders RESTRICT (tenant_ledger_entries_orde
 EOF
 )
 
+if [ "$MODE" = "--expect-p2" ]; then
+  EXPECT="$EXPECT_P2"
+  SUMMARY="二期 8 列：tenants 7 列、tenant_notices 1 列"
+else
+  SUMMARY="13 张表、31 列、9 个索引、2 条外键"
+fi
+
 TMPD="${TMPDIR:-/tmp}/ddl-gate.$$"
 mkdir -p "$TMPD"
 printf '%s\n' "$EXPECT" > "$TMPD/expect"
@@ -158,7 +181,7 @@ MISSING=$(comm -23 "$TMPD/expect" "$TMPD/actual")
 rm -rf "$TMPD"
 if [ -n "$EXTRA" ] || [ -n "$MISSING" ]; then
   [ -n "$EXTRA" ] && { echo "❌ 预览里有、预期清单里没有（设计 5.9 外的变更）："; printf '%s\n' "$EXTRA" | sed 's/^/    + /'; }
-  [ -n "$MISSING" ] && { echo "❌ 预期清单里有、预览里没有（库里已存在？不是首次发布就别用 --expect-p0）："; printf '%s\n' "$MISSING" | sed 's/^/    - /'; }
+  [ -n "$MISSING" ] && { echo "❌ 预期清单里有、预览里没有（库里已存在？不是首次发布就别用 $MODE）："; printf '%s\n' "$MISSING" | sed 's/^/    - /'; }
   exit 1
 fi
-echo "✅ 闸门通过，且与本期预期清单逐条一致（13 张表、31 列、9 个索引、2 条外键）"
+echo "✅ 闸门通过，且与本期预期清单逐条一致（$SUMMARY）"

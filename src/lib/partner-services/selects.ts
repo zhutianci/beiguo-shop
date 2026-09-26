@@ -25,13 +25,16 @@ import type {
   OrderSettlementView,
   PartnerAfterSaleRow,
   PartnerAuditRow,
+  PartnerContactDTO,
   PartnerCustomerDetail,
   PartnerCustomerRow,
   PartnerDeliveryDTO,
   PartnerInvoiceDTO,
   PartnerListingDTO,
   PartnerMessageRow,
+  PartnerNoticeEmailSaveResult,
   PartnerNoticeRow,
+  PartnerNoticeTransportDTO,
   PartnerOrderDetail,
   PartnerOrderListRow,
   PartnerReceiptDTO,
@@ -186,7 +189,11 @@ export const PARTNER_LISTING_SELECT = {
   granted: true,
 } as const satisfies Prisma.TenantListingSelect
 
-/** price 仅渠道后台作「主站售价参考」；stock 只用于换算档位（不输出数字）。不含 apiSku、sms*、referrerBasePrice、description 以外的内部配置 */
+/**
+ * price 仅渠道后台作「主站售价参考」；stock 只用于换算档位（不输出数字）。不含 apiSku、sms*、referrerBasePrice、description 以外的内部配置。
+ * sales（二期改动 1 第 3 条）：Product.sales 是全站合计销量（主站 + 各渠道，付款时按件累加），前台两站显示的就是它，
+ * 本来就公开；映射成 PartnerListingDTO.globalSales（与本店销量 TenantListing.sales 分开两列）。
+ */
 export const PARTNER_PRODUCT_SELECT = {
   id: true,
   name: true,
@@ -194,6 +201,7 @@ export const PARTNER_PRODUCT_SELECT = {
   price: true,
   status: true,
   stock: true,
+  sales: true,
   category: { select: { name: true } },
 } as const satisfies Prisma.ProductSelect
 
@@ -258,7 +266,11 @@ export const PARTNER_AUDIT_SELECT = {
   actorUserId: true,
 } as const satisfies Prisma.AuditEventSelect
 
-/** payoutHold 只给布尔（不含原因）；不含 payeeAccountEnc、wecomWebhookEnc、previewUserIds、payoutHoldReason、legalName */
+/**
+ * payoutHold 只给布尔（不含原因）；不含 payeeAccountEnc、wecomWebhookEnc、previewUserIds、payoutHoldReason、legalName。
+ * 二期（改动 3.2、4.3）：推送方式三列与客服信息四列——设置中心（仅 OWNER）原样输出。noticeEmail 是店主自己填、已验证归属的地址；
+ * 其他用到本常量的服务（看板、结算、商品、售后）只挑自己要的字段，不会把这几列带进响应。
+ */
 export const PARTNER_TENANT_SELECT = {
   code: true,
   status: true,
@@ -273,6 +285,13 @@ export const PARTNER_TENANT_SELECT = {
   payeeMethod: true,
   payeeAccountMasked: true,
   noticePrefs: true,
+  noticeWecomOn: true,
+  noticeEmailOn: true,
+  noticeEmail: true,
+  supportWechat: true,
+  supportQrUrl: true,
+  supportEmail: true,
+  supportHours: true,
 } as const satisfies Prisma.TenantSelect
 
 // ======================================================================
@@ -480,6 +499,7 @@ const LISTING_KEYS = dtoKeys<PartnerListingDTO>()(
     'status',
     'sortOrder',
     'sales',
+    'globalSales',
     'unitBalanceCents',
     'unitPayoutCents',
     'sellable',
@@ -568,6 +588,11 @@ type GenerateKeys = keyof Extract<GenerateResult, { ok: true }> | keyof Extract<
 const GENERATE_KEYS: readonly GenerateKeys[] = ['ok', 'statementNo', 'netCents', 'reason']
 /** PARTNER_TENANT_SELECT 的键（设置页原样输出这些字段） */
 const TENANT_SETTING_KEYS = Object.keys(PARTNER_TENANT_SELECT)
+/** 二期设置中心 DTO 的键（与 PARTNER_TENANT_SELECT 同名；编译期穷举，DTO 加字段不补这里直接编译失败） */
+const NOTICE_TRANSPORT_KEYS = dtoKeys<PartnerNoticeTransportDTO>()(['noticeWecomOn', 'noticeEmailOn', 'noticeEmail'] as const, true)
+const CONTACT_KEYS = dtoKeys<PartnerContactDTO>()(['supportWechat', 'supportQrUrl', 'supportEmail', 'supportHours'] as const, true)
+type NoticeEmailSaveKeys = keyof Extract<PartnerNoticeEmailSaveResult, { ok: true }> | keyof Extract<PartnerNoticeEmailSaveResult, { ok: false }>
+const NOTICE_EMAIL_SAVE_KEYS: readonly NoticeEmailSaveKeys[] = ['ok', 'noticeEmail', 'reason']
 
 /**
  * 渠道接口的外层与 WP6 / WP7 契约里的响应键（实施分包 9.4、10.4）。响应里出现这里没有的键，T10 就报错——
@@ -590,6 +615,8 @@ const ENVELOPE_KEYS = [
   'composition', 'otherCents', 'refundedGoodsCents', 'refundedTaxCents', 'settleBearer',
   // 设置（WP7）
   'tenant', 'webhookConfigured', 'noticePrefs', 'prefs',
+  // 设置（二期）：推送方式 / 客服信息卡片的外层与动作结果（需要验证码、已发送、测试结果）
+  'transport', 'contact', 'needCode', 'sent',
 ] as const
 
 /**
@@ -623,6 +650,9 @@ export const PARTNER_ALLOWED_KEYS: ReadonlySet<string> = new Set<string>([
   ...TRIPLE_KEYS,
   ...GENERATE_KEYS,
   ...TENANT_SETTING_KEYS,
+  ...NOTICE_TRANSPORT_KEYS,
+  ...CONTACT_KEYS,
+  ...NOTICE_EMAIL_SAVE_KEYS,
   ...ENVELOPE_KEYS,
   ...TENANT_NOTICE_KINDS,
 ])

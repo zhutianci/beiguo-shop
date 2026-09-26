@@ -47,13 +47,21 @@ export function crossOriginReason(h: HeaderLike, method: string, hasBody: boolea
   return null
 }
 
+/**
+ * 按 HTTP 语义判断有没有请求体（RFC 9112 6.3：请求既无 Content-Length 也无 Transfer-Encoding 就没有消息体）。
+ * 不能看 req.body：Next 给不带体的 DELETE 也挂了一个空的 body 流，原来「有流又没 Content-Length 就当 chunked」
+ * 会把裸 DELETE（/api/partner/settings/contact-qr）当成带体、再因缺 Content-Type 拒成 404（终审 2026-09-26）。
+ * 真带体的请求一定带这两个头之一（浏览器 fetch / 表单都会带），Content-Type 校验照旧生效；
+ * 何况跨站请求在前面的 Origin / Sec-Fetch-Site 两道就已经拦下，这里只是第二道。
+ */
+export function hasBodyByHeaders(h: HeaderLike): boolean {
+  const len = h.get('content-length')
+  if (len !== null && len.trim() !== '' && len.trim() !== '0') return true
+  return h.get('transfer-encoding') !== null
+}
+
 function requestHasBody(req: Request): boolean {
-  if (req.body) {
-    const len = req.headers.get('content-length')
-    if (len !== null) return len !== '0'
-    return true // chunked：有 body 流就按有请求体处理
-  }
-  return false
+  return hasBodyByHeaders(req.headers)
 }
 
 export function isSameOrigin(req: Request): boolean {

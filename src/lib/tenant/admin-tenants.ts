@@ -11,6 +11,7 @@
  *   tenant.payout_hold  → { payoutHold }（**不含原因**：payoutHoldReason 只给超管，S20）
  *   tenant.status       → { from, to }
  *   其余（tenant.create / tenant.config / tenant.domain / tenant.payee / member.*）→ 不写 publicDiff（渠道只看到「平台做了某操作」）
+ *   （二期）tenant.config 里的客服信息：publicDiff 只加 { contactFields: [改了哪几项] }，新旧值只在超管 diff 里
  *
  * 【并发】改渠道配置、停用成员都先 `SELECT … FROM tenants WHERE id = ? FOR UPDATE` 锁渠道行：
  *  · 与出结算单（statement.generateStatement 同样先锁这一行）串行：出单读到的 payoutHold / 收款信息不会是半截状态；
@@ -27,6 +28,8 @@ import { writeAudit } from '../audit'
 import { getCurrentUser } from '../auth'
 import { toCents } from '../money'
 import { maskEmail } from '../mask'
+import { checkContactEmail, checkContactHours, checkContactQrUrl, checkContactWechat, CONTACT_FIELDS, type ContactField, type ContactFieldCheck } from '../contact'
+import { contactUploadOwnedByOtherTenant, releaseContactUpload } from '../upload-store'
 import { invalidateStorefrontCache } from '../storefront/resolve'
 import { channelHostSuffix, isChannelCandidateHost, normalizeHost, platformHosts } from '../storefront/hosts'
 import { computeBalances, listLedgerAdmin, statementDetailAdmin, type LedgerQuery } from './balances'
@@ -36,7 +39,15 @@ import { linkedInvoicesByOrder } from './ledger'
 import { emitTenantNotice } from './notice'
 import { alertPlatform } from './platform-alert'
 import { runReconcile, type ReconcileItem } from './reconcile'
-import { LIMITS, TENANT_DEFAULTS, type TenantBalances, type TenantOverviewRow, type TenantStatus } from './types'
+import {
+  LIMITS,
+  TENANT_DEFAULTS,
+  type AdminTenantContactView,
+  type AdminTenantNoticeView,
+  type TenantBalances,
+  type TenantOverviewRow,
+  type TenantStatus,
+} from './types'
 
 type Tx = Prisma.TransactionClient
 
@@ -286,7 +297,23 @@ export interface TenantPatch {
   previewUserIds: number[]
   /** 不是配置项：只配合 status=TERMINATED，余额未结清时站长确认后仍强制停业（写进 tenant.status 审计的 diff） */
   forceUnsettled: boolean
+  /**
+   * 客服信息（二期改动 4.3）：null / 空串 = 清空（该项前台回退主站）。supportQrUrl 只接受 /api/upload scope=contact 返回的地址
+   * （CONTACT_QR_URL_RE），并且不能是别的渠道正在用的那张图（一个二维码文件只归一个渠道，换图删旧图才不会误删别站的）。
+   */
+  supportWechat: string | null
+  supportQrUrl: string | null
+  supportEmail: string | null
+  supportHours: string | null
 }
+
+/** 客服字段的服务端复核（路由的 zod 已经校验并归一过；这里再过一遍，updateTenant 被别处直接调用时也不会写进不合规的值） */
+const CONTACT_CHECKS: Readonly<Record<ContactField, (v: unknown) => ContactFieldCheck>> = Object.freeze({
+  supportWechat: checkContactWechat,
+  supportQrUrl: checkContactQrUrl,
+  supportEmail: checkContactEmail,
+  supportHours: checkContactHours,
+})
 
 function samePreview(a: unknown, b: number[]): boolean {
   const x = Array.isArray(a) ? (a as unknown[]).filter((v): v is number => typeof v === 'number').sort((p, q) => p - q) : []
@@ -316,9 +343,19 @@ export async function updateTenant(id: number, patch: Partial<TenantPatch>, admi
       throw new TenantAdminError(400, `预览账号最多 ${TENANT_RANGES.previewUsersMax} 个用户 id`)
     }
   }
+  // 客服信息：逐项复核并归一（缺省 = 不改）
+  const contactNext: Partial<Record<ContactField, string | null>> = {}
+  for (const k of CONTACT_FIELDS) {
+    if (p[k] === undefined) continue
+    const r = CONTACT_CHECKS[k](p[k])
+    if (!r.ok) throw new TenantAdminError(400, r.error)
+    contactNext[k] = r.value
+  }
 
   let notice: { tenantId: number; from: string; to: string } | null = null
   let unsettledAtTerminate: Record<string, number> | null = null
+  /** 本次换掉 / 清掉的旧客服二维码：事务提交后再按引用计数删文件（releaseContactUpload） */
+  let releaseQr: string | null = null
   const changed: string[] = []
   await prisma.$transaction(
     async (tx) => {
@@ -420,10 +457,27 @@ export async function updateTenant(id: number, patch: Partial<TenantPatch>, admi
         setCfg('previewUserIds', ids)
       }
       if (reasonChanged && !holdChanged) cfgDiff.payoutHoldReason = { from: t.payoutHoldReason, to: data.payoutHoldReason ?? null }
+
+      // —— 客服信息（二期改动 4.3）：新旧值进超管 diff（tenant.config），渠道可见的 publicDiff 只写改了哪几项 ——
+      const contactFields: ContactField[] = []
+      for (const k of CONTACT_FIELDS) {
+        if (!(k in contactNext)) continue
+        const v = contactNext[k] ?? null
+        if (v === (t[k] ?? null)) continue
+        if (k === 'supportQrUrl' && v !== null && (await contactUploadOwnedByOtherTenant(v, id, tx))) {
+          // 已锁本渠道行；别的渠道正引用这张图 → 拒绝（否则两边共用一个文件，任何一边换图都可能删掉对方的二维码）
+          throw new TenantAdminError(400, '该二维码已被其他渠道使用，请重新上传')
+        }
+        setCfg(k, v)
+        contactFields.push(k)
+      }
+      if (contactFields.length) changed.push('contact')
       if (Object.keys(cfgDiff).length) changed.push('config')
 
       if (!Object.keys(data).length) return
       await tx.tenant.update({ where: { id }, data })
+      // 旧图只在「确实被换掉 / 清掉」且事务提交之后才删（见事务外）；t 是锁内读到的行，旧值就是库里记录过的那个文件名
+      if (contactFields.includes('supportQrUrl') && t.supportQrUrl) releaseQr = t.supportQrUrl
 
       const base = { actorUserId: adminId, actorKind: 'PLATFORM' as const, tenantId: id, targetType: 'tenant', targetId: t.code }
       if (data.status !== undefined) {
@@ -452,7 +506,9 @@ export async function updateTenant(id: number, patch: Partial<TenantPatch>, admi
       if (Object.keys(cfgDiff).length) {
         // 渠道可见摘要（设计 5.8，主会话 D16 补齐）：只给渠道本来就知道 / 与它自己有关的配置项；
         // previewUserIds（用户自增 id）与 payoutHoldReason（平台内部原因）不进 publicDiff
-        const pub = Object.fromEntries(Object.entries(cfgDiff).filter(([k]) => CONFIG_PUBLIC_KEYS.has(k)))
+        const pub: Record<string, unknown> = Object.fromEntries(Object.entries(cfgDiff).filter(([k]) => CONFIG_PUBLIC_KEYS.has(k)))
+        // 客服信息：渠道只看到「平台改了哪几项」（与渠道自己改时 settings.contact 的口径一致），不给新旧值
+        if (contactFields.length) pub.contactFields = contactFields
         await writeAudit(tx, { ...base, action: 'tenant.config', diff: cfgDiff, publicDiff: Object.keys(pub).length ? pub : undefined })
       }
       if (notice) {
@@ -473,6 +529,10 @@ export async function updateTenant(id: number, patch: Partial<TenantPatch>, admi
     { maxWait: 10_000, timeout: 30_000 },
   )
   invalidateStorefrontCache()
+  // 事务已提交：旧二维码按引用计数删（仍有任何渠道引用就留着），绝不直接 deleteContactUpload。删不掉只留一个孤儿文件，不影响保存结果
+  if (releaseQr) {
+    await releaseContactUpload(releaseQr).catch((e) => console.error('[admin-tenants] 删除旧客服二维码失败', releaseQr, (e as Error)?.message || e))
+  }
   return { changed }
 }
 
@@ -908,6 +968,19 @@ export async function tenantDetail(id: number) {
   const pids = Array.isArray(t.previewUserIds) ? (t.previewUserIds as unknown[]).filter((v): v is number => typeof v === 'number') : []
   const previewUsers = pids.length ? await prisma.user.findMany({ where: { id: { in: pids } }, select: { id: true, email: true, nickname: true } }) : []
   const cooldownUntil = t.payeeChangedAt ? new Date(t.payeeChangedAt.getTime() + TENANT_DEFAULTS.payeeCooldownHours * 3600_000) : null
+  // 二期：推送方式（只读：企业微信只给「已配置 / 已开」，通知邮箱只给掩码）与客服信息（原值，不回退；超管可改）
+  const noticeView: AdminTenantNoticeView = {
+    hasWebhook: !!t.wecomWebhookEnc,
+    noticeWecomOn: t.noticeWecomOn,
+    noticeEmailOn: t.noticeEmailOn,
+    noticeEmailMasked: t.noticeEmail ? maskEmail(t.noticeEmail) : null,
+  }
+  const contactView: AdminTenantContactView = {
+    supportWechat: t.supportWechat,
+    supportQrUrl: t.supportQrUrl,
+    supportEmail: t.supportEmail,
+    supportHours: t.supportHours,
+  }
   return {
     tenant: {
       id: t.id,
@@ -933,7 +1006,8 @@ export async function tenantDetail(id: number) {
       hasPayeeAccount: !!t.payeeAccountEnc,
       payeeChangedAt: t.payeeChangedAt ? t.payeeChangedAt.toISOString() : null,
       payeeCooldownUntil: cooldownUntil && cooldownUntil.getTime() > Date.now() ? cooldownUntil.toISOString() : null,
-      hasWebhook: !!t.wecomWebhookEnc,
+      ...noticeView,
+      ...contactView,
       previewUserIds: pids,
       createdAt: t.createdAt.toISOString(),
     },

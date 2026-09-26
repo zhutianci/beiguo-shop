@@ -74,6 +74,8 @@ export function toListingDto(l: ListingRaw, p: ProductRaw, t: TenantPricing): Pa
     status: l.status === 1 ? 1 : 0,
     sortOrder: l.sortOrder,
     sales: l.sales,
+    // 全站销量（Product.sales）：与前台两站显示的同一个数（二期 M1），只读；本店销量仍是上面的 sales
+    globalSales: p.sales,
     unitBalanceCents: econ.unitBalanceCents,
     unitPayoutCents: econ.unitPayoutCents,
     sellable: reason === null,

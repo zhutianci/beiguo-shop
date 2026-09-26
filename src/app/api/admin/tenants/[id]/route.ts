@@ -5,8 +5,13 @@ import { z } from 'zod'
 import { adminGuard } from '@/lib/admin-guard'
 import { error, success } from '@/lib/api'
 import { adminFail, currentAdminId, parseIdParam, readJson, tenantDetail, updateTenant } from '@/lib/tenant/admin-tenants'
+import { contactPatchShape } from '@/lib/contact'
 
-/** 渠道详情 / 修改配置与状态（状态机、费率、payoutHold、上限、主体、预览账号）。规则与审计见 admin-tenants.updateTenant */
+/**
+ * 渠道详情 / 修改配置与状态（状态机、费率、payoutHold、上限、主体、预览账号、客服信息）。规则与审计见 admin-tenants.updateTenant。
+ * 客服信息（二期改动 4.3）：contactPatchShape 的四个字段，null / 空串 = 清空；supportQrUrl 只接受 /uploads/contact/<名>.(png|jpg|webp)
+ * （/api/upload scope=contact 的返回值），外站地址、javascript:、gif / svg 一律 400；「不能是别的渠道在用的图」在 updateTenant 事务里判。
+ */
 
 const patchSchema = z
   .object({
@@ -27,6 +32,7 @@ const patchSchema = z
     previewUserIds: z.array(z.number().int().positive()).max(20),
     /** 只配合 status=TERMINATED：余额未结清仍强制停业（写进审计 diff），见 admin-tenants.updateTenant */
     forceUnsettled: z.boolean(),
+    ...contactPatchShape,
   })
   .partial()
   .strict()

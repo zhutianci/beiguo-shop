@@ -21,7 +21,7 @@ import { effectiveBasePrice, referralSellUnit } from './referral'
 import { publicStock, stockLevel } from './stock-level'
 import { toCents } from './money'
 import { checkSellable, type SellableListing } from './tenant/sellable'
-import { isPreviewUser, PLATFORM_TENANT_ID, type Storefront, type TenantStatus } from './storefront/resolve'
+import { isPreviewUser, type Storefront, type TenantStatus } from './storefront/resolve'
 import type { NotSellableReason, PublicProductDetail, ReferralQuote } from './tenant/types'
 
 type Db = Prisma.TransactionClient | typeof prisma
@@ -140,7 +140,8 @@ async function channelQuote(db: Db, sf: Storefront, productId: number, previewUs
  * 所以 home-client、products-client、product-client 不用按店面分叉：
  *  · price：**本店售价**（元）。渠道站 = TenantListing.retailCents；主站 = Product.price。
  *  · stock：档位代表值（publicStock），不是精确张数。
- *  · sales：渠道站 = 本店销量 TenantListing.sales（设计 7.5）；主站 = Product.sales。
+ *  · sales：两站都是全站总销量 Product.sales（二期 M1：付款时主站单、渠道单都按件累加进它，所以本来就是合计）。
+ *    本店销量 TenantListing.sales 只在渠道后台 /partner 商品页与超管授权页显示，不上前台。
  * 渠道站额外带 priceCents / stockLevel 两个便利字段。**不含** 进货价、站长价、成本、listing 内部 id。
  */
 export interface PublicProductCard {
@@ -219,7 +220,8 @@ function listingDisplayable(l: SellableListing, productStatus: number): boolean 
   return checkSellable({ tenantStatus: 'ACTIVE', preview: false, listing: l, productStatus }) === null
 }
 
-const LISTING_DISPLAY_SELECT = { ...LISTING_SELLABLE_SELECT, productId: true, sortOrder: true, sales: true } as const satisfies Prisma.TenantListingSelect
+// 不再取 TenantListing.sales：前台销量改用 Product.sales（二期 M1），少取一列也就少一个把本店销量误发到前台的口子
+const LISTING_DISPLAY_SELECT = { ...LISTING_SELLABLE_SELECT, productId: true, sortOrder: true } as const satisfies Prisma.TenantListingSelect
 
 /**
  * 店面的在售商品。主站：status=1 的全部商品（与改造前 /products 页同一排序）；渠道：本店可售的上架行。
@@ -264,7 +266,8 @@ export async function listStorefrontProducts(
       b.p.createdAt.getTime() - a.p.createdAt.getTime() ||
       b.p.id - a.p.id,
   )
-  return rows.map(({ l, p }) => toCard(p, l.retailCents as number, l.sales))
+  // 销量用 Product.sales：与主站同一个全站总销量（二期 M1），渠道单付款时本来就已计入它
+  return rows.map(({ l, p }) => toCard(p, l.retailCents as number, p.sales))
 }
 
 /** 单个商品（详情页、/api/products/[id]）。不存在 / 不在本店可售 → null（调用方 404） */
@@ -286,10 +289,5 @@ export async function getStorefrontProduct(
   if (!l) return null
   const p = await prisma.product.findUnique({ where: { id }, select: PRODUCT_PUBLIC_FIELDS })
   if (!p || !listingDisplayable(l, p.status)) return null
-  return toCard(p, l.retailCents as number, l.sales)
-}
-
-/** 渠道单在主站企业微信群里的标签（设计 8.1 第 7 步：「[lulu]」）。主站单返回空串 */
-export function siteTag(sf: Pick<Storefront, 'id' | 'code'>): string {
-  return sf.id === PLATFORM_TENANT_ID ? '' : `[${sf.code}] `
+  return toCard(p, l.retailCents as number, p.sales) // 销量同上：全站总销量（二期 M1）
 }

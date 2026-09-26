@@ -6,25 +6,16 @@
  */
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import type { PartnerNoticeRow } from '@/lib/tenant/types'
+import { TENANT_NOTICE_KIND_LABEL, type PartnerNoticeRow } from '@/lib/tenant/types'
 import { gotoLogin, partnerApi, qs } from '../common/api'
 import { cnTime } from '../common/format'
 import { Badge, Button, Card, Empty, ErrorBox, Loading, Notice, PageTitle, Pager } from '../common/ui'
 
-export const NOTICE_KIND_TEXT: Record<string, string> = {
-  ORDER_PAID: '订单已支付',
-  BUYER_MESSAGE: '买家留言',
-  AFTER_SALE_RESULT: '售后处理结果',
-  ORDER_REFUNDED: '平台退款',
-  STATEMENT: '结算单',
-  PAYOUT: '打款',
-  SUPPLY_CHANGED: '进货价调整',
-  PLATFORM_LISTING: '平台调价 / 新授权',
-  AUTO_DELISTED: '商品自动下架',
-  PRODUCT_WITHDRAWN: '商品停止供货',
-  TENANT_STATUS: '店铺状态变更',
-  NEGATIVE_BALANCE: '余额为负',
-}
+/**
+ * 通知类型中文名：与推送（企业微信 / 邮件主题）共用 types.ts 的一份（二期新增 CUSTOMER_JOINED / ORDER_DELIVERED 不会漏）。
+ * types.ts 是纯常量模块（无 import 副作用），客户端组件可以直接引。
+ */
+export const NOTICE_KIND_TEXT: Record<string, string> = { ...TENANT_NOTICE_KIND_LABEL }
 
 /** 通知 → 后台页面（与 WP0 notice.ts 推送里的链接同一口径） */
 function hrefOf(n: PartnerNoticeRow): string | null {
@@ -38,6 +29,8 @@ function hrefOf(n: PartnerNoticeRow): string | null {
       return '/partner/products'
     case 'after_sale':
       return '/partner/after-sales'
+    case 'customer':
+      return k ? `/partner/customers/${k}` : '/partner/customers'
     default:
       return null
   }

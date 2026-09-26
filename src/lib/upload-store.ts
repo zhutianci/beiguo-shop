@@ -10,9 +10,12 @@
  *
  * 只做「存」这件事：准入（谁能传、传到哪个业务目录、单文件多大、允许哪些格式）是各接口自己的规矩。
  */
-import { writeFile, mkdir, readdir, stat, statfs } from 'fs/promises'
+import { writeFile, mkdir, readdir, stat, statfs, unlink } from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
+import type { Prisma } from '@prisma/client'
+import { CONTACT_QR_URL_RE } from './contact-base'
+import { prisma } from './db'
 
 // 上传目录总量上限：磁盘被写满会连带打挂同机的 MySQL，这是最要命的失败模式。
 // 论坛允许匿名发帖带图，所以不能简单地要求登录，只能把「写爆磁盘」这条路堵死。
@@ -46,6 +49,7 @@ const STORE_SCOPES: Record<string, string> = {
   links: 'links', // 友链 / 招商位的站点 logo（后台录入）
   products: 'products', // 商品主图（后台录入，展示在商品列表与详情页）
   mail: 'mail', // 营销邮件里的图片（后台录入，邮件里引用绝对 URL）
+  contact: 'contact', // 店面客服二维码（二期改动 4.4：渠道站长在设置中心上传、超管经 /api/upload scope=contact 上传）
 }
 
 export function isStoreScope(scope: string): boolean {
@@ -66,7 +70,8 @@ export function uploadRoot(): string {
  * 而管理员仍有空间处理善后（清图、调大 UPLOAD_MAX_TOTAL_MB）。
  */
 export function quotaForScope(scope: string): number {
-  return scope === 'forum' ? Math.floor(MAX_TOTAL_BYTES * 0.9) : MAX_TOTAL_BYTES
+  // contact 与 forum 同一条 90% 线：渠道站长不是站长本人，渠道那一侧也不能挤占给后台留的最后 10%（二期改动 4.4）
+  return scope === 'forum' || scope === 'contact' ? Math.floor(MAX_TOTAL_BYTES * 0.9) : MAX_TOTAL_BYTES
 }
 
 // ---- 上传目录用量缓存：每次上传都遍历目录会越来越慢，这里增量累加、定期重算 ----
@@ -212,4 +217,95 @@ export async function storeUpload(scope: string, bytes: Buffer, ext: string): Pr
 
     return { ok: true, name, url: `/uploads/${dirName}/${name}` }
   })
+}
+
+// ---------------------------------------------------------------------------
+// 店面客服二维码（二期改动 4.4）
+// ---------------------------------------------------------------------------
+
+/** 客服二维码单文件上限 2MB（二维码图本来就小；比通用上传的 5MB 收紧） */
+export const CONTACT_QR_MAX_BYTES = 2 * 1024 * 1024
+
+export type ContactQrStoreResult =
+  | { ok: true; url: string }
+  | { ok: false; reason: 'size' | 'type' }
+  | { ok: false; reason: 'quota' | 'disk' }
+
+/**
+ * 校验并落盘一张客服二维码：≤ 2MB；**按文件头**只收 png / jpg / webp（gif 与 SVG 一律拒绝——SVG 能带脚本，
+ * gif 没有必要且可做动图广告）；文件名由 storeUpload 随机生成，返回的 url 必然匹配 CONTACT_QR_URL_RE。
+ * 渠道设置中心（经 tenant/partner-facade.ts 的 saveTenantContactQr）与超管 /api/upload scope=contact 共用这一个入口。
+ * 调用方负责鉴权与限频；reason: size / type → 400，quota / disk → 507。
+ */
+export async function storeContactQr(bytes: Buffer): Promise<ContactQrStoreResult> {
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > CONTACT_QR_MAX_BYTES) return { ok: false, reason: 'size' }
+  const ext = sniffImage(bytes)
+  if (ext !== 'png' && ext !== 'jpg' && ext !== 'webp') return { ok: false, reason: 'type' }
+  const r = await storeUpload('contact', bytes, ext)
+  if (!r.ok) return { ok: false, reason: r.reason }
+  // 双保险：落盘结果必须满足读写两端共用的格式（文件名规则将来若改了，这里立刻暴露，而不是写进库后前台不显示）
+  if (!CONTACT_QR_URL_RE.test(r.url)) throw new Error(`upload-store: 客服二维码地址不符合约定格式 ${r.url}`)
+  return { ok: true, url: r.url }
+}
+
+/**
+ * 删除一张客服二维码文件（换图 / 清除时删旧图）。**只删 public/uploads/contact/ 下的单个文件**：
+ *  · url 必须匹配 CONTACT_QR_URL_RE（文件名只含 [0-9a-z-] 与固定扩展名，不可能带 ../ 或子目录）；
+ *  · 再按解析后的绝对路径核对「父目录正好是 uploads/contact」，任何一条不满足都不删；
+ *  · 「是库里记录过的那个文件名」由调用方保证：只传刚从 tenants 行（锁内）读出的旧值，绝不传客户端给的值。
+ * 返回是否真的删了文件（文件不存在 → false，不抛）。与落盘共用串行锁，删除后同步扣减用量缓存。
+ */
+export async function deleteContactUpload(url: string | null | undefined): Promise<boolean> {
+  if (typeof url !== 'string' || !CONTACT_QR_URL_RE.test(url)) return false
+  const dir = path.join(uploadRoot(), STORE_SCOPES.contact)
+  const name = url.slice('/uploads/contact/'.length)
+  const full = path.resolve(dir, name)
+  if (path.dirname(full) !== path.resolve(dir) || path.basename(full) !== name) return false
+  return serialized(async () => {
+    try {
+      const s = await stat(full)
+      if (!s.isFile()) return false
+      await unlink(full)
+      if (cachedBytes >= 0) cachedBytes = Math.max(0, cachedBytes - s.size)
+      return true
+    } catch (e) {
+      if ((e as { code?: string })?.code !== 'ENOENT') console.error('[upload] 删除客服二维码失败', url, (e as Error)?.message || e)
+      return false
+    }
+  })
+}
+
+/**
+ * 「换图 / 清除后删旧图」的唯一入口：**只有当没有任何渠道（tenants.support_qr_url）还指向这个文件时才删**。
+ *
+ * 【为什么不直接 deleteContactUpload】deleteContactUpload 只保证「删的是 contact/ 下的一个合规文件」，
+ * 不保证「这个文件只属于当前渠道」。超管 PATCH 可以手填 supportQrUrl（只校验格式），一旦把 lulu 的
+ * /uploads/contact/xxx.png 填给了另一个渠道，lulu 下次换图就会把对方店面的二维码删成 404 —— 跨渠道的破坏。
+ * 所以删之前按「整张 tenants 表」数一次引用：还有人用就留着（留一个孤儿文件的代价远小于删掉别站的二维码）。
+ *
+ * 调用时机：**必须在把旧值从本渠道行上改掉的事务提交之后**（否则数到的还是自己，永远不删）。
+ * 剩余的竞态（数完引用、unlink 之前，恰好有超管把同一地址填给别的渠道）窗口极小，且超管 PATCH 会先用
+ * contactUploadOwnedByOtherTenant 拒掉已被占用的地址，属于可接受的残余。
+ * 返回是否真的删了文件。放在这里而不是 partner-facade：渠道层不能 import 本文件（边界检查规则 3），
+ * 删除能力不暴露给渠道。
+ */
+export async function releaseContactUpload(url: string | null | undefined): Promise<boolean> {
+  if (typeof url !== 'string' || !CONTACT_QR_URL_RE.test(url)) return false
+  const refs = await prisma.tenant.count({ where: { supportQrUrl: url } })
+  if (refs > 0) return false
+  return deleteContactUpload(url)
+}
+
+/**
+ * 超管 PATCH 写 supportQrUrl 前的归属检查（供 admin-tenants 调用）：这张图是否已被**别的**渠道使用。
+ * 返回 true 就应拒绝（400「该二维码已被其他渠道使用，请重新上传」），保证一个二维码文件只归一个渠道所有，
+ * 这样 releaseContactUpload 的引用计数才是「本渠道放手 = 没人用」。传入 tx 时在调用方事务里读（配合行锁）。
+ */
+export async function contactUploadOwnedByOtherTenant(
+  url: string,
+  tenantId: number,
+  db: Prisma.TransactionClient | typeof prisma = prisma,
+): Promise<boolean> {
+  const n = await db.tenant.count({ where: { supportQrUrl: url, id: { not: tenantId } } })
+  return n > 0
 }

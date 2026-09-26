@@ -11,8 +11,10 @@
  * 被它遮住的页面即使服务端照常渲染，也拿不到可售商品（服务端已按 ACTIVE 过滤），不构成泄漏或绕过。
  * 主站永远不是 TERMINATED，不会挂载这个组件。
  */
+import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { ContactModal } from '@/components/contact-modal'
 
 /** 停业后换成停业页的路径：首页、商品列表与商品详情。其余页面（订单、个人中心、兑换、登录等）照常 */
 export function isClosedPath(pathname: string | null): boolean {
@@ -20,7 +22,12 @@ export function isClosedPath(pathname: string | null): boolean {
   return pathname === '/products' || pathname.startsWith('/products/')
 }
 
+/**
+ * 停业后买家最需要的是「找得到人」做售后（二期改动 4.2「停业页可补客服入口」）：加一个「联系客服」按钮，
+ * 弹窗里是本店的客服信息（ContactModal 按店面取，渠道没设则回退主站客服）。只在渠道 TERMINATED 时挂载，主站不受影响。
+ */
 export function ClosedPage() {
+  const [contactOpen, setContactOpen] = useState(false)
   return (
     <div className="page-top container pb-24">
       <div className="mx-auto max-w-lg rounded-2xl glass p-8 text-center">
@@ -35,8 +42,12 @@ export function ClosedPage() {
           <Link href="/login" className="rounded-full glass px-6 py-2.5 text-sm font-medium hover:bg-white/10">
             登录
           </Link>
+          <button type="button" onClick={() => setContactOpen(true)} className="rounded-full glass px-6 py-2.5 text-sm font-medium hover:bg-white/10">
+            联系客服
+          </button>
         </div>
       </div>
+      <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
     </div>
   )
 }

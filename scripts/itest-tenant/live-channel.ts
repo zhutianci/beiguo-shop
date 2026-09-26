@@ -5,18 +5,22 @@
  *   前置：
  *     1) npx next build
  *     2) 开发库已按 WP8 种子建好 lulu（docker exec -i ai-shop-mysql mysql … beiguo_dev < scripts/sql/tenant-seed.sql）
- *     3) 起服务（渠道开关打开、数据密钥就位）：
+ *     3) 起服务（渠道开关打开、数据密钥就位；平台 webhook 指向本脚本起的假服务器，二期 M3 要数站长群收到了什么）：
  *        CHANNELS_ENABLED=1 TENANT_DATA_KEY=<64 位 hex> VMQ_KEY=local-test-key CARDKEY_SECRET=local-itest-cardkey-secret \
- *          node node_modules/next/dist/bin/next start -p 3000
+ *          WECOM_WEBHOOK_URL=http://127.0.0.1:39123/hook node node_modules/next/dist/bin/next start -p 3000
  *   运行：
  *     DATABASE_URL="mysql://root:123456@localhost:3306/beiguo_dev" ITEST_BASE=http://localhost:3000 \
- *       VMQ_KEY=local-test-key CARDKEY_SECRET=local-itest-cardkey-secret CRON_SECRET=<与 .env.local 相同> \
+ *       VMQ_KEY=local-test-key CARDKEY_SECRET=local-itest-cardkey-secret \
  *       npx tsx scripts/itest-tenant/live-channel.ts [--keep]
+ *     （CRON_SECRET 不用传：默认读 .env.local，与 next start 加载的是同一份。假 webhook 端口可用 LIVE_HOOK_PORT 改）
  *
  * 主链路：DRAFT 前台 404 → 站长开业、授权、定进货价、录收款账号、邀请渠道主 → 渠道主在渠道站注册并接受邀请、定售价上架
  *   → 买家在渠道站注册、下单两张（一张结账开票）、付款到账、自动发卡 → 计提（逐分核对设计 10.11）→ 站长开票 → 解冻
  *   → 渠道申请结算 → 站长认领、登记打款 → 渠道看到已打款。
  * 可见性：渠道后台只见本站、对本站客户邮箱不打码；站长后台看全部并标来源站；跨 Host 令牌不通用。
+ * 二期（docs/多渠道分销-二期改动.md，第 10–13 节）：M1 渠道前台销量 = Product.sales、两站首页累计销量相同；
+ *   M2 站长后台渠道单利润 = 进货净额 − 成本；M3 渠道的纯通知不再推站长群（人工发货 / 待补发照推并带 [lulu]）、推送方式设置；
+ *   M4 渠道客服信息在前台生效、清空后回退主站、主站不变。
  *
  * 测试手段上的两处「快进时间」（生产上靠真实时间流逝）：付款后把两张单的 delivered_at 改到 16 天前（冻结期 15 天）；
  * 录入收款账号后把 payee_changed_at 改到 4 天前（冷静期 72 小时）。除此之外全部走 HTTP。
@@ -24,7 +28,7 @@
  * 库名不含 dev / test 拒绝执行。
  */
 import http from 'http'
-import { readFileSync, existsSync } from 'fs'
+import { readFileSync, existsSync, rmSync } from 'fs'
 import path from 'path'
 import { PrismaClient, Prisma } from '@prisma/client'
 import { encryptCardContent, cardContentHash } from '../../src/lib/cardkey'
@@ -57,6 +61,29 @@ const NAME = `ITEST-LIVE ${RUN}`
 
 const prisma = new PrismaClient()
 type Json = any // eslint-disable-line @typescript-eslint/no-explicit-any
+
+// ---------------------------------------------------------------------------
+// 假的平台 webhook（二期 M3）：站点以 WECOM_WEBHOOK_URL=http://127.0.0.1:<端口>/hook 启动，notify() 发来的每条都记下。
+// 地址不是 qyapi / dingtalk，notify 走通用 JSON 格式（title / text 字段），这里按原文存。
+// ---------------------------------------------------------------------------
+const HOOK_PORT = Number(process.env.LIVE_HOOK_PORT || 39123)
+const hooks: { title: string; text: string }[] = []
+const hookServer = http.createServer((rq, rs) => {
+  const chunks: Buffer[] = []
+  rq.on('data', (c) => chunks.push(c))
+  rq.on('end', () => {
+    const raw = Buffer.concat(chunks).toString('utf8')
+    let j: Json = null
+    try {
+      j = JSON.parse(raw)
+    } catch {
+      /* 非 JSON 也记原文 */
+    }
+    hooks.push({ title: String(j?.title ?? ''), text: String(j?.text ?? raw) })
+    rs.writeHead(200, { 'content-type': 'application/json' })
+    rs.end('{"errcode":0}')
+  })
+})
 
 let pass = 0
 let fail = 0
@@ -178,6 +205,9 @@ async function cleanup(productId: number | null) {
   await prisma.emailCode.deleteMany({ where: { email: { endsWith: '@itest-live.local' } } })
   await prisma.user.deleteMany({ where: { id: { in: uIds } } })
   await prisma.setting.deleteMany({ where: { key: { startsWith: 'vmq_unmatched:' }, value: { contains: RUN } } })
+  // 二期 M4：中途失败时二维码文件可能还在 public/uploads/contact/（只删库里记录的、形状合规的那一个）
+  const qr = await prisma.tenant.findUnique({ where: { id: LULU_ID }, select: { supportQrUrl: true } })
+  if (qr?.supportQrUrl && /^\/uploads\/contact\/[0-9a-z-]+\.(png|jpg|webp)$/.test(qr.supportQrUrl)) rmSync(path.join(ROOT, 'public', qr.supportQrUrl), { force: true })
   await prisma.tenant.deleteMany({ where: { id: LULU_ID } })
 }
 
@@ -196,6 +226,7 @@ async function payOrder(orderNo: string, token: string): Promise<{ really: strin
 }
 
 async function main() {
+  await new Promise<void>((res, rej) => hookServer.once('error', rej).listen(HOOK_PORT, '127.0.0.1', () => res()))
   if (!VMQ_TOKEN) throw new Error('需要 VMQ_KEY（与站点一致）')
   if (!CRON_SECRET) throw new Error('需要 CRON_SECRET（与站点一致；默认读 .env.local）')
   const up = await get('/robots.txt', MAIN_HOST).catch(() => null)
@@ -232,7 +263,8 @@ async function main() {
   check('站长在渠道站登录 → 拒绝签发', adminOnLulu.json?.success === false && !tokenOf(adminOnLulu), short(adminOnLulu))
 
   const cat = await prisma.category.create({ data: { name: NAME, sortOrder: 999 } })
-  const product = await prisma.product.create({ data: { categoryId: cat.id, name: `${NAME} 月卡`, price: new Prisma.Decimal('140.00'), stock: 5, deliveryType: 'AUTO', status: 1 } })
+  // sales 起始 50：模拟主站已卖出的量。二期 M1 要求渠道前台显示全站 Product.sales（50 + 本店卖出），不是本店 TenantListing.sales
+  const product = await prisma.product.create({ data: { categoryId: cat.id, name: `${NAME} 月卡`, price: new Prisma.Decimal('140.00'), stock: 5, deliveryType: 'AUTO', status: 1, sales: 50 } })
   for (let i = 0; i < 5; i++) {
     const s = `LIVE-${RUN}-${i}-CARD`
     await prisma.cardKey.create({ data: { productId: product.id, content: encryptCardContent(s), contentHash: cardContentHash(s), cost: new Prisma.Decimal('100.00') } })
@@ -415,7 +447,270 @@ async function main() {
   check('C4：兄弟子域发起的渠道站登录 → 403、不下发 cookie', csrfLogin.status === 403 && !tokenOf(csrfLogin), short(csrfLogin))
   const okLogin = await post('/api/auth/login', LULU_HOST, null, { email: buyerEmail, password: PW }, { origin: 'http://lulu.bigolab.com', 'sec-fetch-site': 'same-origin' })
   check('C4：同源登录照常', okLogin.json?.success === true, short(okLogin))
+
+  await phase2({ admin, owner, buyer, ownerEmail, buyerEmail, product: { id: product.id }, catId: cat.id, orderA, orderB, rowA: { id: rowA.id }, rowB: { id: rowB.id } })
 }
+
+// ===========================================================================
+// 二期改动（docs/多渠道分销-二期改动.md）M1–M4 的 HTTP 断言
+// ===========================================================================
+interface P2Ctx {
+  admin: string
+  owner: string
+  buyer: string
+  ownerEmail: string
+  buyerEmail: string
+  product: { id: number }
+  catId: number
+  orderA: string
+  orderB: string
+  rowA: { id: number }
+  rowB: { id: number }
+}
+
+/** 首页 RSC 载荷里的「累计销量」（HomeClient 的 stats.totalSales；进服务端 HTML 时引号可能被转义） */
+function homeTotalSales(html: string): number | null {
+  const m = /totalSales\\?"\s*:\s*(\d+)/.exec(html)
+  return m ? Number(m[1]) : null
+}
+
+/** 渠道站 multipart 上传（只有一个 file 字段）。带同源头：渠道写接口的同源校验对 multipart 同样生效 */
+function uploadFile(p: string, host: string, token: string, bytes: Buffer, filename: string, mime: string): Promise<Res> {
+  const boundary = `----live${RUN}${Math.random().toString(36).slice(2)}`
+  const head = Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mime}\r\n\r\n`)
+  const tail = Buffer.from(`\r\n--${boundary}--\r\n`)
+  const body = Buffer.concat([head, bytes, tail])
+  return new Promise((resolve, reject) => {
+    const r = http.request(
+      {
+        hostname: BASE.hostname,
+        port: BASE.port || 80,
+        path: p,
+        method: 'POST',
+        headers: {
+          host,
+          cookie: `token=${token}`,
+          'cf-connecting-ip': `10.67.${(++ipSeq >> 8) & 255}.${ipSeq & 255}`,
+          origin: `http://${host}`,
+          'sec-fetch-site': 'same-origin',
+          'content-type': `multipart/form-data; boundary=${boundary}`,
+          'content-length': String(body.length),
+        },
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (c) => chunks.push(c))
+        res.on('end', () => {
+          const text = Buffer.concat(chunks).toString('utf8')
+          let json: Json = null
+          try {
+            json = JSON.parse(text)
+          } catch {
+            /* 非 JSON */
+          }
+          resolve({ status: res.statusCode || 0, json, text, cookies: [], location: null })
+        })
+      },
+    )
+    r.on('error', reject)
+    r.end(body)
+  })
+}
+
+/** 最小的合法 PNG（1×1）：服务端按文件头判类型 */
+const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64')
+
+/** 付款到账但不要求已交付（人工发货商品付款后停在待交付） */
+async function payOnly(orderNo: string, token: string): Promise<boolean> {
+  const pay = await post('/api/pay/vmq/create', LULU_HOST, token, { orderNo })
+  const really = String(pay.json?.data?.reallyPrice ?? '')
+  if (!pay.json?.success || !really) return false
+  const n = await post('/api/pay/sms-notify', MAIN_HOST, null, { token: VMQ_TOKEN, from: 'com.eg.android.AlipayGphone', content: `支付宝 你已成功收款${really}元。` })
+  if (n.status !== 200) return false
+  for (let i = 0; i < 30; i++) {
+    const o = await prisma.order.findUnique({ where: { orderNo }, select: { payStatus: true, settleState: true } })
+    if (o?.payStatus === 'PAID' && o.settleState) return true
+    await sleep(500)
+  }
+  return false
+}
+
+async function phase2(c: P2Ctx) {
+  const { admin, owner, buyer } = c
+
+  // ---------------------------------------------------------------- M1
+  section('10 二期 M1 销量：渠道前台 sales = Product.sales；两站首页累计销量相同；渠道后台同时给本店 / 全站销量')
+  const pNow = await prisma.product.findUniqueOrThrow({ where: { id: c.product.id }, select: { sales: true } })
+  const lNow = await prisma.tenantListing.findFirstOrThrow({ where: { tenantId: LULU_ID, productId: c.product.id }, select: { sales: true } })
+  check('两张渠道单付款后：Product.sales 50 → 52、TenantListing.sales 0 → 2（渠道单同时计入全站与本店）', pNow.sales === 52 && lNow.sales === 2, `${pNow.sales} / ${lNow.sales}`)
+  const lp = (await get('/api/products', LULU_HOST, buyer)).json?.data
+  const lItems: Json[] = Array.isArray(lp) ? lp : lp?.list || []
+  const lItem = lItems.find((x) => x.id === c.product.id)
+  check('lulu /api/products：sales = Product.sales（52），不是本店销量 2', lItem?.sales === pNow.sales, JSON.stringify(lItem && { id: lItem.id, sales: lItem.sales }))
+  const ld = (await get(`/api/products/${c.product.id}`, LULU_HOST, buyer)).json?.data
+  check('lulu /api/products/:id：sales = Product.sales', (ld?.sales ?? ld?.product?.sales) === pNow.sales, JSON.stringify(ld?.sales ?? ld?.product?.sales))
+  const mp = (await get('/api/products', MAIN_HOST)).json?.data
+  const mItem = (Array.isArray(mp) ? mp : mp?.list || []).find((x: Json) => x.id === c.product.id)
+  check('主站 /api/products 同一商品 sales 相同（两站同一个数）', mItem?.sales === pNow.sales, JSON.stringify(mItem?.sales))
+  const hl = homeTotalSales((await get('/', LULU_HOST, buyer)).text)
+  const hm = homeTotalSales((await get('/', MAIN_HOST)).text)
+  const dbTotal = (await prisma.product.aggregate({ where: { status: 1 }, _sum: { sales: true } }))._sum.sales ?? 0
+  check('首页累计销量：lulu = 主站 = 全站在售商品 Product.sales 之和', hl !== null && hl === hm && hm === dbTotal, `lulu ${hl} / 主站 ${hm} / 库 ${dbTotal}`)
+  const pc = (await get('/api/partner/catalog', LULU_HOST, owner)).json?.data?.rows || []
+  const pRow = pc.find((r: Json) => r.productId === c.product.id)
+  check('渠道后台商品池：本店销量 sales=2、全站销量 globalSales=52', pRow?.sales === 2 && pRow?.globalSales === 52, JSON.stringify(pRow && { s: pRow.sales, g: pRow.globalSales }))
+
+  // ---------------------------------------------------------------- M2
+  section('11 二期 M2 利润：站长后台订单管理的渠道单利润 = 进货净额 − 成本（进货 110、卡密成本 100 → 利润 10）')
+  const al = (await get(`/api/admin/orders?page=1&pageSize=50&tenantId=${LULU_ID}`, MAIN_HOST, admin)).json?.data
+  const aRows: Json[] = al?.orders || al?.list || []
+  for (const [label, no] of [
+    ['A', c.orderA],
+    ['B（开票单：售价不含税，税费不进这一列）', c.orderB],
+  ] as const) {
+    const r = aRows.find((x) => x.orderNo === no)
+    const cp = r?.channelProfit
+    check(`列表 ${label}：channelProfit 进货净额 11000、成本 10000、利润 1000（分）`, cp?.supplyNetCents === 11000 && cp?.ownerGoodsCents === 11000 && cp?.costCents === 10000 && cp?.profitCents === 1000, JSON.stringify(cp))
+  }
+  const t = al?.totals
+  check(
+    '汇总：渠道 2 单、渠道流水 280、进货净额 220、渠道成本 200、渠道利润 20、无未登记单',
+    t?.channelOrders === 2 && t?.channelAmount === 280 && t?.channelSupplyNet === 220 && t?.channelCost === 200 && t?.channelProfit === 20 && t?.channelProfitUnknown === 0,
+    JSON.stringify(t),
+  )
+  const dt = (await get(`/api/admin/orders/${c.rowA.id}/detail`, MAIN_HOST, admin)).json?.data?.channel
+  check('详情 A：渠道结算区 ownerProfit 与列表同一口径（利润 1000 分），带悬停说明', dt?.ownerProfit?.profitCents === 1000 && typeof dt?.ownerProfit?.hint === 'string', JSON.stringify(dt?.ownerProfit)?.slice(0, 200))
+  const po = await get(`/api/partner/orders/${c.orderA}`, LULU_HOST, owner)
+  check('渠道侧订单详情仍看不到站长成本 / 利润', po.status === 200 && !/channelProfit|ownerProfit|costCents|"cost"/.test(po.text), po.text.slice(0, 160))
+  const mainOnly = (await get(`/api/admin/orders?page=1&pageSize=5&tenantId=1`, MAIN_HOST, admin)).json?.data
+  check(
+    '按主站筛：主站行 channelProfit 恒为 null、汇总渠道单数 0',
+    (mainOnly?.list || mainOnly?.orders || []).every((r: Json) => r.channelProfit === null) && mainOnly?.totals?.channelOrders === 0,
+    JSON.stringify(mainOnly?.totals),
+  )
+
+  // ---------------------------------------------------------------- M3
+  section('12 二期 M3 通知路由：渠道的纯通知不再推站长群；人工发货照推并带 [lulu]；渠道通知与推送方式')
+  // 对照组：渠道主在主站注册（第 3 节）是主站注册，必须推到站长群 —— 证明假 webhook 接上了，下面的「没推」才有意义
+  check('对照：主站注册照推站长群（假 webhook 已接上）', hooks.some((h) => h.title.includes('新用户注册') && h.text.includes(c.ownerEmail)), `共收到 ${hooks.length} 条：${hooks.map((h) => h.title).join(' | ').slice(0, 200)}`)
+  const mentionsLulu = (h: { title: string; text: string }) => h.text.includes(c.orderA) || h.text.includes(c.orderB) || h.text.includes(c.buyerEmail)
+  check('渠道买家注册、渠道单下单、渠道单付款（自动发货）都没推站长群', !hooks.some((h) => /新用户注册|新订单|订单已支付/.test(h.title) && mentionsLulu(h)), hooks.filter(mentionsLulu).map((h) => h.title).join(' | '))
+  const joined = await prisma.tenantNotice.findFirst({ where: { tenantId: LULU_ID, kind: 'CUSTOMER_JOINED' } })
+  check('渠道买家注册 → 渠道通知 CUSTOMER_JOINED（载荷不含邮箱）', !!joined && !`${joined.title}${joined.body}`.includes('@'), JSON.stringify(joined && { t: joined.title, b: joined.body }))
+  const msgText = `ITEST-LIVE 留言 ${RUN}`
+  const bm = await post(`/api/orders/${c.rowA.id}/messages`, LULU_HOST, buyer, { content: msgText })
+  check('买家在渠道单留言成功', bm.json?.success === true, short(bm))
+  await sleep(1500)
+  check('渠道单买家留言不推站长群', !hooks.some((h) => h.text.includes(msgText) || (h.title.includes('新订单留言') && mentionsLulu(h))))
+  check('渠道单买家留言 → 渠道通知 BUYER_MESSAGE', (await prisma.tenantNotice.count({ where: { tenantId: LULU_ID, kind: 'BUYER_MESSAGE', refKey: c.orderA } })) >= 1)
+
+  // 人工发货商品：付款后站长必须动手 → 照推，标题带 [lulu]、写明待人工发货，不带买家邮箱
+  const manual = await prisma.product.create({ data: { categoryId: c.catId, name: `${NAME} 人工代充`, price: new Prisma.Decimal('60.00'), stock: -1, deliveryType: 'MANUAL', status: 1 } })
+  const g2 = await put(`/api/admin/tenants/${LULU_ID}/listings`, MAIN_HOST, admin, { productId: manual.id, granted: true, supplyCents: 5000 })
+  check('站长授权人工发货商品、进货价 50.00', g2.json?.success === true, short(g2))
+  const pc2 = (await get('/api/partner/catalog', LULU_HOST, owner)).json?.data?.rows || []
+  const mRow = pc2.find((r: Json) => r.productId === manual.id)
+  const lp2 = await patch(`/api/partner/listings/${mRow?.listingNo}`, LULU_HOST, owner, { retailYuan: '60', status: 1 })
+  check('渠道定售价 60.00 并上架', lp2.status === 200 || lp2.status === 204 || lp2.json?.success === true, short(lp2))
+  const hooksBeforeC = hooks.length
+  const oc = await post('/api/orders', LULU_HOST, buyer, { productId: manual.id, quantity: 1, remark: '支付方式: 支付宝' })
+  const orderC = String(oc.json?.data?.order?.orderNo || '')
+  check('下单 C（人工发货）', oc.json?.success === true && !!orderC, short(oc))
+  check('C 付款到账（已付、已计提；人工发货商品停在待交付）', await payOnly(orderC, buyer))
+  await sleep(1500)
+  const cHooks = hooks.slice(hooksBeforeC).filter((h) => h.text.includes(orderC))
+  const pend = cHooks.find((h) => h.title.includes('订单已支付'))
+  check('C 付款 → 站长群收到「[lulu] 订单已支付 · 渠道单待人工发货」', !!pend && pend.title.includes('[lulu]') && pend.title.includes('渠道单待人工发货'), cHooks.map((h) => h.title).join(' | '))
+  check('待人工发货推送不带买家信息（邮箱）', !!pend && !pend.text.includes(c.buyerEmail), pend?.text.slice(0, 200))
+  check('C 下单（未付款）没有推「新订单」', !cHooks.some((h) => h.title.includes('新订单')))
+  const rowC = await prisma.order.findUniqueOrThrow({ where: { orderNo: orderC } })
+  const dv = await put(`/api/admin/orders/${rowC.id}`, MAIN_HOST, admin, { deliveryStatus: 'DELIVERED', deliveryInfo: `ITEST-LIVE 交付 ${RUN}` })
+  check('站长为渠道单 C 人工发货（标已交付）', dv.json?.success === true, short(dv))
+  const dn = await prisma.tenantNotice.findFirst({ where: { tenantId: LULU_ID, kind: 'ORDER_DELIVERED', refKey: orderC } })
+  check('→ 渠道通知 ORDER_DELIVERED（正文不含交付内容）', !!dn && !`${dn.title}${dn.body}`.includes('ITEST-LIVE 交付'), JSON.stringify(dn && { t: dn.title, b: dn.body }))
+  const al2 = (await get(`/api/admin/orders?page=1&pageSize=50&tenantId=${LULU_ID}`, MAIN_HOST, admin)).json?.data
+  const cRow = (al2?.orders || al2?.list || []).find((x: Json) => x.orderNo === orderC)
+  check(
+    'M2：人工发货单成本未登记 → 利润 null（不显示成 0 或等于进货价），汇总计 1 张未登记',
+    cRow?.channelProfit?.costCents === null && cRow?.channelProfit?.profitCents === null && al2?.totals?.channelProfitUnknown === 1,
+    JSON.stringify({ cp: cRow?.channelProfit, u: al2?.totals?.channelProfitUnknown }),
+  )
+
+  // 推送方式：没有通知邮箱不能开邮箱推送；通知邮箱 = 登录邮箱直接保存；换别的邮箱要验证码；超管只读看到掩码
+  const s0 = (await get('/api/partner/settings', LULU_HOST, owner)).json?.data
+  check('设置中心 GET 带 transport（默认企业微信开、邮箱关）与 contact', s0?.transport?.noticeWecomOn === true && s0?.transport?.noticeEmailOn === false && !!s0?.contact, JSON.stringify(s0?.transport))
+  const eOn0 = await put('/api/partner/settings/transport', LULU_HOST, owner, { emailOn: true })
+  check('没有通知邮箱时打开邮箱推送 → 400', eOn0.status === 400, short(eOn0))
+  const ne = await put('/api/partner/settings/notice-email', LULU_HOST, owner, { email: c.ownerEmail })
+  check('通知邮箱 = 当前登录邮箱 → 直接保存（不需要验证码）', ne.json?.success === true && ne.json?.data?.ok !== false, short(ne))
+  const eOn = await put('/api/partner/settings/transport', LULU_HOST, owner, { emailOn: true })
+  check('再打开邮箱推送 → 成功', eOn.json?.success === true && JSON.stringify(eOn.json?.data).includes('"noticeEmailOn":true'), short(eOn))
+  const neOther = await put('/api/partner/settings/notice-email', LULU_HOST, owner, { email: `other-${RUN}@itest-live.local` })
+  const tAfter = await prisma.tenant.findUniqueOrThrow({ where: { id: LULU_ID }, select: { noticeEmail: true } })
+  check('通知邮箱换成别的地址、不带验证码 → 不保存（库里仍是登录邮箱）', tAfter.noticeEmail === c.ownerEmail.toLowerCase(), `${short(neOther)} / 库 ${tAfter.noticeEmail}`)
+  // 只看推送方式那几个键：详情里的成员列表本来就有店主邮箱（超管可见），不能拿整段响应判「没有明文邮箱」
+  const tv = (await get(`/api/admin/tenants/${LULU_ID}`, MAIN_HOST, admin)).json?.data?.tenant
+  check(
+    '超管渠道详情只读看到推送方式：企业微信开（未配置 webhook）、邮箱已开、通知邮箱只给掩码',
+    tv?.noticeWecomOn === true && tv?.hasWebhook === false && tv?.noticeEmailOn === true && typeof tv?.noticeEmailMasked === 'string' && tv.noticeEmailMasked.includes('***@') && tv.noticeEmailMasked !== c.ownerEmail.toLowerCase(),
+    JSON.stringify(tv && { w: tv.noticeWecomOn, h: tv.hasWebhook, e: tv.noticeEmailOn, m: tv.noticeEmailMasked }),
+  )
+
+  // ---------------------------------------------------------------- M4
+  section('13 二期 M4 客服信息：渠道自己设的客服在前台生效；清空后回退主站；主站不变')
+  const mainSupport0 = (await get('/support', MAIN_HOST)).text
+  const wx = `lulukf_${RUN.slice(-5)}`
+  const kfMail = `service-${RUN.slice(-5)}@lulu-shop.example.com`
+  const pc0 = await put('/api/partner/settings/contact', LULU_HOST, owner, { wechat: wx, email: kfMail, hours: '10:00-20:00' })
+  check('渠道设客服微信号 / 邮箱 / 服务时间', pc0.json?.success === true, short(pc0))
+  const bad = await put('/api/partner/settings/contact', LULU_HOST, owner, { wechat: 'https://evil.example/x' })
+  check('微信号带 URL → 400', bad.status === 400, short(bad))
+  const badQr = await put('/api/partner/settings/contact', LULU_HOST, owner, { qrUrl: '/uploads/contact/x.png' })
+  check('客户端提交二维码地址 → 400（只能上传，由服务端写）', badQr.status === 400, short(badQr))
+  const ls = (await get('/support', LULU_HOST, buyer)).text
+  check('lulu /support：显示渠道微信号、客服邮箱、服务时间', ls.includes(wx) && ls.includes(kfMail) && ls.includes('10:00'), `len ${ls.length}`)
+  check('lulu /support：不出现主站微信号与主站二维码（微信号与二维码成组，渠道设了微信号就不混用主站二维码）', !ls.includes('GenuineMarxist') && !ls.includes('/wechat-qr.jpg'))
+  const ms = (await get('/support', MAIN_HOST)).text
+  check('主站 /support：仍是主站微信号与二维码，不含渠道客服', ms.includes('GenuineMarxist') && ms.includes('/wechat-qr.jpg') && !ms.includes(wx) && !ms.includes(kfMail))
+  // 主站页面前后两次渲染含 Next 的随机值，不能整页比；比客服片段的出现次数（逐字对比由 mods-p3 进程内做）
+  const cnt = (h: string, k: string) => h.split(k).length - 1
+  check(
+    '主站 /support：渠道改客服前后，主站客服片段出现次数不变',
+    cnt(ms, 'GenuineMarxist') === cnt(mainSupport0, 'GenuineMarxist') && cnt(ms, '/wechat-qr.jpg') === cnt(mainSupport0, '/wechat-qr.jpg') && cnt(ms, '9:00') === cnt(mainSupport0, '9:00'),
+  )
+  const lpriv = (await get('/privacy', LULU_HOST)).text
+  check('lulu /privacy 页脚按店面取客服（渠道微信号）', lpriv.includes(wx) && !lpriv.includes('GenuineMarxist'))
+  const up = await uploadFile('/api/partner/settings/contact-qr', LULU_HOST, owner, PNG_1X1, 'qr.png', 'image/png')
+  const qrUrl = String(up.json?.data?.contact?.supportQrUrl || '')
+  check('上传客服二维码（PNG）→ 服务端生成 /uploads/contact/<随机名>.png', up.json?.success === true && /^\/uploads\/contact\/[0-9a-z-]+\.png$/.test(qrUrl), short(up))
+  const svg = await uploadFile('/api/partner/settings/contact-qr', LULU_HOST, owner, Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>'), 'x.png', 'image/png')
+  check('伪装成 png 的 SVG → 400（按文件头判断）', svg.status === 400, short(svg))
+  const qrFile = qrUrl ? path.join(ROOT, 'public', qrUrl) : ''
+  check('二维码文件已落盘', !!qrFile && existsSync(qrFile), qrFile)
+  const ls2 = (await get('/support', LULU_HOST, buyer)).text
+  check('lulu /support：显示渠道二维码', !!qrUrl && ls2.includes(qrUrl))
+  // 终审 2026-09-26：按浏览器发裸 DELETE 的样子（同源 Origin + Sec-Fetch-Site、无体、无 Content-Length / Content-Type）。
+  // 以前同源校验把 Next 挂上的空 body 流当成「有体非 JSON」拒成 404；这条断言防回归。
+  const del = await req('DELETE', '/api/partner/settings/contact-qr', {
+    host: LULU_HOST,
+    token: owner,
+    headers: { origin: `https://${LULU_HOST.split(':')[0]}`, 'sec-fetch-site': 'same-origin' },
+  })
+  check('裸 DELETE（无请求体）清除二维码 → 200，旧文件删除', del.status === 200 && del.json?.success === true && !!qrFile && !existsSync(qrFile), short(del))
+  // contact-card 仍带空 JSON 体（兼容换镜像窗口），这种发法也必须照常 200（此时已无二维码，幂等）
+  const del2 = await req('DELETE', '/api/partner/settings/contact-qr', { host: LULU_HOST, token: owner, body: {} })
+  check('带空 JSON 体的 DELETE 同样 200', del2.status === 200 && del2.json?.success === true, short(del2))
+  const au: Json[] = (await get('/api/partner/audit', LULU_HOST, owner)).json?.data?.rows || []
+  const auRow = au.find((r) => r.action === 'settings.contact')
+  check('渠道操作日志：settings.contact 只记改了哪些字段，不记值', !!auRow && !JSON.stringify(auRow).includes(wx) && !JSON.stringify(auRow).includes(kfMail), JSON.stringify(auRow)?.slice(0, 200))
+  const ad2 = JSON.stringify((await get(`/api/admin/tenants/${LULU_ID}`, MAIN_HOST, admin)).json?.data)
+  check('超管渠道详情看到渠道客服原值', ad2.includes(wx) && ad2.includes(kfMail))
+  const clr = await put('/api/partner/settings/contact', LULU_HOST, owner, { wechat: null, email: null, hours: null })
+  check('渠道清空客服信息', clr.json?.success === true, short(clr))
+  const ls3 = (await get('/support', LULU_HOST, buyer)).text
+  check('清空后 lulu /support 整组回退主站客服', ls3.includes('GenuineMarxist') && ls3.includes('/wechat-qr.jpg') && !ls3.includes(wx) && !ls3.includes(kfMail))
+}
+
 
 let productIdForCleanup: number | null = null
 if (process.argv.includes('--cleanup')) {
@@ -438,6 +733,7 @@ if (process.argv.includes('--cleanup')) {
       console.log('\n--keep：保留现场（lulu、测试用户、订单、结算单）。')
     }
     console.log(`\n${fail ? '❌' : '✅'} 通过 ${pass}，失败 ${fail}`)
+    hookServer.close()
     await prisma.$disconnect()
     process.exit(fail ? 1 : 0)
   })

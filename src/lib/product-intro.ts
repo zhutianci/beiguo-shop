@@ -41,6 +41,7 @@ import {
 // 税点只认 lib/invoice.ts 这一处。那个文件 import 了 node:crypto，
 // 所以本模块只能在服务端（Server Component / 脚本）用，别拿到客户端组件里 import
 import { TAX_RATE } from './invoice'
+import { PLATFORM_CONTACT, type StoreContact } from './contact-base'
 
 // ============ 输入输出 ============
 
@@ -190,9 +191,18 @@ export const FEATURES_FORMAT_ERROR = '商品特性需为 JSON 字符串数组，
 // ============ 通用口径（按交付方式） ============
 
 const TAX_PERCENT = `${Math.round(TAX_RATE * 100)}%`
-const SUPPORT_WECHAT = 'GenuineMarxist'
-/** 与 products 列表页底部、商品页原「购买须知」同一口径 */
-const SUPPORT_HOURS = '9:00-22:00'
+
+/*
+ * 【客服信息按店面取（二期改动 4.2）】原来这里写死客服微信号与服务时间两个常量，渠道站的商品介绍会把主站客服微信写进服务端 HTML。
+ * 现在由 buildProductIntro 的第三个参数传入当前店面的 contact（主站 = PLATFORM_CONTACT，拼出来的句子与原来逐字相同；
+ * scripts/itest-tenant/mods-p3.ts 对比）。渠道可能只设了二维码（wechat=null）：句子里不写出空的微信号，
+ * 退回「加客服微信对接」这类不带号码的说法。服务时间与 products 列表页底部、商品页「客服时间」同一口径（同一个值）。
+ */
+
+/** 「加客服微信 X 对接」里「对接」前面那半句：有微信号带上号码（号码两侧留空格，与原文一致），没有就只说「加客服微信」 */
+function wechatAdd(c: StoreContact): string {
+  return c.wechat ? `加客服微信 ${c.wechat} ` : '加客服微信'
+}
 
 /**
  * AUTO 商品到手之后怎么用：
@@ -202,7 +212,7 @@ const SUPPORT_HOURS = '9:00-22:00'
  */
 type AutoUse = 'redeem' | 'account' | 'generic'
 
-function deliveryPoints(d: DeliveryKind, use: AutoUse): string[] {
+function deliveryPoints(d: DeliveryKind, use: AutoUse, c: StoreContact): string[] {
   if (d === 'SMS') {
     return [
       '短信接码，不发卡密：付款到账后，系统自动为这一单取一个手机号，号码一取出就开始计时。',
@@ -214,7 +224,7 @@ function deliveryPoints(d: DeliveryKind, use: AutoUse): string[] {
     return [
       '人工服务，不发卡密：付款后订单进入「处理中」，需要你在「我的订单」里点「与客服在线沟通」，或加客服微信对接。',
       '处理完成后，结果写在这一单的「发货详情」里，并发邮件到你登录本站所用的账号邮箱。',
-      `具体时效以本商品说明为准；客服时间 ${SUPPORT_HOURS}。`,
+      c.hours ? `具体时效以本商品说明为准；客服时间 ${c.hours}。` : '具体时效以本商品说明为准。',
     ]
   }
   const what = use === 'account' ? '账号信息' : '卡密'
@@ -231,7 +241,7 @@ function deliveryPoints(d: DeliveryKind, use: AutoUse): string[] {
   ]
 }
 
-function steps(d: DeliveryKind, use: AutoUse): IntroStep[] {
+function steps(d: DeliveryKind, use: AutoUse, c: StoreContact): IntroStep[] {
   const pay: IntroStep = {
     title: '登录并用支付宝付款',
     body: '登录本站账号后点「立即购买」，收银台只支持支付宝。需要发票的可以在结算时勾选随单开具。',
@@ -262,7 +272,7 @@ function steps(d: DeliveryKind, use: AutoUse): IntroStep[] {
       pay,
       {
         title: '付款后主动联系客服',
-        body: `订单会停在「处理中」，在「我的订单」里点「与客服在线沟通」，或加客服微信 ${SUPPORT_WECHAT} 对接。这一项不发卡密，不用在订单里等兑换码。`,
+        body: `订单会停在「处理中」，在「我的订单」里点「与客服在线沟通」，或${wechatAdd(c)}对接。这一项不发卡密，不用在订单里等兑换码。`,
       },
       {
         title: '按指引配合完成',
@@ -315,18 +325,20 @@ function pricing(): string[] {
   ]
 }
 
-function genericNotices(d: DeliveryKind, use: AutoUse): string[] {
+function genericNotices(d: DeliveryKind, use: AutoUse, c: StoreContact): string[] {
   const out: string[] = []
   if (d === 'AUTO' && use !== 'account') {
     // 服务条款第四节原话的口径：未使用可退、已核销不退
     out.push('卡密一旦提交兑换、被上游核销，无论充值结果如何都不退；未使用的卡密可按服务条款申请退款。')
   }
   out.push('退款与质保以本商品说明和服务条款为准。')
-  out.push(`客服时间 ${SUPPORT_HOURS}，微信 ${SUPPORT_WECHAT}；拿不准的情况先问再下单。`)
+  // 主站：「客服时间 9:00-22:00，微信 GenuineMarxist；…」（与原文逐字相同）；渠道按实际有的项拼，客服邮箱有就带上
+  const ways = [c.hours ? `客服时间 ${c.hours}` : '', c.wechat ? `微信 ${c.wechat}` : '', c.email ? `客服邮箱 ${c.email}` : ''].filter(Boolean)
+  out.push(ways.length ? `${ways.join('，')}；拿不准的情况先问再下单。` : '拿不准的情况先问客服再下单。')
   return out
 }
 
-function genericFaqs(d: DeliveryKind, use: AutoUse): IntroFaq[] {
+function genericFaqs(d: DeliveryKind, use: AutoUse, c: StoreContact): IntroFaq[] {
   const invoice: IntroFaq = {
     q: '可以开发票吗？',
     a: `可以。页面标价是不含税价：结算时勾选「同时开具增值税发票」，税费按货款的 ${TAX_PERCENT} 随货款一起支付；也可以付款后在「我的订单」里单独申请。支持增值税发票与收据，收据不涉及税费。`,
@@ -344,7 +356,7 @@ function genericFaqs(d: DeliveryKind, use: AutoUse): IntroFaq[] {
     return [
       {
         q: '付款之后要做什么？多久能处理？',
-        a: `这一项是人工服务，不发卡密。付款后请尽快在「我的订单」里点「与客服在线沟通」，或加客服微信 ${SUPPORT_WECHAT} 对接；具体时效以商品说明为准，客服时间 ${SUPPORT_HOURS}。`,
+        a: `这一项是人工服务，不发卡密。付款后请尽快在「我的订单」里点「与客服在线沟通」，或${wechatAdd(c)}对接；具体时效以商品说明为准${c.hours ? `，客服时间 ${c.hours}` : ''}。`,
       },
       invoice,
     ]
@@ -676,7 +688,11 @@ export function isAccountProduct(p: { name: string; categoryName?: string | null
   return landingNote(hit.def.slug as LandingSlug, delivery).use === 'account'
 }
 
-export function buildProductIntro(p: IntroProduct, catalog: IntroCatalogItem[]): ProductIntro {
+/**
+ * contact：当前店面的客服信息（页面传 getStorefront().contact）。缺省 = 主站常量，只为兼容 scripts/check-product-intro.ts
+ * 这类不关心店面的调用；渠道页面必须显式传，否则渠道商品页会写出主站客服微信。
+ */
+export function buildProductIntro(p: IntroProduct, catalog: IntroCatalogItem[], contact: StoreContact = PLATFORM_CONTACT): ProductIntro {
   const delivery = deliveryKind(p.deliveryType)
   const hit = landingForProduct(p)
   // 兜底归类（direct=false）的商品只借落地页的链接与同系列列表，不套用它的档位口径：
@@ -685,7 +701,7 @@ export function buildProductIntro(p: IntroProduct, catalog: IntroCatalogItem[]):
   const use: AutoUse = note ? note.use : 'generic'
 
   const faqs = note ? note.faqs.slice() : []
-  genericFaqs(delivery, use).forEach((f) => faqs.push(f))
+  genericFaqs(delivery, use, contact).forEach((f) => faqs.push(f))
   if (faqs.length < 3) faqs.push(unmatchedExtraFaq(delivery))
 
   const anchor = note ? note.anchor : 'price'
@@ -693,10 +709,10 @@ export function buildProductIntro(p: IntroProduct, catalog: IntroCatalogItem[]):
     delivery,
     landing: hit ? { slug: hit.def.slug as LandingSlug, navLabel: hit.def.navLabel, direct: hit.direct } : null,
     about: note ? note.context : null,
-    deliveryPoints: deliveryPoints(delivery, use),
-    steps: steps(delivery, use),
+    deliveryPoints: deliveryPoints(delivery, use, contact),
+    steps: steps(delivery, use, contact),
     pricing: pricing(),
-    notices: (note ? note.preflight : []).concat(genericNotices(delivery, use)),
+    notices: (note ? note.preflight : []).concat(genericNotices(delivery, use, contact)),
     siblings: siblingsOf(p, catalog, hit ? hit.def : null),
     faqs: faqs.slice(0, MAX_FAQS),
     guide: hit

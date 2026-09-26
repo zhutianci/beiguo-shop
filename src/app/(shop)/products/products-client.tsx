@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, LayoutGrid, List as ListIcon, Sparkles } from 'lucide-react'
-import { ContactModal } from '@/components/contact-modal'
+import { ContactModal, hoursText } from '@/components/contact-modal'
 import { captureRefFromUrl } from '@/lib/ref'
 import { useStorefront } from '@/components/storefront-provider'
 import { ProductThumb } from '@/components/products/product-thumb'
@@ -71,7 +71,8 @@ export default function ProductsClient({
   /** 内推专属价覆盖表：productId → price。拿不到就用列表价，不阻塞渲染 */
   const [refPrice, setRefPrice] = useState<Record<number, number>>({})
   /** 渠道站内推硬关（设计 7.6）：不读、不记 ref，也就不会出现「专属价」提示条与那次多余的请求 */
-  const { features } = useStorefront()
+  // 客服信息（二期改动 4.2）：底部客服胶囊按店面显示微信号与服务时间
+  const { features, contact } = useStorefront()
 
   // 挂载后再读偏好与内推码：这两样都只存在于浏览器，在渲染期读会造成 hydration 不一致
   useEffect(() => {
@@ -266,10 +267,11 @@ export default function ProductsClient({
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               在线客服
             </div>
-            <div className="w-px h-4 bg-white/10" />
-            <div>微信: GenuineMarxist</div>
-            <div className="w-px h-4 bg-white/10" />
-            <div>9:00 - 22:00</div>
+            {/* 客服信息按店面取（二期改动 4.2）：主站渲染与原来写死的「微信: GenuineMarxist / 9:00 - 22:00」逐字相同 */}
+            {contact.wechat && <div className="w-px h-4 bg-white/10" />}
+            {contact.wechat && <div>{`微信: ${contact.wechat}`}</div>}
+            {contact.hours && <div className="w-px h-4 bg-white/10" />}
+            {contact.hours && <div>{hoursText(contact.hours)}</div>}
           </button>
         </div>
       </div>

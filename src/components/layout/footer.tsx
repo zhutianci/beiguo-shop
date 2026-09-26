@@ -10,8 +10,10 @@ import { useStorefront } from '@/components/storefront-provider'
 export function Footer({ catalogOpen = true }: { catalogOpen?: boolean } = {}) {
   const [contactOpen, setContactOpen] = useState(false)
   /*
-   * 渠道分站（设计 11.1、11.2）：页脚品牌、主体、客服与主站完全相同；只把渠道站已关闭模块的入口去掉
+   * 渠道分站（设计 11.1、11.2）：页脚品牌、主体与主站完全相同；只把渠道站已关闭模块的入口去掉
    * （充值落地页、IP 工具、订阅查询、友链——它们在渠道 Host 上服务端 404）。
+   * 客服（二期改动 4.2）：两个「客服」按钮打开的 ContactModal 按店面取客服信息（渠道自己设的，未设回退主站），
+   * 页脚本身不写具体微信号，所以这里不用改。
    * 不只是「点进去 404」的体验问题：生产环境 next/link 会对视口内的链接预取，留着入口就会产生 404 请求（验收 W1-9）。
    * 主站 features 全开，渲染结果与原来逐字相同。
    */
@@ -40,7 +42,7 @@ export function Footer({ catalogOpen = true }: { catalogOpen?: boolean } = {}) {
                   alt 写全称：这是页脚唯一一处品牌名，图挂了也要读得出是谁。 */}
               <Link href="/" className="inline-flex items-center mb-6">
                 <img
-                  src="/logo-full.png"
+                  src="/logo-full.png?v=3"
                   alt="贝果科技 bigo tech - bigolab.com"
                   width={640}
                   height={628}

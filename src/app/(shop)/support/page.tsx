@@ -21,10 +21,10 @@ import {
   CheckCircle2,
   Megaphone,
 } from 'lucide-react'
-import { ContactModal } from '@/components/contact-modal'
+import { ContactModal, hoursText } from '@/components/contact-modal'
 import { useStorefront } from '@/components/storefront-provider'
-// 这批问答同时要喂给 layout.tsx 里的 FAQPage 结构化数据，必须是同一份数据源
-import { supportFaqs as faqs } from '@/lib/support-faq'
+// 这批问答同时要喂给 layout.tsx 里的 FAQPage 结构化数据，必须是同一份数据源（按店面客服信息生成，两边传同一个 contact）
+import { supportFaqs } from '@/lib/support-faq'
 
 interface ServiceCard {
   icon: typeof Search
@@ -138,7 +138,11 @@ export default function SupportPage() {
   const router = useRouter()
   // 「订阅查询」/lookup 在渠道站关闭（设计 11.1、Q16：对应入口在渠道站不渲染）：服务卡片、快速查询、底部按钮三处都按它隐藏。
   // 没有 Provider 时回退主站全开，主站渲染不变
-  const lookupOn = useStorefront().features.lookup
+  const sf = useStorefront()
+  const lookupOn = sf.features.lookup
+  // 客服信息按店面取（二期改动 4.2）：主站 = PLATFORM_CONTACT，公告条、底部 CTA、FAQ 第 1 条与改造前逐字相同
+  const contact = sf.contact
+  const faqs = supportFaqs(contact)
   const visibleServices = lookupOn ? services : services.filter((s) => s.href !== '/lookup')
   const [quickEmail, setQuickEmail] = useState('')
   const faqRef = useRef<HTMLDivElement>(null)
@@ -206,7 +210,9 @@ export default function SupportPage() {
           </div>
           <div className="flex-1 text-sm lg:text-[15px]">
             <span className="text-amber-300 font-semibold mr-2">服务公告</span>
-            <span className="text-white/70">客服在线时间 9:00~22:00，紧急问题请微信留言，会在第一时间处理。</span>
+            <span className="text-white/70">
+              {contact.hours ? `客服在线时间 ${hoursText(contact.hours, '~')}，紧急问题请微信留言，会在第一时间处理。` : '紧急问题请微信留言，会在第一时间处理。'}
+            </span>
           </div>
         </motion.div>
 
@@ -429,7 +435,21 @@ export default function SupportPage() {
             </div>
             <h3 className="text-2xl lg:text-3xl font-bold mb-3">没找到你需要的答案？</h3>
             <p className="text-white/60 lg:text-lg mb-6 max-w-md lg:max-w-lg mx-auto">
-              微信扫码或搜索 <span className="font-mono text-purple-400">GenuineMarxist</span>，专属客服 1 对 1 服务
+              {/* 渠道可能只设了微信号或只传了二维码：按实际有的方式说，不写出空的微信号 */}
+              {contact.wechat ? (
+                <>
+                  {contact.qrUrl ? '微信扫码或搜索 ' : '微信搜索 '}
+                  <span className="font-mono text-purple-400">{contact.wechat}</span>，专属客服 1 对 1 服务
+                </>
+              ) : (
+                '微信扫码添加，专属客服 1 对 1 服务'
+              )}
+              {contact.email && (
+                <>
+                  <br />
+                  客服邮箱 <span className="font-mono text-purple-400">{contact.email}</span>
+                </>
+              )}
             </p>
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <button
@@ -451,7 +471,7 @@ export default function SupportPage() {
             </div>
             <div className="mt-6 flex items-center justify-center gap-2 text-sm text-white/40">
               <Clock className="w-4 h-4" />
-              <span>服务时间 9:00 - 22:00 · 紧急问题留言会被尽快回复</span>
+              <span>{contact.hours ? `服务时间 ${hoursText(contact.hours)} · 紧急问题留言会被尽快回复` : '紧急问题留言会被尽快回复'}</span>
             </div>
           </div>
         </motion.div>

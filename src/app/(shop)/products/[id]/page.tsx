@@ -80,7 +80,7 @@ export interface ClientProduct {
 /**
  * 渠道站的同一份数据（设计 7.4、W2-6）：商品必须在本店可售（上架、授权、进货价已配、站长在售），price = 本店售价。
  * 【RSC props 会进页面源码】client 逐字段构造，只有公开字段；lib/pricing.ts 的结果本身就不含站长价、进货价、成本。
- * sales 是本店销量（设计 7.5）。
+ * sales 是全站总销量 Product.sales（二期改动 M1：两站显示同一个总销量；本店销量只在渠道后台看）。
  */
 async function getChannelProduct(sf: Storefront, id: number): Promise<{ seo: ProductLookup; client: ClientProduct | null }> {
   const previewUserId = sf.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
@@ -254,14 +254,17 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
    */
   // 同系列档位：getLandingProducts 按店面取数，渠道站只列本店可售商品、价格为本店售价（不会把主站兄弟商品价格写进渠道站 HTML，设计 7.4）
   const catalog = product ? await getLandingProducts() : []
+  // 店面在装配商品介绍之前取：介绍里的客服微信号与服务时间按店面取值（二期改动 4.2，主站 = PLATFORM_CONTACT，文案逐字不变）。
+  // getStorefront 按请求缓存，这里提前取不多查库；不进 try
+  const sf = await getStorefront()
   const built = product
     ? buildProductIntro(
         { id: product.id, name: product.name, categoryName: product.categoryName, deliveryType: product.deliveryType },
-        catalog
+        catalog,
+        sf ? sf.contact : undefined
       )
     : null
   // 渠道站没有充值落地页（设计 11.2 关闭 /chongzhi），「完整购买指南」链接去掉，否则是一个点进去 404 的入口
-  const sf = await getStorefront()
   const channel = !!sf && sf.kind === 'CHANNEL'
   const intro = built && channel ? { ...built, guide: null } : built
 

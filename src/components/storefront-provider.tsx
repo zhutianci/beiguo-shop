@@ -5,16 +5,23 @@
  *   <StorefrontProvider value={toPublicStorefront(sf)}>…</StorefrontProvider>
  * 客户端组件：const { features } = useStorefront()，按 features 决定渲染哪些入口。
  *
- * value 只含 code / kind / origin / features（lib/storefront/public.ts），不含费率、进货价、tenantId。
- * features 只控制显示；真正的拦截全在服务端。
+ * value 只含 code / kind / origin / features / contact（lib/storefront/public.ts），不含费率、进货价、tenantId。
+ * features 只控制显示；真正的拦截全在服务端。客服信息用 const { contact } = useStorefront()（二期改动 4.1）。
  *
- * 【没有 Provider 时的回退】回退为「主站、全开」：WP1 把根布局包上之前，现有页面的显示必须与今天逐字相同（休眠，设计 4.10）。
+ * 【没有 Provider 时的回退】回退为「主站、全开、主站客服」：WP1 把根布局包上之前，现有页面的显示必须与今天逐字相同（休眠，设计 4.10）。
  * 这不构成绕过——渠道站的关闭模块由服务端 404，客户端显示错了最多是一个点进去 404 的入口。
  */
 import { createContext, useContext } from 'react'
 import { storefrontFeatures, type PublicStorefront } from '@/lib/storefront/public'
+import { PLATFORM_CONTACT } from '@/lib/contact-base'
 
-const FALLBACK: PublicStorefront = { code: 'main', kind: 'PLATFORM', origin: '', features: storefrontFeatures({ kind: 'PLATFORM' }) }
+const FALLBACK: PublicStorefront = {
+  code: 'main',
+  kind: 'PLATFORM',
+  origin: '',
+  features: storefrontFeatures({ kind: 'PLATFORM' }),
+  contact: { ...PLATFORM_CONTACT },
+}
 
 const StorefrontContext = createContext<PublicStorefront | null>(null)
 

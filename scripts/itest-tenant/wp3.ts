@@ -390,6 +390,10 @@ async function main() {
     check('渠道单单卡售价 = 进货价分摊 110.00、利润 = 110 − 107.13', cards.length === 1 && Number(cards[0].soldPrice) === 110 && Number(cards[0].profit) === 2.87)
     const lst = await prisma.tenantListing.findUniqueOrThrow({ where: { id: lTL } })
     check('本渠道销量 +2', lst.sales === 2)
+    // 二期 M1：全站销量 Product.sales 对渠道单同样按件累加（前台两站都显示它）。P 是本脚本新建的商品（sales 从 0 起），
+    // 此前付过：主站回归 1 件 + O1 1 件 + O2 1 件
+    const prodP = await prisma.product.findUniqueOrThrow({ where: { id: P }, select: { sales: true } })
+    check('二期 M1：全站销量 Product.sales 同步累加渠道单（主站 1 + 渠道 2 = 3）', prodP.sales === 3, `sales=${prodP.sales}`)
     check('ORDER_PAID 渠道通知 1 条', (await prisma.tenantNotice.count({ where: { tenantId: TL.id, kind: 'ORDER_PAID', refKey: O1.orderNo } })) === 1)
   }
   let tr = await triples(TL.id)

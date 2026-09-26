@@ -5,7 +5,7 @@ import { success, error } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 // 魔数识别、上传目录总量配额（含「论坛只能用到 90%」那条线）、落盘都在 lib/upload-store.ts：
 // 后台营销邮件图片上传与这里共用同一份用量计数，否则两条通道各守各的上限，合起来照样能写满磁盘
-import { sniffImage, storeUpload } from '@/lib/upload-store'
+import { CONTACT_QR_MAX_BYTES, sniffImage, storeContactQr, storeUpload } from '@/lib/upload-store'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { ipKey } from '@/lib/auth-throttle'
 import { denyOnChannel } from '@/lib/storefront/resolve'
@@ -37,7 +37,13 @@ const SCOPES: Record<string, string> = {
   forum: 'forum', // 论坛发帖配图（允许匿名）
   links: 'links', // 友链 / 招商位的站点 logo（后台录入）
   products: 'products', // 商品主图（后台录入，展示在商品列表与详情页）
+  // 渠道客服二维码（二期改动 4.3：超管在渠道详情里替渠道上传；渠道自己走 /api/partner/settings/contact-qr）。
+  // 只许 ADMIN（下面的准入对 forum 以外一律要求 ADMIN）；落盘走 storeContactQr：≤2MB、按文件头只收 png/jpg/webp（不收 gif）
+  contact: 'contact',
 }
+
+/** scope=contact 允许的声明类型（与 storeContactQr 按文件头的判定一致：gif 不收） */
+const CONTACT_TYPES: ReadonlySet<string> = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 // 图片上传：保存到 public/uploads/<scope>，返回可访问 URL
 export async function POST(request: NextRequest) {
@@ -83,6 +89,20 @@ export async function POST(request: NextRequest) {
 
     const file = form.get('file')
     if (!file || !(file instanceof File)) return error('未找到上传文件')
+
+    if (scope === 'contact') {
+      // 客服二维码：单独的上限与格式（2MB、不收 gif），返回的地址必然匹配 CONTACT_QR_URL_RE，超管 PATCH 渠道时 zod 只收这种地址
+      if (!CONTACT_TYPES.has(file.type)) return error('客服二维码仅支持 JPG / PNG / WebP 图片')
+      if (file.size > CONTACT_QR_MAX_BYTES) return error('客服二维码不能超过 2MB')
+      const qr = await storeContactQr(Buffer.from(await file.arrayBuffer()))
+      if (!qr.ok) {
+        if (qr.reason === 'size') return error('客服二维码不能超过 2MB')
+        if (qr.reason === 'type') return error('文件内容不是 JPG / PNG / WebP 图片')
+        return error('图片存储空间已满，请联系管理员', 507)
+      }
+      console.log(`[upload] scope=contact url=${qr.url} by=u:${user?.id}`)
+      return success({ url: qr.url }, '上传成功')
+    }
 
     if (!ALLOWED[file.type]) return error('仅支持 JPG / PNG / GIF / WebP 图片')
     if (file.size > MAX_SIZE) return error('图片不能超过 5MB')

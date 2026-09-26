@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
+import type { StoreContact } from '@/lib/contact-base'
 
 /**
  * 条款类页面（隐私政策 / 服务条款）的统一版式。
@@ -11,17 +12,24 @@ import type { ReactNode } from 'react'
  *
  * 【Server Component】没有任何交互，不需要 'use client'；
  * 纯服务端渲染意味着正文全部落在首屏 HTML 里，爬虫不用执行 JS 就能读到。
+ *
+ * 【页脚客服按店面取（二期改动 4.2）】contact 由调用它的页面（privacy / terms）从 getStorefront() 取来传入：
+ * 本组件保持同步组件，不自己查店面。主站传 PLATFORM_CONTACT，页脚与原来写死的「客服微信 GenuineMarxist」逐字相同；
+ * 渠道只传了二维码没填微信号时，不写括号里的微信号（客服中心页有二维码入口）。必填：漏传就是编译错误，不会悄悄显示主站客服。
  */
 export function LegalPage({
   title,
   updatedAt,
   intro,
+  contact,
   children,
 }: {
   title: string
   /** 形如 2026-09-19。改了实质条款就要同步改这个日期 */
   updatedAt: string
   intro: ReactNode
+  /** 当前店面的客服信息（getStorefront().contact） */
+  contact: StoreContact
   children: ReactNode
 }) {
   return (
@@ -53,7 +61,13 @@ export function LegalPage({
           <Link href="/support" className="text-purple-400 hover:text-purple-300">
             客服中心
           </Link>{' '}
-          联系我们（客服微信 <span className="font-mono text-white/60">GenuineMarxist</span>）。
+          {contact.wechat ? (
+            <>
+              联系我们（客服微信 <span className="font-mono text-white/60">{contact.wechat}</span>）。
+            </>
+          ) : (
+            '联系我们。'
+          )}
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { OG_IMAGES } from '@/lib/seo/og'
 import { PRIVACY_UPDATED_AT } from '@/lib/legal'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { storefrontFeatures } from '@/lib/storefront/public'
+import { resolveStoreContact } from '@/lib/contact'
 
 /**
  * 隐私政策。
@@ -38,11 +39,15 @@ export const metadata: Metadata = {
 export default async function PrivacyPage() {
   // 「订阅查询」/lookup 在渠道站关闭（设计 11.1、Q16），渠道站的隐私页不给这个死链，改说「个人中心」。
   // 休眠期 getStorefront 恒为主站（不查库），主站渲染逐字不变
-  const lookupOn = storefrontFeatures(await getStorefront()).lookup
+  const sf = await getStorefront()
+  const lookupOn = storefrontFeatures(sf).lookup
+  // 页脚客服按店面取（二期改动 4.2）；拿不到店面时 (shop)/layout 已 404，这里按主站客服兜底
+  const contact = sf ? sf.contact : resolveStoreContact(null)
   return (
     <LegalPage
       title="隐私政策"
       updatedAt={PRIVACY_UPDATED_AT}
+      contact={contact}
       intro={
         <p>
           本政策说明益阳市赫山区必高科技有限公司（下称「我们」，经营站点 bigolab.com「贝果科技」）

@@ -284,6 +284,8 @@ const RULE1_ALLOW = [
   'src/lib/tenant/types',
   'src/lib/storefront/public',
   'src/components/storefront-provider',
+  // 二期：店面客服信息的常量 / 类型 / 格式正则（零依赖纯函数，不查库；设置页做即时格式提示用）
+  'src/lib/contact-base',
   'src/lib/api',
   'src/lib/utils',
   'next/*',
@@ -299,6 +301,9 @@ const RULE2_ALLOW = [
   'src/lib/tenant/types',
   'src/lib/tenant/perms',
   'src/lib/tenant/math',
+  // 二期：客服字段的 zod 校验（partnerContactInputSchema 等）。纯函数（zod + marketing/lint 词表），不查库、不发信
+  'src/lib/contact',
+  'src/lib/contact-base',
   'src/lib/api',
   'next/server',
   'zod',
@@ -310,6 +315,9 @@ const RULE3_ALLOW = [
   'src/lib/partner-services/',
   ...['partner-facade', 'types', 'perms', 'math', 'sellable', 'customer', 'notice', 'platform-alert', 'public-names', 'public-no'].map((x) => `src/lib/tenant/${x}`),
   'src/lib/audit',
+  // 二期：客服字段校验与回退规则（纯函数）。写库、上传、发信、验证码仍只能经 partner-facade
+  'src/lib/contact',
+  'src/lib/contact-base',
   'src/lib/stock-level',
   'src/lib/db',
   'src/lib/money',
@@ -954,6 +962,8 @@ export const DOC_PATH_NOTES = {
   'src/lib/marketing/worker.ts': '只读引用（设计 6.5.5 规则 9）：同上，domain: 是普通对象键；文件不改',
   'src/lib/tenant/view-as.ts': '只读引用（设计 6.5.5 规则 9）：deriveKey("viewas") 的唯一合法位置，属 P1「以渠道身份查看」，本期不建',
   'src/lib/stock-level': '只读引用（设计附录 P9）：规则 3 的 import 白名单项；src/lib/stock-level.ts 是 P0 前置已上线的文件，本期不改',
+  // 二期（docs/多渠道分销-二期改动.md）的文件由二期各包所有，不在一期分包第 13 节；设计文档修订时引用了它
+  'src/lib/contact-base.ts': '二期新建文件（地基包 F，二期改动 4.1）：客服常量与回退规则的唯一实现；设计 11.1 修订时引用，所有者见二期改动文档',
 }
 
 function braceExpand(s) {

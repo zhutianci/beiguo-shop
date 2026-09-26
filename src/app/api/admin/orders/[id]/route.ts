@@ -19,7 +19,7 @@ import { createHash } from 'crypto'
 import { writeAudit } from '@/lib/audit'
 import { emitTenantNotice } from '@/lib/tenant/notice'
 import { externalOrderSourceKey } from '@/lib/external-order-key'
-import { tenantOrigin } from '@/lib/storefront/origin'
+import { tenantMailOpts } from '@/lib/storefront/origin'
 import { mulDivRound } from '@/lib/tenant/math'
 import { accrueOnPaid, applyRefund, defaultLossCents, isTxAbortingError, shortFields } from '@/lib/tenant/ledger'
 import { adminOrResponse, closeAfterSale, AfterSaleConflict, REFUND_REASON_TEXT } from '@/lib/admin/source-site'
@@ -684,6 +684,24 @@ export async function PUT(
             req: request,
           })
         }
+        /*
+         * 渠道通知 ORDER_DELIVERED（docs/多渠道分销-二期改动.md 3.2）：站长为渠道单人工发货 / 标记已交付，告诉渠道站长
+         * （渠道没有发货权限，否则只能等买家来问）。只在「本次保存把订单从未交付变成已交付」时发；与订单行、审计同事务，
+         * 事务回滚则通知也不存在。去重键带交付时刻：同一次交付只通知一次，撤回后再交付是新的一次。
+         * 正文**不含交付内容**（deliveryInfo 可能是账号密码，通知会推到第三方群与邮箱）。
+         */
+        if (order.deliveryStatus === 'DELIVERED' && currentOrder.deliveryStatus !== 'DELIVERED') {
+          const at = order.deliveredAt ?? new Date()
+          await emitTenantNotice(tx, {
+            tenantId: currentOrder.tenantId,
+            kind: 'ORDER_DELIVERED',
+            title: `订单已交付：${currentOrder.productName}${currentOrder.quantity > 1 ? ` × ${currentOrder.quantity}` : ''}`,
+            body: '平台已完成交付，买家可在订单页查看交付内容',
+            refType: 'order',
+            refKey: currentOrder.orderNo,
+            dedupeKey: `dlv:${currentOrder.orderNo}:${at.getTime().toString(36)}`,
+          })
+        }
       }
 
       let salesDelta = 0
@@ -962,8 +980,9 @@ export async function PUT(
       }
       if (currentOrder.user.email) {
         try {
-          // 渠道单的链接用渠道 origin（设计 4.5、11.4）；主站不传 = 原来的 APP_URL，邮件逐字不变
-          const mailOpts = isChannel ? { origin: await tenantOrigin(currentOrder.tenantId) } : {}
+          // 渠道单的链接用渠道 origin、页脚带店面客服邮箱（设计 4.5、11.4；二期改动 4.5）；主站 tenantMailOpts 返回 undefined
+          // = 原来的 APP_URL，邮件逐字不变
+          const mailOpts = await tenantMailOpts(currentOrder.tenantId)
           await sendOrderDeliveredEmail(
             currentOrder.user.email,
             {

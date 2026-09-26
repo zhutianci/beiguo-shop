@@ -1604,6 +1604,16 @@ model Tenant {
   wecomWebhookEnc       String?   @map("wecom_webhook_enc") @db.Text // 渠道自己的企业微信群；sealText('webhook')，只写不读回
   noticePrefs           Json?     @map("notice_prefs") // { [TenantNoticeKind]: boolean }，缺省 = 开
   previewUserIds        Json?     @map("preview_user_ids") // number[]：DRAFT 期可在前台浏览、下单的测试账号
+  // —— 二期：渠道推送方式（docs/多渠道分销-二期改动.md 3.2）。两种方式可同时开；noticePrefs 对两者都生效 ——
+  noticeWecomOn         Boolean   @default(true) @map("notice_wecom_on") // 默认开：与一期「配了 webhook 就推」行为一致
+  noticeEmailOn         Boolean   @default(false) @map("notice_email_on")
+  noticeEmail           String?   @map("notice_email") @db.VarChar(120) // 已验证归属才写入（登录邮箱直存，否则 NOTICE 验证码）
+  // —— 二期：渠道客服信息（二期改动 4.1）。全部可空：未设回退主站 PLATFORM_CONTACT（src/lib/contact.ts）——
+  // 微信号与二维码作为一组回退；二维码地址只由服务端写入，读写两端都校验 /uploads/contact/<名>.(png|jpg|webp)
+  supportWechat         String?   @map("support_wechat") @db.VarChar(40)
+  supportQrUrl          String?   @map("support_qr_url") @db.VarChar(160)
+  supportEmail          String?   @map("support_email") @db.VarChar(120)
+  supportHours          String?   @map("support_hours") @db.VarChar(40)
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime? @updatedAt @map("updated_at")
 
@@ -1855,13 +1865,14 @@ model TenantNotice {
   id        Int       @id @default(autoincrement())
   publicNo  String    @unique @map("public_no") @db.VarChar(16) // 渠道侧寻址键 noticeNo（随机）
   tenantId  Int       @map("tenant_id")
-  kind      String    @db.VarChar(24) // ORDER_PAID | BUYER_MESSAGE | AFTER_SALE_RESULT | ORDER_REFUNDED | STATEMENT | PAYOUT | SUPPLY_CHANGED | PLATFORM_LISTING | AUTO_DELISTED | PRODUCT_WITHDRAWN | TENANT_STATUS | NEGATIVE_BALANCE
+  kind      String    @db.VarChar(24) // ORDER_PAID | BUYER_MESSAGE | AFTER_SALE_RESULT | ORDER_REFUNDED | STATEMENT | PAYOUT | SUPPLY_CHANGED | PLATFORM_LISTING | AUTO_DELISTED | PRODUCT_WITHDRAWN | TENANT_STATUS | NEGATIVE_BALANCE | CUSTOMER_JOINED | ORDER_DELIVERED
   title     String    @db.VarChar(120)
   body      String?   @db.VarChar(500)
   refType   String?   @map("ref_type") @db.VarChar(16) // order | statement | listing | after_sale
   refKey    String?   @map("ref_key") @db.VarChar(40) // orderNo / statementNo / listingNo / requestNo（一律公开编号）
   dedupeKey String?   @unique @map("dedupe_key") @db.VarChar(64) // 同一事件只通知一次
   pushedAt  DateTime? @map("pushed_at") // 企业微信推送成功时间
+  emailedAt DateTime? @map("emailed_at") // 二期：邮件推送成功时间；同时是每渠道邮件限频（时/日）的计数依据
   readAt    DateTime? @map("read_at")
   createdAt DateTime  @default(now()) @map("created_at")
 

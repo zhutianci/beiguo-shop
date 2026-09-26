@@ -27,6 +27,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '../db'
 import { error } from '../api'
 import { siteOrigin } from '../news/format'
+import { PLATFORM_CONTACT, resolveStoreContact, type StoreContact, type TenantContactRow } from '../contact-base'
 import { channelsEnabled, hostStrict, isChannelCandidateHost, normalizeHost, platformHosts } from './hosts'
 
 export { normalizeHost } from './hosts'
@@ -39,6 +40,11 @@ export interface Storefront {
   kind: StorefrontKind
   status: TenantStatus
   origin: string
+  /**
+   * 客服信息（二期改动 4.1）：主站 = PLATFORM_CONTACT（常量，不查库）；渠道 = tenants 行的 support* 四列按回退规则算出
+   * （src/lib/contact-base.ts resolveStoreContact）。公开数据，toPublicStorefront 显式映射给客户端。**不塞进 features。**
+   */
+  contact: StoreContact
 }
 export const PLATFORM_TENANT_ID = 1
 
@@ -46,7 +52,7 @@ const TENANT_STATUSES: ReadonlySet<string> = new Set(['DRAFT', 'ACTIVE', 'SUSPEN
 
 /** 主站店面：常量，不查库（主站分支零依赖新表） */
 export function platformStorefront(): Storefront {
-  return { id: PLATFORM_TENANT_ID, code: 'main', kind: 'PLATFORM', status: 'ACTIVE', origin: siteOrigin() }
+  return { id: PLATFORM_TENANT_ID, code: 'main', kind: 'PLATFORM', status: 'ACTIVE', origin: siteOrigin(), contact: { ...PLATFORM_CONTACT } }
 }
 
 // ---------------------------------------------------------------------------
@@ -54,15 +60,32 @@ export function platformStorefront(): Storefront {
 // 抽成一个可替换的对象，是为了 itest 能注入「一查就抛」的假库，验证「主站不查库」「渠道查库报错不回落」
 // （设计 W0-2 / W0-3）。生产代码从不调用 setStorefrontDbForTest。
 // ---------------------------------------------------------------------------
+/** tenants 行里店面用到的列。support* 四列可缺省：itest 注入的假库（wp0 countingDb）只 select 前五列，缺省按「未设置」回退主站 */
+type TenantStorefrontRow = { id: number; code: string; kind: string; status: string; origin: string } & TenantContactRow
+
 interface StorefrontDb {
   findDomain(host: string): Promise<{ tenantId: number; status: number } | null>
-  findTenant(id: number): Promise<{ id: number; code: string; kind: string; status: string; origin: string } | null>
+  findTenant(id: number): Promise<TenantStorefrontRow | null>
 }
 
 const realDb: StorefrontDb = {
   findDomain: (host) => prisma.tenantDomain.findUnique({ where: { host }, select: { tenantId: true, status: true } }),
+  // 客服四列与 status 同一次主键查询取出（二期改动 4.1）：不增加查询次数，后台改完下一个请求就生效
   findTenant: (id) =>
-    prisma.tenant.findUnique({ where: { id }, select: { id: true, code: true, kind: true, status: true, origin: true } }),
+    prisma.tenant.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        code: true,
+        kind: true,
+        status: true,
+        origin: true,
+        supportWechat: true,
+        supportQrUrl: true,
+        supportEmail: true,
+        supportHours: true,
+      },
+    }),
 }
 let db: StorefrontDb = realDb
 
@@ -118,13 +141,21 @@ function logUnknownHost(host: string | null, mode: 'observe' | 'strict'): void {
   console.warn(`[storefront] 未知 Host（${mode === 'observe' ? '观察期按主站处理' : '严格期 404'}）：${key.slice(0, 120)}`)
 }
 
-function toChannelStorefront(t: { id: number; code: string; kind: string; status: string; origin: string }): Storefront | null {
+function toChannelStorefront(t: TenantStorefrontRow): Storefront | null {
   // 数据行不合规一律不给店面（fail closed）：kind 必须是 CHANNEL、id ≥ 2、status 在枚举内、origin 非空
   if (t.kind !== 'CHANNEL' || t.id === PLATFORM_TENANT_ID || !TENANT_STATUSES.has(t.status) || !t.origin) {
     console.error(`[storefront] tenants 行不合规，按不存在处理：id=${t.id} kind=${t.kind} status=${t.status}`)
     return null
   }
-  return { id: t.id, code: t.code, kind: 'CHANNEL', status: t.status as TenantStatus, origin: t.origin.replace(/\/+$/, '') }
+  return {
+    id: t.id,
+    code: t.code,
+    kind: 'CHANNEL',
+    status: t.status as TenantStatus,
+    origin: t.origin.replace(/\/+$/, ''),
+    // 回退规则的唯一实现（微信号 + 二维码成组回退；邮箱、服务时间各自回退；库里不合规的值按未设置处理）
+    contact: resolveStoreContact(t),
+  }
 }
 
 /**

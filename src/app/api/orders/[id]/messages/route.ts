@@ -8,7 +8,6 @@ import { success, error, unauthorized, notFound } from '@/lib/api'
 import { notifyBuyerMessage } from '@/lib/notify'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { emitTenantNotice } from '@/lib/tenant/notice'
-import { siteTag } from '@/lib/pricing'
 
 /**
  * 本人、本店的订单（设计 8.1「归属一律写进 where」）。别人的单、别的站的单与不存在的单同样返回 null → 404。
@@ -133,23 +132,30 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       select: BUYER_MESSAGE_SELECT,
     })
 
-    // 外推通知商家：买家有新留言（fire-and-forget，失败不影响发送）。平台群照推，渠道单打「[code]」标签（设计 11.4）
-    try {
-      const full = await prisma.order.findUnique({
-        where: { id: orderId },
-        select: { orderNo: true, productName: true, user: { select: { nickname: true, email: true } } },
-      })
-      if (full) {
-        notifyBuyerMessage({
-          orderId,
-          orderNo: full.orderNo,
-          productName: `${siteTag(sf)}${full.productName}`,
-          buyer: full.user?.nickname || full.user?.email || `用户#${user.id}`,
-          content: parsed.data.content,
+    /*
+     * 外推通知商家：买家有新留言（fire-and-forget，失败不影响发送）。
+     * 【只推主站单】（docs/多渠道分销-二期改动.md 3.1）渠道单的留言是纯通知、由渠道自己在 /partner/orders/[orderNo] 回复，
+     * 不再推站长群；渠道站长经下面的 BUYER_MESSAGE 渠道通知（按渠道自选的企业微信 / 邮箱）收到。
+     * 站长后台的未读红点靠 readByAdmin，不受影响。主站单的推送内容逐字不变（主站店面的 siteTag 本来就是空串）。
+     */
+    if (order.tenantId === 1) {
+      try {
+        const full = await prisma.order.findUnique({
+          where: { id: orderId },
+          select: { orderNo: true, productName: true, user: { select: { nickname: true, email: true } } },
         })
+        if (full) {
+          notifyBuyerMessage({
+            orderId,
+            orderNo: full.orderNo,
+            productName: full.productName,
+            buyer: full.user?.nickname || full.user?.email || `用户#${user.id}`,
+            content: parsed.data.content,
+          })
+        }
+      } catch (e) {
+        console.error('[notify] 组装买家留言通知失败', e)
       }
-    } catch (e) {
-      console.error('[notify] 组装买家留言通知失败', e)
     }
 
     /*

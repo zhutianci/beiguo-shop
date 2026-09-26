@@ -4,6 +4,8 @@ import { prisma } from './db'
 import { syncAutoStock, decryptCardContent } from './cardkey'
 import { round2, splitAmount } from './money'
 import {
+  notify,
+  money,
   notifyOrderPaid,
   notifyInvoiceReady,
   notifyInvoiceFailed,
@@ -23,7 +25,7 @@ import { sendOrderPaidEmail } from './mail'
 import { accrueOnPaid, accrueInvoiceShare, isTxAbortingError } from './tenant/ledger'
 import { emitTenantNotice } from './tenant/notice'
 import { storefrontById } from './storefront/resolve'
-import { tenantOrigin } from './storefront/origin'
+import { tenantMailOpts } from './storefront/origin'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
@@ -39,6 +41,43 @@ async function siteCodeOf(tenantId: number): Promise<string | null> {
   if (tenantId === 1) return null
   const sf = await storefrontById(tenantId).catch(() => null)
   return sf?.code ?? `t${tenantId}`
+}
+
+/**
+ * 履约失败告警用的站点标签（二期改动第 0 节「到账或履约异常照推站长，并标明来自哪个渠道」）：
+ * 按业务单查 tenantId 再走 siteCodeOf，主站单 null（消息逐字不变）。
+ * 这条路径本身就是出错之后：查询失败绝不能把告警吞掉，所以 catch 成 null —— 少一个标签，告警照发。
+ */
+async function siteCodeOfBiz(bizType: string, bizId: number): Promise<string | null> {
+  try {
+    const row =
+      bizType === 'order'
+        ? await prisma.order.findUnique({ where: { id: bizId }, select: { tenantId: true } })
+        : bizType === 'invoice'
+          ? await prisma.invoice.findUnique({ where: { id: bizId }, select: { tenantId: true } })
+          : null
+    return row ? await siteCodeOf(row.tenantId) : null
+  } catch (e) {
+    console.error('[vmq] 查业务单所属站点失败，告警不带站点标签', bizType, bizId, e)
+    return null
+  }
+}
+
+/**
+ * 渠道单付款后是否要推站长「待人工发货 / 待补发」（二期改动 3.1 唯一例外：`!delivered && deliveryType !== 'SMS'`）。
+ * 自动发货只在确有缺口时推（全部件已按件退掉、应发为 0 的不推）。返回 null = 不推。导出给 itest 断言。
+ */
+export function channelPendingDelivery(
+  deliveryType: string,
+  delivered: boolean,
+  shortage: { owned: number; need: number } | null,
+): { title: string; reason: string } | null {
+  if (delivered || deliveryType === 'SMS') return null
+  if (deliveryType === 'AUTO') {
+    if (!shortage) return null
+    return { title: '渠道单待补发', reason: `卡密库存不足（已发 ${shortage.owned}/${shortage.need}），补货后在订单页点「补发卡密」` }
+  }
+  return { title: '渠道单待人工发货', reason: '人工发货商品，请在订单页填写交付内容并标记已交付' }
 }
 
 /*
@@ -676,6 +715,7 @@ async function markPaidVmqOrder(
      */
     console.error('[vmq] 到账后履约失败，交给对账任务', v.bizType, v.bizId, e)
     notifyFulfillFailed({
+      site: await siteCodeOfBiz(v.bizType, v.bizId),
       biz: `${v.bizType}#${v.bizId}`,
       outTradeNo: v.outTradeNo,
       amount: v.reallyPrice,
@@ -869,12 +909,14 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
     const o = v.bizType === 'order' ? stuckO.get(v.bizId) : undefined
     if (v.bizType === 'order' ? !o : !stuckI.has(v.bizId)) continue
     const base = { biz: `${v.bizType}#${v.bizId}`, outTradeNo: v.outTradeNo, amount: v.reallyPrice, stage: '到账对账' }
+    // 只在真要发告警时才查站点（firstAlert 之后），免得每分钟对账为每行多一次查询
     if (o && (o.deliveryStatus === 'CANCELLED' || hasPayment.has(o.id))) {
       // 已取消：可能是线下退了款后取消的；有流水：被人工改回过待支付。都不自动发货，转人工
       pending++
       if (await firstAlert(v.id)) {
         notifyFulfillFailed({
           ...base,
+          site: await siteCodeOfBiz(v.bizType, v.bizId),
           reason:
             o.deliveryStatus === 'CANCELLED'
               ? '收款单已到账，但订单是「待支付 + 已取消」'
@@ -900,6 +942,7 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
       if (await firstAlert(v.id)) {
         notifyFulfillFailed({
           ...base,
+          site: await siteCodeOfBiz(v.bizType, v.bizId),
           reason: e instanceof Error ? e.message : String(e),
           action: '系统每分钟重试；长时间未恢复请人工处理',
         })
@@ -1268,6 +1311,10 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
   // ② 自动发货：幂等发卡——只补足该订单「尚缺」的数量（已发 = 该订单已占用的卡密数）。
   // 靠下面的订单行锁串行化：重复 / 并发进入都不会让一张订单的卡密总数超过其 quantity。
   let delivered = false
+  // 自动发货缺口（已发 / 应发）：仅「应发 > 0 且没发够」时有值；渠道单待补发的站长推送要写明原因
+  let cardShortage: { owned: number; need: number } | null = null
+  // 本次调用把订单翻成 DELIVERED 的时刻（条件更新抢到才有值）：渠道单「补发完成」通知的去重键用它
+  let deliveredFlipAt: Date | null = null
   if (auto) {
     /*
      * 【整单互斥】计数和领卡必须在同一把订单行锁里。卡级 CAS 只保证一张卡不发两次，保证不了整单总数：
@@ -1308,11 +1355,14 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
       // 全部件都已按件退掉：不发卡、不改交付状态（订单的取消 / 退款状态由退款弹窗决定）
     } else if (delivered) {
       // 条件带 not DELIVERED：排队的后到者不再把 deliveredAt 改晚几毫秒
-      await prisma.order.updateMany({
+      const at = new Date()
+      const flipped = await prisma.order.updateMany({
         where: { id: order.id, deliveryStatus: { not: 'DELIVERED' } },
-        data: { deliveryStatus: 'DELIVERED', deliveredAt: new Date() },
+        data: { deliveryStatus: 'DELIVERED', deliveredAt: at },
       })
+      if (flipped.count === 1) deliveredFlipAt = at
     } else {
+      cardShortage = { owned, need: alloc.need }
       // appendRemark 按 255 字截断（保留最新内容）：原来每次补发仍缺货都追加一段，十几次后超长报错「补发失败」
       const remark = appendRemark(order.remark, `卡密库存不足(已发${owned}/${alloc.need})，待人工补发`)
       await prisma.order.update({ where: { id: order.id }, data: { deliveryStatus: 'PROCESSING', remark } })
@@ -1339,24 +1389,67 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
       where: { id: order.productId },
       select: { name: true, stock: true },
     })
-    notifyOrderPaid({
-      orderNo: order.orderNo,
-      buyer: order.user.nickname || order.user.email || `用户#${order.userId}`,
-      productName: order.productName,
-      quantity: order.quantity,
-      amount: order.amount,
-      // 勾了开票的单支付宝到账的是 货款+6%，推送要和银行流水对得上
-      invoiceTaxFee: order.invoiceTaxFee == null ? null : Number(order.invoiceTaxFee),
-      paidAt: order.paidAt ?? new Date(),
-      stock: fresh?.stock ?? null,
-      delivered,
-      site,
-    })
+    if (order.tenantId === 1) {
+      // 主站单：与原来逐字相同（site 为 null）
+      notifyOrderPaid({
+        orderNo: order.orderNo,
+        buyer: order.user.nickname || order.user.email || `用户#${order.userId}`,
+        productName: order.productName,
+        quantity: order.quantity,
+        amount: order.amount,
+        // 勾了开票的单支付宝到账的是 货款+6%，推送要和银行流水对得上
+        invoiceTaxFee: order.invoiceTaxFee == null ? null : Number(order.invoiceTaxFee),
+        paidAt: order.paidAt ?? new Date(),
+        stock: fresh?.stock ?? null,
+        delivered,
+        site,
+      })
+    } else {
+      /*
+       * 渠道单（docs/多渠道分销-二期改动.md 3.1）：付款是纯通知，不再推站长群（渠道站长已由上面的 ORDER_PAID 渠道通知收到）。
+       * 唯一例外是**站长必须动手**的两种：人工发货商品（MANUAL），或自动发货但卡密不够、停在「待人工补发」。
+       * 渠道没有发货权限，不推站长就没人发货。SMS 接码付款后自动取号，属正常流程，不推。
+       */
+      const pending = channelPendingDelivery(order.product.deliveryType, delivered, cardShortage)
+      if (pending) {
+        notify(
+          'order.paid',
+          [
+            { label: '订单号', value: order.orderNo },
+            { label: '商品', value: order.productName },
+            { label: '件数', value: String(order.quantity) },
+            { label: '金额', value: money(order.amount), color: 'warning' },
+            { label: '原因', value: pending.reason, color: 'warning' },
+          ],
+          { link: '/admin/orders', extraTitle: pending.title, site },
+        )
+      }
+    }
     // 自动发货商品的库存 = 未使用卡密数，见底就要补货
     const threshold = Number(process.env.LOW_STOCK_THRESHOLD || 3)
     if (auto && fresh && fresh.stock >= 0 && fresh.stock <= threshold) {
       notifyLowStock({ productName: fresh.name, stock: fresh.stock, threshold })
     }
+  }
+
+  /*
+   * 渠道单「补发完成」（二期改动 3.2 ORDER_DELIVERED）：非赢家调用（后台「补发卡密」、收款监控补单）把一张待补发的渠道单
+   * 补齐、翻成已交付时，告诉渠道站长。赢家当场自动发货的不发（ORDER_PAID 已经通知过，买家也已拿到卡）。
+   * 去重键带交付时刻：同一次翻转只通知一次；站长撤回交付后再补齐会是新的一次。正文不含卡密。
+   * 【必须要求翻转前是 PROCESSING】非赢家也可能只是首次自动发货的并发者（重复到账推送 / 监控补单 / 后台补单
+   * 与赢家同时进入）：赢家还在等 ORDER_PAID、开票时，非赢家先抢到订单行锁把卡发了，这时它读到的是 PENDING——
+   * 订单从没缺过卡，发「平台已补发完成」是误报，还白占渠道一封邮件名额。真正待补发的单，缺卡那次已被置成 PROCESSING。
+   */
+  if (!won && deliveredFlipAt && order.deliveryStatus === 'PROCESSING' && order.tenantId !== 1) {
+    await emitTenantNotice(null, {
+      tenantId: order.tenantId,
+      kind: 'ORDER_DELIVERED',
+      title: `订单已交付：${order.productName}${order.quantity > 1 ? ` × ${order.quantity}` : ''}`,
+      body: '平台已补发完成，买家可在订单页查看',
+      refType: 'order',
+      refKey: order.orderNo,
+      dedupeKey: `dlv:${order.orderNo}:${deliveredFlipAt.getTime().toString(36)}`,
+    })
   }
 
   // SMS 接码：付款成功后自动取号（仅首次付款时取号，避免重复取号）
@@ -1396,8 +1489,9 @@ export async function fulfillOrder(orderId: number): Promise<boolean> {
           }
         })
       }
-      // 链接按订单所属店面（设计 4.5）：主站单不传 → mail.ts 用原常量，邮件逐字不变；渠道租户查不到时抛进下面的 catch
-      const mailOpts = order.tenantId === 1 ? undefined : { origin: await tenantOrigin(order.tenantId) }
+      // 链接按订单所属店面（设计 4.5）：主站单不传 → mail.ts 用原常量，邮件逐字不变；渠道租户查不到时抛进下面的 catch。
+      // 二期改动 4.5：渠道单页脚带店面客服邮箱（tenantMailOpts，主站返回 undefined）
+      const mailOpts = await tenantMailOpts(order.tenantId)
       await sendOrderPaidEmail(
         order.user.email,
         {

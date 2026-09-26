@@ -4,6 +4,7 @@
  *
  *  · parseBody：body 只经 zod 解析出写死的字段——zod 默认丢弃未知键，渠道塞 tenantId / supplyCents / granted 进 body
  *    也到不了服务函数（T8）；
+ *  · parseUploadFile：multipart 上传（二期改动 4.3 客服二维码）——先查 Content-Length 再读请求体，只取一个文件字段的字节；
  *  · pageParams：分页上限 100（LIMITS.pageMax）；
  *  · toCsv：导出（首行水印、公式注入防护）；
  *  · notFound404：与 partnerRoute 的「无权」同一响应体（PARTNER_NOT_FOUND_BODY），不存在与不是你的无法区分。
@@ -48,6 +49,43 @@ export async function parseBody<T>(req: Request, schema: ZodType<T>): Promise<T 
     return badRequest(`参数不正确（${where}${first?.message ?? '格式错误'}）`)
   }
   return r.data
+}
+
+/** multipart 里除文件字节之外的开销（边界、字段头、文件名）；与 /api/upload 同一估算 */
+const MULTIPART_OVERHEAD = 64 * 1024
+
+/**
+ * 解析 multipart 上传，取出 field 字段的文件字节（二期改动 4.3：渠道客服二维码）。
+ * 成功返回 Buffer；失败返回 Response（400 / 411 / 413，调用方 `if (b instanceof Response) return b`）。
+ *
+ * 【为什么先查 Content-Length】req.formData() 会把整个请求体读进内存：不先卡长度，一批并发的大请求就能把 app 顶到 mem_limit
+ * （/api/upload 的同一教训）。所以：
+ *  · 必须是 multipart/form-data（同源校验放行的另一种类型只有 JSON）；
+ *  · 必须带 Content-Length（浏览器 FormData 上传一定带，nginx 缓冲后转发也带；分块传输一律 411），且 ≤ maxBytes + 64KB；
+ *  · 读完再按真实字节数复核一次 ≤ maxBytes（声明的长度与实际不符也挡得住）。
+ * 只返回字节：文件名、客户端声明的 MIME 一概不用——类型由服务端按文件头判断（upload-store 的 sniffImage）。
+ */
+export async function parseUploadFile(req: Request, field: string, maxBytes: number): Promise<Buffer | Response> {
+  const ct = (req.headers.get('content-type') || '').toLowerCase()
+  if (!ct.startsWith('multipart/form-data')) return badRequest('请求格式不正确')
+  const declared = Number(req.headers.get('content-length') || '')
+  if (!Number.isFinite(declared) || declared <= 0) return NextResponse.json({ success: false, error: '请求缺少 Content-Length' }, { status: 411 })
+  const tooLarge = () => NextResponse.json({ success: false, error: `文件不能超过 ${Math.floor(maxBytes / 1024 / 1024)}MB` }, { status: 413 })
+  if (declared > maxBytes + MULTIPART_OVERHEAD) return tooLarge()
+  let form: FormData
+  try {
+    form = await req.formData()
+  } catch {
+    return badRequest('上传内容格式不正确')
+  }
+  const file = form.get(field)
+  if (!file || typeof file === 'string' || typeof (file as Blob).arrayBuffer !== 'function') return badRequest('未找到上传文件')
+  const blob = file as Blob
+  if (blob.size <= 0) return badRequest('文件为空')
+  if (blob.size > maxBytes) return tooLarge()
+  const bytes = Buffer.from(await blob.arrayBuffer())
+  if (bytes.length > maxBytes) return tooLarge()
+  return bytes
 }
 
 /** ?page=&pageSize=：page ≥ 1，pageSize 1..100（默认 20）；非法值按默认处理，不报错 */

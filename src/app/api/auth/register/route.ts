@@ -15,6 +15,7 @@ import { logRegisterNotice } from '@/lib/marketing/consent'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { authCrossSiteReason } from '@/lib/tenant/same-origin'
 import { ensureTenantCustomer } from '@/lib/tenant/customer'
+import { emitTenantNotice } from '@/lib/tenant/notice'
 
 // eslint-disable-next-line no-control-regex
 const NICK_CTRL_RE = /[\u0000-\u001f\u007f]/g
@@ -141,12 +142,41 @@ export async function POST(request: NextRequest) {
       console.error('[register] 营销告知留痕失败 user=%d:', user.id, (e as Error)?.message)
     }
 
-    // 同时下发 token，供 WebView（如微信）以 Authorization 头兜底鉴权
-    notifyUserRegistered({
-      email: user.email || '—',
-      nickname: user.nickname,
-      createdAt: new Date(), // 注册接口的 select 不含 createdAt，此处即注册时刻
-    })
+    /*
+     * 注册提醒（docs/多渠道分销-二期改动.md 3.1、3.2）：
+     *  · 主站店面：推站长企业微信，内容与原来逐字相同；
+     *  · 渠道店面：不再推站长（原来连标签都不带，站长分不清是哪个站的注册），改写一条渠道通知 CUSTOMER_JOINED，
+     *    由渠道站长按自选方式（企业微信 / 邮箱）收到。载荷只有客户编号（公开编号，可在渠道后台「客户」页打开），
+     *    不带邮箱、昵称：通知会推到第三方群与邮箱，客户资料要进后台看（后台有权限与审计）。
+     *    ensureTenantCustomer 对 ADMIN 不建行（新注册恒为 USER，这里查不到行就不发）。独立写入、失败只记日志，不影响注册。
+     */
+    if (sf.kind === 'PLATFORM') {
+      notifyUserRegistered({
+        email: user.email || '—',
+        nickname: user.nickname,
+        createdAt: new Date(), // 注册接口的 select 不含 createdAt，此处即注册时刻
+      })
+    } else {
+      try {
+        const c = await prisma.tenantCustomer.findUnique({
+          where: { tenantId_userId: { tenantId: sf.id, userId: user.id } },
+          select: { publicNo: true },
+        })
+        if (c) {
+          await emitTenantNotice(null, {
+            tenantId: sf.id,
+            kind: 'CUSTOMER_JOINED',
+            title: '新客户注册',
+            body: `客户编号 ${c.publicNo}，可在店铺后台「客户」页查看`,
+            refType: 'customer',
+            refKey: c.publicNo,
+            dedupeKey: `join:${c.publicNo}`,
+          })
+        }
+      } catch (e) {
+        console.error('[register] 渠道新客户通知失败 tenant=%d:', sf.id, (e as Error)?.message)
+      }
+    }
 
     return success({ user, token }, '注册成功')
   } catch (err) {

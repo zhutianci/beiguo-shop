@@ -285,6 +285,16 @@ const TEMPLATES: Record<string, Tpl> = {
   'PUT /api/partner/settings/notice': { body: () => ({ prefs: { ORDER_PAID: true } }) },
   'PUT /api/partner/settings/webhook': { body: () => ({ url: null }) },
   'POST /api/partner/settings/webhook/test': {},
+  // 二期（docs/多渠道分销-二期改动.md 3.2 推送方式、4.3 客服信息）：都不按公开编号寻址，只进身份矩阵、T5 与 GET 正例。
+  // 请求体取「不会真改出副作用」的值：身份矩阵里本就全部被拒；contact-qr 的 POST 不带 multipart，鉴权先于解析
+  'GET /api/partner/settings/contact': {},
+  'PUT /api/partner/settings/contact': { body: () => ({ hours: '9:00-22:00' }) },
+  'POST /api/partner/settings/contact-qr': {},
+  'DELETE /api/partner/settings/contact-qr': {},
+  'PUT /api/partner/settings/transport': { body: () => ({ wecomOn: true }) },
+  'PUT /api/partner/settings/notice-email': { body: () => ({ email: null }) },
+  'POST /api/partner/settings/notice-email/code': { body: () => ({ email: `x8-${RUN}@itest-tenant.local` }) },
+  'POST /api/partner/settings/notice-email/test': {},
 }
 
 interface PartnerRoute {
@@ -1080,7 +1090,9 @@ async function t12app(w: World) {
 }
 
 // ===========================================================================
-// T12 nginx 层（经本地 nginx 容器）+ W8-8：nginx -t、lulu 为 closed 时只得到停业页、X-Forwarded-Host 不再下发
+// T12 nginx 层（经本地 nginx 容器）+ W8-8：nginx -t、closed 的 Host 只得到停业页、X-Forwarded-Host 不再下发
+// 2026-09-26 G1.5 起 lulu 在 map 里是 channel（应用 CHANNELS_ENABLED=1 已上线）；closed 分支仍是紧急下线手段，
+// 改用测试副本里注入的 closed 测试 Host 验证，不再要求 lulu 本身是 closed
 // ===========================================================================
 function docker(args: string[], opts: { input?: string; allowFail?: boolean } = {}): string {
   const r = spawnSync('docker', args, { encoding: 'utf8', input: opts.input, env: { ...process.env, MSYS_NO_PATHCONV: '1' } })
@@ -1110,6 +1122,8 @@ function ngxGet(port: number, host: string, p: string, method = 'GET', headers: 
     req.end()
   })
 }
+/** 测试副本里注入的 closed Host（紧急下线口径的停业页验证用；真实配置里没有它） */
+const TEST_CLOSED = 'closed-test.bigolab.com'
 const UPSTREAM_CONF = `events {}
 http {
   server {
@@ -1128,15 +1142,19 @@ async function t12nginx() {
   }
   const conf = readFileSync(path.join(ROOT, 'nginx/nginx.conf'), 'utf8')
   const confCode = conf.replace(/#[^\n]*/g, '') // 只看指令，不看注释（注释里会引用旧写法）
-  check('nginx.conf：lulu 在 map 里是 closed（N 段上线口径）', /lulu\.bigolab\.com\s+closed;/.test(confCode))
+  check('nginx.conf：lulu 在 map 里是 channel（G1.5 起；紧急下线才改回 closed）', /lulu\.bigolab\.com\s+channel;/.test(confCode))
   check('nginx.conf：不再把 X-Forwarded-Host 设成 $host（替换成置空）', !/proxy_set_header\s+X-Forwarded-Host\s+\$host/i.test(confCode) && /proxy_set_header\s+X-Forwarded-Host\s+"";/.test(confCode))
   const TEST_CH = 'chan-test.bigolab.com'
   const mkConf = (strict: boolean) => {
-    let c = conf.replace(/(lulu\.bigolab\.com\s+closed;[^\n]*\n)/, `$1        ${TEST_CH}   channel;  # 仅本地测试注入\n`)
+    // 注入一个 channel 测试 Host 和一个 closed 测试 Host（紧挨 lulu 那一行：lulu 是 channel 还是 closed 都能注入）
+    let c = conf.replace(
+      /(lulu\.bigolab\.com\s+(?:closed|channel);[^\n]*\n)/,
+      `$1        ${TEST_CH}   channel;  # 仅本地测试注入\n        ${TEST_CLOSED}   closed;  # 仅本地测试注入\n`,
+    )
     if (strict) c = c.replace(/map \$site_known \$site_kind\s*\{ default \$site_known; "" main; \}/, 'map $site_known $site_kind    { default $site_known; "" ""; }')
     return c
   }
-  check('测试副本注入了 channel 测试 Host', mkConf(false).includes(TEST_CH))
+  check('测试副本注入了 channel / closed 测试 Host', mkConf(false).includes(TEST_CH) && mkConf(false).includes(TEST_CLOSED))
   check('严格期副本改写成功（"" "";）', /"" "";/.test(mkConf(true)))
   const dir = mkdtempSync(path.join(tmpdir(), 'x8-ngx-'))
   const net = `x8net-${RUN}`
@@ -1175,11 +1193,16 @@ const up = (r: NgxRes) => !('error' in r) && r.status === 200 && r.text.startsWi
 const st = (r: NgxRes) => ('error' in r ? `ERR ${r.error}` : `${r.status} ${r.text.slice(0, 40).replace(/\n/g, ' ')}`)
 
 async function ngxObserve(port: number, CH: string, ngxName: string) {
-  // ① lulu 是 closed：只得到静态停业页，不进应用
+  // ① closed 的 Host（紧急下线口径）：只得到静态停业页，不进应用
   for (const p of ['/', '/products/1', '/api/products', '/partner', '/api/partner/dashboard', '/admin']) {
-    const r = await ngxGet(port, 'lulu.bigolab.com', p)
-    check(`lulu（closed）GET ${p} → 停业页`, !('error' in r) && r.status === 200 && r.text.includes('本站暂停访问') && !r.text.includes('UPSTREAM'), st(r))
+    const r = await ngxGet(port, TEST_CLOSED, p)
+    check(`closed 测试 Host GET ${p} → 停业页`, !('error' in r) && r.status === 200 && r.text.includes('本站暂停访问') && !r.text.includes('UPSTREAM'), st(r))
   }
+  // lulu（G1.5 起 channel）：进应用、带 noindex 头；/admin 仍在 nginx 层 404
+  const lr = await ngxGet(port, 'lulu.bigolab.com', '/')
+  check('lulu（channel）GET / → 进应用，且带 X-Robots-Tag: noindex, follow', up(lr) && (lr as { headers: http.IncomingHttpHeaders }).headers['x-robots-tag'] === 'noindex, follow', st(lr))
+  const la = await ngxGet(port, 'lulu.bigolab.com', '/admin')
+  check('lulu（channel）GET /admin → 404', !('error' in la) && la.status === 404 && !la.text.includes('UPSTREAM'), st(la))
   const direct = await ngxGet(port, MAIN_HOST, '/closed.html')
   check('主站直接访问 /closed.html → 不给（internal）', !('error' in direct) && direct.status === 404, st(direct))
 

@@ -10,7 +10,7 @@
  */
 import { prisma } from '../db'
 import { sendOrderReplyEmail, sendTenantInviteEmail, systemEmailConfigured } from '../mail'
-import { tenantOrigin } from '../storefront/origin'
+import { tenantMailOpts, tenantOrigin } from '../storefront/origin'
 
 const REPLY_WINDOW_MS = 10 * 60_000
 const lastReply = new Map<number, number>()
@@ -27,10 +27,11 @@ export async function notifyBuyerOfReply(orderId: number): Promise<void> {
     })
     const to = o?.user?.email
     if (!o || !to || !systemEmailConfigured()) return
-    const origin = o.tenantId === 1 ? undefined : await tenantOrigin(o.tenantId)
+    // 渠道单：链接用渠道 origin、页脚带店面客服邮箱（二期改动 4.5）；主站 undefined → 邮件逐字不变
+    const mailOpts = await tenantMailOpts(o.tenantId)
     if (lastReply.size > 5000) lastReply.clear()
     lastReply.set(orderId, now)
-    await sendOrderReplyEmail(to, { orderNo: o.orderNo, productName: o.productName }, origin ? { origin } : {})
+    await sendOrderReplyEmail(to, { orderNo: o.orderNo, productName: o.productName }, mailOpts)
   } catch (e) {
     console.error('[buyer-notify] 客服回复提醒发送失败', orderId, (e as Error)?.message || e)
   }

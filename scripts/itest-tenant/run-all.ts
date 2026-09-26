@@ -4,7 +4,8 @@
  *   DATABASE_URL="mysql://root:123456@localhost:3306/beiguo_dev" npx tsx scripts/itest-tenant/run-all.ts
  *   （或 npm run itest:tenant；参数原样传给 cross-tenant.ts，例如 -- --no-nginx）
  *
- * 顺序：边界检查（含自测、W8-9 文档路径核对）→ 路由总表核对（含自测）→ check-tenant-math → check-tenant-ledger → itest wp0..wp7 → cross-tenant。
+ * 顺序：边界检查（含自测、W8-9 文档路径核对）→ 路由总表核对（含自测）→ check-tenant-math → check-tenant-ledger → itest wp0..wp7
+ * → 二期 mods-f / mods-p1 / mods-p2 / mods-p3 → cross-tenant。
  * 为什么必须串行（主会话 D10）：每个 itest 开头都 cleanupAll()（按 ITEST 前缀删全部测试数据），并行会互相清掉对方的夹具，
  * 表现为「订单 / 上架行找不到」之类与改动无关的偶发失败。
  *
@@ -44,6 +45,9 @@ const STEPS: Step[] = [
   tsx('scripts/check-tenant-math.ts'),
   tsx('scripts/check-tenant-ledger.ts'),
   ...[0, 1, 2, 3, 4, 5, 6, 7].map((n) => tsx(`scripts/itest-tenant/wp${n}.ts`)),
+  // 二期改动（docs/多渠道分销-二期改动.md 第 5 节）：地基 F、销量与利润 P1、通知路由 P2、客服信息 P3。
+  // 放在 wp 之后、cross-tenant 之前：它们同样开头 cleanupAll，串行才不会互相清夹具；cross-tenant 读的路由总表已含二期新路由
+  ...['f', 'p1', 'p2', 'p3'].map((m) => tsx(`scripts/itest-tenant/mods-${m}.ts`)),
   tsx('scripts/itest-tenant/cross-tenant.ts', passThrough),
 ]
 

@@ -10,6 +10,7 @@ import { invoicesForOrder } from '@/lib/order-link'
 import { parsePrizeSnapshot } from '@/lib/lottery'
 import { adminOrResponse, sourceMap, sourceOf } from '@/lib/admin/source-site'
 import { getOrderSettlementViews } from '@/lib/tenant/balances'
+import { channelProfit, channelProfitHint, smsChargedCost } from '@/lib/admin/channel-profit'
 
 function num(v: unknown): number | null {
   if (v == null) return null
@@ -145,7 +146,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     const { user, product, payments, ...o } = order
     const amount = Number(o.amount)
     const src = sourceOf(await sourceMap([o.tenantId]), o.tenantId)
-    const channel = o.tenantId !== 1 ? await channelSection(o, product.deliveryType, cardCount) : null
+    const channel = o.tenantId !== 1 ? await channelSection(o, product.deliveryType, cardCount, invoices) : null
     const invoiceTaxFee = num(o.invoiceTaxFee)
     const draft = parseOrderInvoiceDraft(o.invoiceInfo)
 
@@ -272,11 +273,16 @@ async function channelSection(
     refundedTaxCents: number | null
     refundedQty: number | null
     shortCents: number | null
+    payStatus: string
+    settleState: string | null
+    settleRefundedCents: number | null
+    settleLossCents: number | null
   },
   deliveryType: string,
   cardCount: number,
+  invoices: { payStatus: string; taxFee: number | null }[],
 ) {
-  const [views, ledger, afterSales, partnerReplies, costAgg, sms, pendingAfterSales] = await Promise.all([
+  const [views, ledger, afterSales, partnerReplies, costAgg, sms, pendingAfterSales, cardCosts, smsAny] = await Promise.all([
     getOrderSettlementViews(o.tenantId, [o.id]).catch(() => new Map()),
     prisma.tenantLedgerEntry.findMany({
       where: { orderId: o.id, tenantId: o.tenantId },
@@ -309,6 +315,10 @@ async function channelSection(
     deliveryType === 'AUTO' ? prisma.cardKey.aggregate({ where: { orderId: o.id, status: 'USED' }, _sum: { cost: true } }) : Promise.resolve(null),
     deliveryType === 'SMS' ? prisma.smsActivation.findFirst({ where: { orderId: o.id }, orderBy: { id: 'desc' }, select: { cost: true } }) : Promise.resolve(null),
     prisma.tenantAfterSale.count({ where: { orderId: o.id, tenantId: o.tenantId, status: 'PENDING' } }),
+    // 站长利润（二期 M2）按与列表同一口径取成本：逐张卡的 cost（要知道有没有未录入的）+ 接码记录，不看 deliveryType，
+    // 理由见 lib/admin/channel-profit.ts 的 channelCost。上面的 costAgg / sms 仍只喂退款弹窗的 costRefYuan，不动
+    prisma.cardKey.findMany({ where: { orderId: o.id, status: 'USED' }, select: { cost: true } }),
+    prisma.smsActivation.findUnique({ where: { orderId: o.id }, select: { cost: true, status: true } }),
   ])
   const A = toCents(Number(o.amount))
   const T = o.invoiceTaxFee == null ? 0 : toCents(Number(o.invoiceTaxFee))
@@ -317,8 +327,41 @@ async function channelSection(
   const x = Math.max(0, o.shortCents ?? 0)
   // 真实成本仅供参考（设计 8.4：弹窗显示「参考：真实成本 ¥x」，不预填 loss）
   const costRef = costAgg ? Number(costAgg._sum.cost ?? 0) : sms?.cost != null ? Number(sms.cost) : null
+  const settlement = views.get(o.id) ?? null
+
+  /*
+   * 站长利润（二期 M2）：进货净额（扣除退款）− 成本，与列表、汇总同一个纯函数。未付单没有利润（null）。
+   * 另附两项「仅供参考、不计入利润」：
+   *  · 手续费收入 = 账本里这单的 FEE + INVOICE_FEE（只有已计提的单有分录；未计提 / 成员自买为 0）；
+   *  · 发票利润 = 实收税费 − 已退税费 − 发票分成，与运营概览 invoiceProfitCents 同口径
+   *    （结账随单税费优先；没有时取已付税费的关联发票，同 overview 的「事后开票」口径）。
+   */
+  const paidLike = o.payStatus === 'PAID' || o.payStatus === 'REFUNDED'
+  const profit = paidLike
+    ? channelProfit(
+        {
+          amountCents: A,
+          supplyCents: o.supplyCents,
+          settleState: o.settleState,
+          refundedGoodsCents: o.refundedGoodsCents,
+          settleRefundedCents: o.settleRefundedCents,
+          settleLossCents: o.settleLossCents,
+        },
+        { cardCosts: cardCosts.map((c) => c.cost), smsCost: smsAny ? smsChargedCost(smsAny.cost, smsAny.status) : undefined, deliveryType, expectQty: o.quantity - (o.refundedQty ?? 0) },
+      )
+    : null
+  const taxIn = T > 0 ? T : invoices.filter((iv) => iv.payStatus === 'PAID').reduce((n, iv) => n + toCents(iv.taxFee ?? 0), 0)
+  const ownerProfit = profit
+    ? {
+        ...profit,
+        hint: channelProfitHint(profit),
+        feeIncomeCents: settlement ? settlement.feeCents : 0,
+        invoiceProfitCents: paidLike ? taxIn - Rt - (settlement?.invShareCents ?? 0) : 0,
+      }
+    : null
   return {
-    settlement: views.get(o.id) ?? null,
+    settlement,
+    ownerProfit,
     ledger,
     afterSales,
     pendingAfterSales,

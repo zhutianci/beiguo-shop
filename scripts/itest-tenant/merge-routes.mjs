@@ -2,7 +2,7 @@
 /**
  * 渠道分站 · 路由总表合并与核对（WP8，实施分包 11.4）。
  *
- *   node scripts/itest-tenant/merge-routes.mjs            # 合并 routes/wp*.json → scripts/itest-tenant.routes.json（生成物，入库）
+ *   node scripts/itest-tenant/merge-routes.mjs            # 合并 routes/{wp*,mods-*}.json → scripts/itest-tenant.routes.json（生成物，入库）
  *   node scripts/itest-tenant/merge-routes.mjs --check    # 只核对不写：总表与各包清单 / 实际目录不一致即失败（run-all 与发布前用）
  *   node scripts/itest-tenant/merge-routes.mjs --selftest # W8-3：内存里新增一个未登记的 partner 路由 / 删掉一条登记，都必须失败
  *
@@ -26,6 +26,21 @@ const REPO_ROOT = path.resolve(path.dirname(__filename), '..', '..')
 const OUT_REL = 'scripts/itest-tenant.routes.json'
 const SRC_DIR_REL = 'scripts/itest-tenant/routes'
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
+/** 清单文件名：wpN.json（一期）或 mods-xxx.json（二期） */
+const LIST_NAME_RE = /^(wp\d+|mods-[a-z0-9-]+)\.json$/
+
+/**
+ * 清单排序键：wp 按编号在前，mods 按文件名在后。
+ * 不能再只用 /wp(\d+)/ 取数字——对 mods 文件名它返回 null，直接崩；也不能退化成纯字符串序（wp10 会排到 wp2 前面，生成物字节变化）。
+ */
+function listOrder(a, b) {
+  const wa = /\/wp(\d+)\.json$/.exec(a)
+  const wb = /\/wp(\d+)\.json$/.exec(b)
+  if (wa && wb) return Number(wa[1]) - Number(wb[1])
+  if (wa) return -1
+  if (wb) return 1
+  return a < b ? -1 : a > b ? 1 : 0
+}
 
 /** 必须全部登记的实际路由范围（相对 src/app） */
 const SCOPE = [
@@ -70,7 +85,8 @@ export function loadInputs(root, overlay = {}) {
   const lists = new Map()
   let names = []
   try {
-    names = fs.readdirSync(path.join(root, SRC_DIR_REL)).filter((n) => /^wp\d+\.json$/.test(n))
+    // 一期各包用 wpN.json；二期改动包（docs/多渠道分销-二期改动.md）用 mods-<包名>.json——两种都是正式清单，漏读任何一种都会让新路由「登记了也算未登记」
+    names = fs.readdirSync(path.join(root, SRC_DIR_REL)).filter((n) => LIST_NAME_RE.test(n))
   } catch {
     names = []
   }
@@ -94,7 +110,7 @@ export function merge({ routeFiles, lists }) {
   const routes = []
   const sources = []
   const seen = new Map()
-  const sortedLists = Array.from(lists.keys()).sort((a, b) => Number(/wp(\d+)/.exec(a)[1]) - Number(/wp(\d+)/.exec(b)[1]))
+  const sortedLists = Array.from(lists.keys()).sort(listOrder)
   for (const lf of sortedLists) {
     let j
     try {
@@ -134,11 +150,11 @@ export function merge({ routeFiles, lists }) {
     if (!SCOPE.some((re) => re.test(rel))) continue
     const ms = exportedMethods(src)
     if (ms.size === 0) errors.push(`${f}：范围内的路由没有导出任何 HTTP 方法（无法核对）`)
-    for (const m of ms) if (!seen.has(`${m} /${rel}`)) errors.push(`未登记：${m} /${rel}（${f}）——在所属包的 ${SRC_DIR_REL}/wpN.json 里加一行`)
+    for (const m of ms) if (!seen.has(`${m} /${rel}`)) errors.push(`未登记：${m} /${rel}（${f}）——在所属包的 ${SRC_DIR_REL}/wpN.json（或 mods-xxx.json）里加一行`)
   }
   routes.sort((a, b) => (a.path === b.path ? METHODS.indexOf(a.method) - METHODS.indexOf(b.method) : a.path < b.path ? -1 : 1))
   const out = {
-    note: '生成物，勿手改：node scripts/itest-tenant/merge-routes.mjs 由 scripts/itest-tenant/routes/wp*.json 合并并与实际目录比对后写出。边界检查规则 10 与 cross-tenant.ts 的 T1 矩阵读它。',
+    note: '生成物，勿手改：node scripts/itest-tenant/merge-routes.mjs 由 scripts/itest-tenant/routes/{wp*,mods-*}.json 合并并与实际目录比对后写出。边界检查规则 10 与 cross-tenant.ts 的 T1 矩阵读它。',
     sources,
     routes,
   }

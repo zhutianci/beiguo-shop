@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { LegalPage, LegalSection } from '@/components/legal-page'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { getStorefront } from '@/lib/storefront/resolve'
+import { resolveStoreContact } from '@/lib/contact'
 
 /**
  * 服务条款。
@@ -30,11 +32,15 @@ export const metadata: Metadata = {
   openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/terms' },
 }
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  // 页脚客服按店面取（二期改动 4.2）。getStorefront 不进 try；拿不到店面时 (shop)/layout 已 404，这里按主站客服兜底
+  const sf = await getStorefront()
+  const contact = sf ? sf.contact : resolveStoreContact(null)
   return (
     <LegalPage
       title="服务条款"
       updatedAt={UPDATED_AT}
+      contact={contact}
       intro={
         <p>
           本条款是你与益阳市赫山区必高科技有限公司（经营站点 bigolab.com「贝果科技」）之间的协议。

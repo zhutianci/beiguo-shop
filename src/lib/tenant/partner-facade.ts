@@ -8,10 +8,20 @@
  *  · 按公开编号（orderNo / statementNo）寻址，where 里同时带 tenantId，不符按不存在处理；
  *  · 返回值逐字段映射成 types.ts 里的渠道 DTO：没有 id、eventKey、memo、operatorId、payeeAccountEnc、payingBy、statementId；
  *  · 没有任何「forPartner」之类的开关参数；出单固定 origin='REQUEST'。
+ *
+ * 【二期（docs/多渠道分销-二期改动.md 3.2、4.3、4.4）】渠道层不能 import mail / upload-store / verify-code / crypto（边界检查规则 3），
+ * 推送方式、通知邮箱（含验证码）、客服信息、客服二维码的读写都在本文件末尾「二期」一节暴露。
  */
 import type { Prisma } from '@prisma/client'
+import { z } from 'zod'
 import { prisma } from '../db'
 import { writeAudit } from '../audit'
+import { checkContactEmail, checkContactHours, checkContactWechat, changedContactFields, type ContactField, type ContactFieldCheck } from '../contact'
+import { sendTenantNoticeEmail, sendVerifyCodeEmail, systemEmailConfigured } from '../mail'
+import { rateLimited } from '../news/rate-limit'
+import { deleteContactUpload, releaseContactUpload, storeContactQr } from '../upload-store'
+import { consumeCode, createCode, tooFrequent } from '../verify-code'
+import { tenantOrigin } from '../storefront/origin'
 import { computeBalances, computeBalancesWithComposition, getOrderSettlementViews, ledgerWhere, pageOf, statementLines, statementToDTO } from './balances'
 import type { LedgerQuery } from './balances'
 import { notifyBuyerOfReply as notifyBuyerOfReplyImpl } from './buyer-notify'
@@ -19,7 +29,20 @@ import { sealText } from './crypto'
 import { WECOM_WEBHOOK_PREFIX } from './notice'
 import { generateStatement } from './statement'
 import { LEDGER_COMPONENTS, LEDGER_TYPES, TENANT_DEFAULTS } from './types'
-import type { BalanceComposition, GenerateResult, LedgerBucket, LedgerComponent, LedgerRowDTO, LedgerType, OrderSettlementView, StatementDetailDTO, TenantBalances } from './types'
+import type {
+  BalanceComposition,
+  GenerateResult,
+  LedgerBucket,
+  LedgerComponent,
+  LedgerRowDTO,
+  LedgerType,
+  OrderSettlementView,
+  PartnerContactDTO,
+  PartnerNoticeEmailSaveResult,
+  PartnerNoticeTransportDTO,
+  StatementDetailDTO,
+  TenantBalances,
+} from './types'
 
 function assertTenantId(tenantId: unknown): asserts tenantId is number {
   if (typeof tenantId !== 'number' || !Number.isInteger(tenantId) || tenantId < 2) {
@@ -27,9 +50,16 @@ function assertTenantId(tenantId: unknown): asserts tenantId is number {
   }
 }
 
-/** 渠道侧输入错误（格式不合规）：调用方转 400 */
+/**
+ * 渠道侧输入错误（格式不合规）：调用方转 400。
+ * 二期新增：BAD_CONTACT（客服字段不合规，detail 是给用户看的中文提示）、NO_NOTICE_EMAIL（未设通知邮箱就想打开邮箱推送）。
+ */
 export class PartnerFacadeError extends Error {
-  constructor(public code: 'BAD_WEBHOOK' | 'BAD_REQUEST_ID') {
+  constructor(
+    public code: 'BAD_WEBHOOK' | 'BAD_REQUEST_ID' | 'BAD_CONTACT' | 'NO_NOTICE_EMAIL',
+    /** 给用户看的提示（BAD_CONTACT / NO_NOTICE_EMAIL 时必有）；不含任何内部信息 */
+    public detail?: string,
+  ) {
     super(code)
     this.name = 'PartnerFacadeError'
   }
@@ -319,4 +349,256 @@ export async function lockUserRoleShared(tx: Prisma.TransactionClient, userId: n
   if (!Number.isSafeInteger(userId) || userId <= 0) throw new Error(`[partner-facade] userId 非法：${userId}`)
   const rows = await tx.$queryRaw<{ role: string }[]>`SELECT role FROM users WHERE id = ${userId} LOCK IN SHARE MODE`
   return rows.length ? rows[0].role : null
+}
+
+// =====================================================================================
+// 二期：推送方式、通知邮箱、客服信息、客服二维码（docs/多渠道分销-二期改动.md 3.2、4.3、4.4）
+// 所有函数第一个参数是 tenantId（来自 partnerRoute 查库的店面），函数内断言 ≥ 2；权限（OWNER / settings.write、
+// 暂停营业只读）由路由层 partnerRoute 负责，这里不重复判断。审计由调用方写（与 setTenantWebhook 同一模式：传 tx 或 audit 回调，
+// 保存与审计同事务）。
+// =====================================================================================
+
+const HOUR_MS = 3600_000
+const DAY_MS = 24 * HOUR_MS
+const NOTICE_TRANSPORT_FIELDS = { noticeWecomOn: true, noticeEmailOn: true, noticeEmail: true } as const
+const CONTACT_COLS = { supportWechat: true, supportQrUrl: true, supportEmail: true, supportHours: true } as const
+
+/**
+ * 推送方式开关（企业微信 / 邮箱，可同时开）。只改传了布尔值的那一项。
+ * 打开邮箱推送要求已设通知邮箱：用条件更新（WHERE notice_email IS NOT NULL）一步完成，
+ * 与「同时清空邮箱」的并发请求不会出现「开着邮箱推送却没有地址」；不满足抛 PartnerFacadeError('NO_NOTICE_EMAIL')。
+ */
+export async function setTenantNoticeTransport(
+  tenantId: number,
+  input: { wecomOn?: boolean; emailOn?: boolean },
+  tx?: Prisma.TransactionClient,
+): Promise<PartnerNoticeTransportDTO> {
+  assertTenantId(tenantId)
+  const db = tx ?? prisma
+  const data: { noticeWecomOn?: boolean; noticeEmailOn?: boolean } = {}
+  if (typeof input?.wecomOn === 'boolean') data.noticeWecomOn = input.wecomOn
+  if (typeof input?.emailOn === 'boolean') data.noticeEmailOn = input.emailOn
+  if (Object.keys(data).length) {
+    const where = data.noticeEmailOn === true ? { id: tenantId, noticeEmail: { not: null } } : { id: tenantId }
+    const r = await db.tenant.updateMany({ where, data })
+    if (r.count !== 1) {
+      if (data.noticeEmailOn === true) throw new PartnerFacadeError('NO_NOTICE_EMAIL', '请先设置并验证通知邮箱，再打开邮箱推送')
+      throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+    }
+  }
+  const t = await db.tenant.findUnique({ where: { id: tenantId }, select: NOTICE_TRANSPORT_FIELDS })
+  if (!t) throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+  return { noticeWecomOn: t.noticeWecomOn, noticeEmailOn: t.noticeEmailOn, noticeEmail: t.noticeEmail }
+}
+
+const zNoticeEmail = z.string().email().max(120)
+/** 通知邮箱归一：trim + 小写；不合规返回 null。**不做禁发词检查**：它是收件人、不进正文，QQ 数字邮箱正是店主最常用的 */
+function normalizeNoticeEmail(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const e = v.trim().toLowerCase()
+  if (!e || /[<>"'`\s]/.test(e) || !zNoticeEmail.safeParse(e).success) return null
+  return e
+}
+
+async function loginEmailOf(userId: number): Promise<string | null> {
+  if (!Number.isSafeInteger(userId) || userId <= 0) return null
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } })
+  return u?.email ? u.email.trim().toLowerCase() : null
+}
+
+/**
+ * 给「非登录邮箱」发通知邮箱验证码（用途 NOTICE，沿用 verify-code 的 60 秒冷却、10 分钟有效、每码 5 次）。
+ *  · 邮箱等于当前操作人的登录邮箱：不发信，返回 { ok:true, needCode:false }（注册时已验证过，直接保存即可）；
+ *  · 限频（进程内 + 库兜底）：同一邮箱 60 秒 1 次、每天 5 次；同一渠道每小时 10 次——这个接口会往任意地址发信，
+ *    不限死就能被当成垃圾邮件中转，还会和买家的验证码、交易邮件抢同一份阿里云日额度。
+ *    每天的桶与登录验证码分开（vcs-ntd），渠道刷不满别人找回密码的额度。
+ *  · 信里的链接用渠道 origin（tenantOrigin），不从 Host 拼。
+ */
+export async function sendTenantNoticeEmailCode(
+  tenantId: number,
+  userId: number,
+  email: string,
+): Promise<{ ok: true; needCode: boolean } | { ok: false; reason: 'BAD_EMAIL' | 'TOO_FREQUENT' | 'MAIL_UNCONFIGURED' | 'SEND_FAILED' }> {
+  assertTenantId(tenantId)
+  const e = normalizeNoticeEmail(email)
+  if (!e) return { ok: false, reason: 'BAD_EMAIL' }
+  if ((await loginEmailOf(userId)) === e) return { ok: true, needCode: false }
+  if (!systemEmailConfigured()) return { ok: false, reason: 'MAIL_UNCONFIGURED' }
+  if (
+    rateLimited(`vcs-ntt:${tenantId}`, { windowMs: HOUR_MS, max: 10 }) ||
+    rateLimited(`vcs-mail:NOTICE:${e}`, { windowMs: 60_000, max: 1 }) ||
+    rateLimited(`vcs-ntd:${e}`, { windowMs: DAY_MS, max: 5 })
+  ) {
+    return { ok: false, reason: 'TOO_FREQUENT' }
+  }
+  if (await tooFrequent(e, 'NOTICE')) return { ok: false, reason: 'TOO_FREQUENT' }
+  const code = await createCode(e, 'NOTICE')
+  const r = await sendVerifyCodeEmail(e, code, 'NOTICE', { origin: await tenantOrigin(tenantId) })
+  if (!r.ok) {
+    console.error('[partner-facade] 通知邮箱验证码发送失败', tenantId, r.detail)
+    return { ok: false, reason: 'SEND_FAILED' }
+  }
+  return { ok: true, needCode: true }
+}
+
+/**
+ * 保存 / 清除通知邮箱（二期改动 3.2「设置时验证归属」）。
+ *  · email = null：清空地址，同时关掉邮箱推送（没有地址的开关没有意义，也免得通知通道拿 null 去发信）；
+ *  · 等于当前操作人的登录邮箱：直接保存；
+ *  · 否则必须带 NOTICE 验证码：没带 → NEED_CODE；错 → BAD_CODE；这张码错太多次 → TOO_MANY（需重新获取）。
+ * 验证码消费在保存之前（consumeCode 是 CAS，并发双提交只有一个 OK）；传 tx 时保存与调用方的审计同事务。
+ */
+export async function setTenantNoticeEmail(
+  tenantId: number,
+  userId: number,
+  email: string | null,
+  code?: string | null,
+  tx?: Prisma.TransactionClient,
+): Promise<PartnerNoticeEmailSaveResult> {
+  assertTenantId(tenantId)
+  const db = tx ?? prisma
+  if (email === null) {
+    await db.tenant.update({ where: { id: tenantId }, data: { noticeEmail: null, noticeEmailOn: false } })
+    return { ok: true, noticeEmail: null }
+  }
+  const e = normalizeNoticeEmail(email)
+  if (!e) return { ok: false, reason: 'BAD_EMAIL' }
+  if ((await loginEmailOf(userId)) !== e) {
+    const c = typeof code === 'string' ? code.trim() : ''
+    if (!c) return { ok: false, reason: 'NEED_CODE' }
+    if (!/^\d{6}$/.test(c)) return { ok: false, reason: 'BAD_CODE' }
+    const r = await consumeCode(e, 'NOTICE', c)
+    if (r === 'TOO_MANY') return { ok: false, reason: 'TOO_MANY' }
+    if (r !== 'OK') return { ok: false, reason: 'BAD_CODE' }
+  }
+  await db.tenant.update({ where: { id: tenantId }, data: { noticeEmail: e } })
+  return { ok: true, noticeEmail: e }
+}
+
+/**
+ * 邮箱推送「发送测试」：直接发一封测试信到 Tenant.noticeEmail（同步，结果当场告诉店主），不写站内通知、不走企业微信。
+ * 未打开邮箱推送也可以测（先测通再打开）。文案不含「微信」（禁发词，二期改动 3.2）。每渠道每小时 5 次（路由另有限频）。
+ */
+export async function sendTenantNoticeTestEmail(
+  tenantId: number,
+): Promise<{ ok: true } | { ok: false; reason: 'NO_NOTICE_EMAIL' | 'MAIL_UNCONFIGURED' | 'TOO_FREQUENT' | 'SEND_FAILED' }> {
+  assertTenantId(tenantId)
+  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { noticeEmail: true } })
+  const to = normalizeNoticeEmail(t?.noticeEmail)
+  if (!t || !to) return { ok: false, reason: 'NO_NOTICE_EMAIL' }
+  if (!systemEmailConfigured()) return { ok: false, reason: 'MAIL_UNCONFIGURED' }
+  if (rateLimited(`ntest-mail:${tenantId}`, { windowMs: HOUR_MS, max: 5 })) return { ok: false, reason: 'TOO_FREQUENT' }
+  const r = await sendTenantNoticeEmail(
+    to,
+    { kind: 'TEST', title: '邮件推送测试', body: '这是一条测试消息：收到即表示店铺后台的通知可以推送到本邮箱。', path: '/partner/settings' },
+    { origin: await tenantOrigin(tenantId) },
+  )
+  if (!r.ok) {
+    console.error('[partner-facade] 通知测试邮件发送失败', tenantId, r.detail)
+    return { ok: false, reason: 'SEND_FAILED' }
+  }
+  return { ok: true }
+}
+
+function contactDTO(t: { supportWechat: string | null; supportQrUrl: string | null; supportEmail: string | null; supportHours: string | null }): PartnerContactDTO {
+  return { supportWechat: t.supportWechat, supportQrUrl: t.supportQrUrl, supportEmail: t.supportEmail, supportHours: t.supportHours }
+}
+
+/**
+ * 客服信息：微信号或昵称、客服邮箱、服务时间（二维码只走 saveTenantContactQr / clearTenantContactQr，这里不收 URL）。
+ * 每项缺省（undefined）= 不改；null / 空串 = 清空；不合规抛 PartnerFacadeError('BAD_CONTACT', 中文提示)。
+ * 返回写入后的原值与「哪些字段变了」（审计 settings.contact 的 publicDiff 只写字段名）。
+ * 传 tx：行锁 + 读 + 写都在调用方事务里，调用方在同一事务写审计；不传：自己开事务。
+ */
+export async function setTenantContact(
+  tenantId: number,
+  input: { wechat?: unknown; email?: unknown; hours?: unknown },
+  tx?: Prisma.TransactionClient,
+): Promise<{ contact: PartnerContactDTO; changed: ContactField[] }> {
+  assertTenantId(tenantId)
+  const data: { supportWechat?: string | null; supportEmail?: string | null; supportHours?: string | null } = {}
+  const pairs: ['supportWechat' | 'supportEmail' | 'supportHours', unknown, (v: unknown) => ContactFieldCheck][] = [
+    ['supportWechat', input?.wechat, checkContactWechat],
+    ['supportEmail', input?.email, checkContactEmail],
+    ['supportHours', input?.hours, checkContactHours],
+  ]
+  for (const [col, v, check] of pairs) {
+    if (v === undefined) continue
+    const r = check(v)
+    if (!r.ok) throw new PartnerFacadeError('BAD_CONTACT', r.error)
+    data[col] = r.value
+  }
+  const run = async (db: Prisma.TransactionClient) => {
+    await lockTenantRowForUpdate(db, tenantId)
+    const before = await db.tenant.findUnique({ where: { id: tenantId }, select: CONTACT_COLS })
+    if (!before) throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+    if (Object.keys(data).length) await db.tenant.update({ where: { id: tenantId }, data })
+    const after = { ...before, ...data }
+    return { contact: contactDTO(after), changed: changedContactFields(before, after) }
+  }
+  return tx ? run(tx) : prisma.$transaction(run)
+}
+
+export type ContactQrSaveResult =
+  | { ok: true; supportQrUrl: string }
+  | { ok: false; reason: 'TOO_FREQUENT' | 'TOO_LARGE' | 'BAD_TYPE' | 'NO_SPACE' }
+
+/**
+ * 上传客服二维码（渠道 POST /api/partner/settings/contact-qr；multipart 由 handler 解析成 Buffer 传进来）。
+ *  · 每个渠道每小时 10 次（进程内计数，二期改动 4.4）；
+ *  · ≤ 2MB、按文件头只收 png / jpg / webp（upload-store 的 storeContactQr；gif / SVG 拒绝）；文件名服务端随机生成；
+ *  · 行锁内读出旧地址、写新地址、调 audit(tx)（调用方写 settings.contact 审计，同事务）；事务失败 → 删掉刚落盘的新文件；
+ *  · 提交后删除旧文件：只删 contact/ 下、且是库里（锁内）读出来的那个文件名（deleteContactUpload 再校验一遍格式与目录）；
+ *    并且只在**没有任何渠道还引用它**时才删（releaseContactUpload）：超管可能把同一地址填给了别的渠道，不能删掉别站的二维码。
+ * 失败原因：TOO_FREQUENT → 429；TOO_LARGE / BAD_TYPE → 400；NO_SPACE → 507。
+ */
+export async function saveTenantContactQr(
+  tenantId: number,
+  bytes: Buffer,
+  audit?: (tx: Prisma.TransactionClient) => Promise<void>,
+): Promise<ContactQrSaveResult> {
+  assertTenantId(tenantId)
+  if (rateLimited(`contactqr:${tenantId}`, { windowMs: HOUR_MS, max: 10 })) return { ok: false, reason: 'TOO_FREQUENT' }
+  const stored = await storeContactQr(bytes)
+  if (!stored.ok) return { ok: false, reason: stored.reason === 'size' ? 'TOO_LARGE' : stored.reason === 'type' ? 'BAD_TYPE' : 'NO_SPACE' }
+  const newUrl = stored.url
+  let old: string | null = null
+  try {
+    old = await prisma.$transaction(async (tx) => {
+      await lockTenantRowForUpdate(tx, tenantId)
+      const t = await tx.tenant.findUnique({ where: { id: tenantId }, select: { supportQrUrl: true } })
+      if (!t) throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+      await tx.tenant.update({ where: { id: tenantId }, data: { supportQrUrl: newUrl } })
+      if (audit) await audit(tx)
+      return t.supportQrUrl
+    })
+  } catch (e) {
+    // 没写进库（或审计失败回滚）：刚落盘的新文件没人引用，删掉
+    await deleteContactUpload(newUrl)
+    throw e
+  }
+  // 新文件是刚随机生成的，事务失败时不可能有人引用，上面直接删；旧文件可能被别的渠道共用，走引用计数
+  // 事务已提交、新地址已生效：删旧图（查引用 + unlink）失败只记日志，不能让接口回 500 让店主以为没保存成功
+  if (old && old !== newUrl) await releaseContactUpload(old).catch((e) => console.error('[contact-qr] 删除旧二维码失败（新地址已生效）', e))
+  return { ok: true, supportQrUrl: newUrl }
+}
+
+/**
+ * 清除客服二维码（渠道 DELETE /api/partner/settings/contact-qr）。原来就没有 → { cleared:false }（不调 audit）。
+ * 行锁内读旧值、置空、audit(tx)；提交后删旧文件（同 saveTenantContactQr 的删除边界）。
+ */
+export async function clearTenantContactQr(tenantId: number, audit?: (tx: Prisma.TransactionClient) => Promise<void>): Promise<{ cleared: boolean }> {
+  assertTenantId(tenantId)
+  const old = await prisma.$transaction(async (tx) => {
+    await lockTenantRowForUpdate(tx, tenantId)
+    const t = await tx.tenant.findUnique({ where: { id: tenantId }, select: { supportQrUrl: true } })
+    if (!t) throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+    if (!t.supportQrUrl) return null
+    await tx.tenant.update({ where: { id: tenantId }, data: { supportQrUrl: null } })
+    if (audit) await audit(tx)
+    return t.supportQrUrl
+  })
+  if (!old) return { cleared: false }
+  await releaseContactUpload(old).catch((e) => console.error('[contact-qr] 删除旧二维码失败（已清除）', e))
+  return { cleared: true }
 }

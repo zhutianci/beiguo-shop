@@ -3,17 +3,24 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Copy, Check } from 'lucide-react'
-import { ContactModal } from './contact-modal'
+import { ContactModal, hoursText } from './contact-modal'
+import { useStorefront } from './storefront-provider'
 
-const WECHAT_ID = 'GenuineMarxist'
-
+/**
+ * 右下角浮动客服（(shop)/layout 挂载，两站都显示）。微信号、服务时间取当前店面的客服信息（二期改动 4.1、4.2）：
+ * 主站 = PLATFORM_CONTACT，渲染与改造前写死的 'GenuineMarxist' / '9:00 - 22:00' 逐字相同；
+ * 渠道只设了二维码时不显示微信号块，只设了微信号时不显示「查看二维码」按钮（回退规则保证两者至少有一个）。
+ */
 export function FloatingContact() {
+  const { contact } = useStorefront()
+  const wechat = contact.wechat
   const [expanded, setExpanded] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [copied, setCopied] = useState(false)
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(WECHAT_ID)
+    if (!wechat) return
+    navigator.clipboard.writeText(wechat)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -47,15 +54,21 @@ export function FloatingContact() {
                 </div>
 
                 <p className="text-xs text-white/50 mb-4 leading-relaxed">
-                  贝果科技专属客服为你服务<br />
-                  9:00 - 22:00 在线响应
+                  贝果科技专属客服为你服务
+                  {contact.hours && (
+                    <>
+                      <br />
+                      {`${hoursText(contact.hours)} 在线响应`}
+                    </>
+                  )}
                 </p>
 
                 {/* 微信号 */}
+                {wechat && (
                 <div className="bg-white/5 rounded-xl p-3 mb-3">
                   <div className="text-xs text-white/40 mb-1">客服微信</div>
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-sm">{WECHAT_ID}</span>
+                    <span className="font-mono font-bold text-sm">{wechat}</span>
                     <button
                       onClick={handleCopy}
                       className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
@@ -78,7 +91,19 @@ export function FloatingContact() {
                     </button>
                   </div>
                 </div>
+                )}
 
+                {/* 客服邮箱（二期新增；主站没有客服邮箱，不渲染） */}
+                {contact.email && (
+                  <div className="bg-white/5 rounded-xl p-3 mb-3">
+                    <div className="text-xs text-white/40 mb-1">客服邮箱</div>
+                    <a href={`mailto:${contact.email}`} className="font-mono text-sm break-all hover:text-purple-300">
+                      {contact.email}
+                    </a>
+                  </div>
+                )}
+
+                {contact.qrUrl && (
                 <button
                   onClick={() => {
                     setExpanded(false)
@@ -88,6 +113,7 @@ export function FloatingContact() {
                 >
                   查看二维码
                 </button>
+                )}
               </div>
             </motion.div>
           )}

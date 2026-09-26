@@ -18,8 +18,9 @@ import { ALL_PARTNER_PERMS, DRAFT_SAFE_PERMS, OWNER_ONLY_PERMS, parsePerms } fro
 import { checkRetail, checkSellable } from '../src/lib/tenant/sellable'
 import { normalizeHost, parsePlatformHosts, isChannelCandidateHost, DEFAULT_PLATFORM_HOSTS } from '../src/lib/storefront/hosts'
 import { storefrontFeatures, toPublicStorefront } from '../src/lib/storefront/public'
+import { PLATFORM_CONTACT } from '../src/lib/contact-base'
 import { isNextInternalError, rethrowNextInternal } from '../src/lib/storefront/next-errors'
-import { crossOriginReason } from '../src/lib/tenant/same-origin'
+import { crossOriginReason, hasBodyByHeaders } from '../src/lib/tenant/same-origin'
 import { resolvePublicDiff } from '../src/lib/audit'
 import { sealText, openText, deriveKey, parseDataKey } from '../src/lib/tenant/crypto'
 import { PARTNER_ALLOWED_KEYS, PARTNER_FORBIDDEN_KEYS, PARTNER_CONTEXTUAL_KEYS } from '../src/lib/partner-services/selects'
@@ -297,9 +298,13 @@ section('功能开关（设计 7.6、11.1）')
   ok('null 全关', Object.values(nul).every((v) => v === false))
   on.coupon = false
   ok('返回值是副本（改了不影响下一次）', storefrontFeatures({ kind: 'PLATFORM' }).coupon === true)
-  const pub = toPublicStorefront({ id: 2, code: 'lulu', kind: 'CHANNEL', status: 'ACTIVE', origin: 'https://lulu.bigolab.com' })
-  eq('toPublicStorefront 只有四个键', Object.keys(pub).sort(), ['code', 'features', 'kind', 'origin'])
+  // 二期改动 4.1：店面 DTO 新增 contact（客服信息本来就要给买家看），仍然不带 id / status
+  const luluContact = { wechat: 'lulu_kf', qrUrl: null, email: 'kf@lulu.example', hours: '9:00-21:00' }
+  const pub = toPublicStorefront({ id: 2, code: 'lulu', kind: 'CHANNEL', status: 'ACTIVE', origin: 'https://lulu.bigolab.com', contact: luluContact })
+  eq('toPublicStorefront 只有五个键（二期加 contact）', Object.keys(pub).sort(), ['code', 'contact', 'features', 'kind', 'origin'])
   ok('toPublicStorefront 不含 id / status', !('id' in pub) && !('status' in pub))
+  eq('toPublicStorefront.contact 只有四个键且原样透传', pub.contact, luluContact)
+  eq('toPublicStorefront(null).contact = 主站客服', toPublicStorefront(null).contact, { ...PLATFORM_CONTACT })
 }
 
 // =====================================================================
@@ -316,6 +321,20 @@ section('渠道写接口同源校验（tenant/same-origin）')
   eq('无浏览器头（curl / itest）放行', crossOriginReason(H({ host, 'content-type': 'application/json' }), 'POST', true), null)
   eq('GET 不看 Content-Type', crossOriginReason(H({ host }), 'GET', false), null)
   ok('Sec-Fetch-Site: none 的写请求 → 拒', crossOriginReason(H({ host, 'sec-fetch-site': 'none', 'content-type': 'application/json' }), 'POST', true) !== null)
+  // 终审 2026-09-26：有无请求体只看 Content-Length / Transfer-Encoding（裸 DELETE 不能被当成「有体非 JSON」拒掉）
+  ok('无 Content-Length 也无 Transfer-Encoding → 无请求体', !hasBodyByHeaders(H({ host })))
+  ok('Content-Length: 0 → 无请求体', !hasBodyByHeaders(H({ host, 'content-length': '0' })))
+  ok('Content-Length: 2 → 有请求体', hasBodyByHeaders(H({ host, 'content-length': '2' })))
+  ok('Transfer-Encoding: chunked → 有请求体', hasBodyByHeaders(H({ host, 'transfer-encoding': 'chunked' })))
+  eq(
+    '同源裸 DELETE（无体、无 Content-Type）放行',
+    crossOriginReason(H({ host, origin: 'https://lulu.bigolab.com', 'sec-fetch-site': 'same-origin' }), 'DELETE', hasBodyByHeaders(H({ host }))),
+    null,
+  )
+  ok(
+    '带体（chunked）但非 JSON 的写请求仍拒',
+    crossOriginReason(H({ host, 'content-type': 'text/plain' }), 'DELETE', hasBodyByHeaders(H({ host, 'transfer-encoding': 'chunked' }))) !== null,
+  )
 }
 
 section('Next 内部错误识别（storefront/next-errors）')

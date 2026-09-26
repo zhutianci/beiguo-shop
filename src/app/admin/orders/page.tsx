@@ -12,6 +12,7 @@ import { SourceBadge, SourceFilter, type SiteOption, type SourceSite } from '@/c
 import RefundDialog, { type RefundAfterSale } from '@/components/admin/refund-dialog'
 import AfterSalePanel, { type AfterSaleRow } from '@/components/admin/after-sale-panel'
 import RedeemLogPanel from '@/components/admin/redeem-log-panel'
+import { channelProfitHint, type ChannelProfit } from '@/lib/admin/channel-profit'
 
 interface Order {
   id: number
@@ -43,6 +44,8 @@ interface Order {
   updatedAt?: string
   settleState?: string | null
   supplyCents?: number | null
+  /** 渠道单的站长利润（分；二期 M2，口径见 lib/admin/channel-profit.ts）。主站单、未付渠道单为 null */
+  channelProfit?: ChannelProfit | null
 }
 
 /** GET /api/admin/orders/[id]/detail 的返回（Decimal 已转 number，时间是 ISO 字符串） */
@@ -111,6 +114,16 @@ interface ChannelDetail {
     deliveryType: string
     costRefYuan: number | null
   }
+  /** 站长利润（二期 M2，分）；未付单为 null。hint 是与列表同一份的悬停文案 */
+  ownerProfit?:
+    | (ChannelProfit & {
+        hint: string
+        /** 手续费收入（账本 FEE + INVOICE_FEE），仅供参考、不计入利润 */
+        feeIncomeCents: number
+        /** 发票利润 = 实收税费 − 已退税费 − 发票分成，仅供参考、不计入利润 */
+        invoiceProfitCents: number
+      })
+    | null
 }
 
 interface OrderDetail {
@@ -223,6 +236,18 @@ interface Totals {
   /** 利润合计里已扣掉的内推返现（truncated 时为 null） */
   referral?: number | null
   truncated: boolean
+  // ---- 渠道单拆分（二期 M2，元）：都已含在上面的合计里 ----
+  channelOrders?: number
+  /** 渠道流水 = 渠道售价之和 */
+  channelAmount?: number
+  /** 渠道进货净额（扣除退款）；truncated 时 null */
+  channelSupplyNet?: number | null
+  /** 渠道成本（只含有成本数据的单）；truncated 时 null */
+  channelCost?: number | null
+  /** 渠道利润 = 进货净额 − 成本（只含有成本数据的单）；truncated 时 null */
+  channelProfit?: number | null
+  /** 成本未登记、未计入渠道利润的单数 */
+  channelProfitUnknown?: number | null
 }
 
 const payStatusMap: Record<string, { label: string; className: string }> = {
@@ -797,7 +822,7 @@ function OrdersInner() {
             </div>
           </div>
 
-          {/* 当前筛选范围的汇总：流水来自订单金额，成本/利润来自卡密上落库的字段 */}
+          {/* 当前筛选范围的汇总：流水来自订单金额；成本/利润主站单来自卡密上落库的字段，渠道单按「进货净额 − 成本」（二期 M2） */}
           {totals && (
             <div className="mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
@@ -823,6 +848,32 @@ function OrdersInner() {
                   <div className="text-[11px] text-green-700/80 mt-0.5">已扣内推返现 ¥{totals.referral.toFixed(2)}</div>
                 )}
               </div>
+              {/* 渠道单拆分：只在筛选范围里有渠道单时出现，筛主站时页面与改动前一致 */}
+              {!!totals.channelOrders && totals.channelOrders > 0 && (
+                <div
+                  className="col-span-2 sm:col-span-4 flex flex-wrap gap-x-6 gap-y-1 rounded-xl border border-purple-100 bg-purple-50 px-3 py-2 text-xs text-purple-800"
+                  title="渠道单的利润 = 进货净额（扣除退款）− 成本；手续费、发票利润不计入。流水、进货净额、成本、利润都已含在上面的合计里"
+                >
+                  <span>
+                    渠道单 <b>{totals.channelOrders}</b> 单
+                  </span>
+                  <span>
+                    渠道流水（渠道售价）<b>¥{(totals.channelAmount ?? 0).toFixed(2)}</b>
+                  </span>
+                  <span>
+                    渠道进货净额 <b>{totals.channelSupplyNet == null ? '—' : `¥${totals.channelSupplyNet.toFixed(2)}`}</b>
+                  </span>
+                  <span>
+                    渠道成本 <b>{totals.channelCost == null ? '—' : `¥${totals.channelCost.toFixed(2)}`}</b>
+                  </span>
+                  <span>
+                    渠道利润 <b>{totals.channelProfit == null ? '—' : `¥${totals.channelProfit.toFixed(2)}`}</b>
+                    {!!totals.channelProfitUnknown && totals.channelProfitUnknown > 0 && (
+                      <span className="ml-1 text-purple-600/80">（另有 {totals.channelProfitUnknown} 单成本未登记，未计入）</span>
+                    )}
+                  </span>
+                </div>
+              )}
               {totals.truncated && (
                 <p className="col-span-2 sm:col-span-4 text-xs text-amber-600">
                   结果集过大（超过 10000 单），未统计成本与利润，请缩小日期范围后查看。
@@ -892,7 +943,27 @@ function OrdersInner() {
                             +税
                           </span>
                         )}
+                        {/* 渠道单：金额是渠道售价，站长实际按进货价收钱，另起一行小字标出进货款（二期 M2） */}
+                        {order.tenantId != null && order.tenantId !== 1 && order.supplyCents != null && (
+                          <div
+                            className="text-[11px] text-gray-400"
+                            title={
+                              // 成员自买（EXCLUDED）单的 P 是 A − RG（站长全收），不是进货款扣渠道分担退款，单独一支文案
+                              order.channelProfit?.excluded
+                                ? `成员自买：不给渠道分钱，站长全收 ${yuanCents(order.channelProfit.supplyNetCents)}（已扣退款）；进货快照 ${yuanCents(order.supplyCents)} 仅供参考`
+                                : order.channelProfit && order.channelProfit.supplyNetCents !== order.supplyCents
+                                  ? `进货款 ${yuanCents(order.supplyCents)}，扣除渠道分担的退款后进货净额 ${yuanCents(order.channelProfit.supplyNetCents)}`
+                                  : '渠道进货款（进货价 × 件数）'
+                            }
+                          >
+                            进货 {yuanCents(order.supplyCents)}
+                          </div>
+                        )}
                       </td>
+                      {order.tenantId != null && order.tenantId !== 1 ? (
+                        <ChannelMoneyCells order={order} />
+                      ) : (
+                        <>
                       <td className="py-4 text-gray-600">
                         {order.cardCost == null ? (
                           <span className="text-gray-300">—</span>
@@ -925,6 +996,8 @@ function OrdersInner() {
                           </span>
                         )}
                       </td>
+                        </>
+                      )}
                       <td className="py-4">
                         <span
                           className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
@@ -1657,6 +1730,60 @@ const COMPONENT_LABEL: Record<string, string> = {
   NET: '净额',
 }
 
+/**
+ * 渠道单的「成本」「利润」两格（二期 M2）。利润 = 进货净额（扣除退款）− 成本，口径与悬停文案都来自
+ * lib/admin/channel-profit.ts，与汇总卡、详情页同一份。成本未登记时利润不显示成 0，也不显示成等于进货价。
+ */
+function ChannelMoneyCells({ order }: { order: Order }) {
+  const p = order.channelProfit
+  if (!p) {
+    const why = order.payStatus === 'UNPAID' ? '未付款，没有利润' : '订单缺少进货快照，无法核算利润'
+    return (
+      <>
+        <td className="py-4 text-gray-600">
+          <span className="text-gray-300">—</span>
+        </td>
+        <td className="py-4">
+          <span className="text-gray-300" title={why}>
+            —
+          </span>
+        </td>
+      </>
+    )
+  }
+  const hint = channelProfitHint(p)
+  return (
+    <>
+      <td className="py-4 text-gray-600">
+        {p.costCents == null ? (
+          <span className="text-gray-400" title={hint}>
+            未登记
+          </span>
+        ) : (
+          <span title={p.costUnknown ? '部分卡密成本未录入，按 0 计' : undefined}>
+            {yuanCents(p.costCents)}
+            {p.costUnknown && <span className="ml-0.5 text-amber-500">*</span>}
+          </span>
+        )}
+      </td>
+      <td className="py-4">
+        {p.profitCents == null ? (
+          // 成本未知时显示站长实际所得 G 而不是进货净额 P：两者只在「渠道承担损失 / 站长承担退款」时不同，
+          // 那时再写「进货 ¥P」会把站长自己掏的退款藏掉（例如全额退、站长承担，P 仍是整份进货价）
+          <span className="text-xs text-gray-500 whitespace-nowrap" title={hint}>
+            {p.excluded ? '站长全收' : p.ownerGoodsCents === p.supplyNetCents ? '进货' : '所得'} {yuanCents(p.ownerGoodsCents)} · 成本未登记
+          </span>
+        ) : (
+          <span className={p.profitCents >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'} title={hint}>
+            {yuanCents(p.profitCents)}
+            {(p.costUnknown || p.pendingCards > 0) && <span className="ml-0.5 text-amber-500">*</span>}
+          </span>
+        )}
+      </td>
+    </>
+  )
+}
+
 function ChannelSection({
   d,
   c,
@@ -1687,6 +1814,29 @@ function ChannelSection({
         v={`${yuanCents(rc.refundedGoodsCents)} / ${yuanCents(rc.refundedTaxCents)} / ${rc.refundedQty}`}
       />
       {(o.shortCents ?? 0) > 0 && <KV k="少付（渠道承担部分）" v={`${yuanCents(o.shortCents)}（${yuanCents(o.shortChargedCents ?? 0)}）`} />}
+      {/* 站长利润完整拆分（二期 M2）：与订单列表「利润」列同一口径；手续费、发票利润只列出来参考，不计入利润 */}
+      {c.ownerProfit && (
+        <KV
+          k="站长利润（进货净额 − 成本）"
+          v={
+            <span title={c.ownerProfit.hint}>
+              {c.ownerProfit.excluded ? '站长全收（成员自买，已扣退款）' : '进货净额'} {yuanCents(c.ownerProfit.supplyNetCents)}
+              {c.ownerProfit.lossCents > 0 && ` + 渠道承担损失 ${yuanCents(c.ownerProfit.lossCents)}`}
+              {c.ownerProfit.platformRefundCents > 0 && ` − 站长承担退款 ${yuanCents(c.ownerProfit.platformRefundCents)}`}
+              {' − 成本 '}
+              {c.ownerProfit.costCents == null ? '未登记' : yuanCents(c.ownerProfit.costCents)}
+              {c.ownerProfit.costUnknown && '（部分卡密成本未录入，按 0 计）'}
+              {' = '}
+              <span className={c.ownerProfit.profitCents == null ? 'text-gray-400' : c.ownerProfit.profitCents >= 0 ? 'text-green-700' : 'text-red-600'}>
+                {c.ownerProfit.profitCents == null ? '成本未登记' : yuanCents(c.ownerProfit.profitCents)}
+              </span>
+              <span className="block text-xs font-normal text-gray-500">
+                仅供参考、不计入利润：手续费收入 {yuanCents(c.ownerProfit.feeIncomeCents)} · 发票利润 {yuanCents(c.ownerProfit.invoiceProfitCents)}
+              </span>
+            </span>
+          }
+        />
+      )}
       {sv && (
         <div className="mt-2 rounded bg-gray-50 p-2 text-xs text-gray-600">
           渠道这单：货款 {yuanCents(sv.goodsCents)} − 进货款 {yuanCents(sv.purchaseCents)} + 发票分成 {yuanCents(sv.invShareCents)}
