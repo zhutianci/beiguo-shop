@@ -46,7 +46,7 @@ export interface OverviewS2 {
       estimating: number
     }
   }
-  attention: { manual: Array<{ id: number; orderNo: string | null; notice: string | null; manualAt: string | null }>; latepayOpen: number }
+  attention: { manual: Array<{ id: number; orderNo: string | null; notice: string | null; manualAt: string | null }>; latepayOpen: number; complaintsOpen?: number }
   combos: Array<{
     service: string
     country: number
@@ -97,12 +97,15 @@ export function OverviewTab({
   holds,
   onOpenOrder,
   onUnhold,
+  onOpenComplaints,
 }: {
   s2: OverviewS2 | null
   s2Error: string | null
   holds: Array<{ key: string; until: string | null; source: string }>
   onOpenOrder: (id: number) => void
   onUnhold: (key: string) => void
+  /** S3：「● N 条售后申请待处理 → 查看」跳到「售后」tab */
+  onOpenComplaints?: () => void
 }) {
   const csv = useMemo(() => {
     if (!s2) return ''
@@ -202,7 +205,15 @@ export function OverviewTab({
       <Card>
         <CardContent className="space-y-1.5 py-4 text-sm text-gray-700">
           <div className="font-medium text-gray-900">需要处理</div>
-          {s2.attention.manual.length === 0 && s2.attention.latepayOpen === 0 && <div className="text-gray-400">暂无</div>}
+          {s2.attention.manual.length === 0 && s2.attention.latepayOpen === 0 && !s2.attention.complaintsOpen && <div className="text-gray-400">暂无</div>}
+          {!!s2.attention.complaintsOpen && (
+            <div className="font-medium text-red-700">
+              ● {s2.attention.complaintsOpen} 条售后申请待处理
+              <button onClick={() => onOpenComplaints?.()} className="ml-2 text-primary-600 hover:underline">
+                查看 →
+              </button>
+            </div>
+          )}
           {s2.attention.manual.map((m) => (
             <div key={m.id} className="text-amber-800">
               ⚠ MANUAL · 订单 {m.orderNo ?? `#${m.id}`} · {m.notice ?? '—'}

@@ -24,6 +24,8 @@ import { recomputeCostInTx } from './refund'
 import { adminClaimActivation, adminClaimCandidates } from './claim'
 import { logEventQuiet } from './events'
 import * as engine from './engine'
+import { finalizeComplaintAfterRefund, pendingComplaintCount } from './complaint'
+import { complaintReasonText } from './complaint-rules'
 
 const S = 1000
 export const ADMIN_STATES = ['PENDING_PAY', 'CLOSED', 'READY', 'ACQUIRING', 'WAITING', 'REPLACING', 'CANCELLING', 'RECEIVED', 'FINISHED', 'REFUNDING', 'CANCELLED', 'REFUNDED', 'MANUAL'] as const
@@ -143,7 +145,7 @@ const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null)
 export async function jiemaOrderDetailAdmin(id: number) {
   const so = await prisma.smsOrder.findUnique({ where: { id } })
   if (!so) return null
-  const [order, user, hold, payments, vmqs, logs, atts, msgs, events] = await Promise.all([
+  const [order, user, hold, payments, vmqs, logs, atts, msgs, events, complaint] = await Promise.all([
     prisma.order.findUnique({ where: { id: so.orderId }, select: { id: true, orderNo: true, userId: true, payStatus: true, deliveryStatus: true, amount: true, paidAt: true, createdAt: true, productName: true } }),
     prisma.user.findUnique({ where: { id: so.userId }, select: { id: true, email: true, nickname: true, topupCents: true, balance: true } }),
     prisma.balanceHold.findUnique({ where: { orderId: so.orderId } }),
@@ -153,6 +155,8 @@ export async function jiemaOrderDetailAdmin(id: number) {
     prisma.smsAttempt.findMany({ where: { smsOrderId: so.id }, orderBy: { seq: 'asc' } }),
     prisma.smsMessage.findMany({ where: { smsOrderId: so.id }, orderBy: { receivedAt: 'desc' }, take: 100 }),
     prisma.smsEvent.findMany({ where: { smsOrderId: so.id }, orderBy: { id: 'desc' }, take: 300 }),
+    // 售后申请（S3，§7.2 详情抽屉「售后申请」）
+    prisma.smsComplaint.findUnique({ where: { orderId: so.orderId } }),
   ])
   const cost = settleCost({ state: so.state, priceCents: so.priceCents, costFx4: so.costFx4 }, atts)
   const withCode = atts.some(hasCode)
@@ -197,6 +201,9 @@ export async function jiemaOrderDetailAdmin(id: number) {
       charged: atts.filter((a) => a.charged).map((a) => ({ seq: a.seq, costMicro: a.costMicro, chargeSource: a.chargeSource, upstreamRefundMicro: a.upstreamRefundMicro })),
     },
     actions,
+    complaint: complaint
+      ? { id: complaint.id, state: complaint.state, reason: complaint.reason, reasonText: complaintReasonText(complaint.reason), detail: complaint.detail, adminNote: complaint.adminNote, createdAt: iso(complaint.createdAt), handledAt: iso(complaint.handledAt) }
+      : null,
     unknownAttempts: atts.filter((a) => a.state === 'UNKNOWN').map((a) => a.id),
     releasable: atts.filter((a) => a.state === 'ACTIVE' || a.state === 'RELEASING').map((a) => a.id),
   }
@@ -260,7 +267,14 @@ export async function runAdminAction(id: number, adminId: number, input: AdminAc
         if (o?.payStatus !== 'PAID' || !atts.some(hasCode)) return { ok: false, message: '只有收到过短信的已付款单才能售后退款' }
       } else if (so.state !== 'RECEIVED' && so.state !== 'FINISHED') return { ok: false, message: '只有已收码 / 已完成的单能售后退款' }
       const r = await engine.adminRefund(id, adminId, 'COMPLAINT', { allowManual: manual })
-      if (r.ok) return { ok: true, message: '已售后退款：整单原路退回余额，成本照计（利润 = −成本）' }
+      if (r.ok) {
+        // 这张单还有没收尾的售后申请（S3）：一并收成「已通过」并给买家写一条留言（带两格退回金额），30 天通过次数也算上
+        const closed = await finalizeComplaintAfterRefund(so.orderId, adminId, null, { fromOrderDrawer: true }).catch((e) => {
+          console.error('[jiema] 售后退款后收尾售后申请失败', id, (e as Error)?.message)
+          return false
+        })
+        return { ok: true, message: `已售后退款：整单原路退回余额，成本照计（利润 = −成本）${closed ? '；这张单的售后申请已记为通过，结果已发到订单留言' : ''}` }
+      }
       const why =
         r.why === 'MANUAL'
           ? manual
@@ -432,7 +446,7 @@ export async function jiemaOverviewS2() {
     inflight = inflightMicro(snap, new Date(cache.balanceAt), null, now)
   }
   const params = runtimeParams()
-  const [hb, threads, created, paidBy, received, inProgress, manualRows, closedToday, releaseLogs, avgRows, today, combos, latepayOpen] = await Promise.all([
+  const [hb, threads, created, paidBy, received, inProgress, manualRows, closedToday, releaseLogs, avgRows, today, combos, latepayOpen, complaintsOpen] = await Promise.all([
     prisma.setting.findUnique({ where: { key: engine.SMS_RUNTIME_KEY } }),
     activeThreadsHold(now),
     prisma.smsOrder.count({ where: { createdAt: { gte: dayStart } } }),
@@ -446,6 +460,7 @@ export async function jiemaOverviewS2() {
     jiemaFinance(dayStart, new Date(dayStart.getTime() + 86400_000)),
     comboTable(new Date(Date.now() - 7 * 86400_000)),
     latepayCarrierOpenCount(),
+    pendingComplaintCount(),
   ])
   let tickAt: string | null = null
   try {
@@ -489,6 +504,8 @@ export async function jiemaOverviewS2() {
     attention: {
       manual: manualRows.map((m) => ({ id: m.id, orderNo: mo.get(m.orderId) ?? null, notice: m.notice, manualAt: iso(m.manualAt) })),
       latepayOpen,
+      // 售后申请待处理（S3，§7.1「● 2 条售后申请待处理 → 查看」、§8.5「MANUAL 单和售后申请在概览里置顶」）
+      complaintsOpen,
     },
     combos,
   }

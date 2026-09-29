@@ -106,6 +106,15 @@ export async function readSmsConfigCached(): Promise<SmsConfig | null> {
   return inflight
 }
 
+/**
+ * 售后申请窗口（小时，E17；sms_config.complaintWindowH，出厂 24）。售后是对**已付款、已收码**的单的操作，不能因为 sms_config 读取失败就不让申请：
+ * 读不到时取最后一次有效值，进程启动后从没读到过有效配置就用出厂值（与 runtimeParams 同一思路，附录 B 第 9 条）。
+ */
+export async function complaintWindowHours(): Promise<number> {
+  const c = await readSmsConfigCached().catch(() => null)
+  return (c ?? lastValid ?? FACTORY_SMS_CONFIG).complaintWindowH
+}
+
 /** 保存成功、测试切换配置后调用：下一次读取直接查库 */
 export function invalidateSmsConfigCache(): void {
   cached = null

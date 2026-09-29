@@ -40,8 +40,11 @@ type NavItem = {
   href: string
   label: string
   icon: typeof LayoutDashboard
-  /** 菜单右侧的待办数（红点）：目前只有售后申请（设计 8.4「超管售后申请列表红点」） */
-  badge?: 'afterSales'
+  /**
+   * 菜单右侧的待办数（红点）：渠道售后申请（多渠道设计 8.4「超管售后申请列表红点」）；
+   * 短信接码的售后申请待处理数（docs/短信接码-设计.md §8.5「后台『售后申请』有红点」，S3）
+   */
+  badge?: 'afterSales' | 'jiemaComplaints'
 }
 
 type NavGroup = {
@@ -87,7 +90,7 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
       // 短信接码（docs/短信接码-设计.md §6.6 第 23 条：放「订单与营销」组）：概览、定价、目录、设置；S2 起接码订单与成本利润也在这里
-      { href: '/admin/jiema', label: '短信接码', icon: MessageSquareText },
+      { href: '/admin/jiema', label: '短信接码', icon: MessageSquareText, badge: 'jiemaComplaints' },
       { href: '/admin/external-orders', label: '订单导入', icon: FileUp },
       { href: '/admin/coupons', label: '优惠券', icon: Ticket },
       // 紧挨着优惠券：抽中的券就是优惠券系统里的单张批次
@@ -171,6 +174,8 @@ export default function AdminLayout({
    * 失败静默：红点只是提醒，拉不到不影响后台其它功能。
    */
   const [afterSalesPending, setAfterSalesPending] = useState(0)
+  // 短信接码售后申请待处理数（S3）：同一个节奏拉 /api/admin/jiema/complaints 的 pendingTotal；拉不到静默
+  const [jiemaComplaintsPending, setJiemaComplaintsPending] = useState(0)
   useEffect(() => {
     let alive = true
     const load = () => {
@@ -179,6 +184,12 @@ export default function AdminLayout({
         .then((r) => r.json())
         .then((d) => {
           if (alive && d?.success) setAfterSalesPending(Number(d.data?.pendingTotal) || 0)
+        })
+        .catch(() => {})
+      fetch('/api/admin/jiema/complaints?state=PENDING&pageSize=1')
+        .then((r) => r.json())
+        .then((d) => {
+          if (alive && d?.success) setJiemaComplaintsPending(Number(d.data?.pendingTotal) || 0)
         })
         .catch(() => {})
     }
@@ -250,6 +261,14 @@ export default function AdminLayout({
                       >
                         <item.icon className="h-5 w-5 shrink-0" />
                         <span>{item.label}</span>
+                        {item.badge === 'jiemaComplaints' && jiemaComplaintsPending > 0 && (
+                          <span
+                            className="ml-auto rounded-full bg-red-500 px-1.5 text-[11px] font-semibold leading-5 text-white"
+                            aria-label={`${jiemaComplaintsPending} 条接码售后待处理`}
+                          >
+                            {jiemaComplaintsPending > 99 ? '99+' : jiemaComplaintsPending}
+                          </span>
+                        )}
                         {item.badge === 'afterSales' && afterSalesPending > 0 && (
                           <span
                             className="ml-auto rounded-full bg-red-500 px-1.5 text-[11px] font-semibold leading-5 text-white"

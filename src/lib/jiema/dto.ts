@@ -179,6 +179,13 @@ export interface JiemaOrderView {
   lateCredits: Array<{ cents: number; at: string; kind: 'LATE' | 'DUPLICATE' }>
   replaceBlocked: 'THREADS' | null
   actions: { pay: boolean; close: boolean; replace: boolean; cancel: boolean; finish: boolean; start: boolean; refundReady: boolean; complain: boolean; message: boolean }
+  /**
+   * 售后申请（S3，E17、§1.10）：state 只给买家三种（管理员正在退款的 APPROVING 对买家就是 OPEN「处理中」）；
+   * reply = 驳回时客服的回复（同时发到订单留言）。字段名刻意不用 note / status（FORBIDDEN_BUYER_KEYS）。S3 增补字段，实施偏差 S3
+   */
+  complaint: { state: 'OPEN' | 'REFUNDED' | 'REJECTED'; reason: string; reasonText: string; detail: string | null; reply: string | null; createdAt: string; handledAt: string | null } | null
+  /** 售后申请截止时刻（首次收码 + complaintWindowH 小时；没收到码、已申请、已退款时为 null）。S3 增补字段 */
+  complainUntil: string | null
   notice: string | null
   serverNow: string
   pollMs: number
@@ -204,8 +211,8 @@ export function refundReasonText(code: string | null | undefined): string {
   return (code && REFUND_REASON_TEXT[code]) || '已退回余额'
 }
 
-/** 售后申请的入口在 S3 才上线；在那之前 actions.complain 恒为 false */
-export const COMPLAINT_AVAILABLE = false
+/** 售后申请的入口（S3 上线后为 true；S2 期间恒为 false，号码页不出现「申请售后」按钮） */
+export const COMPLAINT_AVAILABLE = true
 
 /** 号码页每个状态的建议轮询间隔（终态 0，前端停止轮询） */
 export function pollMsFor(state: string): number {
@@ -258,8 +265,64 @@ export function toJiemaOrderView(v: JiemaOrderView): JiemaOrderView {
     lateCredits: v.lateCredits.map((l) => ({ cents: l.cents, at: l.at, kind: l.kind })),
     replaceBlocked: v.replaceBlocked,
     actions: { ...v.actions },
+    complaint: v.complaint
+      ? { state: v.complaint.state, reason: v.complaint.reason, reasonText: v.complaint.reasonText, detail: v.complaint.detail, reply: v.complaint.reply, createdAt: v.complaint.createdAt, handledAt: v.complaint.handledAt }
+      : null,
+    complainUntil: v.complainUntil,
     notice: v.notice,
     serverNow: v.serverNow,
     pollMs: v.pollMs,
+  }
+}
+
+// ───────────────────────── 我的接码记录（S3，GET /api/jiema/orders，§1.11、§6.4 RecordItem） ─────────────────────────
+
+/**
+ * 记录页的一行（本人、主站；白名单逐字段构造）。号码是买家自己的号（不打码，号码页本来就全显示）；验证码只给最新一条且没过保存期的。
+ * 不出现成本、上限、两个系数、activationId、上游原文、错误码原文、流水备注与 bizKey（附录 B 第 7 条）。
+ */
+export interface JiemaRecordItem {
+  orderNo: string
+  state: SmsOrderStateView
+  service: { code: string; name: string }
+  country: { id: number; name: string; iso2: string | null }
+  operator: string | null
+  priceCents: number
+  payMode: 'ALIPAY' | 'BALANCE' | 'MIXED'
+  /** 当前号码（没有当前号时取最后一个取到的号）；待支付 / 已关闭 / 取号失败的单为 null */
+  number: { dial: string | null; national: string; seq: number } | null
+  /** 最新一条验证码（没识别出、已清除时为 null） */
+  code: string | null
+  smsCount: number
+  createdAt: string
+  /** 倒计时的终点：等码 = 主动取消时刻；收码 = 号码结束前 30 秒；待支付 = 收银台截止（没有收款单时锁价截止）；其余 null */
+  deadline: string | null
+  /** 已取消 / 售后退款：退回余额的总额（两格之和） */
+  refundCents: number | null
+  /** 已关闭：预扣原路退回的金额（纯支付宝单为 null） */
+  releasedCents: number | null
+  /** 关单后 / 重复付款退入余额的合计（LATEPAY，本人） */
+  lateCents: number
+  complaint: 'OPEN' | 'REFUNDED' | 'REJECTED' | null
+}
+
+export function toJiemaRecordItem(x: JiemaRecordItem): JiemaRecordItem {
+  return {
+    orderNo: x.orderNo,
+    state: x.state,
+    service: { code: x.service.code, name: x.service.name },
+    country: { id: x.country.id, name: x.country.name, iso2: x.country.iso2 },
+    operator: x.operator,
+    priceCents: x.priceCents,
+    payMode: x.payMode,
+    number: x.number ? { dial: x.number.dial, national: x.number.national, seq: x.number.seq } : null,
+    code: x.code,
+    smsCount: x.smsCount,
+    createdAt: x.createdAt,
+    deadline: x.deadline,
+    refundCents: x.refundCents,
+    releasedCents: x.releasedCents,
+    lateCents: x.lateCents,
+    complaint: x.complaint,
   }
 }

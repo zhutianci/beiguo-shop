@@ -364,3 +364,130 @@ export function orderAmountText(amount: number, deliveryType: string | null | un
 export function termsPreTicked(last: { jiema: string | null; wallet: string | null } | null, cur: { jiema: string; wallet: string }): boolean {
   return !!last && last.jiema === cur.jiema && last.wallet === cur.wallet
 }
+
+// ───────────────────────── 我的接码记录 /jiema/records 与 /jiema 进行中提示条（S3，§1.4、§1.11） ─────────────────────────
+
+/** 记录页的 tab：全部 / 进行中 / 已完成 / 已退回（已取消 + 售后退款）/ 未支付（已关闭） */
+export type RecordTab = 'all' | 'active' | 'done' | 'cancelled' | 'closed'
+export const RECORD_TABS: ReadonlyArray<readonly [RecordTab, string]> = Object.freeze([
+  ['all', '全部'],
+  ['active', '进行中'],
+  ['done', '已完成'],
+  ['cancelled', '已退回'],
+  ['closed', '未支付'],
+] as const)
+
+/**
+ * 进行中（任何非终态）：待支付（含余额已预扣）、已付款待开始、取号、等码、换号、取消中、退款中、已收码（号码还开着）、人工处理中。
+ * 「进行中」不受日期筛选影响——买家回来一定要能找回正在进行的单（§1.4、E18）；D27 的「同时进行中 ≤3」也按这些状态数。
+ */
+export const RECORD_ACTIVE_STATES: readonly string[] = Object.freeze(['PENDING_PAY', 'READY', 'ACQUIRING', 'WAITING', 'REPLACING', 'CANCELLING', 'REFUNDING', 'RECEIVED', 'MANUAL'])
+
+/** 一张单属于哪个 tab（CLOSED 单独放「未支付」，不混进「已退回」：纯支付宝的关闭单什么都没退，§1.11） */
+export function recordTabOf(state: string): Exclude<RecordTab, 'all'> {
+  if (state === 'CLOSED') return 'closed'
+  if (state === 'FINISHED') return 'done'
+  if (state === 'CANCELLED' || state === 'REFUNDED') return 'cancelled'
+  return 'active'
+}
+
+/** tab → 状态列表（null = 全部） */
+export function recordStatesOf(tab: RecordTab): string[] | null {
+  switch (tab) {
+    case 'active':
+      return [...RECORD_ACTIVE_STATES]
+    case 'done':
+      return ['FINISHED']
+    case 'cancelled':
+      return ['CANCELLED', 'REFUNDED']
+    case 'closed':
+      return ['CLOSED']
+    default:
+      return null
+  }
+}
+
+export function parseRecordTab(x: string | null | undefined): RecordTab {
+  return (RECORD_TABS.find(([k]) => k === x)?.[0] ?? 'all') as RecordTab
+}
+
+/** 日期筛选：近 7 / 30 / 90 天，默认 30 */
+export const RECORD_DAYS: readonly number[] = Object.freeze([7, 30, 90])
+export function parseRecordDays(x: string | null | undefined): number {
+  const n = Number(x)
+  return RECORD_DAYS.includes(n) ? n : 30
+}
+
+/**
+ * 号码搜索（§1.11：完整号或后 4 位）：只取数字（「+62 812 3456 7890」「812-3456-7890」都行）；不到 4 位不搜（'SHORT'）；
+ * 恰好 4 位按「以它结尾」，更长的按「包含」（号码库里存的是带区号的全号，买家可能只贴本地号）。空串 = 不筛。
+ */
+export function phoneQuery(q: string | null | undefined): { digits: string; like: string } | 'SHORT' | null {
+  const raw = (q ?? '').trim()
+  if (!raw) return null
+  const d = raw.replace(/\D/g, '').slice(0, 20)
+  if (d.length < 4) return 'SHORT'
+  return { digits: d, like: d.length === 4 ? `%${d}` : `%${d}%` }
+}
+
+/** 付款方式的小字（记录页金额旁，§1.11） */
+export function payModeShort(mode: string): string {
+  return mode === 'BALANCE' ? '余额' : mode === 'MIXED' ? '余额 + 支付宝' : '支付宝'
+}
+
+export interface RecordLike {
+  state: string
+  payMode: string
+  priceCents: number
+  code: string | null
+  deadline: string | null
+  refundCents: number | null
+  releasedCents: number | null
+  lateCents: number
+  complaint: 'OPEN' | 'REFUNDED' | 'REJECTED' | null
+}
+
+/**
+ * 记录页一行的状态文字（§1.11 的四种样子）：
+ *  · 进行中：状态徽章 + 倒计时（等码到 waitUntil、收码后到号码结束、待支付到收银台截止）；
+ *  · 已完成：验证码；已退回：「¥2.25 已退回余额」；
+ *  · 未支付：「未支付 · 已关闭」，用过余额的加「预扣已退回」，关单后有到账退入的加「付款已退回余额」——**不写「已退回」**，纯支付宝的关闭单什么都没退。
+ */
+export function recordStatusText(r: RecordLike, nowMs: number): { label: string; tone: 'amber' | 'green' | 'gray' | 'red' | 'cyan'; extra: string | null } {
+  const b = stateBadge(r.state)
+  if (r.state === 'CLOSED') {
+    const parts = ['未支付 · 已关闭']
+    if (r.releasedCents != null && r.releasedCents > 0) parts.push('预扣已退回')
+    if (r.lateCents > 0) parts.push('付款已退回余额')
+    return { label: parts.join(' · '), tone: 'gray', extra: null }
+  }
+  if (r.state === 'CANCELLED' || r.state === 'REFUNDED') {
+    const cents = r.refundCents ?? r.priceCents
+    return { label: r.state === 'REFUNDED' ? '已退款' : '已取消', tone: 'gray', extra: `${fmtYuan(cents)} 已退回余额` }
+  }
+  const left = r.deadline ? Date.parse(r.deadline) - nowMs : null
+  const cd = left != null && Number.isFinite(left) && left > 0 ? fmtCountdown(left) : null
+  if (r.state === 'PENDING_PAY') {
+    if (r.payMode === 'BALANCE') return { label: '正在确认付款', tone: 'cyan', extra: null }
+    return { label: '待支付', tone: 'amber', extra: cd ? `${cd} 内完成付款` : null }
+  }
+  if (r.state === 'WAITING' || r.state === 'REPLACING') return { label: b.label, tone: b.tone, extra: cd }
+  if (r.state === 'RECEIVED') return { label: b.label, tone: b.tone, extra: r.code ? r.code : cd ? `还能收 ${cd}` : null }
+  if (r.state === 'FINISHED') return { label: b.label, tone: b.tone, extra: r.code }
+  return { label: b.label, tone: b.tone, extra: null }
+}
+
+/**
+ * /jiema 顶部进行中提示条的一行文字（§1.4：带倒计时，一键进号码页）。状态本身由旁边的徽章（stateBadge）显示，这里不重复：
+ * 等码「Telegram · 印度尼西亚 · 剩余 12:31」、收码「… · 验证码 482917」、待支付「… · 18:42 内完成付款」、READY「… · 点「开始接码」或取消退回余额」。
+ */
+export function bannerText(r: RecordLike & { serviceName: string; countryName: string }, nowMs: number): string {
+  const head = `${r.serviceName} · ${r.countryName}`
+  const left = r.deadline ? Date.parse(r.deadline) - nowMs : null
+  const cd = left != null && Number.isFinite(left) && left > 0 ? fmtCountdown(left) : null
+  if (r.state === 'WAITING' || r.state === 'REPLACING') return cd ? `${head} · 剩余 ${cd}` : head
+  if (r.state === 'RECEIVED') return r.code ? `${head} · 验证码 ${r.code}` : head
+  if (r.state === 'PENDING_PAY') return r.payMode !== 'BALANCE' && cd ? `${head} · ${cd} 内完成付款` : head
+  if (r.state === 'READY') return `${head} · 点「开始接码」或取消退回余额`
+  return head
+}

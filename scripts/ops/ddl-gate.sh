@@ -8,6 +8,7 @@
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-wallet-b0 # 短信接码 · B0 余额底座（docs/短信接码-设计.md §5.5、§5.6）
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s1  # 短信接码 · S1 目录与定价：5 张新表（§5.2、§5.5）
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s2  # 短信接码 · S2 下单与状态机：4 张新表 sms_orders / sms_attempts / sms_messages / sms_events
+#   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s3  # 短信接码 · S3 记录、客服、售后：1 张新表 sms_complaints
 #
 # 只用 POSIX sh + grep + awk + sort（不 import src/，服务器宿主机或任意容器里都能跑）。
 #
@@ -30,7 +31,7 @@ PREVIEW="${1:-}"
 MODE="${2:-}"
 
 if [ -z "$PREVIEW" ]; then
-  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0 | --expect-jiema-s1 | --expect-jiema-s2]" >&2
+  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0 | --expect-jiema-s1 | --expect-jiema-s2 | --expect-jiema-s3]" >&2
   exit 2
 fi
 if [ ! -s "$PREVIEW" ]; then
@@ -88,10 +89,39 @@ INV=$(inventory)
 echo "—— 预览清单（$(printf '%s\n' "$INV" | grep -c . ) 项）——"
 printf '%s\n' "$INV" | awk 'NF { k = $1; n[k]++ } END { for (k in n) printf "  %s × %d\n", k, n[k] }' | sort
 
-if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ] && [ "$MODE" != "--expect-jiema-s1" ] && [ "$MODE" != "--expect-jiema-s2" ]; then
-  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0，接码 S1 加 --expect-jiema-s1，接码 S2 加 --expect-jiema-s2）"
+if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ] && [ "$MODE" != "--expect-jiema-s1" ] && [ "$MODE" != "--expect-jiema-s2" ] && [ "$MODE" != "--expect-jiema-s3" ]; then
+  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0，接码 S1 加 --expect-jiema-s1，接码 S2 加 --expect-jiema-s2，接码 S3 加 --expect-jiema-s3）"
   exit 0
 fi
+
+# ③''''' 短信接码 · S3 记录、客服、售后（docs/短信接码-设计.md §5.2、§5.5）：只建 1 张新表 sms_complaints，不碰任何旧表。
+#         索引与默认值写在 CREATE TABLE 里，下面 jiema_s3_details 逐字核对
+EXPECT_JIEMA_S3=$(cat <<'EOF' | sort
+TABLE sms_complaints
+EOF
+)
+
+# S3 另外逐字核对：order_id 唯一（每单最多一条售后申请，「每单 1 次」靠它）、(state, created_at)、(user_id, created_at) 两个索引；
+#   state 默认 'OPEN'；reason VARCHAR(24) 必填；detail / admin_note 是 VARCHAR(500) 可空（买家说明、驳回回复）；handled_by / handled_at 可空。
+jiema_s3_details() {
+  bad=0
+  need() {
+    if ! grep -Eq "$1" "$PREVIEW"; then
+      echo "❌ 预览里缺少：$2"
+      bad=1
+    fi
+  }
+  need 'UNIQUE INDEX `sms_complaints_order_id_key`\(`order_id`\)' 'sms_complaints.order_id 唯一索引'
+  need 'INDEX `sms_complaints_state_created_at_idx`\(`state`, `created_at`\)' 'sms_complaints (state, created_at) 索引'
+  need 'INDEX `sms_complaints_user_id_created_at_idx`\(`user_id`, `created_at`\)' 'sms_complaints (user_id, created_at) 索引'
+  need "\`state\` VARCHAR\(10\) NOT NULL DEFAULT 'OPEN'" "sms_complaints.state 默认 'OPEN'"
+  need '`reason` VARCHAR\(24\) NOT NULL' 'sms_complaints.reason VARCHAR(24) NOT NULL'
+  need '`detail` VARCHAR\(500\) NULL' 'sms_complaints.detail VARCHAR(500) NULL'
+  need '`admin_note` VARCHAR\(500\) NULL' 'sms_complaints.admin_note VARCHAR(500) NULL'
+  need '`handled_by` INTEGER NULL' 'sms_complaints.handled_by INTEGER NULL'
+  need '`handled_at` DATETIME\(3\) NULL' 'sms_complaints.handled_at DATETIME(3) NULL'
+  return $bad
+}
 
 # ③'''' 短信接码 · S2 下单、状态机、成本核算（docs/短信接码-设计.md §5.2、§5.5）：只建 4 张新表，不碰任何旧表（balance_logs 的改动已在 B0）。
 #        索引与默认值写在 CREATE TABLE 里，下面 jiema_s2_details 逐字核对
@@ -301,6 +331,10 @@ elif [ "$MODE" = "--expect-wallet-b0" ]; then
   EXPECT="$EXPECT_WALLET_B0"
   SUMMARY="钱包 B0：users 1 列、balance_logs 3 列 + 1 个唯一索引、新表 balance_holds（含 3 个索引、默认值逐字核对）"
   wallet_b0_details || exit 1
+elif [ "$MODE" = "--expect-jiema-s3" ]; then
+  EXPECT="$EXPECT_JIEMA_S3"
+  SUMMARY="接码 S3：1 张新表 sms_complaints（order_id 唯一、两个索引、state 默认 OPEN 等逐字核对）"
+  jiema_s3_details || exit 1
 elif [ "$MODE" = "--expect-jiema-s2" ]; then
   EXPECT="$EXPECT_JIEMA_S2"
   SUMMARY="接码 S2：4 张新表 sms_orders / sms_attempts / sms_messages / sms_events（唯一索引、默认值逐字核对）"

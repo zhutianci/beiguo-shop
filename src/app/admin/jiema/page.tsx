@@ -32,11 +32,14 @@ import {
 import { FACTORY_SMS_CONFIG, settingsNumberValue, type SmsConfig } from '@/lib/jiema-config-schema'
 import { OverviewTab, type OverviewS2 } from './overview-tab'
 import { OrdersTab } from './orders-tab'
+import { ComplaintsTab } from './complaints-tab'
 
-type Tab = 'overview' | 'orders' | 'pricing' | 'catalog' | 'settings'
+type Tab = 'overview' | 'orders' | 'complaints' | 'pricing' | 'catalog' | 'settings'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: '概览' },
   { id: 'orders', label: '订单' },
+  // S3：售后申请（§7.5）；tab 上的红点 = 待处理条数（§8.5「后台『售后申请』有红点」）
+  { id: 'complaints', label: '售后' },
   { id: 'pricing', label: '定价' },
   { id: 'catalog', label: '目录' },
   { id: 'settings', label: '设置' },
@@ -191,6 +194,8 @@ export default function AdminJiemaPage() {
   const [tab, setTab] = useState<Tab>('overview')
   const [initialQ, setInitialQ] = useState<string | null>(null)
   const [openId, setOpenId] = useState<number | null>(null)
+  const [openComplaintId, setOpenComplaintId] = useState<number | null>(null)
+  const [complaintsPending, setComplaintsPending] = useState(0)
   const [ready, setReady] = useState(false)
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search)
@@ -198,7 +203,23 @@ export default function AdminJiemaPage() {
     if (t && TABS.some((x) => x.id === t)) setTab(t)
     const q = sp.get('q')
     if (q && /^[0-9A-Za-z]{4,32}$/.test(q)) setInitialQ(q)
+    // ?tab=complaints&id=<售后申请 id>：企业微信 sms.complaint 推送里的「前往后台处理」直接打开那一条
+    const cid = sp.get('id')
+    if (t === 'complaints' && cid && /^\d{1,10}$/.test(cid)) setOpenComplaintId(Number(cid))
     setReady(true)
+  }, [])
+  // 售后待处理数（tab 红点）：概览接口顺带给；进了「售后」tab 由列表接口更新
+  useEffect(() => {
+    let alive = true
+    fetch('/api/admin/jiema/complaints?state=PENDING&pageSize=1')
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive && d?.success) setComplaintsPending(Number(d.data?.pendingTotal) || 0)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
   }, [])
   const openOrder = (id: number) => {
     setOpenId(id)
@@ -284,12 +305,25 @@ export default function AdminJiemaPage() {
             className={`-mb-px border-b-2 px-4 py-2 text-sm ${tab === t.id ? 'border-primary-600 font-medium text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
           >
             {t.label}
+            {t.id === 'complaints' && complaintsPending > 0 && <span className="ml-1 rounded-full bg-red-500 px-1.5 text-[11px] font-semibold text-white">{complaintsPending}</span>}
           </button>
         ))}
       </div>
 
-      {tab === 'overview' && <OverviewTab s2={ov.data?.s2 ?? null} s2Error={ov.err ?? ov.data?.s2Error ?? null} holds={ov.data?.holds ?? []} onOpenOrder={openOrder} onUnhold={(k) => void unhold(k)} />}
+      {tab === 'overview' && (
+        <OverviewTab
+          s2={ov.data?.s2 ?? null}
+          s2Error={ov.err ?? ov.data?.s2Error ?? null}
+          holds={ov.data?.holds ?? []}
+          onOpenOrder={openOrder}
+          onUnhold={(k) => void unhold(k)}
+          onOpenComplaints={() => setTab('complaints')}
+        />
+      )}
       {tab === 'orders' && ready && <OrdersTab openId={openId} onOpened={() => setOpenId(null)} initialQ={initialQ} />}
+      {tab === 'complaints' && ready && (
+        <ComplaintsTab openId={openComplaintId} onOpened={() => setOpenComplaintId(null)} onCountChanged={setComplaintsPending} onOpenOrder={openOrder} />
+      )}
       {tab === 'pricing' && <PricingTab cfg={cfg.data} cfgErr={cfg.err} onSaved={reloadAll} />}
       {tab === 'catalog' && <CatalogTab onChanged={ov.reload} />}
       {tab === 'settings' && <SettingsTab cfg={cfg.data} cfgErr={cfg.err} onSaved={reloadAll} />}

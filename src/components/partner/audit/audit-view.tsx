@@ -107,6 +107,9 @@ export const ACTION_TEXT: Record<string, string> = {
   'jiema.hold.create': '平台手动停售接码组合',
   'jiema.hold.delete': '平台解除接码停售',
   'jiema.catalog.sync': '平台手动同步接码目录',
+  // S3（§7.5）：售后申请的处理（action 由 `jiema.complaint.${动作}` 拼出）
+  'jiema.complaint.approve': '平台通过接码售后申请并退款到余额',
+  'jiema.complaint.reject': '平台驳回接码售后申请',
 }
 
 const ACTION_GROUPS: { value: string; label: string }[] = [

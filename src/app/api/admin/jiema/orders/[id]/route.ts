@@ -7,6 +7,7 @@ import { success, error } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { writeAudit } from '@/lib/audit'
 import { AdminJiemaError, jiemaOrderDetailAdmin, runAdminAction } from '@/lib/jiema/admin-orders'
+import { logEventQuiet } from '@/lib/jiema/events'
 
 /**
  * 后台接码订单详情与操作（docs/短信接码-设计.md §7.2）。第一行 adminGuard；每个操作必须填原因、写审计（jiema.order.<动作>）。
@@ -28,6 +29,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     if (!Number.isSafeInteger(id) || id <= 0) return error('参数不正确', 400)
     const d = await jiemaOrderDetailAdmin(id)
     if (!d) return error('接码单不存在', 404)
+    // §10.2「管理员查看短信内容时写一条 SmsEvent(ADMIN_VIEW)」：详情里有短信全文（S3 补上；操作接口里重读详情不算查看，不写）
+    const viewer = await getCurrentUser()
+    if (viewer) await logEventQuiet({ smsOrderId: id, type: 'ADMIN_VIEW', actor: 'ADMIN', actorId: viewer.id })
     const res = success(d)
     res.headers.set('Cache-Control', 'no-store')
     return res

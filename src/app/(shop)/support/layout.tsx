@@ -7,6 +7,8 @@ import { Breadcrumbs } from '@/components/landing/landing-ui'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
+import { jiemaSupportData } from '@/lib/jiema/support-zone'
+import { JiemaSupportProvider } from './jiema-zone'
 
 /**
  * 客服中心。这一页是全站信息型内容最扎实的一块（8 条真实问答 + 4 份上手指引），
@@ -19,6 +21,10 @@ import { resolveStoreContact } from '@/lib/contact'
  * 【按店面生成（二期改动 4.2）】第 1 条问答里有客服微信号，渠道站要显示渠道自己的客服：
  * 这里用 getStorefront().contact，页面用 useStorefront().contact——同一个店面、同一份数据，JSON-LD 与页面仍逐字对得上。
  * getStorefront 不进 try（店面解析靠异常做控制流）；拿不到店面时 (shop)/layout 已经 404，这里按主站客服兜底。
+ *
+ * 【短信接码分区（S3，docs/短信接码-设计.md §8.3、§6.6 第 33 条）】只在主站、接码对全部用户开放时（或管理员预览）由 lib/jiema/support-zone 给出数据，
+ * 经 JiemaSupportProvider 交给页面渲染 #jiema 分区；**只有对全部用户开放（mode=OPEN）时** 13 条接码问答才并进 FAQPage 结构化数据
+ * （管理员预览时普通访客看不到这些问答，不能标记）。渠道站与灰度期普通访客：数据为 null，页面与结构化数据都与改造前逐字相同。
  */
 const TITLE = `常见问题与售后支持 - ChatGPT / Claude 充值答疑 - ${SITE_NAME}`
 const DESCRIPTION =
@@ -34,11 +40,13 @@ export const metadata: Metadata = {
 export default async function SupportLayout({ children }: { children: React.ReactNode }) {
   const sf = await getStorefront()
   const contact = sf ? sf.contact : resolveStoreContact(null)
+  const jiema = await jiemaSupportData(sf)
+  const faqs = jiema?.mode === 'OPEN' ? [...supportFaqs(contact), ...jiema.faqs] : supportFaqs(contact)
   return (
     <>
       <JsonLd
         data={[
-          faqJsonLd(supportFaqs(contact)),
+          faqJsonLd(faqs),
           breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: '常见问题' }]),
         ]}
       />
@@ -47,7 +55,7 @@ export default async function SupportLayout({ children }: { children: React.Reac
       <div className="container relative page-top pb-0">
         <Breadcrumbs crumbs={[{ name: '首页', path: '/' }, { name: '常见问题' }]} />
       </div>
-      {children}
+      <JiemaSupportProvider value={jiema}>{children}</JiemaSupportProvider>
     </>
   )
 }

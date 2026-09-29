@@ -384,6 +384,8 @@ const CLOSED_API = [
   'wallet/topup', 'wallet/topup/[orderNo]',
   // 短信接码 · S1：目录接口只在主站（docs/短信接码-设计.md D11、§6.6 第 23 条）
   'jiema/catalog', 'jiema/catalog/[service]', 'jiema/catalog/[service]/[country]/operators',
+  // 短信接码 · S3：我的接码记录（GET /api/jiema/orders）与售后申请只在主站（D11、§6.6 第 33 条）
+  'jiema/orders', 'jiema/orders/[orderNo]/complaint',
 ]
 
 async function testClosedApis(w: World) {

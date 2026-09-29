@@ -626,6 +626,27 @@ model SmsEvent {
   @@map("sms_events")
 }
 
+/// 售后申请（每单最多一条；docs/短信接码-设计.md §5.2、E17、§7.5）。S3 新表，只由 src/lib/jiema/complaint.ts 读写。
+/// 买家在收码后 complaintWindowH（出厂 24）小时内对 RECEIVED / FINISHED 的单提交；人工审核：通过 = T16 整单退回余额（成本照计），驳回 = 回复写进订单留言。
+/// state 另有一个过渡值 APPROVING（管理员点了「通过并退款」、退款还没做完；只能被「通过」再次推进，驳回不收它，防止「退了款却显示驳回」）
+model SmsComplaint {
+  id         Int       @id @default(autoincrement())
+  orderId    Int       @unique @map("order_id")
+  smsOrderId Int       @map("sms_order_id")
+  userId     Int       @map("user_id")
+  reason     String    @db.VarChar(24) // CODE_INVALID | ALREADY_USED | NO_SMS | OTHER
+  detail     String?   @db.VarChar(500)
+  state      String    @default("OPEN") @db.VarChar(10) // OPEN | APPROVING | REFUNDED | REJECTED
+  adminNote  String?   @map("admin_note") @db.VarChar(500) // 驳回的回复（同时发到订单留言）/ 通过时的备注
+  handledBy  Int?      @map("handled_by")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  handledAt  DateTime? @map("handled_at")
+
+  @@index([state, createdAt])
+  @@index([userId, createdAt])
+  @@map("sms_complaints")
+}
+
 // 内推：推广人为某商品设置的专属价格
 model ReferralPrice {
   id        Int      @id @default(autoincrement())

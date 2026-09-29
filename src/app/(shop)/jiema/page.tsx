@@ -4,9 +4,14 @@ import { notFoundOnChannel } from '@/lib/storefront/resolve'
 import { jiemaViewer } from '@/lib/jiema/access'
 import { catalogSnapshot } from '@/lib/jiema/catalog'
 import { JIEMA_ORDER_AVAILABLE } from '@/lib/jiema-config-schema'
-import { readWalletConfig } from '@/lib/wallet/config'
+import { readWalletConfig, topupOpenFor } from '@/lib/wallet/config'
 import { prisma } from '@/lib/db'
+import { jiemaFaqs } from '@/lib/support-faq'
+import { PLATFORM_CONTACT } from '@/lib/contact'
+import { JsonLd } from '@/lib/seo/jsonld'
+import { faqJsonLd } from '@/lib/seo/graph'
 import { JiemaClient } from './jiema-client'
+import { JiemaActiveBanner } from './active-banner'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +25,8 @@ export const dynamic = 'force-dynamic'
  * 「去支付」（S2b）：接码下单已交付（JIEMA_ORDER_AVAILABLE）&& 总开关开 && （对全部用户开放，或管理员在「仅管理员」灰度期真钱验收）。
  * 余额支付开关（wallet_config.balancePayEnabled，读不到按关）与本人上一张接码单同意过的条款版本在这里读好交给确认面板（§1.8）。
  * 第一行 notFoundOnChannel（layout 已经调过一次；页面这里再调一次，免得以后有人把 layout 改掉），不包进 try。
+ * 【S3】顶部「进行中订单提示条」与「我的接码记录 →」（客户端，登录后才请求，§1.4）；页尾 FAQ（与客服页 #jiema 同一份 lib/support-faq.jiemaFaqs，
+ * 数字取当前配置），**只在对全部用户开放时**输出 FAQPage 结构化数据（§1.3；管理员预览时普通访客看不到，不能标记）。
  */
 export default async function JiemaPage() {
   await notFoundOnChannel()
@@ -65,6 +72,14 @@ export default async function JiemaPage() {
   const hot = snap.services.filter((s) => s.hot != null).sort((a, b) => (a.hot ?? 0) - (b.hot ?? 0)).slice(0, 12)
   const orderAvailable = JIEMA_ORDER_AVAILABLE && v.cfg.enabled && (v.access === 'OPEN' || v.isAdmin)
   const balancePayOn = !!wallet && wallet.ok && wallet.config.balancePayEnabled
+  // FAQ（S3）：充值开没开按访客算（对全部用户开放时按普通访客——结构化数据给所有人看；管理员预览按管理员）
+  const topupOn = !!wallet && wallet.ok && topupOpenFor(wallet.config, v.access !== 'OPEN' && v.isAdmin)
+  const faqs = jiemaFaqs({
+    maxReplace: v.cfg.maxReplace,
+    complaintWindowH: v.cfg.complaintWindowH,
+    topup: topupOn && wallet && wallet.ok ? { tiersCents: wallet.config.tiersCents, minCents: wallet.config.minCents, maxCents: wallet.config.maxCents } : null,
+    hours: PLATFORM_CONTACT.hours,
+  })
 
   return (
     <div className="page-top container max-w-6xl pb-44 lg:pb-40">
@@ -78,6 +93,8 @@ export default async function JiemaPage() {
         <p className="mt-2 text-sm leading-relaxed text-white/60">
           海外手机号在线收验证码 · 没收到短信整单退回余额 · 收码前可免费换号 {v.cfg.maxReplace} 次
         </p>
+        {/* 进行中订单提示条 + 我的接码记录（登录后才显示，§1.4） */}
+        <JiemaActiveBanner />
         {/* 服务端渲染的热门服务链接（首屏可读、可收录；点了由客户端组件接管选择状态） */}
         {hot.length > 0 && (
           <nav aria-label="热门服务" className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/40">
@@ -125,12 +142,35 @@ export default async function JiemaPage() {
             价格与开票
           </div>
           价格每 10 分钟更新，下单时以实时价格为准。暂不支持开票，可
-          <Link href="/support" className="text-cyan-300/90 hover:underline">
+          <Link href="/support#jiema" className="text-cyan-300/90 hover:underline">
             联系客服
           </Link>
           开票处理。请勿用于违法犯罪、诈骗或冒用他人身份。
         </div>
       </section>
+
+      {/* 常见问题（与客服页 #jiema 同一份数据；对全部用户开放时同时输出 FAQPage 结构化数据，文字与这里看得到的一致） */}
+      <section aria-labelledby="jiema-faq" className="mt-10">
+        <h2 id="jiema-faq" className="mb-3 text-lg font-semibold text-white/85">
+          常见问题
+        </h2>
+        <div className="space-y-2">
+          {faqs.map((f) => (
+            <details key={f.q} className="glass group rounded-xl px-4 py-3">
+              <summary className="cursor-pointer list-none text-sm font-medium text-white/80 marker:hidden">{f.q}</summary>
+              <p className="mt-2 text-[13px] leading-relaxed text-white/55">{f.a}</p>
+            </details>
+          ))}
+        </div>
+        <p className="mt-3 text-xs text-white/40">
+          更多问题见
+          <Link href="/support#jiema" className="mx-1 text-cyan-300/90 hover:underline">
+            客服中心
+          </Link>
+          ，或在号码页点「联系客服」在线留言。
+        </p>
+      </section>
+      {v.access === 'OPEN' && <JsonLd data={[faqJsonLd(faqs)]} />}
     </div>
   )
 }

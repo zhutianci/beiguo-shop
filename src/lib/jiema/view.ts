@@ -13,6 +13,8 @@ import { flagOf, operatorDisplayName, readOperatorNames } from './catalog'
 import { phoneParts } from './machine'
 import { threadsLimited, acquireBlock } from './sellable'
 import { jnow } from './runtime'
+import { complaintWindowHours } from './config'
+import { buyerComplaintState, complaintBlock, complaintDeadline, complaintReasonText } from './complaint-rules'
 
 export interface BuyerOrderRef {
   so: SmsOrder
@@ -47,7 +49,7 @@ function historyOutcome(a: SmsAttempt, currentId: number | null): 'REPLACED' | '
 export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView> {
   const { so, order } = ref
   const now = jnow()
-  const [atts, msgs, hold, country, names, lateLogs, threads, vmq, startBlock] = await Promise.all([
+  const [atts, msgs, hold, country, names, lateLogs, threads, vmq, startBlock, complaintRow, windowH] = await Promise.all([
     prisma.smsAttempt.findMany({ where: { smsOrderId: so.id }, orderBy: { seq: 'asc' } }),
     prisma.smsMessage.findMany({ where: { smsOrderId: so.id }, orderBy: { receivedAt: 'desc' }, take: 50 }),
     prisma.balanceHold.findUnique({ where: { orderId: order.id }, select: { topupCents: true, cashCents: true, state: true } }),
@@ -60,6 +62,9 @@ export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView
       : Promise.resolve(null),
     // READY：组合正处于停售时「开始接码」置灰并写原因（§1.10、T5；与 buyerStart 同一个 acquireBlock，BUSY 只是名额满、不算停售）
     so.state === 'READY' ? acquireBlock({ service: so.service, country: so.country, selfSmsOrderId: so.id }).catch(() => null) : Promise.resolve(null),
+    // 售后申请（S3，E17）：每单最多一条；只有收过码的单才可能有
+    so.firstCodeAt ? prisma.smsComplaint.findUnique({ where: { orderId: order.id }, select: { state: true, reason: true, detail: true, adminNote: true, createdAt: true, handledAt: true } }) : Promise.resolve(null),
+    so.firstCodeAt ? complaintWindowHours() : Promise.resolve(24),
   ])
   const cur = atts.find((a) => a.id === so.currentAttemptId) ?? null
   const seqOf = new Map(atts.map((a) => [a.id, a.seq]))
@@ -84,6 +89,17 @@ export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView
     : null
   const holdCents = hold ? hold.topupCents + hold.cashCents : 0
   const pendingPay = so.state === 'PENDING_PAY' && order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED'
+  // 售后申请：能不能申请与截止时刻（complaint-rules.complaintBlock，与买家接口、事务里的复核同一个函数）
+  const complainBlock = complaintBlock({
+    state: so.state,
+    refundState: so.refundState,
+    firstCodeAt: so.firstCodeAt,
+    now,
+    windowH,
+    hasComplaint: !!complaintRow,
+    orderPaid: order.payStatus === 'PAID',
+  })
+  const canComplain = COMPLAINT_AVAILABLE && !complainBlock
   const closedLike = order.payStatus === 'UNPAID' && order.deliveryStatus === 'CANCELLED'
   const view: JiemaOrderView = {
     orderNo: order.orderNo,
@@ -150,10 +166,24 @@ export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView
       finish: so.state === 'RECEIVED',
       start: so.state === 'READY' && !(startBlock && startBlock.code !== 'BUSY'),
       refundReady: so.state === 'READY',
-      complain: COMPLAINT_AVAILABLE && (so.state === 'RECEIVED' || so.state === 'FINISHED'),
+      // 售后申请（S3，E17）：RECEIVED / FINISHED、收码后 complaintWindowH 小时内、没申请过、没退过款
+      complain: canComplain,
       // 订单留言对接码单放开（§6.6 第 29 条，S2b）：待支付、已关闭、已取消、已退款的接码单同样能读写留言
       message: true,
     },
+    complaint: complaintRow
+      ? {
+          state: buyerComplaintState(complaintRow.state),
+          reason: complaintRow.reason,
+          reasonText: complaintReasonText(complaintRow.reason),
+          detail: complaintRow.detail,
+          // 驳回的回复（通过时的备注已随「售后审核通过」那条订单留言发给买家，这里不重复）
+          reply: complaintRow.state === 'REJECTED' ? complaintRow.adminNote : null,
+          createdAt: complaintRow.createdAt.toISOString(),
+          handledAt: iso(complaintRow.handledAt),
+        }
+      : null,
+    complainUntil: canComplain && so.firstCodeAt ? complaintDeadline(so.firstCodeAt, windowH).toISOString() : null,
     notice: so.notice,
     serverNow: now.toISOString(),
     pollMs: pollMsFor(so.state),

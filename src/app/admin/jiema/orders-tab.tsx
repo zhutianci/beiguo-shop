@@ -416,6 +416,16 @@ function DetailDrawer({ id, onClose, onChanged }: { id: number; onClose: () => v
               )}
             </section>
 
+            {d.complaint && (
+              <section className="rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                <b>售后申请</b>（{d.complaint.state === 'OPEN' ? '待处理' : d.complaint.state === 'APPROVING' ? '退款中' : d.complaint.state === 'REFUNDED' ? '已通过' : '已驳回'}，{t(d.complaint.createdAt)}）：{d.complaint.reasonText} · {d.complaint.detail ?? '（未填写说明）'}
+                {d.complaint.adminNote && <div>回复 / 备注：{d.complaint.adminNote}</div>}
+                <a href={`/admin/jiema?tab=complaints&id=${d.complaint.id}`} className="ml-2 text-primary-600 hover:underline">
+                  到「售后」处理 →
+                </a>
+              </section>
+            )}
+
             <section>
               <h3 className="mb-1 font-medium text-gray-900">下单快照</h3>
               <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 sm:grid-cols-3">

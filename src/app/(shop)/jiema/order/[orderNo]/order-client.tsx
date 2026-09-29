@@ -13,6 +13,7 @@ import {
   Copy,
   Globe2,
   HelpCircle,
+  LifeBuoy,
   Loader2,
   MessageCircle,
   RefreshCw,
@@ -45,6 +46,7 @@ import {
   stateBadge,
 } from '@/lib/jiema/ui'
 import { cn } from '@/lib/utils'
+import { COMPLAINT_DETAIL_MAX, COMPLAINT_REASONS } from '@/lib/jiema/complaint-rules'
 
 /**
  * 号码页（docs/短信接码-设计.md §1.10、§1.9、§8.2、§1.13、§1.14、附录 A）。
@@ -58,6 +60,8 @@ import { cn } from '@/lib/utils'
  * 开票提示只在 RECEIVED / FINISHED / REFUNDED / CANCELLED 显示（D37 清单第 ④ 项），页面上没有任何开票 / 收据按钮。
  * 【联系客服】右上角打开抽屉：订单内留言（接码单任何状态都能读写，§6.6 第 29 条）+ 微信 + 「复制订单信息」；留言接口不可用时微信放最上面。
  * 【品牌红线】不出现上游名称；上游 details 原文不给买家看（视图里本来就没有）。
+ * 【售后申请】（S3，E17）RECEIVED / FINISHED 的单在收码后 complaintWindowH 小时内有「验证码有问题？申请售后」（actions.complain + complainUntil），
+ * 原因单选 + 说明（≤500），截图请走微信；提交后显示「售后已提交…结果会在订单留言里告诉你」，驳回的回复同时显示在这里与订单留言里。
  */
 
 type View = JiemaOrderView
@@ -152,6 +156,11 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
   const [helpOpen, setHelpOpen] = useState(false)
   const [reason, setReason] = useState<string>('NO_SMS')
   const [contactOpen, setContactOpen] = useState(false)
+  const [complainOpen, setComplainOpen] = useState(false)
+  const [cReason, setCReason] = useState<string>('CODE_INVALID')
+  const [cDetail, setCDetail] = useState('')
+  const [cBusy, setCBusy] = useState(false)
+  const [cErr, setCErr] = useState<string | null>(null)
   const [qrOpen, setQrOpen] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   const [olderOpen, setOlderOpen] = useState(false)
@@ -372,6 +381,38 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
       setBusy(null)
     }
   }, [busy, router, load])
+
+  // 售后申请（S3，E17）：成功后视图里 complaint 有值、actions.complain=false；失败带最新视图（例如已超过申请期限）
+  const submitComplaint = useCallback(async () => {
+    if (cBusy) return
+    setCBusy(true)
+    setCErr(null)
+    try {
+      const res = await fetch(`/api/jiema/orders/${enc}/complaint`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: cReason, detail: cDetail.trim() || null }),
+      })
+      if (res.status === 401) {
+        router.replace(loginHref(`/jiema/order/${orderNo}`))
+        return
+      }
+      const d = await res.json().catch(() => null)
+      if (d?.success) {
+        applyView(d.data as View)
+        setComplainOpen(false)
+        setCDetail('')
+        showToast('售后已提交')
+      } else {
+        if (d?.view) applyView(d.view as View)
+        setCErr((d?.error as string) || '提交失败，请稍后重试')
+      }
+    } catch {
+      setCErr('网络不稳定，请重试')
+    } finally {
+      setCBusy(false)
+    }
+  }, [cBusy, cReason, cDetail, enc, orderNo, router, applyView, showToast])
 
   // 同服务的其他可选国家/地区（已取消卡片，§1.10）
   const [alts, setAlts] = useState<Array<{ id: number; name: string; priceCents: number; iso2: string | null }> | null>(null)
@@ -652,7 +693,9 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
             <p className="mt-3 text-xs leading-relaxed text-white/55">
               {n.canGetAnotherSms
                 ? `号码还能继续收短信（剩余 ${fmtCountdown(endsLeft - 30_000)}），新短信会自动显示，不另收费。`
-                : '这个号码不支持再次收码；验证码有问题可以联系客服。'}
+                : v.actions.complain
+                  ? '这个号码不支持再次收码；验证码有问题可以申请售后。'
+                  : '这个号码不支持再次收码；验证码有问题可以联系客服。'}
             </p>
           )}
           {v.state === 'CANCELLING' && <p className="mt-3 text-xs leading-relaxed text-white/55">正在释放号码，确认后整单退回余额，通常 1 分钟内到账。</p>}
@@ -741,6 +784,17 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
             >
               {busy === 'finish' && <Loader2 className="h-4 w-4 animate-spin" />}我已用完，释放号码
             </button>
+            {v.actions.complain && (
+              <button
+                onClick={() => {
+                  setCErr(null)
+                  setComplainOpen(true)
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white/80 hover:bg-white/10"
+              >
+                <LifeBuoy className="h-4 w-4" /> 验证码有问题？申请售后
+              </button>
+            )}
             <Link href={again} className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-medium">
               再来一单
             </Link>
@@ -755,6 +809,31 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
           <Link href={otherCountry} className="rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white/75 hover:bg-white/10">
             换个国家/地区
           </Link>
+          {v.actions.complain && (
+            <button
+              onClick={() => {
+                setCErr(null)
+                setComplainOpen(true)
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white/75 hover:bg-white/10"
+            >
+              <LifeBuoy className="h-4 w-4" /> 验证码有问题？申请售后
+            </button>
+          )}
+        </section>
+      )}
+
+      {/* ───── 售后申请的进度（S3，E17） ───── */}
+      {v.complaint && v.complaint.state !== 'REFUNDED' && (
+        <section className={cn('rounded-2xl border px-4 py-3 text-sm leading-relaxed', v.complaint.state === 'REJECTED' ? 'border-white/15 bg-white/[0.04] text-white/75' : 'border-cyan-400/25 bg-cyan-500/[0.07] text-cyan-50/90')}>
+          {v.complaint.state === 'OPEN' ? (
+            <p>售后已提交（{v.complaint.reasonText}，{bjTime(v.complaint.createdAt).slice(5)}），客服会在在线时间内处理，结果会在订单留言里告诉你。截图请通过微信客服发送。</p>
+          ) : (
+            <p>售后申请未通过{v.complaint.reply ? `：${v.complaint.reply}` : '。'}</p>
+          )}
+          <button onClick={() => setContactOpen(true)} className="mt-2 inline-flex items-center gap-1 rounded-full border border-white/15 px-3 py-1 text-xs text-white/80 hover:bg-white/10">
+            <MessageCircle className="h-3.5 w-3.5" /> 查看订单留言 / 联系客服
+          </button>
         </section>
       )}
 
@@ -910,6 +989,75 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
               <RefreshCw className="h-4 w-4" /> 换一个号{canActIn > 0 ? `（${fmtCountdown(canActIn)} 后可换）` : ''}
             </button>
             {v.replaceBlocked === 'THREADS' && <p className="mt-2 text-xs text-amber-200/80">当前号码资源紧张，暂不能换号；可以继续等待，或取消并退回余额。</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ───── 申请售后（S3，E17） ───── */}
+      {complainOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="申请售后">
+          <button className="absolute inset-0 bg-black/60" aria-label="关闭" onClick={() => setComplainOpen(false)} />
+          <div className="relative flex max-h-[88dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-[#0b0b12] sm:rounded-3xl">
+            <div className="flex items-center justify-between border-b border-white/10 px-5 py-3 text-sm font-medium">
+              验证码有问题？申请售后
+              <button onClick={() => setComplainOpen(false)} aria-label="关闭" className="rounded-full p-1 text-white/60 hover:bg-white/10">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4 text-[13px] text-white/70">
+              {n?.canGetAnotherSms && (
+                <p className="rounded-xl bg-white/[0.04] px-3 py-2 text-white/60">这个号码还能继续收短信：可以先在目标平台重新发送验证码，新短信免费、会自动显示在这一页。</p>
+              )}
+              <p>
+                收到短信后已经计费，所以不会自动退款；提交后由客服人工审核，审核通过的整单退回余额（退回的余额不能提现、不退回支付宝）。
+                {v.complainUntil && (
+                  <>
+                    请在 <b className="text-white/85">{bjTime(v.complainUntil).slice(5)}</b> 前提交。
+                  </>
+                )}
+              </p>
+              <div>
+                <div className="mb-1.5 text-xs text-white/45">原因</div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {COMPLAINT_REASONS.map(([k, label]) => (
+                    <label key={k} className={cn('flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2', cReason === k ? 'border-cyan-400/50 bg-cyan-500/10' : 'border-white/10')}>
+                      <input type="radio" name="complaint-reason" checked={cReason === k} onChange={() => setCReason(k)} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="mb-1.5 flex justify-between text-xs text-white/45">
+                  <span>说明（选填）：在哪个平台、提示了什么</span>
+                  <span className="tabular-nums">
+                    {cDetail.length}/{COMPLAINT_DETAIL_MAX}
+                  </span>
+                </div>
+                <textarea
+                  value={cDetail}
+                  onChange={(e) => setCDetail(e.target.value.slice(0, COMPLAINT_DETAIL_MAX))}
+                  rows={4}
+                  className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white/85 outline-none focus:border-cyan-400/40"
+                  placeholder="例如：提示「验证码错误」，重新发送后没有新短信"
+                />
+              </div>
+              <p className="text-xs text-white/45">截图请通过微信客服发送（在线留言暂不支持图片）。每张订单只能申请一次。</p>
+              {cErr && (
+                <p role="alert" className="rounded-xl border border-amber-400/25 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                  {cErr}
+                </p>
+              )}
+            </div>
+            <div className="border-t border-white/10 px-5 py-3">
+              <button
+                onClick={() => void submitComplaint()}
+                disabled={cBusy || !v.actions.complain}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-3 text-sm font-medium disabled:opacity-50"
+              >
+                {cBusy && <Loader2 className="h-4 w-4 animate-spin" />}提交售后申请
+              </button>
+            </div>
           </div>
         </div>
       )}

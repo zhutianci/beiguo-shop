@@ -25,6 +25,8 @@ import { ContactModal, hoursText } from '@/components/contact-modal'
 import { useStorefront } from '@/components/storefront-provider'
 // 这批问答同时要喂给 layout.tsx 里的 FAQPage 结构化数据，必须是同一份数据源（按店面客服信息生成，两边传同一个 contact）
 import { supportFaqs } from '@/lib/support-faq'
+// 短信接码分区（S3）：数据由 layout 在服务端算好经 context 交来；没有（渠道站、灰度期普通访客）时整块不渲染
+import { JiemaSupportSection, useJiemaSupport } from './jiema-zone'
 
 interface ServiceCard {
   icon: typeof Search
@@ -143,6 +145,7 @@ export default function SupportPage() {
   // 客服信息按店面取（二期改动 4.2）：主站 = PLATFORM_CONTACT，公告条、底部 CTA、FAQ 第 1 条与改造前逐字相同
   const contact = sf.contact
   const faqs = supportFaqs(contact)
+  const jiema = useJiemaSupport()
   const visibleServices = lookupOn ? services : services.filter((s) => s.href !== '/lookup')
   const [quickEmail, setQuickEmail] = useState('')
   const faqRef = useRef<HTMLDivElement>(null)
@@ -419,6 +422,9 @@ export default function SupportPage() {
             })}
           </div>
         </motion.div>
+
+        {/* 短信接码（#jiema，docs/短信接码-设计.md §8.3）：只在主站、对全部用户开放或管理员预览时出现 */}
+        {jiema && <JiemaSupportSection data={jiema} onContact={() => setContactOpen(true)} />}
 
         {/* 底部联系 CTA */}
         <motion.div

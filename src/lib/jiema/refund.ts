@@ -333,7 +333,19 @@ export async function refundAfterSale(smsOrderId: number, adminId: number, reaso
         return { done: false, why: 'MANUAL' }
       }
       const froze = await toManual(smsOrderId, `售后退款前提不满足：${e.why}`)
-      return { done: false, why: froze ? 'MANUAL' : 'RACE' }
+      if (froze) return { done: false, why: 'MANUAL' }
+      // FINISHED 是终态、冻结不了（toManual 不收它）：事务已回滚、订单还是已完成、钱没动。原来这里报 RACE（「另一个操作刚处理了这张单」），
+      // 站长会以为别人退过了；如实记一条 REFUND_ERR 并告警，返回 ERROR（S3 售后申请测出来的，实施偏差 S3）
+      const cur = await prisma.smsOrder.findUnique({ where: { id: smsOrderId }, select: { state: true, refundState: true } })
+      if (cur && cur.state === pre.state && cur.refundState === 'NONE') {
+        await logEventQuiet({ smsOrderId, type: 'REFUND_ERR', actor: 'ADMIN', actorId: adminId, detail: { afterSale: true, why: e.why } })
+        smsAlert(`AFTERSALE_PRE:${smsOrderId}`, '接码售后退款前提不满足（没有退款）', [
+          { label: '接码单', value: `#${smsOrderId}（${pre.state}）` },
+          { label: '原因', value: e.why },
+        ], { link: '/admin/jiema?tab=orders', throttleMs: 0 })
+        return { done: false, why: 'ERROR' }
+      }
+      return { done: false, why: 'RACE' }
     }
     throw e
   }
