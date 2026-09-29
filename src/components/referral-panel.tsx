@@ -22,7 +22,10 @@ interface ProductPrice {
 interface ReferralData {
   code: string
   link: string
+  /** 返现余额（users.balance，可提现）；B0 起余额分两格，充值余额在 /wallet */
   balance: number
+  /** 「也可用于接码抵扣」只在服务端说做得到时出现（docs/短信接码-设计.md §1.15） */
+  canUseForJiema?: boolean
   totalReward: number
   rewardCount: number
   products: ProductPrice[]
@@ -150,10 +153,13 @@ export default function ReferralPanel() {
             href="/wallet"
             className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 transition-colors hover:bg-white/[0.08]"
           >
-            <span className="flex items-center gap-2 text-sm text-white/60">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-white/60">
               <Wallet className="w-4 h-4 text-cyan-300" />
-              账户余额
+              返现余额
               <span className="text-lg font-bold tabular-nums gradient-text-accent">¥{data.balance.toFixed(2)}</span>
+              <span className="text-xs text-white/40">
+                {data.canUseForJiema ? '（可提现，也可用于接码抵扣）' : '（可提现）'}
+              </span>
             </span>
             <span className="flex shrink-0 items-center gap-0.5 text-xs text-white/45">
               余额明细 <ChevronRight className="w-3.5 h-3.5" />

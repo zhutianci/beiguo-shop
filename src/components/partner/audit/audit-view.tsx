@@ -83,6 +83,11 @@ export const ACTION_TEXT: Record<string, string> = {
   'member.invite': '成员邀请',
   'member.invite_revoke': '撤销成员邀请',
   'member.status': '成员状态变更',
+  // 站内余额（docs/短信接码-设计.md §7.8）：只在主站后台，tenantId 为空，渠道永远看不到；配中文名是给超管审计页用
+  'wallet.adjust': '平台调整用户余额',
+  'wallet.adjust_legacy': '平台调整返现余额（内推管理）',
+  'wallet.config': '平台修改余额与充值设置',
+  'wallet.reconcile': '平台手动余额对账',
 }
 
 const ACTION_GROUPS: { value: string; label: string }[] = [

@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
-import { referralOrderIdOf } from '@/lib/balance'
+import { referralOrderIdOf, ledgerOrderIdOf } from '@/lib/balance'
+import { centsOf } from '@/lib/wallet/buckets'
 import { adminOrResponse, parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 import { shopOrderSourceKey } from '@/lib/order-invoice'
 import { orderIdFromSourceKey } from '@/lib/order-link'
@@ -67,6 +68,7 @@ export async function GET(
           nickname: true,
           avatar: true,
           balance: true,
+          topupCents: true,
           vipLevel: true,
           role: true,
           status: true,
@@ -120,6 +122,9 @@ export async function GET(
           type: true,
           note: true,
           orderId: true,
+          topupDeltaCents: true,
+          topupAfterCents: true,
+          bizKey: true,
           createdAt: true,
         },
         // id 兜底：同一秒写入的多条流水只按 createdAt 排序时顺序不稳定，翻页会重复/漏行
@@ -157,6 +162,17 @@ export async function GET(
 
     if (!user) return notFound('用户不存在')
 
+    // 两格余额（B0，docs/短信接码-设计.md §6.6 第 1 条）：balance 是返现格（含义不变），topupCents 是充值格；预扣中的另算
+    const heldAgg = await prisma.balanceHold.aggregate({ where: { userId, state: 'HELD' }, _sum: { topupCents: true, cashCents: true }, _count: { _all: true } })
+    const cashCents = centsOf(user.balance)
+    const wallet = {
+      topupCents: user.topupCents,
+      cashCents,
+      totalCents: user.topupCents + cashCents,
+      heldCents: (heldAgg._sum.topupCents ?? 0) + (heldAgg._sum.cashCents ?? 0),
+      heldCount: heldAgg._count._all,
+    }
+
     const pageInfo = (total: number, p: { page: number; pageSize: number }) => ({
       total,
       page: p.page,
@@ -170,6 +186,7 @@ export async function GET(
 
     return success({
       user: { ...user, balance: num(user.balance), registeredTenant: regSrc },
+      wallet,
       /** 按站分 tab：每个与该用户有关的站一项（订单 / 卡密 / 发票 / 收据 / 留言计数、客户关系、成员身份） */
       sites,
       site: site ?? null,
@@ -179,7 +196,8 @@ export async function GET(
         paidOrderCount: paidCount,
         deliveredOrderCount: deliveredCount,
         totalPaidAmount: num(paidAmountAgg._sum.amount),
-        balance: num(user.balance),
+        // 两格总额（元）：B0 之前只有返现格，这个数与改造前一致
+        balance: wallet.totalCents / 100,
         referralRewardTotal: num(rewardAgg._sum.amount),
         boundAccountCount: boundAccounts.length,
       },
@@ -200,15 +218,19 @@ export async function GET(
         ...pageInfo(payTotal, payPager),
       },
       balanceLogs: {
-        // orderId：REFERRAL 流水对应的站内订单（新流水读列，历史流水从 note 解析），前端据此展示「关联订单」
+        // orderId：REFERRAL 流水 = 产生返现的订单（新流水读列，历史流水从 note 解析）；接码 / 充值流水 = 本人自己的订单。
+        // delta / balanceAfter 仍是返现格（元）；topupDeltaCents / topupAfterCents 是充值格（分，历史行 after 为空 = 0）
         list: balanceLogs.map((b) => ({
           id: b.id,
           delta: num(b.delta),
           balanceAfter: num(b.balanceAfter),
+          topupDeltaCents: b.topupDeltaCents,
+          topupAfterCents: b.topupAfterCents,
+          bizKey: b.bizKey,
           type: b.type,
           note: b.note,
           createdAt: b.createdAt,
-          orderId: referralOrderIdOf(b),
+          orderId: referralOrderIdOf(b) ?? ledgerOrderIdOf(b),
         })),
         ...pageInfo(balanceTotal, balancePager),
       },

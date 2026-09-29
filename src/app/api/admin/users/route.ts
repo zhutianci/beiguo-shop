@@ -78,7 +78,9 @@ export async function GET(request: NextRequest) {
           phone: true,
           nickname: true,
           avatar: true,
+          // 两格（B0）：balance = 返现格（元），topupCents = 充值格（分）；列表「余额」列显示两格总额
           balance: true,
+          topupCents: true,
           vipLevel: true,
           role: true,
           status: true,

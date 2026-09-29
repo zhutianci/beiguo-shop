@@ -32,6 +32,7 @@ import {
   Scale,
   ScrollText,
   PieChart,
+  Wallet,
 } from 'lucide-react'
 
 type NavItem = {
@@ -105,6 +106,8 @@ const navGroups: NavGroup[] = [
     group: '客户',
     items: [
       { href: '/admin/users', label: '用户管理', icon: Users },
+      // 余额是「某个用户欠 / 被欠多少钱」，跟着人走（docs/短信接码-设计.md §6.6 第 6 条：不新开组）
+      { href: '/admin/wallet', label: '余额与充值', icon: Wallet },
       { href: '/admin/reminders', label: '到期提醒', icon: BellRing },
       // 营销邮件的对象是「一群用户」（按条件筛人、管订阅与退订），不是某张订单，所以跟用户放一起；
       // 它和「到期提醒」都是往用户邮箱发信，挨着放便于对照两类邮件

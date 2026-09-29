@@ -859,7 +859,10 @@ export async function PUT(
       if (cards) warnings.push(`本单已发出 ${cards} 张卡密：站内兑换已停用，但上游兑换站是公开的，请核对兑换记录`)
       const rw = await prisma.referralReward.findUnique({ where: { orderId } }).catch(() => null)
       if (rw?.status === 'SETTLED') {
-        warnings.push(`本单内推返现 ¥${Number(rw.amount).toFixed(2)} 已入推广人余额，未自动扣回，请人工处理`)
+        // 扣回走「余额与充值 → 调整 → 返现扣回」（clawback:<订单 id> 幂等，先扣返现格、不够再扣充值格，docs/短信接码-设计.md §7.8）
+        warnings.push(
+          `本单内推返现 ¥${Number(rw.amount).toFixed(2)} 已入推广人余额，未自动扣回：到「余额与充值 → 调整余额 → 返现扣回」填订单 ID ${orderId} 扣回`,
+        )
       }
     }
     if (leavingCancelled && order.payStatus === 'PAID') {

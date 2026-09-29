@@ -74,3 +74,8 @@
 7 * * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/tenant-release >> /var/log/cron.log 2>&1
 # 每天 03:00：对账不变式 L1–L13（钱类失败 → 该渠道暂停出结算单与打款 + 告警）、A1–A13（只告警）
 0 3 * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/tenant-reconcile >> /var/log/cron.log 2>&1
+
+# ---------- 短信接码 · 站内余额（docs/短信接码-设计.md §9.4）----------
+# 每天 03:10 余额总账对账 W1–W9：只读核对，不一致推 wallet.alert、报告写 settings.wallet_reconcile_last；
+# 覆盖前两天有流水的用户，每周日（北京时间）全量查一次 W1。GET + x-cron-secret 头
+10 3 * * * curl -fsS --max-time 240 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/wallet-reconcile" >> /var/log/cron.log 2>&1

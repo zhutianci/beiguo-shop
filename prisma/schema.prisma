@@ -16,7 +16,12 @@ model User {
   passwordHash    String    @map("password_hash") @db.VarChar(255)
   nickname        String?   @db.VarChar(50)
   avatar          String?   @db.VarChar(255)
+  // 返现余额（可提现）：推荐返现、后台调整。含义永远不变，提现只动这一列（docs/短信接码-设计.md D29/D30）
   balance         Decimal   @default(0) @db.Decimal(10, 2)
+  // 充值余额（不可提现），单位分：支付宝充值、接码退款里支付宝付的部分、迟到付款退回（B0，D30）。
+  // 默认 0 = 历史余额全部算返现，零回填。与 balance 在同一行，一条条件更新就能同时扣两格。
+  // 写入只经 src/lib/wallet/ledger.ts 的 postInTx（构建前检查 check-tenant-boundary 规则 16 拦别处的写法）
+  topupCents      Int       @default(0) @map("topup_cents")
   referralCode    String?   @unique @map("referral_code") @db.VarChar(20) // 内推码
   vipLevel        Int       @default(0) @map("vip_level")
   role            UserRole  @default(USER)
@@ -321,13 +326,15 @@ model SmsActivation {
   @@map("sms_activations")
 }
 
-// 用户余额变动流水（内推返现入账 / 管理员调整 / 提现扣减）
+// 用户余额变动流水。B0 起两格：返现格 delta / balance_after + 充值格 topup_delta_cents / topup_after_cents。
+// 写入只经 src/lib/wallet/ledger.ts 的 postInTx；恒等式 users.balance = Σ delta、users.topup_cents = Σ topup_delta_cents
 model BalanceLog {
   id           Int      @id @default(autoincrement())
   userId       Int      @map("user_id")
   delta        Decimal  @db.Decimal(10, 2) // 变动额：正=增加，负=提现/扣减
   balanceAfter Decimal  @map("balance_after") @db.Decimal(10, 2)
-  type         String   @db.VarChar(20) // REFERRAL | ADJUST | WITHDRAW
+  // REFERRAL | ADJUST | WITHDRAW（原有）| TOPUP | HOLD | RELEASE | REFUND | LATEPAY | TOPUP_REFUND | CLAWBACK（B0 起；字符串列，不是枚举）
+  type         String   @db.VarChar(20)
   note         String?  @db.VarChar(255)
   // 关联的站内订单（REFERRAL 流水 = 产生这笔返现的订单 Order.id）。
   // 【为什么要单独一列】此前唯一的线索是 note 里的「订单#123 内推返现」文本，
@@ -335,10 +342,41 @@ model BalanceLog {
   // 历史行为 NULL，读取时由 lib/balance.ts 的 referralOrderIdOf() 回退解析 note，无需回填脚本。
   orderId      Int?     @map("order_id")
   createdAt    DateTime @default(now()) @map("created_at")
+  // ---- 钱包两格（B0，docs/短信接码-设计.md D31）：一次业务事件一行，两格同时变动写在同一行 ----
+  // delta / balance_after 的含义不变，永远是「返现格」的变动与变动后余额；下面两列是「充值格」
+  topupDeltaCents Int     @default(0) @map("topup_delta_cents") // 充值格变动（分）
+  topupAfterCents Int?    @map("topup_after_cents") // 充值格变动后余额；NULL = 历史行（当时充值格恒为 0）
+  // 业务幂等键：topup:<orderId> / hold:<orderId> / release:<orderId> / refund:<orderId> / latepay:<待核实条目 key> /
+  // adj:<requestId> / topup_refund:<支付宝流水号> / clawback:<产生返现的订单 id> / migrate:u<userId>。
+  // 可空 + 唯一：历史行与 REFERRAL（幂等靠 ReferralReward.orderId 唯一）为 NULL，MySQL 唯一索引允许多个 NULL
+  bizKey          String? @unique @map("biz_key") @db.VarChar(64)
 
   @@index([userId])
   @@index([orderId])
   @@map("balance_logs")
+}
+
+/// 余额预扣（B0，docs/短信接码-设计.md D33、§2.7）。一单最多一条；金额建立后不改。
+/// 与 sms_holds（接码停售）无关；只由 src/lib/wallet/hold.ts 读写
+model BalanceHold {
+  id         Int       @id @default(autoincrement())
+  orderId    Int       @unique @map("order_id")
+  userId     Int       @map("user_id")
+  topupCents Int       @map("topup_cents") // 从充值格预扣（建立后不改）
+  cashCents  Int       @map("cash_cents") // 从返现格预扣
+  orderCents Int       @map("order_cents") // 预扣时订单应付（amount + invoiceTaxFee），对账用
+  state      String    @default("HELD") @db.VarChar(10) // HELD | CAPTURED | RELEASED | REFUNDED
+  reason     String?   @db.VarChar(24) // 释放 / 退款原因：VMQ_EXPIRED | QUOTE_EXPIRED | BUYER_CLOSE | ADMIN_CLOSE | SMS_CANCEL | COMPLAINT …
+  heldAt     DateTime  @map("held_at")
+  capturedAt DateTime? @map("captured_at")
+  releasedAt DateTime? @map("released_at")
+  refundedAt DateTime? @map("refunded_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@index([state, heldAt])
+  @@index([userId, createdAt])
+  @@map("balance_holds")
 }
 
 // 内推：推广人为某商品设置的专属价格

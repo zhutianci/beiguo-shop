@@ -36,6 +36,9 @@ export type NotifyEvent =
   | 'payment.fulfill_failed'
   | 'payment.duplicate'
   | 'vmq.unmatched'
+  // 钱包（docs/短信接码-设计.md §6.6 第 7 条）
+  | 'wallet.alert'
+  | 'wallet.topup'
 
 const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.created': { emoji: '🛒', title: '新订单' },
@@ -60,7 +63,17 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'payment.fulfill_failed': { emoji: '🚨', title: '到账后履约失败' },
   'payment.duplicate': { emoji: '🚨', title: '疑似重复付款（需人工退款）' },
   'vmq.unmatched': { emoji: '🚨', title: '收款已到账但未匹配订单' },
+  // 对账不一致、预扣卡住、退款或释放连续失败、配置读坏、自动退入知会 —— 默认必须推（余额是真金白银的预收款负债）
+  'wallet.alert': { emoji: '🚨', title: '余额告警' },
+  // 可选事件：充值到账知会。默认不推（见 OPT_IN_EVENTS），要推就在 NOTIFY_EVENTS 白名单里显式写上
+  'wallet.topup': { emoji: '💳', title: '余额充值到账' },
 }
+
+/**
+ * 只在 NOTIFY_EVENTS 里**显式列出**时才推的事件（NOTIFY_EVENTS 留空 = 其余全开，但不含这些）。
+ * wallet.topup：充值成功不推「已付款」（设计 D12），站长想看充值流水再自己打开（§7.7）。
+ */
+const OPT_IN_EVENTS: ReadonlySet<NotifyEvent> = new Set<NotifyEvent>(['wallet.topup'])
 
 function webhookUrl(): string {
   return process.env.WECOM_WEBHOOK_URL || process.env.ORDER_MSG_WEBHOOK_URL || ''
@@ -72,7 +85,7 @@ export function notifyConfigured(): boolean {
 
 function eventEnabled(ev: NotifyEvent): boolean {
   const raw = (process.env.NOTIFY_EVENTS || '').trim()
-  if (!raw) return true // 未配置 = 全开
+  if (!raw) return !OPT_IN_EVENTS.has(ev) // 未配置 = 全开（可选事件除外）
   return raw
     .split(',')
     .map((s) => s.trim())

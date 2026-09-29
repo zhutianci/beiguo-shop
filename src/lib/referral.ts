@@ -1,5 +1,7 @@
 import crypto from 'crypto'
 import { prisma } from './db'
+import { postInTx } from './wallet/ledger'
+import { centsOf } from './wallet/buckets'
 
 // 生成内推码（10 位 hex）
 export function genReferralCode(): string {
@@ -56,10 +58,10 @@ export async function settleReferral(orderId: number): Promise<void> {
 
   try {
     /*
-     * 【balanceAfter 必须在事务里、加完之后读】原来是事务外先读余额再加 reward 算出来的，
-     * 同一个推广人两笔返现同时结算（或结算撞上后台调余额）时，两条流水会写出同一个
-     * 「变动后余额」，余额本身靠 increment 是对的，流水却对不上。
-     * 现在 update 行锁住该用户直到提交，读回来的就是本次加完之后的真实余额。
+     * 【balanceAfter 必须在事务里、加完之后读】同一个推广人两笔返现同时结算（或结算撞上后台调余额）时，
+     * 事务外算出来的「变动后余额」会写重。B0 起改走钱包唯一的记账函数 ledger.postInTx
+     * （docs/短信接码-设计.md §6.6 第 2 条）：一条更新加返现格 → 同一事务读回两格 → 写一行流水（多写 topup_after_cents）。
+     * 语义不变：只动返现格（users.balance），入账金额、note、orderId 与改造前逐字相同。
      *
      * 幂等仍靠 ReferralReward.orderId 唯一约束：并发的第二次在第一条 create 上 P2002，整个事务回滚。
      * note 的文本格式不能改 —— 历史行没有 orderId 列，lib/balance.ts 的 referralOrderIdOf 靠它回退解析。
@@ -76,20 +78,13 @@ export async function settleReferral(orderId: number): Promise<void> {
           settledAt: new Date(),
         },
       })
-      const u = await tx.user.update({
-        where: { id: referrerId },
-        data: { balance: { increment: reward } },
-        select: { balance: true },
-      })
-      await tx.balanceLog.create({
-        data: {
-          userId: referrerId,
-          delta: reward,
-          balanceAfter: u.balance,
-          type: 'REFERRAL',
-          note: `订单#${orderId} 内推返现`,
-          orderId,
-        },
+      await postInTx(tx, {
+        userId: referrerId,
+        cashDeltaCents: centsOf(order.referralReward),
+        type: 'REFERRAL',
+        bizKey: null,
+        orderId,
+        note: `订单#${orderId} 内推返现`,
       })
     })
   } catch (e) {

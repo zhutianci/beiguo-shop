@@ -13,6 +13,8 @@ interface User {
   phone: string | null
   nickname: string | null
   balance: string | number
+  /** 充值格（分，B0）；balance 是返现格 */
+  topupCents?: number
   vipLevel: number
   role: string
   status: number
@@ -290,7 +292,12 @@ export default function UsersPage() {
                           {user.role === 'ADMIN' ? '管理员' : '用户'}
                         </span>
                       </td>
-                      <td className="py-4 text-gray-900">¥{Number(user.balance).toFixed(2)}</td>
+                      <td
+                        className="py-4 text-gray-900"
+                        title={`充值 ¥${((user.topupCents ?? 0) / 100).toFixed(2)} · 返现 ¥${Number(user.balance).toFixed(2)}`}
+                      >
+                        ¥{((Math.round(Number(user.balance) * 100) + (user.topupCents ?? 0)) / 100).toFixed(2)}
+                      </td>
                       <td className="py-4 text-gray-600">{user._count.orders}</td>
                       <td className="py-4">
                         {/* 注册站 + 各站订单数徽章（「主站 5 · lulu 2」）+ 跨站 / 渠道成员 / 某站拉黑标记（设计 5.5） */}

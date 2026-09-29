@@ -89,8 +89,13 @@ interface PaymentRow {
 
 interface BalanceLogRow {
   id: number
+  /** 返现格变动（元）与变动后返现格 */
   delta: string | number
   balanceAfter: string | number
+  /** 充值格变动与变动后（分）；历史行 after 为空（当时充值格恒为 0） */
+  topupDeltaCents?: number
+  topupAfterCents?: number | null
+  bizKey?: string | null
   type: string
   note: string | null
   createdAt: string
@@ -111,8 +116,27 @@ interface BalanceLogDetail {
     note: string | null
     createdAt: string
     orderId: number | null
+    topupDeltaCents?: number
+    topupBeforeCents?: number | null
+    topupAfterCents?: number | null
+    bizKey?: string | null
+    /** REFERRAL = 产生返现的别人的订单；OWN = 本人自己的接码 / 充值单 */
+    orderKind?: 'REFERRAL' | 'OWN' | null
   }
-  user: { id: number; email: string | null; nickname: string | null; balance: number } | null
+  user: { id: number; email: string | null; nickname: string | null; balance: number; topupCents?: number } | null
+  hold?: {
+    id: number
+    topupCents: number
+    cashCents: number
+    totalCents: number
+    orderCents: number
+    state: string
+    reason: string | null
+    heldAt: string
+    capturedAt: string | null
+    releasedAt: string | null
+    refundedAt: string | null
+  } | null
   order: {
     id: number
     orderNo: string
@@ -167,6 +191,8 @@ interface Paged<T> {
 
 interface UserDetail {
   user: DetailUser
+  /** 两格余额（分）：B0 起返现格 + 充值格；预扣中的不在两格里 */
+  wallet?: { topupCents: number; cashCents: number; totalCents: number; heldCents: number; heldCount: number }
   sites?: SiteRelation[]
   siteOptions?: SiteOption[]
   stats: {
@@ -530,7 +556,18 @@ export default function AdminUserDetailPage() {
           value={money(stats.totalPaidAmount)}
           sub="已支付订单金额合计"
         />
-        <StatCard icon={Wallet} label="账户余额" value={money(stats.balance)} />
+        <StatCard
+          icon={Wallet}
+          label="账户余额（两格合计）"
+          value={money(stats.balance)}
+          sub={
+            detail.wallet
+              ? `充值 ${money(detail.wallet.topupCents / 100)} · 返现 ${money(detail.wallet.cashCents / 100)}${
+                  detail.wallet.heldCount ? ` · 预扣中 ${money(detail.wallet.heldCents / 100)}` : ''
+                }`
+              : undefined
+          }
+        />
         <StatCard
           icon={Gift}
           label="内推返现"
@@ -766,14 +803,17 @@ export default function AdminUserDetailPage() {
                   <tr className="border-b text-left text-xs text-gray-500">
                     <th className="pb-2 pr-3 whitespace-nowrap">时间</th>
                     <th className="pb-2 pr-3">类型</th>
-                    <th className="pb-2 pr-3 whitespace-nowrap">变动</th>
-                    <th className="pb-2 pr-3 whitespace-nowrap">变动后余额</th>
+                    <th className="pb-2 pr-3 whitespace-nowrap">返现格</th>
+                    <th className="pb-2 pr-3 whitespace-nowrap">充值格</th>
+                    <th className="pb-2 pr-3 whitespace-nowrap">变动后（合计）</th>
                     <th className="pb-2">备注</th>
                   </tr>
                 </thead>
                 <tbody>
                   {balanceLogs.list.map((b) => {
                     const delta = Number(b.delta || 0)
+                    const td = Number(b.topupDeltaCents || 0)
+                    const afterTotal = Number(b.balanceAfter || 0) + Number(b.topupAfterCents ?? 0) / 100
                     return (
                       <tr
                         key={b.id}
@@ -797,13 +837,19 @@ export default function AdminUserDetailPage() {
                         </td>
                         <td
                           className={`py-2 pr-3 font-medium whitespace-nowrap ${
-                            delta >= 0 ? 'text-green-600' : 'text-red-600'
+                            delta === 0 ? 'text-gray-300' : delta > 0 ? 'text-green-600' : 'text-red-600'
                           }`}
                         >
-                          {delta >= 0 ? '+' : '-'}
-                          {Math.abs(delta).toFixed(2)}
+                          {delta === 0 ? '—' : `${delta > 0 ? '+' : '-'}${Math.abs(delta).toFixed(2)}`}
                         </td>
-                        <td className="py-2 pr-3 whitespace-nowrap">{money(b.balanceAfter)}</td>
+                        <td
+                          className={`py-2 pr-3 font-medium whitespace-nowrap ${
+                            td === 0 ? 'text-gray-300' : td > 0 ? 'text-green-600' : 'text-red-600'
+                          }`}
+                        >
+                          {td === 0 ? '—' : `${td > 0 ? '+' : '-'}${(Math.abs(td) / 100).toFixed(2)}`}
+                        </td>
+                        <td className="py-2 pr-3 whitespace-nowrap">{money(afterTotal)}</td>
                         <td className="py-2 text-gray-500">
                           {b.note || '—'}
                           {b.orderId ? (
@@ -967,8 +1013,30 @@ function BalanceLogDetailView({ d }: { d: BalanceLogDetail }) {
             </span>
           }
         />
-        <KV k="变动前 → 变动后" v={`${money(log.balanceBefore)} → ${money(log.balanceAfter)}`} />
-        <KV k="备注" v={log.note || '—'} />
+        <KV k="返现格 变动前 → 变动后" v={`${money(log.balanceBefore)} → ${money(log.balanceAfter)}`} />
+        <KV
+          k="充值格 变动"
+          v={
+            log.topupDeltaCents ? (
+              <span className={log.topupDeltaCents > 0 ? 'text-green-600' : 'text-red-600'}>
+                {log.topupDeltaCents > 0 ? '+' : '-'}
+                {(Math.abs(log.topupDeltaCents) / 100).toFixed(2)}
+              </span>
+            ) : (
+              '—'
+            )
+          }
+        />
+        <KV
+          k="充值格 变动前 → 变动后"
+          v={
+            log.topupAfterCents == null
+              ? '—（历史流水，当时没有充值格）'
+              : `${money((log.topupBeforeCents ?? 0) / 100)} → ${money(log.topupAfterCents / 100)}`
+          }
+        />
+        <KV k="幂等键" v={log.bizKey ? <span className="font-mono text-xs">{log.bizKey}</span> : '—'} />
+        <KV k="备注（内部）" v={log.note || '—'} />
         <KV k="时间" v={fmt(log.createdAt)} />
       </div>
 
@@ -1071,14 +1139,82 @@ function BalanceLogDetailView({ d }: { d: BalanceLogDetail }) {
         ) : log.orderId ? null : (
           <p className="text-sm text-gray-500">这条返现流水的备注不是系统写入的格式，无法定位到订单。</p>
         )
+      ) : log.orderKind === 'OWN' || log.orderKind === 'REFERRAL' ? (
+        <OwnOrderFunds d={d} />
       ) : (
         <p className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
           这是管理员操作：在{' '}
+          <Link href="/admin/wallet" className="text-primary-600 hover:underline">
+            余额与充值
+          </Link>{' '}
+          或{' '}
           <Link href="/admin/referrals" className="text-primary-600 hover:underline">
             内推管理
           </Link>{' '}
           → 提现/调整 中录入，不对应任何订单。
         </p>
+      )}
+    </div>
+  )
+}
+
+/** 接码 / 充值流水（订单是本人自己的）与返现扣回（订单是产生返现的那张）：展示预扣与订单资金拆分 */
+function OwnOrderFunds({ d }: { d: BalanceLogDetail }) {
+  const { log, order, hold } = d
+  return (
+    <div>
+      <h4 className="mb-2 text-sm font-semibold text-gray-900">{log.orderKind === 'OWN' ? '关联订单（本人）' : '产生返现的订单'}</h4>
+      {order ? (
+        <>
+          <KV k="订单号" v={<span className="font-mono text-xs">{order.orderNo}</span>} />
+          <KV k="商品" v={order.productName} />
+          <KV k="订单金额（不含税）" v={money(order.amount)} />
+          <KV
+            k="支付 / 交付"
+            v={`${PAY_STATUS[order.payStatus]?.label || order.payStatus} · ${
+              DELIVERY_STATUS[order.deliveryStatus]?.label || order.deliveryStatus
+            }`}
+          />
+          {order.payments.length > 0 && (
+            <div className="mt-2 rounded bg-gray-50 p-2 text-xs text-gray-600">
+              <div className="mb-1 text-gray-400">资金拆分（支付流水）</div>
+              {order.payments.map((p) => (
+                <div key={p.id} className="flex flex-wrap gap-x-2">
+                  <span>{PAY_METHOD[p.payMethod] || p.payMethod}</span>
+                  <span>{money(p.amount)}</span>
+                  <span>{PAYMENT_STATUS[p.status]?.label || p.status}</span>
+                  <span className="font-mono text-gray-400">{p.tradeNo || '—'}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 text-right">
+            <Link href={`/admin/orders?orderId=${order.id}`} className="text-sm text-primary-600 hover:underline">
+              打开订单详情 →
+            </Link>
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-gray-400">{log.orderId ? `订单 #${log.orderId} 已不存在` : '这条流水没有关联订单'}</p>
+      )}
+      {log.orderKind === 'OWN' && (
+        <>
+          <h4 className="mb-2 mt-4 text-sm font-semibold text-gray-900">余额预扣</h4>
+          {hold ? (
+            <>
+              <KV k="状态" v={hold.state} />
+              <KV k="预扣合计" v={`${money(hold.totalCents / 100)}（充值 ${money(hold.topupCents / 100)} · 返现 ${money(hold.cashCents / 100)}）`} />
+              <KV k="预扣时订单应付" v={money(hold.orderCents / 100)} />
+              {hold.reason && <KV k="释放 / 退款原因" v={hold.reason} />}
+              <KV k="预扣时间" v={fmt(hold.heldAt)} />
+              {hold.capturedAt && <KV k="确认时间" v={fmt(hold.capturedAt)} />}
+              {hold.releasedAt && <KV k="释放时间" v={fmt(hold.releasedAt)} />}
+              {hold.refundedAt && <KV k="退款时间" v={fmt(hold.refundedAt)} />}
+            </>
+          ) : (
+            <p className="text-sm text-gray-400">这张订单没有余额预扣（纯支付宝付款或充值单）</p>
+          )}
+        </>
       )}
     </div>
   )

@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { ensureReferralCode } from '@/lib/referral'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { canUseForJiema } from '@/lib/wallet/config'
 
 // GET：内推码 + 收益概览 + 各商品基础价/我的专属价（商品分页）
 export async function GET(request: NextRequest) {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     const link = `${appUrl}/products?ref=${code}`
 
     const productWhere = { status: 1 }
-    const [me, products, productTotal, rewardAgg] = await Promise.all([
+    const [me, products, productTotal, rewardAgg, jiema] = await Promise.all([
       prisma.user.findUnique({ where: { id: user.id }, select: { balance: true } }),
       prisma.product.findMany({
         where: productWhere,
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
         _sum: { amount: true },
         _count: { _all: true },
       }),
+      canUseForJiema(),
     ])
 
     // 专属价/基础价只查本页商品
@@ -70,7 +72,10 @@ export async function GET(request: NextRequest) {
     return success({
       code,
       link,
+      // 返现余额（users.balance，可提现）。B0 起余额分两格，这里只给返现格（推荐面板写「返现余额 ¥x（可提现）」）
       balance: Number(me?.balance ?? 0),
+      // 「可提现，也可用于接码抵扣」只在做得到时出现（docs/短信接码-设计.md §1.15），由服务端下发
+      canUseForJiema: jiema,
       totalReward: Math.round(totalReward * 100) / 100,
       rewardCount: rewardAgg._count._all,
       products: list,

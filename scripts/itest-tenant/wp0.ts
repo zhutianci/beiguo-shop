@@ -694,12 +694,18 @@ async function main() {
       // 设计 5.9 的「语句开头」危险语句闸门
       const danger = sql.split('\n').filter((l) => /^\s*(DROP|MODIFY|CHANGE|RENAME)\b/i.test(l) || /^\s*ALTER\s+TABLE\s+\S+\s+(DROP|RENAME|MODIFY|CHANGE)\b/i.test(l))
       check('危险语句计数 = 0', danger.length === 0, danger.join(' | '))
-      const created = Array.from(sql.matchAll(/CREATE TABLE `([a-z_]+)`/g)).map((m) => m[1]).sort()
+      /*
+       * 基线 SCHEMA_BASE 之后、渠道分站之外的包也会改 schema，它们的增量单独列在 LATER_*（各自有自己的 DDL 闸门），
+       * 这里只从 diff 里扣掉、不替它们验收：短信接码 · B0 余额底座（docs/短信接码-设计.md §5.5，ddl-gate --expect-wallet-b0）。
+       */
+      const LATER_TABLES = ['balance_holds']
+      const LATER_COLS = ['balance_logs.biz_key', 'balance_logs.topup_after_cents', 'balance_logs.topup_delta_cents', 'users.topup_cents']
+      const created = Array.from(sql.matchAll(/CREATE TABLE `([a-z_]+)`/g)).map((m) => m[1]).filter((t) => !LATER_TABLES.includes(t)).sort()
       const wantTables = [
         'audit_events', 'tenant_after_sales', 'tenant_customers', 'tenant_domains', 'tenant_invites', 'tenant_ledger_entries', 'tenant_listings',
         'tenant_members', 'tenant_notices', 'tenant_payouts', 'tenant_statement_lines', 'tenant_statements', 'tenants',
       ]
-      check('恰好 13 条 CREATE TABLE（设计 5.9）', JSON.stringify(created) === JSON.stringify(wantTables), created.join(','))
+      check('恰好 13 条 CREATE TABLE（设计 5.9；不含之后的包）', JSON.stringify(created) === JSON.stringify(wantTables), created.join(','))
       // 现有表只 ADD COLUMN
       const addCols: string[] = []
       let table = ''
@@ -710,7 +716,7 @@ async function main() {
         const c = /^ADD COLUMN `([a-z_]+)` (.*?)[,;]?$/.exec(body)
         if (c && table) addCols.push(`${table}.${c[1]} ${c[2]}`)
       }
-      const colNames = addCols.map((x) => x.split(' ')[0]).sort()
+      const colNames = addCols.map((x) => x.split(' ')[0]).filter((c) => !LATER_COLS.includes(c)).sort()
       const wantCols = [
         'external_orders.tenant_id',
         'invoices.shop_order_id', 'invoices.tenant_id',

@@ -15,6 +15,9 @@
  * 【为什么要有「阳性对照」（规则 11）】正则写错一个字符就会静默变成「永远零命中」，构建照样绿。
  * 所以每次运行先拿内置样例把每条规则跑一遍，任何一条样例没命中就直接失败退出，不再往下扫。
  *
+ * 【规则 16、17 属于短信接码 / 钱包的构建前检查】（docs/短信接码-设计.md §6.6 第 9 条、§6.1、§10.2）挂在同一套规则集里：
+ *   16 写余额只经过 src/lib/wallet/ledger.ts（预扣行只经过 hold.ts）；17 依赖方向（wallet 是叶子、vmq.ts 对接码只用动态 import）。
+ *
  * 【已知例外】EXCEPTIONS 表里每一行都写了：哪条规则、哪个文件、匹配什么、为什么、归谁处理、是临时（PENDING）还是永久（PERMANENT）。
  *   - PERMANENT：规则本身的合法用法（例如 jwt-secret.ts 里拿 'your-secret-key' 做拒绝名单）。
  *   - PENDING：违规成立、等所属包修；默认只打印 WARN 不让构建失败（否则整条发布线被一处在途改动卡死），
@@ -368,6 +371,8 @@ export const RULES = {
   13: 'getCurrentUserUnscoped 不得出现在 src/app/api/**（WP1）',
   14: 'lib/auth 的 signToken 只能在 login / register 两个路由签发（WP1）',
   15: 'partner-services 不手写 select（只用 selects.ts 白名单，设计 6.5.3；WP7 审查）',
+  16: '写余额只经过 src/lib/wallet/ledger.ts 的 postInTx、预扣行只经过 hold.ts（短信接码设计 §6.6 第 9 条）',
+  17: '依赖方向：lib/wallet/** 不静态 import lib/vmq、lib/jiema；lib/vmq.ts 不静态 import lib/jiema（短信接码设计 §6.1）',
 }
 
 /**
@@ -670,7 +675,74 @@ function rule15(ctx) {
   return out
 }
 
-const PER_FILE_RULES = [ruleImports, rule3Body, rule4, rule5, rule6, rule7, rule8, rule9, rule12, rule13, rule14, rule15]
+// ----------------------------------------------------------------------
+// 规则 16：写余额只经过 ledger（docs/短信接码-设计.md 附录 B 第 14 条：调用方另写 UPDATE users 就是双扣）
+// ----------------------------------------------------------------------
+const LEDGER_FILE = 'src/lib/wallet/ledger.ts'
+const HOLD_FILE = 'src/lib/wallet/hold.ts'
+function rule16(ctx) {
+  const { file, code, skel } = ctx
+  if (!file.startsWith('src/')) return []
+  const out = []
+  const push = (re, msg, onCode = false) => {
+    re.lastIndex = 0
+    let m
+    while ((m = re.exec(onCode ? code : skel))) out.push(hit(16, file, code, m.index, typeof msg === 'function' ? msg(m) : msg, m[0]))
+  }
+  if (file !== LEDGER_FILE) {
+    // (a)(b) 设计原文点名的两种写法：topupCents 写成对象（increment / decrement / set…）、balance 的 increment / decrement
+    push(/\btopupCents\s*:\s*\{/g, 'topupCents: { … } 只允许在 src/lib/wallet/ledger.ts（写余额只经 postInTx）')
+    push(/\bbalance\s*:\s*\{\s*(increment|decrement)\b/g, (m) => `balance: { ${m[1]} } 只允许在 src/lib/wallet/ledger.ts（写余额只经 postInTx）`)
+    // (c) user 的写调用里出现 balance / topupCents 键（值不是 true/false，排除 select）
+    const reUser = /\buser\s*\.\s*(update|updateMany|upsert|create|createMany)\s*\(/g
+    let m
+    while ((m = reUser.exec(skel))) {
+      const open = m.index + m[0].length - 1
+      const arg = skel.slice(open, matchBracket(skel, open) + 1)
+      if (/\b(balance|topupCents)\s*:(?!\s*(?:true|false)\b)/.test(arg)) out.push(hit(16, file, code, m.index, `user.${m[1]}( 里写了 balance / topupCents：写余额只经 src/lib/wallet/ledger.ts 的 postInTx`, `user.${m[1]}`))
+    }
+    // (d) 流水表的任何写调用
+    push(/\bbalanceLog\s*\.\s*(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/g, (m) => `balanceLog.${m[1]}( 只允许在 src/lib/wallet/ledger.ts（一事件一行一个 bizKey）`)
+    // (e) 原生 SQL 写 users / 流水 / 预扣（查 code：字符串保留、注释已去掉；原生 SQL 查不出来的双扣最危险）
+    push(/\bUPDATE\s+`?(users|balance_logs|balance_holds)`?\s/gi, (m) => `原生 SQL「UPDATE ${m[1]}」只允许经 src/lib/wallet/ledger.ts / hold.ts`, true)
+    push(/\b(INSERT\s+(?:IGNORE\s+)?INTO|DELETE\s+FROM|REPLACE\s+INTO)\s+`?(balance_logs|balance_holds)`?/gi, (m) => `原生 SQL 写 ${m[2]} 只允许经 src/lib/wallet/ledger.ts / hold.ts`, true)
+  }
+  if (file !== HOLD_FILE) {
+    push(/\bbalanceHold\s*\.\s*(create|createMany|update|updateMany|upsert|delete|deleteMany)\s*\(/g, (m) => `balanceHold.${m[1]}( 只允许在 src/lib/wallet/hold.ts（预扣状态 CAS 与记账同一事务）`)
+  }
+  return out
+}
+
+// ----------------------------------------------------------------------
+// 规则 17：依赖方向（防循环依赖：冷启动时偶发「fulfillOrder is not a function」，§6.1）
+// ----------------------------------------------------------------------
+const STATIC_IMPORT_RES = [IMPORT_RES[0], IMPORT_RES[1], IMPORT_RES[2], IMPORT_RES[4]]
+function staticImportsOf(file, code) {
+  const out = []
+  for (const re of STATIC_IMPORT_RES) {
+    re.lastIndex = 0
+    let m
+    while ((m = re.exec(code))) out.push({ spec: m[2], mod: resolveSpec(file, m[2]), line: lineOf(code, m.index) })
+  }
+  return out
+}
+function rule17(ctx) {
+  const { file, code } = ctx
+  const inWallet = file.startsWith('src/lib/wallet/')
+  const isVmq = file === 'src/lib/vmq.ts'
+  if (!inWallet && !isVmq) return []
+  const isJiema = (mod) => mod === 'src/lib/jiema' || mod.startsWith('src/lib/jiema/')
+  const out = []
+  for (const im of staticImportsOf(file, code)) {
+    if (inWallet && (im.mod === 'src/lib/vmq' || isJiema(im.mod))) {
+      out.push({ rule: 17, file, line: im.line, msg: `lib/wallet 是叶子，不得静态 import '${im.spec}'（${im.mod}）`, text: im.spec })
+    }
+    if (isVmq && isJiema(im.mod)) out.push({ rule: 17, file, line: im.line, msg: `lib/vmq.ts 对接码引擎只能动态 import（await import('./jiema/…')），这里是静态 import '${im.spec}'`, text: im.spec })
+  }
+  return out
+}
+
+const PER_FILE_RULES = [ruleImports, rule3Body, rule4, rule5, rule6, rule7, rule8, rule9, rule12, rule13, rule14, rule15, rule16, rule17]
 
 // 规则 10：partner 路由都要登记
 function partnerRoutesOf(files) {
@@ -827,6 +899,16 @@ const POSITIVE = [
   { rule: 13, file: 'src/app/api/x/route.ts', src: "import { getCurrentUserUnscoped } from '@/lib/auth'\nexport async function GET(){ return Response.json(await getCurrentUserUnscoped()) }" },
   { rule: 14, file: 'src/app/api/x/route.ts', src: "import { signToken, getCurrentUser } from '@/lib/auth'\nexport async function POST(){ return Response.json(signToken({}, {})) }" },
   { rule: 15, file: 'src/lib/partner-services/x.ts', src: 'const X_SELECT = { cost: true } as const satisfies Prisma.CardKeySelect\nexport const f = () => prisma.cardKey.findMany({ select: { cost: true } })' },
+  { rule: 16, file: 'src/lib/referral.ts', src: 'export async function f(tx){ await tx.user.update({ where: { id: 1 }, data: { balance: { increment: 5 } } }) }' },
+  { rule: 16, file: 'src/app/api/x/route.ts', src: 'export async function f(tx){ await tx.user.updateMany({ where: { id: 1 }, data: { topupCents: { decrement: 5 } } }) }' },
+  { rule: 16, file: 'src/lib/x.ts', src: 'export async function f(tx){ await tx.user.update({ where: { id: 1 }, data: { balance: 0 } }) }' },
+  { rule: 16, file: 'src/lib/x.ts', src: "export async function f(tx){ await tx.balanceLog.create({ data: { userId: 1, delta: 1, balanceAfter: 1, type: 'ADJUST' } }) }" },
+  { rule: 16, file: 'src/lib/x.ts', src: 'export async function f(tx){ await tx.$executeRaw`UPDATE users SET topup_cents = topup_cents + 1 WHERE id = 1` }' },
+  { rule: 16, file: 'src/lib/x.ts', src: "export async function f(tx){ await tx.$executeRawUnsafe('INSERT INTO balance_logs (user_id) VALUES (1)') }" },
+  { rule: 16, file: 'src/lib/wallet/dto.ts', src: "export async function f(tx){ await tx.balanceHold.updateMany({ where: { orderId: 1 }, data: { state: 'RELEASED' } }) }" },
+  { rule: 17, file: 'src/lib/wallet/topup.ts', src: "import { fulfillOrder } from '../vmq'\nexport const a = fulfillOrder" },
+  { rule: 17, file: 'src/lib/wallet/x.ts', src: "import { onPaid } from '@/lib/jiema/engine'\nexport const a = onPaid" },
+  { rule: 17, file: 'src/lib/vmq.ts', src: "import { onPaid } from './jiema/engine'\nexport const a = onPaid" },
 ]
 
 /** 阴性样例：合法写法不得命中（营销模块的 domain: 对象键、注释里的违规字样、字符串里的括号、tenant/public-no 与 node:crypto 放行等） */
@@ -839,6 +921,13 @@ const NEGATIVE = [
   { file: 'src/app/api/admin/y/route.ts', src: "export async function GET(req: Request) {\n  const g = await adminGuard(req)\n  if (g) return g\n  return Response.json({ a: '(' })\n}\nexport const PATCH = async (req: Request) => { await requireAdmin(); return new Response(null) }" },
   { file: 'src/app/x/page.tsx', src: "export default function P(){ return <div className=\"a\">don't / 50% </div> }" },
   { file: 'src/lib/tenant/supply-pricing.ts', src: 'function signToken(b){ return b }\nexport const t = signToken(1)' },
+  // 规则 16：ledger.ts 本身可以写；读余额（select / where 的布尔、groupBy 的 _sum）不算写；「FOR UPDATE」不是 UPDATE users
+  { file: 'src/lib/wallet/ledger.ts', src: 'export async function f(tx, w, d){ w.topupCents = { gte: 1 }; await tx.user.updateMany({ where: w, data: { balance: { increment: 1 } } }); await tx.balanceLog.create({ data: {} }) }' },
+  { file: 'src/lib/wallet/hold.ts', src: 'export async function f(tx, id){ await tx.$queryRaw`SELECT id FROM balance_holds WHERE order_id = ${id} FOR UPDATE`; await tx.balanceHold.create({ data: { topupCents: 1 } }) }' },
+  { file: 'src/app/api/x/route.ts', src: 'export async function f(tx){ await tx.user.update({ where: { id: 1 }, data: { nickname: null }, select: { balance: true, topupCents: true } }); return tx.balanceLog.groupBy({ by: ["type"], _sum: { topupDeltaCents: true } }) }' },
+  // 规则 17：vmq.ts 动态 import 接码引擎是规定写法；wallet 引用 db / money 正常
+  { file: 'src/lib/vmq.ts', src: "export async function after(id){ const { onPaid } = await import('./jiema/engine'); return onPaid(id) }" },
+  { file: 'src/lib/wallet/ledger.ts', src: "import { prisma } from '../db'\nimport { toCents } from '../money'\nexport const a = [prisma, toCents]" },
 ]
 
 export function selfCheck() {
@@ -903,6 +992,10 @@ function mutations(tree) {
     { rule: 13, name: '路由里用 getCurrentUserUnscoped', file: 'src/app/api/orders/recent/route.ts', overlay: append('src/app/api/orders/recent/route.ts', "import { getCurrentUserUnscoped } from '@/lib/auth'\nexport const __u = getCurrentUserUnscoped") },
     { rule: 14, name: '别处签发 token', file: 'src/app/api/account/overview/route.ts', overlay: append('src/app/api/account/overview/route.ts', "import { signToken } from '@/lib/auth'\nexport const __s = signToken") },
     { rule: 15, name: 'partner-services 手写 select', file: 'src/lib/partner-services/catalog.ts', overlay: append('src/lib/partner-services/catalog.ts', 'const LEAK_SELECT = { cost: true } as const satisfies Prisma.CardKeySelect\nexport const __l = LEAK_SELECT') },
+    { rule: 16, name: '返现结算绕开 ledger 直接加余额', file: 'src/lib/referral.ts', overlay: append('src/lib/referral.ts', 'export async function __x(tx: any) { await tx.user.update({ where: { id: 1 }, data: { balance: { increment: 1 } } }) }') },
+    { rule: 16, name: '后台接口直接写流水', file: 'src/app/api/admin/wallet/adjust/route.ts', overlay: append('src/app/api/admin/wallet/adjust/route.ts', 'export async function __x(tx: any) { await tx.balanceLog.create({ data: {} }) }') },
+    { rule: 16, name: '原生 SQL 改充值格', file: 'src/lib/wallet/reconcile.ts', overlay: append('src/lib/wallet/reconcile.ts', 'export async function __x(tx: any) { await tx.$executeRaw`UPDATE users SET topup_cents = 0 WHERE id = 1` }') },
+    { rule: 17, name: 'wallet 静态 import vmq', file: 'src/lib/wallet/ledger.ts', overlay: append('src/lib/wallet/ledger.ts', "import { fulfillOrder } from '../vmq'\nexport const __v = fulfillOrder") },
   ]
 }
 

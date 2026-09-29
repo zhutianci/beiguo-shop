@@ -5,6 +5,7 @@
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql            # 闸门 + 打印清单
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-p0 # 另外与本期（渠道分站 P0）的预期清单逐条比对
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-p2 # 渠道分站二期（docs/多渠道分销-二期改动.md）：只允许那 8 列
+#   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-wallet-b0 # 短信接码 · B0 余额底座（docs/短信接码-设计.md §5.5、§5.6）
 #
 # 只用 POSIX sh + grep + awk + sort（不 import src/，服务器宿主机或任意容器里都能跑）。
 #
@@ -27,7 +28,7 @@ PREVIEW="${1:-}"
 MODE="${2:-}"
 
 if [ -z "$PREVIEW" ]; then
-  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2]" >&2
+  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0]" >&2
   exit 2
 fi
 if [ ! -s "$PREVIEW" ]; then
@@ -85,10 +86,45 @@ INV=$(inventory)
 echo "—— 预览清单（$(printf '%s\n' "$INV" | grep -c . ) 项）——"
 printf '%s\n' "$INV" | awk 'NF { k = $1; n[k]++ } END { for (k in n) printf "  %s × %d\n", k, n[k] }' | sort
 
-if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ]; then
-  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2）"
+if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ]; then
+  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0）"
   exit 0
 fi
+
+# ③'' 短信接码 · B0 余额底座（docs/短信接码-设计.md §5.5、§5.6）：users 加 1 列、balance_logs 加 3 列 + biz_key 唯一索引、新表 balance_holds。
+#      只新增、可空或带默认值；旧镜像跑在新库上不受影响（旧代码写流水时新列取默认值）
+EXPECT_WALLET_B0=$(cat <<'EOF' | sort
+COLUMN balance_logs.biz_key
+COLUMN balance_logs.topup_after_cents
+COLUMN balance_logs.topup_delta_cents
+COLUMN users.topup_cents
+INDEX UNIQUE balance_logs.balance_logs_biz_key_key
+TABLE balance_holds
+EOF
+)
+
+# B0 另外逐字核对列定义与新表里的索引（清单只比「有哪些项」，看不到默认值和 CREATE TABLE 里的索引）：
+#   · topup_cents / topup_delta_cents 必须 INTEGER NOT NULL DEFAULT 0（历史零回填、恒等式对历史天然成立，靠的就是这个默认值）；
+#   · topup_after_cents INTEGER NULL、biz_key VARCHAR(64) NULL（历史行为 NULL，唯一索引允许多个 NULL）；
+#   · balance_holds 的 order_id 唯一（一单最多一条预扣）+ (state, held_at)、(user_id, created_at) 两个索引。
+wallet_b0_details() {
+  bad=0
+  need() {
+    if ! grep -Eq "$1" "$PREVIEW"; then
+      echo "❌ 预览里缺少：$2"
+      bad=1
+    fi
+  }
+  need '`topup_cents` INTEGER NOT NULL DEFAULT 0' 'users.topup_cents INTEGER NOT NULL DEFAULT 0'
+  need '`topup_delta_cents` INTEGER NOT NULL DEFAULT 0' 'balance_logs.topup_delta_cents INTEGER NOT NULL DEFAULT 0'
+  need '`topup_after_cents` INTEGER NULL' 'balance_logs.topup_after_cents INTEGER NULL'
+  need '`biz_key` VARCHAR\(64\) NULL' 'balance_logs.biz_key VARCHAR(64) NULL'
+  need 'UNIQUE INDEX `balance_holds_order_id_key`\(`order_id`\)' 'balance_holds 的 order_id 唯一索引'
+  need 'INDEX `balance_holds_state_held_at_idx`\(`state`, `held_at`\)' 'balance_holds (state, held_at) 索引'
+  need 'INDEX `balance_holds_user_id_created_at_idx`\(`user_id`, `created_at`\)' 'balance_holds (user_id, created_at) 索引'
+  need "\`state\` VARCHAR\(10\) NOT NULL DEFAULT 'HELD'" "balance_holds.state 默认 'HELD'"
+  return $bad
+}
 
 # ③' 二期预期清单（docs/多渠道分销-二期改动.md 3.2、4.1：tenants 7 列、tenant_notices 1 列，共 8 列，只新增、可空或带默认值；
 #     契约第 5 节写的「Tenant 8 列、共 9 列」是计数笔误——3.2 列了 3 列、4.1 列了 4 列，schema 与本清单一致；
@@ -168,6 +204,10 @@ EOF
 if [ "$MODE" = "--expect-p2" ]; then
   EXPECT="$EXPECT_P2"
   SUMMARY="二期 8 列：tenants 7 列、tenant_notices 1 列"
+elif [ "$MODE" = "--expect-wallet-b0" ]; then
+  EXPECT="$EXPECT_WALLET_B0"
+  SUMMARY="钱包 B0：users 1 列、balance_logs 3 列 + 1 个唯一索引、新表 balance_holds（含 3 个索引、默认值逐字核对）"
+  wallet_b0_details || exit 1
 else
   SUMMARY="13 张表、31 列、9 个索引、2 条外键"
 fi

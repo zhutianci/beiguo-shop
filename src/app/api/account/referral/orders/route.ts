@@ -8,6 +8,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { maskBuyer, maskOrderNo } from '@/lib/mask'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { canUseForJiema } from '@/lib/wallet/config'
 
 /**
  * 推广订单：别人通过「我的」推广链接下的单（Order.referrerId = 我，有索引）。
@@ -149,6 +150,8 @@ export async function GET(request: NextRequest) {
     })
 
     return success({
+      // 推荐页第 4 步「提现」的说法按它二选一（docs/短信接码-设计.md §1.15：「能付接码」只在做得到时出现）
+      canUseForJiema: await canUseForJiema(),
       list,
       total,
       page,

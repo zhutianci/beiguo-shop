@@ -91,7 +91,7 @@ export async function buildAccountOverview(
     return { stats: { paidOrderCount: paid.paidCount, totalSpent: paid.spent } }
   }
   const now = new Date()
-  const [tiers, paid, availableCoupons] = await Promise.all([
+  const [tiers, paid, availableCoupons, wallet] = await Promise.all([
     getVipTiers(),
     userPaidSpend(user.id),
     prisma.couponGrant.count({
@@ -102,10 +102,14 @@ export async function buildAccountOverview(
         coupon: { status: { not: 'ENDED' } },
       },
     }),
+    // 余额 = 两格总额（B0，docs/短信接码-设计.md §6.6 第 5 条）：返现格 users.balance + 充值格 users.topup_cents。
+    // 在这里现读，不改 getCurrentUser 的返回字段（全站都在用它）
+    prisma.user.findUnique({ where: { id: user.id }, select: { balance: true, topupCents: true } }),
   ])
   const vip = vipStatusOf(tiers, paid.spent, user.vipLevel)
+  const cashCents = Math.round(Number(wallet?.balance ?? user.balance ?? 0) * 100)
   return {
-    balance: Math.round(Number(user.balance ?? 0) * 100) / 100,
+    balance: (cashCents + (wallet?.topupCents ?? 0)) / 100,
     vip: {
       level: vip.current.level,
       name: vip.current.name,

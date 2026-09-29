@@ -187,6 +187,10 @@ async function main() {
       const logs = await prisma.balanceLog.findMany({ where: { userId: promoter.id }, orderBy: { id: 'asc' } })
       ok('恰好 5 条流水', logs.length === 5)
       ok('每条流水都带 orderId', logs.every((l) => l.orderId != null && orders.some((o) => o.id === l.orderId)))
+      // 钱包 B0（docs/短信接码-设计.md §6.6 第 2、8 条）：返现结算改走 ledger.postInTx，语义不变、多写充值格两列
+      ok('两格：返现只动返现格（topup_delta=0、topup_after_cents=0 不为空、bizKey 为空）', logs.every((l) => l.topupDeltaCents === 0 && l.topupAfterCents === 0 && l.bizKey === null))
+      ok('两格：推广人充值格不动', u?.topupCents === 0)
+      ok('两格：note 格式一字不改', logs.every((l) => /^订单#\d+ 内推返现$/.test(l.note ?? '')))
       const afters = logs.map((l) => Number(l.balanceAfter)).sort((a, b) => a - b)
       ok('「变动后余额」互不相同且最大值 = 最终余额', new Set(afters).size === 5 && afters[4] === 16.5, JSON.stringify(afters))
       const unpaid = await order({ payStatus: 'UNPAID', deliveryStatus: 'DELIVERED', referrerId: promoter.id, referralReward: D(9) })

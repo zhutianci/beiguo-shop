@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Copy, CheckCircle2, SlidersHorizontal, X, Wallet, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { BALANCE_TYPE_LABELS } from '@/lib/balance'
 
 interface Referrer {
   id: number
@@ -150,7 +152,7 @@ export default function AdminReferralsPage() {
 
   // 余额提现/调整
   const [balFor, setBalFor] = useState<Referrer | null>(null)
-  const [bal, setBal] = useState<{ balance: number; logs: { id: number; delta: number; balanceAfter: number; type: string; note: string | null; createdAt: string }[] } | null>(null)
+  const [bal, setBal] = useState<{ balance: number; topupCents?: number; logs: { id: number; delta: number; balanceAfter: number; topupDeltaCents?: number; type: string; note: string | null; createdAt: string }[] } | null>(null)
   const [balDelta, setBalDelta] = useState('')
   const [balNote, setBalNote] = useState('')
   const [balBusy, setBalBusy] = useState(false)
@@ -339,7 +341,7 @@ export default function AdminReferralsPage() {
                   <tr className="border-b text-left text-gray-500 text-xs">
                     <th className="pb-2 pr-3">推广人</th>
                     <th className="pb-2 pr-3">内推码</th>
-                    <th className="pb-2 pr-3 text-right">余额</th>
+                    <th className="pb-2 pr-3 text-right">返现余额</th>
                     <th className="pb-2 pr-3 text-right">累计返现</th>
                     <th className="pb-2 pr-3 text-right">成交单</th>
                     <th className="pb-2 text-right">链接</th>
@@ -516,10 +518,20 @@ export default function AdminReferralsPage() {
               </button>
             </div>
 
-            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 mb-4">
-              <div className="text-xs text-emerald-700">当前余额</div>
+            <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 mb-2">
+              <div className="text-xs text-emerald-700">返现余额（可提现）</div>
               <div className="text-3xl font-bold text-emerald-700">¥{bal ? bal.balance.toFixed(2) : '...'}</div>
+              <div className="mt-1 text-xs text-gray-500">
+                充值余额 ¥{bal ? ((bal.topupCents ?? 0) / 100).toFixed(2) : '...'}（不可提现，这里不调整）
+              </div>
             </div>
+            <p className="mb-4 text-xs text-amber-700">
+              这里只调整<strong>返现余额</strong>；充值余额请到{' '}
+              <Link href="/admin/wallet" className="text-primary-600 hover:underline">
+                「余额与充值」
+              </Link>
+              。
+            </p>
 
             <div className="space-y-2 mb-4">
               <label className="block text-sm font-medium text-gray-700">变动金额（提现/扣减填负数，如 -50；补偿填正数）</label>
@@ -555,19 +567,22 @@ export default function AdminReferralsPage() {
                     <thead>
                       <tr className="text-left text-xs text-gray-400 border-b">
                         <th className="pb-1 pr-2">类型</th>
-                        <th className="pb-1 pr-2 text-right">变动</th>
-                        <th className="pb-1 pr-2 text-right">余额</th>
+                        <th className="pb-1 pr-2 text-right">返现格变动</th>
+                        <th className="pb-1 pr-2 text-right">返现余额</th>
                         <th className="pb-1">备注/时间</th>
                       </tr>
                     </thead>
                     <tbody>
                       {bal.logs.map((l) => (
                         <tr key={l.id} className="border-b border-gray-50">
-                          <td className="py-1.5 pr-2 text-xs">
-                            {l.type === 'REFERRAL' ? '返现' : l.type === 'WITHDRAW' ? '提现' : '调整'}
-                          </td>
+                          <td className="py-1.5 pr-2 text-xs">{BALANCE_TYPE_LABELS[l.type] || l.type}</td>
                           <td className={`py-1.5 pr-2 text-right font-medium ${l.delta < 0 ? 'text-red-600' : 'text-green-600'}`}>
                             {l.delta > 0 ? '+' : ''}{l.delta.toFixed(2)}
+                            {l.topupDeltaCents ? (
+                              <span className="block text-[10px] font-normal text-gray-400">
+                                充值格 {l.topupDeltaCents > 0 ? '+' : ''}{(l.topupDeltaCents / 100).toFixed(2)}
+                              </span>
+                            ) : null}
                           </td>
                           <td className="py-1.5 pr-2 text-right text-gray-600">{l.balanceAfter.toFixed(2)}</td>
                           <td className="py-1.5 text-xs text-gray-400">

@@ -14,7 +14,8 @@ import ReferralPanel from '@/components/referral-panel'
  *   · 订单「已完成」(DELIVERED) 才结算进余额 —— lib/referral.ts settleReferral
  *   · 内推单不能用券 —— lib/coupon.ts quoteOrder 第一行就短路（交接文档 十八）
  *   · 推广码存在好友浏览器 localStorage、之后下单也带上 —— lib/ref.ts
- *   · 余额不能付款、提现走客服线下 —— 全站没有余额支付与自助提现接口
+ *   · 返现余额可提现、提现走客服线下 —— 全站没有自助提现接口；「也可用于接码抵扣」只在服务端
+ *     下发 canUseForJiema=true 时出现（lib/wallet/config.ts，docs/短信接码-设计.md §1.15）
  * 改了上述任何一处逻辑，这里的文案要跟着改。
  */
 
@@ -109,6 +110,7 @@ export default function ReferralPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [counts, setCounts] = useState<Record<Filter, number> | null>(null)
+  const [canJiema, setCanJiema] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -153,6 +155,7 @@ export default function ReferralPage() {
       setTotalPages(Math.max(1, Number(d.data.totalPages) || 1))
       setSummary(d.data.summary)
       setCounts(d.data.counts)
+      setCanJiema(d.data.canUseForJiema === true)
     } catch {
       if (my === seq.current) setFailed(true)
     } finally {
@@ -186,7 +189,7 @@ export default function ReferralPage() {
             <Gift className="h-6 w-6 text-pink-400" />
             推荐有奖
           </h1>
-          <p className="mt-2 text-sm text-white/45">分享你的专属链接，好友下单完成后，差价返现自动计入你的账户余额。</p>
+          <p className="mt-2 text-sm text-white/45">分享你的专属链接，好友下单完成后，差价返现自动计入你的返现余额（账户余额的一部分）。</p>
         </header>
 
         {needLogin ? (
@@ -222,12 +225,14 @@ export default function ReferralPage() {
                   {
                     icon: Coins,
                     title: '订单完成自动返现',
-                    body: '订单状态变为「已完成」后，返现 =（专属价 − 基础价）× 购买数量，自动计入你的账户余额。返现金额在好友下单时就按当时的价格确定。',
+                    body: '订单状态变为「已完成」后，返现 =（专属价 − 基础价）× 购买数量，自动计入你的返现余额。返现金额在好友下单时就按当时的价格确定。',
                   },
                   {
                     icon: Wallet,
                     title: '联系客服提现',
-                    body: '余额暂不能直接用于支付订单；需要提现请联系客服，核实后线下打款。',
+                    body: canJiema
+                      ? '返现余额可提现，也可用于短信接码抵扣；需要提现请联系客服，核实后线下打款。'
+                      : '余额暂不能直接用于支付订单；返现余额可联系客服提现，核实后线下打款。',
                   },
                 ].map((s, i) => (
                   <li key={s.title} className="flex gap-3">
