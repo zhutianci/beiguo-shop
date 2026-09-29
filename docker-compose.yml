@@ -85,6 +85,10 @@ services:
       - ORDER_MSG_WEBHOOK_URL
       - NOTIFY_EVENTS
       - LOW_STOCK_THRESHOLD
+      # 短信接码（通用板块，lib/jiema/upstream.ts）的 hero-sms v1 REST 地址。不设 = https://hero-sms.com/api/v1，
+      # 生产一般不用设；只有集成测试 / 本地联调才指向假服务（scripts/mock-herosms.ts）。兼容协议地址与 key 沿用上面的
+      # HEROSMS_BASE / HEROSMS_API_KEY（旧单品的 lib/herosms.ts 不读这个变量）。
+      - HEROSMS_V1_BASE
       # 卡密兑换：sysb（HongyunAI V2）的 Bearer Token。
       # 【只能放服务端】上游文档原文：「不要放在网页、App、小程序、浏览器插件、
       # Git、日志或截图里」。所以值写在 .env.production 里，仓库里只有这个名字。
