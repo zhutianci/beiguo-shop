@@ -12,6 +12,7 @@ import { lastUnlinked } from '@/lib/jiema/unlinked'
  * 后台「短信接码 → 对账」（docs/短信接码-设计.md §9.4、§7.1、§10.3）。第一行 adminGuard。
  * GET：最近一次 jiema-reconcile 报告、最近一次未关联激活快照（jiema-tick 每 10 分钟）、日报（待推 / 已推）。
  * POST { full?, hours? }：手动跑一次（I 系列只读核对并补算 I8；R 系列以上游为准修正扣费事实，与 cron 同一个函数；不生成日报），写审计。
+ * 【S4 评审修复】RECON 事件带操作人（actor=ADMIN、actorId）；审计在 finally 里写——对账中途出错（修正已逐条提交）也留下是谁点的。
  */
 export async function GET() {
   const denied = await adminGuard()
@@ -28,31 +29,46 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
+  let started = false
+  let audit: Record<string, unknown> = {}
+  let adminId: number | null = null
   try {
     const body = (await request.json().catch(() => ({}))) as { full?: unknown; hours?: unknown }
     const full = body?.full === true
     const hours = typeof body?.hours === 'number' && Number.isInteger(body.hours) && body.hours >= 1 && body.hours <= 14 * 24 ? body.hours : 48
     const admin = await getCurrentUser()
-    const report = await runJiemaReconcile({ full, sinceHours: hours })
-    if (!report) return error('另一趟对账正在跑，请稍后再看', 409)
-    await writeAudit(null, {
-      actorUserId: admin?.id ?? null,
-      actorKind: 'PLATFORM',
-      action: 'jiema.reconcile',
-      targetType: 'setting',
-      targetId: 'sms_reconcile_last',
-      diff: {
-        full,
-        hours,
-        ok: report.ok,
-        failed: report.items.filter((i) => !i.ok).map((i) => ({ code: i.code, count: i.count })),
-        fixes: { r1: report.fixes.r1, r6: report.fixes.r6, r2Cleared: report.fixes.r2Cleared, i8: report.fixes.i8 },
-      },
-      req: request,
-    })
+    adminId = admin?.id ?? null
+    audit = { full, hours }
+    started = true
+    const report = await runJiemaReconcile({ full, sinceHours: hours, actor: { kind: 'ADMIN', id: adminId } })
+    if (!report) {
+      started = false // 锁被占：什么都没做，不写审计
+      return error('另一趟对账正在跑，请稍后再看', 409)
+    }
+    audit = {
+      ...audit,
+      ok: report.ok,
+      ...(report.error ? { error: report.error.slice(0, 300) } : {}),
+      failed: report.items.filter((i) => !i.ok).map((i) => ({ code: i.code, count: i.count })),
+      fixes: { r1: report.fixes.r1, r6: report.fixes.r6, r2Cleared: report.fixes.r2Cleared, i8: report.fixes.i8 },
+    }
     return success({ report })
   } catch (e) {
     console.error('[jiema] reconcile POST 失败', e)
+    audit = { ...audit, ok: false, error: String((e as Error)?.message ?? e).slice(0, 300) }
     return error('对账执行失败', 500)
+  } finally {
+    if (started) {
+      await writeAudit(null, {
+        actorUserId: adminId,
+        actorKind: 'PLATFORM',
+        action: 'jiema.reconcile',
+        targetType: 'setting',
+        targetId: 'sms_reconcile_last',
+        result: audit.error ? 'ERROR' : 'OK',
+        diff: audit,
+        req: request,
+      }).catch((e) => console.error('[jiema] reconcile 审计写入失败', (e as Error)?.message))
+    }
   }
 }

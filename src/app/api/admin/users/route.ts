@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
+import { jiemaUserFlags } from '@/lib/jiema/user-flags'
 
 /**
  * 获取所有用户：关键词（服务端检索，避免只搜当前页）+ 分页。
@@ -119,6 +120,8 @@ export async function GET(request: NextRequest) {
       ...blocked.map((b) => b.tenantId),
     ])
 
+    // 短信接码的可疑用户标记（§10.1：24 小时取消 ≥10 单 / 支付宝付款后取消 > ¥50；只标记、不限制；查询失败返回空）
+    const jiemaFlags = await jiemaUserFlags(ids)
     const list = users.map((u) => {
       const siteOrderCounts = (counts.get(u.id) ?? []).sort((a, b) => a.tenantId - b.tenantId).map((c) => ({ ...c, code: sourceOf(srcMap, c.tenantId).code }))
       const reg = sourceOf(srcMap, u.registeredTenantId)
@@ -131,6 +134,7 @@ export async function GET(request: NextRequest) {
         isMember: members.some((m) => m.userId === u.id),
         memberOf: members.filter((m) => m.userId === u.id).map((m) => ({ ...sourceOf(srcMap, m.tenantId), role: m.role })),
         blockedIn: blocked.filter((b) => b.userId === u.id).map((b) => b.tenantId),
+        jiemaFlag: jiemaFlags.get(u.id) ?? null,
       }
     })
 

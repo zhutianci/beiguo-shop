@@ -67,7 +67,7 @@ export interface OverviewS2 {
 /** S4：未关联激活快照（jiema-tick 每 10 分钟）与最近一次每日对账的摘要（overview 接口的 s4） */
 export interface OverviewS4 {
   unlinked: { at: string; ok: boolean; reason: string | null; total: number; externalCount: number; legacyCount: number } | null
-  recon: { at: string; ok: boolean; failed: string[]; lossOrders: number; upstreamOk: boolean } | null
+  recon: { at: string; ok: boolean; failed: string[]; lossOrders: number; upstreamOk: boolean; error?: boolean } | null
 }
 
 const usd = (m: number | null | undefined) => (m == null ? '—' : `$${(m / 1e6).toFixed(2)}`)
@@ -254,7 +254,7 @@ export function OverviewTab({
           )}
           {reconBad && s4?.recon && (
             <div className="text-amber-800">
-              ⚠ 最近一次对账（{new Date(s4.recon.at).toLocaleString('zh-CN', { hour12: false })}）{s4.recon.failed.length ? `${s4.recon.failed.length} 项不一致（${s4.recon.failed.join('、')}）` : ''}
+              ⚠ 最近一次对账（{new Date(s4.recon.at).toLocaleString('zh-CN', { hour12: false })}）{s4.recon.error ? '执行失败' : s4.recon.failed.length ? `${s4.recon.failed.length} 项不一致（${s4.recon.failed.join('、')}）` : ''}
               {!s4.recon.upstreamOk && '，上游 history 没拉到'}
               {s4.recon.lossOrders > 0 && `，${s4.recon.lossOrders} 张已取消单事后被扣费（只记亏损）`}
               <button onClick={() => onOpenReconcile?.()} className="ml-2 text-primary-600 hover:underline">

@@ -47,7 +47,7 @@ export async function GET() {
       const [ul, rc] = await Promise.all([lastUnlinked(), lastJiemaReconcile()])
       s4 = {
         unlinked: ul ? { at: ul.at, ok: ul.ok, reason: ul.reason ?? null, total: ul.total, externalCount: ul.externalCount, legacyCount: ul.legacyCount } : null,
-        recon: rc ? { at: rc.at, ok: rc.ok, failed: rc.items.filter((i) => !i.ok).map((i) => i.code), lossOrders: rc.fixes.lossOrders.length, upstreamOk: rc.upstream.ok || !!rc.upstream.skipped } : null,
+        recon: rc ? { at: rc.at, ok: rc.ok, failed: rc.items.filter((i) => !i.ok).map((i) => i.code), lossOrders: rc.fixes.lossOrdersTotal ?? rc.fixes.lossOrders.length, upstreamOk: rc.upstream.ok || !!rc.upstream.skipped, error: !!rc.error } : null,
       }
     } catch (e) {
       console.error('[jiema] overview S4 部分失败', e)

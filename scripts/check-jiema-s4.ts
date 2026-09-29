@@ -14,7 +14,9 @@
  *   · classifyUnlinked（R3 / 未关联激活：旧链路遗留 vs 外部激活）；
  *   · checkOrderI：I2–I8 的每一条（含 I8 补算标记、已取消单的 lossCents）；
  *   · 日报：§9.5 的示例数字逐行一致、不出现乘号；推送时间（北京 09:00、过期不推）；北京日期；
- *   · 运维只读脚本 scripts/ops/jiema-drain.sql 只有 SELECT；crontab 恰好一行 jiema-reconcile（03:20、--max-time 240、密钥走请求头）。
+ *   · 运维只读脚本 scripts/ops/jiema-drain.sql 只有 SELECT；crontab 恰好一行 jiema-reconcile（03:20、--max-time 240、密钥走请求头）；
+ *   · S4 评审修复：认不出的币种（"RUB"）不当美元、订单还在推进（取消中 / 退款中…）时不修正、报告按 utf8 字节量瘦身、
+ *     日报推送的字节预算、对账修正按发生的那天进日报、可疑用户标记的文字。
  */
 import fs from 'fs'
 import path from 'path'
@@ -40,6 +42,14 @@ import {
   usd4,
   usd2,
   dailyNotifyRows,
+  usableCostRows,
+  RECON_STABLE_ORDER_STATES,
+  fitReportJson,
+  REPORT_MAX_BYTES,
+  utf8Bytes,
+  DAILY_PUSH_MAX_NOTICES,
+  summarizeReconEvents,
+  userFlagText,
   type ReconAttempt,
   type IOrderInput,
   type DailyData,
@@ -361,6 +371,109 @@ console.log('\n— 运维只读脚本与 crontab（§11 第 10 步、§6.6 第 3
   ok(!cron.includes('\r'), 'crontab 没有 CR（crond 会把 \\r 当命令的一部分）')
 }
 
+// ───────────────────────── S4 评审修复 ─────────────────────────
+console.log('\n— S4 评审修复：认不出的币种、订单还在推进时不修正、报告按字节存、日报推送的字节预算、对账修正进日报、可疑用户标记')
+{
+  // ① 认不出的币种（"RUB"）不能被当成美元（原来 toInt("RUB") = null → 按美元用 25.5 覆盖成本）
+  const rub = parseHistory(J(200, { data: [{ id: 71, status: 6, moreCodes: '490838', cost: 25.5, currency: 'RUB' }] }))
+  ok(rub.kind === 'err' && rub.code === 'CURRENCY' && rub.data?.rows[0].currency === -1, 'history 行 currency="RUB" → 行上记 −1（与 badCurrency 同一口径），整页 err(CURRENCY)')
+  const num = parseHistory(J(200, { data: [{ id: 72, status: 6, cost: 25.5, currency: 643 }] }))
+  ok(num.kind === 'err' && num.data?.rows[0].currency === 643, 'currency=643（卢布的数字码）→ 行上记 643')
+  const dflt = parseHistory(J(200, { data: [{ id: 73, status: 6, cost: 0.3 }, { id: 74, status: 6, cost: 0.3, currency: '840' }, { id: 75, status: 6, cost: 0.3, currency: 840.5 }] }))
+  ok(dflt.kind === 'err' && dflt.data?.rows[0].currency === null && dflt.data?.rows[1].currency === 840 && dflt.data?.rows[2].currency === -1, '缺省 → null（按规格 840）；"840" → 840；小数 840.5 → −1')
+  const rows = usableCostRows([...(rub.kind === 'err' ? rub.data!.rows : []), ...(num.kind === 'err' ? num.data!.rows : []), ...(dflt.kind === 'err' ? dflt.data!.rows : [])])
+  ok(rows[0].costMicro === null && rows[1].costMicro === null && rows[2].costMicro === 300_000 && rows[3].costMicro === 300_000 && rows[4].costMicro === null, 'usableCostRows：RUB / 643 / 840.5 的金额置空；缺省与 840 的保留')
+  const charged = att({ state: 'FINISHED', charged: true, chargeSource: 'SMS', costMicro: 300_000 })
+  eq(judgeReconRow(rows[0], charged, 'FINISHED').kind, 'NONE', 'R1：RUB 行的 25.5 不会被当成 $25.5 覆盖成本（评审复现的场景）')
+  eq(judgeReconRow(rows[0], att({ state: 'CANCELLED', costMicro: 300_000 }), 'CANCELLED').kind, 'FIX', '  …状态照用：已取消单上游说扣了 → 仍然补 charged（成本按我方记的，不按外币金额）')
+  const r1rub = judgeReconRow(rows[0], att({ state: 'CANCELLED', costMicro: 300_000 }), 'CANCELLED')
+  ok(r1rub.kind === 'FIX' && r1rub.patch.costMicro === undefined, '  …补丁里没有 costMicro')
+
+  // ② 订单还在推进（取消中 / 退款中 / 等码 / 换号中）：不判不改，下一次再核（T15 在锁接码单行之前读尝试）
+  eq(judgeReconRow(hrow({ status: 6 }), att({ state: 'CANCELLED', assumed: true }), 'REFUNDING'), { kind: 'PENDING', rule: 'R1' }, 'R1：订单 REFUNDING（T15 正在退）→ PENDING，不在它「读尝试」与「CAS」之间改')
+  eq(judgeReconRow(hrow({ status: 6 }), att({ state: 'CANCELLED' }), 'CANCELLING'), { kind: 'PENDING', rule: 'R1' }, 'R1：订单 CANCELLING → PENDING')
+  eq(judgeReconRow(hrow({ status: 10, moreCodes: '999000' }), att({ state: 'CANCELLED' }), 'REFUNDING'), { kind: 'PENDING', rule: 'R6' }, 'R6：订单 REFUNDING → PENDING（不写之后在 CANCELLED 分支里不起作用的冲回）')
+  eq(judgeReconRow(hrow({ status: 6 }), att({ state: 'CANCELLED' }), 'WAITING'), { kind: 'PENDING', rule: 'R1' }, 'R1：订单还在等码 / 换号（前一个号已结束）→ PENDING')
+  eq(judgeReconRow(hrow({ status: 8 }), att({ state: 'CANCELLED', assumed: true }), 'REPLACING'), { kind: 'PENDING', rule: 'R2' }, 'R2：订单换号中 → PENDING（assumed 下一次再清）')
+  eq(judgeReconRow(hrow({ status: 10, moreCodes: '999000' }), att({ state: 'FINISHED', charged: true, costMicro: 660_000 }), 'MANUAL').kind, 'MISMATCH', 'R6：订单转人工中 → 只报告（之后若被取消，CANCELLED 的亏损不看冲回）')
+  eq(judgeReconRow(hrow({ status: 6 }), att({ state: 'CANCELLED' }), 'MANUAL').kind, 'FIX', 'R1：订单转人工中 → 照常补扣费（之后取消也按扣费记亏损，口径一致）')
+  eq(judgeReconRow(hrow({ status: 8 }), att({ state: 'CANCELLED' }), 'RECEIVED').kind, 'NONE', 'R2：订单已收码（稳定）→ 照常判')
+  ok(RECON_STABLE_ORDER_STATES.size === 5 && ['RECEIVED', 'FINISHED', 'REFUNDED', 'CANCELLED', 'MANUAL'].every((x) => RECON_STABLE_ORDER_STATES.has(x)), '稳定状态 = RECEIVED / FINISHED / REFUNDED / CANCELLED / MANUAL')
+
+  // ③ 报告按 utf8 字节量瘦身（原来按字符数判 60,000：中文 3 字节，47k 字符 ≈ 87KB 存不进 TEXT）
+  const zh = '接码单尝试上游状态已取消我方计了扣费但是上游历史里找不到这一条需要人工核对一下'
+  const big = {
+    at: 'x',
+    items: Array.from({ length: 15 }, (_, i) => ({ code: `X${i}`, title: '对账项目标题'.repeat(5), ok: false, count: 40, samples: Array.from({ length: 10 }, (_, j) => `${zh}${zh}#${i}-${j}`), note: zh.repeat(3) })),
+    unlinked: {
+      external: Array.from({ length: 100 }, (_, i) => ({ id: String(900000000 + i), service: 'tg', country: 6, createdAt: '2026-09-29T00:00:00.000Z', status: 8, costMicro: 150000, kind: 'EXTERNAL' })),
+      legacy: Array.from({ length: 100 }, (_, i) => ({ id: String(800000000 + i), service: 'wa', country: 6, createdAt: '2026-09-29T00:00:00.000Z', status: 6, costMicro: 210000, kind: 'LEGACY' })),
+      externalCount: 130,
+      legacyCount: 100,
+      externalIds: Array.from({ length: 130 }, (_, i) => String(900000000 + i)),
+    },
+    r5: Array.from({ length: 3 }, (_, i) => ({ day: `2026-09-2${i}` })),
+    notices: Array.from({ length: 60 }, (_, i) => `用户 #${i} 近 24 小时「支付宝付款后取消、退回充值余额」合计 ¥60.00（3 单）`),
+    fixes: { r1: 400, lossOrders: Array.from({ length: 400 }, (_, i) => ({ smsOrderId: i, orderNo: `SMS2026092900000${i}`, lossCents: 476 })) },
+  }
+  const rawBytes = utf8Bytes(JSON.stringify(big))
+  const fit = fitReportJson(big)
+  const saved = JSON.parse(fit.value) as typeof big & { truncated?: number; fixes: { lossOrdersTotal?: number } }
+  ok(rawBytes > 65_535 && utf8Bytes(fit.value) <= REPORT_MAX_BYTES && fit.level >= 1, `大报告（${rawBytes} 字节）瘦身到 ${utf8Bytes(fit.value)} 字节 ≤ ${REPORT_MAX_BYTES}（级别 ${fit.level}）`)
+  ok(saved.items.every((i) => i.count === 40) && saved.unlinked.externalCount === 130 && saved.fixes.lossOrdersTotal === 400 && saved.fixes.lossOrders.length <= 20 && saved.truncated === fit.level, '  …各项计数、外部激活数、亏损单总数照旧；亏损单清单截到 ≤20 张')
+  ok(saved.unlinked.externalIds.length === 130, '  …外部激活的 id 清单完整保留（R3「只报新出现的」去重）')
+  const small = { ...big, items: big.items.slice(0, 2).map((i) => ({ ...i, samples: i.samples.slice(0, 1) })), unlinked: { ...big.unlinked, external: [], legacy: [] }, notices: [], fixes: { r1: 0, lossOrders: [] } }
+  ok(fitReportJson(small).level === 0 && fitReportJson(small).value === JSON.stringify(small), '小报告原样存（级别 0）')
+  // 字符数 < 60,000 但字节数 > 60,000：原来的判断放过去、存库失败
+  const charsOnly = { ...small, items: [{ code: 'Z', title: 't', ok: false, count: 1, samples: [zh.repeat(600)] }] }
+  const cj = JSON.stringify(charsOnly)
+  ok(cj.length < 60_000 && utf8Bytes(cj) > 60_000 && fitReportJson(charsOnly).level > 0 && utf8Bytes(fitReportJson(charsOnly).value) <= REPORT_MAX_BYTES, `字符数 ${cj.length} < 60000 但 ${utf8Bytes(cj)} 字节 → 按字节判、照样瘦身`)
+  const worst = fitReportJson({ ...big, items: Array.from({ length: 15 }, (_, i) => ({ code: `W${i}`, title: zh + zh.slice(0, 20), ok: false, count: 1, samples: [zh.repeat(100)], note: zh.repeat(100) })) }, 12_000)
+  ok(utf8Bytes(worst.value) <= 12_000 && worst.level === 3, `最坏情况（上限压到 12,000 字节）落到级别 3：只留结论与计数（${utf8Bytes(worst.value)} 字节）`)
+
+  // ④ 日报推送的字节预算（企业微信 markdown 4096 字节；超了整条被拒、而日报已标记已推）
+  const base: DailyData = {
+    day: '2026-09-29',
+    paid: { ALIPAY: 8, BALANCE: 7, MIXED: 5 },
+    received: 12,
+    finance: { finalized: 12, revenueCents: 3460, chargedMicro: 1_460_000, costCents: 1058, refundOffsetCents: 0, profitCents: 2402, cancelled: { count: 8, topupCents: 1102, cashCents: 310 }, lossCents: 0 },
+    afterSale: 0,
+    upstreamBalanceMicro: 10_980_000,
+    anomalies: { recon: 1, manual: 0, external: 2 },
+    notices: Array.from({ length: 100 }, (_, i) => (i % 2 ? `用户 #${1000 + i} 近 24 小时取消 ${10 + i} 单（只标记、不限制）` : `用户 #${1000 + i} 近 24 小时「支付宝付款后取消、退回充值余额」合计 ¥${60 + i}.00（${3 + i} 单）`)),
+    recon: { fixes: 3, r1: 2, r6: 1, costDeltaCents: -50, refundBackCents: 94, lossDeltaCents: 476, unknown: 0 },
+  }
+  const lines100 = dailyLines(base)
+  const pushRows = dailyNotifyRows(lines100)
+  const md = `## 📊 接码日报 · ${lines100[0]}\n` + pushRows.map((r) => `**${r.label}**：${r.value}`).join('\n') + '\n[前往后台处理](https://www.bigolab.com/admin/jiema?tab=reconcile)'
+  const noticeRows = pushRows.filter((r) => r.label === '知会')
+  ok(utf8Bytes(md) <= 4096 && noticeRows.length === DAILY_PUSH_MAX_NOTICES + 1 && noticeRows[noticeRows.length - 1].value.startsWith(`另有 ${100 - DAILY_PUSH_MAX_NOTICES} 条`), `100 条知会：推送只列 ${DAILY_PUSH_MAX_NOTICES} 条 + 「另有 ${100 - DAILY_PUSH_MAX_NOTICES} 条」，整条 ${utf8Bytes(md)} 字节 ≤ 4096`)
+  ok(lines100.filter((l) => l.startsWith('知会：')).length === 100, '  …日报本身（后台看的）仍是全部 100 条')
+  const one = dailyNotifyRows(dailyLines({ ...base, notices: ['用户 #7 近 24 小时取消 12 单（只标记、不限制）'] }))
+  ok(one.filter((r) => r.label === '知会').length === 1 && !one.some((r) => r.value.startsWith('另有')), '只有 1 条知会：原样列出、没有「另有」行')
+
+  // ⑤ 对账修正按「修正发生的那天」进日报（R1 / R6 改的是原来定稿 / 取消那天的单，§9.5「上游事后退款冲回」）
+  const evs = [
+    JSON.stringify({ rule: 'R6', before: { state: 'FINISHED', costCents: 94, lossCents: null }, after: { state: 'FINISHED', costCents: 0, lossCents: null } }),
+    JSON.stringify({ rule: 'R1', before: { state: 'FINISHED', costCents: 100, lossCents: null }, after: { state: 'FINISHED', costCents: 144, lossCents: null } }),
+    JSON.stringify({ rule: 'R1', before: { state: 'CANCELLED', costCents: null, lossCents: null }, after: { state: 'CANCELLED', costCents: null, lossCents: 476 } }),
+    JSON.stringify({ rule: 'R1', activationId: '1' }),
+    '{"rule":"R1","why":"截断…',
+  ]
+  const sr = summarizeReconEvents(evs)
+  eq(sr, { fixes: 5, r1: 3, r6: 1, costDeltaCents: -50, refundBackCents: 94, lossDeltaCents: 476, unknown: 2 }, 'summarizeReconEvents：成本 −¥0.94 + ¥0.44、冲回 ¥0.94、亏损 +¥4.76；没带前后值 / 截断的只计条数')
+  const withRecon = dailyLines({ ...base, notices: [], recon: sr })
+  const rl = withRecon.find((l) => l.startsWith('对账修正'))
+  ok(!!rl && rl.includes('对账修正 5 条（R1 3 · R6 1）') && rl.includes('成本 −¥0.50') && rl.includes('上游事后退款冲回 ¥0.94') && rl.includes('亏损 +¥4.76') && rl.includes('2 条没有前后值'), '日报加一行「对账修正」（成本、冲回、亏损的变化）', rl)
+  ok(dailyNotifyRows(withRecon).some((r) => r.label === '修正' && r.value === rl), '  …推送里标签是「修正」，其余行的标签不变')
+  ok(!dailyLines({ ...base, notices: [], recon: { fixes: 0, r1: 0, r6: 0, costDeltaCents: 0, refundBackCents: 0, lossDeltaCents: 0, unknown: 0 } }).some((l) => l.startsWith('对账修正')), '当天没有修正：不加这一行')
+
+  // ⑥ 可疑用户标记（§10.1：后台用户页、订单列表的徽章与日报知会同一口径）
+  eq(userFlagText({ cancels: 9, alipayCents: 5000 }), null, '取消 9 单、支付宝退回 ¥50.00（不超过）→ 不标记')
+  eq(userFlagText({ cancels: 10, alipayCents: 0 }), '24 小时取消 10 单', '取消 10 单 → 标记')
+  eq(userFlagText({ cancels: 3, alipayCents: 5001 }), '支付宝付款后取消 ¥50.01', '支付宝付款后取消 ¥50.01 → 标记')
+  eq(userFlagText({ cancels: 12, alipayCents: 6200 }), '24 小时取消 12 单 · 支付宝付款后取消 ¥62.00', '两条都到线 → 合在一个徽章里')
+}
 console.log(`\n通过 ${pass} 条，失败 ${fail} 条`)
 if (fail) {
   console.log('有失败 ❌')

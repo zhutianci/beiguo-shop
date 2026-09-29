@@ -26,6 +26,7 @@ import { logEventQuiet } from './events'
 import * as engine from './engine'
 import { alertFinalizeFailed, finalizeComplaintAfterRefund, pendingComplaintCount } from './complaint'
 import { complaintReasonText } from './complaint-rules'
+import { jiemaUserFlags } from './user-flags'
 
 const S = 1000
 export const ADMIN_STATES = ['PENDING_PAY', 'CLOSED', 'READY', 'ACQUIRING', 'WAITING', 'REPLACING', 'CANCELLING', 'RECEIVED', 'FINISHED', 'REFUNDING', 'CANCELLED', 'REFUNDED', 'MANUAL'] as const
@@ -94,11 +95,13 @@ export async function listJiemaOrdersAdmin(q: AdminListQuery) {
     prisma.smsOrder.findMany({ where, select: { state: true, priceCents: true, costCents: true, profitCents: true, lossCents: true, costFinal: true }, take: 20_000, orderBy: { id: 'desc' } }),
   ])
   const orderIds = rows.map((r) => r.orderId)
-  const [orders, users, holds, attCounts] = await Promise.all([
+  const [orders, users, holds, attCounts, flags] = await Promise.all([
     orderIds.length ? prisma.order.findMany({ where: { id: { in: orderIds } }, select: { id: true, orderNo: true, payStatus: true, deliveryStatus: true } }) : Promise.resolve([]),
     rows.length ? prisma.user.findMany({ where: { id: { in: Array.from(new Set(rows.map((r) => r.userId))) } }, select: { id: true, email: true, nickname: true } }) : Promise.resolve([]),
     orderIds.length ? prisma.balanceHold.findMany({ where: { orderId: { in: orderIds } }, select: { orderId: true, topupCents: true, cashCents: true, state: true } }) : Promise.resolve([]),
     rows.length ? prisma.smsAttempt.groupBy({ by: ['smsOrderId'], where: { smsOrderId: { in: rows.map((r) => r.id) } }, _count: { _all: true } }) : Promise.resolve([]),
+    // §10.1 可疑用户标记（只标记、不限制）：24 小时取消 ≥10 单 / 支付宝付款后取消 > ¥50
+    jiemaUserFlags(Array.from(new Set(rows.map((r) => r.userId)))),
   ])
   const om = new Map(orders.map((o) => [o.id, o]))
   const um = new Map(users.map((x) => [x.id, x]))
@@ -114,7 +117,7 @@ export async function listJiemaOrdersAdmin(q: AdminListQuery) {
       orderNo: o?.orderNo ?? null,
       payStatus: o?.payStatus ?? null,
       deliveryStatus: o?.deliveryStatus ?? null,
-      user: { id: r.userId, email: user?.email ?? null, nickname: user?.nickname ?? null },
+      user: { id: r.userId, email: user?.email ?? null, nickname: user?.nickname ?? null, flag: flags.get(r.userId) ?? null },
       service: r.service,
       serviceName: r.serviceName,
       country: r.country,

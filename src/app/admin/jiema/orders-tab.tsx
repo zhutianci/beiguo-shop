@@ -56,7 +56,7 @@ interface Row {
   orderId: number
   orderNo: string | null
   payStatus: string | null
-  user: { id: number; email: string | null; nickname: string | null }
+  user: { id: number; email: string | null; nickname: string | null; flag?: string | null }
   service: string
   serviceName: string
   country: number
@@ -190,7 +190,14 @@ export function OrdersTab({ openId, onOpened, initialQ }: { openId: number | nul
                     return (
                       <tr key={r.id} onClick={() => setDetailId(r.id)} className="cursor-pointer border-t border-gray-100 hover:bg-gray-50">
                         <td className="py-2 pr-3 font-mono">{r.orderNo ?? `#${r.orderId}`}</td>
-                        <td className="py-2 pr-3">{r.user.email ?? r.user.nickname ?? `#${r.user.id}`}</td>
+                        <td className="py-2 pr-3">
+                          {r.user.email ?? r.user.nickname ?? `#${r.user.id}`}
+                          {r.user.flag && (
+                            <span className="ml-1 inline-flex rounded bg-amber-100 px-1 py-0.5 text-[11px] text-amber-800" title="可疑用户标记：只标记、不限制下单（§10.1）">
+                              {r.user.flag}
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2 pr-3">
                           {r.serviceName} · {r.countryName} · {r.operator ?? '任意'}
                         </td>

@@ -118,6 +118,11 @@ export async function scanUnlinked(now: Date = jnow(), opts: { alert?: boolean }
     return s
   }
   const items = list.data.items
+  // 【先查取号中 / 结果未知的尝试，再查本站认识的 id】（S4 评审修复）：顺序反过来时，一个取号中的尝试若在两次查询之间
+  // 写下 activationId（REQUESTING → ACTIVE），它既不在「认识的 id」里、也不再算「取号中」，本站刚给买家取的号就被当成外部激活推送。
+  // 先查取号中：那一刻还是 REQUESTING 的 → pendingClaim；已经写下 activationId 的 → 之后的 knownActivationIds 一定看得到。
+  const inflight = await prisma.smsAttempt.findMany({ where: { state: { in: ['REQUESTING', 'UNKNOWN'] } }, select: { service: true, country: true } })
+  const pendingKeys = new Set(inflight.map((a) => `${a.service}:${a.country}`))
   const { attempts, legacy } = await knownActivationIds(items.map((i) => i.id))
   const oldPhones = await legacyOldPhoneSet(new Date(now.getTime() - 48 * 3600 * S))
   const free = items.filter((i) => !attempts.has(i.id) && !legacy.has(i.id) && !(i.phone && oldPhones.has(i.phone)))
@@ -128,9 +133,7 @@ export async function scanUnlinked(now: Date = jnow(), opts: { alert?: boolean }
   }
   const oldest = Math.min(...free.map((f) => (f.createdAt ? f.createdAt.getTime() : now.getTime())))
   const ctx = await legacyContext(new Date(oldest - 60 * 60 * S), now)
-  const inflight = await prisma.smsAttempt.findMany({ where: { state: { in: ['REQUESTING', 'UNKNOWN'] } }, select: { service: true, country: true } })
-  const pendingKeys = new Set(inflight.map((a) => `${a.service}:${a.country}`))
-  const out: UnlinkedItem[] = free.map((f) => ({
+  const pre: UnlinkedItem[] = free.map((f) => ({
     id: f.id,
     service: f.service,
     country: f.country,
@@ -140,6 +143,10 @@ export async function scanUnlinked(now: Date = jnow(), opts: { alert?: boolean }
     kind: classifyUnlinked({ service: f.service, createdAt: f.createdAt }, ctx.services, ctx.paidMs),
     pendingClaim: pendingKeys.has(`${f.service}:${f.country}`),
   }))
+  // 推送前对外部激活再核一次：这期间被本站的尝试（取号写回、后台认领）或旧表认下的，不算外部激活
+  const extIds = pre.filter((f) => f.kind === 'EXTERNAL').map((f) => f.id)
+  const late = extIds.length ? await knownActivationIds(extIds) : { attempts: new Set<string>(), legacy: new Set<string>() }
+  const out = pre.filter((f) => !late.attempts.has(f.id) && !late.legacy.has(f.id))
   if (opts.alert !== false) {
     for (const f of out) {
       if (f.kind !== 'EXTERNAL' || f.pendingClaim || rt().externalAlerted.has(f.id)) continue

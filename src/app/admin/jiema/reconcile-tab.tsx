@@ -49,12 +49,16 @@ interface Report {
   window: { from: string; to: string }
   orders: number
   items: ReconItem[]
-  fixes: { r1: number; r6: number; r2Cleared: number; i8: number; race: number; lossOrders: Array<{ smsOrderId: number; orderNo: string | null; lossCents: number | null }> }
+  fixes: { r1: number; r6: number; r2Cleared: number; i8: number; race: number; lossOrders: Array<{ smsOrderId: number; orderNo: string | null; lossCents: number | null }>; lossOrdersTotal?: number }
   upstream: { ok: boolean; skipped?: boolean; reason?: string; rows: number; currency?: boolean }
   r5: R5Day[]
   unlinked: { external: UnlinkedLite[]; legacy: UnlinkedLite[]; externalCount: number; legacyCount: number }
   notices: string[]
   ok: boolean
+  /** 整趟执行失败的原因 */
+  error?: string
+  /** 存盘时瘦身过（例子、清单只留了一部分；计数照旧） */
+  truncated?: number
 }
 interface Snapshot {
   at: string
@@ -156,7 +160,13 @@ export function ReconcileTab() {
               {r ? (
                 <>
                   最近一次对账 {when(r.at)}{' '}
-                  {r.ok ? <span className="text-green-700">✓ 全部一致</span> : <span className="font-medium text-red-600">✗ {r.items.filter((i) => !i.ok).length} 项不一致</span>}
+                  {r.error ? (
+                    <span className="font-medium text-red-600">✗ 执行失败</span>
+                  ) : r.ok ? (
+                    <span className="text-green-700">✓ 全部一致</span>
+                  ) : (
+                    <span className="font-medium text-red-600">✗ {r.items.filter((i) => !i.ok).length} 项不一致</span>
+                  )}
                   <span className="ml-2 text-xs text-gray-400">
                     覆盖近 {r.sinceHours} 小时{r.full ? '（I 系列全量）' : ''} · 核了 {r.orders} 张接码单 · 上游 history {r.upstream.skipped ? '没拉' : r.upstream.ok ? `${r.upstream.rows} 行` : '拉取失败'}
                   </span>
@@ -184,9 +194,12 @@ export function ReconcileTab() {
           {r && r.fixes.lossOrders.length > 0 && (
             <div className="text-xs text-red-700">
               已取消单事后被扣费（只记亏损，订单仍是已取消）：{r.fixes.lossOrders.map((x) => `${x.orderNo ?? `#${x.smsOrderId}`} ${yuan(x.lossCents)}`).join('、')}
+              {(r.fixes.lossOrdersTotal ?? 0) > r.fixes.lossOrders.length && <> 等共 {r.fixes.lossOrdersTotal} 张</>}
             </div>
           )}
+          {r && r.error && <div className="text-xs text-red-600">执行失败：{r.error}</div>}
           {r && r.upstream.reason && <div className="text-xs text-red-600">上游：{r.upstream.reason}</div>}
+          {r && !!r.truncated && <div className="text-xs text-amber-700">这份报告太大，存盘时只保留了部分例子与清单（各项计数照旧）；完整的不一致见接码单时间线与推送。</div>}
         </CardContent>
       </Card>
 

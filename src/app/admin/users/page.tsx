@@ -27,6 +27,8 @@ interface User {
   isMember?: boolean
   memberOf?: (SourceSite & { role: string })[]
   blockedIn?: number[]
+  /** 短信接码的可疑用户标记（24 小时取消 ≥10 单 / 支付宝付款后取消 > ¥50；只标记、不限制） */
+  jiemaFlag?: string | null
 }
 
 export default function UsersPage() {
@@ -279,7 +281,14 @@ export default function UsersPage() {
                         />
                       </td>
                       <td className="py-4 text-gray-500">{user.id}</td>
-                      <td className="py-4 font-medium text-gray-900">{user.email || '-'}</td>
+                      <td className="py-4 font-medium text-gray-900">
+                        {user.email || '-'}
+                        {user.jiemaFlag && (
+                          <span className="ml-1.5 inline-flex rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-normal text-amber-800" title="短信接码：只标记、不限制下单（§10.1）">
+                            接码 · {user.jiemaFlag}
+                          </span>
+                        )}
+                      </td>
                       <td className="py-4 text-gray-600">{user.nickname || '-'}</td>
                       <td className="py-4">
                         <span

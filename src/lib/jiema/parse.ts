@@ -349,6 +349,16 @@ export function badCurrency(v: unknown): number | null {
   return n === USD ? null : n ?? -1
 }
 
+/**
+ * 行上的币种字段（history、活跃列表）：缺省（undefined / null / 空串）→ null（按规格默认 840）；整数照原值；
+ * **认不出的（"RUB"、"USD"、小数、对象…）→ −1**，与 badCurrency 同一口径。不能像 toInt 那样记成 null——
+ * 调用方按「currency 为空 = 美元」处理，外币金额就会被当成美元（S4 评审修复：对账 R1 把 25.5 卢布当成 $25.5 写进成本）。
+ */
+export function currencyOf(v: unknown): number | null {
+  if (v === undefined || v === null || v === '') return null
+  return toInt(v) ?? -1
+}
+
 // ───────────────────────── 通用类型 ─────────────────────────
 
 /** 一条短信（getAllSms、getStatusV2、NEW_OTP_RECEIVED 的 info.data、v1 otpList 统一成这个形状） */
@@ -668,7 +678,7 @@ function activeItem(v: unknown): ActiveItem | null {
     service: str(v.serviceCode ?? v.service),
     phone: toPhone(v.phoneNumber ?? v.phone),
     costMicro: usdToMicro(v.activationCost),
-    currency: toInt(v.currency),
+    currency: currencyOf(v.currency),
     status: toInt(v.activationStatus),
     smsCode: code != null && code.trim() ? code.trim() : null,
     smsText: text != null && text.trim() ? text : null,
@@ -1012,7 +1022,7 @@ function historyRow(v: unknown): HistoryRow | null {
     costMicro: usdToMicro(v.cost),
     status: toInt(v.status),
     dialCode: dial || null,
-    currency: toInt(v.currency),
+    currency: currencyOf(v.currency),
   }
 }
 

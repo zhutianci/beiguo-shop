@@ -11,7 +11,7 @@
  * 【只改钱的事实，不改状态】R1 / R6 只写尝试的 charged / chargeSource=RECON / costMicro / upstreamRefundMicro 并重跑 T20
  * （已取消单只写 lossCents，附录 B 第 18 条）；尝试与订单的**状态**是引擎的事——没到终态的尝试一律「交给引擎」，这里不判不一致、不改。
  */
-import type { HistoryRow } from './parse'
+import { USD, type HistoryRow } from './parse'
 import { settleCost, isAttemptTerminal } from './machine'
 import { realCostCents } from './pricing'
 import { fmtCents } from '../wallet/buckets'
@@ -32,6 +32,17 @@ export const LEGACY_WINDOW_MIN = 30
 export const ALIPAY_CANCEL_NOTICE_CENTS = 5000
 /** 知会（§10.1）：24 小时内取消 ≥10 单的用户（只标记、不封禁） */
 export const CANCEL_NOTICE_COUNT = 10
+/**
+ * 可疑用户标记的文字（§10.1，只标记、不限制；后台用户列表与接码订单列表的徽章）：没到标记线返回 null。
+ * 与每日知会同一口径：24 小时内取消 ≥ CANCEL_NOTICE_COUNT 单，或支付宝付款后取消、退回充值格合计 > ALIPAY_CANCEL_NOTICE_CENTS。
+ */
+export function userFlagText(r: { cancels: number; alipayCents: number }): string | null {
+  const parts: string[] = []
+  if (r.cancels >= CANCEL_NOTICE_COUNT) parts.push(`24 小时取消 ${r.cancels} 单`)
+  if (r.alipayCents > ALIPAY_CANCEL_NOTICE_CENTS) parts.push(`支付宝付款后取消 ${fmtCents(r.alipayCents)}`)
+  return parts.length ? parts.join(' · ') : null
+}
+
 /** 没有 endsAt 的尝试（还没取到号）按取号时刻 + 20 分钟当作有效期末（I4） */
 const FALLBACK_LIFE_MIN = 20
 
@@ -43,6 +54,14 @@ export type ReconRow = Pick<HistoryRow, 'id' | 'status' | 'moreCodes' | 'costMic
 
 export const rowHasCode = (r: Pick<HistoryRow, 'moreCodes'>): boolean => !!(r.moreCodes && r.moreCodes.trim())
 export const rowEnded = (r: Pick<HistoryRow, 'status'>): boolean => r.status != null && ENDED.has(r.status)
+
+/**
+ * 币种异常（E56）的行：状态照样可用，金额不可信 → costMicro 置空（不拿它修正成本、不进 R5 汇总）。
+ * currency 为 null = 缺省（按规格默认 840）；认不出的币种（"RUB"）由 parse.currencyOf 解析成 −1，同样置空（S4 评审修复）。
+ */
+export function usableCostRows<T extends Pick<HistoryRow, 'currency' | 'costMicro'>>(rows: readonly T[]): T[] {
+  return rows.map((r) => (r.currency != null && r.currency !== USD ? { ...r, costMicro: null } : r))
+}
 
 /** R1：上游扣了费、而且没有退（状态 6，或 moreCodes 非空且状态不是 10） */
 export function upstreamChargedKept(r: Pick<HistoryRow, 'status' | 'moreCodes'>): boolean {
@@ -117,6 +136,16 @@ export type ReconAction =
 const onlyAssumed = (p: ReconPatch): boolean => Object.keys(p).length === 1 && p.assumed === false
 
 /**
+ * 对账只修正**订单状态稳定**的尝试（S4 评审修复）：已收码 / 已完成 / 售后退款 / 已取消 / 转人工。
+ * 其余状态（取号中、等码、换号中、取消中、退款中……）订单还在推进，一律 PENDING、下一次对账再核：
+ *  · REFUNDING 时 T15 在锁接码单行之前普通读尝试、算好亏损再 CAS——对账的修正若落在它「读」与「CAS」之间，
+ *    T15 会拿旧的尝试写 lossCents（已取消单上挂着 charged 的号、亏损却为空，I7 天天报、不会自愈）；
+ *  · 进行中的单之后还可能被取消：这时写的 upstreamRefundMicro（R6）在 CANCELLED 分支不参与亏损，会把上游退了的号记成亏损。
+ * 订单几十分钟内就会落到稳定状态，而对账窗口覆盖前两天，下一次对账照样核得到。
+ */
+export const RECON_STABLE_ORDER_STATES: ReadonlySet<string> = new Set(['RECEIVED', 'FINISHED', 'REFUNDED', 'CANCELLED', 'MANUAL'])
+
+/**
  * 一行 history（6 / 8 / 10）对我方一个尝试（§9.4 R1、R2、R6）。orderState 是这个尝试所属接码单的状态。
  *  · R1 上游扣了费：尝试该是 charged、成本相等（≤ $0.0001）；不是就以上游为准（charged=true、chargeSource=RECON、costMicro=上游 cost），
  *    订单不是 CANCELLED → 重跑 T20；是 CANCELLED（多半是推定退款后翻案）→ 只写 lossCents，不跑 T20、不写成本利润；
@@ -127,9 +156,14 @@ const onlyAssumed = (p: ReconPatch): boolean => Object.keys(p).length === 1 && p
 export function judgeReconRow(row: Pick<HistoryRow, 'status' | 'moreCodes' | 'costMicro'>, att: ReconAttempt, orderState: string): ReconAction {
   if (!rowEnded(row)) return { kind: 'NONE', rule: null }
   const terminal = isAttemptTerminal(att.state)
+  const rule = upstreamRefundedAfterCode(row) ? 'R6' : upstreamChargedKept(row) ? 'R1' : upstreamNotCharged(row) ? 'R2' : null
+  // 订单还在推进（含取消中 / 退款中）：不判、不改，下一次再核（RECON_STABLE_ORDER_STATES 的注释）
+  if (rule && !RECON_STABLE_ORDER_STATES.has(orderState)) return { kind: 'PENDING', rule }
   if (upstreamRefundedAfterCode(row)) {
     if (!terminal) return { kind: 'PENDING', rule: 'R6' }
     if (orderState === 'CANCELLED') return { kind: 'MISMATCH', rule: 'R6', why: '订单已取消（没收到码、已整单退回），上游却显示这个号收过码后被退款' }
+    // 转人工的单之后可能被后台「取消并退回余额」：CANCELLED 的亏损不看 upstreamRefundMicro，这里先写冲回会把上游退了的号记成亏损
+    if (orderState === 'MANUAL') return { kind: 'MISMATCH', rule: 'R6', why: '订单转人工中，上游显示这个号收过码后被退款（对账不改，人工处理时核对）' }
     const patch: ReconPatch = {}
     if (!att.charged) {
       patch.charged = true
@@ -362,6 +396,61 @@ export function lossOf(attempts: readonly Pick<IAttempt, 'charged' | 'costMicro'
   return sum > 0 ? realCostCents(sum, costFx4) : null
 }
 
+// ───────────────────────── 报告落库的大小（settings.value 是 TEXT：65,535 字节） ─────────────────────────
+
+/** 报告 JSON 的字节上限（utf8mb4 下中文 3 字节：按字节量，不按字符数；留 5KB 余量） */
+export const REPORT_MAX_BYTES = 60_000
+
+export const utf8Bytes = (s: string): number => Buffer.byteLength(s, 'utf8')
+
+/** fitReportJson 需要的最小形状（reconcile.ts 的 JiemaReconcileReport 满足它） */
+export interface SlimmableReport {
+  items: Array<{ code: string; title: string; ok: boolean; count: number; samples: string[]; note?: string }>
+  unlinked: { external: unknown[]; legacy: unknown[]; externalCount: number; legacyCount: number; externalIds?: string[] }
+  r5: unknown[]
+  notices: string[]
+  fixes: { lossOrders: unknown[]; lossOrdersTotal?: number }
+  truncated?: number
+}
+
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s)
+
+/**
+ * 把报告压到 maxBytes 字节以内再存（S4 评审修复：原来按字符数判 60,000，中文一多就超 64KB 存不进去、页面停在上一次的结论）。
+ * 逐级瘦身：0 原样 → 1 例子 3 条 / 清单 20 条 / 亏损单 20 张 → 2 例子 1 条 / 清单 5 条 / 亏损单 5 张 → 3 只留各项结论与计数。
+ * 计数（count、externalCount、lossOrdersTotal）与外部激活的 id 清单（R3「只报新出现的」去重用）一直保留；truncated = 用到的级别。
+ */
+export function fitReportJson<T extends SlimmableReport>(report: T, maxBytes: number = REPORT_MAX_BYTES): { value: string; level: number } {
+  const total = Math.max(report.fixes.lossOrdersTotal ?? 0, report.fixes.lossOrders.length)
+  const levels: Array<{ samples: number; sampleLen: number; note: number; list: number; r5: number; notices: number; loss: number; ids: number }> = [
+    { samples: 3, sampleLen: 200, note: 500, list: 20, r5: 7, notices: 10, loss: 20, ids: 1000 },
+    { samples: 1, sampleLen: 120, note: 200, list: 5, r5: 3, notices: 3, loss: 5, ids: 1000 },
+    { samples: 0, sampleLen: 0, note: 80, list: 0, r5: 0, notices: 0, loss: 0, ids: 300 },
+  ]
+  let value = JSON.stringify(report)
+  if (utf8Bytes(value) <= maxBytes) return { value, level: 0 }
+  for (let i = 0; i < levels.length; i++) {
+    const L = levels[i]
+    const slim: T = {
+      ...report,
+      items: report.items.map((it) => ({ ...it, samples: it.samples.slice(0, L.samples).map((x) => clip(x, L.sampleLen)), ...(it.note ? { note: clip(it.note, L.note) } : {}) })),
+      unlinked: {
+        ...report.unlinked,
+        external: report.unlinked.external.slice(0, L.list),
+        legacy: report.unlinked.legacy.slice(0, L.list),
+        ...(report.unlinked.externalIds ? { externalIds: report.unlinked.externalIds.slice(0, L.ids) } : {}),
+      },
+      r5: L.r5 ? report.r5.slice(-L.r5) : [],
+      notices: report.notices.slice(0, L.notices).map((x) => clip(x, 200)),
+      fixes: { ...report.fixes, lossOrders: report.fixes.lossOrders.slice(0, L.loss), lossOrdersTotal: total },
+      truncated: i + 1,
+    }
+    value = JSON.stringify(slim)
+    if (utf8Bytes(value) <= maxBytes || i === levels.length - 1) return { value, level: i + 1 }
+  }
+  return { value, level: levels.length }
+}
+
 // ───────────────────────── 北京时间的日子 ─────────────────────────
 
 /** 北京时间的日期串（YYYY-MM-DD）；容器 TZ 不可靠（交接文档六·4），一律按 UTC+8 自己算 */
@@ -410,6 +499,48 @@ export interface DailyData {
   anomalies: { recon: number; manual: number; external: number }
   /** 知会（§10.1）：只标记、不限制 */
   notices: string[]
+  /**
+   * 当天（北京）对账写下的修正（sms_events 的 RECON 事件，S4 评审修复）：R1 / R6 改的是**原来定稿 / 取消那天**的单，
+   * 那几天的日报早发了，这里按「修正发生的那天」单列，Σ 日报才对得上 Σ profitCents / lossCents（§9.5）。
+   * costDeltaCents / lossDeltaCents 是修正前后的差（正 = 多计），refundBackCents 是 R6「上游事后退款冲回」按快照汇率折算的分；
+   * unknown = 没带前后值的旧事件（只计条数）。
+   */
+  recon?: { fixes: number; r1: number; r6: number; costDeltaCents: number; refundBackCents: number; lossDeltaCents: number; unknown: number }
+}
+
+/** 一条 RECON 事件的 detail 里修正前后的成本数字（applyFix 写） */
+export interface ReconMoneySnap {
+  state: string
+  costCents: number | null
+  lossCents: number | null
+}
+
+/** 把当天的 RECON 事件汇总成日报的「对账修正」（纯函数；detail 是 sms_events.detail 原文） */
+export function summarizeReconEvents(details: ReadonlyArray<string | null>): NonNullable<DailyData['recon']> {
+  const out = { fixes: 0, r1: 0, r6: 0, costDeltaCents: 0, refundBackCents: 0, lossDeltaCents: 0, unknown: 0 }
+  for (const d of details) {
+    out.fixes++
+    type Ev = { rule?: string; before?: ReconMoneySnap | null; after?: ReconMoneySnap | null }
+    let x: Ev | null = null
+    try {
+      x = d ? (JSON.parse(d) as Ev) : null
+    } catch {
+      x = null
+    }
+    if (x?.rule === 'R1') out.r1++
+    else if (x?.rule === 'R6') out.r6++
+    const b = x?.before
+    const a = x?.after
+    if (!b || !a) {
+      out.unknown++
+      continue
+    }
+    const dc = (a.costCents ?? 0) - (b.costCents ?? 0)
+    out.costDeltaCents += dc
+    if (x?.rule === 'R6' && dc < 0) out.refundBackCents += -dc
+    out.lossDeltaCents += (a.lossCents ?? 0) - (b.lossCents ?? 0)
+  }
+  return out
 }
 
 export function usd2(micro: number): string {
@@ -438,12 +569,48 @@ export function dailyLines(d: DailyData): string[] {
     `售后退款 ${d.afterSale} 单${f.refundOffsetCents ? `（冲减营收 ${fmtCents(f.refundOffsetCents)}）` : ''} · 亏损 ${fmtCents(f.lossCents)} · 上游余额 ${d.upstreamBalanceMicro == null ? '未知' : usd2(d.upstreamBalanceMicro)}`,
     `异常：对账不一致 ${d.anomalies.recon} 项 · 转人工 ${d.anomalies.manual} 单 · 外部激活 ${d.anomalies.external} 个`,
   ]
+  const rc = d.recon
+  if (rc && rc.fixes > 0) {
+    const sign = (c: number) => (c > 0 ? `+${fmtCents(c)}` : c < 0 ? `−${fmtCents(-c)}` : fmtCents(0))
+    lines.push(
+      `对账修正 ${rc.fixes} 条（R1 ${rc.r1} · R6 ${rc.r6}）：成本 ${sign(rc.costDeltaCents)}（其中上游事后退款冲回 ${fmtCents(rc.refundBackCents)}）· 亏损 ${sign(rc.lossDeltaCents)}` +
+        `${rc.unknown ? `（${rc.unknown} 条没有前后值）` : ''}；改在原来定稿 / 取消那天的单上，不在上面的完成 / 亏损数里`,
+    )
+  }
   for (const n of d.notices) lines.push(`知会：${n}`)
   return lines
 }
 
-/** 日报的推送行：第一行是标题（extraTitle），其余每行一条；知会行去掉「知会：」前缀、标签写「知会」 */
-export function dailyNotifyRows(lines: readonly string[]): Array<{ label: string; value: string }> {
+/** 企业微信 markdown 最多 4096 字节，整条超了会被拒（日报已标记「已推」，不会重推）：推送行按字节预算截断 */
+export const DAILY_PUSH_MAX_BYTES = 3400
+/** 推送里最多列几条知会（全部知会在后台「短信接码 → 对账」） */
+export const DAILY_PUSH_MAX_NOTICES = 5
+
+/**
+ * 日报的推送行：第一行是标题（extraTitle），其余每行一条；知会行去掉「知会：」前缀、标签写「知会」。
+ * 知会最多列 DAILY_PUSH_MAX_NOTICES 条、且整体不超过 DAILY_PUSH_MAX_BYTES 字节，其余合并成一行「另有 N 条」（S4 评审修复）。
+ */
+export function dailyNotifyRows(lines: readonly string[], maxBytes: number = DAILY_PUSH_MAX_BYTES): Array<{ label: string; value: string }> {
   const labels = ['付款', '完成', '已取消', '售后', '异常']
-  return lines.slice(1).map((l, i) => (l.startsWith('知会：') ? { label: '知会', value: l.slice(3) } : { label: i < labels.length ? labels[i] : '说明', value: l }))
+  const rowBytes = (r: { label: string; value: string }) => utf8Bytes(`**${r.label}**：${r.value}
+`)
+  const base: Array<{ label: string; value: string }> = []
+  const notices: string[] = []
+  lines.slice(1).forEach((l, i) => {
+    if (l.startsWith('知会：')) notices.push(l.slice(3))
+    else base.push({ label: l.startsWith('对账修正') ? '修正' : i < labels.length ? labels[i] : '说明', value: l.length > 400 ? `${l.slice(0, 400)}…` : l })
+  })
+  const out = [...base]
+  let used = out.reduce((a, r) => a + rowBytes(r), 0)
+  const tailReserve = 120 // 「另有 N 条」那一行
+  let shown = 0
+  for (const n of notices) {
+    const r = { label: '知会', value: n.length > 200 ? `${n.slice(0, 200)}…` : n }
+    if (shown >= DAILY_PUSH_MAX_NOTICES || used + rowBytes(r) + tailReserve > maxBytes) break
+    out.push(r)
+    used += rowBytes(r)
+    shown++
+  }
+  if (shown < notices.length) out.push({ label: '知会', value: `另有 ${notices.length - shown} 条，见后台「短信接码 → 对账」` })
+  return out
 }

@@ -18,14 +18,21 @@
  * 【日报】cron 这一趟（daily=true）按北京时间「昨天」汇总（§9.5 口径：营收与真实成本按定稿批次 Σ costCents，已取消只计单数与退回额），
  * 存进 settings.sms_daily_pending；jiema-tick 在当天北京 09:00 之后推一次 sms.daily（CAS 标记已发，只推一次；§7.7「每天 09:00，由对账任务顺带发」）。
  * 报告写 settings.sms_reconcile_last；有不一致推 sms.alert（原因 RECON，每趟一条）。同一时刻只跑一趟（库锁 jiema:reconcile）。
+ *
+ * 【S4 评审修复】锁每分钟续租一次（跑得再久也不会被当成陈旧锁接管；续租失败 = 锁丢了，这一趟在下一个检查点中止）；
+ * 定时那一趟遇到锁被占（后台刚点了「立即对账」）先等一会儿，还是抢不到就推「对账没有执行」并照样生成日报；
+ * 整趟出错也存一份「执行失败」的报告并推 sms.alert（不再只打日志、页面停在上一次的「全部一致」）；
+ * 报告按 utf8 字节量瘦身后再存（recon-rules.fitReportJson），存不进去推告警；
+ * 上游 history 没拉到时保留上一次的未关联激活清单（R3「只报新出现的」去重靠它）；
+ * 后台手动对账写的 RECON 事件带操作人（actor=ADMIN、actorId）。
  */
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { notify } from '../notify'
 import { centsOf, fmtCents } from '../wallet/buckets'
-import { acquireLock, releaseLock } from '../marketing/lock'
+import { acquireLock, releaseLock, renewLock } from '../marketing/lock'
 import * as up from './upstream'
-import { USD, type HistoryRow } from './parse'
+import { type HistoryRow } from './parse'
 import { recomputeCostInTx } from './refund'
 import { logEvent, logEventQuiet } from './events'
 import { smsAlert } from './alert'
@@ -50,6 +57,10 @@ import {
   dailyLines,
   dailyNotifyRows,
   usd4,
+  fitReportJson,
+  summarizeReconEvents,
+  usableCostRows,
+  type ReconMoneySnap,
   type ReconAttempt,
   type ReconAction,
   type ReconPatch,
@@ -58,11 +69,39 @@ import {
   type DailyData,
 } from './recon-rules'
 import { knownActivationIds, legacyOldPhoneSet, legacyContext, lastUnlinked } from './unlinked'
+import { jiemaUserFlagRows } from './user-flags'
 
 export const SMS_RECONCILE_LAST_KEY = 'sms_reconcile_last'
 export const SMS_DAILY_KEY = 'sms_daily_pending'
 const LOCK = 'jiema:reconcile'
+/** 锁的 TTL：超过它没续租才算陈旧（进程死了）。跑着的这一趟每 renewMs 续一次，所以再久也不会被接管 */
 const LOCK_TTL_MS = 5 * 60_000
+const LOCK_TIMING_DEFAULT = {
+  /** 续租间隔（远小于 TTL） */
+  renewMs: 60_000,
+  /** 定时那一趟遇到锁被占时最多等多久（crontab --max-time 240；等不到就推「没有执行」） */
+  cronWaitMs: 120_000,
+  /** 等锁时的轮询间隔 */
+  pollMs: 5_000,
+}
+const LT = { ...LOCK_TIMING_DEFAULT }
+/** 测试用：调短续租 / 等锁的时间（null = 恢复默认） */
+export function setReconLockTimingForTest(p: Partial<typeof LOCK_TIMING_DEFAULT> | null): void {
+  Object.assign(LT, LOCK_TIMING_DEFAULT, p ?? {})
+}
+
+/** 测试用：在对账的几个阶段注入故障（'I' 快照之后、'R' 上游对账之后、'save' 存报告之前） */
+let faultForTest: ((stage: 'I' | 'R' | 'save') => void) | null = null
+export function setReconFaultForTest(f: typeof faultForTest): void {
+  faultForTest = f
+}
+
+/** 锁丢了（续租失败或已被别人接管）：这一趟在下一个检查点中止，不再写任何东西 */
+export class ReconLockLost extends Error {
+  constructor() {
+    super('对账锁丢失（续租失败或已被另一趟接管），这一趟中止')
+  }
+}
 const BATCH = 500
 const MAX_SAMPLES = 10
 const TX_TIMEOUT_MS = 200_000
@@ -75,6 +114,8 @@ const HISTORY_MIN_SPLIT_MS = 30 * MIN
 const HISTORY_SLACK_MS = 2 * H
 /** 报告里外部激活清单最多存多少条（settings.value 是 TEXT） */
 const LIST_MAX = 100
+/** 外部激活 id 清单（只有 id，R3 去重用）最多存多少个 */
+const EXTERNAL_IDS_MAX = 1000
 const RC = { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, maxWait: 5_000, timeout: 15_000 }
 
 export interface ReconItem {
@@ -120,13 +161,23 @@ export interface JiemaReconcileReport {
   /** I 系列核了几张接码单 */
   orders: number
   items: ReconItem[]
-  fixes: { r1: number; r6: number; r2Cleared: number; i8: number; race: number; lossOrders: Array<{ smsOrderId: number; orderNo: string | null; lossCents: number | null }> }
+  /** lossOrders 存盘时可能被截短（最多 20 张），lossOrdersTotal 是总数 */
+  fixes: { r1: number; r6: number; r2Cleared: number; i8: number; race: number; lossOrders: Array<{ smsOrderId: number; orderNo: string | null; lossCents: number | null }>; lossOrdersTotal?: number }
   upstream: { ok: boolean; skipped?: boolean; reason?: string; rows: number; currency?: boolean }
   r5: R5Day[]
-  unlinked: { external: UnlinkedLite[]; legacy: UnlinkedLite[]; externalCount: number; legacyCount: number }
+  /** externalIds = 全部外部激活的 id（最多 1000 个；清单瘦身时也保留，R3「只报新出现的」去重用） */
+  unlinked: { external: UnlinkedLite[]; legacy: UnlinkedLite[]; externalCount: number; legacyCount: number; externalIds?: string[] }
   notices: string[]
   ok: boolean
+  /** 整趟执行失败的原因（items 只有一项 ERR） */
+  error?: string
+  /** 存盘时瘦身到的级别（recon-rules.fitReportJson；0 / 缺省 = 原样） */
+  truncated?: number
 }
+
+/** 触发这一趟的人：cron（缺省）或后台管理员（RECON 事件写 actor=ADMIN、actorId） */
+export type ReconActor = { kind: 'CRON' } | { kind: 'ADMIN'; id: number | null }
+const EMPTY_UNLINKED: JiemaReconcileReport['unlinked'] = { external: [], legacy: [], externalCount: 0, legacyCount: 0, externalIds: [] }
 
 type Db = Prisma.TransactionClient
 
@@ -289,14 +340,18 @@ async function collectI(tx: Db, s: { now: Date; since: Date; full: boolean }): P
 type HistOk = { ok: true; rows: HistoryRow[]; currency: boolean }
 type HistFail = { ok: false; reason: string }
 
-/** 分段拉全 [from, to] 的 history（statuses 6 / 8 / 10）；某段超过 40 页就对半拆；任何一段失败整体失败（不给半截） */
-export async function historyWindow(from: Date, to: Date): Promise<HistOk | HistFail> {
+/**
+ * 分段拉全 [from, to] 的 history（statuses 6 / 8 / 10）；某段超过 40 页就对半拆；任何一段失败整体失败（不给半截）。
+ * keep 在每段之前调一次（锁丢了就抛 ReconLockLost，中止这一趟）。
+ */
+export async function historyWindow(from: Date, to: Date, keep: () => void = () => undefined): Promise<HistOk | HistFail> {
   const byId = new Map<string, HistoryRow>()
   let currency = false
   // 从最晚的一段往前压栈：栈顶是最早的一段，按时间顺序拉；拆开的两半同样先拉前一半
   const stack: Array<[number, number]> = []
   for (let t = to.getTime(); t > from.getTime(); t -= HISTORY_CHUNK_MS) stack.push([Math.max(from.getTime(), t - HISTORY_CHUNK_MS), t])
   while (stack.length) {
+    keep()
     const [a, b] = stack.pop()!
     let r: Awaited<ReturnType<typeof up.v1HistoryAll>>
     try {
@@ -326,7 +381,17 @@ interface RResult {
   items: ReconItem[]
   fixes: Omit<JiemaReconcileReport['fixes'], 'i8'>
   r5: R5Day[]
-  unlinked: JiemaReconcileReport['unlinked']
+  /** null = 这次没拉到 history（R0 失败 / key 没配置）：报告沿用上一次的清单，不能拿「没拉到」覆盖成「没有」 */
+  unlinked: JiemaReconcileReport['unlinked'] | null
+}
+
+interface RCtx {
+  now: Date
+  since: Date
+  keep: () => void
+  actor: ReconActor
+  /** 这一趟会推送不一致（alert !== false）：R3 新报出的外部激活记进本进程的去重集合 */
+  markAlerted: boolean
 }
 
 type AttRow = ReconAttempt & { activationId: string; requestedAt: Date; closedAt: Date | null; updatedAt: Date }
@@ -347,43 +412,58 @@ const ATT_SELECT = {
   updatedAt: true,
 } as const
 
+const evActor = (a: ReconActor) => (a.kind === 'ADMIN' ? { actor: 'ADMIN' as const, actorId: a.id } : { actor: 'CRON' as const })
+
+type MoneyRow = { state: string; cost_cents: number | null; loss_cents: number | null }
+const snapOf = (r: MoneyRow): ReconMoneySnap => ({ state: r.state, costCents: r.cost_cents == null ? null : Number(r.cost_cents), lossCents: r.loss_cents == null ? null : Number(r.loss_cents) })
+
 /**
  * 修正一个尝试（R1 / R6 / 清 assumed）：一个事务，按锁顺序 接码单 → 尝试 加锁后 CAS「读到时的值」；
- * 对得上才写补丁、记 RECON 事件、重跑 T20（已取消的单 recomputeCostInTx 只写 lossCents）。对不上 → RACE（下一次对账再核）。
+ * 对得上才写补丁、重跑 T20（已取消的单 recomputeCostInTx 只写 lossCents），再记 RECON 事件（带修正前后的成本 / 亏损，
+ * 日报按「修正发生的那天」汇总，S4 评审修复）。对不上 → RACE（下一次对账再核）。
+ * 只有订单处在稳定状态时才会走到这里（recon-rules.RECON_STABLE_ORDER_STATES）：锁住后状态没变，就没有 T15 正在退这张单。
  */
-async function applyFix(att: AttRow, orderState: string, patch: ReconPatch, rule: string, why: string): Promise<'APPLIED' | 'RACE'> {
+async function applyFix(att: AttRow, orderState: string, patch: ReconPatch, rule: string, why: string, actor: ReconActor): Promise<'APPLIED' | 'RACE'> {
   return prisma.$transaction(async (tx) => {
-    const so = await tx.$queryRaw<{ state: string }[]>`SELECT state FROM sms_orders WHERE id = ${att.smsOrderId} FOR UPDATE`
+    const so = await tx.$queryRaw<MoneyRow[]>`SELECT state, cost_cents, loss_cents FROM sms_orders WHERE id = ${att.smsOrderId} FOR UPDATE`
     if (!so[0] || so[0].state !== orderState) return 'RACE'
     const w = await tx.smsAttempt.updateMany({
       where: { id: att.id, state: att.state, charged: att.charged, costMicro: att.costMicro, upstreamRefundMicro: att.upstreamRefundMicro, assumed: att.assumed },
       data: patch,
     })
     if (w.count !== 1) return 'RACE'
-    await logEvent(tx, { smsOrderId: att.smsOrderId, attemptId: att.id, type: 'RECON', actor: 'CRON', detail: { rule, activationId: att.activationId, patch, why: why.slice(0, 300) } })
     await recomputeCostInTx(tx, att.smsOrderId, `RECON:${rule}`)
+    const after = await tx.$queryRaw<MoneyRow[]>`SELECT state, cost_cents, loss_cents FROM sms_orders WHERE id = ${att.smsOrderId}`
+    await logEvent(tx, {
+      smsOrderId: att.smsOrderId,
+      attemptId: att.id,
+      type: 'RECON',
+      ...evActor(actor),
+      detail: { rule, activationId: att.activationId, patch, before: snapOf(so[0]), after: after[0] ? snapOf(after[0]) : null, why: why.slice(0, 200) },
+    })
     return 'APPLIED'
   }, RC)
 }
 
-async function collectR(s: { now: Date; since: Date }, prevExternal: ReadonlySet<string>): Promise<RResult> {
+async function collectR(s: RCtx, prevExternal: ReadonlySet<string>): Promise<RResult> {
   const from = new Date(s.since.getTime() - HISTORY_SLACK_MS)
   const empty: RResult = {
     upstream: { ok: false, rows: 0 },
     items: [],
     fixes: { r1: 0, r6: 0, r2Cleared: 0, race: 0, lossOrders: [] },
     r5: [],
-    unlinked: { external: [], legacy: [], externalCount: 0, legacyCount: 0 },
+    unlinked: null,
   }
   if (!up.upstreamConfigured()) {
     return { ...empty, upstream: { ok: false, rows: 0, reason: '上游 key 没配置（HEROSMS_API_KEY）' }, items: [item('R0', '上游 history 拉取（状态 6 / 8 / 10）', ['上游 key 没配置，R 系列没有执行'])] }
   }
-  const h = await historyWindow(from, s.now)
+  const h = await historyWindow(from, s.now, s.keep)
   if (!h.ok) {
     return { ...empty, upstream: { ok: false, rows: 0, reason: h.reason }, items: [item('R0', '上游 history 拉取（状态 6 / 8 / 10）', [h.reason], 'R1–R6 这次没有执行（不拿半截数据判）；下一次对账再核')] }
   }
-  // 币种异常（E56）：状态照样可用，金额不可信 → 不拿它的 cost 修正成本、也不进 R5 汇总
-  const rows: HistoryRow[] = h.rows.map((r) => (r.currency != null && r.currency !== USD ? { ...r, costMicro: null } : r))
+  // 币种异常（E56）：状态照样可用，金额不可信 → 不拿它的 cost 修正成本、也不进 R5 汇总。
+  // 认不出的币种（"RUB"）解析成 −1（parse.currencyOf），同样在这里置空；只有缺省（null，按规格默认 840）与 840 的金额可用
+  const rows: HistoryRow[] = usableCostRows(h.rows)
   const ids = rows.map((r) => r.id)
 
   // 我方尝试（按 activationId）与所属接码单的状态
@@ -439,7 +519,8 @@ async function collectR(s: { now: Date; since: Date }, prevExternal: ReadonlySet
         pending++
         continue
       case 'FIX': {
-        const res = await applyFix(att, orderState, a.patch, a.rule, a.why).catch((e) => {
+        s.keep()
+        const res = await applyFix(att, orderState, a.patch, a.rule, a.why, s.actor).catch((e) => {
           console.error('[jiema] 对账修正失败', att.id, (e as Error)?.message)
           return 'RACE' as const
         })
@@ -464,7 +545,7 @@ async function collectR(s: { now: Date; since: Date }, prevExternal: ReadonlySet
         if (w.count === 1) {
           fixes.r2Cleared++
           final = { ...att, assumed: false }
-          await logEventQuiet({ smsOrderId: att.smsOrderId, attemptId: att.id, type: 'HISTORY_CONFIRM', actor: 'CRON', detail: { recon: true, rule: a.rule, status: row.status, assumedVerified: true } })
+          await logEventQuiet({ smsOrderId: att.smsOrderId, attemptId: att.id, type: 'HISTORY_CONFIRM', ...evActor(s.actor), detail: { recon: true, rule: a.rule, status: row.status, assumedVerified: true } })
         }
         break
       }
@@ -526,8 +607,9 @@ async function collectR(s: { now: Date; since: Date }, prevExternal: ReadonlySet
   }
 
   // R3：上游有、本站两张表与旧单品备注都没有的激活
-  const unlinked: RResult['unlinked'] = { external: [], legacy: [], externalCount: 0, legacyCount: 0 }
+  const unlinked: JiemaReconcileReport['unlinked'] = { external: [], legacy: [], externalCount: 0, legacyCount: 0, externalIds: [] }
   const r3New: string[] = []
+  const r3NewIds: string[] = []
   if (unlinkedRows.length) {
     const oldest = Math.min(...unlinkedRows.map((r) => (r.createdAt ? r.createdAt.getTime() : s.now.getTime())))
     const ctx = await legacyContext(new Date(oldest - H), s.now)
@@ -547,6 +629,7 @@ async function collectR(s: { now: Date; since: Date }, prevExternal: ReadonlySet
       } else {
         unlinked.externalCount++
         if (unlinked.external.length < LIST_MAX) unlinked.external.push(lite)
+        if (unlinked.externalIds!.length < EXTERNAL_IDS_MAX) unlinked.externalIds!.push(r.id)
         if (upstreamChargedKept(r)) {
           d.externalMicro += r.costMicro ?? 0
           d.externalRows++
@@ -554,9 +637,15 @@ async function collectR(s: { now: Date; since: Date }, prevExternal: ReadonlySet
         // 只推新出现的（上一次对账、实时监控、本进程都没报过的），同一个激活不天天推
         if (!prevExternal.has(r.id) && !liveExt.has(r.id) && !rt().externalAlerted.has(r.id)) {
           r3New.push(`激活 ${r.id}（${r.service ?? '?'} · ${r.country ?? '?'}，状态 ${r.status ?? '?'}${r.createdAt ? `，${r.createdAt.toISOString()}` : ''}）`)
+          r3NewIds.push(r.id)
         }
       }
     }
+  }
+  // 这一趟会推送的新外部激活记进本进程的去重集合（与实时监控共用）：下一趟即使上一次的报告没存下来也不重复报
+  if (s.markAlerted) {
+    for (const id of r3NewIds) rt().externalAlerted.add(id)
+    if (rt().externalAlerted.size > 5000) rt().externalAlerted.clear()
   }
 
   // R5：按天汇总（新链路逐天比；旧链路、外部激活、EXPIRED 只列出）
@@ -571,7 +660,7 @@ async function collectR(s: { now: Date; since: Date }, prevExternal: ReadonlySet
     : '窗口内上游没有结束的激活'
 
   const items: ReconItem[] = [
-    item('R0', '上游 history 拉取（状态 6 / 8 / 10）', [], `${rows.length} 行${h.currency ? '；有币种不是美元的行（E56），金额没参与修正与汇总' : ''}${pending ? `；${pending} 行对应的号还在引擎推进中，这次不判` : ''}`),
+    item('R0', '上游 history 拉取（状态 6 / 8 / 10）', [], `${rows.length} 行${h.currency ? '；有币种不是美元的行（E56），金额没参与修正与汇总' : ''}${pending ? `；${pending} 行对应的号或订单还在推进中（取号 / 等码 / 取消中 / 退款中），这次不判、下一次再核` : ''}`),
     item('R1', '上游扣了费（状态 6 或收过码）⇔ 我方计扣费、成本相等（以上游为准修正；已取消单只记亏损）', r1),
     item('R2', '上游已取消 / 已退款且没收码 ⇔ 我方没计扣费（推定退款在这里核实）', r2, [fixes.r2Cleared ? `推定退款 / 推定完成（assumed）已核实 ${fixes.r2Cleared} 条` : null, r2Expired.length ? `EXPIRED 以我方为准 ${r2Expired.length} 条：${r2Expired.slice(0, 3).join('；')}` : null].filter(Boolean).join('；') || undefined),
     item('R3', '上游有、本站不认识的激活（外部激活推送；旧链路遗留只列出，都不会自动取消）', r3New, `外部激活 ${unlinked.externalCount} 个（新出现 ${r3New.length} 个）· 旧链路遗留 ${unlinked.legacyCount} 个`),
@@ -584,24 +673,18 @@ async function collectR(s: { now: Date; since: Date }, prevExternal: ReadonlySet
 
 // ───────────────────────── 知会（§10.1：只标记、不限制） ─────────────────────────
 
+/** 知会：与后台用户列表 / 接码订单列表的「可疑用户」徽章同一个查询（user-flags.ts） */
 async function noticeLines(now: Date): Promise<{ lines: string[]; alipay: string[] }> {
-  const since = new Date(now.getTime() - 24 * H)
-  const rows = await prisma.$queryRaw<{ user_id: number; n: bigint | number; ali: unknown }[]>`
-    SELECT user_id, COUNT(*) AS n, COALESCE(SUM(alipay_paid_cents), 0) AS ali FROM sms_orders
-     WHERE state = 'CANCELLED' AND refunded_at >= ${since}
-     GROUP BY user_id HAVING COUNT(*) >= ${CANCEL_NOTICE_COUNT} OR COALESCE(SUM(alipay_paid_cents), 0) > ${ALIPAY_CANCEL_NOTICE_CENTS}
-     ORDER BY user_id LIMIT 50`
+  const rows = await jiemaUserFlagRows(now)
   const lines: string[] = []
   const alipay: string[] = []
   for (const r of rows) {
-    const n = Number(r.n)
-    const ali = Number(r.ali ?? 0)
-    if (ali > ALIPAY_CANCEL_NOTICE_CENTS) {
-      const s = `用户 #${Number(r.user_id)} 近 24 小时「支付宝付款后取消、退回充值余额」合计 ${fmtCents(ali)}（${n} 单）`
+    if (r.alipayCents > ALIPAY_CANCEL_NOTICE_CENTS) {
+      const s = `用户 #${r.userId} 近 24 小时「支付宝付款后取消、退回充值余额」合计 ${fmtCents(r.alipayCents)}（${r.cancels} 单）`
       lines.push(s)
       alipay.push(s)
     }
-    if (n >= CANCEL_NOTICE_COUNT) lines.push(`用户 #${Number(r.user_id)} 近 24 小时取消 ${n} 单（只标记、不限制）`)
+    if (r.cancels >= CANCEL_NOTICE_COUNT) lines.push(`用户 #${r.userId} 近 24 小时取消 ${r.cancels} 单（只标记、不限制）`)
   }
   return { lines, alipay }
 }
@@ -616,10 +699,19 @@ export interface DailyPending {
   skipped?: string | null
 }
 
-async function buildDaily(now: Date, report: JiemaReconcileReport): Promise<DailyData> {
+/** 日报里「异常」一行与知会用到的对账结论 */
+interface DailyRecon {
+  /** 对账不一致的项数 */
+  recon: number
+  /** 外部激活数（最近一次对账的 R3） */
+  external: number
+  notices: string[]
+}
+
+async function buildDaily(now: Date, a: DailyRecon): Promise<DailyData> {
   const end = bjDayStart(now)
   const start = new Date(end.getTime() - 24 * H)
-  const [paidBy, received, finRows, afterSale, manual, cache, live] = await Promise.all([
+  const [paidBy, received, finRows, afterSale, manual, cache, live, reconEvs] = await Promise.all([
     prisma.smsOrder.groupBy({ by: ['payMode'], where: { paidAt: { gte: start, lt: end } }, _count: { _all: true } }),
     prisma.smsOrder.count({ where: { paidAt: { gte: start, lt: end }, firstCodeAt: { not: null } } }),
     prisma.smsOrder.findMany({
@@ -631,6 +723,8 @@ async function buildDaily(now: Date, report: JiemaReconcileReport): Promise<Dail
     prisma.smsOrder.count({ where: { state: 'MANUAL' } }),
     ensureFreshBalance().catch(() => null),
     lastUnlinked(),
+    // 当天对账写下的修正（R1 / R6 改的是原来定稿 / 取消那天的单）：按修正发生的日子单列（§9.5「上游事后退款冲回」）
+    prisma.smsEvent.findMany({ where: { type: 'RECON', createdAt: { gte: start, lt: end } }, select: { detail: true }, take: 20_000 }),
   ])
   const paid = { ALIPAY: 0, BALANCE: 0, MIXED: 0 }
   for (const p of paidBy) if (p.payMode in paid) paid[p.payMode as keyof typeof paid] = p._count._all
@@ -642,8 +736,9 @@ async function buildDaily(now: Date, report: JiemaReconcileReport): Promise<Dail
     finance: f,
     afterSale,
     upstreamBalanceMicro: cache ? cache.balanceMicro : null,
-    anomalies: { recon: report.items.filter((i) => !i.ok).length, manual, external: Math.max(report.unlinked.externalCount, live?.externalCount ?? 0) },
-    notices: report.notices,
+    anomalies: { recon: a.recon, manual, external: Math.max(a.external, live?.externalCount ?? 0) },
+    notices: a.notices,
+    recon: summarizeReconEvents(reconEvs.map((e) => e.detail)),
   }
 }
 
@@ -660,6 +755,15 @@ async function saveDaily(d: DailyData, now: Date): Promise<DailyPending> {
   const value = JSON.stringify(next)
   await prisma.setting.upsert({ where: { key: SMS_DAILY_KEY }, create: { key: SMS_DAILY_KEY, value }, update: { value } })
   return next
+}
+
+/** 生成并排队昨天的日报（失败只记日志：日报不能挡对账） */
+async function queueDaily(now: Date, a: DailyRecon): Promise<void> {
+  try {
+    await saveDaily(await buildDaily(now, a), now)
+  } catch (e) {
+    console.error('[jiema] 生成日报失败', (e as Error)?.message)
+  }
 }
 
 /**
@@ -681,6 +785,7 @@ export async function maybeSendDaily(now: Date = jnow()): Promise<'NONE' | 'DONE
   const next: DailyPending = due === 'SEND' ? { ...d, sentAt: now.toISOString() } : { ...d, skipped: now.toISOString() }
   const w = await prisma.setting.updateMany({ where: { key: SMS_DAILY_KEY, value: { equals: row.value } }, data: { value: JSON.stringify(next) } })
   if (w.count !== 1) return 'RACE'
+  // 推送行按字节预算截断（企业微信 4096 字节，超了整条被拒、而这里已标记已推）
   if (due === 'SEND') notify('sms.daily', dailyNotifyRows(d.lines), { link: '/admin/jiema?tab=reconcile', extraTitle: d.lines[0] })
   return due
 }
@@ -708,29 +813,153 @@ export interface ReconcileOpts {
   save?: boolean
   /** cron 那一趟：生成昨天的日报（09:00 由 tick 推）并推知会 */
   daily?: boolean
+  /** 锁被占时等一会儿再抢（cron 那一趟用；等多久见 LOCK_TIMING_DEFAULT.cronWaitMs）。缺省 = 抢不到立刻返回 null */
+  waitLock?: boolean
+  /** 谁触发的（缺省 cron）：后台手动对账写的 RECON 事件带 actor=ADMIN、actorId */
+  actor?: ReconActor
+}
+
+const clampHours = (h: number | undefined) => (h != null && Number.isFinite(h) ? Math.min(Math.max(Math.floor(h), 1), 14 * 24) : 48)
+
+async function acquireReconLock(wait: boolean): Promise<string | null> {
+  const deadline = Date.now() + (wait ? LT.cronWaitMs : 0)
+  for (;;) {
+    const t = await acquireLock(LOCK, LOCK_TTL_MS)
+    if (t || Date.now() >= deadline) return t
+    await new Promise((r) => setTimeout(r, Math.max(1, Math.min(LT.pollMs, deadline - Date.now()))))
+  }
+}
+
+/** 跑着的这一趟每 renewMs 续一次锁；续租失败 = 锁丢了，check() 在下一个检查点抛 ReconLockLost */
+function lockKeeper(token: string): { check: () => void; stop: () => void } {
+  let lost = false
+  const timer = setInterval(() => {
+    void renewLock(LOCK, token).then((ok) => {
+      if (!ok) lost = true
+    })
+  }, LT.renewMs)
+  timer.unref?.()
+  return {
+    check: () => {
+      if (lost) throw new ReconLockLost()
+    },
+    stop: () => clearInterval(timer),
+  }
 }
 
 /**
- * 跑一次接码对账。同一时刻只跑一趟（库锁 jiema:reconcile；抢不到返回 null）。
- * 不一致推 sms.alert（原因 RECON），报告写 settings.sms_reconcile_last。
+ * 跑一次接码对账。同一时刻只跑一趟（库锁 jiema:reconcile；抢不到返回 null——cron 那一趟先等一会儿，还是抢不到就推「没有执行」并照样生成日报）。
+ * 不一致推 sms.alert（原因 RECON），报告写 settings.sms_reconcile_last。整趟出错：存一份「执行失败」的报告、推 sms.alert，返回这份报告（不抛）。
  */
 export async function runJiemaReconcile(opts: ReconcileOpts = {}): Promise<JiemaReconcileReport | null> {
-  const token = await acquireLock(LOCK, LOCK_TTL_MS)
-  if (!token) return null
+  const token = await acquireReconLock(!!opts.waitLock)
+  if (!token) {
+    if (opts.daily) await onCronSkipped(opts)
+    return null
+  }
+  const keeper = lockKeeper(token)
   try {
-    return await runLocked(opts)
+    return await runLocked(opts, keeper.check)
+  } catch (e) {
+    return await failedRun(opts, e)
   } finally {
+    keeper.stop()
     await releaseLock(LOCK, token)
   }
 }
 
-async function runLocked(opts: ReconcileOpts): Promise<JiemaReconcileReport> {
+/** cron 那一趟等不到锁：推「对账没有执行」，照样把昨天的日报排上（异常数按最近一次报告 + 这一次没跑） */
+async function onCronSkipped(opts: ReconcileOpts): Promise<void> {
   const now = opts.now ?? jnow()
-  const sinceHours = Math.min(Math.max(Math.floor(opts.sinceHours ?? 48), 1), 14 * 24)
+  const prev = await lastJiemaReconcile()
+  if (opts.alert !== false) {
+    smsAlert(
+      'RECON_SKIPPED',
+      '接码定时对账没有执行（另一趟对账一直在跑）',
+      [
+        { label: '说明', value: `等了 ${Math.round(LT.cronWaitMs / 1000)} 秒锁仍被占（多半是后台刚点了「立即对账」）；这一趟跳过，日报照常生成`, color: 'warning' },
+        { label: '最近一次', value: prev ? `${prev.at}（${prev.ok ? '全部一致' : `${prev.items.filter((i) => !i.ok).length} 项不一致`}）` : '还没有' },
+        { label: '处理', value: '稍后到后台「短信接码 → 对账」点「立即对账」补跑一次' },
+      ],
+      { link: '/admin/jiema?tab=reconcile', throttleMs: 0 },
+    )
+  }
+  const notices = await noticeLines(now).catch(() => ({ lines: [] as string[], alipay: [] as string[] }))
+  await queueDaily(now, { recon: 1 + (prev ? prev.items.filter((i) => !i.ok).length : 0), external: prev?.unlinked.externalCount ?? 0, notices: notices.lines })
+}
+
+/** 整趟出错（快照事务超时、库错误、锁丢失……）：存一份「执行失败」的报告（锁丢失时不存——锁已是别人的）、推 sms.alert、cron 那一趟照样排日报 */
+async function failedRun(opts: ReconcileOpts, e: unknown): Promise<JiemaReconcileReport> {
+  const now = opts.now ?? jnow()
+  const lost = e instanceof ReconLockLost
+  const reason = lost ? (e as Error).message : `对账执行出错：${String((e as Error)?.message ?? e).slice(0, 300)}`
+  console.error('[jiema] 对账执行失败', e)
+  const prev = await lastJiemaReconcile()
+  const sinceHours = clampHours(opts.sinceHours)
+  const report: JiemaReconcileReport = {
+    at: now.toISOString(),
+    full: !!opts.full,
+    sinceHours,
+    window: { from: new Date(now.getTime() - sinceHours * H).toISOString(), to: now.toISOString() },
+    orders: 0,
+    items: [item('ERR', '对账执行（中途出错时这一趟作废，已写下的修正见接码单时间线的 RECON 事件）', [reason])],
+    fixes: { r1: 0, r6: 0, r2Cleared: 0, i8: 0, race: 0, lossOrders: [] },
+    upstream: { ok: false, skipped: true, rows: 0, reason: '对账中途出错，没有完成' },
+    r5: [],
+    unlinked: prev?.unlinked ?? EMPTY_UNLINKED,
+    notices: [],
+    ok: false,
+    error: reason,
+  }
+  if (opts.save !== false && !lost) await saveReport(report, opts)
+  if (opts.alert !== false) {
+    smsAlert(
+      'RECON_FAILED',
+      '接码对账执行失败',
+      [
+        { label: '原因', value: reason, color: 'warning' },
+        { label: '处理', value: lost ? '另一趟对账接管了锁；看后台「短信接码 → 对账」的最新报告' : '后台「短信接码 → 对账」显示「执行失败」；排查后点「立即对账」重跑' },
+      ],
+      { link: '/admin/jiema?tab=reconcile', throttleMs: 0 },
+    )
+  }
+  if (opts.daily && !lost) await queueDaily(now, { recon: 1, external: prev?.unlinked.externalCount ?? 0, notices: [] })
+  return report
+}
+
+/** 存报告：按字节量瘦身（fitReportJson）；存不进去推告警（页面会停在上一次的结论）。导出给测试用 */
+export async function saveReport(report: JiemaReconcileReport, opts: ReconcileOpts): Promise<boolean> {
+  const { value, level } = fitReportJson(report)
+  try {
+    await prisma.setting.upsert({ where: { key: SMS_RECONCILE_LAST_KEY }, create: { key: SMS_RECONCILE_LAST_KEY, value }, update: { value } })
+    return true
+  } catch (e) {
+    const msg = String((e as Error)?.message ?? e)
+    console.error('[jiema] 写 sms_reconcile_last 失败', msg)
+    if (opts.alert !== false) {
+      const failed = report.items.filter((i) => !i.ok)
+      smsAlert(
+        'RECON_SAVE',
+        '接码对账报告没有存进去（后台看到的还是上一次的报告）',
+        [
+          { label: '这一次', value: report.ok ? '全部一致' : `${failed.length} 项不一致（${failed.map((i) => i.code).join('、')}）`, color: 'warning' },
+          { label: '原因', value: `${msg.slice(0, 160)}（${Buffer.byteLength(value, 'utf8')} 字节，瘦身级别 ${level}）` },
+        ],
+        { link: '/admin/jiema?tab=reconcile', throttleMs: 0 },
+      )
+    }
+    return false
+  }
+}
+
+async function runLocked(opts: ReconcileOpts, keep: () => void): Promise<JiemaReconcileReport> {
+  const now = opts.now ?? jnow()
+  const sinceHours = clampHours(opts.sinceHours)
   const since = new Date(now.getTime() - sinceHours * H)
   const full = !!opts.full
+  const actor: ReconActor = opts.actor ?? { kind: 'CRON' }
   const prev = await lastJiemaReconcile()
-  const prevExternal = new Set((prev?.unlinked?.external ?? []).map((x) => x.id))
+  const prevExternal = new Set([...(prev?.unlinked?.externalIds ?? []), ...(prev?.unlinked?.external ?? []).map((x) => x.id)])
 
   // I 系列：一致性快照（REPEATABLE READ 只读事务）
   const iRes = await prisma.$transaction((tx) => collectI(tx, { now, since, full }), {
@@ -738,9 +967,12 @@ async function runLocked(opts: ReconcileOpts): Promise<JiemaReconcileReport> {
     timeout: TX_TIMEOUT_MS,
     maxWait: 10_000,
   })
+  keep()
+  faultForTest?.('I')
   // I8：补算（快照之后；T20 自己先锁接码单行再算）
   let i8 = 0
   for (const id of iRes.recompute) {
+    keep()
     try {
       if (await recomputeCostInTx(prisma, id, 'RECON:I8')) i8++
     } catch (e) {
@@ -754,7 +986,9 @@ async function runLocked(opts: ReconcileOpts): Promise<JiemaReconcileReport> {
 
   // R 系列
   let r: RResult | null = null
-  if (opts.upstream !== false) r = await collectR({ now, since }, prevExternal)
+  if (opts.upstream !== false) r = await collectR({ now, since, keep, actor, markAlerted: opts.alert !== false }, prevExternal)
+  keep()
+  faultForTest?.('R')
 
   const notices = await noticeLines(now).catch((e) => {
     console.error('[jiema] 对账知会查询失败', (e as Error)?.message)
@@ -771,49 +1005,46 @@ async function runLocked(opts: ReconcileOpts): Promise<JiemaReconcileReport> {
     fixes: { ...(r?.fixes ?? { r1: 0, r6: 0, r2Cleared: 0, race: 0, lossOrders: [] }), i8 },
     upstream: r ? r.upstream : { ok: false, skipped: true, rows: 0 },
     r5: r?.r5 ?? [],
-    unlinked: r?.unlinked ?? prev?.unlinked ?? { external: [], legacy: [], externalCount: 0, legacyCount: 0 },
+    // 这次没拉到 history（没调上游 / R0 失败）→ 沿用上一次的清单（R3「只报新出现的」去重靠它，不能拿「没拉到」覆盖成「没有」）
+    unlinked: r?.unlinked ?? prev?.unlinked ?? EMPTY_UNLINKED,
     notices: notices.lines,
     ok: items.every((i) => i.ok),
   }
+  report.fixes.lossOrdersTotal = report.fixes.lossOrders.length
 
   if (opts.save !== false) {
-    let value = JSON.stringify(report)
-    if (value.length > 60_000) {
-      // settings.value 是 TEXT（64KB）：清单太长时只存前 20 条、例子只存 3 条（计数照旧）
-      const slim: JiemaReconcileReport = {
-        ...report,
-        items: report.items.map((i) => ({ ...i, samples: i.samples.slice(0, 3).map((x) => x.slice(0, 200)), ...(i.note ? { note: i.note.slice(0, 500) } : {}) })),
-        unlinked: { ...report.unlinked, external: report.unlinked.external.slice(0, 20), legacy: report.unlinked.legacy.slice(0, 20) },
-        r5: report.r5.slice(-7),
-        notices: report.notices.slice(0, 10),
-      }
-      value = JSON.stringify(slim)
-    }
-    await prisma.setting
-      .upsert({ where: { key: SMS_RECONCILE_LAST_KEY }, create: { key: SMS_RECONCILE_LAST_KEY, value }, update: { value } })
-      .catch((e) => console.error('[jiema] 写 sms_reconcile_last 失败', (e as Error)?.message))
+    keep()
+    faultForTest?.('save')
+    await saveReport(report, opts)
   }
   if (!report.ok && opts.alert !== false) {
     const failed = items.filter((i) => !i.ok)
+    const loss = report.fixes.lossOrders
     smsAlert(
       'RECON',
       '接码对账发现不一致',
       [
         { label: '对账', value: `${failed.length} 项不一致（${failed.map((i) => i.code).join('、')}）`, color: 'warning' },
-        ...failed.slice(0, 6).map((i) => ({ label: i.code, value: `${i.count} 处；例：${(i.samples[0] ?? i.note ?? '—').slice(0, 160)}` })),
-        ...(report.fixes.lossOrders.length
-          ? [{ label: '亏损', value: report.fixes.lossOrders.map((x) => `${x.orderNo ?? `#${x.smsOrderId}`} ${x.lossCents == null ? '—' : fmtCents(x.lossCents)}`).join('、').slice(0, 300) + '（已取消单事后被扣费：只记亏损，订单仍是已取消）' }]
+        // 企业微信 markdown 整条 ≤ 4096 字节：例子每条截到 120 字、亏损单最多列 10 张
+        ...failed.slice(0, 6).map((i) => ({ label: i.code, value: `${i.count} 处；例：${(i.samples[0] ?? i.note ?? '—').slice(0, 120)}` })),
+        ...(loss.length
+          ? [
+              {
+                label: '亏损',
+                value:
+                  loss
+                    .slice(0, 10)
+                    .map((x) => `${x.orderNo ?? `#${x.smsOrderId}`} ${x.lossCents == null ? '—' : fmtCents(x.lossCents)}`)
+                    .join('、') + `${loss.length > 10 ? ` 等 ${loss.length} 张` : ''}（已取消单事后被扣费：只记亏损，订单仍是已取消）`,
+              },
+            ]
           : []),
       ],
       { link: '/admin/jiema?tab=reconcile', throttleMs: 0 },
     )
   }
   if (opts.daily) {
-    try {
-      await saveDaily(await buildDaily(now, report), now)
-    } catch (e) {
-      console.error('[jiema] 生成日报失败', (e as Error)?.message)
-    }
+    await queueDaily(now, { recon: items.filter((i) => !i.ok).length, external: report.unlinked.externalCount, notices: report.notices })
     if (notices.alipay.length && opts.alert !== false) {
       notify('wallet.alert', [{ label: '知会', value: '只标记、不限制（§10.1）', color: 'info' }, ...notices.alipay.slice(0, 8).map((v) => ({ label: '用户', value: v }))], {
         link: '/admin/wallet?tab=users',
