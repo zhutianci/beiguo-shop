@@ -7,6 +7,7 @@
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-p2 # 渠道分站二期（docs/多渠道分销-二期改动.md）：只允许那 8 列
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-wallet-b0 # 短信接码 · B0 余额底座（docs/短信接码-设计.md §5.5、§5.6）
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s1  # 短信接码 · S1 目录与定价：5 张新表（§5.2、§5.5）
+#   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s2  # 短信接码 · S2 下单与状态机：4 张新表 sms_orders / sms_attempts / sms_messages / sms_events
 #
 # 只用 POSIX sh + grep + awk + sort（不 import src/，服务器宿主机或任意容器里都能跑）。
 #
@@ -29,7 +30,7 @@ PREVIEW="${1:-}"
 MODE="${2:-}"
 
 if [ -z "$PREVIEW" ]; then
-  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0 | --expect-jiema-s1]" >&2
+  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0 | --expect-jiema-s1 | --expect-jiema-s2]" >&2
   exit 2
 fi
 if [ ! -s "$PREVIEW" ]; then
@@ -87,10 +88,61 @@ INV=$(inventory)
 echo "—— 预览清单（$(printf '%s\n' "$INV" | grep -c . ) 项）——"
 printf '%s\n' "$INV" | awk 'NF { k = $1; n[k]++ } END { for (k in n) printf "  %s × %d\n", k, n[k] }' | sort
 
-if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ] && [ "$MODE" != "--expect-jiema-s1" ]; then
-  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0，接码 S1 加 --expect-jiema-s1）"
+if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ] && [ "$MODE" != "--expect-jiema-s1" ] && [ "$MODE" != "--expect-jiema-s2" ]; then
+  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0，接码 S1 加 --expect-jiema-s1，接码 S2 加 --expect-jiema-s2）"
   exit 0
 fi
+
+# ③'''' 短信接码 · S2 下单、状态机、成本核算（docs/短信接码-设计.md §5.2、§5.5）：只建 4 张新表，不碰任何旧表（balance_logs 的改动已在 B0）。
+#        索引与默认值写在 CREATE TABLE 里，下面 jiema_s2_details 逐字核对
+EXPECT_JIEMA_S2=$(cat <<'EOF' | sort
+TABLE sms_attempts
+TABLE sms_events
+TABLE sms_messages
+TABLE sms_orders
+EOF
+)
+
+# S2 另外逐字核对：
+#   · sms_orders：order_id 唯一、(user_id, client_token) 唯一（幂等）、4 个索引；state 默认 PENDING_PAY、refund_state 默认 NONE、
+#     acquire_tries 默认 3、long_wait_ok / cost_final 默认 false、fail_count 默认 0；v1.1 新增的 long_wait_ok / fail_count / manual_at / alerted_at 都在；
+#   · sms_attempts：activation_id 唯一、(sms_order_id, seq) 唯一、3 个索引；upstream_created_at（v1.1）、dispatched_at / empty_scans（S2a 实施偏差）都在；
+#   · sms_messages：(attempt_id, dedupe_key) 唯一；sms_events：(sms_order_id, id)、(type, created_at) 两个索引。
+jiema_s2_details() {
+  bad=0
+  need() {
+    if ! grep -Eq "$1" "$PREVIEW"; then
+      echo "❌ 预览里缺少：$2"
+      bad=1
+    fi
+  }
+  need 'UNIQUE INDEX `sms_orders_order_id_key`\(`order_id`\)' 'sms_orders.order_id 唯一索引'
+  need 'UNIQUE INDEX `sms_orders_user_id_client_token_key`\(`user_id`, `client_token`\)' 'sms_orders (user_id, client_token) 唯一索引'
+  need 'INDEX `sms_orders_state_updated_at_idx`\(`state`, `updated_at`\)' 'sms_orders (state, updated_at) 索引'
+  need 'INDEX `sms_orders_user_id_created_at_idx`\(`user_id`, `created_at`\)' 'sms_orders (user_id, created_at) 索引'
+  need 'INDEX `sms_orders_service_country_created_at_idx`\(`service`, `country`, `created_at`\)' 'sms_orders (service, country, created_at) 索引'
+  need 'INDEX `sms_orders_cost_at_idx`\(`cost_at`\)' 'sms_orders (cost_at) 索引'
+  need "\`state\` VARCHAR\(16\) NOT NULL DEFAULT 'PENDING_PAY'" 'sms_orders.state 默认 PENDING_PAY'
+  need "\`refund_state\` VARCHAR\(8\) NOT NULL DEFAULT 'NONE'" 'sms_orders.refund_state 默认 NONE'
+  need '`acquire_tries` INTEGER NOT NULL DEFAULT 3' 'sms_orders.acquire_tries 默认 3'
+  need '`long_wait_ok` BOOLEAN NOT NULL DEFAULT false' 'sms_orders.long_wait_ok 默认 false'
+  need '`cost_final` BOOLEAN NOT NULL DEFAULT false' 'sms_orders.cost_final 默认 false'
+  need '`fail_count` INTEGER NOT NULL DEFAULT 0' 'sms_orders.fail_count 默认 0'
+  need '`manual_at` DATETIME\(3\) NULL' 'sms_orders.manual_at'
+  need '`alerted_at` DATETIME\(3\) NULL' 'sms_orders.alerted_at'
+  need 'UNIQUE INDEX `sms_attempts_activation_id_key`\(`activation_id`\)' 'sms_attempts.activation_id 唯一索引'
+  need 'UNIQUE INDEX `sms_attempts_sms_order_id_seq_key`\(`sms_order_id`, `seq`\)' 'sms_attempts (sms_order_id, seq) 唯一索引'
+  need 'INDEX `sms_attempts_sms_order_id_idx`\(`sms_order_id`\)' 'sms_attempts (sms_order_id) 索引'
+  need 'INDEX `sms_attempts_state_next_check_at_idx`\(`state`, `next_check_at`\)' 'sms_attempts (state, next_check_at) 索引'
+  need 'INDEX `sms_attempts_service_country_requested_at_idx`\(`service`, `country`, `requested_at`\)' 'sms_attempts (service, country, requested_at) 索引'
+  need '`upstream_created_at` DATETIME\(3\) NULL' 'sms_attempts.upstream_created_at'
+  need '`dispatched_at` DATETIME\(3\) NULL' 'sms_attempts.dispatched_at'
+  need '`empty_scans` INTEGER NOT NULL DEFAULT 0' 'sms_attempts.empty_scans 默认 0'
+  need 'UNIQUE INDEX `sms_messages_attempt_id_dedupe_key_key`\(`attempt_id`, `dedupe_key`\)' 'sms_messages (attempt_id, dedupe_key) 唯一索引'
+  need 'INDEX `sms_events_sms_order_id_id_idx`\(`sms_order_id`, `id`\)' 'sms_events (sms_order_id, id) 索引'
+  need 'INDEX `sms_events_type_created_at_idx`\(`type`, `created_at`\)' 'sms_events (type, created_at) 索引'
+  return $bad
+}
 
 # ③''' 短信接码 · S1 目录与定价（docs/短信接码-设计.md §5.2、§5.5）：只建 5 张新表，不碰任何旧表。
 #       新表里的唯一 / 普通索引写在 CREATE TABLE 里（清单只认出 TABLE 一行），下面 jiema_s1_details 逐字核对
@@ -249,6 +301,10 @@ elif [ "$MODE" = "--expect-wallet-b0" ]; then
   EXPECT="$EXPECT_WALLET_B0"
   SUMMARY="钱包 B0：users 1 列、balance_logs 3 列 + 1 个唯一索引、新表 balance_holds（含 3 个索引、默认值逐字核对）"
   wallet_b0_details || exit 1
+elif [ "$MODE" = "--expect-jiema-s2" ]; then
+  EXPECT="$EXPECT_JIEMA_S2"
+  SUMMARY="接码 S2：4 张新表 sms_orders / sms_attempts / sms_messages / sms_events（唯一索引、默认值逐字核对）"
+  jiema_s2_details || exit 1
 elif [ "$MODE" = "--expect-jiema-s1" ]; then
   EXPECT="$EXPECT_JIEMA_S1"
   SUMMARY="接码 S1：5 张新表 sms_services / sms_countries / sms_offer_cache / sms_price_rules / sms_holds（唯一索引、默认值逐字核对）"

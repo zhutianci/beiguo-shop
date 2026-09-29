@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
@@ -18,6 +18,7 @@ import { assertCouponForPayment } from '@/lib/coupon'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { payableCents } from '@/lib/order-payable'
 import { topupAvailability } from '@/lib/topup-checkout'
+import { smsCashierGate } from '@/lib/jiema/pay-gate'
 
 const schema = z.object({
   orderNo: z.string().min(1, '缺少订单号'),
@@ -69,12 +70,19 @@ export async function POST(request: NextRequest) {
     })
     // 【系统载体商品】（D14）两种载体（接码 SMS_POOL / 充值 TOPUP）都是下架商品，只在「建单」与「发起支付」两处开例外。
     // 充值单：要求充值对本人开放（开关、受众、配置读得到、载体商品正常），订单是本人未付的充值单（上面已核）；跳过上架检查与比价。
-    // 接码单（SMS_POOL）的分支在 S2（§6.6 第 26 条）；B1 期间它照旧被下面的「已下架」拦住（fail closed）。
+    // 接码单（SMS_POOL，§6.6 第 26 条）：要求 SmsOrder 是 PENDING_PAY、不是余额付清；新发起收款单前复核锁价与 checkSellable
+    // （不通过就按 T4 的路径关单、释放预扣，返回 409 QUOTE_EXPIRED / HOLD / UNAVAILABLE，号码页据此刷新成 CLOSED）；跳过上架检查与比价。
     const isTopup = product?.deliveryType === 'TOPUP'
+    const isSms = product?.deliveryType === 'SMS_POOL'
+    if (isSms) {
+      if (order.tenantId !== 1) return error('订单不存在', 404)
+      const g = await smsCashierGate(order.id, reusing)
+      if (!g.ok) return NextResponse.json({ success: false, error: g.message, code: g.code }, { status: g.status })
+    }
     if (isTopup && !reusing && !(await topupAvailability({ id: user.id, role: user.role }))) {
       return error('余额充值暂未开放', 503)
     }
-    if (!reusing && !isTopup) {
+    if (!reusing && !isTopup && !isSms) {
       /*
        * 【没发起过支付的订单不会被超时关单】closeExpired 只扫收款单，只调建单接口、不点付款的
        * 订单会一直是待支付，可以留着等涨价或下架之后再按旧价付款，AUTO 商品还会自动发卡。

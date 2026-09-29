@@ -697,9 +697,9 @@ async function main() {
       /*
        * 基线 SCHEMA_BASE 之后、渠道分站之外的包也会改 schema，它们的增量单独列在 LATER_*（各自有自己的 DDL 闸门），
        * 这里只从 diff 里扣掉、不替它们验收：短信接码 · B0 余额底座（docs/短信接码-设计.md §5.5，ddl-gate --expect-wallet-b0）、
-       * S1 目录与定价（5 张新表，ddl-gate --expect-jiema-s1）。
+       * S1 目录与定价（5 张新表，ddl-gate --expect-jiema-s1）、S2 下单与状态机（4 张新表，ddl-gate --expect-jiema-s2）。
        */
-      const LATER_TABLES = ['balance_holds', 'sms_countries', 'sms_holds', 'sms_offer_cache', 'sms_price_rules', 'sms_services']
+      const LATER_TABLES = ['balance_holds', 'sms_countries', 'sms_holds', 'sms_offer_cache', 'sms_price_rules', 'sms_services', 'sms_orders', 'sms_attempts', 'sms_messages', 'sms_events']
       const LATER_COLS = ['balance_logs.biz_key', 'balance_logs.topup_after_cents', 'balance_logs.topup_delta_cents', 'users.topup_cents']
       const created = Array.from(sql.matchAll(/CREATE TABLE `([a-z_]+)`/g)).map((m) => m[1]).filter((t) => !LATER_TABLES.includes(t)).sort()
       const wantTables = [

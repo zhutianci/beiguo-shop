@@ -30,6 +30,12 @@ const VISITOR_INACTIVE_DAYS = 365
 // 营销邮件：事件明细 90 天、发送记录 2 年（/privacy 四、保存多久；docs/营销推广-设计.md 第 12 节第 9 条）
 const MKT_EVENT_RETENTION_DAYS = 90
 const MKT_MESSAGE_RETENTION_DAYS = 730
+// 短信接码（docs/短信接码-设计.md §10.4、§6.6 第 32 条）：短信的 code / text 30 天后清空（写 purgedAt，行与收码时间留着对账和售后用）、
+// 尝试的上游原文 raw 90 天后清空、事件流水 180 天后删除；订单与尝试的结构化字段长期保留；**余额流水与预扣永不清理**（资金凭证）。
+// 保留期要与 /privacy 对买家的说法一致（隐私政策那一页的改动在 S2b，与号码页一起上线；上线前先改那一页）
+const SMS_TEXT_RETENTION_DAYS = 30
+const SMS_RAW_RETENTION_DAYS = 90
+const SMS_EVENT_RETENTION_DAYS = 180
 const BATCH = 5000
 const MAX_BATCHES = 20
 
@@ -117,7 +123,36 @@ export async function GET(request: NextRequest) {
       if (batch.length < BATCH) break
     }
 
-    return success({ pageViews, visitors, marketingEvents, marketingMessages, pvCutoff, visitorCutoff })
+    // 短信接码：分批（按主键圈定每一批），同上面的理由
+    const smsTextCutoff = new Date(now - SMS_TEXT_RETENTION_DAYS * 86400000)
+    const smsRawCutoff = new Date(now - SMS_RAW_RETENTION_DAYS * 86400000)
+    const smsEventCutoff = new Date(now - SMS_EVENT_RETENTION_DAYS * 86400000)
+    let smsPurged = 0
+    for (let i = 0; i < MAX_BATCHES; i++) {
+      const batch = await prisma.smsMessage.findMany({ where: { receivedAt: { lt: smsTextCutoff }, purgedAt: null }, select: { id: true }, take: BATCH })
+      if (!batch.length) break
+      const { count } = await prisma.smsMessage.updateMany({ where: { id: { in: batch.map((r) => r.id) } }, data: { code: null, text: null, purgedAt: new Date() } })
+      smsPurged += count
+      if (batch.length < BATCH) break
+    }
+    let smsRawCleared = 0
+    for (let i = 0; i < MAX_BATCHES; i++) {
+      const batch = await prisma.smsAttempt.findMany({ where: { createdAt: { lt: smsRawCutoff }, raw: { not: null } }, select: { id: true }, take: BATCH })
+      if (!batch.length) break
+      const { count } = await prisma.smsAttempt.updateMany({ where: { id: { in: batch.map((r) => r.id) } }, data: { raw: null } })
+      smsRawCleared += count
+      if (batch.length < BATCH) break
+    }
+    let smsEvents = 0
+    for (let i = 0; i < MAX_BATCHES; i++) {
+      const batch = await prisma.smsEvent.findMany({ where: { createdAt: { lt: smsEventCutoff } }, select: { id: true }, take: BATCH })
+      if (!batch.length) break
+      const { count } = await prisma.smsEvent.deleteMany({ where: { id: { in: batch.map((r) => r.id) } } })
+      smsEvents += count
+      if (batch.length < BATCH) break
+    }
+
+    return success({ pageViews, visitors, marketingEvents, marketingMessages, smsPurged, smsRawCleared, smsEvents, pvCutoff, visitorCutoff })
   } catch (err) {
     console.error('Cleanup cron error:', err)
     return error('清理失败')

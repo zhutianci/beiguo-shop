@@ -66,10 +66,11 @@ export async function GET(request: NextRequest) {
      * 【载体单（接码 / 充值）多给三项】（docs/短信接码-设计.md §6.6 第 13 条）：
      *   next：付款成功后去哪（接码单 → 号码页；充值单 → 钱包页 ?topup=），收银台只接受这两种格式（safeNext）；
      *   carrier：过期页用专用文案（它们关了就不能重新发起，不能 router.back()）；
-     *   balancePart：组合单已用余额抵扣的部分（HELD / CAPTURED 预扣合计，分）。
+     *   balancePart：组合单已用余额抵扣的部分（HELD / CAPTURED 预扣合计，分）；
+     *   released（S2，接码单）：这张单的预扣已经退回（RELEASED）——过期页据此写「预扣的余额已退回」，没用过余额的单不写（B1 实施偏差）。
      * 普通订单多一次按主键的查询、不多给任何字段；税费单不查。两者响应与原来逐字相同。
      */
-    let carrierExtra: { next: string; carrier: 'SMS_POOL' | 'TOPUP'; balancePart: number } | null = null
+    let carrierExtra: { next: string; carrier: 'SMS_POOL' | 'TOPUP'; balancePart: number; released?: boolean } | null = null
     if (o.bizType === 'order') {
       const ord = await prisma.order.findUnique({ where: { id: o.bizId }, select: { orderNo: true, product: { select: { deliveryType: true } } } })
       const dt = ord?.product.deliveryType
@@ -77,7 +78,7 @@ export async function GET(request: NextRequest) {
       else if (ord && dt === 'SMS_POOL') {
         const h = await prisma.balanceHold.findUnique({ where: { orderId: o.bizId }, select: { topupCents: true, cashCents: true, state: true } })
         const part = h && (h.state === 'HELD' || h.state === 'CAPTURED') ? h.topupCents + h.cashCents : 0
-        carrierExtra = { next: `/jiema/order/${ord.orderNo}`, carrier: 'SMS_POOL', balancePart: part }
+        carrierExtra = { next: `/jiema/order/${ord.orderNo}`, carrier: 'SMS_POOL', balancePart: part, released: h?.state === 'RELEASED' }
       }
     }
 

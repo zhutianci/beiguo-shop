@@ -476,7 +476,17 @@ async function collect(tx: Prisma.TransactionClient, s: Scope) {
       select: { id: true, payStatus: true, deliveryStatus: true, product: { select: { deliveryType: true } } },
       take: 100,
     })
-    items.push(item('W9', '载体单（充值 / 接码）的付款与交付状态组合合法', rows.map((o) => `${o.product.deliveryType} 订单 #${o.id}：${o.payStatus}/${o.deliveryStatus}`)))
+    // S2：联查 sms_orders（B0 实施偏差「联查 sms_orders 的部分留给 S2」）——已付款、接码单非终态的必是 PROCESSING 或 DELIVERED；
+    // 收过码（RECEIVED / FINISHED）的必是 DELIVERED（发现被事务后那句无条件 PROCESSING 覆盖回去的即报，§6.6 第 10 条）
+    const sms = await tx.$queryRaw<{ id: number; delivery_status: string; state: string }[]>`
+      SELECT o.id, o.delivery_status, s.state FROM orders o JOIN sms_orders s ON s.order_id = o.id
+       WHERE o.pay_status = 'PAID'
+         AND ((s.state IN ('READY', 'ACQUIRING', 'WAITING', 'REPLACING', 'CANCELLING', 'REFUNDING', 'RECEIVED', 'MANUAL') AND o.delivery_status NOT IN ('PROCESSING', 'DELIVERED'))
+           OR (s.state IN ('RECEIVED', 'FINISHED') AND o.delivery_status <> 'DELIVERED'))
+       LIMIT 100`
+    const bad9 = rows.map((o) => `${o.product.deliveryType} 订单 #${o.id}：${o.payStatus}/${o.deliveryStatus}`)
+    for (const r of sms) bad9.push(`SMS_POOL 订单 #${Number(r.id)}：PAID/${r.delivery_status}，接码单 ${r.state}`)
+    items.push(item('W9', '载体单（充值 / 接码）的付款与交付状态组合合法', bad9))
   }
 
   return { items, liability, exempt }

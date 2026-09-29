@@ -83,3 +83,7 @@
 # 第 ① 层 getPrices 全量（只写 hash 变了的行）、预热热门服务的第 ② 层 offers；只读上游、不花钱。锁 jiema:catalog，上一趟没完这一趟跳过。
 # 超过 60 分钟没同步成功推 sms.alert。GET + x-cron-secret 头
 */10 * * * * curl -fsS --max-time 240 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/jiema-catalog" >> /var/log/cron.log 2>&1
+# 每分钟 短信接码推进（docs/短信接码-设计.md §6.5、§6.6 第 32 条）：单趟 ≤45 秒、每 5 秒一轮——批量查码、解开结果未知的取号、推进订单
+# （到期前主动取消 / 完成、整单退回余额、关掉过期的待支付单并退回预扣）、熔断探活、上游余额刷新与低于 $2 告警（不停售）、组合成功率停售。
+# 锁 jiema:tick（TTL 90 秒），上一趟没完这一趟直接返回。旧 Codex / Claude 单品仍由上面的 sms-poll 负责。GET + x-cron-secret 头
+* * * * * curl -fsS --max-time 55 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/jiema-tick" >> /var/log/cron.log 2>&1

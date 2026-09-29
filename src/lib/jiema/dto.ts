@@ -127,3 +127,130 @@ export function collectKeyNames(v: unknown, out: Set<string> = new Set()): Set<s
   }
   return out
 }
+
+// ───────────────────────── 号码页 JiemaOrderView（S2，§6.4） ─────────────────────────
+
+export type SmsOrderStateView =
+  | 'PENDING_PAY'
+  | 'CLOSED'
+  | 'READY'
+  | 'ACQUIRING'
+  | 'WAITING'
+  | 'REPLACING'
+  | 'CANCELLING'
+  | 'RECEIVED'
+  | 'FINISHED'
+  | 'REFUNDING'
+  | 'CANCELLED'
+  | 'REFUNDED'
+  | 'MANUAL'
+
+export interface JiemaOrderView {
+  orderNo: string
+  orderId: number
+  state: SmsOrderStateView
+  version: number
+  service: { code: string; name: string }
+  country: { id: number; name: string; iso2: string | null; dial: string | null }
+  operator: { code: string; name: string } | null
+  priceCents: number
+  pay: {
+    mode: 'ALIPAY' | 'BALANCE' | 'MIXED'
+    balanceCents: number
+    balanceTopupCents: number
+    balanceCashCents: number
+    alipayCents: number
+    alipayPaidCents: number | null
+    holdState: 'HELD' | 'CAPTURED' | 'RELEASED' | 'REFUNDED' | null
+  }
+  quoteExpiresAt: string | null
+  cashierUrl: string | null
+  number: { dial: string | null; national: string; full: string; endsAt: string; waitUntil: string | null; canActAt: string; seq: number; canGetAnotherSms: boolean | null } | null
+  replace: { used: number; left: number }
+  messages: Array<{ id: number; code: string | null; text: string | null; sender: string | null; at: string; seq: number; toOldNumber: boolean }>
+  history: Array<{ seq: number; phone: string; outcome: 'REPLACED' | 'CANCELLED' | 'FAILED' | 'RECEIVED'; at: string }>
+  refund: { cents: number; topupCents: number; cashCents: number; at: string; reason: string } | null
+  lateCredits: Array<{ cents: number; at: string; kind: 'LATE' | 'DUPLICATE' }>
+  replaceBlocked: 'THREADS' | null
+  actions: { pay: boolean; close: boolean; replace: boolean; cancel: boolean; finish: boolean; start: boolean; refundReady: boolean; complain: boolean; message: boolean }
+  notice: string | null
+  serverNow: string
+  pollMs: number
+}
+
+/** 取消 / 退款原因 → 买家文案（附录 A；不出现上游名称） */
+export const REFUND_REASON_TEXT: Readonly<Record<string, string>> = Object.freeze({
+  EXPIRED: '号码到期，没有收到短信',
+  BUYER_CANCEL: '你已取消',
+  ACQUIRE_FAILED: '暂时没有可用号码',
+  PRICE_UP: '这个国家/地区的价格刚刚上涨',
+  SERVICE_NA: '接码服务暂时不可用',
+  COMBO_NA: '这个组合暂时不可用',
+  LATE_START_REFUND: '按你的选择退回余额',
+  HOLD: '服务暂时不可用，已退回余额',
+  MAINTENANCE: '服务暂时不可用，已退回余额',
+  UPSTREAM_ENDED: '号码已失效，未收到短信，已退回余额',
+  ADMIN_CANCEL: '客服已为你取消',
+  COMPLAINT: '售后审核通过',
+})
+
+export function refundReasonText(code: string | null | undefined): string {
+  return (code && REFUND_REASON_TEXT[code]) || '已退回余额'
+}
+
+/** 售后申请的入口在 S3 才上线；在那之前 actions.complain 恒为 false */
+export const COMPLAINT_AVAILABLE = false
+
+/** 号码页每个状态的建议轮询间隔（终态 0，前端停止轮询） */
+export function pollMsFor(state: string): number {
+  if (['FINISHED', 'CANCELLED', 'REFUNDED', 'CLOSED'].includes(state)) return 0
+  if (state === 'MANUAL') return 15_000
+  return 3_000
+}
+
+/** 白名单构造（逐字段，不做 {...row} 展开）：结果里绝不会出现 FORBIDDEN_BUYER_KEYS 的任何一个 */
+export function toJiemaOrderView(v: JiemaOrderView): JiemaOrderView {
+  return {
+    orderNo: v.orderNo,
+    orderId: v.orderId,
+    state: v.state,
+    version: v.version,
+    service: { code: v.service.code, name: v.service.name },
+    country: { id: v.country.id, name: v.country.name, iso2: v.country.iso2, dial: v.country.dial },
+    operator: v.operator ? { code: v.operator.code, name: v.operator.name } : null,
+    priceCents: v.priceCents,
+    pay: {
+      mode: v.pay.mode,
+      balanceCents: v.pay.balanceCents,
+      balanceTopupCents: v.pay.balanceTopupCents,
+      balanceCashCents: v.pay.balanceCashCents,
+      alipayCents: v.pay.alipayCents,
+      alipayPaidCents: v.pay.alipayPaidCents,
+      holdState: v.pay.holdState,
+    },
+    quoteExpiresAt: v.quoteExpiresAt,
+    cashierUrl: v.cashierUrl,
+    number: v.number
+      ? {
+          dial: v.number.dial,
+          national: v.number.national,
+          full: v.number.full,
+          endsAt: v.number.endsAt,
+          waitUntil: v.number.waitUntil,
+          canActAt: v.number.canActAt,
+          seq: v.number.seq,
+          canGetAnotherSms: v.number.canGetAnotherSms,
+        }
+      : null,
+    replace: { used: v.replace.used, left: v.replace.left },
+    messages: v.messages.map((m) => ({ id: m.id, code: m.code, text: m.text, sender: m.sender, at: m.at, seq: m.seq, toOldNumber: m.toOldNumber })),
+    history: v.history.map((h) => ({ seq: h.seq, phone: h.phone, outcome: h.outcome, at: h.at })),
+    refund: v.refund ? { cents: v.refund.cents, topupCents: v.refund.topupCents, cashCents: v.refund.cashCents, at: v.refund.at, reason: v.refund.reason } : null,
+    lateCredits: v.lateCredits.map((l) => ({ cents: l.cents, at: l.at, kind: l.kind })),
+    replaceBlocked: v.replaceBlocked,
+    actions: { ...v.actions },
+    notice: v.notice,
+    serverNow: v.serverNow,
+    pollMs: v.pollMs,
+  }
+}

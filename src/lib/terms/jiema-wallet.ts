@@ -39,3 +39,22 @@ export const WALLET_TERMS_JIEMA_INDEX = 1
 export function walletTermsFor(canUseForJiema: boolean): readonly string[] {
   return canUseForJiema ? WALLET_TERMS : WALLET_TERMS.filter((_, i) => i !== WALLET_TERMS_JIEMA_INDEX)
 }
+
+// ───────────────────────── 《接码服务规则》（S2，§8.4「短信接码」五条） ─────────────────────────
+
+/**
+ * 《接码服务规则》版本（下单接口直接与它比对，写进 SmsOrder.termsVersion；不读任何配置，§5.3）。
+ * 以后改动下面任何一句，都要在同一次提交里升这个版本（§8.4 设计说明 ④）。条款页第四节的渲染在 S2b（页面包）。
+ */
+export const JIEMA_TERMS_VERSION = '2026-09-29'
+
+export const JIEMA_TERMS_TITLE = '接码服务规则'
+
+/** §8.4「短信接码」五条（首版正文）。v1.2 起不再有「禁止用于金融或支付账户」（D25：条款禁止的是违法用途，不是平台类别） */
+export const JIEMA_TERMS: readonly string[] = Object.freeze([
+  '接码号码是临时租用的，只用于接收验证码；号码的有效期和规则以下单页展示的为准。',
+  '没有收到短信的（号码到期、你主动取消或系统取号失败），订单记为已取消，实付金额全额退回站内余额：余额抵扣的部分退回原来的余额类别，支付宝付的部分退入充值余额（不可提现、不退回支付宝）。收到短信即视为交付完成，不支持取消、换号、退款，特殊情况按售后规则人工审核。',
+  '订单关闭（超时未付或你取消）后才到账的付款，不会恢复订单，按实际到账金额退入你的充值余额。',
+  '禁止用于违法犯罪、电信网络诈骗、洗钱、冒用他人身份、批量注册、骚扰；平台有权拒绝服务并保留记录。',
+  '短信接码订单（不论用余额还是支付宝付款）暂不支持自助开票，可联系客服开票处理。',
+])

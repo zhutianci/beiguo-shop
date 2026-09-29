@@ -461,6 +461,171 @@ model SmsHold {
   @@map("sms_holds")
 }
 
+// ============ 短信接码 · S2 下单、状态机、成本核算（docs/短信接码-设计.md §5.2、§2） ============
+// 与 orders 1:1 的接码单、一单多行的取号尝试、短信、只追加的事件流水。全部新表，不碰任何旧表；新列全部可空或带默认值。
+// 状态一律字符串列（不加枚举值）；金额整数（微美元 / 分 / 系数 ×10000）。写入方只有 src/lib/jiema/**（engine / refund / claim / holds）
+// 与 src/lib/vmq.ts 的 fulfillCarrierOrder（付款事实与状态推进，§6.6 第 24 条）。
+
+/// 接码订单：与 orders 1:1。建单时一次性快照价格、两个系数与付款拆分，之后改配置不追溯（§4.4）
+model SmsOrder {
+  id                 Int       @id @default(autoincrement())
+  orderId            Int       @unique @map("order_id")
+  userId             Int       @map("user_id")
+  clientToken        String    @map("client_token") @db.VarChar(40) // 前端生成的 UUID，防重复提交
+  // ---- 买家的选择（名称是下单时的快照）----
+  service            String    @db.VarChar(8)
+  serviceName        String    @map("service_name") @db.VarChar(80)
+  country            Int // 0 = 随机地区（只有旧单品迁移时会用到）
+  countryName        String    @map("country_name") @db.VarChar(60)
+  operator           String?   @db.VarChar(40) // null = 任意
+  operatorFallback   Boolean   @default(true) @map("operator_fallback")
+  // ---- 定价快照（第 4 章）----
+  costMicro          Int       @map("cost_micro") // 报价成本
+  capMicro           Int       @map("cap_micro")
+  saleCoef4          Int       @map("sale_coef4") // 售价系数 x × 10000（定价用）
+  costFx4            Int       @map("cost_fx4") // 成本汇率 × 10000（核算真实成本用，D38）
+  markupCents        Int       @map("markup_cents")
+  priceCents         Int       @map("price_cents") // === toCents(Order.amount)
+  ruleKey            String?   @map("rule_key") @db.VarChar(24)
+  configVersion      Int       @map("config_version")
+  quotedAt           DateTime  @map("quoted_at")
+  quoteExpiresAt     DateTime  @map("quote_expires_at")
+  durationMin        Int       @map("duration_min") // 下单时展示的有效期（例外时长组合验证前恒为 20）
+  maxReplace         Int       @map("max_replace")
+  acquireTries       Int       @default(3) @map("acquire_tries") // 首次取号最多几次（快照：tick 推进在途单不读 sms_config，E59）
+  longWaitOk         Boolean   @default(false) @map("long_wait_ok") // 下单时 longDurationVerified 的快照（D42、T12）
+  termsVersion       String    @map("terms_version") @db.VarChar(16) // 《接码服务规则》版本
+  walletTermsVersion String?   @map("wallet_terms_version") @db.VarChar(16) // 《余额与充值规则》版本
+  // ---- 付款（下单时确定，之后不改；D34，§9.1）----
+  payMode            String    @map("pay_mode") @db.VarChar(8) // ALIPAY | BALANCE（余额付清）| MIXED（余额 + 支付宝）
+  balanceCents       Int       @default(0) @map("balance_cents") // 余额部分 = balance_holds 两格之和
+  alipayCents        Int       @default(0) @map("alipay_cents") // 支付宝应付 = priceCents − balanceCents（不含识别尾差）
+  alipayPaidCents    Int?      @map("alipay_paid_cents") // 支付宝实收（含识别尾差）= 让它付款的那张收款单的 reallyPrice
+  paidAt             DateTime? @map("paid_at")
+  // ---- 运行态 ----
+  state              String    @default("PENDING_PAY") @db.VarChar(16)
+  version            Int       @default(0)
+  currentAttemptId   Int?      @map("current_attempt_id")
+  attemptCount       Int       @default(0) @map("attempt_count") // 已发起的取号次数（含失败与换号）
+  replaceCount       Int       @default(0) @map("replace_count")
+  replaceBonus       Int       @default(0) @map("replace_bonus") // 管理员加赠的换号次数
+  endsAt             DateTime? @map("ends_at") // 当前号码的上游截止时间
+  waitUntil          DateTime? @map("wait_until") // 当前号码没码时由我方主动取消的时刻（D42）
+  blockedSince       DateTime? @map("blocked_since") // ACQUIRING 因停售 / 熔断取不了号的起点，满 90 秒退款（E59）
+  firstCodeAt        DateTime? @map("first_code_at")
+  finishedAt         DateTime? @map("finished_at")
+  notice             String?   @db.VarChar(120) // 给买家的一句话（换号失败原因等）
+  advancedAt         DateTime? @map("advanced_at") // 惰性推进的节流（CAS 占用）
+  failCount          Int       @default(0) @map("fail_count") // 当前卡住的那一个迁移连续失败的次数；状态变化时清零
+  manualAt           DateTime? @map("manual_at") // 进入 MANUAL 的时刻（T17）
+  alertedAt          DateTime? @map("alerted_at") // 最近一次 MANUAL 推送的时刻（T17）
+  // ---- 取消与退款（整单退回余额，原路分格；D3、D4）----
+  refundState        String    @default("NONE") @map("refund_state") @db.VarChar(8) // NONE | DONE
+  refundReason       String?   @map("refund_reason") @db.VarChar(24)
+  refundTopupCents   Int?      @map("refund_topup_cents") // 退回充值格 = 预扣的充值部分 + 支付宝实收
+  refundCashCents    Int?      @map("refund_cash_cents") // 退回返现格 = 预扣的返现部分
+  refundedAt         DateTime? @map("refunded_at")
+  refundBy           Int?      @map("refund_by") // 管理员售后退款时写 userId
+  // ---- 成本与利润（§4.6，D39）----
+  chargedMicro       Int?      @map("charged_micro") // 实际扣费美元（charged 尝试之和 − 上游事后退款）
+  costCents          Int?      @map("cost_cents") // 真实成本；已取消 = NULL（不计）
+  profitCents        Int?      @map("profit_cents") // 利润；已取消 = NULL；售后退款 = −costCents
+  costFinal          Boolean   @default(false) @map("cost_final") // false = 预估；true = 定稿
+  costAt             DateTime? @map("cost_at") // 定稿时间
+  lossCents          Int?      @map("loss_cents") // 已取消单上没码却被扣费的号 → 亏损（不进利润）
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  @@unique([userId, clientToken])
+  @@index([state, updatedAt])
+  @@index([userId, createdAt])
+  @@index([service, country, createdAt])
+  @@index([costAt])
+  @@map("sms_orders")
+}
+
+/// 一次取号（一单多行）。先插行再调上游：行是「意图记录」，调用失败或进程崩溃也有迹可循（附录 B 第 1 条）
+model SmsAttempt {
+  id                  Int       @id @default(autoincrement())
+  smsOrderId          Int       @map("sms_order_id")
+  seq                 Int // 该单第几次取号，与 smsOrderId 联合唯一
+  reason              String    @db.VarChar(8) // FIRST | RETRY | REPLACE | ADMIN
+  state               String    @db.VarChar(10) // REQUESTING | ACTIVE | RECEIVED | RELEASING | CANCELLED | FINISHED | FAILED | UNKNOWN
+  service             String    @db.VarChar(8)
+  country             Int
+  operator            String?   @db.VarChar(40) // 本次实际请求的运营商（降级后可能为 null）
+  maxPriceMicro       Int       @map("max_price_micro")
+  activationId        String?   @unique @map("activation_id") @db.VarChar(32)
+  phone               String?   @db.VarChar(24) // 不带 +
+  dialCode            String?   @map("dial_code") @db.VarChar(6)
+  operatorActual      String?   @map("operator_actual") @db.VarChar(40)
+  costMicro           Int?      @map("cost_micro") // 上游返回的 activationCost（实际扣费）
+  charged             Boolean   @default(false) // 上游最终扣了这个号的钱（§2.2）
+  chargeSource        String?   @map("charge_source") @db.VarChar(8) // SMS | EXPIRED | RECON
+  upstreamRefundMicro Int?      @map("upstream_refund_micro") // 上游事后退了收过码的号（R6）
+  assumed             Boolean   @default(false) // 上游长时间联系不上、按「已退」推定关闭（对账核实）
+  errorCode           String?   @map("error_code") @db.VarChar(40)
+  smsCount            Int       @default(0) @map("sms_count")
+  requestedAt         DateTime  @map("requested_at")
+  dispatchedAt        DateTime? @map("dispatched_at") // 取号请求真正离开本进程的时刻（S0 的 sentAt；UNKNOWN 认领窗的锚，实施偏差 S0）
+  respondedAt         DateTime? @map("responded_at")
+  upstreamCreatedAt   DateTime? @map("upstream_created_at") // 上游 v1 活跃列表里带时区的 createdAt（认领的时钟校准，§2.4）
+  canCancelAt         DateTime? @map("can_cancel_at") // 响应时刻 + 120 秒 + 3 秒余量
+  endsAt              DateTime? @map("ends_at")
+  waitUntil           DateTime? @map("wait_until") // 没码时主动取消的时刻（D42）
+  canGetAnotherSms    Boolean?  @map("can_get_another_sms") // 上游逐单返回：能否继续收码（D9）
+  codeAt              DateTime? @map("code_at")
+  closedAt            DateTime? @map("closed_at")
+  nextCheckAt         DateTime? @map("next_check_at") // 放号重试或下一次单查的时间
+  checkedAt           DateTime? @map("checked_at") // 最近一次向上游单查（≥4 秒节流，CAS 占用）
+  releaseTries        Int       @default(0) @map("release_tries")
+  emptyScans          Int       @default(0) @map("empty_scans") // UNKNOWN：连续几轮有效扫描没有任何候选（§2.4「连续两轮」，实施偏差 S2a）
+  raw                 String?   @db.Text // 最近一次上游原文（截断 2000、已脱敏）
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@unique([smsOrderId, seq])
+  @@index([smsOrderId])
+  @@index([state, nextCheckAt])
+  @@index([service, country, requestedAt])
+  @@map("sms_attempts")
+}
+
+/// 收到的短信。dedupeKey = 上游 OTP id；没有 id 时用 sha256 的前 32 位
+model SmsMessage {
+  id         Int       @id @default(autoincrement())
+  attemptId  Int       @map("attempt_id")
+  smsOrderId Int       @map("sms_order_id")
+  dedupeKey  String    @map("dedupe_key") @db.VarChar(64)
+  code       String?   @db.VarChar(32)
+  text       String?   @db.Text
+  sender     String?   @db.VarChar(64)
+  kind       String    @default("sms") @db.VarChar(8) // sms | call
+  receivedAt DateTime  @map("received_at")
+  purgedAt   DateTime? @map("purged_at") // 30 天后清空 code/text
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@unique([attemptId, dedupeKey])
+  @@index([smsOrderId])
+  @@map("sms_messages")
+}
+
+/// 只追加的事件流水：状态迁移、上游调用摘要、买家与管理员操作（§10.5）。保留 180 天
+model SmsEvent {
+  id         Int      @id @default(autoincrement())
+  smsOrderId Int      @map("sms_order_id")
+  attemptId  Int?     @map("attempt_id")
+  type       String   @db.VarChar(32)
+  actor      String   @db.VarChar(8) // SYSTEM | BUYER | ADMIN | CRON
+  actorId    Int?     @map("actor_id")
+  detail     String?  @db.VarChar(1000)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([smsOrderId, id])
+  @@index([type, createdAt])
+  @@map("sms_events")
+}
+
 // 内推：推广人为某商品设置的专属价格
 model ReferralPrice {
   id        Int      @id @default(autoincrement())

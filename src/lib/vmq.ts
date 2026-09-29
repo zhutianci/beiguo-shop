@@ -30,7 +30,9 @@ import { tenantMailOpts } from './storefront/origin'
 // 接码引擎（lib/jiema）只能动态 import（规则 17）
 import { isCarrierType } from './order-scope'
 import { payableCents } from './order-payable'
-import { captureInTx } from './wallet/hold'
+import { captureInTx, releaseInTx, HoldReleaseBlocked, HoldStateError } from './wallet/hold'
+// 接码单付款时 SmsOrder 推进到哪（零依赖纯函数，lib 根下；规则 17 不许本文件静态 import lib/jiema/**）
+import { paidTarget as smsPaidTarget } from './jiema-paid'
 import { creditInTx as creditTopupInTx, afterTopupCredited } from './wallet/topup'
 import { autoCreditIfCarrier } from './wallet/latepay'
 // 资金事务统一「死锁 / 写冲突重试一次」（§2.3 第 5 条、§2.7 第 4 条）：载体单付款事务、到账补记都走它
@@ -188,6 +190,22 @@ export async function closeExpired(): Promise<number> {
         // 只有订单确实没付款才放券。已付款的单（例如后台手工标了已支付、核销那步又失败了）
         // 券若还是 LOCKED，交给 sweepStuckCoupons 按「已付款 → 补核销」自愈，不能在这里放回可用
         const o = await tx.order.findUnique({ where: { id: e.bizId }, select: { payStatus: true } })
+        /*
+         * 【接码组合单：关单与释放预扣同一事务】（docs/短信接码-设计.md §6.6 第 25 条、H3、E38）订单确实是 UNPAID + CANCELLED、
+         * 这张订单没有别的 0/1 收款单、预扣是 HELD 才释放（两格原路加回、RELEASE 流水）。**没有预扣行的订单（所有普通商品、充值单、纯支付宝接码单）
+         * 是空操作**（lockHoldInTx 一次按 order_id 的普通读，返回 null）。释放抛错（预扣被改库成 CAPTURED 之类）→ 整个小事务回滚、收款单仍是 0、
+         * 下一分钟重试（E38）；只有「同单还有别的待付 / 已到账收款单」不回滚（否则两张同时过期的收款单会互相挡住、永远关不掉），
+         * 预扣留给 jiema-tick 在那些收款单结束后释放（advancePending → closePending）。
+         */
+        if (o?.payStatus === 'UNPAID') {
+          if (closeExpiredReleaseFaultForTest) closeExpiredReleaseFaultForTest()
+          try {
+            await releaseInTx(tx, e.bizId, { reason: 'VMQ_EXPIRED' })
+          } catch (err) {
+            if (!(err instanceof HoldReleaseBlocked && err.why === 'HAS_PAYMENT')) throw err
+            console.warn('[vmq] 关单时同单还有待付 / 已到账的收款单，预扣留给 jiema-tick 释放', e.bizId)
+          }
+        }
         return { flipped: true, releaseCoupon: o?.payStatus === 'UNPAID' }
       })
       if (!outcome.flipped) continue
@@ -213,6 +231,12 @@ export async function closeExpired(): Promise<number> {
 
   // 真正由本次关掉的条数（被到账抢先的不算）
   return closed
+}
+
+// 仅供 itest（§12.2 第 50 条）：在 closeExpired 释放预扣之前注入故障，验证整个小事务回滚、收款单仍是 0
+let closeExpiredReleaseFaultForTest: (() => void) | null = null
+export function setCloseExpiredReleaseFaultForTest(fn: (() => void) | null): void {
+  closeExpiredReleaseFaultForTest = fn
 }
 
 // 冷却中的金额（分）。按 createdAt 取窗口，一个条件覆盖三种结束方式：付款（payDate ≤ createdAt+超时）、
@@ -998,6 +1022,24 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
       }
       continue
     }
+    /*
+     * 【E44：接码单的预扣已不是 HELD】（§2.7、§6.6 第 15 条、§12.2 第 104 条）fulfillOrder 抛 HoldStateError 时把接码单转 MANUAL 并告警一次；
+     * 之后对账遇到「接码单是 MANUAL、预扣也不是 HELD」的载体单不再调 fulfillOrder（每次都会回滚），只在 firstAlert 时推一次。
+     * 接码单是 MANUAL 但预扣仍是 HELD（站长因为别的原因冻结的，§12.2 第 109 条）照常补履约：付款事实不依赖状态 CAS。
+     */
+    if (o && o.product.deliveryType === 'SMS_POOL') {
+      const [so, h] = await Promise.all([
+        prisma.smsOrder.findUnique({ where: { orderId: v.bizId }, select: { state: true } }),
+        prisma.balanceHold.findUnique({ where: { orderId: v.bizId }, select: { state: true } }),
+      ])
+      if (so?.state === 'MANUAL' && h && h.state !== 'HELD') {
+        pending++
+        if (await firstAlert(v.id)) {
+          notifyFulfillFailed({ ...base, site: null, reason: '收款单已到账，接码单已转人工（预扣不是 HELD）', action: '到接码后台核实后用「关单并把到账退入余额」处理' })
+        }
+        continue
+      }
+    }
     try {
       if (v.bizType === 'order') {
         // 先关掉卡住期间买家可能又发起的那张待支付收款单，防止二次付款无人知晓（只动 state=0）
@@ -1011,10 +1053,29 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
       console.warn('[vmq] 对账补履约完成', v.orderId, base.biz)
     } catch (e) {
       /*
-       * 【S2 必须补 E44】（§2.7、§6.6 第 15 条、§12.2 第 104 条；设计文档「实施偏差记录」B1（评审修复）行）载体单这里抛 HoldStateError
-       * （预扣被人工改库成非 HELD）时应把 SmsOrder 转 MANUAL + wallet.alert、之后不再重调 fulfillOrder。B1 没有 sms_orders 表、
-       * 充值单永远没有预扣行，这条路径不可达，所以现在仍是「每分钟重试 + firstAlert 只推一次」。
+       * 【E44】载体单这里抛 HoldStateError（预扣被人工改库成非 HELD）：把接码单 CAS 成 MANUAL（T17）、推 wallet.alert；
+       * 之后由上面的分支跳过、不再每分钟重调 fulfillOrder。其他错误照旧每分钟重试（E45）。
        */
+      if (e instanceof HoldStateError && o && o.product.deliveryType === 'SMS_POOL') {
+        pending++
+        const now = new Date()
+        const frozen = await prisma.smsOrder
+          .updateMany({
+            where: { orderId: v.bizId, state: { notIn: ['MANUAL', 'CLOSED', 'FINISHED', 'CANCELLED', 'REFUNDED'] } },
+            data: { state: 'MANUAL', version: { increment: 1 }, manualAt: now, alertedAt: now, notice: '订单需要人工核实，客服会尽快处理', failCount: 0 },
+          })
+          .catch(() => ({ count: 0 }))
+        const first = await firstAlert(v.id)
+        if (first || frozen.count === 1) {
+          notify('wallet.alert', [
+            { label: '问题', value: '接码单到账后预扣不是 HELD（E44，多半是人工改过库），已转人工', color: 'warning' },
+            { label: '订单', value: base.biz },
+            { label: '收款单', value: v.orderId },
+            { label: '处理', value: '核实后在接码后台用「关单并把到账退入余额」' },
+          ], { link: '/admin/jiema?tab=orders', extraTitle: '接码单到账后预扣状态异常' })
+        }
+        continue
+      }
       pending++
       console.error('[vmq] 对账补履约失败（下一分钟重试）', v.orderId, e)
       if (await firstAlert(v.id)) {
@@ -1399,8 +1460,10 @@ async function fulfillCarrierOrder(
   // 【inMoneyTx：死锁 / 写冲突重试一次】（§2.7 第 4 条、§2.3 第 5 条；B1 评审修复）原来是裸 prisma.$transaction：
   // 到账那一刻与同一用户的另一笔资金事务（后台调余额、迟到退入）撞上、被 InnoDB 选为死锁牺牲者，就要等 ≥3 分钟对账补做，
   // 还会推一条假的「到账履约失败」。整段可以安全重来：付款 CAS（UNPAID 且未取消）与 topup:<orderId> 这个 bizKey 都是幂等的
+  let smsNotMoved: { smsOrderId: number; state: string } | null = null
   const won = await inMoneyTx(async (tx) => {
     const now = new Date()
+    smsNotMoved = null
     const flip = await tx.order.updateMany({
       where: { id: orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } },
       data:
@@ -1414,12 +1477,39 @@ async function fulfillCarrierOrder(
     if (cur.tenantId !== 1) throw new Error(`[vmq] 载体单 #${orderId} 不在主站（tenant ${cur.tenantId}），拒绝付款`)
     const amountCents = centsOf(cur.amount)
     let vmqNo: string | null = null
+    let vmqPaidCents = 0
+    let vmqPayDate: Date | null = null
     if (via === 'VMQ') {
-      const v = await tx.vmqOrder.findUnique({ where: { id: opts!.vmqId! }, select: { orderId: true, state: true, bizType: true, bizId: true } })
+      const v = await tx.vmqOrder.findUnique({ where: { id: opts!.vmqId! }, select: { orderId: true, state: true, bizType: true, bizId: true, reallyPrice: true, payDate: true } })
       if (!v || v.state !== 1 || v.bizType !== 'order' || v.bizId !== orderId) {
         throw new Error(`[vmq] 载体单 #${orderId} 的收款单 #${opts!.vmqId} 不是本单已到账的收款单`)
       }
       vmqNo = v.orderId
+      vmqPaidCents = centsOf(v.reallyPrice)
+      vmqPayDate = v.payDate
+    }
+    /*
+     * 【接码单：付款事实与状态推进写在翻 PAID 的同一事务里】（docs/短信接码-设计.md §6.6 第 24 条、T2、T3、附录 B 第 3 条）按锁顺序：订单 CAS 之后、预扣之前。
+     *  ① 先写付款事实（alipayPaidCents = 这张收款单的 reallyPrice，余额付清为 0；paidAt）——**不带 state 条件**：SmsOrder 已被冻结成 MANUAL
+     *     也照样写上，之后「取消并退回余额」按 D4 能退足支付宝部分；
+     *  ② 再推进状态 PENDING_PAY → ACQUIRING（或 READY：对账补履约且已晚于锁价到期 + 20 分钟）。count=0（已被冻结等）不回滚——钱到了必须记下，
+     *     事务之后告警；tick 的修复扫描负责「订单已 PAID、SmsOrder 还是 PENDING_PAY」。
+     */
+    if (carrier === 'SMS_POOL') {
+      const so = await tx.smsOrder.findUnique({ where: { orderId }, select: { id: true, state: true, quoteExpiresAt: true } })
+      if (!so) throw new Error(`[vmq] 接码单 #${orderId} 没有 sms_orders 行（I1），拒绝付款`)
+      await tx.smsOrder.updateMany({ where: { orderId, alipayPaidCents: null }, data: { alipayPaidCents: via === 'VMQ' ? vmqPaidCents : 0, paidAt: now } })
+      const target = smsPaidTarget({ now, quoteExpiresAt: so.quoteExpiresAt, via, payDate: vmqPayDate })
+      const moved = await tx.smsOrder.updateMany({ where: { orderId, state: 'PENDING_PAY' }, data: { state: target, version: { increment: 1 }, failCount: 0, notice: null } })
+      await tx.smsEvent.create({
+        data: {
+          smsOrderId: so.id,
+          type: 'PAID',
+          actor: 'SYSTEM',
+          detail: JSON.stringify({ via, vmq: vmqNo, alipayPaidCents: via === 'VMQ' ? vmqPaidCents : 0, from: so.state, to: moved.count === 1 ? target : null }),
+        },
+      })
+      smsNotMoved = moved.count === 1 ? null : { smsOrderId: so.id, state: so.state }
     }
     // 预扣确认（H2）：锁顺序 收款单 → 订单 → 预扣 → 用户；预扣不是 HELD 就抛 HoldStateError，整个付款事务回滚（E44）
     const hold = await captureInTx(tx, orderId, via === 'BALANCE' ? { mustCoverCents: amountCents, now } : { now })
@@ -1441,7 +1531,25 @@ async function fulfillCarrierOrder(
     // 赢家立刻关掉同一订单其余的待支付收款单（只动 state=0）
     await invalidatePendingVmq('order', orderId).catch((e) => console.error('[vmq] 作废同单其余收款单失败', orderId, e))
     if (carrier === 'TOPUP') await afterTopupCredited(orderId)
-    // SMS_POOL：付款后推进取号在 S2（`(await import('./jiema/engine')).onPaid(orderId)`，§6.6 第 24 条）
+    if (carrier === 'SMS_POOL') {
+      const stuck = smsNotMoved as { smsOrderId: number; state: string } | null
+      if (stuck) {
+        // 付款事实已写、状态没推进（接码单已被冻结成 MANUAL 等）：钱到了必须让站长知道（T2 失败补偿）
+        notify('sms.alert', [
+          { label: '原因', value: 'PAID_NOT_ADVANCED', color: 'warning' },
+          { label: '接码单', value: `#${stuck.smsOrderId}（${stuck.state}）` },
+          { label: '说明', value: '订单已付款、预扣已确认，但接码单不在待支付（已冻结？），请到接码后台处理' },
+        ], { link: '/admin/jiema?tab=orders', extraTitle: '接码单付款后未推进' })
+      } else {
+        // 付款后马上踢一次取号（接码引擎只能动态 import，规则 17）；最多等 8 秒，失败只记日志，由 jiema-tick 兜底
+        try {
+          const { onPaid } = await import('./jiema/engine')
+          await Promise.race([onPaid(orderId), new Promise((r) => setTimeout(r, 8_000))])
+        } catch (e) {
+          console.error('[vmq] 接码单付款后踢取号失败（tick 兜底）', orderId, e)
+        }
+      }
+    }
   }
   return won
 }

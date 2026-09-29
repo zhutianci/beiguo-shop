@@ -120,3 +120,119 @@ export async function loadGateData(): Promise<GateData> {
     rules: new Map(rules.map((r) => [r.scopeKey, r])),
   }
 }
+
+// ───────────────────────── ⑥ 上游余额够付本单：在途占用（§3.2 的精确公式，E26） ─────────────────────────
+
+/** 传给上游的 maxPrice 至少 $0.0067：cap 小于它时真实上限是 6700 微美元（§3.2 的 eff） */
+export const EFF_MIN_MICRO = 6700
+export const eff = (x: number) => Math.max(x, EFF_MIN_MICRO)
+
+export interface InflightAttempt {
+  smsOrderId: number
+  state: string
+  costMicro: number | null
+  maxPriceMicro: number
+  respondedAt: Date | null
+  charged: boolean
+  chargeSource: string | null
+  codeAt: Date | null
+  closedAt: Date | null
+}
+
+export interface InflightOrder {
+  smsOrderId: number
+  state: string
+  capMicro: number
+  quoteExpiresAt: Date
+  payMode: string
+  /** Order.deliveryStatus = CANCELLED（已关单） */
+  orderCancelled: boolean
+  /** 有 state=0 且还没过期的收款单 */
+  openVmq: boolean
+  /** 有 state=1 的收款单（钱到了、等履约或对账补履约） */
+  paidVmq: boolean
+}
+
+export interface InflightLegacy {
+  /** 旧单品 sms_activations.status：WAITING / CODE */
+  status: string
+  numberAt: Date | null
+  codeAt: Date | null
+  /** 按商品 smsMaxPrice 估算（没有就 $1） */
+  estMicro: number
+}
+
+export interface InflightSnapshot {
+  attempts: readonly InflightAttempt[]
+  orders: readonly InflightOrder[]
+  legacy: readonly InflightLegacy[]
+}
+
+const NO_RESPONSE_STATES = new Set(['REQUESTING', 'UNKNOWN'])
+const B_UNCHARGED_STATES = new Set(['REQUESTING', 'UNKNOWN', 'ACTIVE', 'RELEASING'])
+const ATTEMPT_DONE = new Set(['FAILED', 'CANCELLED', 'FINISHED'])
+
+/** 一个尝试的金额：取号已经返回的用实扣价 costMicro；还没返回的（REQUESTING / UNKNOWN）用 eff(maxPriceMicro) */
+function amtOf(t: InflightAttempt): number {
+  if (NO_RESPONSE_STATES.has(t.state) || t.costMicro == null) return eff(t.maxPriceMicro)
+  return t.costMicro
+}
+
+/**
+ * 在途占用（纯函数，§3.2；T1、pay/vmq/create、后台概览共用；§12.1 第 121 条逐项断言）。
+ * 时刻一律拿余额缓存的 balanceAt 当界线；本单（selfSmsOrderId）的订单与尝试全部排除。
+ *  · 口径A（上游在取号时扣费）：还没有取号响应、或 respondedAt > balanceAt 的尝试，FAILED 与未扣费的 CANCELLED 不计；
+ *  · 口径B（上游在收码时扣费）：未扣费且 REQUESTING / UNKNOWN / ACTIVE / RELEASING 的；已扣费且「我方得知扣费」晚于 balanceAt 的
+ *    （SMS 取 codeAt，EXPIRED 取 closedAt；RECON 对账翻案不计——那笔扣费早已反映在缓存里）；
+ *  · 旧单品：A 加 numberAt 为空或晚于 balanceAt 的 WAITING / CODE；B 加全部 WAITING 与 codeAt 晚于 balanceAt 的 CODE；
+ *  · C（已承诺、还没有号码的单，每单 eff(cap)）：没有任何非终态尝试的 READY、ACQUIRING，以及还可能付款的 PENDING_PAY
+ *    （订单未取消，且锁价有效 / 有未过期的 state=0 收款单 / 有 state=1 收款单 / 余额付清等 T19）；
+ *  · **在途占用 = max(A, B) + C**：两种口径取较大者，**不相加**（相加等于一块隐形安全垫，违反 Q4 与附录 B 第 26 条）。
+ */
+export function inflightMicro(s: InflightSnapshot, balanceAt: Date, selfSmsOrderId: number | null, now: Date): { a: number; b: number; c: number; total: number } {
+  const bt = balanceAt.getTime()
+  let a = 0
+  let b = 0
+  const liveOrders = new Set<number>()
+  for (const t of s.attempts) {
+    if (!ATTEMPT_DONE.has(t.state)) liveOrders.add(t.smsOrderId)
+    if (selfSmsOrderId != null && t.smsOrderId === selfSmsOrderId) continue
+    const amt = amtOf(t)
+    // 口径A
+    if (t.state !== 'FAILED' && !(t.state === 'CANCELLED' && !t.charged)) {
+      const noResp = NO_RESPONSE_STATES.has(t.state) || t.respondedAt == null
+      if (noResp || (t.respondedAt as Date).getTime() > bt) a += amt
+    }
+    // 口径B
+    if (!t.charged) {
+      if (B_UNCHARGED_STATES.has(t.state)) b += amt
+    } else {
+      const known = t.chargeSource === 'SMS' ? t.codeAt : t.chargeSource === 'EXPIRED' ? t.closedAt : null
+      if (known && known.getTime() > bt) b += amt
+    }
+  }
+  for (const l of s.legacy) {
+    if (l.status !== 'WAITING' && l.status !== 'CODE') continue
+    if (l.numberAt == null || l.numberAt.getTime() > bt) a += l.estMicro
+    if (l.status === 'WAITING' || (l.status === 'CODE' && l.codeAt != null && l.codeAt.getTime() > bt)) b += l.estMicro
+  }
+  let c = 0
+  const n = now.getTime()
+  for (const o of s.orders) {
+    if (selfSmsOrderId != null && o.smsOrderId === selfSmsOrderId) continue
+    if (liveOrders.has(o.smsOrderId)) continue
+    let count = false
+    if (o.state === 'READY' || o.state === 'ACQUIRING') count = true
+    else if (o.state === 'PENDING_PAY' && !o.orderCancelled) {
+      count = n <= o.quoteExpiresAt.getTime() || o.openVmq || o.paidVmq || o.payMode === 'BALANCE'
+    }
+    if (count) c += eff(o.capMicro)
+  }
+  return { a, b, c, total: Math.max(a, b) + c }
+}
+
+/** 纯函数（§12.1 第 121 条）：缓存余额 − 在途占用 ≥ eff(本单 cap) 才能卖；缓存为「未知」或空一律不能卖。没有安全垫 */
+export function affordable(cache: { balanceMicro: number } | 'UNKNOWN' | null, inflight: number, capMicro: number): boolean {
+  if (!cache || cache === 'UNKNOWN') return false
+  return cache.balanceMicro - inflight >= eff(capMicro)
+}
