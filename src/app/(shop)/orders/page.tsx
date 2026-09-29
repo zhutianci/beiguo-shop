@@ -34,7 +34,7 @@ import { useStorefront } from '@/components/storefront-provider'
 // 只取类型：lib/lottery 间接引用了 prisma 与 node crypto，值导入会被打进前端包
 import type { BuyerLotteryView } from '@/lib/lottery'
 // 短信接码单在「我的订单」里的显示规则（纯函数，零依赖；docs/短信接码-设计.md §6.6 第 27 条）
-import { jiemaOrderCard, orderAmountText, type JiemaCard } from '@/lib/jiema/ui'
+import { jiemaOrderCard, jiemaAmountLines, orderAmountText, type JiemaCard } from '@/lib/jiema/ui'
 
 interface Order {
   id: number
@@ -497,6 +497,9 @@ export default function OrdersPage() {
                 // 短信接码单（SMS_POOL）：状态、提示、按钮都按 lib/jiema/ui.jiemaOrderCard（付款只走号码页，任何状态都能留言，§6.6 第 27、29 条）
                 const isJiema = order.product?.deliveryType === 'SMS_POOL'
                 const jc = isJiema ? jiemaOrderCard({ payStatus: order.payStatus, deliveryStatus: order.deliveryStatus, jiema: order.jiema ?? null }) : null
+                const jAmount = isJiema
+                  ? jiemaAmountLines({ amount: Number(order.amount), payable: Number(order.payable), payStatus: order.payStatus, deliveryStatus: order.deliveryStatus, jiema: order.jiema ?? null })
+                  : null
                 const status = jc ? { label: jc.label, ...JIEMA_TONE[jc.tone] } : getStatusConfig(order.payStatus, order.deliveryStatus)
                 const JcIcon = jc ? JIEMA_TONE[jc.tone].icon : null
                 const gradient = getGradient(order.productId)
@@ -579,11 +582,14 @@ export default function OrdersPage() {
                         <div className="flex items-center justify-between md:justify-end gap-4 lg:gap-6">
                           <div className="text-right">
                             <div className="text-2xl lg:text-3xl font-bold">
-                              {orderAmountText(Number(order.payStatus === 'UNPAID' ? order.payable : order.amount), order.product?.deliveryType)}
+                              {/* 接码单大字一律是订单金额；余额预扣与还需支付宝分两行写（jiemaAmountLines） */}
+                              {orderAmountText(Number(jAmount ? jAmount.main : order.payStatus === 'UNPAID' ? order.payable : order.amount), order.product?.deliveryType)}
                             </div>
-                            {isJiema && order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && order.jiema?.holdState === 'HELD' && order.jiema.holdCents > 0 ? (
-                              <div className="mt-0.5 text-[11px] text-cyan-200/80">余额已预扣 ¥{(order.jiema.holdCents / 100).toFixed(2)}</div>
-                            ) : null}
+                            {jAmount?.lines.map((l) => (
+                              <div key={l} className="mt-0.5 text-[11px] text-cyan-200/80">
+                                {l}
+                              </div>
+                            ))}
                             {order.payStatus === 'UNPAID' && order.invoiceTaxFee ? (
                               <div className="mt-0.5 text-[11px] text-amber-300/80">含发票税费 ¥{order.invoiceTaxFee.toFixed(2)}</div>
                             ) : null}

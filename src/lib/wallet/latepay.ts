@@ -253,6 +253,10 @@ export async function creditInTx(tx: Prisma.TransactionClient, p: CreditInput): 
   if (entry.handledAt) throw new LatepayError('ALREADY_HANDLED', '这条到账已经处理过了', 409)
   const cents = entryCents(entry)
   if (!amountInRange(cents)) throw new LatepayError('BAD_AMOUNT', `条目金额不合法（须大于 0 且不超过 ${fmtCents(LATEPAY_MAX_CENTS)}）`)
+  // 【锁顺序：订单 → 用户】（S2b 评审修复）先共享锁住订单行，再由 postInTx 锁用户行。下面接码单的客服留言（order_messages 外键指向 orders）
+  // 会给订单行加共享锁：放在 postInTx（已持有 users 行 X 锁）之后才拿，就成了「用户 → 订单」，与 T15 / T16 的「订单 X → 预扣 → 用户」
+  // 反向，同一张单并发退款与迟到退入时会死锁（MySQL 回滚其中一个：自动退入转人工告警、或 T15 重试）。
+  await tx.$queryRaw`SELECT id FROM orders WHERE id = ${p.orderId} LOCK IN SHARE MODE`
   const order = await orderInfo(tx, { id: p.orderId })
   if (!order) throw new LatepayError('ORDER_NOT_FOUND', '订单不存在', 404)
   if (!order.carrier || order.tenantId !== 1) throw new LatepayError('NOT_CARRIER', '只能退入主站的短信接码单或余额充值单')

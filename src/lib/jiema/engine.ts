@@ -867,7 +867,7 @@ async function advanceAcquiring(so: SmsOrder, now: Date, allowAcquire: boolean):
       await prisma.smsAttempt.updateMany({ where: { id: inflight.id, state: 'REQUESTING' }, data: { state: 'UNKNOWN', errorCode: 'STUCK' } })
     }
     if (inflight.state === 'UNKNOWN' && now.getTime() - inflight.requestedAt.getTime() > UNKNOWN_MANUAL_SEC * S) {
-      await toManual(so.id, `取号结果未知超过 10 分钟没解开（attempt #${inflight.id}）`)
+      await toManual(so.id, `取号结果未知超过 10 分钟没解开（attempt #${inflight.id}）`, undefined, { attemptId: inflight.id })
     }
     return
   }
@@ -987,7 +987,7 @@ async function advanceWithNumbers(so: SmsOrder, now: Date, actor: EvActor): Prom
           await prisma.smsAttempt.updateMany({ where: { id: inflightNew.id, state: 'REQUESTING' }, data: { state: 'UNKNOWN', errorCode: 'STUCK' } })
         }
         if (inflightNew.state === 'UNKNOWN' && now.getTime() - inflightNew.requestedAt.getTime() > UNKNOWN_MANUAL_SEC * S) {
-          await toManual(so.id, `换号结果未知超过 10 分钟没解开（attempt #${inflightNew.id}）`)
+          await toManual(so.id, `换号结果未知超过 10 分钟没解开（attempt #${inflightNew.id}）`, undefined, { attemptId: inflightNew.id })
           return
         }
         // 新号结果未知期间旧号到了 waitUntil → 先放旧号，订单 REPLACING → CANCELLING（T10 总则最后一段）
@@ -1484,8 +1484,11 @@ export async function runTick(opts: { budgetMs?: number; intervalMs?: number } =
 
 // ───────────────────────── 管理员（§7.2 的动作；后台页面与接口在 S2b） ─────────────────────────
 
-/** T16 售后退款：先放掉还开着的号（ACTIVE 放号、RECEIVED 完成），再整单原路退回余额，成本照计 */
-export async function adminRefund(smsOrderId: number, adminId: number, reason = 'COMPLAINT'): Promise<{ ok: boolean; why?: string }> {
+/**
+ * T16 售后退款：先放掉还开着的号（ACTIVE 放号、RECEIVED 完成），再整单原路退回余额，成本照计。
+ * opts.allowManual：MANUAL（收过码的）单直接在 T16 的事务里 MANUAL → REFUNDED（失败时留在 MANUAL；S2b 评审修复）
+ */
+export async function adminRefund(smsOrderId: number, adminId: number, reason = 'COMPLAINT', opts: { allowManual?: boolean } = {}): Promise<{ ok: boolean; why?: string }> {
   const atts = await prisma.smsAttempt.findMany({ where: { smsOrderId, state: { in: ['ACTIVE', 'RECEIVED'] } } })
   for (const a of atts) {
     if (a.state === 'ACTIVE') {
@@ -1497,7 +1500,7 @@ export async function adminRefund(smsOrderId: number, adminId: number, reason = 
     }
   }
   // finish 成功时订单已 RECEIVED → FINISHED；两种都可以售后
-  const r = await refundAfterSale(smsOrderId, adminId, reason)
+  const r = await refundAfterSale(smsOrderId, adminId, reason, opts)
   return r.done ? { ok: true } : { ok: false, why: r.why }
 }
 
@@ -1567,6 +1570,8 @@ export async function adminCancelRefund(smsOrderId: number, adminId: number): Pr
   if (o?.payStatus !== 'PAID') return false
   const atts = await loadAttempts(so.id)
   if (atts.some(hasCode)) return false
+  // 还有结果未知的取号：不转 REFUNDING（会先放掉买家手上的号，扫描器随后又把单冻回 MANUAL；S2b 评审修复）
+  if (atts.some((a) => a.state === 'REQUESTING' || a.state === 'UNKNOWN')) return false
   if (!(await casOrder(prisma, so, 'MANUAL', { state: 'REFUNDING', refundReason: 'ADMIN_CANCEL', manualAt: null, failCount: 0 }))) return false
   await logEventQuiet({ smsOrderId: so.id, type: 'ADMIN_CANCEL', actor: 'ADMIN', actorId: adminId })
   await advanceOrder(so.id, 'CRON', { allowAcquire: false })

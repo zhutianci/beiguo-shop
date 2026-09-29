@@ -383,6 +383,9 @@ function DetailDrawer({ id, onClose, onChanged }: { id: number; onClose: () => v
                   </Button>
                 ))}
               </div>
+              {d.so.state === 'MANUAL' && d.unknownAttempts.length > 0 && (
+                <p className="mt-1 text-xs text-amber-700">还有结果未知的取号：先「认领上游激活」，或等扫描器判定没买到，之后才能「解除 MANUAL」「取消并退回余额」（否则扫描器会把单再转回人工）</p>
+              )}
               {claim && (
                 <div className="mt-2 rounded border border-gray-200 p-2 text-xs">
                   <div className="mb-1 font-medium">尝试 #{claim.attemptId} 的候选（同服务、同国家、本站不认识的上游激活）{claim.calibrated === false && <span className="text-amber-700">（近 24 小时没有时钟校准样本，时间窗按原始时间）</span>}</div>
@@ -398,9 +401,12 @@ function DetailDrawer({ id, onClose, onChanged }: { id: number; onClose: () => v
                       <span>{t(c.createdAt)}</span>
                       {c.strict ? <span className="text-green-700">时间窗 + 运营商 + 价格都对得上</span> : c.inWindow ? <span className="text-amber-700">只有时间窗对得上</span> : <span className="text-gray-400">时间窗外</span>}
                       {c.legacyWindow && <span className="font-medium text-amber-800">旧链路窗口内：可能是旧单品的号，别给错人</span>}
+                      {c.blocked === 'OVER_CAP' && <span className="text-red-600">价格未知或高于本次上限 max(cap, $0.0067)：不可能是这次买到的</span>}
+                      {c.blocked === 'OPERATOR' && <span className="text-red-600">运营商与这次取号指定的不同：不可能是这次买到的</span>}
                       <button
-                        className="ml-auto text-primary-600 hover:underline"
-                        onClick={() => void run('claim', { attemptId: claim.attemptId, activationId: c.id }, `把上游激活 ${c.id}（尾号 ${c.phoneTail ?? '—'}）认领给这一单？认领后号码会显示给买家。`)}
+                        className="ml-auto text-primary-600 hover:underline disabled:cursor-not-allowed disabled:text-gray-300 disabled:no-underline"
+                        disabled={!!c.blocked}
+                        onClick={() => void run('claim', { attemptId: claim.attemptId, activationId: c.id }, `把上游激活 ${c.id}（尾号 ${c.phoneTail ?? '—'}）认领给这一单？订单在等这个号时号码会显示给买家；订单已收码 / 在退款 / 冻结起因是别的时，只结束「结果未知」、号码按规则释放。`)}
                       >
                         认领
                       </button>

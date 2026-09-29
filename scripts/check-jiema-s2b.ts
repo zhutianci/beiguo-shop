@@ -34,7 +34,10 @@ import {
   jiemaOrderCard,
   orderAmountText,
   termsPreTicked,
+  effectivePayWith,
+  jiemaAmountLines,
 } from '../src/lib/jiema/ui'
+import { claimReopenTarget, manualEventInfo, adminClaimReject, overEffCap, unmanualBlock, INFLIGHT_TEXT, type ClaimReopenInput } from '../src/lib/jiema/machine'
 import { summarizeFinance, listFooter, payCellText, type FinanceRow } from '../src/lib/jiema/report'
 import { safeRedirect } from '../src/lib/safe-redirect'
 import { hideLiveOrdersOn, hideFloatingContactOn } from '../src/lib/floating-widgets'
@@ -232,6 +235,90 @@ console.log('\n【号码页 DTO 的 S2b 增补字段（§6.4；白名单不出�
   ok(FORBIDDEN_BUYER_KEYS.every((k) => !names.has(k)), '增补字段（cashierExpiresAt、createdAt、progress）之后仍搜不到成本、cap、系数')
   ok(v.cashierExpiresAt === 'y' && v.createdAt === 'z' && JSON.stringify(v.progress) === '{"tries":2,"maxTries":3,"confirming":true}', '增补字段逐字段构造（progress 里夹带的键被丢掉）')
   ok(v.actions.message === true, '接码单任何状态都能留言（§6.6 第 29 条）')
+}
+
+console.log('\n【S2b 评审修复：后台认领恢复到哪（claimReopenTarget）——按冻结前状态与事实，不再只看尝试的 reason】')
+{
+  const base: ClaimReopenInput = {
+    attempt: { id: 2, reason: 'REPLACE' },
+    manual: { attemptId: 2, from: 'REPLACING', legacy: false },
+    payStatus: 'PAID',
+    refundReason: null,
+    anyCode: false,
+    cur: { id: 1, state: 'ACTIVE', smsCount: 0 },
+    otherInflight: false,
+    otherLive: true,
+  }
+  ok(claimReopenTarget(base) === 'REPLACING', '换号结果未知冻结（from=REPLACING）、旧号仍 ACTIVE 没收码 → 恢复 REPLACING（完成换号）')
+  ok(claimReopenTarget({ ...base, manual: { attemptId: 2, from: 'RECEIVED', legacy: false }, anyCode: true, cur: { id: 1, state: 'RECEIVED', smsCount: 1 } }) === 'RECEIVED', '评审第 1 条：换号期间旧号收码（from=RECEIVED）→ 恢复 RECEIVED（afterClaim 放掉新号），不是 REPLACING')
+  ok(claimReopenTarget({ ...base, anyCode: true, cur: { id: 1, state: 'RECEIVED', smsCount: 1 } }) === null, 'from=REPLACING 但冻结后旧号收了码 → 不恢复（留 MANUAL、新号放掉）')
+  ok(claimReopenTarget({ ...base, manual: { attemptId: 2, from: 'CANCELLING', legacy: false }, refundReason: 'EXPIRED', cur: { id: 1, state: 'RELEASING', smsCount: 0 } }) === 'CANCELLING', '变体：换号未知期间旧号到期（from=CANCELLING、EXPIRED）→ 恢复 CANCELLING 继续退款，不给新号')
+  ok(claimReopenTarget({ ...base, cur: { id: 1, state: 'CANCELLED', smsCount: 0 } }) === null, 'from=REPLACING 但旧号已结束 → 不恢复')
+  ok(claimReopenTarget({ ...base, manual: { attemptId: 9, from: 'REPLACING', legacy: false } }) === null, '冻结的起因是别的尝试 → 不恢复')
+  ok(claimReopenTarget({ ...base, manual: { attemptId: null, from: 'REFUNDING', legacy: false }, refundReason: 'EXPIRED' }) === null, '冻结的起因不是结果未知（退款核对不上之类，事件没有 attemptId）→ 不恢复')
+  ok(claimReopenTarget({ ...base, otherInflight: true }) === null && claimReopenTarget({ ...base, payStatus: 'UNPAID' }) === null, '还有别的在途取号 / 订单没付款 → 不恢复')
+  const first: ClaimReopenInput = { ...base, attempt: { id: 1, reason: 'FIRST' }, manual: { attemptId: 1, from: 'ACQUIRING', legacy: false }, cur: null, otherLive: false }
+  ok(claimReopenTarget(first) === 'ACQUIRING', '首次取号结果未知（from=ACQUIRING）→ 恢复 ACQUIRING（T8 挂成当前号）')
+  ok(claimReopenTarget({ ...first, otherLive: true }) === null && claimReopenTarget({ ...first, refundReason: 'ACQUIRE_FAILED' }) === null, '首次取号：已有别的活着的号 / 已有退款原因 → 不恢复')
+  ok(claimReopenTarget({ ...base, manual: { attemptId: null, from: null, legacy: true } }) === 'REPLACING' && claimReopenTarget({ ...base, manual: null, anyCode: true }) === null, '旧事件（不知道 from）/ 没有事件：只按事实判 ACQUIRING / REPLACING，收过码 → 不恢复')
+  eq(manualEventInfo({ attemptId: 5, detail: JSON.stringify({ why: 'x', from: 'REPLACING', attemptId: 5 }) }), { attemptId: 5, from: 'REPLACING', legacy: false }, 'MANUAL 事件解析：新事件带 from 与 attemptId')
+  eq(manualEventInfo({ attemptId: null, detail: JSON.stringify({ why: 'x' }) }), { attemptId: null, from: null, legacy: true }, '旧事件（detail 里没有 from 键）→ legacy')
+  eq(manualEventInfo({ attemptId: null, detail: JSON.stringify({ why: 'x', from: 'REFUNDING' }) }), { attemptId: null, from: 'REFUNDING', legacy: false }, '新事件、起因不是结果未知 → attemptId 为空、不是 legacy')
+}
+
+console.log('\n【S2b 评审修复：手动认领的硬闸门（价格 > eff(cap)、运营商不同 → 拒绝）】')
+{
+  ok(adminClaimReject({ operator: null, maxPriceMicro: 100_000 }, { operator: 'any', priceMicro: 300_000 }) === 'OVER_CAP', 'cap $0.10、候选 $0.30 → OVER_CAP（成本不能记到 cap 以上）')
+  ok(adminClaimReject({ operator: null, maxPriceMicro: 5_000 }, { operator: 'any', priceMicro: 6_500 }) === null, 'cap $0.005 < $0.0067：实际上限 eff(cap)=6700，$0.0065 的候选合法')
+  ok(adminClaimReject({ operator: null, maxPriceMicro: 5_000 }, { operator: 'any', priceMicro: 6_800 }) === 'OVER_CAP' && adminClaimReject({ operator: null, maxPriceMicro: 5_000 }, { operator: 'any', priceMicro: null }) === 'OVER_CAP', '超过 eff(cap) / 价格未知 → OVER_CAP')
+  ok(adminClaimReject({ operator: 'tmobile', maxPriceMicro: 100_000 }, { operator: 'verizon', priceMicro: 90_000 }) === 'OPERATOR' && adminClaimReject({ operator: 'tmobile', maxPriceMicro: 100_000 }, { operator: null, priceMicro: 90_000 }) === 'OPERATOR', '指定了 tmobile：候选 verizon / 没给运营商 → OPERATOR')
+  ok(adminClaimReject({ operator: 'tmobile', maxPriceMicro: 100_000 }, { operator: 'tmobile', priceMicro: 100_000 }) === null && adminClaimReject({ operator: null, maxPriceMicro: 100_000 }, { operator: 'verizon', priceMicro: 1 }) === null, '运营商一致 / 没指定运营商 → 可以认领')
+  ok(!overEffCap(6_500, 5_000) && overEffCap(6_800, 5_000) && overEffCap(100_001, 100_000) && !overEffCap(null, 1), '候选标红按 eff(cap) 判（cap < 6700 时合法候选不再误标超上限）')
+}
+
+console.log('\n【S2b 评审修复：解除 MANUAL 的前提（unmanualBlock：结果未知的尝试、收款单、预扣）】')
+{
+  const A = (id: number, state: string, smsCount = 0) => ({ id, state, smsCount, codeAt: null })
+  const pp = { target: 'PENDING_PAY', payStatus: 'UNPAID', deliveryStatus: 'PENDING', payMode: 'MIXED', holdState: 'HELD' as string | null, paidVmq: false, attempts: [] as ReturnType<typeof A>[], currentAttemptId: null as number | null }
+  ok(unmanualBlock(pp) === null, '组合单：未付款未取消、预扣 HELD、没有到账收款单 → 可以回到 PENDING_PAY')
+  ok(!!unmanualBlock({ ...pp, paidVmq: true })?.includes('关单并把到账退入余额'), 'E44：有 state=1 的收款单 → 拒绝回到 PENDING_PAY（钱到了却回待支付，之后没人推进）')
+  ok(!!unmanualBlock({ ...pp, holdState: 'CAPTURED' })?.includes('预扣不是 HELD') && !!unmanualBlock({ ...pp, payMode: 'BALANCE', holdState: null })?.includes('预扣不是 HELD'), '余额付清 / 组合单的预扣不是 HELD → 拒绝')
+  ok(unmanualBlock({ ...pp, payMode: 'ALIPAY', holdState: null }) === null, '纯支付宝单没有预扣 → 不看预扣')
+  const w = { target: 'WAITING', payStatus: 'PAID', deliveryStatus: 'PROCESSING', payMode: 'BALANCE', holdState: 'CAPTURED' as string | null, paidVmq: true, attempts: [A(1, 'ACTIVE')], currentAttemptId: 1 as number | null }
+  ok(unmanualBlock(w) === null && unmanualBlock({ ...w, target: 'REFUNDING' }) === null, '已付款、预扣 CAPTURED、当前号 ACTIVE 没收码 → 可以回到 WAITING / REFUNDING')
+  ok(
+    ['PENDING_PAY', 'ACQUIRING', 'WAITING', 'REFUNDING'].every((t) => unmanualBlock({ ...(t === 'PENDING_PAY' ? pp : w), target: t, attempts: [A(1, 'ACTIVE'), A(2, 'UNKNOWN')] }) === INFLIGHT_TEXT),
+    '评审第 7 条：任何目标，只要还有 UNKNOWN / REQUESTING 尝试 → 拒绝（扫描器会再冻回去）',
+  )
+  ok(!!unmanualBlock({ ...w, holdState: 'HELD' })?.includes('预扣不是 CAPTURED'), '已付款的余额单预扣不是 CAPTURED → 拒绝（T15 只退 CAPTURED）')
+  ok(!!unmanualBlock({ ...w, attempts: [A(1, 'ACTIVE', 1)] })?.includes('售后退款') && !!unmanualBlock({ ...w, target: 'ACQUIRING' })?.includes('活着的号'), '收过码 → 只能售后退款；回 ACQUIRING 时还有活着的号 → 拒绝')
+}
+
+console.log('\n【S2b 评审修复：确认面板付款方式（显示与提交同一个判定）、我的订单金额与卡片】')
+{
+  ok(effectivePayWith('BALANCE', 0, true) === 'ALIPAY', '选过余额、可用余额变成 0 → 提交也按支付宝（不再「显示支付宝、提交余额」）')
+  ok(effectivePayWith('BALANCE', 120, false) === 'ALIPAY' && effectivePayWith(null, 120, true) === 'ALIPAY' && effectivePayWith('BALANCE', 120, true) === 'BALANCE', '余额支付关（含 503 BALANCE_PAY_OFF 之后）→ 支付宝；选了余额且有余额 → 余额')
+  eq(
+    jiemaAmountLines({ amount: 1.7, payable: 0, payStatus: 'UNPAID', deliveryStatus: 'PENDING', jiema: { state: 'PENDING_PAY', payMode: 'BALANCE', holdCents: 170, holdState: 'HELD' } }),
+    { main: 1.7, lines: ['余额已预扣 ¥1.70'] },
+    '余额付清单停在待支付：大字是订单金额 ¥1.70（不是 ¥0.00），下面「余额已预扣 ¥1.70」',
+  )
+  eq(
+    jiemaAmountLines({ amount: 1.7, payable: 0.5, payStatus: 'UNPAID', deliveryStatus: 'PENDING', jiema: { state: 'PENDING_PAY', payMode: 'MIXED', holdCents: 120, holdState: 'HELD' } }),
+    { main: 1.7, lines: ['余额已预扣 ¥1.20', '还需支付宝 ¥0.50'] },
+    '组合单：订单金额 ¥1.70，「余额已预扣 ¥1.20」「还需支付宝 ¥0.50」分两行',
+  )
+  eq(jiemaAmountLines({ amount: 1.7, payable: 1.7, payStatus: 'UNPAID', deliveryStatus: 'PENDING', jiema: { state: 'PENDING_PAY', payMode: 'MIXED', holdCents: 120, holdState: 'RELEASED' } }).lines, [], '预扣不是 HELD → 不写「余额已预扣」')
+  const man = jiemaOrderCard({ payStatus: 'UNPAID', deliveryStatus: 'PENDING', jiema: { state: 'MANUAL', payMode: 'MIXED', holdCents: 120, holdState: 'CAPTURED' } })
+  ok(man.label === '人工处理中' && !man.showGoPay, 'E44：未付款但接码单 MANUAL → 「人工处理中」，没有「去付款」')
+  const manBal = jiemaOrderCard({ payStatus: 'UNPAID', deliveryStatus: 'PENDING', jiema: { state: 'MANUAL', payMode: 'BALANCE', holdCents: 170, holdState: 'HELD' } })
+  ok(manBal.label === '人工处理中' && !manBal.showGoPay, '余额付清单 T19 失败转 MANUAL → 「人工处理中」')
+  const mixRel = jiemaOrderCard({ payStatus: 'UNPAID', deliveryStatus: 'PENDING', jiema: { state: 'PENDING_PAY', payMode: 'MIXED', holdCents: 120, holdState: 'RELEASED' } })
+  ok(mixRel.showGoPay && !mixRel.hint?.includes('已预扣'), '组合单预扣不是 HELD：提示不写「余额已预扣」')
+  const ready = jiemaOrderCard({ payStatus: 'PAID', deliveryStatus: 'PROCESSING', jiema: { state: 'READY', payMode: 'ALIPAY', holdCents: 0, holdState: null } })
+  ok(ready.label === '已付款 · 待开始' && !!ready.hint?.includes('开始接码') && !ready.showGoPay, 'READY：「已付款 · 待开始」，提示去号码页点「开始接码」（不再写「正在接码」）')
+  const paidMan = jiemaOrderCard({ payStatus: 'PAID', deliveryStatus: 'PROCESSING', jiema: { state: 'MANUAL', payMode: 'ALIPAY', holdCents: 0, holdState: null } })
+  ok(paidMan.label === '人工处理中' && paidMan.showInvoiceNotice, '已付款的 MANUAL 单仍是「人工处理中」、有开票提示')
 }
 
 console.log(`\n通过 ${pass} 条，失败 ${fail} 条`)

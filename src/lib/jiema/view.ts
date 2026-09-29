@@ -11,7 +11,7 @@ import { VMQ_TIMEOUT_MIN } from '../vmq'
 import { COMPLAINT_AVAILABLE, pollMsFor, refundReasonText, toJiemaOrderView, type JiemaOrderView, type SmsOrderStateView } from './dto'
 import { flagOf, operatorDisplayName, readOperatorNames } from './catalog'
 import { phoneParts } from './machine'
-import { threadsLimited } from './sellable'
+import { threadsLimited, acquireBlock } from './sellable'
 import { jnow } from './runtime'
 
 export interface BuyerOrderRef {
@@ -47,7 +47,7 @@ function historyOutcome(a: SmsAttempt, currentId: number | null): 'REPLACED' | '
 export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView> {
   const { so, order } = ref
   const now = jnow()
-  const [atts, msgs, hold, country, names, lateLogs, threads, vmq] = await Promise.all([
+  const [atts, msgs, hold, country, names, lateLogs, threads, vmq, startBlock] = await Promise.all([
     prisma.smsAttempt.findMany({ where: { smsOrderId: so.id }, orderBy: { seq: 'asc' } }),
     prisma.smsMessage.findMany({ where: { smsOrderId: so.id }, orderBy: { receivedAt: 'desc' }, take: 50 }),
     prisma.balanceHold.findUnique({ where: { orderId: order.id }, select: { topupCents: true, cashCents: true, state: true } }),
@@ -58,6 +58,8 @@ export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView
     so.state === 'PENDING_PAY'
       ? prisma.vmqOrder.findFirst({ where: { bizType: 'order', bizId: order.id, state: 0, createdAt: { gte: new Date(Date.now() - VMQ_TIMEOUT_MIN * 60_000) } }, orderBy: { createdAt: 'desc' }, select: { orderId: true, createdAt: true } })
       : Promise.resolve(null),
+    // READY：组合正处于停售时「开始接码」置灰并写原因（§1.10、T5；与 buyerStart 同一个 acquireBlock，BUSY 只是名额满、不算停售）
+    so.state === 'READY' ? acquireBlock({ service: so.service, country: so.country, selfSmsOrderId: so.id }).catch(() => null) : Promise.resolve(null),
   ])
   const cur = atts.find((a) => a.id === so.currentAttemptId) ?? null
   const seqOf = new Map(atts.map((a) => [a.id, a.seq]))
@@ -146,7 +148,7 @@ export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView
       replace: so.state === 'WAITING' && !!cur && cur.state === 'ACTIVE' && !received && !inflight && left > 0 && !threads,
       cancel: so.state === 'WAITING' && !!cur && cur.state === 'ACTIVE' && !received && !inflight,
       finish: so.state === 'RECEIVED',
-      start: so.state === 'READY',
+      start: so.state === 'READY' && !(startBlock && startBlock.code !== 'BUSY'),
       refundReady: so.state === 'READY',
       complain: COMPLAINT_AVAILABLE && (so.state === 'RECEIVED' || so.state === 'FINISHED'),
       // 订单留言对接码单放开（§6.6 第 29 条，S2b）：待支付、已关闭、已取消、已退款的接码单同样能读写留言

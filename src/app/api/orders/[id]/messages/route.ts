@@ -9,6 +9,7 @@ import { notifyBuyerMessage } from '@/lib/notify'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { emitTenantNotice } from '@/lib/tenant/notice'
 import { jiemaMessageRows } from '@/lib/jiema/support'
+import { rateLimited } from '@/lib/news/rate-limit'
 
 /**
  * 本人、本店的订单（设计 8.1「归属一律写进 where」）。别人的单、别的站的单与不存在的单同样返回 null → 404。
@@ -24,10 +25,39 @@ async function ownedPaidOrder(orderId: number, userId: number, tenantId: number)
 /**
  * 能不能读写留言（docs/短信接码-设计.md §6.6 第 29 条、§8.2）：普通订单与充值单沿用「支付后才能咨询」；
  * **只对短信接码单（SMS_POOL 载体）放开付款状态**——接码单最需要客服的时候恰恰是待支付、已关闭（UNPAID）或已取消（REFUNDED）。
- * 本人、本站的校验与频控不变（上面的 where 与下面的发送频控）；充值单（TOPUP）不放开（迟到退入也不写留言，§2.7）。
+ * 本人、本站的校验不变（上面的 where）；充值单（TOPUP）不放开（迟到退入也不写留言，§2.7）。
+ * 发送另有频控（S2b 评审修复：原来这个接口根本没有频控，放开之后不付钱也能刷留言与企业微信推送），见 sendLimited。
  */
 function canChat(order: { payStatus: string; product: { deliveryType: string } | null }): boolean {
   return order.payStatus === 'PAID' || order.product?.deliveryType === 'SMS_POOL'
+}
+
+/**
+ * 发送频控（§6.6 第 29 条「保留频控」）：
+ *  · 每个账号每分钟最多 10 条（跨订单；正常人打字远到不了）；
+ *  · 每张订单每天：已付款的单 200 条；**没付款的接码单（待支付 / 已关闭）30 条**——放开付款状态之后，这是唯一不花钱就能写留言的入口。
+ * 返回 null = 放行，否则是 429 的提示。进程内计数（lib/news/rate-limit，单 app 容器下是准的）。
+ */
+const MSG_USER_PER_MIN = 10
+const MSG_ORDER_PER_DAY_PAID = 200
+const MSG_ORDER_PER_DAY_UNPAID = 30
+function sendLimited(userId: number, order: { id: number; payStatus: string }): string | null {
+  if (rateLimited(`omsg-u:${userId}`, { windowMs: 60_000, max: MSG_USER_PER_MIN })) return '发送太频繁，请稍后再试'
+  const unpaid = order.payStatus !== 'PAID'
+  if (rateLimited(`${unpaid ? 'omsg-ou' : 'omsg-op'}:${order.id}`, { windowMs: 24 * 3600_000, max: unpaid ? MSG_ORDER_PER_DAY_UNPAID : MSG_ORDER_PER_DAY_PAID })) {
+    return '这张订单今天的留言已经很多了，客服会尽快回复；急事请加微信客服'
+  }
+  return null
+}
+
+/**
+ * 接码单留言的企业微信推送节流：同一张单 60 秒内只推第一条（后面几条照样入库、后台红点照样亮，客服打开能看到全部），
+ * 同一个账号 60 秒内最多推 3 条。推送和运维告警共用一个机器人（每分钟 20 条上限），不能让一个买家刷满它把真告警挤掉。
+ * 普通订单（要先付款才能留言）的推送行为不变。
+ */
+function jiemaPushAllowed(userId: number, orderId: number): boolean {
+  if (rateLimited(`omsg-push:${orderId}`, { windowMs: 60_000, max: 1 })) return false
+  return !rateLimited(`omsg-pushu:${userId}`, { windowMs: 60_000, max: 3 })
 }
 
 /**
@@ -136,6 +166,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const body = await request.json()
     const parsed = sendSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
+    const limited = sendLimited(user.id, order)
+    if (limited) return error(limited, 429)
 
     const msg = await prisma.orderMessage.create({
       data: { orderId, sender: 'BUYER', content: parsed.data.content, readByBuyer: true, readByAdmin: false },
@@ -149,13 +181,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
      * 站长后台的未读红点靠 readByAdmin，不受影响。主站单的推送内容逐字不变（主站店面的 siteTag 本来就是空串）。
      */
     // 接码单（只在主站）：推送里带上服务、国家/地区、状态、号码后 4 位、付款方式与后台链接（§6.6 第 29 条、§8.2），买家不用自己描述订单
+    // 接码单的推送另有节流（jiemaPushAllowed：同一张单 60 秒只推第一条）；普通订单照旧每条都推
     const isJiema = order.product?.deliveryType === 'SMS_POOL'
+    const pushOk = order.tenantId === 1 && (!isJiema || jiemaPushAllowed(user.id, orderId))
     if (order.tenantId === 1) {
       try {
-        const full = await prisma.order.findUnique({
+        const full = pushOk ? await prisma.order.findUnique({
           where: { id: orderId },
           select: { orderNo: true, productName: true, user: { select: { nickname: true, email: true } } },
-        })
+        }) : null
         if (full) {
           const extraRows = isJiema ? await jiemaMessageRows(orderId).catch(() => []) : undefined
           notifyBuyerMessage({

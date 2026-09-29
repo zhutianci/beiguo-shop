@@ -43,6 +43,15 @@ export function defaultPayWith(availCents: number, balancePayOn: boolean): PayWi
   return balancePayOn && availCents > 0 ? 'BALANCE' : 'ALIPAY'
 }
 
+/**
+ * 实际生效（界面显示与提交共用）的付款方式（S2b 评审修复）：只有「余额支付开着、买家选了余额、可用余额 > 0」才是 BALANCE，
+ * 其余一律 ALIPAY。原来两个 radio 按「可用 ≤ 0」显示成支付宝，提交的却还是买家早先选的 BALANCE（expectBalanceCents=0），
+ * 于是多弹一次「余额已用完，改用支付宝？」；余额支付被急停（503 BALANCE_PAY_OFF）后面板也要按「关」算，不能切回页面又默认回余额。
+ */
+export function effectivePayWith(payWith: PayWith | null, availCents: number, balancePayOn: boolean): PayWith {
+  return balancePayOn && payWith === 'BALANCE' && availCents > 0 ? 'BALANCE' : 'ALIPAY'
+}
+
 /** 「确认支付」按钮文案：余额付清写一段、组合写清两段、支付宝全额写一段（§1.8「付款方式的三种显示」） */
 export function payButtonLabel(p: Pick<PayPlan, 'mode' | 'balanceCents' | 'alipayCents'>): string {
   if (p.mode === 'BALANCE') return `确认支付（余额 ${fmtYuan(p.balanceCents)}）`
@@ -286,18 +295,27 @@ export interface JiemaCard {
   showChat: true
 }
 
-/** 纯函数：一张接码单在「我的订单」里怎么显示（不用「超时取消」的说法，与 §1.11 同一口径） */
+/**
+ * 纯函数：一张接码单在「我的订单」里怎么显示（不用「超时取消」的说法，与 §1.11 同一口径）。
+ * S2b 评审修复：**先看接码单状态**，再看付款状态——MANUAL（E44 钱到了却翻不了 PAID、T19 失败…）不再显示「待支付 + 去付款」，
+ * 已付款的 READY 显示「已付款 · 待开始」（要买家点「开始接码」，24 小时不点自动退回）；组合单的「余额已预扣」只在预扣还是 HELD 时写。
+ */
 export function jiemaOrderCard(o: JiemaCardInput): JiemaCard {
   const base = { showAlipay: false as const, showNumberLink: true as const, showChat: true as const, showInvoiceNotice: o.payStatus === 'PAID' || o.payStatus === 'REFUNDED' }
   const j = o.jiema
+  if (j?.state === 'MANUAL' && o.deliveryStatus !== 'CANCELLED' && o.payStatus !== 'REFUNDED') {
+    // 人工处理中：不论订单付没付款都不给「去付款」（钱可能已经到了，只是还没确认），与号码页的「人工处理中」一致
+    return { ...base, label: '人工处理中', hint: '订单需要人工核实，客服会尽快处理；如已付款请勿重复付款', tone: 'amber', showGoPay: false }
+  }
   if (o.payStatus === 'UNPAID') {
-    if (o.deliveryStatus === 'CANCELLED') {
+    if (o.deliveryStatus === 'CANCELLED' || j?.state === 'CLOSED') {
       // 用过余额的加「预扣已退回」；纯支付宝的关闭单什么都没退，不写「已退回」（徽章已经是「未支付 · 已关闭」，不再重复一行）
       const back = j && j.holdCents > 0 && j.holdState === 'RELEASED' ? `未支付 · 已关闭，预扣 ${fmtYuan(j.holdCents)} 已退回` : null
       return { ...base, label: '未支付 · 已关闭', hint: back, tone: 'gray', showGoPay: false }
     }
-    if (j && j.payMode === 'BALANCE') return { ...base, label: '正在确认付款', hint: '正在确认付款（余额付清，无需再付），请稍候', tone: 'blue', showGoPay: false }
-    const hint = j && j.payMode === 'MIXED' && j.holdCents > 0 ? `余额已预扣 ${fmtYuan(j.holdCents)}，还需支付宝付款，请在号码页完成` : '请在号码页完成付款'
+    if (j && (j.payMode === 'BALANCE' || j.state !== 'PENDING_PAY')) return { ...base, label: '正在确认付款', hint: '正在确认付款（无需再付），请稍候', tone: 'blue', showGoPay: false }
+    const held = !!j && j.payMode === 'MIXED' && j.holdState === 'HELD' && j.holdCents > 0
+    const hint = held ? `余额已预扣 ${fmtYuan(j!.holdCents)}，还需支付宝付款，请在号码页完成` : '请在号码页完成付款'
     return { ...base, label: '待支付', hint, tone: 'amber', showGoPay: true }
   }
   if (o.payStatus === 'REFUNDED') {
@@ -315,10 +333,25 @@ export function jiemaOrderCard(o: JiemaCardInput): JiemaCard {
     if (j?.state === 'RECEIVED') return { ...base, label: '已收到短信', hint: '已收到短信，点「查看号码」看验证码', tone: 'green', showGoPay: false }
     if (o.deliveryStatus === 'DELIVERED' || j?.state === 'FINISHED') return { ...base, label: '已完成', hint: null, tone: 'green', showGoPay: false }
     if (j?.state === 'CANCELLING' || j?.state === 'REFUNDING') return { ...base, label: '正在取消', hint: '没有收到短信，正在整单退回余额', tone: 'gray', showGoPay: false }
-    if (j?.state === 'MANUAL') return { ...base, label: '人工处理中', hint: '订单需要人工核实，客服会尽快处理', tone: 'amber', showGoPay: false }
+    if (j?.state === 'READY') return { ...base, label: '已付款 · 待开始', hint: '付款确认晚了一些：请到号码页点「开始接码」或取消退回余额（24 小时不操作自动退回余额）', tone: 'amber', showGoPay: false }
     return { ...base, label: '正在接码', hint: '正在接码，点「查看号码」', tone: 'blue', showGoPay: false }
   }
   return { ...base, label: '已取消', hint: null, tone: 'gray', showGoPay: false }
+}
+
+/**
+ * 「我的订单」接码卡片右侧的金额（S2b 评审修复）：大字**一律是订单金额 amount**（不再用 payable——余额付清单停在待支付时 payable = 0，
+ * 会显示成「¥0.00 订单金额」）；待支付且预扣还是 HELD 时下面分两行写「余额已预扣 ¥x」「还需支付宝 ¥y」（y = payable，只给收银台逻辑用；为 0 不写）。
+ */
+export function jiemaAmountLines(o: { amount: number; payable: number; payStatus: string; deliveryStatus: string; jiema: JiemaCardInput['jiema'] }): { main: number; lines: string[] } {
+  const j = o.jiema
+  const lines: string[] = []
+  if (o.payStatus === 'UNPAID' && o.deliveryStatus !== 'CANCELLED' && j && j.state === 'PENDING_PAY' && j.holdState === 'HELD' && j.holdCents > 0) {
+    lines.push(`余额已预扣 ${fmtYuan(j.holdCents)}`)
+    const rest = Math.round(o.payable * 100)
+    if (rest > 0) lines.push(`还需支付宝 ${fmtYuan(rest)}`)
+  }
+  return { main: o.amount, lines }
 }
 
 /** 金额显示：接码单按分（¥1.70 不能显示成「¥2」，§6.6 第 27 条）；普通商品维持原来的取整显示 */

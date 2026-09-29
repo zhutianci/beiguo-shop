@@ -133,17 +133,36 @@ async function recomputeLocked(tx: Tx, smsOrderId: number, why: string): Promise
 
 // ───────────────────────── T17 冻结 ─────────────────────────
 
-/** 任意非终态 → MANUAL（T17）：写 notice、manualAt、alertedAt，推 sms.alert。返回是否本次冻结 */
-export async function toManual(smsOrderId: number, why: string, notice = '订单需要人工核实，客服会尽快处理'): Promise<boolean> {
+const NOT_FREEZABLE = ['MANUAL', 'CLOSED', 'FINISHED', 'CANCELLED', 'REFUNDED']
+
+/**
+ * 任意非终态 → MANUAL（T17）：写 notice、manualAt、alertedAt，推 sms.alert。返回是否本次冻结。
+ * 【记下冻结前的状态与起因尝试】（S2b 评审修复）MANUAL 事件的 detail 带 `from`（冻结前的状态：先读后按这个状态精确 CAS，
+ * 并发改了就重读再来，最多 3 次；实在对不上才退回「任意非终态」CAS、from 记 null），因「结果未知」冻结的另带 attemptId（事件列与 detail 都写）。
+ * 后台「认领上游激活」据此把订单恢复到它冻结前的状态（claimReopenTarget），而不是只按尝试的 reason 猜——
+ * 已收码（RECEIVED）或已在取消（CANCELLING / REFUNDING）的单被冻结后，不能再被认领恢复成「换号中」给买家一个新号。
+ */
+export async function toManual(smsOrderId: number, why: string, notice = '订单需要人工核实，客服会尽快处理', opts: { attemptId?: number | null } = {}): Promise<boolean> {
   const now = jnow()
-  const r = await prisma.smsOrder.updateMany({
-    where: { id: smsOrderId, state: { notIn: ['MANUAL', 'CLOSED', 'FINISHED', 'CANCELLED', 'REFUNDED'] } },
-    data: { state: 'MANUAL', version: { increment: 1 }, notice: notice.slice(0, 120), manualAt: now, alertedAt: now, failCount: 0 },
-  })
-  if (r.count !== 1) return false
+  const data = { state: 'MANUAL', version: { increment: 1 }, notice: notice.slice(0, 120), manualAt: now, alertedAt: now, failCount: 0 }
+  let from: string | null = null
+  let won = false
+  for (let i = 0; i < 3 && !won; i++) {
+    const cur = await prisma.smsOrder.findUnique({ where: { id: smsOrderId }, select: { state: true } })
+    if (!cur || NOT_FREEZABLE.includes(cur.state)) return false
+    const r = await prisma.smsOrder.updateMany({ where: { id: smsOrderId, state: cur.state }, data })
+    if (r.count === 1) {
+      won = true
+      from = cur.state
+    }
+  }
+  if (!won) {
+    const r = await prisma.smsOrder.updateMany({ where: { id: smsOrderId, state: { notIn: NOT_FREEZABLE } }, data })
+    if (r.count !== 1) return false
+  }
   const o = await prisma.smsOrder.findUnique({ where: { id: smsOrderId }, select: { orderId: true, service: true, country: true } })
   const ord = o ? await prisma.order.findUnique({ where: { id: o.orderId }, select: { orderNo: true } }) : null
-  await logEventQuiet({ smsOrderId, type: 'MANUAL', detail: { why } })
+  await logEventQuiet({ smsOrderId, attemptId: opts.attemptId ?? null, type: 'MANUAL', detail: { why, from, ...(opts.attemptId != null ? { attemptId: opts.attemptId } : {}) } })
   smsAlert(`MANUAL:${smsOrderId}`, '接码订单转人工处理', [
     { label: '订单', value: ord?.orderNo ?? `#${smsOrderId}` },
     { label: '组合', value: o ? `${o.service} · ${o.country}` : '—' },
@@ -267,15 +286,19 @@ export async function refundCancelled(smsOrderId: number, actor: 'SYSTEM' | 'CRO
 /**
  * T16：RECEIVED / FINISHED → REFUNDED（管理员售后，整单原路退回余额，成本照计、利润 = −成本）。
  * 还开着的号码由调用方先放掉 / 完成（engine.adminRefund）；这里只做钱与状态（同 T15 的锁顺序与三道幂等）。
+ * opts.allowManual（后台对「MANUAL 且收过码」的单售后，§7.2；S2b 评审修复）：MANUAL 直接在同一个事务里 CAS 成 REFUNDED，
+ * 不再先在事务外把它改回 RECEIVED——那样退款失败 / 被 tick 抢先改成 FINISHED 时，单子悄悄离开了人工队列。
+ * 这时前提不满足（支付宝核对不上、预扣不是 CAPTURED）整个事务回滚、订单**留在 MANUAL**，返回 MANUAL 并记一条 REFUND_ERR 事件。
  */
-export async function refundAfterSale(smsOrderId: number, adminId: number, reason: string): Promise<RefundOutcome> {
+export async function refundAfterSale(smsOrderId: number, adminId: number, reason: string, opts: { allowManual?: boolean } = {}): Promise<RefundOutcome> {
   const pre = await prisma.smsOrder.findUnique({ where: { id: smsOrderId }, select: { id: true, orderId: true, userId: true, state: true, refundState: true, payMode: true, alipayPaidCents: true, costAt: true } })
-  if (!pre || !['RECEIVED', 'FINISHED'].includes(pre.state) || pre.refundState !== 'NONE') return { done: false, why: 'NOT_READY' }
+  const fromStates = opts.allowManual ? ['RECEIVED', 'FINISHED', 'MANUAL'] : ['RECEIVED', 'FINISHED']
+  if (!pre || !fromStates.includes(pre.state) || pre.refundState !== 'NONE') return { done: false, why: 'NOT_READY' }
   try {
     const r = await inMoneyTx(async (tx) => {
       const now = jnow()
       const flip = await tx.order.updateMany({ where: { id: pre.orderId, payStatus: 'PAID' }, data: { payStatus: 'REFUNDED', deliveryStatus: 'CANCELLED' } })
-      if (flip.count !== 1) await raceOrManual(tx, smsOrderId, ['RECEIVED', 'FINISHED'])
+      if (flip.count !== 1) await raceOrManual(tx, smsOrderId, fromStates)
       const cas = await tx.smsOrder.updateMany({
         where: { id: smsOrderId, state: pre.state, refundState: 'NONE' },
         data: { state: 'REFUNDED', refundState: 'DONE', refundReason: reason.slice(0, 24), refundedAt: now, refundBy: adminId, version: { increment: 1 }, failCount: 0 },
@@ -304,6 +327,11 @@ export async function refundAfterSale(smsOrderId: number, adminId: number, reaso
   } catch (e) {
     if (e instanceof RefundRace) return { done: false, why: 'RACE' }
     if (e instanceof RefundNeedsManual) {
+      if (pre.state === 'MANUAL') {
+        // 事务已回滚，订单还在 MANUAL（人工队列里）：记一条原因给后台看，不再推一次「转人工」
+        await logEventQuiet({ smsOrderId, type: 'REFUND_ERR', actor: 'ADMIN', actorId: adminId, detail: { afterSale: true, why: e.why } })
+        return { done: false, why: 'MANUAL' }
+      }
       const froze = await toManual(smsOrderId, `售后退款前提不满足：${e.why}`)
       return { done: false, why: froze ? 'MANUAL' : 'RACE' }
     }

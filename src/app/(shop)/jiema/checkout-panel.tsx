@@ -10,6 +10,7 @@ import { fmtYuan } from '@/lib/jiema/pricing'
 import {
   payPlan,
   defaultPayWith,
+  effectivePayWith,
   payButtonLabel,
   changeDialog,
   shouldRenewOrderToken,
@@ -124,13 +125,17 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
   // ---------- 付款方式（默认：余额 > 0 且余额支付开着 → 余额抵扣）----------
   const [payWith, setPayWith] = useState<PayWith | null>(null)
   const touched = useRef(false)
+  // 下单时收到 503 BALANCE_PAY_OFF（余额支付刚被急停）：本面板按「余额支付关」算，切回页面也不再默认回余额（S2b 评审修复）
+  const [balanceOff, setBalanceOff] = useState(false)
+  const balanceOn = p.balancePayOn && !balanceOff
   useEffect(() => {
     if (!brief || touched.current) return
-    setPayWith(defaultPayWith(avail, p.balancePayOn))
-  }, [brief, avail, p.balancePayOn])
-  const effectivePayWith: PayWith = !p.balancePayOn ? 'ALIPAY' : (payWith ?? 'ALIPAY')
+    setPayWith(defaultPayWith(avail, balanceOn))
+  }, [brief, avail, balanceOn])
+  // 界面显示与提交共用同一个判定：可用余额为 0 时一律按支付宝（不再「显示支付宝、提交余额」）
+  const payWithNow: PayWith = effectivePayWith(payWith, avail, balanceOn)
   const price = p.priceCents ?? 0
-  const plan = useMemo(() => payPlan(price, brief?.topupCents ?? 0, brief?.cashCents ?? 0, effectivePayWith), [price, brief, effectivePayWith])
+  const plan = useMemo(() => payPlan(price, brief?.topupCents ?? 0, brief?.cashCents ?? 0, payWithNow), [price, brief, payWithNow])
 
   // ---------- 条款（首单必勾；同一版之后默认勾选，任一份升版后重新勾选）----------
   const pre = termsPreTicked(p.lastTerms, { jiema: JIEMA_TERMS_VERSION, wallet: WALLET_TERMS_VERSION })
@@ -159,7 +164,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
     setSubmitting(true)
     setMsg(null)
     setOpenPays(null)
-    const pw = over ? over.payWith : effectivePayWith
+    const pw = over ? over.payWith : payWithNow
     const expectPrice = over ? over.expectPriceCents : price
     const expectBal = over ? over.expectBalanceCents : pw === 'BALANCE' ? plan.balanceCents : null
     try {
@@ -206,7 +211,11 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
         setAgreeW(false)
       }
       if (code === 'OPEN_PAYMENTS' && Array.isArray(d?.items)) setOpenPays(d.items as OpenPayment[])
-      if (code === 'BALANCE_PAY_OFF') setPayWith('ALIPAY')
+      if (code === 'BALANCE_PAY_OFF') {
+        touched.current = true
+        setBalanceOff(true)
+        setPayWith('ALIPAY')
+      }
       setMsg((d?.error as string) || `下单失败（${res.status}），请稍后再试`)
     } catch {
       setMsg('网络不稳定，请重试（不会重复下单）')
@@ -225,7 +234,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
   }
 
   const btnLabel = !p.orderAvailable ? p.payDisabledLabel : !hydrated ? '去支付' : !user ? '登录后去支付' : payButtonLabel(plan)
-  const walletTerms = walletTermsFor(p.balancePayOn)
+  const walletTerms = walletTermsFor(balanceOn)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label="确认订单">
@@ -272,11 +281,11 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
               </div>
             ) : (
               <>
-                {p.balancePayOn ? (
+                {balanceOn ? (
                   <label
                     className={cn(
                       'flex cursor-pointer items-start gap-2.5 rounded-xl border px-3 py-2.5',
-                      effectivePayWith === 'BALANCE' && avail > 0 ? 'border-cyan-400/50 bg-cyan-500/10' : 'border-white/10 bg-white/[0.03]',
+                      payWithNow === 'BALANCE' ? 'border-cyan-400/50 bg-cyan-500/10' : 'border-white/10 bg-white/[0.03]',
                       avail <= 0 && 'cursor-not-allowed opacity-60',
                     )}
                   >
@@ -285,7 +294,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
                       name="payWith"
                       className="mt-1"
                       disabled={avail <= 0}
-                      checked={effectivePayWith === 'BALANCE' && avail > 0}
+                      checked={payWithNow === 'BALANCE'}
                       onChange={() => {
                         touched.current = true
                         setPayWith('BALANCE')
@@ -308,7 +317,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
                           去充值
                         </a>
                       </span>
-                      {effectivePayWith === 'BALANCE' && plan.mode === 'MIXED' && (
+                      {payWithNow === 'BALANCE' && plan.mode === 'MIXED' && (
                         <span className="mt-1 block text-xs leading-relaxed text-white/55">
                           余额抵扣 {fmtYuan(plan.balanceCents)}，还需支付宝 {fmtYuan(plan.alipayCents)}。余额部分下单时先预扣；20 分钟内付完支付宝才算成功，超时或取消订单，预扣的余额自动退回。
                         </span>
@@ -321,13 +330,13 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
                 <label
                   className={cn(
                     'flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-[13px]',
-                    effectivePayWith === 'ALIPAY' || avail <= 0 ? 'border-cyan-400/50 bg-cyan-500/10' : 'border-white/10 bg-white/[0.03]',
+                    payWithNow === 'ALIPAY' ? 'border-cyan-400/50 bg-cyan-500/10' : 'border-white/10 bg-white/[0.03]',
                   )}
                 >
                   <input
                     type="radio"
                     name="payWith"
-                    checked={effectivePayWith === 'ALIPAY' || avail <= 0}
+                    checked={payWithNow === 'ALIPAY'}
                     onChange={() => {
                       touched.current = true
                       setPayWith('ALIPAY')

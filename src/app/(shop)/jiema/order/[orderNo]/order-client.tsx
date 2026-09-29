@@ -591,6 +591,8 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
               取消并退回余额
             </button>
           </div>
+          {/* 组合停售中（actions.start=false）：写明原因，别让买家对着一个灰按钮猜（§1.10、附录 A） */}
+          {!v.actions.start && <p className="text-xs text-amber-200/80">该组合暂停销售，可以取消并退回余额</p>}
         </section>
       )}
 

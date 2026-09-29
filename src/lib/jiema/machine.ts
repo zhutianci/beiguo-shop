@@ -5,7 +5,7 @@
  * 引擎（engine.ts / refund.ts / claim.ts / holds.ts）只在这里取常量与判定，免得同一个阈值在几处各写一遍。
  * 金额一律整数（微美元 / 分 / 系数 ×10000）；时间一律 Date（应用写的时刻，§5.1「用于比较大小的时间字段一律由应用写」）。
  */
-import { realCostCents } from './pricing'
+import { realCostCents, effCapMicro } from './pricing'
 
 // ───────────────────────── 状态 ─────────────────────────
 
@@ -306,6 +306,145 @@ export function claimCandidates(
   })
   const strict = broad.filter((c) => (!u.operator || (c.operator ?? 'any') === u.operator) && c.priceMicro != null && c.priceMicro <= u.maxPriceMicro)
   return { broad, strict }
+}
+
+// ───────────────────────── 后台「认领上游激活」的纯判定（§7.2、D19；S2b 评审修复） ─────────────────────────
+
+/**
+ * 手动认领的硬闸门（D19、附录 B 第 5、10 条「宁可人工，不能把别人的号给错人」「成本不能记到 cap 以上」）：
+ * 按上游规则**不可能**是这次取号买到的候选一律拒绝，不再只作提示：
+ *  · 价格未知，或高于实际传给上游的上限 eff(cap) = max(cap, 6700)（上游不会按高于 maxPrice 的价卖；认领了成本就记到 cap 以上）→ OVER_CAP；
+ *  · 这次取号指定了运营商、候选的运营商不同（上游没给运营商也算不同：证明不了是它）→ OPERATOR。
+ * 时间窗仍只提示（上游时钟可能有偏差，§2.4）。
+ */
+export function adminClaimReject(u: { operator: string | null; maxPriceMicro: number }, c: { operator: string | null; priceMicro: number | null }): 'OVER_CAP' | 'OPERATOR' | null {
+  if (c.priceMicro == null || c.priceMicro > effCapMicro(u.maxPriceMicro)) return 'OVER_CAP'
+  if (u.operator && c.operator !== u.operator) return 'OPERATOR'
+  return null
+}
+
+/** 候选价格是否超过这次取号的真实上限 eff(cap)（后台候选列表标红用；与 adminClaimReject 的 OVER_CAP 同一口径） */
+export function overEffCap(priceMicro: number | null, capMicro: number): boolean {
+  return priceMicro != null && priceMicro > effCapMicro(capMicro)
+}
+
+export type ClaimReopen = 'ACQUIRING' | 'REPLACING' | 'WAITING' | 'RECEIVED' | 'CANCELLING' | 'REFUNDING' | null
+
+export interface ClaimReopenInput {
+  attempt: { id: number; reason: string }
+  /**
+   * 最近一条 MANUAL 事件：attemptId = 因哪个「结果未知」的尝试冻结；from = 冻结前的状态（toManual 记下的）；
+   * legacy = 旧版本写的事件（detail 里没有 from 这个键，不知道起因与冻结前状态）。没有事件 = null。
+   */
+  manual: { attemptId: number | null; from: string | null; legacy: boolean } | null
+  payStatus: string
+  refundReason: string | null
+  /** 这张单有没有任何号收到过短信 */
+  anyCode: boolean
+  /** 当前号（currentAttemptId 指的尝试） */
+  cur: { id: number; state: string; smsCount: number } | null
+  /** 除了要认领的这个，还有别的 REQUESTING / UNKNOWN 尝试 */
+  otherInflight: boolean
+  /** 除了要认领的这个，还有别的 ACTIVE / RECEIVED 号 */
+  otherLive: boolean
+}
+
+/**
+ * 纯函数：后台认领一个 UNKNOWN 尝试时，MANUAL 单恢复到哪个状态。null = 不恢复：照样认领（结束「结果未知」），订单保持 MANUAL，
+ * afterClaim 把认领来的号转 RELEASING、canCancelAt 之后放掉（号不给买家；订单留给管理员用别的操作收尾）。
+ *  · 冻结的起因必须就是这个尝试（事件的 attemptId）；起因是别的（退款核对不上、T19 失败、E44…）→ null；
+ *  · 同一张单还有别的在途取号（恢复了也会被扫描器再冻结）、订单不是已付款 → null；
+ *  · 按冻结前的状态 from 恢复，并逐项核对事实：
+ *      ACQUIRING：首次取号 / 重试的尝试、没有号收过码、没有别的活着的号、没有退款原因（afterClaim → T8，号给买家）；
+ *      REPLACING：换号尝试、没有号收过码、没有退款原因、当前号（旧号）仍 ACTIVE 且没收到短信（afterClaim → 完成换号）；
+ *      WAITING：当前号 ACTIVE、没有号收过码、没有退款原因；
+ *      RECEIVED：确有号收过码（订单照常完成，不给买家换成新号、不扣换号次数）；
+ *      CANCELLING / REFUNDING：已有退款原因（随后整单退回，不给正在退款的买家发新号，§12.2 第 111 条）；
+ *    后四种 afterClaim 都走 releaseUnattached；
+ *  · 旧事件（不知道 from）或没有事件：只按事实判 ACQUIRING / REPLACING（条件同上），其余 null。
+ */
+export function claimReopenTarget(p: ClaimReopenInput): ClaimReopen {
+  if (p.otherInflight || p.payStatus !== 'PAID') return null
+  const m = p.manual
+  if (m && !m.legacy && m.attemptId !== p.attempt.id) return null
+  const replace = p.attempt.reason === 'REPLACE'
+  const okAcq = !replace && !p.anyCode && !p.otherLive && p.refundReason == null
+  const okRep = replace && !p.anyCode && p.refundReason == null && !!p.cur && p.cur.id !== p.attempt.id && p.cur.state === 'ACTIVE' && p.cur.smsCount === 0
+  const from = m && !m.legacy ? m.from : null
+  if (from == null) return okAcq ? 'ACQUIRING' : okRep ? 'REPLACING' : null
+  switch (from) {
+    case 'ACQUIRING':
+      return okAcq ? 'ACQUIRING' : null
+    case 'REPLACING':
+      return okRep ? 'REPLACING' : null
+    case 'WAITING':
+      return !p.anyCode && p.refundReason == null && !!p.cur && p.cur.id !== p.attempt.id && p.cur.state === 'ACTIVE' ? 'WAITING' : null
+    case 'RECEIVED':
+      return p.anyCode ? 'RECEIVED' : null
+    case 'CANCELLING':
+    case 'REFUNDING':
+      return p.refundReason != null ? from : null
+    default:
+      return null
+  }
+}
+
+// ───────────────────────── 后台「解除 MANUAL」的前提（§7.2；S2b 评审修复） ─────────────────────────
+
+/** 还有结果未知（REQUESTING / UNKNOWN）的取号时，解除 MANUAL / 取消并退回余额一律拒绝的提示 */
+export const INFLIGHT_TEXT = '还有结果未知的取号：请先「认领上游激活」，或等扫描器判定没买到后再操作（否则扫描器下一轮会把订单再转回人工）'
+
+/**
+ * 纯函数：解除 MANUAL 的前提（§7.2「系统会先校验订单、尝试和预扣的状态是否允许」）。返回 null = 允许，否则是拒绝原因。
+ * S2b 评审修复：原来只看了订单与尝试，没看**预扣、收款单**，也没看**结果未知的尝试**：
+ *  · 任何目标：有 REQUESTING / UNKNOWN 尝试 → 拒绝（扫描器对任何非终态单都会因 UNKNOWN 再转 MANUAL；REFUNDING 还会先放掉买家手上的号）；
+ *  · PENDING_PAY：订单未付款且未取消；**没有 state=1 的收款单**（钱到了却回到待支付，tick 不会再推进它、24 小时后对账也不再看——
+ *    改用「关单并把到账退入余额」）；余额付清 / 组合单的预扣必须还是 HELD（否则 T19 / 付款确认都会因预扣状态失败）；
+ *  · ACQUIRING / WAITING / REFUNDING：订单已付款、没有号收过码；余额付清 / 组合单的预扣必须是 CAPTURED（T15 只退 CAPTURED 的预扣）；
+ *    ACQUIRING 另要求没有活着的号（ACTIVE / RECEIVED / RELEASING），WAITING 要求当前号 ACTIVE。
+ */
+export function unmanualBlock(p: {
+  target: string
+  payStatus: string
+  deliveryStatus: string
+  payMode: string
+  holdState: string | null
+  paidVmq: boolean
+  attempts: ReadonlyArray<{ id: number; state: string; smsCount: number; codeAt: Date | null }>
+  currentAttemptId: number | null
+}): string | null {
+  if (!['PENDING_PAY', 'ACQUIRING', 'WAITING', 'REFUNDING'].includes(p.target)) return '目标状态只能是 PENDING_PAY / ACQUIRING / WAITING / REFUNDING'
+  if (p.attempts.some((a) => a.state === 'REQUESTING' || a.state === 'UNKNOWN')) return INFLIGHT_TEXT
+  const usesHold = p.payMode === 'BALANCE' || p.payMode === 'MIXED'
+  if (p.target === 'PENDING_PAY') {
+    if (p.payStatus !== 'UNPAID' || p.deliveryStatus === 'CANCELLED') return '订单不是「未付款且未取消」'
+    if (p.paidVmq) return '这张单已有到账（state=1）的收款单：请用「关单并把到账退入余额」'
+    if (usesHold && p.holdState !== 'HELD') return `预扣不是 HELD（${p.holdState ?? '没有预扣'}）：回到待支付也确认不了付款，请人工核实预扣`
+    return null
+  }
+  if (p.payStatus !== 'PAID') return '订单还没付款'
+  if (p.attempts.some((a) => a.smsCount > 0 || a.codeAt != null || a.state === 'RECEIVED' || a.state === 'FINISHED')) return '已有号码收到过短信：请用「售后退款到余额」'
+  if (usesHold && p.holdState !== 'CAPTURED') return `预扣不是 CAPTURED（${p.holdState ?? '没有预扣'}）：付款没有确认完整，请人工核实预扣`
+  if (p.target === 'ACQUIRING' && p.attempts.some((a) => ['ACTIVE', 'RECEIVED', 'RELEASING'].includes(a.state))) return '还有活着的号：请选 WAITING 或 REFUNDING'
+  if (p.target === 'WAITING') {
+    const cur = p.attempts.find((a) => a.id === p.currentAttemptId)
+    if (!cur || cur.state !== 'ACTIVE') return '当前号不是 ACTIVE'
+  }
+  return null
+}
+
+/** 解析 MANUAL 事件（sms_events.detail 是 JSON 串）成 claimReopenTarget 的 manual 参数 */
+export function manualEventInfo(ev: { attemptId: number | null; detail: string | null } | null): ClaimReopenInput['manual'] {
+  if (!ev) return null
+  let d: Record<string, unknown> = {}
+  try {
+    d = ev.detail ? (JSON.parse(ev.detail) as Record<string, unknown>) : {}
+  } catch {
+    d = {}
+  }
+  const legacy = !d || typeof d !== 'object' || !('from' in d)
+  const aid = ev.attemptId ?? (typeof d.attemptId === 'number' ? d.attemptId : null)
+  return { attemptId: aid, from: typeof d.from === 'string' ? d.from : null, legacy }
 }
 
 /** 旧单品换号备注里的旧号（`sms.ts`：「接码换号 n/m（旧号 xxx 已取消）」，§2.4「本站已知的激活」） */

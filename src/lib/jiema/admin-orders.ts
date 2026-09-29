@@ -19,7 +19,7 @@ import { inflightMicro } from './gate'
 import { runtimeParams } from './config'
 import { activeThreadsHold } from './holds'
 import { summarizeFinance, listFooter, payCellText, type FinanceRow, type FinanceSummary } from './report'
-import { settleCost, ATTEMPT_TERMINAL } from './machine'
+import { settleCost, ATTEMPT_TERMINAL, unmanualBlock, INFLIGHT_TEXT } from './machine'
 import { recomputeCostInTx } from './refund'
 import { adminClaimActivation, adminClaimCandidates } from './claim'
 import { logEventQuiet } from './events'
@@ -160,19 +160,21 @@ export async function jiemaOrderDetailAdmin(id: number) {
   const openVmq = vmqs.some((v) => v.state === 0)
   const unpaid = order?.payStatus === 'UNPAID'
   const orderCancelled = order?.deliveryStatus === 'CANCELLED'
+  // 还有结果未知的取号：解除 MANUAL / 取消并退回余额都不给（扫描器会把单再转回人工；先「认领上游激活」或等判定没买到）
+  const inflight = atts.some((a) => a.state === 'REQUESTING' || a.state === 'UNKNOWN')
   const actions = {
     // 售后退款到余额：RECEIVED、FINISHED、MANUAL（收过码的）；先放掉仍 ACTIVE 的号，再 T16（成本照计）
     refund: (so.state === 'RECEIVED' || so.state === 'FINISHED' || (so.state === 'MANUAL' && withCode)) && order?.payStatus === 'PAID' && so.refundState === 'NONE',
-    // 取消并退回余额：MANUAL、订单已付款、没有任何号收到过短信（T15，不计成本；有扣费的号记亏损）
-    cancelRefund: so.state === 'MANUAL' && order?.payStatus === 'PAID' && !withCode,
+    // 取消并退回余额：MANUAL、订单已付款、没有任何号收到过短信、没有结果未知的取号（T15，不计成本；有扣费的号记亏损）
+    cancelRefund: so.state === 'MANUAL' && order?.payStatus === 'PAID' && !withCode && !inflight,
     // 关单并原路退回预扣：MANUAL（或卡在 PENDING_PAY）且订单 UNPAID、没有 state 0 / 1 收款单（与 T4 同一个事务）
     closeRelease: (so.state === 'MANUAL' || so.state === 'PENDING_PAY') && unpaid && !orderCancelled && !paidVmq && !openVmq,
     // 关单并把到账退入余额（E44）：MANUAL、订单 UNPAID 且未取消、有 state=1 的收款单、预扣不是 HELD
     closeLatepay: so.state === 'MANUAL' && unpaid && !orderCancelled && paidVmq && hold?.state !== 'HELD',
     // 加赠换号：WAITING
     bonusReplace: so.state === 'WAITING',
-    // 解除 MANUAL（回到 PENDING_PAY / ACQUIRING / WAITING / REFUNDING，按前提逐个核对）
-    unmanual: so.state === 'MANUAL',
+    // 解除 MANUAL（回到 PENDING_PAY / ACQUIRING / WAITING / REFUNDING，按前提逐个核对；有结果未知的取号时不给）
+    unmanual: so.state === 'MANUAL' && !inflight,
     recompute: so.state !== 'CANCELLED' && so.state !== 'CLOSED' && so.state !== 'PENDING_PAY',
   }
   return {
@@ -232,7 +234,17 @@ const CLAIM_WHY: Record<string, string> = {
   NOT_FOUND: '上游活跃列表里没有这个激活',
   KNOWN: '这个激活已经属于本站的某一单（或旧单品），不能认领',
   MISMATCH: '这个激活的服务 / 国家与这次取号不一致',
-  STATE: '订单状态已变化，未认领（已转回人工）',
+  OVER_CAP: '这个激活的价格未知或高于这次取号的上限 max(cap, $0.0067)：上游不会按这个价卖给这次取号，不能认领',
+  OPERATOR: '这次取号指定了运营商，这个激活的运营商不同（或上游没给运营商）：不能认领',
+  STATE: '接码单不存在或状态已变化，未认领',
+}
+const REOPEN_TEXT: Record<string, string> = {
+  ACQUIRING: '订单恢复为「分配号码中」',
+  REPLACING: '订单恢复为「换号中」',
+  WAITING: '订单恢复为「等待短信」',
+  RECEIVED: '订单恢复为「已收码」',
+  CANCELLING: '订单恢复为「取消中」',
+  REFUNDING: '订单恢复为「退款中」',
 }
 
 export async function runAdminAction(id: number, adminId: number, input: AdminActionInput): Promise<{ ok: boolean; message: string; data?: unknown }> {
@@ -240,20 +252,30 @@ export async function runAdminAction(id: number, adminId: number, input: AdminAc
   if (!so) throw new AdminJiemaError('接码单不存在', 404)
   switch (input.action) {
     case 'refund': {
-      // MANUAL（收过码的）先 CAS 回 RECEIVED，再走 T16（refundAfterSale 只收 RECEIVED / FINISHED）
-      if (so.state === 'MANUAL') {
+      // MANUAL（收过码的）：不再先在事务外 CAS 回 RECEIVED——直接让 T16 在同一个事务里 MANUAL → REFUNDED（S2b 评审修复）：
+      // 退款失败、抛错、被 tick 抢先改状态时，订单一直留在 MANUAL（人工队列里），不会悄悄变成 RECEIVED / FINISHED 又没退款
+      const manual = so.state === 'MANUAL'
+      if (manual) {
         const [o, atts] = await Promise.all([prisma.order.findUnique({ where: { id: so.orderId }, select: { payStatus: true } }), prisma.smsAttempt.findMany({ where: { smsOrderId: id } })])
         if (o?.payStatus !== 'PAID' || !atts.some(hasCode)) return { ok: false, message: '只有收到过短信的已付款单才能售后退款' }
-        const r = await prisma.smsOrder.updateMany({ where: { id, state: 'MANUAL', version: so.version }, data: { state: 'RECEIVED', version: { increment: 1 }, manualAt: null, failCount: 0 } })
-        if (r.count !== 1) return { ok: false, message: CLOSE_TEXT.VERSION }
-        await logEventQuiet({ smsOrderId: id, type: 'STATE', actor: 'ADMIN', actorId: adminId, detail: { from: 'MANUAL', to: 'RECEIVED', why: 'admin-refund' } })
       } else if (so.state !== 'RECEIVED' && so.state !== 'FINISHED') return { ok: false, message: '只有已收码 / 已完成的单能售后退款' }
-      const r = await engine.adminRefund(id, adminId, 'COMPLAINT')
-      return r.ok ? { ok: true, message: '已售后退款：整单原路退回余额，成本照计（利润 = −成本）' } : { ok: false, message: `没有退款：${r.why === 'MANUAL' ? '前提不满足，已转人工（支付宝实收核对不上或预扣状态不对）' : r.why === 'RACE' ? '另一个操作刚处理了这张单' : '前提不满足'}` }
+      const r = await engine.adminRefund(id, adminId, 'COMPLAINT', { allowManual: manual })
+      if (r.ok) return { ok: true, message: '已售后退款：整单原路退回余额，成本照计（利润 = −成本）' }
+      const why =
+        r.why === 'MANUAL'
+          ? manual
+            ? '前提不满足（支付宝实收核对不上或预扣状态不对），订单仍是人工处理中'
+            : '前提不满足，已转人工（支付宝实收核对不上或预扣状态不对）'
+          : r.why === 'RACE'
+            ? '另一个操作刚处理了这张单'
+            : '前提不满足'
+      return { ok: false, message: `没有退款：${why}` }
     }
     case 'cancel_refund': {
+      // 有结果未知的取号时不做：REFUNDING 会先放掉买家手上的号，扫描器随后又把单转回 MANUAL——钱没退、号也没了（S2b 评审修复）
+      if ((await prisma.smsAttempt.count({ where: { smsOrderId: id, state: { in: ['REQUESTING', 'UNKNOWN'] } } })) > 0) return { ok: false, message: INFLIGHT_TEXT }
       const ok = await engine.adminCancelRefund(id, adminId)
-      return ok ? { ok: true, message: '已转为退款中：放掉还开着的号后整单退回余额（不计成本；有扣费的号记亏损）' } : { ok: false, message: '前提不满足：要求 MANUAL、订单已付款、没有任何号收到过短信' }
+      return ok ? { ok: true, message: '已转为退款中：放掉还开着的号后整单退回余额（不计成本；有扣费的号记亏损）' } : { ok: false, message: '前提不满足：要求 MANUAL、订单已付款、没有任何号收到过短信、没有结果未知的取号' }
     }
     case 'close_release': {
       const r = await engine.adminCloseAndRelease(id, adminId)
@@ -275,20 +297,28 @@ export async function runAdminAction(id: number, adminId: number, input: AdminAc
     case 'release_attempt': {
       const att = input.attemptId ? await prisma.smsAttempt.findUnique({ where: { id: input.attemptId } }) : null
       if (!att || att.smsOrderId !== id) return { ok: false, message: '尝试不存在' }
-      if (att.state === 'ACTIVE') await prisma.smsAttempt.updateMany({ where: { id: att.id, state: 'ACTIVE' }, data: { state: 'RELEASING', nextCheckAt: null } })
-      else if (att.state !== 'RELEASING') return { ok: false, message: '只有 ACTIVE / RELEASING 的号能释放' }
+      if (att.state === 'ACTIVE') {
+        const f = await prisma.smsAttempt.updateMany({ where: { id: att.id, state: 'ACTIVE' }, data: { state: 'RELEASING', nextCheckAt: null } })
+        if (f.count !== 1) {
+          const again = await prisma.smsAttempt.findUnique({ where: { id: att.id }, select: { state: true } })
+          if (again?.state !== 'RELEASING') return { ok: false, message: `这个号刚刚变成 ${again?.state ?? '—'}，没有释放，请刷新` }
+        }
+      } else if (att.state !== 'RELEASING') return { ok: false, message: '只有 ACTIVE / RELEASING 的号能释放' }
+      // 从这里起号已经是 RELEASING：推进任务一定会把它放掉——这次操作就算成功（S2b 评审修复：原来 SKIP 报 DENIED，审计与事实对不上）
       await logEventQuiet({ smsOrderId: id, attemptId: att.id, type: 'ADMIN_RELEASE', actor: 'ADMIN', actorId: adminId })
-      const r = await engine.releaseAttempt(att.id, 'SYSTEM')
+      const r = await engine.releaseAttempt(att.id, 'SYSTEM').catch((e) => {
+        console.error('[jiema] 后台释放号码：调上游失败（推进任务稍后重试）', att.id, (e as Error)?.message)
+        return { r: 'NOINFO' as const, minSec: undefined }
+      })
       const text: Record<string, string> = {
         CANCELLED: '上游已确认取消',
         EARLY: `还没到可取消时间，${r.minSec ?? 0} 秒后由推进任务自动再放`,
         RECEIVED: '放号时发现已收到短信，已按收码处理',
         EXPIRED: '上游按免费取消期已过扣了费（记亏损 / 成本）',
-        NOINFO: '上游暂时没有确定结果，推进任务稍后重试',
-        SKIP: '已在处理中',
+        NOINFO: '上游暂时没有确定结果，已安排释放，推进任务稍后重试',
+        SKIP: '已安排释放（推进任务正在放这个号）',
       }
-      // 已转 RELEASING 的号由推进任务接着放（EARLY / NOINFO 也算「已安排释放」）；只有 SKIP（别人正在放）不算这次的操作
-      return { ok: r.r !== 'SKIP', message: text[r.r] ?? r.r }
+      return { ok: true, message: text[r.r] ?? r.r }
     }
     case 'unmanual':
       return unmanual(so, input.target ?? '', adminId)
@@ -301,41 +331,72 @@ export async function runAdminAction(id: number, adminId: number, input: AdminAc
       const att = await prisma.smsAttempt.findUnique({ where: { id: input.attemptId }, select: { smsOrderId: true } })
       if (!att || att.smsOrderId !== id) return { ok: false, message: '尝试不存在' }
       const r = await adminClaimActivation(input.attemptId, input.activationId, adminId)
-      return r.ok ? { ok: true, message: `已认领激活 ${input.activationId}` } : { ok: false, message: CLAIM_WHY[r.why] ?? r.why }
+      if (!r.ok) return { ok: false, message: CLAIM_WHY[r.why] ?? r.why }
+      // 认领本身一定发生了（「结果未知」已结束、成本按上游记下）；号给没给买家按落地后的当前号如实说
+      const how = r.reopened ? `${REOPEN_TEXT[r.reopened] ?? r.reopened}；` : ''
+      return r.outcome === 'ATTACHED'
+        ? { ok: true, message: `已认领激活 ${input.activationId}：${how}号码已给买家（订单 ${r.orderState}）`, data: r }
+        : {
+            ok: true,
+            message: `已认领激活 ${input.activationId}，结束了结果未知的取号；${how}订单不在等这个号（${r.orderState}），号码没有给买家，已转为释放（满 2 分钟后由推进任务放掉）${r.orderState === 'MANUAL' ? '；订单仍是人工处理中，请用其他操作收尾' : ''}`,
+            data: r,
+          }
     }
     default:
       throw new AdminJiemaError('未知操作')
   }
 }
 
+class UnmanualRefused extends Error {
+  constructor(public readonly why: string) {
+    super(why)
+  }
+}
+
 /**
- * 解除 MANUAL（§7.2）：系统先校验订单、尝试、预扣的状态是否允许回到目标状态，再 CAS（state=MANUAL + version）：
- *  · PENDING_PAY：订单未付款且未取消（之后由 tick 按 T4 / T19 处理）；
- *  · ACQUIRING：订单已付款、没有任何号收到过短信、没有活着的号（ACTIVE / RECEIVED / RELEASING）——结果未知的尝试照旧由扫描器解开（UNKNOWN 不重取）；
- *  · WAITING：订单已付款、当前号是 ACTIVE、没有任何号收到过短信；
- *  · REFUNDING：订单已付款、没有任何号收到过短信（随后放号、全部终态后 T15 整单退回余额）。
+ * 解除 MANUAL（§7.2）：**一个事务**里按锁顺序（订单 → 接码单 → 预扣）锁住行，读尝试与收款单，按 unmanualBlock 核对前提，
+ * 再 CAS（state=MANUAL + version）——校验与改状态之间不会被并发的付款、关单、预扣变化钻空子（S2b 评审修复）。
  * 回到 PENDING_PAY 以外的状态后立刻推进一次（allowAcquire 只对 ACQUIRING 为 true）。
  */
 async function unmanual(so: { id: number; orderId: number; version: number; currentAttemptId: number | null; refundReason: string | null }, target: string, adminId: number): Promise<{ ok: boolean; message: string }> {
   if (!['PENDING_PAY', 'ACQUIRING', 'WAITING', 'REFUNDING'].includes(target)) return { ok: false, message: '目标状态只能是 PENDING_PAY / ACQUIRING / WAITING / REFUNDING' }
-  const [o, atts] = await Promise.all([prisma.order.findUnique({ where: { id: so.orderId }, select: { payStatus: true, deliveryStatus: true } }), prisma.smsAttempt.findMany({ where: { smsOrderId: so.id } })])
-  if (!o) return { ok: false, message: '订单不存在' }
-  const code = atts.some(hasCode)
-  const cur = atts.find((a) => a.id === so.currentAttemptId)
-  let why: string | null = null
-  if (target === 'PENDING_PAY') {
-    if (o.payStatus !== 'UNPAID' || o.deliveryStatus === 'CANCELLED') why = '订单不是「未付款且未取消」'
-  } else {
-    if (o.payStatus !== 'PAID') why = '订单还没付款'
-    else if (code) why = '已有号码收到过短信：请用「售后退款到余额」'
-    else if (target === 'ACQUIRING' && atts.some((a) => ['ACTIVE', 'RECEIVED', 'RELEASING'].includes(a.state))) why = '还有活着的号：请选 WAITING 或 REFUNDING'
-    else if (target === 'WAITING' && (!cur || cur.state !== 'ACTIVE')) why = '当前号不是 ACTIVE'
+  try {
+    await prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`SELECT id FROM orders WHERE id = ${so.orderId} FOR UPDATE`
+        const o = await tx.order.findUnique({ where: { id: so.orderId }, select: { payStatus: true, deliveryStatus: true } })
+        if (!o) throw new UnmanualRefused('订单不存在')
+        const rows = await tx.$queryRaw<{ state: string; version: number; pay_mode: string; current_attempt_id: number | null; refund_reason: string | null }[]>`
+          SELECT state, version, pay_mode, current_attempt_id, refund_reason FROM sms_orders WHERE id = ${so.id} FOR UPDATE`
+        const cur = rows[0]
+        if (!cur || cur.state !== 'MANUAL' || Number(cur.version) !== so.version) throw new UnmanualRefused(CLOSE_TEXT.VERSION)
+        const holdRows = await tx.$queryRaw<{ state: string }[]>`SELECT state FROM balance_holds WHERE order_id = ${so.orderId} FOR SHARE`
+        const [atts, paidVmq] = await Promise.all([
+          tx.smsAttempt.findMany({ where: { smsOrderId: so.id }, select: { id: true, state: true, smsCount: true, codeAt: true } }),
+          tx.vmqOrder.count({ where: { bizType: 'order', bizId: so.orderId, state: 1 } }),
+        ])
+        const why = unmanualBlock({
+          target,
+          payStatus: o.payStatus,
+          deliveryStatus: o.deliveryStatus,
+          payMode: cur.pay_mode,
+          holdState: holdRows[0]?.state ?? null,
+          paidVmq: paidVmq > 0,
+          attempts: atts,
+          currentAttemptId: cur.current_attempt_id == null ? null : Number(cur.current_attempt_id),
+        })
+        if (why) throw new UnmanualRefused(`不能回到 ${target}：${why}`)
+        const data: Prisma.SmsOrderUpdateManyMutationInput = { state: target, version: { increment: 1 }, manualAt: null, failCount: 0, notice: null, blockedSince: null }
+        if (target === 'REFUNDING') data.refundReason = cur.refund_reason ?? 'ADMIN_CANCEL'
+        const r = await tx.smsOrder.updateMany({ where: { id: so.id, state: 'MANUAL', version: so.version }, data })
+        if (r.count !== 1) throw new UnmanualRefused(CLOSE_TEXT.VERSION)
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+    )
+  } catch (e) {
+    if (e instanceof UnmanualRefused) return { ok: false, message: e.why }
+    throw e
   }
-  if (why) return { ok: false, message: `不能回到 ${target}：${why}` }
-  const data: Prisma.SmsOrderUpdateManyMutationInput = { state: target, version: { increment: 1 }, manualAt: null, failCount: 0, notice: null, blockedSince: null }
-  if (target === 'REFUNDING') data.refundReason = so.refundReason ?? 'ADMIN_CANCEL'
-  const r = await prisma.smsOrder.updateMany({ where: { id: so.id, state: 'MANUAL', version: so.version }, data })
-  if (r.count !== 1) return { ok: false, message: CLOSE_TEXT.VERSION }
   await logEventQuiet({ smsOrderId: so.id, type: 'STATE', actor: 'ADMIN', actorId: adminId, detail: { from: 'MANUAL', to: target, why: 'admin-unmanual' } })
   if (target !== 'PENDING_PAY') await engine.advanceOrder(so.id, 'CRON', { allowAcquire: target === 'ACQUIRING' }).catch((e) => console.error('[jiema] 解除人工后推进失败', so.id, (e as Error)?.message))
   return { ok: true, message: `已回到 ${target}` }

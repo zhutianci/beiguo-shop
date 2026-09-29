@@ -58,24 +58,39 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (!admin) return error('无管理员权限', 403)
     const before = await jiemaOrderDetailAdmin(id)
     if (!before) return error('接码单不存在', 404)
-    const r = await runAdminAction(id, admin.id, parsed.data)
-    const after = await jiemaOrderDetailAdmin(id)
+    // 【审计一定写】（S2b 评审修复）动作中途抛错时，前面几步可能已经提交（放号、认领、改状态），原来直接 500、一条审计都没有：
+    // 现在不论成功、拒绝还是抛错都写一条（抛错记 result=ERROR 与错误信息、前后快照），再按原样返回 500 / AdminJiemaError 的状态码
+    let r: Awaited<ReturnType<typeof runAdminAction>> | null = null
+    let thrown: unknown = null
+    try {
+      r = await runAdminAction(id, admin.id, parsed.data)
+    } catch (e) {
+      thrown = e
+    }
+    const after = await jiemaOrderDetailAdmin(id).catch(() => null)
+    const snap = (d: typeof before | null) => (d ? { state: d.so.state, version: d.so.version, holdState: d.hold?.state ?? null, payStatus: d.order?.payStatus ?? null } : null)
     await writeAudit(null, {
       actorUserId: admin.id,
       actorKind: 'PLATFORM',
       action: `jiema.order.${parsed.data.action}`,
       targetType: 'sms_order',
       targetId: String(before.order?.orderNo ?? id),
-      result: r.ok ? 'OK' : 'DENIED',
+      result: thrown ? 'ERROR' : r?.ok ? 'OK' : 'DENIED',
       reason: parsed.data.reason,
       diff: {
         input: { n: parsed.data.n, attemptId: parsed.data.attemptId, target: parsed.data.target, activationId: parsed.data.activationId },
-        before: { state: before.so.state, version: before.so.version, holdState: before.hold?.state ?? null, payStatus: before.order?.payStatus ?? null },
-        after: after ? { state: after.so.state, version: after.so.version, holdState: after.hold?.state ?? null, payStatus: after.order?.payStatus ?? null } : null,
-        message: r.message,
+        before: snap(before),
+        after: snap(after),
+        message: thrown ? `抛错：${String((thrown as Error)?.message ?? thrown).slice(0, 300)}` : (r?.message ?? null),
       },
       req: request,
+    }).catch((ae) => {
+      // 动作本身已抛错时，审计写失败只记日志，返回原来的错误
+      if (!thrown) throw ae
+      console.error('[jiema] 后台操作抛错后写审计也失败', id, parsed.data.action, (ae as Error)?.message)
     })
+    if (thrown) throw thrown
+    if (!r) return error('操作失败', 500)
     if (!r.ok) return Response.json({ success: false, error: r.message, data: after }, { status: 409 })
     return success({ detail: after, result: r.data ?? null }, r.message)
   } catch (e) {

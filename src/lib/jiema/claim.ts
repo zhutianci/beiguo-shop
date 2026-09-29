@@ -35,6 +35,11 @@ import {
   NOT_BOUGHT_AFTER_SEC,
   NOT_BOUGHT_EMPTY_SCANS,
   NOT_BOUGHT_SCAN_GAP_SEC,
+  adminClaimReject,
+  overEffCap,
+  claimReopenTarget,
+  manualEventInfo,
+  type ClaimReopen,
 } from './machine'
 import { logEventQuiet } from './events'
 import { smsAlert } from './alert'
@@ -91,6 +96,15 @@ async function legacyServices(): Promise<Set<string>> {
 
 /** 认领：写入 activationId、号码、成本、运营商，endsAt = expiredAt，canCancelAt = 认领时刻 + 123 秒（与 T8 同一常量，比设计的 120 秒更保守），转 ACTIVE；随后按订单状态落地 */
 async function claim(u: SmsAttempt, c: V1Activation, offsetMs: number, now: Date): Promise<boolean> {
+  if (!(await claimWrite(u, c, offsetMs, now))) return false
+  // 落地：动态 import 引擎（engine 静态 import 了本文件）
+  const eng = await import('./engine')
+  await eng.afterClaim(u.smsOrderId, u.id)
+  return true
+}
+
+/** 认领的写库一半：CAS UNKNOWN → ACTIVE（写号码、成本、时刻）+ ADOPT 事件；不落地（调用方随后 afterClaim） */
+async function claimWrite(u: SmsAttempt, c: V1Activation, offsetMs: number, now: Date, actor?: { adminId: number }): Promise<boolean> {
   const so = await prisma.smsOrder.findUnique({ where: { id: u.smsOrderId }, select: { longWaitOk: true } })
   const createdAt = c.createdAt ? new Date(c.createdAt.getTime() - offsetMs) : now
   const endsAt = c.expiredAt && c.expiredAt.getTime() > now.getTime() ? c.expiredAt : endsAtFrom(null, createdAt)
@@ -121,10 +135,7 @@ async function claim(u: SmsAttempt, c: V1Activation, offsetMs: number, now: Date
     console.error('[jiema] 认领写库失败', u.id, c.id, (e as Error)?.message)
     return false
   }
-  await logEventQuiet({ smsOrderId: u.smsOrderId, attemptId: u.id, type: 'ADOPT', detail: { activationId: c.id, costMicro: c.priceMicro } })
-  // 落地：动态 import 引擎（engine 静态 import 了本文件）
-  const eng = await import('./engine')
-  await eng.afterClaim(u.smsOrderId, u.id)
+  await logEventQuiet({ smsOrderId: u.smsOrderId, attemptId: u.id, type: 'ADOPT', ...(actor ? { actor: 'ADMIN' as const, actorId: actor.adminId } : {}), detail: { activationId: c.id, costMicro: c.priceMicro } })
   return true
 }
 
@@ -236,11 +247,11 @@ async function scanLocked(out: ScanResult, now: Date, since24: Date, wantCalib: 
       if (!again || again.state !== 'UNKNOWN') continue
     }
     const why = strict.length !== 1 ? `候选 ${strict.length} 个（宽口径 ${broad.length} 个）` : others ? '同一组合还有别的在途取号' : !legacyOk ? '窗口内旧单品链路有取号 / 换号动作' : '认领写库失败'
-    if (await toManual(u.smsOrderId, `取号结果未知、不能自动认领：${why}（attempt #${u.id}）`)) out.manual++
+    if (await toManual(u.smsOrderId, `取号结果未知、不能自动认领：${why}（attempt #${u.id}）`, undefined, { attemptId: u.id })) out.manual++
   }
   // UNKNOWN 超过 10 分钟没解开 → MANUAL
   const stale = await prisma.smsAttempt.findMany({ where: { state: 'UNKNOWN', requestedAt: { lt: new Date(now.getTime() - UNKNOWN_MANUAL_SEC * S) } }, select: { id: true, smsOrderId: true } })
-  for (const s of stale) if (await toManual(s.smsOrderId, `取号结果未知超过 10 分钟没解开（attempt #${s.id}）`)) out.manual++
+  for (const s of stale) if (await toManual(s.smsOrderId, `取号结果未知超过 10 分钟没解开（attempt #${s.id}）`, undefined, { attemptId: s.id })) out.manual++
 
   // 未关联激活：永远不自动取消；外部激活推一次
   const unassoc = free.filter((f) => !matched.has(f.id))
@@ -282,8 +293,10 @@ export interface AdminClaimCandidate {
   strict: boolean
   /** 只按服务、国家、时间窗对得上（broad 口径） */
   inWindow: boolean
-  /** 价格超过这次取号的上限（cap） */
+  /** 价格超过这次取号实际传给上游的上限 eff(cap) = max(cap, 6700) */
   overCap: boolean
+  /** 按上游规则不可能是这次买到的（价格未知或超 eff(cap)、运营商不同）：服务端拒绝认领（adminClaimReject），页面置灰 */
+  blocked: 'OVER_CAP' | 'OPERATOR' | null
   /** 旧链路窗口内：同服务的旧单品订单在它创建前 30 分钟内付过款——提醒不要把旧单品的号给错人（§7.2） */
   legacyWindow: boolean
 }
@@ -325,7 +338,9 @@ export async function adminClaimCandidates(attemptId: number): Promise<{ ok: tru
       phoneTail: f.phone ? f.phone.slice(-4) : null,
       strict: strictIds.has(f.id),
       inWindow: broadIds.has(f.id),
-      overCap: f.priceMicro != null && f.priceMicro > u.maxPriceMicro,
+      // 按实际传给上游的上限 eff(cap) = max(cap, 6700) 判（与 adminClaimActivation 的硬闸门同一口径）
+      overCap: overEffCap(f.priceMicro, u.maxPriceMicro),
+      blocked: adminClaimReject(u, f),
       legacyWindow,
     })
   }
@@ -359,18 +374,27 @@ async function freeActivations(items: V1Activation[], now: Date): Promise<{ free
   return { free, offset }
 }
 
-export type AdminClaimWhy = 'BUSY' | 'NOT_UNKNOWN' | 'UPSTREAM' | 'NOT_FOUND' | 'KNOWN' | 'MISMATCH' | 'STATE'
+export type AdminClaimWhy = 'BUSY' | 'NOT_UNKNOWN' | 'UPSTREAM' | 'NOT_FOUND' | 'KNOWN' | 'MISMATCH' | 'OVER_CAP' | 'OPERATOR' | 'STATE'
+
+/**
+ * 后台认领的结果：ATTACHED = 号挂成了订单的当前号（首次取号 → WAITING，或完成了换号）；
+ * RELEASING = 认领了（「结果未知」已结束、成本按上游记下），但订单不在等这个号（已收码、在退款、冻结起因是别的…），号转 RELEASING 放掉、不给买家。
+ */
+export type AdminClaimOutcome = { outcome: 'ATTACHED' | 'RELEASING'; reopened: ClaimReopen; orderState: string }
 
 /**
  * 后台「认领上游激活」：管理员从候选里选定一个激活 id，把 UNKNOWN 尝试认领过来（§7.2，D19「宁可人工」的出口）。
  *  · 与扫描器互斥（同一把库锁 jiema:scan；拿不到 → BUSY，稍后再试）；
- *  · 在锁里重新拉一次 v1 活跃列表，确认这个激活仍在、仍是本站不认识的、服务与国家与这次取号一致（运营商、价格、时间窗不强制——
- *    那正是它没能自动认领的原因，由管理员核对后负责）；
- *  · 订单已因「结果未知超过 10 分钟」转成 MANUAL 的，先 CAS 回到它在等这个号时的状态（首次取号 → ACQUIRING；换号 → REPLACING），
- *    再走与自动认领同一个 claim()（写 activationId、号码、成本、endsAt、canCancelAt，随后 afterClaim 落地：挂成当前号 / 完成换号）；
- *    claim 落空就把订单转回 MANUAL（不留在无人处理的中间态）。**绝不取消任何上游激活。**
+ *  · 在锁里重新拉一次 v1 活跃列表，确认这个激活仍在、仍是本站不认识的、服务与国家与这次取号一致；**价格未知或高于 eff(cap)、
+ *    指定了运营商而候选运营商不同 → 拒绝**（adminClaimReject；S2b 评审修复：原来只作提示）。时间窗仍只作提示；
+ *  · 【先认领、再恢复订单】（S2b 评审修复）订单还是 MANUAL 时先 CAS 尝试 UNKNOWN → ACTIVE（claimWrite；此时推进任务不碰 MANUAL 单，
+ *    尝试也已不是 UNKNOWN，「结果未知超过 10 分钟 → MANUAL」不会再在两步之间把单冻回去），再按 claimReopenTarget 决定恢复到哪
+ *    （冻结前的状态由 toManual 记在 MANUAL 事件里：首次取号 → ACQUIRING、换号且旧号还活着 → REPLACING；已收码 → RECEIVED、
+ *    已在取消 / 退款 → CANCELLING / REFUNDING；起因是别的或核对不上 → 不恢复，订单保持 MANUAL），CAS MANUAL → 目标（带 version），
+ *    最后 afterClaim 落地：挂成当前号 / 完成换号，或（订单不在等这个号）转 RELEASING 放掉；
+ *  · 落地后重读订单，按「当前号是不是它」报 ATTACHED / RELEASING，不再一律报「已认领」。**绝不取消任何上游激活。**
  */
-export async function adminClaimActivation(attemptId: number, activationId: string, adminId: number): Promise<{ ok: true } | { ok: false; why: AdminClaimWhy }> {
+export async function adminClaimActivation(attemptId: number, activationId: string, adminId: number): Promise<({ ok: true } & AdminClaimOutcome) | { ok: false; why: AdminClaimWhy }> {
   const token = await acquireLock(SCAN_LOCK, SCAN_LOCK_TTL_MS)
   if (!token) return { ok: false, why: 'BUSY' }
   try {
@@ -384,23 +408,51 @@ export async function adminClaimActivation(attemptId: number, activationId: stri
     const { free, offset } = await freeActivations(list.data.items, now)
     if (!free.some((f) => f.id === activationId)) return { ok: false, why: 'KNOWN' }
     if (c.service !== u.service || c.country !== u.country) return { ok: false, why: 'MISMATCH' }
-    const so = await prisma.smsOrder.findUnique({ where: { id: u.smsOrderId }, select: { id: true, state: true } })
-    if (!so) return { ok: false, why: 'STATE' }
-    let reopened = false
-    if (so.state === 'MANUAL') {
-      const back = u.reason === 'REPLACE' ? 'REPLACING' : 'ACQUIRING'
-      const r = await prisma.smsOrder.updateMany({ where: { id: so.id, state: 'MANUAL' }, data: { state: back, version: { increment: 1 }, manualAt: null, failCount: 0, notice: null } })
-      if (r.count !== 1) return { ok: false, why: 'STATE' }
-      reopened = true
-      await logEventQuiet({ smsOrderId: so.id, attemptId: u.id, type: 'STATE', actor: 'ADMIN', actorId: adminId, detail: { from: 'MANUAL', to: back, why: 'admin-claim' } })
+    const reject = adminClaimReject(u, c)
+    if (reject) return { ok: false, why: reject }
+    const so0 = await prisma.smsOrder.findUnique({ where: { id: u.smsOrderId }, select: { id: true, state: true, version: true, orderId: true, refundReason: true, currentAttemptId: true } })
+    if (!so0) return { ok: false, why: 'STATE' }
+    // 恢复目标在认领之前按事实算好（认领之后这个尝试就不再是 UNKNOWN 了）
+    let target: ClaimReopen = null
+    if (so0.state === 'MANUAL') {
+      const [o, atts, ev] = await Promise.all([
+        prisma.order.findUnique({ where: { id: so0.orderId }, select: { payStatus: true } }),
+        prisma.smsAttempt.findMany({ where: { smsOrderId: so0.id }, select: { id: true, state: true, smsCount: true, codeAt: true } }),
+        prisma.smsEvent.findFirst({ where: { smsOrderId: so0.id, type: 'MANUAL' }, orderBy: { id: 'desc' }, select: { attemptId: true, detail: true } }),
+      ])
+      const cur = atts.find((a) => a.id === so0.currentAttemptId) ?? null
+      target = claimReopenTarget({
+        attempt: { id: u.id, reason: u.reason },
+        manual: manualEventInfo(ev),
+        payStatus: o?.payStatus ?? '',
+        refundReason: so0.refundReason,
+        anyCode: atts.some((a) => a.smsCount > 0 || a.codeAt != null || a.state === 'RECEIVED' || a.state === 'FINISHED'),
+        cur: cur ? { id: cur.id, state: cur.state, smsCount: cur.smsCount } : null,
+        otherInflight: atts.some((a) => a.id !== u.id && (a.state === 'REQUESTING' || a.state === 'UNKNOWN')),
+        otherLive: atts.some((a) => a.id !== u.id && (a.state === 'ACTIVE' || a.state === 'RECEIVED')),
+      })
     }
-    await logEventQuiet({ smsOrderId: u.smsOrderId, attemptId: u.id, type: 'ADMIN_CLAIM', actor: 'ADMIN', actorId: adminId, detail: { activationId } })
-    const ok = await claim(u, c, offset ?? 0, now)
-    if (!ok) {
-      if (reopened) await toManual(u.smsOrderId, `后台认领激活 ${activationId} 写库失败（attempt #${u.id}）`)
-      return { ok: false, why: 'STATE' }
+    await logEventQuiet({ smsOrderId: u.smsOrderId, attemptId: u.id, type: 'ADMIN_CLAIM', actor: 'ADMIN', actorId: adminId, detail: { activationId, reopen: target } })
+    // ① 先认领（订单仍是 MANUAL 或原状态）；落空 = 尝试刚被别处解开，订单一点没动
+    if (!(await claimWrite(u, c, offset ?? 0, now, { adminId }))) return { ok: false, why: 'NOT_UNKNOWN' }
+    // ② 再恢复订单（带 version：冻结之后有人动过这张单就不恢复，号按「订单不在等它」放掉）
+    let reopened: ClaimReopen = null
+    if (target) {
+      const r = await prisma.smsOrder.updateMany({
+        where: { id: so0.id, state: 'MANUAL', version: so0.version },
+        data: { state: target, version: { increment: 1 }, manualAt: null, failCount: 0, notice: null, blockedSince: null },
+      })
+      if (r.count === 1) {
+        reopened = target
+        await logEventQuiet({ smsOrderId: so0.id, attemptId: u.id, type: 'STATE', actor: 'ADMIN', actorId: adminId, detail: { from: 'MANUAL', to: target, why: 'admin-claim' } })
+      }
     }
-    return { ok: true }
+    // ③ 落地（与自动认领同一个 afterClaim）
+    const eng = await import('./engine')
+    await eng.afterClaim(u.smsOrderId, u.id)
+    const after = await prisma.smsOrder.findUnique({ where: { id: so0.id }, select: { state: true, currentAttemptId: true } })
+    const attached = !!after && after.currentAttemptId === u.id && !['MANUAL', 'CANCELLING', 'REFUNDING', 'CANCELLED', 'CLOSED'].includes(after.state)
+    return { ok: true, outcome: attached ? 'ATTACHED' : 'RELEASING', reopened, orderState: after?.state ?? '—' }
   } finally {
     await releaseLock(SCAN_LOCK, token)
   }
