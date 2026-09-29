@@ -149,7 +149,8 @@ export async function GET(
       // 已付款订单数 / 累计付款都排除「已付款 + 已取消」（线下退款的惯例做法，钱已退回）
       // 充值单不计（充值是预收款，docs/短信接码-设计.md D40、§6.6 第 17 条）
       prisma.order.count({ where: { userId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' }, ...excludeTopup() } }),
-      prisma.order.count({ where: { userId, deliveryStatus: 'DELIVERED' } }),
+      // 已交付订单数同一口径：充值单付款即 DELIVERED，不排除的话「3 笔充值、没买东西」会显示已付款 0、已交付 3（B1 评审修复）
+      prisma.order.count({ where: { userId, deliveryStatus: 'DELIVERED', ...excludeTopup() } }),
       prisma.order.aggregate({
         where: { userId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' }, ...excludeTopup() },
         _sum: { amount: true },

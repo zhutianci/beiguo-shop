@@ -7,7 +7,8 @@ import { success, error } from '@/lib/api'
 import { decryptCardContent } from '@/lib/cardkey'
 import { round2, toCents } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
-import { excludeTopup } from '@/lib/order-scope'
+import { excludeTopup, isCarrierType } from '@/lib/order-scope'
+import { describeTopupRemark } from '@/lib/wallet/topup'
 import { settledReferralCents } from '@/lib/referral-report'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 import { channelProfit, smsChargedCost, type ChannelProfit } from '@/lib/admin/channel-profit'
@@ -144,6 +145,7 @@ export async function GET(request: NextRequest) {
               name: true,
               categoryId: true,
               category: { select: { id: true, name: true } },
+              deliveryType: true,
             },
           },
         },
@@ -227,8 +229,15 @@ export async function GET(request: NextRequest) {
         channelProfit: o.tenantId !== PLATFORM_TENANT_ID ? rowProfit.get(o.id) ?? null : null,
         // 来源站 = 下单时的店面（设计 5.5）
         source: sourceOf(srcMap, o.tenantId),
-        // 买家备注：新订单双写 buyerRemark，历史订单只有 remark（设计 5.4 双写过渡）；remark 之后可能被系统追加内部说明
-        buyerRemarkText: o.buyerRemark ?? o.remark,
+        // 买家备注：新订单双写 buyerRemark，历史订单只有 remark（设计 5.4 双写过渡）；remark 之后可能被系统追加内部说明。
+        // 载体单（充值 / 接码）的 remark 是内部字段（topup|ct:…），不回退成「买家备注」，另给 internalRemarkText（B1 评审修复）
+        buyerRemarkText: isCarrierType(o.product.deliveryType) ? o.buyerRemark : o.buyerRemark ?? o.remark,
+        carrier: isCarrierType(o.product.deliveryType),
+        internalRemarkText: isCarrierType(o.product.deliveryType)
+          ? o.product.deliveryType === 'TOPUP'
+            ? describeTopupRemark(o.remark)
+            : o.remark
+          : null,
       }
     })
 

@@ -347,7 +347,10 @@ export async function autoCreditIfCarrier(key: string | null, ctx: { timeoutMin:
       if (!decision.ok) {
         // 没有候选 = 普通到账（不涉及载体单），照旧只留给站长（recordUnmatched 已推过「待核实」）
         if (decision.why === 'NO_CANDIDATE') return { credited: false, why: decision.why }
-        return leave(decision.why, decision.why === 'REPEAT_FORWARD' ? '疑似重复转发' : '按收款单表不能确定唯一归属')
+        return leave(
+          decision.why,
+          decision.why === 'REPEAT_FORWARD' ? '疑似重复转发' : decision.why === 'TOO_MANY_ROWS' ? '同金额收款单过多，无法验证唯一归属' : '按收款单表不能确定唯一归属',
+        )
       }
       vmqNo = decision.vmq.orderId
       orderId = decision.vmq.bizId
@@ -392,19 +395,43 @@ export async function autoCreditIfCarrier(key: string | null, ctx: { timeoutMin:
   }
 }
 
-/** 读出做「数据验证唯一」需要的收款单（同 type、同金额、到账时刻之前一段窗口）与它们的订单 */
+/**
+ * 「数据验证唯一」一次最多看多少张收款单（每个时间窗）。超过就不判、留给站长（宁可人工，§2.7）。
+ * 【B1 评审修复】原来是一个 24h+2W 的窗口 take:500 且不排序：同额收款单超过 500 张时截到的是任意 500 行，
+ * 可能恰好漏掉违反 ③ / ④ 的那几行，把别人的钱判成「唯一」自动退掉。
+ */
+export const UNIQUE_SCAN_LIMIT = 500
+
+/**
+ * 读出做「数据验证唯一」需要的收款单与它们的订单。分两个窗口、各自按时间倒序取、超过上限就返回 TOO_MANY_ROWS（不在残缺数据上判）：
+ *   · 近窗 [到账 − 2W, 到账]，任何状态：① 候选 C（C.createdAt ≥ 到账 − W）与 ③（[C.createdAt − W, 到账] ⊂ 近窗）只看这里；
+ *   · 24 小时内已关闭（−1）的：④ 只看这里。
+ * decideUniqueClosed 用到的每一行都在两个窗口之一里，所以两窗之并对它来说是完整的。
+ */
 async function uniqueClosedFor(entry: LatepayEntry, cents: number, ctx: { timeoutMin: number; cooldownMin: number }): Promise<UniqueDecision> {
-  const W = (ctx.timeoutMin + ctx.cooldownMin) * 60_000
+  const W = (ctx.timeoutMin + Math.max(0, ctx.cooldownMin)) * 60_000
   const at = new Date(entry.at)
-  const vs = await prisma.vmqOrder.findMany({
-    where: {
-      type: entry.type,
-      reallyPrice: new Prisma.Decimal((cents / 100).toFixed(2)),
-      createdAt: { gte: new Date(entry.at - 24 * 3600_000 - 2 * W), lte: at },
-    },
-    select: { id: true, orderId: true, bizType: true, bizId: true, type: true, state: true, reallyPrice: true, createdAt: true },
-    take: 500,
-  })
+  const price = new Prisma.Decimal((cents / 100).toFixed(2))
+  const select = { id: true, orderId: true, bizType: true, bizId: true, type: true, state: true, reallyPrice: true, createdAt: true } as const
+  const [near, closed24] = await Promise.all([
+    prisma.vmqOrder.findMany({
+      where: { type: entry.type, reallyPrice: price, createdAt: { gte: new Date(entry.at - 2 * W), lte: at } },
+      select,
+      orderBy: { createdAt: 'desc' },
+      take: UNIQUE_SCAN_LIMIT + 1,
+    }),
+    prisma.vmqOrder.findMany({
+      where: { type: entry.type, reallyPrice: price, state: -1, createdAt: { gte: new Date(entry.at - 24 * 3600_000), lte: at } },
+      select,
+      orderBy: { createdAt: 'desc' },
+      take: UNIQUE_SCAN_LIMIT + 1,
+    }),
+  ])
+  // 近窗都装不下：连候选都认不全，不判
+  if (near.length > UNIQUE_SCAN_LIMIT) return { ok: false, why: 'TOO_MANY_ROWS' }
+  const byId = new Map<number, (typeof near)[number]>()
+  for (const v of [...near, ...closed24]) byId.set(v.id, v)
+  const vs = Array.from(byId.values())
   const oids = Array.from(new Set(vs.filter((v) => v.bizType === 'order').map((v) => v.bizId)))
   const os = oids.length
     ? await prisma.order.findMany({ where: { id: { in: oids } }, select: { id: true, tenantId: true, payStatus: true, deliveryStatus: true, product: { select: { deliveryType: true } } } })
@@ -424,7 +451,14 @@ async function uniqueClosedFor(entry: LatepayEntry, cents: number, ctx: { timeou
       order: o ? { carrier: CARRIERS.includes(o.product.deliveryType), tenantId: o.tenantId, payStatus: o.payStatus, deliveryStatus: o.deliveryStatus } : null,
     }
   })
-  return decideUniqueClosed({ cents, type: entry.type, at: entry.at, repeatForward: entry.repeatForward }, rows, ctx)
+  const arg = { cents, type: entry.type, at: entry.at, repeatForward: entry.repeatForward }
+  // 候选只可能在近窗里：近窗认不出候选 = 普通到账（NO_CANDIDATE，安静返回），不因为 24h 窗口装不下而误报「涉及载体单」
+  const nearIds = new Set(near.map((v) => v.id))
+  const first = decideUniqueClosed(arg, rows.filter((r) => nearIds.has(r.id)), ctx)
+  if (!first.ok && first.why === 'NO_CANDIDATE') return first
+  // ④ 要完整的 24h 已关闭列表：装不下就不判
+  if (closed24.length > UNIQUE_SCAN_LIMIT) return { ok: false, why: 'TOO_MANY_ROWS' }
+  return decideUniqueClosed(arg, rows, ctx)
 }
 
 // ---------------------------------------------------------------------------
@@ -525,6 +559,18 @@ export async function manualCredit(p: ManualInput): Promise<{ cents: number; ord
 // 后台：候选订单、条目是否涉及载体单、迟到付款看板
 // ---------------------------------------------------------------------------
 
+/** 目标订单此前的一笔 LATEPAY 退入（「退入买家余额」弹窗逐笔列出，§2.7「再退一笔必须勾 confirmBillChecked，页面同时列出之前那几笔」） */
+export interface PriorLatepay {
+  logId: number
+  cents: number
+  at: string
+  entryKey: string
+  reason: string | null
+  auto: boolean
+  tradeNo: string | null
+  vmqOrderNo: string | null
+}
+
 export interface LatepayCandidate {
   orderNo: string
   orderId: number
@@ -539,32 +585,83 @@ export interface LatepayCandidate {
   userId: number
   userEmail: string | null
   priorLatepay: number
+  /** 之前那几笔（新的在前，每单最多 PRIOR_LIST_MAX 笔；条数以 priorLatepay 为准） */
+  priorList: PriorLatepay[]
   /** 条目上提示的那张（closed_while_matching / duplicate_payment / maybe_duplicate 的 vmqOrderId） */
   hinted: boolean
 }
 
+const PRIOR_LIST_MAX = 20
+
+/** 这些订单已有的 LATEPAY 退入：条数（精确）与逐笔明细（金额、时间、条目、自动 / 手动与交易号） */
+async function priorLatepayOf(orderIds: number[]): Promise<{ count: Map<number, number>; list: Map<number, PriorLatepay[]> }> {
+  const count = new Map<number, number>()
+  const list = new Map<number, PriorLatepay[]>()
+  if (!orderIds.length) return { count, list }
+  const [groups, logs] = await Promise.all([
+    prisma.balanceLog.groupBy({ by: ['orderId'], where: { type: 'LATEPAY', orderId: { in: orderIds } }, _count: { _all: true } }),
+    prisma.balanceLog.findMany({
+      where: { type: 'LATEPAY', orderId: { in: orderIds } },
+      orderBy: { id: 'desc' },
+      take: PRIOR_LIST_MAX * orderIds.length,
+      select: { id: true, orderId: true, topupDeltaCents: true, bizKey: true, createdAt: true },
+    }),
+  ])
+  for (const g of groups) if (g.orderId != null) count.set(g.orderId, g._count._all)
+  const keyOf = (bizKey: string | null) => (bizKey ?? '').replace(/^latepay:/, '')
+  const keys = logs.map((l) => keyOf(l.bizKey)).filter((k) => ENTRY_KEY_RE.test(k))
+  const rows = keys.length ? await prisma.setting.findMany({ where: { key: { in: keys } }, select: { key: true, value: true } }) : []
+  const em = new Map<string, LatepayEntry | null>()
+  for (const r of rows) {
+    try {
+      em.set(r.key, JSON.parse(r.value) as LatepayEntry)
+    } catch {
+      em.set(r.key, null)
+    }
+  }
+  for (const l of logs) {
+    if (l.orderId == null) continue
+    const arr = list.get(l.orderId) ?? []
+    if (arr.length >= PRIOR_LIST_MAX) continue
+    const key = keyOf(l.bizKey)
+    const e = em.get(key) ?? null
+    arr.push({
+      logId: l.id,
+      cents: l.topupDeltaCents,
+      at: l.createdAt.toISOString(),
+      entryKey: key,
+      reason: e?.reason ?? null,
+      auto: !!e?.auto,
+      tradeNo: e?.tradeNo ?? null,
+      vmqOrderNo: e?.latepayVmq ?? e?.vmqOrderId ?? null,
+    })
+    list.set(l.orderId, arr)
+  }
+  return { count, list }
+}
+
+/** 近 24 小时内（到 at + 1 分钟）、同 type、同额、属于主站载体单的收款单（SQL 里直接连订单与商品过滤，不先取同额再筛） */
+async function carrierVmqsNear(type: number, cents: number, at: number, limit: number) {
+  const rows = await prisma.$queryRaw<{ id: number; orderId: string; bizId: number; state: number; createdAt: Date }[]>`
+    SELECT v.id AS id, v.order_id AS orderId, v.biz_id AS bizId, v.state AS state, v.created_at AS createdAt
+      FROM vmq_orders v JOIN orders o ON o.id = v.biz_id JOIN products p ON p.id = o.product_id
+     WHERE v.biz_type = 'order' AND o.tenant_id = 1 AND p.delivery_type IN ('SMS_POOL', 'TOPUP')
+       AND v.type = ${type} AND v.really_price = ${new Prisma.Decimal((cents / 100).toFixed(2))}
+       AND v.created_at >= ${new Date(at - 24 * 3600_000)} AND v.created_at <= ${new Date(at + 60_000)}
+     ORDER BY v.created_at DESC
+     LIMIT ${limit}`
+  return rows.map((r) => ({ id: Number(r.id), orderId: String(r.orderId), bizType: 'order', bizId: Number(r.bizId), state: Number(r.state), createdAt: new Date(r.createdAt) }))
+}
+
 /**
  * 候选订单（§2.7）：近 24 小时内、reallyPrice 等于条目金额的 SMS_POOL / TOPUP 收款单对应的订单（已关闭的排在前面），
- * 外加条目上提示的那张收款单的订单。已关闭的恰好 1 个时 suggest 指向它（后台高亮「建议」）。
+ * 外加条目上提示的那张收款单的订单。已关闭的恰好 1 个时 suggest 指向它（后台高亮「建议」）。每个候选带上之前的 LATEPAY 逐笔明细。
+ * （原来先取「同额的任何收款单」最新 50 张再筛载体单：同额普通订单多时候选会被挤掉；现在 SQL 里只取主站载体单的。）
  */
 export async function latepayCandidates(entry: LatepayEntry): Promise<{ list: LatepayCandidate[]; suggest: string | null }> {
   const cents = entryCents(entry)
   const vmqs: { id: number; orderId: string; bizType: string; bizId: number; state: number; createdAt: Date }[] = []
-  if (amountInRange(cents)) {
-    vmqs.push(
-      ...(await prisma.vmqOrder.findMany({
-        where: {
-          bizType: 'order',
-          type: entry.type,
-          reallyPrice: new Prisma.Decimal((cents / 100).toFixed(2)),
-          createdAt: { gte: new Date(entry.at - 24 * 3600_000), lte: new Date(entry.at + 60_000) },
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50,
-        select: { id: true, orderId: true, bizType: true, bizId: true, state: true, createdAt: true },
-      })),
-    )
-  }
+  if (amountInRange(cents)) vmqs.push(...(await carrierVmqsNear(entry.type, cents, entry.at, 50)))
   const hint = await vmqByNo(prisma, entry.vmqOrderId)
   if (hint && hint.bizType === 'order' && !vmqs.some((v) => v.orderId === hint.orderId)) {
     const full = await prisma.vmqOrder.findUnique({ where: { id: hint.id }, select: { id: true, orderId: true, bizType: true, bizId: true, state: true, createdAt: true } })
@@ -576,10 +673,7 @@ export async function latepayCandidates(entry: LatepayEntry): Promise<{ list: La
     select: { id: true, orderNo: true, userId: true, payStatus: true, deliveryStatus: true, amount: true, product: { select: { deliveryType: true } }, user: { select: { email: true } } },
   })
   const om = new Map(orders.map((o) => [o.id, o]))
-  const prior = orders.length
-    ? await prisma.balanceLog.groupBy({ by: ['orderId'], where: { type: 'LATEPAY', orderId: { in: orders.map((o) => o.id) } }, _count: { _all: true } })
-    : []
-  const pm = new Map(prior.map((x) => [x.orderId, x._count._all]))
+  const prior = await priorLatepayOf(orders.map((o) => o.id))
   const seen = new Set<number>()
   const list: LatepayCandidate[] = []
   for (const v of vmqs) {
@@ -599,7 +693,8 @@ export async function latepayCandidates(entry: LatepayEntry): Promise<{ list: La
       vmqCreatedAt: v.createdAt.toISOString(),
       userId: o.userId,
       userEmail: o.user.email,
-      priorLatepay: pm.get(o.id) ?? 0,
+      priorLatepay: prior.count.get(o.id) ?? 0,
+      priorList: prior.list.get(o.id) ?? [],
       hinted: !!hint && hint.orderId === v.orderId,
     })
   }
@@ -608,19 +703,96 @@ export async function latepayCandidates(entry: LatepayEntry): Promise<{ list: La
   return { list, suggest: closed.length === 1 ? closed[0].orderNo : null }
 }
 
+export type LatepayOrderLookup = Omit<LatepayCandidate, 'vmqOrderNo' | 'vmqState' | 'vmqCreatedAt' | 'hinted'> & { carrier: boolean; tenantId: number }
+
 /**
- * 条目是否涉及载体单（「标记已处理」必须选 OFFLINE / IGNORE、后台显示「退入买家余额」按钮）：
- * biz / candidates 里的订单、vmqOrderId 那张收款单的订单、或候选订单里有 SMS_POOL / TOPUP。
+ * 站长在弹窗里手填、不在候选里的订单号：查出订单概况与之前的 LATEPAY 逐笔明细。
+ * 找不到返回 null；不是主站载体单也照样返回（carrier=false，页面提示「只能退入主站接码 / 充值单」，提交时服务端还会再拒）。
  */
-export async function entryInvolvesCarrier(entry: LatepayEntry): Promise<boolean> {
-  const ids = orderIdsInEntry(entry)
-  const hint = await vmqByNo(prisma, entry.vmqOrderId)
-  if (hint && hint.bizType === 'order') ids.push(hint.bizId)
-  if (ids.length) {
-    const n = await prisma.order.count({ where: { id: { in: ids }, product: { deliveryType: { in: CARRIERS } } } })
-    if (n > 0) return true
+export async function latepayOrderLookup(orderNo: string): Promise<LatepayOrderLookup | null> {
+  const no = String(orderNo ?? '').trim()
+  if (!no || no.length > 32) return null
+  const o = await prisma.order.findUnique({
+    where: { orderNo: no },
+    select: { id: true, orderNo: true, userId: true, tenantId: true, payStatus: true, deliveryStatus: true, amount: true, product: { select: { deliveryType: true } }, user: { select: { email: true } } },
+  })
+  if (!o) return null
+  const prior = await priorLatepayOf([o.id])
+  return {
+    orderNo: o.orderNo,
+    orderId: o.id,
+    deliveryType: o.product.deliveryType,
+    payStatus: o.payStatus,
+    deliveryStatus: o.deliveryStatus,
+    closed: o.payStatus === 'UNPAID' && o.deliveryStatus === 'CANCELLED',
+    amountCents: centsOf(o.amount),
+    userId: o.userId,
+    userEmail: o.user.email,
+    priorLatepay: prior.count.get(o.id) ?? 0,
+    priorList: prior.list.get(o.id) ?? [],
+    carrier: CARRIERS.includes(o.product.deliveryType) && o.tenantId === 1,
+    tenantId: o.tenantId,
   }
-  return (await latepayCandidates(entry)).list.length > 0
+}
+
+/**
+ * 一批条目各自是否涉及载体单（「标记已处理」必须选 OFFLINE / IGNORE、后台显示「退入买家余额」按钮）：
+ * biz / candidates 里的订单、vmqOrderId 那张收款单的订单是 SMS_POOL / TOPUP，或有候选订单（latepayCandidates 同口径）。
+ *
+ * 【B1 评审修复：批量】/admin/vmq 每 10 秒轮询一次，原来对每条待处理条目各查 5–7 次（候选那一步还是 vmq_orders 按金额 + 时间扫表），
+ * 几百条待处理时一次轮询就是几千条查询，和到账 webhook、收银台抢生产机的连接池。现在不论多少条都是固定的至多 3 条查询：
+ * 提示收款单一次、订单是否载体一次、候选一次（SQL 里连订单与商品只取主站载体单的收款单，按全部条目的金额集合与时间范围一次取回，内存里逐条比对）。
+ */
+export async function carrierFlags(entries: LatepayEntry[]): Promise<boolean[]> {
+  const flags = entries.map(() => false)
+  if (!entries.length) return flags
+  // ① 条目上写着的订单 + 提示收款单的订单：是不是载体商品（不限主站，与原单条判断同口径）
+  const hintNos = Array.from(new Set(entries.map((e) => e.vmqOrderId).filter((x): x is string => !!x)))
+  const hints = hintNos.length
+    ? await prisma.vmqOrder.findMany({ where: { orderId: { in: hintNos } }, select: { orderId: true, bizType: true, bizId: true } })
+    : []
+  const hintOrder = new Map(hints.filter((h) => h.bizType === 'order').map((h) => [h.orderId, h.bizId]))
+  const idsPer = entries.map((e) => {
+    const ids = orderIdsInEntry(e)
+    const h = e.vmqOrderId ? hintOrder.get(e.vmqOrderId) : undefined
+    if (h != null) ids.push(h)
+    return ids
+  })
+  const allIds = Array.from(new Set(idsPer.flat()))
+  if (allIds.length) {
+    const carrierIds = new Set(
+      (await prisma.order.findMany({ where: { id: { in: allIds }, product: { deliveryType: { in: CARRIERS } } }, select: { id: true } })).map((o) => o.id),
+    )
+    idsPer.forEach((ids, i) => {
+      if (ids.some((id) => carrierIds.has(id))) flags[i] = true
+    })
+  }
+  // ② 其余：有没有候选（近 24 小时内同 type 同额的主站载体单收款单）
+  const rest = entries.flatMap((e, i) => {
+    const cents = entryCents(e)
+    return !flags[i] && amountInRange(cents) ? [{ e, i, cents }] : []
+  })
+  if (rest.length) {
+    const from = new Date(Math.min(...rest.map((x) => x.e.at)) - 24 * 3600_000)
+    const to = new Date(Math.max(...rest.map((x) => x.e.at)) + 60_000)
+    const decs = Array.from(new Set(rest.map((x) => x.cents))).map((c) => new Prisma.Decimal((c / 100).toFixed(2)))
+    const rows = await prisma.$queryRaw<{ type: number; reallyPrice: Prisma.Decimal | string; createdAt: Date }[]>`
+      SELECT v.type AS type, v.really_price AS reallyPrice, v.created_at AS createdAt
+        FROM vmq_orders v JOIN orders o ON o.id = v.biz_id JOIN products p ON p.id = o.product_id
+       WHERE v.biz_type = 'order' AND o.tenant_id = 1 AND p.delivery_type IN ('SMS_POOL', 'TOPUP')
+         AND v.created_at >= ${from} AND v.created_at <= ${to}
+         AND v.really_price IN (${Prisma.join(decs)})`
+    const pts = rows.map((r) => ({ type: Number(r.type), cents: centsOf(String(r.reallyPrice)), t: new Date(r.createdAt).getTime() }))
+    for (const x of rest) {
+      if (pts.some((p) => p.type === x.e.type && p.cents === x.cents && p.t >= x.e.at - 24 * 3600_000 && p.t <= x.e.at + 60_000)) flags[x.i] = true
+    }
+  }
+  return flags
+}
+
+/** 单条（「标记已处理」接口）：与 carrierFlags 同一套判断 */
+export async function entryInvolvesCarrier(entry: LatepayEntry): Promise<boolean> {
+  return (await carrierFlags([entry]))[0]
 }
 
 /** 「标记已处理」的条件更新（不再读—改—写覆盖）：只在条目仍未处理时写入。返回 false = 已被处理（原样返回） */

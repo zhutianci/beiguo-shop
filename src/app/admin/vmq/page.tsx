@@ -744,7 +744,51 @@ interface Candidate {
   userId: number
   userEmail: string | null
   priorLatepay: number
+  priorList?: PriorLatepay[]
   hinted: boolean
+}
+
+/** 这张订单之前的一笔 LATEPAY 退入（§2.7：再退一笔要勾「已核对账单」，页面同时列出之前那几笔） */
+interface PriorLatepay {
+  logId: number
+  cents: number
+  at: string
+  entryKey: string
+  reason: string | null
+  auto: boolean
+  tradeNo: string | null
+  vmqOrderNo: string | null
+}
+
+interface OrderLookup {
+  orderNo: string
+  deliveryType: string
+  payStatus: string
+  deliveryStatus: string
+  closed: boolean
+  carrier: boolean
+  amountCents: number
+  userId: number
+  userEmail: string | null
+  priorLatepay: number
+  priorList: PriorLatepay[]
+}
+
+/** 之前的退入逐笔：金额、时间、自动（收款单）/ 手动（交易号）、原因、条目 */
+function PriorList({ count, list }: { count: number; list: PriorLatepay[] }) {
+  if (!count) return null
+  return (
+    <span className="mt-1 block rounded bg-rose-50 px-2 py-1 text-rose-800">
+      <b>这张订单已经退入过 {count} 笔</b>（核对支付宝账单，别把同一笔钱的第二条通知再退一次）：
+      {list.map((p) => (
+        <span key={p.logId} className="block break-all font-mono text-[11px]">
+          ¥{(p.cents / 100).toFixed(2)} · {new Date(p.at).toLocaleString('zh-CN', { hour12: false })} ·{' '}
+          {p.auto ? `自动（收款单 ${p.vmqOrderNo ?? '—'}）` : `手动（交易号 ${p.tradeNo ?? '—'}）`} · {p.reason ?? '—'} · {p.entryKey}
+        </span>
+      ))}
+      {list.length < count && <span className="block text-[11px]">……只列出最近 {list.length} 笔</span>}
+    </span>
+  )
 }
 
 /**
@@ -761,7 +805,32 @@ function ToBalanceModal({ item, onClose, onDone }: { item: UnmatchedItem; onClos
   const [mismatch, setMismatch] = useState(false)
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
+  const [lookup, setLookup] = useState<{ no: string; data: OrderLookup | null; err?: string } | null>(null)
   const url = `/api/admin/vmq/unmatched/${encodeURIComponent(item.key)}/to-balance`
+
+  // 手填的订单号不在候选里：查出这张订单之前的退入逐笔一并列出（§2.7），停手 400ms 再查
+  const typedNo = orderNo.trim()
+  const inCands = cands.some((c) => c.orderNo === typedNo)
+  useEffect(() => {
+    if (!typedNo || inCands || loading) {
+      setLookup(null)
+      return
+    }
+    let alive = true
+    const t = setTimeout(() => {
+      fetch(`${url}?orderNo=${encodeURIComponent(typedNo)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          if (!alive) return
+          setLookup(d.success ? { no: typedNo, data: d.data.lookup ?? null } : { no: typedNo, data: null, err: d.error || '查询失败' })
+        })
+        .catch(() => alive && setLookup({ no: typedNo, data: null, err: '查询失败' }))
+    }, 400)
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+  }, [typedNo, inCands, loading, url])
 
   useEffect(() => {
     let alive = true
@@ -843,6 +912,7 @@ function ToBalanceModal({ item, onClose, onDone }: { item: UnmatchedItem; onClos
                     收款单 {c.vmqOrderNo}（{c.vmqState === 1 ? '已到账' : c.vmqState === 0 ? '待支付' : '已关闭'}）·{' '}
                     {new Date(c.vmqCreatedAt).toLocaleString('zh-CN', { hour12: false })}
                   </span>
+                  <PriorList count={c.priorLatepay} list={c.priorList ?? []} />
                 </span>
               </label>
             ))}
@@ -853,6 +923,23 @@ function ToBalanceModal({ item, onClose, onDone }: { item: UnmatchedItem; onClos
           <label className="text-sm">
             <span className="text-gray-600">订单号</span>
             <input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 font-mono text-sm" />
+            {lookup && lookup.no === typedNo && (
+              <span className="mt-1 block text-xs text-gray-600">
+                {lookup.err ? (
+                  <span className="text-rose-600">{lookup.err}</span>
+                ) : !lookup.data ? (
+                  <span className="text-rose-600">没有这张订单</span>
+                ) : (
+                  <>
+                    {lookup.data.deliveryType === 'TOPUP' ? '余额充值' : lookup.data.deliveryType === 'SMS_POOL' ? '短信接码' : lookup.data.deliveryType} · ¥
+                    {(lookup.data.amountCents / 100).toFixed(2)} · {lookup.data.closed ? '已关闭' : `${lookup.data.payStatus}/${lookup.data.deliveryStatus}`} ·{' '}
+                    {lookup.data.userEmail || `用户#${lookup.data.userId}`}
+                    {!lookup.data.carrier && <b className="block text-rose-600">只能退入主站的短信接码单或余额充值单</b>}
+                    <PriorList count={lookup.data.priorLatepay} list={lookup.data.priorList} />
+                  </>
+                )}
+              </span>
+            )}
           </label>
           <label className="text-sm">
             <span className="text-gray-600">支付宝交易号（必填）</span>

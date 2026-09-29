@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { VMQ_KEY, VMQ_TIMEOUT_MIN, recentVmqOrders, getDiag, listUnmatched } from '@/lib/vmq'
 import { adminGuard } from '@/lib/admin-guard'
-import { entryInvolvesCarrier } from '@/lib/wallet/latepay'
+import { carrierFlags } from '@/lib/wallet/latepay'
 
 // 收款监控配置：到账通知统一走 SmsForwarder → POST /api/pay/sms-notify。
 // VmqApk（/appHeart + /appPush + 扫码配置二维码）已移除。
@@ -49,10 +49,15 @@ export async function GET(request: NextRequest) {
     // unmatched：待人工核实的到账逐条留存（lib/vmq.ts recordUnmatched），取最近 100 条，页面分「待处理 / 已处理」展示
     const [recent, diag, unmatchedRaw] = await Promise.all([recentVmqOrders(15), getDiag(), listUnmatched(100)])
     // 待处理条目标出「涉及接码单 / 充值单」（docs/短信接码-设计.md §2.7）：这类只能「退入买家余额」或选 OFFLINE / IGNORE 标记，不能「补单」。
-    // 查不出来按 false（页面照旧显示；标记接口自己还会再判一次）
-    const unmatched = await Promise.all(
-      unmatchedRaw.map(async (u) => (u.handledAt ? u : { ...u, carrier: await entryInvolvesCarrier(u).catch(() => false) })),
-    )
+    // 查不出来按 false（页面照旧显示；标记接口自己还会再判一次）。
+    // 这个接口每 10 秒轮询一次：一批条目一起判（carrierFlags 固定至多 3 条查询），不再逐条各查 5–7 次（B1 评审修复）
+    const open = unmatchedRaw.filter((u) => !u.handledAt)
+    const flags = await carrierFlags(open).catch((e) => {
+      console.error('[vmq] 待核实条目的载体判断失败（按 false 显示）', e)
+      return open.map(() => false)
+    })
+    const flagOf = new Map(open.map((u, i) => [u.key, flags[i]]))
+    const unmatched = unmatchedRaw.map((u) => (u.handledAt ? u : { ...u, carrier: flagOf.get(u.key) ?? false }))
 
     return success({
       recent,

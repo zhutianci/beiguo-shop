@@ -33,6 +33,8 @@ import { payableCents } from './order-payable'
 import { captureInTx } from './wallet/hold'
 import { creditInTx as creditTopupInTx, afterTopupCredited } from './wallet/topup'
 import { autoCreditIfCarrier } from './wallet/latepay'
+// 资金事务统一「死锁 / 写冲突重试一次」（§2.3 第 5 条、§2.7 第 4 条）：载体单付款事务、到账补记都走它
+import { inMoneyTx } from './wallet/ledger'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
@@ -798,6 +800,11 @@ export interface UnmatchedEntry {
 
 const latepayCtx = () => ({ timeoutMin: VMQ_TIMEOUT_MIN, cooldownMin: VMQ_REUSE_COOLDOWN_MIN })
 
+/** 条目 key：前缀 + 13 位毫秒 + '-' + 8 hex（UNMATCHED_KEY_RE） */
+function newUnmatchedKey(at: number): string {
+  return `${UNMATCHED_PREFIX}${at}-${crypto.randomBytes(4).toString('hex')}`
+}
+
 /** 记一条待人工核实的到账；返回条目 key（落库失败返回 null） */
 async function recordUnmatched(e: Omit<UnmatchedEntry, 'at' | 'handledAt' | 'handledBy'>): Promise<string | null> {
   const at = Date.now()
@@ -811,7 +818,7 @@ async function recordUnmatched(e: Omit<UnmatchedEntry, 'at' | 'handledAt' | 'han
   try {
     // 兼容旧前端和回滚：继续写「最近一次」，但现在只有需要人工处理的才写它
     if (!auto) await setSetting('vmq_lastunmatched', JSON.stringify(entry))
-    const key = `${UNMATCHED_PREFIX}${at}-${crypto.randomBytes(4).toString('hex')}`
+    const key = newUnmatchedKey(at)
     await prisma.setting.create({ data: { key, value: JSON.stringify(entry) } })
     saved = key
   } catch (err) {
@@ -966,7 +973,8 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
     const base = { biz: `${v.bizType}#${v.bizId}`, outTradeNo: v.outTradeNo, amount: v.reallyPrice, stage: '到账对账' }
     /*
      * 【载体单（接码 / 充值）关了就不复活】（D41、§2.7）「收款单已到账 + 载体单未付且已取消」：不再只推「请在订单管理改回正确状态」
-     * （那条路对载体单是 409），而是补记一条 duplicate_payment（没有条目引用这张收款单时；firstAlert 去重），交给自动退入。
+     * （那条路对载体单是 409），而是补记一条 duplicate_payment（这张收款单自己那笔钱还没有条目时；收款单行锁串行、看条目本身去重，
+     * 不看 firstAlert——那一行下面补履约失败的分支也在用），交给自动退入。
      */
     if (o && o.deliveryStatus === 'CANCELLED' && isCarrierType(o.product.deliveryType)) {
       pending++
@@ -1002,6 +1010,11 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
       fixed++
       console.warn('[vmq] 对账补履约完成', v.orderId, base.biz)
     } catch (e) {
+      /*
+       * 【S2 必须补 E44】（§2.7、§6.6 第 15 条、§12.2 第 104 条；设计文档「实施偏差记录」B1（评审修复）行）载体单这里抛 HoldStateError
+       * （预扣被人工改库成非 HELD）时应把 SmsOrder 转 MANUAL + wallet.alert、之后不再重调 fulfillOrder。B1 没有 sms_orders 表、
+       * 充值单永远没有预扣行，这条路径不可达，所以现在仍是「每分钟重试 + firstAlert 只推一次」。
+       */
       pending++
       console.error('[vmq] 对账补履约失败（下一分钟重试）', v.orderId, e)
       if (await firstAlert(v.id)) {
@@ -1017,34 +1030,54 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
   return { fixed, pending }
 }
 
+/** 「这张收款单自己那笔钱」的条目原因（recordCarrierPaid 去重用；maybe_duplicate 的 vmqOrderId 只是提示，不算） */
+const OWN_MONEY_REASONS: readonly UnmatchedReason[] = ['duplicate_payment', 'closed_while_matching']
+
+async function ownPaymentEntryKey(db: Prisma.TransactionClient | typeof prisma, vmqOrderNo: string): Promise<string | null> {
+  const rows = await db.setting.findMany({
+    where: { key: { startsWith: UNMATCHED_PREFIX }, value: { contains: `"vmqOrderId":"${vmqOrderNo}"` } },
+    orderBy: { key: 'asc' },
+    select: { key: true, value: true },
+  })
+  for (const r of rows) {
+    try {
+      const e = JSON.parse(r.value) as UnmatchedEntry
+      if (e.vmqOrderId === vmqOrderNo && OWN_MONEY_REASONS.includes(e.reason)) return r.key
+    } catch {
+      /* 坏行不算 */
+    }
+  }
+  return null
+}
+
+// 仅供 itest：在补记事务里（写条目之前）注入故障，模拟条目落库失败
+let carrierRecordFaultForTest: (() => void) | null = null
+export function setCarrierRecordFaultForTest(fn: (() => void) | null): void {
+  carrierRecordFaultForTest = fn
+}
+
 /**
  * 「收款单已到账 + 载体单未付且已取消」（D41、§2.7 reconcilePaidVmq 的载体单分支；§7.2 的「关单并把到账退入余额」也调它）：
- * 先查待核实条目里有没有引用这张收款单的（markPaidVmqOrder 那边多半已经记过 duplicate_payment）——
- * 没有才补记一条 duplicate_payment（firstAlert 去重）并交给自动退入；有的话只推送一次、不补记，免得同一笔钱出现两条条目。
- * 放在本文件而不是 lib/wallet/latepay：条目只由 recordUnmatched 写，而 lib/wallet 不能 import 本文件（规则 17）。
+ * 先查待核实条目里有没有**这张收款单自己那笔钱**的条目（`duplicate_payment` / `closed_while_matching` 且 vmqOrderId = 它，
+ * 任何处理状态都算；markPaidVmqOrder 那边多半已经记过 duplicate_payment）——没有才补记一条 duplicate_payment 并交给自动退入；
+ * 有的话只推送一次、不补记，免得同一笔钱出现两条条目。放在本文件而不是 lib/wallet/latepay：条目的写法在这里（recordUnmatched），
+ * 而 lib/wallet 不能 import 本文件（规则 17）。
+ *
+ * 【B1 评审修复】
+ *  · 原来补记前先占 firstAlert（`vmqrec:<id>`）：那一行 reconcilePaidVmq 的 catch 分支（补履约失败）也在用——之前补履约失败过一次，
+ *    这里就永远补记不了，这笔钱既不会自动退、也没有条目可供「退入买家余额」；条目写入失败（recordUnmatched 吞错返回 null）时
+ *    firstAlert 也已被占，下一分钟同样不再补记。现在「补不补记」只看条目本身：锁住收款单行（同一张收款单的补记在这把锁上排队，
+ *    后到的一定看得见先到的条目，READ COMMITTED）→ 查自己那笔钱的条目 → 没有就在同一事务里写条目。事务失败什么都不留，
+ *    下一分钟对账照常重试；firstAlert 只用于「推一次」，不再决定记不记。
+ *  · 原来「有引用」按 `"vmqOrderId":"<号>"` 计数，maybe_duplicate 的提示（vmqOrderId 只是「最近一张同额已到账的收款单」，
+ *    记的是另一笔钱）也算——这张收款单自己的钱就一直没有条目。现在只认自己那笔钱的两种原因。
+ * 返回 key：新补记的条目，或已经存在的那条（S2 的「关单并把到账退入余额」据此跳到条目）。
  */
 export async function recordCarrierPaid(vmqId: number): Promise<{ recorded: boolean; key: string | null }> {
   const v = await prisma.vmqOrder.findUnique({ where: { id: vmqId } })
   if (!v || v.state !== 1 || v.bizType !== 'order') return { recorded: false, key: null }
-  const refs = await prisma.setting.count({
-    where: { key: { startsWith: UNMATCHED_PREFIX }, value: { contains: `"vmqOrderId":"${v.orderId}"` } },
-  })
-  if (refs > 0) {
-    if (await firstAlert(v.id)) {
-      notifyFulfillFailed({
-        biz: `order#${v.bizId}`,
-        outTradeNo: v.outTradeNo,
-        amount: v.reallyPrice,
-        stage: '到账对账',
-        site: null,
-        reason: '收款单已到账，但接码 / 充值订单已关闭（关单后不复活）',
-        action: '这笔到账已在「收款监控 → 待核实」里；能自动确认的已自动退入买家余额，其余核对支付宝账单后用「退入买家余额」',
-      })
-    }
-    return { recorded: false, key: null }
-  }
-  if (!(await firstAlert(v.id))) return { recorded: false, key: null }
-  const key = await recordUnmatched({
+  const base = { biz: `order#${v.bizId}`, outTradeNo: v.outTradeNo, amount: v.reallyPrice, stage: '到账对账', site: null }
+  const entry: UnmatchedEntry = {
     reason: 'duplicate_payment',
     price: Number(v.reallyPrice).toFixed(2),
     type: v.type,
@@ -1053,9 +1086,53 @@ export async function recordCarrierPaid(vmqId: number): Promise<{ recorded: bool
     biz: `order#${v.bizId}`,
     outTradeNo: v.outTradeNo,
     repeatForward: false,
-  })
-  await autoCreditIfCarrier(key, latepayCtx())
-  return { recorded: !!key, key }
+    at: Date.now(),
+    handledAt: null,
+    handledBy: null,
+  }
+  let got: { key: string; created: boolean } | null
+  try {
+    got = await inMoneyTx(
+      async (tx) => {
+        const locked = await tx.$queryRaw<{ state: number }[]>`SELECT state FROM vmq_orders WHERE id = ${v.id} FOR UPDATE`
+        if (!locked[0] || Number(locked[0].state) !== 1) return null
+        const own = await ownPaymentEntryKey(tx, v.orderId)
+        if (own) return { key: own, created: false }
+        if (carrierRecordFaultForTest) carrierRecordFaultForTest()
+        const key = newUnmatchedKey(entry.at)
+        await tx.setting.create({ data: { key, value: JSON.stringify(entry) } })
+        return { key, created: true }
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },
+    )
+  } catch (e) {
+    // 什么都没留下（没有条目、没有占位）：下一分钟对账重试。推送只推一次
+    console.error('[vmq] 载体单到账补记待核实条目失败（下一分钟重试）', v.orderId, e)
+    if (await firstAlert(v.id)) {
+      notifyFulfillFailed({
+        ...base,
+        reason: `收款单已到账、接码 / 充值订单已关闭，补记待核实条目失败：${e instanceof Error ? e.message.slice(0, 120) : String(e)}`,
+        action: '系统每分钟重试补记；长时间未恢复请到「收款监控」核对这张收款单',
+      })
+    }
+    return { recorded: false, key: null }
+  }
+  if (!got) return { recorded: false, key: null }
+  if (!got.created) {
+    if (await firstAlert(v.id)) {
+      notifyFulfillFailed({
+        ...base,
+        reason: '收款单已到账，但接码 / 充值订单已关闭（关单后不复活）',
+        action: '这笔到账已在「收款监控 → 待核实」里；能自动确认的已自动退入买家余额，其余核对支付宝账单后用「退入买家余额」',
+      })
+    }
+    return { recorded: false, key: got.key }
+  }
+  // 与 recordUnmatched 相同的事后动作：写「最近一次」（兼容旧前端）、推 vmq.unmatched；然后交给自动退入
+  await setSetting('vmq_lastunmatched', JSON.stringify(entry)).catch((e) => console.error('[vmq] 写 vmq_lastunmatched 失败', e))
+  notifyVmqUnmatched(entry)
+  await autoCreditIfCarrier(got.key, latepayCtx())
+  return { recorded: true, key: got.key }
 }
 
 // 后台手动补单（确认到账）：无视金额/状态，强制标记该 vmq 订单已支付并履约
@@ -1290,6 +1367,12 @@ async function allocateCards(
   return claimed
 }
 
+// 仅供 itest：在载体单付款事务的最后一步（全部写完、提交之前）注入故障，验证「写冲突重试一次」整段重来且只入账一次
+let carrierPayFaultForTest: (() => void) | null = null
+export function setCarrierPayFaultForTest(fn: (() => void) | null): void {
+  carrierPayFaultForTest = fn
+}
+
 /**
  * 载体单（接码 SMS_POOL / 充值 TOPUP）的付款框架（docs/短信接码-设计.md §6.6 第 10 条、§2.7、§9.1、附录 B 第 3、8、21 条）。
  *
@@ -1313,7 +1396,10 @@ async function fulfillCarrierOrder(
   if (carrier === 'TOPUP' && via !== 'VMQ') throw new Error(`[vmq] 充值单 #${orderId} 只能由收款单付款`)
   const dec = (cents: number) => new Prisma.Decimal((cents / 100).toFixed(2))
 
-  const won = await prisma.$transaction(async (tx) => {
+  // 【inMoneyTx：死锁 / 写冲突重试一次】（§2.7 第 4 条、§2.3 第 5 条；B1 评审修复）原来是裸 prisma.$transaction：
+  // 到账那一刻与同一用户的另一笔资金事务（后台调余额、迟到退入）撞上、被 InnoDB 选为死锁牺牲者，就要等 ≥3 分钟对账补做，
+  // 还会推一条假的「到账履约失败」。整段可以安全重来：付款 CAS（UNPAID 且未取消）与 topup:<orderId> 这个 bizKey 都是幂等的
+  const won = await inMoneyTx(async (tx) => {
     const now = new Date()
     const flip = await tx.order.updateMany({
       where: { id: orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } },
@@ -1347,6 +1433,7 @@ async function fulfillCarrierOrder(
       await tx.payment.create({ data: { orderId, payMethod: 'ALIPAY', amount: dec(aliCents), status: 1, tradeNo: vmqNo } })
     }
     if (carrier === 'TOPUP') await creditTopupInTx(tx, { orderId, userId: cur.userId, vmqId: opts!.vmqId! })
+    if (carrierPayFaultForTest) carrierPayFaultForTest()
     return true
   })
 

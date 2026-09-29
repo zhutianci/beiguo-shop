@@ -72,6 +72,24 @@ export function parseTopupRemark(remark: string | null | undefined): { clientTok
   return clientToken ? { clientToken, termsVersion, returnTo } : null
 }
 
+/**
+ * 后台订单列表 / 详情里充值单的「系统备注」（B1 评审修复）：remark 是内部字段 `topup|ct:…|terms:…|return:…`，不是买家备注
+ * （buyerRemark 恒为空，§1.16），原来后台把它当「用户备注」显示。这里翻成人话；解析不了（例如被人工改过）就原样返回。
+ */
+export function describeTopupRemark(remark: string | null | undefined): string | null {
+  if (!remark) return null
+  const p = parseTopupRemark(remark)
+  if (!p) return remark
+  return [
+    '充值单内部字段',
+    p.termsVersion ? `同意《余额与充值规则》${p.termsVersion} 版` : '没有记条款版本',
+    p.returnTo ? `充值后回到 ${p.returnTo}` : null,
+    `幂等令牌 ${p.clientToken.slice(0, 8)}…`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
 /** 充值单的商品名快照（§9.1：「余额充值 ¥50.00」） */
 export function topupProductName(amountCents: number): string {
   return `余额充值 ¥${yuanStr(amountCents)}`

@@ -11,6 +11,8 @@
  *   · 迟到退入的金额上界（¥1,000.49）、支付宝交易号格式、条目金额解析、条目里的订单 id
  *   · 《余额与充值规则》正文（开票范围、上下限写「以充值页为准」、不承诺原路退回）
  *   · ledger.validatePost 对 TOPUP / LATEPAY 的 bizKey 口径（latepay:<条目 key> 不超过 64）
+ *   · B1 评审修复：充值页自定义金额（0.5 / 12.5 / 12.50 / 1001 被拒、不删小数点）、失败后换 clientToken 的判断、
+ *     条款第 2 条随 canUseForJiema 出现、充值单内部 remark 的后台人话显示
  */
 import { validateTopupAmount, checkWalletConfig, FACTORY_WALLET_CONFIG, MAX_TOPUP_CENTS, topupOpenFor } from '../src/lib/wallet/config'
 import {
@@ -29,13 +31,17 @@ import {
   normalizeReturnTo,
   normalizeClientToken,
   topupProductName,
+  describeTopupRemark,
   TOPUP_REMARK_PREFIX,
 } from '../src/lib/wallet/topup'
 import { validatePost } from '../src/lib/wallet/ledger'
 import { safeNext } from '../src/lib/pay-next'
 import { payableFrom } from '../src/lib/order-payable'
 import { excludeTopup, excludeCarriers, isCarrierType, CARRIER_NO_INVOICE_MSG } from '../src/lib/order-scope'
-import { WALLET_TERMS, WALLET_TERMS_VERSION } from '../src/lib/terms/jiema-wallet'
+import { WALLET_TERMS, WALLET_TERMS_VERSION, walletTermsFor, WALLET_TERMS_JIEMA_INDEX } from '../src/lib/terms/jiema-wallet'
+import { parseCustomYuan, shouldResetTopupToken } from '../src/lib/wallet/topup-input'
+import fs from 'fs'
+import path from 'path'
 
 let pass = 0
 let fail = 0
@@ -216,6 +222,55 @@ console.log('\n[《余额与充值规则》正文（§8.4）]')
   ok(all.includes('以充值页为准（目前 ¥1–1,000，整数元）') && all.includes('不设充值余额总额上限'), '上下限写「以充值页为准」、不设总额上限')
   ok(!all.includes('原路退回'), '不承诺「原路退回」（Q9）')
   ok(all.includes('充值余额不可提现'), '充值余额不可提现')
+}
+
+const readSrc = (...p: string[]) => fs.readFileSync(path.join(__dirname, '..', 'src', ...p), 'utf8')
+
+console.log('\n[B1 评审修复：充值页自定义金额（§1.16、§11 B1 验收「输入 0.5、12.5、1001 被拒」）]')
+{
+  const min = 100
+  const max = 100000
+  for (const bad of ['0.5', '12.5', '12.50', '1001', '', ' ', '1,000', '-5', '12e1', '１２', '0', '00', '12345678', '+12', '0x10']) {
+    ok(parseCustomYuan(bad, min, max) === null, `「${bad}」被拒（不删字符、不「修正」成别的金额）`)
+  }
+  ok(parseCustomYuan('12', min, max) === 1200 && parseCustomYuan(' 12 ', min, max) === 1200, '「12」「 12 」→ ¥12')
+  ok(parseCustomYuan('1', min, max) === 100 && parseCustomYuan('1000', min, max) === 100000, '上下限 ¥1、¥1,000 通过')
+  ok(parseCustomYuan('012', min, max) === 1200, '前导 0：「012」= ¥12')
+  ok(parseCustomYuan('9', 1000, 20000) === null && parseCustomYuan('201', 1000, 20000) === null && parseCustomYuan('10', 1000, 20000) === 1000, '按配置的上下限判（¥10–200）')
+  // 页面源码：输入框保留原文（不再 replace 掉非数字），金额判断走 parseCustomYuan
+  const page = readSrc('app', '(shop)', 'wallet', 'topup', 'page.tsx')
+  ok(!page.includes("replace(/[^\\d]/g") && page.includes('parseCustomYuan(custom, min, max)'), '充值页：onChange 不删非数字字符、金额走 parseCustomYuan')
+  ok(page.includes('shouldResetTopupToken(d?.code)'), '充值页：失败后按 shouldResetTopupToken 换 token')
+}
+
+console.log('\n[B1 评审修复：下单失败后换不换 clientToken]')
+{
+  for (const c of ['BUSY', 'OPEN_PAYMENTS', 'CLOSED', 'PAID']) ok(shouldResetTopupToken(c), `${c}：换 token（那张单已关 / 已到账）`)
+  for (const c of ['PAID_PENDING', 'TOO_MANY_PENDING', 'TERMS', 'AMOUNT', 'RATE', 'BAD_REQUEST', undefined, null, 5]) ok(!shouldResetTopupToken(c), `${String(c)}：保留 token`)
+}
+
+console.log('\n[B1 评审修复：《余额与充值规则》第 2 条随「余额能付接码」出现]')
+{
+  const on = walletTermsFor(true)
+  const off = walletTermsFor(false)
+  ok(on === WALLET_TERMS && on.length === 5, '能付接码：五条全文')
+  ok(off.length === 4 && !off.join('\n').includes('余额目前可用于支付短信接码订单') && !off.join('\n').includes('预扣'), '不能付接码：去掉第 2 条（不说「余额可付接码」「预扣」）')
+  ok(WALLET_TERMS[WALLET_TERMS_JIEMA_INDEX].startsWith('余额目前可用于支付短信接码订单'), '第 2 条下标指向的正是那一句')
+  ok(off.every((t) => WALLET_TERMS.includes(t)), '其余四条逐字不变（版本号不用升）')
+  const terms = readSrc('app', '(shop)', 'terms', 'page.tsx')
+  const topupPage = readSrc('app', '(shop)', 'wallet', 'topup', 'page.tsx')
+  ok(terms.includes('walletTermsFor(jiemaOpen)') && !terms.includes('WALLET_TERMS.map'), '条款页：按 canUseForJiema 渲染')
+  ok(topupPage.includes('walletTermsFor(!!data.canUseForJiema)') && !topupPage.includes('WALLET_TERMS.map'), '充值页展开的规则：按 canUseForJiema 渲染')
+}
+
+console.log('\n[B1 评审修复：后台把充值单 remark 显示为「系统备注」]')
+{
+  const tok = '3f1c2d4e-5a6b-4c7d-8e9f-0a1b2c3d4e5f'
+  const d = describeTopupRemark(buildTopupRemark({ clientToken: tok, termsVersion: WALLET_TERMS_VERSION, returnTo: '/jiema?s=tg' }))
+  ok(!!d && d.includes('充值单内部字段') && d.includes(WALLET_TERMS_VERSION) && d.includes('/jiema?s=tg') && d.includes('3f1c2d4e…') && !d.includes(tok), '翻成人话：条款版本、回跳、令牌只露前 8 位')
+  ok(describeTopupRemark(null) === null && describeTopupRemark('人工改过的备注') === '人工改过的备注', '空 → null；解析不了原样返回')
+  const page = readSrc('app', 'admin', 'orders', 'page.tsx')
+  ok(page.includes('系统备注（内部字段，不是买家填写的）') && page.includes('selectedOrder.carrier ?'), '后台订单详情：载体单显示「系统备注」、不当「用户备注」')
 }
 
 console.log(`\n通过 ${pass} 条，失败 ${fail} 条`)

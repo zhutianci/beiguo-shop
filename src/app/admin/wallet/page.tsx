@@ -1168,35 +1168,37 @@ function LatepayTab() {
                 {data.logs.length === 0 ? (
                   <div className="py-4 text-center text-gray-400">还没有</div>
                 ) : (
-                  <table className="w-full text-xs text-gray-800">
-                    <thead>
-                      <tr className="border-b text-left text-gray-500">
-                        <th className="pb-2 pr-3">时间</th>
-                        <th className="pb-2 pr-3">用户</th>
-                        <th className="pb-2 pr-3">订单</th>
-                        <th className="pb-2 pr-3 text-right">退入充值余额</th>
-                        <th className="pb-2 pr-3">方式</th>
-                        <th className="pb-2">条目</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.logs.map((l) => (
-                        <tr key={l.logId} className="border-b last:border-0">
-                          <td className="py-2 pr-3 whitespace-nowrap">{new Date(l.at).toLocaleString('zh-CN', { hour12: false })}</td>
-                          <td className="py-2 pr-3">{l.userEmail || `#${l.userId}`}</td>
-                          <td className="py-2 pr-3 font-mono">
-                            {l.orderNo ?? '—'} {l.orderType === 'TOPUP' ? '（充值）' : l.orderType === 'SMS_POOL' ? '（接码）' : ''}
-                          </td>
-                          <td className="py-2 pr-3 text-right">{yuan(l.cents)}</td>
-                          <td className="py-2 pr-3">{l.auto ? `自动（收款单 ${l.vmqOrderNo ?? '—'}）` : `手动（交易号 ${l.tradeNo ?? '—'}）`}</td>
-                          <td className="py-2 font-mono text-[11px] text-gray-500">
-                            {l.entryKey}
-                            {l.reason ? ` · ${l.reason}` : ''}
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs text-gray-800">
+                      <thead>
+                        <tr className="border-b text-left text-gray-500">
+                          <th className="pb-2 pr-3">时间</th>
+                          <th className="pb-2 pr-3">用户</th>
+                          <th className="pb-2 pr-3">订单</th>
+                          <th className="pb-2 pr-3 text-right">退入充值余额</th>
+                          <th className="pb-2 pr-3">方式</th>
+                          <th className="pb-2">条目</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {data.logs.map((l) => (
+                          <tr key={l.logId} className="border-b last:border-0">
+                            <td className="py-2 pr-3 whitespace-nowrap">{new Date(l.at).toLocaleString('zh-CN', { hour12: false })}</td>
+                            <td className="py-2 pr-3">{l.userEmail || `#${l.userId}`}</td>
+                            <td className="py-2 pr-3 font-mono">
+                              {l.orderNo ?? '—'} {l.orderType === 'TOPUP' ? '（充值）' : l.orderType === 'SMS_POOL' ? '（接码）' : ''}
+                            </td>
+                            <td className="py-2 pr-3 text-right">{yuan(l.cents)}</td>
+                            <td className="py-2 pr-3">{l.auto ? `自动（收款单 ${l.vmqOrderNo ?? '—'}）` : `手动（交易号 ${l.tradeNo ?? '—'}）`}</td>
+                            <td className="py-2 font-mono text-[11px] text-gray-500">
+                              {l.entryKey}
+                              {l.reason ? ` · ${l.reason}` : ''}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
               <div>

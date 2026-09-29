@@ -422,6 +422,13 @@ async function main() {
       const e2 = await latepay.readEntry(key2)
       ok('同一张收款单的第二条到账：不再自动退、条目留给站长', !e2?.handledAt && (await buckets(u.id)).topup === b1.topup)
       ok('  …它涉及载体单（「标记已处理」要选 OFFLINE / IGNORE）', await latepay.entryInvolvesCarrier(e2!))
+      // B1 评审修复（§2.7「页面同时列出之前那几笔」）：候选带上这张订单之前的退入逐笔——自动退入的那一笔（金额、收款单号、条目）
+      const cand = await latepay.latepayCandidates(e2!)
+      const co = cand.list.find((c) => c.orderNo === o.orderNo)
+      ok(
+        '  …「退入买家余额」的候选列出之前那一笔自动退入（金额、自动、收款单号、条目 key）',
+        !!co && co.priorLatepay === 1 && co.priorList.length === 1 && co.priorList[0].cents === centsOf(C.reallyPrice) && co.priorList[0].auto && co.priorList[0].vmqOrderNo === C.orderId && co.priorList[0].entryKey === key,
+      )
     }
 
     console.log('\n【第 55 / 56 条：过了冷却期的迟到到账 → 不自动 → 手动退入（必填交易号、只退一次）】')
@@ -497,6 +504,15 @@ async function main() {
         err = (x as InstanceType<typeof latepay.LatepayError>).code
       }
       ok('repeatForward 条目：不勾「已核对账单」→ 拒绝', e3?.repeatForward === true && err === 'NEED_BILL_CHECKED')
+      // B1 评审修复：候选逐笔列出之前的两笔手动退入（交易号），手填订单号的查询给同样的明细
+      const c3 = (await latepay.latepayCandidates(e3!)).list.find((c) => c.orderNo === o.orderNo)
+      ok(
+        '候选逐笔列出之前两笔手动退入（新的在前、带交易号与条目 key）',
+        !!c3 && c3.priorLatepay === 2 && c3.priorList.map((p) => p.tradeNo).join(',') === `${t2},${tradeNo}` && c3.priorList.every((p) => !p.auto && p.cents === centsOf(C.reallyPrice)) && c3.priorList[1].entryKey === key,
+      )
+      const lk = await latepay.latepayOrderLookup(o.orderNo)
+      ok('手填订单号查询：同样两笔明细、carrier=true', !!lk && lk.carrier && lk.priorLatepay === 2 && lk.priorList.length === 2 && lk.priorList[0].tradeNo === t2)
+      ok('手填不存在的订单号：null', (await latepay.latepayOrderLookup(`${TAG}NOPE`)) === null)
       // 买家手输错金额：条目 ¥X.00 对应一张 ¥Y 的充值单 → 要 confirmMismatch，只入条目实收
       const u2 = await mkUser('late3')
       const big = await start(u2, (await freeYuan()) * 100)
@@ -562,6 +578,12 @@ async function main() {
       const rn = await latepay.autoCreditIfCarrier(kn, ctx)
       ok('没有载体单候选的普通到账：什么都不做（NO_CANDIDATE）', !rn.credited && !(await latepay.readEntry(kn))?.handledAt)
       ok('  …它不涉及载体单（「标记已处理」照旧，不要求选方式）', !(await latepay.entryInvolvesCarrier((await latepay.readEntry(kn))!)))
+      // B1 评审修复：/admin/vmq 轮询一批一起判（固定至多 3 条查询），结果与逐条判断一致
+      const batch = await Promise.all([kc2, kn, kv, autoKey].map((k) => latepay.readEntry(k)))
+      const flags = await latepay.carrierFlags(batch.map((x) => x!))
+      const single = await Promise.all(batch.map((x) => latepay.entryInvolvesCarrier(x!)))
+      ok('carrierFlags 批量：[closed_while_matching 载体, 普通 3.33, duplicate_payment 载体, no_pending_match 载体] = [true, false, true, true]', JSON.stringify(flags) === '[true,false,true,true]', JSON.stringify(flags))
+      ok('  …与逐条 entryInvolvesCarrier 一致；空数组 → []', JSON.stringify(flags) === JSON.stringify(single) && (await latepay.carrierFlags([])).length === 0)
     }
 
     console.log('\n【第 100 条：对同一个码真付两次（maybe_duplicate）】')
@@ -678,6 +700,157 @@ async function main() {
       createdSettingKeys.push(`latepay_auto:${vd.orderId}`)
       const ed = await latepay.readEntry(kd)
       ok('收款单翻成 1、订单已关：fulfillOrder 不复活（付款 CAS 带「未取消」）→ duplicate_payment → 自动退入', ed?.reason === 'duplicate_payment' && ed.handledAs === 'LATEPAY' && (await buckets(u.id)).topup - b1.topup === centsOf(vd.reallyPrice) && (await prisma.order.findUniqueOrThrow({ where: { id: od.id } })).payStatus === 'UNPAID' && (await prisma.payment.count({ where: { orderId: od.id } })) === 0)
+    }
+
+    console.log('\n【B1 评审修复：补记不被 vmqrec:<id>（补履约失败的告警去重）卡住；只认这张收款单自己那笔钱的条目；补记失败下一分钟重试】')
+    {
+      const u = await mkUser('rcp')
+      const staleAt = () => new Date(Date.now() - 4 * 60_000)
+      // A：到账后补履约失败过一次（reconcile 的 catch 占了 vmqrec:<id>）→ 订单随后被关 → 对账仍要补记并自动退入
+      const ra = await start(u, (await freeYuan()) * 100)
+      if (!ra.ok) throw new Error('建单失败')
+      const oa = await prisma.order.findUniqueOrThrow({ where: { orderNo: ra.orderNo } })
+      const va = await vmqOf(oa.id)
+      createdSettingKeys.push(`vmqrec:${va.id}`, `latepay_auto:${va.orderId}`)
+      await prisma.vmqOrder.update({ where: { id: va.id }, data: { state: 1, payDate: staleAt() } })
+      vmq.setCarrierPayFaultForTest(() => {
+        throw new Error('itest：补履约失败（非死锁）')
+      })
+      await vmq.reconcilePaidVmq()
+      vmq.setCarrierPayFaultForTest(null)
+      ok('A 补履约失败：订单仍待支付、vmqrec:<id> 已被 catch 分支占掉', (await prisma.order.findUniqueOrThrow({ where: { id: oa.id } })).payStatus === 'UNPAID' && !!(await prisma.setting.findUnique({ where: { key: `vmqrec:${va.id}` } })))
+      await prisma.order.update({ where: { id: oa.id }, data: { deliveryStatus: 'CANCELLED' } })
+      const ba = await buckets(u.id)
+      await vmq.reconcilePaidVmq()
+      const ka = await newEntries()
+      const ea = ka.length ? await latepay.readEntry(ka[ka.length - 1]) : null
+      ok('  …订单关闭后对账照样补记 duplicate_payment（原来 firstAlert 抢不到就永远不补）', ka.length === 1 && ea?.reason === 'duplicate_payment' && ea.vmqOrderId === va.orderId)
+      ok('  …并自动退入（充值格 + 实收、订单保持关闭）', ea?.handledAs === 'LATEPAY' && ea.auto === true && (await buckets(u.id)).topup - ba.topup === centsOf(va.reallyPrice) && (await prisma.order.findUniqueOrThrow({ where: { id: oa.id } })).payStatus === 'UNPAID')
+      const keyA = (await takeNewEntry())!
+      await vmq.reconcilePaidVmq()
+      const again = await vmq.recordCarrierPaid(va.id)
+      ok('  …再跑对账 / 再调 recordCarrierPaid：不重复补记、返回已有条目 key', (await newEntries()).length === 0 && !again.recorded && again.key === keyA && (await buckets(u.id)).topup - ba.topup === centsOf(va.reallyPrice))
+
+      // B：补记事务失败（条目落库失败）→ 什么都不留；下一分钟重试成功
+      const rb = await start(u, (await freeYuan()) * 100)
+      if (!rb.ok) throw new Error('建单失败')
+      const ob = await prisma.order.findUniqueOrThrow({ where: { orderNo: rb.orderNo } })
+      const vb = await vmqOf(ob.id)
+      createdSettingKeys.push(`vmqrec:${vb.id}`, `latepay_auto:${vb.orderId}`)
+      await prisma.vmqOrder.update({ where: { id: vb.id }, data: { state: 1, payDate: staleAt() } })
+      await prisma.order.update({ where: { id: ob.id }, data: { deliveryStatus: 'CANCELLED' } })
+      const bb = await buckets(u.id)
+      const nB = bodies.length
+      vmq.setCarrierRecordFaultForTest(() => {
+        throw new Error('itest：条目落库失败')
+      })
+      await vmq.reconcilePaidVmq()
+      vmq.setCarrierRecordFaultForTest(null)
+      await sleep(400)
+      ok('B 补记事务失败：没有条目、没有退入', (await newEntries()).length === 0 && (await buckets(u.id)).topup === bb.topup)
+      ok('  …推了一次告警（firstAlert 只用于推送、不再决定补不补记）', !!(await prisma.setting.findUnique({ where: { key: `vmqrec:${vb.id}` } })) && bodies.slice(nB).some((b) => b.includes('补记待核实条目失败')))
+      await vmq.reconcilePaidVmq()
+      const kb = await newEntries()
+      const eb = kb.length ? await latepay.readEntry(kb[kb.length - 1]) : null
+      ok('  …下一分钟重试：补记成功并自动退入', kb.length === 1 && eb?.reason === 'duplicate_payment' && eb.vmqOrderId === vb.orderId && eb.handledAs === 'LATEPAY' && (await buckets(u.id)).topup - bb.topup === centsOf(vb.reallyPrice))
+      await takeNewEntry()
+
+      // C：同额第二笔的 maybe_duplicate 提示指向这张收款单（记的是另一笔钱）、站长已标 IGNORE → 不算「已有条目」，照样补记
+      const rc = await start(u, (await freeYuan()) * 100)
+      if (!rc.ok) throw new Error('建单失败')
+      const oc = await prisma.order.findUniqueOrThrow({ where: { orderNo: rc.orderNo } })
+      const vc = await vmqOf(oc.id)
+      createdSettingKeys.push(`vmqrec:${vc.id}`, `latepay_auto:${vc.orderId}`)
+      await prisma.vmqOrder.update({ where: { id: vc.id }, data: { state: 1, payDate: staleAt() } })
+      await prisma.order.update({ where: { id: oc.id }, data: { deliveryStatus: 'CANCELLED' } })
+      const pc = (centsOf(vc.reallyPrice) / 100).toFixed(2)
+      await vmq.markPaidByAmount(pc, 2, raw(pc))
+      const km = (await takeNewEntry())!
+      const em = await latepay.readEntry(km)
+      ok('C 同额第二笔：maybe_duplicate，vmqOrderId 提示这张收款单', em?.reason === 'maybe_duplicate' && em.vmqOrderId === vc.orderId)
+      ok('  …站长核实后标 IGNORE', (await vmq.markUnmatchedHandled(km, admin.id, 'IGNORE')) === true)
+      const bc = await buckets(u.id)
+      await vmq.reconcilePaidVmq()
+      const kc = await newEntries()
+      const ec = kc.length ? await latepay.readEntry(kc[kc.length - 1]) : null
+      ok('  …对账仍为这张收款单自己的钱补记 duplicate_payment 并自动退入（提示条目不算）', kc.length === 1 && ec?.reason === 'duplicate_payment' && ec.vmqOrderId === vc.orderId && ec.handledAs === 'LATEPAY' && (await buckets(u.id)).topup - bc.topup === centsOf(vc.reallyPrice))
+      await takeNewEntry()
+    }
+
+    console.log('\n【B1 评审修复：载体单付款事务走 inMoneyTx —— 写冲突 / 死锁重试一次、整段重来只入账一次】')
+    {
+      const u = await mkUser('retry')
+      const r = await start(u, (await freeYuan()) * 100)
+      if (!r.ok) throw new Error('建单失败')
+      const o = await prisma.order.findUniqueOrThrow({ where: { orderNo: r.orderNo } })
+      const v = await vmqOf(o.id)
+      let calls = 0
+      vmq.setCarrierPayFaultForTest(() => {
+        calls++
+        if (calls === 1) throw Object.assign(new Error('itest：Transaction failed due to a write conflict or a deadlock'), { code: 'P2034' })
+      })
+      const nR = bodies.length
+      const price = (centsOf(v.reallyPrice) / 100).toFixed(2)
+      await vmq.markPaidByAmount(price, 2, raw(price))
+      vmq.setCarrierPayFaultForTest(null)
+      await sleep(400)
+      const o2 = await prisma.order.findUniqueOrThrow({ where: { id: o.id } })
+      ok('第一次事务写冲突 → 重试一次成功：PAID + DELIVERED', calls === 2 && o2.payStatus === 'PAID' && o2.deliveryStatus === 'DELIVERED', `calls=${calls}`)
+      ok(
+        '  …充值格只入一次、TOPUP 流水一条、Payment 一行（tradeNo = 收款单号）',
+        (await buckets(u.id)).topup === centsOf(v.reallyPrice) &&
+          (await prisma.balanceLog.count({ where: { type: 'TOPUP', orderId: o.id } })) === 1 &&
+          (await prisma.payment.count({ where: { orderId: o.id } })) === 1 &&
+          (await prisma.payment.count({ where: { orderId: o.id, tradeNo: v.orderId } })) === 1,
+      )
+      ok('  …没有推「到账后履约失败」（不再等 3 分钟对账）', !bodies.slice(nR).some((b) => b.includes('到账后履约失败')))
+    }
+
+    console.log('\n【B1 评审修复：数据验证唯一不在残缺数据上判（同额收款单超过扫描上限 → 不自动、留给站长）】')
+    {
+      const u = await mkUser('many')
+      const r = await start(u, (await freeYuan()) * 100)
+      if (!r.ok) throw new Error('建单失败')
+      const o = await prisma.order.findUniqueOrThrow({ where: { orderNo: r.orderNo } })
+      const C = await closeNow(o.id)
+      const N = latepay.UNIQUE_SCAN_LIMIT + 1
+      const prefix = `${TAG}M`
+      const at3h = new Date(Date.now() - 3 * 3600_000)
+      await prisma.vmqOrder.createMany({
+        data: Array.from({ length: N }, (_, i) => ({
+          orderId: `${prefix}${i}`,
+          bizType: 'invoice',
+          bizId: 0,
+          outTradeNo: `${prefix}${i}`,
+          type: 2,
+          price: C.reallyPrice,
+          reallyPrice: C.reallyPrice,
+          state: -1,
+          createdAt: at3h,
+        })),
+      })
+      try {
+        const b0 = await buckets(u.id)
+        const price = (centsOf(C.reallyPrice) / 100).toFixed(2)
+        await vmq.markPaidByAmount(price, 2, raw(price))
+        const key = (await takeNewEntry())!
+        const e = await latepay.readEntry(key)
+        ok(`24 小时内同额已关闭收款单 ${N} 张（> 上限 ${latepay.UNIQUE_SCAN_LIMIT}）：no_pending_match 不自动退`, e?.reason === 'no_pending_match' && !e.handledAt && (await buckets(u.id)).topup === b0.topup)
+        const d1 = await latepay.autoCreditIfCarrier(key, ctx)
+        ok('  …判定 TOO_MANY_ROWS（原来截到任意 500 行，可能漏掉违反 ④ 的行而误判「唯一」）', !d1.credited && d1.why === 'TOO_MANY_ROWS', d1.credited ? 'credited' : d1.why)
+        await prisma.vmqOrder.deleteMany({ where: { orderId: { in: [`${prefix}0`, `${prefix}1`] } } })
+        const d2 = await latepay.autoCreditIfCarrier(key, ctx)
+        ok('  …降到上限以内：照常判出「24 小时内还有别的同额已关闭收款单」（OTHER_CLOSED_24H）', !d2.credited && d2.why === 'OTHER_CLOSED_24H', d2.credited ? 'credited' : d2.why)
+        // 没有载体候选的普通到账（1 小时前、近窗里没有 C）：即使 24h 窗口装满，也安静返回 NO_CANDIDATE，不误报「涉及载体单」
+        await prisma.vmqOrder.createMany({ data: [0, 1].map((i) => ({ orderId: `${prefix}x${i}`, bizType: 'invoice', bizId: 0, outTradeNo: `${prefix}x${i}`, type: 2, price: C.reallyPrice, reallyPrice: C.reallyPrice, state: -1, createdAt: at3h })) })
+        const kq = `vmq_unmatched:${Date.now()}-${crypto.randomBytes(4).toString('hex')}`
+        await prisma.setting.create({ data: { key: kq, value: JSON.stringify({ reason: 'no_pending_match', price, type: 2, at: Date.now() - 3600_000, handledAt: null, handledBy: null }) } })
+        createdSettingKeys.push(kq)
+        const d3 = await latepay.autoCreditIfCarrier(kq, ctx)
+        ok('  …近窗没有候选：NO_CANDIDATE（24h 窗口超限不影响）', !d3.credited && d3.why === 'NO_CANDIDATE', d3.credited ? 'credited' : d3.why)
+      } finally {
+        await prisma.vmqOrder.deleteMany({ where: { orderId: { startsWith: prefix } } })
+      }
     }
 
     console.log('\n【应付统一函数：有 HELD 预扣时收款单按「应付 − 预扣」】')

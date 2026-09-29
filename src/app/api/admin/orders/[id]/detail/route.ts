@@ -9,6 +9,8 @@ import { parseOrderInvoiceDraft, shopOrderSourceKey } from '@/lib/order-invoice'
 import { invoicesForOrder } from '@/lib/order-link'
 import { parsePrizeSnapshot } from '@/lib/lottery'
 import { adminOrResponse, sourceMap, sourceOf } from '@/lib/admin/source-site'
+import { isCarrierType } from '@/lib/order-scope'
+import { describeTopupRemark } from '@/lib/wallet/topup'
 import { getOrderSettlementViews } from '@/lib/tenant/balances'
 import { channelProfit, channelProfitHint, smsChargedCost } from '@/lib/admin/channel-profit'
 
@@ -163,8 +165,15 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
         originalAmount: num(o.originalAmount),
         supplyUnitPrice: num(o.supplyUnitPrice),
         mainPriceAtOrder: num(o.mainPriceAtOrder),
-        // 买家备注：优先 buyerRemark（双写过渡，设计 5.4）；remark 可能被系统追加过内部说明
-        buyerRemarkText: o.buyerRemark ?? o.remark,
+        // 买家备注：优先 buyerRemark（双写过渡，设计 5.4）；remark 可能被系统追加过内部说明。
+        // 载体单（充值 / 接码）的 remark 是内部字段（topup|ct:…），不回退成「买家备注」，另给 internalRemarkText（B1 评审修复）
+        buyerRemarkText: isCarrierType(product.deliveryType) ? o.buyerRemark : o.buyerRemark ?? o.remark,
+        carrier: isCarrierType(product.deliveryType),
+        internalRemarkText: isCarrierType(product.deliveryType)
+          ? product.deliveryType === 'TOPUP'
+            ? describeTopupRemark(o.remark)
+            : o.remark
+          : null,
       },
       source: src,
       // 渠道单：结算快照、各成分分录、售后申请、退款弹窗要用的上下文（主站单为 null）

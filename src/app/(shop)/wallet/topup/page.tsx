@@ -7,7 +7,8 @@ import { ArrowLeft, Loader2, PlusCircle, Info, Copy, Check, ChevronDown, Chevron
 import { ContactModal } from '@/components/contact-modal'
 import { useHydrated } from '@/lib/use-hydrated'
 import { useUserStore } from '@/store/user'
-import { WALLET_TERMS, WALLET_TERMS_TITLE } from '@/lib/terms/jiema-wallet'
+import { WALLET_TERMS_TITLE, walletTermsFor } from '@/lib/terms/jiema-wallet'
+import { parseCustomYuan, shouldResetTopupToken, CUSTOM_YUAN_MAX_LEN } from '@/lib/wallet/topup-input'
 
 /**
  * 余额充值 /wallet/topup（docs/短信接码-设计.md §1.16、D35、D36、D37）。
@@ -15,6 +16,9 @@ import { WALLET_TERMS, WALLET_TERMS_TITLE } from '@/lib/terms/jiema-wallet'
  * 【档位与上下限都来自接口】GET /api/wallet/topup 的 tiersCents / minCents / maxCents（wallet_config，后台可在 ¥1–1,000 内调），
  * 文案按它拼（「请输入 {min}–{max} 之间的整数金额」），不写死 1–1000。**不设充值余额总额上限**：没有「剩余额度」「本次最多可充」。
  * 【自定义金额只收整数元】收银台按分递增分配唯一金额，整数元让识别尾差一目了然（¥12.03 = 充值 ¥12 + 3 分识别尾差）。
+ *   输入框保留原文、不「修正」：输入 0.5 / 12.5 / 12.50 当场提示「请输入 {min}–{max} 之间的整数金额」并置灰「去支付」
+ *   （原来删掉小数点把 12.5 变成 125，B1 评审修复；判断在 lib/wallet/topup-input.ts，check-wallet-b1 直接测）。
+ * 【规则全文】第 2 条（余额付接码、预扣）只在 canUseForJiema 时出现（walletTermsFor，§1.15 同一口径）。
  * 【幂等】clientToken 跟着「这一次选定的金额」走：换了金额就换一个 token（否则服务端会把上一次那张不同金额的单返回来）。
  * 【登录门禁】先等 useHydrated 再看登录态（水合那一次渲染 user 恒为 null）。
  * 【开票】说明区固定一行「暂不支持开票，可联系客服开票处理」（D37 清单第 ① 项）。
@@ -137,11 +141,9 @@ export default function WalletTopupPage() {
   const amountCents = useMemo<number | null>(() => {
     if (picked == null) return null
     if (picked !== 'custom') return picked
-    if (!/^\d{1,7}$/.test(custom)) return null
-    const c = Number(custom) * 100
-    return c >= min && c <= max ? c : null
+    return parseCustomYuan(custom, min, max)
   }, [picked, custom, min, max])
-  const customBad = picked === 'custom' && custom !== '' && amountCents == null
+  const customBad = picked === 'custom' && custom.trim() !== '' && amountCents == null
 
   const copy = (text: string) => {
     navigator.clipboard?.writeText(text).then(
@@ -173,8 +175,8 @@ export default function WalletTopupPage() {
         router.push(`/login?redirect=${encodeURIComponent('/wallet/topup')}`)
         return
       }
-      // 已关闭 / 已到账的那一笔：换一个 token 重新下单
-      if (d?.code === 'CLOSED' || d?.code === 'PAID') tokenRef.current = null
+      // 那一笔已关闭 / 已到账，或服务端已在同一请求里把它关掉（BUSY、OPEN_PAYMENTS）：换一个 token，下次按新的一笔下单
+      if (shouldResetTopupToken(d?.code)) tokenRef.current = null
       setMsg(d?.error || '发起充值失败，请稍后再试')
       if (d?.code === 'TOO_MANY_PENDING' || d?.code === 'TERMS' || d?.code === 'AMOUNT') load()
     } catch {
@@ -273,9 +275,8 @@ export default function WalletTopupPage() {
                     其他金额
                     <input
                       value={custom}
-                      onChange={(e) => setCustom(e.target.value.replace(/[^\d]/g, '').slice(0, 7))}
+                      onChange={(e) => setCustom(e.target.value.slice(0, CUSTOM_YUAN_MAX_LEN))}
                       inputMode="numeric"
-                      pattern="[0-9]*"
                       autoFocus
                       className="w-28 rounded-lg border border-white/15 bg-white/[0.06] px-3 py-2 text-white outline-none focus:border-cyan-400/60"
                     />
@@ -311,7 +312,7 @@ export default function WalletTopupPage() {
                 </label>
                 {termsOpen && (
                   <ol className="mt-2 list-decimal space-y-1 rounded-xl border border-white/10 bg-white/[0.03] py-3 pl-8 pr-4 text-xs leading-relaxed text-white/55">
-                    {WALLET_TERMS.map((t) => (
+                    {walletTermsFor(!!data.canUseForJiema).map((t) => (
                       <li key={t}>{t}</li>
                     ))}
                   </ol>

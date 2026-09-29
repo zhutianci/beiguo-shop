@@ -5,13 +5,15 @@ import { z } from 'zod'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { getCurrentUser } from '@/lib/auth'
-import { readEntry, latepayCandidates, manualCredit, LatepayError, ENTRY_KEY_RE, LATEPAY_MAX_CENTS, entryCents } from '@/lib/wallet/latepay'
+import { readEntry, latepayCandidates, latepayOrderLookup, manualCredit, LatepayError, ENTRY_KEY_RE, LATEPAY_MAX_CENTS, entryCents } from '@/lib/wallet/latepay'
 
 /**
  * 「退入买家余额」（docs/短信接码-设计.md D41、§2.7、§6.6 第 15 条、附录 B 第 21 条）。第一行 adminGuard，写审计。
  *
  * GET  ?：这条待核实到账的候选订单（近 24 小时同额的接码 / 充值收款单对应的订单，已关闭的在前；条目提示的那张置顶），
- *        已关闭的恰好 1 个时 suggest 指向它。
+ *        已关闭的恰好 1 个时 suggest 指向它。每个候选带 priorList：这张订单之前的 LATEPAY 退入逐笔（金额、时间、条目、自动 / 手动与交易号），
+ *        站长核对支付宝账单时能逐笔对照，免得把已退过那笔钱的第二条通知再退一次（§2.7）。
+ * GET  ?orderNo=xxx：站长手填、不在候选里的订单号 → { lookup }（订单概况 + 之前的 LATEPAY 逐笔；找不到为 null）。
  * POST { orderNo, tradeNo, confirmMismatch?, confirmBillChecked? }：按条目原因校验后，同一事务里
  *        占 latepay_trade:<交易号> → 充值格 + 条目实收（LATEPAY）→ 条目标成已处理（handledAs='LATEPAY'、orderId、tradeNo）。
  *        支付宝交易号必填（16–32 位数字）；同一个交易号只能退一次；同一条目再点被拒。
@@ -24,7 +26,7 @@ function keyOf(params: { key: string }): string {
   }
 }
 
-export async function GET(_request: NextRequest, { params }: { params: { key: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { key: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
   try {
@@ -32,6 +34,8 @@ export async function GET(_request: NextRequest, { params }: { params: { key: st
     if (!ENTRY_KEY_RE.test(key)) return error('记录不存在', 404)
     const entry = await readEntry(key)
     if (!entry) return error('记录不存在', 404)
+    const lookupNo = request.nextUrl.searchParams.get('orderNo')
+    if (lookupNo != null) return success({ key, lookup: await latepayOrderLookup(lookupNo) })
     const { list, suggest } = await latepayCandidates(entry)
     return success({
       key,

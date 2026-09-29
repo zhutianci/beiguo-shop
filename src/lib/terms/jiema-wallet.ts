@@ -25,3 +25,17 @@ export const WALLET_TERMS: readonly string[] = Object.freeze([
   '单笔充值金额以充值页为准（目前 ¥1–1,000，整数元），不设充值余额总额上限。余额充值与短信接码订单（不论用余额还是支付宝付款）暂不支持自助开票，可联系客服开票处理。',
   '误充值、账户注销等特殊情况，可联系客服，由人工核实处理。',
 ])
+
+/** 第 2 条（「余额目前可用于支付短信接码订单…组合支付时余额部分在下单时预扣」）在 WALLET_TERMS 里的下标 */
+export const WALLET_TERMS_JIEMA_INDEX = 1
+
+/**
+ * 按「余额能付接码」（canUseForJiema，§1.15 / 设计第 649 行同一口径）取要显示的条款：不成立时去掉第 2 条。
+ *
+ * 【B1 评审修复】B1 只上充值、余额还不能付接码（S2 才有）；原来充值页展开的全文、以及充值对全部用户开放后的条款页第四节
+ * 都照登第 2 条，等于对买家承诺一件还不存在的事（交接文档 1816 的教训）。正文与版本号不变（仍是这一处常量）：
+ * 第 2 条是「随开关出现的一句」，与钱包页那几句同一做法。S2 如果要求「首单时必须看过第 2 条才算同意」，在 S2 升版 WALLET_TERMS_VERSION。
+ */
+export function walletTermsFor(canUseForJiema: boolean): readonly string[] {
+  return canUseForJiema ? WALLET_TERMS : WALLET_TERMS.filter((_, i) => i !== WALLET_TERMS_JIEMA_INDEX)
+}

@@ -5,7 +5,7 @@ import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
-import { WALLET_TERMS, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION } from '@/lib/terms/jiema-wallet'
+import { WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
 import { readWalletConfig, topupOpenFor, canUseForJiema } from '@/lib/wallet/config'
 
 /**
@@ -43,14 +43,19 @@ export default async function TermsPage() {
    * 只在主站、并且充值已对全部用户开放或「余额能付接码」成立时出现在第四节——条款里写的是「余额目前可用于支付短信接码订单」，
    * 灰度期（仅管理员）就挂出来等于说一件还不存在的事（交接文档 1816）。灰度期充值页自带规则全文（同一个常量），不依赖这里。
    * 配置读不到按不显示（fail-closed，不影响条款页其余内容）。
+   * 【B1 评审修复】「只对全部用户开放充值、接码还没对全部用户开放」时这一节也会出现：第 2 条（余额付接码、预扣）
+   * 只在 canUseForJiema 时渲染（walletTermsFor），其余四条照登——不因为两个开关没一起开就对买家说一件还不存在的事。
    */
   let showWallet = false
+  let jiemaOpen = false
   if (sf && sf.kind === 'PLATFORM') {
     try {
       const w = await readWalletConfig()
-      showWallet = (w.ok && topupOpenFor(w.config, false)) || (await canUseForJiema(w))
+      jiemaOpen = await canUseForJiema(w)
+      showWallet = (w.ok && topupOpenFor(w.config, false)) || jiemaOpen
     } catch {
       showWallet = false
+      jiemaOpen = false
     }
   }
   const updatedAt = showWallet && WALLET_TERMS_VERSION > UPDATED_AT ? WALLET_TERMS_VERSION : UPDATED_AT
@@ -140,7 +145,7 @@ export default async function TermsPage() {
               <strong className="text-white">{WALLET_TERMS_TITLE}</strong>
             </p>
             <ul className="list-disc pl-6 space-y-2">
-              {WALLET_TERMS.map((t) => (
+              {walletTermsFor(jiemaOpen).map((t) => (
                 <li key={t}>{t}</li>
               ))}
             </ul>

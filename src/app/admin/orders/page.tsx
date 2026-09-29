@@ -26,7 +26,7 @@ interface Order {
   quantity?: number
   createdAt: string
   user: { id: number; email: string | null; nickname: string | null }
-  product: { id: number; name: string; categoryId?: number; category?: { id: number; name: string } | null }
+  product: { id: number; name: string; categoryId?: number; category?: { id: number; name: string } | null; deliveryType?: string }
   cards?: string[] // 自动发货实际发出的卡密
   unreadCount?: number // 买家发来、商家未读的留言数
   cardCost?: number | null // 卡密成本合计（无卡密订单为 null）
@@ -38,8 +38,11 @@ interface Order {
   // ---- 渠道分站（设计 12.2）----
   tenantId?: number
   source?: SourceSite
-  /** 买家备注：buyerRemark ?? remark（设计 5.4 双写过渡） */
+  /** 买家备注：buyerRemark ?? remark（设计 5.4 双写过渡）；载体单只取 buyerRemark */
   buyerRemarkText?: string | null
+  /** 载体单（余额充值 / 短信接码）：remark 是内部字段，显示为「系统备注」而不是「用户备注」 */
+  carrier?: boolean
+  internalRemarkText?: string | null
   /** 打开弹窗时的 updatedAt：保存时带回去做并发检查（两人同时编辑 → 后保存的 409） */
   updatedAt?: string
   settleState?: string | null
@@ -134,6 +137,8 @@ interface OrderDetail {
     tenantId?: number
     updatedAt?: string
     buyerRemarkText?: string | null
+    carrier?: boolean
+    internalRemarkText?: string | null
     settleState?: string | null
     invShareState?: string | null
     settleVersion?: number
@@ -313,6 +318,8 @@ function orderFromDetail(d: OrderDetail): Order {
     tenantId: d.order.tenantId,
     source: d.source,
     buyerRemarkText: d.order.buyerRemarkText,
+    carrier: d.order.carrier,
+    internalRemarkText: d.order.internalRemarkText,
     updatedAt: d.order.updatedAt,
     settleState: d.order.settleState,
     supplyCents: d.order.supplyCents,
@@ -1128,11 +1135,26 @@ function OrdersInner() {
                * remark = 买家原始备注 + 系统追加，已包含 buyerRemark；只有 remark 为空时才退回 buyerRemark。
                * （把买家原话与内部说明分开，是渠道后台那一侧的需求，见 partner-services。）
                */}
-              {(selectedOrder.remark ?? selectedOrder.buyerRemarkText) && (
-                <div className="text-sm">
-                  <div className="text-gray-500 mb-1">用户备注：</div>
-                  <div className="rounded-lg bg-gray-50 p-3">{selectedOrder.remark ?? selectedOrder.buyerRemarkText}</div>
-                </div>
+              {/* 载体单（余额充值 / 短信接码）：remark 是系统写的内部字段（topup|ct:…），买家没有备注——显示成「系统备注」并翻成人话（B1 评审修复） */}
+              {selectedOrder.carrier ? (
+                (selectedOrder.internalRemarkText || selectedOrder.remark) && (
+                  <div className="text-sm">
+                    <div className="text-gray-500 mb-1">系统备注（内部字段，不是买家填写的）：</div>
+                    <div className="rounded-lg bg-gray-50 p-3">
+                      {selectedOrder.internalRemarkText ?? selectedOrder.remark}
+                      {selectedOrder.remark && selectedOrder.internalRemarkText !== selectedOrder.remark && (
+                        <div className="mt-1 break-all font-mono text-[11px] text-gray-400">{selectedOrder.remark}</div>
+                      )}
+                    </div>
+                  </div>
+                )
+              ) : (
+                (selectedOrder.remark ?? selectedOrder.buyerRemarkText) && (
+                  <div className="text-sm">
+                    <div className="text-gray-500 mb-1">用户备注：</div>
+                    <div className="rounded-lg bg-gray-50 p-3">{selectedOrder.remark ?? selectedOrder.buyerRemarkText}</div>
+                  </div>
+                )
               )}
 
               {/* 渠道单：结算快照、分录、售后申请、退款入口（设计 12.2） */}
