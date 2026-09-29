@@ -12,18 +12,23 @@
  *
  * 【限流分车道】（上游每账户 50 RPS，超了 1020 / 400 并封账户 10 秒，调研 §1.1；旧链路另有自己的调用）进程内共 6 个并发槽、15 RPS：
  *  - 写与查码车道 `poll`（取号、放号、完成、getStatus、getStatusV2、getActiveActivations、v1 活跃列表、getAllSms、history，另加 getBalance）：
- *    优先级最高，目录车道最多占 3 个槽、7 RPS，所以它至少保留 3 个槽、8 RPS；**getNumberV2 另外串行化**（同一时刻只取一个号，避免撞线程上限）。
+ *    优先级最高，目录车道最多占 3 个槽、7 RPS，所以它至少保留 3 个槽、8 RPS；**getNumberV2 另外串行化**（同一时刻只取一个号，避免撞线程上限），
+ *    并且在车道里**插队**（排在所有排队中的查询前面）。
  *  - 目录车道 `catalog`（offers、getPrices、getServicesList、getCountries、getOperators、stats、custom-durations）：最多 3 个槽；**offers 全局 ≤1 RPS**；
  *    offers 返回 429 时按服务退避（60 秒起、翻倍、上限 10 分钟），退避期间本进程不发、直接返回 err(NOT_SENT)。
  *  排队超时（一直没轮到）同样返回 err(NOT_SENT)——请求根本没发出去，上游一定没成交（取号按 E58 的 REJECTED 处理，不占首次取号的次数）。
+ *  **取号从调用到真正发出最多等 3 秒**（串行锁 + 车道合计，`LIMITS.acquireQueueMs`），过了就 NOT_SENT：§2.4 的 UNKNOWN 认领时间窗
+ *  以「请求时刻」为锚，发出时刻漂得太远，真买到的号会落在窗外、被判 NOT_BOUGHT 再买一次。每个真正发出的结果都带 `sentAt`
+ *  （fetch 前一刻的毫秒时间），认领窗用 `acquireClaimWindow()` 算。
  *
  * 【重试】只读调用（状态、列表、价格）遇到网络错误重试 1 次；写调用（取号、放号、完成）**永不自动重试**。超时不重试。
  *
  * 【脱敏】永远不记 URL（兼容协议的 URL 带 api_key）；日志只打动作名、activationId、HTTP 状态、结果类别与错误码、耗时，
  * **不打响应原文**（里面有号码和短信）；`raw` 先把 key 原文换成 *** 再解析，解析器再按模式脱敏并截断到 2000 字（parse.sanitizeRaw）。
  *
- * 【调用计数】每次真正发出去的请求记一条事件，`breakerCounts()` 给熔断用（S2 的 holds.ts）：只数 timeout / network / http5xx，
- * 以及取号路径上的 unknown；只读调用的 noinfo 不计（E20）。
+ * 【调用计数】每次真正发出去的请求记一条事件，`breakerCounts()` 给熔断用（S2 的 holds.ts）：`bad` 只数 timeout / network / http5xx，
+ * 以及取号路径上的 unknown；`total`（分母）= 坏的 + 上游正常作答的（ok、业务错误码）；noinfo、只读的 unknown(parse)、
+ * 限流 / 拦截（429、RATE_LIMIT、REJECTED 含 1020 与 HTML 403）**分子分母都不计**（E20，见 countBreaker）。
  *
  * 只在服务端用。
  */
@@ -91,11 +96,32 @@ export const LIMITS = {
   offersRps: 1,
   pollQueueMs: 10_000,
   catalogQueueMs: 15_000,
-  /** 取号：串行锁 + 车道排队合计的上限。15 秒超时加上它仍远小于 REQUESTING → UNKNOWN 的 60 秒（§2.4） */
-  acquireQueueMs: 25_000,
+  /**
+   * 取号：从调用到请求真正发出（串行锁 + 车道排队合计）最多等这么久，过了就 err(NOT_SENT)（没发出去，上游一定没成交）。
+   * 必须小：§2.4 的认领时间窗锚在 requestedAt（调用前写进意图行），发出时刻漂出 3 秒，真买到的号就可能落在窗外（见 acquireClaimWindow）
+   */
+  acquireQueueMs: 3_000,
   offersBackoffStartMs: 60_000,
   offersBackoffMaxMs: 600_000,
 } as const
+
+/** §2.4 认领时间窗两头的余量（校准时钟偏差之后的残差） */
+export const CLAIM_SLACK_MS = 3_000
+
+/**
+ * UNKNOWN 取号的认领时间窗（纯函数；§2.4「校准后的 createdAt ∈ [requestedAt − 3 秒, requestedAt + 取号超时 15 秒 + 3 秒]」的落地版）：
+ *  - 知道请求真正发出的时刻（getNumberV2 结果里的 `sentAt`，S2 把它记进尝试行）→ 以它为锚：
+ *    [min(requestedAt, sentAt) − 3 秒, sentAt + 15 秒 + 3 秒]；
+ *  - 不知道（进程在请求途中崩溃，只剩意图行的 requestedAt）→ 发出时刻最晚是 requestedAt + 3 秒（`LIMITS.acquireQueueMs`，过了就不发）：
+ *    [requestedAt − 3 秒, requestedAt + 3 秒 + 15 秒 + 3 秒]。
+ * 两种都只会比设计原文的窗宽、不会窄：窗宽了最多多出候选（→ 不唯一 → MANUAL）、更难判 NOT_BOUGHT，都是安全方向；
+ * 窗窄了才会把真买到的号漏掉、判 NOT_BOUGHT 再买一次。上游的 createdAt 先按 §2.4 的中位数偏差校准再比。
+ */
+export function acquireClaimWindow(p: { requestedAtMs: number; sentAtMs?: number | null }): { fromMs: number; toMs: number } {
+  const sent = p.sentAtMs != null && Number.isFinite(p.sentAtMs) ? p.sentAtMs : null
+  if (sent != null) return { fromMs: Math.min(p.requestedAtMs, sent) - CLAIM_SLACK_MS, toMs: sent + ACQUIRE_TIMEOUT_MS + CLAIM_SLACK_MS }
+  return { fromMs: p.requestedAtMs - CLAIM_SLACK_MS, toMs: p.requestedAtMs + LIMITS.acquireQueueMs + ACQUIRE_TIMEOUT_MS + CLAIM_SLACK_MS }
+}
 
 const POLL_MAX_BYTES = 2 * 1024 * 1024
 const CATALOG_MAX_BYTES = 8 * 1024 * 1024
@@ -126,6 +152,8 @@ export function upstreamConfigured(): boolean {
 interface Waiter {
   lane: Lane
   offers: boolean
+  /** 取号：在写与查码车道里排到所有普通请求前面 */
+  prio: boolean
   resolve: (ok: boolean) => void
   timer: ReturnType<typeof setTimeout> | null
 }
@@ -137,9 +165,9 @@ class LaneScheduler {
   private wake: ReturnType<typeof setTimeout> | null = null
 
   /** 等一个槽；`waitMs` 内没轮到返回 false（请求不发） */
-  acquire(lane: Lane, offers: boolean, waitMs: number): Promise<boolean> {
+  acquire(lane: Lane, offers: boolean, waitMs: number, prio = false): Promise<boolean> {
     return new Promise((resolve) => {
-      const w: Waiter = { lane, offers, resolve, timer: null }
+      const w: Waiter = { lane, offers, prio, resolve, timer: null }
       w.timer = setTimeout(() => {
         const i = this.queue.indexOf(w)
         if (i >= 0) {
@@ -192,9 +220,11 @@ class LaneScheduler {
   private pump() {
     const now = Date.now()
     this.prune(now)
-    // 写与查码车道优先：它的队头放不出去（槽满或总速率满），目录车道一定也放不出去
+    // 写与查码车道优先：它的队头放不出去（槽满或总速率满），目录车道一定也放不出去。
+    // 车道内取号（prio）插队：写与查码车道能不能放只看总槽数与总速率、对谁都一样，所以先放 prio 只改顺序、不改放行条件
+    // （取号本身串行，同一时刻最多一个 prio 在排队，查询最多被它插一次队）
     for (;;) {
-      const head = this.queue.find((w) => w.lane === 'poll')
+      const head = this.queue.find((w) => w.lane === 'poll' && w.prio) ?? this.queue.find((w) => w.lane === 'poll')
       if (!head || !this.canDispatch(head)) break
       this.dispatch(head, now)
     }
@@ -259,20 +289,39 @@ export interface CallEvent {
   kind: 'ok' | 'err' | 'unknown' | 'noinfo'
   reason?: string
   code?: string
+  /** err 的 HTTP 状态码（429 不管错误码是什么都按限流） */
+  http?: number
   acquire: boolean
 }
 
+/** 限流 / 拦截类的明确错误：说明不了上游「好不好」，熔断的分子分母都不计 */
+function isThrottle(e: CallEvent): boolean {
+  return e.code === 'REJECTED' || e.code === 'RATE_LIMIT' || e.http === 429
+}
+
 /**
- * 熔断计数（纯函数）：窗口内真正发出去的调用数 `total`，以及「坏」的次数 `bad`：
- * timeout / network / http5xx，加上取号路径上的任何 unknown（E20）。只读调用的 noinfo、上游明确的 err 都不算坏。
+ * 熔断计数（纯函数，E20「≥5 次且占比 ≥50%」的分子与分母）：
+ *  - `bad`：timeout / network / http5xx，加上取号路径上的任何 unknown；
+ *  - `total` = `bad` + 上游**正常作答**的调用（ok、业务错误码：NO_NUMBERS、409 ACTIVATION_NOT_ACTIVE、404、402、403 BANNED …）；
+ *  - **不计入（分子分母都不算）**：noinfo（E20 原文「不计入」）、只读调用的 unknown(parse)（3xx、响应过大——不是宕机信号）、
+ *    限流 / 拦截（429、RATE_LIMIT、REJECTED 含 1020 与 HTML 403）——它们既不说明上游挂了，也不说明上游好好的；
+ *    算进分母会把「一边超时一边被限流」稀释到 50% 以下，熔断打不开，新单照卖、买家付了款再退。
  */
 export function countBreaker(events: readonly CallEvent[], now: number, windowMs = 120_000): { total: number; bad: number } {
   let total = 0
   let bad = 0
   for (const e of events) {
     if (now - e.at > windowMs || e.at > now) continue
+    if (e.kind === 'unknown') {
+      if (e.acquire || e.reason === 'timeout' || e.reason === 'network' || e.reason === 'http5xx') {
+        bad++
+        total++
+      }
+      continue
+    }
+    if (e.kind === 'noinfo') continue
+    if (e.kind === 'err' && isThrottle(e)) continue
     total++
-    if (e.kind === 'unknown' && (e.acquire || e.reason === 'timeout' || e.reason === 'network' || e.reason === 'http5xx')) bad++
   }
   return { total, bad }
 }
@@ -459,13 +508,14 @@ async function once<T>(spec: Spec<T>, e: Env, deadline: number): Promise<Up<T>> 
   }
   const headers: Record<string, string> = { Accept: 'application/json, text/plain, */*' }
   if (spec.v1Auth && e.key) headers.Authorization = `ApiKey ${e.key}`
-  const got = await st.sched.acquire(spec.lane, !!spec.offersKey, deadline - Date.now())
+  const got = await st.sched.acquire(spec.lane, !!spec.offersKey, deadline - Date.now(), !!spec.acquire)
   if (!got) {
     const r = notSent<T>('排队超时')
     logOutcome(spec.action, r, 0, spec.id)
     return r
   }
-  const t0 = Date.now()
+  // 请求真正离开本进程的时刻：取号的 UNKNOWN 认领时间窗以它为锚（acquireClaimWindow）
+  const sentAt = Date.now()
   let r: Up<T>
   try {
     const raw = await doFetch(url, headers, spec.method ?? 'GET', spec.acquire ? ACQUIRE_TIMEOUT_MS : CALL_TIMEOUT_MS, spec.maxBytes)
@@ -473,7 +523,8 @@ async function once<T>(spec: Spec<T>, e: Env, deadline: number): Promise<Up<T>> 
   } finally {
     st.sched.release(spec.lane)
   }
-  const ms = Date.now() - t0
+  r.sentAt = sentAt
+  const ms = Date.now() - sentAt
   recordEvent({
     at: Date.now(),
     action: spec.action,
@@ -481,6 +532,7 @@ async function once<T>(spec: Spec<T>, e: Env, deadline: number): Promise<Up<T>> 
     kind: r.kind,
     reason: r.kind === 'unknown' ? r.reason : undefined,
     code: r.kind === 'err' ? r.code : undefined,
+    http: r.kind === 'err' ? r.http : undefined,
     acquire: !!spec.acquire,
   })
   if (spec.offersKey) {
@@ -667,6 +719,8 @@ export interface ActiveList {
  * 拉全活跃列表：一页 100 条，一直翻到某页少于 100 条才算拉全（§6.5 第 1 步）。
  * **任何一页失败 → 整个结果就是那个失败**（绝不返回半截列表当 ok，§3.1「列表接口出错绝不当作空列表」）。
  * 有一页币种异常：返回 err(CURRENCY) 且 data 是拉全的列表（状态照样可判，E56）。
+ * **翻页途中有号结束**，后一页的第一条会挪到前一页、被漏掉（兼容协议没有 total，查不出来）：所以「不在列表里」只能推出
+ * CHECK_HISTORY，不能推出任何终态——history 里查不到（号还活着）就是没有信息（judgeHistory），不会误判。
  */
 export async function getAllActiveActivations(): Promise<Up<ActiveList>> {
   const seen = new Map<string, ActiveItem>()
@@ -751,14 +805,34 @@ export interface V1ActivationList {
   pages: number
 }
 
-/** 拉全 v1 活跃列表：一直翻到某页少于 25 条。**任何一页失败、超时或认不出 → 这一轮作废**（返回那个失败，§2.4） */
+/**
+ * 「拉全」的核对（纯函数）：第一页给了 `meta.total` 时，去重后的条数必须 ≥ 它，否则这一轮作废（noinfo）。
+ * 翻页途中前面有行消失（号结束），后一页的第一条会挪到前一页、被漏掉；新增的行只会让后面的行重复（去重），不会漏。
+ * 所以「去重后条数 < 第一页的 total」⇔ 可能漏了行。total 缺省（上游没给）时无从核对，返回 null（照旧按「某页不满」收尾）。
+ */
+export function pagingShortfall(firstPageTotal: number | null | undefined, seen: number): string | null {
+  if (firstPageTotal == null || !Number.isSafeInteger(firstPageTotal) || firstPageTotal < 0) return null
+  return seen >= firstPageTotal ? null : `翻页途中列表变了：第一页 total=${firstPageTotal}，拉到 ${seen} 条（可能漏行），这一轮作废`
+}
+
+/**
+ * 拉全 v1 活跃列表：一直翻到某页少于 25 条。**任何一页失败、超时或认不出 → 这一轮作废**（返回那个失败，§2.4）；
+ * 第一页的 `meta.total` 对不上（翻页途中有号结束、可能漏了一行）→ 同样作废（noinfo）：认领的「连续两轮都没有候选 → NOT_BOUGHT」
+ * 只能建立在真正拉全的列表上。
+ */
 export async function v1AllActivations(): Promise<Up<V1ActivationList>> {
   const seen = new Map<string, V1Activation>()
+  let total: number | null = null
   for (let page = 1; page <= MAX_PAGES; page++) {
     const r = await v1ListActivations({ page, size: V1_PAGE_SIZE })
     if (r.kind !== 'ok') return failAs<V1ActivationList>(r)
+    if (page === 1) total = r.data.meta.total
     for (const it of r.data.items) if (!seen.has(it.id)) seen.set(it.id, it)
-    if (r.data.count < V1_PAGE_SIZE) return { kind: 'ok', data: { items: Array.from(seen.values()), pages: page }, raw: r.raw }
+    if (r.data.count < V1_PAGE_SIZE) {
+      const short = pagingShortfall(total, seen.size)
+      if (short) return { kind: 'noinfo', raw: short }
+      return { kind: 'ok', data: { items: Array.from(seen.values()), pages: page }, raw: r.raw }
+    }
   }
   return { kind: 'noinfo', raw: `v1 活跃列表超过 ${MAX_PAGES} 页仍未拉全` }
 }
@@ -802,11 +876,15 @@ export interface HistoryAll {
   totals: HistoryData['totals']
 }
 
-/** 拉全一段时间的 history（翻到某页少于 25 条或 hasMore=false）；任何一页失败 → 返回那个失败 */
+/**
+ * 拉全一段时间的 history（翻到某页少于 25 条或 hasMore=false）；任何一页失败 → 返回那个失败；
+ * 第一页的 `meta.total` 对不上 → noinfo（同 v1AllActivations；history 的行只增不减，正常不会触发）
+ */
 export async function v1HistoryAll(q: HistoryQuery): Promise<Up<HistoryAll>> {
   const seen = new Map<string, HistoryRow>()
   let currency: UpErr<HistoryData> | null = null
   let totals: HistoryData['totals'] = null
+  let total: number | null = null
   for (let page = 1; page <= MAX_PAGES; page++) {
     const r = await v1History({ ...q, page, size: V1_PAGE_SIZE })
     let d: HistoryData
@@ -815,9 +893,14 @@ export async function v1HistoryAll(q: HistoryQuery): Promise<Up<HistoryAll>> {
       d = r.data
       if (!currency) currency = r
     } else return failAs<HistoryAll>(r)
-    if (page === 1) totals = d.totals
+    if (page === 1) {
+      totals = d.totals
+      total = d.meta.total
+    }
     for (const row of d.rows) if (!seen.has(row.id)) seen.set(row.id, row)
     if (d.count < V1_PAGE_SIZE || d.meta.hasMore === false) {
+      const short = pagingShortfall(total, seen.size)
+      if (short) return { kind: 'noinfo', raw: short }
       const data: HistoryAll = { rows: Array.from(seen.values()), pages: page, totals }
       if (currency) {
         const { data: _d, ...rest } = currency

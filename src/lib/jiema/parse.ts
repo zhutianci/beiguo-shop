@@ -20,10 +20,15 @@
 
 export type UnknownReason = 'timeout' | 'network' | 'http5xx' | 'parse'
 
+/**
+ * `sentAt`：请求**真正离开本进程**的时刻（毫秒，`Date.now()`），由 upstream.ts 在 fetch 之前一刻写入；解析器不写。
+ * 本进程没发出去的（NOT_SENT、NO_KEY）没有它。取号的 UNKNOWN 认领时间窗以它为锚（见 upstream.acquireClaimWindow，§2.4）。
+ */
 export interface UpOk<T> {
   kind: 'ok'
   data: T
   raw: string
+  sentAt?: number
 }
 /**
  * 上游明确给出的错误（或本进程明确「没有发出去」的 NOT_SENT / NO_KEY，http=0）。
@@ -38,18 +43,21 @@ export interface UpErr<T = never> {
   retryAfterSec?: number
   raw: string
   data?: T
+  sentAt?: number
 }
 export interface UpUnknown {
   kind: 'unknown'
   reason: UnknownReason
   raw: string
   http?: number
+  sentAt?: number
 }
 /** 只读调用拿到 2xx、但形态认不出（例如 getStatusV2 未文档化的等码形态）。按「无变化」处理，**不计入熔断** */
 export interface UpNoinfo {
   kind: 'noinfo'
   raw: string
   http?: number
+  sentAt?: number
 }
 export type Up<T> = UpOk<T> | UpErr<T> | UpUnknown | UpNoinfo
 
@@ -148,17 +156,28 @@ export function toBool(v: unknown): boolean | null {
  * 只认**带时区**的时间（结尾 Z 或 ±hh:mm / ±hhmm），例如 "2026-09-28T11:41:10.000000Z"、"2026-02-18T18:11:23+00:00"。
  * 没有时区的（getActiveActivations 的 "2022-06-01 16:59:16"、规格示例里 history 的 "2025-03-18 10:40:37"）返回 null：
  * 不能拿来算截止时间或认领时间窗（调研 §1.6 第 9 条、附录 B 第 12 条）。
+ * **日历字段逐项校验**：月 1–12、日不超过当月天数（闰年照算）、时 0–23、分 / 秒 0–59、时区偏移 ≤ ±14:59、年份 1970–9999；
+ * 任何一项不合法返回 null（`new Date()` 会把 2 月 30 日、24:00 悄悄进位成别的时刻，拿去当截止或认领时间就错了）。
  */
 export function parseTzDate(v: unknown): Date | null {
   if (typeof v !== 'string') return null
-  const m = v.trim().match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}(?::\d{2})?)(?:\.(\d+))?\s*(Z|[+-]\d{2}:?\d{2})$/i)
+  const m = v.trim().match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.(\d+))?\s*(Z|([+-])(\d{2}):?(\d{2}))$/i)
   if (!m) return null
-  const ms = (m[3] || '').padEnd(3, '0').slice(0, 3)
-  let tz = m[4].toUpperCase()
-  if (tz !== 'Z' && !tz.includes(':')) tz = `${tz.slice(0, 3)}:${tz.slice(3)}`
-  const time = m[2].length === 5 ? `${m[2]}:00` : m[2]
-  const d = new Date(`${m[1]}T${time}.${ms}${tz}`)
-  return Number.isNaN(d.getTime()) ? null : d
+  const [y, mo, d, h, mi] = [m[1], m[2], m[3], m[4], m[5]].map(Number)
+  const s = m[6] ? Number(m[6]) : 0
+  const ms = Number((m[7] || '').padEnd(3, '0').slice(0, 3))
+  if (y < 1970 || mo < 1 || mo > 12 || d < 1 || h > 23 || mi > 59 || s > 59) return null
+  const daysInMonth = new Date(Date.UTC(y, mo, 0)).getUTCDate()
+  if (d > daysInMonth) return null
+  let offsetMin = 0
+  if (m[8].toUpperCase() !== 'Z') {
+    const oh = Number(m[10])
+    const om = Number(m[11])
+    if (oh > 14 || om > 59) return null
+    offsetMin = (m[9] === '-' ? -1 : 1) * (oh * 60 + om)
+  }
+  const t = Date.UTC(y, mo - 1, d, h, mi, s, ms) - offsetMin * 60_000
+  return Number.isFinite(t) ? new Date(t) : null
 }
 
 /** 激活 id：数字或数字字符串（1–20 位）；否则 null */
@@ -318,9 +337,13 @@ function jsonErrIn2xx(b: Body, http: number, raw: string, retryAfter?: string | 
   return mkErr(code, http, raw, info, retryAfterOf(info, retryAfter))
 }
 
-/** 带金额的成功响应必须是美元（currency == 840，E56）。字段缺省按规格默认 840；存在但不是 840 → 返回那个值 */
+/**
+ * 带金额的成功响应必须是美元（currency == 840，E56）。字段缺省（undefined / null / 空串）按规格默认 840；
+ * 存在但不是 840 → 返回那个值；**认不出的（"RUB"、"USD"、小数、对象…）→ −1，同样是币种异常**。
+ * 取号、活跃列表、history 三处共用这一个口径（定价与对账只接受 840）。
+ */
 export const USD = 840
-function badCurrency(v: unknown): number | null {
+export function badCurrency(v: unknown): number | null {
   if (v === undefined || v === null || v === '') return null
   const n = toInt(v)
   return n === USD ? null : n ?? -1
@@ -681,12 +704,14 @@ export function parseActiveActivations(inp: HttpIn): Up<ActivePage> {
     else if (rows) arr = rows
     if (!arr) return noinfo(raw, inp.http)
     const items: ActiveItem[] = []
+    let bad: { currency: number; activationId: string } | null = null
     for (const x of arr) {
       const it = activeItem(x)
       if (!it) return noinfo(raw, inp.http)
       items.push(it)
+      const bc = badCurrency((x as Record<string, unknown>).currency) // 与取号同一口径：认不出的币种（"RUB"）也是异常
+      if (bc != null && !bad) bad = { currency: bc, activationId: it.activationId }
     }
-    const bad = items.find((it) => it.currency != null && it.currency !== USD)
     const page: ActivePage = { items, count: arr.length }
     if (bad) return { ...mkErr<ActivePage>('CURRENCY', inp.http, raw, { currency: bad.currency, activationId: bad.activationId }), data: page }
     return { kind: 'ok', data: page, raw }
@@ -930,7 +955,7 @@ export interface HistoryRow {
   service: string | null
   country: number | null
   phone: string | null
-  /** 收到的验证码（实测是 "490838"；规格示例是整句），没有 → null */
+  /** 收到的验证码（实测是 "490838"；规格示例是整句；数组形态按空格拼起来），没有 → null */
   moreCodes: string | null
   /** 注意：已取消（8）的行 cost 也有值（就是标价），**不代表扣了费**（调研 §3.4 第 6 条） */
   costMicro: number | null
@@ -947,11 +972,34 @@ export interface HistoryData {
   meta: V1PageMeta
 }
 
+/**
+ * history 的 moreCodes：字符串 / 数字原样；数组按空格拼起来（每一项都得是字符串或数字）；缺省 / null / 空 → 没有码（null）；
+ * **其余形态（对象、布尔、数组里夹着对象）→ undefined = 认不出**，整页按 noinfo 处理——
+ * 认不出的形态绝不能当成「没有码」，否则状态 8 / 10 的行会被判成 CANCELLED、把收过码的单整单退掉（fail-open）。
+ */
+function moreCodesOf(v: unknown): string | null | undefined {
+  if (v === undefined || v === null) return null
+  if (typeof v === 'string') return v.trim() || null
+  if (typeof v === 'number') return Number.isFinite(v) ? String(v) : undefined
+  if (Array.isArray(v)) {
+    const parts: string[] = []
+    for (const x of v) {
+      if (typeof x === 'string') {
+        if (x.trim()) parts.push(x.trim())
+      } else if (typeof x === 'number' && Number.isFinite(x)) parts.push(String(x))
+      else return undefined
+    }
+    return parts.length ? parts.join(' ') : null
+  }
+  return undefined
+}
+
 function historyRow(v: unknown): HistoryRow | null {
   if (!isObj(v)) return null
   const id = toActivationId(v.id)
   if (!id) return null
-  const codes = str(v.moreCodes)
+  const codes = moreCodesOf(v.moreCodes)
+  if (codes === undefined) return null
   const pc = str(v.phoneCode)
   const dial = pc != null ? pc.replace(/\D/g, '') : ''
   return {
@@ -960,7 +1008,7 @@ function historyRow(v: unknown): HistoryRow | null {
     service: str(v.service),
     country: toCountry(v.country),
     phone: toPhone(v.phone),
-    moreCodes: codes != null && codes.trim() ? codes.trim() : null,
+    moreCodes: codes,
     costMicro: usdToMicro(v.cost),
     status: toInt(v.status),
     dialCode: dial || null,
@@ -976,10 +1024,13 @@ export function parseHistory(inp: HttpIn): Up<HistoryData> {
   const b = h.body
   if (b.t === 'json' && isObj(b.v) && Array.isArray(b.v.data)) {
     const rows: HistoryRow[] = []
+    let bad: { currency: number; activationId: string } | null = null
     for (const x of b.v.data) {
       const r = historyRow(x)
       if (!r) return noinfo(raw, inp.http)
       rows.push(r)
+      const bc = badCurrency((x as Record<string, unknown>).currency) // 与取号同一口径：认不出的币种（"RUB"）也是异常
+      if (bc != null && !bad) bad = { currency: bc, activationId: r.id }
     }
     const t = b.v.totals
     const data: HistoryData = {
@@ -988,8 +1039,7 @@ export function parseHistory(inp: HttpIn): Up<HistoryData> {
       totals: isObj(t) ? { sumMicro: usdToMicro(t.sum), successCount: toInt(t.successCount) } : null,
       meta: pageMeta(b.v.meta),
     }
-    const bad = rows.find((r) => r.currency != null && r.currency !== USD)
-    if (bad) return { ...mkErr<HistoryData>('CURRENCY', inp.http, raw, { currency: bad.currency, activationId: bad.id }), data }
+    if (bad) return { ...mkErr<HistoryData>('CURRENCY', inp.http, raw, { currency: bad.currency, activationId: bad.activationId }), data }
     return { kind: 'ok', data, raw }
   }
   return jsonErrIn2xx(b, inp.http, raw, inp.retryAfter) ?? noinfo(raw, inp.http)
@@ -1215,7 +1265,11 @@ export type AcquireClass =
   | { c: 'CHANNELS_LIMIT'; currentThreads: number | null; maxAllowed: number | null }
   /** E6：SERVICE_NOT_AVAILABLE / BAD_SERVICE / BAD_COUNTRY（及官网前端处理的 NOT_AVAILABLE、WHATSAPP_NOT_AVAILABLE） */
   | { c: 'UNAVAILABLE'; code: string }
-  /** E7：BAD_KEY、401 / 403 BAD_API_KEY、ACCOUNT_INACTIVE（熔断打开、不自动恢复） */
+  /**
+   * E7：BAD_KEY、401 / 403 BAD_API_KEY、ACCOUNT_INACTIVE（熔断打开、不自动恢复）；
+   * **本进程没配 key 的 `err(NO_KEY)`（http 0，请求没发）同样归这里**——它和 NOT_SENT 都是 http 0，但不是 REJECTED：
+   * 没 key 什么都做不了，得停售新单等站长修配置，而不是每单重试 90 秒再退款（S2 的 gate 另用 upstream.upstreamConfigured() 先挡新单）
+   */
   | { c: 'KEY_INVALID'; code: string }
   /** E58：请求被拒、上游没成交（认不出的 4xx、1020、HTML 403、429、本进程没发出去的 NOT_SENT）——不占首次取号的 3 次机会 */
   | { c: 'REJECTED'; code: string; cause: string | null; retryAfterSec: number | null }
@@ -1261,7 +1315,7 @@ export type Verdict =
   /**
    * 收到码 → T13。`sms` 是响应里直接带的短信（NEW_OTP_RECEIVED 的 info.data、getStatusV2）；`code` / `text` 是单个码；
    * `needAllSms` = 要再用 getAllSms 补全文；`again` = 完成时遇到 NEW_OTP_RECEIVED，下一轮再调 finish；
-   * `ended` = 来自 history（上游已结束；这时 getAllSms 返回 409，码取 moreCodes）；`upstreamRefunded` = history 10 且有码（R6）
+   * `ended` = 来自 history 且状态是终态 6 / 8 / 10（上游已结束；这时 getAllSms 返回 409，码取 moreCodes）；`upstreamRefunded` = history 10 且有码（R6）
    */
   | {
       v: 'RECEIVED'
@@ -1282,7 +1336,7 @@ export type Verdict =
   /** STATUS_CANCEL、ACTIVATION_NOT_ACTIVE、404 NOT_FOUND、不在（拉全了的）活跃列表里 → 查 v1 history 定终态 */
   | { v: 'CHECK_HISTORY' }
   /**
-   * 没有信息：状态不动。`backoffSec` 退避秒数（retry_after_seconds；403 / 429 / 1020 / HTML 403 没给就 60 秒，其余 10 秒）；
+   * 没有信息：状态不动。`backoffSec` 退避秒数（retry_after_seconds，至少 10 秒；没给或给 0：403 / 429 / 1020 / HTML 403 按 60 秒，其余 10 秒）；
    * `breaker` = 计入熔断（只有 timeout / network / http5xx）；`recheckBalance` = 402 触发一次 getBalance 复核；
    * `stopNew` = 同时按 E7（KEY）/ E4（全局 BANNED）停售新单——**不据此把在途号码判成取消**
    */
@@ -1299,6 +1353,9 @@ const RECEIVED = (x: Partial<Extract<Verdict, { v: 'RECEIVED' }>> = {}): Verdict
   ...(x.upstreamRefunded ? { upstreamRefunded: true } : {}),
 })
 
+/** 「没有信息」时的最短退避（秒） */
+export const MIN_BACKOFF_SEC = 10
+
 /** 「没有信息」的细节（E57、§3.1 最后三行） */
 export function noinfoVerdict(r: UpErr<unknown> | UpUnknown | UpNoinfo): Extract<Verdict, { v: 'NOINFO' }> {
   if (r.kind === 'unknown') {
@@ -1307,7 +1364,10 @@ export function noinfoVerdict(r: UpErr<unknown> | UpUnknown | UpNoinfo): Extract
   if (r.kind === 'noinfo') return { v: 'NOINFO', backoffSec: 10, breaker: false }
   const out: Extract<Verdict, { v: 'NOINFO' }> = { v: 'NOINFO', backoffSec: 10, breaker: false }
   const throttled = r.http === 403 || r.http === 429 || r.code === 'REJECTED' || r.code === 'RATE_LIMIT'
-  out.backoffSec = r.retryAfterSec ?? (throttled ? 60 : 10)
+  // retry_after_seconds / Retry-After 为 0（或没给）：限流类按 60 秒，其余 10 秒；给了正数也至少 10 秒（上游超限封账户 10 秒，调研 §1.1），
+  // 绝不出现 0 秒退避——那等于立刻重查，限流时只会越查越封
+  const ra = r.retryAfterSec != null && r.retryAfterSec > 0 ? r.retryAfterSec : null
+  out.backoffSec = ra != null ? Math.max(ra, MIN_BACKOFF_SEC) : throttled ? 60 : MIN_BACKOFF_SEC
   if (r.code === 'NO_BALANCE' || r.http === 402) out.recheckBalance = true
   if (KEY_CODES.has(r.code) || r.http === 401) out.stopNew = 'KEY'
   else if ((r.code === 'BANNED' || r.code === 'BANNED_GLOBAL') && errBan(r).scope === 'global') out.stopNew = 'BANNED_GLOBAL'
@@ -1426,17 +1486,23 @@ export function codeFromMoreCodes(s: string | null): string | null {
 
 /**
  * v1 history 定终态（§3.1：ACTIVATION_NOT_ACTIVE / NOT_FOUND / STATUS_CANCEL / 不在活跃列表之后查它）：
- * 状态 6、或 moreCodes 非空 → 收到码（ended；10 且有码 → upstreamRefunded，R6）；状态 8 / 10 且 moreCodes 为空 → CANCELLED；
- * 找不到这一行、状态是别的（还没结束）、查询出错 → 没有信息，下一轮再查。
+ *  - 终态（6 / 8 / 10）：状态 6、或 moreCodes 非空 → 收到码（ended，码取 moreCodes；10 且有码 → upstreamRefunded，R6）；
+ *    状态 8 / 10 且 moreCodes 为空 → CANCELLED（ended）；
+ *  - **不是终态**（2、4 等，或状态认不出）却带 moreCodes → 收到码，但**不标 ended**、`needAllSms=true`：号在上游还活着，
+ *    getAllSms 取得到全文，之后照常由我方完成（T14）——绝不能当成「上游已结束」而跳过 finish；
+ *  - 找不到这一行、不是终态又没有码、查询出错 → 没有信息，下一轮再查。
+ * moreCodes 形态认不出（对象等）的行在 parseHistory 里已经让整页变成 noinfo，到不了这里。
  */
 export function judgeHistory(r: Up<{ rows: HistoryRow[] }>, activationId: string): Verdict {
   const data = r.kind === 'ok' ? r.data : r.kind === 'err' && r.code === 'CURRENCY' && r.data ? r.data : null
   if (!data) return noinfoVerdict(r as UpErr<unknown> | UpUnknown | UpNoinfo)
   const row = data.rows.find((x) => x.id === activationId)
-  if (!row) return { v: 'NOINFO', backoffSec: 10, breaker: false }
-  if (row.status === 6 || row.moreCodes) {
+  if (!row) return { v: 'NOINFO', backoffSec: MIN_BACKOFF_SEC, breaker: false }
+  const ended = row.status === 6 || row.status === 8 || row.status === 10
+  if (ended && (row.status === 6 || row.moreCodes)) {
     return RECEIVED({ code: codeFromMoreCodes(row.moreCodes), text: row.moreCodes, needAllSms: false, ended: true, upstreamRefunded: row.status === 10 })
   }
-  if (row.status === 8 || row.status === 10) return { v: 'CANCELLED', ended: true }
-  return { v: 'NOINFO', backoffSec: 10, breaker: false }
+  if (ended) return { v: 'CANCELLED', ended: true }
+  if (row.moreCodes) return RECEIVED({ code: codeFromMoreCodes(row.moreCodes), text: row.moreCodes, needAllSms: true })
+  return { v: 'NOINFO', backoffSec: MIN_BACKOFF_SEC, breaker: false }
 }

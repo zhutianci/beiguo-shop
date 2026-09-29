@@ -15,7 +15,9 @@
  *  - 取号后 `minActivationSec`（默认 120）秒内取消 → 409 EARLY_CANCEL_DENIED；收过码后取消 → 409 OTP_RECEIVED；
  *    收到了客户端还没「看到」的码时取消 / 完成 → 409 NEW_OTP_RECEIVED（info.data 带那几条）；已结束的号 → 409 ACTIVATION_NOT_ACTIVE；
  *  - 有效期（默认 20 分钟，`customDurations` 可改）到了：没码 → 状态 10、退回余额；有码 → 状态 6；
- *  - 有效期 > 20 分钟的号在 20 分钟后取消 → 409 FREE_CANCELLATION_EXPIRED（规则页说法，调研 §3.4 第 7 条）。
+ *  - 有效期 > 20 分钟的号在 20 分钟后取消 → 409 FREE_CANCELLATION_EXPIRED（规则页说法，调研 §3.4 第 7 条）；
+ *  - 没收到码就完成（setStatus 6 / finishActivation）→ 拒绝，号码不变（官网前端提示 "Activation cannot be completed, no code."，
+ *    调研草稿 1 §setStatus 前置条件；**API 的返回形态未确认，这里按推断给 409 + 那句原文**，S2 真钱验收后按真实返回改）。
  *
  * 故障注入（`faults`，按 action 匹配，默认生效 1 次）：没号、超时（可选「其实已经买到」）、晚到的码、EARLY_CANCEL_DENIED、
  * FREE_CANCELLATION_EXPIRED、NEW_OTP_RECEIVED、取消时已收码、402 / 403 / 404 / 429 / 1020、5xx、格式乱码、币种不是 840 等，见 FaultKind。
@@ -101,6 +103,7 @@ export type FaultKind =
   | 'otp_received'
   | 'not_active'
   | 'echo_key'
+  | 'end_top'
   | 'custom'
 
 export interface Fault {
@@ -271,6 +274,18 @@ export interface StartOptions {
   faults?: Fault[]
   /** 每个请求打一行（不含 key） */
   verbose?: boolean
+  /**
+   * 测试用：把每个请求**未脱敏**的原始请求行与请求头留在内存（`rawRequests`），给集成测试断言「key 只出现在 api_key 参数或 Authorization 头里」。
+   * 从不打印、不进 /__mock/state；命令行模式不开
+   */
+  captureRaw?: boolean
+}
+
+export interface RawRequest {
+  action: string
+  /** 原始请求行里的路径 + 查询串（含 key 原文） */
+  url: string
+  headers: Record<string, string | string[] | undefined>
 }
 
 export interface MockHandle {
@@ -283,6 +298,8 @@ export interface MockHandle {
   config: MockConfig
   readonly activations: MockActivation[]
   readonly log: LogEntry[]
+  /** 只在 captureRaw 时有内容（见 StartOptions.captureRaw） */
+  readonly rawRequests: RawRequest[]
   /** 并发峰值（按 action、总计），给车道测试用 */
   stats: { inflight: Record<string, number>; maxInflight: Record<string, number>; inflightTotal: number; maxInflightTotal: number }
   now(): number
@@ -336,6 +353,7 @@ export async function startMockHeroSms(opts: StartOptions = {}): Promise<MockHan
   let byId: Record<string, MockActivation> = {}
   let faults: ActiveFault[] = []
   const log: LogEntry[] = []
+  const rawRequests: RawRequest[] = []
   const stats = { inflight: {} as Record<string, number>, maxInflight: {} as Record<string, number>, inflightTotal: 0, maxInflightTotal: 0 }
 
   const now = () => Date.now() + offsetMs
@@ -504,6 +522,12 @@ export async function startMockHeroSms(opts: StartOptions = {}): Promise<MockHan
         return errJson(409, 'EARLY_CANCEL_DENIED', 'Activation cannot be cancelled at this time. Minimum activation period must pass.', { minActivationTime: 120 })
       case 'echo_key':
         return { http: 400, body: HTML(`Bad request: GET ${ctx.url.pathname}${ctx.url.search}`), headers: { 'content-type': 'text/html' } }
+      case 'end_top': {
+        // 翻页途中有号结束：先把最新的一个进行中激活结束掉（没码 → 8），再照常回这一页（后一页的第一条会挪到前一页、被漏掉）
+        const top = acts.filter((x) => x.status === 'ACTIVE').sort((x, y) => Number(y.id) - Number(x.id))[0]
+        if (top) endActivation(top, 8)
+        return null
+      }
       case 'custom':
         return { http: f.http ?? 200, body: f.body ?? '' }
       case 'reset':
@@ -596,6 +620,8 @@ export async function startMockHeroSms(opts: StartOptions = {}): Promise<MockHan
         markSeen(a)
         return errJson(409, 'NEW_OTP_RECEIVED', 'Otp was received on this number. Please confirm termination.', { data: unseen.map((s) => otpJson(s, a)) })
       }
+      // 没码不能完成（官网前端原文；API 形态是推断：409 + 原文，号码保持进行中、不扣费不退费）
+      if (a.sms.length === 0) return text('Activation cannot be completed, no code.', 409)
       endActivation(a, 6)
       return style === '204' ? { http: 204, body: '' } : text('ACCESS_ACTIVATION')
     }
@@ -998,6 +1024,10 @@ export async function startMockHeroSms(opts: StartOptions = {}): Promise<MockHan
     }
     entry.action = action
     const track = action !== 'control'
+    if (track && opts.captureRaw) {
+      rawRequests.push({ action, url: req.url || '', headers: { ...req.headers } })
+      if (rawRequests.length > 5000) rawRequests.splice(0, rawRequests.length - 5000)
+    }
     if (track) {
       stats.inflight[action] = (stats.inflight[action] ?? 0) + 1
       stats.maxInflight[action] = Math.max(stats.maxInflight[action] ?? 0, stats.inflight[action])
@@ -1061,6 +1091,7 @@ export async function startMockHeroSms(opts: StartOptions = {}): Promise<MockHan
       return acts
     },
     log,
+    rawRequests,
     stats,
     now,
     advance(sec: number) {

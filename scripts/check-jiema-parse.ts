@@ -50,7 +50,22 @@ import {
   type Verdict,
   type HttpIn,
 } from '../src/lib/jiema/parse'
-import { countBreaker, setStatus, getNumberV2, getStatus, v1History, v1Stats, getActiveActivations, v1ListActivations, type CallEvent } from '../src/lib/jiema/upstream'
+import {
+  countBreaker,
+  setStatus,
+  getNumberV2,
+  getStatus,
+  v1History,
+  v1Stats,
+  getActiveActivations,
+  v1ListActivations,
+  acquireClaimWindow,
+  pagingShortfall,
+  resetUpstreamStateForTest,
+  ACQUIRE_TIMEOUT_MS,
+  LIMITS,
+  type CallEvent,
+} from '../src/lib/jiema/upstream'
 
 let failed = 0
 let passed = 0
@@ -121,6 +136,10 @@ ok(parseTzDate('2026-02-18T18:11:23+00:00')?.toISOString() === '2026-02-18T18:11
 ok(parseTzDate('2026-02-16T12:36:59+0300')?.toISOString() === '2026-02-16T09:36:59.000Z', '±hhmm 写法')
 ok(parseTzDate('2022-06-01 16:59:16') === null && parseTzDate('2025-03-18 10:40:37') === null && parseTzDate('2025-12-16T10:30:00') === null, '没有时区 → null（getActiveActivations 的 activationTime、规格示例的 history）')
 ok(parseTzDate('yesterday') === null && parseTzDate(1739448000) === null && parseTzDate('2026-13-45T99:99:99Z') === null, '乱写、数字、不存在的日期 → null')
+ok(parseTzDate('2026-02-30T00:00:00Z') === null && parseTzDate('2026-02-29T00:00:00Z') === null && parseTzDate('2026-04-31T08:00:00+08:00') === null, '日历上不存在的日子（2 月 30 日、平年 2 月 29 日、4 月 31 日）→ null，不进位成下个月')
+ok(parseTzDate('2026-02-01T24:00:00Z') === null && parseTzDate('2026-02-01T23:60:00Z') === null && parseTzDate('2026-02-01T23:59:60Z') === null, '24 点、60 分、60 秒 → null，不进位成第二天')
+ok(parseTzDate('2026-02-01T10:00:00+15:00') === null && parseTzDate('2026-02-01T10:00:00+03:60') === null && parseTzDate('1969-12-31T23:59:59Z') === null, '时区偏移超过 ±14:59、1970 年以前 → null')
+ok(parseTzDate('2024-02-29T23:59:59.999-05:00')?.toISOString() === '2024-03-01T04:59:59.999Z' && parseTzDate('2026-12-31T23:30:00-01:00')?.toISOString() === '2027-01-01T00:30:00.000Z', '闰年 2 月 29 日合法；换成 UTC 跨日、跨年照常')
 
 console.log('\n[换算] 字段两种写法都认（调研 §1.6 第 4 条）')
 ok(toBool(true) === true && toBool('1') === true && toBool(1) === true && toBool('true') === true, 'canGetAnotherSms：true / "1" / 1 / "true"')
@@ -279,6 +298,14 @@ console.log('\n[§12.1 第 4 条 / E56] 币种不是 840 → err(CURRENCY)，但
   const list = parseActiveActivations(J(200, { status: 'success', data: [{ activationId: '1', serviceCode: 'dr', phoneNumber: '1555', activationCost: 0.66, currency: 156, activationStatus: '4', smsCode: null, smsText: null, activationTime: '2026-09-28 10:00:00', countryCode: '187', canGetAnotherSms: '1' }] }))
   ok(list.kind === 'err' && list.code === 'CURRENCY' && list.data?.items.length === 1, '活跃列表里有一条 156 → err(CURRENCY) 且带整页数据')
   ok(v(judgeFromActiveList(list, '1')) === 'WAIT', '币种异常的列表照样能判状态（E56「已取到的号照常服务」）')
+  // 三处同一口径：认不出的币种（"RUB"、"USD"）也是异常（评审：活跃列表 / history 以前把它当 null 放过去了）
+  const listRub = parseActiveActivations(J(200, { status: 'success', data: [{ activationId: '1', activationCost: 0.66, currency: 840 }, { activationId: '2', activationCost: 1, currency: 'RUB' }] }))
+  ok(listRub.kind === 'err' && listRub.code === 'CURRENCY' && listRub.info?.currency === -1 && listRub.info?.activationId === '2' && listRub.data?.items.length === 2, '活跃列表里 currency="RUB" → err(CURRENCY)（info.currency=−1、指明是哪一条），整页数据照样带出')
+  ok(parseActiveActivations(J(200, { status: 'success', data: [{ activationId: '1', currency: '840' }, { activationId: '2' }] })).kind === 'ok', '活跃列表 currency 是字符串 "840" 或缺省 → 照常 ok')
+  const hRub = parseHistory(J(200, { data: [{ id: 5, status: 6, currency: 'RUB', cost: '1.2', moreCodes: '123' }] }))
+  ok(hRub.kind === 'err' && hRub.code === 'CURRENCY' && hRub.info?.currency === -1 && hRub.data?.rows[0].costMicro === 1_200_000, 'history 里 currency="RUB" → err(CURRENCY)（不再把外币金额当美元记成本，E56）')
+  ok(kindOf(parseHistory(J(200, { data: [{ id: 5, status: 6, currency: { code: 840 } }] }))) === 'err:CURRENCY' && kindOf(parseHistory(J(200, { data: [{ id: 5, status: 6, currency: 840.5 }] }))) === 'err:CURRENCY', 'history currency 是对象、小数 → 同样 CURRENCY')
+  ok(parseHistory(J(200, { data: [{ id: 5, status: 6, currency: '840' }, { id: 6, status: 8, currency: null }] })).kind === 'ok', 'history currency 是 "840" 或 null → 照常 ok')
 }
 
 console.log('\n[§12.1 第 4 条] 409 的五种、204 空响应体（放号 / 完成）')
@@ -396,6 +423,22 @@ console.log('\n[§3.1] history 定终态（以 history 为准，附录 B 第 22 
   ok(r10.v === 'RECEIVED' && r10.upstreamRefunded === true, '状态 10 + moreCodes → 收到码 + upstreamRefunded（R6：上游事后退了收过码的号）')
   ok(eq(judgeHistory(hist([row({ status: 8 })]), '909794275'), { v: 'CANCELLED', ended: true }) && eq(judgeHistory(hist([row({ status: 10 })]), '909794275'), { v: 'CANCELLED', ended: true }), '状态 8 / 10 且无码 → CANCELLED')
   ok(v(judgeHistory(hist([row({ status: 4 })]), '909794275')) === 'NOINFO', '状态 4（还没结束）→ 没有信息')
+  // 评审：不是终态却带码的行，不能标 ended（号在上游还活着，得照常 finish）
+  for (const st of [2, 4, null]) {
+    const r = judgeHistory(hist([row({ status: st, moreCodes: '123456' })]), '909794275')
+    ok(r.v === 'RECEIVED' && r.code === '123456' && !r.ended && r.needAllSms === true && !r.upstreamRefunded, `状态 ${st}（不是终态）+ moreCodes → 收到码，但不标 ended、要补 getAllSms（之后照常 T14 完成）`)
+  }
+  // 评审：moreCodes 形态认不出绝不能当成「没有码」（否则状态 8 / 10 → CANCELLED → 收过码的单被整单退掉）
+  const arr10 = judgeHistory(hist([row({ status: 10, moreCodes: ['490838'] })]), '909794275')
+  ok(arr10.v === 'RECEIVED' && arr10.code === '490838' && arr10.ended === true && arr10.upstreamRefunded === true, 'moreCodes 是数组 ["490838"]、状态 10 → 收到码（R6），**不是 CANCELLED**')
+  const arr8 = hist([row({ status: 8, moreCodes: ['111', 222] })])
+  ok(arr8.kind === 'ok' && arr8.data.rows[0].moreCodes === '111 222' && v(judgeHistory(arr8, '909794275')) === 'RECEIVED', 'moreCodes 数组（字符串 / 数字混合）按空格拼起来')
+  ok(eq(judgeHistory(hist([row({ status: 8, moreCodes: [] })]), '909794275'), { v: 'CANCELLED', ended: true }) && eq(judgeHistory(hist([row({ status: 8, moreCodes: '  ' })]), '909794275'), { v: 'CANCELLED', ended: true }), 'moreCodes 是空数组、空白串 → 没有码（与 null 相同）')
+  const num = judgeHistory(hist([row({ status: 6, moreCodes: 490838 })]), '909794275')
+  ok(num.v === 'RECEIVED' && num.code === '490838', 'moreCodes 是数字 → 照样当码')
+  const objRow = hist([row({ status: 10, moreCodes: { a: '123456' } })])
+  ok(objRow.kind === 'noinfo' && v(judgeHistory(objRow, '909794275')) === 'NOINFO', 'moreCodes 是对象、状态 10 → 整页 noinfo → 没有信息（**不是 CANCELLED**）')
+  ok(hist([row({ status: 8, moreCodes: true })]).kind === 'noinfo' && hist([row({ status: 8, moreCodes: [{ code: '1' }] })]).kind === 'noinfo', 'moreCodes 是布尔、数组里夹对象 → noinfo')
   ok(v(judgeHistory(hist([row({ status: 8 })]), '1')) === 'NOINFO', '找不到这一行 → 没有信息')
   ok(v(judgeHistory({ kind: 'unknown', reason: 'timeout', raw: '' }, '1')) === 'NOINFO' && v(judgeHistory({ kind: 'err', code: 'REJECTED', http: 403, raw: '' }, '1')) === 'NOINFO', 'history 查询出错 → 没有信息')
   const cur = hist([row({ status: 8, currency: 978 })])
@@ -418,8 +461,13 @@ console.log('\n[§3.1 / E57] 402 / 403 / 404 / 429 / 1020 / 5xx / 超时 / 认�
   const ni = st(parseGetStatus(J(403, E.inactive)))
   ok(ni.v === 'NOINFO' && ni.stopNew === 'KEY', '403 ACCOUNT_INACTIVE → 没有信息 + 停售新单（E7）')
   ok(eq(st(parseGetStatus(J(401, E.badKey))), { v: 'NOINFO', backoffSec: 10, breaker: false, stopNew: 'KEY' }), '401 BAD_KEY → 没有信息 + 停售新单（E7）')
-  const n429 = st(parseGetStatus(H(429, '', '7')))
-  ok(n429.v === 'NOINFO' && n429.backoffSec === 7, '429 → 没有信息，按 Retry-After 退避')
+  const n429 = st(parseGetStatus(H(429, '', '30')))
+  ok(n429.v === 'NOINFO' && n429.backoffSec === 30, '429 → 没有信息，按 Retry-After 退避')
+  // 评审：Retry-After / retry_after_seconds 为 0 不能变成 0 秒退避（立刻重查，限流时越查越封）
+  const bo = (r: Verdict) => (r.v === 'NOINFO' ? r.backoffSec : -1)
+  ok(bo(st(parseGetStatus(H(429, '', '0')))) === 60 && bo(st(parseGetStatus(H(429, '{"title":"RATE_LIMIT","info":{"retry_after_seconds":0}}')))) === 60, '429 带 Retry-After: 0 / retry_after_seconds: 0 → 按「没给」退避 60 秒')
+  ok(bo(st(parseGetStatus(H(403, 'error code: 1020', '0')))) === 60 && bo(st(parseGetStatus(H(429, '', '7')))) === 10, '1020 带 Retry-After: 0 → 60 秒；给了 7 秒 → 至少 10 秒（上游超限封 10 秒）')
+  ok(bo(st(parseGetStatus(H(402, '{"title":"NO_BALANCE","info":{"retry_after_seconds":0}}')))) === 10 && bo(st(parseGetStatus(H(409, '{"title":"SOMETHING","info":{"retry_after_seconds":3}}')))) === 10, '非限流类给 0 或 3 秒 → 至少 10 秒')
   ok(eq(st(parseGetStatus(H(403, 'error code: 1020'))), { v: 'NOINFO', backoffSec: 60, breaker: false }), '1020 → 没有信息、退避 60 秒、不计熔断')
   ok(eq(st(parseGetStatus(H(403, '<html><body>denied</body></html>'))), { v: 'NOINFO', backoffSec: 60, breaker: false }), 'HTML 403 → 没有信息、退避 60 秒')
   ok(eq(st(parseGetStatus(J(500, E.server))), { v: 'NOINFO', backoffSec: 10, breaker: true }), '5xx → 没有信息，计入熔断')
@@ -525,8 +573,17 @@ console.log('\n[熔断计数] 只数 timeout / network / http5xx 与取号路径
     ev({ kind: 'unknown', reason: 'parse', acquire: true, action: 'getNumberV2' }),
     ev({ kind: 'unknown', reason: 'timeout', at: now - 130_000 }),
   ]
-  ok(eq(countBreaker(events, now), { total: 8, bad: 4 }), '8 次（2 分钟外的不算）：timeout / network / http5xx + 取号的 unknown(parse) 共 4 次；noinfo、err、只读的 unknown(parse) 不算')
+  ok(eq(countBreaker(events, now), { total: 6, bad: 4 }), '坏的 4 次（timeout / network / http5xx + 取号的 unknown(parse)）；分母再加上游正常作答的 ok 与 NO_NUMBERS 共 6；noinfo、只读的 unknown(parse)、2 分钟外的都不计')
   ok(eq(countBreaker(events, now, 500), { total: 0, bad: 0 }), '窗口外的全部不算')
+  // 评审：noinfo、限流 / 拦截不进分母（E20「noinfo 不计入」；否则「一边超时一边被 1020」稀释到 50% 以下、熔断打不开）
+  const t5 = Array.from({ length: 5 }, () => ev({ kind: 'unknown', reason: 'timeout' }))
+  const cf = Array.from({ length: 6 }, () => ev({ kind: 'err', code: 'REJECTED', http: 403 }))
+  ok(eq(countBreaker([...t5, ...cf], now), { total: 5, bad: 5 }), '5 次超时 + 6 次 403 1020（REJECTED）→ 5 / 5 = 100%，熔断能打开（以前是 5 / 11 = 45%）')
+  const rl = [ev({ kind: 'err', code: 'RATE_LIMIT', http: 429 }), ev({ kind: 'err', code: 'SOMETHING', http: 429 }), ev({ kind: 'noinfo' }), ev({ kind: 'noinfo' }), ev({ kind: 'unknown', reason: 'parse' })]
+  ok(eq(countBreaker([...t5, ...rl], now), { total: 5, bad: 5 }), '429（不管错误码）、noinfo、只读的 unknown(parse) 分子分母都不计')
+  const healthy = [ev({}), ev({ kind: 'err', code: 'ACTIVATION_NOT_ACTIVE', http: 409 }), ev({ kind: 'err', code: 'NOT_FOUND', http: 404 }), ev({ kind: 'err', code: 'NO_BALANCE', http: 402 }), ev({ kind: 'err', code: 'BANNED', http: 403 }), ev({ kind: 'ok' })]
+  const mix = countBreaker([...t5, ...healthy], now)
+  ok(eq(mix, { total: 11, bad: 5 }) && mix.bad / mix.total < 0.5, '上游正常作答的（ok、409、404、402、403 BANNED）算分母：5 / 11 < 50%，熔断不开（上游是好的）')
 }
 
 console.log('\n[客户端参数] 程序错误当场抛（不发请求）；maxPrice 至少 0.0067')
@@ -538,12 +595,81 @@ console.log('\n[客户端参数] 程序错误当场抛（不发请求）；maxPr
   ok(throws(() => getNumberV2({ service: 'dr', country: 187, operator: 'at&t', maxPriceMicro: 10000 })), '运营商代码不合法 → 抛错')
   ok(throws(() => v1History({ from: new Date('x'), to: new Date() })) && throws(() => v1History({ from: new Date(), to: new Date(), statuses: [7 as 6] })), 'history：时间不合法、状态不是 6 / 8 / 10 → 抛错')
   ok(throws(() => v1Stats('2026/09/29')) && throws(() => getActiveActivations({ limit: 101 })) && throws(() => getActiveActivations({ limit: 0 })) && throws(() => v1ListActivations({ size: 26 })), 'stats 日期格式、活跃列表 limit 1–100、v1 size ≤25')
-  ok(microToUsd4(Math.max(5000, 6700)) === '0.0067', 'cap 5,000 微美元时传给上游的是 0.0067（eff，§4.1）')
 }
 
-console.log(`\n通过 ${passed} 条，失败 ${failed} 条`)
-if (failed) {
-  console.log('❌ 有失败')
-  process.exit(1)
+console.log('\n[§2.4 认领时间窗] 以真正发出的时刻为锚；不知道发出时刻时把「发出前最多等 3 秒」算进去')
+{
+  const req = 1_000_000_000
+  ok(LIMITS.acquireQueueMs <= 3000, `取号从调用到发出最多等 ${LIMITS.acquireQueueMs}ms（过了就 NOT_SENT，不发）`)
+  ok(eq(acquireClaimWindow({ requestedAtMs: req, sentAtMs: req }), { fromMs: req - 3000, toMs: req + ACQUIRE_TIMEOUT_MS + 3000 }), '马上发出：窗 = [requestedAt − 3 秒, requestedAt + 15 秒 + 3 秒]（与设计原文一致）')
+  const w = acquireClaimWindow({ requestedAtMs: req, sentAtMs: req + 2500 })
+  ok(w.fromMs === req - 3000 && w.toMs === req + 2500 + ACQUIRE_TIMEOUT_MS + 3000, '排队 2.5 秒才发出：窗的右端跟着发出时刻走（右端 = 发出 + 18 秒）')
+  // 评审复现：发出晚了 20 秒、上游 createdAt = requestedAt + 20 秒 —— 以前的窗 [−3, +18] 漏掉它 → NOT_BOUGHT → 再买一次
+  const late = req + 20_000
+  const w2 = acquireClaimWindow({ requestedAtMs: req, sentAtMs: late - 100 })
+  ok(late >= w2.fromMs && late <= w2.toMs, '即使（旧逻辑下）排队 20 秒才发出：以发出时刻为锚，真买到的号仍在窗里')
+  const w3 = acquireClaimWindow({ requestedAtMs: req })
+  ok(w3.fromMs === req - 3000 && w3.toMs === req + LIMITS.acquireQueueMs + ACQUIRE_TIMEOUT_MS + 3000, '不知道发出时刻（进程途中崩溃）：右端再加 3 秒的发出前等待上限')
+  const w4 = acquireClaimWindow({ requestedAtMs: req, sentAtMs: req - 500 })
+  ok(w4.fromMs === req - 3500, 'sentAt 比 requestedAt 还早（两处时钟不同源）：左端取两者较早的，窗只会变宽')
 }
-console.log('全部通过 ✅')
+
+console.log('\n[分页核对] 第一页的 total 对不上（翻页途中有行消失、可能漏行）→ 这一轮作废')
+{
+  ok(pagingShortfall(30, 30) === null && pagingShortfall(30, 31) === null, '去重后条数 ≥ 第一页 total → 拉全了（新增的行只会重复，不会漏）')
+  ok(typeof pagingShortfall(30, 29) === 'string', '去重后条数 < 第一页 total → 可能漏了一行 → 作废')
+  ok(pagingShortfall(null, 0) === null && pagingShortfall(undefined, 3) === null, '上游没给 total → 无从核对，照旧按「某页不满」收尾')
+}
+
+/** 用替身 fetch 截下客户端真正拼出来的请求（不联网：地址是 .invalid，fetch 被换掉） */
+async function checkBuiltRequests() {
+  console.log('\n[客户端拼请求] 用替身 fetch 截下 getNumberV2 真正发出的 URL（不联网）')
+  const saved = { fetch: globalThis.fetch, base: process.env.HEROSMS_BASE, v1: process.env.HEROSMS_V1_BASE, key: process.env.HEROSMS_API_KEY }
+  const urls: string[] = []
+  const stubKey = 'stub-key-not-real'
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    urls.push(String(input))
+    return new Response('NO_NUMBERS', { status: 200 })
+  }) as typeof fetch
+  process.env.HEROSMS_BASE = 'http://stub.invalid/stubs/handler_api.php'
+  process.env.HEROSMS_V1_BASE = 'http://stub.invalid/api/v1'
+  process.env.HEROSMS_API_KEY = stubKey
+  resetUpstreamStateForTest()
+  try {
+    const t0 = Date.now()
+    const r1 = await getNumberV2({ service: 'dr', country: 187, maxPriceMicro: 5000 })
+    const u1 = new URL(urls[0] ?? 'http://x/')
+    ok(u1.searchParams.get('maxPrice') === '0.0067' && u1.searchParams.get('action') === 'getNumberV2', 'cap 5,000 微美元 → 真正发出的 URL 里 maxPrice=0.0067（eff，§4.1；删掉 getNumberV2 里的 max(…, 6700) 这条就会失败）')
+    ok(u1.searchParams.get('service') === 'dr' && u1.searchParams.get('country') === '187' && !u1.searchParams.has('fixedPrice') && !u1.searchParams.has('operator'), 'service / country 照传；不传 fixedPrice（D6）；没指定运营商就不传 operator')
+    ok(r1.kind === 'err' && r1.code === 'NO_NUMBERS' && typeof r1.sentAt === 'number' && r1.sentAt >= t0 && r1.sentAt <= Date.now(), '结果带 sentAt（请求真正发出的时刻）')
+    await getNumberV2({ service: 'dr', country: 187, maxPriceMicro: 825_000, operator: 'verizon' })
+    const u2 = new URL(urls[1] ?? 'http://x/')
+    ok(u2.searchParams.get('maxPrice') === '0.8250' && u2.searchParams.get('operator') === 'verizon', 'cap 825,000 → maxPrice=0.8250；指定运营商照传')
+    ok(u1.searchParams.get('api_key') === stubKey && urls.length === 2, 'key 只在 api_key 参数里（兼容协议）')
+    process.env.HEROSMS_API_KEY = ''
+    const r3 = await getNumberV2({ service: 'dr', country: 187, maxPriceMicro: 825_000 })
+    ok(r3.kind === 'err' && r3.code === 'NO_KEY' && r3.http === 0 && r3.sentAt === undefined && urls.length === 2 && classifyAcquire(r3).c === 'KEY_INVALID', '没配 key → err(NO_KEY)、没有 sentAt、一个请求都不发；取号分类 E7（与部署说明一致）')
+  } finally {
+    globalThis.fetch = saved.fetch
+    for (const [k, val] of [['HEROSMS_BASE', saved.base], ['HEROSMS_V1_BASE', saved.v1], ['HEROSMS_API_KEY', saved.key]] as const) {
+      if (val === undefined) delete process.env[k]
+      else process.env[k] = val
+    }
+    resetUpstreamStateForTest()
+  }
+}
+
+checkBuiltRequests()
+  .catch((e) => {
+    failed++
+    console.log(`  ✗ 替身 fetch 检查异常：${(e as Error).message}`)
+  })
+  .finally(() => {
+    console.log(`\n通过 ${passed} 条，失败 ${failed} 条`)
+    if (failed) {
+      console.log('❌ 有失败')
+      process.exit(1)
+    }
+    console.log('全部通过 ✅')
+    process.exit(0)
+  })

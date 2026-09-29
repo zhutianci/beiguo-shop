@@ -3,14 +3,18 @@
  *   npx tsx scripts/itest-jiema-upstream.ts
  *
  * **不连任何数据库、不调用真实 hero-sms**：假服务只绑 127.0.0.1 的随机端口，HEROSMS_BASE / HEROSMS_V1_BASE 在本进程里指过去，
- * key 是每次随机生成的测试值。耗时约 40 秒（取号 15 秒超时、只读 8 秒超时各真实等一次）。
+ * key 是每次随机生成的测试值。耗时约 60 秒（取号 15 秒超时、只读 8 秒超时、取号排队 3 秒上限各真实等几次）。
  *
  * 覆盖（docs/短信接码-设计.md §6.2、§3、§3.1、§11 S0 验收）：
  *  - 假服务的每个场景经过客户端 + 解析器 + 判定后的结果：没号、超时（其实买到了 → v1 活跃列表里能认领）、晚到的码、EARLY_CANCEL_DENIED、
  *    FREE_CANCELLATION_EXPIRED、NEW_OTP_RECEIVED、取消时已收码、402 / 403 / 404 / 429 / 1020、5xx、格式乱码、币种不是 840；
  *  - 超时（取号 15 秒、其余 8 秒）、写调用永不自动重试、只读调用网络错误重试 1 次、分页拉全（任何一页失败 → 整体失败，不给半截）；
  *  - 车道：总并发 ≤6、目录车道 ≤3、目录车道占满时查码不排队、总速率 ≤15/秒、目录 ≤7/秒、offers ≤1/秒、offers 429 按服务退避、取号串行；
- *  - 「日志里搜不到 key」：本进程的全部 console 输出、每个结果的 raw、假服务记录的请求路径里都没有 key（含上游把 URL 回显进报错页的情况）。
+ *  - 取号发出前最多等 3 秒（串行锁 + 车道合计，过了 NOT_SENT、事后也绝不补发）、取号在车道里插队、结果带 sentAt 且认领窗能框住真买到的号；
+ *  - 分页途中有号结束：v1 列表按第一页 total 作废这一轮；兼容协议列表漏掉的号只会走到 history → 没有信息；
+ *  - 没码不能完成（假服务按官网前端说法拒绝）→ 没有信息，号码不变；
+ *  - 「日志里搜不到 key」：本进程的全部 console 输出、每个结果的 raw 里都没有 key（含上游把 URL 回显进报错页的情况）；
+ *    假服务收到的**未脱敏原始请求**里，key 只出现在兼容协议的 api_key 参数或 v1 的 `Authorization: ApiKey` 头里。
  */
 import { randomUUID } from 'crypto'
 import { startMockHeroSms, type MockHandle } from './mock-herosms'
@@ -50,7 +54,7 @@ const count = (m: MockHandle, action: string) => m.log.filter((e) => e.action ==
 
 async function main() {
   const key = `itest-${randomUUID()}`
-  const m = await startMockHeroSms({ key })
+  const m = await startMockHeroSms({ key, captureRaw: true })
   process.env.HEROSMS_BASE = m.baseUrl
   process.env.HEROSMS_V1_BASE = m.v1Url
   process.env.HEROSMS_API_KEY = key
@@ -461,6 +465,116 @@ async function main() {
       ok(three.every((x) => x.kind === 'ok') && m.stats.maxInflight.getNumberV2 === 1 && el2 >= 2000, `取号串行：同时 3 个，上游同一时刻只有 1 个（峰值 ${m.stats.maxInflight.getNumberV2}，用时 ${el2}ms）`)
     }
 
+    console.log('\n[取号排队] 发出前最多等 3 秒（过了 NOT_SENT、事后绝不补发）；取号在车道里插队；结果带 sentAt（§2.4 认领窗的锚）')
+    {
+      // 评审复现：上游慢，A 的取号挂着；B 在串行锁后面排队。以前 B 最多排 25 秒才发出，真买到的号 createdAt 落在 [requestedAt − 3, +18] 窗外
+      m.reset()
+      up.resetUpstreamStateForTest()
+      m.setFaults([{ action: 'getNumberV2', kind: 'hang', delayMs: 5000, bought: true }])
+      const reqA = Date.now()
+      const pA = up.getNumberV2({ service: 'dr', country: 187, maxPriceMicro: 825_000 })
+      await sleep(50)
+      const reqB = Date.now()
+      const rB = track(await up.getNumberV2({ service: 'dr', country: 187, maxPriceMicro: 825_000 }))
+      const waitedB = Date.now() - reqB
+      ok(kindOf(rB) === 'err:NOT_SENT' && rB.kind === 'err' && rB.http === 0 && rB.sentAt === undefined && classifyAcquire(rB).c === 'REJECTED', `B 在串行锁后排了 ${waitedB}ms → err(NOT_SENT)、没有 sentAt → REJECTED（E58，不占首次取号次数）`)
+      ok(waitedB >= 2900 && waitedB < 3600, `B 最多只等 3 秒（实际 ${waitedB}ms；以前是 25 秒）`)
+      ok(count(m, 'getNumberV2') === 1, '这时上游只收到 A 一个取号请求')
+      const rA = track(await pA)
+      ok(rA.kind === 'ok' && typeof rA.sentAt === 'number' && rA.sentAt - reqA < 200, `A 真买到了：结果带 sentAt（调用后 ${rA.kind === 'ok' ? (rA.sentAt ?? 0) - reqA : -1}ms 发出）`)
+      await sleep(300)
+      ok(count(m, 'getNumberV2') === 1 && m.activations.length === 1, 'A 回来之后 B 也没有被补发（上游始终只有 A 一个号，不会多买）')
+      const v1 = track(await up.v1AllActivations())
+      const cand = v1.kind === 'ok' ? v1.data.items.find((x) => rA.kind === 'ok' && x.id === rA.data.activationId) : undefined
+      const win = up.acquireClaimWindow({ requestedAtMs: reqA, sentAtMs: rA.sentAt })
+      const created = cand?.createdAt?.getTime() ?? -1
+      ok(created >= win.fromMs && created <= win.toMs, 'A 的号在 v1 列表里的 createdAt 落在 acquireClaimWindow 算出的认领窗里')
+
+      // 车道被查码占满：取号插队（排在已经排队的查码前面），不用等它们
+      m.reset()
+      up.resetUpstreamStateForTest()
+      const n = track(await up.getNumberV2({ service: 'dr', country: 187, maxPriceMicro: 825_000 }))
+      const id = n.kind === 'ok' ? n.data.activationId : '1'
+      // 6 个槽：1 个 0.8 秒后空出来、5 个要挂 3.5 秒；另有 2 个查码先排着队。取号不插队的话，0.8 秒空出来的槽给了排队的查码，
+      // 取号要等到 3.5 秒 → 超过 3 秒上限 → NOT_SENT；插队的话 0.8 秒就发出
+      m.setFaults(
+        [
+          { action: 'getStatus', kind: 'hang', delayMs: 800, times: 1 },
+          { action: 'getStatus', kind: 'hang', delayMs: 3500, times: 5 },
+          { action: 'getStatus', kind: 'hang', delayMs: 300, times: 2 },
+        ],
+        true,
+      )
+      const logStart = m.log.length
+      const reads = Array.from({ length: 8 }, () => up.getStatus(id))
+      await sleep(100)
+      const reqC = Date.now()
+      const rC = track(await up.getNumberV2({ service: 'dr', country: 187, maxPriceMicro: 825_000 }))
+      await Promise.all(reads)
+      const order = m.log.slice(logStart).map((e) => e.action)
+      const posC = order.indexOf('getNumberV2')
+      const statusBeforeC = order.slice(0, posC).filter((a) => a === 'getStatus').length
+      ok(rC.kind === 'ok' && statusBeforeC === 6 && order.filter((a) => a === 'getStatus').length === 8, `6 个槽被查码占满、另有 2 个查码在排队：取号排在那 2 个前面（它之前只发了 ${statusBeforeC} 个查码）`)
+      ok(rC.kind === 'ok' && typeof rC.sentAt === 'number' && rC.sentAt - reqC < 1500, `取号等到第一个槽空出来就发（等了 ${rC.kind === 'ok' ? (rC.sentAt ?? 0) - reqC : -1}ms，不用等排在它前面的查码）`)
+
+      // 车道被占满超过 3 秒：取号不发（NOT_SENT），槽空出来以后也不补发
+      m.setFaults([{ action: 'getStatus', kind: 'hang', delayMs: 4000, times: 6 }], true)
+      const before = count(m, 'getNumberV2')
+      const slow = Array.from({ length: 6 }, () => up.getStatus(id))
+      await sleep(100)
+      const reqD = Date.now()
+      const rD = track(await up.getNumberV2({ service: 'dr', country: 187, maxPriceMicro: 825_000 }))
+      const waitedD = Date.now() - reqD
+      await Promise.all(slow)
+      await sleep(200)
+      ok(kindOf(rD) === 'err:NOT_SENT' && waitedD < 3600 && count(m, 'getNumberV2') === before, `车道占满 4 秒：取号 ${waitedD}ms 后 NOT_SENT，槽空出来之后也没有补发`)
+      m.clearFaults()
+    }
+
+    console.log('\n[分页途中有号结束] v1 列表按第一页 total 作废这一轮；兼容协议列表漏掉的号只会走到 history → 没有信息')
+    {
+      m.reset()
+      m.buy({ service: 'ot', country: 6, count: 30 })
+      const whole = track(await up.v1AllActivations())
+      ok(whole.kind === 'ok' && whole.data.items.length === 30 && whole.data.pages === 2, '30 个激活：v1 翻 2 页拉全，条数与 total 一致')
+      // 读第 2 页之前，第 1 页最新的那个号结束了：原来第 2 页的第一条挪到第 1 页、被漏掉
+      m.setFaults([{ action: 'v1:activations', kind: 'end_top', skip: 1 }])
+      const shifted = track(await up.v1AllActivations())
+      ok(shifted.kind === 'noinfo' && /total/.test(shifted.raw), '翻页途中有号结束（可能漏了一行）→ noinfo，这一轮作废（既不认领、也不计「没有候选」）')
+      const again = track(await up.v1AllActivations())
+      ok(again.kind === 'ok' && again.data.items.length === 29, '下一轮列表没再变 → 正常拉全（29 条）')
+      for (const a of m.activations) if (a.status === 'ACTIVE') m.endActivation(a.id, 8)
+      const hist = track(await up.v1HistoryAll({ from: new Date(Date.now() - 3600_000), to: new Date(Date.now() + 3600_000), services: ['ot'] }))
+      ok(hist.kind === 'ok' && hist.data.rows.length === 30 && hist.data.pages === 2, 'history 翻 2 页拉全 30 行，条数与 total 一致')
+
+      // 兼容协议的活跃列表没有 total：漏掉的号 → CHECK_HISTORY → history 里没有（号还活着）→ 没有信息，不会被误判结束
+      m.reset()
+      m.buy({ service: 'ot', country: 6, count: 150 })
+      const sorted = m.activations.filter((a) => a.status === 'ACTIVE').sort((x, y) => Number(y.id) - Number(x.id))
+      const skippedId = sorted[100].id
+      m.setFaults([{ action: 'getActiveActivations', kind: 'end_top', skip: 1 }])
+      const l = track(await up.getAllActiveActivations())
+      ok(l.kind === 'ok' && !l.data.items.some((x) => x.activationId === skippedId) && m.get(skippedId)?.status === 'ACTIVE', '兼容协议活跃列表翻页途中有号结束：原第 101 条被漏掉（它其实还活着）')
+      const jv = judgeFromActiveList(l, skippedId)
+      const hv = judgeHistory(track(await up.v1HistoryAll({ from: new Date(Date.now() - 3600_000), to: new Date(Date.now() + 3600_000), services: ['ot'], countries: [6] })), skippedId)
+      ok(jv.v === 'CHECK_HISTORY' && hv.v === 'NOINFO', '→ 查 history：还活着的号不在 history 里 → 没有信息（不会被判成取消或完成）')
+      m.clearFaults()
+    }
+
+    console.log('\n[完成] 没收到码不能完成（假服务按官网前端说法拒绝；API 形态是推断）')
+    {
+      m.reset()
+      const n = track(await up.getNumberV2({ service: 'acz', country: 187, maxPriceMicro: 500_000 }))
+      if (n.kind !== 'ok') throw new Error('取号失败')
+      const id = n.data.activationId
+      const bal = m.balanceMicro()
+      const f = track(await up.finishActivation(id))
+      ok(judgeFinish(f).v === 'NOINFO' && m.get(id)?.status === 'ACTIVE' && m.balanceMicro() === bal, `没码就完成 → 被拒（${kindOf(f)}）→ 没有信息；号码仍在进行中、不扣不退`)
+      m.pushSms(id)
+      await up.getAllSms(id)
+      ok(judgeFinish(track(await up.finishActivation(id))).v === 'FINISHED' && m.get(id)?.status === 'FINISHED', '收到码之后再完成 → FINISHED')
+    }
+
     console.log('\n[日志里搜不到 key]（§11 S0 验收）')
     {
       const joined = captured.join('\n')
@@ -468,7 +582,20 @@ async function main() {
       ok(!joined.includes(key), '本进程全部 console 输出里没有 key')
       ok(!joined.includes('api_key=') && !joined.includes(m.baseUrl) && !/ApiKey\s+\S/.test(joined), '日志里没有 URL、没有 api_key=、没有 ApiKey 头')
       ok(results.length > 50 && results.every((r) => !r.raw.includes(key)), `全部 ${results.length} 个结果的 raw 里都没有 key`)
-      ok(m.log.length > 0 && m.log.every((e) => !e.path.includes(key)), '假服务记录的请求路径里也没有 key')
+      // 假服务收到的**未脱敏**原始请求：key 只能出现在兼容协议的 api_key 参数、或 v1 的 Authorization: ApiKey 头里，别处（路径、其他参数、其他头）一律没有
+      const raws = m.rawRequests
+      const misplaced = raws.filter((r) => {
+        const u = new URL(r.url, 'http://127.0.0.1')
+        const isV1 = r.action.startsWith('v1:')
+        if (isV1 && u.searchParams.has('api_key')) return true
+        u.searchParams.delete('api_key')
+        if (`${u.pathname}${u.search}`.includes(key)) return true
+        return Object.entries(r.headers).some(([h, val]) => h !== 'authorization' && String(val ?? '').includes(key)) || (!isV1 && String(r.headers.authorization ?? '').includes(key))
+      })
+      const compatWithKey = raws.filter((r) => !r.action.startsWith('v1:') && new URL(r.url, 'http://127.0.0.1').searchParams.get('api_key') === key).length
+      const v1WithKey = raws.filter((r) => r.action.startsWith('v1:') && r.headers.authorization === `ApiKey ${key}`).length
+      ok(raws.length > 50 && misplaced.length === 0, `假服务收到的 ${raws.length} 个原始请求里，key 只出现在 api_key 参数（兼容协议）或 Authorization 头（v1）里（放错地方的 ${misplaced.length} 个）`)
+      ok(compatWithKey > 20 && v1WithKey > 5, `这条断言不是空的：${compatWithKey} 个兼容协议请求带了 api_key=key，${v1WithKey} 个 v1 请求带了 ApiKey 头`)
       const warn = captured.filter((l) => l.startsWith('[jiema] upstream')).slice(0, 5)
       origLog('  （客户端日志节选）')
       for (const l of warn) origLog(`    ${l}`)
