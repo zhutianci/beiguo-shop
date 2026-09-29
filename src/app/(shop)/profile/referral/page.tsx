@@ -39,7 +39,10 @@ interface ReferralOrder {
 interface Summary {
   orderCount: number
   paidCount: number
+  /** 已到账返现（元）= Σ 已结算返现 − Σ 扣回（与钱包页「累计返现」同一口径） */
   settledReward: number
+  /** 推荐订单事后退款被扣回的返现（元） */
+  clawedBackReward?: number
   settledCount: number
   pendingReward: number
   pendingCount: number
@@ -277,6 +280,9 @@ export default function ReferralPage() {
                     <div key={t.label} className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5">
                       <div className="text-xs text-white/45">{t.label}</div>
                       <div className={`mt-1 truncate text-xl font-bold tabular-nums ${t.cls}`}>{t.value}</div>
+                      {t.label === '已到账返现' && (summary.clawedBackReward ?? 0) > 0 && (
+                        <div className="mt-0.5 truncate text-[11px] text-white/35">已扣除退款扣回 {money(summary.clawedBackReward ?? 0)}</div>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -4,8 +4,11 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
+import { clawbackCentsByUser } from '@/lib/wallet/clawback'
+import { centsOf } from '@/lib/wallet/buckets'
 
 // 内推总览：推广人列表（链接/收益）+ 返现明细（明细分页，合计走 aggregate/count）
+// 「累计返现」「已结算返现合计」= Σ 已结算返现 − Σ 返现扣回（CLAWBACK 流水；与买家钱包页「累计返现」同一口径）
 export async function GET(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
@@ -16,7 +19,7 @@ export async function GET(request: NextRequest) {
     const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20'), 1), 100)
 
-    const [referrerUsers, grouped, rewards, rewardTotal, settledAgg] = await Promise.all([
+    const [referrerUsers, grouped, rewards, rewardTotal, settledAgg, clawbacks] = await Promise.all([
       prisma.user.findMany({
         where: { referralCode: { not: null } },
         select: { id: true, nickname: true, email: true, referralCode: true, balance: true },
@@ -35,9 +38,11 @@ export async function GET(request: NextRequest) {
       }),
       prisma.referralReward.count(),
       prisma.referralReward.aggregate({ _sum: { amount: true }, where: { status: 'SETTLED' } }),
+      clawbackCentsByUser(),
     ])
 
-    const sumMap = new Map(grouped.map((g) => [g.referrerId, { sum: Number(g._sum.amount ?? 0), count: g._count }]))
+    const sumMap = new Map(grouped.map((g) => [g.referrerId, { cents: centsOf(g._sum.amount ?? 0), count: g._count }]))
+    const clawbackTotalCents = Array.from(clawbacks.values()).reduce((a, c) => a + c, 0)
 
     // 名称映射（只针对当前页明细）
     const uid = new Set<number>()
@@ -56,13 +61,15 @@ export async function GET(request: NextRequest) {
     const referrers = referrerUsers
       .map((u) => {
         const s = sumMap.get(u.id)
+        const clawed = clawbacks.get(u.id) ?? 0
         return {
           id: u.id,
           name: u.nickname || u.email || `用户#${u.id}`,
           code: u.referralCode,
           link: `${appUrl}/products?ref=${u.referralCode}`,
           balance: Number(u.balance),
-          settledTotal: s?.sum ?? 0,
+          settledTotal: ((s?.cents ?? 0) - clawed) / 100,
+          clawedBack: clawed / 100,
           settledCount: s?.count ?? 0,
         }
       })
@@ -92,7 +99,8 @@ export async function GET(request: NextRequest) {
       },
       totals: {
         // 真实合计/条数：来自 aggregate / count，而不是被截断的数组
-        settledTotal: Math.round(Number(settledAgg._sum.amount ?? 0) * 100) / 100,
+        settledTotal: (centsOf(settledAgg._sum.amount ?? 0) - clawbackTotalCents) / 100,
+        clawedBackTotal: clawbackTotalCents / 100,
         rewardCount: rewardTotal,
         referrerCount: referrerUsers.length,
       },

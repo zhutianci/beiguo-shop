@@ -158,7 +158,8 @@ export default function WalletPage() {
   }, [load])
 
   const pickCat = (c: Cat) => {
-    if (c === cat) return
+    // 同一分类再点一次：只有上次加载失败时才重试（网络抖动后不必切到别的分类再切回来）
+    if (c === cat && !failed) return
     setCat(c)
     setLogs([])
     load(c, 1, false)
@@ -381,8 +382,16 @@ export default function WalletPage() {
                 </div>
               ) : logs.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/10 px-4 py-14 text-center">
-                  <p className="text-sm text-white/45">{failed ? '加载失败，请重试' : cat === 'all' ? '还没有余额变动' : '这一类暂时没有记录'}</p>
+                  <p className="text-sm text-white/45">{failed ? '加载失败' : cat === 'all' ? '还没有余额变动' : '这一类暂时没有记录'}</p>
                   {cat === 'all' && !failed && <p className="mt-1 text-xs text-white/30">推荐返现到账后会出现在这里</p>}
+                  {failed && (
+                    <button
+                      onClick={() => load(cat, 1, false)}
+                      className="mt-3 rounded-full border border-white/10 bg-white/[0.04] px-5 py-2 text-sm text-white/70 hover:bg-white/10"
+                    >
+                      重试
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>

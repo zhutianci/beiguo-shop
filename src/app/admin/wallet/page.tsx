@@ -48,6 +48,8 @@ interface Overview {
     byType: { type: string; label: string; count: number; cents: number }[]
   }
   config: { ok: true; config: WalletConfig } | { ok: false; reason: string }
+  /** 充值功能交付了吗（B1 之前 false） */
+  topupAvailable: boolean
   reconcile: { at: string; ok: boolean; full: boolean; failed: { code: string; count: number }[] } | null
 }
 
@@ -116,14 +118,65 @@ function newReqId(): string {
   return Array.from(c.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-async function getJson(url: string) {
-  const res = await fetch(url, { cache: 'no-store' })
-  return res.json()
+/**
+ * GET 一个后台接口：{ data, err, reload }。
+ *  · 非 success（登录过期、500、adminGuard 403）与网络异常都给 err，页面显示「加载失败 · 重试」，不会一直「加载中...」；
+ *  · 只认最后一次请求（序号），快速输入搜索词时先发后到的旧响应不会盖掉新结果。
+ * url 为 null 时不发请求。
+ */
+function useApi<T>(url: string | null) {
+  const [data, setData] = useState<T | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const seq = useRef(0)
+  const reload = useCallback(async () => {
+    if (!url) return
+    const my = ++seq.current
+    setErr(null)
+    try {
+      const res = await fetch(url, { cache: 'no-store' })
+      const d = await res.json().catch(() => null)
+      if (my !== seq.current) return
+      if (d?.success) setData(d.data as T)
+      else setErr(d?.error || `加载失败（HTTP ${res.status}）`)
+    } catch {
+      if (my === seq.current) setErr('网络异常，加载失败')
+    }
+  }, [url])
+  useEffect(() => {
+    reload()
+  }, [reload])
+  return { data, err, reload }
+}
+
+/** 输入框防抖：停手 ms 毫秒后才用新值（搜索、筛选不必每敲一个字发一次请求） */
+function useDebounced<T>(value: T, ms = 300): T {
+  const [v, setV] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms)
+    return () => clearTimeout(t)
+  }, [value, ms])
+  return v
+}
+
+/** 列表区的「加载中 / 加载失败 · 重试」占位 */
+function LoadGate({ loaded, err, onRetry, children }: { loaded: boolean; err: string | null; onRetry: () => void; children: React.ReactNode }) {
+  return (
+    <>
+      {err && (
+        <div className="mb-3 flex flex-wrap items-center justify-center gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <span>{err}</span>
+          <Button size="sm" variant="outline" onClick={onRetry}>
+            重试
+          </Button>
+        </div>
+      )}
+      {loaded ? children : !err && <div className="py-8 text-center text-gray-400">加载中...</div>}
+    </>
+  )
 }
 
 export default function AdminWalletPage() {
   const [tab, setTab] = useState<Tab>('users')
-  const [ov, setOv] = useState<Overview | null>(null)
   const [adjustFor, setAdjustFor] = useState<{ userId?: number; label?: string } | null>(null)
   const [detailId, setDetailId] = useState<number | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -133,12 +186,9 @@ export default function AdminWalletPage() {
     if (t && TABS.some((x) => x.id === t)) setTab(t)
   }, [])
 
-  const loadOv = useCallback(async () => {
-    const d = await getJson('/api/admin/wallet/overview').catch(() => null)
-    if (d?.success) setOv(d.data)
-  }, [])
+  const { data: ov, err: ovErr, reload: loadOv } = useApi<Overview>('/api/admin/wallet/overview')
   useEffect(() => {
-    loadOv()
+    if (refreshKey) loadOv()
   }, [loadOv, refreshKey])
 
   const cfg = ov?.config.ok ? ov.config.config : null
@@ -160,59 +210,65 @@ export default function AdminWalletPage() {
       {/* 负债看板 */}
       <Card>
         <CardContent className="space-y-2 py-4 text-sm text-gray-700">
-          {!ov ? (
-            <div className="text-gray-400">加载中...</div>
-          ) : (
-            <>
-              <div className="text-base">
-                余额负债 <strong className="text-lg text-gray-900">{yuan(ov.liability.totalCents)}</strong>
-                {' = '}充值余额 {yuan(ov.liability.topupCents)} + 返现余额 {yuan(ov.liability.cashCents)} + 预扣中 {yuan(ov.liability.heldCents)}（
-                {ov.liability.heldCount} 单
-                {ov.heldOldestMin != null && (
-                  <span className={ov.heldOldestMin > ov.stuckHoldMin ? 'text-red-600' : ''}>，最久 {ov.heldOldestMin} 分钟</span>
-                )}
-                ）
-              </div>
-              <div>
-                今日：充值 {signed(ov.today.topup.cents)}（{ov.today.topup.count} 笔）· 余额消费 {signed(ov.today.spent.cents)} · 退回{' '}
-                {signed(ov.today.back.cents)} · 提现 {signed(ov.today.withdraw.cents)}
-                {ov.today.byType.length > 0 && (
-                  <span className="ml-2 text-xs text-gray-400">
-                    （{ov.today.byType.map((t) => `${t.label} ${t.count} 笔 ${signed(t.cents)}`).join('；')}）
-                  </span>
-                )}
-              </div>
-              <div>
-                对账{' '}
-                {ov.reconcile ? (
-                  <>
-                    {fmt(ov.reconcile.at)}{' '}
-                    {ov.reconcile.ok ? (
-                      <span className="text-green-600">✓ 全部一致</span>
-                    ) : (
-                      <span className="text-red-600">✗ {ov.reconcile.failed.map((f) => `${f.code}×${f.count}`).join('、')}</span>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-gray-400">还没有跑过</span>
-                )}
-              </div>
-              <div>
-                {cfg ? (
-                  <>
-                    充值：{cfg.topupEnabled ? `● 已开放（${cfg.topupAudience === 'ALL' ? '全部用户' : '仅管理员'}）` : '○ 未开放'} · 余额支付：
-                    {cfg.balancePayEnabled ? '● 开' : <span className="text-red-600">○ 急停中</span>} · 档位{' '}
-                    {cfg.tiersCents.map((t) => `¥${t / 100}`).join('/')} · 自定义 ¥{cfg.minCents / 100}–{(cfg.maxCents / 100).toLocaleString('zh-CN')} ·
-                    迟到自动退入：{cfg.latepayAuto ? '开' : '关'}
-                  </>
-                ) : (
-                  <span className="text-red-600">
-                    wallet_config 读取失败（{ov.config.ok ? '' : ov.config.reason}）：充值、新单选余额、自动退入已按关闭处理 —— 到「设置」保存一次
-                  </span>
-                )}
-              </div>
-            </>
-          )}
+          <LoadGate loaded={!!ov} err={ovErr} onRetry={loadOv}>
+            {ov && (
+              <>
+                <div className="text-base">
+                  余额负债 <strong className="text-lg text-gray-900">{yuan(ov.liability.totalCents)}</strong>
+                  {' = '}充值余额 {yuan(ov.liability.topupCents)} + 返现余额 {yuan(ov.liability.cashCents)} + 预扣中 {yuan(ov.liability.heldCents)}（
+                  {ov.liability.heldCount} 单
+                  {ov.heldOldestMin != null && (
+                    <span className={ov.heldOldestMin > ov.stuckHoldMin ? 'text-red-600' : ''}>，最久 {ov.heldOldestMin} 分钟</span>
+                  )}
+                  ）
+                </div>
+                <div>
+                  今日：充值 {signed(ov.today.topup.cents)}（{ov.today.topup.count} 笔）· 余额消费 {signed(ov.today.spent.cents)} · 退回{' '}
+                  {signed(ov.today.back.cents)} · 提现 {signed(ov.today.withdraw.cents)}
+                  {ov.today.byType.length > 0 && (
+                    <span className="ml-2 text-xs text-gray-400">
+                      （{ov.today.byType.map((t) => `${t.label} ${t.count} 笔 ${signed(t.cents)}`).join('；')}）
+                    </span>
+                  )}
+                </div>
+                <div>
+                  对账{' '}
+                  {ov.reconcile ? (
+                    <>
+                      {fmt(ov.reconcile.at)}{' '}
+                      {ov.reconcile.ok ? (
+                        <span className="text-green-600">✓ 全部一致</span>
+                      ) : (
+                        <span className="text-red-600">✗ {ov.reconcile.failed.map((f) => `${f.code}×${f.count}`).join('、')}</span>
+                      )}
+                    </>
+                  ) : (
+                    <span className="text-gray-400">还没有跑过</span>
+                  )}
+                </div>
+                <div>
+                  {cfg ? (
+                    <>
+                      充值：
+                      {!ov.topupAvailable
+                        ? '○ 未上线（B1 交付后可开）'
+                        : cfg.topupEnabled
+                          ? `● 已开放（${cfg.topupAudience === 'ALL' ? '全部用户' : '仅管理员'}）`
+                          : '○ 未开放'}{' '}
+                      · 余额支付：
+                      {cfg.balancePayEnabled ? '● 开' : <span className="text-red-600">○ 急停中</span>} · 档位{' '}
+                      {cfg.tiersCents.map((t) => `¥${t / 100}`).join('/')} · 自定义 ¥{cfg.minCents / 100}–{(cfg.maxCents / 100).toLocaleString('zh-CN')} ·
+                      迟到自动退入：{cfg.latepayAuto ? '开' : '关'}
+                    </>
+                  ) : (
+                    <span className="text-red-600">
+                      wallet_config 读取失败（{ov.config.ok ? '' : ov.config.reason}）：充值、新单选余额、自动退入已按关闭处理 —— 到「设置」保存一次
+                    </span>
+                  )}
+                </div>
+              </>
+            )}
+          </LoadGate>
         </CardContent>
       </Card>
 
@@ -257,14 +313,8 @@ function UsersTab({ onAdjust, onDetail }: { onAdjust: (id: number, label: string
   const [q, setQ] = useState('')
   const [sort, setSort] = useState('total')
   const [page, setPage] = useState(1)
-  const [data, setData] = useState<Paged<UserRow> | null>(null)
-  const load = useCallback(async () => {
-    const d = await getJson(`/api/admin/wallet/users?q=${encodeURIComponent(q)}&sort=${sort}&page=${page}`).catch(() => null)
-    if (d?.success) setData(d.data)
-  }, [q, sort, page])
-  useEffect(() => {
-    load()
-  }, [load])
+  const qd = useDebounced(q)
+  const { data, err, reload } = useApi<Paged<UserRow>>(`/api/admin/wallet/users?q=${encodeURIComponent(qd)}&sort=${sort}&page=${page}`)
   return (
     <Card>
       <CardHeader className="flex flex-row flex-wrap items-center gap-3">
@@ -289,53 +339,53 @@ function UsersTab({ onAdjust, onDetail }: { onAdjust: (id: number, label: string
         </select>
       </CardHeader>
       <CardContent>
-        {!data ? (
-          <div className="py-8 text-center text-gray-400">加载中...</div>
-        ) : data.list.length === 0 ? (
-          <div className="py-8 text-center text-gray-400">没有余额或流水的用户</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-gray-800">
-              <thead>
-                <tr className="border-b text-left text-xs text-gray-500">
-                  <th className="pb-2 pr-3">用户</th>
-                  <th className="pb-2 pr-3 text-right">总余额</th>
-                  <th className="pb-2 pr-3 text-right">充值余额</th>
-                  <th className="pb-2 pr-3 text-right">返现余额</th>
-                  <th className="pb-2 pr-3 text-right">预扣中</th>
-                  <th className="pb-2 pr-3">最近变动</th>
-                  <th className="pb-2">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.list.map((u) => (
-                  <tr key={u.id} className="border-b last:border-0">
-                    <td className="py-2 pr-3">
-                      <Link href={`/admin/users/${u.id}`} className="text-primary-600 hover:underline">
-                        {u.email || u.nickname || `用户#${u.id}`}
-                      </Link>
-                      <span className="ml-1 text-xs text-gray-400">#{u.id}</span>
-                    </td>
-                    <td className="py-2 pr-3 text-right font-medium">{yuan(u.totalCents)}</td>
-                    <td className="py-2 pr-3 text-right">{yuan(u.topupCents)}</td>
-                    <td className="py-2 pr-3 text-right">{yuan(u.cashCents)}</td>
-                    <td className="py-2 pr-3 text-right">{u.heldCents ? yuan(u.heldCents) : '—'}</td>
-                    <td className="py-2 pr-3 text-xs text-gray-500">{fmt(u.lastAt)}</td>
-                    <td className="whitespace-nowrap py-2">
-                      <button onClick={() => onDetail(u.id)} className="mr-2 text-primary-600 hover:underline">
-                        详情
-                      </button>
-                      <button onClick={() => onAdjust(u.id, u.email || `用户#${u.id}`)} className="text-primary-600 hover:underline">
-                        调整
-                      </button>
-                    </td>
+        <LoadGate loaded={!!data} err={err} onRetry={reload}>
+          {!data ? null : data.list.length === 0 ? (
+            <div className="py-8 text-center text-gray-400">没有余额或流水的用户</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-gray-800">
+                <thead>
+                  <tr className="border-b text-left text-xs text-gray-500">
+                    <th className="pb-2 pr-3">用户</th>
+                    <th className="pb-2 pr-3 text-right">总余额</th>
+                    <th className="pb-2 pr-3 text-right">充值余额</th>
+                    <th className="pb-2 pr-3 text-right">返现余额</th>
+                    <th className="pb-2 pr-3 text-right">预扣中</th>
+                    <th className="pb-2 pr-3">最近变动</th>
+                    <th className="pb-2">操作</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {data && data.totalPages > 1 && <Pager page={data.page} totalPages={data.totalPages} total={data.total} onChange={setPage} />}
+                </thead>
+                <tbody>
+                  {data.list.map((u) => (
+                    <tr key={u.id} className="border-b last:border-0">
+                      <td className="py-2 pr-3">
+                        <Link href={`/admin/users/${u.id}`} className="text-primary-600 hover:underline">
+                          {u.email || u.nickname || `用户#${u.id}`}
+                        </Link>
+                        <span className="ml-1 text-xs text-gray-400">#{u.id}</span>
+                      </td>
+                      <td className="py-2 pr-3 text-right font-medium">{yuan(u.totalCents)}</td>
+                      <td className="py-2 pr-3 text-right">{yuan(u.topupCents)}</td>
+                      <td className="py-2 pr-3 text-right">{yuan(u.cashCents)}</td>
+                      <td className="py-2 pr-3 text-right">{u.heldCents ? yuan(u.heldCents) : '—'}</td>
+                      <td className="py-2 pr-3 text-xs text-gray-500">{fmt(u.lastAt)}</td>
+                      <td className="whitespace-nowrap py-2">
+                        <button onClick={() => onDetail(u.id)} className="mr-2 text-primary-600 hover:underline">
+                          详情
+                        </button>
+                        <button onClick={() => onAdjust(u.id, u.email || `用户#${u.id}`)} className="text-primary-600 hover:underline">
+                          调整
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {data && data.totalPages > 1 && <Pager page={data.page} totalPages={data.totalPages} total={data.total} onChange={setPage} />}
+        </LoadGate>
       </CardContent>
     </Card>
   )
@@ -420,7 +470,6 @@ function LogTable({ list, showUser }: { list: AdminLog[]; showUser?: boolean }) 
 function LogsTab() {
   const [f, setF] = useState({ userId: '', type: '', from: '', to: '', orderNo: '', bizKey: '' })
   const [page, setPage] = useState(1)
-  const [data, setData] = useState<Paged<AdminLog> | null>(null)
   const qs = useCallback(
     (extra = '') => {
       const p = new URLSearchParams()
@@ -432,13 +481,8 @@ function LogsTab() {
     },
     [f, page],
   )
-  const load = useCallback(async () => {
-    const d = await getJson(`/api/admin/wallet/logs?${qs()}`).catch(() => null)
-    if (d?.success) setData(d.data)
-  }, [qs])
-  useEffect(() => {
-    load()
-  }, [load])
+  const listUrl = useDebounced(`/api/admin/wallet/logs?${qs()}`)
+  const { data, err, reload } = useApi<Paged<AdminLog>>(listUrl)
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setF({ ...f, [k]: e.target.value })
     setPage(1)
@@ -464,8 +508,10 @@ function LogsTab() {
         </a>
       </CardHeader>
       <CardContent>
-        {!data ? <div className="py-8 text-center text-gray-400">加载中...</div> : data.list.length === 0 ? <div className="py-8 text-center text-gray-400">没有流水</div> : <LogTable list={data.list} showUser />}
-        {data && data.totalPages > 1 && <Pager page={data.page} totalPages={data.totalPages} total={data.total} onChange={setPage} />}
+        <LoadGate loaded={!!data} err={err} onRetry={reload}>
+          {data && (data.list.length === 0 ? <div className="py-8 text-center text-gray-400">没有流水</div> : <LogTable list={data.list} showUser />)}
+          {data && data.totalPages > 1 && <Pager page={data.page} totalPages={data.totalPages} total={data.total} onChange={setPage} />}
+        </LoadGate>
       </CardContent>
     </Card>
   )
@@ -476,23 +522,20 @@ function LogsTab() {
 function TopupsTab() {
   const [state, setState] = useState('all')
   const [page, setPage] = useState(1)
-  const [data, setData] = useState<Paged<{
-    id: number
-    orderNo: string
-    userId: number
-    email: string | null
-    amountCents: number
-    payStatus: string
-    deliveryStatus: string
-    createdAt: string
-    paidAt: string | null
-    creditedCents: number | null
-  }> | null>(null)
-  useEffect(() => {
-    getJson(`/api/admin/wallet/topups?state=${state}&page=${page}`)
-      .then((d) => d?.success && setData(d.data))
-      .catch(() => {})
-  }, [state, page])
+  const { data, err, reload } = useApi<
+    Paged<{
+      id: number
+      orderNo: string
+      userId: number
+      email: string | null
+      amountCents: number
+      payStatus: string
+      deliveryStatus: string
+      createdAt: string
+      paidAt: string | null
+      creditedCents: number | null
+    }>
+  >(`/api/admin/wallet/topups?state=${state}&page=${page}`)
   return (
     <Card>
       <CardHeader className="flex flex-row items-center gap-2">
@@ -515,39 +558,39 @@ function TopupsTab() {
         ))}
       </CardHeader>
       <CardContent>
-        {!data ? (
-          <div className="py-8 text-center text-gray-400">加载中...</div>
-        ) : data.list.length === 0 ? (
-          <div className="py-8 text-center text-gray-400">还没有充值单（充值功能在 B1 上线、默认关闭）</div>
-        ) : (
-          <table className="w-full text-sm text-gray-800">
-            <thead>
-              <tr className="border-b text-left text-xs text-gray-500">
-                <th className="pb-2 pr-3">充值单</th>
-                <th className="pb-2 pr-3">用户</th>
-                <th className="pb-2 pr-3 text-right">金额</th>
-                <th className="pb-2 pr-3 text-right">入账（含尾差）</th>
-                <th className="pb-2 pr-3">状态</th>
-                <th className="pb-2">时间</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.list.map((t) => (
-                <tr key={t.id} className="border-b last:border-0">
-                  <td className="py-2 pr-3 font-mono text-xs">{t.orderNo}</td>
-                  <td className="py-2 pr-3 text-xs">{t.email || `#${t.userId}`}</td>
-                  <td className="py-2 pr-3 text-right">{yuan(t.amountCents)}</td>
-                  <td className="py-2 pr-3 text-right">{t.creditedCents == null ? '—' : yuan(t.creditedCents)}</td>
-                  <td className="py-2 pr-3 text-xs">
-                    {t.payStatus}/{t.deliveryStatus}
-                  </td>
-                  <td className="py-2 text-xs text-gray-500">{fmt(t.paidAt ?? t.createdAt)}</td>
+        <LoadGate loaded={!!data} err={err} onRetry={reload}>
+          {!data ? null : data.list.length === 0 ? (
+            <div className="py-8 text-center text-gray-400">还没有充值单（充值功能在 B1 上线、默认关闭）</div>
+          ) : (
+            <table className="w-full text-sm text-gray-800">
+              <thead>
+                <tr className="border-b text-left text-xs text-gray-500">
+                  <th className="pb-2 pr-3">充值单</th>
+                  <th className="pb-2 pr-3">用户</th>
+                  <th className="pb-2 pr-3 text-right">金额</th>
+                  <th className="pb-2 pr-3 text-right">入账（含尾差）</th>
+                  <th className="pb-2 pr-3">状态</th>
+                  <th className="pb-2">时间</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-        {data && data.totalPages > 1 && <Pager page={data.page} totalPages={data.totalPages} total={data.total} onChange={setPage} />}
+              </thead>
+              <tbody>
+                {data.list.map((t) => (
+                  <tr key={t.id} className="border-b last:border-0">
+                    <td className="py-2 pr-3 font-mono text-xs">{t.orderNo}</td>
+                    <td className="py-2 pr-3 text-xs">{t.email || `#${t.userId}`}</td>
+                    <td className="py-2 pr-3 text-right">{yuan(t.amountCents)}</td>
+                    <td className="py-2 pr-3 text-right">{t.creditedCents == null ? '—' : yuan(t.creditedCents)}</td>
+                    <td className="py-2 pr-3 text-xs">
+                      {t.payStatus}/{t.deliveryStatus}
+                    </td>
+                    <td className="py-2 text-xs text-gray-500">{fmt(t.paidAt ?? t.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {data && data.totalPages > 1 && <Pager page={data.page} totalPages={data.totalPages} total={data.total} onChange={setPage} />}
+        </LoadGate>
       </CardContent>
     </Card>
   )
@@ -571,12 +614,7 @@ interface HoldRow {
 }
 
 function HoldsTab() {
-  const [data, setData] = useState<{ held: HoldRow[]; recent: HoldRow[]; stuckMin: number } | null>(null)
-  useEffect(() => {
-    getJson('/api/admin/wallet/holds')
-      .then((d) => d?.success && setData(d.data))
-      .catch(() => {})
-  }, [])
+  const { data, err, reload } = useApi<{ held: HoldRow[]; recent: HoldRow[]; stuckMin: number }>('/api/admin/wallet/holds')
   const table = (rows: HoldRow[], live: boolean) => (
     <table className="w-full text-sm text-gray-800">
       <thead>
@@ -613,23 +651,23 @@ function HoldsTab() {
   return (
     <Card>
       <CardContent className="space-y-6 py-4">
-        {!data ? (
-          <div className="py-8 text-center text-gray-400">加载中...</div>
-        ) : (
-          <>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold text-gray-900">
-                预扣中（HELD，超过 {data.stuckMin} 分钟标红）
-              </h3>
-              {data.held.length === 0 ? <div className="py-4 text-center text-sm text-gray-400">没有预扣中的订单</div> : table(data.held, true)}
-              <p className="mt-2 text-xs text-gray-400">只读：预扣的变化只能由订单状态驱动；要处理请到接码后台对那张单用「关单并原路退回预扣」。</p>
-            </div>
-            <div>
-              <h3 className="mb-2 text-sm font-semibold text-gray-900">最近确认 / 释放 / 退款</h3>
-              {data.recent.length === 0 ? <div className="py-4 text-center text-sm text-gray-400">暂无</div> : table(data.recent, false)}
-            </div>
-          </>
-        )}
+        <LoadGate loaded={!!data} err={err} onRetry={reload}>
+          {data && (
+            <>
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-gray-900">
+                  预扣中（HELD，超过 {data.stuckMin} 分钟标红）
+                </h3>
+                {data.held.length === 0 ? <div className="py-4 text-center text-sm text-gray-400">没有预扣中的订单</div> : table(data.held, true)}
+                <p className="mt-2 text-xs text-gray-400">只读：预扣的变化只能由订单状态驱动；要处理请到接码后台对那张单用「关单并原路退回预扣」。</p>
+              </div>
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-gray-900">最近确认 / 释放 / 退款</h3>
+                {data.recent.length === 0 ? <div className="py-4 text-center text-sm text-gray-400">暂无</div> : table(data.recent, false)}
+              </div>
+            </>
+          )}
+        </LoadGate>
       </CardContent>
     </Card>
   )
@@ -648,22 +686,23 @@ interface Report {
 }
 
 function ReconcileTab({ onDone }: { onDone: () => void }) {
-  const [report, setReport] = useState<Report | null>(null)
+  const { data, err, reload } = useApi<{ report: Report | null }>('/api/admin/wallet/reconcile')
+  const [ran, setRan] = useState<Report | null>(null)
   const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    getJson('/api/admin/wallet/reconcile')
-      .then((d) => d?.success && setReport(d.data.report))
-      .catch(() => {})
-  }, [])
+  const [runErr, setRunErr] = useState('')
+  const report = ran ?? data?.report ?? null
   const run = async (full: boolean) => {
     setBusy(true)
+    setRunErr('')
     try {
       const res = await fetch('/api/admin/wallet/reconcile', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ full }) })
-      const d = await res.json()
-      if (d.success) {
-        setReport(d.data.report)
+      const d = await res.json().catch(() => null)
+      if (d?.success) {
+        setRan(d.data.report)
         onDone()
-      } else alert(d.error || '对账失败')
+      } else setRunErr(d?.error || `对账失败（HTTP ${res.status}）`)
+    } catch {
+      setRunErr('网络异常，对账结果未知：稍后点「刷新」看最近一次报告')
     } finally {
       setBusy(false)
     }
@@ -682,30 +721,33 @@ function ReconcileTab({ onDone }: { onDone: () => void }) {
         </div>
       </CardHeader>
       <CardContent>
-        {!report ? (
-          <div className="py-8 text-center text-gray-400">还没有对账报告（cron 每天 03:10 跑）</div>
-        ) : (
-          <div className="space-y-2 text-sm">
-            <div className="text-gray-500">
-              {fmt(report.at)} · {report.full ? '全量' : `近 ${report.sinceHours} 小时`} · 负债 {yuan(report.liability.totalCents)}
-              {report.exemptUserIds.length > 0 && ` · 豁免用户 ${report.exemptUserIds.join('、')}`}
-            </div>
-            {report.items.map((i) => (
-              <div key={i.code} className={`rounded-lg border px-3 py-2 ${i.ok ? 'border-green-100 bg-green-50' : 'border-red-200 bg-red-50'}`}>
-                <div className="font-medium">
-                  {i.ok ? '✓' : '✗'} {i.code} {i.title}
-                  {!i.ok && <span className="ml-2 text-red-600">{i.count} 处</span>}
-                </div>
-                {i.note && <div className="text-xs text-gray-500">{i.note}</div>}
-                {i.samples.map((s, k) => (
-                  <div key={k} className="text-xs text-red-700">
-                    · {s}
-                  </div>
-                ))}
+        {runErr && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{runErr}</div>}
+        <LoadGate loaded={!!data || !!ran} err={ran ? null : err} onRetry={reload}>
+          {!report ? (
+            <div className="py-8 text-center text-gray-400">还没有对账报告（cron 每天 03:10 跑）</div>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <div className="text-gray-500">
+                {fmt(report.at)} · {report.full ? '全量' : `近 ${report.sinceHours} 小时`} · 负债 {yuan(report.liability.totalCents)}
+                {report.exemptUserIds.length > 0 && ` · 豁免用户 ${report.exemptUserIds.join('、')}`}
               </div>
-            ))}
-          </div>
-        )}
+              {report.items.map((i) => (
+                <div key={i.code} className={`rounded-lg border px-3 py-2 ${i.ok ? 'border-green-100 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                  <div className="font-medium">
+                    {i.ok ? '✓' : '✗'} {i.code} {i.title}
+                    {!i.ok && <span className="ml-2 text-red-600">{i.count} 处</span>}
+                  </div>
+                  {i.note && <div className="text-xs text-gray-500">{i.note}</div>}
+                  {i.samples.map((s, k) => (
+                    <div key={k} className="text-xs text-red-700">
+                      · {s}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </LoadGate>
       </CardContent>
     </Card>
   )
@@ -716,30 +758,48 @@ function ReconcileTab({ onDone }: { onDone: () => void }) {
 function SettingsTab({ onSaved }: { onSaved: () => void }) {
   const [cfg, setCfg] = useState<WalletConfig | null>(null)
   const [reason, setReason] = useState<string | null>(null)
+  // 库里那一行的版本号：读失败（校验不过、JSON 坏）时也有，保存用它作 expectVersion，坏掉的配置才能从这里修好
+  const [storedVersion, setStoredVersion] = useState(0)
+  const [topupAvailable, setTopupAvailable] = useState(false)
   const [factory, setFactory] = useState<WalletConfig | null>(null)
+  const [loadErr, setLoadErr] = useState<string | null>(null)
+  const [loaded, setLoaded] = useState(false)
   const [form, setForm] = useState({ tiers: '', min: '', max: '', pending: '2', balancePayEnabled: true, topupEnabled: false, topupAudience: 'ADMIN_ONLY', latepayAuto: true })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const fill = (c: WalletConfig) =>
+  const fill = (c: WalletConfig, available: boolean) =>
     setForm({
       tiers: c.tiersCents.map((t) => String(t / 100)).join(', '),
       min: String(c.minCents / 100),
       max: String(c.maxCents / 100),
       pending: String(c.pendingTopupPerUser),
       balancePayEnabled: c.balancePayEnabled,
-      topupEnabled: c.topupEnabled,
+      // B1 之前充值开关恒为关（服务端也拒绝打开）
+      topupEnabled: available && c.topupEnabled,
       topupAudience: c.topupAudience,
       latepayAuto: c.latepayAuto,
     })
   const load = useCallback(async () => {
-    const d = await getJson('/api/admin/wallet/config').catch(() => null)
-    if (!d?.success) return
-    setCfg(d.data.config)
-    setReason(d.data.reason)
-    setFactory(d.data.factory)
-    fill(d.data.config ?? d.data.factory)
+    setLoadErr(null)
+    try {
+      const res = await fetch('/api/admin/wallet/config', { cache: 'no-store' })
+      const d = await res.json().catch(() => null)
+      if (!d?.success) {
+        setLoadErr(d?.error || `加载失败（HTTP ${res.status}）`)
+        return
+      }
+      setCfg(d.data.config)
+      setReason(d.data.reason)
+      setStoredVersion(Number(d.data.storedVersion) || 0)
+      setTopupAvailable(d.data.topupAvailable === true)
+      setFactory(d.data.factory)
+      fill(d.data.config ?? d.data.factory, d.data.topupAvailable === true)
+      setLoaded(true)
+    } catch {
+      setLoadErr('网络异常，加载失败')
+    }
   }, [])
   useEffect(() => {
     load()
@@ -771,19 +831,21 @@ function SettingsTab({ onSaved }: { onSaved: () => void }) {
       const res = await fetch('/api/admin/wallet/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config, expectVersion: cfg?.version ?? 0, confirmLatepay }),
+        body: JSON.stringify({ config, expectVersion: storedVersion, confirmLatepay }),
       })
-      const d = await res.json()
-      if (d.success) {
+      const d = await res.json().catch(() => null)
+      if (d?.success) {
         setMsg('已保存')
         await load()
         onSaved()
-      } else if (d.needConfirm && window.confirm(d.error)) {
+      } else if (d?.needConfirm && window.confirm(d.error)) {
         await save(true)
       } else {
-        setErrors(d.errors || {})
-        setMsg(d.error || '保存失败')
+        setErrors(d?.errors || {})
+        setMsg(d?.error || `保存失败（HTTP ${res.status}）`)
       }
+    } catch {
+      setMsg('网络异常，结果未知：请刷新页面看版本号是否已变')
     } finally {
       setBusy(false)
     }
@@ -798,67 +860,93 @@ function SettingsTab({ onSaved }: { onSaved: () => void }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>wallet_config{cfg ? `（版本 ${cfg.version}）` : ''}</CardTitle>
+        <CardTitle>wallet_config{cfg ? `（版本 ${cfg.version}）` : storedVersion ? `（库里版本 ${storedVersion}，已损坏）` : ''}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
-        {!cfg && reason && (
-          <div className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800">
-            当前读不到有效配置（{reason}）：充值、新单选余额、迟到付款自动退入都按关闭处理（释放、确认、退款、提现、返现入账不受影响）。下面填的是出厂值，保存一次即可。
+        {loadErr && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg bg-red-50 px-3 py-2 text-red-700">
+            <span>{loadErr}</span>
+            <Button size="sm" variant="outline" onClick={load}>
+              重试
+            </Button>
           </div>
         )}
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={form.balancePayEnabled} onChange={(e) => setForm({ ...form, balancePayEnabled: e.target.checked })} />
-          余额支付（关掉 = 急停：新单不能选余额；已预扣的单照常确认或释放，退款照常入余额）
-        </label>
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={form.topupEnabled} onChange={(e) => setForm({ ...form, topupEnabled: e.target.checked })} />
-            充值开关
-          </label>
-          <select value={form.topupAudience} onChange={(e) => setForm({ ...form, topupAudience: e.target.value })} className="rounded-lg border border-gray-300 px-3 py-2 text-sm">
-            <option value="ADMIN_ONLY">仅管理员</option>
-            <option value="ALL">全部用户</option>
-          </select>
-          <span className="text-xs text-gray-400">（跟接码一起对全部用户开放，D28）</span>
-        </div>
-        <div>
-          <div className="mb-1 text-gray-700">档位（元，逗号分隔，1–8 个，升序）</div>
-          <input value={form.tiers} onChange={(e) => setForm({ ...form, tiers: e.target.value })} className={`${box('tiersCents')} w-72`} />
-          {err('tiersCents')}
-        </div>
-        <div className="flex flex-wrap gap-4">
-          <div>
-            <div className="mb-1 text-gray-700">单笔下限（元，整数，≥1）</div>
-            <input value={form.min} onChange={(e) => setForm({ ...form, min: e.target.value })} className={`${box('minCents')} w-32`} />
-            {err('minCents')}
-          </div>
-          <div>
-            <div className="mb-1 text-gray-700">单笔上限（元，整数，≤1000）</div>
-            <input value={form.max} onChange={(e) => setForm({ ...form, max: e.target.value })} className={`${box('maxCents')} w-32`} />
-            {err('maxCents')}
-          </div>
-          <div>
-            <div className="mb-1 text-gray-700">每人待支付充值单上限（1–3）</div>
-            <input value={form.pending} onChange={(e) => setForm({ ...form, pending: e.target.value })} className={`${box('pendingTopupPerUser')} w-24`} />
-            {err('pendingTopupPerUser')}
-          </div>
-        </div>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={form.latepayAuto} onChange={(e) => setForm({ ...form, latepayAuto: e.target.checked })} />
-          迟到付款自动退入（关掉后「付完马上取消」等迟到付款全部要你手动退入；改动要二次确认）
-        </label>
-        <p className="text-xs text-gray-400">没有「充值余额总额上限」这一项（站长 09-29 决定不设，Q5）。</p>
-        <div className="flex items-center gap-3">
-          <Button onClick={() => save()} loading={busy}>
-            保存
-          </Button>
-          {factory && (
-            <Button variant="outline" onClick={() => fill(factory)}>
-              填入出厂值
-            </Button>
-          )}
-          {msg && <span className={msg === '已保存' ? 'text-green-600' : 'text-red-600'}>{msg}</span>}
-        </div>
+        {!loaded && !loadErr && <div className="py-8 text-center text-gray-400">加载中...</div>}
+        {loaded && (
+          <>
+            {!cfg && reason && (
+              <div className="rounded-lg bg-amber-50 px-3 py-2 text-amber-800">
+                当前读不到有效配置（{reason}）：充值、新单选余额、迟到付款自动退入都按关闭处理（释放、确认、退款、提现、返现入账不受影响）。下面填的是出厂值，保存一次即可。
+              </div>
+            )}
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={form.balancePayEnabled} onChange={(e) => setForm({ ...form, balancePayEnabled: e.target.checked })} />
+              余额支付（关掉 = 急停：新单不能选余额；已预扣的单照常确认或释放，退款照常入余额）
+            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className={`flex items-center gap-2 ${topupAvailable ? '' : 'text-gray-400'}`}>
+                <input
+                  type="checkbox"
+                  checked={form.topupEnabled}
+                  disabled={!topupAvailable}
+                  onChange={(e) => setForm({ ...form, topupEnabled: e.target.checked })}
+                />
+                充值开关
+              </label>
+              <select
+                value={form.topupAudience}
+                disabled={!topupAvailable}
+                onChange={(e) => setForm({ ...form, topupAudience: e.target.value })}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-400"
+              >
+                <option value="ADMIN_ONLY">仅管理员</option>
+                <option value="ALL">全部用户</option>
+              </select>
+              <span className="text-xs text-gray-400">
+                {topupAvailable ? '（跟接码一起对全部用户开放，D28）' : '（充值页面与接口在 B1 上线，之后才能打开）'}
+              </span>
+              {err('topupEnabled')}
+            </div>
+            <div>
+              <div className="mb-1 text-gray-700">档位（元，逗号分隔，1–8 个，升序）</div>
+              <input value={form.tiers} onChange={(e) => setForm({ ...form, tiers: e.target.value })} className={`${box('tiersCents')} w-72`} />
+              {err('tiersCents')}
+            </div>
+            <div className="flex flex-wrap gap-4">
+              <div>
+                <div className="mb-1 text-gray-700">单笔下限（元，整数，≥1）</div>
+                <input value={form.min} onChange={(e) => setForm({ ...form, min: e.target.value })} className={`${box('minCents')} w-32`} />
+                {err('minCents')}
+              </div>
+              <div>
+                <div className="mb-1 text-gray-700">单笔上限（元，整数，≤1000）</div>
+                <input value={form.max} onChange={(e) => setForm({ ...form, max: e.target.value })} className={`${box('maxCents')} w-32`} />
+                {err('maxCents')}
+              </div>
+              <div>
+                <div className="mb-1 text-gray-700">每人待支付充值单上限（1–3）</div>
+                <input value={form.pending} onChange={(e) => setForm({ ...form, pending: e.target.value })} className={`${box('pendingTopupPerUser')} w-24`} />
+                {err('pendingTopupPerUser')}
+              </div>
+            </div>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={form.latepayAuto} onChange={(e) => setForm({ ...form, latepayAuto: e.target.checked })} />
+              迟到付款自动退入（关掉后「付完马上取消」等迟到付款全部要你手动退入；改动要二次确认）
+            </label>
+            <p className="text-xs text-gray-400">没有「充值余额总额上限」这一项（站长 09-29 决定不设，Q5）。</p>
+            <div className="flex items-center gap-3">
+              <Button onClick={() => save()} loading={busy}>
+                保存
+              </Button>
+              {factory && (
+                <Button variant="outline" onClick={() => fill(factory, topupAvailable)}>
+                  填入出厂值
+                </Button>
+              )}
+              {msg && <span className={msg === '已保存' ? 'text-green-600' : 'text-red-600'}>{msg}</span>}
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   )
@@ -981,18 +1069,17 @@ function AdjustDialog({ init, onClose, onDone }: { init: { userId?: number; labe
 // ============================== 用户详情 ==============================
 
 function UserDetailDialog({ userId, onClose }: { userId: number; onClose: () => void }) {
-  const [d, setD] = useState<{
+  const {
+    data: d,
+    err,
+    reload,
+  } = useApi<{
     user: { id: number; email: string | null; nickname: string | null }
     wallet: { topupCents: number; cashCents: number; totalCents: number; heldCents: number }
     holds: { id: number; orderId: number; topupCents: number; cashCents: number; state: string; heldAt: string }[]
     logs: AdminLog[]
     orders: { id: number; orderNo: string; productName: string; amount: string; payStatus: string; deliveryStatus: string; deliveryType: string; own: boolean }[]
-  } | null>(null)
-  useEffect(() => {
-    getJson(`/api/admin/wallet/users/${userId}`)
-      .then((r) => r?.success && setD(r.data))
-      .catch(() => {})
-  }, [userId])
+  }>(`/api/admin/wallet/users/${userId}`)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -1003,7 +1090,9 @@ function UserDetailDialog({ userId, onClose }: { userId: number; onClose: () => 
           </button>
         </div>
         {!d ? (
-          <div className="py-8 text-center text-gray-400">加载中...</div>
+          <LoadGate loaded={false} err={err} onRetry={reload}>
+            {null}
+          </LoadGate>
         ) : (
           <div className="space-y-5 text-sm">
             <div>

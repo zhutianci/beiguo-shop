@@ -9,8 +9,9 @@
 import { splitDebit, splitRefund, centsOf, yuanStr, fmtCents } from '../src/lib/wallet/buckets'
 import { validatePost, LEDGER_TYPES, isBizKeyConflict, isRetryableTxError, type PostInput } from '../src/lib/wallet/ledger'
 import { walletTotals, totalsIdentity, toWalletLogItem, type TypeSum } from '../src/lib/wallet/dto'
-import { checkWalletConfig, validateTopupAmount, FACTORY_WALLET_CONFIG, MAX_TOPUP_CENTS, topupOpenFor } from '../src/lib/wallet/config'
-import { planAdjust, isAdjustKind } from '../src/lib/wallet/adjust'
+import { checkWalletConfig, validateTopupAmount, FACTORY_WALLET_CONFIG, MAX_TOPUP_CENTS, topupOpenFor, TOPUP_AVAILABLE, storedVersionOf } from '../src/lib/wallet/config'
+import { csvCell, shanghaiTimeStr } from '../src/lib/wallet/admin-query'
+import { planAdjust, isAdjustKind, ADJUST_REASON_MAX, REFERRALS_NOTE_MAX } from '../src/lib/wallet/adjust'
 import { BALANCE_TYPE_LABELS, referralOrderIdOf, ledgerOrderIdOf, WALLET_LOG_CATEGORIES } from '../src/lib/balance'
 
 let failed = 0
@@ -231,9 +232,27 @@ console.log('\n[§12.1 第 116 条] wallet_config 保存校验（zod）')
   bad({ balancePayEnabled: 'yes' }, '开关不是布尔 拒绝', 'balancePayEnabled')
   ok(!checkWalletConfig(null).ok && !checkWalletConfig('x').ok, '不是对象：拒绝')
   ok(checkWalletConfig({ ...f, maxCents: 50000 }).ok, '调低上限到 ¥500：通过（D36：支付宝风控时只改配置不发版）')
-  ok(!topupOpenFor(f, true) && !topupOpenFor(null, true), '出厂充值关闭；配置读不到按关闭')
-  ok(topupOpenFor({ ...f, topupEnabled: true }, true) && !topupOpenFor({ ...f, topupEnabled: true }, false), '仅管理员：管理员开、普通用户关')
-  ok(topupOpenFor({ ...f, topupEnabled: true, topupAudience: 'ALL' }, false), '全部用户：普通用户也开')
+  ok(!topupOpenFor(f, true, true) && !topupOpenFor(null, true, true), '出厂充值关闭；配置读不到按关闭')
+  ok(topupOpenFor({ ...f, topupEnabled: true }, true, true) && !topupOpenFor({ ...f, topupEnabled: true }, false, true), '仅管理员：管理员开、普通用户关')
+  ok(topupOpenFor({ ...f, topupEnabled: true, topupAudience: 'ALL' }, false, true), '全部用户：普通用户也开')
+  ok(TOPUP_AVAILABLE === false, 'B0：充值功能还没交付（TOPUP_AVAILABLE=false，B1 交付时改 true）')
+  ok(!topupOpenFor({ ...f, topupEnabled: true, topupAudience: 'ALL' }, true), 'B1 之前：配置里打开了也按关闭（不出指向 404 的 [充值]）')
+}
+
+console.log('\n[评审修复] wallet_config 的版本号口径（坏掉的配置也能从后台保存修好）')
+{
+  ok(storedVersionOf(null) === 0 && storedVersionOf(undefined) === 0, '行不存在：0')
+  ok(storedVersionOf('{bad json') === 0 && storedVersionOf('null') === 0 && storedVersionOf('5') === 0, 'JSON 坏 / 不是对象：0')
+  ok(storedVersionOf(JSON.stringify({ ...FACTORY_WALLET_CONFIG, version: 3, maxCents: 200000 })) === 3, '校验不过但带 version=3：3（按它保存才不会永远 409）')
+  ok(storedVersionOf('{"version":-2}') === 0 && storedVersionOf('{"version":1.5}') === 0 && storedVersionOf('{"version":"3"}') === 0 && storedVersionOf('{"version":4294967296}') === 0, 'version 不是 [0, 2^31) 的整数：0')
+}
+
+console.log('\n[评审修复] 流水 CSV：负数能求和、公式注入仍防、时间是北京时间')
+{
+  ok(csvCell(-5000 / 100) === '-50' && csvCell('-50.00') === '-50.00' && csvCell('12.34') === '12.34' && csvCell(-3) === '-3', '纯数字（含负数）原样输出')
+  ok(csvCell('=1+1') === "'=1+1" && csvCell('+1') === "'+1" && csvCell('-1+1') === "'-1+1" && csvCell('@SUM(A1)') === "'@SUM(A1)" && csvCell('-x@y') === "'-x@y", '以 = + - @ 开头的非数字文本加 \'')
+  ok(csvCell('a,b') === '"a,b"' && csvCell('say "hi"') === '"say ""hi"""' && csvCell(null) === '' && csvCell(undefined) === '', '逗号 / 引号转义，空值为空串')
+  ok(shanghaiTimeStr(new Date('2026-09-29T23:30:05Z')) === '2026-09-30 07:30:05' && shanghaiTimeStr('2026-09-29T15:59:59.999Z') === '2026-09-29 23:59:59', '时间：UTC+8、YYYY-MM-DD HH:mm:ss')
 }
 
 console.log('\n[§7.8] 后台调整的类型映射（不能记 LATEPAY）')
@@ -249,6 +268,7 @@ console.log('\n[§7.8] 后台调整的类型映射（不能记 LATEPAY）')
   ok(typeof planAdjust({ kind: 'CASH_ADD', amountCents: 0, requestId: rid }) === 'string' && typeof planAdjust({ kind: 'CASH_ADD', amountCents: -5, requestId: rid }) === 'string', '金额 ≤ 0：拒绝')
   ok(typeof planAdjust({ kind: 'CASH_ADD', amountCents: 5, requestId: 'not-a-uuid' }) === 'string', '请求号格式不对：拒绝')
   ok(!isAdjustKind('LATEPAY') && !isAdjustKind('HOLD') && isAdjustKind('CLAWBACK'), '传 LATEPAY / HOLD 不是合法的调整类型（接口 400）')
+  ok(ADJUST_REASON_MAX === 200 && REFERRALS_NOTE_MAX === 255, '原因上限：新入口 200 字；旧入口「内推管理 → 提现/调整」沿用改造前的 255（入参不变）')
 }
 
 console.log(`\n通过 ${passed} 条，失败 ${failed} 条`)

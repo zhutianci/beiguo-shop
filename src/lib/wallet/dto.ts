@@ -180,7 +180,11 @@ export interface WalletView {
   holdingCents: number
   withdrawableCents: number
   holds: WalletHoldItem[]
-  totals: WalletTotals
+  /**
+   * 累计数（按流水类型算，要读全部流水的 groupBy）。brief=1 时为 null：brief 不查流水，
+   * 拿空流水套公式会得出「累计消费 = −预扣中」这种负数（spent = 0 − 0 − heldCents），不如不给
+   */
+  totals: WalletTotals | null
   canUseForJiema: boolean
   /** [充值] 按钮：充值对本人开放时才显示 */
   topupOpen: boolean
@@ -200,7 +204,7 @@ export interface WalletView {
 }
 
 /**
- * 组装买家钱包（GET /api/account/wallet）。brief=true 只算余额（个人中心 / 确认面板用）。
+ * 组装买家钱包（GET /api/account/wallet）。brief=true 只算余额（个人中心 / 确认面板用），totals 为 null。
  * 调用方负责 denyOnChannel 与登录校验；这里只按 userId 查。
  */
 export async function buildWalletView(
@@ -253,7 +257,7 @@ export async function buildWalletView(
   if (opts.brief) {
     return {
       ...base,
-      totals: walletTotals([], holdingCents),
+      totals: null,
       recentLateCredits: [],
       pendingReward: 0,
       pendingRewardCents: 0,

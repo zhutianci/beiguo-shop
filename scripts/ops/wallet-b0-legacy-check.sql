@@ -38,3 +38,9 @@ SELECT COALESCE(SUM(balance), 0) AS cash_total, COALESCE(SUM(topup_cents), 0) AS
 
 -- ④ 流水类型分布（B0 之前只应有 REFERRAL / ADJUST / WITHDRAW）
 SELECT type, COUNT(*) AS n, COALESCE(SUM(delta), 0) AS delta_sum FROM balance_logs GROUP BY type ORDER BY type;
+
+-- ⑤ 负余额的用户（旧代码「先读后扣」，并发提现可能扣成负数；① 只核「余额 = Σ流水」，查不出「两边都是负数」的人）。
+--    上线后对账 W2「没有任何一格为负」会天天报它们。应当没有输出；有的话逐个列给站长，二选一：
+--    a) 站长同意补平：上线后到「余额与充值 → 调整余额 → 返现余额 +」补到 0（写 ADJUST 流水，恒等式不破）；
+--    b) 不处理：写进 wallet_reconcile_exempt 豁免名单（W1 / W2 / W8 跳过、报告列出），见 wallet-b0-align.sql 第 ④ 段
+SELECT id AS negative_user_id, email, balance, topup_cents FROM users WHERE balance < 0 OR topup_cents < 0 ORDER BY balance, id;

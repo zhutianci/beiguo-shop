@@ -7,7 +7,7 @@ import { prisma } from '../db'
 import { BALANCE_TYPE_LABELS, referralOrderIdOf, ledgerOrderIdOf } from '../balance'
 import { centsOf, yuanStr } from './buckets'
 import { liabilityNow, lastReconcileReport, STUCK_HOLD_MIN } from './reconcile'
-import { readWalletConfig } from './config'
+import { readWalletConfig, TOPUP_AVAILABLE } from './config'
 
 const n = (v: unknown) => Number(v ?? 0)
 
@@ -59,6 +59,8 @@ export async function walletOverview(now = new Date()) {
       byType,
     },
     config: cfg.ok ? { ok: true as const, config: cfg.config } : { ok: false as const, reason: cfg.reason },
+    /** 充值功能交付了吗（B1 之前 false：看板显示「未上线」，不管配置里的开关） */
+    topupAvailable: TOPUP_AVAILABLE,
     reconcile: report ? { at: report.at, ok: report.ok, full: report.full, failed: report.items.filter((i) => !i.ok).map((i) => ({ code: i.code, count: i.count })) } : null,
   }
 }
@@ -218,19 +220,27 @@ export async function walletLogs(f: LogFilter, opts: { all?: boolean } = {}) {
   }
 }
 
-/** CSV（含两格变动与变动后余额，§7.8）。首行 BOM 让 Excel 按 UTF-8 打开 */
+/** 纯函数：CSV 时间列按北京时间（UTC+8）写成「YYYY-MM-DD HH:mm:ss」——对账、开票核对都按北京日期筛选 */
+export function shanghaiTimeStr(d: Date | string): string {
+  const t = new Date(new Date(d).getTime() + 8 * 3600_000).toISOString()
+  return `${t.slice(0, 10)} ${t.slice(11, 19)}`
+}
+
+/** 纯函数：CSV 一格的转义。纯数字（含负数，如 -50.00）原样输出，Excel 才能求和；其余以 = + - @ 开头的加 ' 防公式注入 */
+export function csvCell(v: unknown): string {
+  const s = v == null ? '' : String(v)
+  const numeric = /^-?\d+(\.\d+)?$/.test(s)
+  const safe = !numeric && /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
+  return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
+}
+
+/** CSV（含两格变动与变动后余额，§7.8）。首行 BOM 让 Excel 按 UTF-8 打开；时间是北京时间 */
 export function logsToCsv(list: Awaited<ReturnType<typeof walletLogs>>['list']): string {
-  const esc = (v: unknown) => {
-    const s = v == null ? '' : String(v)
-    // 以 = + - @ 开头的单元格前加 '，防 CSV 公式注入
-    const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
-    return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe
-  }
-  const head = ['流水ID', '时间', '用户ID', '邮箱', '类型', '返现格变动', '返现格余额', '充值格变动', '充值格余额', '订单ID', 'bizKey', '备注']
+  const head = ['流水ID', '时间（北京）', '用户ID', '邮箱', '类型', '返现格变动', '返现格余额', '充值格变动', '充值格余额', '订单ID', 'bizKey', '备注']
   const lines = list.map((l) =>
     [
       l.id,
-      new Date(l.createdAt).toISOString(),
+      shanghaiTimeStr(l.createdAt),
       l.userId,
       l.email,
       l.typeLabel,
@@ -242,7 +252,7 @@ export function logsToCsv(list: Awaited<ReturnType<typeof walletLogs>>['list']):
       l.bizKey ?? '',
       l.note ?? '',
     ]
-      .map(esc)
+      .map(csvCell)
       .join(','),
   )
   return '﻿' + [head.join(','), ...lines].join('\r\n')

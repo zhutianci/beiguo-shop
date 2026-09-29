@@ -57,7 +57,7 @@ HAVING u.balance <> COALESCE(SUM(l.delta), 0);
 -- ③' 本次写入的对齐流水
 SELECT id, user_id, delta, balance_after, biz_key, created_at FROM balance_logs WHERE biz_key LIKE 'migrate:u%' ORDER BY id;
 
--- ④ （可选）站长剔除、不补流水的用户写进对账豁免名单：W1 / W8 跳过它们，报告里列出。取消注释并填 id 后执行
+-- ④ （可选）站长剔除、不补流水的用户写进对账豁免名单：W1 / W2 / W8 跳过它们，报告里列出（wallet-b0-legacy-check.sql 第 ⑤ 段的负余额用户，站长决定不补平的也写这里）。取消注释并填 id 后执行
 -- INSERT INTO settings (`key`, value, created_at, updated_at)
 -- VALUES ('wallet_reconcile_exempt', '{"userIds":[],"note":"B0 旧账核对时站长剔除，不补历史对齐流水"}', UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))
 -- ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = UTC_TIMESTAMP(3);

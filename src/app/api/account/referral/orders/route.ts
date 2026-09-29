@@ -9,6 +9,7 @@ import { success, error, unauthorized } from '@/lib/api'
 import { maskBuyer, maskOrderNo } from '@/lib/mask'
 import { denyOnChannel } from '@/lib/storefront/resolve'
 import { canUseForJiema } from '@/lib/wallet/config'
+import { clawbackCentsOf } from '@/lib/wallet/clawback'
 
 /**
  * 推广订单：别人通过「我的」推广链接下的单（Order.referrerId = 我，有索引）。
@@ -79,7 +80,9 @@ export async function GET(request: NextRequest) {
     })
     const settledIds = settledRows.map((r) => r.orderId)
     const settledSet = new Set(settledIds)
-    const settledCents = settledRows.reduce((s, r) => s + toCents(r.amount), 0)
+    // 已到账返现 = Σ 已结算返现 − Σ 返现扣回（与钱包页「累计返现」同一口径；扣回只写流水、不改 ReferralReward）
+    const clawbackCents = await clawbackCentsOf(user.id)
+    const settledCents = settledRows.reduce((s, r) => s + toCents(r.amount), 0) - clawbackCents
 
     const mine: Prisma.OrderWhereInput = { referrerId: user.id }
     const pendingWhere: Prisma.OrderWhereInput = {
@@ -162,6 +165,7 @@ export async function GET(request: NextRequest) {
         orderCount,
         paidCount,
         settledReward: settledCents / 100,
+        clawedBackReward: clawbackCents / 100,
         settledCount: settledIds.length,
         pendingReward: toCents(pendingAgg._sum.referralReward) / 100,
         pendingCount: pendingAgg._count._all,

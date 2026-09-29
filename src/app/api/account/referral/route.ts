@@ -8,6 +8,8 @@ import { success, error, unauthorized } from '@/lib/api'
 import { ensureReferralCode } from '@/lib/referral'
 import { denyOnChannel } from '@/lib/storefront/resolve'
 import { canUseForJiema } from '@/lib/wallet/config'
+import { clawbackCentsOf } from '@/lib/wallet/clawback'
+import { centsOf } from '@/lib/wallet/buckets'
 
 // GET：内推码 + 收益概览 + 各商品基础价/我的专属价（商品分页）
 export async function GET(request: NextRequest) {
@@ -27,7 +29,7 @@ export async function GET(request: NextRequest) {
     const link = `${appUrl}/products?ref=${code}`
 
     const productWhere = { status: 1 }
-    const [me, products, productTotal, rewardAgg, jiema] = await Promise.all([
+    const [me, products, productTotal, rewardAgg, jiema, clawback] = await Promise.all([
       prisma.user.findUnique({ where: { id: user.id }, select: { balance: true } }),
       prisma.product.findMany({
         where: productWhere,
@@ -45,6 +47,7 @@ export async function GET(request: NextRequest) {
         _count: { _all: true },
       }),
       canUseForJiema(),
+      clawbackCentsOf(user.id),
     ])
 
     // 专属价/基础价只查本页商品
@@ -67,7 +70,8 @@ export async function GET(request: NextRequest) {
       customPrice: priceMap.has(p.id) ? priceMap.get(p.id)! : null,
     }))
 
-    const totalReward = Number(rewardAgg._sum.amount ?? 0)
+    // 累计返现 = Σ 已结算返现 − Σ 返现扣回（与钱包页 totals.referral 同一口径；扣回只写流水、不改 ReferralReward，见 lib/wallet/clawback.ts）
+    const totalRewardCents = centsOf(rewardAgg._sum.amount ?? 0) - clawback
 
     return success({
       code,
@@ -76,7 +80,8 @@ export async function GET(request: NextRequest) {
       balance: Number(me?.balance ?? 0),
       // 「可提现，也可用于接码抵扣」只在做得到时出现（docs/短信接码-设计.md §1.15），由服务端下发
       canUseForJiema: jiema,
-      totalReward: Math.round(totalReward * 100) / 100,
+      totalReward: totalRewardCents / 100,
+      clawedBackReward: clawback / 100,
       rewardCount: rewardAgg._count._all,
       products: list,
       productTotal,

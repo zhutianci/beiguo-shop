@@ -17,7 +17,18 @@
  *   · 第 114 条 钱包接口：canUseForJiema、totals、白名单、分类筛选、预扣、迟到退入横幅
  *   · W1–W9 对账：干净数据不新增问题；逐条注入不一致都能被发现
  *   · §5.6 运维 SQL：旧账核对（只读）、「历史对齐」流水（可重复执行）、wallet_config 种子
+ *
+ * B0 评审修复（fe184ab 之后）追加：
+ *   · wallet_config 行不存在也推 wallet.alert（本地起一个假 webhook 收）
+ *   · 校验不过但带 version 的配置：storedVersion 给出库里的版本号，按它保存能修好；409 区分「版本不一致」与「已损坏」
+ *   · B1 之前（TOPUP_AVAILABLE=false）：topupOpen 恒 false、保存拒绝打开充值开关
+ *   · lockHoldInTx 不对不存在的预扣行加间隙锁：纯支付宝单退款与同一买家下单并发，不死锁
+ *   · releaseInTx 前提不满足（订单没关、有在途收款单、预扣已确认）抛错，关单一起回滚
+ *   · 对账：同一快照（与记账并发时不误报）、按时间窗逐行（窗外的旧记录只在全量里核）、W2 认豁免名单
+ *   · 旧入口「内推管理 → 提现/调整」备注仍收 255 字；brief=1 不给 totals；CSV 负数不加 '、时间是北京时间；
+ *     返现扣回合计（累计返现按「已结算 − 扣回」）；旧账核对 SQL 列出负余额
  */
+import http from 'http'
 import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
@@ -57,9 +68,46 @@ async function main() {
   const referral = await import('../src/lib/referral')
   const { centsOf } = await import('../src/lib/wallet/buckets')
 
+  const clawback = await import('../src/lib/wallet/clawback')
+
   // ---- 备份会被本测试改动的 settings 行，finally 里原样恢复 ----
   const SETTING_KEYS = ['wallet_config', 'sms_config', reconcile.RECONCILE_EXEMPT_KEY, reconcile.RECONCILE_LAST_KEY]
   const savedSettings = await prisma.setting.findMany({ where: { key: { in: SETTING_KEYS } } })
+
+  // ---- 评审修复：行不存在也推 wallet.alert。必须是本进程第一次读 wallet_config（告警有 1 小时进程内节流） ----
+  {
+    console.log('\n【wallet_config 行不存在：推 wallet.alert（假 webhook）】')
+    const bodies: string[] = []
+    const srv = http.createServer((req, res) => {
+      let b = ''
+      req.on('data', (c) => (b += c))
+      req.on('end', () => {
+        bodies.push(b)
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end('{"errcode":0}')
+      })
+    })
+    await new Promise<void>((r) => srv.listen(0, '127.0.0.1', () => r()))
+    const port = (srv.address() as { port: number }).port
+    const savedHook = { w: process.env.WECOM_WEBHOOK_URL, e: process.env.NOTIFY_EVENTS }
+    process.env.WECOM_WEBHOOK_URL = `http://127.0.0.1:${port}/cgi-bin/webhook/send?key=itest`
+    delete process.env.NOTIFY_EVENTS
+    try {
+      await prisma.setting.deleteMany({ where: { key: 'wallet_config' } })
+      const r = await config.readWalletConfig()
+      for (let i = 0; i < 40 && bodies.length === 0; i++) await new Promise((x) => setTimeout(x, 50))
+      ok('行不存在：MISSING、storedVersion=0', !r.ok && r.reason === 'MISSING' && r.storedVersion === 0)
+      ok('  …推了一条 wallet.alert（「wallet_config 行不存在」）', bodies.length === 1 && bodies[0].includes('行不存在'), bodies.join(' | ').slice(0, 200))
+      await config.readWalletConfig()
+      await new Promise((x) => setTimeout(x, 200))
+      ok('  …1 小时节流：再读一次不再推', bodies.length === 1)
+    } finally {
+      if (savedHook.w === undefined) delete process.env.WECOM_WEBHOOK_URL
+      else process.env.WECOM_WEBHOOK_URL = savedHook.w
+      if (savedHook.e !== undefined) process.env.NOTIFY_EVENTS = savedHook.e
+      srv.close()
+    }
+  }
 
   const cat = await prisma.category.create({ data: { name: `${TAG}-cat` } })
   const product = await prisma.product.create({ data: { categoryId: cat.id, name: `${TAG}-p`, price: D(0), stock: -1, deliveryType: 'MANUAL', status: 0 } })
@@ -244,27 +292,58 @@ async function main() {
       ok('恒等式成立', await identityOk(h.id))
     }
 
-    console.log('\n【预扣 H1 → H3 释放：三个前提逐条违反都不释放】')
+    console.log('\n【预扣 H1 → H3 释放：前提不满足一律抛错，关单一起回滚】')
     {
       const r = await mkUser('rel')
       await seed(r.id, 300, 0)
       const o = await mkOrder(r.id, 2)
       await ledger.inMoneyTx((tx) => hold.holdInTx(tx, { orderId: o.id, userId: r.id, orderCents: 200 }))
       const rel = (reason = 'BUYER_CLOSE') => ledger.inMoneyTx((tx) => hold.releaseInTx(tx, o.id, { reason }))
-      ok('订单还没取消：ORDER_NOT_CLOSED、不释放', eq((await rel()) as unknown, { released: false, why: 'ORDER_NOT_CLOSED' }))
-      await prisma.order.update({ where: { id: o.id }, data: { deliveryStatus: 'CANCELLED' } })
+      const blockedWhy = async (fn: () => Promise<unknown>) => {
+        try {
+          await fn()
+          return null
+        } catch (e) {
+          return e instanceof hold.HoldReleaseBlocked ? e.why : e instanceof hold.HoldStateError ? 'STATE' : String(e)
+        }
+      }
+      ok('订单还没取消就调释放：抛 HoldReleaseBlocked(ORDER_NOT_CLOSED)', (await blockedWhy(() => rel())) === 'ORDER_NOT_CLOSED')
+      // 调用方的真实写法：同一事务里先关单、再释放。还有在途收款单时整笔回滚，订单不会停在「已取消 + 预扣还 HELD」（D33、R9）
+      const closeAndRelease = () =>
+        ledger.inMoneyTx(async (tx) => {
+          await tx.order.updateMany({ where: { id: o.id, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } }, data: { deliveryStatus: 'CANCELLED' } })
+          return hold.releaseInTx(tx, o.id, { reason: 'VMQ_EXPIRED' })
+        })
+      const untouched = async () =>
+        (await prisma.order.findUniqueOrThrow({ where: { id: o.id } })).deliveryStatus !== 'CANCELLED' &&
+        (await prisma.balanceHold.findUniqueOrThrow({ where: { orderId: o.id } })).state === 'HELD' &&
+        (await buckets(r.id)).topup === 100
       const v = await prisma.vmqOrder.create({ data: { orderId: `${TAG}vr${seq}`, bizType: 'order', bizId: o.id, outTradeNo: o.orderNo, price: D(0.01), reallyPrice: D(0.01), state: 0 } })
       createdVmqIds.push(v.id)
-      ok('还有 state=0 的收款单：HAS_PAYMENT、不释放', eq((await rel()) as unknown, { released: false, why: 'HAS_PAYMENT' }))
+      ok('关单事务里还有 state=0 的收款单：抛 HoldReleaseBlocked(HAS_PAYMENT)', (await blockedWhy(closeAndRelease)) === 'HAS_PAYMENT')
+      ok('  …关单一起回滚：订单仍待支付、预扣仍 HELD、充值格没加回', await untouched())
       await prisma.vmqOrder.update({ where: { id: v.id }, data: { state: 1 } })
-      ok('收款单 state=1（钱到了、履约还没做）：HAS_PAYMENT、不释放', eq((await rel()) as unknown, { released: false, why: 'HAS_PAYMENT' }))
+      ok('收款单 state=1（钱到了、履约还没做）：同样抛 HAS_PAYMENT、整笔回滚', (await blockedWhy(closeAndRelease)) === 'HAS_PAYMENT' && (await untouched()))
       await prisma.vmqOrder.update({ where: { id: v.id }, data: { state: -1 } })
-      const done = await rel('VMQ_EXPIRED')
-      ok('收款单 −1、订单 UNPAID+CANCELLED、预扣 HELD：释放', done.released === true)
+      const done = await closeAndRelease()
+      ok('收款单 −1：关单 + 释放在同一事务里成功', done.released === true && (await prisma.order.findUniqueOrThrow({ where: { id: o.id } })).deliveryStatus === 'CANCELLED')
       ok('  …充值格原路加回 3.00→（扣 2.00 后 1.00）→ 3.00', (await buckets(r.id)).topup === 300)
       const rl = await prisma.balanceLog.findUnique({ where: { bizKey: `release:${o.id}` } })
       ok('  …一条 RELEASE 流水（release:<orderId>）', !!rl && rl.topupDeltaCents === 200 && rl.type === 'RELEASE')
-      ok('再释放一次：NOT_HELD（RELEASED 是终态），不重复加', eq((await rel()) as unknown, { released: false, why: 'NOT_HELD' }) && (await buckets(r.id)).topup === 300)
+      ok('再释放一次：ALREADY_RELEASED（RELEASED 是终态、空操作），不重复加', eq((await rel()) as unknown, { released: false, why: 'ALREADY_RELEASED' }) && (await buckets(r.id)).topup === 300)
+      // 预扣已确认（CAPTURED）的订单被当成未付款关单：抛 HoldStateError，不释放
+      const oc = await mkOrder(r.id, 1)
+      await ledger.inMoneyTx((tx) => hold.holdInTx(tx, { orderId: oc.id, userId: r.id, orderCents: 100 }))
+      await ledger.inMoneyTx(async (tx) => {
+        await tx.order.update({ where: { id: oc.id }, data: { payStatus: 'PAID', paidAt: new Date(), deliveryStatus: 'PROCESSING', payMethod: 'BALANCE' } })
+        await hold.captureInTx(tx, oc.id, { mustCoverCents: 100 })
+        await tx.payment.create({ data: { orderId: oc.id, payMethod: 'BALANCE', amount: D(1), status: 1 } })
+      })
+      ok('预扣已 CAPTURED 却调释放：抛 HoldStateError、预扣不变', (await blockedWhy(() => ledger.inMoneyTx((tx) => hold.releaseInTx(tx, oc.id, { reason: 'ADMIN_CLOSE' })))) === 'STATE' && (await prisma.balanceHold.findUniqueOrThrow({ where: { orderId: oc.id } })).state === 'CAPTURED')
+      await ledger.inMoneyTx(async (tx) => {
+        await tx.order.update({ where: { id: oc.id }, data: { payStatus: 'REFUNDED', deliveryStatus: 'CANCELLED' } })
+        await hold.refundInTx(tx, { orderId: oc.id, userId: r.id, alipayPaidCents: null, reason: 'SMS_CANCEL' })
+      })
       const o2 = await mkOrder(r.id, 1, { deliveryStatus: 'CANCELLED' })
       ok('没有预扣的订单：NO_HOLD（空操作）', eq((await ledger.inMoneyTx((tx) => hold.releaseInTx(tx, o2.id, { reason: 'VMQ_EXPIRED' }))) as unknown, { released: false, why: 'NO_HOLD' }))
       const z = await mkUser('zero')
@@ -277,6 +356,42 @@ async function main() {
       }
       ok('两格都是 0：NothingToHold、不建预扣行', nothing && !(await prisma.balanceHold.findUnique({ where: { orderId: oz.id } })))
       ok('恒等式成立', await identityOk(r.id))
+    }
+
+    console.log('\n【lockHoldInTx 不对不存在的预扣行加锁：纯支付宝单退款 与 同一买家下单 并发不死锁】')
+    {
+      const g = await mkUser('gap')
+      await seed(g.id, 500, 0)
+      // A：一张纯支付宝单（没有预扣行）要退款；B：同一买家刚下的新单（id 更大，落在唯一索引的同一个间隙里）
+      const oA = await mkOrder(g.id, 1, { payStatus: 'PAID', deliveryStatus: 'PROCESSING', paidAt: new Date(), payMethod: 'ALIPAY' })
+      await prisma.payment.create({ data: { orderId: oA.id, payMethod: 'ALIPAY', amount: D(1), status: 1, tradeNo: `${TAG}gA` } })
+      const oB = await mkOrder(g.id, 1)
+      const sleep = (ms: number) => new Promise((x) => setTimeout(x, ms))
+      let signalB!: () => void
+      const bLocked = new Promise<void>((x) => (signalB = x))
+      // 不走 inMoneyTx（它遇到死锁会重试一次，会把问题藏起来）
+      const txB = prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM users WHERE id = ${g.id} FOR UPDATE` // 下单事务第一步：锁用户行
+          signalB()
+          await sleep(800) // 等 A 走到「锁预扣行 → 等用户行」
+          await hold.holdInTx(tx, { orderId: oB.id, userId: g.id, orderCents: 100 })
+        },
+        { timeout: 30_000, maxWait: 5_000 },
+      )
+      await bLocked
+      const txA = prisma.$transaction((tx) => hold.refundInTx(tx, { orderId: oA.id, userId: g.id, alipayPaidCents: 100, reason: 'SMS_CANCEL' }), { timeout: 30_000, maxWait: 5_000 })
+      const [ra, rb] = await Promise.allSettled([txA, txB])
+      const why = [ra, rb].map((x) => (x.status === 'rejected' ? String((x.reason as Error)?.message ?? x.reason).slice(0, 160) : 'ok')).join(' | ')
+      ok('两个事务都提交（没有死锁 / 写冲突 P2034）', ra.status === 'fulfilled' && rb.status === 'fulfilled', why)
+      ok('  …B 的预扣建好（HELD）、A 的退款入账（充值格 5.00 − 1.00 + 1.00）', (await prisma.balanceHold.findUnique({ where: { orderId: oB.id } }))?.state === 'HELD' && (await buckets(g.id)).topup === 500)
+      // 收尾：A 置已退款；B 关单释放（让后面的对账保持干净）
+      await prisma.order.update({ where: { id: oA.id }, data: { payStatus: 'REFUNDED', deliveryStatus: 'CANCELLED' } })
+      await ledger.inMoneyTx(async (tx) => {
+        await tx.order.update({ where: { id: oB.id }, data: { deliveryStatus: 'CANCELLED' } })
+        await hold.releaseInTx(tx, oB.id, { reason: 'BUYER_CLOSE' })
+      })
+      ok('  …恒等式成立', await identityOk(g.id))
     }
 
     console.log('\n【第 61 条 预扣期间提现：只能提返现格剩余部分】')
@@ -353,10 +468,19 @@ async function main() {
       ok('  …恒等式成立', await identityOk(e1.id))
       const noReason = await adjust.adminAdjust({ actorUserId: null, kind: 'CASH_ADD', userId: u.id, amountCents: 1, reason: '  ', requestId: uuid() })
       ok('新入口不填原因：400', !noReason.ok && noReason.status === 400)
+      // 旧入口「内推管理 → 提现/调整」入参不变：改造前备注 max(255)，照旧收 201–255 字；新入口仍限 200
+      const long230 = '线下打款说明'.repeat(38) + '12' // 230 字
+      const lg1 = await adjust.adminAdjust({ actorUserId: null, kind: 'CASH_ADD', userId: u.id, amountCents: 1, reason: long230, requestId: uuid(), source: 'referrals' })
+      ok('旧入口 230 字备注：照常记账（note 原样存下）', lg1.ok && (await prisma.balanceLog.findUnique({ where: { id: lg1.ok ? (lg1.logId ?? 0) : 0 } }))?.note === long230)
+      const lg2 = await adjust.adminAdjust({ actorUserId: null, kind: 'CASH_ADD', userId: u.id, amountCents: 1, reason: long230 + 'x'.repeat(26), requestId: uuid(), source: 'referrals' })
+      ok('旧入口 256 字：400（与改造前 zod max(255) 一致）', !lg2.ok && lg2.status === 400)
+      const lg3 = await adjust.adminAdjust({ actorUserId: null, kind: 'CASH_ADD', userId: u.id, amountCents: 1, reason: long230, requestId: uuid() })
+      ok('新入口 230 字：400「原因最多 200 字」', !lg3.ok && lg3.status === 400 && lg3.message === '原因最多 200 字')
+      await adjust.adminAdjust({ actorUserId: null, kind: 'CASH_SUB', userId: u.id, amountCents: 1, reason: '冲回上面那 1 分', requestId: uuid(), source: 'referrals' })
       const audit = await prisma.auditEvent.findFirst({ where: { action: 'wallet.adjust', targetType: 'user', targetId: String(u.id) }, orderBy: { id: 'asc' } })
       const diff = audit?.diff as { before?: { cashCents: number }; after?: { cashCents: number }; bizKey?: string } | null
       ok('审计：记了调整前后两格与 bizKey', !!diff && diff.before?.cashCents === 0 && diff.after?.cashCents === 500 && diff.bizKey === `adj:${rid}`)
-      ok('旧入口的审计 action = wallet.adjust_legacy', (await prisma.auditEvent.count({ where: { action: 'wallet.adjust_legacy', targetId: String(u.id) } })) === 2)
+      ok('旧入口的审计 action = wallet.adjust_legacy（不带请求号两次 + 长备注两次）', (await prisma.auditEvent.count({ where: { action: 'wallet.adjust_legacy', targetId: String(u.id) } })) === 4)
       ok('恒等式成立', await identityOk(u.id))
     }
 
@@ -385,6 +509,12 @@ async function main() {
       const r4 = await adjust.adminAdjust({ actorUserId: null, kind: 'CLAWBACK', referralOrderId: z.o.id, reason: '推荐订单退款', requestId: uuid() })
       const r5 = await adjust.adminAdjust({ actorUserId: null, kind: 'CLAWBACK', referralOrderId: z.o.id, reason: '推荐订单退款', requestId: uuid() })
       ok('两格都是 0：记一条 0 元扣回占住 bizKey、差额 1.00；再点也不会以后再扣', r4.ok && r4.shortfallCents === 100 && r5.ok && r5.duplicate)
+      // 累计返现口径：Σ 已结算返现 − Σ 扣回（实际扣到的部分）；ReferralReward 不改
+      const cbs = await clawback.clawbackCentsByUser([x.p.id, y.p.id, z.p.id])
+      ok('返现扣回合计：全额扣回 3.00、扣回不足只算实际扣到的 1.00、两格为 0 的记 0', cbs.get(x.p.id) === 300 && cbs.get(y.p.id) === 100 && (cbs.get(z.p.id) ?? 0) === 0, JSON.stringify(Array.from(cbs)))
+      ok('  …ReferralReward 保持 SETTLED、金额不变（待结算口径不受影响）', (await prisma.referralReward.findUnique({ where: { orderId: x.o.id } }))?.status === 'SETTLED')
+      const xv = await dto.buildWalletView({ id: x.p.id })
+      ok('  …与钱包页 totals.referral 同一口径（这里没有 REFERRAL 流水：0 − 3.00）', xv.totals!.referral === -300 && (await clawback.clawbackCentsOf(x.p.id)) === 300)
       const nf = await adjust.adminAdjust({ actorUserId: null, kind: 'CLAWBACK', referralOrderId: 999999999, reason: 'x', requestId: uuid() })
       ok('没有已入账返现的订单：404', !nf.ok && nf.status === 404)
       ok('恒等式成立', (await identityOk(x.p.id)) && (await identityOk(y.p.id)) && (await identityOk(z.p.id)))
@@ -422,7 +552,7 @@ async function main() {
       const v = await dto.buildWalletView({ id: legacy.id })
       ok('钱包总额 = 改造前余额 12.50（充值格 0）', v.balanceCents === 1250 && v.topupCents === 0 && v.cashCents === 1250 && v.balance === 12.5)
       ok('历史流水的变动后总余额按「返现格 + 0」显示', v.logs[0].afterCents === 1250 && v.logs[1].afterCents === 1650)
-      ok('累计数：返现 16.50、已提现 4.00、充值 / 消费 / 退回为 0', v.totals.referral === 1650 && v.totals.withdrawn === 400 && v.totals.topupIn === 0 && v.totals.spent === 0 && v.totals.refunded === 0)
+      ok('累计数：返现 16.50、已提现 4.00、充值 / 消费 / 退回为 0', v.totals!.referral === 1650 && v.totals!.withdrawn === 400 && v.totals!.topupIn === 0 && v.totals!.spent === 0 && v.totals!.refunded === 0)
       ok('REFERRAL 流水的 ref：反查只认 referrerId = 本人（别人推广的订单不给）', v.logs[1].ref === null)
       ok('users.balance = Σ delta', await identityOk(legacy.id))
     }
@@ -437,8 +567,8 @@ async function main() {
       ok('响应里没有 note / bizKey', !/"note"|"bizKey"|"biz_key"/.test(keys))
       ok('pendingReward（元）与 pendingRewardCents 同口径', pv.pendingReward * 100 === pv.pendingRewardCents)
       const hv = await dto.buildWalletView({ id: h.id })
-      ok('totals 恒等式对真实流水成立（h：预扣 → 确认 → 退款 + 纯支付宝退款）', hv.balanceCents + hv.holdingCents === dto.totalsIdentity(hv.totals), `${hv.balanceCents} ${JSON.stringify(hv.totals)}`)
-      ok('累计消费 = 已确认的余额付款 1.20；累计退回 = 1.72 + 1.73', hv.totals.spent === 120 && hv.totals.refunded === 345)
+      ok('totals 恒等式对真实流水成立（h：预扣 → 确认 → 退款 + 纯支付宝退款）', hv.balanceCents + hv.holdingCents === dto.totalsIdentity(hv.totals!), `${hv.balanceCents} ${JSON.stringify(hv.totals)}`)
+      ok('累计消费 = 已确认的余额付款 1.20；累计退回 = 1.72 + 1.73', hv.totals!.spent === 120 && hv.totals!.refunded === 345)
       const back = await dto.buildWalletView({ id: h.id }, { cat: 'back' })
       ok('分类「退回」只有 RELEASE / REFUND / LATEPAY', back.logs.length === 2 && back.logs.every((l) => ['RELEASE', 'REFUND', 'LATEPAY'].includes(l.type)))
       ok('接码流水 ref：「服务 · 国家/地区」+ 打码单号', back.logs[0].ref?.kind === 'SMS' && back.logs[0].ref.title === 'Telegram · 印尼')
@@ -449,9 +579,10 @@ async function main() {
       await ledger.inMoneyTx((tx) => hold.holdInTx(tx, { orderId: oq.id, userId: q.id, orderCents: 500 }))
       const qv = await dto.buildWalletView({ id: q.id })
       ok('有 HELD 预扣：可用余额不含它、单独 holdingCents，列出号码页链接', qv.balanceCents === 0 && qv.holdingCents === 200 && qv.holds[0]?.href === `/jiema/order/${oq.orderNo}`)
-      ok('恒等式：可用 + 预扣中 = 累计数右边', qv.balanceCents + qv.holdingCents === dto.totalsIdentity(qv.totals))
+      ok('恒等式：可用 + 预扣中 = 累计数右边', qv.balanceCents + qv.holdingCents === dto.totalsIdentity(qv.totals!))
       const brief = await dto.buildWalletView({ id: q.id }, { brief: true })
       ok('brief=1 只给余额（不查流水）', brief.logs.length === 0 && brief.balanceCents === 0 && brief.holdingCents === 200)
+      ok('  …brief 不给 totals（null，不再拿空流水算出「累计消费 −2.00」）', brief.totals === null && qv.totals!.spent >= 0)
       await prisma.order.update({ where: { id: oq.id }, data: { deliveryStatus: 'CANCELLED' } })
       await ledger.inMoneyTx((tx) => hold.releaseInTx(tx, oq.id, { reason: 'BUYER_CLOSE' }))
       const qv2 = await dto.buildWalletView({ id: q.id })
@@ -468,7 +599,7 @@ async function main() {
       await ledger.inMoneyTx((tx) => ledger.postInTx(tx, { userId: q.id, topupDeltaCents: 503, type: 'LATEPAY', bizKey: `latepay:${ekey}`, orderId: lateOrder.id }))
       const qv3 = await dto.buildWalletView({ id: q.id })
       ok('近 7 天的 LATEPAY 进 recentLateCredits（钱包页横幅）', qv3.recentLateCredits.length === 1 && qv3.recentLateCredits[0].cents === 503 && qv3.recentLateCredits[0].ref?.orderNoMasked.includes('*') === true)
-      ok('累计退回含 LATEPAY', qv3.totals.refunded === 503)
+      ok('累计退回含 LATEPAY', qv3.totals!.refunded === 503)
       // 打开接码与余额支付（S4 全量开放那一刻）→ canUseForJiema=true
       await prisma.setting.create({ data: { key: 'wallet_config', value: JSON.stringify(config.FACTORY_WALLET_CONFIG) } })
       await prisma.setting.create({ data: { key: 'sms_config', value: JSON.stringify({ enabled: true, audience: 'ALL' }) } })
@@ -480,7 +611,11 @@ async function main() {
       ok('余额支付急停：false', (await config.canUseForJiema()) === false)
       await prisma.setting.update({ where: { key: 'wallet_config' }, data: { value: JSON.stringify({ ...config.FACTORY_WALLET_CONFIG, topupEnabled: true }) } })
       const admin = await mkUser('adm', 'ADMIN')
-      ok('充值仅管理员：管理员 topupOpen=true、普通用户 false', (await dto.buildWalletView({ id: admin.id, role: 'ADMIN' }, { brief: true })).topupOpen && !(await dto.buildWalletView({ id: q.id, role: 'USER' }, { brief: true })).topupOpen)
+      const cfgTopupOn = await config.readWalletConfig()
+      ok('B1 之前（TOPUP_AVAILABLE=false）库里 topupEnabled=true：读取照常成功（不把余额支付等一起 fail-closed）', config.TOPUP_AVAILABLE === false && cfgTopupOn.ok)
+      ok('  …但充值按关闭处理：管理员、普通用户 topupOpen 都是 false，不出 [充值]', !(await dto.buildWalletView({ id: admin.id, role: 'ADMIN' }, { brief: true })).topupOpen && !(await dto.buildWalletView({ id: q.id, role: 'USER' }, { brief: true })).topupOpen)
+      const sOn = await config.saveWalletConfig({ ...config.FACTORY_WALLET_CONFIG, topupEnabled: true }, cfgTopupOn.storedVersion)
+      ok('  …保存时打开充值开关：拒绝（errors.topupEnabled），不写库', !sOn.ok && !!sOn.errors.topupEnabled && (await config.readWalletConfig()).storedVersion === cfgTopupOn.storedVersion)
     }
 
     console.log('\n【第 59 条 wallet_config 损坏：只关充值 / 新单选余额 / 自动退入；释放、退款照常】')
@@ -517,6 +652,28 @@ async function main() {
       ok('拿旧版本号再保存：WalletConfigConflict（409）', conflict)
       const s3 = await config.saveWalletConfig({ ...config.FACTORY_WALLET_CONFIG, maxCents: 50000 }, 1)
       ok('按当前版本保存：版本 2、上限 ¥500，文案随之变成 1–500', s3.ok && s3.config.version === 2 && config.validateTopupAmount(50100, s3.config) === '请输入 1–500 之间的整数金额')
+
+      // 评审修复：合法 JSON、带 version、但校验不过的行（手改库 / 以后给 zod 加了必填字段）必须能从后台保存修好
+      await prisma.setting.update({ where: { key: 'wallet_config' }, data: { value: JSON.stringify({ ...config.FACTORY_WALLET_CONFIG, version: 3, maxCents: 200000 }) } })
+      const broken = await config.readWalletConfig()
+      ok('校验不过但带 version=3：INVALID，storedVersion=3（后台 GET 把它给页面）', !broken.ok && broken.reason === 'INVALID' && broken.storedVersion === 3)
+      let brokenConflict: unknown = null
+      try {
+        await config.saveWalletConfig({ ...config.FACTORY_WALLET_CONFIG }, 0)
+      } catch (e) {
+        brokenConflict = e
+      }
+      ok('  …按旧页面的 expectVersion=0 保存：409，文案说「库里的配置已损坏」', brokenConflict instanceof config.WalletConfigConflict && brokenConflict.storedBroken && brokenConflict.message.includes('已损坏'))
+      const fixed = await config.saveWalletConfig({ ...config.FACTORY_WALLET_CONFIG }, broken.storedVersion)
+      ok('  …按 storedVersion 保存：修好，版本 4、读取恢复 ok', fixed.ok && fixed.config.version === 4 && (await config.readWalletConfig()).ok)
+      ok('  …审计的 before 是 null（坏配置没有合法的旧值）', fixed.ok && fixed.before === null)
+      await prisma.setting.update({ where: { key: 'wallet_config' }, data: { value: '{"version":7,' } })
+      const badJson = await config.readWalletConfig()
+      ok('JSON 坏掉的行：storedVersion=0，按 0 保存能修好（版本 1）', !badJson.ok && badJson.storedVersion === 0 && (await config.saveWalletConfig({ ...config.FACTORY_WALLET_CONFIG }, 0)).ok)
+      await prisma.setting.update({ where: { key: 'wallet_config' }, data: { value: JSON.stringify({ ...config.FACTORY_WALLET_CONFIG, version: -2 }) } })
+      ok('version 不是 ≥0 的整数：storedVersion 按 0（页面能发得出来）', (await config.readWalletConfig()).storedVersion === 0 && (await config.saveWalletConfig({ ...config.FACTORY_WALLET_CONFIG }, 0)).ok)
+      const fresh = await config.readWalletConfig()
+      ok('  …读取恢复 ok', fresh.ok && fresh.storedVersion === 1)
     }
 
     console.log('\n【W 系列对账：干净数据不新增问题】')
@@ -610,8 +767,57 @@ async function main() {
       await prisma.setting.upsert({ where: { key: reconcile.RECONCILE_EXEMPT_KEY }, create: { key: reconcile.RECONCILE_EXEMPT_KEY, value: JSON.stringify({ userIds: [legacy.id] }) }, update: { value: JSON.stringify({ userIds: [legacy.id] }) } })
       const ex = await recon()
       ok('豁免名单里的用户（§5.6 站长剔除的）：W1 / W8 不报、报告列出', countOf(ex, 'W1') === countOf(clean, 'W1') && countOf(ex, 'W8') === countOf(clean, 'W8') && ex.exemptUserIds.includes(legacy.id))
+      // W2 也认豁免名单：上线前就存在的历史负余额（旧代码并发提现扣成负数），站长决定不处理的，不再天天告警
+      await prisma.$executeRaw`UPDATE users SET balance = -1.00 WHERE id = ${legacy.id}`
+      const exNeg = await recon()
+      const w2 = exNeg.items.find((i) => i.code === 'W2')
+      ok('豁免用户的历史负余额：W2 不报，报告里注明豁免人数', countOf(exNeg, 'W2') === countOf(clean, 'W2') && !!w2?.note?.includes('豁免'))
       await prisma.setting.delete({ where: { key: reconcile.RECONCILE_EXEMPT_KEY } })
-      await prisma.user.update({ where: { id: legacy.id }, data: { balance: { decrement: D(0.05) } } })
+      ok('  …不在豁免名单里：W2 照报', countOf(await recon(), 'W2') > countOf(clean, 'W2'))
+      await prisma.$executeRaw`UPDATE users SET balance = 12.50 WHERE id = ${legacy.id}`
+      ok('  …恢复后 legacy 恒等式成立', await identityOk(legacy.id))
+
+      // 按时间窗逐行（§9.4「覆盖前两天」）：窗外的旧预扣只在全量里逐行核
+      const oldHold = await prisma.balanceHold.findFirstOrThrow({ where: { userId: h.id, state: 'REFUNDED' } })
+      const oldPay = await prisma.payment.findFirstOrThrow({ where: { orderId: oldHold.orderId, payMethod: 'BALANCE' } })
+      const fiveDaysAgo = new Date(Date.now() - 5 * 86400_000)
+      await prisma.$executeRaw`UPDATE balance_holds SET created_at = ${fiveDaysAgo}, updated_at = ${fiveDaysAgo} WHERE id = ${oldHold.id}`
+      await prisma.$executeRaw`UPDATE orders SET updated_at = ${fiveDaysAgo} WHERE id = ${oldHold.orderId}`
+      await prisma.$executeRaw`UPDATE payments SET amount = 1.19 WHERE id = ${oldPay.id}`
+      const winClean = await reconcile.runWalletReconcile({ full: false, save: false, alert: false })
+      const fullDirty = await recon()
+      ok('5 天前的已退款预扣支付行不对：全量 W4 报出，日常（近 48 小时）不逐行看它', countOf(fullDirty, 'W4') > countOf(clean, 'W4') && !winClean.items.find((i) => i.code === 'W4')?.samples.some((s) => s.includes(`#${oldHold.orderId} `)))
+      ok('  …日常报告注明逐行范围（近 48 小时；全量在每周日）', !!winClean.items.find((i) => i.code === 'W3')?.note?.includes('48'))
+      await prisma.payment.update({ where: { id: oldPay.id }, data: { amount: oldPay.amount } })
+
+      // 一致性快照：对账与记账并发时不误报（旧实现分几次读，中间提交一笔预扣 / 释放就会报 W3、W8）
+      // （修复前的实现在同样的负载下 20 次里误报约 3 次：W3「预扣是 HELD，却有 release 流水」、W5「HELD 但订单已取消」）
+      const churners = [await mkUser('recon-c1'), await mkUser('recon-c2')]
+      for (const c of churners) await seed(c.id, 10_000, 0)
+      let stop = false
+      const churn = (uid: number) =>
+        (async () => {
+          let k = 0
+          while (!stop && k < 500) {
+            const oc = await mkOrder(uid, 1)
+            await ledger.inMoneyTx((tx) => hold.holdInTx(tx, { orderId: oc.id, userId: uid, orderCents: 100 }))
+            await ledger.inMoneyTx(async (tx) => {
+              await tx.order.update({ where: { id: oc.id }, data: { deliveryStatus: 'CANCELLED' } })
+              await hold.releaseInTx(tx, oc.id, { reason: 'BUYER_CLOSE' })
+            })
+            k++
+          }
+          return k
+        })()
+      const workers = churners.map((c) => churn(c.id))
+      const during: Awaited<ReturnType<typeof recon>>[] = []
+      await new Promise((x) => setTimeout(x, 100))
+      for (let i = 0; i < 20; i++) during.push(await recon())
+      stop = true
+      const cycles = (await Promise.all(workers)).reduce((a, k) => a + k, 0)
+      const noisy = during.flatMap((r) => r.items.filter((i) => i.count > countOf(clean, i.code)).map((i) => `${i.code}:${i.samples[0]}`))
+      ok(`对账期间并发记账（两个买家共 ${cycles} 轮预扣 → 关单释放）：20 次全量对账都不误报`, cycles > 0 && noisy.length === 0, noisy.join(' ; '))
+      ok('  …恒等式成立', (await identityOk(churners[0].id)) && (await identityOk(churners[1].id)))
       // 写 settings.wallet_reconcile_last（save 默认开）
       const saved = await reconcile.runWalletReconcile({ full: false, alert: false })
       ok('runWalletReconcile 写 wallet_reconcile_last，lastReconcileReport 读得回', (await reconcile.lastReconcileReport())?.at === saved.at)
@@ -629,8 +835,15 @@ async function main() {
       ok('后台流水可见 bizKey 与内部备注', byUser.list.some((l) => l.bizKey === `hold:${hHold.orderId}`) && byUser.list.some((l) => l.note === 'itest 充值格'))
       const csv = aq.logsToCsv([{ ...byUser.list[0], note: '=HYPERLINK("x")', email: 'a,b@x' }])
       ok('CSV：UTF-8 BOM、表头含两格、公式注入加引号、逗号转义', csv.startsWith('﻿流水ID') && csv.includes('充值格变动') && csv.includes(`"'=HYPERLINK(""x"")"`) && csv.includes('"a,b@x"'))
+      const wd = await aq.walletLogs({ userId: h.id, type: 'HOLD' })
+      const csv2 = aq.logsToCsv([{ ...wd.list[0], createdAt: new Date('2026-09-29T23:30:05Z'), note: '-1+1', email: '-x@y' }])
+      const row2 = csv2.split('\r\n')[1].split(',')
+      const neg = (wd.list[0].topupDeltaCents / 100).toFixed(2)
+      ok(`CSV：负数金额原样输出（${neg} 不加 '，Excel 能求和）`, wd.list[0].topupDeltaCents < 0 && row2[7] === neg && !csv2.includes(`'${neg}`), row2.join(','))
+      ok('  …以 - 开头的非数字文本仍加 \'（-1+1、-x@y 防公式注入）', csv2.includes("'-1+1") && csv2.includes("'-x@y"))
+      ok('  …时间按北京时间（UTC 23:30 → 次日 07:30），表头注明', row2[1] === '2026-09-30 07:30:05' && csv2.includes('时间（北京）'))
       const holds = await aq.walletHolds()
-      ok('预扣列表：最近确认 / 释放 / 退款里有本测试的预扣', holds.recent.some((x) => x.userId === h.id && x.state === 'REFUNDED'))
+      ok('预扣列表：最近确认 / 释放 / 退款里有本测试的预扣', holds.recent.some((x) => userIds.includes(x.userId) && x.state !== 'HELD'))
       const ov = await aq.walletOverview()
       const liab = await reconcile.liabilityNow()
       ok('看板负债 = liabilityNow（W8 同一个函数）', ov.liability.totalCents === liab.totalCents)
@@ -670,10 +883,18 @@ async function main() {
         })
         return results
       }
+      // 历史负余额：余额 −5.00、流水也是 −5.00（① 查不出来，⑤ 要列出来）
+      const ng = await mkUser('neg')
+      await prisma.balanceLog.create({ data: { userId: ng.id, delta: D(-5), balanceAfter: D(-5), type: 'WITHDRAW', note: '提现到支付宝（线下）' } })
+      await prisma.$executeRaw`UPDATE users SET balance = -5.00 WHERE id = ${ng.id}`
       const before = await buckets(m.id)
       const chk = await run('wallet-b0-legacy-check.sql')
       const rows = chk[0] as { id: number; diff: unknown }[]
       ok('旧账核对 ①：列出「返现格 ≠ 流水之和」的用户与差额', rows.some((r) => Number(r.id) === m.id && centsOf(r.diff) === 200))
+      const negRows = chk.find((set) => (set as Record<string, unknown>[])[0] && 'negative_user_id' in (set as Record<string, unknown>[])[0]) as { negative_user_id: number; balance: unknown }[] | undefined
+      ok('旧账核对 ⑤：列出负余额的用户（① 查不出的「余额 = 流水 = −5.00」）', !!negRows?.some((r) => Number(r.negative_user_id) === ng.id && centsOf(r.balance) === -500) && !rows.some((r) => Number(r.id) === ng.id))
+      await prisma.$executeRaw`UPDATE users SET balance = 0 WHERE id = ${ng.id}`
+      await prisma.balanceLog.deleteMany({ where: { userId: ng.id } })
       ok('  …只读：两格与流水都没变', JSON.stringify(await buckets(m.id)) === JSON.stringify(before) && (await prisma.balanceLog.count({ where: { userId: m.id } })) === 1)
       await run('wallet-b0-align.sql')
       ok('对齐脚本 @ids 留空：什么都不写', (await prisma.balanceLog.count({ where: { userId: m.id } })) === 1)

@@ -213,7 +213,9 @@ interface UserDetail {
     referralPriceCount: number
     referrerBasePriceCount: number
     rewardCount: number
+    /** Σ 已结算返现 − Σ 返现扣回 */
     rewardTotal: number
+    rewardClawedBack?: number
   }
 }
 
@@ -572,7 +574,7 @@ export default function AdminUserDetailPage() {
           icon={Gift}
           label="内推返现"
           value={money(stats.referralRewardTotal)}
-          sub={`${referral.rewardCount} 笔已结算`}
+          sub={`${referral.rewardCount} 笔已结算${referral.rewardClawedBack ? ` · 已扣回 ${money(referral.rewardClawedBack)}` : ''}`}
         />
       </div>
 

@@ -22,6 +22,15 @@ import { notify } from '../notify'
 export const MAX_TOPUP_CENTS = 100_000
 export const WALLET_CONFIG_KEY = 'wallet_config'
 
+/**
+ * 充值功能（/wallet/topup 页面与 POST /api/wallet/topup）已经交付了吗。**B1 交付时改成 true**。
+ * false 时：topupOpenFor 恒为 false（钱包页不出 [充值]、不下发只有充值才用得上的说法），
+ * 后台「设置」不许打开充值开关（saveWalletConfig 拒绝 topupEnabled=true）。只写代码做得到的（交接文档 1816）。
+ * 它**不**进读取时的 zod 校验：库里万一是 topupEnabled=true（手改库），读取照常成功、只是按关闭处理，
+ * 不会把「余额支付」等其它开关一起 fail-closed。
+ */
+export const TOPUP_AVAILABLE = false
+
 export interface WalletConfig {
   version: number
   /** 余额支付急停：关掉后新单不能选余额；已预扣的单照常确认或释放，退款照常入余额 */
@@ -90,7 +99,28 @@ export function checkWalletConfig(input: unknown): WalletConfigCheck {
   return { ok: false, errors }
 }
 
-export type WalletConfigRead = { ok: true; config: WalletConfig } | { ok: false; reason: 'MISSING' | 'INVALID' | 'ERROR' }
+/**
+ * 读失败时也给出库里那一行的版本号（storedVersion），后台「设置」拿它做乐观并发的 expectVersion——
+ * 否则「合法 JSON、带 version、但校验不过」的行（手改库、以后的包给 zod 加了必填字段、调低了 MAX_TOPUP_CENTS）
+ * 在页面上永远保存不了：页面只能发 0，库里是 N，每次都 409。
+ */
+export type WalletConfigRead =
+  | { ok: true; config: WalletConfig; storedVersion: number }
+  | { ok: false; reason: 'MISSING' | 'INVALID' | 'ERROR'; storedVersion: number }
+
+/**
+ * 纯函数：库里一行 wallet_config 的版本号（乐观并发用）。行不存在、不是合法 JSON、没有 version、
+ * version 不是 [0, 2^31) 的整数，一律按 0。读取、保存、后台 GET 共用这一个口径。
+ */
+export function storedVersionOf(raw: string | null | undefined): number {
+  if (raw == null) return 0
+  try {
+    const v = (JSON.parse(raw) as { version?: unknown } | null)?.version
+    return typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 && v < 2 ** 31 ? v : 0
+  } catch {
+    return 0
+  }
+}
 
 let lastAlertAt = 0
 function alertBroken(reason: string, detail: string): void {
@@ -104,7 +134,10 @@ function alertBroken(reason: string, detail: string): void {
   ], { link: '/admin/wallet?tab=settings', extraTitle: '配置读取失败' })
 }
 
-/** 读当前配置。行不存在 / JSON 坏 / 校验不过 / 查库出错都返回 ok:false，调用方按「关闭」处理（fail-closed） */
+/**
+ * 读当前配置。行不存在 / JSON 坏 / 校验不过 / 查库出错都返回 ok:false，调用方按「关闭」处理（fail-closed）。
+ * 四种失败都推 wallet.alert（进程内 1 小时节流）：行不存在多半是部署时种子没跑，同样要让站长知道。
+ */
 export async function readWalletConfig(): Promise<WalletConfigRead> {
   let raw: string | null
   try {
@@ -112,34 +145,44 @@ export async function readWalletConfig(): Promise<WalletConfigRead> {
   } catch (e) {
     console.error('[wallet] 读取 wallet_config 失败', e)
     alertBroken('读取失败', (e as Error)?.message ?? String(e))
-    return { ok: false, reason: 'ERROR' }
+    return { ok: false, reason: 'ERROR', storedVersion: 0 }
   }
-  if (raw == null) return { ok: false, reason: 'MISSING' }
+  if (raw == null) {
+    alertBroken('行不存在', 'settings 里没有 wallet_config（部署种子 scripts/ops/wallet-b0-seed.sql 没跑？）；到后台「余额与充值 → 设置」保存一次即可')
+    return { ok: false, reason: 'MISSING', storedVersion: 0 }
+  }
+  const storedVersion = storedVersionOf(raw)
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
   } catch {
     alertBroken('不是合法 JSON', raw)
-    return { ok: false, reason: 'INVALID' }
+    return { ok: false, reason: 'INVALID', storedVersion }
   }
   const c = checkWalletConfig(parsed)
   if (!c.ok) {
     alertBroken('校验不通过', JSON.stringify(c.errors))
-    return { ok: false, reason: 'INVALID' }
+    return { ok: false, reason: 'INVALID', storedVersion }
   }
-  return { ok: true, config: c.config }
+  return { ok: true, config: c.config, storedVersion }
 }
 
 export class WalletConfigConflict extends Error {
-  constructor() {
-    super('配置已被别人改过，请刷新后再保存')
+  constructor(public readonly storedBroken = false) {
+    super(
+      storedBroken
+        ? '库里的配置已损坏，而且版本号与页面上的不一致（可能刚被别人改过），请刷新后再保存'
+        : '配置已被别人改过，请刷新后再保存',
+    )
     this.name = 'WalletConfigConflict'
   }
 }
 
 /**
- * 保存（后台「余额与充值 → 设置」）。乐观并发：expectVersion 必须等于库里当前版本（行不存在时为 0），
- * 保存后 version + 1。返回保存后的配置；校验不过返回 errors（不写库）。
+ * 保存（后台「余额与充值 → 设置」）。乐观并发：expectVersion 必须等于库里那一行的版本号（storedVersionOf：
+ * 行不存在、JSON 坏、没有合法 version 时为 0；**校验不过但带 version 的行按它自己的 version**——后台 GET 把它
+ * 作为 storedVersion 交给页面），保存后 version = expectVersion + 1。于是坏掉的配置总能从页面修好。
+ * 返回保存后的配置；校验不过返回 errors（不写库）。B1 之前（TOPUP_AVAILABLE=false）不许打开充值开关。
  */
 export async function saveWalletConfig(
   input: Omit<WalletConfig, 'version'>,
@@ -147,21 +190,20 @@ export async function saveWalletConfig(
 ): Promise<{ ok: true; config: WalletConfig; before: WalletConfig | null } | { ok: false; errors: Record<string, string> }> {
   const check = checkWalletConfig({ ...input, version: Math.max(expectVersion, 0) + 1 })
   if (!check.ok) return check
+  if (!TOPUP_AVAILABLE && check.config.topupEnabled) return { ok: false, errors: { topupEnabled: '充值功能在 B1 上线后才能打开' } }
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<{ value: string }[]>`SELECT value FROM settings WHERE \`key\` = ${WALLET_CONFIG_KEY} FOR UPDATE`
     let before: WalletConfig | null = null
-    let curVersion = 0
+    const curVersion = storedVersionOf(rows[0]?.value)
     if (rows[0]) {
       try {
-        const prev = JSON.parse(rows[0].value) as Partial<WalletConfig>
-        curVersion = Number.isSafeInteger(prev.version) ? Number(prev.version) : 0
-        const pc = checkWalletConfig(prev)
+        const pc = checkWalletConfig(JSON.parse(rows[0].value))
         before = pc.ok ? pc.config : null
       } catch {
-        curVersion = 0
+        before = null
       }
     }
-    if (curVersion !== expectVersion) throw new WalletConfigConflict()
+    if (curVersion !== expectVersion) throw new WalletConfigConflict(!!rows[0] && before === null)
     const value = JSON.stringify(check.config)
     await tx.setting.upsert({ where: { key: WALLET_CONFIG_KEY }, create: { key: WALLET_CONFIG_KEY, value }, update: { value } })
     return { ok: true as const, config: check.config, before }
@@ -180,9 +222,12 @@ export function validateTopupAmount(amountCents: unknown, cfg: Pick<WalletConfig
   return null
 }
 
-/** 充值对这个用户开放吗（topupEnabled 且受众覆盖他）。配置读不到时调用方按 false 处理 */
-export function topupOpenFor(cfg: WalletConfig | null, isAdmin: boolean): boolean {
-  if (!cfg || !cfg.topupEnabled) return false
+/**
+ * 充值对这个用户开放吗（充值功能已交付、topupEnabled、受众覆盖他）。配置读不到时调用方按 false 处理。
+ * available 默认取代码常量 TOPUP_AVAILABLE（B0 恒 false）；这个参数只给纯函数测试用。
+ */
+export function topupOpenFor(cfg: WalletConfig | null, isAdmin: boolean, available: boolean = TOPUP_AVAILABLE): boolean {
+  if (!available || !cfg || !cfg.topupEnabled) return false
   return cfg.topupAudience === 'ALL' || isAdmin
 }
 
@@ -190,7 +235,11 @@ export function topupOpenFor(cfg: WalletConfig | null, isAdmin: boolean): boolea
  * 「余额能付接码」的文案与 [去接码] 按钮开关（§1.15、§6.6 第 4 条）：
  *   sms_config.enabled && sms_config.audience === 'ALL' && wallet_config.balancePayEnabled
  * 任一份配置读取失败都按 false（B0 时 sms_config 还不存在 → false，保留旧口径）。管理员在灰度期看到的与普通用户一致。
- * sms_config 的完整校验在 S1 的 lib/jiema/config.ts；这里只读两个字段，不 import 接码代码（规则 17）。
+ *
+ * 【已知限制，S1 必须收口】（设计文档「实施偏差记录」B0 行）sms_config 的完整 zod 校验在 S1 的 lib/jiema/config.ts，
+ * B0 这里只读 enabled / audience 两个字段，不 import 接码代码（规则 17）。于是 sms_config「这两个字段对、其余字段坏」时
+ * 接码已 fail-closed 停售，这里却仍返回 true。S1 引入 zod 时把 schema 放进零依赖的共享模块（不 import lib/jiema 的其余部分），
+ * 这里改成「整份校验通过 && enabled && audience=ALL」；S1 验收加一条：sms_config 校验不过 → canUseForJiema=false。
  */
 export async function canUseForJiema(walletRead?: WalletConfigRead): Promise<boolean> {
   try {

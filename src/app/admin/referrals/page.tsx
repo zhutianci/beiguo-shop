@@ -13,7 +13,9 @@ interface Referrer {
   code: string
   link: string
   balance: number
+  /** 累计返现 = Σ 已结算返现 − Σ 返现扣回 */
   settledTotal: number
+  clawedBack?: number
   settledCount: number
 }
 interface Reward {
@@ -31,7 +33,7 @@ interface Data {
   referrers: Referrer[]
   rewards: Reward[]
   rewardPage: { page: number; pageSize: number; total: number; totalPages: number }
-  totals: { settledTotal: number; rewardCount: number; referrerCount: number }
+  totals: { settledTotal: number; clawedBackTotal?: number; rewardCount: number; referrerCount: number }
 }
 
 // 返现明细每页条数
@@ -314,6 +316,9 @@ export default function AdminReferralsPage() {
           <div className="rounded-xl border border-green-100 bg-green-50 p-4">
             <div className="text-xs text-green-700">已结算返现合计</div>
             <div className="text-2xl font-bold text-green-700">¥{data.totals.settledTotal.toFixed(2)}</div>
+            {(data.totals.clawedBackTotal ?? 0) > 0 && (
+              <div className="text-xs text-green-700/70">已扣除返现扣回 ¥{(data.totals.clawedBackTotal ?? 0).toFixed(2)}</div>
+            )}
           </div>
           <div className="rounded-xl border border-gray-100 bg-white p-4">
             <div className="text-xs text-gray-500">返现笔数</div>
@@ -353,7 +358,10 @@ export default function AdminReferralsPage() {
                       <td className="py-2 pr-3 font-medium">{r.name}</td>
                       <td className="py-2 pr-3 font-mono text-xs">{r.code}</td>
                       <td className="py-2 pr-3 text-right">¥{r.balance.toFixed(2)}</td>
-                      <td className="py-2 pr-3 text-right text-green-600">¥{r.settledTotal.toFixed(2)}</td>
+                      <td className="py-2 pr-3 text-right text-green-600">
+                        ¥{r.settledTotal.toFixed(2)}
+                        {(r.clawedBack ?? 0) > 0 && <div className="text-[11px] text-gray-400">已扣回 ¥{(r.clawedBack ?? 0).toFixed(2)}</div>}
+                      </td>
                       <td className="py-2 pr-3 text-right text-gray-600">{r.settledCount}</td>
                       <td className="py-2 text-right whitespace-nowrap">
                         <button

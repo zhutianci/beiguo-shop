@@ -5,7 +5,7 @@
  * （改账绕开 postInTx 与 bizKey，比不一致本身更危险）。
  *
  *   W1 当天（前两天）有流水的用户：users.balance = Σ delta、users.topup_cents = Σ topup_delta_cents；每周日全量（豁免名单除外）
- *   W2 没有任何一格为负
+ *   W2 没有任何一格为负（豁免名单除外，报告列出）
  *   W3 预扣 ⇔ hold:/release:/refund: 流水（两格分别同额），并核 §9.3 的预扣等式
  *   W4 CAPTURED / REFUNDED 的预扣 ⇔ 订单 Payment 里 BALANCE 行 = 预扣合计、ALIPAY 行 = amount − 预扣合计
  *   W5 HELD 的预扣：订单 UNPAID 且未取消、持续 ≤ 60 分钟（卡住的预扣）
@@ -14,8 +14,16 @@
  *   W8 全站：Σ balance = Σ delta、Σ topup_cents = Σ topup_delta_cents（豁免名单除外）；负债 = 两格合计 + HELD 合计
  *   W9 载体单（TOPUP / SMS_POOL）没有「已付款 + 已取消」这类非法组合；TOPUP 已付款必是 DELIVERED
  *
+ * 【一致性快照】全部读取在同一个只读事务里（REPEATABLE READ：第一次读建立快照，之后每条查询看到的是同一时刻的库）。
+ * 否则两次读之间提交一笔记账（S2 的 tick 每分钟都在释放、退款），就会误报「预扣是 HELD 却有 release 流水」
+ * 「Σ 两格 ≠ Σ 流水」并推 wallet.alert。只读事务不加锁，不挡任何写入。
+ * 【范围与内存】（§9.4「覆盖前两天」，1.8G 内存）每天只逐行核近 sinceHours（默认 48）小时有变动的预扣、流水、充值单，
+ * 外加全部 HELD 预扣（W5 本来就要全看，数量很少）；全量（每周日、后台「全量跑一次」）才逐行核全部历史。
+ * 逐行核对一律按 id 游标分批读（每批 RECONCILE_BATCH 行），不把整张表读进内存。
+ * 全站恒等式（W3 的 §9.3 等式、W8）每天都全量核，但用 SQL 聚合在库里算，只回几行。
+ *
  * 【豁免名单】§5.6：旧账核对时站长剔除、不补「历史对齐」流水的用户，写在 settings.wallet_reconcile_exempt
- * （{"userIds":[…],"note":"…"}），W1 / W8 跳过它们并在报告里列出。
+ * （{"userIds":[…],"note":"…"}），W1 / W2 / W8 跳过它们并在报告里列出。
  */
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db'
@@ -26,6 +34,12 @@ export const RECONCILE_LAST_KEY = 'wallet_reconcile_last'
 export const RECONCILE_EXEMPT_KEY = 'wallet_reconcile_exempt'
 /** HELD 预扣的「卡住」阈值（W5）：正常最长约 21 分钟，留足余量 */
 export const STUCK_HOLD_MIN = 60
+/** 逐行核对每批读多少行（内存上界） */
+export const RECONCILE_BATCH = 1000
+/** 整个对账在一个只读事务里跑；cron 的 curl --max-time 是 240 秒 */
+const RECONCILE_TX_TIMEOUT_MS = 200_000
+
+type Db = Prisma.TransactionClient | typeof prisma
 
 export interface ReconcileItem {
   code: string
@@ -54,9 +68,9 @@ function item(code: string, title: string, bad: string[], note?: string): Reconc
 
 const n = (v: unknown) => Number(v ?? 0)
 
-export async function readExemptUserIds(): Promise<number[]> {
+export async function readExemptUserIds(db: Db = prisma): Promise<number[]> {
   try {
-    const row = await prisma.setting.findUnique({ where: { key: RECONCILE_EXEMPT_KEY } })
+    const row = await db.setting.findUnique({ where: { key: RECONCILE_EXEMPT_KEY } })
     if (!row?.value) return []
     const v = JSON.parse(row.value) as { userIds?: unknown }
     return Array.isArray(v.userIds) ? v.userIds.map(Number).filter((x) => Number.isSafeInteger(x) && x > 0) : []
@@ -66,11 +80,9 @@ export async function readExemptUserIds(): Promise<number[]> {
 }
 
 /** 负债看板（§7.8、§9.3）：Σ 充值格 + Σ 返现格 + Σ HELD 预扣。W8 与后台概览共用同一个函数 */
-export async function liabilityNow(db: Prisma.TransactionClient | typeof prisma = prisma) {
-  const [u, h] = await Promise.all([
-    db.$queryRaw<{ t: unknown; c: unknown }[]>`SELECT COALESCE(SUM(topup_cents),0) AS t, COALESCE(SUM(balance),0) AS c FROM users`,
-    db.$queryRaw<{ s: unknown; k: unknown }[]>`SELECT COALESCE(SUM(topup_cents + cash_cents),0) AS s, COUNT(*) AS k FROM balance_holds WHERE state = 'HELD'`,
-  ])
+export async function liabilityNow(db: Db = prisma) {
+  const u = await db.$queryRaw<{ t: unknown; c: unknown }[]>`SELECT COALESCE(SUM(topup_cents),0) AS t, COALESCE(SUM(balance),0) AS c FROM users`
+  const h = await db.$queryRaw<{ s: unknown; k: unknown }[]>`SELECT COALESCE(SUM(topup_cents + cash_cents),0) AS s, COUNT(*) AS k FROM balance_holds WHERE state = 'HELD'`
   const topupCents = n(u[0]?.t)
   const cashCents = centsOf(u[0]?.c ?? 0)
   const heldCents = n(h[0]?.s)
@@ -84,24 +96,49 @@ function keyOrderId(key: string | null, prefix: string): number | null {
   return Number.isSafeInteger(id) && id > 0 ? id : null
 }
 
-export async function runWalletReconcile(opts: { full?: boolean; sinceHours?: number; now?: Date; alert?: boolean; save?: boolean } = {}): Promise<ReconcileReport> {
-  const now = opts.now ?? new Date()
-  const sinceHours = opts.sinceHours ?? 48
-  const since = new Date(now.getTime() - sinceHours * 3600_000)
-  const full = !!opts.full
-  const exempt = await readExemptUserIds()
+/** 按 id 游标分批读：load(afterId, take) 必须按 id 升序返回；每批交给 fn，读完为止 */
+async function eachBatch<T extends { id: number }>(load: (afterId: number, take: number) => Promise<T[]>, fn: (rows: T[]) => Promise<void>): Promise<void> {
+  let after = 0
+  for (;;) {
+    const rows = await load(after, RECONCILE_BATCH)
+    if (!rows.length) return
+    await fn(rows)
+    if (rows.length < RECONCILE_BATCH) return
+    after = rows[rows.length - 1].id
+  }
+}
+
+function chunks<T>(arr: T[], size = RECONCILE_BATCH): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
+}
+
+interface Scope {
+  now: Date
+  since: Date
+  sinceHours: number
+  full: boolean
+}
+
+/** 全部 W 项的读取与核对（在调用方给的只读事务里跑，同一个快照） */
+async function collect(tx: Prisma.TransactionClient, s: Scope) {
+  const { now, since, sinceHours, full } = s
+  const exempt = await readExemptUserIds(tx)
   const exemptSet = new Set(exempt)
   const items: ReconcileItem[] = []
+  const exemptNote = (k: number) => (k ? `豁免 ${k} 个用户（${RECONCILE_EXEMPT_KEY}）` : undefined)
+  const scopeNote = full ? undefined : `逐行核对近 ${sinceHours} 小时有变动的记录；全量在每周日`
 
   // ---------- W1：每个用户两格 = 流水之和 ----------
   {
     const rows = full
-      ? await prisma.$queryRaw<{ id: number; balance: unknown; topup_cents: number; s_cash: unknown; s_topup: unknown }[]>`
+      ? await tx.$queryRaw<{ id: number; balance: unknown; topup_cents: number; s_cash: unknown; s_topup: unknown }[]>`
           SELECT u.id, u.balance, u.topup_cents, COALESCE(SUM(l.delta),0) AS s_cash, COALESCE(SUM(l.topup_delta_cents),0) AS s_topup
             FROM users u LEFT JOIN balance_logs l ON l.user_id = u.id
            GROUP BY u.id, u.balance, u.topup_cents
           HAVING u.balance <> COALESCE(SUM(l.delta),0) OR u.topup_cents <> COALESCE(SUM(l.topup_delta_cents),0)`
-      : await prisma.$queryRaw<{ id: number; balance: unknown; topup_cents: number; s_cash: unknown; s_topup: unknown }[]>`
+      : await tx.$queryRaw<{ id: number; balance: unknown; topup_cents: number; s_cash: unknown; s_topup: unknown }[]>`
           SELECT u.id, u.balance, u.topup_cents, COALESCE(SUM(l.delta),0) AS s_cash, COALESCE(SUM(l.topup_delta_cents),0) AS s_topup
             FROM users u LEFT JOIN balance_logs l ON l.user_id = u.id
            WHERE u.id IN (SELECT DISTINCT user_id FROM balance_logs WHERE created_at >= ${since})
@@ -111,154 +148,218 @@ export async function runWalletReconcile(opts: { full?: boolean; sinceHours?: nu
       .filter((r) => !exemptSet.has(Number(r.id)))
       .map((r) => `用户#${r.id} 返现格 ${fmtCents(centsOf(r.balance))} / 流水 ${fmtCents(centsOf(r.s_cash))}；充值格 ${fmtCents(n(r.topup_cents))} / 流水 ${fmtCents(n(r.s_topup))}`)
     const skipped = rows.filter((r) => exemptSet.has(Number(r.id))).length
-    items.push(item('W1', full ? '每个用户两格 = 流水之和（全量）' : `近 ${sinceHours} 小时有流水的用户两格 = 流水之和`, bad, skipped ? `豁免 ${skipped} 个用户（${RECONCILE_EXEMPT_KEY}）` : undefined))
+    items.push(item('W1', full ? '每个用户两格 = 流水之和（全量）' : `近 ${sinceHours} 小时有流水的用户两格 = 流水之和`, bad, exemptNote(skipped)))
   }
 
-  // ---------- W2：没有负数 ----------
+  // ---------- W2：没有负数（豁免名单里的旧账用户只列出，§5.6） ----------
   {
-    const rows = await prisma.$queryRaw<{ id: number; balance: unknown; topup_cents: number }[]>`
-      SELECT id, balance, topup_cents FROM users WHERE balance < 0 OR topup_cents < 0 LIMIT 100`
-    items.push(item('W2', '没有任何一格为负', rows.map((r) => `用户#${r.id} 返现格 ${fmtCents(centsOf(r.balance))}、充值格 ${fmtCents(n(r.topup_cents))}`)))
+    const rows = await tx.$queryRaw<{ id: number; balance: unknown; topup_cents: number }[]>`
+      SELECT id, balance, topup_cents FROM users WHERE balance < 0 OR topup_cents < 0 ORDER BY id LIMIT 500`
+    const bad = rows
+      .filter((r) => !exemptSet.has(Number(r.id)))
+      .map((r) => `用户#${r.id} 返现格 ${fmtCents(centsOf(r.balance))}、充值格 ${fmtCents(n(r.topup_cents))}`)
+    items.push(item('W2', '没有任何一格为负', bad, exemptNote(rows.length - bad.length)))
   }
 
-  // ---------- W3 / W4 / W5：预扣 ----------
-  const holds = await prisma.balanceHold.findMany({
-    select: { id: true, orderId: true, userId: true, topupCents: true, cashCents: true, state: true, heldAt: true },
-  })
-  const holdLogs = await prisma.balanceLog.findMany({
-    where: { type: { in: ['HOLD', 'RELEASE', 'REFUND'] } },
-    select: { id: true, type: true, userId: true, orderId: true, bizKey: true, delta: true, topupDeltaCents: true },
-  })
-  {
-    const bad: string[] = []
-    const byKey = new Map<string, (typeof holdLogs)[number]>()
-    for (const l of holdLogs) if (l.bizKey) byKey.set(l.bizKey, l)
-    const holdByOrder = new Map(holds.map((h) => [h.orderId, h]))
-    let sumHold = [0, 0]
-    let sumRelease = [0, 0]
-    let sumRefundBal = [0, 0]
-    let sumLive = [0, 0]
-    for (const h of holds) {
-      const hl = byKey.get(`hold:${h.orderId}`)
-      if (!hl) bad.push(`预扣 #${h.id}（订单 #${h.orderId}）没有 hold 流水`)
-      else if (hl.topupDeltaCents !== -h.topupCents || centsOf(hl.delta) !== -h.cashCents || hl.userId !== h.userId)
-        bad.push(`预扣 #${h.id} 与 hold 流水 #${hl.id} 金额或用户不一致`)
-      else {
-        sumHold = [sumHold[0] + h.topupCents, sumHold[1] + h.cashCents]
-      }
-      const rl = byKey.get(`release:${h.orderId}`)
-      if (h.state === 'RELEASED') {
-        if (!rl) bad.push(`已释放的预扣 #${h.id} 没有 release 流水`)
-        else if (rl.topupDeltaCents !== h.topupCents || centsOf(rl.delta) !== h.cashCents) bad.push(`预扣 #${h.id} 与 release 流水 #${rl.id} 金额不一致`)
-        else sumRelease = [sumRelease[0] + h.topupCents, sumRelease[1] + h.cashCents]
-      } else if (rl) bad.push(`预扣 #${h.id} 是 ${h.state}，却有 release 流水 #${rl.id}`)
-      const fl = byKey.get(`refund:${h.orderId}`)
-      if (h.state === 'REFUNDED') {
-        if (!fl) bad.push(`已退款的预扣 #${h.id} 没有 refund 流水`)
-        else if (centsOf(fl.delta) !== h.cashCents || fl.topupDeltaCents < h.topupCents) bad.push(`预扣 #${h.id} 与 refund 流水 #${fl.id} 的余额部分不一致`)
-        else sumRefundBal = [sumRefundBal[0] + h.topupCents, sumRefundBal[1] + h.cashCents]
-      } else if (fl) bad.push(`预扣 #${h.id} 是 ${h.state}，却有 refund 流水 #${fl.id}`)
-      if (h.state === 'HELD' || h.state === 'CAPTURED') sumLive = [sumLive[0] + h.topupCents, sumLive[1] + h.cashCents]
-    }
-    for (const l of holdLogs) {
-      const oid = keyOrderId(l.bizKey, l.type === 'HOLD' ? 'hold:' : l.type === 'RELEASE' ? 'release:' : 'refund:')
-      if (l.type === 'HOLD' && (!oid || !holdByOrder.has(oid))) bad.push(`hold 流水 #${l.id} 没有对应的预扣行`)
-      if (l.type === 'RELEASE' && (!oid || holdByOrder.get(oid)?.state !== 'RELEASED')) bad.push(`release 流水 #${l.id} 没有对应的已释放预扣`)
-      if (oid && l.orderId !== oid) bad.push(`流水 #${l.id} 的 orderId 与 bizKey 不一致`)
-    }
-    // §9.3：Σ HOLD − Σ RELEASE − Σ REFUND 的余额部分 = Σ（HELD + CAPTURED）预扣行（每格分别成立）
-    for (const k of [0, 1]) {
-      if (sumHold[k] - sumRelease[k] - sumRefundBal[k] !== sumLive[k]) bad.push(`预扣等式不成立（${k === 0 ? '充值格' : '返现格'}）`)
-    }
-    items.push(item('W3', '预扣 ⇔ hold / release / refund 流水', bad))
-  }
-  {
-    const settled = holds.filter((h) => h.state === 'CAPTURED' || h.state === 'REFUNDED')
-    const bad: string[] = []
-    if (settled.length) {
-      const orders = await prisma.order.findMany({
-        where: { id: { in: settled.map((h) => h.orderId) } },
-        select: { id: true, amount: true, payments: { select: { payMethod: true, amount: true } } },
+  // ---------- W3 / W4 / W5：预扣（逐行：近 sinceHours 小时有变动的 + 全部 HELD；全量时全部） ----------
+  const w3: string[] = []
+  const w4: string[] = []
+  const w5: string[] = []
+  const holdScope: Prisma.BalanceHoldWhereInput = full ? {} : { OR: [{ state: 'HELD' }, { createdAt: { gte: since } }, { updatedAt: { gte: since } }] }
+  await eachBatch(
+    (after, take) =>
+      tx.balanceHold.findMany({
+        where: { ...holdScope, id: { gt: after } },
+        orderBy: { id: 'asc' },
+        take,
+        select: { id: true, orderId: true, userId: true, topupCents: true, cashCents: true, state: true, heldAt: true },
+      }),
+    async (holds) => {
+      const keys = holds.flatMap((h) => [`hold:${h.orderId}`, `release:${h.orderId}`, `refund:${h.orderId}`])
+      const logs = await tx.balanceLog.findMany({
+        where: { bizKey: { in: keys } },
+        select: { id: true, type: true, userId: true, bizKey: true, delta: true, topupDeltaCents: true },
       })
-      const om = new Map(orders.map((o) => [o.id, o]))
-      for (const h of settled) {
-        const o = om.get(h.orderId)
-        if (!o) {
-          bad.push(`预扣 #${h.id} 的订单 #${h.orderId} 不存在`)
-          continue
+      const byKey = new Map(logs.map((l) => [l.bizKey as string, l]))
+      // W3 逐行
+      for (const h of holds) {
+        const hl = byKey.get(`hold:${h.orderId}`)
+        if (!hl || hl.type !== 'HOLD') w3.push(`预扣 #${h.id}（订单 #${h.orderId}）没有 hold 流水`)
+        else if (hl.topupDeltaCents !== -h.topupCents || centsOf(hl.delta) !== -h.cashCents || hl.userId !== h.userId)
+          w3.push(`预扣 #${h.id} 与 hold 流水 #${hl.id} 金额或用户不一致`)
+        const rl = byKey.get(`release:${h.orderId}`)
+        if (h.state === 'RELEASED') {
+          if (!rl || rl.type !== 'RELEASE') w3.push(`已释放的预扣 #${h.id} 没有 release 流水`)
+          else if (rl.topupDeltaCents !== h.topupCents || centsOf(rl.delta) !== h.cashCents || rl.userId !== h.userId) w3.push(`预扣 #${h.id} 与 release 流水 #${rl.id} 金额不一致`)
+        } else if (rl) w3.push(`预扣 #${h.id} 是 ${h.state}，却有 release 流水 #${rl.id}`)
+        const fl = byKey.get(`refund:${h.orderId}`)
+        if (h.state === 'REFUNDED') {
+          if (!fl || fl.type !== 'REFUND') w3.push(`已退款的预扣 #${h.id} 没有 refund 流水`)
+          else if (centsOf(fl.delta) !== h.cashCents || fl.topupDeltaCents < h.topupCents || fl.userId !== h.userId) w3.push(`预扣 #${h.id} 与 refund 流水 #${fl.id} 的余额部分不一致`)
+        } else if (fl) w3.push(`预扣 #${h.id} 是 ${h.state}，却有 refund 流水 #${fl.id}`)
+      }
+      // W4：已确认 / 已退款的预扣 ⇔ 订单支付流水拆分
+      const settled = holds.filter((h) => h.state === 'CAPTURED' || h.state === 'REFUNDED')
+      if (settled.length) {
+        const orders = await tx.order.findMany({
+          where: { id: { in: settled.map((h) => h.orderId) } },
+          select: { id: true, amount: true, payments: { select: { payMethod: true, amount: true } } },
+        })
+        const om = new Map(orders.map((o) => [o.id, o]))
+        for (const h of settled) {
+          const o = om.get(h.orderId)
+          if (!o) {
+            w4.push(`预扣 #${h.id} 的订单 #${h.orderId} 不存在`)
+            continue
+          }
+          const hc = h.topupCents + h.cashCents
+          const bal = o.payments.filter((p) => p.payMethod === 'BALANCE').map((p) => centsOf(p.amount))
+          const ali = o.payments.filter((p) => p.payMethod === 'ALIPAY').reduce((a, p) => a + centsOf(p.amount), 0)
+          const rest = centsOf(o.amount) - hc
+          if (bal.length !== 1 || bal[0] !== hc) w4.push(`订单 #${o.id} 的 BALANCE 支付行应为 1 行 ${fmtCents(hc)}`)
+          if (ali !== Math.max(rest, 0)) w4.push(`订单 #${o.id} 的 ALIPAY 支付行应合计 ${fmtCents(Math.max(rest, 0))}，实际 ${fmtCents(ali)}`)
         }
-        const hc = h.topupCents + h.cashCents
-        const bal = o.payments.filter((p) => p.payMethod === 'BALANCE').map((p) => centsOf(p.amount))
-        const ali = o.payments.filter((p) => p.payMethod === 'ALIPAY').reduce((a, p) => a + centsOf(p.amount), 0)
-        const rest = centsOf(o.amount) - hc
-        if (bal.length !== 1 || bal[0] !== hc) bad.push(`订单 #${o.id} 的 BALANCE 支付行应为 1 行 ${fmtCents(hc)}`)
-        if (ali !== Math.max(rest, 0)) bad.push(`订单 #${o.id} 的 ALIPAY 支付行应合计 ${fmtCents(Math.max(rest, 0))}，实际 ${fmtCents(ali)}`)
       }
-    }
-    items.push(item('W4', '已确认的预扣 ⇔ 订单支付流水拆分', bad))
-  }
-  {
-    const held = holds.filter((h) => h.state === 'HELD')
-    const bad: string[] = []
-    if (held.length) {
-      const orders = await prisma.order.findMany({ where: { id: { in: held.map((h) => h.orderId) } }, select: { id: true, payStatus: true, deliveryStatus: true } })
-      const om = new Map(orders.map((o) => [o.id, o]))
-      for (const h of held) {
-        const o = om.get(h.orderId)
-        const mins = Math.round(Math.abs(now.getTime() - h.heldAt.getTime()) / 60_000)
-        if (!o || o.payStatus !== 'UNPAID' || o.deliveryStatus === 'CANCELLED') bad.push(`预扣 #${h.id} 仍是 HELD，但订单 #${h.orderId} 是 ${o ? `${o.payStatus}/${o.deliveryStatus}` : '不存在'}`)
-        else if (mins > STUCK_HOLD_MIN) bad.push(`预扣 #${h.id}（订单 #${h.orderId}）已持续 ${mins} 分钟（卡住）`)
+      // W5：HELD 的预扣
+      const held = holds.filter((h) => h.state === 'HELD')
+      if (held.length) {
+        const orders = await tx.order.findMany({ where: { id: { in: held.map((h) => h.orderId) } }, select: { id: true, payStatus: true, deliveryStatus: true } })
+        const om = new Map(orders.map((o) => [o.id, o]))
+        for (const h of held) {
+          const o = om.get(h.orderId)
+          const mins = Math.round(Math.abs(now.getTime() - h.heldAt.getTime()) / 60_000)
+          if (!o || o.payStatus !== 'UNPAID' || o.deliveryStatus === 'CANCELLED') w5.push(`预扣 #${h.id} 仍是 HELD，但订单 #${h.orderId} 是 ${o ? `${o.payStatus}/${o.deliveryStatus}` : '不存在'}`)
+          else if (mins > STUCK_HOLD_MIN) w5.push(`预扣 #${h.id}（订单 #${h.orderId}）已持续 ${mins} 分钟（卡住）`)
+        }
       }
-    }
-    items.push(item('W5', `HELD 预扣：订单待支付且持续 ≤ ${STUCK_HOLD_MIN} 分钟`, bad))
-  }
-
-  // ---------- W6：充值单 ⇔ topup 流水 ----------
+    },
+  )
+  // W3 反向：hold / release 流水必须有对应的预扣行（逐行：近 sinceHours 小时的流水；全量时全部）
+  await eachBatch(
+    (after, take) =>
+      tx.balanceLog.findMany({
+        where: { type: { in: ['HOLD', 'RELEASE', 'REFUND'] }, ...(full ? {} : { createdAt: { gte: since } }), id: { gt: after } },
+        orderBy: { id: 'asc' },
+        take,
+        select: { id: true, type: true, orderId: true, bizKey: true },
+      }),
+    async (logs) => {
+      const prefixOf = (t: string) => (t === 'HOLD' ? 'hold:' : t === 'RELEASE' ? 'release:' : 'refund:')
+      const oids = Array.from(new Set(logs.map((l) => keyOrderId(l.bizKey, prefixOf(l.type))).filter((x): x is number => !!x)))
+      const hs = oids.length ? await tx.balanceHold.findMany({ where: { orderId: { in: oids } }, select: { orderId: true, state: true } }) : []
+      const hm = new Map(hs.map((h) => [h.orderId, h]))
+      for (const l of logs) {
+        const oid = keyOrderId(l.bizKey, prefixOf(l.type))
+        if (l.type === 'HOLD' && (!oid || !hm.has(oid))) w3.push(`hold 流水 #${l.id} 没有对应的预扣行`)
+        if (l.type === 'RELEASE' && (!oid || hm.get(oid)?.state !== 'RELEASED')) w3.push(`release 流水 #${l.id} 没有对应的已释放预扣`)
+        if (oid && l.orderId !== oid) w3.push(`流水 #${l.id} 的 orderId 与 bizKey 不一致`)
+      }
+    },
+  )
+  // §9.3 预扣等式（每一格分别成立，全量、SQL 聚合）：Σ HOLD 流水 = Σ 全部预扣行；Σ RELEASE 流水 = Σ RELEASED 预扣行。
+  // 再加上逐行核过的「REFUND 流水的余额部分 = REFUNDED 预扣行」，就得出 Σ HOLD − Σ RELEASE − Σ REFUND 的余额部分 = Σ（HELD + CAPTURED）
   {
-    const bad: string[] = []
-    const paid = await prisma.order.findMany({
-      where: { product: { deliveryType: 'TOPUP' }, payStatus: { in: ['PAID', 'REFUNDED'] } },
-      select: { id: true, payments: { select: { payMethod: true, tradeNo: true } } },
+    const logSums = await tx.$queryRaw<{ type: string; t: unknown; c: unknown }[]>`
+      SELECT type, COALESCE(SUM(topup_delta_cents),0) AS t, COALESCE(SUM(delta),0) AS c FROM balance_logs WHERE type IN ('HOLD','RELEASE') GROUP BY type`
+    const holdSums = await tx.$queryRaw<{ state: string; t: unknown; c: unknown }[]>`
+      SELECT state, COALESCE(SUM(topup_cents),0) AS t, COALESCE(SUM(cash_cents),0) AS c FROM balance_holds GROUP BY state`
+    const logOf = (type: string): [number, number] => {
+      const r = logSums.find((x) => x.type === type)
+      return r ? [n(r.t), centsOf(r.c)] : [0, 0]
+    }
+    const holdOf = (states: string[]): [number, number] =>
+      holdSums.filter((x) => states.includes(x.state)).reduce<[number, number]>((a, x) => [a[0] + n(x.t), a[1] + n(x.c)], [0, 0])
+    const [hT, hC] = logOf('HOLD')
+    const [rT, rC] = logOf('RELEASE')
+    const all = holdOf(['HELD', 'CAPTURED', 'RELEASED', 'REFUNDED'])
+    const rel = holdOf(['RELEASED'])
+    const bucket = ['充值格', '返现格']
+    ;[-hT, -hC].forEach((v, k) => {
+      if (v !== all[k]) w3.push(`预扣等式：Σ HOLD 流水（${bucket[k]}）${fmtCents(v)} ≠ Σ 全部预扣行 ${fmtCents(all[k])}`)
     })
-    const logs = await prisma.balanceLog.findMany({ where: { type: 'TOPUP' }, select: { id: true, orderId: true, bizKey: true, topupDeltaCents: true, delta: true } })
-    const logByOrder = new Map<number, (typeof logs)[number][]>()
-    for (const l of logs) {
-      const oid = keyOrderId(l.bizKey, 'topup:')
-      if (!oid) {
-        bad.push(`TOPUP 流水 #${l.id} 的 bizKey 不合法`)
-        continue
-      }
-      logByOrder.set(oid, [...(logByOrder.get(oid) ?? []), l])
-    }
-    const paidIds = new Set(paid.map((o) => o.id))
-    const tradeNos = paid.flatMap((o) => o.payments.filter((p) => p.payMethod === 'ALIPAY' && p.tradeNo).map((p) => p.tradeNo as string))
-    const vmqs = tradeNos.length ? await prisma.vmqOrder.findMany({ where: { orderId: { in: tradeNos } }, select: { orderId: true, reallyPrice: true, state: true, bizId: true } }) : []
-    const vm = new Map(vmqs.map((v) => [v.orderId, v]))
-    for (const o of paid) {
-      const ls = logByOrder.get(o.id) ?? []
-      if (ls.length !== 1) {
-        bad.push(`充值单 #${o.id} 有 ${ls.length} 条 topup 流水`)
-        continue
-      }
-      const ali = o.payments.filter((p) => p.payMethod === 'ALIPAY' && p.tradeNo)
-      const v = ali.length === 1 ? vm.get(ali[0].tradeNo as string) : undefined
-      if (!v || v.state !== 1 || v.bizId !== o.id) bad.push(`充值单 #${o.id} 找不到让它付款的收款单（ALIPAY 行 tradeNo）`)
-      else if (ls[0].topupDeltaCents !== centsOf(v.reallyPrice) || centsOf(ls[0].delta) !== 0) bad.push(`充值单 #${o.id} 入账 ${fmtCents(ls[0].topupDeltaCents)} ≠ 实付 ${fmtCents(centsOf(v.reallyPrice))}`)
-    }
-    for (const [oid, ls] of Array.from(logByOrder)) if (!paidIds.has(oid)) bad.push(`topup 流水 #${ls[0].id} 对应的订单 #${oid} 不是已付款的充值单`)
-    items.push(item('W6', '已付款充值单 ⇔ topup 流水（金额 = 实付）', bad))
+    ;[rT, rC].forEach((v, k) => {
+      if (v !== rel[k]) w3.push(`预扣等式：Σ RELEASE 流水（${bucket[k]}）${fmtCents(v)} ≠ Σ 已释放预扣行 ${fmtCents(rel[k])}`)
+    })
   }
+  items.push(item('W3', '预扣 ⇔ hold / release / refund 流水（含 §9.3 预扣等式）', w3, scopeNote))
+  items.push(item('W4', '已确认的预扣 ⇔ 订单支付流水拆分', w4, scopeNote))
+  items.push(item('W5', `HELD 预扣：订单待支付且持续 ≤ ${STUCK_HOLD_MIN} 分钟`, w5))
 
-  // ---------- W7：LATEPAY ⇔ 已处理为 LATEPAY 的待核实条目（B1 起才有数据） ----------
+  // ---------- W6：充值单 ⇔ topup 流水（逐行：近 sinceHours 小时付款或变动的充值单、近 sinceHours 小时的 TOPUP 流水） ----------
   {
     const bad: string[] = []
-    const logs = await prisma.balanceLog.findMany({ where: { type: 'LATEPAY' }, select: { id: true, orderId: true, bizKey: true, topupDeltaCents: true } })
-    const entries = await prisma.setting.findMany({ where: { key: { startsWith: 'vmq_unmatched:' }, value: { contains: '"handledAs":"LATEPAY"' } }, select: { key: true, value: true } })
-    const logByKey = new Map(logs.map((l) => [l.bizKey ?? '', l]))
+    const paidWhere: Prisma.OrderWhereInput = {
+      product: { deliveryType: 'TOPUP' },
+      payStatus: { in: ['PAID', 'REFUNDED'] },
+      ...(full ? {} : { OR: [{ paidAt: { gte: since } }, { updatedAt: { gte: since } }] }),
+    }
+    await eachBatch(
+      (after, take) =>
+        tx.order.findMany({
+          where: { ...paidWhere, id: { gt: after } },
+          orderBy: { id: 'asc' },
+          take,
+          select: { id: true, payments: { select: { payMethod: true, tradeNo: true } } },
+        }),
+      async (paid) => {
+        const logs = await tx.balanceLog.findMany({
+          where: { bizKey: { in: paid.map((o) => `topup:${o.id}`) } },
+          select: { id: true, type: true, bizKey: true, topupDeltaCents: true, delta: true },
+        })
+        const lm = new Map(logs.map((l) => [l.bizKey as string, l]))
+        const tradeNos = paid.flatMap((o) => o.payments.filter((p) => p.payMethod === 'ALIPAY' && p.tradeNo).map((p) => p.tradeNo as string))
+        const vmqs = tradeNos.length ? await tx.vmqOrder.findMany({ where: { orderId: { in: tradeNos } }, select: { orderId: true, reallyPrice: true, state: true, bizId: true } }) : []
+        const vm = new Map(vmqs.map((v) => [v.orderId, v]))
+        for (const o of paid) {
+          const l = lm.get(`topup:${o.id}`)
+          if (!l || l.type !== 'TOPUP') {
+            bad.push(`充值单 #${o.id} 没有 topup 流水`)
+            continue
+          }
+          const ali = o.payments.filter((p) => p.payMethod === 'ALIPAY' && p.tradeNo)
+          const v = ali.length === 1 ? vm.get(ali[0].tradeNo as string) : undefined
+          if (!v || v.state !== 1 || v.bizId !== o.id) bad.push(`充值单 #${o.id} 找不到让它付款的收款单（ALIPAY 行 tradeNo）`)
+          else if (l.topupDeltaCents !== centsOf(v.reallyPrice) || centsOf(l.delta) !== 0) bad.push(`充值单 #${o.id} 入账 ${fmtCents(l.topupDeltaCents)} ≠ 实付 ${fmtCents(centsOf(v.reallyPrice))}`)
+        }
+      },
+    )
+    await eachBatch(
+      (after, take) =>
+        tx.balanceLog.findMany({
+          where: { type: 'TOPUP', ...(full ? {} : { createdAt: { gte: since } }), id: { gt: after } },
+          orderBy: { id: 'asc' },
+          take,
+          select: { id: true, bizKey: true },
+        }),
+      async (logs) => {
+        const oids: number[] = []
+        for (const l of logs) {
+          const oid = keyOrderId(l.bizKey, 'topup:')
+          if (!oid) bad.push(`TOPUP 流水 #${l.id} 的 bizKey 不合法`)
+          else oids.push(oid)
+        }
+        const ok = oids.length
+          ? await tx.order.findMany({ where: { id: { in: oids }, product: { deliveryType: 'TOPUP' }, payStatus: { in: ['PAID', 'REFUNDED'] } }, select: { id: true } })
+          : []
+        const okSet = new Set(ok.map((o) => o.id))
+        for (const l of logs) {
+          const oid = keyOrderId(l.bizKey, 'topup:')
+          if (oid && !okSet.has(oid)) bad.push(`topup 流水 #${l.id} 对应的订单 #${oid} 不是已付款的充值单`)
+        }
+      },
+    )
+    items.push(item('W6', '已付款充值单 ⇔ topup 流水（金额 = 实付）', bad, scopeNote))
+  }
+
+  // ---------- W7：LATEPAY ⇔ 已处理为 LATEPAY 的待核实条目（B1 起才有数据；条目本身很少，全量读） ----------
+  {
+    const bad: string[] = []
+    const entries = await tx.setting.findMany({ where: { key: { startsWith: 'vmq_unmatched:' }, value: { contains: '"handledAs":"LATEPAY"' } }, select: { key: true, value: true } })
     const entryKeys = new Set(entries.map((e) => e.key))
-    for (const l of logs) {
-      const key = l.bizKey?.startsWith('latepay:') ? l.bizKey.slice('latepay:'.length) : ''
-      if (!entryKeys.has(key)) bad.push(`LATEPAY 流水 #${l.id} 没有对应的已处理条目`)
+    const logByKey = new Map<string, { id: number; orderId: number | null; topupDeltaCents: number }>()
+    for (const part of chunks(entries.map((e) => `latepay:${e.key}`))) {
+      const ls = await tx.balanceLog.findMany({ where: { bizKey: { in: part } }, select: { id: true, orderId: true, bizKey: true, topupDeltaCents: true } })
+      for (const l of ls) logByKey.set(l.bizKey as string, l)
     }
     const tradeMarks: string[] = []
     for (const e of entries) {
@@ -278,32 +379,45 @@ export async function runWalletReconcile(opts: { full?: boolean; sinceHours?: nu
       if (l.topupDeltaCents !== centsOf(v.price ?? '0')) bad.push(`条目 ${e.key} 的实收与流水 #${l.id} 金额不一致`)
       if (v.tradeNo) tradeMarks.push(`latepay_trade:${v.tradeNo}`)
     }
-    if (tradeMarks.length) {
-      const found = await prisma.setting.findMany({ where: { key: { in: tradeMarks } }, select: { key: true } })
+    for (const part of chunks(tradeMarks)) {
+      const found = await tx.setting.findMany({ where: { key: { in: part } }, select: { key: true } })
       const fs = new Set(found.map((f) => f.key))
-      for (const k of tradeMarks) if (!fs.has(k)) bad.push(`手动退入缺少占位行 ${k}`)
+      for (const k of part) if (!fs.has(k)) bad.push(`手动退入缺少占位行 ${k}`)
     }
+    await eachBatch(
+      (after, take) =>
+        tx.balanceLog.findMany({
+          where: { type: 'LATEPAY', ...(full ? {} : { createdAt: { gte: since } }), id: { gt: after } },
+          orderBy: { id: 'asc' },
+          take,
+          select: { id: true, bizKey: true },
+        }),
+      async (logs) => {
+        for (const l of logs) {
+          const key = l.bizKey?.startsWith('latepay:') ? l.bizKey.slice('latepay:'.length) : ''
+          if (!entryKeys.has(key)) bad.push(`LATEPAY 流水 #${l.id} 没有对应的已处理条目`)
+        }
+      },
+    )
     items.push(item('W7', 'LATEPAY 流水 ⇔ 已处理的待核实条目', bad))
   }
 
-  // ---------- W8：全站两格 = 流水之和；负债 ----------
-  const liability = await liabilityNow()
+  // ---------- W8：全站两格 = 流水之和；负债（同一快照、SQL 聚合） ----------
+  const liability = await liabilityNow(tx)
   {
     const bad: string[] = []
     const ex = exempt.length ? Prisma.sql`WHERE id NOT IN (${Prisma.join(exempt)})` : Prisma.empty
     const exL = exempt.length ? Prisma.sql`WHERE user_id NOT IN (${Prisma.join(exempt)})` : Prisma.empty
-    const [u, l] = await Promise.all([
-      prisma.$queryRaw<{ t: unknown; c: unknown }[]>`SELECT COALESCE(SUM(topup_cents),0) AS t, COALESCE(SUM(balance),0) AS c FROM users ${ex}`,
-      prisma.$queryRaw<{ t: unknown; c: unknown }[]>`SELECT COALESCE(SUM(topup_delta_cents),0) AS t, COALESCE(SUM(delta),0) AS c FROM balance_logs ${exL}`,
-    ])
+    const u = await tx.$queryRaw<{ t: unknown; c: unknown }[]>`SELECT COALESCE(SUM(topup_cents),0) AS t, COALESCE(SUM(balance),0) AS c FROM users ${ex}`
+    const l = await tx.$queryRaw<{ t: unknown; c: unknown }[]>`SELECT COALESCE(SUM(topup_delta_cents),0) AS t, COALESCE(SUM(delta),0) AS c FROM balance_logs ${exL}`
     if (n(u[0]?.t) !== n(l[0]?.t)) bad.push(`Σ 充值格 ${fmtCents(n(u[0]?.t))} ≠ Σ 流水 ${fmtCents(n(l[0]?.t))}`)
     if (centsOf(u[0]?.c ?? 0) !== centsOf(l[0]?.c ?? 0)) bad.push(`Σ 返现格 ${fmtCents(centsOf(u[0]?.c ?? 0))} ≠ Σ 流水 ${fmtCents(centsOf(l[0]?.c ?? 0))}`)
-    items.push(item('W8', `全站两格 = 流水之和；负债 ${fmtCents(liability.totalCents)}`, bad))
+    items.push(item('W8', `全站两格 = 流水之和；负债 ${fmtCents(liability.totalCents)}`, bad, exemptNote(exempt.length)))
   }
 
   // ---------- W9：载体单的状态组合 ----------
   {
-    const rows = await prisma.order.findMany({
+    const rows = await tx.order.findMany({
       where: {
         product: { deliveryType: { in: ['TOPUP', 'SMS_POOL'] } },
         OR: [
@@ -318,6 +432,22 @@ export async function runWalletReconcile(opts: { full?: boolean; sinceHours?: nu
     })
     items.push(item('W9', '载体单（充值 / 接码）的付款与交付状态组合合法', rows.map((o) => `${o.product.deliveryType} 订单 #${o.id}：${o.payStatus}/${o.deliveryStatus}`)))
   }
+
+  return { items, liability, exempt }
+}
+
+export async function runWalletReconcile(opts: { full?: boolean; sinceHours?: number; now?: Date; alert?: boolean; save?: boolean } = {}): Promise<ReconcileReport> {
+  const now = opts.now ?? new Date()
+  const sinceHours = opts.sinceHours ?? 48
+  const since = new Date(now.getTime() - sinceHours * 3600_000)
+  const full = !!opts.full
+
+  // 一个只读事务 = 一个一致性快照（RR：第一次读建立快照）。不加锁，不挡写入
+  const { items, liability, exempt } = await prisma.$transaction((tx) => collect(tx, { now, since, sinceHours, full }), {
+    isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+    timeout: RECONCILE_TX_TIMEOUT_MS,
+    maxWait: 10_000,
+  })
 
   const report: ReconcileReport = {
     at: now.toISOString(),

@@ -28,6 +28,10 @@ export const ADJUST_KINDS: readonly AdjustKind[] = ['CASH_ADD', 'CASH_SUB', 'TOP
 export const REQUEST_ID_RE = /^[0-9a-fA-F-]{32,36}$/
 /** 支付宝流水号 / 交易号：16–32 位数字（与迟到付款退入同一口径，§2.7） */
 export const ALIPAY_NO_RE = /^\d{16,32}$/
+/** 新入口「余额与充值 → 调整」的原因上限 */
+export const ADJUST_REASON_MAX = 200
+/** 旧入口「内推管理 → 提现/调整」的备注上限（改造前 zod max(255)，入参不变） */
+export const REFERRALS_NOTE_MAX = 255
 
 export interface AdjustInput {
   actorUserId: number | null
@@ -108,7 +112,10 @@ async function legacyBalLock(requestId: string, userId: number, cashDeltaCents: 
 export async function adminAdjust(input: AdjustInput): Promise<AdjustResult> {
   const reason = (input.reason ?? '').trim()
   if (input.source !== 'referrals' && !reason) return fail(400, '请填写原因（内部，不回显给买家）')
-  if (reason.length > 200) return fail(400, '原因最多 200 字')
+  // 旧入口（内推管理「提现/调整」）入参不变：改造前备注是 z.string().max(255)（note 列本身 VarChar(255)），照旧收 255 字；
+  // 200 字的上限只用于新入口「余额与充值 → 调整」
+  const maxReason = input.source === 'referrals' ? REFERRALS_NOTE_MAX : ADJUST_REASON_MAX
+  if (reason.length > maxReason) return fail(400, `原因最多 ${maxReason} 字`)
 
   // ---- 确定用户与金额 ----
   let userId = input.userId ?? 0

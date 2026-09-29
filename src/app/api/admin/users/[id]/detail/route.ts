@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { referralOrderIdOf, ledgerOrderIdOf } from '@/lib/balance'
 import { centsOf } from '@/lib/wallet/buckets'
+import { clawbackCentsOf } from '@/lib/wallet/clawback'
 import { adminOrResponse, parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 import { shopOrderSourceKey } from '@/lib/order-invoice'
 import { orderIdFromSourceKey } from '@/lib/order-link'
@@ -172,6 +173,9 @@ export async function GET(
       heldCents: (heldAgg._sum.topupCents ?? 0) + (heldAgg._sum.cashCents ?? 0),
       heldCount: heldAgg._count._all,
     }
+    // 内推返现合计 = Σ 已结算返现 − Σ 返现扣回（CLAWBACK 流水；与买家钱包页「累计返现」同一口径，lib/wallet/clawback.ts）
+    const clawbackCents = await clawbackCentsOf(userId)
+    const rewardNet = (centsOf(rewardAgg._sum.amount ?? 0) - clawbackCents) / 100
 
     const pageInfo = (total: number, p: { page: number; pageSize: number }) => ({
       total,
@@ -198,7 +202,7 @@ export async function GET(
         totalPaidAmount: num(paidAmountAgg._sum.amount),
         // 两格总额（元）：B0 之前只有返现格，这个数与改造前一致
         balance: wallet.totalCents / 100,
-        referralRewardTotal: num(rewardAgg._sum.amount),
+        referralRewardTotal: rewardNet,
         boundAccountCount: boundAccounts.length,
       },
       orders: {
@@ -240,7 +244,8 @@ export async function GET(
         referralPriceCount,
         referrerBasePriceCount,
         rewardCount: rewardAgg._count._all,
-        rewardTotal: num(rewardAgg._sum.amount),
+        rewardTotal: rewardNet,
+        rewardClawedBack: clawbackCents / 100,
       },
     })
   } catch (err) {

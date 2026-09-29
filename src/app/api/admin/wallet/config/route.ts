@@ -8,6 +8,7 @@ import { writeAudit } from '@/lib/audit'
 import {
   FACTORY_WALLET_CONFIG,
   MAX_TOPUP_CENTS,
+  TOPUP_AVAILABLE,
   readWalletConfig,
   saveWalletConfig,
   WalletConfigConflict,
@@ -15,9 +16,12 @@ import {
 } from '@/lib/wallet/config'
 
 /**
- * wallet_config（docs/短信接码-设计.md §5.3、§7.8 设置）。GET 当前值（读不到给原因）+ 出厂值；
+ * wallet_config（docs/短信接码-设计.md §5.3、§7.8 设置）。GET 当前值（读不到给原因）+ 出厂值 + storedVersion；
  * PUT { config, expectVersion, confirmLatepay? }：zod 保存校验（不合法 400 + 逐项 errors）；latepayAuto 开 ↔ 关要二次确认（confirmLatepay）；
  * 乐观并发（版本号对不上 409）；每次保存写审计（前后全文）。
+ * 【storedVersion】库里那一行的版本号，读失败（校验不过、JSON 坏、行不存在）时也给：页面拿它作 expectVersion，
+ * 坏掉的配置才能从这里保存修好（否则页面只能发 0、库里是 N，永远 409）。
+ * 【topupAvailable】B1 之前 false：页面把充值开关置灰，PUT 打开它会 400。
  */
 export async function GET() {
   const denied = await adminGuard()
@@ -27,8 +31,10 @@ export async function GET() {
     return success({
       config: r.ok ? r.config : null,
       reason: r.ok ? null : r.reason,
+      storedVersion: r.storedVersion,
       factory: FACTORY_WALLET_CONFIG,
       maxTopupCents: MAX_TOPUP_CENTS,
+      topupAvailable: TOPUP_AVAILABLE,
     })
   } catch (e) {
     console.error('[wallet] config GET 失败', e)
@@ -73,7 +79,7 @@ export async function PUT(request: NextRequest) {
     })
     return success({ config: r.config }, '已保存')
   } catch (e) {
-    if (e instanceof WalletConfigConflict) return error(e.message, 409)
+    if (e instanceof WalletConfigConflict) return Response.json({ success: false, error: e.message, conflict: e.storedBroken ? 'BROKEN' : 'VERSION' }, { status: 409 })
     console.error('[wallet] config PUT 失败', e)
     return error('保存配置失败', 500)
   }
