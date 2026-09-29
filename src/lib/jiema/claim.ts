@@ -10,21 +10,41 @@
  *  · 自动认领的闸门（任何一条不满足 → 不认领，转 MANUAL 并告警）：候选恰好 1 个；同一组合没有别的 REQUESTING / UNKNOWN 尝试；
  *    旧链路闸门：[requestedAt − 2 分钟, now] 里没有同服务的旧单品订单付款、没有 sms_activations 更新、没有「已付款却还没有 SmsActivation 行」的旧单品订单；
  *  · 确认没买到：距请求超过 180 秒、并且**连续两轮有效扫描**都没有任何候选（只按服务、国家、时间窗，不看闸门）→ FAILED（NOT_BOUGHT）；
+ *    两轮之间至少隔一个 tick 周期（NOT_BOUGHT_SCAN_GAP_SEC，checkedAt 记最近一次计数的时刻），计数对旧值做 CAS；
+ *    没有校准样本时时间窗两头各再放宽 60 秒（machine.claimCandidates）——只会多出候选、导向 MANUAL，不会把真买到的号判成没买到；
  *  · UNKNOWN 超过 10 分钟没解开 → 订单转 MANUAL；
  *  · 与任何 UNKNOWN 都对不上的未关联激活**永远不自动取消**：旧单品服务、且在某张旧单品订单付款后 30 分钟内的算「旧链路遗留」（不推送），其余「外部激活」推一次。
  * 顺带：拉全的 v1 列表里第一次看到我方 ACTIVE 号时补写 upstreamCreatedAt（校准样本）。
+ *
+ * 【同一时刻只跑一轮】（S2a 评审修复）tick 第 2 步与买家 GET 的惰性推进都会调这里、而且每次扫全站的 UNKNOWN：用库锁 jiema:scan 串行，
+ * 抢不到就跳过这一轮（下一轮再来）。认领的 CAS 落空时先重读尝试：已经不是 UNKNOWN（别的扫描认领了、或已判 NOT_BOUGHT）就跳过，不转人工。
  */
 import type { SmsAttempt } from '@prisma/client'
 import { prisma } from '../db'
 import * as up from './upstream'
 import type { V1Activation } from './parse'
-import { calibrationOffsetMs, claimCandidates, legacyOldPhones, canCancelAtFrom, waitUntilFor, endsAtFrom, REQUESTING_STUCK_SEC, UNKNOWN_MANUAL_SEC, NOT_BOUGHT_AFTER_SEC, NOT_BOUGHT_EMPTY_SCANS } from './machine'
+import {
+  calibrationOffsetMs,
+  claimCandidates,
+  legacyOldPhones,
+  canCancelAtFrom,
+  waitUntilFor,
+  endsAtFrom,
+  REQUESTING_STUCK_SEC,
+  UNKNOWN_MANUAL_SEC,
+  NOT_BOUGHT_AFTER_SEC,
+  NOT_BOUGHT_EMPTY_SCANS,
+  NOT_BOUGHT_SCAN_GAP_SEC,
+} from './machine'
 import { logEventQuiet } from './events'
 import { smsAlert } from './alert'
 import { toManual } from './refund'
 import { jnow, rt } from './runtime'
+import { acquireLock, releaseLock } from '../marketing/lock'
 
 const S = 1000
+const SCAN_LOCK = 'jiema:scan'
+const SCAN_LOCK_TTL_MS = 60_000
 
 export interface ScanResult {
   valid: boolean
@@ -92,6 +112,7 @@ async function claim(u: SmsAttempt, c: V1Activation, offsetMs: number, now: Date
         waitUntil,
         errorCode: null,
         emptyScans: 0,
+        checkedAt: null,
       },
     })
     if (r.count !== 1) return false
@@ -115,16 +136,30 @@ export async function scanUnknown(opts: { fillCalibration?: boolean } = {}): Pro
   const now = jnow()
   // REQUESTING 超过 60 秒 → UNKNOWN（进程在调用中途崩溃，或落库失败）
   await prisma.smsAttempt.updateMany({ where: { state: 'REQUESTING', requestedAt: { lt: new Date(now.getTime() - REQUESTING_STUCK_SEC * S) } }, data: { state: 'UNKNOWN', errorCode: 'STUCK' } })
-  const unknowns = await prisma.smsAttempt.findMany({ where: { state: 'UNKNOWN' }, orderBy: { id: 'asc' } })
+  const pending = await prisma.smsAttempt.count({ where: { state: 'UNKNOWN' } })
   const since24 = new Date(now.getTime() - 24 * 3600 * S)
   let wantCalib = false
-  if (!unknowns.length && opts.fillCalibration) {
+  if (!pending && opts.fillCalibration) {
     const [samples, uncal] = await Promise.all([
       prisma.smsAttempt.count({ where: { respondedAt: { gte: since24 }, upstreamCreatedAt: { not: null } } }),
       prisma.smsAttempt.count({ where: { state: 'ACTIVE', upstreamCreatedAt: null, respondedAt: { not: null } } }),
     ])
     wantCalib = samples < 5 && uncal > 0
   }
+  if (!pending && !wantCalib) return out
+  // 同一时刻只跑一轮：另一轮正在扫（tick 与号码页轮询撞上）→ 这一轮作废，不认领、不计数
+  const token = await acquireLock(SCAN_LOCK, SCAN_LOCK_TTL_MS)
+  if (!token) return out
+  try {
+    return await scanLocked(out, now, since24, wantCalib)
+  } finally {
+    await releaseLock(SCAN_LOCK, token)
+  }
+}
+
+async function scanLocked(out: ScanResult, now: Date, since24: Date, wantCalib: boolean): Promise<ScanResult> {
+  // 拿到锁之后再读一次（上一轮扫描可能刚认领 / 判完）
+  const unknowns = await prisma.smsAttempt.findMany({ where: { state: 'UNKNOWN' }, orderBy: { id: 'asc' } })
   if (!unknowns.length && !wantCalib) return out
   const list = await up.v1AllActivations().catch(() => null)
   if (!list || list.kind !== 'ok') return out // 这一轮作废：既不认领，也不计入「没有候选」
@@ -170,8 +205,11 @@ export async function scanUnknown(opts: { fillCalibration?: boolean } = {}): Pro
     )
     for (const b of broad) matched.add(b.id)
     if (broad.length === 0) {
+      // 计一轮「没有候选」：距上一次计数至少一个 tick 周期，并且对旧值做 CAS（别的扫描刚计过就不重复计）
+      if (u.checkedAt && now.getTime() - u.checkedAt.getTime() < NOT_BOUGHT_SCAN_GAP_SEC * S) continue
+      const inc = await prisma.smsAttempt.updateMany({ where: { id: u.id, state: 'UNKNOWN', emptyScans: u.emptyScans }, data: { emptyScans: u.emptyScans + 1, checkedAt: now } })
+      if (inc.count !== 1) continue
       const scans = u.emptyScans + 1
-      await prisma.smsAttempt.updateMany({ where: { id: u.id, state: 'UNKNOWN' }, data: { emptyScans: scans } })
       if (now.getTime() - u.requestedAt.getTime() > NOT_BOUGHT_AFTER_SEC * S && scans >= NOT_BOUGHT_EMPTY_SCANS) {
         const r = await prisma.smsAttempt.updateMany({ where: { id: u.id, state: 'UNKNOWN' }, data: { state: 'FAILED', errorCode: 'NOT_BOUGHT', closedAt: now } })
         if (r.count === 1) {
@@ -193,6 +231,9 @@ export async function scanUnknown(opts: { fillCalibration?: boolean } = {}): Pro
         out.claimed++
         continue
       }
+      // CAS 落空：这个尝试已经被别的扫描认领、或已判 NOT_BOUGHT → 不是歧义，跳过（绝不把刚解开的单冻成 MANUAL）
+      const again = await prisma.smsAttempt.findUnique({ where: { id: u.id }, select: { state: true } })
+      if (!again || again.state !== 'UNKNOWN') continue
     }
     const why = strict.length !== 1 ? `候选 ${strict.length} 个（宽口径 ${broad.length} 个）` : others ? '同一组合还有别的在途取号' : !legacyOk ? '窗口内旧单品链路有取号 / 换号动作' : '认领写库失败'
     if (await toManual(u.smsOrderId, `取号结果未知、不能自动认领：${why}（attempt #${u.id}）`)) out.manual++

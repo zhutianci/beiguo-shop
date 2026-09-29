@@ -44,22 +44,71 @@ const ATTEMPT_COST_SELECT = { state: true, charged: true, costMicro: true, maxPr
 // ───────────────────────── T20 成本核算落库 ─────────────────────────
 
 /**
- * 按当前状态重算一张单的成本利润并落库（事务里调，或传 prisma）。CANCELLED 只写 lossCents（成本利润保持 NULL）。
+ * 按当前状态重算一张单的成本利润并落库（事务里调，或传 prisma——此时自己开一个短事务）。CANCELLED 只写 lossCents（成本利润保持 NULL）。
  * 已定稿（costFinal=true）的单：重算结果不同（对账翻案、晚到的扣费）照样改数，但不改 costAt（§4.6「已定稿的不改 costAt」）。
  * 返回是否有变化（有变化时记一条 COST 事件）。
+ *
+ * 【先锁行再读再写】（S2a 评审修复）接码单行 `FOR UPDATE`、尝试 `FOR SHARE`（锁顺序：接码单 → 尝试），按锁住之后的最新值计算，
+ * 回写再带 state + version 条件。否则事务外的重算（E55 放号、markFinished、tick 的 T20-final / T22）普通读到 T15 / T16 提交之前的旧状态，
+ * 等行锁放开后照样写回，就会把「已取消、成本利润落空」或「售后利润 = −成本」覆盖成正利润（附录 B 第 18 条），而且 tick 不会再修。
  */
 export async function recomputeCostInTx(db: Tx | typeof prisma, smsOrderId: number, why: string): Promise<boolean> {
-  const o = await db.smsOrder.findUnique({
-    where: { id: smsOrderId },
-    select: { id: true, state: true, priceCents: true, costFx4: true, chargedMicro: true, costCents: true, profitCents: true, lossCents: true, costFinal: true, costAt: true },
-  })
-  if (!o) return false
-  const atts = await db.smsAttempt.findMany({ where: { smsOrderId }, select: ATTEMPT_COST_SELECT })
+  if (db === prisma) {
+    return prisma.$transaction((tx) => recomputeLocked(tx, smsOrderId, why), { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, maxWait: 5_000, timeout: 10_000 })
+  }
+  return recomputeLocked(db as Tx, smsOrderId, why)
+}
+
+type CostOrderRow = {
+  state: string
+  version: number
+  price_cents: number
+  cost_fx4: number
+  charged_micro: number | null
+  cost_cents: number | null
+  profit_cents: number | null
+  loss_cents: number | null
+  cost_final: number | boolean
+  cost_at: Date | null
+}
+type CostAttemptRow = { state: string; charged: number | boolean; cost_micro: number | null; max_price_micro: number; upstream_refund_micro: number | null }
+const numOrNull = (v: unknown) => (v == null ? null : Number(v))
+
+async function recomputeLocked(tx: Tx, smsOrderId: number, why: string): Promise<boolean> {
+  const rows = await tx.$queryRaw<CostOrderRow[]>`
+    SELECT state, version, price_cents, cost_fx4, charged_micro, cost_cents, profit_cents, loss_cents, cost_final, cost_at
+      FROM sms_orders WHERE id = ${smsOrderId} FOR UPDATE`
+  const r = rows[0]
+  if (!r) return false
+  const o = {
+    state: r.state,
+    version: Number(r.version),
+    priceCents: Number(r.price_cents),
+    costFx4: Number(r.cost_fx4),
+    chargedMicro: numOrNull(r.charged_micro),
+    costCents: numOrNull(r.cost_cents),
+    profitCents: numOrNull(r.profit_cents),
+    lossCents: numOrNull(r.loss_cents),
+    costFinal: !!Number(r.cost_final),
+    costAt: r.cost_at,
+  }
+  const attRows = await tx.$queryRaw<CostAttemptRow[]>`
+    SELECT state, charged, cost_micro, max_price_micro, upstream_refund_micro FROM sms_attempts WHERE sms_order_id = ${smsOrderId} FOR SHARE`
+  const atts = attRows.map((a) => ({
+    state: a.state,
+    charged: !!Number(a.charged),
+    costMicro: numOrNull(a.cost_micro),
+    maxPriceMicro: Number(a.max_price_micro),
+    upstreamRefundMicro: numOrNull(a.upstream_refund_micro),
+  }))
   const s = settleCost(o, atts)
+  const cas = { id: smsOrderId, state: o.state, version: o.version }
   if (o.state === 'CANCELLED') {
+    // 已取消：只写亏损，成本利润保持 NULL（附录 B 第 18 条）
     if (s.lossCents === o.lossCents) return false
-    await db.smsOrder.update({ where: { id: o.id }, data: { lossCents: s.lossCents } })
-    await logEvent(db, { smsOrderId, type: 'LOSS', detail: { lossCents: s.lossCents, why } })
+    const w = await tx.smsOrder.updateMany({ where: cas, data: { lossCents: s.lossCents } })
+    if (w.count !== 1) return false
+    await logEvent(tx, { smsOrderId, type: 'LOSS', detail: { lossCents: s.lossCents, why } })
     return true
   }
   // 还没收过码（chargedMicro 从没算过）的非终态单：没有扣费，不写预估（避免 WAITING 的单显示「成本 0」）
@@ -67,8 +116,8 @@ export async function recomputeCostInTx(db: Tx | typeof prisma, smsOrderId: numb
   const finalNow = s.costFinal
   const same = o.chargedMicro === s.chargedMicro && o.costCents === s.costCents && o.profitCents === s.profitCents && o.costFinal === finalNow
   if (same) return false
-  await db.smsOrder.update({
-    where: { id: o.id },
+  const w = await tx.smsOrder.updateMany({
+    where: cas,
     data: {
       chargedMicro: s.chargedMicro,
       costCents: s.costCents,
@@ -77,7 +126,8 @@ export async function recomputeCostInTx(db: Tx | typeof prisma, smsOrderId: numb
       ...(finalNow && !o.costAt ? { costAt: jnow() } : {}),
     },
   })
-  await logEvent(db, { smsOrderId, type: 'COST', detail: { chargedMicro: s.chargedMicro, costCents: s.costCents, profitCents: s.profitCents, final: finalNow, why } })
+  if (w.count !== 1) return false
+  await logEvent(tx, { smsOrderId, type: 'COST', detail: { chargedMicro: s.chargedMicro, costCents: s.costCents, profitCents: s.profitCents, final: finalNow, why } })
   return true
 }
 
@@ -104,6 +154,20 @@ export async function toManual(smsOrderId: number, why: string, notice = '订单
 
 // ───────────────────────── T15 取消退款 ─────────────────────────
 
+/**
+ * 事务里 Order CAS（PAID → REFUNDED）落空时区分两种情况（S2a 评审修复）：
+ *  · 并发的另一个推进方（tick、买家 GET 的惰性推进、toRefunding 的调用方）刚把同一张单退完——等到行锁后当前读看到接码单已不是
+ *    fromStates / refundState 已不是 NONE → RefundRace（静默，不转人工、不推告警）；
+ *  · 接码单还在等退款、订单却不是 PAID（人工改过库）→ 真的前提不满足，RefundNeedsManual('ORDER_NOT_PAID')。
+ * 当前读用 `FOR UPDATE`（锁顺序 订单 → 接码单，与 T15 本身一致）。
+ */
+async function raceOrManual(tx: Tx, smsOrderId: number, fromStates: string[]): Promise<never> {
+  const cur = await tx.$queryRaw<{ state: string; refund_state: string }[]>`SELECT state, refund_state FROM sms_orders WHERE id = ${smsOrderId} FOR UPDATE`
+  if (!cur[0]) throw new RefundNeedsManual('NO_SMS_ORDER')
+  if (!fromStates.includes(cur[0].state) || cur[0].refund_state !== 'NONE') throw new RefundRace()
+  throw new RefundNeedsManual('ORDER_NOT_PAID')
+}
+
 /** 支付宝部分核对：ALIPAY 支付流水 tradeNo 所指收款单的 reallyPrice（分）；没有 / 对不上返回 null */
 async function alipayPaidOf(tx: Tx, orderId: number): Promise<number | null> {
   const pay = await tx.payment.findFirst({ where: { orderId, payMethod: 'ALIPAY', status: 1 }, select: { tradeNo: true } })
@@ -129,7 +193,7 @@ export async function refundCancelled(smsOrderId: number, actor: 'SYSTEM' | 'CRO
     const r = await inMoneyTx(async (tx) => {
       const now = jnow()
       const flip = await tx.order.updateMany({ where: { id: pre.orderId, payStatus: 'PAID' }, data: { payStatus: 'REFUNDED', deliveryStatus: 'CANCELLED' } })
-      if (flip.count !== 1) throw new RefundNeedsManual('ORDER_NOT_PAID')
+      if (flip.count !== 1) await raceOrManual(tx, smsOrderId, ['REFUNDING'])
       // 一律按事务里现取的尝试算亏损（EXPIRED / 对账翻案的号），成本利润落空
       const costAtts = await tx.smsAttempt.findMany({ where: { smsOrderId }, select: ATTEMPT_COST_SELECT })
       const so = await tx.smsOrder.findUnique({ where: { id: smsOrderId }, select: { priceCents: true, costFx4: true } })
@@ -174,12 +238,15 @@ export async function refundCancelled(smsOrderId: number, actor: 'SYSTEM' | 'CRO
   } catch (e) {
     if (e instanceof RefundRace) return { done: false, why: 'RACE' }
     if (e instanceof RefundNeedsManual) {
-      await toManual(smsOrderId, `取消退款前提不满足：${e.why}`)
-      notify('wallet.alert', [
-        { label: '问题', value: `接码单退款前提不满足（${e.why}），已转人工`, color: 'warning' },
-        { label: '接码单', value: `#${smsOrderId}` },
-      ], { link: '/admin/jiema?tab=orders', extraTitle: '接码退款转人工' })
-      return { done: false, why: 'MANUAL' }
+      // 只有这一次真的冻结了才推「已转人工」（别的推进方已经退完 / 已冻结时 toManual 落空，不能推一条不存在的转人工）
+      const froze = await toManual(smsOrderId, `取消退款前提不满足：${e.why}`)
+      if (froze) {
+        notify('wallet.alert', [
+          { label: '问题', value: `接码单退款前提不满足（${e.why}），已转人工`, color: 'warning' },
+          { label: '接码单', value: `#${smsOrderId}` },
+        ], { link: '/admin/jiema?tab=orders', extraTitle: '接码退款转人工' })
+      }
+      return { done: false, why: froze ? 'MANUAL' : 'RACE' }
     }
     console.error('[jiema] 取消退款事务失败（tick 重试）', smsOrderId, (e as Error)?.message)
     const upd = await prisma.smsOrder.update({ where: { id: smsOrderId }, data: { failCount: { increment: 1 } }, select: { failCount: true } }).catch(() => null)
@@ -208,7 +275,7 @@ export async function refundAfterSale(smsOrderId: number, adminId: number, reaso
     const r = await inMoneyTx(async (tx) => {
       const now = jnow()
       const flip = await tx.order.updateMany({ where: { id: pre.orderId, payStatus: 'PAID' }, data: { payStatus: 'REFUNDED', deliveryStatus: 'CANCELLED' } })
-      if (flip.count !== 1) throw new RefundNeedsManual('ORDER_NOT_PAID')
+      if (flip.count !== 1) await raceOrManual(tx, smsOrderId, ['RECEIVED', 'FINISHED'])
       const cas = await tx.smsOrder.updateMany({
         where: { id: smsOrderId, state: pre.state, refundState: 'NONE' },
         data: { state: 'REFUNDED', refundState: 'DONE', refundReason: reason.slice(0, 24), refundedAt: now, refundBy: adminId, version: { increment: 1 }, failCount: 0 },
@@ -237,8 +304,8 @@ export async function refundAfterSale(smsOrderId: number, adminId: number, reaso
   } catch (e) {
     if (e instanceof RefundRace) return { done: false, why: 'RACE' }
     if (e instanceof RefundNeedsManual) {
-      await toManual(smsOrderId, `售后退款前提不满足：${e.why}`)
-      return { done: false, why: 'MANUAL' }
+      const froze = await toManual(smsOrderId, `售后退款前提不满足：${e.why}`)
+      return { done: false, why: froze ? 'MANUAL' : 'RACE' }
     }
     throw e
   }

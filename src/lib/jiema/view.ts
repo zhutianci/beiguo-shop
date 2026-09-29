@@ -20,8 +20,11 @@ export interface BuyerOrderRef {
 }
 
 /** 本人、主站的接码单（不符 = null → 404） */
+/** 订单号的格式（买家接口先拿它校验路径参数，再拼限频 key、查库） */
+export const JIEMA_ORDER_NO_RE = /^[0-9A-Za-z]{8,32}$/
+
 export async function findBuyerOrder(userId: number, orderNo: string): Promise<BuyerOrderRef | null> {
-  if (typeof orderNo !== 'string' || !/^[0-9A-Za-z]{8,32}$/.test(orderNo)) return null
+  if (typeof orderNo !== 'string' || !JIEMA_ORDER_NO_RE.test(orderNo)) return null
   const order = await prisma.order.findFirst({
     where: { orderNo, userId, tenantId: 1, product: { deliveryType: 'SMS_POOL' } },
     select: { id: true, orderNo: true, payStatus: true, deliveryStatus: true, userId: true },

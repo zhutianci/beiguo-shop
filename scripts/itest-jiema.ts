@@ -21,7 +21,10 @@
  *   58 余额支付急停、60 退款时预扣不是 CAPTURED → MANUAL；v1.0：78 T19 与管理员关单并发、79 取号意图唯一、80 下单与退款并发不死锁、
  *   81 配置坏了在途照常 + 告警线不失明、82 FREE_CANCELLATION_EXPIRED、83 finish NEW_OTP_RECEIVED、84 币种 978、86 SOLD_OUT 不写停售、88 晚到的扣费、
  *   89 已有 3 张待付收款单、102 发起支付前的停售闸门、104 E44、105 计数与计时落库、106 下单即发起收银台（PAY_BUSY / OPEN_PAYMENTS / PAYING）、
- *   108 T4 ①、109 付款事实不依赖状态 CAS、111 换号失败总则、113 getStatus 的两种返回、122 三种手动停售、123 E26 上游余额核对、124 低余额只告警。
+ *   108 T4 ①、109 付款事实不依赖状态 CAS、111 换号失败总则、113 getStatus 的两种返回、122 三种手动停售、123 E26 上游余额核对、124 低余额只告警；
+ *   59 wallet_config 损坏、81 后半（进程重启后配置仍坏）、94 排空演练（dev 库，镜像回滚本身留给部署时人工演练）。
+ * S2a 评审修复的回归：成本重算锁行、落地兜底不放当前号、E44 前提、熔断不吞别的全局停售、第 6 单起照样计时、扫描器互斥与两轮间隔、
+ *   无校准样本放宽时间窗、退款并发不推假告警、运营商校验在报价与闸门之后、OPEN_PAYMENTS{items}、订单号先校验再限频。
  */
 import http from 'http'
 import crypto from 'crypto'
@@ -971,20 +974,15 @@ async function main() {
     }
 
     // =====================================================================================
-    section('第 39 条 退款并发（tick 与买家 GET 同时推进）→ 只有一条 REFUND、两格只加一次')
+    section('第 39 条 退款并发（tick 与买家 GET 同时推进）→ 只有一条 REFUND、两格只加一次、输的一方不推假的「转人工」')
     {
       const u = await mkUser('rfc')
       await fund(u.id, 200, 0)
       const r = await placeOk(u, 'ot', 6, { payWith: 'BALANCE', expectBalance: 170 })
       const so = await soOf(r.orderId)
       adv(125)
-      await engine.buyerCancel(so, so.version).catch(() => null)
-      // 把它拨回 REFUNDING（模拟退款事务之前崩溃），再并发推进
-      await prisma.smsOrder.update({ where: { id: so.id }, data: { state: 'REFUNDING', refundState: 'NONE' } })
-      const fresh = await soOf(r.orderId)
-      if (fresh.state === 'REFUNDING' && (await prisma.balanceLog.count({ where: { orderId: r.orderId, type: 'REFUND' } })) === 1) {
-        check('（取消已退过一次：用新单重做并发退款）', true)
-      }
+      const c1 = await engine.buyerCancel(so, so.version)
+      check('第 39 条前置：满 2 分钟买家取消 → 立即退回（CANCELLED、一条 REFUND、余额回到 200）', c1.ok && (await soOf(r.orderId)).state === 'CANCELLED' && (await prisma.balanceLog.count({ where: { orderId: r.orderId, type: 'REFUND' } })) === 1 && (await buckets(u.id)).topup === 200)
       const u2 = await mkUser('rfc2')
       await fund(u2.id, 200, 0)
       const r2 = await placeOk(u2, 'ot', 6, { payWith: 'BALANCE', expectBalance: 170 })
@@ -993,9 +991,30 @@ async function main() {
       mock.endActivation(c2.activationId!, 8)
       await prisma.smsAttempt.update({ where: { id: c2.id }, data: { state: 'CANCELLED', closedAt: new Date() } })
       await prisma.smsOrder.update({ where: { id: s2.id }, data: { state: 'REFUNDING', refundReason: 'EXPIRED' } })
-      await Promise.all([refund.refundCancelled(s2.id), refund.refundCancelled(s2.id), engine.advanceOrder(s2.id), engine.lazyAdvance(s2.id)])
+      bodies.length = 0
+      const outs = await Promise.all([refund.refundCancelled(s2.id), refund.refundCancelled(s2.id), engine.advanceOrder(s2.id), engine.lazyAdvance(s2.id)])
       check('只有一条 REFUND、充值格只加一次（回到 200）', (await prisma.balanceLog.count({ where: { orderId: r2.orderId, type: 'REFUND' } })) === 1 && (await buckets(u2.id)).topup === 200 && (await soOf(r2.orderId)).state === 'CANCELLED')
-      await prisma.smsOrder.update({ where: { id: so.id }, data: { state: 'CANCELLED', refundState: 'DONE' } })
+      check(
+        '  …输的一方按 RACE 收场：不转人工、没有 MANUAL 事件、不推「接码退款转人工」wallet.alert',
+        [outs[0], outs[1]].every((x) => x.done || x.why === 'RACE' || x.why === 'NOT_READY') && (await prisma.smsEvent.count({ where: { smsOrderId: s2.id, type: 'MANUAL' } })) === 0 && (await pushes('接码退款转人工')) === 0,
+        JSON.stringify([outs[0], outs[1]]),
+      )
+      // 反例：订单真的不是 PAID（人工改过库）、接码单仍在等退款 → 照样转人工并推送（不能被当成 RACE 吞掉）
+      const u3 = await mkUser('rfc3')
+      await fund(u3.id, 200, 0)
+      const r3 = await placeOk(u3, 'ot', 6, { payWith: 'BALANCE', expectBalance: 170 })
+      const s3 = await soOf(r3.orderId)
+      const c3 = (await curOf(r3.orderId))!
+      mock.endActivation(c3.activationId!, 8)
+      await prisma.smsAttempt.update({ where: { id: c3.id }, data: { state: 'CANCELLED', closedAt: new Date() } })
+      await prisma.smsOrder.update({ where: { id: s3.id }, data: { state: 'REFUNDING', refundReason: 'EXPIRED' } })
+      await prisma.order.update({ where: { id: r3.orderId }, data: { payStatus: 'UNPAID' } })
+      bodies.length = 0
+      const o3 = await refund.refundCancelled(s3.id)
+      check('  …反例：订单被改成 UNPAID、接码单仍 REFUNDING → MANUAL、推一次「接码退款转人工」、不退', o3.done === false && o3.why === 'MANUAL' && (await soOf(r3.orderId)).state === 'MANUAL' && (await pushes('接码退款转人工')) === 1 && (await prisma.balanceLog.count({ where: { orderId: r3.orderId, type: 'REFUND' } })) === 0)
+      await prisma.order.update({ where: { id: r3.orderId }, data: { payStatus: 'PAID' } })
+      await engine.adminCancelRefund(s3.id, u3.id)
+      check('  …核实改回后「取消并退回余额」→ CANCELLED、余额回到 200', (await soOf(r3.orderId)).state === 'CANCELLED' && (await buckets(u3.id)).topup === 200)
     }
 
     // =====================================================================================
@@ -1135,6 +1154,7 @@ async function main() {
       mock.setBalanceUsd(12.44)
       runtime.resetBalanceForTest(null)
       const r = await placeOk(u, 'ot', 6)
+      const r2 = await placeOk(u, 'ot', 6)
       await setCfg('{"version":3,"enabled":true}')
       const rn = await place(u, 'ot', 6, { expectPrice: 170 })
       check('sms_config 写坏 → 新单 503 MAINTENANCE', !rn.ok && (rn as { code: string }).code === 'MAINTENANCE')
@@ -1146,6 +1166,19 @@ async function main() {
       mock.setBalanceUsd(1.5)
       await upbalance.refreshBalance()
       check('配置坏着，余额 $1.50 → 照样推 UPSTREAM_LOW（告警线取最后有效值）', (await pushes('UPSTREAM_LOW')) === 1)
+      // 第 81 条后半：进程重启后配置仍是坏的 → runtimeParams 回到代码内置默认值（maxActiveNumbers=20、告警线 $2），已付款的单照样取号、告警照样推
+      mock.setBalanceUsd(12.44)
+      runtime.resetBalanceForTest(null)
+      jcfg.resetSmsConfigRuntimeForTest()
+      check('  …模拟进程重启：配置仍读不到、runtimeParams = 代码内置默认值', !(await jcfg.readSmsConfig()).ok && jcfg.runtimeParams().limits.maxActiveNumbers === FACTORY_SMS_CONFIG.limits.maxActiveNumbers && jcfg.runtimeParams().upstream.balanceAlertUsd === 2)
+      const liveNow = await prisma.smsAttempt.count({ where: { state: { in: ['REQUESTING', 'UNKNOWN', 'ACTIVE', 'RECEIVED', 'RELEASING'] } } })
+      await pay(r2.orderId)
+      check(`  …重启后已付款的单照常取号（按默认上限 20，当前在途 ${liveNow} 个）`, (await soOf(r2.orderId)).state === 'WAITING')
+      bodies.length = 0
+      runtime.rt().low = { below: false, lastAt: null }
+      mock.setBalanceUsd(1.5)
+      await upbalance.refreshBalance()
+      check('  …重启后配置仍坏，余额 $1.50 → 按代码默认 $2 照样推 UPSTREAM_LOW', (await pushes('UPSTREAM_LOW')) === 1)
       mock.setBalanceUsd(12.44)
       await setCfg()
       adv(21 * 60)
@@ -1160,6 +1193,17 @@ async function main() {
       resetCaches()
       const a = await order.createJiemaOrder({ id: u.id, role: 'ADMIN' }, { service: 'wb', country: 3, operator: null, operatorFallback: true, expectPriceCents: 550, payWith: 'ALIPAY', clientToken: uuid(), agree: true, termsVersion: JIEMA_TERMS_VERSION, walletTermsVersion: WALLET_TERMS_VERSION })
       check('服务手动下架 → 409 HOLD', !a.ok && a.code === 'HOLD' && a.status === 409)
+      const a2 = await order.createJiemaOrder({ id: u.id, role: 'ADMIN' }, { service: 'wb', country: 3, operator: 'megafon', operatorFallback: true, expectPriceCents: 550, payWith: 'ALIPAY', clientToken: uuid(), agree: true, termsVersion: JIEMA_TERMS_VERSION, walletTermsVersion: WALLET_TERMS_VERSION })
+      check('  …带运营商的请求同样 409 HOLD（不是 400「运营商不在列表里」，S2a 评审修复）', !a2.ok && a2.code === 'HOLD' && a2.status === 409, JSON.stringify(a2))
+      let missing = 'zq'
+      for (const c of ['zq', 'zqx', 'qzq', 'xzq9']) {
+        if (!(await prisma.smsService.findUnique({ where: { code: c } }))) {
+          missing = c
+          break
+        }
+      }
+      const a3 = await order.createJiemaOrder({ id: u.id, role: 'ADMIN' }, { service: missing, country: 3, operator: 'megafon', operatorFallback: true, expectPriceCents: 550, payWith: 'ALIPAY', clientToken: uuid(), agree: true, termsVersion: JIEMA_TERMS_VERSION, walletTermsVersion: WALLET_TERMS_VERSION })
+      check('  …不在目录里的服务带运营商 → 404 NOT_FOUND（不是 400）', !a3.ok && a3.status === 404 && a3.code === 'NOT_FOUND', JSON.stringify(a3))
       await prisma.smsService.update({ where: { code: 'wb' }, data: { status: 'ON', offNote: null } })
       await prisma.smsPriceRule.create({ data: { scopeKey: 'wb:*', disabled: true, note: 'itest' } })
       resetCaches()
@@ -1365,7 +1409,11 @@ async function main() {
       // 第 60 条：预扣不是 CAPTURED
       const uc = await mkUser('manual-c')
       await fund(uc.id, 170, 0)
-      const r3 = await placeOk(uc, 'ot', 6, { payWith: 'BALANCE', expectBalance: 170 }).catch(() => null)
+      const r3 = await placeOk(uc, 'ot', 6, { payWith: 'BALANCE', expectBalance: 170 }).catch((e) => {
+        console.log('    （诊断）第 60 条的第 3 单下单失败：', (e as Error)?.message)
+        return null
+      })
+      check('第 60 条前置：第 3 单（余额付清 170）下单成功（不成立就是失败，不能静默跳过）', !!r3)
       if (r3) {
         const s3 = await soOf(r3.orderId)
         await prisma.smsAttempt.updateMany({ where: { smsOrderId: s3.id }, data: { state: 'CANCELLED', closedAt: new Date() } })
@@ -1378,7 +1426,7 @@ async function main() {
         await prisma.$executeRawUnsafe(`UPDATE balance_holds SET state = 'CAPTURED' WHERE order_id = ${r3.orderId}`)
         await engine.adminCancelRefund(s3.id, uc.id)
         check('  …核实改回后「取消并退回余额」→ CANCELLED、余额回到 170', (await soOf(r3.orderId)).state === 'CANCELLED' && (await buckets(uc.id)).topup === 170)
-      } else check('（余额不够第 3 单，跳过第 60 条）', true)
+      }
       // 让 mock 上的号结束
       adv(21 * 60)
       await tick(2)
@@ -1428,6 +1476,28 @@ async function main() {
       const n0 = await prisma.smsOrder.count({ where: { userId: u.id } })
       const r4 = await place(u, 'ot', 6, { payWith: 'BALANCE', expectBalance: 100 })
       check('已有 3 张待付收款单 → 429 OPEN_PAYMENTS、不建单、不预扣', !r4.ok && r4.code === 'OPEN_PAYMENTS' && (await prisma.smsOrder.count({ where: { userId: u.id } })) === n0 && (await buckets(u.id)).topup === 100)
+      type OpenItem = { kind: string; orderNo: string; href: string; payUrl: string; amountCents: number; expiresAt: string }
+      const items4 = (!r4.ok ? (r4.extra?.items as OpenItem[] | undefined) : undefined) ?? []
+      const itemKeys = dto.collectKeyNames(JSON.parse(JSON.stringify(items4)))
+      check(
+        '  …带 items（§6.4 OPEN_PAYMENTS{items}）：3 笔、接码单链到号码页、带收银台链接 / 金额 / 到期时间、没有内部字段',
+        items4.length === 3 && items4.every((i) => i.kind === 'SMS' && i.href === `/jiema/order/${i.orderNo}` && i.payUrl.startsWith('/pay/') && i.amountCents > 0 && Date.parse(i.expiresAt) > Date.now()) && dto.FORBIDDEN_BUYER_KEYS.every((k) => !itemKeys.has(k)),
+        JSON.stringify(items4),
+      )
+      // 事后复核：已有 2 张待付，同时再下 2 张 → 预检都可能过、发起收款后复核超限的那张同一请求关单（released），同样带 items
+      const u3 = await mkUser('cashier-post')
+      await placeOk(u3, 'ot', 6)
+      await placeOk(u3, 'ot', 6)
+      const both = await Promise.all([place(u3, 'ot', 6), place(u3, 'ot', 6)])
+      const ops = both.filter((x) => !x.ok && x.code === 'OPEN_PAYMENTS') as Array<{ ok: false; code: string; extra?: Record<string, unknown> }>
+      check(
+        '  …并发两单：至少一张 429 OPEN_PAYMENTS、每张都带 items（3 笔）；其余成功',
+        ops.length >= 1 && ops.every((x) => Array.isArray(x.extra?.items) && (x.extra!.items as OpenItem[]).length === 3) && both.filter((x) => x.ok).length + ops.length === 2,
+        JSON.stringify(both.map((x) => (x.ok ? 'ok' : `${x.code}:${JSON.stringify(x.extra ?? {})}`))),
+      )
+      const rel = ops.filter((x) => x.extra?.released === true)
+      console.log(`    （诊断）并发两单：OPEN_PAYMENTS ${ops.length} 张，其中事后复核关单（released）${rel.length} 张`)
+      for (const o of await prisma.smsOrder.findMany({ where: { userId: u3.id, state: 'PENDING_PAY' } })) await engine.buyerClose(o, o.version)
       // T4 ①
       const u2 = await mkUser('t4a')
       await fund(u2.id, 100, 0)
@@ -1622,6 +1692,11 @@ async function main() {
       check('下单、号码页、取消在渠道 Host 都是 404', p1.status === 404 && p2.status === 404 && p3.status === 404)
       const p4 = await callRoute(routeOrders.POST, { host: MAIN, token: u.token, method: 'POST', path: '/api/jiema/orders', body: { service: 'OT' } })
       check('主站：格式不对 → 400（zod 只校验格式）', p4.status === 400)
+      // S2a 评审修复：路径里的订单号先校验格式再拼限频 key（任意长的串不进限频桶）
+      const longNo = 'A'.repeat(4000)
+      const gs: Array<{ status: number; json: { code?: string } | null }> = []
+      for (let i = 0; i < 3; i++) gs.push(await callRoute(routeView.GET, { host: MAIN, token: u.token, method: 'GET', path: '/api/jiema/orders/x', params: { orderNo: longNo } }))
+      check('主站：订单号格式不对 → 404，连续 3 次都是 404（不进限频桶，不会 429）', gs.every((g) => g.status === 404 && g.json?.code === 'NOT_FOUND'), gs.map((g) => g.status).join(','))
     }
 
     // =====================================================================================
@@ -1718,6 +1793,363 @@ async function main() {
       }
       adv(21 * 60)
       await tick(2)
+    }
+
+    // =====================================================================================
+    section('S2a 评审修复 ①：成本重算先锁接码单行——与 T15 同时进行时不把已取消单写成正利润（附录 B 第 18 条）')
+    {
+      const u = await mkUser('cost-lock')
+      await fund(u.id, 200, 0)
+      const r = await placeOk(u, 'ot', 6, { payWith: 'BALANCE', expectBalance: 170 })
+      const so = await soOf(r.orderId)
+      const cur = (await curOf(r.orderId))!
+      // 放号时上游说免费取消期已过：这个号没码却被扣费（charged、EXPIRED）；订单停在 REFUNDING 等 T15
+      mock.endActivation(cur.activationId!, 8)
+      await prisma.smsAttempt.update({ where: { id: cur.id }, data: { state: 'CANCELLED', charged: true, chargeSource: 'EXPIRED', closedAt: new Date() } })
+      await prisma.smsOrder.update({ where: { id: so.id }, data: { state: 'REFUNDING', refundReason: 'BUYER_CANCEL' } })
+      // 模拟 T15 的事务进行中：已锁住接码单行、改成 CANCELLED（成本利润落空），700ms 后才提交；同时跑一次事务外的重算（E55 放号、markFinished 之类）
+      let started!: () => void
+      const gate = new Promise<void>((res) => (started = res))
+      const t15 = prisma.$transaction(
+        async (tx) => {
+          await tx.smsOrder.update({ where: { id: so.id }, data: { state: 'CANCELLED', version: { increment: 1 }, chargedMicro: null, costCents: null, profitCents: null, costFinal: false } })
+          started()
+          await sleep(700)
+        },
+        { timeout: 15_000 },
+      )
+      await gate
+      const rc = refund.recomputeCostInTx(prisma, so.id, 'itest-race')
+      await t15
+      await rc
+      const s1 = await soOf(r.orderId)
+      check('重算等 T15 提交之后按 CANCELLED 算：成本 / 利润 / 实扣仍为 NULL、只写 lossCents', s1.state === 'CANCELLED' && s1.costCents == null && s1.profitCents == null && s1.chargedMicro == null && (s1.lossCents ?? 0) > 0, JSON.stringify({ state: s1.state, cost: s1.costCents, profit: s1.profitCents, loss: s1.lossCents }))
+      // 收尾：拨回 REFUNDING 走真正的 T15（钱与订单状态对得上，对账不留尾巴）
+      await prisma.smsOrder.update({ where: { id: so.id }, data: { state: 'REFUNDING' } })
+      const done = await refund.refundCancelled(so.id)
+      const s2 = await soOf(r.orderId)
+      check('  …真正的 T15：整单退回、成本利润仍为空、亏损照记', done.done && s2.state === 'CANCELLED' && s2.profitCents == null && (s2.lossCents ?? 0) > 0 && (await buckets(u.id)).topup === 200)
+    }
+
+    // =====================================================================================
+    section('S2a 评审修复 ②：取号 / 换号 / 认领的落地并发——抢输的一方不放掉订单刚挂上的当前号')
+    {
+      const u = await mkUser('settle-race')
+      const r1 = await placeOk(u, 'dr', 16)
+      await pay(r1.orderId)
+      const s1 = await soOf(r1.orderId)
+      const a1 = (await curOf(r1.orderId))!
+      await engine.afterClaim(s1.id, a1.id)
+      check('afterClaim 读到 WAITING、当前号就是这个号（并发的推进刚结算完）→ 什么都不做，号码仍 ACTIVE', (await prisma.smsAttempt.findUniqueOrThrow({ where: { id: a1.id } })).state === 'ACTIVE' && (await soOf(r1.orderId)).currentAttemptId === a1.id)
+      // settleAcquired：号已写成 ACTIVE、订单还停在 ACQUIRING（取号的调用方与 tick / 号码页轮询同时结算）
+      await prisma.smsOrder.update({ where: { id: s1.id }, data: { state: 'ACQUIRING', currentAttemptId: null } })
+      await Promise.all([engine.advanceOrder(s1.id, 'CRON'), engine.advanceOrder(s1.id, 'CRON'), engine.advanceOrder(s1.id, 'BUYER')])
+      const s1b = await soOf(r1.orderId)
+      check('三方同时结算同一个号 → 一方 T8、其余什么都不做：WAITING、当前号仍 ACTIVE', s1b.state === 'WAITING' && s1b.currentAttemptId === a1.id && (await prisma.smsAttempt.findUniqueOrThrow({ where: { id: a1.id } })).state === 'ACTIVE')
+      // switchToNew：换号取到的新号已 ACTIVE、订单还在 REPLACING（买家的换号请求与 tick / 号码页轮询同时切换）
+      const [nb] = mock.buy({ service: 'dr', country: 16 })
+      const t0 = runtime.jnow()
+      const b = await prisma.smsAttempt.create({
+        data: {
+          smsOrderId: s1.id,
+          seq: s1b.attemptCount + 1,
+          reason: 'REPLACE',
+          state: 'ACTIVE',
+          service: 'dr',
+          country: 16,
+          maxPriceMicro: s1b.capMicro,
+          activationId: nb.id,
+          phone: nb.phone,
+          costMicro: nb.costMicro,
+          requestedAt: t0,
+          respondedAt: t0,
+          canCancelAt: new Date(t0.getTime() + 123_000),
+          endsAt: new Date(nb.endsAt),
+          waitUntil: new Date(nb.endsAt - 45_000),
+        },
+      })
+      await prisma.smsOrder.update({ where: { id: s1.id }, data: { state: 'REPLACING', attemptCount: s1b.attemptCount + 1 } })
+      await Promise.all([engine.advanceOrder(s1.id, 'CRON'), engine.advanceOrder(s1.id, 'CRON'), engine.advanceOrder(s1.id, 'BUYER')])
+      const s1c = await soOf(r1.orderId)
+      const bNow = await prisma.smsAttempt.findUniqueOrThrow({ where: { id: b.id } })
+      const aNow = await prisma.smsAttempt.findUniqueOrThrow({ where: { id: a1.id } })
+      check(
+        '三方同时切换到同一个新号 → WAITING、当前号 = 新号且仍 ACTIVE、replaceCount 只加 1、旧号转 RELEASING / 已取消',
+        s1c.state === 'WAITING' && s1c.currentAttemptId === b.id && bNow.state === 'ACTIVE' && s1c.replaceCount === s1b.replaceCount + 1 && ['RELEASING', 'CANCELLED'].includes(aNow.state),
+        JSON.stringify({ state: s1c.state, cur: s1c.currentAttemptId, b: b.id, bState: bNow.state, aState: aNow.state, rc: s1c.replaceCount }),
+      )
+      adv(21 * 60)
+      await tick(2)
+    }
+
+    // =====================================================================================
+    section('S2a 评审修复 ③：「关单并把到账退入余额」只在 E44 的前提下可用（没有到账 / 预扣还是 HELD → 拒绝）；「关单并退回预扣」不替买家作废收款单')
+    {
+      // 余额付清单被冻结（T19 连续失败之类）：预扣 HELD、没有收款单
+      const u = await mkUser('e44-guard')
+      await fund(u.id, 170, 0)
+      order.setJiemaCrashAfterTxForTest(true)
+      const r = await placeOk(u, 'ot', 6, { payWith: 'BALANCE', expectBalance: 170 })
+      order.setJiemaCrashAfterTxForTest(false)
+      const so = await soOf(r.orderId)
+      await prisma.smsOrder.update({ where: { id: so.id }, data: { state: 'MANUAL' } })
+      const x1 = await engine.adminCloseWithLatepay(so.id, u.id)
+      check(
+        '没有 state=1 的收款单 → 拒绝（NO_PAID_VMQ）：订单不取消、接码单仍 MANUAL、预扣仍 HELD',
+        !x1.ok && x1.why === 'NO_PAID_VMQ' && (await soOf(r.orderId)).state === 'MANUAL' && (await prisma.order.findUniqueOrThrow({ where: { id: r.orderId } })).deliveryStatus !== 'CANCELLED' && (await prisma.balanceHold.findUniqueOrThrow({ where: { orderId: r.orderId } })).state === 'HELD',
+        JSON.stringify(x1),
+      )
+      const x2 = await engine.adminCloseAndRelease(so.id, u.id)
+      check('  …改用「关单并原路退回预扣」→ CLOSED、预扣 RELEASED、余额回到 170', x2 === 'CLOSED' && (await soOf(r.orderId)).state === 'CLOSED' && (await prisma.balanceHold.findUniqueOrThrow({ where: { orderId: r.orderId } })).state === 'RELEASED' && (await buckets(u.id)).topup === 170)
+      // 组合单：先有 state=0 的收款单（买家手里的二维码）
+      const u2 = await mkUser('e44-held')
+      await fund(u2.id, 100, 0)
+      const r2 = await placeOk(u2, 'ot', 6, { payWith: 'BALANCE', expectBalance: 100 })
+      const so2 = await soOf(r2.orderId)
+      const v2 = (await vmqOf(r2.orderId))!
+      await prisma.smsOrder.update({ where: { id: so2.id }, data: { state: 'MANUAL' } })
+      const x0 = await engine.adminCloseAndRelease(so2.id, u2.id)
+      check('「关单并原路退回预扣」遇到 state=0 的收款单 → PAYING，不替买家作废二维码（收款单仍是 0、仍 MANUAL、预扣 HELD）', x0 === 'PAYING' && (await prisma.vmqOrder.findUniqueOrThrow({ where: { id: v2.id } })).state === 0 && (await soOf(r2.orderId)).state === 'MANUAL' && (await prisma.balanceHold.findUniqueOrThrow({ where: { orderId: r2.orderId } })).state === 'HELD')
+      // 收款单已到账（state=1）、预扣却还是 HELD（到账回调还没处理完就被冻结之类）
+      await prisma.vmqOrder.update({ where: { id: v2.id }, data: { state: 1 } })
+      const x3 = await engine.adminCloseWithLatepay(so2.id, u2.id)
+      check(
+        '有 state=1 的收款单、预扣却还是 HELD → 拒绝（HOLD_HELD），整个事务回滚：订单未取消、仍 MANUAL、预扣 HELD、没有 LATEPAY',
+        !x3.ok && x3.why === 'HOLD_HELD' && (await soOf(r2.orderId)).state === 'MANUAL' && (await prisma.order.findUniqueOrThrow({ where: { id: r2.orderId } })).deliveryStatus !== 'CANCELLED' && (await prisma.balanceHold.findUniqueOrThrow({ where: { orderId: r2.orderId } })).state === 'HELD' && (await prisma.balanceLog.count({ where: { orderId: r2.orderId, type: 'LATEPAY' } })) === 0,
+        JSON.stringify(x3),
+      )
+      const x4 = await engine.adminCloseAndRelease(so2.id, u2.id)
+      check('  …「关单并原路退回预扣」遇到 state=1 → PAID_PROCESSING（不关、不释放）', x4 === 'PAID_PROCESSING' && (await prisma.balanceHold.findUniqueOrThrow({ where: { orderId: r2.orderId } })).state === 'HELD')
+      // 收尾：按真实到账推进（钱到了 → 冻结期间照样写付款事实、预扣 CAPTURED）→ 管理员「取消并退回余额」
+      await prisma.vmqOrder.update({ where: { id: v2.id }, data: { state: 0 } })
+      const paid2 = await pay(r2.orderId)
+      await engine.adminCancelRefund(so2.id, u2.id)
+      check('  …收尾：到账后「取消并退回余额」→ CANCELLED、余额 100 + 支付宝实收', (await soOf(r2.orderId)).state === 'CANCELLED' && (await buckets(u2.id)).topup === 100 + centsOf(paid2.reallyPrice))
+    }
+
+    // =====================================================================================
+    section('S2a 评审修复 ④：熔断与别的全局停售共用 global 一行——币种异常盖掉 BREAKER、熔断关闭不删它；封禁先到期而熔断仍开 → BREAKER 写回')
+    {
+      await prisma.smsHold.deleteMany({ where: { key: 'global' } })
+      const st = runtime.rt().breaker
+      up.resetUpstreamStateForTest()
+      mock.setFaults([{ action: '*', kind: 'http500', times: 0 }])
+      for (let i = 0; i < 6; i++) await up.getActiveActivations().catch(() => null)
+      await holds.evaluateBreaker()
+      mock.clearFaults()
+      check('熔断打开 → global / BREAKER', (await prisma.smsHold.findUnique({ where: { key: 'global' } }))?.reason === 'BREAKER' && st.open)
+      await holds.holdForCurrency({ currency: 978, where: 'itest' })
+      check('熔断开着时上游返回币种 978 → global 改成 CURRENCY（不再被判成「已有更严的」而保留 BREAKER）', (await prisma.smsHold.findUnique({ where: { key: 'global' } }))?.reason === 'CURRENCY')
+      check('  …熔断再写一次不会把 CURRENCY 盖回 BREAKER（KEPT）', (await holds.putAutoHold('global', null, 'BREAKER')) === 'KEPT' && (await prisma.smsHold.findUnique({ where: { key: 'global' } }))?.reason === 'CURRENCY')
+      await holds.evaluateBreaker()
+      adv(181)
+      const closed = await holds.evaluateBreaker()
+      const g = await prisma.smsHold.findUnique({ where: { key: 'global' } })
+      check('探活 3 分钟后熔断关闭 → global 仍是 CURRENCY、until 为空（需手动解除）', closed.changed && !closed.open && !!g && g.reason === 'CURRENCY' && g.until == null)
+      const rn = await place(await mkUser('brk-cur'), 'ot', 6)
+      check('  …新单照样 503 MAINTENANCE（没有被熔断关闭悄悄解除）', !rn.ok && rn.code === 'MAINTENANCE')
+      // 全局封禁（有截止）盖掉 BREAKER，先到期而熔断还开着 → 下一轮把 BREAKER 写回
+      await prisma.smsHold.deleteMany({ where: { key: 'global' } })
+      st.open = true
+      st.openedAt = runtime.jnow().getTime()
+      st.okSince = null
+      await holds.putAutoHold('global', null, 'BREAKER', 'AUTO', 'itest')
+      await holds.holdForBan({ scope: 'global', untilMs: runtime.jnow().getTime() + 60_000, service: '*', country: 0 })
+      const g2 = await prisma.smsHold.findUnique({ where: { key: 'global' } })
+      check('熔断开着时全局封禁到某时刻 → global 改成 BANNED（带截止）', g2?.reason === 'BANNED' && !!g2.until)
+      adv(61)
+      mock.setFaults([{ action: 'getBalance', kind: 'http500', times: 0 }])
+      await holds.evaluateBreaker()
+      mock.clearFaults()
+      const g3 = await prisma.smsHold.findUnique({ where: { key: 'global' } })
+      check('  …封禁先到期、熔断还开着（探活仍失败）→ BREAKER 写回（新单继续停售）', g3?.reason === 'BREAKER' && g3.until == null && st.open)
+      st.open = false
+      st.openedAt = null
+      st.okSince = null
+      await prisma.smsHold.deleteMany({ where: { key: 'global' } })
+      up.resetUpstreamStateForTest() // 熔断按真实时间最近 2 分钟的调用计数：清掉本节故意打的 5xx，免得下一节的 tick 又把熔断打开
+    }
+
+    // =====================================================================================
+    section('S2a 评审修复 ⑤：停售时 tick 每轮只给 5 单发起取号，但第 6 单起同样记 blockedSince、90 秒内一起退回（E59、第 81 条）')
+    {
+      const u = await mkUser('many-acq')
+      await fund(u.id, 170 * 7, 0)
+      const made: number[] = []
+      order.setJiemaCrashAfterTxForTest(true)
+      for (let i = 0; i < 7; i++) made.push((await placeOk(u, 'ot', 6, { payWith: 'BALANCE', expectBalance: 170 })).orderId)
+      order.setJiemaCrashAfterTxForTest(false)
+      await prisma.smsHold.create({ data: { key: 'combo:ot:6', until: null, reason: 'ADMIN', source: 'ADMIN', note: 'itest' } })
+      resetCaches()
+      for (const id of made) await vmq.fulfillOrder(id, { via: 'BALANCE' })
+      const sos = await prisma.smsOrder.findMany({ where: { orderId: { in: made } } })
+      check('7 张余额付清单都已付款、停在 ACQUIRING（被停售挡住）', sos.length === 7 && sos.every((x) => x.state === 'ACQUIRING'))
+      // 模拟这些单都还没被闸门判过（付款后踢取号没跑成之类）：blockedSince 清空，交给 tick
+      await prisma.smsOrder.updateMany({ where: { orderId: { in: made } }, data: { blockedSince: null } })
+      await tick()
+      const marked = await prisma.smsOrder.count({ where: { orderId: { in: made }, blockedSince: { not: null } } })
+      check('tick 一轮：7 张全部记下 blockedSince（不只前 5 张）', marked === 7, `marked=${marked}`)
+      adv(91)
+      await tick()
+      const done = await prisma.smsOrder.findMany({ where: { orderId: { in: made } }, select: { state: true, refundReason: true } })
+      check('90 秒后同一轮全部退回余额（refundReason=HOLD）、余额回到原值', done.every((d) => d.state === 'CANCELLED' && d.refundReason === 'HOLD') && (await buckets(u.id)).topup === 170 * 7, JSON.stringify(done))
+      await prisma.smsHold.delete({ where: { key: 'combo:ot:6' } })
+      resetCaches()
+    }
+
+    // =====================================================================================
+    section('S2a 评审修复 ⑥：扫描器互斥——tick 与号码页轮询同时扫同一个 UNKNOWN → 只认领一次、不转人工；「连续两轮」之间至少隔一个 tick 周期')
+    {
+      const u = await mkUser('scan-race')
+      // 先有校准样本（与第 24 条同样的做法）
+      const s0 = await placeOk(u, 'dr', 16)
+      await pay(s0.orderId)
+      await claim.scanUnknown({ fillCalibration: true })
+      mock.setFaults([{ action: 'getNumberV2', kind: 'hang', delayMs: 16_500, bought: true }])
+      const r = await placeOk(u, 'ot', 6)
+      await pay(r.orderId)
+      await settle(r.orderId)
+      mock.clearFaults()
+      const so = await soOf(r.orderId)
+      check('前置：取号超时 → UNKNOWN', (await attsOf(so.id))[0]?.state === 'UNKNOWN')
+      await Promise.all([claim.scanUnknown({}), claim.scanUnknown({}), engine.lazyAdvance(so.id), claim.scanUnknown({})])
+      const so2 = await soOf(r.orderId)
+      const a2 = (await attsOf(so.id))[0]
+      check(
+        '并发扫描：只认领一次（ADOPT 一条）、订单 WAITING、没有 MANUAL',
+        a2.state === 'ACTIVE' && so2.state === 'WAITING' && (await prisma.smsEvent.count({ where: { smsOrderId: so.id, type: 'ADOPT' } })) === 1 && (await prisma.smsEvent.count({ where: { smsOrderId: so.id, type: 'MANUAL' } })) === 0,
+        JSON.stringify({ att: a2.state, order: so2.state }),
+      )
+      // 没买到的 UNKNOWN：两次扫描相隔不到一个 tick 周期只计一轮
+      mock.setFaults([{ action: 'getNumberV2', kind: 'hang', delayMs: 16_500, bought: false }])
+      const r2 = await placeOk(u, 'ot', 6)
+      await pay(r2.orderId)
+      await settle(r2.orderId)
+      mock.clearFaults()
+      const sb = await soOf(r2.orderId)
+      adv(200)
+      await claim.scanUnknown({})
+      await claim.scanUnknown({})
+      let ab = (await attsOf(sb.id))[0]
+      check('距请求 > 180 秒、两次扫描相隔不到 5 秒 → 只计 1 轮、仍 UNKNOWN', ab.state === 'UNKNOWN' && ab.emptyScans === 1, JSON.stringify({ state: ab.state, scans: ab.emptyScans }))
+      adv(6)
+      await claim.scanUnknown({})
+      ab = (await attsOf(sb.id))[0]
+      check('  …隔一个 tick 周期再扫一轮 → FAILED（NOT_BOUGHT）', ab.state === 'FAILED' && ab.errorCode === 'NOT_BOUGHT')
+      adv(21 * 60)
+      await tick(2)
+    }
+
+    // =====================================================================================
+    section('第 59 条 wallet_config 损坏：新单选余额 fail-closed（503 BALANCE_PAY_OFF）；已预扣的单照常确认、释放、退款')
+    {
+      const ua = await mkUser('wcfg-a')
+      const ub = await mkUser('wcfg-b')
+      await fund(ua.id, 100, 0)
+      await fund(ub.id, 100, 0)
+      const ra = await placeOk(ua, 'ot', 6, { payWith: 'BALANCE', expectBalance: 100 })
+      const rb = await placeOk(ub, 'ot', 6, { payWith: 'BALANCE', expectBalance: 100 })
+      await prisma.setting.update({ where: { key: 'wallet_config' }, data: { value: '{"version":7,"balancePayEnabled":' } })
+      check('前置：wallet_config 写坏、读取失败', !(await walletCfg.readWalletConfig()).ok)
+      const rn = await place(ub, 'ot', 6, { payWith: 'BALANCE', expectBalance: 0 })
+      check('新单选余额 → 503 BALANCE_PAY_OFF（不建单、不预扣）', !rn.ok && rn.code === 'BALANCE_PAY_OFF' && (await prisma.smsOrder.count({ where: { userId: ub.id } })) === 1)
+      const rp = await place(ua, 'ot', 6)
+      check('  …新单选支付宝不受影响', rp.ok)
+      const paid = await pay(ra.orderId)
+      check('已预扣的组合单照常确认（CAPTURED）、取号', (await prisma.balanceHold.findUniqueOrThrow({ where: { orderId: ra.orderId } })).state === 'CAPTURED' && (await soOf(ra.orderId)).state === 'WAITING')
+      const sb = await soOf(rb.orderId)
+      const cl = await engine.buyerClose(sb, sb.version)
+      check('已预扣的组合单照常关单释放（RELEASED、余额回到 100）', cl.ok && (await prisma.balanceHold.findUniqueOrThrow({ where: { orderId: rb.orderId } })).state === 'RELEASED' && (await buckets(ub.id)).topup === 100)
+      adv(20 * 60)
+      await tick(2)
+      const sa = await soOf(ra.orderId)
+      check('到期没码照常整单退回（一条 REFUND：余额 100 + 支付宝实收进充值格）', sa.state === 'CANCELLED' && (await buckets(ua.id)).topup === 100 + centsOf(paid.reallyPrice) && (await prisma.balanceLog.count({ where: { orderId: ra.orderId, type: 'REFUND' } })) === 1)
+      if (rp.ok) {
+        const x = await soOf(rp.data.orderId)
+        await engine.buyerClose(x, x.version)
+      }
+      await setWallet()
+    }
+
+    // =====================================================================================
+    section('第 94 条 回滚前排空（dev 库演练）：在途单与 HELD 预扣出现在排空清单里 → 关总开关、打开余额支付急停 → 跑完 → 清单里不再有它们')
+    {
+      const drainStmts = fs
+        .readFileSync(path.join(__dirname, 'ops', 'jiema-drain.sql'), 'utf8')
+        .split('\n')
+        .filter((l) => !/^\s*--/.test(l))
+        .join('\n')
+        .split(/;\s*(?:\n|$)/)
+        .map((x) => x.trim())
+        .filter(Boolean)
+      check('排空清单只有 SELECT（不改任何数据）', drainStmts.length >= 4 && drainStmts.every((x) => /^SELECT\b/i.test(x)))
+      const drain = async () => {
+        const out: Array<Array<Record<string, unknown>>> = []
+        for (const st of drainStmts) out.push((await prisma.$queryRawUnsafe(st)) as Array<Record<string, unknown>>)
+        return out
+      }
+      const u = await mkUser('drain')
+      await fund(u.id, 270, 0)
+      const inflight = await placeOk(u, 'ot', 6, { payWith: 'BALANCE', expectBalance: 170 })
+      const mixed = await placeOk(u, 'ot', 6, { payWith: 'BALANCE', expectBalance: 100 })
+      const d1 = await drain()
+      const nos = new Set(d1[1].map((x) => String(x.order_no)))
+      const heldIds = new Set(d1[2].map((x) => Number(x.order_id)))
+      const cur = (await curOf(inflight.orderId))!
+      const liveAtt = new Set(d1[3].map((x) => Number(x.id)))
+      check('清单 ①′ 列出两张未完结的单、② 列出组合单的 HELD 预扣、③ 列出在途号码', nos.has(inflight.orderNo) && nos.has(mixed.orderNo) && heldIds.has(mixed.orderId) && liveAtt.has(cur.id))
+      // 排空：关总开关 + 余额支付急停（新单停售），在途的跑完、待支付的关单释放
+      await setCfg({ enabled: false })
+      await setWallet({ balancePayEnabled: false })
+      const rn = await place(u, 'ot', 6)
+      check('  …总开关关着：新单 503 MAINTENANCE', !rn.ok && rn.code === 'MAINTENANCE')
+      const mv = (await vmqOf(mixed.orderId))!
+      await prisma.vmqOrder.update({ where: { id: mv.id }, data: { createdAt: new Date(Date.now() - 21 * 60_000) } })
+      await vmq.closeExpired()
+      adv(21 * 60)
+      await tick(2)
+      const d2 = await drain()
+      const nos2 = new Set(d2[1].map((x) => String(x.order_no)))
+      const held2 = new Set(d2[2].map((x) => Number(x.order_id)))
+      const live2 = new Set(d2[3].map((x) => Number(x.id)))
+      check('  …跑完之后清单里不再有它们（在途单整单退回、组合单关单释放）', !nos2.has(inflight.orderNo) && !nos2.has(mixed.orderNo) && !held2.has(mixed.orderId) && !live2.has(cur.id) && (await buckets(u.id)).topup === 270)
+      await setCfg()
+      await setWallet()
+    }
+
+    // =====================================================================================
+    section('S2a 评审修复 ⑦：没有校准样本时不把真买到的号判成 NOT_BOUGHT（上游时钟慢 8 秒 → 放宽 60 秒的窗里有候选 → 不重买、10 分钟后转人工）')
+    {
+      adv(21 * 60)
+      await tick(2)
+      adv(25 * 3600) // 近 24 小时的校准样本全部过期（offset = null）
+      await tick(2)
+      const u = await mkUser('uncal')
+      mock.setFaults([{ action: 'getNumberV2', kind: 'hang', delayMs: 16_500, bought: true }])
+      const r = await placeOk(u, 'ot', 6)
+      const n0 = mockCalls('getNumberV2')
+      await pay(r.orderId)
+      await settle(r.orderId)
+      mock.clearFaults()
+      const so = await soOf(r.orderId)
+      const known = new Set((await prisma.smsAttempt.findMany({ where: { activationId: { not: null } }, select: { activationId: true } })).map((a) => a.activationId))
+      const bought = mock.activations.filter((a) => a.service === 'ot' && a.country === 6 && a.status === 'ACTIVE' && !known.has(a.id))
+      const samples = await prisma.smsAttempt.count({ where: { respondedAt: { gte: new Date(runtime.jnow().getTime() - 24 * 3600_000) }, upstreamCreatedAt: { not: null } } })
+      check('前置：UNKNOWN、上游其实买到了（一个未关联的 ot:6 激活）、近 24 小时没有校准样本', (await attsOf(so.id))[0]?.state === 'UNKNOWN' && bought.length === 1 && samples === 0, JSON.stringify({ bought: bought.length, samples }))
+      // 上游时钟比我方慢 8 秒：它的 createdAt 落在 ±3 秒的认领窗外
+      if (bought[0]) bought[0].createdAt -= 8_000
+      adv(100)
+      await claim.scanUnknown({})
+      adv(90)
+      await claim.scanUnknown({})
+      const a1 = (await attsOf(so.id))[0]
+      check('距请求 > 180 秒、两轮有效扫描：放宽的窗里有候选 → 不判 NOT_BOUGHT（仍 UNKNOWN、没有第二次取号）', a1.state === 'UNKNOWN' && a1.emptyScans === 0 && mockCalls('getNumberV2') - n0 === 1, JSON.stringify({ state: a1.state, scans: a1.emptyScans, calls: mockCalls('getNumberV2') - n0 }))
+      adv(7 * 60)
+      await claim.scanUnknown({})
+      check('  …没有样本不自动认领 → UNKNOWN 超过 10 分钟 → 转人工（不重买、上游那个号不取消）', (await soOf(r.orderId)).state === 'MANUAL' && mockCalls('getNumberV2') - n0 === 1 && (!bought[0] || mock.get(bought[0].id)?.status === 'ACTIVE'))
+      await prisma.smsAttempt.updateMany({ where: { smsOrderId: so.id, state: 'UNKNOWN' }, data: { state: 'FAILED', errorCode: 'ITEST' } })
+      await engine.adminCancelRefund(so.id, u.id)
+      check('  …管理员「取消并退回余额」→ CANCELLED', (await soOf(r.orderId)).state === 'CANCELLED')
     }
 
     // =====================================================================================

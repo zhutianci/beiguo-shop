@@ -15,7 +15,7 @@ import crypto from 'crypto'
 import { Prisma, type SmsAttempt, type SmsOrder } from '@prisma/client'
 import { prisma } from '../db'
 import { fulfillOrder, invalidatePendingVmq, recordCarrierPaid } from '../vmq'
-import { releaseInTx, HoldReleaseBlocked, lockHoldInTx } from '../wallet/hold'
+import { releaseInTx, HoldReleaseBlocked, HoldStateError, lockHoldInTx } from '../wallet/hold'
 import { inMoneyTx } from '../wallet/ledger'
 import * as up from './upstream'
 import {
@@ -317,7 +317,26 @@ async function applyAcquireOutcome(so: SmsOrder, att: SmsAttempt, r: Up<NumberDa
   return code
 }
 
-/** T8：ACQUIRING → WAITING（写 currentAttemptId、endsAt、waitUntil）；CAS 落空（订单已被别的流程改了）→ 这个号转 RELEASING */
+/**
+ * 取到 / 认领到的号没能挂到订单上（落地的 CAS 落空）时的兜底：先锁接码单行看 currentAttemptId——**已经是这个号**，说明并发的另一方
+ * （tick / 号码页轮询的 advanceAcquiring、advanceWithNumbers(REPLACING)，或取号的调用方自己）刚把同一次落地做完，什么都不做；
+ * 否则（订单已退款、已收码、换号已放弃…）这个号没人要了 → RELEASING，canCancelAt 之后放掉（E14 ②、T10 总则）。S2a 评审修复：
+ * 原来不看 currentAttemptId，抢输的一方会把订单刚切过去、正在用的当前号放掉。锁顺序：接码单 → 尝试。
+ */
+async function releaseUnattached(smsOrderId: number, att: Pick<SmsAttempt, 'id' | 'canCancelAt'>, why: string, tx?: Tx): Promise<boolean> {
+  const run = async (t: Tx) => {
+    const rows = await t.$queryRaw<{ current_attempt_id: number | null }[]>`SELECT current_attempt_id FROM sms_orders WHERE id = ${smsOrderId} FOR UPDATE`
+    const cur = rows[0]?.current_attempt_id == null ? null : Number(rows[0].current_attempt_id)
+    if (cur === att.id) return false
+    const r = await t.smsAttempt.updateMany({ where: { id: att.id, state: 'ACTIVE' }, data: { state: 'RELEASING', nextCheckAt: att.canCancelAt } })
+    return r.count === 1
+  }
+  const done = tx ? await run(tx) : await prisma.$transaction(run, RC)
+  if (done && !tx) await logEventQuiet({ smsOrderId, attemptId: att.id, type: 'STATE', detail: { attempt: 'ACTIVE→RELEASING', why } })
+  return done
+}
+
+/** T8：ACQUIRING → WAITING（写 currentAttemptId、endsAt、waitUntil）；CAS 落空（订单已被别的流程改了）→ 这个号不是当前号就转 RELEASING */
 async function settleAcquired(smsOrderId: number, att: SmsAttempt): Promise<void> {
   const ok = await casOrder(prisma, { id: smsOrderId }, 'ACQUIRING', {
     state: 'WAITING',
@@ -332,8 +351,7 @@ async function settleAcquired(smsOrderId: number, att: SmsAttempt): Promise<void
     await logEventQuiet({ smsOrderId, attemptId: att.id, type: 'STATE', detail: { from: 'ACQUIRING', to: 'WAITING' } })
     return
   }
-  await prisma.smsAttempt.updateMany({ where: { id: att.id, state: 'ACTIVE' }, data: { state: 'RELEASING', nextCheckAt: att.canCancelAt } })
-  await logEventQuiet({ smsOrderId, attemptId: att.id, type: 'STATE', detail: { attempt: 'ACTIVE→RELEASING', why: 'order-moved' } })
+  await releaseUnattached(smsOrderId, att, 'order-moved')
 }
 
 /**
@@ -356,8 +374,10 @@ async function switchToNew(smsOrderId: number, fresh: SmsAttempt): Promise<void>
       failCount: 0,
     })
     if (!ok) {
-      await tx.smsAttempt.updateMany({ where: { id: fresh.id, state: 'ACTIVE' }, data: { state: 'RELEASING', nextCheckAt: fresh.canCancelAt } })
-      await logEvent(tx, { smsOrderId, attemptId: fresh.id, type: 'REPLACE_FAIL', detail: { why: 'order-moved', state: so.state } })
+      // 并发的另一方已经切到这个新号（currentAttemptId = 它）→ 什么都不做；否则新号没人要了 → RELEASING
+      if (await releaseUnattached(smsOrderId, fresh, 'order-moved', tx)) {
+        await logEvent(tx, { smsOrderId, attemptId: fresh.id, type: 'REPLACE_FAIL', detail: { why: 'order-moved', state: so.state } })
+      }
       return false
     }
     if (oldId) {
@@ -860,16 +880,18 @@ async function advanceAcquiring(so: SmsOrder, now: Date, allowAcquire: boolean):
     await toRefunding(so, 'ACQUIRING', 'ACQUIRE_FAILED', 'SYSTEM')
     return
   }
-  if (!allowAcquire) return
-  await acquireOnce(so, atts, now)
+  // allowAcquire=false（tick 每轮第 6 单起、事件回调）也要走闸门判定：被挡住照样记 blockedSince、满 90 秒 T9（E59、第 81 条），只是不真正调 getNumberV2
+  await acquireOnce(so, atts, now, allowAcquire)
 }
 
 /**
  * T7：发起一次首次取号。前提：没有在途取号；首次取号的「算数」失败数 < 快照 acquireTries（E1）；到了重试时刻（0 / 20 / 45 秒）；
  * 闸门 ①–⑤ 通过（停售、熔断、线程与在途号码数；不读 sms_config，E59）。被挡住 → 记 blockedSince，满 90 秒 T9；
  * E58 的 REJECTED 不占次数、退避 12 秒，持续超过 90 秒同样 T9。
+ * allowAcquire=false：闸门判定（记 blockedSince、满 90 秒退款）照做，只是这一轮不发起取号（S2a 评审修复：原来第 6 单起连闸门都不判，
+ * 熔断时后面的单要等前一批退完才开始计时）。
  */
-async function acquireOnce(so: SmsOrder, atts: SmsAttempt[], now: Date): Promise<void> {
+async function acquireOnce(so: SmsOrder, atts: SmsAttempt[], now: Date, allowAcquire = true): Promise<void> {
   const firstTries = atts.filter((a) => a.reason === 'FIRST' || a.reason === 'RETRY')
   const counted = firstTries.filter((a) => a.state === 'FAILED' && a.errorCode !== 'REJECTED' && a.errorCode !== 'CHANNELS_LIMIT').length
   if (counted >= so.acquireTries) {
@@ -886,8 +908,16 @@ async function acquireOnce(so: SmsOrder, atts: SmsAttempt[], now: Date): Promise
     return
   }
   if (block) {
-    if (!so.blockedSince) await prisma.smsOrder.updateMany({ where: { id: so.id, state: 'ACQUIRING', blockedSince: null }, data: { blockedSince: now } })
-    await logEventQuiet({ smsOrderId: so.id, type: 'BLOCKED', detail: { code: block.code, kind: block.kind } })
+    // 只在开始被挡的那一刻记一条 BLOCKED（不再每轮每单一条）
+    if (!so.blockedSince) {
+      const b = await prisma.smsOrder.updateMany({ where: { id: so.id, state: 'ACQUIRING', blockedSince: null }, data: { blockedSince: now } })
+      if (b.count === 1) await logEventQuiet({ smsOrderId: so.id, type: 'BLOCKED', detail: { code: block.code, kind: block.kind } })
+    }
+    return
+  }
+  if (!allowAcquire) {
+    // 闸门已放开：清掉旧的 blockedSince（REJECTED 的计时除外），等下一个有名额的轮次再取号
+    if (so.blockedSince && !lastRejected) await prisma.smsOrder.updateMany({ where: { id: so.id, state: 'ACQUIRING' }, data: { blockedSince: null } })
     return
   }
   if (lastRejected && last?.respondedAt && now.getTime() < last.respondedAt.getTime() + REJECTED_BACKOFF_SEC * S) return
@@ -1085,6 +1115,8 @@ export async function closePending(
       if (e instanceof CloseVersionConflict) return 'VERSION'
       if (e instanceof CloseStateConflict) return 'STATE'
       if (e instanceof HoldReleaseBlocked) return e.why === 'HAS_PAYMENT' ? 'PAYING' : 'STATE'
+      // 预扣已不是 HELD（CAPTURED 之类，人工改过库）：整个事务已回滚，不关单（管理员按 E44 / 取消并退回余额处理）
+      if (e instanceof HoldStateError) return 'STATE'
       throw e
     }
   }
@@ -1469,32 +1501,55 @@ export async function adminRefund(smsOrderId: number, adminId: number, reason = 
   return r.done ? { ok: true } : { ok: false, why: r.why }
 }
 
-/** MANUAL / 待支付单「关单并原路退回预扣」（仅在订单 UNPAID、没有 state 0/1 收款单时可用，与 T4 同一个事务） */
+/**
+ * MANUAL / 待支付单「关单并原路退回预扣」（仅在订单 UNPAID、没有 state 0/1 收款单时可用，与 T4 同一个事务；§7.2）。
+ * **不替买家作废收款单**（invalidate=false，S2a 评审修复）：有 state=0 的 → PAYING（买家手里的二维码还有效，先等它超时或让买家取消），
+ * 有 state=1 的 → PAID_PROCESSING（钱到了，改用「关单并把到账退入余额」或「取消并退回余额」）。
+ */
 export async function adminCloseAndRelease(smsOrderId: number, adminId: number): Promise<CloseOutcome> {
   const so = await loadOrder(smsOrderId)
   if (!so) return 'STATE'
-  return closePending(so, { reason: 'ADMIN_CLOSE', actor: 'ADMIN', actorId: adminId, invalidate: true, fromStates: ['PENDING_PAY', 'MANUAL'] })
+  return closePending(so, { reason: 'ADMIN_CLOSE', actor: 'ADMIN', actorId: adminId, invalidate: false, fromStates: ['PENDING_PAY', 'MANUAL'] })
 }
+
+class LatepayCloseRefused extends Error {
+  constructor(public readonly why: LatepayCloseWhy) {
+    super(`[jiema] 关单并把到账退入余额的前提不满足：${why}`)
+  }
+}
+/** STATE：接码单不是 MANUAL / 已变化；ORDER：订单不是「UNPAID 且未取消」；NO_PAID_VMQ：没有 state=1 的收款单；HOLD_HELD：预扣还是 HELD（改用「关单并原路退回预扣」） */
+export type LatepayCloseWhy = 'STATE' | 'ORDER' | 'NO_PAID_VMQ' | 'HOLD_HELD'
 
 /**
  * E44「关单并把到账退入余额」：钱已到账（state=1 的收款单）、却因为预扣不是 HELD 翻不了 PAID 的单（SmsOrder 已是 MANUAL）。
  * 一个事务里订单 CAS 取消、SmsOrder → CLOSED（预扣保持原样，另行人工核实）；随后同一请求对每张已到账收款单调 recordCarrierPaid
  * （补记 duplicate_payment 并按 §2.7 自动退入；不满足自动条件的留在待核实列表里由站长退入）。入账键只有 latepay:<条目 key> 一种。
+ * 【前提在同一事务里核对】（§7.2，S2a 评审修复）锁订单行后要求：订单 UNPAID 且未取消、至少一张 state=1 的收款单、预扣不存在或不是 HELD。
+ * 预扣还是 HELD 却关了单，之后就没有任何路径能释放它（CLOSED 不再推进，closePending 只收 PENDING_PAY / MANUAL）——拒绝，改用「关单并原路退回预扣」。
  */
-export async function adminCloseWithLatepay(smsOrderId: number, adminId: number): Promise<{ ok: boolean; keys: string[] }> {
+export async function adminCloseWithLatepay(smsOrderId: number, adminId: number): Promise<{ ok: boolean; keys: string[]; why?: LatepayCloseWhy }> {
   const so = await loadOrder(smsOrderId)
-  if (!so || so.state !== 'MANUAL') return { ok: false, keys: [] }
-  const ok = await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${so.orderId} FOR UPDATE`
-    const c = await tx.order.updateMany({ where: { id: so.orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } }, data: { deliveryStatus: 'CANCELLED' } })
-    if (c.count !== 1) return false
-    const s = await tx.smsOrder.updateMany({ where: { id: so.id, state: 'MANUAL' }, data: { state: 'CLOSED', version: { increment: 1 }, notice: null } })
-    if (s.count !== 1) throw new Error('接码单状态已变化')
-    const hold = await lockHoldInTx(tx, so.orderId)
-    await logEvent(tx, { smsOrderId: so.id, type: 'ADMIN_CLOSE_LATEPAY', actor: 'ADMIN', actorId: adminId, detail: { holdState: hold?.state ?? null } })
-    return true
-  })
-  if (!ok) return { ok: false, keys: [] }
+  if (!so || so.state !== 'MANUAL') return { ok: false, keys: [], why: 'STATE' }
+  try {
+    await prisma.$transaction(async (tx) => {
+      // 锁顺序：订单 → 接码单 → 预扣
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${so.orderId} FOR UPDATE`
+      const o = await tx.order.findUnique({ where: { id: so.orderId }, select: { payStatus: true, deliveryStatus: true } })
+      if (!o || o.payStatus !== 'UNPAID' || o.deliveryStatus === 'CANCELLED') throw new LatepayCloseRefused('ORDER')
+      const paidVmq = await tx.vmqOrder.count({ where: { bizType: 'order', bizId: so.orderId, state: 1 } })
+      if (paidVmq === 0) throw new LatepayCloseRefused('NO_PAID_VMQ')
+      const c = await tx.order.updateMany({ where: { id: so.orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } }, data: { deliveryStatus: 'CANCELLED' } })
+      if (c.count !== 1) throw new LatepayCloseRefused('ORDER')
+      const s = await tx.smsOrder.updateMany({ where: { id: so.id, state: 'MANUAL' }, data: { state: 'CLOSED', version: { increment: 1 }, notice: null } })
+      if (s.count !== 1) throw new LatepayCloseRefused('STATE')
+      const hold = await lockHoldInTx(tx, so.orderId)
+      if (hold && hold.state === 'HELD') throw new LatepayCloseRefused('HOLD_HELD')
+      await logEvent(tx, { smsOrderId: so.id, type: 'ADMIN_CLOSE_LATEPAY', actor: 'ADMIN', actorId: adminId, detail: { holdState: hold?.state ?? null, paidVmq } })
+    })
+  } catch (e) {
+    if (e instanceof LatepayCloseRefused) return { ok: false, keys: [], why: e.why }
+    throw e
+  }
   const paid = await prisma.vmqOrder.findMany({ where: { bizType: 'order', bizId: so.orderId, state: 1 }, select: { id: true } })
   const keys: string[] = []
   for (const v of paid) {
@@ -1526,8 +1581,8 @@ export async function afterClaim(smsOrderId: number, attemptId: number): Promise
   if (!so || !att || att.state !== 'ACTIVE') return
   if (so.state === 'ACQUIRING') return settleAcquired(so.id, att)
   if (so.state === 'REPLACING' && att.reason === 'REPLACE') return switchToNew(so.id, att)
-  await prisma.smsAttempt.updateMany({ where: { id: att.id, state: 'ACTIVE' }, data: { state: 'RELEASING', nextCheckAt: att.canCancelAt } })
-  await logEventQuiet({ smsOrderId, attemptId, type: 'STATE', detail: { attempt: 'ACTIVE→RELEASING', why: `claimed-while-${so.state}` } })
+  // 订单已不在等这个号——除非并发的 advanceAcquiring / advanceWithNumbers 刚把它结算成当前号（那样就什么都不做）
+  await releaseUnattached(smsOrderId, att, `claimed-while-${so.state}`)
 }
 
 /** 确认没买到之后：换号 → 回 WAITING、保留旧号、不扣次数（T10 总则）；首次取号 → 按重试规则继续（这一次算数，E1） */

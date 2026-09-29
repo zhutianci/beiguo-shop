@@ -8,6 +8,11 @@
  * 【熔断】（E20）最近 2 分钟「超时、网络、5xx + 取号路径上的 unknown」≥5 次且占比 ≥50% → 打开（写 sms_holds global / BREAKER，新单停售，
  * 已付款的 ACQUIRING 单按 E59 在 90 秒内退回余额）；打开后每轮用 getBalance 探活，连续成功 3 分钟关闭（只删 reason=BREAKER 的那一行，
  * 不碰封禁、币种异常、key 失效这些需要手动解除的全局停售）。计数与状态在进程内存，库里那一行只是让「停售」这个结论可见。
+ * 【熔断与别的全局停售共用 key='global'】（S2a 评审修复）熔断是「探活恢复就自动关」的临时停售，比任何别的原因都弱：
+ *   · 熔断碰到生效中的别的全局停售（封禁、币种、key）→ 原样保留那一行（KEPT），不能把它改成会被熔断关闭删掉的 BREAKER；
+ *   · 别的原因碰到生效中的 BREAKER 行 → 直接盖掉（原因、截止都按新的；原来会被判成「已有更严的」而 KEPT，熔断关闭时连同它一起删掉，
+ *     币种异常 / key 失效的停售就被悄悄解除了）；
+ *   · 熔断还开着、盖掉它的那条有期限的停售（封禁到某时刻）先到期了 → 下一轮把 BREAKER 写回去。
  *
  * 【上游余额不停售】（Q4）这里没有任何「余额低于 X 停售」的逻辑，也没有每日扣费上限。
  */
@@ -38,9 +43,12 @@ export async function putAutoHold(key: string, until: Date | null, reason: strin
             await tx.smsHold.update({ where: { key }, data: { until: u, note: note ?? null } })
             return 'SET' as const
           }
-          const stricter = ex.until == null || (until != null && ex.until.getTime() >= until.getTime())
-          if (stricter) return 'KEPT' as const
-          if (ex.source === 'ADMIN' && until != null) return 'KEPT' as const
+          if (reason === 'BREAKER' && ex.reason !== 'BREAKER') return 'KEPT' as const
+          if (!(ex.reason === 'BREAKER' && reason !== 'BREAKER')) {
+            const stricter = ex.until == null || (until != null && ex.until.getTime() >= until.getTime())
+            if (stricter) return 'KEPT' as const
+            if (ex.source === 'ADMIN' && until != null) return 'KEPT' as const
+          }
         }
         const data = { until, reason: reason.slice(0, 24), source, note: note ? note.slice(0, 200) : null }
         if (ex) await tx.smsHold.update({ where: { key }, data })
@@ -154,6 +162,9 @@ export async function evaluateBreaker(): Promise<{ open: boolean; changed: boole
     }
     return { open: false, changed: false }
   }
+  // 打开中：盖掉 BREAKER 的那条有期限的全局停售已经到期、熔断却还开着 → 把 BREAKER 写回去（管理员手动删掉的行不写回）
+  const cur = await prisma.smsHold.findUnique({ where: { key: 'global' } })
+  if (cur && cur.reason !== 'BREAKER' && !isHoldActive(cur, jnow())) await putAutoHold('global', null, 'BREAKER', 'AUTO', 'reassert')
   // 打开中：探活
   const r = await up.getBalance().catch(() => null)
   if (r && r.kind === 'ok') {

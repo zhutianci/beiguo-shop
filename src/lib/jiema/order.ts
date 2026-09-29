@@ -6,9 +6,11 @@
  *   2. 条款版本等于代码常量（两份：JIEMA_TERMS_VERSION、WALLET_TERMS_VERSION，不读配置）→ 否则 409 TERMS；
  *   3. (userId, clientToken) 已有订单 → 原样返回（待支付的照样返回 payUrl）；
  *   4. SMS_POOL 载体商品恰好 1 行且下架；payWith=BALANCE 时余额支付开关打开（wallet_config 读不到按关，E52、E53）；
+ *      指定了运营商：这个国家的运营商列表拿得到、里面却没有它 → 400（列表拿不到——服务 / 国家下架或不在目录——先交给 5、6 给 404 / 409 HOLD，
+ *      §10.2、第 122 条；过了 5、6 再核一次）；
  *   5. 实时报价（catalog.quote，第 ③ 层 60 秒缓存）→ NOT_FOUND 404 / HOLD 409 / MAINTENANCE 503 / SOLD_OUT 409 / QUOTE_FAILED 503；
  *   6. gate.checkSellable（①–⑥，含 E26 上游余额够付本单：不够 503 UNAVAILABLE、不建单、不预扣）；
- *   7. 会走收银台的（组合、支付宝）先查每人待付款收款单 < 3（D27 预检）→ 否则 429 OPEN_PAYMENTS，不建单、不预扣；
+ *   7. 会走收银台的（组合、支付宝）先查每人待付款收款单 < 3（D27 预检）→ 否则 429 OPEN_PAYMENTS{items}（各笔的链接），不建单、不预扣；
  *   8. 事务（READ COMMITTED）：锁用户行 → 再查幂等 → 计数（同时进行中 ≤3 含待支付、每小时 ≤10、每天 ≤30）→ 价格等于 expect（否则 409
  *      PRICE_CHANGED，带在锁住用户行之后按新价重算的拆分）→ 余额拆分等于 expect（否则 409 BALANCE_CHANGED；可用余额为 0 带 suggestPayWith）
  *      → createShopOrder（remark=null，productName「短信接码 · 服务 · 国家/地区」）→ smsOrder.create（定价快照）→ 预扣（holdInTx，只调一次 postInTx）；
@@ -28,6 +30,7 @@ import { readWalletConfig } from '../wallet/config'
 import { JIEMA_TERMS_VERSION, WALLET_TERMS_VERSION } from '../terms/jiema-wallet'
 import { readSmsConfig } from './config'
 import { quote, catalogOperators } from './catalog'
+import type { CatalogOperator } from './dto'
 import { checkSellable } from './sellable'
 import { closePending } from './engine'
 import { logEvent } from './events'
@@ -65,6 +68,7 @@ export interface JiemaOrderCreated {
 export type JiemaOrderResult = { ok: true; data: JiemaOrderCreated } | { ok: false; status: number; code: string; message: string; extra?: Record<string, unknown> }
 
 const bad = (status: number, code: string, message: string, extra?: Record<string, unknown>): JiemaOrderResult => ({ ok: false, status, code, message, extra })
+const OPERATOR_MSG = '运营商不在这个国家/地区的列表里，请重新选择'
 
 // ───────────────────────── 载体商品 ─────────────────────────
 
@@ -136,6 +140,53 @@ class OrderTxAbort extends Error {
   }
 }
 
+/** 429 OPEN_PAYMENTS 里的一笔待付款（§6.4 `OPEN_PAYMENTS{ items, released? }`、§1.8：接码单去号码页、充值单去充值页、普通商品去「我的订单」） */
+export interface OpenPaymentItem {
+  kind: 'SMS' | 'TOPUP' | 'ORDER'
+  orderNo: string
+  /** 去完成它的页面 */
+  href: string
+  /** 继续付款的收银台 */
+  payUrl: string
+  amountCents: number
+  expiresAt: string
+}
+
+/**
+ * 本人有效期内的待付款收款单（与 countOpenOrderPayments 同一口径：bizType=order、state=0、未超时），逐字段白名单拼成列表。
+ * 只查 userId = 本人的订单；不带收款单备注、金额池之类的内部字段。
+ */
+export async function openPaymentItems(userId: number): Promise<OpenPaymentItem[]> {
+  const live = await prisma.vmqOrder.findMany({
+    where: { bizType: 'order', state: 0, createdAt: { gte: new Date(Date.now() - VMQ_TIMEOUT_MIN * 60_000) } },
+    select: { orderId: true, bizId: true, reallyPrice: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+    take: 500,
+  })
+  if (!live.length) return []
+  const mine = await prisma.order.findMany({
+    where: { id: { in: Array.from(new Set(live.map((v) => v.bizId))) }, userId },
+    select: { id: true, orderNo: true, product: { select: { deliveryType: true } } },
+  })
+  const byId = new Map(mine.map((o) => [o.id, o]))
+  const out: OpenPaymentItem[] = []
+  for (const v of live) {
+    const o = byId.get(v.bizId)
+    if (!o) continue
+    const t = o.product?.deliveryType
+    const kind: OpenPaymentItem['kind'] = t === 'SMS_POOL' ? 'SMS' : t === 'TOPUP' ? 'TOPUP' : 'ORDER'
+    out.push({
+      kind,
+      orderNo: o.orderNo,
+      href: kind === 'SMS' ? `/jiema/order/${o.orderNo}` : kind === 'TOPUP' ? '/wallet/topup' : '/orders',
+      payUrl: `/pay/${v.orderId}`,
+      amountCents: centsOf(v.reallyPrice),
+      expiresAt: new Date(v.createdAt.getTime() + VMQ_TIMEOUT_MIN * 60_000).toISOString(),
+    })
+  }
+  return out
+}
+
 const openPaymentsMsg = (released: boolean, withHold: boolean) =>
   `你有 ${VMQ_MAX_OPEN_PER_USER} 笔付款还没完成（含充值），请先完成或等它们超时关闭（约 ${VMQ_TIMEOUT_MIN} 分钟）${released ? `；本单已取消${withHold ? '，预扣的余额已退回' : ''}` : ''}`
 
@@ -166,10 +217,10 @@ export async function createJiemaOrder(user: { id: number; role?: string | null 
     const w = await readWalletConfig()
     if (!w.ok || !w.config.balancePayEnabled) return bad(503, 'BALANCE_PAY_OFF', '余额支付暂时维护中，请选择支付宝')
   }
-  if (input.operator) {
-    const ops = await catalogOperators(input.service, input.country)
-    if (!ops || !ops.some((o) => o.code === input.operator)) return bad(400, 'BAD_REQUEST', '运营商不在这个国家/地区的列表里，请重新选择')
-  }
+  // 运营商：列表拿得到、里面没有它 → 400；拿不到（服务 / 国家手动下架、不在目录）先不判，交给报价与闸门给 404 / 409 HOLD（§10.2、第 122 条）
+  const opMissing = (list: CatalogOperator[]) => !list.some((o) => o.code === input.operator)
+  let ops = input.operator ? await catalogOperators(input.service, input.country) : null
+  if (input.operator && ops && opMissing(ops)) return bad(400, 'BAD_REQUEST', OPERATOR_MSG)
   // 5. 实时报价（锁价）
   const q = await quote(input.service, input.country, cfg, jnow())
   if (!q.ok) {
@@ -192,11 +243,16 @@ export async function createJiemaOrder(user: { id: number; role?: string | null 
     const status = sell.code === 'HOLD' ? 409 : sell.code === 'BUSY' ? 429 : 503
     return bad(status, sell.code, sell.message)
   }
+  if (input.operator && !ops) {
+    // 报价与闸门都过了、前面却拿不到运营商列表（两次读之间刚恢复上架之类）：再核一次
+    ops = await catalogOperators(input.service, input.country)
+    if (!ops || opMissing(ops)) return bad(400, 'BAD_REQUEST', OPERATOR_MSG)
+  }
   // 7. 会走收银台的先查每人待付款收款单（D27 预检；不建单、不预扣）
   const buckets = await prisma.user.findUnique({ where: { id: user.id }, select: { topupCents: true, balance: true } })
   const availPre = buckets ? buckets.topupCents + centsOf(buckets.balance) : 0
   const cashierPre = input.payWith === 'ALIPAY' || availPre < q.priceCents
-  if (cashierPre && (await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) return bad(429, 'OPEN_PAYMENTS', openPaymentsMsg(false, false))
+  if (cashierPre && (await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) return bad(429, 'OPEN_PAYMENTS', openPaymentsMsg(false, false), { items: await openPaymentItems(user.id) })
 
   // 名称快照
   const [svc, cty] = await Promise.all([
@@ -348,7 +404,7 @@ export async function createJiemaOrder(user: { id: number; role?: string | null 
   if (vmq.created && (await countOpenOrderPayments(user.id)) > VMQ_MAX_OPEN_PER_USER) {
     await discardVmqOrder(vmq.orderId).catch((err) => console.error('[jiema] 超额收款单回滚失败', vmq.orderId, err))
     await closeNow('事后复核超过每人上限')
-    return bad(429, 'OPEN_PAYMENTS', openPaymentsMsg(true, withHold), { released: true })
+    return bad(429, 'OPEN_PAYMENTS', openPaymentsMsg(true, withHold), { released: true, items: await openPaymentItems(user.id).catch(() => []) })
   }
   return { ok: true, data: { ...base, next: 'CASHIER', payUrl: `/pay/${vmq.orderId}` } }
 }

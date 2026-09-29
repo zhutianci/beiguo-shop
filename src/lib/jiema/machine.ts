@@ -62,6 +62,10 @@ export const UNKNOWN_MANUAL_SEC = 600
 /** 确认没买到：距发起请求超过 180 秒且连续两轮有效扫描都没有候选（§2.4） */
 export const NOT_BOUGHT_AFTER_SEC = 180
 export const NOT_BOUGHT_EMPTY_SCANS = 2
+/** 「连续两轮有效扫描」的两轮之间至少隔多久（一个 tick 周期；tick 与号码页轮询不到 1 秒各扫一次不算两轮，S2a 评审修复） */
+export const NOT_BOUGHT_SCAN_GAP_SEC = 5
+/** 没有校准样本时，认领时间窗两头各再放宽多少（上游与我方的时钟偏差没法校准；只会多出候选、导向 MANUAL，S2a 评审修复） */
+export const CLAIM_UNCALIBRATED_SLACK_MS = 60_000
 /** ACQUIRING 被停售 / 熔断 / 拒绝挡住满 90 秒 → 退回余额（E58、E59、T9） */
 export const BLOCKED_REFUND_SEC = 90
 /** 过了 endsAt 60 分钟仍确认不了 → 按「上游已自动退款」推定 CANCELLED（E20） */
@@ -286,17 +290,19 @@ export interface ClaimCandidate {
  * 纯函数：一个 UNKNOWN 尝试在（已排除本站已知激活的）上游 v1 活跃列表里的候选。
  *  · broad：只按服务、国家、时间窗（校准后的 createdAt ∈ 认领窗）——用来判「确认没买到」（不看闸门）；
  *  · strict：再加运营商一致（尝试指定了运营商时）、价格 ≤ maxPriceMicro——自动认领要求恰好 1 个。
- * 没有校准样本（offsetMs=null）时按原始 createdAt 比较（只影响 broad 的「有没有候选」，认领本身另要求有样本）。
+ * 没有校准样本（offsetMs=null）时按原始 createdAt 比较、时间窗两头各再放宽 CLAIM_UNCALIBRATED_SLACK_MS（只影响 broad 的「有没有候选」，
+ * 认领本身另要求有样本）：上游时钟比我方慢几秒，真买到的号就会落在 ±3 秒的窗外、被判 NOT_BOUGHT 再买一次；放宽只会多出候选（→ 10 分钟后 MANUAL）。
  */
 export function claimCandidates(
   u: { service: string; country: number; operator: string | null; maxPriceMicro: number; window: { fromMs: number; toMs: number } },
   list: readonly ClaimCandidate[],
   offsetMs: number | null,
 ): { broad: ClaimCandidate[]; strict: ClaimCandidate[] } {
+  const slack = offsetMs == null ? CLAIM_UNCALIBRATED_SLACK_MS : 0
   const broad = list.filter((c) => {
     if (c.service !== u.service || c.country !== u.country || !c.createdAt) return false
     const t = c.createdAt.getTime() - (offsetMs ?? 0)
-    return t >= u.window.fromMs && t <= u.window.toMs
+    return t >= u.window.fromMs - slack && t <= u.window.toMs + slack
   })
   const strict = broad.filter((c) => (!u.operator || (c.operator ?? 'any') === u.operator) && c.priceMicro != null && c.priceMicro <= u.maxPriceMicro)
   return { broad, strict }

@@ -111,6 +111,12 @@ export function invalidateSmsConfigCache(): void {
   cached = null
 }
 
+/** 仅供 itest（§12.2 第 81 条）：模拟进程重启——忘掉最后一次有效配置，runtimeParams() 回到代码内置默认值 */
+export function resetSmsConfigRuntimeForTest(): void {
+  lastValid = null
+  cached = null
+}
+
 // ───────────────────────── 保存（后台「定价」「设置」） ─────────────────────────
 
 export class SmsConfigConflict extends Error {

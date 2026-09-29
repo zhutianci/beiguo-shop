@@ -11,7 +11,7 @@ import type { SmsOrder } from '@prisma/client'
 import { getCurrentUser } from '../auth'
 import { crossSiteReason } from '../same-origin'
 import { rateLimited } from '../news/rate-limit'
-import { findBuyerOrder, buildOrderView } from './view'
+import { findBuyerOrder, buildOrderView, JIEMA_ORDER_NO_RE } from './view'
 import { lazyAdvance, type BuyerResult } from './engine'
 
 export function noStore(res: NextResponse): NextResponse {
@@ -32,6 +32,8 @@ export async function viewOrder(orderNo: string): Promise<NextResponse> {
   try {
     const user = await getCurrentUser()
     if (!user) return jfail(401, 'UNAUTHORIZED', '请先登录')
+    // 先校验订单号格式再拼限频 key（S2a 评审修复：路径里任意长的串会被拼进进程内限频桶的 key，撑大内存、挤掉别人的计数）
+    if (!JIEMA_ORDER_NO_RE.test(orderNo)) return jfail(404, 'NOT_FOUND', '订单不存在')
     if (rateLimited(`jiema-view:${user.id}:${orderNo}`, { windowMs: 1000, max: 2 })) return jfail(429, 'RATE', '刷新太频繁')
     let ref = await findBuyerOrder(user.id, orderNo)
     if (!ref) return jfail(404, 'NOT_FOUND', '订单不存在')
@@ -47,7 +49,7 @@ export async function viewOrder(orderNo: string): Promise<NextResponse> {
 export type ActionKind = 'close' | 'replace' | 'cancel' | 'finish' | 'start' | 'refund-ready'
 
 /**
- * 号码页上的操作：同源 → 登录 → 限频（关单每单 1 分钟 5 次；其余每单 10 分钟 12 次，共用一个桶）→ 取单 → 引擎 → 返回最新视图。
+ * 号码页上的操作：同源 → 登录 → 订单号格式 → 限频（关单每单 1 分钟 5 次；其余每单 10 分钟 12 次，共用一个桶）→ 取单 → 引擎 → 返回最新视图。
  * 失败（409 VERSION / TOO_EARLY / NO_LEFT / THREADS / PAID_PROCESSING / PAYING / HOLD …）同样带上最新视图（E29「另一个收到 409 和最新状态」）。
  */
 export async function runBuyerAction(
@@ -60,6 +62,7 @@ export async function runBuyerAction(
     if (crossSiteReason(request.headers)) return jfail(403, 'FORBIDDEN', '请求来源不正确')
     const user = await getCurrentUser()
     if (!user) return jfail(401, 'UNAUTHORIZED', '请先登录')
+    if (!JIEMA_ORDER_NO_RE.test(orderNo)) return jfail(404, 'NOT_FOUND', '订单不存在')
     const bucket = kind === 'close' ? `jiema-close:${user.id}:${orderNo}` : `jiema-act:${user.id}:${orderNo}`
     const rule = kind === 'close' ? { windowMs: 60_000, max: 5 } : { windowMs: 10 * 60_000, max: 12 }
     if (rateLimited(bucket, rule)) return jfail(429, 'RATE', '操作太频繁，请稍后再试')

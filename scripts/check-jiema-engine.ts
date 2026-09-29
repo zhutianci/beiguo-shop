@@ -42,6 +42,8 @@ import {
   isAttemptTerminal,
   isOrderTerminal,
   FALLBACK_DURATION_SEC,
+  CLAIM_UNCALIBRATED_SLACK_MS,
+  NOT_BOUGHT_SCAN_GAP_SEC,
   type CostAttemptLike,
 } from '../src/lib/jiema/machine'
 import { inflightMicro, affordable, eff, type InflightSnapshot, type InflightAttempt, type InflightOrder } from '../src/lib/jiema/gate'
@@ -165,6 +167,13 @@ console.log('\n【§2.4 认领：时钟校准、候选（宽 / 严口径）、�
   ok(c.broad.map((x) => x.id).join(',') === '1,2,3' && c.strict.map((x) => x.id).join(',') === '1', '宽口径只按服务 / 国家 / 时间窗（1、2、3）；严口径再加运营商与价格（只剩 1）；窗外的 4、别的服务 5 不算')
   const noOp = claimCandidates({ ...u, operator: null }, list, 3000)
   ok(noOp.strict.map((x) => x.id).join(',') === '1,2', '没指定运营商：严口径不比运营商')
+  // S2a 评审修复：没有校准样本时上游时钟慢几秒，真买到的号就落在 ±3 秒的窗外 → 被判「没买到」再买一次；无样本时两头各放宽 60 秒
+  const slow = [{ id: '9', service: 'tg', country: 6, operator: 'telkomsel', priceMicro: 150_000, createdAt: new Date(base - 8 * S) }]
+  ok(claimCandidates(u, slow, 0).broad.length === 0, '有校准样本（偏差 0）：createdAt 比请求早 8 秒 → 窗外（按样本校准后的口径不变）')
+  ok(claimCandidates(u, slow, null).broad.map((x) => x.id).join(',') === '9', '没有校准样本：同一个号落在放宽 60 秒的窗里 → 宽口径有候选，不会判 NOT_BOUGHT（认领另要求有样本 → 10 分钟后 MANUAL）')
+  const far = [{ id: '10', service: 'tg', country: 6, operator: 'telkomsel', priceMicro: 150_000, createdAt: new Date(win.fromMs - CLAIM_UNCALIBRATED_SLACK_MS - 1) }]
+  ok(claimCandidates(u, far, null).broad.length === 0 && CLAIM_UNCALIBRATED_SLACK_MS === 60_000, '没有校准样本：放宽之外（早 60 秒以上）仍不算候选')
+  ok(NOT_BOUGHT_SCAN_GAP_SEC === 5, '「连续两轮有效扫描」两轮之间至少隔一个 tick 周期（5 秒）')
   ok(legacyOldPhones('接码换号 1/3（旧号 6281234567890 已取消）\n接码换号 2/3（旧号 +16175550000 已取消）').join(',') === '6281234567890,16175550000' && legacyOldPhones(null).length === 0, '旧单品备注里换下的号码（旧表只保存当前号）')
 }
 
