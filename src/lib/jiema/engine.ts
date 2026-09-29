@@ -1466,6 +1466,8 @@ export async function runTick(opts: { budgetMs?: number; intervalMs?: number } =
   if (!token) return stats
   const started = Date.now()
   try {
+    // S4 的周期监控（未关联激活分类、卡住的预扣、到点推日报）：每趟一次、失败只记日志；不放进 tickRound（测试直接调 tickRound）
+    await import('./monitor').then((m) => m.tickExtras()).catch((e) => console.error('[jiema] S4 周期监控失败', (e as Error)?.message))
     for (;;) {
       await writeHeartbeat().catch((e) => console.error('[jiema] 写心跳失败', (e as Error)?.message))
       const roundStart = Date.now()

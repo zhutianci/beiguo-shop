@@ -9,6 +9,8 @@ import { isHoldActive } from '@/lib/jiema/gate'
 import { upstreamConfigured } from '@/lib/jiema/upstream'
 import { JIEMA_ORDER_AVAILABLE, jiemaPublicOpen } from '@/lib/jiema-config-schema'
 import { jiemaOverviewS2 } from '@/lib/jiema/admin-orders'
+import { lastUnlinked } from '@/lib/jiema/unlinked'
+import { lastJiemaReconcile } from '@/lib/jiema/reconcile'
 
 /**
  * 短信接码后台「概览」（docs/短信接码-设计.md §7.1）：
@@ -16,6 +18,7 @@ import { jiemaOverviewS2 } from '@/lib/jiema/admin-orders'
  *  · S2b：`s2` = 上游余额（告警线 $2，不停售）、在途占用（口径 A / B / C，与 E26 判定逐字相同）、可售余量、今日因上游余额不足拒单次数、
  *    上游口径成功率、推进心跳、熔断、线程、今日单量与营收 / 真实成本 / 毛利（§9.5）、需要处理（MANUAL、可退入余额的待核实到账）、
  *    组合成功率与毛利（近 7 天，≥5 单）。S2 部分读失败不影响 S1 部分（s2 为 null、s2Error 给原因）。
+ *  · S4：`s4` = 未关联激活快照（外部激活 / 旧链路遗留的计数，jiema-tick 每 10 分钟）与最近一次每日对账的摘要（「需要处理」里的两行）。
  */
 export async function GET() {
   const denied = await adminGuard()
@@ -38,6 +41,16 @@ export async function GET() {
     } catch (e) {
       console.error('[jiema] overview S2 部分失败', e)
       s2Error = (e as Error)?.message?.slice(0, 200) ?? '读取失败'
+    }
+    let s4: { unlinked: unknown; recon: unknown } | null = null
+    try {
+      const [ul, rc] = await Promise.all([lastUnlinked(), lastJiemaReconcile()])
+      s4 = {
+        unlinked: ul ? { at: ul.at, ok: ul.ok, reason: ul.reason ?? null, total: ul.total, externalCount: ul.externalCount, legacyCount: ul.legacyCount } : null,
+        recon: rc ? { at: rc.at, ok: rc.ok, failed: rc.items.filter((i) => !i.ok).map((i) => i.code), lossOrders: rc.fixes.lossOrders.length, upstreamOk: rc.upstream.ok || !!rc.upstream.skipped } : null,
+      }
+    } catch (e) {
+      console.error('[jiema] overview S4 部分失败', e)
     }
     const lastOk = state.catalogAt ? Date.parse(state.catalogAt) : 0
     return success({
@@ -73,6 +86,7 @@ export async function GET() {
       holds: activeHolds.map((h) => ({ key: h.key, until: h.until ? h.until.toISOString() : null, source: h.source })),
       s2,
       s2Error,
+      s4,
     })
   } catch (e) {
     console.error('[jiema] overview GET 失败', e)

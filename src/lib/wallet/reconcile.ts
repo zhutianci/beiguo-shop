@@ -7,7 +7,8 @@
  *   W1 当天（前两天）有流水的用户：users.balance = Σ delta、users.topup_cents = Σ topup_delta_cents；每周日全量（豁免名单除外）
  *   W2 没有任何一格为负（豁免名单除外，报告列出）
  *   W3 预扣 ⇔ hold:/release:/refund: 流水（两格分别同额），并核 §9.3 的预扣等式
- *   W4 CAPTURED / REFUNDED 的预扣 ⇔ 订单 Payment 里 BALANCE 行 = 预扣合计、ALIPAY 行 = amount − 预扣合计
+ *   W4 CAPTURED / REFUNDED 的预扣 ⇔ 订单 Payment 里 BALANCE 行 = 预扣合计、ALIPAY 行 = amount − 预扣合计；
+ *      反向（S4 补齐）：载体单的 BALANCE 支付流水必有一条已确认 / 已退款的预扣
  *   W5 HELD 的预扣：订单 UNPAID 且未取消、持续 ≤ 60 分钟（卡住的预扣）
  *   W6 已付款的 TOPUP 订单 ⇔ 恰好一条 topup:<orderId>，金额 = 让它付款的那张收款单的 reallyPrice
  *   W7 LATEPAY 流水 ⇔ handledAs='LATEPAY' 的待核实条目（B1 起才有数据）：手动的 latepay_trade:<交易号>、自动的 latepay_auto:<收款单号>
@@ -232,6 +233,25 @@ async function collect(tx: Prisma.TransactionClient, s: Scope) {
           if (!o || o.payStatus !== 'UNPAID' || o.deliveryStatus === 'CANCELLED') w5.push(`预扣 #${h.id} 仍是 HELD，但订单 #${h.orderId} 是 ${o ? `${o.payStatus}/${o.deliveryStatus}` : '不存在'}`)
           else if (mins > STUCK_HOLD_MIN) w5.push(`预扣 #${h.id}（订单 #${h.orderId}）已持续 ${mins} 分钟（卡住）`)
         }
+      }
+    },
+  )
+  // W4 反向（S4 补齐）：载体单（接码 / 充值）的 BALANCE 支付流水 ⇔ 一条已确认 / 已退款的预扣（金额在上面的正向逐行核过）。
+  // 只看两种载体单：余额目前只能付接码单（D2），普通订单的 BALANCE 流水（若有）不是余额预扣产生的，不在这条的范围里
+  await eachBatch(
+    (after, take) =>
+      tx.payment.findMany({
+        where: { payMethod: 'BALANCE', order: { product: { deliveryType: { in: ['SMS_POOL', 'TOPUP'] } } }, ...(full ? {} : { createdAt: { gte: since } }), id: { gt: after } },
+        orderBy: { id: 'asc' },
+        take,
+        select: { id: true, orderId: true },
+      }),
+    async (pays) => {
+      const hs = await tx.balanceHold.findMany({ where: { orderId: { in: pays.map((p) => p.orderId) } }, select: { orderId: true, state: true } })
+      const hm = new Map(hs.map((h) => [h.orderId, h.state]))
+      for (const p of pays) {
+        const st = hm.get(p.orderId)
+        if (st !== 'CAPTURED' && st !== 'REFUNDED') w4.push(`订单 #${p.orderId} 有 BALANCE 支付流水 #${p.id}，却没有已确认的预扣（${st ?? '没有预扣行'}）`)
       }
     },
   )

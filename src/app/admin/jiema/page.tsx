@@ -30,16 +30,19 @@ import {
   type PriceRuleLike,
 } from '@/lib/jiema/pricing'
 import { FACTORY_SMS_CONFIG, settingsNumberValue, type SmsConfig } from '@/lib/jiema-config-schema'
-import { OverviewTab, type OverviewS2 } from './overview-tab'
+import { OverviewTab, type OverviewS2, type OverviewS4 } from './overview-tab'
 import { OrdersTab } from './orders-tab'
 import { ComplaintsTab } from './complaints-tab'
+import { ReconcileTab } from './reconcile-tab'
 
-type Tab = 'overview' | 'orders' | 'complaints' | 'pricing' | 'catalog' | 'settings'
+type Tab = 'overview' | 'orders' | 'complaints' | 'reconcile' | 'pricing' | 'catalog' | 'settings'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'overview', label: '概览' },
   { id: 'orders', label: '订单' },
   // S3：售后申请（§7.5）；tab 上的红点 = 待处理条数（§8.5「后台『售后申请』有红点」）
   { id: 'complaints', label: '售后' },
+  // S4：每日对账（I / R 系列）、未关联激活、日报（§9.4、§7.1）
+  { id: 'reconcile', label: '对账' },
   { id: 'pricing', label: '定价' },
   { id: 'catalog', label: '目录' },
   { id: 'settings', label: '设置' },
@@ -65,6 +68,8 @@ interface Overview {
   holds?: Array<{ key: string; until: string | null; source: string }>
   /** S2b：上游余额、在途占用、今日单量与成本利润、需要处理、组合表（§7.1）；读失败为 null */
   s2?: OverviewS2 | null
+  /** S4：未关联激活快照与最近一次对账的摘要（§7.1「需要处理」、§10.3） */
+  s4?: OverviewS4 | null
   s2Error?: string | null
 }
 
@@ -313,17 +318,20 @@ export default function AdminJiemaPage() {
       {tab === 'overview' && (
         <OverviewTab
           s2={ov.data?.s2 ?? null}
+          s4={ov.data?.s4 ?? null}
           s2Error={ov.err ?? ov.data?.s2Error ?? null}
           holds={ov.data?.holds ?? []}
           onOpenOrder={openOrder}
           onUnhold={(k) => void unhold(k)}
           onOpenComplaints={() => setTab('complaints')}
+          onOpenReconcile={() => setTab('reconcile')}
         />
       )}
       {tab === 'orders' && ready && <OrdersTab openId={openId} onOpened={() => setOpenId(null)} initialQ={initialQ} />}
       {tab === 'complaints' && ready && (
         <ComplaintsTab openId={openComplaintId} onOpened={() => setOpenComplaintId(null)} onCountChanged={setComplaintsPending} onOpenOrder={openOrder} />
       )}
+      {tab === 'reconcile' && <ReconcileTab />}
       {tab === 'pricing' && <PricingTab cfg={cfg.data} cfgErr={cfg.err} onSaved={reloadAll} />}
       {tab === 'catalog' && <CatalogTab onChanged={ov.reload} />}
       {tab === 'settings' && <SettingsTab cfg={cfg.data} cfgErr={cfg.err} onSaved={reloadAll} />}

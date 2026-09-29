@@ -110,6 +110,8 @@ export const ACTION_TEXT: Record<string, string> = {
   // S3（§7.5）：售后申请的处理（action 由 `jiema.complaint.${动作}` 拼出）
   'jiema.complaint.approve': '平台通过接码售后申请并退款到余额',
   'jiema.complaint.reject': '平台驳回接码售后申请',
+  // S4（§9.4）：后台「对账」tab 手动跑一次接码对账
+  'jiema.reconcile': '平台手动接码对账',
 }
 
 const ACTION_GROUPS: { value: string; label: string }[] = [

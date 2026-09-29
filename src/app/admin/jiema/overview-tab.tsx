@@ -64,6 +64,12 @@ export interface OverviewS2 {
   }>
 }
 
+/** S4：未关联激活快照（jiema-tick 每 10 分钟）与最近一次每日对账的摘要（overview 接口的 s4） */
+export interface OverviewS4 {
+  unlinked: { at: string; ok: boolean; reason: string | null; total: number; externalCount: number; legacyCount: number } | null
+  recon: { at: string; ok: boolean; failed: string[]; lossOrders: number; upstreamOk: boolean } | null
+}
+
 const usd = (m: number | null | undefined) => (m == null ? '—' : `$${(m / 1e6).toFixed(2)}`)
 const usd4 = (m: number | null | undefined) => (m == null ? '—' : `$${(m / 1e6).toFixed(4)}`)
 const yuan = (c: number | null | undefined) => (c == null ? '—' : `${c < 0 ? '-' : ''}¥${(Math.abs(c) / 100).toFixed(2)}`)
@@ -93,19 +99,25 @@ const REASON_TEXT: Record<string, string> = {
 
 export function OverviewTab({
   s2,
+  s4,
   s2Error,
   holds,
   onOpenOrder,
   onUnhold,
   onOpenComplaints,
+  onOpenReconcile,
 }: {
   s2: OverviewS2 | null
+  /** S4：未关联激活与对账摘要（读失败为 null） */
+  s4?: OverviewS4 | null
   s2Error: string | null
   holds: Array<{ key: string; until: string | null; source: string }>
   onOpenOrder: (id: number) => void
   onUnhold: (key: string) => void
   /** S3：「● N 条售后申请待处理 → 查看」跳到「售后」tab */
   onOpenComplaints?: () => void
+  /** S4：「上游有 N 个不属于本站记录的进行中号码 → 查看」、对账不一致 → 跳到「对账」tab */
+  onOpenReconcile?: () => void
 }) {
   const csv = useMemo(() => {
     if (!s2) return ''
@@ -119,6 +131,8 @@ export function OverviewTab({
   const paid = s2.today.paid
   const paidTotal = Object.values(paid).reduce((a, b) => a + b, 0)
   const low = u.balanceMicro != null && u.balanceMicro < u.alertLineUsd * 1e6
+  const unlinkedN = s4?.unlinked ? s4.unlinked.externalCount + s4.unlinked.legacyCount : 0
+  const reconBad = !!s4?.recon && !s4.recon.ok
   const exportCsv = () => {
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
     const a = document.createElement('a')
@@ -205,7 +219,7 @@ export function OverviewTab({
       <Card>
         <CardContent className="space-y-1.5 py-4 text-sm text-gray-700">
           <div className="font-medium text-gray-900">需要处理</div>
-          {s2.attention.manual.length === 0 && s2.attention.latepayOpen === 0 && !s2.attention.complaintsOpen && <div className="text-gray-400">暂无</div>}
+          {s2.attention.manual.length === 0 && s2.attention.latepayOpen === 0 && !s2.attention.complaintsOpen && !unlinkedN && !reconBad && <div className="text-gray-400">暂无</div>}
           {!!s2.attention.complaintsOpen && (
             <div className="font-medium text-red-700">
               ● {s2.attention.complaintsOpen} 条售后申请待处理
@@ -230,7 +244,28 @@ export function OverviewTab({
               </a>
             </div>
           )}
-          <div className="text-xs text-gray-400">上游「不属于本站记录的进行中号码」分类监控在 S4（对账与监控）上线；现在扫描器发现外部激活时推企业微信 sms.alert。</div>
+          {!!unlinkedN && s4?.unlinked && (
+            <div className="text-amber-800">
+              ⚠ 上游有 {unlinkedN} 个不属于本站记录的进行中号码（外部激活 {s4.unlinked.externalCount} · 旧链路遗留 {s4.unlinked.legacyCount}，不会自动处理）
+              <button onClick={() => onOpenReconcile?.()} className="ml-2 text-primary-600 hover:underline">
+                查看 →
+              </button>
+            </div>
+          )}
+          {reconBad && s4?.recon && (
+            <div className="text-amber-800">
+              ⚠ 最近一次对账（{new Date(s4.recon.at).toLocaleString('zh-CN', { hour12: false })}）{s4.recon.failed.length ? `${s4.recon.failed.length} 项不一致（${s4.recon.failed.join('、')}）` : ''}
+              {!s4.recon.upstreamOk && '，上游 history 没拉到'}
+              {s4.recon.lossOrders > 0 && `，${s4.recon.lossOrders} 张已取消单事后被扣费（只记亏损）`}
+              <button onClick={() => onOpenReconcile?.()} className="ml-2 text-primary-600 hover:underline">
+                查看 →
+              </button>
+            </div>
+          )}
+          <div className="text-xs text-gray-400">
+            未关联激活：{s4?.unlinked ? `${ago(s4.unlinked.at)}扫描${s4.unlinked.ok ? '' : `（${s4.unlinked.reason ?? '没拉全，沿用上一次'}）`}，上游进行中 ${s4.unlinked.total} 个` : '进程启动后还没扫描（jiema-tick 每 10 分钟）'} · 对账：
+            {s4?.recon ? `${ago(s4.recon.at)}${s4.recon.ok ? ' ✓' : ' ✗'}` : '还没有（每天 03:20）'}
+          </div>
         </CardContent>
       </Card>
 

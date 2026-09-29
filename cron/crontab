@@ -87,3 +87,8 @@
 # （到期前主动取消 / 完成、整单退回余额、关掉过期的待支付单并退回预扣）、熔断探活、上游余额刷新与低于 $2 告警（不停售）、组合成功率停售。
 # 锁 jiema:tick（TTL 90 秒），上一趟没完这一趟直接返回。旧 Codex / Claude 单品仍由上面的 sms-poll 负责。GET + x-cron-secret 头
 * * * * * curl -fsS --max-time 55 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/jiema-tick" >> /var/log/cron.log 2>&1
+# 每天 03:20 短信接码对账（docs/短信接码-设计.md §9.4、§6.6 第 34 条）：覆盖前两天。I1–I8 只读核对（没定稿的已结束单补算）；
+# 拉上游 v1 history（状态 6 / 8 / 10）以上游为准修正扣费事实并重跑成本核算（已取消单只记亏损），外部激活推送、旧链路遗留只列出，
+# 绝不取消任何激活。不一致推 sms.alert、报告写 settings.sms_reconcile_last；顺带生成昨天的日报，北京 09:00 由上面的 jiema-tick 推 sms.daily。
+# 锁 jiema:reconcile，上一趟没完这一趟直接返回。GET + x-cron-secret 头
+20 3 * * * curl -fsS --max-time 240 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/jiema-reconcile" >> /var/log/cron.log 2>&1

@@ -1,5 +1,5 @@
 -- =====================================================================================
--- 短信接码 · 回滚前的「排空」清单（docs/短信接码-设计.md §11 第 10 步；S2 交付）。**只 SELECT，不改任何数据**，不 import src/。
+-- 短信接码 · 回滚前的「排空」清单（docs/短信接码-设计.md §11 第 10 步；S2 交付，S4 补 ⑤–⑦）。**只 SELECT，不改任何数据**，不 import src/。
 --
 --   mysql -uroot -p"$MYSQL_ROOT_PASSWORD" --default-character-set=utf8mb4 --table beiguo_shop < scripts/ops/jiema-drain.sql \
 --     > /opt/beiguo/backups/jiema-drain-$(date +%Y%m%d%H%M).txt
@@ -39,3 +39,22 @@ SELECT `key`, LEFT(value, 300) AS entry
   FROM settings
  WHERE `key` LIKE 'vmq_unmatched:%' AND value LIKE '%"handledAt":null%'
  ORDER BY `key`;
+
+-- ⑤ 最近一次两份对账报告（S4：回滚前后各存档一次；旧镜像跑不了对账时，至少留下回滚那一刻库里的最近结论）
+SELECT `key`, updated_at, LEFT(value, 4000) AS report
+  FROM settings
+ WHERE `key` IN ('wallet_reconcile_last', 'sms_reconcile_last', 'sms_unlinked_last')
+ ORDER BY `key`;
+
+-- ⑥ 已结束却还没定稿成本利润的接码单（新镜像的 tick / 对账 I8 会补算；回滚期间不会）
+SELECT so.id, o.order_no, so.state, so.cost_cents, so.profit_cents, so.updated_at
+  FROM sms_orders so JOIN orders o ON o.id = so.order_id
+ WHERE so.state IN ('FINISHED', 'REFUNDED') AND so.cost_final = 0
+ ORDER BY so.id;
+
+-- ⑦ 已取消单的亏损（没码却被上游扣费：FREE_CANCELLATION_EXPIRED / 对账翻案；只记亏损，订单仍是已取消）
+SELECT so.id, o.order_no, so.loss_cents, so.refunded_at
+  FROM sms_orders so JOIN orders o ON o.id = so.order_id
+ WHERE so.state = 'CANCELLED' AND so.loss_cents IS NOT NULL
+ ORDER BY so.refunded_at DESC
+ LIMIT 200;
