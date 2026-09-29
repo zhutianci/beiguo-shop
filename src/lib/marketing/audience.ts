@@ -10,6 +10,7 @@
  * 「检查」弹窗里看到的可发人数，就是 worker 物化时真正写进发件箱的人数（launch 用它做 expectedCount 校验）。
  */
 import { prisma } from '@/lib/db'
+import { excludeTopup } from '@/lib/order-scope'
 import { getVipTiers } from '@/lib/vip-server'
 import { vipStatusOf } from '@/lib/vip'
 import { getConfig } from './config'
@@ -54,7 +55,8 @@ async function channelOnlyUserIds(ids: number[]): Promise<Set<number>> {
     const foreignIds = foreign.map((u) => u.id)
     const mainBuyers = await prisma.order.groupBy({
       by: ['userId'],
-      where: { userId: { in: foreignIds }, tenantId: PLATFORM_TENANT_ID, payStatus: 'PAID' },
+      // 不含余额充值：充值一次不算「在主站买过」（docs/短信接码-设计.md D40、§6.6 第 17 条）
+      where: { userId: { in: foreignIds }, tenantId: PLATFORM_TENANT_ID, payStatus: 'PAID', ...excludeTopup() },
     })
     const keep = new Set(mainBuyers.map((r) => r.userId))
     foreignIds.forEach((id) => {
@@ -94,7 +96,7 @@ async function loadPaidStats(userIds: number[]): Promise<Map<number, PaidStat>> 
     const rows = await prisma.order.groupBy({
       by: ['userId'],
       // 只看主站订单（文件头第 2 条）
-      where: { userId: { in: part }, tenantId: PLATFORM_TENANT_ID, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } },
+      where: { userId: { in: part }, tenantId: PLATFORM_TENANT_ID, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' }, ...excludeTopup() },
       _sum: { amount: true },
       _count: { _all: true },
       _max: { paidAt: true, createdAt: true },
@@ -181,6 +183,7 @@ async function resolveSegment(rules: SegmentRules, now: Date): Promise<number[]>
           tenantId: PLATFORM_TENANT_ID, // 「买过」只认主站订单（文件头第 2 条）
           payStatus: 'PAID',
           deliveryStatus: { not: 'CANCELLED' },
+          ...excludeTopup(),
         },
       })
       rows.forEach((r) => buyers.add(r.userId))

@@ -22,6 +22,7 @@
  */
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { excludeTopup } from '@/lib/order-scope'
 import { getConfig, getHalt, getSyncState, isDryRun, isHalted, backoffDomains, senderReady } from './config'
 import { todayUsage } from './budget'
 import { bjDateKey, bjDateTime, bjDayStart, inSendWindow, nextDayWindowStart, nextWindowStart } from './time'
@@ -194,11 +195,13 @@ function iso(d: Date | null | undefined): string | null {
 
 // 营销归因只认主站订单（渠道分站，设计 11.3）：渠道单是渠道的生意，不能记成主站营销邮件带来的成交。
 // 休眠期全部订单 tenantId=1，归因结果不变
+// 充值单不计（充值是预收款，不是营销带来的成交；docs/短信接码-设计.md D40、§6.6 第 17 条）
 const PAID_ORDER_WHERE = {
   tenantId: 1,
   payStatus: 'PAID' as const,
   deliveryStatus: { not: 'CANCELLED' as const },
   paidAt: { not: null },
+  ...excludeTopup(),
 }
 
 interface OrderRow {

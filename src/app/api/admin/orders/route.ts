@@ -7,6 +7,7 @@ import { success, error } from '@/lib/api'
 import { decryptCardContent } from '@/lib/cardkey'
 import { round2, toCents } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
+import { excludeTopup } from '@/lib/order-scope'
 import { settledReferralCents } from '@/lib/referral-report'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 import { channelProfit, smsChargedCost, type ChannelProfit } from '@/lib/admin/channel-profit'
@@ -234,8 +235,9 @@ export async function GET(request: NextRequest) {
     // 筛选范围的汇总。成本/利润要按 orderId 汇总卡密，CardKey 与 Order 没有 Prisma 关系，
     // 只能先取 id 集合再聚合；范围过大时如实返回 truncated 而不是给个错数字。
     const TOTALS_ID_CAP = 10000
+    // 流水合计不含充值单（充值是预收款、不计营收，docs/短信接码-设计.md D40、§6.6 第 17 条）；列表本身仍列出充值单（后台只读）
     const amountAgg = await prisma.order.aggregate({
-      where,
+      where: { AND: [where, excludeTopup()] },
       _sum: { amount: true },
       _count: { _all: true },
     })

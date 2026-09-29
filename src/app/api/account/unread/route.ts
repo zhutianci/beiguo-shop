@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success } from '@/lib/api'
 import { getStorefront } from '@/lib/storefront/resolve'
+import { excludeTopup } from '@/lib/order-scope'
 
 /**
  * 当前买家有多少条「客服发来但还没看」的留言。
@@ -29,11 +30,13 @@ export async function GET() {
     const user = await getCurrentUser()
     if (!user) return success({ messages: 0 })
 
+    // 充值单（TOPUP 载体）不计：它不进「我的订单」、留言接口也不对它开放，买家没有任何页面能读那条留言，
+    // 万一有人从后台给充值单发了留言，红点会永远清不掉（docs/短信接码-设计.md §6.6 第 16 条，防御）
     const messages = await prisma.orderMessage.count({
       where: {
         sender: 'ADMIN',
         readByBuyer: false,
-        order: { userId: user.id, tenantId: sf.id },
+        order: { userId: user.id, tenantId: sf.id, ...excludeTopup() },
       },
     })
 

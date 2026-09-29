@@ -21,7 +21,7 @@
  * B0 评审修复（fe184ab 之后）追加：
  *   · wallet_config 行不存在也推 wallet.alert（本地起一个假 webhook 收）
  *   · 校验不过但带 version 的配置：storedVersion 给出库里的版本号，按它保存能修好；409 区分「版本不一致」与「已损坏」
- *   · B1 之前（TOPUP_AVAILABLE=false）：topupOpen 恒 false、保存拒绝打开充值开关
+ *   · 充值开关（B0 时 TOPUP_AVAILABLE=false：topupOpen 恒 false、保存拒绝打开；B1 起改为 true：按受众开放、可保存打开）
  *   · lockHoldInTx 不对不存在的预扣行加间隙锁：纯支付宝单退款与同一买家下单并发，不死锁
  *   · releaseInTx 前提不满足（订单没关、有在途收款单、预扣已确认）抛错，关单一起回滚
  *   · 对账：同一快照（与记账并发时不误报）、按时间窗逐行（窗外的旧记录只在全量里核）、W2 认豁免名单
@@ -612,10 +612,11 @@ async function main() {
       await prisma.setting.update({ where: { key: 'wallet_config' }, data: { value: JSON.stringify({ ...config.FACTORY_WALLET_CONFIG, topupEnabled: true }) } })
       const admin = await mkUser('adm', 'ADMIN')
       const cfgTopupOn = await config.readWalletConfig()
-      ok('B1 之前（TOPUP_AVAILABLE=false）库里 topupEnabled=true：读取照常成功（不把余额支付等一起 fail-closed）', config.TOPUP_AVAILABLE === false && cfgTopupOn.ok)
-      ok('  …但充值按关闭处理：管理员、普通用户 topupOpen 都是 false，不出 [充值]', !(await dto.buildWalletView({ id: admin.id, role: 'ADMIN' }, { brief: true })).topupOpen && !(await dto.buildWalletView({ id: q.id, role: 'USER' }, { brief: true })).topupOpen)
+      // B1 起 TOPUP_AVAILABLE=true（充值已交付）：库里 topupEnabled=true + 仅管理员 → 管理员开、普通用户关；保存打开充值开关照常写库
+      ok('B1（TOPUP_AVAILABLE=true）库里 topupEnabled=true：读取照常成功', config.TOPUP_AVAILABLE === true && cfgTopupOn.ok)
+      ok('  …仅管理员：管理员 topupOpen=true、普通用户 false（出厂受众 ADMIN_ONLY）', (await dto.buildWalletView({ id: admin.id, role: 'ADMIN' }, { brief: true })).topupOpen && !(await dto.buildWalletView({ id: q.id, role: 'USER' }, { brief: true })).topupOpen)
       const sOn = await config.saveWalletConfig({ ...config.FACTORY_WALLET_CONFIG, topupEnabled: true }, cfgTopupOn.storedVersion)
-      ok('  …保存时打开充值开关：拒绝（errors.topupEnabled），不写库', !sOn.ok && !!sOn.errors.topupEnabled && (await config.readWalletConfig()).storedVersion === cfgTopupOn.storedVersion)
+      ok('  …保存时打开充值开关：B1 起照常保存（版本 +1）', sOn.ok && (await config.readWalletConfig()).storedVersion === cfgTopupOn.storedVersion + 1)
     }
 
     console.log('\n【第 59 条 wallet_config 损坏：只关充值 / 新单选余额 / 自动退入；释放、退款照常】')

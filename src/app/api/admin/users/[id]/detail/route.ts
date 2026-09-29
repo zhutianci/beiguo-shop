@@ -9,6 +9,7 @@ import { clawbackCentsOf } from '@/lib/wallet/clawback'
 import { adminOrResponse, parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 import { shopOrderSourceKey } from '@/lib/order-invoice'
 import { orderIdFromSourceKey } from '@/lib/order-link'
+import { excludeTopup } from '@/lib/order-scope'
 
 // 每个区块自带分页，避免大户一次拉爆
 function readPager(sp: URLSearchParams, pageKey: string, sizeKey: string, defSize = 10) {
@@ -146,10 +147,11 @@ export async function GET(
         orderBy: { createdAt: 'desc' },
       }),
       // 已付款订单数 / 累计付款都排除「已付款 + 已取消」（线下退款的惯例做法，钱已退回）
-      prisma.order.count({ where: { userId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } } }),
+      // 充值单不计（充值是预收款，docs/短信接码-设计.md D40、§6.6 第 17 条）
+      prisma.order.count({ where: { userId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' }, ...excludeTopup() } }),
       prisma.order.count({ where: { userId, deliveryStatus: 'DELIVERED' } }),
       prisma.order.aggregate({
-        where: { userId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } },
+        where: { userId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' }, ...excludeTopup() },
         _sum: { amount: true },
       }),
       prisma.referralPrice.count({ where: { userId } }),
@@ -290,7 +292,7 @@ async function billsPerSite(
 
 async function siteRelations(userId: number, registeredTenantId: number) {
   const [orders, customers, members] = await Promise.all([
-    prisma.order.findMany({ where: { userId }, select: { id: true, tenantId: true, payStatus: true, deliveryStatus: true, amount: true } }),
+    prisma.order.findMany({ where: { userId }, select: { id: true, tenantId: true, payStatus: true, deliveryStatus: true, amount: true, product: { select: { deliveryType: true } } } }),
     prisma.tenantCustomer.findMany({
       where: { userId },
       select: {
@@ -338,7 +340,8 @@ async function siteRelations(userId: number, registeredTenantId: number) {
     .sort((a, b) => a - b)
     .map((tid) => {
       const os = orders.filter((o) => o.tenantId === tid)
-      const paid = os.filter((o) => o.payStatus === 'PAID' && o.deliveryStatus !== 'CANCELLED')
+      // 已付款订单数 / 实付：不含充值单（与上面 stats 同一口径）
+      const paid = os.filter((o) => o.payStatus === 'PAID' && o.deliveryStatus !== 'CANCELLED' && o.product.deliveryType !== 'TOPUP')
       const c = customers.find((x) => x.tenantId === tid) ?? null
       const m = members.find((x) => x.tenantId === tid) ?? null
       return {

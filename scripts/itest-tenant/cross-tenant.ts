@@ -974,6 +974,8 @@ const CLOSED_RE = [
   /^coupons(\/|$)/,
   /^lottery(\/|$)/,
   /^account\/(referral|wallet|vip|marketing|bindings)(\/|$)/,
+  // 短信接码 · B1：余额充值只在主站（docs/短信接码-设计.md D11、§6.6 第 20 条）
+  /^wallet(\/|$)/,
   /^external-orders(\/|$)/,
   /^forum(\/|$)/,
   /^news(\/|$)/,

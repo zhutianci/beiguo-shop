@@ -35,6 +35,7 @@ import {
 import { ensureTenantCustomer, isBlockedInTenant } from '@/lib/tenant/customer'
 import { alertPlatform } from '@/lib/tenant/platform-alert'
 import type { NotSellableReason } from '@/lib/tenant/types'
+import { excludeTopup } from '@/lib/order-scope'
 
 const createOrderSchema = z.object({
   // 必须是正整数：小数/负数原本要一路走到 prisma.order.create（Int 列）才炸，
@@ -98,7 +99,8 @@ export async function GET(request: NextRequest) {
     }
 
     // 【只看本店订单】账号两站通用，但订单按交易发生站隔离（设计 8.1、T11）：在 lulu 只见 lulu 的单，主站只见主站的单
-    const base: Prisma.OrderWhereInput = { userId: user.id, tenantId: sf.id }
+    // 充值单（TOPUP 载体）不进「我的订单」：充值记录在钱包页（docs/短信接码-设计.md §6.6 第 16 条）；普通订单不受影响
+    const base: Prisma.OrderWhereInput = { userId: user.id, tenantId: sf.id, ...excludeTopup() }
     const where: Prisma.OrderWhereInput = { ...base }
     if (FILTERS[filter]) Object.assign(where, FILTERS[filter])
     if (keyword) {
@@ -462,7 +464,7 @@ export async function POST(request: NextRequest) {
      */
     if ((await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) {
       return error(
-        `你已有 ${VMQ_MAX_OPEN_PER_USER} 笔订单在等待付款，请先在「我的订单」完成支付，或等其超时（约 ${VMQ_TIMEOUT_MIN} 分钟）后再下单`,
+        `你已有 ${VMQ_MAX_OPEN_PER_USER} 笔订单在等待付款，请先在「我的订单」或「余额充值」页完成支付，或等其超时（约 ${VMQ_TIMEOUT_MIN} 分钟）后再下单`,
         429
       )
     }

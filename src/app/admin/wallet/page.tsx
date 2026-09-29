@@ -14,12 +14,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, X, Download, Search } from 'lucide-react'
 
-type Tab = 'users' | 'logs' | 'topups' | 'holds' | 'reconcile' | 'settings'
+type Tab = 'users' | 'logs' | 'topups' | 'holds' | 'latepay' | 'reconcile' | 'settings'
 const TABS: { id: Tab; label: string }[] = [
   { id: 'users', label: '用户余额' },
   { id: 'logs', label: '流水' },
   { id: 'topups', label: '充值单' },
   { id: 'holds', label: '预扣' },
+  { id: 'latepay', label: '迟到付款' },
   { id: 'reconcile', label: '对账' },
   { id: 'settings', label: '设置' },
 ]
@@ -290,6 +291,7 @@ export default function AdminWalletPage() {
       {tab === 'logs' && <LogsTab key={`l${refreshKey}`} />}
       {tab === 'topups' && <TopupsTab key={`t${refreshKey}`} />}
       {tab === 'holds' && <HoldsTab key={`h${refreshKey}`} />}
+      {tab === 'latepay' && <LatepayTab key={`lp${refreshKey}`} />}
       {tab === 'reconcile' && <ReconcileTab key={`r${refreshKey}`} onDone={loadOv} />}
       {tab === 'settings' && <SettingsTab key={`s${refreshKey}`} onSaved={loadOv} />}
 
@@ -560,7 +562,7 @@ function TopupsTab() {
       <CardContent>
         <LoadGate loaded={!!data} err={err} onRetry={reload}>
           {!data ? null : data.list.length === 0 ? (
-            <div className="py-8 text-center text-gray-400">还没有充值单（充值功能在 B1 上线、默认关闭）</div>
+            <div className="py-8 text-center text-gray-400">还没有充值单（充值出厂关闭、受众仅管理员，在「设置」里打开）</div>
           ) : (
             <table className="w-full text-sm text-gray-800">
               <thead>
@@ -1130,5 +1132,92 @@ function UserDetailDialog({ userId, onClose }: { userId: number; onClose: () => 
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * 迟到付款（docs/短信接码-设计.md §7.8、§2.7、D41）：最近的 LATEPAY 流水（自动 / 手动、对应条目、订单、手动的支付宝交易号）；
+ * 待核实列表里涉及接码 / 充值订单的条目数（到「收款监控」处理）；标为 OFFLINE / IGNORE 的条目（只读，W7 豁免）。
+ * 这里只读：退入只能在「收款监控 → 待核实」用「退入买家余额」（钱和标记在同一个事务里）。
+ */
+function LatepayTab() {
+  const { data, err, reload } = useApi<{
+    carrierOpen: number
+    openTotal: number
+    logs: { logId: number; at: string; cents: number; userId: number; userEmail: string | null; orderNo: string | null; orderType: string | null; entryKey: string; reason: string | null; auto: boolean; tradeNo: string | null; vmqOrderNo: string | null }[]
+    handledOther: { key: string; price: string; reason: string; handledAs: string | null; handledAt: number | null; handledBy: string | number | null }[]
+  }>('/api/admin/wallet/latepay')
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">迟到付款退入余额</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <LoadGate loaded={!!data} err={err} onRetry={reload}>
+          {!data ? null : (
+            <div className="space-y-5 text-sm">
+              <div className={`rounded-lg border p-3 ${data.carrierOpen ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-gray-100 text-gray-600'}`}>
+                待核实的到账 {data.openTotal} 条，其中涉及短信接码 / 余额充值订单 {data.carrierOpen} 条。
+                <a href="/admin/vmq" className="ml-1 text-primary-600 underline">
+                  到「收款监控 → 待核实」处理
+                </a>
+                （核对支付宝账单 → 退入买家余额，必填支付宝交易号）
+              </div>
+              <div>
+                <div className="mb-2 font-medium text-gray-800">最近的退入（LATEPAY 流水）</div>
+                {data.logs.length === 0 ? (
+                  <div className="py-4 text-center text-gray-400">还没有</div>
+                ) : (
+                  <table className="w-full text-xs text-gray-800">
+                    <thead>
+                      <tr className="border-b text-left text-gray-500">
+                        <th className="pb-2 pr-3">时间</th>
+                        <th className="pb-2 pr-3">用户</th>
+                        <th className="pb-2 pr-3">订单</th>
+                        <th className="pb-2 pr-3 text-right">退入充值余额</th>
+                        <th className="pb-2 pr-3">方式</th>
+                        <th className="pb-2">条目</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.logs.map((l) => (
+                        <tr key={l.logId} className="border-b last:border-0">
+                          <td className="py-2 pr-3 whitespace-nowrap">{new Date(l.at).toLocaleString('zh-CN', { hour12: false })}</td>
+                          <td className="py-2 pr-3">{l.userEmail || `#${l.userId}`}</td>
+                          <td className="py-2 pr-3 font-mono">
+                            {l.orderNo ?? '—'} {l.orderType === 'TOPUP' ? '（充值）' : l.orderType === 'SMS_POOL' ? '（接码）' : ''}
+                          </td>
+                          <td className="py-2 pr-3 text-right">{yuan(l.cents)}</td>
+                          <td className="py-2 pr-3">{l.auto ? `自动（收款单 ${l.vmqOrderNo ?? '—'}）` : `手动（交易号 ${l.tradeNo ?? '—'}）`}</td>
+                          <td className="py-2 font-mono text-[11px] text-gray-500">
+                            {l.entryKey}
+                            {l.reason ? ` · ${l.reason}` : ''}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+              <div>
+                <div className="mb-2 font-medium text-gray-800">标为「线下已原路退回 / 核实不是新到账」的条目（只读）</div>
+                {data.handledOther.length === 0 ? (
+                  <div className="py-4 text-center text-gray-400">没有</div>
+                ) : (
+                  <ul className="space-y-1 text-xs text-gray-600">
+                    {data.handledOther.map((h) => (
+                      <li key={h.key}>
+                        ¥{h.price} · {h.reason} · {h.handledAs === 'OFFLINE' ? '线下已原路退回支付宝' : '核实不是新到账'} · 管理员 #{h.handledBy ?? '—'} ·{' '}
+                        {h.handledAt ? new Date(h.handledAt).toLocaleString('zh-CN', { hour12: false }) : '—'}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          )}
+        </LoadGate>
+      </CardContent>
+    </Card>
   )
 }

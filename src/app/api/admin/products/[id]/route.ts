@@ -9,6 +9,7 @@ import { syncAutoStock } from '@/lib/cardkey'
 import { FEATURES_FORMAT_ERROR, isFeaturesJson } from '@/lib/product-intro'
 import { adminGuard } from '@/lib/admin-guard'
 import { emitTenantNotice } from '@/lib/tenant/notice'
+import { isCarrierType } from '@/lib/order-scope'
 
 const updateProductSchema = z.object({
   categoryId: z.number().optional(),
@@ -59,6 +60,24 @@ export async function PUT(
     }
 
     const body = await request.json()
+
+    /*
+     * 【系统载体商品保护】（docs/短信接码-设计.md D14、§6.6 第 19 条、附录 B 第 8 条）接码单（SMS_POOL）与充值单（TOPUP）挂在这两行上，
+     * 必须保持下架（status=0）、价格 0、发货方式不变：上架了就会从各个公开列表外泄，改了发货方式整条付款框架就认不出它们。
+     * 名称、描述等展示字段照常可改；这三项只要与现值不同就 409（后台编辑弹窗会原样带回 deliveryType，与现值相同的放行）。
+     */
+    const cur = await prisma.product.findUnique({ where: { id: productId }, select: { deliveryType: true, status: true, price: true } })
+    if (cur && isCarrierType(cur.deliveryType) && body && typeof body === 'object') {
+      const b = body as { status?: unknown; price?: unknown; deliveryType?: unknown }
+      const priceChanged = b.price !== undefined && Math.round(Number(b.price) * 100) !== Math.round(Number(cur.price) * 100)
+      const statusChanged = b.status !== undefined && Number(b.status) !== cur.status
+      const typeChanged = b.deliveryType !== undefined && b.deliveryType !== cur.deliveryType
+      if (priceChanged || statusChanged || typeChanged) {
+        return error('这是系统载体商品（短信接码 / 余额充值的订单挂在这里），不能上架、改价或改发货方式', 409)
+      }
+      delete (body as Record<string, unknown>).deliveryType
+    }
+
     const result = updateProductSchema.safeParse(body)
 
     if (!result.success) {
@@ -137,6 +156,10 @@ export async function DELETE(
      *  · 已发出的卡：CardKey 对商品是级联删除，删商品会把发货记录（含成本 / 利润）一起抹掉。
      * 这几种情况一律只能下架（status=0）。
      */
+    // 系统载体商品不能删（D14）：删了之后接码 / 充值会因为「载体商品不是恰好 1 行」整体停售
+    const carrier = await prisma.product.findUnique({ where: { id: productId }, select: { deliveryType: true } })
+    if (carrier && isCarrierType(carrier.deliveryType)) return error('这是系统载体商品（短信接码 / 余额充值的订单挂在这里），不能删除', 409)
+
     const [listings, orders, usedCards] = await Promise.all([
       prisma.tenantListing.count({ where: { productId } }),
       prisma.order.count({ where: { productId } }),

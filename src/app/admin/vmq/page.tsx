@@ -55,6 +55,19 @@ interface UnmatchedItem {
   at: number
   handledAt?: number | null
   handledBy?: string | number | null
+  /** B1：处理方式（LATEPAY 退入买家余额 / OFFLINE 线下已原路退回 / IGNORE 核实不是新到账） */
+  handledAs?: 'LATEPAY' | 'OFFLINE' | 'IGNORE'
+  orderId?: number
+  tradeNo?: string
+  auto?: boolean
+  /** 待处理条目：是否涉及接码单 / 充值单（服务端判定；这类只能退入余额或选 OFFLINE / IGNORE 标记） */
+  carrier?: boolean
+}
+
+const HANDLED_AS_LABELS: Record<string, string> = {
+  LATEPAY: '已退入买家余额',
+  OFFLINE: '线下已原路退回支付宝',
+  IGNORE: '核实不是新到账',
 }
 
 /** 每类未匹配到账的说明与处理建议。duplicate_payment 要退款，千万别点「补单」 */
@@ -221,16 +234,28 @@ export default function AdminVmqPage() {
     else alert(data.error || '补单失败')
   }
 
-  const markHandled = async (key: string) => {
-    if (!confirm('确认这笔到账已人工处理完毕（已补单或已退款）？')) return
+  const [handleFor, setHandleFor] = useState<UnmatchedItem | null>(null)
+  const [toBalanceFor, setToBalanceFor] = useState<UnmatchedItem | null>(null)
+
+  const postHandled = async (key: string, handledAs?: 'OFFLINE' | 'IGNORE') => {
     const res = await fetch('/api/admin/vmq/unmatched', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key }),
+      body: JSON.stringify(handledAs ? { key, handledAs } : { key }),
     })
     const data = await res.json().catch(() => null)
     if (data?.success) load()
     else alert(data?.error || '操作失败')
+  }
+
+  const markHandled = async (u: UnmatchedItem) => {
+    // 涉及接码单 / 充值单的条目必须二选一（docs/短信接码-设计.md §2.7）：退进余额请用「退入买家余额」
+    if (u.carrier) {
+      setHandleFor(u)
+      return
+    }
+    if (!confirm('确认这笔到账已人工处理完毕（已补单或已退款）？')) return
+    await postHandled(u.key)
   }
 
   const m = cfg?.monitor
@@ -532,11 +557,22 @@ export default function AdminVmqPage() {
                           </div>
                           <div className="mt-0.5 break-all">{t.title}</div>
                           <div className="text-xs text-amber-700 mt-1">{t.hint}</div>
+                          {u.carrier && (
+                            <div className="text-xs text-rose-700 mt-1">
+                              涉及短信接码 / 余额充值订单：这类订单关了就不复活，<b>不要补单</b>。核对支付宝账单后用「退入买家余额」（填交易号），
+                              或已线下原路退回 / 核实不是新到账时点「标记已处理」选对应方式。
+                            </div>
+                          )}
                           {u.raw && <div className="text-xs text-gray-400 mt-1 break-all">原文：{u.raw}</div>}
                         </div>
-                        <Button variant="outline" size="sm" className="shrink-0" onClick={() => markHandled(u.key)}>
-                          标记已处理
-                        </Button>
+                        <div className="flex shrink-0 flex-col gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setToBalanceFor(u)} title="接码 / 充值订单关单后才到的钱：按实收退进买家充值余额">
+                            退入买家余额
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => markHandled(u)}>
+                            标记已处理
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -555,7 +591,14 @@ export default function AdminVmqPage() {
                       <div key={u.key} className="rounded-md border border-gray-100 p-2 text-xs text-gray-500">
                         <div>
                           ¥{u.price} · {fmt(new Date(u.at).toISOString())} ·{' '}
-                          {u.handledBy === 'auto' ? '自动归档' : `已处理（管理员 #${u.handledBy ?? '—'}）`}
+                          {u.handledAs === 'LATEPAY' && u.auto
+                            ? '已自动退入买家余额'
+                            : u.handledBy === 'auto'
+                              ? '自动归档'
+                              : `已处理（管理员 #${u.handledBy ?? '—'}）`}
+                          {u.handledAs && !(u.handledAs === 'LATEPAY' && u.auto) && ` · ${HANDLED_AS_LABELS[u.handledAs] ?? u.handledAs}`}
+                          {u.handledAs === 'LATEPAY' && u.orderId && ` · 订单 #${u.orderId}`}
+                          {u.tradeNo && ` · 交易号 ${u.tradeNo}`}
                         </div>
                         <div className="mt-0.5 break-all">{t.title}</div>
                         {u.reason === 'maybe_duplicate' && <div className="mt-0.5">{t.hint}</div>}
@@ -626,9 +669,222 @@ export default function AdminVmqPage() {
           </div>
           <p className="text-xs text-gray-400">
             提示：支付成功后商品订单会变为「处理中」（已付款待发货/开通），不会自动变「已完成」——「已完成」需在「订单管理」里交付后才会显示。
+            短信接码 / 余额充值订单关单后才到的钱不能「补单」，请在上面的待核实列表用「退入买家余额」。
           </p>
         </CardContent>
       </Card>
+
+      {handleFor && (
+        <HandleAsModal
+          item={handleFor}
+          onClose={() => setHandleFor(null)}
+          onPick={async (as) => {
+            const key = handleFor.key
+            setHandleFor(null)
+            await postHandled(key, as)
+          }}
+        />
+      )}
+      {toBalanceFor && (
+        <ToBalanceModal
+          item={toBalanceFor}
+          onClose={() => setToBalanceFor(null)}
+          onDone={() => {
+            setToBalanceFor(null)
+            load()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+/** 涉及载体单的条目「标记已处理」：必须二选一（线下已原路退回 / 核实不是新到账），二次确认 */
+function HandleAsModal({ item, onClose, onPick }: { item: UnmatchedItem; onClose: () => void; onPick: (as: 'OFFLINE' | 'IGNORE') => void }) {
+  const pick = (as: 'OFFLINE' | 'IGNORE') => {
+    const text =
+      as === 'OFFLINE'
+        ? `确认这笔 ¥${item.price} 已经线下原路退回给买家的支付宝？`
+        : `确认这笔 ¥${item.price} 不是新到账（重复转发，或核对账单只有一笔）？`
+    if (confirm(text)) onPick(as)
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="text-base font-semibold text-gray-900">标记已处理：¥{item.price}</div>
+        <p className="mt-2 text-sm text-gray-600">
+          这笔到账涉及短信接码 / 余额充值订单，请选择处理方式。要把钱退进买家的余额，请关掉这个框、改用「退入买家余额」。
+        </p>
+        <div className="mt-4 flex flex-col gap-2">
+          <Button variant="outline" onClick={() => pick('OFFLINE')}>
+            线下已原路退回支付宝
+          </Button>
+          <Button variant="outline" onClick={() => pick('IGNORE')}>
+            核实不是新到账（重复转发等）
+          </Button>
+          <Button variant="ghost" onClick={onClose}>
+            取消
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface Candidate {
+  orderNo: string
+  deliveryType: string
+  payStatus: string
+  deliveryStatus: string
+  closed: boolean
+  amountCents: number
+  vmqOrderNo: string
+  vmqState: number
+  vmqCreatedAt: string
+  userId: number
+  userEmail: string | null
+  priorLatepay: number
+  hinted: boolean
+}
+
+/**
+ * 「退入买家余额」（docs/短信接码-设计.md §2.7、§6.6 第 15 条）：选订单（候选优先、已关闭的恰好一个时预选「建议」）→ 填支付宝交易号 →
+ * 按需勾两个确认 → 退入。入账金额永远是这条到账的实收；同一个交易号只能退一次。
+ */
+function ToBalanceModal({ item, onClose, onDone }: { item: UnmatchedItem; onClose: () => void; onDone: () => void }) {
+  const [loading, setLoading] = useState(true)
+  const [cands, setCands] = useState<Candidate[]>([])
+  const [suggest, setSuggest] = useState<string | null>(null)
+  const [orderNo, setOrderNo] = useState('')
+  const [tradeNo, setTradeNo] = useState('')
+  const [billChecked, setBillChecked] = useState(false)
+  const [mismatch, setMismatch] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+  const url = `/api/admin/vmq/unmatched/${encodeURIComponent(item.key)}/to-balance`
+
+  useEffect(() => {
+    let alive = true
+    fetch(url)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive) return
+        if (d.success) {
+          setCands(d.data.candidates || [])
+          setSuggest(d.data.suggest || null)
+          if (d.data.suggest) setOrderNo(d.data.suggest)
+          else if (d.data.candidates?.[0]?.hinted) setOrderNo(d.data.candidates[0].orderNo)
+        } else setMsg(d.error || '候选加载失败')
+      })
+      .catch(() => alive && setMsg('候选加载失败'))
+      .finally(() => alive && setLoading(false))
+    return () => {
+      alive = false
+    }
+  }, [url])
+
+  const submit = async () => {
+    setMsg('')
+    if (!/^\d{16,32}$/.test(tradeNo.trim())) {
+      setMsg('请填写支付宝交易号（16–32 位数字，支付宝账单详情里的「订单号」）')
+      return
+    }
+    if (!orderNo.trim()) {
+      setMsg('请选择或填写订单号')
+      return
+    }
+    if (!confirm(`确认把这笔 ¥${item.price} 退进订单 ${orderNo.trim()} 的买家充值余额？`)) return
+    setBusy(true)
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderNo: orderNo.trim(), tradeNo: tradeNo.trim(), confirmMismatch: mismatch, confirmBillChecked: billChecked }),
+      })
+      const d = await res.json().catch(() => null)
+      if (d?.success) {
+        alert(d.message || '已退入')
+        onDone()
+      } else setMsg(d?.error || '操作失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="text-base font-semibold text-gray-900">退入买家余额：¥{item.price}</div>
+        <p className="mt-1 text-xs text-gray-500">
+          只用于短信接码 / 余额充值订单关单后才到、重复付的钱：按这条到账的<b>实收</b>退进买家的充值余额（不可提现），不补单、不改订单。
+          {item.repeatForward && <b className="text-rose-600"> 这条疑似重复转发：先核对支付宝账单确有两笔。</b>}
+        </p>
+
+        <div className="mt-4 text-sm font-medium text-gray-700">候选订单（近 24 小时同额的接码 / 充值收款单）</div>
+        {loading ? (
+          <div className="py-4 text-sm text-gray-400">加载中…</div>
+        ) : cands.length === 0 ? (
+          <div className="py-2 text-sm text-gray-400">没有候选，可以直接填订单号</div>
+        ) : (
+          <div className="mt-2 space-y-1.5">
+            {cands.map((c) => (
+              <label
+                key={c.orderNo}
+                className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 text-xs ${orderNo === c.orderNo ? 'border-primary-400 bg-primary-50' : 'border-gray-200'}`}
+              >
+                <input type="radio" className="mt-0.5" checked={orderNo === c.orderNo} onChange={() => setOrderNo(c.orderNo)} />
+                <span className="min-w-0">
+                  <span className="font-mono">{c.orderNo}</span> · {c.deliveryType === 'TOPUP' ? '余额充值' : '短信接码'} · ¥{(c.amountCents / 100).toFixed(2)} ·{' '}
+                  {c.closed ? <b className="text-gray-700">已关闭</b> : `${c.payStatus}/${c.deliveryStatus}`} · {c.userEmail || `用户#${c.userId}`}
+                  {suggest === c.orderNo && <span className="ml-1 rounded bg-green-100 px-1 text-green-800">建议</span>}
+                  {c.hinted && <span className="ml-1 rounded bg-amber-100 px-1 text-amber-800">条目提示</span>}
+                  {c.priorLatepay > 0 && <span className="ml-1 rounded bg-rose-100 px-1 text-rose-700">已退入过 {c.priorLatepay} 笔</span>}
+                  <span className="block text-gray-400">
+                    收款单 {c.vmqOrderNo}（{c.vmqState === 1 ? '已到账' : c.vmqState === 0 ? '待支付' : '已关闭'}）·{' '}
+                    {new Date(c.vmqCreatedAt).toLocaleString('zh-CN', { hour12: false })}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">
+            <span className="text-gray-600">订单号</span>
+            <input value={orderNo} onChange={(e) => setOrderNo(e.target.value)} className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 font-mono text-sm" />
+          </label>
+          <label className="text-sm">
+            <span className="text-gray-600">支付宝交易号（必填）</span>
+            <input
+              value={tradeNo}
+              onChange={(e) => setTradeNo(e.target.value)}
+              inputMode="numeric"
+              placeholder="支付宝账单详情里的「订单号」"
+              className="mt-1 w-full rounded-md border border-gray-300 px-2 py-1.5 font-mono text-sm"
+            />
+          </label>
+        </div>
+        <div className="mt-3 space-y-1.5 text-sm text-gray-700">
+          <label className="flex items-start gap-2">
+            <input type="checkbox" className="mt-1" checked={billChecked} onChange={(e) => setBillChecked(e.target.checked)} />
+            <span>已核对支付宝账单，确实收到这一笔（可能重复 / 重复转发的条目、或这张订单已经退入过时必须勾）</span>
+          </label>
+          <label className="flex items-start gap-2">
+            <input type="checkbox" className="mt-1" checked={mismatch} onChange={(e) => setMismatch(e.target.checked)} />
+            <span>金额 / 订单与收款单不一致，确认这笔钱是该买家付的（买家手输错金额、或改指到提示之外的订单时必须勾）</span>
+          </label>
+        </div>
+        {msg && <div className="mt-3 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">{msg}</div>}
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={onClose}>
+            取消
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy ? '处理中…' : '确认退入'}
+          </Button>
+        </div>
+      </div>
     </div>
   )
 }

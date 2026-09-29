@@ -1,8 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { useStorefront } from '@/components/storefront-provider'
+import { ContactModal } from '@/components/contact-modal'
+import { safeNext } from '@/lib/pay-next'
 
 interface PayInfo {
   orderId: string
@@ -14,6 +17,14 @@ interface PayInfo {
   createdAt: string
   timeoutMin: number
   payDate: string | null
+  /** 载体单（docs/短信接码-设计.md §6.6 第 13 条）：付款成功后去哪、过期页用专用文案、组合单已用余额抵扣的部分（分） */
+  next?: string
+  carrier?: 'SMS_POOL' | 'TOPUP'
+  balancePart?: number
+}
+
+function centsText(c: number): string {
+  return `¥${Math.floor(c / 100)}.${String(c % 100).padStart(2, '0')}`
 }
 
 // 收款码图片：把你的支付宝个人收款码图片放到 public/vmq-alipay-qr.png
@@ -45,6 +56,7 @@ export default function VmqCashierPage() {
   const [state, setState] = useState<'loading' | 'pending' | 'paid' | 'expired' | 'notfound'>('loading')
   const [remain, setRemain] = useState<number>(0)
   const [qrOk, setQrOk] = useState(true)
+  const [contactOpen, setContactOpen] = useState(false)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const load = async () => {
@@ -99,8 +111,9 @@ export default function VmqCashierPage() {
   useEffect(() => {
     if (state === 'paid' && timer.current) {
       clearInterval(timer.current)
-      // 税费单付完回「邮箱查订阅」；渠道站没有那个页面（设计 11.2 关闭 /lookup），一律回「我的订单」
-      const dest = info?.bizType === 'invoice' && features.lookup ? '/lookup' : '/orders'
+      // 税费单付完回「邮箱查订阅」；渠道站没有那个页面（设计 11.2 关闭 /lookup），一律回「我的订单」。
+      // 载体单（接码 / 充值）按状态接口给的 next 走（只认号码页与钱包充值结果页两种格式）：充值单不进「我的订单」
+      const dest = safeNext(info?.next) ?? (info?.bizType === 'invoice' && features.lookup ? '/lookup' : '/orders')
       const t = setTimeout(() => router.push(dest), 2500)
       return () => clearTimeout(t)
     }
@@ -135,7 +148,34 @@ export default function VmqCashierPage() {
           </div>
         )}
 
-        {state === 'expired' && (
+        {state === 'expired' && info?.carrier ? (
+          /*
+           * 载体单（接码 / 充值）的过期页（docs/短信接码-设计.md §1.9、附录 §1.14）：它们关了就不能重新发起支付，
+           * 不能再 router.back() 回去「重新发起」。如果买家其实已经付了，那笔钱按实收退进余额（D41）。
+           */
+          <div className="text-center py-10">
+            <h2 className="text-xl font-bold text-gray-900 mb-2">订单已关闭</h2>
+            <p className="text-gray-600 text-sm leading-relaxed mb-6 text-left">
+              {info.carrier === 'TOPUP' ? '这笔充值已关闭。' : '订单已关闭，预扣的余额（如有）已退回。'}
+              <strong className="text-gray-900">如果你已经付了款，请不要再付</strong>
+              ：这笔钱会退回你的余额——能自动确认的，通常到账后几分钟内；需要客服核实的，会在客服在线时间（9:00–22:00）内处理。
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Link
+                href={safeNext(info.next) ?? '/wallet'}
+                className="px-5 py-2.5 rounded-lg bg-gray-900 text-white text-sm font-medium"
+              >
+                {info.carrier === 'TOPUP' ? '去我的余额' : '查看号码页'}
+              </Link>
+              <button
+                onClick={() => setContactOpen(true)}
+                className="px-5 py-2.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium"
+              >
+                联系客服
+              </button>
+            </div>
+          </div>
+        ) : state === 'expired' ? (
           <div className="text-center py-10">
             <h2 className="text-xl font-bold text-gray-900 mb-2">订单已过期</h2>
             <p className="text-gray-500 text-sm mb-6">该支付订单已超时，请返回重新发起支付。</p>
@@ -143,7 +183,7 @@ export default function VmqCashierPage() {
               返回
             </button>
           </div>
-        )}
+        ) : null}
 
         {state === 'pending' && info && (
           <>
@@ -156,6 +196,11 @@ export default function VmqCashierPage() {
               </div>
               {info.reallyPrice !== info.price && (
                 <div className="text-xs text-gray-400 mt-2">原价 ¥{info.price.toFixed(2)}，为区分订单已自动微调几分钱</div>
+              )}
+              {(info.balancePart ?? 0) > 0 && (
+                <div className="text-xs text-gray-500 mt-1">
+                  已用余额抵扣 {centsText(info.balancePart ?? 0)}，本次支付宝支付 ¥{info.reallyPrice.toFixed(2)}
+                </div>
               )}
             </div>
 
@@ -206,6 +251,7 @@ export default function VmqCashierPage() {
           </>
         )}
       </div>
+      <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
     </div>
   )
 }

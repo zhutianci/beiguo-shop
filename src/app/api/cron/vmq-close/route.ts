@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { success, error } from '@/lib/api'
 import { assertCronAuth } from '@/lib/cron-auth'
 import { closeExpired, reconcilePaidVmq } from '@/lib/vmq'
+import { sweepOrphans } from '@/lib/wallet/topup'
 
 // 兜底定时清理过期收款单（可由 cron 容器每分钟调用）
 export async function GET(request: NextRequest) {
@@ -20,7 +21,13 @@ export async function GET(request: NextRequest) {
       console.error('[vmq] 对账失败', e)
       return null
     })
-    return success({ closed, reconcile })
+    // 充值单兜底清扫（docs/短信接码-设计.md §6.6 第 20 条、E60）：发起收款失败、同一请求里关单也失败的充值单（没有任何收款单），
+    // 建单 10 分钟后在这里用小事务关掉（锁订单行 → 确认没有 0/1 收款单 → CAS 取消）。不新增 cron 行；失败不影响上面两步
+    const topupSweep = await sweepOrphans().catch((e) => {
+      console.error('[wallet] 充值单兜底清扫失败', e)
+      return null
+    })
+    return success({ closed, reconcile, topupSweep })
   } catch (err) {
     console.error('Vmq close cron error:', err)
     return error('清理失败')

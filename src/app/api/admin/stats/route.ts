@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { sourceMap, sourceOf } from '@/lib/admin/source-site'
+import { excludeTopup } from '@/lib/order-scope'
+import { shanghaiDayStart } from '@/lib/wallet/admin-query'
 
 export async function GET() {
   const denied = await adminGuard()
@@ -18,11 +20,13 @@ export async function GET() {
     ] = await Promise.all([
       prisma.user.count(),
       prisma.product.count(),
-      prisma.order.count(),
+      // 总订单：只数已付款、非充值单（充值是预收款、不计营收，D40；未付款单不算成交）。页面注明口径
+      prisma.order.count({ where: { payStatus: 'PAID', ...excludeTopup() } }),
       // 总收入：交给数据库 SUM，不再把所有 PAID 订单拉进内存 reduce。
-      // 排除「已付款 + 已取消」：后台没有退款按钮，线下退款后就是这么标的，钱已经退回去了
+      // 排除「已付款 + 已取消」：后台没有退款按钮，线下退款后就是这么标的，钱已经退回去了。
+      // 排除充值单（D40、§6.6 第 17 条）：买家用余额消费时那张单才计营收，充值再计一次就是同一笔钱记两次
       prisma.order.aggregate({
-        where: { payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } },
+        where: { payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' }, ...excludeTopup() },
         _sum: { amount: true },
       }),
       // 最近订单：只取 5 条，并只 select 前端真正用到的字段（避免带出 deliveryInfo 等大字段）
@@ -54,10 +58,17 @@ export async function GET() {
      */
     const bySiteRaw = await prisma.order.groupBy({
       by: ['tenantId'],
-      where: { payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } },
+      where: { payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' }, ...excludeTopup() },
       _sum: { amount: true },
       _count: { _all: true },
     })
+    // 今日充值入账（北京时间当天，按实付含识别尾差；**不计入营收**，D40）：充值格的 TOPUP 流水合计
+    const topupAgg = await prisma.balanceLog.aggregate({
+      where: { type: 'TOPUP', createdAt: { gte: shanghaiDayStart() } },
+      _sum: { topupDeltaCents: true },
+      _count: { _all: true },
+    })
+    const todayTopup = { cents: topupAgg._sum.topupDeltaCents ?? 0, count: topupAgg._count._all }
     const srcMap = await sourceMap([...bySiteRaw.map((g) => g.tenantId), ...recentOrders.map((o) => o.tenantId)])
     const cents = (v: unknown) => Math.round(Number(v ?? 0) * 100)
     const revenueBySite = bySiteRaw
@@ -74,6 +85,7 @@ export async function GET() {
       mainRevenue,
       channelRevenue,
       revenueBySite,
+      todayTopup,
       recentOrders: recentOrders.map((o) => ({ ...o, source: sourceOf(srcMap, o.tenantId) })),
     })
   } catch (err) {

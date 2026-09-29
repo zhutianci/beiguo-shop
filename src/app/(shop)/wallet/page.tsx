@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Wallet, Loader2, Gift, MessageCircle, Info, PlusCircle, MessageSquareText, ChevronDown, ChevronRight, BellRing } from 'lucide-react'
+import { ArrowLeft, Wallet, Loader2, Gift, MessageCircle, Info, PlusCircle, MessageSquareText, ChevronDown, ChevronRight, BellRing, CheckCircle2, Copy, Check } from 'lucide-react'
 import { ContactModal } from '@/components/contact-modal'
 
 /**
@@ -167,6 +167,17 @@ export default function WalletPage() {
 
   const jiema = !!data?.canUseForJiema
 
+  // 收银台付款成功后跳回来的 ?topup=<充值单号>（§1.15、§6.6 第 13 条）。不用 useSearchParams（静态预渲染要 Suspense 边界），挂载后读一次
+  const [topupNo, setTopupNo] = useState<string | null>(null)
+  useEffect(() => {
+    try {
+      const v = new URLSearchParams(window.location.search).get('topup')
+      if (v && /^[0-9A-Za-z]{8,32}$/.test(v)) setTopupNo(v)
+    } catch {
+      /* 读不到就不显示横幅 */
+    }
+  }, [])
+
   return (
     <div className="min-h-screen page-top pb-20">
       <div className="pointer-events-none fixed inset-0 grid-bg opacity-60" />
@@ -214,6 +225,7 @@ export default function WalletPage() {
           </div>
         ) : (
           <div className="space-y-6">
+            {topupNo && <TopupBanner orderNo={topupNo} onCredited={() => load(cat, 1, false)} onContact={() => setContactOpen(true)} />}
             {/* 关单后才到账、已退回余额的付款（近 7 天，D41） */}
             {data.recentLateCredits.map((c, i) => (
               <div key={i} className="flex items-start gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-500/10 px-4 py-3 text-[13px] leading-relaxed text-cyan-100/90">
@@ -470,6 +482,137 @@ export default function WalletPage() {
       </div>
 
       <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
+    </div>
+  )
+}
+
+/**
+ * 充值结果横幅（docs/短信接码-设计.md §1.15 `?topup=<orderNo>`、附录 §1.14）：
+ *   到账：「充值成功，¥50.03 已到账」+ 小字「暂不支持开票，可联系客服开票处理」（D37 清单第 ② 项）+ 带 returnTo 时「返回继续下单」；
+ *   还没到账：「正在确认到账」，每 3 秒查一次本人这张充值单，最多 30 秒；
+ *   30 秒后仍未到账：「到账确认较慢，系统会在几分钟内自动补入；10 分钟后仍未到账请联系客服」+ [联系客服] [复制充值单号]，
+ *     页面在前台时每 30 秒再查一次、最多 10 分钟（E45：入账与翻 PAID 同一事务，失败时 reconcilePaidVmq 3 分钟后补做）。
+ */
+function TopupBanner({ orderNo, onCredited, onContact }: { orderNo: string; onCredited: () => void; onContact: () => void }) {
+  const [state, setState] = useState<'PENDING' | 'CREDITED' | 'CLOSED' | 'GONE'>('PENDING')
+  const [credited, setCredited] = useState<number | null>(null)
+  const [returnTo, setReturnTo] = useState<string | null>(null)
+  const [slow, setSlow] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const started = useRef(Date.now())
+  const notified = useRef(false)
+
+  useEffect(() => {
+    let alive = true
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const tick = async () => {
+      if (!alive) return
+      const elapsed = Date.now() - started.current
+      if (elapsed > 10 * 60_000) return
+      if (typeof document === 'undefined' || document.visibilityState === 'visible' || elapsed < 30_000) {
+        try {
+          const res = await fetch(`/api/wallet/topup/${encodeURIComponent(orderNo)}`, { cache: 'no-store' })
+          if (res.status === 404) {
+            if (alive) setState('GONE')
+            return
+          }
+          const d = await res.json().catch(() => null)
+          if (alive && d?.success) {
+            setReturnTo(typeof d.data.returnTo === 'string' && d.data.returnTo.startsWith('/jiema') ? d.data.returnTo : null)
+            if (d.data.state === 'CREDITED') {
+              setCredited(d.data.creditedCents)
+              setState('CREDITED')
+              if (!notified.current) {
+                notified.current = true
+                onCredited()
+              }
+              return
+            }
+            if (d.data.state === 'CLOSED') {
+              setState('CLOSED')
+              return
+            }
+          }
+        } catch {
+          /* 网络抖动：下一轮再查 */
+        }
+      }
+      if (!alive) return
+      const e2 = Date.now() - started.current
+      if (e2 >= 30_000) setSlow(true)
+      timer = setTimeout(tick, e2 < 30_000 ? 3_000 : 30_000)
+    }
+    tick()
+    return () => {
+      alive = false
+      if (timer) clearTimeout(timer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderNo])
+
+  if (state === 'GONE') return null
+  const copy = () => {
+    navigator.clipboard?.writeText(orderNo).then(
+      () => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      },
+      () => undefined,
+    )
+  }
+  if (state === 'CREDITED') {
+    return (
+      <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3 text-[13px] leading-relaxed text-emerald-100/90">
+        <div className="flex flex-wrap items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" />
+          <span className="font-medium">充值成功，{credited != null ? yuan(credited) : ''} 已到账</span>
+          {returnTo && (
+            <Link href={returnTo} className="ml-auto rounded-lg bg-emerald-500/20 px-3 py-1 text-emerald-50 hover:bg-emerald-500/30">
+              返回继续下单
+            </Link>
+          )}
+        </div>
+        <p className="mt-1 text-xs text-emerald-100/60">
+          暂不支持开票，可
+          <button onClick={onContact} className="underline-offset-2 hover:underline">
+            联系客服
+          </button>
+          开票处理
+        </p>
+      </div>
+    )
+  }
+  if (state === 'CLOSED') {
+    return (
+      <div className="rounded-2xl border border-amber-400/25 bg-amber-500/10 px-4 py-3 text-[13px] leading-relaxed text-amber-100/90">
+        这笔充值已关闭（收银台超时）。如果你已经付了款，请不要再付：这笔钱会退回你的余额——能自动确认的，通常到账后几分钟内；需要客服核实的，会在客服在线时间（9:00–22:00）内处理。
+        <button onClick={onContact} className="ml-1 text-amber-50 underline-offset-2 hover:underline">
+          联系客服
+        </button>
+      </div>
+    )
+  }
+  return (
+    <div className="rounded-2xl border border-cyan-400/25 bg-cyan-500/10 px-4 py-3 text-[13px] leading-relaxed text-cyan-100/90">
+      {slow ? (
+        <>
+          <p>到账确认较慢，系统会在几分钟内自动补入；10 分钟后仍未到账请联系客服。</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button onClick={onContact} className="rounded-lg bg-cyan-500/20 px-3 py-1 text-cyan-50 hover:bg-cyan-500/30">
+              联系客服
+            </button>
+            <button onClick={copy} className="inline-flex items-center gap-1 rounded-lg border border-cyan-400/25 px-3 py-1 text-cyan-100/80 hover:bg-cyan-500/10">
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              复制充值单号
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          正在确认到账，通常几秒内完成
+        </p>
+      )}
     </div>
   )
 }

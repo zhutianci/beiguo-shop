@@ -88,6 +88,9 @@ export const ACTION_TEXT: Record<string, string> = {
   'wallet.adjust_legacy': '平台调整返现余额（内推管理）',
   'wallet.config': '平台修改余额与充值设置',
   'wallet.reconcile': '平台手动余额对账',
+  // B1：迟到付款退入买家余额、待核实到账标记已处理（OFFLINE / IGNORE）
+  'wallet.latepay': '平台把迟到付款退入买家余额',
+  'vmq.unmatched_handle': '平台标记待核实到账已处理',
 }
 
 const ACTION_GROUPS: { value: string; label: string }[] = [

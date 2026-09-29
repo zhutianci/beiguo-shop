@@ -244,10 +244,19 @@ export function isRetryableTxError(e: unknown): boolean {
 
 /**
  * 跑一个资金事务，遇到死锁 / 写冲突重试一次。fn 必须是幂等的整段事务（重试时整段重来）。
- * 默认隔离级别（REPEATABLE READ），与现有返现结算、后台调余额一致。
+ * 默认隔离级别（REPEATABLE READ），与现有返现结算、后台调余额一致；充值下单 / 关单这类「先锁一行、锁内再查最新提交」
+ * 的事务传 READ COMMITTED（B1）。
  */
-export async function inMoneyTx<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>, opts?: { timeout?: number }): Promise<T> {
-  const run = () => prisma.$transaction(fn, { maxWait: 5_000, timeout: opts?.timeout ?? 10_000 })
+export async function inMoneyTx<T>(
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  opts?: { timeout?: number; isolationLevel?: Prisma.TransactionIsolationLevel },
+): Promise<T> {
+  const run = () =>
+    prisma.$transaction(fn, {
+      maxWait: 5_000,
+      timeout: opts?.timeout ?? 10_000,
+      ...(opts?.isolationLevel ? { isolationLevel: opts.isolationLevel } : {}),
+    })
   try {
     return await run()
   } catch (e) {

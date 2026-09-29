@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Package, ShoppingCart, Users, DollarSign } from 'lucide-react'
+import { Package, ShoppingCart, Users, DollarSign, Wallet } from 'lucide-react'
 import OrderAnalytics from '@/components/admin/order-analytics'
 import CardKeyAnalytics from '@/components/admin/cardkey-analytics'
 import { SourceBadge, type SourceSite } from '@/components/admin/source-site'
@@ -16,6 +16,8 @@ interface Stats {
   mainRevenue?: number
   channelRevenue?: number
   revenueBySite?: Array<SourceSite & { revenue: number; orders: number }>
+  /** 今日（北京时间）充值入账：充值格 TOPUP 流水合计（分），**不计入营收**（docs/短信接码-设计.md D40、§6.6 第 17 条） */
+  todayTopup?: { cents: number; count: number }
   recentOrders: Array<{
     id: number
     orderNo: string
@@ -70,13 +72,22 @@ export default function AdminDashboard() {
       value: stats ? `¥${stats.totalRevenue.toFixed(2)}` : '--',
       icon: DollarSign,
       color: 'bg-green-500',
-      note: revenueNote,
+      // 口径：已付款未取消、不含余额充值（充值是预收款，买家用余额消费时那张单才计营收）
+      note: revenueNote ?? '已付款未取消，不含余额充值',
     },
     {
       title: '总订单',
       value: stats?.totalOrders ?? '--',
       icon: ShoppingCart,
       color: 'bg-blue-500',
+      note: '已付款订单数，不含余额充值',
+    },
+    {
+      title: '今日充值入账',
+      value: stats?.todayTopup ? `¥${(stats.todayTopup.cents / 100).toFixed(2)}` : '--',
+      icon: Wallet,
+      color: 'bg-cyan-500',
+      note: stats?.todayTopup ? `${stats.todayTopup.count} 笔 · 不计入营收（预收款）` : null,
     },
     {
       title: '商品数量',
@@ -94,7 +105,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {statCards.map((stat) => (
           <Card key={stat.title}>
             <CardContent className="p-6">

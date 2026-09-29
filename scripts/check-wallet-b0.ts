@@ -235,8 +235,9 @@ console.log('\n[§12.1 第 116 条] wallet_config 保存校验（zod）')
   ok(!topupOpenFor(f, true, true) && !topupOpenFor(null, true, true), '出厂充值关闭；配置读不到按关闭')
   ok(topupOpenFor({ ...f, topupEnabled: true }, true, true) && !topupOpenFor({ ...f, topupEnabled: true }, false, true), '仅管理员：管理员开、普通用户关')
   ok(topupOpenFor({ ...f, topupEnabled: true, topupAudience: 'ALL' }, false, true), '全部用户：普通用户也开')
-  ok(TOPUP_AVAILABLE === false, 'B0：充值功能还没交付（TOPUP_AVAILABLE=false，B1 交付时改 true）')
-  ok(!topupOpenFor({ ...f, topupEnabled: true, topupAudience: 'ALL' }, true), 'B1 之前：配置里打开了也按关闭（不出指向 404 的 [充值]）')
+  ok(TOPUP_AVAILABLE === true, 'B1 起充值功能已交付（TOPUP_AVAILABLE=true）')
+  ok(!topupOpenFor({ ...f, topupEnabled: true, topupAudience: 'ALL' }, true, false), '充值未交付（available=false，即 B0 镜像）时：配置里打开了也按关闭（不出指向 404 的 [充值]）')
+  ok(topupOpenFor({ ...f, topupEnabled: true, topupAudience: 'ALL' }, false), 'B1 默认参数：配置打开 + 全部用户 → 开放')
 }
 
 console.log('\n[评审修复] wallet_config 的版本号口径（坏掉的配置也能从后台保存修好）')

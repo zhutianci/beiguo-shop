@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { VMQ_KEY, VMQ_TIMEOUT_MIN, recentVmqOrders, getDiag, listUnmatched } from '@/lib/vmq'
 import { adminGuard } from '@/lib/admin-guard'
+import { entryInvolvesCarrier } from '@/lib/wallet/latepay'
 
 // 收款监控配置：到账通知统一走 SmsForwarder → POST /api/pay/sms-notify。
 // VmqApk（/appHeart + /appPush + 扫码配置二维码）已移除。
@@ -46,7 +47,12 @@ export async function GET(request: NextRequest) {
     const recentlyActive = lastNotify > 0 && Date.now() - lastNotify < 24 * 3600_000
 
     // unmatched：待人工核实的到账逐条留存（lib/vmq.ts recordUnmatched），取最近 100 条，页面分「待处理 / 已处理」展示
-    const [recent, diag, unmatched] = await Promise.all([recentVmqOrders(15), getDiag(), listUnmatched(100)])
+    const [recent, diag, unmatchedRaw] = await Promise.all([recentVmqOrders(15), getDiag(), listUnmatched(100)])
+    // 待处理条目标出「涉及接码单 / 充值单」（docs/短信接码-设计.md §2.7）：这类只能「退入买家余额」或选 OFFLINE / IGNORE 标记，不能「补单」。
+    // 查不出来按 false（页面照旧显示；标记接口自己还会再判一次）
+    const unmatched = await Promise.all(
+      unmatchedRaw.map(async (u) => (u.handledAt ? u : { ...u, carrier: await entryInvolvesCarrier(u).catch(() => false) })),
+    )
 
     return success({
       recent,

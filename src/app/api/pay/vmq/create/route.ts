@@ -16,6 +16,8 @@ import {
 } from '@/lib/vmq'
 import { assertCouponForPayment } from '@/lib/coupon'
 import { getStorefront } from '@/lib/storefront/resolve'
+import { payableCents } from '@/lib/order-payable'
+import { topupAvailability } from '@/lib/topup-checkout'
 
 const schema = z.object({
   orderNo: z.string().min(1, '缺少订单号'),
@@ -59,8 +61,20 @@ export async function POST(request: NextRequest) {
     // 本单已有有效期内的收款单（刷新收银台 / 订单页再点「去支付」）→ 下面原样复用，不占新金额，
     // 下面几道闸门都不拦：收银台已经开着，那张二维码照样能到账，这时拦截只会给买家一条前后矛盾的提示
     const reusing = await hasOpenPayment('order', order.id)
-    const tooMany = `你已有 ${VMQ_MAX_OPEN_PER_USER} 笔订单在等待付款，请先在「我的订单」完成支付，或等其超时（约 ${VMQ_TIMEOUT_MIN} 分钟）自动取消后再试`
-    if (!reusing) {
+    // 充值单不进「我的订单」（docs/短信接码-设计.md §6.6 第 12、16 条）：提示里把「余额充值」页也写上，免得把买家指到一个找不到那笔付款的地方
+    const tooMany = `你已有 ${VMQ_MAX_OPEN_PER_USER} 笔订单在等待付款，请先在「我的订单」或「余额充值」页完成支付，或等其超时（约 ${VMQ_TIMEOUT_MIN} 分钟）自动取消后再试`
+    const product = await prisma.product.findUnique({
+      where: { id: order.productId },
+      select: { status: true, price: true, deliveryType: true },
+    })
+    // 【系统载体商品】（D14）两种载体（接码 SMS_POOL / 充值 TOPUP）都是下架商品，只在「建单」与「发起支付」两处开例外。
+    // 充值单：要求充值对本人开放（开关、受众、配置读得到、载体商品正常），订单是本人未付的充值单（上面已核）；跳过上架检查与比价。
+    // 接码单（SMS_POOL）的分支在 S2（§6.6 第 26 条）；B1 期间它照旧被下面的「已下架」拦住（fail closed）。
+    const isTopup = product?.deliveryType === 'TOPUP'
+    if (isTopup && !reusing && !(await topupAvailability({ id: user.id, role: user.role }))) {
+      return error('余额充值暂未开放', 503)
+    }
+    if (!reusing && !isTopup) {
       /*
        * 【没发起过支付的订单不会被超时关单】closeExpired 只扫收款单，只调建单接口、不点付款的
        * 订单会一直是待支付，可以留着等涨价或下架之后再按旧价付款，AUTO 商品还会自动发卡。
@@ -71,10 +85,6 @@ export async function POST(request: NextRequest) {
       if (Date.now() - order.updatedAt.getTime() > ORDER_PAY_WINDOW_MIN * 60_000) {
         return error('订单已超过支付有效期，请重新下单')
       }
-      const product = await prisma.product.findUnique({
-        where: { id: order.productId },
-        select: { status: true, price: true },
-      })
       if (!product || product.status !== 1) return error('该商品已下架，订单无法支付')
       // 标价变了就不能按旧快照收款。比的是 productPrice（建单时的标价快照），不是 amount：
       // 券价、内推专属价、含税金额都不会误判。管理员手工改过的单以管理员为准，不比这一项
@@ -99,10 +109,9 @@ export async function POST(request: NextRequest) {
       if (!adminTouched && currentUnitCents !== Math.round(Number(order.productPrice) * 100)) {
         return error('商品价格已调整，请重新下单')
       }
-
-      // 每个买家同时挂着的待付款收款单有上限：每张都占一个唯一金额，而金额池只有 50 格、全站共用
-      if ((await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) return error(tooMany, 429)
     }
+    // 每个买家同时挂着的待付款收款单有上限：每张都占一个唯一金额，而金额池只有 50 格、全站共用（充值单同样受它约束）
+    if (!reusing && (await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) return error(tooMany, 429)
 
     // 站长明确要求的那道复验：提交收款监控之前，确认「账户与券一致、券处于可用（锁定）状态」。
     // 建单时已经校验并锁定过一次，这里防的是另一件事 —— 订单与券的关联在中途被改坏。
@@ -136,7 +145,9 @@ export async function POST(request: NextRequest) {
      * 单卡售价分摊、内推返现与后台利润的基准，折进去这些数字会全部虚高。
      */
     const taxFee = order.invoiceTaxFee == null ? 0 : Number(order.invoiceTaxFee)
-    const payable = Math.round((Number(order.amount) + taxFee) * 100) / 100
+    // 应付统一用 payableCents（amount + invoiceTaxFee − HELD 预扣，§6.6 第 11 条）；没有预扣时与原来的「货款 + 税费」逐分相同
+    // （0 元仍交给 createOrGetVmqOrder 报「金额必须大于 0」，与原来同一句）
+    const payable = ((await payableCents(prisma, order.id)) ?? 0) / 100
 
     const vmq = await createOrGetVmqOrder({
       bizType: 'order',

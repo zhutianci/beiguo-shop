@@ -10,7 +10,8 @@
  *   W4 CAPTURED / REFUNDED 的预扣 ⇔ 订单 Payment 里 BALANCE 行 = 预扣合计、ALIPAY 行 = amount − 预扣合计
  *   W5 HELD 的预扣：订单 UNPAID 且未取消、持续 ≤ 60 分钟（卡住的预扣）
  *   W6 已付款的 TOPUP 订单 ⇔ 恰好一条 topup:<orderId>，金额 = 让它付款的那张收款单的 reallyPrice
- *   W7 LATEPAY 流水 ⇔ handledAs='LATEPAY' 的待核实条目（B1 起才有数据）
+ *   W7 LATEPAY 流水 ⇔ handledAs='LATEPAY' 的待核实条目（B1 起才有数据）：手动的 latepay_trade:<交易号>、自动的 latepay_auto:<收款单号>
+ *      恰好一行且指向该条目；closed_while_matching / duplicate_payment 的收款单不是任何订单的付款凭证；OFFLINE / IGNORE 条目豁免、只列数
  *   W8 全站：Σ balance = Σ delta、Σ topup_cents = Σ topup_delta_cents（豁免名单除外）；负债 = 两格合计 + HELD 合计
  *   W9 载体单（TOPUP / SMS_POOL）没有「已付款 + 已取消」这类非法组合；TOPUP 已付款必是 DELIVERED
  *
@@ -361,10 +362,13 @@ async function collect(tx: Prisma.TransactionClient, s: Scope) {
       const ls = await tx.balanceLog.findMany({ where: { bizKey: { in: part } }, select: { id: true, orderId: true, bizKey: true, topupDeltaCents: true } })
       for (const l of ls) logByKey.set(l.bizKey as string, l)
     }
-    const tradeMarks: string[] = []
+    // 手动退入：占位行 latepay_trade:<交易号> 恰好一行、指向本条目；自动退入：latepay_auto:<收款单号> 恰好一行、指向本条目（B1）
+    const marks: { key: string; entry: string; kind: string }[] = []
+    // closed_while_matching / duplicate_payment 的收款单不能是任何订单 ALIPAY 支付流水的 tradeNo（maybe_duplicate、no_pending_match 不查）
+    const voucherChecks: { entry: string; vmqOrderId: string }[] = []
     for (const e of entries) {
       const l = logByKey.get(`latepay:${e.key}`)
-      let v: { price?: string; orderId?: number; tradeNo?: string; auto?: boolean; reason?: string; vmqOrderId?: string } = {}
+      let v: { price?: string; orderId?: number; tradeNo?: string; auto?: boolean; reason?: string; vmqOrderId?: string; latepayVmq?: string } = {}
       try {
         v = JSON.parse(e.value)
       } catch {
@@ -376,14 +380,56 @@ async function collect(tx: Prisma.TransactionClient, s: Scope) {
         continue
       }
       if (l.orderId !== v.orderId) bad.push(`条目 ${e.key} 的 orderId 与流水 #${l.id} 不一致`)
-      if (l.topupDeltaCents !== centsOf(v.price ?? '0')) bad.push(`条目 ${e.key} 的实收与流水 #${l.id} 金额不一致`)
-      if (v.tradeNo) tradeMarks.push(`latepay_trade:${v.tradeNo}`)
+      let price = NaN
+      try {
+        price = centsOf(v.price ?? '0')
+      } catch {
+        /* 金额坏了按不一致报 */
+      }
+      if (l.topupDeltaCents !== price) bad.push(`条目 ${e.key} 的实收与流水 #${l.id} 金额不一致`)
+      if (v.tradeNo) marks.push({ key: `latepay_trade:${v.tradeNo}`, entry: e.key, kind: '手动退入' })
+      else if (v.auto) {
+        if (!v.latepayVmq) bad.push(`自动退入的条目 ${e.key} 没有记收款单号`)
+        else marks.push({ key: `latepay_auto:${v.latepayVmq}`, entry: e.key, kind: '自动退入' })
+      } else bad.push(`条目 ${e.key} 既没有交易号也不是自动退入`)
+      if ((v.reason === 'closed_while_matching' || v.reason === 'duplicate_payment') && v.vmqOrderId) voucherChecks.push({ entry: e.key, vmqOrderId: v.vmqOrderId })
     }
-    for (const part of chunks(tradeMarks)) {
-      const found = await tx.setting.findMany({ where: { key: { in: part } }, select: { key: true } })
-      const fs = new Set(found.map((f) => f.key))
-      for (const k of part) if (!fs.has(k)) bad.push(`手动退入缺少占位行 ${k}`)
+    for (const part of chunks(marks)) {
+      const found = await tx.setting.findMany({ where: { key: { in: part.map((m) => m.key) } }, select: { key: true, value: true } })
+      const fm = new Map(found.map((f) => [f.key, f.value]))
+      for (const m of part) {
+        const val = fm.get(m.key)
+        // 占位行的 value 是条目 key（latepay.creditInTx 写的）；也认 {"entryKey": …} 的写法
+        let target = val
+        if (val && val.startsWith('{')) {
+          try {
+            target = String((JSON.parse(val) as { entryKey?: unknown }).entryKey ?? '')
+          } catch {
+            target = val
+          }
+        }
+        if (val === undefined) bad.push(`${m.kind}缺少占位行 ${m.key}`)
+        else if (target !== m.entry) bad.push(`${m.kind}占位行 ${m.key} 指向的不是条目 ${m.entry}`)
+      }
     }
+    for (const part of chunks(voucherChecks)) {
+      const pays = await tx.payment.findMany({ where: { payMethod: 'ALIPAY', tradeNo: { in: part.map((x) => x.vmqOrderId) } }, select: { orderId: true, tradeNo: true } })
+      const used = new Set(pays.map((p) => p.tradeNo))
+      for (const x of part) if (used.has(x.vmqOrderId)) bad.push(`条目 ${x.entry} 的收款单 ${x.vmqOrderId} 是订单的付款凭证，却又退入了余额`)
+    }
+    // 同一张收款单的自动退入不超过一次（占位行按 key 唯一，这里再核一遍条目侧）
+    {
+      const seen = new Map<string, string>()
+      for (const m of marks) {
+        if (m.kind !== '自动退入') continue
+        const prev = seen.get(m.key)
+        if (prev) bad.push(`收款单 ${m.key.slice('latepay_auto:'.length)} 被自动退入了两次（条目 ${prev}、${m.entry}）`)
+        else seen.set(m.key, m.entry)
+      }
+    }
+    const exemptOther = await tx.setting.count({
+      where: { key: { startsWith: 'vmq_unmatched:' }, OR: [{ value: { contains: '"handledAs":"OFFLINE"' } }, { value: { contains: '"handledAs":"IGNORE"' } }] },
+    })
     await eachBatch(
       (after, take) =>
         tx.balanceLog.findMany({
@@ -399,7 +445,7 @@ async function collect(tx: Prisma.TransactionClient, s: Scope) {
         }
       },
     )
-    items.push(item('W7', 'LATEPAY 流水 ⇔ 已处理的待核实条目', bad))
+    items.push(item('W7', 'LATEPAY 流水 ⇔ 已处理的待核实条目', bad, exemptOther ? `标为「线下已原路退回 / 核实不是新到账」的载体单条目 ${exemptOther} 条（豁免，只列出）` : undefined))
   }
 
   // ---------- W8：全站两格 = 流水之和；负债（同一快照、SQL 聚合） ----------

@@ -3,6 +3,7 @@
  * 纯计算在 lib/vip.ts。
  */
 import { prisma } from './db'
+import { excludeTopup } from './order-scope'
 import { DEFAULT_VIP_TIERS, normalizeTiers, vipStatusOf, type VipStatus, type VipTier } from './vip'
 
 const CONFIG_KEY = 'vip_tiers'
@@ -39,7 +40,8 @@ export async function saveVipTiers(tiers: VipTier[]): Promise<VipTier[]> {
  */
 export async function userPaidSpend(userId: number, tenantId = 1): Promise<{ spent: number; paidCount: number }> {
   const agg = await prisma.order.aggregate({
-    where: { userId, tenantId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } },
+    // 不含余额充值（充值是预收款，买家用余额消费时那张单才计入累计消费，docs/短信接码-设计.md D40、§6.6 第 17 条）
+    where: { userId, tenantId, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' }, ...excludeTopup() },
     _sum: { amount: true },
     _count: { _all: true },
   })

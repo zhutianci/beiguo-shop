@@ -23,13 +23,14 @@ export const MAX_TOPUP_CENTS = 100_000
 export const WALLET_CONFIG_KEY = 'wallet_config'
 
 /**
- * 充值功能（/wallet/topup 页面与 POST /api/wallet/topup）已经交付了吗。**B1 交付时改成 true**。
+ * 充值功能（/wallet/topup 页面与 POST /api/wallet/topup）已经交付了吗。B0 = false，**B1 交付后为 true**。
  * false 时：topupOpenFor 恒为 false（钱包页不出 [充值]、不下发只有充值才用得上的说法），
  * 后台「设置」不许打开充值开关（saveWalletConfig 拒绝 topupEnabled=true）。只写代码做得到的（交接文档 1816）。
  * 它**不**进读取时的 zod 校验：库里万一是 topupEnabled=true（手改库），读取照常成功、只是按关闭处理，
  * 不会把「余额支付」等其它开关一起 fail-closed。
+ * 回滚到 B0 镜像时它自然回到 false；充值开关本身（wallet_config.topupEnabled）出厂仍是关、受众仍是「仅管理员」。
  */
-export const TOPUP_AVAILABLE = false
+export const TOPUP_AVAILABLE = true
 
 export interface WalletConfig {
   version: number

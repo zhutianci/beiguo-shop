@@ -23,6 +23,8 @@ import { tenantMailOpts } from '@/lib/storefront/origin'
 import { mulDivRound } from '@/lib/tenant/math'
 import { accrueOnPaid, applyRefund, defaultLossCents, isTxAbortingError, shortFields } from '@/lib/tenant/ledger'
 import { adminOrResponse, closeAfterSale, AfterSaleConflict, REFUND_REASON_TEXT } from '@/lib/admin/source-site'
+import { isCarrierType } from '@/lib/order-scope'
+import { payableCents } from '@/lib/order-payable'
 
 /**
  * 改价的条件更新没抢到：开头读到的「待支付、未取消」在写入前已经变了（买家刚好付款、或超时关单）。
@@ -182,6 +184,21 @@ export async function PUT(
 
     if (!currentOrder) {
       return notFound('订单不存在')
+    }
+
+    /*
+     * 【载体单（接码 / 充值）整单只读】（docs/短信接码-设计.md E25、§6.6 第 14 条、附录 B 第 24 条）
+     * 读完订单、做任何事之前就 409——包括下面的 invalidatePendingVmq、事务、收款单金额对齐、外部订单导入。
+     * 这个接口没有备注字段，后台保存按钮每次都带 deliveryStatus 等字段，「只允许改备注」做不到；放它往下走，
+     * 收款单金额对齐会把组合单的收款单改成全额，载体单被改回待支付 / 已付也会绕开「关了不复活」与入账。
+     */
+    if (isCarrierType(currentOrder.product.deliveryType)) {
+      return error(
+        currentOrder.product.deliveryType === 'TOPUP'
+          ? '充值订单请在「余额与充值」后台操作（通用订单后台对它只读）'
+          : '接码订单请在「短信接码」后台操作（通用订单后台对它只读）',
+        409
+      )
     }
 
     /*
@@ -881,7 +898,8 @@ export async function PUT(
      * 同步失败不再吞掉：updatePendingVmqAmount 失败时会作废这张收款单（fail closed），这里提示管理员。
      */
     if (order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED') {
-      const payable = Math.round((Number(order.amount) + Number(order.invoiceTaxFee ?? 0)) * 100) / 100
+      // 应付统一用 payableCents（amount + invoiceTaxFee − HELD 预扣，§6.6 第 11、14 条）：没有预扣时与原来的「货款 + 税费」逐分相同
+      const payable = ((await payableCents(prisma, orderId)) ?? 0) / 100
       const cents = (v: unknown) => Math.round(Number(v) * 100)
       try {
         const pend = await prisma.vmqOrder.findFirst({

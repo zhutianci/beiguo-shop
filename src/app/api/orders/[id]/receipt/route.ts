@@ -13,6 +13,7 @@ import {
 } from '@/lib/order-billing'
 import { settlePrepaidOrderInvoice, shopOrderSourceKey } from '@/lib/order-invoice'
 import { invoicesForOrder } from '@/lib/order-link'
+import { isCarrierType, CARRIER_NO_INVOICE_MSG } from '@/lib/order-scope'
 
 const schema = z.object({
   payerTitle: z.string().trim().min(1, '请填写付款人抬头').max(200),
@@ -35,9 +36,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     // 归属写进 where：本人、本店（设计 8.1）。别人的单、别的站的单与不存在的单同样 404（T11）
     const order = await prisma.order.findFirst({
       where: { id: orderId, userId: user.id, tenantId: sf.id },
-      include: { user: { select: { email: true, nickname: true } } },
+      include: { user: { select: { email: true, nickname: true } }, product: { select: { deliveryType: true } } },
     })
     if (!order) return notFound('订单不存在')
+    // 余额充值与短信接码订单不支持自助开具收据（docs/短信接码-设计.md D37、§6.6 第 18 条；与发票接口同一句）
+    if (isCarrierType(order.product.deliveryType)) return error(CARRIER_NO_INVOICE_MSG, 409)
     if (order.payStatus !== 'PAID') return error('订单支付后才能申请收据')
     // 已付款又被取消 = 线下退款的惯例做法。提前给明确提示；lib 里的 assertShopOrderBillable / settlePrepaid 兜底
     if (order.deliveryStatus === 'CANCELLED') return error('订单已取消（已退款），不能申请收据', 409)

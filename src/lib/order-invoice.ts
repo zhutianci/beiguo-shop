@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from './db'
+import { isCarrierType, CARRIER_NO_INVOICE_MSG } from './order-scope'
 // 叶子依赖：billing-link 只依赖 db（不 import order-link，否则 order-link → 本文件 → billing-link → order-link 成环）
 import { billingTenantFields, CrossTenantBillingError } from './tenant/billing-link'
 import {
@@ -67,13 +68,19 @@ export function shopOrderIdOfExt(ext: { shopOrderId: number | null; sourceKey: s
   return ext.shopOrderId ?? (m ? parseInt(m[1]) : null)
 }
 
-/** 关联的站内订单已作废就抛 409。没有关联站内订单（纯站外单）或查不到订单时放行 */
+/**
+ * 关联的站内订单已作废就抛 409。没有关联站内订单（纯站外单）或查不到订单时放行。
+ * 【载体单一律拒绝】余额充值与短信接码订单（不论怎么付款）不支持自助开票 / 收据（docs/短信接码-设计.md D37、§6.6 第 18 条）：
+ * 订单页两个接口已先拒；这里兜住其余买家入口（邮箱查订阅、税费支付）。客服线下开票用的手动开票 / 开票填写链接 / 手动开具收据
+ * 不关联站内订单，不经过这里。
+ */
 export async function assertShopOrderBillable(shopOrderId: number | null | undefined): Promise<void> {
   if (!shopOrderId) return
   const o = await prisma.order.findUnique({
     where: { id: shopOrderId },
-    select: { payStatus: true, deliveryStatus: true },
+    select: { payStatus: true, deliveryStatus: true, product: { select: { deliveryType: true } } },
   })
+  if (o && isCarrierType(o.product.deliveryType)) throw new BillingError(CARRIER_NO_INVOICE_MSG, 409)
   if (o && (o.payStatus === 'REFUNDED' || (o.payStatus === 'PAID' && o.deliveryStatus === 'CANCELLED'))) {
     throw new BillingError(VOIDED_ORDER_MSG, 409)
   }

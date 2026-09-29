@@ -26,6 +26,13 @@ import { accrueOnPaid, accrueInvoiceShare, isTxAbortingError } from './tenant/le
 import { emitTenantNotice } from './tenant/notice'
 import { storefrontById } from './storefront/resolve'
 import { tenantMailOpts } from './storefront/origin'
+// 短信接码 · B1 载体订单框架（docs/短信接码-设计.md §6.6 第 10–15 条）。lib/wallet 是叶子（不 import 本文件），这里静态引用它没有环；
+// 接码引擎（lib/jiema）只能动态 import（规则 17）
+import { isCarrierType } from './order-scope'
+import { payableCents } from './order-payable'
+import { captureInTx } from './wallet/hold'
+import { creditInTx as creditTopupInTx, afterTopupCredited } from './wallet/topup'
+import { autoCreditIfCarrier } from './wallet/latepay'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
@@ -352,10 +359,12 @@ export async function createOrGetVmqOrder(params: {
       if (params.bizType === 'order') {
         const o = await tx.order.findUnique({
           where: { id: params.bizId },
-          select: { payStatus: true, deliveryStatus: true, amount: true, invoiceTaxFee: true },
+          select: { payStatus: true, deliveryStatus: true },
         })
-        fresh = !!o && o.payStatus === 'UNPAID' && o.deliveryStatus !== 'CANCELLED' &&
-          cents(o.amount) + cents(o.invoiceTaxFee) === Math.round(params.price * 100)
+        // 应付统一用 payableCents（amount + invoiceTaxFee − HELD 预扣，§6.6 第 11 条）：没有预扣时与原来的
+        // 「amount + invoiceTaxFee」逐分相同；组合单（接码 S2）收的是扣掉预扣之后的差额
+        const due = o ? await payableCents(tx, params.bizId) : null
+        fresh = !!o && o.payStatus === 'UNPAID' && o.deliveryStatus !== 'CANCELLED' && due === Math.round(params.price * 100)
       } else {
         const iv = await tx.invoice.findUnique({
           where: { id: params.bizId },
@@ -558,6 +567,7 @@ export async function markPaidByAmount(price: string, type: number, raw?: string
       cents,
       candidates: hits.map((h) => `${h.orderId}(${h.bizType}#${h.bizId})`),
       raw: rawShort,
+      repeatForward,
     })
     return false
   }
@@ -581,7 +591,7 @@ export async function markPaidByAmount(price: string, type: number, raw?: string
       orderBy: { payDate: 'desc' },
       select: { orderId: true, bizType: true, bizId: true },
     })
-    await recordUnmatched(
+    const key = await recordUnmatched(
       recentPaid
         ? {
             reason: 'maybe_duplicate',
@@ -593,8 +603,11 @@ export async function markPaidByAmount(price: string, type: number, raw?: string
             raw: rawShort,
             repeatForward,
           }
-        : { reason: 'no_pending_match', price, type, cents, pending: pendingList.slice(0, 30), raw: rawShort }
+        : { reason: 'no_pending_match', price, type, cents, pending: pendingList.slice(0, 30), raw: rawShort, repeatForward }
     )
+    // 接码单 / 充值单关单之后才到的钱（最常见的是「付完马上点取消」）：按收款单表能验证唯一归属的自动退进充值余额（D41、Q14）。
+    // maybe_duplicate 的 vmqOrderId 只是提示、不是归属，一律留给站长
+    if (!recentPaid) await autoCreditIfCarrier(key, latepayCtx())
     return false
   }
 
@@ -608,7 +621,7 @@ export async function markPaidByAmount(price: string, type: number, raw?: string
      * 现在进「待人工核实的到账」并推送企业微信，由管理员核实后手动补单。
      */
     console.warn(`[vmq] 到账 ${price} 匹配到的收款单 ${target.orderId} 已在同一时刻被关闭，转人工核实`)
-    await recordUnmatched({
+    const key = await recordUnmatched({
       reason: 'closed_while_matching',
       price,
       type,
@@ -616,7 +629,10 @@ export async function markPaidByAmount(price: string, type: number, raw?: string
       vmqOrderId: target.orderId,
       biz: `${target.bizType}#${target.bizId}`,
       raw: rawShort,
+      repeatForward,
     })
+    // 载体单（接码 / 充值）：钱确定属于这张收款单的买家 → 自动退进充值余额（D41）；普通订单什么都不做
+    await autoCreditIfCarrier(key, latepayCtx())
     return false
   }
   if (settled === 'duplicate') {
@@ -626,7 +642,7 @@ export async function markPaidByAmount(price: string, type: number, raw?: string
      * 第二笔钱没有任何人知道。现在转人工退款。返回 true：收款单确实被匹配到了。
      */
     console.warn(`[vmq] 到账 ${price} 记到收款单 ${target.orderId}，但 ${target.bizType}#${target.bizId} 此前已付款/已退款 —— 疑似重复付款`)
-    await recordUnmatched({
+    const key = await recordUnmatched({
       reason: 'duplicate_payment',
       price,
       type,
@@ -635,7 +651,10 @@ export async function markPaidByAmount(price: string, type: number, raw?: string
       biz: `${target.bizType}#${target.bizId}`,
       outTradeNo: target.outTradeNo,
       raw: rawShort,
+      repeatForward,
     })
+    // 载体单：收款单翻成了 1 但订单已关闭（不复活）或已被别的收款单付过 → 自动退进充值余额（前提：它不是订单的付款凭证）
+    await autoCreditIfCarrier(key, latepayCtx())
     return true
   }
   console.log(`[vmq] 到账匹配成功 ${price} -> ${target.bizType}#${target.bizId} (orderId=${target.orderId})`)
@@ -703,7 +722,8 @@ async function markPaidVmqOrder(
     .catch((e) => console.error('[vmq] 释放金额锁失败（allocateAmount 会按陈旧锁回收）', v.orderId, e))
   try {
     let won = true
-    if (v.bizType === 'order') won = await fulfillOrder(v.bizId)
+    // via / vmqId：载体单（接码 / 充值）必须带（按这张收款单入账、Payment.tradeNo 记收款单号）；普通订单忽略这两个参数
+    if (v.bizType === 'order') won = await fulfillOrder(v.bizId, { via: 'VMQ', vmqId: v.id })
     else if (v.bizType === 'invoice') won = await fulfillInvoice(v.bizId)
     return won ? 'settled' : 'duplicate'
   } catch (e) {
@@ -757,14 +777,29 @@ export interface UnmatchedEntry {
   outTradeNo?: string
   from?: string | null
   raw?: string
-  /** 仅 maybe_duplicate：原文与 1 分钟内的某条通知一字不差 → 认定为重复转发、自动归档 */
+  /**
+   * 原文与 1 分钟内的某条通知一字不差（多半是重复转发）。B1 起对所有原因都记下（载体单的自动退入据此不自动退，§2.7）；
+   * 只有 maybe_duplicate + repeatForward 不推送
+   */
   repeatForward?: boolean
   at: number
   handledAt?: number | null
   handledBy?: string | number | null
+  /** 处理方式（B1）：LATEPAY 退入余额（只由 lib/wallet/latepay 写）/ OFFLINE 线下已原路退回 / IGNORE 核实不是新到账 */
+  handledAs?: 'LATEPAY' | 'OFFLINE' | 'IGNORE'
+  /** 退入的目标订单（handledAs=LATEPAY） */
+  orderId?: number
+  /** 手动退入的支付宝交易号 */
+  tradeNo?: string
+  /** 自动退入 */
+  auto?: boolean
+  latepayVmq?: string
 }
 
-async function recordUnmatched(e: Omit<UnmatchedEntry, 'at' | 'handledAt' | 'handledBy'>) {
+const latepayCtx = () => ({ timeoutMin: VMQ_TIMEOUT_MIN, cooldownMin: VMQ_REUSE_COOLDOWN_MIN })
+
+/** 记一条待人工核实的到账；返回条目 key（落库失败返回 null） */
+async function recordUnmatched(e: Omit<UnmatchedEntry, 'at' | 'handledAt' | 'handledBy'>): Promise<string | null> {
   const at = Date.now()
   // 认定为重复转发（原文相同且 1 分钟内）：不推送、不写「最近一次」，但**仍留在待处理队列**等站长对一眼账。
   // 【为什么不自动归档】终审 2026-09-26：后台下发的 SmsForwarder 模板里没有时间戳，
@@ -772,16 +807,19 @@ async function recordUnmatched(e: Omit<UnmatchedEntry, 'at' | 'handledAt' | 'han
   // 同金额但原文不同 / 超过 1 分钟的 maybe_duplicate 可能是买家付了两次，照常待处理 + 推送
   const auto = e.reason === 'maybe_duplicate' && e.repeatForward === true
   const entry: UnmatchedEntry = { ...e, at, handledAt: null, handledBy: null }
+  let saved: string | null = null
   try {
     // 兼容旧前端和回滚：继续写「最近一次」，但现在只有需要人工处理的才写它
     if (!auto) await setSetting('vmq_lastunmatched', JSON.stringify(entry))
     const key = `${UNMATCHED_PREFIX}${at}-${crypto.randomBytes(4).toString('hex')}`
     await prisma.setting.create({ data: { key, value: JSON.stringify(entry) } })
+    saved = key
   } catch (err) {
     // 落库失败也不能让 webhook 500，也不能改变匹配结果；把完整数据留在日志里
     console.error('[vmq] 未匹配到账留存失败', JSON.stringify(entry), err)
   }
   if (!auto) notifyVmqUnmatched(entry) // fire-and-forget
+  return saved
 }
 
 /*
@@ -818,7 +856,21 @@ export async function listUnmatched(limit = 100): Promise<Array<UnmatchedEntry &
   })
 }
 
-export async function markUnmatchedHandled(key: string, by: string | number): Promise<void> {
+// 仅供 itest（§12.2 第 103 条）：在「读完条目」与「写回」之间插一段等待，模拟与退入事务并发
+let markHandledPauseForTest: (() => Promise<void>) | null = null
+export function setMarkHandledPauseForTest(fn: (() => Promise<void>) | null): void {
+  markHandledPauseForTest = fn
+}
+
+/**
+ * 「标记已处理」。B1 起（docs/短信接码-设计.md §6.6 第 15 条、附录 B 第 21 条）：
+ *  · **条件更新**：只在条目仍含 `"handledAt":null` 时写（与 listUnmatched 的 OPEN_MARK 同一写法），count=0 当作已被处理、原样返回——
+ *    原来先读旧 JSON、再整体覆盖，会把「退入买家余额」事务刚写下的 handledAs / orderId / tradeNo 抹掉（钱只入一次，但 W7 每晚报不一致）；
+ *  · handledAs：涉及接码单 / 充值单的条目必须选 OFFLINE（线下已原路退回）或 IGNORE（核实不是新到账），由路由判定后传进来；
+ *    这里**不提供**「已退入余额」——退入只能走退入接口，钱和标记在同一个事务里。
+ * 返回 true = 本次写入；false = 此前已处理（幂等）。
+ */
+export async function markUnmatchedHandled(key: string, by: string | number, handledAs?: 'OFFLINE' | 'IGNORE'): Promise<boolean> {
   if (!UNMATCHED_KEY_RE.test(key)) throw new VmqError('记录不存在')
   const row = await prisma.setting.findUnique({ where: { key } })
   if (!row) throw new VmqError('记录不存在')
@@ -828,11 +880,11 @@ export async function markUnmatchedHandled(key: string, by: string | number): Pr
   } catch {
     throw new VmqError('记录已损坏')
   }
-  if (v.handledAt) return // 幂等
-  await prisma.setting.update({
-    where: { key },
-    data: { value: JSON.stringify({ ...v, handledAt: Date.now(), handledBy: by }) },
-  })
+  if (v.handledAt) return false // 幂等
+  if (markHandledPauseForTest) await markHandledPauseForTest()
+  const next: UnmatchedEntry = { ...v, handledAt: Date.now(), handledBy: by, ...(handledAs ? { handledAs } : {}) }
+  const r = await prisma.setting.updateMany({ where: { key, value: { contains: OPEN_MARK } }, data: { value: JSON.stringify(next) } })
+  return r.count === 1
 }
 
 // ---- 到账对账：收款单已到账、业务单却还没付款的，由 cron 补做履约 ----
@@ -884,7 +936,10 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
   const oIds = rows.filter((r) => r.bizType === 'order').map((r) => r.bizId)
   const iIds = rows.filter((r) => r.bizType === 'invoice').map((r) => r.bizId)
   const orders = oIds.length
-    ? await prisma.order.findMany({ where: { id: { in: oIds }, payStatus: 'UNPAID' }, select: { id: true, deliveryStatus: true } })
+    ? await prisma.order.findMany({
+        where: { id: { in: oIds }, payStatus: 'UNPAID' },
+        select: { id: true, deliveryStatus: true, product: { select: { deliveryType: true } } },
+      })
     : []
   const invoices = iIds.length
     ? await prisma.invoice.findMany({ where: { id: { in: iIds }, payStatus: { not: 'PAID' } }, select: { id: true } })
@@ -909,6 +964,15 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
     const o = v.bizType === 'order' ? stuckO.get(v.bizId) : undefined
     if (v.bizType === 'order' ? !o : !stuckI.has(v.bizId)) continue
     const base = { biz: `${v.bizType}#${v.bizId}`, outTradeNo: v.outTradeNo, amount: v.reallyPrice, stage: '到账对账' }
+    /*
+     * 【载体单（接码 / 充值）关了就不复活】（D41、§2.7）「收款单已到账 + 载体单未付且已取消」：不再只推「请在订单管理改回正确状态」
+     * （那条路对载体单是 409），而是补记一条 duplicate_payment（没有条目引用这张收款单时；firstAlert 去重），交给自动退入。
+     */
+    if (o && o.deliveryStatus === 'CANCELLED' && isCarrierType(o.product.deliveryType)) {
+      pending++
+      await recordCarrierPaid(v.id).catch((e) => console.error('[vmq] 载体单到账补记失败（下一分钟重试）', v.orderId, e))
+      continue
+    }
     // 只在真要发告警时才查站点（firstAlert 之后），免得每分钟对账为每行多一次查询
     if (o && (o.deliveryStatus === 'CANCELLED' || hasPayment.has(o.id))) {
       // 已取消：可能是线下退了款后取消的；有流水：被人工改回过待支付。都不自动发货，转人工
@@ -930,7 +994,8 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
       if (v.bizType === 'order') {
         // 先关掉卡住期间买家可能又发起的那张待支付收款单，防止二次付款无人知晓（只动 state=0）
         await invalidatePendingVmq('order', v.bizId)
-        await fulfillOrder(v.bizId) // CAS 赢家会照常推「订单已支付」、发邮件
+        // CAS 赢家会照常推「订单已支付」、发邮件；载体单按这张收款单入账（via / vmqId，普通订单忽略）
+        await fulfillOrder(v.bizId, { via: 'VMQ', vmqId: v.id })
       } else {
         await fulfillInvoice(v.bizId) // CAS，赢家会推「可开具」
       }
@@ -952,10 +1017,61 @@ export async function reconcilePaidVmq(): Promise<{ fixed: number; pending: numb
   return { fixed, pending }
 }
 
+/**
+ * 「收款单已到账 + 载体单未付且已取消」（D41、§2.7 reconcilePaidVmq 的载体单分支；§7.2 的「关单并把到账退入余额」也调它）：
+ * 先查待核实条目里有没有引用这张收款单的（markPaidVmqOrder 那边多半已经记过 duplicate_payment）——
+ * 没有才补记一条 duplicate_payment（firstAlert 去重）并交给自动退入；有的话只推送一次、不补记，免得同一笔钱出现两条条目。
+ * 放在本文件而不是 lib/wallet/latepay：条目只由 recordUnmatched 写，而 lib/wallet 不能 import 本文件（规则 17）。
+ */
+export async function recordCarrierPaid(vmqId: number): Promise<{ recorded: boolean; key: string | null }> {
+  const v = await prisma.vmqOrder.findUnique({ where: { id: vmqId } })
+  if (!v || v.state !== 1 || v.bizType !== 'order') return { recorded: false, key: null }
+  const refs = await prisma.setting.count({
+    where: { key: { startsWith: UNMATCHED_PREFIX }, value: { contains: `"vmqOrderId":"${v.orderId}"` } },
+  })
+  if (refs > 0) {
+    if (await firstAlert(v.id)) {
+      notifyFulfillFailed({
+        biz: `order#${v.bizId}`,
+        outTradeNo: v.outTradeNo,
+        amount: v.reallyPrice,
+        stage: '到账对账',
+        site: null,
+        reason: '收款单已到账，但接码 / 充值订单已关闭（关单后不复活）',
+        action: '这笔到账已在「收款监控 → 待核实」里；能自动确认的已自动退入买家余额，其余核对支付宝账单后用「退入买家余额」',
+      })
+    }
+    return { recorded: false, key: null }
+  }
+  if (!(await firstAlert(v.id))) return { recorded: false, key: null }
+  const key = await recordUnmatched({
+    reason: 'duplicate_payment',
+    price: Number(v.reallyPrice).toFixed(2),
+    type: v.type,
+    cents: centsOf(v.reallyPrice),
+    vmqOrderId: v.orderId,
+    biz: `order#${v.bizId}`,
+    outTradeNo: v.outTradeNo,
+    repeatForward: false,
+  })
+  await autoCreditIfCarrier(key, latepayCtx())
+  return { recorded: !!key, key }
+}
+
 // 后台手动补单（确认到账）：无视金额/状态，强制标记该 vmq 订单已支付并履约
 export async function manualComplete(vmqOrderId: number): Promise<void> {
   const o = await prisma.vmqOrder.findUnique({ where: { id: vmqOrderId } })
   if (!o) throw new VmqError('收款单不存在')
+  /*
+   * 【载体单（接码 / 充值）直接拒绝】（D41、§6.6 第 15 条）必须在碰收款单之前：下面是先在一个事务里把收款单无条件置 1、
+   * 再调 fulfillOrder，而载体单关了就不复活（付款 CAS 带「未取消」）——放行就会留下「收款单已付、订单已关」的孤儿。
+   */
+  if (o.bizType === 'order') {
+    const biz = await prisma.order.findUnique({ where: { id: o.bizId }, select: { product: { select: { deliveryType: true } } } })
+    if (biz && isCarrierType(biz.product.deliveryType)) {
+      throw new VmqError('接码 / 充值订单的迟到到账请用「退入买家余额」（收款监控 → 待核实），不能补单')
+    }
+  }
   // 管理员强制确认：无条件标记已支付 + 释放金额锁（即使已过期 state=-1 也能补单）
   await prisma.$transaction([
     prisma.vmqOrder.update({ where: { id: o.id }, data: { state: 1, payDate: o.payDate ?? new Date() } }),
@@ -1174,12 +1290,85 @@ async function allocateCards(
   return claimed
 }
 
+/**
+ * 载体单（接码 SMS_POOL / 充值 TOPUP）的付款框架（docs/短信接码-设计.md §6.6 第 10 条、§2.7、§9.1、附录 B 第 3、8、21 条）。
+ *
+ *  · **必须带 via**：VMQ（收款单到账，必须带 vmqId）或 BALANCE（余额付清，接码 S2 才有）；缺了就抛错（fail closed）。充值单只能是 VMQ。
+ *  · 付款 CAS 额外要求「未取消」（D41：接码单和充值单一旦关闭就永远不再翻成已付款），并在**同一条 update** 里写交付状态：
+ *    TOPUP → DELIVERED + deliveredAt；SMS_POOL → PROCESSING（S2 的 SmsOrder 推进也在这个事务里补）。
+ *  · 同一事务：按 vmqId 读收款单（state=1、bizType=order、bizId=本单）→ 确认预扣（H2，没有预扣行就是 null）→ 按预扣拆 Payment
+ *    （BALANCE = 预扣合计；ALIPAY = amount − 预扣合计，tradeNo = 收款单号）→ TOPUP 给充值格入账（按收款单实付，含尾差）。
+ *    **不写载体商品的 sales**（资金事务不碰载体商品行，§2.7 第 4 条）。进程崩溃也不会出现「付了款没到账」。
+ *  · 事务之后载体单**全部跳过**：下单开票落地、无条件 PROCESSING、券核销、notifyOrderPaid、返现结算、付款邮件（D12）。
+ *    只做两件事：作废同单其余待支付收款单；充值单的可选知会 wallet.topup 与大额知会。
+ */
+async function fulfillCarrierOrder(
+  orderId: number,
+  carrier: 'SMS_POOL' | 'TOPUP',
+  opts?: { via?: 'VMQ' | 'BALANCE'; vmqId?: number },
+): Promise<boolean> {
+  const via = opts?.via
+  if (!via) throw new Error(`[vmq] 载体单 #${orderId}（${carrier}）付款必须带 via（fail closed）`)
+  if (via === 'VMQ' && !opts?.vmqId) throw new Error(`[vmq] 载体单 #${orderId} 由收款单付款必须带 vmqId（fail closed）`)
+  if (carrier === 'TOPUP' && via !== 'VMQ') throw new Error(`[vmq] 充值单 #${orderId} 只能由收款单付款`)
+  const dec = (cents: number) => new Prisma.Decimal((cents / 100).toFixed(2))
+
+  const won = await prisma.$transaction(async (tx) => {
+    const now = new Date()
+    const flip = await tx.order.updateMany({
+      where: { id: orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } },
+      data:
+        carrier === 'TOPUP'
+          ? { payStatus: 'PAID', payMethod: 'ALIPAY', paidAt: now, deliveryStatus: 'DELIVERED', deliveredAt: now }
+          : { payStatus: 'PAID', payMethod: via === 'BALANCE' ? 'BALANCE' : 'ALIPAY', paidAt: now, deliveryStatus: 'PROCESSING' },
+    })
+    if (flip.count !== 1) return false
+    const cur = await tx.order.findUnique({ where: { id: orderId }, select: { amount: true, userId: true, tenantId: true } })
+    if (!cur) throw new Error(`订单 ${orderId} 在翻转后不见了`)
+    if (cur.tenantId !== 1) throw new Error(`[vmq] 载体单 #${orderId} 不在主站（tenant ${cur.tenantId}），拒绝付款`)
+    const amountCents = centsOf(cur.amount)
+    let vmqNo: string | null = null
+    if (via === 'VMQ') {
+      const v = await tx.vmqOrder.findUnique({ where: { id: opts!.vmqId! }, select: { orderId: true, state: true, bizType: true, bizId: true } })
+      if (!v || v.state !== 1 || v.bizType !== 'order' || v.bizId !== orderId) {
+        throw new Error(`[vmq] 载体单 #${orderId} 的收款单 #${opts!.vmqId} 不是本单已到账的收款单`)
+      }
+      vmqNo = v.orderId
+    }
+    // 预扣确认（H2）：锁顺序 收款单 → 订单 → 预扣 → 用户；预扣不是 HELD 就抛 HoldStateError，整个付款事务回滚（E44）
+    const hold = await captureInTx(tx, orderId, via === 'BALANCE' ? { mustCoverCents: amountCents, now } : { now })
+    if (carrier === 'TOPUP' && hold) throw new Error(`[vmq] 充值单 #${orderId} 不应该有预扣行`)
+    const heldCents = hold ? hold.topupCents + hold.cashCents : 0
+    const aliCents = amountCents - heldCents
+    if (aliCents < 0) throw new Error(`[vmq] 载体单 #${orderId} 的预扣 ${heldCents} 分超过订单金额 ${amountCents} 分`)
+    if (heldCents > 0) await tx.payment.create({ data: { orderId, payMethod: 'BALANCE', amount: dec(heldCents), status: 1 } })
+    if (aliCents > 0) {
+      if (!vmqNo) throw new Error(`[vmq] 载体单 #${orderId} 有支付宝部分却没有收款单`)
+      await tx.payment.create({ data: { orderId, payMethod: 'ALIPAY', amount: dec(aliCents), status: 1, tradeNo: vmqNo } })
+    }
+    if (carrier === 'TOPUP') await creditTopupInTx(tx, { orderId, userId: cur.userId, vmqId: opts!.vmqId! })
+    return true
+  })
+
+  if (won) {
+    // 赢家立刻关掉同一订单其余的待支付收款单（只动 state=0）
+    await invalidatePendingVmq('order', orderId).catch((e) => console.error('[vmq] 作废同单其余收款单失败', orderId, e))
+    if (carrier === 'TOPUP') await afterTopupCredited(orderId)
+    // SMS_POOL：付款后推进取号在 S2（`(await import('./jiema/engine')).onPaid(orderId)`，§6.6 第 24 条）
+  }
+  return won
+}
+
 // 导出供后台「补发卡密」使用：本函数幂等（原子占单 + 订单行锁内只补缺口），
 // 对已 PAID 的订单重复 / 并发调用不会重复记账、不会超发。
 // 返回 won：本次是否把订单从「待付款」翻成「已付款」（到账匹配据此判断是否重复付款；其它调用方可忽略）
-export async function fulfillOrder(orderId: number): Promise<boolean> {
-  const order0 = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true } })
+export async function fulfillOrder(orderId: number, opts?: { via?: 'VMQ' | 'BALANCE'; vmqId?: number }): Promise<boolean> {
+  const order0 = await prisma.order.findUnique({ where: { id: orderId }, select: { id: true, product: { select: { deliveryType: true } } } })
   if (!order0) return false
+
+  // 两种系统载体（接码 SMS_POOL / 充值 TOPUP）走单独的付款框架（B1，§6.6 第 10 条）；普通订单下面逐字不变，opts 被忽略
+  const carrier = isCarrierType(order0.product.deliveryType) ? order0.product.deliveryType : null
+  if (carrier) return fulfillCarrierOrder(orderId, carrier, opts)
 
   // ① 原子占单 + 记账：在一个事务内把订单 UNPAID→PAID，并创建支付流水、增加销量。
   // 只有把状态翻转成功（count===1）的那一次调用是「赢家」，会执行首次记账。

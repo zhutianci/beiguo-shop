@@ -5,6 +5,7 @@ import { success, error } from '@/lib/api'
 // 脱敏函数与「推荐有奖」页共用一份，见 lib/mask.ts 顶部说明
 import { maskEmail, maskNickname } from '@/lib/mask'
 import { getStorefront } from '@/lib/storefront/resolve'
+import { excludeCarriers } from '@/lib/order-scope'
 
 const FAKE_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京', '西安', '苏州', '重庆', '天津']
 
@@ -20,6 +21,8 @@ export async function GET() {
         tenantId: sf.id,
         payStatus: 'PAID',
         deliveryStatus: { not: 'CANCELLED' },
+        // 两种系统载体（接码单、充值单）不进首页实时成交（docs/短信接码-设计.md D12、§6.6 第 17 条）
+        ...excludeCarriers(),
       },
       take: 20,
       orderBy: { createdAt: 'desc' },

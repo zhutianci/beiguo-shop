@@ -5,6 +5,8 @@ import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
+import { WALLET_TERMS, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION } from '@/lib/terms/jiema-wallet'
+import { readWalletConfig, topupOpenFor, canUseForJiema } from '@/lib/wallet/config'
 
 /**
  * 服务条款。
@@ -36,10 +38,26 @@ export default async function TermsPage() {
   // 页脚客服按店面取（二期改动 4.2）。getStorefront 不进 try；拿不到店面时 (shop)/layout 已 404，这里按主站客服兜底
   const sf = await getStorefront()
   const contact = sf ? sf.contact : resolveStoreContact(null)
+  /*
+   * 《余额与充值规则》（docs/短信接码-设计.md §8.4；正文与版本号是 lib/terms/jiema-wallet.ts 的代码常量）。
+   * 只在主站、并且充值已对全部用户开放或「余额能付接码」成立时出现在第四节——条款里写的是「余额目前可用于支付短信接码订单」，
+   * 灰度期（仅管理员）就挂出来等于说一件还不存在的事（交接文档 1816）。灰度期充值页自带规则全文（同一个常量），不依赖这里。
+   * 配置读不到按不显示（fail-closed，不影响条款页其余内容）。
+   */
+  let showWallet = false
+  if (sf && sf.kind === 'PLATFORM') {
+    try {
+      const w = await readWalletConfig()
+      showWallet = (w.ok && topupOpenFor(w.config, false)) || (await canUseForJiema(w))
+    } catch {
+      showWallet = false
+    }
+  }
+  const updatedAt = showWallet && WALLET_TERMS_VERSION > UPDATED_AT ? WALLET_TERMS_VERSION : UPDATED_AT
   return (
     <LegalPage
       title="服务条款"
-      updatedAt={UPDATED_AT}
+      updatedAt={updatedAt}
       contact={contact}
       intro={
         <p>
@@ -116,6 +134,18 @@ export default async function TermsPage() {
             并提供订单号与相关截图。时间越久，向上游追溯的难度越大。
           </li>
         </ul>
+        {showWallet && (
+          <>
+            <p id="wallet-terms" className="pt-2">
+              <strong className="text-white">{WALLET_TERMS_TITLE}</strong>
+            </p>
+            <ul className="list-disc pl-6 space-y-2">
+              {WALLET_TERMS.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </>
+        )}
       </LegalSection>
 
       <LegalSection heading="五、你的义务与禁止行为">

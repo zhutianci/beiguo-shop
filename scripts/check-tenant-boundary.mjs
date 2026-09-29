@@ -16,7 +16,10 @@
  * 所以每次运行先拿内置样例把每条规则跑一遍，任何一条样例没命中就直接失败退出，不再往下扫。
  *
  * 【规则 16、17 属于短信接码 / 钱包的构建前检查】（docs/短信接码-设计.md §6.6 第 9 条、§6.1、§10.2）挂在同一套规则集里：
- *   16 写余额只经过 src/lib/wallet/ledger.ts（预扣行只经过 hold.ts）；17 依赖方向（wallet 是叶子、vmq.ts 对接码只用动态 import）。
+ *   16 写余额只经过 src/lib/wallet/ledger.ts（预扣行只经过 hold.ts）；17 依赖方向（wallet 是叶子、vmq.ts 对接码只用动态 import）；
+ *   18（B1）钱包 / 充值 / 接码只在主站：买家接口每个 handler 第一句 denyOnChannel()、页面组的 layout 调 notFoundOnChannel()
+ *      （设计 D11、附录 B 第 11 条、§6.6 第 20 条「把 /api/wallet/* 加进渠道 Host 必须 404 的遍历」的静态那一半；
+ *      运行时那一半在 scripts/itest-tenant/cross-tenant.ts 的 T12 与 wp1.ts 的 CLOSED_API）。
  *
  * 【已知例外】EXCEPTIONS 表里每一行都写了：哪条规则、哪个文件、匹配什么、为什么、归谁处理、是临时（PENDING）还是永久（PERMANENT）。
  *   - PERMANENT：规则本身的合法用法（例如 jwt-secret.ts 里拿 'your-secret-key' 做拒绝名单）。
@@ -373,6 +376,7 @@ export const RULES = {
   15: 'partner-services 不手写 select（只用 selects.ts 白名单，设计 6.5.3；WP7 审查）',
   16: '写余额只经过 src/lib/wallet/ledger.ts 的 postInTx、预扣行只经过 hold.ts（短信接码设计 §6.6 第 9 条）',
   17: '依赖方向：lib/wallet/** 不静态 import lib/vmq、lib/jiema；lib/vmq.ts 不静态 import lib/jiema（短信接码设计 §6.1）',
+  18: '钱包 / 充值 / 接码只在主站：/api/wallet/**、/api/account/wallet、/api/jiema/** 每个 handler 第一句 denyOnChannel()（不包进 try）；(shop)/wallet、(shop)/jiema 页面组的 layout 调 notFoundOnChannel()（短信接码设计 D11、附录 B 第 11 条）',
 }
 
 /**
@@ -742,7 +746,51 @@ function rule17(ctx) {
   return out
 }
 
-const PER_FILE_RULES = [ruleImports, rule3Body, rule4, rule5, rule6, rule7, rule8, rule9, rule12, rule13, rule14, rule15, rule16, rule17]
+// ----------------------------------------------------------------------
+// 规则 18：钱包 / 充值 / 接码只在主站（D11、附录 B 第 11 条）
+// 买家接口：每个导出的 handler 里必须调用 denyOnChannel(，而且出现在第一个 try { 之前（不包进 try：包进去的话店面解析出错会被
+// catch 吞掉，按主站继续）。页面：这两个页面组的 layout 必须调 notFoundOnChannel(（整组页面在渠道 Host 404）。
+// ----------------------------------------------------------------------
+const RULE18_ROUTE_RE = /^src\/app\/api\/(wallet|jiema)\/(.*\/)?route\.(ts|js)$|^src\/app\/api\/account\/wallet\/route\.(ts|js)$/
+const RULE18_PAGE_RE = /^src\/app\/\(shop\)\/(wallet|jiema)(\/.*)?\/page\.(tsx|ts|jsx|js)$/
+function rule18(ctx) {
+  const { file, code, skel } = ctx
+  if (!RULE18_ROUTE_RE.test(file)) return []
+  const out = []
+  const hs = exportedHandlers(code, skel)
+  if (!hs.length) out.push(hit(18, file, code, 0, '钱包 / 接码买家接口没有可核对的导出 handler（请用 export async function GET/POST…）', 'handler'))
+  for (const h of hs) {
+    const hSkel = lex(h.body).skel
+    const d = hSkel.search(/\bdenyOnChannel\s*\(/)
+    const t = hSkel.search(/\btry\s*\{/)
+    if (d < 0) out.push(hit(18, file, code, h.index, `${h.method} 没有调用 denyOnChannel()（渠道 Host 必须 404）`, h.method))
+    else if (t >= 0 && t < d) out.push(hit(18, file, code, h.index, `${h.method} 的 denyOnChannel() 包进了 try（店面解析出错会被吞掉），要放在 try 之前`, h.method))
+  }
+  return out
+}
+function rule18Tree(files) {
+  const out = []
+  const groups = new Set()
+  for (const f of files.keys()) {
+    const m = RULE18_PAGE_RE.exec(f)
+    if (m) groups.add(m[1])
+  }
+  for (const g of groups) {
+    const layout = [`src/app/(shop)/${g}/layout.tsx`, `src/app/(shop)/${g}/layout.ts`].find((x) => files.has(x))
+    if (!layout) {
+      out.push({ rule: 18, file: `src/app/(shop)/${g}`, line: 0, msg: `页面组 (shop)/${g} 没有 layout.tsx（必须在 layout 里调 notFoundOnChannel()，渠道 Host 整组 404）`, text: g })
+      continue
+    }
+    const { code, skel } = lex(files.get(layout))
+    const d = skel.search(/\bnotFoundOnChannel\s*\(/)
+    const t = skel.search(/\btry\s*\{/)
+    if (d < 0) out.push(hit(18, layout, code, 0, `${layout} 没有调用 notFoundOnChannel()（渠道 Host 必须 404）`, 'notFoundOnChannel'))
+    else if (t >= 0 && t < d) out.push(hit(18, layout, code, d, `${layout} 的 notFoundOnChannel() 包进了 try`, 'notFoundOnChannel'))
+  }
+  return out
+}
+
+const PER_FILE_RULES = [ruleImports, rule3Body, rule4, rule5, rule6, rule7, rule8, rule9, rule12, rule13, rule14, rule15, rule16, rule17, rule18]
 
 // 规则 10：partner 路由都要登记
 function partnerRoutesOf(files) {
@@ -847,6 +895,7 @@ export function scan({ files, routesJson }) {
     for (const r of PER_FILE_RULES) hits.push(...r(ctx))
   }
   hits.push(...rule10(files, routesJson))
+  hits.push(...rule18Tree(files))
   // 例外归类
   const used = new Set()
   const violations = []
@@ -909,6 +958,9 @@ const POSITIVE = [
   { rule: 17, file: 'src/lib/wallet/topup.ts', src: "import { fulfillOrder } from '../vmq'\nexport const a = fulfillOrder" },
   { rule: 17, file: 'src/lib/wallet/x.ts', src: "import { onPaid } from '@/lib/jiema/engine'\nexport const a = onPaid" },
   { rule: 17, file: 'src/lib/vmq.ts', src: "import { onPaid } from './jiema/engine'\nexport const a = onPaid" },
+  { rule: 18, file: 'src/app/api/wallet/topup/route.ts', src: 'export async function GET(){ const u = await getCurrentUser(); return Response.json(u) }' },
+  { rule: 18, file: 'src/app/api/jiema/orders/route.ts', src: 'export async function POST(){ try { const d = await denyOnChannel(); if (d) return d } catch {} return new Response(null) }' },
+  { rule: 18, file: 'src/app/(shop)/wallet/topup/page.tsx', src: 'export default function P(){ return null }' },
 ]
 
 /** 阴性样例：合法写法不得命中（营销模块的 domain: 对象键、注释里的违规字样、字符串里的括号、tenant/public-no 与 node:crypto 放行等） */
@@ -928,6 +980,8 @@ const NEGATIVE = [
   // 规则 17：vmq.ts 动态 import 接码引擎是规定写法；wallet 引用 db / money 正常
   { file: 'src/lib/vmq.ts', src: "export async function after(id){ const { onPaid } = await import('./jiema/engine'); return onPaid(id) }" },
   { file: 'src/lib/wallet/ledger.ts', src: "import { prisma } from '../db'\nimport { toCents } from '../money'\nexport const a = [prisma, toCents]" },
+  // 规则 18：第一句 denyOnChannel、之后才 try —— 合法
+  { file: 'src/app/api/wallet/topup/[orderNo]/route.ts', src: 'export async function GET(){\n  const d = await denyOnChannel()\n  if (d) return d\n  try { return Response.json({}) } catch { return new Response(null) }\n}' },
 ]
 
 export function selfCheck() {
@@ -996,6 +1050,8 @@ function mutations(tree) {
     { rule: 16, name: '后台接口直接写流水', file: 'src/app/api/admin/wallet/adjust/route.ts', overlay: append('src/app/api/admin/wallet/adjust/route.ts', 'export async function __x(tx: any) { await tx.balanceLog.create({ data: {} }) }') },
     { rule: 16, name: '原生 SQL 改充值格', file: 'src/lib/wallet/reconcile.ts', overlay: append('src/lib/wallet/reconcile.ts', 'export async function __x(tx: any) { await tx.$executeRaw`UPDATE users SET topup_cents = 0 WHERE id = 1` }') },
     { rule: 17, name: 'wallet 静态 import vmq', file: 'src/lib/wallet/ledger.ts', overlay: append('src/lib/wallet/ledger.ts', "import { fulfillOrder } from '../vmq'\nexport const __v = fulfillOrder") },
+    { rule: 18, name: '充值接口漏掉 denyOnChannel', file: 'src/app/api/wallet/topup/route.ts', overlay: replace('src/app/api/wallet/topup/route.ts', 'const channelDenied = await denyOnChannel()', 'const channelDenied = null as Response | null') },
+    { rule: 18, name: '钱包页面组 layout 不调 notFoundOnChannel', file: 'src/app/(shop)/wallet/layout.tsx', overlay: replace('src/app/(shop)/wallet/layout.tsx', 'await notFoundOnChannel()', 'void 0') },
   ]
 }
 

@@ -321,7 +321,14 @@ export default function ProductsPage() {
                       <td className="py-4 text-gray-600">{product.category.name}</td>
                       <td className="py-4 text-gray-900">¥{Number(product.price).toFixed(2)}</td>
                       <td className="py-4">
-                        {product.deliveryType === 'AUTO' ? (
+                        {product.deliveryType === 'SMS_POOL' || product.deliveryType === 'TOPUP' ? (
+                          <span
+                            className="inline-flex rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-800"
+                            title="系统载体商品：订单挂在这里，必须保持下架、价格 0，不能改发货方式、不能删除"
+                          >
+                            系统载体 · {product.deliveryType === 'TOPUP' ? '余额充值' : '短信接码'}
+                          </span>
+                        ) : product.deliveryType === 'AUTO' ? (
                           <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-blue-100 text-blue-700">自动发卡密</span>
                         ) : product.deliveryType === 'SMS' ? (
                           <span className="inline-flex rounded-full px-2 py-0.5 text-xs bg-teal-100 text-teal-700">短信接码</span>
@@ -340,6 +347,11 @@ export default function ProductsPage() {
                       </td>
                       <td className="py-4 text-gray-600">{product.sales}</td>
                       <td className="py-4">
+                        {product.deliveryType === 'SMS_POOL' || product.deliveryType === 'TOPUP' ? (
+                          <span className="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600" title="系统载体商品固定下架">
+                            下架（系统）
+                          </span>
+                        ) : (
                         <button
                           onClick={() => handleToggleStatus(product)}
                           className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
@@ -350,6 +362,7 @@ export default function ProductsPage() {
                         >
                           {product.status === 1 ? '上架' : '下架'}
                         </button>
+                        )}
                       </td>
                       <td className="py-4">
                         <div className="flex items-center gap-2">
@@ -362,6 +375,10 @@ export default function ProductsPage() {
                               <KeyRound className="h-4 w-4" />
                             </Link>
                           )}
+                          {product.deliveryType === 'SMS_POOL' || product.deliveryType === 'TOPUP' ? (
+                            <span className="text-xs text-gray-400">系统商品，勿改</span>
+                          ) : (
+                          <>
                           <button
                             onClick={() => handleEdit(product)}
                             className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -374,6 +391,8 @@ export default function ProductsPage() {
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
+                          </>
+                          )}
                         </div>
                       </td>
                     </tr>

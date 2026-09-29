@@ -62,6 +62,25 @@ export async function GET(request: NextRequest) {
       o = (await prisma.vmqOrder.findUnique({ where: { orderId } })) ?? o
     }
 
+    /*
+     * 【载体单（接码 / 充值）多给三项】（docs/短信接码-设计.md §6.6 第 13 条）：
+     *   next：付款成功后去哪（接码单 → 号码页；充值单 → 钱包页 ?topup=），收银台只接受这两种格式（safeNext）；
+     *   carrier：过期页用专用文案（它们关了就不能重新发起，不能 router.back()）；
+     *   balancePart：组合单已用余额抵扣的部分（HELD / CAPTURED 预扣合计，分）。
+     * 普通订单多一次按主键的查询、不多给任何字段；税费单不查。两者响应与原来逐字相同。
+     */
+    let carrierExtra: { next: string; carrier: 'SMS_POOL' | 'TOPUP'; balancePart: number } | null = null
+    if (o.bizType === 'order') {
+      const ord = await prisma.order.findUnique({ where: { id: o.bizId }, select: { orderNo: true, product: { select: { deliveryType: true } } } })
+      const dt = ord?.product.deliveryType
+      if (ord && dt === 'TOPUP') carrierExtra = { next: `/wallet?topup=${ord.orderNo}`, carrier: 'TOPUP', balancePart: 0 }
+      else if (ord && dt === 'SMS_POOL') {
+        const h = await prisma.balanceHold.findUnique({ where: { orderId: o.bizId }, select: { topupCents: true, cashCents: true, state: true } })
+        const part = h && (h.state === 'HELD' || h.state === 'CAPTURED') ? h.topupCents + h.cashCents : 0
+        carrierExtra = { next: `/jiema/order/${ord.orderNo}`, carrier: 'SMS_POOL', balancePart: part }
+      }
+    }
+
     return success({
       orderId: o.orderId,
       bizType: o.bizType,
@@ -72,6 +91,7 @@ export async function GET(request: NextRequest) {
       createdAt: o.createdAt,
       timeoutMin: VMQ_TIMEOUT_MIN,
       payDate: o.payDate,
+      ...(carrierExtra ?? {}),
     })
   } catch (err) {
     console.error('Vmq status error:', err)

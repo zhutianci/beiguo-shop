@@ -380,6 +380,8 @@ const CLOSED_API = [
   'announcement', 'track/view', 'upload',
   'mkt/c/[token]/[idx]', 'mkt/o/[token]', 'mkt/prefs/[token]', 'mkt/unsubscribe/[token]',
   'invoice-requests/[token]',
+  // 短信接码 · B1：余额充值只在主站（docs/短信接码-设计.md D11、§6.6 第 20 条）
+  'wallet/topup', 'wallet/topup/[orderNo]',
 ]
 
 async function testClosedApis(w: World) {
