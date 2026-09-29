@@ -18,7 +18,8 @@ export async function GET(request: NextRequest, { params }: { params: { service:
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied
   try {
-    if (rateLimited(`jm-cat:${clientIp(request.headers)}`, { windowMs: 60_000, max: 60 })) return error('请求太频繁，请稍后再试', 429)
+    // 限流桶 jm-ops（与服务目录 jm-cat、国家列表 jm-cty 分开，§6.4）
+    if (rateLimited(`jm-ops:${clientIp(request.headers)}`, { windowMs: 60_000, max: 60 })) return error('请求太频繁，请稍后再试', 429)
     const service = String(params?.service ?? '')
     const countryRaw = String(params?.country ?? '')
     if (!SERVICE_RE.test(service) || !/^\d{1,3}$/.test(countryRaw)) return error('没有这个国家/地区', 404)

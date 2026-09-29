@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied
   try {
+    // 三个目录接口各自一个限流桶（§6.4 逐个列的「同一 IP 每分钟 60 次」；共用一个桶时浏览国家列表会把服务目录也限住，S1 评审修复）
     if (rateLimited(`jm-cat:${clientIp(request.headers)}`, { windowMs: 60_000, max: 60 })) return error('请求太频繁，请稍后再试', 429)
     const v = await jiemaViewer()
     if ((v.access !== 'OPEN' && v.access !== 'ADMIN_PREVIEW') || !v.cfg) {

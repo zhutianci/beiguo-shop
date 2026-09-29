@@ -30,6 +30,10 @@ import {
   parseScopeKey,
   priceCombo,
   fmtYuan,
+  canonicalScopeKey,
+  canonicalHoldKey,
+  legacyRatioFailures,
+  LEGACY_GUARDED_SERVICES,
   type PriceRuleLike,
 } from '../src/lib/jiema/pricing'
 import {
@@ -42,9 +46,10 @@ import {
   parseSmsConfigRaw,
   smsStoredVersionOf,
   JIEMA_ORDER_AVAILABLE,
+  settingsNumberValue,
   type SmsConfig,
 } from '../src/lib/jiema-config-schema'
-import { comboBlock, globalHold, holdReasonText, isHoldActive, type GateData, type HoldLike } from '../src/lib/jiema/gate'
+import { comboBlock, globalHold, holdReasonText, isHoldActive, adminHoldConflict, type GateData, type HoldLike } from '../src/lib/jiema/gate'
 import {
   serviceFromPrice,
   comboPrice,
@@ -61,10 +66,14 @@ import {
   splitAliases,
   staticDue,
   EXCLUDED_SERVICES,
+  serviceSeenCutoffFrom,
+  catalogCodesValid,
+  SERVICE_SEEN_WITHIN_MS,
+  STATIC_STALE_ALERT_MS,
 } from '../src/lib/jiema/catalog'
 import { FORBIDDEN_BUYER_KEYS, collectKeyNames, toCatalogCountry, toCatalogService } from '../src/lib/jiema/dto'
 import { parseCatalogState } from '../src/lib/jiema/config'
-import { HOLD_KEY_RE, legacyFor, parseCsv } from '../src/lib/jiema/admin'
+import { HOLD_KEY_RE, legacyFor, parseCsv, onlyChanged } from '../src/lib/jiema/admin'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
@@ -395,6 +404,79 @@ console.log('\n【后台：0.8 规则对照、CSV】')
   const rows = parseCsv('﻿code,nameCn,aliases\r\ntg,"Telegram（电报）","tg|电报"\r\nwb,微信,"微信|wx"\n"x,y","a ""q""",\n')
   ok(rows.length === 4 && rows[1][1] === 'Telegram（电报）' && rows[3][0] === 'x,y' && rows[3][1] === 'a "q"', 'CSV 解析：BOM、引号、逗号、双引号转义、CRLF')
   ok(fmtYuan(968) === '¥9.68' && fmtYuan(-50) === '-¥0.50', 'fmtYuan')
+}
+
+console.log('\n【S1 评审修复：范围键的规范写法（前导零）】')
+{
+  ok(canonicalScopeKey('tg:06') === 'tg:6' && canonicalScopeKey('dr:087') === 'dr:87' && canonicalScopeKey('*:003') === '*:3' && canonicalScopeKey('acz:*') === 'acz:*' && canonicalScopeKey('tg:0') === 'tg:0', '规则范围：国家号去前导零（tg:06 → tg:6、*:003 → *:3），服务:* 不变')
+  ok(canonicalScopeKey('*:*') === null && canonicalScopeKey('TG:6') === null && canonicalScopeKey('tg:1000') === null && canonicalScopeKey('tg:') === null, '规则范围：不合法的 → null（*:*、大写、4 位国家号）')
+  const rule = { scopeKey: canonicalScopeKey('tg:06') as string, markupCents: 999, tolerancePct: null, disabled: true }
+  ok(resolveRule([rule], 'tg', 6, { markupCents: 150, tolerancePct: 25 }).disabled && resolveRule([rule], 'tg', 6, { markupCents: 150, tolerancePct: 25 }).markupCents === 999, '  …规范写法存下的规则能被 resolveRule 查到（原来存 tg:06 永远不生效）')
+  ok(canonicalHoldKey('country:03') === 'country:3' && canonicalHoldKey('combo:dr:087') === 'combo:dr:87' && canonicalHoldKey(' SVC:WB ') === 'svc:wb' && canonicalHoldKey('global') === 'global', '停售范围：country:03 → country:3、combo:dr:087 → combo:dr:87、大小写与空格')
+  ok(canonicalHoldKey('threads') === null && canonicalHoldKey('country:1000') === null && canonicalHoldKey('svc:x') === null && HOLD_KEY_RE.test('country:3'), '停售范围：threads、4 位国家号、1 位服务代码 → null')
+  const g: GateData = { holds: new Map([['country:3', { key: 'country:3', until: null, reason: 'ADMIN', source: 'ADMIN' }]]), offServices: new Set(), offCountries: new Set(), rules: new Map() }
+  ok(comboBlock(g, 'wb', Number('03'), new Date(), FACTORY_SMS_CONFIG)?.kind === 'country', '  …规范写法存下的停售能被 comboBlock 查到')
+}
+
+console.log('\n【S1 评审修复：手动停售不能覆盖 / 缩短生效中的停售（adminHoldConflict）】')
+{
+  const now = new Date('2026-09-29T10:00:00Z')
+  const later = new Date('2026-09-29T12:00:00Z')
+  const soon = new Date('2026-09-29T11:00:00Z')
+  const past = new Date('2026-09-29T09:00:00Z')
+  ok(adminHoldConflict(null, soon, now) === null && adminHoldConflict({ until: past, reason: 'CURRENCY', source: 'AUTO' }, soon, now) === null, '没有记录、或原记录已过期 → 可以写')
+  ok(adminHoldConflict({ until: null, reason: 'CURRENCY', source: 'AUTO' }, soon, now) != null && adminHoldConflict({ until: null, reason: 'CURRENCY', source: 'AUTO' }, null, now) != null, '生效中的自动停售（币种异常、需要手动解除）→ 拒绝（不论新截止时间）')
+  ok(adminHoldConflict({ until: later, reason: 'BREAKER', source: 'AUTO' }, null, now) != null, '生效中的自动熔断（有到期）→ 同样拒绝（原因不能被冲掉）')
+  ok(adminHoldConflict({ until: null, reason: 'ADMIN', source: 'ADMIN' }, soon, now) != null && adminHoldConflict({ until: null, reason: 'ADMIN', source: 'ADMIN' }, null, now) === null, '手动停售「手动解除」→ 不能改成会到期的；仍是手动解除可以（改原因）')
+  ok(adminHoldConflict({ until: later, reason: 'ADMIN', source: 'ADMIN' }, soon, now) != null && adminHoldConflict({ until: soon, reason: 'ADMIN', source: 'ADMIN' }, later, now) === null && adminHoldConflict({ until: soon, reason: 'ADMIN', source: 'ADMIN' }, null, now) === null, '手动停售有到期：不能缩短；延长、改成手动解除可以')
+}
+
+console.log('\n【S1 评审修复：0.8 规则按 dr / acz 全部组合核对（legacyRatioFailures）】')
+{
+  const cfg = { ...FACTORY_SMS_CONFIG }
+  const rows = [
+    { service: 'dr', country: 187, costMicro: 660_000, legacy: { priceCents: 1200 } },
+    { service: 'dr', country: 4, costMicro: 25_000, legacy: { priceCents: 800 } },
+    { service: 'acz', country: 48, costMicro: 60_000, legacy: null },
+    { service: 'tg', country: 6, costMicro: 150_000, legacy: { priceCents: 5000 } },
+  ]
+  const drRule: PriceRuleLike = { scopeKey: 'dr:187', markupCents: 440, tolerancePct: null, disabled: false }
+  const f1 = legacyRatioFailures(rows, [drRule], cfg)
+  ok(f1.length === 1 && f1[0].service === 'dr' && f1[0].country === 4 && f1[0].priceCents === 170 && f1[0].legacyCents === 800, 'dr:187 有规则 ¥9.68 ✓；dr/菲律宾 ¥1.70 ✗；没有对照的、不是 dr/acz 的不算', JSON.stringify(f1))
+  // 评审的场景：预览筛到 tg 时把 x 从 8.00 改成 7.50 → dr/187 变成 ¥9.35 < ¥9.60，保存前必须能发现
+  const f2 = legacyRatioFailures(rows, [drRule], { ...cfg, saleCoef4: 75000 })
+  ok(f2.some((f) => f.service === 'dr' && f.country === 187 && f.priceCents === 935), 'x 8.00 → 7.50：dr/187 ¥9.35 < ¥9.60 → ✗（不看预览里显示的是哪个服务）', JSON.stringify(f2))
+  ok(legacyRatioFailures(rows, [drRule, { scopeKey: 'dr:4', markupCents: null, tolerancePct: null, disabled: true }], cfg).length === 0, 'disabled 规则停售的组合不算（不卖就不会比旧单品便宜）')
+  ok(legacyRatioFailures(rows, [drRule, { scopeKey: '*:187', markupCents: 0, tolerancePct: null, disabled: false }], cfg).length === 1, '*:187 y=0 不影响 dr:187（服务:国家 优先）')
+  ok(legacyRatioFailures(rows, [{ scopeKey: '*:187', markupCents: 0, tolerancePct: null, disabled: false }], cfg).some((f) => f.country === 187), '只有 *:187 y=0 → dr/187 ✗（*:国家 规则也核对）')
+  ok(legacyRatioFailures(rows, [{ scopeKey: 'dr:187', markupCents: 440, tolerancePct: -5, disabled: false }], cfg).length === 1, '规则容差不合法（负数）：那一行跳过、不抛异常（原来整页白屏）')
+  ok(LEGACY_GUARDED_SERVICES.join(',') === 'dr,acz', '只管 dr、acz')
+}
+
+console.log('\n【S1 评审修复：后台设置的数字输入（小数点不被吃掉）】')
+{
+  ok(settingsNumberValue('2.') === '2.' && settingsNumberValue('0.') === '0.' && settingsNumberValue('-') === '-', '「2.」「0.」「-」原样保留（输入中间态）')
+  ok(settingsNumberValue('2.5') === 2.5 && settingsNumberValue('0.4') === 0.4 && settingsNumberValue(' 20 ') === 20 && settingsNumberValue('-3') === -3, '完整数字才转 number')
+  ok(settingsNumberValue('') === '' && settingsNumberValue('abc') === 'abc', '空与文字原样（保存时 zod 报错）')
+  ok(!checkSmsConfig({ ...FACTORY_SMS_CONFIG, upstream: { ...FACTORY_SMS_CONFIG.upstream, balanceAlertUsd: settingsNumberValue('2.') } }).ok, '  …停在「2.」就保存 → zod 拒绝（不会悄悄存成 2）')
+}
+
+console.log('\n【S1 评审修复：目录成员（服务可见的基准、报价前的格式检查）】')
+{
+  const now = new Date('2026-10-10T00:00:00Z')
+  const lastOk = new Date('2026-10-01T00:00:00Z') // 静态同步从 10-01 起一直失败
+  ok(serviceSeenCutoffFrom(lastOk, now).getTime() === lastOk.getTime() - SERVICE_SEEN_WITHIN_MS, '静态同步一直失败：基准停在最近一次成功的列表（10-01），不随现在后移 → 已列出的服务不会过 3 天全部消失')
+  ok(serviceSeenCutoffFrom(null, now).getTime() === now.getTime() - SERVICE_SEEN_WITHIN_MS && serviceSeenCutoffFrom(new Date('2026-10-11T00:00:00Z'), now).getTime() === now.getTime() - SERVICE_SEEN_WITHIN_MS, '没有服务 / 基准在未来（时钟偏差）→ 按现在')
+  ok(catalogCodesValid('tg', 6) && catalogCodesValid('acz', 0) && catalogCodesValid('full', 999), '格式：2–4 位小写字母数字、国家 0–999')
+  ok(!catalogCodesValid('ABCDE', 6) && !catalogCodesValid('tg', 1000) && !catalogCodesValid('tg', 1.5) && !catalogCodesValid('t', 6) && !catalogCodesValid('tg', -1) && !catalogCodesValid(undefined, 6), '格式不对的一律 false（上游客户端会对它们抛 TypeError）')
+  ok(EXCLUDED_SERVICES.has('full') && STATIC_STALE_ALERT_MS === 26 * 3600_000, 'full 在目录排除里；静态目录超过 26 小时没成功才告警')
+}
+
+console.log('\n【S1 评审修复：后台改目录只写真正变了的字段（NULL 与空串视为相同）】')
+{
+  ok(Object.keys(onlyChanged({ nameCn: null, aliases: 'a,b', hotRank: 3 }, { nameCn: '', aliases: 'a,b', hotRank: 3 })).length === 0, '没改的（含 NULL ↔ 空串）不算改动')
+  const d = onlyChanged({ nameCn: '微博', aliases: 'weibo,wb', hotRank: null }, { nameCn: '', aliases: 'weibo,wb', hotRank: 20 })
+  ok(d.nameCn === '' && d.hotRank === 20 && !('aliases' in d), '清空中文名（存空串）、改热门序号 → 只有这两项')
 }
 
 console.log(`\n通过 ${passed} 条，失败 ${failed} 条`)

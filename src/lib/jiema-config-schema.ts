@@ -222,6 +222,16 @@ export function smsStoredVersionOf(raw: string | null | undefined): number {
   }
 }
 
+/**
+ * 纯函数：后台「设置」数字输入框的原文 → 写进草稿的值。完整的数字（「2」「2.5」「-3」）才转成 number，
+ * 「2.」「0.」「-」这类输入中间态与其他文字原样保留（保存时 zod 报「必须是数字」）——原来每敲一个字就 Number()，
+ * 「2.」立刻变回 2，小数点打不进去（S1 评审修复）。
+ */
+export function settingsNumberValue(raw: string): number | string {
+  const t = raw.trim()
+  return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : t
+}
+
 /** 纯函数：解析一行 sms_config 的原文。不是合法 JSON / 校验不过 → null（调用方按关闭处理） */
 export function parseSmsConfigRaw(raw: string | null | undefined): SmsConfig | null {
   if (raw == null) return null

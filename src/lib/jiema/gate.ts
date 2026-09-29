@@ -13,7 +13,7 @@
  * 纯函数部分（comboBlock、isHoldActive）不连库，scripts/check-jiema-pricing.ts 覆盖。
  */
 import { prisma } from '../db'
-import { resolveRule, type PriceRuleLike } from './pricing'
+import { resolveRule, HOLD_KEY_RE, canonicalHoldKey, type PriceRuleLike } from './pricing'
 
 export interface HoldLike {
   key: string
@@ -58,6 +58,27 @@ export function comboBlock(g: GateData, service: string, country: number, now: D
   if (g.offServices.has(service)) return { code: 'HOLD', kind: 'svcOff', hold: null }
   if (g.offCountries.has(country)) return { code: 'HOLD', kind: 'countryOff', hold: null }
   if (resolveRule(g.rules, service, country, global).disabled) return { code: 'HOLD', kind: 'disabled', hold: null }
+  return null
+}
+
+export { HOLD_KEY_RE, canonicalHoldKey }
+
+/**
+ * 纯函数：「+ 手动停售」能不能写到这个范围上（S1 评审修复：原来直接 upsert，会把自动停售改成会自己到期的手动停售）。
+ *  · 没有记录、或原记录已过期 → 可以（覆盖）；
+ *  · 原记录生效中、而且是自动停售（source≠ADMIN：熔断、封禁、币种异常…）→ 拒绝：原因与「需要手动解除」不能被手动停售改掉，要先「解除」；
+ *  · 原记录生效中、是手动停售 → 只能延长或改成手动解除，不能缩短（null 比任何时间都严，晚的比早的严）。
+ * 返回 null = 可以写；否则是给后台看的拒绝原因。
+ */
+export function adminHoldConflict(existing: Pick<HoldLike, 'until' | 'reason' | 'source'> | null | undefined, nextUntil: Date | null, now: Date): string | null {
+  if (!existing || !isHoldActive(existing, now)) return null
+  if (existing.source !== 'ADMIN') {
+    return `这个范围有生效中的自动停售（原因 ${existing.reason}${existing.until ? `，到期 ${existing.until.toISOString()}` : '，需要手动解除'}），手动停售不能覆盖它；确认要改请先「解除」`
+  }
+  if (existing.until == null && nextUntil != null) return '这个范围已经是「手动解除」的停售，不能改成会自己到期的；要提前恢复请点「解除」'
+  if (existing.until != null && nextUntil != null && nextUntil.getTime() < existing.until.getTime()) {
+    return `这个范围的停售到 ${existing.until.toISOString()}，新截止时间更早（不能缩短）；要提前恢复请点「解除」`
+  }
   return null
 }
 

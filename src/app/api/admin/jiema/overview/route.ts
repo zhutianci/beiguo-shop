@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { adminGuard } from '@/lib/admin-guard'
 import { success, error } from '@/lib/api'
 import { readSmsConfig, readCatalogState, PRICES_DEGRADE_AFTER } from '@/lib/jiema/config'
-import { CATALOG_STALE_ALERT_MS } from '@/lib/jiema/catalog'
+import { CATALOG_STALE_ALERT_MS, STATIC_STALE_ALERT_MS } from '@/lib/jiema/catalog'
 import { isHoldActive } from '@/lib/jiema/gate'
 import { upstreamConfigured } from '@/lib/jiema/upstream'
 import { JIEMA_ORDER_AVAILABLE, jiemaPublicOpen } from '@/lib/jiema-config-schema'
@@ -44,6 +44,8 @@ export async function GET() {
       catalog: {
         ...state,
         stale: now.getTime() - lastOk > CATALOG_STALE_ALERT_MS,
+        /** 服务 / 国家 / 运营商（静态目录）超过 26 小时没同步成功（getPrices 成功盖不住它，单独显示） */
+        staticStale: now.getTime() - (state.staticAt ? Date.parse(state.staticAt) : 0) > STATIC_STALE_ALERT_MS,
         degraded: state.pricesFails >= PRICES_DEGRADE_AFTER,
       },
       manual: {

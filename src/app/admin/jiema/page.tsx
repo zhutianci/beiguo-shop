@@ -7,7 +7,8 @@
  * 【定价预览与列表价、下单价同一个函数】预览表直接用 lib/jiema/pricing.ts 的纯函数（priceCombo → salePriceCents，覆盖规则按
  * resolveRule 解析）现算「当前 → 新」：当前 = 已保存的配置 + 已生效的规则；新 = 表单里还没保存的值 + 同一套规则（正在编辑的规则也算进去）。
  * 【0.8 规则】dr、acz 的每一行并排显示对应旧单品现价（同服务同国家/地区，或随机地区；取高者），新售价 ≥ 单品 × 0.8 显示 ✓，否则 ✗ 整行标红；
- * 保存时有 ✗ 弹二次确认（不拦保存，由站长决定，D13、Q1）。
+ * 保存时有 ✗ 弹二次确认（不拦保存，由站长决定，D13、Q1）。保存配置、保存规则之前都单独拉 dr、acz 的**全部**组合核对
+ * （legacyRatioFailures；不受预览筛选与「最便宜 8 个」的限制，S1 评审修复）。
  * 【手动下架 / 停售出厂为空】（D25）服务 / 国家的 OFF 要填原因；disabled 规则要写备注；「+ 手动停售」要写原因。
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -20,11 +21,15 @@ import {
   resolveRule,
   meetsLegacyRatio,
   legacyFloorCents,
+  legacyRatioFailures,
+  canonicalScopeKey,
+  canonicalHoldKey,
+  LEGACY_GUARDED_SERVICES,
   microToUsd4,
   usdToCentsCeil,
   type PriceRuleLike,
 } from '@/lib/jiema/pricing'
-import { FACTORY_SMS_CONFIG, type SmsConfig } from '@/lib/jiema-config-schema'
+import { FACTORY_SMS_CONFIG, settingsNumberValue, type SmsConfig } from '@/lib/jiema-config-schema'
 
 type Tab = 'pricing' | 'catalog' | 'settings'
 const TABS: { id: Tab; label: string }[] = [
@@ -44,6 +49,7 @@ interface Overview {
     lastError: string | null
     counts: { services: number; countries: number; combos: number } | null
     stale: boolean
+    staticStale: boolean
     degraded: boolean
   }
   manual: { servicesOff: number; countriesOff: number; adminHolds: number; activeHolds: number; globalHold: boolean; disabledRules: number; rules: number }
@@ -223,6 +229,7 @@ export default function AdminJiemaPage() {
                     · 服务 {ov.data.catalog.counts.services} · 国家/地区 {ov.data.catalog.counts.countries} · 组合 {ov.data.catalog.counts.combos.toLocaleString('zh-CN')}
                   </>
                 )}
+                {ov.data.catalog.staticStale && <span className="ml-2 text-red-600">✗ 服务 / 国家目录（静态）{ago(ov.data.catalog.staticAt)}同步成功，超过 26 小时</span>}
                 {ov.data.catalog.degraded && <span className="ml-2 text-amber-700">getPrices 连续失败 {ov.data.catalog.pricesFails} 次，列表起价已降级</span>}
                 {ov.data.catalog.lastError && <div className="text-xs text-amber-700">最近一次错误：{ov.data.catalog.lastError}</div>}
               </div>
@@ -276,6 +283,51 @@ async function saveConfig(next: SmsConfig, expectVersion: number, zeroCheck?: ()
 
 // ───────────────────────── 定价 ─────────────────────────
 
+/**
+ * 保存前核对 0.8 规则（D13、Q1、§7.3）：单独拉 dr、acz 的**全部**组合（?service=dr / ?service=acz，不受预览筛选影响），
+ * 用「保存之后会生效的」配置与规则逐行算（legacyRatioFailures，与列表价同一个纯函数）。有 ✗ 弹二次确认（不拦保存）。
+ * 拉不到数据时也要确认（宁可多问一次，也不悄悄跳过）。返回 true = 继续保存。
+ */
+async function confirmLegacyRatio(cfgAfter: SmsConfig, rulesAfter: (base: PriceRuleLike[]) => PriceRuleLike[]): Promise<boolean> {
+  const got = await Promise.all(
+    LEGACY_GUARDED_SERVICES.map(async (svc) => {
+      try {
+        const res = await fetch(`/api/admin/jiema/pricing?service=${svc}`, { cache: 'no-store' })
+        const d = await res.json().catch(() => null)
+        return d?.success ? (d.data as { rows: PreviewRow[]; rules: Rule[] }) : null
+      } catch {
+        return null
+      }
+    }),
+  )
+  if (got.some((d) => d == null)) return window.confirm('没拿到 dr / acz 的全部组合，没法核对「≥ 旧单品 × 0.8」，仍然保存吗？')
+  const baseRules: PriceRuleLike[] = (got[0]?.rules ?? []).map((r) => ({ scopeKey: r.scopeKey, markupCents: r.markupCents, tolerancePct: r.tolerancePct, disabled: r.disabled }))
+  const rows = got.flatMap((d) => d?.rows ?? [])
+  const fails = legacyRatioFailures(rows, rulesAfter(baseRules), cfgAfter)
+  if (!fails.length) return true
+  const eg = fails
+    .slice(0, 5)
+    .map((f) => `${f.service}:${f.country} ${yuan(f.priceCents)} < ${yuan(legacyFloorCents(f.legacyCents))}`)
+    .join('\n')
+  return window.confirm(`${fails.length} 个 dr / acz 组合低于旧单品价格的 8 成（✗）：\n${eg}${fails.length > 5 ? '\n…' : ''}\n\n仍然保存吗？`)
+}
+
+/** 规则编辑器的输入 → 规则（不合法的项标出来，不进预览、不让保存；容差负数会让 capMicro 抛 RangeError，S1 评审修复） */
+function parseRuleEdit(e: { scopeKey: string; markup: string; tol: string; disabled: boolean }): { rule: PriceRuleLike | null; error: string | null } {
+  const key = canonicalScopeKey(e.scopeKey.trim().toLowerCase())
+  const m = e.markup.trim() ? parseYuan(e.markup) : null
+  const t = e.tol.trim() ? intOr(e.tol) : null
+  if (e.markup.trim() && (m == null || m > 5000)) return { rule: null, error: '加价写成 0–50 元，例如 4.40' }
+  if (e.tol.trim() && (t == null || t < 0 || t > 100)) return { rule: null, error: '容差是 0–100 的整数（%）' }
+  if (!key) return { rule: null, error: e.scopeKey.trim() ? '范围写成「服务:国家」「服务:*」或「*:国家」（例如 dr:187、acz:*、*:6）' : null }
+  return { rule: { scopeKey: key, markupCents: m, tolerancePct: t, disabled: e.disabled }, error: null }
+}
+
+/** 把一条（新的或改过的）规则放进规则表：同范围的、以及被编辑的那条原规则（范围可能改了）先去掉 */
+function withRule(base: PriceRuleLike[], rule: PriceRuleLike, origKey: string | null): PriceRuleLike[] {
+  return [...base.filter((x) => x.scopeKey !== rule.scopeKey && x.scopeKey !== origKey), rule]
+}
+
 function PricingTab({ cfg, cfgErr, onSaved }: { cfg: ConfigResp | null; cfgErr: string | null; onSaved: () => void }) {
   const saved: SmsConfig = cfg?.config ?? cfg?.factory ?? FACTORY_SMS_CONFIG
   const [f, setF] = useState({ x: '', fx: '', y: '', minPrice: '', rounding: 'CENT' as 'CENT' | 'JIAO', tol: '', margin: '', ttl: '', replace: '' })
@@ -315,30 +367,37 @@ function PricingTab({ cfg, cfgErr, onSaved }: { cfg: ConfigResp | null; cfgErr: 
   const pv = useApi<{ rows: PreviewRow[]; rules: Rule[]; services: { code: string; name: string }[] }>(`/api/admin/jiema/pricing${svcFilter ? `?service=${svcFilter}` : ''}`)
   const rules = pv.data?.rules ?? []
   const [ruleEdit, setRuleEdit] = useState<{ id: number | null; scopeKey: string; markup: string; tol: string; disabled: boolean; note: string } | null>(null)
+  const ruleParsed = useMemo(() => (ruleEdit ? parseRuleEdit(ruleEdit) : null), [ruleEdit])
+  const ruleOrigKey = ruleEdit?.id != null ? (rules.find((x) => x.id === ruleEdit.id)?.scopeKey ?? null) : null
   const draftRules: PriceRuleLike[] = useMemo(() => {
     const base: PriceRuleLike[] = rules.map((r) => ({ scopeKey: r.scopeKey, markupCents: r.markupCents, tolerancePct: r.tolerancePct, disabled: r.disabled }))
-    if (!ruleEdit) return base
-    const m = ruleEdit.markup.trim() ? parseYuan(ruleEdit.markup) : null
-    const t = ruleEdit.tol.trim() ? intOr(ruleEdit.tol) : null
-    const r: PriceRuleLike = { scopeKey: ruleEdit.scopeKey.trim().toLowerCase(), markupCents: m, tolerancePct: t, disabled: ruleEdit.disabled }
-    const orig = ruleEdit.id != null ? rules.find((x) => x.id === ruleEdit.id)?.scopeKey : null
-    return [...base.filter((x) => x.scopeKey !== r.scopeKey && x.scopeKey !== orig), r]
-  }, [rules, ruleEdit])
+    // 编辑中的规则有不合法的项（容差负数等）时不计入预览：算不出价的输入不能让整页白屏
+    if (!ruleParsed?.rule) return base
+    return withRule(base, ruleParsed.rule, ruleOrigKey)
+  }, [rules, ruleParsed, ruleOrigKey])
 
   const rows = useMemo(() => {
     const list = pv.data?.rows ?? []
+    // 每一行单独 try：某一行算不出价（配置或规则不合法）显示「—」，异常不冒泡成整页错误
+    const safe = <T,>(f: () => T): T | null => {
+      try {
+        return f()
+      } catch {
+        return null
+      }
+    }
     return list.map((r) => {
-      const curRule = resolveRule(rules, r.service, r.country, saved)
-      const cur = priceCombo(r.costMicro, curRule, saved)
-      const newRule = draft ? resolveRule(draftRules, r.service, r.country, draft) : null
-      const nw = draft && newRule ? priceCombo(r.costMicro, newRule, draft) : null
-      const profit = nw && draft ? nw.priceCents - realCostCents(r.costMicro, draft.costFx4) : null
-      const worst = nw && draft ? nw.priceCents - realCostCents(nw.capMicro, draft.costFx4) : null
+      const cur = safe(() => priceCombo(r.costMicro, resolveRule(rules, r.service, r.country, saved), saved))
+      const newRule = draft ? safe(() => resolveRule(draftRules, r.service, r.country, draft)) : null
+      const nw = draft && newRule ? safe(() => priceCombo(r.costMicro, newRule, draft)) : null
+      const profit = nw && draft ? safe(() => nw.priceCents - realCostCents(r.costMicro, draft.costFx4)) : null
+      const worst = nw && draft ? safe(() => nw.priceCents - realCostCents(nw.capMicro, draft.costFx4)) : null
       const legacyOk = r.legacy && nw ? meetsLegacyRatio(nw.priceCents, r.legacy.priceCents) : null
       return { r, cur, nw, profit, worst, legacyOk, disabled: !!newRule?.disabled, ruleKey: newRule?.ruleKey ?? null }
     })
   }, [pv.data, rules, saved, draft, draftRules])
-  const failing = rows.filter((x) => (x.r.service === 'dr' || x.r.service === 'acz') && x.legacyOk === false)
+  // 只是预览里这些行的 ✗ 计数；保存前的核对按 dr、acz 的全部组合另算（confirmLegacyRatio）
+  const failing = rows.filter((x) => LEGACY_GUARDED_SERVICES.includes(x.r.service) && x.legacyOk === false && !x.disabled)
 
   // 试算
   const [trial, setTrial] = useState('0.024')
@@ -349,9 +408,13 @@ function PricingTab({ cfg, cfgErr, onSaved }: { cfg: ConfigResp | null; cfgErr: 
     if (!draft || !cfg) return
     setSaving(true)
     setMsg(null)
-    const r = await saveConfig(draft, cfg.storedVersion, () =>
-      failing.length === 0 || window.confirm(`${failing.length} 个 dr / acz 组合低于旧单品价格的 8 成（✗），仍然保存吗？`),
-    )
+    // 0.8 规则按 dr、acz 的全部组合核对（不只是预览里显示的那些行）：保存配置后生效的 = 草稿配置 + 已保存的规则
+    if (!(await confirmLegacyRatio(draft, (base) => base))) {
+      setSaving(false)
+      setMsg('已取消')
+      return
+    }
+    const r = await saveConfig(draft, cfg.storedVersion)
     setSaving(false)
     setErrors(r.errors ?? {})
     setMsg(r.message)
@@ -360,14 +423,13 @@ function PricingTab({ cfg, cfgErr, onSaved }: { cfg: ConfigResp | null; cfgErr: 
 
   const saveRule = async () => {
     if (!ruleEdit) return
-    const body = {
-      scopeKey: ruleEdit.scopeKey.trim().toLowerCase(),
-      markupCents: ruleEdit.markup.trim() ? parseYuan(ruleEdit.markup) : null,
-      tolerancePct: ruleEdit.tol.trim() ? intOr(ruleEdit.tol) : null,
-      disabled: ruleEdit.disabled,
-      note: ruleEdit.note,
-    }
-    if (ruleEdit.markup.trim() && body.markupCents == null) return window.alert('加价写成元，例如 4.40')
+    const parsed = parseRuleEdit(ruleEdit)
+    if (!parsed.rule) return window.alert(parsed.error || '范围写成「服务:国家」「服务:*」或「*:国家」')
+    const rule = parsed.rule
+    const body = { scopeKey: rule.scopeKey, markupCents: rule.markupCents, tolerancePct: rule.tolerancePct, disabled: rule.disabled, note: ruleEdit.note }
+    // 规则同样要过 0.8 核对（§7.3「覆盖规则表的编辑弹窗里同样即时显示…」）：保存后生效的 = 已保存的配置 + 换上这条规则
+    const origKey = ruleOrigKey
+    if (!(await confirmLegacyRatio(saved, (base) => withRule(base, rule, origKey)))) return
     const r = ruleEdit.id == null ? await send('POST', '/api/admin/jiema/rules', body) : await send('PUT', `/api/admin/jiema/rules/${ruleEdit.id}`, body)
     if (!r.ok) return window.alert(r.data?.error || '保存失败')
     setRuleEdit(null)
@@ -484,7 +546,7 @@ function PricingTab({ cfg, cfgErr, onSaved }: { cfg: ConfigResp | null; cfgErr: 
                 回到热门
               </button>
             )}
-            {failing.length > 0 && <span className="text-xs font-medium text-red-600">✗ {failing.length} 个 dr / acz 组合低于旧单品 × 0.8</span>}
+            {failing.length > 0 && <span className="text-xs font-medium text-red-600">预览里 ✗ {failing.length} 个 dr / acz 组合低于旧单品 × 0.8</span>}
           </div>
           {pv.err && <div className="text-red-600">{pv.err}</div>}
           {!pv.data && !pv.err && <div className="text-gray-400">加载中...</div>}
@@ -607,7 +669,8 @@ function PricingTab({ cfg, cfgErr, onSaved }: { cfg: ConfigResp | null; cfgErr: 
                   取消
                 </Button>
               </div>
-              <div className="text-xs text-gray-500">编辑中的规则已计入上面预览的「新」一列（逐行 ✓ / ✗ 即时变化）。停售规则必须写备注。</div>
+              {ruleParsed?.error && <div className="text-xs text-red-600">{ruleParsed.error}</div>}
+              <div className="text-xs text-gray-500">编辑中的规则已计入上面预览的「新」一列（逐行 ✓ / ✗ 即时变化）；保存时按 dr、acz 的全部组合核对 0.8 规则。停售规则必须写备注。</div>
             </div>
           )}
         </CardContent>
@@ -710,6 +773,7 @@ function ServicesPanel({ onChanged }: { onChanged: () => void }) {
       window.alert(r.data?.error || '保存失败')
       return false
     }
+    if (r.data?.data?.changed === false) window.alert('没有改动')
     list.reload()
     onChanged()
     return true
@@ -763,7 +827,10 @@ function ServicesPanel({ onChanged }: { onChanged: () => void }) {
         </div>
         {importing != null && (
           <div className="space-y-2 rounded-lg border border-gray-200 p-3">
-            <div className="text-xs text-gray-500">粘贴 CSV（表头含 code，可选 nameCn、aliases（用 | 分隔）、hotRank）。只改中文名、别名、热门序号；下架要逐个填原因，不走批量。</div>
+            <div className="text-xs text-gray-500">
+              粘贴 CSV（表头含 code，可选 nameCn、aliases（用 | 分隔）、hotRank）。只改中文名、别名、热门序号；下架要逐个填原因，不走批量。
+              中文名、别名留空 = 不改（要清空请在列表里逐个编辑）；热门序号留空 = 不是热门。与现在相同的行不算改动、不写审计。
+            </div>
             <textarea className={`${inputCls} h-40 w-full font-mono text-xs`} value={importing} onChange={(e) => setImporting(e.target.value)} />
             <div className="flex gap-2">
               <Button size="sm" onClick={doImport}>
@@ -798,7 +865,7 @@ function ServicesPanel({ onChanged }: { onChanged: () => void }) {
                     <tr key={s.code} className={`border-t border-gray-100 ${s.status === 'OFF' ? 'bg-gray-50 text-gray-400' : ''}`}>
                       <td className="py-1 pr-2 font-mono">{s.code}</td>
                       <td className="pr-2">{s.nameEn}</td>
-                      <td className="pr-2">{s.nameCn ?? <span className="text-gray-300">—</span>}</td>
+                      <td className="pr-2">{s.nameCn || <span className="text-gray-300">—</span>}</td>
                       <td className="max-w-[16rem] truncate pr-2" title={s.aliases.join('、')}>
                         {s.aliases.join('、')}
                       </td>
@@ -847,7 +914,7 @@ function ServicesPanel({ onChanged }: { onChanged: () => void }) {
             <div className="flex flex-wrap items-center gap-2">
               别名 <input className={`${inputCls} w-[32rem] max-w-full`} value={edit.aliases} onChange={(e) => setEdit({ ...edit, aliases: e.target.value })} placeholder="逗号分隔：俗称、全拼、首字母、英文缩写" />
             </div>
-            <div className="text-xs text-gray-500">搜索不看上游代码（wx=Apple、wb=WeChat…），常用缩写要写进别名。</div>
+            <div className="text-xs text-gray-500">搜索不看上游代码（wx=Apple、wb=WeChat…），常用缩写要写进别名。清空中文名 / 别名后，之后的目录同步不会再用种子填回去。</div>
             <div className="flex gap-2">
               <Button
                 size="sm"
@@ -929,11 +996,11 @@ function CountriesPanel({ onChanged }: { onChanged: () => void }) {
                     <td className="py-1 pr-2">{c.id}</td>
                     <td className="pr-2">{c.nameEn}</td>
                     <td className="pr-2">
-                      {c.nameCn ?? <span className="text-gray-300">—</span>}
+                      {c.nameCn || <span className="text-gray-300">—</span>}
                       {c.nameLocked && <span className="ml-1 text-gray-400">（固定）</span>}
                     </td>
                     <td className="pr-2">
-                      {c.iso2 ?? '—'} {c.flag ? '' : <span className="text-gray-400">（无旗帜）</span>}
+                      {c.iso2 || '—'} {c.flag ? '' : <span className="text-gray-400">（无旗帜）</span>}
                     </td>
                     <td className="pr-2">{c.dialCode ? `+${c.dialCode}` : '—'}</td>
                     <td className="pr-2">{c.status === 'OFF' ? <span title={c.offNote ?? ''} className="text-red-600">OFF</span> : 'ON'}</td>
@@ -1054,6 +1121,9 @@ function OperatorsPanel() {
 function HoldsPanel({ onChanged }: { onChanged: () => void }) {
   const list = useApi<{ list: { key: string; until: string | null; reason: string; source: string; note: string | null; active: boolean; createdAt: string }[] }>('/api/admin/jiema/holds')
   const [form, setForm] = useState({ key: '', note: '', until: '' })
+  // 同一范围已有生效中的停售：表单里直接显示（自动停售不能被手动停售覆盖；手动停售只能延长，服务端 adminHoldConflict 同样拒绝）
+  const typedKey = canonicalHoldKey(form.key)
+  const existing = typedKey ? (list.data?.list ?? []).find((h) => h.key === typedKey && h.active) ?? null : null
   const add = async () => {
     const r = await send('POST', '/api/admin/jiema/holds', { key: form.key, note: form.note, until: form.until ? new Date(form.until).toISOString() : null })
     if (!r.ok) return window.alert(r.data?.error || '保存失败')
@@ -1115,6 +1185,12 @@ function HoldsPanel({ onChanged }: { onChanged: () => void }) {
           <Button size="sm" onClick={add}>
             停售
           </Button>
+          {existing && (
+            <div className="w-full text-xs text-amber-700">
+              {existing.key} 已有生效中的{existing.source === 'ADMIN' ? '手动' : '自动'}停售（{existing.reason}，{existing.until ? `到 ${fmt(existing.until)}` : '需要手动解除'}）：
+              {existing.source === 'ADMIN' ? '只能延长或改成手动解除，不能缩短。' : '手动停售不能覆盖它，要改请先「解除」。'}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -1193,12 +1269,15 @@ function setPath(o: Record<string, any>, p: string, v: unknown): Record<string, 
 function SettingsTab({ cfg, cfgErr, onSaved }: { cfg: ConfigResp | null; cfgErr: string | null; onSaved: () => void }) {
   const [draft, setDraft] = useState<SmsConfig | null>(null)
   const [hot, setHot] = useState('')
+  /** 数字输入框的原文（按字段路径）；没有就显示草稿里的值 */
+  const [texts, setTexts] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [msg, setMsg] = useState<string | null>(null)
   useEffect(() => {
     const base = cfg?.config ?? null
     setDraft(base)
     setHot((base?.hotServices ?? []).join(','))
+    setTexts({})
     setErrors({})
   }, [cfg])
   if (cfgErr) return <div className="text-red-600">{cfgErr}</div>
@@ -1209,7 +1288,7 @@ function SettingsTab({ cfg, cfgErr, onSaved }: { cfg: ConfigResp | null; cfgErr:
         <CardContent className="space-y-3 py-5 text-sm">
           <div className="text-red-600">sms_config 读取失败（{cfg.reason}）：接码按关闭处理（fail-closed，不回落出厂值）。</div>
           {cfg.errors && <pre className="whitespace-pre-wrap text-xs text-gray-600">{JSON.stringify(cfg.errors, null, 2)}</pre>}
-          <Button size="sm" onClick={() => { setDraft({ ...cfg.factory }); setHot(cfg.factory.hotServices.join(',')) }}>
+          <Button size="sm" onClick={() => { setDraft({ ...cfg.factory }); setHot(cfg.factory.hotServices.join(',')); setTexts({}) }}>
             填入出厂值
           </Button>
         </CardContent>
@@ -1261,11 +1340,12 @@ function SettingsTab({ cfg, cfgErr, onSaved }: { cfg: ConfigResp | null; cfgErr:
                         <span className="w-64 text-gray-600">{fs.label}</span>
                         <input
                           className={`${inputCls} w-24`}
-                          value={String(v ?? '')}
+                          inputMode={fs.kind === 'num' ? 'decimal' : 'numeric'}
+                          value={texts[fs.path] ?? String(v ?? '')}
                           onChange={(e) => {
-                            const raw = e.target.value.trim()
-                            const n = raw === '' ? NaN : Number(raw)
-                            setDraft(setPath(draft as unknown as Record<string, any>, fs.path, Number.isFinite(n) ? n : raw) as unknown as SmsConfig)
+                            const raw = e.target.value
+                            setTexts((t) => ({ ...t, [fs.path]: raw }))
+                            setDraft(setPath(draft as unknown as Record<string, any>, fs.path, settingsNumberValue(raw)) as unknown as SmsConfig)
                           }}
                         />
                       </>

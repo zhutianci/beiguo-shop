@@ -18,7 +18,7 @@ import { z } from 'zod'
 import { prisma } from '../db'
 import { notify } from '../notify'
 // 零依赖的共享模块（只依赖 zod，不在 lib/jiema/ 下）：规则 17 不许 lib/wallet 静态 import lib/jiema
-import { SMS_CONFIG_KEY, jiemaPublicOpen, parseSmsConfigRaw } from '../jiema-config-schema'
+import { SMS_CONFIG_KEY, JIEMA_ORDER_AVAILABLE, jiemaPublicOpen, parseSmsConfigRaw } from '../jiema-config-schema'
 
 /** 单笔充值的硬上界 ¥1,000（D36）。wallet_config.maxCents 不得超过它 */
 export const MAX_TOPUP_CENTS = 100_000
@@ -242,12 +242,14 @@ export function topupOpenFor(cfg: WalletConfig | null, isAdmin: boolean, availab
  * 【S1 已收口 B0 的已知限制】原来只读 enabled / audience 两个字段，sms_config「这两个字段对、其余字段坏」时接码已 fail-closed 停售、
  * 这里却仍返回 true。现在 schema 在零依赖的共享模块 lib/jiema-config-schema.ts（不 import lib/jiema 的其余部分，规则 17 照样成立），
  * 这里与导航、sitemap 用同一个 jiemaPublicOpen 判定：sms_config 校验不过 → false；S2 交付前（JIEMA_ORDER_AVAILABLE=false）恒为 false。
+ * orderAvailable 默认取代码常量（与 jiemaPublicOpen、topupOpenFor 同一做法）；这个参数只给测试用：常量为 false 时，
+ * 「余额支付急停 / 受众仅管理员 / 配置坏了 → false」这些断言要在 orderAvailable=true 下测，否则全被常量短路、测不到东西（S1 评审修复）。
  */
-export async function canUseForJiema(walletRead?: WalletConfigRead): Promise<boolean> {
+export async function canUseForJiema(walletRead?: WalletConfigRead, orderAvailable: boolean = JIEMA_ORDER_AVAILABLE): Promise<boolean> {
   try {
     const [w, s] = await Promise.all([walletRead ?? readWalletConfig(), prisma.setting.findUnique({ where: { key: SMS_CONFIG_KEY } })])
     if (!w.ok || !w.config.balancePayEnabled || !s?.value) return false
-    return jiemaPublicOpen(parseSmsConfigRaw(s.value))
+    return jiemaPublicOpen(parseSmsConfigRaw(s.value), orderAvailable)
   } catch {
     return false
   }

@@ -60,10 +60,19 @@ export const OFFERS_STALE_MS = 5 * 60_000
 export const OFFERS_USABLE_MS = 60 * 60_000
 /** refreshingAt 单飞占用超过这么久视为上一次刷新的进程死了 */
 const REFRESH_CLAIM_MS = 90_000
-/** 服务多久没在上游列表里出现就不再列出（容忍一两次静态同步失败） */
-const SERVICE_SEEN_WITHIN_MS = 3 * 86400_000
+/**
+ * 服务比「最近一次成功拉到的上游服务列表」早这么久没出现，就不再列出（容忍上游列表一两天的抖动）。
+ * 基准是最近一次成功的列表（全部服务 seenAt 的最大值），**不是现在**：静态同步一直失败时基准不动，已列出的服务不会过 3 天全部消失（S1 评审修复）。
+ */
+export const SERVICE_SEEN_WITHIN_MS = 3 * 86400_000
 /** 目录超过这么久没同步成功 → sms.alert（§7.7） */
 export const CATALOG_STALE_ALERT_MS = 60 * 60_000
+/**
+ * 静态目录（服务 / 国家 / 运营商）超过这么久没同步成功 → sms.alert（CATALOG_STATIC_STALE）。
+ * 与 staticDue 的 26 小时兜底同一个数：每天 04 点那一小时全部失败后，第一次兜底重试仍失败就推（S1 评审修复：
+ * 原来只要 getPrices 成功 catalogAt 就刷新，静态同步一直失败永远不告警）。
+ */
+export const STATIC_STALE_ALERT_MS = 26 * 3600_000
 /** 第 ② 层每个国家最多存几档 */
 const MAX_TIERS = 12
 
@@ -619,6 +628,48 @@ export function resetCatalogCachesForTest(): void {
   sumsCheckedAt = 0
   snapshot = null
   quoteCache.clear()
+  lastListed = null
+}
+
+// ───────────────────────── 目录成员：服务还在上游列表里吗 ─────────────────────────
+
+/** 纯函数：服务「还在上游目录里」的 seenAt 下限 = min(最近一次成功的上游列表, 现在) − 3 天 */
+export function serviceSeenCutoffFrom(lastListedAt: Date | null, now: Date): Date {
+  const ref = lastListedAt && lastListedAt.getTime() < now.getTime() ? lastListedAt.getTime() : now.getTime()
+  return new Date(ref - SERVICE_SEEN_WITHIN_MS)
+}
+
+/** 最近一次成功拉到上游服务列表的时间（= 全部服务 seenAt 的最大值：每次成功的列表同步都把列出的服务 seenAt 写成当时）；进程内 60 秒 */
+let lastListed: { checkedAt: number; at: Date | null } | null = null
+async function lastListedAt(): Promise<Date | null> {
+  if (lastListed && Date.now() - lastListed.checkedAt < 60_000) return lastListed.at
+  const agg = await prisma.smsService.aggregate({ _max: { seenAt: true } })
+  lastListed = { checkedAt: Date.now(), at: agg._max.seenAt ?? null }
+  return lastListed.at
+}
+
+export async function serviceSeenCutoff(now: Date): Promise<Date> {
+  return serviceSeenCutoffFrom(await lastListedAt(), now)
+}
+
+/** 纯函数：服务代码与国家 id 的格式（上游客户端对不合法的直接抛 TypeError，报价前先挡掉） */
+export function catalogCodesValid(service: unknown, country: unknown): boolean {
+  return typeof service === 'string' && SERVICE_CODE_RE.test(service) && typeof country === 'number' && Number.isInteger(country) && country >= 0 && country <= 999
+}
+
+/**
+ * 这个组合在我们的目录里吗（quote 与 S2 下单的 checkSellable 共用，S1 评审修复）：代码格式对、不是目录排除的 full、
+ * sms_services 有这一行且最近一次上游列表里出现过（与列表同一个 serviceSeenCutoff）、sms_countries 有这一行。
+ * **status=OFF 不在这里判**：手动下架走 gate（comboBlock → 409 HOLD「这个组合暂停销售」，§1.14），这里只回答「目录里有没有」。
+ */
+export async function catalogPresence(service: string, country: number, now: Date = new Date()): Promise<boolean> {
+  if (!catalogCodesValid(service, country) || EXCLUDED_SERVICES.has(service)) return false
+  const [svc, ctry, cutoff] = await Promise.all([
+    prisma.smsService.findUnique({ where: { code: service }, select: { seenAt: true } }),
+    prisma.smsCountry.findUnique({ where: { id: country }, select: { id: true } }),
+    serviceSeenCutoff(now),
+  ])
+  return !!svc && !!ctry && svc.seenAt.getTime() >= cutoff.getTime()
 }
 
 // ───────────────────────── 列表：服务目录快照 ─────────────────────────
@@ -686,6 +737,7 @@ const SNAPSHOT_MS = 60_000
 export function invalidateCatalogSnapshot(): void {
   snapshot = null
   sumsCheckedAt = 0
+  lastListed = null
 }
 
 /**
@@ -696,9 +748,10 @@ export function invalidateCatalogSnapshot(): void {
 export async function catalogSnapshot(cfg: SmsConfig, now: Date = new Date()): Promise<CatalogSnapshot> {
   if (snapshot && now.getTime() - snapshot.at < SNAPSHOT_MS && snapshot.version === cfg.version) return snapshot.value
   await refreshSummaries()
+  const cutoff = await serviceSeenCutoff(now)
   const [rows, gate, state] = await Promise.all([
     prisma.smsService.findMany({
-      where: { status: 'ON', seenAt: { gte: new Date(now.getTime() - SERVICE_SEEN_WITHIN_MS) } },
+      where: { status: 'ON', seenAt: { gte: cutoff } },
       orderBy: [{ popRank: 'asc' }, { code: 'asc' }],
       select: { code: true, nameEn: true, nameCn: true, aliases: true, hotRank: true },
     }),
@@ -795,8 +848,11 @@ export function refreshTriggerAllowed(needsRefresh: boolean, userId: number | nu
 
 export async function catalogCountries(service: string, cfg: SmsConfig, now: Date = new Date()): Promise<CountryListResult | null> {
   if (!SERVICE_CODE_RE.test(service)) return null
-  const svc = await prisma.smsService.findUnique({ where: { code: service }, select: { code: true, nameEn: true, nameCn: true, status: true, seenAt: true } })
-  if (!svc || svc.status !== 'ON' || now.getTime() - svc.seenAt.getTime() > SERVICE_SEEN_WITHIN_MS) return null
+  const [svc, cutoff] = await Promise.all([
+    prisma.smsService.findUnique({ where: { code: service }, select: { code: true, nameEn: true, nameCn: true, status: true, seenAt: true } }),
+    serviceSeenCutoff(now),
+  ])
+  if (!svc || svc.status !== 'ON' || svc.seenAt.getTime() < cutoff.getTime()) return null
   const [gate, state, offers] = await Promise.all([loadGateData(), readCatalogState(), loadOffersRow(service)])
   const degraded = state.pricesFails >= PRICES_DEGRADE_AFTER
   const offersAge = offers ? now.getTime() - offers.fetchedAt : Infinity
@@ -838,9 +894,9 @@ export async function catalogCountries(service: string, cfg: SmsConfig, now: Dat
         id: c.id,
         name: c.nameCn || c.nameEn,
         en: c.nameEn,
-        iso2: c.iso2,
+        iso2: c.iso2 || null,
         flag: flagOf(c.id, c.iso2),
-        dial: c.dialCode,
+        dial: c.dialCode || null,
         priceCents: price ? price.priceCents : null,
         approx: !useOffers,
         stock,
@@ -904,16 +960,20 @@ const QUOTE_TTL_MS = 60_000
 
 export type QuoteResult =
   | { ok: true; costMicro: number; priceCents: number; capMicro: number; markupCents: number; tolerancePct: number; ruleKey: string | null; configVersion: number; saleCoef4: number; costFx4: number }
-  | { ok: false; code: 'SOLD_OUT' | 'QUOTE_FAILED' | 'HOLD' | 'MAINTENANCE' }
+  | { ok: false; code: 'SOLD_OUT' | 'QUOTE_FAILED' | 'HOLD' | 'MAINTENANCE' | 'NOT_FOUND' }
 
 /**
  * 实时报价（锁价用，§4.2、D22 第 ③ 层）：拉这个组合的 offers（进程内 60 秒），报价成本同 §4.2，售价走同一个 salePriceCents。
  * 没货（404 或 cap 内没有档位）→ SOLD_OUT 并把第 ② 层标脏（E6，不停售组合）。gate 只查列表层 ①–④（S2 在下单时另查 ⑤⑥）。
+ * 【只报目录里的组合】（S1 评审修复）代码格式不对 → NOT_FOUND（不抛异常）；gate 判停售 → HOLD / MAINTENANCE（手动下架也在这里）；
+ * 不在目录里（full 租号、上游列表里 3 天没出现的服务、没同步过的服务或国家）→ NOT_FOUND，**不打上游**。S2 把 NOT_FOUND 映射成 404。
  */
 export async function quote(service: string, country: number, cfg: SmsConfig, now: Date = new Date()): Promise<QuoteResult> {
+  if (!catalogCodesValid(service, country)) return { ok: false, code: 'NOT_FOUND' }
   const gate = await loadGateData()
   const block = comboBlock(gate, service, country, now, cfg)
   if (block) return { ok: false, code: block.code }
+  if (!(await catalogPresence(service, country, now))) return { ok: false, code: 'NOT_FOUND' }
   const key = `${service}:${country}`
   let hit = quoteCache.get(key)
   if (!hit || now.getTime() - hit.at >= QUOTE_TTL_MS) {
@@ -1031,6 +1091,15 @@ export async function runCatalogJob(opts: { forceStatic?: boolean; skipPrices?: 
         { label: '最近成功', value: state.catalogAt ?? '从未' },
         { label: '错误', value: (state.lastError ?? '—').slice(0, 200) },
         { label: '影响', value: '列表价格可能过期；下单时以实时报价为准' },
+      ])
+    }
+    // 静态目录（服务 / 国家 / 运营商）单独判：getPrices 成功会刷新 catalogAt，上面那条盖不住「静态同步一直失败」
+    const staticOk = state.staticAt ? Date.parse(state.staticAt) : 0
+    if (out.static && !out.static.ok && now.getTime() - staticOk > STATIC_STALE_ALERT_MS) {
+      smsAlert('CATALOG_STATIC_STALE', '服务 / 国家目录超过 26 小时没同步成功', [
+        { label: '最近成功', value: state.staticAt ?? '从未' },
+        { label: '错误', value: out.static.errors.join('；').slice(0, 200) || '—' },
+        { label: '影响', value: '服务 / 国家名称与运营商不再更新、上游新增的服务不会出现；已列出的服务照常可见（以最近一次成功的列表为准）' },
       ])
     }
     if (state.pricesFails === PRICES_DEGRADE_AFTER) {

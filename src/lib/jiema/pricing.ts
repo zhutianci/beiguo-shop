@@ -204,6 +204,32 @@ export function parseScopeKey(k: string): { service: string | null; country: num
   return { service: m[1] === '*' ? null : m[1], country }
 }
 
+/**
+ * 规范写法（存库只存这个）：国家号去掉前导零（'tg:06' → 'tg:6'、'*:003' → '*:3'）。
+ * resolveRule 按 `${service}:${country}` 精确查键，存成 'tg:06' 的规则永远匹配不上（S1 评审修复）。不合法 → null。
+ */
+export function canonicalScopeKey(k: string): string | null {
+  const p = parseScopeKey(k)
+  if (!p) return null
+  return `${p.service ?? '*'}:${p.country == null ? '*' : String(p.country)}`
+}
+
+/** 手动停售能写的范围（sms_holds.key；threads 不是停售，不能手动写）。放在这个零依赖模块里，后台页面也能用 */
+export const HOLD_KEY_RE = /^(global|svc:[a-z0-9]{2,4}|country:\d{1,3}|combo:[a-z0-9]{2,4}:\d{1,3})$/
+
+/**
+ * 纯函数：停售范围的规范写法（国家号去掉前导零：'country:03' → 'country:3'、'combo:dr:087' → 'combo:dr:87'）。
+ * comboBlock 按 `country:${country}` 精确查键，存成 'country:03' 的停售永远不生效（S1 评审修复）。不合法 → null。
+ */
+export function canonicalHoldKey(raw: string): string | null {
+  const k = raw.trim().toLowerCase()
+  if (!HOLD_KEY_RE.test(k)) return null
+  const parts = k.split(':')
+  if (parts[0] === 'country') return `country:${Number(parts[1])}`
+  if (parts[0] === 'combo') return `combo:${parts[1]}:${Number(parts[2])}`
+  return k
+}
+
 /** 优先级从高到低：服务:国家 > 服务:* > *:国家 */
 export function ruleKeysFor(service: string, country: number): [string, string, string] {
   return [`${service}:${country}`, `${service}:*`, `*:${country}`]
@@ -271,6 +297,50 @@ export function priceCombo(
   const priceCents = salePriceCents(costMicro, { saleCoef4: cfg.saleCoef4, markupCents: rule.markupCents, minPriceCents: cfg.minPriceCents, rounding: cfg.rounding })
   const cap = capMicro(costMicro, priceCents, { costFx4: cfg.costFx4, tolerancePct: rule.tolerancePct, minMarginCents: cfg.minMarginCents })
   return { costMicro, priceCents, capMicro: cap, markupCents: rule.markupCents, tolerancePct: rule.tolerancePct, ruleKey: rule.ruleKey }
+}
+
+// ───────────────────────── 0.8 规则的保存前核对（D13、Q1、§7.3） ─────────────────────────
+
+/** 0.8 规则只管这两个服务（新板块不能比旧的 Codex / Claude 单品便宜太多） */
+export const LEGACY_GUARDED_SERVICES: readonly string[] = Object.freeze(['dr', 'acz'])
+
+export interface LegacyCheckRow {
+  service: string
+  country: number
+  costMicro: number
+  legacy: { priceCents: number } | null
+}
+
+export interface LegacyFailure {
+  service: string
+  country: number
+  priceCents: number
+  legacyCents: number
+}
+
+/**
+ * 纯函数：按一份（草稿）配置与（草稿）规则，列出 dr / acz 里低于旧单品 × 0.8 的组合。
+ * 调用方必须传 **dr、acz 的全部组合**（后台保存前单独拉 ?service=dr / ?service=acz，不受预览筛选影响，S1 评审修复）。
+ * 没有旧单品对照的、被 disabled 规则停售的（不卖就不会比旧单品便宜）跳过；某一行算不出价（配置不合法）也跳过，不抛异常。
+ */
+export function legacyRatioFailures(
+  rows: readonly LegacyCheckRow[],
+  rules: ReadonlyMap<string, PriceRuleLike> | readonly PriceRuleLike[],
+  cfg: PricingConfigLike,
+): LegacyFailure[] {
+  const out: LegacyFailure[] = []
+  for (const r of rows) {
+    if (!r.legacy || !LEGACY_GUARDED_SERVICES.includes(r.service)) continue
+    try {
+      const rule = resolveRule(rules, r.service, r.country, cfg)
+      if (rule.disabled) continue
+      const p = priceCombo(r.costMicro, rule, cfg)
+      if (p && !meetsLegacyRatio(p.priceCents, r.legacy.priceCents)) out.push({ service: r.service, country: r.country, priceCents: p.priceCents, legacyCents: r.legacy.priceCents })
+    } catch {
+      /* 草稿配置不合法：这一行不参与核对（保存时服务端会拒绝不合法的配置） */
+    }
+  }
+  return out
 }
 
 /** 整数分 → 「¥12.34」（零依赖；页面与预览用） */

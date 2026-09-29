@@ -11,8 +11,9 @@
  * 服务表用的是上游 getServicesList 的真实代码与英文名（调研 §1.6、resp_getServicesList.txt 核对的撞车样例），
  * 中文名与别名按目录同步的同一个函数（seedForService）从种子 JSON 填进去——测的就是线上会用的那份种子。
  */
-import { searchServices, normalize, effectiveQuery, searchCountries, scoreCountry, scoreService, dlDistance, nameTokens, type SearchableService } from '../src/lib/jiema/search'
+import { searchServices, normalize, effectiveQuery, searchCountries, scoreCountry, scoreService, dlDistance, nameTokens, serviceTokens, toSearchable, type SearchableService } from '../src/lib/jiema/search'
 import { seedForService, countrySeed, forcedCountryName } from '../src/lib/jiema/catalog'
+import { toCatalogService, type CatalogService } from '../src/lib/jiema/dto'
 
 let passed = 0
 let failed = 0
@@ -176,6 +177,38 @@ console.log('\n【国家/地区搜索（§1.6）】')
   ok(top('台湾')[0] === 55 && top('中国台湾')[0] === 55 && top('香港')[0] === 14 && top('澳门')[0] === 20, '「中国台湾 / 中国香港 / 中国澳门」按中文名能搜到（D44）')
   ok(top('中国').includes(3) && top('中国')[0] === 3, '「中国」→ 中国（+86）排第一，照常可买（D25）')
   ok(searchCountries('', list).length === list.length, '空查询 → 全部')
+}
+
+console.log('\n【S1 评审修复：页面真正交给搜索的是目录 DTO（中文名在 name 里）】')
+{
+  // 与 catalogSnapshot 同一个构造：name = 中文名 || 英文名、aliases = 别名；DTO 里没有 cn
+  const dto = (code: string, name: string, en: string, aliases: string[], hot: number | null = null): CatalogService =>
+    toCatalogService({ code, name, en, aliases, hot, fromCents: 170, approx: false, level: 'OK' })
+  const svcs = [
+    dto('tg', '电报', 'Telegram', ['tg', '电报'], 3),
+    dto('li2', '领英', 'LinkedIn', []), // 后台新填的中文名、别名留空
+    dto('dy', 'Zomato 外卖', 'Zomato', []),
+    dto('ot', '其他服务', 'Any other', ['其他', '任意', '不在列表']),
+    dto('xx', 'Plain', 'Plain', []), // 没有中文名：name = en
+  ]
+  ok(!('cn' in svcs[1]), '目录 DTO 本身没有 cn 字段（原来的 bug：searchServices 读 cn，永远是 undefined）')
+  ok(searchServices('领英', svcs).length === 0, '  …直接拿 DTO 去搜「领英」：0 条（复现评审的问题）')
+  const S = toSearchable(svcs)
+  const tok = new Map(S.map((s) => [s, serviceTokens(s)] as const))
+  const hit = (q: string) => searchServices(q, S, { tokens: tok }).map((h) => h.item.code)
+  ok(hit('领英')[0] === 'li2' && hit('linkedin')[0] === 'li2', 'toSearchable 之后：后台填的中文名「领英」能搜到，英文名照常')
+  ok(hit('外卖')[0] === 'dy' && hit('zomato')[0] === 'dy', '「Zomato 外卖」按中文名的词能搜到')
+  ok(hit('其他服务')[0] === 'ot', '显示名「其他服务」能搜到（原来别名里只有 其他 / 任意 / 不在列表）')
+  ok(S[4].cn === null && hit('plain')[0] === 'xx', '没有中文名的（name = en）不重复收')
+  ok(S.every((s, i) => s.pop === i + 1) && S[0].code === 'tg' && S[0].fromCents === 170, 'pop = 人气顺序（数组下标）；其余字段原样保留，结果可以直接当 CatalogService 用')
+  // 与种子目录一起：把 LIST（带 cn 的手工形状）改成真实 DTO 形状，结果不变
+  const asDto = LIST.map((s) => dto(s.code, s.cn || s.en, s.en, (s.aliases ?? []).slice(), s.hot ?? null))
+  const S2 = toSearchable(asDto)
+  let diff = 0
+  for (const q of ['电报', '微信', 'wx', 'dy', '抖音', 'zfb', 'wb', '微博', 'bd', '百度', 'chatgpt', 'telgram', '其他']) {
+    if ((searchServices(q, S2)[0]?.item.code ?? null) !== first(q)) diff++
+  }
+  ok(diff === 0, '种子目录走真实 DTO 形状（toCatalogService → toSearchable）时，上面各条查询排第一的服务不变')
 }
 
 console.log(`\n通过 ${passed} 条，失败 ${failed} 条`)

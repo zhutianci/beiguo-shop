@@ -371,10 +371,11 @@ export async function startMockHeroSms(opts: StartOptions = {}): Promise<MockHan
   }
   addFaults(opts.faults ?? [])
 
-  function takeFault(action: string, status?: number): ActiveFault | null {
+  /** exactOnly：只认 action 完全相同的故障（不吃 '*'）——目录三个免 key 接口用它，别的用例的 '*' 故障不会误伤目录同步 */
+  function takeFault(action: string, status?: number, exactOnly = false): ActiveFault | null {
     for (const f of faults) {
       if (f.left <= 0) continue
-      if (f.action !== '*' && f.action !== action) continue
+      if (f.action !== action && (exactOnly || f.action !== '*')) continue
       if (f.status !== undefined && status !== undefined && f.status !== status) continue
       if (f.status !== undefined && status === undefined) continue
       if (f.skipLeft > 0) {
@@ -680,7 +681,8 @@ export async function startMockHeroSms(opts: StartOptions = {}): Promise<MockHan
       if (!keyOk) return errJson(401, 'BAD_KEY', 'Unauthorized')
     }
     const statusParam = action === 'setStatus' ? Number(q.get('status')) : action === 'cancelActivation' ? 8 : action === 'finishActivation' ? 6 : undefined
-    const f = noKeyActions.includes(action) ? null : takeFault(action, statusParam)
+    // 免 key 的目录接口也能注入故障，但只认点名的（S1 评审修复：测「静态目录一直失败」）
+    const f = noKeyActions.includes(action) ? takeFault(action, undefined, true) : takeFault(action, statusParam)
     if (f) {
       entry.fault = f.kind
       const bought = f.bought ?? BOUGHT_DEFAULT[f.kind] ?? false

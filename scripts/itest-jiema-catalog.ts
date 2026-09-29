@@ -23,6 +23,10 @@
  *   · 后台接口：adminGuard（普通用户 403）、配置保存（x < 成本汇率要二次确认、乐观并发）、规则 / 服务 / 国家 / 停售 / 运营商显示名的校验与审计
  *   · getPrices 连续失败 3 次 → 降级（有 offers 的照常、其余「起价以实际为准」）+ 推送；目录超过 60 分钟没同步成功 → sms.alert
  *   · cron 路由：没有密钥拒绝、有密钥跑一趟
+ *   · S1 评审修复：quote 只报目录里的组合（full / 上游列表里消失的服务 / 格式不对 → NOT_FOUND，不打上游、不抛异常；手动下架 → HOLD）；
+ *     手动停售不能覆盖 / 缩短生效中的停售、范围与规则按规范写法存（country:03 → country:3）；后台清空中文名 / 别名后同步不再填回；
+ *     CSV 原样导回不算改动、每条真实改动都写审计；静态目录一直失败 → CATALOG_STATIC_STALE、服务不会过 3 天全部消失；
+ *     预取（?pf=1）不触发上游刷新；三个目录接口各自一个限流桶；canUseForJiema 在 orderAvailable=true 下逐项断言
  */
 import http from 'http'
 import React from 'react'
@@ -353,6 +357,44 @@ async function main() {
     const q5 = await catalog.quote('ig', 6, await readCfg())
     check('没货的组合报价 → SOLD_OUT（并把第 ② 层标脏）', !q5.ok && q5.code === 'SOLD_OUT')
 
+    section('S1 评审修复：quote 只报目录里的组合（full、上游列表里消失的服务、格式不对的代码）')
+    {
+      const cfgQ = await readCfg()
+      const tryQuote = (svc: string, c: number) => catalog.quote(svc, c, cfgQ).catch((e) => ({ ok: false as const, code: `THROW:${(e as Error).message}` }))
+      catalog.resetCatalogCachesForTest()
+      const before = offersCalls()
+      const qFull = await tryQuote('full', 6)
+      check('full（租号，目录排除；上游照样有报价）→ NOT_FOUND，不打上游', !qFull.ok && qFull.code === 'NOT_FOUND' && offersCalls() === before, JSON.stringify(qFull))
+      const qBad = await tryQuote('ABCDE', 6)
+      const qBig = await tryQuote('tg', 1000)
+      const qFrac = await tryQuote('tg', 6.5)
+      check('代码格式不对（ABCDE、国家 1000、6.5）→ NOT_FOUND，不抛异常（原来上游客户端抛 TypeError → 500）', [qBad, qBig, qFrac].every((q) => !q.ok && q.code === 'NOT_FOUND'), JSON.stringify([qBad, qBig, qFrac]))
+      const qNoC = await tryQuote('tg', 777)
+      check('没同步过的国家/地区（777）→ NOT_FOUND', !qNoC.ok && qNoC.code === 'NOT_FOUND')
+      check('  …以上都没有打上游', offersCalls() === before)
+      const qRe = await tryQuote('re', 187)
+      check('对照：re/187（Coinbase）正常报价', qRe.ok === true, JSON.stringify(qRe))
+      // re 比最近一次成功的上游列表早 4 天以上没出现（上游不再列出它）→ 列表隐藏，报价也不给
+      const maxSeen = (await hp.smsService.aggregate({ _max: { seenAt: true } }))._max.seenAt as Date
+      const reSeen = (await hp.smsService.findUnique({ where: { code: 're' } }))!.seenAt
+      await hp.smsService.update({ where: { code: 're' }, data: { seenAt: new Date(maxSeen.getTime() - 4 * 86400_000) } })
+      catalog.resetCatalogCachesForTest()
+      const b2 = offersCalls()
+      const qHidden = await tryQuote('re', 187)
+      const snapHid = await catalog.catalogSnapshot(cfgQ)
+      check('上游列表里 3 天以上没出现的服务（re）：列表不出现、国家列表 404、报价 NOT_FOUND（不打上游）', !snapHid.services.some((x) => x.code === 're') && (await catalog.catalogCountries('re', cfgQ)) === null && !qHidden.ok && qHidden.code === 'NOT_FOUND' && offersCalls() === b2, JSON.stringify(qHidden))
+      await hp.smsService.update({ where: { code: 're' }, data: { seenAt: reSeen } })
+      // 手动下架仍按 §1.14 走 HOLD（「这个组合暂停销售」），不是 NOT_FOUND
+      await hp.smsService.update({ where: { code: 're' }, data: { status: 'OFF', offNote: 'itest' } })
+      catalog.resetCatalogCachesForTest()
+      const qOff = await tryQuote('re', 187)
+      check('手动下架的服务 → HOLD（§1.14「这个组合暂停销售」），不是 NOT_FOUND', !qOff.ok && qOff.code === 'HOLD', JSON.stringify(qOff))
+      await hp.smsService.update({ where: { code: 're' }, data: { status: 'ON', offNote: null } })
+      catalog.resetCatalogCachesForTest()
+      check('  …恢复后照常报价', (await tryQuote('re', 187)).ok === true)
+      check('catalogPresence：full / 格式不对 / 没有这一行 → false；re/187 → true', !(await catalog.catalogPresence('full', 6)) && !(await catalog.catalogPresence('ABCDE', 6)) && !(await catalog.catalogPresence('tg', 777)) && (await catalog.catalogPresence('re', 187)))
+    }
+
     section('0.8 规则（D13、Q1）：定价页预览带旧单品对照')
     const cat = await hp.category.create({ data: { name: `${NAME_PREFIX}-jiema`, sortOrder: 1, status: 1 } })
     await hp.product.create({ data: { categoryId: cat.id, name: `${NAME_PREFIX} Codex 美区`, price: '12.00', stock: -1, status: 1, deliveryType: 'SMS', smsService: 'dr', smsCountry: '187' } })
@@ -426,15 +468,49 @@ async function main() {
     await hp.smsHold.delete({ where: { key: 'global' } })
     catalog.resetCatalogCachesForTest()
 
+    section('S1 评审修复：手动停售不能覆盖 / 缩短生效中的停售；范围与规则按规范写法存')
+    {
+      const holdPost = (body: Record<string, unknown>) => callRoute(routes.aHolds.POST, { ...asAdmin, method: 'POST', path: '/api/admin/jiema/holds', body })
+      await hp.smsHold.create({ data: { key: 'global', reason: 'CURRENCY', source: 'AUTO' } })
+      const hG = await holdPost({ key: 'global', note: '提醒自己看一下', until: new Date(Date.now() + 3600_000).toISOString() })
+      const gRow = await hp.smsHold.findUnique({ where: { key: 'global' } })
+      check('生效中的自动停售（global CURRENCY、需要手动解除）→ 手动停售 400，原记录不变（不会变成 1 小时后自己到期）', hG.status === 400 && gRow?.reason === 'CURRENCY' && gRow.source === 'AUTO' && gRow.until === null, `${hG.status} ${hG.text.slice(0, 120)}`)
+      const hG2 = await holdPost({ key: 'GLOBAL', note: 'x' })
+      check('  …同一范围换个大小写、到期留空也一样拒绝', hG2.status === 400 && (await hp.smsHold.findUnique({ where: { key: 'global' } }))?.source === 'AUTO')
+      await hp.smsHold.delete({ where: { key: 'global' } })
+      const t2h = new Date(Date.now() + 2 * 3600_000)
+      const h1 = await holdPost({ key: 'svc:wb', note: 'itest 手动', until: t2h.toISOString() })
+      const h2 = await holdPost({ key: 'svc:wb', note: 'itest 缩短', until: new Date(Date.now() + 3600_000).toISOString() })
+      const wbHold = await hp.smsHold.findUnique({ where: { key: 'svc:wb' } })
+      check('生效中的手动停售：缩短 → 400，截止时间不变', h1.status === 200 && h2.status === 400 && wbHold?.until?.getTime() === t2h.getTime() && wbHold.note === 'itest 手动')
+      const h3 = await holdPost({ key: 'svc:wb', note: 'itest 改成手动解除' })
+      check('  …改成手动解除（更严）→ 200', h3.status === 200 && (await hp.smsHold.findUnique({ where: { key: 'svc:wb' } }))?.until === null)
+      await callRoute(routes.aHolds.DELETE, { ...asAdmin, method: 'DELETE', path: '/api/admin/jiema/holds?key=svc:wb' })
+      const h4 = await holdPost({ key: 'country:03', note: 'itest 前导零' })
+      catalog.resetCatalogCachesForTest()
+      const wb3 = await catalog.catalogCountries('wb', await readCfg())
+      check('country:03 → 存成 country:3，而且真的生效（wb 的中国 +86「暂停销售」）', h4.status === 200 && h4.json?.data?.hold?.key === 'country:3' && !(await hp.smsHold.findUnique({ where: { key: 'country:03' } })) && wb3?.countries.find((c) => c.id === 3)?.paused === '暂停销售')
+      const h4d = await callRoute(routes.aHolds.DELETE, { ...asAdmin, method: 'DELETE', path: '/api/admin/jiema/holds?key=country:03' })
+      check('  …「解除」按原样或规范写法都找得到', h4d.status === 200 && !(await hp.smsHold.findUnique({ where: { key: 'country:3' } })))
+      const r0 = await callRoute(routes.aRules.POST, { ...asAdmin, method: 'POST', path: '/api/admin/jiema/rules', body: { scopeKey: 'qq:03', markupCents: 300, note: 'itest 前导零' } })
+      catalog.resetCatalogCachesForTest()
+      const qq3 = await catalog.quote('qq', 3, await readCfg())
+      check('规则 qq:03 → 存成 qq:3，报价用上了它（ruleKey=qq:3、y=¥3.00）', r0.status === 200 && r0.json?.data?.rule?.scopeKey === 'qq:3' && qq3.ok && qq3.ruleKey === 'qq:3' && qq3.markupCents === 300, JSON.stringify(qq3))
+      await callRoute(routes.aRule.DELETE, { ...asAdmin, method: 'DELETE', path: `/api/admin/jiema/rules/${r0.json.data.rule.id}`, params: { id: String(r0.json.data.rule.id) } })
+      catalog.resetCatalogCachesForTest()
+    }
+
     // =====================================================================
     section('配置（§5.3）：fail-closed、保存校验、对谁开放')
     await setCfg(JSON.stringify({ enabled: true, audience: 'ALL' }))
     const adBroken = await callRoute(routes.catalog.GET, { ...asAdmin, path: '/api/jiema/catalog' })
     check('sms_config 只有 enabled / audience（校验不过）→ 管理员也 503 维护中', adBroken.status === 503 && adBroken.json?.error === '接码服务维护中，预计很快恢复')
-    await hp.setting.upsert({ where: { key: 'wallet_config' }, create: { key: 'wallet_config', value: JSON.stringify(walletCfg.FACTORY_WALLET_CONFIG) }, update: {} })
+    await hp.setting.upsert({ where: { key: 'wallet_config' }, create: { key: 'wallet_config', value: JSON.stringify(walletCfg.FACTORY_WALLET_CONFIG) }, update: { value: JSON.stringify(walletCfg.FACTORY_WALLET_CONFIG) } })
     check('  …canUseForJiema=false（S1 收口 B0 的已知限制）', (await walletCfg.canUseForJiema()) === false)
+    check('  …去掉常量短路（orderAvailable=true）也是 false：是 zod 校验拦下的，不是常量', (await walletCfg.canUseForJiema(undefined, true)) === false)
     await setCfg({ enabled: true, audience: 'ALL' })
     check('整份有效、enabled + ALL（手改库），但 S2 之前 → 仍不对全部用户开放', schema.JIEMA_ORDER_AVAILABLE === false && !schema.jiemaPublicOpen(await readCfg()) && (await walletCfg.canUseForJiema()) === false)
+    check('  …orderAvailable=true：整份有效 + enabled + ALL + 余额支付开 → true（S2 把常量改成 true 后就是这个结果）', (await walletCfg.canUseForJiema(undefined, true)) === true)
     const a2 = await callRoute(routes.catalog.GET, { ...anon, path: '/api/jiema/catalog' })
     check('  …匿名仍 503', a2.status === 503)
     // 前台外壳与 sitemap
@@ -494,6 +570,37 @@ async function main() {
     check('导出 CSV（带 BOM、表头）', csv.status === 200 && csv.ct?.startsWith('text/csv') === true && csv.bom && csv.text.startsWith('code,nameEn,nameCn,aliases,hotRank,status'), `${csv.status} ${csv.ct} ${JSON.stringify(csv.text.slice(0, 60))}`)
     const imp = await callRoute(routes.aServices.POST, { ...asAdmin, method: 'POST', path: '/api/admin/jiema/services', body: { csv: 'code,nameCn,aliases,hotRank\r\nkf,微博（新浪）,微博|weibo|wb,20\r\nzzzzz,x,,\r\n' } })
     check('导入 CSV：kf 改名与热门、非法代码跳过；写审计', imp.status === 200 && imp.json?.data?.updated === 1 && imp.json?.data?.skipped?.length === 1 && (await hp.smsService.findUnique({ where: { code: 'kf' } }))?.hotRank === 20)
+    {
+      // S1 评审修复：只算真正的改动；每条真实改动都写审计（原来整份导回会把没改的也算上、第 500 行之后不写审计）
+      const csvNow = (await admin.exportServicesCsv()).replace(/^\uFEFF/, '')
+      const nSvc = await hp.smsService.count()
+      const audit0 = await hp.auditEvent.count({ where: { action: 'jiema.service.csv' } })
+      const same = await callRoute(routes.aServices.POST, { ...asAdmin, method: 'POST', path: '/api/admin/jiema/services', body: { csv: csvNow } })
+      check('导出的 CSV 原样导回：updated=0、全部「没有改动」、不写审计', same.status === 200 && same.json?.data?.updated === 0 && same.json?.data?.unchanged === nSvc && (await hp.auditEvent.count({ where: { action: 'jiema.service.csv' } })) === audit0, same.text.slice(0, 200))
+      const rowsCsv = admin.parseCsv(csvNow)
+      const lastRow = rowsCsv[rowsCsv.length - 1].slice()
+      lastRow[2] = 'itest 最后一行改名'
+      const cell = (c: string) => (/[",\r\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)
+      const edited = [...rowsCsv.slice(0, -1), lastRow].map((r) => r.map(cell).join(',')).join('\r\n')
+      const one = await callRoute(routes.aServices.POST, { ...asAdmin, method: 'POST', path: '/api/admin/jiema/services', body: { csv: edited } })
+      check('只改最后一行的中文名：updated=1、恰好一条审计（targetId = 那一行）', one.status === 200 && one.json?.data?.updated === 1 && (await hp.auditEvent.count({ where: { action: 'jiema.service.csv' } })) === audit0 + 1 && (await hp.auditEvent.count({ where: { action: 'jiema.service.csv', targetId: lastRow[0] } })) === 1 && (await hp.smsService.findUnique({ where: { code: lastRow[0] } }))?.nameCn === 'itest 最后一行改名')
+      const blank = await callRoute(routes.aServices.POST, { ...asAdmin, method: 'POST', path: '/api/admin/jiema/services', body: { csv: 'code,nameCn,aliases\r\nkf,,\r\n' } })
+      check('中文名 / 别名空单元格 = 不改（kf 仍是「微博（新浪）」）', blank.status === 200 && blank.json?.data?.updated === 0 && (await hp.smsService.findUnique({ where: { code: 'kf' } }))?.nameCn === '微博（新浪）')
+      // 后台清空（存空串）→ 之后的同步不会用种子填回去（§5.4「不覆盖后台改过的内容」）
+      const a1 = await hp.auditEvent.count({ where: { action: 'jiema.service.update', targetId: 'kf' } })
+      const clr = await callRoute(routes.aService.PUT, { ...asAdmin, method: 'PUT', path: '/api/admin/jiema/services/kf', params: { code: 'kf' }, body: { nameCn: '', aliases: '' } })
+      const cc = await callRoute(routes.aCountry.PUT, { ...asAdmin, method: 'PUT', path: '/api/admin/jiema/countries/16', params: { id: '16' }, body: { dialCode: '' } })
+      await catalog.runCatalogJob({ forceStatic: true, warm: false })
+      const kfAfter = await hp.smsService.findUnique({ where: { code: 'kf' } })
+      check('后台清空 kf 的中文名与别名、英国的区号 → 下一次静态同步不填回种子', clr.status === 200 && cc.status === 200 && kfAfter?.nameCn === '' && kfAfter.aliases === '' && (await hp.smsCountry.findUnique({ where: { id: 16 } }))?.dialCode === '', JSON.stringify({ n: kfAfter?.nameCn, a: kfAfter?.aliases }))
+      catalog.resetCatalogCachesForTest()
+      const kfDto = (await catalog.catalogSnapshot(await readCfg())).services.find((x) => x.code === 'kf')
+      check('  …目录里按「没有中文名」显示（name = 英文名、别名为空）', kfDto?.name === 'Weibo' && kfDto.aliases.length === 0)
+      const again = await callRoute(routes.aService.PUT, { ...asAdmin, method: 'PUT', path: '/api/admin/jiema/services/kf', params: { code: 'kf' }, body: { nameCn: '', aliases: '' } })
+      check('  …再提交同样的值：没有改动、不写审计', again.status === 200 && again.json?.data?.changed === false && (await hp.auditEvent.count({ where: { action: 'jiema.service.update', targetId: 'kf' } })) === a1 + 1)
+      await callRoute(routes.aService.PUT, { ...asAdmin, method: 'PUT', path: '/api/admin/jiema/services/kf', params: { code: 'kf' }, body: { nameCn: '微博', aliases: '微博,weibo,wb' } })
+      await callRoute(routes.aCountry.PUT, { ...asAdmin, method: 'PUT', path: '/api/admin/jiema/countries/16', params: { id: '16' }, body: { dialCode: '44' } })
+    }
     const sList = await callRoute(routes.aServices.GET, { ...asAdmin, path: '/api/admin/jiema/services?search=wb' })
     check('服务列表搜索（代码 / 名字 / 别名）', sList.status === 200 && (sList.json?.data?.list as Array<{ code: string }>).some((s) => s.code === 'wb'))
     const syncOffers = await callRoute(routes.aCatalog.POST, { ...asAdmin, method: 'POST', path: '/api/admin/jiema/catalog', body: { part: 'offers', service: 'qq' } })
@@ -526,6 +633,55 @@ async function main() {
     await sleep(300)
     check('目录超过 60 分钟没同步成功 → sms.alert（CATALOG_STALE）', bodies.some((b) => b.includes('CATALOG_STALE')))
     await catalog.runCatalogJob({ warm: false })
+
+    section('S1 评审修复：静态目录一直失败 → 单独告警；服务不会因为「3 天没见」全部消失')
+    {
+      const FOUR_D = 4 * 86400_000
+      // 模拟：最近一次成功的服务列表是 4 天前（全部服务 seenAt、staticAt 都在 4 天前），之后 getServicesList 一直失败、getPrices 正常
+      await hp.smsService.updateMany({ data: { seenAt: new Date(Date.now() - FOUR_D) } })
+      const stS = await jcfg.readCatalogState()
+      await jcfg.writeCatalogState({ ...stS, staticAt: new Date(Date.now() - FOUR_D).toISOString() })
+      mock.setFaults([{ action: 'getServicesList', kind: 'http500', times: 0 }], true)
+      bodies.length = 0
+      alert.resetSmsAlertThrottleForTest()
+      const jS = await catalog.runCatalogJob({ warm: false })
+      await sleep(300)
+      check('静态同步失败、getPrices 成功（catalogAt 照常刷新）', !!jS.static && !jS.static.ok && jS.prices?.ok === true && !!jS.state.catalogAt && Date.now() - Date.parse(jS.state.catalogAt) < 60_000)
+      check('  …推 sms.alert（CATALOG_STATIC_STALE），不再被 getPrices 的成功盖住', bodies.some((b) => b.includes('CATALOG_STATIC_STALE')))
+      const ovS = await callRoute(routes.aOverview.GET, { ...asAdmin, path: '/api/admin/jiema/overview' })
+      check('  …后台概览 staticStale=true', ovS.json?.data?.catalog?.staticStale === true && ovS.json?.data?.catalog?.stale === false)
+      catalog.resetCatalogCachesForTest()
+      const cfgS = await readCfg()
+      const snapS = await catalog.catalogSnapshot(cfgS)
+      check('  …服务照常列出（基准是最近一次成功的列表，不是现在）：tg、dr、ot 都在；国家列表、报价照常', ['tg', 'dr', 'ot'].every((c) => snapS.services.some((x) => x.code === c)) && !!(await catalog.catalogCountries('tg', cfgS)) && (await catalog.quote('dr', 187, cfgS)).ok === true, String(snapS.services.length))
+      await hp.smsService.update({ where: { code: 're' }, data: { seenAt: new Date(Date.now() - 2 * FOUR_D) } })
+      catalog.resetCatalogCachesForTest()
+      check('  …比最近一次成功的列表还早 3 天以上的服务（re）照样隐藏', !(await catalog.catalogSnapshot(cfgS)).services.some((x) => x.code === 're'))
+      mock.setFaults([], true)
+      const jOk = await catalog.runCatalogJob({ warm: false })
+      catalog.resetCatalogCachesForTest()
+      const ovOk = await callRoute(routes.aOverview.GET, { ...asAdmin, path: '/api/admin/jiema/overview' })
+      check('上游恢复 → 下一趟静态同步成功（26 小时兜底），re 重新出现、staticStale=false', !!jOk.static?.ok && (await catalog.catalogSnapshot(cfgS)).services.some((x) => x.code === 're') && ovOk.json?.data?.catalog?.staticStale === false)
+    }
+
+    section('S1 评审修复：预取（?pf=1）不触发上游刷新；三个目录接口各自限流')
+    {
+      await hp.smsOfferCache.deleteMany({ where: { service: 'hw', kind: 'OFFERS' } })
+      const pf = await callRoute(routes.service.GET, { ...asAdmin, path: '/api/jiema/catalog/hw?pf=1', params: { service: 'hw' } })
+      await sleep(800)
+      check('登录用户的预取（?pf=1）：照常返回国家列表，但不在后台刷新第 ② 层', pf.status === 200 && (pf.json?.data?.countries?.length ?? 0) > 0 && !(await hp.smsOfferCache.findUnique({ where: { service_kind: { service: 'hw', kind: 'OFFERS' } } })))
+      const npf = await callRoute(routes.service.GET, { ...asAdmin, path: '/api/jiema/catalog/hw', params: { service: 'hw' } })
+      for (let i = 0; i < 40 && !(await hp.smsOfferCache.findUnique({ where: { service_kind: { service: 'hw', kind: 'OFFERS' } } }))?.hash; i++) await sleep(250)
+      check('  …同一个服务正常打开（不带 pf）→ 照常后台刷新', npf.status === 200 && !!(await hp.smsOfferCache.findUnique({ where: { service_kind: { service: 'hw', kind: 'OFFERS' } } }))?.hash)
+      // 用一个没用过的 IP：服务目录打满 60 次，国家列表与运营商照常（原来三个接口共用 jm-cat 一个桶）
+      const ipH = { ...asAdmin, headers: { ...asAdmin.headers, 'x-forwarded-for': '203.0.113.77' } }
+      let last = 0
+      for (let i = 0; i < 60; i++) last = (await callRoute(routes.catalog.GET, { ...ipH, path: '/api/jiema/catalog' })).status
+      const c61 = await callRoute(routes.catalog.GET, { ...ipH, path: '/api/jiema/catalog' })
+      const cty = await callRoute(routes.service.GET, { ...ipH, path: '/api/jiema/catalog/tg?pf=1', params: { service: 'tg' } })
+      const opsR = await callRoute(routes.operators.GET, { ...ipH, path: '/api/jiema/catalog/dr/187/operators', params: { service: 'dr', country: '187' } })
+      check('服务目录第 61 次 → 429；同一 IP 的国家列表、运营商不受影响（各自一个桶）', last === 200 && c61.status === 429 && cty.status === 200 && opsR.status === 200, `${last} ${c61.status} ${cty.status} ${opsR.status}`)
+    }
 
     section('cron 路由（§6.6 第 23 条）')
     const cronNo = await callRoute(routes.cron.GET, { host: 'app:3000', path: '/api/cron/jiema-catalog' })

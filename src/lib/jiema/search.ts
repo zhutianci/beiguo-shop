@@ -119,6 +119,16 @@ export function scoreService(qNorm: string, s: SearchableService, tokens?: reado
   return best
 }
 
+/**
+ * 目录 DTO（CatalogService：中文名在 `name` 里、没有 `cn`，数组顺序 = 上游人气）→ 可搜索的形状（S1 评审修复）。
+ * 原来页面把 CatalogService 直接交给 searchServices，`cn` 永远是 undefined，后台填的中文名（「领英」、显示名「其他服务」）搜不到。
+ * `name` 与英文名相同（没有中文名）时不重复收；`pop` 取数组下标（「同分时热门在前，其次按人气」）。
+ * 返回的对象保留原对象的全部字段，搜索结果可以直接当 CatalogService 用。
+ */
+export function toSearchable<T extends { name: string; en: string; aliases?: readonly string[] | null; hot?: number | null }>(list: readonly T[]): Array<T & { cn: string | null; pop: number }> {
+  return list.map((s, i) => ({ ...s, cn: s.name && s.name !== s.en ? s.name : null, pop: i + 1 }))
+}
+
 const rankOf = (v: number | null | undefined) => (typeof v === 'number' && Number.isFinite(v) ? v : Number.MAX_SAFE_INTEGER)
 
 /**

@@ -10,7 +10,7 @@ import { AdminInputError, exportServicesCsv, importServicesCsv, listServicesAdmi
 /**
  * 服务目录（docs/短信接码-设计.md §7.4）：代码、英文名、中文名、别名、热门序号、状态（ON / OFF 手动下架，出厂全部 ON，D25）、
  * 有货国家/地区数、最低报价成本。GET ?search=&status=&hot=1&page= ；?format=csv 导出。
- * POST { csv }：批量导入中文名 / 别名 / 热门序号（下架要逐个填原因，不走批量）；每个改动写审计。
+ * POST { csv }：批量导入中文名 / 别名 / 热门序号（下架要逐个填原因，不走批量）；只有真正改了的行写库、每一条都写审计（不截断）。
  */
 export async function GET(request: NextRequest) {
   const denied = await adminGuard()
@@ -49,10 +49,11 @@ export async function POST(request: NextRequest) {
     if (!body || typeof body.csv !== 'string') return error('缺少 CSV 内容')
     const r = await importServicesCsv(body.csv)
     const admin = await getCurrentUser()
-    for (const c of r.changes.slice(0, 500)) {
+    // 每一条真正的改动都写审计（与现值相同的行在 importServicesCsv 里已经去掉，不写库、不计数，§5.3、§7.4）
+    for (const c of r.changes) {
       await writeAudit(null, { actorUserId: admin?.id ?? null, actorKind: 'PLATFORM', action: 'jiema.service.csv', targetType: 'sms_service', targetId: c.code, diff: { before: c.before, after: c.after }, req: request })
     }
-    return success({ updated: r.updated, skipped: r.skipped }, `已导入 ${r.updated} 个服务`)
+    return success({ updated: r.updated, unchanged: r.unchanged, skipped: r.skipped }, `已更新 ${r.updated} 个服务（${r.unchanged} 个没有改动）`)
   } catch (e) {
     if (e instanceof AdminInputError) return error(e.message)
     console.error('[jiema] services POST 失败', e)

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Search, X, ChevronDown, ChevronRight, Globe2, Loader2, Info, ArrowLeft, Eye } from 'lucide-react'
-import { searchServices, searchCountries, effectiveQuery } from '@/lib/jiema/search'
+import { searchServices, searchCountries, effectiveQuery, serviceTokens, toSearchable } from '@/lib/jiema/search'
 import { stockApprox, fmtYuan } from '@/lib/jiema/pricing'
 import type { CatalogCountry, CatalogOperator, CatalogService } from '@/lib/jiema/dto'
 import { cn } from '@/lib/utils'
@@ -19,6 +19,8 @@ import { cn } from '@/lib/utils'
  * 【S1 不开卖】orderAvailable=false：「去支付」不可用；管理员预览时顶部有横幅说明。
  * 【限高与滚动】确认面板最大高度 100dvh − 页头 − 16px，主体可滚动，按钮与退款说明钉在底栏（09-24 开票弹窗事故的教训）。
  * localStorage（排序偏好）一律 try/catch；换服务时不重置排序（§1.4）。
+ * 【预取只给热门】（§1.4）悬停热门服务 150ms（或手指按下）才预取它的国家列表，每个服务每次打开页面最多预取一次、在途请求去重、
+ * 带 ?pf=1（服务端不因预取触发上游刷新）；全部服务列表与搜索结果不预取——否则滚一下列表就把每分钟 60 次的限流用完（S1 评审修复）。
  */
 
 export interface JiemaClientProps {
@@ -250,7 +252,10 @@ export function JiemaClient(props: JiemaClientProps) {
   const [composing, setComposing] = useState(false)
   const [committed, setCommitted] = useState('')
   const query = effectiveQuery(input, composing, committed).trim()
-  const hits = useMemo(() => (query ? searchServices(query, services).map((h) => h.item) : null), [query, services])
+  // 目录 DTO 的中文名在 name 里：先转成可搜索的形状（cn = name、pop = 人气顺序），片段预先算好（S1 评审修复：原来中文名搜不到）
+  const searchable = useMemo(() => toSearchable(services), [services])
+  const tokens = useMemo(() => new Map(searchable.map((s) => [s, serviceTokens(s)] as const)), [searchable])
+  const hits = useMemo(() => (query ? searchServices(query, searchable, { tokens }).map((h) => h.item as CatalogService) : null), [query, searchable, tokens])
   const hot = useMemo(() => services.filter((s) => s.hot != null && s.code !== anyOther?.code).sort((a, b) => (a.hot ?? 0) - (b.hot ?? 0)), [services, anyOther])
 
   // ---------- 列表高度（虚拟滚动用） ----------
@@ -262,36 +267,72 @@ export function JiemaClient(props: JiemaClientProps) {
     return () => window.removeEventListener('resize', f)
   }, [])
 
-  // ---------- 国家/地区（按服务缓存；悬停热门服务时预取） ----------
+  // ---------- 国家/地区（按服务缓存；只对热门服务预取，§1.4） ----------
   const cache = useRef(new Map<string, CountryPayload>())
+  /** 在途请求去重：预取还没回来时点了同一个服务，复用那一个请求，不发第二次 */
+  const inflight = useRef(new Map<string, Promise<{ ok: true; data: CountryPayload } | { ok: false; error: string }>>())
   const [cData, setCData] = useState<{ code: string; loading: boolean; error: string | null; data: CountryPayload | null } | null>(null)
-  const loadCountries = useCallback(async (code: string, opts: { prefetch?: boolean; force?: boolean } = {}) => {
-    const hit = cache.current.get(code)
-    if (hit && !opts.force) {
-      if (!opts.prefetch) setCData({ code, loading: false, error: null, data: hit })
-      return
+  const fetchCountries = useCallback((code: string, prefetch: boolean) => {
+    let p = inflight.current.get(code)
+    if (!p) {
+      p = (async () => {
+        try {
+          const res = await fetch(`/api/jiema/catalog/${encodeURIComponent(code)}${prefetch ? '?pf=1' : ''}`)
+          const d = await res.json().catch(() => null)
+          if (d?.success) {
+            cache.current.set(code, d.data as CountryPayload)
+            return { ok: true as const, data: d.data as CountryPayload }
+          }
+          return { ok: false as const, error: (d?.error as string) || '国家/地区列表加载失败' }
+        } catch {
+          return { ok: false as const, error: '国家/地区列表加载失败' }
+        } finally {
+          inflight.current.delete(code)
+        }
+      })()
+      inflight.current.set(code, p)
     }
-    if (!opts.prefetch) setCData({ code, loading: true, error: null, data: null })
-    try {
-      const res = await fetch(`/api/jiema/catalog/${encodeURIComponent(code)}`)
-      const d = await res.json().catch(() => null)
-      if (d?.success) {
-        cache.current.set(code, d.data as CountryPayload)
-        if (!opts.prefetch) setCData((cur) => (cur && cur.code !== code ? cur : { code, loading: false, error: null, data: d.data as CountryPayload }))
-      } else if (!opts.prefetch) {
-        setCData((cur) => (cur && cur.code !== code ? cur : { code, loading: false, error: d?.error || '国家/地区列表加载失败', data: null }))
-      }
-    } catch {
-      if (!opts.prefetch) setCData((cur) => (cur && cur.code !== code ? cur : { code, loading: false, error: '国家/地区列表加载失败', data: null }))
-    }
+    return p
   }, [])
+  const loadCountries = useCallback(
+    async (code: string, opts: { force?: boolean } = {}) => {
+      const hit = cache.current.get(code)
+      if (hit && !opts.force) {
+        setCData({ code, loading: false, error: null, data: hit })
+        return
+      }
+      setCData({ code, loading: true, error: null, data: null })
+      const r = await fetchCountries(code, false)
+      setCData((cur) => (cur && cur.code !== code ? cur : r.ok ? { code, loading: false, error: null, data: r.data } : { code, loading: false, error: r.error, data: null }))
+    },
+    [fetchCountries],
+  )
   useEffect(() => {
     if (svc) loadCountries(svc)
     else setCData(null)
   }, [svc, loadCountries])
-  const prefetch = (code: string) => {
-    if (!cache.current.has(code)) void loadCountries(code, { prefetch: true })
-  }
+  /** 每个服务每次打开页面最多预取一次（失败也不再重试：点进去时正常加载，有「重试」） */
+  const prefetched = useRef(new Set<string>())
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hoverStart = useCallback(
+    (code: string) => {
+      if (hoverTimer.current) clearTimeout(hoverTimer.current)
+      hoverTimer.current = null
+      if (cache.current.has(code) || prefetched.current.has(code)) return
+      hoverTimer.current = setTimeout(() => {
+        hoverTimer.current = null
+        if (cache.current.has(code) || prefetched.current.has(code)) return
+        prefetched.current.add(code)
+        void fetchCountries(code, true)
+      }, 150)
+    },
+    [fetchCountries],
+  )
+  const hoverEnd = useCallback(() => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current)
+    hoverTimer.current = null
+  }, [])
+  useEffect(() => hoverEnd, [hoverEnd])
 
   // ---------- 排序（偏好存 localStorage，换服务不重置） ----------
   const [sort, setSortState] = useState<SortMode>('rec')
@@ -429,22 +470,21 @@ export function JiemaClient(props: JiemaClientProps) {
           </label>
 
           {services.length === 0 ? (
+            // 目录由服务端同步预取：真正加载失败时整页 500，走不到这里；能走到这里的是目录为空（刚部署还没同步、全部手动下架…）
             <div className="mt-6 rounded-2xl border border-dashed border-white/10 px-4 py-10 text-center text-sm text-white/50">
-              服务列表加载失败
-              <button onClick={() => window.location.reload()} className="ml-2 text-cyan-300/90 hover:underline">
-                重试
-              </button>
+              目录还在同步中，请稍后再来
+              {props.preview && <div className="mt-2 text-xs text-white/40">管理员：到后台「短信接码 → 目录」点「全部同步」</div>}
             </div>
           ) : hits ? (
             hits.length ? (
               <div className="mt-3">
-                <RowList items={hits} height={listH} keyOf={(s) => s.code} render={(s) => <ServiceRow s={s} active={s.code === svc} onPick={chooseService} onHover={prefetch} />} />
+                <RowList items={hits} height={listH} keyOf={(s) => s.code} render={(s) => <ServiceRow s={s} active={s.code === svc} onPick={chooseService} />} />
               </div>
             ) : (
               <div className="mt-3">
                 {anyOther && (
                   <div style={{ height: ROW_H }}>
-                    <ServiceRow s={anyOther} active={svc === anyOther.code} onPick={chooseService} onHover={prefetch} sub="列表里没有的平台才选" />
+                    <ServiceRow s={anyOther} active={svc === anyOther.code} onPick={chooseService} sub="列表里没有的平台才选" />
                   </div>
                 )}
                 <p className="mt-3 text-[13px] leading-relaxed text-white/50">
@@ -459,19 +499,19 @@ export function JiemaClient(props: JiemaClientProps) {
                   <div className="mb-1.5 text-xs text-white/40">热门</div>
                   {hot.map((s) => (
                     <div key={s.code} style={{ height: ROW_H }}>
-                      <ServiceRow s={s} active={s.code === svc} onPick={chooseService} onHover={prefetch} />
+                      <ServiceRow s={s} active={s.code === svc} onPick={chooseService} onHover={hoverStart} onLeave={hoverEnd} />
                     </div>
                   ))}
                   {anyOther && (
                     <div style={{ height: ROW_H }}>
-                      <ServiceRow s={anyOther} active={svc === anyOther.code} onPick={chooseService} onHover={prefetch} sub="列表里没有的平台才选" />
+                      <ServiceRow s={anyOther} active={svc === anyOther.code} onPick={chooseService} onHover={hoverStart} onLeave={hoverEnd} sub="列表里没有的平台才选" />
                     </div>
                   )}
                 </div>
               )}
               <div>
                 <div className="mb-1.5 text-xs text-white/40">全部服务（{services.length}）· 按人气</div>
-                <RowList items={services} height={listH} keyOf={(s) => s.code} render={(s) => <ServiceRow s={s} active={s.code === svc} onPick={chooseService} onHover={prefetch} />} />
+                <RowList items={services} height={listH} keyOf={(s) => s.code} render={(s) => <ServiceRow s={s} active={s.code === svc} onPick={chooseService} />} />
               </div>
             </div>
           )}
@@ -629,6 +669,13 @@ export function JiemaClient(props: JiemaClientProps) {
                       <div className="flex items-center gap-2 text-white/45">
                         <Loader2 className="h-4 w-4 animate-spin" /> 正在加载运营商…
                       </div>
+                    ) : ops.error ? (
+                      <div className="text-white/45">
+                        运营商加载失败，暂按任意运营商
+                        <button onClick={() => setOps(null)} className="ml-2 text-cyan-300/90 hover:underline">
+                          重试
+                        </button>
+                      </div>
                     ) : ops.list.length === 0 ? (
                       <div className="text-white/45">这个国家/地区不支持指定运营商，将使用任意运营商。</div>
                     ) : (
@@ -694,13 +741,16 @@ export function JiemaClient(props: JiemaClientProps) {
   )
 }
 
-function ServiceRow({ s, active, onPick, onHover, sub }: { s: CatalogService; active: boolean; onPick: (code: string) => void; onHover: (code: string) => void; sub?: string }) {
+/** onHover 只传给热门那一段（§1.4：只预取热门服务的国家列表）；全部服务与搜索结果不传 */
+function ServiceRow({ s, active, onPick, onHover, onLeave, sub }: { s: CatalogService; active: boolean; onPick: (code: string) => void; onHover?: (code: string) => void; onLeave?: () => void; sub?: string }) {
   const out = s.level === 'OUT'
   return (
     <button
       onClick={() => onPick(s.code)}
-      onMouseEnter={() => onHover(s.code)}
-      onTouchStart={() => onHover(s.code)}
+      onMouseEnter={onHover ? () => onHover(s.code) : undefined}
+      onMouseLeave={onLeave}
+      onTouchStart={onHover ? () => onHover(s.code) : undefined}
+      onTouchMove={onLeave}
       className={cn(
         'flex h-full w-full items-center gap-3 rounded-xl px-2 text-left transition-colors',
         active ? 'bg-cyan-500/10 ring-1 ring-cyan-400/40' : 'hover:bg-white/[0.06]',

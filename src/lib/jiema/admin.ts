@@ -22,8 +22,8 @@ import {
   type OffersRow,
   type PricesRow,
 } from './catalog'
-import { parseScopeKey, quoteCostMicro, offerSellable } from './pricing'
-import { isHoldActive } from './gate'
+import { parseScopeKey, canonicalScopeKey, quoteCostMicro, offerSellable } from './pricing'
+import { isHoldActive, canonicalHoldKey, adminHoldConflict, HOLD_KEY_RE } from './gate'
 
 export class AdminInputError extends Error {
   constructor(message: string, public readonly field?: string) {
@@ -167,18 +167,41 @@ export interface ServicePatch {
   offNote?: unknown
 }
 
-/** 改一个服务（中文名、别名、热门序号、手动下架）。改成 OFF 必须填原因（写审计）；改回 ON 清空原因 */
-export async function updateServiceAdmin(code: string, patch: ServicePatch): Promise<{ before: Record<string, unknown>; after: Record<string, unknown> }> {
+/**
+ * 种子会填的字段（服务的中文名 / 别名，国家的中文名 / ISO2 / 区号）被后台**清空**时存空串 ''，不存 NULL（S1 评审修复）：
+ * 目录同步只给 NULL 的字段填种子（§5.4「只填充空字段，不覆盖后台改过的内容」），存 NULL 会让站长的删除在下一次同步时被种子写回去。
+ * 读的一方一律按「空串 = 没有」处理（`nameCn || nameEn`、splitAliases('') = []、flagOf('') = null）。
+ */
+const CLEARED = ''
+
+/** 两个值在页面上看起来一样吗（NULL 与空串都算「空」） */
+const sameShown = (a: unknown, b: unknown) => (a ?? '') === (b ?? '')
+
+/** 纯函数：去掉与当前值相同的字段（NULL 与空串视为相同）：一样的字段不写库、不算改动 */
+export function onlyChanged(cur: Record<string, unknown>, data: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(data)) if (!sameShown(cur[k], v)) out[k] = v
+  return out
+}
+
+export interface AdminChange {
+  before: Record<string, unknown>
+  after: Record<string, unknown>
+  /** false = 提交的值与现在的一样，没有写库（路由不写审计） */
+  changed: boolean
+}
+
+/** 改一个服务（中文名、别名、热门序号、手动下架）。改成 OFF 必须填原因（写审计）；改回 ON 清空原因。与现值相同的字段不写 */
+export async function updateServiceAdmin(code: string, patch: ServicePatch): Promise<AdminChange> {
   if (!SERVICE_CODE_RE.test(code)) throw new AdminInputError('服务代码不合法')
   const cur = await prisma.smsService.findUnique({ where: { code } })
   if (!cur) throw new AdminInputError('没有这个服务')
   const data: Record<string, unknown> = {}
-  if ('nameCn' in patch) data.nameCn = trimOrNull(patch.nameCn, 40, '中文名')
+  if ('nameCn' in patch) data.nameCn = trimOrNull(patch.nameCn, 40, '中文名') ?? CLEARED
   if ('aliases' in patch) {
     const list = Array.isArray(patch.aliases) ? patch.aliases.map(String) : typeof patch.aliases === 'string' ? splitAliases(patch.aliases) : patch.aliases == null ? [] : null
     if (list == null) throw new AdminInputError('别名格式不对（逗号分隔）', 'aliases')
-    const joined = joinAliases(list.map((x) => x.slice(0, 40)))
-    data.aliases = joined
+    data.aliases = joinAliases(list.map((x) => x.slice(0, 40))) ?? CLEARED
   }
   if ('hotRank' in patch) {
     const v = patch.hotRank
@@ -202,10 +225,12 @@ export async function updateServiceAdmin(code: string, patch: ServicePatch): Pro
     }
   }
   if (!Object.keys(data).length) throw new AdminInputError('没有要改的内容')
-  const after = await prisma.smsService.update({ where: { code }, data })
-  invalidateCatalogSnapshot()
   const pick = (r: typeof cur) => ({ nameCn: r.nameCn, aliases: r.aliases, hotRank: r.hotRank, status: r.status, offNote: r.offNote })
-  return { before: pick(cur), after: pick(after) }
+  const diff = onlyChanged(pick(cur), data)
+  if (!Object.keys(diff).length) return { before: pick(cur), after: pick(cur), changed: false }
+  const after = await prisma.smsService.update({ where: { code }, data: diff })
+  invalidateCatalogSnapshot()
+  return { before: pick(cur), after: pick(after), changed: true }
 }
 
 /** CSV（导出与导入同一套列）：code,nameEn,nameCn,aliases,hotRank,status。导入只改 nameCn / aliases / hotRank（下架要逐个填原因，不走批量） */
@@ -262,7 +287,13 @@ export function parseCsv(text: string): string[][] {
   return out.filter((r) => r.some((x) => x.trim()))
 }
 
-export async function importServicesCsv(text: string): Promise<{ updated: number; skipped: string[]; changes: Array<{ code: string; before: Record<string, unknown>; after: Record<string, unknown> }> }> {
+/**
+ * 批量导入（中文名 / 别名 / 热门序号）。**只算真正有改动的行**：与现值相同的行不写库、不计数、不写审计（S1 评审修复：
+ * 原来每一行都算改动，路由只给前 500 条写审计，导出再导入整份时第 500 行之后的真实改动没有审计）。
+ * 中文名、别名的空单元格 = 不改（要清空请在列表里逐个编辑）：清空会让种子不再回填，批量里一个空格子不该悄悄删掉种子内容。
+ * 热门序号的空单元格 = 不是热门（与导出一致）。同一个服务出现两次只用第一行。
+ */
+export async function importServicesCsv(text: string): Promise<{ updated: number; unchanged: number; skipped: string[]; changes: Array<{ code: string; before: Record<string, unknown>; after: Record<string, unknown> }> }> {
   if (text.length > 1_000_000) throw new AdminInputError('文件太大（上限 1MB）')
   const rows = parseCsv(text)
   if (!rows.length) throw new AdminInputError('CSV 是空的')
@@ -271,25 +302,37 @@ export async function importServicesCsv(text: string): Promise<{ updated: number
   if (idx('code') < 0) throw new AdminInputError('CSV 第一行必须是表头，且包含 code 列')
   const skipped: string[] = []
   const changes: Array<{ code: string; before: Record<string, unknown>; after: Record<string, unknown> }> = []
+  let unchanged = 0
+  const seen = new Set<string>()
+  const unq = (v: string | undefined) => (v ?? '').replace(/^'(?=[=+\-@])/, '')
   for (const r of rows.slice(1)) {
     const code = (r[idx('code')] ?? '').trim()
     if (!SERVICE_CODE_RE.test(code)) {
       skipped.push(`${code || '(空)'}：代码不合法`)
       continue
     }
+    if (seen.has(code)) {
+      skipped.push(`${code}：同一个服务出现了两次（只用第一行）`)
+      continue
+    }
+    seen.add(code)
     const patch: ServicePatch = {}
-    const unq = (v: string | undefined) => (v ?? '').replace(/^'(?=[=+\-@])/, '')
-    if (idx('nameCn') >= 0) patch.nameCn = unq(r[idx('nameCn')])
-    if (idx('aliases') >= 0) patch.aliases = unq(r[idx('aliases')]).split('|')
+    if (idx('nameCn') >= 0 && unq(r[idx('nameCn')]).trim()) patch.nameCn = unq(r[idx('nameCn')])
+    if (idx('aliases') >= 0 && unq(r[idx('aliases')]).trim()) patch.aliases = unq(r[idx('aliases')]).split('|')
     if (idx('hotRank') >= 0) patch.hotRank = (r[idx('hotRank')] ?? '').trim()
+    if (!Object.keys(patch).length) {
+      unchanged++
+      continue
+    }
     try {
       const c = await updateServiceAdmin(code, patch)
-      changes.push({ code, ...c })
+      if (c.changed) changes.push({ code, before: c.before, after: c.after })
+      else unchanged++
     } catch (e) {
       skipped.push(`${code}：${(e as Error).message}`)
     }
   }
-  return { updated: changes.length, skipped: skipped.slice(0, 200), changes }
+  return { updated: changes.length, unchanged, skipped: skipped.slice(0, 200), changes }
 }
 
 // ───────────────────────── 国家/地区 ─────────────────────────
@@ -333,25 +376,25 @@ export async function listCountriesAdmin(q: { search?: string; status?: string }
   }))
 }
 
-export async function updateCountryAdmin(id: number, patch: { nameCn?: unknown; status?: unknown; offNote?: unknown; sortBoost?: unknown; iso2?: unknown; dialCode?: unknown }): Promise<{ before: Record<string, unknown>; after: Record<string, unknown> }> {
+export async function updateCountryAdmin(id: number, patch: { nameCn?: unknown; status?: unknown; offNote?: unknown; sortBoost?: unknown; iso2?: unknown; dialCode?: unknown }): Promise<AdminChange> {
   if (!Number.isInteger(id) || id < 0 || id > 999) throw new AdminInputError('国家/地区 id 不合法')
   const cur = await prisma.smsCountry.findUnique({ where: { id } })
   if (!cur) throw new AdminInputError('没有这个国家/地区')
   const data: Record<string, unknown> = {}
   if ('nameCn' in patch) {
     if (forcedCountryName(id) != null) throw new AdminInputError(`这个地区的中文名固定为「${forcedCountryName(id)}」，不能修改`, 'nameCn')
-    data.nameCn = trimOrNull(patch.nameCn, 40, '中文名')
+    data.nameCn = trimOrNull(patch.nameCn, 40, '中文名') ?? CLEARED
   }
   if ('iso2' in patch) {
     const v = trimOrNull(patch.iso2, 2, 'ISO2')
     if (v != null && !/^[A-Za-z]{2}$/.test(v)) throw new AdminInputError('ISO2 是两个字母', 'iso2')
-    data.iso2 = v ? v.toUpperCase() : null
+    data.iso2 = v ? v.toUpperCase() : CLEARED
   }
   if ('dialCode' in patch) {
     const v = trimOrNull(patch.dialCode, 6, '区号')
     const d = v ? v.replace(/^\+/, '') : null
     if (d != null && !/^\d{1,5}$/.test(d)) throw new AdminInputError('区号是 1–5 位数字', 'dialCode')
-    data.dialCode = d
+    data.dialCode = d ?? CLEARED
   }
   if ('sortBoost' in patch) {
     const n = Number(patch.sortBoost)
@@ -371,10 +414,12 @@ export async function updateCountryAdmin(id: number, patch: { nameCn?: unknown; 
     }
   }
   if (!Object.keys(data).length) throw new AdminInputError('没有要改的内容')
-  const after = await prisma.smsCountry.update({ where: { id }, data })
-  invalidateCatalogSnapshot()
   const pick = (r: typeof cur) => ({ nameCn: r.nameCn, iso2: r.iso2, dialCode: r.dialCode, status: r.status, offNote: r.offNote, sortBoost: r.sortBoost })
-  return { before: pick(cur), after: pick(after) }
+  const diff = onlyChanged(pick(cur), data)
+  if (!Object.keys(diff).length) return { before: pick(cur), after: pick(cur), changed: false }
+  const after = await prisma.smsCountry.update({ where: { id }, data: diff })
+  invalidateCatalogSnapshot()
+  return { before: pick(cur), after: pick(after), changed: true }
 }
 
 // ───────────────────────── 覆盖规则 ─────────────────────────
@@ -390,8 +435,9 @@ export interface RuleInput {
 function ruleData(input: RuleInput, requireScope: boolean) {
   const data: { scopeKey?: string; markupCents?: number | null; tolerancePct?: number | null; disabled?: boolean; note?: string | null } = {}
   if (requireScope || 'scopeKey' in input) {
-    const k = typeof input.scopeKey === 'string' ? input.scopeKey.trim().toLowerCase() : ''
-    if (!parseScopeKey(k)) throw new AdminInputError('范围写成「服务:国家」「服务:*」或「*:国家」（例如 dr:187、acz:*、*:6；不能是 *:*）', 'scopeKey')
+    // 存规范写法（'dr:087' → 'dr:87'）：resolveRule 按 `${service}:${country}` 精确查键，带前导零的规则永远不生效
+    const k = typeof input.scopeKey === 'string' ? canonicalScopeKey(input.scopeKey.trim().toLowerCase()) : null
+    if (!k) throw new AdminInputError('范围写成「服务:国家」「服务:*」或「*:国家」（例如 dr:187、acz:*、*:6；不能是 *:*）', 'scopeKey')
     data.scopeKey = k
   }
   if ('markupCents' in input) {
@@ -466,17 +512,23 @@ export async function deleteRule(id: number) {
 
 // ───────────────────────── 停售（sms_holds 的手动部分；自动停售由 S2 的 holds.ts 写） ─────────────────────────
 
-export const HOLD_KEY_RE = /^(global|svc:[a-z0-9]{2,4}|country:\d{1,3}|combo:[a-z0-9]{2,4}:\d{1,3})$/
+export { HOLD_KEY_RE }
 
 export async function listHolds(now: Date = new Date()) {
   const rows = await prisma.smsHold.findMany({ orderBy: { createdAt: 'desc' } })
   return rows.map((h) => ({ key: h.key, until: h.until?.toISOString() ?? null, reason: h.reason, source: h.source, note: h.note, active: isHoldActive(h, now), createdAt: h.createdAt.toISOString() }))
 }
 
-/** 「+ 手动停售」：reason=ADMIN、source=ADMIN、必须写原因；until 为空 = 需要手动解除 */
+/**
+ * 「+ 手动停售」：reason=ADMIN、source=ADMIN、必须写原因；until 为空 = 需要手动解除。
+ * 范围按规范写法存（'country:03' → 'country:3'，否则 gate 查不到、停售不生效）。
+ * 同一范围已有**生效中**的停售时（adminHoldConflict）：自动停售一律拒绝（不能把「需要站长手动解除」的币种异常 / 封禁 / 熔断改成
+ * 会自己到期的手动停售，也不能冲掉原因）；手动停售只能延长或改成手动解除，不能缩短。已过期的记录照常覆盖。
+ * 读—判—写在一个事务里锁住这一行（FOR UPDATE），S2 的自动停售同时写入时不会被这里覆盖。
+ */
 export async function createAdminHold(input: { key?: unknown; until?: unknown; note?: unknown }, now: Date = new Date()) {
-  const key = typeof input.key === 'string' ? input.key.trim().toLowerCase() : ''
-  if (!HOLD_KEY_RE.test(key)) throw new AdminInputError('范围写成 global、svc:服务、country:国家 或 combo:服务:国家（例如 svc:wb、combo:dr:187）', 'key')
+  const key = typeof input.key === 'string' ? canonicalHoldKey(input.key) : null
+  if (!key) throw new AdminInputError('范围写成 global、svc:服务、country:国家 或 combo:服务:国家（例如 svc:wb、combo:dr:187）', 'key')
   const note = trimOrNull(input.note, 200, '原因')
   if (!note) throw new AdminInputError('手动停售必须写原因', 'note')
   let until: Date | null = null
@@ -486,21 +538,36 @@ export async function createAdminHold(input: { key?: unknown; until?: unknown; n
     if (d.getTime() <= now.getTime()) throw new AdminInputError('截止时间必须晚于现在（留空 = 手动解除）', 'until')
     until = d
   }
-  const before = await prisma.smsHold.findUnique({ where: { key } })
-  const after = await prisma.smsHold.upsert({
-    where: { key },
-    create: { key, until, reason: 'ADMIN', source: 'ADMIN', note },
-    update: { until, reason: 'ADMIN', source: 'ADMIN', note },
+  const r = await prisma.$transaction(async (tx) => {
+    const locked = await tx.$queryRaw<{ key: string }[]>`SELECT \`key\` FROM sms_holds WHERE \`key\` = ${key} FOR UPDATE`
+    const before = locked.length ? await tx.smsHold.findUnique({ where: { key } }) : null
+    const conflict = adminHoldConflict(before, until, now)
+    if (conflict) throw new AdminInputError(conflict, 'key')
+    let after
+    if (before) after = await tx.smsHold.update({ where: { key }, data: { until, reason: 'ADMIN', source: 'ADMIN', note } })
+    else {
+      try {
+        after = await tx.smsHold.create({ data: { key, until, reason: 'ADMIN', source: 'ADMIN', note } })
+      } catch (e) {
+        if ((e as { code?: string })?.code === 'P2002') throw new AdminInputError('这个范围刚刚被写入了一条停售，请刷新后再看', 'key')
+        throw e
+      }
+    }
+    return { before, after }
   })
   invalidateCatalogSnapshot()
-  return { before, after }
+  return r
 }
 
-/** 「解除」：删掉一条停售（自动的也能解除；下一次 S2 的自动判定可能再停） */
+/** 「解除」：删掉一条停售（自动的也能解除；下一次 S2 的自动判定可能再停）。先按原样找，找不到再按规范写法找 */
 export async function deleteHold(key: string) {
-  const cur = await prisma.smsHold.findUnique({ where: { key } })
+  let cur = await prisma.smsHold.findUnique({ where: { key } })
+  if (!cur) {
+    const canon = canonicalHoldKey(key)
+    if (canon && canon !== key) cur = await prisma.smsHold.findUnique({ where: { key: canon } })
+  }
   if (!cur) throw new AdminInputError('这条停售已经不存在了')
-  await prisma.smsHold.delete({ where: { key } })
+  await prisma.smsHold.delete({ where: { key: cur.key } })
   invalidateCatalogSnapshot()
   return cur
 }
@@ -592,13 +659,16 @@ export async function pricingPreviewData(opts: { service?: string } = {}): Promi
     legacyPriceIndex(),
   ])
   const ruleCountries = new Map<string, Set<number>>()
+  /** `*:国家` 规则点名的国家：每个服务都要带上（S1 评审修复：原来只收「服务:国家」，*:187 的影响在预览里看不到） */
+  const anyServiceCountries = new Set<number>()
   for (const r of rules) {
     const p = parseScopeKey(r.scopeKey)
-    if (p?.service && p.country != null) {
+    if (!p || p.country == null) continue
+    if (p.service) {
       const set = ruleCountries.get(p.service) ?? new Set<number>()
       set.add(p.country)
       ruleCountries.set(p.service, set)
-    }
+    } else anyServiceCountries.add(p.country)
   }
   // 与列表同一口径：第 ② 层 60 分钟内的用 offers（报价成本 §4.2），否则用第 ① 层 getPrices 的 cost
   const rowsBySvc = new Map<string, { source: 'OFFERS' | 'PRICES'; costs: Array<[number, number]>; deliv: number[] }>()
@@ -634,6 +704,7 @@ export async function pricingPreviewData(opts: { service?: string } = {}): Promi
       const lg = legacy.get(s.code)
       if (lg) lg.byCountry.forEach((_, id) => want.add(id))
       ruleCountries.get(s.code)?.forEach((id) => want.add(id))
+      anyServiceCountries.forEach((id) => want.add(id))
       chosen = sorted.filter((x) => want.has(x[0]))
     }
     for (const [cid, cost] of chosen) picked.push({ service: s.code, country: cid, costMicro: cost, source: d.source })

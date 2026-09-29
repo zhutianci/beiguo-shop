@@ -19,6 +19,8 @@ export async function PUT(request: NextRequest, { params }: { params: { code: st
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
     if (!body) return error('缺少内容')
     const r = await updateServiceAdmin(code, body)
+    // 提交的值与现在的一样：没有写库，也不写审计
+    if (!r.changed) return success({ ok: true, after: r.after, changed: false }, '没有改动')
     const admin = await getCurrentUser()
     const offChanged = r.before.status !== r.after.status
     await writeAudit(null, {
@@ -28,7 +30,7 @@ export async function PUT(request: NextRequest, { params }: { params: { code: st
       targetType: 'sms_service',
       targetId: code,
       reason: typeof r.after.offNote === 'string' ? r.after.offNote : undefined,
-      diff: r,
+      diff: { before: r.before, after: r.after },
       req: request,
     })
     return success({ ok: true, after: r.after }, '已保存')
