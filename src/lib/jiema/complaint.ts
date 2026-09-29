@@ -6,10 +6,12 @@
  *   每单最多一条靠 sms_complaints.order_id 唯一；新申请推一次 sms.complaint（每条一次）。
  * 【站长】「通过并退款到余额」= T16（engine.adminRefund：先放掉 / 完成还开着的号，再整单原路退回余额，成本照计、利润 = −成本），
  *   「驳回」必填回复、同一事务写进订单留言。两个操作互斥靠 state 的 CAS：通过先把 OPEN 占成 APPROVING（驳回只收 OPEN），
- *   退款成功后 APPROVING → REFUNDED 并在同一事务里写一条买家留言；退款没做成就退回 OPEN（可以改为驳回或稍后再试）。
+ *   退款成功时 APPROVING → REFUNDED 与买家留言**在 T16 的同一个事务里**完成（complaint-close.closeComplaintInTx，由 refund.refundAfterSale 调用；
+ *   S3 评审修复：原来在退款提交之后另开事务，出错被吞会留下「钱退了、记录没收尾」）；退款没做成就退回 OPEN（可以改为驳回或稍后再试）。
  *   进程在中途崩溃留下的 APPROVING 可以再点一次「通过」（退款本身有 refundState CAS + 预扣 CAS + 流水 bizKey 三道幂等）。
  * 【资金只经过引擎】这里不直接改余额、不碰预扣；退款一律 engine.adminRefund → refund.refundAfterSale（附录 B 第 2、14 条）。
- * 【订单详情里直接「售后退款到余额」】（后台接码订单抽屉）同样会把这张单还在待处理的售后申请收成 REFUNDED 并写留言（finalizeComplaintAfterRefund）。
+ * 【订单详情里直接「售后退款到余额」】（后台接码订单抽屉）走同一个 T16，同一个事务把这张单的售后申请（待处理 / 已驳回）收成 REFUNDED 并写留言。
+ * 【补记】万一钱已退、记录没收尾（例如早先的数据），在售后详情点「通过」即可补记（finalizeComplaintAfterRefund，只写状态与留言、不动钱）。
  */
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db'
@@ -18,12 +20,13 @@ import * as engine from './engine'
 import type { BuyerResult } from './engine'
 import type { BuyerOrderRef } from './view'
 import { logEvent, logEventQuiet } from './events'
+import { closeComplaintInTx } from './complaint-close'
+import { smsAlert } from './alert'
 import { complaintWindowHours } from './config'
 import { jnow } from './runtime'
 import { fmtYuan } from './pricing'
 import { phoneTail } from './machine'
 import {
-  approveMessageText,
   rejectMessageText,
   complaintBlock,
   complaintNoResend,
@@ -226,7 +229,8 @@ export async function listComplaintsAdmin(q: { state: ComplaintListState; page: 
       passed30d: passed.get(c.userId) ?? 0,
     }
   })
-  return { list, total, pendingTotal, page: q.page, totalPages: Math.max(1, Math.ceil(total / q.pageSize)) }
+  // 规则提示用当前配置（后台改了售后窗口，这里跟着变）；通过次数上限与标红阈值同一个常量
+  return { list, total, pendingTotal, page: q.page, totalPages: Math.max(1, Math.ceil(total / q.pageSize)), complaintWindowH: await complaintWindowHours(), passLimit: COMPLAINT_PASS_LIMIT }
 }
 
 export async function complaintDetailAdmin(id: number) {
@@ -286,9 +290,13 @@ export async function complaintDetailAdmin(id: number) {
     passLimit: COMPLAINT_PASS_LIMIT,
     appealDeadline: bought ? iso(upstreamAppealDeadline(bought)) : null,
     actions: {
-      approve: pending && (refundable || so?.state === 'REFUNDED'),
+      // 已驳回但钱已经退了（驳回后站长在订单里退了款、收尾当时没成）：也给「通过」，点了只补记状态与留言、不动钱
+      approve: (pending && (refundable || so?.state === 'REFUNDED')) || (c.state === 'REJECTED' && so?.state === 'REFUNDED'),
       reject: c.state === 'OPEN' && so?.state !== 'REFUNDED',
     },
+    /** 钱已经退过（点「通过」只是补记）：页面按钮换文案 */
+    moneyDone: so?.state === 'REFUNDED',
+    complaintWindowH: await complaintWindowHours(),
   }
 }
 
@@ -305,13 +313,22 @@ const REFUND_WHY: Record<string, string> = {
 
 /**
  * 通过并退款到余额（§7.5 → T16）。OPEN 先 CAS 成 APPROVING（与驳回互斥），再走引擎的售后退款；
- * 成功（或这张单已经是售后退款）→ finalize：APPROVING → REFUNDED + 同一事务写买家留言；没退成 → 退回 OPEN。
+ * T16 在退款的同一个事务里把 APPROVING → REFUNDED 并写买家留言（带备注）；这张单早已售后退款的 → 补记（finalize）；没退成 → 退回 OPEN。
+ * 已驳回、但钱已经在订单里退过的 → 补记为通过（不动钱）；已驳回、钱没退 → 409。
  */
 export async function approveComplaint(id: number, adminId: number, note: string | null): Promise<ComplaintActionResult> {
   const c = await prisma.smsComplaint.findUnique({ where: { id } })
   if (!c) return { ok: false, status: 404, message: '售后申请不存在' }
   if (c.state === 'REFUNDED') return { ok: false, status: 409, message: '这条售后已经通过并退款' }
-  if (c.state === 'REJECTED') return { ok: false, status: 409, message: '这条售后已经驳回（要退款请到「订单」里对这张单「售后退款到余额」）' }
+  if (c.state === 'REJECTED') {
+    // 驳回之后钱又在订单里退了（T16 现在会在同一个事务里把它收成 REFUNDED；这里兜底早先 / 异常留下的数据）：补记为通过，不动钱
+    const so = await prisma.smsOrder.findUnique({ where: { id: c.smsOrderId }, select: { state: true } })
+    if (so?.state !== 'REFUNDED') return { ok: false, status: 409, message: '这条售后已经驳回（要退款请到「订单」里对这张单「售后退款到余额」）' }
+    const closed = await finalizeComplaintAfterRefund(c.orderId, adminId, note, { fromOrderDrawer: true, via: 'REPAIR' })
+    return closed
+      ? { ok: true, status: 200, message: '这张单的钱之前已经退过：售后申请补记为通过，结果已发到订单留言（没有再动钱）' }
+      : { ok: false, status: 409, message: '另一个操作刚处理了这条售后，请刷新' }
+  }
   if (c.state === 'OPEN') {
     const w = await prisma.smsComplaint.updateMany({ where: { id, state: 'OPEN' }, data: { state: 'APPROVING', handledBy: adminId } })
     if (w.count !== 1) return { ok: false, status: 409, message: '另一个操作刚处理了这条售后，请刷新' }
@@ -332,7 +349,7 @@ export async function approveComplaint(id: number, adminId: number, note: string
       else if (!manual && so.state !== 'RECEIVED' && so.state !== 'FINISHED') why = `订单当前是 ${so.state}，只有已收码 / 已完成的单能售后退款`
       else if (order?.payStatus !== 'PAID') why = '订单不是已付款状态'
       else {
-        const r = await engine.adminRefund(so.id, adminId, 'COMPLAINT', { allowManual: manual })
+        const r = await engine.adminRefund(so.id, adminId, 'COMPLAINT', { allowManual: manual, complaint: { note, via: 'APPROVE' } })
         if (r.ok) refunded = true
         else {
           const again = await prisma.smsOrder.findUnique({ where: { id: so.id }, select: { state: true } })
@@ -350,41 +367,61 @@ export async function approveComplaint(id: number, adminId: number, note: string
     await prisma.smsComplaint.updateMany({ where: { id, state: 'APPROVING' }, data: { state: 'OPEN', handledBy: null } })
     return { ok: false, status: 409, message: `没有退款：${why}（售后申请回到待处理）` }
   }
-  await finalizeComplaintAfterRefund(c.orderId, adminId, note)
+  // 正常情况下 T16 已在同一个事务里把它收成 REFUNDED（这里 CAS 落空、返回 false）；这一步只兜底「这张单早就退过款」「T16 之后才看到这一行」的情况
+  await finalizeComplaintAfterRefund(c.orderId, adminId, note).catch((e) => {
+    alertFinalizeFailed(c.orderId, c.id, e)
+    return false
+  })
   return { ok: true, status: 200, message: '已通过：整单原路退回余额，成本照计（利润 = −成本）；结果已发到订单留言' }
 }
 
+/** 收尾失败（钱已退、售后记录没收成通过）：推一条 sms.alert，后台到「售后」里点「通过」即可补记 */
+export function alertFinalizeFailed(orderId: number, complaintId: number | null, e: unknown): void {
+  console.error('[jiema] 售后退款后收尾售后申请失败', orderId, (e as Error)?.message)
+  smsAlert(
+    `COMPLAINT_FINALIZE:${orderId}`,
+    '接码售后：钱已退回，售后申请没能记为通过',
+    [
+      { label: '订单', value: `#${orderId}` },
+      { label: '售后申请', value: complaintId ? `#${complaintId}` : '—' },
+      { label: '处理', value: '到「短信接码 → 售后」打开这一条点「通过」补记（不会再动钱）' },
+      { label: '错误', value: String((e as Error)?.message ?? e).slice(0, 200) },
+    ],
+    { link: complaintId ? `/admin/jiema?tab=complaints&id=${complaintId}` : '/admin/jiema?tab=complaints', throttleMs: 0 },
+  )
+}
+
 /**
- * 这张单已经售后退款（REFUNDED）之后，把它还没收尾的售后申请收成 REFUNDED，并在同一事务里给买家写一条留言（带两格退回金额）。
- * 两个入口：售后申请「通过」、后台接码订单抽屉里直接「售后退款到余额」（opts.fromOrderDrawer：连已驳回的也改成通过——站长改了主意、钱已经退了，
- * 记录要和钱对得上，30 天通过次数也要算上）。返回是否本次收尾（CAS 赢了才写留言，重放不会写第二条）。
+ * **补记**：这张单已经售后退款（REFUNDED）之后，把它还没收尾的售后申请收成 REFUNDED，并在同一事务里给买家写一条留言（带两格退回金额）。
+ * 正常路径下 T16 已在退款的同一个事务里做完这件事（complaint-close.closeComplaintInTx），这里只是兜底：售后「通过」时这张单早就退过款、
+ * 已驳回的申请而钱已退（opts.fromOrderDrawer：连已驳回的也改成通过——站长改了主意、钱已经退了，记录要和钱对得上，30 天通过次数也要算上）。
+ * 只写状态与留言、不动钱。返回是否本次收尾（CAS 赢了才写留言，重放不会写第二条）。
+ * 锁：先共享锁订单行再锁售后行（与 T16、提交、驳回同一个「订单 → …」顺序）。
  */
-export async function finalizeComplaintAfterRefund(orderId: number, adminId: number, note: string | null, opts: { fromOrderDrawer?: boolean } = {}): Promise<boolean> {
+export async function finalizeComplaintAfterRefund(
+  orderId: number,
+  adminId: number,
+  note: string | null,
+  opts: { fromOrderDrawer?: boolean; via?: 'APPROVE' | 'ORDER' | 'REPAIR' } = {},
+): Promise<boolean> {
   const so = await prisma.smsOrder.findUnique({ where: { orderId }, select: { id: true, state: true, refundTopupCents: true, refundCashCents: true } })
   if (!so || so.state !== 'REFUNDED') return false
-  const from = opts.fromOrderDrawer ? [...COMPLAINT_PENDING_STATES, 'REJECTED'] : [...COMPLAINT_PENDING_STATES]
-  const n = (note ?? '').trim() || null
-  return prisma.$transaction(async (tx) => {
-    const w = await tx.smsComplaint.updateMany({
-      where: { orderId, state: { in: from } },
-      data: { state: 'REFUNDED', handledBy: adminId, handledAt: jnow(), ...(n ? { adminNote: n.slice(0, 500) } : {}) },
-    })
-    if (w.count !== 1) return false
-    // order_messages 对 orders 有外键：插入会给订单行加共享锁；本事务不持有其他行锁，不会与资金事务成环
-    await tx.orderMessage.create({
-      data: {
+  return prisma.$transaction(
+    async (tx) => {
+      await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId} LOCK IN SHARE MODE`
+      return closeComplaintInTx(tx, {
         orderId,
-        sender: 'ADMIN',
-        content: approveMessageText(so.refundTopupCents ?? 0, so.refundCashCents ?? 0, n),
-        readByAdmin: true,
-        readByBuyer: false,
-        senderRole: 'PLATFORM',
-        senderUserId: adminId,
-      },
-    })
-    await logEvent(tx, { smsOrderId: so.id, type: 'COMPLAINT_OK', actor: 'ADMIN', actorId: adminId, detail: { fromOrderDrawer: !!opts.fromOrderDrawer } })
-    return true
-  })
+        smsOrderId: so.id,
+        adminId,
+        note,
+        topupCents: so.refundTopupCents ?? 0,
+        cashCents: so.refundCashCents ?? 0,
+        via: opts.via ?? (opts.fromOrderDrawer ? 'ORDER' : 'APPROVE'),
+        includeRejected: !!opts.fromOrderDrawer,
+      })
+    },
+    { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted, maxWait: 5_000, timeout: 10_000 },
+  )
 }
 
 /** 驳回（§7.5：必填回复，会自动发到订单留言）。只收 OPEN；接码单已经售后退款的不能驳回。锁顺序：订单 → 接码单（共享锁，与 T16 互斥） */
@@ -412,7 +449,7 @@ export async function rejectComplaint(id: number, adminId: number, reply: string
     )
   } catch (e) {
     if (e instanceof ComplaintRefused) {
-      if (e.message.includes('已经退款')) await finalizeComplaintAfterRefund(c.orderId, adminId, null).catch(() => false)
+      if (e.message.includes('已经退款')) await finalizeComplaintAfterRefund(c.orderId, adminId, null).catch((err) => (alertFinalizeFailed(c.orderId, c.id, err), false))
       return { ok: false, status: 409, message: e.message }
     }
     throw e

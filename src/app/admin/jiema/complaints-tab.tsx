@@ -3,7 +3,8 @@
 /**
  * 短信接码后台 ·「售后」（docs/短信接码-设计.md §7.5、E17；S3）：售后申请列表（待处理在前、先到先处理）+ 详情 + 两个操作。
  *
- * 【列表】每条显示订单、组合、买家原因与说明、号码能不能再次收码、**该用户 30 天内已通过 N 次**（号码不支持再次收码的不计入；超过 2 次标红，人工酌情）。
+ * 【列表】每条显示订单、组合、买家原因与说明、号码能不能再次收码、**该用户 30 天内已通过 N 次**（号码不支持再次收码的不计入；达到 passLimit 标红，人工酌情）。
+ *   顶部规则提示里的售后窗口与次数上限取接口下发的当前配置（complaintWindowH / passLimit），不写死。
  * 【详情】订单与接码单摘要、每个号（能不能再次收码）、短信内容（打开详情写一条 ADMIN_VIEW 事件）、订单留言（复用后台留言面板）、
  *   **向上游申诉的提示与截止时间**（号码已被注册、要求 2FA 这类供应商侧问题，7 天内凭截图和录屏申诉；只给站长看，买家侧绝不提上游）。
  * 【操作】「通过并退款到余额」= T16（先放掉 / 完成还开着的号，再整单原路退回余额，成本照计、利润 = −成本），结果自动发到订单留言；
@@ -52,7 +53,7 @@ interface Row {
 export function ComplaintsTab({ openId, onOpened, onCountChanged, onOpenOrder }: { openId: number | null; onOpened: () => void; onCountChanged: (n: number) => void; onOpenOrder: (smsOrderId: number) => void }) {
   const [state, setState] = useState<'PENDING' | 'DONE' | 'ALL'>('PENDING')
   const [page, setPage] = useState(1)
-  const [data, setData] = useState<{ list: Row[]; total: number; pendingTotal: number; page: number; totalPages: number } | null>(null)
+  const [data, setData] = useState<{ list: Row[]; total: number; pendingTotal: number; page: number; totalPages: number; complaintWindowH: number; passLimit: number } | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [detailId, setDetailId] = useState<number | null>(null)
 
@@ -97,7 +98,10 @@ export function ComplaintsTab({ openId, onOpened, onCountChanged, onOpenOrder }:
               {k === 'PENDING' && data && data.pendingTotal > 0 && <span className="ml-1 rounded-full bg-red-500 px-1.5 text-[11px] text-white">{data.pendingTotal}</span>}
             </button>
           ))}
-          <span className="ml-auto text-xs text-gray-500">E17：收码后 24 小时内可申请（sms_config.complaintWindowH）；同一用户 30 天内通过 2 次以内正常受理，超出人工酌情；号码不支持再次收码的放宽受理、不计入次数</span>
+          {/* 数字取接口下发的当前配置（后台「设置」改了售后窗口这里跟着变），不写死 */}
+          <span className="ml-auto text-xs text-gray-500">
+            E17：收码后 {data ? data.complaintWindowH : '—'} 小时内可申请（sms_config.complaintWindowH）；同一用户 30 天内通过 {data ? data.passLimit : '—'} 次以内正常受理，超出人工酌情；号码不支持再次收码的放宽受理、不计入次数
+          </span>
         </CardContent>
       </Card>
       {err && <div className="text-sm text-red-600">{err}</div>}
@@ -132,8 +136,8 @@ export function ComplaintsTab({ openId, onOpened, onCountChanged, onOpenOrder }:
                           <div className="line-clamp-2 break-all text-gray-500">{r.detail ?? '（未填写说明）'}</div>
                         </td>
                         <td className={`py-2 pr-3 ${r.noResend ? 'text-amber-700' : 'text-gray-500'}`}>{r.noResend ? '不支持（放宽受理）' : '支持'}</td>
-                        <td className={`py-2 pr-3 ${r.passed30d >= 2 ? 'font-medium text-red-600' : ''}`}>
-                          {r.passed30d} 次{r.passed30d >= 2 ? '（已超出，人工酌情）' : ''}
+                        <td className={`py-2 pr-3 ${r.passed30d >= data.passLimit ? 'font-medium text-red-600' : ''}`}>
+                          {r.passed30d} 次{r.passed30d >= data.passLimit ? `（已达 ${data.passLimit} 次，超出的人工酌情）` : ''}
                         </td>
                         <td className="py-2 pr-3">{ORDER_ZH[r.orderState ?? ''] ?? r.orderState ?? '—'}</td>
                         <td className="py-2 pr-3 text-gray-500">{t(r.createdAt)}</td>
@@ -196,7 +200,9 @@ function ComplaintDrawer({ id, onClose, onChanged, onOpenOrder }: { id: number; 
     }
     const confirmText =
       action === 'approve'
-        ? '通过并退款到余额：先放掉 / 完成还开着的号，再整单原路退回余额（成本照计、利润 = −成本），结果自动发到订单留言。确定吗？'
+        ? d?.moneyDone
+          ? '这张单的钱已经退过：只把售后申请记为通过，并给买家发「售后审核通过」留言（不再动钱）。确定吗？'
+          : '通过并退款到余额：先放掉 / 完成还开着的号，再整单原路退回余额（成本照计、利润 = −成本），结果自动发到订单留言。确定吗？'
         : '驳回：回复会发到买家的订单留言里。确定吗？'
     if (!window.confirm(confirmText)) return
     setBusy(true)
@@ -286,7 +292,7 @@ function ComplaintDrawer({ id, onClose, onChanged, onOpenOrder }: { id: number; 
                 <div className="mt-2 flex flex-wrap gap-2">
                   {d.actions.approve && (
                     <Button size="sm" disabled={busy} onClick={() => void act('approve')}>
-                      通过并退款到余额
+                      {d.moneyDone ? '记为通过（钱已退过，不再动钱）' : '通过并退款到余额'}
                     </Button>
                   )}
                   {d.actions.reject && (

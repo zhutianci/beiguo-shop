@@ -102,7 +102,8 @@ EOF
 )
 
 # S3 另外逐字核对：order_id 唯一（每单最多一条售后申请，「每单 1 次」靠它）、(state, created_at)、(user_id, created_at) 两个索引；
-#   state 默认 'OPEN'；reason VARCHAR(24) 必填；detail / admin_note 是 VARCHAR(500) 可空（买家说明、驳回回复）；handled_by / handled_at 可空。
+#   state 默认 'OPEN'；reason VARCHAR(24) 必填；detail / admin_note 是 VARCHAR(500) 可空（买家说明、驳回回复）；handled_by / handled_at 可空；
+#   order_id / sms_order_id / user_id 必填、created_at 带库默认值 CURRENT_TIMESTAMP(3)（S3 评审修复补上）。
 jiema_s3_details() {
   bad=0
   need() {
@@ -120,6 +121,12 @@ jiema_s3_details() {
   need '`admin_note` VARCHAR\(500\) NULL' 'sms_complaints.admin_note VARCHAR(500) NULL'
   need '`handled_by` INTEGER NULL' 'sms_complaints.handled_by INTEGER NULL'
   need '`handled_at` DATETIME\(3\) NULL' 'sms_complaints.handled_at DATETIME(3) NULL'
+  # 评审修复：必填列与 created_at 的库默认值也逐字核对——Prisma 的 @default(now()) 靠库默认值（插入时不带 created_at），
+  #   order_id 可空会让「每单最多一条」的唯一约束对 NULL 失效；complaint.ts 默认这几列恒有值
+  need '`order_id` INTEGER NOT NULL,' 'sms_complaints.order_id INTEGER NOT NULL'
+  need '`sms_order_id` INTEGER NOT NULL,' 'sms_complaints.sms_order_id INTEGER NOT NULL'
+  need '`user_id` INTEGER NOT NULL,' 'sms_complaints.user_id INTEGER NOT NULL'
+  need '`created_at` DATETIME\(3\) NOT NULL DEFAULT CURRENT_TIMESTAMP\(3\)' 'sms_complaints.created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)'
   return $bad
 }
 

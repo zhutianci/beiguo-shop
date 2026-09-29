@@ -16,30 +16,35 @@ import { cn } from '@/lib/utils'
  * 每条带倒计时（等码到主动取消时刻、收码后到号码结束、待支付到收银台截止；用服务端时间校正），一键进号码页。
  * 号码按分钟倒计时：买家回到板块首页时要能一眼找回它，也免得不知情时再下一单撞上「同时进行中 ≤3」的上限（D27）。
  * 回到前台时重新拉一次；每 30 秒刷新一次（只在页面可见时）。拉不到就不显示（提示条只是提醒）。
+ * 【维护中 / 即将开放也挂（S3 评审修复）】总开关关了（E59：已付款的单照常推进）或受众切回仅管理员时，/jiema 只剩一张说明卡片，
+ * 导航与客服页分区也没了；买家回来（E18）要能从这里找回在途的单。接口 GET /api/jiema/orders 不看 sms_config，照常可用。
+ * 这时传 onlyWithOrders：「我的接码记录 →」只在这个账号近 90 天有过接码单（或有进行中的单）时显示，免得灰度期给从没下过单的人一个空入口。
  */
 const MAX_ROWS = 3
 
-export function JiemaActiveBanner() {
+export function JiemaActiveBanner({ onlyWithOrders = false }: { onlyWithOrders?: boolean } = {}) {
   const hydrated = useHydrated()
   const user = useUserStore((s) => s.user)
   const [items, setItems] = useState<JiemaRecordItem[] | null>(null)
   const [total, setTotal] = useState(0)
+  const [anyOrders, setAnyOrders] = useState(false)
   const offset = useRef(0)
   const [now, setNow] = useState(() => Date.now())
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/jiema/orders?tab=active&page=1', { cache: 'no-store' })
+      const res = await fetch(`/api/jiema/orders?tab=active&page=1${onlyWithOrders ? '&days=90' : ''}`, { cache: 'no-store' })
       if (!res.ok) return
       const d = await res.json().catch(() => null)
       if (!d?.success) return
       offset.current = Date.parse(d.data.serverNow) - Date.now()
       setItems(d.data.items as JiemaRecordItem[])
       setTotal(Number(d.data.counts?.active) || 0)
+      setAnyOrders((Number(d.data.counts?.all) || 0) > 0)
     } catch {
       /* 提示条拉不到就不显示 */
     }
-  }, [])
+  }, [onlyWithOrders])
 
   useEffect(() => {
     if (!hydrated || !user) return
@@ -104,11 +109,13 @@ export function JiemaActiveBanner() {
           </ul>
         </div>
       )}
-      <div className="flex justify-end">
-        <Link href="/jiema/records" className="inline-flex items-center gap-1 text-xs text-white/55 hover:text-white/85">
-          <ClipboardList className="h-3.5 w-3.5" /> 我的接码记录 <ChevronRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
+      {(!onlyWithOrders || anyOrders) && (
+        <div className={cn('flex', onlyWithOrders ? 'justify-center' : 'justify-end')}>
+          <Link href="/jiema/records" className="inline-flex items-center gap-1 text-xs text-white/55 hover:text-white/85">
+            <ClipboardList className="h-3.5 w-3.5" /> 我的接码记录 <ChevronRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

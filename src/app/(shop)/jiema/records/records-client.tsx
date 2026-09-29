@@ -20,6 +20,7 @@ import {
   payModeShort,
   phoneQuery,
   recordStatusText,
+  recordsEmptyState,
   type RecordTab,
 } from '@/lib/jiema/ui'
 import { cn } from '@/lib/utils'
@@ -32,6 +33,8 @@ import { cn } from '@/lib/utils'
  * 每行金额旁小字标付款方式；已关闭的单写「未支付 · 已关闭」（用过余额的加「预扣已退回」，关单后有到账退入的加「付款已退回余额」），
  * **不混进「已退回」**：纯支付宝的关闭单什么都没退。倒计时用服务端时间校正。
  * 登录门禁先等 useHydrated（水合那一次渲染 user 恒为 null）。选择存在 URL（replaceState），刷新不丢。
+ * 换 tab / 日期 / 搜索（第 1 页）时先清空列表、显示骨架，出错时也不留上一个 tab 的行（S3 评审修复）；
+ * 空列表按日期窗口说清楚（「近 30 天没有接码记录 [查看近 90 天]」，不说成「还没有接码记录」）。
  */
 
 interface Resp {
@@ -112,6 +115,11 @@ export function JiemaRecordsClient() {
       const my = ++reqId.current
       setLoading(true)
       setErr(null)
+      if (page === 1) {
+        // 换了筛选：旧行属于上一个 tab / 日期，不能留在新 tab 下面（慢网下会以为是新结果；出错时更会挂在错误框下面）
+        setItems([])
+        setData((prev) => (prev ? { ...prev, hasMore: false } : prev))
+      }
       try {
         const sp = new URLSearchParams({ tab, days: String(days), page: String(page) })
         if (q) sp.set('q', q)
@@ -183,7 +191,7 @@ export function JiemaRecordsClient() {
 
   const serverNow = now + offset.current
   const counts = data?.counts
-  const filtered = !!q || tab !== 'all'
+  const empty = recordsEmptyState({ q, tab, days })
 
   return (
     <div className="space-y-4">
@@ -264,19 +272,29 @@ export function JiemaRecordsClient() {
       )}
 
       {/* 列表 */}
-      {!data && loading ? (
+      {loading && items.length === 0 ? (
         <div className="space-y-2" aria-busy="true">
           {[0, 1, 2].map((i) => (
             <div key={i} className="h-20 animate-pulse rounded-2xl bg-white/[0.05]" />
           ))}
         </div>
-      ) : data && items.length === 0 && !loading ? (
-        <div className="glass rounded-3xl px-6 py-14 text-center">
-          <p className="text-sm text-white/55">{filtered ? '没有符合条件的记录' : '还没有接码记录'}</p>
-          <Link href="/jiema" className="mt-5 inline-block rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2 text-sm font-medium">
-            去接码
-          </Link>
-        </div>
+      ) : items.length === 0 ? (
+        // 出错时只显示上面的错误框（不接着说「没有记录」）
+        data && !err ? (
+          <div className="glass rounded-3xl px-6 py-14 text-center">
+            <p className="text-sm text-white/55">{empty.text}</p>
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {empty.widenTo && (
+                <button onClick={() => setDays(empty.widenTo as number)} className="rounded-full border border-white/15 px-5 py-2 text-sm text-white/80 hover:bg-white/10">
+                  查看近 {empty.widenTo} 天
+                </button>
+              )}
+              <Link href="/jiema" className="inline-block rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-2 text-sm font-medium">
+                去接码
+              </Link>
+            </div>
+          </div>
+        ) : null
       ) : (
         <ul className="glass divide-y divide-white/[0.06] rounded-2xl">
           {items.map((r) => {

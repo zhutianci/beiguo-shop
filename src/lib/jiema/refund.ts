@@ -20,6 +20,7 @@ import { settleCost, isAttemptTerminal, T15_ALERT_FAILS } from './machine'
 import { logEvent, logEventQuiet } from './events'
 import { smsAlert } from './alert'
 import { jnow } from './runtime'
+import { closeComplaintInTx } from './complaint-close'
 
 type Tx = Prisma.TransactionClient
 
@@ -196,7 +197,7 @@ async function alipayPaidOf(tx: Tx, orderId: number): Promise<number | null> {
   return centsOf(v.reallyPrice)
 }
 
-export type RefundOutcome = { done: true; topupCents: number; cashCents: number } | { done: false; why: 'NOT_READY' | 'RACE' | 'MANUAL' | 'ERROR' }
+export type RefundOutcome = { done: true; topupCents: number; cashCents: number; complaintClosed?: boolean } | { done: false; why: 'NOT_READY' | 'RACE' | 'MANUAL' | 'ERROR' }
 
 /**
  * T15：REFUNDING → CANCELLED，整单退回余额。前提：所有尝试都 FAILED / CANCELLED、没有任何一个收到过短信（附录 B 第 2 条）。
@@ -289,8 +290,15 @@ export async function refundCancelled(smsOrderId: number, actor: 'SYSTEM' | 'CRO
  * opts.allowManual（后台对「MANUAL 且收过码」的单售后，§7.2；S2b 评审修复）：MANUAL 直接在同一个事务里 CAS 成 REFUNDED，
  * 不再先在事务外把它改回 RECEIVED——那样退款失败 / 被 tick 抢先改成 FINISHED 时，单子悄悄离开了人工队列。
  * 这时前提不满足（支付宝核对不上、预扣不是 CAPTURED）整个事务回滚、订单**留在 MANUAL**，返回 MANUAL 并记一条 REFUND_ERR 事件。
+ * 【售后申请一并收尾（S3 评审修复）】这张单若有售后申请（待处理 / 退款中 / 已驳回），在**同一个事务末尾**收成 REFUNDED 并写「售后审核通过」留言
+ * （complaint-close.closeComplaintInTx）：钱与售后记录同成同败，不再有「钱退了、记录停在已驳回」的中间态。opts.complaint 给备注与入口（缺省 = 订单抽屉）。
  */
-export async function refundAfterSale(smsOrderId: number, adminId: number, reason: string, opts: { allowManual?: boolean } = {}): Promise<RefundOutcome> {
+export async function refundAfterSale(
+  smsOrderId: number,
+  adminId: number,
+  reason: string,
+  opts: { allowManual?: boolean; complaint?: { note: string | null; via: 'APPROVE' | 'ORDER' } } = {},
+): Promise<RefundOutcome> {
   const pre = await prisma.smsOrder.findUnique({ where: { id: smsOrderId }, select: { id: true, orderId: true, userId: true, state: true, refundState: true, payMode: true, alipayPaidCents: true, costAt: true } })
   const fromStates = opts.allowManual ? ['RECEIVED', 'FINISHED', 'MANUAL'] : ['RECEIVED', 'FINISHED']
   if (!pre || !fromStates.includes(pre.state) || pre.refundState !== 'NONE') return { done: false, why: 'NOT_READY' }
@@ -321,7 +329,18 @@ export async function refundAfterSale(smsOrderId: number, adminId: number, reaso
       await recomputeCostInTx(tx, smsOrderId, 'T16')
       await logEvent(tx, { smsOrderId, type: 'REFUND', actor: 'ADMIN', actorId: adminId, detail: { topupCents: money.topupCents, cashCents: money.cashCents, reason, afterSale: true } })
       await logEvent(tx, { smsOrderId, type: 'STATE', actor: 'ADMIN', actorId: adminId, detail: { from: pre.state, to: 'REFUNDED' } })
-      return { topupCents: money.topupCents, cashCents: money.cashCents }
+      // 售后申请与钱同一个事务收尾（放在最后：前面的锁顺序不变；这里只对 sms_complaints 一行加锁、插一条留言）
+      const complaintClosed = await closeComplaintInTx(tx, {
+        orderId: pre.orderId,
+        smsOrderId,
+        adminId,
+        note: opts.complaint?.note ?? null,
+        topupCents: money.topupCents,
+        cashCents: money.cashCents,
+        via: opts.complaint?.via ?? 'ORDER',
+        includeRejected: true,
+      })
+      return { topupCents: money.topupCents, cashCents: money.cashCents, complaintClosed }
     })
     return { done: true, ...r }
   } catch (e) {

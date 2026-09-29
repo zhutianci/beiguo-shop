@@ -1487,8 +1487,14 @@ export async function runTick(opts: { budgetMs?: number; intervalMs?: number } =
 /**
  * T16 售后退款：先放掉还开着的号（ACTIVE 放号、RECEIVED 完成），再整单原路退回余额，成本照计。
  * opts.allowManual：MANUAL（收过码的）单直接在 T16 的事务里 MANUAL → REFUNDED（失败时留在 MANUAL；S2b 评审修复）
+ * opts.complaint：这张单的售后申请在 T16 同一个事务里收成「已通过」时用的备注与入口（S3 评审修复）；返回的 complaintClosed = 本次收尾了一条
  */
-export async function adminRefund(smsOrderId: number, adminId: number, reason = 'COMPLAINT', opts: { allowManual?: boolean } = {}): Promise<{ ok: boolean; why?: string }> {
+export async function adminRefund(
+  smsOrderId: number,
+  adminId: number,
+  reason = 'COMPLAINT',
+  opts: { allowManual?: boolean; complaint?: { note: string | null; via: 'APPROVE' | 'ORDER' } } = {},
+): Promise<{ ok: boolean; why?: string; complaintClosed?: boolean }> {
   const atts = await prisma.smsAttempt.findMany({ where: { smsOrderId, state: { in: ['ACTIVE', 'RECEIVED'] } } })
   for (const a of atts) {
     if (a.state === 'ACTIVE') {
@@ -1501,7 +1507,7 @@ export async function adminRefund(smsOrderId: number, adminId: number, reason = 
   }
   // finish 成功时订单已 RECEIVED → FINISHED；两种都可以售后
   const r = await refundAfterSale(smsOrderId, adminId, reason, opts)
-  return r.done ? { ok: true } : { ok: false, why: r.why }
+  return r.done ? { ok: true, complaintClosed: !!r.complaintClosed } : { ok: false, why: r.why }
 }
 
 /**

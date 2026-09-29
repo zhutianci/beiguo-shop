@@ -419,6 +419,18 @@ export function parseRecordDays(x: string | null | undefined): number {
 }
 
 /**
+ * 记录页空列表的文案（S3 评审修复）：日期筛选默认近 30 天、对非进行中的单一直生效，所以「近 30 天没有」不能说成「还没有接码记录」。
+ * 日期窗口还没到最大（90 天）且当前 tab 受日期影响（「进行中」不受）时，给出放宽到的天数（页面显示「查看近 90 天」按钮）。
+ */
+export function recordsEmptyState(f: { q: string; tab: RecordTab; days: number }): { text: string; widenTo: number | null } {
+  const max = RECORD_DAYS[RECORD_DAYS.length - 1]
+  const widenTo = f.tab !== 'active' && f.days < max ? max : null
+  if (f.q || f.tab !== 'all') return { text: widenTo ? `近 ${f.days} 天没有符合条件的记录` : '没有符合条件的记录', widenTo }
+  if (widenTo) return { text: `近 ${f.days} 天没有接码记录`, widenTo }
+  return { text: '还没有接码记录', widenTo: null }
+}
+
+/**
  * 号码搜索（§1.11：完整号或后 4 位）：只取数字（「+62 812 3456 7890」「812-3456-7890」都行）；不到 4 位不搜（'SHORT'）；
  * 恰好 4 位按「以它结尾」，更长的按「包含」（号码库里存的是带区号的全号，买家可能只贴本地号）。空串 = 不筛。
  */

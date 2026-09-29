@@ -35,6 +35,7 @@ import {
   payModeShort,
   recordStatusText,
   bannerText,
+  recordsEmptyState,
   type RecordLike,
 } from '../src/lib/jiema/ui'
 import { jiemaFaqs, jiemaSupportRules, supportFaqs } from '../src/lib/support-faq'
@@ -169,6 +170,16 @@ console.log('\n— 记录页每行的状态文字、/jiema 进行中提示条（
   ok(b({ state: 'READY' }).includes('开始接码'), 'READY：提示去点「开始接码」或取消退回余额')
 }
 
+console.log('\n— 记录页空列表文案（评审修复：默认近 30 天，不能把「近 30 天没有」说成「还没有接码记录」）')
+{
+  eq(recordsEmptyState({ q: '', tab: 'all', days: 30 }), { text: '近 30 天没有接码记录', widenTo: 90 }, '全部 / 近 30 天 / 没搜 →「近 30 天没有接码记录」+ 查看近 90 天')
+  eq(recordsEmptyState({ q: '', tab: 'all', days: 7 }), { text: '近 7 天没有接码记录', widenTo: 90 }, '近 7 天同理')
+  eq(recordsEmptyState({ q: '', tab: 'all', days: 90 }), { text: '还没有接码记录', widenTo: null }, '只有近 90 天也没有才说「还没有接码记录」')
+  eq(recordsEmptyState({ q: '1234', tab: 'all', days: 30 }), { text: '近 30 天没有符合条件的记录', widenTo: 90 }, '搜号码 + 近 30 天 → 带天数、可放宽')
+  eq(recordsEmptyState({ q: '', tab: 'done', days: 90 }), { text: '没有符合条件的记录', widenTo: null }, '按 tab 筛 + 近 90 天 →「没有符合条件的记录」')
+  eq(recordsEmptyState({ q: '', tab: 'active', days: 30 }), { text: '没有符合条件的记录', widenTo: null }, '「进行中」不受日期筛选影响：不给放宽按钮')
+}
+
 console.log('\n— 客服页 #jiema 与 /jiema 的 FAQ、规则一览（§8.3；§12.3 第 73、126 条）')
 {
   const p = { maxReplace: 5, complaintWindowH: 24, topup: { tiersCents: [500, 1000, 1500, 2000, 5000], minCents: 100, maxCents: 100_000 }, hours: PLATFORM_CONTACT.hours }
@@ -184,6 +195,15 @@ console.log('\n— 客服页 #jiema 与 /jiema 的 FAQ、规则一览（§8.3；
   ok(f[4].a.includes('档位 ¥5 / 10 / 15 / 20 / 50') && f[4].a.includes('目前 ¥1–1,000'), 'FAQ 5：档位与单笔上下限取 wallet_config')
   ok(jiemaFaqs({ ...p, topup: { tiersCents: [1000, 3000], minCents: 500, maxCents: 50_000 } })[4].a.includes('档位 ¥10 / 30') && jiemaFaqs({ ...p, topup: { tiersCents: [1000], minCents: 500, maxCents: 50_000 } })[4].a.includes('目前 ¥5–500'), 'FAQ 5：后台改了档位 / 上下限，文案跟着变')
   ok(jiemaFaqs({ ...p, topup: null })[4].a.startsWith('余额充值即将开放'), 'FAQ 5：充值没开放 → 「即将开放」（不说一件还不存在的事）')
+  {
+    // 评审修复：「即将开放」这一版的退回去向必须与 FAQ 2、D4 一致（余额抵扣回原来那一格、支付宝付的进充值余额），不能说「全部进充值余额」
+    const closed5 = jiemaFaqs({ ...p, topup: null })[4].a
+    ok(
+      closed5.includes('余额抵扣的部分退回原来那一格（充值余额或返现余额）') && closed5.includes('支付宝付的部分退进充值余额') && !/退回的钱会进入你的充值余额/.test(closed5) && f[1].a.includes('余额抵扣的部分退回原来那一格（充值余额或返现余额），支付宝付的部分退进充值余额'),
+      'FAQ 5「即将开放」版：退回去向与 FAQ 2 / D4 同一口径（返现那部分回返现余额，不是全部进充值余额）',
+      closed5,
+    )
+  }
   ok(f[0].a.includes('免费换 5 次') && jiemaFaqs({ ...p, maxReplace: 3 })[0].a.includes('免费换 3 次'), 'FAQ 1：换号次数取 sms_config.maxReplace')
   ok(f[10].a.includes('收到短信后 24 小时内') && jiemaFaqs({ ...p, complaintWindowH: 48 })[10].a.includes('收到短信后 48 小时内'), 'FAQ 11：售后窗口取 complaintWindowH')
   ok(f[10].a.includes('截图请发微信客服') && f[10].a.includes('结果会写在订单留言里'), 'FAQ 11：截图走微信、结果在订单留言')

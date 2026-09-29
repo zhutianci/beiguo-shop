@@ -17,6 +17,9 @@
  *   · 后台接码订单详情带售后申请、概览「N 条售后申请待处理」；
  *   · 客服页 #jiema 分区与 FAQPage：只在主站、对全部用户开放时进结构化数据；灰度期管理员预览（不进结构化数据）、普通访客没有；渠道站没有；
  *   · /jiema 页 FAQ 与结构化数据；记录页渠道 Host 404；
+ *   · 评审修复（S3 第二个提交）：售后申请的收尾与 T16 **同一个事务**（注入「写留言失败」→ 钱也不退、记录不动；直接调 T16 也会收尾）、
+ *     已驳回而钱已退的申请在售后里「通过」= 补记（不再动钱）、列表下发当前售后窗口与次数上限、/jiema 维护中 / 即将开放也挂进行中提示条、
+ *     个人中心「我的接码记录」入口的开关（profile/layout 的 JiemaOpenProvider）、FAQ 5「即将开放」版的退回去向；
  *   · 最后 W 系列对账不新增问题。
  */
 import http from 'http'
@@ -140,6 +143,42 @@ async function main() {
   const SupportLayout = (await import('../src/app/(shop)/support/layout')).default as (p: { children: React.ReactNode }) => Promise<unknown>
   const JiemaPage = (await import('../src/app/(shop)/jiema/page')).default as () => Promise<unknown>
   const RecordsPage = (await import('../src/app/(shop)/jiema/records/page')).default as () => Promise<unknown>
+  const ProfileLayout = (await import('../src/app/(shop)/profile/layout')).default as (p: { children: React.ReactNode }) => Promise<unknown>
+  // 故障注入（评审修复用）：应用自己的 Prisma 客户端（src/lib/db，与 harness 的不是同一个）上挂中间件，只在 failMsgOrderId 指定的单写订单留言时抛错；
+  // 中间件对交互式事务里的查询同样生效，用来证明「售后收尾」与 T16 同成同败
+  let failMsgOrderId: number | null = null
+  let injectedHits = 0
+  {
+    const appDb = (await import('../src/lib/db')).prisma
+    appDb.$use(async (params, next) => {
+      if (failMsgOrderId != null && params.model === 'OrderMessage' && params.action === 'create' && (params.args as { data?: { orderId?: number } })?.data?.orderId === failMsgOrderId) {
+        injectedHits++
+        throw new Error('itest injected failure: order_messages insert')
+      }
+      return next(params)
+    })
+  }
+  const { JiemaActiveBanner } = await import('../src/app/(shop)/jiema/active-banner')
+  /** 在一棵 React 元素树里找某个组件的元素（客户端组件在服务端渲染结果里只是 { type, props }） */
+  const findEl = (el: unknown, type: unknown, depth = 0): { props: Record<string, unknown> } | null => {
+    if (depth > 60 || el == null || typeof el !== 'object') return null
+    if (Array.isArray(el)) {
+      for (const x of el) {
+        const f = findEl(x, type, depth + 1)
+        if (f) return f
+      }
+      return null
+    }
+    const e = el as { type?: unknown; props?: Record<string, unknown> }
+    if (e.type === type && e.props) return e as { props: Record<string, unknown> }
+    if (e.props) {
+      for (const v of Object.values(e.props)) {
+        const f = findEl(v, type, depth + 1)
+        if (f) return f
+      }
+    }
+    return null
+  }
 
   const saved: Record<string, unknown[]> = {}
   for (const t of SMS_TABLES) saved[t] = await prisma.$queryRawUnsafe(`SELECT * FROM ${t}`)
@@ -420,6 +459,12 @@ async function main() {
       const mine = list.find((x) => x.id === cid1)
       check('待处理列表：有这一条、pendingTotal ≥ 2、先到先处理（按提交时间升序）', l.status === 200 && !!mine && l.json.data.pendingTotal >= 2 && list.every((x, i) => i === 0 || Date.parse(list[i - 1].createdAt) <= Date.parse(x.createdAt)))
       check('每条带 30 天内已通过次数（0）、号码能不能再次收码、原因中文', mine?.passed30d === 0 && typeof mine?.noResend === 'boolean' && mine?.reasonText === '验证码无效或提示错误')
+      check('评审修复：列表下发当前售后窗口 complaintWindowH（24）与次数上限 passLimit（2），规则提示不写死', l.json?.data?.complaintWindowH === 24 && l.json?.data?.passLimit === 2, JSON.stringify({ w: l.json?.data?.complaintWindowH, p: l.json?.data?.passLimit }))
+      await setCfg({ complaintWindowH: 36 })
+      const l36 = await callRoute(routeCList.GET, { ...asAdmin, path: '/api/admin/jiema/complaints?state=PENDING&pageSize=1' })
+      const d36 = await callRoute(routeCDetail.GET, { ...asAdmin, path: `/api/admin/jiema/complaints/${cid1}`, params: { id: String(cid1) } })
+      check('  …后台把窗口改成 36 小时 → 列表与详情都跟着变', l36.json?.data?.complaintWindowH === 36 && d36.json?.data?.complaintWindowH === 36)
+      await setCfg()
       const d = await callRoute(routeCDetail.GET, { ...asAdmin, path: `/api/admin/jiema/complaints/${cid1}`, params: { id: String(cid1) } })
       const so1 = await soOf(c1.orderId)
       check('详情：短信内容、每个号能不能再次收码、上游申诉截止（取号 + 7 天）、可通过可驳回', d.status === 200 && d.json.data.messages.some((m: any) => m.code === '482917') && d.json.data.attempts.length >= 1 && !!d.json.data.appealDeadline && d.json.data.actions.approve && d.json.data.actions.reject)
@@ -549,6 +594,94 @@ async function main() {
       check('驳回后又在订单详情里退款 → 售后申请改成 REFUNDED（与钱一致）', (await prisma.smsComplaint.findUniqueOrThrow({ where: { id: k4.id } })).state === 'REFUNDED' && (await soOf(r4.orderId)).state === 'REFUNDED')
       const pNo = await cpost(r4.orderNo)
       check('已退款的单再提交售后 → 409（EXISTS）', pNo.status === 409)
+      check('  …留言：驳回一条 + 「售后审核通过」一条（带两格金额）', (await prisma.orderMessage.count({ where: { orderId: r4.orderId, content: { startsWith: '售后审核通过' } } })) === 1 && (await prisma.orderMessage.count({ where: { orderId: r4.orderId, content: { startsWith: '售后申请未通过' } } })) === 1)
+
+      // ⑤ 评审修复：售后收尾与 T16 同一个事务——注入「写留言失败」（应用的 Prisma 客户端上挂一个测试中间件，只拦这张单的留言），
+      //    钱也不退、售后记录不动；去掉注入后再退，两者一起完成
+      const r5 = await received(u, '551234')
+      await cpost(r5.orderNo)
+      const k5 = await prisma.smsComplaint.findUniqueOrThrow({ where: { orderId: r5.orderId } })
+      await act(k5.id, { action: 'reject', reply: '先驳回' })
+      const so5 = await soOf(r5.orderId)
+      const bal5 = await prisma.user.findUniqueOrThrow({ where: { id: u.id }, select: { topupCents: true, balance: true } })
+      failMsgOrderId = r5.orderId
+      injectedHits = 0
+      let f5: Awaited<ReturnType<typeof callRoute>> | null = null
+      try {
+        f5 = await callRoute(routeADetail.POST, { ...asAdmin, method: 'POST', path: `/api/admin/jiema/orders/${so5.id}`, params: { id: String(so5.id) }, body: { action: 'refund', reason: '改主意了' } })
+      } finally {
+        failMsgOrderId = null
+      }
+      check('  （注入生效：拦下了事务里的那条留言）', injectedHits >= 1, String(injectedHits))
+      const so5a = await soOf(r5.orderId)
+      const bal5a = await prisma.user.findUniqueOrThrow({ where: { id: u.id }, select: { topupCents: true, balance: true } })
+      check(
+        '写「售后审核通过」留言失败 → 整个 T16 回滚：订单没退款（refundState NONE、没有 REFUND 流水、余额没变）、售后仍是已驳回',
+        f5?.status === 500 &&
+          so5a.state !== 'REFUNDED' &&
+          so5a.refundState === 'NONE' &&
+          (await prisma.balanceLog.count({ where: { orderId: r5.orderId, type: 'REFUND' } })) === 0 &&
+          bal5a.topupCents === bal5.topupCents &&
+          Number(bal5a.balance) === Number(bal5.balance) &&
+          (await prisma.smsComplaint.findUniqueOrThrow({ where: { id: k5.id } })).state === 'REJECTED',
+        `${f5?.status} ${so5a.state}/${so5a.refundState}`,
+      )
+      const g5 = await callRoute(routeADetail.POST, { ...asAdmin, method: 'POST', path: `/api/admin/jiema/orders/${so5.id}`, params: { id: String(so5.id) }, body: { action: 'refund', reason: '改主意了' } })
+      const k5a = await prisma.smsComplaint.findUniqueOrThrow({ where: { id: k5.id } })
+      check(
+        '  …去掉注入后再点「售后退款到余额」→ 钱与售后记录一起完成：REFUNDED + 售后 REFUNDED + 一条「售后审核通过」留言 + 一条 REFUND 流水',
+        g5.status === 200 &&
+          (await soOf(r5.orderId)).state === 'REFUNDED' &&
+          k5a.state === 'REFUNDED' &&
+          (await prisma.orderMessage.count({ where: { orderId: r5.orderId, content: { startsWith: '售后审核通过' } } })) === 1 &&
+          (await prisma.balanceLog.count({ where: { orderId: r5.orderId, type: 'REFUND' } })) === 1 &&
+          String(g5.json?.message).includes('售后申请已记为通过'),
+        g5.text.slice(0, 200),
+      )
+
+      // ⑥ 直接调 T16（engine.adminRefund，不经过任何「退款后再收尾」的步骤）也会在同一个事务里收尾售后申请
+      const r6 = await received(u, '661234')
+      await cpost(r6.orderNo)
+      const k6 = await prisma.smsComplaint.findUniqueOrThrow({ where: { orderId: r6.orderId } })
+      const so6 = await soOf(r6.orderId)
+      const t6 = await engine.adminRefund(so6.id, admin.id, 'COMPLAINT')
+      const ev6 = await prisma.smsEvent.findFirst({ where: { smsOrderId: so6.id, type: 'COMPLAINT_OK' } })
+      check(
+        '直接调 T16 → ok、complaintClosed=true；售后 REFUNDED、留言一条、事件 COMPLAINT_OK（via ORDER）——收尾是 T16 事务的一部分',
+        t6.ok &&
+          t6.complaintClosed === true &&
+          (await prisma.smsComplaint.findUniqueOrThrow({ where: { id: k6.id } })).state === 'REFUNDED' &&
+          (await prisma.orderMessage.count({ where: { orderId: r6.orderId, content: { startsWith: '售后审核通过' } } })) === 1 &&
+          !!ev6 &&
+          String(ev6.detail).includes('"via":"ORDER"'),
+        JSON.stringify({ t6, ev: ev6?.detail }),
+      )
+
+      // ⑦ 补记：已驳回、钱却已经退了（早先的数据 / 异常留下的中间态）→ 售后详情给「通过」（moneyDone），点了只补记状态与留言、不再动钱
+      await prisma.smsComplaint.update({ where: { id: k6.id }, data: { state: 'REJECTED', adminNote: '模拟：驳回后钱在订单里退了、收尾没成' } })
+      await prisma.orderMessage.deleteMany({ where: { orderId: r6.orderId, content: { startsWith: '售后审核通过' } } })
+      const d7 = await callRoute(routeCDetail.GET, { ...asAdmin, path: `/api/admin/jiema/complaints/${k6.id}`, params: { id: String(k6.id) } })
+      check('已驳回 + 订单已售后退款：详情 actions.approve=true、moneyDone=true、不能再驳回', d7.json?.data?.actions?.approve === true && d7.json?.data?.moneyDone === true && d7.json?.data?.actions?.reject === false, JSON.stringify(d7.json?.data?.actions))
+      const a7 = await act(k6.id, { action: 'approve', note: '补记' })
+      check(
+        '  …点「通过」→ 200「补记为通过」：售后 REFUNDED、留言一条（带备注）、REFUND 流水仍只有一条（不再动钱）',
+        a7.status === 200 &&
+          String(a7.json?.message).includes('补记') &&
+          (await prisma.smsComplaint.findUniqueOrThrow({ where: { id: k6.id } })).state === 'REFUNDED' &&
+          (await prisma.orderMessage.count({ where: { orderId: r6.orderId, content: { startsWith: '售后审核通过' }, AND: [{ content: { endsWith: '客服备注：补记' } }] } })) === 1 &&
+          (await prisma.balanceLog.count({ where: { orderId: r6.orderId, type: 'REFUND' } })) === 1,
+        a7.text.slice(0, 200),
+      )
+      const a7b = await act(k6.id, { action: 'approve' })
+      check('  …再点一次 → 409，不会写第二条留言', a7b.status === 409 && (await prisma.orderMessage.count({ where: { orderId: r6.orderId, content: { startsWith: '售后审核通过' } } })) === 1)
+      const w8 = await mkUser('reject-only')
+      await fund(w8.id, 1000, 0)
+      const r8 = await received(w8, '881234')
+      await callRoute(routeComplain.POST, { host: MAIN, token: w8.token, method: 'POST', path: `/api/jiema/orders/${r8.orderNo}/complaint`, params: { orderNo: r8.orderNo }, body: { reason: 'OTHER' } })
+      const k8 = await prisma.smsComplaint.findUniqueOrThrow({ where: { orderId: r8.orderId } })
+      await act(k8.id, { action: 'reject', reply: '不属于售后' })
+      const a8 = await act(k8.id, { action: 'approve' })
+      check('已驳回、钱没退的单点「通过」仍 409（要退款请到「订单」里），钱没动', a8.status === 409 && (await prisma.balanceLog.count({ where: { orderId: r8.orderId, type: 'REFUND' } })) === 0)
     }
 
     // =====================================================================================
@@ -581,6 +714,17 @@ async function main() {
       const open = await render(MAIN)
       check('对全部用户开放：分区数据有、结构化数据里有 13 条接码问答（与页面同一份）', open.text.includes(faq13) && open.ld.includes(faq13) && open.ld.includes('刚刚下单了，为什么查询不到订单？'))
       check('  …FAQ 11 用当前 complaintWindowH（24）、FAQ 5 充值没对全部用户开放 → 「即将开放」', open.ld.includes('收到短信后 24 小时内') && open.ld.includes('余额充值即将开放'))
+      check(
+        '  …评审修复：FAQ 5「即将开放」版的退回去向与 FAQ 2 一致（余额抵扣回原来那一格、支付宝付的进充值余额），不再说「全部进充值余额」',
+        open.ld.includes('余额抵扣的部分退回原来那一格（充值余额或返现余额），支付宝付的部分退进充值余额，下次下单可以直接抵扣') && !open.ld.includes('退回的钱会进入你的充值余额'),
+      )
+      const pfOpen = await withRequest({ host: MAIN, token: ru.token }, () => catchNext(() => ProfileLayout({ children: 'x' })))
+      const pfCh = await withRequest({ host: lulu.host, token: ru.token }, () => catchNext(() => ProfileLayout({ children: 'x' })))
+      check(
+        '个人中心「我的接码记录」入口开关（§1.2）：对全部用户开放时 profile/layout 下发 true；渠道站 false',
+        pfOpen.kind === 'ok' && (pfOpen.value as any)?.props?.value === true && pfCh.kind === 'ok' && (pfCh.value as any)?.props?.value === false,
+        `${pfOpen.kind} ${pfCh.kind}`,
+      )
       const ch = await render(lulu.host)
       check('渠道站：没有接码分区、结构化数据没有接码问答', ch.kind === 'ok' && !ch.text.includes(faq13) && !ch.ld.includes(faq13))
       const jp = await withRequest({ host: MAIN }, () => catchNext(() => JiemaPage()))
@@ -590,6 +734,27 @@ async function main() {
       const jp2 = await withRequest({ host: MAIN, token: admin.token }, () => catchNext(() => JiemaPage()))
       const jt2 = jp2.kind === 'ok' ? textOf(jp2.value).join('\n') : ''
       check('/jiema 管理员预览：FAQ 看得到，但不输出 FAQPage', jt2.includes(faq13) && !jt2.includes('FAQPage'))
+      const pfGray = await withRequest({ host: MAIN, token: admin.token }, () => catchNext(() => ProfileLayout({ children: 'x' })))
+      check('个人中心入口开关：灰度期（仅管理员）连管理员也是 false（与导航、页脚同一个判定）', pfGray.kind === 'ok' && (pfGray.value as any)?.props?.value === false)
+      // 评审修复：即将开放 / 维护中（在途单照常推进，E59）也挂进行中提示条与「我的接码记录」入口（E18）
+      const viewer = await mkUser('viewer', 'USER')
+      const soon = await withRequest({ host: MAIN, token: viewer.token }, () => catchNext(() => JiemaPage()))
+      const soonBanner = soon.kind === 'ok' ? findEl(soon.value, JiemaActiveBanner) : null
+      check(
+        '/jiema 即将开放（普通用户、受众仅管理员）：说明卡片里有进行中提示条（onlyWithOrders：只对有过接码单的人显示记录入口）',
+        soon.kind === 'ok' && textOf(soon.value).join('\n').includes('短信接码即将开放') && soonBanner?.props?.onlyWithOrders === true,
+        soon.kind,
+      )
+      await setCfg({ enabled: false, audience: 'ALL' })
+      const mt = await withRequest({ host: MAIN, token: viewer.token }, () => catchNext(() => JiemaPage()))
+      check(
+        '/jiema 维护中（开放后总开关关了）：说明卡片里同样有进行中提示条',
+        mt.kind === 'ok' && textOf(mt.value).join('\n').includes('接码服务维护中') && findEl(mt.value, JiemaActiveBanner)?.props?.onlyWithOrders === true,
+        mt.kind,
+      )
+      const recMt = await callRoute(routeRecords.GET, { ...asRu, path: '/api/jiema/orders?tab=active&days=90' })
+      check('  …提示条的数据源（记录接口）在维护中照常可用：进行中的单列得出来', recMt.status === 200 && (recMt.json?.data?.counts?.active ?? 0) >= 1 && (recMt.json?.data?.counts?.all ?? 0) >= 1)
+      await setCfg({ audience: 'ADMIN_ONLY' })
     }
 
     // =====================================================================================

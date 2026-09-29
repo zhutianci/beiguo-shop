@@ -21,12 +21,14 @@ import {
   Gift,
   Loader2,
   X,
+  MessageSquareText,
 } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { useHydrated } from '@/lib/use-hydrated'
 import AccountBindings from '@/components/account-bindings'
 import MarketingSubscription from '@/components/marketing-subscription'
 import { useStorefront } from '@/components/storefront-provider'
+import { useJiemaOpen } from './jiema-open'
 // 只取类型：vip-server 带 prisma，值导入会把它打进前端包
 import type { OverviewDTO, PlatformOverviewDTO } from '@/lib/vip-server'
 
@@ -65,6 +67,8 @@ export default function ProfilePage() {
    * 这些模块在渠道站服务端关闭（接口 404），留着入口会产生 404 请求（验收 W1-9）。主站 features 全开，渲染结果不变。
    */
   const { kind: storefrontKind, features } = useStorefront()
+  // 短信接码对全部用户开放（profile/layout.tsx 在服务端读 sms_config 算，与导航 / 页脚同一个判定；docs/短信接码-设计.md §1.2）
+  const jiemaOpen = useJiemaOpen()
   const [isEditing, setIsEditing] = useState(false)
   const [formData, setFormData] = useState({
     nickname: '',
@@ -161,7 +165,9 @@ export default function ProfilePage() {
   }
 
   // 6 项正好两行 × 3 列。推荐有奖紧跟「我的订单」：它是新入口，也是除买东西外唯一能让余额变多的地方。
-  // 带 feature 的项只在该模块开着的店面出现（渠道站只剩「我的订单」「抬头管理」）
+  // 带 feature 的项只在该模块开着的店面出现（渠道站只剩「我的订单」「抬头管理」）。
+  // 「我的接码记录」（短信接码 §1.2）只在接码对全部用户开放后出现（features.jiema && jiemaOpen），紧跟「账户余额」（接码退款进余额）；
+  // 出现后是 7 项，第三行只有它一项——灰度期与渠道站仍是原来的样子。
   const allMenuItems = [
     {
       icon: ShoppingBag,
@@ -185,6 +191,14 @@ export default function ProfilePage() {
       href: '/wallet',
       gradient: 'from-cyan-500 to-blue-500',
       show: features.wallet,
+    },
+    {
+      icon: MessageSquareText,
+      label: '我的接码记录',
+      desc: '验证码与退款记录',
+      href: '/jiema/records',
+      gradient: 'from-teal-500 to-cyan-500',
+      show: features.jiema && jiemaOpen,
     },
     {
       icon: Ticket,

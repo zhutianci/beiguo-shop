@@ -25,7 +25,8 @@ export const dynamic = 'force-dynamic'
  * 「去支付」（S2b）：接码下单已交付（JIEMA_ORDER_AVAILABLE）&& 总开关开 && （对全部用户开放，或管理员在「仅管理员」灰度期真钱验收）。
  * 余额支付开关（wallet_config.balancePayEnabled，读不到按关）与本人上一张接码单同意过的条款版本在这里读好交给确认面板（§1.8）。
  * 第一行 notFoundOnChannel（layout 已经调过一次；页面这里再调一次，免得以后有人把 layout 改掉），不包进 try。
- * 【S3】顶部「进行中订单提示条」与「我的接码记录 →」（客户端，登录后才请求，§1.4）；页尾 FAQ（与客服页 #jiema 同一份 lib/support-faq.jiemaFaqs，
+ * 【S3】顶部「进行中订单提示条」与「我的接码记录 →」（客户端，登录后才请求，§1.4）；维护中 / 即将开放的说明卡片里也挂一份
+ * （总开关关了在途单照常推进，E59；买家回来要能找回，E18——S3 评审修复），入口只对有过接码单的账号显示；页尾 FAQ（与客服页 #jiema 同一份 lib/support-faq.jiemaFaqs，
  * 数字取当前配置），**只在对全部用户开放时**输出 FAQPage 结构化数据（§1.3；管理员预览时普通访客看不到，不能标记）。
  */
 export default async function JiemaPage() {
@@ -44,6 +45,10 @@ export default async function JiemaPage() {
               ? '已付款的订单照常处理；因服务异常取不到号的，会自动取消并退回余额。'
               : '海外手机号在线接收短信验证码，没收到短信整单退回站内余额。上线后会出现在顶部导航。'}
           </p>
+          {/* 在途订单照常推进（E59），买家回来要能找回（E18）：登录后显示进行中提示条与「我的接码记录」（只对有过接码单的人显示入口） */}
+          <div className="mx-auto max-w-md text-left">
+            <JiemaActiveBanner onlyWithOrders />
+          </div>
           {v.isAdmin && !v.cfg && (
             <p className="mx-auto mt-4 max-w-md rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-2 text-xs text-amber-100/90">
               管理员：sms_config 读取失败（fail-closed）。到后台「短信接码 → 设置」点「填入出厂值」再保存一次即可。

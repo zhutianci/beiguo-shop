@@ -24,7 +24,7 @@ import { recomputeCostInTx } from './refund'
 import { adminClaimActivation, adminClaimCandidates } from './claim'
 import { logEventQuiet } from './events'
 import * as engine from './engine'
-import { finalizeComplaintAfterRefund, pendingComplaintCount } from './complaint'
+import { alertFinalizeFailed, finalizeComplaintAfterRefund, pendingComplaintCount } from './complaint'
 import { complaintReasonText } from './complaint-rules'
 
 const S = 1000
@@ -266,13 +266,16 @@ export async function runAdminAction(id: number, adminId: number, input: AdminAc
         const [o, atts] = await Promise.all([prisma.order.findUnique({ where: { id: so.orderId }, select: { payStatus: true } }), prisma.smsAttempt.findMany({ where: { smsOrderId: id } })])
         if (o?.payStatus !== 'PAID' || !atts.some(hasCode)) return { ok: false, message: '只有收到过短信的已付款单才能售后退款' }
       } else if (so.state !== 'RECEIVED' && so.state !== 'FINISHED') return { ok: false, message: '只有已收码 / 已完成的单能售后退款' }
-      const r = await engine.adminRefund(id, adminId, 'COMPLAINT', { allowManual: manual })
+      // 这张单还有没收尾的售后申请（S3；待处理或已驳回）：T16 在**同一个事务里**一并收成「已通过」并给买家写一条留言（带两格退回金额），
+      // 30 天通过次数也算上（S3 评审修复：原来在退款提交后另开事务、出错被吞，已驳回的申请就再也收不回来）
+      const r = await engine.adminRefund(id, adminId, 'COMPLAINT', { allowManual: manual, complaint: { note: null, via: 'ORDER' } })
       if (r.ok) {
-        // 这张单还有没收尾的售后申请（S3）：一并收成「已通过」并给买家写一条留言（带两格退回金额），30 天通过次数也算上
-        const closed = await finalizeComplaintAfterRefund(so.orderId, adminId, null, { fromOrderDrawer: true }).catch((e) => {
-          console.error('[jiema] 售后退款后收尾售后申请失败', id, (e as Error)?.message)
+        // 兜底：售后申请在 T16 之后才可见的极端情况（CAS 落空时什么都不写）；失败推 sms.alert，到「售后」里点「通过」可补记
+        const late = await finalizeComplaintAfterRefund(so.orderId, adminId, null, { fromOrderDrawer: true }).catch((e) => {
+          alertFinalizeFailed(so.orderId, null, e)
           return false
         })
+        const closed = !!r.complaintClosed || late
         return { ok: true, message: `已售后退款：整单原路退回余额，成本照计（利润 = −成本）${closed ? '；这张单的售后申请已记为通过，结果已发到订单留言' : ''}` }
       }
       const why =
