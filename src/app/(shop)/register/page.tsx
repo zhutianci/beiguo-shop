@@ -8,6 +8,7 @@ import { ArrowRight, Mail, Lock, User, Sparkles, ShieldCheck } from 'lucide-reac
 import { useUserStore } from '@/store/user'
 import { setToken } from '@/lib/auth-token'
 import { useStorefront } from '@/components/storefront-provider'
+import { safeRedirect, withRedirect } from '@/lib/safe-redirect'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -27,6 +28,19 @@ export default function RegisterPage() {
   const [sending, setSending] = useState(false)
   const [cooldown, setCooldown] = useState(0)
   const [codeMsg, setCodeMsg] = useState('')
+  /*
+   * 注册成功后的回跳（docs/短信接码-设计.md §6.6 第 30 条、D24）：登录页的「注册」链接带着同一个 redirect
+   * （例如 /jiema?s=…&c=…&confirm=1），注册成功按 safeRedirect(redirect) 跳转（只收站内相对路径，防开放重定向），
+   * 没有 redirect 时回首页（与改造前相同）。挂载后从地址栏读，不用 useSearchParams（免得整页要包 Suspense）。
+   */
+  const [redirect, setRedirect] = useState('/')
+  useEffect(() => {
+    try {
+      setRedirect(safeRedirect(new URLSearchParams(window.location.search).get('redirect')))
+    } catch {
+      setRedirect('/')
+    }
+  }, [])
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -100,7 +114,7 @@ export default function RegisterPage() {
 
       setToken(data.data.token || null)
       setUser(data.data.user)
-      router.push('/')
+      router.push(redirect)
     } catch {
       setError('网络错误，请重试')
     } finally {
@@ -281,7 +295,7 @@ export default function RegisterPage() {
           {/* 登录链接 */}
           <p className="text-center text-white/50 text-sm">
             已有账号？
-            <Link href="/login" className="ml-1 text-cyan-400 hover:text-cyan-300 transition-colors">
+            <Link href={withRedirect('/login', redirect)} className="ml-1 text-cyan-400 hover:text-cyan-300 transition-colors">
               立即登录
             </Link>
           </p>

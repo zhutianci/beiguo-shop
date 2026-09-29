@@ -148,7 +148,7 @@ export async function toManual(smsOrderId: number, why: string, notice = '订单
     { label: '订单', value: ord?.orderNo ?? `#${smsOrderId}` },
     { label: '组合', value: o ? `${o.service} · ${o.country}` : '—' },
     { label: '原因', value: why.slice(0, 200) },
-  ], { link: '/admin/jiema?tab=orders', throttleMs: 0 })
+  ], { link: `/admin/jiema?tab=orders${ord?.orderNo ? `&q=${encodeURIComponent(ord.orderNo)}` : ''}`, throttleMs: 0 })
   return true
 }
 

@@ -8,10 +8,14 @@ import { CATALOG_STALE_ALERT_MS, STATIC_STALE_ALERT_MS } from '@/lib/jiema/catal
 import { isHoldActive } from '@/lib/jiema/gate'
 import { upstreamConfigured } from '@/lib/jiema/upstream'
 import { JIEMA_ORDER_AVAILABLE, jiemaPublicOpen } from '@/lib/jiema-config-schema'
+import { jiemaOverviewS2 } from '@/lib/jiema/admin-orders'
 
 /**
- * 短信接码后台顶部的状态行（docs/短信接码-设计.md §7.1 的 S1 部分）：销售状态、目录同步新鲜度、服务 / 国家 / 组合数、
- * 手动下架与停售的计数（出厂都为 0，附录 B 第 26 条）、两个系数与加价。S2 在这里接着加上游余额、在途占用、今日单量与成本利润。
+ * 短信接码后台「概览」（docs/短信接码-设计.md §7.1）：
+ *  · S1：销售状态、目录同步新鲜度、服务 / 国家 / 组合数、手动下架与停售的计数（出厂都为 0，附录 B 第 26 条）、两个系数与加价；
+ *  · S2b：`s2` = 上游余额（告警线 $2，不停售）、在途占用（口径 A / B / C，与 E26 判定逐字相同）、可售余量、今日因上游余额不足拒单次数、
+ *    上游口径成功率、推进心跳、熔断、线程、今日单量与营收 / 真实成本 / 毛利（§9.5）、需要处理（MANUAL、可退入余额的待核实到账）、
+ *    组合成功率与毛利（近 7 天，≥5 单）。S2 部分读失败不影响 S1 部分（s2 为 null、s2Error 给原因）。
  */
 export async function GET() {
   const denied = await adminGuard()
@@ -27,6 +31,14 @@ export async function GET() {
       prisma.smsPriceRule.findMany({ select: { disabled: true } }),
     ])
     const activeHolds = holds.filter((h) => isHoldActive(h, now))
+    let s2: Awaited<ReturnType<typeof jiemaOverviewS2>> | null = null
+    let s2Error: string | null = null
+    try {
+      s2 = await jiemaOverviewS2()
+    } catch (e) {
+      console.error('[jiema] overview S2 部分失败', e)
+      s2Error = (e as Error)?.message?.slice(0, 200) ?? '读取失败'
+    }
     const lastOk = state.catalogAt ? Date.parse(state.catalogAt) : 0
     return success({
       sale: {
@@ -58,6 +70,9 @@ export async function GET() {
         rules: rules.length,
       },
       upstream: { configured: upstreamConfigured() },
+      holds: activeHolds.map((h) => ({ key: h.key, until: h.until ? h.until.toISOString() : null, source: h.source })),
+      s2,
+      s2Error,
     })
   } catch (e) {
     console.error('[jiema] overview GET 失败', e)

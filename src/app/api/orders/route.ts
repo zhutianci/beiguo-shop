@@ -35,7 +35,8 @@ import {
 import { ensureTenantCustomer, isBlockedInTenant } from '@/lib/tenant/customer'
 import { alertPlatform } from '@/lib/tenant/platform-alert'
 import type { NotSellableReason } from '@/lib/tenant/types'
-import { excludeTopup } from '@/lib/order-scope'
+import { excludeTopup, isCarrierType } from '@/lib/order-scope'
+import { payableFrom } from '@/lib/order-payable'
 
 const createOrderSchema = z.object({
   // 必须是正整数：小数/负数原本要一路走到 prisma.order.create（Int 列）才炸，
@@ -268,6 +269,22 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    /*
+     * 短信接码单（SMS_POOL 载体，docs/短信接码-设计.md §6.6 第 27 条）：多返回 jiema: { state, payMode, holdCents, holdState }（白名单），
+     * 「我的订单」据此显示「正在确认付款 / 未支付 · 已关闭 · 预扣已退回 / 已取消 · 已退回余额」、隐藏「支付宝支付」、给「查看号码 →」。
+     * 预扣（balance_holds）与接码单都只按本人查（userId = 本人）。未付款单的 payable 改用 payableFrom（货款 + 税费 − HELD 预扣）：
+     * 组合单收银台只收差额；没有预扣的订单与改造前逐字相等。
+     */
+    const jiemaIds = orders.filter((o) => o.product?.deliveryType === 'SMS_POOL').map((o) => o.id)
+    const unpaidIds = orders.filter((o) => o.payStatus === 'UNPAID').map((o) => o.id)
+    const holdIds = Array.from(new Set([...jiemaIds, ...unpaidIds]))
+    const [smsRows, holdRows] = await Promise.all([
+      jiemaIds.length ? prisma.smsOrder.findMany({ where: { orderId: { in: jiemaIds }, userId: user.id }, select: { orderId: true, state: true, payMode: true } }) : Promise.resolve([]),
+      holdIds.length ? prisma.balanceHold.findMany({ where: { orderId: { in: holdIds }, userId: user.id }, select: { orderId: true, topupCents: true, cashCents: true, state: true } }) : Promise.resolve([]),
+    ])
+    const smsByOrder = new Map(smsRows.map((r) => [r.orderId, r]))
+    const holdByOrder = new Map(holdRows.map((h) => [h.orderId, h]))
+
     const withCards = orders.map(({ settleExcludeReason, ...o }) => {
       const paid = o.payStatus === 'PAID'
       // 渠道成员在自己店里下的单不计余额、也不可开票（设计 7.7）；主站单恒为 null，行为不变
@@ -312,12 +329,21 @@ export async function GET(request: NextRequest) {
       const delivered = items.length > 0
       // 已付款又被取消（线下退款）：不能再申请发票 / 收据（服务端 lib/order-invoice 另有闸门兜底）
       const voided = o.deliveryStatus === 'CANCELLED'
+      // 载体单（接码 / 充值）没有任何自助开票 / 收据入口（D37、§6.6 第 18、27 条）：billing 一律 null
+      const carrier = isCarrierType(o.product?.deliveryType)
+      const hold = holdByOrder.get(o.id)
+      const heldCents = hold && hold.state === 'HELD' ? hold.topupCents + hold.cashCents : 0
+      const so = smsByOrder.get(o.id)
       return {
         ...o,
         product: delivered ? o.product : { ...o.product, cardUsage: null, cardRedeemUrl: null },
         invoiceTaxFee: pendingTax || null,
-        /** 未支付订单的实际应付 = 货款 + 下单时勾选的开票税费 */
-        payable: Math.round((price + pendingTax) * 100) / 100,
+        /** 未支付订单的实际应付 = 货款 + 下单时勾选的开票税费 − HELD 预扣（lib/order-payable；没有预扣时与改造前相同） */
+        payable: payableFrom({ amount: o.amount, invoiceTaxFee: o.invoiceTaxFee }, heldCents) / 100,
+        /** 短信接码单的白名单状态（只有 SMS_POOL 行有；其余订单没有这个字段） */
+        ...(o.product?.deliveryType === 'SMS_POOL'
+          ? { jiema: so ? { state: so.state, payMode: so.payMode, holdCents: hold ? hold.topupCents + hold.cashCents : 0, holdState: hold ? hold.state : null } : null }
+          : {}),
         cards: items.map((c) => c.secret),
         cardItems: items, // [{ secret, redeemUrl, inSite }]：redeemUrl 为空才回落 product.cardRedeemUrl
         unreadCount: unreadMap.get(o.id) || 0,
@@ -325,8 +351,8 @@ export async function GET(request: NextRequest) {
         lottery,
         /** 此刻能不能抽。最终以 /api/lottery/draw 的服务端复核为准，这里只决定按钮样式 */
         lotteryCanDraw: lottery?.state === 'PENDING' && paid && o.deliveryStatus !== 'CANCELLED',
-        // 票据信息（仅已支付订单可申请）
-        billing: paid
+        // 票据信息（仅已支付订单可申请；载体单一律 null）
+        billing: paid && !carrier
           ? {
               canInvoice: price > 0 && !voided && !selfBuy,
               canReceipt: price > 0 && !voided,

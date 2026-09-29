@@ -266,6 +266,13 @@ export async function checkUpstreamStats(): Promise<{ ok: boolean; held: number;
   }
   const tighten = upstreamAccountVerdict(total, success, p)
   setTightenUntil(tighten ? now + 20 * 60_000 : null)
+  // 后台概览「上游口径成功率」一行（S2b）：账户合计 + 号码数 ≥5 的组合里成功率最低的一个（只存在进程内，重启后等下一轮 10 分钟）
+  let worst: { key: string; count: number; success: number } | null = null
+  for (const [k, v] of Array.from(agg.entries())) {
+    if (v.count < 5) continue
+    if (!worst || v.success / v.count < worst.success / worst.count) worst = { key: k, count: v.count, success: v.success }
+  }
+  rt().upstreamStats = { at: now, total, success, worst }
   if (tighten) {
     smsAlert('UPSTREAM_ACCOUNT', '上游口径：账户整体成功率接近限线程线，新单换号次数已收紧到 2 次', [
       { label: '账户（今天 + 昨天）', value: `${total} 个号，成功 ${success} 个` },

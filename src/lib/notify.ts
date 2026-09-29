@@ -108,6 +108,11 @@ function adminBase(): string {
   return (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '')
 }
 
+/** 后台页面的完整地址（推送正文里的一行链接用，例如接码单留言里的「后台详情」） */
+export function adminLink(path: string): string {
+  return `${adminBase()}${path}`
+}
+
 /** 北京时间，格式 2026-09-06 14:32 */
 export function fmtTime(d: Date | string | null | undefined): string {
   if (!d) return '—'
@@ -465,6 +470,11 @@ export function notifyBuyerMessage(p: {
   buyer: string
   content: string
   site?: string | null
+  /**
+   * 附加的上下文行（短信接码单：服务、国家/地区、运营商、状态、号码后 4 位、剩余时间、付款方式、后台详情，§8.2、§6.6 第 29 条）。
+   * 放在「内容」之前；不给时与改造前逐字相同。
+   */
+  extraRows?: NotifyRow[]
 }): void {
   // 群机器人是单向的（只能发、收不到群里的回复），所以带一条免登录的快捷回复链接：
   // 在企微里看到留言 → 点链接 → 手机端直接回，客户在订单页立刻看到。
@@ -482,6 +492,7 @@ export function notifyBuyerMessage(p: {
       { label: '商品', value: p.productName },
       { label: '订单号', value: p.orderNo },
       { label: '买家', value: p.buyer },
+      ...(p.extraRows ?? []),
       { label: '内容', value: p.content, color: 'warning' },
     ],
     { link, linkText, site: p.site }

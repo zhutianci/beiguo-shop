@@ -14,10 +14,12 @@ import { z } from 'zod'
 /**
  * 接码下单（S2）已经交付了吗。S1 = false：目录与定价上线但**不开卖**（§11 S1）。
  * false 时：`jiemaPublicOpen` 恒为 false（导航、sitemap、canUseForJiema 都不出现接码），后台保存 `audience=ALL` 会被拒（400），
- * /jiema 的「去支付」一律不可用。**S2 交付时把它改成 true**（与 B0 的 TOPUP_AVAILABLE 同一做法）。
- * 它不进读取时的校验：库里万一是 audience=ALL（手改库），读取照常成功、只是按「未对全部用户开放」处理。
+ * /jiema 的「去支付」一律不可用。
+ * **S2b（号码页、确认面板、后台订单）交付时改成 true**（与 B0 的 TOPUP_AVAILABLE 同一做法）。改成 true 之后是否对买家开放只看 sms_config：
+ * 出厂 enabled=false、audience=ADMIN_ONLY，管理员真钱验收用「总开关开 + 仅管理员」；**S4 对账跑满 3 天之前不要把受众切到全部用户**（D28、§11 第 9 步）。
+ * 它不进读取时的校验：库里万一是 audience=ALL（手改库），读取照常成功。
  */
-export const JIEMA_ORDER_AVAILABLE = false
+export const JIEMA_ORDER_AVAILABLE = true
 
 export const SMS_CONFIG_KEY = 'sms_config'
 

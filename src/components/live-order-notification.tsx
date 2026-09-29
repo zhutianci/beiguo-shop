@@ -2,6 +2,8 @@
 
 import { useStorefront } from '@/components/storefront-provider'
 import { useState, useEffect, useRef } from 'react'
+import { usePathname } from 'next/navigation'
+import { hideLiveOrdersOn } from '@/lib/floating-widgets'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, MapPin } from 'lucide-react'
 
@@ -152,6 +154,11 @@ function LiveOrderNotificationInner() {
  */
 export function LiveOrderNotification() {
   const { features } = useStorefront()
+  const pathname = usePathname()
   if (!(features.liveOrders)) return null
+  // 悬浮组件让位（docs/短信接码-设计.md §1.4、§6.6 第 31 条）：/jiema/*、/wallet/* 不渲染左下角成交弹窗——
+  // 手机上它每隔几秒遮住确认条的价格摘要与充值页底部；不渲染也就不发请求
+  if (hideLiveOrdersOn(pathname)) return null
   return <LiveOrderNotificationInner />
 }
+

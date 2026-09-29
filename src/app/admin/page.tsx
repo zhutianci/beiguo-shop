@@ -18,6 +18,8 @@ interface Stats {
   revenueBySite?: Array<SourceSite & { revenue: number; orders: number }>
   /** 今日（北京时间）充值入账：充值格 TOPUP 流水合计（分），**不计入营收**（docs/短信接码-设计.md D40、§6.6 第 17 条） */
   todayTopup?: { cents: number; count: number }
+  /** 短信接码（已定稿）的营收 / 真实成本 / 毛利 / 亏损（分；§9.5 口径，今天与近 30 天） */
+  jiema?: { today: JiemaFinance; last30: JiemaFinance } | null
   recentOrders: Array<{
     id: number
     orderNo: string
@@ -30,6 +32,20 @@ interface Stats {
     user: { email: string | null; nickname: string | null }
   }>
 }
+
+interface JiemaFinance {
+  finalized: number
+  revenueCents: number
+  chargedMicro: number
+  costCents: number
+  refundOffsetCents: number
+  profitCents: number
+  cancelled: { count: number; topupCents: number; cashCents: number }
+  lossCents: number
+  estimating: number
+}
+
+const yc = (c: number) => `¥${(c / 100).toFixed(2)}`
 
 const payStatusLabel: Record<string, { label: string; className: string }> = {
   UNPAID: { label: '待支付', className: 'bg-yellow-100 text-yellow-700' },
@@ -125,6 +141,50 @@ export default function AdminDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* 短信接码（已定稿）：营收 / 真实成本 / 毛利 / 亏损（docs/短信接码-设计.md §6.6 第 28 条、§9.5） */}
+      {stats?.jiema && (stats.jiema.last30.finalized > 0 || stats.jiema.last30.cancelled.count > 0 || stats.jiema.today.estimating > 0) && (
+        <Card>
+          <CardContent className="space-y-2 p-6 text-sm text-gray-700">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-base font-semibold text-gray-900">短信接码（已定稿）</h2>
+              <a href="/admin/jiema" className="text-xs text-primary-600 hover:underline">
+                接码后台 →
+              </a>
+            </div>
+            {(
+              [
+                ['今天', stats.jiema.today],
+                ['近 30 天', stats.jiema.last30],
+              ] as const
+            ).map(([label, f]) => (
+              <div key={label} className="flex flex-wrap gap-x-5 gap-y-1">
+                <span className="w-16 text-gray-500">{label}</span>
+                <span>
+                  营收 <b>{yc(f.revenueCents)}</b>（{f.finalized} 单）
+                </span>
+                <span>
+                  真实成本 <b>{yc(f.costCents)}</b>
+                </span>
+                {f.refundOffsetCents > 0 && <span>售后冲减 −{yc(f.refundOffsetCents)}</span>}
+                <span>
+                  毛利 <b className={f.profitCents >= 0 ? 'text-green-700' : 'text-red-600'}>{yc(f.profitCents)}</b>
+                </span>
+                <span>
+                  亏损 <b className={f.lossCents > 0 ? 'text-red-600' : ''}>{yc(f.lossCents)}</b>
+                </span>
+                <span className="text-gray-500">
+                  已取消 {f.cancelled.count} 单（退回余额 {yc(f.cancelled.topupCents + f.cancelled.cashCents)}，不计成本利润）
+                </span>
+              </div>
+            ))}
+            <p className="text-xs text-gray-400">
+              只算定稿的单（订单结束、所有号码都终态）；真实成本 = Σ 逐单成本（上游实扣 × 下单时的成本汇率，向上取整到分）。预估中 {stats.jiema.today.estimating} 单不计入。
+              上面的「总收入」按订单金额统计（含进行中的接码单），两者口径不同。
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ① 外部订单导入（数据源：ExternalOrder，人工/脚本导入的代开单） */}
       <div className="space-y-3">

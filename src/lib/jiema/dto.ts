@@ -165,6 +165,12 @@ export interface JiemaOrderView {
   }
   quoteExpiresAt: string | null
   cashierUrl: string | null
+  /** 收银台二维码的截止时刻（PENDING_PAY 且有有效收款单时；待支付卡片的倒计时，§1.10。S2b 增补字段，实施偏差 S2b） */
+  cashierExpiresAt: string | null
+  /** 下单时间（「复制订单信息」用，§8.2。S2b 增补字段） */
+  createdAt: string
+  /** 取号 / 换号进度（ACQUIRING、REPLACING 时给：第几次取号、是否「结果未知，正在确认」；S2b 增补字段） */
+  progress: { tries: number; maxTries: number; confirming: boolean } | null
   number: { dial: string | null; national: string; full: string; endsAt: string; waitUntil: string | null; canActAt: string; seq: number; canGetAnotherSms: boolean | null } | null
   replace: { used: number; left: number }
   messages: Array<{ id: number; code: string | null; text: string | null; sender: string | null; at: string; seq: number; toOldNumber: boolean }>
@@ -230,6 +236,9 @@ export function toJiemaOrderView(v: JiemaOrderView): JiemaOrderView {
     },
     quoteExpiresAt: v.quoteExpiresAt,
     cashierUrl: v.cashierUrl,
+    cashierExpiresAt: v.cashierExpiresAt,
+    createdAt: v.createdAt,
+    progress: v.progress ? { tries: v.progress.tries, maxTries: v.progress.maxTries, confirming: v.progress.confirming } : null,
     number: v.number
       ? {
           dial: v.number.dial,

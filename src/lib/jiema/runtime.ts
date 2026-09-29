@@ -32,6 +32,16 @@ interface RuntimeState {
   externalAlerted: Set<string>
   clockOffsetMs: number
   periodic: Record<string, number>
+  /** 最近一次拉到的上游 /activations/stats 摘要（今天 + 昨天，含旧单品；后台概览「上游口径成功率」一行用，S2b） */
+  upstreamStats: UpstreamStatsSummary | null
+}
+
+export interface UpstreamStatsSummary {
+  at: number
+  total: number
+  success: number
+  /** 号码数 ≥ 5 的组合里成功率最低的一个 */
+  worst: { key: string; count: number; success: number } | null
 }
 
 const G = globalThis as unknown as { __jiemaRuntime?: RuntimeState }
@@ -47,6 +57,7 @@ function fresh(): RuntimeState {
     externalAlerted: new Set(),
     clockOffsetMs: 0,
     periodic: {},
+    upstreamStats: null,
   }
 }
 

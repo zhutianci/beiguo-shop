@@ -30,9 +30,13 @@ import {
   type PriceRuleLike,
 } from '@/lib/jiema/pricing'
 import { FACTORY_SMS_CONFIG, settingsNumberValue, type SmsConfig } from '@/lib/jiema-config-schema'
+import { OverviewTab, type OverviewS2 } from './overview-tab'
+import { OrdersTab } from './orders-tab'
 
-type Tab = 'pricing' | 'catalog' | 'settings'
+type Tab = 'overview' | 'orders' | 'pricing' | 'catalog' | 'settings'
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'overview', label: '概览' },
+  { id: 'orders', label: '订单' },
   { id: 'pricing', label: '定价' },
   { id: 'catalog', label: '目录' },
   { id: 'settings', label: '设置' },
@@ -54,6 +58,11 @@ interface Overview {
   }
   manual: { servicesOff: number; countriesOff: number; adminHolds: number; activeHolds: number; globalHold: boolean; disabledRules: number; rules: number }
   upstream: { configured: boolean }
+  /** 生效中的停售（sms_holds） */
+  holds?: Array<{ key: string; until: string | null; source: string }>
+  /** S2b：上游余额、在途占用、今日单量与成本利润、需要处理、组合表（§7.1）；读失败为 null */
+  s2?: OverviewS2 | null
+  s2Error?: string | null
 }
 
 interface ConfigResp {
@@ -178,11 +187,29 @@ const inputCls = 'rounded-md border border-gray-300 px-2 py-1 text-sm focus:bord
 // ───────────────────────── 页面 ─────────────────────────
 
 export default function AdminJiemaPage() {
-  const [tab, setTab] = useState<Tab>('pricing')
+  // 默认页是「概览」（§7.1）；?tab=orders&q=<订单号> 从推送 / 告警直接进订单（接码单留言推送里的「后台详情」）
+  const [tab, setTab] = useState<Tab>('overview')
+  const [initialQ, setInitialQ] = useState<string | null>(null)
+  const [openId, setOpenId] = useState<number | null>(null)
+  const [ready, setReady] = useState(false)
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get('tab') as Tab | null
+    const sp = new URLSearchParams(window.location.search)
+    const t = sp.get('tab') as Tab | null
     if (t && TABS.some((x) => x.id === t)) setTab(t)
+    const q = sp.get('q')
+    if (q && /^[0-9A-Za-z]{4,32}$/.test(q)) setInitialQ(q)
+    setReady(true)
   }, [])
+  const openOrder = (id: number) => {
+    setOpenId(id)
+    setTab('orders')
+  }
+  const unhold = async (key: string) => {
+    if (!window.confirm(`解除停售 ${key}？`)) return
+    const r = await send('DELETE', `/api/admin/jiema/holds?key=${encodeURIComponent(key)}`)
+    if (!r.ok) window.alert(r.data?.error || '解除失败')
+    ov.reload()
+  }
   const ov = useApi<Overview>('/api/admin/jiema/overview')
   const cfg = useApi<ConfigResp>('/api/admin/jiema/config')
   const reloadAll = () => {
@@ -261,6 +288,8 @@ export default function AdminJiemaPage() {
         ))}
       </div>
 
+      {tab === 'overview' && <OverviewTab s2={ov.data?.s2 ?? null} s2Error={ov.err ?? ov.data?.s2Error ?? null} holds={ov.data?.holds ?? []} onOpenOrder={openOrder} onUnhold={(k) => void unhold(k)} />}
+      {tab === 'orders' && ready && <OrdersTab openId={openId} onOpened={() => setOpenId(null)} initialQ={initialQ} />}
       {tab === 'pricing' && <PricingTab cfg={cfg.data} cfgErr={cfg.err} onSaved={reloadAll} />}
       {tab === 'catalog' && <CatalogTab onChanged={ov.reload} />}
       {tab === 'settings' && <SettingsTab cfg={cfg.data} cfgErr={cfg.err} onSaved={reloadAll} />}

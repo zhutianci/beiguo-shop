@@ -49,6 +49,8 @@ interface Order {
   supplyCents?: number | null
   /** 渠道单的站长利润（分；二期 M2，口径见 lib/admin/channel-profit.ts）。主站单、未付渠道单为 null */
   channelProfit?: ChannelProfit | null
+  /** 短信接码单（SMS_POOL）的成本利润（分；docs/短信接码-设计.md §6.6 第 28 条）：未定稿 = 预估；已取消单成本利润为 null = 不计 */
+  jiema?: { state: string; chargedMicro: number | null; costCents: number | null; profitCents: number | null; costFinal: boolean; lossCents: number | null } | null
 }
 
 /** GET /api/admin/orders/[id]/detail 的返回（Decimal 已转 number，时间是 ISO 字符串） */
@@ -253,6 +255,8 @@ interface Totals {
   channelProfit?: number | null
   /** 成本未登记、未计入渠道利润的单数 */
   channelProfitUnknown?: number | null
+  /** 短信接码单（元，已含在 cost / profit 里）：计成本的单数、真实成本、毛利、亏损、预估中、不计（已取消） */
+  jiema?: { orders: number; cost: number; profit: number; loss: number; estimating: number; notCounted: number } | null
 }
 
 const payStatusMap: Record<string, { label: string; className: string }> = {
@@ -881,6 +885,15 @@ function OrdersInner() {
                   </span>
                 </div>
               )}
+              {totals.jiema && (
+                <p className="col-span-2 sm:col-span-4 text-xs text-cyan-800/80">
+                  其中短信接码 {totals.jiema.orders} 单：真实成本 ¥{totals.jiema.cost.toFixed(2)} · 毛利 ¥{totals.jiema.profit.toFixed(2)}
+                  {totals.jiema.estimating > 0 && `（含预估 ${totals.jiema.estimating} 单）`}
+                  {totals.jiema.notCounted > 0 && ` · 另有 ${totals.jiema.notCounted} 单已取消 / 未付款不计`}
+                  {totals.jiema.loss > 0 && ` · 亏损 ¥${totals.jiema.loss.toFixed(2)}（已取消单事后扣费，不进利润）`}
+                  <span className="ml-1 text-gray-400">成本 = Σ 逐单真实成本（按下单时的成本汇率向上取整）</span>
+                </p>
+              )}
               {totals.truncated && (
                 <p className="col-span-2 sm:col-span-4 text-xs text-amber-600">
                   结果集过大（超过 10000 单），未统计成本与利润，请缩小日期范围后查看。
@@ -969,6 +982,8 @@ function OrdersInner() {
                       </td>
                       {order.tenantId != null && order.tenantId !== 1 ? (
                         <ChannelMoneyCells order={order} />
+                      ) : order.jiema !== undefined && order.product?.deliveryType === 'SMS_POOL' ? (
+                        <JiemaMoneyCells j={order.jiema ?? null} />
                       ) : (
                         <>
                       <td className="py-4 text-gray-600">
@@ -1901,5 +1916,36 @@ function ChannelSection({
         )}
       </div>
     </Section>
+  )
+}
+
+/**
+ * 短信接码单的成本 / 毛利两格（§6.6 第 28 条、§7.2）：已取消（成本利润落空）显示「不计」；未定稿灰字「预估」；有亏损另起一行。
+ * 成本是 Σ 逐单真实成本（按下单时的成本汇率向上取整），不是「扣费 × 当前汇率」。
+ */
+function JiemaMoneyCells({ j }: { j: NonNullable<Order['jiema']> | null }) {
+  const y = (c: number) => `¥${(c / 100).toFixed(2)}`
+  if (!j || j.costCents == null || j.profitCents == null) {
+    return (
+      <>
+        <td className="py-4 text-gray-400 text-xs" title="已取消 / 未付款的接码单不计成本利润">
+          {j?.state === 'CANCELLED' ? '不计' : '—'}
+          {j?.lossCents ? <div className="text-red-500">亏损 {y(j.lossCents)}</div> : null}
+        </td>
+        <td className="py-4 text-gray-400 text-xs">{j?.state === 'CANCELLED' ? '不计' : '—'}</td>
+      </>
+    )
+  }
+  return (
+    <>
+      <td className={`py-4 ${j.costFinal ? 'text-gray-600' : 'text-gray-400'}`} title={j.chargedMicro != null ? `实际扣费 $${(j.chargedMicro / 1e6).toFixed(4)}` : undefined}>
+        {y(j.costCents)}
+        {!j.costFinal && <span className="ml-1 text-[10px]">预估</span>}
+      </td>
+      <td className="py-4">
+        <span className={`${j.profitCents >= 0 ? 'text-green-600' : 'text-red-600'} ${j.costFinal ? 'font-medium' : 'opacity-60'}`}>{y(j.profitCents)}</span>
+        {!j.costFinal && <span className="ml-1 text-[10px] text-gray-400">预估</span>}
+      </td>
+    </>
   )
 }

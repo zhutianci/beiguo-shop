@@ -6,6 +6,7 @@ import { adminGuard } from '@/lib/admin-guard'
 import { sourceMap, sourceOf } from '@/lib/admin/source-site'
 import { excludeTopup } from '@/lib/order-scope'
 import { shanghaiDayStart } from '@/lib/wallet/admin-query'
+import { jiemaFinance } from '@/lib/jiema/admin-orders'
 
 export async function GET() {
   const denied = await adminGuard()
@@ -69,6 +70,20 @@ export async function GET() {
       _count: { _all: true },
     })
     const todayTopup = { cents: topupAgg._sum.topupDeltaCents ?? 0, count: topupAgg._count._all }
+    /*
+     * 短信接码（已定稿）的营收 / 真实成本 / 毛利 / 亏损（docs/短信接码-设计.md §6.6 第 28 条、§9.5）：今天与近 30 天（北京时间）。
+     * 口径与接码后台概览同一个 report.summarizeFinance（只算定稿单；已取消单只计亏损），与上面的「总收入」（Order.amount，含进行中的接码单）不同，页面各自注明。
+     * 读失败不影响仪表盘其余部分（jiema 为 null）。
+     */
+    let jiema: { today: Awaited<ReturnType<typeof jiemaFinance>>; last30: Awaited<ReturnType<typeof jiemaFinance>> } | null = null
+    try {
+      const day0 = shanghaiDayStart()
+      const end = new Date(day0.getTime() + 86400_000)
+      const [today, last30] = await Promise.all([jiemaFinance(day0, end), jiemaFinance(new Date(day0.getTime() - 29 * 86400_000), end)])
+      jiema = { today, last30 }
+    } catch (e) {
+      console.error('[stats] 接码成本利润读取失败（不影响其余统计）', e)
+    }
     const srcMap = await sourceMap([...bySiteRaw.map((g) => g.tenantId), ...recentOrders.map((o) => o.tenantId)])
     const cents = (v: unknown) => Math.round(Number(v ?? 0) * 100)
     const revenueBySite = bySiteRaw
@@ -86,6 +101,7 @@ export async function GET() {
       channelRevenue,
       revenueBySite,
       todayTopup,
+      jiema,
       recentOrders: recentOrders.map((o) => ({ ...o, source: sourceOf(srcMap, o.tenantId) })),
     })
   } catch (err) {

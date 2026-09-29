@@ -269,3 +269,139 @@ async function scanLocked(out: ScanResult, now: Date, since24: Date, wantCalib: 
   }
   return out
 }
+
+// ───────────────────────── 后台「认领上游激活」（§7.2，S2b） ─────────────────────────
+
+export interface AdminClaimCandidate {
+  id: string
+  operator: string | null
+  priceMicro: number | null
+  createdAt: string | null
+  phoneTail: string | null
+  /** 按 §2.4 的时间窗、运营商、价格都对得上（自动认领的 strict 口径） */
+  strict: boolean
+  /** 只按服务、国家、时间窗对得上（broad 口径） */
+  inWindow: boolean
+  /** 价格超过这次取号的上限（cap） */
+  overCap: boolean
+  /** 旧链路窗口内：同服务的旧单品订单在它创建前 30 分钟内付过款——提醒不要把旧单品的号给错人（§7.2） */
+  legacyWindow: boolean
+}
+
+/**
+ * 列出一个 UNKNOWN 尝试可以手动认领的上游激活（同服务、同国家、本站不认识的；按「时间窗内 → 离请求时刻近」排序）。
+ * 只读：拉一次 v1 活跃列表（拉不全 → UPSTREAM，不给半截）。
+ */
+export async function adminClaimCandidates(attemptId: number): Promise<{ ok: true; list: AdminClaimCandidate[]; calibrated: boolean } | { ok: false; why: 'NOT_UNKNOWN' | 'UPSTREAM' }> {
+  const u = await prisma.smsAttempt.findUnique({ where: { id: attemptId } })
+  if (!u || u.state !== 'UNKNOWN') return { ok: false, why: 'NOT_UNKNOWN' }
+  const list = await up.v1AllActivations().catch(() => null)
+  if (!list || list.kind !== 'ok') return { ok: false, why: 'UPSTREAM' }
+  const now = jnow()
+  const { free, offset } = await freeActivations(list.data.items, now)
+  const win = up.acquireClaimWindow({ requestedAtMs: u.requestedAt.getTime(), sentAtMs: u.dispatchedAt ? u.dispatchedAt.getTime() : null })
+  const same = free.filter((f) => f.service === u.service && f.country === u.country)
+  const { broad, strict } = claimCandidates(
+    { service: u.service, country: u.country, operator: u.operator, maxPriceMicro: u.maxPriceMicro, window: win },
+    same.map((f) => ({ id: f.id, service: f.service, country: f.country, operator: f.operator, priceMicro: f.priceMicro, createdAt: f.createdAt })),
+    offset,
+  )
+  const broadIds = new Set(broad.map((b) => b.id))
+  const strictIds = new Set(strict.map((b) => b.id))
+  const out: AdminClaimCandidate[] = []
+  for (const f of same) {
+    let legacyWindow = false
+    if (f.createdAt) {
+      const n = await prisma.order.count({
+        where: { product: { deliveryType: 'SMS', smsService: u.service }, paidAt: { gte: new Date(f.createdAt.getTime() - 30 * 60 * S), lte: f.createdAt } },
+      })
+      legacyWindow = n > 0
+    }
+    out.push({
+      id: f.id,
+      operator: f.operator,
+      priceMicro: f.priceMicro,
+      createdAt: f.createdAt ? f.createdAt.toISOString() : null,
+      phoneTail: f.phone ? f.phone.slice(-4) : null,
+      strict: strictIds.has(f.id),
+      inWindow: broadIds.has(f.id),
+      overCap: f.priceMicro != null && f.priceMicro > u.maxPriceMicro,
+      legacyWindow,
+    })
+  }
+  const anchor = (u.dispatchedAt ?? u.requestedAt).getTime()
+  out.sort((a, b) => Number(b.inWindow) - Number(a.inWindow) || Math.abs(Date.parse(a.createdAt ?? '') - anchor) - Math.abs(Date.parse(b.createdAt ?? '') - anchor))
+  return { ok: true, list: out, calibrated: offset != null }
+}
+
+/** 本站不认识的上游激活（排除 sms_attempts / 旧表 sms_activations 的 activationId、旧单品备注里换下的号）与时钟校准偏差 */
+async function freeActivations(items: V1Activation[], now: Date): Promise<{ free: V1Activation[]; offset: number | null }> {
+  const ids = items.map((i) => i.id)
+  const knownIds = new Set<string>()
+  if (ids.length) {
+    const [a, l] = await Promise.all([
+      prisma.smsAttempt.findMany({ where: { activationId: { in: ids } }, select: { activationId: true } }),
+      prisma.smsActivation.findMany({ where: { activationId: { in: ids } }, select: { activationId: true } }),
+    ])
+    for (const x of a) if (x.activationId) knownIds.add(x.activationId)
+    for (const x of l) knownIds.add(x.activationId)
+  }
+  const oldPhones = await legacyPhones(now)
+  const free = items.filter((i) => !knownIds.has(i.id) && !(i.phone && oldPhones.has(i.phone)))
+  const since24 = new Date(now.getTime() - 24 * 3600 * S)
+  const samples = await prisma.smsAttempt.findMany({
+    where: { respondedAt: { gte: since24 }, upstreamCreatedAt: { not: null } },
+    select: { respondedAt: true, upstreamCreatedAt: true },
+    take: 200,
+    orderBy: { id: 'desc' },
+  })
+  const offset = calibrationOffsetMs(samples.filter((x) => x.respondedAt && x.upstreamCreatedAt) as Array<{ respondedAt: Date; upstreamCreatedAt: Date }>)
+  return { free, offset }
+}
+
+export type AdminClaimWhy = 'BUSY' | 'NOT_UNKNOWN' | 'UPSTREAM' | 'NOT_FOUND' | 'KNOWN' | 'MISMATCH' | 'STATE'
+
+/**
+ * 后台「认领上游激活」：管理员从候选里选定一个激活 id，把 UNKNOWN 尝试认领过来（§7.2，D19「宁可人工」的出口）。
+ *  · 与扫描器互斥（同一把库锁 jiema:scan；拿不到 → BUSY，稍后再试）；
+ *  · 在锁里重新拉一次 v1 活跃列表，确认这个激活仍在、仍是本站不认识的、服务与国家与这次取号一致（运营商、价格、时间窗不强制——
+ *    那正是它没能自动认领的原因，由管理员核对后负责）；
+ *  · 订单已因「结果未知超过 10 分钟」转成 MANUAL 的，先 CAS 回到它在等这个号时的状态（首次取号 → ACQUIRING；换号 → REPLACING），
+ *    再走与自动认领同一个 claim()（写 activationId、号码、成本、endsAt、canCancelAt，随后 afterClaim 落地：挂成当前号 / 完成换号）；
+ *    claim 落空就把订单转回 MANUAL（不留在无人处理的中间态）。**绝不取消任何上游激活。**
+ */
+export async function adminClaimActivation(attemptId: number, activationId: string, adminId: number): Promise<{ ok: true } | { ok: false; why: AdminClaimWhy }> {
+  const token = await acquireLock(SCAN_LOCK, SCAN_LOCK_TTL_MS)
+  if (!token) return { ok: false, why: 'BUSY' }
+  try {
+    const u = await prisma.smsAttempt.findUnique({ where: { id: attemptId } })
+    if (!u || u.state !== 'UNKNOWN') return { ok: false, why: 'NOT_UNKNOWN' }
+    const list = await up.v1AllActivations().catch(() => null)
+    if (!list || list.kind !== 'ok') return { ok: false, why: 'UPSTREAM' }
+    const now = jnow()
+    const c = list.data.items.find((i) => i.id === activationId)
+    if (!c) return { ok: false, why: 'NOT_FOUND' }
+    const { free, offset } = await freeActivations(list.data.items, now)
+    if (!free.some((f) => f.id === activationId)) return { ok: false, why: 'KNOWN' }
+    if (c.service !== u.service || c.country !== u.country) return { ok: false, why: 'MISMATCH' }
+    const so = await prisma.smsOrder.findUnique({ where: { id: u.smsOrderId }, select: { id: true, state: true } })
+    if (!so) return { ok: false, why: 'STATE' }
+    let reopened = false
+    if (so.state === 'MANUAL') {
+      const back = u.reason === 'REPLACE' ? 'REPLACING' : 'ACQUIRING'
+      const r = await prisma.smsOrder.updateMany({ where: { id: so.id, state: 'MANUAL' }, data: { state: back, version: { increment: 1 }, manualAt: null, failCount: 0, notice: null } })
+      if (r.count !== 1) return { ok: false, why: 'STATE' }
+      reopened = true
+      await logEventQuiet({ smsOrderId: so.id, attemptId: u.id, type: 'STATE', actor: 'ADMIN', actorId: adminId, detail: { from: 'MANUAL', to: back, why: 'admin-claim' } })
+    }
+    await logEventQuiet({ smsOrderId: u.smsOrderId, attemptId: u.id, type: 'ADMIN_CLAIM', actor: 'ADMIN', actorId: adminId, detail: { activationId } })
+    const ok = await claim(u, c, offset ?? 0, now)
+    if (!ok) {
+      if (reopened) await toManual(u.smsOrderId, `后台认领激活 ${activationId} 写库失败（attempt #${u.id}）`)
+      return { ok: false, why: 'STATE' }
+    }
+    return { ok: true }
+  } finally {
+    await releaseLock(SCAN_LOCK, token)
+  }
+}

@@ -245,7 +245,8 @@ console.log('\n【对谁开放（D28；导航、sitemap、canUseForJiema、目�
 {
   const open = cfg({ enabled: true, audience: 'ALL' })
   ok(jiemaPublicOpen(open, true) && !jiemaPublicOpen(open, false), '对全部用户开放 = 接码下单已交付 && enabled && ALL')
-  ok(JIEMA_ORDER_AVAILABLE === false && !jiemaPublicOpen(open), 'S1：JIEMA_ORDER_AVAILABLE=false → 不开放（导航看不到、sitemap 没有 /jiema）')
+  // S2b 交付下单页面后 JIEMA_ORDER_AVAILABLE=true：常量不再短路，是否开放只看配置（S1 时断言的是 false → 不开放）
+  ok(JIEMA_ORDER_AVAILABLE === true && jiemaPublicOpen(open) && !jiemaPublicOpen(open, false), 'S2b：JIEMA_ORDER_AVAILABLE=true → enabled + ALL 即开放；orderAvailable=false 时仍不开放')
   ok(!jiemaPublicOpen(cfg({ enabled: true, audience: 'ADMIN_ONLY' }), true) && !jiemaPublicOpen(cfg({ enabled: false, audience: 'ALL' }), true) && !jiemaPublicOpen(null, true), '仅管理员 / 总开关关 / 配置读不到 → 不开放')
   ok(jiemaAccessFor(open, false, true) === 'OPEN' && jiemaAccessFor(open, true, true) === 'OPEN', '开放后：所有人 OPEN')
   ok(jiemaAccessFor(cfg(), true) === 'ADMIN_PREVIEW' && jiemaAccessFor(cfg({ enabled: true }), true) === 'ADMIN_PREVIEW', '灰度 / 总开关关：管理员预览')

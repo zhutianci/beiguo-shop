@@ -302,7 +302,34 @@ export async function creditInTx(tx: Prisma.TransactionClient, p: CreditInput): 
     ...(p.mode === 'MANUAL' ? { tradeNo: p.tradeNo } : { auto: true, latepayVmq: p.autoVmqOrderNo }),
   }
   await tx.setting.update({ where: { key: p.key }, data: { value: JSON.stringify(next) } })
+  // 接码单：同一事务写一条客服留言（§1.9、§2.7、§6.6 第 15、29 条；号码页横幅之外，订单留言里也能看到、红点提醒）。
+  // 充值单不写：充值单不进「我的订单」，没有地方能读那条留言，只会在页头留下一个清不掉的红点（改在钱包页横幅告诉买家）。
+  // 与退入同一事务：退入回滚则留言不在，退入成功则恰好一条（入账键 latepay:<条目> 唯一，重放走不到这里）。
+  if (order.deliveryType === 'SMS_POOL') {
+    await tx.orderMessage.create({
+      data: {
+        orderId: order.id,
+        sender: 'ADMIN',
+        content: latepayMessageText(cents, order.payStatus === 'UNPAID' && order.deliveryStatus === 'CANCELLED'),
+        readByAdmin: true,
+        readByBuyer: false,
+        senderRole: 'PLATFORM',
+      },
+    })
+  }
   return { cents, logId, userId: order.userId, entry: next, order }
+}
+
+/**
+ * 迟到付款退入后写给接码单买家的留言（附录 A 的 LATEPAY 两行）。纯函数：
+ *  · 订单已关闭（未付款 + 已取消）→「这张订单关闭后收到一笔 ¥x 付款，已退回你的余额，可用于下次购物抵扣」；
+ *  · 其余（已付款的单又收到一笔）→「这张订单收到一笔重复付款 ¥x，已退回你的余额，可用于下次购物抵扣」。
+ * 与号码页 lateCredits 的 LATE / DUPLICATE 判定同一口径（view.ts：UNPAID + CANCELLED = LATE）。
+ */
+export function latepayMessageText(cents: number, closed: boolean): string {
+  return closed
+    ? `这张订单关闭后收到一笔 ${fmtCents(cents)} 付款，已退回你的余额，可用于下次购物抵扣。`
+    : `这张订单收到一笔重复付款 ${fmtCents(cents)}，已退回你的余额，可用于下次购物抵扣。`
 }
 
 // ---------------------------------------------------------------------------

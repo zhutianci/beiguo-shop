@@ -8,4 +8,4 @@
  *
  * 改隐私政策正文时必须同步改这个日期。
  */
-export const PRIVACY_UPDATED_AT = '2026-09-25'
+export const PRIVACY_UPDATED_AT = '2026-09-30'

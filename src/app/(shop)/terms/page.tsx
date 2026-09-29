@@ -5,8 +5,10 @@ import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
-import { WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
+import { JIEMA_TERMS, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
 import { readWalletConfig, topupOpenFor, canUseForJiema } from '@/lib/wallet/config'
+import { readSmsConfigCached } from '@/lib/jiema/config'
+import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
 
 /**
  * 服务条款。
@@ -48,6 +50,11 @@ export default async function TermsPage() {
    */
   let showWallet = false
   let jiemaOpen = false
+  /*
+   * 《接码服务规则》（§8.4 第一条，S2b；正文与版本号同样是 lib/terms/jiema-wallet.ts 的代码常量）：只在主站、接码对全部用户开放
+   * （jiemaPublicOpen：整份配置有效 + 总开关开 + 受众全部用户）时出现在第四节。灰度期（仅管理员）确认面板自带规则全文（同一个常量），不依赖这里。
+   */
+  let showJiema = false
   if (sf && sf.kind === 'PLATFORM') {
     try {
       const w = await readWalletConfig()
@@ -57,8 +64,14 @@ export default async function TermsPage() {
       showWallet = false
       jiemaOpen = false
     }
+    try {
+      showJiema = jiemaPublicOpen(await readSmsConfigCached())
+    } catch {
+      showJiema = false
+    }
   }
-  const updatedAt = showWallet && WALLET_TERMS_VERSION > UPDATED_AT ? WALLET_TERMS_VERSION : UPDATED_AT
+  const versions = [UPDATED_AT, ...(showWallet ? [WALLET_TERMS_VERSION] : []), ...(showJiema ? [JIEMA_TERMS_VERSION] : [])]
+  const updatedAt = versions.reduce((a, b) => (b > a ? b : a), UPDATED_AT)
   return (
     <LegalPage
       title="服务条款"
@@ -139,6 +152,18 @@ export default async function TermsPage() {
             并提供订单号与相关截图。时间越久，向上游追溯的难度越大。
           </li>
         </ul>
+        {showJiema && (
+          <>
+            <p id="jiema-terms" className="pt-2">
+              <strong className="text-white">{JIEMA_TERMS_TITLE}</strong>
+            </p>
+            <ul className="list-disc pl-6 space-y-2">
+              {JIEMA_TERMS.map((t) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </>
+        )}
         {showWallet && (
           <>
             <p id="wallet-terms" className="pt-2">

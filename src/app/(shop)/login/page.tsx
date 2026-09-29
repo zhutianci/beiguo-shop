@@ -7,7 +7,7 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Mail, Lock, Sparkles } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { setToken } from '@/lib/auth-token'
-import { safeRedirect } from '@/lib/safe-redirect'
+import { safeRedirect, withRedirect } from '@/lib/safe-redirect'
 
 export default function LoginPage() {
   return (
@@ -169,7 +169,8 @@ function LoginForm() {
           {/* 注册链接 */}
           <p className="text-center text-white/50 text-sm">
             还没有账号？
-            <Link href="/register" className="ml-1 text-purple-400 hover:text-purple-300 transition-colors">
+            {/* 注册也带回跳（docs/短信接码-设计.md §6.6 第 30 条）：接码的主力客群是没有账号的首次访客，注册成功后回到确认面板 */}
+            <Link href={withRedirect('/register', redirect)} className="ml-1 text-purple-400 hover:text-purple-300 transition-colors">
               立即注册
             </Link>
           </p>

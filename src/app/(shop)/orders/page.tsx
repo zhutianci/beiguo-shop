@@ -33,6 +33,8 @@ import { LotteryModal } from '@/components/lottery/lottery-modal'
 import { useStorefront } from '@/components/storefront-provider'
 // 只取类型：lib/lottery 间接引用了 prisma 与 node crypto，值导入会被打进前端包
 import type { BuyerLotteryView } from '@/lib/lottery'
+// 短信接码单在「我的订单」里的显示规则（纯函数，零依赖；docs/短信接码-设计.md §6.6 第 27 条）
+import { jiemaOrderCard, orderAmountText, type JiemaCard } from '@/lib/jiema/ui'
 
 interface Order {
   id: number
@@ -63,6 +65,15 @@ interface Order {
   lottery?: BuyerLotteryView | null
   /** 此刻能不能拆（服务端算好：有资格未抽 + 已付款 + 未取消）。真正的判定在 /api/lottery/draw */
   lotteryCanDraw?: boolean
+  /** 短信接码单（SMS_POOL）才有：接码单状态、付款方式、预扣（两格之和）与预扣状态 */
+  jiema?: { state: string; payMode: string; holdCents: number; holdState: string | null } | null
+}
+
+const JIEMA_TONE: Record<JiemaCard['tone'], { color: string; bg: string; border: string; icon: LucideIcon }> = {
+  amber: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', icon: AlertCircle },
+  blue: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', icon: Clock },
+  gray: { color: 'text-white/40', bg: 'bg-white/5', border: 'border-white/10', icon: XCircle },
+  green: { color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20', icon: CheckCircle },
 }
 
 interface Billing {
@@ -483,9 +494,14 @@ export default function OrdersPage() {
               className="space-y-4 lg:space-y-5"
             >
               {filteredOrders.map((order, index) => {
-                const status = getStatusConfig(order.payStatus, order.deliveryStatus)
+                // 短信接码单（SMS_POOL）：状态、提示、按钮都按 lib/jiema/ui.jiemaOrderCard（付款只走号码页，任何状态都能留言，§6.6 第 27、29 条）
+                const isJiema = order.product?.deliveryType === 'SMS_POOL'
+                const jc = isJiema ? jiemaOrderCard({ payStatus: order.payStatus, deliveryStatus: order.deliveryStatus, jiema: order.jiema ?? null }) : null
+                const status = jc ? { label: jc.label, ...JIEMA_TONE[jc.tone] } : getStatusConfig(order.payStatus, order.deliveryStatus)
+                const JcIcon = jc ? JIEMA_TONE[jc.tone].icon : null
                 const gradient = getGradient(order.productId)
                 const paid = order.payStatus === 'PAID'
+                const numberHref = `/jiema/order/${encodeURIComponent(order.orderNo)}`
                 return (
                   <motion.div
                     key={order.id}
@@ -563,14 +579,17 @@ export default function OrdersPage() {
                         <div className="flex items-center justify-between md:justify-end gap-4 lg:gap-6">
                           <div className="text-right">
                             <div className="text-2xl lg:text-3xl font-bold">
-                              ¥{Number(order.payStatus === 'UNPAID' ? order.payable : order.amount).toFixed(0)}
+                              {orderAmountText(Number(order.payStatus === 'UNPAID' ? order.payable : order.amount), order.product?.deliveryType)}
                             </div>
+                            {isJiema && order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && order.jiema?.holdState === 'HELD' && order.jiema.holdCents > 0 ? (
+                              <div className="mt-0.5 text-[11px] text-cyan-200/80">余额已预扣 ¥{(order.jiema.holdCents / 100).toFixed(2)}</div>
+                            ) : null}
                             {order.payStatus === 'UNPAID' && order.invoiceTaxFee ? (
                               <div className="mt-0.5 text-[11px] text-amber-300/80">含发票税费 ¥{order.invoiceTaxFee.toFixed(2)}</div>
                             ) : null}
                             <div className="text-xs text-white/40">订单金额</div>
                           </div>
-                          {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
+                          {!isJiema && order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
                             <button
                               onClick={() => handleAlipay(order)}
                               disabled={payingNo === order.orderNo}
@@ -591,13 +610,19 @@ export default function OrdersPage() {
                           lg 起改成「左提示 / 右按钮」一行 —— 这就是桌面端信息密度的主要来源。
                           四个提示互斥（同一时刻最多渲染一个），没有提示时按钮组自然回到左侧 */}
                       <div className="mt-4 lg:mt-5 pt-4 lg:pt-5 border-t border-white/10 lg:flex lg:items-center lg:justify-between lg:gap-6">
-                        {order.deliveryStatus === 'DELIVERED' && (
+                        {jc && jc.hint && JcIcon && (
+                          <div className={`mb-3 lg:mb-0 flex items-center gap-2 text-sm lg:text-[15px] ${JIEMA_TONE[jc.tone].color}`}>
+                            <JcIcon className="w-4 h-4" />
+                            <span>{jc.hint}</span>
+                          </div>
+                        )}
+                        {!jc && order.deliveryStatus === 'DELIVERED' && (
                           <div className="flex items-center gap-2 text-sm lg:text-[15px] text-green-400 mb-3 lg:mb-0">
                             <CheckCircle className="w-4 h-4" />
                             <span>服务已交付</span>
                           </div>
                         )}
-                        {order.payStatus === 'PAID' && order.deliveryStatus === 'PROCESSING' && (
+                        {!jc && order.payStatus === 'PAID' && order.deliveryStatus === 'PROCESSING' && (
                           <div className="flex items-center gap-2 text-sm lg:text-[15px] text-blue-400 mb-3 lg:mb-0">
                             <Clock className="w-4 h-4" />
                             {/* 不写死时效：人工服务、接码、卡池不足转人工补发三种情况的耗时完全不同，
@@ -611,7 +636,7 @@ export default function OrdersPage() {
                             </span>
                           </div>
                         )}
-                        {order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
+                        {!jc && order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
                           <div className="mb-3 lg:mb-0">
                             <div className="flex items-center gap-2 text-sm lg:text-[15px] text-yellow-400">
                               <AlertCircle className="w-4 h-4" />
@@ -626,7 +651,7 @@ export default function OrdersPage() {
                             )}
                           </div>
                         )}
-                        {order.deliveryStatus === 'CANCELLED' && order.payStatus === 'UNPAID' && (
+                        {!jc && order.deliveryStatus === 'CANCELLED' && order.payStatus === 'UNPAID' && (
                           <div className="flex items-center gap-2 text-sm lg:text-[15px] text-white/40 mb-3 lg:mb-0">
                             <XCircle className="w-4 h-4" />
                             <span>订单已超时取消，请重新下单</span>
@@ -634,6 +659,23 @@ export default function OrdersPage() {
                         )}
 
                         <div className="flex flex-wrap gap-2 lg:shrink-0">
+                          {jc && jc.showGoPay && (
+                            <Link
+                              href={numberHref}
+                              className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg bg-[#1677FF] text-white text-sm lg:text-[15px] font-medium hover:bg-[#0e5fd8] transition-colors flex items-center justify-center gap-1.5 md:whitespace-nowrap"
+                            >
+                              去付款（号码页）
+                            </Link>
+                          )}
+                          {jc && jc.showNumberLink && (
+                            <Link
+                              href={numberHref}
+                              className="inline-flex items-center gap-1.5 px-3 py-2 lg:px-4 lg:py-2.5 rounded-lg glass hover:bg-white/10 text-sm lg:text-[15px] text-cyan-200 transition-colors"
+                            >
+                              查看号码
+                              <ChevronRight className="w-4 h-4" />
+                            </Link>
+                          )}
                           <ActionButton
                             icon={Package}
                             label="发货详情"
@@ -646,7 +688,7 @@ export default function OrdersPage() {
                               onClick={() => openPanel(order, 'billing')}
                             />
                           )}
-                          {paid && (
+                          {(paid || (jc && jc.showChat)) && (
                             <ActionButton
                               icon={MessageSquare}
                               label="与客服在线沟通"
@@ -664,6 +706,16 @@ export default function OrdersPage() {
                           )}
                         </div>
                       </div>
+                      {/* 开票提示（D37 清单第 ⑤ 项）：已付款或已取消 / 已退款的接码卡片，在原「开具发票 / 收据」的位置；「联系客服」打开这张单的订单留言 */}
+                      {jc && jc.showInvoiceNotice && (
+                        <p className="mt-3 text-xs text-white/40">
+                          暂不支持开票，可
+                          <button onClick={() => openPanel(order, 'chat')} className="text-cyan-300/90 hover:underline">
+                            联系客服
+                          </button>
+                          开票处理
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )
@@ -934,13 +986,24 @@ function DeliveryPanel({
   const primaryRedeemUrl = primary?.redeemUrl || fallbackRedeemUrl
   // 站内兑换在本站打开，外链才新开标签页
   const primaryInSite = !!primary?.inSite
-  const showHint = !hasCards && !order.deliveryInfo && order.product?.deliveryType !== 'SMS'
+  const showHint = !hasCards && !order.deliveryInfo && order.product?.deliveryType !== 'SMS' && order.product?.deliveryType !== 'SMS_POOL'
   return (
     <PanelModal title="发货详情" icon={<Package className="w-5 h-5 text-emerald-400" />} onClose={onClose}>
       <div className="space-y-4 text-sm">
         <InfoRow label="订单号" value={<span className="font-mono">{order.orderNo}</span>} />
         <InfoRow label="商品" value={<span className="font-medium">{order.productName}</span>} />
         <InfoRow label="金额" value={<span className="font-bold text-lg">¥{Number(order.amount).toFixed(2)}</span>} />
+        {order.product?.deliveryType === 'SMS_POOL' && order.jiema && order.jiema.holdCents > 0 && (
+          <InfoRow
+            label="余额抵扣"
+            value={
+              <span className="text-cyan-200">
+                ¥{(order.jiema.holdCents / 100).toFixed(2)}
+                {order.jiema.holdState === 'HELD' ? '（已预扣）' : order.jiema.holdState === 'RELEASED' ? '（已退回）' : order.jiema.holdState === 'REFUNDED' ? '（已退回余额）' : ''}
+              </span>
+            }
+          />
+        )}
         {/* 【已付订单也要显示】这一行是买家对账用的：他支付宝里扣的是含税的那个数，
             付款后就把它藏起来，等于让他拿着一份对不上的材料去报销 */}
         {order.invoiceTaxFee ? (
@@ -1052,6 +1115,17 @@ function DeliveryPanel({
             <div className="text-white/50 mb-2">短信接码</div>
             <OrderSms orderId={order.id} />
           </div>
+        )}
+
+        {/* 通用接码单（SMS_POOL）：号码、验证码、换号取消都在号码页，这里只给链接，不挂载旧单品的 OrderSms（§6.6 第 27 条） */}
+        {order.product?.deliveryType === 'SMS_POOL' && (
+          <Link
+            href={`/jiema/order/${encodeURIComponent(order.orderNo)}`}
+            className="flex items-center justify-between rounded-xl border border-cyan-400/25 bg-cyan-500/10 px-4 py-3 text-cyan-100 hover:bg-cyan-500/15"
+          >
+            <span>短信接码 · 查看号码</span>
+            <ChevronRight className="w-4 h-4" />
+          </Link>
         )}
 
         {showHint && (

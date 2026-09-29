@@ -509,10 +509,12 @@ async function main() {
     check('  …canUseForJiema=false（S1 收口 B0 的已知限制）', (await walletCfg.canUseForJiema()) === false)
     check('  …去掉常量短路（orderAvailable=true）也是 false：是 zod 校验拦下的，不是常量', (await walletCfg.canUseForJiema(undefined, true)) === false)
     await setCfg({ enabled: true, audience: 'ALL' })
-    check('整份有效、enabled + ALL（手改库），但 S2 之前 → 仍不对全部用户开放', schema.JIEMA_ORDER_AVAILABLE === false && !schema.jiemaPublicOpen(await readCfg()) && (await walletCfg.canUseForJiema()) === false)
-    check('  …orderAvailable=true：整份有效 + enabled + ALL + 余额支付开 → true（S2 把常量改成 true 后就是这个结果）', (await walletCfg.canUseForJiema(undefined, true)) === true)
+    // S2b 交付后 JIEMA_ORDER_AVAILABLE=true：整份有效 + enabled + ALL 就是「对全部用户开放」（S1 时这里断言的是「仍不开放」）
+    const OA = schema.JIEMA_ORDER_AVAILABLE
+    check(`整份有效、enabled + ALL：对全部用户开放 = 接码下单已交付（JIEMA_ORDER_AVAILABLE=${OA}）`, schema.jiemaPublicOpen(await readCfg()) === OA && (await walletCfg.canUseForJiema()) === OA)
+    check('  …orderAvailable=true：整份有效 + enabled + ALL + 余额支付开 → true', (await walletCfg.canUseForJiema(undefined, true)) === true)
     const a2 = await callRoute(routes.catalog.GET, { ...anon, path: '/api/jiema/catalog' })
-    check('  …匿名仍 503', a2.status === 503)
+    check(`  …匿名 ${OA ? '200（已对全部用户开放）' : '仍 503'}`, a2.status === (OA ? 200 : 503))
     // 前台外壳与 sitemap
     const ShopLayout = (await import('../src/app/(shop)/layout')).default as (p: { children: React.ReactNode }) => Promise<unknown>
     const { Header } = await import('../src/components/layout/header')
@@ -528,18 +530,26 @@ async function main() {
       return null
     }
     const shell = await withRequest({ host: MAIN_HOST }, () => ShopLayout({ children: 'x' }))
-    check('前台外壳：jiemaOpen=false（导航与页脚看不到「短信接码」）', findHeader(shell)?.jiemaOpen === false)
+    check(`前台外壳：jiemaOpen=${OA}（导航与页脚${OA ? '出现' : '看不到'}「短信接码」）`, findHeader(shell)?.jiemaOpen === OA)
     const sitemap = (await import('../src/app/sitemap')).default as () => Promise<Array<{ url: string }>>
     const sm = await withRequest({ host: MAIN_HOST }, () => sitemap())
-    check('sitemap 里没有 /jiema', sm.length > 0 && !sm.some((x) => x.url.endsWith('/jiema')))
+    check(`sitemap 里${OA ? '有' : '没有'} /jiema`, sm.length > 0 && sm.some((x) => x.url.endsWith('/jiema')) === OA)
     await setCfg({})
+    const shell2 = await withRequest({ host: MAIN_HOST }, () => ShopLayout({ children: 'x' }))
+    const sm2 = await withRequest({ host: MAIN_HOST }, () => sitemap())
+    check('受众仅管理员（出厂）：导航看不到「短信接码」、sitemap 没有 /jiema', findHeader(shell2)?.jiemaOpen === false && !sm2.some((x) => x.url.endsWith('/jiema')))
     // 保存
     const g1 = await callRoute(routes.aConfig.GET, { ...asAdmin, path: '/api/admin/jiema/config' })
     const gBuyer = await callRoute(routes.aConfig.GET, { ...asBuyer, path: '/api/admin/jiema/config' })
-    check('后台配置接口：普通用户 403、管理员 200（出厂值、orderAvailable=false）', gBuyer.status === 403 && g1.status === 200 && g1.json?.data?.config?.saleCoef4 === 80000 && g1.json?.data?.orderAvailable === false)
+    check(`后台配置接口：普通用户 403、管理员 200（出厂值、orderAvailable=${OA}）`, gBuyer.status === 403 && g1.status === 200 && g1.json?.data?.config?.saleCoef4 === 80000 && g1.json?.data?.orderAvailable === OA)
     const ver = g1.json.data.storedVersion as number
-    const putAll = await callRoute(routes.aConfig.PUT, { ...asAdmin, method: 'PUT', path: '/api/admin/jiema/config', body: { config: { ...FACTORY_SMS_CONFIG, audience: 'ALL' }, expectVersion: ver } })
-    check('保存「全部用户」→ 400（S2 之前）', putAll.status === 400 && !!putAll.json?.errors?.audience)
+    if (!OA) {
+      const putAll = await callRoute(routes.aConfig.PUT, { ...asAdmin, method: 'PUT', path: '/api/admin/jiema/config', body: { config: { ...FACTORY_SMS_CONFIG, audience: 'ALL' }, expectVersion: ver } })
+      check('保存「全部用户」→ 400（S2 之前）', putAll.status === 400 && !!putAll.json?.errors?.audience)
+    } else {
+      // S2b 之后「全部用户」可以保存（不经接口保存，免得版本号 +1 打乱下面几条的乐观并发断言）；S2 之前的拒绝用 orderAvailable=false 断言
+      check('「全部用户」：S2 交付后允许保存、S2 之前拒绝（smsConfigSaveBlockers）', !schema.smsConfigSaveBlockers({ ...FACTORY_SMS_CONFIG, audience: 'ALL' }).audience && !!schema.smsConfigSaveBlockers({ ...FACTORY_SMS_CONFIG, audience: 'ALL' }, false).audience)
+    }
     const putLow = await callRoute(routes.aConfig.PUT, { ...asAdmin, method: 'PUT', path: '/api/admin/jiema/config', body: { config: { ...FACTORY_SMS_CONFIG, saleCoef4: 70000 }, expectVersion: ver } })
     check('x < 成本汇率 → 409 要二次确认', putLow.status === 409 && putLow.json?.needConfirm === 'lowCoef')
     const putBadFx = await callRoute(routes.aConfig.PUT, { ...asAdmin, method: 'PUT', path: '/api/admin/jiema/config', body: { config: { ...FACTORY_SMS_CONFIG, costFx4: 800000 }, expectVersion: ver } })

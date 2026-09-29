@@ -12,6 +12,7 @@ import { describeTopupRemark } from '@/lib/wallet/topup'
 import { settledReferralCents } from '@/lib/referral-report'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 import { channelProfit, smsChargedCost, type ChannelProfit } from '@/lib/admin/channel-profit'
+import { listFooter } from '@/lib/jiema/report'
 
 const PLATFORM_TENANT_ID = 1
 
@@ -210,6 +211,17 @@ export async function GET(request: NextRequest) {
     )
 
     const srcMap = await sourceMap(orders.map((o) => o.tenantId))
+    /*
+     * 短信接码单（SMS_POOL）的成本利润（docs/短信接码-设计.md §6.6 第 28 条、§9.5）：联查 sms_orders，给 costCents / profitCents / costFinal / lossCents
+     * （未定稿 = 预估，页面灰字；已取消单成本利润落空 = 「不计」）。接码单没有卡密，不与上面的卡密口径重复。
+     */
+    const smsIds = orders.filter((o) => o.product.deliveryType === 'SMS_POOL').map((o) => o.id)
+    const smsMap = new Map(
+      (smsIds.length
+        ? await prisma.smsOrder.findMany({ where: { orderId: { in: smsIds } }, select: { orderId: true, state: true, chargedMicro: true, costCents: true, profitCents: true, costFinal: true, lossCents: true } })
+        : []
+      ).map((r) => [r.orderId, r]),
+    )
     const list = orders.map((o) => {
       const m = moneyMap.get(o.id)
       // 只对有卡的单扣返现：人工发货单本来就没有卡密利润（显示 —），扣了会凭空冒出负数
@@ -233,6 +245,10 @@ export async function GET(request: NextRequest) {
         // 载体单（充值 / 接码）的 remark 是内部字段（topup|ct:…），不回退成「买家备注」，另给 internalRemarkText（B1 评审修复）
         buyerRemarkText: isCarrierType(o.product.deliveryType) ? o.buyerRemark : o.buyerRemark ?? o.remark,
         carrier: isCarrierType(o.product.deliveryType),
+        jiema: (() => {
+          const j = smsMap.get(o.id)
+          return j ? { state: j.state, chargedMicro: j.chargedMicro, costCents: j.costCents, profitCents: j.profitCents, costFinal: j.costFinal, lossCents: j.lossCents } : null
+        })(),
         internalRemarkText: isCarrierType(o.product.deliveryType)
           ? o.product.deliveryType === 'TOPUP'
             ? describeTopupRemark(o.remark)
@@ -261,6 +277,8 @@ export async function GET(request: NextRequest) {
     let totalsProfit: number | null = null
     let totalsReferral: number | null = null
     let totalsTruncated = false
+    // 短信接码单的合计（元；已含在 cost / profit 里）。没有接码单时为 null
+    let jiemaTotals: { orders: number; cost: number; profit: number; loss: number; estimating: number; notCounted: number } | null = null
     // 渠道单拆分（分）：进货净额、已知成本、利润（只加有成本数据的单），以及成本未登记的单数。truncated 时整体为 null
     let ch: { supplyNet: number; cost: number; profit: number; unknown: number } | null = null
     if (total <= TOTALS_ID_CAP) {
@@ -323,6 +341,19 @@ export async function GET(request: NextRequest) {
       // 成本 / 利润合计 = 主站（卡密）+ 渠道（公式，只含有成本数据的单）。没有渠道单时加 0，主站数字不变
       totalsCost = round2(totalsCost + acc.cost / 100)
       totalsProfit = round2(totalsProfit + acc.profit / 100)
+      // 短信接码单（§6.6 第 28 条）：按 sms_orders 的 Σ costCents / Σ profitCents 并进合计（已取消单落空 = 不计；未定稿的是预估，单独给个数）
+      if (mainIds.length) {
+        const smsRows = await prisma.smsOrder.findMany({
+          where: { orderId: { in: mainIds.map((x) => x.id) } },
+          select: { state: true, priceCents: true, costCents: true, profitCents: true, lossCents: true, costFinal: true },
+        })
+        if (smsRows.length) {
+          const f = listFooter(smsRows)
+          jiemaTotals = { orders: f.orders, cost: f.costCents / 100, profit: f.profitCents / 100, loss: f.lossCents / 100, estimating: f.estimating, notCounted: f.notCounted }
+          totalsCost = round2(totalsCost + f.costCents / 100)
+          totalsProfit = round2(totalsProfit + f.profitCents / 100)
+        }
+      }
     } else {
       totalsTruncated = true
     }
@@ -347,6 +378,7 @@ export async function GET(request: NextRequest) {
         channelCost: ch ? ch.cost / 100 : null, // 渠道单已知成本（已含在 cost 里）
         channelProfit: ch ? ch.profit / 100 : null, // 渠道利润 = 进货净额 − 成本（已含在 profit 里）
         channelProfitUnknown: ch ? ch.unknown : null, // 成本未登记、未计入渠道利润的单数
+        jiema: jiemaTotals, // 短信接码单：计成本的单数、真实成本、毛利、亏损（已含在 cost / profit 里）、预估中、不计（已取消）
       },
       sites: await siteOptions(),
     })

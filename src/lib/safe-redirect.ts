@@ -26,3 +26,11 @@ export function safeRedirect(raw: string | null | undefined, fallback = '/'): st
     return fallback
   }
 }
+
+/**
+ * 登录页 ↔ 注册页互相跳转时带上同一个回跳地址（docs/短信接码-设计.md §6.6 第 30 条、D24）。
+ * redirect 必须是已经过 safeRedirect 的站内路径；回跳就是首页时不带参数（与改造前的 `/register`、`/login` 逐字相同）。
+ */
+export function withRedirect(base: '/register' | '/login', redirect: string | null | undefined): string {
+  return redirect && redirect !== '/' ? `${base}?redirect=${encodeURIComponent(redirect)}` : base
+}

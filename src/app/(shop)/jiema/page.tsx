@@ -4,6 +4,8 @@ import { notFoundOnChannel } from '@/lib/storefront/resolve'
 import { jiemaViewer } from '@/lib/jiema/access'
 import { catalogSnapshot } from '@/lib/jiema/catalog'
 import { JIEMA_ORDER_AVAILABLE } from '@/lib/jiema-config-schema'
+import { readWalletConfig } from '@/lib/wallet/config'
+import { prisma } from '@/lib/db'
 import { JiemaClient } from './jiema-client'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +17,8 @@ export const dynamic = 'force-dynamic'
  * 对谁开放（lib/jiema-config-schema 的 jiemaAccessFor）：
  *  · 普通用户在对全部用户开放前看到「短信接码即将开放」（§1.14）；配置读不到 / 开放后总开关关了 →「接码服务维护中」；
  *  · 管理员灰度期直接访问可以预览全部交互（选服务、国家/地区、运营商、确认面板），但「去支付」不可用（§11 S1）。
- * S1 只有目录与定价（不开卖）：JIEMA_ORDER_AVAILABLE=false 时「去支付」一律不可用，S2 接上下单。
+ * 「去支付」（S2b）：接码下单已交付（JIEMA_ORDER_AVAILABLE）&& 总开关开 && （对全部用户开放，或管理员在「仅管理员」灰度期真钱验收）。
+ * 余额支付开关（wallet_config.balancePayEnabled，读不到按关）与本人上一张接码单同意过的条款版本在这里读好交给确认面板（§1.8）。
  * 第一行 notFoundOnChannel（layout 已经调过一次；页面这里再调一次，免得以后有人把 layout 改掉），不包进 try。
  */
 export default async function JiemaPage() {
@@ -52,8 +55,16 @@ export default async function JiemaPage() {
     )
   }
 
-  const snap = await catalogSnapshot(v.cfg)
+  const [snap, wallet, last] = await Promise.all([
+    catalogSnapshot(v.cfg),
+    readWalletConfig().catch(() => null),
+    v.userId
+      ? prisma.smsOrder.findFirst({ where: { userId: v.userId }, orderBy: { id: 'desc' }, select: { termsVersion: true, walletTermsVersion: true } }).catch(() => null)
+      : Promise.resolve(null),
+  ])
   const hot = snap.services.filter((s) => s.hot != null).sort((a, b) => (a.hot ?? 0) - (b.hot ?? 0)).slice(0, 12)
+  const orderAvailable = JIEMA_ORDER_AVAILABLE && v.cfg.enabled && (v.access === 'OPEN' || v.isAdmin)
+  const balancePayOn = !!wallet && wallet.ok && wallet.config.balancePayEnabled
 
   return (
     <div className="page-top container max-w-6xl pb-44 lg:pb-40">
@@ -87,8 +98,10 @@ export default async function JiemaPage() {
         degraded={snap.degraded}
         maintenance={snap.maintenance}
         preview={v.access === 'ADMIN_PREVIEW'}
-        orderAvailable={JIEMA_ORDER_AVAILABLE}
+        orderAvailable={orderAvailable}
         maxReplace={v.cfg.maxReplace}
+        balancePayOn={balancePayOn}
+        lastTerms={last ? { jiema: last.termsVersion, wallet: last.walletTermsVersion } : null}
       />
 
       <section className="mt-10 grid gap-4 text-[13px] leading-relaxed text-white/55 sm:grid-cols-3">

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
+import { hideFloatingContactOn } from '@/lib/floating-widgets'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Copy, Check } from 'lucide-react'
 import { ContactModal, hoursText } from './contact-modal'
@@ -12,6 +14,15 @@ import { useStorefront } from './storefront-provider'
  * 渠道只设了二维码时不显示微信号块，只设了微信号时不显示「查看二维码」按钮（回退规则保证两者至少有一个）。
  */
 export function FloatingContact() {
+  const pathname = usePathname()
+  // 悬浮组件让位（docs/短信接码-设计.md §1.4、§6.6 第 31 条）：只在 /jiema/* 隐藏（号码页有「联系客服」抽屉、主页面底部钉着确认条，
+  // 手机上这个圆按钮正好压在「下一步 / 去支付」上）；/wallet、/wallet/topup 没有钉在底部的操作条，保留——付了款没到账的买家在那两页就能找到客服
+  if (hideFloatingContactOn(pathname)) return null
+  return <FloatingContactInner />
+}
+
+
+function FloatingContactInner() {
   const { contact } = useStorefront()
   const wechat = contact.wechat
   const [expanded, setExpanded] = useState(false)

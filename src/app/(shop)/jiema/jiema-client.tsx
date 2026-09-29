@@ -1,12 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Link from 'next/link'
-import { Search, X, ChevronDown, ChevronRight, Globe2, Loader2, Info, ArrowLeft, Eye } from 'lucide-react'
+import { Search, X, ChevronDown, ChevronRight, Globe2, Loader2, ArrowLeft, Eye } from 'lucide-react'
 import { searchServices, searchCountries, effectiveQuery, serviceTokens, toSearchable } from '@/lib/jiema/search'
 import { stockApprox, fmtYuan } from '@/lib/jiema/pricing'
 import type { CatalogCountry, CatalogOperator, CatalogService } from '@/lib/jiema/dto'
 import { cn } from '@/lib/utils'
+import { CheckoutPanel } from './checkout-panel'
 
 /**
  * /jiema 的交互部分（docs/短信接码-设计.md §1.4–§1.8、§1.13、§1.14）。
@@ -16,7 +16,8 @@ import { cn } from '@/lib/utils'
  * 【状态进 URL】?s=&c=&op=&confirm=1：刷新、分享、登录回跳都不丢；桌面 replaceState，手机每进一步 pushState 并监听 popstate
  * （系统返回键 = 回到上一步，不离开 /jiema）。
  * 【不屏蔽任何平台】（D25）没有「不提供」的提示；搜索不看上游代码。
- * 【S1 不开卖】orderAvailable=false：「去支付」不可用；管理员预览时顶部有横幅说明。
+ * 【下单】（S2b）确认面板的付款方式、条款、提交与 409 弹窗在 checkout-panel.tsx；orderAvailable=false（总开关关着 / 普通用户灰度期）时「去支付」不可用，
+ * 管理员预览时顶部有横幅说明（总开关开 + 仅管理员 = 管理员真钱验收）。
  * 【限高与滚动】确认面板最大高度 100dvh − 页头 − 16px，主体可滚动，按钮与退款说明钉在底栏（09-24 开票弹窗事故的教训）。
  * localStorage（排序偏好）一律 try/catch；换服务时不重置排序（§1.4）。
  * 【预取只给热门】（§1.4）悬停热门服务 150ms（或手指按下）才预取它的国家列表，每个服务每次打开页面最多预取一次、在途请求去重、
@@ -33,6 +34,10 @@ export interface JiemaClientProps {
   preview: boolean
   orderAvailable: boolean
   maxReplace: number
+  /** 余额支付开关（wallet_config.balancePayEnabled，读不到按关）：关着时确认面板只有支付宝（§1.8） */
+  balancePayOn: boolean
+  /** 本人最近一张接码单同意过的两份条款版本（首单必勾，之后同一版默认勾选，§1.8）；没登录 / 没下过单为 null */
+  lastTerms: { jiema: string | null; wallet: string | null } | null
 }
 
 interface CountryPayload {
@@ -403,7 +408,7 @@ export function JiemaClient(props: JiemaClientProps) {
   }
   const chooseOp = (code: string | null) => apply({ s: svc, c: country, op: code, step }, 'replace')
 
-  const payLabel = props.orderAvailable ? '去支付' : props.preview ? '管理员预览：下单功能即将上线' : '即将开放'
+  const payLabel = props.orderAvailable ? '去支付' : props.preview ? '管理员预览：总开关关着，暂不能下单' : '即将开放'
 
   // =====================================================================
   return (
@@ -411,7 +416,10 @@ export function JiemaClient(props: JiemaClientProps) {
       {props.preview && (
         <div className="mb-4 flex items-start gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-500/10 px-4 py-3 text-[13px] text-cyan-50/90">
           <Eye className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>管理员预览：普通用户现在看到的是「短信接码即将开放」，导航与 sitemap 里也没有这一页。可以试选服务、国家/地区和运营商；「去支付」在下单功能上线前不可用。</span>
+          <span>
+            管理员预览：普通用户现在看到的是「短信接码即将开放」，导航与 sitemap 里也没有这一页。
+            {props.orderAvailable ? '总开关已打开（受众仅管理员）：可以真钱下单验收，号码页、后台订单与成本利润都能看到。' : '总开关关着：可以试选服务、国家/地区和运营商，「去支付」不可用。'}
+          </span>
         </div>
       )}
       {props.maintenance && (
@@ -628,114 +636,75 @@ export function JiemaClient(props: JiemaClientProps) {
         </div>
       )}
 
-      {/* ③ 确认面板：桌面是确认条展开，手机是第 3 步抽屉；限高、主体滚动、按钮钉在底栏 */}
+      {/* ③ 确认面板：桌面是确认条展开，手机是第 3 步抽屉；限高、主体滚动、按钮与退款说明钉在底栏（checkout-panel.tsx） */}
       {service && picked && step === 'confirm' && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label="确认订单">
-          <button className="absolute inset-0 bg-black/60" aria-label="关闭" onClick={() => back('country')} />
-          <div
-            className="relative flex w-full max-w-3xl flex-col overflow-hidden rounded-t-3xl border border-white/10 bg-[#0b0b12] shadow-2xl"
-            style={{ maxHeight: 'calc(100dvh - var(--header-h, 7rem) - 16px)' }}
-          >
-            <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
-              <span className="text-sm font-medium text-white/85">确认订单</span>
-              <button onClick={() => back('country')} aria-label="关闭" className="rounded-full p-1 text-white/60 hover:bg-white/10">
-                <X className="h-4 w-4" />
+        <CheckoutPanel
+          service={{ code: service.code, name: service.name }}
+          country={{ id: picked.id, name: picked.name, dial: picked.dial, flag: <Flag flag={picked.flag} /> }}
+          op={op}
+          opName={opName}
+          fallback={fallback}
+          priceCents={picked.priceCents}
+          approx={picked.approx}
+          maxReplace={maxReplace}
+          anyOtherNote={svc === anyOther?.code ? ANY_OTHER_NOTE : null}
+          orderAvailable={props.orderAvailable}
+          payDisabledLabel={payLabel}
+          balancePayOn={props.balancePayOn}
+          lastTerms={props.lastTerms}
+          onClose={() => back('country')}
+          advanced={
+            <div className="rounded-xl border border-white/10 bg-white/[0.03]">
+              <button onClick={() => setAdvOpen((v) => !v)} className="flex w-full items-center gap-1 px-3 py-2 text-left text-[13px] text-white/70">
+                {advOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                高级选项（运营商：{opName}）
               </button>
-            </div>
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-5 py-4 text-sm">
-              <div className="grid grid-cols-[4.5rem_1fr] gap-y-2">
-                <span className="text-white/45">服务</span>
-                <span className="text-white/85">{service.name}</span>
-                <span className="text-white/45">国家/地区</span>
-                <span className="flex items-center gap-2 text-white/85">
-                  <Flag flag={picked.flag} />
-                  {picked.name}
-                  {picked.dial ? ` +${picked.dial}` : ''}
-                </span>
-                <span className="text-white/45">有效期</span>
-                <span className="text-white/85">
-                  20 分钟 · 收码前可免费换号 {maxReplace} 次
-                </span>
-              </div>
-              {svc === anyOther?.code && <p className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100/85">{ANY_OTHER_NOTE}</p>}
-              <div className="rounded-xl border border-white/10 bg-white/[0.03]">
-                <button onClick={() => setAdvOpen((v) => !v)} className="flex w-full items-center gap-1 px-3 py-2 text-left text-[13px] text-white/70">
-                  {advOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                  高级选项（运营商：{opName}）
-                </button>
-                {advOpen && (
-                  <div className="space-y-2 border-t border-white/10 px-3 py-3 text-[13px]">
-                    {!ops || ops.list == null ? (
-                      <div className="flex items-center gap-2 text-white/45">
-                        <Loader2 className="h-4 w-4 animate-spin" /> 正在加载运营商…
-                      </div>
-                    ) : ops.error ? (
-                      <div className="text-white/45">
-                        运营商加载失败，暂按任意运营商
-                        <button onClick={() => setOps(null)} className="ml-2 text-cyan-300/90 hover:underline">
-                          重试
-                        </button>
-                      </div>
-                    ) : ops.list.length === 0 ? (
-                      <div className="text-white/45">这个国家/地区不支持指定运营商，将使用任意运营商。</div>
-                    ) : (
-                      <>
-                        <label className="flex flex-wrap items-center gap-2 text-white/70">
-                          运营商
-                          <select
-                            value={op ?? ''}
-                            onChange={(e) => chooseOp(e.target.value || null)}
-                            className="rounded-lg border border-white/15 bg-[#15151f] px-2 py-1.5 text-white outline-none"
-                          >
-                            <option value="">任意运营商（推荐）</option>
-                            {ops.list.map((o) => (
-                              <option key={o.code} value={o.code}>
-                                {o.name}
-                              </option>
-                            ))}
-                          </select>
+              {advOpen && (
+                <div className="space-y-2 border-t border-white/10 px-3 py-3 text-[13px]">
+                  {!ops || ops.list == null ? (
+                    <div className="flex items-center gap-2 text-white/45">
+                      <Loader2 className="h-4 w-4 animate-spin" /> 正在加载运营商…
+                    </div>
+                  ) : ops.error ? (
+                    <div className="text-white/45">
+                      运营商加载失败，暂按任意运营商
+                      <button onClick={() => setOps(null)} className="ml-2 text-cyan-300/90 hover:underline">
+                        重试
+                      </button>
+                    </div>
+                  ) : ops.list.length === 0 ? (
+                    <div className="text-white/45">这个国家/地区不支持指定运营商，将使用任意运营商。</div>
+                  ) : (
+                    <>
+                      <label className="flex flex-wrap items-center gap-2 text-white/70">
+                        运营商
+                        <select
+                          value={op ?? ''}
+                          onChange={(e) => chooseOp(e.target.value || null)}
+                          className="rounded-lg border border-white/15 bg-[#15151f] px-2 py-1.5 text-white outline-none"
+                        >
+                          <option value="">任意运营商（推荐）</option>
+                          {ops.list.map((o) => (
+                            <option key={o.code} value={o.code}>
+                              {o.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <p className="text-xs leading-relaxed text-white/45">同一国家/地区内按运营商挑号，不影响价格。指定后可选的号码会变少，有的运营商可能没有号码。</p>
+                      {op && (
+                        <label className="flex items-start gap-2 text-xs text-white/65">
+                          <input type="checkbox" className="mt-0.5" checked={fallback} onChange={(e) => onFallback(e.target.checked)} />
+                          指定的运营商没号时，自动改用任意运营商
                         </label>
-                        <p className="text-xs leading-relaxed text-white/45">同一国家/地区内按运营商挑号，不影响价格。指定后可选的号码会变少，有的运营商可能没有号码。</p>
-                        {op && (
-                          <label className="flex items-start gap-2 text-xs text-white/65">
-                            <input type="checkbox" className="mt-0.5" checked={fallback} onChange={(e) => onFallback(e.target.checked)} />
-                            指定的运营商没号时，自动改用任意运营商
-                          </label>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-              <div className="flex items-baseline justify-between">
-                <span className="text-white/45">应付</span>
-                <span className="text-xl font-semibold tabular-nums">
-                  {picked.priceCents != null ? `${picked.approx ? '约 ' : ''}${fmtYuan(picked.priceCents)}` : '—'}
-                </span>
-              </div>
-              {picked.approx && <p className="text-xs text-white/40">这个价格来自每 10 分钟的全量报价，下单时以实时价格为准。</p>}
-              <p className="text-xs text-white/40">
-                暂不支持开票，可
-                <Link href="/support" target="_blank" className="text-cyan-300/90 hover:underline">
-                  联系客服
-                </Link>
-                开票处理
-              </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="border-t border-white/10 bg-[#0b0b12] px-5 py-3">
-              <button
-                disabled={!props.orderAvailable}
-                className="inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {payLabel}
-              </button>
-              <p className="mt-2 flex items-start gap-1 text-[11px] leading-relaxed text-white/45">
-                <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                号码 20 分钟有效。没收到短信的，号码到期或你主动取消后，本单整单退回站内余额（含支付宝付的部分）；退回的余额不能提现、不退回支付宝，目前可用于短信接码。
-              </p>
-            </div>
-          </div>
-        </div>
+          }
+        />
       )}
     </div>
   )

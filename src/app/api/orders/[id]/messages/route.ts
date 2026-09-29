@@ -8,6 +8,7 @@ import { success, error, unauthorized, notFound } from '@/lib/api'
 import { notifyBuyerMessage } from '@/lib/notify'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { emitTenantNotice } from '@/lib/tenant/notice'
+import { jiemaMessageRows } from '@/lib/jiema/support'
 
 /**
  * 本人、本店的订单（设计 8.1「归属一律写进 where」）。别人的单、别的站的单与不存在的单同样返回 null → 404。
@@ -16,8 +17,17 @@ import { emitTenantNotice } from '@/lib/tenant/notice'
 async function ownedPaidOrder(orderId: number, userId: number, tenantId: number) {
   return prisma.order.findFirst({
     where: { id: orderId, userId, tenantId },
-    select: { id: true, payStatus: true, tenantId: true, orderNo: true, productName: true },
+    select: { id: true, payStatus: true, tenantId: true, orderNo: true, productName: true, product: { select: { deliveryType: true } } },
   })
+}
+
+/**
+ * 能不能读写留言（docs/短信接码-设计.md §6.6 第 29 条、§8.2）：普通订单与充值单沿用「支付后才能咨询」；
+ * **只对短信接码单（SMS_POOL 载体）放开付款状态**——接码单最需要客服的时候恰恰是待支付、已关闭（UNPAID）或已取消（REFUNDED）。
+ * 本人、本站的校验与频控不变（上面的 where 与下面的发送频控）；充值单（TOPUP）不放开（迟到退入也不写留言，§2.7）。
+ */
+function canChat(order: { payStatus: string; product: { deliveryType: string } | null }): boolean {
+  return order.payStatus === 'PAID' || order.product?.deliveryType === 'SMS_POOL'
 }
 
 /**
@@ -55,7 +65,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     const order = await ownedPaidOrder(orderId, user.id, sf.id)
     if (!order) return notFound('订单不存在')
-    if (order.payStatus !== 'PAID') return error('订单支付后才能咨询')
+    if (!canChat(order)) return error('订单支付后才能咨询')
 
     const sp = new URL(request.url).searchParams
     const after = parseCursor(sp.get('after'), 0)
@@ -121,7 +131,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const order = await ownedPaidOrder(orderId, user.id, sf.id)
     if (!order) return notFound('订单不存在')
-    if (order.payStatus !== 'PAID') return error('订单支付后才能咨询')
+    if (!canChat(order)) return error('订单支付后才能咨询')
 
     const body = await request.json()
     const parsed = sendSchema.safeParse(body)
@@ -138,6 +148,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
      * 不再推站长群；渠道站长经下面的 BUYER_MESSAGE 渠道通知（按渠道自选的企业微信 / 邮箱）收到。
      * 站长后台的未读红点靠 readByAdmin，不受影响。主站单的推送内容逐字不变（主站店面的 siteTag 本来就是空串）。
      */
+    // 接码单（只在主站）：推送里带上服务、国家/地区、状态、号码后 4 位、付款方式与后台链接（§6.6 第 29 条、§8.2），买家不用自己描述订单
+    const isJiema = order.product?.deliveryType === 'SMS_POOL'
     if (order.tenantId === 1) {
       try {
         const full = await prisma.order.findUnique({
@@ -145,12 +157,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           select: { orderNo: true, productName: true, user: { select: { nickname: true, email: true } } },
         })
         if (full) {
+          const extraRows = isJiema ? await jiemaMessageRows(orderId).catch(() => []) : undefined
           notifyBuyerMessage({
             orderId,
             orderNo: full.orderNo,
             productName: full.productName,
             buyer: full.user?.nickname || full.user?.email || `用户#${user.id}`,
             content: parsed.data.content,
+            extraRows,
           })
         }
       } catch (e) {

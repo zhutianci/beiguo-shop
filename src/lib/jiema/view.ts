@@ -9,7 +9,7 @@ import type { SmsAttempt, SmsOrder } from '@prisma/client'
 import { prisma } from '../db'
 import { VMQ_TIMEOUT_MIN } from '../vmq'
 import { COMPLAINT_AVAILABLE, pollMsFor, refundReasonText, toJiemaOrderView, type JiemaOrderView, type SmsOrderStateView } from './dto'
-import { operatorDisplayName, readOperatorNames } from './catalog'
+import { flagOf, operatorDisplayName, readOperatorNames } from './catalog'
 import { phoneParts } from './machine'
 import { threadsLimited } from './sellable'
 import { jnow } from './runtime'
@@ -56,7 +56,7 @@ export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView
     prisma.balanceLog.findMany({ where: { userId: order.userId, orderId: order.id, type: 'LATEPAY' }, orderBy: { id: 'asc' }, select: { topupDeltaCents: true, createdAt: true } }),
     so.state === 'WAITING' ? threadsLimited() : Promise.resolve(false),
     so.state === 'PENDING_PAY'
-      ? prisma.vmqOrder.findFirst({ where: { bizType: 'order', bizId: order.id, state: 0, createdAt: { gte: new Date(Date.now() - VMQ_TIMEOUT_MIN * 60_000) } }, orderBy: { createdAt: 'desc' }, select: { orderId: true } })
+      ? prisma.vmqOrder.findFirst({ where: { bizType: 'order', bizId: order.id, state: 0, createdAt: { gte: new Date(Date.now() - VMQ_TIMEOUT_MIN * 60_000) } }, orderBy: { createdAt: 'desc' }, select: { orderId: true, createdAt: true } })
       : Promise.resolve(null),
   ])
   const cur = atts.find((a) => a.id === so.currentAttemptId) ?? null
@@ -89,7 +89,8 @@ export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView
     state: so.state as SmsOrderStateView,
     version: so.version,
     service: { code: so.service, name: so.serviceName },
-    country: { id: so.country, name: so.countryName, iso2: country?.iso2 || null, dial: country?.dialCode || null },
+    // iso2 只用来显示旗帜：台湾（55）不显示旗帜（D44，与目录同一个 flagOf），号码页显示中性图标
+    country: { id: so.country, name: so.countryName, iso2: flagOf(so.country, country?.iso2 ?? null)?.toUpperCase() ?? null, dial: country?.dialCode || null },
     operator: so.operator ? { code: so.operator, name: operatorDisplayName(so.operator, names) } : null,
     priceCents: so.priceCents,
     pay: {
@@ -103,6 +104,16 @@ export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView
     },
     quoteExpiresAt: so.state === 'PENDING_PAY' ? so.quoteExpiresAt.toISOString() : null,
     cashierUrl: pendingPay && vmq ? `/pay/${vmq.orderId}` : null,
+    cashierExpiresAt: pendingPay && vmq ? new Date(vmq.createdAt.getTime() + VMQ_TIMEOUT_MIN * 60_000).toISOString() : null,
+    createdAt: so.createdAt.toISOString(),
+    progress:
+      so.state === 'ACQUIRING' || so.state === 'REPLACING'
+        ? {
+            tries: atts.filter((a) => a.reason === 'FIRST' || a.reason === 'RETRY').length,
+            maxTries: so.acquireTries,
+            confirming: atts.some((a) => a.state === 'UNKNOWN'),
+          }
+        : null,
     number,
     replace: { used: so.replaceCount, left },
     messages: msgs.map((m) => ({
@@ -138,8 +149,8 @@ export async function buildOrderView(ref: BuyerOrderRef): Promise<JiemaOrderView
       start: so.state === 'READY',
       refundReady: so.state === 'READY',
       complain: COMPLAINT_AVAILABLE && (so.state === 'RECEIVED' || so.state === 'FINISHED'),
-      // 订单留言对接码单放开（§6.6 第 29 条）在 S2b；在那之前沿用留言接口现有的「已付款才能咨询」
-      message: order.payStatus === 'PAID',
+      // 订单留言对接码单放开（§6.6 第 29 条，S2b）：待支付、已关闭、已取消、已退款的接码单同样能读写留言
+      message: true,
     },
     notice: so.notice,
     serverNow: now.toISOString(),
