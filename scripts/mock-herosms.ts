@@ -66,6 +66,10 @@ export interface MockConfig {
   prices: Record<string, PriceEntry>
   /** 国家 → 运营商 */
   operators: Record<string, string[]>
+  /** S1：getServicesList 的服务表（缺省 = 内置 SERVICES，含 full 与 acz 名字尾部空格） */
+  services?: Array<{ code: string; name: string }>
+  /** S1：getCountries 的国家表（缺省 = 内置 COUNTRY_NAMES） */
+  countries?: Record<number, { eng: string; rus: string; chn: string }>
 }
 
 export type FaultKind =
@@ -752,7 +756,7 @@ export async function startMockHeroSms(opts: StartOptions = {}): Promise<MockHan
       case 'getPrices': {
         const svc = q.get('service')
         const cty = q.get('country')
-        if (svc && !SERVICES.some((s) => s.code === svc)) return json({ status: 'false', msg: 'service is incorrect' })
+        if (svc && !(config.services ?? SERVICES).some((s) => s.code === svc)) return json({ status: 'false', msg: 'service is incorrect' })
         const out: Record<string, Record<string, unknown>> = {}
         for (const [k, pe] of Object.entries(config.prices)) {
           const [s, c] = k.split(':')
@@ -762,10 +766,10 @@ export async function startMockHeroSms(opts: StartOptions = {}): Promise<MockHan
         return json(out)
       }
       case 'getServicesList':
-        return json({ status: 'success', services: SERVICES })
+        return json({ status: 'success', services: config.services ?? SERVICES })
       case 'getCountries': {
         const out: Record<string, unknown> = {}
-        for (const [id, n] of Object.entries(COUNTRY_NAMES)) out[id] = { id: Number(id), rus: n.rus, eng: n.eng, chn: n.chn, visible: 1, retry: 1, rent: 0 }
+        for (const [id, n] of Object.entries(config.countries ?? COUNTRY_NAMES)) out[id] = { id: Number(id), rus: n.rus, eng: n.eng, chn: n.chn, visible: 1, retry: 1, rent: 0 }
         return json(out)
       }
       case 'getOperators': {

@@ -602,11 +602,17 @@ async function main() {
       ok('累计退回含 LATEPAY', qv3.totals!.refunded === 503)
       // 打开接码与余额支付（S4 全量开放那一刻）→ canUseForJiema=true
       await prisma.setting.create({ data: { key: 'wallet_config', value: JSON.stringify(config.FACTORY_WALLET_CONFIG) } })
-      await prisma.setting.create({ data: { key: 'sms_config', value: JSON.stringify({ enabled: true, audience: 'ALL' }) } })
-      ok('sms_config 全部用户 + 余额支付开：canUseForJiema=true，开票一句出现', (await dto.buildWalletView({ id: q.id }, { brief: true })).showInvoiceNotice === true && (await config.canUseForJiema()) === true)
-      await prisma.setting.update({ where: { key: 'sms_config' }, data: { value: JSON.stringify({ enabled: true, audience: 'ADMIN_ONLY' }) } })
-      ok('受众仅管理员：false（管理员灰度期看到的与普通用户一致）', (await config.canUseForJiema()) === false)
+      // S1 起 sms_config 按整份 zod 校验（lib/jiema-config-schema.ts）；接码下单（S2）交付前 JIEMA_ORDER_AVAILABLE=false，
+      // 「对全部用户开放」不成立，canUseForJiema 恒为 false（S2 把常量改成 true 后这里自动变成 true 的断言）
+      const { FACTORY_SMS_CONFIG, JIEMA_ORDER_AVAILABLE } = await import('../src/lib/jiema-config-schema')
+      const smsOpen = JSON.stringify({ ...FACTORY_SMS_CONFIG, enabled: true, audience: 'ALL' })
+      await prisma.setting.create({ data: { key: 'sms_config', value: smsOpen } })
+      ok(`sms_config 全部用户 + 余额支付开：canUseForJiema=${JIEMA_ORDER_AVAILABLE}（= 接码下单已交付），开票一句同步`, (await dto.buildWalletView({ id: q.id }, { brief: true })).showInvoiceNotice === JIEMA_ORDER_AVAILABLE && (await config.canUseForJiema()) === JIEMA_ORDER_AVAILABLE)
       await prisma.setting.update({ where: { key: 'sms_config' }, data: { value: JSON.stringify({ enabled: true, audience: 'ALL' }) } })
+      ok('S1 收口 B0 的已知限制：sms_config 只有 enabled / audience 两个字段（整份校验不过）→ false', (await config.canUseForJiema()) === false)
+      await prisma.setting.update({ where: { key: 'sms_config' }, data: { value: JSON.stringify({ ...FACTORY_SMS_CONFIG, enabled: true, audience: 'ADMIN_ONLY' }) } })
+      ok('受众仅管理员：false（管理员灰度期看到的与普通用户一致）', (await config.canUseForJiema()) === false)
+      await prisma.setting.update({ where: { key: 'sms_config' }, data: { value: smsOpen } })
       await prisma.setting.update({ where: { key: 'wallet_config' }, data: { value: JSON.stringify({ ...config.FACTORY_WALLET_CONFIG, balancePayEnabled: false }) } })
       ok('余额支付急停：false', (await config.canUseForJiema()) === false)
       await prisma.setting.update({ where: { key: 'wallet_config' }, data: { value: JSON.stringify({ ...config.FACTORY_WALLET_CONFIG, topupEnabled: true }) } })

@@ -39,6 +39,11 @@ export type NotifyEvent =
   // 钱包（docs/短信接码-设计.md §6.6 第 7 条）
   | 'wallet.alert'
   | 'wallet.topup'
+  // 短信接码（docs/短信接码-设计.md §6.6 第 21 条、§7.7）
+  | 'sms.alert'
+  | 'sms.refund_failed'
+  | 'sms.complaint'
+  | 'sms.daily'
 
 const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.created': { emoji: '🛒', title: '新订单' },
@@ -67,6 +72,12 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'wallet.alert': { emoji: '🚨', title: '余额告警' },
   // 可选事件：充值到账知会。默认不推（见 OPT_IN_EVENTS），要推就在 NOTIFY_EVENTS 白名单里显式写上
   'wallet.topup': { emoji: '💳', title: '余额充值到账' },
+  // 接码的所有告警（目录同步失败或过期、停售、线程、币种、MANUAL、上游余额低于告警线、心跳、对账不一致…）—— 默认必须推
+  'sms.alert': { emoji: '🚨', title: '短信接码告警' },
+  // 取消退款事务连续失败 —— 钱该退没退，默认必须推
+  'sms.refund_failed': { emoji: '🚨', title: '接码退款失败' },
+  'sms.complaint': { emoji: '📨', title: '接码售后申请' },
+  'sms.daily': { emoji: '📊', title: '短信接码日报' },
 }
 
 /**

@@ -6,6 +6,7 @@
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-p0 # 另外与本期（渠道分站 P0）的预期清单逐条比对
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-p2 # 渠道分站二期（docs/多渠道分销-二期改动.md）：只允许那 8 列
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-wallet-b0 # 短信接码 · B0 余额底座（docs/短信接码-设计.md §5.5、§5.6）
+#   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s1  # 短信接码 · S1 目录与定价：5 张新表（§5.2、§5.5）
 #
 # 只用 POSIX sh + grep + awk + sort（不 import src/，服务器宿主机或任意容器里都能跑）。
 #
@@ -28,7 +29,7 @@ PREVIEW="${1:-}"
 MODE="${2:-}"
 
 if [ -z "$PREVIEW" ]; then
-  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0]" >&2
+  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0 | --expect-jiema-s1]" >&2
   exit 2
 fi
 if [ ! -s "$PREVIEW" ]; then
@@ -86,10 +87,50 @@ INV=$(inventory)
 echo "—— 预览清单（$(printf '%s\n' "$INV" | grep -c . ) 项）——"
 printf '%s\n' "$INV" | awk 'NF { k = $1; n[k]++ } END { for (k in n) printf "  %s × %d\n", k, n[k] }' | sort
 
-if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ]; then
-  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0）"
+if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ] && [ "$MODE" != "--expect-jiema-s1" ]; then
+  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0，接码 S1 加 --expect-jiema-s1）"
   exit 0
 fi
+
+# ③''' 短信接码 · S1 目录与定价（docs/短信接码-设计.md §5.2、§5.5）：只建 5 张新表，不碰任何旧表。
+#       新表里的唯一 / 普通索引写在 CREATE TABLE 里（清单只认出 TABLE 一行），下面 jiema_s1_details 逐字核对
+EXPECT_JIEMA_S1=$(cat <<'EOF' | sort
+TABLE sms_countries
+TABLE sms_holds
+TABLE sms_offer_cache
+TABLE sms_price_rules
+TABLE sms_services
+EOF
+)
+
+# S1 另外逐字核对（清单只比「有哪些项」，看不到 CREATE TABLE 里的索引与默认值）：
+#   · sms_offer_cache (service, kind) 唯一（每个服务每层一行，单飞 CAS 靠它）、data 是 MEDIUMTEXT（全量 offers 一行可达 40KB）；
+#   · sms_price_rules.scope_key 唯一；sms_services (status, pop_rank) 索引；
+#   · 两张目录表 status 默认 'ON'（出厂一个都不下架，D25）、pop_rank 默认 9999、sort_boost 默认 0、disabled 默认 false；
+#   · sms_holds 主键是 key（'global' / 'svc:tg' / 'combo:tg:6' …）。
+jiema_s1_details() {
+  bad=0
+  need() {
+    if ! grep -Eq "$1" "$PREVIEW"; then
+      echo "❌ 预览里缺少：$2"
+      bad=1
+    fi
+  }
+  need 'UNIQUE INDEX `sms_offer_cache_service_kind_key`\(`service`, `kind`\)' 'sms_offer_cache (service, kind) 唯一索引'
+  need '`data` MEDIUMTEXT NOT NULL' 'sms_offer_cache.data MEDIUMTEXT NOT NULL'
+  need 'UNIQUE INDEX `sms_price_rules_scope_key_key`\(`scope_key`\)' 'sms_price_rules.scope_key 唯一索引'
+  need 'INDEX `sms_services_status_pop_rank_idx`\(`status`, `pop_rank`\)' 'sms_services (status, pop_rank) 索引'
+  need '`pop_rank` INTEGER NOT NULL DEFAULT 9999' 'sms_services.pop_rank 默认 9999'
+  need '`sort_boost` INTEGER NOT NULL DEFAULT 0' 'sms_countries.sort_boost 默认 0'
+  need '`disabled` BOOLEAN NOT NULL DEFAULT false' 'sms_price_rules.disabled 默认 false'
+  need 'PRIMARY KEY \(`key`\)' 'sms_holds 主键 key'
+  on=$(grep -Ec "\`status\` VARCHAR\(8\) NOT NULL DEFAULT 'ON'" "$PREVIEW")
+  if [ "$on" != "2" ]; then
+    echo "❌ sms_services / sms_countries 的 status 默认 'ON' 应当恰好 2 处，实际 $on 处"
+    bad=1
+  fi
+  return $bad
+}
 
 # ③'' 短信接码 · B0 余额底座（docs/短信接码-设计.md §5.5、§5.6）：users 加 1 列、balance_logs 加 3 列 + biz_key 唯一索引、新表 balance_holds。
 #      只新增、可空或带默认值；旧镜像跑在新库上不受影响（旧代码写流水时新列取默认值）
@@ -208,6 +249,10 @@ elif [ "$MODE" = "--expect-wallet-b0" ]; then
   EXPECT="$EXPECT_WALLET_B0"
   SUMMARY="钱包 B0：users 1 列、balance_logs 3 列 + 1 个唯一索引、新表 balance_holds（含 3 个索引、默认值逐字核对）"
   wallet_b0_details || exit 1
+elif [ "$MODE" = "--expect-jiema-s1" ]; then
+  EXPECT="$EXPECT_JIEMA_S1"
+  SUMMARY="接码 S1：5 张新表 sms_services / sms_countries / sms_offer_cache / sms_price_rules / sms_holds（唯一索引、默认值逐字核对）"
+  jiema_s1_details || exit 1
 else
   SUMMARY="13 张表、31 列、9 个索引、2 条外键"
 fi

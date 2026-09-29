@@ -9,6 +9,8 @@ import { shouldNoindexEvent, thinNoindexEnabled } from '@/lib/news/thin'
 import { parseDetail } from '@/lib/news/format'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import { getStorefront } from '@/lib/storefront/resolve'
+import { readSmsConfigCached } from '@/lib/jiema/config'
+import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
 
 /**
  * 站点地图。
@@ -71,6 +73,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absUrl('/games'), changeFrequency: 'weekly', priority: 0.3 },
     { url: absUrl('/iptools'), changeFrequency: 'monthly', priority: 0.3 },
   ]
+
+  // 短信接码（docs/短信接码-设计.md §1.3、D28）：只在「总开关开 + 受众全部用户」时收录（灰度期页面是 noindex，
+  // 把 noindex 的地址塞进 sitemap 是自相矛盾的信号）。配置读不到按关（fail-closed），不影响其余条目
+  if (jiemaPublicOpen(await readSmsConfigCached())) {
+    staticPages.push({ url: absUrl('/jiema'), changeFrequency: 'daily', priority: 0.8 })
+  }
 
   // 【为什么没有分类页】/news 的分类筛选是 NewsStream 里的客户端状态，不进 URL，
   // 所以 /news?c=xxx 渲染出来的 HTML 和 /news 完全一样。把这种地址塞进 sitemap

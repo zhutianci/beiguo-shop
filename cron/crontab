@@ -79,3 +79,7 @@
 # 每天 03:10 余额总账对账 W1–W9：只读核对，不一致推 wallet.alert、报告写 settings.wallet_reconcile_last；
 # 覆盖前两天有流水的用户，每周日（北京时间）全量查一次 W1。GET + x-cron-secret 头
 10 3 * * * curl -fsS --max-time 240 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/wallet-reconcile" >> /var/log/cron.log 2>&1
+# 每 10 分钟 短信接码目录同步（docs/短信接码-设计.md §6.3、§6.6 第 23 条）：静态目录每天北京时间 04 点一次，
+# 第 ① 层 getPrices 全量（只写 hash 变了的行）、预热热门服务的第 ② 层 offers；只读上游、不花钱。锁 jiema:catalog，上一趟没完这一趟跳过。
+# 超过 60 分钟没同步成功推 sms.alert。GET + x-cron-secret 头
+*/10 * * * * curl -fsS --max-time 240 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/jiema-catalog" >> /var/log/cron.log 2>&1

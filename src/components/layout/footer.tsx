@@ -6,8 +6,11 @@ import { ContactModal } from '@/components/contact-modal'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import { useStorefront } from '@/components/storefront-provider'
 
-/** catalogOpen：渠道店面 TERMINATED 时为 false，去掉整栏「商品」（点进去只是停业页，设计 6.7）；主站恒为 true */
-export function Footer({ catalogOpen = true }: { catalogOpen?: boolean } = {}) {
+/**
+ * catalogOpen：渠道店面 TERMINATED 时为 false，去掉整栏「商品」（点进去只是停业页，设计 6.7）；主站恒为 true。
+ * jiemaOpen：短信接码对全部用户开放（前台外壳在服务端读 sms_config 算，docs/短信接码-设计.md §1.2、D28）；灰度期不出现入口。
+ */
+export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?: boolean; jiemaOpen?: boolean } = {}) {
   const [contactOpen, setContactOpen] = useState(false)
   /*
    * 渠道分站（设计 11.1、11.2）：页脚品牌、主体与主站完全相同；只把渠道站已关闭模块的入口去掉
@@ -123,6 +126,13 @@ export function Footer({ catalogOpen = true }: { catalogOpen?: boolean } = {}) {
                     全部商品
                   </Link>
                 </li>
+                {features.jiema && jiemaOpen && (
+                  <li>
+                    <Link href="/jiema" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                      短信接码
+                    </Link>
+                  </li>
+                )}
                 {features.iptools && (
                   <li>
                     <Link href="/iptools" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">

@@ -33,6 +33,7 @@ import {
   ScrollText,
   PieChart,
   Wallet,
+  MessageSquareText,
 } from 'lucide-react'
 
 type NavItem = {
@@ -85,6 +86,8 @@ const navGroups: NavGroup[] = [
     group: '订单与营销',
     items: [
       { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
+      // 短信接码（docs/短信接码-设计.md §6.6 第 23 条：放「订单与营销」组）：概览、定价、目录、设置；S2 起接码订单与成本利润也在这里
+      { href: '/admin/jiema', label: '短信接码', icon: MessageSquareText },
       { href: '/admin/external-orders', label: '订单导入', icon: FileUp },
       { href: '/admin/coupons', label: '优惠券', icon: Ticket },
       // 紧挨着优惠券：抽中的券就是优惠券系统里的单张批次

@@ -10,6 +10,8 @@ import { ClosedPageGate, DraftClosedPage } from '@/components/storefront/closed-
 import { getCurrentUser } from '@/lib/auth'
 import { getStorefront, isPreviewUser, requireShopStorefront } from '@/lib/storefront/resolve'
 import { storefrontFeatures } from '@/lib/storefront/public'
+import { readSmsConfigCached } from '@/lib/jiema/config'
+import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
 
 /*
  * 【渠道分站：前台外壳按店面渲染（设计 4.4、6.7、11.2）】
@@ -45,6 +47,9 @@ export default async function ShopLayout({
   // 主站恒为 ACTIVE：两者恒为 true，Header / Footer 渲染与改造前逐字相同
   const catalogOpen = sf.status !== 'TERMINATED'
   const registrationOpen = !(sf.kind === 'CHANNEL' && (sf.status === 'DRAFT' || sf.status === 'TERMINATED'))
+  // 短信接码的导航 / 页脚入口（docs/短信接码-设计.md §1.2、D28）：静态开关 features.jiema（渠道站恒关）之外，
+  // 还要 sms_config 整份校验通过 && enabled && audience=ALL && 接码下单已交付。只在主站读（进程内缓存 60 秒；读取失败按关）。
+  const jiemaOpen = features.jiema && isPlatform && jiemaPublicOpen(await readSmsConfigCached())
 
   // shop-shell 只做一件事：把「固定头部有多高」以 --header-h 的形式挂到整棵前台子树上
   // （移动端/md 112px，lg 起 96px，定义见 globals.css）。
@@ -55,10 +60,10 @@ export default async function ShopLayout({
   // 全站 pt-32 已于 2026-09-07 迁移完毕，新页面请直接用 .page-top，不要再写死数值。
   return (
     <div className="shop-shell flex min-h-screen flex-col">
-      <Header catalogOpen={catalogOpen} registrationOpen={registrationOpen} />
+      <Header catalogOpen={catalogOpen} registrationOpen={registrationOpen} jiemaOpen={jiemaOpen} />
       {sf.status === 'SUSPENDED' && <SuspendedBanner />}
       <main className="flex-1">{sf.status === 'TERMINATED' ? <ClosedPageGate>{children}</ClosedPageGate> : children}</main>
-      <Footer catalogOpen={catalogOpen} />
+      <Footer catalogOpen={catalogOpen} jiemaOpen={jiemaOpen} />
       <FloatingContact />
       {features.liveOrders && <LiveOrderNotification />}
       {/* 站点公告：买家进入前台任意页面即弹窗展示（后台「系统设置」发布） */}

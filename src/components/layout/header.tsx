@@ -25,11 +25,16 @@ import type { StorefrontFeatures } from '@/lib/storefront/public'
 // 【feature 字段（渠道分站，设计 11.2）】带 feature 的项只在该模块开着的店面渲染：渠道站关闭了充值落地页、
 // 新闻、IP 工具、论坛、友链（它们在渠道 Host 上服务端直接 404），导航里留着入口只会让买家点进 404。
 // 主站 features 恒为全开，过滤后与原数组逐项相同（顺序不变），主站导航零变化。
-type NavLink = { href: string; label: string; feature?: keyof StorefrontFeatures }
+//
+// 【短信接码（docs/短信接码-设计.md §1.2、D28）】「商品」之后；lg 及以上显示「短信接码」、md–lg 显示「接码」（768–900px 最挤）。
+// 除了静态店面开关 features.jiema（渠道站恒关），还要求服务端下发的 jiemaOpen（sms_config 校验通过 && enabled && audience=ALL
+// && 接码下单已交付）：灰度期（仅管理员）导航里没有它，管理员直接访问 /jiema 预览。休眠 / 灰度时过滤后与原数组逐项相同。
+type NavLink = { href: string; label: string; wide?: string; feature?: keyof StorefrontFeatures }
 const navLinks: NavLink[] = [
   { href: '/', label: '首页' },
   { href: '/chongzhi', label: '充值', feature: 'landing' },
   { href: '/products', label: '商品' },
+  { href: '/jiema', label: '接码', wide: '短信接码', feature: 'jiema' },
   { href: '/news', label: 'AI圈大事记', feature: 'news' },
   { href: '/iptools', label: 'IP工具', feature: 'iptools' },
   { href: '/forum', label: '论坛', feature: 'forum' },
@@ -51,13 +56,16 @@ function isNavActive(pathname: string, href: string) {
  * catalogOpen / registrationOpen 由 (shop)/layout.tsx 按店面状态给出（设计 6.7，终审第 2 轮）：
  * 渠道店面 TERMINATED 时去掉「商品」（首页与商品页已换成停业页），TERMINATED / DRAFT 时去掉「注册」（注册接口 403）。
  * 默认都是 true：主站恒为 ACTIVE，导航与按钮与原来逐项相同。只控制显示，拦截在服务端。
+ * jiemaOpen（短信接码对全部用户开放）默认 false：由前台外壳在服务端读 sms_config 算出（§1.2）。
  */
-export function Header({ catalogOpen = true, registrationOpen = true }: { catalogOpen?: boolean; registrationOpen?: boolean } = {}) {
+export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen = false }: { catalogOpen?: boolean; registrationOpen?: boolean; jiemaOpen?: boolean } = {}) {
   const pathname = usePathname()
   const { user, setUser, logout } = useUserStore()
   // 只控制显示；真正的拦截在服务端（denyOnChannel / notFoundOnChannel）
   const { features } = useStorefront()
-  const visibleLinks = navLinks.filter((l) => (!l.feature || features[l.feature]) && (catalogOpen || l.href !== '/products'))
+  const visibleLinks = navLinks.filter(
+    (l) => (!l.feature || features[l.feature]) && (catalogOpen || l.href !== '/products') && (l.feature !== 'jiema' || jiemaOpen),
+  )
 
   /*
    * 客服留言未读数。
@@ -199,8 +207,18 @@ export function Header({ catalogOpen = true, registrationOpen = true }: { catalo
                         : 'text-white/60 font-normal hover:text-white hover:bg-white/[0.06]'
                     )}
                   >
-                    {/* 高亮药丸是绝对定位且排在文字之后，不给文字 z-10 会被半透明底色压暗 */}
-                    <span className="relative z-10">{link.label}</span>
+                    {/* 高亮药丸是绝对定位且排在文字之后，不给文字 z-10 会被半透明底色压暗。
+                        带 wide 的项（短信接码）：md–lg 用短标签，lg 起用完整标签 */}
+                    <span className="relative z-10">
+                      {link.wide ? (
+                        <>
+                          <span className="lg:hidden">{link.label}</span>
+                          <span className="hidden lg:inline">{link.wide}</span>
+                        </>
+                      ) : (
+                        link.label
+                      )}
+                    </span>
                     {active && (
                       <motion.div
                         layoutId="navbar-indicator"
@@ -338,7 +356,7 @@ export function Header({ catalogOpen = true, registrationOpen = true }: { catalo
                       isNavActive(pathname, link.href) ? 'gradient-text-accent' : 'text-white/60'
                     )}
                   >
-                    {link.label}
+                    {link.wide ?? link.label}
                   </Link>
                 </motion.div>
               ))}

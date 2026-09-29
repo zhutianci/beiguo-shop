@@ -976,6 +976,8 @@ const CLOSED_RE = [
   /^account\/(referral|wallet|vip|marketing|bindings)(\/|$)/,
   // 短信接码 · B1：余额充值只在主站（docs/短信接码-设计.md D11、§6.6 第 20 条）
   /^wallet(\/|$)/,
+  // 短信接码 · S1：目录接口只在主站（docs/短信接码-设计.md D11、§6.6 第 23 条「渠道 404 遍历」）
+  /^jiema(\/|$)/,
   /^external-orders(\/|$)/,
   /^forum(\/|$)/,
   /^news(\/|$)/,
@@ -1054,7 +1056,7 @@ async function t12app(w: World) {
 
   section('T12 应用层：关闭模块与平台专用页面（layout）在渠道 Host → notFound，主站照常')
   const layouts: [string, string | null][] = [
-    ...['news', 'forum', 'games', 'links', 'chongzhi', 'iptools', 'vip', 'wallet', 'coupon', 'coupons', 'lookup', 'profile/referral'].map((x) => [`src/app/(shop)/${x}/layout.tsx`, null] as [string, string | null]),
+    ...['news', 'forum', 'games', 'links', 'chongzhi', 'iptools', 'vip', 'wallet', 'jiema', 'coupon', 'coupons', 'lookup', 'profile/referral'].map((x) => [`src/app/(shop)/${x}/layout.tsx`, null] as [string, string | null]),
     ['src/app/finance/[token]/layout.tsx', null],
     ['src/app/reply/[token]/layout.tsx', null],
     // 主会话 D4（集成阶段已改为异步服务端 layout，第一行 await notFoundOnChannel()）

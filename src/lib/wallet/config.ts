@@ -17,6 +17,8 @@
 import { z } from 'zod'
 import { prisma } from '../db'
 import { notify } from '../notify'
+// 零依赖的共享模块（只依赖 zod，不在 lib/jiema/ 下）：规则 17 不许 lib/wallet 静态 import lib/jiema
+import { SMS_CONFIG_KEY, jiemaPublicOpen, parseSmsConfigRaw } from '../jiema-config-schema'
 
 /** 单笔充值的硬上界 ¥1,000（D36）。wallet_config.maxCents 不得超过它 */
 export const MAX_TOPUP_CENTS = 100_000
@@ -234,20 +236,18 @@ export function topupOpenFor(cfg: WalletConfig | null, isAdmin: boolean, availab
 
 /**
  * 「余额能付接码」的文案与 [去接码] 按钮开关（§1.15、§6.6 第 4 条）：
- *   sms_config.enabled && sms_config.audience === 'ALL' && wallet_config.balancePayEnabled
+ *   jiemaPublicOpen(sms_config)（整份 zod 校验通过 && 接码下单已交付 && enabled && audience=ALL）&& wallet_config.balancePayEnabled
  * 任一份配置读取失败都按 false（B0 时 sms_config 还不存在 → false，保留旧口径）。管理员在灰度期看到的与普通用户一致。
  *
- * 【已知限制，S1 必须收口】（设计文档「实施偏差记录」B0 行）sms_config 的完整 zod 校验在 S1 的 lib/jiema/config.ts，
- * B0 这里只读 enabled / audience 两个字段，不 import 接码代码（规则 17）。于是 sms_config「这两个字段对、其余字段坏」时
- * 接码已 fail-closed 停售，这里却仍返回 true。S1 引入 zod 时把 schema 放进零依赖的共享模块（不 import lib/jiema 的其余部分），
- * 这里改成「整份校验通过 && enabled && audience=ALL」；S1 验收加一条：sms_config 校验不过 → canUseForJiema=false。
+ * 【S1 已收口 B0 的已知限制】原来只读 enabled / audience 两个字段，sms_config「这两个字段对、其余字段坏」时接码已 fail-closed 停售、
+ * 这里却仍返回 true。现在 schema 在零依赖的共享模块 lib/jiema-config-schema.ts（不 import lib/jiema 的其余部分，规则 17 照样成立），
+ * 这里与导航、sitemap 用同一个 jiemaPublicOpen 判定：sms_config 校验不过 → false；S2 交付前（JIEMA_ORDER_AVAILABLE=false）恒为 false。
  */
 export async function canUseForJiema(walletRead?: WalletConfigRead): Promise<boolean> {
   try {
-    const [w, s] = await Promise.all([walletRead ?? readWalletConfig(), prisma.setting.findUnique({ where: { key: 'sms_config' } })])
+    const [w, s] = await Promise.all([walletRead ?? readWalletConfig(), prisma.setting.findUnique({ where: { key: SMS_CONFIG_KEY } })])
     if (!w.ok || !w.config.balancePayEnabled || !s?.value) return false
-    const sms = JSON.parse(s.value) as { enabled?: unknown; audience?: unknown }
-    return sms?.enabled === true && sms?.audience === 'ALL'
+    return jiemaPublicOpen(parseSmsConfigRaw(s.value))
   } catch {
     return false
   }

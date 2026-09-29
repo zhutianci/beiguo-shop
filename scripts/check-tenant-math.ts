@@ -293,8 +293,9 @@ section('功能开关（设计 7.6、11.1）')
   const on = storefrontFeatures({ kind: 'PLATFORM' })
   const off = storefrontFeatures({ kind: 'CHANNEL' })
   const nul = storefrontFeatures(null)
-  ok('PLATFORM 全开', Object.values(on).every((v) => v === true) && Object.keys(on).length === 16)
-  ok('CHANNEL 全关', Object.values(off).every((v) => v === false) && Object.keys(off).length === 16)
+  // 17 项：短信接码 S1 加了 jiema（docs/短信接码-设计.md §1.2、D11：只在主站）
+  ok('PLATFORM 全开', Object.values(on).every((v) => v === true) && Object.keys(on).length === 17 && on.jiema === true)
+  ok('CHANNEL 全关', Object.values(off).every((v) => v === false) && Object.keys(off).length === 17 && off.jiema === false)
   ok('null 全关', Object.values(nul).every((v) => v === false))
   on.coupon = false
   ok('返回值是副本（改了不影响下一次）', storefrontFeatures({ kind: 'PLATFORM' }).coupon === true)

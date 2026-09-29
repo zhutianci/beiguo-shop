@@ -379,6 +379,88 @@ model BalanceHold {
   @@map("balance_holds")
 }
 
+// ============ 短信接码（通用板块，docs/短信接码-设计.md §5.2）· S1 目录与定价 ============
+// 金额与价格一律整数：美元用微美元（1 USD = 1_000_000），人民币用分，汇率用 ×10000。
+// 旧单品（Codex / Claude）的 sms_activations 与 lib/herosms.ts、lib/sms.ts 不碰这几张表。
+
+/// 服务目录（上游 getServicesList + 我方中文名、别名、热门、手动下架）。写入方：jiema-catalog 同步 + 后台「目录」
+model SmsService {
+  code      String   @id @db.VarChar(8)
+  nameEn    String   @map("name_en") @db.VarChar(80)
+  nameCn    String?  @map("name_cn") @db.VarChar(40)
+  aliases   String?  @db.VarChar(500) // 逗号分隔：俗称、全拼、首字母、英文别名、国内平台拼音缩写（§1.5）
+  hotRank   Int?     @map("hot_rank") // 非空 = 热门，小的在前
+  popRank   Int      @default(9999) @map("pop_rank") // 上游人气顺序
+  status    String   @default("ON") @db.VarChar(8) // ON | OFF（后台手动下架，运维开关；默认全部 ON，不设屏蔽，D25）
+  offNote   String?  @map("off_note") @db.VarChar(120) // 手动下架的原因（改成 OFF 时必填，写审计）
+  iconKey   String?  @map("icon_key") @db.VarChar(40)
+  seenAt    DateTime @map("seen_at") // 最近一次在上游列表里看到
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, popRank])
+  @@map("sms_services")
+}
+
+/// 国家/地区目录（上游 getCountries 的 id + 我方中文名、ISO2、区号）。55/14/20 的中文名由同步强制写成「中国台湾 / 中国香港 / 中国澳门」（D44）
+model SmsCountry {
+  id        Int      @id // 上游国家 id
+  nameEn    String   @map("name_en") @db.VarChar(80)
+  nameCn    String?  @map("name_cn") @db.VarChar(40)
+  iso2      String?  @db.VarChar(2)
+  dialCode  String?  @map("dial_code") @db.VarChar(6)
+  status    String   @default("ON") @db.VarChar(8) // ON | OFF（后台手动下架；默认全部 ON，含国家 3 中国，D25）
+  offNote   String?  @map("off_note") @db.VarChar(120)
+  sortBoost Int      @default(0) @map("sort_boost")
+  seenAt    DateTime @map("seen_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("sms_countries")
+}
+
+/// 价格与库存缓存（每个服务一行 JSON，§6.3）。kind=PRICES 来自全量 getPrices；OFFERS 来自按服务的 offers；
+/// OPS（运营商，service='*'）、DUR（custom-durations，service='*'）来自静态目录同步
+model SmsOfferCache {
+  id           Int       @id @default(autoincrement())
+  service      String    @db.VarChar(8)
+  kind         String    @db.VarChar(8)
+  data         String    @db.MediumText
+  hash         String    @db.VarChar(32)
+  fetchedAt    DateTime  @map("fetched_at")
+  refreshingAt DateTime? @map("refreshing_at") // 后台刷新的单飞占用（CAS）
+
+  @@unique([service, kind])
+  @@map("sms_offer_cache")
+}
+
+/// 定价覆盖规则。scopeKey：'tg:6' | 'tg:*' | '*:187'（优先级 服务:国家 > 服务:* > *:国家 > 全局，§4.3）
+model SmsPriceRule {
+  id           Int      @id @default(autoincrement())
+  scopeKey     String   @unique @map("scope_key") @db.VarChar(24)
+  markupCents  Int?     @map("markup_cents")
+  tolerancePct Int?     @map("tolerance_pct")
+  disabled     Boolean  @default(false)
+  note         String?  @db.VarChar(120)
+  updatedBy    Int?     @map("updated_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("sms_price_rules")
+}
+
+/// 停售与熔断。key：'global' | 'threads'（线程受限：按剩余线程收单，不整体停售，E5）| 'svc:tg' | 'combo:tg:6' | 'country:187'
+/// （gate 全部都查，§6.1）。只由 src/lib/jiema/holds.ts（S2）与后台「目录 → 停售」写；与余额预扣 balance_holds 无关
+model SmsHold {
+  key       String    @id @db.VarChar(32)
+  until     DateTime? // null = 需要手动解除
+  reason    String    @db.VarChar(24) // BANNED | CHANNELS_LIMIT | BREAKER | LOW_SUCCESS | UPSTREAM_STATS | EXPIRED_CHARGE | CURRENCY | ADMIN …（上游余额不设停售，Q4）
+  source    String    @db.VarChar(8) // AUTO | ADMIN | UPSTREAM
+  note      String?   @db.VarChar(200) // CHANNELS_LIMIT 时是 JSON：{ maxAllowed, currentThreads }
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  @@map("sms_holds")
+}
+
 // 内推：推广人为某商品设置的专属价格
 model ReferralPrice {
   id        Int      @id @default(autoincrement())

@@ -32,6 +32,11 @@ export interface StorefrontFeatures {
   announcement: boolean
   liveOrders: boolean
   bindings: boolean
+  /**
+   * 短信接码（docs/短信接码-设计.md D11、§1.2）：只在主站。这是**静态**的店面开关，主站恒为 true，挡不住灰度——
+   * 导航与页脚入口还要求服务端算的 jiemaOpen（sms_config.enabled && audience=ALL，前台外壳下发）。
+   */
+  jiema: boolean
 }
 
 export interface PublicStorefront {
@@ -60,6 +65,7 @@ const ALL_ON: StorefrontFeatures = Object.freeze({
   announcement: true,
   liveOrders: true,
   bindings: true,
+  jiema: true,
 })
 
 const ALL_OFF: StorefrontFeatures = Object.freeze({
@@ -79,6 +85,7 @@ const ALL_OFF: StorefrontFeatures = Object.freeze({
   announcement: false,
   liveOrders: false,
   bindings: false,
+  jiema: false,
 })
 
 /** PLATFORM 全开；CHANNEL 与 null（没有店面）全关。返回新对象，调用方改了也不影响常量 */

@@ -382,6 +382,8 @@ const CLOSED_API = [
   'invoice-requests/[token]',
   // 短信接码 · B1：余额充值只在主站（docs/短信接码-设计.md D11、§6.6 第 20 条）
   'wallet/topup', 'wallet/topup/[orderNo]',
+  // 短信接码 · S1：目录接口只在主站（docs/短信接码-设计.md D11、§6.6 第 23 条）
+  'jiema/catalog', 'jiema/catalog/[service]', 'jiema/catalog/[service]/[country]/operators',
 ]
 
 async function testClosedApis(w: World) {
@@ -424,7 +426,7 @@ async function testClosedApis(w: World) {
   check('主站 Host：关闭模块 API 照常', bad.length === 0, bad.join('；'))
 }
 
-const CLOSED_LAYOUTS = ['news', 'forum', 'games', 'links', 'chongzhi', 'iptools', 'vip', 'wallet', 'coupon', 'coupons', 'lookup', 'profile/referral']
+const CLOSED_LAYOUTS = ['news', 'forum', 'games', 'links', 'chongzhi', 'iptools', 'vip', 'wallet', 'jiema', 'coupon', 'coupons', 'lookup', 'profile/referral']
 
 async function testClosedLayouts(w: World) {
   section('W1-4 关闭模块的页面 layout：渠道 notFound、主站照常')
@@ -622,7 +624,7 @@ async function testClientRender() {
     const inner = h(AppRouterContext.Provider, { value: router as never }, h(PathnameContext.Provider, { value: '/' }, el))
     return renderToString(sf ? h(StorefrontProvider, { value: sf, children: inner }) : inner)
   }
-  const CLOSED_HREFS = ['href="/chongzhi', 'href="/news', 'href="/iptools', 'href="/forum', 'href="/links', 'href="/lookup', 'href="/profile/referral', 'href="/wallet', 'href="/coupons', 'href="/vip']
+  const CLOSED_HREFS = ['href="/chongzhi', 'href="/news', 'href="/iptools', 'href="/forum', 'href="/links', 'href="/lookup', 'href="/profile/referral', 'href="/wallet', 'href="/coupons', 'href="/vip', 'href="/jiema']
   const hits = (html: string) => CLOSED_HREFS.filter((x) => html.includes(x))
 
   section('W1-9（进程内）渠道站页头、页脚、首页不出现关闭模块入口')

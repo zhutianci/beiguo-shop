@@ -91,6 +91,22 @@ export const ACTION_TEXT: Record<string, string> = {
   // B1：迟到付款退入买家余额、待核实到账标记已处理（OFFLINE / IGNORE）
   'wallet.latepay': '平台把迟到付款退入买家余额',
   'vmq.unmatched_handle': '平台标记待核实到账已处理',
+  // 短信接码 · S1（docs/短信接码-设计.md §7.3、§7.4）：只在主站后台，tenantId 为空，渠道永远看不到；配中文名是给超管审计页用
+  'jiema.config': '平台修改短信接码设置（定价 / 开关）',
+  'jiema.operators': '平台修改运营商显示名',
+  'jiema.rule.create': '平台新增接码定价覆盖规则',
+  'jiema.rule.update': '平台修改接码定价覆盖规则',
+  'jiema.rule.delete': '平台删除接码定价覆盖规则',
+  'jiema.service.off': '平台手动下架接码服务',
+  'jiema.service.on': '平台重新上架接码服务',
+  'jiema.service.update': '平台修改接码服务（中文名 / 别名 / 热门）',
+  'jiema.service.csv': '平台批量导入接码服务名称与别名',
+  'jiema.country.off': '平台手动下架接码国家/地区',
+  'jiema.country.on': '平台重新上架接码国家/地区',
+  'jiema.country.update': '平台修改接码国家/地区',
+  'jiema.hold.create': '平台手动停售接码组合',
+  'jiema.hold.delete': '平台解除接码停售',
+  'jiema.catalog.sync': '平台手动同步接码目录',
 }
 
 const ACTION_GROUPS: { value: string; label: string }[] = [
