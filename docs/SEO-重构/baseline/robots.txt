@@ -1,0 +1,16 @@
+User-Agent: *
+Allow: /
+Disallow: /receipt/
+Disallow: /invoice-request/
+Disallow: /unsubscribe/
+Disallow: /finance/
+Disallow: /reply/
+Disallow: /pay/
+Disallow: /admin
+Disallow: /api/
+Disallow: /lookup
+Disallow: /*?s=
+Disallow: /*?n=
+
+Host: https://bigolab.com
+Sitemap: https://bigolab.com/sitemap.xml
