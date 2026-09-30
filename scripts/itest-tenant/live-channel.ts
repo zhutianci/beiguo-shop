@@ -21,6 +21,10 @@
  * 二期（docs/多渠道分销-二期改动.md，第 10–13 节）：M1 渠道前台销量 = Product.sales、两站首页累计销量相同；
  *   M2 站长后台渠道单利润 = 进货净额 − 成本；M3 渠道的纯通知不再推站长群（人工发货 / 待补发照推并带 [lulu]）、推送方式设置；
  *   M4 渠道客服信息在前台生效、清空后回退主站、主站不变。
+ * 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 6 节；本文件第 14 节）：给 lulu 加 tibo.test 并设为主域名，
+ *   用 Host 头打开渠道店面与渠道后台登录页；旧子域名页面挂了跳转组件且目标是 https://tibo.test；邀请链接与邮件 origin 用新域名；
+ *   连通校验（契约第 9 节）：.example 设主前经公网校验失败 → 400；应答端签名；cron 两趟真实公网请求失败 → 降级（旧子域名不跳、
+ *   tibo.test 跳回子域名、邀请链接用子域名、站长群告警）→ 记录恢复后切回；跑完恢复。
  *
  * 测试手段上的两处「快进时间」（生产上靠真实时间流逝）：付款后把两张单的 delivered_at 改到 16 天前（冻结期 15 天）；
  * 录入收款账号后把 payee_changed_at 改到 4 天前（冷静期 72 小时）。除此之外全部走 HTTP。
@@ -448,7 +452,9 @@ async function main() {
   const okLogin = await post('/api/auth/login', LULU_HOST, null, { email: buyerEmail, password: PW }, { origin: 'http://lulu.bigolab.com', 'sec-fetch-site': 'same-origin' })
   check('C4：同源登录照常', okLogin.json?.success === true, short(okLogin))
 
-  await phase2({ admin, owner, buyer, ownerEmail, buyerEmail, product: { id: product.id }, catId: cat.id, orderA, orderB, rowA: { id: rowA.id }, rowB: { id: rowB.id } })
+  const p2: P2Ctx = { admin, owner, buyer, ownerEmail, buyerEmail, product: { id: product.id }, catId: cat.id, orderA, orderB, rowA: { id: rowA.id }, rowB: { id: rowB.id } }
+  await phase2(p2)
+  await phase3(p2)
 }
 
 // ===========================================================================
@@ -711,6 +717,168 @@ async function phase2(c: P2Ctx) {
   check('清空后 lulu /support 整组回退主站客服', ls3.includes('GenuineMarxist') && ls3.includes('/wechat-qr.jpg') && !ls3.includes(wx) && !ls3.includes(kfMail))
 }
 
+
+// ===========================================================================
+// 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 6 节 live-channel 部分）
+// ===========================================================================
+const CUSTOM_HOST = 'tibo.test'
+/** 跳转组件在 HTML 里留的标记（primary-host-redirect.tsx 渲染的隐藏 span） */
+const redirectMark = (origin: string) => `data-primary-host-redirect="${origin}"`
+
+async function phase3(c: P2Ctx) {
+  const { admin, buyerEmail } = c
+  section('14 渠道自定义域名：tibo.test 设为 lulu 的主域名；旧子域名跳转；邀请链接与邮件 origin 用新域名；跑完恢复')
+  const dom = (body: unknown) => post(`/api/admin/tenants/${LULU_ID}/domains`, MAIN_HOST, admin, body)
+  const lulu0 = await prisma.tenant.findUniqueOrThrow({ where: { id: LULU_ID }, select: { origin: true } })
+  check('前提：lulu 的主域名是子域名', lulu0.origin === `https://${LULU_HOST}`, lulu0.origin)
+  check('改造前：lulu 页面没有跳转组件', !(await get('/', LULU_HOST)).text.includes('data-primary-host-redirect'))
+  // 未登记的形如域名 Host（2026-10-01 加固）：观察期也 404，不再按主站渲染（nginx 已按 channel 放行这类 Host，回落主站就是串站）。
+  // 这里直连 next start（不经 nginx），验的是应用这一层：随机域名与没登记的 *.bigolab.com 子域都一样
+  const mainHome = await get('/', MAIN_HOST)
+  for (const hh of [`zz${RUN}.example`, `nope${RUN}.bigolab.com`]) {
+    const r = await get('/', hh)
+    check(`未登记的 ${hh} 首页 → 404（不是主站）`, mainHome.status === 200 && r.status === 404 && r.text !== mainHome.text, `${r.status} / 主站 ${mainHome.status}`)
+  }
+
+  // ① 设主域名的 HTTP 全链路：next start 是生产环境，.test 登记不进来（classifyTenantHost），所以用 .example（RFC 2606 保留域名）走一遍。
+  //    .example 在公网上解析不到：站点进程真的去请求 https://<域名>/api/domain-check，校验失败 → 400、什么都不改（契约第 9 节）
+  const tryTest = await dom({ host: CUSTOM_HOST, status: 1 })
+  check('生产环境（next start）经后台登记 .test → 400', tryTest.status === 400, short(tryTest))
+  const EX = `live${RUN}.example`
+  const addEx = await dom({ host: EX, status: 1 })
+  check(`后台添加自定义域名 ${EX} → 200`, addEx.json?.success === true, short(addEx))
+  const setEx = await dom({ action: 'primary', host: EX })
+  check('设为主域名前经公网校验：解析不到 → 400 DOMAIN_NOT_VERIFIED', setEx.status === 400 && setEx.json?.reason === 'DOMAIN_NOT_VERIFIED', short(setEx))
+  const detEx = (await get(`/api/admin/tenants/${LULU_ID}`, MAIN_HOST, admin)).json?.data
+  check(
+    '校验失败什么都不改：站点地址仍是子域名；域名列表标出自定义域名（非主）；子域名主域名 primaryHealth = null',
+    detEx?.tenant?.origin === `https://${LULU_HOST}` && !!detEx?.domains?.some((d: Json) => d.host === EX && d.kind === 'CUSTOM' && !d.isPrimary) && detEx?.primaryHealth === null,
+    JSON.stringify(detEx?.domains),
+  )
+  const offSub = await dom({ host: LULU_HOST, status: 0 })
+  check('主域名不能停用 → 400', offSub.status === 400, short(offSub))
+  const same = await dom({ action: 'primary', host: LULU_HOST })
+  check('子域名本来就是主域名 → 200 changed=false', same.json?.success === true && same.json?.data?.changed === false, short(same))
+  check('停用 .example 域名 → 200', (await dom({ host: EX, status: 0 })).json?.success === true)
+
+  // ② tibo.test：生产环境的后台不收 .test，直接写库模拟「站长已登记、校验通过并设为主域名」（与 setPrimaryDomain 的写库结果相同，
+  //    含同一事务里写的那条新鲜校验记录；没有这条记录，店面会按「未校验」改用子域名）
+  const { domainHealthKey } = await import('../../src/lib/storefront/domain-health')
+  const HEALTH_KEY = domainHealthKey(LULU_ID)
+  const freshHealth = () => {
+    const at = new Date().toISOString()
+    // 与 domain-verify.freshHealth 同形（oks=2、down=false）：站长手动校验通过后的记录
+    return JSON.stringify({ host: CUSTOM_HOST, okAt: at, checkedAt: at, fails: 0, oks: 2, down: false, reason: null, detail: null, downAlertAt: null, upAlertAt: null })
+  }
+  await prisma.$transaction([
+    prisma.tenantDomain.create({ data: { tenantId: LULU_ID, host: CUSTOM_HOST, isPrimary: false, status: 1 } }),
+    prisma.tenantDomain.updateMany({ where: { tenantId: LULU_ID }, data: { isPrimary: false } }),
+    prisma.tenantDomain.update({ where: { host: CUSTOM_HOST }, data: { isPrimary: true } }),
+    prisma.tenant.update({ where: { id: LULU_ID }, data: { origin: `https://${CUSTOM_HOST}` } }),
+    prisma.setting.upsert({ where: { key: HEALTH_KEY }, update: { value: freshHealth() }, create: { key: HEALTH_KEY, value: freshHealth() } }),
+  ])
+  // 站点进程里的自定义域名集合要失效：经后台对任一域名做一次写（这里是把已启用的子域名再「启用」一次，库里不变），
+  // upsertDomain 结束时 invalidateStorefrontCache()——与站长在后台登记新域名后的效果相同
+  check('触发一次域名写（刷新站点进程的域名缓存）', (await dom({ host: LULU_HOST, status: 1 })).json?.success === true)
+
+  try {
+    const shop = await get('/', CUSTOM_HOST)
+    check('Host: tibo.test 打开渠道店面 → 200', shop.status === 200, String(shop.status))
+    check('tibo.test 是主域名：页面里没有跳转组件', !shop.text.includes('data-primary-host-redirect'))
+    const robotsC = await get('/robots.txt', CUSTOM_HOST)
+    const robotsL = await get('/robots.txt', LULU_HOST)
+    const robotsM = await get('/robots.txt', MAIN_HOST)
+    check('tibo.test 的 robots.txt 与 lulu 相同（渠道口径，不是主站）', robotsC.status === 200 && robotsC.text === robotsL.text && robotsC.text !== robotsM.text)
+    const plogin = await get('/partner/login', CUSTOM_HOST)
+    check('Host: tibo.test 打开渠道后台登录页 → 200', plogin.status === 200 && !plogin.text.includes('data-primary-host-redirect'), String(plogin.status))
+    check('Host: tibo.test 上 /admin → 404（渠道口径）', (await get('/admin', CUSTOM_HOST)).status === 404)
+    // 余额、充值、接码只在主站：必须拿真实存在的路由做对照（主站 Host 进得去、不是 404），再看自定义域名上是 denyOnChannel 的
+    // JSON 404（「资源不存在」）。不存在的路径在任何 Host 上都是 404，证明不了自定义域名被当成了渠道
+    for (const p of ['/api/account/wallet', '/api/wallet/topup', '/api/jiema/catalog']) {
+      const onMain = await get(p, MAIN_HOST)
+      const onCustom = await get(p, CUSTOM_HOST)
+      check(
+        `${p}：主站 Host 路由存在（非 404），Host: tibo.test → denyOnChannel 404（只在主站）`,
+        onMain.status !== 404 && onCustom.status === 404 && onCustom.json?.success === false && onCustom.json?.error === '资源不存在',
+        `main ${onMain.status} / custom ${short(onCustom)}`,
+      )
+    }
+
+    const old = await get('/', LULU_HOST)
+    check('旧子域名首页：挂了跳转组件，目标 https://tibo.test', old.status === 200 && old.text.includes(redirectMark(`https://${CUSTOM_HOST}`)), String(old.status))
+    const oldP = await get('/partner/login', LULU_HOST)
+    check('旧子域名渠道后台登录页：挂了跳转组件，目标 https://tibo.test', oldP.status === 200 && oldP.text.includes(redirectMark(`https://${CUSTOM_HOST}`)))
+    const oldPay = await get('/pay/itest-no-such-order', LULU_HOST)
+    check('旧子域名收银台（不在前台布局之下）：不挂跳转组件', !oldPay.text.includes('data-primary-host-redirect'))
+    const oldApi = await get('/api/products', LULU_HOST)
+    check('旧子域名的接口照常（不跳转，打开着的旧页面还能下单）', oldApi.status === 200 && oldApi.json?.success === true, short(oldApi))
+    check('主站永远不挂跳转组件', !(await get('/', MAIN_HOST)).text.includes('data-primary-host-redirect'))
+
+    const inv = await post(`/api/admin/tenants/${LULU_ID}/invites`, MAIN_HOST, admin, { email: MAIL('dom-invitee') })
+    const link = String(inv.json?.data?.link || '')
+    check('邀请链接用新主域名 https://tibo.test/partner/invite/…', link.startsWith(`https://${CUSTOM_HOST}/partner/invite/`), short(inv))
+    const { tenantMailOpts, tenantOrigin } = await import('../../src/lib/storefront/origin')
+    const mo = await tenantMailOpts(LULU_ID)
+    check('邮件 origin（tenantMailOpts / tenantOrigin）用新主域名', mo?.origin === `https://${CUSTOM_HOST}` && (await tenantOrigin(LULU_ID)) === `https://${CUSTOM_HOST}`, JSON.stringify(mo))
+
+    // 同源校验与域名无关：Origin = Host 放行；拿旧子域名的 Origin 打新域名 → 拒绝
+    const okLogin = await post('/api/auth/login', CUSTOM_HOST, null, { email: buyerEmail, password: PW }, { origin: `https://${CUSTOM_HOST}`, 'sec-fetch-site': 'same-origin' })
+    check('tibo.test 上同源登录照常（下发 host-only cookie）', okLogin.json?.success === true && !!tokenOf(okLogin) && !okLogin.cookies.some((x) => /domain=/i.test(x)), short(okLogin))
+    const xLogin = await post('/api/auth/login', CUSTOM_HOST, null, { email: buyerEmail, password: PW }, { origin: `https://${LULU_HOST}`, 'sec-fetch-site': 'cross-site' })
+    check('旧子域名页面向 tibo.test 发登录 → 403（Origin ≠ Host）', xLogin.status === 403 && !tokenOf(xLogin), short(xLogin))
+
+    // ③ 连通校验（契约第 9 节）：应答端 + cron 复验走站点进程的真实公网请求（tibo.test 解析不到 = 模拟客户把域名指走）
+    const nonce = `live${RUN}nonce0123456789`.slice(0, 32)
+    const ckC = await get(`/api/domain-check?n=${nonce}`, CUSTOM_HOST)
+    const ckL = await get(`/api/domain-check?n=${nonce}`, LULU_HOST)
+    const ckM = await get(`/api/domain-check?n=${nonce}`, MAIN_HOST)
+    check(
+      '应答端：自定义域名与子域名都回 proof（只有这一个字段），同一 nonce 不同 Host 的 proof 不同；主站 404',
+      ckC.status === 200 && /^[A-Za-z0-9_-]{43}$/.test(String(ckC.json?.data?.proof)) && Object.keys(ckC.json?.data ?? {}).length === 1 &&
+        ckL.status === 200 && ckL.json?.data?.proof !== ckC.json?.data?.proof && ckM.status === 404,
+      `${short(ckC)} / ${short(ckL)} / ${ckM.status}`,
+    )
+    const cron = () => post('/api/cron/tenant-domains', MAIN_HOST, null, {}, { 'x-cron-secret': CRON_SECRET })
+    check('cron 路由不带密钥 → 非 2xx', (await post('/api/cron/tenant-domains', MAIN_HOST, null, {})).status >= 400)
+    const hooksBefore = hooks.length
+    const c1 = await cron()
+    const i1 = (c1.json?.data?.items ?? []).find((i: Json) => i.host === CUSTOM_HOST)
+    check('cron 第 1 趟：站点进程真的去请求 https://tibo.test，失败一次，仍健康', c1.status === 200 && i1?.ok === false && i1?.healthy === true && i1?.event === null, short(c1))
+    check('失败一趟：旧子域名仍跳到 tibo.test', (await get('/', LULU_HOST)).text.includes(redirectMark(`https://${CUSTOM_HOST}`)))
+    const c2 = await cron()
+    const i2 = (c2.json?.data?.items ?? []).find((i: Json) => i.host === CUSTOM_HOST)
+    check('cron 第 2 趟：连续失败 → 降级（event=degraded）', c2.status === 200 && i2?.healthy === false && i2?.event === 'degraded', short(c2))
+    const oldD = await get('/', LULU_HOST)
+    check('降级：旧子域名页面不再挂跳转组件（不把买家送去失联的域名）', oldD.status === 200 && !oldD.text.includes('data-primary-host-redirect'), String(oldD.status))
+    const cusD = await get('/', CUSTOM_HOST)
+    check('降级：tibo.test 上的页面跳回子域名', cusD.status === 200 && cusD.text.includes(redirectMark(`https://${LULU_HOST}`)), String(cusD.status))
+    const invD = await post(`/api/admin/tenants/${LULU_ID}/invites`, MAIN_HOST, admin, { email: MAIL('dom-invitee2') })
+    check('降级：邀请链接改用子域名', String(invD.json?.data?.link || '').startsWith(`https://${LULU_HOST}/partner/invite/`), short(invD))
+    const detD = (await get(`/api/admin/tenants/${LULU_ID}`, MAIN_HOST, admin)).json?.data
+    check('降级：渠道详情 primaryHealth 标出不健康；库里的站点地址不动', detD?.primaryHealth?.healthy === false && detD?.tenant?.origin === `https://${CUSTOM_HOST}`, JSON.stringify(detD?.primaryHealth))
+    await new Promise((r) => setTimeout(r, 500))
+    check('降级：站长群收到一条告警（带渠道代号与域名）', hooks.slice(hooksBefore).some((x) => x.text.includes(CUSTOM_HOST) && x.text.includes('连续校验失败')), hooks.slice(hooksBefore).map((x) => x.text.slice(0, 60)).join(' | '))
+    // 恢复：写回新鲜记录（等同于校验通过），经一次域名写触发站点进程的缓存失效
+    await prisma.setting.update({ where: { key: HEALTH_KEY }, data: { value: freshHealth() } })
+    await dom({ host: LULU_HOST, status: 1 })
+    check('记录恢复后：旧子域名重新跳到 tibo.test', (await get('/', LULU_HOST)).text.includes(redirectMark(`https://${CUSTOM_HOST}`)))
+  } finally {
+    // 恢复原样：子域名设回主域名（后台 HTTP，子域名在生产环境合法），删掉两个自定义域名，再触发一次缓存失效
+    const r = await dom({ action: 'primary', host: LULU_HOST })
+    await prisma.tenantDomain.deleteMany({ where: { tenantId: LULU_ID, host: { in: [CUSTOM_HOST, EX] } } })
+    await prisma.setting.deleteMany({ where: { key: HEALTH_KEY } })
+    await prisma.tenantNotice.deleteMany({ where: { tenantId: LULU_ID, title: { startsWith: `自定义域名 ${CUSTOM_HOST}` } } })
+    await dom({ host: LULU_HOST, status: 1 })
+    const after = await prisma.tenant.findUniqueOrThrow({ where: { id: LULU_ID }, select: { origin: true } })
+    const prim = await prisma.tenantDomain.findMany({ where: { tenantId: LULU_ID, isPrimary: true }, select: { host: true } })
+    check(
+      '恢复：lulu 主域名回到子域名、自定义域名已删除',
+      r.json?.success === true && after.origin === `https://${LULU_HOST}` && prim.length === 1 && prim[0].host === LULU_HOST,
+      `${short(r)} ${after.origin} ${JSON.stringify(prim)}`,
+    )
+    check('恢复后 lulu 页面没有跳转组件', !(await get('/', LULU_HOST)).text.includes('data-primary-host-redirect'))
+  }
+}
 
 let productIdForCleanup: number | null = null
 if (process.argv.includes('--cleanup')) {

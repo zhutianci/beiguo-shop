@@ -77,6 +77,7 @@ export const ACTION_TEXT: Record<string, string> = {
   'tenant.create': '平台开通店铺',
   'tenant.config': '平台修改店铺配置',
   'tenant.domain': '平台修改域名',
+  'tenant.domain_primary': '平台修改主域名',
   'tenant.payee': '平台修改收款账号',
   'tenant.payee_reveal': '平台查看收款账号',
   'customer.tags': '平台修改客户标签',

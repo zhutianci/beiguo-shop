@@ -123,6 +123,9 @@ async function main() {
         findTenant: async () => {
           throw new Error('itest: 主站路径不应查库')
         },
+        listCustomHosts: async () => {
+          throw new Error('itest: 主站路径不应查库')
+        },
       }
       resolve.setStorefrontDbForTest(throwing)
       const p1 = await resolve.storefrontById(1)
@@ -140,6 +143,7 @@ async function main() {
       resolve.setStorefrontDbForTest({
         findDomain: (host: string) => prisma.tenantDomain.findUnique({ where: { host }, select: { tenantId: true, status: true } }),
         findTenant: (id: number) => prisma.tenant.findUnique({ where: { id }, select: { id: true, code: true, kind: true, status: true, origin: true } }),
+        listCustomHosts: async () => [],
       })
       const s2 = await resolve.storefrontById(tenant.id)
       check('假库不带客服列 → contact 回退主站（wp0 注入兼容）', !!s2 && s2.contact.wechat === 'GenuineMarxist')
@@ -162,6 +166,9 @@ async function main() {
           throw new Error('itest: 不应查库')
         },
         findTenant: async () => {
+          throw new Error('itest: 不应查库')
+        },
+        listCustomHosts: async () => {
           throw new Error('itest: 不应查库')
         },
       })

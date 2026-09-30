@@ -154,7 +154,7 @@ function CreateDialog({ onClose, onDone }: { onClose: () => void; onDone: () => 
         <Field label="内部名称" hint="只在后台显示，不出现在前台">
           <input className={inputCls} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} required />
         </Field>
-        <Field label="站点地址" hint="https://<子域名>.bigolab.com，只填协议与域名">
+        <Field label="站点地址" hint="https://<子域名>.bigolab.com，只填协议与域名。自定义域名（如 tibo.pw）建站后在详情页「域名」里添加并设为主域名">
           <input className={inputCls} value={f.origin} onChange={(e) => setF({ ...f, origin: e.target.value })} required />
         </Field>
         <div className="grid grid-cols-3 gap-3">

@@ -680,7 +680,7 @@ async function t5(w: World, X: Extra) {
 // ===========================================================================
 async function t6(w: World) {
   const { getStorefront, invalidateStorefrontCache } = await import('../../src/lib/storefront/resolve')
-  section('T6 伪造 x-tenant-id / x-forwarded-host 被忽略；未知 Host 观察期当主站、严格期 404；停用域名 404')
+  section('T6 伪造 x-tenant-id / x-forwarded-host 被忽略；形如域名的未登记 Host 一律 404、IP 观察期当主站；停用域名 404')
   const forged = { 'x-tenant-id': String(w.zz.id), 'x-forwarded-host': w.zz.host, 'x-tenant-code': w.zz.code }
   const sf1 = await withRequest({ host: w.lulu.host, headers: forged }, () => getStorefront())
   check('lulu Host + 伪造 zz 的头 → 店面仍是 lulu', sf1?.id === w.lulu.id, JSON.stringify(sf1))
@@ -701,12 +701,16 @@ async function t6(w: World) {
   ] as const) {
     setChannelsMode(mode)
     invalidateStorefrontCache()
+    // 形如域名但未登记（*.bigolab.com 一级子域 / 自定义域名形态）：观察期也 404（2026-10-01 加固，绝不回落主站）
     for (const h of [unknownBig, unknownEvil]) {
       const sf = await withRequest({ host: h }, () => getStorefront())
-      check(`${mode}：未知 Host ${h.split('.').slice(-2).join('.')} → ${expectMain ? '主站' : 'null（404）'}`, expectMain ? sf?.id === 1 : sf === null, JSON.stringify(sf))
+      check(`${mode}：未登记的形如域名 Host ${h.split('.').slice(-2).join('.')} → null（404）`, sf === null, JSON.stringify(sf))
       const pr = await call(dash, { host: h, token: w.token(w.users.luluOwner, w.lulu) })
       check(`${mode}：未知 Host 调渠道后台 → 404`, isNotFoundBody(pr), `${pr.status}`)
     }
+    // IP 形态的 Host 永远不可能是渠道域名：观察期仍当主站、严格期 404（与改造前一致）
+    const sfIp = await withRequest({ host: '47.100.1.2' }, () => getStorefront())
+    check(`${mode}：IP Host → ${expectMain ? '主站' : 'null（404）'}`, expectMain ? sfIp?.id === 1 : sfIp === null, JSON.stringify(sfIp))
     const sfd = await withRequest({ host: disabled }, () => getStorefront())
     check(`${mode}：已登记但停用的渠道域名 → null（404，绝不回落主站）`, sfd === null, JSON.stringify(sfd))
     const noHost = await withRequest({ host: '' }, () => getStorefront())
@@ -993,7 +997,8 @@ const CLOSED_RE = [
 ]
 const SECRET_RE = [/^cron(\/|$)/, /^inventory(\/|$)/, /^pay\/sms-notify$/]
 /** 与 nginx 渠道 /api 白名单同一口径（设计 4.3）；这里独立写一份，nginx 层测试会拿它与 nginx.conf 的实际行为互相核对 */
-const OPEN_RE = /^(auth|products|categories|orders|pay\/vmq\/(create|status)|receipts|invoices|invoice-titles|redeem|partner|account\/(profile|unread|overview))(\/|$)/
+// domain-check：平台经公网校验自定义域名的应答端（docs/多渠道分销-自定义域名.md 第 9 节），只回签名，渠道 Host 上放行
+const OPEN_RE = /^(auth|products|categories|orders|pay\/vmq\/(create|status)|receipts|invoices|invoice-titles|redeem|partner|account\/(profile|unread|overview)|domain-check)(\/|$)/
 /** 主会话 D3：这两个路由待加 denyOnChannel（P0 前置新增、第 13 节无归属） */
 /** 主会话 D3：P0 前置新增的两条绑定验证路由，集成阶段补了 denyOnChannel()（原「待集成」项） */
 const D3_ROUTES = new Set(['account/bindings/send-code', 'account/bindings/verify'])
@@ -1105,7 +1110,9 @@ function docker(args: string[], opts: { input?: string; allowFail?: boolean } = 
 }
 function hasDocker(): boolean {
   try {
-    execFileSync('docker', ['version', '--format', '{{.Server.Version}}'], { stdio: 'pipe' })
+    // 带超时：Docker Desktop 引擎卡住时 `docker version` 会无限挂起（2026-09-30 集成时整轮 run-all 卡死在这里），
+    // 超时按「没有 docker」处理，照常打印「nginx 层未验证」
+    execFileSync('docker', ['version', '--format', '{{.Server.Version}}'], { stdio: 'pipe', timeout: 15_000 })
     return true
   } catch {
     return false
@@ -1126,6 +1133,8 @@ function ngxGet(port: number, host: string, p: string, method = 'GET', headers: 
     req.end()
   })
 }
+/** 渠道自定义域名的测试 Host（nginx 层只看形状，不需要登记；应用层的登记与解析见 mods-domain.ts） */
+const CUSTOM_TEST = 'tibo.test'
 /** 测试副本里注入的 closed Host（紧急下线口径的停业页验证用；真实配置里没有它） */
 const TEST_CLOSED = 'closed-test.bigolab.com'
 const UPSTREAM_CONF = `events {}
@@ -1147,6 +1156,15 @@ async function t12nginx() {
   const conf = readFileSync(path.join(ROOT, 'nginx/nginx.conf'), 'utf8')
   const confCode = conf.replace(/#[^\n]*/g, '') // 只看指令，不看注释（注释里会引用旧写法）
   check('nginx.conf：lulu 在 map 里是 channel（G1.5 起；紧急下线才改回 closed）', /lulu\.bigolab\.com\s+channel;/.test(confCode))
+  // 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 5 节）：形如域名的其余 Host 一律 channel，正则必须带引号（含花括号）
+  check(
+    'nginx.conf：自定义域名正则在 $site_known 里且按 channel 处理',
+    confCode.split('\n').some((l) => l.trim().startsWith('"~^(?!(?:\\d{1,3}\\.){3}\\d{1,3}$)') && l.includes('xn--') && /"\s+channel;\s*$/.test(l)),
+  )
+  // 8080（公网 IP 直连入口）里必须有 domain-check 的 404：合法校验只走 Cloudflare → 隧道 → 容器 80
+  const s8080 = confCode.slice(confCode.indexOf('listen 8080'))
+  check('nginx.conf：8080 server 里 location ^~ /api/domain-check { return 404; }', confCode.includes('listen 8080') && /location\s+\^~\s+\/api\/domain-check\s*\{\s*return\s+404;\s*\}/.test(s8080))
+  check('nginx.conf：容器 80 server 里没有拦 domain-check（隧道入口要能应答）', !/\/api\/domain-check\s*\{/.test(confCode.slice(0, confCode.indexOf('listen 8080'))))
   check('nginx.conf：不再把 X-Forwarded-Host 设成 $host（替换成置空）', !/proxy_set_header\s+X-Forwarded-Host\s+\$host/i.test(confCode) && /proxy_set_header\s+X-Forwarded-Host\s+"";/.test(confCode))
   const TEST_CH = 'chan-test.bigolab.com'
   const mkConf = (strict: boolean) => {
@@ -1164,6 +1182,8 @@ async function t12nginx() {
   const net = `x8net-${RUN}`
   const names = { up: `x8up-${RUN}`, ngx: `x8ngx-${RUN}` }
   const port = 18000 + Math.floor(Math.random() * 1000)
+  // 容器 80（隧道入口）另映射一个本地端口：/api/domain-check 只在这条路上应答，8080（公网 IP 直连入口）一律 404（契约第 9 节）
+  const port80 = port + 1000
   writeFileSync(path.join(dir, 'up.conf'), UPSTREAM_CONF)
   writeFileSync(path.join(dir, 'closed.html'), readFileSync(path.join(ROOT, 'nginx/closed.html')))
   const winDir = dir.replace(/\\/g, '/')
@@ -1176,14 +1196,14 @@ async function t12nginx() {
       const t = docker(['run', '--rm', '--network', net, ...mounts, 'nginx:alpine', 'nginx', '-t'], { allowFail: true })
       check(`W8-8 nginx -t（${strict ? '严格期' : '观察期'}副本）`, /syntax is ok/.test(t) && /test is successful/.test(t), t.slice(-200))
       docker(['rm', '-f', names.ngx], { allowFail: true })
-      docker(['run', '-d', '--name', names.ngx, '--network', net, '-p', `127.0.0.1:${port}:8080`, ...mounts, 'nginx:alpine'])
+      docker(['run', '-d', '--name', names.ngx, '--network', net, '-p', `127.0.0.1:${port}:8080`, '-p', `127.0.0.1:${port80}:80`, ...mounts, 'nginx:alpine'])
       // 等 nginx 起来
       for (let i = 0; i < 40; i++) {
         const r = await ngxGet(port, MAIN_HOST, '/')
         if (!('error' in r)) break
         await new Promise((res) => setTimeout(res, 250))
       }
-      await (strict ? ngxStrict(port) : ngxObserve(port, TEST_CH, names.ngx))
+      await (strict ? ngxStrict(port) : ngxObserve(port, TEST_CH, names.ngx, port80))
     }
   } finally {
     docker(['rm', '-f', names.ngx, names.up], { allowFail: true })
@@ -1196,7 +1216,7 @@ type NgxRes = { status: number; headers: http.IncomingHttpHeaders; text: string 
 const up = (r: NgxRes) => !('error' in r) && r.status === 200 && r.text.startsWith('UPSTREAM|')
 const st = (r: NgxRes) => ('error' in r ? `ERR ${r.error}` : `${r.status} ${r.text.slice(0, 40).replace(/\n/g, ' ')}`)
 
-async function ngxObserve(port: number, CH: string, ngxName: string) {
+async function ngxObserve(port: number, CH: string, ngxName: string, port80: number) {
   // ① closed 的 Host（紧急下线口径）：只得到静态停业页，不进应用
   for (const p of ['/', '/products/1', '/api/products', '/partner', '/api/partner/dashboard', '/admin']) {
     const r = await ngxGet(port, TEST_CLOSED, p)
@@ -1237,42 +1257,90 @@ async function ngxObserve(port: number, CH: string, ngxName: string) {
   const cp = await ngxGet(port, CH, '/partner/orders')
   check('渠道 /partner/orders → 进应用', up(cp), st(cp))
 
-  // 全部 /api 路由（从目录生成）按白名单期望逐条请求
+  // 全部 /api 路由（从目录生成）按白名单期望逐条请求。子域名渠道与自定义域名渠道各遍历一遍：
+  // 自定义域名同样只能碰到渠道白名单（短信接码、余额、充值等一律 404）
   const all = allApiRoutes()
-  const bad: string[] = []
-  let passN = 0
-  let denyN = 0
-  for (const rel of all) {
-    const url = '/api/' + rel.replace(/\[\.\.\.[^\]]+\]/g, 'x/y').replace(/\[[^\]]+\]/g, (m) => (/id\]$/i.test(m) ? '1' : 'itest'))
-    const r = await ngxGet(port, CH, url)
-    const expectPass = OPEN_RE.test(rel) && !rel.startsWith('admin/')
-    const ok = expectPass ? up(r) : !('error' in r) && r.status === 404 && !r.text.includes('UPSTREAM')
-    if (!ok) bad.push(`${url} 期望${expectPass ? '放行' : '404'}，实际 ${st(r)}`)
-    else if (expectPass) passN++
-    else denyN++
+  for (const [label, H] of [['渠道 Host', CH], ['自定义域名', CUSTOM_TEST]] as const) {
+    const bad: string[] = []
+    let passN = 0
+    let denyN = 0
+    for (const rel of all) {
+      const url = '/api/' + rel.replace(/\[\.\.\.[^\]]+\]/g, 'x/y').replace(/\[[^\]]+\]/g, (m) => (/id\]$/i.test(m) ? '1' : 'itest'))
+      const r = await ngxGet(port, H, url)
+      // 这里走的是 8080（公网 IP 直连入口）：domain-check 在这个入口一律 404，隧道入口（容器 80）上的放行见下面单独的断言
+      const expectPass = OPEN_RE.test(rel) && !rel.startsWith('admin/') && !/^domain-check(\/|$)/.test(rel)
+      const ok = expectPass ? up(r) : !('error' in r) && r.status === 404 && !r.text.includes('UPSTREAM')
+      if (!ok) bad.push(`${url} 期望${expectPass ? '放行' : '404'}，实际 ${st(r)}`)
+      else if (expectPass) passN++
+      else denyN++
+    }
+    check(`${label} ${H} 遍历 ${all.length} 个 /api 路由：白名单内 ${passN} 个放行、其余 ${denyN} 个 404`, bad.length === 0, bad.slice(0, 10).join('；'))
   }
-  check(`渠道 Host 遍历 ${all.length} 个 /api 路由：白名单内 ${passN} 个放行、其余 ${denyN} 个 404`, bad.length === 0, bad.slice(0, 10).join('；'))
   const sms = await ngxGet(port, CH, '/api/pay/sms-notify', 'POST', { 'content-type': 'application/json' })
   check('渠道 Host POST /api/pay/sms-notify → 404（收款回调只走主站 Host）', !('error' in sms) && sms.status === 404, st(sms))
   const smsMain = await ngxGet(port, MAIN_HOST, '/api/pay/sms-notify', 'POST', { 'content-type': 'application/json' })
   check('主站 Host POST /api/pay/sms-notify → 进应用（收款回调不受影响）', up(smsMain), st(smsMain))
 
-  // ④ 观察期未知 Host：当主站 + 记日志
-  const unk = `x8-unknown-${RUN}.example`
+  // ④ 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 5 节）：形如域名的 Host → channel，与 *.bigolab.com 子域名同一套防护
+  for (const H of [CUSTOM_TEST, `www.${CUSTOM_TEST}`, 'xn--fiqs8s.xn--fiqz9s', `x8-${RUN}.example`]) {
+    for (const p of ['/admin', '/admin/tenants', '/api/admin/stats', '/api//admin/stats', '/api/account/wallet', '/api/wallet/topup', '/api/jiema/catalog', '/api/jiema/orders']) {
+      const r = await ngxGet(port, H, p)
+      check(`自定义域名 ${H} ${p} → 404`, !('error' in r) && r.status === 404 && !r.text.includes('UPSTREAM'), st(r))
+    }
+    const r1 = await ngxGet(port, H, '/')
+    check(`自定义域名 ${H} / → 进应用，且带 X-Robots-Tag: noindex, follow`, up(r1) && (r1 as { headers: http.IncomingHttpHeaders }).headers['x-robots-tag'] === 'noindex, follow', st(r1))
+    const r2 = await ngxGet(port, H, '/partner/login')
+    check(`自定义域名 ${H} /partner/login → 进应用`, up(r2), st(r2))
+    const r3 = await ngxGet(port, H, '/api/products')
+    check(`自定义域名 ${H} /api/products（白名单内）→ 进应用`, up(r3), st(r3))
+    // 平台经公网校验自定义域名的应答端（契约第 9 节）：隧道入口（容器 80）必须能穿过渠道白名单到应用，否则设主域名与 cron 复验永远失败；
+    // 公网 IP 直连入口（8080）一律 404：客户把域名 A 记录直接指到服务器 IP、绕开站长的 Cloudflare，校验不能通过
+    const r4 = await ngxGet(port80, H, '/api/domain-check?n=itestNonce0123456789')
+    check(`自定义域名 ${H} /api/domain-check 经容器 80（隧道入口）→ 进应用`, up(r4), st(r4))
+    const r5 = await ngxGet(port, H, '/api/domain-check?n=itestNonce0123456789')
+    check(`自定义域名 ${H} /api/domain-check 经 8080（公网 IP 直连）→ 404、不进应用`, !('error' in r5) && r5.status === 404 && !r5.text.includes('UPSTREAM'), st(r5))
+  }
+  // 8080 上 domain-check 不论 Host、不论路径写法一律 404；容器 80 上子域名渠道照常放行、主站照常进应用（应用自己回 404）
+  for (const H of [MAIN_HOST, CH, 'lulu.bigolab.com', '39.96.0.1', CUSTOM_TEST]) {
+    for (const p of ['/api/domain-check?n=itestNonce0123456789', '/api//domain-check?n=itestNonce0123456789', '/api/%64omain-check?n=itestNonce0123456789', '/api/domain-check/']) {
+      const r = await ngxGet(port, H, p)
+      check(`8080：${H} ${p.split('?')[0]} → 404、不进应用`, !('error' in r) && r.status === 404 && !r.text.includes('UPSTREAM'), st(r))
+    }
+  }
+  const d80 = await ngxGet(port80, CH, '/api/domain-check?n=itestNonce0123456789')
+  check('容器 80：子域名渠道 /api/domain-check → 进应用', up(d80), st(d80))
+  const d80m = await ngxGet(port80, MAIN_HOST, '/api/domain-check?n=itestNonce0123456789')
+  check('容器 80：主站 /api/domain-check → 进应用（主站不在白名单约束内，由应用回 404）', up(d80m), st(d80m))
+  // 不变的部分：IP、localhost 仍是 main（/partner 404、无 noindex）；bigolab.com 多级子域仍走 default（观察期当主站）
+  for (const H of ['39.96.0.1', 'localhost', 'a.b.bigolab.com']) {
+    const r = await ngxGet(port, H, '/')
+    check(`${H} / → 当主站进应用、无 X-Robots-Tag`, up(r) && (r as { headers: http.IncomingHttpHeaders }).headers['x-robots-tag'] === undefined, st(r))
+    const rp = await ngxGet(port, H, '/partner/login')
+    check(`${H} /partner/login → 404（主站口径）`, !('error' in rp) && rp.status === 404, st(rp))
+  }
+
+  // ⑤ 观察期未知 Host（map 没命中：不含点的 Host、IP、bigolab.com 多级子域）：当主站 + 记日志。
+  // 2026-09-30 起形如域名的陌生 Host 已按 channel 处理（见上），所以这里改用不含点的 Host
+  const unk = `x8-unknown-${RUN}`
   const u1 = await ngxGet(port, unk, '/')
   check('观察期未知 Host → 当主站进应用', up(u1), st(u1))
   await new Promise((res) => setTimeout(res, 300))
   // nginx:alpine 里 access.log 是指向 /dev/stdout 的软链（tail 它会一直阻塞），全量日志从 docker logs 看；unknown_host.log 是普通文件
   const unkLog = docker(['exec', ngxName, 'cat', '/var/log/nginx/unknown_host.log'], { allowFail: true })
-  const allLog = docker(['logs', '--tail', '50', ngxName], { allowFail: true })
+  // tail 取 300：前面遍历路由与自定义域名的请求很多，50 行不够覆盖到主站那几条（2026-09-30 加 domain-check 用例后溢出）
+  const allLog = docker(['logs', '--tail', '300', ngxName], { allowFail: true })
   check('未知 Host 记进 unknown_host.log', unkLog.includes(`host="${unk}"`), unkLog.slice(0, 200))
   check('全量 access.log 仍在写（server 级 access_log 没把它顶掉）', allLog.includes(`host="${unk}"`) && allLog.includes('host="bigolab.com"'), allLog.slice(-300))
   check('已登记 Host 不进 unknown_host.log', !unkLog.includes('host="bigolab.com"'))
 }
 
 async function ngxStrict(port: number) {
-  const u = await ngxGet(port, `x8-strict-${RUN}.example`, '/')
-  check('严格期未知 Host → 444（连接直接断开，无响应）', 'error' in u, st(u))
+  const u = await ngxGet(port, `x8-strict-${RUN}`, '/')
+  check('严格期未知 Host（不含点）→ 444（连接直接断开，无响应）', 'error' in u, st(u))
+  const mb = await ngxGet(port, 'a.b.bigolab.com', '/')
+  check('严格期 bigolab.com 多级子域 → 444（不被自定义域名正则吞掉）', 'error' in mb, st(mb))
+  const cu = await ngxGet(port, CUSTOM_TEST, '/')
+  check('严格期自定义域名照常按 channel 进应用（map 已命中，不是未知 Host）', up(cu), st(cu))
   const ip = await ngxGet(port, '39.96.0.1', '/')
   check('严格期服务器 IP → 444（切严格期前把要用的 Host 都登记进 map）', 'error' in ip, st(ip))
   const m = await ngxGet(port, MAIN_HOST, '/')

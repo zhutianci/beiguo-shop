@@ -97,6 +97,13 @@ function countingDb(throwAll = false) {
       if (throwAll) throw new Error('itest: 注入的查库错误')
       return prisma.tenant.findUnique({ where: { id }, select: { id: true, code: true, kind: true, status: true, origin: true } })
     },
+    // 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 2 节）：自定义域名集合也算一次域名表查询。
+    // 本文件的 Host 全是主站、*.bigolab.com、IP 或非法值——都不需要加载集合，所以下面「查库 0 次」的断言照旧成立
+    listCustomHosts: async () => {
+      calls.domain++
+      if (throwAll) throw new Error('itest: 注入的查库错误')
+      return (await prisma.tenantDomain.findMany({ select: { host: true } })).map((r) => r.host).filter((h) => !h.endsWith('.bigolab.com'))
+    },
   }
   return { db, calls }
 }
@@ -127,7 +134,8 @@ async function main() {
     ]
     const expect: Record<'dormant' | 'observe' | 'strict', Probe['kind'][]> = {
       dormant: ['platform', 'platform', 'platform', 'platform', 'platform', 'platform'],
-      observe: ['platform', 'channel', 'null', 'platform', 'platform', 'throw'],
+      // 未登记 *.bigolab.com：观察期也 404（2026-10-01 加固：nginx 按 channel 放行它，回落主站就是串站）；IP 等仍按观察期当主站
+      observe: ['platform', 'channel', 'null', 'null', 'platform', 'throw'],
       strict: ['platform', 'channel', 'null', 'null', 'null', 'throw'],
     }
     for (const mode of ['dormant', 'observe', 'strict'] as const) {

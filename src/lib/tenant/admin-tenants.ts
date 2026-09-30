@@ -12,6 +12,7 @@
  *   tenant.status       → { from, to }
  *   其余（tenant.create / tenant.config / tenant.domain / tenant.payee / member.*）→ 不写 publicDiff（渠道只看到「平台做了某操作」）
  *   （二期）tenant.config 里的客服信息：publicDiff 只加 { contactFields: [改了哪几项] }，新旧值只在超管 diff 里
+ *   （自定义域名）tenant.domain_primary → { from: 旧主域名, to: 新主域名 }（域名就是渠道自己的店面地址，渠道可见）
  *
  * 【并发】改渠道配置、停用成员都先 `SELECT … FROM tenants WHERE id = ? FOR UPDATE` 锁渠道行：
  *  · 与出结算单（statement.generateStatement 同样先锁这一行）串行：出单读到的 payoutHold / 收款信息不会是半截状态；
@@ -31,13 +32,16 @@ import { maskEmail } from '../mask'
 import { checkContactEmail, checkContactHours, checkContactQrUrl, checkContactWechat, CONTACT_FIELDS, type ContactField, type ContactFieldCheck } from '../contact'
 import { contactUploadOwnedByOtherTenant, releaseContactUpload } from '../upload-store'
 import { invalidateStorefrontCache } from '../storefront/resolve'
-import { channelHostSuffix, isChannelCandidateHost, normalizeHost, platformHosts } from '../storefront/hosts'
+import { tenantOrigin } from '../storefront/origin'
+import { channelHostSuffix, classifyTenantHost, normalizeHost, RESERVED_CHANNEL_LABELS, type TenantHostKind } from '../storefront/hosts'
 import { computeBalances, listLedgerAdmin, statementDetailAdmin, type LedgerQuery } from './balances'
 import { sendTenantInviteMail, TENANT_INVITE_HOURS } from './buyer-notify'
 import { openText, sealText } from './crypto'
 import { linkedInvoicesByOrder } from './ledger'
 import { emitTenantNotice } from './notice'
 import { alertPlatform } from './platform-alert'
+import { announceDomainEvent, readDomainHealth, verifyCustomDomain, verifyFailText, writeManualVerifiedHealth } from './domain-verify'
+import { isDomainHealthy, type DomainTenantNotice } from '../storefront/domain-health'
 import { runReconcile, type ReconcileItem } from './reconcile'
 import {
   LIMITS,
@@ -151,7 +155,8 @@ export const TENANT_RANGES = Object.freeze({
   previewUsersMax: 20,
 } as const)
 
-const RESERVED_CODES = new Set(['main', 'www', 'app', 'api', 'admin', 'partner', 'mail', 'static', 'cdn', 'img', 'assets', 'test', 'dev', 'localhost', 'bigolab', 'view'])
+// 渠道代号与渠道子域名共用一份保留名（搬到 storefront/hosts，classifyTenantHost 也要用）
+const RESERVED_CODES = RESERVED_CHANNEL_LABELS
 const CODE_RE = /^[a-z][a-z0-9-]{0,18}[a-z0-9]$/
 const PARTY_TYPES = new Set(['COMPANY', 'INDIVIDUAL_BIZ', 'PERSON'])
 const PAYEE_METHODS = new Set(['ALIPAY', 'BANK', 'WECHAT'])
@@ -184,7 +189,11 @@ async function channelOr404(db: Tx | typeof prisma, id: number) {
   return t
 }
 
-/** 渠道 origin：只接受 https://<一级子域>.bigolab.com（与店面解析的候选口径同一份，storefront/hosts） */
+/**
+ * 建站时的渠道 origin：只接受 https://<一级子域>.bigolab.com（与店面解析的候选口径同一份，storefront/hosts）。
+ * 自定义域名（tibo.pw）一律在建站之后经「添加域名 → 设为主域名」接入（setPrimaryDomain），这样接入流程只有一条
+ * （docs/多渠道分销-自定义域名.md 第 3 节）。
+ */
 export function normalizeChannelOrigin(raw: string): { origin: string; host: string } {
   let u: URL
   try {
@@ -200,16 +209,18 @@ export function normalizeChannelOrigin(raw: string): { origin: string; host: str
   return { origin: `https://${host}`, host }
 }
 
-/** 渠道域名校验：拒绝主站域名、非 *.bigolab.com、多级子域（W5-1） */
+/** 渠道域名校验（子域名与自定义域名两类，口径见 storefront/hosts 的 classifyTenantHost）：不合规 → 400 */
+export function assertTenantHost(raw: string): { host: string; kind: TenantHostKind } {
+  const c = classifyTenantHost(raw)
+  if ('error' in c) throw new TenantAdminError(400, c.error)
+  return c
+}
+
+/** 建站用：只接受子域名（拒绝主站域名、非 *.bigolab.com、多级子域，W5-1）。自定义域名走 upsertDomain + setPrimaryDomain */
 export function assertChannelHost(raw: string): string {
-  const host = normalizeHost(raw)
-  if (!host) throw new TenantAdminError(400, '域名格式不对')
-  const root = channelHostSuffix().slice(1)
-  if (platformHosts().has(host) || host === root) throw new TenantAdminError(400, '不能使用主站域名')
-  if (!isChannelCandidateHost(host)) throw new TenantAdminError(400, `只允许 *${channelHostSuffix()} 的一级子域名`)
-  const sub = host.slice(0, -channelHostSuffix().length)
-  if (RESERVED_CODES.has(sub)) throw new TenantAdminError(400, `子域名 ${sub} 是保留名`)
-  return host
+  const c = assertTenantHost(raw)
+  if (c.kind !== 'SUB') throw new TenantAdminError(400, `建站时只能填 *${channelHostSuffix()} 的一级子域名；自定义域名请建站后在「域名」里添加并设为主域名`)
+  return c.host
 }
 
 // =====================================================================================
@@ -540,20 +551,48 @@ export async function updateTenant(id: number, patch: Partial<TenantPatch>, admi
 // 域名
 // =====================================================================================
 
+/** 渠道当前主域名 = Tenant.origin 的主机名（origin 是系统邮件与邀请链接的唯一来源，以它为准；解析不出为 null） */
+function originHostOf(origin: string): string | null {
+  try {
+    return normalizeHost(new URL(origin).host)
+  } catch {
+    return null
+  }
+}
+
+/** 渠道启用中的子域名（按 id 升序）。自定义域名失联时店面改用其中第一个（storefront/resolve.ts primaryGate） */
+async function enabledSubHosts(db: Tx | typeof prisma, tenantId: number, exceptId?: number): Promise<string[]> {
+  const suffix = channelHostSuffix()
+  const rows = await db.tenantDomain.findMany({ where: { tenantId, status: 1 }, orderBy: { id: 'asc' }, select: { id: true, host: true } })
+  return rows.filter((r) => r.id !== exceptId && r.host.endsWith(suffix)).map((r) => r.host)
+}
+
+/**
+ * 添加 / 启用 / 停用渠道域名（子域名与自定义域名两类，docs/多渠道分销-自定义域名.md 第 3 节）。
+ * 主域名不能停用：停用 = 该域名立即 404，而系统邮件、邀请链接都指向主域名，等于整站对外失联；要换就先把别的域名设为主域名。
+ * 主域名是自定义域名时，最后一个启用中的子域名也不能停用：自定义域名连通校验失败时，邮件、链接与跳转要改走它（契约第 9 节）。
+ */
 export async function upsertDomain(tenantId: number, rawHost: string, status: 0 | 1, adminId: number): Promise<void> {
   if (status !== 0 && status !== 1) throw new TenantAdminError(400, '域名状态只能是启用或停用')
-  const host = assertChannelHost(rawHost)
+  const { host } = assertTenantHost(rawHost)
   try {
     await prisma.$transaction(async (tx) => {
       await lockTenantRow(tx, tenantId)
       const t = await channelOr404(tx, tenantId)
       const existing = await tx.tenantDomain.findUnique({ where: { host } })
       if (existing && existing.tenantId !== tenantId) throw new TenantAdminError(409, '该域名已被其他渠道使用')
-      const originHost = normalizeHost(new URL(t.origin).host)
+      const originHost = originHostOf(t.origin)
       if (existing) {
         if (existing.status === status) return
+        if (status === 0 && (existing.isPrimary || host === originHost)) throw new TenantAdminError(400, '先把其他域名设为主域名再停用')
+        if (status === 0 && originHost && !originHost.endsWith(channelHostSuffix()) && host.endsWith(channelHostSuffix())) {
+          if ((await enabledSubHosts(tx, tenantId, existing.id)).length === 0) {
+            throw new TenantAdminError(400, '主域名是自定义域名时，至少保留一个启用中的子域名（自定义域名失联时系统自动改用它）')
+          }
+        }
         await tx.tenantDomain.update({ where: { id: existing.id }, data: { status } })
       } else {
+        if (status === 0 && host === originHost) throw new TenantAdminError(400, '先把其他域名设为主域名再停用')
         await tx.tenantDomain.create({ data: { tenantId, host, isPrimary: host === originHost, status } })
       }
       await writeAudit(tx, {
@@ -573,6 +612,129 @@ export async function upsertDomain(tenantId: number, rawHost: string, status: 0 
     throw e
   } finally {
     invalidateStorefrontCache()
+  }
+}
+
+export interface SetPrimaryResult {
+  changed: boolean
+  origin: string
+}
+
+/**
+ * 把渠道的某个**已启用**域名设为主域名（docs/多渠道分销-自定义域名.md 第 3 节）。一个事务（先锁渠道行，与 upsertDomain、
+ * updateTenant、出结算单串行；两个管理员同时设主，后一个在锁内看到前一个的结果，只会留下一个主域名）：
+ *  · 取消其他域名的主标记、设这一个为主；
+ *  · Tenant.origin = https://<host>：系统邮件、邀请链接、metadataBase、通知里的「前往渠道后台」从下一次生成起都用新域名
+ *    （它们一律读 Tenant.origin，全仓没有按渠道代号或 CHANNEL_HOST_SUFFIX 拼渠道地址的地方）；
+ *  · 审计 tenant.domain_primary，diff 与 publicDiff 都是 { from: 旧主域名, to: 新主域名 }（域名是渠道自己的店面地址，渠道可见）；
+ *  · 站内通知 TENANT_STATUS「店铺主域名已改为 https://<host>」（渠道站长由此知道：买家在新域名上要重新登录一次）。
+ * 已经是主域名 → 不改主域名、不审计，返回 changed=false。提交后 invalidateStorefrontCache()：新旧域名的跳转目标立即生效。
+ * 不影响的东西（不变量第 4 条）：JWT aud 是渠道代号、Cookie 是 host-only、同源校验比的是 Origin 与 Host——都与哪个域名是主域名无关。
+ *
+ * 【自定义域名：先证明接到本站，再设主】（契约第 9 节）域名注册在客户手里，平台不能凭站长一句「已经配好了」就把邮件与跳转指过去：
+ *  · 事务外先做便宜的前置检查（给出准确的 404 / 400），再经公网校验 https://<host>/api/domain-check（domain-verify.ts）——
+ *    网络请求不能放在持锁的事务里；不通过 → 400（reason=DOMAIN_NOT_VERIFIED），什么都不改；
+ *  · 本渠道必须还有启用中的子域名：以后校验失败时店面要改用它；
+ *  · 通过后在同一事务里（持渠道行锁）写一条新鲜的校验记录（settings），此后由 cron 每 10 分钟复验；
+ *    cron 的写入是条件写入、持同一把锁（domain-verify.commitIfUnchanged），看到记录被这里改过就放弃，不会拿旧结果覆盖；
+ *  · 已经是主域名时同样重新校验并刷新记录：站长修好 DNS 后点一次「重新校验」就能立即恢复，不必等 cron 连续两趟成功；
+ *    原本处于降级状态的，提交后同样推「已恢复」：站长群按 6 小时节流（与 cron 共用记录里的时间戳）；渠道站内通知只看渠道上次
+ *    听到的是不是「暂时无法访问」、不节流（与 cron 同一口径，保证渠道最新一条通知是真实状态）。
+ * 子域名（*.bigolab.com）在站长自己的 DNS 下，不需要校验，与原来完全相同。
+ */
+export async function setPrimaryDomain(tenantId: number, rawHost: string, adminId: number): Promise<SetPrimaryResult> {
+  const { host, kind } = assertTenantHost(rawHost)
+  const origin = `https://${host}`
+  let verifiedAt: Date | null = null
+  let tenantCode = ''
+  if (kind === 'CUSTOM') {
+    const t0 = await channelOr404(prisma, tenantId)
+    const d0 = await prisma.tenantDomain.findUnique({ where: { host } })
+    if (!d0 || d0.tenantId !== tenantId) throw new TenantAdminError(404, '该域名没有登记在本渠道，请先添加')
+    if (d0.status !== 1) throw new TenantAdminError(400, '不能把停用的域名设为主域名，请先启用')
+    const v = await verifyCustomDomain(host, t0.code)
+    if (!v.ok) {
+      // 这条提示只给超管（站长）看，带技术细节方便排障；渠道通知与告警群只用归类原因（domain-verify 文件头）
+      throw new TenantAdminError(
+        400,
+        `${origin} 还没有接到本站（${verifyFailText(v)}）。请确认客户已把 DNS 服务器改成 Cloudflare 并已生效、隧道里已加该域名的路由，然后重试`,
+        'DOMAIN_NOT_VERIFIED',
+      )
+    }
+    verifiedAt = new Date()
+    tenantCode = t0.code
+  }
+  let recovered: { event: 'recovered' | null; notice: DomainTenantNotice | null } = { event: null, notice: null }
+  let result: SetPrimaryResult
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      recovered = { event: null, notice: null }
+      await lockTenantRow(tx, tenantId)
+      const t = await channelOr404(tx, tenantId)
+      const d = await tx.tenantDomain.findUnique({ where: { host } })
+      if (!d || d.tenantId !== tenantId) throw new TenantAdminError(404, '该域名没有登记在本渠道，请先添加')
+      if (d.status !== 1) throw new TenantAdminError(400, '不能把停用的域名设为主域名，请先启用')
+      if (kind === 'CUSTOM') {
+        if ((await enabledSubHosts(tx, tenantId)).length === 0) {
+          throw new TenantAdminError(400, '本渠道没有启用中的子域名：自定义域名设为主域名前，至少要保留一个子域名（自定义域名失联时系统自动改用它）')
+        }
+        const ev = await writeManualVerifiedHealth(tx, tenantId, host, verifiedAt ?? new Date())
+        // 只有「重新校验当前主域名」才算恢复；把别的域名设为主域名走下面的「店铺主域名已改为」通知（那条本身就是渠道最新的真实状态）
+        if (originHostOf(t.origin) === host) recovered = ev
+      }
+      const fromHost = originHostOf(t.origin) ?? t.origin
+      const others = await tx.tenantDomain.count({ where: { tenantId, isPrimary: true, NOT: { id: d.id } } })
+      if (d.isPrimary && fromHost === host && others === 0) return { changed: false, origin: t.origin }
+      await tx.tenantDomain.updateMany({ where: { tenantId, isPrimary: true, NOT: { id: d.id } }, data: { isPrimary: false } })
+      if (!d.isPrimary) await tx.tenantDomain.update({ where: { id: d.id }, data: { isPrimary: true } })
+      await tx.tenant.update({ where: { id: tenantId }, data: { origin } })
+      const change = { from: fromHost, to: host }
+      await writeAudit(tx, {
+        actorUserId: adminId,
+        actorKind: 'PLATFORM',
+        tenantId,
+        action: 'tenant.domain_primary',
+        targetType: 'tenant',
+        targetId: t.code,
+        diff: change,
+        publicDiff: change,
+      })
+      await emitTenantNotice(tx, {
+        tenantId,
+        kind: 'TENANT_STATUS',
+        title: `店铺主域名已改为 ${origin}`,
+        body: '系统邮件与邀请链接改用新域名；旧域名的页面会自动跳转过去；买家在新域名上需要重新登录一次',
+      })
+      return { changed: true, origin }
+    })
+  } finally {
+    invalidateStorefrontCache()
+  }
+  // 事务已提交才推「已恢复」（事务抛错时上面直接抛出，走不到这里）。announceDomainEvent 永不抛，失败只记日志
+  if (recovered.event || recovered.notice) await announceDomainEvent(tenantId, tenantCode, host, recovered.event, recovered.notice, null)
+  return result
+}
+
+/**
+ * 渠道详情「域名」卡片用：主域名是自定义域名时的连通校验状态（契约第 9 节）；子域名主域名 → null（不需要校验）。
+ * healthy=false 时店面正在改用子域名（邮件、链接、跳转）。
+ */
+async function primaryDomainHealthView(tenantId: number, origin: string) {
+  const host = originHostOf(origin)
+  if (!host || host.endsWith(channelHostSuffix())) return null
+  const h = await readDomainHealth(tenantId)
+  const mine = h && h.host === host ? h : null
+  // reason 给超管看：归类原因 + 技术细节（渠道那边只看得到归类原因）
+  const reason = mine?.reason ? `${mine.reason}${mine.detail ? `：${mine.detail}` : ''}` : null
+  return {
+    host,
+    healthy: isDomainHealthy(mine, host),
+    okAt: mine?.okAt ?? null,
+    checkedAt: mine?.checkedAt ?? null,
+    fails: mine?.fails ?? 0,
+    oks: mine?.oks ?? 0,
+    down: mine?.down ?? false,
+    reason,
   }
 }
 
@@ -640,10 +802,12 @@ export async function createInvite(tenantId: number, email: string, role: 'OWNER
       // 渠道可见摘要只给角色与有效期（设计 5.8，D16 补齐）：不给邮箱原文
       publicDiff: { role, expiresAt: expiresAt.toISOString() },
     })
-    return { id: row.id, origin: t.origin }
+    return { id: row.id }
   })
 
-  const link = `${inv.origin.replace(/\/+$/, '')}/partner/invite/${encodeURIComponent(token)}`
+  // 与邀请邮件（buyer-notify.sendTenantInviteMail）同一来源：生效的站点地址。自定义主域名连通校验不健康时是子域名（契约第 9 节），
+  // 站长手动转发的链接不能指向失联的域名
+  const link = `${await tenantOrigin(tenantId)}/partner/invite/${encodeURIComponent(token)}`
   try {
     await sendTenantInviteMail({ tenantId, email: e, token })
     return { inviteId: inv.id, expiresAt: expiresAt.toISOString(), link, mailed: true }
@@ -959,11 +1123,12 @@ export async function listTenants(): Promise<TenantListRow[]> {
 /** 渠道详情（超管）：配置全字段（加密列只给「是否已设置」）、域名、成员、邀请、余额、预览账号 */
 export async function tenantDetail(id: number) {
   const t = await channelOr404(prisma, id)
-  const [domains, members, invites, balances] = await Promise.all([
+  const [domains, members, invites, balances, primaryHealth] = await Promise.all([
     prisma.tenantDomain.findMany({ where: { tenantId: id }, orderBy: { id: 'asc' }, select: { host: true, isPrimary: true, status: true, createdAt: true } }),
     listMembers(id),
     listInvites(id),
     computeBalances(id),
+    primaryDomainHealthView(id, t.origin),
   ])
   const pids = Array.isArray(t.previewUserIds) ? (t.previewUserIds as unknown[]).filter((v): v is number => typeof v === 'number') : []
   const previewUsers = pids.length ? await prisma.user.findMany({ where: { id: { in: pids } }, select: { id: true, email: true, nickname: true } }) : []
@@ -1012,7 +1177,14 @@ export async function tenantDetail(id: number) {
       createdAt: t.createdAt.toISOString(),
     },
     transitions: TENANT_TRANSITIONS[t.status as TenantStatus] ?? [],
-    domains: domains.map((d) => ({ ...d, createdAt: d.createdAt.toISOString() })),
+    // kind：子域名 / 自定义域名（渠道详情「域名」卡片显示类型用；口径同 classifyTenantHost：不在渠道后缀之下的就是自定义域名）
+    domains: domains.map((d) => ({
+      ...d,
+      kind: (d.host.endsWith(channelHostSuffix()) ? 'SUB' : 'CUSTOM') as TenantHostKind,
+      createdAt: d.createdAt.toISOString(),
+    })),
+    // 主域名是自定义域名时的连通校验状态（契约第 9 节）；子域名主域名为 null
+    primaryHealth,
     members,
     invites,
     balances,

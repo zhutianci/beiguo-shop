@@ -74,6 +74,10 @@
 7 * * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/tenant-release >> /var/log/cron.log 2>&1
 # 每天 03:00：对账不变式 L1–L13（钱类失败 → 该渠道暂停出结算单与打款 + 告警）、A1–A13（只告警）
 0 3 * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/tenant-reconcile >> /var/log/cron.log 2>&1
+# 每 10 分钟（错开整点，第 3 分起）：复验「主域名是客户自定义域名」的渠道——经公网请求 https://<域名>/api/domain-check 核对签名
+# （docs/多渠道分销-自定义域名.md 第 9 节）。连续两趟失败 → 店面自动改用子域名（邮件、链接、跳转）+ 平台群告警 + 渠道站内通知；
+# 恢复后自动切回。只有子域名的渠道（lulu、shop）不发任何请求。这条停了，40 分钟后自定义主域名会被当成「没人复验」自动改用子域名
+3,13,23,33,43,53 * * * * curl -fsS --max-time 120 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/tenant-domains >> /var/log/cron.log 2>&1
 
 # ---------- 短信接码 · 站内余额（docs/短信接码-设计.md §9.4）----------
 # 每天 03:10 余额总账对账 W1–W9：只读核对，不一致推 wallet.alert、报告写 settings.wallet_reconcile_last；

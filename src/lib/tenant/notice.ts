@@ -26,6 +26,7 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
 import { sendTenantNoticeEmail, systemEmailConfigured, type MailOpts, type TenantNoticeMailInfo } from '../mail'
+import { storefrontById } from '../storefront/resolve'
 import { openText } from './crypto'
 import { newPublicNo } from './public-no'
 import { TENANT_NOTICE_KIND_LABEL, type TenantNoticeKind } from './types'
@@ -295,12 +296,17 @@ async function pushWhenCommitted(publicNo: string, alreadyCommitted: boolean, vi
       select: { wecomWebhookEnc: true, noticePrefs: true, origin: true, noticeWecomOn: true, noticeEmailOn: true, noticeEmail: true },
     })
     if (!t) return
+    // 按钮链接用「生效的站点地址」（storefrontById，与交易邮件同一来源）而不是库里的 Tenant.origin：
+    // 自定义主域名连通校验不健康时它是子域名（docs/多渠道分销-自定义域名.md 第 9 节），不能把店主带到失联的域名上。
+    // 渠道行不合规（null）→ 空串：企业微信不带按钮，邮件按钮回落主站地址（主站 /partner 一律 404，不会误入别处）
+    const sf = await storefrontById(row.tenantId)
+    const cfg: TenantPushCfg = { ...t, origin: sf?.origin ?? '' }
     const prefs = t.noticePrefs
     if (prefs && typeof prefs === 'object' && !Array.isArray(prefs) && (prefs as Record<string, unknown>)[row.kind] === false) return
 
     const jobs: Promise<void>[] = []
-    if (via !== 'email' && t.noticeWecomOn && t.wecomWebhookEnc) jobs.push(pushWecom(publicNo, row, t))
-    if (via !== 'wecom' && t.noticeEmailOn && t.noticeEmail) jobs.push(pushEmail(publicNo, row, t))
+    if (via !== 'email' && t.noticeWecomOn && t.wecomWebhookEnc) jobs.push(pushWecom(publicNo, row, cfg))
+    if (via !== 'wecom' && t.noticeEmailOn && t.noticeEmail) jobs.push(pushEmail(publicNo, row, cfg))
     const rs = await Promise.allSettled(jobs)
     for (const r of rs) if (r.status === 'rejected') console.error('[tenant-notice] 推送流程异常', (r.reason as Error)?.message || r.reason)
   } catch (e) {

@@ -317,7 +317,10 @@ async function main() {
   }
   for (const [hst, st, why] of [
     ['bigolab.com', 400, '主站域名'],
-    ['evil.com', 400, 'evil.com'],
+    // 2026-09-30 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 1 节）：evil.com 这类公网域名现在可以作为自定义域名登记，
+    // 改用仍然必须拒绝的 IP 与本机名（自定义域名的完整正反例见 mods-domain.ts）
+    ['1.2.3.4', 400, 'IP'],
+    ['localhost', 400, 'localhost'],
     ['a.b.bigolab.com', 400, '多级子域'],
     [w.lulu.host, 409, '他站已占用'],
   ] as const) {

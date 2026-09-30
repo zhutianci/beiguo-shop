@@ -291,6 +291,9 @@ const RULE1_ALLOW = [
   'src/lib/tenant/types',
   'src/lib/storefront/public',
   'src/components/storefront-provider',
+  // 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 4 节）：partner/layout.tsx 在非主域名上挂的跳转组件。
+  // 纯客户端组件，只 import react、只读 props 里的 origin（服务端从 Tenant.origin 给），不碰任何平台能力；精确到文件，不放行整个目录
+  'src/components/storefront/primary-host-redirect',
   // 二期：店面客服信息的常量 / 类型 / 格式正则（零依赖纯函数，不查库；设置页做即时格式提示用）
   'src/lib/contact-base',
   'src/lib/api',

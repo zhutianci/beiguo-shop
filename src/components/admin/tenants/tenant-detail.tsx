@@ -69,7 +69,10 @@ interface Detail {
     createdAt: string
   }
   transitions: string[]
-  domains: { host: string; isPrimary: boolean; status: number; createdAt: string }[]
+  /** kind：SUB = *.bigolab.com 子域名；CUSTOM = 客户自己的自定义域名（docs/多渠道分销-自定义域名.md） */
+  domains: { host: string; kind: 'SUB' | 'CUSTOM'; isPrimary: boolean; status: number; createdAt: string }[]
+  /** 主域名是自定义域名时的连通校验状态（契约第 9 节）；子域名主域名为 null。healthy=false 时店面正在改用子域名 */
+  primaryHealth: { host: string; healthy: boolean; okAt: string | null; checkedAt: string | null; fails: number; oks: number; down: boolean; reason: string | null } | null
   members: { userId: number; email: string | null; nickname: string | null; role: string; status: number; createdAt: string }[]
   invites: { id: number; email: string | null; role: string; createdAt: string; expiresAt: string; state: string }[]
   balances: {
@@ -454,30 +457,83 @@ function ConfigCard({ d, onDone }: { d: Detail; onDone: Done }) {
   )
 }
 
+/**
+ * 域名（docs/多渠道分销-自定义域名.md 第 3 节）：子域名与自定义域名两类；其中一个是主域名（= 站点地址 Tenant.origin）。
+ * 服务端规则：主域名不能停用；停用的域名不能设为主域名；同一域名被别的渠道占用 409。这里只做输入与提示。
+ */
 function DomainCard({ d, onDone, id }: { d: Detail; onDone: Done; id: string }) {
   const [host, setHost] = useState('')
   const put = async (h: string, status: 0 | 1) => onDone(await api(`/api/admin/tenants/${id}/domains`, { body: { host: h, status } }))
+  const setPrimary = async (h: string) => {
+    const tip = [
+      `把 ${h} 设为主域名？`,
+      '设为主域名后，系统邮件与邀请链接改用新域名；旧域名的页面会自动跳转过去；买家在新域名上需要重新登录一次。',
+      // 自定义域名由服务端当场经公网校验（https://<域名>/api/domain-check 的签名），没接到本站直接报错、什么都不改；
+      // 之后 cron 每 10 分钟复验，失联时自动改用子域名（契约第 9 节）。这里只提示，不再让站长手工 curl
+      `自定义域名会先由系统经公网校验「https://${h} 确实接到本站」，没通过会提示原因、不做任何改动；之后每 10 分钟复验一次，域名失联时自动改用子域名并告警。`,
+    ].join('\n\n')
+    if (!confirm(tip)) return
+    onDone(await api(`/api/admin/tenants/${id}/domains`, { body: { action: 'primary', host: h } }))
+  }
   return (
     <Card>
       <CardHeader>
         <CardTitle>域名</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        <p className="text-xs text-gray-500">只接受 *.bigolab.com 的一级子域。停用后该域名返回 404，绝不回落主站。Cloudflare 与 nginx 的配置另行处理（部署说明）。</p>
+        <p className="text-xs text-gray-500">
+          可登记 *.bigolab.com 的一级子域名，或客户自己的自定义域名（如 tibo.pw、www.tibo.pw）。停用后该域名返回 404，绝不回落主站；主域名不能停用。
+        </p>
+        <p className="text-xs text-gray-500">
+          设为主域名后，系统邮件与邀请链接改用新域名；旧域名的页面会自动跳转过去；买家在新域名上需要重新登录一次。
+        </p>
+        {d.primaryHealth && (
+          <p className={`rounded px-3 py-2 text-xs ${d.primaryHealth.healthy ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            {d.primaryHealth.healthy
+              ? `自定义主域名 ${d.primaryHealth.host} 连通校验正常（最近通过 ${d.primaryHealth.okAt ? new Date(d.primaryHealth.okAt).toLocaleString('zh-CN') : '—'}，每 10 分钟复验）。`
+              : `自定义主域名 ${d.primaryHealth.host} 连通校验未通过${
+                  // 降级后要连续两趟成功才切回（防抖动来回跳）：已经通过一趟时如实显示，免得站长以为没修好
+                  d.primaryHealth.down && d.primaryHealth.fails === 0 && d.primaryHealth.oks > 0
+                    ? `（上次失败：${d.primaryHealth.reason ?? '未知'}；已连续通过 ${d.primaryHealth.oks} 次，连续通过 2 次自动切回）`
+                    : d.primaryHealth.reason
+                      ? `（${d.primaryHealth.reason}，连续 ${d.primaryHealth.fails} 次）`
+                      : '（没有近期的校验记录：定时复验可能停了，检查 cron 容器）'
+                }：店面正在改用子域名生成邮件与链接、停止向它跳转。修好后点「重新校验」立即切回，或等复验连续通过两次自动切回。`}
+          </p>
+        )}
         {d.domains.map((x) => (
-          <div key={x.host} className="flex items-center justify-between rounded border border-gray-100 px-3 py-2">
-            <span>
-              {x.host} {x.isPrimary && <Badge>主域名</Badge>} {x.status === 1 ? <Badge tone="bg-green-100 text-green-700">启用</Badge> : <Badge tone="bg-gray-200 text-gray-600">停用</Badge>}
+          <div key={x.host} className="flex flex-wrap items-center justify-between gap-2 rounded border border-gray-100 px-3 py-2">
+            <span className="flex flex-wrap items-center gap-1">
+              <span className="break-all">{x.host}</span>
+              <Badge tone={x.kind === 'CUSTOM' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}>{x.kind === 'CUSTOM' ? '自定义域名' : '子域名'}</Badge>
+              {x.isPrimary && <Badge tone="bg-blue-100 text-blue-700">主域名</Badge>}
+              {x.status === 1 ? <Badge tone="bg-green-100 text-green-700">启用</Badge> : <Badge tone="bg-gray-200 text-gray-600">停用</Badge>}
             </span>
-            <Button size="sm" variant="outline" onClick={() => (x.status === 1 ? confirm(`停用 ${x.host}？停用后该站立即 404`) && put(x.host, 0) : put(x.host, 1))}>
-              {x.status === 1 ? '停用' : '启用'}
-            </Button>
+            <span className="flex gap-2">
+              {!x.isPrimary && x.status === 1 && (
+                <Button size="sm" variant="outline" onClick={() => setPrimary(x.host)}>
+                  设为主域名
+                </Button>
+              )}
+              {/* 自定义主域名：再「设主」一次 = 立即重新校验并刷新记录（setPrimaryDomain 对已是主域名的自定义域名照样校验，不改别的） */}
+              {x.isPrimary && x.kind === 'CUSTOM' && (
+                <Button size="sm" variant="outline" onClick={async () => onDone(await api(`/api/admin/tenants/${id}/domains`, { body: { action: 'primary', host: x.host } }))}>
+                  重新校验
+                </Button>
+              )}
+              {!x.isPrimary && (
+                <Button size="sm" variant="outline" onClick={() => (x.status === 1 ? confirm(`停用 ${x.host}？停用后该域名立即 404`) && put(x.host, 0) : put(x.host, 1))}>
+                  {x.status === 1 ? '停用' : '启用'}
+                </Button>
+              )}
+            </span>
           </div>
         ))}
         <div className="flex gap-2">
-          <input className={inputCls} value={host} onChange={(e) => setHost(e.target.value)} placeholder="lulu2.bigolab.com" />
+          <input className={inputCls} value={host} onChange={(e) => setHost(e.target.value)} placeholder="lulu2.bigolab.com 或 tibo.pw" />
           <Button onClick={() => host.trim() && put(host.trim(), 1)}>添加</Button>
         </div>
+        <p className="text-xs text-amber-600">自定义域名需先在 Cloudflare 接入并给隧道加路由（见《自定义域名接入教程》），否则买家打不开。</p>
       </CardContent>
     </Card>
   )

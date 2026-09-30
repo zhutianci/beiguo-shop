@@ -7,8 +7,9 @@ import { PageViewBeacon } from '@/components/page-view-beacon'
 import { MailLanding } from '@/components/mail-landing'
 import { SuspendedBanner } from '@/components/storefront/suspended-banner'
 import { ClosedPageGate, DraftClosedPage } from '@/components/storefront/closed-page'
+import { PrimaryHostRedirect } from '@/components/storefront/primary-host-redirect'
 import { getCurrentUser } from '@/lib/auth'
-import { getStorefront, isPreviewUser, requireShopStorefront } from '@/lib/storefront/resolve'
+import { getStorefront, isPreviewUser, primaryRedirectOrigin, requireShopStorefront } from '@/lib/storefront/resolve'
 import { storefrontFeatures } from '@/lib/storefront/public'
 import { readSmsConfigCached } from '@/lib/jiema/config'
 import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
@@ -24,6 +25,9 @@ import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
  *    TERMINATED 与 DRAFT（预览用户）不显示「注册」（注册接口对这两种状态 403，入口留着只会让人填完表单才被拒）。
  *  · 实时成交、公告、营销落地清推广码按 features 挂载；流量埋点只在主站（P0 不记渠道流量，/api/track 在渠道 Host 404，
  *    挂着就会产生 404 请求，验收 W1-9）。
+ *  · 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 4 节）：渠道店面在非主域名上被访问时挂 PrimaryHostRedirect，
+ *    客户端跳到主域名的同一路径。放在 DRAFT 暂停页判断之后（暂停页本身不跳）；主站、以及当前就在主域名上（lulu、shop 这类
+ *    只有子域名的渠道恒是）都不挂，页面 DOM 与改造前相同。
  * 休眠时店面恒为主站（ACTIVE、features 全开），渲染结果与改造前逐字相同。
  */
 export default async function ShopLayout({
@@ -42,6 +46,8 @@ export default async function ShopLayout({
     return <DraftClosedPage />
   }
   const sf = await requireShopStorefront({ userId })
+  // 读 host 头（headers()），与 getStorefront 一样不能进 try
+  const redirectOrigin = primaryRedirectOrigin(sf)
   const features = storefrontFeatures(sf)
   const isPlatform = sf.kind === 'PLATFORM'
   // 主站恒为 ACTIVE：两者恒为 true，Header / Footer 渲染与改造前逐字相同
@@ -60,6 +66,7 @@ export default async function ShopLayout({
   // 全站 pt-32 已于 2026-09-07 迁移完毕，新页面请直接用 .page-top，不要再写死数值。
   return (
     <div className="shop-shell flex min-h-screen flex-col">
+      {redirectOrigin && <PrimaryHostRedirect origin={redirectOrigin} />}
       <Header catalogOpen={catalogOpen} registrationOpen={registrationOpen} jiemaOpen={jiemaOpen} />
       {sf.status === 'SUSPENDED' && <SuspendedBanner />}
       <main className="flex-1">{sf.status === 'TERMINATED' ? <ClosedPageGate>{children}</ClosedPageGate> : children}</main>

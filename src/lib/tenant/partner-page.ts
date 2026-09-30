@@ -18,7 +18,7 @@ import { randomUUID } from 'crypto'
 import { notFound, redirect } from 'next/navigation'
 import { getCurrentUser } from '../auth'
 import { writeAudit } from '../audit'
-import { getStorefront } from '../storefront/resolve'
+import { getStorefront, primaryRedirectOrigin } from '../storefront/resolve'
 import { tenantOrigin } from '../storefront/origin'
 import { loadActiveMember } from './member'
 import type { PartnerCtx } from './partner-route'
@@ -59,12 +59,14 @@ export async function requirePartnerPage(perm: PartnerPerm): Promise<PartnerCtx>
 }
 
 /**
- * 仅 /partner/login 与 /partner/invite/[token]：店面不是 CHANNEL 或已 TERMINATED → notFound；不要求登录与成员身份。
+ * 渠道后台根布局与 /partner/login、/partner/invite/[token]：店面不是 CHANNEL 或已 TERMINATED → notFound；不要求登录与成员身份。
  * 返回店面状态与主站注册地址：没有账号的人要先到主站注册（渠道站 DRAFT 期不开放注册；两站同一账号）。
  * 主站地址取平台 Tenant.origin（tenantOrigin(1)，不查库），绝不从 Host 拼。
+ * redirectOrigin（docs/多渠道分销-自定义域名.md 第 4 节）：当前 Host 不是本渠道主域名时 = 主域名 origin，由根布局挂
+ * PrimaryHostRedirect 跳过去；在主域名上（lulu、shop 这类只有子域名的渠道恒是）为 null。
  */
-export async function requireChannelStorefrontPage(): Promise<{ status: string; mainRegisterUrl: string }> {
+export async function requireChannelStorefrontPage(): Promise<{ status: string; mainRegisterUrl: string; redirectOrigin: string | null }> {
   const sf = await getStorefront()
   if (!sf || sf.kind !== 'CHANNEL' || sf.status === 'TERMINATED') notFound()
-  return { status: sf.status, mainRegisterUrl: `${await tenantOrigin(1)}/register` }
+  return { status: sf.status, mainRegisterUrl: `${await tenantOrigin(1)}/register`, redirectOrigin: primaryRedirectOrigin(sf) }
 }

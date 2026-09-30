@@ -9,6 +9,7 @@
  *    缺失或过短时 **fail closed**：抛 DataKeyMissingError（name='DataKeyMissingError'、code='DATA_KEY_MISSING'），
  *    调用方（admin-tenants）转成「未配置数据密钥」提示；绝不退回 JWT_SECRET 或任何固定值，也绝不存明文。
  *  · 令牌签名（tenant-reply、viewas）：仍从 JWT_SECRET 派生（D8 允许）。它们是短时凭证，随 JWT_SECRET 轮换一起失效正是想要的。
+ *    domain-verify（自定义域名连通校验的应答签名，tenant/domain-verify.ts）同理：只在同一次校验的几秒内有意义，轮换无影响。
  *  · 用途隔离：拿到 webhook 密文与明文也推不出 payee 的密钥；委托令牌不能被当成密文解。
  *
  * 【格式】`v1.<iv>.<tag>.<cipher>`（base64url，AES-256-GCM，12 字节随机 IV）；用途同时作为 AAD，
@@ -23,13 +24,13 @@
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'crypto'
 import { getJwtSecret } from '../jwt-secret'
 
-export type KeyPurpose = 'payee' | 'webhook' | 'tenant-reply' | 'viewas'
+export type KeyPurpose = 'payee' | 'webhook' | 'tenant-reply' | 'viewas' | 'domain-verify'
 export type SealPurpose = 'payee' | 'webhook'
 
 /** 落库数据密钥的 HKDF salt（与令牌签名用的 salt 不同：两类 ikm 本就不同，salt 再分开一层） */
 const DATA_SALT = 'bigolab-tenant-data-v1'
 const TOKEN_SALT = 'bigolab-tenant-kdf-v1'
-const PURPOSES: ReadonlySet<string> = new Set(['payee', 'webhook', 'tenant-reply', 'viewas'])
+const PURPOSES: ReadonlySet<string> = new Set(['payee', 'webhook', 'tenant-reply', 'viewas', 'domain-verify'])
 const DATA_PURPOSES: ReadonlySet<string> = new Set(['payee', 'webhook'])
 /** TENANT_DATA_KEY 解码后至少 32 字节（256 位） */
 const MIN_DATA_KEY_BYTES = 32

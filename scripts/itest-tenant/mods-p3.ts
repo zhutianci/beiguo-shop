@@ -271,7 +271,11 @@ async function main() {
       const supBase = opened(() => render(platformPub, bLayout, '/support'))
       const supNew = opened(() => render(platformPub, nLayout, '/support'))
       eq('客服中心（公告条、FAQ、底部 CTA、FAQPage 结构化数据）', supBase, supNew, ['客服在线时间 9:00~22:00', '服务时间 9:00 - 22:00', '请联系客服微信 GenuineMarxist', 'FAQPage'])
-      check('FAQ 数据：supportFaqs(PLATFORM_CONTACT) 与原常量逐字相同', JSON.stringify(B.faq.supportFaqs) === JSON.stringify(N.faq.supportFaqs(PLATFORM_CONTACT)))
+      // 二期提交（f8fab6a）之后，基线 HEAD 里的 supportFaqs 本身已经是函数：JSON.stringify(函数) 恒为 undefined，
+      // 原写法在默认基线下必然失败（2026-09-30 集成时发现，与当次改动无关）。基线是函数就按主站客服信息调用一次再比，
+      // 基线是常量（P3_BASE_REF 指向二期之前）就照原样比——两种基线下断言的都是「主站 FAQ 数据逐字不变」
+      const baseFaqs = typeof B.faq.supportFaqs === 'function' ? B.faq.supportFaqs(PLATFORM_CONTACT) : B.faq.supportFaqs
+      check('FAQ 数据：supportFaqs(PLATFORM_CONTACT) 与原常量逐字相同', JSON.stringify(baseFaqs) === JSON.stringify(N.faq.supportFaqs(PLATFORM_CONTACT)))
 
       // 服务端页面是 async 组件：先在请求作用域里取到元素树，再同步渲染（react-dom 18 的 renderToString 不支持 async 组件）
       const plBaseEl = await inMain(() => B.productsPage.default())

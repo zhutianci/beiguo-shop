@@ -713,11 +713,14 @@ async function main() {
     const cancelledPaid = await prisma.order.aggregate({ where: { tenantId: w.lulu.id, payStatus: 'PAID', deliveryStatus: 'CANCELLED' }, _sum: { amount: true } })
     check('已付已取消的渠道单不计入（夹具里存在这种单）', cents(cancelledPaid._sum.amount) > 0 && cents((d?.revenueBySite ?? []).find((s: any) => s.tenantId === w.lulu.id)?.revenue) === cents((await prisma.order.aggregate({ where: { tenantId: w.lulu.id, payStatus: 'PAID', deliveryStatus: { not: 'CANCELLED' } }, _sum: { amount: true } }))._sum.amount))
     check('最近订单带来源站', (d?.recentOrders ?? []).every((o: any) => o.source?.code))
+    // 分析接口按北京时间（UTC+8）的自然日解释 from/to；这里也必须取北京日期。
+    // 原来用 toISOString()（UTC 日期），北京时间 00:00–08:00 跑时 to 会是「昨天」，刚建的夹具落在区间外、bySite 为空而误报。
     const today = new Date()
-    const from = new Date(today.getTime() - 30 * DAY).toISOString().slice(0, 10)
-    const ac = await call(rAnaCards, 'GET', sa, { query: { from, to: today.toISOString().slice(0, 10) } })
+    const bjDay = (t: Date) => new Date(t.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10)
+    const from = bjDay(new Date(today.getTime() - 30 * DAY))
+    const ac = await call(rAnaCards, 'GET', sa, { query: { from, to: bjDay(today) } })
     check('卡密分析：bySite 含 lulu（渠道单按进货价口径的收入）', ac.status === 200 && (ac.json?.data?.bySite ?? []).some((s: any) => s.tenantId === w.lulu.id), ac.text.slice(0, 200))
-    const ao = await call(rAnaOrders, 'GET', sa, { query: { start: from, end: today.toISOString().slice(0, 10), tenantId: 'x' } })
+    const ao = await call(rAnaOrders, 'GET', sa, { query: { start: from, end: bjDay(today), tenantId: 'x' } })
     check('订单分析：来源站参数非法 → 400', ao.status === 400)
   }
 
