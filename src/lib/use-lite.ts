@@ -14,6 +14,8 @@ import { useSyncExternalStore } from 'react'
  * 【判定：按设备，不按宽度】(hover: none) and (pointer: coarse) = 主输入是手指、没有悬停。
  *   · 横屏 iPhone 有 844~932px 宽，按宽度判会漏掉；电脑把窗口拖窄也不该变样子（站长：不影响电脑端）。
  *   · iPad / 安卓平板同样是触屏 WebKit/移动 GPU，一起走轻量；带触摸屏的 Windows 笔记本主指针是鼠标，仍是电脑版。
+ *     例外：Windows 二合一在平板形态下（键盘拆下 / 翻转、平板模式）主指针报 coarse，也会走轻量，接上键盘又切回来。
+ *     若要让这类机器也保持电脑版，只能在三处都加宽度上限，如 `and (max-width: 1023px)`。
  *   · 报不出这两个媒体特性的老设备 / 老 WebView 判为 false，照旧走现在的版本：不变差，只是没有收益。
  *
  * 【三处必须逐字相同】这条媒体查询同时写在：
@@ -24,15 +26,21 @@ import { useSyncExternalStore } from 'react'
  */
 export const LITE_QUERY = '(hover: none) and (pointer: coarse)'
 
+// MediaQueryList 只建一次：useSyncExternalStore 每次渲染都会读快照（电脑端打字机、TiltCard 渲染很频繁），不必每次 new 一个
+let cachedMql: MediaQueryList | null = null
+function getMql(): MediaQueryList | null {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null
+  return (cachedMql ??= window.matchMedia(LITE_QUERY))
+}
+
 /** 此刻是否处于轻量模式。只能在 effect / 事件回调里用（服务端恒为 false）。 */
 export function isLiteNow(): boolean {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
-  return window.matchMedia(LITE_QUERY).matches
+  return getMql()?.matches ?? false
 }
 
 function subscribe(onChange: () => void): () => void {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {}
-  const mql = window.matchMedia(LITE_QUERY)
+  const mql = getMql()
+  if (!mql) return () => {}
   // iOS 14 以前的 MediaQueryList 没有 addEventListener，只有（已废弃的）addListener
   if (typeof mql.addEventListener === 'function') {
     mql.addEventListener('change', onChange)

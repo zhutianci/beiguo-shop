@@ -107,9 +107,11 @@ function LiveOrderNotificationInner() {
           className="fixed bottom-6 left-6 z-40 max-w-xs"
         >
           <div className="relative group">
-            <div className={`absolute -inset-[1px] bg-gradient-to-r ${getGradient(current.order.id)} rounded-2xl blur-sm opacity-60`} />
+            {/* 手机端轻量模式：卡片的粉紫色原本是这层 60% 渐变光透过半透明玻璃显出来的，轻量模式的 glass-strong 是近乎不透明的深灰，
+                会把颜色盖掉（站长要求成交弹窗不变）。所以轻量模式下这层开到 100%、卡片改成 45% 黑，看上去仍是原来的粉紫卡片 */}
+            <div className={`absolute -inset-[1px] bg-gradient-to-r ${getGradient(current.order.id)} rounded-2xl blur-sm opacity-60 lite:opacity-100`} />
 
-            <div className="relative glass-strong rounded-2xl p-3 pr-4 shadow-2xl">
+            <div className="relative glass-strong rounded-2xl p-3 pr-4 shadow-2xl lite:bg-black/45">
               <div className="flex items-start gap-3">
                 <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${getGradient(current.order.id)} flex items-center justify-center flex-shrink-0`}>
                   <ShoppingBag className="w-5 h-5" />

@@ -155,9 +155,9 @@ function FloatingContactInner() {
             )}
           </div>
 
-          {/* 提示文字 */}
+          {/* 提示文字（只在悬停时出现；手机端轻量模式 lite:hidden：触屏点一下 :hover 会粘住，提示条一直浮在内容上） */}
           {!expanded && (
-            <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-full glass text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute right-full mr-3 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-full glass text-xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity lite:hidden">
               联系客服
             </div>
           )}

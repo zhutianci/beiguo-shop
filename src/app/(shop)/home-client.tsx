@@ -128,7 +128,8 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
       {/* 全局鼠标跟随光晕 */}
       <MouseSpotlight />
 
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* 手机端轻量模式：lite:pt-24 给固定页头（约 88px）留位置，否则「AI 订阅服务专家」徽标压在站标和「注册」按钮底下；电脑端不变 */}
+      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden lite:pt-24">
         <div className="absolute inset-0 grid-bg" />
         {/* lite-blob：手机端轻量模式下 128px 大模糊 + 无限呼吸换成静止的渐变柔光（规则在 globals.css 末尾），电脑端不变 */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-[128px] lite-blob animate-pulse-glow" />
@@ -538,7 +539,9 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
 
       <section className="relative py-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-transparent" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-500/20 rounded-full blur-[128px] lite-blob" />
+        {/* 手机端轻量模式：lite-blob 的 scale: 1.5 作用在 transform 之外，会把 -translate-x-1/2 一起放大成 -75%、光斑偏到左边；
+            轻量模式下改用独立的 translate 属性居中（它排在 scale 外层，不会被放大） */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-500/20 rounded-full blur-[128px] lite-blob lite:!transform-none lite:[translate:-50%_0]" />
 
         <div className="container relative z-10">
           <motion.div
