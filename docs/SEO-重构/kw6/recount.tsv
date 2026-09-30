@@ -1,0 +1,65 @@
+query	raw	R3filtered	tw_intent	cross_region	dropped
+ai会员价格对比	0	0	0	0	
+ai会员比价	0	0	0	0	
+ai订阅比价	0	0	0	0	
+chatgpt plus 国内购买	0	0	0	0	
+chatgpt plus 支付宝	3	3	0	0	
+claude pro 国内	8	8	0	0	
+claude max 价格	9	9	1	5	
+claude max 20x	9	9	0	0	
+claude code 订阅	9	9	0	0	
+claude code pro	9	3	0	0	claude code proxy | claude code prompt | claude code proxy 配置 | claude code prompt is too long | claude code process exited with code 1 | claude code prompt cache
+claude code max	9	9	0	0	
+grok 订阅	10	10	2	0	
+supergrok	9	9	0	1	
+chatgpt pro 价格	9	9	1	6	
+chatgpt pro 5x	9	9	0	1	
+今日ai热点	0	0	0	0	
+ai热点	5	5	0	0	
+ai日报	3	3	0	0	
+ai行业动态	0	0	0	0	
+ai大事件	2	1	0	0	愛大事件
+claude 最新模型	5	5	0	0	
+openai 最新发布	2	2	0	0	
+chatgpt 更新日志	1	1	0	0	
+gemini 更新日志	1	1	0	0	
+短信接码	8	8	0	1	
+海外手机号接收验证码	0	0	0	0	
+海外手机号 验证码	1	1	0	0	
+接收验证码	10	10	1	0	
+谷歌注册手机号无法验证	0	0	0	0	
+谷歌 手机号验证	2	2	0	0	
+chatgpt注册手机号	0	0	0	0	
+openai 手机号验证	0	0	0	0	
+whatsapp 注册 收不到验证码	1	1	0	0	
+instagram 注册 验证码	1	1	0	0	
+美国手机号 接收验证码	1	1	0	0	
+claude 发票	9	9	2	0	
+chatgpt 发票	5	5	3	0	
+贝果科技	1	1	0	0	
+bigolab	2	0	0	0	bigolbilly tiktok | bigolbilly song
+ai会员	8	8	0	0	
+ai订阅	9	9	2	0	
+chatgpt会员	9	9	0	0	
+gmail 手机号	3	3	0	0	
+google 手机号验证	2	2	0	0	
+chatgpt 注册	10	10	0	0	
+openai 注册	5	5	0	0	
+whatsapp 注册	9	9	0	0	
+ins 注册	10	10	0	0	
+海外手机号	9	9	0	0	
+国外手机号	9	9	0	0	
+美国手机号	9	9	0	0	
+虚拟手机号	9	9	0	0	
+ai资讯	9	9	0	0	
+ai速览	0	0	0	0	
+ai周报	1	1	0	0	
+大模型 最新	10	10	0	0	
+claude 更新	7	7	0	0	
+openai 发布	9	9	0	0	
+chatgpt 更新	10	10	0	0	
+gemini 更新	10	10	1	0	
+短信验证码接收	0	0	0	0	
+codex 接码	10	10	0	0	
+claude code 价格	9	9	0	0	
+claude code 充值	10	10	0	0	
