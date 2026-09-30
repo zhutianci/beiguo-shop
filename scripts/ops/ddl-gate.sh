@@ -9,6 +9,7 @@
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s1  # 短信接码 · S1 目录与定价：5 张新表（§5.2、§5.5）
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s2  # 短信接码 · S2 下单与状态机：4 张新表 sms_orders / sms_attempts / sms_messages / sms_events
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s3  # 短信接码 · S3 记录、客服、售后：1 张新表 sms_complaints
+#   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-all # 短信接码一次上线（B0 + S1 + S2 + S3 合并，S4 无 DDL）：上面四份清单的并集、四组逐字核对全跑
 #
 # 只用 POSIX sh + grep + awk + sort（不 import src/，服务器宿主机或任意容器里都能跑）。
 #
@@ -31,7 +32,7 @@ PREVIEW="${1:-}"
 MODE="${2:-}"
 
 if [ -z "$PREVIEW" ]; then
-  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0 | --expect-jiema-s1 | --expect-jiema-s2 | --expect-jiema-s3]" >&2
+  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0 | --expect-jiema-s1 | --expect-jiema-s2 | --expect-jiema-s3 | --expect-jiema-all]" >&2
   exit 2
 fi
 if [ ! -s "$PREVIEW" ]; then
@@ -89,8 +90,8 @@ INV=$(inventory)
 echo "—— 预览清单（$(printf '%s\n' "$INV" | grep -c . ) 项）——"
 printf '%s\n' "$INV" | awk 'NF { k = $1; n[k]++ } END { for (k in n) printf "  %s × %d\n", k, n[k] }' | sort
 
-if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ] && [ "$MODE" != "--expect-jiema-s1" ] && [ "$MODE" != "--expect-jiema-s2" ] && [ "$MODE" != "--expect-jiema-s3" ]; then
-  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0，接码 S1 加 --expect-jiema-s1，接码 S2 加 --expect-jiema-s2，接码 S3 加 --expect-jiema-s3）"
+if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ] && [ "$MODE" != "--expect-jiema-s1" ] && [ "$MODE" != "--expect-jiema-s2" ] && [ "$MODE" != "--expect-jiema-s3" ] && [ "$MODE" != "--expect-jiema-all" ]; then
+  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0，接码 S1 加 --expect-jiema-s1，接码 S2 加 --expect-jiema-s2，接码 S3 加 --expect-jiema-s3，接码 B0–S3 一次上线加 --expect-jiema-all）"
   exit 0
 fi
 
@@ -338,6 +339,18 @@ elif [ "$MODE" = "--expect-wallet-b0" ]; then
   EXPECT="$EXPECT_WALLET_B0"
   SUMMARY="钱包 B0：users 1 列、balance_logs 3 列 + 1 个唯一索引、新表 balance_holds（含 3 个索引、默认值逐字核对）"
   wallet_b0_details || exit 1
+elif [ "$MODE" = "--expect-jiema-all" ]; then
+  # 短信接码 B0–S3 一次上线（docs/短信接码-部署说明.md「全量上线手册」）：生产库还停在 42e63f7 之前的 schema 时，
+  #   migrate diff 一次给出四个包的全部 DDL，单包模式必然「多一项」。这里用四份清单的并集比对，四组逐字核对全部要过；
+  #   S4 没有 DDL。多一项、少一项（某个包已经单独上过）→ 退出码 1，改用对应的单包模式逐个核对
+  EXPECT=$(printf '%s\n%s\n%s\n%s\n' "$EXPECT_WALLET_B0" "$EXPECT_JIEMA_S1" "$EXPECT_JIEMA_S2" "$EXPECT_JIEMA_S3" | grep . | sort)
+  SUMMARY="接码 B0–S3 一次上线：users 1 列、balance_logs 3 列 + 1 个唯一索引、11 张新表（balance_holds + sms_* 10 张；四组索引与默认值逐字核对）"
+  ALLBAD=0
+  wallet_b0_details || ALLBAD=1
+  jiema_s1_details || ALLBAD=1
+  jiema_s2_details || ALLBAD=1
+  jiema_s3_details || ALLBAD=1
+  [ "$ALLBAD" = "0" ] || exit 1
 elif [ "$MODE" = "--expect-jiema-s3" ]; then
   EXPECT="$EXPECT_JIEMA_S3"
   SUMMARY="接码 S3：1 张新表 sms_complaints（order_id 唯一、两个索引、state 默认 OPEN 等逐字核对）"
