@@ -92,6 +92,19 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
     }
   }
 
+  /*
+   * 【水合前填的字要接住（首帧可见的配套，2026-10-01）】hero 的查询框现在水合前就看得见、能输入，
+   * iPhone 慢网下这段可能有 10~40 秒。这时打的字只在 DOM 里：React 水合不改输入框的值、也不补发 onChange，
+   * lookupEmail 还是空的——不接住的话点查询会丢掉邮箱，而且商品列表拉回来的那次重渲染会把输入框清空。
+   * 所以挂载后把 DOM 里已有的值抄进 state。水合前点查询：表单带 action="/lookup"、输入框 name="email"，
+   * 浏览器原生跳到 /lookup?email=…，和水合后 router.push 的地址一样（邮箱本来就在这个地址里）。
+   */
+  const lookupInputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const typed = lookupInputRef.current?.value
+    if (typed) setLookupEmail(typed)
+  }, [])
+
   useEffect(() => {
     // 首页只展示 6 个精选商品，直接按分页取，避免拉全表
     fetch('/api/products?page=1&pageSize=6')
@@ -243,13 +256,15 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
               {/* 订单查询框：手机端 w-full 才够放下这句 placeholder，桌面端不该继续「占满」，
                   但 max-w-md(448px) 在 16px 字号下又会把 placeholder 挤到省略号，
                   所以 md 起给到 lg(512px) 并同步把字号提到 base —— 宽度是为了容纳文案，不是为了铺满 */}
-              <form onSubmit={handleLookup} className="relative w-full max-w-md md:max-w-lg">
+              <form action="/lookup" onSubmit={handleLookup} className="relative w-full max-w-md md:max-w-lg">
                 <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500/40 via-pink-500/40 to-cyan-500/40 rounded-full blur-sm opacity-50" />
                 <div className="relative flex items-center gap-1 p-1.5 md:p-2 glass-strong rounded-full">
                   <div className="flex-1 flex items-center gap-2 pl-4">
                     <Mail className="w-4 h-4 md:w-[18px] md:h-[18px] text-white/40 flex-shrink-0" />
                     <input
+                      ref={lookupInputRef}
                       type="email"
+                      name="email"
                       value={lookupEmail}
                       onChange={(e) => setLookupEmail(e.target.value)}
                       placeholder="已下单？输入邮箱查询订阅状态"

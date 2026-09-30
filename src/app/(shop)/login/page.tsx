@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -8,6 +8,7 @@ import { ArrowRight, Mail, Lock, Sparkles } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { setToken } from '@/lib/auth-token'
 import { safeRedirect, withRedirect } from '@/lib/safe-redirect'
+import { useHydrated } from '@/lib/use-hydrated'
 
 export default function LoginPage() {
   return (
@@ -33,6 +34,25 @@ function LoginForm() {
     email: '',
     password: '',
   })
+
+  /*
+   * 【水合前填的字要接住（首帧可见的配套，2026-10-01）】卡片现在水合前就看得见、能输入（见下方 motion.div 的注释），
+   * iPhone 慢网下这段可能有 10~40 秒。这时打的字、钥匙串自动填充的账号密码只在 DOM 里：React 水合不改输入框的值、
+   * 也不补发 onChange，state 还是空的——不接住的话点登录提交的是空表单，而且下一次重渲染会把输入框清空。
+   * 所以：挂载后把 DOM 里已有的值抄进 state；水合完成前登录按钮禁用（服务端与水合那一轮都是禁用，不会不一致；
+   * 回车隐式提交也一起挡住），免得原生表单提交把页面刷新成 /login?、丢掉 ?redirect=。
+   * 输入框不要加 name：表单没有 method=post，原生 GET 提交会把密码带进地址栏和访问日志。
+   */
+  const hydrated = useHydrated()
+  const emailRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const email = emailRef.current?.value || ''
+    const password = passwordRef.current?.value || ''
+    if (email || password) {
+      setFormData((f) => ({ ...f, email: email || f.email, password: password || f.password }))
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -115,6 +135,7 @@ function LoginForm() {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                 <input
+                  ref={emailRef}
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -130,6 +151,7 @@ function LoginForm() {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                 <input
+                  ref={passwordRef}
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -148,7 +170,7 @@ function LoginForm() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !hydrated}
               className="group w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
               {loading ? (

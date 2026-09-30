@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -171,6 +171,19 @@ export default function SupportPage() {
     }
   }
 
+  /*
+   * 【水合前填的字要接住（首帧可见的配套，2026-10-01）】快速查询框现在水合前就看得见、能输入，
+   * iPhone 慢网下这段可能有 10~40 秒。这时打的字只在 DOM 里：React 水合不改输入框的值、也不补发 onChange，
+   * quickEmail 还是空的——不接住的话点查询会丢掉邮箱，而且下一次重渲染会把输入框清空。
+   * 所以挂载后把 DOM 里已有的值抄进 state。水合前点查询：表单带 action="/lookup"、输入框 name="email"，
+   * 浏览器原生跳到 /lookup?email=…，和水合后 router.push 的地址一样（邮箱本来就在这个地址里）。
+   */
+  const quickEmailRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const typed = quickEmailRef.current?.value
+    if (typed) setQuickEmail(typed)
+  }, [])
+
   const filteredGuides = guides.filter((g) => g.product === activeProduct)
 
   return (
@@ -231,14 +244,16 @@ export default function SupportPage() {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="mb-12"
         >
-          <form onSubmit={handleQuickLookup}>
+          <form action="/lookup" onSubmit={handleQuickLookup}>
             <div className="relative">
               <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-2xl blur-md opacity-30" />
               <div className="relative flex items-center gap-2 p-2 glass-strong rounded-2xl">
                 <div className="flex-1 flex items-center gap-3 px-4">
                   <Mail className="w-5 h-5 text-white/40" />
                   <input
+                    ref={quickEmailRef}
                     type="email"
+                    name="email"
                     value={quickEmail}
                     onChange={(e) => setQuickEmail(e.target.value)}
                     placeholder="快速查询订阅状态：输入你的账户邮箱"

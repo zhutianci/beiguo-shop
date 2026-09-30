@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar, BellRing, Smartphone, Save, FileText, X, AlertCircle, Check } from 'lucide-react'
 import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
 import { emailProofHeaders, saveEmailProof, clearEmailProof } from '@/lib/email-proof-client'
+import { useHydrated } from '@/lib/use-hydrated'
 
 interface ExternalOrder {
   id: number
@@ -239,9 +240,25 @@ function LookupForm() {
     return () => window.removeEventListener(PROOF_EXPIRED_EVENT, onExpired)
   }, [])
 
+  /*
+   * 【水合前填的字要接住（首帧可见的配套，2026-10-01）】邮箱表单现在水合前就看得见、能输入（见下方 motion.div 的注释），
+   * iPhone 慢网下这段可能有 10~40 秒。这时打的字只在 DOM 里：React 水合不改输入框的值、也不补发 onChange，
+   * state 还是初始值——不接住的话点查询什么也不发生，而且每秒刷新时间的重渲染会把输入框改回去。
+   * 所以：挂载后 DOM 里的值和初始值不同就抄进 state（这时买家已经改过邮箱，不再拿地址栏里的旧邮箱自动查）；
+   * 水合完成前查询按钮禁用（服务端与水合那一轮都是禁用，不会不一致；回车隐式提交也一起挡住），
+   * 免得原生表单提交把页面刷新成 /lookup?、丢掉 ?email=。
+   */
+  const hydrated = useHydrated()
+  const emailInputRef = useRef<HTMLInputElement>(null)
+
   // URL 自带 email 参数（到期提醒邮件里的链接）时自动查询；需要验证时只展示验证码框，
   // 不自动发信——邮件网关的链接预取不能替用户触发一封验证码邮件
   useEffect(() => {
+    const typed = emailInputRef.current?.value
+    if (typed !== undefined && typed !== initialEmail) {
+      setEmail(typed)
+      return
+    }
     if (initialEmail) handleSearch(undefined, { autoSend: false })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -296,6 +313,7 @@ function LookupForm() {
               <div className="flex-1 flex items-center gap-3 px-4">
                 <Mail className="w-5 h-5 text-white/40" />
                 <input
+                  ref={emailInputRef}
                   type="email"
                   value={email}
                   onChange={(e) => {
@@ -311,7 +329,7 @@ function LookupForm() {
               </div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !hydrated}
                 className="px-6 py-3 lg:px-8 lg:py-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold flex items-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading ? (
