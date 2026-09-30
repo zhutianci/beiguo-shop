@@ -743,6 +743,7 @@ async function main() {
     {
       const t1 = textOf(await withRequest({ host: MAIN }, () => TermsPage())).join('')
       check('受众仅管理员：条款页没有接码五条（灰度期付款前弹窗与 /jiema/terms 自带全文）', !t1.includes(JIEMA_TERMS[3]))
+      check('受众仅管理员：条款页第五节也不提「包括短信接码」（2026-09-30 评审修复）', !t1.includes('包括短信接码'))
       await setCfg({ audience: 'ALL' })
       const t2 = textOf(await withRequest({ host: MAIN }, () => TermsPage())).join('')
       check('对全部用户开放：条款页第四节列出《短信接码服务条款》第一节五条', JIEMA_TERMS.every((x) => t2.includes(x)))

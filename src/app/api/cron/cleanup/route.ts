@@ -5,6 +5,7 @@ import { success, error } from '@/lib/api'
 import { assertCronAuth } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { KEEP_EVENT_TYPES } from '@/lib/jiema/consent'
+import { purgeExpiredConsentMeta } from '@/lib/jiema/consent-purge'
 
 /**
  * 流量数据的保留期清理。每天跑一次。
@@ -32,12 +33,15 @@ const VISITOR_INACTIVE_DAYS = 365
 const MKT_EVENT_RETENTION_DAYS = 90
 const MKT_MESSAGE_RETENTION_DAYS = 730
 // 短信接码（docs/短信接码-设计.md §10.4、§6.6 第 32 条）：短信的 code / text 30 天后清空（写 purgedAt，行与收码时间留着对账和售后用）、
-// 尝试的上游原文 raw 90 天后清空、事件流水 180 天后删除（**条款同意留痕 TERMS_AGREED 除外**：随订单记录保存，§8.6）；
+// 尝试的上游原文 raw 90 天后清空、事件流水 190 天后删除（**条款同意留痕 TERMS_AGREED 除外**：条款版本与同意时间随订单记录保存，
+// 其中的 IP 与浏览器标识自下单之日起 3 年后清成 null——lib/jiema/consent-purge.ts，§8.6）；
 // 订单与尝试的结构化字段长期保留；**余额流水与预扣永不清理**（资金凭证）。
-// 保留期要与 /privacy 对买家的说法一致（隐私政策那一页的改动在 S2b，与号码页一起上线；上线前先改那一页）
+// 保留期要与 /privacy 对买家的说法一致（隐私政策那一页的改动在 S2b，与号码页一起上线；上线前先改那一页）。
+// 事件流水 190 天：网络安全法（2025 修正）第二十三条第一款第（三）项要求网络日志留存「不少于六个月」，180 天总比六个自然月短
+// （最短的六个月区间也有 181 天），2026-09-30 评审修复改成 190 天（隐私政策同步）。
 const SMS_TEXT_RETENTION_DAYS = 30
 const SMS_RAW_RETENTION_DAYS = 90
-const SMS_EVENT_RETENTION_DAYS = 180
+const SMS_EVENT_RETENTION_DAYS = 190
 const BATCH = 5000
 const MAX_BATCHES = 20
 
@@ -155,7 +159,10 @@ export async function GET(request: NextRequest) {
       if (batch.length < BATCH) break
     }
 
-    return success({ pageViews, visitors, marketingEvents, marketingMessages, smsPurged, smsRawCleared, smsEvents, pvCutoff, visitorCutoff })
+    // 条款同意记录里到期（自下单之日起 3 年）的 IP 与浏览器标识清成 null，版本与同意时间留着（隐私政策四；lib/jiema/consent-purge.ts）
+    const consentMetaCleared = await purgeExpiredConsentMeta(now)
+
+    return success({ pageViews, visitors, marketingEvents, marketingMessages, smsPurged, smsRawCleared, smsEvents, consentMetaCleared, pvCutoff, visitorCutoff })
   } catch (err) {
     console.error('Cleanup cron error:', err)
     return error('清理失败')

@@ -5,7 +5,7 @@ import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
-import { JIEMA_TERMS, JIEMA_TERMS_PATH, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
+import { JIEMA_TERMS, JIEMA_TERMS_PATH, JIEMA_TERMS_STRONG, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
 import { readWalletConfig, topupOpenFor, canUseForJiema } from '@/lib/wallet/config'
 import { readSmsConfigCached } from '@/lib/jiema/config'
 import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
@@ -26,8 +26,10 @@ import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
  * 【2026-09-30 禁止用途与依法报告】第五节写明不得用于电信网络诈骗等违法犯罪、不得为他人实施违法犯罪提供帮助，以及平台依法报告、
  * 配合调查；短信接码另有完整的《短信接码服务条款》（/jiema/terms：用途限制、免责声明、法律条文摘录，docs/短信接码-设计.md §8.6），
  * 第四节的接码五条后面链过去（只在接码对全部用户开放时出现，同原来的口径）。
+ * 【2026-10-01 评审修复】第五节新增那条里点名接码的括号（号码与验证码）同样只在 showJiema 时出现（渠道站与灰度期的 /terms 不提接码）；
+ * 第四节接码五条里限制你权利的两条（JIEMA_TERMS_STRONG）加粗标色。日期与隐私政策同一天（2026-09-30 的草稿没有上线过）。
  */
-const UPDATED_AT = '2026-09-30'
+const UPDATED_AT = '2026-10-01'
 
 const TITLE = `服务条款 - ${SITE_NAME}`
 const DESCRIPTION =
@@ -162,8 +164,8 @@ export default async function TermsPage() {
               <strong className="text-white">{JIEMA_TERMS_TITLE}</strong>
             </p>
             <ul className="list-disc pl-6 space-y-2">
-              {JIEMA_TERMS.map((t) => (
-                <li key={t}>{t}</li>
+              {JIEMA_TERMS.map((t, i) => (
+                <li key={t}>{JIEMA_TERMS_STRONG.includes(i) ? <strong className="font-semibold text-amber-200">{t}</strong> : t}</li>
               ))}
             </ul>
             <p>
@@ -193,7 +195,7 @@ export default async function TermsPage() {
         <ul className="list-disc pl-6 space-y-2">
           <li>不得将所购服务用于任何违反中国法律法规或服务商使用条款的用途。</li>
           <li>
-            不得将所购服务（包括短信接码的号码与验证码）用于电信网络诈骗、赌博、洗钱、侵犯公民个人信息等违法犯罪活动，
+            不得将所购服务{showJiema && '（包括短信接码的号码与验证码）'}用于电信网络诈骗、赌博、洗钱、侵犯公民个人信息等违法犯罪活动，
             不得为他人实施上述活动提供任何支持或帮助，不得为他人规避实名核验提供帮助。
           </li>
           <li>不得用于批量爬取、自动化脚本滥用、转售倒卖或任何可能导致账号被风控的行为。</li>

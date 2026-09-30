@@ -66,6 +66,18 @@ export function JiemaSupportSection({ data, onContact }: { data: JiemaSupportDat
             <MessageCircle className="h-4 w-4" /> 联系客服
           </button>
         </div>
+        {/* 条款与举报入口（2026-09-30 评审修复：条款第五节承诺依法报告，站内要有受理举报的入口；处理步骤见 docs/短信接码-设计.md §10.1） */}
+        <p className="mt-4 text-xs leading-relaxed text-white/45">
+          使用规则见
+          <Link href="/jiema/terms" className="mx-0.5 text-cyan-300/90 hover:underline">
+            《短信接码服务条款》
+          </Link>
+          ；发现有人利用本服务从事电信网络诈骗等违法犯罪活动，
+          <Link href="/jiema/terms#report" className="mx-0.5 text-cyan-300/90 hover:underline">
+            点这里举报
+          </Link>
+          。
+        </p>
       </div>
 
       <h3 className="mb-4 mt-8 text-lg font-bold lg:text-xl">短信接码与余额 · 常见问题（{data.faqs.length} 条）</h3>

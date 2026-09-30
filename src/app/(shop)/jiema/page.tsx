@@ -152,7 +152,7 @@ export default async function JiemaPage() {
           <Link href="/support#jiema" className="text-cyan-300/90 hover:underline">
             联系客服
           </Link>
-          开票处理。本服务仅用于学习交流与测试，严禁用于违法犯罪、电信网络诈骗或冒用他人身份，详见
+          开票处理。本服务仅限用于学习交流、软件开发测试与本人合法注册验证等合法用途，严禁用于违法犯罪、电信网络诈骗或冒用他人身份，详见
           <Link href={JIEMA_TERMS_PATH} className="text-cyan-300/90 hover:underline">
             《{JIEMA_TERMS_TITLE}》
           </Link>

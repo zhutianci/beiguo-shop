@@ -395,7 +395,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
           <p className="flex items-start gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs leading-relaxed text-white/60">
             <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
             <span>
-              本服务仅用于学习交流与测试，严禁用于违法犯罪。付款前会弹出「下单须知与免责声明」，阅读并勾选同意
+              本服务仅限用于学习交流、软件开发测试与本人合法注册验证等合法用途，严禁用于违法犯罪。付款前会弹出「下单须知与免责声明」，阅读并勾选同意
               <a href={JIEMA_TERMS_PATH} target="_blank" rel="noopener" className="mx-0.5 text-cyan-300/90 hover:underline">
                 《{JIEMA_TERMS_TITLE}》
               </a>

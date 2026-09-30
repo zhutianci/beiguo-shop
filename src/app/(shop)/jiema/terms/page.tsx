@@ -4,8 +4,8 @@ import { LegalPage, LegalSection } from '@/components/legal-page'
 import { SITE_NAME } from '@/lib/product-seo'
 import { notFoundOnChannel, getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
-import { JIEMA_TERMS, JIEMA_TERMS_PATH, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
-import { JIEMA_DISCLAIMER, JIEMA_TERMS_SECTIONS, LEGAL_ARTICLES, LEGAL_NOTE, TERMS_MISC, articleLabel } from '@/lib/terms/jiema-legal'
+import { JIEMA_TERMS, JIEMA_TERMS_PATH, JIEMA_TERMS_STRONG, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
+import { JIEMA_DISCLAIMER, JIEMA_TERMS_SECTIONS, LEGAL_ARTICLES, LEGAL_NOTE, STRONG_NOTE, TERMS_MISC, articleLabel, isStrong, itemText, type TermsItem } from '@/lib/terms/jiema-legal'
 import { readWalletConfig, canUseForJiema } from '@/lib/wallet/config'
 
 export const dynamic = 'force-dynamic'
@@ -19,9 +19,14 @@ export const dynamic = 'force-dynamic'
  * 【收录】robots 继承 /jiema 页面组 layout（只在对全部用户开放时允许收录）；canonical 是自己。
  * 灰度期（仅管理员）也能打开：管理员真钱验收时弹窗里的链接要能点开；页面只陈述条款，不宣称服务已开放。
  * 附《余额与充值规则》：第 2 条（余额付接码、预扣）随 canUseForJiema 出现（与条款页第四节同一口径；配置读不到按不显示）。
+ * 【醒目提示】（2026-09-30 评审修复）免除或者减轻平台责任、加重你的责任、限制你的权利的条款加粗标色（TermsItem.strong、JIEMA_TERMS_STRONG），
+ * 开头写明「加粗标色的条款…请你重点阅读」——只靠勾选、弹窗不算履行提示义务（《合同编通则解释》第十条第三款）。
+ * 【举报入口】「举报违法使用」一节（#report）：条款第五节承诺依法报告，站内得有受理举报的入口（法释〔2019〕15号第十一条第（二）项
+ * 把「接到举报后不履行法定管理职责」列为可以认定明知的情形）；受理与移送步骤见 docs/短信接码-设计.md §10.1。这一节是联系方式与指引，
+ * 不是条款正文，不进 JIEMA_TERMS_VERSION 的指纹（客服微信随店面配置）。
  */
 const TITLE = `${JIEMA_TERMS_TITLE} - ${SITE_NAME}`
-const DESCRIPTION = '贝果科技短信接码服务条款：服务与退款规则、用途限制、仅供学习交流与测试、使用后果自负、平台的处置与记录留存、责任限制，以及相关法律条文摘录。'
+const DESCRIPTION = '贝果科技短信接码服务条款：服务与退款规则、用途限制、服务性质与合法用途、使用行为与责任承担、平台的处置与记录留存、责任限制、相关法律条文摘录，以及举报违法使用的方式。'
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -55,6 +60,7 @@ export default async function JiemaTermsPage() {
             的组成部分。<strong className="text-white">每一单付款前都会弹出「下单须知与免责声明」，勾选同意后才能下单；下单即表示你已阅读并同意本条款。</strong>
             当前版本：{JIEMA_TERMS_VERSION}。
           </p>
+          <p className="font-semibold text-amber-200">{STRONG_NOTE}</p>
           <div className="rounded-xl border border-rose-400/30 bg-rose-500/[0.06] p-4">
             <p className="mb-2 font-semibold text-rose-200">免责声明（要点）</p>
             <ol className="list-decimal space-y-1.5 pl-6 text-white/80">
@@ -68,8 +74,8 @@ export default async function JiemaTermsPage() {
     >
       <LegalSection heading="一、服务与退款">
         <ol className="list-decimal space-y-2 pl-6">
-          {JIEMA_TERMS.map((t) => (
-            <li key={t}>{t}</li>
+          {JIEMA_TERMS.map((t, i) => (
+            <li key={t}>{JIEMA_TERMS_STRONG.includes(i) ? <Strong>{t}</Strong> : t}</li>
           ))}
         </ol>
       </LegalSection>
@@ -78,9 +84,7 @@ export default async function JiemaTermsPage() {
         <LegalSection key={s.id} heading={s.heading}>
           {s.lead && <p>{s.lead}</p>}
           <ul className="space-y-2">
-            {s.items.map((t) => (
-              <li key={t}>{t}</li>
-            ))}
+            {s.items.map((t) => termsItem(t))}
           </ul>
         </LegalSection>
       ))}
@@ -120,9 +124,7 @@ export default async function JiemaTermsPage() {
 
       <LegalSection heading="八、其他">
         <ul className="space-y-2">
-          {TERMS_MISC.map((t) => (
-            <li key={t}>{t}</li>
-          ))}
+          {TERMS_MISC.map((t) => termsItem(t))}
         </ul>
         <p>
           关于个人信息的处理与各类记录的保存期限，另见
@@ -132,6 +134,23 @@ export default async function JiemaTermsPage() {
           。
         </p>
       </LegalSection>
+
+      <section id="report" className="scroll-mt-32 space-y-3">
+        <h2 className="pt-4 text-xl font-semibold text-white lg:text-2xl">举报违法使用</h2>
+        <p>
+          发现有人利用本服务从事电信网络诈骗等违法犯罪活动的，请通过
+          <Link href="/support" className="mx-0.5 text-purple-400 hover:text-purple-300">
+            客服中心
+          </Link>
+          {contact.wechat ? (
+            <>
+              或客服微信 <span className="font-mono text-white/80">{contact.wechat}</span>
+            </>
+          ) : null}
+          向我们举报，写明涉及的号码、收到短信或者被骗的时间与经过（知道订单号的一并提供）。我们会核查每一条举报并留存记录，确有违法违约的按第五节处置，并依法向公安机关报告。
+        </p>
+        <p>如果你已经被骗，请立即拨打 110 报警。</p>
+      </section>
 
       <LegalSection heading={`附：《${WALLET_TERMS_TITLE}》（版本 ${WALLET_TERMS_VERSION}）`}>
         <p className="text-white/55">没有收到短信的订单，支付宝付的部分同样退入充值余额，所以不论用哪种付款方式下单，都需要同意这份规则。</p>
@@ -143,4 +162,14 @@ export default async function JiemaTermsPage() {
       </LegalSection>
     </LegalPage>
   )
+}
+
+/** 加粗标色：免除或者减轻平台责任、加重你的责任、限制你的权利的条款（与付款前弹窗同一口径） */
+function Strong({ children }: { children: React.ReactNode }) {
+  return <strong className="font-semibold text-amber-200">{children}</strong>
+}
+
+/** 一条条款（普通函数而不是组件：服务端渲染的文字直接落在元素树里，itest 的 textOf 能收集到） */
+function termsItem(it: TermsItem) {
+  return <li key={itemText(it)}>{isStrong(it) ? <Strong>{itemText(it)}</Strong> : itemText(it)}</li>
 }

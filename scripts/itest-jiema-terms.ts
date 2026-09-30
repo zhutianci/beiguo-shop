@@ -14,8 +14,10 @@
  *     组合 / 支付宝单再走一次「重新发起支付」（pay/vmq/create）：复用收银台、不新建订单、留痕仍只有一条；
  *   · 类型不对（agree: "yes"）→ 400；直接调下单函数不带 consent → 照样留一条（ip / ua 为 null）；
  *   · 后台详情 jiemaOrderDetailAdmin 带 consent（时间、IP、UA、版本）；没有留痕的旧单 consent = null；
- *   · 清理口径：180 天前的 TERMS_AGREED 不在 cleanup 的删除范围，其余事件照删（与 api/cron/cleanup 同一个 where）；
- *   · /jiema/terms 条款页：免责声明、五条、各节与全部法条原文都渲染出来；渠道 Host 404；/terms 在对全部用户开放时链到 /jiema/terms。
+ *   · 清理口径：保存期（cleanup 的 SMS_EVENT_RETENTION_DAYS，190 天）前的 TERMS_AGREED 不在删除范围，其余事件照删（与 api/cron/cleanup 同一个 where）；
+ *     到期（3 年）的同意记录清掉 IP 与浏览器标识、版本留着，没到期的不动（lib/jiema/consent-purge，cleanup 调它）；
+ *   · /jiema/terms 条款页：免责声明、五条、各节（含加粗条款）与全部法条原文都渲染出来，没有两高解释 / 意见，有举报入口；渠道 Host 404；
+ *     /terms 在对全部用户开放时链到 /jiema/terms；灰度期与渠道站的 /terms 第五节不提「短信接码」。
  */
 import http from 'http'
 import crypto from 'crypto'
@@ -110,13 +112,14 @@ async function main() {
   const order = await import('../src/lib/jiema/order')
   const adminOrders = await import('../src/lib/jiema/admin-orders')
   const consent = await import('../src/lib/jiema/consent')
+  const consentPurge = await import('../src/lib/jiema/consent-purge')
   const ledger = await import('../src/lib/wallet/ledger')
   const walletCfg = await import('../src/lib/wallet/config')
   const { rateClear } = await import('../src/lib/news/rate-limit')
   const { centsOf } = await import('../src/lib/wallet/buckets')
   const { FACTORY_SMS_CONFIG } = await import('../src/lib/jiema-config-schema')
   const { JIEMA_TERMS, JIEMA_TERMS_PATH, JIEMA_TERMS_VERSION, WALLET_TERMS_VERSION } = await import('../src/lib/terms/jiema-wallet')
-  const { JIEMA_DISCLAIMER, JIEMA_TERMS_SECTIONS, LEGAL_ARTICLES } = await import('../src/lib/terms/jiema-legal')
+  const { JIEMA_DISCLAIMER, JIEMA_TERMS_SECTIONS, LEGAL_ARTICLES, STRONG_NOTE, TERMS_MISC, itemText } = await import('../src/lib/terms/jiema-legal')
   const routeOrders = (await import('../src/app/api/jiema/orders/route')) as unknown as { POST: RouteFn }
   const routePay = (await import('../src/app/api/pay/vmq/create/route')) as unknown as { POST: RouteFn }
   const JiemaTermsPage = (await import('../src/app/(shop)/jiema/terms/page')).default as () => Promise<unknown>
@@ -331,32 +334,71 @@ async function main() {
     }
 
     // =====================================================================================
-    section('清理口径：180 天前的事件照删，TERMS_AGREED 不删（与 api/cron/cleanup 同一个 where）')
+    const cleanupSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'api', 'cron', 'cleanup', 'route.ts'), 'utf8')
+    const EVENT_DAYS = Number(/const SMS_EVENT_RETENTION_DAYS = (\d+)/.exec(cleanupSrc)?.[1])
+    section(`清理口径：${EVENT_DAYS} 天前的事件照删，TERMS_AGREED 不删（与 api/cron/cleanup 同一个 where）`)
     {
+      check(`接码事件保存 ${EVENT_DAYS} 天，不少于六个月（≥ 184）`, EVENT_DAYS >= 184)
       const so = await prisma.smsOrder.findUniqueOrThrow({ where: { orderId: placed[0].orderId } })
-      const old = new Date(Date.now() - 200 * 86400_000)
-      const cutoff = new Date(Date.now() - 180 * 86400_000)
+      const old = new Date(Date.now() - (EVENT_DAYS + 20) * 86400_000)
+      const cutoff = new Date(Date.now() - EVENT_DAYS * 86400_000)
       const a = await prisma.smsEvent.create({ data: { smsOrderId: so.id, type: consent.TERMS_AGREED_EVENT, actor: 'BUYER', detail: '{"terms":"x"}', createdAt: old } })
       const b = await prisma.smsEvent.create({ data: { smsOrderId: so.id, type: 'STATE', actor: 'SYSTEM', detail: null, createdAt: old } })
-      const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'api', 'cron', 'cleanup', 'route.ts'), 'utf8')
-      check('cleanup 路由的接码事件删除条件排除 KEEP_EVENT_TYPES', /smsEvent\.findMany\(\{ where: \{ createdAt: \{ lt: smsEventCutoff \}, type: \{ notIn: \[\.\.\.KEEP_EVENT_TYPES\] \} \}/.test(src))
+      check('cleanup 路由的接码事件删除条件排除 KEEP_EVENT_TYPES', /smsEvent\.findMany\(\{ where: \{ createdAt: \{ lt: smsEventCutoff \}, type: \{ notIn: \[\.\.\.KEEP_EVENT_TYPES\] \} \}/.test(cleanupSrc))
       const hit = await prisma.smsEvent.findMany({ where: { smsOrderId: so.id, createdAt: { lt: cutoff }, type: { notIn: [...consent.KEEP_EVENT_TYPES] } }, select: { id: true } })
       check('同一个 where：只命中 STATE，不命中 TERMS_AGREED', hit.length === 1 && hit[0].id === b.id && !hit.some((h) => h.id === a.id))
       await prisma.smsEvent.deleteMany({ where: { id: { in: [a.id, b.id] } } })
     }
 
     // =====================================================================================
-    section('条款页：/jiema/terms 渲染全文与全部法条；渠道 Host 404；/terms 对全部用户开放时链到 /jiema/terms')
+    section('同意记录的 IP 与浏览器标识：自下单之日起 3 年后清除（版本与同意时间留着），没到期的不动')
+    {
+      const so = await prisma.smsOrder.findUniqueOrThrow({ where: { orderId: placed[0].orderId } })
+      const DAY = 86400_000
+      const mk = (daysAgo: number) =>
+        prisma.smsEvent.create({
+          data: {
+            smsOrderId: so.id,
+            type: consent.TERMS_AGREED_EVENT,
+            actor: 'BUYER',
+            detail: JSON.stringify(consent.consentDetail({ terms: '2026-10-01', walletTerms: '2026-09-29' }, { ip: '198.51.100.9', ua: 'itest-ua' })),
+            createdAt: new Date(Date.now() - daysAgo * DAY),
+          },
+        })
+      const expired = await mk(consent.CONSENT_META_RETENTION_DAYS + 5)
+      const fresh = await mk(consent.CONSENT_META_RETENTION_DAYS - 5)
+      check('cleanup 路由调了 purgeExpiredConsentMeta', cleanupSrc.includes('await purgeExpiredConsentMeta(now)'))
+      const n = await consentPurge.purgeExpiredConsentMeta()
+      const e1 = consent.parseConsentDetail((await prisma.smsEvent.findUniqueOrThrow({ where: { id: expired.id } })).detail)
+      const f1 = consent.parseConsentDetail((await prisma.smsEvent.findUniqueOrThrow({ where: { id: fresh.id } })).detail)
+      check(`到期的一条：IP / UA 清成 null，版本留着（本次清了 ${n} 行）`, n >= 1 && !!e1 && e1.ip === null && e1.ua === null && e1.terms === '2026-10-01' && e1.walletTerms === '2026-09-29')
+      check('没到期的一条：IP / UA 原样', !!f1 && f1.ip === '198.51.100.9' && f1.ua === 'itest-ua')
+      check('本测试刚下的单（今天）：IP 原样', consent.parseConsentDetail((await eventsOf(placed[0].orderId))[0]?.detail)?.ip === IP)
+      const again = await consentPurge.purgeExpiredConsentMeta()
+      check('再跑一次：没有可清的（清过的行不会被反复圈到）', again === 0, String(again))
+      await prisma.smsEvent.deleteMany({ where: { id: { in: [expired.id, fresh.id] } } })
+    }
+
+    // =====================================================================================
+    section('条款页：/jiema/terms 渲染全文、加粗条款、全部法条与举报入口；渠道 Host 404；/terms 对全部用户开放时链到 /jiema/terms，灰度期与渠道站不提接码')
     {
       const txt = textOf(await withRequest({ host: MAIN }, () => JiemaTermsPage())).join('')
       check('免责声明要点全部出现', JIEMA_DISCLAIMER.every((x) => txt.includes(x)))
       check('第一节五条全部出现', JIEMA_TERMS.every((x) => txt.includes(x)))
-      check('第二到六节每一条都出现', JIEMA_TERMS_SECTIONS.every((s) => txt.includes(s.heading) && s.items.every((x) => txt.includes(x))))
+      check('第二到六节每一条都出现（含加粗标色的条）', JIEMA_TERMS_SECTIONS.every((s) => txt.includes(s.heading) && s.items.every((x) => txt.includes(itemText(x)))))
+      check('第八节每一条都出现（含管辖）', TERMS_MISC.every((x) => txt.includes(itemText(x))))
+      check('开头提示「加粗标色的条款…请你重点阅读」', txt.includes(STRONG_NOTE))
+      check('不对买家展示两高解释 / 意见（法释〔2019〕15号、法发〔2025〕12号）', !/法释〔2019〕15号|法发〔2025〕12号/.test(txt))
+      check('有「举报违法使用」一节（客服中心 / 客服微信，已被骗的拨打 110）', txt.includes('举报违法使用') && txt.includes('110') && txt.includes('GenuineMarxist'))
       check(`${LEGAL_ARTICLES.length} 条法条的原文、条号、版本（现行状态）、来源与现行文本链接都出现`, LEGAL_ARTICLES.every((a) => a.text.every((x) => txt.includes(x)) && txt.includes(a.article) && txt.includes(a.version) && txt.includes(a.source.name) && (!a.current || txt.includes(a.current.name))))
       check('写明版本号', txt.includes(JIEMA_TERMS_VERSION))
       const lulu = await createTenant('l')
       const ch = await withRequest({ host: lulu.host }, () => catchNext(() => JiemaTermsPage()))
       check('渠道 Host：/jiema/terms 404', ch.kind === 'notFound', ch.kind)
+      const grey = textOf(await withRequest({ host: MAIN }, () => TermsPage())).join('')
+      check('灰度期（仅管理员）：/terms 第五节不提「短信接码」', grey.includes('不得将所购服务用于电信网络诈骗') && !grey.includes('包括短信接码'))
+      const chTerms = textOf(await withRequest({ host: lulu.host }, () => TermsPage())).join('')
+      check('渠道 Host：/terms 第五节不提「短信接码」', chTerms.includes('不得将所购服务用于电信网络诈骗') && !chTerms.includes('短信接码'))
       await setCfg({ audience: 'ALL' })
       const termsEl = await withRequest({ host: MAIN }, () => TermsPage())
       const hrefs: string[] = []
@@ -370,6 +412,7 @@ async function main() {
       }
       walk(termsEl)
       check('对全部用户开放：/terms 第四、五节链到 /jiema/terms', hrefs.filter((h) => h === JIEMA_TERMS_PATH).length >= 2, JSON.stringify(hrefs))
+      check('对全部用户开放：/terms 第五节写「包括短信接码的号码与验证码」', textOf(termsEl).join('').includes('不得将所购服务（包括短信接码的号码与验证码）用于电信网络诈骗'))
       await setCfg()
     }
   } finally {
