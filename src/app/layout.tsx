@@ -35,6 +35,14 @@ const SITE_NAME = '贝果科技'
 const TITLE = '贝果科技 BigoLab - AI 订阅充值与 AI 行业动态'
 const DESCRIPTION =
   '贝果科技（bigolab.com）提供 ChatGPT、Claude 等 AI 订阅充值：卡密自助兑换，支付宝付款，无需境外信用卡；另有 AI 圈大事记，按事件整理 AI 行业动态并附原文出处。'
+/*
+ * 【渠道站的兜底文案单独一份】上面两句写了主站域名和大事记，而渠道 Host 上大事记（features.news）是关的（/news 404），
+ * 域名也不是这家店的地址。渠道站上没写 openGraph 的页面（privatePageMetadata 只给 title / description 的登录、订单、钱包等页，
+ * 以及 404）会把兜底的 og:title / og:description / twitter 带进分享卡片——所以渠道分支只写品牌和充值：不写域名、不提大事记、
+ * 不写短信接码（渠道站也关着）。渠道站整站 noindex，这里只影响分享卡片（A 包评审修复，itest-tenant/wp1 W1-5 有断言）。
+ */
+const CHANNEL_TITLE = '贝果科技 BigoLab - AI 订阅充值'
+const CHANNEL_DESCRIPTION = '贝果科技提供 ChatGPT、Claude 等 AI 订阅充值：卡密自助兑换，支付宝付款，无需境外信用卡。'
 
 /**
  * 站点级 metadata。子页面（如 /news/[slug] 的 generateMetadata）只需要覆盖
@@ -79,7 +87,8 @@ const ICON_VERSION = 3
  * 主站的站点级 metadata：与改造前的模块级常量逐字段相同（主站 origin 就是 siteOrigin()）。
  * 渠道站在它的基础上只改三处（设计 4.8）：metadataBase 换成渠道 origin（子页面相对的 canonical / og:url
  * 随之落到渠道域名）、robots 改为 noindex + follow（子页面继承；全仓没有页面显式写 index:true）、
- * 不输出站长平台验证 meta（那是主站域名的归属证明）。统一品牌下站名、描述、分享图不变。
+ * 不输出站长平台验证 meta（那是主站域名的归属证明）。统一品牌下站名、分享图不变。
+ * 2026-09-30 起兜底 title / description（含 og、twitter）另用渠道版（CHANNEL_TITLE / CHANNEL_DESCRIPTION，理由见其注释）。
  */
 function siteMetadata(origin: string, isPlatform: boolean): Metadata {
   const base: Metadata = {
@@ -170,7 +179,14 @@ function siteMetadata(origin: string, isPlatform: boolean): Metadata {
   }
   if (isPlatform) return base
   const { verification: _verification, ...rest } = base
-  return { ...rest, robots: { index: false, follow: true } }
+  return {
+    ...rest,
+    title: CHANNEL_TITLE,
+    description: CHANNEL_DESCRIPTION,
+    openGraph: { ...base.openGraph, title: CHANNEL_TITLE, description: CHANNEL_DESCRIPTION },
+    twitter: { ...base.twitter, title: CHANNEL_TITLE, description: CHANNEL_DESCRIPTION },
+    robots: { index: false, follow: true },
+  }
 }
 
 /**

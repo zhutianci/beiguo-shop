@@ -1,3 +1,4 @@
+import { cache } from 'react'
 import { getStorefront, type Storefront } from '@/lib/storefront/resolve'
 import { storefrontFeatures, type StorefrontFeatures } from '@/lib/storefront/public'
 import { readSmsConfigCached } from '@/lib/jiema/config'
@@ -23,7 +24,12 @@ export type AboutContext = {
   jiemaBalancePay: boolean
 }
 
-export async function aboutContext(): Promise<AboutContext> {
+/**
+ * 【React cache】layout 的 generateMetadata 与 page 各要一份；接码开放时 canUseForJiema 每次都查库
+ * （wallet_config 与 sms_config 两行，不走进程缓存），不去重的话每个 /about 请求多出一倍的查询。
+ * cache 让同一次请求内只算一次（同 lib/landing/products.ts 的写法）。
+ */
+export const aboutContext = cache(async (): Promise<AboutContext> => {
   // 店面解析不进 try（设计 4.4 第 7 条：靠异常转动态，吞掉会按主站结果预渲染）
   const sf = await getStorefront()
   const isPlatform = !!sf && sf.kind === 'PLATFORM'
@@ -36,7 +42,7 @@ export async function aboutContext(): Promise<AboutContext> {
     if (jiemaOpen) jiemaBalancePay = await canUseForJiema()
   }
   return { sf, isPlatform, features, jiemaOpen, jiemaBalancePay }
-}
+})
 
 /** 开票口径：「标价不含税，开票另付 6%」。6% 取 lib/invoice.ts 的 TAX_RATE，不在文案里再写死一份 */
 export const INVOICE_TAX_TEXT = `标价不含税，开票另付 ${Math.round(TAX_RATE * 100)}%`

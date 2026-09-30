@@ -10,7 +10,7 @@
  *         主站注册：registeredTenantId=1、无客户关系行、token aud=main、留痕 source=register
  *   W1-4  渠道 Host 请求关闭模块的全部 API（38 个 route、全部方法；含 D3 补的 bindings/send-code、bindings/verify）→ 404 JSON；主站同样请求不被拦；
  *         关闭模块的 16 个页面 layout 在渠道 Host notFound、主站照常
- *   W1-5  根布局 generateMetadata：渠道 noindex+follow、metadataBase=渠道 origin、无站长验证；主站与基线（git HEAD 的常量）逐字相同
+ *   W1-5  根布局 generateMetadata：渠道 noindex+follow、metadataBase=渠道 origin、无站长验证、兜底文案不含主站域名与大事记；主站与基线（git HEAD 的常量）逐字相同
  *   W1-6  robots：主站与基线（git HEAD 的 robots.ts）逐字相同；渠道对 AI 爬虫整站 Disallow、其他 UA 不写 Disallow: /、无 sitemap 行；
  *         sitemap：渠道 []、主站与基线逐字相同
  *   W1-8  营销受众：lulu 注册且无主站已付单的用户不在受众（ALL / SEGMENT / USERS / 粘贴解析）；在主站付一单后进入；
@@ -477,6 +477,12 @@ async function testMetadataRobots(w: World) {
   check('渠道：metadataBase = 渠道 origin', String(ch.metadataBase) === `${w.lulu.origin}/`, String(ch.metadataBase))
   check('渠道：不输出站长平台验证', !('verification' in ch))
   check('渠道：站名 / 标题与主站相同（统一品牌）', ch.applicationName === '贝果科技' && typeof ch.title === 'string')
+  // SEO 重构 A 包评审修复：兜底文案会被渠道站上没写 og 的页面（登录、订单、404 等）带进分享卡片，渠道版不写主站域名、不提大事记（渠道 /news 是 404）
+  {
+    const texts = [ch.title, ch.description, ch.openGraph?.title, ch.openGraph?.description, ch.twitter?.title, ch.twitter?.description].map((x) => String(x ?? ''))
+    const leak = texts.filter((t) => /bigolab\.com|大事记/.test(t))
+    check('渠道：兜底 title / description / og / twitter 都有值，且不含「bigolab.com」「大事记」', leak.length === 0 && texts.every(Boolean), leak.join('；') || texts.join(' | '))
+  }
   const mainMeta = await withRequest({ host: MAIN_HOST }, () => layout.generateMetadata())
   check('主站：metadataBase = siteOrigin()', String(mainMeta.metadataBase) === new URL(siteOrigin()).toString())
   check('主站：robots index:true', mainMeta.robots?.index === true && mainMeta.robots?.googleBot?.index === true)

@@ -8,6 +8,9 @@ import { pageOg } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
 import { jiemaSupportData } from '@/lib/jiema/support-zone'
+import { storefrontFeatures } from '@/lib/storefront/public'
+import { readSmsConfigCached } from '@/lib/jiema/config'
+import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
 import { JiemaSupportProvider } from './jiema-zone'
 import { brandMetadata } from '@/lib/storefront/brand-meta'
 
@@ -27,20 +30,32 @@ import { brandMetadata } from '@/lib/storefront/brand-meta'
  * 经 JiemaSupportProvider 交给页面渲染 #jiema 分区；**只有对全部用户开放（mode=OPEN）时** 13 条接码问答才并进 FAQPage 结构化数据
  * （管理员预览时普通访客看不到这些问答，不能标记）。渠道站与灰度期普通访客：数据为 null，页面与结构化数据都与改造前逐字相同。
  */
-const TITLE = `常见问题与售后支持 - ChatGPT / Claude 充值答疑 - ${SITE_NAME}`
+/*
+ * 【title 按接码开放状态出两版（docs/SEO-重构/SEO-重构设计.md §3.2-J；§8.2 没分给任何包，A 包评审后按默认认领）】
+ * 设计原文是「常见问题与售后：充值、短信接码、退款与开票 - 贝果科技」（灰度期去掉「短信接码」）。这里**去掉了「开票」**：
+ * §3.4 / §9.2-3「写到开票必带 6%」对 title 同样生效（check-seo-copy 的 invoice-6pct 逐字段查），title 里放不下完整口径；
+ * 开票的完整问答只在 /chongzhi（§3.1），「发票」一簇的搜索需求以台湾电子发票为主、大陆需求未证实（§2.2），去掉它不损失主词。
+ * 「短信接码」只在主站、对全部用户开放（jiemaPublicOpen）时进 title：灰度期与渠道站不能在可收录的页面上宣传未开放的业务（D28）。
+ * 读不到接码配置按关（fail-closed）：title 退回不带接码的一版，不让 /support 因为接码配置坏了而 500。
+ */
+const TITLE = `常见问题与售后：充值与退款 - ${SITE_NAME}`
+const TITLE_JIEMA = `常见问题与售后：充值、短信接码与退款 - ${SITE_NAME}`
 const DESCRIPTION =
   'ChatGPT、Claude 充值与订阅的常见问题：订单查不到怎么办、掉订阅如何退款、账号被封怎么处理、如何续费与换套餐，以及首次登录的分步指引。'
 
-const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: '/support' },
-  ...pageOg({ title: TITLE, description: DESCRIPTION, path: '/support' }),
-}
-
-/** 渠道改了站名时把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */
+/** 渠道改了站名时 brandMetadata 把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */
 export async function generateMetadata(): Promise<Metadata> {
-  return brandMetadata(metadata)
+  // 店面解析不进 try（设计 4.4 第 7 条）
+  const sf = await getStorefront()
+  const jiemaOpen =
+    !!sf && sf.kind === 'PLATFORM' && storefrontFeatures(sf).jiema && jiemaPublicOpen(await readSmsConfigCached().catch(() => null))
+  const title = jiemaOpen ? TITLE_JIEMA : TITLE
+  return brandMetadata({
+    title,
+    description: DESCRIPTION,
+    alternates: { canonical: '/support' },
+    ...pageOg({ title, description: DESCRIPTION, path: '/support' }),
+  })
 }
 
 export default async function SupportLayout({ children }: { children: React.ReactNode }) {

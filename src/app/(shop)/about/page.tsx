@@ -11,7 +11,10 @@ import { INVOICE_TAX_TEXT, aboutBusinesses, aboutContext } from './about-context
  * 买家点开关于页是来核验「这家靠不靠谱」的，每一句都要能对照服务条款、商品页或代码核实：
  *  · 删掉「让每一位用户便捷地享受全球顶尖的 AI 服务」一类使命愿景：「顶尖」是最高级用语（§3.4），也核验不了；
  *  · 删掉「账号不经手」「账号始终在你自己手里」「全程不用交出账号」：iOS 订阅档（ChatGPT Plus、Grok）兑换时要提供一段登录凭据，
- *    这几句对它们不成立（chongzhi/chatgpt-plus、grok-super 页的问答）；改成如实说明哪些档位要什么；
+ *    这几句对它们不成立（chongzhi/chatgpt-plus、grok-super 页的问答）；改成如实说明哪些档位要什么。
+ *    **不给 iOS 档下统一结论**：Claude Pro 同样走 iOS 订阅充值，却是「无需上号」（chongzhi/claude-pro 页的问答），要逐档写；
+ *  · 不写「本站的兑换页」：卡密批次可以配成「不走站内兑换（跳转外链）」，商品也可以带 cardRedeemUrl 默认外链，和落地页一样只写「兑换页」；
+ *  · 正文里的中文长句写在一行：JSX 把跨行的两段文字折成一个空格，渲染出来是「充值； iOS」这种标点后多空格；
  *  · 开票写完整口径「标价不含税，开票另付 6%」（6% 取 lib/invoice.ts 的 TAX_RATE）；接码单写 D37 原文「暂不支持开票，可联系客服开票处理」。
  *  · 退款口径逐字对照 /terms 第四节与 lib/terms/jiema-wallet.ts（接码条款正文一个字不改，这里只做摘要并链过去）。
  *
@@ -33,7 +36,8 @@ export default async function AboutPage() {
   const facts = [
     { value: '持照经营', label: '益阳市赫山区必高科技有限公司' },
     { value: '支付宝', label: '人民币付款，无需境外信用卡' },
-    { value: '可开票', label: `增值税发票，${INVOICE_TAX_TEXT}` },
+    // 限定到「AI 会员充值」：余额充值与短信接码订单暂不支持开票（D37），这一格不能读成全站都能开
+    { value: '可开票', label: `AI 会员充值可开增值税发票，${INVOICE_TAX_TEXT}` },
     { value: '规则公开', label: '质保与退款口径写在服务条款里' },
   ]
 
@@ -56,8 +60,7 @@ export default async function AboutPage() {
             <span className="gradient-text">关于贝果科技 BigoLab</span>
           </h1>
           <p className="text-white/60 text-base md:text-lg lg:text-xl leading-relaxed lg:leading-[1.8]">
-            贝果科技（bigolab.com）由益阳市赫山区必高科技有限公司运营，提供 {businesses.join('、')}。
-            下面把经营主体、怎么付款和开票、出了问题怎么处理写清楚，每一条都能对照服务条款核实。
+            贝果科技（bigolab.com）由益阳市赫山区必高科技有限公司运营，提供 {businesses.join('、')}。下面把经营主体、怎么付款和开票、出了问题怎么处理写清楚，每一条都能对照服务条款核实。
           </p>
         </div>
 
@@ -80,8 +83,7 @@ export default async function AboutPage() {
             <div className="grid gap-4 md:gap-5">
               <BizCard icon={<Ticket className="w-5 h-5" />} title="AI 会员充值">
                 <p>
-                  ChatGPT Plus / Pro、Claude Pro / Max、SuperGrok 等订阅的充值。多数档位付款后自动发放卡密，你在本站的兑换页自己提交充值；
-                  iOS 订阅档兑换时需要按商品说明提供一段登录凭据，用途仅限执行这一笔充值。少数需要人工办理的服务，交付方式以各商品页为准。
+                  ChatGPT Plus / Pro、Claude Pro / Max、SuperGrok 等订阅的充值。多数档位付款后自动发放卡密，你在兑换页自己提交充值。部分档位兑换时需要按商品说明提供一段登录凭据，用途仅限执行这一笔充值，例如 ChatGPT Plus、SuperGrok 的 iOS 订阅档；Claude Pro 的 iOS 订阅档无需上号。少数需要人工办理的服务，交付方式以各商品页为准。
                 </p>
                 <p className="mt-3">
                   {showLanding ? (
@@ -115,8 +117,7 @@ export default async function AboutPage() {
               {jiemaOpen && (
                 <BizCard icon={<Smartphone className="w-5 h-5" />} title="短信接码">
                   <p>
-                    选服务、选国家/地区，用海外手机号在线接收短信验证码，按服务和国家/地区实时报价；号码能否通过验证由对应平台决定。
-                    没有收到短信的订单整单退回站内余额。仅限本人账号的合法验证，完整规则见
+                    选服务、选国家/地区，用海外手机号在线接收短信验证码，按服务和国家/地区实时报价；号码能否通过验证由对应平台决定。没有收到短信的订单整单退回站内余额。仅限本人账号的合法验证，完整规则见
                     <Link href={JIEMA_TERMS_PATH} className="text-purple-300 hover:text-purple-200 underline-offset-4 hover:underline">
                       《{JIEMA_TERMS_TITLE}》
                     </Link>
@@ -135,8 +136,7 @@ export default async function AboutPage() {
               {showNews && (
                 <BizCard icon={<Newspaper className="w-5 h-5" />} title="AI 圈大事记">
                   <p>
-                    按事件聚合 AI 行业动态：模型发布、产品更新、论文与开源工具。内容由 AI 依据公开信源自动整理摘要，每条附原文链接，请以原文为准。
-                    其中本站商品的入口单独标注「广告 · 本站服务」。
+                    按事件聚合 AI 行业动态：模型发布、产品更新、论文与开源工具。内容由 AI 依据公开信源自动整理摘要，每条附原文链接，请以原文为准。其中本站商品的入口单独标注「广告 · 本站服务」。
                   </p>
                   <p className="mt-3">
                     入口：
@@ -160,8 +160,7 @@ export default async function AboutPage() {
                 <ShieldAlert className="mt-1 w-5 h-5 shrink-0 text-amber-300/80" />
                 <span>
                   <strong className="text-white/90">不是官方渠道。</strong>
-                  我们不是 OpenAI、Anthropic、xAI 或任何其他 AI 服务商的官方代理、经销商或合作伙伴，与它们没有授权关系；
-                  各产品名称与商标归其各自权利人所有。
+                  我们不是 OpenAI、Anthropic、xAI 或任何其他 AI 服务商的官方代理、经销商或合作伙伴，与它们没有授权关系；各产品名称与商标归其各自权利人所有。
                 </span>
               </li>
               <li className="flex gap-3">
@@ -189,8 +188,7 @@ export default async function AboutPage() {
             <div className="glass rounded-2xl p-6 lg:p-8 flex gap-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
               <Award className="mt-1 w-6 h-6 shrink-0 text-purple-300" />
               <p>
-                本站由<strong className="text-white/90">益阳市赫山区必高科技有限公司</strong>运营，持营业执照经营。
-                增值税发票由这家公司开具，发票上的销售方与经营主体一致。
+                本站由<strong className="text-white/90">益阳市赫山区必高科技有限公司</strong>运营，持营业执照经营。增值税发票由这家公司开具，发票上的销售方与经营主体一致。
               </p>
             </div>
           </section>
@@ -214,7 +212,8 @@ export default async function AboutPage() {
                 <span>
                   <strong className="text-white/90">开票：</strong>
                   AI 会员充值可开增值税发票，{INVOICE_TAX_TEXT}；只要收据的不涉及税费。
-                  {jiemaOpen && '短信接码暂不支持开票，可联系客服开票处理。'}
+                  {/* D37：能用余额付时页面上写了「站内余额」，这里要和钱包页同一句，把余额充值也说进去；否则只提接码 */}
+                  {jiemaOpen && (jiemaBalancePay ? '余额充值与短信接码订单暂不支持开票，可联系客服开票处理。' : '短信接码暂不支持开票，可联系客服开票处理。')}
                 </span>
               </p>
             </div>
@@ -228,8 +227,7 @@ export default async function AboutPage() {
             <div className="glass rounded-2xl p-6 lg:p-8 space-y-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
               <p>
                 <strong className="text-white/90">AI 会员充值：</strong>
-                订阅期内非因你自身原因掉订阅的，按剩余未使用天数折算退款；未使用的卡密可申请退款，已成功充值或卡密已被核销的不支持退款。
-                完整规则见
+                订阅期内非因你自身原因掉订阅的，按剩余未使用天数折算退款；未使用的卡密可申请退款，已成功充值或卡密已被核销的不支持退款。完整规则见
                 <Link href="/terms" className="text-purple-300 hover:text-purple-200 underline-offset-4 hover:underline">
                   服务条款
                 </Link>
@@ -238,8 +236,7 @@ export default async function AboutPage() {
               {jiemaOpen && (
                 <p>
                   <strong className="text-white/90">短信接码：</strong>
-                  没有收到短信的订单整单退回站内余额，其中支付宝付的部分退入充值余额（不可提现、不退回支付宝）；收到短信即视为交付完成，不支持取消与退款。
-                  完整规则见
+                  没有收到短信的订单整单退回站内余额，其中支付宝付的部分退入充值余额（不可提现、不退回支付宝）；收到短信即视为交付完成，不支持取消、换号、退款，特殊情况按售后规则人工审核。完整规则见
                   <Link href={JIEMA_TERMS_PATH} className="text-purple-300 hover:text-purple-200 underline-offset-4 hover:underline">
                     《{JIEMA_TERMS_TITLE}》
                   </Link>
@@ -266,7 +263,7 @@ export default async function AboutPage() {
                       ；邮箱 <span className="font-mono text-white/85">{contact.email}</span>
                     </>
                   )}
-                  。联系时带上订单号，处理得最快。
+                  。联系时带上订单号，处理会更快。
                 </span>
               </p>
               <p className="flex gap-3">
