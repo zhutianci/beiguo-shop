@@ -130,9 +130,12 @@ function FloatingContactInner() {
           )}
         </AnimatePresence>
 
-        {/* 浮动按钮 */}
+        {/* 浮动按钮
+            【首帧可见 · iPhone「打不开」（2026-09-30）】原来 initial={{ scale: 0, opacity: 0 }}，服务端 HTML 里客服入口是隐形的；
+            iPhone 上的 Safari / Chrome 走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，这段时间买家连客服都找不到。
+            initial={false}：服务端直接按最终状态输出，只少了那一下弹出动画 */}
         <motion.button
-          initial={{ scale: 0, opacity: 0 }}
+          initial={false}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.5, type: 'spring', bounce: 0.4 }}
           onClick={() => setExpanded(!expanded)}

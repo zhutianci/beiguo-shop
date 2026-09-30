@@ -131,10 +131,14 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
 
   return (
     <>
+      {/*
+        【首帧可见 · iPhone「打不开」（2026-09-30）】原来是 initial={{ y: -100 }} 从上方滑入：服务端 HTML 里页头是
+        translateY(-100px)，站标、登录 / 注册、菜单按钮全在视口外，要等 JS 水合后才滑下来。iPhone 上的 Safari / Chrome
+        走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，这段时间整页看着是空的 = 买家说的「打不开」。
+        initial={false}：服务端直接按最终位置输出，水合后不再播入场动画（其余 motion 行为不变）。
+      */}
       <motion.header
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.6 }}
+        initial={false}
         className={cn(
           'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
           // 移动端保持原节奏（py-6 / py-4）。

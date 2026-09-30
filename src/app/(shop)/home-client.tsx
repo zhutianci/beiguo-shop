@@ -92,6 +92,19 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
     }
   }
 
+  /*
+   * 【水合前填的字要接住（首帧可见的配套，2026-10-01）】hero 的查询框现在水合前就看得见、能输入，
+   * iPhone 慢网下这段可能有 10~40 秒。这时打的字只在 DOM 里：React 水合不改输入框的值、也不补发 onChange，
+   * lookupEmail 还是空的——不接住的话点查询会丢掉邮箱，而且商品列表拉回来的那次重渲染会把输入框清空。
+   * 所以挂载后把 DOM 里已有的值抄进 state。水合前点查询：表单带 action="/lookup"、输入框 name="email"，
+   * 浏览器原生跳到 /lookup?email=…，和水合后 router.push 的地址一样（邮箱本来就在这个地址里）。
+   */
+  const lookupInputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const typed = lookupInputRef.current?.value
+    if (typed) setLookupEmail(typed)
+  }, [])
+
   useEffect(() => {
     // 首页只展示 6 个精选商品，直接按分页取，避免拉全表
     fetch('/api/products?page=1&pageSize=6')
@@ -127,9 +140,14 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
           {/* 桌面端：text-display 在 xl 是 9xl(128px)，打字机长句在 max-w-5xl(1024px) 内会临界折行、
               每敲一个字抖一下；xl 起放宽到 6xl 既止住抖动，也让 hero 在 1920 宽屏下不再只占中间一窄条 */}
           <div className="max-w-5xl xl:max-w-6xl mx-auto text-center">
+            {/*
+              【首帧可见 · iPhone「打不开」（2026-09-30）】iPhone 上的 Safari / Chrome 走 HTTPS（大陆移动网络）时
+              JS 常晚到 10~40 秒；这段 hero 原来服务端输出 opacity:0、页头又在视口外，水合前整屏只剩深色背景，
+              买家看到的就是「打不开」。改法与暂停中的 SEO 重构 B 包逐字相同（那边变基时不冲突），说明见下方 H1 前的注释。
+            */}
             {/* 徽标在桌面端跟着 hero 一起放大：否则 128px 大标题上顶着一个 12px 小胶囊，比例失衡 */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               className="inline-flex items-center gap-2 px-4 py-2 lg:px-5 lg:py-2.5 rounded-full glass mb-8"
@@ -146,8 +164,15 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
               现在 H1 写死成含主词的一句话，打字机移到副标题——
               动效一点没少，但爬虫和读屏软件拿到的是一句完整的话。
             */}
+            {/*
+              【首帧可见（SEO 重构 B 包，设计 §6.6-3）】hero 里的徽标、H1、副标题、按钮、查询框、卖点原来都是
+              initial={{ opacity: 0 … }}：服务端 HTML 里整块是 style="opacity:0"，要等 JS 下载、水合完再淡入，
+              首屏最大的这段文字（LCP 候选）被白白推迟；JS 慢或失败时首屏就是空的。
+              改成 initial={false}：服务端直接按最终状态输出，水合后不再播入场动画。
+              往下的区块（whileInView）只留位移、不再从透明开始，服务端 HTML 里的内容同样一直可见。
+            */}
             <motion.h1
-              initial={{ opacity: 0, y: 40 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
               className="text-display leading-[0.9] mb-8"
@@ -175,7 +200,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
             {/* 副标题在 xl 提到 2xl(24px)：text-body-lg 最大只到 20px，压在 128px 标题下面显得断层；
                 同时放宽到 3xl，让两行文案在宽屏里保持在舒适行长内 */}
             <motion.p
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
               className="text-body-lg xl:text-2xl max-w-2xl xl:max-w-3xl mx-auto mb-12"
@@ -198,7 +223,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
             </motion.p>
 
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.6 }}
               className="flex flex-col sm:flex-row gap-4 lg:gap-5 justify-center"
@@ -223,7 +248,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
             {/* 订单查询入口（凭邮箱查订阅：渠道站关闭，设计 11.1 Q16） */}
             {sfFeatures.lookup && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.75 }}
               className="mt-10 flex justify-center"
@@ -231,13 +256,15 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
               {/* 订单查询框：手机端 w-full 才够放下这句 placeholder，桌面端不该继续「占满」，
                   但 max-w-md(448px) 在 16px 字号下又会把 placeholder 挤到省略号，
                   所以 md 起给到 lg(512px) 并同步把字号提到 base —— 宽度是为了容纳文案，不是为了铺满 */}
-              <form onSubmit={handleLookup} className="relative w-full max-w-md md:max-w-lg">
+              <form action="/lookup" onSubmit={handleLookup} className="relative w-full max-w-md md:max-w-lg">
                 <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500/40 via-pink-500/40 to-cyan-500/40 rounded-full blur-sm opacity-50" />
                 <div className="relative flex items-center gap-1 p-1.5 md:p-2 glass-strong rounded-full">
                   <div className="flex-1 flex items-center gap-2 pl-4">
                     <Mail className="w-4 h-4 md:w-[18px] md:h-[18px] text-white/40 flex-shrink-0" />
                     <input
+                      ref={lookupInputRef}
                       type="email"
+                      name="email"
                       value={lookupEmail}
                       onChange={(e) => setLookupEmail(e.target.value)}
                       placeholder="已下单？输入邮箱查询订阅状态"
@@ -259,7 +286,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
             {/* 三个卖点：手机端换行紧排，桌面端拉开间距并整体放大一档，
                 让这一排在 1920 宽屏里成为 hero 的「底座」，而不是缩在中间的一行小字 */}
             <motion.div
-              initial={{ opacity: 0 }}
+              initial={false}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.8 }}
               className="flex flex-wrap justify-center gap-8 lg:gap-14 xl:gap-20 mt-16"
@@ -278,7 +305,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={false}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2 }}
           className="absolute bottom-8 left-1/2 -translate-x-1/2"
@@ -301,8 +328,8 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
 
         <div className="container relative z-10">
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ y: 40 }}
+            whileInView={{ y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
             className="text-center mb-20"
@@ -325,8 +352,8 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
                 return (
                   <motion.div
                     key={product.id}
-                    initial={{ opacity: 0, y: 40 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    initial={{ y: 40 }}
+                    whileInView={{ y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6, delay: index * 0.1 }}
                   >
@@ -388,8 +415,8 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
 
         <div className="container relative z-10">
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
+            initial={{ y: 40 }}
+            whileInView={{ y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
           >
@@ -478,8 +505,8 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
 
         <div className="container relative z-10">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
+            initial={{ scale: 0.95 }}
+            whileInView={{ scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
             className="max-w-3xl mx-auto text-center"

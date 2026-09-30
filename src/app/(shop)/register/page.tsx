@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -9,6 +9,7 @@ import { useUserStore } from '@/store/user'
 import { setToken } from '@/lib/auth-token'
 import { useStorefront } from '@/components/storefront-provider'
 import { safeRedirect, withRedirect } from '@/lib/safe-redirect'
+import { useHydrated } from '@/lib/use-hydrated'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -28,6 +29,31 @@ export default function RegisterPage() {
   const [sending, setSending] = useState(false)
   const [cooldown, setCooldown] = useState(0)
   const [codeMsg, setCodeMsg] = useState('')
+
+  /*
+   * 【水合前填的字要接住（首帧可见的配套，2026-10-01）】表单现在水合前就看得见、能输入（见下方 motion.div 的注释），
+   * iPhone 慢网下这段可能有 10~40 秒。这时打的字、自动填充的值只在 DOM 里：React 水合不改输入框的值、也不补发 onChange，
+   * state 还是空的——不接住的话「发送验证码」会说邮箱不对、「创建账号」提交空表单，下一次重渲染还会把输入框清空。
+   * 所以：挂载后把 DOM 里已有的值抄进 state；水合完成前两个按钮禁用（服务端与水合那一轮都是禁用，不会不一致；
+   * 回车隐式提交也一起挡住），免得原生表单提交把页面刷新成 /register?、丢掉 ?redirect=。
+   * 输入框不要加 name：表单没有 method=post，原生 GET 提交会把密码带进地址栏和访问日志。
+   */
+  const hydrated = useHydrated()
+  const emailRef = useRef<HTMLInputElement>(null)
+  const codeRef = useRef<HTMLInputElement>(null)
+  const nicknameRef = useRef<HTMLInputElement>(null)
+  const passwordRef = useRef<HTMLInputElement>(null)
+  const confirmPasswordRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const refs = { email: emailRef, code: codeRef, nickname: nicknameRef, password: passwordRef, confirmPassword: confirmPasswordRef }
+    const typed: Partial<Record<keyof typeof refs, string>> = {}
+    for (const k of Object.keys(refs) as (keyof typeof refs)[]) {
+      const v = refs[k].current?.value
+      if (v) typed[k] = v
+    }
+    if (Object.keys(typed).length > 0) setFormData((f) => ({ ...f, ...typed }))
+  }, [])
+
   /*
    * 注册成功后的回跳（docs/短信接码-设计.md §6.6 第 30 条、D24）：登录页的「注册」链接带着同一个 redirect
    * （例如 /jiema?s=…&c=…&confirm=1），注册成功按 safeRedirect(redirect) 跳转（只收站内相对路径，防开放重定向），
@@ -129,8 +155,11 @@ export default function RegisterPage() {
       <div className="fixed top-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/20 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
 
+      {/* 【首帧可见 · iPhone「打不开」（2026-09-30）】这层包着整张注册表单，原来 initial={{ opacity: 0, y: 20 }}：
+          服务端 HTML 里整张表单是 opacity:0，iPhone 上的 Safari / Chrome 走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，
+          这段时间注册页就是空的。initial={false}（下面的图标同理）：服务端直接按最终状态输出，只少了入场动画 */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="relative w-full max-w-md"
@@ -142,7 +171,7 @@ export default function RegisterPage() {
           {/* Logo */}
           <div className="text-center mb-8">
             <motion.div
-              initial={{ scale: 0.5 }}
+              initial={false}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', bounce: 0.5 }}
               className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-500 mb-4"
@@ -171,6 +200,7 @@ export default function RegisterPage() {
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                 <input
+                  ref={emailRef}
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -187,6 +217,7 @@ export default function RegisterPage() {
                 <div className="relative flex-1">
                   <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                   <input
+                    ref={codeRef}
                     type="text"
                     inputMode="numeric"
                     value={formData.code}
@@ -199,7 +230,7 @@ export default function RegisterPage() {
                 <button
                   type="button"
                   onClick={sendCode}
-                  disabled={sending || cooldown > 0}
+                  disabled={!hydrated || sending || cooldown > 0}
                   className="shrink-0 px-4 rounded-xl border border-white/10 bg-white/5 text-sm text-white/80 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   {sending ? '发送中...' : cooldown > 0 ? `${cooldown}s` : '发送验证码'}
@@ -213,6 +244,7 @@ export default function RegisterPage() {
               <div className="relative">
                 <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                 <input
+                  ref={nicknameRef}
                   type="text"
                   value={formData.nickname}
                   onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
@@ -229,6 +261,7 @@ export default function RegisterPage() {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                 <input
+                  ref={passwordRef}
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -244,6 +277,7 @@ export default function RegisterPage() {
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                 <input
+                  ref={confirmPasswordRef}
                   type="password"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
@@ -256,7 +290,7 @@ export default function RegisterPage() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !hydrated}
               className="group w-full py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all mt-6"
             >
               {loading ? (

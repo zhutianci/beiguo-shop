@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -171,6 +171,19 @@ export default function SupportPage() {
     }
   }
 
+  /*
+   * 【水合前填的字要接住（首帧可见的配套，2026-10-01）】快速查询框现在水合前就看得见、能输入，
+   * iPhone 慢网下这段可能有 10~40 秒。这时打的字只在 DOM 里：React 水合不改输入框的值、也不补发 onChange，
+   * quickEmail 还是空的——不接住的话点查询会丢掉邮箱，而且下一次重渲染会把输入框清空。
+   * 所以挂载后把 DOM 里已有的值抄进 state。水合前点查询：表单带 action="/lookup"、输入框 name="email"，
+   * 浏览器原生跳到 /lookup?email=…，和水合后 router.push 的地址一样（邮箱本来就在这个地址里）。
+   */
+  const quickEmailRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const typed = quickEmailRef.current?.value
+    if (typed) setQuickEmail(typed)
+  }, [])
+
   const filteredGuides = guides.filter((g) => g.product === activeProduct)
 
   return (
@@ -180,9 +193,13 @@ export default function SupportPage() {
       <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
 
       <div className="container relative max-w-6xl">
-        {/* Hero */}
+        {/* Hero
+            【首帧可见 · iPhone「打不开」（2026-09-30）】hero、公告条、快速查询、服务列表和卡片原来都是 initial={{ opacity: 0 … }}：
+            服务端 HTML 里手机首屏整块 opacity:0，iPhone 上的 Safari / Chrome 走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，
+            这段时间客服页就是空的。这几处改 initial={false}（服务端直接按最终状态输出，只少了入场动画）；
+            往下的 whileInView 区块只留位移、不再从透明开始；教程卡片的 AnimatePresence 加 initial={false}，首帧直接可见、切换 Claude / ChatGPT 仍有动画 */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
@@ -203,7 +220,7 @@ export default function SupportPage() {
 
         {/* 公告条 */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mb-12 flex items-center gap-3 p-4 rounded-2xl glass border border-amber-500/20"
@@ -222,19 +239,21 @@ export default function SupportPage() {
         {/* 快速查询 */}
         {lookupOn && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
           className="mb-12"
         >
-          <form onSubmit={handleQuickLookup}>
+          <form action="/lookup" onSubmit={handleQuickLookup}>
             <div className="relative">
               <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-2xl blur-md opacity-30" />
               <div className="relative flex items-center gap-2 p-2 glass-strong rounded-2xl">
                 <div className="flex-1 flex items-center gap-3 px-4">
                   <Mail className="w-5 h-5 text-white/40" />
                   <input
+                    ref={quickEmailRef}
                     type="email"
+                    name="email"
                     value={quickEmail}
                     onChange={(e) => setQuickEmail(e.target.value)}
                     placeholder="快速查询订阅状态：输入你的账户邮箱"
@@ -256,7 +275,7 @@ export default function SupportPage() {
 
         {/* 6 个服务卡片 */}
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={false}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="mb-20"
@@ -273,7 +292,7 @@ export default function SupportPage() {
               <motion.button
                 key={s.title}
                 onClick={() => handleServiceClick(s)}
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: i * 0.05 }}
                 whileHover={{ y: -4 }}
@@ -300,8 +319,8 @@ export default function SupportPage() {
         {/* 使用教程 */}
         <motion.div
           ref={guidesRef}
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ y: 20 }}
+          whileInView={{ y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
           className="mb-20 scroll-below-header"
@@ -328,7 +347,7 @@ export default function SupportPage() {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               {filteredGuides.map((g, i) => (
                 <motion.div
                   key={`${activeProduct}-${i}`}
@@ -361,8 +380,8 @@ export default function SupportPage() {
         {/* FAQ */}
         <motion.div
           ref={faqRef}
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ y: 20 }}
+          whileInView={{ y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
           className="mb-20 scroll-below-header"
@@ -383,8 +402,8 @@ export default function SupportPage() {
               return (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  initial={{ y: 10 }}
+                  whileInView={{ y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: i * 0.03 }}
                   className="glass rounded-xl overflow-hidden"
@@ -428,8 +447,8 @@ export default function SupportPage() {
 
         {/* 底部联系 CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ y: 20 }}
+          whileInView={{ y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
           className="relative"
