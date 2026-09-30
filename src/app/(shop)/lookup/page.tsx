@@ -258,8 +258,12 @@ function LookupForm() {
       {/* 表单型页面：宽度以「够用」为准而不是铺满。896 → xl 放宽到 1024，
           刚好让结果卡里的 md:grid-cols-2 信息行不再挤，再宽就只剩两侧空白了 */}
       <div className="container relative max-w-4xl xl:max-w-5xl">
+        {/* 【首帧可见 · iPhone「打不开」（2026-09-30）】标题、邮箱表单、底部提示原来都是 initial={{ opacity: 0 … }}：
+            服务端 HTML 里整块 opacity:0，iPhone 上的 Safari / Chrome 走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，
+            这段时间查询页就是空的。三处都改 initial={false}：服务端直接按最终状态输出，只少了入场动画。
+            查询结果、弹窗那些 motion 只在查询之后才渲染，不影响首帧，不动 */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
@@ -278,7 +282,7 @@ function LookupForm() {
         </motion.div>
 
         <motion.form
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.1 }}
           onSubmit={handleSearch}
@@ -558,7 +562,7 @@ function LookupForm() {
         </AnimatePresence>
 
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={false}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.3 }}
           className="mt-12 lg:mt-16 glass rounded-2xl p-6 lg:p-8 text-center"

@@ -180,9 +180,13 @@ export default function SupportPage() {
       <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
 
       <div className="container relative max-w-6xl">
-        {/* Hero */}
+        {/* Hero
+            【首帧可见 · iPhone「打不开」（2026-09-30）】hero、公告条、快速查询、服务列表和卡片原来都是 initial={{ opacity: 0 … }}：
+            服务端 HTML 里手机首屏整块 opacity:0，iPhone 上的 Safari / Chrome 走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，
+            这段时间客服页就是空的。这几处改 initial={false}（服务端直接按最终状态输出，只少了入场动画）；
+            往下的 whileInView 区块只留位移、不再从透明开始；教程卡片的 AnimatePresence 加 initial={false}，首帧直接可见、切换 Claude / ChatGPT 仍有动画 */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
@@ -203,7 +207,7 @@ export default function SupportPage() {
 
         {/* 公告条 */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mb-12 flex items-center gap-3 p-4 rounded-2xl glass border border-amber-500/20"
@@ -222,7 +226,7 @@ export default function SupportPage() {
         {/* 快速查询 */}
         {lookupOn && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
           className="mb-12"
@@ -256,7 +260,7 @@ export default function SupportPage() {
 
         {/* 6 个服务卡片 */}
         <motion.div
-          initial={{ opacity: 0 }}
+          initial={false}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.2 }}
           className="mb-20"
@@ -273,7 +277,7 @@ export default function SupportPage() {
               <motion.button
                 key={s.title}
                 onClick={() => handleServiceClick(s)}
-                initial={{ opacity: 0, y: 20 }}
+                initial={false}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: i * 0.05 }}
                 whileHover={{ y: -4 }}
@@ -300,8 +304,8 @@ export default function SupportPage() {
         {/* 使用教程 */}
         <motion.div
           ref={guidesRef}
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ y: 20 }}
+          whileInView={{ y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
           className="mb-20 scroll-below-header"
@@ -328,7 +332,7 @@ export default function SupportPage() {
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait" initial={false}>
               {filteredGuides.map((g, i) => (
                 <motion.div
                   key={`${activeProduct}-${i}`}
@@ -361,8 +365,8 @@ export default function SupportPage() {
         {/* FAQ */}
         <motion.div
           ref={faqRef}
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ y: 20 }}
+          whileInView={{ y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
           className="mb-20 scroll-below-header"
@@ -383,8 +387,8 @@ export default function SupportPage() {
               return (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
+                  initial={{ y: 10 }}
+                  whileInView={{ y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: i * 0.03 }}
                   className="glass rounded-xl overflow-hidden"
@@ -428,8 +432,8 @@ export default function SupportPage() {
 
         {/* 底部联系 CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          initial={{ y: 20 }}
+          whileInView={{ y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
           className="relative"

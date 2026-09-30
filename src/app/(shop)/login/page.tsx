@@ -70,8 +70,11 @@ function LoginForm() {
       <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[128px] pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-pink-500/10 rounded-full blur-[128px] pointer-events-none" />
 
+      {/* 【首帧可见 · iPhone「打不开」（2026-09-30）】这层包着整张登录卡片，原来 initial={{ opacity: 0, y: 20 }}：
+          服务端 HTML 里整张卡是 opacity:0，iPhone 上的 Safari / Chrome 走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，
+          这段时间登录页就是空的。initial={false}（下面的图标同理）：服务端直接按最终状态输出，只少了入场动画 */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="relative w-full max-w-md"
@@ -83,7 +86,7 @@ function LoginForm() {
           {/* Logo */}
           <div className="text-center mb-8">
             <motion.div
-              initial={{ scale: 0.5 }}
+              initial={false}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', bounce: 0.5 }}
               className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 mb-4"
