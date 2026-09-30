@@ -281,7 +281,7 @@ export default function RegisterPage() {
               <Link href="/privacy" target="_blank" className="text-cyan-400/80 hover:text-cyan-300 transition-colors">
                 《隐私政策》
               </Link>
-              {isPlatform ? '。我们可能会向你的邮箱发送优惠活动信息（标题带 AD），注册后可在个人中心或邮件底部随时一键退订。' : '。'}
+              {isPlatform ? '。我们可能会向你的邮箱发送优惠活动信息，注册后可在个人中心或邮件底部随时一键退订。' : '。'}
             </p>
           </form>
 

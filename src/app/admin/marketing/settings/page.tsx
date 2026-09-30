@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, Loader2, Plus, RefreshCw, Save, Undo2, X, 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import type { ZodIssue } from 'zod'
-import { marketingConfigSchema, SUBJECT_PREFIXES, type ConfigResponse, type MarketingConfig } from '@/lib/marketing/types'
+import { marketingConfigSchema, SUBJECT_PREFIXES, SUBJECT_PREFIX_LABEL, type ConfigResponse, type MarketingConfig } from '@/lib/marketing/types'
 import { fmtInt, fmtTime, isAbortError, mktFetch } from '@/components/admin/marketing/api'
 import { HaltBanner } from '@/components/admin/marketing/halt-banner'
 import { ProgressBar } from '@/components/admin/marketing/stat-tile'
@@ -208,7 +208,7 @@ export default function MarketingSettingsPage() {
                     '开启「默认可接收」？\n\n开启后，没有明确点过「订阅」的注册用户也会收到营销邮件（只要没退订）。\n\n' +
                       '法律风险：广告法第 43 条、《互联网电子邮件服务管理办法》第 13 条、消费者权益保护法第 29 条都要求发送商业性邮件前取得同意；' +
                       'QQ 邮箱群发指南也点名禁止「不加选择地给所有注册用户发送商业性邮件」。\n\n' +
-                      '一键退订、(AD) 标识、频控、预热、熔断能降低风险，但不能消除它。\n\n点页面底部「保存设置」后生效。确定开启？'
+                      '一键退订、页脚身份信息、频控、预热、熔断能降低风险，但不能消除它。\n\n点页面底部「保存设置」后生效。确定开启？'
                   )
                   if (!ok) return
                 } else {
@@ -227,7 +227,7 @@ export default function MarketingSettingsPage() {
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
                 <div>
                   <b>已知法律风险</b>：向未明确同意的用户发送商业性邮件，与广告法 §43、电子邮件服务管理办法 §13(二)、消保法 §29「事先同意」的要求存在冲突。
-                  这是站长的经营决定（设计文档 D1）；系统已强制 (AD) 标识、页脚退订与身份信息、首封说明、频控、预热、熔断，不能再省。
+                  这是站长的经营决定（设计文档 D1）；系统已强制页脚退订与身份信息、首封说明、频控、预热、熔断，不能再省。
                   随时可以关掉这个开关，改为只发给明确订阅的用户。
                 </div>
               </div>
@@ -244,8 +244,11 @@ export default function MarketingSettingsPage() {
         <CardContent className="grid gap-5 md:grid-cols-2">
           <TextField label="发件人名称" hint={`收件箱里显示的发件人，最多 14 个字符（默认「${defaults.fromAlias}」）`} value={form.fromAlias} maxLength={14} onChange={(v) => set('fromAlias', v)} />
           <div>
-            <FieldLabel label="主题前缀" hint="法律要求商业邮件主题标明广告，只能三选一，不能去掉" />
-            <div className="flex gap-2">
+            <FieldLabel
+              label="主题前缀"
+              hint="发送时加在主题最前面。《互联网电子邮件服务管理办法》§13 要求商业广告邮件标题前部注明「广告」或「AD」（§24：罚款一万元以下），QQ 邮箱群发规范也要求加注；选「不加」即承担这部分风险"
+            />
+            <div className="flex flex-wrap gap-2">
               {SUBJECT_PREFIXES.map((p) => (
                 <button
                   key={p}
@@ -256,8 +259,8 @@ export default function MarketingSettingsPage() {
                     form.subjectPrefix === p ? 'border-primary-500 bg-primary-50 text-primary-700' : 'border-gray-300 text-gray-600'
                   )}
                 >
-                  {p.trim()}
-                  {p === '(AD)' && <span className="ml-1 text-xs text-gray-400">推荐</span>}
+                  {SUBJECT_PREFIX_LABEL[p]}
+                  {p === '(AD)' && <span className="ml-1 text-xs text-gray-400">法规要求</span>}
                 </button>
               ))}
             </div>

@@ -208,12 +208,14 @@ export function TopBar(p: TopBarProps) {
           <div className="flex items-center gap-2">
             <span className="w-[52px] shrink-0 text-xs font-medium text-gray-500">邮件主题</span>
             <div className="flex min-w-0 flex-1 items-center rounded-md border border-gray-300 bg-white focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20">
-              <span
-                className="ml-1 shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500"
-                title="广告邮件主题前必须标注（互联网电子邮件服务管理办法 §13），发送时自动加上，不能去掉"
-              >
-                {p.subjectPrefix}
-              </span>
+              {p.subjectPrefix && (
+                <span
+                  className="ml-1 shrink-0 rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500"
+                  title="发送时自动加在主题最前面；在「发送设置 → 主题前缀」里修改"
+                >
+                  {p.subjectPrefix}
+                </span>
+              )}
               <input
                 ref={subjectRef}
                 value={p.subject}

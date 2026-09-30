@@ -209,7 +209,7 @@ function EditorInner({ campaign: rawCampaign, onSaved, onClose, renderActions, p
   const { catalog, state: catalogState, reload: reloadCatalog } = useCatalog()
   const productMap = useProductMap(catalog)
   const cfg = useMarketingConfig()
-  const subjectPrefix = cfg.footer.subjectPrefix || '(AD)'
+  const subjectPrefix = cfg.footer.subjectPrefix ?? ''
 
   const autosave = useAutosave({ campaign, draft, enabled: !readOnly, onSaved })
   // flush / getStatus 是稳定引用（useCallback），回调与快捷键监听依赖它们而不是每次渲染都变的 autosave 对象

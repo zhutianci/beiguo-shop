@@ -373,7 +373,7 @@ export function LaunchDialog({
                 <p className="text-sm leading-relaxed text-gray-700">
                   将向 <span className="font-semibold text-gray-900">{fmtInt(eligible)}</span> 人发送营销邮件
                   {check.eta.finishAt && <>，预计 {fmtTime(check.eta.finishAt)} 发完</>}。
-                  主题前的广告标识、退订链接、经营主体与联系邮箱会自动加上。提交后内容就冻结了，不能再改（可以暂停或取消）。
+                  退订链接、经营主体与联系邮箱会自动加上（主题前缀按「发送设置」，可能为空）。提交后内容就冻结了，不能再改（可以暂停或取消）。
                 </p>
                 {needCoupon && check.coupon && (
                   <label className="flex cursor-pointer items-start gap-2 text-sm">

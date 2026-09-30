@@ -256,7 +256,7 @@ export function DraftCampaign({
 
   /* ============================== 内容摘要（服务端渲染 + 检查） ============================== */
   const [render, setRender] = useState<RenderResponse | null>(null)
-  const prefix = config?.config.subjectPrefix || '(AD)'
+  const prefix = config?.config.subjectPrefix ?? ''
   const renderCounts = render ? issueCounts(render.issues) : null
 
   /* ============================== 测试 / 检查 / 发送 ============================== */

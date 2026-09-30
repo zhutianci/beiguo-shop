@@ -653,10 +653,13 @@ async function main() {
       ok('人数对不上 → 409 且带新值', e409?.status === 409 && (e409.payload as { eligible?: number })?.eligible === 2)
 
       // 定时到 1 小时后 → 撤回 → 空批次被删除
+      // 前缀默认为空（设计文档 D2），这里特意换成非空前缀，确认冻结的 finalSubject 真的带上了前缀；断言完恢复默认
+      await setCfg({ subjectPrefix: '【广告】' })
       await lifecycle.launchCampaign(draft.id, { scheduledAt: new Date(Date.now() + 3600_000), expectedCount: 2, expectedContentHash: chk.contentHash }, actor.id)
       let cc = await campaign(draft.id)
       const batch1 = cc.couponId
-      ok('launch：SCHEDULED + 建了券批次 + 冻结快照', cc.status === 'SCHEDULED' && !!batch1 && !!cc.html && cc.finalSubject === '(AD){{nickname}}，送你一张券')
+      ok('launch：SCHEDULED + 建了券批次 + 冻结快照（带配置的前缀）', cc.status === 'SCHEDULED' && !!batch1 && !!cc.html && cc.finalSubject === '【广告】{{nickname}}，送你一张券')
+      await setCfg({ subjectPrefix: DEFAULT_CONFIG.subjectPrefix })
       const b1 = await prisma.coupon.findUnique({ where: { id: batch1! } })
       ok('批次：CAMPAIGN / mk- / 买家可见名 / 0 张', !!b1 && b1.source === 'CAMPAIGN' && b1.code.startsWith('mk-') && b1.name === '邮件专享券' && b1.total === 0 && b1.endAt === null)
       eq('批次备注带活动号、不带活动名', b1?.note, `营销活动 #${draft.id}`)

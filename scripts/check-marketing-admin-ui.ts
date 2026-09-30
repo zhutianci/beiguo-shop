@@ -436,8 +436,10 @@ console.log('\n[服务端渲染冒烟：报表 / 检查结果 / 模板卡片]')
       flushRef: { current: null },
       config: null,
     }),
-    ['内容', '受众', '检查并发送', '还没有测试发送过', '(AD)']
+    ['内容', '受众', '检查并发送', '还没有测试发送过']
   )
+  // 2026-09-30 起主题前缀可以为空（站长决定默认不加，设计文档 D2）：配置没加载时不能再回落成 (AD)
+  ok('配置未加载时主题前不显示 (AD)', !draft.includes('(AD)'))
   ok('草稿页不直接塞邮件 HTML（只用 iframe 预览）', !draft.includes('dangerouslySetInnerHTML') && !/<table role="presentation"/.test(draft))
 
   console.error = origError

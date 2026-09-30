@@ -9,7 +9,7 @@
  *
  * 注意：零宽/双向控制字符一律用 String.fromCharCode 构造，不在源码里直接写（编辑器与工具链会吞掉或改写它们）。
  */
-import { emailDocSchema, blockSchema, richDocSchema, audienceSpecSchema, DEFAULT_CONFIG, type AudienceSpec, type Block, type EmailDoc, type ProductCard, type RenderCtx, type FooterConfig } from '../src/lib/marketing/types'
+import { emailDocSchema, blockSchema, richDocSchema, audienceSpecSchema, marketingConfigSchema, SUBJECT_PREFIXES, DEFAULT_CONFIG, type AudienceSpec, type Block, type EmailDoc, type ProductCard, type RenderCtx, type FooterConfig } from '../src/lib/marketing/types'
 import {
   renderEmail,
   couponViewFor,
@@ -1117,6 +1117,22 @@ console.log('\n[健壮性] 编辑中的半成品文档不能让预览/检查白�
   ok('缺失的配色回落默认主题', pv.html.includes(`bgcolor="${DEFAULT_SETTINGS.backdrop}"`))
   ok('半成品 lint 报出结构错误', hasErrors(lintIt()))
   eq('留白缺高度时摘要回落 24px', blockSummary({ id: 'i', type: 'spacer' } as unknown as Block), '留白 24px')
+}
+
+console.log('\n[主题前缀可为空（2026-09-30 站长决定默认不加，设计文档 D2）]')
+{
+  eq('默认不加前缀', DEFAULT_CONFIG.subjectPrefix, '')
+  ok('可选项：不加 / (AD) / 【广告】 / AD', SUBJECT_PREFIXES.join('|') === '|(AD)|【广告】|AD ')
+  const cfgWith = (subjectPrefix: unknown) => marketingConfigSchema.safeParse({ ...DEFAULT_CONFIG, subjectPrefix }).success
+  ok('配置接受空前缀', cfgWith(''))
+  ok('配置仍接受 (AD) / 【广告】', cfgWith('(AD)') && cfgWith('【广告】'))
+  ok('配置拒绝列表外的前缀', !cfgWith('[AD]') && !cfgWith(' '))
+  const long = '测'.repeat(120)
+  const noPrefix = lintContent({ subject: long, preheader: 'x', topic: 'PROMO', doc: kitchenSink(), subjectPrefix: '' }).find((i) => i.code === 'SUBJECT_TOO_LONG')
+  ok('空前缀时超长提示不出现「前缀「」」', !!noPrefix && !noPrefix.message.includes('前缀「」'))
+  const withPrefix = lintContent({ subject: long, preheader: 'x', topic: 'PROMO', doc: kitchenSink(), subjectPrefix: '【广告】' }).find((i) => i.code === 'SUBJECT_TOO_LONG')
+  ok('有前缀时超长提示照旧带上前缀', !!withPrefix && withPrefix.message.includes('前缀「【广告】」'))
+  ok('空前缀时最终主题的渲染后检查不报错', !hasErrors(lintRendered({ html: '<p>x</p>', text: 'x', subject: '' + '{{nickname|朋友}}，国庆特惠', sizeBytes: 10, imageCount: 0 })))
 }
 
 console.log(`\n${fail ? '✗' : '✓'} 通过 ${pass}，失败 ${fail}`)

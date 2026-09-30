@@ -130,7 +130,7 @@ function MarketingSubscriptionInner() {
           <div className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 font-medium text-white/90">
-                接收优惠与上新邮件（标题带 AD）
+                接收优惠与上新邮件
                 {state.status === 'SUBSCRIBED' && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
                     <BadgeCheck className="h-3 w-3" />

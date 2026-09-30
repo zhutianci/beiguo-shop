@@ -1144,7 +1144,7 @@ export function renderEmail(doc: EmailDoc, ctx: RenderCtx): RenderResult {
     images: 0,
     links: new Map(),
     now: new Date(),
-    footer: ctx.footer || { companyName: '', brandName: '', contactEmail: '', footerNote: '', subjectPrefix: '(AD)' },
+    footer: ctx.footer || { companyName: '', brandName: '', contactEmail: '', footerNote: '', subjectPrefix: '' },
   }
   // send/test 不许带 preview 专用参数进来（防止调用方误传导致发出去的信带描边）
   if (!r.preview) r.ctx = { ...r.ctx, selectedBlockId: null, imagesOff: false }

@@ -423,7 +423,16 @@ export const SEGMENT_PRESETS: { key: string; label: string; rules: SegmentRules 
 
 /* ============================== 策略配置 ============================== */
 
-export const SUBJECT_PREFIXES = ['(AD)', '【广告】', 'AD '] as const
+// '' = 主题不加前缀。站长 2026-09-30 知情后决定默认不加（设计文档 D2 修订）：
+// 《互联网电子邮件服务管理办法》§13(三) 要求商业广告邮件标题前部注明「广告」或「AD」、§24 罚款一万元以下
+// （有违法所得三万元以下），QQ 邮箱群发规范也要求主题前加注 (AD)；这些风险已向站长说明。三种前缀仍可随时选回。
+export const SUBJECT_PREFIXES = ['', '(AD)', '【广告】', 'AD '] as const
+export const SUBJECT_PREFIX_LABEL: Record<(typeof SUBJECT_PREFIXES)[number], string> = {
+  '': '不加',
+  '(AD)': '(AD)',
+  '【广告】': '【广告】',
+  'AD ': 'AD',
+}
 
 export const marketingConfigSchema = z
   .object({
@@ -465,7 +474,7 @@ export const DEFAULT_CONFIG: MarketingConfig = {
   enabled: true,
   defaultEligible: true,
   fromAlias: '贝果科技',
-  subjectPrefix: '(AD)',
+  subjectPrefix: '',
   companyName: '益阳市赫山区必高科技有限公司',
   brandName: '贝果科技',
   contactEmail: '',

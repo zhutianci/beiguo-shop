@@ -333,7 +333,7 @@ export function lintContent(input: ContentLintInput): LintIssue[] {
   if (!subject.trim()) add('error', 'SUBJECT_EMPTY', '邮件主题不能为空')
   else {
     const est = estimateSubject(prefix, subject)
-    if (est > 100) add('error', 'SUBJECT_TOO_LONG', `主题加上前缀「${prefix}」、按 12 字昵称估算有 ${est} 字，超过 100 字上限`)
+    if (est > 100) add('error', 'SUBJECT_TOO_LONG', `主题${prefix ? `加上前缀「${prefix}」、` : ''}按 12 字昵称估算有 ${est} 字，超过 100 字上限`)
     else if (typicalSubjectLen(subject) > 30) add('warn', 'SUBJECT_LONG', '主题超过 30 字，手机收件箱里会被截断')
   }
   if (/[\r\n\t]/.test(subject)) add('error', 'SUBJECT_NEWLINE', '主题里不能有换行或制表符')
