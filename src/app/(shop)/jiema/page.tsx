@@ -10,6 +10,7 @@ import { jiemaFaqs } from '@/lib/support-faq'
 import { PLATFORM_CONTACT } from '@/lib/contact'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { faqJsonLd } from '@/lib/seo/graph'
+import { JIEMA_TERMS_PATH, JIEMA_TERMS_TITLE } from '@/lib/terms/jiema-wallet'
 import { JiemaClient } from './jiema-client'
 import { JiemaActiveBanner } from './active-banner'
 
@@ -28,6 +29,7 @@ export const dynamic = 'force-dynamic'
  * 【S3】顶部「进行中订单提示条」与「我的接码记录 →」（客户端，登录后才请求，§1.4）；维护中 / 即将开放的说明卡片里也挂一份
  * （总开关关了在途单照常推进，E59；买家回来要能找回，E18——S3 评审修复），入口只对有过接码单的账号显示；页尾 FAQ（与客服页 #jiema 同一份 lib/support-faq.jiemaFaqs，
  * 数字取当前配置），**只在对全部用户开放时**输出 FAQPage 结构化数据（§1.3；管理员预览时普通访客看不到，不能标记）。
+ * 【2026-09-30】规则卡片与页尾链到《短信接码服务条款》全文（/jiema/terms，§8.6）；付款前每一单弹「下单须知与免责声明」在确认面板里。
  */
 export default async function JiemaPage() {
   await notFoundOnChannel()
@@ -150,7 +152,11 @@ export default async function JiemaPage() {
           <Link href="/support#jiema" className="text-cyan-300/90 hover:underline">
             联系客服
           </Link>
-          开票处理。请勿用于违法犯罪、诈骗或冒用他人身份。
+          开票处理。本服务仅用于学习交流与测试，严禁用于违法犯罪、电信网络诈骗或冒用他人身份，详见
+          <Link href={JIEMA_TERMS_PATH} className="text-cyan-300/90 hover:underline">
+            《{JIEMA_TERMS_TITLE}》
+          </Link>
+          。
         </div>
       </section>
 
@@ -172,7 +178,11 @@ export default async function JiemaPage() {
           <Link href="/support#jiema" className="mx-1 text-cyan-300/90 hover:underline">
             客服中心
           </Link>
-          ，或在号码页点「联系客服」在线留言。
+          ，或在号码页点「联系客服」在线留言。下单前请阅读
+          <Link href={JIEMA_TERMS_PATH} className="mx-1 text-cyan-300/90 hover:underline">
+            《{JIEMA_TERMS_TITLE}》
+          </Link>
+          （含免责声明与相关法律条文）。
         </p>
       </section>
       {v.access === 'OPEN' && <JsonLd data={[faqJsonLd(faqs)]} />}

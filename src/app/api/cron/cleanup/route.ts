@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { success, error } from '@/lib/api'
 import { assertCronAuth } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
+import { KEEP_EVENT_TYPES } from '@/lib/jiema/consent'
 
 /**
  * 流量数据的保留期清理。每天跑一次。
@@ -31,7 +32,8 @@ const VISITOR_INACTIVE_DAYS = 365
 const MKT_EVENT_RETENTION_DAYS = 90
 const MKT_MESSAGE_RETENTION_DAYS = 730
 // 短信接码（docs/短信接码-设计.md §10.4、§6.6 第 32 条）：短信的 code / text 30 天后清空（写 purgedAt，行与收码时间留着对账和售后用）、
-// 尝试的上游原文 raw 90 天后清空、事件流水 180 天后删除；订单与尝试的结构化字段长期保留；**余额流水与预扣永不清理**（资金凭证）。
+// 尝试的上游原文 raw 90 天后清空、事件流水 180 天后删除（**条款同意留痕 TERMS_AGREED 除外**：随订单记录保存，§8.6）；
+// 订单与尝试的结构化字段长期保留；**余额流水与预扣永不清理**（资金凭证）。
 // 保留期要与 /privacy 对买家的说法一致（隐私政策那一页的改动在 S2b，与号码页一起上线；上线前先改那一页）
 const SMS_TEXT_RETENTION_DAYS = 30
 const SMS_RAW_RETENTION_DAYS = 90
@@ -145,7 +147,8 @@ export async function GET(request: NextRequest) {
     }
     let smsEvents = 0
     for (let i = 0; i < MAX_BATCHES; i++) {
-      const batch = await prisma.smsEvent.findMany({ where: { createdAt: { lt: smsEventCutoff } }, select: { id: true }, take: BATCH })
+      // 条款同意留痕（TERMS_AGREED）不清理、随订单记录保存（lib/jiema/consent.ts；隐私政策第四节）
+      const batch = await prisma.smsEvent.findMany({ where: { createdAt: { lt: smsEventCutoff }, type: { notIn: [...KEEP_EVENT_TYPES] } }, select: { id: true }, take: BATCH })
       if (!batch.length) break
       const { count } = await prisma.smsEvent.deleteMany({ where: { id: { in: batch.map((r) => r.id) } } })
       smsEvents += count

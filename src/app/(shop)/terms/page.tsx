@@ -5,7 +5,7 @@ import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
-import { JIEMA_TERMS, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
+import { JIEMA_TERMS, JIEMA_TERMS_PATH, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
 import { readWalletConfig, topupOpenFor, canUseForJiema } from '@/lib/wallet/config'
 import { readSmsConfigCached } from '@/lib/jiema/config'
 import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
@@ -22,8 +22,12 @@ import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
  * 【质保与退款口径必须与商品页一致】这里写的规则来自线上商品的 cardUsage 文案
  * （掉订阅后扣除已用天数、按剩余天数折算退款，封号不质保等）。改商品文案时要回来核对这一页，
  * 两处不一致时以对买家更有利的一方为准。
+ *
+ * 【2026-09-30 禁止用途与依法报告】第五节写明不得用于电信网络诈骗等违法犯罪、不得为他人实施违法犯罪提供帮助，以及平台依法报告、
+ * 配合调查；短信接码另有完整的《短信接码服务条款》（/jiema/terms：用途限制、免责声明、法律条文摘录，docs/短信接码-设计.md §8.6），
+ * 第四节的接码五条后面链过去（只在接码对全部用户开放时出现，同原来的口径）。
  */
-const UPDATED_AT = '2026-09-24'
+const UPDATED_AT = '2026-09-30'
 
 const TITLE = `服务条款 - ${SITE_NAME}`
 const DESCRIPTION =
@@ -51,7 +55,7 @@ export default async function TermsPage() {
   let showWallet = false
   let jiemaOpen = false
   /*
-   * 《接码服务规则》（§8.4 第一条，S2b；正文与版本号同样是 lib/terms/jiema-wallet.ts 的代码常量）：只在主站、接码对全部用户开放
+   * 《短信接码服务条款》第一节五条（§8.4 第一条，S2b；正文与版本号同样是 lib/terms/jiema-wallet.ts 的代码常量）：只在主站、接码对全部用户开放
    * （jiemaPublicOpen：整份配置有效 + 总开关开 + 受众全部用户）时出现在第四节。灰度期（仅管理员）确认面板自带规则全文（同一个常量），不依赖这里。
    */
   let showJiema = false
@@ -162,6 +166,13 @@ export default async function TermsPage() {
                 <li key={t}>{t}</li>
               ))}
             </ul>
+            <p>
+              完整的用途限制、免责声明与相关法律条文见
+              <Link href={JIEMA_TERMS_PATH} className="mx-0.5 text-purple-400 hover:text-purple-300">
+                《{JIEMA_TERMS_TITLE}》
+              </Link>
+              ；每一单付款前都需要在「下单须知与免责声明」里勾选同意。
+            </p>
           </>
         )}
         {showWallet && (
@@ -181,11 +192,28 @@ export default async function TermsPage() {
       <LegalSection heading="五、你的义务与禁止行为">
         <ul className="list-disc pl-6 space-y-2">
           <li>不得将所购服务用于任何违反中国法律法规或服务商使用条款的用途。</li>
+          <li>
+            不得将所购服务（包括短信接码的号码与验证码）用于电信网络诈骗、赌博、洗钱、侵犯公民个人信息等违法犯罪活动，
+            不得为他人实施上述活动提供任何支持或帮助，不得为他人规避实名核验提供帮助。
+          </li>
           <li>不得用于批量爬取、自动化脚本滥用、转售倒卖或任何可能导致账号被风控的行为。</li>
           <li>不得利用本站漏洞、重复提交、伪造付款凭证等方式获取不当利益。</li>
           <li>不得冒用他人身份下单或申请开票。</li>
         </ul>
         <p>违反上述约定的，我们有权中止服务、不予退款，并保留追究责任的权利。</p>
+        <p>
+          我们发现或有合理理由怀疑所购服务被用于违法犯罪活动的，有权立即终止服务，并依法向公安机关等有关部门报告、
+          配合调查，提供依法留存的相关记录。
+          {showJiema && (
+            <>
+              短信接码的具体约定见
+              <Link href={JIEMA_TERMS_PATH} className="mx-0.5 text-purple-400 hover:text-purple-300">
+                《{JIEMA_TERMS_TITLE}》
+              </Link>
+              。
+            </>
+          )}
+        </p>
       </LegalSection>
 
       <LegalSection heading="六、责任范围">

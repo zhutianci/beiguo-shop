@@ -59,6 +59,13 @@ export function payButtonLabel(p: Pick<PayPlan, 'mode' | 'balanceCents' | 'alipa
   return `确认支付（支付宝 ${fmtYuan(p.alipayCents)}）`
 }
 
+/** 付款前免责弹窗底栏的「本单」付款摘要（§8.6）：余额付清 ¥1.70 / 余额 ¥1.20 + 支付宝 ¥0.50 / 支付宝 ¥1.70 */
+export function payPlanSummary(p: Pick<PayPlan, 'mode' | 'balanceCents' | 'alipayCents'>): string {
+  if (p.mode === 'BALANCE') return `余额付清 ${fmtYuan(p.balanceCents)}`
+  if (p.mode === 'MIXED') return `余额 ${fmtYuan(p.balanceCents)} + 支付宝 ${fmtYuan(p.alipayCents)}`
+  return `支付宝 ${fmtYuan(p.alipayCents)}`
+}
+
 /**
  * 409 PRICE_CHANGED / BALANCE_CHANGED 的「一个弹窗同时确认价格和拆分」（§1.8）：
  *  · 价格变了：「价格已更新为 ¥1.86（原 ¥1.70）：余额抵扣 ¥1.20 + 支付宝 ¥0.66，是否继续？」
@@ -359,10 +366,26 @@ export function orderAmountText(amount: number, deliveryType: string | null | un
   return deliveryType === 'SMS_POOL' ? `¥${amount.toFixed(2)}` : `¥${amount.toFixed(0)}`
 }
 
-// ───────────────────────── 条款（§1.8：首单必勾，之后同一版默认勾选；任一份升版后重新勾选） ─────────────────────────
+// ───────────────────────── 条款（§1.8、§8.6：每一单付款前弹「下单须知与免责声明」，勾选同意后才能下单） ─────────────────────────
 
-export function termsPreTicked(last: { jiema: string | null; wallet: string | null } | null, cur: { jiema: string; wallet: string }): boolean {
-  return !!last && last.jiema === cur.jiema && last.wallet === cur.wallet
+/**
+ * 弹窗顶部要不要提示「条款已更新」：本人上一张接码单同意的版本与当前版本（任一份）不同。没下过单（null）不提示——首单本来就要读全文。
+ * （2026-09-30 之前是「首单必勾、之后同一版默认勾选」的 termsPreTicked；现在每一单都要在弹窗里重新勾选，不再有默认勾选。）
+ */
+export function termsChangedSinceLast(last: { jiema: string | null; wallet: string | null } | null, cur: { jiema: string; wallet: string }): boolean {
+  return !!last && (last.jiema !== cur.jiema || last.wallet !== cur.wallet)
+}
+
+/**
+ * 下单返回 409 TERMS 之后怎么办：服务端带回的当前版本与本页打包的版本（任一份）对不上 → 'RELOAD'（页面是旧的，弹窗里的正文也是旧的，
+ * 只能刷新）；对得上（没勾同意、缺字段）→ 'REOPEN'（重新弹窗、清空勾选）。服务端没带版本（旧服务端 / 异常）按 'REOPEN'。
+ */
+export function termsReaction(server: { termsVersion?: unknown; walletTermsVersion?: unknown } | null | undefined, client: { jiema: string; wallet: string }): 'RELOAD' | 'REOPEN' {
+  const j = server?.termsVersion
+  const w = server?.walletTermsVersion
+  if (typeof j === 'string' && j !== client.jiema) return 'RELOAD'
+  if (typeof w === 'string' && w !== client.wallet) return 'RELOAD'
+  return 'REOPEN'
 }
 
 // ───────────────────────── 我的接码记录 /jiema/records 与 /jiema 进行中提示条（S3，§1.4、§1.11） ─────────────────────────

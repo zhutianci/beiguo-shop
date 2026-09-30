@@ -3,7 +3,8 @@
  *
  * 顺序（事务之前没有任何副作用）：
  *   1. sms_config 读得到且 enabled、受众允许（ADMIN_ONLY 时只有管理员）→ 否则 503 MAINTENANCE（fail-closed，E59：只挡新单）；
- *   2. 条款版本等于代码常量（两份：JIEMA_TERMS_VERSION、WALLET_TERMS_VERSION，不读配置）→ 否则 409 TERMS；
+ *   2. 同意标记 agree === true 且两份条款版本等于代码常量（JIEMA_TERMS_VERSION、WALLET_TERMS_VERSION，不读配置）→ 否则 409 TERMS
+ *      （缺字段也是 409，不是 400：前端据此重新弹「下单须知与免责声明」；带上当前两个版本号，前端版本对不上时提示刷新页面，§1.8、§8.6）；
  *   3. (userId, clientToken) 已有订单 → 原样返回（待支付的照样返回 payUrl）；
  *   4. SMS_POOL 载体商品恰好 1 行且下架；payWith=BALANCE 时余额支付开关打开（wallet_config 读不到按关，E52、E53）；
  *      指定了运营商：这个国家的运营商列表拿得到、里面却没有它 → 400（列表拿不到——服务 / 国家下架或不在目录——先交给 5、6 给 404 / 409 HOLD，
@@ -13,7 +14,8 @@
  *   7. 会走收银台的（组合、支付宝）先查每人待付款收款单 < 3（D27 预检）→ 否则 429 OPEN_PAYMENTS{items}（各笔的链接），不建单、不预扣；
  *   8. 事务（READ COMMITTED）：锁用户行 → 再查幂等 → 计数（同时进行中 ≤3 含待支付、每小时 ≤10、每天 ≤30）→ 价格等于 expect（否则 409
  *      PRICE_CHANGED，带在锁住用户行之后按新价重算的拆分）→ 余额拆分等于 expect（否则 409 BALANCE_CHANGED；可用余额为 0 带 suggestPayWith）
- *      → createShopOrder（remark=null，productName「短信接码 · 服务 · 国家/地区」）→ smsOrder.create（定价快照）→ 预扣（holdInTx，只调一次 postInTx）；
+ *      → createShopOrder（remark=null，productName「短信接码 · 服务 · 国家/地区」）→ smsOrder.create（定价快照）→ 预扣（holdInTx，只调一次 postInTx）
+ *      → 同一事务写 TERMS_AGREED 事件（条款版本、IP、UA 摘要；每一单一条，幂等重放不重写，§8.6）；
  *   9. 余额付清：同一请求 fulfillOrder(via BALANCE)（T3，失败由 T19 兜底）→ next=NUMBER；
  *      组合 / 支付宝：同一请求 createOrGetVmqOrder（金额 = payableCents）→ 事后复核每人 ≤3 → next=CASHIER + payUrl；
  *      发起失败或复核超限 → 同一请求走 T18（作废本次新建的收款单 → 关单 → 释放预扣），503 PAY_BUSY / 429 OPEN_PAYMENTS{released}。
@@ -37,6 +39,7 @@ import { logEvent } from './events'
 import { smsAlert } from './alert'
 import { jnow, tightenReplace } from './runtime'
 import { ORDER_ACTIVE_FOR_LIMIT, TIGHT_MAX_REPLACE, payModeOf } from './machine'
+import { TERMS_AGREED_EVENT, consentDetail, type ConsentMeta } from './consent'
 
 export interface JiemaOrderInput {
   service: string
@@ -47,9 +50,14 @@ export interface JiemaOrderInput {
   payWith: 'ALIPAY' | 'BALANCE'
   expectBalanceCents?: number | null
   clientToken: string
-  agree: boolean
-  termsVersion: string
-  walletTermsVersion: string
+  /** 付款前弹窗里勾选同意（必须是 true；缺失 / false → 409 TERMS） */
+  agree?: boolean | null
+  /** 同意的《短信接码服务条款》版本（必须等于 JIEMA_TERMS_VERSION） */
+  termsVersion?: string | null
+  /** 同意的《余额与充值规则》版本（必须等于 WALLET_TERMS_VERSION） */
+  walletTermsVersion?: string | null
+  /** 同意留痕：下单请求的 IP 与 User-Agent（路由层取；脚本直接调用可以不带，照样留一条版本记录） */
+  consent?: ConsentMeta | null
 }
 
 export interface JiemaOrderCreated {
@@ -203,9 +211,13 @@ export async function createJiemaOrder(user: { id: number; role?: string | null 
     const soon = cfg.audience !== 'ALL' && !isAdmin
     return bad(503, 'MAINTENANCE', soon ? '短信接码即将开放' : '接码服务维护中，预计很快恢复', { soon })
   }
-  // 2. 条款（代码常量）
-  if (!input.agree || input.termsVersion !== JIEMA_TERMS_VERSION || input.walletTermsVersion !== WALLET_TERMS_VERSION) {
-    return bad(409, 'TERMS', '规则已更新，请阅读《接码服务规则》与《余额与充值规则》后重新勾选')
+  // 2. 同意标记与条款版本（代码常量）。缺字段也按 409 TERMS（前端重新弹窗）；带上当前版本，前端据此判断是不是自己的页面旧了
+  const termsNow = { termsVersion: JIEMA_TERMS_VERSION, walletTermsVersion: WALLET_TERMS_VERSION }
+  if (input.agree !== true || input.termsVersion == null || input.walletTermsVersion == null) {
+    return bad(409, 'TERMS', '请先阅读「下单须知与免责声明」，勾选同意后再下单', termsNow)
+  }
+  if (input.termsVersion !== JIEMA_TERMS_VERSION || input.walletTermsVersion !== WALLET_TERMS_VERSION) {
+    return bad(409, 'TERMS', '《短信接码服务条款》或《余额与充值规则》已更新，请刷新页面后重新阅读并同意', termsNow)
   }
   // 3. 幂等
   const same = await prisma.smsOrder.findUnique({ where: { userId_clientToken: { userId: user.id, clientToken: input.clientToken } } })
@@ -354,6 +366,14 @@ export async function createJiemaOrder(user: { id: number; role?: string | null 
           await logEvent(tx, { smsOrderId: so.id, type: 'HOLD', actor: 'BUYER', actorId: user.id, detail: { topupCents: h.topupCents, cashCents: h.cashCents } })
         }
         await logEvent(tx, { smsOrderId: so.id, type: 'CREATED', actor: 'BUYER', actorId: user.id, detail: { priceCents: q.priceCents, payMode, capMicro: q.capMicro, configVersion: q.configVersion } })
+        // 同意留痕（§8.6）：与订单同成同败；三种付款方式都走这里（余额付清、组合、支付宝）
+        await logEvent(tx, {
+          smsOrderId: so.id,
+          type: TERMS_AGREED_EVENT,
+          actor: 'BUYER',
+          actorId: user.id,
+          detail: { ...consentDetail({ terms: JIEMA_TERMS_VERSION, walletTerms: WALLET_TERMS_VERSION }, input.consent) },
+        })
         return { smsOrderId: so.id, orderId: created.id, orderNo: created.orderNo, payMode, balanceCents: useHold, alipayCents: q.priceCents - useHold }
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted },

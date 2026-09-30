@@ -16,7 +16,7 @@ import { CheckoutPanel } from './checkout-panel'
  * 【状态进 URL】?s=&c=&op=&confirm=1：刷新、分享、登录回跳都不丢；桌面 replaceState，手机每进一步 pushState 并监听 popstate
  * （系统返回键 = 回到上一步，不离开 /jiema）。
  * 【不屏蔽任何平台】（D25）没有「不提供」的提示；搜索不看上游代码。
- * 【下单】（S2b）确认面板的付款方式、条款、提交与 409 弹窗在 checkout-panel.tsx；orderAvailable=false（总开关关着 / 普通用户灰度期）时「去支付」不可用，
+ * 【下单】（S2b）确认面板的付款方式、提交与 409 弹窗在 checkout-panel.tsx，付款前免责弹窗在 consent-dialog.tsx（每一单都弹，§8.6）；orderAvailable=false（总开关关着 / 普通用户灰度期）时「去支付」不可用，
  * 管理员预览时顶部有横幅说明（总开关开 + 仅管理员 = 管理员真钱验收）。
  * 【限高与滚动】确认面板最大高度 100dvh − 页头 − 16px，主体可滚动，按钮与退款说明钉在底栏（09-24 开票弹窗事故的教训）。
  * localStorage（排序偏好）一律 try/catch；换服务时不重置排序（§1.4）。
@@ -36,7 +36,7 @@ export interface JiemaClientProps {
   maxReplace: number
   /** 余额支付开关（wallet_config.balancePayEnabled，读不到按关）：关着时确认面板只有支付宝（§1.8） */
   balancePayOn: boolean
-  /** 本人最近一张接码单同意过的两份条款版本（首单必勾，之后同一版默认勾选，§1.8）；没登录 / 没下过单为 null */
+  /** 本人最近一张接码单同意过的两份条款版本（付款前弹窗据此提示「条款已更新」，§1.8、§8.6）；没登录 / 没下过单为 null */
   lastTerms: { jiema: string | null; wallet: string | null } | null
 }
 

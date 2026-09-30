@@ -78,6 +78,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 把 noindex 的地址塞进 sitemap 是自相矛盾的信号）。配置读不到按关（fail-closed），不影响其余条目
   if (jiemaPublicOpen(await readSmsConfigCached())) {
     staticPages.push({ url: absUrl('/jiema'), changeFrequency: 'daily', priority: 0.8 })
+    // 《短信接码服务条款》全文（§8.6）：与 /jiema 同一个收录条件（页面组 layout 的 robots 也是这个判定）
+    staticPages.push({ url: absUrl('/jiema/terms'), changeFrequency: 'yearly', priority: 0.3 })
   }
 
   // 【为什么没有分类页】/news 的分类筛选是 NewsStream 里的客户端状态，不进 URL，

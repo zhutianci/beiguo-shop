@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth'
 import { denyOnChannel } from '@/lib/storefront/resolve'
 import { crossSiteReason } from '@/lib/same-origin'
-import { rateLimited } from '@/lib/news/rate-limit'
+import { rateLimited, clientIp } from '@/lib/news/rate-limit'
 import { createJiemaOrder } from '@/lib/jiema/order'
 import { jfail, jok } from '@/lib/jiema/buyer-api'
 import { listBuyerRecords } from '@/lib/jiema/records'
@@ -15,12 +15,14 @@ import { parseRecordDays, parseRecordTab, phoneQuery } from '@/lib/jiema/ui'
  * 短信接码下单（docs/短信接码-设计.md §6.4、T1、§1.8、§1.9）。只在主站：第一行 denyOnChannel，不包进 try（D11、规则 18）。
  *
  * POST `{ service, country, operator: string|null, operatorFallback, expectPriceCents, payWith: 'ALIPAY'|'BALANCE', expectBalanceCents?, clientToken(uuid),
- *        agree: true, termsVersion, walletTermsVersion }`
+ *        agree: true, termsVersion, walletTermsVersion }`（后三项是付款前弹窗「下单须知与免责声明」的同意标记与两份条款版本，§1.8、§8.6）
  *   200 `{ orderNo, orderId, priceCents, payMode, balanceCents, alipayCents, quoteExpiresAt, next: 'NUMBER'|'CASHIER', payUrl? }`；
  *   400 BAD_REQUEST（zod 只校验格式，§10.2）/ 404 NOT_FOUND（组合不在目录里）；
- *   409 PRICE_CHANGED{priceCents,balanceCents,alipayCents} / BALANCE_CHANGED{balanceCents,alipayCents,suggestPayWith?} / SOLD_OUT / HOLD / TERMS；
+ *   409 PRICE_CHANGED{priceCents,balanceCents,alipayCents} / BALANCE_CHANGED{balanceCents,alipayCents,suggestPayWith?} / SOLD_OUT / HOLD /
+ *       TERMS{termsVersion,walletTermsVersion}（没勾同意、缺字段、版本不是当前版都是这个；带回当前两个版本号）；
  *   429 LIMIT / OPEN_PAYMENTS{released?} / BUSY / RATE；503 MAINTENANCE / BALANCE_PAY_OFF / PAY_BUSY / UNAVAILABLE / QUOTE_FAILED。
  * 写接口同源校验（CSRF）；每人每分钟 5 次（进程内）；业务上限在下单事务里锁住用户行后判断。
+ * 同意留痕：请求的 IP（clientIp）与 User-Agent 交给下单事务，写进 TERMS_AGREED 事件（lib/jiema/consent.ts）。
  */
 const schema = z.object({
   service: z.string().regex(/^[a-z0-9]{2,4}$/),
@@ -31,9 +33,10 @@ const schema = z.object({
   payWith: z.enum(['ALIPAY', 'BALANCE']),
   expectBalanceCents: z.number().int().min(0).max(10_000_000).nullable().optional(),
   clientToken: z.string().uuid(),
-  agree: z.boolean(),
-  termsVersion: z.string().max(16),
-  walletTermsVersion: z.string().max(16),
+  // 同意标记与版本号只校验类型、都可以缺：缺了由下单逻辑返回 409 TERMS（前端重新弹窗），不是 400（§8.6）
+  agree: z.boolean().nullable().optional(),
+  termsVersion: z.string().max(16).nullable().optional(),
+  walletTermsVersion: z.string().max(16).nullable().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -58,9 +61,10 @@ export async function POST(request: NextRequest) {
         payWith: d.payWith,
         expectBalanceCents: d.expectBalanceCents ?? null,
         clientToken: d.clientToken.toLowerCase(),
-        agree: d.agree,
-        termsVersion: d.termsVersion,
-        walletTermsVersion: d.walletTermsVersion,
+        agree: d.agree ?? null,
+        termsVersion: d.termsVersion ?? null,
+        walletTermsVersion: d.walletTermsVersion ?? null,
+        consent: { ip: clientIp(request.headers), ua: request.headers.get('user-agent') },
       },
     )
     if (!r.ok) return jfail(r.status, r.code, r.message, r.extra ?? {})

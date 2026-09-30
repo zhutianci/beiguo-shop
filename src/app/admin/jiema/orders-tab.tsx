@@ -450,6 +450,18 @@ function DetailDrawer({ id, onClose, onChanged }: { id: number; onClose: () => v
                 <span>例外时长已验证 {d.so.longWaitOk ? '是' : '否'}</span>
                 <span>条款 {d.so.termsVersion} / {d.so.walletTermsVersion ?? '—'}</span>
               </div>
+              {/* 付款前弹窗的同意留痕（TERMS_AGREED 事件，§8.6）：条款版本、同意时间、IP、UA 摘要；2026-09-30 之前的单只有上面的版本号 */}
+              <div className="mt-1 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-600">
+                <b className="text-gray-800">条款同意</b>{' '}
+                {d.consent ? (
+                  <>
+                    《短信接码服务条款》{d.consent.terms} · 《余额与充值规则》{d.consent.walletTerms || '—'} · 同意于 {t(d.consent.at)} · IP {d.consent.ip ?? '—'}
+                    <div className="break-all text-gray-500">UA {d.consent.ua ?? '—'}</div>
+                  </>
+                ) : (
+                  <span className="text-gray-400">没有同意留痕（付款前免责弹窗上线之前的订单，只有上面的条款版本号）</span>
+                )}
+              </div>
             </section>
 
             <section>

@@ -14,7 +14,7 @@
  *   §7.2 后台接码订单：列表筛选与页脚（营收 − 成本 = 毛利）、详情（尝试 raw、资金、成本）、权限 403、每个操作写审计：
  *     关单并原路退回预扣、加赠换号、释放号码、解除 MANUAL（前提校验）、售后退款（成本照计）、重新核算、认领上游激活（两个候选 → MANUAL → 认领）；
  *   §7.1 概览：在途占用与 E26 同一个 inflightMicro、告警线 $2（不停售）、今日计数与营收成本毛利；§6.6 第 28 条 后台订单列表与仪表盘的接码成本利润；
- *   §6.6 第 32 条 条款页第四节的《接码服务规则》随「对全部用户开放」出现；最后 W 系列对账不新增问题。
+ *   §6.6 第 32 条 条款页第四节的《短信接码服务条款》第一节五条随「对全部用户开放」出现；最后 W 系列对账不新增问题。
  */
 import http from 'http'
 import crypto from 'crypto'
@@ -739,13 +739,13 @@ async function main() {
     }
 
     // =====================================================================================
-    section('§6.6 第 32 条 条款页第四节：《接码服务规则》只在对全部用户开放时出现（正文是代码常量）')
+    section('§6.6 第 32 条 条款页第四节：《短信接码服务条款》第一节五条只在对全部用户开放时出现（正文是代码常量）')
     {
       const t1 = textOf(await withRequest({ host: MAIN }, () => TermsPage())).join('')
-      check('受众仅管理员：条款页没有《接码服务规则》（灰度期确认面板自带全文）', !t1.includes(JIEMA_TERMS[3]))
+      check('受众仅管理员：条款页没有接码五条（灰度期付款前弹窗与 /jiema/terms 自带全文）', !t1.includes(JIEMA_TERMS[3]))
       await setCfg({ audience: 'ALL' })
       const t2 = textOf(await withRequest({ host: MAIN }, () => TermsPage())).join('')
-      check('对全部用户开放：条款页第四节列出《接码服务规则》五条', JIEMA_TERMS.every((x) => t2.includes(x)))
+      check('对全部用户开放：条款页第四节列出《短信接码服务条款》第一节五条', JIEMA_TERMS.every((x) => t2.includes(x)))
       await setCfg()
     }
 

@@ -33,7 +33,7 @@ import {
   bjTime,
   jiemaOrderCard,
   orderAmountText,
-  termsPreTicked,
+  termsChangedSinceLast,
   effectivePayWith,
   jiemaAmountLines,
 } from '../src/lib/jiema/ui'
@@ -162,12 +162,17 @@ console.log('\n【「我的订单」里的接码卡片（§6.6 第 27 条、§12
   ok(orderAmountText(1.7, 'SMS_POOL') === '¥1.70' && orderAmountText(12, 'AUTO') === '¥12', '金额：接码单按分（¥1.70 不显示成「¥2」），普通商品不变')
 }
 
-console.log('\n【悬浮组件让位（§6.6 第 31 条）与条款默认勾选（§1.8）】')
+console.log('\n【悬浮组件让位（§6.6 第 31 条）与条款更新提示（§1.8、§8.6：每一单付款前弹窗重新勾选，不再默认勾选）】')
 {
   ok(hideLiveOrdersOn('/jiema') && hideLiveOrdersOn('/jiema/order/X') && hideLiveOrdersOn('/wallet') && hideLiveOrdersOn('/wallet/topup') && !hideLiveOrdersOn('/products') && !hideLiveOrdersOn('/jiemax'), '成交弹窗：/jiema/*、/wallet/* 不渲染')
   ok(hideFloatingContactOn('/jiema') && hideFloatingContactOn('/jiema/order/X') && !hideFloatingContactOn('/wallet') && !hideFloatingContactOn('/wallet/topup') && !hideFloatingContactOn(null), '客服按钮：只在 /jiema/* 隐藏，/wallet/* 保留')
-  ok(!termsPreTicked(null, { jiema: 'a', wallet: 'b' }), '首单：两份条款都要勾')
-  ok(termsPreTicked({ jiema: 'a', wallet: 'b' }, { jiema: 'a', wallet: 'b' }) && !termsPreTicked({ jiema: 'a', wallet: 'old' }, { jiema: 'a', wallet: 'b' }), '同一版默认勾选；任一份升版后重新勾选')
+  ok(!termsChangedSinceLast(null, { jiema: 'a', wallet: 'b' }), '首单：不提示「条款已更新」（本来就要读全文）')
+  ok(
+    !termsChangedSinceLast({ jiema: 'a', wallet: 'b' }, { jiema: 'a', wallet: 'b' }) &&
+      termsChangedSinceLast({ jiema: 'a', wallet: 'old' }, { jiema: 'a', wallet: 'b' }) &&
+      termsChangedSinceLast({ jiema: 'old', wallet: 'b' }, { jiema: 'a', wallet: 'b' }),
+    '同一版不提示；任一份升版后提示「条款已更新」',
+  )
   ok(JIEMA_ORDER_AVAILABLE === true && !jiemaPublicOpen({ ...FACTORY_SMS_CONFIG }) && jiemaPublicOpen({ ...FACTORY_SMS_CONFIG, enabled: true, audience: 'ALL' }), 'S2b：JIEMA_ORDER_AVAILABLE=true；出厂配置（关、仅管理员）仍不开放')
   ok(!smsConfigSaveBlockers({ ...FACTORY_SMS_CONFIG, audience: 'ALL' }).audience, '后台可以保存「全部用户」（S4 对账跑满 3 天前不要切，部署说明写明）')
 }

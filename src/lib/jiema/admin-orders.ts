@@ -27,6 +27,7 @@ import * as engine from './engine'
 import { alertFinalizeFailed, finalizeComplaintAfterRefund, pendingComplaintCount } from './complaint'
 import { complaintReasonText } from './complaint-rules'
 import { jiemaUserFlags } from './user-flags'
+import { TERMS_AGREED_EVENT, parseConsentDetail } from './consent'
 
 const S = 1000
 export const ADMIN_STATES = ['PENDING_PAY', 'CLOSED', 'READY', 'ACQUIRING', 'WAITING', 'REPLACING', 'CANCELLING', 'RECEIVED', 'FINISHED', 'REFUNDING', 'CANCELLED', 'REFUNDED', 'MANUAL'] as const
@@ -148,7 +149,7 @@ const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null)
 export async function jiemaOrderDetailAdmin(id: number) {
   const so = await prisma.smsOrder.findUnique({ where: { id } })
   if (!so) return null
-  const [order, user, hold, payments, vmqs, logs, atts, msgs, events, complaint] = await Promise.all([
+  const [order, user, hold, payments, vmqs, logs, atts, msgs, events, complaint, consentEv] = await Promise.all([
     prisma.order.findUnique({ where: { id: so.orderId }, select: { id: true, orderNo: true, userId: true, payStatus: true, deliveryStatus: true, amount: true, paidAt: true, createdAt: true, productName: true } }),
     prisma.user.findUnique({ where: { id: so.userId }, select: { id: true, email: true, nickname: true, topupCents: true, balance: true } }),
     prisma.balanceHold.findUnique({ where: { orderId: so.orderId } }),
@@ -160,6 +161,8 @@ export async function jiemaOrderDetailAdmin(id: number) {
     prisma.smsEvent.findMany({ where: { smsOrderId: so.id }, orderBy: { id: 'desc' }, take: 300 }),
     // 售后申请（S3，§7.2 详情抽屉「售后申请」）
     prisma.smsComplaint.findUnique({ where: { orderId: so.orderId } }),
+    // 下单时的条款同意留痕（§8.6）：单独取，不受「最近 300 条」截断；2026-09-30 之前的单没有这条
+    prisma.smsEvent.findFirst({ where: { smsOrderId: so.id, type: TERMS_AGREED_EVENT }, orderBy: { id: 'asc' } }),
   ])
   const cost = settleCost({ state: so.state, priceCents: so.priceCents, costFx4: so.costFx4 }, atts)
   const withCode = atts.some(hasCode)
@@ -207,6 +210,7 @@ export async function jiemaOrderDetailAdmin(id: number) {
     complaint: complaint
       ? { id: complaint.id, state: complaint.state, reason: complaint.reason, reasonText: complaintReasonText(complaint.reason), detail: complaint.detail, adminNote: complaint.adminNote, createdAt: iso(complaint.createdAt), handledAt: iso(complaint.handledAt) }
       : null,
+    consent: consentEv ? { at: iso(consentEv.createdAt), actorId: consentEv.actorId, ...(parseConsentDetail(consentEv.detail) ?? { terms: so.termsVersion, walletTerms: so.walletTermsVersion ?? '', ip: null, ua: null }) } : null,
     unknownAttempts: atts.filter((a) => a.state === 'UNKNOWN').map((a) => a.id),
     releasable: atts.filter((a) => a.state === 'ACTIVE' || a.state === 'RELEASING').map((a) => a.id),
   }

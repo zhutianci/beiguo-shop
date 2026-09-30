@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { X, Loader2, Info, ChevronDown, ChevronRight, Wallet, AlertTriangle } from 'lucide-react'
+import { X, Loader2, Info, Wallet, AlertTriangle, ShieldAlert } from 'lucide-react'
 import { useHydrated } from '@/lib/use-hydrated'
 import { useUserStore } from '@/store/user'
 import { fmtYuan } from '@/lib/jiema/pricing'
@@ -17,12 +17,15 @@ import {
   jiemaSelectionPath,
   loginHref,
   topupHref,
-  termsPreTicked,
+  termsChangedSinceLast,
+  termsReaction,
+  payPlanSummary,
   type PayWith,
   type ChangeDialog,
 } from '@/lib/jiema/ui'
-import { JIEMA_TERMS, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
+import { JIEMA_TERMS_PATH, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
 import { cn } from '@/lib/utils'
+import { ConsentDialog } from './consent-dialog'
 
 /**
  * 确认面板的「付款方式 → 去支付」（docs/短信接码-设计.md §1.8、§1.9、§1.14、D1、D24、D27、D32–D34、D37）。
@@ -34,6 +37,10 @@ import { cn } from '@/lib/utils'
  * 【登录门禁】先等 useHydrated 再看登录态；没登录点按钮 → /login?redirect=<整段编码的 /jiema?s=&c=&op=&confirm=1>。
  * 【去充值】新标签页打开 /wallet/topup?returnTo=…；回到本页（visibilitychange）重新拉一次余额。
  * 【幂等】clientToken 跟着这一次提交走：服务端已经建单又关掉的（PAY_BUSY、事后复核超限）换一个，其余失败保留（重试时同一张单原样返回）。
+ * 【付款前免责弹窗】（§8.6，2026-09-30）面板里不再有条款勾选框：点底栏按钮 → 先弹「下单须知与免责声明」（consent-dialog.tsx，**每一单都弹**，
+ * 三种付款方式都走这一步）→ 勾选同意、点「同意并下单」才真正提交（agree: true + 两份条款版本）；取消 = 不下单。
+ * 价格 / 余额变化的二次确认（changeDialog）沿用这一次的同意，不再弹第二遍。409 TERMS：服务端带回的版本与本页打包的对不上 → 提示刷新页面
+ * （页面是旧的，弹窗里的正文也是旧的）；对得上 → 重新弹窗、清空勾选（ui.termsReaction）。
  */
 
 interface Brief {
@@ -137,11 +144,13 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
   const price = p.priceCents ?? 0
   const plan = useMemo(() => payPlan(price, brief?.topupCents ?? 0, brief?.cashCents ?? 0, payWithNow), [price, brief, payWithNow])
 
-  // ---------- 条款（首单必勾；同一版之后默认勾选，任一份升版后重新勾选）----------
-  const pre = termsPreTicked(p.lastTerms, { jiema: JIEMA_TERMS_VERSION, wallet: WALLET_TERMS_VERSION })
-  const [agreeJ, setAgreeJ] = useState(pre)
-  const [agreeW, setAgreeW] = useState(pre)
-  const [termsOpen, setTermsOpen] = useState<'J' | 'W' | null>(null)
+  // ---------- 条款：每一单付款前弹「下单须知与免责声明」，勾选同意后才提交（§8.6）----------
+  const termsUpdated = termsChangedSinceLast(p.lastTerms, { jiema: JIEMA_TERMS_VERSION, wallet: WALLET_TERMS_VERSION })
+  const [consentOpen, setConsentOpen] = useState(false)
+  // 这一次提交是否已在弹窗里同意（只由「同意并下单」置 true；每次点底栏按钮重新置 false 再弹窗）
+  const agreed = useRef(false)
+  // 409 TERMS 且服务端版本与本页不同：本页的条款正文已过期，只能刷新
+  const [termsStale, setTermsStale] = useState(false)
 
   // ---------- 提交 ----------
   const token = useRef<string>(uuid())
@@ -150,6 +159,29 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
   const [openPays, setOpenPays] = useState<OpenPayment[] | null>(null)
   const [dialog, setDialog] = useState<ChangeDialog | null>(null)
 
+  /** 底栏按钮：登录门禁之后先弹免责弹窗（不直接提交） */
+  const askConsent = () => {
+    if (!p.orderAvailable || submitting || p.priceCents == null) return
+    if (!hydrated) return
+    if (!user) {
+      router.push(loginHref(returnPath))
+      return
+    }
+    if (termsStale) {
+      window.location.reload()
+      return
+    }
+    agreed.current = false
+    setMsg(null)
+    setConsentOpen(true)
+  }
+
+  const onConsent = () => {
+    agreed.current = true
+    setConsentOpen(false)
+    void submit()
+  }
+
   const submit = async (over?: ChangeDialog['next']) => {
     if (!p.orderAvailable || submitting || p.priceCents == null) return
     if (!hydrated) return
@@ -157,8 +189,9 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
       router.push(loginHref(returnPath))
       return
     }
-    if (!agreeJ || !agreeW) {
-      setMsg(`请先阅读并勾选《${JIEMA_TERMS_TITLE}》与《${WALLET_TERMS_TITLE}》`)
+    if (!agreed.current) {
+      // 只有弹窗里点「同意并下单」之后才会走到这里；兜底：没同意就重新弹窗，不提交
+      setConsentOpen(true)
       return
     }
     setSubmitting(true)
@@ -207,8 +240,15 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
         }
       }
       if (code === 'TERMS') {
-        setAgreeJ(false)
-        setAgreeW(false)
+        agreed.current = false
+        if (termsReaction(d, { jiema: JIEMA_TERMS_VERSION, wallet: WALLET_TERMS_VERSION }) === 'RELOAD') {
+          setTermsStale(true)
+          setMsg(`《${JIEMA_TERMS_TITLE}》或《${WALLET_TERMS_TITLE}》已更新，请刷新页面后重新阅读并同意`)
+        } else {
+          setMsg((d?.error as string) || '请先阅读「下单须知与免责声明」，勾选同意后再下单')
+          setConsentOpen(true)
+        }
+        return
       }
       if (code === 'OPEN_PAYMENTS' && Array.isArray(d?.items)) setOpenPays(d.items as OpenPayment[])
       if (code === 'BALANCE_PAY_OFF') {
@@ -233,8 +273,10 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
     void submit(d.next)
   }
 
-  const btnLabel = !p.orderAvailable ? p.payDisabledLabel : !hydrated ? '去支付' : !user ? '登录后去支付' : payButtonLabel(plan)
+  const btnLabel = !p.orderAvailable ? p.payDisabledLabel : !hydrated ? '去支付' : !user ? '登录后去支付' : termsStale ? '刷新页面后重新下单' : payButtonLabel(plan)
   const walletTerms = walletTermsFor(balanceOn)
+  // 弹窗底栏的本单摘要：服务 · 国家/地区 · 与底栏按钮同一个付款文案
+  const consentSummary = `${p.service.name} · ${p.country.name}${p.op ? ` · ${p.opName}` : ''} · ${payPlanSummary(plan)}`
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" role="dialog" aria-modal="true" aria-label="确认订单">
@@ -348,36 +390,18 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
             )}
           </div>
 
-          {/* 条款：首单必勾两份（不论哪种付款方式：没收到码时支付宝付的部分同样退进充值余额，受《余额与充值规则》约束） */}
-          <div className="space-y-1.5 text-[13px]">
-            {(
-              [
-                ['J', JIEMA_TERMS_TITLE, agreeJ, setAgreeJ, JIEMA_TERMS],
-                ['W', WALLET_TERMS_TITLE, agreeW, setAgreeW, walletTerms],
-              ] as const
-            ).map(([k, title, val, set, lines]) => (
-              <div key={k}>
-                <label className="flex items-start gap-2 text-white/70">
-                  <input type="checkbox" className="mt-0.5" checked={val} onChange={(e) => set(e.target.checked)} />
-                  <span>
-                    我已阅读
-                    <button type="button" onClick={() => setTermsOpen(termsOpen === k ? null : k)} className="text-cyan-300/90 hover:underline">
-                      《{title}》
-                    </button>
-                    {!pre && <span className="text-white/40">（首单必勾）</span>}
-                  </span>
-                  {termsOpen === k ? <ChevronDown className="ml-auto h-4 w-4 text-white/40" /> : <ChevronRight className="ml-auto h-4 w-4 text-white/40" />}
-                </label>
-                {termsOpen === k && (
-                  <ol className="ml-6 mt-1 list-decimal space-y-1 rounded-lg border border-white/10 bg-white/[0.03] px-4 py-2 text-xs leading-relaxed text-white/55">
-                    {lines.map((t) => (
-                      <li key={t}>{t}</li>
-                    ))}
-                  </ol>
-                )}
-              </div>
-            ))}
-          </div>
+          {/* 条款（§8.6）：不在面板里勾选；点底栏按钮后弹「下单须知与免责声明」，每一单都要勾选同意（不论哪种付款方式：
+              没收到码时支付宝付的部分同样退进充值余额，受《余额与充值规则》约束） */}
+          <p className="flex items-start gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs leading-relaxed text-white/60">
+            <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-300" />
+            <span>
+              本服务仅用于学习交流与测试，严禁用于违法犯罪。付款前会弹出「下单须知与免责声明」，阅读并勾选同意
+              <a href={JIEMA_TERMS_PATH} target="_blank" rel="noopener" className="mx-0.5 text-cyan-300/90 hover:underline">
+                《{JIEMA_TERMS_TITLE}》
+              </a>
+              与《{WALLET_TERMS_TITLE}》后才会下单。
+            </span>
+          </p>
 
           {openPays && openPays.length > 0 && (
             <ul className="space-y-1 rounded-xl border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100/85">
@@ -415,7 +439,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
             </p>
           )}
           <button
-            onClick={() => void submit()}
+            onClick={askConsent}
             disabled={!p.orderAvailable || submitting || p.priceCents == null}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -444,6 +468,20 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
           </div>
         )}
       </div>
+
+      {/* 付款前免责弹窗（每一单都弹；每次打开重新挂载，勾选从「未勾」开始） */}
+      {consentOpen && (
+        <ConsentDialog
+          walletLines={walletTerms}
+          updated={termsUpdated}
+          summary={consentSummary}
+          onCancel={() => {
+            agreed.current = false
+            setConsentOpen(false)
+          }}
+          onConfirm={onConsent}
+        />
+      )}
     </div>
   )
 }
