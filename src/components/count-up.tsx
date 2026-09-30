@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { isLiteNow } from '@/lib/use-lite'
 
 /**
  * 数字滚动。
@@ -44,9 +45,11 @@ export function CountUp({
     const el = ref.current
     if (!el) return
 
+    // 手机端轻量模式（2026-10-01，站长要求电脑端不变）同样直接显示真值：滚到这里时逐帧 setState 滚 2 秒数字，
+    // 正好撞上 iOS WebKit 边滑边补画，会加重滑动时的黑块。在 effect 里判断，不影响服务端 HTML 与水合
     const reduced =
       typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      (window.matchMedia('(prefers-reduced-motion: reduce)').matches || isLiteNow())
     if (reduced) return
 
     // 已经看得见就别动它——从真值闪回 0 比不做动画难看得多

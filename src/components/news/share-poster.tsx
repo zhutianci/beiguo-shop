@@ -158,7 +158,8 @@ export function SharePoster(props: Props) {
 
       {open && (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+          /* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 每帧整屏重算模糊，卡顿、黑块），遮罩改深色 lite:bg-black/90，背后的字不透出来 */
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm lite:bg-black/90"
           onClick={() => setOpen(false)}
           role="dialog"
           aria-modal="true"

@@ -62,8 +62,9 @@ export default function IpToolsPage() {
 
       {/* 背景装饰 */}
       <div className="absolute inset-0 grid-bg opacity-40" />
-      <div className="absolute top-24 left-1/4 w-[28rem] h-[28rem] bg-cyan-500/20 rounded-full blur-[140px]" />
-      <div className="absolute bottom-1/4 right-1/5 w-[26rem] h-[26rem] bg-purple-500/20 rounded-full blur-[140px]" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="absolute top-24 left-1/4 w-[28rem] h-[28rem] bg-cyan-500/20 rounded-full blur-[140px] lite-blob" />
+      <div className="absolute bottom-1/4 right-1/5 w-[26rem] h-[26rem] bg-purple-500/20 rounded-full blur-[140px] lite-blob" />
 
       <div className="container relative z-10 page-top pb-24 max-w-6xl">
         {/* 标题 */}
@@ -118,7 +119,7 @@ export default function IpToolsPage() {
             className="group relative block rounded-3xl p-8 md:p-10 mb-14 overflow-hidden glass-strong border border-cyan-400/25"
           >
             <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-cyan-500/40 to-purple-500/40 opacity-0 group-hover:opacity-100 blur-md transition-opacity duration-500 -z-10" />
-            <div className="absolute -top-16 -right-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px]" />
+            <div className="absolute -top-16 -right-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] lite-blob" />
 
             <div className="flex flex-col md:flex-row md:items-center gap-6">
               <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">

@@ -379,7 +379,8 @@ export function NewsStream({ initial, initialTotalPages, total, now, highlights,
                     lg 起吸顶位置下移到 96px：滚动后的固定头部在 lg 上高 88px（py-3 + 64px 药丸），
                     仍用 72px 的话日期胶囊会有一截压在头部底下（头部 z-50 盖住它）。 */}
                 <div className="sticky top-[72px] z-20 -mx-1 mb-3 px-1 py-1 lg:top-24 lg:mb-4">
-                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/70 px-3.5 py-1.5 backdrop-blur-md lg:px-4 lg:py-2">
+                  {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 滚动时每帧重算模糊），吸顶日期胶囊改深色 lite:bg-black/90，下面滚过的卡片不透字 */}
+                  <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/70 px-3.5 py-1.5 backdrop-blur-md lg:px-4 lg:py-2 lite:bg-black/90">
                     <h2 className="text-sm font-semibold tracking-wide text-white/90 lg:text-[15px]">
                       {formatDayHeading(group.key)}
                     </h2>

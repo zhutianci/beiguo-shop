@@ -87,8 +87,9 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center py-20 px-4">
       {/* 背景 */}
       <div className="fixed inset-0 grid-bg pointer-events-none" />
-      <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[128px] pointer-events-none" />
-      <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-pink-500/10 rounded-full blur-[128px] pointer-events-none" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[128px] lite-blob pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-pink-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
 
       {/* 【首帧可见 · iPhone「打不开」（2026-09-30）】这层包着整张登录卡片，原来 initial={{ opacity: 0, y: 20 }}：
           服务端 HTML 里整张卡是 opacity:0，iPhone 上的 Safari / Chrome 走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，

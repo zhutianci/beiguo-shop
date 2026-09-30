@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, ReactNode } from 'react'
+import { useLite } from '@/lib/use-lite'
 
 interface TiltCardProps {
   children: ReactNode
@@ -21,6 +22,12 @@ export function TiltCard({
   const [transform, setTransform] = useState('')
   const [glarePos, setGlarePos] = useState({ x: 50, y: 50 })
   const [isHovering, setIsHovering] = useState(false)
+  /*
+   * 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏不倾斜、不出反光。
+   * iOS 点一下会补发 mouseenter / mousemove，卡片就定格在倾斜 + 放大的样子并挂上一层 mix-blend 反光，
+   * 还可能让 iOS 把第一次点击当成「悬停」、要点第二次才进商品页；preserve-3d 也会把卡片里的毛玻璃拖进 3D 合成。
+   */
+  const lite = useLite()
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!ref.current) return
@@ -46,13 +53,13 @@ export function TiltCard({
   return (
     <div
       ref={ref}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
+      onMouseMove={lite ? undefined : handleMouseMove}
+      onMouseEnter={lite ? undefined : handleMouseEnter}
+      onMouseLeave={lite ? undefined : handleMouseLeave}
       style={{
         transform,
         transition: transform ? 'transform 0.08s ease-out' : 'transform 0.4s ease-out',
-        transformStyle: 'preserve-3d',
+        transformStyle: lite ? undefined : 'preserve-3d',
       }}
       className={`relative ${className}`}
     >

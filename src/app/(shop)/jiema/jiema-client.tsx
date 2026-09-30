@@ -616,7 +616,8 @@ export function JiemaClient(props: JiemaClientProps) {
 
       {/* 底部固定确认条（z-50，高于右下角客服按钮与左下角成交弹窗的 z-40） */}
       {service && picked && step !== 'confirm' && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/80 backdrop-blur-xl">
+        /* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 滚动时每帧重算模糊，卡顿、黑块），底栏改成几乎不透明的 lite:bg-black/95，滚动的列表不会透出来 */
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-white/10 bg-black/80 backdrop-blur-xl lite:bg-black/95">
           <div className="container flex max-w-6xl items-center gap-3 py-3">
             <Flag flag={picked.flag} />
             <div className="min-w-0 flex-1">

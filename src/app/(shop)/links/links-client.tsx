@@ -67,8 +67,9 @@ export default function LinksClient({ data }: { data: LinksPageData }) {
     <div className="min-h-screen page-top pb-20">
       {/* 背景：紫在左上、青在右下，与 /about、/forum 一致 */}
       <div className="fixed inset-0 grid-bg pointer-events-none" />
-      <div className="fixed left-1/4 top-1/4 h-[600px] w-[600px] rounded-full bg-purple-500/10 blur-[128px] pointer-events-none" />
-      <div className="fixed bottom-1/4 right-1/4 h-[600px] w-[600px] rounded-full bg-cyan-500/10 blur-[128px] pointer-events-none" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="fixed left-1/4 top-1/4 h-[600px] w-[600px] rounded-full bg-purple-500/10 blur-[128px] lite-blob pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/4 h-[600px] w-[600px] rounded-full bg-cyan-500/10 blur-[128px] lite-blob pointer-events-none" />
 
       <div className="container relative max-w-6xl">
         {/* ---------------- Hero ---------------- */}
@@ -213,7 +214,7 @@ export default function LinksClient({ data }: { data: LinksPageData }) {
 
             {/* 本站信息 */}
             <div className="relative overflow-hidden rounded-2xl glass-strong p-6">
-              <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-purple-500/10 blur-[80px]" />
+              <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-purple-500/10 blur-[80px] lite-blob" />
               <div className="relative">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <span className="text-sm font-medium text-white/80">把这些填到贵站</span>

@@ -4,6 +4,7 @@ import { useStorefront } from '@/components/storefront-provider'
 import { useState, useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { hideLiveOrdersOn } from '@/lib/floating-widgets'
+import { useLite } from '@/lib/use-lite'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ShoppingBag, MapPin } from 'lucide-react'
 
@@ -49,6 +50,8 @@ function LiveOrderNotificationInner() {
   const [orders, setOrders] = useState<RecentOrder[]>([])
   const [current, setCurrent] = useState<{ order: RecentOrder; relativeTime: string } | null>(null)
   const indexRef = useRef(0)
+  // 手机端轻量模式（2026-10-01，站长要求电脑端不变）：只换底部进度条的实现，见下方进度条处
+  const lite = useLite()
 
   // 加载订单数据
   useEffect(() => {
@@ -132,13 +135,23 @@ function LiveOrderNotificationInner() {
                 </div>
               </div>
 
-              {/* 底部进度条 */}
-              <motion.div
-                initial={{ width: '100%' }}
-                animate={{ width: '0%' }}
-                transition={{ duration: 5, ease: 'linear' }}
-                className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${getGradient(current.order.id)} rounded-bl-2xl`}
-              />
+              {/* 底部进度条
+                  手机端轻量模式：同样 5 秒、线性、从右往左缩到 0，改用 CSS 的 transform: scaleX 动画（关键帧在 globals.css）。
+                  原来逐帧改 width，弹窗出现的 5 秒里每一帧都要重新排版（实测占首页全部排版次数的八成），
+                  scaleX 交给合成线程，主线程不用管。弹窗的出现时机、文案、滑入滑出都不变（站长要求保留成交弹窗）。
+                  弹窗在水合之后才会出现，lite 第一次渲染时已是真实值 */}
+              {lite ? (
+                <div
+                  className={`absolute bottom-0 left-0 h-0.5 w-full origin-left animate-[live-order-bar_5s_linear_forwards] bg-gradient-to-r ${getGradient(current.order.id)} rounded-bl-2xl`}
+                />
+              ) : (
+                <motion.div
+                  initial={{ width: '100%' }}
+                  animate={{ width: '0%' }}
+                  transition={{ duration: 5, ease: 'linear' }}
+                  className={`absolute bottom-0 left-0 h-0.5 bg-gradient-to-r ${getGradient(current.order.id)} rounded-bl-2xl`}
+                />
+              )}
             </div>
           </div>
         </motion.div>

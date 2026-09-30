@@ -16,7 +16,8 @@ export function SuspendedBanner() {
       className="pointer-events-none fixed inset-x-0 z-40 flex justify-center px-4"
       style={{ top: 'var(--header-h, 7rem)' }}
     >
-      <div className="pointer-events-auto max-w-2xl rounded-full border border-amber-400/30 bg-amber-500/15 px-4 py-1.5 text-center text-xs leading-5 text-amber-200 backdrop-blur-md sm:text-sm">
+      {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 滚动时每帧重算模糊），固定横幅改深色 lite:bg-amber-950/90，下面滚过的内容不透字 */}
+      <div className="pointer-events-auto max-w-2xl rounded-full border border-amber-400/30 bg-amber-500/15 px-4 py-1.5 text-center text-xs leading-5 text-amber-200 backdrop-blur-md sm:text-sm lite:bg-amber-950/90">
         本店暂停营业，暂不接受新订单；已下单的订单可照常付款、查看与取卡。
       </div>
     </div>

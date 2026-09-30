@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useLite } from '@/lib/use-lite'
 
 interface MouseSpotlightProps {
   size?: number
@@ -17,8 +18,15 @@ export function MouseSpotlight({
 }: MouseSpotlightProps) {
   const [pos, setPos] = useState({ x: -1000, y: -1000 })
   const [visible, setVisible] = useState(false)
+  /*
+   * 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏没有鼠标，不挂 mousemove。
+   * iOS 点一下会补发一次兼容的 mousemove，这块 600px 的 fixed 光晕就停在点过的地方不走了，
+   * 还逼着上面所有内容单独合成图层（iOS WebKit 本来就在为毛玻璃和常驻动画满负荷重绘）。
+   */
+  const lite = useLite()
 
   useEffect(() => {
+    if (lite) return
     let raf = 0
     const handleMove = (e: MouseEvent) => {
       cancelAnimationFrame(raf)
@@ -36,12 +44,12 @@ export function MouseSpotlight({
       document.removeEventListener('mouseleave', handleLeave)
       cancelAnimationFrame(raf)
     }
-  }, [])
+  }, [lite])
 
   return (
     <div
       aria-hidden
-      className="fixed pointer-events-none z-0 rounded-full"
+      className="fixed pointer-events-none z-0 rounded-full lite:hidden"
       style={{
         left: pos.x,
         top: pos.y,

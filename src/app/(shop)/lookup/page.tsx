@@ -269,8 +269,9 @@ function LookupForm() {
        头部收到 96+16=112px。以后改头部高度只改 --header-h 一处，不用再追七八个文件 */
     <div className="min-h-screen page-top pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
-      <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
-      <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
+      <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
 
       {/* 表单型页面：宽度以「够用」为准而不是铺满。896 → xl 放宽到 1024，
           刚好让结果卡里的 md:grid-cols-2 信息行不再挤，再宽就只剩两侧空白了 */}
@@ -963,7 +964,8 @@ function InvoiceModal({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+      {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 每帧整屏重算模糊，卡顿、黑块），遮罩改深色 lite:bg-black/90，背后的字不透出来 */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/90" />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1140,7 +1142,8 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+      {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 每帧整屏重算模糊，卡顿、黑块），遮罩改深色 lite:bg-black/90，背后的字不透出来 */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/90" />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

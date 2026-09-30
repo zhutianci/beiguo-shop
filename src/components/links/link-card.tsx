@@ -68,7 +68,8 @@ export function SponsorCard({ item }: { item: PublicLink }) {
     >
       {/* 顶边一条 1px 金线：比整圈金边克制得多，也是这张卡「贵而不俗」的关键 */}
       <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/60 to-transparent" />
-      <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-400/10 blur-[80px]" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-400/10 blur-[80px] lite-blob" />
       <div className="pointer-events-none absolute -inset-px -z-10 rounded-3xl bg-gradient-to-r from-amber-400/40 via-orange-400/30 to-purple-500/30 opacity-0 blur-md transition-opacity duration-500 group-hover:opacity-100" />
 
       <div className="relative flex flex-col gap-5 md:flex-row md:items-center">
@@ -122,7 +123,7 @@ export function SponsorMiniCard({ item }: { item: PublicLink }) {
       onClick={() => beacon(item.id)}
       className="group relative overflow-hidden rounded-2xl border border-amber-300/15 glass p-5 transition-all duration-300 hover:border-amber-300/30 hover:bg-white/[0.07] md:hover:-translate-y-1"
     >
-      <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-amber-400/[0.07] blur-[60px]" />
+      <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-amber-400/[0.07] blur-[60px] lite-blob" />
       <div className="relative flex items-start gap-3">
         <SiteLogo name={item.name} host={item.host} logo={item.logo} />
         <div className="min-w-0 flex-1">

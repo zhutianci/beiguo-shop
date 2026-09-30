@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useLite } from '@/lib/use-lite'
 
 interface TypewriterProps {
   texts: string[]
@@ -30,17 +31,39 @@ export function Typewriter({
   const [charIndex, setCharIndex] = useState(() => texts[0]?.length ?? 0)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showCursor, setShowCursor] = useState(true)
+  /*
+   * 手机端轻量模式（2026-10-01，站长要求电脑端不变）：不逐字打、光标不闪，整句每 3.5 秒左右换一次。
+   * 逐字打字每 80~150ms 重渲染一次、光标每 500ms 再一次，每次都让 iOS WebKit 重排、重绘整个 hero
+   * （连同压在上面的毛玻璃），是首页「停不下来」的来源之一。四个卖点照样轮换，只是一次换一整句。
+   * 服务端与水合那次 lite 恒为 false，输出与电脑版相同（完整的第一句 + 光标），光标在手机上由 CSS（lite:hidden）藏起。
+   */
+  const lite = useLite()
 
   // 光标闪烁
   useEffect(() => {
+    if (lite) return
     const cursorTimer = setInterval(() => {
       setShowCursor((p) => !p)
     }, 500)
     return () => clearInterval(cursorTimer)
-  }, [])
+  }, [lite])
+
+  // 手机端轻量模式：整句轮换。离开轻量模式（如平板接上触控板）时 charIndex 归零，电脑版的打字逻辑从当前这句重新打起
+  useEffect(() => {
+    if (!lite || texts.length < 2) return
+    setIsDeleting(false)
+    const timer = setInterval(() => {
+      setTextIndex((i) => (i + 1) % texts.length)
+    }, Math.max(pauseTime + 1000, 3000))
+    return () => {
+      clearInterval(timer)
+      setCharIndex(0)
+    }
+  }, [lite, texts.length, pauseTime])
 
   // 打字逻辑
   useEffect(() => {
+    if (lite) return
     // texts 可能为空数组，或 textIndex 一时越界（texts 变短时）——这两处才是真会崩的地方
     const currentText = texts[textIndex] ?? ''
 
@@ -63,12 +86,13 @@ export function Typewriter({
     )
 
     return () => clearTimeout(timer)
-  }, [charIndex, isDeleting, textIndex, texts, typeSpeed, deleteSpeed, pauseTime])
+  }, [lite, charIndex, isDeleting, textIndex, texts, typeSpeed, deleteSpeed, pauseTime])
 
+  const phrase = texts[textIndex] ?? ''
   return (
     <span className={className}>
-      {(texts[textIndex] ?? '').slice(0, charIndex)}
-      <span className={`inline-block w-[3px] ${showCursor ? 'opacity-100' : 'opacity-0'} transition-opacity`}>
+      {lite ? phrase : phrase.slice(0, charIndex)}
+      <span className={`inline-block w-[3px] ${showCursor ? 'opacity-100' : 'opacity-0'} transition-opacity lite:hidden`}>
         |
       </span>
     </span>

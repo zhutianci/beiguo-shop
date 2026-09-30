@@ -237,7 +237,8 @@ export default function Game2048Page() {
   return (
     <div className="min-h-screen page-top pb-20">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
-      <div className="fixed top-1/4 right-1/4 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[128px] pointer-events-none" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="fixed top-1/4 right-1/4 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
 
       <div className="container relative max-w-6xl">
         <Link href="/games" className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-8 group">
@@ -302,7 +303,8 @@ export default function Game2048Page() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm rounded-2xl gap-4 p-6"
+                      /* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 重算模糊太贵），遮罩改深色 lite:bg-black/85，背后的棋盘不透字 */
+                      className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-sm rounded-2xl gap-4 p-6 lite:bg-black/85"
                     >
                       <div className="text-center">
                         <div className="text-2xl font-bold mb-1">游戏结束</div>

@@ -122,7 +122,10 @@ function AnnouncementModalInner() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={close}
-            className="absolute inset-0 bg-black/75 backdrop-blur-md"
+            /* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：遮罩不做毛玻璃（globals.css 在触屏设备上统一去掉 backdrop-filter），
+               改成更深的纯色 lite:bg-black/85。整屏 3 倍分辨率的模糊在 iOS WebKit 上每帧都要重算（公告正好在首页最卡的那段时间弹出），
+               是实测最贵的一块。公告内容、按钮、强提醒逻辑都不变 */
+            className="absolute inset-0 bg-black/75 backdrop-blur-md lite:bg-black/85"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.94, y: 24 }}

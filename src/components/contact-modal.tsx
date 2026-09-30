@@ -64,7 +64,8 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
           onClick={onClose}
         >
           {/* 背景遮罩 */}
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+          {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 每帧整屏重算模糊，卡顿、黑块），遮罩改深色 lite:bg-black/90，背后的字不透出来 */}
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/90" />
 
           {/* 模态框 */}
           <motion.div
@@ -88,8 +89,9 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
               </button>
 
               {/* 背景装饰 */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[80px] pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none" />
+              {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[80px] lite-blob pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] lite-blob pointer-events-none" />
 
               <div className="relative">
                 {/* 头部 */}

@@ -92,7 +92,8 @@ export default async function DigestPage({ params }: Params) {
   return (
     <div className="min-h-screen pb-20 pt-28 sm:page-top">
       <div className="pointer-events-none fixed inset-0 grid-bg opacity-60" />
-      <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px]" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px] lite-blob" />
 
       <div className="container relative max-w-3xl">
         <Link

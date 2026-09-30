@@ -380,7 +380,8 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
           className="fixed inset-0 z-[100] flex items-center justify-center p-4"
           onClick={onClose}
         >
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+          {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 每帧整屏重算模糊，卡顿、黑块），遮罩改深色 lite:bg-black/90，背后的字不透出来 */}
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/90" />
 
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -409,7 +410,8 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 <X className="w-4 h-4" />
               </button>
 
-              <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br ${product.gradient} opacity-20 rounded-full blur-[80px] pointer-events-none`} />
+              {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+              <div className={`absolute top-0 right-0 w-64 h-64 bg-gradient-to-br ${product.gradient} opacity-20 rounded-full blur-[80px] lite-blob pointer-events-none`} />
 
               <div className="relative min-h-0 flex-1 overflow-y-auto px-6 pt-7 pb-4 sm:px-8 sm:pt-8">
                 <div className="mb-5">

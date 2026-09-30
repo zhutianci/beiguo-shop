@@ -11,6 +11,7 @@ import { MouseSpotlight } from '@/components/mouse-spotlight'
 import { CountUp } from '@/components/count-up'
 import { NewsHotSection } from '@/components/news-hot-section'
 import { useStorefront } from '@/components/storefront-provider'
+import { useLite } from '@/lib/use-lite'
 import { ipToolGroups, ipToolCount } from '@/lib/iptools'
 import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
 
@@ -73,6 +74,13 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll()
   const y = useTransform(scrollYProgress, [0, 1], ['0%', '50%'])
+  /*
+   * 手机端轻量模式（2026-10-01，站长要求电脑端不变）：iPhone 上首页卡一分钟、滑动出现黑块，
+   * 是因为下面这些常驻动画让 iOS WebKit 每秒画四十来帧、每帧都重新模糊压在上面的毛玻璃，主线程与 GPU 一直占满。
+   * lite 为 true 时把「一直在转 / 一直在跳」的装饰换成静止的同款元素，版式、文案、链接一概不动。
+   * 服务端与水合那次恒为 false（与电脑版完全相同，不会水合不一致），手机上水合后立刻变 true，见 lib/use-lite.ts。
+   */
+  const lite = useLite()
   const [products, setProducts] = useState<Product[]>([])
   const [lookupEmail, setLookupEmail] = useState('')
   /*
@@ -122,21 +130,35 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
 
       <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 grid-bg" />
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-[128px] animate-pulse-glow" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-[128px] animate-pulse-glow" />
+        {/* lite-blob：手机端轻量模式下 128px 大模糊 + 无限呼吸换成静止的渐变柔光（规则在 globals.css 末尾），电脑端不变 */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-[128px] lite-blob animate-pulse-glow" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/20 rounded-full blur-[128px] lite-blob animate-pulse-glow" />
 
-        <motion.div
-          className="absolute top-20 right-20 w-20 h-20 border border-white/10 rounded-full"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
-        />
-        <motion.div
-          className="absolute bottom-40 left-20 w-32 h-32 border border-white/5 rounded-2xl"
-          animate={{ rotate: -360 }}
-          transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
-        />
+        {/* 手机端轻量模式：两个装饰框换成不转的同款。framer 的 repeat: Infinity 在 JS 里每帧改一次 transform，
+            页面永远停不下来（iOS 上每帧还要重绘压在上面的毛玻璃）；卸掉 motion 元素才能停掉这个循环 */}
+        {lite ? (
+          <>
+            <div aria-hidden className="absolute top-20 right-20 w-20 h-20 border border-white/10 rounded-full" />
+            <div aria-hidden className="absolute bottom-40 left-20 w-32 h-32 border border-white/5 rounded-2xl" />
+          </>
+        ) : (
+          <>
+            <motion.div
+              className="absolute top-20 right-20 w-20 h-20 border border-white/10 rounded-full"
+              animate={{ rotate: 360 }}
+              transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
+            />
+            <motion.div
+              className="absolute bottom-40 left-20 w-32 h-32 border border-white/5 rounded-2xl"
+              animate={{ rotate: -360 }}
+              transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+            />
+          </>
+        )}
 
-        <motion.div style={{ y }} className="container relative z-10">
+        {/* 手机端轻量模式：不做滚动视差（每个滚动帧给整块 hero 连同里面的毛玻璃写一次 transform）。
+            lite:!transform-none 从服务端 HTML 第一帧起就生效；这个容器本身不能换掉或重挂载（水合前填的查询框靠它） */}
+        <motion.div style={lite ? undefined : { y }} className="container relative z-10 lite:!transform-none">
           {/* 桌面端：text-display 在 xl 是 9xl(128px)，打字机长句在 max-w-5xl(1024px) 内会临界折行、
               每敲一个字抖一下；xl 起放宽到 6xl 既止住抖动，也让 hero 在 1920 宽屏下不再只占中间一窄条 */}
           <div className="max-w-5xl xl:max-w-6xl mx-auto text-center">
@@ -206,7 +228,9 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
               className="text-body-lg xl:text-2xl max-w-2xl xl:max-w-3xl mx-auto mb-12"
             >
               卡密自助兑换，支付宝付款，
-              <span className="gradient-text-accent">
+              {/* 手机端轻量模式：轮换的卖点单独占一行（lite:block + 不换行），句子长短变化不再让副标题在一行 / 两行之间跳、
+                  带着下面的按钮和查询框一起上下抖（每次抖动都是整页重排）。最长一句 13 个字，320 宽的屏也放得下 */}
+              <span className="gradient-text-accent lite:block lite:w-fit lite:mx-auto lite:whitespace-nowrap">
                 <Typewriter
                   texts={['无需信用卡', '付款后即时发卡', '可开增值税发票（税费另付）', '未使用卡密长期有效']}
                   typeSpeed={150}
@@ -214,7 +238,8 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
                   pauseTime={2500}
                 />
               </span>
-              <br />
+              {/* 上面那行在手机端已是块级、自带换行，这个 <br> 再留着会多出一个空行 */}
+              <br className="lite:hidden" />
               {/* H1 只说宽词，业务的完整面靠这一行列全——漏一项就等于对外少一门生意。
                   加商品时记得回来补（当前：ChatGPT 三档、Claude 两档、接码、KYC、谷歌账号）。 */}
               <span className="text-white/40">
@@ -312,13 +337,20 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
         >
           <div className="flex flex-col items-center gap-2 text-white/40">
             <span className="text-xs tracking-widest uppercase">Scroll</span>
-            <motion.div
-              animate={{ y: [0, 8, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="w-5 h-8 border border-white/20 rounded-full flex justify-center pt-2"
-            >
-              <div className="w-1 h-2 bg-white/40 rounded-full" />
-            </motion.div>
+            {/* 手机端轻量模式：同款提示，不再无限上下跳（同上面两个装饰框，是停不下来的 JS 动画循环） */}
+            {lite ? (
+              <div className="w-5 h-8 border border-white/20 rounded-full flex justify-center pt-2">
+                <div className="w-1 h-2 bg-white/40 rounded-full" />
+              </div>
+            ) : (
+              <motion.div
+                animate={{ y: [0, 8, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="w-5 h-8 border border-white/20 rounded-full flex justify-center pt-2"
+              >
+                <div className="w-1 h-2 bg-white/40 rounded-full" />
+              </motion.div>
+            )}
           </div>
         </motion.div>
       </section>
@@ -327,12 +359,13 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
         <div className="absolute inset-0 grid-bg opacity-50" />
 
         <div className="container relative z-10">
+          {/* lite:!transform-none：手机端轻量模式下不做上滑入场，服务端 HTML 第一帧起就在最终位置（本页下面几处同理） */}
           <motion.div
             initial={{ y: 40 }}
             whileInView={{ y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-20"
+            className="text-center mb-20 lite:!transform-none"
           >
             <h2 className="text-headline mb-4">
               <span className="gradient-text">精选服务</span>
@@ -350,16 +383,19 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
                 const gradient = getGradient(product.id)
                 const tag = getTag(product.name)
                 return (
+                  /* 手机端轻量模式：卡片直接出现在原位，不做逐张错开的上滑动画。
+                     卡片是接口回来之后才挂载的（那时早已水合完），lite 第一次渲染就是真实值 */
                   <motion.div
                     key={product.id}
-                    initial={{ y: 40 }}
-                    whileInView={{ y: 0 }}
+                    initial={lite ? false : { y: 40 }}
+                    whileInView={lite ? undefined : { y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.6, delay: index * 0.1 }}
                   >
                     <Link href={`/products/${product.id}`}>
                       <TiltCard maxTilt={8} scale={1.03} className="group h-full">
-                        <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500`} />
+                        {/* 悬停光边：触屏没有悬停，点一下反而会粘住亮起，手机端轻量模式下隐藏 */}
+                        <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500 lite:hidden`} />
 
                         {/* 卡片内边距/字号在 lg 起加一档：桌面端单卡宽约 400px，
                             继续沿用手机端的 p-6 + text-sm 会显得内容缩在正中、四周全是空白 */}
@@ -411,7 +447,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
       {sfFeatures.iptools && (
       <section className="relative py-24">
         <div className="absolute inset-0 grid-bg opacity-30" />
-        <div className="absolute top-0 left-1/3 w-[500px] h-[300px] bg-cyan-500/15 rounded-full blur-[128px]" />
+        <div className="absolute top-0 left-1/3 w-[500px] h-[300px] bg-cyan-500/15 rounded-full blur-[128px] lite-blob" />
 
         <div className="container relative z-10">
           <motion.div
@@ -419,10 +455,11 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
             whileInView={{ y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
+            className="lite:!transform-none"
           >
             <Link href="/iptools" className="group block">
               <div className="relative glass rounded-3xl p-8 md:p-12 overflow-hidden transition-colors hover:bg-white/[0.07]">
-                <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500 -z-10" />
+                <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500 -z-10 lite:hidden" />
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 lg:gap-12">
                   {/* 文案列限制在 xl 也不超过 2xl(672px)：这是段正文，行长超过 80 字符就难读，
@@ -501,7 +538,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
 
       <section className="relative py-32 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-transparent" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-500/20 rounded-full blur-[128px]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-500/20 rounded-full blur-[128px] lite-blob" />
 
         <div className="container relative z-10">
           <motion.div
@@ -509,7 +546,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
             whileInView={{ scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="max-w-3xl mx-auto text-center"
+            className="max-w-3xl mx-auto text-center lite:!transform-none"
           >
             <h2 className="text-headline mb-6">
               准备好开始了吗？

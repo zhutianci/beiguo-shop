@@ -147,6 +147,29 @@
     @apply bg-white/10 backdrop-blur-2xl border border-white/20;
   }
 
+  /*
+   * 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上毛玻璃换成近似的半透明底色。
+   * iOS WebKit 下面的内容每动一帧，就要把压在上面的每块 backdrop-filter 重新模糊一遍（首页有二十多块），
+   * 主线程与 GPU 占满，首页卡一分钟、滑动时来不及画的区域就是黑块。
+   * 颜色按「原来的半透明白叠在纯黑底上」取：.glass ≈ white/5 叠黑；.glass-strong ≈ white/10 叠黑但几乎不透明（0.95），
+   * 压在滚动内容上的页头药丸、成交弹窗、公告卡片、各类弹窗卡片照样不透字（0.9 时下面的白字还隐约可见，实测后调到 0.95）。
+   * 必须留在 components 层：hover:bg-*、lite:bg-* 这些工具类排在后面，仍能覆盖它；边框不动。
+   * 媒体查询与 src/lib/use-lite.ts 的 LITE_QUERY、tailwind.config.ts 的 lite 变体逐字相同，三处一起改。
+   */
+  @media (hover: none) and (pointer: coarse) {
+    .glass {
+      background-color: rgba(40, 40, 46, 0.32);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+
+    .glass-strong {
+      background-color: rgba(27, 27, 32, 0.95);
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
   /* 发光边框 */
   .glow-border {
     @apply relative;
@@ -437,4 +460,47 @@
   visibility: hidden;
   pointer-events: none;
   z-index: -1;
+}
+
+/* ============ 手机端轻量模式（2026-10-01，站长要求电脑端不变） ============
+ * iPhone 上的 Safari / Chrome（内核都是 iOS WebKit）进首页卡一分钟左右、滑动时一顿一顿、有区域一片黑：
+ * WebKit 每帧都要重新模糊毛玻璃（backdrop-filter）和 128px 的大光斑，常驻动画又逼它每秒画四十来帧，
+ * 主线程与 GPU 一直占满，来不及画的图块就是黑的。触屏设备上关掉这些，版式与文案不变。
+ * 媒体查询与 src/lib/use-lite.ts 的 LITE_QUERY、tailwind.config.ts 的 lite 变体逐字相同，三处一起改。
+ * 这一段必须放在文件末尾、不进 @layer：这里都是普通类名，靠排在 Tailwind 工具类（backdrop-blur-*、blur-[128px]）
+ * 和上面不分层的 .animate-* 之后才压得住它们（同特异度、后者生效）。
+ */
+@media (hover: none) and (pointer: coarse) {
+  /* 前台外壳里一律不做 backdrop-filter，含写在类名里的 backdrop-blur-*。
+     原来靠模糊保证文字可读的遮罩、底栏、吸顶条，都在各自类名里补了更深的 lite:bg-black/90 之类；
+     以后新加遮罩也要补，否则背后的字会透出来。只作用于 .shop-shell：后台、渠道后台、支付 / 收据页不受影响。 */
+  .shop-shell,
+  .shop-shell * {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+
+  /* 装饰光斑（元素上加 lite-blob 标记类）：blur-[128px] 在 3 倍屏上每块要栅格化一张一千多像素见方的图，
+     换成径向渐变遮罩画出同色的柔光，只画一次，也不再呼吸闪烁。scale 放大一点，补上模糊原本向外晕开的范围 */
+  .lite-blob {
+    filter: none;
+    animation: none;
+    scale: 1.5;
+    -webkit-mask-image: radial-gradient(closest-side, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.3) 60%, transparent);
+    mask-image: radial-gradient(closest-side, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.3) 60%, transparent);
+  }
+
+  /* 其余常驻的呼吸 / 漂浮 / 渐变流动动画一律停在静止态 */
+  .animate-pulse-glow,
+  .animate-float,
+  .animate-gradient {
+    animation: none;
+  }
+}
+
+/* 成交弹窗底部进度条在手机端轻量模式下的动画（live-order-notification.tsx，animate-[live-order-bar_5s_linear_forwards]）：
+   与电脑端的 width 100% → 0 等效，但走 transform，不触发重新排版 */
+@keyframes live-order-bar {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }

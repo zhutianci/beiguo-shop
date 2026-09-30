@@ -189,8 +189,9 @@ export default function ProductDetailClient({
        头部收到 96+16=112px。以后改头部高度只改 --header-h 一处，不用再追七八个文件 */
     <div className="min-h-screen page-top pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
-      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
-      <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
+      <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
 
       <div className="container relative">
         {/* 面包屑。原来这里只有一个「返回商品列表」，换成完整路径有两个收益：

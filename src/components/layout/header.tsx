@@ -263,8 +263,9 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                       <User className="w-4 h-4" />
                     </button>
                     {/* 原来只有 group-hover，键盘 Tab 进来菜单不展开；补 focus-within 后键盘可达。
-                        lg 上菜单和导航字号一起放大一档，避免头部变大后菜单显得局促 */}
-                    <div className="absolute right-0 top-full mt-2 w-48 lg:w-52 py-2 glass rounded-xl opacity-0 invisible transition-all group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible">
+                        lg 上菜单和导航字号一起放大一档，避免头部变大后菜单显得局促。
+                        手机端轻量模式（2026-10-01，站长要求电脑端不变）没有毛玻璃，菜单压在页面文字上会透字，给不透明底 lite:bg-zinc-900/95 */}
+                    <div className="absolute right-0 top-full mt-2 w-48 lg:w-52 py-2 glass rounded-xl opacity-0 invisible transition-all group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible lite:bg-zinc-900/95">
                       <div className="px-4 py-2 border-b border-white/10">
                         <div className="text-sm lg:text-[15px] font-medium truncate">{user.nickname || user.email}</div>
                       </div>
@@ -342,7 +343,9 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
             transition={{ duration: 0.2 }}
             className="fixed inset-0 z-40 md:hidden"
           >
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl" />
+            {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 整屏重算模糊太贵），
+                遮罩改成几乎不透明的 lite:bg-black/95，背后的页面文字不会透出来 */}
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/95" />
             {/* 项目多时在小屏上会顶满，收紧行距并允许滚动，避免最后一项被裁掉 */}
             <nav className="relative flex h-full flex-col items-center justify-center gap-6 overflow-y-auto py-24">
               {visibleLinks.map((link, index) => (

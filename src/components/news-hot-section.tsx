@@ -47,7 +47,8 @@ function NewsHotSectionInner() {
   return (
     <section className="relative py-24">
       <div className="absolute inset-0 grid-bg opacity-30" />
-      <div className="absolute right-1/4 top-10 h-[300px] w-[420px] rounded-full bg-purple-500/10 blur-[128px]" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="absolute right-1/4 top-10 h-[300px] w-[420px] rounded-full bg-purple-500/10 blur-[128px] lite-blob" />
 
       <div className="container relative z-10">
         <div className="mb-6 flex items-end justify-between gap-4">

@@ -170,8 +170,9 @@ export default async function NewsPage() {
   return (
     <div className="min-h-screen pb-20 pt-28 sm:page-top">
       <div className="pointer-events-none fixed inset-0 grid-bg opacity-60" />
-      <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px]" />
-      <div className="pointer-events-none fixed bottom-1/4 right-10 h-[380px] w-[380px] rounded-full bg-cyan-500/[0.07] blur-[128px]" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px] lite-blob" />
+      <div className="pointer-events-none fixed bottom-1/4 right-10 h-[380px] w-[380px] rounded-full bg-cyan-500/[0.07] blur-[128px] lite-blob" />
 
       {/*
         列表页是「卡片流」而不是「正文」，所以桌面端应当放宽而不是死守单栏阅读宽度：

@@ -151,8 +151,9 @@ export default function ProductsClient({
        首屏进来看到的是一大片黑。这里只留一点和面包屑之间的呼吸感。 */
     <div className="min-h-screen pt-4 pb-20 lg:pb-28">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
-      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] pointer-events-none" />
-      <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] pointer-events-none" />
+      {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
+      <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
 
       <div className="container relative">
         <div className="text-center mb-10 lg:mb-14">
@@ -185,7 +186,8 @@ export default function ProductsClient({
         {/* 吸顶只在 sm 以上开。手机端头部本身就占 112px（--header-h），
             再吸一条筛选栏，812px 的屏幕去掉三分之一，列表反而看不见几行。 */}
         <div
-          className="z-20 mb-8 -mx-4 px-4 py-3 sm:sticky sm:backdrop-blur-xl"
+          /* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 滚动时每帧重算模糊），sm 起吸顶的筛选条补深色底 lite:sm:bg-black/85，否则它是透明的 */
+          className="z-20 mb-8 -mx-4 px-4 py-3 sm:sticky sm:backdrop-blur-xl lite:sm:bg-black/85"
           style={{ top: 'var(--header-h, 96px)' }}
         >
           <div className="flex flex-wrap items-center justify-center gap-3">

@@ -141,8 +141,10 @@ function FloatingContactInner() {
           onClick={() => setExpanded(!expanded)}
           className="group relative"
         >
-          {/* 脉冲光环 */}
-          <span className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 animate-ping opacity-30" />
+          {/* 脉冲光环
+              手机端轻量模式（2026-10-01，站长要求电脑端不变）隐藏：无限循环的 animate-ping 让 iOS WebKit 每帧都要合成重绘，
+              静止时它本来就藏在按钮下面，隐藏后按钮样子不变 */}
+          <span className="absolute inset-0 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 animate-ping opacity-30 lite:hidden" />
 
           {/* 按钮 */}
           <div className="relative w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-2xl shadow-purple-500/40 hover:scale-110 transition-transform">
