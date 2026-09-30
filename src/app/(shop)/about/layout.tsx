@@ -1,26 +1,27 @@
 import type { Metadata } from 'next'
-import { SITE_NAME } from '@/lib/product-seo'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { pageOg } from '@/lib/seo/og'
+import { aboutContext, aboutDescription } from './about-context'
 
 /**
- * 【为什么用 layout 而不是把 page 拆成 server 外壳】
- * /about 整页是 'use client'，客户端组件用不了 generateMetadata，
- * 于是它继承 layout.tsx 的全站默认标题——线上实测 /about、/support、/forum、
- * /iptools、/games 这些页的 <title> 与首页**一字不差**。
- * 对 Google 来说，一批标题完全相同的页面互相稀释，谁也排不上。
+ * 【为什么 metadata 放在 layout】这一层原本是为了给 'use client' 的 /about 页导出 metadata（客户端组件用不了 generateMetadata）；
+ * 2026-09-30 页面改成了服务端组件，metadata 仍留在这里，canonical 与改造前同一处。
  *
- * 路由级 layout 是 Server Component，可以导出 metadata，而且**一行业务代码都不用动**。
- * 比把每一页拆成外壳 + 客户端组件风险低得多（那是 /products 那种页面才值得付的成本）。
+ * 【2026-09-30 重写（docs/SEO-重构/SEO-重构设计.md §3.2-J，A 包）】
+ *  · title 原来是「关于贝果科技 - AI 会员代充服务商 - 贝果科技」：「代充」不进 title（§3.4），「AI 会员代充」是零需求词（附录 A）。
+ *    关于页把品牌放最前（§3.1），「贝果科技 BigoLab」和台湾同名公司区分（§0.3 #5）。
+ *  · description 原来写「账号不经手」：ChatGPT Plus 的 iOS 档、Grok 兑换时要提供登录凭据（chatgpt-plus / grok-super 页的问答），
+ *    这句话对它们不成立，删掉；开票口径原来是「税费另付」，改成带 6% 的完整口径；接码按开放状态写（about-context.ts）。
  */
-const TITLE = `关于贝果科技 - AI 会员代充服务商 - ${SITE_NAME}`
-const DESCRIPTION =
-  '贝果科技（bigolab.com）由益阳市赫山区必高科技有限公司运营，提供 ChatGPT Plus / Pro、Claude Pro / Max 等 AI 会员充值与代充：卡密自助兑换，账号不经手，支付宝付款，可开增值税发票（标价不含税，税费另付）。'
+const TITLE = '关于我们：贝果科技 BigoLab 的经营主体、付款与售后'
 
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: { canonical: '/about' },
-  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/about' },
+export async function generateMetadata(): Promise<Metadata> {
+  const description = aboutDescription(await aboutContext())
+  return {
+    title: TITLE,
+    description,
+    alternates: { canonical: '/about' },
+    ...pageOg({ title: TITLE, description, path: '/about' }),
+  }
 }
 
 export default function AboutLayout({ children }: { children: React.ReactNode }) {

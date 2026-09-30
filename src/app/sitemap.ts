@@ -60,7 +60,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absUrl('/products'), changeFrequency: 'daily', priority: 0.9 },
     { url: absUrl('/news'), changeFrequency: 'hourly', priority: 0.7 },
     { url: absUrl('/support'), changeFrequency: 'monthly', priority: 0.7 },
-    { url: absUrl('/forum'), changeFrequency: 'daily', priority: 0.6 },
     { url: absUrl('/about'), changeFrequency: 'monthly', priority: 0.5 },
     // /links 是对外交换友链的落地页，必须可被收录：长期 noindex 的页面 Google
     // 最终会停止跟随其上的链接，对方拿不到任何权重，互挂也就没人愿意做了
@@ -69,9 +68,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // 「有没有公开的条款与隐私政策」是 Google 判断主体可信度时会看的东西
     { url: absUrl('/terms'), changeFrequency: 'yearly', priority: 0.3 },
     { url: absUrl('/privacy'), changeFrequency: 'yearly', priority: 0.3 },
-    // 游戏与关于已从顶部导航下架，但页面还在、仍值得收录，sitemap 保持原样
-    { url: absUrl('/games'), changeFrequency: 'weekly', priority: 0.3 },
     { url: absUrl('/iptools'), changeFrequency: 'monthly', priority: 0.3 },
+    // 【/forum、/games 不在这里（2026-09-30，docs/SEO-重构/SEO-重构设计.md §1.3、§6.2，A 包）】两组页面改为 noindex,follow
+    // （各自 layout 的 robots），让它们自然退出索引；把 noindex 的地址留在 sitemap 里是自相矛盾的信号（同下面新闻薄页那段）。
   ]
 
   // 短信接码（docs/短信接码-设计.md §1.3、D28）：只在「总开关开 + 受众全部用户」时收录（灰度期页面是 noindex，

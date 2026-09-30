@@ -11,8 +11,8 @@ import { prisma } from '@/lib/db'
 import { ArticleJsonLd } from '@/components/news/article-jsonld'
 import { ShareBar } from '@/components/news/share-bar'
 import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
-import { withNewsRef } from '@/lib/news/attribution'
 import { clipDescription, newsUrl } from '@/lib/news/seo'
+import { OG_SITE } from '@/lib/seo/og'
 import { shouldNoindexEvent } from '@/lib/news/thin'
 import { AiNoticeBlock, LeadCredit } from '@/components/news/ai-notice-block'
 import {
@@ -74,7 +74,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
       title: ev.headline,
       description,
       url: `/news/${ev.slug}`,
-      siteName: '贝果科技',
+      // site_name + locale（A 包：公开页补 OG_SITE，设计 §6.8）；原来只有 siteName、没有 og:locale
+      ...OG_SITE,
       publishedTime: ev.happenedAt,
       // 一律用静态分类底图。原文配图多为视觉中国/Getty 授权，单张索赔 2000–8000 元（SKILL.md §1.1）
       images: [{ url: image, width: 1200, height: 630, alt: ev.headline }],
@@ -390,15 +391,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
         </div>
 
         {/* ============ 讨论导流：本页不设评论区，也不提供任何用户可输入的 AI 入口（SKILL.md §1.1） ============ */}
-        <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-          {/* ?n=<slug> 由 attribution.ts 在商品页捕获，用来回答「哪条内容带来了成交」 */}
-          <Link
-            href={withNewsRef('/products', ev.slug)}
-            className="inline-flex items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.09]"
-          >
-            <ShoppingBag className="h-4 w-4" />
-            看看本站在售的 AI 订阅
-          </Link>
+        <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
           <Link
             href="/forum"
             className="group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-2.5 text-sm font-medium transition-shadow hover:shadow-[0_0_28px_rgba(168,85,247,0.32)]"
@@ -408,6 +401,33 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
             <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
+
+        {/*
+          ============ 广告 · 本站服务（docs/SEO-重构/SEO-重构设计.md §0.3 #31、§7.4，A 包）============
+          本站商品入口是推销商品的链接：《互联网广告管理办法》第九条要求以知识介绍等形式推销商品并附购物链接的，显著标明「广告」。
+          所以它单独成块、标「广告 · 本站服务」，放在 AI 摘要、免责声明、分享与讨论导流之后，虚线边框与正文视觉分开；
+          **不进 Article JSON-LD**（下面的 ArticleJsonLd 只收事件本身的字段），守住「行业动态聚合工具」的定位（SKILL.md §1）。
+          链接是干净的 /products：原来的 ?n=<slug> 归因参数只有生成端（withNewsRef）、没有捕获端（captureNewsRef 全仓无调用），
+          又被 robots 的 Disallow: /*?n= 挡着，等于每条详情页都给爬虫留一条死路（设计 §1.2、§1.11）。
+          按标签映射到具体落地页、对不上就不出现，是 C 包的事（lib/news/commerce-link.ts）；那张映射表永不指向 claude-kyc、google-zhanghao。
+        */}
+        <aside
+          aria-label="广告 · 本站服务"
+          className="mt-10 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-4 lg:mt-12 lg:p-5"
+        >
+          <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs lg:text-[13px]">
+            <span className="rounded border border-white/25 bg-white/[0.06] px-1.5 py-0.5 font-medium text-white/75">广告 · 本站服务</span>
+            <span className="text-white/35">本站在售商品的推广信息，与上方 AI 整理的内容相互独立</span>
+          </p>
+          <Link
+            href="/products"
+            className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.09]"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            看看本站在售的 AI 订阅
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </aside>
       </div>
 
       {/* 结构化数据：类型是 Article 而不是 NewsArticle，理由见 lib/news/seo.ts 文件头 */}

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/product-seo'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { pageOg } from '@/lib/seo/og'
 import { notFoundOnChannel } from '@/lib/storefront/resolve'
 
 /**
@@ -20,7 +20,14 @@ const DESCRIPTION = '贝果科技提供的免费在线小游戏：2048、贪吃�
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/games' },
+  /*
+   * 【noindex,follow（2026-09-30，docs/SEO-重构/SEO-重构设计.md §1.3、§6.8，A 包）】整组页面（含子路由）退出索引，
+   * 但保留 follow：页头页脚的站内链接照常被跟随。同时移出 sitemap（app/sitemap.ts）。
+   * googleBot 一起写成 noindex：子页面的 robots 是整块替换根 layout 的那一份（根 layout 的 googleBot 是 index），
+   * 显式写出两条，读代码的人不用去猜 Next 的合并规则。
+   */
+  robots: { index: false, follow: true, googleBot: { index: false, follow: true } },
+  ...pageOg({ title: TITLE, description: DESCRIPTION, path: '/games' }),
 }
 
 // 渠道分站（设计 11.2、实施分包 WP1）：本模块在渠道站关闭，渠道 Host 上整组页面 404（第一行、不包进 try）。

@@ -21,6 +21,7 @@
  * 而微信与各家爬虫都不接受相对的 og:image——表现是「本地预览没问题、发到群里没缩略图」。
  * absUrl 统一走 siteOrigin()，和站内其他绝对地址同一个来源。
  */
+import type { Metadata } from 'next'
 import { absUrl } from '@/lib/news/seo'
 
 /**
@@ -45,3 +46,46 @@ export const TWITTER_IMAGES = [OG_IMAGE_URL]
  * 值与 app/layout.tsx 里 SITE_NAME / 'zh_CN' 保持一致。
  */
 export const OG_SITE = { siteName: '贝果科技', locale: 'zh_CN' } as const
+
+/** 分享图（与 OG_IMAGES 同形）。新闻页传各自的分类底图 */
+export type PageOgImage = { url: string; width?: number; height?: number; alt?: string }
+
+/**
+ * 公开页的 openGraph + twitter 工厂（docs/SEO-重构/SEO-重构设计.md §6.8，A 包）。
+ *
+ * 【为什么要工厂】上面三个坑（images、site_name / locale 被整块顶掉）之外还有第四个：twitter。
+ * Next 只在「twitter 里没有 title」时才拿 openGraph 的标题去补；而根 layout 的 twitter 自带 title，
+ * 子页面只写 openGraph 不写 twitter 时，**twitter:title / twitter:description 仍是根 layout 那句全站默认文案**
+ * （2026-09-30 核对：/about、/support、/terms、/privacy、/links、/iptools 都是这样，/products 的注释里也记过一次）。
+ * 每页手写两块对象，漏一处就是一种新的不一致。所以统一从这里出：
+ *   · og:title / twitter:title 与页面 <title> 同一个字符串（主干一致，check-seo-copy 断言）；
+ *   · 必带 OG_SITE（site_name、locale）和分享图；
+ *   · og:url 用站内路径，由 metadataBase 补成绝对地址（渠道站随 metadataBase 落到渠道域名）。
+ *
+ * 用法：`export const metadata: Metadata = { title, description, alternates: { canonical: path }, ...pageOg({ title, description, path }) }`
+ */
+export function pageOg({
+  title,
+  description,
+  path,
+  type = 'website',
+  images,
+}: {
+  title: string
+  description: string
+  /** 站内路径，如 '/about'。layout 级别的 metadata 会被子路由继承，写父路径即可（见 games / forum 的注释） */
+  path: string
+  type?: 'website' | 'article'
+  /** 省略时用站点默认分享底图 */
+  images?: PageOgImage[]
+}): { openGraph: NonNullable<Metadata['openGraph']>; twitter: NonNullable<Metadata['twitter']> } {
+  return {
+    openGraph: { ...OG_SITE, type, title, description, url: path, images: images ?? OG_IMAGES },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: images ? images.map((i) => i.url) : TWITTER_IMAGES,
+    },
+  }
+}

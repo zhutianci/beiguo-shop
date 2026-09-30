@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { CalendarDays, CalendarRange, Sparkles } from 'lucide-react'
 import { prisma } from '@/lib/db'
 import { AiNoticeBlock } from '@/components/news/ai-notice-block'
+import { pageOg } from '@/lib/seo/og'
 import {
   EVENT_SELECT,
   NEWS_PAGE_SIZE,
@@ -36,15 +37,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteOrigin()),
   title: TITLE,
   description: DESC,
-  openGraph: {
-    type: 'website',
-    title: TITLE,
-    description: DESC,
-    url: '/news',
-    siteName: '贝果科技',
-    images: [{ url: ogImageForCategory(null), width: 1200, height: 630 }],
-  },
-  twitter: { card: 'summary_large_image', title: TITLE, description: DESC },
+  // og / twitter 走 pageOg（带 og:locale；twitter 显式带分类底图）。标题、描述与改动前一字不差（设计 A 包只改 og）
+  ...pageOg({ title: TITLE, description: DESC, path: '/news', images: [{ url: ogImageForCategory(null), width: 1200, height: 630 }] }),
   // AI 标识的第 4 处法定位置：页面 HTML 元数据
   other: { 'ai-generated': 'true' },
 }

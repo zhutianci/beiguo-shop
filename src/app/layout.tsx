@@ -22,18 +22,19 @@ export const dynamic = 'force-dynamic'
 const inter = Inter({ subsets: ['latin'] })
 
 const SITE_NAME = '贝果科技'
-const TITLE = '贝果科技 - ChatGPT Plus / Claude Pro 充值与代充'
 /*
- * 【2026-09-19 改词，不是润色】原文写的是「AI 服务代开平台」。
- * 实测 Google 中文下拉建议：`chatgpt代开`、`claude代开` 的联想数都是 **0**，
- * 而同位置 `chatgpt充值` 有 8 条、`chatgpt plus 购买` 有 10 条、`chatgpt代充` 有 3 条。
- * 也就是说「代开」这个词没有人搜——全站把主营业务写成了一个零需求词，
- * 搜索引擎没有任何 query 能把这个站匹配进来。
- * 主词改为「充值 / 购买」，「代充」作为次要说法保留（搜它的人是在查你靠不靠谱，
- * 是转化率很高的一批），「代开 / 代购 / 代订阅」全部删掉。
+ * 【这是兜底文案，不是首页文案】没有自己 metadata 的页面（以及 404）都继承这里，所以只写品牌和业务概括
+ * （docs/SEO-重构/SEO-重构设计.md §6.8，A 包）：
+ *  · 不写「代充」：零需求词与自称不进 title（§3.4）；「代开 / 代购 / 代订阅」2026-09-19 已删（Google 下拉联想数为 0）。
+ *  · 不写开票：写到开票就必须同时写「标价不含税，开票另付 6%」（§3.1），兜底值塞不下完整口径，干脆不写；
+ *    原来那句「可开增值税发票」不带 6%，被所有没写 metadata 的页面继承。
+ *  · 不写短信接码：兜底值在灰度期（仅管理员）同样会被继承，写了就等于在可收录的页面上宣传一个没开放的业务（设计评审 #36、#52）。
+ *  · 品牌写「贝果科技 BigoLab」：「贝果科技」被台湾同名公司占着，加 BigoLab 区分（§0.3 #5）。
+ * 首页、关于页、各落地页都有自己的 title / description，不受这里影响。
  */
+const TITLE = '贝果科技 BigoLab - AI 订阅充值与 AI 行业动态'
 const DESCRIPTION =
-  '贝果科技提供 ChatGPT Plus / Pro、Claude Pro / Max 会员充值与代充：卡密自助兑换，支持支付宝付款，无需信用卡，可开增值税发票。'
+  '贝果科技（bigolab.com）提供 ChatGPT、Claude 等 AI 订阅充值：卡密自助兑换，支付宝付款，无需境外信用卡；另有 AI 圈大事记，按事件整理 AI 行业动态并附原文出处。'
 
 /**
  * 站点级 metadata。子页面（如 /news/[slug] 的 generateMetadata）只需要覆盖
@@ -87,8 +88,7 @@ function siteMetadata(origin: string, isPlatform: boolean): Metadata {
     // 再自动追加一截站名只会把它挤爆。各页面自己写全标题。
     title: TITLE,
     description: DESCRIPTION,
-    // keywords 这个 meta 谷歌 2009 年就公开说过完全不参与排序，留着只是不让它写错。
-    keywords: '贝果科技,ChatGPT Plus 充值,ChatGPT 代充,Claude Pro 充值,Claude 会员,AI 订阅充值',
+    // 不写 keywords（2026-09-30 删，设计 §0.3 #26）：谷歌 2009 年就公开说过不读这个标签；原来的值全站相同，还带着零需求词「代充」
     applicationName: SITE_NAME,
     // 这里刻意不写 alternates.canonical：Next 的 metadata 是逐段继承的，
     // 在根布局写死 canonical:'/' 会让全站每个页面都自称「我是首页的副本」，

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/product-seo'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { pageOg } from '@/lib/seo/og'
 import { notFoundOnChannel } from '@/lib/storefront/resolve'
 
 /**
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/iptools' },
-  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/iptools' },
+  ...pageOg({ title: TITLE, description: DESCRIPTION, path: '/iptools' }),
 }
 
 // 渠道分站（设计 11.2、实施分包 WP1）：本模块在渠道站关闭，渠道 Host 上整组页面 404（第一行、不包进 try）。

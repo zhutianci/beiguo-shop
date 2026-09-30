@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalPage, LegalSection } from '@/components/legal-page'
 import { SITE_NAME } from '@/lib/product-seo'
-import { OG_IMAGES } from '@/lib/seo/og'
+import { pageOg } from '@/lib/seo/og'
 import { PRIVACY_UPDATED_AT } from '@/lib/legal'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { storefrontFeatures } from '@/lib/storefront/public'
@@ -43,7 +43,7 @@ const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/privacy' },
-  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/privacy' },
+  ...pageOg({ title: TITLE, description: DESCRIPTION, path: '/privacy' }),
 }
 
 /** 渠道改了站名时把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */

@@ -4,7 +4,7 @@ import { breadcrumbJsonLd, faqJsonLd } from '@/lib/seo/graph'
 import { SITE_NAME } from '@/lib/product-seo'
 import { supportFaqs } from '@/lib/support-faq'
 import { Breadcrumbs } from '@/components/landing/landing-ui'
-import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
+import { pageOg } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
 import { jiemaSupportData } from '@/lib/jiema/support-zone'
@@ -35,7 +35,7 @@ const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/support' },
-  openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/support' },
+  ...pageOg({ title: TITLE, description: DESCRIPTION, path: '/support' }),
 }
 
 /** 渠道改了站名时把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */

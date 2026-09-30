@@ -73,7 +73,16 @@ function platformRobots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: '/',
+        /*
+         * 【Allow: /lookup$（2026-09-30，docs/SEO-重构/SEO-重构设计.md §6.3，A 包）】只放开**不带参数**的 /lookup：
+         * 它本身有 noindex（lookup/layout.tsx），但一直被下面的 Disallow: /lookup 挡着，爬虫读不到那条 noindex，
+         * Bing 里于是留着一条 /lookup 的旧快照（§1.11）。`$` 锚定结尾，按「最长规则胜出」：
+         *   /lookup        → Allow /lookup$（8 字符）胜过 Disallow /lookup（7 字符）→ 可抓，读到 noindex
+         *   /lookup?e=…    → /lookup$ 不匹配（后面还有字符），只剩 Disallow /lookup → 仍然挡住（query 里会带邮箱）
+         *   /lookup/…      → 同上，仍然挡住
+         * Google、Bing 都支持 `$` 与最长匹配。渠道站的 robots 不动（channelRobots）。
+         */
+        allow: ['/', '/lookup$'],
         disallow: [
           '/receipt/', // 带 token 的收据页：收录即泄漏
           '/invoice-request/', // 开票填写链接：令牌即凭证，提交后页面上有抬头税号，同收据页
