@@ -211,7 +211,10 @@ services:
     # 豁免 MySQL 会把目标推给 dockerd 或 sshd，那比杀 MySQL 更糟——
     # dockerd 一死整机两个站点全下线，而且连补救的通道都没了。
     oom_score_adj: -800
-    command: --default-authentication-plugin=mysql_native_password
+    # 关掉 performance_schema（2026-10-05，站长同意）：本站从不读它，它却常驻约 250MB（实测 memory/performance_schema/% 合计 249MB，
+    # mysqld RSS 615MB）。1.8G 的机器上这 250MB 决定了服务器构建会不会把整机拖进 swap 颠簸（当天构建 36 分钟只拿到 5 分钟 CPU、
+    # 主站一页 6 秒，被迫中止）。静态参数，改它要重建 db 容器（库断十几秒）；回滚 = 删掉这个参数再重建一次。
+    command: --default-authentication-plugin=mysql_native_password --performance-schema=OFF
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=beiguo_shop
