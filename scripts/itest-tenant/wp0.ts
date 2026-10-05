@@ -709,8 +709,10 @@ async function main() {
        * S3 售后申请（1 张新表 sms_complaints，ddl-gate --expect-jiema-s3）。
        */
       // 渠道品牌与公告（docs/多渠道分销-渠道品牌与公告.md 第 2 节）：新表 tenant_announcements（外键 → tenants）与 tenants 的 8 个品牌列同样是之后的增量
-      const LATER_TABLES = ['balance_holds', 'sms_countries', 'sms_holds', 'sms_offer_cache', 'sms_price_rules', 'sms_services', 'sms_orders', 'sms_attempts', 'sms_messages', 'sms_events', 'sms_complaints', 'tenant_announcements']
-      const LATER_COLS = ['balance_logs.biz_key', 'balance_logs.topup_after_cents', 'balance_logs.topup_delta_cents', 'users.topup_cents']
+      // 微信机器人（docs/微信机器人-设计.md §13，ddl-gate --expect-bot）：8 张 bot_* 新表、products.bot_code 与 page_views / visitors 的 tenant_id 两列及其 3 个索引
+      const LATER_TABLES = ['balance_holds', 'sms_countries', 'sms_holds', 'sms_offer_cache', 'sms_price_rules', 'sms_services', 'sms_orders', 'sms_attempts', 'sms_messages', 'sms_events', 'sms_complaints', 'tenant_announcements', 'bot_conversations', 'bot_admins', 'bot_admin_identities', 'bot_events', 'bot_outbox', 'bot_commands', 'bot_action_tokens', 'bot_card_issues']
+      const LATER_COLS = ['balance_logs.biz_key', 'balance_logs.topup_after_cents', 'balance_logs.topup_delta_cents', 'users.topup_cents', 'products.bot_code', 'page_views.tenant_id', 'visitors.tenant_id']
+      const LATER_INDEXES = ['page_views_tenant_id_day_key_idx', 'visitors_tenant_id_first_seen_idx']
       const LATER_FKS = ['tenant_announcements.tenant_id->tenants']
       const created = Array.from(sql.matchAll(/CREATE TABLE `([a-z_]+)`/g)).map((m) => m[1]).filter((t) => !LATER_TABLES.includes(t)).sort()
       const wantTables = [
@@ -743,7 +745,7 @@ async function main() {
       ].sort()
       check('现有表新增列恰为设计 5.4 / 5.6 清单（Order 22 列）', JSON.stringify(colNames) === JSON.stringify(wantCols), colNames.join(','))
       check('新增列全部「可空」或「NOT NULL DEFAULT」', addCols.every((x) => / NULL$/.test(x) || /NOT NULL DEFAULT /.test(x)), addCols.filter((x) => !(/ NULL$/.test(x) || /NOT NULL DEFAULT /.test(x))).join(' | '))
-      const idx = Array.from(sql.matchAll(/^CREATE INDEX `([a-z_]+)` ON `([a-z_]+)`/gm)).map((m) => m[2]).sort()
+      const idx = Array.from(sql.matchAll(/^CREATE INDEX `([a-z_]+)` ON `([a-z_]+)`/gm)).filter((m) => !LATER_INDEXES.includes(m[1])).map((m) => m[2]).sort()
       const wantIdx = ['external_orders', 'invoices', 'invoices', 'orders', 'orders', 'orders', 'orders', 'receipts', 'receipts'].sort()
       check('现有表新增索引：orders 4、invoices 2、receipts 2、external_orders 1', JSON.stringify(idx) === JSON.stringify(wantIdx), idx.join(','))
       const fks = Array.from(sql.matchAll(/ALTER TABLE `([a-z_]+)` ADD CONSTRAINT `[a-z_]+` FOREIGN KEY \(`([a-z_]+)`\) REFERENCES `([a-z_]+)`/g)).map((m) => `${m[1]}.${m[2]}->${m[3]}`).filter((f) => !LATER_FKS.includes(f)).sort()

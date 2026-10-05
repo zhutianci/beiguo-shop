@@ -348,7 +348,7 @@ async function main() {
     const list = JSON.parse(routes).routes as { file: string }[]
     for (const r of list) {
       const src = readFileSync(path.join(process.cwd(), r.file), 'utf8')
-      const lines = src.split('\n').filter((l) => l.startsWith('export '))
+      const lines = src.split(/\r?\n/).filter((l) => l.startsWith('export '))
       check(`${r.file}：只导出 dynamic 与 partnerRoute(`, lines.every((l) => l === "export const dynamic = 'force-dynamic'" || /^export const (GET|POST|PUT|PATCH|DELETE) = partnerRoute\(/.test(l)))
     }
   }
@@ -372,7 +372,8 @@ async function main() {
       const re = /action: ?'([a-z_]+(?:\.[a-z_]+)?)'/g
       for (let m = re.exec(src); m; m = re.exec(src)) actions.add(m[1])
     }
-    const NEVER_CHANNEL = new Set(['authz.denied', 'authz.noise', 'customer.platform_note'])
+    // cardkey.import：后台导入卡密（lib/cardkey-import.ts 抽出后补的审计），tenantId=null 写，渠道操作日志里永远看不到
+    const NEVER_CHANNEL = new Set(['authz.denied', 'authz.noise', 'customer.platform_note', 'cardkey.import'])
     const viewSrc = readFileSync(path.join(process.cwd(), 'src/components/partner/audit/audit-view.tsx'), 'utf8')
     const block = /export const ACTION_TEXT[^{]*\{([\s\S]*?)\n\}/.exec(viewSrc)?.[1] ?? ''
     const labelled = new Set<string>()
