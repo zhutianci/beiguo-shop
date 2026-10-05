@@ -94,7 +94,12 @@ async function ensureAuthKey(): Promise<{ key: string | null; error?: string }> 
   const admin = adminKey()
   if (!admin) return { key: null, error: '未配置 BOT_WXPAD_ADMIN_KEY' }
   const r = await call('POST', '/admin/GenAuthKey1', admin, { Count: 1, Days: 3650 })
-  if (!r.ok || codeOf(r.json) !== 200) return { key: null, error: `生成授权码失败：${r.error || textOf(r.json) || r.status}` }
+  if (!r.ok || codeOf(r.json) !== 200) {
+    const why = r.error || textOf(r.json) || String(r.status)
+    // 免费版生成授权码要先过作者的远程授权服务（adminkeyservice.knowhub.cloud），它故障时协议服务一律回「授权服务暂时不可用」
+    const hint = /授权服务|AdminKey/i.test(why) ? '（协议服务作者的远程授权服务不可用，不是本站的问题；见部署说明 §4 ⑤）' : ''
+    return { key: null, error: `生成授权码失败：${why}${hint}` }
+  }
   const d = dataOf(r.json)
   const list = Array.isArray(d.authKeys) ? d.authKeys : Array.isArray(r.json?.Data) ? (r.json?.Data as unknown[]) : []
   const key = typeof list[0] === 'string' ? (list[0] as string) : null

@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
     const actor = await currentActor()
     const r = await adapter.wakeLogin()
     await auditSoft(request, actor, 'bot.admin.login_wake', { type: 'bot', id: 'login' }, { adapter: adapter.name, ok: r.ok }, r.ok ? undefined : { result: 'ERROR', reason: (r.error || '').slice(0, 200) })
-    if (!r.ok) return error(r.error ? `唤醒登录失败：${r.error}` : '唤醒登录失败（协议服务没有接受请求），请改用扫码登录', 502)
+    // 424 而不是 502：经 Cloudflare 时 502 的响应体会被换成它的错误页，页面看不到原因（同 login/qr）
+    if (!r.ok) return error(r.error ? `唤醒登录失败：${r.error}` : '唤醒登录失败（协议服务没有接受请求），请改用扫码登录', 424)
     return success({ ok: true }, '已发出唤醒登录请求')
   } catch (e) {
     console.error('[bot-admin] 唤醒登录失败', e)

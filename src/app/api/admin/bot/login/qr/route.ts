@@ -34,9 +34,11 @@ export async function POST(request: NextRequest) {
     if (rateLimited('botqr:all', { windowMs: 30_000, max: 3 })) return error('操作太频繁，请 30 秒后再试', 429)
     const actor = await currentActor()
     const r = await adapter.loginQr()
-    if (!r.qr) return error(r.error || '获取二维码失败', 502)
+    // 协议服务那边的失败回 424 而不是 502：经 Cloudflare 时源站的 502 / 504 响应体会被换成它自己的错误页，
+    // 页面只剩「服务器返回异常（HTTP 502）」、看不到原因（2026-10-06 实测，nginx 日志里应用回的是 131 字节的 JSON）
+    if (!r.qr) return error(r.error || '获取二维码失败', 424)
     const qr = normalizeQr(r.qr)
-    if (!qr) return error('协议服务返回的二维码格式无法识别', 502)
+    if (!qr) return error('协议服务返回的二维码格式无法识别', 424)
     g.__botLoginSession = { startedAt: Date.now(), by: actor.userId }
     await auditSoft(request, actor, 'bot.admin.login_qr', { type: 'bot', id: 'login' }, { adapter: adapter.name })
     const dto: LoginQrDTO = { qr, issuedAt: new Date().toISOString(), ttlSeconds: 180 }
