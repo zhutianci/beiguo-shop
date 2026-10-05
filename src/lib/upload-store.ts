@@ -15,6 +15,7 @@ import path from 'path'
 import crypto from 'crypto'
 import type { Prisma } from '@prisma/client'
 import { CONTACT_QR_URL_RE } from './contact-base'
+import { BRAND_LOGO_URL_RE } from './brand-base'
 import { prisma } from './db'
 
 // 上传目录总量上限：磁盘被写满会连带打挂同机的 MySQL，这是最要命的失败模式。
@@ -49,6 +50,7 @@ const STORE_SCOPES: Record<string, string> = {
   links: 'links', // 友链 / 招商位的站点 logo（后台录入）
   products: 'products', // 商品主图（后台录入，展示在商品列表与详情页）
   mail: 'mail', // 营销邮件里的图片（后台录入，邮件里引用绝对 URL）
+  brand: 'brand', // 渠道站标（渠道品牌与公告：渠道站长在设置中心上传；读写两端都校验 BRAND_LOGO_URL_RE）
   contact: 'contact', // 店面客服二维码（二期改动 4.4：渠道站长在设置中心上传、超管经 /api/upload scope=contact 上传）
 }
 
@@ -71,7 +73,7 @@ export function uploadRoot(): string {
  */
 export function quotaForScope(scope: string): number {
   // contact 与 forum 同一条 90% 线：渠道站长不是站长本人，渠道那一侧也不能挤占给后台留的最后 10%（二期改动 4.4）
-  return scope === 'forum' || scope === 'contact' ? Math.floor(MAX_TOTAL_BYTES * 0.9) : MAX_TOTAL_BYTES
+  return scope === 'forum' || scope === 'contact' || scope === 'brand' ? Math.floor(MAX_TOTAL_BYTES * 0.9) : MAX_TOTAL_BYTES
 }
 
 // ---- 上传目录用量缓存：每次上传都遍历目录会越来越慢，这里增量累加、定期重算 ----
@@ -308,4 +310,52 @@ export async function contactUploadOwnedByOtherTenant(
 ): Promise<boolean> {
   const n = await db.tenant.count({ where: { supportQrUrl: url, id: { not: tenantId } } })
   return n > 0
+}
+
+// ------------------------------ 渠道站标（渠道品牌与公告） ------------------------------
+
+/** 站标单文件上限 1MB（头像级小图；浏览器图标、页头、分享图都用它） */
+export const BRAND_LOGO_MAX_BYTES = 1024 * 1024
+
+/**
+ * 校验并落盘一张渠道站标：≤ 1MB；按文件头只收 png / jpg / webp（与客服二维码同一口径，SVG 能带脚本一律拒绝）；
+ * 文件名随机生成，返回的 url 必然匹配 BRAND_LOGO_URL_RE。调用方（tenant/partner-facade.ts）负责鉴权、限频与写库。
+ */
+export async function storeBrandLogo(bytes: Buffer): Promise<ContactQrStoreResult> {
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > BRAND_LOGO_MAX_BYTES) return { ok: false, reason: 'size' }
+  const ext = sniffImage(bytes)
+  if (ext !== 'png' && ext !== 'jpg' && ext !== 'webp') return { ok: false, reason: 'type' }
+  const r = await storeUpload('brand', bytes, ext)
+  if (!r.ok) return { ok: false, reason: r.reason }
+  if (!BRAND_LOGO_URL_RE.test(r.url)) throw new Error(`upload-store: 站标地址不符合约定格式 ${r.url}`)
+  return { ok: true, url: r.url }
+}
+
+/** 删除一张站标文件：只删 public/uploads/brand/ 下、匹配 BRAND_LOGO_URL_RE 的单个文件（同 deleteContactUpload 的防护） */
+export async function deleteBrandUpload(url: string | null | undefined): Promise<boolean> {
+  if (typeof url !== 'string' || !BRAND_LOGO_URL_RE.test(url)) return false
+  const dir = path.join(uploadRoot(), STORE_SCOPES.brand)
+  const name = url.slice('/uploads/brand/'.length)
+  const full = path.resolve(dir, name)
+  if (path.dirname(full) !== path.resolve(dir) || path.basename(full) !== name) return false
+  return serialized(async () => {
+    try {
+      const s = await stat(full)
+      if (!s.isFile()) return false
+      await unlink(full)
+      if (cachedBytes >= 0) cachedBytes = Math.max(0, cachedBytes - s.size)
+      return true
+    } catch (e) {
+      if ((e as { code?: string })?.code !== 'ENOENT') console.error('[upload] 删除站标失败', url, (e as Error)?.message || e)
+      return false
+    }
+  })
+}
+
+/** 换图 / 清除 / 超管恢复默认后删旧站标：没有任何渠道还引用时才删（理由同 releaseContactUpload）。必须在改库事务提交之后调用 */
+export async function releaseBrandUpload(url: string | null | undefined): Promise<boolean> {
+  if (typeof url !== 'string' || !BRAND_LOGO_URL_RE.test(url)) return false
+  const refs = await prisma.tenant.count({ where: { brandLogoUrl: url } })
+  if (refs > 0) return false
+  return deleteBrandUpload(url)
 }

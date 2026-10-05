@@ -54,6 +54,11 @@ export const ACTION_TEXT: Record<string, string> = {
   'settings.notice_email': '修改通知邮箱',
   'settings.notice_email_test': '发送邮件推送测试',
   'settings.contact': '修改客服信息',
+  'settings.brand': '修改店铺品牌',
+  'settings.announcement': '编辑店铺公告',
+  'tenant.brand_reset': '平台恢复默认品牌',
+  'tenant.brand_lock': '平台锁定 / 解锁品牌设置',
+  'tenant.announcement_block': '平台下架 / 恢复公告',
   'member.join': '成员加入',
   // 终审第 2 轮补齐：凡以本渠道 tenantId 写审计的 action 都要有中文名（wp7「操作日志文案全覆盖」静态检查兜底），
   // 否则页面回退成英文代码

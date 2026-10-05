@@ -383,6 +383,40 @@ export interface PartnerContactDTO {
   supportHours: string | null
 }
 
+/**
+ * 渠道品牌（docs/多渠道分销-渠道品牌与公告.md）：渠道自己填的原值（未设为 null，不做回退）。
+ * brandLogoUrl 只会是 /uploads/brand/<名>.(png|jpg|webp)。locked = 超管禁止修改（设置页只读）。
+ */
+export interface PartnerBrandDTO {
+  brandName: string | null
+  brandLogoUrl: string | null
+  brandIntro: string | null
+  heroTitle: string | null
+  heroSubtitle: string | null
+  seoTitle: string | null
+  seoDescription: string | null
+  locked: boolean
+}
+
+/**
+ * 渠道公告（docs/多渠道分销-渠道品牌与公告.md 第 5 节）。按公开编号 announcementNo 寻址（不含全局自增 id）；
+ * 正文字段叫 body（库里列名 content：content 是渠道响应禁用键，见 selects.ts）。live = 此刻前台是否在展示。
+ */
+export interface PartnerAnnouncementDTO {
+  announcementNo: string
+  title: string
+  body: string
+  level: string
+  enabled: boolean
+  pinned: boolean
+  blocked: boolean
+  startAt: string | null
+  endAt: string | null
+  createdAt: string
+  updatedAt: string
+  live: boolean
+}
+
 /** 设置接口可能返回的动作结果（发验证码、保存通知邮箱、发送测试）。键都登记在 selects.ts 的外层键表 */
 export type PartnerNoticeEmailSaveResult =
   | { ok: true; noticeEmail: string | null }

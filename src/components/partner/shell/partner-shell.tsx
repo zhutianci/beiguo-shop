@@ -22,6 +22,7 @@ import {
   LayoutDashboard,
   LifeBuoy,
   LogOut,
+  Megaphone,
   Menu,
   Package,
   ScrollText,
@@ -57,6 +58,7 @@ const NAV: { group: string; items: NavItem[] }[] = [
     group: '店铺',
     items: [
       { href: '/partner/notices', label: '通知', icon: Bell, badge: 'notices' },
+      { href: '/partner/announcements', label: '店铺公告', icon: Megaphone },
       { href: '/partner/audit', label: '操作日志', icon: ScrollText },
       { href: '/partner/settings', label: '设置', icon: Settings },
     ],

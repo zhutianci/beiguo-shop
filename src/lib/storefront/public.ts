@@ -12,6 +12,7 @@
  */
 import type { Storefront, StorefrontKind } from './resolve'
 import { PLATFORM_CONTACT, type StoreContact } from '../contact-base'
+import { PLATFORM_BRAND, type StoreBrand } from '../brand-base'
 
 export type { StorefrontKind } from './resolve'
 
@@ -46,6 +47,8 @@ export interface PublicStorefront {
   features: StorefrontFeatures
   /** 客服信息（主站 = PLATFORM_CONTACT；渠道按回退规则）。客户端组件用 useStorefront().contact，不要再写死微信号 */
   contact: StoreContact
+  /** 店面品牌（主站 = PLATFORM_BRAND；渠道按回退规则）。字段为 null 的组件渲染主站原样 */
+  brand: StoreBrand
 }
 
 const ALL_ON: StorefrontFeatures = Object.freeze({
@@ -102,12 +105,27 @@ function publicContact(c: StoreContact | undefined): StoreContact {
   return { wechat: x.wechat, qrUrl: x.qrUrl, email: x.email, hours: x.hours }
 }
 
+/** brand 同样逐字段显式构造；缺 brand（旧夹具）按主站处理 */
+function publicBrand(b: StoreBrand | undefined): StoreBrand {
+  const x = b ?? PLATFORM_BRAND
+  return {
+    name: x.name,
+    custom: x.custom,
+    logoUrl: x.logoUrl,
+    intro: x.intro,
+    heroTitle: x.heroTitle,
+    heroSubtitle: x.heroSubtitle,
+    seoTitle: x.seoTitle,
+    seoDescription: x.seoDescription,
+  }
+}
+
 /**
  * 服务端 → 客户端的店面 DTO。只挑 code / kind / origin / contact（显式构造，不展开 sf：
  * 将来 Storefront 加字段也不会顺带进 HTML）。sf 为 null 时给一个全关的空店面（该请求本应已 404），
  * 客服信息给主站的（与二期之前一样：没有店面的 404 页上仍是主站客服入口）。
  */
 export function toPublicStorefront(sf: Storefront | null): PublicStorefront {
-  if (!sf) return { code: '', kind: 'CHANNEL', origin: '', features: storefrontFeatures(null), contact: publicContact(PLATFORM_CONTACT) }
-  return { code: sf.code, kind: sf.kind, origin: sf.origin, features: storefrontFeatures(sf), contact: publicContact(sf.contact) }
+  if (!sf) return { code: '', kind: 'CHANNEL', origin: '', features: storefrontFeatures(null), contact: publicContact(PLATFORM_CONTACT), brand: publicBrand(PLATFORM_BRAND) }
+  return { code: sf.code, kind: sf.kind, origin: sf.origin, features: storefrontFeatures(sf), contact: publicContact(sf.contact), brand: publicBrand(sf.brand) }
 }

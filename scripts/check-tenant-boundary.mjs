@@ -296,6 +296,8 @@ const RULE1_ALLOW = [
   'src/components/storefront/primary-host-redirect',
   // 二期：店面客服信息的常量 / 类型 / 格式正则（零依赖纯函数，不查库；设置页做即时格式提示用）
   'src/lib/contact-base',
+  // 渠道品牌与公告：店面品牌的常量 / 类型 / 格式校验（同 contact-base：零依赖纯函数；设置页做即时格式提示用）
+  'src/lib/brand-base',
   'src/lib/api',
   'src/lib/utils',
   'next/*',

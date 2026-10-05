@@ -2,9 +2,15 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { privatePageMetadata } from '@/lib/seo/private-page'
 import { getStorefront } from '@/lib/storefront/resolve'
+import { brandMetadata } from '@/lib/storefront/brand-meta'
 
 // 私密/登录态页面：noindex，理由见 lib/seo/private-page.ts
-export const metadata: Metadata = privatePageMetadata('注册', '注册贝果科技账号。')
+const metadata: Metadata = privatePageMetadata('注册', '注册贝果科技账号。')
+
+/** 渠道改了站名时把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata(metadata)
+}
 
 /*
  * 【渠道店面未开业 / 已停业：注册页换成说明（设计 6.7，终审第 2 轮）】

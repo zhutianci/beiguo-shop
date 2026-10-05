@@ -164,7 +164,7 @@ const isUnauth = (r: { status: number }) => r.status === 401
 const is2xx = (r: { status: number }) => r.status >= 200 && r.status < 300
 
 // ---------------------------------------------------------------------------
-// 夹具补充：通知、售后申请、结算单（两个渠道各一份，给 T1 的 noticeNo / requestNo / statementNo 寻址键用）
+// 夹具补充：通知、售后申请、结算单、公告（两个渠道各一份，给 T1 的 noticeNo / requestNo / statementNo / announcementNo 寻址键用）
 // ---------------------------------------------------------------------------
 const B32 = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 const rnd = (n: number) => Array.from(randomBytes(n), (b) => B32[b & 31]).join('')
@@ -177,6 +177,7 @@ interface Keys {
   requestNo: string
   statementNo: string
   noticeNo: string
+  announcementNo: string
 }
 interface Extra {
   lulu: Keys
@@ -189,6 +190,7 @@ interface Extra {
 async function buildExtra(w: World): Promise<Extra> {
   const mk = async (tenantId: number, orderId: number, customerNo: string, orderNo: string, listingNo: string) => {
     const notice = await prisma.tenantNotice.create({ data: { publicNo: rnd(12), tenantId, kind: 'ORDER_PAID', title: 'itest-x8 通知', refType: 'order', refKey: orderNo } })
+    const ann = await prisma.tenantAnnouncement.create({ data: { announcementNo: rnd(12), tenantId, title: 'itest-x8 公告', content: 'x', enabled: false } })
     const cust = await prisma.tenantCustomer.findUniqueOrThrow({ where: { publicNo: customerNo } })
     const as = await prisma.tenantAfterSale.create({
       data: { requestNo: `AS${ymd()}${rnd(8)}`, tenantId, orderId, customerId: cust.id, kind: 'REISSUE', activeKey: `o:${orderId}:REISSUE`, reason: 'itest-x8 补发', status: 'PENDING' },
@@ -219,8 +221,8 @@ async function buildExtra(w: World): Promise<Extra> {
     const listing = await prisma.tenantListing.findUniqueOrThrow({ where: { publicNo: listingNo } })
     const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } })
     return {
-      keys: { orderNo, listingNo, customerNo, requestNo: as.requestNo, statementNo: st.statementNo, noticeNo: notice.publicNo },
-      ids: { orderNo: String(order.id), listingNo: String(listing.id), customerNo: String(cust.id), requestNo: String(as.id), statementNo: String(st.id), noticeNo: String(notice.id) },
+      keys: { orderNo, listingNo, customerNo, requestNo: as.requestNo, statementNo: st.statementNo, noticeNo: notice.publicNo, announcementNo: ann.announcementNo },
+      ids: { orderNo: String(order.id), listingNo: String(listing.id), customerNo: String(cust.id), requestNo: String(as.id), statementNo: String(st.id), noticeNo: String(notice.id), announcementNo: String(ann.id) },
     }
   }
   const l = await mk(w.lulu.id, w.orders.luluAuto.id, w.customers.luluBuyer1, w.orders.luluAuto.orderNo, w.listings.luluAuto)
@@ -295,6 +297,15 @@ const TEMPLATES: Record<string, Tpl> = {
   'PUT /api/partner/settings/notice-email': { body: () => ({ email: null }) },
   'POST /api/partner/settings/notice-email/code': { body: () => ({ email: `x8-${RUN}@itest-tenant.local` }) },
   'POST /api/partner/settings/notice-email/test': {},
+  // 渠道品牌与公告（docs/多渠道分销-渠道品牌与公告.md）：品牌不按编号寻址；公告按公开编号 announcementNo 寻址（他站编号 / 自增 id 一律 404）
+  'GET /api/partner/settings/brand': {},
+  'PUT /api/partner/settings/brand': { body: () => ({ heroTitle: null }) },
+  'POST /api/partner/settings/brand-logo': {},
+  'DELETE /api/partner/settings/brand-logo': {},
+  'GET /api/partner/announcements': {},
+  'POST /api/partner/announcements': { body: () => ({ title: 'itest-x8 公告', body: 'x', enabled: false }) },
+  'PUT /api/partner/announcements/[announcementNo]': { params: (k) => ({ announcementNo: k.announcementNo }), body: () => ({ title: 'itest-x8 公告', body: 'x', enabled: false }), key: 'announcementNo' },
+  'DELETE /api/partner/announcements/[announcementNo]': { params: (k) => ({ announcementNo: k.announcementNo }), key: 'announcementNo' },
 }
 
 interface PartnerRoute {
@@ -987,7 +998,7 @@ const CLOSED_RE = [
   /^news(\/|$)/,
   /^games(\/|$)/,
   /^links(\/|$)/,
-  /^announcement$/,
+  // /^announcement$/ 移出（2026-10-05 渠道品牌与公告）：渠道 Host 返回本渠道自己的公告，归 OPEN（nginx 白名单同步放行）
   /^track\/view$/,
   /^upload$/,
   /^mkt(\/|$)/,
@@ -998,7 +1009,7 @@ const CLOSED_RE = [
 const SECRET_RE = [/^cron(\/|$)/, /^inventory(\/|$)/, /^pay\/sms-notify$/]
 /** 与 nginx 渠道 /api 白名单同一口径（设计 4.3）；这里独立写一份，nginx 层测试会拿它与 nginx.conf 的实际行为互相核对 */
 // domain-check：平台经公网校验自定义域名的应答端（docs/多渠道分销-自定义域名.md 第 9 节），只回签名，渠道 Host 上放行
-const OPEN_RE = /^(auth|products|categories|orders|pay\/vmq\/(create|status)|receipts|invoices|invoice-titles|redeem|partner|account\/(profile|unread|overview)|domain-check)(\/|$)/
+const OPEN_RE = /^(auth|products|categories|orders|pay\/vmq\/(create|status)|receipts|invoices|invoice-titles|redeem|partner|account\/(profile|unread|overview)|domain-check|announcement)(\/|$)/
 /** 主会话 D3：这两个路由待加 denyOnChannel（P0 前置新增、第 13 节无归属） */
 /** 主会话 D3：P0 前置新增的两条绑定验证路由，集成阶段补了 denyOnChannel()（原「待集成」项） */
 const D3_ROUTES = new Set(['account/bindings/send-code', 'account/bindings/verify'])

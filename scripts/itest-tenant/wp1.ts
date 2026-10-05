@@ -377,7 +377,8 @@ const CLOSED_API = [
   'news/hot', 'news/list', 'news/share', 'news/view',
   'games/[gameId]/leaderboard', 'games/[gameId]/score',
   'links/[id]/click', 'links/apply',
-  'announcement', 'track/view', 'upload',
+  // 'announcement' 移出（2026-10-05 渠道品牌与公告）：渠道 Host 改为返回本渠道自己的公告，见 mods-brand
+  'track/view', 'upload',
   'mkt/c/[token]/[idx]', 'mkt/o/[token]', 'mkt/prefs/[token]', 'mkt/unsubscribe/[token]',
   'invoice-requests/[token]',
   // 短信接码 · B1：余额充值只在主站（docs/短信接码-设计.md D11、§6.6 第 20 条）
@@ -614,13 +615,12 @@ async function testClientRender() {
   const MarketingSubscription = (await import('../../src/components/marketing-subscription')).default
   const { NewsHotSection } = await import('../../src/components/news-hot-section')
   const { LiveOrderNotification } = await import('../../src/components/live-order-notification')
-  const { AnnouncementModal } = await import('../../src/components/announcement-modal')
   const { RedPacketButton } = await import('../../src/components/lottery/red-packet-button')
   const { useUserStore } = await import('../../src/store/user')
   const h = React.createElement
   // 二期改动 4.1：PublicStorefront 多了 contact；这里只测入口开关，客服取值用主站（渠道客服的展示由 mods-p3 覆盖）
-  const channel = { code: 'itl', kind: 'CHANNEL' as const, origin: 'https://itl.bigolab.com', features: storefrontFeatures({ kind: 'CHANNEL' }), contact: { ...PLATFORM_CONTACT } }
-  const platform = { code: 'main', kind: 'PLATFORM' as const, origin: 'https://bigolab.com', features: storefrontFeatures({ kind: 'PLATFORM' }), contact: { ...PLATFORM_CONTACT } }
+  const channel = { code: 'itl', kind: 'CHANNEL' as const, origin: 'https://itl.bigolab.com', features: storefrontFeatures({ kind: 'CHANNEL' }), contact: { ...PLATFORM_CONTACT }, brand: { name: '贝果科技', custom: false, logoUrl: null, intro: null, heroTitle: null, heroSubtitle: null, seoTitle: null, seoDescription: null } }
+  const platform = { code: 'main', kind: 'PLATFORM' as const, origin: 'https://bigolab.com', features: storefrontFeatures({ kind: 'PLATFORM' }), contact: { ...PLATFORM_CONTACT }, brand: { name: '贝果科技', custom: false, logoUrl: null, intro: null, heroTitle: null, heroSubtitle: null, seoTitle: null, seoDescription: null } }
   const router = { push() {}, replace() {}, prefetch() {}, back() {}, forward() {}, refresh() {} }
   const render = (sf: typeof channel | typeof platform | null, el: React.ReactElement) => {
     const inner = h(AppRouterContext.Provider, { value: router as never }, h(PathnameContext.Provider, { value: '/' }, el))
@@ -657,12 +657,12 @@ async function testClientRender() {
     ['MarketingSubscription', h(MarketingSubscription)],
     ['NewsHotSection', h(NewsHotSection)],
     ['LiveOrderNotification', h(LiveOrderNotification)],
-    ['AnnouncementModal', h(AnnouncementModal)],
+    // AnnouncementModal 移出（2026-10-05 渠道品牌与公告）：渠道站也挂，接口只返回本渠道自己的公告（mods-brand B9）
     ['RedPacketButton', h(RedPacketButton, { view: { state: 'DRAWN', won: true } as never, canDraw: false, onClick: () => {} })],
   ]
   const empty = gated.filter(([, el]) => render(channel, el) !== '').map(([n]) => n)
   check('渠道站：被裁组件渲染为空（不发请求）', empty.length === 0, empty.join(','))
-  const rp = render(platform, gated[5][1])
+  const rp = render(platform, gated[4][1])
   check('主站：红包按钮照常渲染', rp.includes('已中奖'))
 }
 
@@ -843,7 +843,8 @@ async function testShopShell(w: World) {
   check('主站：挂实时成交、公告、埋点、邮件落地；无横幅、无停业闸门', !!mv && findType(mv, LiveOrderNotification) && findType(mv, AnnouncementModal) && findType(mv, PageViewBeacon) && findType(mv, MailLanding) && !findType(mv, SuspendedBanner) && !findType(mv, ClosedPageGate))
   const act = await shell(w.lulu.host)
   const av = act.kind === 'ok' ? act.value : null
-  check('渠道 ACTIVE：不挂实时成交、公告、埋点、邮件落地；无横幅', !!av && !findType(av, LiveOrderNotification) && !findType(av, AnnouncementModal) && !findType(av, PageViewBeacon) && !findType(av, MailLanding) && !findType(av, SuspendedBanner))
+  // 2026-10-05 渠道品牌与公告：渠道站也挂公告弹窗（接口只返回本渠道自己的公告，见 mods-brand）
+  check('渠道 ACTIVE：挂公告弹窗；不挂实时成交、埋点、邮件落地；无横幅', !!av && findType(av, AnnouncementModal) && !findType(av, LiveOrderNotification) && !findType(av, PageViewBeacon) && !findType(av, MailLanding) && !findType(av, SuspendedBanner))
 
   await prisma.tenant.update({ where: { id: w.lulu.id }, data: { status: 'SUSPENDED' } })
   const sus = await shell(w.lulu.host)

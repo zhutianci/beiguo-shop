@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
   if (!sf) return error('资源不存在', 404)
   // 写接口同源校验（设计 4.6 C4；集成阶段补）：挡兄弟子域发起的登录 CSRF。店面解析之后、try 之外
   if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
-  const mailOpts = sf.kind === 'PLATFORM' ? undefined : { origin: sf.origin }
+  // 渠道改了站名：验证码邮件用渠道站名（渠道品牌与公告）
+  const mailOpts = sf.kind === 'PLATFORM' ? undefined : sf.brand.custom ? { origin: sf.origin, brand: sf.brand.name } : { origin: sf.origin }
   try {
     if (!systemEmailConfigured()) return error('邮件服务未配置，暂时无法发送验证码', 500)
 

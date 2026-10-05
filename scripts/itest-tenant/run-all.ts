@@ -5,7 +5,7 @@
  *   （或 npm run itest:tenant；参数原样传给 cross-tenant.ts，例如 -- --no-nginx）
  *
  * 顺序：边界检查（含自测、W8-9 文档路径核对）→ 路由总表核对（含自测）→ check-tenant-math → check-tenant-ledger → itest wp0..wp7
- * → 二期 mods-f / mods-p1 / mods-p2 / mods-p3 → 自定义域名 mods-domain → cross-tenant。
+ * → 二期 mods-f / mods-p1 / mods-p2 / mods-p3 → 自定义域名 mods-domain → 渠道品牌与公告 mods-brand → cross-tenant。
  * 为什么必须串行（主会话 D10）：每个 itest 开头都 cleanupAll()（按 ITEST 前缀删全部测试数据），并行会互相清掉对方的夹具，
  * 表现为「订单 / 上架行找不到」之类与改动无关的偶发失败。
  *
@@ -50,6 +50,8 @@ const STEPS: Step[] = [
   ...['f', 'p1', 'p2', 'p3'].map((m) => tsx(`scripts/itest-tenant/mods-${m}.ts`)),
   // 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 6 节）：同样串行，放在 cross-tenant 之前
   tsx('scripts/itest-tenant/mods-domain.ts'),
+  // 渠道品牌与公告（docs/多渠道分销-渠道品牌与公告.md）：同样串行，放在 cross-tenant 之前
+  tsx('scripts/itest-tenant/mods-brand.ts'),
   tsx('scripts/itest-tenant/cross-tenant.ts', passThrough),
 ]
 

@@ -89,7 +89,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
    * （next/link 视口预取、组件自己的 fetch；验收 W1-9）。主站 features 全开，渲染结果不变。
    * 命名为 sfFeatures：本组件里的 features 已是「三个卖点」数组。
    */
-  const { features: sfFeatures } = useStorefront()
+  const { features: sfFeatures, brand } = useStorefront()
 
   const handleLookup = (e: React.FormEvent) => {
     e.preventDefault()
@@ -215,9 +215,16 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
                   —— Claude 侧用户不搜裸品牌词，必须带档位（claude pro充值 才有联想）。
                   所以「Claude 充值」这半句匹配不到真实 query，它在这里的作用是把业务说完整，
                   真正接 Claude 流量的是 /chongzhi/claude-pro 与 /chongzhi/claude-max。 */}
-              <span className="gradient-text">ChatGPT、Claude</span>
-              <br />
-              <span className="gradient-text-accent">充值与代充</span>
+              {/* 渠道白标：渠道设了首页大标题就整句用渠道的（docs/多渠道分销-渠道品牌与公告.md）；没设（含主站）渲染原来的两行 */}
+              {brand.heroTitle ? (
+                <span className="gradient-text">{brand.heroTitle}</span>
+              ) : (
+                <>
+                  <span className="gradient-text">ChatGPT、Claude</span>
+                  <br />
+                  <span className="gradient-text-accent">充值与代充</span>
+                </>
+              )}
             </motion.h1>
 
             {/* 副标题在 xl 提到 2xl(24px)：text-body-lg 最大只到 20px，压在 128px 标题下面显得断层；
@@ -228,6 +235,8 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
               transition={{ duration: 0.6, delay: 0.4 }}
               className="text-body-lg xl:text-2xl max-w-2xl xl:max-w-3xl mx-auto mb-12"
             >
+              {/* 渠道设了首页副标题：整段换成渠道的一句话（不带打字机与服务清单）；没设（含主站）原样 */}
+              {brand.heroSubtitle ? brand.heroSubtitle : <>
               卡密自助兑换，支付宝付款，
               {/* 手机端轻量模式：轮换的卖点单独占一行（lite:block + 不换行），句子长短变化不再让副标题在一行 / 两行之间跳、
                   带着下面的按钮和查询框一起上下抖（每次抖动都是整页重排）。最长一句 13 个字，320 宽的屏也放得下 */}
@@ -246,6 +255,7 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
               <span className="text-white/40">
                 ChatGPT Plus / Pro · Claude Pro / Max 5x · 注册接码 · KYC 认证 · 谷歌账号
               </span>
+              </>}
             </motion.p>
 
             <motion.div

@@ -7,6 +7,7 @@ import { PRIVACY_UPDATED_AT } from '@/lib/legal'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { storefrontFeatures } from '@/lib/storefront/public'
 import { resolveStoreContact } from '@/lib/contact'
+import { brandMetadata } from '@/lib/storefront/brand-meta'
 
 /**
  * 隐私政策。
@@ -38,11 +39,16 @@ const TITLE = `隐私政策 - ${SITE_NAME}`
 const DESCRIPTION =
   '贝果科技隐私政策：我们收集哪些信息、为什么收集、与哪些第三方共享、保存多久，以及你如何查询、删除自己的数据和退订营销邮件。'
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/privacy' },
   openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/privacy' },
+}
+
+/** 渠道改了站名时把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata(metadata)
 }
 
 export default async function PrivacyPage() {

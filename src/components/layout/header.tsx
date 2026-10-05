@@ -62,7 +62,7 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
   const pathname = usePathname()
   const { user, setUser, logout } = useUserStore()
   // 只控制显示；真正的拦截在服务端（denyOnChannel / notFoundOnChannel）
-  const { features } = useStorefront()
+  const { features, brand } = useStorefront()
   const visibleLinks = navLinks.filter(
     (l) => (!l.feature || features[l.feature]) && (catalogOpen || l.href !== '/products') && (l.feature !== 'jiema' || jiemaOpen),
   )
@@ -167,17 +167,36 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                   图片优化管线的 CPU/内存开销不值得为一张小图付（同 gen-brand-assets.py 的取舍）。
                   写死 width/height 防止加载时抖动（CLS）。
                   这张图是透明底 PNG，所以深浅背景都能直接用。 */}
-              <img
-                src="/logo-mark.png?v=3"
-                alt=""
-                width={40}
-                height={40}
-                className="w-10 h-10 shrink-0 transition-transform duration-300 group-hover:scale-105"
-              />
+              {/* 渠道白标（docs/多渠道分销-渠道品牌与公告.md）：有 logo 用渠道 logo；只改了站名没传 logo 用站名首字的圆角块
+                  （不能继续用贝果的图标）；主站与没有白标的渠道原样 */}
+              {brand.logoUrl ? (
+                <img
+                  src={brand.logoUrl}
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 shrink-0 rounded-lg object-contain transition-transform duration-300 group-hover:scale-105"
+                />
+              ) : brand.custom ? (
+                <span
+                  aria-hidden
+                  className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center font-bold text-lg transition-transform duration-300 group-hover:scale-105"
+                >
+                  {Array.from(brand.name)[0]}
+                </span>
+              ) : (
+                <img
+                  src="/logo-mark.png?v=3"
+                  alt=""
+                  width={40}
+                  height={40}
+                  className="w-10 h-10 shrink-0 transition-transform duration-300 group-hover:scale-105"
+                />
+              )}
               {/* md 区间要把宽度让给 7 项导航，品牌名只在 lg 以上出现；
                   xl 上导航字号升到 16px，品牌名同步升一档才不会被导航压过去。
                   中文标题字距默认偏松，tracking-tight 让四个字更像一个整体 */}
-              <span className="hidden lg:block font-bold text-lg xl:text-xl tracking-tight">贝果科技</span>
+              <span className="hidden lg:block font-bold text-lg xl:text-xl tracking-tight">{brand.name}</span>
             </Link>
 
             {/* Desktop Nav

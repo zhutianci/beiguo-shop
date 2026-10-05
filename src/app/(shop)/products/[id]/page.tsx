@@ -26,6 +26,7 @@ import { publicStock } from '@/lib/stock-level'
 import { getStorefront, type Storefront } from '@/lib/storefront/resolve'
 import { getStorefrontProduct } from '@/lib/pricing'
 import { getCurrentUser } from '@/lib/auth'
+import { brandMetadata } from '@/lib/storefront/brand-meta'
 
 /**
  * 商品详情页。
@@ -188,7 +189,12 @@ const getProduct = cache(
   }
 )
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+/** 渠道改了站名 / logo 时换掉标题里的「贝果科技」与分享图；主站原样（src/lib/storefront/brand-meta.ts） */
+export async function generateMetadata(props: { params: { id: string } }): Promise<Metadata> {
+  return brandMetadata(await productMetadata(props))
+}
+
+async function productMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const id = Number(params.id)
   const { seo: product } = await getProduct(id)
 

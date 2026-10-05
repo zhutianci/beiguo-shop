@@ -23,7 +23,7 @@ export function FloatingContact() {
 
 
 function FloatingContactInner() {
-  const { contact } = useStorefront()
+  const { contact, brand } = useStorefront()
   const wechat = contact.wechat
   const [expanded, setExpanded] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
@@ -65,7 +65,8 @@ function FloatingContactInner() {
                 </div>
 
                 <p className="text-xs text-white/50 mb-4 leading-relaxed">
-                  贝果科技专属客服为你服务
+                  {/* 主站与未改名的渠道 brand.name =「贝果科技」，文字与原来相同 */}
+                  {`${brand.name}专属客服为你服务`}
                   {contact.hours && (
                     <>
                       <br />

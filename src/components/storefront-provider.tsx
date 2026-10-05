@@ -14,6 +14,7 @@
 import { createContext, useContext } from 'react'
 import { storefrontFeatures, type PublicStorefront } from '@/lib/storefront/public'
 import { PLATFORM_CONTACT } from '@/lib/contact-base'
+import { PLATFORM_BRAND } from '@/lib/brand-base'
 
 const FALLBACK: PublicStorefront = {
   code: 'main',
@@ -21,6 +22,7 @@ const FALLBACK: PublicStorefront = {
   origin: '',
   features: storefrontFeatures({ kind: 'PLATFORM' }),
   contact: { ...PLATFORM_CONTACT },
+  brand: { ...PLATFORM_BRAND },
 }
 
 const StorefrontContext = createContext<PublicStorefront | null>(null)

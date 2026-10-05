@@ -175,8 +175,8 @@ async function main() {
 
   const h = React.createElement
   const router = { push() {}, replace() {}, prefetch() {}, back() {}, forward() {}, refresh() {} }
-  const platformPub: PublicStorefront = { code: 'main', kind: 'PLATFORM', origin: 'https://bigolab.com', features: pubMod.storefrontFeatures({ kind: 'PLATFORM' }), contact: { ...PLATFORM_CONTACT } }
-  const channelPub = (contact: StoreContact): PublicStorefront => ({ code: 'itp3', kind: 'CHANNEL', origin: 'https://itp3.bigolab.com', features: pubMod.storefrontFeatures({ kind: 'CHANNEL' }), contact })
+  const platformPub: PublicStorefront = { code: 'main', kind: 'PLATFORM', origin: 'https://bigolab.com', features: pubMod.storefrontFeatures({ kind: 'PLATFORM' }), contact: { ...PLATFORM_CONTACT }, brand: { name: '贝果科技', custom: false, logoUrl: null, intro: null, heroTitle: null, heroSubtitle: null, seoTitle: null, seoDescription: null } }
+  const channelPub = (contact: StoreContact): PublicStorefront => ({ code: 'itp3', kind: 'CHANNEL', origin: 'https://itp3.bigolab.com', features: pubMod.storefrontFeatures({ kind: 'CHANNEL' }), contact, brand: { name: '贝果科技', custom: false, logoUrl: null, intro: null, heroTitle: null, heroSubtitle: null, seoTitle: null, seoDescription: null } })
   const render = (pub: PublicStorefront, el: React.ReactElement, pathname = '/', params: Record<string, string> = {}) =>
     renderToString(
       h(StorefrontProvider, {

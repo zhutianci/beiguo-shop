@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ContactModal } from '@/components/contact-modal'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import { useStorefront } from '@/components/storefront-provider'
+import { isWhiteLabel, OPERATOR_LINE } from '@/lib/brand-base'
 
 /**
  * catalogOpen：渠道店面 TERMINATED 时为 false，去掉整栏「商品」（点进去只是停业页，设计 6.7）；主站恒为 true。
@@ -20,7 +21,9 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
    * 不只是「点进去 404」的体验问题：生产环境 next/link 会对视口内的链接预取，留着入口就会产生 404 请求（验收 W1-9）。
    * 主站 features 全开，渲染结果与原来逐字相同。
    */
-  const { features } = useStorefront()
+  const { features, brand } = useStorefront()
+  // 渠道白标（docs/多渠道分销-渠道品牌与公告.md）：换站名 / logo / 简介，底部保留经营主体小字（收款方、开票方）
+  const white = isWhiteLabel(brand)
 
   return (
     <>
@@ -43,21 +46,38 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
               {/* 页脚用完整字标（图标 + bigo tech + 域名 + 副标）。
                   它是透明底 PNG，而页脚是深色，白色字标在这里正好成立。
                   alt 写全称：这是页脚唯一一处品牌名，图挂了也要读得出是谁。 */}
-              <Link href="/" className="inline-flex items-center mb-6">
-                <img
-                  src="/logo-full.png?v=3"
-                  alt="贝果科技 bigo tech - bigolab.com"
-                  width={640}
-                  height={628}
-                  className="h-28 w-auto lg:h-32"
-                />
-              </Link>
+              {white ? (
+                <Link href="/" className="inline-flex items-center gap-3 mb-6">
+                  {brand.logoUrl ? (
+                    <img src={brand.logoUrl} alt="" width={56} height={56} className="h-14 w-14 rounded-xl object-contain" />
+                  ) : (
+                    <span aria-hidden className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl font-bold">
+                      {Array.from(brand.name)[0]}
+                    </span>
+                  )}
+                  <span className="text-2xl font-bold tracking-tight">{brand.name}</span>
+                </Link>
+              ) : (
+                <Link href="/" className="inline-flex items-center mb-6">
+                  <img
+                    src="/logo-full.png?v=3"
+                    alt="贝果科技 bigo tech - bigolab.com"
+                    width={640}
+                    height={628}
+                    className="h-28 w-auto lg:h-32"
+                  />
+                </Link>
+              )}
               {/* 简介是纯正文：max-w-sm(384px) 在 1920px 下会被强行断成很多短行，
                   lg 放宽到 max-w-md 并把字号/行高抬一档，行长落在 40 字左右的舒适区 */}
               {/* 原文「专业的 AI 订阅服务平台…快速开通与持续保障」无从核验，却出现在全站每一页。
                   换成买家查得到的事实：经营主体、做什么、怎么付钱、能不能开票 */}
               <p className="text-white/40 text-sm lg:text-[15px] max-w-sm lg:max-w-md leading-relaxed lg:leading-[1.85]">
-                贝果科技（益阳市赫山区必高科技有限公司）提供 ChatGPT、Claude 等 AI 会员充值与账号服务，支付宝付款，可开增值税发票（标价不含税，开票另付 6% 税费）。
+                {brand.intro
+                  ? brand.intro
+                  : white
+                    ? `${brand.name}提供 ChatGPT、Claude 等 AI 会员充值与账号服务，支付宝付款，可开增值税发票（标价不含税，开票另付 6% 税费）。`
+                    : '贝果科技（益阳市赫山区必高科技有限公司）提供 ChatGPT、Claude 等 AI 会员充值与账号服务，支付宝付款，可开增值税发票（标价不含税，开票另付 6% 税费）。'}
               </p>
               <div className="mt-6 lg:mt-8">
                 <button
@@ -188,7 +208,17 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
               否则版权行会紧贴上一块内容，显得整个页脚「下沉」 */}
           <div className="mt-16 lg:mt-20 pt-8 lg:pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-white/30 text-sm">
+              {/* 非白标原样保留这一行 JSX（React 会在相邻文本节点之间插注释，写法一变主站 HTML 就不再逐字相同） */}
+              {white ? (
+                <>
+                  &copy; {new Date().getFullYear()} {brand.name}. 保留所有权利.
+                  <span className="block mt-1 text-xs text-white/25">{OPERATOR_LINE}</span>
+                </>
+              ) : (
+                <>
               &copy; {new Date().getFullYear()} 贝果科技. 保留所有权利.
+                </>
+              )}
             </p>
             <div className="flex gap-6 lg:gap-8 text-sm text-white/30">
               <Link href="/privacy" className="hover:text-white transition-colors">

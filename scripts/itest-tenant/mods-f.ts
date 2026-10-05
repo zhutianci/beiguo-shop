@@ -150,7 +150,8 @@ async function main() {
       resolve.setStorefrontDbForTest(null)
 
       const dto = pub.toPublicStorefront(s1)
-      check('toPublicStorefront 只有五个键（含 contact）', JSON.stringify(Object.keys(dto).sort()) === JSON.stringify(['code', 'contact', 'features', 'kind', 'origin']))
+      // 2026-10-05 渠道品牌与公告：加 brand（店面品牌本来就要给买家看）
+      check('toPublicStorefront 只有六个键（含 contact、brand）', JSON.stringify(Object.keys(dto).sort()) === JSON.stringify(['brand', 'code', 'contact', 'features', 'kind', 'origin']))
       check('contact 只有四个键', JSON.stringify(Object.keys(dto.contact).sort()) === JSON.stringify(['email', 'hours', 'qrUrl', 'wechat']))
       check('toPublicStorefront 不含 id / status', !('id' in dto) && !('status' in dto))
       const nul = pub.toPublicStorefront(null)

@@ -15,6 +15,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ContactModal } from '@/components/contact-modal'
+import { useStorefront } from '@/components/storefront-provider'
 
 /** 停业后换成停业页的路径：首页、商品列表与商品详情。其余页面（订单、个人中心、兑换、登录等）照常 */
 export function isClosedPath(pathname: string | null): boolean {
@@ -62,6 +63,7 @@ export function ClosedPage() {
  * 不放登录 / 注册入口：预览买家走 /partner/login?next=/，渠道主走 /partner/login（都不在 (shop) 下）。
  */
 export function DraftClosedPage() {
+  const { brand } = useStorefront()
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-24">
       <div className="w-full max-w-md rounded-2xl glass p-8 text-center">
@@ -71,7 +73,7 @@ export function DraftClosedPage() {
           <br />
           已购买的订单不受影响，如需帮助请联系原购买渠道的客服。
         </p>
-        <div className="mt-6 text-xs tracking-widest text-white/40">贝果科技</div>
+        <div className="mt-6 text-xs tracking-widest text-white/40">{brand.name}</div>
       </div>
     </div>
   )

@@ -301,8 +301,8 @@ section('功能开关（设计 7.6、11.1）')
   ok('返回值是副本（改了不影响下一次）', storefrontFeatures({ kind: 'PLATFORM' }).coupon === true)
   // 二期改动 4.1：店面 DTO 新增 contact（客服信息本来就要给买家看），仍然不带 id / status
   const luluContact = { wechat: 'lulu_kf', qrUrl: null, email: 'kf@lulu.example', hours: '9:00-21:00' }
-  const pub = toPublicStorefront({ id: 2, code: 'lulu', kind: 'CHANNEL', status: 'ACTIVE', origin: 'https://lulu.bigolab.com', canonicalHost: 'lulu.bigolab.com', contact: luluContact })
-  eq('toPublicStorefront 只有五个键（二期加 contact）', Object.keys(pub).sort(), ['code', 'contact', 'features', 'kind', 'origin'])
+  const pub = toPublicStorefront({ id: 2, code: 'lulu', kind: 'CHANNEL', status: 'ACTIVE', origin: 'https://lulu.bigolab.com', canonicalHost: 'lulu.bigolab.com', contact: luluContact, brand: { name: '贝果科技', custom: false, logoUrl: null, intro: null, heroTitle: null, heroSubtitle: null, seoTitle: null, seoDescription: null } })
+  eq('toPublicStorefront 只有六个键（二期加 contact，品牌加 brand）', Object.keys(pub).sort(), ['brand', 'code', 'contact', 'features', 'kind', 'origin'])
   ok('toPublicStorefront 不含 id / status', !('id' in pub) && !('status' in pub))
   eq('toPublicStorefront.contact 只有四个键且原样透传', pub.contact, luluContact)
   eq('toPublicStorefront(null).contact = 主站客服', toPublicStorefront(null).contact, { ...PLATFORM_CONTACT })

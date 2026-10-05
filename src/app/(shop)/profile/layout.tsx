@@ -5,9 +5,15 @@ import { storefrontFeatures } from '@/lib/storefront/public'
 import { readSmsConfigCached } from '@/lib/jiema/config'
 import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
 import { JiemaOpenProvider } from './jiema-open'
+import { brandMetadata } from '@/lib/storefront/brand-meta'
 
 // 私密/登录态页面：noindex，理由见 lib/seo/private-page.ts
-export const metadata: Metadata = privatePageMetadata('个人中心', '管理账号信息、余额与优惠券。')
+const metadata: Metadata = privatePageMetadata('个人中心', '管理账号信息、余额与优惠券。')
+
+/** 渠道改了站名时把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata(metadata)
+}
 
 /**
  * 个人中心快捷功能「我的接码记录」（docs/短信接码-设计.md §1.2）与导航、页脚同一个判定：静态开关 features.jiema（渠道站恒关）

@@ -25,6 +25,8 @@ import type {
   OrderSettlementView,
   PartnerAfterSaleRow,
   PartnerAuditRow,
+  PartnerAnnouncementDTO,
+  PartnerBrandDTO,
   PartnerContactDTO,
   PartnerCustomerDetail,
   PartnerCustomerRow,
@@ -591,6 +593,12 @@ const TENANT_SETTING_KEYS = Object.keys(PARTNER_TENANT_SELECT)
 /** 二期设置中心 DTO 的键（与 PARTNER_TENANT_SELECT 同名；编译期穷举，DTO 加字段不补这里直接编译失败） */
 const NOTICE_TRANSPORT_KEYS = dtoKeys<PartnerNoticeTransportDTO>()(['noticeWecomOn', 'noticeEmailOn', 'noticeEmail'] as const, true)
 const CONTACT_KEYS = dtoKeys<PartnerContactDTO>()(['supportWechat', 'supportQrUrl', 'supportEmail', 'supportHours'] as const, true)
+/** 渠道品牌与公告（docs/多渠道分销-渠道品牌与公告.md）：编译期穷举，DTO 加字段不补这里直接编译失败 */
+const BRAND_KEYS = dtoKeys<PartnerBrandDTO>()(['brandName', 'brandLogoUrl', 'brandIntro', 'heroTitle', 'heroSubtitle', 'seoTitle', 'seoDescription', 'locked'] as const, true)
+const ANNOUNCEMENT_KEYS = dtoKeys<PartnerAnnouncementDTO>()(
+  ['announcementNo', 'title', 'body', 'level', 'enabled', 'pinned', 'blocked', 'startAt', 'endAt', 'createdAt', 'updatedAt', 'live'] as const,
+  true,
+)
 type NoticeEmailSaveKeys = keyof Extract<PartnerNoticeEmailSaveResult, { ok: true }> | keyof Extract<PartnerNoticeEmailSaveResult, { ok: false }>
 const NOTICE_EMAIL_SAVE_KEYS: readonly NoticeEmailSaveKeys[] = ['ok', 'noticeEmail', 'reason']
 
@@ -617,6 +625,8 @@ const ENVELOPE_KEYS = [
   'tenant', 'webhookConfigured', 'noticePrefs', 'prefs',
   // 设置（二期）：推送方式 / 客服信息卡片的外层与动作结果（需要验证码、已发送、测试结果）
   'transport', 'contact', 'needCode', 'sent',
+  // 渠道品牌与公告：品牌卡片外层、公告单条外层（列表用通用的 rows）、删除结果
+  'brand', 'row', 'ok',
 ] as const
 
 /**
@@ -652,6 +662,8 @@ export const PARTNER_ALLOWED_KEYS: ReadonlySet<string> = new Set<string>([
   ...TENANT_SETTING_KEYS,
   ...NOTICE_TRANSPORT_KEYS,
   ...CONTACT_KEYS,
+  ...BRAND_KEYS,
+  ...ANNOUNCEMENT_KEYS,
   ...NOTICE_EMAIL_SAVE_KEYS,
   ...ENVELOPE_KEYS,
   ...TENANT_NOTICE_KINDS,

@@ -208,7 +208,8 @@ export async function sendDirectMail(
   to: string,
   subject: string,
   htmlBody: string,
-  fromAccount?: string
+  fromAccount?: string,
+  fromAlias?: string
 ): Promise<SendResult> {
   const account = fromAccount || DM_ACCOUNT
   if (!ACCESS_KEY_ID || !ACCESS_KEY_SECRET || !account) {
@@ -223,7 +224,7 @@ export async function sendDirectMail(
     ToAddress: to,
     Subject: subject,
     HtmlBody: htmlBody,
-    FromAlias: DM_FROM_ALIAS,
+    FromAlias: fromAlias || DM_FROM_ALIAS,
   })
 }
 
@@ -232,8 +233,9 @@ export function systemEmailConfigured(): boolean {
   return !!(ACCESS_KEY_ID && ACCESS_KEY_SECRET && (DM_NOREPLY || DM_ACCOUNT))
 }
 
-export async function sendSystemEmail(to: string, subject: string, htmlBody: string): Promise<SendResult> {
-  return sendDirectMail(to, subject, htmlBody, DM_NOREPLY || DM_ACCOUNT)
+/** fromAlias：渠道交易邮件用渠道站名做发件人名（mail.ts aliasOf）；不传 = ALIYUN_DM_FROM_ALIAS（主站逐字不变） */
+export async function sendSystemEmail(to: string, subject: string, htmlBody: string, fromAlias?: string): Promise<SendResult> {
+  return sendDirectMail(to, subject, htmlBody, DM_NOREPLY || DM_ACCOUNT, fromAlias)
 }
 
 export async function sendSms(

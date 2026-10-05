@@ -9,6 +9,7 @@ import { getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
 import { jiemaSupportData } from '@/lib/jiema/support-zone'
 import { JiemaSupportProvider } from './jiema-zone'
+import { brandMetadata } from '@/lib/storefront/brand-meta'
 
 /**
  * 客服中心。这一页是全站信息型内容最扎实的一块（8 条真实问答 + 4 份上手指引），
@@ -30,11 +31,16 @@ const TITLE = `常见问题与售后支持 - ChatGPT / Claude 充值答疑 - ${S
 const DESCRIPTION =
   'ChatGPT、Claude 充值与订阅的常见问题：订单查不到怎么办、掉订阅如何退款、账号被封怎么处理、如何续费与换套餐，以及首次登录的分步指引。'
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/support' },
   openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/support' },
+}
+
+/** 渠道改了站名时把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata(metadata)
 }
 
 export default async function SupportLayout({ children }: { children: React.ReactNode }) {

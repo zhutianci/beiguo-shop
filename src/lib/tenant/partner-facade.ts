@@ -19,7 +19,10 @@ import { writeAudit } from '../audit'
 import { checkContactEmail, checkContactHours, checkContactWechat, changedContactFields, type ContactField, type ContactFieldCheck } from '../contact'
 import { sendTenantNoticeEmail, sendVerifyCodeEmail, systemEmailConfigured } from '../mail'
 import { rateLimited } from '../news/rate-limit'
-import { deleteContactUpload, releaseContactUpload, storeContactQr } from '../upload-store'
+import { deleteBrandUpload, deleteContactUpload, releaseBrandUpload, releaseContactUpload, storeBrandLogo, storeContactQr } from '../upload-store'
+import { BRAND_TEXT_FIELDS, checkBrandText, type BrandField, type BrandTextField } from '../brand'
+import { alertPlatform } from './platform-alert'
+import { invalidateTenantBrand } from './brand'
 import { consumeCode, createCode, tooFrequent } from '../verify-code'
 import { tenantOrigin } from '../storefront/origin'
 import { computeBalances, computeBalancesWithComposition, getOrderSettlementViews, ledgerWhere, pageOf, statementLines, statementToDTO } from './balances'
@@ -37,6 +40,7 @@ import type {
   LedgerRowDTO,
   LedgerType,
   OrderSettlementView,
+  PartnerBrandDTO,
   PartnerContactDTO,
   PartnerNoticeEmailSaveResult,
   PartnerNoticeTransportDTO,
@@ -56,7 +60,7 @@ function assertTenantId(tenantId: unknown): asserts tenantId is number {
  */
 export class PartnerFacadeError extends Error {
   constructor(
-    public code: 'BAD_WEBHOOK' | 'BAD_REQUEST_ID' | 'BAD_CONTACT' | 'NO_NOTICE_EMAIL',
+    public code: 'BAD_WEBHOOK' | 'BAD_REQUEST_ID' | 'BAD_CONTACT' | 'NO_NOTICE_EMAIL' | 'BAD_BRAND' | 'BRAND_LOCKED',
     /** 给用户看的提示（BAD_CONTACT / NO_NOTICE_EMAIL 时必有）；不含任何内部信息 */
     public detail?: string,
   ) {
@@ -602,3 +606,168 @@ export async function clearTenantContactQr(tenantId: number, audit?: (tx: Prisma
   await releaseContactUpload(old).catch((e) => console.error('[contact-qr] 删除旧二维码失败（已清除）', e))
   return { cleared: true }
 }
+
+// ============================== 渠道品牌与公告（docs/多渠道分销-渠道品牌与公告.md） ==============================
+
+const BRAND_COLS = {
+  code: true,
+  brandName: true,
+  brandLogoUrl: true,
+  brandIntro: true,
+  heroTitle: true,
+  heroSubtitle: true,
+  seoTitle: true,
+  seoDescription: true,
+  brandLocked: true,
+} satisfies Prisma.TenantSelect
+
+type BrandRow = Prisma.TenantGetPayload<{ select: typeof BRAND_COLS }>
+
+function brandDTO(t: BrandRow): PartnerBrandDTO {
+  return {
+    brandName: t.brandName,
+    brandLogoUrl: t.brandLogoUrl,
+    brandIntro: t.brandIntro,
+    heroTitle: t.heroTitle,
+    heroSubtitle: t.heroSubtitle,
+    seoTitle: t.seoTitle,
+    seoDescription: t.seoDescription,
+    locked: t.brandLocked,
+  }
+}
+
+const BRAND_FIELD_LABEL: Record<BrandField, string> = {
+  brandName: '网站名称',
+  brandLogoUrl: 'logo',
+  brandIntro: '页脚简介',
+  heroTitle: '首页大标题',
+  heroSubtitle: '首页副标题',
+  seoTitle: '浏览器标题',
+  seoDescription: '分享摘要',
+}
+
+/**
+ * 品牌改动后：清进程内缓存（tenant/brand.ts），并告诉站长群（站长 10-05 拍板「立即生效，你可以改回」：生效不等审核，但要让站长知道）。
+ * 告警只写渠道编码、改了哪几项、新站名（站名本身已过格式与禁用词校验）；永不抛。
+ */
+async function afterBrandChange(code: string, tenantId: number, changed: BrandField[], newName: string | null): Promise<void> {
+  invalidateTenantBrand(tenantId)
+  if (!changed.length) return
+  const items = changed.map((f) => BRAND_FIELD_LABEL[f]).join('、')
+  const nameNote = changed.includes('brandName') ? `；网站名称现为「${newName ?? '贝果科技（已恢复默认）'}」` : ''
+  await alertPlatform(`渠道 ${code} 修改了店铺品牌：${items}${nameNote}。如需改回或禁止修改，在超管后台该渠道详情的「品牌」卡片操作`).catch(() => {})
+}
+
+export async function getTenantBrandSettings(tenantId: number): Promise<PartnerBrandDTO> {
+  assertTenantId(tenantId)
+  const t = await prisma.tenant.findUnique({ where: { id: tenantId }, select: BRAND_COLS })
+  if (!t) throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+  return brandDTO(t)
+}
+
+/**
+ * 保存品牌文字字段（网站名称、页脚简介、首页标题与副标题、浏览器标题、分享摘要）。每项缺省 = 不改；null / 空串 = 清空（恢复主站原样）。
+ * 不合规 → BAD_BRAND（detail 是给用户看的中文）；超管锁定 → BRAND_LOCKED。行锁内读旧值、写新值、audit(tx, changed)，同一事务。
+ */
+export async function setTenantBrand(
+  tenantId: number,
+  input: Partial<Record<BrandTextField, unknown>>,
+  audit?: (tx: Prisma.TransactionClient, changed: BrandField[]) => Promise<void>,
+): Promise<{ brand: PartnerBrandDTO; changed: BrandField[] }> {
+  assertTenantId(tenantId)
+  const data: Partial<Record<BrandTextField, string | null>> = {}
+  for (const f of BRAND_TEXT_FIELDS) {
+    const v = input?.[f]
+    if (v === undefined) continue
+    const r = checkBrandText(f, v)
+    if (!r.ok) throw new PartnerFacadeError('BAD_BRAND', r.error)
+    data[f] = r.value
+  }
+  const out = await prisma.$transaction(async (tx) => {
+    await lockTenantRowForUpdate(tx, tenantId)
+    const before = await tx.tenant.findUnique({ where: { id: tenantId }, select: BRAND_COLS })
+    if (!before) throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+    if (before.brandLocked) throw new PartnerFacadeError('BRAND_LOCKED', '平台已锁定本店品牌设置，如需修改请联系平台')
+    const changed = (Object.keys(data) as BrandTextField[]).filter((f) => (before[f] ?? null) !== (data[f] ?? null))
+    if (!changed.length) return { brand: brandDTO(before), changed: [] as BrandField[], code: before.code }
+    const after = await tx.tenant.update({ where: { id: tenantId }, data, select: BRAND_COLS })
+    if (audit) await audit(tx, changed)
+    return { brand: brandDTO(after), changed: changed as BrandField[], code: before.code }
+  })
+  await afterBrandChange(out.code, tenantId, out.changed, out.brand.brandName)
+  return { brand: out.brand, changed: out.changed }
+}
+
+export type BrandLogoSaveResult =
+  | { ok: true; brandLogoUrl: string }
+  | { ok: false; reason: 'TOO_FREQUENT' | 'TOO_LARGE' | 'BAD_TYPE' | 'NO_SPACE' | 'LOCKED' }
+
+/**
+ * 上传站标：每个渠道每小时 10 次；≤1MB、按文件头只收 png / jpg / webp（upload-store 的 storeBrandLogo）；文件名随机生成。
+ * 行锁内检查锁定、读旧地址、写新地址、audit(tx)；事务失败 → 删掉刚落盘的新文件；提交后旧文件按引用计数释放。
+ */
+export async function saveTenantBrandLogo(
+  tenantId: number,
+  bytes: Buffer,
+  audit?: (tx: Prisma.TransactionClient) => Promise<void>,
+): Promise<BrandLogoSaveResult> {
+  assertTenantId(tenantId)
+  const pre = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { brandLocked: true } })
+  if (!pre) throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+  if (pre.brandLocked) return { ok: false, reason: 'LOCKED' }
+  if (rateLimited(`brandlogo:${tenantId}`, { windowMs: HOUR_MS, max: 10 })) return { ok: false, reason: 'TOO_FREQUENT' }
+  const stored = await storeBrandLogo(bytes)
+  if (!stored.ok) return { ok: false, reason: stored.reason === 'size' ? 'TOO_LARGE' : stored.reason === 'type' ? 'BAD_TYPE' : 'NO_SPACE' }
+  const newUrl = stored.url
+  let res: { old: string | null; code: string; locked: boolean }
+  try {
+    res = await prisma.$transaction(async (tx) => {
+      await lockTenantRowForUpdate(tx, tenantId)
+      const t = await tx.tenant.findUnique({ where: { id: tenantId }, select: { brandLogoUrl: true, code: true, brandLocked: true } })
+      if (!t) throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+      if (t.brandLocked) return { old: null, code: t.code, locked: true }
+      await tx.tenant.update({ where: { id: tenantId }, data: { brandLogoUrl: newUrl } })
+      if (audit) await audit(tx)
+      return { old: t.brandLogoUrl, code: t.code, locked: false }
+    })
+  } catch (e) {
+    await deleteBrandUpload(newUrl)
+    throw e
+  }
+  if (res.locked) {
+    await deleteBrandUpload(newUrl)
+    return { ok: false, reason: 'LOCKED' }
+  }
+  if (res.old && res.old !== newUrl) await releaseBrandUpload(res.old).catch((e) => console.error('[brand-logo] 删除旧站标失败（新地址已生效）', e))
+  await afterBrandChange(res.code, tenantId, ['brandLogoUrl'], null)
+  return { ok: true, brandLogoUrl: newUrl }
+}
+
+/** 清除站标（恢复主站 logo）。原来就没有 → { cleared:false }。锁定 → BRAND_LOCKED */
+export async function clearTenantBrandLogo(tenantId: number, audit?: (tx: Prisma.TransactionClient) => Promise<void>): Promise<{ cleared: boolean }> {
+  assertTenantId(tenantId)
+  const res = await prisma.$transaction(async (tx) => {
+    await lockTenantRowForUpdate(tx, tenantId)
+    const t = await tx.tenant.findUnique({ where: { id: tenantId }, select: { brandLogoUrl: true, code: true, brandLocked: true } })
+    if (!t) throw new Error(`[partner-facade] 渠道 ${tenantId} 不存在`)
+    if (t.brandLocked) throw new PartnerFacadeError('BRAND_LOCKED', '平台已锁定本店品牌设置，如需修改请联系平台')
+    if (!t.brandLogoUrl) return { old: null, code: t.code }
+    await tx.tenant.update({ where: { id: tenantId }, data: { brandLogoUrl: null } })
+    if (audit) await audit(tx)
+    return { old: t.brandLogoUrl, code: t.code }
+  })
+  if (!res.old) return { cleared: false }
+  await releaseBrandUpload(res.old).catch((e) => console.error('[brand-logo] 删除旧站标失败（已清除）', e))
+  await afterBrandChange(res.code, tenantId, ['brandLogoUrl'], null)
+  return { cleared: true }
+}
+
+// 渠道公告：实现在 tenant/announcements.ts，这里只做再导出（partner-services 只能 import 本文件，边界检查规则 3）
+export {
+  createTenantAnnouncement,
+  deleteTenantAnnouncement,
+  listTenantAnnouncements,
+  TenantAnnouncementError,
+  updateTenantAnnouncement,
+  type TenantAnnouncementDTO,
+} from './announcements'

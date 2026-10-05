@@ -5,7 +5,7 @@ import { TENANT_NOTICE_KIND_LABEL, type TenantNoticeKind } from './tenant/types'
 export { systemEmailConfigured }
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://bigolab.com'
-const BRAND = '贝果科技'
+const DEFAULT_BRAND = '贝果科技'
 
 /*
  * 【链接的 origin】渠道分站（设计 4.5、11.4）：两站统一品牌，只有链接的域名按「这封信属于哪个店面」变。
@@ -24,6 +24,24 @@ const BRAND = '贝果科技'
 export interface MailOpts {
   origin?: string
   supportEmail?: string | null
+  /**
+   * 店面站名（渠道品牌与公告：渠道改了网站名称时，买家收到的交易邮件、验证码邮件的标题、抬头与发件人名都用渠道站名）。
+   * 不传 = 「贝果科技」，主站邮件逐字不变。只接受 brand-base 校验过的站名形状；不合规回落默认。
+   */
+  brand?: string | null
+}
+
+/** 站名：≤12 字、只含汉字字母数字空格与 ·-_&（）()，否则回落「贝果科技」。不含尖括号与引号，拼进 HTML 安全（& 后不会构成实体名） */
+function brandOf(opts?: MailOpts): string {
+  const b = (opts?.brand || '').trim()
+  if (!b || Array.from(b).length > 12 || !/^[A-Za-z0-9一-龥 ·\-_&（）()]+$/.test(b)) return DEFAULT_BRAND
+  return b
+}
+
+/** 发件人名：与标题同一个站名（阿里云 FromAlias，≤15 字）；主站不传 */
+function aliasOf(opts?: MailOpts): string | undefined {
+  const b = brandOf(opts)
+  return b === DEFAULT_BRAND ? undefined : b
 }
 
 function baseOf(opts?: MailOpts): string {
@@ -42,11 +60,11 @@ function supportEmailOf(opts?: MailOpts): string | undefined {
 }
 
 // 统一邮件外壳。supportEmail 必须是 supportEmailOf() 的结果（已校验、已转义）；不传时输出与二期之前逐字相同
-function layout(title: string, bodyHtml: string, base: string = APP_URL, supportEmail?: string): string {
+function layout(title: string, bodyHtml: string, base: string = APP_URL, supportEmail?: string, brand: string = DEFAULT_BRAND): string {
   return `<div style="margin:0;padding:24px;background:#f5f6f8;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
   <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;border:1px solid #eceef1;">
     <div style="background:linear-gradient(135deg,#7c3aed,#db2777);padding:20px 24px;color:#fff;">
-      <div style="font-size:18px;font-weight:700;">${BRAND}</div>
+      <div style="font-size:18px;font-weight:700;">${brand}</div>
       <div style="font-size:13px;opacity:.9;margin-top:2px;">${title}</div>
     </div>
     <div style="padding:24px;color:#1f2937;font-size:14px;line-height:1.7;">
@@ -92,14 +110,15 @@ export function renderVerifyCodeEmail(code: string, purpose: VerifyMailPurpose, 
      </div>
      <p style="color:#6b7280;">验证码 10 分钟内有效，请勿泄露给他人。如非本人操作请忽略本邮件。</p>`,
     base,
-    supportEmailOf(opts)
+    supportEmailOf(opts),
+    brandOf(opts)
   )
-  return { subject: `【${BRAND}】${label}验证码：${code}`, html }
+  return { subject: `【${brandOf(opts)}】${label}验证码：${code}`, html }
 }
 
 export async function sendVerifyCodeEmail(to: string, code: string, purpose: VerifyMailPurpose, opts: MailOpts = {}) {
   const { subject, html } = renderVerifyCodeEmail(code, purpose, opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
 /*
@@ -112,36 +131,38 @@ export function renderAccountExistsEmail(opts: MailOpts = {}): RenderedMail {
   const base = baseOf(opts)
   const html = layout(
     '注册提醒',
-    `<p>有人（可能是你本人）正在用这个邮箱注册${BRAND}账号，但<strong>这个邮箱已经注册过了</strong>，所以没有发送验证码。</p>
+    `<p>有人（可能是你本人）正在用这个邮箱注册${brandOf(opts)}账号，但<strong>这个邮箱已经注册过了</strong>，所以没有发送验证码。</p>
      <p>请直接 <a href="${base}/login" style="color:#7c3aed;">登录</a>；如果忘记了密码，可以 <a href="${base}/forgot-password" style="color:#7c3aed;">找回密码</a>。</p>
      <p style="color:#6b7280;">如非本人操作请忽略本邮件，你的账号不会有任何变化。</p>`,
     base,
-    supportEmailOf(opts)
+    supportEmailOf(opts),
+    brandOf(opts)
   )
-  return { subject: `【${BRAND}】该邮箱已注册，请直接登录`, html }
+  return { subject: `【${brandOf(opts)}】该邮箱已注册，请直接登录`, html }
 }
 
 export async function sendAccountExistsEmail(to: string, opts: MailOpts = {}) {
   const { subject, html } = renderAccountExistsEmail(opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
 export function renderNoAccountEmail(opts: MailOpts = {}): RenderedMail {
   const base = baseOf(opts)
   const html = layout(
     '找回密码提醒',
-    `<p>有人（可能是你本人）申请找回${BRAND}账号的密码，但<strong>本站没有用这个邮箱注册的账号</strong>。</p>
+    `<p>有人（可能是你本人）申请找回${brandOf(opts)}账号的密码，但<strong>本站没有用这个邮箱注册的账号</strong>。</p>
      <p>如果你注册时用的是别的邮箱，请换那个邮箱再试；也可以 <a href="${base}/register" style="color:#7c3aed;">直接注册</a>。</p>
      <p style="color:#6b7280;">如非本人操作请忽略本邮件。</p>`,
     base,
-    supportEmailOf(opts)
+    supportEmailOf(opts),
+    brandOf(opts)
   )
-  return { subject: `【${BRAND}】找回密码提醒`, html }
+  return { subject: `【${brandOf(opts)}】找回密码提醒`, html }
 }
 
 export async function sendNoAccountEmail(to: string, opts: MailOpts = {}) {
   const { subject, html } = renderNoAccountEmail(opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
 /** 「邮箱查订阅」发码时该邮箱没有任何订阅记录：照样发一封信（与有记录时时延一致、返回同一句话），不发码 */
@@ -149,18 +170,19 @@ export function renderNoSubscriptionEmail(opts: MailOpts = {}): RenderedMail {
   const base = baseOf(opts)
   const html = layout(
     '订阅查询提醒',
-    `<p>有人（可能是你本人）在${BRAND}申请查询这个邮箱的订阅记录，但<strong>本站没有这个邮箱的订阅记录</strong>，所以没有发送验证码。</p>
+    `<p>有人（可能是你本人）在${brandOf(opts)}申请查询这个邮箱的订阅记录，但<strong>本站没有这个邮箱的订阅记录</strong>，所以没有发送验证码。</p>
      <p>如果你购买时填写的是别的账户邮箱，请换那个邮箱再查；刚下单的订单记录可能需要一段时间才会更新。</p>
      <p style="color:#6b7280;">如非本人操作请忽略本邮件。</p>`,
     base,
-    supportEmailOf(opts)
+    supportEmailOf(opts),
+    brandOf(opts)
   )
-  return { subject: `【${BRAND}】订阅查询提醒`, html }
+  return { subject: `【${brandOf(opts)}】订阅查询提醒`, html }
 }
 
 export async function sendNoSubscriptionEmail(to: string, opts: MailOpts = {}) {
   const { subject, html } = renderNoSubscriptionEmail(opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
 interface OrderInfo {
@@ -221,14 +243,15 @@ export function renderOrderPaidEmail(o: OrderInfo, opts: MailOpts = {}): Rendere
      ${extra}
      <div style="margin-top:18px;"><a href="${base}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`,
     base,
-    supportEmailOf(opts)
+    supportEmailOf(opts),
+    brandOf(opts)
   )
-  return { subject: `【${BRAND}】订单支付成功 · ${o.productName}`, html }
+  return { subject: `【${brandOf(opts)}】订单支付成功 · ${o.productName}`, html }
 }
 
 export async function sendOrderPaidEmail(to: string, o: OrderInfo, opts: MailOpts = {}) {
   const { subject, html } = renderOrderPaidEmail(o, opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
 // 订单已发货/已完成通知（手工发货交付时）
@@ -244,14 +267,15 @@ export function renderOrderDeliveredEmail(o: OrderInfo, opts: MailOpts = {}): Re
      ${o.deliveryInfo ? `<div style="margin-top:14px;"><div style="font-weight:600;margin-bottom:6px;">交付信息</div><div style="font-family:monospace;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px;white-space:pre-wrap;word-break:break-all;">${escapeHtml(o.deliveryInfo)}</div></div>` : ''}
      <div style="margin-top:18px;"><a href="${base}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`,
     base,
-    supportEmailOf(opts)
+    supportEmailOf(opts),
+    brandOf(opts)
   )
-  return { subject: `【${BRAND}】订单已交付 · ${o.productName}`, html }
+  return { subject: `【${brandOf(opts)}】订单已交付 · ${o.productName}`, html }
 }
 
 export async function sendOrderDeliveredEmail(to: string, o: OrderInfo, opts: MailOpts = {}) {
   const { subject, html } = renderOrderDeliveredEmail(o, opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
 function escapeHtml(s: string): string {
@@ -307,14 +331,15 @@ export function renderInvoiceIssuedEmail(iv: InvoiceIssuedInfo, opts: MailOpts =
      </div>
      <div style="margin-top:18px;"><a href="${base}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`,
     base,
-    supportEmailOf(opts)
+    supportEmailOf(opts),
+    brandOf(opts)
   )
-  return { subject: `【${BRAND}】发票已开具 · ${iv.invoiceNo}`, html }
+  return { subject: `【${brandOf(opts)}】发票已开具 · ${iv.invoiceNo}`, html }
 }
 
 export async function sendInvoiceIssuedEmail(to: string, iv: InvoiceIssuedInfo, opts: MailOpts = {}) {
   const { subject, html } = renderInvoiceIssuedEmail(iv, opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
 /*
@@ -339,14 +364,15 @@ export function renderOrderReplyEmail(o: OrderReplyInfo, opts: MailOpts = {}): R
      <p style="margin-top:14px;color:#6b7280;">为保护您的账号信息，回复内容不在邮件中展示，请到「我的订单 → 订单详情」查看并继续沟通。</p>
      <div style="margin-top:18px;"><a href="${base}/orders" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">查看我的订单</a></div>`,
     base,
-    supportEmailOf(opts)
+    supportEmailOf(opts),
+    brandOf(opts)
   )
-  return { subject: `【${BRAND}】您的订单有新的客服回复`, html }
+  return { subject: `【${brandOf(opts)}】您的订单有新的客服回复`, html }
 }
 
 export async function sendOrderReplyEmail(to: string, o: OrderReplyInfo, opts: MailOpts = {}) {
   const { subject, html } = renderOrderReplyEmail(o, opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
 /*
@@ -362,24 +388,25 @@ export function renderTenantInviteEmail(a: { link: string; expiresHours: number;
    */
   const registerTip =
     a.registerUrl && /^https?:\/\/[a-z0-9.-]+(:\d+)?\/register$/i.test(a.registerUrl)
-      ? `<p style="color:#6b7280;">还没有${BRAND}账号？请先到 ${escapeHtml(a.registerUrl)} 用收到本邮件的邮箱注册（两站同一账号），再回到上面的链接登录并接受邀请。</p>`
+      ? `<p style="color:#6b7280;">还没有${brandOf(opts)}账号？请先到 ${escapeHtml(a.registerUrl)} 用收到本邮件的邮箱注册（两站同一账号），再回到上面的链接登录并接受邀请。</p>`
       : ''
   const html = layout(
     '后台成员邀请',
-    `<p>你被邀请加入${BRAND}的店铺管理后台。请在 ${a.expiresHours} 小时内打开下面的链接，用<strong>收到本邮件的邮箱</strong>登录后接受邀请：</p>
+    `<p>你被邀请加入${brandOf(opts)}的店铺管理后台。请在 ${a.expiresHours} 小时内打开下面的链接，用<strong>收到本邮件的邮箱</strong>登录后接受邀请：</p>
      <div style="margin-top:18px;"><a href="${escapeHtml(a.link)}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;">接受邀请</a></div>
      <p style="margin-top:14px;color:#6b7280;word-break:break-all;">如果按钮无法点击，请复制链接到浏览器打开：${escapeHtml(a.link)}</p>
      ${registerTip}
      <p style="color:#6b7280;">如非本人预期，请忽略本邮件，链接过期后自动失效。</p>`,
     base,
-    supportEmailOf(opts)
+    supportEmailOf(opts),
+    brandOf(opts)
   )
-  return { subject: `【${BRAND}】后台成员邀请`, html }
+  return { subject: `【${brandOf(opts)}】后台成员邀请`, html }
 }
 
 export async function sendTenantInviteEmail(to: string, a: { link: string; expiresHours: number; registerUrl?: string }, opts: MailOpts = {}) {
   const { subject, html } = renderTenantInviteEmail(a, opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
 /*
@@ -447,10 +474,10 @@ export function renderTenantNoticeEmail(n: TenantNoticeMailInfo, opts: MailOpts 
      <p style="margin-top:14px;color:#9ca3af;font-size:12px;">你收到这封邮件，是因为店铺后台「设置 → 推送方式」里打开了邮箱推送；可随时在同一处关闭或按类型关闭。</p>`,
     base
   )
-  return { subject: `【${BRAND}】店铺后台通知：${label}`, html }
+  return { subject: `【${brandOf(opts)}】店铺后台通知：${label}`, html }
 }
 
 export async function sendTenantNoticeEmail(to: string, n: TenantNoticeMailInfo, opts: MailOpts = {}) {
   const { subject, html } = renderTenantNoticeEmail(n, opts)
-  return sendSystemEmail(to, subject, html)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
 }

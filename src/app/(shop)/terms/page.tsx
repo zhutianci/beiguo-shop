@@ -9,6 +9,7 @@ import { JIEMA_TERMS, JIEMA_TERMS_PATH, JIEMA_TERMS_STRONG, JIEMA_TERMS_TITLE, J
 import { readWalletConfig, topupOpenFor, canUseForJiema } from '@/lib/wallet/config'
 import { readSmsConfigCached } from '@/lib/jiema/config'
 import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
+import { brandMetadata } from '@/lib/storefront/brand-meta'
 
 /**
  * 服务条款。
@@ -35,11 +36,16 @@ const TITLE = `服务条款 - ${SITE_NAME}`
 const DESCRIPTION =
   '贝果科技服务条款：服务性质说明、下单与交付方式、质保与退款规则、禁止用途、责任范围与争议解决。下单前请阅读。'
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: '/terms' },
   openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/terms' },
+}
+
+/** 渠道改了站名时把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */
+export async function generateMetadata(): Promise<Metadata> {
+  return brandMetadata(metadata)
 }
 
 export default async function TermsPage() {

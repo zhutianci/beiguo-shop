@@ -6,6 +6,8 @@ import { StorefrontProvider } from '@/components/storefront-provider'
 import { siteOrigin } from '@/lib/news/format'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { toPublicStorefront } from '@/lib/storefront/public'
+import { initialIconDataUrl, isWhiteLabel, type StoreBrand } from '@/lib/brand-base'
+import { brandShareImages, withBrandName } from '@/lib/storefront/brand-meta'
 
 /*
  * 【渠道分站：根布局按请求渲染（设计 4.8）】
@@ -172,13 +174,41 @@ function siteMetadata(origin: string, isPlatform: boolean): Metadata {
 }
 
 /**
+ * 渠道白标（docs/多渠道分销-渠道品牌与公告.md）：在渠道 metadata 上再换站名、标题、描述、图标与分享图。
+ * 没有白标（没改站名也没传 logo）的渠道原样返回——与改造前逐字相同。
+ *  · 图标：有 logo 用 logo（标签页、苹果桌面图标同一张）；只改了站名没 logo 用站名首字生成的 SVG（不落盘）；
+ *  · 分享图：有 logo 用 logo，没有就不给（og-default.png 上印着贝果字标）；
+ *  · 标题 / 描述：渠道填了浏览器标题、分享摘要就用，没填则把原文里的「贝果科技」换成渠道站名。
+ */
+function brandedMetadata(meta: Metadata, brand: StoreBrand): Metadata {
+  if (!isWhiteLabel(brand)) return meta
+  const title = brand.seoTitle ?? withBrandName(TITLE, brand)
+  const description = brand.seoDescription ?? withBrandName(DESCRIPTION, brand)
+  const icon = brand.logoUrl ?? initialIconDataUrl(brand.name)
+  return brandShareImages(
+    {
+      ...meta,
+      title,
+      description,
+      keywords: withBrandName(String(meta.keywords ?? ''), brand),
+      applicationName: brand.name,
+      icons: { icon: [{ url: icon }], shortcut: [icon], apple: brand.logoUrl ? [{ url: brand.logoUrl }] : [] },
+      openGraph: { ...meta.openGraph, siteName: brand.name, title, description },
+      twitter: { ...meta.twitter, title, description },
+    },
+    brand,
+  )
+}
+
+/**
  * 不包进 try（设计 4.4 第 7 条）：店面解析在构建期抛 DynamicServerError 把页面转为动态，吞掉就会按主站结果预渲染。
  * 没有店面（严格期未知 Host、域名停用）时按「非主站」处理：noindex，metadataBase 用平台 origin（该请求的页面本就 404）。
  */
 export async function generateMetadata(): Promise<Metadata> {
   const sf = await getStorefront()
   if (sf && sf.kind === 'PLATFORM') return siteMetadata(sf.origin, true)
-  return siteMetadata(sf ? sf.origin : siteOrigin(), false)
+  const meta = siteMetadata(sf ? sf.origin : siteOrigin(), false)
+  return sf ? brandedMetadata(meta, sf.brand) : meta
 }
 
 export default async function RootLayout({

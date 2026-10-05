@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Megaphone, AlertTriangle, PartyPopper, X } from 'lucide-react'
 
 interface Announcement {
-  id: number
+  /** 主站是自增 id；渠道站是公开编号（字符串，docs/多渠道分销-渠道品牌与公告.md 第 5 节）。只用来记「已读」 */
+  id: number | string
   title: string
   content: string
   level: string // INFO | WARN | SUCCESS
@@ -41,7 +42,7 @@ const LEVEL_STYLES: Record<
   },
 }
 
-const seenKey = (id: number) => `announce_seen_${id}`
+const seenKey = (id: number | string) => `announce_seen_${id}`
 
 // localStorage 在无痕模式 / 站点数据被禁用时读写都可能抛异常，全部包 try/catch，
 // 取不到值时按「没读过」处理（宁可多弹一次，也不要整个组件崩掉）。
@@ -183,12 +184,13 @@ function AnnouncementModalInner() {
 }
 
 /**
- * 渠道分站（实施分包 WP1）：公告在渠道站关闭（设计 11.1：公告常含主站券与活动）。
- * 只控制显示；对应接口在渠道 Host 上服务端 404（denyOnChannel）。组件本体改名为 AnnouncementModalInner、原样不动，
- * 由这层按店面决定挂不挂：不渲染就不会发出任何请求（验收 W1-9：渠道站页面零 404 请求）。主站恒为渲染，行为不变。
+ * 渠道分站（实施分包 WP1）：原来公告在渠道站关闭（设计 11.1：公告常含主站券与活动）。
+ * 2026-10-05 起（docs/多渠道分销-渠道品牌与公告.md 第 5 节）渠道站也挂：同一个接口 /api/announcement 在渠道 Host 上
+ * 只返回本渠道自己发布的公告（主站公告不会出现在渠道站），nginx 渠道白名单同步放行。组件本体 AnnouncementModalInner 原样不动。
+ * 主站恒为渲染，行为不变。
  */
 export function AnnouncementModal() {
-  const { features } = useStorefront()
-  if (!(features.announcement)) return null
+  const { features, kind } = useStorefront()
+  if (!(features.announcement || kind === 'CHANNEL')) return null
   return <AnnouncementModalInner />
 }

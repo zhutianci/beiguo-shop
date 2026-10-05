@@ -2,8 +2,9 @@ import { requirePartnerPage } from '@/lib/tenant/partner-page'
 import { PartnerShell } from '@/components/partner/shell/partner-shell'
 import { SettingsView } from '@/components/partner/settings/settings-view'
 import { ContactCard } from '@/components/partner/settings/contact-card'
+import { BrandCard } from '@/components/partner/settings/brand-card'
 
-/** 设置（settings.write，仅店主）：只读结算配置、通知偏好、推送方式（企业微信 / 邮箱）；二期加「客服信息」卡片（独立组件、独立接口）。 */
+/** 设置（settings.write，仅店主）：只读结算配置、通知偏好、推送方式（企业微信 / 邮箱）；二期加「客服信息」卡片（独立组件、独立接口）；渠道品牌与公告加「店铺品牌」卡片。 */
 export const dynamic = 'force-dynamic'
 
 export default async function Page() {
@@ -13,6 +14,7 @@ export default async function Page() {
     <PartnerShell readOnly={ctx.readOnly} role={ctx.role}>
       <div className="space-y-4">
         <SettingsView readOnly={ctx.readOnly} />
+        <BrandCard readOnly={ctx.readOnly} />
         <ContactCard readOnly={ctx.readOnly} />
       </div>
     </PartnerShell>

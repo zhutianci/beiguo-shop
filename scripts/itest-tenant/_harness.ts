@@ -609,6 +609,8 @@ export async function cleanupAll(): Promise<void> {
 
   await prisma.auditEvent.deleteMany({ where: { OR: [{ tenantId: { in: tIds } }, { actorUserId: { in: uIds } }] } })
   await prisma.tenantNotice.deleteMany({ where: { tenantId: { in: tIds } } })
+  // 渠道公告（渠道品牌与公告）：外键 → tenants（RESTRICT），删渠道前先删
+  await prisma.tenantAnnouncement.deleteMany({ where: { tenantId: { in: tIds } } })
   await prisma.tenantAfterSale.deleteMany({ where: { OR: [{ tenantId: { in: tIds } }, { orderId: { in: oIds } }] } })
   await prisma.tenantStatementLine.deleteMany({ where: { statementId: { in: sIds } } })
   await prisma.tenantPayout.deleteMany({ where: { OR: [{ tenantId: { in: tIds } }, { statementId: { in: sIds } }] } })

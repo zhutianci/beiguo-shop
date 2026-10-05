@@ -34,6 +34,7 @@ import { prisma } from '../db'
 import { error } from '../api'
 import { siteOrigin } from '../news/format'
 import { PLATFORM_CONTACT, resolveStoreContact, type StoreContact, type TenantContactRow } from '../contact-base'
+import { PLATFORM_BRAND, resolveStoreBrand, type StoreBrand, type TenantBrandRow } from '../brand-base'
 import { channelHostSuffix, channelsEnabled, hostStrict, isChannelCandidateHost, isCustomHostShape, normalizeHost, platformHosts } from './hosts'
 import { ALERT_THROTTLE_MS, domainHealthKey, isDomainHealthStale, isDomainHealthy, parseDomainHealth } from './domain-health'
 import { alertPlatform } from '../tenant/platform-alert'
@@ -63,6 +64,11 @@ export interface Storefront {
    * （src/lib/contact-base.ts resolveStoreContact）。公开数据，toPublicStorefront 显式映射给客户端。**不塞进 features。**
    */
   contact: StoreContact
+  /**
+   * 店面品牌（docs/多渠道分销-渠道品牌与公告.md）：主站 = PLATFORM_BRAND（常量，不查库）；渠道 = tenants 行的品牌列按回退规则算出
+   * （src/lib/brand-base.ts resolveStoreBrand）。公开数据，toPublicStorefront 显式映射给客户端。
+   */
+  brand: StoreBrand
 }
 export const PLATFORM_TENANT_ID = 1
 
@@ -71,7 +77,7 @@ const TENANT_STATUSES: ReadonlySet<string> = new Set(['DRAFT', 'ACTIVE', 'SUSPEN
 /** 主站店面：常量，不查库（主站分支零依赖新表） */
 export function platformStorefront(): Storefront {
   const origin = siteOrigin()
-  return { id: PLATFORM_TENANT_ID, code: 'main', kind: 'PLATFORM', status: 'ACTIVE', origin, canonicalHost: hostOfOrigin(origin), contact: { ...PLATFORM_CONTACT } }
+  return { id: PLATFORM_TENANT_ID, code: 'main', kind: 'PLATFORM', status: 'ACTIVE', origin, canonicalHost: hostOfOrigin(origin), contact: { ...PLATFORM_CONTACT }, brand: { ...PLATFORM_BRAND } }
 }
 
 /** origin 的规范化主机名；解析失败返回 ''（调用方把 '' 当成「不知道主域名」，一律不跳转） */
@@ -89,7 +95,7 @@ function hostOfOrigin(origin: string): string {
 // （设计 W0-2 / W0-3）。生产代码从不调用 setStorefrontDbForTest。
 // ---------------------------------------------------------------------------
 /** tenants 行里店面用到的列。support* 四列可缺省：itest 注入的假库（wp0 countingDb）只 select 前五列，缺省按「未设置」回退主站 */
-type TenantStorefrontRow = { id: number; code: string; kind: string; status: string; origin: string } & TenantContactRow
+type TenantStorefrontRow = { id: number; code: string; kind: string; status: string; origin: string } & TenantContactRow & TenantBrandRow
 
 interface StorefrontDb {
   findDomain(host: string): Promise<{ tenantId: number; status: number } | null>
@@ -126,6 +132,14 @@ const realDb: StorefrontDb = {
         supportQrUrl: true,
         supportEmail: true,
         supportHours: true,
+        // 品牌七列（渠道品牌与公告）：同一次主键查询，渠道改完下一个请求就生效
+        brandName: true,
+        brandLogoUrl: true,
+        brandIntro: true,
+        heroTitle: true,
+        heroSubtitle: true,
+        seoTitle: true,
+        seoDescription: true,
       },
     }),
   loadPrimaryGate: async (tenantId) => {
@@ -335,6 +349,7 @@ async function toChannelStorefront(t: TenantStorefrontRow): Promise<Storefront |
     canonicalHost,
     // 回退规则的唯一实现（微信号 + 二维码成组回退；邮箱、服务时间各自回退；库里不合规的值按未设置处理）
     contact: resolveStoreContact(t),
+    brand: resolveStoreBrand(t),
   }
 }
 

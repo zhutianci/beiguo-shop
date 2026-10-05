@@ -42,5 +42,9 @@ export async function tenantMailOpts(tenantId: number): Promise<MailOpts | undef
   if (tenantId === PLATFORM_TENANT_ID) return undefined
   const sf = await storefrontById(tenantId)
   if (!sf) throw new Error(`[storefront] 租户 ${tenantId} 不存在或配置不合规，无法生成邮件参数`)
-  return sf.contact.email ? { origin: sf.origin, supportEmail: sf.contact.email } : { origin: sf.origin }
+  // 渠道改了站名：买家交易邮件的标题、抬头、发件人名用渠道站名（渠道品牌与公告）；没改则不传（与原来逐字相同）
+  const opts: MailOpts = { origin: sf.origin }
+  if (sf.contact.email) opts.supportEmail = sf.contact.email
+  if (sf.brand.custom) opts.brand = sf.brand.name
+  return opts
 }

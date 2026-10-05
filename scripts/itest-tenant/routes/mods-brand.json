@@ -1,0 +1,17 @@
+{
+  "package": "MODS-BRAND",
+  "note": "渠道品牌与公告（docs/多渠道分销-渠道品牌与公告.md）。渠道后台：全部 settings.write（仅 OWNER），写接口 SUSPENDED 时只读；brand-logo 的 POST 是 multipart（≤1MB，先查 Content-Length），另有 facade 内每渠道每小时 10 次限频。超管：品牌查看 / 恢复默认 / 锁定，公告下架 / 恢复。",
+  "routes": [
+    {"method": "GET", "path": "/api/partner/settings/brand", "file": "src/app/api/partner/settings/brand/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": true},
+    {"method": "PUT", "path": "/api/partner/settings/brand", "file": "src/app/api/partner/settings/brand/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min"},
+    {"method": "POST", "path": "/api/partner/settings/brand-logo", "file": "src/app/api/partner/settings/brand-logo/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "20/hour（路由，按成员）+ 10/hour（facade，按渠道）"},
+    {"method": "DELETE", "path": "/api/partner/settings/brand-logo", "file": "src/app/api/partner/settings/brand-logo/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min"},
+    {"method": "GET", "path": "/api/partner/announcements", "file": "src/app/api/partner/announcements/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": true},
+    {"method": "POST", "path": "/api/partner/announcements", "file": "src/app/api/partner/announcements/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min；每渠道最多 50 条（锁渠道行计数）"},
+    {"method": "PUT", "path": "/api/partner/announcements/[announcementNo]", "file": "src/app/api/partner/announcements/[announcementNo]/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": "announcementNo", "readOnlySafe": false, "rate": "30/min"},
+    {"method": "DELETE", "path": "/api/partner/announcements/[announcementNo]", "file": "src/app/api/partner/announcements/[announcementNo]/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": "announcementNo", "readOnlySafe": false, "rate": "30/min"},
+    {"method": "GET", "path": "/api/admin/tenants/[id]/brand", "file": "src/app/api/admin/tenants/[id]/brand/route.ts", "guard": "adminGuard", "key": "tenantId"},
+    {"method": "POST", "path": "/api/admin/tenants/[id]/brand", "file": "src/app/api/admin/tenants/[id]/brand/route.ts", "guard": "adminGuard", "key": "tenantId"},
+    {"method": "PATCH", "path": "/api/admin/tenants/[id]/announcements/[announcementNo]", "file": "src/app/api/admin/tenants/[id]/announcements/[announcementNo]/route.ts", "guard": "adminGuard", "key": "tenantId+announcementNo"}
+  ]
+}

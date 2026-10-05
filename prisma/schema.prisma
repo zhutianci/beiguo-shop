@@ -10,40 +10,40 @@ datasource db {
 
 // 用户表
 model User {
-  id              Int       @id @default(autoincrement())
-  phone           String?   @unique @db.VarChar(20)
-  email           String?   @unique @db.VarChar(100)
-  passwordHash    String    @map("password_hash") @db.VarChar(255)
-  nickname        String?   @db.VarChar(50)
-  avatar          String?   @db.VarChar(255)
+  id                 Int       @id @default(autoincrement())
+  phone              String?   @unique @db.VarChar(20)
+  email              String?   @unique @db.VarChar(100)
+  passwordHash       String    @map("password_hash") @db.VarChar(255)
+  nickname           String?   @db.VarChar(50)
+  avatar             String?   @db.VarChar(255)
   // 返现余额（可提现）：推荐返现、后台调整。含义永远不变，提现只动这一列（docs/短信接码-设计.md D29/D30）
-  balance         Decimal   @default(0) @db.Decimal(10, 2)
+  balance            Decimal   @default(0) @db.Decimal(10, 2)
   // 充值余额（不可提现），单位分：支付宝充值、接码退款里支付宝付的部分、迟到付款退回（B0，D30）。
   // 默认 0 = 历史余额全部算返现，零回填。与 balance 在同一行，一条条件更新就能同时扣两格。
   // 写入只经 src/lib/wallet/ledger.ts 的 postInTx（构建前检查 check-tenant-boundary 规则 16 拦别处的写法）
-  topupCents      Int       @default(0) @map("topup_cents")
-  referralCode    String?   @unique @map("referral_code") @db.VarChar(20) // 内推码
-  vipLevel        Int       @default(0) @map("vip_level")
-  role            UserRole  @default(USER)
-  status          Int       @default(1) // 1: 正常 0: 禁用
+  topupCents         Int       @default(0) @map("topup_cents")
+  referralCode       String?   @unique @map("referral_code") @db.VarChar(20) // 内推码
+  vipLevel           Int       @default(0) @map("vip_level")
+  role               UserRole  @default(USER)
+  status             Int       @default(1) // 1: 正常 0: 禁用
   // 会话版本：重置密码 / 禁用账号时 +1，签发时写进 JWT 的 sv，不相等的旧 token 立即失效（2026-09-26 审计 G07）
-  sessionEpoch    Int       @default(0) @map("session_epoch")
+  sessionEpoch       Int       @default(0) @map("session_epoch")
   // 邮箱最近一次被证明归属的时间（注册验码、找回密码验码、邮箱查询验码时写入）。
   // 为空 = 从未验证过（2026-06-10 之前注册的账号没有验码）。「登录邮箱 = 订阅邮箱」的免验码放行只认非空
-  emailVerifiedAt DateTime? @map("email_verified_at")
+  emailVerifiedAt    DateTime? @map("email_verified_at")
   // ---- 渠道分站（设计 5.5）----
   // 注册站：注册时写当前店面 id，之后不变（只有超管带审计可更正）。默认 1 = 主站，存量用户零回填
-  registeredTenantId Int    @default(1) @map("registered_tenant_id")
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  registeredTenantId Int       @default(1) @map("registered_tenant_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
 
-  orders        Order[]
-  gameScores    GameScore[]
-  forumPosts    ForumPost[]
-  forumComments ForumComment[]
-  forumLikes    ForumLike[]
-  boundAccounts UserAccount[]
-  invoiceTitles InvoiceTitle[]
+  orders          Order[]
+  gameScores      GameScore[]
+  forumPosts      ForumPost[]
+  forumComments   ForumComment[]
+  forumLikes      ForumLike[]
+  boundAccounts   UserAccount[]
+  invoiceTitles   InvoiceTitle[]
   // 反向关系（只是 Prisma 里的虚拟字段，users 表不加任何列）：外键在 tenant_customers 一侧
   tenantCustomers TenantCustomer[]
 
@@ -234,34 +234,34 @@ model Order {
   // 平台单：tenantId=1、快照列全为 NULL、settleState 为 NULL、不写任何账本分录（对账 L3）。
   // 渠道单（tenantId≥2）：建单时一次性快照进货价、两个费率、冻结期，之后改渠道配置不追溯。
   // 金额口径：amount 仍然**永远不含税**；参与记账的新列一律 Int 分，只做展示的用 Decimal(10,2)（设计 5.0 第 7 条）
-  tenantId            Int       @default(1) @map("tenant_id")                    // 来源站 = 下单时的店面
-  listingId           Int?      @map("listing_id")                               // 渠道单：TenantListing.id（内部键，不进渠道 DTO）
-  supplyUnitPrice     Decimal?  @map("supply_unit_price") @db.Decimal(10, 2)     // 下单时的进货价（单件，展示用）
-  supplyCents         Int?      @map("supply_cents")                             // 进货款 = 进货价分 × 数量（记账用）
-  feeRateBp           Int?      @map("fee_rate_bp")                              // 下单时快照 Tenant.feeRateBp（万分比）
-  invoiceShareRateBp  Int?      @map("invoice_share_rate_bp")                    // 下单时快照 Tenant.invoiceShareRateBp
-  settleHoldDays      Int?      @map("settle_hold_days")                         // 下单时快照 Tenant.holdDays
-  mainPriceAtOrder    Decimal?  @map("main_price_at_order") @db.Decimal(10, 2)   // 下单时主站定价（事后核对价差；仅超管）
-  settleState         String?   @map("settle_state") @db.VarChar(12)            // NULL(平台单) | ACCRUED | RELEASED | REVERSED | EXCLUDED | MISSING
-  invShareState       String?   @map("inv_share_state") @db.VarChar(12)         // NULL | ACCRUED | RELEASED | REVERSED
-  settleExcludeReason String?   @map("settle_exclude_reason") @db.VarChar(12)   // SELF | RELATED（成员自买 / 关联账号）
-  settleBearer        String?   @map("settle_bearer") @db.VarChar(12)           // 最近一次退款承担方 PROPORTIONAL | CHANNEL | PLATFORM
-  refundedGoodsCents  Int?      @map("refunded_goods_cents")                     // 累计退给买家的货款（全部承担方）
-  settleRefundedCents Int?      @map("settle_refunded_cents")                    // 其中由渠道分担的部分，驱动冲销
-  refundedTaxCents    Int?      @map("refunded_tax_cents")                       // 累计退还的开票税费，驱动发票分成冲销
-  refundedQty         Int?      @map("refunded_qty")                             // 累计按件退掉的件数；发卡缺口 = quantity − refundedQty − 已发
-  settleLossCents     Int?      @map("settle_loss_cents")                        // 累计 LOSS（对账的独立来源）
-  shortCents          Int?      @map("short_cents")                              // 手工标已付时买家少付的总额
-  shortChargedCents   Int?      @map("short_charged_cents")                      // 其中由渠道承担、作为 SHORT 基数的部分
+  tenantId            Int       @default(1) @map("tenant_id") // 来源站 = 下单时的店面
+  listingId           Int?      @map("listing_id") // 渠道单：TenantListing.id（内部键，不进渠道 DTO）
+  supplyUnitPrice     Decimal?  @map("supply_unit_price") @db.Decimal(10, 2) // 下单时的进货价（单件，展示用）
+  supplyCents         Int?      @map("supply_cents") // 进货款 = 进货价分 × 数量（记账用）
+  feeRateBp           Int?      @map("fee_rate_bp") // 下单时快照 Tenant.feeRateBp（万分比）
+  invoiceShareRateBp  Int?      @map("invoice_share_rate_bp") // 下单时快照 Tenant.invoiceShareRateBp
+  settleHoldDays      Int?      @map("settle_hold_days") // 下单时快照 Tenant.holdDays
+  mainPriceAtOrder    Decimal?  @map("main_price_at_order") @db.Decimal(10, 2) // 下单时主站定价（事后核对价差；仅超管）
+  settleState         String?   @map("settle_state") @db.VarChar(12) // NULL(平台单) | ACCRUED | RELEASED | REVERSED | EXCLUDED | MISSING
+  invShareState       String?   @map("inv_share_state") @db.VarChar(12) // NULL | ACCRUED | RELEASED | REVERSED
+  settleExcludeReason String?   @map("settle_exclude_reason") @db.VarChar(12) // SELF | RELATED（成员自买 / 关联账号）
+  settleBearer        String?   @map("settle_bearer") @db.VarChar(12) // 最近一次退款承担方 PROPORTIONAL | CHANNEL | PLATFORM
+  refundedGoodsCents  Int?      @map("refunded_goods_cents") // 累计退给买家的货款（全部承担方）
+  settleRefundedCents Int?      @map("settle_refunded_cents") // 其中由渠道分担的部分，驱动冲销
+  refundedTaxCents    Int?      @map("refunded_tax_cents") // 累计退还的开票税费，驱动发票分成冲销
+  refundedQty         Int?      @map("refunded_qty") // 累计按件退掉的件数；发卡缺口 = quantity − refundedQty − 已发
+  settleLossCents     Int?      @map("settle_loss_cents") // 累计 LOSS（对账的独立来源）
+  shortCents          Int?      @map("short_cents") // 手工标已付时买家少付的总额
+  shortChargedCents   Int?      @map("short_charged_cents") // 其中由渠道承担、作为 SHORT 基数的部分
   // 结算状态版本号：计提、退款、解冻、事后分成计提、补记一律 `updateMany where { id, settleVersion: 旧 }` 并 +1（设计 10.5）
   settleVersion       Int       @default(0) @map("settle_version")
-  buyerRemark         String?   @map("buyer_remark") @db.Text                    // 买家备注原文；remark 从此视为内部字段（双写过渡，设计 5.4）
-  escalatedAt         DateTime? @map("escalated_at")                             // 渠道「升级给站长」的时间
+  buyerRemark         String?   @map("buyer_remark") @db.Text // 买家备注原文；remark 从此视为内部字段（双写过渡，设计 5.4）
+  escalatedAt         DateTime? @map("escalated_at") // 渠道「升级给站长」的时间
 
-  user     User           @relation(fields: [userId], references: [id])
-  product  Product        @relation(fields: [productId], references: [id])
-  payments Payment[]
-  messages OrderMessage[]
+  user          User                @relation(fields: [userId], references: [id])
+  product       Product             @relation(fields: [productId], references: [id])
+  payments      Payment[]
+  messages      OrderMessage[]
   // 反向关系（虚拟字段，orders 表不加列）：外键在 tenant_ledger_entries 一侧
   ledgerEntries TenantLedgerEntry[]
 
@@ -277,19 +277,19 @@ model Order {
 
 // 订单聊天消息（每订单唯一标识；买家在订单内、卖家在后台回复）
 model OrderMessage {
-  id          Int      @id @default(autoincrement())
-  orderId     Int      @map("order_id")
-  sender      String   @db.VarChar(10) // BUYER | ADMIN
-  content     String   @db.Text
-  readByAdmin Boolean  @default(false) @map("read_by_admin")
-  readByBuyer Boolean  @default(false) @map("read_by_buyer")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  orderId      Int      @map("order_id")
+  sender       String   @db.VarChar(10) // BUYER | ADMIN
+  content      String   @db.Text
+  readByAdmin  Boolean  @default(false) @map("read_by_admin")
+  readByBuyer  Boolean  @default(false) @map("read_by_buyer")
+  createdAt    DateTime @default(now()) @map("created_at")
   // ---- 渠道分站（设计 5.6）----
   // sender 仍写 'ADMIN'（买家端未读统计认它，买家看到的都是「客服」）；谁回复的记在下面两列。
   // 这三列**永不出现在买家响应里**（买家留言接口改显式 select，WP2）
-  readByTenant Boolean @default(false) @map("read_by_tenant")        // 渠道红点
-  senderUserId Int?    @map("sender_user_id")                        // 回复人（平台或渠道成员的 userId）
-  senderRole   String? @map("sender_role") @db.VarChar(10)           // PLATFORM | PARTNER；买家留言为 NULL
+  readByTenant Boolean  @default(false) @map("read_by_tenant") // 渠道红点
+  senderUserId Int?     @map("sender_user_id") // 回复人（平台或渠道成员的 userId）
+  senderRole   String?  @map("sender_role") @db.VarChar(10) // PLATFORM | PARTNER；买家留言为 NULL
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
@@ -329,27 +329,27 @@ model SmsActivation {
 // 用户余额变动流水。B0 起两格：返现格 delta / balance_after + 充值格 topup_delta_cents / topup_after_cents。
 // 写入只经 src/lib/wallet/ledger.ts 的 postInTx；恒等式 users.balance = Σ delta、users.topup_cents = Σ topup_delta_cents
 model BalanceLog {
-  id           Int      @id @default(autoincrement())
-  userId       Int      @map("user_id")
-  delta        Decimal  @db.Decimal(10, 2) // 变动额：正=增加，负=提现/扣减
-  balanceAfter Decimal  @map("balance_after") @db.Decimal(10, 2)
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  delta           Decimal  @db.Decimal(10, 2) // 变动额：正=增加，负=提现/扣减
+  balanceAfter    Decimal  @map("balance_after") @db.Decimal(10, 2)
   // REFERRAL | ADJUST | WITHDRAW（原有）| TOPUP | HOLD | RELEASE | REFUND | LATEPAY | TOPUP_REFUND | CLAWBACK（B0 起；字符串列，不是枚举）
-  type         String   @db.VarChar(20)
-  note         String?  @db.VarChar(255)
+  type            String   @db.VarChar(20)
+  note            String?  @db.VarChar(255)
   // 关联的站内订单（REFERRAL 流水 = 产生这笔返现的订单 Order.id）。
   // 【为什么要单独一列】此前唯一的线索是 note 里的「订单#123 内推返现」文本，
   // 后台要从一条流水点进订单详情只能解析字符串。2026-09-24 起 settleReferral 直接写这一列；
   // 历史行为 NULL，读取时由 lib/balance.ts 的 referralOrderIdOf() 回退解析 note，无需回填脚本。
-  orderId      Int?     @map("order_id")
-  createdAt    DateTime @default(now()) @map("created_at")
+  orderId         Int?     @map("order_id")
+  createdAt       DateTime @default(now()) @map("created_at")
   // ---- 钱包两格（B0，docs/短信接码-设计.md D31）：一次业务事件一行，两格同时变动写在同一行 ----
   // delta / balance_after 的含义不变，永远是「返现格」的变动与变动后余额；下面两列是「充值格」
-  topupDeltaCents Int     @default(0) @map("topup_delta_cents") // 充值格变动（分）
-  topupAfterCents Int?    @map("topup_after_cents") // 充值格变动后余额；NULL = 历史行（当时充值格恒为 0）
+  topupDeltaCents Int      @default(0) @map("topup_delta_cents") // 充值格变动（分）
+  topupAfterCents Int?     @map("topup_after_cents") // 充值格变动后余额；NULL = 历史行（当时充值格恒为 0）
   // 业务幂等键：topup:<orderId> / hold:<orderId> / release:<orderId> / refund:<orderId> / latepay:<待核实条目 key> /
   // adj:<requestId> / topup_refund:<支付宝流水号> / clawback:<产生返现的订单 id> / migrate:u<userId>。
   // 可空 + 唯一：历史行与 REFERRAL（幂等靠 ReferralReward.orderId 唯一）为 NULL，MySQL 唯一索引允许多个 NULL
-  bizKey          String? @unique @map("biz_key") @db.VarChar(64)
+  bizKey          String?  @unique @map("biz_key") @db.VarChar(64)
 
   @@index([userId])
   @@index([orderId])
@@ -1920,8 +1920,20 @@ model Tenant {
   supportQrUrl          String?   @map("support_qr_url") @db.VarChar(160)
   supportEmail          String?   @map("support_email") @db.VarChar(120)
   supportHours          String?   @map("support_hours") @db.VarChar(40)
+  // —— 渠道品牌（docs/多渠道分销-渠道品牌与公告.md）。全部可空：未设 = 前台用主站原样（src/lib/brand-base.ts）——
+  // 站标地址只由服务端写入，读写两端都校验 /uploads/brand/<名>.(png|jpg|webp)；文字字段写入时校验长度、网址、冒充官方
+  brandName             String?   @map("brand_name") @db.VarChar(40) // 网站名称，≤12 字
+  brandLogoUrl          String?   @map("brand_logo_url") @db.VarChar(160)
+  brandIntro            String?   @map("brand_intro") @db.VarChar(600) // 页脚简介，≤200 字
+  heroTitle             String?   @map("hero_title") @db.VarChar(80) // 首页大标题，≤20 字
+  heroSubtitle          String?   @map("hero_subtitle") @db.VarChar(240) // 首页副标题，≤80 字
+  seoTitle              String?   @map("seo_title") @db.VarChar(120) // 浏览器标题，≤40 字
+  seoDescription        String?   @map("seo_description") @db.VarChar(360) // 分享摘要，≤120 字
+  brandLocked           Boolean   @default(false) @map("brand_locked") // 超管禁止渠道再改品牌（已有值保留，超管可一键恢复默认）
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime? @updatedAt @map("updated_at")
+
+  announcements TenantAnnouncement[]
 
   @@map("tenants")
 }
@@ -2210,4 +2222,28 @@ model AuditEvent {
   @@index([actorUserId, at])
   @@index([targetType, targetId])
   @@map("audit_events")
+}
+
+// 渠道分站公告（docs/多渠道分销-渠道品牌与公告.md）：渠道后台发布，只在该渠道前台弹窗展示。
+// 与主站 announcements 表分开：主站公告的查询与后台一行不改（主站零回归）。字段口径与 Announcement 相同。
+model TenantAnnouncement {
+  id             Int       @id @default(autoincrement())
+  announcementNo String    @unique @map("announcement_no") @db.VarChar(16) // 公开编号（12 位随机 base32，tenant/public-no.ts）：渠道 URL 与 DTO 只用它寻址，不暴露全局自增 id
+  tenantId       Int       @map("tenant_id")
+  title          String    @db.VarChar(100)
+  content        String    @db.Text // 纯文本，≤2000 字，换行原样展示
+  level          String    @default("INFO") @db.VarChar(20) // INFO | WARN | SUCCESS
+  enabled        Boolean   @default(false)
+  pinned         Boolean   @default(false) // 强提醒：每次进入都弹
+  startAt        DateTime? @map("start_at")
+  endAt          DateTime? @map("end_at")
+  blocked        Boolean   @default(false) // 超管下架（渠道不能再启用；渠道后台显示「已被平台下架」）
+  createdBy      Int?      @map("created_by") // 渠道成员 userId
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, enabled])
+  @@map("tenant_announcements")
 }

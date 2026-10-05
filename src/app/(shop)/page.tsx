@@ -15,6 +15,7 @@ import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import HomeClient from './home-client'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
+import { brandMetadata, brandShareImages, currentBrand, withBrandName } from '@/lib/storefront/brand-meta'
 
 /**
  * 首页标题与描述。
@@ -34,7 +35,7 @@ const TITLE = 'ChatGPT Plus / Claude Pro 充值代充 - 卡密自助兑换 - 贝
 const DESCRIPTION =
   '贝果科技提供 ChatGPT Plus / Pro、Claude Pro / Max 5x 会员充值与代充：卡密自助兑换，无需信用卡，支付宝付款，可开增值税发票。另有 Codex 接码、Claude 注册与 KYC 认证。'
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   // 根 layout 刻意不写 canonical（写了会让全站每页都自称首页副本），
@@ -42,6 +43,27 @@ export const metadata: Metadata = {
   alternates: { canonical: '/' },
   openGraph: { images: OG_IMAGES, type: 'website', title: TITLE, description: DESCRIPTION, url: '/' },
   twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title: TITLE, description: DESCRIPTION },
+}
+
+/**
+ * 渠道白标（docs/多渠道分销-渠道品牌与公告.md）：渠道设了浏览器标题 / 分享摘要就用渠道的，没设则把原文里的「贝果科技」换成渠道站名；
+ * 分享图换成渠道 logo。主站与没有白标的渠道原样返回上面的 metadata。
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await currentBrand()
+  if (!brand.seoTitle && !brand.seoDescription) return brandMetadata(metadata)
+  const title = brand.seoTitle ?? withBrandName(TITLE, brand)
+  const description = brand.seoDescription ?? withBrandName(DESCRIPTION, brand)
+  return brandShareImages(
+    {
+      ...metadata,
+      title,
+      description,
+      openGraph: { ...metadata.openGraph, title, description },
+      twitter: { ...metadata.twitter, title, description },
+    },
+    brand,
+  )
 }
 
 export default async function HomePage() {

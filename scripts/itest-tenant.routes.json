@@ -22,6 +22,11 @@
       "count": 22
     },
     {
+      "package": "MODS-BRAND",
+      "file": "scripts/itest-tenant/routes/mods-brand.json",
+      "count": 11
+    },
+    {
       "package": "MODS-P2",
       "file": "scripts/itest-tenant/routes/mods-p2.json",
       "count": 4
@@ -205,10 +210,34 @@
       "idempotency": "adj:{requestId}"
     },
     {
+      "package": "MODS-BRAND",
+      "method": "PATCH",
+      "path": "/api/admin/tenants/[id]/announcements/[announcementNo]",
+      "file": "src/app/api/admin/tenants/[id]/announcements/[announcementNo]/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId+announcementNo"
+    },
+    {
       "package": "WP5",
       "method": "GET",
       "path": "/api/admin/tenants/[id]/balances",
       "file": "src/app/api/admin/tenants/[id]/balances/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/brand",
+      "file": "src/app/api/admin/tenants/[id]/brand/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/brand",
+      "file": "src/app/api/admin/tenants/[id]/brand/route.ts",
       "guard": "adminGuard",
       "key": "tenantId"
     },
@@ -432,6 +461,49 @@
       "perm": "aftersale.request",
       "key": "requestNo",
       "readOnlySafe": false
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "GET",
+      "path": "/api/partner/announcements",
+      "file": "src/app/api/partner/announcements/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "POST",
+      "path": "/api/partner/announcements",
+      "file": "src/app/api/partner/announcements/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min；每渠道最多 50 条（锁渠道行计数）"
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "PUT",
+      "path": "/api/partner/announcements/[announcementNo]",
+      "file": "src/app/api/partner/announcements/[announcementNo]/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": "announcementNo",
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "DELETE",
+      "path": "/api/partner/announcements/[announcementNo]",
+      "file": "src/app/api/partner/announcements/[announcementNo]/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": "announcementNo",
+      "readOnlySafe": false,
+      "rate": "30/min"
     },
     {
       "package": "WP7",
@@ -788,6 +860,49 @@
       "perm": "settings.write",
       "key": null,
       "readOnlySafe": true
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "GET",
+      "path": "/api/partner/settings/brand",
+      "file": "src/app/api/partner/settings/brand/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "PUT",
+      "path": "/api/partner/settings/brand",
+      "file": "src/app/api/partner/settings/brand/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "POST",
+      "path": "/api/partner/settings/brand-logo",
+      "file": "src/app/api/partner/settings/brand-logo/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "20/hour（路由，按成员）+ 10/hour（facade，按渠道）"
+    },
+    {
+      "package": "MODS-BRAND",
+      "method": "DELETE",
+      "path": "/api/partner/settings/brand-logo",
+      "file": "src/app/api/partner/settings/brand-logo/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min"
     },
     {
       "package": "MODS-P3",
