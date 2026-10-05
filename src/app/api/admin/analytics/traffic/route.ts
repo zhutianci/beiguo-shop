@@ -27,6 +27,12 @@ import { adminGuard } from '@/lib/admin-guard'
  * 【每条 WHERE 都落在索引上】区间过滤一律用 day_key（@@index([dayKey])），
  * 带 source 的用 (source, dayKey)，带 path 的用 (path, dayKey)。
  * 没有一处对列做函数运算后再比较——那样会让索引失效，在这台机器上就是一次超时。
+ *
+ * 【只看一个站：默认主站 tenant_id = 1】（docs/微信机器人-设计.md §6.5 第 6 条、附录 B 第 11 条）
+ * page_views / visitors 加了 tenant_id（历史行与主站 = 1），渠道站打开 TRACK_CHANNEL_VIEWS 之后也往这两张表里写。
+ * 所以下面每一条查询（含 visitors 的 count / groupBy）都带 tenant_id 条件：不传参数时只看主站，数字与加列之前完全一致；
+ * 可选查询参数 tenantId（正整数）切换看某个分站。值一律经 Prisma 模板参数绑定，不拼进 SQL。
+ * 带站点条件的区间查询走 (tenant_id, day_key) 索引。
  */
 
 // ---------------------------------------------------------------------------
@@ -63,6 +69,20 @@ const LANDING_ROOT = '/chongzhi'
 const LANDING_LIKE = '/chongzhi/%'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** 不传 tenantId 时看主站（PLATFORM_TENANT_ID） */
+const MAIN_TENANT_ID = 1
+/** INT 列的上限：再大的数不可能是站点 id，直接按格式错误拒绝 */
+const MAX_TENANT_ID = 2147483647
+
+/** 可选的 tenantId 查询参数：缺省 / 空串 = 主站；其余必须是正整数，否则 null（调用方回 400） */
+function parseTenantId(raw: string | null): number | null {
+  const s = raw?.trim() ?? ''
+  if (s === '') return MAIN_TENANT_ID
+  if (!/^[1-9]\d{0,9}$/.test(s)) return null
+  const n = Number(s)
+  return Number.isSafeInteger(n) && n <= MAX_TENANT_ID ? n : null
+}
 
 /**
  * MySQL 的 COUNT() 经 Prisma raw 回来是 bigint，SUM() 是 Decimal（或字符串），
@@ -143,7 +163,7 @@ const EMPTY_PERIOD = {
  * 比如换了落地页文案之后这个数字降了，说明有更多人愿意往下点。
  * 拿它去跟别家的数字比，或者当成绝对指标汇报，都是错的。
  */
-async function loadPeriod(start: string, end: string) {
+async function loadPeriod(start: string, end: string, tenantId: number) {
   // 派生表一次算清四个数：PV、UV、访客-天、其中只看了一页的访客-天。
   // 分成四条 SQL 的话要扫四遍同一批行，而且口径容易互相打架。
   const rows = await prisma.$queryRaw<SummaryRow[]>`
@@ -155,7 +175,7 @@ async function loadPeriod(start: string, end: string) {
     FROM (
       SELECT viewer_key, day_key, COUNT(*) AS pv, COUNT(DISTINCT path) AS pages
       FROM page_views
-      WHERE day_key BETWEEN ${start} AND ${end}
+      WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
       GROUP BY viewer_key, day_key
     ) t
   `
@@ -163,7 +183,7 @@ async function loadPeriod(start: string, end: string) {
   // 新访客直接查 visitors.first_seen，不从 page_views 反推。
   // 反推要做「这个 key 在区间之前有没有出现过」的反连接，那是一次自连接全扫。
   const newVisitors = await prisma.visitor.count({
-    where: { firstSeen: { gte: dayStartUtc(start), lte: dayEndUtc(end) } },
+    where: { tenantId, firstSeen: { gte: dayStartUtc(start), lte: dayEndUtc(end) } },
   })
 
   // 纯聚合查询一定有一行，这里只是兜底：宁可整块归零，也不要让 UV=0 却报出一堆新访客，
@@ -205,6 +225,9 @@ export async function GET(request: NextRequest) {
     if (!DATE_RE.test(start) || !isRealDate(start)) return error('start 日期格式错误')
     if (!DATE_RE.test(end) || !isRealDate(end)) return error('end 日期格式错误')
     if (start > end) return error('开始日期不能晚于结束日期')
+    // 看哪个站（见文件头「只看一个站」）：不传 = 主站
+    const tenantId = parseTenantId(searchParams.get('tenantId'))
+    if (tenantId === null) return error('tenantId 必须是正整数')
 
     /*
      * 【先算长度再展开数组】这两行的顺序是有代价的：eachDay 会把区间物化成
@@ -226,8 +249,8 @@ export async function GET(request: NextRequest) {
     // Prisma 连接池就那么几条，一次塞十几个带 COUNT(DISTINCT) 的查询进去，
     // 排队的那些会一直占着 Node 侧的 promise，还可能撞上连接池超时。
     const [current, previous] = await Promise.all([
-      loadPeriod(start, end),
-      loadPeriod(prevStart, prevEnd),
+      loadPeriod(start, end, tenantId),
+      loadPeriod(prevStart, prevEnd, tenantId),
     ])
 
     const [dailyRows, sourceRows, engineRows, refRows, pathRows, deviceRows, hourRows, landingRows] =
@@ -236,7 +259,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<DayRow[]>`
           SELECT day_key AS dayKey, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
           GROUP BY day_key
           ORDER BY day_key
         `,
@@ -244,7 +267,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<SourceRow[]>`
           SELECT source, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
           GROUP BY source
           ORDER BY pv DESC
         `,
@@ -254,7 +277,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<EngineRow[]>`
           SELECT engine, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE source = 'search' AND day_key BETWEEN ${start} AND ${end}
+          WHERE source = 'search' AND tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
           GROUP BY engine
           ORDER BY pv DESC
         `,
@@ -262,7 +285,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<RefRow[]>`
           SELECT ref_host AS refHost, source, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
             AND source <> 'internal'
             AND ref_host IS NOT NULL
           GROUP BY ref_host, source
@@ -277,7 +300,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<PathRow[]>`
           SELECT path, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
           GROUP BY path
           ORDER BY pv DESC
           LIMIT 2000
@@ -286,7 +309,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<DeviceRow[]>`
           SELECT device, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
           GROUP BY device
           ORDER BY pv DESC
         `,
@@ -295,7 +318,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<HourRow[]>`
           SELECT RIGHT(hour_bucket, 2) AS hh, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
           GROUP BY hh
           ORDER BY hh
         `,
@@ -305,6 +328,7 @@ export async function GET(request: NextRequest) {
         prisma.visitor.groupBy({
           by: ['landing'],
           where: {
+            tenantId,
             firstSeen: { gte: dayStartUtc(start), lte: dayEndUtc(end) },
             landing: { not: null },
           },
@@ -322,7 +346,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<PathRow[]>`
           SELECT path, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
             AND (path = ${LANDING_ROOT} OR path LIKE ${LANDING_LIKE})
           GROUP BY path
           ORDER BY pv DESC
@@ -332,7 +356,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<DayRow[]>`
           SELECT day_key AS dayKey, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
             AND (path = ${LANDING_ROOT} OR path LIKE ${LANDING_LIKE})
           GROUP BY day_key
           ORDER BY day_key
@@ -341,7 +365,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<DayPathRow[]>`
           SELECT day_key AS dayKey, path, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
             AND (path = ${LANDING_ROOT} OR path LIKE ${LANDING_LIKE})
           GROUP BY day_key, path
           ORDER BY day_key
@@ -351,7 +375,7 @@ export async function GET(request: NextRequest) {
         prisma.$queryRaw<SourceRow[]>`
           SELECT source, COUNT(*) AS pv, COUNT(DISTINCT viewer_key) AS uv
           FROM page_views
-          WHERE day_key BETWEEN ${start} AND ${end}
+          WHERE tenant_id = ${tenantId} AND day_key BETWEEN ${start} AND ${end}
             AND (path = ${LANDING_ROOT} OR path LIKE ${LANDING_LIKE})
           GROUP BY source
           ORDER BY pv DESC
@@ -473,6 +497,8 @@ export async function GET(request: NextRequest) {
         days: days.length,
         prevStart,
         prevEnd,
+        // 本次看的是哪个站（1 = 主站；只多一个字段，其余字段与数字不变）
+        tenantId,
       },
       // 总览 + 上一个等长区间，前端自己算环比（放在前端算是为了它能控制「无上期数据」时的展示）
       summary: { current, previous },

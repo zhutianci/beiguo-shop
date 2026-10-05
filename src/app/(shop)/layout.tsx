@@ -13,6 +13,7 @@ import { getStorefront, isPreviewUser, primaryRedirectOrigin, requireShopStorefr
 import { storefrontFeatures } from '@/lib/storefront/public'
 import { readSmsConfigCached } from '@/lib/jiema/config'
 import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
+import { trackChannelViewsEnabled } from '@/lib/analytics/channel-views'
 
 /*
  * 【渠道分站：前台外壳按店面渲染（设计 4.4、6.7、11.2）】
@@ -23,8 +24,9 @@ import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
  *  · SUSPENDED：顶部横幅；TERMINATED：首页与商品页换成停业页，订单、收据、兑换、登录照常（6.7）。
  *    外壳的入口跟着收（终审第 2 轮）：TERMINATED 不再显示「商品」导航与页脚「全部商品」（点进去只是停业页）；
  *    TERMINATED 与 DRAFT（预览用户）不显示「注册」（注册接口对这两种状态 403，入口留着只会让人填完表单才被拒）。
- *  · 实时成交、公告、营销落地清推广码按 features 挂载；流量埋点只在主站（P0 不记渠道流量，/api/track 在渠道 Host 404，
- *    挂着就会产生 404 请求，验收 W1-9）。
+ *  · 实时成交、公告、营销落地清推广码按 features 挂载；流量埋点默认只在主站（P0 不记渠道流量，/api/track 在渠道 Host 404，
+ *    挂着就会产生 404 请求，验收 W1-9）。分站 PV/UV（docs/微信机器人-设计.md §6.5 第 3 条）：TRACK_CHANNEL_VIEWS=1 时
+ *    正常营业（ACTIVE）的渠道店面也挂；DRAFT 暂停页（上面直接 return）、预览中的 DRAFT、SUSPENDED、TERMINATED 都不挂。
  *  · 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 4 节）：渠道店面在非主域名上被访问时挂 PrimaryHostRedirect，
  *    客户端跳到主域名的同一路径。放在 DRAFT 暂停页判断之后（暂停页本身不跳）；主站、以及当前就在主域名上（lulu、shop 这类
  *    只有子域名的渠道恒是）都不挂，页面 DOM 与改造前相同。
@@ -56,6 +58,8 @@ export default async function ShopLayout({
   // 短信接码的导航 / 页脚入口（docs/短信接码-设计.md §1.2、D28）：静态开关 features.jiema（渠道站恒关）之外，
   // 还要 sms_config 整份校验通过 && enabled && audience=ALL && 接码下单已交付。只在主站读（进程内缓存 60 秒；读取失败按关）。
   const jiemaOpen = features.jiema && isPlatform && jiemaPublicOpen(await readSmsConfigCached())
+  // 流量埋点：主站照旧恒挂；渠道站只在开关打开且店面正常营业时挂（开关没开 = 与改造前相同，渠道站不挂）
+  const trackViews = isPlatform || (sf.status === 'ACTIVE' && trackChannelViewsEnabled())
 
   // shop-shell 只做一件事：把「固定头部有多高」以 --header-h 的形式挂到整棵前台子树上
   // （移动端/md 112px，lg 起 96px，定义见 globals.css）。
@@ -78,7 +82,7 @@ export default async function ShopLayout({
       {(features.announcement || sf.kind === 'CHANNEL') && <AnnouncementModal />}
       {/* 流量埋点：停留 3 秒后上报。放在前台 layout 上，后台与带 token 的页面不会经过这里；
           服务端还会再按 shouldSkipPath 挡一道 */}
-      {isPlatform && <PageViewBeacon />}
+      {trackViews && <PageViewBeacon />}
       {/* 从营销邮件（链接带 via=mail）点进来时清掉本机旧的推广码：邮件里的券与价格不能被它顶掉。
           营销邮件与推广码都只属于主站（渠道站忽略 ref，设计 7.6） */}
       {features.referral && <MailLanding />}

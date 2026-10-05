@@ -10,6 +10,7 @@
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s2  # 短信接码 · S2 下单与状态机：4 张新表 sms_orders / sms_attempts / sms_messages / sms_events
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-s3  # 短信接码 · S3 记录、客服、售后：1 张新表 sms_complaints
 #   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-jiema-all # 短信接码一次上线（B0 + S1 + S2 + S3 合并，S4 无 DDL）：上面四份清单的并集、四组逐字核对全跑
+#   sh scripts/ops/ddl-gate.sh /tmp/preview.sql --expect-bot       # 微信机器人（docs/微信机器人-设计.md §13）：8 张 bot_* 新表 + products.bot_code / page_views.tenant_id / visitors.tenant_id 三列与 3 个索引
 #
 # 只用 POSIX sh + grep + awk + sort（不 import src/，服务器宿主机或任意容器里都能跑）。
 #
@@ -32,7 +33,7 @@ PREVIEW="${1:-}"
 MODE="${2:-}"
 
 if [ -z "$PREVIEW" ]; then
-  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0 | --expect-jiema-s1 | --expect-jiema-s2 | --expect-jiema-s3 | --expect-jiema-all]" >&2
+  echo "用法：sh scripts/ops/ddl-gate.sh <preview.sql> [--expect-p0 | --expect-p2 | --expect-wallet-b0 | --expect-jiema-s1 | --expect-jiema-s2 | --expect-jiema-s3 | --expect-jiema-all | --expect-bot]" >&2
   exit 2
 fi
 if [ ! -s "$PREVIEW" ]; then
@@ -90,10 +91,58 @@ INV=$(inventory)
 echo "—— 预览清单（$(printf '%s\n' "$INV" | grep -c . ) 项）——"
 printf '%s\n' "$INV" | awk 'NF { k = $1; n[k]++ } END { for (k in n) printf "  %s × %d\n", k, n[k] }' | sort
 
-if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ] && [ "$MODE" != "--expect-jiema-s1" ] && [ "$MODE" != "--expect-jiema-s2" ] && [ "$MODE" != "--expect-jiema-s3" ] && [ "$MODE" != "--expect-jiema-all" ]; then
-  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0，接码 S1 加 --expect-jiema-s1，接码 S2 加 --expect-jiema-s2，接码 S3 加 --expect-jiema-s3，接码 B0–S3 一次上线加 --expect-jiema-all）"
+if [ "$MODE" != "--expect-p0" ] && [ "$MODE" != "--expect-p2" ] && [ "$MODE" != "--expect-wallet-b0" ] && [ "$MODE" != "--expect-jiema-s1" ] && [ "$MODE" != "--expect-jiema-s2" ] && [ "$MODE" != "--expect-jiema-s3" ] && [ "$MODE" != "--expect-jiema-all" ] && [ "$MODE" != "--expect-bot" ]; then
+  echo "✅ 闸门通过（未做清单比对；首次发布渠道分站请加 --expect-p0，二期发布加 --expect-p2，钱包 B0 加 --expect-wallet-b0，接码 S1 加 --expect-jiema-s1，接码 S2 加 --expect-jiema-s2，接码 S3 加 --expect-jiema-s3，接码 B0–S3 一次上线加 --expect-jiema-all，微信机器人加 --expect-bot）"
   exit 0
 fi
+
+# ③'''''' 微信机器人（docs/微信机器人-设计.md §13）：8 张 bot_* 新表（不与任何旧表建外键）+ 三处加列与 3 个索引。
+#          加列都是可空或带默认值（page_views / visitors 的 tenant_id NOT NULL DEFAULT 1，MySQL 8 即时完成，历史行自动算主站）
+EXPECT_BOT=$(cat <<'EOF' | sort
+COLUMN page_views.tenant_id
+COLUMN products.bot_code
+COLUMN visitors.tenant_id
+INDEX UNIQUE products.products_bot_code_key
+INDEX page_views.page_views_tenant_id_day_key_idx
+INDEX visitors.visitors_tenant_id_first_seen_idx
+TABLE bot_action_tokens
+TABLE bot_admin_identities
+TABLE bot_admins
+TABLE bot_card_issues
+TABLE bot_commands
+TABLE bot_conversations
+TABLE bot_events
+TABLE bot_outbox
+EOF
+)
+
+# 机器人另外逐字核对：几条「只成一次」靠唯一键（同一条消息只执行一次、同一条消息只发一次卡、同一事件同一会话只入队一次、
+#   认领码 / 补货令牌只存哈希且唯一），以及两处加列的默认值；机器人表不许有外键
+bot_details() {
+  bad=0
+  need() {
+    if ! grep -Eq "$1" "$PREVIEW"; then
+      echo "❌ 预览里缺少：$2"
+      bad=1
+    fi
+  }
+  need '`tenant_id` INTEGER NOT NULL DEFAULT 1' 'page_views / visitors.tenant_id INTEGER NOT NULL DEFAULT 1'
+  need 'ADD COLUMN `bot_code` VARCHAR\(16\) NULL' 'products.bot_code VARCHAR(16) NULL'
+  need 'UNIQUE INDEX `bot_commands_adapter_msg_id_key`\(`adapter`, `msg_id`\)' 'bot_commands (adapter, msg_id) 唯一'
+  need 'UNIQUE INDEX `bot_card_issues_command_id_key`\(`command_id`\)' 'bot_card_issues.command_id 唯一'
+  need 'UNIQUE INDEX `bot_outbox_conversation_id_dedupe_key_key`\(`conversation_id`, `dedupe_key`\)' 'bot_outbox (conversation_id, dedupe_key) 唯一'
+  need 'UNIQUE INDEX `bot_events_dedupe_key_key`\(`dedupe_key`\)' 'bot_events.dedupe_key 唯一'
+  need 'UNIQUE INDEX `bot_conversations_adapter_external_id_key`\(`adapter`, `external_id`\)' 'bot_conversations (adapter, external_id) 唯一'
+  need 'UNIQUE INDEX `bot_admin_identities_adapter_wxid_key`\(`adapter`, `wxid`\)' 'bot_admin_identities (adapter, wxid) 唯一'
+  need 'UNIQUE INDEX `bot_action_tokens_token_hash_key`\(`token_hash`\)' 'bot_action_tokens.token_hash 唯一'
+  need 'INDEX `bot_outbox_status_not_before_priority_idx`\(`status`, `not_before`, `priority`\)' 'bot_outbox (status, not_before, priority) 索引'
+  need '`token_hash` CHAR\(64\) NOT NULL' 'bot_action_tokens.token_hash CHAR(64) NOT NULL'
+  if grep -Eq 'FOREIGN KEY' "$PREVIEW"; then
+    echo "❌ 机器人表不应该有外键"
+    bad=1
+  fi
+  return $bad
+}
 
 # ③''''' 短信接码 · S3 记录、客服、售后（docs/短信接码-设计.md §5.2、§5.5）：只建 1 张新表 sms_complaints，不碰任何旧表。
 #         索引与默认值写在 CREATE TABLE 里，下面 jiema_s3_details 逐字核对
@@ -332,7 +381,11 @@ FK tenant_ledger_entries.order_id -> orders RESTRICT (tenant_ledger_entries_orde
 EOF
 )
 
-if [ "$MODE" = "--expect-p2" ]; then
+if [ "$MODE" = "--expect-bot" ]; then
+  EXPECT="$EXPECT_BOT"
+  SUMMARY="微信机器人：8 张 bot_* 新表（唯一键逐字核对、无外键）+ products.bot_code、page_views.tenant_id、visitors.tenant_id 三列与 3 个索引"
+  bot_details || exit 1
+elif [ "$MODE" = "--expect-p2" ]; then
   EXPECT="$EXPECT_P2"
   SUMMARY="二期 8 列：tenants 7 列、tenant_notices 1 列"
 elif [ "$MODE" = "--expect-wallet-b0" ]; then

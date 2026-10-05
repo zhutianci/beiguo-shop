@@ -6,6 +6,7 @@ import { assertCronAuth } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
 import { KEEP_EVENT_TYPES } from '@/lib/jiema/consent'
 import { purgeExpiredConsentMeta } from '@/lib/jiema/consent-purge'
+import { purgeBotTables } from '@/lib/bot/retention'
 
 /**
  * 流量数据的保留期清理。每天跑一次。
@@ -162,7 +163,14 @@ export async function GET(request: NextRequest) {
     // 条款同意记录里到期（自下单之日起 3 年）的 IP 与浏览器标识清成 null，版本与同意时间留着（隐私政策四；lib/jiema/consent-purge.ts）
     const consentMetaCleared = await purgeExpiredConsentMeta(now)
 
-    return success({ pageViews, visitors, marketingEvents, marketingMessages, smsPurged, smsRawCleared, smsEvents, consentMetaCleared, pvCutoff, visitorCutoff })
+    // 微信机器人的出队、事件、指令日志、补货令牌（lib/bot/retention.ts；docs/微信机器人-设计.md §13）。
+    // 单独兜住：机器人表出问题不影响上面那些清理的结果上报
+    const bot = await purgeBotTables(now).catch((e) => {
+      console.error('Cleanup cron: bot tables', e)
+      return null
+    })
+
+    return success({ pageViews, visitors, marketingEvents, marketingMessages, smsPurged, smsRawCleared, smsEvents, consentMetaCleared, bot, pvCutoff, visitorCutoff })
   } catch (err) {
     console.error('Cleanup cron error:', err)
     return error('清理失败')

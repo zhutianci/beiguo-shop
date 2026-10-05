@@ -96,3 +96,10 @@
 # 绝不取消任何激活。不一致推 sms.alert、报告写 settings.sms_reconcile_last；顺带生成昨天的日报，北京 09:00 由上面的 jiema-tick 推 sms.daily。
 # 锁 jiema:reconcile，上一趟没完这一趟直接返回。GET + x-cron-secret 头
 20 3 * * * curl -fsS --max-time 240 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/jiema-reconcile" >> /var/log/cron.log 2>&1
+
+# ---------- 微信机器人（docs/微信机器人-设计.md §12.2）----------
+# 每分钟 兜底：回扫渠道通知、路由、作废过期、收回租约、查小号在线状态并告警（离线 5 分钟推企业微信）、唤醒发送器。
+# BOT_ENABLED 没开时接口直接返回。锁 bot:tick，上一趟没完这一趟跳过。GET + x-cron-secret 头
+* * * * * curl -fsS --max-time 55 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/bot-tick" >> /var/log/cron.log 2>&1
+# 每天 00:01 日报：统计刚结束的北京时间自然日，主站管理群一份、每个分站群一份，00:02 起逐群错峰发出；重跑只补缺。POST + x-cron-secret 头
+1 0 * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/bot-daily >> /var/log/cron.log 2>&1

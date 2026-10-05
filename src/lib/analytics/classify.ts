@@ -163,10 +163,15 @@ export interface Classified {
  * @param selfHost 本次请求自己的 Host 头。域名之外还能从公网 IP 直连本站
  *                 （nginx 80 端口对外开着），那种情况下 referrer 是 IP，
  *                 不在 SELF_HOSTS 里，不传这个参数就会把站内跳转记成外链引荐。
+ * @param storefrontKind 当前店面类型（docs/微信机器人-设计.md §6.5 第 5 条）。只有 'CHANNEL' 改变结果：
+ *                 渠道站上主站域名（SELF_HOSTS）不再算「站内」——从 bigolab.com 跳到渠道站是外链引荐；
+ *                 渠道自己的域名照旧经 selfHost 算站内。不传或 'PLATFORM'（主站调用处）时与原来逐字相同。
+ *                 （类型写成字面量而不是引用 storefront/resolve：本文件也被客户端埋点组件引用）
  */
 export function classifyReferrer(
   referrer: string | null | undefined,
-  selfHost?: string | null
+  selfHost?: string | null,
+  storefrontKind?: 'PLATFORM' | 'CHANNEL'
 ): Classified {
   if (!referrer) return { source: 'direct', engine: null, refHost: null }
   // 落地 URL 带 utm_medium=email 的访问（前端换成的标记，见 EMAIL_REFERRER_MARKER）
@@ -182,7 +187,8 @@ export function classifyReferrer(
   if (!host) return { source: 'direct', engine: null, refHost: null }
 
   const self = selfHost?.toLowerCase().trim()
-  if (SELF_HOSTS.includes(host) || (self && host === self)) {
+  const mainIsSelf = storefrontKind !== 'CHANNEL'
+  if ((mainIsSelf && SELF_HOSTS.includes(host)) || (self && host === self)) {
     return { source: 'internal', engine: null, refHost: host }
   }
 
@@ -261,6 +267,11 @@ export function shouldSkipPath(path: string): boolean {
     path.startsWith('/finance/') ||
     // 营销邮件的退订页：路径里的 token 就是凭证。页面本身不在 (shop) 里、不挂埋点，这里是第二道
     path.startsWith('/unsubscribe/') ||
+    // 渠道后台与分站群的渠道快速回复页（docs/微信机器人-设计.md §5.5、§6.5）：同上，都不在 (shop) 里、不挂埋点，
+    // 这里是第二道；快速回复页路径里的令牌就是凭证。主站上这些路径本来就 404，不影响主站统计
+    path === '/partner' ||
+    path.startsWith('/partner/') ||
+    path.startsWith('/partner-reply/') ||
     path.startsWith('/_next')
   )
 }

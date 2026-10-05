@@ -2,18 +2,12 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { z } from 'zod'
 import { prisma } from '@/lib/db'
-import { hasProvider } from '@/lib/redeem/registry'
 import { success, error } from '@/lib/api'
-import {
-  cardKeyConfigured,
-  encryptCardContent,
-  decryptCardContent,
-  cardContentHash,
-  maskSecret,
-  syncAutoStock,
-} from '@/lib/cardkey'
+import { cardKeyConfigured, decryptCardContent, maskSecret } from '@/lib/cardkey'
+import { CardImportError, cardImportSchema, importCardKeys } from '@/lib/cardkey-import'
+import { writeAudit } from '@/lib/audit'
+import { getCurrentUser } from '@/lib/auth'
 import { adminGuard } from '@/lib/admin-guard'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, cardSiteWhere, cardSources } from '@/lib/admin/source-site'
 
@@ -126,27 +120,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-const importSchema = z.object({
-  productId: z.number().int().positive(),
-  content: z.string().min(1, '请粘贴卡密，每行一条'),
-  batch: z.string().trim().max(40).optional().nullable(),
-  remark: z.string().trim().max(255).optional().nullable(),
-  // 本批进货成本（元/张）；不填按 0 记，保证历史口径一致
-  cost: z.number().min(0, '成本不能为负').max(999999).optional(),
-  // 本批专属兑换地址；留空则买家侧回落到 Product.cardRedeemUrl
-  redeemUrl: z
-    .string()
-    .trim()
-    .max(500)
-    .refine((v) => v === '' || /^https?:\/\//i.test(v), '兑换地址需以 http:// 或 https:// 开头')
-    .optional()
-    .nullable(),
-  // 本批走站内兑换时的充值平台标识（lib/redeem/registry.ts 的 key）。
-  // 留空 = 不走站内兑换，回落到 redeemUrl / 商品默认链接的跳转方式
-  redeemProvider: z.string().trim().max(20).optional().nullable(),
-})
-
-// 批量导入卡密（加密入库，同商品内去重）
+// 批量导入卡密（加密入库，同商品内去重）。导入逻辑在 lib/cardkey-import.ts（与微信机器人补货页共用，docs/微信机器人-设计.md §9.3），
+// 这里只做鉴权、解析与响应；校验文案、返回字段、错误文案与抽出之前逐字相同。tx 传 null = 函数里照旧同步库存
 export async function POST(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
@@ -154,72 +129,35 @@ export async function POST(request: NextRequest) {
     if (!cardKeyConfigured()) return error('未配置 CARDKEY_SECRET，无法安全存储卡密', 500)
 
     const body = await request.json()
-    const parsed = importSchema.safeParse(body)
+    const parsed = cardImportSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
-    const { productId, content, batch, remark, cost, redeemUrl, redeemProvider } = parsed.data
 
-    const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } })
-    if (!product) return error('商品不存在')
+    const r = await importCardKeys(null, parsed.data)
 
-    // 拆行 + 去空 + 输入内部去重
-    const seen = new Set<string>()
-    const items: { plain: string; hash: string }[] = []
-    for (const line of content.split(/\r?\n/)) {
-      const plain = line.trim()
-      if (!plain) continue
-      const hash = cardContentHash(plain)
-      if (seen.has(hash)) continue
-      seen.add(hash)
-      items.push({ plain, hash })
-    }
-    if (items.length === 0) return error('没有有效卡密')
+    // 顺带补审计（原来没有）：谁、给哪个商品、导了几张、什么成本与兑换方式。不记卡密内容。审计失败不影响已导入的卡
+    const { productId, batch, cost, redeemUrl, redeemProvider } = parsed.data
+    const actor = await getCurrentUser().catch(() => null)
+    await writeAudit(null, {
+      actorUserId: actor?.id ?? null,
+      actorKind: 'PLATFORM',
+      action: 'cardkey.import',
+      targetType: 'product',
+      targetId: String(productId),
+      diff: {
+        total: r.total,
+        created: r.created,
+        skipped: r.skipped,
+        batch: batch || null,
+        cost: cost ?? 0,
+        redeemProvider: redeemProvider?.trim() || null,
+        redeemUrl: redeemUrl?.trim() || null,
+      },
+      req: request,
+    }).catch((e) => console.error('[cardkeys] 导入审计写入失败', productId, e))
 
-    // 跳过已存在
-    const existing = await prisma.cardKey.findMany({
-      where: { productId, contentHash: { in: items.map((i) => i.hash) } },
-      select: { contentHash: true },
-    })
-    const existsSet = new Set(existing.map((e) => e.contentHash))
-    const fresh = items.filter((i) => !existsSet.has(i.hash))
-
-    // 成本按批录入，落库为定点小数；未填按 0（与历史卡回填口径一致）
-    const batchCost = new Prisma.Decimal((cost ?? 0).toFixed(2))
-    const batchRedeemUrl = redeemUrl?.trim() || null
-
-    /*
-     * 【必须校验平台存在】这个字符串会原样进数据库并决定兑换页去找哪个适配器。
-     * 写进一个没有适配器的 key，整批卡密的兑换页会永远报「充值系统不存在」，
-     * 而且要等买家投诉才会被发现。宁可在导入这一步就拒掉。
-     */
-    const batchProvider = redeemProvider?.trim() || null
-    if (batchProvider && !hasProvider(batchProvider)) {
-      return error('所选充值系统不存在，请刷新页面后重试')
-    }
-
-    if (fresh.length > 0) {
-      await prisma.cardKey.createMany({
-        data: fresh.map((i) => ({
-          productId,
-          content: encryptCardContent(i.plain),
-          contentHash: i.hash,
-          status: 'UNUSED',
-          batch: batch || null,
-          redeemProvider: batchProvider,
-          remark: remark || null,
-          cost: batchCost,
-          redeemUrl: batchRedeemUrl,
-        })),
-        skipDuplicates: true,
-      })
-    }
-
-    await syncAutoStock(productId)
-
-    return success(
-      { total: items.length, created: fresh.length, skipped: items.length - fresh.length },
-      '导入完成'
-    )
+    return success({ total: r.total, created: r.created, skipped: r.skipped }, '导入完成')
   } catch (err) {
+    if (err instanceof CardImportError) return error(err.message, err.status)
     console.error('Import cardkeys error:', err)
     return error('导入失败')
   }

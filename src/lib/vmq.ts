@@ -37,6 +37,12 @@ import { creditInTx as creditTopupInTx, afterTopupCredited } from './wallet/topu
 import { autoCreditIfCarrier } from './wallet/latepay'
 // 资金事务统一「死锁 / 写冲突重试一次」（§2.3 第 5 条、§2.7 第 4 条）：载体单付款事务、到账补记都走它
 import { inMoneyTx } from './wallet/ledger'
+// 微信机器人旁路（docs/微信机器人-设计.md §5.2「新增」：渠道单开票）。sink / config / render 都是叶子模块（只依赖 db 与本目录纯函数）；
+// billing-link 只依赖 db（发票 → 站内订单，与发票分成计提同一口径）
+import { botSink } from './bot/sink'
+import { botEnabledByEnv } from './bot/config'
+import { yuan } from './bot/render'
+import { findShopOrderForInvoice } from './tenant/billing-link'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
@@ -1969,6 +1975,8 @@ async function pushInvoiceReady(invoiceId: number) {
   try {
     const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } })
     if (!invoice) return
+    // 微信机器人：渠道单另推一条精简版到该分站群（不等它、不抛；下面站长那条推送逐字不变）
+    if (invoice.tenantId !== 1) void emitChannelInvoicePaid(invoice)
     const pending = await prisma.invoice.findMany({
       where: { status: 'SUBMITTED', payStatus: 'PAID' },
       orderBy: { paidAt: 'asc' },
@@ -1997,6 +2005,45 @@ async function pushInvoiceReady(invoiceId: number) {
   } catch (e) {
     // 通知失败绝不能影响「税费已到账」这个既成事实
     console.error('[notify] 发票可开具通知组装失败', e)
+  }
+}
+
+/**
+ * 渠道单开票（税费已付）→ 该分站群的精简版（docs/微信机器人-设计.md §5.2「新增」）：只有订单号与开票金额，
+ * **不含**抬头、税号、邮箱、财务台链接（那些只在上面给站长的推送里）。调用方已赢得幂等竞争（同 pushInvoiceReady）。
+ *  · BOT_ENABLED 未开时什么都不查（P0 上线完全休眠）；
+ *  · 订单号以 findShopOrderForInvoice（与发票分成计提同一口径）找到的站内订单为准，且该订单必须就是票据上这个分站的——
+ *    对不上（数据被改坏，对账 A12 会报）就不发，宁可漏一条也不把别的站的单号推进这个群；
+ *  · 链接 = 渠道 origin + 渠道后台这一单（storefrontById 取不到就不带）；
+ *  · 永不抛：出错只记日志。
+ */
+async function emitChannelInvoicePaid(invoice: { id: number; invoiceNo: string; invoiceAmount: Prisma.Decimal | null; tenantId: number }): Promise<void> {
+  try {
+    if (!botEnabledByEnv()) return
+    const link = await findShopOrderForInvoice(invoice.id)
+    if (!link || link.tenantId !== invoice.tenantId) {
+      console.warn('[bot] 渠道发票找不到本站订单，不推分站群', invoice.invoiceNo)
+      return
+    }
+    const order = await prisma.order.findUnique({ where: { id: link.orderId }, select: { orderNo: true } })
+    if (!order) return
+    const sf = await storefrontById(invoice.tenantId).catch(() => null)
+    const href = sf?.origin ? `${sf.origin}/partner/orders/${encodeURIComponent(order.orderNo)}` : null
+    botSink.emit({
+      type: 'channel.invoice_paid',
+      tenantId: invoice.tenantId,
+      lines: [
+        { label: '订单号', value: order.orderNo },
+        { label: '开票金额', value: invoice.invoiceAmount == null ? '—' : yuan(invoice.invoiceAmount) },
+      ],
+      link: href,
+      linkText: href ? '渠道后台查看' : null,
+      refType: 'order',
+      refKey: order.orderNo,
+      dedupeKey: `ci:${invoice.invoiceNo}`,
+    })
+  } catch (e) {
+    console.error('[bot] 渠道开票动态组装失败', invoice.invoiceNo, (e as Error)?.message)
   }
 }
 

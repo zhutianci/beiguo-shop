@@ -15,6 +15,7 @@
  */
 
 import { quickReplyUrl } from './quick-reply'
+import { botSink } from './bot/sink'
 
 export type NotifyEvent =
   | 'order.created'
@@ -44,6 +45,10 @@ export type NotifyEvent =
   | 'sms.refund_failed'
   | 'sms.complaint'
   | 'sms.daily'
+  // 微信机器人（docs/微信机器人-设计.md §5.7）：掉线 / 恢复 / 提卡补货抄送。只走这里的企业微信，不进机器人自己的队列
+  | 'bot.offline'
+  | 'bot.online'
+  | 'bot.sensitive'
 
 const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.created': { emoji: '🛒', title: '新订单' },
@@ -78,6 +83,11 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'sms.refund_failed': { emoji: '🚨', title: '接码退款失败' },
   'sms.complaint': { emoji: '📨', title: '接码售后申请' },
   'sms.daily': { emoji: '📊', title: '短信接码日报' },
+  // 机器人掉线是要立刻处理的（代理群全都收不到推送了），默认必须推
+  'bot.offline': { emoji: '🚨', title: '微信机器人异常' }, // 小号离线，或某个群（尤其管理群）发不出去
+  'bot.online': { emoji: '✅', title: '微信机器人已恢复' },
+  // 提卡 / 补货 / 锁定等敏感操作的带外抄送（§8.4 第 8 步）：经过小号之外的另一条通道，站长能及时发现不是自己做的操作
+  'bot.sensitive': { emoji: '🔐', title: '微信机器人敏感操作' },
 }
 
 /**
@@ -199,6 +209,10 @@ export function notify(
   rows: NotifyRow[],
   opts?: { link?: string; linkText?: string; extraTitle?: string; site?: string | null }
 ): void {
+  // 微信机器人旁路（docs/微信机器人-设计.md §5.1）：放在最前面，不受「没配 webhook」与 NOTIFY_EVENTS 白名单影响；
+  // 它自己不抛、不阻塞（BOT_ENABLED 未开时直接返回），也不改变下面 webhook 的任何发送条件
+  botSink.fromNotify(event, rows, opts, EVENT_LABELS[event])
+
   const url = webhookUrl()
   if (!url) return
   if (!eventEnabled(event)) return

@@ -278,6 +278,12 @@ function allowed(mod, list) {
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS']
 const PARTNER_UI = [/^src\/app\/partner\//, /^src\/app\/api\/partner\//, /^src\/components\/partner\//]
 const PARTNER_ANY = [...PARTNER_UI, /^src\/lib\/partner-handlers\//, /^src\/lib\/partner-services\//]
+/**
+ * 渠道快速回复（docs/微信机器人-设计.md §5.5）：分站群里的免登录令牌页与接口。路径是独立的一级 /partner-reply（刻意不在 /partner/ 下，
+ * middleware 与 partnerRoute 都不管它），所以上面几条按 partner/ 前缀的规则碰不到它——它要 import 店面解析与机器人令牌，
+ * 规则 1 的白名单本来就不适用；但它是渠道一侧的界面，规则 8 的禁用函数（尤其平台快捷回复）同样不许出现。
+ */
+const PARTNER_REPLY = [/^src\/app\/partner-reply\//, /^src\/app\/api\/partner-reply\//]
 const inAny = (file, res) => res.some((r) => r.test(file))
 
 const RULE1_ALLOW = [
@@ -359,7 +365,13 @@ const RULE8_FORBIDDEN = [
   'submitInvoiceForExternalOrder',
   'notifyBuyerMessage',
   'quickReplyUrl',
+  // 平台快捷回复令牌的签发与校验（多渠道设计 11.4：平台令牌只发平台群、永不发渠道）。渠道快速回复有自己的令牌（src/lib/bot/tenant-reply.ts），
+  // 渠道一侧（含 /partner-reply）拿平台令牌验签，就等于让平台群里的链接在渠道域名上也能用
+  'verifyQuickReplyToken',
+  'issueQuickReplyToken',
 ]
+/** deriveKey('tenant-reply')（渠道快速回复令牌的签名密钥）的唯一合法位置：别处派生同一把钥匙就能另造令牌（同 viewas 的写法） */
+const TENANT_REPLY_KEY_FILE = 'src/lib/bot/tenant-reply.ts'
 
 /**
  * 规则说明（id → 标题）。13 起是各包报告请求 WP8 加的补充规则。
@@ -372,8 +384,8 @@ export const RULES = {
   5: 'partner 页面不得 use client，必须 requirePartnerPage（login / invite 用 requireChannelStorefrontPage）',
   6: 'api/admin 每个 handler 必须 adminGuard / requireAdmin',
   7: 'order.create 只在 create-shop-order.ts',
-  8: '站长专用履约 / 票据函数不得出现在 partner 目录',
-  9: '全仓缓存 / Host / x-forwarded-host / cookie Domain / 公开默认密钥 / viewas 密钥',
+  8: '站长专用履约 / 票据 / 平台快捷回复函数不得出现在 partner 目录与渠道快速回复（/partner-reply）',
+  9: '全仓缓存 / Host / x-forwarded-host / cookie Domain / 公开默认密钥 / viewas 与 tenant-reply 密钥',
   10: '每个 partner 路由都登记在 scripts/itest-tenant.routes.json',
   11: '阳性对照（内置样例必须命中）',
   12: 'invoice.create / receipt.create 只在三个建票点',
@@ -600,8 +612,8 @@ function rule7(ctx) {
 }
 
 function rule8(ctx) {
-  if (!inAny(ctx.file, PARTNER_ANY)) return []
-  return ruleRegexAll(8, new RegExp(`\\b(${RULE8_FORBIDDEN.join('|')})\\b`, 'g'), (m) => `${m[1]} 是站长专用函数，不得出现在 partner 目录`)(ctx)
+  if (!inAny(ctx.file, PARTNER_ANY) && !inAny(ctx.file, PARTNER_REPLY)) return []
+  return ruleRegexAll(8, new RegExp(`\\b(${RULE8_FORBIDDEN.join('|')})\\b`, 'g'), (m) => `${m[1]} 是站长专用函数，不得出现在 partner 目录与渠道快速回复`)(ctx)
 }
 
 function rule9(ctx) {
@@ -620,6 +632,7 @@ function rule9(ctx) {
   push(/x-forwarded-host/gi, '禁止读取 x-forwarded-host（不可信；nginx 已置空）', true)
   push(/(['"])your-secret-key\1/g, "禁止公开默认密钥 'your-secret-key'", true)
   if (file !== 'src/lib/tenant/view-as.ts') push(/\bderiveKey\s*\(\s*(['"])viewas\1/g, "deriveKey('viewas') 只允许在 src/lib/tenant/view-as.ts", true)
+  if (file !== TENANT_REPLY_KEY_FILE) push(/\bderiveKey\s*\(\s*(['"])tenant-reply\1/g, `deriveKey('tenant-reply') 只允许在 ${TENANT_REPLY_KEY_FILE}（渠道快速回复令牌只在那里签发与校验）`, true)
   // cookie Domain：只看 cookie 设置语句附近（该行起 10 行）里的 domain:，营销模块普通对象键 domain: 不误报
   const lines = code.split('\n')
   const skelLines = skel.split('\n')
@@ -961,6 +974,7 @@ const POSITIVE = [
   { rule: 6, file: 'src/app/api/admin/x/route.ts', src: "import { prisma } from '@/lib/db'\nexport async function GET(){ return Response.json(await prisma.user.findMany()) }" },
   { rule: 7, file: 'src/app/api/orders/x/route.ts', src: 'export async function POST(){ await tx.order.create({ data: {} }) }' },
   { rule: 8, file: 'src/lib/partner-handlers/x.ts', src: "import { fulfillOrder } from '../vmq'\nexport const a = fulfillOrder" },
+  { rule: 8, file: 'src/app/api/partner-reply/[token]/route.ts', src: "import { verifyQuickReplyToken } from '@/lib/quick-reply'\nexport async function GET(){ return Response.json(verifyQuickReplyToken('x')) }" },
   { rule: 9, file: 'src/app/x/page.tsx', src: "export const dynamic = 'force-static'\nexport default function P(){ return null }" },
   { rule: 9, file: 'src/app/x/page.tsx', src: 'export const revalidate = 60' },
   { rule: 9, file: 'src/app/x/route.ts', src: "export function GET(req){ return new Response(req.headers.get('x-forwarded-host')) }" },
@@ -968,6 +982,7 @@ const POSITIVE = [
   { rule: 9, file: 'src/app/x/route.ts', src: "export function POST(){ const r = new Response(''); r.cookies.set('token', 't', {\n  httpOnly: true,\n  domain: '.bigolab.com',\n}); return r }" },
   { rule: 9, file: 'src/lib/x.ts', src: "const s = process.env.JWT_SECRET || 'your-secret-key'" },
   { rule: 9, file: 'src/lib/x.ts', src: "import { unstable_cache } from 'next/cache'\nexport const f = unstable_cache(async () => 1)" },
+  { rule: 9, file: 'src/lib/x.ts', src: "import { deriveKey } from './tenant/crypto'\nexport const k = () => deriveKey('tenant-reply')" },
   { rule: 12, file: 'src/lib/x.ts', src: 'export async function f(){ await prisma.invoice.create({ data: {} }) }' },
   { rule: 12, file: 'src/lib/x.ts', src: 'export async function f(tx){ await tx.receipt.create({ data: {} }) }' },
   { rule: 13, file: 'src/app/api/x/route.ts', src: "import { getCurrentUserUnscoped } from '@/lib/auth'\nexport async function GET(){ return Response.json(await getCurrentUserUnscoped()) }" },
@@ -1000,6 +1015,9 @@ const NEGATIVE = [
   { file: 'src/app/api/admin/y/route.ts', src: "export async function GET(req: Request) {\n  const g = await adminGuard(req)\n  if (g) return g\n  return Response.json({ a: '(' })\n}\nexport const PATCH = async (req: Request) => { await requireAdmin(); return new Response(null) }" },
   { file: 'src/app/x/page.tsx', src: "export default function P(){ return <div className=\"a\">don't / 50% </div> }" },
   { file: 'src/lib/tenant/supply-pricing.ts', src: 'function signToken(b){ return b }\nexport const t = signToken(1)' },
+  // 渠道快速回复：令牌模块自己派生 tenant-reply 密钥；/partner-reply 接口引用店面解析、机器人令牌与渠道留言服务（规则 1、4、10 只管 partner/ 前缀）
+  { file: 'src/lib/bot/tenant-reply.ts', src: "import { deriveKey } from '../tenant/crypto'\nexport const k = () => deriveKey('tenant-reply')" },
+  { file: 'src/app/api/partner-reply/[token]/route.ts', src: "export const dynamic = 'force-dynamic'\nimport { getStorefront } from '@/lib/storefront/resolve'\nimport { verifyTenantReplyToken } from '@/lib/bot/tenant-reply'\nimport { partnerQuickReplyView } from '@/lib/partner-services/messages'\nexport async function GET(){ const sf = await getStorefront(); return Response.json([sf, verifyTenantReplyToken('x'), partnerQuickReplyView]) }" },
   // 规则 16：ledger.ts 本身可以写；读余额（select / where 的布尔、groupBy 的 _sum）不算写；「FOR UPDATE」不是 UPDATE users
   { file: 'src/lib/wallet/ledger.ts', src: 'export async function f(tx, w, d){ w.topupCents = { gte: 1 }; await tx.user.updateMany({ where: w, data: { balance: { increment: 1 } } }); await tx.balanceLog.create({ data: {} }) }' },
   { file: 'src/lib/wallet/hold.ts', src: 'export async function f(tx, id){ await tx.$queryRaw`SELECT id FROM balance_holds WHERE order_id = ${id} FOR UPDATE`; await tx.balanceHold.create({ data: { topupCents: 1 } }) }' },
@@ -1061,9 +1079,21 @@ function mutations(tree) {
     { rule: 6, name: '超管路由漏守卫', file: 'src/app/api/admin/tenants/overview/route.ts', overlay: append('src/app/api/admin/tenants/overview/route.ts', 'export async function DELETE() { return new Response(null) }') },
     { rule: 7, name: '别处 order.create', file: 'src/lib/vmq.ts', overlay: append('src/lib/vmq.ts', 'export async function __mk(tx: any) { return tx.order.create({ data: {} }) }') },
     { rule: 8, name: 'partner 目录调用 fulfillOrder', file: 'src/lib/partner-services/orders.ts', overlay: append('src/lib/partner-services/orders.ts', 'export const __f = (x: any) => x.fulfillOrder') },
+    {
+      rule: 8,
+      name: '渠道快速回复接口拿平台快捷回复令牌验签',
+      file: 'src/app/api/partner-reply/[token]/route.ts',
+      overlay: append('src/app/api/partner-reply/[token]/route.ts', "import { verifyQuickReplyToken } from '@/lib/quick-reply'\nexport const __q = verifyQuickReplyToken"),
+    },
     { rule: 9, name: '读 x-forwarded-host', file: 'src/app/api/track/view/route.ts', overlay: append('src/app/api/track/view/route.ts', "export const __h = (r: Request) => r.headers.get('x-forwarded-host')") },
     { rule: 9, name: 'cookie 设 Domain', file: 'src/app/api/auth/login/route.ts', overlay: append('src/app/api/auth/login/route.ts', "export const __c = (res: any) => res.cookies.set('token', 'x', {\n  httpOnly: true,\n  domain: '.bigolab.com',\n})") },
     { rule: 9, name: 'force-static', file: 'src/app/(shop)/about/page.tsx', overlay: { 'src/app/(shop)/about/page.tsx': "export const dynamic = 'force-static'\nexport default function P() { return null }\n" } },
+    {
+      rule: 9,
+      name: '令牌模块以外派生 tenant-reply 密钥',
+      file: 'src/app/partner-reply/[token]/page.tsx',
+      overlay: append('src/app/partner-reply/[token]/page.tsx', "import { deriveKey } from '@/lib/tenant/crypto'\nexport const __k = () => deriveKey('tenant-reply')"),
+    },
     {
       rule: 10,
       name: '新增 partner 路由未登记',

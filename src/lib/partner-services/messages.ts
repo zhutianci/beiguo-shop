@@ -9,12 +9,16 @@
  *  渠道自己这条回复 readByAdmin=true：平台未读统计只数 sender='BUYER'（admin/orders），与站长回复写法一致。
  * 【买家提醒】提交后经 partner-facade 的 notifyBuyerOfReply（WP3）发「客服回复」邮件，与站长回复同一封；
  *  渠道层不直接调 notifyBuyerMessage / quickReplyUrl（设计 6.5.3 禁用清单）。
+ * 【分站群快速回复】（docs/微信机器人-设计.md §5.5，站长 Q10）/partner-reply/<令牌> 的读与回也在这里（partnerQuickReplyView /
+ *  partnerQuickReplyPost）：回复与渠道后台走同一个流程（postAsPartner），只是令牌不对应具体成员——senderUserId、审计 actorUserId 留空，
+ *  审计 diff 记 via。令牌的验签、「令牌的分站 = 当前店面」由路由（src/app/api/partner-reply）做，本层仍按 tenantId 取单。
  */
 import { prisma } from '../db'
 import { writeAudit } from '../audit'
 import { notifyBuyerOfReply } from '../tenant/partner-facade'
 import type { PartnerMessageRow } from '../tenant/types'
 import { findTenantOrder } from './_scope'
+import { centsOf } from './orders'
 import { PARTNER_INTERNAL_MESSAGE_KEY_SELECT, PARTNER_INTERNAL_ORDER_KEY_SELECT, PARTNER_MESSAGE_SELECT, PARTNER_ORDER_LIST_SELECT } from './selects'
 
 const MESSAGE_WITH_KEY = { ...PARTNER_MESSAGE_SELECT, ...PARTNER_INTERNAL_MESSAGE_KEY_SELECT } as const
@@ -23,9 +27,51 @@ const MESSAGE_WITH_KEY = { ...PARTNER_MESSAGE_SELECT, ...PARTNER_INTERNAL_MESSAG
  * 审计记原文会让按单号查操作日志漏行。
  */
 const ORDER_KEY_WITH_NO = { ...PARTNER_INTERNAL_ORDER_KEY_SELECT, orderNo: PARTNER_ORDER_LIST_SELECT.orderNo } as const
+/**
+ * 分站群快速回复的订单摘要：从白名单常量里**只挑不加**（写法同上面的 ORDER_KEY_WITH_NO）。
+ * 刻意不选 user（买家邮箱、昵称）、deliveryInfo、buyerRemark、结算与进货价字段：拿到链接的人只看得到这一单的商品、金额、状态。
+ * id 只在服务端用来查留言，不进 DTO。
+ */
+const QUICK_REPLY_ORDER = {
+  id: PARTNER_INTERNAL_ORDER_KEY_SELECT.id,
+  orderNo: PARTNER_ORDER_LIST_SELECT.orderNo,
+  productName: PARTNER_ORDER_LIST_SELECT.productName,
+  quantity: PARTNER_ORDER_LIST_SELECT.quantity,
+  amount: PARTNER_ORDER_LIST_SELECT.amount,
+  invoiceTaxFee: PARTNER_ORDER_LIST_SELECT.invoiceTaxFee,
+  payStatus: PARTNER_ORDER_LIST_SELECT.payStatus,
+  deliveryStatus: PARTNER_ORDER_LIST_SELECT.deliveryStatus,
+  createdAt: PARTNER_ORDER_LIST_SELECT.createdAt,
+} as const
 /** 一单的留言远少于此；超出只给最近的 500 条 */
 const MAX_MESSAGES = 500
 export const MESSAGE_MAX_LEN = 2000
+/** 分站群快速回复：只给最近的 100 条留言（设计 §5.5） */
+export const QUICK_REPLY_MAX_MESSAGES = 100
+/** 分站群快速回复：一条回复最多 1000 字（与平台快捷回复相同；渠道后台是 MESSAGE_MAX_LEN） */
+export const QUICK_REPLY_MAX_LEN = 1000
+
+/** 快速回复页的一行留言：同渠道后台的行，去掉 mine（令牌不对应具体成员，没有「我」） */
+export type PartnerQuickReplyRow = Omit<PartnerMessageRow, 'mine'>
+
+/** 快速回复页的订单摘要（金额一律分；不含买家信息与交付凭据） */
+export interface PartnerQuickReplyOrder {
+  orderNo: string
+  productName: string
+  quantity: number
+  /** 货款（Order.amount，永远不含税） */
+  amountCents: number
+  /** 勾了开票时另收的发票税费；没勾为 0 */
+  invoiceTaxCents: number
+  payStatus: string
+  deliveryStatus: string
+  createdAt: string
+}
+
+export interface PartnerQuickReplyView {
+  order: PartnerQuickReplyOrder
+  rows: PartnerQuickReplyRow[]
+}
 
 function senderOf(m: { sender: string; senderRole: string | null }): PartnerMessageRow['sender'] {
   if (m.sender === 'BUYER') return 'BUYER'
@@ -57,19 +103,35 @@ export async function partnerListMessages(tenantId: number, orderNo: string, use
 export async function partnerPostMessage(tenantId: number, orderNo: string, userId: number, messageText: string, req?: Request): Promise<boolean> {
   const text = String(messageText ?? '').trim()
   if (!text || text.length > MESSAGE_MAX_LEN) throw new Error('[partner] messageText 长度非法（handler 应已校验）')
-  const o = await findTenantOrder(tenantId, orderNo, ORDER_KEY_WITH_NO)
-  if (!o) return false
+  return (await postAsPartner(tenantId, orderNo, text, { userId }, req)) !== null
+}
 
-  await prisma.$transaction(async (tx) => {
+/**
+ * 谁在回：渠道后台 = 当前成员（userId）；分站群快速回复 = 令牌，不对应具体成员（userId 为 null），审计 diff 多记一个 via。
+ */
+interface PartnerReplier {
+  userId: number | null
+  via?: 'partner-reply'
+}
+
+/**
+ * 渠道回复的共用流程（渠道后台与分站群快速回复同一份）。text 由调用方 trim 并校验过长度。
+ * 返回新留言的时间；null = 订单不存在或不是本渠道的。
+ */
+async function postAsPartner(tenantId: number, orderNo: string, text: string, by: PartnerReplier, req?: Request): Promise<Date | null> {
+  const o = await findTenantOrder(tenantId, orderNo, ORDER_KEY_WITH_NO)
+  if (!o) return null
+
+  const createdAt = await prisma.$transaction(async (tx) => {
     // 事务内按 (id, tenantId) 再确认一次归属：只是防御，正常情况下订单的 tenantId 永不改变
     const owned = await tx.order.count({ where: { id: o.id, tenantId } })
     if (owned !== 1) throw new Error('[partner] 订单归属复查失败')
-    await tx.orderMessage.create({
+    const created = await tx.orderMessage.create({
       data: {
         orderId: o.id,
         sender: 'ADMIN',
         senderRole: 'PARTNER',
-        senderUserId: userId,
+        senderUserId: by.userId,
         content: text,
         readByTenant: true,
         readByBuyer: false,
@@ -79,19 +141,60 @@ export async function partnerPostMessage(tenantId: number, orderNo: string, user
     await tx.orderMessage.updateMany({ where: { orderId: o.id, sender: 'BUYER', readByTenant: false }, data: { readByTenant: true } })
     await writeAudit(tx, {
       actorKind: 'TENANT',
-      actorUserId: userId,
+      actorUserId: by.userId,
       tenantId,
       action: 'order.message',
       targetType: 'order',
       targetId: o.orderNo,
-      // 渠道自己的操作：publicDiff = diff。只记长度，留言原文已在留言表里，不在审计里再存一份
-      diff: { length: text.length },
+      // 渠道自己的操作：publicDiff = diff。只记长度，留言原文已在留言表里，不在审计里再存一份；
+      // 快速回复另记 via（渠道操作日志里的操作者显示「成员」，靠它区分是从分站群链接回的）
+      diff: by.via ? { length: text.length, via: by.via } : { length: text.length },
       req,
     })
+    return created.createdAt
   })
 
   notifyBuyerOfReply(o.id).catch((e) => console.error('[partner] 买家回复提醒失败', (e as Error)?.message || e))
-  return true
+  return createdAt
+}
+
+/**
+ * 分站群快速回复：读这一单的订单摘要与最近 100 条留言。null = 订单不存在或不是本渠道的（路由 404）。
+ * 只读：不把买家留言标已读——微信与安全扫描会预取链接，看一眼不该改任何状态；回复时才标（与渠道后台回复同一口径）。
+ */
+export async function partnerQuickReplyView(tenantId: number, orderNo: string): Promise<PartnerQuickReplyView | null> {
+  const o = await findTenantOrder(tenantId, orderNo, QUICK_REPLY_ORDER)
+  if (!o) return null
+  const rows = await prisma.orderMessage.findMany({
+    where: { orderId: o.id },
+    select: PARTNER_MESSAGE_SELECT,
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: QUICK_REPLY_MAX_MESSAGES,
+  })
+  return {
+    order: {
+      orderNo: o.orderNo,
+      productName: o.productName,
+      quantity: o.quantity,
+      amountCents: centsOf(o.amount),
+      invoiceTaxCents: centsOf(o.invoiceTaxFee),
+      payStatus: o.payStatus,
+      deliveryStatus: o.deliveryStatus,
+      createdAt: o.createdAt.toISOString(),
+    },
+    rows: rows.reverse().map((m) => ({ sender: senderOf(m), messageText: m.content, createdAt: m.createdAt.toISOString() })),
+  }
+}
+
+/**
+ * 分站群快速回复：以「本店」身份回一条（买家看到的仍是「客服」，并收到与渠道后台回复相同的提醒邮件）。
+ * 返回新留言行；null = 订单不存在或不是本渠道的（路由 404）。长度由路由校验（≤ QUICK_REPLY_MAX_LEN），这里再兜一次。
+ */
+export async function partnerQuickReplyPost(tenantId: number, orderNo: string, content: string, req?: Request): Promise<PartnerQuickReplyRow | null> {
+  const text = String(content ?? '').trim()
+  if (!text || text.length > QUICK_REPLY_MAX_LEN) throw new Error('[partner] 快速回复长度非法（路由应已校验）')
+  const createdAt = await postAsPartner(tenantId, orderNo, text, { userId: null, via: 'partner-reply' }, req)
+  return createdAt ? { sender: 'PARTNER', messageText: text, createdAt: createdAt.toISOString() } : null
 }
 
 /** 渠道已读：只动 readByTenant。返回 false = 订单不存在或不是本渠道的 */

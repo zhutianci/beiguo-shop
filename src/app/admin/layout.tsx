@@ -34,6 +34,7 @@ import {
   PieChart,
   Wallet,
   MessageSquareText,
+  Bot,
 } from 'lucide-react'
 
 type NavItem = {
@@ -147,6 +148,8 @@ const navGroups: NavGroup[] = [
       { href: '/admin/settings', label: '系统设置', icon: Settings },
       // 审计日志只有站长自己看（含渠道操作、平台对渠道的操作、越权拒绝），归「系统」
       { href: '/admin/audit', label: '审计日志', icon: ScrollText },
+      // 微信机器人（docs/微信机器人-设计.md §14）：登录小号、群绑定、管理员、锁定解锁都只有站长自己碰，归不了类，放「系统」
+      { href: '/admin/bot', label: '微信机器人', icon: Bot },
     ],
   },
 ]

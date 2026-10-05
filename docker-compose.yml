@@ -186,6 +186,25 @@ services:
       - TENANT_DATA_KEY
       # PRIVATE_FILES_DIR：打款凭证等私有文件目录，默认 /app/private（下面挂了持久卷）。一般不用设
       - PRIVATE_FILES_DIR
+      # 微信机器人（docs/微信机器人-设计.md、docs/微信机器人-部署说明.md）。一律裸变量名：没配 = 完全不定义 = 机器人休眠。
+      #   BOT_ENABLED=1 才工作；BOT_ADAPTER 缺省 wxpad；BOT_WXPAD_BASE 缺省 http://wxpad:8080（只走 Docker 内网）；
+      #   BOT_WXPAD_ADMIN_KEY 与下面 wxpad 服务的 ADMIN_KEY 同值；BOT_WXPAD_HOOK_SECRET ≥ 32 字符（协议服务回调路径里的密钥）；
+      #   BOT_WXPAD_PROXY 只在需要同城代理时设；BOT_LINK_ORIGIN 推送里链接的域名（缺省 APP_URL）；
+      #   BOT_TENANT_REPLY=1 分站群留言带渠道快速回复链接；TRACK_CHANNEL_VIEWS=1 分站也记 PV/UV（要同时放开 nginx 渠道白名单里的 track）
+      - BOT_ENABLED
+      - BOT_ADAPTER
+      - BOT_WXPAD_BASE
+      - BOT_WXPAD_ADMIN_KEY
+      - BOT_WXPAD_HOOK_SECRET
+      - BOT_WXPAD_PROXY
+      - BOT_WXPAD_WAKE_PATH
+      # 收消息方式：缺省 webhook（协议服务回调 /api/bot/wxpad/hook/<密钥>）；PoC 若证实只能用 WebSocket，设 ws，
+      # 同时要设 NODE_OPTIONS=--experimental-websocket（Node 20 自带的 WebSocket 要这个开关；不引入 ws 依赖）
+      - BOT_WXPAD_RECEIVE
+      - NODE_OPTIONS
+      - BOT_LINK_ORIGIN
+      - BOT_TENANT_REPLY
+      - TRACK_CHANNEL_VIEWS
     volumes:
       # 论坛上传图片持久化（容器重建不丢）
       - forum_uploads:/app/public/uploads
@@ -309,6 +328,64 @@ services:
     networks:
       - app-network
 
+  # ---------------------------------------------------------------------------------------------
+  # 微信机器人 · 协议服务（docs/微信机器人-设计.md §11.4）：WeChatPadPro，闭源程序，按不可信处理。
+  # 【profiles: [bot]】平时的 `docker compose up -d`、`up -d app` 都不会碰这两个服务；
+  #   要启动必须显式：docker compose --env-file .env.production --profile bot up -d wxpad wxpad-redis
+  # 【不映射任何端口】宿主机与公网都访问不到；中枢经 Docker 内网 http://wxpad:8080 调它，它经内网回调 app:3000。
+  # 【数据库】用现有 MySQL 里的专用库 wxpad 与专用账号 wxpad（只授权 wxpad.*，见 scripts/ops/bot-wxpad-db.sql），
+  #   不另起 MySQL（官方示例那样会再吃 200MB 以上内存）。刻意不写 depends_on: db —— db 的配置一变，
+  #   compose 会连带重建数据库（见 db 服务的注释），这里不给它任何理由。
+  # 【内存】这台机器 1.8G：协议服务 256m、Redis 48m 上限；oom_score_adj 1000 = 整机内存紧张时最先被杀，
+  #   restart 自动拉起、会话存在 Redis / MySQL 里自动重连；数据库（-800）与 app（+500）不受牵连。
+  # 【版本】上线前把 BOT_WXPAD_IMAGE 锁到 PoC 验证过的那个镜像的 digest（wechatpadpro/wechatpadpro@sha256:...），不用 latest。
+  wxpad:
+    image: ${BOT_WXPAD_IMAGE:-wechatpadpro/wechatpadpro:latest}
+    container_name: beiguo-wxpad
+    profiles: ["bot"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    oom_score_adj: 1000
+    expose:
+      - "8080"
+    environment:
+      - TZ=Asia/Shanghai
+      - WECHAT_PORT=8080
+      - ADMIN_KEY=${BOT_WXPAD_ADMIN_KEY}
+      - REDIS_HOST=wxpad-redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - REDIS_PASSWORD=${BOT_WXPAD_REDIS_PASSWORD}
+      - DB_HOST=db
+      - DB_PORT=3306
+      - MYSQL_CONNECT_STR=wxpad:${BOT_WXPAD_DB_PASSWORD}@tcp(db:3306)/wxpad?charset=utf8mb4&parseTime=true&loc=Local
+      # 默认 500 个工作协程是给群控用的，这里只有一个小号
+      - WORKER_POOL_SIZE=16
+      - MAX_WORKER_TASK_LEN=100
+      - ROCKET_MQ_ENABLED=false
+      - RABBIT_MQ_ENABLED=false
+      - KAFKA_ENABLED=false
+    depends_on:
+      - wxpad-redis
+    networks:
+      - app-network
+
+  wxpad-redis:
+    image: redis:7-alpine
+    container_name: beiguo-wxpad-redis
+    profiles: ["bot"]
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 48m
+    oom_score_adj: 1000
+    # RDB 快照：重启后小号会话还在，不用重新扫码（PoC 第 7 项核实）
+    command: redis-server --maxmemory 32mb --maxmemory-policy noeviction --save 300 1 --appendonly no --requirepass ${BOT_WXPAD_REDIS_PASSWORD}
+    volumes:
+      - wxpad_redis:/data
+    networks:
+      - app-network
+
 networks:
   app-network:
     driver: bridge
@@ -317,3 +394,4 @@ volumes:
   mysql_data:
   forum_uploads:
   private_files:
+  wxpad_redis:

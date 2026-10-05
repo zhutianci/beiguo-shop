@@ -7,7 +7,8 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { rateLimited, clientIp } from '@/lib/news/rate-limit'
 import { classifyDevice, classifyReferrer, normalizePath, shouldSkipPath } from '@/lib/analytics/classify'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { trackChannelViewsEnabled } from '@/lib/analytics/channel-views'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 /**
  * 站级浏览上报。前端停留 3 秒后用 sendBeacon 打过来。
@@ -43,16 +44,31 @@ const bodySchema = z.object({
   k: z.string().min(8).max(64).optional(), // 前端 localStorage 里的匿名 id
 })
 
-/** 匿名 id 不原样入库：哈希成定长 64 位十六进制。拿不到匿名 id 时退回 IP 维度 */
-function viewerKeyOf(anonId: string | undefined, ip: string): string {
+/**
+ * 匿名 id 不原样入库：哈希成定长 64 位十六进制。拿不到匿名 id 时退回 IP 维度。
+ * 渠道站（channelTenantId 非空，docs/微信机器人-设计.md §6.5 第 2 条）先在原值前加站点前缀 `t<tenantId>|` 再哈希：
+ * 同一个人（或同一个 IP 兜底）在不同站点得到不同的 key，不会撞唯一键 (path, viewer_key, hour_bucket)、也不会共用一行 visitors。
+ * 主站（null）公式逐字不变，历史 viewer_key 照旧对得上。
+ */
+function viewerKeyOf(anonId: string | undefined, ip: string, channelTenantId: number | null): string {
   const seed = anonId ? `a:${anonId}` : `i:${ip}`
-  return crypto.createHash('sha256').update(seed).digest('hex')
+  const scoped = channelTenantId === null ? seed : `t${channelTenantId}|${seed}`
+  return crypto.createHash('sha256').update(scoped).digest('hex')
 }
 
 export async function POST(request: NextRequest) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
-  if (channelDenied) return channelDenied
+  /*
+   * 店面解析放第一行、不包进 try（写法同 api/auth/register；getStorefront 在构建期靠抛异常转动态）：
+   *  · 没有店面的 Host → 404；
+   *  · 渠道店面：没开 TRACK_CHANNEL_VIEWS → 404，与原来的 denyOnChannel() 逐字相同（设计 7.6 / 11.2，实施分包 WP1）；
+   *    开了 → 按店面记（docs/微信机器人-设计.md §6.5），但只记正常营业（ACTIVE）的店面，与 (shop)/layout 挂埋点的条件一致；
+   *  · 主站（含休眠期任何 Host）放行，下面的流程与改造前相同（tenant_id 写 1 = 列的默认值）。
+   */
+  const sf = await getStorefront()
+  if (!sf) return error('资源不存在', 404)
+  const channelTenantId = sf.kind === 'PLATFORM' ? null : sf.id
+  if (channelTenantId !== null && !trackChannelViewsEnabled()) return error('资源不存在', 404)
+  if (channelTenantId !== null && sf.status !== 'ACTIVE') return success({ counted: false })
   try {
     // sendBeacon 发的是 Blob，Content-Type 可能是 text/plain，不能依赖 request.json()
     const raw = await request.text()
@@ -69,15 +85,16 @@ export async function POST(request: NextRequest) {
     if (shouldSkipPath(path)) return success({ counted: false })
 
     const ip = clientIp(request.headers)
-    const viewerKey = viewerKeyOf(parsed.data.k, ip)
+    const viewerKey = viewerKeyOf(parsed.data.k, ip, channelTenantId)
 
     // 双维度限流，口径与 /api/news/view 一致：
     // 单读者 10 分钟 40 条（正常人翻不了这么快），单 IP 300 条
     //（公司/学校出口 NAT 后面可能有几十个真人共用一个 IP，IP 维度必须放宽）
+    // 渠道站的 IP 计数单独一格（键带站点前缀）：渠道流量不占主站的额度，主站计数与改造前完全一样
     if (rateLimited(`pv:${viewerKey}`, { windowMs: 10 * 60_000, max: 40 })) {
       return success({ counted: false })
     }
-    if (rateLimited(`pv-ip:${ip}`, { windowMs: 10 * 60_000, max: 300 })) {
+    if (rateLimited(channelTenantId === null ? `pv-ip:${ip}` : `pv-ip:t${channelTenantId}|${ip}`, { windowMs: 10 * 60_000, max: 300 })) {
       return success({ counted: false })
     }
 
@@ -87,7 +104,8 @@ export async function POST(request: NextRequest) {
     // 只读 host（设计 4.3，边界检查第 9 条）：X-Forwarded-Host 是客户端可伪造的头，nginx 改造后也不再转发它；
     // nginx 是 proxy_set_header Host $host，host 头本身就是浏览器请求的主机名，统计口径不变
     const selfHost = request.headers.get('host')
-    const { source, engine, refHost } = classifyReferrer(parsed.data.r, selfHost)
+    // 渠道站多传一个店面类型：主站域名 bigolab.com 在渠道站不算「站内」，从主站跳过来记外链（classify.ts）。主站不传，归类与原来逐字相同
+    const { source, engine, refHost } = classifyReferrer(parsed.data.r, selfHost, channelTenantId === null ? undefined : 'CHANNEL')
     const device = classifyDevice(request.headers.get('user-agent'))
 
     try {
@@ -101,6 +119,8 @@ export async function POST(request: NextRequest) {
           engine,
           refHost,
           device,
+          // 来源站（主站 = 1，等于列默认值；后台流量分析默认只看 1）
+          tenantId: sf.id,
         },
       })
     } catch (e) {
@@ -119,7 +139,7 @@ export async function POST(request: NextRequest) {
      */
     await prisma.visitor.upsert({
       where: { key: viewerKey },
-      create: { key: viewerKey, views: 1, landing: path, source },
+      create: { key: viewerKey, views: 1, landing: path, source, tenantId: sf.id },
       update: { views: { increment: 1 } },
     })
 

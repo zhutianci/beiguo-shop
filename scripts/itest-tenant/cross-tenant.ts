@@ -14,7 +14,9 @@
  * 【数据】夹具用 _harness.createWorld()（ITEST 前缀，结束时 cleanupAll()）；本脚本另建的外部订单以 itx8- 开头，一并清理。
  * 【并行】各包 itest 开头都会 cleanupAll()，与本脚本并行会互相清数据（主会话 D10）：集成与终审一律串行跑（run-all.ts）。
  */
-for (const k of ['ALIYUN_ACCESS_KEY_ID', 'ALIYUN_ACCESS_KEY_SECRET', 'ALIYUN_DM_ACCOUNT', 'ALIYUN_DM_NOREPLY', 'WECOM_WEBHOOK_URL', 'ORDER_MSG_WEBHOOK_URL', 'JWT_LEGACY_TOKENS', 'PLATFORM_HOSTS']) {
+// 微信机器人的两个渠道开关（docs/微信机器人-设计.md §5.5、§6.5）也清掉：T12 按「开关关着」断言 track/view 渠道 404，
+// 渠道快速回复（tPartnerReply）自己开关 BOT_TENANT_REPLY——外面 shell 里带着这两个变量也不影响结果
+for (const k of ['ALIYUN_ACCESS_KEY_ID', 'ALIYUN_ACCESS_KEY_SECRET', 'ALIYUN_DM_ACCOUNT', 'ALIYUN_DM_NOREPLY', 'WECOM_WEBHOOK_URL', 'ORDER_MSG_WEBHOOK_URL', 'JWT_LEGACY_TOKENS', 'PLATFORM_HOSTS', 'TRACK_CHANNEL_VIEWS', 'BOT_TENANT_REPLY']) {
   delete process.env[k]
 }
 if (!process.env.VMQ_KEY) process.env.VMQ_KEY = 'itest-x8-vmq-key'
@@ -29,6 +31,7 @@ import path from 'path'
 import { pathToFileURL } from 'url'
 import { randomBytes } from 'crypto'
 import { Prisma } from '@prisma/client'
+import { NextRequest } from 'next/server'
 import {
   prisma,
   check,
@@ -429,6 +432,7 @@ async function main() {
     await t10(w, X)
     await t11(w)
     await t12app(w)
+    await tPartnerReply(w)
     if (ARGV.includes('--no-nginx')) console.log('\n· T12 nginx 层：--no-nginx，未验证')
     else await t12nginx()
   } finally {
@@ -999,17 +1003,30 @@ const CLOSED_RE = [
   /^games(\/|$)/,
   /^links(\/|$)/,
   // /^announcement$/ 移出（2026-10-05 渠道品牌与公告）：渠道 Host 返回本渠道自己的公告，归 OPEN（nginx 白名单同步放行）
+  // track/view（docs/微信机器人-设计.md §6.5）：应用里另有开关 TRACK_CHANNEL_VIEWS，关着时渠道 Host 与改造前逐字相同（404）。
+  // 本脚本开头清掉了这个开关，所以应用层仍按关闭模块断言；nginx 白名单已放行它，nginx 层按 GATED_OPEN_RE 核对
   /^track\/view$/,
   /^upload$/,
   /^mkt(\/|$)/,
   /^invoice-requests(\/|$)/,
   /^finance(\/|$)/,
   /^quick-reply(\/|$)/,
+  // 微信机器人一次性补货（docs/微信机器人-设计.md §9、§12.3）：平台内部工具，第一句 denyOnChannel()，渠道 Host 404
+  /^bot\/x(\/|$)/,
 ]
-const SECRET_RE = [/^cron(\/|$)/, /^inventory(\/|$)/, /^pay\/sms-notify$/]
+// bot/wxpad：微信机器人协议服务的回调（docs/微信机器人-设计.md §11.3、§12.3），凭路径密钥鉴权，只走 Docker 内网（nginx 对外一律 404，见 T12 nginx 层）。
+// cron/bot-tick、cron/bot-daily 由 cron 一项覆盖（x-cron-secret）；admin/bot/* 由 admin/ 前缀归 ADMIN（每个 handler adminGuard，边界检查规则 6）
+const SECRET_RE = [/^cron(\/|$)/, /^inventory(\/|$)/, /^pay\/sms-notify$/, /^bot\/wxpad(\/|$)/]
 /** 与 nginx 渠道 /api 白名单同一口径（设计 4.3）；这里独立写一份，nginx 层测试会拿它与 nginx.conf 的实际行为互相核对 */
 // domain-check：平台经公网校验自定义域名的应答端（docs/多渠道分销-自定义域名.md 第 9 节），只回签名，渠道 Host 上放行
-const OPEN_RE = /^(auth|products|categories|orders|pay\/vmq\/(create|status)|receipts|invoices|invoice-titles|redeem|partner|account\/(profile|unread|overview)|domain-check|announcement)(\/|$)/
+// partner-reply：分站群留言的渠道快速回复（docs/微信机器人-设计.md §5.5），只在渠道自己的域名上可用（主站 Host 由接口自己 404，见 tPartnerReply）；
+// 不能指望上面的 partner 一项：partner(\/|$) 匹配不到 partner-reply
+const OPEN_RE = /^(auth|products|categories|orders|pay\/vmq\/(create|status)|receipts|invoices|invoice-titles|redeem|partner|account\/(profile|unread|overview)|domain-check|announcement|partner-reply)(\/|$)/
+/**
+ * nginx 渠道 /api 白名单已放行、应用层另有开关的路由（docs/微信机器人-设计.md §6.5）：nginx 层按「放行」核对，
+ * 应用层仍归 CLOSED（开关关着时 404，见上面 CLOSED_RE 里 track/view 的说明）。开关正式打开后挪进 OPEN_RE、从 CLOSED_RE 删掉。
+ */
+const GATED_OPEN_RE = /^track\/view$/
 /** 主会话 D3：这两个路由待加 denyOnChannel（P0 前置新增、第 13 节无归属） */
 /** 主会话 D3：P0 前置新增的两条绑定验证路由，集成阶段补了 denyOnChannel()（原「待集成」项） */
 const D3_ROUTES = new Set(['account/bindings/send-code', 'account/bindings/verify'])
@@ -1078,6 +1095,8 @@ async function t12app(w: World) {
     // 主会话 D4（集成阶段已改为异步服务端 layout，第一行 await notFoundOnChannel()）
     ['src/app/invoice-request/[token]/layout.tsx', null],
     ['src/app/unsubscribe/[token]/layout.tsx', null],
+    // 微信机器人一次性补货页（docs/微信机器人-设计.md §9.2）：平台内部工具，layout 第一行 notFoundOnChannel()
+    ['src/app/bot/x/[token]/layout.tsx', null],
   ]
   const badL: string[] = []
   for (const [file, pendingOwner] of layouts) {
@@ -1107,6 +1126,143 @@ async function t12app(w: World) {
   }
   const lot = await call(await handler('lottery/info', 'GET'), who)
   check('抽奖接口在渠道 Host → 404', lot.status === 404)
+}
+
+// ===========================================================================
+// T12 应用层 · 渠道快速回复（docs/微信机器人-设计.md §5.5、§17「渠道快速回复只在本站域名可用」）：
+// 接口 /api/partner-reply/<令牌> 与页面 /partner-reply/<令牌> 只在令牌所属分站自己的 Host 上可用；开关没开、主站 / 别的渠道 Host、
+// 令牌被改 / 过期 / 订单不属于该分站一律同体 404（页面 notFound）、零写入；回复与渠道后台同一流程；暂停营业只读；每令牌 10 分钟 20 条
+// ===========================================================================
+async function tPartnerReply(w: World) {
+  section('T12 应用层：渠道快速回复（只在本站域名可用、不合格一律同体 404、回复落库口径、暂停营业只读、每令牌限频）')
+  const { issueTenantReplyToken } = await import('../../src/lib/bot/tenant-reply')
+  const GET = await handler('partner-reply/[token]', 'GET')
+  const POST = await handler('partner-reply/[token]', 'POST')
+  type PageFn = (p: { params: { token: string } }) => Promise<unknown>
+  const page = (await import(pathToFileURL(path.join(ROOT, 'src/app/partner-reply/[token]/page.tsx')).href)) as { default: PageFn }
+  const renderPage = (host: string, token: string) => withRequest({ host }, () => catchNext(() => page.default({ params: { token } })))
+  const L = w.lulu
+  const o = w.orders.luluAuto
+  const DAY = 86400_000
+  const tok = issueTenantReplyToken(o.orderNo, L.id, DAY)
+  const at = (t: string) => ({ path: `/api/partner-reply/${t}`, params: { token: t } })
+  const NOT_FOUND_JSON = JSON.stringify({ success: false, error: '资源不存在' })
+  const msgCount = () => prisma.orderMessage.count({ where: { orderId: o.id } })
+  // 改签名中段的一个字符（末位字符只带 4 个有效比特，换成相邻字符可能解出同样的字节，这里只比字符串也不该依赖它）
+  const tamper = (t: string) => {
+    const i = t.length - 5
+    return t.slice(0, i) + (t[i] === 'A' ? 'B' : 'A') + t.slice(i + 1)
+  }
+  const saved = process.env.BOT_TENANT_REPLY
+  try {
+    delete process.env.BOT_TENANT_REPLY
+    const off = await call(GET, { host: L.host }, at(tok))
+    const offPage = await renderPage(L.host, tok)
+    check('BOT_TENANT_REPLY 没开：lulu Host + 有效令牌 → 接口 404、页面 notFound', off.status === 404 && off.text === NOT_FOUND_JSON && offPage.kind === 'notFound', `${off.status} ${offPage.kind}`)
+
+    process.env.BOT_TENANT_REPLY = '1'
+    const ok = await call(GET, { host: L.host }, at(tok))
+    check('lulu Host + lulu 的令牌 → 200，订单号对得上、留言是数组', ok.status === 200 && ok.json?.data?.order?.orderNo === o.orderNo && Array.isArray(ok.json?.data?.rows), `${ok.status} ${ok.text.slice(0, 120)}`)
+    const keys = new Set<string>()
+    const walk = (v: unknown) => {
+      if (Array.isArray(v)) v.forEach(walk)
+      else if (v && typeof v === 'object')
+        for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+          keys.add(k)
+          walk(x)
+        }
+    }
+    walk(ok.json)
+    const leak = ['email', 'nickname', 'user', 'buyer', 'content', 'senderRole', 'senderUserId', 'readByTenant', 'readByAdmin', 'deliveryInfo', 'id', 'orderId', 'userId', 'tenantId', 'supplyCents', 'supplyUnitPrice', 'mainPriceAtOrder', 'buyerRemark', 'remark'].filter((k) => keys.has(k))
+    check(
+      '响应字段收窄：无买家邮箱 / 昵称、无卡密与交付信息、无内部 id 与进货价',
+      leak.length === 0 && !ok.text.includes(w.users.luluBuyer1.email) && !ok.text.includes(MARK.cardPlain),
+      leak.join(','),
+    )
+    const raw = await withRequest({ host: L.host }, () => GET(new NextRequest(`http://${L.host}/api/partner-reply/${tok}`, { headers: { host: L.host } }), { params: { token: tok } }))
+    check('响应 Cache-Control: no-store', raw.headers.get('cache-control') === 'no-store', String(raw.headers.get('cache-control')))
+    const okPage = await renderPage(L.host, tok)
+    check('页面：lulu Host + 有效令牌 → 正常渲染', okPage.kind === 'ok', okPage.kind === 'error' ? String((okPage as { error: unknown }).error).slice(0, 160) : okPage.kind)
+
+    const variants: [string, string, string][] = [
+      ['主站 Host', MAIN_HOST, tok],
+      ['zz 的 Host', w.zz.host, tok],
+      ['签名被改', L.host, tamper(tok)],
+      ['已过期', L.host, issueTenantReplyToken(o.orderNo, L.id, -60_000)],
+      ['zz 的订单（令牌签给 lulu）', L.host, issueTenantReplyToken(w.orders.zzAuto.orderNo, L.id, DAY)],
+      ['主站订单（令牌签给 lulu）', L.host, issueTenantReplyToken(w.orders.crossMain.orderNo, L.id, DAY)],
+      ['登录 JWT 当令牌', L.host, w.token(w.users.luluOwner, L)],
+    ]
+    const n0 = await msgCount()
+    const bad: string[] = []
+    for (const [label, host, t] of variants) {
+      const g = await call(GET, { host }, at(t))
+      const p = await call(POST, { host }, { method: 'POST', ...at(t), body: { content: 'itest-pr 不该落库' } })
+      const pg = await renderPage(host, t)
+      if (!(g.status === 404 && g.text === NOT_FOUND_JSON)) bad.push(`GET ${label} → ${g.status}`)
+      if (!(p.status === 404 && p.text === NOT_FOUND_JSON)) bad.push(`POST ${label} → ${p.status}`)
+      if (pg.kind !== 'notFound') bad.push(`页面 ${label} → ${pg.kind}`)
+    }
+    check(`${variants.length} 种不合格的 Host / 令牌：接口 GET、POST 一律同体 404，页面 notFound`, bad.length === 0, bad.join('；'))
+    check('以上零写入', (await msgCount()) === n0)
+
+    setChannelsMode('dormant')
+    try {
+      const d = await call(GET, { host: L.host }, at(tok))
+      check('休眠期（任何 Host 都是主站）：lulu Host + 有效令牌 → 404', d.status === 404 && d.text === NOT_FOUND_JSON, `${d.status}`)
+    } finally {
+      setChannelsMode('observe')
+    }
+
+    // 回复：先放一条渠道未读的买家留言，验证「回复时标渠道已读、站长红点不动」
+    const buyerMsg = await prisma.orderMessage.create({ data: { orderId: o.id, sender: 'BUYER', content: 'itest-pr 买家留言', readByTenant: false } })
+    const n1 = await msgCount()
+    const text = 'itest-pr 渠道快速回复'
+    const r = await call(POST, { host: L.host }, { method: 'POST', ...at(tok), body: { content: `  ${text}  ` } })
+    check('POST → 200，返回新留言行（本店、去首尾空白）', r.status === 200 && r.json?.data?.row?.sender === 'PARTNER' && r.json?.data?.row?.messageText === text, `${r.status} ${r.text.slice(0, 120)}`)
+    const reply = await prisma.orderMessage.findFirst({ where: { orderId: o.id }, orderBy: { id: 'desc' } })
+    check(
+      '落库：sender=ADMIN、senderRole=PARTNER、senderUserId 留空、readByTenant / readByAdmin=true、readByBuyer=false，只多一行',
+      reply?.sender === 'ADMIN' && reply.senderRole === 'PARTNER' && reply.senderUserId === null && reply.content === text && reply.readByTenant === true && reply.readByAdmin === true && reply.readByBuyer === false && (await msgCount()) === n1 + 1,
+    )
+    const bm = await prisma.orderMessage.findUnique({ where: { id: buyerMsg.id } })
+    check('买家留言标渠道已读、readByAdmin 不动（站长红点保留）', bm?.readByTenant === true && bm.readByAdmin === false)
+    const audit = await prisma.auditEvent.findFirst({ where: { tenantId: L.id, action: 'order.message' }, orderBy: { id: 'desc' } })
+    const diff = audit?.diff as Json
+    check(
+      '审计：TENANT、actorUserId 留空、targetId = 订单号、diff = { length, via: partner-reply }',
+      audit?.actorKind === 'TENANT' && audit.actorUserId === null && audit.targetId === o.orderNo && diff?.via === 'partner-reply' && diff?.length === text.length,
+      JSON.stringify(diff),
+    )
+
+    const n2 = await msgCount()
+    const empty = await call(POST, { host: L.host }, { method: 'POST', ...at(tok), body: { content: '   ' } })
+    const long = await call(POST, { host: L.host }, { method: 'POST', ...at(tok), body: { content: 'x'.repeat(1001) } })
+    check('空白内容 / 超过 1000 字 → 400、不落库', empty.status === 400 && long.status === 400 && (await msgCount()) === n2, `${empty.status} ${long.status}`)
+
+    await prisma.tenant.update({ where: { id: L.id }, data: { status: 'SUSPENDED' } })
+    try {
+      const sg = await call(GET, { host: L.host }, at(tok))
+      const sp = await call(POST, { host: L.host }, { method: 'POST', ...at(tok), body: { content: 'itest-pr 暂停营业时回复' } })
+      const spg = await renderPage(L.host, tok)
+      check('暂停营业：能看（GET 200、页面照常）、不能回（POST 403、不落库）', sg.status === 200 && spg.kind === 'ok' && sp.status === 403 && (await msgCount()) === n2, `${sg.status} ${spg.kind} ${sp.status}`)
+    } finally {
+      await prisma.tenant.update({ where: { id: L.id }, data: { status: 'ACTIVE' } })
+    }
+
+    // 每令牌 10 分钟 20 条：换一条新链接（过期时刻不同 = 另一个令牌，不吃上面几次的计数）；call 每次换 IP，碰不到按 IP 的那道
+    const tok2 = issueTenantReplyToken(o.orderNo, L.id, DAY + 60_000)
+    let stop = 0
+    for (let i = 1; i <= 21 && !stop; i++) {
+      const x = await call(POST, { host: L.host }, { method: 'POST', ...at(tok2), body: { content: `itest-pr 限频 ${i}` } })
+      if (x.status === 429) stop = i
+      else if (x.status !== 200) stop = -x.status
+    }
+    check('同一令牌 10 分钟内前 20 条照常、第 21 条 → 429', stop === 21, String(stop))
+  } finally {
+    if (saved === undefined) delete process.env.BOT_TENANT_REPLY
+    else process.env.BOT_TENANT_REPLY = saved
+  }
 }
 
 // ===========================================================================
@@ -1255,6 +1411,14 @@ async function ngxObserve(port: number, CH: string, ngxName: string, port80: num
   check('主站 /api/admin/stats → 进应用（后台照常）', up(ma), st(ma))
   const mc = await ngxGet(port, MAIN_HOST, '/api/cron/news')
   check('/api/cron/* 外部入口一律 404（原有规则不变）', !('error' in mc) && mc.status === 404, st(mc))
+  // 微信机器人协议服务的回调（docs/微信机器人-设计.md §11.3、附录 B 第 8 条）：只给 Docker 内网直连 app:3000，任何对外入口一律 404；
+  // 与 /api/cron/ 同一种 ^~ 前缀写法，合并斜杠、百分号编码的写法也要命中
+  for (const H of [MAIN_HOST, '39.96.0.1']) {
+    for (const p of ['/api/bot/wxpad/hook/itest', '/api//bot/wxpad/hook/itest', '/api/%62ot/wxpad/hook/itest']) {
+      const r = await ngxGet(port, H, p, 'POST', { 'content-type': 'application/json' })
+      check(`${H} POST ${p} → 404、不进应用`, !('error' in r) && r.status === 404 && !r.text.includes('UPSTREAM'), st(r))
+    }
+  }
   const ip = await ngxGet(port, '39.96.0.1', '/api/products')
   check('观察期：服务器 IP 当主站进应用', up(ip), st(ip))
 
@@ -1267,6 +1431,11 @@ async function ngxObserve(port: number, CH: string, ngxName: string, port80: num
   check('渠道 / → 进应用，且带 X-Robots-Tag: noindex, follow', up(c1) && (c1 as { headers: http.IncomingHttpHeaders }).headers['x-robots-tag'] === 'noindex, follow', st(c1))
   const cp = await ngxGet(port, CH, '/partner/orders')
   check('渠道 /partner/orders → 进应用', up(cp), st(cp))
+  // 渠道快速回复页（docs/微信机器人-设计.md §5.5）：独立一级路径，渠道 Host（子域名与自定义域名）上必须照常进应用；接口那半在下面的白名单遍历里
+  for (const H of [CH, CUSTOM_TEST]) {
+    const r = await ngxGet(port, H, '/partner-reply/itest')
+    check(`${H} /partner-reply/itest → 进应用`, up(r), st(r))
+  }
 
   // 全部 /api 路由（从目录生成）按白名单期望逐条请求。子域名渠道与自定义域名渠道各遍历一遍：
   // 自定义域名同样只能碰到渠道白名单（短信接码、余额、充值等一律 404）
@@ -1279,7 +1448,8 @@ async function ngxObserve(port: number, CH: string, ngxName: string, port80: num
       const url = '/api/' + rel.replace(/\[\.\.\.[^\]]+\]/g, 'x/y').replace(/\[[^\]]+\]/g, (m) => (/id\]$/i.test(m) ? '1' : 'itest'))
       const r = await ngxGet(port, H, url)
       // 这里走的是 8080（公网 IP 直连入口）：domain-check 在这个入口一律 404，隧道入口（容器 80）上的放行见下面单独的断言
-      const expectPass = OPEN_RE.test(rel) && !rel.startsWith('admin/') && !/^domain-check(\/|$)/.test(rel)
+      // GATED_OPEN_RE（track/view）：nginx 已放行，应用里由开关决定，所以这一层按放行核对
+      const expectPass = (OPEN_RE.test(rel) || GATED_OPEN_RE.test(rel)) && !rel.startsWith('admin/') && !/^domain-check(\/|$)/.test(rel)
       const ok = expectPass ? up(r) : !('error' in r) && r.status === 404 && !r.text.includes('UPSTREAM')
       if (!ok) bad.push(`${url} 期望${expectPass ? '放行' : '404'}，实际 ${st(r)}`)
       else if (expectPass) passN++

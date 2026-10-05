@@ -8,6 +8,7 @@ import { success, error } from '@/lib/api'
 import { syncAutoStock } from '@/lib/cardkey'
 import { FEATURES_FORMAT_ERROR, isFeaturesJson } from '@/lib/product-intro'
 import { adminGuard } from '@/lib/admin-guard'
+import { isBotCodeConflict } from '@/lib/product-status'
 
 const productSchema = z.object({
   categoryId: z.number(),
@@ -36,6 +37,15 @@ const productSchema = z.object({
     .trim()
     .max(64)
     .regex(/^[A-Za-z0-9_.:-]*$/, '对外发卡 SKU 仅允许字母、数字和 _ . - :')
+    .optional()
+    .nullable(),
+  // 微信机器人「货号」（docs/微信机器人-设计.md §8.2）：管理群里 @贝果助手 提卡 <货号> <价格>。
+  // 可空、唯一、字母数字与 _ -、最长 16、存大写；只对自动发货商品有效。与 apiSku 无关（填了不会对外共享库存）
+  botCode: z
+    .string()
+    .trim()
+    .max(16, '机器人货号最多 16 位')
+    .regex(/^[A-Za-z0-9_-]*$/, '机器人货号仅允许字母、数字和 _ -')
     .optional()
     .nullable(),
   // 【必须是 JSON 字符串数组】商品页把每一项当文字渲染；混进一个对象（[{"title":"x"}]）
@@ -106,9 +116,11 @@ export async function POST(request: NextRequest) {
       return error(result.error.errors[0].message)
     }
 
-    // 空 SKU 归一为 null（唯一约束下多个 '' 会冲突，多个 null 不会）
-    const { apiSku, ...rest } = result.data
-    const data = { ...rest, apiSku: apiSku ? apiSku : null }
+    // 空 SKU 归一为 null（唯一约束下多个 '' 会冲突，多个 null 不会）；货号同理，另存大写
+    const { apiSku, botCode, ...rest } = result.data
+    const code = botCode ? botCode.toUpperCase() : null
+    if (code && rest.deliveryType !== 'AUTO') return error('机器人货号只对自动发货商品有效')
+    const data = { ...rest, apiSku: apiSku ? apiSku : null, botCode: code }
 
     const product = await prisma.product.create({ data })
     if (product.deliveryType === 'AUTO') await syncAutoStock(product.id)
@@ -116,7 +128,7 @@ export async function POST(request: NextRequest) {
     return success(product, '商品创建成功')
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-      return error('对外发卡 SKU 已被占用，请换一个')
+      return error(isBotCodeConflict(err) ? '机器人货号已被占用，请换一个' : '对外发卡 SKU 已被占用，请换一个')
     }
     console.error('Create product error:', err)
     return error('创建商品失败')

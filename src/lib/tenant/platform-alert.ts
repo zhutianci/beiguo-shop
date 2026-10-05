@@ -9,11 +9,15 @@
  * 这是平台群，可以带订单号与渠道 code；不要带买家邮箱与卡密（群里成员不止站长一人）。
  */
 
+import { botSink } from '../bot/sink'
+
 function webhookUrl(): string {
   return (process.env.WECOM_WEBHOOK_URL || process.env.ORDER_MSG_WEBHOOK_URL || '').trim()
 }
 
 export async function alertPlatform(text: string): Promise<void> {
+  // 微信机器人旁路（docs/微信机器人-设计.md §5.1）：渠道告警也进主站管理群（站长 Q7）。不抛、不阻塞
+  botSink.fromPlatformAlert(text)
   try {
     const msg = `【渠道告警】${String(text ?? '').slice(0, 1500)}`
     console.warn('[platform-alert]', msg)

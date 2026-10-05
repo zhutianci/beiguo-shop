@@ -5,76 +5,17 @@ import { Prisma, DeliveryStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { decryptCardContent } from '@/lib/cardkey'
-import { round2, toCents } from '@/lib/money'
+import { round2 } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
 import { excludeTopup, isCarrierType } from '@/lib/order-scope'
 import { describeTopupRemark } from '@/lib/wallet/topup'
 import { settledReferralCents } from '@/lib/referral-report'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
-import { channelProfit, smsChargedCost, type ChannelProfit } from '@/lib/admin/channel-profit'
+// 渠道单站长利润的批量取数：原是本文件的私有函数，微信机器人日报也要用，原样抽到 lib（行为不变）
+import { CHANNEL_PROFIT_ORDER_SELECT, channelProfitMap } from '@/lib/admin/channel-profit-batch'
 import { listFooter } from '@/lib/jiema/report'
 
 const PLATFORM_TENANT_ID = 1
-
-/** 渠道单算利润要的订单列（二期 M2；口径见 lib/admin/channel-profit.ts） */
-const CHANNEL_PROFIT_ORDER_SELECT = {
-  id: true,
-  amount: true,
-  quantity: true,
-  supplyCents: true,
-  settleState: true,
-  refundedGoodsCents: true,
-  settleRefundedCents: true,
-  settleLossCents: true,
-  refundedQty: true,
-  product: { select: { deliveryType: true } },
-} as const satisfies Prisma.OrderSelect
-
-type ChannelProfitOrderRow = Prisma.OrderGetPayload<{ select: typeof CHANNEL_PROFIT_ORDER_SELECT }>
-
-/**
- * 一批渠道单（已付 / 已退款）的站长利润。卡密成本与接码成本都按 orderId 批量取，一批两次查询。
- * 只数 status=USED 的卡：已退件但已发出的卡成本照样计入（卡已经送出去了）。
- */
-async function channelProfitMap(rows: ChannelProfitOrderRow[]): Promise<Map<number, ChannelProfit | null>> {
-  const out = new Map<number, ChannelProfit | null>()
-  if (!rows.length) return out
-  const ids = rows.map((r) => r.id)
-  const [cards, sms] = await Promise.all([
-    prisma.cardKey.findMany({ where: { orderId: { in: ids }, status: 'USED' }, select: { orderId: true, cost: true } }),
-    // orderId 在 sms_activations 上唯一，一单最多一条（与详情 channelSection 同口径）
-    prisma.smsActivation.findMany({ where: { orderId: { in: ids } }, select: { orderId: true, cost: true, status: true } }),
-  ])
-  const costsOf = new Map<number, unknown[]>()
-  for (const c of cards) {
-    const arr = costsOf.get(c.orderId as number) ?? []
-    arr.push(c.cost)
-    costsOf.set(c.orderId as number, arr)
-  }
-  const smsOf = new Map(sms.map((x) => [x.orderId, smsChargedCost(x.cost, x.status)]))
-  for (const r of rows) {
-    out.set(
-      r.id,
-      channelProfit(
-        {
-          amountCents: toCents(Number(r.amount)),
-          supplyCents: r.supplyCents,
-          settleState: r.settleState,
-          refundedGoodsCents: r.refundedGoodsCents,
-          settleRefundedCents: r.settleRefundedCents,
-          settleLossCents: r.settleLossCents,
-        },
-        {
-          cardCosts: costsOf.get(r.id) ?? [],
-          smsCost: smsOf.get(r.id),
-          deliveryType: r.product?.deliveryType ?? null,
-          expectQty: r.quantity - (r.refundedQty ?? 0),
-        },
-      ),
-    )
-  }
-  return out
-}
 
 // 获取所有订单（服务端检索 + 筛选 + 分页）
 export async function GET(request: NextRequest) {

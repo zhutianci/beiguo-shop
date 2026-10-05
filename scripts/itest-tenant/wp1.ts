@@ -378,6 +378,8 @@ const CLOSED_API = [
   'games/[gameId]/leaderboard', 'games/[gameId]/score',
   'links/[id]/click', 'links/apply',
   // 'announcement' 移出（2026-10-05 渠道品牌与公告）：渠道 Host 改为返回本渠道自己的公告，见 mods-brand
+  // track/view：渠道是否开放取决于 TRACK_CHANNEL_VIEWS（docs/微信机器人-设计.md §6.5）。itest 不设这个开关，关着时与改造前逐字相同（404），
+  // 所以这条断言照旧成立；外面 shell 里若带了 TRACK_CHANNEL_VIEWS=1，这一项会按「渠道开放」返回 200（这时去掉它再跑）
   'track/view', 'upload',
   'mkt/c/[token]/[idx]', 'mkt/o/[token]', 'mkt/prefs/[token]', 'mkt/unsubscribe/[token]',
   'invoice-requests/[token]',

@@ -6,6 +6,7 @@ import { success, error } from '@/lib/api'
 import { maskEmail, maskNickname } from '@/lib/mask'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { excludeCarriers } from '@/lib/order-scope'
+import { readBotConfig } from '@/lib/bot/config'
 
 const FAKE_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京', '西安', '苏州', '重庆', '天津']
 
@@ -14,6 +15,10 @@ export async function GET() {
   const sf = await getStorefront()
   if (!sf) return error('资源不存在', 404)
   try {
+    // 微信机器人「提卡」单不进实时成交（docs/微信机器人-设计.md §8.7）：提卡专用账号的 id 在 bot_config.issueUserId。
+    // 配置读不到时不排除（那时机器人也提不了卡），不让成交滚动因此报错
+    const botCfg = await readBotConfig().catch(() => null)
+    const issueUserId = botCfg?.ok ? botCfg.config.issueUserId : null
     // 取最近 20 条已支付订单（不包含取消的：已付款又取消 = 线下退款，不能再当成交展示）。
     // 只取本店的：主站的成交滚动不能把渠道单混进来，渠道站（P0 不挂载这个组件）直连接口也拿不到主站的成交（设计 11.1）
     const orders = await prisma.order.findMany({
@@ -23,6 +28,7 @@ export async function GET() {
         deliveryStatus: { not: 'CANCELLED' },
         // 两种系统载体（接码单、充值单）不进首页实时成交（docs/短信接码-设计.md D12、§6.6 第 17 条）
         ...excludeCarriers(),
+        ...(issueUserId ? { userId: { not: issueUserId } } : {}),
       },
       take: 20,
       orderBy: { createdAt: 'desc' },

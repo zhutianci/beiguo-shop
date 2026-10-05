@@ -111,6 +111,7 @@ model Product {
   cardUsage         String?  @map("card_usage") @db.Text // 自动发货使用说明（含售后），展示给买家
   cardRedeemUrl     String?  @map("card_redeem_url") @db.VarChar(500) // 充值/兑换链接，买家拿到卡密后可一键跳转
   apiSku            String?  @unique @map("api_sku") @db.VarChar(64) // 对外发卡编码：外部站点按此调库存 API 领卡，共用同一批卡密（仅 AUTO 有意义）
+  botCode           String?  @unique @map("bot_code") @db.VarChar(16) // 微信机器人「货号」：管理群里 @机器人 提卡 <货号> <价格>（仅 AUTO 有意义；docs/微信机器人-设计.md §8.2）。与 apiSku 无关，填了不会对外共享库存
   features          String?  @db.Text // JSON格式存储商品特性
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
@@ -1622,6 +1623,9 @@ model PageView {
   // 来源域名，只存 host 不存完整 URL（完整 URL 可能带别人站的隐私参数）
   refHost    String?  @map("ref_host") @db.VarChar(120)
   device     String   @db.VarChar(8) // mobile / desktop
+  // 来源站（docs/微信机器人-设计.md §6.5；多渠道设计 P1 预留的 PageView.tenantId）。历史行与主站 = 1。
+  // 渠道站的 viewer_key 带站点前缀再哈希，所以不同站之间不会撞上面的唯一键
+  tenantId   Int      @default(1) @map("tenant_id")
   createdAt  DateTime @default(now()) @map("created_at")
 
   // 同一个人、同一个页面、同一小时只记一条。这是唯一一道不依赖客户端诚实的去重
@@ -1630,6 +1634,7 @@ model PageView {
   @@index([path, dayKey])
   @@index([source, dayKey])
   @@index([createdAt])
+  @@index([tenantId, dayKey])
   @@map("page_views")
 }
 
@@ -1645,8 +1650,11 @@ model Visitor {
   landing   String?  @db.VarChar(191)
   // 首次来源，用于「这个人当初是从哪来的」
   source    String?  @db.VarChar(12)
+  // 来源站（同 PageView.tenantId）；历史行与主站 = 1
+  tenantId  Int      @default(1) @map("tenant_id")
 
   @@index([firstSeen])
+  @@index([tenantId, firstSeen])
   @@index([lastSeen])
   @@map("visitors")
 }
@@ -2246,4 +2254,181 @@ model TenantAnnouncement {
 
   @@index([tenantId, enabled])
   @@map("tenant_announcements")
+}
+
+// ============================================================
+// 微信机器人 —— 契约见 docs/微信机器人-设计.md（§13）
+// 全部是新增表，不与任何已有表建外键（部署只有 CREATE TABLE）。
+// 用于时间比较的字段一律由应用写 new Date()，@default(now()) 只作展示。
+// ============================================================
+
+/// 会话：机器人所在的一个群或一个管理员私聊（§4）
+model BotConversation {
+  id         Int       @id @default(autoincrement())
+  adapter    String    @db.VarChar(16) // wxpad | console
+  externalId String    @map("external_id") @db.VarChar(191) // 群 ID（xxx@chatroom）或私聊对方 wxid
+  name       String?   @db.VarChar(100) // 群名快照（仅展示）
+  kind       String    @db.VarChar(8) // MGMT | TENANT | DM
+  tenantId   Int?      @map("tenant_id") // TENANT 会话绑定的分站；MGMT / DM 为空
+  status     String    @default("ACTIVE") @db.VarChar(12) // ACTIVE | PAUSED | UNREACHABLE | REVOKED
+  allowT3    Boolean   @default(false) @map("allow_t3") // 允许提卡 / 补货等 T3 指令（只能在后台改）
+  subs       Json? // { [类别]: boolean }，缺的类别取事件目录的默认值
+  quietFrom  Int?      @map("quiet_from") @db.SmallInt // 免打扰开始（北京时间，一天中的分钟）；空 = 不设
+  quietTo    Int?      @map("quiet_to") @db.SmallInt
+  boundBy    Int?      @map("bound_by") // bot_admins.id
+  boundAt    DateTime? @map("bound_at")
+  lastSentAt DateTime? @map("last_sent_at")
+  failStreak Int       @default(0) @map("fail_streak")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  @@unique([adapter, externalId])
+  @@index([tenantId, status])
+  @@index([kind, status])
+  @@map("bot_conversations")
+}
+
+/// 管理员（§7.1）。微信身份在 bot_admin_identities，用后台生成的认领码私聊登记
+model BotAdmin {
+  id             Int       @id @default(autoincrement())
+  name           String    @db.VarChar(40)
+  siteUserId     Int?      @map("site_user_id") // 对应的站内 ADMIN 用户（审计 actorUserId）
+  maxTier        Int       @default(3) @map("max_tier") @db.TinyInt // 最高可用指令级别 0–3
+  enabled        Boolean   @default(true)
+  claimCodeHash  String?   @map("claim_code_hash") @db.Char(64) // 认领码 SHA-256；用过即清空
+  claimExpiresAt DateTime? @map("claim_expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("bot_admins")
+}
+
+model BotAdminIdentity {
+  id        Int      @id @default(autoincrement())
+  adminId   Int      @map("admin_id")
+  adapter   String   @db.VarChar(16)
+  wxid      String   @db.VarChar(64) // 协议服务给出的发送人 wxid（不是昵称）
+  nickname  String?  @db.VarChar(64) // 认领时的昵称快照，仅供后台核对
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([adapter, wxid])
+  @@index([adminId])
+  @@map("bot_admin_identities")
+}
+
+/// 站内动态（§5）：notify() 旁路、alertPlatform 旁路、tenant_notices 回扫、新补事件。落库前已脱敏
+model BotEvent {
+  id        Int       @id @default(autoincrement())
+  source    String    @db.VarChar(16) // notify | tenant_notice | platform_alert | direct
+  type      String    @db.VarChar(40) // order.paid / tn.ORDER_PAID / platform.alert / channel.order_created …
+  category  String    @db.VarChar(16)
+  tenantId  Int       @map("tenant_id") // 事件所属站；主站 = 1
+  siteCode  String?   @map("site_code") @db.VarChar(20) // 渠道告警的来源站代码（notify 的 site / alertPlatform 文本里的 [code]）
+  urgent    Boolean   @default(false)
+  title     String    @db.VarChar(120)
+  lines     Json // [{ label, value }]
+  link      String?   @db.VarChar(500)
+  linkText  String?   @map("link_text") @db.VarChar(40)
+  refType   String?   @map("ref_type") @db.VarChar(16)
+  refKey    String?   @map("ref_key") @db.VarChar(64)
+  dedupeKey String    @unique @map("dedupe_key") @db.VarChar(80)
+  routedAt  DateTime? @map("routed_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([routedAt, id])
+  @@index([createdAt])
+  @@map("bot_events")
+}
+
+/// 待发消息（§5.6、§12.1）
+model BotOutbox {
+  id             Int       @id @default(autoincrement())
+  conversationId Int       @map("conversation_id")
+  eventId        Int?      @map("event_id")
+  kind           String    @db.VarChar(10) // EVENT | DIGEST | REPLY | REPORT | ALERT
+  priority       Int       @default(0) @db.TinyInt // 越大越先发：REPLY 30 > 紧急 20 > EVENT 10 > REPORT 0
+  text           String    @db.Text
+  category       String?   @db.VarChar(16) // EVENT 的类别（合并时用）
+  summary        String?   @db.VarChar(120) // 合并成「最近 N 条动态」时的一行摘要
+  dedupeKey      String    @map("dedupe_key") @db.VarChar(80)
+  status         String    @default("PENDING") @db.VarChar(10) // PENDING | SENDING | SENT | FAILED | EXPIRED | MERGED | CANCELLED | BLOCKED
+  attempts       Int       @default(0)
+  notBefore      DateTime  @map("not_before")
+  expiresAt      DateTime  @map("expires_at")
+  leaseUntil     DateTime? @map("lease_until")
+  sentAt         DateTime? @map("sent_at")
+  mergedInto     Int?      @map("merged_into")
+  lastError      String?   @map("last_error") @db.VarChar(255)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@unique([conversationId, dedupeKey])
+  @@index([status, notBefore, priority])
+  @@index([conversationId, status])
+  @@map("bot_outbox")
+}
+
+/// 指令日志（§7）：只记 @机器人 的消息、管理员私聊与管理群系统提示；普通聊天不落库
+model BotCommand {
+  id             Int      @id @default(autoincrement())
+  adapter        String   @db.VarChar(16)
+  msgId          String   @map("msg_id") @db.VarChar(64) // 协议给的消息 ID，入站去重
+  conversationId Int?     @map("conversation_id")
+  convExternalId String   @map("conv_external_id") @db.VarChar(191)
+  kind           String   @db.VarChar(8) // MESSAGE | SYSTEM
+  senderWxid     String?  @map("sender_wxid") @db.VarChar(64)
+  senderName     String?  @map("sender_name") @db.VarChar(64)
+  adminId        Int?     @map("admin_id")
+  name           String?  @db.VarChar(16) // 指令名
+  argsText       String?  @map("args_text") @db.VarChar(255) // 只对管理员的指令记录参数
+  decision       String   @db.VarChar(12) // IGNORED | REJECTED | OK | ERROR
+  reasonCode     String?  @map("reason_code") @db.VarChar(24)
+  resultSummary  String?  @map("result_summary") @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([adapter, msgId])
+  @@index([createdAt])
+  @@index([adminId, createdAt])
+  @@map("bot_commands")
+}
+
+/// 一次性操作令牌（§9 补货页）。只存 SHA-256；GET 只展示、POST 才消费
+model BotActionToken {
+  id             Int       @id @default(autoincrement())
+  tokenHash      String    @unique @map("token_hash") @db.Char(64)
+  action         String    @db.VarChar(12) // RESTOCK
+  params         Json?
+  conversationId Int       @map("conversation_id")
+  adminId        Int       @map("admin_id")
+  commandId      Int?      @map("command_id")
+  expiresAt      DateTime  @map("expires_at")
+  usedAt         DateTime? @map("used_at")
+  usedIp         String?   @map("used_ip") @db.VarChar(45)
+  revokedAt      DateTime? @map("revoked_at")
+  result         Json?
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([expiresAt])
+  @@map("bot_action_tokens")
+}
+
+/// 提卡记录（§8）。command_id 唯一 = 同一条消息无论回调几次只发一次卡
+model BotCardIssue {
+  id             Int      @id @default(autoincrement())
+  commandId      Int      @unique @map("command_id")
+  adminId        Int      @map("admin_id")
+  conversationId Int      @map("conversation_id")
+  orderId        Int      @map("order_id")
+  orderNo        String   @map("order_no") @db.VarChar(32)
+  productId      Int      @map("product_id")
+  quantity       Int
+  unitPrice      Decimal  @map("unit_price") @db.Decimal(10, 2)
+  amount         Decimal  @db.Decimal(10, 2)
+  costTotal      Decimal? @map("cost_total") @db.Decimal(10, 2)
+  cardIds        Json     @map("card_ids")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("bot_card_issues")
 }

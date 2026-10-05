@@ -25,6 +25,7 @@ interface Product {
   smsMaxPrice?: string | number | null
   referrerBasePrice?: string | number | null
   apiSku?: string | null
+  botCode?: string | null
   features: string | null
   category: { id: number; name: string }
 }
@@ -50,6 +51,7 @@ const emptyForm = {
   smsMaxPrice: '' as string | number,
   referrerBasePrice: '' as string | number,
   apiSku: '',
+  botCode: '',
   features: '',
 }
 
@@ -134,6 +136,7 @@ export default function ProductsPage() {
       smsMaxPrice: product.smsMaxPrice != null ? Number(product.smsMaxPrice) : '',
       referrerBasePrice: product.referrerBasePrice != null ? Number(product.referrerBasePrice) : '',
       apiSku: product.apiSku || '',
+      botCode: product.botCode || '',
       features: product.features || '',
     })
     setShowModal(true)
@@ -202,6 +205,8 @@ export default function ProductsPage() {
         // 空串必须转 null：前台 <img src=""> 会被浏览器当成「请求当前页面」再发一次请求
         image: formData.image.trim() || null,
         features: formData.features || null,
+        // 机器人货号只对自动发货商品有效：其它发货方式一律提交空串（= 清空），隐藏的旧值不会被带上去
+        botCode: formData.deliveryType === 'AUTO' ? formData.botCode.trim().toUpperCase() : '',
       }
 
       const res = await fetch(url, {
@@ -590,6 +595,23 @@ export default function ProductsPage() {
                   />
                   <p className="mt-1 text-xs text-gray-400">
                     留空则该商品不对外共享库存。多个站点用同一 SKU 即共用这批卡密，付款先到先得，绝不重复发卡。仅允许字母、数字和 _ . - :
+                  </p>
+                </div>
+              )}
+
+              {formData.deliveryType === 'AUTO' && (
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-gray-700">机器人货号（选填）</label>
+                  <input
+                    type="text"
+                    value={formData.botCode}
+                    maxLength={16}
+                    onChange={(e) => setFormData({ ...formData, botCode: e.target.value.toUpperCase() })}
+                    placeholder="如 GPT1：管理群里 @贝果助手 提卡 GPT1 150"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-mono focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+                  />
+                  <p className="mt-1 text-xs text-gray-400">
+                    微信机器人提卡、补货、上下架时用它指代这个商品。留空则不能在机器人里提卡。仅允许字母、数字和 _ -，最多 16 位，自动转大写；与上面的「对外发卡 SKU」无关。
                   </p>
                 </div>
               )}

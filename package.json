@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/check-tenant-boundary.mjs",
+    "prebuild": "node scripts/check-tenant-boundary.mjs && node scripts/check-bot-boundary.mjs",
     "build": "next build",
     "itest:tenant": "tsx scripts/itest-tenant/run-all.ts",
     "start": "next start",

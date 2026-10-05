@@ -5,6 +5,11 @@ import { createOrGetVmqOrder } from './vmq'
 import { notifyReceiptCreated } from './notify'
 import { BillingError, assertShopOrderBillable, billingFieldsOrThrow, shopOrderIdOfExt, type BuyerInvoiceFields } from './order-invoice'
 import { hasAccountAccess } from './email-proof'
+// 微信机器人旁路（docs/微信机器人-设计.md §5.2「新增」：渠道单收据）。sink / config / render 是叶子模块；storefront/resolve 本文件经 vmq 已间接加载
+import { botSink } from './bot/sink'
+import { botEnabledByEnv } from './bot/config'
+import { yuan } from './bot/render'
+import { storefrontById } from './storefront/resolve'
 
 // BillingError / BuyerInvoiceFields / ensureExternalOrderForShopOrder 等已迁到 ./order-invoice
 // （见那个文件顶部的说明：为了不让 lib/vmq.ts 与本文件形成循环依赖）。
@@ -257,9 +262,47 @@ export async function submitReceiptForExternalOrder(
       createdAt: receipt.createdAt,
       site: null,
     })
+  } else {
+    // 微信机器人：渠道单收据只推该分站自己的群（站长群仍不推，上面不变）。不等它、不抛
+    emitChannelReceiptCreated({ receiptNo: receipt.receiptNo, amount: receipt.amount, tenantId: tf.tenantId, shopOrderId: tf.shopOrderId })
   }
 
   return { token: receipt.token }
+}
+
+/**
+ * 渠道单收据 → 该分站群（docs/微信机器人-设计.md §5.2「新增」）：只有收据号与金额（不含付款人抬头、账户）。
+ * 收据已落库、查重对账也过了之后才调用；fire-and-forget，永不抛（出错只记日志）。BOT_ENABLED 未开时什么都不查。
+ * 链接指向渠道后台这一单：站内订单必须属于这个分站、且 storefrontById 取得到 origin 才带，否则只发两行文字。
+ */
+function emitChannelReceiptCreated(r: { receiptNo: string; amount: unknown; tenantId: number; shopOrderId: number | null }): void {
+  if (!botEnabledByEnv()) return
+  const run = async () => {
+    let href: string | null = null
+    if (r.shopOrderId) {
+      try {
+        const o = await prisma.order.findUnique({ where: { id: r.shopOrderId }, select: { orderNo: true, tenantId: true } })
+        const sf = o && o.tenantId === r.tenantId ? await storefrontById(r.tenantId) : null
+        if (o && sf?.origin) href = `${sf.origin}/partner/orders/${encodeURIComponent(o.orderNo)}`
+      } catch (e) {
+        console.error('[bot] 渠道收据动态：查订单链接失败，改为不带链接', r.receiptNo, (e as Error)?.message)
+      }
+    }
+    botSink.emit({
+      type: 'channel.receipt_created',
+      tenantId: r.tenantId,
+      lines: [
+        { label: '收据号', value: r.receiptNo },
+        { label: '金额', value: yuan(r.amount) },
+      ],
+      link: href,
+      linkText: href ? '渠道后台查看' : null,
+      refType: 'receipt',
+      refKey: r.receiptNo,
+      dedupeKey: `cr:${r.receiptNo}`,
+    })
+  }
+  run().catch((e) => console.error('[bot] 渠道收据动态组装失败', r.receiptNo, (e as Error)?.message))
 }
 
 export interface ManualReceiptItem {

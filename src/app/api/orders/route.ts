@@ -37,6 +37,8 @@ import { alertPlatform } from '@/lib/tenant/platform-alert'
 import type { NotSellableReason } from '@/lib/tenant/types'
 import { excludeTopup, isCarrierType } from '@/lib/order-scope'
 import { payableFrom } from '@/lib/order-payable'
+import { botSink } from '@/lib/bot/sink'
+import { bjMinute, yuan } from '@/lib/bot/render'
 
 const createOrderSchema = z.object({
   // 必须是正整数：小数/负数原本要一路走到 prisma.order.create（Int 列）才炸，
@@ -953,6 +955,8 @@ async function createChannelOrder(sf: Storefront, user: Buyer, input: z.infer<ty
 
   // 7. 渠道单下单（未付款）不再推站长企业微信（docs/多渠道分销-二期改动.md 3.1）：这是纯通知、站长无须处理；
   //    渠道站长关心的是付款之后（vmq.ts 写 ORDER_PAID 渠道通知）。配置异常 / 快照断言失败仍走上面的 alertPlatform 照推站长
+  // 7'. 微信机器人（docs/微信机器人-设计.md §5.2「新增」）：只推该分站自己的群，不推站长企业微信（上面第 7 条不变）
+  emitChannelOrderCreated(sf, created, quantity)
 
   return orderCreatedResponse(created.order, {
     productId,
@@ -963,4 +967,34 @@ async function createChannelOrder(sf: Storefront, user: Buyer, input: z.infer<ty
     couponNote: null,
     lotteryEligible: false,
   })
+}
+
+/**
+ * 渠道站新订单（未付款）→ 该分站群（docs/微信机器人-设计.md §5.2「新增」、附录 A）。建单事务已提交之后调用。
+ * 只有订单号、商品 × 件数、金额（渠道售价，不含开票税费）、下单时间；**不带买家邮箱 / 昵称**。
+ * 链接 = 本店面 origin + 渠道后台这一单（sf 就是 storefrontById(sf.id) 同一份店面，不再多查一次库；origin 为空就不带链接）。
+ * 整段包在 try 里：botSink 本身不抛、不阻塞，这里连拼字符串出错也只记日志——绝不能让已经建好的订单返回失败。
+ */
+function emitChannelOrderCreated(sf: Storefront, created: { order: CreatedShopOrder; productName: string; amount: number }, quantity: number): void {
+  try {
+    const orderNo = created.order.orderNo
+    const link = sf.origin ? `${sf.origin}/partner/orders/${encodeURIComponent(orderNo)}` : null
+    botSink.emit({
+      type: 'channel.order_created',
+      tenantId: sf.id,
+      lines: [
+        { label: '订单号', value: orderNo },
+        { label: '商品', value: `${created.productName} ×${quantity}` },
+        { label: '金额', value: yuan(created.amount) },
+        { label: '下单时间', value: bjMinute(created.order.createdAt) },
+      ],
+      link,
+      linkText: link ? '渠道后台查看' : null,
+      refType: 'order',
+      refKey: orderNo,
+      dedupeKey: `co:${orderNo}`,
+    })
+  } catch (e) {
+    console.error('[bot] 渠道新订单动态组装失败（不影响下单）', (e as Error)?.message)
+  }
 }
