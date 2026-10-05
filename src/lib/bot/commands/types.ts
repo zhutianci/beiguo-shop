@@ -26,7 +26,7 @@ export interface CmdAdmin {
 }
 
 export interface BotContext {
-  adapter: 'wxpad' | 'console'
+  adapter: 'wxpad' | 'console' | 'ilink'
   conv: CmdConversation
   admin: CmdAdmin
   commandId: number

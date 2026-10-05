@@ -5,6 +5,9 @@ import type { Inbound } from '../types'
 
 export type AdapterCapability = 'sender_id' | 'mention_list' | 'system_msgs' | 'chat_list' | 'login_qr'
 
+/** wxpad = WeChatPadPro 小号进群；ilink = 微信官方 ClawBot 一对一绑定（附录 E）；console = 本地测试 */
+export type AdapterName = 'wxpad' | 'console' | 'ilink'
+
 export interface AdapterStatus {
   /** 协议服务连得上 */
   reachable: boolean
@@ -24,10 +27,12 @@ export interface ChatInfo {
 export interface SendResult {
   ok: boolean
   error?: string
+  /** 不是失败、只是现在发不了（iLink 推送窗口关着）：发送器把这个会话的待发消息挪到 until，不计失败次数 */
+  defer?: { until: Date; reason: string }
 }
 
 export interface BotAdapter {
-  readonly name: 'wxpad' | 'console'
+  readonly name: AdapterName
   readonly capabilities: ReadonlySet<AdapterCapability>
   status(): Promise<AdapterStatus>
   /** 登录二维码（图片地址或 data URL）；拿不到返回 null 并带原因 */

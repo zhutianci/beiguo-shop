@@ -9,6 +9,9 @@ import { DATA_COMMANDS } from './data'
 import { OPS_COMMANDS } from './ops'
 import type { BotCommandDef, CmdScope } from './types'
 
+/** iLink 一对一绑定里没有意义的指令（都是把一个群登记成管理群 / 分站群的） */
+export const ILINK_HIDDEN_COMMANDS: readonly string[] = ['设为管理群', '创建', '绑定']
+
 const helpCmd: BotCommandDef<{ name?: string }> = {
   name: '帮助',
   aliases: ['help', '菜单', '?', '？'],
@@ -18,13 +21,18 @@ const helpCmd: BotCommandDef<{ name?: string }> = {
   parse: (args) => (args.length <= 1 ? { ok: true, value: { name: args[0] } } : { ok: false, usage: '用法：帮助 [指令名]' }),
   async run(ctx, a) {
     const scope: CmdScope = ctx.conv.kind ?? 'UNBOUND'
+    // iLink（附录 E）是一对一绑定：不用 @，也没有「把群登记成…」这类指令
+    const ilink = ctx.adapter === 'ilink'
+    const at = ilink ? '' : '@贝果助手 '
+    const hidden = ilink ? ILINK_HIDDEN_COMMANDS : []
     if (a.name) {
       const c = findCommand(a.name)
-      if (!c || !c.scopes.includes(scope)) return { text: `没有「${a.name}」这个指令（在这里不可用）`, summary: 'help' }
-      return { text: `「${c.name}」：${c.help.summary}\n用法：@贝果助手 ${c.help.usage}${c.help.example ? `\n例：@贝果助手 ${c.help.example}` : ''}`, summary: 'help' }
+      if (!c || !c.scopes.includes(scope) || hidden.includes(c.name)) return { text: `没有「${a.name}」这个指令（在这里不可用）`, summary: 'help' }
+      return { text: `「${c.name}」：${c.help.summary}\n用法：${at}${c.help.usage}${c.help.example ? `\n例：${at}${c.help.example}` : ''}`, summary: 'help' }
     }
-    const usable = COMMANDS.filter((c) => c.scopes.includes(scope) && c.tier <= ctx.admin.maxTier && !ctx.config.disabledCommands.includes(c.name))
+    const usable = COMMANDS.filter((c) => c.scopes.includes(scope) && c.tier <= ctx.admin.maxTier && !ctx.config.disabledCommands.includes(c.name) && !hidden.includes(c.name))
     const lines = usable.map((c) => `· ${c.help.usage} —— ${c.help.summary}`)
+    if (ilink) return { text: `🤖 贝果助手 · ${scope === 'TENANT' ? '分站绑定' : '管理员绑定'}可用指令（直接发送即可）\n${lines.join('\n')}`, summary: 'help' }
     const where = scope === 'MGMT' ? '管理群' : scope === 'TENANT' ? '分站群' : scope === 'DM' ? '私聊' : '未登记的群'
     return { text: `🤖 贝果助手 · ${where}可用指令（发送时先 @贝果助手）\n${lines.join('\n')}`, summary: 'help' }
   },

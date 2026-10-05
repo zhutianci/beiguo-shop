@@ -1,11 +1,11 @@
 /**
  * 每分钟的兜底任务（cron /api/cron/bot-tick，docs/微信机器人-设计.md §12.2）：
- * 回扫渠道通知 → 路由 → 作废过期 → 收回租约 → 查小号在线状态并告警 → 唤醒发送器。
+ * 回扫渠道通知 → 路由 → 作废过期 → 收回租约 → 查小号在线状态并告警 → 收消息保活（wxpad WebSocket / iLink 长轮询）→ 唤醒发送器。
  * 整趟持有 bot:tick 锁（防 cron 重叠）；任何一步出错只记日志，后面的步骤照跑。
  */
 import { prisma } from '../db'
 import { notify } from '../notify'
-import { ensureWxpadSocket, getAdapter } from './adapters'
+import { ensureIlinkLoops, ensureWxpadSocket, getAdapter } from './adapters'
 import { botEnabledByEnv } from './config'
 import { acquireBotLock, releaseBotLock } from './lock'
 import { handleInbound } from './inbound'
@@ -103,6 +103,8 @@ export async function runTick(now: Date = new Date()): Promise<TickResult> {
     const online = await step('health', () => checkHealth(now), null)
     // 收消息走 WebSocket 时（BOT_WXPAD_RECEIVE=ws）：连接断了在这里补连；webhook 模式什么都不做
     await step('socket', () => ensureWxpadSocket(handleInbound), undefined)
+    // iLink（附录 E）：每个在用的绑定一个长轮询收消息循环，停了就在这里重起；不是 iLink 适配器时什么都不做
+    await step('ilink', () => ensureIlinkLoops(handleInbound), 0)
     kickSender()
     return { scanned, routed, expired, recovered, online }
   } finally {

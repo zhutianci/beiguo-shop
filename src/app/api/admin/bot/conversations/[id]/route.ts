@@ -6,6 +6,8 @@ import { adminGuard } from '@/lib/admin-guard'
 import { success, error } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { cancelPendingForConversation } from '@/lib/bot/outbox'
+import { stopIlinkLoop } from '@/lib/bot/adapters'
+import { deleteBinding } from '@/lib/bot/adapters/ilink-store'
 import { CATEGORY_LABELS, LOCKED_CATEGORIES, MGMT_CATEGORIES, TENANT_CATEGORIES, type BotCategory } from '@/lib/bot/types'
 import { auditSoft, currentActor, intIn, parseId, readBody } from '@/app/api/admin/bot/_lib/common'
 import { WALLET_TOPUP_KEY, effectiveSubs, toConvDTO } from '@/app/api/admin/bot/_lib/dto'
@@ -135,6 +137,11 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     const now = new Date()
     const cancelled = await cancelPendingForConversation(id)
     const tokens = await prisma.botActionToken.updateMany({ where: { conversationId: id, usedAt: null, revokedAt: null, expiresAt: { gt: now } }, data: { revokedAt: now } })
+    // iLink 绑定（附录 E）：停掉收消息循环、删掉加密保存的 bot_token（不在库里留可用的凭据）。对方微信里的 ClawBot 由对方自己删
+    if (conv.adapter === 'ilink') {
+      stopIlinkLoop(id)
+      await deleteBinding(id)
+    }
     const actor = await currentActor()
     await auditSoft(request, actor, 'bot.admin.conv_unbind', { type: 'bot_conversation', id: String(id) }, {
       conversationId: id,

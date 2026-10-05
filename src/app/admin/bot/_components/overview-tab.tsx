@@ -14,7 +14,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Modal } from '@/components/admin/marketing/modal'
 import { cn } from '@/lib/utils'
-import type { ConvListDTO, LiveStatusDTO, LockResultDTO, LoginProgressDTO, LoginQrDTO, OverviewDTO, TestMessageDTO, TestMessageStatusDTO } from '../types'
+import type { BotAdapterName, ConvListDTO, LiveStatusDTO, LockResultDTO, LoginProgressDTO, LoginQrDTO, OverviewDTO, TestMessageDTO, TestMessageStatusDTO } from '../types'
+import { IlinkCard } from './ilink-card'
 import { ago, api, Badge, bjTime, FlashNote, inputCls, KIND_LABEL, Note, OUTBOX_STATUS, useApi, type Flash } from './shared'
 
 export interface LiveSnapshot {
@@ -38,7 +39,8 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
       <StatusCard ov={ov} err={err} loading={loading} live={live} onReload={onReload} />
-      <LoginCard adapter={ov?.env.adapter ?? null} onDone={() => void onReload(false)} />
+      {/* iLink（附录 E）没有小号：用「微信绑定」代替「登录小号」 */}
+      {ov?.env.adapter === 'ilink' ? <IlinkCard onChanged={() => void onReload(false)} /> : <LoginCard adapter={ov?.env.adapter ?? null} onDone={() => void onReload(false)} />}
       <LockCard ov={ov} onChanged={() => void onReload(false)} />
       <TestMessageCard botEnabled={ov ? ov.env.botEnabled : null} />
     </div>
@@ -109,6 +111,14 @@ function StatusBody({ ov, live }: { ov: OverviewDTO; live: LiveSnapshot | null }
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {env.adapter === 'ilink' ? (
+          // iLink 没有小号：显示通道状态（每分钟健康检查写下的摘要），各绑定的详情在下面「微信绑定」
+          <Tile label="通道" className={st.detail && st.detail.includes('连不上') ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
+            <div className="font-semibold text-gray-800">微信官方 ClawBot（iLink）</div>
+            {st.detail && <div className="break-words text-xs text-gray-600">{st.detail}</div>}
+            <div className="text-xs text-gray-500">最近检查 {ago(st.checkedAt)}</div>
+          </Tile>
+        ) : (
         <Tile label="小号" className={online ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
           <div className={cn('font-semibold', online ? 'text-green-700' : 'text-red-700')}>{online ? '● 在线' : '○ 不在线'}</div>
           <div>{st.nickname || '（还没登录过）'}</div>
@@ -124,6 +134,7 @@ function StatusBody({ ov, live }: { ov: OverviewDTO; live: LiveSnapshot | null }
           )}
           {st.detail && <div className="break-words text-xs text-gray-500">{st.detail}</div>}
         </Tile>
+        )}
         <Tile label={`今日发送（${bjTime(ov.today.since)} 起）`}>
           <div className="text-xl font-bold text-gray-900">{ov.today.sent} 条</div>
           <div className={cn('text-xs', ov.today.failed ? 'text-red-600' : 'text-gray-500')}>失败 {ov.today.failed} 条</div>
@@ -170,7 +181,7 @@ function StatusBody({ ov, live }: { ov: OverviewDTO; live: LiveSnapshot | null }
           <span className="font-medium text-gray-900">环境配置</span>
           {missing.length ? <Badge tone="red">不齐全：缺 {missing.length} 项</Badge> : <Badge tone="green">齐全</Badge>}
           <span className="text-xs text-gray-400">
-            适配器：{env.adapter === 'console' ? 'console（本地测试，不连微信）' : 'wxpad（WeChatPadPro）'}
+            适配器：{env.adapter === 'console' ? 'console（本地测试，不连微信）' : env.adapter === 'ilink' ? 'ilink（微信官方 ClawBot，一对一绑定）' : 'wxpad（WeChatPadPro）'}
           </span>
         </div>
         <ul className="space-y-1">
@@ -210,7 +221,7 @@ const LOGIN_STATE_TEXT: Record<LoginProgressDTO['state'], string> = {
   ERROR: '查询登录进度出错，正在重试…',
 }
 
-function LoginCard({ adapter, onDone }: { adapter: 'wxpad' | 'console' | null; onDone: () => void }) {
+function LoginCard({ adapter, onDone }: { adapter: BotAdapterName | null; onDone: () => void }) {
   const [phase, setPhase] = useState<LoginPhase>({ kind: 'idle' })
   const [busy, setBusy] = useState<'wake' | 'qr' | null>(null)
   const [flash, setFlash] = useState<Flash>(null)

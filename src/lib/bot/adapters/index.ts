@@ -1,22 +1,27 @@
 /**
- * 当前使用的适配器：BOT_ADAPTER=wxpad（默认）| console。进程内单例。
+ * 当前使用的适配器：BOT_ADAPTER=wxpad（默认）| ilink（微信官方 ClawBot，附录 E）| console。进程内单例。
  */
 import { ConsoleAdapter } from './console'
-import type { BotAdapter } from './types'
+import { IlinkAdapter } from './ilink'
+import type { AdapterName, BotAdapter } from './types'
 import { WxpadAdapter } from './wxpad'
 
 export { wxpadEnvStatus } from './wxpad'
 export { ensureWxpadSocket, wxpadReceiveMode, wxpadSocketState } from './wxpad-ws'
+export { ensureIlinkLoops, ilinkLoopSnapshot, stopIlinkLoop } from './ilink-loop'
+export type { AdapterName } from './types'
 
 let instance: BotAdapter | null = null
 
-export function adapterName(): 'wxpad' | 'console' {
-  return (process.env.BOT_ADAPTER || '').trim() === 'console' ? 'console' : 'wxpad'
+export function adapterName(): AdapterName {
+  const v = (process.env.BOT_ADAPTER || '').trim()
+  return v === 'console' ? 'console' : v === 'ilink' ? 'ilink' : 'wxpad'
 }
 
 export function getAdapter(): BotAdapter {
   if (instance && instance.name === adapterName()) return instance
-  instance = adapterName() === 'console' ? new ConsoleAdapter() : new WxpadAdapter()
+  const n = adapterName()
+  instance = n === 'console' ? new ConsoleAdapter() : n === 'ilink' ? new IlinkAdapter() : new WxpadAdapter()
   return instance
 }
 

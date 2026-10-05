@@ -14,7 +14,7 @@ import { botConfigForDelivery, botEnabledByEnv } from './config'
 import { acquireBotLock, releaseBotLock, renewBotLock } from './lock'
 import { notify } from '../notify'
 import { tenantBlacklistHit } from './mask'
-import { enqueueMany, leaseNext, markFailed, markSent, mergeDigest, MAX_ATTEMPTS, openOutboxText } from './outbox'
+import { deferConversation, enqueueMany, leaseNext, markFailed, markSent, mergeDigest, MAX_ATTEMPTS, openOutboxText } from './outbox'
 import { PLATFORM_SITE_LABEL } from './route'
 import { readBotState } from './state'
 
@@ -48,6 +48,10 @@ export function kickSender(): void {
       }
     })
 }
+
+// 给收消息循环用（adapters/ilink-loop.ts 不能 import 本模块：本模块经 adapters/index 引用它，会成环）：
+// 对方来消息后把搁置的消息提前了，就靠这个钩子立刻唤醒发送器
+;(globalThis as unknown as { __botKickSender?: () => void }).__botKickSender = kickSender
 
 function scheduleAt(when: Date): void {
   const delay = when.getTime() - Date.now()
@@ -196,6 +200,11 @@ async function runLoop(): Promise<void> {
           }
         }
         const res = await adapter.sendText(conv.externalId, text)
+        if (!res.ok && res.defer) {
+          // iLink 推送窗口关着（对方超过约 24 小时没说话）：不算失败、不停整个循环，这个会话的消息往后挪，接着发别的会话
+          await deferConversation(conv.id, item.id, res.defer.until, res.defer.reason)
+          continue
+        }
         const at = new Date()
         if (res.ok) {
           await markSent(item.id, at)

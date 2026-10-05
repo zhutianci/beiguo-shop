@@ -178,6 +178,25 @@ export async function markFailed(item: { id: number; attempts: number }, error: 
   return final
 }
 
+/**
+ * iLink（附录 E）：对方超过约 24 小时没说话，推送窗口关了。**不算失败**：取出的这条放回待发，同会话其它待发的也往后挪到 until，
+ * lastError 记 NO_CONTEXT；对方一发消息，收消息循环调 flushDeferred 只把这些提前（免打扰、失败退避的不动）
+ */
+export const DEFER_NO_CONTEXT = 'NO_CONTEXT'
+
+export async function deferConversation(conversationId: number, itemId: number, until: Date, reason: string = DEFER_NO_CONTEXT): Promise<void> {
+  await prisma.botOutbox.updateMany({ where: { id: itemId, status: 'SENDING' }, data: { status: 'PENDING', leaseUntil: null, notBefore: until, lastError: reason } })
+  await prisma.botOutbox.updateMany({ where: { conversationId, status: 'PENDING', notBefore: { lt: until } }, data: { notBefore: until, lastError: reason } })
+}
+
+export async function flushDeferred(conversationId: number, now: Date = new Date()): Promise<number> {
+  const r = await prisma.botOutbox.updateMany({
+    where: { conversationId, status: 'PENDING', lastError: DEFER_NO_CONTEXT, notBefore: { gt: now } },
+    data: { notBefore: now, lastError: null },
+  })
+  return r.count
+}
+
 /** 租约过期（进程在发送途中死掉）→ 收回成 PENDING，计一次尝试 */
 export async function recoverLeases(now: Date = new Date()): Promise<number> {
   const stale = await prisma.botOutbox.findMany({

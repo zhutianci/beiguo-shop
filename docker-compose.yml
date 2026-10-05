@@ -187,7 +187,8 @@ services:
       # PRIVATE_FILES_DIR：打款凭证等私有文件目录，默认 /app/private（下面挂了持久卷）。一般不用设
       - PRIVATE_FILES_DIR
       # 微信机器人（docs/微信机器人-设计.md、docs/微信机器人-部署说明.md）。一律裸变量名：没配 = 完全不定义 = 机器人休眠。
-      #   BOT_ENABLED=1 才工作；BOT_ADAPTER 缺省 wxpad；BOT_WXPAD_BASE 缺省 http://wxpad:8080（只走 Docker 内网）；
+      #   BOT_ENABLED=1 才工作；BOT_ADAPTER：生产 ilink（微信官方 ClawBot，一对一扫码绑定，不需要下面的协议服务，部署说明 §8），
+      #   缺省 wxpad（WeChatPadPro）；BOT_ILINK_BASE 只给本地测试指假服务用，这里刻意不传；BOT_WXPAD_BASE 缺省 http://wxpad:8080（只走 Docker 内网）；
       #   BOT_WXPAD_ADMIN_KEY 与下面 wxpad 服务的 ADMIN_KEY 同值；BOT_WXPAD_HOOK_SECRET ≥ 32 字符（协议服务回调路径里的密钥）；
       #   BOT_WXPAD_PROXY 只在需要同城代理时设；BOT_LINK_ORIGIN 推送里链接的域名（缺省 APP_URL）；
       #   BOT_TENANT_REPLY=1 分站群留言带渠道快速回复链接；TRACK_CHANNEL_VIEWS=1 分站也记 PV/UV（要同时放开 nginx 渠道白名单里的 track）

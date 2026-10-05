@@ -31,11 +31,14 @@ export interface LiveStatusDTO {
   nickname: string | null
 }
 
+/** wxpad = WeChatPadPro 小号进群；ilink = 微信官方 ClawBot 一对一绑定（附录 E）；console = 本地测试 */
+export type BotAdapterName = 'wxpad' | 'console' | 'ilink'
+
 export interface OverviewDTO {
   serverTime: string
   env: {
     botEnabled: boolean
-    adapter: 'wxpad' | 'console'
+    adapter: BotAdapterName
     proxyConfigured: boolean
     adminKeyConfigured: boolean
     hookSecretConfigured: boolean
@@ -126,7 +129,7 @@ export interface ConvDTO {
 }
 
 export interface ConvListDTO {
-  currentAdapter: 'wxpad' | 'console'
+  currentAdapter: BotAdapterName
   list: ConvDTO[]
   summary: { mgmt: number; tenant: number; dm: number; paused: number; unreachable: number; revoked: number }
 }
@@ -139,7 +142,7 @@ export interface ChatDTO {
 }
 
 export interface ChatListDTO {
-  adapter: 'wxpad' | 'console'
+  adapter: BotAdapterName
   chats: ChatDTO[]
   /** 群列表为空时附上协议服务当前状态，方便判断是「没有群」还是「连不上」 */
   status: LiveStatusDTO | null
@@ -302,7 +305,7 @@ export interface SettingsDTO {
   effectiveLinkOrigin: string
   env: {
     botEnabled: boolean
-    adapter: 'wxpad' | 'console'
+    adapter: BotAdapterName
     proxyConfigured: boolean
     adminKeyConfigured: boolean
     hookSecretConfigured: boolean
@@ -310,4 +313,58 @@ export interface SettingsDTO {
   commands: CommandInfoDTO[]
   /** 命令注册表没能加载时的说明（此时只能保留已有的关闭项，不能新增） */
   commandsError: string | null
+}
+
+// ───────────────────────── 微信绑定（iLink，附录 E） ─────────────────────────
+
+export interface IlinkBindingDTO {
+  /** 会话 id */
+  id: number
+  kind: 'MGMT' | 'TENANT'
+  name: string | null
+  tenantId: number | null
+  tenantCode: string | null
+  /** ACTIVE | PAUSED | UNREACHABLE（已失效） */
+  status: string
+  allowT3: boolean
+  boundAt: string | null
+  /** 管理员绑定：登记到了哪位管理员名下 */
+  adminName: string | null
+  /** 凭据能读出来（CARDKEY_SECRET 没换） */
+  credsOk: boolean
+  /** 微信返回 -14：对方解除了绑定或过期 */
+  stale: boolean
+  /** 对方最近一条消息的时间（推送窗口从这里起算约 24 小时） */
+  ctxAt: string | null
+  windowOpen: boolean
+  windowEndsAt: string | null
+  lastInboundAt: string | null
+  loop: { running: boolean; lastOkAt: string | null; lastError: string | null } | null
+  pending: number
+  /** 其中因为推送窗口关着而搁置的 */
+  deferred: number
+}
+
+export interface IlinkOverviewDTO {
+  adapterIsIlink: boolean
+  botEnabled: boolean
+  cardKeyConfigured: boolean
+  bindings: IlinkBindingDTO[]
+  admins: { id: number; name: string; enabled: boolean; maxTier: number }[]
+  tenants: { id: number; code: string; name: string; status: string }[]
+}
+
+export type IlinkBindState = 'WAITING' | 'SCANNED' | 'NEED_CODE' | 'DONE' | 'ALREADY' | 'EXPIRED' | 'ERROR' | 'CANCELLED'
+
+export interface IlinkBindViewDTO {
+  id: string
+  kind: 'MGMT' | 'TENANT'
+  name: string
+  state: IlinkBindState
+  qr: string | null
+  link: string | null
+  message: string | null
+  codeWrong: boolean
+  conversationId: number | null
+  expiresAt: string
 }

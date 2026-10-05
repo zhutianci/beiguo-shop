@@ -18,7 +18,8 @@
  *  B4 指令层（src/lib/bot/commands/**）不直接查业务表（订单、用户、卡密、商品、发票、收据、留言……），只经收窄过的数据访问函数
  *     （src/lib/bot/data、report、ops 下，参数里显式带分站范围），§7.6「处理函数拿不到别的分站」。指令层自己只碰 bot_* 表与 tenants。
  *     真正的分站隔离验证在 itest：A 分站群里查不到 B 分站的任何东西。
- *  B5 协议服务的环境变量 BOT_WXPAD_* 只许 src/lib/bot/adapters/** 与 src/app/api/bot/wxpad/** 读（管理密钥不扩散）。
+ *  B5 协议服务的环境变量 BOT_WXPAD_* 只许 src/lib/bot/adapters/** 与 src/app/api/bot/wxpad/** 读（管理密钥不扩散）；
+ *     iLink 的 BOT_ILINK_*（接口地址，改了就能把 bot_token 引到别处）只许 src/lib/bot/adapters/** 读。
  * 后台接口必须 adminGuard 由 check-tenant-boundary.mjs 规则 6 管（覆盖 src/app/api/admin/**），这里不重复。
  */
 import fs from 'node:fs'
@@ -170,10 +171,14 @@ function ruleB4(files) {
 function ruleB5(files) {
   const out = []
   for (const [f, code] of Object.entries(files)) {
-    if (f.startsWith('src/lib/bot/adapters/') || f.startsWith('src/app/api/bot/wxpad/')) continue
-    const re = /process\.env\.BOT_WXPAD_[A-Z_]+|process\.env\[\s*['"]BOT_WXPAD_/g
+    if (f.startsWith('src/lib/bot/adapters/')) continue
+    const reWxpad = /process\.env\.BOT_WXPAD_[A-Z_]+|process\.env\[\s*['"]BOT_WXPAD_/g
+    const reIlink = /process\.env\.BOT_ILINK_[A-Z_]+|process\.env\[\s*['"]BOT_ILINK_/g
     let m
-    while ((m = re.exec(code))) out.push(hit('B5', f, code, m.index, `协议服务的环境变量只许适配器读（${m[0]}）`))
+    if (!f.startsWith('src/app/api/bot/wxpad/')) {
+      while ((m = reWxpad.exec(code))) out.push(hit('B5', f, code, m.index, `协议服务的环境变量只许适配器读（${m[0]}）`))
+    }
+    while ((m = reIlink.exec(code))) out.push(hit('B5', f, code, m.index, `iLink 的环境变量只许适配器读（${m[0]}）：接口地址改了就能把 bot_token 引到别处`))
   }
   return out
 }
@@ -209,6 +214,8 @@ function selfCheck() {
     { rule: 'B4', files: L({ 'src/lib/bot/commands/x.ts': "export const c = { scopes: ['MGMT', 'TENANT'], run: (ctx) => prisma.order.findMany({ where: { tenantId: ctx.scopeTenantId } }) }\n" }) },
     { rule: 'B4', files: L({ 'src/lib/bot/commands/x.ts': "export const c = { scopes: ['MGMT'], run: () => prisma.cardKey.count() }\n" }) },
     { rule: 'B5', files: L({ 'src/lib/bot/sender.ts': 'const k = process.env.BOT_WXPAD_ADMIN_KEY\n' }) },
+    { rule: 'B5', files: L({ 'src/lib/bot/ilink-bind.ts': 'const b = process.env.BOT_ILINK_BASE\n' }) },
+    { rule: 'B5', files: L({ 'src/app/api/bot/wxpad/hook/[secret]/route.ts': "const b = process.env['BOT_ILINK_BASE']\n" }) },
   ]
   for (const c of cases) {
     const files = { ...(c.rule === 'B1' ? {} : { [SINK]: '' }), ...c.files }
@@ -227,6 +234,7 @@ function selfCheck() {
     // 数据访问函数本身可以查业务表
     'src/lib/bot/data/orders.ts': "export const f = (tenantId) => prisma.order.findMany({ where: { tenantId } })\n",
     'src/lib/bot/adapters/wxpad.ts': 'const k = process.env.BOT_WXPAD_ADMIN_KEY\n',
+    'src/lib/bot/adapters/ilink-api.ts': 'const b = process.env.BOT_ILINK_BASE\n',
     'src/app/api/bot/wxpad/hook/[secret]/route.ts': 'const s = process.env.BOT_WXPAD_HOOK_SECRET\n',
   })
   for (const h of scan(negatives)) problems.push(`阴性样例被误报：规则 ${h.rule} ${h.file} ${h.msg}`)

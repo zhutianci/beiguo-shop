@@ -25,6 +25,11 @@ import type { Inbound } from './types'
 
 const INBOUND_PER_MINUTE = 10
 
+/** iLink 分站绑定里，代理发来消息时的说明（附录 E） */
+export const ILINK_TENANT_HINT =
+  '👋 收到。这个对话会推送本分站的动态（新订单、留言、开票等）和每天的日报。\n' +
+  '微信规定：超过 24 小时没有回复，推送会暂停；平时回复任意一个字即可继续接收。查询与处理请到渠道后台。'
+
 function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex')
 }
@@ -115,12 +120,16 @@ async function tryClaim(m: Inbound, adapter: string): Promise<boolean> {
     create: { adminId: hit.id, adapter, wxid: m.senderWxid, nickname: m.senderName?.slice(0, 64) ?? null },
     update: { adminId: hit.id, enabled: true, nickname: m.senderName?.slice(0, 64) ?? null },
   })
-  // 私聊会话随认领一起登记
-  const conv = await prisma.botConversation.upsert({
-    where: { adapter_externalId: { adapter, externalId: m.convExternalId } },
-    create: { adapter, externalId: m.convExternalId, kind: 'DM', status: 'ACTIVE', allowT3: true, boundBy: hit.id, boundAt: now, name: (m.senderName || hit.name).slice(0, 100) },
-    update: { kind: 'DM', status: 'ACTIVE', boundBy: hit.id, boundAt: now },
-  })
+  // 私聊会话随认领一起登记。iLink 的绑定会话（附录 E）本来就有 kind（MGMT / TENANT），原样保留、只在里面回复
+  const existing = await prisma.botConversation.findUnique({ where: { adapter_externalId: { adapter, externalId: m.convExternalId } } })
+  const conv =
+    existing && existing.kind !== 'DM'
+      ? existing
+      : await prisma.botConversation.upsert({
+          where: { adapter_externalId: { adapter, externalId: m.convExternalId } },
+          create: { adapter, externalId: m.convExternalId, kind: 'DM', status: 'ACTIVE', allowT3: true, boundBy: hit.id, boundAt: now, name: (m.senderName || hit.name).slice(0, 100) },
+          update: { kind: 'DM', status: 'ACTIVE', boundBy: hit.id, boundAt: now },
+        })
   await finish(cmdId, 'OK', null, `认领管理员 #${hit.id}`)
   await prisma.botCommand.update({ where: { id: cmdId }, data: { adminId: hit.id, conversationId: conv.id } }).catch(() => {})
   await writeAudit(null, { actorUserId: hit.siteUserId, actorKind: 'PLATFORM', action: 'bot.admin.claim', targetType: 'bot_admin', targetId: String(hit.id), diff: { wxid: m.senderWxid } }).catch((e) =>
@@ -202,7 +211,14 @@ export async function handleInbound(list: Inbound[]): Promise<void> {
 
       // 第 ③ 道闸：发送人是管理员。不是 → 只记一行，不记内容、不回复
       if (!admin || !admin.enabled) {
-        await recordCommand({ adapter, msgId: m.msgId, conversationId: convActive?.id ?? null, convExternalId: m.convExternalId, kind: 'MESSAGE', senderWxid: m.senderWxid, decision: 'IGNORED', reasonCode: 'NOT_ADMIN' })
+        const ignoredId = await recordCommand({ adapter, msgId: m.msgId, conversationId: convActive?.id ?? null, convExternalId: m.convExternalId, kind: 'MESSAGE', senderWxid: m.senderWxid, decision: 'IGNORED', reasonCode: 'NOT_ADMIN' })
+        // 例外：iLink 的分站绑定（附录 E）。收消息循环只放扫码的那个代理的消息进来——不执行指令，但回一句这里是做什么的、
+        // 以及「24 小时不回复会暂停推送」；同一个会话 6 小时内最多回一次（出队按 dedupe_key 去重）
+        if (ignoredId && adapter === 'ilink' && convActive?.kind === 'TENANT' && convActive.status === 'ACTIVE') {
+          const bucket = Math.floor(Date.now() / (6 * 3600_000))
+          const n = await enqueueReply(convActive.id, ILINK_TENANT_HINT, `hint:${convActive.id}:${bucket}`)
+          if (n) touched = true
+        }
         continue
       }
 
@@ -244,7 +260,7 @@ export async function handleInbound(list: Inbound[]): Promise<void> {
       // 第 ① 道闸：会话
       const scope = convRow ? (convRow.kind as 'MGMT' | 'TENANT' | 'DM') : 'UNBOUND'
       if (!def) {
-        if (scope !== 'UNBOUND') await say('没看懂，发送「@贝果助手 帮助」查看可用指令')
+        if (scope !== 'UNBOUND') await say(adapter === 'ilink' ? '没看懂，发送「帮助」查看可用指令' : '没看懂，发送「@贝果助手 帮助」查看可用指令')
         await finish(cmdId, 'REJECTED', parsed ? 'UNKNOWN' : 'EMPTY', null)
         continue
       }
