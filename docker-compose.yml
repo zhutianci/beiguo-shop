@@ -353,12 +353,15 @@ services:
     oom_score_adj: 1000
     expose:
       - "8080"
-    # 变量名以镜像里的程序为准（2026-10-05 PoC：对 vios18.61-861 的二进制做字符串扫描，只读不执行）：
-    #   它读 ADMIN_KEY、MYSQL_CONNECT_STR、REDIS_HOST / REDIS_PORT / REDIS_DB / **REDIS_PASS**（不是 REDIS_PASSWORD）、
+    # 变量名以镜像里的程序为准（2026-10-05 PoC：二进制字符串扫描 + 首次启动日志核对，程序自报 v860.202507011.00 / 861）：
+    #   它读 PORT（**缺省 1238**，镜像虽然 EXPOSE 8080 却不听 8080，所以这里必须显式给 8080）、HOST（缺省 0.0.0.0）、
+    #   ADMIN_KEY、MYSQL_CONNECT_STR、REDIS_HOST / REDIS_PORT / REDIS_DB / **REDIS_PASS**（不是 REDIS_PASSWORD）、
     #   WORKER_POOL_SIZE、MAX_WORKER_TASK_LEN、*_MQ_ENABLED、KAFKA_ENABLED，以及 gin 自己的 GIN_MODE；
-    #   **不读** WECHAT_PORT 与 DB_HOST / DB_PORT（官方 compose 里 WECHAT_PORT 只用于宿主机端口映射）——容器内固定听 8080（镜像 EXPOSE 8080）。
+    #   **不读** WECHAT_PORT 与 DB_HOST / DB_PORT（官方 compose 里 WECHAT_PORT 只用于宿主机端口映射）。
+    #   另外它自己还起 MCP 服务（SSE 8098、MCP_PORT 缺省 8099，都要带授权码才能用）：不映射端口，只在 Docker 内网。
     environment:
       - TZ=Asia/Shanghai
+      - PORT=8080
       - GIN_MODE=release
       - ADMIN_KEY=${BOT_WXPAD_ADMIN_KEY}
       - REDIS_HOST=wxpad-redis
