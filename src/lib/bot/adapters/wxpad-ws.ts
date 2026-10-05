@@ -13,6 +13,11 @@
  */
 import { readBotState } from '../state'
 import { botEnabledByEnv } from '../config'
+import type { Inbound } from '../types'
+import { parseWxpadCallback } from './wxpad'
+
+/** 入站处理（tick 传 inbound.handleInbound 进来）：这里不 import 入站，免得协议适配器被引用时连带整个指令系统 */
+export type InboundHandler = (list: Inbound[]) => Promise<void>
 
 type WsLike = {
   readyState: number
@@ -40,22 +45,20 @@ export function wxpadSocketState(): 'off' | 'connecting' | 'open' | 'closed' {
   return S.ws && S.ws.readyState === 1 ? 'open' : 'closed'
 }
 
-async function onMessage(raw: unknown): Promise<void> {
+async function onMessage(raw: unknown, handle: InboundHandler): Promise<void> {
   let body: unknown
   try {
     body = JSON.parse(typeof raw === 'string' ? raw : Buffer.isBuffer(raw) ? raw.toString('utf8') : String(raw))
   } catch {
     return // 心跳 / 非 JSON
   }
-  // 动态 import：inbound → adapters → 这里，静态引用会成环
-  const [{ getAdapter }, { handleInbound }] = await Promise.all([import('./index'), import('../inbound')])
   const state = await readBotState()
-  const list = getAdapter().parseCallback(body, state.botWxid)
-  if (list.length) await handleInbound(list)
+  const list = parseWxpadCallback(body, state.botWxid)
+  if (list.length) await handle(list)
 }
 
-/** 确保连接在（tick 每分钟调一次；webhook 模式、机器人休眠、没有授权码时什么都不做） */
-export async function ensureWxpadSocket(): Promise<void> {
+/** 确保连接在（tick 每分钟调一次，传入入站处理；webhook 模式、机器人休眠、没有授权码时什么都不做） */
+export async function ensureWxpadSocket(handle: InboundHandler): Promise<void> {
   if (wxpadReceiveMode() !== 'ws' || !botEnabledByEnv()) return
   const state = await readBotState()
   // 授权码换了（重新登录 / 换备用号）：旧连接作废，用新码重连
@@ -78,7 +81,7 @@ export async function ensureWxpadSocket(): Promise<void> {
       console.log('[bot] 协议服务消息通道已连接（WebSocket）')
     })
     ws.addEventListener('message', (ev) => {
-      void onMessage(ev.data).catch((e) => console.error('[bot] 处理推送消息失败', (e as Error)?.message))
+      void onMessage(ev.data, handle).catch((e) => console.error('[bot] 处理推送消息失败', (e as Error)?.message))
     })
     const closed = () => {
       S.connecting = false
@@ -87,7 +90,7 @@ export async function ensureWxpadSocket(): Promise<void> {
       if (S.retryTimer) return
       S.retryTimer = setTimeout(() => {
         S.retryTimer = null
-        void ensureWxpadSocket()
+        void ensureWxpadSocket(handle)
       }, 10_000)
       S.retryTimer.unref?.()
     }

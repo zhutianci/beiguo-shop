@@ -173,6 +173,17 @@ export function parseWxpadMessage(raw: unknown, selfWxid: string | null): Inboun
   }
 }
 
+/** 一次回调 / 一帧推送 → Inbound[]：数组、{ messages: [] } 或单条都认，最多 100 条 */
+export function parseWxpadCallback(body: unknown, selfWxid: string | null): Inbound[] {
+  const list = Array.isArray(body) ? body : body && typeof body === 'object' && Array.isArray((body as Json).messages) ? ((body as Json).messages as unknown[]) : [body]
+  const out: Inbound[] = []
+  for (const raw of list.slice(0, 100)) {
+    const m = parseWxpadMessage(raw, selfWxid)
+    if (m) out.push(m)
+  }
+  return out
+}
+
 export class WxpadAdapter implements BotAdapter {
   readonly name = 'wxpad' as const
   readonly capabilities: ReadonlySet<AdapterCapability> = new Set<AdapterCapability>(['sender_id', 'mention_list', 'system_msgs', 'chat_list', 'login_qr'])
@@ -277,12 +288,6 @@ export class WxpadAdapter implements BotAdapter {
   }
 
   parseCallback(body: unknown, selfWxid: string | null): Inbound[] {
-    const list = Array.isArray(body) ? body : body && typeof body === 'object' && Array.isArray((body as Json).messages) ? ((body as Json).messages as unknown[]) : [body]
-    const out: Inbound[] = []
-    for (const raw of list.slice(0, 100)) {
-      const m = parseWxpadMessage(raw, selfWxid)
-      if (m) out.push(m)
-    }
-    return out
+    return parseWxpadCallback(body, selfWxid)
   }
 }

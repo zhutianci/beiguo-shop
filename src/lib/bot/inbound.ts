@@ -14,7 +14,7 @@ import { notify } from '../notify'
 import { writeAudit } from '../audit'
 import { rateLimited } from '../news/rate-limit'
 import { adapterName, getAdapter } from './adapters'
-import { readBotConfig } from './config'
+import { DEFAULT_BOT_CONFIG, readBotConfig } from './config'
 import { enqueueMany, enqueueReply, sealOutboxText } from './outbox'
 import { kickSender } from './sender'
 import { readBotState } from './state'
@@ -264,7 +264,7 @@ export async function handleInbound(list: Inbound[]): Promise<void> {
         await finish(cmdId, 'REJECTED', 'CONFIG', null)
         continue
       }
-      const config = cfgRead.ok ? cfgRead.config : (await import('./config')).DEFAULT_BOT_CONFIG
+      const config = cfgRead.ok ? cfgRead.config : DEFAULT_BOT_CONFIG
       if (config.disabledCommands.includes(def.name)) {
         await say(`「${def.name}」已在后台临时关闭`)
         await finish(cmdId, 'REJECTED', 'DISABLED', null)

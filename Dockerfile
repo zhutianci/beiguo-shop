@@ -37,6 +37,10 @@ ENV NEXT_TELEMETRY_DISABLED 1
 # 渠道分站版本（源码 504 → 708 个 .ts/.tsx）已按同一上限复测：2026-09-26 开发机
 # `NODE_OPTIONS=--max-old-space-size=640 npm run build`（含 prebuild）一次通过、预渲染 0 条，单进程工作集峰值约 1.2GB
 # （含堆外内存；V8 堆被压在 640MB 内）。以后代码量大涨时照此复测，出现 `JavaScript heap out of memory` 再调高。
+# 2026-10-05 微信机器人上线（约 +150 个文件）：服务器上 640MB 跑到 210 秒 heap out of memory（存活对象约 597MB）→ 调到 832MB。
+# 复测口径：Windows 开发机同一份代码比服务器的 Linux 更吃堆（上线前的旧代码在 Windows 640MB 也会爆、在服务器 640MB 能过），
+# 所以「Windows 冷构建（删掉 .next）能过」可以作为服务器够用的保守证据：新代码 Windows 冷构建 832MB 通过，工作集峰值约 1.4GB。
+# 服务器上比 640MB 时多吃约 200MB，build-with-swap 放开的是构建自己的内存组，站点容器不受影响。
 #
 # 【构建产物必须校验】Next 14 的 webpack 构建子进程被 OOM 杀掉时，next build 会**静默以 0 退出**，
 # 这一层于是被 BuildKit 当成成功缓存下来（里面没有 .next/standalone）—— 之后同样的源码再构建，
@@ -45,7 +49,9 @@ ENV NEXT_TELEMETRY_DISABLED 1
 #
 # 【渠道分站边界检查】npm run build 会先跑 package.json 的 prebuild = node scripts/check-tenant-boundary.mjs
 # （纯文本扫描，毫秒级，不占内存）：渠道层越界 import、漏守卫、按 Host 缓存等违规直接让这一步失败（设计 6.5.5）。
-RUN NODE_OPTIONS=--max-old-space-size=640 npm run build \
+# 堆上限做成构建参数：本地 Linux 容器里复测「多大才够」时用 --build-arg BUILD_HEAP_MB=… 覆盖，不用改文件
+ARG BUILD_HEAP_MB=832
+RUN NODE_OPTIONS=--max-old-space-size=${BUILD_HEAP_MB} npm run build \
  && test -f .next/standalone/server.js \
  && test -d .next/static
 

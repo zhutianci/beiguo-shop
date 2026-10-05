@@ -1,6 +1,7 @@
 /**
- * 运行时入口：旁路 sink 用动态 import 调到这里（不进模块初始化的依赖图）。
- * 新事件 → 合并 500 毫秒内的多次唤醒 → 路由 → 唤醒发送器。不抛。
+ * 运行时入口：新事件 → 合并 500 毫秒内的多次唤醒 → 路由 → 唤醒发送器。不抛。
+ * 旁路 sink 不 import 这里（静态、动态都不行，见 sink.ts 文件头），而是调本模块加载时注册在 globalThis 上的钩子；
+ * 每分钟的 tick 会 import 本模块，所以进程起来后一分钟内钩子就在了。
  */
 import { botEnabledByEnv } from './config'
 import { routePendingEvents } from './route'
@@ -39,3 +40,5 @@ export async function routeNow(): Promise<void> {
 }
 
 export { kickSender }
+
+;(globalThis as unknown as { __botOnNewEvents?: () => void }).__botOnNewEvents = onNewEvents

@@ -8,7 +8,10 @@ import { notify } from '../notify'
 import { ensureWxpadSocket, getAdapter } from './adapters'
 import { botEnabledByEnv } from './config'
 import { acquireBotLock, releaseBotLock } from './lock'
+import { handleInbound } from './inbound'
 import { enqueueMany, expireOld, recoverLeases } from './outbox'
+// 只为副作用：runtime 加载时把唤醒函数注册到 globalThis，旁路 sink 落库后靠它即时路由（见 sink.ts 文件头）
+import './runtime'
 import { bjMinute } from './render'
 import { PLATFORM_SITE_LABEL, routePendingEvents } from './route'
 import { scanTenantNotices } from './scan'
@@ -99,7 +102,7 @@ export async function runTick(now: Date = new Date()): Promise<TickResult> {
     const recovered = await step('recover', () => recoverLeases(now), 0)
     const online = await step('health', () => checkHealth(now), null)
     // 收消息走 WebSocket 时（BOT_WXPAD_RECEIVE=ws）：连接断了在这里补连；webhook 模式什么都不做
-    await step('socket', () => ensureWxpadSocket(), undefined)
+    await step('socket', () => ensureWxpadSocket(handleInbound), undefined)
     kickSender()
     return { scanned, routed, expired, recovered, online }
   } finally {

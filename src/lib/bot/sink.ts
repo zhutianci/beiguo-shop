@@ -4,7 +4,10 @@
  * 【绝不影响业务】与 notify() 同一个约定：不返回 Promise 给调用方、不抛异常、不阻塞；BOT_ENABLED 未开时直接返回。
  * 【叶子模块】只静态 import db 与本目录的纯函数 / 常量（scripts/check-bot-boundary.mjs 钉着）——
  *  它会被 notify.ts → vmq.ts / 钱包 / 接码间接引用，反向引用业务模块会造成循环依赖。
- *  落库后用动态 import 唤醒路由与发送器（运行时才加载，不进模块初始化的依赖图）。
+ *  **也不许动态 import**：notify 被几十个路由引用，这里一个 import('./runtime') 就会把整个机器人（发送器、协议适配器、
+ *  入站、全部指令、日报取数）作为异步块挂到每一个路由入口上，next build 的 webpack 内存随「入口 × 模块」膨胀，
+ *  2026-10-05 服务器构建因此撑爆 640MB 构建堆。落库后改为调 runtime 自己注册在 globalThis 上的钩子；
+ *  runtime 还没加载（进程刚起、第一次 tick 之前）就不唤醒，每分钟的 tick 会路由。
  * 【落库即脱敏】邮箱打码、手机号打码、买家可控字段再打码疑似卡密并中性化网址（§5.4），库里不留明文。
  */
 import { prisma } from '../db'
@@ -49,9 +52,11 @@ function safeLink(link: string | undefined, linkText: string | undefined): { lin
 }
 
 function kickRuntime(): void {
-  void import('./runtime')
-    .then((m) => m.onNewEvents())
-    .catch((e) => console.error('[bot] 唤醒路由失败', (e as Error)?.message))
+  try {
+    ;(globalThis as unknown as { __botOnNewEvents?: () => void }).__botOnNewEvents?.()
+  } catch (e) {
+    console.error('[bot] 唤醒路由失败', (e as Error)?.message)
+  }
 }
 
 function insertEvent(data: {

@@ -11,7 +11,8 @@
  * 规则：
  *  B1 旁路 src/lib/bot/sink.ts 的运行时依赖闭包（静态 import，跟到 src/lib 里）不许含 notify.ts、bot/adapters、bot/sender、
  *     bot/commands、bot/inbound、bot/runtime：notify() 与 alertPlatform() 第一行就调它，闭包里有这些会形成循环依赖，
- *     或者把发送器、协议适配器拉进每一个调用 notify 的模块。runtime 只许动态 import。
+ *     或者把发送器、协议适配器拉进每一个调用 notify 的模块。**sink.ts 里也不许有任何 import(**：动态 import 会把整个机器人
+ *     作为异步块挂到每个引用 notify 的路由入口上，2026-10-05 服务器 next build 因此撑爆 640MB 构建堆（改为 globalThis 钩子）。
  *  B2 src/lib/bot/** 不许写 payments、不许调 fulfillOrder：提卡不走支付与履约链路（§8.4，不发买家邮件、不触发返现 / 抽奖 / 券）。
  *  B3 src/lib/bot/commands/** 不许 import 支付、钱包、履约、退款、平台快速回复、财务令牌、渠道密钥模块。
  *  B4 指令层（src/lib/bot/commands/**）不直接查业务表（订单、用户、卡密、商品、发票、收据、留言……），只经收窄过的数据访问函数
@@ -96,6 +97,8 @@ const B1_FORBIDDEN = [/^src\/lib\/notify\.ts$/, /^src\/lib\/bot\/adapters\//, /^
 function ruleB1(files) {
   const out = []
   if (files[SINK] === undefined) return [hit('B1', SINK, '', null, '找不到旁路 sink.ts')]
+  const dyn = /\bimport\s*\(/.exec(files[SINK])
+  if (dyn) out.push(hit('B1', SINK, files[SINK], dyn.index, '旁路里不许动态 import（会把整个机器人挂到每个引用 notify 的路由入口上）'))
   const seen = new Map([[SINK, null]])
   const queue = [SINK]
   while (queue.length) {
@@ -189,6 +192,7 @@ function selfCheck() {
   const problems = []
   const L = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, lex(v).code]))
   const cases = [
+    { rule: 'B1', files: L({ [SINK]: "import { prisma } from '../db'\nvoid import('./runtime')\n", 'src/lib/db.ts': '' }) },
     {
       rule: 'B1',
       files: L({
@@ -212,7 +216,7 @@ function selfCheck() {
     if (!hits.length) problems.push(`规则 ${c.rule} 的阳性样例没有命中`)
   }
   const negatives = L({
-    [SINK]: "import { prisma } from '../db'\nimport type { NotifyEvent } from '../notify'\nimport { type X } from './sender'\nvoid import('./runtime')\n",
+    [SINK]: "import { prisma } from '../db'\nimport type { NotifyEvent } from '../notify'\nimport { type X } from './sender'\nconst hook = globalThis.__botOnNewEvents\n",
     'src/lib/db.ts': '',
     'src/lib/notify.ts': '',
     'src/lib/bot/sender.ts': '',
