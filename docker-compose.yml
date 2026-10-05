@@ -339,6 +339,10 @@ services:
   # 【内存】这台机器 1.8G：协议服务 256m、Redis 48m 上限；oom_score_adj 1000 = 整机内存紧张时最先被杀，
   #   restart 自动拉起、会话存在 Redis / MySQL 里自动重连；数据库（-800）与 app（+500）不受牵连。
   # 【版本】上线前把 BOT_WXPAD_IMAGE 锁到 PoC 验证过的那个镜像的 digest（wechatpadpro/wechatpadpro@sha256:...），不用 latest。
+  #   2026-10-05 锁的是 Docker Hub v18.6 = latest（2025-08-25，程序 vios18.61-861）：sha256:436685d7d7f9ac690718caba8b8f95ace92ffe6edd2ccfa002459f364ca1282e。
+  #   服务器配的几个镜像加速站都不代理这个镜像、直连 Docker Hub 超时，所以按 digest 经公共镜像站拉：
+  #   docker pull docker.1ms.run/wechatpadpro/wechatpadpro@sha256:4366…（按 digest 拉会逐字节校验，镜像站换不了内容），
+  #   BOT_WXPAD_IMAGE 就写这个带镜像站前缀的 digest 引用（compose 按它在本地找到镜像，不会再去拉）。
   wxpad:
     image: ${BOT_WXPAD_IMAGE:-wechatpadpro/wechatpadpro:latest}
     container_name: beiguo-wxpad
@@ -349,16 +353,18 @@ services:
     oom_score_adj: 1000
     expose:
       - "8080"
+    # 变量名以镜像里的程序为准（2026-10-05 PoC：对 vios18.61-861 的二进制做字符串扫描，只读不执行）：
+    #   它读 ADMIN_KEY、MYSQL_CONNECT_STR、REDIS_HOST / REDIS_PORT / REDIS_DB / **REDIS_PASS**（不是 REDIS_PASSWORD）、
+    #   WORKER_POOL_SIZE、MAX_WORKER_TASK_LEN、*_MQ_ENABLED、KAFKA_ENABLED，以及 gin 自己的 GIN_MODE；
+    #   **不读** WECHAT_PORT 与 DB_HOST / DB_PORT（官方 compose 里 WECHAT_PORT 只用于宿主机端口映射）——容器内固定听 8080（镜像 EXPOSE 8080）。
     environment:
       - TZ=Asia/Shanghai
-      - WECHAT_PORT=8080
+      - GIN_MODE=release
       - ADMIN_KEY=${BOT_WXPAD_ADMIN_KEY}
       - REDIS_HOST=wxpad-redis
       - REDIS_PORT=6379
       - REDIS_DB=0
-      - REDIS_PASSWORD=${BOT_WXPAD_REDIS_PASSWORD}
-      - DB_HOST=db
-      - DB_PORT=3306
+      - REDIS_PASS=${BOT_WXPAD_REDIS_PASSWORD}
       - MYSQL_CONNECT_STR=wxpad:${BOT_WXPAD_DB_PASSWORD}@tcp(db:3306)/wxpad?charset=utf8mb4&parseTime=true&loc=Local
       # 默认 500 个工作协程是给群控用的，这里只有一个小号
       - WORKER_POOL_SIZE=16
