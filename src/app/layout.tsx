@@ -198,15 +198,16 @@ function siteMetadata(origin: string, isPlatform: boolean): Metadata {
  */
 function brandedMetadata(meta: Metadata, brand: StoreBrand): Metadata {
   if (!isWhiteLabel(brand)) return meta
-  const title = brand.seoTitle ?? withBrandName(TITLE, brand)
-  const description = brand.seoDescription ?? withBrandName(DESCRIPTION, brand)
+  // 只用于渠道站：兜底文案取渠道版 CHANNEL_TITLE / CHANNEL_DESCRIPTION（不带主站域名与大事记，A 包评审修复），再换站名。
+  // keywords 2026-09-30 起全站不写（A 包），这里也不再补一个空的
+  const title = brand.seoTitle ?? withBrandName(CHANNEL_TITLE, brand)
+  const description = brand.seoDescription ?? withBrandName(CHANNEL_DESCRIPTION, brand)
   const icon = brand.logoUrl ?? initialIconDataUrl(brand.name)
   return brandShareImages(
     {
       ...meta,
       title,
       description,
-      keywords: withBrandName(String(meta.keywords ?? ''), brand),
       applicationName: brand.name,
       icons: { icon: [{ url: icon }], shortcut: [icon], apple: brand.logoUrl ? [{ url: brand.logoUrl }] : [] },
       openGraph: { ...meta.openGraph, siteName: brand.name, title, description },
