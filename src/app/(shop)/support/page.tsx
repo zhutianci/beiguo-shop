@@ -205,7 +205,7 @@ export default function SupportPage() {
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/[0.12] bg-white/[0.03] mb-6">
             <Headphones className="w-4 h-4 text-purple-400" />
             <span className="text-sm text-white/80">客户服务中心</span>
           </div>
@@ -247,8 +247,8 @@ export default function SupportPage() {
         >
           <form action="/lookup" onSubmit={handleQuickLookup}>
             <div className="relative">
-              <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-2xl blur-md opacity-30" />
-              <div className="relative flex items-center gap-2 p-2 glass-strong rounded-2xl">
+              <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-2xl blur-md opacity-20 lite:hidden" />
+              <div className="relative flex items-center gap-2 p-2 ui-panel rounded-2xl">
                 <div className="flex-1 flex items-center gap-3 px-4">
                   <Mail className="w-5 h-5 text-white/40" />
                   <input
@@ -263,7 +263,7 @@ export default function SupportPage() {
                 </div>
                 <button
                   type="submit"
-                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 font-semibold flex items-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all"
+                  className="ui-btn ui-btn-primary rounded-xl px-6"
                 >
                   <Search className="w-4 h-4" />
                   查询
@@ -299,8 +299,8 @@ export default function SupportPage() {
                 whileHover={{ y: -4 }}
                 className="relative group text-left"
               >
-                <div className={`absolute -inset-[1px] bg-gradient-to-br ${s.color} rounded-2xl blur-md opacity-0 group-hover:opacity-30 transition-opacity`} />
-                <div className="relative h-full glass rounded-2xl p-6 hover:bg-white/[0.04] transition-colors">
+                <div className={`absolute -inset-[1px] bg-gradient-to-br ${s.color} rounded-2xl blur-md opacity-0 group-hover:opacity-25 transition-opacity duration-200 lite:hidden`} />
+                <div className="relative h-full ui-panel rounded-[20px] p-6 transition-colors duration-200 group-hover:border-white/[0.14]">
                   <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${s.color} mb-4`}>
                     <s.icon className="w-6 h-6" />
                   </div>
@@ -358,8 +358,8 @@ export default function SupportPage() {
                   transition={{ duration: 0.3, delay: i * 0.05 }}
                   className="relative group"
                 >
-                  <div className="absolute -inset-[1px] bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur-md opacity-20" />
-                  <div className="relative glass rounded-2xl p-6 lg:p-7">
+                  <div className="absolute -inset-[1px] bg-gradient-to-r from-amber-500 to-orange-500 rounded-2xl blur-md opacity-[0.12] lite:hidden" />
+                  <div className="relative ui-panel rounded-[20px] p-6 lg:p-7">
                     <h3 className="font-bold text-lg lg:text-xl mb-4">{g.title}</h3>
                     <ol className="space-y-3 lg:space-y-3.5">
                       {g.steps.map((step, j) => (
@@ -454,12 +454,12 @@ export default function SupportPage() {
           transition={{ duration: 0.6 }}
           className="relative"
         >
-          <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-3xl blur-lg opacity-30" />
-          <div className="relative glass-strong rounded-3xl p-10 lg:p-14 text-center">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 mb-5">
-              <MessageCircle className="w-7 h-7" />
+          {/* 设计精修 2026-10-07：实心面板 + 顶边细光（原来四色光晕透过半透明卡，整块发紫） */}
+          <div className="relative ui-panel ui-panel-accent p-10 lg:p-14 text-center">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 mb-5">
+              <MessageCircle className="w-6 h-6 text-emerald-300" />
             </div>
-            <h3 className="text-2xl lg:text-3xl font-bold mb-3">没找到你需要的答案？</h3>
+            <h3 className="text-2xl lg:text-3xl font-semibold tracking-tight mb-3">没找到你需要的答案？</h3>
             <p className="text-white/60 lg:text-lg mb-6 max-w-md lg:max-w-lg mx-auto">
               {/* 渠道可能只设了微信号或只传了二维码：按实际有的方式说，不写出空的微信号 */}
               {contact.wechat ? (
@@ -480,7 +480,7 @@ export default function SupportPage() {
             <div className="flex items-center justify-center gap-3 flex-wrap">
               <button
                 onClick={() => setContactOpen(true)}
-                className="inline-flex items-center gap-2 px-7 py-3 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 font-semibold hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all"
+                className="ui-btn ui-btn-primary px-7"
               >
                 <MessageCircle className="w-4 h-4" />
                 联系客服
@@ -488,7 +488,7 @@ export default function SupportPage() {
               {lookupOn && (
                 <Link
                   href="/lookup"
-                  className="inline-flex items-center gap-2 px-7 py-3 rounded-full glass hover:bg-white/10 font-semibold transition-colors"
+                  className="ui-btn ui-btn-secondary px-7"
                 >
                   <Search className="w-4 h-4" />
                   查询订阅

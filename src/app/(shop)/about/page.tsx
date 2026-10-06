@@ -52,8 +52,8 @@ export default async function AboutPage() {
       <div className="container relative">
         {/* Hero */}
         <div className="text-center max-w-3xl lg:max-w-4xl mx-auto mb-14 lg:mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6">
-            <Sparkles className="w-4 h-4 text-purple-400" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/[0.12] bg-white/[0.03] mb-6">
+            <Sparkles className="w-4 h-4 text-violet-300" />
             <span className="text-sm text-white/80">关于我们</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-bold mb-6 tracking-tighter">
@@ -67,7 +67,7 @@ export default async function AboutPage() {
         {/* 四项可核验的事实 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-20 lg:mb-24">
           {facts.map((f) => (
-            <div key={f.value} className="glass rounded-2xl p-5 md:p-6 text-center">
+            <div key={f.value} className="ui-card p-5 md:p-6 text-center">
               <div className="text-xl md:text-2xl font-bold gradient-text-accent mb-2">{f.value}</div>
               <div className="text-xs md:text-sm text-white/55">{f.label}</div>
             </div>
@@ -155,7 +155,7 @@ export default async function AboutPage() {
             <h2 id="about-not" className="text-2xl lg:text-3xl font-bold mb-6">
               <span className="gradient-text">我们不做什么</span>
             </h2>
-            <ul className="glass rounded-2xl p-6 lg:p-8 space-y-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
+            <ul className="ui-card p-6 lg:p-8 space-y-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
               <li className="flex gap-3">
                 <ShieldAlert className="mt-1 w-5 h-5 shrink-0 text-amber-300/80" />
                 <span>
@@ -185,7 +185,7 @@ export default async function AboutPage() {
             <h2 id="about-entity" className="text-2xl lg:text-3xl font-bold mb-6">
               <span className="gradient-text">经营主体与执照</span>
             </h2>
-            <div className="glass rounded-2xl p-6 lg:p-8 flex gap-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
+            <div className="ui-card p-6 lg:p-8 flex gap-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
               <Award className="mt-1 w-6 h-6 shrink-0 text-purple-300" />
               <p>
                 本站由<strong className="text-white/90">益阳市赫山区必高科技有限公司</strong>运营，持营业执照经营。增值税发票由这家公司开具，发票上的销售方与经营主体一致。
@@ -198,7 +198,7 @@ export default async function AboutPage() {
             <h2 id="about-pay" className="text-2xl lg:text-3xl font-bold mb-6">
               <span className="gradient-text">付款与开票</span>
             </h2>
-            <div className="glass rounded-2xl p-6 lg:p-8 space-y-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
+            <div className="ui-card p-6 lg:p-8 space-y-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
               <p className="flex gap-3">
                 <CreditCard className="mt-1 w-5 h-5 shrink-0 text-purple-300" />
                 <span>
@@ -224,7 +224,7 @@ export default async function AboutPage() {
             <h2 id="about-refund" className="text-2xl lg:text-3xl font-bold mb-6">
               <span className="gradient-text">售后与退款</span>
             </h2>
-            <div className="glass rounded-2xl p-6 lg:p-8 space-y-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
+            <div className="ui-card p-6 lg:p-8 space-y-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
               <p>
                 <strong className="text-white/90">AI 会员充值：</strong>
                 订阅期内非因你自身原因掉订阅的，按剩余未使用天数折算退款；未使用的卡密可申请退款，已成功充值或卡密已被核销的不支持退款。完整规则见
@@ -251,7 +251,7 @@ export default async function AboutPage() {
             <h2 id="about-contact" className="text-2xl lg:text-3xl font-bold mb-6">
               <span className="gradient-text">出了问题找谁</span>
             </h2>
-            <div className="glass rounded-2xl p-6 lg:p-8 space-y-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
+            <div className="ui-card p-6 lg:p-8 space-y-4 text-white/70 leading-relaxed lg:text-[17px] lg:leading-[1.85]">
               <p className="flex gap-3">
                 <MessageCircle className="mt-1 w-5 h-5 shrink-0 text-purple-300" />
                 <span>
@@ -303,16 +303,16 @@ export default async function AboutPage() {
         {/* CTA */}
         {catalogOpen && (
           <div className="relative mt-20 lg:mt-24">
-            <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-3xl opacity-30 blur-xl" />
-            <div className="relative glass rounded-3xl p-10 md:p-14 text-center">
-              <h2 className="text-2xl md:text-3xl font-bold mb-4">看看在售的商品</h2>
+            {/* 设计精修 2026-10-07：实心面板 + 顶边细光（原来四色光晕透过半透明卡，整块发紫） */}
+            <div className="relative ui-panel ui-panel-accent p-10 md:p-14 text-center">
+              <h2 className="text-2xl md:text-3xl font-semibold tracking-tight mb-4">看看在售的商品</h2>
               <p className="text-white/55 lg:text-lg mb-8 max-w-xl mx-auto">每个商品页都写明了价格、交付方式和兑换前要确认的事。</p>
               <Link
                 href="/products"
-                className="group inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full font-semibold hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all"
+                className="ui-btn ui-btn-primary ui-btn-lg"
               >
                 全部商品与价格
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="ui-arrow w-4 h-4" />
               </Link>
             </div>
           </div>
@@ -324,9 +324,9 @@ export default async function AboutPage() {
 
 function BizCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
-    <div className="glass rounded-2xl p-6 lg:p-8">
+    <div className="ui-card p-6 lg:p-8">
       <h3 className="flex items-center gap-3 text-lg lg:text-xl font-bold mb-3">
-        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">{icon}</span>
+        <span className="w-9 h-9 rounded-xl border border-white/10 bg-white/[0.04] text-violet-300 flex items-center justify-center">{icon}</span>
         {title}
       </h3>
       <div className="text-white/65 leading-relaxed lg:text-[17px] lg:leading-[1.85]">{children}</div>

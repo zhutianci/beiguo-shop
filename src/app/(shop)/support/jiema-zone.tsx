@@ -33,7 +33,7 @@ export function JiemaSupportSection({ data, onContact }: { data: JiemaSupportDat
           <span className="rounded-full border border-amber-400/30 bg-amber-500/10 px-2.5 py-0.5 text-xs font-normal text-amber-200">仅管理员预览：对全部用户开放后买家才看得到</span>
         )}
       </h2>
-      <div className="glass rounded-2xl p-6 lg:p-7">
+      <div className="ui-panel rounded-[20px] p-6 lg:p-7">
         <div className="mb-2 text-sm font-medium text-white/80">规则一览</div>
         <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-white/65 lg:text-[15px]">
           {data.rules.map((r) => (
@@ -59,7 +59,7 @@ export function JiemaSupportSection({ data, onContact }: { data: JiemaSupportDat
           <Link href="/wallet" className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-white/80 hover:bg-white/10">
             <Wallet className="h-4 w-4" /> 我的余额
           </Link>
-          <Link href="/jiema" className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2 font-medium">
+          <Link href="/jiema" className="ui-btn ui-btn-primary ui-btn-sm">
             <MessageSquareText className="h-4 w-4" /> 去接码
           </Link>
           <button onClick={onContact} className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-white/80 hover:bg-white/10">

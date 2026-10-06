@@ -149,7 +149,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-20 px-4">
+    <div className="min-h-screen flex items-center justify-center page-top pb-20 px-4">
       {/* 背景 */}
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
@@ -166,20 +166,20 @@ export default function RegisterPage() {
         className="relative w-full max-w-md"
       >
         {/* 发光边框 */}
-        <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-3xl blur-sm opacity-50" />
+        <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-3xl blur-sm opacity-20 lite:hidden" />
 
-        <div className="relative glass rounded-3xl p-8 md:p-10">
+        <div className="relative ui-panel ui-panel-accent p-8 md:p-10">
           {/* Logo */}
           <div className="text-center mb-8">
             <motion.div
               initial={false}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', bounce: 0.5 }}
-              className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-500 mb-4"
+              className="inline-flex items-center justify-center w-14 h-14 rounded-2xl border border-white/10 bg-white/[0.04] mb-5"
             >
-              <Sparkles className="w-8 h-8" />
+              <Sparkles className="w-6 h-6 text-violet-300" />
             </motion.div>
-            <h1 className="text-2xl font-bold mb-2">创建账号</h1>
+            <h1 className="text-2xl font-semibold tracking-tight mb-2">创建账号</h1>
             <p className="text-white/50 text-sm">注册后即可享受AI订阅服务</p>
           </div>
 
@@ -205,7 +205,7 @@ export default function RegisterPage() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                   placeholder="请输入邮箱"
                   required
                 />
@@ -223,7 +223,7 @@ export default function RegisterPage() {
                     inputMode="numeric"
                     value={formData.code}
                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                     placeholder="6 位邮箱验证码"
                     required
                   />
@@ -232,7 +232,7 @@ export default function RegisterPage() {
                   type="button"
                   onClick={sendCode}
                   disabled={!hydrated || sending || cooldown > 0}
-                  className="shrink-0 px-4 rounded-xl border border-white/10 bg-white/5 text-sm text-white/80 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                  className="ui-btn ui-btn-secondary shrink-0 rounded-xl px-4 text-sm"
                 >
                   {sending ? '发送中...' : cooldown > 0 ? `${cooldown}s` : '发送验证码'}
                 </button>
@@ -251,7 +251,7 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
                   // 与个人资料页同一口径（最多 20 字）；服务端超长只截断、不报错，这里只是提示
                   maxLength={20}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                   placeholder="请输入昵称（最多 20 字）"
                 />
               </div>
@@ -266,7 +266,7 @@ export default function RegisterPage() {
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                   placeholder="请输入密码（至少6位）"
                   required
                 />
@@ -282,7 +282,7 @@ export default function RegisterPage() {
                   type="password"
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                   placeholder="请再次输入密码"
                   required
                 />
@@ -292,14 +292,14 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading || !hydrated}
-              className="group w-full py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all mt-6"
+              className="ui-btn ui-btn-brand ui-btn-lg w-full rounded-xl mt-6"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
                   创建账号
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ui-arrow w-4 h-4" />
                 </>
               )}
             </button>
@@ -309,11 +309,11 @@ export default function RegisterPage() {
                 渠道站只保留条款与隐私政策那半句（营销邮件平台专属），留痕文字也按渠道站另记（lib/marketing/consent.ts） */}
             <p className="text-xs leading-relaxed text-white/40">
               注册即表示你同意
-              <Link href="/terms" target="_blank" className="text-cyan-400/80 hover:text-cyan-300 transition-colors">
+              <Link href="/terms" target="_blank" className="text-violet-300 hover:text-violet-200 transition-colors">
                 《服务条款》
               </Link>
               与
-              <Link href="/privacy" target="_blank" className="text-cyan-400/80 hover:text-cyan-300 transition-colors">
+              <Link href="/privacy" target="_blank" className="text-violet-300 hover:text-violet-200 transition-colors">
                 《隐私政策》
               </Link>
               {isPlatform ? '。我们可能会向你的邮箱发送优惠活动信息，注册后可在个人中心或邮件底部随时一键退订。' : '。'}
@@ -330,7 +330,7 @@ export default function RegisterPage() {
           {/* 登录链接 */}
           <p className="text-center text-white/50 text-sm">
             已有账号？
-            <Link href={withRedirect('/login', redirect)} className="ml-1 text-cyan-400 hover:text-cyan-300 transition-colors">
+            <Link href={withRedirect('/login', redirect)} className="ml-1 text-violet-300 hover:text-violet-200 transition-colors">
               立即登录
             </Link>
           </p>

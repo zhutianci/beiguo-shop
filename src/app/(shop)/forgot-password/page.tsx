@@ -77,19 +77,19 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-20 px-4">
+    <div className="min-h-screen flex items-center justify-center page-top pb-20 px-4">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
       <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/20 rounded-full blur-[128px] lite-blob pointer-events-none" />
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="relative w-full max-w-md">
-        <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-3xl blur-sm opacity-50" />
-        <div className="relative glass rounded-3xl p-8 md:p-10">
+      <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="relative w-full max-w-md">
+        <div className="absolute -inset-[1px] bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 rounded-3xl blur-sm opacity-20 lite:hidden" />
+        <div className="relative ui-panel ui-panel-accent p-8 md:p-10">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-purple-500 mb-4">
-              <Sparkles className="w-8 h-8" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl border border-white/10 bg-white/[0.04] mb-5">
+              <Sparkles className="w-6 h-6 text-violet-300" />
             </div>
-            <h1 className="text-2xl font-bold mb-2">找回密码</h1>
+            <h1 className="text-2xl font-semibold tracking-tight mb-2">找回密码</h1>
             <p className="text-white/50 text-sm">通过邮箱验证码重置密码</p>
           </div>
 
@@ -107,7 +107,7 @@ export default function ForgotPasswordPage() {
                 <div className="relative">
                   <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                   <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required
-                    className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                     placeholder="注册时使用的邮箱" />
                 </div>
               </div>
@@ -118,11 +118,11 @@ export default function ForgotPasswordPage() {
                   <div className="relative flex-1">
                     <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                     <input type="text" inputMode="numeric" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} required
-                      className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                       placeholder="6 位验证码" />
                   </div>
                   <button type="button" onClick={sendCode} disabled={sending || cooldown > 0}
-                    className="shrink-0 px-4 rounded-xl border border-white/10 bg-white/5 text-sm text-white/80 hover:bg-white/10 disabled:opacity-50 whitespace-nowrap">
+                    className="ui-btn ui-btn-secondary shrink-0 rounded-xl px-4 text-sm">
                     {sending ? '发送中...' : cooldown > 0 ? `${cooldown}s` : '发送验证码'}
                   </button>
                 </div>
@@ -134,7 +134,7 @@ export default function ForgotPasswordPage() {
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                   <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required
-                    className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                     placeholder="至少6位" />
                 </div>
               </div>
@@ -144,21 +144,21 @@ export default function ForgotPasswordPage() {
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                   <input type="password" value={form.confirm} onChange={(e) => setForm({ ...form, confirm: e.target.value })} required
-                    className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                    className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                     placeholder="再次输入新密码" />
                 </div>
               </div>
 
               <button type="submit" disabled={loading}
-                className="group w-full py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] disabled:opacity-50 transition-all mt-2">
-                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>重置密码 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" /></>}
+                className="ui-btn ui-btn-brand ui-btn-lg w-full rounded-xl mt-2">
+                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <>重置密码 <ArrowRight className="ui-arrow w-4 h-4" /></>}
               </button>
             </form>
           )}
 
           <p className="text-center text-white/50 text-sm mt-8">
             想起来了？
-            <Link href="/login" className="ml-1 text-cyan-400 hover:text-cyan-300 transition-colors">返回登录</Link>
+            <Link href="/login" className="ml-1 text-violet-300 hover:text-violet-200 transition-colors">返回登录</Link>
           </p>
         </div>
       </motion.div>

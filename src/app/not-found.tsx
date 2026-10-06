@@ -65,8 +65,8 @@ export default async function NotFound() {
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="container relative">
         <div className="mx-auto max-w-2xl text-center">
-          <p className="mb-4 font-mono text-sm tracking-widest text-white/35">404</p>
-          <h1 className="mb-5 text-3xl font-bold tracking-tight md:text-5xl">
+          <p className="ui-eyebrow mb-4 font-mono">404</p>
+          <h1 className="mb-5 text-3xl font-semibold tracking-tight md:text-5xl">
             <span className="gradient-text">页面不存在</span>
           </h1>
           <p className="text-base leading-relaxed text-white/60 md:text-lg">
@@ -76,7 +76,7 @@ export default async function NotFound() {
           <div className="mt-8">
             <Link
               href="/"
-              className="group inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 px-7 py-3 font-semibold transition-shadow hover:shadow-[0_0_32px_rgba(168,85,247,0.4)]"
+              className="ui-btn ui-btn-primary px-7"
             >
               <Home className="h-4 w-4" />
               返回首页
@@ -90,7 +90,7 @@ export default async function NotFound() {
               <Link
                 key={e.href}
                 href={e.href}
-                className="group flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4 transition-colors hover:border-white/20 hover:bg-white/[0.06]"
+                className="group ui-card ui-card-link flex items-center justify-between gap-4 px-5 py-4"
               >
                 <span className="min-w-0">
                   <span className="block font-semibold text-white/90">{e.label}</span>

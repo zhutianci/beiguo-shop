@@ -84,7 +84,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-20 px-4">
+    <div className="min-h-screen flex items-center justify-center page-top pb-20 px-4">
       {/* 背景 */}
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
@@ -101,20 +101,20 @@ function LoginForm() {
         className="relative w-full max-w-md"
       >
         {/* 发光边框 */}
-        <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-3xl blur-sm opacity-50" />
+        <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-3xl blur-sm opacity-20 lite:hidden" />
 
-        <div className="relative glass rounded-3xl p-8 md:p-10">
+        <div className="relative ui-panel ui-panel-accent p-8 md:p-10">
           {/* Logo */}
           <div className="text-center mb-8">
             <motion.div
               initial={false}
               animate={{ scale: 1 }}
               transition={{ type: 'spring', bounce: 0.5 }}
-              className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 mb-4"
+              className="inline-flex items-center justify-center w-14 h-14 rounded-2xl border border-white/10 bg-white/[0.04] mb-5"
             >
-              <Sparkles className="w-8 h-8" />
+              <Sparkles className="w-6 h-6 text-violet-300" />
             </motion.div>
-            <h1 className="text-2xl font-bold mb-2">欢迎回来</h1>
+            <h1 className="text-2xl font-semibold tracking-tight mb-2">欢迎回来</h1>
             <p className="text-white/50 text-sm">登录你的账号继续使用</p>
           </div>
 
@@ -140,7 +140,7 @@ function LoginForm() {
                   type="email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                   placeholder="请输入邮箱"
                   required
                 />
@@ -156,7 +156,7 @@ function LoginForm() {
                   type="password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                  className="ui-input rounded-xl pl-12 pr-4 py-3.5"
                   placeholder="请输入密码"
                   required
                 />
@@ -172,14 +172,14 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading || !hydrated}
-              className="group w-full py-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl font-semibold flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              className="ui-btn ui-btn-brand ui-btn-lg w-full rounded-xl"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
                   登录
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ui-arrow w-4 h-4" />
                 </>
               )}
             </button>
@@ -196,7 +196,7 @@ function LoginForm() {
           <p className="text-center text-white/50 text-sm">
             还没有账号？
             {/* 注册也带回跳（docs/短信接码-设计.md §6.6 第 30 条）：接码的主力客群是没有账号的首次访客，注册成功后回到确认面板 */}
-            <Link href={withRedirect('/register', redirect)} className="ml-1 text-purple-400 hover:text-purple-300 transition-colors">
+            <Link href={withRedirect('/register', redirect)} className="ml-1 text-violet-300 hover:text-violet-200 transition-colors">
               立即注册
             </Link>
           </p>
