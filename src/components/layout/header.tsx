@@ -34,10 +34,11 @@ const navLinks: NavLink[] = [
   { href: '/chongzhi', label: '充值', feature: 'landing' },
   { href: '/products', label: '商品' },
   { href: '/jiema', label: '接码', wide: '短信接码', feature: 'jiema' },
+  // AI 学习平台（内容平台改版 2026-10-06）：取代原来的「论坛」入口；提示词库、教程、讨论、作者页都算在它下面高亮。
+  // 10-07 站长要求放到「AI圈大事记」之前
+  { href: '/learn', label: 'AI学习', feature: 'forum', also: ['/prompts', '/guides', '/apps', '/forum', '/u', '/collections'] },
   { href: '/news', label: 'AI圈大事记', feature: 'news' },
   { href: '/iptools', label: 'IP工具', feature: 'iptools' },
-  // AI 学习平台（内容平台改版 2026-10-06）：取代原来的「论坛」入口；提示词库、教程、讨论、作者页都算在它下面高亮
-  { href: '/learn', label: 'AI学习', feature: 'forum', also: ['/prompts', '/guides', '/apps', '/forum', '/u', '/collections'] },
   { href: '/support', label: '客服' },
   { href: '/links', label: '友链', feature: 'links' },
 ]
