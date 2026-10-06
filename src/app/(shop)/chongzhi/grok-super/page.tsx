@@ -3,11 +3,12 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
 import { getLandingProducts, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { breadcrumbJsonLd, faqJsonLd, organizationJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
 import { LandingFactCard, SUBSCRIPTION_AFTERSALE } from '@/components/seo/fact-card'
 import { RelatedPillars } from '@/components/landing/related-pillars'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
@@ -126,7 +127,7 @@ export default async function GrokSuperLandingPage() {
           ]),
           // D1a（§4.1）：FAQPage 带 @id = 页面 URL、dateModified / lastReviewed = 本页 reviewedAt、publisher 指向同页的 Organization
           faqJsonLd(FAQS, { path: landingPath(DEF.slug), reviewedAt: DEF.reviewedAt }),
-          organizationJsonLd(),
+          await siteOrganizationJsonLd(),
           // 这一页列的是档位不是单个商品，所以用 ItemList；
           // Product/Offer 留在 /products/[id]——那才是买家能完成购买的页面
           ...(items.length ? [productItemListJsonLd(items, landingPath(DEF.slug))] : []),

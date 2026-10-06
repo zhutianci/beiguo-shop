@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { cache } from 'react'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -14,7 +15,7 @@ import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
 import { clipDescription, newsUrl } from '@/lib/news/seo'
 import { commerceLinksForTags } from '@/lib/news/commerce-link'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { breadcrumbJsonLd, organizationJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd } from '@/lib/seo/graph'
 import { OG_SITE } from '@/lib/seo/og'
 import { shouldNoindexEvent } from '@/lib/news/thin'
 import { AiNoticeBlock, LeadCredit } from '@/components/news/ai-notice-block'
@@ -488,7 +489,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
       <JsonLd
         data={[
           breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: 'AI 圈大事记', path: '/news' }, { name: ev.headline }]),
-          organizationJsonLd({ news: true }),
+          await siteOrganizationJsonLd(),
         ]}
       />
       <ViewBeacon eventId={ev.id} />

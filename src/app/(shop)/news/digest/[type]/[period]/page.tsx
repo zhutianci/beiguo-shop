@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, CalendarRange, ChevronRight, ListOrdered } from 'lucide-react'
@@ -11,7 +12,7 @@ import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
 import { absUrl, clipDescription } from '@/lib/news/seo'
 import { pageOg } from '@/lib/seo/og'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { breadcrumbJsonLd, collectionPageJsonLd, organizationJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd, collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 import { digestSeoDescription, digestSeoTitle } from '@/lib/news/seo-title'
 import { dayKey, formatDayHeading, ogImageForCategory, siteOrigin, sourceLabel } from '@/lib/news/format'
 import {
@@ -122,7 +123,7 @@ export default async function DigestPage({ params }: Params) {
               items: digest.events.map((e) => ({ path: `/news/${e.slug}`, name: e.headline })),
             }),
             webSiteJsonLd(),
-            organizationJsonLd({ news: true }),
+            await siteOrganizationJsonLd(),
           ]}
         />
 

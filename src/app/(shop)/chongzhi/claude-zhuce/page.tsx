@@ -3,11 +3,12 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
 import { getLandingProducts, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { breadcrumbJsonLd, faqJsonLd, organizationJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
 import { LandingFactCard, SUBSCRIPTION_AFTERSALE } from '@/components/seo/fact-card'
 import { RelatedPillars } from '@/components/landing/related-pillars'
 import {
@@ -166,7 +167,7 @@ export default async function ClaudeZhuceLandingPage() {
           ]),
           // D1a（§4.1）：FAQPage 带 @id = 页面 URL、dateModified / lastReviewed = 本页 reviewedAt、publisher 指向同页的 Organization
           faqJsonLd(FAQS, { path: landingPath(DEF.slug), reviewedAt: DEF.reviewedAt }),
-          organizationJsonLd(),
+          await siteOrganizationJsonLd(),
           // 这一页列的是三个档位，不是单个商品，所以用 ItemList 而不是 Product。
           // Product/Offer 标记留在 /products/[id]——那才是「买家能在上面完成购买」的页面，
           // 也是 Google 对 merchant listing 资格的明确要求。

@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
 import { CalendarDays, CalendarRange, Sparkles } from 'lucide-react'
 import { prisma } from '@/lib/db'
@@ -23,7 +24,7 @@ import {
 import { DIGEST_SLUG, formatPeriodLabel, listDigests } from '@/lib/news/digest'
 import { NewsStream } from './news-stream'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { collectionPageJsonLd, organizationJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
+import { collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 
 /** 与 /api/news/list 共用，不要在这里写死数字（见 format.ts 的注释） */
 const PAGE_SIZE = NEWS_PAGE_SIZE
@@ -182,7 +183,7 @@ export default async function NewsPage() {
               items: timeline.map((e) => ({ path: `/news/${e.slug}`, name: e.headline })),
             }),
             webSiteJsonLd(),
-            organizationJsonLd({ news: true }),
+            await siteOrganizationJsonLd(),
           ]}
         />
       )}

@@ -65,7 +65,9 @@ export function organizationDescription(p: OrgPillars = {}): string {
   if (p.jiema) parts.push('短信接码（海外手机号在线接收验证码）')
   if (p.news) parts.push('AI 圈大事记（AI 行业动态聚合，AI 自动整理并附原文出处）')
   if (p.learn) parts.push('AI 学习平台（可复制的提示词与实测教程）')
-  const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join('、')}与${parts[parts.length - 1]}`
+  const last = parts[parts.length - 1]
+  // 「与」后面接英文开头的业务名时补一个空格（全站中英文之间留空格）
+  const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join('、')}与${/^[A-Za-z0-9]/.test(last) ? ' ' : ''}${last}`
   return `贝果科技（bigolab.com）由益阳市赫山区必高科技有限公司运营，提供 ${list}。`
 }
 

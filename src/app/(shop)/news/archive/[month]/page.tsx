@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, CalendarDays } from 'lucide-react'
@@ -23,7 +24,7 @@ import {
 import { ArchiveList } from './archive-list'
 import { pageOg } from '@/lib/seo/og'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { breadcrumbJsonLd, collectionPageJsonLd, organizationJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd, collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 import { archiveSeoDescription, archiveSeoTitle } from '@/lib/news/seo-title'
 
 /**
@@ -137,7 +138,7 @@ export default async function NewsArchivePage({ params }: { params: { month: str
                 items: list.map((e) => ({ path: `/news/${e.slug}`, name: e.headline })),
               }),
               webSiteJsonLd(),
-              organizationJsonLd({ news: true }),
+              await siteOrganizationJsonLd(),
             ]}
           />
         )}

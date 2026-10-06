@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import { MessageSquareText, Clock, ShieldCheck, Wrench } from 'lucide-react'
 import { notFoundOnChannel } from '@/lib/storefront/resolve'
 import { jiemaViewer } from '@/lib/jiema/access'
@@ -10,7 +11,7 @@ import { jiemaFaqs } from '@/lib/support-faq'
 import { PLATFORM_CONTACT } from '@/lib/contact'
 import type { Metadata } from 'next'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { breadcrumbJsonLd, faqJsonLd, organizationJsonLd, serviceJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd, faqJsonLd, serviceJsonLd } from '@/lib/seo/graph'
 import { pageOg } from '@/lib/seo/og'
 import { SITE_NAME } from '@/lib/product-seo'
 import { readSmsConfigCached } from '@/lib/jiema/config'
@@ -266,7 +267,7 @@ export default async function JiemaPage() {
               serviceType: '短信验证码接收',
             }),
             faqJsonLd(faqs),
-            organizationJsonLd({ jiema: true }),
+            await siteOrganizationJsonLd(),
           ]}
         />
       )}

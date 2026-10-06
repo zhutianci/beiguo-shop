@@ -4,6 +4,7 @@
 export const dynamic = 'force-dynamic'
 
 import { cache } from 'react'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
@@ -16,7 +17,7 @@ import {
   type SeoProduct,
 } from '@/lib/product-seo'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { breadcrumbJsonLd, organizationJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd } from '@/lib/seo/graph'
 import ProductDetailClient from './product-client'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getLandingProducts } from '@/lib/landing/products'
@@ -306,7 +307,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
              * 在此之前，商品页的 HTML 里从来没出现过经营主体是谁。
              * 对一个卖 AI 会员的站，这条信息是相对无照个人卖家唯一的结构性优势。
              */
-            organizationJsonLd(),
+            await siteOrganizationJsonLd(),
             breadcrumbJsonLd([
               { name: '首页', path: '/' },
               ...(landingCrumbs ?? [{ name: '全部商品', path: '/products' }]),

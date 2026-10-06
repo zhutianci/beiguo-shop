@@ -5,6 +5,7 @@ import { readSmsConfigCached } from '@/lib/jiema/config'
 import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
 import { canUseForJiema } from '@/lib/wallet/config'
 import { INDEXING_OPEN } from '@/lib/content/policy'
+import { organizationJsonLd } from '@/lib/seo/graph'
 
 /**
  * 本站几条业务（支柱）此刻在**这个 Host 上**对外开没开（docs/SEO-重构/SEO-重构设计.md §1.10、§2.5、§4.2，批 2 的 C 包）。
@@ -47,4 +48,14 @@ export const sitePillars = cache(async (): Promise<SitePillars> => {
 /** 接码的付款方式口径（设计 §3.3 /jiema 行、§4.3 事实卡）：余额可用写「支付宝或站内余额」，否则只写支付宝 */
 export function jiemaPayText(balancePay: boolean): string {
   return balancePay ? '支付宝或站内余额' : '支付宝'
+}
+
+/**
+ * 当前 Host 的 Organization 节点（SEO 批 2）：主站各页输出的 Organization 是同一个 @id，描述必须处处一致——
+ * 不能首页写「充值、接码、大事记」、落地页只写「充值」（同一实体几种说法，是 Google 最在意的主体信息不一致）。
+ * 所以统一按 sitePillars 出；渠道站（以及没有店面的 Host）是保守口径（只写充值）。
+ */
+export async function siteOrganizationJsonLd(): Promise<Record<string, unknown>> {
+  const p = await sitePillars()
+  return organizationJsonLd(p.isPlatform ? { jiema: p.jiema, news: p.news, learn: p.learnIndexable } : {})
 }
