@@ -77,6 +77,11 @@ const fake = {
   stale: new Set<string>(),
   sent: [] as Sent[],
   qrBodies: [] as Json[],
+  /** 每个 (bot_token, context_token) 放行几条（真服务实测 10） */
+  quota: 10,
+  quotaUsed: new Map<string, number>(),
+  /** 含这段文字的消息一律回 ret=-2（测「单条发不出去」不连累绑定） */
+  poison: '',
   updatesBodies: [] as Json[],
   updatesHeaders: [] as http.IncomingHttpHeaders[],
   notifyStart: 0,
@@ -152,7 +157,12 @@ const server = http.createServer(async (req, res) => {
   }
   if (u.pathname === '/ilink/bot/sendmessage') {
     const m = json.msg || {}
-    fake.sent.push({ token, to: m.to_user_id, ctx: m.context_token, text: m.item_list?.[0]?.text_item?.text ?? '', type: m.message_type, state: m.message_state })
+    const text = m.item_list?.[0]?.text_item?.text ?? ''
+    const k = `${token}|${m.context_token}`
+    const n = (fake.quotaUsed.get(k) ?? 0) + 1
+    if ((fake.poison && text.includes(fake.poison)) || n > fake.quota) return send({ ret: -2, errmsg: 'prepare failed' })
+    fake.quotaUsed.set(k, n)
+    fake.sent.push({ token, to: m.to_user_id, ctx: m.context_token, text, type: m.message_type, state: m.message_state })
     return send({ ret: 0 })
   }
   if (u.pathname === '/ilink/bot/msg/notifystart') {
@@ -176,7 +186,8 @@ async function main() {
   const { BOT_STATE_KEY } = await import('../src/lib/bot/state')
   const { startIlinkBind, getIlinkBind, submitIlinkBindCode, safeIlinkBase } = await import('../src/lib/bot/ilink-bind')
   const { ILINK_KEY_PREFIX, patchBinding, readBinding } = await import('../src/lib/bot/adapters/ilink-store')
-  const { KEEPALIVE_HINT } = await import('../src/lib/bot/adapters/ilink-shared')
+  const { KEEPALIVE_HINT, QUOTA_NOTICE } = await import('../src/lib/bot/adapters/ilink-shared')
+  const { routePendingEvents } = await import('../src/lib/bot/route')
   const { parseIlinkJson } = await import('../src/lib/bot/adapters/ilink-api')
   const { rateClear } = await import('../src/lib/news/rate-limit')
   const { qrSvgDataUrl } = await import('../src/lib/bot/qr-svg')
@@ -270,6 +281,48 @@ async function main() {
     kickSender()
     ok('超过 20 小时：消息末尾带「回复任意一个字」提醒', await waitFor(() => fake.sent.some((s) => s.text.startsWith(`${TAG} 快到期`) && s.text.endsWith(KEEPALIVE_HINT))))
 
+    console.log('\n每条对方消息只放行 10 条（额度，附录 E.6）')
+    const sentWith = (ctx: string) => fake.sent.filter((s) => s.token === TOK_A && s.ctx === ctx)
+    const rows = (prefix: string, where: Record<string, unknown>) => prisma.botOutbox.count({ where: { conversationId: convA!.id, dedupeKey: { startsWith: `${TAG}-${prefix}` }, ...where } })
+    const convState = async () => prisma.botConversation.findUnique({ where: { id: convA!.id }, select: { status: true, failStreak: true } })
+    pushMsg(TOK_A, { from: U_ADMIN, text: '1', ctx: 'qx' })
+    await waitFor(() => sentWith('qx').length === 1)
+    await enqueueMany(Array.from({ length: 12 }, (_, i) => ({ conversationId: convA!.id, kind: 'EVENT' as const, text: `${TAG} 额度测试 ${i + 1}`, dedupeKey: `${TAG}-q${i}` })))
+    kickSender()
+    const capped = await waitFor(async () => sentWith('qx').length === 10 && (await rows('q', { status: 'PENDING', lastError: 'NO_CONTEXT' })) === 3, 40_000)
+    ok('同一条对方消息最多发 10 条，剩下的等对方回复', capped && sentWith('qx').length === 10, `${sentWith('qx').length} 条，等待 ${await rows('q', { status: 'PENDING', lastError: 'NO_CONTEXT' })} 条`)
+    ok('第 10 条末尾附「额度用完」', !!sentWith('qx')[9]?.text.endsWith(QUOTA_NOTICE))
+    const st1 = await convState()
+    ok('额度用完不算失败（会话仍在用、failStreak 0）', st1?.status === 'ACTIVE' && st1.failStreak === 0, JSON.stringify(st1))
+    pushMsg(TOK_A, { from: U_ADMIN, text: '1', ctx: 'qy' })
+    ok(
+      '对方再说话：剩下的用新 token 发出（单发或合并）',
+      await waitFor(async () => (await rows('q', { status: { in: ['SENT', 'MERGED'] } })) === 12 && sentWith('qy').some((s) => s.text.includes('额度测试')), 40_000)
+    )
+
+    fake.quota = 4
+    pushMsg(TOK_A, { from: U_ADMIN, text: '1', ctx: 'qz' })
+    await waitFor(() => sentWith('qz').length === 1)
+    await enqueueMany(Array.from({ length: 6 }, (_, i) => ({ conversationId: convA!.id, kind: 'EVENT' as const, text: `${TAG} 实际额度更小 ${i + 1}`, dedupeKey: `${TAG}-r${i}` })))
+    kickSender()
+    ok('服务端额度比我们数的少（ret=-2）：当作这一轮用完、等对方回复', await waitFor(async () => (await rows('r', { status: 'PENDING', lastError: 'NO_CONTEXT' })) === 3, 40_000))
+    const st2 = await convState()
+    ok('也不算会话失败', st2?.status === 'ACTIVE' && st2.failStreak === 0, JSON.stringify(st2))
+    fake.quota = 10
+    pushMsg(TOK_A, { from: U_ADMIN, text: '1', ctx: 'qp' })
+    await waitFor(async () => (await rows('r', { status: { in: ['SENT', 'MERGED'] } })) === 6, 40_000)
+
+    fake.poison = `${TAG}毒`
+    pushMsg(TOK_A, { from: U_ADMIN, text: '1', ctx: 'qq' })
+    await waitFor(() => sentWith('qq').length === 1)
+    await enqueueMany([{ conversationId: convA!.id, kind: 'EVENT', text: `${TAG}毒 这一条发不出去`, dedupeKey: `${TAG}-p1` }])
+    kickSender()
+    ok('单条发不出去：只这一条退避重试', await waitFor(async () => (await rows('p', { status: 'PENDING', attempts: { gte: 1 } })) === 1, 30_000))
+    const st3 = await convState()
+    ok('单条发不出去不连累绑定（failStreak 0、仍在用）', st3?.status === 'ACTIVE' && st3.failStreak === 0, JSON.stringify(st3))
+    fake.poison = ''
+    await prisma.botOutbox.updateMany({ where: { conversationId: convA!.id, dedupeKey: `${TAG}-p1` }, data: { status: 'CANCELLED' } })
+
     console.log('\n分站代理绑定')
     fake.nextScenario = () => ({ ret: 0, status: 'confirmed', bot_token: TOK_B, ilink_bot_id: BOT_B, ilink_user_id: U_AGENT, baseurl: 'https://evil.example.com' })
     const s2 = await startIlinkBind({ kind: 'TENANT', adminId: null, tenantId: tA.id, allowT3: false, name: `分站 ${tA.name}（${tA.code}）的代理微信`, actorUserId: null }, onBound)
@@ -330,6 +383,17 @@ async function main() {
     ok('每分钟最多 4 次查询', await waitFor(() => sentTo(TOK_B).slice(beforeRate).some((s) => s.text === '查得太频繁了，请 1 分钟后再试')))
     const lastOk = await prisma.botCommand.findFirst({ where: { adapter: 'ilink', convExternalId: BOT_B, name: '动态', decision: 'OK' } })
     ok('查询记进指令日志（admin_id 为空）', !!lastOk && lastOk.adminId === null)
+
+    console.log('\n发往 iLink 绑定的普通动态先攒 5 分钟')
+    const evN = await prisma.botEvent.create({ data: { source: 'direct', type: 'test.route', category: 'order_done', tenantId: tA.id, title: '💰 订单已支付', lines: [{ label: '商品', value: `${TAG}攒` }], dedupeKey: `${TAG}-route-n` } })
+    const evU = await prisma.botEvent.create({ data: { source: 'direct', type: 'test.route', category: 'order_done', tenantId: tA.id, urgent: true, title: '🚨 紧急', lines: [{ label: '商品', value: `${TAG}急` }], dedupeKey: `${TAG}-route-u` } })
+    const tRoute = Date.now()
+    await routePendingEvents(500, new Date())
+    const obN = await prisma.botOutbox.findFirst({ where: { conversationId: convB!.id, eventId: evN.id } })
+    const obU = await prisma.botOutbox.findFirst({ where: { conversationId: convB!.id, eventId: evU.id } })
+    ok('普通动态：先攒 5 分钟', !!obN && obN.notBefore.getTime() - tRoute >= 4.5 * 60_000 && obN.notBefore.getTime() - tRoute <= 5 * 60_000 + 10_000, obN ? String(obN.notBefore.getTime() - tRoute) : 'none')
+    ok('紧急的不等', !!obU && obU.notBefore.getTime() - tRoute < 30_000, obU ? String(obU.notBefore.getTime() - tRoute) : 'none')
+    await prisma.botOutbox.updateMany({ where: { eventId: { in: [evN.id, evU.id] } }, data: { status: 'CANCELLED' } })
 
     console.log('\n重复绑定、失效、解绑')
     fake.nextScenario = () => ({ ret: 0, status: 'binded_redirect' })

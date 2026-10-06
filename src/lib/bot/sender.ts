@@ -181,7 +181,8 @@ async function runLoop(): Promise<void> {
           earliest = earliest === null ? readyAt : Math.min(earliest, readyAt)
           continue
         }
-        if (!onlyKinds) await mergeDigest(conv.id, await siteLabelOf(conv, labels))
+        // iLink（附录 E.6）每条对方消息只放行约 10 条：2 条普通动态就合成一条，省额度
+        if (!onlyKinds) await mergeDigest(conv.id, await siteLabelOf(conv, labels), new Date(), conv.adapter === 'ilink' ? { min: 2 } : {})
         const item = await leaseNext(conv.id, new Date(), onlyKinds)
         if (!item) continue
         let text: string
@@ -213,6 +214,12 @@ async function runLoop(): Promise<void> {
           sentThisRound = true
         } else {
           await markFailed(item, res.error || '发送失败', at)
+          if (res.noStreak) {
+            // 只算这一条（iLink：额度、网络这类问题不代表绑定坏了，绑定失效由收消息循环按 -14 判定）：照常退避，不计会话连续失败
+            await prisma.botConversation.update({ where: { id: conv.id }, data: { lastSentAt: at } })
+            scheduleAt(new Date(Date.now() + 30_000))
+            return
+          }
           const streak = conv.failStreak + 1
           await prisma.botConversation.update({
             where: { id: conv.id },

@@ -27,8 +27,13 @@ export interface ChatInfo {
 export interface SendResult {
   ok: boolean
   error?: string
-  /** 不是失败、只是现在发不了（iLink 推送窗口关着）：发送器把这个会话的待发消息挪到 until，不计失败次数 */
+  /** 不是失败、只是现在发不了（iLink 推送窗口关着 / 这一轮额度用完）：发送器把这个会话的待发消息挪到 until，不计失败次数 */
   defer?: { until: Date; reason: string }
+  /**
+   * 失败只算这一条消息的（照常退避重试、5 次后作废），不计会话的连续失败、不会把会话标成发不出去。
+   * iLink 用：绑定是否失效由收消息循环按 -14 判定，单条发不出去不代表绑定坏了
+   */
+  noStreak?: boolean
 }
 
 export interface BotAdapter {

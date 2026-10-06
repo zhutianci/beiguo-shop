@@ -16,11 +16,13 @@ import { enqueueMany, quietUntil, type EnqueueInput } from './outbox'
 import { renderEventText, summaryLine } from './render'
 import { inNewAccountQuiet, readBotState } from './state'
 import { PRIORITY, type BotCategory, type BotLine } from './types'
+import { ILINK_BATCH_MS } from './adapters/ilink-shared'
 
 export const PLATFORM_SITE_LABEL = '贝果科技'
 
 interface ConvRow {
   id: number
+  adapter: string
   kind: string
   tenantId: number | null
   subs: unknown
@@ -69,6 +71,14 @@ function optInOnly(ev: EventRow): boolean {
   return !!def && !def.defaultOn
 }
 
+/**
+ * iLink 绑定（附录 E.6）：对方每发一条消息机器人最多回约 10 条，普通动态先攒 ILINK_BATCH_MS 再发，期间来的几条由发送器合成一条。
+ * 紧急的不等；别的适配器不受影响（返回 undefined）
+ */
+function ilinkBatch(conv: ConvRow, urgent: boolean, now: Date): Date | undefined {
+  return conv.adapter === 'ilink' && !urgent ? new Date(now.getTime() + ILINK_BATCH_MS) : undefined
+}
+
 function subscribed(conv: ConvRow, ev: EventRow): boolean {
   if (!isSubscribed(conv.subs, ev.category as BotCategory)) return false
   if (optInOnly(ev)) {
@@ -100,7 +110,7 @@ export async function routePendingEvents(limit = 200, now: Date = new Date()): P
   const newAccountEnd = newAccount && state.loginAt ? new Date(Date.parse(state.loginAt) + cfg.newAccountQuietHours * 3600_000) : null
   const convs: ConvRow[] = await prisma.botConversation.findMany({
     where: { status: 'ACTIVE', kind: { in: ['MGMT', 'TENANT'] } },
-    select: { id: true, kind: true, tenantId: true, subs: true, quietFrom: true, quietTo: true },
+    select: { id: true, adapter: true, kind: true, tenantId: true, subs: true, quietFrom: true, quietTo: true },
   })
   const mgmt = convs.filter((c) => c.kind === 'MGMT')
   const mainOrigin = linkOrigin(cfg)
@@ -134,6 +144,7 @@ export async function routePendingEvents(limit = 200, now: Date = new Date()): P
           category: ev.category,
           summary: summaryLine(renderable, ev.createdAt),
           dedupeKey: `ev:${ev.id}`,
+          notBefore: ilinkBatch(c, ev.urgent, now),
         })
       }
       continue
@@ -165,6 +176,8 @@ export async function routePendingEvents(limit = 200, now: Date = new Date()): P
         if (q) notBefore = q
       }
       if (newAccountEnd && (!notBefore || notBefore < newAccountEnd)) notBefore = newAccountEnd
+      const batch = ilinkBatch(c, ev.urgent, now)
+      if (batch && (!notBefore || notBefore < batch)) notBefore = batch
       items.push({
         conversationId: c.id,
         eventId: ev.id,

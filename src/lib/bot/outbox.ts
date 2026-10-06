@@ -92,14 +92,14 @@ export async function enqueueReply(conversationId: number, text: string, dedupeK
  * 合并：某会话待发的普通动态（EVENT，不含紧急）≥ 3 条且最早一条已等 ≥ 60 秒 → 合成一条 DIGEST，原行标 MERGED。
  * 在一个事务里做；条件更新只认仍是 PENDING 的行，与发送器并发时不会把正在发的那条也合进去。
  */
-export async function mergeDigest(conversationId: number, siteLabel: string, now: Date = new Date()): Promise<boolean> {
+export async function mergeDigest(conversationId: number, siteLabel: string, now: Date = new Date(), opts: { min?: number } = {}): Promise<boolean> {
   const rows = await prisma.botOutbox.findMany({
     where: { conversationId, status: 'PENDING', kind: 'EVENT', priority: { lte: PRIORITY.EVENT }, notBefore: { lte: now } },
     orderBy: { id: 'asc' },
     take: 60,
     select: { id: true, summary: true, createdAt: true },
   })
-  if (rows.length < DIGEST_MIN) return false
+  if (rows.length < (opts.min ?? DIGEST_MIN)) return false
   if (now.getTime() - rows[0].createdAt.getTime() < DIGEST_WAIT_MS) return false
   const shown = rows.slice(0, DIGEST_MAX_LINES).map((r) => r.summary || '一条动态')
   const more = rows.length - shown.length

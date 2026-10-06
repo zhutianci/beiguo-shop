@@ -110,7 +110,36 @@ export async function patchBinding(convId: number, patch: Partial<Omit<IlinkBind
 }
 
 export async function deleteBinding(convId: number): Promise<void> {
-  await prisma.setting.deleteMany({ where: { key: keyOf(convId) } })
+  await prisma.setting.deleteMany({ where: { key: { in: [keyOf(convId), `bot_ilink_q:${convId}`] } } })
+}
+
+// ───────────────────────── 每个 context_token 的发送计数（附录 E.6） ─────────────────────────
+// 微信对每个 context_token（= 对方的每一条消息）只放行约 10 条机器人消息，超了 sendmessage 回「ret=-2 prepare failed」。
+// 计数单独放一行（bot_ilink_q:<会话 id>），只有发送器写：收消息循环写游标与新 token 时不会和它互相覆盖。
+// at = 这个计数对应的 token 的 ctxAt；绑定里的 ctxAt 变了（对方又来了消息）就当从 0 重新数。
+
+const QUOTA_PREFIX = 'bot_ilink_q:'
+
+export interface IlinkQuota {
+  at: string | null
+  sent: number
+}
+
+export async function readQuota(convId: number): Promise<IlinkQuota> {
+  const row = await prisma.setting.findUnique({ where: { key: `${QUOTA_PREFIX}${convId}` } })
+  if (!row) return { at: null, sent: 0 }
+  try {
+    const q = JSON.parse(row.value) as IlinkQuota
+    return { at: typeof q.at === 'string' ? q.at : null, sent: Number.isFinite(q.sent) ? Math.max(0, Math.trunc(q.sent)) : 0 }
+  } catch {
+    return { at: null, sent: 0 }
+  }
+}
+
+export async function writeQuota(convId: number, q: IlinkQuota): Promise<void> {
+  const key = `${QUOTA_PREFIX}${convId}`
+  const value = JSON.stringify({ at: q.at, sent: q.sent })
+  await prisma.setting.upsert({ where: { key }, create: { key, value }, update: { value } })
 }
 
 /** 本站已有绑定的 token（新的在前，最多 limit 个）：扫码时上送，同一个微信再扫会回 binded_redirect */
