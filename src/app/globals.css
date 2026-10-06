@@ -103,11 +103,8 @@
     line-height: 1.75;
   }
 
-  .shop-shell :is(h1, h2, h3) {
-    text-wrap: balance;
-  }
-
-  .shop-shell p {
+  /* 标题与段落都用 pretty（避免末行只剩一两个字），不用 balance：balance 会把左对齐的长中文标题压成几行等长的窄条，右边空一大块 */
+  .shop-shell :is(h1, h2, h3, p) {
     text-wrap: pretty;
   }
 

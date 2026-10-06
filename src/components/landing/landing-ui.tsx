@@ -106,7 +106,7 @@ export function LandingShell({
 
         <Breadcrumbs crumbs={crumbs} />
         <header className="mb-14 border-b border-white/[0.08] pb-10">
-          <h1 className="text-[32px] font-bold leading-[1.2] tracking-tight sm:text-4xl lg:text-[52px] lg:leading-[1.12]">
+          <h1 className="text-[32px] font-bold leading-[1.2] tracking-tight sm:text-4xl lg:text-[52px] lg:leading-[1.18]">
             {h1}
           </h1>
           {/* 【诚实的新鲜度信号】对手那几个内容站都在标题里写更新年月。我们只写真的做过的事：

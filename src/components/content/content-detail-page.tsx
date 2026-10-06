@@ -546,7 +546,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
               </Link>
             ))}
           </div>
-          <h1 className="text-[30px] font-semibold leading-[1.15] tracking-tight lg:text-[44px]">{post.title}</h1>
+          <h1 className="text-[30px] font-semibold leading-[1.2] tracking-tight lg:text-[44px]">{post.title}</h1>
           {post.excerpt && <p className="mt-5 text-[16px] leading-relaxed text-white/55 lg:text-[18px]">{post.excerpt}</p>}
           {disclosure}
           {appCard}

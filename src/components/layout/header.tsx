@@ -394,8 +394,8 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-40 md:hidden ui-drop-in">
           {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 整屏重算模糊太贵），
-              遮罩改成几乎不透明的 lite:bg-black/95，背后的页面文字不会透出来 */}
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/95" />
+              遮罩改成不透明（设计精修 2026-10-07：原来 lite:bg-black/95，菜单改成左对齐大字后，实测背后的标题与正文仍隐约透出、和菜单字叠在一起，改成实心） */}
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-xl lite:bg-[#050506]" />
           {/* 项目多时在小屏上会顶满，收紧行距并允许滚动，避免最后一项被裁掉 */}
           {/* 设计精修 2026-10-07：左对齐的大字列表 + 发丝线分隔（原来是居中的渐变大字，项目一多像一张海报，扫读困难）；
               当前项白字 + 紫点，其余 white/60。入场仍是 rise-in（只动 transform / opacity） */}

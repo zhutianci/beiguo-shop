@@ -282,7 +282,7 @@ export default function ProductDetailClient({
               {/* 标题整行。原来是 text-5xl/6xl（48–60px）——那个尺寸压在一张
                   240px 的图上面，比例是失衡的，长商品名还会占掉三四行。
                   降一档之后标题仍然是这一屏的第一视觉，但不再压住下面整块。 */}
-              <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight leading-[1.15]">
+              <h1 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold tracking-tight leading-[1.22]">
                 {product.name}
               </h1>
 
