@@ -58,6 +58,9 @@ export async function GET() {
         const n = posts.filter((p) => p.type === type && indexableIds.has(p.id)).length
         if (isHubIndexable('ROOT', 0, n)) entries.push(`<url><loc>${xmlEscape(absUrl(path))}</loc></url>`)
       }
+      // 学习平台首页：与 /learn 页面自己的判定一致（提示词 + 教程合计够数）
+      const learnN = posts.filter((p) => (p.type === 'PROMPT' || p.type === 'GUIDE') && indexableIds.has(p.id)).length
+      if (isHubIndexable('ROOT', 0, learnN)) entries.push(`<url><loc>${xmlEscape(absUrl('/learn'))}</loc></url>`)
     } catch (e) {
       // 库挂了就给空 sitemap，不给 500（爬虫对 500 的 sitemap 会降低抓取频率）
       console.error('[sitemap-content]', e)

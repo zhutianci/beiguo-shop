@@ -10,7 +10,7 @@ import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
-import { ArticleList, ListShell, PromptGrid } from '@/components/content/content-ui'
+import { Crumbs, GuideRows, LEARN_HOME, LearnPage, PageHead, PromptMasonry } from '@/components/learn/ui'
 
 /**
  * 作者公开主页（内容平台 P1，设计 §4.1 / §11.4 ProfilePage）。地址用随机短码，不用 userId（理由见 lib/content/creator.ts）。
@@ -72,32 +72,39 @@ export default async function CreatorPage({ params }: Props) {
   return (
     <>
       <JsonLd data={profileLd} />
-      <ListShell
-        crumbs={[{ name: '首页', path: '/' }, { name: '作者' }, { name: c.name }]}
-        h1={c.name}
-        lede={c.profile.bio || `${c.user.createdAt.getFullYear()} 年加入 · ${c.prompts.total} 条提示词 · ${c.guides.total} 篇教程 · ${c.discussions.total} 个讨论`}
-      >
-        <div className="space-y-10">
+      <LearnPage>
+        <Crumbs crumbs={[{ name: LEARN_HOME.name, path: LEARN_HOME.path }, { name: '作者' }, { name: c.name }]} />
+        <PageHead
+          eyebrow="Creator · 作者"
+          title={c.name}
+          lede={c.profile.bio || `${c.user.createdAt.getFullYear()} 年加入贝果。`}
+          stats={[
+            { label: '条提示词', value: c.prompts.total },
+            { label: '篇教程', value: c.guides.total },
+            { label: '个讨论', value: c.discussions.total },
+          ]}
+        />
+        <div className="space-y-20">
           {c.prompts.total > 0 && (
             <section>
-              <h2 className="text-lg font-bold mb-4">提示词（{c.prompts.total}）</h2>
-              <PromptGrid items={c.prompts.items} />
+              <h2 className="mb-6 text-xl font-semibold tracking-tight lg:text-2xl">提示词</h2>
+              <PromptMasonry items={c.prompts.items} />
             </section>
           )}
           {c.guides.total > 0 && (
             <section>
-              <h2 className="text-lg font-bold mb-4">教程（{c.guides.total}）</h2>
-              <ArticleList items={c.guides.items} />
+              <h2 className="mb-4 text-xl font-semibold tracking-tight lg:text-2xl">教程</h2>
+              <GuideRows items={c.guides.items} />
             </section>
           )}
           {c.discussions.total > 0 && (
             <section>
-              <h2 className="text-lg font-bold mb-4">讨论（{c.discussions.total}）</h2>
-              <ArticleList items={c.discussions.items} />
+              <h2 className="mb-4 text-xl font-semibold tracking-tight lg:text-2xl">讨论</h2>
+              <GuideRows items={c.discussions.items} />
             </section>
           )}
         </div>
-      </ListShell>
+      </LearnPage>
     </>
   )
 }

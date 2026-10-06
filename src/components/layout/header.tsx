@@ -28,7 +28,7 @@ import type { StorefrontFeatures } from '@/lib/storefront/public'
 // 【短信接码（docs/短信接码-设计.md §1.2、D28）】「商品」之后；lg 及以上显示「短信接码」、md–lg 显示「接码」（768–900px 最挤）。
 // 除了静态店面开关 features.jiema（渠道站恒关），还要求服务端下发的 jiemaOpen（sms_config 校验通过 && enabled && audience=ALL
 // && 接码下单已交付）：灰度期（仅管理员）导航里没有它，管理员直接访问 /jiema 预览。休眠 / 灰度时过滤后与原数组逐项相同。
-type NavLink = { href: string; label: string; wide?: string; feature?: keyof StorefrontFeatures }
+type NavLink = { href: string; label: string; wide?: string; feature?: keyof StorefrontFeatures; also?: string[] }
 const navLinks: NavLink[] = [
   { href: '/', label: '首页' },
   { href: '/chongzhi', label: '充值', feature: 'landing' },
@@ -36,7 +36,8 @@ const navLinks: NavLink[] = [
   { href: '/jiema', label: '接码', wide: '短信接码', feature: 'jiema' },
   { href: '/news', label: 'AI圈大事记', feature: 'news' },
   { href: '/iptools', label: 'IP工具', feature: 'iptools' },
-  { href: '/forum', label: '论坛', feature: 'forum' },
+  // AI 学习平台（内容平台改版 2026-10-06）：取代原来的「论坛」入口；提示词库、教程、讨论、作者页都算在它下面高亮
+  { href: '/learn', label: 'AI学习', feature: 'forum', also: ['/prompts', '/guides', '/forum', '/u'] },
   { href: '/support', label: '客服' },
   { href: '/links', label: '友链', feature: 'links' },
 ]
@@ -46,9 +47,9 @@ const navLinks: NavLink[] = [
  * 结果 /news/xxx、/products/12 这类详情页不会点亮所属导航项。
  * 非根路径改为「相等或以 href + '/' 开头」，'/' 仍必须精确匹配，否则会一直亮着。
  */
-function isNavActive(pathname: string, href: string) {
+function isNavActive(pathname: string, href: string, also: string[] = []) {
   if (href === '/') return pathname === '/'
-  return pathname === href || pathname.startsWith(`${href}/`)
+  return [href, ...also].some((h) => pathname === h || pathname.startsWith(`${h}/`))
 }
 
 /**
@@ -216,7 +217,7 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                 14px 是中文在深色背景上不糊的下限，比多留几像素间距重要。 */}
             <nav className="hidden md:flex items-center md:gap-0 lg:gap-1 xl:gap-1.5">
               {visibleLinks.map((link) => {
-                const active = isNavActive(pathname, link.href)
+                const active = isNavActive(pathname, link.href, link.also)
                 return (
                   <Link
                     key={link.href}
@@ -382,7 +383,7 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
                     'text-2xl sm:text-3xl font-bold',
-                    isNavActive(pathname, link.href) ? 'gradient-text-accent' : 'text-white/60'
+                    isNavActive(pathname, link.href, link.also) ? 'gradient-text-accent' : 'text-white/60'
                   )}
                 >
                   {link.wide ?? link.label}

@@ -10,7 +10,7 @@ import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { ipKey } from '@/lib/auth-throttle'
 import { denyOnChannel } from '@/lib/storefront/resolve'
 import { crossSiteReason } from '@/lib/same-origin'
-import { stripImageMetadata } from '@/lib/image-meta'
+import { imageSize, stripImageMetadata } from '@/lib/image-meta'
 import { prisma } from '@/lib/db'
 import crypto from 'crypto'
 
@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
             bytes: bytes.length,
             sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
             stripped,
+            ...(imageSize(bytes, ext) ?? {}),
           },
         })
         .catch((e) => console.error('[upload] MediaAsset 入库失败:', e))

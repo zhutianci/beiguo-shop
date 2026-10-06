@@ -11,9 +11,7 @@
  * 能不能收录看 policy.isHubIndexable：要有站方介绍、且可收录条目够数，否则 noindex,follow（空短聚合页是劲风算法的打击对象）。
  */
 import type { Metadata } from 'next'
-import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { PenLine } from 'lucide-react'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { renderMarkdown } from '@/lib/markdown'
@@ -26,7 +24,7 @@ import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, type Crumb } from '@/lib/seo/graph'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
-import { ArticleList, EmptyState, ListShell, Pagination, PromptGrid, TagNav } from '@/components/content/content-ui'
+import { Crumbs, Empty, FilterBar, GuideFeature, GuideRows, LEARN_HOME, LearnPage, PageHead, Pager, PrimaryAction, PromptMasonry } from '@/components/learn/ui'
 
 export type HubKind = 'ROOT' | 'MODEL' | 'TOPIC' | 'PRODUCT'
 type Section = 'PROMPT' | 'GUIDE'
@@ -49,13 +47,13 @@ const ROOT = {
     basePath: '/prompts',
     h1: 'AI 提示词库',
     lede: '作者实测、可直接复制的生图与视频提示词。每条都附效果图、模型和参数，[方括号] 里换成你自己的内容即可。',
-    crumbs: [{ name: '首页', path: '/' }, { name: '提示词库' }],
+    crumbs: [{ name: LEARN_HOME.name, path: LEARN_HOME.path }, { name: '提示词库' }],
   },
   GUIDE: {
     basePath: '/guides',
     h1: 'AI 使用教程与技巧',
     lede: 'ChatGPT、Claude、Codex 等工具的功能教程与踩坑记录，每篇注明测试日期和账号类型。',
-    crumbs: [{ name: '首页', path: '/' }, { name: '教程' }],
+    crumbs: [{ name: LEARN_HOME.name, path: LEARN_HOME.path }, { name: '教程' }],
   },
 } as const
 
@@ -81,7 +79,7 @@ async function resolve(section: Section, kind: HubKind, slug?: string): Promise<
     tag,
     h1,
     lede,
-    crumbs: [{ name: '首页', path: '/' }, { name: root.crumbs[1].name, path: root.basePath }, { name: h1 }],
+    crumbs: [{ name: LEARN_HOME.name, path: LEARN_HOME.path }, { name: root.crumbs[1].name, path: root.basePath }, { name: h1 }],
   }
 }
 
@@ -126,13 +124,23 @@ export async function contentListMetadata(section: Section, kind: HubKind, slug:
   }
 }
 
+const EYEBROW: Record<HubKind, Record<Section, string>> = {
+  ROOT: { PROMPT: 'Prompt Library · 提示词库', GUIDE: 'Guides · 教程' },
+  MODEL: { PROMPT: 'Model · 模型专题', GUIDE: 'Model · 模型专题' },
+  TOPIC: { PROMPT: 'Topic · 主题专题', GUIDE: 'Topic · 主题专题' },
+  PRODUCT: { PROMPT: 'Product · 产品专题', GUIDE: 'Product · 产品专题' },
+}
+
 export async function ContentListPage({ section, kind, slug, page }: { section: Section; kind: HubKind; slug?: string; page: number }) {
   const r = await resolve(section, kind, slug)
   if (!r) notFound()
-  const list = await listContent({ type: section, tagSlug: r.tag?.slug, page, pageSize: PAGE_SIZE[section] })
+  const [list, s] = await Promise.all([
+    listContent({ type: section, tagSlug: r.tag?.slug, page, pageSize: PAGE_SIZE[section] }),
+    stats(r),
+  ])
   if (page > 1 && page > list.totalPages) notFound()
 
-  // 只列出「至少有一条公开内容」的标签，免得把人领进空页
+  // 筛选条只列「至少有一条公开内容」的标签，并带条数（免得把人领进空页）
   const navTags = await prisma.tag.findMany({
     where: {
       status: 1,
@@ -140,18 +148,19 @@ export async function ContentListPage({ section, kind, slug, page }: { section: 
       posts: { some: { post: { ...PUBLIC_WHERE, type: section } } },
     },
     orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-    select: { slug: true, name: true, kind: true },
+    select: { slug: true, name: true, kind: true, _count: { select: { posts: { where: { post: { ...PUBLIC_WHERE, type: section } } } } } },
   })
   const hrefOf = (t: { slug: string; kind: string }) =>
     t.kind === 'MODEL' ? `/prompts/m/${t.slug}` : t.kind === 'TOPIC' ? `/prompts/t/${t.slug}` : `/guides/p/${t.slug}`
   const root = ROOT[section]
+  const chip = (t: (typeof navTags)[number]) => ({ name: t.name, href: hrefOf(t), count: t._count.posts })
   const groups =
     section === 'PROMPT'
       ? [
-          { label: '模型', items: [{ name: '全部', href: root.basePath }, ...navTags.filter((t) => t.kind === 'MODEL').map((t) => ({ name: t.name, href: hrefOf(t) }))] },
-          { label: '主题', items: navTags.filter((t) => t.kind === 'TOPIC').map((t) => ({ name: t.name, href: hrefOf(t) })) },
+          { label: '模型', items: [{ name: '全部', href: root.basePath }, ...navTags.filter((t) => t.kind === 'MODEL').map(chip)] },
+          { label: '主题', items: navTags.filter((t) => t.kind === 'TOPIC').map(chip) },
         ]
-      : [{ label: '产品', items: [{ name: '全部', href: root.basePath }, ...navTags.map((t) => ({ name: t.name, href: hrefOf(t) }))] }]
+      : [{ label: '产品', items: [{ name: '全部', href: root.basePath }, ...navTags.map(chip)] }]
 
   const newHref = `/forum/new?type=${section}`
   const itemList = {
@@ -159,31 +168,52 @@ export async function ContentListPage({ section, kind, slug, page }: { section: 
     '@type': 'ItemList',
     itemListElement: list.items.map((c, i) => ({ '@type': 'ListItem', position: (page - 1) * PAGE_SIZE[section] + i + 1, url: absUrl(c.path), name: c.title })),
   }
+  const latest = s.latest ? `${s.latest.getFullYear()}.${String(s.latest.getMonth() + 1).padStart(2, '0')}` : '—'
 
   return (
     <>
       <JsonLd data={[breadcrumbJsonLd(r.crumbs), ...(list.items.length ? [itemList] : [])]} />
-      <ListShell
-        crumbs={r.crumbs}
-        h1={r.h1}
-        lede={r.lede}
-        introHtml={page === 1 && r.tag?.intro ? renderMarkdown(r.tag.intro) : null}
-        nav={<TagNav groups={groups} active={r.basePath} />}
-        action={
-          <Link href={newHref} className="inline-flex items-center gap-2 self-start sm:self-auto px-5 py-2.5 rounded-xl bg-white text-black text-sm font-semibold hover:bg-white/90">
-            <PenLine className="w-4 h-4" /> {section === 'PROMPT' ? '分享提示词' : '写教程'}
-          </Link>
-        }
-      >
-        {list.items.length === 0 ? (
-          <EmptyState text="这里还没有内容。原创首发、附自己的出图或实测截图的投稿，会优先进入精选。" href={newHref} cta="去投稿" />
-        ) : section === 'PROMPT' ? (
-          <PromptGrid items={list.items} />
-        ) : (
-          <ArticleList items={list.items} />
+      <LearnPage>
+        <Crumbs crumbs={r.crumbs} />
+        <PageHead
+          eyebrow={EYEBROW[kind][section]}
+          title={r.h1}
+          lede={r.lede}
+          action={<PrimaryAction href={newHref}>{section === 'PROMPT' ? '分享提示词' : '写一篇教程'}</PrimaryAction>}
+          stats={[
+            { label: section === 'PROMPT' ? '条提示词' : '篇教程', value: s.total },
+            { label: '最近更新', value: latest },
+          ]}
+        />
+
+        {page === 1 && r.tag?.intro && (
+          <section className="learn-card learn-in mb-12 grid gap-6 p-6 lg:grid-cols-[180px_minmax(0,1fr)] lg:p-9">
+            <p className="learn-eyebrow pt-1">专题介绍</p>
+            <div className="prose-forum learn-prose max-w-3xl" dangerouslySetInnerHTML={{ __html: renderMarkdown(r.tag.intro) }} />
+          </section>
         )}
-        <Pagination basePath={r.basePath} page={page} totalPages={list.totalPages} />
-      </ListShell>
+
+        <FilterBar groups={groups} active={r.basePath} />
+
+        {list.items.length === 0 ? (
+          <Empty
+            title="这里还没有内容"
+            desc="原创首发、附自己出图或实测截图的投稿，会优先进入精选。"
+            href={newHref}
+            cta="成为第一个投稿的人"
+          />
+        ) : section === 'PROMPT' ? (
+          <PromptMasonry items={list.items} />
+        ) : page === 1 ? (
+          <div className="space-y-10">
+            <GuideFeature c={list.items[0]} />
+            {list.items.length > 1 && <GuideRows items={list.items.slice(1)} start={2} />}
+          </div>
+        ) : (
+          <GuideRows items={list.items} start={(page - 1) * PAGE_SIZE[section] + 1} />
+        )}
+        <Pager basePath={r.basePath} page={page} totalPages={list.totalPages} />
+      </LearnPage>
     </>
   )
 }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { ContentListPage, contentListMetadata } from '@/components/content/content-list-page'
-import { pageParam } from '@/components/content/content-ui'
+import { pageParam } from '@/components/learn/ui'
 
 export const dynamic = 'force-dynamic'
 

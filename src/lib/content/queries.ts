@@ -91,6 +91,9 @@ export interface ContentCard {
   title: string
   excerpt: string
   cover: string | null
+  /** 封面宽高（上传时记录，见 media_assets）；读不到为空，前端按 4:5 兜底 */
+  coverW: number | null
+  coverH: number | null
   modelName: string | null
   tags: { slug: string; name: string; kind: string }[]
   authorName: string
@@ -120,6 +123,8 @@ function toCard(p: CardRow): ContentCard {
     title: p.title,
     excerpt: p.excerpt || p.prompt?.useCase || plainExcerpt(p.content, 90),
     cover: imagesOf(p)[0] ?? null,
+    coverW: null,
+    coverH: null,
     modelName: tags.find((t) => t.kind === 'MODEL')?.name ?? null,
     tags: tags.map(({ slug, name, kind }) => ({ slug, name, kind })),
     authorName: authorNameOf(p),
@@ -140,6 +145,25 @@ const LIST_ORDER: Prisma.ForumPostOrderByWithRelationInput[] = [
   { createdAt: 'desc' },
   { id: 'desc' },
 ]
+
+/** 按图片地址查上传时记录的宽高 */
+export async function dimsFor(urls: string[]): Promise<Map<string, { w: number; h: number }>> {
+  const list = Array.from(new Set(urls.filter(Boolean)))
+  const m = new Map<string, { w: number; h: number }>()
+  if (!list.length) return m
+  const rows = await prisma.mediaAsset.findMany({ where: { url: { in: list } }, select: { url: true, width: true, height: true } })
+  for (const r of rows) if (r.width && r.height) m.set(r.url, { w: r.width, h: r.height })
+  return m
+}
+
+/** 给卡片补上封面宽高（一次查询） */
+export async function withDims(cards: ContentCard[]): Promise<ContentCard[]> {
+  const dims = await dimsFor(cards.map((c) => c.cover ?? ''))
+  return cards.map((c) => {
+    const d = c.cover ? dims.get(c.cover) : undefined
+    return d ? { ...c, coverW: d.w, coverH: d.h } : c
+  })
+}
 
 export interface ListResult {
   items: ContentCard[]
@@ -171,7 +195,7 @@ export async function listContent(opts: {
     }),
     prisma.forumPost.count({ where }),
   ])
-  return { items: rows.map(toCard), total, page: opts.page, totalPages: Math.max(Math.ceil(total / opts.pageSize), 1) }
+  return { items: await withDims(rows.map(toCard)), total, page: opts.page, totalPages: Math.max(Math.ceil(total / opts.pageSize), 1) }
 }
 
 /**
@@ -205,7 +229,7 @@ export async function relatedContent(p: ContentRow, limit = 6): Promise<{ title:
       take: limit,
       include: CARD_INCLUDE,
     })
-    const items = rows.map(toCard)
+    const items = await withDims(rows.map(toCard))
     items.forEach((i) => seen.add(i.id))
     if (items.length) groups.push({ title, items })
   }
@@ -222,4 +246,93 @@ export async function relatedContent(p: ContentRow, limit = 6): Promise<{ title:
   if (models.length) await take('同模型', { postTags: { some: { tagId: { in: models } } } })
   if (products.length) await take('同产品的其他教程', { postTags: { some: { tagId: { in: products } } } })
   return groups
+}
+
+/** 阅读时长（分钟）：中文按每分钟 400 字估，至少 1 分钟 */
+export function readingMinutes(md: string): number {
+  const n = md.replace(/```[\s\S]*?```/g, '').replace(/\s+/g, '').length
+  return Math.max(1, Math.round(n / 400))
+}
+
+/**
+ * 学习平台首页（/learn）的聚合数据。全部是公开内容；任何一块查询失败都降级成空，不让首页 500。
+ */
+export async function learnHomeData() {
+  const safe = async <T>(f: () => Promise<T>, fallback: T): Promise<T> => {
+    try {
+      return await f()
+    } catch (e) {
+      console.error('[learn home]', e)
+      return fallback
+    }
+  }
+  const [prompts, guides, totals, tags, creators] = await Promise.all([
+    safe(() => listContent({ type: 'PROMPT', page: 1, pageSize: 12 }), { items: [], total: 0, page: 1, totalPages: 1 } as ListResult),
+    safe(() => listContent({ type: 'GUIDE', page: 1, pageSize: 7 }), { items: [], total: 0, page: 1, totalPages: 1 } as ListResult),
+    safe(
+      async () => {
+        const [prompt, guide, discussion] = await Promise.all(
+          (['PROMPT', 'GUIDE', 'DISCUSSION'] as const).map((type) => prisma.forumPost.count({ where: { ...PUBLIC_WHERE, type } })),
+        )
+        return { prompt, guide, discussion }
+      },
+      { prompt: 0, guide: 0, discussion: 0 },
+    ),
+    safe(
+      () =>
+        prisma.tag.findMany({
+          where: { status: 1 },
+          orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+          select: {
+            slug: true,
+            name: true,
+            kind: true,
+            intro: true,
+            _count: { select: { posts: { where: { post: PUBLIC_WHERE } } } },
+            posts: {
+              where: { post: { ...PUBLIC_WHERE, type: 'PROMPT' } },
+              take: 3,
+              orderBy: { post: { createdAt: 'desc' } },
+              select: { post: { select: { images: true } } },
+            },
+          },
+        }),
+      [],
+    ),
+    safe(
+      async () => {
+        const grouped = await prisma.forumPost.groupBy({
+          by: ['userId'],
+          where: { ...PUBLIC_WHERE, type: { in: ['PROMPT', 'GUIDE'] }, userId: { not: null } },
+          _count: { _all: true },
+          orderBy: { _count: { userId: 'desc' } },
+          take: 6,
+        })
+        const ids = grouped.map((g) => g.userId!).filter(Boolean)
+        const [users, profiles] = await Promise.all([
+          prisma.user.findMany({ where: { id: { in: ids }, status: 1 }, select: { id: true, nickname: true } }),
+          prisma.creatorProfile.findMany({ where: { userId: { in: ids } }, select: { userId: true, handle: true } }),
+        ])
+        return grouped
+          .map((g) => {
+            const u = users.find((x) => x.id === g.userId)
+            const pf = profiles.find((x) => x.userId === g.userId)
+            return u && pf ? { name: memberDisplayName(u.nickname, u.id), href: `/u/${pf.handle}`, count: g._count._all } : null
+          })
+          .filter((x): x is { name: string; href: string; count: number } => !!x)
+      },
+      [],
+    ),
+  ])
+  const hubs = tags
+    .filter((t) => t._count.posts > 0)
+    .map((t) => ({
+      slug: t.slug,
+      name: t.name,
+      kind: t.kind,
+      count: t._count.posts,
+      hasIntro: !!t.intro,
+      covers: t.posts.map((pt) => imagesOf(pt.post)[0]).filter((u): u is string => !!u),
+    }))
+  return { prompts: prompts.items, guides: guides.items, totals, hubs, creators }
 }

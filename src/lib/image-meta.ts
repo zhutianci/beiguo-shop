@@ -197,3 +197,53 @@ function stripWebp(buf: Buffer): StripResult {
   head.write('WEBP', 8, 'latin1')
   return { buf: Buffer.concat([head, body]), stripped: true }
 }
+
+// ─────────────────────────────── 尺寸 ───────────────────────────────
+
+/**
+ * 读图片宽高（只看文件头，不解码）。用途：瀑布流卡片按真实比例预留位置，图片加载时页面不跳（CLS）。
+ * 读不出来返回 null，调用方按正方形兜底。JPEG 的 EXIF 方向 5–8 是转了 90° 的，宽高要对调。
+ */
+export function imageSize(buf: Buffer, ext: string): { width: number; height: number } | null {
+  try {
+    if (ext === 'png' && buf.length >= 24) return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) }
+    if (ext === 'gif' && buf.length >= 10) return { width: buf.readUInt16LE(6), height: buf.readUInt16LE(8) }
+    if (ext === 'webp') return webpSize(buf)
+    if (ext === 'jpg') return jpegSize(buf)
+  } catch {
+    /* 读不出就算了 */
+  }
+  return null
+}
+
+function jpegSize(buf: Buffer): { width: number; height: number } | null {
+  let i = 2
+  let orientation = 1
+  while (i + 9 < buf.length) {
+    if (buf[i] !== 0xff) return null
+    const marker = buf[i + 1]
+    if (marker === 0xd9 || marker === 0xda) return null
+    const len = buf.readUInt16BE(i + 2)
+    if (marker === 0xe1) orientation = readExifOrientation(buf.subarray(i + 4, i + 2 + len)) || orientation
+    // SOF0–SOF15，排除 DHT(C4)、JPG(C8)、DAC(CC)
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      const height = buf.readUInt16BE(i + 5)
+      const width = buf.readUInt16BE(i + 7)
+      return orientation >= 5 ? { width: height, height: width } : { width, height }
+    }
+    i += 2 + len
+  }
+  return null
+}
+
+function webpSize(buf: Buffer): { width: number; height: number } | null {
+  if (buf.length < 30) return null
+  const fourcc = buf.subarray(12, 16).toString('latin1')
+  if (fourcc === 'VP8X') return { width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) }
+  if (fourcc === 'VP8 ') return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff }
+  if (fourcc === 'VP8L') {
+    const b = buf.readUInt32LE(21)
+    return { width: (b & 0x3fff) + 1, height: ((b >> 14) & 0x3fff) + 1 }
+  }
+  return null
+}

@@ -1480,6 +1480,9 @@ model MediaAsset {
   bytes     Int
   sha256    String   @db.Char(64)
   stripped  Boolean  @default(false) // 已去除 EXIF / XMP 等元数据
+  // 宽高（内容平台 P1 改版）：瀑布流按真实比例预留位置，图片加载时不跳。读不出时为空，前端按正方形兜底
+  width     Int?
+  height    Int?
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([sha256])
