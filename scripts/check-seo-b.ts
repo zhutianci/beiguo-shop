@@ -24,7 +24,7 @@
  *
  * --base 模式（抓首包 HTML，不执行 JS）：
  *  · 每页 <head> 里没有站标的 image preload；页头页脚站标是 WebP；没有 translateY(-100…)
- *  · 首页服务端 HTML 没有带内容的 opacity:0（FIRST_FRAME_STRICT）；/support、/iptools、/links 还没改，只告警并写明归属的包（FIRST_FRAME_PENDING）
+ *  · 首页、/support、/iptools、/links 服务端 HTML 没有带内容的 opacity:0（FIRST_FRAME_STRICT；SEO 批 2 起三页挪进来）；待改的页登记在 FIRST_FRAME_PENDING（只告警）
  *  · 大事记详情页的微信缩略图：object-cover + fetchpriority=low，且不被 preload
  *  · /api/orders/recent 的每一项都没有 createdAt（city 随成交弹窗保留）
  *  · 落地页、大事记页加载的 JS 里有没有 framer-motion（成交弹窗保留后预期仍有，只告警）；首页必须能查到——阳性对照
@@ -341,8 +341,10 @@ async function framerIn(html: string): Promise<{ hits: string[]; total: number }
  *    /support 的 H1 本身就包在 opacity:0 里，违反设计 §3.1「H1 服务端直出、首帧可见」）。
  *    负责的包改完后把页面从 PENDING 挪进 STRICT（设计 §8.2 C 包「首帧可见补齐」）。
  */
-const FIRST_FRAME_STRICT = ['/']
-const FIRST_FRAME_PENDING: Record<string, string> = { '/support': 'C', '/iptools': 'C', '/links': 'C' }
+// SEO 批 2 的 C 包：/support、/iptools、/links 的首帧隐藏 main 09-30 / 10-06 已改掉（initial={false}，whileInView 只留位移），
+// 本批核对三页服务端 HTML 均无带内容的 opacity:0，挪进 STRICT（有就失败）；PENDING 留空，以后有新的待改页再登记
+const FIRST_FRAME_STRICT = ['/', '/support', '/iptools', '/links']
+const FIRST_FRAME_PENDING: Record<string, string> = {}
 
 async function htmlChecks() {
   console.log(`\n【--base ${BASE}：服务端 HTML】`)
