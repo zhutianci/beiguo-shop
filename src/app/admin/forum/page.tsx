@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Plus, Pencil, Trash2, Search, Pin, Star, Lock, Eye, EyeOff, ExternalLink, X, MessageCircle, ThumbsUp,
+  CheckCircle2, XCircle, RotateCcw,
 } from 'lucide-react'
+import { ORIGINALITY_LABELS, type Originality } from '@/lib/content/policy'
 
 interface Category {
   id: number
@@ -29,13 +31,36 @@ interface AdminPost {
   featured: boolean
   locked: boolean
   status: number
+  reviewStatus: string
+  reviewNote: string | null
+  originality: string
+  sourceUrl: string | null
+  aiAssist: string
+  deletedAt: string | null
   views: number
   likeCount: number
   commentCount: number
   createdAt: string
 }
+interface AdminComment {
+  id: number
+  postId: number
+  postTitle: string
+  authorName: string
+  content: string
+  reviewStatus: string
+  createdAt: string
+}
 
 const PAGE_SIZE = 20
+
+const REVIEW_BADGE: Record<string, { text: string; cls: string }> = {
+  PENDING: { text: '待审', cls: 'bg-amber-100 text-amber-700' },
+  APPROVED: { text: '已通过', cls: 'bg-green-100 text-green-700' },
+  REJECTED: { text: '已驳回', cls: 'bg-red-100 text-red-700' },
+}
+
+
 
 export default function AdminForumPage() {
   const [categories, setCategories] = useState<Category[]>([])
@@ -43,6 +68,10 @@ export default function AdminForumPage() {
   const [keyword, setKeyword] = useState('')
   const [debouncedKeyword, setDebouncedKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [reviewFilter, setReviewFilter] = useState('')
+  const [pendingCounts, setPendingCounts] = useState({ posts: 0, comments: 0 })
+  const [comments, setComments] = useState<AdminComment[]>([])
+  const [showComments, setShowComments] = useState(false)
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -73,23 +102,58 @@ export default function AdminForumPage() {
       const q = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) })
       if (debouncedKeyword) q.set('keyword', debouncedKeyword)
       if (statusFilter) q.set('status', statusFilter)
+      if (reviewFilter) q.set('review', reviewFilter)
       const res = await fetch(`/api/admin/forum/posts?${q}`, { signal: controller.signal })
       const data = await res.json()
       if (data.success && abortRef.current === controller) {
         setPosts(data.data.list)
         setTotal(data.data.total || 0)
         setTotalPages(data.data.totalPages || 1)
+        if (data.data.pending) setPendingCounts(data.data.pending)
       }
     } catch (e) {
       if ((e as { name?: string })?.name === 'AbortError') return
     } finally {
       if (abortRef.current === controller) setLoading(false)
     }
-  }, [page, debouncedKeyword, statusFilter])
+  }, [page, debouncedKeyword, statusFilter, reviewFilter])
 
   useEffect(() => {
     loadPosts()
   }, [loadPosts])
+
+  const loadComments = useCallback(async () => {
+    const res = await fetch('/api/admin/forum/comments?review=PENDING&pageSize=50')
+    const data = await res.json()
+    if (data.success) setComments(data.data.list)
+  }, [])
+
+  useEffect(() => {
+    if (showComments) loadComments()
+  }, [showComments, loadComments])
+
+  const reviewComment = async (id: number, reviewStatus: 'APPROVED' | 'REJECTED' | 'DELETE') => {
+    if (reviewStatus === 'DELETE' && !confirm('删除这条评论？')) return
+    const res = await fetch(`/api/admin/forum/comments/${id}`, {
+      method: reviewStatus === 'DELETE' ? 'DELETE' : 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: reviewStatus === 'DELETE' ? undefined : JSON.stringify({ reviewStatus }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      loadComments()
+      loadPosts()
+    } else alert(data.error || '操作失败')
+  }
+
+  // 地址栏 ?review=PENDING / ?tab=comments（待审通知里「去审核」链接带的就是这两个）。
+  // 挂载后再读：放进 useState 初始值会让服务端与客户端首帧不一致（水合告警）
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search)
+    const review = q.get('review')
+    if (review === 'PENDING' || review === 'APPROVED' || review === 'REJECTED') setReviewFilter(review)
+    if (q.get('tab') === 'comments') setShowComments(true)
+  }, [])
 
   useEffect(() => {
     loadCategories()
@@ -136,8 +200,14 @@ export default function AdminForumPage() {
     else alert(data.error || '删除失败')
   }
 
+  // 运营与审核操作走后台接口（adminGuard：查库复核 + 同源校验），不再借用前台公开接口
   const postAction = async (id: number, patch: Record<string, unknown>) => {
-    const res = await fetch(`/api/forum/posts/${id}`, {
+    if (patch.reviewStatus === 'REJECTED') {
+      const note = prompt('驳回原因（作者会在帖子页看到）：')
+      if (!note?.trim()) return
+      patch = { ...patch, reviewNote: note.trim() }
+    }
+    const res = await fetch(`/api/admin/forum/posts/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
@@ -147,8 +217,8 @@ export default function AdminForumPage() {
     else alert(data.error || '操作失败')
   }
   const deletePost = async (id: number) => {
-    if (!confirm('确定删除该帖子？')) return
-    const res = await fetch(`/api/forum/posts/${id}`, { method: 'DELETE' })
+    if (!confirm('确定删除该帖子？（软删除，可在「已删除」里恢复）')) return
+    const res = await fetch(`/api/admin/forum/posts/${id}`, { method: 'DELETE' })
     const data = await res.json()
     if (data.success) loadPosts()
     else alert(data.error || '删除失败')
@@ -207,10 +277,65 @@ export default function AdminForumPage() {
         </CardContent>
       </Card>
 
+      {/* 待审评论 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>
+            待审评论
+            {pendingCounts.comments > 0 && (
+              <span className="ml-2 inline-flex rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700">{pendingCounts.comments}</span>
+            )}
+          </CardTitle>
+          <Button size="sm" variant="outline" onClick={() => setShowComments((v) => !v)}>
+            {showComments ? '收起' : '展开'}
+          </Button>
+        </CardHeader>
+        {showComments && (
+          <CardContent>
+            {comments.length === 0 ? (
+              <div className="text-center py-6 text-gray-400 text-sm">没有待审评论</div>
+            ) : (
+              <div className="space-y-3">
+                {comments.map((c) => (
+                  <div key={c.id} className="rounded-lg border p-3 text-sm text-gray-800">
+                    <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
+                      <span>
+                        {c.authorName} · 评论于{' '}
+                        <a href={`/forum/${c.postId}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{c.postTitle}</a>
+                      </span>
+                      <span>{new Date(c.createdAt).toLocaleString('zh-CN')}</span>
+                    </div>
+                    <p className="mt-1.5 whitespace-pre-wrap break-words">{c.content}</p>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => reviewComment(c.id, 'APPROVED')} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-green-700 hover:bg-green-50"><CheckCircle2 className="w-3.5 h-3.5" /> 通过</button>
+                      <button onClick={() => reviewComment(c.id, 'REJECTED')} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-amber-700 hover:bg-amber-50"><XCircle className="w-3.5 h-3.5" /> 驳回</button>
+                      <button onClick={() => reviewComment(c.id, 'DELETE')} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded text-red-600 hover:bg-red-50"><Trash2 className="w-3.5 h-3.5" /> 删除</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
       {/* 帖子管理 */}
       <Card>
         <CardHeader>
-          <CardTitle>帖子管理（共 {total} 条）</CardTitle>
+          <CardTitle>
+            帖子管理（共 {total} 条）
+            {pendingCounts.posts > 0 && (
+              <button
+                onClick={() => {
+                  setReviewFilter('PENDING')
+                  setPage(1)
+                }}
+                className="ml-2 inline-flex rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-700 hover:bg-amber-200"
+              >
+                {pendingCounts.posts} 篇待审
+              </button>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 mb-4 flex-wrap">
@@ -237,6 +362,20 @@ export default function AdminForumPage() {
               <option value="">全部状态</option>
               <option value="1">正常</option>
               <option value="0">已隐藏</option>
+              <option value="deleted">已删除</option>
+            </select>
+            <select
+              value={reviewFilter}
+              onChange={(e) => {
+                setReviewFilter(e.target.value)
+                setPage(1)
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900"
+            >
+              <option value="">全部审核状态</option>
+              <option value="PENDING">待审（先到先审）</option>
+              <option value="APPROVED">已通过</option>
+              <option value="REJECTED">已驳回</option>
             </select>
             <Button variant="outline" onClick={loadPosts}>
               <Search className="w-4 h-4 mr-1" /> 刷新
@@ -269,6 +408,17 @@ export default function AdminForumPage() {
                           {p.locked && <Lock className="w-3 h-3 text-gray-400" />}
                           <span className="font-medium truncate">{p.title}</span>
                         </div>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]">
+                          <span className={`rounded px-1.5 ${REVIEW_BADGE[p.reviewStatus]?.cls ?? 'bg-gray-100 text-gray-500'}`}>
+                            {REVIEW_BADGE[p.reviewStatus]?.text ?? p.reviewStatus}
+                          </span>
+                          <span className="rounded px-1.5 bg-gray-100 text-gray-600">
+                            {ORIGINALITY_LABELS[p.originality as Originality] ?? p.originality}
+                          </span>
+                          {p.aiAssist === 'MAJOR' && <span className="rounded px-1.5 bg-gray-100 text-gray-600">AI 主笔</span>}
+                          {p.deletedAt && <span className="rounded px-1.5 bg-red-50 text-red-600">已删除</span>}
+                          {p.reviewNote && <span className="text-gray-400 truncate" title={p.reviewNote}>原因：{p.reviewNote}</span>}
+                        </div>
                       </td>
                       <td className="py-2 pr-3">{p.authorName}{!p.isMember && <span className="text-xs text-gray-400">·匿名</span>}</td>
                       <td className="py-2 pr-3 text-xs">{p.category?.icon} {p.category?.name}</td>
@@ -281,6 +431,18 @@ export default function AdminForumPage() {
                         <a href={`/forum/${p.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center text-xs px-1.5 py-1 rounded text-gray-500 hover:bg-gray-100" title="查看">
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
+                        {p.deletedAt ? (
+                          <button onClick={() => postAction(p.id, { restore: true })} className="ml-0.5 text-xs px-1.5 py-1 rounded text-blue-600 hover:bg-blue-50" title="恢复"><RotateCcw className="w-3.5 h-3.5" /></button>
+                        ) : (
+                          <>
+                            {p.reviewStatus !== 'APPROVED' && (
+                              <button onClick={() => postAction(p.id, { reviewStatus: 'APPROVED' })} className="ml-0.5 text-xs px-1.5 py-1 rounded text-green-600 hover:bg-green-50" title="审核通过"><CheckCircle2 className="w-3.5 h-3.5" /></button>
+                            )}
+                            {p.reviewStatus !== 'REJECTED' && (
+                              <button onClick={() => postAction(p.id, { reviewStatus: 'REJECTED' })} className="text-xs px-1.5 py-1 rounded text-amber-600 hover:bg-amber-50" title="驳回（需填原因）"><XCircle className="w-3.5 h-3.5" /></button>
+                            )}
+                          </>
+                        )}
                         <button onClick={() => postAction(p.id, { pinned: !p.pinned })} className={`ml-0.5 text-xs px-1.5 py-1 rounded hover:bg-gray-100 ${p.pinned ? 'text-red-500' : 'text-gray-500'}`} title="置顶"><Pin className="w-3.5 h-3.5" /></button>
                         <button onClick={() => postAction(p.id, { featured: !p.featured })} className={`text-xs px-1.5 py-1 rounded hover:bg-gray-100 ${p.featured ? 'text-amber-500' : 'text-gray-500'}`} title="加精"><Star className="w-3.5 h-3.5" /></button>
                         <button onClick={() => postAction(p.id, { locked: !p.locked })} className={`text-xs px-1.5 py-1 rounded hover:bg-gray-100 ${p.locked ? 'text-gray-800' : 'text-gray-500'}`} title="锁帖"><Lock className="w-3.5 h-3.5" /></button>

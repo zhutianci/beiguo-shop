@@ -4,12 +4,15 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { resolveActor, memberDisplayName } from '@/lib/forum'
+import { resolveActor } from '@/lib/forum'
 import { forumWriteGate } from '@/lib/forum-throttle'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { flagsOf, forumCrossSite, loadCommentPage, trustLevelOf } from '@/lib/forum-server'
+import { FLAG_LABELS, commentReviewOnCreate, isPublic } from '@/lib/content/policy'
+import { notify } from '@/lib/notify'
 
 // 评论列表（楼中楼，两层结构）
-// 顶层评论分页，楼中楼回复跟随其父评论一起返回（不单独分页）
+// 顶层评论分页，楼中楼回复跟随其父评论一起返回（不单独分页）。取数与拼装在 lib/forum-server（详情页服务端直出共用）
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
@@ -23,82 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20') || 20, 1), 50)
 
-    const include = { user: { select: { nickname: true, avatar: true } } }
-    const topWhere = { postId: id, status: 1, parentId: null }
-
-    // 只取本页顶层评论 + 总数
-    const [topComments, total] = await Promise.all([
-      prisma.forumComment.findMany({
-        where: topWhere,
-        // id 兜底，保证翻页稳定（不重不漏）
-        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-        include,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      prisma.forumComment.count({ where: topWhere }),
-    ])
-
-    const topIds = topComments.map((c) => c.id)
-
-    // 本页顶层评论下的回复
-    const replies = topIds.length
-      ? await prisma.forumComment.findMany({
-          where: { postId: id, status: 1, parentId: { in: topIds } },
-          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-          include,
-        })
-      : []
-
-    // 当前用户点赞过的评论（只查本页涉及的评论 id）
-    const allIds = [...topIds, ...replies.map((r) => r.id)]
-    let likedSet = new Set<number>()
-    if ((actor.userId || actor.anonId) && allIds.length) {
-      const likes = await prisma.forumLike.findMany({
-        where: {
-          commentId: { in: allIds },
-          ...(actor.userId ? { userId: actor.userId } : { anonId: actor.anonId }),
-        },
-        select: { commentId: true },
-      })
-      likedSet = new Set(likes.map((l) => l.commentId!).filter(Boolean))
-    }
-
-    const shape = (c: (typeof topComments)[number]) => ({
-      id: c.id,
-      parentId: c.parentId,
-      content: c.content,
-      // 会员按当前昵称现算：库里旧快照可能是邮箱前缀（审计 G48）
-      authorName: c.userId ? memberDisplayName(c.user?.nickname, c.userId) : c.authorName,
-      avatar: c.user?.avatar || null,
-      isMember: !!c.userId,
-      likeCount: c.likeCount,
-      likedByMe: likedSet.has(c.id),
-      canDelete: actor.isAdmin || (!!c.userId && c.userId === actor.userId),
-      createdAt: c.createdAt,
-    })
-
-    // 按父评论分组，避免 O(n²) 过滤
-    const repliesByParent = new Map<number, ReturnType<typeof shape>[]>()
-    for (const r of replies) {
-      const pid = r.parentId!
-      const arr = repliesByParent.get(pid)
-      if (arr) arr.push(shape(r))
-      else repliesByParent.set(pid, [shape(r)])
-    }
-
-    const list = topComments.map((c) => ({
-      ...shape(c),
-      replies: repliesByParent.get(c.id) || [],
-    }))
-
-    return success({
-      list,
-      total,
-      page,
-      pageSize,
-      totalPages: Math.max(Math.ceil(total / pageSize), 1),
-    })
+    return success(await loadCommentPage(id, page, pageSize, actor))
   } catch (err) {
     console.error('List comments error:', err)
     return error('获取评论失败')
@@ -108,20 +36,24 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 const createSchema = z.object({
   content: z.string().trim().min(1, '评论不能为空').max(5000, '评论过长'),
   parentId: z.number().int().positive().optional().nullable(),
-  anonName: z.string().trim().max(30).optional().nullable(),
 })
 
+// 发表评论：必须登录（内容平台 P0 关闭匿名评论）；命中风险检测的进待审，其余即发即显
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied
+  const crossSite = forumCrossSite(request.headers)
+  if (crossSite) return crossSite
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
     const actor = await resolveActor(request)
+    if (!actor.userId) return error('请先登录后再评论', 401)
 
     const post = await prisma.forumPost.findUnique({ where: { id } })
-    if (!post || post.status !== 1) return error('帖子不存在', 404)
+    // 只能评论公开的帖子：待审帖的作者自己也不能先在下面盖楼
+    if (!post || !isPublic(post)) return error('帖子不存在', 404)
     if (post.locked && !actor.isAdmin) return error('该帖已锁定，暂不可回复')
 
     const body = await request.json()
@@ -141,9 +73,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const denied = forumWriteGate(request.headers, actor, 'comment')
     if (denied) return error(denied, 429)
 
-    let authorName = actor.nickname
-    if (!actor.userId) authorName = (d.anonName || '').trim() || '匿名用户'
-    if (!authorName) authorName = '用户'
+    const authorName = actor.nickname || '用户'
+    const level = await trustLevelOf({ id: actor.userId, role: actor.isAdmin ? 'ADMIN' : 'USER' })
+    const flags = flagsOf(d.content)
+    const reviewStatus = commentReviewOnCreate(level, flags)
 
     const comment = await prisma.forumComment.create({
       data: {
@@ -152,15 +85,31 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         userId: actor.userId,
         authorName: authorName.slice(0, 50),
         content: d.content,
+        reviewStatus,
       },
     })
+
+    if (reviewStatus === 'PENDING') {
+      // 待审评论不计入 commentCount、不顶帖：审核通过时再加（/api/admin/forum/comments/[id]）
+      notify(
+        'forum.review',
+        [
+          { label: '标题', value: `评论 · ${post.title}` },
+          { label: '作者', value: authorName },
+          { label: '内容', value: d.content.slice(0, 120) },
+          { label: '原因', value: flags.map((f) => FLAG_LABELS[f]).join('、') },
+        ],
+        { link: '/admin/forum?tab=comments', linkText: '去审核' },
+      )
+      return success({ id: comment.id, pending: true }, '评论已提交，审核通过后显示')
+    }
 
     await prisma.forumPost.update({
       where: { id },
       data: { commentCount: { increment: 1 }, lastReplyAt: new Date() },
     })
 
-    return success({ id: comment.id }, '评论成功')
+    return success({ id: comment.id, pending: false }, '评论成功')
   } catch (err) {
     console.error('Create comment error:', err)
     return error('评论失败')

@@ -57,6 +57,8 @@ export const NOTIFY_EVENT_DEFS: Readonly<Record<NotifyEvent, EventDef>> = Object
   'bot.offline': { category: 'security', defaultOn: true, urgent: true, emoji: '🚨' },
   'bot.online': { category: 'security', defaultOn: true, emoji: '✅' },
   'bot.sensitive': { category: 'security', defaultOn: true, urgent: true, emoji: '🔐' },
+  // 内容平台待审提醒（docs/内容平台/内容平台-设计.md §10.1）：标题与作者是用户填的
+  'forum.review': { category: 'ops', defaultOn: true, emoji: '📝', userTextLabels: ['标题', '作者', '内容'] },
 })
 
 /** 渠道站内通知 → 分站群 */

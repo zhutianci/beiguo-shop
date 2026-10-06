@@ -49,6 +49,8 @@ export type NotifyEvent =
   | 'bot.offline'
   | 'bot.online'
   | 'bot.sensitive'
+  // 内容平台（docs/内容平台/内容平台-设计.md §10.1）：有帖子或评论进了待审队列
+  | 'forum.review'
 
 const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'order.created': { emoji: '🛒', title: '新订单' },
@@ -88,6 +90,7 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'bot.online': { emoji: '✅', title: '微信机器人已恢复' },
   // 提卡 / 补货 / 锁定等敏感操作的带外抄送（§8.4 第 8 步）：经过小号之外的另一条通道，站长能及时发现不是自己做的操作
   'bot.sensitive': { emoji: '🔐', title: '微信机器人敏感操作' },
+  'forum.review': { emoji: '📝', title: '社区有内容待审核' },
 }
 
 /**

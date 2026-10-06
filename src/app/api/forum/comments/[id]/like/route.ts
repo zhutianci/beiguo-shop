@@ -13,6 +13,7 @@ import {
   releaseLikeLock,
 } from '@/lib/forum-throttle'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { forumCrossSite } from '@/lib/forum-server'
 
 // 评论点赞 / 取消（切换）
 // 审计 G44：匿名去重靠客户端自填的 x-anon-id，换一个值就能再 +1。现在匿名新增赞额外按
@@ -21,6 +22,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied
+  const crossSite = forumCrossSite(request.headers)
+  if (crossSite) return crossSite
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

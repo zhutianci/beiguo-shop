@@ -1,0 +1,239 @@
+/**
+ * 内容平台的规则（docs/内容平台/内容平台-设计.md §6、§8.1、§10.1、§11.1）。
+ *
+ * 纯函数，不 import prisma / next/*，方便 scripts/check-content-policy.ts 直接测。
+ * 「谁能直接发布」「什么内容进待审」「哪条帖子可以交给搜索引擎」都只在这里判定一次，
+ * 页面的 robots meta、sitemap、IndexNow 三处共用 isIndexable（照 lib/news/thin.ts 的 shouldNoindexEvent 的做法），
+ * 不允许各写一份——两份实现迟早会漂移，漂移的结果是「sitemap 里提交了一个页面自己说 noindex 的 URL」。
+ */
+
+// ─────────────────────────────── 枚举 ───────────────────────────────
+
+export const REVIEW_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const
+export type ReviewStatus = (typeof REVIEW_STATUSES)[number]
+
+/** 原创声明（设计 §6.1）。只有 ORIGINAL_FIRST 能进精选、拿激励、被收录 */
+export const ORIGINALITY = ['ORIGINAL_FIRST', 'ORIGINAL_ELSEWHERE', 'REPOST'] as const
+export type Originality = (typeof ORIGINALITY)[number]
+export const ORIGINALITY_LABELS: Record<Originality, string> = {
+  ORIGINAL_FIRST: '原创首发',
+  ORIGINAL_ELSEWHERE: '原创（已在别处发布）',
+  REPOST: '转载 / 改编',
+}
+
+/** 正文是否用 AI 辅助撰写（设计 §6.3）。MAJOR 不进精选、不收录；出图本身是 AI 生成不受这条限制 */
+export const AI_ASSIST = ['NONE', 'PARTIAL', 'MAJOR'] as const
+export type AiAssist = (typeof AI_ASSIST)[number]
+export const AI_ASSIST_LABELS: Record<AiAssist, string> = {
+  NONE: '没有使用 AI',
+  PARTIAL: '部分使用（润色、翻译、整理）',
+  MAJOR: '主要由 AI 生成',
+}
+
+// ─────────────────────────────── 信任等级（§8.1） ───────────────────────────────
+
+/**
+ * 0 新人 / 1 成员 / 2 创作者 / 9 管理员。L3 共建者要靠站长邀请，P2 才有存储字段，P0 不出现。
+ *
+ * 只升不降：入参全是「累计」口径（过审数、精选数、注册时长），删帖不会让等级掉下去。
+ * 违规降级等 P2 有了违规记录再做。
+ */
+export type TrustLevel = 0 | 1 | 2 | 9
+
+export interface TrustInput {
+  role: string
+  createdAt: Date
+  /** 本人已过审的帖子数（含已被删除的：只升不降） */
+  approvedPosts: number
+  /** 本人被精选的帖子数 */
+  featuredPosts: number
+}
+
+export const L1_MIN_ACCOUNT_DAYS = 7
+export const L2_MIN_FEATURED = 3
+
+export function trustLevelFrom(u: TrustInput, now: Date = new Date()): TrustLevel {
+  if (u.role === 'ADMIN') return 9
+  if (u.featuredPosts >= L2_MIN_FEATURED) return 2
+  const ageDays = (now.getTime() - u.createdAt.getTime()) / 86_400_000
+  if (u.approvedPosts >= 1 && ageDays >= L1_MIN_ACCOUNT_DAYS) return 1
+  return 0
+}
+
+export const TRUST_LABELS: Record<TrustLevel, string> = { 0: '新人', 1: '成员', 2: '创作者', 9: '管理员' }
+
+// ─────────────────────────────── 内容风险检测（§10.1） ───────────────────────────────
+
+export type ContentFlag = 'link' | 'contact' | 'sensitive'
+
+/**
+ * 只是「转人工」的信号，不直接拒绝：误报的代价是多等一次审核，漏报的代价是一条垃圾内容公开。
+ * 词表是兜底的下限，不是完整的审核——上线后按待审队列里真实出现的东西往里加。
+ */
+const SENSITIVE_WORDS = [
+  // 设计 §2「明确不做的」：越狱 / 破限 / 擦边
+  '破限', '越狱', 'jailbreak', '擦边', '色情', '裸照', '约炮',
+  // 赌博、诈骗、违禁
+  '博彩', '赌博', '赌场', '代孕', '刷单', '洗钱', '套现', '办证', '枪支',
+  // 设计 §1.3：接码、账号、KYC 类内容不收（反诈法风险）
+  '卖号', '收号', '实名号', '过人脸', '绕过kyc', '绕过 kyc',
+]
+
+const CONTACT_PATTERNS: RegExp[] = [
+  /(?:微信|weixin|wechat|vx|v信|wx|薇信|威信)\s*(?:号)?\s*[:：]?\s*[a-zA-Z][-_a-zA-Z0-9]{5,19}/i,
+  /(?:qq|扣扣|企鹅)\s*(?:号|群)?\s*[:：]?\s*\d{5,11}/i,
+  /(?<!\d)1[3-9]\d{9}(?!\d)/, // 大陆手机号
+  /(?:t\.me|telegram\.me)\//i,
+  /(?:加我|私信我|联系我|找我)\s*(?:微信|vx|qq|v|wx)/i,
+]
+
+const URL_RE = /https?:\/\/[^\s)\]>"'<]+/gi
+
+/** 站内地址不算外链。hosts 传本站域名（含 www 与否都写上），测试时可以注入 */
+export function externalLinks(text: string, siteHosts: readonly string[]): string[] {
+  const out: string[] = []
+  // Array.from：tsconfig 的 target 不支持直接 for…of 迭代 matchAll 的结果
+  for (const m of Array.from(text.matchAll(URL_RE))) {
+    let host = ''
+    try {
+      host = new URL(m[0]).hostname.toLowerCase()
+    } catch {
+      out.push(m[0])
+      continue
+    }
+    if (!siteHosts.some((h) => host === h || host.endsWith(`.${h}`))) out.push(m[0])
+  }
+  return out
+}
+
+export function contentFlags(text: string, siteHosts: readonly string[]): ContentFlag[] {
+  const flags: ContentFlag[] = []
+  if (externalLinks(text, siteHosts).length) flags.push('link')
+  if (CONTACT_PATTERNS.some((re) => re.test(text))) flags.push('contact')
+  const lower = text.toLowerCase()
+  if (SENSITIVE_WORDS.some((w) => lower.includes(w))) flags.push('sensitive')
+  return flags
+}
+
+export const FLAG_LABELS: Record<ContentFlag, string> = {
+  link: '含外链',
+  contact: '疑似联系方式',
+  sensitive: '命中敏感词',
+}
+
+// ─────────────────────────────── 审核判定（§10.1） ───────────────────────────────
+
+/**
+ * 新帖的审核状态。
+ *  - 管理员：直接通过
+ *  - L2 创作者：先发后审；但命中联系方式 / 敏感词仍进待审（外链对创作者是正常的引用）
+ *  - L0 新人、L1 成员：一律先审后发（设计 §8.1：L1 解锁的是外链可点和评论免审，不是发帖免审）
+ */
+export function postReviewOnCreate(level: TrustLevel, flags: readonly ContentFlag[]): ReviewStatus {
+  if (level === 9) return 'APPROVED'
+  if (level === 2) return flags.includes('contact') || flags.includes('sensitive') ? 'PENDING' : 'APPROVED'
+  return 'PENDING'
+}
+
+/**
+ * 作者修改了标题或正文之后的审核状态。
+ *
+ * 【为什么已过审的帖子改了要重审】否则「先发一篇干净的混过审核，再改成广告」就是一条稳定的绕过路径。
+ * 代价是 L0/L1 作者改错别字也要等一次审核——页面上会明确提示，可以接受。
+ * 被驳回的帖子修改后回到待审，等于「按驳回意见改完重新提交」。
+ */
+export function postReviewOnEdit(level: TrustLevel, flags: readonly ContentFlag[], current: string): ReviewStatus {
+  if (level === 9) return current === 'REJECTED' ? 'PENDING' : (current as ReviewStatus)
+  if (level === 2) {
+    if (flags.includes('contact') || flags.includes('sensitive')) return 'PENDING'
+    return current === 'REJECTED' ? 'PENDING' : 'APPROVED'
+  }
+  return 'PENDING'
+}
+
+/**
+ * 评论的审核状态。评论默认即发即显（买家的提问不该等审核），只有命中风险的进待审：
+ *  - 联系方式 / 敏感词：除管理员外一律待审
+ *  - 外链：只有 L0 新人待审（设计 §8.1：L1 起外链可用）
+ */
+export function commentReviewOnCreate(level: TrustLevel, flags: readonly ContentFlag[]): ReviewStatus {
+  if (level === 9) return 'APPROVED'
+  if (flags.includes('contact') || flags.includes('sensitive')) return 'PENDING'
+  if (level === 0 && flags.includes('link')) return 'PENDING'
+  return 'APPROVED'
+}
+
+// ─────────────────────────────── 可见性 ───────────────────────────────
+
+export interface VisibilityInput {
+  status: number
+  reviewStatus: string
+  deletedAt: Date | null
+  userId: number | null
+}
+
+/** 对所有人公开：前台列表、详情、评论区、搜索引擎都只看这一种 */
+export function isPublic(p: VisibilityInput): boolean {
+  return p.status === 1 && p.reviewStatus === 'APPROVED' && !p.deletedAt
+}
+
+/**
+ * 某个具体访客能不能打开详情页：公开的谁都能看；待审 / 被驳回 / 被隐藏的只有作者本人和管理员能看
+ * （作者要能看到「审核中」「驳回原因」）。已删除的谁都看不到（管理员在后台看）。
+ */
+export function canView(p: VisibilityInput, viewer: { userId: number | null; isAdmin: boolean }): boolean {
+  if (p.deletedAt) return false
+  if (isPublic(p)) return true
+  if (viewer.isAdmin) return true
+  return !!p.userId && p.userId === viewer.userId
+}
+
+// ─────────────────────────────── 收录闸门（§11.1） ───────────────────────────────
+
+/**
+ * 总开关。**P0 恒为 false**：老论坛按 seo/restructure 的决定整体 noindex，
+ * 内容平台的收录从 P1（提示词库 + 教程上线、站方种子内容就位）开始逐条放开（设计 §11.1「慢放量」）。
+ * 改成 true 是一次需要站长确认的上线动作，不要顺手改。
+ */
+export const INDEXING_OPEN = false
+
+export interface IndexableInput extends VisibilityInput {
+  content: string
+  originality: string
+  aiAssist: string
+  commentCount: number
+}
+
+/** P0 阶段的质量门槛：正文 ≥300 字，或已有 ≥3 条回复（设计 §11.1 DISCUSSION 一行）。P1 按内容类型细分 */
+export const MIN_INDEXABLE_CHARS = 300
+export const MIN_INDEXABLE_REPLIES = 3
+
+/** 去掉 Markdown 记号与代码块后的可读字数（中文按字、英文按字符） */
+export function readableLength(md: string): number {
+  return md
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[#>*`~_\-|]/g, '')
+    .replace(/\s+/g, '').length
+}
+
+export function isIndexable(p: IndexableInput, open: boolean = INDEXING_OPEN): boolean {
+  if (!open) return false
+  if (!isPublic(p)) return false
+  if (p.originality !== 'ORIGINAL_FIRST') return false
+  if (p.aiAssist === 'MAJOR') return false
+  return readableLength(p.content) >= MIN_INDEXABLE_CHARS || p.commentCount >= MIN_INDEXABLE_REPLIES
+}
+
+// ─────────────────────────────── 图片地址 ───────────────────────────────
+
+/**
+ * 帖子 images 字段里只允许本站论坛上传目录的地址（文件名格式见 lib/upload-store.ts 的 storeUpload）。
+ * 以前是 z.array(z.string())，什么都收：外站图（追踪像素、热链）、javascript:、超长字符串都能进库。
+ */
+export const FORUM_IMAGE_URL_RE = /^\/uploads\/forum\/[0-9a-z]{6,12}-[0-9a-f]{12}\.(?:jpg|png|gif|webp)$/
+
+export function isForumImageUrl(u: string): boolean {
+  return FORUM_IMAGE_URL_RE.test(u)
+}

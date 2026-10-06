@@ -15,7 +15,8 @@ export async function GET() {
     const categories = await prisma.forumCategory.findMany({
       where: { status: 1 },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-      include: { _count: { select: { posts: { where: { status: 1 } } } } },
+      // 帖子数只数对外公开的（口径同 lib/content/policy 的 isPublic）
+      include: { _count: { select: { posts: { where: { status: 1, reviewStatus: 'APPROVED', deletedAt: null } } } } },
     })
     return success(
       categories.map((c) => ({

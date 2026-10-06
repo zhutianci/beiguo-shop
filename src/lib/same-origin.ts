@@ -27,7 +27,8 @@
  *
  * 【调用范围——极易误伤，务必只用在这里列出的地方】
  *  只给「浏览器发起、带登录 cookie、会改状态」的接口用：目前是后台 /api/admin/*（经 adminGuard /
- *  requireAdmin）。绝不能加到收款回调（SmsForwarder / VMQ）、cron、外部发卡 API、退订链接、
+ *  requireAdmin），以及论坛的写接口（发帖 / 编辑 / 删除 / 评论 / 点赞，经 lib/forum-server 的 forumCrossSite）
+ *  与 /api/upload（内容平台 P0）。绝不能加到收款回调（SmsForwarder / VMQ）、cron、外部发卡 API、退订链接、
  *  快捷回复 / 财务令牌页这类机器调用或跨站跳转进来的接口上。
  *  也不要用在 server component / 页面里：从飞书、企业微信点链接进后台页面时 Sec-Fetch-Site 是 cross-site，会被误拒。
  */

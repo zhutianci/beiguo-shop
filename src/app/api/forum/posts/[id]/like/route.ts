@@ -13,6 +13,8 @@ import {
   releaseLikeLock,
 } from '@/lib/forum-throttle'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { forumCrossSite } from '@/lib/forum-server'
+import { isPublic } from '@/lib/content/policy'
 
 // 点赞 / 取消点赞（切换）
 // 审计 G44：匿名去重靠客户端自填的 x-anon-id，换一个值就能再 +1。现在匿名新增赞额外按
@@ -21,6 +23,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied
+  const crossSite = forumCrossSite(request.headers)
+  if (crossSite) return crossSite
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -30,8 +34,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const limited = forumLikeGate(request.headers, actor)
     if (limited) return error(limited, 429)
 
-    const post = await prisma.forumPost.findUnique({ where: { id }, select: { id: true } })
-    if (!post) return error('帖子不存在', 404)
+    const post = await prisma.forumPost.findUnique({
+      where: { id },
+      select: { id: true, status: true, reviewStatus: true, deletedAt: true, userId: true },
+    })
+    // 只能给公开的帖子点赞：待审 / 隐藏 / 已删除的帖子不该再累积互动数据
+    if (!post || !isPublic(post)) return error('帖子不存在', 404)
 
     const target = 'p' + id
     const lockKey = likeLockKey(actor, target)

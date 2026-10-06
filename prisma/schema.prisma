@@ -1310,6 +1310,19 @@ model ForumPost {
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
+  // ── 内容平台 P0（docs/内容平台/内容平台-设计.md §6 / §10 / §12.1）──
+  // 只加列、全部带默认值或可空：db push 不需要 --accept-data-loss，存量帖子行为不变。
+  // reviewStatus 的库默认值是 APPROVED，是给「加列那一刻的存量行」用的（否则 db push 完、新代码还没上之前，
+  // 老帖子会集体变成待审而从前台消失）；新帖由 POST /api/forum/posts 按信任等级**显式**写入，不靠这个默认值。
+  reviewStatus     String    @default("APPROVED") @map("review_status") @db.VarChar(16) // PENDING | APPROVED | REJECTED
+  reviewNote       String?   @map("review_note") @db.VarChar(500) // 驳回 / 待审原因（给作者看）
+  reviewedAt       DateTime? @map("reviewed_at")
+  originality      String    @default("ORIGINAL_FIRST") @db.VarChar(24) // ORIGINAL_FIRST | ORIGINAL_ELSEWHERE | REPOST
+  sourceUrl        String?   @map("source_url") @db.VarChar(500) // 非首发 / 转载的原文地址
+  aiAssist         String    @default("NONE") @map("ai_assist") @db.VarChar(8) // NONE | PARTIAL | MAJOR
+  contentUpdatedAt DateTime? @map("content_updated_at") // 只在标题 / 正文实质修改时更新 → dateModified
+  deletedAt        DateTime? @map("deleted_at") // 软删除：页面返回 410
+
   category ForumCategory  @relation(fields: [categoryId], references: [id])
   user     User?          @relation(fields: [userId], references: [id])
   comments ForumComment[]
@@ -1318,6 +1331,7 @@ model ForumPost {
   @@index([categoryId])
   @@index([status, pinned, lastReplyAt])
   @@index([createdAt])
+  @@index([reviewStatus, createdAt])
   @@map("forum_posts")
 }
 
@@ -1331,6 +1345,8 @@ model ForumComment {
   content    String   @db.Text
   likeCount  Int      @default(0) @map("like_count")
   status     Int      @default(1)
+  // 内容平台 P0：命中风险检测（外链 / 联系方式 / 敏感词）的评论先进待审。库默认值 APPROVED 同 ForumPost 的理由
+  reviewStatus String  @default("APPROVED") @map("review_status") @db.VarChar(16) // PENDING | APPROVED | REJECTED
   createdAt  DateTime @default(now()) @map("created_at")
 
   post    ForumPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
@@ -1341,6 +1357,7 @@ model ForumComment {
 
   @@index([postId])
   @@index([parentId])
+  @@index([reviewStatus])
   @@map("forum_comments")
 }
 
@@ -1361,6 +1378,24 @@ model ForumLike {
   @@index([commentId])
   @@index([userId])
   @@map("forum_likes")
+}
+
+// 上传留痕（内容平台 P0，设计 §10.4 / §12.2）：以前上传只写一行日志、不入库，孤儿图无从清理，
+// 帖子里的 images 也没法核对「是不是本人传的」。只登记 /api/upload 的 forum 范围；不建 User 外键，
+// 账号删了留痕还在（违规图要能追溯）。sha256 用来发现同一张图被多个账号重复发布。
+model MediaAsset {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  scope     String   @db.VarChar(16)
+  url       String   @unique @db.VarChar(255)
+  bytes     Int
+  sha256    String   @db.Char(64)
+  stripped  Boolean  @default(false) // 已去除 EXIF / XMP 等元数据
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([sha256])
+  @@index([userId, createdAt])
+  @@map("media_assets")
 }
 
 // ============ 优惠券 ============

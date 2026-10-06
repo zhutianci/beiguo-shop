@@ -25,6 +25,9 @@ export default function EditPostPage() {
           images: d.data.images || [],
           tags: d.data.tags || [],
           categoryId: d.data.categoryId,
+          originality: d.data.originality,
+          sourceUrl: d.data.sourceUrl,
+          aiAssist: d.data.aiAssist,
         })
         setState('ok')
       })

@@ -9,6 +9,10 @@ import { CONTACT_QR_MAX_BYTES, sniffImage, storeContactQr, storeUpload } from '@
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { ipKey } from '@/lib/auth-throttle'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { crossSiteReason } from '@/lib/same-origin'
+import { stripImageMetadata } from '@/lib/image-meta'
+import { prisma } from '@/lib/db'
+import crypto from 'crypto'
 
 const MAX_SIZE = 5 * 1024 * 1024 // 单文件 5MB
 // 请求体上限：单文件 5MB + multipart 边界与字段头的开销。nginx 对 /api/upload 另卡 6m（nginx.conf）
@@ -34,7 +38,7 @@ const ALLOWED: Record<string, string> = {
  * 营销邮件图片（mail）刻意不在这里：它只许管理员传，走 /api/admin/marketing/upload。
  */
 const SCOPES: Record<string, string> = {
-  forum: 'forum', // 论坛发帖配图（允许匿名）
+  forum: 'forum', // 论坛发帖配图（内容平台 P0 起须登录：匿名发帖已关闭，匿名传图就没有用处了）
   links: 'links', // 友链 / 招商位的站点 logo（后台录入）
   products: 'products', // 商品主图（后台录入，展示在商品列表与详情页）
   // 渠道客服二维码（二期改动 4.3：超管在渠道详情里替渠道上传；渠道自己走 /api/partner/settings/contact-qr）。
@@ -50,6 +54,13 @@ export async function POST(request: NextRequest) {
   // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied
+  // 同源校验（lib/same-origin，审计 G09）：上传是浏览器发起、带登录 cookie、会写盘的接口，
+  // 兄弟子域的 simple POST（multipart 不触发预检）能借 Lax cookie 往 public 目录写文件、吃掉配额
+  const crossSite = crossSiteReason(request.headers)
+  if (crossSite) {
+    console.warn('[upload] 拒绝非同源的上传:', crossSite)
+    return error('请求来源不合法，请刷新页面后重试', 403)
+  }
   try {
     // 先看 Content-Length 再 formData()：formData() 会把整个请求体读进内存，
     // 以前是先读完再看 file.size，一批并发的 20MB 请求就能把 app 顶到 mem_limit。
@@ -86,6 +97,7 @@ export async function POST(request: NextRequest) {
     const rawScope = String(form.get('scope') || 'forum')
     const scope = Object.prototype.hasOwnProperty.call(SCOPES, rawScope) ? SCOPES[rawScope] : 'forum'
     if (scope !== 'forum' && user?.role !== 'ADMIN') return error('无管理员权限', 403)
+    if (scope === 'forum' && !user) return error('请先登录后再上传图片', 401)
 
     const file = form.get('file')
     if (!file || !(file instanceof File)) return error('未找到上传文件')
@@ -107,19 +119,39 @@ export async function POST(request: NextRequest) {
     if (!ALLOWED[file.type]) return error('仅支持 JPG / PNG / GIF / WebP 图片')
     if (file.size > MAX_SIZE) return error('图片不能超过 5MB')
 
-    const bytes = Buffer.from(await file.arrayBuffer())
-    if (bytes.length > MAX_SIZE) return error('图片不能超过 5MB')
+    const raw = Buffer.from(await file.arrayBuffer())
+    if (raw.length > MAX_SIZE) return error('图片不能超过 5MB')
     // 以真实文件头为准，而不是客户端声明的 Content-Type
-    const ext = sniffImage(bytes)
+    const ext = sniffImage(raw)
     if (!ext) return error('文件内容不是有效的图片')
+
+    // 论坛图是公开的：去掉 EXIF / XMP（GPS 坐标、设备型号），保留 JPEG 的方向标签（lib/image-meta.ts）。
+    // 后台录入的商品图、友链 logo 不动：那是站长自己的图，且去掉 ICC 以外的东西也没有收益
+    const { buf: bytes, stripped } = scope === 'forum' ? stripImageMetadata(raw, ext) : { buf: raw, stripped: false }
+    if (scope === 'forum' && !stripped && ext !== 'gif') console.warn(`[upload] 元数据未能剥离（解析失败，按原图保存） ext=${ext}`)
 
     // 用量按 uploads 根目录统计、论坛只能用到 90% 的线（理由见 lib/upload-store.ts 的 quotaForScope）；
     // 超线时 storeUpload 会打一条 [upload] 告警日志
     const stored = await storeUpload(scope, bytes, ext)
     if (!stored.ok) return error('图片存储空间已满，请联系管理员', 507)
 
-    // 留痕（不入库）：论坛允许匿名传图，出了违规图要能从日志查到来源
+    // 留痕：日志一行 + 论坛图入库（MediaAsset，内容平台 P0）。入库失败不影响上传本身——
+    // 图已经落盘，回 500 只会让用户重传一张，留下两份文件
     console.log(`[upload] scope=${scope} name=${stored.name} size=${bytes.length} by=${user ? 'u:' + user.id : 'ip:' + ip}`)
+    if (scope === 'forum') {
+      await prisma.mediaAsset
+        .create({
+          data: {
+            userId: user?.id ?? null,
+            scope,
+            url: stored.url,
+            bytes: bytes.length,
+            sha256: crypto.createHash('sha256').update(bytes).digest('hex'),
+            stripped,
+          },
+        })
+        .catch((e) => console.error('[upload] MediaAsset 入库失败:', e))
+    }
     return success({ url: stored.url }, '上传成功')
   } catch (err) {
     console.error('Upload error:', err)
