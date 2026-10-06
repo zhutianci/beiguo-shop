@@ -116,8 +116,11 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
       {/* 全局鼠标跟随光晕 */}
       <MouseSpotlight />
 
-      {/* 手机端轻量模式：lite:pt-24 给固定页头（约 88px）留位置，否则「AI 订阅服务专家」徽标压在站标和「注册」按钮底下；电脑端不变 */}
-      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden lite:pt-24">
+      {/* 手机端轻量模式原来写 lite:pt-24 给固定页头（约 88px）留位置，否则「AI 订阅服务专家」徽标压在站标和「注册」按钮底下；现由下面的 pt-32 统一承担 */}
+      {/* 设计精修 2026-10-07：pt/pb 给固定页头与底部 Scroll 提示让位——1440×900 这类屏上 hero 内容比视口高，
+          原来垂直居中后徽标钻到页头底下、Scroll 提示压在卖点上。
+          pt-32 = 页头未滚动高度 112px + 16px，手机端轻量模式原来的 lite:pt-24（96px）同样不够，一并由它覆盖 */}
+      <section ref={heroRef} className="relative min-h-screen flex items-center justify-center overflow-hidden pt-32 pb-24 lg:pt-36">
         <div className="absolute inset-0 grid-bg" />
         {/* lite-blob：手机端轻量模式下 128px 大模糊 + 无限呼吸换成静止的渐变柔光（规则在 globals.css 末尾），电脑端不变 */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500/30 rounded-full blur-[128px] lite-blob animate-pulse-glow" />
@@ -161,10 +164,10 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
               initial={false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
-              className="inline-flex items-center gap-2 px-4 py-2 lg:px-5 lg:py-2.5 rounded-full glass mb-8"
+              className="inline-flex items-center gap-2 px-4 py-2 lg:px-5 lg:py-2.5 rounded-full glass border-white/[0.12] mb-8 lg:mb-10"
             >
-              <Sparkles className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-purple-400" />
-              <span className="text-sm lg:text-base text-white/80">AI 订阅服务专家</span>
+              <Sparkles className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-violet-300" />
+              <span className="text-sm lg:text-[15px] tracking-wide text-white/80">AI 订阅服务专家</span>
             </motion.div>
 
             {/*
@@ -253,7 +256,7 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
               {/* H1 只说宽词，业务的完整面靠这一行列全——漏一项就等于对外少一门生意。
                   加商品时记得回来补（当前：ChatGPT 三档、Claude 两档、接码、KYC、谷歌账号）。
                   上一行已是块级（grid），这里用 block 另起一行，不再需要 <br>（块后面跟 <br> 会多出一个空行） */}
-              <span className="block text-white/40">
+              <span className="mt-1 block text-white/40 [text-wrap:balance]">
                 ChatGPT Plus / Pro · Claude Pro / Max 5x · 注册接码 · KYC 认证 · 谷歌账号
               </span>
               </>}
@@ -267,18 +270,14 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
             >
               {/* 主 CTA 在 lg 起放大到 20px/更大内边距：桌面端鼠标点击不需要 44px 触控保底，
                   但在 128px 标题下面，16px 的按钮会显得像个次要链接，撑不起转化入口的分量 */}
-              <Link href="/products">
-                <button className="group relative px-8 py-4 lg:px-10 lg:py-5 lg:text-lg bg-white text-black font-semibold rounded-full overflow-hidden transition-transform hover:scale-105">
-                  <span className="relative z-10 flex items-center gap-2">
-                    立即选购
-                    <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 group-hover:translate-x-1 transition-transform" />
-                  </span>
-                </button>
+              {/* 设计精修 2026-10-07：原来是 <Link><button>（交互元素套交互元素，键盘要 Tab 两次、读屏读两遍），
+                  改成直接给 Link 上统一按钮类；悬停从放大 105% 改为箭头右移 + 底色变化（≤200ms） */}
+              <Link href="/products" className="ui-btn ui-btn-primary ui-btn-lg">
+                立即选购
+                <ArrowRight className="ui-arrow w-4 h-4 lg:w-5 lg:h-5" />
               </Link>
-              <Link href="/about">
-                <button className="px-8 py-4 lg:px-10 lg:py-5 lg:text-lg glass rounded-full font-medium hover:bg-white/10 transition-colors">
-                  了解更多
-                </button>
+              <Link href="/about" className="ui-btn ui-btn-secondary ui-btn-lg">
+                了解更多
               </Link>
             </motion.div>
 
@@ -294,7 +293,7 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
                   但 max-w-md(448px) 在 16px 字号下又会把 placeholder 挤到省略号，
                   所以 md 起给到 lg(512px) 并同步把字号提到 base —— 宽度是为了容纳文案，不是为了铺满 */}
               <form action="/lookup" onSubmit={handleLookup} className="relative w-full max-w-md md:max-w-lg">
-                <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500/40 via-pink-500/40 to-cyan-500/40 rounded-full blur-sm opacity-50" />
+                <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500/40 via-pink-500/40 to-cyan-500/40 rounded-full blur-sm opacity-30 lite:hidden" />
                 <div className="relative flex items-center gap-1 p-1.5 md:p-2 glass-strong rounded-full">
                   <div className="flex-1 flex items-center gap-2 pl-4">
                     <Mail className="w-4 h-4 md:w-[18px] md:h-[18px] text-white/40 flex-shrink-0" />
@@ -310,7 +309,7 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
                   </div>
                   <button
                     type="submit"
-                    className="px-5 py-2 md:px-6 md:py-2.5 rounded-full bg-white text-black text-sm md:text-base font-semibold flex items-center gap-1.5 hover:scale-105 transition-transform"
+                    className="ui-btn ui-btn-primary min-h-0 px-5 py-2 md:px-6 md:py-2.5 text-sm md:text-base gap-1.5"
                   >
                     <Search className="w-3.5 h-3.5 md:w-4 md:h-4" />
                     查询
@@ -329,11 +328,13 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
               className="flex flex-wrap justify-center gap-8 lg:gap-14 xl:gap-20 mt-16"
             >
               {features.map((feature, i) => (
-                <div key={i} className="flex items-center gap-3 lg:gap-4 text-white/60">
-                  <feature.icon className="w-5 h-5 lg:w-6 lg:h-6 text-purple-400" />
+                <div key={i} className="flex items-center gap-3 lg:gap-4 text-white/55">
+                  <span className="flex h-9 w-9 lg:h-10 lg:w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03]">
+                    <feature.icon className="w-4 h-4 lg:w-[18px] lg:h-[18px] text-violet-300" />
+                  </span>
                   <div className="text-left">
-                    <div className="text-sm lg:text-base font-medium text-white">{feature.title}</div>
-                    <div className="text-xs lg:text-sm">{feature.desc}</div>
+                    <div className="text-sm lg:text-[15px] font-medium text-white">{feature.title}</div>
+                    <div className="text-xs lg:text-[13px] leading-5">{feature.desc}</div>
                   </div>
                 </div>
               ))}
@@ -345,7 +346,7 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
           initial={false}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.2 }}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 [@media(max-height:900px)]:hidden"
         >
           <div className="flex flex-col items-center gap-2 text-white/40">
             <span className="text-xs tracking-widest uppercase">Scroll</span>
@@ -509,15 +510,14 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
             className="lite:!transform-none"
           >
             <Link href="/iptools" className="group block">
-              <div className="relative glass rounded-3xl p-8 md:p-12 overflow-hidden transition-colors hover:bg-white/[0.07]">
-                <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-r from-cyan-500/30 to-purple-500/30 opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500 -z-10 lite:hidden" />
+              <div className="relative ui-panel p-8 md:p-12 overflow-hidden transition-colors duration-200 group-hover:border-white/[0.16]">
 
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 lg:gap-12">
                   {/* 文案列限制在 xl 也不超过 2xl(672px)：这是段正文，行长超过 80 字符就难读，
                       多出来的横向空间留给右侧工具标签，而不是把这段拉成一条长线 */}
                   <div className="max-w-xl xl:max-w-2xl">
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full glass mb-5">
-                      <Network className="w-4 h-4 text-cyan-400" />
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/[0.03] mb-5">
+                      <Network className="w-4 h-4 text-cyan-300" />
                       <span className="text-xs text-white/70">网络诊断工具合集 · 共 {ipToolCount} 项</span>
                     </div>
                     <h2 className="text-headline mb-3">
@@ -526,10 +526,10 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
                     <p className="text-white/50 text-base md:text-lg xl:text-xl lg:leading-relaxed mb-6">
                       IP 查询、分流出口、Claude 可用性、DNS / WebRTC 泄露、全球 Ping 与服务状态，一站排查网络环境。
                     </p>
-                    <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-cyan-600 to-purple-600 font-medium group-hover:shadow-[0_0_30px_rgba(34,211,238,0.35)] transition-shadow">
+                    <span className="ui-btn ui-btn-secondary">
                       查看全部工具
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </div>
+                      <ArrowRight className="ui-arrow w-4 h-4" />
+                    </span>
                   </div>
 
                   {/* 工具速览标签 */}
@@ -537,7 +537,7 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
                     {ipToolGroups[0].tools.slice(0, 6).map((tool) => (
                       <span
                         key={tool.url}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 lg:px-4 lg:py-2 rounded-full glass text-xs lg:text-sm text-white/60"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 lg:px-4 lg:py-2 rounded-full border border-white/[0.08] bg-white/[0.03] text-xs lg:text-sm text-white/60"
                       >
                         {tool.name}
                         <ArrowUpRight className="w-3 h-3 text-white/30" />
@@ -563,7 +563,7 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
             这不只是 SEO 问题——「最快 10 分钟到账」写在页面上而实际做不到，是可被投诉的表述。
             换成库里真能查到的两个数，宁可少两块。
           */}
-          <div className="flex flex-wrap justify-center items-center gap-12 lg:gap-20 xl:gap-28 text-white/20">
+          <div className="flex flex-wrap justify-center items-center gap-12 lg:gap-20 xl:gap-28 text-white/50">
             <div className="text-center">
               <div className="text-4xl lg:text-5xl font-bold text-white mb-1">
                 <CountUp end={stats.totalSales} duration={2000} suffix="+" />
@@ -588,10 +588,11 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
       </section>
 
       <section className="relative py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/20 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-purple-900/[0.12] to-transparent" />
         {/* 手机端轻量模式：lite-blob 的 scale: 1.5 作用在 transform 之外，会把 -translate-x-1/2 一起放大成 -75%、光斑偏到左边；
             轻量模式下改用独立的 translate 属性居中（它排在 scale 外层，不会被放大） */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-500/20 rounded-full blur-[128px] lite-blob lite:!transform-none lite:[translate:-50%_0]" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-purple-500/[0.12] rounded-full blur-[128px] lite-blob lite:!transform-none lite:[translate:-50%_0]" />
 
         <div className="container relative z-10">
           <motion.div
@@ -607,13 +608,9 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
             <p className="text-white/50 text-lg lg:text-xl mb-10">
               立即注册，解锁 AI 的无限可能
             </p>
-            <Link href="/register">
-              <button className="group px-10 py-5 lg:px-12 lg:py-6 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full font-semibold text-lg lg:text-xl hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-shadow">
-                <span className="flex items-center gap-3">
-                  开始使用
-                  <ArrowRight className="w-5 h-5 lg:w-6 lg:h-6 group-hover:translate-x-1 transition-transform" />
-                </span>
-              </button>
+            <Link href="/register" className="ui-btn ui-btn-brand ui-btn-lg">
+              开始使用
+              <ArrowRight className="ui-arrow w-5 h-5" />
             </Link>
           </motion.div>
         </div>

@@ -27,9 +27,10 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
 
   return (
     <>
-      <footer className="relative border-t border-white/5">
+      <footer className="relative">
         {/* 背景渐变 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-purple-900/10 to-transparent pointer-events-none" />
+        {/* 设计精修 2026-10-07：原来是整块紫色渐变雾；改成顶边中间一道很淡的细光，页脚本身保持纯黑 */}
+        <div aria-hidden className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent pointer-events-none" />
 
         <div className="container relative py-16 lg:py-20 xl:py-24">
           {/*
@@ -90,7 +91,7 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
               <div className="mt-6 lg:mt-8">
                 <button
                   onClick={() => setContactOpen(true)}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 lg:px-6 lg:py-3 rounded-full glass hover:bg-white/10 text-sm lg:text-[15px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                  className="ui-btn ui-btn-secondary text-sm lg:text-[15px]"
                 >
                   <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M8.691 2C4.768 2 1.5 4.65 1.5 7.913c0 1.873 1.075 3.534 2.715 4.642a.522.522 0 01.222.434.677.677 0 01-.027.187l-.352 1.336c-.016.072-.04.144-.04.216 0 .144.117.262.262.262.058 0 .115-.019.166-.047l1.722-.998a.766.766 0 01.4-.115c.077 0 .15.013.222.034a8.49 8.49 0 002.32.317c.207 0 .413-.013.617-.034A4.886 4.886 0 019.5 12.5c0-2.945 2.842-5.336 6.353-5.336.137 0 .272.005.404.013C15.677 4.06 12.477 2 8.691 2z" />
@@ -108,7 +109,7 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
             {/* 充值落地页。从注册表渲染，新增一页不用回来改这里（渠道站不渲染：落地页带主站价，设计 11.1） */}
             {features.landing && (
             <div className="lg:col-span-3">
-              <h4 className="font-semibold mb-4 lg:mb-5 lg:text-[15px] lg:text-white/90 lg:tracking-wide">
+              <h4 className="text-sm font-semibold text-white/90 tracking-wide mb-4 lg:mb-5 lg:text-[15px]">
                 <Link href={LANDING_HUB.path} className="hover:text-purple-300 transition-colors">
                   {LANDING_HUB.navLabel}
                 </Link>
@@ -130,7 +131,7 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
 
             {catalogOpen && (
             <div className="lg:col-span-3">
-              <h4 className="font-semibold mb-4 lg:mb-5 lg:text-[15px] lg:text-white/90 lg:tracking-wide">商品</h4>
+              <h4 className="text-sm font-semibold text-white/90 tracking-wide mb-4 lg:mb-5 lg:text-[15px]">商品</h4>
               <ul className="space-y-3 lg:space-y-3.5">
                 {/* 原来是 /products?category=1 与 ?category=2：列表页从不读这个参数（进去看到的是全部商品），
                     canonical 又指回 /products——全站每一页各浪费两条链接。改指对应的充值页，
@@ -173,7 +174,7 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
             )}
 
             <div className="lg:col-span-3">
-              <h4 className="font-semibold mb-4 lg:mb-5 lg:text-[15px] lg:text-white/90 lg:tracking-wide">客户服务</h4>
+              <h4 className="text-sm font-semibold text-white/90 tracking-wide mb-4 lg:mb-5 lg:text-[15px]">客户服务</h4>
               <ul className="space-y-3 lg:space-y-3.5">
                 {features.lookup && (
                   <li>
@@ -214,7 +215,7 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
 
           {/* Bottom：栏目内容在 lg 变高之后，分隔线的上下留白同步放开，
               否则版权行会紧贴上一块内容，显得整个页脚「下沉」 */}
-          <div className="mt-16 lg:mt-20 pt-8 lg:pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="mt-16 lg:mt-20 pt-8 lg:pt-10 border-t border-white/[0.08] flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-white/30 text-sm">
               {/* 非白标原样保留这一行 JSX（React 会在相邻文本节点之间插注释，写法一变主站 HTML 就不再逐字相同） */}
               {white ? (

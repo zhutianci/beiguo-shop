@@ -156,7 +156,7 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
       */}
       <header
         className={cn(
-          'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
+          'fixed top-0 left-0 right-0 z-50 transition-[padding] duration-300 ease-out',
           // 移动端保持原节奏（py-6 / py-4）。
           // lg 以上笔记本屏「宽而矮」（1366×768 这类），首屏高度比宽度金贵，
           // 头部外边距收一档，整条头部从 112px 降到 96px，把 16px 还给内容。
@@ -169,8 +169,9 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
               // 药丸内边距：md(768~1023) 是最挤的一段——7 项导航 + 登录/注册要塞进
               // 不到 500px，所以这里反而比移动端收窄一点，把宽度让给导航文字；
               // lg 回到 px-6，xl 再放开到 px-8，让药丸和更大的字号成比例。
-              'flex items-center justify-between px-6 md:px-5 lg:px-6 xl:px-8 py-3 rounded-full transition-all duration-500',
-              isScrolled ? 'glass-strong' : 'bg-transparent'
+              'flex items-center justify-between px-6 md:px-5 lg:px-6 xl:px-8 py-3 rounded-full transition-[background-color,border-color,box-shadow] duration-300 ease-out',
+              // 设计精修 2026-10-07：滚动后的药丸加一层下投影，和页面内容分开
+              isScrolled ? 'glass-strong shadow-[0_12px_32px_-16px_rgba(0,0,0,0.9)] lite:shadow-none' : 'bg-transparent'
             )}
           >
             {/* Logo：图标固定 40px，配合导航项 py-2.5 + leading-5 = 40px，
@@ -310,22 +311,22 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                     {/* 原来只有 group-hover，键盘 Tab 进来菜单不展开；补 focus-within 后键盘可达。
                         lg 上菜单和导航字号一起放大一档，避免头部变大后菜单显得局促。
                         手机端轻量模式（2026-10-01，站长要求电脑端不变）没有毛玻璃，菜单压在页面文字上会透字，给不透明底 lite:bg-zinc-900/95 */}
-                    <div className="absolute right-0 top-full mt-2 w-48 lg:w-52 py-2 glass rounded-xl opacity-0 invisible transition-all group-hover:opacity-100 group-hover:visible group-focus-within:opacity-100 group-focus-within:visible lite:bg-zinc-900/95">
-                      <div className="px-4 py-2 border-b border-white/10">
+                    <div className="absolute right-0 top-full mt-2 w-52 lg:w-56 p-1.5 rounded-2xl border border-white/[0.08] bg-[#131317] shadow-[0_24px_60px_-16px_rgba(0,0,0,0.85)] opacity-0 invisible translate-y-1 transition-[opacity,transform,visibility] duration-200 ease-out group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 lite:bg-zinc-900/95 lite:shadow-none">
+                      <div className="px-3 pt-2 pb-2.5 mb-1 border-b border-white/[0.08]">
                         <div className="text-sm lg:text-[15px] font-medium truncate">{user.nickname || user.email}</div>
                       </div>
-                      <Link href="/profile" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                      <Link href="/profile" className="block rounded-lg px-3 py-2 text-sm lg:text-[15px] text-white/65 hover:text-white hover:bg-white/[0.06] transition-colors">
                         个人中心
                       </Link>
                       {features.forum && (
-                        <Link href="/learn/me" className="flex items-center justify-between gap-2 px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                        <Link href="/learn/me" className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm lg:text-[15px] text-white/65 hover:text-white hover:bg-white/[0.06] transition-colors">
                           <span>学习空间</span>
                           {learnUnread > 0 && (
                             <span className="rounded-full bg-amber-300/20 px-2 py-0.5 text-[11px] font-medium text-amber-200">{learnUnread} 条通知</span>
                           )}
                         </Link>
                       )}
-                      <Link href="/orders" className="flex items-center justify-between gap-2 px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                      <Link href="/orders" className="flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-sm lg:text-[15px] text-white/65 hover:text-white hover:bg-white/[0.06] transition-colors">
                         <span>我的订单</span>
                         {unread > 0 && (
                           <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[11px] font-medium text-red-300">
@@ -335,18 +336,18 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                       </Link>
                       {/* 推荐有奖、钱包在渠道站关闭（设计 7.6），入口按 features 渲染 */}
                       {features.referral && (
-                        <Link href="/profile/referral" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                        <Link href="/profile/referral" className="block rounded-lg px-3 py-2 text-sm lg:text-[15px] text-white/65 hover:text-white hover:bg-white/[0.06] transition-colors">
                           推荐有奖
                         </Link>
                       )}
                       {features.wallet && (
-                        <Link href="/wallet" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                        <Link href="/wallet" className="block rounded-lg px-3 py-2 text-sm lg:text-[15px] text-white/65 hover:text-white hover:bg-white/[0.06] transition-colors">
                           账户余额
                         </Link>
                       )}
                       <button
                         onClick={logout}
-                        className="w-full text-left px-4 py-2 text-sm lg:text-[15px] text-red-400 hover:bg-white/5 transition-colors"
+                        className="mt-1 w-full rounded-lg border-t border-white/[0.06] text-left px-3 py-2 text-sm lg:text-[15px] text-red-400 hover:bg-red-500/[0.08] transition-colors"
                       >
                         退出登录
                       </button>
@@ -396,27 +397,36 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
               遮罩改成几乎不透明的 lite:bg-black/95，背后的页面文字不会透出来 */}
           <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/95" />
           {/* 项目多时在小屏上会顶满，收紧行距并允许滚动，避免最后一项被裁掉 */}
-          <nav className="relative flex h-full flex-col items-center justify-center gap-6 overflow-y-auto py-24">
-            {visibleLinks.map((link, index) => (
-              <div key={link.href} className="rise-in" style={{ animationDelay: `${index * 0.06}s` }}>
-                <Link
-                  href={link.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className={cn(
-                    'text-2xl sm:text-3xl font-bold',
-                    isNavActive(pathname, link.href, link.also) ? 'gradient-text-accent' : 'text-white/60'
-                  )}
-                >
-                  {link.wide ?? link.label}
-                </Link>
-              </div>
-            ))}
+          {/* 设计精修 2026-10-07：左对齐的大字列表 + 发丝线分隔（原来是居中的渐变大字，项目一多像一张海报，扫读困难）；
+              当前项白字 + 紫点，其余 white/60。入场仍是 rise-in（只动 transform / opacity） */}
+          <nav className="relative mx-auto flex h-full max-w-md flex-col overflow-y-auto px-8 pt-28 pb-12">
+            <ul className="border-t border-white/[0.08]">
+              {visibleLinks.map((link, index) => {
+                const active = isNavActive(pathname, link.href, link.also)
+                return (
+                  <li key={link.href} className="rise-in border-b border-white/[0.08]" style={{ animationDelay: `${index * 0.04}s` }}>
+                    <Link
+                      href={link.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      aria-current={active ? 'page' : undefined}
+                      className={cn(
+                        'flex items-center justify-between py-4 text-xl font-semibold tracking-tight',
+                        active ? 'text-white' : 'text-white/60'
+                      )}
+                    >
+                      {link.wide ?? link.label}
+                      {active && <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-violet-300" />}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
             {!user && (
-              <div className="flex gap-4 mt-8 rise-in" style={{ animationDelay: '0.3s' }}>
+              <div className="mt-8 grid grid-cols-2 gap-3 rise-in" style={{ animationDelay: '0.3s' }}>
                 <Link
                   href="/login"
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="px-8 py-3 glass rounded-full font-medium"
+                  className={cn('ui-btn ui-btn-secondary', !registrationOpen && 'col-span-2')}
                 >
                   登录
                 </Link>
@@ -424,7 +434,7 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                   <Link
                     href="/register"
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className="px-8 py-3 bg-white text-black rounded-full font-medium"
+                    className="ui-btn ui-btn-primary"
                   >
                     注册
                   </Link>
