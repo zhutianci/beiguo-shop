@@ -81,3 +81,6 @@ main().catch((e) => {
   console.error(e)
   process.exit(1)
 })
+
+// 让 tsc 把它当模块（没有 import / export 的文件是全局脚本，main 会和 baidu-push.ts 的同名函数冲突）
+export {}
