@@ -19,7 +19,7 @@ import { siteOrigin } from '@/lib/news/format'
 
 export const SITE_NAME = '贝果科技'
 // alternateName 里不要重复 name 本身，只列真正的「别名」
-export const SITE_ALT_NAMES = ['BigoLab', 'bigolab']
+export const SITE_ALT_NAMES = ['BigoLab', 'bigolab.com']
 
 /** 稳定的 @id。用锚点而不是裸 URL，这样一个页面里的多个节点可以互相引用而不打架 */
 export const ORG_ID = `${siteOrigin()}/#organization`
@@ -47,12 +47,38 @@ function urlFor(path: string, origin?: string): string {
 }
 
 /**
- * Organization。首页输出一次即可，其他页面通过 @id 引用。
+ * Organization 描述里按开放状态出现的业务（docs/SEO-重构/SEO-重构设计.md §4.2，批 2 的 C 包）。
+ * 不传 = 只写充值（商品页、渠道站首页都走这个保守口径：渠道站没有大事记、接码、学习平台，灰度期也不能写接码）。
+ * 主站首页传 sitePillars() 的结果（lib/seo/pillars.ts）。
+ */
+export interface OrgPillars {
+  jiema?: boolean
+  news?: boolean
+  learn?: boolean
+}
+
+/** 6% 与 lib/invoice.ts 的 TAX_RATE 同值。那个文件 import 了 node:crypto，这里只要一个数字，不为它拖进来；check-seo-copy 断言 JSON-LD 带 6% */
+const INVOICE_LINE = '可开增值税发票，标价不含税、开票另付 6%'
+
+export function organizationDescription(p: OrgPillars = {}): string {
+  const parts = [`ChatGPT Plus / Pro、Claude Pro / Max 等 AI 订阅充值（卡密自助兑换，支付宝付款，${INVOICE_LINE}）`]
+  if (p.jiema) parts.push('短信接码（海外手机号在线接收验证码）')
+  if (p.news) parts.push('AI 圈大事记（AI 行业动态聚合，AI 自动整理并附原文出处）')
+  if (p.learn) parts.push('AI 学习平台（可复制的提示词与实测教程）')
+  const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join('、')}与${parts[parts.length - 1]}`
+  return `贝果科技（bigolab.com）由益阳市赫山区必高科技有限公司运营，提供 ${list}。`
+}
+
+/**
+ * Organization。首页输出一次即可，其他页面通过 @id 引用即可（被 @id 引用的页面要同页输出它，§4.1）。
  *
  * 【联系方式只写真实存在的】微信客服号是站上公开写着的，邮箱同理；
  * 编一个电话或地址去凑「信息完整度」是负资产——Google 对不一致的主体信息比对缺失更敏感。
+ * 【sameAs / taxID / address 不写】§4.2：只填真实存在、站长提供过的；目前都没有，宁缺勿编。
+ * 【不写「代充」】零需求词与自称（§2.6），slogan、description 都去掉。
  */
-export function organizationJsonLd(): Record<string, unknown> {
+export function organizationJsonLd(pillars: OrgPillars = {}): Record<string, unknown> {
+  const slogan = ['AI 会员充值', ...(pillars.jiema ? ['短信接码'] : []), ...(pillars.news ? ['AI 行业动态'] : [])].join(' · ')
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -76,9 +102,19 @@ export function organizationJsonLd(): Record<string, unknown> {
       height: 512,
     },
     image: absUrl(SITE_LOGO),
-    description:
-      '贝果科技提供 ChatGPT Plus / Pro、Claude Pro / Max 等 AI 会员的代充值与订阅开通服务，卡密自助充值，支持支付宝付款，可开具增值税发票。',
-    slogan: 'AI 会员代充与订阅开通',
+    description: organizationDescription(pillars),
+    slogan,
+    knowsAbout: [
+      'ChatGPT Plus',
+      'ChatGPT Pro',
+      'Claude Pro',
+      'Claude Max',
+      'Claude Code',
+      'SuperGrok',
+      ...(pillars.jiema ? ['短信验证码接收'] : []),
+      ...(pillars.news ? ['AI 行业动态'] : []),
+      ...(pillars.learn ? ['AI 提示词', 'AI 工具教程'] : []),
+    ],
     areaServed: { '@type': 'Country', name: 'CN' },
     contactPoint: [
       {
@@ -146,11 +182,21 @@ export interface Faq {
   a: string
 }
 
-/** FAQPage。富摘要资格见文件头说明，别对它抱有 SERP 面积上的期待 */
-export function faqJsonLd(faqs: Faq[]): Record<string, unknown> {
+/**
+ * FAQPage。富摘要资格见文件头说明，别对它抱有 SERP 面积上的期待。
+ *
+ * 【page：把页面级日期挂在 FAQPage 上，不新增 WebPage 节点】（设计 §4.1、§0.3 #16，批 2 的 D1a）
+ * FAQPage 本身是 WebPage 的子类型，同一 URL 再出一个 WebPage 会让 dateModified 挂在哪个上面有歧义。
+ * 传了 page 就给它 @id = 页面 URL、dateModified / lastReviewed = 该页自己的 reviewedAt、publisher 用 @id 指向 ORG
+ * （**调用方必须同页输出 organizationJsonLd()**，否则引用悬空，check-jsonld --base 会报）。
+ */
+export function faqJsonLd(faqs: Faq[], page?: { path: string; reviewedAt: string }): Record<string, unknown> {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
+    ...(page
+      ? { '@id': absUrl(page.path), url: absUrl(page.path), dateModified: page.reviewedAt, lastReviewed: page.reviewedAt, publisher: { '@id': ORG_ID } }
+      : {}),
     mainEntity: faqs.map((f) => ({
       '@type': 'Question',
       name: f.q,
@@ -193,3 +239,62 @@ export function productItemListJsonLd(products: ListedProduct[], listPath: strin
     })),
   }
 }
+
+
+/**
+ * 列表聚合页（大事记 hub、日报周报、月度归档等）的 CollectionPage + ItemList（设计 §4.1：ItemList **只放 url 和 name**）。
+ * 不用 NewsMediaOrganization、不用 NewsArticle 一类（R5 §1.3：本站不是新闻站，结构化数据是最容易被引用的自我描述）。
+ * 「广告 · 本站服务」区块里的链接不要传进来。items 必须是页面上看得见的那一批链接（同页可见，结构化数据政策）。
+ */
+export function collectionPageJsonLd(opts: {
+  path: string
+  name: string
+  description: string
+  items: { path: string; name: string }[]
+}): Record<string, unknown>[] {
+  const url = absUrl(opts.path)
+  const page: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    '@id': url,
+    url,
+    name: opts.name,
+    description: opts.description,
+    inLanguage: 'zh-CN',
+    // 被引用的 WebSite 节点由调用方同页输出 webSiteJsonLd()（§4.1：页内没有悬空 @id）
+    isPartOf: { '@id': SITE_ID },
+    publisher: { '@id': ORG_ID },
+  }
+  if (!opts.items.length) return [page]
+  page.mainEntity = { '@id': `${url}#itemlist` }
+  return [
+    page,
+    {
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      '@id': `${url}#itemlist`,
+      numberOfItems: opts.items.length,
+      itemListElement: opts.items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, url: absUrl(it.path), name: it.name })),
+    },
+  ]
+}
+
+/**
+ * 短信接码的 Service（设计 §4.1 /jiema 行）：name、description、provider（@id 指向 ORG，调用方同页输出 Organization）、url、serviceType。
+ * **不写价格、国家列表**（价格每小时在变；不打 Product / AggregateOffer，§0.3 #16）。
+ */
+export function serviceJsonLd(opts: { path: string; name: string; description: string; serviceType: string }): Record<string, unknown> {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Service',
+    '@id': `${absUrl(opts.path)}#service`,
+    name: opts.name,
+    description: opts.description,
+    serviceType: opts.serviceType,
+    url: absUrl(opts.path),
+    provider: { '@id': ORG_ID },
+    areaServed: { '@type': 'Country', name: 'CN' },
+    availableChannel: { '@type': 'ServiceChannel', serviceUrl: absUrl(opts.path) },
+  }
+}
+
