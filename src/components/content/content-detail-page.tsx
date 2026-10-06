@@ -42,7 +42,7 @@ import { authorHref, creatorBadge } from '@/lib/content/creator'
 import { authorRefCode, ctaHref } from '@/lib/content/cta'
 import { LANDINGS } from '@/lib/landing/registry'
 import { SITE_NAME } from '@/lib/product-seo'
-import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, type Crumb } from '@/lib/seo/graph'
 import { absUrl } from '@/lib/news/seo'
@@ -112,26 +112,36 @@ function descriptionFor(post: ContentRow): string {
 
 export async function contentDetailMetadata(type: TypedSection, raw: string): Promise<Metadata> {
   const post = await resolve(type, raw)
-  if (!post || !isPublic(post)) return { title: `${SECTION[type].name} - ${SITE_NAME}`, robots: { index: false, follow: false } }
+  /*
+   * 【不存在就在 metadata 这一步 404（SEO 批 2，软 404）】这几组路由有 loading.tsx：页面体里再 notFound()，
+   * 流式响应的状态码已经是 200 了，爬虫拿到的是「200 + 找不到页面」的软 404。generateMetadata 在首包之前解析，
+   * 在这里 notFound() 才能返回真正的 404。只对「真的没有这条」生效；非公开但存在的（作者 / 管理员能看）照旧 noindex，由页面体判权限。
+   */
+  if (!post) notFound()
+  if (!isPublic(post)) return { title: `${SECTION[type].name} - ${SITE_NAME}`, robots: { index: false, follow: false } }
   const url = contentPath(post.type, post.id, post.slug)
   const description = descriptionFor(post)
   const firstImage = imagesOf(post)[0]
+  const title = titleFor(post)
   return {
     metadataBase: new URL(siteOrigin()),
-    title: titleFor(post),
+    title,
     description,
     alternates: { canonical: url },
     ...(contentIndexable(post) ? {} : { robots: NOINDEX }),
     openGraph: {
       ...OG_SITE,
       type: 'article',
-      title: post.title,
+      // og:title 与 <title> 同一句（SEO 批 2：分享卡片与搜索结果标题一致，check-seo-copy 的 og-title 规则）
+      title,
       description,
       url,
       publishedTime: post.createdAt.toISOString(),
       modifiedTime: (post.contentUpdatedAt ?? post.createdAt).toISOString(),
       images: firstImage ? [{ url: absUrl(firstImage), alt: post.title }] : OG_IMAGES,
     },
+    // twitter 不写就会继承根 layout 的全站默认文案（og.ts 里记过的第四个坑）
+    twitter: { card: 'summary_large_image', title, description, images: firstImage ? [absUrl(firstImage)] : TWITTER_IMAGES },
   }
 }
 

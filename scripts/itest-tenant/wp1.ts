@@ -516,7 +516,9 @@ async function testMetadataRobots(w: World) {
 
   section('W1-6 robots.txt / sitemap.xml')
   const robots = (await import('../../src/app/robots')).default as () => Promise<Json>
-  const sitemap = (await import('../../src/app/sitemap')).default as () => Promise<Json[]>
+  // SEO 批 2 的 G 包（docs/SEO-重构/SEO-重构设计.md §6.2）：app/sitemap.ts 拆成 /sitemap.xml（index）+ /sitemaps/<段>.xml，
+  // 条目在 lib/seo/sitemap-entries.ts。原有断言照旧：渠道为空、主站与 git HEAD 的同一模块逐字相同（基线取不到时跳过）
+  const sitemap = (await import('../../src/lib/seo/sitemap-entries')).allSitemapEntries as () => Promise<Json[]>
   const mr = await withRequest({ host: MAIN_HOST }, () => robots())
   const cr = await withRequest({ host: w.lulu.host }, () => robots())
   const rBase = baselineModule('src/app/robots.ts')
@@ -534,10 +536,10 @@ async function testMetadataRobots(w: World) {
   const cs = await withRequest({ host: w.lulu.host }, () => sitemap())
   check('渠道 sitemap = []', Array.isArray(cs) && cs.length === 0)
   const ms = await withRequest({ host: MAIN_HOST }, () => sitemap())
-  const sBase = baselineModule('src/app/sitemap.ts')
+  const sBase = baselineModule('src/lib/seo/sitemap-entries.ts')
   if (sBase) {
-    const base = (await import(pathToFileURL(sBase).href)) as { default: () => Promise<unknown> }
-    const b = await withRequest({ host: MAIN_HOST }, () => base.default())
+    const base = (await import(pathToFileURL(sBase).href)) as { allSitemapEntries: () => Promise<unknown> }
+    const b = await withRequest({ host: MAIN_HOST }, () => base.allSitemapEntries())
     check('主站 sitemap 与改造前逐字相同', stable(ms) === stable(b), `${(ms as unknown[]).length} vs ${(b as unknown[]).length}`)
   }
 }
@@ -769,7 +771,19 @@ async function testMiddleware(w: World) {
   const saMain = w.token(w.users.sa, w.main)
   const userTok = w.token(w.users.luluBuyer1, w.main)
   section('W1-13 middleware')
-  check('matcher 固定四项', stable(config.matcher) === stable(['/admin/:path*', '/api/admin/:path*', '/partner/:path*', '/api/partner/:path*']))
+  // 2026-10-07：'/api/:path*' 取代 /api/admin、/api/partner 两项（全站 /api 写请求同源校验，lib/api-csrf.ts）
+  check('matcher 固定三项', stable(config.matcher) === stable(['/admin/:path*', '/api/:path*', '/partner/:path*']))
+  {
+    const post = (host: string, p: string, origin?: string) => {
+      const h = new Headers({ host })
+      if (origin) h.set('origin', origin)
+      return middleware(new NextRequest(`http://${host}${p}`, { method: 'POST', headers: h }))
+    }
+    check('兄弟子域对主站 /api 写请求 → 403', kind(await post(MAIN_HOST, '/api/orders', `https://${w.lulu.host}`)) === '403')
+    check('同源 /api 写请求放行（不看登录态）', kind(await post(MAIN_HOST, '/api/orders', `https://${MAIN_HOST}`)) === 'next')
+    check('非浏览器 /api 写请求放行', kind(await post(MAIN_HOST, '/api/pay/sms-notify')) === 'next')
+    check('其余 /api GET 放行', kind(await run(MAIN_HOST, '/api/products')) === 'next')
+  }
 
   setChannelsMode('dormant')
   try {

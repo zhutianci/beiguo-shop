@@ -4,7 +4,7 @@ import { ArrowRight, ArrowUpRight, BookOpen, Camera, LayoutGrid, MessagesSquare 
 import { countIndexableCached, learnHomeData } from '@/lib/content/queries'
 import { isHubIndexable } from '@/lib/content/policy'
 import { SITE_NAME } from '@/lib/product-seo'
-import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { siteOrigin } from '@/lib/news/format'
 import {
   AppGrid,
@@ -28,7 +28,9 @@ import { activeSponsors } from '@/lib/content/sponsor'
  */
 export const dynamic = 'force-dynamic'
 
-const TITLE = `AI 学习平台：可复制的提示词、实测教程与玩法案例 - ${SITE_NAME}`
+// SEO 批 2（kw7，2026-10-07 Google 下拉）：ai学习 9（含「ai学习网站 / 教程」）、ai提示词 9（含「ai提示词库 / 大全」）、claude 教程 8；
+// 「ai学习平台」只有 1 条联想，不再当主词
+const TITLE = `AI 学习：AI 提示词库与 Claude、ChatGPT 使用教程 - ${SITE_NAME}`
 const DESCRIPTION = 'ChatGPT、Claude、GPT-Image、Nano Banana、Seedance 等工具的实测教程与可复制提示词，每条附效果图、模型和测试日期。'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -41,6 +43,7 @@ export async function generateMetadata(): Promise<Metadata> {
     alternates: { canonical: '/learn' },
     ...(indexable ? {} : { robots: { index: false, follow: true, googleBot: { index: false, follow: true } } }),
     openGraph: { ...OG_SITE, type: 'website', title: TITLE, description: DESCRIPTION, url: '/learn', images: OG_IMAGES },
+    twitter: { card: 'summary_large_image', title: TITLE, description: DESCRIPTION, images: TWITTER_IMAGES },
   }
 }
 

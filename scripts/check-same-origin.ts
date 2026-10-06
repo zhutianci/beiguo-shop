@@ -6,6 +6,7 @@
  * 以及不带这两个头的机器调用（curl、itest、回调）一定放行。
  */
 import { crossSiteReason, hostnameOf } from '../src/lib/same-origin'
+import { apiWriteCrossSite } from '../src/lib/api-csrf'
 
 let pass = 0
 let fail = 0
@@ -64,6 +65,23 @@ deny('自带 X-Forwarded-Host 冒充本站', { host: 'bigolab.com', 'x-forwarded
 deny('Origin 乱写', { host: 'bigolab.com', origin: '::::' })
 deny('Origin 同源但 Sec-Fetch-Site 说跨站（两条都要过）', { host: 'bigolab.com', origin: 'https://bigolab.com', 'sec-fetch-site': 'cross-site' })
 deny('Sec-Fetch-Site 说同源但 Origin 是外站', { host: 'bigolab.com', origin: 'https://evil.com', 'sec-fetch-site': 'same-origin' })
+
+console.log('\nmiddleware 全站 /api 写请求（lib/api-csrf，2026-10-07）：')
+const sib = { host: 'bigolab.com', origin: 'https://lulu.bigolab.com', 'sec-fetch-site': 'same-site' }
+const same = { host: 'bigolab.com', origin: 'https://bigolab.com', 'sec-fetch-site': 'same-origin' }
+ok('兄弟子域 POST /api/orders 被拒', apiWriteCrossSite('POST', '/api/orders', H(sib)) !== null)
+ok('兄弟子域 PATCH /api/account/profile 被拒', apiWriteCrossSite('PATCH', '/api/account/profile', H(sib)) !== null)
+ok('兄弟子域 DELETE /api/invoice-titles/1 被拒', apiWriteCrossSite('delete', '/api/invoice-titles/1', H(sib)) !== null)
+ok('外站 POST /api/lottery/draw 被拒', apiWriteCrossSite('POST', '/api/lottery/draw', H({ host: 'bigolab.com', origin: 'https://evil.com', 'sec-fetch-site': 'cross-site' })) !== null)
+ok('同源 POST /api/orders 放行', apiWriteCrossSite('POST', '/api/orders', H(same)) === null)
+ok('渠道自定义域名同源 POST 放行', apiWriteCrossSite('POST', '/api/orders', H({ host: 'tibo.pw', origin: 'https://tibo.pw', 'sec-fetch-site': 'same-origin' })) === null)
+ok('GET 不管（外站点链接进来照常）', apiWriteCrossSite('GET', '/api/orders', H(sib)) === null)
+ok('机器调用（无浏览器头）POST 放行', apiWriteCrossSite('POST', '/api/orders', H({ host: 'bigolab.com' })) === null)
+ok('收款回调豁免', apiWriteCrossSite('POST', '/api/pay/sms-notify', H(sib)) === null)
+ok('cron 豁免', apiWriteCrossSite('POST', '/api/cron/news', H(sib)) === null)
+ok('一键退订豁免', apiWriteCrossSite('POST', '/api/mkt/unsubscribe/abc', H(sib)) === null)
+ok('外部发卡 API 豁免', apiWriteCrossSite('POST', '/api/inventory/dispense', H(sib)) === null)
+ok('退订偏好页（非一键）不豁免', apiWriteCrossSite('POST', '/api/mkt/prefs/abc', H(sib)) !== null)
 
 console.log(`\n${pass} 通过，${fail} 失败`)
 if (fail) process.exit(1)

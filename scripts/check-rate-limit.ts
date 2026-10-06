@@ -6,6 +6,8 @@
  * 时间用替换 Date.now 的方式快进，不真等。
  */
 import { rateLimited, rateLimitKeyCount, rateLimitScopeCount } from '../src/lib/news/rate-limit'
+import { searchThrottled } from '../src/lib/search-throttle'
+import { redeemCardLimited, redeemProbeLimited, redeemRateLimited } from '../src/lib/redeem/service'
 
 let pass = 0
 let fail = 0
@@ -27,6 +29,32 @@ const advance = (ms: number) => {
 
 const MIN = 60_000
 const CAP = 5000
+
+console.log('\n站内搜索限频（lib/search-throttle，2026-10-07）：')
+{
+  const h = (ip: string) => new Headers({ 'cf-connecting-ip': ip })
+  const r = Array.from({ length: 21 }, () => searchThrottled(h('203.0.113.9'), 'learn'))
+  ok('同一 IP 一分钟前 20 次放行、第 21 次拒绝', r.slice(0, 20).every((x) => !x) && r[20] === true)
+  ok('换个 IP 照常', searchThrottled(h('198.51.100.1'), 'learn') === false)
+  ok('learn 与 forum 分开计数', searchThrottled(h('203.0.113.9'), 'forum') === false)
+  for (let i = 0; i < 20; i++) searchThrottled(h(`2001:db8:1:2::${i + 1}`), 'learn')
+  ok('IPv6 同一 /64 合并计数', searchThrottled(h('2001:db8:1:2::ffff'), 'learn') === true)
+  advance(MIN)
+  ok('一分钟后恢复', searchThrottled(h('203.0.113.9'), 'learn') === false)
+}
+
+console.log('\n卡密兑换限频（lib/redeem/service，2026-10-07）：')
+{
+  // 激活路由：查库前 redeemRateLimited(action, null, ip)，查到卡后只看单卡层
+  const ipHits = Array.from({ length: 21 }, (_, i) => redeemRateLimited('activate', null, `2001:db8:9:9::${i + 1}`))
+  ok('同一 IPv6 /64 换地址也合并计数：第 21 次被拒', ipHits.slice(0, 20).every((x) => x === null) && ipHits[20] !== null)
+  const card = Array.from({ length: 7 }, () => redeemCardLimited('activate', 424242))
+  ok('单卡层 1 分钟 6 次', card.slice(0, 6).every((x) => x === null) && card[6] !== null)
+  ok('单卡层不消耗 IP 层额度', redeemRateLimited('activate', null, '192.0.2.77') === null)
+  const pfx = Array.from({ length: 17 }, (_, i) => redeemProbeLimited(`2001:db8:7:7::${i + 1}`, 'ABCDEFGH-1234'))
+  ok('前缀试探按 /64 聚合：第 17 次被拒', pfx[16] !== null)
+  advance(MIN)
+}
 
 console.log('\n计数语义（与改动前一致）：')
 {

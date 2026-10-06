@@ -21,6 +21,8 @@ if (!/dev|test/i.test(dbName)) {
 const BASE = process.env.ITEST_BASE || 'http://localhost:3000'
 const prisma = new PrismaClient()
 const RUN = Date.now().toString(36)
+// 2026-10-07 新增的几组限流是按 IP 计的（进程内、窗口最长 20 分钟）：模拟 IP 的末段随每次运行变化，重跑不互相干扰
+const OCT = (Date.now() % 250) + 1
 const mail = (n: string) => `${n}-${RUN}@itest.local`
 const PW = 'Test123456'
 const LEGACY_SEED_HASH = '$2a$10$1nwsaZ4SDtsUmEDBml2MMuGK2WZb1MlJJxmrxQfIexqqV/fHqyiei'
@@ -278,6 +280,125 @@ async function main() {
   ok('/api/orders/recent 不含 createdAt、id 为序号', !first || (!('createdAt' in first) && first.id === 1), JSON.stringify(first))
   const bigQty = await call('POST', '/api/orders', { productId: prod!.id, quantity: 11 }, relog.jar)
   ok('单次购买数量上限 10', bigQty.status === 400 && /最多购买 10 件/.test(bigQty.data?.error || ''), JSON.stringify(bigQty.data))
+
+  // ---------- 2026-10-07 加固 ----------
+  console.log('\n[全站 /api 写请求同源校验（middleware）]')
+  const sib = { Origin: 'https://lulu.bigolab.com', 'Sec-Fetch-Site': 'same-site' }
+  const csrf1 = await call('POST', '/api/orders', { productId: prod!.id, quantity: 1 }, relog.jar, sib)
+  ok('兄弟子域对 /api/orders 的写请求 403', csrf1.status === 403, `${csrf1.status} ${JSON.stringify(csrf1.data)}`)
+  const csrf2 = await call('PATCH', '/api/account/profile', { nickname: 'x' }, relog.jar, { Origin: 'https://evil.example', 'Sec-Fetch-Site': 'cross-site' })
+  ok('外站对 /api/account/profile 的写请求 403', csrf2.status === 403, String(csrf2.status))
+  const csrf3 = await call('POST', '/api/coupons/claim', { code: 'nope' }, relog.jar, { Origin: BASE, 'Sec-Fetch-Site': 'same-origin' })
+  ok('同源写请求不受影响（到达路由）', csrf3.status !== 403 || csrf3.data?.error !== '请求来源不合法，请刷新页面后重试', `${csrf3.status} ${csrf3.data?.error}`)
+  const csrf4 = await call('GET', '/api/products', undefined, undefined, sib)
+  ok('GET 不受影响', csrf4.status === 200, String(csrf4.status))
+
+  console.log('\n[验证码：每个邮箱每天的校验次数上限]')
+  const capMail = mail('vcap')
+  for (let round = 0; round < 6; round++) {
+    simulatedIp = `198.18.${round}.${OCT}` // 每轮换 IP：只验邮箱维度，不撞按 IP 的提交限流
+    await plantCode(capMail, 'LOOKUP', '777777')
+    for (let i = 0; i < 5; i++) await call('POST', '/api/external-orders/lookup/verify', { email: capMail, code: '000000' }, new Map())
+  }
+  simulatedIp = `198.18.99.${OCT}`
+  await plantCode(capMail, 'LOOKUP', '888888')
+  const capOk = await call('POST', '/api/external-orders/lookup/verify', { email: capMail, code: '888888' }, new Map())
+  ok('同一邮箱当天已校验 30 次：新码输对也不通过', capOk.data?.success !== true, JSON.stringify(capOk.data))
+  ok('文案与错码相同（不给枚举信号）', capOk.data?.error === v.data?.error, capOk.data?.error)
+  simulatedIp = null
+
+  console.log('\n[内容平台防刷]')
+  const cat = await prisma.forumCategory.findFirst({ where: { status: 1 }, select: { id: true } })
+  const asker = await mkUser(mail('asker'), { verified: true })
+  const answerer = await mkUser(mail('answerer'), { verified: true })
+  const q = await prisma.forumPost.create({
+    data: { categoryId: cat!.id, userId: asker.id, authorName: 'asker', title: `itest 提问 ${RUN}`, content: '问题正文', reviewStatus: 'APPROVED' },
+  })
+  const cs = await Promise.all(
+    [1, 2, 3].map((i) => prisma.forumComment.create({ data: { postId: q.id, userId: answerer.id, authorName: 'answerer', content: `回答 ${i}` } })),
+  )
+  const askerJar = (await login(asker.email!)).jar
+  for (const c of cs) await call('POST', `/api/forum/posts/${q.id}/accept`, { commentId: c.id }, askerJar)
+  const acceptPts = await prisma.pointLog.count({ where: { userId: answerer.id, reason: 'ACCEPTED' } })
+  ok('同一问题轮流采纳 3 条回答：只记一次 +20', acceptPts === 1, String(acceptPts))
+  const post = await prisma.forumPost.findUnique({ where: { id: q.id }, select: { acceptedCommentId: true } })
+  ok('采纳对象照常切换', post?.acceptedCommentId === cs[2].id, String(post?.acceptedCommentId))
+
+  const freshFan = await mkUser(mail('freshfan'), { verified: true })
+  await call('POST', `/api/content/${q.id}/favorite`, undefined, (await login(freshFan.email!)).jar)
+  const oldFan = await mkUser(mail('oldfan'), { verified: true })
+  await prisma.user.update({ where: { id: oldFan.id }, data: { createdAt: new Date(Date.now() - 10 * 86400000) } })
+  const favOld = await call('POST', `/api/content/${q.id}/favorite`, undefined, (await login(oldFan.email!)).jar)
+  await new Promise((r) => setTimeout(r, 800)) // 加分是 fire-and-forget
+  const favPts = await prisma.pointLog.findMany({ where: { userId: asker.id, reason: 'FAVORITED' }, select: { actorId: true } })
+  ok('收藏照常生效', favOld.data?.data?.favorited === true && favOld.data?.data?.favoriteCount === 2, JSON.stringify(favOld.data))
+  ok('当天注册的号收藏不给作者加分，满 3 天的照常 +2', favPts.length === 1 && favPts[0].actorId === oldFan.id, JSON.stringify(favPts))
+
+  for (const n of ['rep1', 'rep2', 'rep3']) {
+    const u = await mkUser(mail(n), { verified: true })
+    await call('POST', '/api/content/report', { postId: q.id, reason: 'SPAM' }, (await login(u.email!)).jar)
+  }
+  const afterRep = await prisma.forumPost.findUnique({ where: { id: q.id }, select: { status: true } })
+  const repCount = await prisma.contentReport.count({ where: { postId: q.id } })
+  ok('3 个当天注册的号举报：记进队列但不自动隐藏', repCount === 3 && afterRep?.status === 1, `${repCount} ${afterRep?.status}`)
+
+  console.log('\n[站内搜索限频]')
+  simulatedIp = `198.18.200.${OCT}`
+  let lastSearch = 0
+  for (let i = 0; i < 21; i++) lastSearch = (await call('GET', `/api/forum/posts?keyword=itest${i}`)).status
+  ok('论坛关键词搜索同一 IP 第 21 次 429', lastSearch === 429, String(lastSearch))
+  let learnHtml = ''
+  for (let i = 0; i < 21; i++) {
+    const r = await fetch(`${BASE}/learn/search?q=itest${i}`, { headers: { 'cf-connecting-ip': `198.18.201.${OCT}` } })
+    learnHtml = await r.text()
+  }
+  ok('学习平台搜索同一 IP 第 21 次提示稍后再试', learnHtml.includes('搜索太频繁'), learnHtml.slice(0, 80))
+  simulatedIp = null
+
+  await prisma.contentReport.deleteMany({ where: { postId: q.id } })
+  await prisma.pointLog.deleteMany({ where: { userId: { in: [asker.id, answerer.id] } } })
+  await prisma.favorite.deleteMany({ where: { postId: q.id } })
+  await prisma.forumPost.update({ where: { id: q.id }, data: { acceptedCommentId: null } })
+  await prisma.forumComment.deleteMany({ where: { postId: q.id } })
+  await prisma.forumPost.deleteMany({ where: { id: q.id } })
+  await prisma.creatorProfile.deleteMany({ where: { userId: { in: [asker.id, answerer.id] } } })
+  await prisma.notification.deleteMany({ where: { userId: { in: [asker.id, answerer.id] } } })
+
+  console.log('\n[新建收款单：同一出口 IP 上限（VMQ_MAX_NEW_PER_IP 默认 8）]')
+  const prodFull = await prisma.product.findUnique({ where: { id: prod!.id }, select: { price: true } })
+  const payers = await Promise.all([1, 2, 3].map((i) => mkUser(mail(`payer${i}`), { verified: true })))
+  const payOrders: number[] = []
+  const payResults: { status: number; error?: string }[] = []
+  simulatedIp = `198.18.210.${OCT}`
+  for (let pi = 0; pi < payers.length; pi++) {
+    const u = payers[pi]
+    const jar = (await login(u.email!)).jar
+    for (let k = 0; k < 3; k++) {
+      const o = await prisma.order.create({
+        data: {
+          orderNo: `IP${RUN}${pi}${k}`.slice(0, 32),
+          userId: u.id,
+          productId: prod!.id,
+          productName: prod!.name,
+          productPrice: prodFull!.price,
+          amount: prodFull!.price,
+        },
+      })
+      payOrders.push(o.id)
+      const r = await call('POST', '/api/pay/vmq/create', { orderNo: o.orderNo }, jar)
+      payResults.push({ status: r.status, error: r.data?.error })
+    }
+  }
+  simulatedIp = null
+  const okCount = payResults.filter((r) => r.status === 200).length
+  ok('前 8 张照常发起收款', okCount === 8, JSON.stringify(payResults))
+  ok('第 9 张（第三个号的第三单）429 且提示同一网络', payResults[8]?.status === 429 && /当前网络下/.test(payResults[8]?.error || ''), JSON.stringify(payResults[8]))
+  const repay = await call('POST', '/api/pay/vmq/create', { orderNo: `IP${RUN}00`.slice(0, 32) }, (await login(payers[0].email!)).jar, { 'cf-connecting-ip': `198.18.210.${OCT}` })
+  ok('已有收款单的订单再点「去支付」照常复用（不受 IP 上限影响）', repay.status === 200, JSON.stringify(repay.data))
+  const vmqs = await prisma.vmqOrder.findMany({ where: { bizType: 'order', bizId: { in: payOrders } }, select: { orderId: true } })
+  await prisma.vmqLock.deleteMany({ where: { orderId: { in: vmqs.map((x) => x.orderId) } } })
+  await prisma.vmqOrder.deleteMany({ where: { bizType: 'order', bizId: { in: payOrders } } })
+  await prisma.order.deleteMany({ where: { id: { in: payOrders } } })
 
   // ---------- 清理 ----------
   await prisma.receipt.deleteMany({ where: { externalOrderId: { in: [ext.id, shopExt.id] } } })

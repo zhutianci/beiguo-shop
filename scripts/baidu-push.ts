@@ -84,6 +84,9 @@ const PRIORITY_PATHS: string[] = [
   '/chongzhi/grok-super',
   // 下面这些留给第二天。首页不在列表里：百度验证站点时就抓过根地址，
   // 不必再花一条配额去告诉它首页存在
+  // 短信接码（SEO 批 2，设计 §6.4「百度」：接码对全部用户开放之后加进来，排在落地页之后）。灰度期别推：页面是 noindex
+  '/jiema',
+  '/jiema/terms',
   '/products',
   '/support',
   '/terms',

@@ -47,6 +47,10 @@ export interface ArticleJsonLdInput {
   tags?: string[] | string | null
   happenedAt?: Date | string | null
   updatedAt?: Date | string | null
+  /** 本站发布这一条的时间（SEO 批 2：datePublished 优先用它，事件发生时间在正文里，设计 §4.1 /news/[slug] 行） */
+  publishedAt?: Date | string | null
+  /** 人工复核时间：dateModified = max(publishedAt, reviewedAt)（设计 0.3 #15、附录 B-2；不用 updatedAt） */
+  reviewedAt?: Date | string | null
   sources?: JsonLdSource[]
 }
 
@@ -71,7 +75,10 @@ function toTags(t: ArticleJsonLdInput['tags']): string[] {
  */
 export function articleJsonLd(e: ArticleJsonLdInput): Record<string, unknown> {
   const url = newsUrl(e.slug)
-  const published = toIso(e.happenedAt)
+  const published = toIso(e.publishedAt) || toIso(e.happenedAt)
+  // dateModified：max(publishedAt, reviewedAt)；两者都没有时退回旧口径（updatedAt 只在调用方显式传入时才用）
+  const modifiedCandidates = [toIso(e.publishedAt), toIso(e.reviewedAt)].filter((x): x is string => !!x).sort()
+  const modified = modifiedCandidates.length ? modifiedCandidates[modifiedCandidates.length - 1] : toIso(e.updatedAt) || published
   return {
     '@context': 'https://schema.org',
     '@type': 'Article', // 刻意不是 NewsArticle，理由见文件头
@@ -81,10 +88,12 @@ export function articleJsonLd(e: ArticleJsonLdInput): Record<string, unknown> {
     url,
     inLanguage: 'zh-CN',
     datePublished: published,
-    dateModified: toIso(e.updatedAt) || published,
+    dateModified: modified,
     author: { '@type': 'Organization', name: AUTHOR_NAME, url: siteOrigin() },
+    // publisher 带 @id 指向站点 Organization（详情页同页输出 organizationJsonLd，§4.1）；name / logo 照旧内联，单独解析这一块也完整
     publisher: {
       '@type': 'Organization',
+      '@id': `${siteOrigin()}/#organization`,
       name: '贝果科技',
       url: siteOrigin(),
       logo: { '@type': 'ImageObject', url: absUrl(SITE_LOGO), width: 512, height: 512 },

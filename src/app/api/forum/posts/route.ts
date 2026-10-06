@@ -17,6 +17,7 @@ import { ensureHandle } from '@/lib/content/creator'
 import { notify } from '@/lib/notify'
 import { IMAGE_REUSE_NOTE, dedupText, findImageReuse, findNearDuplicate, onPublished } from '@/lib/content/events'
 import { simhash } from '@/lib/content/simhash'
+import { searchThrottled } from '@/lib/search-throttle'
 
 // 列表：支持板块筛选、标签、关键词、排序、分页
 export async function GET(request: NextRequest) {
@@ -25,11 +26,14 @@ export async function GET(request: NextRequest) {
   if (channelDenied) return channelDenied
   try {
     const { searchParams } = new URL(request.url)
-    const page = Math.max(parseInt(searchParams.get('page') || '1'), 1)
-    const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '20'), 50)
-    const categorySlug = searchParams.get('category')?.trim()
-    const tag = searchParams.get('tag')?.trim()
-    const keyword = searchParams.get('keyword')?.trim()
+    // 非数字 / 负数以前会变成 NaN、负的 take 交给 Prisma，回 500
+    const page = Math.min(Math.max(parseInt(searchParams.get('page') || '1') || 1, 1), 10000)
+    const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '20') || 20, 1), 50)
+    const categorySlug = searchParams.get('category')?.trim().slice(0, 60)
+    const tag = searchParams.get('tag')?.trim().slice(0, 40)
+    const keyword = searchParams.get('keyword')?.trim().slice(0, 60)
+    // 关键词搜索是正文 LIKE 全表扫，匿名可达：限频（lib/search-throttle）
+    if (keyword && searchThrottled(request.headers, 'forum')) return error('搜索太频繁了，请稍等一分钟再试', 429)
     const sort = searchParams.get('sort') || 'latest' // latest | hot | featured
 
     // 只列对所有人公开的：已过审、未隐藏、未删除（口径同 lib/content/policy 的 isPublic）。
@@ -149,7 +153,8 @@ export async function POST(request: NextRequest) {
 
     const authorName = actor.nickname || '用户'
     const level = await trustLevelOf({ id: actor.userId, role: actor.isAdmin ? 'ADMIN' : 'USER' })
-    const flags = flagsOf(d.title, d.content, d.tags, sourceUrl, d.prompt?.prompt, d.prompt?.useCase, d.excerpt)
+    // 应用卡片的字段也进风险检测（2026-10-07：试用说明 / 价格里塞联系方式以前查不到）
+    const flags = flagsOf(d.title, d.content, d.tags, sourceUrl, d.prompt?.prompt, d.prompt?.useCase, d.excerpt, d.prompt?.negativePrompt, d.app?.name, d.app?.url, d.app?.pricing, d.app?.platforms, d.app?.trialNote)
     let reviewStatus = postReviewOnCreate(level, flags)
 
     // 作者自荐（设计 §9.1 四件套）：L2 创作者以上才能发、每 30 天 1 条、一律人工审核

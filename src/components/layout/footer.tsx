@@ -131,7 +131,7 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
 
             {catalogOpen && (
             <div className="lg:col-span-3">
-              <h4 className="text-sm font-semibold text-white/90 tracking-wide mb-4 lg:mb-5 lg:text-[15px]">商品</h4>
+              <h4 className="text-sm font-semibold text-white/90 tracking-wide mb-4 lg:mb-5 lg:text-[15px]">{features.news || features.forum ? '商品与服务' : '商品'}</h4>
               <ul className="space-y-3 lg:space-y-3.5">
                 {/* 原来是 /products?category=1 与 ?category=2：列表页从不读这个参数（进去看到的是全部商品），
                     canonical 又指回 /products——全站每一页各浪费两条链接。改指对应的充值页，
@@ -161,6 +161,34 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
                       短信接码
                     </Link>
                   </li>
+                )}
+                {/* SEO 批 2 的 C 包（设计 §1.9）：大事记与学习平台原来只在顶部导航里有入口，页脚补上（渠道站 features 全关，不渲染）。
+                    学习平台给总览 + 提示词库 + 教程三条：它们是内容平台的三个 hub，从每一页都点得到，离首页不超过两次点击 */}
+                {features.news && (
+                  <li>
+                    <Link href="/news" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                      AI 圈大事记
+                    </Link>
+                  </li>
+                )}
+                {features.forum && (
+                  <>
+                    <li>
+                      <Link href="/learn" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                        AI 学习
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href="/prompts" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                        AI 提示词库
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href="/guides" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                        AI 使用教程
+                      </Link>
+                    </li>
+                  </>
                 )}
                 {features.iptools && (
                   <li>

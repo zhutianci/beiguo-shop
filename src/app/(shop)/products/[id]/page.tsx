@@ -4,6 +4,7 @@
 export const dynamic = 'force-dynamic'
 
 import { cache } from 'react'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
@@ -16,11 +17,12 @@ import {
   type SeoProduct,
 } from '@/lib/product-seo'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { breadcrumbJsonLd, organizationJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd } from '@/lib/seo/graph'
 import ProductDetailClient from './product-client'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getLandingProducts } from '@/lib/landing/products'
-import { buildProductIntro, isAccountProduct } from '@/lib/product-intro'
+import { buildProductIntro, isAccountProduct, landingForProduct } from '@/lib/product-intro'
+import { LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { ProductIntroSection } from '@/components/products/product-intro'
 import { publicStock } from '@/lib/stock-level'
 import { getStorefront, type Storefront } from '@/lib/storefront/resolve'
@@ -276,6 +278,13 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
   // 渠道站没有充值落地页（设计 11.2 关闭 /chongzhi），「完整购买指南」链接去掉，否则是一个点进去 404 的入口
   const channel = !!sf && sf.kind === 'CHANNEL'
   const intro = built && channel ? { ...built, guide: null } : built
+  /*
+   * 面包屑带上主落地页（D1a，§1.4）：首页 › AI 会员充值 › {主落地页} › 商品名。只在主站（渠道站没有 /chongzhi），
+   * 且只认「商品直接出现在那一页价格表里」的归属（landingForProduct 的 direct；兜底归属不算主落地页）。
+   * 可见面包屑与 BreadcrumbList 用同一份数组。
+   */
+  const home = product && !channel ? landingForProduct({ name: product.name, categoryName: product.categoryName }) : null
+  const landingCrumbs = home && home.direct ? [{ name: LANDING_HUB.navLabel, path: LANDING_HUB.path }, { name: home.def.navLabel, path: landingPath(home.def.slug) }] : null
 
   return (
     <>
@@ -300,10 +309,10 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
              * 在此之前，商品页的 HTML 里从来没出现过经营主体是谁。
              * 对一个卖 AI 会员的站，这条信息是相对无照个人卖家唯一的结构性优势。
              */
-            organizationJsonLd(),
+            await siteOrganizationJsonLd(),
             breadcrumbJsonLd([
               { name: '首页', path: '/' },
-              { name: '全部商品', path: '/products' },
+              ...(landingCrumbs ?? [{ name: '全部商品', path: '/products' }]),
               { name: product.name },
             ]),
           ]}
@@ -313,7 +322,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
           但此前它的数据来自 useEffect 里的 fetch，SSR 那一刻还是 null，
           渲染出来只有「加载中…」——H1、商品名、价格、说明一个都不在 HTML 里。
           传了之后整页直出；带 ?ref= 的专属价仍由客户端挂载后那次 fetch 覆盖。 */}
-      <ProductDetailClient initialProduct={client}>
+      <ProductDetailClient initialProduct={client} landingCrumbs={landingCrumbs}>
         {intro && product && <ProductIntroSection intro={intro} productId={product.id} />}
         {/* 内容平台 P1（设计 §11.6）：相关教程与提示词。没有匹配的公开内容时整块不渲染；渠道站不出（内容平台只在主站） */}
         {product && !channel && <RelatedContentForProduct categoryName={product.categoryName ?? null} name={product.name} />}

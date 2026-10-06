@@ -2,7 +2,11 @@ import Link from 'next/link'
 import { ArrowRight, Award, CreditCard, FileText, LifeBuoy, MessageCircle, Newspaper, ShieldAlert, Smartphone, Sparkles, Ticket } from 'lucide-react'
 import { resolveStoreContact } from '@/lib/contact'
 import { JIEMA_TERMS_PATH, JIEMA_TERMS_TITLE } from '@/lib/terms/jiema-wallet'
-import { INVOICE_TAX_TEXT, aboutBusinesses, aboutContext } from './about-context'
+import { INVOICE_TAX_TEXT, aboutBusinesses, aboutContext, aboutDescription } from './about-context'
+import { JsonLd } from '@/lib/seo/jsonld'
+import { ORG_ID } from '@/lib/seo/graph'
+import { absUrl } from '@/lib/news/seo'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 
 /**
  * 关于我们（docs/SEO-重构/SEO-重构设计.md §3.2-J，A 包，2026-09-30 重写）。
@@ -43,6 +47,25 @@ export default async function AboutPage() {
 
   return (
     <div className="min-h-screen page-top pb-20">
+      {/* AboutPage + 同页 Organization（SEO 批 2，设计 §3.2-J、§4.1：about、mainEntity 都用 @id 指向 ORG）。只在主站输出（渠道站整站 noindex） */}
+      {isPlatform && (
+        <JsonLd
+          data={[
+            {
+              '@context': 'https://schema.org',
+              '@type': 'AboutPage',
+              '@id': absUrl('/about'),
+              url: absUrl('/about'),
+              name: '关于贝果科技 BigoLab',
+              description: aboutDescription(ctx),
+              inLanguage: 'zh-CN',
+              about: { '@id': ORG_ID },
+              mainEntity: { '@id': ORG_ID },
+            },
+            await siteOrganizationJsonLd(),
+          ]}
+        />
+      )}
       {/* 背景 */}
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}

@@ -18,6 +18,7 @@ import { assertCouponForPayment } from '@/lib/coupon'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { payableCents } from '@/lib/order-payable'
 import { topupAvailability } from '@/lib/topup-checkout'
+import { newPaymentIpLimited, NEW_PAYMENT_IP_MSG } from '@/lib/pay-ip-throttle'
 import { smsCashierGate } from '@/lib/jiema/pay-gate'
 
 const schema = z.object({
@@ -120,6 +121,8 @@ export async function POST(request: NextRequest) {
     }
     // 每个买家同时挂着的待付款收款单有上限：每张都占一个唯一金额，而金额池只有 50 格、全站共用（充值单同样受它约束）
     if (!reusing && (await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) return error(tooMany, 429)
+    // 同一出口 IP 新建收款单的上限（多个小号合起来占满金额池，lib/pay-ip-throttle）。放在每人上限之后：先给更具体的提示
+    if (!reusing && newPaymentIpLimited()) return error(NEW_PAYMENT_IP_MSG, 429)
 
     // 站长明确要求的那道复验：提交收款监控之前，确认「账户与券一致、券处于可用（锁定）状态」。
     // 建单时已经校验并锁定过一次，这里防的是另一件事 —— 订单与券的关联在中途被改坏。

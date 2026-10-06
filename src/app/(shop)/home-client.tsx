@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { ArrowRight, Sparkles, Zap, Shield, Clock, Search, Mail, Network, ArrowUpRight } from 'lucide-react'
@@ -15,6 +15,7 @@ import { ipToolGroups, ipToolCount } from '@/lib/iptools'
 import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
 import { ProductThumb } from '@/components/products/product-thumb'
 import { PRODUCT_GRADIENT, deliveryBadge } from '@/components/products/gradient'
+import type { NewsEventDto } from '@/lib/news/format'
 
 /**
  * 首页「精选服务」那几行。
@@ -68,7 +69,30 @@ export interface HomeStats {
   skuCount: number
 }
 
-export default function HomeClient({ stats, featured }: { stats: HomeStats; featured: HomeFeatured[] }) {
+/**
+ * 主站首页的业务开放状态（SEO 批 2 的 C 包，设计 §3.3 首页 H1、§1.10）。由 page.tsx 在服务端按 lib/seo/pillars 算好传进来；
+ * 不传（渠道站、itest 的逐字比对）= 原来的 H1，渲染结果与改造前相同。
+ */
+export interface HomePillars {
+  jiema: boolean
+  news: boolean
+}
+
+export default function HomeClient({
+  stats,
+  featured,
+  pillars,
+  hotNews,
+  pillarSections,
+}: {
+  stats: HomeStats
+  featured: HomeFeatured[]
+  pillars?: HomePillars
+  /** 首页「AI 圈今日热点」的服务端数据（不传 = 客户端自己拉，同改造前） */
+  hotNews?: NewsEventDto[]
+  /** 服务端直出的跨业务区块（短信接码、AI 学习），放在热点之后（§1.10 的支柱三、支柱四） */
+  pillarSections?: ReactNode
+}) {
   const router = useRouter()
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll()
@@ -209,6 +233,25 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
               {/* 渠道白标：渠道设了首页大标题就整句用渠道的（docs/多渠道分销-渠道品牌与公告.md）；没设（含主站）渲染原来的两行 */}
               {brand.heroTitle ? (
                 <span className="gradient-text">{brand.heroTitle}</span>
+              ) : pillars ? (
+                /*
+                  【主站 H1（SEO 批 2 的 C 包，设计 §3.3）】连读为「ChatGPT、Claude 充值 · 短信接码 · 每日 AI 动态」：
+                  不再写「代充」（零需求词与自称不进 title / H1，§3.4）；「会员」只用在 Claude 上，这里不写。
+                  大字两行保持原来的版式（「ChatGPT、Claude」/「充值」），另外两条业务放在 H1 里的一行小字上，
+                  免得大字号在手机上折行（text-display 手机 48px、xl 128px）。sr-only 的「 · 」只为连读通顺，不占版面。
+                  灰度期（接码未对全部用户开放）不写「短信接码」（§3.3、D28）。
+                */
+                <>
+                  <span className="gradient-text">ChatGPT、Claude</span>
+                  <br />
+                  <span className="gradient-text-accent">充值</span>
+                  {(pillars.jiema || pillars.news) && (
+                    <span className="mt-5 block text-xl font-semibold tracking-normal text-white/70 sm:text-2xl lg:mt-7 lg:text-4xl">
+                      <span className="sr-only"> · </span>
+                      {[pillars.jiema ? '短信接码' : null, pillars.news ? '每日 AI 动态' : null].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
+                </>
               ) : (
                 <>
                   <span className="gradient-text">ChatGPT、Claude</span>
@@ -493,7 +536,9 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
       )}
 
       {/* AI 圈今日热点：内部固定高度 skeleton 占位；接口失败或暂无内容整块静默隐藏，不影响卖货主线 */}
-      {sfFeatures.news && <NewsHotSection />}
+      {sfFeatures.news && <NewsHotSection initial={hotNews} />}
+
+      {pillarSections}
 
       {/* IP 工具入口（渠道站关闭） */}
       {sfFeatures.iptools && (

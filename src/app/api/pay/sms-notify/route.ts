@@ -13,6 +13,11 @@ import { notifyWebhookRejected } from '@/lib/notify'
 // 回落 VMQ_KEY 保留：VmqApk 移除后 VMQ_KEY 已无其它用途，不构成密钥复用；
 // 线上按文档 VMQ_WEBHOOK_TOKEN 留空，去掉回落会直接断掉到账。
 const SECRET = process.env.VMQ_WEBHOOK_TOKEN || VMQ_KEY
+// 弱密钥只告警不拒绝（2026-10-07）：这是「伪造到账」的唯一屏障，但硬拒会让每一笔真实到账都被拒、订单超时取消。
+// 被拒请求也刻意不按 IP 罚站：SmsForwarder 走手机运营商的 CGNAT 出口，罚站会连带拒掉真机的到账通知
+if (SECRET && (SECRET.length < 16 || SECRET === 'change_this_to_a_random_key')) {
+  console.error('[sms-notify] VMQ_WEBHOOK_TOKEN / VMQ_KEY 过短或仍是模板值：任何人都可能伪造到账通知，请换成 openssl rand -hex 24 并同步到手机端')
+}
 
 /*
  * token 被拒的告警限流（进程内，每 10 分钟最多推一次）。

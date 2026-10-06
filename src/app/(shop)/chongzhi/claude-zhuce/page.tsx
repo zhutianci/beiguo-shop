@@ -3,11 +3,14 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
 import { getLandingProducts, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
+import { LandingFactCard, SUBSCRIPTION_AFTERSALE } from '@/components/seo/fact-card'
+import { RelatedPillars } from '@/components/landing/related-pillars'
 import {
   BrandDisclaimer,
   CheckList,
@@ -162,7 +165,9 @@ export default async function ClaudeZhuceLandingPage() {
             { name: LANDING_HUB.navLabel, path: LANDING_HUB.path },
             { name: DEF.navLabel },
           ]),
-          faqJsonLd(FAQS),
+          // D1a（§4.1）：FAQPage 带 @id = 页面 URL、dateModified / lastReviewed = 本页 reviewedAt、publisher 指向同页的 Organization
+          faqJsonLd(FAQS, { path: landingPath(DEF.slug), reviewedAt: DEF.reviewedAt }),
+          await siteOrganizationJsonLd(),
           // 这一页列的是三个档位，不是单个商品，所以用 ItemList 而不是 Product。
           // Product/Offer 标记留在 /products/[id]——那才是「买家能在上面完成购买」的页面，
           // 也是 Google 对 merchant listing 资格的明确要求。
@@ -179,6 +184,17 @@ export default async function ClaudeZhuceLandingPage() {
           { name: DEF.navLabel },
         ]}
         h1={DEF.h1}
+        reviewedAt={DEF.reviewedAt}
+        // D1a（§4.3-1）：H1、导语之后的总结句 + 事实卡；数字取自下面价格表同一份在售快照
+        meta={
+          <LandingFactCard
+            product="Claude 注册相关商品"
+            count={items.length}
+            low={low}
+            delivery="接码档付款后系统自动取号、验证码显示在订单里，普号档按商品说明交付"
+            reviewedAt={DEF.reviewedAt}
+          />
+        }
         lede={
           <>
             <p>
@@ -570,6 +586,11 @@ export default async function ClaudeZhuceLandingPage() {
           </p>
         </Section>
 
+        {/* 跨业务桥接（§2.5、C / D1a）：接码按开放状态、学习平台与大事记按 features；只在非 AI 引用页、非对照组 */}
+        <RelatedPillars
+          jiema={{ slug: 'claude', anchor: '用海外手机号接收 Claude 验证码' }}
+          learn={[{ href: '/guides/p/claude', anchor: 'Claude 使用教程与技巧' }]}
+        />
         <RelatedLandings currentSlug={DEF.slug} />
         <BrandDisclaimer />
       </LandingShell>

@@ -531,7 +531,8 @@ async function main() {
     }
     const shell = await withRequest({ host: MAIN_HOST }, () => ShopLayout({ children: 'x' }))
     check(`前台外壳：jiemaOpen=${OA}（导航与页脚${OA ? '出现' : '看不到'}「短信接码」）`, findHeader(shell)?.jiemaOpen === OA)
-    const sitemap = (await import('../src/app/sitemap')).default as () => Promise<Array<{ url: string }>>
+    // SEO 批 2 的 G 包：app/sitemap.ts 拆成 sitemap index + 分段（lib/seo/sitemap-entries.ts），断言照旧（灰度期没有 /jiema）
+    const sitemap = (await import('../src/lib/seo/sitemap-entries')).allSitemapEntries as () => Promise<Array<{ url: string }>>
     const sm = await withRequest({ host: MAIN_HOST }, () => sitemap())
     check(`sitemap 里${OA ? '有' : '没有'} /jiema`, sm.length > 0 && sm.some((x) => x.url.endsWith('/jiema')) === OA)
     await setCfg({})

@@ -8,6 +8,7 @@
  * 选项：
  *   --max-events N     抽查多少篇大事记详情页（默认 8；LLM 写的标题只抽样告警，不判失败）
  *   --max-products N   最多查多少个商品详情页（默认 40）
+ *   --max-content N    抽查多少篇学习平台的单条内容（提示词 / 教程 / 应用，默认 12；作者写的标题只抽样告警）
  *   --concurrency N    并发抓取数（默认 2；线上是 1.8G 的小机，别调大）
  *   --timeout S        单页超时秒数（默认 90；next dev 首次编译一页要十几秒）
  *   --only a,b         只查这几个路径（调试用；全局规则照跑）
@@ -48,6 +49,7 @@ function argVal(name: string): string | undefined {
 const BASE = (argVal('--base') || process.env.SEO_BASE || 'http://localhost:3000').replace(/\/+$/, '')
 const MAX_EVENTS = Number(argVal('--max-events') ?? 8)
 const MAX_PRODUCTS = Number(argVal('--max-products') ?? 40)
+const MAX_CONTENT = Number(argVal('--max-content') ?? 12)
 const CONCURRENCY = Math.max(1, Number(argVal('--concurrency') ?? 2))
 const TIMEOUT_MS = Math.max(5, Number(argVal('--timeout') ?? 90)) * 1000
 const ONLY = (argVal('--only') || '').split(',').map((s) => s.trim()).filter(Boolean)
@@ -122,6 +124,7 @@ const RULES: Record<string, string> = {
   'robots-txt': 'robots.txt：有 Allow: /lookup$；/lookup 可抓、/lookup?… 与带 token 的路径仍被挡',
   'sitemap-forum-games': 'sitemap 里没有 /forum、/games',
   'sitemap-noindex': 'sitemap 里的地址不能是 noindex',
+  'sitemap-child': 'sitemap index 列出的子地图都能打开（200 且是 urlset）',
   'forum-games-noindex': '/forum、/games 是 noindex,follow',
   'zero-demand': '零需求词与自称（全站 title / H1 / description）',
   impersonate: '冒充官方用语（全站）',
@@ -156,13 +159,9 @@ type BaselineEntry = { rule: string; path: string; match?: string; owner: string
  * 已知违规基线。path 支持 * 通配；match 是 detail 里要包含的子串（省略 = 该页该规则的全部违规）。
  * owner 写归哪个施工包（设计 §8.2）：那个包上线时要把自己的条目删掉。
  * 2026-09-30 A 包建立：条目来自本地（beiguo_dev_jiema）与线上基线快照（docs/SEO-重构/baseline/snapshot.md）的并集。
+ * 2026-10-07 批 2（C、AJ、G）清掉首页、Organization、日报周报 / 归档 og、/jiema og 与 ?s= 共 9 条。
  */
 const BASELINE: BaselineEntry[] = [
-  // ---- 首页：C 包（§1.10 服务端直出、§3.3 首页 title / H1 / description、§4.2 Organization） ----
-  { rule: 'daichong-title', path: '/', owner: 'C', why: '首页 title「充值代充」、H1「充值与代充」，C 包按 §3.3 改' },
-  { rule: 'home-loading', path: '/', owner: 'C', why: '「精选服务」是客户端拉取、服务端 HTML 里是「加载中」，C 包改服务端直出（§1.10）' },
-  { rule: 'invoice-6pct', path: '*', match: 'JSON-LD Organization', owner: 'C', why: 'Organization.description 没带 6%、还写「代充值」，C 包按 §4.2 改 lib/seo/graph.ts' },
-  { rule: 'invoice-6pct', path: '/', match: 'description「', owner: 'C', why: '首页 description / og:description「可开增值税发票」没带 6%，C 包按 §3.3 重写' },
   // ---- 充值落地页：D1b（title / description；AI 引用页第一步要等基线满 4 周） ----
   { rule: 'daichong-title', path: '/chongzhi', owner: 'D1b', why: 'hub title「代充价格表」，AI 引用页第一步（基线满 4 周后）改' },
   { rule: 'daichong-title', path: '/chongzhi/chatgpt-plus', owner: 'D1b', why: 'title「代充值全指南」，AI 引用页第一步改' },
@@ -171,14 +170,10 @@ const BASELINE: BaselineEntry[] = [
   { rule: 'physical-card', path: '/chongzhi/codex-jiema', owner: 'D1b', why: 'H1「美区实体卡与虚拟号的区别」：「实体卡」后没紧跟接码 / 验证码（§3.3 codex-jiema 行）；D1b 改 title 时一并定 H1（本站不能指定号码类型，D26）' },
   // ---- 对照组：整个测试窗口内一个字不改（§3.3、§7.6），只能永久豁免 ----
   { rule: 'superlative', path: '/chongzhi/claude-kyc', match: '必过', owner: '对照组（不改）', why: 'description「为什么没有所谓的「必过材料清单」」是否定语境；claude-kyc 的 title / description 维持原样（§0.3 #30、§9.4 #21）' },
-  // ---- 大事记：E1（日报 / 周报 / 归档的 generateMetadata 由 E1 重写，届时换 pageOg） ----
-  { rule: 'og-site', path: '/news/digest/*', owner: 'E1', why: '日报周报的 og 只有 site_name 没有 locale；A 包按任务限定只改 /news 与详情页两个文件' },
-  { rule: 'og-site', path: '/news/archive/*', owner: 'E1', why: '月度归档同上' },
-  // ---- 短信接码（线上已对全部用户开放）：AJ（元信息、?svc=）、F1（hub 服务端直出的目录） ----
-  { rule: 'og-title', path: '/jiema', owner: 'AJ', why: '/jiema 没写 og，og:title 是根 layout 的兜底值（AJ：terms 与 hub 补 og）' },
-  { rule: 'og-title', path: '/jiema/terms', owner: 'AJ', why: '同上' },
-  { rule: 'jiema-s-param', path: '/jiema', owner: 'AJ', why: '热门服务链接还是 ?s=<上游代码>，AJ 改成 ?svc=<本站 slug>（§1.2）' },
+  // ---- 短信接码（线上已对全部用户开放）：AJ 已在批 2 清掉（元信息、og、?svc=）；F1 的目录懒加载没做，下面一条留着 ----
   { rule: 'sensitive-names', path: '/jiema', owner: 'F1', why: '整份目录（含 Telegram、国内平台、金融类）在首包 HTML 里，F1 改为热门区块取 SEO 白名单、其余懒加载（§1.6）' },
+  // ---- 后台商品名（站长在后台改，不是模板）：2026-10-07 批 2 起本地库有在售商品，商品页才第一次被扫到 ----
+  { rule: 'physical-card', path: '/products/*', match: '实体卡）', owner: '站长后台', why: '商品名「Codex 接码（美国实体卡）」：「实体卡」后紧跟的是右括号，读起来像在卖实体 SIM 卡（R5 §3.2）；建议后台改成「美国实体卡接码」一类写法' },
 ]
 
 // ======================================================================
@@ -229,6 +224,8 @@ type PageKind =
   | 'forum'
   | 'games'
   | 'lookup'
+  | 'learn'
+  | 'learn-item'
   | 'notfound'
   | 'other'
 
@@ -248,6 +245,9 @@ function kindOf(p: string): PageKind {
   if (p === '/forum' || p.startsWith('/forum/')) return 'forum'
   if (p === '/games' || p.startsWith('/games/')) return 'games'
   if (p === '/lookup') return 'lookup'
+  // AI 学习平台（内容平台，SEO 批 2 起纳入）：单条内容的标题是作者写的（同 LLM 标题，只抽样告警），hub 与总览是站点模板
+  if (/^\/(prompts|guides|apps)\/\d+(-|$)/.test(p) || p.startsWith('/u/') || p.startsWith('/collections/')) return 'learn-item'
+  if (/^\/(learn|prompts|guides|apps)(\/|$)/.test(p)) return 'learn'
   return 'other'
 }
 
@@ -362,8 +362,8 @@ function zuiHits(text: string): string[] {
 
 /** 一页的「文案字段」：title / H1 / description（og 两项和它们同源，一起查）。llm = 由管线 LLM 写的（只告警） */
 function copyFields(p: Page): { field: string; text: string; llm: boolean }[] {
-  const llmTitle = p.kind === 'news-event'
-  const llmDesc = p.kind === 'news-event' || p.kind === 'news-digest'
+  const llmTitle = p.kind === 'news-event' || p.kind === 'learn-item'
+  const llmDesc = p.kind === 'news-event' || p.kind === 'news-digest' || p.kind === 'learn-item'
   const out = [
     { field: 'title', text: p.title, llm: llmTitle },
     { field: 'description', text: p.description, llm: llmDesc },
@@ -638,6 +638,7 @@ function selftest(): boolean {
   for (const x of checkSite(pages)) hits.add(x.rule)
   for (const x of checkRobotsTxt('User-Agent: *\nAllow: /\nDisallow: /lookup\n')) hits.add(x.rule)
   for (const x of checkSitemapPaths(['/forum'])) hits.add(x.rule)
+  for (const x of checkSitemapChildren([{ path: '/sitemaps/core.xml', status: 404, text: 'Not Found' }])) hits.add(x.rule)
   // 阴性对照：合规的 robots.txt、白名单里的「最新」、「国家/地区」、干净 URL 不得误报
   const neg = [
     ...checkRobotsTxt('User-Agent: *\nAllow: /\nAllow: /lookup$\nDisallow: /lookup\nDisallow: /receipt/\nDisallow: /pay/\nDisallow: /api/\nDisallow: /*?s=\nDisallow: /*?n=\n'),
@@ -664,6 +665,13 @@ function selftest(): boolean {
   }
   console.log(`[check-seo-copy] 阳性对照：${Object.keys(RULES).length} 条规则全部命中，阴性样例零误报`)
   return true
+}
+
+/** sitemap index 的子地图（SEO 批 2 的 G 包：/sitemap.xml 改成 index，下挂 /sitemaps/<段>.xml 与 /sitemap-content.xml） */
+function checkSitemapChildren(files: { path: string; status: number; text: string }[]): Violation[] {
+  return files
+    .filter((f) => f.status !== 200 || !/<urlset\b/.test(f.text))
+    .map((f) => ({ rule: 'sitemap-child', path: f.path, level: 'error' as Level, detail: `状态码 ${f.status}${f.status === 200 ? '，但不是 urlset' : ''}` }))
 }
 
 function checkSitemapPaths(paths: string[]): Violation[] {
@@ -747,6 +755,31 @@ function loadHtmlDir(dir: string, violations: Violation[]): { pages: Page[]; loc
   return { pages: ONLY.length ? pages.filter((p) => ONLY.includes(p.path) || p.path === '/jiema') : pages, locs }
 }
 
+/**
+ * 读站点地图（SEO 批 2 的 G 包起 /sitemap.xml 是 sitemap index）：index 就逐个读子地图；另读 robots.txt 单列的 /sitemap-content.xml
+ * （内容平台；收录总开关关着时是空 urlset）。返回全部 <loc> 的站内路径（去重），子地图打不开记 sitemap-child。
+ */
+async function readSitemaps(violations: Violation[]): Promise<string[]> {
+  const locsOf = (xml: string) => Array.from(xml.matchAll(/<loc>([\s\S]*?)<\/loc>/g)).map((m) => pathOfLoc(decodeEntities(m[1].trim())))
+  const root = await fetchText('/sitemap.xml')
+  if (root.status !== 200) {
+    console.log(`  （sitemap.xml 状态码 ${root.status}，只查固定页面）`)
+    return []
+  }
+  const children: string[] = /<sitemapindex\b/.test(root.text) ? locsOf(root.text) : []
+  const out = new Set<string>(children.length ? [] : locsOf(root.text))
+  if (!children.includes('/sitemap-content.xml')) children.push('/sitemap-content.xml')
+  const files: { path: string; status: number; text: string }[] = []
+  for (const c of children) {
+    const r = await fetchText(c).catch((e) => ({ status: 0, text: String(e) }))
+    files.push({ path: c, ...r })
+    if (r.status === 200) for (const l of locsOf(r.text)) out.add(l)
+  }
+  violations.push(...checkSitemapChildren(files))
+  console.log(`  sitemap：${children.length ? `index → ${files.map((f) => `${f.path}(${f.status})`).join(' ')}` : '单个 urlset'}，共 ${out.size} 条`)
+  return Array.from(out)
+}
+
 /** 在线模式：抓 BASE */
 async function crawl(violations: Violation[]): Promise<{ pages: Page[]; locs: string[] }> {
   console.log(`[check-seo-copy] 抓取 ${BASE}（并发 ${CONCURRENCY}，单页超时 ${TIMEOUT_MS / 1000}s）`)
@@ -754,26 +787,26 @@ async function crawl(violations: Violation[]): Promise<{ pages: Page[]; locs: st
   if (robots.status !== 200) violations.push({ rule: 'robots-txt', path: '/robots.txt', level: 'error', detail: `状态码 ${robots.status}` })
   else violations.push(...checkRobotsTxt(robots.text))
 
-  const sm = await fetchText('/sitemap.xml')
-  const locs = sm.status === 200 ? Array.from(sm.text.matchAll(/<loc>([\s\S]*?)<\/loc>/g)).map((m) => pathOfLoc(decodeEntities(m[1].trim()))) : []
-  if (sm.status !== 200) console.log(`  （sitemap.xml 状态码 ${sm.status}，只查固定页面）`)
+  const locs = await readSitemaps(violations)
   violations.push(...checkSitemapPaths(locs))
 
-  // 选页：sitemap 里除大事记详情 / 日报 / 归档 / 商品之外全查；那几类抽样（线上是小机，别整站扫）
+  // 选页：sitemap 里除大事记详情 / 日报 / 归档 / 商品 / 学习平台单条之外全查；那几类抽样（线上是小机，别整站扫）
   const events = locs.filter((p) => kindOf(p) === 'news-event')
   const digests = locs.filter((p) => kindOf(p) === 'news-digest')
   const archives = locs.filter((p) => kindOf(p) === 'news-archive')
   const products = locs.filter((p) => kindOf(p) === 'product')
+  const items = locs.filter((p) => kindOf(p) === 'learn-item')
   const sampled = new Set<string>([
-    ...locs.filter((p) => !['news-event', 'news-digest', 'news-archive', 'product'].includes(kindOf(p))),
+    ...locs.filter((p) => !['news-event', 'news-digest', 'news-archive', 'product', 'learn-item'].includes(kindOf(p))),
     ...events.slice(0, MAX_EVENTS),
     ...digests.slice(0, 3),
     ...archives.slice(0, 2),
     ...products.slice(0, MAX_PRODUCTS),
+    ...items.slice(0, MAX_CONTENT),
   ])
   const inSitemap = new Set(locs)
   // 不在 sitemap 里、但要查的：索引规则（/forum、/games、/lookup）、接码开放状态（/jiema）、404
-  const fixed = ['/', '/chongzhi', '/products', '/news', '/about', '/support', '/terms', '/privacy', '/links', '/iptools', '/forum', '/games', '/lookup', '/jiema', '/jiema/terms', PROBE_404]
+  const fixed = ['/', '/chongzhi', '/products', '/news', '/about', '/support', '/terms', '/privacy', '/links', '/iptools', '/forum', '/games', '/lookup', '/jiema', '/jiema/terms', '/learn', '/prompts', '/guides', PROBE_404]
   for (const f of fixed) sampled.add(f)
   let targets = Array.from(sampled)
   if (ONLY.length) targets = targets.filter((p) => ONLY.includes(p) || p === '/jiema')

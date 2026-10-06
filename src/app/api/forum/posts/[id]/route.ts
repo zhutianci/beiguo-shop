@@ -245,12 +245,31 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     // 标题 / 正文 / 原文地址是「实质修改」：更新 dateModified，并按信任等级决定是否重审
     // （防「先发干净内容过审、再改成广告」，规则见 lib/content/policy 的 postReviewOnEdit）
-    const before = await prisma.promptSpec.findUnique({ where: { postId: id }, select: { prompt: true, useCase: true } })
+    const before = await prisma.promptSpec.findUnique({ where: { postId: id }, select: { prompt: true, useCase: true, negativePrompt: true, modelLabel: true } })
+    // 应用卡片的字段（地址、名称、价格、平台、试用说明）同样算实质修改（2026-10-07：以前改 app.url 成钓鱼 / 返利链接、
+    // 在试用说明里塞微信号不触发重审，也不进风险检测）
+    const beforeApp = type === 'APP' && d.app
+      ? await prisma.appSpec.findUnique({ where: { postId: id }, select: { name: true, url: true, pricing: true, platforms: true, trialNote: true } })
+      : null
+    const appChanged =
+      type === 'APP' && !!d.app &&
+      (!beforeApp ||
+        d.app.name !== beforeApp.name ||
+        d.app.url !== beforeApp.url ||
+        (d.app.pricing || null) !== beforeApp.pricing ||
+        (d.app.platforms || null) !== beforeApp.platforms ||
+        (d.app.trialNote || null) !== beforeApp.trialNote)
     const substantive =
       (d.title !== undefined && d.title !== post.title) ||
       (d.content !== undefined && d.content !== post.content) ||
       (d.sourceUrl !== undefined && sourceUrl !== post.sourceUrl) ||
-      (!!d.prompt && (d.prompt.prompt !== before?.prompt || d.prompt.useCase !== before?.useCase)) ||
+      (!!d.prompt &&
+        (d.prompt.prompt !== before?.prompt ||
+          d.prompt.useCase !== before?.useCase ||
+          (d.prompt.negativePrompt || null) !== (before?.negativePrompt ?? null) ||
+          (d.prompt.modelLabel || null) !== (before?.modelLabel ?? null))) ||
+      (type !== 'DISCUSSION' && d.excerpt !== undefined && (d.excerpt || null) !== post.excerpt) ||
+      appChanged ||
       (d.images !== undefined && JSON.stringify(d.images.slice(0, 9)) !== (post.images ?? 'null'))
     let pending = post.reviewStatus === 'PENDING'
     if (substantive) {
@@ -264,6 +283,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         d.prompt?.prompt ?? before?.prompt,
         d.prompt?.useCase ?? before?.useCase,
         data.excerpt ?? post.excerpt,
+        d.prompt?.negativePrompt ?? before?.negativePrompt,
+        d.app?.name,
+        d.app?.url,
+        d.app?.pricing,
+        d.app?.platforms,
+        d.app?.trialNote,
       )
       let next = postReviewOnEdit(level, flags, post.reviewStatus)
       const text = dedupText({ prompt: d.prompt?.prompt ?? before?.prompt, content: data.content ?? post.content })

@@ -6,6 +6,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized, notFound } from '@/lib/api'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { pollActivation, acquireForOrder, SMS_MAX_RETRY, SMS_RETRY_COOLDOWN_SEC } from '@/lib/sms'
+import { rateLimited } from '@/lib/news/rate-limit'
 
 // 买家拉取本订单接码状态（号码 + 验证码）；缺号时按需补取号，并实时查码/超时取消
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
@@ -35,8 +36,11 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     // 自愈：已付款但还没取号（付款时未触发/手动标记支付等）→ 按需补取号。
     // 已取消的已付款单（线下退款的惯例做法）不补：补取号就是替一张退了款的订单继续花接码费。
     // 已有的记录照常往下走：pollActivation 会把残留的 WAITING 放掉，页面据此显示已取消
+    // 每次轮询都会打上游 getStatus（与接码板块共用一把 HeroSMS 密钥）：同一单 3 秒内只真打一次，
+    // 其余直接读库里的状态（2026-10-07；前端 5 秒一轮，正常用不到这道闸）
+    const fresh = !rateLimited(`sms-poll:${user.id}|${orderId}`, { windowMs: 3000, max: 1 })
     const existing = await prisma.smsActivation.findUnique({ where: { orderId } })
-    if (!existing && order.deliveryStatus !== 'CANCELLED') {
+    if (fresh && !existing && order.deliveryStatus !== 'CANCELLED') {
       try {
         await acquireForOrder(
           orderId,
@@ -49,7 +53,7 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
       }
     }
 
-    const a = await pollActivation(orderId)
+    const a = fresh ? await pollActivation(orderId) : existing
     if (!a) return success({ exists: false })
 
     // 换号相关的状态一起返回，前端据此决定按钮是可点、冷却中、还是次数已用完。

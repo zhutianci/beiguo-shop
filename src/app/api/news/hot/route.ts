@@ -2,9 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { EVENT_SELECT, hoursAgo, toEventDto } from '@/lib/news/format'
+import { hotNewsEvents } from '@/lib/news/hot'
 import { denyOnChannel } from '@/lib/storefront/resolve'
 
 /**
@@ -32,28 +31,9 @@ export async function GET(request: NextRequest) {
   const { limit } = parsed.data
 
   try {
-    const where = { status: 'PUBLISHED', needsReview: false }
-    const orderBy = [{ pinned: 'desc' as const }, { score: 'desc' as const }]
-
-    // 先取近 72 小时的热度榜；冷启动或低更新期不足数时，放开时间窗兜底。
-    // 热度分本身带 36 小时半衰期，放开时间窗不会让陈年条目顶上来。
-    let rows = await prisma.newsEvent.findMany({
-      where: { ...where, happenedAt: { gte: hoursAgo(72) } },
-      select: EVENT_SELECT,
-      orderBy,
-      take: limit,
-    })
-
-    if (rows.length < limit) {
-      rows = await prisma.newsEvent.findMany({
-        where,
-        select: EVENT_SELECT,
-        orderBy,
-        take: limit,
-      })
-    }
-
-    return success({ list: rows.map(toEventDto) })
+    // 取数口径见 lib/news/hot.ts（首页服务端直出共用同一个函数）
+    const list = await hotNewsEvents(limit)
+    return success({ list })
   } catch (e) {
     console.error('[news/hot]', e)
     return error('获取热点失败', 500)

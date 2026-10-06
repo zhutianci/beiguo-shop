@@ -7,6 +7,11 @@ const RESEND_SECONDS = 60 // 重发冷却
 // 每张码最多校验 5 次。6 位码不限次数就是可以穷举的（2026-09-25 审计：找回密码可在
 // 几小时内猜中任意账号的码，包括后台管理员）。第 6 次起这张码作废，需要重新获取。
 const MAX_ATTEMPTS = 5
+// 每个「邮箱 + 用途」每天最多校验 30 次（2026-10-07 安全加固）。只有每张码 5 次不够：每张新码都是 5 次新机会，
+// 一个邮箱每天能收 30 张码（lib/auth-throttle 的 SEND_MAIL_DAY），多段 IPv6 /64 轮换就是每天约 150 次猜站长的找回密码码。
+// 30 与发码的每日上限同量级：能耗尽它的人本来就能耗尽当天的发码额度，不新增「把人锁在门外」的口子；
+// 真人一天输错不到 30 次。成功的那一次也计数（先记次再比对，理由同上面的每码计数）。
+const MAX_ATTEMPTS_PER_MAIL_DAY = 30
 
 // LOOKUP：匿名「邮箱查订阅」证明邮箱归属（lib/email-proof.ts）。EmailCode.purpose 是 VarChar(20)，不用改表
 // NOTICE（二期改动 3.2）：渠道站长把「通知邮箱」设成非登录邮箱时证明归属（tenant/partner-facade.ts 发码与校验）。
@@ -56,6 +61,9 @@ export async function consumeCode(email: string, purpose: CodePurpose, code: str
     orderBy: { id: 'desc' },
   })
   if (!rec) return 'INVALID'
+  if (rateLimited(`vcm:${purpose}|${email.trim().toLowerCase().slice(0, 120)}`, { windowMs: 24 * 3600_000, max: MAX_ATTEMPTS_PER_MAIL_DAY })) {
+    return 'TOO_MANY'
+  }
   if (rateLimited(`vcf:${rec.id}`, { windowMs: TTL_MIN * 60_000, max: MAX_ATTEMPTS })) {
     // 同上，用过期作废而不是 used=true
     await prisma.emailCode.updateMany({ where: { id: rec.id, used: false }, data: { expiresAt: new Date() } })

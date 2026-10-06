@@ -51,6 +51,12 @@ export interface LandingDef {
   blurb: string
   /** 这一页对应哪些在售商品 */
   match: ProductMatch
+  /**
+   * 这一页正文最近一次逐条对照代码、商品数据、官方页面核对的日期（SEO 批 2 的 D1a，设计 §1.3、§5.2、§0.3 #21）。
+   * **每页一个**：原来全站共用 LANDING_REVIEWED_AT，改一页就等于宣称全部页刚核对过。真的核对过哪一页才改哪一页；
+   * 页面上的「内容核对于」、FAQPage 的 dateModified / lastReviewed、sitemap 的 lastmod 都取它。hub 取子页里最新的那个。
+   */
+  reviewedAt: string
 }
 
 export const LANDING_BASE = '/chongzhi'
@@ -64,6 +70,8 @@ export const LANDING_BASE = '/chongzhi'
  * 所以只在真的重新核对过全部落地页之后手动改这一处。
  */
 export const LANDING_REVIEWED_AT = '2026-09-24'
+// ↑ 批 2 起它只是「拆分前的统一日期」：各页初值都等于它（拆分当天没有重新核对任何一页，不能借机改日期）。
+//   页面与 sitemap 一律读各自的 reviewedAt（findLanding(slug).reviewedAt）与 LANDING_HUB_REVIEWED_AT。
 
 /**
  * ChatGPT Plus 年费档的匹配规则。
@@ -96,6 +104,7 @@ export const LANDINGS = [
     // 「ChatGPT Pro 5x 自助充值 | 信用卡充值（不可覆盖plus）」——名字里带 plus 这个字。
     // 只按 nameAny:['plus'] 匹配会把两个 Pro 档位一起拉进 Plus 页的价格表。
     match: { categoryName: 'ChatGPT', nameAny: ['plus'], nameNone: ['年费', 'pro'] },
+    reviewedAt: '2026-09-24',
   },
   {
     slug: 'chatgpt-pro',
@@ -106,6 +115,7 @@ export const LANDINGS = [
       'ChatGPT Pro 5x 充值￥720 起，卡密自助兑换。讲清 Pro 与 Plus 的额度差别、信用卡档与 iOS 档能不能覆盖已有 Plus 订阅，以及充值前必须确认的账户状态。',
     blurb: 'Pro 5x 两个档位的关键差别是「能不能盖掉现有 Plus」。买错了退不了，先看这一页。',
     match: { categoryName: 'ChatGPT', nameAny: ['pro'] },
+    reviewedAt: '2026-09-24',
   },
   {
     slug: 'claude-pro',
@@ -116,6 +126,7 @@ export const LANDINGS = [
       'Claude Pro 会员充值￥145 起，走 iOS 订阅充值无需上号，卡密自助兑换。含兑换前必须核对的两件事、Pro 升 Max 的做法，以及封号不质保的明确边界。',
     blurb: 'iOS 订阅充值不用把账号交出去，这是 Claude 侧封号率最低的一种充值方式。',
     match: { categoryName: 'Claude', nameAny: ['pro'], nameNone: ['max'] },
+    reviewedAt: '2026-09-24',
   },
   {
     slug: 'claude-max',
@@ -126,6 +137,7 @@ export const LANDINGS = [
       'Claude Max 5x 会员充值￥950，苹果订阅原价 125 美元/月。讲清 Pro / Max 5x / Max 20x 的额度差别、什么情况下该上 Max，以及兑换前必须核对的四项账户状态。',
     blurb: '搜 Max 的人通常已经做过功课，这一页直接给规格对照和兑换前检查清单。',
     match: { categoryName: 'Claude', nameAny: ['max'] },
+    reviewedAt: '2026-09-24',
   },
   {
     slug: 'claude-kyc',
@@ -136,6 +148,7 @@ export const LANDINGS = [
       'Claude 账号突然要求 KYC 身份验证：怎么确认它不是封禁、为什么没有所谓的「必过材料清单」（含中国护照与香港身份这类问题为什么没有确定答案）、失败前该注意什么，以及￥180 的活人认证代办（失败不收费）。',
     blurb: '账号被弹 KYC 之后能做的事很有限，做错一次机会就少一次。先看清楚再动。',
     match: { nameAny: ['kyc'] },
+    reviewedAt: '2026-09-24',
   },
   {
     slug: 'claude-zhuce',
@@ -148,6 +161,7 @@ export const LANDINGS = [
     // 不限分类：这一页同时覆盖「短信接码」分类下的 Claude 验证码，
     // 和「Claude」分类下的家宽注册普号——注册这件事要的是这一整组东西。
     match: { nameAny: ['claude注册验证码', '普号'] },
+    reviewedAt: '2026-09-24',
   },
   {
     slug: 'codex-jiema',
@@ -158,6 +172,7 @@ export const LANDINGS = [
       'OpenAI Codex 注册要手机验证码怎么办：为什么虚拟号会被拒、美区实体手机卡接码（￥15/次）怎么用、收不到码的排查顺序，以及账号被封之后的替代路径。',
     blurb: 'Codex 注册卡在验证码，多半是号码类型的问题，不是运气问题。',
     match: { categoryName: '短信接码', nameAny: ['codex'] },
+    reviewedAt: '2026-09-24',
   },
   {
     slug: 'google-zhanghao',
@@ -173,6 +188,7 @@ export const LANDINGS = [
     // 【为什么按分类匹配】这一类目前只有一个 SKU，但很可能按注册年份或登录方式拆档位，
     // 按分类匹配的话新档位会自动进价格表，不用回来改这里。
     match: { categoryName: '谷歌邮箱' },
+    reviewedAt: '2026-09-24',
   },
   {
     slug: 'grok-super',
@@ -197,8 +213,12 @@ export const LANDINGS = [
      * 等有条件实测之后再决定要不要按需求加厚，别默认照着别的页面的体量写。
      */
     match: { categoryAny: ['Grok', 'Gork'] },
+    reviewedAt: '2026-09-24',
   },
 ] as const satisfies readonly LandingDef[]
+
+/** hub 的核对日期 = 子页里最新的那个（§1.3：hub 取子页里最新的） */
+export const LANDING_HUB_REVIEWED_AT: string = LANDINGS.map((l) => l.reviewedAt as string).reduce((a, b) => (b > a ? b : a), LANDING_REVIEWED_AT)
 
 export function landingPath(slug: string): string {
   return `${LANDING_BASE}/${slug}`

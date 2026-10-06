@@ -19,12 +19,18 @@ const LIMIT = 5
 // 行高写死，skeleton 与真实行严格一致，加载完成前后高度不变
 const ROW_H = 'h-[84px]'
 
-function NewsHotSectionInner() {
-  const [items, setItems] = useState<NewsEventDto[] | null>(null)
-  const [dead, setDead] = useState(false)
+/**
+ * 【initial：服务端直出（SEO 批 2 的 C 包，设计 §1.10 第 4 条）】首页 page.tsx 在服务端按 /api/news/hot 同一口径取好传进来：
+ *  · 数组：直接渲染，不再发请求（爬虫与 AI 读得到这五条的标题和链接，首屏不再是 skeleton）；空数组 = 没有内容，整块不渲染；
+ *  · undefined（服务端没取 / 取失败）：退回原来的客户端拉取，行为与改造前相同。
+ */
+function NewsHotSectionInner({ initial }: { initial?: NewsEventDto[] }) {
+  const [items, setItems] = useState<NewsEventDto[] | null>(initial && initial.length ? initial : null)
+  const [dead, setDead] = useState(!!initial && initial.length === 0)
   const abortRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
+    if (initial) return
     const ac = new AbortController()
     abortRef.current = ac
     fetch(`/api/news/hot?limit=${LIMIT}`, { signal: ac.signal })
@@ -40,6 +46,7 @@ function NewsHotSectionInner() {
         setDead(true)
       })
     return () => ac.abort()
+    // initial 只在首屏用一次
   }, [])
 
   if (dead) return null
@@ -104,7 +111,9 @@ function NewsHotSectionInner() {
                     <span className="mt-1 flex items-center gap-2 text-[11px] text-white/30">
                       <span className="truncate">{sourceLabel(ev.sources, ev.sourceCount)}</span>
                       <span>·</span>
-                      <span className="shrink-0 tabular-nums">{relativeTime(ev.happenedAt)}</span>
+                      <span className="shrink-0 tabular-nums" suppressHydrationWarning>
+                        {relativeTime(ev.happenedAt)}
+                      </span>
                       <span className="hidden shrink-0 sm:inline">·</span>
                       <span className="hidden shrink-0 tabular-nums sm:inline">AI 评分 {ev.aiScore}</span>
                     </span>
@@ -126,8 +135,8 @@ function NewsHotSectionInner() {
  * 只控制显示；对应接口在渠道 Host 上服务端 404（denyOnChannel）。组件本体改名为 NewsHotSectionInner、原样不动，
  * 由这层按店面决定挂不挂：不渲染就不会发出任何请求（验收 W1-9：渠道站页面零 404 请求）。主站恒为渲染，行为不变。
  */
-export function NewsHotSection() {
+export function NewsHotSection({ initial }: { initial?: NewsEventDto[] } = {}) {
   const { features } = useStorefront()
   if (!(features.news)) return null
-  return <NewsHotSectionInner />
+  return <NewsHotSectionInner initial={initial} />
 }

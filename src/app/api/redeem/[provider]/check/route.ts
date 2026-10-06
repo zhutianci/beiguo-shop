@@ -9,6 +9,7 @@ import {
   loadOrderRef,
   logRedeem,
   normalizeCdk,
+  redeemCardLimited,
   redeemRateLimited,
   redeemProbeLimited,
   resolveCard,
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest, { params }: { params: { provide
       return error(resolved.message)
     }
 
-    const perCard = redeemRateLimited('check', resolved.card.id, ip)
+    const perCard = redeemCardLimited('check', resolved.card.id)
     if (perCard) return error(perCard, 429)
 
     let result
