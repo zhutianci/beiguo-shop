@@ -1503,6 +1503,12 @@ bigolab.com（唯一参与 SEO 的域名；*.bigolab.com 渠道站永远 noindex
 
 **B · 下线假成交弹窗、公告提示条、LCP**（P0，构建批 1，一到两天）
 
+> **2026-10-06 站长决定生效（rebase 到 origin/main 时）**：站长 2026-09-30 决定**不下线左下角成交弹窗**。
+> 本包第 1 项（`live-order-notification.tsx`、`/api/orders/recent` 去掉 city）撤回，两个文件与 origin/main 逐字相同；
+> 下面验收里「grep 不到 FAKE_CITIES…」「30 秒内不出现成交弹窗」「响应里没有 city」三条作废，
+> 「共享包里不再有 framer-motion」降为「外壳里只剩成交弹窗引用 framer-motion」（`check-seo-b` 已按此改写）。其余各项照做。
+> 上线说明见 `docs/SEO-重构/批1-部署说明.md`。
+
 - 内容：§6.6 的 1–5 项；header 的 aria-label。
   - 第 5 项（framer-motion）如果做不完，整体挪出本包，不写进验收。
 - 文件：
