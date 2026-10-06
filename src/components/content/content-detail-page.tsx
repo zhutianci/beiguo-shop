@@ -112,7 +112,13 @@ function descriptionFor(post: ContentRow): string {
 
 export async function contentDetailMetadata(type: TypedSection, raw: string): Promise<Metadata> {
   const post = await resolve(type, raw)
-  if (!post || !isPublic(post)) return { title: `${SECTION[type].name} - ${SITE_NAME}`, robots: { index: false, follow: false } }
+  /*
+   * 【不存在就在 metadata 这一步 404（SEO 批 2，软 404）】这几组路由有 loading.tsx：页面体里再 notFound()，
+   * 流式响应的状态码已经是 200 了，爬虫拿到的是「200 + 找不到页面」的软 404。generateMetadata 在首包之前解析，
+   * 在这里 notFound() 才能返回真正的 404。只对「真的没有这条」生效；非公开但存在的（作者 / 管理员能看）照旧 noindex，由页面体判权限。
+   */
+  if (!post) notFound()
+  if (!isPublic(post)) return { title: `${SECTION[type].name} - ${SITE_NAME}`, robots: { index: false, follow: false } }
   const url = contentPath(post.type, post.id, post.slug)
   const description = descriptionFor(post)
   const firstImage = imagesOf(post)[0]

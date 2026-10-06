@@ -185,8 +185,11 @@ function titleOf(r: Resolved, total: number, latest: Date | null): string {
 
 export async function contentListMetadata(section: Section, kind: HubKind, slug: string | undefined, page: number, sort: ListSort = 'curated'): Promise<Metadata> {
   const r = await resolve(section, kind, slug)
-  if (!r) return { title: `内容不存在 - ${SITE_NAME}`, robots: { index: false, follow: false } }
+  // 不存在的专题在 metadata 这一步 404（有 loading.tsx 的路由在页面体里 notFound() 只能拿到 200 的软 404，见 content-detail-page）
+  if (!r) notFound()
   const s = await stats(r)
+  // 越界页码同理在这里 404（与页面体的 page > list.totalPages 同一口径：公开条数 / 每页条数）
+  if (page > 1 && sort === 'curated' && page > Math.max(1, Math.ceil(s.total / PAGE_SIZE[section]))) notFound()
   // 大类页（/prompts/image 等）与总览同一门槛：不需要介绍，可收录条目够数即可
   // 作者自荐页不收录（推广内容的聚合页，设计 §9.2）
   const indexable = kind !== 'SHOWCASE' && isHubIndexable(kind === 'FACET' ? 'ROOT' : kind, readableLength(r.tag?.intro ?? ''), s.indexable)

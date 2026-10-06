@@ -22,13 +22,20 @@ import {
 } from '@/lib/news/format'
 import { DIGEST_SLUG, formatPeriodLabel, listDigests } from '@/lib/news/digest'
 import { NewsStream } from './news-stream'
+import { JsonLd } from '@/lib/seo/jsonld'
+import { collectionPageJsonLd, organizationJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 
 /** 与 /api/news/list 共用，不要在这里写死数字（见 format.ts 的注释） */
 const PAGE_SIZE = NEWS_PAGE_SIZE
 const HIGHLIGHT_TAKE = 6
 
-const TITLE = 'AI 圈大事记 - 每日 AI 动态聚合'
-const DESC = '把一天里 AI 圈发生的事按事件聚合到一起：模型发布、产品更新、论文与工具。全部来自公开信源，由 AI 自动整理摘要。'
+/*
+ * 【SEO 批 2（设计 §3.3 支柱二 /news 行、§9.4 #1）】title 主词「今日 AI 热点」（kw7：今日ai 4 条联想含「今日ai热点」，ai热点 5）；
+ * 「AI 资讯」只在 description 里出现一次（合规上慎用，不进 title）；H1 保留品牌「AI 圈大事记」，下面加一行可见副标题。
+ * 不用新闻、快讯、头条一类采编用语（SKILL §1）。原标题「AI 圈大事记 - 每日 AI 动态聚合」：ai大事记 0/0/0、「AI 动态」有歧义（联想是动态壁纸）。
+ */
+const TITLE = '今日 AI 热点：模型发布、产品更新与开源工具 - AI 圈大事记'
+const DESC = '按事件聚合的 AI 行业动态与每日 AI 资讯速览：OpenAI、Anthropic、Google 等的模型发布、产品更新、论文与开源工具。AI 依据公开信源整理摘要，每条附原文链接。'
 
 export const metadata: Metadata = {
   // 自指 canonical：/news 会被带 ?s= / ?n= 分享出去，也会被 sitemap 提交，
@@ -163,6 +170,22 @@ export default async function NewsPage() {
 
   return (
     <div className="min-h-screen pb-20 pt-28 sm:page-top">
+      {/* CollectionPage + ItemList（只放 url 和 name，§4.1）：列的是服务端直出的那一页时间流，与页面上看得到的一致；
+          不用 NewsMediaOrganization / NewsArticle（R5 §1.3）。isPartOf、publisher 引用的 WebSite、Organization 同页输出 */}
+      {!dbFailed && (
+        <JsonLd
+          data={[
+            ...collectionPageJsonLd({
+              path: '/news',
+              name: 'AI 圈大事记：今日 AI 热点与行业动态',
+              description: DESC,
+              items: timeline.map((e) => ({ path: `/news/${e.slug}`, name: e.headline })),
+            }),
+            webSiteJsonLd(),
+            organizationJsonLd({ news: true }),
+          ]}
+        />
+      )}
       <div className="pointer-events-none fixed inset-0 grid-bg opacity-60" />
       {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
       <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px] lite-blob" />
@@ -187,6 +210,8 @@ export default async function NewsPage() {
             <span className="gradient-text">AI 圈</span>
             <span className="gradient-text-accent">大事记</span>
           </h1>
+          {/* 可见副标题（§3.3：H1 品牌名 + 带主词的副标题） */}
+          <p className="mt-2 text-lg font-medium text-white/70 lg:text-xl">今日 AI 热点与行业动态</p>
           {/* 容器变宽后导语跟着放宽到 2xl（≈672px），仍在 40 个汉字/行以内，不会拉成长条 */}
           <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/50 lg:mt-4 lg:max-w-2xl lg:text-[17px] lg:leading-[1.85]">
             把一天里 AI 圈发生的事按事件聚合到一起——模型发布、产品更新、论文与工具，

@@ -12,6 +12,9 @@ import { ArticleJsonLd } from '@/components/news/article-jsonld'
 import { ShareBar } from '@/components/news/share-bar'
 import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
 import { clipDescription, newsUrl } from '@/lib/news/seo'
+import { commerceLinksForTags } from '@/lib/news/commerce-link'
+import { JsonLd } from '@/lib/seo/jsonld'
+import { breadcrumbJsonLd, organizationJsonLd } from '@/lib/seo/graph'
 import { OG_SITE } from '@/lib/seo/og'
 import { shouldNoindexEvent } from '@/lib/news/thin'
 import { AiNoticeBlock, LeadCredit } from '@/components/news/ai-notice-block'
@@ -36,7 +39,8 @@ const getEvent = cache(async (slug: string) => {
   try {
     return await prisma.newsEvent.findFirst({
       where: { slug, status: 'PUBLISHED' },
-      select: EVENT_DETAIL_SELECT,
+      // reviewedAt：Article 的 dateModified 取 max(publishedAt, reviewedAt)（设计 0.3 #15、附录 B-2；不用 updatedAt，热度重算每 15 分钟都会碰它）
+      select: { ...EVENT_DETAIL_SELECT, reviewedAt: true },
     })
   } catch (e) {
     // 查询失败一律按「不存在」处理，绝不让整页 500。
@@ -98,6 +102,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
   // 这条事件里有没有来自第三方线索的信源。有才标注、才回链 —— 授权条件是「用了要标」，
   // 没用还标等于对读者虚构一个来源。
   const lead = ev.sources.find((s) => s.leadVia)
+  const commerce = commerceLinksForTags(ev.tags)
 
   // 相关事件：同分类的近期条目。查询失败不能拖垮正文
   let related: { slug: string; headline: string; happenedAt: Date; aiScore: number }[] = []
@@ -154,13 +159,20 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
         视觉重量才配得上大屏，而不是让文字一路铺到 1400px。
       */}
       <div className="container relative max-w-3xl">
-        <Link
-          href="/news"
-          className="inline-flex items-center gap-1.5 text-sm text-white/45 transition-colors hover:text-white/80 lg:text-[15px]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          AI 圈大事记
-        </Link>
+        {/* 可见面包屑（C 包，§1.8、§3.2-I）：首页 › AI 圈大事记 › 标题，与下面的 BreadcrumbList 逐级一致。
+            分类那一级等 /news/c/* 分类页上线（E1）再加：现在加就是链到一个不存在的地址 */}
+        <nav aria-label="面包屑" className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-white/45 lg:text-[15px]">
+          <Link href="/" className="transition-colors hover:text-white/80">
+            首页
+          </Link>
+          <span className="text-white/20">/</span>
+          <Link href="/news" className="inline-flex items-center gap-1.5 transition-colors hover:text-white/80">
+            <ArrowLeft className="h-4 w-4" />
+            AI 圈大事记
+          </Link>
+          <span className="text-white/20">/</span>
+          <span className="max-w-[14rem] truncate text-white/35 sm:max-w-[22rem]">{ev.headline}</span>
+        </nav>
 
         <article className="mt-5 lg:mt-7">
           {/* ============ 标题 ============ */}
@@ -432,23 +444,31 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           又被 robots 的 Disallow: /*?n= 挡着，等于每条详情页都给爬虫留一条死路（设计 §1.2、§1.11）。
           按标签映射到具体落地页、对不上就不出现，是 C 包的事（lib/news/commerce-link.ts）；那张映射表永不指向 claude-kyc、google-zhanghao。
         */}
-        <aside
-          aria-label="广告 · 本站服务"
-          className="mt-10 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-4 lg:mt-12 lg:p-5"
-        >
-          <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs lg:text-[13px]">
-            <span className="rounded border border-white/25 bg-white/[0.06] px-1.5 py-0.5 font-medium text-white/75">广告 · 本站服务</span>
-            <span className="text-white/35">本站在售商品的推广信息，与上方 AI 整理的内容相互独立</span>
-          </p>
-          <Link
-            href="/products"
-            className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.09]"
+        {/* C 包（§2.5、§7.4）：按标签映射到落地页（lib/news/commerce-link.ts），对不上就整块不出现，不再兜底到全部商品 */}
+        {commerce.length > 0 && (
+          <aside
+            aria-label="广告 · 本站服务"
+            className="mt-10 rounded-2xl border border-dashed border-white/15 bg-white/[0.02] p-4 lg:mt-12 lg:p-5"
           >
-            <ShoppingBag className="h-4 w-4" />
-            看看本站在售的 AI 订阅
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        </aside>
+            <p className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs lg:text-[13px]">
+              <span className="rounded border border-white/25 bg-white/[0.06] px-1.5 py-0.5 font-medium text-white/75">广告 · 本站服务</span>
+              <span className="text-white/35">本站在售商品的推广信息，与上方 AI 整理的内容相互独立</span>
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {commerce.map((c) => (
+                <Link
+                  key={c.href}
+                  href={c.href}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/[0.04] px-5 py-2.5 text-sm font-medium text-white/70 transition-colors hover:bg-white/[0.09]"
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                  {c.anchor}
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              ))}
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* 结构化数据：类型是 Article 而不是 NewsArticle，理由见 lib/news/seo.ts 文件头 */}
@@ -459,7 +479,17 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
         category={ev.category}
         tags={ev.tags}
         happenedAt={ev.happenedAt}
+        publishedAt={row.publishedAt}
+        reviewedAt={row.reviewedAt}
         sources={ev.sources.map((s) => ({ title: s.title, url: s.url, sourceName: s.name }))}
+      />
+      {/* 面包屑 + 同页 Organization（Article.publisher 带 @id 引用它，§3.2-I、§4.1：被引用的节点同页输出）。
+          这两块都不含「广告 · 本站服务」区块的任何内容 */}
+      <JsonLd
+        data={[
+          breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: 'AI 圈大事记', path: '/news' }, { name: ev.headline }]),
+          organizationJsonLd({ news: true }),
+        ]}
       />
       <ViewBeacon eventId={ev.id} />
     </div>
