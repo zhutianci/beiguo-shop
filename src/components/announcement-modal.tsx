@@ -124,7 +124,7 @@ function renderContent(text: string) {
   )
 }
 
-function AnnouncementBarInner() {
+function AnnouncementModalInner() {
   const pathname = usePathname()
   const [data, setData] = useState<Announcement | null>(null)
   const [barOpen, setBarOpen] = useState(false)
@@ -317,5 +317,5 @@ function AnnouncementBarInner() {
 export function AnnouncementModal() {
   const { features, kind } = useStorefront()
   if (!(features.announcement || kind === 'CHANNEL')) return null
-  return <AnnouncementBarInner />
+  return <AnnouncementModalInner />
 }

@@ -61,7 +61,8 @@ export async function generateMetadata(): Promise<Metadata> {
       ...metadata,
       title,
       description,
-      openGraph: { ...metadata.openGraph, title, description },
+      // og:site_name 也换成渠道站名：A 包起 metadata.openGraph 经 pageOg 带着 OG_SITE（siteName「贝果科技」），这条分支不过 brandMetadata，要自己换
+      openGraph: { ...metadata.openGraph, siteName: brand.name, title, description },
       twitter: { ...metadata.twitter, title, description },
     },
     brand,

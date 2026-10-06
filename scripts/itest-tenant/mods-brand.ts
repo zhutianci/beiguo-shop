@@ -468,7 +468,7 @@ async function main() {
       // 只改名、没 logo：页头显示首字圆角块，不用贝果图标
       const nameOnly = channelPub({ ...PLATFORM_BRAND, name: '斑马小站', custom: true })
       const hd2 = render(nameOnly, h(Header))
-      check('只改名没 logo：页头用首字块，不出现贝果图标', hd2.includes('>斑</span>') && !hd2.includes('/logo-mark.png') && hd2.includes('斑马小站'))
+      check('只改名没 logo：页头用首字块，不出现贝果图标', hd2.includes('>斑</span>') && !hd2.includes('/logo-mark.') && hd2.includes('斑马小站'))
       const ft2 = render(nameOnly, h(Footer))
       check('只改名没 logo：页脚默认简介里的站名换成渠道的，且有经营主体小字', ft2.includes('斑马小站提供 ChatGPT') && ft2.includes(OPERATOR_LINE) && !ft2.includes('贝果科技'))
       // 白标值作为文本节点转义（站名本身已过字符集，这里用 intro 验转义）
@@ -476,7 +476,7 @@ async function main() {
       check('文本按文本节点转义', esc.includes('A &amp; B &lt;i&gt;') && !esc.includes('<i>'))
       // 没有白标的渠道：与主站完全一样（除了已关闭模块的入口）
       const plainC = channelPub({ ...PLATFORM_BRAND })
-      check('没有白标的渠道：页头仍是贝果科技与贝果图标', render(plainC, h(Header)).includes('/logo-mark.png?v=3') && render(plainC, h(Header)).includes('贝果科技'))
+      check('没有白标的渠道：页头仍是贝果科技与贝果图标', render(plainC, h(Header)).includes('/logo-mark.webp?v=3') && render(plainC, h(Header)).includes('贝果科技'))  // SEO 重构 B 包起页头站标是 WebP
       check('没有白标的渠道：页脚没有经营主体小字', !render(plainC, h(Footer)).includes(OPERATOR_LINE))
     }
 
