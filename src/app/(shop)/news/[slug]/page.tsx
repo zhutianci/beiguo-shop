@@ -118,9 +118,28 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
         微信抓缩略图的实测行为是「取 body 中靠前的、实际尺寸 ≥300×300 的 img」。
         这张图必须真的有渲染尺寸，所以用 position:absolute + visibility:hidden，
         **不能用 display:none**（display:none 的图不参与布局，微信不认）。
+
+        SEO 重构 B 包（设计 §6.6-4；PSI 移动端对这一页报「图片宽高比不对」、图片可省 267KiB）：
+        · 宽高比：Tailwind 的 preflight 给所有 img 加了 max-width:100%，手机上这张图的宽被压到屏宽（375/412px）、
+          高仍是 315px，显示比例和原图 1200x630 对不上。加 object-cover 让图按比例裁切填满这个盒子（Lighthouse 对
+          object-fit 的图不判宽高比）；盒子本身不变，仍 ≥300x300 的高、宽，微信的取图条件照旧满足。
+          不去掉 max-width：600px 宽的绝对定位元素在手机上会撑出横向滚动。
+        · 优先级：它看不见，却被 React 自动 preload 进 <head>，和首屏 CSS / JS 抢带宽。fetchPriority="low" 去掉 preload、
+          降低下载优先级；不用 loading="lazy"——宁可晚点取，也要保证微信取图时它一定已经加载。
+        · 格式：保持 PNG，不换 WebP。这张图唯一的用途是给微信当分享缩略图，微信对 WebP 缩略图的支持没有实测过；
+          可省的那 267KiB 主要是页头页脚的两张站标（已换 WebP 并 lazy，见 header.tsx / footer.tsx）。
       */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={image} alt="" aria-hidden="true" width={600} height={315} className="news-wx-thumb" />
+      <img
+        src={image}
+        alt=""
+        aria-hidden="true"
+        width={600}
+        height={315}
+        fetchPriority="low"
+        decoding="async"
+        className="news-wx-thumb object-cover"
+      />
 
       <div className="pointer-events-none fixed inset-0 grid-bg opacity-60" />
       {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
 import { X, Copy, Check, MessageCircle, Clock, Sparkles, Mail } from 'lucide-react'
 import { useStorefront } from '@/components/storefront-provider'
 
@@ -27,6 +26,9 @@ export function hoursText(hours: string, sep: ' - ' | '~' = ' - '): string {
  * 主站 = PLATFORM_CONTACT（与改造前写死的值逐字相同）；渠道按回退规则：微信号与二维码成组、没设二维码就不显示二维码区。
  * 所有值都是 React 文本节点 / 属性，不用 dangerouslySetInnerHTML；二维码地址在店面解析时已按
  * /uploads/contact/<名>.(png|jpg|webp) 校验过（contact-base.ts），这里不会拿到外站地址。
+ *
+ * 入场动效用 globals.css 的 ui-* keyframes（SEO 重构 B 包，设计 §6.6-5）：页脚、右下角客服都挂着这个弹窗，
+ * 它引用 framer-motion 就会把 framer-motion 带进全站共享的 JS。只做入场，关闭即卸载，不做退场动画。
  */
 export function ContactModal({ open, onClose }: ContactModalProps) {
   const { contact } = useStorefront()
@@ -52,164 +54,143 @@ export function ContactModal({ open, onClose }: ContactModalProps) {
     setTimeout(() => setCopied(false), 2000)
   }
 
+  if (!open) return null
   return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-          onClick={onClose}
-        >
-          {/* 背景遮罩 */}
-          {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 每帧整屏重算模糊，卡顿、黑块），遮罩改深色 lite:bg-black/90，背后的字不透出来 */}
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/90" />
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="联系客服"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 ui-fade-in"
+      onClick={onClose}
+    >
+      {/* 背景遮罩 */}
+      {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 每帧整屏重算模糊，卡顿、黑块），遮罩改深色 lite:bg-black/90，背后的字不透出来 */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/90" />
 
-          {/* 模态框 */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-md"
+      {/* 模态框 */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-md ui-pop-in"
+      >
+        {/* 发光边框 */}
+        <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-3xl blur-md opacity-60" />
+
+        <div className="relative glass-strong rounded-3xl p-8 overflow-hidden">
+          {/* 关闭按钮 */}
+          <button
+            onClick={onClose}
+            aria-label="关闭"
+            className="absolute top-4 right-4 w-9 h-9 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors z-10"
           >
-            {/* 发光边框 */}
-            <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-3xl blur-md opacity-60" />
+            <X className="w-4 h-4" />
+          </button>
 
-            <div className="relative glass-strong rounded-3xl p-8 overflow-hidden">
-              {/* 关闭按钮 */}
-              <button
-                onClick={onClose}
-                className="absolute top-4 right-4 w-9 h-9 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors z-10"
+          {/* 背景装饰 */}
+          {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[80px] lite-blob pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] lite-blob pointer-events-none" />
+
+          <div className="relative">
+            {/* 头部 */}
+            <div className="text-center mb-6">
+              <div
+                className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 mb-4 ui-spin-in"
+                style={{ animationDelay: '0.1s' }}
               >
-                <X className="w-4 h-4" />
-              </button>
+                <MessageCircle className="w-7 h-7" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">联系客服</h2>
+              {/* 副标题跟着实际有的联系方式走：渠道可能只设了微信号或只传了二维码（主站两样都有，文案不变） */}
+              <p className="text-white/50 text-sm">
+                {wechat && qrUrl ? '扫码或添加微信，开启专属服务' : qrUrl ? '微信扫码添加，开启专属服务' : '添加客服微信，开启专属服务'}
+              </p>
+            </div>
 
-              {/* 背景装饰 */}
-              {/* lite-blob：手机端轻量模式（2026-10-01，站长要求电脑端不变）下大模糊光斑换成渐变遮罩（iOS WebKit 画大模糊太贵，滑动出黑块），规则见 globals.css 末尾 */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-[80px] lite-blob pointer-events-none" />
-              <div className="absolute bottom-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] lite-blob pointer-events-none" />
-
-              <div className="relative">
-                {/* 头部 */}
-                <div className="text-center mb-6">
-                  <motion.div
-                    initial={{ scale: 0.5, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: 'spring', bounce: 0.5, delay: 0.1 }}
-                    className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 mb-4"
-                  >
-                    <MessageCircle className="w-7 h-7" />
-                  </motion.div>
-                  <h2 className="text-2xl font-bold mb-2">联系客服</h2>
-                  {/* 副标题跟着实际有的联系方式走：渠道可能只设了微信号或只传了二维码（主站两样都有，文案不变） */}
-                  <p className="text-white/50 text-sm">
-                    {wechat && qrUrl ? '扫码或添加微信，开启专属服务' : qrUrl ? '微信扫码添加，开启专属服务' : '添加客服微信，开启专属服务'}
-                  </p>
+            {/* 二维码（渠道没传二维码时整块不显示） */}
+            {qrUrl && (
+            <div className="relative mb-6 ui-slide-up" style={{ animationDelay: '0.2s' }}>
+              <div className="relative bg-white rounded-2xl p-4">
+                <div className="relative aspect-square w-full max-w-xs mx-auto">
+                  <Image
+                    src={qrUrl}
+                    alt="微信二维码"
+                    fill
+                    className="object-contain rounded-lg"
+                    priority
+                  />
                 </div>
-
-                {/* 二维码（渠道没传二维码时整块不显示） */}
-                {qrUrl && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="relative mb-6"
-                >
-                  <div className="relative bg-white rounded-2xl p-4">
-                    <div className="relative aspect-square w-full max-w-xs mx-auto">
-                      <Image
-                        src={qrUrl}
-                        alt="微信二维码"
-                        fill
-                        className="object-contain rounded-lg"
-                        priority
-                      />
-                    </div>
-                  </div>
-                  <div className="text-center mt-3 text-xs text-white/40">
-                    使用微信扫一扫添加好友
-                  </div>
-                </motion.div>
-                )}
-
-                {/* 微信号（渠道只传了二维码、没填微信号时不显示） */}
-                {wechat && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="glass rounded-2xl p-4 mb-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs text-white/40 mb-1">微信号</div>
-                      <div className="font-mono font-bold text-lg">{wechat}</div>
-                    </div>
-                    <button
-                      onClick={handleCopy}
-                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                        copied
-                          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                          : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]'
-                      }`}
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          已复制
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          复制
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
-                )}
-
-                {/* 客服邮箱（二期新增；主站没有客服邮箱，不渲染这一块） */}
-                {contact.email && (
-                  <div className="glass rounded-2xl p-4 mb-4 flex items-center gap-3">
-                    <Mail className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-                    <div className="min-w-0">
-                      <div className="text-xs text-white/40 mb-1">客服邮箱</div>
-                      <a href={`mailto:${contact.email}`} className="font-mono text-sm break-all hover:text-purple-300">
-                        {contact.email}
-                      </a>
-                    </div>
-                  </div>
-                )}
-
-                {/* 服务时间 */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="flex items-center justify-center gap-6 text-sm text-white/60"
-                >
-                  {contact.hours && (
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-purple-400" />
-                    <span>{hoursText(contact.hours)}</span>
-                  </div>
-                  )}
-                  {contact.hours && <div className="w-px h-4 bg-white/10" />}
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-pink-400" />
-                    <span>专属服务</span>
-                  </div>
-                </motion.div>
+              </div>
+              <div className="text-center mt-3 text-xs text-white/40">
+                使用微信扫一扫添加好友
               </div>
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+            )}
+
+            {/* 微信号（渠道只传了二维码、没填微信号时不显示） */}
+            {wechat && (
+            <div className="glass rounded-2xl p-4 mb-4 ui-slide-up" style={{ animationDelay: '0.3s' }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-white/40 mb-1">微信号</div>
+                  <div className="font-mono font-bold text-lg">{wechat}</div>
+                </div>
+                <button
+                  onClick={handleCopy}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    copied
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:shadow-[0_0_20px_rgba(168,85,247,0.3)]'
+                  }`}
+                >
+                  {copied ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      已复制
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      复制
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+            )}
+
+            {/* 客服邮箱（二期新增；主站没有客服邮箱，不渲染这一块） */}
+            {contact.email && (
+              <div className="glass rounded-2xl p-4 mb-4 flex items-center gap-3">
+                <Mail className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs text-white/40 mb-1">客服邮箱</div>
+                  <a href={`mailto:${contact.email}`} className="font-mono text-sm break-all hover:text-purple-300">
+                    {contact.email}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* 服务时间 */}
+            <div
+              className="flex items-center justify-center gap-6 text-sm text-white/60 ui-slide-up"
+              style={{ animationDelay: '0.4s' }}
+            >
+              {contact.hours && (
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-purple-400" />
+                <span>{hoursText(contact.hours)}</span>
+              </div>
+              )}
+              {contact.hours && <div className="w-px h-4 bg-white/10" />}
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-pink-400" />
+                <span>专属服务</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

@@ -26,10 +26,19 @@
   public/favicon.ico             16/32/48 浏览器默认请求 /favicon.ico 时的兜底
   public/logo-full.png           640x628  页脚完整字标（深色版：白字）。去雾、透明底
   public/logo-full-light.png     640x628  浅色场景用的完整字标（原色，保留光晕）
+  public/logo-mark.webp          80x80    页头站标专用（40px 显示的 2 倍）。与 logo-mark.png 同一张图，只是尺寸与格式
+  public/logo-full.webp          261x256  页脚完整字标专用（h-28 / lg:h-32 显示的 2 倍）。与 logo-full.png 同一张图
   public/og-default.png          1200x630 站点默认分享图
   public/news-og/<slug>.png      1200x630 资讯六个分类的分享图（取代 scripts/gen-og-image.js 的像素字版本）
 
-依赖：Pillow（开发机）、numpy。字体取 Windows 自带的 Segoe UI（只画拉丁字母），取不到时退回 Pillow 默认字体。
+【为什么页头页脚另出 WebP（SEO 重构 B 包，docs/SEO-重构/SEO-重构设计.md §6.6-4）】
+页头只显示 40px，却每页都下载 256px 的 logo-mark.png（55KB）；页脚显示 112~128px 高，却下载 640px 的 logo-full.png（220KB），
+而且两张图都被 React 自动 preload 进每一页的 <head>，和首屏的 CSS / JS 抢带宽（PSI 移动端「图片传送」可省 262KiB）。
+WebP 按 2 倍显示尺寸出图：80x80 约 3KB、256px 高约 20KB；页头页脚的 <img> 同时加 loading="lazy"，React 就不再 preload。
+PNG 版不删也不改：邮件（lib/marketing/render.ts）、退订页、JSON-LD、友链、分享图仍用 PNG——邮件客户端对 WebP 支持不全。
+
+依赖：Pillow（开发机，需带 WebP 支持：python -c "from PIL import features; print(features.check('webp'))"）、numpy。
+字体取 Windows 自带的 Segoe UI（只画拉丁字母），取不到时退回 Pillow 默认字体。
 """
 import os
 import sys
@@ -211,13 +220,20 @@ def main():
     fit(full_dark, (640, 628), 0.03).save(os.path.join(PUB, 'logo-full.png'), optimize=True)
     fit(to_image(a).crop(bbox_of(a, thr=30)), (640, 628), 0.03).save(os.path.join(PUB, 'logo-full-light.png'), optimize=True)
 
+    # 页头 / 页脚专用 WebP（见文件头「为什么页头页脚另出 WebP」）。构图参数与对应 PNG 相同，只换尺寸：
+    # 页脚 261x256 = 640x628 等比缩到 256 高。有损 q85 + 透明通道无损：80px 约 3.6KB、256px 高约 20KB，
+    # 深色底上与 PNG 肉眼无差；无损 WebP 要 8KB / 43KB，不划算
+    webp = dict(quality=85, alpha_quality=100, method=6)
+    fit(mark_clean, 80, 0.04).save(os.path.join(PUB, 'logo-mark.webp'), 'WEBP', **webp)
+    fit(full_dark, (261, 256), 0.03).save(os.path.join(PUB, 'logo-full.webp'), 'WEBP', **webp)
+
     wordmark_dark = to_image(dark).crop(bbox_of(dark, WORD_TOP, WORD_BOTTOM))
     build_og(full_dark, mark_clean, wordmark_dark).save(os.path.join(PUB, 'og-default.png'), optimize=True)
     os.makedirs(os.path.join(PUB, 'news-og'), exist_ok=True)
     for slug, word, to, accent in CATEGORY_OG:
         build_og(full_dark, mark_clean, wordmark_dark, word, to, accent).save(os.path.join(PUB, 'news-og', slug + '.png'), optimize=True)
 
-    print('生成完成：logo-mark / logo-square / apple-touch-icon / favicon.ico / logo-full / logo-full-light / og-default / news-og ×6')
+    print('生成完成：logo-mark / logo-square / apple-touch-icon / favicon.ico / logo-full / logo-full-light / logo-mark.webp / logo-full.webp / og-default / news-og ×6')
 
 
 if __name__ == '__main__':

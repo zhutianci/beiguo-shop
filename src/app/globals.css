@@ -332,6 +332,58 @@
   animation: gradient-shift 8s ease infinite;
 }
 
+/*
+ * ---- 全站外壳的入场动效（SEO 重构 B 包，docs/SEO-重构/SEO-重构设计.md §6.6-3、§6.6-5）----
+ * 页头、页脚客服弹窗、右下角客服、公告提示条挂在每一个前台页面上，原来都靠 framer-motion 做入场，
+ * 于是 framer-motion 被打进了全站共享的 JS 里，连不用它的落地页、大事记也要下载、解析它；
+ * 页头还是 initial={{ y: -100 }}，服务端 HTML 的第一帧页头在屏幕外。
+ * 这几处都只是「出现时淡入 / 上浮」，一条 CSS keyframes 就够了：不占 JS、不进服务端 HTML 的内联 style。
+ * 只做入场，不做退场（退场要等动画播完再卸载，得多一套状态；关掉就是关掉）。
+ * 用法：className="ui-pop-in"；需要错开时加 style={{ animationDelay: '0.1s' }}。
+ */
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ui-pop-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ui-slide-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ui-drop-in {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ui-scale-in {
+  from { opacity: 0; transform: scale(0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ui-spin-in {
+  from { transform: scale(0.5) rotate(-180deg); }
+  to { transform: none; }
+}
+.ui-fade-in { animation: ui-fade-in 0.2s ease-out both; }
+.ui-pop-in { animation: ui-pop-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ui-slide-up { animation: ui-slide-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.ui-drop-in { animation: ui-drop-in 0.2s ease-out both; }
+/* 回弹曲线近似原来的 spring（bounce 0.4~0.5） */
+.ui-scale-in { animation: ui-scale-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.ui-spin-in { animation: ui-spin-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-fade-in,
+  .ui-pop-in,
+  .ui-slide-up,
+  .ui-drop-in,
+  .ui-scale-in,
+  .ui-spin-in {
+    animation: none !important;
+  }
+}
+
 /* 响应式字体 */
 .text-display {
   @apply text-5xl md:text-7xl lg:text-8xl xl:text-9xl font-bold tracking-tighter;

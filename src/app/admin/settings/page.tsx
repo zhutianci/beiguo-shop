@@ -190,9 +190,10 @@ export default function AdminSettingsPage() {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-500 mb-4">
-            启用后，买家进入前台任意页面会自动弹窗展示。同时有多条生效时，
-            <b>强提醒优先，其次取最新发布的一条</b>。普通公告买家关闭后不再重复弹；
-            勾选「强提醒」则每次进站都弹。修改内容后会重新弹给已经看过的买家。
+            启用后，买家在前台任意页面（短信接码页除外）的底部会看到一条公告提示条，只显示标题，点「查看详情」看全文，
+            不再全屏弹窗。同时有多条生效时，<b>强提醒优先，其次取最新发布的一条</b>。普通公告买家关闭后不再重复提示；
+            勾选「强提醒」则每次进站都出现提示条。修改内容后会重新提示已经看过的买家。
+            标题就是提示条上的那一行字，手机上只显示得下十来个字，请把最要紧的话写在标题开头。
           </p>
 
           {liveOne ? (
@@ -203,7 +204,7 @@ export default function AdminSettingsPage() {
             </div>
           ) : (
             <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-              当前没有生效中的公告，前台不会弹窗。
+              当前没有生效中的公告，前台不会出现公告提示条。
             </div>
           )}
 
@@ -539,7 +540,7 @@ function AnnouncementEditor({
             </label>
             <label className="flex items-center gap-2 text-sm text-gray-700">
               <input type="checkbox" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
-              强提醒：每次进站都弹，忽略买家的「已读」记录
+              强提醒：每次进站都出现底部提示条，忽略买家的「已读」记录
             </label>
           </div>
         </div>

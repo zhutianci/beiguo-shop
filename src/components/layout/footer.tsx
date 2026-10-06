@@ -44,8 +44,14 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
             {/* Brand */}
             <div className="lg:col-span-3">
               {/* 页脚用完整字标（图标 + bigo tech + 域名 + 副标）。
-                  它是透明底 PNG，而页脚是深色，白色字标在这里正好成立。
-                  alt 写全称：这是页脚唯一一处品牌名，图挂了也要读得出是谁。 */}
+                  它是透明底图，而页脚是深色，白色字标在这里正好成立。
+                  alt 写全称：这是页脚唯一一处品牌名，图挂了也要读得出是谁。
+                  SEO 重构 B 包（设计 §6.6-4）：原来是 640px 的 PNG（220KB），显示只有 112~128px 高，
+                  还被 React 自动 preload 进每一页的 <head>。换成 256px 高的 WebP（约 20KB，显示高度的 2 倍），
+                  并 loading="lazy"：页脚在首屏之外，滚到附近才下载，<head> 里也不再有它的 preload。
+                  width / height 写图片的真实像素，保证加载前就按正确宽高比占位（CLS）。
+                  改图重跑 scripts/gen-brand-assets.py，不要手工改 public/ 里的产物。
+                  白标渠道（渠道品牌与公告）用渠道自己的 logo，不走这张图 */}
               {white ? (
                 <Link href="/" className="inline-flex items-center gap-3 mb-6">
                   {brand.logoUrl ? (
@@ -60,10 +66,12 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
               ) : (
                 <Link href="/" className="inline-flex items-center mb-6">
                   <img
-                    src="/logo-full.png?v=3"
+                    src="/logo-full.webp?v=3"
                     alt="贝果科技 bigo tech - bigolab.com"
-                    width={640}
-                    height={628}
+                    width={261}
+                    height={256}
+                    loading="lazy"
+                    decoding="async"
                     className="h-28 w-auto lg:h-32"
                   />
                 </Link>

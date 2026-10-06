@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, User, ShoppingBag } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { cn } from '@/lib/utils'
@@ -135,10 +134,14 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
         【首帧可见 · iPhone「打不开」（2026-09-30）】原来是 initial={{ y: -100 }} 从上方滑入：服务端 HTML 里页头是
         translateY(-100px)，站标、登录 / 注册、菜单按钮全在视口外，要等 JS 水合后才滑下来。iPhone 上的 Safari / Chrome
         走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，这段时间整页看着是空的 = 买家说的「打不开」。
-        initial={false}：服务端直接按最终位置输出，水合后不再播入场动画（其余 motion 行为不变）。
+        initial={false}：服务端直接按最终位置输出，水合后不再播入场动画（10-01 当时的写法；B 包起改成普通 header，见下）。
+
+        【SEO 重构 B 包：页头不再引用 framer-motion】（docs/SEO-重构/SEO-重构设计.md §6.6-3、§6.6-5）
+        页头挂在每一个前台页面上，它引用 framer-motion，framer-motion 就进了全站共享的 JS（落地页、大事记本身都不用它）。
+        首帧可见沿用上面 10-01 的做法（页头直接渲染在原位）；导航高亮药丸和移动端菜单的动效改成 CSS（globals.css 的 ui-* / rise-in）。
+        手机端轻量模式的 lite:* 类名原样保留。
       */}
-      <motion.header
-        initial={false}
+      <header
         className={cn(
           'fixed top-0 left-0 right-0 z-50 transition-all duration-500',
           // 移动端保持原节奏（py-6 / py-4）。
@@ -158,15 +161,21 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
             )}
           >
             {/* Logo：图标固定 40px，配合导航项 py-2.5 + leading-5 = 40px，
-                保证药丸高度在所有断点上都是 64px，头部高度可预测（页面顶部留白按此计算） */}
+                保证药丸高度在所有断点上都是 64px，头部高度可预测（页面顶部留白按此计算）。
+                aria-label：md 以下站名是隐藏的、站标 alt 又是空的，链接原来没有可读名称
+                （PSI 无障碍与「智能体浏览」点名，设计 §1.9）；按店面站名出（渠道改名后跟着变） */}
             <Link
               href="/"
+              aria-label={`${brand.name}首页`}
               className="flex shrink-0 items-center gap-3 group rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             >
               {/* 站标。用 <img> 而不是 next/image：这台机器只有 1.8G 内存，
                   图片优化管线的 CPU/内存开销不值得为一张小图付（同 gen-brand-assets.py 的取舍）。
-                  写死 width/height 防止加载时抖动（CLS）。
-                  这张图是透明底 PNG，所以深浅背景都能直接用。 */}
+                  写死 width/height 防止加载时抖动（CLS）。透明底，深浅背景都能直接用。
+                  SEO 重构 B 包（设计 §6.6-4）：主站用 80x80 的 WebP（约 3.6KB，40px 显示的 2 倍），不再下载 256px 的 PNG（55KB）；
+                  loading="lazy" 让 React 不再把它 preload 进每一页的 <head>、和首屏 CSS / JS 抢带宽
+                  （它就在首屏里，布局一出来浏览器就会取，40px 的图晚几十毫秒看不出来）。
+                  改图重跑 scripts/gen-brand-assets.py，不要手工改 public/ 里的产物 */}
               {/* 渠道白标（docs/多渠道分销-渠道品牌与公告.md）：有 logo 用渠道 logo；只改了站名没传 logo 用站名首字的圆角块
                   （不能继续用贝果的图标）；主站与没有白标的渠道原样 */}
               {brand.logoUrl ? (
@@ -186,10 +195,12 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                 </span>
               ) : (
                 <img
-                  src="/logo-mark.png?v=3"
+                  src="/logo-mark.webp?v=3"
                   alt=""
                   width={40}
                   height={40}
+                  loading="lazy"
+                  decoding="async"
                   className="w-10 h-10 shrink-0 transition-transform duration-300 group-hover:scale-105"
                 />
               )}
@@ -242,13 +253,14 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                         link.label
                       )}
                     </span>
-                    {active && (
-                      <motion.div
-                        layoutId="navbar-indicator"
-                        className="absolute inset-0 rounded-full bg-white/10"
-                        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                      />
-                    )}
+                    {/* 高亮药丸：原来是 framer-motion 的 layoutId 在导航项之间滑动，改成每项一个、按是否选中淡入淡出 */}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        'absolute inset-0 rounded-full bg-white/10 transition-opacity duration-300',
+                        active ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
                   </Link>
                 )
               })}
@@ -340,9 +352,12 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                 </>
               )}
 
-              {/* Mobile Menu Button */}
+              {/* Mobile Menu Button：纯图标按钮，补可读名称（PSI 无障碍点名） */}
               <button
+                type="button"
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label={isMobileMenuOpen ? '关闭菜单' : '打开菜单'}
+                aria-expanded={isMobileMenuOpen}
                 className="md:hidden w-10 h-10 rounded-full glass flex items-center justify-center"
               >
                 {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -350,71 +365,53 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
             </div>
           </div>
         </div>
-      </motion.header>
+      </header>
 
-      {/* Mobile Menu */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 md:hidden"
-          >
-            {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 整屏重算模糊太贵），
-                遮罩改成几乎不透明的 lite:bg-black/95，背后的页面文字不会透出来 */}
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/95" />
-            {/* 项目多时在小屏上会顶满，收紧行距并允许滚动，避免最后一项被裁掉 */}
-            <nav className="relative flex h-full flex-col items-center justify-center gap-6 overflow-y-auto py-24">
-              {visibleLinks.map((link, index) => (
-                <motion.div
-                  key={link.href}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Link
-                    href={link.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={cn(
-                      'text-2xl sm:text-3xl font-bold',
-                      isNavActive(pathname, link.href) ? 'gradient-text-accent' : 'text-white/60'
-                    )}
-                  >
-                    {link.wide ?? link.label}
-                  </Link>
-                </motion.div>
-              ))}
-              {!user && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="flex gap-4 mt-8"
-                >
-                  <Link
-                    href="/login"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="px-8 py-3 glass rounded-full font-medium"
-                  >
-                    登录
-                  </Link>
-                  {registrationOpen && (
-                    <Link
-                      href="/register"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className="px-8 py-3 bg-white text-black rounded-full font-medium"
-                    >
-                      注册
-                    </Link>
+      {/* Mobile Menu：只做入场动效（CSS），关闭即卸载 */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-40 md:hidden ui-drop-in">
+          {/* 手机端轻量模式（2026-10-01，站长要求电脑端不变）：触屏设备上不做毛玻璃（iOS WebKit 整屏重算模糊太贵），
+              遮罩改成几乎不透明的 lite:bg-black/95，背后的页面文字不会透出来 */}
+          <div className="absolute inset-0 bg-black/80 backdrop-blur-xl lite:bg-black/95" />
+          {/* 项目多时在小屏上会顶满，收紧行距并允许滚动，避免最后一项被裁掉 */}
+          <nav className="relative flex h-full flex-col items-center justify-center gap-6 overflow-y-auto py-24">
+            {visibleLinks.map((link, index) => (
+              <div key={link.href} className="rise-in" style={{ animationDelay: `${index * 0.06}s` }}>
+                <Link
+                  href={link.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={cn(
+                    'text-2xl sm:text-3xl font-bold',
+                    isNavActive(pathname, link.href) ? 'gradient-text-accent' : 'text-white/60'
                   )}
-                </motion.div>
-              )}
-            </nav>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                >
+                  {link.wide ?? link.label}
+                </Link>
+              </div>
+            ))}
+            {!user && (
+              <div className="flex gap-4 mt-8 rise-in" style={{ animationDelay: '0.3s' }}>
+                <Link
+                  href="/login"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="px-8 py-3 glass rounded-full font-medium"
+                >
+                  登录
+                </Link>
+                {registrationOpen && (
+                  <Link
+                    href="/register"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="px-8 py-3 bg-white text-black rounded-full font-medium"
+                  >
+                    注册
+                  </Link>
+                )}
+              </div>
+            )}
+          </nav>
+        </div>
+      )}
     </>
   )
 }

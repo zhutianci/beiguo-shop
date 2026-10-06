@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { hideFloatingContactOn } from '@/lib/floating-widgets'
-import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, X, Copy, Check } from 'lucide-react'
 import { ContactModal, hoursText } from './contact-modal'
 import { useStorefront } from './storefront-provider'
@@ -12,6 +11,13 @@ import { useStorefront } from './storefront-provider'
  * 右下角浮动客服（(shop)/layout 挂载，两站都显示）。微信号、服务时间取当前店面的客服信息（二期改动 4.1、4.2）：
  * 主站 = PLATFORM_CONTACT，渲染与改造前写死的 'GenuineMarxist' / '9:00 - 22:00' 逐字相同；
  * 渠道只设了二维码时不显示微信号块，只设了微信号时不显示「查看二维码」按钮（回退规则保证两者至少有一个）。
+ *
+ * SEO 重构 B 包（docs/SEO-重构/SEO-重构设计.md §6.6-2、§6.6-5）：
+ *  · 底边距跟着公告提示条走：提示条出现时把自身高度写进 <html> 的 --announce-bar-h（announcement-modal.tsx），
+ *    这里用 calc(1.5rem + 变量) 上抬，两者不重叠；没有提示条时变量未定义，取 0，位置与原来的 bottom-6 相同。
+ *  · 不再引用 framer-motion：这个组件挂在每一个前台页面上，它引用 framer-motion，framer-motion 就进了全站共享的 JS。
+ *    展开卡片的入场改用 globals.css 的 ui-pop-in（只做入场，不做退场）；浮动按钮沿用 10-01 首帧可见的做法，直接按最终状态输出、不做入场动画。
+ *  · 手机端轻量模式的 lite:* 类名原样保留。
  */
 export function FloatingContact() {
   const pathname = usePathname()
@@ -38,17 +44,13 @@ function FloatingContactInner() {
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-3">
+      <div
+        className="fixed right-6 z-40 flex flex-col items-end gap-3 transition-[bottom] duration-300"
+        style={{ bottom: 'calc(1.5rem + var(--announce-bar-h, 0px))' }}
+      >
         {/* 展开的联系卡片 */}
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              initial={{ opacity: 0, y: 20, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 20, scale: 0.9 }}
-              transition={{ duration: 0.2 }}
-              className="relative"
-            >
+        {expanded && (
+            <div className="relative ui-pop-in">
               <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 rounded-2xl blur-md opacity-60" />
               <div className="relative glass-strong rounded-2xl p-5 w-72 shadow-2xl">
                 <div className="flex items-center justify-between mb-4">
@@ -58,6 +60,7 @@ function FloatingContactInner() {
                   </div>
                   <button
                     onClick={() => setExpanded(false)}
+                    aria-label="收起在线客服"
                     className="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center"
                   >
                     <X className="w-3.5 h-3.5 text-white/60" />
@@ -127,19 +130,19 @@ function FloatingContactInner() {
                 </button>
                 )}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+        )}
 
         {/* 浮动按钮
             【首帧可见 · iPhone「打不开」（2026-09-30）】原来 initial={{ scale: 0, opacity: 0 }}，服务端 HTML 里客服入口是隐形的；
             iPhone 上的 Safari / Chrome 走 HTTPS（大陆移动网络）时 JS 常晚到 10~40 秒，这段时间买家连客服都找不到。
-            initial={false}：服务端直接按最终状态输出，只少了那一下弹出动画 */}
-        <motion.button
-          initial={false}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.5, type: 'spring', bounce: 0.4 }}
+            initial={false}：服务端直接按最终状态输出，只少了那一下弹出动画。
+            B 包起改成普通 button（不再引用 framer-motion），同样不做入场动画；纯图标按钮补可读名称（PSI 无障碍点名） */}
+        <button
+          type="button"
           onClick={() => setExpanded(!expanded)}
+          aria-label={expanded ? '收起在线客服' : '联系客服'}
+          aria-expanded={expanded}
           className="group relative"
         >
           {/* 脉冲光环
@@ -162,7 +165,7 @@ function FloatingContactInner() {
               联系客服
             </div>
           )}
-        </motion.button>
+        </button>
       </div>
 
       <ContactModal open={modalOpen} onClose={() => setModalOpen(false)} />
