@@ -8,6 +8,7 @@ import {
   getProvider,
   logRedeem,
   normalizeCdk,
+  redeemCardLimited,
   redeemRateLimited,
   redeemProbeLimited,
   claimForIrreversibleRedeem,
@@ -91,6 +92,9 @@ export async function POST(request: NextRequest, { params }: { params: { provide
 
     const ip = clientIp(request.headers)
 
+    // 单 IP / 全站两层排在查库之前（与 check 同口径，2026-10-07：以前在 resolveCard 之后，「这张卡是不是本站卖的」可以不限次地试）
+    const ipLimited = redeemRateLimited(rebind ? 'rebind' : 'activate', null, ip)
+    if (ipLimited) return error(ipLimited, 429)
     // 同一 IP 对同一卡密前缀的试探限频，排在查库之前（与 check 同一层；激活的单卡限频仍在下面）
     const probing = redeemProbeLimited(ip, cdk)
     if (probing) return error(probing, 429)
@@ -112,7 +116,7 @@ export async function POST(request: NextRequest, { params }: { params: { provide
      * 激活比查询限得更紧：查询是幂等的，激活会真的消耗卡密。
      * 单卡 1 分钟 3 次足够覆盖「填错了改一下重提交」，又挡得住脚本。
      */
-    const limited = redeemRateLimited(rebind ? 'rebind' : 'activate', resolved.card.id, ip)
+    const limited = redeemCardLimited(rebind ? 'rebind' : 'activate', resolved.card.id)
     if (limited) return error(limited, 429)
 
     let result
