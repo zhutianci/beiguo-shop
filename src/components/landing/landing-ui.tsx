@@ -52,8 +52,11 @@ export function LandingShell({
   lede,
   meta,
   toc,
+  reviewedAt = LANDING_REVIEWED_AT,
   children,
 }: {
+  /** 这一页自己的核对日期（registry 每页一个，D1a）；不传 = 拆分前的统一日期（两者初值相同） */
+  reviewedAt?: string
   crumbs: Crumb[]
   h1: string
   /** H1 下面那段导语。写清楚「这一页能帮你解决什么」，不要写成品牌口号 */
@@ -114,7 +117,7 @@ export function LandingShell({
               不是每次请求的「今天」）；价格和库存本来就是实时取库的，一并说明 */}
           <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/35 lg:text-[13px]">
             <span>
-              内容核对于 <time dateTime={LANDING_REVIEWED_AT}>{LANDING_REVIEWED_AT}</time>
+              内容核对于 <time dateTime={reviewedAt}>{reviewedAt}</time>
             </span>
             <span aria-hidden className="h-1 w-1 rounded-full bg-white/20" />
             <span>价格与库存为实时数据</span>
