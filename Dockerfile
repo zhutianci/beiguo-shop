@@ -53,7 +53,9 @@ ENV NEXT_TELEMETRY_DISABLED 1
 # 【渠道分站边界检查】npm run build 会先跑 package.json 的 prebuild = node scripts/check-tenant-boundary.mjs
 # （纯文本扫描，毫秒级，不占内存）：渠道层越界 import、漏守卫、按 Host 缓存等违规直接让这一步失败（设计 6.5.5）。
 # 堆上限做成构建参数：本地 Linux 容器里复测「多大才够」时用 --build-arg BUILD_HEAP_MB=… 覆盖，不用改文件
-ARG BUILD_HEAP_MB=832
+# 2026-10-07 安全加固 + SEO 批 2 + 内容平台扩容 + 设计精修一起上线：服务器上 832MB 跑到 890 秒 heap out of memory → 调到 1024MB
+# （build-with-swap 放开的是构建自己的内存组；看门狗把 next build 标成 OOM 首选，站点容器不受影响）
+ARG BUILD_HEAP_MB=1024
 RUN NODE_OPTIONS=--max-old-space-size=${BUILD_HEAP_MB} npm run build \
  && test -f .next/standalone/server.js \
  && test -d .next/static
