@@ -839,7 +839,8 @@ async function testShopShell(w: World) {
   const { SuspendedBanner } = await import('../../src/components/storefront/suspended-banner')
   const { ClosedPageGate, DraftClosedPage, isClosedPath } = await import('../../src/components/storefront/closed-page')
   const { PageViewBeacon } = await import('../../src/components/page-view-beacon')
-  const { LiveOrderNotification } = await import('../../src/components/live-order-notification')
+  // 2026-10-07 起外壳挂的是按需加载的那一层（组件本体不变，见 live-order-notification-lazy.tsx）
+  const { LiveOrderNotificationLazy: LiveOrderNotification } = await import('../../src/components/live-order-notification-lazy')
   const { AnnouncementModal } = await import('../../src/components/announcement-modal')
   const { MailLanding } = await import('../../src/components/mail-landing')
   const { invalidateStorefrontCache } = await import('../../src/lib/storefront/resolve')

@@ -1,7 +1,8 @@
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { FloatingContact } from '@/components/floating-contact'
-import { LiveOrderNotification } from '@/components/live-order-notification'
+import { LiveOrderNotificationLazy } from '@/components/live-order-notification-lazy'
+import { RouteProgress } from '@/components/route-progress'
 import { AnnouncementModal } from '@/components/announcement-modal'
 import { PageViewBeacon } from '@/components/page-view-beacon'
 import { MailLanding } from '@/components/mail-landing'
@@ -71,12 +72,15 @@ export default async function ShopLayout({
   return (
     <div className="shop-shell flex min-h-screen flex-col">
       {redirectOrigin && <PrimaryHostRedirect origin={redirectOrigin} />}
+      {/* 站内跳转的顶部进度条：只在客户端出现，服务端 HTML 里是一个不可见的空条（route-progress.tsx） */}
+      <RouteProgress />
       <Header catalogOpen={catalogOpen} registrationOpen={registrationOpen} jiemaOpen={jiemaOpen} />
       {sf.status === 'SUSPENDED' && <SuspendedBanner />}
       <main className="flex-1">{sf.status === 'TERMINATED' ? <ClosedPageGate>{children}</ClosedPageGate> : children}</main>
       <Footer catalogOpen={catalogOpen} jiemaOpen={jiemaOpen} />
       <FloatingContact />
-      {features.liveOrders && <LiveOrderNotification />}
+      {/* 成交弹窗按需加载（组件本体不变，只是 framer-motion 不再进全站首屏 JS，见 live-order-notification-lazy.tsx） */}
+      {features.liveOrders && <LiveOrderNotificationLazy />}
       {/* 站点公告：买家进入前台任意页面即弹窗展示。主站 = 后台「系统设置」发布的公告；渠道站 = 渠道后台「店铺公告」发布的、
           只属于本渠道的公告（docs/多渠道分销-渠道品牌与公告.md 第 5 节；同一个接口 /api/announcement 按店面分流） */}
       {(features.announcement || sf.kind === 'CHANNEL') && <AnnouncementModal />}

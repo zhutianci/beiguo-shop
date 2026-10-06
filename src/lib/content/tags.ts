@@ -108,10 +108,21 @@ const CONTENT_BOARDS = [
 ]
 
 let ensured = false
+/** 正在跑的那一次（性能优化 2026-10-07）：进程刚起时并发进来的几个请求共用它，不再各自串行 upsert 五十多次 */
+let ensuring: Promise<void> | null = null
 
 /** 补齐默认标签与两个内容专用板块（幂等；进程内只跑一次，失败下次再试） */
 export async function ensureContentDefaults(): Promise<void> {
   if (ensured) return
+  if (!ensuring) {
+    ensuring = runEnsureContentDefaults().finally(() => {
+      ensuring = null
+    })
+  }
+  return ensuring
+}
+
+async function runEnsureContentDefaults(): Promise<void> {
   for (const t of DEFAULT_TAGS) {
     await prisma.tag.upsert({
       where: { slug: t.slug },

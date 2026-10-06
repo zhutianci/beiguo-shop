@@ -332,6 +332,16 @@
   animation: gradient-shift 8s ease infinite;
 }
 
+/* 系统里开了「减少动态效果」的访客：常驻的漂浮 / 呼吸 / 渐变流动停在静止态（性能优化 2026-10-07）。
+   没开的访客（绝大多数）一切照旧；手机端轻量模式在文件末尾另有同样的处理。 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-pulse-glow,
+  .animate-gradient {
+    animation: none;
+  }
+}
+
 /*
  * ---- 全站外壳的入场动效（SEO 重构 B 包，docs/SEO-重构/SEO-重构设计.md §6.6-3、§6.6-5）----
  * 页头、页脚客服弹窗、右下角客服、公告提示条挂在每一个前台页面上，原来都靠 framer-motion 做入场，
@@ -688,6 +698,37 @@
 @media (prefers-reduced-motion: reduce) {
   .learn-in, .learn-skeleton { animation: none !important; }
   .learn-media img, .learn-card { transition: none !important; }
+}
+
+/* ============ 路由切换进度条（components/route-progress.tsx，性能优化 2026-10-07） ============
+ * 点站内链接 150ms 后还没切过去才出现；只动 transform / opacity，一层、交给合成线程。
+ * 服务端 HTML 里恒为 idle（scaleX(0) + 透明），不占位、不影响首帧。z-index 压在页头（z-50）之上。 */
+.route-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 60;
+  pointer-events: none;
+  transform-origin: 0 50%;
+  transform: scaleX(0);
+  opacity: 0;
+  background: linear-gradient(90deg, #a855f7, #ec4899, #22d3ee);
+}
+.route-progress[data-phase='run'] {
+  opacity: 1;
+  transform: scaleX(0.85);
+  transition: transform 8s cubic-bezier(0.08, 0.7, 0.2, 1), opacity 0.15s ease;
+}
+.route-progress[data-phase='done'] {
+  opacity: 0;
+  transform: scaleX(1);
+  transition: transform 0.2s ease-out, opacity 0.25s ease 0.15s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-progress[data-phase='run'] { transform: scaleX(0.6); transition: none; }
+  .route-progress[data-phase='done'] { transition: none; }
 }
 
 /* ============ 手机端轻量模式（2026-10-01，站长要求电脑端不变） ============

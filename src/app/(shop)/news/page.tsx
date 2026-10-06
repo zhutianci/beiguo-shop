@@ -73,6 +73,56 @@ export default async function NewsPage() {
   let fallbackRange: string | null = null
   let dbFailed = false
 
+  /*
+   * 最近补录、归档月份、日报周报：都不能拖垮主列表，所以单独 try、失败降级为空。
+   * 性能优化 2026-10-07：它们与主列表互不依赖，原来等主列表查完才开始、日报周报又再等一轮（三批串行），
+   * 现在一开始就与主列表并行发出；结果与原来逐项相同。
+   */
+  const extrasP = (async () => {
+    try {
+      const [backfillRows, monthRows, d, w] = await Promise.all([
+        prisma.newsEvent.findMany({
+          where: {
+            ...HIGHLIGHT_WHERE,
+            publishedAt: { gte: hoursAgo(24 * 7, now) },
+            happenedAt: { lt: hoursAgo(36, now) },
+          },
+          select: EVENT_SELECT,
+          orderBy: [{ publishedAt: 'desc' }],
+          // 多取一些再在内存里按 isBackfilled 精筛。
+          // 【为什么不能只靠 where】上面两个条件是「事件较早」且「最近发布」，
+          // 而 isBackfilled 判的是「两者相差 ≥36h」——不是一回事：
+          // happenedAt=37h前、publishedAt=36h前 满足 where，但间隔只有 1 小时，不算补录。
+          // 而「两列相减再比较」在 Prisma 里表达不出来，只能查宽一点再筛。
+          take: BACKFILL_TAKE * 4,
+        }),
+        // 有哪些月份有内容。用原生 SQL 做 GROUP BY —— Prisma 的 groupBy 没法按
+        // 「东八区的月份」分组，而这里必须用业务时区，否则每月 1 号的凌晨 8 小时会归到上个月。
+        prisma.$queryRaw<{ k: string; n: bigint }[]>`
+          SELECT DATE_FORMAT(DATE_ADD(happened_at, INTERVAL 8 HOUR), '%Y-%m') AS k, COUNT(*) AS n
+          FROM news_events
+          WHERE status = 'PUBLISHED'
+          GROUP BY k
+          ORDER BY k DESC
+          LIMIT 12
+        `,
+        // 最近 3 期日报 + 最近 1 期周报。管线一直在生成，之前没有任何前台入口
+        listDigests('DAILY', 3),
+        listDigests('WEEKLY', 1),
+      ])
+      // 精筛：口径与卡片上的「补录」角标（toEventDto 里的 backfilled）必须是同一套，
+      // 否则会出现「列在补录区里、卡片上却没有补录角标」这种自相矛盾的展示
+      return {
+        backfills: backfillRows.map(toEventDto).filter((e) => e.backfilled).slice(0, BACKFILL_TAKE),
+        months: monthRows.map((r) => ({ key: r.k, count: Number(r.n) })),
+        digests: [...d, ...w],
+      }
+    } catch (e) {
+      console.error('[news/page extras]', e)
+      return null
+    }
+  })()
+
   try {
     const [rows, count, todayRows, weekRows] = await Promise.all([
       prisma.newsEvent.findMany({
@@ -101,44 +151,11 @@ export default async function NewsPage() {
     today = todayRows.map(toEventDto)
     week = weekRows.map(toEventDto)
 
-    // 最近补录 + 归档月份。两个查询都不能拖垮主列表，所以放在主查询之后单独 try。
-    try {
-      const [backfillRows, monthRows] = await Promise.all([
-        prisma.newsEvent.findMany({
-          where: {
-            ...HIGHLIGHT_WHERE,
-            publishedAt: { gte: hoursAgo(24 * 7, now) },
-            happenedAt: { lt: hoursAgo(36, now) },
-          },
-          select: EVENT_SELECT,
-          orderBy: [{ publishedAt: 'desc' }],
-          // 多取一些再在内存里按 isBackfilled 精筛。
-          // 【为什么不能只靠 where】上面两个条件是「事件较早」且「最近发布」，
-          // 而 isBackfilled 判的是「两者相差 ≥36h」——不是一回事：
-          // happenedAt=37h前、publishedAt=36h前 满足 where，但间隔只有 1 小时，不算补录。
-          // 而「两列相减再比较」在 Prisma 里表达不出来，只能查宽一点再筛。
-          take: BACKFILL_TAKE * 4,
-        }),
-        // 有哪些月份有内容。用原生 SQL 做 GROUP BY —— Prisma 的 groupBy 没法按
-        // 「东八区的月份」分组，而这里必须用业务时区，否则每月 1 号的凌晨 8 小时会归到上个月。
-        prisma.$queryRaw<{ k: string; n: bigint }[]>`
-          SELECT DATE_FORMAT(DATE_ADD(happened_at, INTERVAL 8 HOUR), '%Y-%m') AS k, COUNT(*) AS n
-          FROM news_events
-          WHERE status = 'PUBLISHED'
-          GROUP BY k
-          ORDER BY k DESC
-          LIMIT 12
-        `,
-      ])
-      // 精筛：口径与卡片上的「补录」角标（toEventDto 里的 backfilled）必须是同一套，
-      // 否则会出现「列在补录区里、卡片上却没有补录角标」这种自相矛盾的展示
-      backfills = backfillRows.map(toEventDto).filter((e) => e.backfilled).slice(0, BACKFILL_TAKE)
-      months = monthRows.map((r) => ({ key: r.k, count: Number(r.n) }))
-      // 最近 3 期日报 + 最近 1 期周报。管线一直在生成，之前没有任何前台入口
-      const [d, w] = await Promise.all([listDigests('DAILY', 3), listDigests('WEEKLY', 1)])
-      digests = [...d, ...w]
-    } catch (e) {
-      console.error('[news/page extras]', e)
+    const extras = await extrasP
+    if (extras) {
+      backfills = extras.backfills
+      months = extras.months
+      digests = extras.digests
     }
 
     // 今日为空（凌晨、或当天信源都没产出）就回退到最近 72 小时，

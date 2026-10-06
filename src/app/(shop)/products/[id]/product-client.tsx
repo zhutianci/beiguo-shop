@@ -34,8 +34,16 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { ArrowLeft, ArrowRight, Building2, Check, Clock, Headphones } from 'lucide-react'
-import { PurchaseModal } from '@/components/purchase-modal'
+/*
+ * 【购买弹窗按需加载（性能优化 2026-10-07）】弹窗用 framer-motion、还带开票抬头选择器，约 50KB gzip，
+ * 原来随商品页首屏 JS 一起下载、解析，而大多数访客并不点「立即购买」。现在它是单独的 chunk：
+ *  · 页面空闲时预取一次（requestIdleCallback，不和首屏 JS / 接口抢），鼠标移上、手指按下按钮时也会预取——点下去通常已经在缓存里；
+ *  · 第一次点「立即购买」才挂载；之后一直挂着，开关、退场动画、关闭时清空开票选项都与原来一样（弹窗组件本身一行没改）。
+ */
+const loadPurchaseModal = () => import('@/components/purchase-modal')
+const PurchaseModal = dynamic(() => loadPurchaseModal().then((m) => m.PurchaseModal), { ssr: false })
 import { ContactModal } from '@/components/contact-modal'
 import { PRODUCT_GRADIENT, deliveryBadge, productTag } from '@/components/products/gradient'
 import { captureRefFromUrl } from '@/lib/ref'
@@ -107,6 +115,18 @@ export default function ProductDetailClient({
   // 没有 SSR 数据（外壳查库失败）且客户端这次也没取到——给「稍后重试」而不是「商品不存在」
   const [loadFailed, setLoadFailed] = useState(false)
   const [purchaseOpen, setPurchaseOpen] = useState(false)
+  /** 购买弹窗第一次打开后才挂载（见文件顶部 loadPurchaseModal 的注释） */
+  const [purchaseMounted, setPurchaseMounted] = useState(false)
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void }
+    const prefetch = () => void loadPurchaseModal().catch(() => {})
+    if (w.requestIdleCallback) {
+      const h = w.requestIdleCallback(prefetch, { timeout: 4000 })
+      return () => w.cancelIdleCallback?.(h)
+    }
+    const t = setTimeout(prefetch, 2000)
+    return () => clearTimeout(t)
+  }, [])
   const [contactOpen, setContactOpen] = useState(false)
 
   const sfPublic = useStorefront()
@@ -401,7 +421,12 @@ export default function ProductDetailClient({
                 </div>
 
                 <button
-                  onClick={() => setPurchaseOpen(true)}
+                  onClick={() => {
+                    setPurchaseMounted(true)
+                    setPurchaseOpen(true)
+                  }}
+                  onPointerEnter={() => void loadPurchaseModal().catch(() => {})}
+                  onTouchStart={() => void loadPurchaseModal().catch(() => {})}
                   className={`group w-full py-4 xl:py-[18px] xl:text-lg rounded-xl font-semibold bg-gradient-to-r ${gradient} flex items-center justify-center gap-2 hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all mb-3`}
                 >
                   立即购买
@@ -462,17 +487,19 @@ export default function ProductDetailClient({
         </div>
       </div>
 
-      <PurchaseModal
-        open={purchaseOpen}
-        onClose={() => setPurchaseOpen(false)}
-        product={{
-          id: product.id,
-          name: product.name,
-          price: price,
-          originalPrice: originalPrice ?? price,
-          gradient,
-        }}
-      />
+      {purchaseMounted && (
+        <PurchaseModal
+          open={purchaseOpen}
+          onClose={() => setPurchaseOpen(false)}
+          product={{
+            id: product.id,
+            name: product.name,
+            price: price,
+            originalPrice: originalPrice ?? price,
+            gradient,
+          }}
+        />
+      )}
 
       <ContactModal open={contactOpen} onClose={() => setContactOpen(false)} />
     </div>

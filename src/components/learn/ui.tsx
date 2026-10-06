@@ -384,7 +384,7 @@ export function ModelTile({ t }: { t: HubTile }) {
           covers[i] ? (
             <div key={i} className="learn-media relative rounded-none">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={covers[i]} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+              <img src={covers[i]} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover" />
             </div>
           ) : (
             <div key={i} className="bg-white/[0.04]" />
@@ -527,7 +527,7 @@ export function SponsorStrip({ items }: { items: { id: number; title: string; bl
         <a key={s.id} href={s.href} target="_blank" rel="sponsored nofollow noopener" className="learn-card learn-lift group flex items-center gap-4 p-4">
           {s.image ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={s.image} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+            <img src={s.image} alt="" width={56} height={56} loading="lazy" decoding="async" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
           ) : (
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-lg font-semibold text-white/70">{s.title.slice(0, 1)}</span>
           )}

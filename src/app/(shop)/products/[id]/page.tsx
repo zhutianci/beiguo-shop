@@ -242,7 +242,9 @@ async function productMetadata({ params }: { params: { id: string } }): Promise<
 }
 
 export default async function ProductDetailPage({ params }: { params: { id: string } }) {
-  const { seo, client } = await getProduct(Number(params.id))
+  // 同系列档位的在售快照与商品本身互不依赖，一起查（性能优化 2026-10-07：原来等商品查完才查快照）。
+  // 商品不存在时快照白查一次，代价是一条按请求缓存的轻查询；失败时它自己返回空数组，不影响 404 / 降级判断
+  const [{ seo, client }, catalogAll] = await Promise.all([getProduct(Number(params.id)), getLandingProducts()])
   // 商品真的不存在就返回 404。返回 200 的空壳既误导买家，也会被搜索引擎收录成软 404。
   if (seo === 'missing') notFound()
   // 查库失败时不 404：库一会儿就回来了，而 404 一旦被抓到是要花很久才能撤销的
@@ -260,7 +262,7 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
    * 快照查询失败时返回空数组，那一小节不渲染，其余照常。
    */
   // 同系列档位：getLandingProducts 按店面取数，渠道站只列本店可售商品、价格为本店售价（不会把主站兄弟商品价格写进渠道站 HTML，设计 7.4）
-  const catalog = product ? await getLandingProducts() : []
+  const catalog = product ? catalogAll : []
   // 店面在装配商品介绍之前取：介绍里的客服微信号与服务时间按店面取值（二期改动 4.2，主站 = PLATFORM_CONTACT，文案逐字不变）。
   // getStorefront 按请求缓存，这里提前取不多查库；不进 try
   const sf = await getStorefront()

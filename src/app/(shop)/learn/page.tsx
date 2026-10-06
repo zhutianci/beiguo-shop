@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, ArrowUpRight, BookOpen, Camera, LayoutGrid, MessagesSquare } from 'lucide-react'
-import { countIndexable, learnHomeData } from '@/lib/content/queries'
+import { countIndexableCached, learnHomeData } from '@/lib/content/queries'
 import { isHubIndexable } from '@/lib/content/policy'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
@@ -32,8 +32,8 @@ const TITLE = `AI 学习平台：可复制的提示词、实测教程与玩法�
 const DESCRIPTION = 'ChatGPT、Claude、GPT-Image、Nano Banana、Seedance 等工具的实测教程与可复制提示词，每条附效果图、模型和测试日期。'
 
 export async function generateMetadata(): Promise<Metadata> {
-  // 与 /sitemap-content.xml 同一个口径：按「可收录」的提示词 + 教程条数算，不按公开条数
-  const indexable = isHubIndexable('ROOT', 0, await countIndexable({ type: { in: ['PROMPT', 'GUIDE'] } }))
+  // 与 /sitemap-content.xml 同一个口径：按「可收录」的提示词 + 教程条数算，不按公开条数（跨请求缓存 5 分钟，见 countIndexableCached）
+  const indexable = isHubIndexable('ROOT', 0, await countIndexableCached({ type: { in: ['PROMPT', 'GUIDE'] } }))
   return {
     metadataBase: new URL(siteOrigin()),
     title: TITLE,
@@ -108,7 +108,7 @@ export default async function LearnHome() {
               >
                 {shot?.cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={shot.cover} alt="" className="h-full w-full object-cover" loading={i < 2 ? 'eager' : 'lazy'} />
+                  <img src={shot.cover} alt="" className="h-full w-full object-cover" loading={i < 2 ? 'eager' : 'lazy'} decoding="async" />
                 ) : (
                   <div
                     className="h-full w-full"

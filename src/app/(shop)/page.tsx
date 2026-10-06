@@ -75,7 +75,12 @@ export default async function HomePage() {
   // 没有店面的 Host 一律 404（(shop)/layout 已挡过一次），绝不回落成主站首页
   if (!sf) notFound()
   const channel = sf.kind === 'CHANNEL'
-  const all = await getLandingProducts()
+  // 「精选服务」那份列表（下面有注释）与落地页快照互不依赖，一起查（性能优化 2026-10-07：原来是两轮串行）
+  const listedP = (async () => {
+    const previewUserId = sf.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
+    return listStorefrontProducts(sf, { previewUserId })
+  })()
+  const [all, listed] = await Promise.all([getLandingProducts(), listedP])
   // 复用 lowestPrice，不要在这里再实现一遍——两份实现迟早会漂。
   // hasStock 也要带上：唯一档位缺货的服务不能在首页被当成有货推出去。
   // 渠道站不渲染「按服务找」：每张卡片都链到充值落地页，而落地页在渠道站关闭（设计 11.2，W1-9 要求零 404 请求）
@@ -101,8 +106,7 @@ export default async function HomePage() {
    * 【不传 ref】旧的客户端 fetch 也没带 ?ref=，首页从来就不按内推价展示，这里保持原样。
    * 【stock 已是档位代表值】listStorefrontProducts 出口过了 publicStock，不会把精确张数写进 HTML。
    */
-  const previewUserId = sf.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
-  const featured = (await listStorefrontProducts(sf, { previewUserId }))
+  const featured = listed
     .slice()
     .sort((a, b) => Number(inStock(b)) - Number(inStock(a)) || b.sales - a.sales)
     .slice(0, 6)
