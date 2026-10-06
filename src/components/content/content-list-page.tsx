@@ -19,7 +19,7 @@ import { isHubIndexable, readableLength } from '@/lib/content/policy'
 import { PUBLIC_WHERE, countIndexable, listContent, listHot } from '@/lib/content/queries'
 import { FACET_LABELS, FACET_PATH, FACETS, ensureContentDefaults, type Facet } from '@/lib/content/tags'
 import { SITE_NAME } from '@/lib/product-seo'
-import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
+import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, type Crumb } from '@/lib/seo/graph'
 import { absUrl } from '@/lib/news/seo'
@@ -173,8 +173,10 @@ function titleOf(r: Resolved, total: number, latest: Date | null): string {
     return r.section === 'PROMPT'
       ? `AI 提示词大全：绘画、视频、ChatGPT 提示词（可复制）- ${SITE_NAME}`
       : r.section === 'APP'
-        ? `AI 应用推荐 ${new Date().getFullYear()}：真实用户的 AI 工具与工作流分享 - ${SITE_NAME}`
-        : `ChatGPT / Claude 使用教程与技巧 - ${SITE_NAME}`
+        ? // 不写年份（设计 §0.3 #21：标题里的年份只能由真实核对日期渲染，new Date() 是假的新鲜度）
+          `AI 应用推荐：真实用户的 AI 工具与工作流分享 - ${SITE_NAME}`
+        : // kw7：claude 教程 8、claude code 教程 9、chatgpt 教程 1、ai教程 3（docs/SEO-重构/kw7）
+          `AI 使用教程：Claude、Claude Code、ChatGPT 教程与技巧 - ${SITE_NAME}`
   if (r.kind === 'SHOWCASE') return `AI 产品作者自荐 - ${SITE_NAME}`
   if (r.kind === 'FACET' && r.facet) return `${FACET_HEAD[r.facet].title} - ${SITE_NAME}`
   const name = r.tag!.name
@@ -203,7 +205,9 @@ export async function contentListMetadata(section: Section, kind: HubKind, slug:
     // 带 sort 的排序视图是同一批内容换个顺序：canonical 指回不带参数的地址，且不收录
     alternates: { canonical: sort === 'curated' ? url : r.basePath },
     ...(indexable && sort === 'curated' ? {} : { robots: NOINDEX }),
-    openGraph: { ...OG_SITE, type: 'website', title: r.h1, description: r.lede, url, images: OG_IMAGES },
+    // og:title 与 <title> 同一句；补 twitter（不写就继承根 layout 的默认文案）
+    openGraph: { ...OG_SITE, type: 'website', title, description: r.lede, url, images: OG_IMAGES },
+    twitter: { card: 'summary_large_image', title, description: r.lede, images: TWITTER_IMAGES },
   }
 }
 
