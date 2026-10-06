@@ -285,9 +285,17 @@ export function qualityGateReason(p: IndexableInput): string | null {
   return null
 }
 
+/**
+ * 老论坛讨论帖（DISCUSSION，/forum/{id}）整组不收录：seo/restructure 批 1 把 /forum 及子路由设为 noindex,follow，
+ * 详情页继承这一设置；这里同步排除，免得内容 sitemap 与 IndexNow 把 noindex 的地址交给搜索引擎（10-07 上线前发现）。
+ * 以后 /forum 加了限流、决定重新开放收录时，把它改成 true 并去掉 forum/layout 的 robots。
+ */
+export const DISCUSSION_INDEXABLE = false
+
 export function isIndexable(p: IndexableInput, open: boolean = INDEXING_OPEN): boolean {
   if (!open) return false
   if (!isPublic(p)) return false
+  if ((p.type || 'DISCUSSION') === 'DISCUSSION' && !DISCUSSION_INDEXABLE) return false
   return qualityGateReason(p) === null
 }
 
