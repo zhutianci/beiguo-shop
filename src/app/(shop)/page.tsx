@@ -88,15 +88,24 @@ export default async function HomePage() {
    *
    * 【为什么在这里取而不是让客户端 fetch】原来 home-client 自己 useEffect 拉 /api/products?page=1&pageSize=6，
    * 服务端 HTML 里一个商品名、一个价格都没有（robots.txt 还 disallow 了 /api/，爬虫连那个接口都不会去抓）。
-   * 这里用的 listStorefrontProducts 正是那个接口内部调的**同一个函数**（主站分支的排序
-   * sortOrder asc → createdAt desc → id desc 也一字不差），所以首页展示的是哪六个商品一个没变，
+   * listStorefrontProducts 正是那个接口内部调的**同一个函数**，拿到的是本店可售商品与本店售价，
    * 只是从「JS 跑完才有」变成「HTML 里就有」。
+   *
+   * 【排序：销量优先，有货的排前面】（站长 2026-10-06 要求「按销量前几的展示」）
+   * 原来跟着后台 sortOrder 走，首页第一位是一个只卖出过 1 单的代理开店服务，
+   * 而卖了 242 单的 Claude Pro 排在它后面——首页这六行是转化率最高的位置，该让真正好卖的占着。
+   * 「有货」放在销量之前比较：卖得最好的那档一旦断货，顶在首页第一行写着「补货中」是负转化。
+   * 它不会消失，只是掉到有货的后面。销量是 Product.sales（全站累计，与落地页价格表同源，不是编的）。
    *
    * 【不传 ref】旧的客户端 fetch 也没带 ?ref=，首页从来就不按内推价展示，这里保持原样。
    * 【stock 已是档位代表值】listStorefrontProducts 出口过了 publicStock，不会把精确张数写进 HTML。
    */
   const previewUserId = sf.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
-  const featured = (await listStorefrontProducts(sf, { previewUserId })).slice(0, 6).map((p) => ({
+  const featured = (await listStorefrontProducts(sf, { previewUserId }))
+    .slice()
+    .sort((a, b) => Number(inStock(b)) - Number(inStock(a)) || b.sales - a.sales)
+    .slice(0, 6)
+    .map((p) => ({
     id: p.id,
     name: p.name,
     description: p.description,

@@ -22,9 +22,9 @@ import { PRODUCT_GRADIENT, deliveryBadge } from '@/components/products/gradient'
  * 【为什么改成由服务端传进来】原来这一段是组件自己 useEffect + fetch('/api/products?page=1&pageSize=6')
  * 拉的，于是服务端 HTML 里**一个商品名、一个价格都没有**；而 robots.txt 里 disallow 了 /api/，
  * 爬虫连那个接口都不会去抓——「反正 Google 会执行 JS」这条退路在这里不成立。
- * 现在由 page.tsx 用 listStorefrontProducts（与那个接口**同一个函数、同一个排序**，
- * 所以展示哪六个商品一个没变）取好传进来：客户端组件同样会被服务端渲染，
+ * 现在由 page.tsx 取好传进来：客户端组件同样会被服务端渲染，
  * 这六行的名字、价格、分类从此实实在在出现在首页 HTML 里。顺带省掉了首屏那次「加载中...」。
+ * 取哪六个、怎么排（有货优先、再按累计成交）在 page.tsx 那边，这里只负责画。
  *
  * 【stock 是档位代表值不是真实张数】listStorefrontProducts 出口已经过 publicStock，
  * 这里只拿它映射成文案（lib/stock-level.ts），不要拿去做任何校验。
@@ -382,7 +382,7 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
               <h2 id="home-featured-heading" className="text-headline">
                 <span className="gradient-text">精选服务</span>
               </h2>
-              <p className="mt-3 text-base text-white/45 lg:text-lg">价格、库存与累计成交均为后台实时数据</p>
+              <p className="mt-3 text-base text-white/45 lg:text-lg">按累计成交排序，价格与库存为后台实时数据</p>
             </div>
 
             <Link

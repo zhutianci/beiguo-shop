@@ -90,6 +90,15 @@ const PRIORITY_PATHS: string[] = [
   '/about',
 ]
 
+/*
+ * 【2026-10-06 的一次实测，下一个人不要重复排查】同一个 site、同一个 token、同一批 URL：
+ *   curl  → {"remain":9,"success":1} / {"remain":0,"success":9}（两次都成）
+ *   本脚本 → {"error":400,"message":"site init fail"}（两次都败）
+ * 这个 400 跟 token 没关系、跟站点验证也没关系（站点当天就是用 curl 推成功的）。
+ * 唯一的差别在请求头，所以 push() 里把 UA 与 Accept 对齐成了 curl 的形状——
+ * 这是**假设性修复，还没在配额充足时复验**（当天 10 条配额已被 curl 用完）。
+ * 如果再遇到 400 site init fail：别查 token，直接用文件末尾那条 curl 命令，它是已验证通路。
+ */
 async function push(site: string, token: string, urls: string[]): Promise<PushResult> {
   const url = `${API_BASE}?site=${encodeURIComponent(site)}&token=${encodeURIComponent(token)}`
   for (let attempt = 1; attempt <= MAX_RETRY; attempt++) {
@@ -98,7 +107,12 @@ async function push(site: string, token: string, urls: string[]): Promise<PushRe
     try {
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
+        headers: {
+          'Content-Type': 'text/plain',
+          // 见下方 push() 的说明：undici 默认 UA 疑似被百度拦，这里对齐成 curl 的形状
+          'User-Agent': 'curl/8.0.1',
+          Accept: '*/*',
+        },
         body: urls.join('\n'),
         signal: ac.signal,
       })
@@ -215,3 +229,14 @@ main().catch((e) => {
   console.error(e)
   process.exit(1)
 })
+
+/*
+ * 【已验证可用的备用通路】脚本推不动时用这条（2026-10-06 实测成功两次）：
+ *
+ *   printf 'https://bigolab.com/a
+https://bigolab.com/b
+' > /tmp/urls.txt
+ *   curl -s -H 'Content-Type:text/plain' --data-binary @/tmp/urls.txt  *     "http://data.zz.baidu.com/urls?site=https://bigolab.com&token=<TOKEN>"
+ *
+ * 返回 {"remain":N,"success":M}：remain 是今日剩余配额（当前 10 条/天，当日有效、不累计）。
+ */
