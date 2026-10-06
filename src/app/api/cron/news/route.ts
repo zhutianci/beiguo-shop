@@ -6,7 +6,9 @@ import { assertCronAuth } from '@/lib/cron-auth'
 import { budgetExhausted, dailyBudgetMilli, llmInfo } from '@/lib/llm'
 import { indexNowConfigured, submitUrls } from '@/lib/indexnow'
 import { newsUrl } from '@/lib/news/seo'
-import { siteOrigin } from '@/lib/news/format'
+import { parseDetail, siteOrigin } from '@/lib/news/format'
+import { shouldNoindexEvent } from '@/lib/news/thin'
+import { prisma } from '@/lib/db'
 import {
   collect,
   triage,
@@ -144,7 +146,18 @@ export async function GET(request: NextRequest) {
     )
     let indexNow = 0
     if (published.length && indexNowConfigured()) {
-      indexNow = await submitUrls(published.map(newsUrl), siteOrigin())
+      /*
+       * 【只推可收录的】（SEO 批 2，设计 §6.4 第 1 条）薄页（没有全文层）是 noindex，推给 Bing 只会让它抓一个「别收录我」的页面。
+       * 用与详情页、sitemap 同一个判定 shouldNoindexEvent，不另写规则。查询失败就按原来的做法全推（推送本来就是锦上添花）。
+       */
+      let indexable = published
+      try {
+        const rows = await prisma.newsEvent.findMany({ where: { slug: { in: published }, status: 'PUBLISHED' }, select: { slug: true, detail: true } })
+        indexable = rows.filter((r) => !shouldNoindexEvent(parseDetail(r.detail))).map((r) => r.slug)
+      } catch (e) {
+        console.warn('[cron/news] IndexNow 过滤薄页失败，按原样推送', e instanceof Error ? e.message : String(e))
+      }
+      if (indexable.length) indexNow = await submitUrls(indexable.map(newsUrl), siteOrigin())
     }
 
     return success({

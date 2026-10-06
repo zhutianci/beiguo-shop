@@ -9,6 +9,7 @@ import { syncAutoStock } from '@/lib/cardkey'
 import { FEATURES_FORMAT_ERROR, isFeaturesJson } from '@/lib/product-intro'
 import { adminGuard } from '@/lib/admin-guard'
 import { isBotCodeConflict } from '@/lib/product-status'
+import { onProductSaved } from '@/lib/seo/commerce-push'
 
 const productSchema = z.object({
   categoryId: z.number(),
@@ -123,6 +124,8 @@ export async function POST(request: NextRequest) {
     const data = { ...rest, apiSku: apiSku ? apiSku : null, botCode: code }
 
     const product = await prisma.product.create({ data })
+    // SEO（批 2 的 G 包）：新建并上架的商品记 product_edited_<id> 并推 IndexNow；不 await，失败只记日志
+    void onProductSaved(product.id, { wasListed: false })
     if (product.deliveryType === 'AUTO') await syncAutoStock(product.id)
 
     return success(product, '商品创建成功')
