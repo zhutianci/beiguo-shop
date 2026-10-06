@@ -131,9 +131,17 @@ const guides = read('guides').map(({ file, fm, body }) => {
   const tier = fm.accountTier ? String(fm.accountTier) : null
   if (tier && !(ACCOUNT_TIERS as readonly string[]).includes(tier)) errors.push(`${file}: accountTier 不合法`)
   if (String(fm.excerpt ?? '').length > 160) errors.push(`${file}: 摘要超过 160 字`)
+  // 正文插图写成 ![说明](seed:文件名)，文件放 prisma/seed-assets/，导入时换成上传后的地址
+  const images = Array.from(body.matchAll(/!\[[^\]]*\]\(seed:([^)\s]+)\)/g), (m) => m[1])
+  for (const im of images) if (!fs.existsSync(path.join(ASSETS, im))) errors.push(`${file}: 插图不存在 prisma/seed-assets/${im}`)
+  if (/【截图[:：]/.test(body)) warnings.push(`${file}: 还有【截图】占位`)
+  const checkedOn = fm.checkedOn ? String(fm.checkedOn instanceof Date ? fm.checkedOn.toISOString().slice(0, 10) : fm.checkedOn) : null
+  if (checkedOn && !/^\d{4}-\d{2}-\d{2}$/.test(checkedOn)) errors.push(`${file}: checkedOn 要写成 YYYY-MM-DD`)
   return {
     title: String(fm.title),
     slug: String(fm.slug),
+    checkedOn,
+    images,
     tags: [...products, ...models],
     accountTier: tier,
     excerpt: String(fm.excerpt),

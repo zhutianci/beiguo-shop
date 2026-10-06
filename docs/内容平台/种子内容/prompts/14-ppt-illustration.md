@@ -16,6 +16,12 @@ prompt: |
 negativePrompt: null
 source: null
 imageBrief: 以"新员工入职培训"为 [PPT主题]，生成 3 张连续页配图：第 2 页"公司介绍"、第 3 页"报销流程"、第 4 页"安全规范"，用来展示风格一致性；再把 3 张放进一页 PPT 截图展示实际效果。
+images:
+  - 14-ppt-illustration-1.jpg
+imageCredit:
+  by: wuyoscar
+  url: https://github.com/wuyoscar/GPT-Image2-Skill/blob/722460e/README.md
+  license: MIT（wuyoscar/GPT-Image2-Skill）
 verify:
   - 在 gpt-image-2 上实测：同一对话连续生成 3 张，记录风格是否一致
   - 写了"不要出现文字"后，画面里是否仍会冒出乱码文字
@@ -31,3 +37,5 @@ verify:
 - 抽象概念画不出来：先让 ChatGPT 帮你把要点想成一个具体比喻，再填进来。
 
 **适合 / 不适合**：适合培训、汇报、课件；数据图表请用 PPT 自带的图表功能，不要让 AI 画。
+
+> 示例图来自 [wuyoscar/GPT-Image2-Skill](https://github.com/wuyoscar/GPT-Image2-Skill/blob/722460e/README.md)（MIT），是作者用 gpt-image-2 生成的扁平插画风格示例（方图），用来参考画风；按本提示词生成时会是 16:9、单侧留白的版式。

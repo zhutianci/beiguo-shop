@@ -17,6 +17,12 @@ prompt: |
 negativePrompt: null
 source: null
 imageBrief: 用站长本人（或已书面同意的同事）的一张正脸生活照作输入；输出至少 3 张：白底、浅蓝底、红底各一张，外加原图做前后对比；画面中不得出现其他人的脸。
+images:
+  - 01-id-photo-change-background-1.jpg
+imageCredit:
+  by: "@songguoxiansen"
+  url: https://x.com/songguoxiansen/status/1963602241610551609
+  license: Apache-2.0（PicoTrex/Awesome-Nano-Banana-images）
 verify:
   - 在 ChatGPT 中用 gpt-image-2 实测 3 次，记录脸部是否走样、领口与发丝边缘是否有抠图痕迹
   - gpt-image-2 当前可选的画幅比例（以 OpenAI 官方帮助文档为准），能否直接输出接近 5:7 的证件照比例
@@ -30,3 +36,5 @@ verify:
 - 尺寸不对：AI 输出的像素尺寸不一定符合证件规格，生成后用修图工具按需要的尺寸裁剪。
 
 **适合 / 不适合**：适合简历、内部工牌、非官方报名表。身份证、护照、签证等正式证件通常要求未经修饰的真实照片，AI 生成的照片可能不被接受，请以办理机构的要求为准。
+
+> 示例图来自 [@songguoxiansen](https://x.com/songguoxiansen/status/1963602241610551609)（收录于 PicoTrex/Awesome-Nano-Banana-images，Apache-2.0），用 Nano Banana 以类似提示词生成的蓝底二寸照，仅作效果参考；gpt-image-2 的出图会有差异。

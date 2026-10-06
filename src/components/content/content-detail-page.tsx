@@ -100,8 +100,10 @@ function titleFor(post: ContentRow): string {
     return `${post.title}：${model ? `${model.name} ` : 'AI '}提示词（可复制）- ${SITE_NAME}`
   }
   if (post.type === 'APP' && post.app) return `${post.app.name} 怎么样：${post.title} - ${SITE_NAME}`
-  const month = post.testedOn ? post.testedOn.toISOString().slice(0, 7) : null
-  return `${post.title}${month ? `（${month} 实测）` : ''} - ${SITE_NAME}`
+  // 亲测写「实测」；站方据官方文档整理的只写「更新」，不冒充实测
+  if (post.testedOn) return `${post.title}（${post.testedOn.toISOString().slice(0, 7)} 实测）- ${SITE_NAME}`
+  if (post.checkedOn) return `${post.title}（${post.checkedOn.toISOString().slice(0, 7)} 更新）- ${SITE_NAME}`
+  return `${post.title} - ${SITE_NAME}`
 }
 
 function descriptionFor(post: ContentRow): string {
@@ -259,11 +261,16 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
     </div>
   )
 
-  const tested = (post.testedOn || post.accountTier || post.verifiedAt) && (
+  const tested = (post.testedOn || post.checkedOn || post.accountTier || post.verifiedAt) && (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-white/50">
       {post.testedOn && (
         <span className="inline-flex items-center gap-1.5">
           <CalendarCheck2 className="h-3.5 w-3.5" /> 作者测试于 {post.testedOn.toISOString().slice(0, 10)}
+        </span>
+      )}
+      {!post.testedOn && post.checkedOn && (
+        <span className="inline-flex items-center gap-1.5">
+          <CalendarCheck2 className="h-3.5 w-3.5" /> 资料核对于 {post.checkedOn.toISOString().slice(0, 10)} · 依据官方文档与公开资料整理
         </span>
       )}
       {post.accountTier && (

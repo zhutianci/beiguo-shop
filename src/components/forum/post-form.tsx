@@ -61,6 +61,8 @@ export interface PostFormInitial {
     useCase: string
   } | null
   testedOn?: string | null
+  /** 站方据官方文档整理的教程：有资料核对日期，不要求测试日期 */
+  checkedOn?: string | null
   accountTier?: string | null
   excerpt?: string | null
   app?: {
@@ -216,7 +218,7 @@ export function PostForm({
     if (type === 'GUIDE') {
       if (selectedOf('PRODUCT').length < 1) return setErr('请选择教程针对的产品')
       if (!content.trim()) return setErr('正文不能为空')
-      if (!testedOn) return setErr('请填写测试日期')
+      if (!testedOn && !initial?.checkedOn) return setErr('请填写测试日期')
       if (!accountTier) return setErr('请选择测试时用的账号类型')
     }
     if (originality !== 'ORIGINAL_FIRST' && !/^https?:\/\//i.test(sourceUrl.trim())) {
@@ -545,7 +547,10 @@ export function PostForm({
       {(type === 'PROMPT' || type === 'GUIDE') && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm text-white/60 mb-2">测试日期{type === 'GUIDE' ? '' : '（选填）'}</label>
+            <label className="block text-sm text-white/60 mb-2">测试日期{type === 'GUIDE' && !initial?.checkedOn ? '' : '（选填）'}</label>
+            {type === 'GUIDE' && initial?.checkedOn && (
+              <p className="text-xs text-white/35 mb-2">这篇是站方据官方文档整理的（资料核对于 {initial.checkedOn}），亲自实测后再填测试日期。</p>
+            )}
             <input type="date" value={testedOn} onChange={(e) => setTestedOn(e.target.value)} className={`${inputCls} [color-scheme:dark]`} />
           </div>
           <div>

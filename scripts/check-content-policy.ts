@@ -93,7 +93,7 @@ console.log('可见性与收录闸门')
 const base = { status: 1, reviewStatus: 'APPROVED', deletedAt: null as Date | null, userId: 7 }
 const long = '这是一段足够长的原创正文。'.repeat(40)
 const idx = { ...base, content: long, originality: 'ORIGINAL_FIRST', aiAssist: 'NONE', commentCount: 0 }
-ok('P0 总开关是关着的', INDEXING_OPEN === false)
+ok('总开关默认关着（不设 CONTENT_INDEXING_OPEN）', process.env.CONTENT_INDEXING_OPEN === '1' || INDEXING_OPEN === false)
 ok('总开关关着：再好的帖子也不收录', !isIndexable(idx))
 ok('开关打开：合格帖子收录', isIndexable(idx, true))
 ok('开关打开：转载不收录', !isIndexable({ ...idx, originality: 'REPOST' }, true))
@@ -252,6 +252,7 @@ ok('提示词太短不收录', qualityGateReason({ ...promptPost, promptText: '�
 const guidePost = { ...idx, type: 'GUIDE', content: '步骤说明。'.repeat(150), testedOn: now }
 ok('合格的教程可收录', isIndexable(guidePost, true))
 ok('教程没有测试日期不收录', qualityGateReason({ ...guidePost, testedOn: null }) === '没有测试日期')
+ok('站方据官方文档整理的教程（只有资料核对日期）可收录', qualityGateReason({ ...guidePost, testedOn: null, checkedOn: now }) === null)
 ok('教程太短不收录', qualityGateReason({ ...guidePost, content: '太短' }) !== null)
 ok('总开关关着时 hub 不收录', !isHubIndexable('MODEL', 500, 10))
 ok('模型 hub：介绍够长 + 3 条 → 收录', isHubIndexable('MODEL', 250, 3, true))

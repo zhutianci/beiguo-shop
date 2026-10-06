@@ -1331,6 +1331,7 @@ model ForumPost {
   featuredAt  DateTime? @map("featured_at") // 进精选的时间（精选列表按它倒序）
   verifiedAt  DateTime? @map("verified_at") // 编辑复现成功：「实测可用」徽章
   testedOn    DateTime? @map("tested_on") @db.Date // 作者声明的测试日期（模型在变，日期就是可信度）
+  checkedOn   DateTime? @map("checked_on") @db.Date // 站方据官方文档与公开资料整理、核对的日期（不是亲测；页面写「资料核对于」）。有它的教程不要求测试日期
   accountTier String?   @map("account_tier") @db.VarChar(16) // FREE | PLUS | PRO | TEAM | OTHER
   copyCount   Int       @default(0) @map("copy_count") // 提示词被复制次数（按访客每天去重，见 content_events）
 

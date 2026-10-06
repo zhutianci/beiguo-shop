@@ -69,6 +69,7 @@ export function toIndexableInput(p: {
   type: string
   images: string | null
   testedOn: Date | null
+  checkedOn?: Date | null
   prompt?: { prompt: string } | null
   app?: { selfPromo: boolean } | null
   featured?: boolean
@@ -244,7 +245,7 @@ export async function countIndexable(where: Prisma.ForumPostWhereInput): Promise
     take: 1000,
     select: {
       status: true, reviewStatus: true, deletedAt: true, userId: true, content: true, originality: true, aiAssist: true,
-      commentCount: true, type: true, images: true, testedOn: true,
+      commentCount: true, type: true, images: true, testedOn: true, checkedOn: true,
       featured: true,
       prompt: { select: { prompt: true } },
       app: { select: { selfPromo: true } },

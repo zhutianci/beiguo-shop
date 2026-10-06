@@ -33,6 +33,7 @@ export default function EditPostPage() {
           tagIds: d.data.tagIds,
           prompt: d.data.prompt,
           testedOn: d.data.testedOn,
+          checkedOn: d.data.checkedOn,
           accountTier: d.data.accountTier,
           excerpt: d.data.excerpt,
           app: d.data.app,

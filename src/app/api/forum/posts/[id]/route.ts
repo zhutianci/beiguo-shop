@@ -114,6 +114,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         : null,
       tagIds: post.postTags.map((pt) => pt.tagId),
       testedOn: post.testedOn ? post.testedOn.toISOString().slice(0, 10) : null,
+      checkedOn: post.checkedOn ? post.checkedOn.toISOString().slice(0, 10) : null,
       accountTier: post.accountTier,
       excerpt: post.excerpt,
       favoriteCount: post.favoriteCount,

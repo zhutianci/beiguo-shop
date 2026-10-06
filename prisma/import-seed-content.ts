@@ -1,10 +1,11 @@
 /**
  * 导入种子内容（内容平台改版 2026-10-06）。读 prisma/seed-content.json（由 scripts/build-seed-bundle.ts 生成）。
  *
- *   DATABASE_URL=... npx tsx prisma/import-seed-content.ts --author admin@example.com [--publish] [--uploads-dir public/uploads] [--force-intro] [--dry-run]
+ *   DATABASE_URL=... npx tsx prisma/import-seed-content.ts --author admin@example.com [--publish] [--uploads-dir public/uploads] [--force-intro] [--refresh-guides] [--dry-run]
  *
  * --publish（第二批起，站长 10-06 要求提示词库上线就要「非常多」）：可以直接公开的提示词建成「已通过」——
- *   图像类要有示例图；视频类、文本类直接可以。教程仍然一律待审（要实测截图）。
+ *   图像类要有示例图；视频类、文本类直接可以。教程：站方据官方文档整理完（有 checkedOn、没有截图占位）的直接公开，其余待审。
+ * --refresh-guides（10-07）：已导入的种子教程按新版重写正文、插图与核对日期（只动 --author 自己发的）。
  * --uploads-dir：上传根目录（本地 public/uploads；生产临时容器里挂载 forum_uploads 卷后传对应路径）。
  *   示例图复制到 <uploads-dir>/forum/，文件名按内容哈希生成（重复导入不会重复复制），并登记 media_assets（含宽高）。
  *
@@ -62,6 +63,10 @@ interface Bundle {
     accountTier: string | null
     excerpt: string
     content: string
+    /** 站方据官方文档整理、核对资料的日期（不是亲测）；没有则仍按「待实测」处理 */
+    checkedOn?: string | null
+    /** 正文里 ![说明](seed:文件名) 引用的插图 */
+    images?: string[]
     screenshots: string[]
     verify: string[]
   }[]
@@ -238,41 +243,70 @@ async function main() {
   }
 
   for (const g of bundle.guides) {
-    if (await prisma.forumPost.findFirst({ where: { type: 'GUIDE', slug: g.slug }, select: { id: true } })) {
+    const existing = await prisma.forumPost.findFirst({ where: { type: 'GUIDE', slug: g.slug }, select: { id: true, userId: true, reviewStatus: true } })
+    // --refresh-guides：种子教程改版后（换成官方资料与截图）刷新已导入的那几篇——只动导入账号自己发的、还没被改成别的作者的
+    if (existing && !(flag('--refresh-guides') && existing.userId === author.id)) {
       skipped++
       continue
     }
+    // 正文插图：seed:文件名 → 复制进上传目录后的地址；找不到的整行去掉（不留坏图）
+    let content = g.content
+    for (const im of g.images ?? []) {
+      const u = await placeImage(im, uploadsDir, author.id, dry)
+      content = u
+        ? content.split(`(seed:${im})`).join(`(${u})`)
+        : content
+            .split('\n')
+            .filter((line) => !line.includes(`(seed:${im})`))
+            .join('\n')
+    }
+    const checkedOn = g.checkedOn ? new Date(`${g.checkedOn}T00:00:00Z`) : null
+    // 站方据官方文档整理完、没有截图占位的，可以随 --publish 直接公开；否则待审
+    const live = publish && !!checkedOn && !/【截图[:：]/.test(content)
     if (dry) {
       created++
+      if (live) published++
       continue
     }
-    await prisma.forumPost.create({
-      data: {
-        type: 'GUIDE',
-        slug: g.slug,
-        categoryId: guideBoard!,
-        userId: author.id,
-        authorName,
-        title: g.title,
-        content: g.content,
-        excerpt: g.excerpt.slice(0, 300),
-        accountTier: g.accountTier,
-        // 测试日期留空：站长实测后在编辑页填上（教程没有测试日期不会被收录）
-        testedOn: null,
-        tags: '',
-        lastReplyAt: new Date(),
-        reviewStatus: 'PENDING',
-        reviewNote: todo([
-          g.screenshots.length ? `截图：${g.screenshots.join(' / ')}` : null,
-          g.verify.length ? `核对：${g.verify.join(' / ')}` : null,
-          '实测后填测试日期',
-        ]),
-        originality: 'ORIGINAL_FIRST',
-        aiAssist: 'PARTIAL',
-        postTags: { create: g.tags.map((s) => tagId.get(s)).filter((x): x is number => !!x).map((id) => ({ tagId: id })) },
-      },
-    })
+    const data = {
+      title: g.title,
+      content,
+      excerpt: g.excerpt.slice(0, 300),
+      accountTier: g.accountTier,
+      checkedOn,
+      reviewStatus: live ? 'APPROVED' : 'PENDING',
+      reviewedAt: live ? new Date() : null,
+      reviewNote: live
+        ? null
+        : todo([
+            g.screenshots.length ? `截图：${g.screenshots.join(' / ')}` : null,
+            g.verify.length ? `核对：${g.verify.join(' / ')}` : null,
+            checkedOn ? null : '实测后填测试日期',
+          ]),
+    }
+    if (existing) {
+      await prisma.forumPost.update({ where: { id: existing.id }, data: { ...data, contentUpdatedAt: new Date() } })
+    } else {
+      await prisma.forumPost.create({
+        data: {
+          ...data,
+          type: 'GUIDE',
+          slug: g.slug,
+          categoryId: guideBoard!,
+          userId: author.id,
+          authorName,
+          // 测试日期留空：站长亲自实测后在编辑页填上；只有 checkedOn 的页面写「资料核对于」，不写「实测」
+          testedOn: null,
+          tags: '',
+          lastReplyAt: new Date(),
+          originality: 'ORIGINAL_FIRST',
+          aiAssist: 'PARTIAL',
+          postTags: { create: g.tags.map((s) => tagId.get(s)).filter((x): x is number => !!x).map((id) => ({ tagId: id })) },
+        },
+      })
+    }
     created++
+    if (live) published++
   }
 
   console.log(

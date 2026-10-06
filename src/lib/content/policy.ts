@@ -191,11 +191,12 @@ export function canView(p: VisibilityInput, viewer: { userId: number | null; isA
 // ─────────────────────────────── 收录闸门（§11.1） ───────────────────────────────
 
 /**
- * 总开关。**P0 恒为 false**：老论坛按 seo/restructure 的决定整体 noindex，
+ * 总开关。默认关：老论坛按 seo/restructure 的决定整体 noindex，
  * 内容平台的收录从 P1（提示词库 + 教程上线、站方种子内容就位）开始逐条放开（设计 §11.1「慢放量」）。
- * 改成 true 是一次需要站长确认的上线动作，不要顺手改。
+ * 10-07 起改为运行时读环境变量 CONTENT_INDEXING_OPEN（=1 才打开），开关不用重新构建、只重启 app。
+ * 打开是一次需要站长确认的上线动作，不要顺手设。只在服务端用（robots / sitemap / IndexNow / 详情页 meta）。
  */
-export const INDEXING_OPEN = false
+export const INDEXING_OPEN = process.env.CONTENT_INDEXING_OPEN === '1'
 
 export interface IndexableInput extends VisibilityInput {
   content: string
@@ -214,6 +215,8 @@ export interface IndexableInput extends VisibilityInput {
   facet?: string | null
   /** GUIDE 专用：作者声明的测试日期 */
   testedOn?: Date | null
+  /** GUIDE 专用：站方据官方文档整理、核对资料的日期（不是亲测） */
+  checkedOn?: Date | null
   /** APP 专用：是否作者自荐 */
   selfPromo?: boolean
   featured?: boolean
@@ -272,7 +275,7 @@ export function qualityGateReason(p: IndexableInput): string | null {
     return null
   }
   if (type === 'GUIDE') {
-    if (!p.testedOn) return '没有测试日期'
+    if (!p.testedOn && !p.checkedOn) return '没有测试日期'
     if (readableLength(p.content) < MIN_GUIDE_CHARS) return `正文少于 ${MIN_GUIDE_CHARS} 字`
     return null
   }

@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-06T14:06:41.337Z",
+  "builtAt": "2026-10-06T15:19:22.431Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -773,8 +773,14 @@
   "prompts": [
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "01-id-photo-change-background-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@songguoxiansen",
+        "url": "https://x.com/songguoxiansen/status/1963602241610551609",
+        "license": "Apache-2.0（PicoTrex/Awesome-Nano-Banana-images）"
+      },
       "title": "AI证件照提示词：gpt-image-2 生活照转一寸/二寸证件照（换底色）",
       "slug": "id-photo-change-background",
       "tags": [
@@ -788,7 +794,7 @@
       "aspectRatio": "3:4",
       "needsRefImage": true,
       "useCase": "用一张正脸生活照做简历、报名表、工牌用的证件照，可换白 / 蓝 / 红底和正装。",
-      "content": "**怎么填变量**：[一寸] 可换成\"二寸\"\"小二寸\"；[白色] 建议写具体颜色，例如\"浅蓝色\"，比\"蓝底\"更稳定；[深色西装配白衬衫] 可改成\"白色衬衫\"\"校服\"等。\n\n**常见失败与调整**：\n- 脸被美化或\"换了个人\"：在第 1 条后追加\"与原图逐一对比五官，不得改变\"，再重新生成；原图越清晰、越正脸，成功率越高。\n- 头顶或耳朵被裁掉：强调\"头顶到画面上沿留出约一成空白\"。\n- 尺寸不对：AI 输出的像素尺寸不一定符合证件规格，生成后用修图工具按需要的尺寸裁剪。\n\n**适合 / 不适合**：适合简历、内部工牌、非官方报名表。身份证、护照、签证等正式证件通常要求未经修饰的真实照片，AI 生成的照片可能不被接受，请以办理机构的要求为准。",
+      "content": "**怎么填变量**：[一寸] 可换成\"二寸\"\"小二寸\"；[白色] 建议写具体颜色，例如\"浅蓝色\"，比\"蓝底\"更稳定；[深色西装配白衬衫] 可改成\"白色衬衫\"\"校服\"等。\n\n**常见失败与调整**：\n- 脸被美化或\"换了个人\"：在第 1 条后追加\"与原图逐一对比五官，不得改变\"，再重新生成；原图越清晰、越正脸，成功率越高。\n- 头顶或耳朵被裁掉：强调\"头顶到画面上沿留出约一成空白\"。\n- 尺寸不对：AI 输出的像素尺寸不一定符合证件规格，生成后用修图工具按需要的尺寸裁剪。\n\n**适合 / 不适合**：适合简历、内部工牌、非官方报名表。身份证、护照、签证等正式证件通常要求未经修饰的真实照片，AI 生成的照片可能不被接受，请以办理机构的要求为准。\n\n> 示例图来自 [@songguoxiansen](https://x.com/songguoxiansen/status/1963602241610551609)（收录于 PicoTrex/Awesome-Nano-Banana-images，Apache-2.0），用 Nano Banana 以类似提示词生成的蓝底二寸照，仅作效果参考；gpt-image-2 的出图会有差异。",
       "source": null,
       "imageBrief": "用站长本人（或已书面同意的同事）的一张正脸生活照作输入；输出至少 3 张：白底、浅蓝底、红底各一张，外加原图做前后对比；画面中不得出现其他人的脸。",
       "verify": [
@@ -2749,8 +2755,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "14-ppt-illustration-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "wuyoscar",
+        "url": "https://github.com/wuyoscar/GPT-Image2-Skill/blob/722460e/README.md",
+        "license": "MIT（wuyoscar/GPT-Image2-Skill）"
+      },
       "title": "AI做PPT提示词：gpt-image-2 生成风格统一的 PPT 配图",
       "slug": "ppt-illustration",
       "tags": [
@@ -2763,7 +2775,7 @@
       "aspectRatio": "16:9",
       "needsRefImage": false,
       "useCase": "给每一页 PPT 生成一张留白充足、风格统一的扁平插画配图，标题和正文自己在 PPT 里加。",
-      "content": "**怎么填变量**：[本页要点] 用一句话说清这一页讲什么，例如\"报销需要先审批再付款\"；[右侧] 可改\"左侧\"\"下方\"，取决于你的 PPT 版式；主色最好和公司或学校的模板一致。\n\n**为什么不让 AI 写字**：图里的中文小字仍可能出错，标题和要点在 PPT 里自己打更稳，也方便后期修改。\n\n**常见失败与调整**：\n- 几张图风格不一：在同一个对话里连续生成；第一张满意后说\"下一张按上一张的风格\"。\n- 画面太满：把\"最多 3 个主要元素\"改为\"只画 1 个主体\"。\n- 抽象概念画不出来：先让 ChatGPT 帮你把要点想成一个具体比喻，再填进来。\n\n**适合 / 不适合**：适合培训、汇报、课件；数据图表请用 PPT 自带的图表功能，不要让 AI 画。",
+      "content": "**怎么填变量**：[本页要点] 用一句话说清这一页讲什么，例如\"报销需要先审批再付款\"；[右侧] 可改\"左侧\"\"下方\"，取决于你的 PPT 版式；主色最好和公司或学校的模板一致。\n\n**为什么不让 AI 写字**：图里的中文小字仍可能出错，标题和要点在 PPT 里自己打更稳，也方便后期修改。\n\n**常见失败与调整**：\n- 几张图风格不一：在同一个对话里连续生成；第一张满意后说\"下一张按上一张的风格\"。\n- 画面太满：把\"最多 3 个主要元素\"改为\"只画 1 个主体\"。\n- 抽象概念画不出来：先让 ChatGPT 帮你把要点想成一个具体比喻，再填进来。\n\n**适合 / 不适合**：适合培训、汇报、课件；数据图表请用 PPT 自带的图表功能，不要让 AI 画。\n\n> 示例图来自 [wuyoscar/GPT-Image2-Skill](https://github.com/wuyoscar/GPT-Image2-Skill/blob/722460e/README.md)（MIT），是作者用 gpt-image-2 生成的扁平插画风格示例（方图），用来参考画风；按本提示词生成时会是 16:9、单侧留白的版式。",
       "source": null,
       "imageBrief": "以\"新员工入职培训\"为 [PPT主题]，生成 3 张连续页配图：第 2 页\"公司介绍\"、第 3 页\"报销流程\"、第 4 页\"安全规范\"，用来展示风格一致性；再把 3 张放进一页 PPT 截图展示实际效果。",
       "verify": [
@@ -9135,358 +9147,352 @@
     {
       "title": "ChatGPT 记忆已满怎么办：导出、清理、迁移与关闭记忆",
       "slug": "chatgpt-memory-full",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g01-memory-settings.png",
+        "g01-memory-summary.webp",
+        "g01-export-data.png",
+        "g01-saved-memories.png",
+        "g01-temporary-chat.png",
+        "g01-memory-sources.webp"
+      ],
       "tags": [
         "chatgpt"
       ],
       "accountTier": "PLUS",
-      "excerpt": "看到「记忆已满」提示、或想把 ChatGPT 记住的内容备份 / 搬到别的 AI？本文讲清记忆的两种来源、怎么先导出再清理、怎么迁移，以及如何彻底关闭记忆。",
-      "content": "## 适用于谁\n\n- 对话里突然看到「记忆已满」（Memory full）之类的提示，新内容记不进去了；\n- 想在清空记忆之前先留一份备份；\n- 打算换号、换到 Claude / Gemini，想把 ChatGPT「了解你的那部分」带过去；\n- 不想让 ChatGPT 记住任何东西，想彻底关掉。\n\n本文按 Plus 账号的界面来写，Free 账号的入口基本相同，但可用的记忆功能可能更少（待实测）。\n\n## 结论先说\n\n1. ChatGPT 的「记忆」其实有两层：**已保存的记忆**（一条条能看到、能删的事实）和**参考聊天记录**（从过往对话里自动提炼、不逐条展示的上下文）。「记忆已满」说的是前者。\n2. OpenAI 在 2026 年上线了记忆**自动整理**：会把更常用、更新的内容放在前面，把不常用的移到「后台」，目的就是减少「记忆已满」。所以现在遇到满了的情况比以前少，但仍建议定期清理。\n3. 正确顺序是：**先导出 → 再清理 → 需要的话迁移 → 不想用就关闭**。删除是不可恢复的，别跳过第一步。\n\n## 步骤\n\n### 第一步：看看现在记住了什么\n\n打开 ChatGPT，点左下角头像 → **设置** → **个性化**，找到「记忆」区域。这里一般有「参考已保存的记忆」「参考聊天记录」两个开关，以及一个「管理」按钮。\n\n【截图：设置 → 个性化 → 记忆 区域】\n\n点「管理」会弹出一个列表，每条是 ChatGPT 记下的一句话，比如你的职业、写作偏好、常用语言等。\n\n【截图：「管理记忆」弹窗】\n\n### 第二步：先导出备份\n\n官方目前**没有**「一键导出记忆」的按钮，可以用两种方式组合备份：\n\n- **让 ChatGPT 自己列出来**：新开一个对话，发「请把你记住的关于我的所有信息逐条列出来，保持原意，不要概括」。把回复复制到本地文档。这份是「已保存的记忆」最直观的备份。\n- **导出账号数据**：设置 → **数据控制** → **导出数据**。系统会把一个 ZIP 下载链接发到你的邮箱，里面是聊天记录等账号数据。注意它导出的是**对话原文**，不是整理好的记忆，但以后想重建记忆时可以当素材。\n\n【截图：设置 → 数据控制 → 导出数据】\n\n### 第三步：清理\n\n在「管理记忆」列表里：\n\n- 过时的（比如旧工作、旧项目）、重复的、说错的，点单条右侧的删除图标；\n- 想从头来过，用列表底部的「清除」把全部已保存记忆删掉。\n\n也可以直接在对话里说「忘掉我之前说过的 XX」，ChatGPT 会删除对应记忆。删完回到列表确认一下是否真的没了。\n\n一个实用建议：把真正长期有效的偏好（语气、格式、身份背景）写进**自定义指令**（设置 → 个性化里的「自定义 ChatGPT / 自定义指令」），不占记忆位置；把某个课题、某个客户的资料放进**项目**，不要全部堆进全局记忆。\n\n### 第四步：迁移到别的地方\n\n- **换 ChatGPT 账号**：把第二步得到的清单，挑出想保留的内容，在新号里说「请记住：……」，或者直接粘进自定义指令。\n- **搬到其他 AI**：Claude、Gemini 等产品都提供了导入或粘贴「关于我」信息的入口。把清单整理成一段「我是谁、我的偏好、我在做什么」的说明粘进去即可。各家入口位置不同，以对方官方帮助为准。\n- **只想在某个课题里用**：新建项目时可以选择「仅项目记忆」，这样项目内的对话互相参考，但不会和全局记忆混在一起。\n\n### 第五步：关闭记忆\n\n- **完全关闭**：设置 → 个性化，把「参考已保存的记忆」和「参考聊天记录」都关掉。关闭后 ChatGPT 不再使用、也不再新增记忆；但**已保存的内容不会自动删除**，想删干净还要回到第三步清除。\n- **只是这一次不想被记**：用**临时聊天**。临时聊天不会使用记忆，也不会产生新记忆，不会出现在历史记录里。\n\n【截图：「临时聊天」入口】\n\n## 常见问题\n\n**Q：提示满了，但我没手动让它记过东西？**\nA：ChatGPT 会在觉得有用时自动保存一些信息。可以在对话里明确说「这段不要记」，或者在「管理」里定期删。\n\n**Q：删掉记忆后，它为什么还「知道」我？**\nA：大概率来自「参考聊天记录」。那部分不是逐条显示的，要关掉对应开关，或删除相关的历史对话。\n\n**Q：记忆最多能存多少条？**\nA：官方没有公布具体上限（待实测）。现在有自动整理机制，满的概率比以前低。\n\n**Q：Free 号有记忆吗？**\nA：有基础的记忆功能，但部分能力按套餐和地区分批开放（待实测）。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Memory in ChatGPT — https://help.openai.com/en/articles/8590148-memory-in-chatgpt\n- OpenAI 帮助中心：Memory FAQ — https://help.openai.com/en/articles/8983136-what-is-memory\n- OpenAI 帮助中心：Projects in ChatGPT（仅项目记忆） — https://help.openai.com/en/articles/10169521-projects-in-chatgpt\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+      "excerpt": "看到「记忆已满」提示、或想把 ChatGPT 记住的内容备份 / 搬到别的 AI？本文讲清记忆的几种来源、新旧两套记忆界面、怎么先导出再清理、怎么迁移，以及如何彻底关闭记忆。",
+      "content": "## 适用于谁\n\n- 对话里看到「记忆已满」（Memory full）之类的提示，新内容记不进去了；\n- 想在清空记忆之前先留一份备份；\n- 打算换号、换到 Claude / Gemini，想把 ChatGPT「了解你的那部分」带过去；\n- 不想让 ChatGPT 记住任何东西，想彻底关掉。\n\n本文根据 OpenAI 帮助中心和公开教程整理，按 Plus 账号的界面来写。官方说明记忆的功能和开关会因套餐、地区、平台和工作区设置而不同，Free 账号的入口基本一致，但能看到哪些选项以你账号里的实际显示为准。\n\n## 结论先说\n\n1. ChatGPT 的「记忆」有几种来源：**已保存的记忆**（能逐条查看、删除的事实）、**参考聊天记录**（从过往对话里提炼的上下文，不逐条展示），以及自定义指令、文件库里的文件、已连接的应用等。「记忆已满」说的是「已保存的记忆」这一块。\n2. 记忆界面现在有新旧两套：2026 年 6 月起 OpenAI 陆续推出**升级版记忆**，会自动更新，并提供一页「**记忆摘要**」（Memory summary）；旧的「已保存的记忆」逐条列表仍可以切回去用。\n3. 早在 2025 年 10 月，OpenAI 就给 Plus / Pro 网页端上线了**已保存记忆的自动管理**：把最近、最常聊到的内容排在前面，把不常用的移到「后台」，官方明确说目的之一就是避免「记忆已满」。所以现在遇到满了的情况比以前少，但官方没有说这个提示已彻底消失，仍建议定期清理。\n4. 正确顺序是：**先导出 → 再清理 → 需要的话迁移 → 不想用就关闭**。删除后不能恢复，别跳过第一步。\n\n## 步骤\n\n### 第一步：看看现在记住了什么\n\n打开 ChatGPT，点头像 → **设置** → **个性化** → **记忆**。官方说明这里可能出现的控件包括：记忆总开关、「参考已保存的记忆」「参考聊天记录」两个开关、「记忆摘要」、「管理」或「已保存的记忆」入口——具体出现哪几个，取决于你用的是新版还是旧版记忆（中文界面的确切文案以实际显示为准）。\n\n![旧版记忆设置：两个开关和「管理」按钮](seed:g01-memory-settings.png)\n*图片来源：[Pureinfotech](https://pureinfotech.com/free-up-memory-storage-chatgpt/)*\n\n- **旧版（已保存的记忆）**：点「管理」会弹出一个列表，每条是 ChatGPT 记下的一句话，比如你的职业、写作偏好、常用语言等。\n- **新版（记忆摘要）**：看到的是一页按主题整理的摘要。它是「高层概览」，官方说明它**不一定包含**所有被参考的细节。\n\n![新版「记忆摘要」页面：可选中文字直接纠正](seed:g01-memory-summary.webp)\n*图片来源：[OpenAI 帮助中心：Memory in ChatGPT](https://help.openai.com/en/articles/8590148-memory-in-chatgpt)*\n\n新版记忆想切回旧的逐条列表，官方给的路径是：设置 → 个性化 → 记忆 → 选择「已保存的记忆」（Saved memories）；想回到新版，再点「Try improved memory」（试用升级版记忆）即可。切换不会删除聊天记录。\n\n### 第二步：先导出备份\n\n官方**没有**「一键导出记忆」的按钮，可以用两种方式组合备份：\n\n- **让 ChatGPT 自己列出来**：新开一个对话，发「请把你记住的关于我的所有信息逐条列出来，保持原意，不要概括」。官方也提到可以直接问 ChatGPT 它记得你什么。把回复复制到本地文档，这是最直观的一份备份（但不保证覆盖所有来源）。\n- **导出账号数据**：设置 → **数据控制** → 「导出数据」旁点**导出** → **确认导出**。数据准备好后会通过邮件或短信发下载链接，官方说明**最长可能要 7 天**，链接收到后 **24 小时内有效**，要用发起导出的同一账号登录下载。压缩包里是聊天记录等账号数据——注意它是**对话原文**，不是整理好的记忆，但以后想重建记忆时可以当素材。\n\n![手机端「数据控制」页里的「导出数据」](seed:g01-export-data.png)\n*图片来源：[iPhone Life](https://www.iphonelife.com/content/export-chatgpt-data)*\n\n### 第三步：清理\n\n**旧版「已保存的记忆」列表**：\n\n- 过时的（旧工作、旧项目）、重复的、说错的，点单条右侧的删除图标；\n- 想从头来过，用列表底部的「全部删除」（Delete all）把已保存记忆清空。\n\n![旧版「已保存的记忆」列表：单条删除与「全部删除」](seed:g01-saved-memories.png)\n*图片来源：[Pureinfotech](https://pureinfotech.com/free-up-memory-storage-chatgpt/)*\n\n**新版「记忆摘要」**：在底部输入框写要改的内容，或选中一段文字提交纠正；某些内容可以选「Don't mention this again」（不要再提起，只是减少引用，不删原始来源）；想全部清掉，用右上角「•••」里的「Delete and turn off memory」（删除并关闭记忆）——它会删掉摘要里的记忆并把记忆关掉，但不会删除过往聊天。\n\n也可以直接在对话里说「忘掉我之前说过的 XX」。删完回到设置确认一下。\n\n要删得干净，官方提醒信息可能存在多处：记忆摘要 / 已保存的记忆、普通和已归档的对话、文件库里的文件、已连接的应用都要检查；**只删聊天不会自动删掉由它生成的已保存记忆**，反过来删了记忆，过去对话里提到的内容也还在。删除生效需要一些时间，OpenAI 可能为安全和排错保留已删记忆的日志最长 30 天。\n\n一个实用建议：把真正长期有效的偏好（语气、格式、身份背景）写进**自定义指令**（设置 → 个性化），把某个课题、某个客户的资料放进**项目**，不要全部堆进全局记忆。\n\n### 第四步：迁移到别的地方\n\n- **换 ChatGPT 账号**：把第二步得到的清单，挑出想保留的内容，在新号里说「请记住：……」，或者直接粘进自定义指令。\n- **搬到其他 AI**：把清单整理成一段「我是谁、我的偏好、我在做什么」的说明，粘进对方产品里填写个人信息或自定义说明的地方。各家入口位置不同，以对方官方帮助为准。\n- **只想在某个课题里用**：项目可以设置为「仅项目记忆」，项目内的对话互相参考，但不会和项目外的记忆混在一起。这个选项创建时可以选，2026 年 8 月起也能在项目设置里改。\n\n### 第五步：关闭记忆\n\n- **完全关闭**：设置 → 个性化 → 记忆，把相关开关关掉（旧版界面里是「参考已保存的记忆」和「参考聊天记录」；关掉前者会连带关掉后者）。关闭后 ChatGPT 不再用记忆来个性化回答，但**已保存的内容不会因此自动删除**，想删干净还要回到第三步。另外，关掉「参考聊天记录」后，从过往对话里提炼的信息会在 30 天内从 OpenAI 系统中删除，原对话本身仍保留。\n- **只是这一次不想被记**：用**临时聊天**。新对话页点「临时」（Temporary），发第一条消息前选择「**不个性化**」（Unpersonalized），这样既不使用已有记忆、自定义指令和插件，也不会产生新记忆，对话也不会进历史记录。注意：如果选的是「个性化」，临时聊天**会**参考已有记忆（只是不新增）；这个选择开始对话后不能再改。\n\n![临时聊天：开始前可选「个性化 / 不个性化」](seed:g01-temporary-chat.png)\n*图片来源：[OpenAI 帮助中心：Temporary chat in ChatGPT](https://help.openai.com/en/articles/8914046-temporary-chat-faq)*\n\n## 常见问题\n\n**Q：提示满了，但我没手动让它记过东西？**\nA：在支持的情况下，ChatGPT 会把它认为有用的信息自动存为记忆。可以在对话里明确说「这段不要记」，或者定期在设置里清理。\n\n**Q：删掉记忆后，它为什么还「知道」我？**\nA：大概率来自「参考聊天记录」、自定义指令、文件或已连接的应用。回答下方如果出现「来源」，点开就能看到这次参考了哪条记忆或哪段过往对话，并可以标记不相关、纠正或删除。\n\n![回答下方的「来源」：可查看并纠正被参考的记忆](seed:g01-memory-sources.webp)\n*图片来源：[OpenAI 帮助中心：Memory in ChatGPT](https://help.openai.com/en/articles/8590148-memory-in-chatgpt)*\n\n**Q：记忆最多能存多少条？**\nA：官方没有公布已保存记忆的具体条数或字数上限。官方只说过：2026 年 6 月的记忆升级让 Plus / Pro 的记忆容量变为原来的两倍；通过「参考聊天记录」能参考的内容没有单独的存储上限。\n\n**Q：Free 号有记忆吗？**\nA：有记忆功能。2026 年 6 月的升级版记忆是先给美国 Plus / Pro，再逐步扩展到 Free、Go 和更多国家，轮到你时产品内会有提示；具体能看到哪些开关以账号实际显示为准。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Memory in ChatGPT — https://help.openai.com/en/articles/8590148-memory-in-chatgpt\n- OpenAI 帮助中心：Exporting your ChatGPT history and data — https://help.openai.com/en/articles/7260999-how-do-i-export-my-chatgpt-history-and-data\n- OpenAI 帮助中心：Temporary chat in ChatGPT — https://help.openai.com/en/articles/8914046-temporary-chat-faq\n- OpenAI 帮助中心：Projects in ChatGPT（仅项目记忆） — https://help.openai.com/en/articles/10169521-projects-in-chatgpt\n- ChatGPT Release Notes（2025-10-15 自动管理记忆、2026-06-04 记忆升级、2026-06-12 记忆摘要新控件） — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
       "sources": [
         "https://help.openai.com/en/articles/8590148-memory-in-chatgpt",
-        "https://help.openai.com/en/articles/8983136-what-is-memory",
         "https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
-        "https://help.openai.com/en/articles/10169521-projects-in-chatgpt"
+        "https://help.openai.com/en/articles/7260999-how-do-i-export-my-chatgpt-history-and-data",
+        "https://help.openai.com/en/articles/8914046-temporary-chat-faq",
+        "https://help.openai.com/en/articles/10169521-projects-in-chatgpt",
+        "https://pureinfotech.com/free-up-memory-storage-chatgpt/",
+        "https://www.iphonelife.com/content/export-chatgpt-data"
       ],
-      "screenshots": [
-        "设置 → 个性化 → 记忆 区域（显示「参考已保存的记忆」「参考聊天记录」两个开关和「管理」按钮）",
-        "「管理记忆」弹窗：单条删除按钮 + 底部「清除全部」",
-        "设置 → 数据控制 → 导出数据 按钮",
-        "对话里让 ChatGPT 列出全部记忆的回复示例（打码个人信息）",
-        "侧边栏 / 新对话页的「临时聊天」入口"
-      ],
-      "verify": [
-        "2026 年起官方称 ChatGPT 会自动整理已保存记忆、降低「记忆已满」出现的概率；需实测现在是否还会弹出「记忆已满」，以及中文界面的确切文案",
-        "记忆条数 / 容量上限：官方未公开具体数字",
-        "设置里的菜单名称（中文界面是「个性化」还是「个性化设置」、「管理记忆」还是「管理」）以实测截图为准",
-        "Free 账号是否有「参考聊天记录」：官方表述为按套餐与地区开放，需用 Free 号核对",
-        "「导出数据」邮件到达时间（第三方称最长可能数天），以实测为准"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "ChatGPT 深度研究怎么用：次数限制与用不了的排查",
       "slug": "chatgpt-deep-research",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g02-deep-research-menu.png",
+        "g02-manage-sites.png",
+        "g02-research-plan.png",
+        "g02-research-progress.png",
+        "g02-report-citations.jpg",
+        "g02-remaining-count.png"
+      ],
       "tags": [
         "chatgpt"
       ],
       "accountTier": "PLUS",
       "excerpt": "ChatGPT 深度研究是什么、适合问什么、怎么指定网站和文件、次数怎么算、什么时候重置；按钮不见了、一直转圈、次数用完时该怎么排查。",
-      "content": "## 适用于谁\n\n- 想让 ChatGPT 帮你做一份**有出处的调研报告**：行业概况、竞品对比、文献综述、政策梳理；\n- 搜过「ChatGPT 深度研究次数」「深度研究用不了」，想知道额度怎么算、为什么点不出来；\n- 本文按 Plus 账号写，Free 账号也能用，但次数更少、可能只有轻量版。\n\n## 结论先说\n\n1. **深度研究 ≠ 普通联网搜索**。普通搜索几秒钟回答一个问题；深度研究会先给出研究计划，再花几分钟到几十分钟查很多来源，最后交一份带引用的结构化报告。\n2. **次数按月算，以产品里显示的剩余次数为准**。官方说法是有固定月度额度的套餐，从你第一次使用起每 30 天重置。各套餐具体数字官方帮助没有写死（见文末待核对）。\n3. 用不了时，先看四件事：**套餐与次数、App 版本、地区 / 工作区设置、OpenAI 服务状态**。\n\n## 步骤\n\n### 1. 打开深度研究\n\n在对话输入框点「+」（或工具菜单），选择**深度研究**。也可以直接在输入框里说「请用深度研究帮我……」，但手动选中更稳。\n\n【截图：输入框「+」菜单里的「深度研究」入口】\n\n### 2. 把问题写成「要交付什么」\n\n深度研究最怕问题太宽。建议写清四点：\n\n- **目标**：报告给谁看、用来做什么决策；\n- **范围**：时间范围、地区、行业；\n- **格式**：要不要表格、对比维度有哪些、多长；\n- **来源偏好**：优先官方 / 论文 / 某几个网站。\n\n示例：「调研 2026 年国内主流 AI 写作工具，面向中小企业采购；对比价格、中文能力、数据安全条款；输出一张对比表加 800 字结论，来源尽量用各家官网。」\n\n### 3. 指定网站和文件（可选）\n\n- **网站**：在输入框里找到「网站 → 管理网站」，可以选「只搜索这些网站」，或「优先这些网站，但允许全网搜索」。\n- **文件**：把 PDF、表格等直接上传，深度研究会一并阅读。\n- **已连接的应用**：如果你连接了网盘等应用，并且该应用支持深度研究，会自动可用；能连哪些取决于套餐、地区和工作区设置。\n\n【截图：「网站 → 管理网站」设置页】\n\n### 4. 审核研究计划\n\n提交后，ChatGPT 会先列出一份研究计划。觉得方向不对，先改计划再开始——这一步省下的次数最多。\n\n【截图：研究计划与编辑按钮】\n\n### 5. 等待与中途纠偏\n\n运行时可以看进度，随时打断，补充「再加上某某方向」「不要用某类来源」。不必守着页面，完成后在对话里就能看到报告。\n\n### 6. 核对报告\n\n报告里的每个关键结论都应有来源链接。重要数字请点开原文核对，深度研究也会出错。\n\n【截图：报告中的引用链接】\n\n## 常见问题：用不了怎么办\n\n**Q：找不到「深度研究」入口？**\n- 先确认已登录，App 更新到最新版；网页端刷新或换浏览器试试；\n- 企业 / 教育工作区可能被管理员关闭了某些来源或功能；\n- 部分地区或账号是分批开放的。\n\n**Q：提示次数用完？**\n把鼠标放到入口上或在菜单里查看剩余次数和重置时间。用完后只能等重置，或换更高套餐。为了不浪费：一次把需求写清楚、先改计划再开跑，简单的问题用普通联网搜索就够了。\n\n**Q：一直转圈或中途失败？**\n先去 OpenAI 状态页（status.openai.com）看有没有故障；没有的话刷新页面，看任务是否已在后台完成。失败的任务是否返还次数，以产品内计数为准（待实测）。\n\n**Q：深度研究和 ChatGPT Work 有什么关系？**\n2026 年 7 月 OpenAI 推出了 ChatGPT Work。在 Work 里也能做深度研究，但用的是 Work / Codex 的额度；在普通聊天里用深度研究，仍按原来的深度研究次数计算（待实测）。\n\n**Q：Free 和 Plus 差多少？**\nFree 有少量次数、以轻量版为主；Plus 次数更多，并包含完整版本（具体数字待核对）。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Deep research in ChatGPT — https://help.openai.com/en/articles/10500283-deep-research-in-chatgpt\n- OpenAI 帮助中心：Connected apps in ChatGPT — https://help.openai.com/en/articles/11487775-connected-apps-in-chatgpt\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes\n- OpenAI 服务状态 — https://status.openai.com/",
+      "content": "## 适用于谁\n\n- 想让 ChatGPT 帮你做一份**有出处的调研报告**：行业概况、竞品对比、文献综述、政策梳理；\n- 搜过「ChatGPT 深度研究次数」「深度研究用不了」，想知道额度怎么算、为什么点不出来；\n- 本文根据 OpenAI 帮助中心和公开教程整理，按 Plus 账号写。官方说明额度按套餐不同，也会受国家 / 地区限制。\n\n## 结论先说\n\n1. **深度研究 ≠ 普通联网搜索**。普通搜索几秒钟给出简短回答；深度研究会先给出研究计划，再花更长时间阅读、分析大量来源，最后交一份带引用的结构化报告。\n2. **次数以产品里显示的剩余次数为准**。官方帮助只写了：用量按套餐不同；对于有固定月度额度的套餐，**从你第一次使用起每 30 天重置**。各套餐的具体数字，现行帮助中心没有列出。\n3. 用不了时，先看四件事：**套餐与剩余次数、App 版本、国家地区 / 工作区设置、OpenAI 服务状态**。\n\n## 步骤\n\n### 1. 打开深度研究\n\n官方给了三种入口：\n\n- 点输入框左侧的「**+**」（工具菜单），选择**深度研究**（Deep research）；在一些账号上它收在「更多」里；\n- 直接在输入框输入 `/Deepresearch`；\n- 从侧边栏菜单里选择深度研究。\n\n![「+」菜单 →「更多」里的「深度研究」](seed:g02-deep-research-menu.png)\n*图片来源：[Thoughts Brewing](https://thoughtsbrewing.com/blog/ai-quick-tips-296-chatgpts-deep-research-upgrade)*\n\n### 2. 把问题写成「要交付什么」\n\n深度研究最怕问题太宽。建议写清四点：\n\n- **目标**：报告给谁看、用来做什么决策；\n- **范围**：时间范围、地区、行业；\n- **格式**：要不要表格、对比维度有哪些、多长；\n- **来源偏好**：优先官方 / 论文 / 某几个网站。\n\n示例：「调研 2026 年国内主流 AI 写作工具，面向中小企业采购；对比价格、中文能力、数据安全条款；输出一张对比表加 800 字结论，来源尽量用各家官网。」\n\n### 3. 指定网站和文件（可选）\n\n- **网站**：在输入框里找到「**网站 → 管理网站**」（Sites › Manage sites），可以只在你填写的网站 / 域名里搜索，或打开「优先这些网站，但允许全网搜索」；也可以用英文逗号一次填多个网址。\n- **文件**：把 PDF、表格等直接上传，深度研究会一并阅读。\n- **已连接的应用**：支持深度研究、且你的账号和工作区允许使用的应用（例如 Google Drive、SharePoint 等文档库）会自动作为来源；深度研究只会「读取」应用里的内容，不会执行写入操作。能连哪些取决于套餐、地区和工作区设置。\n\n![「管理网站」：只搜这些网站，或优先这些网站](seed:g02-manage-sites.png)\n*图片来源：[OpenAI 帮助中心：Deep research in ChatGPT](https://help.openai.com/en/articles/10500283-deep-research-in-chatgpt)*\n\n### 4. 审核研究计划\n\n提交后，ChatGPT 可能先问几个澄清问题，然后列出一份研究计划。觉得方向不对，先点「编辑」改计划再开始——这一步省下的次数最多。\n\n![开跑前的研究计划，左下角可「编辑」](seed:g02-research-plan.png)\n*图片来源：[Thoughts Brewing](https://thoughtsbrewing.com/blog/ai-quick-tips-296-chatgpts-deep-research-upgrade)*\n\n### 5. 等待与中途纠偏\n\n运行时可以实时看进度，随时打断补充「再加上某某方向」「不要用某类来源」，也可以调整它能访问的来源。不必守着页面，完成后在对话里就能看到报告。\n\n![运行中的进度卡片：右上角「更新」可中途补充要求](seed:g02-research-progress.png)\n*图片来源：[Thoughts Brewing](https://thoughtsbrewing.com/blog/ai-quick-tips-296-chatgpts-deep-research-upgrade)*\n\n### 6. 核对报告\n\n完成的报告会以全屏视图打开：左侧是目录，右侧有「来源」和「活动记录」。每个关键结论都应有来源链接，重要数字请点开原文核对——深度研究也会出错。报告可以下载为 Markdown、Word、PDF 等格式。\n\n![全屏报告视图：左侧目录、正文引用角标、右侧来源列表](seed:g02-report-citations.jpg)\n*图片来源：[Thoughts Brewing](https://thoughtsbrewing.com/blog/ai-quick-tips-296-chatgpts-deep-research-upgrade)*\n\n## 常见问题：用不了怎么办\n\n**Q：找不到「深度研究」入口？**\n- 先确认已登录，App 更新到最新版；网页端刷新或换浏览器试试；也可以直接输入 `/Deepresearch`；\n- 企业 / 教育工作区的管理员可以按角色控制谁能用深度研究；\n- 官方明确说深度研究并非所有国家都可用，取决于套餐和所在国家 / 地区；\n- 如果打开了「锁定模式」（Lockdown Mode，设置 → 安全），深度研究等联网能力会被限制。\n\n**Q：提示次数用完？**\n把鼠标放到入口上可以看到剩余次数和下次补充的日期（下图是 2025 年的界面，数字只是该作者账号当时的情况）。用完后只能等重置，或换更高套餐。为了不浪费：一次把需求写清楚、先改计划再开跑，简单的问题用普通联网搜索就够了。\n\n![悬停在「深度研究」上显示剩余次数与补充日期（2025 年界面）](seed:g02-remaining-count.png)\n*图片来源：[The AI Break](https://theaibreak.substack.com/p/tutorial-how-to-master-deep-research)*\n\n**Q：一直转圈或中途失败？**\n先去 OpenAI 状态页（status.openai.com）看有没有故障；没有的话刷新页面，看任务是否已在后台完成。失败的任务是否返还次数，官方未公开说明，以产品内计数为准。\n\n**Q：深度研究和 ChatGPT Work 有什么关系？**\n2026 年 7 月 OpenAI 推出了 ChatGPT Work，它本身也能调研、分析并产出报告等成品。官方说明 Work 的用量与 Codex 走同一套额度结构；普通聊天里的深度研究仍看深度研究自己的计数。在 Work 里做调研具体怎么计数，官方没有逐项说明，以产品内显示为准。\n\n**Q：Free 和 Plus 差多少？**\n官方帮助只说用量按套餐不同。2025 年 4 月 OpenAI 曾公布过各套餐的次数和「轻量版」安排，但之后深度研究多次升级（2026 年 3 月还移除了旧版模式），现行帮助中心已不再列出具体数字，请以产品内计数为准。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Deep research in ChatGPT — https://help.openai.com/en/articles/10500283-deep-research-in-chatgpt\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- ChatGPT Release Notes（2026-02-10 深度研究更新、2026-03 旧版模式下线、2026-06-04 锁定模式） — https://help.openai.com/en/articles/6825453-chatgpt-release-notes\n- OpenAI 服务状态 — https://status.openai.com/",
       "sources": [
         "https://help.openai.com/en/articles/10500283-deep-research-in-chatgpt",
         "https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
-        "https://help.openai.com/en/articles/11487775-connected-apps-in-chatgpt",
         "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
-        "https://status.openai.com/"
+        "https://status.openai.com/",
+        "https://thoughtsbrewing.com/blog/ai-quick-tips-296-chatgpts-deep-research-upgrade",
+        "https://theaibreak.substack.com/p/tutorial-how-to-master-deep-research"
       ],
-      "screenshots": [
-        "输入框「+」菜单里的「深度研究」入口",
-        "「网站 → 管理网站」设置页（只搜这些网站 / 优先这些网站）",
-        "深度研究开始前生成的「研究计划」，带编辑按钮",
-        "运行中的进度面板（可中途打断）",
-        "最终报告的引用 / 来源链接",
-        "剩余次数计数（鼠标悬停或菜单里显示的位置）"
-      ],
-      "verify": [
-        "各套餐每月次数：官方帮助只说「按套餐不同、以产品内计数为准」；第三方普遍称 Free 5 次（轻量版）、Plus 25 次（10 次完整 + 15 次轻量）、Pro 250 次，需用实号核对",
-        "「从首次使用起每 30 天重置」来自官方帮助的表述，需确认是否仍然如此",
-        "中文界面里入口的确切名称与位置（「+」菜单 / 工具菜单），以截图为准",
-        "在 ChatGPT Work 里用深度研究会消耗 Work / Codex 额度而不是聊天里的次数，需实测确认计数方式"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "ChatGPT Agent 模式是什么、怎么用（2026 年已改为 ChatGPT Work）",
       "slug": "chatgpt-agent-mode",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g03-chat-work-toggle.webp",
+        "g03-work-plan-approval.png",
+        "g03-work-signin.jpg",
+        "g03-work-deliverables.png"
+      ],
       "tags": [
         "chatgpt"
       ],
       "accountTier": "PLUS",
-      "excerpt": "ChatGPT 的 Agent 模式能替你上网操作、处理文件；2026 年 7 月起它已下线，能力并入 ChatGPT Work 和云端浏览器。本文讲清它原来是什么、现在去哪用、怎么用。",
-      "content": "## 适用于谁\n\n- 搜「ChatGPT agent 模式怎么用」，却在界面里找不到 Agent 入口的人；\n- 想让 ChatGPT **替你动手**：打开网页查资料、填表、整理表格、做成 PPT 或报告；\n- 本文按 Plus 账号写。\n\n## 结论先说\n\n1. **Agent 模式（ChatGPT agent）已经下线**。它在 2025 年 7 月推出，让 ChatGPT 在一台虚拟电脑里用浏览器、终端和文件替你完成多步骤任务。2026 年 7 月起，入口陆续消失，OpenAI 帮助中心现在写的是该功能不再提供。\n2. **现在去哪用：ChatGPT Work + 云端浏览器**。OpenAI 在 2026 年 7 月 9 日推出 ChatGPT Work，定位是处理更长的多步骤任务、直接交付文档 / 表格 / 演示稿等成品；需要在网站上点按、填表时，由 Work 里的**云端浏览器**来完成。\n3. 旧 Agent 的「每月 40 次（Plus）/ 400 次（Pro）」限制已经不适用；Work 的额度和 Codex 共用，按官方说明是按滚动时间窗计算（具体以产品内显示为准）。\n\n## Agent 原来能做什么（帮你判断 Work 能不能替代）\n\n旧 Agent 模式主要做三类事：\n- **上网办事**：打开网站、比价、查信息、填写表单；\n- **处理文件**：读你上传的文件，编辑表格，生成幻灯片；\n- **连接应用**：读取已连接的网盘、邮箱等数据。\n\n这些在 ChatGPT Work 里基本都有对应能力：Work 负责拆解任务、读文件和应用、产出成品；云端浏览器负责「在网页上点按」。\n\n## 步骤：用 ChatGPT Work 完成原来 Agent 的任务\n\n### 1. 切换到 Work\n\n在网页版或手机 App 上，把对话从 **Chat** 切换为 **Work**（入口在对话页顶部或输入框附近）。可以新开对话，也可以打开一个已有的**项目**，让 Work 使用项目里的文件和说明。\n\n【截图：「Chat ↔ Work」切换入口】\n\n### 2. 交代清楚「要交付什么」\n\nWork 适合「有明确结果」的任务。写需求时说明：\n\n- **结果**：一份 10 页的 PPT / 一张对比表 / 一份调研报告；\n- **素材**：上传的文件、指定网站、已连接的应用；\n- **约束**：语言、篇幅、格式、不能做的事；\n- **什么时候停下来问你**：比如「提交表单前先让我确认」。\n\n示例：「根据我上传的三份报价单，做一张对比表，再整理成 5 页的中文汇报 PPT；涉及付款或提交的步骤一律先停下来问我。」\n\n### 3. 跟进进度、随时插话\n\nWork 运行时会显示步骤进度。你可以回答它的提问、改变方向，或在关键动作前批准 / 拒绝。\n\n【截图：Work 进度面板】\n\n### 4. 需要登录或确认时，自己来\n\n用云端浏览器访问需要登录的网站时，任务会暂停，等你自己登录或确认。**密码、支付信息请自己输入，不要写进对话里。** 云端浏览器目前只在付费套餐提供，不含 Free 和 Go（待实测）。\n\n【截图：等待登录 / 批准的提示卡片】\n\n### 5. 检查交付物\n\nWork 完成后会给出文档、表格、演示稿等文件。数字、引用、日期请逐项核对后再用。\n\n【截图：Work 交付结果】\n\n## 常见问题\n\n**Q：我以前设置的 Agent 定时任务还在吗？**\n有用户反馈下线后定时任务不再运行。请在 Work 里重新建立需要的定时 / 重复任务（待实测）。\n\n**Q：Work 和深度研究有什么区别？**\n深度研究专注于「查资料、写带引用的报告」；Work 更像一个能动手的助手，结果可以是文件、表格、网页。Work 里也能调用深度研究。\n\n**Q：Work 有次数限制吗？**\n有。官方说明 Work 在 ChatGPT 里的用量和 Codex 共用同一套额度，长任务消耗更多。具体剩余量以产品内显示为准。\n\n**Q：Free 能用吗？**\n官方称 Work 覆盖包括 Free 在内的多个套餐，但能力和额度不同，云端浏览器不含 Free（待实测）。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n**Q：为什么有的网站打不开或被拦？**\n部分网站会拦截自动化访问。OpenAI 为云端浏览器提供了站点放行说明，但能否访问由网站方决定。\n\n## 参考资料\n\n- OpenAI 帮助中心：ChatGPT agent（现为下线说明） — https://help.openai.com/en/articles/11752874-chatgpt-agent\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- OpenAI 帮助中心：Using cloud browser in ChatGPT — https://help.openai.com/en/articles/20001280-using-cloud-browser-in-chatgpt\n- OpenAI 文档：Get started with Work — https://learn.chatgpt.com/docs/get-started-with-work\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+      "excerpt": "ChatGPT 的 Agent 模式能替你上网操作、处理文件；如今它已下线，能力由 2026 年 7 月推出的 ChatGPT Work 和云端浏览器接替。本文讲清它原来是什么、现在去哪用、怎么用。",
+      "content": "## 适用于谁\n\n- 搜「ChatGPT agent 模式怎么用」，却在界面里找不到 Agent 入口的人；\n- 想让 ChatGPT **替你动手**：打开网页查资料、填表、整理表格、做成 PPT 或报告；\n- 本文根据 OpenAI 帮助中心、官方文档和公开评测整理，按 Plus 账号写。\n\n## 结论先说\n\n1. **Agent 模式（ChatGPT agent）已经下线**。它在 2025 年 7 月推出，让 ChatGPT 在一台虚拟电脑里用浏览器、终端和文件替你完成多步骤任务。OpenAI 帮助中心现在写的是该功能**不再提供**，并指引用户改用 ChatGPT Work 和云端浏览器。官方没有在更新日志里公布确切的下线日期，第三方报道称入口是在 2026 年 7 月到 8 月初之间陆续消失的。\n2. **现在去哪用：ChatGPT Work + 云端浏览器**。OpenAI 在 2026 年 7 月 9 日推出 ChatGPT Work，定位是处理更长的多步骤任务、直接交付文档 / 表格 / 演示稿 / 报告等成品；需要在网站上点按、填表时，由 Work 里的**云端浏览器**来完成。\n3. 旧 Agent 的按月次数限制已经不适用。官方说明 Work 与 Codex 采用**同一套用量结构**，任务越长、越复杂消耗越多，具体额度以官方说明和产品内显示为准。\n\n## Agent 原来能做什么（帮你判断 Work 能不能替代）\n\n旧 Agent 模式主要做三类事：\n- **上网办事**：打开网站、比价、查信息、填写表单；\n- **处理文件**：读你上传的文件，编辑表格，生成幻灯片；\n- **连接应用**：读取已连接的网盘、邮箱等数据。\n\n这些在 ChatGPT Work 里基本都有对应能力：Work 负责拆解任务、读文件和应用、产出成品；云端浏览器负责「在网页上点按」，ChatGPT 会自己判断什么时候用它，不需要单独选择。\n\n## 步骤：用 ChatGPT Work 完成原来 Agent 的任务\n\n### 1. 切换到 Work\n\n- **网页版 / 桌面 App**：在页面顶部的 **Chat / Work** 切换里选 **Work**；\n- **手机 App**：在屏幕顶部的下拉菜单里选 Work。\n\n中文界面里是否翻译成「工作」，以你看到的界面为准。可以新开对话，也可以打开一个已有的**项目**，在项目里选 Work，让它使用项目里的文件和说明。注意：设置为「仅项目记忆」的项目里不能使用 Work。\n\n![对话页顶部的 Chat / Work 切换](seed:g03-chat-work-toggle.webp)\n*图片来源：[OpenAI 文档：Get started with ChatGPT Work](https://learn.chatgpt.com/docs/get-started-with-work)*\n\n### 2. 交代清楚「要交付什么」\n\nWork 适合「有明确结果」的任务。官方建议写清楚：\n\n- **结果**：一份 10 页的 PPT / 一张对比表 / 一份调研报告；\n- **素材**：上传的文件、指定网站、已连接的应用或插件（可以输入 `@` 加插件名点名使用）；\n- **约束**：语言、篇幅、格式、只用哪些来源；\n- **什么时候停下来问你**：比如「提交表单前先让我确认」。\n\n示例：「根据我上传的三份报价单，做一张对比表，再整理成 5 页的中文汇报 PPT；涉及付款或提交的步骤一律先停下来问我。」\n\n### 3. 跟进进度、随时插话\n\nWork 运行时会显示步骤进度。你可以回答它的提问、改变方向，或在关键动作前批准 / 拒绝。下图是第三方评测里的例子：Work 按要求先列出修改后的五步计划，明确表示等用户批准后才开始分析和生成文件。\n\n![Work 列出计划并等待用户批准](seed:g03-work-plan-approval.png)\n*图片来源：[DataCamp](https://www.datacamp.com/tutorial/chatgpt-work-for-business)*\n\n### 4. 需要登录或确认时，自己来\n\n云端浏览器访问新网站前，默认会先征得你同意（可在 设置 → 云端浏览器（Settings › Cloud browser）里改成「总是询问 / 自动批准 / 总是允许」，官方不推荐最后一种）。遇到需要登录的网站，任务会暂停，弹出**安全登录表单**让你自己输入账号密码和两步验证码；官方说明这些凭据直接进入远程浏览器，模型看不到，ChatGPT 也不保存。预订、付款等难以撤销的操作前，它会在对话里请你确认。\n\n**密码、验证码、支付信息不要写进对话里。** 官方说明云端浏览器只在付费套餐提供，不含 Free 和 Go；其中「在云端浏览器里登录网站」这项能力，2026 年 8 月上线时写明面向 Plus 和 Pro。\n\n![手机端 Work：说明将走安全登录流程，并显示云端浏览器画面（敏感信息已由原作者打码）](seed:g03-work-signin.jpg)\n*图片来源：[MacStories](https://www.macstories.net/stories/hands-on-with-chatgpt-works-new-cloud-browser-feature/)*\n\n### 5. 检查交付物\n\nWork 完成后会给出文档、表格、演示稿等文件。数字、引用、日期请逐项核对后再用。\n\n![Work 完成后交付的文档、表格和演示稿链接](seed:g03-work-deliverables.png)\n*图片来源：[DataCamp](https://www.datacamp.com/tutorial/chatgpt-work-for-business)*\n\n## 常见问题\n\n**Q：我以前设置的 Agent 定时任务还在吗？**\n官方没有说明旧 Agent 定时任务的去向。Work 支持「定时任务」（Scheduled Tasks），可以只跑一次、按计划重复、由事件触发或监控变化；需要的话请在 Work 里重新建立。\n\n**Q：Work 和深度研究有什么区别？**\n深度研究专注于「查资料、写带引用的报告」；Work 更像一个能动手的助手，结果可以是文件、表格、演示稿、网站。Work 本身也能调研分析，但官方没有说明它与深度研究次数之间如何换算。\n\n**Q：Work 有次数限制吗？**\n有。官方说明 Work 与 Codex 用的是同一套用量结构，长任务消耗更多，超出后可按官方规则购买额外额度。具体剩余量以产品内显示为准。\n\n**Q：Free 能用吗？**\n不能。官方 7 月 9 日的发布说明写明网页和手机端的 Work 面向「除 Free 和 Go 以外的付费套餐」，帮助中心现在的表述是「符合条件的付费套餐」。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n**Q：为什么有的网站打不开或被拦？**\n部分网站会拦截自动化浏览器访问，这是网站方的设置，不是 ChatGPT 决定的。可以换一个网站，或自己在浏览器里打开；网站方如果愿意放行，可以按 OpenAI 的云端浏览器放行说明操作。\n\n## 参考资料\n\n- OpenAI 帮助中心：ChatGPT agent（现为下线说明） — https://help.openai.com/en/articles/11752874-chatgpt-agent\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- OpenAI 帮助中心：Using cloud browser in ChatGPT — https://help.openai.com/en/articles/20001280-using-cloud-browser-in-chatgpt\n- OpenAI 文档：Get started with ChatGPT Work — https://learn.chatgpt.com/docs/get-started-with-work\n- ChatGPT Release Notes（2026-07-09 推出 Work、2026-08-25 云端浏览器支持登录） — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
       "sources": [
         "https://help.openai.com/en/articles/11752874-chatgpt-agent",
         "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
         "https://help.openai.com/en/articles/20001280-using-cloud-browser-in-chatgpt",
         "https://learn.chatgpt.com/docs/get-started-with-work",
-        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes"
+        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+        "https://help.openai.com/en/articles/10169521-projects-in-chatgpt",
+        "https://www.datacamp.com/tutorial/chatgpt-work-for-business",
+        "https://www.macstories.net/stories/hands-on-with-chatgpt-works-new-cloud-browser-feature/"
       ],
-      "screenshots": [
-        "对话页顶部 / 输入框附近的「Chat ↔ Work」切换入口",
-        "Work 任务进行中的进度面板（步骤列表、可插话）",
-        "Work 暂停等待批准 / 登录时的提示卡片",
-        "云端浏览器运行画面（打码账号信息）",
-        "Work 交付的文档 / 表格 / 幻灯片结果"
-      ],
-      "verify": [
-        "Agent 模式下线的确切日期：第三方称 2026-07-08 前后入口消失、8 月初帮助页改为「不再提供」，需在官方 release notes 里核对",
-        "ChatGPT Work 在 Free / Go 是否可用：官方帮助称 Work 与 Codex 包含在 Free、Go、Plus、Pro 等套餐中，但云端浏览器不含 Free 和 Go，需实测",
-        "Work 的额度与 Codex 共用、按 5 小时窗口计算——来自官方帮助摘要，具体次数需实测",
-        "中文界面里 Work 的叫法（「工作」还是保留英文 Work）"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "ChatGPT 项目功能有什么用、怎么用（Projects 使用教程）",
       "slug": "chatgpt-projects",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g04-sidebar-new-project.png",
+        "g04-new-project-memory.png",
+        "g04-project-settings-menu.png",
+        "g04-project-page.png",
+        "g04-move-chat-to-project.webp"
+      ],
       "tags": [
         "chatgpt"
       ],
       "accountTier": "FREE",
       "excerpt": "ChatGPT「项目」能把同一件事的对话、文件和说明放在一起，不用每次重复交代背景。本文讲清它和自定义指令、记忆、GPTs 的区别，以及创建、上传文件、仅项目记忆和共享的用法。",
-      "content": "## 适用于谁\n\n- 同一件事要和 ChatGPT 聊很多次：写论文、备考、做一个客户项目、写小说、长期学英语；\n- 每次新开对话都要重新上传资料、重新交代背景，觉得麻烦；\n- 想和同学 / 同事共用一套资料和对话。\n\n项目功能在 Free 账号上也能用，本文按 Free 界面来写，付费账号的差别主要在文件数量和协作人数上。\n\n## 结论先说\n\n**项目 = 一个文件夹 + 一份专属说明 + 一块共享上下文。**放进同一个项目的对话，会共享你上传的文件和写好的说明，ChatGPT 还能参考项目里其他对话的内容，所以「上次聊到哪」不用再讲一遍。\n\n和几个相似功能的区别：\n\n| 功能 | 作用范围 | 适合放什么 |\n| --- | --- | --- |\n| 自定义指令 | 全部对话 | 长期不变的偏好：语气、格式、身份 |\n| 记忆 | 全部对话 | ChatGPT 自动或按你要求记住的事实 |\n| 项目 | 只在该项目内 | 某个课题的资料、规则、历史对话 |\n| GPTs | 任何人调用该 GPT 时 | 想分享给别人反复用的固定助手 |\n\n简单说：**跟某一件事有关的，放项目；跟你这个人有关的，放自定义指令或记忆。**\n\n## 步骤\n\n### 1. 新建项目\n\n在左侧边栏找到「项目」，点「新建项目」。起一个看得懂的名字，例如「毕业论文-第三章」「客户A-年度方案」。\n\n【截图：侧边栏「项目」区域与「新建项目」按钮】\n\n创建时可能会看到记忆相关选项。选择**仅项目记忆**后：项目内的对话可以互相参考，但不会用到你项目外的已保存记忆，项目里的内容也不会带到项目外的对话。适合涉及隐私或需要「干净上下文」的课题。这个选项可能只能在创建时设定（待实测）。\n\n【截图：新建项目弹窗】\n\n### 2. 上传文件\n\n在项目页的文件区上传 PDF、表格、文档、图片，或直接粘贴文本。项目里所有对话都能用到这些文件。文件数量有上限，各套餐不同（见文末待核对）。\n\n建议：\n- 只放和这个项目直接相关的资料，太多反而降低准确度；\n- 资料更新后，删掉旧版本再上传新版本，避免 ChatGPT 引用过期内容。\n\n### 3. 写项目说明\n\n在「说明」区写下这个项目的固定规则，例如：\n\n> 这是我的毕业论文第三章，主题是 [主题]。回答用学术中文，引用资料时注明来自哪个文件；不确定的内容直接说不确定。\n\n项目说明只在本项目里生效，优先级高于你的全局自定义指令（以实测为准）。\n\n【截图：项目页的文件区与说明区】\n\n### 4. 在项目里对话\n\n在项目页直接新开对话即可。已经在外面聊过的对话，可以拖进项目或用对话菜单里的「移到项目」。\n\n【截图：把已有对话移动到项目】\n\n### 5. 共享项目（可选）\n\n项目可以邀请别人一起用，成员能看到项目里的文件、说明和对话。Free、Go、Plus、Pro 及企业套餐都支持共享，人数上限不同。共享前请确认里面没有不想让对方看到的内容。\n\n【截图：项目共享设置】\n\n### 6. 配合其他功能\n\n- 在项目里可以用深度研究、生图等功能，产出也会留在项目里；\n- 2026 年 7 月推出的 ChatGPT Work 也支持打开已有项目，让它在项目资料基础上完成多步骤任务。\n\n## 常见问题\n\n**Q：项目和 GPTs 选哪个？**\n自己长期做一件事，用项目；想做一个给别人反复用的工具，用 GPTs。\n\n**Q：项目里的 ChatGPT 还会用我的全局记忆吗？**\n默认会。不想混用就在创建时选「仅项目记忆」。\n\n**Q：删除项目会怎样？**\n项目里的对话和文件会一起被删除，且无法恢复。删除前把需要的对话移出来。\n\n**Q：Free 和 Plus 在项目上差在哪？**\n主要是可上传文件数、协作人数，以及能在项目里调用的模型和工具额度。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Projects in ChatGPT — https://help.openai.com/en/articles/10169521-projects-in-chatgpt\n- OpenAI 帮助中心：Memory in ChatGPT — https://help.openai.com/en/articles/8590148-memory-in-chatgpt\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+      "content": "## 适用于谁\n\n- 同一件事要和 ChatGPT 聊很多次：写论文、备考、做一个客户项目、写小说、长期学英语；\n- 每次新开对话都要重新上传资料、重新交代背景，觉得麻烦；\n- 想和同学 / 同事共用一套资料和对话。\n\n项目功能在 Free 账号上也能用，本文根据 OpenAI 帮助中心整理，付费账号的差别主要在文件数量和协作人数上（见下文）。\n\n## 结论先说\n\n**项目 = 一个文件夹 + 一份专属说明 + 一块共享上下文。**放进同一个项目的对话，会共享你上传的文件和写好的说明，ChatGPT 还能参考项目里其他对话的内容，所以「上次聊到哪」不用再讲一遍。\n\n和几个相似功能的区别：\n\n| 功能 | 作用范围 | 适合放什么 |\n| --- | --- | --- |\n| 自定义指令 | 全部对话 | 长期不变的偏好：语气、格式、身份 |\n| 记忆 | 全部对话 | ChatGPT 自动或按你要求记住的事实 |\n| 项目 | 只在该项目内 | 某个课题的资料、规则、历史对话 |\n| GPTs | 任何人调用该 GPT 时 | 想分享给别人反复用的固定助手 |\n\n简单说：**跟某一件事有关的，放项目；跟你这个人有关的，放自定义指令或记忆。**另外，OpenAI 在 2026 年 9 月宣布计划逐步停用自定义 GPT、迁移到插件，具体时间以官方通知为准。\n\n## 步骤\n\n### 1. 新建项目\n\n在左侧边栏找到「项目」，点「新建项目」。起一个看得懂的名字，例如「毕业论文-第三章」「客户A-年度方案」，还可以选图标和颜色。项目数量不限。\n\n![侧边栏「项目」区域和「新建项目」](seed:g04-sidebar-new-project.png)\n*图片来源：[OpenAI 帮助中心：Projects in ChatGPT](https://help.openai.com/en/articles/10169521-projects-in-chatgpt)*\n\n创建时可以设置记忆方式：**默认记忆**或**仅项目记忆**。选择仅项目记忆后：项目内的对话可以互相参考，但不会用到你之前保存的记忆，也不能参考项目外的对话；项目里的内容也不会带到项目外。适合涉及隐私或需要「干净上下文」的课题。\n\n这个选项**创建后也能改**：2026 年 8 月起，未共享的项目可以在 项目「•••」→ 项目设置 → 记忆 里切换，官方说明改动可能要几个小时才生效。共享的项目固定为仅项目记忆，不能切回默认。另外，**仅项目记忆的项目里不能使用 ChatGPT Work**。\n\n![新建项目时的记忆选项（2025 年截图，当时提示「之后无法更改」，现已可改）](seed:g04-new-project-memory.png)\n*图片来源：[Thoughts Brewing](https://thoughtsbrewing.com/blog/ai-quick-tips-243-isolate-chatgpt-projects)*\n\n### 2. 上传文件\n\n在项目页上传 PDF、表格、文档、图片，或直接粘贴文本；还可以粘贴 Google Drive 文件 / 文件夹或 Slack 频道链接作为项目来源，或把对话里有用的回复保存到项目。项目里所有对话都能用到这些资料。\n\n官方公布的每个项目文件上限：Free 5 个；Go、Plus 25 个；Pro、Business、Enterprise、Edu 40 个。一次最多同时上传 10 个文件。\n\n建议：\n- 只放和这个项目直接相关的资料，太多反而降低准确度；\n- 资料更新后，删掉旧版本再上传新版本，避免 ChatGPT 引用过期内容。\n\n### 3. 写项目说明\n\n点项目页右上角「•••」→「项目设置」，在说明里写下这个项目的固定规则，例如：\n\n> 这是我的毕业论文第三章，主题是 [主题]。回答用学术中文，引用资料时注明来自哪个文件；不确定的内容直接说不确定。\n\n![项目页右上角「•••」→「项目设置」](seed:g04-project-settings-menu.png)\n*图片来源：[OpenAI 帮助中心：Projects in ChatGPT](https://help.openai.com/en/articles/10169521-projects-in-chatgpt)*\n\n官方明确说明：项目说明只在本项目里生效，并且**会覆盖**你的全局自定义指令。\n\n![项目页：文件数量、项目内新对话输入框和对话列表](seed:g04-project-page.png)\n*图片来源：[OpenAI 帮助中心：Projects in ChatGPT](https://help.openai.com/en/articles/10169521-projects-in-chatgpt)*\n\n### 4. 在项目里对话\n\n在项目页直接新开对话即可。已经在外面聊过的对话，可以拖进项目，或在对话菜单里选「移到项目」，移进来后会继承项目的说明和文件。用 GPT 发起的对话不能移进项目。\n\n![把已有对话拖进项目](seed:g04-move-chat-to-project.webp)\n*图片来源：[OpenAI 帮助中心：Projects in ChatGPT](https://help.openai.com/en/articles/10169521-projects-in-chatgpt)*\n\n### 5. 共享项目（可选）\n\n在项目里点「共享」即可邀请别人，Free、Go、Plus、Pro 及企业套餐都支持。个人套餐可以选「仅受邀者」逐个邀请，或开启「任何拥有链接的人」；成员权限分为「可聊天」和「可编辑」。成员能看到项目里的对话、文件、说明和成员名单（包括姓名和邮箱），共享前请确认里面没有不想让对方看到的内容。\n\n官方公布的协作人数上限（由项目所有者的套餐决定）：Free 5 人；Go、Plus 10 人；Pro 100 人；企业工作区项目最多 100 人。共享后的项目会自动改为仅项目记忆，不会用到任何成员在项目外的记忆和自定义指令。\n\n### 6. 配合其他功能\n\n- 在项目里可以用画布、生图、语音、联网搜索等工具，付费套餐还可能用到深度研究等功能；学习模式不适用于项目对话；\n- 2026 年 7 月推出的 ChatGPT Work 也能从项目里发起，让它在项目资料基础上完成多步骤任务（仅项目记忆的项目除外）。\n\n## 常见问题\n\n**Q：项目和 GPTs 选哪个？**\n自己长期做一件事，用项目；想做一个给别人反复用的固定助手，过去用 GPTs，但 OpenAI 已宣布计划停用自定义 GPT 并迁移到插件，新做的话建议先看官方最新说明。\n\n**Q：项目里的 ChatGPT 还会用我的全局记忆吗？**\n默认记忆下会（个人 Plus / Pro 等套餐还会优先参考项目内的对话和文件）。不想混用就把项目设为「仅项目记忆」，创建时或之后在项目设置里改都可以。使用项目记忆需要在个人设置里开启「参考已保存的记忆」和「参考聊天记录」。\n\n**Q：删除项目会怎样？**\n项目「•••」→「删除项目」后，项目里的对话、说明，以及只存在于该项目里的文件会被永久删除，**无法撤销**；单独保存在文件库里的文件不受影响，共享项目的成员也会失去访问权。删除前把需要的对话移出来。\n\n**Q：Free 和 Plus 在项目上差在哪？**\n主要是每个项目的文件数（5 个 vs 25 个）、协作人数（5 人 vs 10 人），以及能在项目里调用的模型和工具额度。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Projects in ChatGPT — https://help.openai.com/en/articles/10169521-projects-in-chatgpt\n- OpenAI 帮助中心：Memory in ChatGPT — https://help.openai.com/en/articles/8590148-memory-in-chatgpt\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- ChatGPT Release Notes（2025-10-23 共享项目、2026-08-13 项目记忆可修改、2026-09-11 自定义 GPT 停用计划） — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
       "sources": [
         "https://help.openai.com/en/articles/10169521-projects-in-chatgpt",
         "https://help.openai.com/en/articles/8590148-memory-in-chatgpt",
         "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
-        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes"
+        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+        "https://thoughtsbrewing.com/blog/ai-quick-tips-243-isolate-chatgpt-projects"
       ],
-      "screenshots": [
-        "侧边栏「项目」区域与「新建项目」按钮",
-        "新建项目弹窗（名称、图标颜色、记忆选项）",
-        "项目页：文件区、说明（Instructions）区、项目内对话列表",
-        "把已有对话拖进 / 移动到项目的操作",
-        "项目共享设置（邀请成员、权限）"
-      ],
-      "verify": [
-        "各套餐项目文件数与协作人数上限：官方帮助摘要为 Free 5 个文件 / 5 人、Plus 与 Go 25 个文件 / 10 人、Pro 40 个文件 / 100 人，需核对是否已更新",
-        "「仅项目记忆」只能在创建项目时选择、创建后不能改——需实测确认",
-        "中文界面里「说明」「仅项目记忆」等按钮的确切叫法",
-        "删除项目时项目内对话是否一并删除、能否恢复（正文按「一并删除」写，需实测）",
-        "项目说明与全局自定义指令冲突时以谁为准（正文写「以实测为准」）"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "ChatGPT Skills 怎么用：创建、@调用与推荐（附哪些套餐能用）",
       "slug": "chatgpt-skills",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g05-sidebar-plugins.webp",
+        "g05-skills-tab.png",
+        "g05-create-with-chat.png",
+        "g05-skill-editor.png",
+        "g05-create-menu.webp",
+        "g05-skill-detail.jpg"
+      ],
       "tags": [
         "chatgpt"
       ],
       "accountTier": "TEAM",
-      "excerpt": "ChatGPT Skills（技能）能把一套固定做法打包，让 ChatGPT 每次都按同样流程完成任务。本文讲清哪些套餐能用、在哪找、三种创建方式、怎么用 @ 调用，以及适合做成技能的场景。",
-      "content": "## 适用于谁\n\n- 公司用的是 **ChatGPT Business / Enterprise / Edu** 工作区，想把周报、合同初审、客服回复这类固定工作流程化的人；\n- 搜「ChatGPT skill 怎么用」「ChatGPT skills 推荐」，想先搞清楚自己账号能不能用的人。\n\n**先说明：截至 2026 年 10 月，OpenAI 帮助中心写明个人技能（Personal Skills）面向 Business、Enterprise、Healthcare、Edu 套餐。个人 Free / Plus / Pro 账号目前很可能看不到技能入口（待实测）。** 下文按 Business 工作区界面来写。\n\n## 结论先说\n\n1. **技能 = 一份可复用的「做事说明书」**。里面写清这件事的步骤、输出格式、示例和检查项，必要时还能带脚本。ChatGPT 在你需要时按它来做，结果更稳定。\n2. **两种调用方式**：在输入框输入 **@** 选择技能（明确调用）；或者不选，ChatGPT 判断你的请求和技能描述匹配时会自动使用（隐式调用）。所以**技能描述要写清楚「什么时候用」**。\n3. **三种创建方式**：用对话让 ChatGPT 帮你建（内置的 skill-creator）、上传写好的技能文件夹、录制一遍操作让它生成。\n4. 技能和项目、GPTs 不冲突：项目管「这件事的资料」，技能管「这类事怎么做」。\n\n## 步骤\n\n### 1. 找到技能入口\n\n打开侧边栏的 **插件（Plugins）**，进入插件目录，切到 **技能（Skills）** 标签页。这里能看到你已安装的技能，以及工作区共享或目录里可安装的技能。\n\n【截图：侧边栏 Plugins → Skills 标签页】\n\n如果看不到：确认你在公司工作区（而不是个人账号）里，并联系管理员确认工作区已开启技能。\n\n### 2. 方式一：用对话创建（最简单）\n\n在技能页选择 **创建 → 用对话创建**，或者直接在对话里说「帮我创建一个技能：……」。符合条件的账号默认带有一个名为 **skill-creator** 的技能，也可以输入 `@skill-creator` 明确调用。它会追问：\n\n- 这个技能做什么、什么时候该用；\n- 步骤是什么、输出长什么样；\n- 有没有示例或模板；\n- 交付前要检查什么。\n\n回答完，它会提示你安装这个技能。\n\n【截图：skill-creator 追问并提示安装的对话】\n\n### 3. 方式二：上传技能文件夹\n\n如果团队已经写好技能，选择 **创建 → 从电脑上传**。一个技能就是一个文件夹，至少包含一个 `SKILL.md`，开头写明 `name`（名称）和 `description`（什么时候用），正文写步骤；可以附带 `scripts/`（脚本）、`references/`（参考资料）、`assets/`（模板）等子文件夹。上传失败时，可以把**单个技能文件夹**压缩成 ZIP 再传，注意 `SKILL.md` 要在压缩包的根目录。\n\n【截图：「创建 → 从电脑上传」菜单】\n\n### 4. 方式三：录制并回放\n\n有些流程「演示比描述容易」，OpenAI 文档提到可以录制一遍操作，由系统分析步骤生成技能。该方式在 ChatGPT 里的具体入口待实测。\n\n### 5. 调用技能\n\n在输入框输入 **@**，从列表里选技能，再写本次的具体内容：\n\n> @周报生成 这是本周的会议纪要和任务表，按模板出周报。\n\n【截图：输入 @ 弹出的技能列表】\n\n### 6. 修改与分享\n\n在技能详情页可以编辑说明、替换示例。想给整个团队用，可以通过工作区共享，或打包成插件发布到插件目录（取决于管理员设置）。\n\n## 推荐：适合做成技能的事\n\n不在这里推荐具体第三方技能包，只给判断标准——**重复做、格式固定、有明确检查标准**的事最适合：\n\n- **周报 / 日报**：固定栏目、固定语气；\n- **会议纪要整理**：结论、待办、负责人、截止日期四段式；\n- **合同 / 文案初审**：按清单逐项检查并标出风险；\n- **品牌文案改写**：带上品牌用词表和禁用词；\n- **数据报表解读**：固定先看哪些指标、怎么写结论。\n\n写技能时，一次只做一件事，描述里写清「什么时候用」，附一两个好的示例输出，效果最好。\n\n## 常见问题\n\n**Q：我是个人 Plus，能用吗？**\n按官方帮助的现行说明，个人技能面向企业类套餐，个人 Plus / Pro 暂不在内（待实测）。替代做法是用「项目」放固定说明和模板，或者做一个 GPT。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n**Q：技能会自动生效吗？**\n会，前提是你的请求和技能描述匹配。如果它该用的时候没用，改写描述，或直接 @ 调用。\n\n**Q：网页、桌面端、手机都能用吗？**\nOpenAI 文档提到不同端的支持有差异，打包成插件的技能覆盖面更广（待实测）。\n\n**Q：和 Codex 里的技能是一回事吗？**\n格式相同，都基于 `SKILL.md`；ChatGPT 里用 @ 调用，Codex 里用 $ 调用。\n\n## 参考资料\n\n- OpenAI 帮助中心：Skills in ChatGPT — https://help.openai.com/en/articles/20001066-skills-in-chatgpt\n- OpenAI 文档：Skills & Plugins — https://learn.chatgpt.com/docs/skills-and-plugins\n- OpenAI 文档：Build skills — https://learn.chatgpt.com/docs/build-skills\n- OpenAI 帮助中心：Troubleshooting plugins & apps in ChatGPT — https://help.openai.com/en/articles/20001497-troubleshooting-plugins-apps-in-chatgpt\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+      "excerpt": "ChatGPT Skills（技能）能把一套固定做法打包，让 ChatGPT 每次都按同样流程完成任务。本文讲清哪些套餐能用、在哪找、几种创建方式、怎么用 @ 调用，以及适合做成技能的场景。",
+      "content": "## 适用于谁\n\n- 公司用的是 **ChatGPT Business / Enterprise / Edu** 工作区，想把周报、合同初审、客服回复这类固定工作流程化的人；\n- 搜「ChatGPT skill 怎么用」「ChatGPT skills 推荐」，想先搞清楚自己账号能不能用的人。\n\n**先说明：截至 2026 年 10 月，OpenAI 帮助中心写明个人技能（Personal Skills）面向 Business、Enterprise、Healthcare、Edu 用户开放，并且还取决于工作区设置和所用的端。官方没有把个人 Free / Plus / Pro 账号列在可用范围内。** 下文按企业类工作区的界面来写，本文根据官方文档和公开资料整理，界面截图来自第三方公开文章。\n\n## 结论先说\n\n1. **技能 = 一份可复用的「做事说明书」**。里面写清这件事的步骤、输出格式、示例和检查项，必要时还能带脚本。ChatGPT 在你需要时按它来做，结果更稳定。\n2. **两种调用方式**：在输入框输入 **@** 选择技能（明确调用）；或者不选，ChatGPT 判断你的请求和技能描述匹配时会自动使用（隐式调用）。所以**技能描述要写清楚「什么时候用」**。\n3. **几种创建方式**：技能页的「创建」菜单里有三种——用对话创建（内置的 skill-creator）、用编辑器创建、从电脑上传；另外在 Mac 版 ChatGPT 桌面 App 里还能「录制」一遍操作生成技能。\n4. 技能和项目、GPTs 不冲突：项目管「这件事的资料」，技能管「这类事怎么做」。\n\n## 步骤\n\n### 1. 找到技能入口\n\n打开侧边栏的 **插件（Plugins）**，进入插件目录（Plugin Directory），切到 **技能（Skills）** 标签页。\n\n![ChatGPT 侧边栏里的「Plugins」入口，技能没有单独的侧边栏入口](seed:g05-sidebar-plugins.webp)\n*图片来源：[explainx.ai](https://explainx.ai/blog/how-to-use-skills-in-chatgpt-complete-guide-2026)*\n\n技能页按分组列出：已安装（Installed）、我创建的（Created by me）、分享给我的（Shared with me），以及工作区共享的技能。右上角有搜索框和「+」创建按钮。\n\n![插件目录顶部切到「Skills」后的技能页：已安装与我创建的技能列表，右上角是搜索和「+」按钮（2026 年 7 月英文界面）](seed:g05-skills-tab.png)\n*图片来源：[Tony Reviews Things](https://www.tonyreviewsthings.com/how-to-use-skills-in-chatgpt/)*\n\n如果看不到：确认你在公司工作区（而不是个人账号）里，并联系管理员确认工作区已开启技能。Enterprise 和 Edu 工作区的管理员可以在「权限与角色（Permissions & roles）」里控制哪些角色能创建、使用、上传、分享和安装技能。\n\n### 2. 方式一：用对话创建（最简单）\n\n在技能页点 **+（创建）→ 用对话创建（Create with chat）**，或者直接在对话里说「帮我创建一个技能：……」。符合条件的账号默认带有一个名为 **skill-creator** 的技能，你让 ChatGPT 创建或修改技能时它会自动启用，也可以输入 `@skill-creator` 明确调用。它会追问：\n\n- 这个技能做什么、什么时候该用；\n- 步骤是什么、输出长什么样；\n- 有没有示例或模板；\n- 是只要文字说明，还是需要附带脚本（默认只写说明）。\n\n回答完，它会提示你安装这个技能。\n\n![在 ChatGPT 对话框里发起「帮我创建一个技能」的请求（2026 年 7 月英文界面）](seed:g05-create-with-chat.png)\n*图片来源：[Tony Reviews Things](https://www.tonyreviewsthings.com/how-to-use-skills-in-chatgpt/)*\n\n### 3. 方式二：用编辑器创建\n\n如果你已经想清楚怎么写，选 **+ → 用编辑器创建（Create with editor）**，直接填写名称、描述和说明正文，比对话来回更可控。\n\n![技能编辑器：名称、描述（可一键优化描述）和说明正文三个区域](seed:g05-skill-editor.png)\n*图片来源：[Tony Reviews Things](https://www.tonyreviewsthings.com/how-to-use-skills-in-chatgpt/)*\n\n### 4. 方式三：上传技能文件夹\n\n如果团队已经写好技能，选择 **+ → 从电脑上传（Upload from your computer）**。一个技能就是一个文件夹，至少包含一个 `SKILL.md`，开头写明 `name`（名称）和 `description`（什么时候用），正文写步骤；可以附带 `scripts/`（脚本）、`references/`（参考资料）、`assets/`（模板）等子文件夹。\n\n![技能页「+」菜单：用对话创建、用编辑器创建、从电脑上传三个选项](seed:g05-create-menu.webp)\n*图片来源：[explainx.ai](https://explainx.ai/blog/how-to-use-skills-in-chatgpt-complete-guide-2026)*\n\n上传后 ChatGPT 会先做一次扫描：多数技能扫描完即可使用；有的会标记为「需要审核（Needs Review）」，要你确认额外信息；看起来有风险的会被「拦截（Blocked）」无法使用。从外部下载或别的组织给的技能，上传前自己先读一遍，确认来源可信。\n\n### 5. 方式四：录制并回放（Mac 桌面 App）\n\n有些流程「演示比描述容易」。按 OpenAI 文档，**录制并回放（Record & Replay）** 目前只在 macOS 上提供，并且需要电脑操作（Computer Use）功能可用且已开启：在 ChatGPT 桌面 App 里切到 Work（或 Codex），打开 **Plugins**，点 **+ → 录制技能（Record a skill）**，授权后在 Mac 上演示一遍，结束后它会分析步骤并起草一个技能。官方发布说明提到该功能初期不含欧盟、英国和瑞士地区。网页版暂无此入口。\n\n### 6. 调用技能\n\n在输入框输入 **@**，从列表里选技能，再写本次的具体内容：\n\n> @周报生成 这是本周的会议纪要和任务表，按模板出周报。\n\n### 7. 修改与分享\n\n点技能卡片可以打开详情，查看和修改说明；卡片的「•••」菜单里有分享等操作，可以搜索工作区里的同事或群组来分享，也可以复制分享链接、设置访问权限。别人分享给你的技能，在「分享给我的」或工作区分组里点「•••」→「安装」即可。能否分享、能否发布到整个工作区，取决于管理员的权限设置。想把多个技能或技能加连接器一起分发，可以打包成插件。\n\n![一个技能的详情面板：名称、简介和完整说明，右上角有启用开关和「•••」菜单（英文界面）](seed:g05-skill-detail.jpg)\n*图片来源：[Composio](https://composio.dev/content/best-chatgpt-skills)*\n\n## 推荐：适合做成技能的事\n\n不在这里推荐具体第三方技能包，只给判断标准——**重复做、格式固定、有明确检查标准**的事最适合：\n\n- **周报 / 日报**：固定栏目、固定语气；\n- **会议纪要整理**：结论、待办、负责人、截止日期四段式；\n- **合同 / 文案初审**：按清单逐项检查并标出风险；\n- **品牌文案改写**：带上品牌用词表和禁用词；\n- **数据报表解读**：固定先看哪些指标、怎么写结论。\n\n写技能时，一次只做一件事，描述里写清「什么时候用、什么时候不用」，把关键用途写在描述开头，附一两个好的示例输出，效果最好。\n\n## 常见问题\n\n**Q：我是个人 Plus，能用吗？**\n按官方帮助的现行说明，个人技能面向 Business、Enterprise、Healthcare、Edu，个人 Plus / Pro 不在列出的范围内，以官方后续说明为准。插件目录对各套餐开放，部分插件里自带技能，能不能装、能不能用取决于具体插件和你的套餐。替代做法是用「项目」放固定说明和模板，或者做一个 GPT。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n**Q：技能会自动生效吗？**\n会，前提是你的请求和技能描述匹配。如果它该用的时候没用，改写描述，或直接 @ 调用。\n\n**Q：网页、桌面端、手机都能用吗？**\n官方文档写法有差异：帮助中心给出的入口是网页 / 桌面 / 手机侧边栏的 Plugins；OpenAI 开发者文档则说独立技能主要在 ChatGPT 桌面 App、Codex CLI 和 IDE 扩展里可用，**打包进插件的技能**才在网页、桌面和手机上都能用。第三方文章还提到桌面端和网页 / 手机端添加的个人技能目前不会自动同步。实际以你账号里的界面为准。\n\n**Q：和 Codex 里的技能是一回事吗？**\n格式相同，都基于 `SKILL.md`（开放的 agent skills 标准）；ChatGPT 里用 @ 调用，Codex 里用 $ 调用。不过 ChatGPT 和 Codex 里的技能可能需要分别管理。\n\n## 参考资料\n\n- OpenAI 帮助中心：Skills in ChatGPT — https://help.openai.com/en/articles/20001066-skills-in-chatgpt\n- OpenAI 帮助中心：Plugins in ChatGPT — https://help.openai.com/en/articles/20001256-plugins-in-chatgpt-and-codex\n- OpenAI 文档：Skills & Plugins — https://learn.chatgpt.com/docs/skills-and-plugins\n- OpenAI 文档：Build skills — https://learn.chatgpt.com/docs/build-skills\n- OpenAI 文档：Record & Replay — https://learn.chatgpt.com/docs/extend/record-and-replay\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes\n- ChatGPT Enterprise and Edu Release Notes — https://help.openai.com/en/articles/10128477-chatgpt-enterprise-and-edu-release-notes\n- 截图来源：explainx.ai、Tony Reviews Things、Composio（见各图下方链接）",
       "sources": [
         "https://help.openai.com/en/articles/20001066-skills-in-chatgpt",
+        "https://help.openai.com/en/articles/20001256-plugins-in-chatgpt-and-codex",
         "https://learn.chatgpt.com/docs/skills-and-plugins",
         "https://learn.chatgpt.com/docs/build-skills",
-        "https://help.openai.com/en/articles/20001497-troubleshooting-plugins-apps-in-chatgpt",
-        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes"
+        "https://learn.chatgpt.com/docs/extend/record-and-replay",
+        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+        "https://help.openai.com/en/articles/10128477-chatgpt-enterprise-and-edu-release-notes",
+        "https://explainx.ai/blog/how-to-use-skills-in-chatgpt-complete-guide-2026",
+        "https://www.tonyreviewsthings.com/how-to-use-skills-in-chatgpt/",
+        "https://composio.dev/content/best-chatgpt-skills"
       ],
-      "screenshots": [
-        "侧边栏「插件（Plugins）」→ 插件目录里的「技能（Skills）」标签页",
-        "技能页「创建 → 用对话创建 / 从电脑上传」菜单",
-        "对话里输入 @ 弹出的技能列表",
-        "skill-creator 追问并提示安装技能的对话示例",
-        "已安装技能的详情页（名称、描述、编辑 / 删除）"
-      ],
-      "verify": [
-        "个人 Plus / Pro 账号能否使用 Skills：官方帮助写明个人技能面向 Business、Enterprise、Healthcare、Edu；多家第三方称 Free / Plus / Pro 不在本轮开放范围，需用 Plus 实号确认是否已有变化",
-        "入口位置：帮助中心写「侧边栏 → Plugins → Skills 标签」；OpenAI 文档又说独立技能主要在桌面 App 可用、打包进插件的技能才在网页 / 手机上可用，需实测两端差异",
-        "「录制并回放（Record & Replay）」创建方式在 ChatGPT（非 Codex）里的入口与可用范围",
-        "Enterprise 工作区自 2026-07-23 起默认开启技能（第三方说法），需核对"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "ChatGPT 生图额度与限制：Free 和 Plus 有什么区别",
       "slug": "chatgpt-image-limits",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g06-limit-notice.webp",
+        "g06-model-picker.webp"
+      ],
       "tags": [
         "chatgpt",
         "gpt-image-2"
       ],
       "accountTier": "FREE",
-      "excerpt": "ChatGPT 免费版每天能生成几张图？Plus 多了什么？本文按官方说明讲清生图额度怎么算、Free 与 Plus 在次数、带思考生图、速度上的区别，以及额度用完后怎么办。",
-      "content": "## 适用于谁\n\n- 用免费版 ChatGPT 画图，画了几张就提示「已达上限」的人；\n- 在考虑要不要升级 Plus，想知道生图方面到底差多少；\n- 想弄清「gpt-image-2」「Images 2.0 / 2.5」这些名字和自己账号的关系。\n\n## 先理清名字\n\n- **gpt-image-2**：OpenAI 在 2026 年 4 月 21 日发布的图像模型，在 ChatGPT 里叫 **ChatGPT Images 2.0**，开发者在 API 里用这个名字调用。\n- **ChatGPT Images 2.5**：2026 年 9 月 8 日发布，现在 ChatGPT 里生图默认用的是这一代。OpenAI 说明这次更新**没有改变原有的生图额度**（待核对）。\n\n所以下面讲的额度规则，对 2.0 和 2.5 都适用。\n\n## 结论先说\n\n1. **所有套餐都能生图，包括 Free**。生图有自己单独的额度，和文字聊天的额度分开算。\n2. **OpenAI 不公开固定的张数**。达到上限时，ChatGPT 会提示你，并告诉你大约什么时候恢复。网上流传的「每天 X 张」都是用户实测，会随负载调整，不能当成承诺。\n3. **Plus 的区别不只是「多几张」**：\n   - 额度更高，高峰期更不容易被限；\n   - 可以用**带思考的生图**：先推理再画，可以联网查资料，适合信息图、海报、带大量文字的图；\n   - 额度更宽裕，更适合一次要多个版本对比（Images 2.0 发布时称单次最多 8 个变体，各套餐是否一致待实测）。\n4. 介于两者之间还有 **Go** 套餐，生图额度高于 Free（部分地区提供）。\n\n## Free 与 Plus 对比\n\n| 项目 | Free | Plus |\n| --- | --- | --- |\n| 能否生图 | 可以 | 可以 |\n| 额度 | 较低，具体张数不公开 | 更高，具体张数不公开 |\n| 带思考的生图 | 不支持 | 支持（选 Thinking 类模型时） |\n| 改图 / 局部编辑 | 支持 | 支持 |\n| 高峰期 | 更容易排队或被限 | 相对优先 |\n\n（表中「不公开」均为官方现状，具体数字待实测。）\n\n## 步骤：查看和节省额度\n\n### 1. 看提示，不要猜\n\n触发上限时，对话里会出现提示，通常包含恢复时间。截图保存，下次就知道大概的节奏。\n\n【截图：Free 账号触发生图上限的提示】\n\n### 2. 先用文字把需求定稿\n\n很多额度浪费在「画完发现不对」。先让 ChatGPT 用文字描述它准备怎么画（构图、配色、文字内容），确认后再说「按这个生成」。\n\n### 3. 用「改图」代替「重画」\n\n对已有的图提修改意见，或用选择工具框出局部再改，比整张重画更容易一次成功。\n\n### 4. 看清是不是在用对的模式（Plus）\n\n想用带思考的生图，需要在模型选择里选 Thinking 类模型；在即时模式下也能生图，但不会先推理。\n\n【截图：模型选择里的 Thinking 与生图入口】\n\n### 5. 在「图片」页集中管理\n\n侧边栏的「图片（Images）」页会自动保存你生成过的图，方便找回，不用为找不到旧图而重新生成。\n\n【截图：侧边栏「图片」页面】\n\n## 怎么判断 Free 够不够用\n\n- **偶尔画几张头像、表情包、配图**：Free 一般够用，额度用完等一等就好；\n- **每天要出多版海报、商品图，或频繁改图**：Free 很容易在一次创作中途就碰到上限，来回等待最耽误时间；\n- **要做信息图、带大量文字或需要准确事实的图**：带思考的生图明显更合适，而它只在付费套餐提供；\n- **只是想批量出图做业务**：可以考虑 API 按量付费，和订阅是两套体系，额度不互通。\n\n## 常见问题\n\n**Q：额度用完了还能怎么办？**\n等提示的恢复时间；或者升级套餐。不要用多个账号轮换，这可能违反使用条款。\n\n**Q：Plus 是不是无限生图？**\n不是。Plus 额度更高，但仍有上限，系统在高负载时也可能临时收紧。\n\n**Q：生图失败算不算次数？**\n官方没有说明（待实测）。遇到失败可以参考本站《ChatGPT 生图失败怎么办》一文排查。\n\n**Q：API 里的 gpt-image-2 和 ChatGPT 额度有关系吗？**\n没关系。API 按用量单独计费，和 ChatGPT 订阅是两套体系。\n\n想开通 Plus 获取更高生图额度，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Images in ChatGPT — https://help.openai.com/en/articles/11084440-images-in-chatgpt\n- OpenAI 帮助中心：ChatGPT Free Tier FAQ — https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq\n- OpenAI 帮助中心：What is ChatGPT Go? — https://help.openai.com/en/articles/11989085-what-is-chatgpt-go\n- OpenAI：Introducing ChatGPT Images 2.0 — https://openai.com/index/introducing-chatgpt-images-2-0/\n- OpenAI：Introducing ChatGPT Images 2.5 — https://openai.com/index/introducing-chatgpt-images-2-5/\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+      "excerpt": "ChatGPT 免费版每天能生成几张图？Plus 多了什么？本文按官方说明讲清生图额度怎么算、Free 与 Plus 在额度、带思考生图、高峰期体验上的区别，以及额度用完后怎么办。",
+      "content": "## 适用于谁\n\n- 用免费版 ChatGPT 画图，画了几张就提示「已达上限」的人；\n- 在考虑要不要升级 Plus，想知道生图方面到底差多少；\n- 想弄清「gpt-image-2」「Images 2.0 / 2.5」这些名字和自己账号的关系。\n\n本文根据 OpenAI 官方帮助中心、发布说明和公开资料整理。\n\n## 先理清名字\n\n- **gpt-image-2**：OpenAI 在 2026 年 4 月 21 日发布的图像模型，在 ChatGPT 里叫 **ChatGPT Images 2.0**，开发者在 API 里用 `gpt-image-2` 这个名字调用。\n- **ChatGPT Images 2.5**：2026 年 9 月 8 日发布，面向所有套餐推出，现在 ChatGPT 里生图用的是这一代。官方发布说明写明：**原有的生图额度不变**。\n\n所以下面讲的额度规则，对 2.0 和 2.5 都适用。\n\n## 结论先说\n\n1. **所有套餐都能生图，包括 Free**。生图有自己单独的额度，和文字聊天的额度分开算（Free 和 Go 的日常文字聊天官方称不限次数，但文件上传、生图等工具另有上限）。\n2. **OpenAI 不公开固定的张数**。达到上限时，ChatGPT 会提示你，并给出可以再次生成的时间。网上流传的「每天 X 张」都是用户自己的经验，额度也会随系统负载调整，不能当成承诺。\n3. **Plus 的区别不只是「多几张」**：\n   - 额度更高，官方还写明 Plus 在高峰期有优先访问权，被打断的情况更少；\n   - 可以用**带思考的生图**：先规划再画，可以联网查实时信息、一次提示生成多张不同的图、并自查结果，适合信息图、海报、带大量文字的图；\n   - 额度更宽裕，更适合一次要多个版本对比（单次能出几张，官方没有公开固定数字）。\n4. 介于两者之间还有 **Go** 套餐，生图额度高于 Free，目前在所有支持 ChatGPT 的国家和地区都提供。\n\n## Free 与 Plus 对比\n\n| 项目 | Free | Plus |\n| --- | --- | --- |\n| 能否生图 | 可以 | 可以 |\n| 额度 | 较低，具体张数不公开 | 更高，具体张数不公开 |\n| 带思考的生图 | 不支持 | 支持（需在模型选择器里选带推理的档位） |\n| 改图 / 局部编辑 | 支持 | 支持 |\n| 高峰期 | 可能临时受限 | 官方称有优先访问权，但仍可能有上限 |\n\n（表中「不公开」是官方现状，具体数字以产品内提示为准。）\n\n## 步骤：查看和节省额度\n\n### 1. 看提示，不要猜\n\n触发上限时，对话里会出现提示，说明已达到生图上限，并给出可以再次生成的具体时间（比如「明天几点之后再试」），旁边通常有升级按钮。官方没有说明额度是按滚动 24 小时还是按固定时间重置，以提示里给出的时间为准；截图保存，下次就知道大概的节奏。\n\n![Free 账号达到生图上限时的提示：提示升级 Plus 或在给出的时间之后再试（英文界面）](seed:g06-limit-notice.webp)\n*图片来源：[OpenAI 帮助中心：ChatGPT Free Tier FAQ](https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq)*\n\n### 2. 先用文字把需求定稿\n\n很多额度浪费在「画完发现不对」。先让 ChatGPT 用文字描述它准备怎么画（构图、配色、文字内容），确认后再说「按这个生成」。\n\n### 3. 用「改图」代替「重画」\n\n对已有的图提修改意见，或用选择工具框出局部再改，比整张重画更容易一次成功。\n\n### 4. 看清是不是在用对的模式（Plus）\n\n想用带思考的生图，需要在模型选择器里选带推理的档位，而不是即时（Instant）模式。2026 年 6 月起，网页端的模型选择器改为 Instant / Medium / High 等选项（原来的 Thinking 档位改名），在即时模式下也能生图，但不会先推理。各套餐看到的选项不同，以你账号里的选择器为准。\n\n![网页端输入框里的模型选择器：Instant、Medium、High 等档位（官方示意图，Pro 账号界面，Plus 账号没有 Pro 相关选项）](seed:g06-model-picker.webp)\n*图片来源：[OpenAI：ChatGPT Release Notes（2026-06-10）](https://help.openai.com/en/articles/6825453-chatgpt-release-notes)*\n\n### 5. 在「图片」页集中管理\n\n侧边栏的「图片（Images）」页会自动保存你生成过的图，方便找回，不用为找不到旧图而重新生成。注意：想从图片页删掉某张图，需要删除生成它的那段对话。\n\n## 怎么判断 Free 够不够用\n\n- **偶尔画几张头像、表情包、配图**：Free 一般够用，额度用完等一等就好；\n- **每天要出多版海报、商品图，或频繁改图**：Free 很容易在一次创作中途就碰到上限，来回等待最耽误时间；\n- **要做信息图、带大量文字或需要准确事实的图**：带思考的生图明显更合适，而它目前只在 Plus、Pro、Business 提供（官方称 Enterprise、Edu 即将支持）；\n- **只是想批量出图做业务**：可以考虑 API 按量付费，和订阅是两套体系，额度不互通。\n\n## 常见问题\n\n**Q：额度用完了还能怎么办？**\n等提示里的时间；或者升级套餐——官方说明，Free 账号碰到上限后升级到 Plus、Pro 或 Business，用量会随之重置。不要用多个账号轮换，这可能违反使用条款。\n\n**Q：Plus 是不是无限生图？**\n不是。Plus 额度更高，但仍有上限，系统在高负载时也可能临时收紧。\n\n**Q：Go 能用带思考的生图吗？**\n现行帮助中心只写了 Plus、Pro、Business（Enterprise、Edu 即将支持），没有列出 Go；Go 虽然能用「Think」推理，但能否带思考生图以产品内为准。\n\n**Q：生图失败算不算次数？**\n官方没有说明。遇到失败可以参考本站《ChatGPT 生图失败怎么办》一文排查。\n\n**Q：API 里的 gpt-image-2 和 ChatGPT 额度有关系吗？**\n没关系。API 按用量单独计费，和 ChatGPT 订阅是两套体系。\n\n想开通 Plus 获取更高生图额度，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Images in ChatGPT — https://help.openai.com/en/articles/11084440-images-in-chatgpt\n- OpenAI 帮助中心：ChatGPT Free Tier FAQ — https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq\n- OpenAI 帮助中心：What is ChatGPT Go? — https://help.openai.com/en/articles/11989085-what-is-chatgpt-go\n- OpenAI 帮助中心：What is ChatGPT Plus? — https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus\n- OpenAI：Introducing ChatGPT Images 2.0 — https://openai.com/index/introducing-chatgpt-images-2-0/\n- OpenAI：Introducing ChatGPT Images 2.5 — https://openai.com/index/introducing-chatgpt-images-2-5/\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes\n- OpenAI API 文档：GPT-Image-2 — https://developers.openai.com/api/docs/models/gpt-image-2",
       "sources": [
         "https://help.openai.com/en/articles/11084440-images-in-chatgpt",
         "https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq",
         "https://help.openai.com/en/articles/11989085-what-is-chatgpt-go",
+        "https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus",
         "https://openai.com/index/introducing-chatgpt-images-2-0/",
         "https://openai.com/index/introducing-chatgpt-images-2-5/",
-        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes"
+        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+        "https://developers.openai.com/api/docs/models/gpt-image-2"
       ],
-      "screenshots": [
-        "Free 账号触发生图上限时的提示（含恢复时间）",
-        "Plus 账号的模型选择里「Thinking」与生图入口",
-        "侧边栏「图片（Images）」页面",
-        "生图时的「带思考」进度（Plus）"
-      ],
-      "verify": [
-        "Free / Go / Plus / Pro 每天或每个时间窗的具体生图张数：官方未公开固定数字，只说「以产品内提示为准」；第三方称 Free 约每 24 小时 2–3 张，不能写成定论",
-        "额度是按「滚动 24 小时」还是按固定时间重置，需实测提示文案",
-        "2026-09-08 发布 ChatGPT Images 2.5 后，ChatGPT 里默认模型已是 2.5；官方称生图额度未变，需确认；本文 models 标签是否应加 gpt-image-2-5 需站长决定",
-        "「带思考的生图」开放给哪些套餐：发布稿写 Plus、Pro、Business，帮助中心写「所有付费套餐」——Go 是否包含需核对",
-        "Images 2.0 发布稿链接 openai.com/index/introducing-chatgpt-images-2-0/ 是按命名规律推测的，未能打开确认，上线前点开核对"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "ChatGPT 生图失败怎么办：常见报错与排查方法",
       "slug": "chatgpt-image-failed",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g07-status-incident.jpg",
+        "g07-limit-notice.webp"
+      ],
       "tags": [
         "chatgpt",
         "gpt-image-2"
       ],
       "accountTier": "FREE",
       "excerpt": "ChatGPT 画图一直转圈、提示出错、说违反政策、或者干脆不出图？本文把常见失败分成四类：服务故障、额度用完、内容被拦、模式 / 环境不对，逐一给出排查顺序和改写提示词的办法。",
-      "content": "## 适用于谁\n\n- 让 ChatGPT 画图，结果一直转圈、半天没反应；\n- 收到「出错了」「无法生成」之类的回复，但不知道是谁的问题；\n- 提示违反内容政策，自己却觉得请求很正常；\n- 本文按 Free 账号写，Plus 遇到的问题基本一样，只是额度更宽裕。\n\n## 结论先说\n\n生图失败大致分四类，**按这个顺序排查**最快：\n\n1. **服务端故障**：OpenAI 那边出问题，等就行。先看状态页。\n2. **额度用完**：生图有单独额度，到了上限会提示恢复时间。\n3. **内容被拦截**：提示词或参考图触发了安全规则，需要改写。\n4. **模式或环境不对**：选的模型 / 模式不支持生图、网络或浏览器问题、App 版本太旧。\n\n## 步骤\n\n### 第一步：看是不是服务故障\n\n打开 **status.openai.com**，看 ChatGPT 下有没有和图片生成（Image Generation）相关的故障。2026 年 7 月、9 月都出现过生图错误率升高的事件，表现就是「一直转圈」或「生成出错」，此时怎么改提示词都没用。\n\n【截图：status.openai.com 上的生图故障记录】\n\n**典型表现**：ChatGPT 回复类似「因为我这边出错，没能生成图片」，或者没有任何拒绝说明、就是不出图。\n\n**处理**：等故障恢复后，在原对话里说「请重新生成刚才那张图」。\n\n### 第二步：看是不是额度用完\n\n如果对话里出现「已达到生图上限」一类提示，并给出恢复时间，就是额度问题。\n\n【截图：触发生图上限的提示】\n\n**处理**：等到提示的时间；或者先用文字把需求定下来，恢复后一次生成。额度规则详见本站《ChatGPT 生图额度与限制》。\n\n### 第三步：看是不是内容被拦\n\nChatGPT 会直接回复「无法生成这类图片」并说明原因。常见触发点：\n\n- **真实人物**：特别是知名人物、政治人物，或用别人照片做不当修改；\n- **受版权保护的角色、品牌标志**：直接要求还原某个动漫角色、商标；\n- **暴力、色情、未成年人相关**内容；\n- **误伤**：用词有歧义，比如医学、战争题材的正常请求。\n\n【截图：因内容政策拒绝的回复】\n\n**处理**：\n- 先问 ChatGPT「哪一部分不符合要求？怎么改能生成？」，它通常会给出可行的改写方向；\n- 把具体人物换成「一位 30 岁左右的女性」这类泛化描述；\n- 把「画成 XX 角色」改为描述风格特征，比如「日系手绘动画风、柔和色彩」；涉及知名 IP 风格的图仅供学习交流，商用请注意版权；\n- 去掉容易引起歧义的词，补充用途说明（比如「用于医学科普插图」）。\n\n**不要**尝试「破限」或换着花样绕过规则，可能导致账号受限。\n\n### 第四步：看模式和环境\n\n- **模型不支持**：个别推理模型或模式下不能直接生图。切回默认模型，或在侧边栏「图片（Images）」页里生成。\n- **上传的参考图有问题**：图片太大、格式不常见、或图片本身含敏感内容。换成常规 JPG / PNG 再试。\n- **网络 / 浏览器**：网页端刷新、清缓存或换浏览器；手机 App 更新到最新版。\n- **图生成了但看不到**：去侧边栏「图片」页找，生成过的图会自动保存在那里。\n\n## 常见问题\n\n**Q：图出来了，但文字是乱码 / 手指不对？**\n这不算失败，是效果问题。直接在图上框选出问题区域，说「把这里的文字改成 XXX」，比整张重画更有效。\n\n**Q：同一个提示词昨天能画，今天不行？**\n可能是服务波动，也可能是安全策略有调整。先查状态页，再按第三步改写。\n\n**Q：失败了会扣次数吗？**\n官方没有说明（待实测）。\n\n**Q：Plus 会更少失败吗？**\nPlus 不会放宽内容规则，但额度更高、高峰期相对优先，「额度不够」和「排队太久」这两类问题会少一些。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Images in ChatGPT — https://help.openai.com/en/articles/11084440-images-in-chatgpt\n- OpenAI 帮助中心：ChatGPT Free Tier FAQ — https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq\n- OpenAI 使用政策 — https://openai.com/policies/usage-policies/\n- OpenAI 服务状态 — https://status.openai.com/\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+      "content": "## 适用于谁\n\n- 让 ChatGPT 画图，结果一直转圈、半天没反应；\n- 收到「出错了」「无法生成」之类的回复，但不知道是谁的问题；\n- 提示违反内容政策，自己却觉得请求很正常；\n- 本文按 Free 账号写，Plus 遇到的问题基本一样，只是额度更宽裕。\n\n本文根据 OpenAI 官方帮助中心、服务状态页和公开报道整理；下文引用的报错只描述大意，界面上的确切措辞以你看到的为准。\n\n## 结论先说\n\n生图失败大致分四类，**按这个顺序排查**最快：\n\n1. **服务端故障**：OpenAI 那边出问题，等就行。先看状态页。\n2. **额度用完**：生图有单独额度，到了上限会提示可以再次生成的时间。\n3. **内容被拦截**：提示词或参考图触发了安全规则，需要改写。\n4. **模式或环境不对**：当前模式不支持、账号被限制了生图、网络或浏览器问题、App 版本太旧。\n\n## 步骤\n\n### 第一步：看是不是服务故障\n\n打开 **status.openai.com**，看 ChatGPT 下有没有和图片生成（Image Generation）相关的故障。按状态页的历史记录，2026 年 7 月到 9 月就有多次生图相关事件，例如 7 月 21 日、7 月 27 日都出现过「ChatGPT 生图不可用」，9 月 8 日（Images 2.5 发布当天）出现过生图错误率升高。这种时候的表现就是「一直转圈」或「生成出错」，怎么改提示词都没用。\n\n![OpenAI 状态页上 2026 年 7 月 27 日的「Image generation unavailable in ChatGPT」故障记录](seed:g07-status-incident.jpg)\n*图片来源：[MacRumors](https://www.macrumors.com/2026/07/27/chatgpt-down-for-images/)*\n\n**典型表现**：据 MacRumors 对 2026 年 7 月两次故障的报道，ChatGPT 会回复类似「因为我这边出错，没能生成图片」的话（英文界面为 “I wasn't able to generate the image due to an error on my side” 之类）；也可能没有任何拒绝说明、就是不出图。\n\n**处理**：等故障恢复后，在原对话里说「请重新生成刚才那张图」。\n\n### 第二步：看是不是额度用完\n\n如果对话里出现「已达到生图上限」一类提示，并给出可以再次生成的时间，就是额度问题。\n\n![达到生图上限时的提示：可以升级，或在给出的时间之后再试（英文界面）](seed:g07-limit-notice.webp)\n*图片来源：[OpenAI 帮助中心：ChatGPT Free Tier FAQ](https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq)*\n\n**处理**：等到提示的时间；或者先用文字把需求定下来，恢复后一次生成。额度规则详见本站《ChatGPT 生图额度与限制》。\n\n### 第三步：看是不是内容被拦\n\nChatGPT 会直接回复无法生成这类图片，有时会说明原因。OpenAI 对提示词和图片都有安全检查，常见触发点：\n\n- **真实人物**：特别是知名人物、政治人物，或用别人照片做不当修改；官方建议只在获得本人许可时使用他人肖像；\n- **受版权保护的角色、品牌标志**：直接要求还原某个动漫角色、商标；\n- **暴力、色情、未成年人相关**内容；\n- **误伤**：用词有歧义，比如医学、战争题材的正常请求。\n\n**处理**：\n- 先问 ChatGPT「哪一部分不符合要求？怎么改能生成？」，它通常会给出可行的改写方向；\n- 把具体人物换成「一位 30 岁左右的女性」这类泛化描述；\n- 把「画成 XX 角色」改为描述风格特征，比如「日系手绘动画风、柔和色彩」；OpenAI 也建议优先要「通用的、自己能拥有的」设计，而不是模仿某个具体品牌或作品；涉及知名 IP 风格的图仅供学习交流，商用请注意版权；\n- 去掉容易引起歧义的词，补充用途说明（比如「用于医学科普插图」）。\n\n**不要**尝试「破限」或换着花样绕过规则，可能导致账号受限。\n\n### 第四步：看模式和环境\n\n- **模式不对**：官方没有公开列出哪些模型不能生图。如果在某个模式里一直不出图，切回默认模式重试，或直接去侧边栏「图片（Images）」页生成。另外，Images 2.5 的「模板」功能目前在 Work 模式里不可用。\n- **GPTs 里不出图**：GPT 需要在「功能（Capabilities）」里开启「图像生成（Image Generation）」才能画图；没开就换回普通对话。\n- **青少年账号**：如果是家长关联的青少年账号，家长可以在家长控制里关闭生图和改图。\n- **上传的参考图有问题**：图片太大、格式不常见、或图片本身含敏感内容。换成常规 JPG / PNG 再试。\n- **网络 / 浏览器**：网页端刷新、清缓存或换浏览器；手机 App 更新到最新版。\n- **图生成了但看不到**：生图可能要几分钟，期间可以继续聊天；去侧边栏「图片」页找，生成过的图会自动保存在那里。\n\n临时聊天、项目里能否生图，官方帮助没有单独说明，遇到问题以界面提示为准。\n\n## 常见问题\n\n**Q：图出来了，但文字是乱码 / 手指不对？**\n这不算失败，是效果问题。直接在图上框选出问题区域，说「把这里的文字改成 XXX」，比整张重画更有效。要出现在图里的文字用引号写清楚、尽量简短。\n\n**Q：同一个提示词昨天能画，今天不行？**\n可能是服务波动，也可能是安全策略有调整。先查状态页，再按第三步改写。\n\n**Q：失败了会扣次数吗？**\n官方没有说明。\n\n**Q：Plus 会更少失败吗？**\nPlus 不会放宽内容规则，但额度更高，官方也写明 Plus 在高峰期有优先访问权，「额度不够」和「高峰期被打断」这两类问题会少一些。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n## 参考资料\n\n- OpenAI 帮助中心：Images in ChatGPT — https://help.openai.com/en/articles/11084440-images-in-chatgpt\n- OpenAI 帮助中心：ChatGPT Free Tier FAQ — https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq\n- OpenAI 使用政策 — https://openai.com/policies/usage-policies/\n- OpenAI Academy：Creating images with ChatGPT — https://openai.com/academy/image-generation/\n- OpenAI 服务状态（历史记录） — https://status.openai.com/history\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes\n- MacRumors：ChatGPT is Down for Images（2026-07-27 / 2026-07-21） — https://www.macrumors.com/2026/07/27/chatgpt-down-for-images/",
       "sources": [
         "https://help.openai.com/en/articles/11084440-images-in-chatgpt",
         "https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq",
         "https://openai.com/policies/usage-policies/",
-        "https://status.openai.com/",
-        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes"
+        "https://openai.com/academy/image-generation/",
+        "https://status.openai.com/history",
+        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+        "https://www.macrumors.com/2026/07/27/chatgpt-down-for-images/",
+        "https://www.macrumors.com/2026/07/21/chatgpt-is-down-for-images/"
       ],
-      "screenshots": [
-        "生图过程中一直转圈 / 进度条卡住的画面",
-        "「因为我这边出错，未能生成图片」一类的报错回复",
-        "触发生图上限的提示",
-        "因内容政策拒绝生成的回复",
-        "status.openai.com 上图片生成相关的故障记录"
-      ],
-      "verify": [
-        "各类报错在中文界面的确切文案（本文只描述大意，不写成原文），需逐条截图",
-        "生图失败是否扣额度：官方未说明",
-        "哪些模型 / 模式下不能生图（例如某些 Pro 推理模型），以当前模型选择器为准",
-        "临时聊天、项目、GPTs 里能否正常生图，需实测",
-        "「2026 年 7 月、9 月出现过生图错误率升高」来自第三方状态聚合站与新闻，需在 status.openai.com 历史记录里核对日期"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "gpt-image-2 怎么用：在 ChatGPT 里生成、编辑与改图",
       "slug": "gpt-image-2-how-to",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g08-images-page-sketch.webp",
+        "g08-mobile-edit-comment.webp",
+        "g08-template-product-photo.webp"
+      ],
       "tags": [
         "chatgpt",
         "gpt-image-2"
       ],
       "accountTier": "PLUS",
       "excerpt": "gpt-image-2（ChatGPT Images 2.0）在 ChatGPT 里怎么用？本文讲清它和 Images 2.5 的关系，以及从文字生成、上传照片改图、框选局部修改、换比例到带思考生图的完整操作。",
-      "content": "## 适用于谁\n\n- 搜「gpt-image-2 怎么用」「ChatGPT 怎么用 image2」，想在 ChatGPT 里用上 OpenAI 新一代图像模型的人；\n- 想用 ChatGPT 改照片、换背景、做海报、做带文字的信息图；\n- 本文按 Plus 账号写，Free 也能完成大部分操作，只是额度更少、没有「带思考生图」。\n\n## 先弄清：gpt-image-2 和你在 ChatGPT 里用的是什么关系\n\n- **gpt-image-2** 是 OpenAI 于 2026 年 4 月 21 日发布的图像模型。在 ChatGPT 里它的名字是 **ChatGPT Images 2.0**；在 API 里，开发者用 `gpt-image-2` 这个名字调用。\n- 2026 年 9 月 8 日，OpenAI 又发布了 **ChatGPT Images 2.5**，现在 ChatGPT 里默认生图用的是 2.5。\n\n所以在 ChatGPT 里，你**不需要、通常也没有地方手动选「gpt-image-2」**——直接让 ChatGPT 画图就行。下面的操作方法对 2.0 和 2.5 通用；2.5 额外加了几个工具，文末单独说明。\n\n## 结论先说\n\n1. **两种入口**：在任意对话里直接说「帮我画……」；或在侧边栏打开「图片（Images）」页专门生图。\n2. **改图优先用编辑器**：点开图片，用选择工具框出要改的地方，再用一句话描述改动，比重新生成更稳。\n3. **复杂的图用带思考生图（Plus）**：选 Thinking 类模型后再生图，它会先推理、可以联网查资料，适合信息图、带大量中文的海报。\n\n## 步骤\n\n### 1. 从文字生成\n\n在对话里直接描述。好的描述包括五部分：**主体、场景、风格、构图 / 比例、画面里的文字**。\n\n> 画一张竖版海报，比例 3:4。主体是一杯冒热气的拿铁，放在木桌上；背景是清晨的窗边，暖色调；风格为扁平插画。顶部大字「周一续命」，底部小字「早八咖啡 · 第二杯半价」。\n\n这一代模型对**画面中的中文文字**支持明显变好，但仍建议把要出现的文字用引号写清楚，字数不要太多。\n\n【截图：对话中直接画图的结果】\n\n### 2. 用「图片」页集中创作\n\n打开侧边栏的「图片（Images）」，或在对话里点「更多 → 图片」。这里可以生成新图，也能看到你所有生成过的图（自动保存在图库里）。\n\n【截图：侧边栏「图片」页】\n\n### 3. 上传照片来改\n\n点输入框的「+」上传照片，再描述要改什么：\n\n- 换背景：「把背景换成纯白色，人物不变」；\n- 换风格：「保持构图，改成水彩画风格」；\n- 合成：上传多张图，「把图 1 的产品放到图 2 的场景里」。\n\n涉及真人照片时，只处理你自己或已获得同意的照片。\n\n### 4. 框选局部修改\n\n点开一张图进入编辑器：\n\n1. 点**选择**工具，涂抹或框选要改的区域；\n2. 在对话里描述修改，比如「把这块招牌上的字改成『营业中』」；\n3. 不满意就用**撤销 / 重做**。\n\n也可以不框选，直接在对话里描述整体修改。\n\n【截图：图片编辑器的选择工具、宽高比、撤销 / 重做】\n\n### 5. 换比例\n\n在编辑器里点**宽高比**，选一个新比例重新生成；或者在提示词里直接写「16:9 横版」「9:16 竖版」。\n\n### 6. 带思考生图（Plus）\n\n在模型选择里切换到 Thinking 类模型，再提出生图需求。它会先规划版面、核对信息（必要时联网），再出图。适合：\n\n- 信息图、流程图、数据海报；\n- 多格漫画、分镜；\n- 需要准确事实的图（比如某城市地标的示意图）。\n\n代价是更慢，也会消耗更多额度。\n\n【截图：Thinking 模型生图的推理过程】\n\n## Images 2.5 新增了什么\n\n按 OpenAI 发布说明，2.5 在 2.0 基础上主要加了：更清晰的细节和更精确的局部编辑、多轮修改更稳定、生成速度更快，以及几个新工具——**草图**（直接画个草稿当参考）、**模板**（从海报、商品图等格式起步）、**图片评论**（在图上某个位置留修改意见）。中文界面的具体名称以实测为准。\n\n## 常见问题\n\n**Q：我一定要在 ChatGPT 里用 gpt-image-2 而不是 2.5，可以吗？**\nChatGPT 里能否手动选回 2.0 目前未确认（待实测）。如果一定要指定 `gpt-image-2`，需要通过 API 调用，按用量单独计费，和 ChatGPT 订阅无关。\n\n**Q：Free 能用吗？**\n能。所有套餐都能生图，Free 额度较少、不能用带思考生图。额度差异见本站《ChatGPT 生图额度与限制》。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n**Q：生成失败怎么办？**\n参考本站《ChatGPT 生图失败怎么办》按顺序排查。\n\n**Q：做出来的图能商用吗？**\n按 OpenAI 条款，你对自己生成的内容享有相应权利，但涉及他人肖像、商标、知名 IP 风格时仍可能侵权，商用前请自行评估。\n\n## 参考资料\n\n- OpenAI 帮助中心：Images in ChatGPT — https://help.openai.com/en/articles/11084440-images-in-chatgpt\n- OpenAI：Introducing ChatGPT Images 2.0 — https://openai.com/index/introducing-chatgpt-images-2-0/\n- OpenAI：Introducing ChatGPT Images 2.5 — https://openai.com/index/introducing-chatgpt-images-2-5/\n- OpenAI 帮助中心：GPT Image API — https://help.openai.com/en/articles/11128753-gpt-image-api\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+      "content": "## 适用于谁\n\n- 搜「gpt-image-2 怎么用」「ChatGPT 怎么用 image2」，想在 ChatGPT 里用上 OpenAI 新一代图像模型的人；\n- 想用 ChatGPT 改照片、换背景、做海报、做带文字的信息图；\n- 本文按 Plus 账号写，Free 也能完成大部分操作，只是额度更少、没有「带思考生图」。\n\n本文根据 OpenAI 官方帮助中心、发布说明、开发者文档和公开资料整理，界面截图来自官方或第三方公开文章，多为英文界面。\n\n## 先弄清：gpt-image-2 和你在 ChatGPT 里用的是什么关系\n\n- **gpt-image-2** 是 OpenAI 于 2026 年 4 月 21 日发布的图像模型。在 ChatGPT 里它的名字是 **ChatGPT Images 2.0**；在 API 里，开发者用 `gpt-image-2` 这个名字调用。\n- 2026 年 9 月 8 日，OpenAI 又发布了 **ChatGPT Images 2.5**，面向所有套餐的 ChatGPT、ChatGPT Work 和 Codex 用户推出，现在 ChatGPT 里生图用的是 2.5。官方称它比 2.0 生成更快（延迟最多降低一半）、局部编辑更准、多轮修改更稳定。\n\n所以在 ChatGPT 里，你**不需要、通常也没有地方手动选「gpt-image-2」**——直接让 ChatGPT 画图就行。下面的操作方法对 2.0 和 2.5 通用；2.5 额外加了几个工具，文末单独说明。\n\n## 结论先说\n\n1. **两种入口**：在任意对话里直接说「帮我画……」；或打开「图片（Images）」页专门生图。\n2. **改图优先用编辑器**：点开图片，用选择工具框出要改的地方，再用一句话描述改动，比重新生成更稳。\n3. **复杂的图用带思考生图（Plus）**：在模型选择器里选带推理的档位后再生图，它会先规划、可以联网查资料，适合信息图、带大量中文的海报。\n\n## 步骤\n\n### 1. 从文字生成\n\n在对话里直接描述。好的描述包括五部分：**主体、场景、风格、构图 / 比例、画面里的文字**。OpenAI 的官方教程也建议：一般一到三句话说清用途、主体、发生什么、在哪里、什么风格就够了，清楚比花哨更重要。\n\n> 画一张竖版海报，比例 3:4。主体是一杯冒热气的拿铁，放在木桌上；背景是清晨的窗边，暖色调；风格为扁平插画。顶部大字「周一续命」，底部小字「早八咖啡 · 第二杯半价」。\n\n这一代模型对画面中的文字（包括多种语言）支持明显变好，但官方仍建议把要出现的文字用引号写清楚、字数尽量少，并写明字体风格和位置。生成可能需要几分钟，期间可以继续聊天。\n\n### 2. 用「图片」页集中创作\n\n在侧边栏打开「图片（Images）」，或在对话里点「更多 → 图片」；手机 App 上，「图片」在对话列表上方的横向入口栏里。这里可以生成新图，也能看到你所有生成过的图（自动保存在图库里）。Images 2.5 之后，图片页还多了「模板（Templates）」入口，手机端还能从这里开始画草图。\n\n![手机端「图片」页：顶部有「热门 / 模板」切换，左图是「从草图开始」入口，右图是草图画板（英文界面）](seed:g08-images-page-sketch.webp)\n*图片来源：[TechRadar](https://www.techradar.com/ai-platforms-assistants/chatgpt/chatgpt-images-2-5-is-out-ive-been-testing-it-for-24-hours-and-these-are-the-3-new-features-youll-actually-use)（原图注明 Image credit: OpenAI）*\n\n### 3. 上传照片来改\n\n点输入框的「+」上传照片，再描述要改什么：\n\n- 换背景：「把背景换成纯白色，人物不变」；\n- 换风格：「保持构图，改成水彩画风格」；\n- 合成：上传多张图，「把图 1 的产品放到图 2 的场景里」。\n\n官方建议多图时按顺序称呼「图 1、图 2」，并用左 / 右、前景 / 背景这类空间词说明关系；改图时写明「只改 X，其余保持不变」。涉及真人照片时，只处理你自己或已获得同意的照片。\n\n### 4. 框选局部修改\n\n点开一张图进入编辑器（网页端）：\n\n1. 点**选择（Select）**工具，涂抹要改的区域；\n2. 在编辑器的输入框里描述修改，比如「把这块招牌上的字改成『营业中』」；\n3. 不满意就用**撤销 / 重做（Undo / Redo）**调整选区，或点**取消（Cancel）**重来，改好后点**保存（Save）**。\n\n也可以不框选，直接在对话里描述整体修改。官方提醒：涂抹的选区不一定精确，修改可能会超出你选的范围。\n\n手机 App 上，点开生成的图会全屏显示，下方有编辑、评论、调整尺寸、移除等按钮；选「选择」后可以用滑块调整画笔大小，涂好后点「下一步」再描述修改。\n\n### 5. 换比例\n\n在编辑器里点**宽高比（Aspect ratio）**，选一个新比例重新生成；或者在提示词里直接写「16:9 横版」「9:16 竖版」。官方说明 ChatGPT 可以生成任意宽高比的图。\n\n### 6. 带思考生图（Plus）\n\n在模型选择器里切换到带推理的档位（2026 年 6 月起网页端选项为 Instant / Medium / High 等，即时档 Instant 不会先推理），再提出生图需求。按官方介绍，它会先规划版面、必要时联网查实时信息，可以一次提示生成多张不同的图，并检查自己的输出，再给出结果。适合：\n\n- 信息图、流程图、数据海报；\n- 多格漫画、分镜；\n- 需要准确事实的图（比如某城市地标的示意图）。\n\n代价是更慢，也会消耗更多额度。带思考生图目前面向 Plus、Pro、Business（官方称 Enterprise、Edu 即将支持）。\n\n## Images 2.5 新增了什么\n\n按 OpenAI 发布说明和帮助中心，2.5 在 2.0 基础上主要加了：更清晰的细节和更精确的局部编辑、多轮修改更稳定、生成速度更快，以及几个新工具（中文界面的具体名称以实际显示为准）：\n\n- **模板（Templates）**：打开「图片」→「模板」，选海报、商品图、Logo 等类别和模板，再补充细节；ChatGPT 可能会追问风格等细节，有的模板可以上传参考图。模板目前在 Work 模式里不可用。\n- **草图（Sketch）**：在手机 App 的输入框里输入 **@** 选「Sketch」，画个草稿（可换颜色、擦除、撤销），点对勾确认后再写文字说明，ChatGPT 会按草图生成完整图片。\n- **图片评论（Comment）**：在手机 App 上全屏打开生成的图，可以直接编辑，或在图上某个位置留评论告诉 ChatGPT 要改什么。\n- **分享提示词**：分享图片时可以附带提示词，别人能用自己的照片和细节做一版；手机上依次点「分享 → 提示词模板 → 复制链接」。\n\n![手机 App 全屏查看生成的图，底部是编辑、评论、调整尺寸、移除按钮（英文界面）](seed:g08-mobile-edit-comment.webp)\n*图片来源：[TechRadar](https://www.techradar.com/ai-platforms-assistants/chatgpt/chatgpt-images-2-5-is-out-ive-been-testing-it-for-24-hours-and-these-are-the-3-new-features-youll-actually-use)（原图注明 Image credit: OpenAI）*\n\n![用「商品图」模板：左边上传商品照片并回答追问，右边是按「深色影棚」风格生成的商品图（英文界面）](seed:g08-template-product-photo.webp)\n*图片来源：[TechRadar](https://www.techradar.com/ai-platforms-assistants/chatgpt/chatgpt-images-2-5-is-out-ive-been-testing-it-for-24-hours-and-these-are-the-3-new-features-youll-actually-use)*\n\n## 常见问题\n\n**Q：我一定要在 ChatGPT 里用 gpt-image-2 而不是 2.5，可以吗？**\n官方没有提供在 ChatGPT 里切回 2.0 的说明，ChatGPT 里生图统一用当前版本。如果一定要指定 `gpt-image-2`，需要通过 API 调用，按用量单独计费，和 ChatGPT 订阅无关；按 API 文档，`gpt-image-2` 仍可调用，但 OpenAI 建议新项目改用 2.5 系列的 API 模型。\n\n**Q：gpt-image-2 最大能出多大的图？**\nChatGPT 里的输出分辨率官方没有公开。API 里的 `gpt-image-2` 支持自定义尺寸：最长边不超过 3840 像素，长短边之比不超过 3:1（即 3:1 到 1:3 之间），常用尺寸里包括 2K 和 4K 规格。\n\n**Q：Free 能用吗？**\n能。所有套餐都能生图，Free 额度较少、不能用带思考生图。额度差异见本站《ChatGPT 生图额度与限制》。如需开通 Plus，可前往 /chongzhi/chatgpt-plus。\n\n**Q：生成失败怎么办？**\n参考本站《ChatGPT 生图失败怎么办》按顺序排查。\n\n**Q：做出来的图能商用吗？**\n按 OpenAI 条款，你对自己生成的内容享有相应权利，官方也说明使用时不必署名 OpenAI；但涉及他人肖像、商标、知名 IP 风格时仍可能侵权，商用前请自行评估。\n\n## 参考资料\n\n- OpenAI 帮助中心：Images in ChatGPT — https://help.openai.com/en/articles/11084440-images-in-chatgpt\n- OpenAI：Introducing ChatGPT Images 2.0 — https://openai.com/index/introducing-chatgpt-images-2-0/\n- OpenAI：Introducing ChatGPT Images 2.5 — https://openai.com/index/introducing-chatgpt-images-2-5/\n- ChatGPT Release Notes — https://help.openai.com/en/articles/6825453-chatgpt-release-notes\n- OpenAI API 文档：GPT-Image-2 — https://developers.openai.com/api/docs/models/gpt-image-2\n- OpenAI API 文档：Image generation — https://developers.openai.com/api/docs/guides/image-generation\n- OpenAI Academy：Creating images with ChatGPT — https://openai.com/academy/image-generation/\n- 截图来源：TechRadar、GlobalGPT（见各图下方链接）",
       "sources": [
         "https://help.openai.com/en/articles/11084440-images-in-chatgpt",
         "https://openai.com/index/introducing-chatgpt-images-2-0/",
         "https://openai.com/index/introducing-chatgpt-images-2-5/",
-        "https://help.openai.com/en/articles/11128753-gpt-image-api",
-        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes"
+        "https://help.openai.com/en/articles/6825453-chatgpt-release-notes",
+        "https://developers.openai.com/api/docs/models/gpt-image-2",
+        "https://developers.openai.com/api/docs/guides/image-generation",
+        "https://openai.com/academy/image-generation/",
+        "https://www.techradar.com/ai-platforms-assistants/chatgpt/chatgpt-images-2-5-is-out-ive-been-testing-it-for-24-hours-and-these-are-the-3-new-features-youll-actually-use"
       ],
-      "screenshots": [
-        "对话中直接让 ChatGPT 画图的结果",
-        "侧边栏「图片（Images）」页与入口（或「更多 → 图片」）",
-        "图片编辑器：选择工具、宽高比、撤销 / 重做按钮",
-        "框选局部后在对话里描述修改的示例（前后对比）",
-        "选 Thinking 模型生图时的推理过程（Plus）",
-        "Images 2.5 新增的草图（Sketch）/ 模板 / 图片评论入口（如有）"
-      ],
-      "verify": [
-        "2026-09-08 发布 Images 2.5 后，ChatGPT 里能否手动选回 2.0（gpt-image-2）：第三方说法不一，需实测；如果不能选，本文标题与 models 标签需站长决定是否改为 2.5",
-        "Images 2.0 发布时的规格（最高 2K、宽高比 3:1 到 1:3、单次最多 8 个变体）来自发布报道，需对照官方发布稿；2.5 称最高 4K、最多 16 张参考图，同样需核对",
-        "Images 2.0 发布稿链接 openai.com/index/introducing-chatgpt-images-2-0/ 是按命名规律推测的，未能打开确认",
-        "草图、模板、图片评论等 2.5 新功能在中文界面的名称和入口"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "Claude Code 中文入门教程（2026）：安装、登录、第一个任务、常用命令",
       "slug": "claude-code-getting-started",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g09-install-success.png",
+        "g09-login-method.png",
+        "g09-browser-authorize.png",
+        "g09-edit-confirm.png"
+      ],
       "tags": [
         "claude"
       ],
       "accountTier": "PLUS",
       "excerpt": "从零装好 Claude Code：Mac / Linux / Windows 官方安装命令、用 Claude Pro 账号登录、在项目里跑通第一个任务，以及日常最常用的十几个命令。",
-      "content": "## 适用于谁\n\n- 已经开通 **Claude Pro / Max**（或团队版）的用户，想在自己电脑上让 Claude 直接读代码、改代码、跑命令。\n- 会打开终端（命令行）但不一定是专业程序员的人：写脚本、整理文件、改个小网站都可以用。\n- 不适合：只想网页聊天的用户（直接用 claude.ai 即可）；免费版账号（官方写明免费版不含 Claude Code）。\n\n## 结论先说\n\n1. 官方推荐用「原生安装」：Mac / Linux 一行 `curl`，Windows 在 PowerShell 里一行 `irm`，不需要先装 Node.js。\n2. 装好后在项目目录里输入 `claude`，第一次会跳浏览器登录，用 Claude 订阅账号或 Console（API）账号都行。\n3. 先让它「读懂项目」，再让它「改一个小地方」，确认它改得对，再逐步放大任务。\n4. 记住 6 个命令就够日常用：`/init`、`/clear`、`/compact`、`/model`、`/resume`、`/usage`。\n\n## 步骤\n\n### 第 1 步：确认电脑满足要求\n\n官方要求（2026-10 setup 页）：macOS 13.0+、Windows 10 1809+ / Windows Server 2019+、Ubuntu 20.04+、Debian 10+、Alpine 3.19+；4 GB 以上内存；需要联网。\n\n### 第 2 步：安装\n\n**macOS / Linux / WSL：**\n\n```bash\ncurl -fsSL https://claude.ai/install.sh | bash\n```\n\n**Windows PowerShell**（提示符以 `PS C:\\` 开头）：\n\n```powershell\nirm https://claude.ai/install.ps1 | iex\n```\n\n**Windows CMD**（提示符没有 `PS`）：\n\n```bat\ncurl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd\n```\n\n也可以用包管理器：Mac 上 `brew install --cask claude-code`，Windows 上 `winget install Anthropic.ClaudeCode`。注意这两种方式**不会自动更新**，要自己定期升级；原生安装会在后台自动更新。\n\n【截图：PowerShell 里执行安装命令并成功的窗口】\n\n装完**新开一个终端窗口**，运行：\n\n```bash\nclaude --version\n```\n\n能打印出版本号（后面带 `(Claude Code)`）就说明装好了。提示找不到 `claude`，通常是安装目录还没加进 PATH，重开终端或按官方「Fix your PATH」处理。\n\nWindows 用户补充：官方建议装 [Git for Windows](https://git-scm.com/downloads/win)，这样 Claude Code 能用 Bash 执行命令；不装也能用，会改用 PowerShell。\n\n### 第 3 步：登录\n\n```bash\ncd 你的项目文件夹\nclaude\n```\n\n第一次运行会提示登录，按提示在浏览器里完成授权即可。可用的账号类型：Claude Pro / Max / Team / Enterprise 订阅（官方推荐）、Claude Console（预充值 API 额度），以及企业云平台。之后想换账号，在会话里输入 `/login`。\n\n【截图：登录方式选择界面】【截图：浏览器授权确认页】\n\n还没有订阅的话，可以在本站开通：[/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n### 第 4 步：第一个任务——先读懂，再动手\n\n进入会话后，直接用中文提问：\n\n```text\n这个项目是做什么的？主要用了哪些技术？入口文件在哪？\n```\n\nClaude 会自己去读需要的文件，不用你手动粘贴代码。【截图：项目介绍的回答】\n\n然后给一个**小而具体**的修改任务，比如：\n\n```text\n在 README 里补一段「如何本地运行」的说明，命令从 package.json 里找\n```\n\n它会展示要改的内容；如果弹出确认，选 **Yes** 才会写入。【截图：修改确认框】按 `Shift+Tab` 可以切换权限模式（例如每次都问 / 自动执行）。\n\n### 第 5 步：让它记住项目规矩\n\n在项目里运行 `/init`，Claude 会分析代码并生成一份 `CLAUDE.md`，里面写构建命令、测试方法、代码风格。以后每次会话都会自动读取它。只对你自己生效的偏好写在 `~/.claude/CLAUDE.md`。\n\n### 第 6 步：养成三个好习惯\n\n- **说具体**：不要只说「修一下 bug」，而是「登录时输错密码后页面变成空白，帮我找原因并修复」。描述越具体，它找文件越准。\n- **大任务拆小步**：先建数据表，再写接口，最后做页面，每一步确认没问题再进行下一步。\n- **先探索后动手**：复杂改动前先让它「分析一下数据库结构」「列出会受影响的文件」，看完方案再让它改。\n\n这三条也是官方快速开始页给新手的建议。用 Git 管理项目的话，还可以直接让它「看看我改了哪些文件」「用合适的说明提交这些改动」。\n\n## 常用命令速查\n\n**在终端里（启动前）：**\n\n| 命令 | 作用 |\n|---|---|\n| `claude` | 开始交互式会话 |\n| `claude \"任务\"` | 带着第一句话开始会话 |\n| `claude -p \"问题\"` | 只问一次，答完就退出（适合脚本） |\n| `claude -c` | 继续当前目录最近一次对话 |\n| `claude -r` | 从历史里挑一个对话恢复 |\n| `claude update` | 立即更新 |\n| `claude doctor` | 检查安装和配置问题 |\n\n**在会话里：**\n\n| 命令 | 作用 |\n|---|---|\n| `/help` | 查看所有命令；直接输入 `/` 也会弹出菜单 |\n| `/init` | 生成项目的 `CLAUDE.md` |\n| `/clear` | 清空上下文，开新对话 |\n| `/compact` | 把之前的对话压缩成摘要，腾出上下文 |\n| `/model` | 切换模型 |\n| `/resume` | 恢复以前的对话 |\n| `/rewind` | 回退对话和代码到之前某一步 |\n| `/usage` | 查看本次花费与套餐用量（`/cost` 是别名） |\n| `/permissions` | 管理哪些操作允许 / 询问 / 禁止 |\n| `/memory` | 编辑 `CLAUDE.md` 与自动记忆 |\n| `/exit` | 退出（或连按两次 Ctrl+D） |\n\n## 常见问题\n\n**Q：PowerShell 里报 `The token '&&' is not a valid statement separator`？**\n你把 CMD 的命令贴进了 PowerShell。PowerShell 用 `irm ... | iex` 那条。反过来在 CMD 里提示 `'irm' is not recognized`，就换用 CMD 那条。\n\n**Q：必须装 Node.js 吗？**\n原生安装不需要。只有用 npm 安装（`npm install -g @anthropic-ai/claude-code`）时才需要 Node.js（官方写 22 及以上），且官方明确不要加 `sudo`。\n\n**Q：免费账号能用吗？**\n官方 setup 页写明：免费版 claude.ai 不包含 Claude Code，需要 Pro、Max、Team、Enterprise 或 Console 账号。\n\n**Q：会不会乱改我的文件？**\n建议在 Git 仓库里使用，开始前先提交一次；改坏了可以用 `/rewind` 回退，或用 Git 还原。权限模式可以随时用 `Shift+Tab` 或 `/permissions` 调整。\n\n**Q：不想用终端怎么办？**\n官方还提供桌面 App、VS Code / JetBrains 插件和网页版（claude.ai/code），登录同一个账号即可（各入口的具体体验（待实测））。\n\n## 参考资料\n\n- Claude Code 快速开始（官方）：https://code.claude.com/docs/en/quickstart\n- 安装、系统要求、更新与卸载（官方）：https://code.claude.com/docs/en/setup\n- 命令参考（官方）：https://code.claude.com/docs/en/commands\n- CLAUDE.md 与记忆（官方）：https://code.claude.com/docs/en/memory\n- 套餐对比（官方）：https://claude.com/pricing",
+      "content": "> 本文根据 Claude Code 官方文档和公开教程整理（核对日期 2026-10-07），文中截图引用自公开发布的教程并注明出处。Claude Code 更新很快，界面与命令以官方文档为准。\n\n## 适用于谁\n\n- 已经开通 **Claude Pro / Max**（或团队版）的用户，想在自己电脑上让 Claude 直接读代码、改代码、跑命令。\n- 会打开终端（命令行）但不一定是专业程序员的人：写脚本、整理文件、改个小网站都可以用。\n- 不适合：只想网页聊天的用户（直接用 claude.ai 即可）；免费版账号（官方定价页和安装页都写明免费版不含 Claude Code）。\n\n## 结论先说\n\n1. 官方推荐用「原生安装」：Mac / Linux 一行 `curl`，Windows 在 PowerShell 里一行 `irm`，不需要先装 Node.js。\n2. 装好后在项目目录里输入 `claude`，第一次会跳浏览器登录，用 Claude 订阅账号或 Console（API）账号都行。\n3. 先让它「读懂项目」，再让它「改一个小地方」，确认它改得对，再逐步放大任务。\n4. 记住 6 个命令就够日常用：`/init`、`/clear`、`/compact`、`/model`、`/resume`、`/usage`。\n\n## 步骤\n\n### 第 1 步：确认电脑满足要求\n\n官方要求（2026-10 setup 页）：macOS 13.0+、Windows 10 1809+ / Windows Server 2019+、Ubuntu 20.04+、Debian 10+、Alpine 3.19+；4 GB 以上内存，x64 或 ARM64 处理器；需要联网。\n\n另外，官方要求在 [Anthropic 支持的国家和地区](https://www.anthropic.com/supported-countries) 使用，中国大陆目前不在该列表中，请遵守所在地法律和服务条款。\n\n### 第 2 步：安装\n\n**macOS / Linux / WSL：**\n\n```bash\ncurl -fsSL https://claude.ai/install.sh | bash\n```\n\n**Windows PowerShell**（提示符以 `PS C:\\` 开头）：\n\n```powershell\nirm https://claude.ai/install.ps1 | iex\n```\n\n**Windows CMD**（提示符没有 `PS`）：\n\n```bat\ncurl -fsSL https://claude.ai/install.cmd -o install.cmd && install.cmd && del install.cmd\n```\n\nWindows 上不需要以管理员身份运行。也可以用包管理器：Mac 上 `brew install --cask claude-code`，Windows 上 `winget install Anthropic.ClaudeCode`，Debian / Fedora / RHEL / Alpine 还可以用 apt、dnf、apk（官方 setup 页有完整步骤）。注意这些包管理器方式**默认不会自动更新**，要自己定期升级；原生安装会在后台自动更新。\n\n安装脚本跑完后会提示安装成功、版本号和安装位置，下面是在 macOS 终端里的输出示例：\n\n![Claude Code 原生安装脚本运行成功后的输出（macOS 终端示例）](seed:g09-install-success.png)\n*图片来源：[Analytics Vidhya](https://www.analyticsvidhya.com/blog/2026/08/how-to-install-claude-code/)*\n\n装完**新开一个终端窗口**，运行：\n\n```bash\nclaude --version\n```\n\n能打印出版本号（后面带 `(Claude Code)`）就说明装好了。提示找不到 `claude`，通常是安装目录还没加进 PATH（上图里的「Setup notes」就是在提醒这件事），重开终端或按官方「Fix your PATH」处理。想进一步体检，可以运行 `claude doctor`，它只做只读检查，会列出安装和配置问题及修复建议。\n\nWindows 用户补充：官方建议装 [Git for Windows](https://git-scm.com/downloads/win)，这样 Claude Code 能用 Bash 执行命令；不装也能用，会改用 PowerShell 执行命令。用 WSL 的话不需要 Git for Windows。\n\n### 第 3 步：登录\n\n```bash\ncd 你的项目文件夹\nclaude\n```\n\n第一次运行会让你选择登录方式：用 Claude 订阅账号（Pro / Max / Team / Enterprise，官方推荐）、Claude Console 账号（预充值 API 额度），或第三方云平台（Amazon Bedrock 等）。\n\n![首次运行 claude 时的登录方式选择](seed:g09-login-method.png)\n*图片来源：[Analytics Vidhya](https://www.analyticsvidhya.com/blog/2026/08/how-to-install-claude-code/)*\n\n选订阅账号后会打开浏览器，确认授权即可回到终端。浏览器没有自动打开时，可以按 `c` 复制登录链接自己粘贴到浏览器；如果浏览器最后显示的是一串登录码，就把它粘贴回终端的 `Paste code here if prompted` 提示处（WSL2、SSH、容器里比较常见）。\n\n![浏览器中授权 Claude Code 连接 Claude 账号的确认页](seed:g09-browser-authorize.png)\n*图片来源：[Analytics Vidhya](https://www.analyticsvidhya.com/blog/2026/08/how-to-install-claude-code/)*\n\n登录一次后凭据会保存下来，下次不用再登。之后想换账号，在会话里输入 `/login`；想退出登录用 `/logout`。\n\n还没有订阅的话，可以在本站开通：[/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n### 第 4 步：第一个任务——先读懂，再动手\n\n进入会话后，直接用中文提问：\n\n```text\n这个项目是做什么的？主要用了哪些技术？入口文件在哪？\n```\n\nClaude 会自己去读需要的文件，不用你手动粘贴代码。\n\n然后给一个**小而具体**的修改任务，比如：\n\n```text\n在 README 里补一段「如何本地运行」的说明，命令从 package.json 里找\n```\n\n它会找到要改的文件并展示改动。会不会先问你，取决于当前的**权限模式**：\n\n- 官方文档写明，**v2.1.283 及以后**的版本，交互式终端默认进入 **auto 模式**：由一个分类器模型代替你审核操作，大多数改文件、跑命令的动作不再逐个询问。\n- 如果你的设置或组织另有规定，或者 auto 模式在当前会话不可用，就会以 **Manual（手动）模式**开始，改文件、跑命令前都会弹出确认，选 **Yes** 才会执行。刚安装后的第一个会话起始模式也可能不同，以输入框下方状态栏显示的模式为准。\n\n![Manual 模式下，Claude Code 新建文件前弹出的确认选项](seed:g09-edit-confirm.png)\n*图片来源：[Real Python](https://realpython.com/how-to-use-claude-code/)*\n\n随时按 `Shift+Tab` 可以在 auto、manual、accept edits（自动接受改文件）、plan（只读规划）之间切换。新手想每一步都自己把关，可以切到 manual 模式。\n\n### 第 5 步：让它记住项目规矩\n\n在项目里运行 `/init`，Claude 会分析代码并生成一份 `CLAUDE.md`，里面写构建命令、测试方法、代码风格。以后每次会话都会自动读取它。只对你自己生效的偏好写在 `~/.claude/CLAUDE.md`。\n\n### 第 6 步：养成三个好习惯\n\n- **说具体**：不要只说「修一下 bug」，而是「登录时输错密码后页面变成空白，帮我找原因并修复」。描述越具体，它找文件越准。\n- **大任务拆小步**：先建数据表，再写接口，最后做页面，每一步确认没问题再进行下一步。\n- **先探索后动手**：复杂改动前先让它「分析一下数据库结构」「列出会受影响的文件」，看完方案再让它改（也可以切到 plan 模式只出方案）。\n\n这三条也是官方快速开始页给新手的建议。用 Git 管理项目的话，还可以直接让它「看看我改了哪些文件」「用合适的说明提交这些改动」。\n\n## 常用命令速查\n\n**在终端里（启动前）：**\n\n| 命令 | 作用 |\n|---|---|\n| `claude` | 开始交互式会话 |\n| `claude \"任务\"` | 带着第一句话开始会话 |\n| `claude -p \"问题\"` | 只问一次，答完就退出（适合脚本） |\n| `claude -c` | 继续当前目录最近一次对话 |\n| `claude -r` | 从历史里挑一个对话恢复（也可以跟会话名或 ID） |\n| `claude update` | 立即更新 |\n| `claude doctor` | 只读检查安装和配置问题 |\n\n**在会话里：**\n\n| 命令 | 作用 |\n|---|---|\n| `/help` | 查看所有命令；直接输入 `/` 也会弹出菜单 |\n| `/init` | 生成项目的 `CLAUDE.md` |\n| `/clear` | 清空上下文，开新对话 |\n| `/compact` | 把之前的对话压缩成摘要，腾出上下文 |\n| `/model` | 切换模型 |\n| `/resume` | 恢复以前的对话 |\n| `/rewind` | 回退对话和代码到之前某一步 |\n| `/usage` | 查看本次花费与套餐用量（`/cost` 是别名） |\n| `/permissions` | 管理哪些操作允许 / 询问 / 禁止 |\n| `/memory` | 编辑 `CLAUDE.md` 与自动记忆 |\n| `/exit` | 退出（或在 0.8 秒内连按两次 Ctrl+D） |\n\n## 常见问题\n\n**Q：PowerShell 里报 `The token '&&' is not a valid statement separator`？**\n你把 CMD 的命令贴进了 PowerShell。PowerShell 用 `irm ... | iex` 那条。反过来在 CMD 里提示 `'irm' is not recognized`，就换用 CMD 那条。\n\n**Q：必须装 Node.js 吗？**\n原生安装不需要。只有用 npm 安装（`npm install -g @anthropic-ai/claude-code`）时才需要 Node.js，官方 setup 页写的是 22 及以上；版本偏旧时 npm 只会给出警告，装好的程序本身并不依赖 Node.js 运行。官方明确不要加 `sudo`。\n\n**Q：免费账号能用吗？**\n不能。官方 setup 页和定价页都写明：免费版 claude.ai 不包含 Claude Code，需要 Pro、Max、Team、Enterprise 或 Console 账号。\n\n**Q：会不会乱改我的文件？**\n建议在 Git 仓库里使用，开始前先提交一次；改坏了可以用 `/rewind` 回退，或用 Git 还原。权限模式可以随时用 `Shift+Tab` 或 `/permissions` 调整；不放心 auto 模式就切到 manual。\n\n**Q：不想用终端怎么办？**\n官方还提供桌面 App、VS Code / JetBrains 插件和网页版（claude.ai/code），用同一个账号登录即可；各入口支持的功能略有差异，以官方文档对应页面为准。\n\n## 参考资料\n\n- Claude Code 快速开始（官方）：https://code.claude.com/docs/en/quickstart\n- 安装、系统要求、更新与卸载（官方）：https://code.claude.com/docs/en/setup\n- 登录与账号类型（官方）：https://code.claude.com/docs/en/authentication\n- 权限模式（官方）：https://code.claude.com/docs/en/permission-modes\n- 命令参考（官方）：https://code.claude.com/docs/en/commands\n- CLI 参考（官方）：https://code.claude.com/docs/en/cli-reference\n- CLAUDE.md 与记忆（官方）：https://code.claude.com/docs/en/memory\n- 套餐对比（官方）：https://claude.com/pricing\n- 支持的国家和地区（官方）：https://www.anthropic.com/supported-countries\n- 安装与登录截图：Analytics Vidhya《How to Install Claude Code》、Real Python《How to Use Claude Code》",
       "sources": [
         "https://code.claude.com/docs/en/quickstart",
         "https://code.claude.com/docs/en/setup",
+        "https://code.claude.com/docs/en/authentication",
+        "https://code.claude.com/docs/en/permission-modes",
+        "https://code.claude.com/docs/en/permissions",
         "https://code.claude.com/docs/en/commands",
+        "https://code.claude.com/docs/en/cli-reference",
         "https://code.claude.com/docs/en/memory",
-        "https://claude.com/pricing"
+        "https://claude.com/pricing",
+        "https://www.anthropic.com/supported-countries",
+        "https://www.analyticsvidhya.com/blog/2026/08/how-to-install-claude-code/",
+        "https://realpython.com/how-to-use-claude-code/"
       ],
-      "screenshots": [
-        "Windows PowerShell 里执行安装命令后，`claude --version` 输出版本号的窗口",
-        "首次运行 `claude` 时的登录方式选择界面（订阅账号 / Console）",
-        "浏览器里授权 Claude Code 的确认页",
-        "在一个示例项目里输入「这个项目是做什么的」后的回答",
-        "Claude Code 改代码前弹出的确认框（Yes / No）",
-        "输入 `/` 后弹出的命令菜单"
-      ],
-      "verify": [
-        "免费版 claude.ai 账号不能用 Claude Code（setup 页与定价页均如此写，上线前再看一眼定价页）",
-        "官方说 v2.1.283 起交互式终端默认是 auto 权限模式（分类器代替人工确认），实测新装版本首次会话是否还会弹确认框",
-        "Windows 原生安装不装 Git for Windows 时改用 PowerShell 工具执行命令——实测两种情况下的体验差异",
-        "npm 安装要求 Node.js 22+（官方 setup 页写法），以后可能变化",
-        "中国大陆网络下安装脚本与登录是否可用（官方要求在 Anthropic 支持的国家/地区使用），仅记录现象，不写绕过方法"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "Claude Skills 是什么、怎么装、推荐哪些",
       "slug": "claude-skills",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g10-capabilities-skills.jpg",
+        "g10-file-creation.jpg",
+        "g10-plugin-menu.png",
+        "g10-slash-menu-skill.png"
+      ],
       "tags": [
         "claude"
       ],
       "accountTier": "PLUS",
       "excerpt": "一篇讲清 Claude Skills（技能）：它和提示词有什么不同，在 claude.ai 网页版和 Claude Code 里分别怎么开启、上传、安装，官方仓库里有哪些值得先装的技能，以及装第三方技能的安全注意事项。",
-      "content": "## 适用于谁\n\n- 经常让 Claude 做**同一类重复工作**的人：按固定格式写周报、按公司模板做 PPT、按固定规范审稿。\n- 用 Claude Code 写代码、想把团队的部署 / 测试 / 提交流程固化下来的开发者。\n- 搜「claude skills 推荐」「claude skill 怎么装」想先搞懂概念再动手的新手。\n\n## 结论先说\n\n1. **Skill（技能）= 一个文件夹**，核心是一份 `SKILL.md`（说明书），可以附带脚本、模板、参考资料。Claude 判断用得上时会自动加载，不用你每次重复交代。\n2. 它和提示词的区别：提示词是一次性的；技能是**按需加载**的——平时只占用「名称 + 一句话描述」的上下文，触发时才读全文，所以装很多个也不太占地方。\n3. 三个地方各管各的：**claude.ai 网页 / App、Claude Code、API 的技能互不同步**，在哪用就要在哪装。\n4. 先装官方的：Word / Excel / PPT / PDF 文档技能，以及用来「帮你写技能」的 `skill-creator`。第三方技能要先审再装。\n\n## 步骤\n\n### 一、在 claude.ai（网页版 / App）里使用\n\n1. 打开 **Settings → Capabilities**，确认「Code execution and file creation」（代码执行与文件创建）已开启——技能依赖这个运行环境。【截图：Capabilities 开关】\n2. 进入 **Customize → Skills**，可以看到官方预置技能和你上传的技能，逐个开关。【截图：Skills 列表】\n3. 官方预置的文档类技能（Excel、Word、PowerPoint、PDF）**不用任何设置**，你让 Claude 「做一份 PPT」「整理成 Excel」时会自动用上。\n4. 上传自己的技能：把技能文件夹打成 ZIP → 在 Skills 页面点「+」→「+ Create skill」→「Upload a skill」→ 选择 ZIP。【截图：上传弹窗】\n\n> 以上菜单名称来自官方帮助中心，界面可能调整（待实测）。团队版 / 企业版需要管理员先在组织设置里允许技能。\n\n### 二、在 Claude Code 里使用\n\nClaude Code 的技能直接放在硬盘上，不需要上传：\n\n| 位置 | 路径 | 作用范围 |\n|---|---|---|\n| 个人 | `~/.claude/skills/技能名/SKILL.md` | 你的所有项目 |\n| 项目 | `.claude/skills/技能名/SKILL.md` | 当前仓库（可提交到 Git 给同事用） |\n| 插件 | 通过插件市场安装 | 以 `/插件名:技能名` 调用 |\n\n**安装官方技能仓库**（在 Claude Code 会话里输入）：\n\n```text\n/plugin marketplace add anthropics/skills\n/plugin install document-skills@anthropic-agent-skills\n/plugin install example-skills@anthropic-agent-skills\n```\n\n【截图：安装完成的输出】装好后输入 `/skills` 查看已有技能。【截图：/skills 列表】\n\n调用方式两种：**自动**——你的请求和技能描述匹配时 Claude 自己加载；**手动**——在消息开头输入 `/技能名`。\n\n### 三、自己写一个最小技能\n\n在 Claude Code 里新建 `~/.claude/skills/weekly-report/SKILL.md`：\n\n```markdown\n---\nname: weekly-report\ndescription: 按团队固定格式写周报。当用户要求写周报、总结本周工作时使用。\n---\n\n按以下结构输出周报：本周完成、遇到的问题、下周计划，每部分不超过 5 条，语气简洁。\n```\n\n要点：`name` 只能用小写字母、数字和连字符；`description` 要同时写清「做什么」和「什么时候用」，Claude 就是靠它判断要不要加载。也可以直接对 Claude 说「帮我把这个流程做成一个 skill」，或安装官方的 `skill-creator` 让它带你写。\n\n## 推荐先装哪些（均来自官方仓库 anthropics/skills）\n\n| 技能 | 适合做什么 |\n|---|---|\n| docx / xlsx / pptx / pdf | 生成和编辑 Word、Excel、PPT、PDF（claude.ai 已预置） |\n| skill-creator | 引导你创建、改进自己的技能 |\n| frontend-design | 做新界面时给出视觉方向、字体等设计建议，避免「模板味」 |\n| webapp-testing | 用 Playwright 测试本地网页应用、截图、看浏览器日志 |\n| mcp-builder | 指导编写 MCP 服务器（Python 或 Node/TypeScript） |\n| doc-coauthoring | 按结构化流程和 Claude 协作写方案、技术文档 |\n| theme-factory | 给幻灯片、文档、网页套用预设主题（配色与字体） |\n\n许可证提示：仓库里的示例技能是 Apache-2.0 开源；docx / pdf / pptx / xlsx 四个文档技能是「源码可见」，不是开源许可，不要拿去二次分发。\n\n## 常见问题\n\n**Q：技能和 Projects（项目）有什么区别？**\n项目是把资料和说明绑在某一组对话上；技能是跨对话通用的「做事方法」，在任何对话里都能被自动调用。\n\n**Q：网上下载的技能能直接装吗？**\n官方明确提醒：**只装可信来源的技能**。技能可以包含脚本，恶意技能可能诱导 Claude 执行危险操作或泄露数据。装之前把 `SKILL.md` 和所有脚本读一遍，特别留意访问外部网址的部分。\n\n**Q：装了技能但 Claude 好像没用上？**\n最常见的原因是 `description` 写得太笼统，Claude 判断不出什么时候该用。把触发场景写具体，例如「当用户要求写周报、总结本周工作时使用」。在 Claude Code 里也可以直接输入 `/技能名` 手动调用，确认技能本身是正常的；claude.ai 上则检查该技能的开关是否打开、代码执行是否已开启。\n\n**Q：在 claude.ai 上传的技能，Claude Code 里能用吗？**\n不能。官方说明三处互不同步，需要分别安装。\n\n**Q：免费版能用吗？**\n官方两份文档说法不一致，见本页「待核对」，以实测为准（待实测）。如需开通 Pro：[/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 参考资料\n\n- Using Skills in Claude（帮助中心）：https://support.claude.com/en/articles/12512180-using-skills-in-claude\n- Agent Skills 概览（开发者文档）：https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview\n- Skills in Claude Code（官方）：https://code.claude.com/docs/en/skills\n- 官方技能仓库：https://github.com/anthropics/skills",
+      "content": "> 本文根据 Anthropic 官方帮助中心、开发者文档和官方 GitHub 仓库整理（核对日期 2026-10-07），截图引用自官方发布页和公开教程并注明出处。claude.ai 的菜单会调整，以当前界面和帮助中心为准。\n\n## 适用于谁\n\n- 经常让 Claude 做**同一类重复工作**的人：按固定格式写周报、按公司模板做 PPT、按固定规范审稿。\n- 用 Claude Code 写代码、想把团队的部署 / 测试 / 提交流程固化下来的开发者。\n- 搜「claude skills 推荐」「claude skill 怎么装」想先搞懂概念再动手的新手。\n\n## 结论先说\n\n1. **Skill（技能）= 一个文件夹**，核心是一份 `SKILL.md`（说明书），可以附带脚本、模板、参考资料。Claude 判断用得上时会自动加载，不用你每次重复交代。\n2. 它和提示词的区别：提示词是一次性的；技能是**按需加载**的——平时只占用「名称 + 一句话描述」的上下文，触发时才读全文，所以装很多个也不太占地方。\n3. 三个地方的技能**基本各管各的**：claude.ai 和 API 之间互不同步；Claude Code 自己的技能放在本地硬盘上，不会上传到 claude.ai。唯一的例外是：Claude Code 用 claude.ai 账号登录时，会把你在 claude.ai 上启用的技能**单向下载**过来用。\n4. 先装官方的：Word / Excel / PPT / PDF 文档技能，以及用来「帮你写技能」的 `skill-creator`。第三方技能要先审再装。\n\n## 步骤\n\n### 一、在 claude.ai（网页版 / App）里使用\n\n1. 打开 **Settings → Capabilities**，确认「Code execution and file creation」（代码执行与文件创建）已开启——技能依赖这个运行环境。\n2. 点左侧边栏的 **Customize**，进入 **Skills**，可以看到官方预置技能和你添加的技能，逐个开关。\n\n![技能功能发布时的官方配图：上方是「Code execution and file creation」开关，下方是技能列表和开关](seed:g10-capabilities-skills.jpg)\n*图片来源：[Anthropic 官方公告《Introducing Agent Skills》](https://www.anthropic.com/news/skills)。这是功能发布时的界面，当时技能列表放在 Settings → Capabilities 里；按帮助中心的最新说明，技能列表现在在 Customize → Skills，代码执行开关仍在 Settings → Capabilities。*\n\n3. 官方预置的文档类技能（Excel、Word、PowerPoint、PDF）**不用任何设置**，你让 Claude 「做一份 PPT」「整理成 Excel」时会自动用上。\n\n![官方示例：用自然语言让 Claude 生成 Word、PDF 和 Excel 文件](seed:g10-file-creation.jpg)\n*图片来源：[Anthropic 官方公告《Claude can now create and edit files》](https://www.anthropic.com/news/create-files)*\n\n4. 从官方目录添加技能：在 Customize → Skills 点「+」→「Browse skills」，在目录里点「Add」即可，添加后默认启用。目录里装的技能只能用、不能改，想改需要下载一份副本，改完作为自己的技能上传。\n5. 上传自己的技能：把技能文件夹打成 ZIP（压缩包里应包含这个文件夹本身）→ 在 Customize → Skills 点「+」→「+ Create skill」→「Upload a skill」→ 选择 ZIP。\n\n> 以上菜单名称来自官方帮助中心（2026-10 查看），界面可能调整，以实际为准。团队版 / 企业版需要组织所有者先在 **Organization settings → Plugins & skills** 里同时允许「代码执行与文件创建」和「技能」；所有者也可以给全组织统一下发技能。\n\n### 二、在 Claude Code 里使用\n\nClaude Code 的技能直接放在硬盘上，不需要上传：\n\n| 位置 | 路径 | 作用范围 |\n|---|---|---|\n| 个人 | `~/.claude/skills/技能名/SKILL.md` | 你在这台电脑上的所有项目 |\n| 项目 | `.claude/skills/技能名/SKILL.md` | 当前仓库（可提交到 Git 给同事用） |\n| 插件 | 通过插件市场安装 | 以 `/插件名:技能名` 调用 |\n| claude.ai 同步 | 自动下载到 `~/.claude/skills/synced/` | 用 claude.ai 账号登录的会话 |\n\n最后一行是较新的变化：官方文档说明，用 claude.ai 账号登录 Claude Code 时，会在后台把你在 claude.ai 上启用的技能下载到本地，并定期检查更新；这是**只下载、不上传**，在本地改 `synced` 目录里的文件不会同步回 claude.ai。不想同步可以在用户设置里把 `syncClaudeAiSkills` 设为 `false`。\n\n**安装官方技能仓库**（在 Claude Code 会话里输入）：\n\n```text\n/plugin marketplace add anthropics/skills\n/plugin install document-skills@anthropic-agent-skills\n/plugin install example-skills@anthropic-agent-skills\n```\n\n第一行把官方仓库登记为插件市场（市场名是 `anthropic-agent-skills`），后两行分别安装文档技能包和示例技能包。也可以只输入 `/plugin` 打开插件菜单，按「Browse and install plugins」一步步选。\n\n![Claude Code 里输入 /plugin 打开的插件管理界面（官方示例，列出的是其他插件）](seed:g10-plugin-menu.png)\n*图片来源：[Anthropic 官方公告《Customize Claude Code with plugins》](https://www.anthropic.com/news/claude-code-plugins)*\n\n装好后输入 `/skills` 可以查看所有可用技能（输入文字可筛选，claude.ai 同步来的技能会单独归在「claude.ai sync」分组下）。\n\n调用方式两种：**自动**——你的请求和技能描述匹配时 Claude 自己加载；**手动**——在消息开头输入 `/技能名`，输入 `/` 时项目里的技能也会出现在命令菜单中。\n\n![输入 / 后，项目里自定义的命令（标注 project）出现在菜单中，回车即可手动调用](seed:g10-slash-menu-skill.png)\n*图片来源：[Analytics Vidhya](https://www.analyticsvidhya.com/blog/2026/10/claude-code-custom-commands-skills-automate-your-workflow/)*\n\n### 三、自己写一个最小技能\n\n在 Claude Code 里新建 `~/.claude/skills/weekly-report/SKILL.md`：\n\n```markdown\n---\nname: weekly-report\ndescription: 按团队固定格式写周报。当用户要求写周报、总结本周工作时使用。\n---\n\n按以下结构输出周报：本周完成、遇到的问题、下周计划，每部分不超过 5 条，语气简洁。\n```\n\n要点：`name` 只用小写字母、数字和连字符（不写时 Claude Code 默认用文件夹名）；`description` 要同时写清「做什么」和「什么时候用」，Claude 就是靠它判断要不要加载。也可以直接对 Claude 说「帮我把这个流程做成一个 skill」，或安装官方的 `skill-creator` 让它带你写。\n\n## 推荐先装哪些（均来自官方仓库 anthropics/skills）\n\n| 技能 | 适合做什么 |\n|---|---|\n| docx / xlsx / pptx / pdf | 生成和编辑 Word、Excel、PPT、PDF（claude.ai 已预置） |\n| skill-creator | 引导你创建、改进自己的技能，还能测试技能的触发效果 |\n| frontend-design | 做新界面时给出视觉方向、字体等设计建议，避免「模板味」 |\n| webapp-testing | 用 Playwright 测试本地网页应用、截图、看浏览器日志 |\n| mcp-builder | 指导编写 MCP 服务器（Python 或 Node/TypeScript） |\n| doc-coauthoring | 按结构化流程和 Claude 协作写方案、技术文档 |\n| theme-factory | 给幻灯片、文档、网页套用预设主题（配色与字体） |\n\n许可证提示：仓库里的示例技能大多是 Apache-2.0 开源；docx / pdf / pptx / xlsx 四个文档技能是「源码可见」，不是开源许可，不要拿去二次分发。官方 README 也说明，这些技能主要用于演示和学习，实际在 Claude 里的表现可能和仓库里的实现不同。\n\n## 常见问题\n\n**Q：技能和 Projects（项目）有什么区别？**\n项目是把资料和说明绑在某一组对话上；技能是跨对话通用的「做事方法」，在任何对话里都能被自动调用。\n\n**Q：网上下载的技能能直接装吗？**\n官方明确提醒：**只装可信来源的技能**（自己写的或 Anthropic 提供的）。技能可以包含脚本，恶意技能可能诱导 Claude 执行危险操作或泄露数据。装之前把 `SKILL.md` 和所有脚本读一遍，特别留意访问外部网址的部分。\n\n**Q：装了技能但 Claude 好像没用上？**\n最常见的原因是 `description` 写得太笼统，Claude 判断不出什么时候该用。把触发场景写具体，例如「当用户要求写周报、总结本周工作时使用」。在 Claude Code 里也可以直接输入 `/技能名` 手动调用，确认技能本身是正常的；claude.ai 上则检查该技能的开关是否打开、代码执行是否已开启。\n\n**Q：在 claude.ai 上传的技能，Claude Code 里能用吗？**\n如果 Claude Code 是用同一个 claude.ai 账号登录的，可以：官方文档说明会自动把 claude.ai 上启用的技能下载到本地使用。反过来，Claude Code 本地写的技能不会出现在 claude.ai 上；通过 API 上传的技能和 claude.ai 之间也互不同步，需要分别上传。\n\n**Q：免费版能用吗？**\n帮助中心文章和定价页都写明 Free、Pro、Max、Team、Enterprise 均可使用技能（包括上传自定义技能）。但开发者文档里仍写着「自定义技能上传限 Pro 及以上、入口在 Settings > Features」，和帮助中心不一致；官方 GitHub 仓库 README 则只提到示例技能已对付费套餐开放。以 claude.ai 当前界面和帮助中心说明为准。如需开通 Pro：[/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 参考资料\n\n- Using Skills in Claude（帮助中心）：https://support.claude.com/en/articles/12512180-using-skills-in-claude\n- 技能、连接器、插件目录（帮助中心）：https://support.claude.com/en/articles/14328846-browse-skills-connectors-and-plugins-in-one-directory\n- Claude 套餐对比（官方）：https://claude.com/pricing\n- Agent Skills 概览（开发者文档）：https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview\n- Skills in Claude Code（官方）：https://code.claude.com/docs/en/skills\n- 官方技能仓库：https://github.com/anthropics/skills\n- 截图来源：Anthropic 官方公告（Skills、文件创建、Claude Code 插件），Analytics Vidhya《Claude Code Custom Commands & Skills》",
       "sources": [
         "https://support.claude.com/en/articles/12512180-using-skills-in-claude",
+        "https://support.claude.com/en/articles/14328846-browse-skills-connectors-and-plugins-in-one-directory",
+        "https://claude.com/pricing",
         "https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview",
         "https://code.claude.com/docs/en/skills",
-        "https://github.com/anthropics/skills"
+        "https://code.claude.com/docs/en/commands",
+        "https://github.com/anthropics/skills",
+        "https://github.com/anthropics/skills/blob/main/.claude-plugin/marketplace.json",
+        "https://www.anthropic.com/news/skills",
+        "https://www.anthropic.com/news/create-files",
+        "https://www.anthropic.com/news/claude-code-plugins",
+        "https://www.analyticsvidhya.com/blog/2026/10/claude-code-custom-commands-skills-automate-your-workflow/"
       ],
-      "screenshots": [
-        "claude.ai 设置 → Capabilities 里「Code execution and file creation」开关",
-        "claude.ai Customize → Skills 页面（技能列表与开关）",
-        "「+」→「+ Create skill」→「Upload a skill」上传 ZIP 的弹窗",
-        "Claude Code 里执行 `/plugin marketplace add anthropics/skills` 后的输出",
-        "Claude Code 里 `/skills` 列出的技能列表",
-        "一次对话中 Claude 自动调用 Word / Excel 技能生成文件的结果"
-      ],
-      "verify": [
-        "免费版能否使用 Skills：帮助中心文章写 Free / Pro / Max / Team / Enterprise 都可用，但开发者文档写自定义技能上传限 Pro 及以上，且路径写的是 Settings > Features——用免费号和 Pro 号各实测一次",
-        "claude.ai 里的菜单路径（Settings > Capabilities、Customize > Skills、「+ Create skill」）是否与当前界面一致",
-        "anthropics/skills 仓库 README 写「示例技能对付费套餐可用」，与帮助中心说法是否冲突",
-        "Claude Code 插件市场命令与插件名（document-skills@anthropic-agent-skills 等）在当前版本是否仍有效"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
       "title": "Codex 入门教程：在 ChatGPT 里用 Codex 写代码（网页版 / CLI / IDE）",
       "slug": "codex-getting-started",
+      "checkedOn": "2026-10-07",
+      "images": [
+        "g11-codex-web-2025.jpg",
+        "g11-cloud-task-result.jpg",
+        "g11-cli-install-windows.png",
+        "g11-cli-signin.png",
+        "g11-cli-first-task.jpg",
+        "g11-ide-panel.jpg"
+      ],
       "tags": [
         "codex",
         "chatgpt"
       ],
       "accountTier": "PLUS",
       "excerpt": "OpenAI Codex 有网页版（云端）、命令行 CLI、IDE 插件和桌面 App 几种用法。本文讲清怎么选、怎么装、怎么用 ChatGPT 账号登录，并跑通第一个任务。",
-      "content": "## 适用于谁\n\n- 已有 **ChatGPT 账号**（尤其是 Plus / Pro），想让 AI 直接帮你写代码、修 bug、做代码审查的人。\n- 搜「chatgpt 怎么用 codex」「codex 教程」，分不清网页版、CLI、插件有什么区别的新手。\n- 会用 Git 最好；不会也能先从网页版或 IDE 插件开始。\n\n## 结论先说\n\n1. **Codex 是 OpenAI 的编程智能体**，用 ChatGPT 账号登录即可使用，不必单独申请 API Key。\n2. 怎么选：\n   - 代码在 GitHub 上、想让它在云端慢慢干活并提 PR → **网页版（云端）**；\n   - 习惯终端、想让它在本机读写文件、跑命令 → **CLI**；\n   - 主要在 VS Code / Cursor 里写代码 → **IDE 插件**。\n3. 三种入口用的是同一个账号和同一份套餐额度；额度按「每 5 小时」计算，另有每周上限（官方 pricing 页）。\n4. 不管哪种方式，**先让它解释项目，再给一个小任务，看完改动再合并**。\n\n## 步骤\n\n### 方式一：网页版（云端运行）\n\n1. 打开 chatgpt.com/codex，用 ChatGPT 账号登录。【截图：Codex 入口】\n2. 按提示**连接 GitHub**，选择要让它处理的仓库，创建一个环境（Environment）。环境里会配置仓库、依赖和环境变量，之后每个任务都在独立的云端工作区里跑，可以同时开好几个。【截图：连接 GitHub / Create environment】\n3. 新建任务，用中文描述需求，例如「找出登录接口没有做参数校验的地方并补上，附带测试」。\n4. 任务完成后查看改动的文件和测试结果，不满意就继续追加要求；满意后提交或**创建 Pull Request**，在 GitHub 上审核合并。【截图：diff 与创建 PR】\n\n> 新版文档写的入口是在 ChatGPT 里选择「Work in → Cloud」再选环境，界面以实际为准（待实测）。\n\n### 方式二：Codex CLI（命令行）\n\n**安装**（来自官方 GitHub README）：\n\nMac / Linux：\n\n```bash\ncurl -fsSL https://chatgpt.com/codex/install.sh | sh\n```\n\nWindows（PowerShell）：\n\n```powershell\npowershell -ExecutionPolicy ByPass -c \"irm https://chatgpt.com/codex/install.ps1 | iex\"\n```\n\n也可以用包管理器：\n\n```bash\nnpm install -g @openai/codex\n# 或（macOS）\nbrew install --cask codex\n```\n\n用安装脚本装的，想更新时**再运行一遍同一条安装命令**即可。\n\n**登录与第一个任务：**\n\n```bash\ncd 你的项目文件夹\ncodex\n```\n\n首次启动选择 **Sign in with ChatGPT**，在浏览器里完成登录。【截图：登录选项】然后直接输入：\n\n```text\n介绍一下这个项目的结构和入口文件\n```\n\n官方建议在任务前后各做一次 Git 提交，方便出问题时回退。\n\n**常用命令：**\n\n| 命令 | 作用 |\n|---|---|\n| `/init` | 生成 `AGENTS.md`，写入给 Codex 的项目说明 |\n| `/permissions` | 设置它改文件、跑命令前要不要问你 |\n| `/model` | 切换模型和推理强度 |\n| `/review` | 审查当前改动、找问题 |\n| `/status` | 查看当前会话配置 |\n| `codex resume` | 回到当前仓库之前的对话 |\n| `codex exec \"任务\"` | 非交互模式，适合脚本和自动化 |\n\n也支持用 API Key 登录，但需要额外配置，新手建议直接用 ChatGPT 账号。\n\n### 方式三：IDE 插件（VS Code / Cursor / Windsurf）\n\n1. 在 VS Code 扩展市场搜索 Codex，认准发布者 OpenAI、扩展 ID `openai.chatgpt`。【截图：扩展页】\n2. 安装后在侧边栏打开 Codex 面板，用 ChatGPT 账号登录。【截图：侧边栏面板】\n3. 选中一段代码或打开文件后提问，它可以直接引用当前文件和选中内容，改动在编辑器里以 diff 形式审阅。\n4. 大任务可以从插件里交给云端（网页版）去跑，跑完回到编辑器里看结果。\n\n官方文档还提到 JetBrains 和 Xcode 有原生集成，以及桌面 App（README 写可运行 `codex app` 打开）（待实测）。\n\n### 任务描述怎么写效果更好\n\n- **说清楚范围**：指明文件或模块，例如「只改 `src/auth` 目录，不要动数据库结构」。\n- **说清楚验收标准**：例如「改完后运行测试命令，全部通过再交付」。项目的测试命令最好写进 `AGENTS.md`，它就能自己去跑。\n- **一次一件事**：一个任务只解决一个问题，结果更容易审核，也更省额度。\n- **先审再合并**：不论哪种方式，都要自己看一遍改动；云端任务的 PR 也建议走正常的代码审查流程。\n\n## 常见问题\n\n**Q：免费账号能用 Codex 吗？**\n官方 pricing 页写所有 ChatGPT 套餐都包含 Codex，但额度不同；免费账号的实际可用程度（待实测）。想要更高额度可以开通 Plus：[/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：Windows 上 PowerShell 提示禁止运行脚本？**\n官方命令里已经带了 `-ExecutionPolicy ByPass`，请完整复制那一整行，不要只复制引号里的部分。\n\n**Q：额度怎么算？**\n按每 5 小时滚动计算，部分套餐还有每周上限。官方说明同样的任务消耗也可能不同，模型选择、上下文长度、推理强度、工具调用都会影响用量。\n\n**Q：Codex 和 ChatGPT 聊天里直接让它写代码有什么不同？**\n聊天只是给你代码片段；Codex 能读整个仓库、直接改文件、运行测试，并以 diff / PR 的形式交付。\n\n**Q：AGENTS.md 有什么用？**\n相当于给 Codex 的「项目说明书」：怎么构建、怎么测试、代码规范。写一次，之后每次任务都会参考。\n\n## 参考资料\n\n- Codex 官方仓库（安装命令）：https://github.com/openai/codex\n- Codex CLI 文档：https://developers.openai.com/codex/cli\n- Codex IDE 插件文档：https://developers.openai.com/codex/ide\n- Codex 云端文档：https://developers.openai.com/codex/cloud\n- Codex 套餐与额度：https://developers.openai.com/codex/pricing\n- Using Codex with your ChatGPT plan（帮助中心）：https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan",
+      "content": "> 本文根据 OpenAI 官方文档（原 developers.openai.com/codex，现已迁到 learn.chatgpt.com/docs）和官方 GitHub 仓库整理，核对日期 2026-10-07；截图引用自官方页面和公开教程并注明出处。Codex 更新很快，入口名称和额度以官方说明为准。\n\n## 适用于谁\n\n- 已有 **ChatGPT 账号**（尤其是 Plus / Pro），想让 AI 直接帮你写代码、修 bug、做代码审查的人。\n- 搜「chatgpt 怎么用 codex」「codex 教程」，分不清网页版、CLI、插件有什么区别的新手。\n- 会用 Git 最好；不会也能先从 IDE 插件或桌面 App 开始。\n\n## 结论先说\n\n1. **Codex 是 OpenAI 的编程智能体**，用 ChatGPT 账号登录即可使用，不必单独申请 API Key。\n2. 怎么选：\n   - 代码在 GitHub 上、想让它在云端慢慢干活并提 PR → **网页版（云端，Codex Cloud）**；\n   - 习惯终端、想让它在本机读写文件、跑命令 → **CLI**；\n   - 主要在 VS Code / Cursor / Windsurf 里写代码 → **IDE 插件**。\n3. 套餐差别：官方定价页写 Free 和 Go 也包含 Codex，但只是「有限」使用，主要在 ChatGPT 桌面 App 里（官方注明逐步开放）；网页云端、CLI、IDE 插件这些完整入口从 Plus 起提供。各入口共用同一份套餐额度。\n4. 不管哪种方式，**先让它解释项目，再给一个小任务，看完改动再合并**。\n\n## 步骤\n\n### 方式一：网页版（云端运行，Codex Cloud）\n\n按 2026-10 的官方文档，云端任务的入口在 ChatGPT 里：\n\n1. 在网页版或桌面 App 打开 ChatGPT 并登录（官方 GitHub README 里的 chatgpt.com/codex 入口链接仍然保留）。\n2. 新建任务时选择 **Work in → Cloud**，打开 **Select environment**。已有环境直接选；没有就点 **Create environment**。\n3. 选择要处理的 GitHub 仓库并点 **Get started**，首次会提示**连接 GitHub**。Codex 会自己检查仓库、安装依赖和工具、试跑流程，缺什么信息会在对话里问你。\n4. 看一遍它准备好的配置和测试结果，保存后点 **Publish**，等出现「Environment published」。之后每个任务都从这个环境的快照开始，各自有独立的工作区，可以同时开好几个，电脑关机也不影响。\n5. 点 **Start a new task**，用中文描述需求，例如「找出登录接口没有做参数校验的地方并补上，附带测试」。\n6. 任务完成后查看改动的文件和测试结果，不满意就继续追加要求；满意后提交或**创建 Pull Request**，在 GitHub 上审核合并。\n\n![Codex 网页版 2025 年发布时的官方配图：输入任务、选择仓库和分支，下方是任务列表](seed:g11-codex-web-2025.jpg)\n*图片来源：[OpenAI 官方公告《Introducing Codex》](https://openai.com/index/introducing-codex/)。这是早期界面，现在的入口是 ChatGPT 里的 Work in → Cloud，界面以实际为准。*\n\n![官方配图：云端任务完成后的结果页，包含改动摘要、测试结果和改动文件列表](seed:g11-cloud-task-result.jpg)\n*图片来源：[OpenAI 官方公告《Introducing Codex》](https://openai.com/index/introducing-codex/)（早期界面）*\n\n> 据第三方教程（[Flavio Copes](https://flaviocopes.com/codex-cloud/)，2026-10）介绍，旧版「手写环境配置脚本」的体验现在叫 Codex Cloud (Legacy)，网上较早的教程如果让你粘贴 setup 脚本，说的就是旧版。云端功能需要 ChatGPT 账号，只用 API Key 登录时没有云端功能（官方定价页）。\n\n### 方式二：Codex CLI（命令行）\n\n**安装**（来自官方 GitHub README 和 CLI 文档）：\n\nMac / Linux：\n\n```bash\ncurl -fsSL https://chatgpt.com/codex/install.sh | sh\n```\n\nWindows（在新开的 PowerShell 窗口里运行）：\n\n```powershell\npowershell -ExecutionPolicy ByPass -c \"irm https://chatgpt.com/codex/install.ps1 | iex\"\n```\n\n也可以用包管理器：\n\n```bash\nnpm install -g @openai/codex\n# 或（macOS）\nbrew install --cask codex\n```\n\n用安装脚本或 npm 装的，想更新时**再运行一遍同一条安装命令**即可；Homebrew 用 `brew upgrade --cask codex`。npm 包声明的 Node.js 版本要求是 16 及以上（npm 包信息里的 engines 字段），官方 README 没有单独写 Node 要求。\n\n![在 Windows PowerShell 里运行官方安装命令，提示 Codex CLI 安装成功](seed:g11-cli-install-windows.png)\n*图片来源：[Analytics Vidhya](https://www.analyticsvidhya.com/blog/2026/08/how-to-install-codex-cli/)*\n\n**登录与第一个任务：**\n\n```bash\ncd 你的项目文件夹\ncodex\n```\n\n首次启动会列出几种登录方式：**Sign in with ChatGPT**（浏览器登录，用套餐额度）、**Sign in with Device Code**（在另一台设备上用一次性代码登录）、**Provide your own API key**（按 API 用量计费）。新手选第一项，在浏览器里完成登录即可。\n\n![Codex CLI 首次启动时的登录方式选择](seed:g11-cli-signin.png)\n*图片来源：[Analytics Vidhya](https://www.analyticsvidhya.com/blog/2026/08/how-to-install-codex-cli/)*\n\n然后直接输入：\n\n```text\n介绍一下这个项目的结构和入口文件\n```\n\n![官方示意图：在 Codex CLI 里让它解释代码库，它会先列计划再去读文件](seed:g11-cli-first-task.jpg)\n*图片来源：[openai/codex 官方 GitHub 仓库](https://github.com/openai/codex)*\n\n官方建议在任务前后各做一次 Git 提交，方便出问题时回退。\n\n**常用命令：**\n\n| 命令 | 作用 |\n|---|---|\n| `/init` | 生成 `AGENTS.md`，写入给 Codex 的项目说明 |\n| `/permissions` | 设置它改文件、跑命令前要不要问你（例如在 Auto 和 Read Only 之间切换） |\n| `/model` | 切换模型和推理强度 |\n| `/review` | 审查当前改动、找问题 |\n| `/status` | 查看当前会话配置和 token 用量 |\n| `codex resume` | 回到当前仓库之前的对话 |\n| `codex exec \"任务\"` | 非交互模式，适合脚本和自动化 |\n\n也支持用 API Key 登录，但需要额外配置，而且没有云端相关功能，新手建议直接用 ChatGPT 账号。\n\n### 方式三：IDE 插件（VS Code / Cursor / Windsurf）\n\n1. 在 VS Code 扩展市场搜索 Codex，认准发布者 OpenAI、扩展 ID `openai.chatgpt`；Cursor、Windsurf 用的是同一个扩展。\n2. 安装后点侧边栏的 Codex 图标；找不到就打开命令面板运行 **Codex: Open Codex Sidebar**，然后用 ChatGPT 账号登录。\n3. 打开文件或选中一段代码后提问，它可以直接引用当前文件和选中内容，改动在编辑器里以 diff 形式审阅，只保留你想要的部分。\n4. 大任务可以从插件里交给云端去跑，跑完回到编辑器里看结果。\n\n![官方配图：IDE 里的 Codex 面板（右侧）和它给出的多文件改动 diff（左侧）](seed:g11-ide-panel.jpg)\n*图片来源：[OpenAI Codex IDE 扩展官方文档](https://learn.chatgpt.com/docs/codex/ide)*\n\nJetBrains IDE 和 Xcode 有各自的原生集成（JetBrains 在 AI Chat 里选 Codex，Xcode 在编码助手里选 Codex）。另外，现在的「Codex 桌面 App」已经并入 **ChatGPT 桌面 App**（macOS / Windows，Linux 另有安装说明），在 App 里选 Codex 即可；CLI 里运行 `codex app` 会打开已安装的桌面 App，没装则启动安装程序。\n\n### 任务描述怎么写效果更好\n\n- **说清楚范围**：指明文件或模块，例如「只改 `src/auth` 目录，不要动数据库结构」。\n- **说清楚验收标准**：例如「改完后运行测试命令，全部通过再交付」。项目的测试命令最好写进 `AGENTS.md`，它就能自己去跑。\n- **一次一件事**：一个任务只解决一个问题，结果更容易审核，也更省额度。\n- **先审再合并**：不论哪种方式，都要自己看一遍改动；云端任务的 PR 也建议走正常的代码审查流程。\n\n## 常见问题\n\n**Q：免费账号能用 Codex 吗？**\n能用一部分。官方定价页把 Free 和 Go 的 Codex 标为「有限」，说明里写的是在桌面 App 里使用（逐步开放）；网页云端、CLI、IDE 插件从 Plus 起提供，CLI 登录界面上也写着「Plus、Pro、Business、Enterprise 套餐包含用量」。想要完整入口和更高额度可以开通 Plus：[/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：Windows 上 PowerShell 提示禁止运行脚本？**\n官方命令里已经带了 `-ExecutionPolicy ByPass`，请完整复制那一整行，不要只复制引号里的部分。另外，官方仓库的安装说明文档里系统要求一栏仍写着「Windows 11 通过 WSL2」，和 README 提供的 PowerShell 原生安装命令不完全一致；原生安装遇到问题时可以改在 WSL2 里用 Mac / Linux 那条命令，以官方说明为准。\n\n**Q：额度怎么算？**\n官方定价页说明：Plus 和 Business 标准版按每 5 小时给出一个用量估算范围，可能另有每周上限；Pro 目前没有 5 小时限制。本地对话和云端任务共用同一份额度，云端任务通常消耗更多。同样的任务消耗也可能不同，模型选择、上下文长度、推理强度、工具调用都会影响用量，具体以 ChatGPT 里的用量面板为准。\n\n**Q：Codex 和 ChatGPT 聊天里直接让它写代码有什么不同？**\n聊天只是给你代码片段；Codex 能读整个仓库、直接改文件、运行测试，并以 diff / PR 的形式交付。\n\n**Q：AGENTS.md 有什么用？**\n相当于给 Codex 的「项目说明书」：怎么构建、怎么测试、代码规范。写一次，之后每次任务都会参考。\n\n## 参考资料\n\n- Codex 官方仓库（安装命令）：https://github.com/openai/codex\n- Codex CLI 文档：https://learn.chatgpt.com/docs/codex/cli\n- Codex IDE 插件文档：https://learn.chatgpt.com/docs/codex/ide\n- Codex 云端文档：https://learn.chatgpt.com/docs/cloud\n- Codex 套餐与额度：https://learn.chatgpt.com/docs/pricing\n- 命令参考：https://learn.chatgpt.com/docs/developer-commands\n- ChatGPT 桌面 App：https://learn.chatgpt.com/docs/app\n- ChatGPT 套餐对比：https://chatgpt.com/pricing\n- 截图来源：OpenAI《Introducing Codex》、openai/codex README、Codex IDE 文档、Analytics Vidhya《How to Install Codex CLI》",
       "sources": [
         "https://github.com/openai/codex",
-        "https://developers.openai.com/codex/cli",
-        "https://developers.openai.com/codex/ide",
-        "https://developers.openai.com/codex/cloud",
-        "https://developers.openai.com/codex/pricing",
-        "https://help.openai.com/en/articles/11369540-using-codex-with-your-chatgpt-plan",
-        "https://marketplace.visualstudio.com/items?itemName=openai.chatgpt"
+        "https://github.com/openai/codex/blob/main/docs/install.md",
+        "https://learn.chatgpt.com/docs/codex/cli",
+        "https://learn.chatgpt.com/docs/codex/ide",
+        "https://learn.chatgpt.com/docs/cloud",
+        "https://learn.chatgpt.com/docs/pricing",
+        "https://learn.chatgpt.com/docs/developer-commands",
+        "https://learn.chatgpt.com/docs/app",
+        "https://chatgpt.com/pricing",
+        "https://marketplace.visualstudio.com/items?itemName=openai.chatgpt",
+        "https://www.npmjs.com/package/@openai/codex",
+        "https://openai.com/index/introducing-codex/",
+        "https://flaviocopes.com/codex-cloud/",
+        "https://www.analyticsvidhya.com/blog/2026/08/how-to-install-codex-cli/"
       ],
-      "screenshots": [
-        "chatgpt.com/codex 首页（或 ChatGPT 里切到云端工作的入口）",
-        "连接 GitHub 并创建环境（Create environment）的页面",
-        "云端任务完成后的改动对比（diff）与「创建 PR」按钮",
-        "Windows PowerShell 安装 Codex CLI 并运行 `codex` 的窗口",
-        "CLI 首次启动的「Sign in with ChatGPT」选项",
-        "VS Code 扩展市场里的 Codex 扩展页（openai.chatgpt）",
-        "VS Code 侧边栏里的 Codex 面板"
-      ],
-      "verify": [
-        "哪些套餐能用 Codex：官方 pricing 页写 Free、Go、Plus、Pro、Business、Edu、Enterprise 全部包含；GitHub README 只写推荐 Plus / Pro / Business / Edu / Enterprise 登录使用——用免费号实测",
-        "网页版入口：GitHub README 仍指向 chatgpt.com/codex，新文档写的是在 ChatGPT 里「Work in > Cloud」选择环境——以当前界面为准",
-        "Plus 每 5 小时的消息额度随模型不同差异很大，另有每周上限；具体数字不写进正文，需要时以官方 pricing 页为准",
-        "官方文档站 developers.openai.com/codex 现已 308 跳转到 learn.chatgpt.com/docs，链接上线前再点一遍",
-        "用 npm 安装的 CLI 是否需要特定 Node.js 版本（README 未写）"
-      ]
+      "screenshots": [],
+      "verify": []
     },
     {
-      "title": "ChatGPT 和 Claude 有什么区别：按用途怎么选（2026 实测对比框架）",
+      "title": "ChatGPT 和 Claude 有什么区别：按用途怎么选（2026 对比框架）",
       "slug": "chatgpt-vs-claude",
+      "checkedOn": "2026-10-07",
+      "images": [],
       "tags": [
         "chatgpt",
         "claude"
       ],
       "accountTier": "PLUS",
-      "excerpt": "不站队、不吹黑：把 ChatGPT 和 Claude 能从官方页面核实的差异（套餐档位、上下文、生图、编程工具、扩展方式）列成一张表，再给出一套你可以自己跑的实测清单，按用途决定开哪个。",
-      "content": "## 适用于谁\n\n- 准备开通会员、在 ChatGPT Plus 和 Claude Pro 之间犹豫的人。\n- 搜「chatgpt 和 claude 区别」「claude code 和 chatgpt 区别」，看了一圈各说各话、想要可核实依据的人。\n- 说明：本文只写**官方页面能查到的差异**；「谁更聪明、谁写得更好」这类问题没有统一答案，放在文末的实测清单里，由你按自己的用途测。\n\n## 结论先说\n\n1. 两者都是通用 AI 助手，日常问答、写作、翻译、读文件都能做，**差异主要在配套功能和工具链**，而不是「能不能用」。\n2. **要在对话里直接生成图片** → ChatGPT 有内置生图；Claude 当前模型只输出文字（官方模型页写明「文本和图片输入、文本输出」）。\n3. **要处理很长的资料** → Claude 付费版较新的模型在对话中支持 1M token 上下文（官方帮助中心）；ChatGPT 的数字见下表，需以官网为准。\n4. **要 AI 直接改代码** → 两家都有编程智能体：ChatGPT 是 Codex，Claude 是 Claude Code。注意 Claude Code 需要付费套餐，免费版不含；Codex 官方写所有 ChatGPT 套餐都含（额度不同）。\n5. 拿不准就按下面的实测清单，用你自己真实的任务各跑一遍再决定。\n\n## 可核实的差异对照表\n\n> 数据整理于 2026-10-06，来源见「参考资料」。价格、额度经常调整，本表不列价格，以官网为准。\n\n| 对比项 | ChatGPT（OpenAI） | Claude（Anthropic） |\n|---|---|---|\n| 个人 / 团队套餐档位 | Free、Go、Plus、Pro、Business、Edu、Enterprise | Free、Pro、Max（5x / 20x）、Team、Enterprise |\n| 免费版可用模型 | 以官网为准（待核对） | Sonnet、Haiku（官方定价页） |\n| 对话上下文 | 手动选 Thinking 时总长 256K token（待核对） | 付费版：Fable 5.1、Opus 5.5 / 5、Sonnet 5.5 / 5 为 1M；Opus 4.6–4.8、Sonnet 4.6 等为 500K；其余 200K |\n| 内置图片生成 | 有（ChatGPT Images，全套餐可用，额度不同（待核对）） | 无原生生图，模型输出为文本 |\n| 编程智能体 | Codex：网页云端 / CLI / IDE 插件 | Claude Code：终端 / 桌面 App / IDE 插件 / 网页 |\n| 编程智能体的套餐门槛 | 官方写所有套餐都包含 | Pro、Max、Team、Enterprise 或 API 账号；免费版不含 |\n| 项目 / 记忆 | 都有（ChatGPT 功能目录） | 都有；免费版项目最多 5 个 |\n| 深度研究 | 有 Deep research | 有 Research，Pro 及以上 |\n| 可复用的扩展方式 | Skills、插件（功能目录） | Skills（技能），Claude Code 另有插件 |\n| 浏览器 / 办公软件集成 | 以官网为准（待核对） | Claude in Chrome、Microsoft 365 集成：Pro 及以上 |\n| 生成 Word / Excel / PPT 文件 | 以官网为准（待核对） | 官方预置 docx / xlsx / pptx / pdf 技能 |\n\n使用前提提醒：两家都只在各自官方支持的国家和地区提供服务，请遵守所在地法律与服务条款。\n\n## 按用途怎么选（框架，不是定论）\n\n| 你的主要用途 | 优先看哪些对比项 | 建议做法 |\n|---|---|---|\n| 做图、做海报、换风格 | 内置图片生成 | Claude 没有原生生图，这一项直接看 ChatGPT |\n| 读长合同、长论文、整本资料 | 对话上下文、文件上传 | 用实测 2 对比两边的摘要准确度 |\n| 写代码、改项目 | 编程智能体、套餐门槛 | 用实测 4 让 Codex 和 Claude Code 做同一个任务 |\n| 中文写作、润色、翻译 | 无硬性差异 | 用实测 1 盲测，自己打分 |\n| 办公文档产出 | 文件生成能力 | 用实测 5 生成同一份 PPT / Excel 比较 |\n\n想开通的话：[/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus) 或 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 需实测（站长上线前亲自跑）\n\n每项用**同一个提示词、同等级付费套餐、同一天**测试，各跑 3 次，记录结果并截图；只写观察到的现象，不写「X 完胜」。\n\n1. **中文写作盲测**：同一篇 800 字公众号文章的写作要求，隐去来源后请 3 个人打分（通顺度、事实错误数、是否跑题）。【截图：并排结果】\n2. **长文档理解**：上传同一份 100 页以上的 PDF，问 5 个答案在文中有明确页码的问题，记录答对数。【截图：摘要结果】\n3. **联网时效**：问 3 个最近一周发生的事件，记录是否给出来源链接、来源是否真实可点开。\n4. **编程任务**：在同一个小仓库里，让 Codex 和 Claude Code 各完成「加一个表单校验并补测试」，记录耗时、是否一次通过测试、改动行数。【截图：diff 对比】\n5. **办公文件**：让两边各生成一份 8 页 PPT 和一张带公式的 Excel，检查能否正常打开、公式是否正确。\n6. **生图**：ChatGPT 生成 3 张指定风格图片；对 Claude 提同样请求，记录它的实际回应方式。【截图：结果】\n7. **额度体感**：在 Plus / Pro 档位下连续高强度使用，记录多久触发用量提醒（只记录现象，不推算官方数字）。\n\n## 常见问题\n\n**Q：能不能直接说哪个更好？**\n不能一概而论。两家模型更新频繁，第三方榜单也随时变化；最可靠的是用你自己的任务实测。\n\n**Q：Claude Code 和 ChatGPT 的区别？**\nClaude Code 是 Anthropic 的编程智能体，对应的应该是 OpenAI 的 Codex，而不是 ChatGPT 聊天本身。入门可分别看本站的 Claude Code 入门和 Codex 入门教程。\n\n**Q：两个都要买吗？**\n看用途。如果主要需求只落在上表某一两行，开一个即可；同时重度做图和写代码的用户才需要考虑两个都开。\n\n## 参考资料\n\n- Claude 套餐对比：https://claude.com/pricing\n- Claude 付费版上下文长度（帮助中心）：https://support.claude.com/en/articles/8606394-how-large-is-the-context-window-on-paid-claude-plans\n- Claude 模型概览（输入输出能力、上下文）：https://platform.claude.com/docs/en/about-claude/models/overview\n- Claude Code 系统要求与账号要求：https://code.claude.com/docs/en/setup\n- ChatGPT 套餐对比：https://chatgpt.com/pricing\n- Codex 套餐与额度：https://developers.openai.com/codex/pricing\n- ChatGPT 中的模型与上下文（帮助中心）：https://help.openai.com/en/articles/11909943-gpt-5-in-chatgpt\n- ChatGPT 功能目录：https://learn.chatgpt.com/docs/features",
+      "excerpt": "不站队、不吹黑：把 ChatGPT 和 Claude 能从官方页面核实的差异（套餐档位、上下文、生图、编程工具、扩展方式）列成一张表，再给出一份你可以自己跑的自测清单，按用途决定开哪个。",
+      "content": "> 本文只整理两家官方页面能查到的信息（核对日期 2026-10-07），以及有明确出处的第三方公开榜单；我们没有做并排评测，文中不给「谁更强」的结论。\n\n## 适用于谁\n\n- 准备开通会员、在 ChatGPT Plus 和 Claude Pro 之间犹豫的人。\n- 搜「chatgpt 和 claude 区别」「claude code 和 chatgpt 区别」，看了一圈各说各话、想要可核实依据的人。\n- 说明：本文只写**官方页面能查到的差异**；「谁更聪明、谁写得更好」这类问题没有统一答案，文末给出第三方榜单的参考方式和一份自测清单，你可以按自己的用途测。\n\n## 结论先说\n\n1. 两者都是通用 AI 助手，日常问答、写作、翻译、读文件都能做，**差异主要在配套功能和工具链**，而不是「能不能用」。\n2. **要在对话里直接生成图片** → ChatGPT 有内置生图（免费版有限）；Claude 当前模型只输出文字（官方模型页写明「文本和图片输入、文本输出」）。\n3. **要一次塞进很长的资料** → 按官方公布的数字，Claude 较新的模型在对话中最高支持 1M token 上下文；ChatGPT 套餐页列出的对话上下文是 Plus 推理模型 256K、Pro 推理模型 400K。\n4. **要 AI 直接改代码** → 两家都有编程智能体：ChatGPT 是 Codex，Claude 是 Claude Code。Claude Code 需要付费套餐，免费版不含；Codex 在 ChatGPT 免费版和 Go 版里只有有限的桌面 App 用法，完整入口从 Plus 起。\n5. 拿不准就按文末的自测清单，用你自己真实的任务各跑一遍再决定。\n\n## 可核实的差异对照表\n\n> 数据整理于 2026-10-06，来源见「参考资料」。价格、额度、模型名经常调整，本表不列价格，以官网为准。\n\n| 对比项 | ChatGPT（OpenAI） | Claude（Anthropic） |\n|---|---|---|\n| 个人 / 团队套餐档位 | Free、Go、Plus、Pro、Business、Edu、Enterprise | Free、Pro、Max（5x / 20x）、Team、Enterprise |\n| 免费版可用模型 | 套餐表列出 GPT-5.6 Luna、GPT-5 Thinking Mini 等；GPT-6 系列从 Plus 起 | Sonnet、Haiku；Opus 从 Pro 起 |\n| 对话上下文（官方公布） | 即时模型：Free 27K、Go / Plus 54K、Pro 128K；推理模型：Go / Plus 256K、Pro 400K，Free 写「视情况」（均为含输出的总窗口） | 付费版：Fable 5.1、Opus 5.5 / 5、Sonnet 5.5 / 5 为 1M；Fable 5、Opus 4.6–4.8、Sonnet 4.6 为 500K；其余 200K。定价页对所有套餐写「最高 1M，因模型而异」 |\n| 内置图片生成 | 有；Free 为有限，Go 起可用，「带思考的生图」从 Plus 起 | 无原生生图，模型输出为文本 |\n| 视频生成 | 当前套餐表未列出视频生成；按 The Decoder（2026-03）报道的官方时间表，Sora 独立 App 和 API 分别于 2026-04-26、2026-09-24 关停，ChatGPT 内是否还有视频功能以官方说明为准 | 无 |\n| 编程智能体 | Codex：桌面 App / 网页云端 / CLI / IDE 插件 | Claude Code：终端 / 桌面 App / IDE 插件 / 网页 |\n| 编程智能体的套餐门槛 | Free、Go 为有限（桌面 App）；Plus 起含网页、CLI、IDE | Pro、Max、Team、Enterprise 或 API（Console）账号；免费版不含 |\n| 项目 / 记忆 | 项目全套餐可用；记忆 Free 为有限，Go 起完整 | 都有；免费版项目最多 5 个 |\n| 深度研究 | Deep research：Free、Go 有限，Plus 起完整 | Research：Pro 及以上 |\n| 可复用的扩展方式 | Skills（beta）、Plugins，全套餐可用（创建插件从 Go 起） | Skills（技能，全套餐可用）、Connectors，Claude Code 另有插件 |\n| 浏览器 / 办公软件集成 | 内置浏览器全套餐可用；Excel、Word、PowerPoint、Google Sheets 扩展（Free、Go 有限） | Claude in Chrome、Claude for Microsoft 365：Pro 及以上 |\n| 生成 Word / Excel / PPT 文件 | 套餐表未单独列出这一项，以官网为准 | 「代码执行与文件创建」全套餐可用，官方预置 docx / xlsx / pptx / pdf 技能 |\n\n使用前提提醒：两家都只在各自官方支持的国家和地区提供服务，请遵守所在地法律与服务条款。\n\n## 第三方榜单怎么看\n\n想知道「模型本身谁更强」，可以参考公开的第三方榜单，但要注意它们**随时在变**：\n\n- **Arena（arena.ai，原 LMArena）**：让真实用户对两个匿名模型的回答盲选投票，按文本、网页开发、Agent 等分榜。2026-10-06 查看时，Claude 和 GPT 的旗舰模型都排在 Agent 榜前列，而文本榜第一是 Google 的模型——说明「谁最强」取决于看哪个榜、哪一天看。\n- **两家官方发布的跑分**：OpenAI 和 Anthropic 在模型发布页都会给出基准测试成绩，但这是厂商自测，测试设置不一定可比，只能作参考。\n\n榜单反映的是模型平均表现，落到你自己的具体任务上不一定成立，所以最终还是建议用下面的清单自己试。\n\n## 按用途怎么选（框架，不是定论）\n\n| 你的主要用途 | 优先看哪些对比项 | 建议做法 |\n|---|---|---|\n| 做图、做海报、换风格 | 内置图片生成 | Claude 没有原生生图，这一项直接看 ChatGPT |\n| 读长合同、长论文、整本资料 | 对话上下文、文件上传 | 官方数字上 Claude 的上下文更大；再用自测 2 对比两边的回答准确度 |\n| 写代码、改项目 | 编程智能体、套餐门槛 | 用自测 4 让 Codex 和 Claude Code 做同一个任务 |\n| 中文写作、润色、翻译 | 无硬性差异 | 用自测 1 盲测，自己打分 |\n| 办公文档产出 | 文件生成能力 | 用自测 5 生成同一份 PPT / Excel 比较 |\n\n想开通的话：[/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus) 或 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 自测清单（按自己的需求挑几项）\n\n建议用**同一个提示词、同等级付费套餐、同一天**测试，每项跑几次，只记录你看到的现象，不要只凭一次结果下结论。\n\n1. **中文写作盲测**：同一篇 800 字公众号文章的写作要求，隐去来源后请几个人打分（通顺度、事实错误数、是否跑题）。\n2. **长文档理解**：上传同一份较长的 PDF，问几个答案在文中有明确页码的问题，记录答对数。\n3. **联网时效**：问几个最近一周发生的事件，记录是否给出来源链接、来源是否真实可点开。\n4. **编程任务**：在同一个小仓库里，让 Codex 和 Claude Code 各完成「加一个表单校验并补测试」，记录耗时、是否一次通过测试、改动行数。\n5. **办公文件**：让两边各生成一份 8 页 PPT 和一张带公式的 Excel，检查能否正常打开、公式是否正确。\n6. **生图**：让 ChatGPT 生成几张指定风格的图片；对 Claude 提同样请求，看它实际如何回应（例如改为给出设计说明或代码绘图）。\n7. **额度体感**：在你常用的强度下连续使用，留意多久出现用量提醒（只记录现象，不要据此推算官方额度）。\n\n## 常见问题\n\n**Q：能不能直接说哪个更好？**\n不能一概而论。两家模型更新频繁，第三方榜单的名次也随时变化；最可靠的是用你自己的任务试。\n\n**Q：Claude Code 和 ChatGPT 的区别？**\nClaude Code 是 Anthropic 的编程智能体，对应的应该是 OpenAI 的 Codex，而不是 ChatGPT 聊天本身。入门可分别看本站的 Claude Code 入门和 Codex 入门教程。\n\n**Q：两个都要买吗？**\n看用途。如果主要需求只落在上表某一两行，开一个即可；同时重度做图和写代码的用户才需要考虑两个都开。\n\n## 参考资料\n\n- Claude 套餐对比：https://claude.com/pricing\n- Claude 付费版上下文长度（帮助中心）：https://support.claude.com/en/articles/8606394-how-large-is-the-context-window-on-paid-claude-plans\n- Claude 模型概览（输入输出能力）：https://platform.claude.com/docs/en/about-claude/models/overview\n- Claude Code 系统要求与账号要求：https://code.claude.com/docs/en/setup\n- Using Skills in Claude（帮助中心）：https://support.claude.com/en/articles/12512180-using-skills-in-claude\n- ChatGPT 套餐对比（含上下文、生图、Codex 等逐项对照）：https://chatgpt.com/pricing\n- Codex 套餐与额度：https://learn.chatgpt.com/docs/pricing\n- ChatGPT / Codex 模型说明：https://learn.chatgpt.com/docs/models\n- ChatGPT 图片生成说明：https://learn.chatgpt.com/docs/image-generation\n- Sora 关停报道（The Decoder）：https://the-decoder.com/openai-sets-two-stage-sora-shutdown-with-app-closing-april-2026-and-api-following-in-september/\n- Arena 公开榜单：https://arena.ai/leaderboard",
       "sources": [
         "https://claude.com/pricing",
         "https://support.claude.com/en/articles/8606394-how-large-is-the-context-window-on-paid-claude-plans",
@@ -9494,24 +9500,14 @@
         "https://code.claude.com/docs/en/setup",
         "https://support.claude.com/en/articles/12512180-using-skills-in-claude",
         "https://chatgpt.com/pricing",
-        "https://developers.openai.com/codex/pricing",
-        "https://help.openai.com/en/articles/11909943-gpt-5-in-chatgpt",
-        "https://learn.chatgpt.com/docs/features"
+        "https://learn.chatgpt.com/docs/pricing",
+        "https://learn.chatgpt.com/docs/models",
+        "https://learn.chatgpt.com/docs/image-generation",
+        "https://the-decoder.com/openai-sets-two-stage-sora-shutdown-with-app-closing-april-2026-and-api-following-in-september/",
+        "https://arena.ai/leaderboard"
       ],
-      "screenshots": [
-        "两边同一道题的回答并排截图（每个实测项各一组）",
-        "ChatGPT 生成图片的结果 / Claude 对同一请求的回应",
-        "Codex 与 Claude Code 完成同一编程任务后的 diff 对比",
-        "两边上传同一份长 PDF 后的摘要结果"
-      ],
-      "verify": [
-        "ChatGPT 侧的套餐功能（chatgpt.com/pricing、help.openai.com）抓取时返回 403，表中 ChatGPT 一列须由站长打开官网逐项核对",
-        "ChatGPT 上下文长度：帮助中心检索结果显示手动选 Thinking 时总上下文 256K（输入 128K），非 Thinking 模式的数字未核实",
-        "ChatGPT 生图在免费版是否可用、额度多少（官方未给具体数字）",
-        "ChatGPT 里的 Sora 视频生成在 2026-10 是否仍有入口（Sora 独立 App 已于 2026-04-26 关停、API 于 2026-09-24 关停）",
-        "Claude 免费版能否使用 Skills（帮助中心与开发者文档说法不一致）",
-        "「需实测」一节所有结论都必须由站长亲自跑完、留截图后再写，不得引用他人评测结论"
-      ]
+      "screenshots": [],
+      "verify": []
     }
   ]
 }
