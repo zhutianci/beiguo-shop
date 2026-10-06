@@ -5,6 +5,8 @@ import { jwtVerify } from 'jose'
 import { getJwtSecret } from './lib/jwt-secret'
 // 同上：storefront/hosts 是纯函数（不 import prisma / next/headers），主站 Host 白名单与路由内店面解析共用这一份口径
 import { channelsEnabled, normalizeHost, platformHosts } from './lib/storefront/hosts'
+// 同上：纯函数，不 import next/* 与 prisma
+import { apiWriteCrossSite } from './lib/api-csrf'
 
 interface JwtPayload {
   userId: number
@@ -54,6 +56,21 @@ function notFound(pathname: string): NextResponse {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  /*
+   * 【全站 /api 写请求的同源校验（2026-10-07 安全加固）】以前只有后台、论坛、内容平台、上传、充值、接码下单
+   * 各自在路由里调同源校验，买家侧其余写接口（下单、领券、抽奖、改资料、绑定、开票、接码退款…）没有。
+   * 渠道子域 *.bigolab.com 由同行运营、与主站同站（same-site），Lax cookie 照样带上——兄弟子域任何一处 XSS
+   * 都能以访客身份对主站发 simple POST。规则与例外见 lib/api-csrf.ts（机器回调、cron、退订一律豁免）。
+   * 这是纵深防御：路由内已有的校验全部保留。
+   */
+  if (pathname.startsWith('/api/')) {
+    const cross = apiWriteCrossSite(request.method, pathname, request.headers)
+    if (cross) {
+      console.warn('[middleware] 拒绝非同源的写请求:', request.method, pathname, cross)
+      return NextResponse.json({ success: false, error: '请求来源不合法，请刷新页面后重试' }, { status: 403 })
+    }
+  }
+
   if (channelsEnabled()) {
     const host = normalizeHost(request.headers.get('host'))
     const onPlatformHost = !!host && platformHosts().has(host)
@@ -64,6 +81,8 @@ export async function middleware(request: NextRequest) {
   // 渠道后台：middleware 不看登录态（JWT aud / 成员关系 / 权限点全部在 partnerRoute、requirePartnerPage 里查库判定）。
   // 放在密钥检查之前：休眠期主站 Host 上的 /partner 行为只由路由决定（404），不因为这里变成 503
   if (isPartnerPath(pathname)) return NextResponse.next()
+  // 其余 /api（matcher 为同源校验扩到了全部 /api）：登录态在路由内判定，这里不看 token，也不因缺 JWT 密钥 503
+  if (!isAdminPath(pathname)) return NextResponse.next()
 
   const token = request.cookies.get('token')?.value
 
@@ -114,7 +133,8 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// matcher 必须是静态常量（Next 在构建期读取），所以四项固定写死；休眠时 /partner 两项在上面直接放行
+// matcher 必须是静态常量（Next 在构建期读取），所以固定写死；休眠时 /partner 两项在上面直接放行。
+// '/api/:path*' 只为写请求的同源校验（上面第一段）：其余 /api 在校验后直接放行，不看登录态
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*', '/partner/:path*', '/api/partner/:path*'],
+  matcher: ['/admin/:path*', '/api/:path*', '/partner/:path*'],
 }
