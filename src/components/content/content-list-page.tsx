@@ -10,13 +10,14 @@
  * 标题里的条数与更新月份从库里实时算，**不写死**（交接文档：写死的数字迟早对不上）。
  * 能不能收录看 policy.isHubIndexable：要有站方介绍、且可收录条目够数，否则 noindex,follow（空短聚合页是劲风算法的打击对象）。
  */
+import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { renderMarkdown } from '@/lib/markdown'
 import { isHubIndexable, readableLength } from '@/lib/content/policy'
-import { PUBLIC_WHERE, countIndexable, listContent, listHot } from '@/lib/content/queries'
+import { PUBLIC_WHERE, countIndexableCached, listContent, listHot } from '@/lib/content/queries'
 import { FACET_LABELS, FACET_PATH, FACETS, ensureContentDefaults, type Facet } from '@/lib/content/tags'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
@@ -72,7 +73,14 @@ const ROOT = {
   },
 } as const
 
-async function resolve(section: Section, kind: HubKind, slug?: string): Promise<Resolved | null> {
+/*
+ * resolve / stats 用 React cache() 包一层（性能优化 2026-10-07）：generateMetadata 与页面本体在同一次请求里各调一次，
+ * 原来每次请求把标签查询、条数统计、可收录计数都做两遍。cache() 只在一次请求内去重，不跨请求、不跨 Host。
+ * resolve 的参数都是原始值；stats 的参数是 resolve 返回的同一个对象（同一请求内引用相同），所以都能命中。
+ */
+const resolve = cache(resolveUncached)
+
+async function resolveUncached(section: Section, kind: HubKind, slug?: string): Promise<Resolved | null> {
   const root = ROOT[section]
   if (kind === 'ROOT') return { section, kind, basePath: root.basePath, tag: null, facet: null, h1: root.h1, lede: root.lede, crumbs: [...root.crumbs] }
   if (kind === 'SHOWCASE') {
@@ -157,15 +165,16 @@ function tagWhere(r: Resolved): Prisma.ForumPostWhereInput {
   }
 }
 
-async function stats(r: Resolved) {
+const stats = cache(async (r: Resolved) => {
   const where = { ...PUBLIC_WHERE, ...tagWhere(r) }
   const [total, latest, indexable] = await Promise.all([
     prisma.forumPost.count({ where }),
     prisma.forumPost.findFirst({ where, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
-    countIndexable(tagWhere(r)),
+    // 可收录条数要把正文逐条取出来算，是这一页最重的查询；只决定 robots，跨请求缓存 5 分钟（countIndexableCached 注释）
+    countIndexableCached(tagWhere(r)),
   ])
   return { total, latest: latest?.createdAt ?? null, indexable }
-}
+})
 
 function titleOf(r: Resolved, total: number, latest: Date | null): string {
   const month = latest ? `${latest.getFullYear()}年${latest.getMonth() + 1}月更新` : ''
@@ -216,7 +225,7 @@ const EYEBROW: Record<HubKind, Record<Section, string>> = {
 export async function ContentListPage({ section, kind, slug, page, sort = 'curated' }: { section: Section; kind: HubKind; slug?: string; page: number; sort?: ListSort }) {
   const r = await resolve(section, kind, slug)
   if (!r) notFound()
-  const [list, s, sponsors] = await Promise.all([
+  const [list, s, sponsors, navTags, facetCounts] = await Promise.all([
     sort === 'hot'
       ? listHot({
           type: section,
@@ -238,28 +247,27 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
     stats(r),
     // 赞助位只在第一页出，自荐区（本身就是推广）不出
     page === 1 && r.kind !== 'SHOWCASE' ? activeSponsors(section === 'PROMPT' ? 'PROMPTS' : section === 'APP' ? 'APPS' : 'GUIDES') : Promise.resolve([]),
-  ])
-  if (page > 1 && page > list.totalPages) notFound()
-
-  // 筛选条只列「至少有一条公开内容」的标签，并带条数（免得把人领进空页）
-  const navTags = await prisma.tag.findMany({
-    where: {
-      status: 1,
-      kind: section === 'PROMPT' ? { in: ['MODEL', 'TOPIC'] } : section === 'APP' ? 'TOPIC' : 'PRODUCT',
-      posts: { some: { post: { ...PUBLIC_WHERE, type: section } } },
-    },
-    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-    select: { slug: true, name: true, kind: true, facet: true, _count: { select: { posts: { where: { post: { ...PUBLIC_WHERE, type: section } } } } } },
-  })
-  // 三大类各有多少条（类型那一行的条数）
-  const facetCounts =
+    // 下面两项与列表互不依赖，并进同一批（性能优化 2026-10-07：原来在列表之后再串行查两轮）
+    // 筛选条只列「至少有一条公开内容」的标签，并带条数（免得把人领进空页）
+    prisma.tag.findMany({
+      where: {
+        status: 1,
+        kind: section === 'PROMPT' ? { in: ['MODEL', 'TOPIC'] } : section === 'APP' ? 'TOPIC' : 'PRODUCT',
+        posts: { some: { post: { ...PUBLIC_WHERE, type: section } } },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+      select: { slug: true, name: true, kind: true, facet: true, _count: { select: { posts: { where: { post: { ...PUBLIC_WHERE, type: section } } } } } },
+    }),
+    // 三大类各有多少条（类型那一行的条数）
     section === 'PROMPT'
-      ? await Promise.all(
+      ? Promise.all(
           FACETS.map((f) =>
             prisma.forumPost.count({ where: { ...PUBLIC_WHERE, type: 'PROMPT', postTags: { some: { tag: { kind: 'MODEL', facet: f, status: 1 } } } } }),
           ),
         )
-      : []
+      : Promise.resolve([] as number[]),
+  ])
+  if (page > 1 && page > list.totalPages) notFound()
   // 当前在哪个大类下：模型 / 主题行只列这一类的标签
   const scope = r.facet
   const hrefOf = (t: { slug: string; kind: string }) =>

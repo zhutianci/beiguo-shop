@@ -192,26 +192,28 @@ function Originality({ post }: { post: ContentRow }) {
 }
 
 export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw: string }) {
-  const post = await resolve(type, raw)
+  // 登录态与帖子互不依赖，一起查（性能优化 2026-10-07：原来是先查帖子、再查登录态，两次往返串行）
+  const [post, user] = await Promise.all([resolve(type, raw), getCurrentUser().catch(() => null)])
   if (!post) notFound()
-  const user = await getCurrentUser().catch(() => null)
   const isAdmin = user?.role === 'ADMIN'
   if (!canView(post, { userId: user?.id ?? null, isAdmin })) notFound()
   const publicPost = isPublic(post)
 
   const images = imagesOf(post)
-  // 二创链（P2）：这条是谁的同款；以及谁做了这条的同款
-  const [remixOrigin, remixIds] = await Promise.all([
-    post.remixOfId
-      ? prisma.forumPost.findFirst({ where: { id: post.remixOfId, status: 1, reviewStatus: 'APPROVED', deletedAt: null }, select: { id: true, type: true, slug: true, title: true } })
-      : Promise.resolve(null),
+  // 二创链（P2）：这条是谁的同款；以及谁做了这条的同款。
+  // 与下面评论、相关内容等并成一批查（性能优化 2026-10-07：原来是三批串行）
+  const remixOriginP = post.remixOfId
+    ? prisma.forumPost.findFirst({ where: { id: post.remixOfId, status: 1, reviewStatus: 'APPROVED', deletedAt: null }, select: { id: true, type: true, slug: true, title: true } })
+    : Promise.resolve(null)
+  const remixCardsP = (
     publicPost && type === 'PROMPT'
       ? prisma.forumPost.findMany({ where: { remixOfId: post.id, status: 1, reviewStatus: 'APPROVED', deletedAt: null }, orderBy: { createdAt: 'desc' }, take: 12, select: { id: true } })
-      : Promise.resolve([]),
-  ])
-  const remixes = JSON.parse(JSON.stringify(await cardsByIds(remixIds.map((r) => r.id))))
+      : Promise.resolve([] as { id: number }[])
+  ).then((ids) => cardsByIds(ids.map((r) => r.id)))
 
-  const [comments, href, related, dims, refCode, badge] = await Promise.all([
+  const [remixOrigin, remixCards, comments, href, related, dims, refCode, badge] = await Promise.all([
+    remixOriginP,
+    remixCardsP,
     publicPost
       ? loadCommentPage(post.id, 1, COMMENT_PAGE_SIZE, null)
       : Promise.resolve({ list: [], total: 0, page: 1, pageSize: COMMENT_PAGE_SIZE, totalPages: 1 }),
@@ -222,6 +224,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
     publicPost ? authorRefCode(post) : Promise.resolve(null),
     creatorBadge(post.userId),
   ])
+  const remixes = JSON.parse(JSON.stringify(remixCards))
   const initialComments = JSON.parse(JSON.stringify(comments)) as CommentPage
   const authorName = authorNameOf(post)
   const crumbs = crumbsOf(post, type)
