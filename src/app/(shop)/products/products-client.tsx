@@ -157,8 +157,8 @@ export default function ProductsClient({
 
       <div className="container relative">
         <div className="text-center mb-10 lg:mb-14">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6">
-            <Sparkles className="w-4 h-4 text-purple-400" />
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/[0.12] bg-white/[0.03] mb-6">
+            <Sparkles className="w-4 h-4 text-violet-300" />
             <span className="text-sm text-white/80">全部在售商品</span>
           </div>
           <h1 className="text-headline mb-4">
@@ -244,7 +244,7 @@ export default function ProductsClient({
                     </span>
                   )}
                 </div>
-                <div className="overflow-hidden rounded-2xl border border-white/10 divide-y divide-white/[0.06]">
+                <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.02] divide-y divide-white/[0.06]">
                   {items.map((p) => (
                     <ProductRow key={p.id} p={p} price={priceOf(p)} />
                   ))}
@@ -401,7 +401,7 @@ function ProductRow({ p, price }: { p: ListProduct; price: number }) {
 
       <div className="flex items-center gap-2">
         <div className="text-right">
-          <div className="whitespace-nowrap text-base font-bold text-white sm:text-lg">
+          <div className="ui-price whitespace-nowrap text-base text-white sm:text-lg">
             ￥{price.toFixed(0)}
           </div>
           {cut && (
@@ -426,13 +426,13 @@ function ProductCard({ p, price }: { p: ListProduct; price: number }) {
     <Link href={`/products/${p.id}`} className="group block h-full">
       <div className="relative h-full">
         <div
-          className={`absolute -inset-[1px] rounded-2xl bg-gradient-to-r ${gradient} opacity-0 blur-sm transition-opacity duration-500 group-hover:opacity-100`}
+          className={`absolute -inset-[1px] rounded-2xl bg-gradient-to-r ${gradient} opacity-0 blur-sm transition-opacity duration-200 group-hover:opacity-60 lite:hidden`}
         />
-        <div className="relative flex h-full flex-col rounded-2xl glass p-6 hover-lift lg:p-7">
+        <div className="relative flex h-full flex-col ui-panel rounded-2xl p-6 hover-lift lg:p-7">
           <div className="mb-4 flex items-start justify-between gap-3">
             <ProductThumb id={p.id} name={p.name} image={p.image} size={48} />
             <div className="text-right">
-              <div className="text-2xl font-bold lg:text-3xl">￥{price.toFixed(0)}</div>
+              <div className="ui-price text-2xl lg:text-3xl">￥{price.toFixed(0)}</div>
               {cut && (
                 <div className="text-sm text-white/30 line-through">￥{p.originalPrice!.toFixed(0)}</div>
               )}
@@ -458,10 +458,10 @@ function ProductCard({ p, price }: { p: ListProduct; price: number }) {
           </div>
 
           <div
-            className={`flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r ${gradient} py-3 font-medium transition-all group-hover:shadow-lg group-hover:shadow-purple-500/20 lg:py-3.5 lg:text-[15px]`}
+            className={`ui-btn ui-btn-brand w-full rounded-xl bg-gradient-to-r ${gradient} lg:min-h-[48px] lg:text-[15px]`}
           >
             查看详情
-            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="ui-arrow h-4 w-4" />
           </div>
         </div>
       </div>

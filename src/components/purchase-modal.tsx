@@ -366,7 +366,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
         value={value}
         onChange={(e) => setter(e.target.value)}
         placeholder={opts?.placeholder}
-        className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25 focus:border-purple-500/50"
+        className="w-full rounded-lg border border-white/[0.12] bg-white/[0.04] px-3 py-2 text-sm text-white outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-white/30 focus:border-violet-400/60 focus:shadow-[0_0_0_3px_rgba(139,92,246,0.2)]"
       />
     </div>
   )
@@ -397,14 +397,15 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
               wantInvoice ? 'max-w-md sm:max-w-2xl' : 'max-w-md'
             }`}
           >
-            <div className={`absolute -inset-[1px] bg-gradient-to-r ${product.gradient} rounded-3xl blur-md opacity-60`} />
+            {/* 设计精修 2026-10-07：弹窗卡改成实心面板，这层同色光晕只在边缘透出（原来透过半透明卡整块染色）；触屏不画 */}
+            <div className={`absolute -inset-[1px] bg-gradient-to-r ${product.gradient} rounded-3xl blur-md opacity-30 lite:hidden`} />
 
             {/*
              * 【限高 + 主体滚动 + 底栏钉住】原来是一个不限高、不滚动的 p-8 容器，
              * 内容一多就直接长过视口，桌面端下半截（含「确认支付」按钮）根本够不着。
              * 现在：整卡最高 88vh，中间主体自己滚，付款按钮永远在底部看得见。
              */}
-            <div className="relative glass-strong rounded-3xl overflow-hidden flex max-h-[88vh] flex-col">
+            <div className="relative ui-panel ui-panel-accent bg-[#0e0e12] rounded-3xl overflow-hidden flex max-h-[88vh] flex-col">
               <button
                 onClick={onClose}
                 className="absolute top-4 right-4 w-9 h-9 rounded-full glass flex items-center justify-center hover:bg-white/10 transition-colors z-20"
@@ -421,7 +422,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                   <p className="text-white/50 text-sm">使用支付宝完成支付</p>
                 </div>
 
-                <div className="glass rounded-2xl p-4 mb-4 sm:p-5">
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 mb-4 sm:p-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-white/60 text-sm">商品</div>
                     <div className="font-semibold">{product.name}</div>
@@ -452,7 +453,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                   <div className="flex items-center justify-between">
                     <div className="text-white/60 text-sm">应付金额</div>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold">¥{payable.toFixed(2)}</span>
+                      <span className="ui-price text-2xl">¥{payable.toFixed(2)}</span>
                       {chosen ? (
                         <span className="text-sm text-white/30 line-through">¥{noCouponPrice.toFixed(2)}</span>
                       ) : (
@@ -472,7 +473,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 </div>
 
                 {/* 开发票。放在金额下面、券上面：它直接改变「应付金额」，要让买家先看到钱再看到券 */}
-                <div className="glass rounded-2xl p-4 mb-4 sm:p-5">
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 mb-4 sm:p-5">
                   <button
                     type="button"
                     onClick={() => setWantInvoice((v) => !v)}
@@ -598,7 +599,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
 
                 {/* 优惠券选择。只有确实持有可用券时才出现，没有券的人看不到多余的一栏 */}
                 {!referral && coupons.length > 0 && (
-                  <div className="glass rounded-2xl p-4 mb-4 sm:p-5">
+                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 mb-4 sm:p-5">
                     <div className="mb-3 flex items-center gap-2">
                       <Ticket className="h-4 w-4 text-purple-300" />
                       <span className="text-sm font-medium">使用优惠券</span>
@@ -648,7 +649,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
 
                 {/* 内推单：不展示券，但要讲清楚为什么，否则买家会以为自己的券没了 */}
                 {referral && (
-                  <div className="glass rounded-2xl p-4 mb-4 flex items-start gap-2">
+                  <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 mb-4 flex items-start gap-2">
                     <Ticket className="h-4 w-4 mt-0.5 shrink-0 text-purple-300" />
                     <p className="text-xs leading-relaxed text-white/45">
                       本单通过推广链接下单，已按专属价计算，不再叠加优惠券。
@@ -673,7 +674,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
               </div>
 
               {/* 底栏：不随主体滚动。买家不管翻到哪里，都能看到要付多少、以及付款按钮 */}
-              <div className="relative shrink-0 border-t border-white/10 bg-black/25 px-6 py-4 sm:px-8 sm:py-5">
+              <div className="relative shrink-0 border-t border-white/[0.08] bg-black/30 px-6 py-4 sm:px-8 sm:py-5">
                 {error && (
                   <div className="mb-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
                     {error}
@@ -683,7 +684,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 <button
                   onClick={handleConfirmPay}
                   disabled={submitting}
-                  className={`group w-full py-3.5 rounded-xl font-semibold bg-gradient-to-r ${product.gradient} flex items-center justify-center gap-2 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className={`ui-btn ui-btn-brand min-h-[52px] w-full rounded-xl bg-gradient-to-r ${product.gradient}`}
                 >
                   {submitting ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -691,7 +692,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                     <>
                       <CreditCard className="w-4 h-4" />
                       确认支付 ¥{payable.toFixed(2)}
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      <ArrowRight className="ui-arrow w-4 h-4" />
                     </>
                   )}
                 </button>

@@ -249,7 +249,9 @@ export default function ProductDetailClient({
             桌面端用显式的行列把价格框放回右栏，并让它跨两行、sticky 跟随。 */}
         <div className="grid lg:grid-cols-3 gap-8 xl:gap-10">
           <div className="relative rise-in lg:col-span-2 lg:row-start-1">
-            <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-30 blur-md`} />
+            {/* 设计精修 2026-10-07：卡片改成实心面板（ui-panel），这层同色光晕只在边缘透出一圈；
+                原来卡片是半透明的 glass，光晕透过整张卡，标题卡成了整块洋红色 */}
+            <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-25 blur-md`} />
 
             {/*
               主视觉。结构照着「标题整行 → 图片左 / 说明右」来：
@@ -265,7 +267,7 @@ export default function ProductDetailClient({
               【没有图时不留空格】不是把图片换成占位块，而是整块退回单栏——
               占位块只是把「空」换了个位置。
             */}
-            <div className="relative glass rounded-3xl p-6 sm:p-8 md:p-10">
+            <div className="relative ui-panel p-6 sm:p-8 md:p-10">
               {/* 徽章行 */}
               <div className="flex items-center gap-2.5 mb-5 flex-wrap">
                 {tag && (
@@ -340,7 +342,7 @@ export default function ProductDetailClient({
                   {/* 关键信息。每个商品都有，右栏不会因为描述短就空掉 */}
                   <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-white/[0.07] pt-5 text-sm md:mt-auto">
                     <div>
-                      <dt className="text-white/35 text-xs mb-1">交付方式</dt>
+                      <dt className="text-white/35 text-xs mb-1.5">交付方式</dt>
                       <dd className="text-white/80">
                         {isAuto ? '付款后自动发卡' : isSms ? '付款后自动取号' : '人工对接'}
                       </dd>
@@ -374,20 +376,24 @@ export default function ProductDetailClient({
             style={{ animationDelay: '0.1s' }}
           >
             <div className="relative">
-              <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-50 blur-md`} />
+              <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-3xl opacity-30 blur-md`} />
 
-              <div className="relative glass rounded-3xl p-8 xl:p-9">
-                <div className="mb-6">
-                  <div className="text-sm text-white/50 mb-2">服务价格</div>
+              {/* 价格卡：实心面板 + 顶边细光；价格用等宽数字、货币符号降一级，一眼先看到数字 */}
+              <div className="relative ui-panel ui-panel-accent p-7 sm:p-8 xl:p-9">
+                <div className="mb-7">
+                  <div className="ui-eyebrow mb-3">服务价格</div>
                   <div className="flex items-baseline gap-3">
-                    <span className="text-5xl xl:text-6xl font-bold">¥{price.toFixed(0)}</span>
+                    <span className="ui-price text-5xl xl:text-6xl leading-none">
+                      <span className="mr-0.5 align-[0.35em] text-[0.5em] font-semibold text-white/70">¥</span>
+                      {price.toFixed(0)}
+                    </span>
                     {originalPrice != null && (
-                      <span className="text-lg text-white/30 line-through">¥{originalPrice.toFixed(0)}</span>
+                      <span className="text-lg tabular-nums text-white/30 line-through">¥{originalPrice.toFixed(0)}</span>
                     )}
                   </div>
                   {/* 原来这里还跟着一句「限时优惠」——没有任何截止时间，不能这么写 */}
                   {savings > 0 && (
-                    <div className="mt-2">
+                    <div className="mt-3">
                       <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-gradient-to-r ${gradient}`}>
                         省 ¥{savings.toFixed(0)}
                       </span>
@@ -404,7 +410,7 @@ export default function ProductDetailClient({
                   {/* 销量 + 库存。
                       库存只给档位不给具体数字——理由见 lib/stock-level.ts：
                       具体数量对买家没用，对同行有用。能不能下单仍由服务端按真实库存判定。 */}
-                  <div className="flex items-center gap-3 mt-4 text-sm text-white/50">
+                  <div className="flex items-center gap-3 mt-4 border-t border-white/[0.07] pt-4 text-sm text-white/50">
                     <span>已售 <span className="text-white/80 font-medium">{product.sales}</span></span>
                     <span className="text-white/20">·</span>
                     {(() => {
@@ -427,26 +433,26 @@ export default function ProductDetailClient({
                   }}
                   onPointerEnter={() => void loadPurchaseModal().catch(() => {})}
                   onTouchStart={() => void loadPurchaseModal().catch(() => {})}
-                  className={`group w-full py-4 xl:py-[18px] xl:text-lg rounded-xl font-semibold bg-gradient-to-r ${gradient} flex items-center justify-center gap-2 hover:shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all mb-3`}
+                  className={`ui-btn ui-btn-brand ui-btn-lg w-full rounded-xl bg-gradient-to-r ${gradient} mb-3`}
                 >
                   立即购买
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ui-arrow w-4 h-4" />
                 </button>
                 <button
                   onClick={() => setContactOpen(true)}
-                  className="w-full py-4 xl:py-[18px] xl:text-lg rounded-xl font-medium glass hover:bg-white/10 transition-colors"
+                  className="ui-btn ui-btn-secondary ui-btn-lg w-full rounded-xl"
                 >
                   联系客服
                 </button>
 
-                <div className="my-6 h-px bg-white/10" />
+                <div className="my-7 h-px bg-white/[0.08]" />
 
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {/* 原来是「正规渠道 / 安全可靠有保障」：无从核验，还和「封号不质保」自相矛盾。
                       换成买家自己查得到的事实：经营主体。开票口径就在上面价格旁边那一行
                       （把「能开票」当背书讲时必须跟着「标价不含税、另付 6%」，这里不再单说一遍） */}
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 shrink-0 rounded-lg bg-white/5 flex items-center justify-center">
+                    <div className="w-9 h-9 shrink-0 rounded-xl border border-white/[0.08] bg-white/[0.03] flex items-center justify-center">
                       <Building2 className="w-4 h-4 text-green-400" />
                     </div>
                     <div>
@@ -455,7 +461,7 @@ export default function ProductDetailClient({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 shrink-0 rounded-lg bg-white/5 flex items-center justify-center">
+                    <div className="w-9 h-9 shrink-0 rounded-xl border border-white/[0.08] bg-white/[0.03] flex items-center justify-center">
                       <Clock className="w-4 h-4 text-cyan-400" />
                     </div>
                     <div>
@@ -464,7 +470,7 @@ export default function ProductDetailClient({
                     </div>
                   </div>
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 shrink-0 rounded-lg bg-white/5 flex items-center justify-center">
+                    <div className="w-9 h-9 shrink-0 rounded-xl border border-white/[0.08] bg-white/[0.03] flex items-center justify-center">
                       <Headphones className="w-4 h-4 text-purple-400" />
                     </div>
                     <div>

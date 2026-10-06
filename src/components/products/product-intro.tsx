@@ -20,14 +20,15 @@ import { PRODUCT_GRADIENT } from '@/components/products/gradient'
  * 配色：店铺前台是深色玻璃风，不能用 components/ui 的 Card / Button（那是白底后台组件）。
  */
 
-const PANEL = 'rounded-2xl border border-white/10 bg-white/[0.04] p-6 lg:p-8'
+// 设计精修 2026-10-07：与全站 ui-card 同一套表面（发丝线 + 极淡底、20px 圆角），内边距随断点放开
+const PANEL = 'rounded-[20px] border border-white/[0.08] bg-white/[0.025] p-6 sm:p-7 lg:p-9'
 /* 左栏在桌面端约 810px，16px 字号下一行能塞进 50 个汉字，超出中文舒适阅读区（约 35~45 字）。
    行长封顶 680px（≈42 字）；用 px 不用 ch——ch 按西文 "0" 算，对中文会少算近一半 */
-const PROSE = 'text-sm lg:text-base leading-relaxed lg:leading-[1.9] text-white/65 lg:max-w-[680px]'
+const PROSE = 'text-[15px] lg:text-base leading-[1.85] lg:leading-[1.9] text-white/65 lg:max-w-[680px]'
 
 function Heading({ id, icon, children }: { id: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <h2 id={id} className="scroll-below-header mb-5 flex items-center gap-2 text-xl font-bold lg:text-2xl">
+    <h2 id={id} className="scroll-below-header mb-5 flex items-center gap-2.5 text-xl font-semibold tracking-tight lg:mb-6 lg:text-[22px]">
       {icon}
       {children}
     </h2>
@@ -83,7 +84,7 @@ export function ProductIntroSection({ intro, productId }: { intro: ProductIntro;
         </Heading>
         <ol className="grid gap-4 sm:grid-cols-2">
           {intro.steps.map((s, i) => (
-            <li key={s.title} className="glass rounded-2xl p-6 lg:p-7">
+            <li key={s.title} className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-6 lg:p-7">
               <div
                 className={`mb-3 bg-gradient-to-r ${gradient} bg-clip-text text-3xl font-bold text-transparent`}
                 aria-hidden="true"
