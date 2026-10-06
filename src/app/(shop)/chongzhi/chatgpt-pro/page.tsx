@@ -138,6 +138,23 @@ const FAQS: { q: string; a: string }[] = [
   },
 ]
 
+/**
+ * 侧边目录（2xl 起显示在版心左边的留白里，见 components/landing/landing-ui.tsx）。
+ * label 是 H2 的短写法，id 必须与下面 Section 的 id 一一对上——对不上就是一个点了没反应的锚点。
+ */
+const TOC = [
+  { id: 'price', label: '价格与档位' },
+  { id: 'override', label: '可覆盖 / 不可覆盖' },
+  { id: 'force', label: '【强制充值】按下去会损失什么' },
+  { id: 'pro-vs-plus', label: 'Pro 5x 和 Plus 的差别' },
+  { id: 'before-you-buy', label: '下单前要确认的四件事' },
+  { id: 'steps', label: '从下单到充值完成' },
+  { id: 'redeem-errors', label: '兑换报错了' },
+  { id: 'warranty', label: '质保与退款' },
+  { id: 'trust', label: '代充靠谱吗' },
+  { id: 'faq', label: '常见问题' },
+]
+
 export default async function ChatgptProLandingPage() {
   const all = await getLandingProducts()
   const items = matchProducts(all, DEF.match)
@@ -169,6 +186,7 @@ export default async function ChatgptProLandingPage() {
       />
 
       <LandingShell
+        toc={TOC}
         crumbs={[
           { name: '首页', path: '/' },
           { name: LANDING_HUB.navLabel, path: LANDING_HUB.path },

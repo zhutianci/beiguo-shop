@@ -4,6 +4,15 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles, Shield, Zap, Heart, Users, Award, Target } from 'lucide-react'
 
+/*
+ * 【首帧可见（2026-10-06）】本页的入场动画原来是 initial={{ opacity: 0, y: … }}，
+ * 服务端 HTML 里整段带着 style="opacity:0"，要等 JS 下载、水合完才淡入。
+ * 这正是 2026-09-30 iPhone「打不开」那次故障的形态（大陆移动网络下 JS 常晚到 10~40 秒），
+ * 对爬虫而言首屏内容也要多走一道渲染。现在只保留位移、去掉淡入：
+ * 动效几乎没变化，但服务端输出的第一帧里文字就是可见的。
+ * 带 exit 的（弹窗/提示条，靠 AnimatePresence 淡出）不在此列，那里的淡入是本意。
+ */
+
 const values = [
   {
     icon: Shield,
@@ -69,7 +78,7 @@ export default function AboutPage() {
       <div className="container relative">
         {/* Hero */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-center max-w-3xl lg:max-w-4xl mx-auto mb-20 lg:mb-24"
@@ -93,7 +102,7 @@ export default function AboutPage() {
 
         {/* 数据 */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
@@ -102,7 +111,7 @@ export default function AboutPage() {
           {stats.map((stat, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: i * 0.1 }}
@@ -120,7 +129,7 @@ export default function AboutPage() {
 
         {/* 使命愿景 */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
@@ -159,7 +168,7 @@ export default function AboutPage() {
         {/* 核心价值 */}
         <div className="mb-32">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
@@ -175,7 +184,7 @@ export default function AboutPage() {
             {values.map((value, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.1 }}
@@ -198,7 +207,7 @@ export default function AboutPage() {
         {/* 团队 */}
         <div className="mb-32">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
@@ -214,7 +223,7 @@ export default function AboutPage() {
             {team.map((member, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: i * 0.1 }}
@@ -233,7 +242,7 @@ export default function AboutPage() {
 
         {/* CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}

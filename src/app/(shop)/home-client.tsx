@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { ArrowRight, Sparkles, Zap, Shield, Clock, Search, Mail, Network, ArrowUpRight } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import { TiltCard } from '@/components/tilt-card'
 import { Typewriter } from '@/components/typewriter'
 import { MouseSpotlight } from '@/components/mouse-spotlight'
 import { CountUp } from '@/components/count-up'
@@ -14,40 +13,34 @@ import { useStorefront } from '@/components/storefront-provider'
 import { useLite } from '@/lib/use-lite'
 import { ipToolGroups, ipToolCount } from '@/lib/iptools'
 import { STOCK_TONE_CLASS, stockLevel } from '@/lib/stock-level'
+import { ProductThumb } from '@/components/products/product-thumb'
+import { PRODUCT_GRADIENT, deliveryBadge } from '@/components/products/gradient'
 
-interface Product {
+/**
+ * 首页「精选服务」那几行。
+ *
+ * 【为什么改成由服务端传进来】原来这一段是组件自己 useEffect + fetch('/api/products?page=1&pageSize=6')
+ * 拉的，于是服务端 HTML 里**一个商品名、一个价格都没有**；而 robots.txt 里 disallow 了 /api/，
+ * 爬虫连那个接口都不会去抓——「反正 Google 会执行 JS」这条退路在这里不成立。
+ * 现在由 page.tsx 用 listStorefrontProducts（与那个接口**同一个函数、同一个排序**，
+ * 所以展示哪六个商品一个没变）取好传进来：客户端组件同样会被服务端渲染，
+ * 这六行的名字、价格、分类从此实实在在出现在首页 HTML 里。顺带省掉了首屏那次「加载中...」。
+ *
+ * 【stock 是档位代表值不是真实张数】listStorefrontProducts 出口已经过 publicStock，
+ * 这里只拿它映射成文案（lib/stock-level.ts），不要拿去做任何校验。
+ */
+export interface HomeFeatured {
   id: number
   name: string
   description: string | null
-  price: string | number
-  originalPrice: string | number | null
-  features: string | null
+  price: number
+  originalPrice: number | null
+  /** 档位代表值，不是精确库存 */
   stock: number
   sales: number
-}
-
-const gradients = [
-  'from-violet-600 to-purple-600',
-  'from-purple-600 to-pink-600',
-  'from-pink-600 to-rose-600',
-  'from-emerald-600 to-teal-600',
-  'from-teal-600 to-cyan-600',
-  'from-cyan-600 to-blue-600',
-  'from-amber-600 to-orange-600',
-]
-
-function getGradient(id: number) {
-  return gradients[id % gradients.length]
-}
-
-function getTag(name: string) {
-  const n = name.toLowerCase()
-  if (n.includes('20x')) return 'ULTIMATE'
-  if (n.includes('5x')) return '5X POWER'
-  if (n.includes('pro') && n.includes('chatgpt')) return 'o1 ACCESS'
-  if (n.includes('plus')) return 'GPT-4'
-  if (n.includes('pro')) return 'POPULAR'
-  return 'NEW'
+  image: string | null
+  deliveryType: string | null
+  categoryName: string | null
 }
 
 const features = [
@@ -69,7 +62,7 @@ export interface HomeStats {
   skuCount: number
 }
 
-export default function HomeClient({ stats }: { stats: HomeStats }) {
+export default function HomeClient({ stats, featured }: { stats: HomeStats; featured: HomeFeatured[] }) {
   const router = useRouter()
   const heroRef = useRef<HTMLDivElement>(null)
   const { scrollYProgress } = useScroll()
@@ -81,7 +74,6 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
    * 服务端与水合那次恒为 false（与电脑版完全相同，不会水合不一致），手机上水合后立刻变 true，见 lib/use-lite.ts。
    */
   const lite = useLite()
-  const [products, setProducts] = useState<Product[]>([])
   const [lookupEmail, setLookupEmail] = useState('')
   /*
    * 渠道分站（设计 11.2、实施分包 WP1）：渠道站首页不渲染已关闭模块的入口——订阅查询（/lookup）、
@@ -111,16 +103,6 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
   useEffect(() => {
     const typed = lookupInputRef.current?.value
     if (typed) setLookupEmail(typed)
-  }, [])
-
-  useEffect(() => {
-    // 首页只展示 6 个精选商品，直接按分页取，避免拉全表
-    fetch('/api/products?page=1&pageSize=6')
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.success) setProducts(data.data.list)
-      })
-      .catch(() => {})
   }, [])
 
   return (
@@ -366,7 +348,21 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
         </motion.div>
       </section>
 
-      <section className="relative py-32">
+      {/*
+        精选服务。
+        【为什么不再是卡片墙】2026-10-06 站长明确要求「不要卡片式」。旧版是六张等宽玻璃卡，
+        每张自带一圈边框、一条渐变胶囊、一个整块渐变按钮——同样的装饰在一屏里重复六遍，
+        真正要看的三件事（叫什么、多少钱、有没有货）反而被压成最小的字号。
+        而且库里的商品描述长短相差十倍，卡片高度参差，右下角留着大片空白。
+        现在是编辑式清单：一行一个商品，只有发丝级分隔线，没有边框、没有填充色；
+        层级交给字号与留白，颜色只在悬停时以一层极淡的渐变出现，六行共用同一条基线。
+
+        【顺带改掉的两处不实信息】旧版给每一个商品都缀「/月」——接码按次计费、谷歌账号是一次性交付，
+        它们不是月费；旧版那几个标签（NEW / GPT-4 / o1 ACCESS / ULTIMATE）是按商品名猜出来编的，
+        o1 这个型号早就不在售了。现在价格右侧不写计费周期，标签只显示库里真实的分类名与交付方式。
+      */}
+      {featured.length > 0 && (
+      <section className="relative py-24 lg:py-32" aria-labelledby="home-featured-heading">
         <div className="absolute inset-0 grid-bg opacity-50" />
 
         <div className="container relative z-10">
@@ -376,80 +372,105 @@ export default function HomeClient({ stats }: { stats: HomeStats }) {
             whileInView={{ y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.8 }}
-            className="text-center mb-20 lite:!transform-none"
+            className="mb-10 flex flex-col gap-6 border-t border-white/10 pt-8 sm:flex-row sm:items-end sm:justify-between lg:mb-14 lite:!transform-none"
           >
-            <h2 className="text-headline mb-4">
-              <span className="gradient-text">精选服务</span>
-            </h2>
-            <p className="text-white/50 text-lg lg:text-xl">选择适合你的 AI 订阅方案</p>
+            <div>
+              <div className="mb-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.3em] text-white/30">
+                <span>Featured</span>
+                <span className="h-px w-10 bg-white/15" />
+              </div>
+              <h2 id="home-featured-heading" className="text-headline">
+                <span className="gradient-text">精选服务</span>
+              </h2>
+              <p className="mt-3 text-base text-white/45 lg:text-lg">价格、库存与累计成交均为后台实时数据</p>
+            </div>
+
+            <Link
+              href="/products"
+              className="group inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-white/15 px-5 py-2.5 text-sm text-white/70 transition-colors hover:border-white/35 hover:text-white sm:self-auto"
+            >
+              查看全部 {stats.skuCount} 个档位
+              <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </Link>
           </motion.div>
 
-          {products.length === 0 ? (
-            <div className="text-center py-20 text-white/40">加载中...</div>
-          ) : (
-            /* 首页只放 6 个精选，lg 三列正好两行整齐收口，所以 xl 不再加列；
-               只把间距在 xl 放大，避免 1280+ 时三张卡贴在一起像一块整板 */
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 xl:gap-8">
-              {products.map((product, index) => {
-                const gradient = getGradient(product.id)
-                const tag = getTag(product.name)
-                return (
-                  /* 手机端轻量模式：卡片直接出现在原位，不做逐张错开的上滑动画。
-                     卡片是接口回来之后才挂载的（那时早已水合完），lite 第一次渲染就是真实值 */
-                  <motion.div
-                    key={product.id}
-                    initial={lite ? false : { y: 40 }}
-                    whileInView={lite ? undefined : { y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: index * 0.1 }}
-                  >
-                    <Link href={`/products/${product.id}`}>
-                      <TiltCard maxTilt={8} scale={1.03} className="group h-full">
-                        {/* 悬停光边：触屏没有悬停，点一下反而会粘住亮起，手机端轻量模式下隐藏 */}
-                        <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-500 lite:hidden`} />
+          <ul className="border-t border-white/[0.08]">
+            {featured.map((product, index) => {
+              const level = stockLevel(product.stock)
+              const delivery = deliveryBadge(product.deliveryType ?? undefined)
+              return (
+                <li key={product.id} className="border-b border-white/[0.08]">
+                  <Link href={`/products/${product.id}`} className="group relative block">
+                    {/* 悬停时整行透出一层极淡的品牌渐变（同一商品永远同一个色，按 id 取模）。
+                        触屏没有悬停、点一下反而会粘住亮着，所以 lite 下整块不要 */}
+                    <span
+                      aria-hidden
+                      className={`pointer-events-none absolute -inset-x-4 inset-y-0 rounded-2xl bg-gradient-to-r ${PRODUCT_GRADIENT(
+                        product.id
+                      )} opacity-0 transition-opacity duration-500 group-hover:opacity-[0.1] lite:hidden`}
+                    />
 
-                        {/* 卡片内边距/字号在 lg 起加一档：桌面端单卡宽约 400px，
-                            继续沿用手机端的 p-6 + text-sm 会显得内容缩在正中、四周全是空白 */}
-                        <div className="relative h-full glass rounded-2xl p-6 lg:p-7 xl:p-8">
-                          <div className={`inline-flex px-3 py-1 rounded-full text-xs font-bold bg-gradient-to-r ${gradient} mb-4`}>
-                            {tag}
-                          </div>
+                    <div className="relative flex items-center gap-4 py-5 sm:gap-6 sm:py-7">
+                      {/* 行号只在 lg 起出现：手机上横向每一个像素都要留给商品名 */}
+                      <span className="hidden w-8 shrink-0 text-sm tabular-nums text-white/20 transition-colors group-hover:text-white/45 lg:block">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
 
-                          <h3 className="text-2xl xl:text-3xl font-bold mb-2">{product.name}</h3>
-                          <p className="text-white/50 text-sm lg:text-[15px] lg:leading-relaxed mb-6">{product.description}</p>
+                      <ProductThumb
+                        id={product.id}
+                        name={product.name}
+                        image={product.image}
+                        size={64}
+                        sizeClass="h-12 w-12 sm:h-14 sm:w-14 lg:h-16 lg:w-16"
+                        className="transition-transform duration-500 group-hover:scale-[1.04]"
+                      />
 
-                          <div className="flex items-baseline gap-2 mb-4">
-                            <span className="text-4xl font-bold">¥{Number(product.price).toFixed(0)}</span>
-                            {product.originalPrice && (
-                              <span className="text-white/30 line-through">¥{Number(product.originalPrice).toFixed(0)}</span>
-                            )}
-                            <span className="text-xs text-white/40">/月</span>
-                          </div>
-
-                          {/* 销量 + 库存。库存只给档位不给数字，口径见 lib/stock-level.ts */}
-                          <div className="flex items-center justify-between text-xs lg:text-sm text-white/40 mb-4 px-1">
-                            <span>已售 {product.sales}</span>
-                            <span
-                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${STOCK_TONE_CLASS[stockLevel(product.stock).tone]}`}
-                            >
-                              {stockLevel(product.stock).label}
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-base font-semibold text-white transition-colors group-hover:text-purple-200 sm:text-lg lg:text-xl">
+                          {product.name}
+                        </h3>
+                        {/* 单行截断：库里的描述从 4 个字到 200 个字都有，不截断就会退回旧版那种参差不齐 */}
+                        {product.description && (
+                          <p className="mt-1 truncate text-xs text-white/35 sm:text-sm">{product.description}</p>
+                        )}
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                          {product.categoryName && (
+                            <span className="rounded-full border border-white/10 px-2 py-0.5 text-white/45">
+                              {product.categoryName}
                             </span>
-                          </div>
-
-                          <div className={`flex items-center justify-center gap-2 py-3 lg:py-3.5 lg:text-[15px] rounded-xl bg-gradient-to-r ${gradient} font-medium group-hover:shadow-lg transition-shadow`}>
-                            立即购买
-                            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                          </div>
+                          )}
+                          <span className={`rounded-full border px-2 py-0.5 ${delivery.cls}`}>{delivery.label}</span>
+                          <span className={`rounded-full border px-2 py-0.5 ${STOCK_TONE_CLASS[level.tone]}`}>
+                            {level.label}
+                          </span>
+                          {product.sales > 0 && <span className="text-white/25">已售 {product.sales}</span>}
                         </div>
-                      </TiltCard>
-                    </Link>
-                  </motion.div>
-                )
-              })}
-            </div>
-          )}
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <div className="text-xl font-bold tabular-nums text-white sm:text-2xl lg:text-[28px]">
+                          ￥{product.price.toFixed(0)}
+                        </div>
+                        {product.originalPrice != null && product.originalPrice > product.price && (
+                          <div className="text-xs tabular-nums text-white/25 line-through">
+                            ￥{product.originalPrice.toFixed(0)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 手机上不占这 40px：那一列在 390 宽的屏幕里会把价格挤到换行 */}
+                      <span className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 text-white/40 transition-all duration-300 group-hover:border-white/30 group-hover:bg-white/10 group-hover:text-white sm:flex">
+                        <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
         </div>
       </section>
+      )}
 
       {/* AI 圈今日热点：内部固定高度 skeleton 占位；接口失败或暂无内容整块静默隐藏，不影响卖货主线 */}
       {sfFeatures.news && <NewsHotSection />}

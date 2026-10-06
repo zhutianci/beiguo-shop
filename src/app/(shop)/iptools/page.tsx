@@ -23,6 +23,15 @@ import {
 import { MouseSpotlight } from '@/components/mouse-spotlight'
 import { ipToolGroups, ipToolCount, type IpTool } from '@/lib/iptools'
 
+/*
+ * 【首帧可见（2026-10-06）】本页的入场动画原来是 initial={{ opacity: 0, y: … }}，
+ * 服务端 HTML 里整段带着 style="opacity:0"，要等 JS 下载、水合完才淡入。
+ * 这正是 2026-09-30 iPhone「打不开」那次故障的形态（大陆移动网络下 JS 常晚到 10~40 秒），
+ * 对爬虫而言首屏内容也要多走一道渲染。现在只保留位移、去掉淡入：
+ * 动效几乎没变化，但服务端输出的第一帧里文字就是可见的。
+ * 带 exit 的（弹窗/提示条，靠 AnimatePresence 淡出）不在此列，那里的淡入是本意。
+ */
+
 // 按工具名映射图标，保持数据文件纯净
 const ICONS: Record<string, LucideIcon> = {
   'Net.Coffee 网络检测': Globe,
@@ -69,7 +78,7 @@ export default function IpToolsPage() {
       <div className="container relative z-10 page-top pb-24 max-w-6xl">
         {/* 标题 */}
         <motion.div
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7 }}
           className="max-w-3xl mx-auto text-center mb-12"
@@ -88,7 +97,7 @@ export default function IpToolsPage() {
 
         {/* 排查步骤 */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
           className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 mb-14 text-sm"
@@ -112,7 +121,7 @@ export default function IpToolsPage() {
             href={featured.url}
             target="_blank"
             rel="noopener noreferrer"
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
@@ -197,7 +206,7 @@ function ToolSection({
             href={tool.url}
             target="_blank"
             rel="noopener noreferrer"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.45, delay: startDelay + i * 0.04 }}

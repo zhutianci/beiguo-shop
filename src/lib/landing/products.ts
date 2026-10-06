@@ -18,6 +18,8 @@ export interface LandingProduct {
   stock: number
   sales: number
   categoryName: string | null
+  /** 商品主图（/uploads/products/...）。没有图的商品为 null，展示端自己兜底 */
+  image: string | null
 }
 
 /**
@@ -53,6 +55,7 @@ export const getLandingProducts = cache(async (): Promise<LandingProduct[]> => {
         stock: p.stock, // 档位代表值：只用于 inStock 判断，-1 / 0 / >0 三类与真实库存一致
         sales: p.sales,
         categoryName: p.category?.name ?? null,
+        image: p.image,
       }))
     } catch (err) {
       console.error('Landing products (channel) query error:', err)
@@ -79,6 +82,7 @@ const loadPlatformLandingProducts = cache(async (): Promise<LandingProduct[]> =>
         originalPrice: true,
         stock: true,
         sales: true,
+        image: true,
         category: { select: { name: true } },
       },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
@@ -93,6 +97,7 @@ const loadPlatformLandingProducts = cache(async (): Promise<LandingProduct[]> =>
       stock: p.stock,
       sales: p.sales,
       categoryName: p.category?.name ?? null,
+      image: p.image ?? null,
     }))
   } catch (err) {
     console.error('Landing products query error:', err)

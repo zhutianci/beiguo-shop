@@ -9,12 +9,14 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { organizationJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
+import { organizationJsonLd, productItemListJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 import { getLandingProducts, getPlatformTotalSales, inStock, lowestPrice, matchProducts } from '@/lib/landing/products'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import HomeClient from './home-client'
 import { OG_IMAGES, TWITTER_IMAGES } from '@/lib/seo/og'
 import { getStorefront } from '@/lib/storefront/resolve'
+import { listStorefrontProducts } from '@/lib/pricing'
+import { getCurrentUser } from '@/lib/auth'
 import { brandMetadata, brandShareImages, currentBrand, withBrandName } from '@/lib/storefront/brand-meta'
 
 /**
@@ -81,6 +83,32 @@ export default async function HomePage() {
     return { def: l, low: lowestPrice(items), hasStock: items.some(inStock) }
   })
 
+  /*
+   * 首页「精选服务」那六行。
+   *
+   * 【为什么在这里取而不是让客户端 fetch】原来 home-client 自己 useEffect 拉 /api/products?page=1&pageSize=6，
+   * 服务端 HTML 里一个商品名、一个价格都没有（robots.txt 还 disallow 了 /api/，爬虫连那个接口都不会去抓）。
+   * 这里用的 listStorefrontProducts 正是那个接口内部调的**同一个函数**（主站分支的排序
+   * sortOrder asc → createdAt desc → id desc 也一字不差），所以首页展示的是哪六个商品一个没变，
+   * 只是从「JS 跑完才有」变成「HTML 里就有」。
+   *
+   * 【不传 ref】旧的客户端 fetch 也没带 ?ref=，首页从来就不按内推价展示，这里保持原样。
+   * 【stock 已是档位代表值】listStorefrontProducts 出口过了 publicStock，不会把精确张数写进 HTML。
+   */
+  const previewUserId = sf.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
+  const featured = (await listStorefrontProducts(sf, { previewUserId })).slice(0, 6).map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    price: p.price,
+    originalPrice: p.originalPrice,
+    stock: p.stock,
+    sales: p.sales,
+    image: p.image,
+    deliveryType: p.deliveryType,
+    categoryName: p.category?.name ?? null,
+  }))
+
   // 首页那条信任数据带的数字。复用上面同一份快照，不额外打库。
   // 传给客户端组件是有意的：客户端组件同样会被服务端渲染，值会进服务端 HTML——
   // 而这正是要解决的问题（原来写死 useState(0)，爬虫读到的是「0 个用户」）。
@@ -98,9 +126,18 @@ export default async function HomePage() {
       {/* 渠道站传 sf.origin：WebSite 的 @id / url 必须指向本店域名（设计 4.5 SITE_ID 按请求生成），
           否则渠道站 HTML 里会出现指向 bigolab.com 的绝对链接。主站仍不传参，输出逐字不变。
           Organization 是平台主体（统一品牌「贝果科技」），两站同值。 */}
-      <JsonLd data={[organizationJsonLd(), channel ? webSiteJsonLd(sf.origin) : webSiteJsonLd()]} />
+      {/* 精选服务那六行现在是服务端直出的、买家肉眼可见的，所以可以（也只有这时才可以）标 ItemList：
+          结构化数据政策明令禁止标记「用户在页面上看不到的内容」。改造前那一段是 JS 拉的，标了就是 cloaking。
+          渠道站传 sf.origin，链接必须落在本店域名上（与上面 webSiteJsonLd 同一个口径）。 */}
+      <JsonLd
+        data={[
+          organizationJsonLd(),
+          channel ? webSiteJsonLd(sf.origin) : webSiteJsonLd(),
+          ...(featured.length ? [productItemListJsonLd(featured, '/', channel ? sf.origin : undefined)] : []),
+        ]}
+      />
 
-      <HomeClient stats={stats} />
+      <HomeClient stats={stats} featured={featured} />
 
       {/*
         服务端直出的「按服务找」区块。

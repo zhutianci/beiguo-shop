@@ -649,7 +649,7 @@ async function testClientRender() {
   const fm = render(platform, h(Footer))
   check('渠道页脚：无落地页 / IP 工具 / 订阅查询 / 友链', hits(fc).length === 0, hits(fc).join(','))
   check('主站页脚：与无 Provider 时逐字相同', fm === render(null, h(Footer)) && fm.includes('href="/lookup') && fm.includes('href="/chongzhi'))
-  const home = (sf: typeof channel | typeof platform) => render(sf, h(HomeClient, { stats: { totalSales: 1, skuCount: 2 } }))
+  const home = (sf: typeof channel | typeof platform) => render(sf, h(HomeClient, { stats: { totalSales: 1, skuCount: 2 }, featured: [] }))
   const homeC = home(channel)
   const homeM = home(platform)
   check('渠道首页：无订阅查询框、无 IP 工具入口、无新闻热点', !homeC.includes('输入邮箱查询订阅状态') && !homeC.includes('href="/iptools') && hits(homeC).length === 0)

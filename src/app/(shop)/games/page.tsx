@@ -5,6 +5,15 @@ import { motion } from 'framer-motion'
 import { ArrowRight, Sparkles, Trophy, Gamepad2 } from 'lucide-react'
 import { TiltCard } from '@/components/tilt-card'
 
+/*
+ * 【首帧可见（2026-10-06）】本页的入场动画原来是 initial={{ opacity: 0, y: … }}，
+ * 服务端 HTML 里整段带着 style="opacity:0"，要等 JS 下载、水合完才淡入。
+ * 这正是 2026-09-30 iPhone「打不开」那次故障的形态（大陆移动网络下 JS 常晚到 10~40 秒），
+ * 对爬虫而言首屏内容也要多走一道渲染。现在只保留位移、去掉淡入：
+ * 动效几乎没变化，但服务端输出的第一帧里文字就是可见的。
+ * 带 exit 的（弹窗/提示条，靠 AnimatePresence 淡出）不在此列，那里的淡入是本意。
+ */
+
 const games = [
   {
     id: 'snake',
@@ -45,7 +54,7 @@ export default function GamesPage() {
 
       <div className="container relative">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
@@ -67,7 +76,7 @@ export default function GamesPage() {
           {games.map((game, i) => (
             <motion.div
               key={game.id}
-              initial={{ opacity: 0, y: 40 }}
+              initial={{ y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: i * 0.1 }}
             >
@@ -105,7 +114,7 @@ export default function GamesPage() {
         </div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.5 }}
           className="mt-16 text-center"

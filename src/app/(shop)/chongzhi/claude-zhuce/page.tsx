@@ -130,6 +130,22 @@ const FAQS: { q: string; a: string }[] = [
   },
 ]
 
+/**
+ * 侧边目录（2xl 起显示在版心左边的留白里，见 components/landing/landing-ui.tsx）。
+ * label 是 H2 的短写法，id 必须与下面 Section 的 id 一一对上——对不上就是一个点了没反应的锚点。
+ */
+const TOC = [
+  { id: 'price', label: '价格与档位' },
+  { id: 'three-walls', label: '三道坎' },
+  { id: 'phone', label: '手机号验证' },
+  { id: 'home-ip', label: '家宽 IP 与机房 IP' },
+  { id: 'no-code', label: '收不到验证码' },
+  { id: 'puhao', label: '买家宽注册的普号' },
+  { id: 'next', label: '注册成功之后' },
+  { id: 'steps', label: '从下单到到账' },
+  { id: 'faq', label: '常见问题' },
+]
+
 export default async function ClaudeZhuceLandingPage() {
   const all = await getLandingProducts()
   const items = matchProducts(all, DEF.match)
@@ -154,6 +170,7 @@ export default async function ClaudeZhuceLandingPage() {
       />
 
       <LandingShell
+        toc={TOC}
         crumbs={[
           { name: '首页', path: '/' },
           { name: LANDING_HUB.navLabel, path: LANDING_HUB.path },

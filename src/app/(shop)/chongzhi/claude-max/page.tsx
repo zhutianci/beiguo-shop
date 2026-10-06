@@ -142,6 +142,22 @@ const FAQS: { q: string; a: string }[] = [
   },
 ]
 
+/**
+ * 侧边目录（2xl 起显示在版心左边的留白里，见 components/landing/landing-ui.tsx）。
+ * label 是 H2 的短写法，id 必须与下面 Section 的 id 一一对上——对不上就是一个点了没反应的锚点。
+ */
+const TOC = [
+  { id: 'price', label: '价格与档位' },
+  { id: 'tiers', label: '三档规格对照' },
+  { id: 'upgrade', label: '何时升 Max' },
+  { id: 'preflight', label: '兑换前必须确认的四件事' },
+  { id: 'steps', label: '从下单到到账' },
+  { id: 'redeem-errors', label: '兑换报错了' },
+  { id: 'risk', label: '质保与退款' },
+  { id: 'trust', label: '第一次在这儿买' },
+  { id: 'faq', label: '常见问题' },
+]
+
 export default async function ClaudeMaxLandingPage() {
   const all = await getLandingProducts()
   const items = matchProducts(all, DEF.match)
@@ -167,6 +183,7 @@ export default async function ClaudeMaxLandingPage() {
       />
 
       <LandingShell
+        toc={TOC}
         crumbs={[
           { name: '首页', path: '/' },
           { name: LANDING_HUB.navLabel, path: LANDING_HUB.path },

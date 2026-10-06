@@ -18,6 +18,7 @@ import {
   SubSection,
 } from '@/components/landing/landing-ui'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
+import { ProductThumb } from '@/components/products/product-thumb'
 import { TAX_RATE } from '@/lib/invoice'
 
 /**
@@ -106,6 +107,14 @@ function cardItems(all: LandingProduct[], l: (typeof LANDINGS)[number]): Landing
   return items.concat(matchProducts(all, CHATGPT_ANNUAL_MATCH).filter((p) => !ids.has(p.id)))
 }
 
+/** 侧边目录（2xl 起显示在版心左边的留白里）。id 必须与下面 Section 的 id 一一对上 */
+const TOC = [
+  { id: 'catalog', label: '按服务分类' },
+  { id: 'how-it-works', label: '卡密充值是怎么运作的' },
+  { id: 'trust', label: '怎么分辨靠不靠谱' },
+  { id: 'faq', label: '常见问题' },
+]
+
 export default async function ChongzhiHubPage() {
   const all = await getLandingProducts()
 
@@ -134,6 +143,18 @@ export default async function ChongzhiHubPage() {
   )
   const taxPercent = `${Math.round(TAX_RATE * 100)}%`
 
+  /*
+   * H1 下面那条数据带。三个数字全部来自上面同一份快照，不额外打库，也不是写死的：
+   * 「档位」是在售商品数，「累计成交」是它们 sales 之和（与价格表里那一列同源），
+   * 「最低」是当前有货档位里的最低价。写假数字或者写死数字是这类页面最容易踩的信任陷阱。
+   */
+  const totalSales = all.reduce((n, p) => n + (p.sales || 0), 0)
+  const availableAll = all.filter(inStock)
+  const lowestAll = (availableAll.length ? availableAll : all).reduce<number | null>(
+    (lo, p) => (lo == null || p.price < lo ? p.price : lo),
+    null
+  )
+
   return (
     <>
       <JsonLd
@@ -145,8 +166,43 @@ export default async function ChongzhiHubPage() {
       />
 
       <LandingShell
+        toc={TOC}
         crumbs={[{ name: '首页', path: '/' }, { name: LANDING_HUB.navLabel }]}
         h1={LANDING_HUB.h1}
+        meta={
+          <div className="mt-8 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <dl className="flex flex-wrap items-baseline gap-x-8 gap-y-4">
+              {[
+                { k: '在售档位', v: `${all.length}`, u: '个' },
+                { k: '累计成交', v: `${totalSales}`, u: '单' },
+                ...(lowestAll != null ? [{ k: '最低', v: `￥${lowestAll.toFixed(0)}`, u: '起' }] : []),
+              ].map((x) => (
+                <div key={x.k}>
+                  <dt className="mb-1 text-[11px] uppercase tracking-[0.2em] text-white/30">{x.k}</dt>
+                  <dd className="text-2xl font-bold tabular-nums text-white lg:text-[28px]">
+                    {x.v}
+                    <span className="ml-1 text-xs font-normal text-white/35">{x.u}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="#catalog"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-black transition-opacity hover:opacity-85"
+              >
+                看价格
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+              <Link
+                href="/products"
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-5 py-2.5 text-sm text-white/75 transition-colors hover:border-white/35 hover:text-white"
+              >
+                全部商品
+              </Link>
+            </div>
+          </div>
+        }
         lede={
           <>
             <p>
@@ -194,59 +250,82 @@ export default async function ChongzhiHubPage() {
         </aside>
 
         <Section id="catalog" heading="按服务分类">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 not-prose">
-            {/* 卡片原来整张是一个链接，现在里面要放每个档位的商品链接——<a> 不能嵌套 <a>，
-                所以改成：标题与底部「查看详情」链到落地页，中间每一行链到商品页 */}
-            {cards.map(({ def, items, low }) => (
-              <div
-                key={def.slug}
-                className="group flex flex-col rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
-              >
-                <div className="mb-2 flex items-start justify-between gap-3">
+          {/*
+            【为什么是两列不是三列】版心收成一个 max-w-4xl 的居中列之后（见 landing-ui 里的说明），
+            三列每张只有 ~270px，而每张卡片里要放一列「档位名 + 价格 + 有没有货」——
+            档位名一律被截断，价格贴着边。两列 ~410px 才放得下一整行而不折。
+          */}
+          <div className="grid gap-4 sm:grid-cols-2 not-prose">
+            {/* 卡片整张不能是一个链接：里面每个档位也要各自链到商品页，<a> 不能嵌套 <a>。
+                所以标题与底部「查看详情」链到落地页，中间每一行链到对应商品页 */}
+            {cards.map(({ def, items, low }) => {
+              // 用这一组里第一个有图的商品当卡片图标；都没图时 ProductThumb 自己按 id 兜底成品牌渐变 + 首字
+              const lead = items.find((p) => p.image) ?? items[0]
+              return (
+                <article
+                  key={def.slug}
+                  className="group relative flex flex-col overflow-hidden rounded-3xl border border-white/[0.08] bg-white/[0.02] p-5 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+                >
+                  {/* 右上角柔光：悬停才出现。触屏没有悬停、点一下会粘住亮着，lite 下整块不要 */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -right-20 -top-20 h-44 w-44 rounded-full bg-gradient-to-br from-purple-500/30 to-cyan-400/20 opacity-0 blur-3xl transition-opacity duration-500 group-hover:opacity-100 lite:hidden"
+                  />
+
+                  <div className="relative flex items-start gap-3.5">
+                    {lead && (
+                      <ProductThumb id={lead.id} name={def.navLabel} image={lead.image} size={44} className="mt-0.5" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        href={landingPath(def.slug)}
+                        className="font-semibold text-white transition-colors hover:text-purple-300"
+                      >
+                        {def.navLabel}
+                      </Link>
+                      <p className="mt-1 text-[13px] leading-relaxed text-white/45">{def.blurb}</p>
+                    </div>
+                    {low != null && (
+                      <span className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-white/85">
+                        ￥{low.toFixed(0)}
+                        <span className="ml-0.5 text-[11px] font-normal text-white/35">起</span>
+                      </span>
+                    )}
+                  </div>
+
+                  {items.length > 0 && (
+                    <ul className="relative mt-4 border-t border-white/[0.06] pt-2 text-[13px] leading-snug">
+                      {items.map((p) => (
+                        <li key={p.id}>
+                          <Link
+                            href={`/products/${p.id}`}
+                            className="-mx-2 flex items-baseline gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.05]"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-white/60">{p.name}</span>
+                            <span className="shrink-0 whitespace-nowrap font-medium tabular-nums text-white/85">
+                              ￥{p.price.toFixed(0)}
+                            </span>
+                            {inStock(p) ? (
+                              <span className="shrink-0 whitespace-nowrap text-[11px] text-emerald-400">有货</span>
+                            ) : (
+                              <span className="shrink-0 whitespace-nowrap text-[11px] text-white/30">补货中</span>
+                            )}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
                   <Link
                     href={landingPath(def.slug)}
-                    className="font-semibold text-white transition-colors hover:text-purple-300"
+                    className="relative mt-auto inline-flex items-center gap-1 pt-4 text-sm text-purple-400 hover:text-purple-300"
                   >
-                    {def.navLabel}
+                    查看详情
+                    <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                   </Link>
-                  {low != null && (
-                    <span className="shrink-0 whitespace-nowrap text-sm font-semibold text-white/80">
-                      ￥{low.toFixed(0)} 起
-                    </span>
-                  )}
-                </div>
-                <span className="mb-4 text-sm leading-relaxed text-white/45">{def.blurb}</span>
-                {items.length > 0 && (
-                  <ul className="mb-4 space-y-2 border-t border-white/[0.06] pt-3 text-[13px] leading-snug">
-                    {items.map((p) => (
-                      <li key={p.id} className="flex items-baseline gap-2">
-                        <Link
-                          href={`/products/${p.id}`}
-                          className="min-w-0 flex-1 text-white/65 transition-colors hover:text-white"
-                        >
-                          {p.name}
-                        </Link>
-                        <span className="shrink-0 whitespace-nowrap font-medium text-white/85">
-                          ￥{p.price.toFixed(0)}
-                        </span>
-                        {inStock(p) ? (
-                          <span className="shrink-0 whitespace-nowrap text-xs text-emerald-400">有货</span>
-                        ) : (
-                          <span className="shrink-0 whitespace-nowrap text-xs text-white/30">补货中</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                <Link
-                  href={landingPath(def.slug)}
-                  className="mt-auto inline-flex items-center gap-1 text-sm text-purple-400 hover:text-purple-300"
-                >
-                  查看详情
-                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </div>
-            ))}
+                </article>
+              )
+            })}
           </div>
           <p className="pt-6 text-sm text-white/40">
             想直接看全部商品与价格，去{' '}

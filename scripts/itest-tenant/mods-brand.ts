@@ -274,7 +274,9 @@ async function main() {
       eq('浮动客服（展开）', opened(() => render(platformPub, h(B.floating.FloatingContact))), opened(() => render(platformPub, h(N.floating.FloatingContact))), ['贝果科技专属客服为你服务'])
       eq('筹备页', render(platformPub, h(B.closed.DraftClosedPage)), render(platformPub, h(N.closed.DraftClosedPage)), ['贝果科技'])
       const stats = { totalSales: 1234, skuCount: 9 }
-      eq('首页（hero 标题与副标题）', render(platformPub, h(B.home.default, { stats })), render(platformPub, h(N.home.default, { stats })), ['ChatGPT、Claude', '充值与代充', '卡密自助兑换，支付宝付款，'])
+      // featured 传空：旧版这一段是客户端 fetch 的，SSR 本来就渲染不出商品行，传 [] 与改造前逐字相同
+      const featured: never[] = []
+      eq('首页（hero 标题与副标题）', render(platformPub, h(B.home.default, { stats, featured })), render(platformPub, h(N.home.default, { stats, featured })), ['ChatGPT、Claude', '充值与代充', '卡密自助兑换，支付宝付款，'])
       eq('没有 Provider（改造前的渲染环境）页头与主站相同', renderToString(h(AppRouterContext.Provider, { value: router as never }, h(PathnameContext.Provider, { value: '/' }, h(N.header.Header)))), render(platformPub, h(N.header.Header)))
 
       const inHost = <T,>(host: string, fn: () => Promise<T> | T) => withRequest({ host }, async () => fn())
@@ -447,7 +449,7 @@ async function main() {
       check('页脚：底部保留经营主体小字', ft.includes(OPERATOR_LINE))
       const fc = opened(() => render(pubA, h(FloatingContact)))
       check('浮动客服：「小鹿优选专属客服为你服务」', fc.includes('小鹿优选专属客服为你服务') && !fc.includes('贝果科技'))
-      const home = render(pubA, h(HomeClient, { stats: { totalSales: 1, skuCount: 1 } }))
+      const home = render(pubA, h(HomeClient, { stats: { totalSales: 1, skuCount: 1 }, featured: [] }))
       check('首页：大标题与副标题换成渠道的', home.includes('AI 会员一站购') && home.includes('支付宝付款，即买即用') && !home.includes('充值与代充'))
       check('筹备页：渠道站名', render(pubA, h(DraftClosedPage)).includes('小鹿优选'))
       // 公告弹窗外层：渠道站也要挂内层组件（SSR 时弹窗本来就是空串，只能看外层返回了什么元素）

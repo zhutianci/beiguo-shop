@@ -95,6 +95,19 @@ const FAQS: { q: string; a: string }[] = [
   },
 ]
 
+/**
+ * 侧边目录（2xl 起显示在版心左边的留白里，见 components/landing/landing-ui.tsx）。
+ * label 是 H2 的短写法，id 必须与下面 Section 的 id 一一对上——对不上就是一个点了没反应的锚点。
+ */
+const TOC = [
+  { id: 'price', label: '价格与档位' },
+  { id: 'tiers', label: '三个档位怎么选' },
+  { id: 'delivery', label: '怎么交付、怎么兑换' },
+  { id: 'trust', label: '下单前值得核验的几件事' },
+  { id: 'risk', label: '风险与退款' },
+  { id: 'faq', label: '常见问题' },
+]
+
 export default async function GrokSuperLandingPage() {
   const all = await getLandingProducts()
   const items = matchProducts(all, DEF.match)
@@ -117,6 +130,7 @@ export default async function GrokSuperLandingPage() {
       />
 
       <LandingShell
+        toc={TOC}
         crumbs={[
           { name: '首页', path: '/' },
           { name: LANDING_HUB.navLabel, path: LANDING_HUB.path },

@@ -19,6 +19,15 @@ import {
 } from 'lucide-react'
 import { timeAgo } from '@/lib/forum-client'
 
+/*
+ * 【首帧可见（2026-10-06）】本页的入场动画原来是 initial={{ opacity: 0, y: … }}，
+ * 服务端 HTML 里整段带着 style="opacity:0"，要等 JS 下载、水合完才淡入。
+ * 这正是 2026-09-30 iPhone「打不开」那次故障的形态（大陆移动网络下 JS 常晚到 10~40 秒），
+ * 对爬虫而言首屏内容也要多走一道渲染。现在只保留位移、去掉淡入：
+ * 动效几乎没变化，但服务端输出的第一帧里文字就是可见的。
+ * 带 exit 的（弹窗/提示条，靠 AnimatePresence 淡出）不在此列，那里的淡入是本意。
+ */
+
 interface Category {
   id: number
   name: string
@@ -101,7 +110,7 @@ export default function ForumPage() {
       {/* xl 起放宽到 6xl：板块侧栏 + 帖子列表两栏在 1440px 上才不至于挤在中间一条窄带里 */}
       <div className="container relative max-w-5xl xl:max-w-6xl">
         {/* 标题 */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10 lg:mb-14">
+        <motion.div initial={{ y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10 lg:mb-14">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-4">
             <MessageSquare className="w-4 h-4 text-purple-400" />
             <span className="text-sm text-white/80">社区论坛</span>
@@ -218,7 +227,7 @@ export default function ForumPage() {
                 {posts.map((p, i) => (
                   <motion.div
                     key={p.id}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
                   >

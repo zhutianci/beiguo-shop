@@ -9,6 +9,15 @@ import { CopyButton } from '@/components/links/copy-button'
 import { LinkCard, SponsorCard, SponsorMiniCard, SponsorSlot } from '@/components/links/link-card'
 import type { LinksPageData } from '@/lib/friend-link'
 
+/*
+ * 【首帧可见（2026-10-06）】本页的入场动画原来是 initial={{ opacity: 0, y: … }}，
+ * 服务端 HTML 里整段带着 style="opacity:0"，要等 JS 下载、水合完才淡入。
+ * 这正是 2026-09-30 iPhone「打不开」那次故障的形态（大陆移动网络下 JS 常晚到 10~40 秒），
+ * 对爬虫而言首屏内容也要多走一道渲染。现在只保留位移、去掉淡入：
+ * 动效几乎没变化，但服务端输出的第一帧里文字就是可见的。
+ * 带 exit 的（弹窗/提示条，靠 AnimatePresence 淡出）不在此列，那里的淡入是本意。
+ */
+
 /**
  * 友链页的交互层。数据由 page.tsx（Server Component）取好传进来，
  * 这里只负责渲染与弹窗/复制/打点 —— 「为什么必须服务端取数」写在 page.tsx 顶部。
@@ -74,7 +83,7 @@ export default function LinksClient({ data }: { data: LinksPageData }) {
       <div className="container relative max-w-6xl">
         {/* ---------------- Hero ---------------- */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="mx-auto mb-12 max-w-3xl text-center lg:mb-16"
@@ -262,7 +271,7 @@ export default function LinksClient({ data }: { data: LinksPageData }) {
 
         {/* ---------------- 申请 CTA ---------------- */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}

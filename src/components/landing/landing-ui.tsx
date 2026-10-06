@@ -50,12 +50,18 @@ export function LandingShell({
   crumbs,
   h1,
   lede,
+  meta,
+  toc,
   children,
 }: {
   crumbs: Crumb[]
   h1: string
   /** H1 下面那段导语。写清楚「这一页能帮你解决什么」，不要写成品牌口号 */
   lede: ReactNode
+  /** 导语之后、正文之前的一块（hub 页放实时数据条与两个入口）。不给就不占位置 */
+  meta?: ReactNode
+  /** 2xl 起显示在左侧留白里的目录。给了才渲染；id 必须与页面里 Section 的 id 对上 */
+  toc?: { id: string; label: string }[]
   children: ReactNode
 }) {
   return (
@@ -65,19 +71,56 @@ export function LandingShell({
       <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
 
-      <div className="container relative">
+      {/*
+       * 【为什么不再用 .container】.container 是 max-w-7xl(1280)，而这一批页面里的正文块、
+       * 卡片栅格、价格表各自又套了一层 max-w-4xl(896) 并且**靠左**。
+       * 结果就是站长 2026-10-06 看到的样子：1440 的屏幕上，整页内容贴在左边 896px 里，
+       * 右边空着 380 多像素——页面明明 mx-auto 了，看上去却「根本不是居中的」。
+       *
+       * 改法是全页只留一个版心：这个 max-w-4xl 的居中列。标题、正文、栅格、表格共用同一条左右边界，
+       * 每一块都对齐，也就谈不上谁偏了。行长也没变——原来正文就是在 896 里排的（见下面 Section 不再套 max-w-4xl）。
+       */}
+      <div className="relative mx-auto w-full max-w-4xl px-6 lg:px-8">
+        {/*
+         * 侧边目录。只在 2xl(1536) 起出现，因为它是**绝对定位进版心左侧的留白**里的：
+         * 1536 时单边留白 (1536-896)/2 = 320px，目录宽 208 + 外移 256，左边还剩 64px 安全距离；
+         * 1280 时留白只有 192px，放不下——所以不是 xl 而是 2xl。
+         * 这样做的好处是版心永远在视口正中，不会因为多了一栏目录就整体右偏。
+         */}
+        {toc && toc.length > 0 && (
+          <aside aria-label="本页目录" className="absolute -left-64 top-0 hidden h-full w-52 2xl:block">
+            <nav className="sticky top-32 border-l border-white/10 pl-5">
+              <div className="mb-3 text-[11px] uppercase tracking-[0.25em] text-white/25">目录</div>
+              <ul className="space-y-2.5 text-sm">
+                {toc.map((t) => (
+                  <li key={t.id}>
+                    <a href={`#${t.id}`} className="block leading-snug text-white/40 transition-colors hover:text-white">
+                      {t.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </aside>
+        )}
+
         <Breadcrumbs crumbs={crumbs} />
-        <header className="max-w-4xl mb-12">
-          <h1 className="text-3xl lg:text-5xl font-bold leading-tight mb-3">{h1}</h1>
+        <header className="mb-14 border-b border-white/[0.08] pb-10">
+          <h1 className="text-[32px] font-bold leading-[1.2] tracking-tight sm:text-4xl lg:text-[52px] lg:leading-[1.12]">
+            {h1}
+          </h1>
           {/* 【诚实的新鲜度信号】对手那几个内容站都在标题里写更新年月。我们只写真的做过的事：
               哪一天把正文和代码、商品数据逐条对过（日期是 registry 里手动维护的常量，
               不是每次请求的「今天」）；价格和库存本来就是实时取库的，一并说明 */}
-          <p className="mb-6 text-xs lg:text-sm text-white/35">
-            内容核对于 <time dateTime={LANDING_REVIEWED_AT}>{LANDING_REVIEWED_AT}</time>
-            <span className="text-white/20"> · </span>
-            价格与库存为实时数据
-          </p>
-          <div className="text-white/60 text-base lg:text-lg leading-[1.9] space-y-4">{lede}</div>
+          <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-white/35 lg:text-[13px]">
+            <span>
+              内容核对于 <time dateTime={LANDING_REVIEWED_AT}>{LANDING_REVIEWED_AT}</time>
+            </span>
+            <span aria-hidden className="h-1 w-1 rounded-full bg-white/20" />
+            <span>价格与库存为实时数据</span>
+          </div>
+          <div className="mt-7 space-y-4 text-base leading-[1.95] text-white/60 lg:text-[17px]">{lede}</div>
+          {meta}
         </header>
         {children}
       </div>
@@ -98,9 +141,7 @@ export function Section({
   return (
     <section id={id} className="mb-14 scroll-below-header">
       <h2 className="text-2xl lg:text-3xl font-bold mb-6">{heading}</h2>
-      <div className="max-w-4xl text-white/70 leading-[1.95] text-[15px] lg:text-base space-y-4">
-        {children}
-      </div>
+      <div className="text-white/70 leading-[1.95] text-[15px] lg:text-base space-y-4">{children}</div>
     </section>
   )
 }
