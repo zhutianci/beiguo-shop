@@ -18,11 +18,57 @@
      * 声明之后浏览器知道页面已是深色，不再插手。
      */
     color-scheme: dark;
+
+    /*
+     * ---- 设计令牌（设计精修 2026-10-07，docs/设计精修-1007.md 第 2 节）----
+     * 一律 --ui- 前缀，不和上面几个历史变量、学习平台的 --learn-* 撞名。
+     * 字体：Inter 由 next/font 自托管、只管西文（根布局把它挂成 --font-inter）；中文走系统字体，按「苹果 → 鸿蒙 / 小米 → 微软 → 思源」排，
+     * 原来 font-family 里一个中文字体都没有，中文落到浏览器默认字体（Windows 上可能是宋体），各机器长得不一样。
+     */
+    /* 只放中文与系统回退；Inter 的变量挂在 <body> 上，必须在 body 的 font-family 里拼（:root 上取不到 --font-inter） */
+    --ui-font-cjk: "PingFang SC", "HarmonyOS Sans SC", "MiSans", "Hiragino Sans GB",
+      "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", system-ui,
+      -apple-system, "Segoe UI", sans-serif;
+    --ui-font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    /* 文字明度：4 只给分隔符与装饰，不承载信息（纯黑底上 0.54 ≈ 5.9:1，0.40 ≈ 3.7:1） */
+    --ui-ink-1: rgba(255, 255, 255, 0.94);
+    --ui-ink-2: rgba(255, 255, 255, 0.7);
+    --ui-ink-3: rgba(255, 255, 255, 0.54);
+    --ui-ink-4: rgba(255, 255, 255, 0.4);
+    /* 发丝线 */
+    --ui-line: rgba(255, 255, 255, 0.08);
+    --ui-line-strong: rgba(255, 255, 255, 0.14);
+    --ui-line-hover: rgba(255, 255, 255, 0.22);
+    /* 表面：卡片 / 浮起 / 弹层。实心，不透出背后的光晕 */
+    --ui-surface-1: #0b0b0e;
+    --ui-surface-2: #111115;
+    --ui-surface-3: #17171c;
+    --ui-tint: rgba(255, 255, 255, 0.025);
+    --ui-tint-hover: rgba(255, 255, 255, 0.05);
+    /* 强调色：链接、焦点、眉标；渐变只给交易动作（立即购买 / 提交 / 支付） */
+    --ui-accent: #a78bfa;
+    --ui-accent-soft: rgba(167, 139, 250, 0.12);
+    --ui-focus: rgba(196, 181, 253, 0.85);
+    --ui-brand-gradient: linear-gradient(100deg, #7c3aed 0%, #c026d3 55%, #db2777 100%);
+    /* 圆角 */
+    --ui-r-sm: 10px;
+    --ui-r-md: 14px;
+    --ui-r-lg: 20px;
+    --ui-r-xl: 24px;
+    /* 阴影：只给主面板与浮层；顶边 1px 内高光让深色面有「材质」 */
+    --ui-shadow-panel: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 30px 80px -40px rgba(0, 0, 0, 0.85);
+    --ui-shadow-pop: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 0 1px rgba(255, 255, 255, 0.08), 0 24px 60px -16px rgba(0, 0, 0, 0.8);
+    /* 动效 */
+    --ui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --ui-dur-1: 150ms;
+    --ui-dur-2: 200ms;
   }
 
   html {
     scroll-behavior: smooth;
     color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   /* 后台是浅色，单独覆盖，否则会继承上面的深色声明导致表单控件配色错乱 */
@@ -32,11 +78,43 @@
 
   body {
     @apply bg-black text-white antialiased;
+    font-family: var(--font-inter, ui-sans-serif), var(--ui-font-cjk);
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--ui-font-mono);
+  }
+
   ::selection {
-    @apply bg-purple-500/30;
+    background-color: rgba(139, 92, 246, 0.38);
+    color: #fff;
+  }
+
+  /*
+   * ---- 前台排版基线（设计精修 2026-10-07）：只作用于 .shop-shell，后台与渠道后台不受影响 ----
+   * 中文多行时 text-sm 自带的 1.43 行高太挤：没写 leading-* 的段落 / 列表项 / 描述统一给 1.75。
+   * 特异度 (0,2,1) 压得住 text-sm 的行高；写了 leading-* 的（含 lg:leading-*）按自己的走；truncate 的单行说明不受影响。
+   */
+  .shop-shell :is(p, li, dd):not([class*="leading-"]):not(.truncate) {
+    line-height: 1.75;
+  }
+
+  .shop-shell :is(h1, h2, h3) {
+    text-wrap: balance;
+  }
+
+  .shop-shell p {
+    text-wrap: pretty;
+  }
+
+  /* 键盘焦点统一：写在 base 层，组件自己写了 focus-visible:outline-none + ring 的照旧用自己的（工具类排在后面） */
+  .shop-shell :where(a, button, summary, [role="button"], [tabindex]):focus-visible {
+    outline: 2px solid var(--ui-focus);
+    outline-offset: 2px;
   }
 }
 
@@ -129,13 +207,22 @@
     scroll-margin-top: calc(var(--header-h, 7rem) + 1rem);
   }
 
-  /* 渐变文字 */
+  /* 渐变文字（设计精修 2026-10-07）：
+     gradient-text 原来是白 → 浅紫 → 紫的横向渐变，每个区块标题都染一遍紫，颜色失去了「可点 / 强调」的意义；
+     改成白色自上而下轻微淡出（只给字一点体积，读起来仍是白字）。
+     gradient-text-accent 原来是紫 → 品红 → 青，品红 #ec4899 在黑底上偏刺；换成同色相的浅色版，对比度更高、更安静。 */
   .gradient-text {
-    @apply bg-gradient-to-r from-white via-purple-200 to-purple-400 bg-clip-text text-transparent;
+    background-image: linear-gradient(180deg, #ffffff 35%, rgba(255, 255, 255, 0.66) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   .gradient-text-accent {
-    @apply bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 bg-clip-text text-transparent;
+    background-image: linear-gradient(100deg, #c4b5fd 0%, #f0abfc 48%, #a5b4fc 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   /* 玻璃态效果 */
@@ -175,32 +262,36 @@
     @apply relative;
   }
 
+  /* 设计精修 2026-10-07：下面三个老效果的时长统一收到 ≤200ms、位移收到 4px，只过渡 transform / opacity */
   .glow-border::before {
     content: '';
-    @apply absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 opacity-0 blur-sm transition-opacity duration-500;
+    @apply absolute -inset-[1px] rounded-2xl bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-500 opacity-0 blur-sm transition-opacity duration-200;
   }
 
   .glow-border:hover::before {
-    @apply opacity-70;
+    @apply opacity-50;
   }
 
   /* 悬浮卡片 */
   .hover-lift {
-    @apply transition-all duration-500 ease-out;
+    transition: transform var(--ui-dur-2) var(--ui-ease);
   }
 
-  .hover-lift:hover {
-    @apply -translate-y-2;
+  @media (hover: hover) {
+    .hover-lift:hover {
+      transform: translateY(-4px);
+    }
   }
 
   /* 磁性按钮效果 */
   .magnetic-btn {
-    @apply relative overflow-hidden transition-all duration-300;
+    @apply relative overflow-hidden;
+    transition: transform var(--ui-dur-2) var(--ui-ease);
   }
 
   .magnetic-btn::before {
     content: '';
-    @apply absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 transition-opacity duration-300;
+    @apply absolute inset-0 bg-gradient-to-r from-purple-600 to-pink-600 opacity-0 transition-opacity duration-200;
   }
 
   .magnetic-btn:hover::before {
@@ -278,9 +369,10 @@
   transition: transform 0.15s ease-out, width 0.3s, height 0.3s;
 }
 
-/* 滚动条 */
+/* 滚动条（设计精修：拇指收细、留 2px 透明边，和深色底融在一起） */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -288,11 +380,14 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-white/20 rounded-full;
+  background-color: rgba(255, 255, 255, 0.16);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-white/30;
+  background-color: rgba(255, 255, 255, 0.28);
 }
 
 /* 页面过渡 */
@@ -543,7 +638,8 @@
   --learn-surface: rgba(255, 255, 255, 0.025);
   --learn-surface-hover: rgba(255, 255, 255, 0.05);
   --learn-muted: rgba(255, 255, 255, 0.55);
-  --learn-faint: rgba(255, 255, 255, 0.38);
+  /* 0.38 → 0.46（设计精修 2026-10-07）：眉标、计数这些「最弱一级」的字在黑底上原来只有 3.5:1 */
+  --learn-faint: rgba(255, 255, 255, 0.46);
   --learn-accent: #a78bfa;
   --learn-accent-2: #f0abfc;
   background:
@@ -730,6 +826,270 @@
   .route-progress[data-phase='run'] { transform: scaleX(0.6); transition: none; }
   .route-progress[data-phase='done'] { transition: none; }
 }
+
+/* ============ 设计精修 2026-10-07：前台统一组件类（docs/设计精修-1007.md 第 2 节） ============
+ * 放在 components 层：页面里写的工具类（rounded-xl、px-8、w-full …）排在后面，照样能覆盖。
+ * 只用 transform / opacity 做动效；悬停效果包在 (hover: hover) 里，触屏点一下不会「粘住」。
+ * 不用 backdrop-filter、不用大面积动画渐变（手机端轻量模式的约束），阴影只给主面板，半径不大。 */
+@layer components {
+  /* ---- 按钮 ---- */
+  .ui-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0 1.25rem;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    font-size: 15px;
+    line-height: 1.25rem;
+    font-weight: 500;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      transform var(--ui-dur-1) var(--ui-ease),
+      opacity var(--ui-dur-1) var(--ui-ease),
+      background-color var(--ui-dur-2) var(--ui-ease),
+      border-color var(--ui-dur-2) var(--ui-ease),
+      color var(--ui-dur-2) var(--ui-ease);
+  }
+  .ui-btn:active:not(:disabled):not([aria-disabled='true']) {
+    transform: scale(0.98);
+  }
+  .ui-btn:disabled,
+  .ui-btn[aria-disabled='true'] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .ui-btn-sm {
+    min-height: 36px;
+    padding: 0 0.875rem;
+    font-size: 14px;
+  }
+  .ui-btn-lg {
+    min-height: 52px;
+    padding: 0 1.75rem;
+    font-size: 16px;
+  }
+  @media (min-width: 1024px) {
+    .ui-btn-lg {
+      min-height: 56px;
+      padding: 0 2rem;
+      font-size: 17px;
+    }
+  }
+
+  /* 主按钮：白色药丸（与学习平台、页头「注册」同一个） */
+  .ui-btn-primary {
+    background-color: #fff;
+    color: #0a0a0a;
+    font-weight: 600;
+  }
+  @media (hover: hover) {
+    .ui-btn-primary:hover {
+      background-color: rgba(255, 255, 255, 0.86);
+    }
+  }
+
+  /* 交易按钮：只给「立即购买 / 提交 / 支付」。悬停用一层白色蒙版的 opacity 提亮，不做发光扩散 */
+  .ui-btn-brand {
+    isolation: isolate;
+    background-image: var(--ui-brand-gradient);
+    color: #fff;
+    font-weight: 600;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 28px -14px rgba(192, 38, 211, 0.7);
+  }
+  .ui-btn-brand::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgba(255, 255, 255, 0.12);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--ui-dur-2) var(--ui-ease);
+  }
+  @media (hover: hover) {
+    .ui-btn-brand:hover::after {
+      opacity: 1;
+    }
+  }
+
+  /* 次按钮：描边 */
+  .ui-btn-secondary {
+    background-color: rgba(255, 255, 255, 0.04);
+    border-color: var(--ui-line-strong);
+    color: var(--ui-ink-1);
+  }
+  @media (hover: hover) {
+    .ui-btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      border-color: var(--ui-line-hover);
+    }
+  }
+
+  .ui-btn-ghost {
+    color: var(--ui-ink-2);
+  }
+  @media (hover: hover) {
+    .ui-btn-ghost:hover {
+      color: #fff;
+      background-color: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  /* 按钮里的箭头：悬停右移 2px */
+  .ui-btn .ui-arrow {
+    transition: transform var(--ui-dur-2) var(--ui-ease);
+  }
+  @media (hover: hover) {
+    .ui-btn:hover .ui-arrow,
+    .group:hover .ui-arrow {
+      transform: translateX(2px);
+    }
+  }
+
+  /* ---- 表面 ---- */
+  /* 主面板：实心深色面 + 顶边内高光。用来替换「渐变光晕 + glass」——glass 是白 5% 半透明，光晕会透过整张卡 */
+  .ui-panel {
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.012) 42%),
+      var(--ui-surface-1);
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-r-xl);
+    box-shadow: var(--ui-shadow-panel);
+  }
+  /* 顶边一道细光（Linear 式），给最重要的那一块（价格卡、登录卡） */
+  .ui-panel-accent::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 12%;
+    right: 12%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(196, 181, 253, 0.75), rgba(240, 171, 252, 0.6), transparent);
+    pointer-events: none;
+  }
+
+  /* 卡片：发丝线 + 极淡的底 */
+  .ui-card {
+    background-color: var(--ui-tint);
+    border: 1px solid var(--ui-line);
+    border-radius: var(--ui-r-lg);
+    transition:
+      background-color var(--ui-dur-2) var(--ui-ease),
+      border-color var(--ui-dur-2) var(--ui-ease),
+      transform var(--ui-dur-2) var(--ui-ease);
+  }
+  @media (hover: hover) {
+    .ui-card-link:hover {
+      background-color: var(--ui-tint-hover);
+      border-color: var(--ui-line-strong);
+    }
+  }
+
+  /* ---- 文字 ---- */
+  .ui-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-size: 12px;
+    line-height: 1rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ui-ink-3);
+  }
+  .ui-price {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+
+  /* ---- 表单 ---- */
+  .ui-input {
+    width: 100%;
+    min-height: 48px;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--ui-line-strong);
+    border-radius: var(--ui-r-md);
+    background-color: rgba(255, 255, 255, 0.035);
+    color: #fff;
+    font-size: 15px;
+    line-height: 1.5rem;
+    transition:
+      border-color var(--ui-dur-1) var(--ui-ease),
+      background-color var(--ui-dur-1) var(--ui-ease),
+      box-shadow var(--ui-dur-1) var(--ui-ease);
+  }
+  .ui-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+  }
+  @media (hover: hover) {
+    .ui-input:hover {
+      border-color: var(--ui-line-hover);
+    }
+  }
+  .ui-input:focus {
+    outline: none;
+    border-color: rgba(167, 139, 250, 0.7);
+    background-color: rgba(255, 255, 255, 0.05);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.22);
+  }
+
+  /* ---- 状态 ---- */
+  .ui-skeleton {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.08) 40%, rgba(255, 255, 255, 0.04) 80%) 0 0 / 800px 100%;
+    animation: learn-shimmer 1.4s linear infinite;
+    border-radius: var(--ui-r-md);
+  }
+  .ui-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem 1.5rem;
+    border: 1px dashed var(--ui-line-strong);
+    border-radius: var(--ui-r-lg);
+    text-align: center;
+    color: var(--ui-ink-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .ui-skeleton {
+    animation: none;
+  }
+  .ui-btn,
+  .ui-btn::after,
+  .ui-btn .ui-arrow,
+  .ui-card,
+  .ui-input,
+  .hover-lift {
+    transition: none;
+  }
+  .ui-btn:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/*
+ * ---- 前台辅助文字的对比度下限（设计精修 2026-10-07）----
+ * 前台大量说明文字写成 text-white/30~45，纯黑底上只有 2.4:1~4.1:1，低于 WCAG AA 的 4.5:1。
+ * 在 .shop-shell 里把这几档抬到 ≥4.5:1；/20、/25 只用于分隔符与装饰，不动。后台、渠道后台不受影响。
+ * 写法：:where() 让特异度停在 (0,1,0)，与原工具类相同、靠排在后面生效；hover: / group-hover: 等状态类特异度更高，照常覆盖。
+ * 已核对：前台没有「text-white/30~45 + 断点 text-white」叠写的元素（那种写法会被这里压住）。
+ */
+.shop-shell :where(.text-white\/30) { color: rgba(255, 255, 255, 0.48); }
+.shop-shell :where(.text-white\/35) { color: rgba(255, 255, 255, 0.5); }
+.shop-shell :where(.text-white\/40) { color: rgba(255, 255, 255, 0.54); }
+.shop-shell :where(.text-white\/45) { color: rgba(255, 255, 255, 0.58); }
 
 /* ============ 手机端轻量模式（2026-10-01，站长要求电脑端不变） ============
  * iPhone 上的 Safari / Chrome（内核都是 iOS WebKit）进首页卡一分钟左右、滑动时一顿一顿、有区域一片黑：

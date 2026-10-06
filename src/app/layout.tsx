@@ -19,7 +19,9 @@ import { brandShareImages, withBrandName } from '@/lib/storefront/brand-meta'
  */
 export const dynamic = 'force-dynamic'
 
-const inter = Inter({ subsets: ['latin'] })
+// 只挂成 CSS 变量（--font-inter），由 globals.css 里 body 的 font-family 接上中文系统字体（设计精修 2026-10-07）：
+// 原来直接用 inter.className，font-family 里没有任何中文字体，中文落到浏览器默认字体
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
 
 const SITE_NAME = '贝果科技'
 /*
@@ -245,7 +247,7 @@ export default async function RootLayout({
         <meta httpEquiv="Cache-Control" content="no-transform" />
         <meta httpEquiv="Cache-Control" content="no-siteapp" />
       </head>
-      <body className={inter.className}>
+      <body className={inter.variable}>
         <StorefrontProvider value={toPublicStorefront(sf)}>
           <AuthFetchPatch />
           {children}
