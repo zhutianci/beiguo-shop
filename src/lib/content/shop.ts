@@ -7,8 +7,8 @@
  *
  * 【扣积分】creator_profiles.spent 加上 cost，条件是 points − spent ≥ cost：一条带条件的 UPDATE，
  * 并发的两次兑换不会把可用积分扣成负数。points（累计获得）不动 —— 等级只看 points，兑换不掉级（设计 §8.1）。
- * 【次数】每人每个自然月（上海时间）最多 MONTHLY_LIMIT 次；同一事务里先数再写，极端并发下可能多出一次，
- * 接口层另有限流，积分本身不会超扣，可以接受。
+ * 【次数】每人每个自然月（上海时间）最多 MONTHLY_LIMIT 次；同一事务里先扣分（拿行锁）再数，并发也不会多出
+ * （2026-10-07 起；以前先数再写，并发下能超）。接口层另有限流。
  */
 import crypto from 'crypto'
 import { Prisma } from '@prisma/client'
@@ -82,10 +82,13 @@ export async function redeem(userId: number, key: string): Promise<{ couponName:
   const name = `积分兑换·${opt.label}`.slice(0, 80)
 
   await prisma.$transaction(async (tx) => {
-    const used = await tx.pointRedemption.count({ where: { userId, createdAt: { gte: monthStart(now) } } })
-    if (used >= MONTHLY_LIMIT) throw new ShopError(`每月最多兑换 ${MONTHLY_LIMIT} 次，下个月再来`)
+    // 先扣积分（拿到 creator_profiles 这一行的行锁）再数本月次数（2026-10-07）：以前先数后扣，并发请求在 REPEATABLE READ 下
+    // 都在拿锁之前读到「还没满」，能超过每月上限。现在同一用户的兑换在行锁上排队，后一个事务的第一次一致性读发生在
+    // 前一个提交之后，数得到它刚插的记录；超限就抛错，整个事务（含扣分）回滚
     const n = await tx.$executeRaw`UPDATE creator_profiles SET spent = spent + ${opt.cost} WHERE user_id = ${userId} AND points - spent >= ${opt.cost}`
     if (n !== 1) throw new ShopError('可用积分不够')
+    const used = await tx.pointRedemption.count({ where: { userId, createdAt: { gte: monthStart(now) } } })
+    if (used >= MONTHLY_LIMIT) throw new ShopError(`每月最多兑换 ${MONTHLY_LIMIT} 次，下个月再来`)
     const coupon = await tx.coupon.create({
       data: {
         code: `pt-${crypto.randomBytes(8).toString('hex')}`,

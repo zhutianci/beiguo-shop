@@ -158,6 +158,8 @@ services:
       # 只有在这里列出才是「改宿主机 .env.production + docker compose up -d」即生效，不必重建镜像
       - VMQ_REUSE_COOLDOWN_MIN
       - VMQ_MAX_OPEN_PER_USER
+      # 同一出口 IP 一个收款单有效期内最多新建几张收款单（lib/pay-ip-throttle，默认 8，0 = 关闭）
+      - VMQ_MAX_NEW_PER_IP
       - ORDER_PAY_WINDOW_MIN
       # NEXT_PUBLIC_* 构建时若已定义，会被内联进产物（服务端代码也一样），这里改值不生效、仍需重建；
       # 构建时没定义的，才按这里的运行时值走

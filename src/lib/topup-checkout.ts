@@ -22,6 +22,7 @@ import {
   VMQ_TIMEOUT_MIN,
 } from './vmq'
 import { payableCents } from './order-payable'
+import { newPaymentIpLimited, NEW_PAYMENT_IP_MSG } from './pay-ip-throttle'
 import { readWalletConfig, topupOpenFor, validateTopupAmount, canUseForJiema, type WalletConfig, type WalletConfigRead } from './wallet/config'
 import {
   topupCarrierId,
@@ -108,6 +109,11 @@ export async function startTopup(
   if (!reusing && (await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) {
     await closeQuietly(made.orderId, '每人待付款收款单已满')
     return { ok: false, status: 429, code: 'OPEN_PAYMENTS', message: openPaymentsMsg() }
+  }
+  // 同一出口 IP 新建收款单的上限（lib/pay-ip-throttle；只在要占新金额时数）
+  if (!reusing && newPaymentIpLimited()) {
+    await closeQuietly(made.orderId, '同一网络新建收款单过多')
+    return { ok: false, status: 429, code: 'OPEN_PAYMENTS', message: NEW_PAYMENT_IP_MSG }
   }
   let vmq: Awaited<ReturnType<typeof createOrGetVmqOrder>>
   try {

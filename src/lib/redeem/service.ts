@@ -21,6 +21,7 @@
 import { prisma } from '@/lib/db'
 import { cardContentHash, cardKeyConfigured } from '@/lib/cardkey'
 import { rateLimited } from '@/lib/news/rate-limit'
+import { ipKey } from '@/lib/auth-throttle'
 import { getProvider } from './registry'
 import { RedeemError, type RedeemActivateResult, type RedeemCheckResult } from './types'
 
@@ -147,14 +148,27 @@ export function validCdkShape(cdk: string): boolean {
  * 全站那层是最后的闸门，上游限流我们的 IP 之前先自己刹车。
  */
 export function redeemRateLimited(action: string, cardId: number | null, ip: string): string | null {
-  if (cardId !== null && rateLimited(`rd:${action}:${cardId}`, { windowMs: 60_000, max: 6 })) {
-    return '操作过于频繁，请稍后再试'
+  if (cardId !== null) {
+    const perCard = redeemCardLimited(action, cardId)
+    if (perCard) return perCard
   }
-  if (rateLimited(`rd-ip:${ip}`, { windowMs: 60_000, max: 20 })) {
+  // IPv6 按 /64 聚合（lib/auth-throttle 的 ipKey）：按单地址计数等于随手轮换绕过
+  if (ip !== 'unknown' && rateLimited(`rd-ip:${ipKey(ip)}`, { windowMs: 60_000, max: 20 })) {
     return '操作过于频繁，请稍后再试'
   }
   if (rateLimited('rd-all', { windowMs: 60_000, max: 300 })) {
     return '当前兑换人数较多，请稍后再试'
+  }
+  return null
+}
+
+/**
+ * 只看单卡那一层。给「查库之前已经用 redeemRateLimited(action, null, ip) 过了 IP / 全站两层」的路由在
+ * resolveCard 之后用：再调一次 redeemRateLimited 会把同一个请求在 IP / 全站两层各记两次。
+ */
+export function redeemCardLimited(action: string, cardId: number): string | null {
+  if (rateLimited(`rd:${action}:${cardId}`, { windowMs: 60_000, max: 6 })) {
+    return '操作过于频繁，请稍后再试'
   }
   return null
 }
@@ -172,7 +186,7 @@ export function redeemRateLimited(action: string, cardId: number | null, ip: str
  */
 export function redeemProbeLimited(ip: string, cdk: string): string | null {
   const prefix = cdk.slice(0, 8)
-  if (rateLimited(`rd-pfx:${ip}:${prefix}`, { windowMs: 60_000, max: 16 })) {
+  if (rateLimited(`rd-pfx:${ipKey(ip)}|${prefix}`, { windowMs: 60_000, max: 16 })) {
     return '操作过于频繁，请稍后再试'
   }
   return null

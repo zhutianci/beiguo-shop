@@ -25,6 +25,7 @@ import { prisma } from '../db'
 import { createShopOrder } from '../order/create-shop-order'
 import { createOrGetVmqOrder, countOpenOrderPayments, discardVmqOrder, fulfillOrder, VmqError, VMQ_MAX_OPEN_PER_USER, VMQ_TIMEOUT_MIN } from '../vmq'
 import { payableCents } from '../order-payable'
+import { newPaymentIpLimited, NEW_PAYMENT_IP_MSG } from '../pay-ip-throttle'
 import { inMoneyTx } from '../wallet/ledger'
 import { holdInTx } from '../wallet/hold'
 import { splitDebit, centsOf } from '../wallet/buckets'
@@ -265,6 +266,8 @@ export async function createJiemaOrder(user: { id: number; role?: string | null 
   const availPre = buckets ? buckets.topupCents + centsOf(buckets.balance) : 0
   const cashierPre = input.payWith === 'ALIPAY' || availPre < q.priceCents
   if (cashierPre && (await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) return bad(429, 'OPEN_PAYMENTS', openPaymentsMsg(false, false), { items: await openPaymentItems(user.id) })
+  // 同一出口 IP 新建收款单的上限（lib/pay-ip-throttle）：会走收银台的新单才数
+  if (cashierPre && newPaymentIpLimited()) return bad(429, 'OPEN_PAYMENTS', NEW_PAYMENT_IP_MSG, { items: await openPaymentItems(user.id) })
 
   // 名称快照
   const [svc, cty] = await Promise.all([

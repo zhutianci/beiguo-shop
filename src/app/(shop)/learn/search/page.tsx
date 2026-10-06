@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import type { Prisma } from '@prisma/client'
+import { headers } from 'next/headers'
 import { prisma } from '@/lib/db'
+import { searchThrottled } from '@/lib/search-throttle'
 import { PUBLIC_WHERE, cardsByIds } from '@/lib/content/queries'
 import { SITE_NAME } from '@/lib/product-seo'
 import { Crumbs, Empty, GuideRows, LEARN_HOME, LearnPage, PromptMasonry, SearchBox } from '@/components/learn/ui'
@@ -31,7 +33,9 @@ export default async function LearnSearchPage({ searchParams }: Props) {
   // 多个词按空格切开，每个词都要命中（AND）
   const words = q.split(/\s+/).filter(Boolean).slice(0, 5)
   let ids: number[] = []
-  if (words.length) {
+  // 限频（lib/search-throttle）：命中时不查库，页面照常渲染、提示稍后再试
+  const throttled = words.length > 0 && searchThrottled(headers(), 'learn')
+  if (words.length && !throttled) {
     const where: Prisma.ForumPostWhereInput = {
       ...PUBLIC_WHERE,
       AND: words.map((w) => ({
@@ -67,6 +71,8 @@ export default async function LearnSearchPage({ searchParams }: Props) {
       <div className="mt-10">
         {!q ? (
           <p className="text-sm text-white/45">输入关键词，搜索提示词、教程和讨论。</p>
+        ) : throttled ? (
+          <p className="text-sm text-white/45">搜索太频繁了，请稍等一分钟再试。</p>
         ) : cards.length === 0 ? (
           <Empty title="没有找到相关内容" desc="换个说法试试，或者到提示词库按模型、场景浏览。" href="/prompts" cta="浏览提示词库" />
         ) : (

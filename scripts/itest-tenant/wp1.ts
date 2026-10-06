@@ -769,7 +769,19 @@ async function testMiddleware(w: World) {
   const saMain = w.token(w.users.sa, w.main)
   const userTok = w.token(w.users.luluBuyer1, w.main)
   section('W1-13 middleware')
-  check('matcher 固定四项', stable(config.matcher) === stable(['/admin/:path*', '/api/admin/:path*', '/partner/:path*', '/api/partner/:path*']))
+  // 2026-10-07：'/api/:path*' 取代 /api/admin、/api/partner 两项（全站 /api 写请求同源校验，lib/api-csrf.ts）
+  check('matcher 固定三项', stable(config.matcher) === stable(['/admin/:path*', '/api/:path*', '/partner/:path*']))
+  {
+    const post = (host: string, p: string, origin?: string) => {
+      const h = new Headers({ host })
+      if (origin) h.set('origin', origin)
+      return middleware(new NextRequest(`http://${host}${p}`, { method: 'POST', headers: h }))
+    }
+    check('兄弟子域对主站 /api 写请求 → 403', kind(await post(MAIN_HOST, '/api/orders', `https://${w.lulu.host}`)) === '403')
+    check('同源 /api 写请求放行（不看登录态）', kind(await post(MAIN_HOST, '/api/orders', `https://${MAIN_HOST}`)) === 'next')
+    check('非浏览器 /api 写请求放行', kind(await post(MAIN_HOST, '/api/pay/sms-notify')) === 'next')
+    check('其余 /api GET 放行', kind(await run(MAIN_HOST, '/api/products')) === 'next')
+  }
 
   setChannelsMode('dormant')
   try {
