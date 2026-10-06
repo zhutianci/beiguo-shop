@@ -33,6 +33,13 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；原文让模型自行分析某个现有品牌，改为由用户填写自己的品牌名、行业、颜色、起源地和文化符号，避免生成他人商标
 imageBrief: 用虚构品牌"MOCHI LAB"按默认变量生成 1 张；再用本站自有品牌名生成 1 张。示例图不收录原帖出图（原帖使用了真实服装品牌商标）。
+images:
+  - 145-y2k-brand-badge-1.jpg
+  - 145-y2k-brand-badge-2.jpg
+imageCredit:
+  by: "@iamaiistudio"
+  url: https://x.com/iamaiistudio/status/2071683274725028140
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录成功率与最常见的失败形式
   - 片假名音译是否正确（可用翻译工具核对）

@@ -28,6 +28,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；角色外貌、配色和 9 格动作改为变量；删去原文每格里的服装细节描述；新增"格间留白"便于切图
 imageBrief: 生成 2 张：默认 9 个日常动作一版；9 格改成表情（开心、生气、委屈、比心、晚安、收到、加油、无语、哭哭）一版。角色为原创形象，不得模仿已有动漫角色。
+images:
+  - 12-sticker-grid-9-1.jpg
+imageCredit:
+  by: "@RuzainaMeer"
+  url: https://x.com/RuzainaMeer/status/2071097968846057649
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录 9 格角色一致性和格子是否整齐
   - 改成表情版后，若在格子里加中文短字，错字率如何

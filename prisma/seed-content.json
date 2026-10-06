@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-06T11:21:38.096Z",
+  "builtAt": "2026-10-06T14:06:41.337Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -799,8 +799,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "02-resume-headshot-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@PavolRusnak",
+        "url": "https://x.com/PavolRusnak/status/1994097306526994558",
+        "license": "MIT（Copyright (c) 2025 ZeroLu）"
+      },
       "title": "gpt-image-2 职业形象照提示词：自拍变简历 / 领英头像",
       "slug": "resume-headshot",
       "tags": [
@@ -831,8 +837,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "03-chibi-mini-me-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@miratechtool",
+        "url": "https://x.com/miratechtool/status/2051691169592033488",
+        "license": "CC0 1.0"
+      },
       "title": "gpt-image-2 玩法：照片周围长出 Q 版 3D 迷你小人",
       "slug": "chibi-mini-me",
       "tags": [
@@ -894,8 +906,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "05-miniature-diorama-product-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@Strength04_X",
+        "url": "https://x.com/Strength04_X/status/2048074514278563949",
+        "license": "CC0 1.0"
+      },
       "title": "AI电商提示词：微缩小人\"施工\"的创意产品主图（gpt-image-2）",
       "slug": "miniature-diorama-product",
       "tags": [
@@ -926,8 +944,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "06-product-tvc-storyboard-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@Magncsans",
+        "url": "https://x.com/Magncsans/status/2047876253898903594",
+        "license": "CC0 1.0"
+      },
       "title": "gpt-image-2 分镜提示词：一张产品图生成 9 宫格 TVC 分镜脚本",
       "slug": "product-tvc-storyboard",
       "tags": [
@@ -958,8 +982,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "07-retro-city-travel-poster-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@iamaiistudio",
+        "url": "https://x.com/iamaiistudio/status/2054593748085215513",
+        "license": "CC0 1.0"
+      },
       "title": "AI海报提示词：复古三色城市旅行海报（gpt-image-2）",
       "slug": "retro-city-travel-poster",
       "tags": [
@@ -989,8 +1019,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "08-kawaii-infographic-poster-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@92digitalartArt",
+        "url": "https://x.com/92digitalartArt/status/2062237147260756025",
+        "license": "CC0 1.0"
+      },
       "title": "AI海报提示词：3D 可爱风科普信息图海报（gpt-image-2）",
       "slug": "kawaii-infographic-poster",
       "tags": [
@@ -1022,8 +1058,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "09-brand-guideline-board-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@Shorelyn_",
+        "url": "https://x.com/Shorelyn_/status/2055681687284293991",
+        "license": "CC0 1.0"
+      },
       "title": "AI Logo 提示词：上传 Logo 生成品牌 VI 规范展示板（gpt-image-2）",
       "slug": "brand-guideline-board",
       "tags": [
@@ -1053,8 +1095,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "10-embossed-metal-logo-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@iamaiistudio",
+        "url": "https://x.com/iamaiistudio/status/2063065673740497022",
+        "license": "CC0 1.0"
+      },
       "title": "gpt-image-2 Logo 提示词：金属浮雕质感 Logo 展示图",
       "slug": "embossed-metal-logo",
       "tags": [
@@ -1123,8 +1171,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "102-fake-1870s-vintage-photo-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@Arminn_Ai",
+        "url": "https://x.com/Arminn_Ai/status/2065104900590109130",
+        "license": "CC0 1.0"
+      },
       "title": "AI做旧照片提示词：生成以假乱真的 19 世纪老照片（gpt-image-2）",
       "slug": "fake-1870s-vintage-photo",
       "tags": [
@@ -1421,8 +1475,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "11-die-cut-sticker-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@Ciri_ai",
+        "url": "https://x.com/Ciri_ai/status/2056616223547548106",
+        "license": "CC0 1.0"
+      },
       "title": "AI贴纸提示词：照片一键转模切贴纸（gpt-image-2）",
       "slug": "die-cut-sticker",
       "tags": [
@@ -1569,8 +1629,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "113-nine-frame-product-campaign-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@iamaiistudio",
+        "url": "https://x.com/iamaiistudio/status/2069628865044254934",
+        "license": "CC0 1.0"
+      },
       "title": "AI电商提示词：上传一张产品图生成 9 宫格广告大片",
       "slug": "nine-frame-product-campaign",
       "tags": [
@@ -1831,8 +1897,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "12-sticker-grid-9-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@RuzainaMeer",
+        "url": "https://x.com/RuzainaMeer/status/2071097968846057649",
+        "license": "CC0 1.0"
+      },
       "title": "AI表情包提示词：同一角色 9 宫格表情包 / 贴纸（gpt-image-2）",
       "slug": "sticker-grid-9",
       "tags": [
@@ -1942,8 +2014,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "122-new-chinese-tea-launch-poster-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "wuyoscar/GPT-Image2-Skill",
+        "url": "https://github.com/wuyoscar/GPT-Image2-Skill",
+        "license": "MIT"
+      },
       "title": "新中式茶饮新品海报提示词：中文价格与活动文案精准排版（gpt-image-2）",
       "slug": "new-chinese-tea-launch-poster",
       "tags": [
@@ -1975,8 +2053,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "123-poster-to-metro-lightbox-1.jpg",
+        "123-poster-to-metro-lightbox-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "wuyoscar/GPT-Image2-Skill",
+        "url": "https://github.com/wuyoscar/GPT-Image2-Skill",
+        "license": "MIT"
+      },
       "title": "海报样机提示词：把设计稿一键放进地铁灯箱实景（gpt-image-2 改图）",
       "slug": "poster-to-metro-lightbox",
       "tags": [
@@ -2235,8 +2320,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "13-old-photo-restore-hd-1.jpg",
+        "13-old-photo-restore-hd-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "@CuriousRefuge",
+        "url": "https://x.com/CuriousRefuge/status/2065139340486045905",
+        "license": "CC0 1.0"
+      },
       "title": "AI老照片修复提示词：gpt-image-2 老照片高清化",
       "slug": "old-photo-restore-hd",
       "tags": [
@@ -2423,8 +2515,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "134-japanese-minimalist-living-room-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "wuyoscar/GPT-Image2-Skill",
+        "url": "https://github.com/wuyoscar/GPT-Image2-Skill",
+        "license": "MIT"
+      },
       "title": "室内效果图提示词：日式极简客厅写实渲染（可换北欧 / 奶油风）",
       "slug": "japanese-minimalist-living-room",
       "tags": [
@@ -2756,8 +2854,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "142-season-weather-edit-1.jpg",
+        "142-season-weather-edit-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "wuyoscar/GPT-Image2-Skill",
+        "url": "https://github.com/wuyoscar/GPT-Image2-Skill",
+        "license": "MIT"
+      },
       "title": "改图提示词：照片一键换季节 / 天气（雪景、雨夜、秋天）（gpt-image-2）",
       "slug": "season-weather-edit",
       "tags": [
@@ -2859,8 +2964,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "145-y2k-brand-badge-1.jpg",
+        "145-y2k-brand-badge-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "@iamaiistudio",
+        "url": "https://x.com/iamaiistudio/status/2071683274725028140",
+        "license": "CC0 1.0"
+      },
       "title": "Logo 徽章提示词：Y2K 原宿风品牌贴纸徽章（gpt-image-2）",
       "slug": "y2k-brand-badge",
       "tags": [
@@ -3035,8 +3147,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "15-illustration-to-figure-1.jpg",
+        "15-illustration-to-figure-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "@ZHO_ZHO_ZHO",
+        "url": "https://x.com/ZHO_ZHO_ZHO/status/1958539464994959715",
+        "license": "Apache-2.0"
+      },
       "title": "nano banana 手办提示词：插画 / 照片一键变角色手办（带包装盒）",
       "slug": "illustration-to-figure",
       "tags": [
@@ -3444,8 +3563,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "16-old-photo-colorize-1.jpg",
+        "16-old-photo-colorize-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "@GeminiApp",
+        "url": "https://x.com/GeminiApp/status/1960347483021959197",
+        "license": "Apache-2.0"
+      },
       "title": "nano banana 老照片修复上色提示词",
       "slug": "old-photo-colorize",
       "tags": [
@@ -3852,8 +3978,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "17-nano-banana-id-photo-1.jpg",
+        "17-nano-banana-id-photo-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "@songguoxiansen",
+        "url": "https://x.com/songguoxiansen/status/1963602241610551609",
+        "license": "Apache-2.0"
+      },
       "title": "nano banana 证件照提示词：一句话做二寸蓝底证件照",
       "slug": "nano-banana-id-photo",
       "tags": [
@@ -4190,8 +4323,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "178-pose-emoji-pack-1.jpg",
+        "178-pose-emoji-pack-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "@vista8",
+        "url": "https://x.com/vista8/status/1966164427243458977",
+        "license": "Apache-2.0"
+      },
       "title": "nano banana 表情包提示词：用自己的形象 + 一张姿势参考图，批量生成整套表情包",
       "slug": "pose-emoji-pack",
       "tags": [
@@ -4259,8 +4399,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "18-custom-outline-sticker-1.jpg",
+        "18-custom-outline-sticker-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "@op7418",
+        "url": "https://x.com/op7418/status/1960385812132192509",
+        "license": "Apache-2.0"
+      },
       "title": "nano banana 玩法：人物照变白色描边贴纸（参考图定风格）",
       "slug": "custom-outline-sticker",
       "tags": [
@@ -4667,8 +4814,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "19-photo-to-comic-strip-1.jpg",
+        "19-photo-to-comic-strip-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "@icreatelife",
+        "url": "https://x.com/icreatelife/status/1961977580849873169",
+        "license": "Apache-2.0"
+      },
       "title": "nano banana 漫画提示词：一张照片生成多格漫画条幅",
       "slug": "photo-to-comic-strip",
       "tags": [
@@ -4738,8 +4892,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "191-woodcut-portrait-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@Naiknelofar788",
+        "url": "https://x.com/Naiknelofar788/status/2042785774245154868",
+        "license": "CC BY 4.0"
+      },
       "title": "nano banana 版画头像提示词：照片转黑白木刻 / 铜版画风格肖像",
       "slug": "woodcut-portrait",
       "tags": [
@@ -4991,8 +5151,15 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "198-empty-room-furnishing-1.jpg",
+        "198-empty-room-furnishing-2.jpg"
+      ],
+      "imageCredit": {
+        "by": "@NanoBanana",
+        "url": "https://x.com/NanoBanana/status/1994483569625022487",
+        "license": "MIT"
+      },
       "title": "nano banana 空房间软装提示词：拍一张毛坯 / 空房照片，预览摆上家具后的效果",
       "slug": "empty-room-furnishing",
       "tags": [
@@ -5060,8 +5227,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "20-article-to-ppt-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@op7418",
+        "url": "https://x.com/op7418/status/1993159387796718006",
+        "license": "Apache-2.0"
+      },
       "title": "nano banana pro 做PPT提示词：把一篇文章变成整套暖色学术风 PPT",
       "slug": "article-to-ppt",
       "tags": [
@@ -5092,8 +5265,14 @@
     },
     {
       "facet": "IMAGE",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "200-magazine-layout-mockup-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@fofrAI",
+        "url": "https://x.com/fofrAI/status/1991530971800182929",
+        "license": "MIT"
+      },
       "title": "nano banana 杂志排版提示词：把一篇文章原样排成摆在桌上的杂志内页照片",
       "slug": "magazine-layout-mockup",
       "tags": [
@@ -5415,8 +5594,14 @@
     },
     {
       "facet": "VIDEO",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "209-seedance-snap-city-travel-vlog-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@Adam38363368936",
+        "url": "https://x.com/Adam38363368936/status/2105550931907809283",
+        "license": "CC BY 4.0"
+      },
       "title": "seedance 提示词：打响指切换城市的旅行 vlog（人物一致 · 道具不穿帮）",
       "slug": "seedance-snap-city-travel-vlog",
       "tags": [
@@ -5447,8 +5632,14 @@
     },
     {
       "facet": "VIDEO",
-      "images": [],
-      "imageCredit": null,
+      "images": [
+        "21-seedance-product-unboxing-1.jpg"
+      ],
+      "imageCredit": {
+        "by": "@Aiwithmaha",
+        "url": "https://x.com/Aiwithmaha/status/2102952087823044888",
+        "license": "CC BY 4.0"
+      },
       "title": "seedance 提示词：产品开箱试用短视频（电商带货竖屏）",
       "slug": "seedance-product-unboxing",
       "tags": [

@@ -25,6 +25,12 @@ source:
   licenseUrl: https://raw.githubusercontent.com/ZeroLu/awesome-nanobanana-pro/main/LICENSE
   changes: 译成中文；把原文"照片、漂亮的排版、引语、大胆的格式"拆成具体排版清单；新增桌面与道具变量
 imageBrief: 用本站一篇自己的教程（约 800 字）生成 1 张中文杂志内页照片，另用其英文摘要生成 1 张作对比（仓库示例图单张超过 1.2MB，未下载）。
+images:
+  - 200-magazine-layout-mockup-1.jpg
+imageCredit:
+  by: "@fofrAI"
+  url: https://x.com/fofrAI/status/1991530971800182929
+  license: MIT
 verify:
   - 实测 Nano Banana Pro 能完整排进多少字的中文正文、错字率如何
   - 确认原帖仍可访问、作者未另行声明保留权利

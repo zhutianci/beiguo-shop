@@ -28,6 +28,12 @@ source:
   licenseUrl: https://www.apache.org/licenses/LICENSE-2.0
   changes: 去掉原文中以某 AI 公司品牌命名的风格描述，改称"暖色学术人文风"；受众改为变量；整理为"两步 + 分条"格式；色值保持原文
 imageBrief: 用一篇站长自己写的、约 800 字的短文（例如本站一篇教程的摘要）作输入，生成至少 4 页：封面、目录、内容页、带柱状图的数据页；把 4 页拼成一张预览图展示。
+images:
+  - 20-article-to-ppt-1.jpg
+imageCredit:
+  by: "@op7418"
+  url: https://x.com/op7418/status/1993159387796718006
+  license: Apache-2.0
 verify:
   - 在 Gemini 应用中选 Nano Banana Pro 实测：能否一次对话里按大纲连续生成多张页面图，最多几页后会中断
   - 页面中文标题与正文的错字率，柱状图数据是否与文章一致

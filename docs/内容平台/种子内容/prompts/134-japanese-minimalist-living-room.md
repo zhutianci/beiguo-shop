@@ -23,6 +23,12 @@ source:
   licenseUrl: https://github.com/wuyoscar/GPT-Image2-Skill/blob/main/LICENSE
   changes: 英文原文译为中文；风格、空间要素、配色和画面内文字改为变量
 imageBrief: 按默认变量生成 1 张 3:2 效果图；再把风格换成"奶油风"、配色换成"奶白、燕麦、浅木"生成 1 张对比。
+images:
+  - 134-japanese-minimalist-living-room-1.jpg
+imageCredit:
+  by: "wuyoscar/GPT-Image2-Skill"
+  url: https://github.com/wuyoscar/GPT-Image2-Skill
+  license: MIT
 verify:
   - 在 gpt-image-2 上实测 3 次，记录成功率与最常见的失败形式
   - 平面图板上的文字是否清晰正确

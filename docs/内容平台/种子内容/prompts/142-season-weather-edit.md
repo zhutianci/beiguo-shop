@@ -17,6 +17,13 @@ source:
   licenseUrl: https://github.com/wuyoscar/GPT-Image2-Skill/blob/main/LICENSE
   changes: 英文改图指令译为中文；季节天气效果、受影响的物体和主体改为变量；原示例为国际象棋棋局
 imageBrief: 用站长自己拍的一张街景或桌面照片，分别生成"雪天傍晚""夏夜暴雨""深秋落叶"三张，附原图组成四宫格对比。
+images:
+  - 142-season-weather-edit-1.jpg
+  - 142-season-weather-edit-2.jpg
+imageCredit:
+  by: "wuyoscar/GPT-Image2-Skill"
+  url: https://github.com/wuyoscar/GPT-Image2-Skill
+  license: MIT
 verify:
   - 在 gpt-image-2 上实测 3 次，记录成功率与最常见的失败形式
   - 构图与主体位置是否和原图一致

@@ -19,6 +19,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；迷你小人数量、互动物品和两段手写文字改为变量；原文英文短句改为中文示例
 imageBrief: 用站长本人（或已同意的同事）一张桌边 / 窗边的半身生活照作输入；输出 2 张：一张按默认变量，一张把互动物品换成"笔记本电脑"；附原图对比。
+images:
+  - 03-chibi-mini-me-1.jpg
+imageCredit:
+  by: "@miratechtool"
+  url: https://x.com/miratechtool/status/2051691169592033488
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录原图主体是否被改动、小人是否像本人
   - 中文手写字是否有错字或笔画缺失

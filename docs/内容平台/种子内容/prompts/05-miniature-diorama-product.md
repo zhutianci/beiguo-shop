@@ -19,6 +19,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；产品、品牌名、配色、背景色改为变量；删去原文中的虚构品牌全称和"8K"等分辨率词
 imageBrief: 用一个站长自己虚构的品牌名（不得使用真实商标），生成 2 张：护肤乳液瓶一版，"[护肤乳液泵头瓶]"换成"易拉罐饮料"、配色换成"红色和白色"一版。
+images:
+  - 05-miniature-diorama-product-1.jpg
+imageCredit:
+  by: "@Strength04_X"
+  url: https://x.com/Strength04_X/status/2048074514278563949
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录品牌名文字是否正确、小人数量和动作是否清晰
   - 上传真实产品照片并加"产品外观以上传图为准"时，包装是否能保持一致

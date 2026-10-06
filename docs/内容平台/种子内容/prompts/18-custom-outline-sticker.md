@@ -16,6 +16,13 @@ source:
   licenseUrl: https://www.apache.org/licenses/LICENSE-2.0
   changes: 原文由模型自行编写短语，本站增加了[短语]变量（也可删掉引号部分让模型发挥）；插画风格改为变量
 imageBrief: 需要两张输入：图1 用站长本人（或已同意的同事）一张半身照；图2 用站长自己先生成的一张白描边贴纸作风格参考（不得使用他人作品）。生成 2 张：[短语] 自填"今天也要早睡"一版，删掉短语交给模型发挥一版。
+images:
+  - 18-custom-outline-sticker-1.jpg
+  - 18-custom-outline-sticker-2.jpg
+imageCredit:
+  by: "@op7418"
+  url: https://x.com/op7418/status/1960385812132192509
+  license: Apache-2.0
 verify:
   - 在 Gemini 应用中用 nano banana 实测 3 次，记录是否误把图2里的内容复制进来
   - 中文短语错字率

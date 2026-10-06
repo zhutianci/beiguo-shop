@@ -27,6 +27,12 @@ source:
   licenseUrl: https://github.com/wuyoscar/GPT-Image2-Skill/blob/main/LICENSE
   changes: 英文原文译为中文；品类、配色、主体、全部文案与价格、日期改为变量；删去一条活动以降低小字数量
 imageBrief: 按默认变量生成 1 张；再把品类换成"秋季栗子拿铁"、配色换成"焦糖棕 + 奶油白"生成 1 张，逐字核对文案正确率。
+images:
+  - 122-new-chinese-tea-launch-poster-1.jpg
+imageCredit:
+  by: "wuyoscar/GPT-Image2-Skill"
+  url: https://github.com/wuyoscar/GPT-Image2-Skill
+  license: MIT
 verify:
   - 在 gpt-image-2 上实测 3 次，记录成功率与最常见的失败形式
   - 逐字核对每一处中文文案和价格数字，记录错字数量

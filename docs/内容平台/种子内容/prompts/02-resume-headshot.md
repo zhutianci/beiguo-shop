@@ -24,6 +24,12 @@ source:
   licenseUrl: https://github.com/ZeroLu/awesome-nanobanana-pro/blob/main/LICENSE
   changes: 英文原文译为中文并改成分条结构；原文写死的外套颜色和背景色值（#562226）改为变量；删减了部分重复的氛围修饰词；原文为 Nano Banana Pro 编写，本站改投 gpt-image-2
 imageBrief: 用站长本人（或已书面同意的同事）的一张手机自拍作输入；输出 2 张：深酒红背景 + 炭灰外套一张、浅灰背景 + 白衬衫一张，并保留原图做对比。
+images:
+  - 02-resume-headshot-1.jpg
+imageCredit:
+  by: "@PavolRusnak"
+  url: https://x.com/PavolRusnak/status/1994097306526994558
+  license: MIT（Copyright (c) 2025 ZeroLu）
 verify:
   - 原提示词为 Nano Banana Pro 编写，需在 gpt-image-2 上实测 3 次，记录脸部相似度
   - 同一提示词在 nano-banana 上对比一次，记录哪个模型更像本人

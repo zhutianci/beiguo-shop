@@ -16,6 +16,13 @@ source:
   licenseUrl: https://www.apache.org/licenses/LICENSE-2.0
   changes: 在仓库中文版提示词基础上，新增手办比例变量；把原文"如果可能的话，将场景设置在室内"改为明确的室内书桌场景（书桌为变量），并补充"光线自然真实"
 imageBrief: 用站长自己画的或用 AI 生成的原创角色图（不得使用已有动漫 / 游戏角色）作输入，另用一张宠物照片作输入，各生成 1 张；附输入图对比。
+images:
+  - 15-illustration-to-figure-1.jpg
+  - 15-illustration-to-figure-2.jpg
+imageCredit:
+  by: "@ZHO_ZHO_ZHO"
+  url: https://x.com/ZHO_ZHO_ZHO/status/1958539464994959715
+  license: Apache-2.0
 verify:
   - 在 Gemini 应用中用 nano banana 实测 3 次，记录包装盒上的图像与手办是否一致
   - 电脑屏幕上的"建模界面"是否出现明显乱码

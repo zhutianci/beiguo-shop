@@ -21,6 +21,13 @@ source:
   licenseUrl: https://www.apache.org/licenses/LICENSE-2.0
   changes: 保留原文的 4 条要求，把尺寸、底色、服装、表情改为变量；补充了"头部和肩部""纯色无渐变""双眼平视""五官发型保持原样、不要美颜"
 imageBrief: 用站长本人（或已书面同意的同事）一张正脸生活照作输入，生成 2 张：二寸蓝底一版、一寸白底一版；用与 01 号提示词相同的原图，方便两个模型对比。
+images:
+  - 17-nano-banana-id-photo-1.jpg
+  - 17-nano-banana-id-photo-2.jpg
+imageCredit:
+  by: "@songguoxiansen"
+  url: https://x.com/songguoxiansen/status/1963602241610551609
+  license: Apache-2.0
 verify:
   - 在 Gemini 应用中用 nano banana 实测 3 次，记录脸部相似度和衣领衔接
   - 与 01 号（gpt-image-2 证件照）用同一张原图对比，记录哪个更像本人

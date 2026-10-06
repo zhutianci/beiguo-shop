@@ -26,6 +26,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文并大幅压缩：合并原文的"智能规则""密度规则""微细节"等段落，删去间距刻度和"30–50 个元素"等硬性数量要求；新增[行业]变量和"Logo 不得修改"约束；画幅 16:9 为本站建议
 imageBrief: 站长先用 AI 或自己画一个虚构品牌的简单 Logo（例如"小麦烘焙"的麦穗图形，不得使用任何真实商标），再用它作输入生成 1 张完整展示板；附 Logo 原图。
+images:
+  - 09-brand-guideline-board-1.jpg
+imageCredit:
+  by: "@Shorelyn_"
+  url: https://x.com/Shorelyn_/status/2055681687284293991
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录 Logo 是否被擅自改形、HEX 色值是否与 Logo 实际颜色接近
   - 小字（字体示例、样机里的文案）是否大量乱码

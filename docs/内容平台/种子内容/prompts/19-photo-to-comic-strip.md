@@ -17,6 +17,13 @@ source:
   licenseUrl: https://www.apache.org/licenses/LICENSE-2.0
   changes: 原文为"基于上传的图像制作漫画书条幅，添加文字，写一个引人入胜的故事，我想要一本奇幻漫画书"；本站把格数、主角、题材、画风、语言改为变量，并补充了角色一致性和对白长度要求
 imageBrief: 用站长自家宠物照片作输入，生成 2 张：[奇幻冒险] 一版，[奇幻冒险] 换成"办公室日常"、[彩色美式漫画] 换成"日式黑白漫画"一版。
+images:
+  - 19-photo-to-comic-strip-1.jpg
+  - 19-photo-to-comic-strip-2.jpg
+imageCredit:
+  by: "@icreatelife"
+  url: https://x.com/icreatelife/status/1961977580849873169
+  license: Apache-2.0
 verify:
   - 在 Gemini 应用中用 nano banana 实测 3 次，记录格数是否正确、主角是否前后一致
   - 中文对白气泡的错字率（如错字多，正文建议先写好台词）

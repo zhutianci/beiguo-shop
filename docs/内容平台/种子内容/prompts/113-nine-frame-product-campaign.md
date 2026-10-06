@@ -30,6 +30,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；第 8 格的"成分 / 零部件"改为变量；其余结构保持不变
 imageBrief: 用一款本站可展示的自有或无品牌产品（如素色马克杯、无 Logo 香水瓶）白底图作输入，输出 1 张九宫格；附原图对比。
+images:
+  - 113-nine-frame-product-campaign-1.jpg
+imageCredit:
+  by: "@iamaiistudio"
+  url: https://x.com/iamaiistudio/status/2069628865044254934
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录成功率与最常见的失败形式
   - 九格中产品标签文字是否被改动

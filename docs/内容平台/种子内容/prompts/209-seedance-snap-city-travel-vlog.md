@@ -25,6 +25,12 @@ source:
   licenseUrl: https://creativecommons.org/licenses/by/4.0/
   changes: 由仓库英文版回译为中文；三座城市和地标改为变量；新增"人物以上传的照片为准"
 imageBrief: 原帖封面未收录（背景地标不适合作为本站示例图）。请用一张 AI 生成的虚拟人物全身照作参考，三座城市换成任意 3 个风景地标（如西湖、洪崖洞、鼓浪屿），生成 1 条，截取每个城市各 1 帧。
+images:
+  - 209-seedance-snap-city-travel-vlog-1.jpg
+imageCredit:
+  by: "@Adam38363368936"
+  url: https://x.com/Adam38363368936/status/2105550931907809283
+  license: CC BY 4.0
 verify:
   - 实测咖啡杯"放下—松手—留在原地"这一段的成功率（这是本条的核心卖点）
   - 地标建筑是否被画错或混在一起

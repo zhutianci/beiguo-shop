@@ -21,6 +21,12 @@ source:
   licenseUrl: https://creativecommons.org/licenses/by/4.0/
   changes: 译成中文；原文为文生图（"一个人的肖像"），本站改为上传照片的用法并要求保持人物特征；负面提示词单独放入 negativePrompt
 imageBrief: 用站长本人或 AI 生成的虚构人物正脸照作输入，生成 1 张木刻风肖像，附输入图对比（仓库示例图为真实公众人物，不使用）。
+images:
+  - 191-woodcut-portrait-1.jpg
+imageCredit:
+  by: "@Naiknelofar788"
+  url: https://x.com/Naiknelofar788/status/2042785774245154868
+  license: CC BY 4.0
 verify:
   - 仓库示例图为真实公众人物肖像，按本站规则未使用；需站长自行生成示例图
   - 实测"保持人物特征"的相似度

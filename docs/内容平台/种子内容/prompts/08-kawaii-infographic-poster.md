@@ -23,6 +23,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；主题、主体物、主副标题、6 个卡片标签改为变量；删去部分重复的装饰描述，保留"不出现版权元素"的约束
 imageBrief: 生成 2 张：默认主题"莓果与森林水果"一张；主题换成"太阳系八大行星"、卡片标签换成"距离、大小、温度、卫星、公转、自转"一张。两张都要人工核对图中文字。
+images:
+  - 08-kawaii-infographic-poster-1.jpg
+imageCredit:
+  by: "@92digitalartArt"
+  url: https://x.com/92digitalartArt/status/2062237147260756025
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录中文标题和卡片小字的错字率
   - 模型自己编的"趣味知识"是否有事实错误（上线前必须逐条核对，错误的要在正文里提醒）

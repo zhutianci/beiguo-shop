@@ -22,6 +22,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；原文只填品牌名，本站改为上传 Logo 并新增"形状不得增删笔画"的约束；材质颜色、品牌英文名、说明文字改为变量；删去"开启光线追踪"等渲染器术语
 imageBrief: 用 09 号提示词里同一个虚构品牌 Logo 作输入，生成 2 张：香槟金一版、黑色阳极氧化铝一版。
+images:
+  - 10-embossed-metal-logo-1.jpg
+imageCredit:
+  by: "@iamaiistudio"
+  url: https://x.com/iamaiistudio/status/2063065673740497022
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录 Logo 形状保真度、是否出现"凹刻"而非"凸起"
   - 中文品牌名做浮雕文字时是否清晰（目前只写了英文名变量）

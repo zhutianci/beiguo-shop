@@ -21,6 +21,13 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；原文指定了具体相机型号和"电影感调色"，本站改为通用描述，并新增"修复划痕""不要增删内容""不要美颜"等约束；时间和色彩处理改为变量
 imageBrief: 用站长自家（已获家人同意）的一张有划痕或褪色的老照片作输入，生成 2 张：保持原色调一版，[保持原照片的色调] 改为"自然上色，肤色真实"一版；附原图对比。不要用网上找的他人老照片。
+images:
+  - 13-old-photo-restore-hd-1.jpg
+  - 13-old-photo-restore-hd-2.jpg
+imageCredit:
+  by: "@CuriousRefuge"
+  url: https://x.com/CuriousRefuge/status/2065139340486045905
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录人脸是否被"重画成另一个人"
   - 小尺寸、严重模糊的照片效果是否明显变差

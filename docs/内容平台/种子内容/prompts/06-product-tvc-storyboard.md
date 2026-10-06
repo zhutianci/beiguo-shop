@@ -28,6 +28,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文并整理成编号清单；原例产品为青花瓷烟灰缸，第 4、5、6、8 镜与吸烟有关，本站改为通用的使用 / 容量 / 清洁 / 夜景镜头；产品名、场景、细节改为变量
 imageBrief: 用站长自己拍的一件普通桌面物品（如马克杯、保温杯）照片作输入，输出 1 张完整 9 宫格分镜板；另附原始产品照对比。
+images:
+  - 06-product-tvc-storyboard-1.jpg
+imageCredit:
+  by: "@Magncsans"
+  url: https://x.com/Magncsans/status/2047876253898903594
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录是否恰好 9 格、产品在各格是否一致
   - 中文标题、时间码、说明小字的错字率

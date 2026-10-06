@@ -20,6 +20,13 @@ source:
   licenseUrl: https://www.apache.org/licenses/LICENSE-2.0
   changes: 原文为"用图2形象，参图一的各种姿势生成 x 个表情包"；本站补充网格排版、形象一致性、配字、描边与背景等要求，并把数量、画风、文字设为变量
 imageBrief: 用站长自己的原创角色或宠物照片作图 2、用一张自己画的火柴人多格姿势图作图 1，生成 1 张 3×3 表情包；附两张输入图对比。
+images:
+  - 178-pose-emoji-pack-1.jpg
+  - 178-pose-emoji-pack-2.jpg
+imageCredit:
+  by: "@vista8"
+  url: https://x.com/vista8/status/1966164427243458977
+  license: Apache-2.0
 verify:
   - 实测 9 格里形象是否一致、中文配字是否有错字
   - 仓库示例图中的角色形象与知名 IP 较像，未使用；需站长自己生成示例图

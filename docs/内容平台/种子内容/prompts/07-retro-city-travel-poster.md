@@ -21,6 +21,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；原文"本地语言城市名"改为显式的中文名变量；删去原文末尾的话题标签
 imageBrief: 生成 2 张：杭州 + 雷峰塔 + 强调色"砖红色"一张，成都 + 九眼桥（或其他轮廓鲜明的地标）+ 强调色"墨绿色"一张。
+images:
+  - 07-retro-city-travel-poster-1.jpg
+imageCredit:
+  by: "@iamaiistudio"
+  url: https://x.com/iamaiistudio/status/2054593748085215513
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录是否真的只用了三种颜色、中文城市名是否写对
   - 地标结构是否与真实建筑明显不符（不符则在正文提醒换地标）

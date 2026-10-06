@@ -24,6 +24,12 @@ source:
   licenseUrl: https://creativecommons.org/licenses/by/4.0/
   changes: 英文原文译为中文并拆成 5 个编号镜头；时长、产品、产品细节、试用动作、收尾场景改为变量；新增"产品外观以上传的参考图为准"
 imageBrief: 用站长自己拍的一件普通产品照片（如护手霜、保温杯，去掉或遮挡真实品牌商标）作参考图，生成 1 条视频，并截取 3 帧（开箱、试用、收尾）作为封面图；附参考图。
+images:
+  - 21-seedance-product-unboxing-1.jpg
+imageCredit:
+  by: "@Aiwithmaha"
+  url: https://x.com/Aiwithmaha/status/2102952087823044888
+  license: CC BY 4.0
 verify:
   - 在即梦 / 火山引擎等提供 Seedance 2.0 的平台实测 3 次，记录入口名称、可选时长和比例（以官方说明为准）
   - 参考图里的包装文字和 Logo 在视频中是否变形

@@ -19,6 +19,13 @@ source:
   licenseUrl: https://www.apache.org/licenses/LICENSE-2.0
   changes: 原提示词只有一句"修复并为这张照片上色"，本站保留原句，并补充了修复项、年代变量、已知颜色变量和"保持不变"约束
 imageBrief: 用站长自家（已获家人同意）的一张黑白老照片作输入，生成 2 张：只用第一句短提示词一版，用本页完整提示词一版，并排对比两者差别；附原图。
+images:
+  - 16-old-photo-colorize-1.jpg
+  - 16-old-photo-colorize-2.jpg
+imageCredit:
+  by: "@GeminiApp"
+  url: https://x.com/GeminiApp/status/1960347483021959197
+  license: Apache-2.0
 verify:
   - 在 Gemini 应用中用 nano banana 实测 3 次，对比"一句话版"与"完整版"的差别
   - 上色后人脸是否被改动

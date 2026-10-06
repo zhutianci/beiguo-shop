@@ -20,6 +20,13 @@ source:
   licenseUrl: https://raw.githubusercontent.com/ZeroLu/awesome-nanobanana-pro/main/LICENSE
   changes: 原文只有一句"告诉我这个房间放上家具会是什么样"；本站扩写为房间用途、风格、家具清单变量，并补充"结构不变、比例合理、光线一致"的约束
 imageBrief: 站长用一张自家或样板间的空房间照片作输入，分别生成"奶油原木风"和"现代极简黑白灰"两版，附原图共 3 张（仓库示例结果图单张超过 1.2MB，未下载）。
+images:
+  - 198-empty-room-furnishing-1.jpg
+  - 198-empty-room-furnishing-2.jpg
+imageCredit:
+  by: "@NanoBanana"
+  url: https://x.com/NanoBanana/status/1994483569625022487
+  license: MIT
 verify:
   - 实测窗户位置、门洞是否被改动
   - 确认原帖仍可访问、作者未另行声明保留权利

@@ -21,6 +21,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文模板译为中文，场景、人物、动作给出中国清末示例并保留为变量；补充"不要现代物品 / 彩色 / 水印"的约束
 imageBrief: 按默认变量生成 1 张；再把场景换成"民国火车站月台"生成 1 张，对比年代感是否成立。
+images:
+  - 102-fake-1870s-vintage-photo-1.jpg
+imageCredit:
+  by: "@Arminn_Ai"
+  url: https://x.com/Arminn_Ai/status/2065104900590109130
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录成功率与最常见的失败形式
   - 人物服饰与建筑是否符合所填年代，有无明显穿帮

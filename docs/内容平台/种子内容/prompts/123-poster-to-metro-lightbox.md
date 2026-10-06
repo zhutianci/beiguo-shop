@@ -20,6 +20,13 @@ source:
   licenseUrl: https://github.com/wuyoscar/GPT-Image2-Skill/blob/main/LICENSE
   changes: 英文原文译为中文；场景改为变量；明确"上传自己的海报"作为输入
 imageBrief: 用本站 122 号提示词生成的海报作输入，分别生成"地铁灯箱"和"商场门口立式海报架"两张样机图。
+images:
+  - 123-poster-to-metro-lightbox-1.jpg
+  - 123-poster-to-metro-lightbox-2.jpg
+imageCredit:
+  by: "wuyoscar/GPT-Image2-Skill"
+  url: https://github.com/wuyoscar/GPT-Image2-Skill
+  license: MIT
 verify:
   - 在 gpt-image-2 上实测 3 次，记录成功率与最常见的失败形式
   - 海报上的文字在样机图中是否被改动

@@ -21,6 +21,12 @@ source:
   licenseUrl: https://creativecommons.org/publicdomain/zero/1.0/
   changes: 英文原文译为中文；原文在仓库中末尾被截断（止于"polished editorial l…"），截断之后的内容由本站补写；白边颜色、背景色、贴纸文字改为变量，新增"只有一张贴纸"约束
 imageBrief: 用站长自己拍的宠物照或一件小物品照片作输入（不要用他人照片），生成 2 张：无文字一版，[贴纸文字] 填"摸鱼中"一版；附原图对比。
+images:
+  - 11-die-cut-sticker-1.jpg
+imageCredit:
+  by: "@Ciri_ai"
+  url: https://x.com/Ciri_ai/status/2056616223547548106
+  license: CC0 1.0
 verify:
   - 在 gpt-image-2 上实测 3 次，记录主体相似度和白边是否完整闭合
   - gpt-image-2 能否直接输出透明背景 PNG（以 OpenAI 官方说明为准），不能的话正文要写明需自行抠图
