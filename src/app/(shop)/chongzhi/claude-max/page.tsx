@@ -239,10 +239,10 @@ export default async function ClaudeMaxLandingPage() {
             这里列出来只是为了让你有一个换算的基准，好判断本站的人民币价格处在什么位置。
           </p>
 
-          <div className="overflow-x-auto rounded-2xl border border-white/10 my-6">
+          <div className="overflow-x-auto rounded-[20px] border border-white/[0.08] bg-white/[0.015] my-6">
             <table className="w-full text-sm lg:text-[15px]">
               <thead>
-                <tr className="bg-white/5 text-left text-white/50">
+                <tr className="border-b border-white/[0.08] bg-white/[0.03] text-left text-[13px] tracking-wide text-white/50">
                   <th scope="col" className="px-4 py-3 font-medium">对比项</th>
                   <th scope="col" className="px-4 py-3 font-medium">Pro</th>
                   <th scope="col" className="px-4 py-3 font-medium">Max 5x</th>
@@ -250,31 +250,31 @@ export default async function ClaudeMaxLandingPage() {
                 </tr>
               </thead>
               <tbody className="text-white/70">
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">官方网页端月费</td>
                   <td className="px-4 py-3">20 美元</td>
                   <td className="px-4 py-3">100 美元</td>
                   <td className="px-4 py-3">200 美元</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">苹果内购月费</td>
                   <td className="px-4 py-3">以 App Store 显示为准</td>
                   <td className="px-4 py-3">125 美元</td>
                   <td className="px-4 py-3">以 App Store 显示为准</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">用量口径</td>
                   <td className="px-4 py-3">基准</td>
                   <td className="px-4 py-3">约为 Pro 的 5 倍</td>
                   <td className="px-4 py-3">约为 Pro 的 20 倍</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">每「一份 Pro 用量」的钱</td>
                   <td className="px-4 py-3">20 美元</td>
                   <td className="px-4 py-3">20 美元（与 Pro 持平）</td>
                   <td className="px-4 py-3">10 美元（前提是真用得完）</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">典型用户</td>
                   <td className="px-4 py-3">日常问答、偶尔写代码</td>
                   <td className="px-4 py-3">每天写代码、长文档处理</td>

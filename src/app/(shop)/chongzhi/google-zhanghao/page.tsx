@@ -259,17 +259,17 @@ export default async function GoogleZhanghaoLandingPage() {
             ——先看清楚第四段是什么，再动手登录。
           </p>
 
-          <div className="overflow-x-auto rounded-2xl border border-white/10 my-6">
+          <div className="overflow-x-auto rounded-[20px] border border-white/[0.08] bg-white/[0.015] my-6">
             <table className="w-full text-sm lg:text-[15px]">
               <thead>
-                <tr className="bg-white/5 text-left text-white/50">
+                <tr className="border-b border-white/[0.08] bg-white/[0.03] text-left text-[13px] tracking-wide text-white/50">
                   <th scope="col" className="px-4 py-3 font-medium">对比项</th>
                   <th scope="col" className="px-4 py-3 font-medium">辅助邮箱接码</th>
                   <th scope="col" className="px-4 py-3 font-medium">2FA 动态码</th>
                 </tr>
               </thead>
               <tbody className="text-white/70">
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">卡密格式</td>
                   <td className="px-4 py-3 font-mono text-[13px] leading-relaxed">
                     用户名----密码----辅助邮箱----辅助邮箱接码平台
@@ -278,22 +278,22 @@ export default async function GoogleZhanghaoLandingPage() {
                     用户名----密码----辅助邮箱----2fa
                   </td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">第四段是什么</td>
                   <td className="px-4 py-3">一个用来收辅助邮箱来信的入口</td>
                   <td className="px-4 py-3">一串用来生成动态码的字符</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">验证码从哪来</td>
                   <td className="px-4 py-3">谷歌发到辅助邮箱，你去那个入口里取</td>
                   <td className="px-4 py-3">不用等谷歌发，由工具按那串字符实时算出来</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">时效</td>
                   <td className="px-4 py-3">收到的验证码有有效期，过期要重新触发</td>
                   <td className="px-4 py-3">动态码按固定周期滚动，必须现取现填</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">最容易出的错</td>
                   <td className="px-4 py-3">在登录页选错了验证方式，码发去了别的地方</td>
                   <td className="px-4 py-3">把那串字符本身当成验证码直接填进去</td>

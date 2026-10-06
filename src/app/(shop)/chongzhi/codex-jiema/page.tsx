@@ -249,37 +249,37 @@ export default async function CodexJiemaLandingPage() {
             但号码的来源完全不同，而 OpenAI 那边看的恰恰就是号码的来源。
           </p>
 
-          <div className="overflow-x-auto rounded-2xl border border-white/10 my-6">
+          <div className="overflow-x-auto rounded-[20px] border border-white/[0.08] bg-white/[0.015] my-6">
             <table className="w-full text-sm lg:text-[15px]">
               <thead>
-                <tr className="bg-white/5 text-left text-white/50">
+                <tr className="border-b border-white/[0.08] bg-white/[0.03] text-left text-[13px] tracking-wide text-white/50">
                   <th scope="col" className="px-4 py-3 font-medium">对比项</th>
                   <th scope="col" className="px-4 py-3 font-medium">美区实体手机卡</th>
                   <th scope="col" className="px-4 py-3 font-medium">随机地区</th>
                 </tr>
               </thead>
               <tbody className="text-white/70">
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">号码来源</td>
                   <td className="px-4 py-3">美国运营商发行的实体 SIM 卡</td>
                   <td className="px-4 py-3">号池分配，地区随机</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">这个号码被用过多少次</td>
                   <td className="px-4 py-3">少</td>
                   <td className="px-4 py-3">不确定，可能很多</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">价格</td>
                   <td className="px-4 py-3">高</td>
                   <td className="px-4 py-3">低</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">商品页的质保口径</td>
                   <td className="px-4 py-3">写着「包过，不成功不收费」</td>
                   <td className="px-4 py-3">没有同类表述，需问客服</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">适合谁</td>
                   <td className="px-4 py-3">要一次过、不想重来的人</td>
                   <td className="px-4 py-3">想先花最少的钱试一下的人</td>

@@ -189,14 +189,14 @@ export default async function ChongzhiHubPage() {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="#catalog"
-                className="inline-flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-medium text-black transition-opacity hover:opacity-85"
+                className="ui-btn ui-btn-primary ui-btn-sm px-5"
               >
                 看价格
-                <ArrowRight className="h-3.5 w-3.5" />
+                <ArrowRight className="ui-arrow h-3.5 w-3.5" />
               </Link>
               <Link
                 href="/products"
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/15 px-5 py-2.5 text-sm text-white/75 transition-colors hover:border-white/35 hover:text-white"
+                className="ui-btn ui-btn-secondary ui-btn-sm px-5"
               >
                 全部商品
               </Link>
@@ -224,9 +224,9 @@ export default async function ChongzhiHubPage() {
             lib/invoice.ts TAX_RATE、lib/vmq.ts 的三种交付）。不是标题，不改变本页的 H2 结构 */}
         <aside
           aria-label="本页要点"
-          className="mb-14 max-w-4xl rounded-2xl border border-white/10 bg-white/[0.04] p-5 lg:p-6 text-[15px] leading-[1.9] text-white/70"
+          className="mb-14 max-w-4xl rounded-[20px] border border-white/[0.08] bg-white/[0.025] p-5 lg:p-7 text-[15px] leading-[1.9] text-white/70"
         >
-          <div className="mb-3 text-sm font-semibold tracking-wide text-white/85">本页要点</div>
+          <div className="ui-eyebrow mb-3 text-white/70">本页要点</div>
           <CheckList
             items={[
               <>收银台只支持支付宝，下单需要先登录本站账号，不需要任何境外支付方式。</>,

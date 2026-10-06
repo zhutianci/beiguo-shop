@@ -215,32 +215,32 @@ export default async function ChatgptPlusLandingPage() {
             区别只在「钱是怎么进到 OpenAI 那边的」，而这条链路决定了它对你的账号状态有什么要求。
           </p>
 
-          <div className="overflow-x-auto rounded-2xl border border-white/10 my-6">
+          <div className="overflow-x-auto rounded-[20px] border border-white/[0.08] bg-white/[0.015] my-6">
             <table className="w-full text-sm lg:text-[15px]">
               <thead>
-                <tr className="bg-white/5 text-left text-white/50">
+                <tr className="border-b border-white/[0.08] bg-white/[0.03] text-left text-[13px] tracking-wide text-white/50">
                   <th scope="col" className="px-4 py-3 font-medium">对比项</th>
                   <th scope="col" className="px-4 py-3 font-medium">信用卡充值档</th>
                   <th scope="col" className="px-4 py-3 font-medium">iOS 订阅充值档</th>
                 </tr>
               </thead>
               <tbody className="text-white/70">
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">走的通道</td>
                   <td className="px-4 py-3">上游用信用卡为你的账号订阅</td>
                   <td className="px-4 py-3">通过苹果 App Store 的订阅体系</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">你要提供什么</td>
                   <td className="px-4 py-3">账号邮箱</td>
                   <td className="px-4 py-3">账号 session（登录凭据）</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">价格</td>
                   <td className="px-4 py-3">更低</td>
                   <td className="px-4 py-3">略高</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">适合谁</td>
                   <td className="px-4 py-3">账号干净、没有有效订阅、要最低价</td>
                   <td className="px-4 py-3">已在 iOS 端使用、或更在意风控</td>

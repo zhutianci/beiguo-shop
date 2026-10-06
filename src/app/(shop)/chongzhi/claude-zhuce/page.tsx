@@ -218,10 +218,10 @@ export default async function ClaudeZhuceLandingPage() {
             而且它们有先后顺序——前一格不解决，后面怎么试都是白试。
           </p>
 
-          <div className="overflow-x-auto rounded-2xl border border-white/10 my-6">
+          <div className="overflow-x-auto rounded-[20px] border border-white/[0.08] bg-white/[0.015] my-6">
             <table className="w-full text-sm lg:text-[15px]">
               <thead>
-                <tr className="bg-white/5 text-left text-white/50">
+                <tr className="border-b border-white/[0.08] bg-white/[0.03] text-left text-[13px] tracking-wide text-white/50">
                   <th scope="col" className="px-4 py-3 font-medium">卡在哪</th>
                   <th scope="col" className="px-4 py-3 font-medium">你看到的现象</th>
                   <th scope="col" className="px-4 py-3 font-medium">根因</th>
@@ -229,19 +229,19 @@ export default async function ClaudeZhuceLandingPage() {
                 </tr>
               </thead>
               <tbody className="text-white/70">
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">① 手机号</td>
                   <td className="px-4 py-3">填了号码提示无效，或者点发送没反应</td>
                   <td className="px-4 py-3">号码归属地与号码类型被拒</td>
                   <td className="px-4 py-3">换一个能收码的境外实体号码</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">② IP 环境</td>
                   <td className="px-4 py-3">页面能打开，但一到注册就失败或注册完很快异常</td>
                   <td className="px-4 py-3">当前出口是机房 IP，段内信誉已被消耗</td>
                   <td className="px-4 py-3">换家宽环境，或直接用家宽注册好的账号</td>
                 </tr>
-                <tr className="border-t border-white/5">
+                <tr className="border-t border-white/[0.05]">
                   <td className="px-4 py-3 text-white/50">③ 验证码</td>
                   <td className="px-4 py-3">提示已发送但一直不到</td>
                   <td className="px-4 py-3">号码类型不对，或短时间内请求过多被限频</td>

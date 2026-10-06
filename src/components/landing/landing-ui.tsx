@@ -140,7 +140,7 @@ export function Section({
 }) {
   return (
     <section id={id} className="mb-14 scroll-below-header">
-      <h2 className="text-2xl lg:text-3xl font-bold mb-6">{heading}</h2>
+      <h2 className="mb-6 text-2xl font-semibold tracking-tight lg:mb-7 lg:text-[30px] lg:leading-[1.25]">{heading}</h2>
       <div className="text-white/70 leading-[1.95] text-[15px] lg:text-base space-y-4">{children}</div>
     </section>
   )
@@ -150,7 +150,7 @@ export function Section({
 export function SubSection({ heading, children }: { heading: string; children: ReactNode }) {
   return (
     <div className="mb-8">
-      <h3 className="text-lg lg:text-xl font-semibold text-white mb-3">{heading}</h3>
+      <h3 className="mb-3 text-lg font-semibold tracking-tight text-white lg:text-xl">{heading}</h3>
       <div className="space-y-3">{children}</div>
     </div>
   )
@@ -182,10 +182,10 @@ export function PriceTable({ items, note }: { items: LandingProduct[]; note?: Re
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-2xl border border-white/10">
+      <div className="overflow-x-auto rounded-[20px] border border-white/[0.08] bg-white/[0.015]">
         <table className="w-full text-sm lg:text-[15px]">
           <thead>
-            <tr className="bg-white/5 text-left text-white/50">
+            <tr className="border-b border-white/[0.08] bg-white/[0.03] text-left text-[13px] tracking-wide text-white/50">
               <th scope="col" className="px-4 py-3 font-medium">档位</th>
               <th scope="col" className="px-4 py-3 font-medium whitespace-nowrap">价格</th>
               <th scope="col" className="px-4 py-3 font-medium whitespace-nowrap">库存</th>
@@ -195,13 +195,13 @@ export function PriceTable({ items, note }: { items: LandingProduct[]; note?: Re
           </thead>
           <tbody>
             {items.map((p) => (
-              <tr key={p.id} className="border-t border-white/5">
+              <tr key={p.id} className="border-t border-white/[0.05] transition-colors duration-150 first:border-t-0 hover:bg-white/[0.025]">
                 <td className="px-4 py-3">
                   <Link href={`/products/${p.id}`} className="text-white/85 hover:text-white transition-colors">
                     {p.name}
                   </Link>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap font-semibold text-white">
+                <td className="px-4 py-3 whitespace-nowrap font-semibold tabular-nums text-white">
                   ￥{p.price.toFixed(0)}
                   {p.originalPrice != null && p.originalPrice > p.price && (
                     <span className="ml-2 font-normal text-white/30 line-through">
@@ -243,7 +243,7 @@ export function Steps({ steps }: { steps: { title: string; body: ReactNode }[] }
     <ol className="space-y-5">
       {steps.map((s, i) => (
         <li key={s.title} className="flex gap-4">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-500/20 text-sm font-semibold text-purple-300">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-violet-400/25 bg-violet-500/10 text-sm font-semibold tabular-nums text-violet-200">
             {i + 1}
           </span>
           <div>
@@ -267,9 +267,9 @@ export function Steps({ steps }: { steps: { title: string; body: ReactNode }[] }
  */
 export function FaqList({ faqs }: { faqs: { q: string; a: ReactNode }[] }) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {faqs.map((f) => (
-        <div key={f.q} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 lg:p-6">
+        <div key={f.q} className="rounded-[20px] border border-white/[0.08] bg-white/[0.025] p-5 lg:p-7">
           <h3 className="mb-2 font-semibold text-white">{f.q}</h3>
           <div className="text-white/60 leading-[1.9] text-[15px]">{f.a}</div>
         </div>
@@ -318,13 +318,13 @@ export function RelatedLandings({ currentSlug }: { currentSlug?: string }) {
   const others = LANDINGS.filter((l) => l.slug !== currentSlug)
   return (
     <section className="mb-14">
-      <h2 className="text-2xl lg:text-3xl font-bold mb-6">其他充值与账号服务</h2>
+      <h2 className="mb-6 text-2xl font-semibold tracking-tight lg:mb-7 lg:text-[30px] lg:leading-[1.25]">其他充值与账号服务</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {others.map((l) => (
           <Link
             key={l.slug}
             href={landingPath(l.slug)}
-            className="group rounded-2xl border border-white/10 bg-white/[0.02] p-5 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+            className="group ui-card ui-card-link p-5 lg:p-6"
           >
             <div className="mb-2 font-semibold text-white group-hover:text-purple-300 transition-colors">
               {l.navLabel}
@@ -394,17 +394,17 @@ export function RedeemErrorHelp({ groups, scope }: { groups: RedeemErrorGroup[];
       {/* 【这一句不能省】站内注册了两家兑换适配器，文案不同；而且多数档位根本不在站内兑换、
           会跳到对应的兑换站点，那边是第三方自己的措辞。不写清楚作用域，
           这张表就是在误导另一半买家。 */}
-      <p className="rounded-2xl border border-white/10 bg-white/[0.02] p-4 text-sm leading-[1.9] text-white/50">
+      <p className="rounded-[20px] border border-white/[0.08] bg-white/[0.025] p-4 text-sm leading-[1.9] text-white/50 lg:p-5">
         {scope}
       </p>
       {groups.map((g) => (
         <div key={g.title}>
           <h3 className="mb-2 text-lg lg:text-xl font-semibold text-white">{g.title}</h3>
           <p className="mb-4 text-white/55 leading-[1.9]">{g.intro}</p>
-          <div className="overflow-x-auto rounded-2xl border border-white/10">
+          <div className="overflow-x-auto rounded-[20px] border border-white/[0.08] bg-white/[0.015]">
             <table className="w-full text-sm lg:text-[15px]">
               <thead>
-                <tr className="bg-white/5 text-left text-white/50">
+                <tr className="border-b border-white/[0.08] bg-white/[0.03] text-left text-[13px] tracking-wide text-white/50">
                   <th scope="col" className="px-4 py-3 font-medium">什么情况 / 你可能看到的提示</th>
                   <th scope="col" className="px-4 py-3 font-medium">这是什么意思</th>
                   <th scope="col" className="px-4 py-3 font-medium">该怎么办</th>
@@ -413,7 +413,7 @@ export function RedeemErrorHelp({ groups, scope }: { groups: RedeemErrorGroup[];
               </thead>
               <tbody className="text-white/70">
                 {g.items.map((e) => (
-                  <tr key={e.situation} className="border-t border-white/5 align-top">
+                  <tr key={e.situation} className="border-t border-white/[0.05] align-top first:border-t-0">
                     <td className="px-4 py-3 min-w-[15rem]">
                       <div className="font-medium text-white/85">{e.situation}</div>
                       {/* 实际措辞按通道不同，逐条列出来是为了让人能对上号——
