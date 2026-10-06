@@ -1,10 +1,12 @@
-'use client'
-
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
 import { PostForm } from '@/components/forum/post-form'
 
-export default function NewPostPage() {
+// 服务端组件：从 ?type=PROMPT|GUIDE 读默认发布类型（提示词库 / 教程页的「投稿」按钮带过来的）。
+// 不在客户端用 useSearchParams：那要求外面包 Suspense，否则 next build 报错
+export const dynamic = 'force-dynamic'
+
+export default function NewPostPage({ searchParams }: { searchParams: { type?: string } }) {
   return (
     <div className="min-h-screen page-top pb-20">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
@@ -16,9 +18,9 @@ export default function NewPostPage() {
         </Link>
         <h1 className="text-3xl font-bold mb-6">
           <span className="gradient-text">发布</span>
-          <span className="gradient-text-accent">新帖</span>
+          <span className="gradient-text-accent">新内容</span>
         </h1>
-        <PostForm />
+        <PostForm initialType={typeof searchParams.type === 'string' ? searchParams.type : undefined} />
       </div>
     </div>
   )

@@ -447,6 +447,11 @@
 .prose-forum .md-hr { border: none; border-top: 1px solid rgba(255,255,255,0.12); margin: 1.2em 0; }
 .prose-forum strong { color: #fff; font-weight: 700; }
 .prose-forum a img { display: inline; }
+.prose-forum .md-table-wrap { overflow-x: auto; margin: 0 0 1em; }
+.prose-forum .md-table { border-collapse: collapse; min-width: 100%; font-size: 0.92em; }
+.prose-forum .md-table th,
+.prose-forum .md-table td { border: 1px solid rgba(255,255,255,0.12); padding: 0.45em 0.75em; text-align: left; }
+.prose-forum .md-table th { background: rgba(255,255,255,0.06); color: #fff; font-weight: 600; white-space: nowrap; }
 
 /* ============ AI圈大事记 ============ */
 

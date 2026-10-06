@@ -9,8 +9,10 @@ import { resolveActor, normalizeTags, memberDisplayName } from '@/lib/forum'
 import { forumViewCounted } from '@/lib/forum-throttle'
 import { denyOnChannel } from '@/lib/storefront/resolve'
 import { flagsOf, forumCrossSite, trustLevelOf } from '@/lib/forum-server'
-import { FLAG_LABELS, canView, isForumImageUrl, isPublic, postReviewOnEdit } from '@/lib/content/policy'
+import { FLAG_LABELS, asContentType, canView, contentPath, isForumImageUrl, isPublic, postReviewOnEdit } from '@/lib/content/policy'
 import { declarationShape } from '@/lib/content/schema'
+import { checkTyped, typedShape } from '@/lib/content/write'
+import { notifyContentChanged } from '@/lib/content/indexnow'
 import { notify } from '@/lib/notify'
 
 // 帖子详情（浏览量去重 +1，返回渲染后的 HTML 与点赞状态）
@@ -29,6 +31,8 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       include: {
         category: { select: { name: true, slug: true, icon: true, color: true } },
         user: { select: { nickname: true, avatar: true } },
+        prompt: true,
+        postTags: { select: { tagId: true } },
       },
     })
     // 待审 / 驳回 / 隐藏的帖子只有作者本人和管理员能打开（作者要看到审核状态与驳回原因）；已删除的谁都打不开
@@ -77,6 +81,23 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       originality: post.originality,
       sourceUrl: post.sourceUrl,
       aiAssist: post.aiAssist,
+      // 内容平台 P1：类型与附表（编辑页回填用）
+      type: post.type,
+      path: contentPath(post.type, post.id, post.slug),
+      prompt: post.prompt
+        ? {
+            prompt: post.prompt.prompt,
+            negativePrompt: post.prompt.negativePrompt,
+            modelLabel: post.prompt.modelLabel,
+            aspectRatio: post.prompt.aspectRatio,
+            needsRefImage: post.prompt.needsRefImage,
+            useCase: post.prompt.useCase,
+          }
+        : null,
+      tagIds: post.postTags.map((pt) => pt.tagId),
+      testedOn: post.testedOn ? post.testedOn.toISOString().slice(0, 10) : null,
+      accountTier: post.accountTier,
+      excerpt: post.excerpt,
       views: post.views + (counted ? 1 : 0),
       likeCount: post.likeCount,
       commentCount: post.commentCount,
@@ -96,11 +117,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 // /api/admin/forum/posts/[id]（经 adminGuard），这里不再接收——公开接口不该承载后台权限
 const patchSchema = z.object({
   title: z.string().trim().min(2).max(200).optional(),
-  content: z.string().trim().min(1).max(20000).optional(),
+  content: z.string().trim().max(20000).optional(),
   tags: z.string().optional().nullable(),
   categoryId: z.number().int().positive().optional(),
   images: z.array(z.string().refine(isForumImageUrl, '图片地址无效，请重新上传')).optional(),
   ...declarationShape,
+  // 类型发出后不能改（URL 跟着类型走）；传了也只用来核对
+  ...typedShape,
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -124,13 +147,38 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const parsed = patchSchema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
     const d = parsed.data
+    const type = asContentType(post.type)
+    if (d.type !== undefined && d.type !== type) return error('发布后不能更改内容类型')
+    if (d.content !== undefined && !d.content && type !== 'PROMPT') return error('内容不能为空')
+
+    const images = d.images ?? (post.images ? (JSON.parse(post.images) as string[]) : [])
+    const typed = await checkTyped(type, d, { full: false, imageCount: images.length, content: d.content ?? post.content })
+    if ('error' in typed) return error(typed.error)
+    if (type === 'PROMPT' && d.images !== undefined && d.images.length < 1) return error('提示词至少保留 1 张效果图')
 
     const data: any = {}
     if (d.title !== undefined) data.title = d.title
     if (d.content !== undefined) data.content = d.content
-    if (d.tags !== undefined) data.tags = normalizeTags(d.tags)
+    if (d.tags !== undefined && type === 'DISCUSSION') data.tags = normalizeTags(d.tags)
     if (d.images !== undefined) data.images = d.images.length ? JSON.stringify(d.images.slice(0, 9)) : null
-    if (d.categoryId !== undefined && d.categoryId !== post.categoryId) {
+    if (type !== 'DISCUSSION') {
+      if (d.excerpt !== undefined) data.excerpt = d.excerpt || null
+      if (d.accountTier !== undefined) data.accountTier = d.accountTier
+      if (typed.testedOn !== undefined) data.testedOn = typed.testedOn
+      if (type === 'PROMPT' && d.prompt) {
+        const pr = {
+          prompt: d.prompt.prompt,
+          negativePrompt: d.prompt.negativePrompt || null,
+          modelLabel: d.prompt.modelLabel || null,
+          aspectRatio: d.prompt.aspectRatio || null,
+          needsRefImage: d.prompt.needsRefImage,
+          useCase: d.prompt.useCase,
+        }
+        data.prompt = { upsert: { create: pr, update: pr } }
+      }
+      if (typed.tagIds) data.postTags = { deleteMany: {}, create: typed.tagIds.map((tagId) => ({ tagId })) }
+    }
+    if (d.categoryId !== undefined && d.categoryId !== post.categoryId && type === 'DISCUSSION') {
       // 换板块与发帖同一套规矩：板块必须存在且启用、公告板块只许管理员。
       // 以前这里直接写入，作者能把自己的帖子挪进「官方公告」或已停用的板块
       const category = await prisma.forumCategory.findUnique({ where: { id: d.categoryId } })
@@ -149,15 +197,26 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     // 标题 / 正文 / 原文地址是「实质修改」：更新 dateModified，并按信任等级决定是否重审
     // （防「先发干净内容过审、再改成广告」，规则见 lib/content/policy 的 postReviewOnEdit）
+    const before = await prisma.promptSpec.findUnique({ where: { postId: id }, select: { prompt: true, useCase: true } })
     const substantive =
       (d.title !== undefined && d.title !== post.title) ||
       (d.content !== undefined && d.content !== post.content) ||
-      (d.sourceUrl !== undefined && sourceUrl !== post.sourceUrl)
+      (d.sourceUrl !== undefined && sourceUrl !== post.sourceUrl) ||
+      (!!d.prompt && (d.prompt.prompt !== before?.prompt || d.prompt.useCase !== before?.useCase)) ||
+      (d.images !== undefined && JSON.stringify(d.images.slice(0, 9)) !== (post.images ?? 'null'))
     let pending = post.reviewStatus === 'PENDING'
     if (substantive) {
       data.contentUpdatedAt = new Date()
       const level = actor.isAdmin ? 9 : await trustLevelOf({ id: actor.userId!, role: 'USER' })
-      const flags = flagsOf(data.title ?? post.title, data.content ?? post.content, data.tags ?? post.tags, sourceUrl)
+      const flags = flagsOf(
+        data.title ?? post.title,
+        data.content ?? post.content,
+        data.tags ?? post.tags,
+        sourceUrl,
+        d.prompt?.prompt ?? before?.prompt,
+        d.prompt?.useCase ?? before?.useCase,
+        data.excerpt ?? post.excerpt,
+      )
       const next = postReviewOnEdit(level, flags, post.reviewStatus)
       if (next !== post.reviewStatus) {
         data.reviewStatus = next
@@ -178,7 +237,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     await prisma.forumPost.update({ where: { id }, data })
-    return success({ id, pending }, pending ? '已保存，审核通过后公开显示' : '已更新')
+    notifyContentChanged(id)
+    return success({ id, pending, path: contentPath(type, id, post.slug) }, pending ? '已保存，审核通过后公开显示' : '已更新')
   } catch (err) {
     console.error('Update forum post error:', err)
     return error('更新失败')
@@ -204,6 +264,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 
     // 软删除（设计 §10.3）：违规内容要能追溯，误删能恢复；前台按「不存在」处理
     await prisma.forumPost.update({ where: { id }, data: { deletedAt: new Date(), status: 0 } })
+    notifyContentChanged(id)
     return success({ id }, '已删除')
   } catch (err) {
     console.error('Delete forum post error:', err)

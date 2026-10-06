@@ -1,12 +1,14 @@
 import { cache } from 'react'
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, permanentRedirect } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { renderMarkdown, plainExcerpt } from '@/lib/markdown'
 import { memberDisplayName } from '@/lib/forum'
 import { loadCommentPage } from '@/lib/forum-server'
-import { canView, isIndexable, isPublic } from '@/lib/content/policy'
+import { canView, contentPath, isPublic } from '@/lib/content/policy'
+import { contentIndexable } from '@/lib/content/queries'
+import { authorHref } from '@/lib/content/creator'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
 import { JsonLd } from '@/lib/seo/jsonld'
@@ -35,6 +37,8 @@ const getPost = cache(async (id: number) => {
       include: {
         category: { select: { name: true, slug: true, icon: true, color: true } },
         user: { select: { nickname: true, avatar: true } },
+        prompt: { select: { prompt: true } },
+        postTags: { select: { tag: { select: { kind: true, status: true } } } },
       },
     })
   } catch (e) {
@@ -63,6 +67,8 @@ const NOINDEX = { index: false, follow: true, googleBot: { index: false, follow:
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const post = await getPost(Number(params.id))
+  // 提示词 / 教程的规范地址不在 /forum 下（页面本体会 308 过去，这里只给一个不收录的兜底）
+  if (post && post.type !== 'DISCUSSION') return { robots: { index: false, follow: true } }
   // 非公开（待审 / 驳回 / 隐藏）的帖子能打开的只有作者和管理员；给一个通用标题且不收录
   if (!post || !isPublic(post)) {
     return { title: `社区讨论 - ${SITE_NAME}`, robots: { index: false, follow: false } }
@@ -76,7 +82,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
     title: `${post.title} - 社区讨论 - ${SITE_NAME}`,
     description,
     alternates: { canonical: url },
-    ...(isIndexable(post) ? {} : { robots: NOINDEX }),
+    ...(contentIndexable(post) ? {} : { robots: NOINDEX }),
     openGraph: {
       ...OG_SITE,
       type: 'article',
@@ -93,6 +99,8 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 export default async function ForumPostPage({ params }: { params: { id: string } }) {
   const post = await getPost(Number(params.id))
   if (!post) notFound()
+  // 内容平台 P1：提示词 / 教程挪到了 /prompts、/guides。老链接（含 P1 之前从论坛发出去的）永久跳到新地址（设计 §4.2）
+  if (post.type !== 'DISCUSSION' && isPublic(post)) permanentRedirect(contentPath(post.type, post.id, post.slug))
 
   const user = await getCurrentUser().catch(() => null)
   const viewer = { userId: user?.id ?? null, isAdmin: user?.role === 'ADMIN' }
@@ -100,6 +108,7 @@ export default async function ForumPostPage({ params }: { params: { id: string }
   const publicPost = isPublic(post)
 
   // 第 1 页评论：服务端不带访客身份取（点赞状态、删除权限挂载后由客户端补）
+  const href = await authorHref(post.userId)
   const comments = publicPost
     ? await loadCommentPage(post.id, 1, COMMENT_PAGE_SIZE, null)
     : { list: [], total: 0, page: 1, pageSize: COMMENT_PAGE_SIZE, totalPages: 1 }
@@ -112,6 +121,7 @@ export default async function ForumPostPage({ params }: { params: { id: string }
     title: post.title,
     html: renderMarkdown(post.content),
     authorName,
+    authorHref: href,
     isMember: !!post.userId,
     category: post.category,
     tags: post.tags ? post.tags.split(',').filter(Boolean) : [],

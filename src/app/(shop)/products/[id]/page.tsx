@@ -27,6 +27,7 @@ import { getStorefront, type Storefront } from '@/lib/storefront/resolve'
 import { getStorefrontProduct } from '@/lib/pricing'
 import { getCurrentUser } from '@/lib/auth'
 import { brandMetadata } from '@/lib/storefront/brand-meta'
+import { RelatedContentForProduct } from '@/components/content/related-for-product'
 
 /**
  * 商品详情页。
@@ -312,6 +313,8 @@ export default async function ProductDetailPage({ params }: { params: { id: stri
           传了之后整页直出；带 ?ref= 的专属价仍由客户端挂载后那次 fetch 覆盖。 */}
       <ProductDetailClient initialProduct={client}>
         {intro && product && <ProductIntroSection intro={intro} productId={product.id} />}
+        {/* 内容平台 P1（设计 §11.6）：相关教程与提示词。没有匹配的公开内容时整块不渲染；渠道站不出（内容平台只在主站） */}
+        {product && !channel && <RelatedContentForProduct categoryName={product.categoryName ?? null} name={product.name} />}
       </ProductDetailClient>
     </>
   )

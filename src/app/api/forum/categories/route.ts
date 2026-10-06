@@ -13,10 +13,11 @@ export async function GET() {
   try {
     await ensureDefaultCategories()
     const categories = await prisma.forumCategory.findMany({
-      where: { status: 1 },
+      // 提示词 / 教程的专用板块不出现在论坛的板块导航与发帖选择里（它们有自己的栏目，内容平台 P1）
+      where: { status: 1, slug: { notIn: ['prompts', 'guides'] } },
       orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
       // 帖子数只数对外公开的（口径同 lib/content/policy 的 isPublic）
-      include: { _count: { select: { posts: { where: { status: 1, reviewStatus: 'APPROVED', deletedAt: null } } } } },
+      include: { _count: { select: { posts: { where: { status: 1, reviewStatus: 'APPROVED', deletedAt: null, type: 'DISCUSSION' } } } } },
     })
     return success(
       categories.map((c) => ({

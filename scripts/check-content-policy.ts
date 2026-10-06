@@ -22,7 +22,14 @@ import {
   isForumImageUrl,
   readableLength,
   INDEXING_OPEN,
+  qualityGateReason,
+  isHubIndexable,
+  parseIdSlug,
+  contentPath,
+  promptVariables,
+  isValidSlug,
 } from '../src/lib/content/policy'
+import { parseTestedOn } from '../src/lib/content/write'
 import { renderMarkdown, safeUrl } from '../src/lib/markdown'
 import { stripImageMetadata, readExifOrientation, minimalExifApp1 } from '../src/lib/image-meta'
 
@@ -221,6 +228,54 @@ ok('WebP 的 RIFF 长度与实际一致', wp.buf.readUInt32LE(4) === wp.buf.leng
 ok('WebP 保留了图像块', wp.buf.includes(Buffer.from('VP8 ', 'latin1')))
 const gif = Buffer.from('GIF89a……', 'latin1')
 ok('GIF 不处理', !stripImageMetadata(gif, 'gif').stripped)
+
+console.log('P1：按类型的收录门槛')
+const promptPost = {
+  ...idx,
+  type: 'PROMPT',
+  content: '',
+  promptText: '把 [你的照片] 改成白底证件照，保持五官不变，背景纯白',
+  imageCount: 2,
+  hasModel: true,
+}
+ok('合格的提示词（2 张图、无心得）可收录', isIndexable(promptPost, true))
+ok('提示词没有模型不收录', qualityGateReason({ ...promptPost, hasModel: false }) === '没有关联模型')
+ok('提示词没有出图不收录', qualityGateReason({ ...promptPost, imageCount: 0 }) === '没有出图')
+ok('提示词只有 1 张图且没心得不收录', qualityGateReason({ ...promptPost, imageCount: 1 }) !== null)
+ok('提示词 1 张图 + 足够心得可收录', qualityGateReason({ ...promptPost, imageCount: 1, content: '心得'.repeat(30) }) === null)
+ok('提示词太短不收录', qualityGateReason({ ...promptPost, promptText: '画只猫' }) !== null)
+const guidePost = { ...idx, type: 'GUIDE', content: '步骤说明。'.repeat(150), testedOn: now }
+ok('合格的教程可收录', isIndexable(guidePost, true))
+ok('教程没有测试日期不收录', qualityGateReason({ ...guidePost, testedOn: null }) === '没有测试日期')
+ok('教程太短不收录', qualityGateReason({ ...guidePost, content: '太短' }) !== null)
+ok('总开关关着时 hub 不收录', !isHubIndexable('MODEL', 500, 10))
+ok('模型 hub：介绍够长 + 3 条 → 收录', isHubIndexable('MODEL', 250, 3, true))
+ok('模型 hub：没介绍不收录', !isHubIndexable('MODEL', 0, 30, true))
+ok('主题 hub：7 条不够', !isHubIndexable('TOPIC', 300, 7, true))
+ok('主题 hub：8 条够', isHubIndexable('TOPIC', 300, 8, true))
+ok('ROOT 不看介绍，5 条够', isHubIndexable('ROOT', 0, 5, true))
+
+console.log('P1：地址与 slug')
+ok('解析纯 id', JSON.stringify(parseIdSlug('12')) === JSON.stringify({ id: 12, slug: null }))
+ok('解析 id-slug', JSON.stringify(parseIdSlug('12-id-photo')) === JSON.stringify({ id: 12, slug: 'id-photo' }))
+ok('非法形状返回 null', parseIdSlug('abc') === null && parseIdSlug('0') === null && parseIdSlug('12-中文') === null)
+ok('提示词规范地址', contentPath('PROMPT', 12, 'id-photo') === '/prompts/12-id-photo')
+ok('教程无 slug 地址', contentPath('GUIDE', 7, null) === '/guides/7')
+ok('讨论帖地址', contentPath('DISCUSSION', 3, 'x') === '/forum/3-x')
+ok('slug 校验', isValidSlug('gpt-image-2-id-photo') && !isValidSlug('Bad_Slug') && !isValidSlug('-x') && !isValidSlug('a'))
+ok('提取 [变量]', JSON.stringify(promptVariables('把 [你的照片] 换成 [颜色] 背景，[颜色] 要纯')) === JSON.stringify(['你的照片', '颜色']))
+
+console.log('P1：测试日期与表格')
+ok('测试日期：正常', parseTestedOn('2026-10-01', now) instanceof Date)
+ok('测试日期：未来拒收', parseTestedOn('2027-01-01', now) === 'invalid')
+ok('测试日期：太早拒收', parseTestedOn('2020-01-01', now) === 'invalid')
+ok('测试日期：空 = null', parseTestedOn('', now) === null)
+{
+  const html = renderMarkdown('| 档位 | 次数 |\n|---|:---:|\n| Free | 5 |\n| <b>x</b> | 25 |')
+  ok('Markdown 表格渲染', html.includes('<table class="md-table">') && html.includes('<th style="text-align:center">次数</th>'))
+  ok('表格单元格仍然转义 HTML', html.includes('&lt;b&gt;') && !html.includes('<b>x</b>'))
+  ok('竖线开头但没有分隔行不当表格', !renderMarkdown('| 只是一行').includes('<table'))
+}
 
 console.log(`\n${pass} 通过，${fail} 失败`)
 if (fail) process.exit(1)

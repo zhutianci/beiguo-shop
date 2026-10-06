@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
+import { isValidSlug } from '@/lib/content/policy'
+import { notifyContentChanged } from '@/lib/content/indexnow'
 
 /**
  * 后台帖子运营：置顶 / 精华 / 锁帖 / 隐藏 / 审核 / 删除与恢复。
@@ -22,6 +24,10 @@ const patchSchema = z.object({
   reviewNote: z.string().trim().max(500, '原因不超过 500 字').optional().nullable(),
   /** 恢复已软删除的帖子 */
   restore: z.literal(true).optional(),
+  // 内容平台 P1：编辑填 ASCII slug（设计 §4.2，作者不能改）、摘要、「实测可用」徽章
+  slug: z.string().trim().refine((s) => s === '' || isValidSlug(s), 'slug 只能是小写字母、数字和连字符（2–80 位）').optional().nullable(),
+  excerpt: z.string().trim().max(160).optional().nullable(),
+  verified: z.boolean().optional(),
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -59,10 +65,16 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       const reviewAfter = data.reviewStatus ?? post.reviewStatus
       if (d.featured && reviewAfter !== 'APPROVED') return error('请先审核通过再加精')
       data.featured = d.featured
+      // 精选列表按进精选的时间倒序；取消精选时清掉，再次加精算新的时间
+      if (d.featured !== post.featured) data.featuredAt = d.featured ? new Date() : null
     }
+    if (d.slug !== undefined) data.slug = d.slug || null
+    if (d.excerpt !== undefined) data.excerpt = d.excerpt || null
+    if (d.verified !== undefined) data.verifiedAt = d.verified ? new Date() : null
     if (Object.keys(data).length === 0) return error('没有可更新的内容')
 
     await prisma.forumPost.update({ where: { id }, data })
+    notifyContentChanged(id)
     return success({ id }, '已更新')
   } catch (err) {
     console.error('Admin update post error:', err)
@@ -80,6 +92,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: { id: 
     const post = await prisma.forumPost.findUnique({ where: { id }, select: { id: true } })
     if (!post) return error('帖子不存在', 404)
     await prisma.forumPost.update({ where: { id }, data: { deletedAt: new Date(), status: 0 } })
+    notifyContentChanged(id)
     return success({ id }, '已删除')
   } catch (err) {
     console.error('Admin delete post error:', err)

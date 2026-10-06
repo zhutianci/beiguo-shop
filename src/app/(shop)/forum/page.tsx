@@ -122,6 +122,18 @@ export default function ForumPage() {
           <p className="text-white/50 lg:text-lg">已有 {totalPostCount} 个主题，欢迎一起讨论</p>
         </motion.div>
 
+        {/* 内容平台 P1：提示词库与教程的入口（它们有自己的栏目，不在论坛列表里） */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+          <Link href="/prompts" className="glass rounded-2xl p-4 hover:bg-white/10 transition-colors">
+            <div className="font-semibold">🎨 AI 提示词库</div>
+            <div className="text-sm text-white/50 mt-1">作者实测、可直接复制的生图与视频提示词</div>
+          </Link>
+          <Link href="/guides" className="glass rounded-2xl p-4 hover:bg-white/10 transition-colors">
+            <div className="font-semibold">📘 使用教程</div>
+            <div className="text-sm text-white/50 mt-1">ChatGPT、Claude、Codex 功能教程与踩坑记录</div>
+          </Link>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] xl:grid-cols-[240px_1fr] gap-6 lg:gap-8">
           {/* 侧栏：板块。
               lg 起吸顶跟随滚动——桌面端列表很长，板块切换不该要求用户先滚回顶部。

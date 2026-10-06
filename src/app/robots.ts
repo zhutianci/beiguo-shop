@@ -4,6 +4,7 @@ import type { MetadataRoute } from 'next'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
 import { getStorefront } from '@/lib/storefront/resolve'
+import { INDEXING_OPEN } from '@/lib/content/policy'
 
 /**
  * robots.txt。
@@ -116,7 +117,8 @@ function platformRobots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: absUrl('/sitemap.xml'),
+    // 内容平台的 sitemap 只在收录总开关打开后才挂出来（lib/content/policy 的 INDEXING_OPEN；关着时它是空的）
+    sitemap: INDEXING_OPEN ? [absUrl('/sitemap.xml'), absUrl('/sitemap-content.xml')] : absUrl('/sitemap.xml'),
     host: siteOrigin(),
   }
 }

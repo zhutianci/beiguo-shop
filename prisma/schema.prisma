@@ -1323,31 +1323,45 @@ model ForumPost {
   contentUpdatedAt DateTime? @map("content_updated_at") // 只在标题 / 正文实质修改时更新 → dateModified
   deletedAt        DateTime? @map("deleted_at") // 软删除：页面返回 410
 
+  // ── 内容平台 P1（设计 §5 / §12.1）：内容类型、提示词、精选时间、实测徽章 ──
+  // type 决定 URL：PROMPT → /prompts/{id}、GUIDE → /guides/{id}、DISCUSSION → /forum/{id}
+  type        String    @default("DISCUSSION") @db.VarChar(16) // DISCUSSION | PROMPT | GUIDE
+  slug        String?   @db.VarChar(120) // ASCII，编辑在后台填；URL 以 id 为准，slug 只是可读后缀
+  excerpt     String?   @db.VarChar(300) // 摘要：meta description 与列表摘要；空则从正文截
+  featuredAt  DateTime? @map("featured_at") // 进精选的时间（精选列表按它倒序）
+  verifiedAt  DateTime? @map("verified_at") // 编辑复现成功：「实测可用」徽章
+  testedOn    DateTime? @map("tested_on") @db.Date // 作者声明的测试日期（模型在变，日期就是可信度）
+  accountTier String?   @map("account_tier") @db.VarChar(16) // FREE | PLUS | PRO | TEAM | OTHER
+  copyCount   Int       @default(0) @map("copy_count") // 提示词被复制次数（按访客每天去重，见 content_events）
+
   category ForumCategory  @relation(fields: [categoryId], references: [id])
   user     User?          @relation(fields: [userId], references: [id])
   comments ForumComment[]
   likes    ForumLike[]
+  prompt   PromptSpec?
+  postTags PostTag[]
 
   @@index([categoryId])
   @@index([status, pinned, lastReplyAt])
   @@index([createdAt])
   @@index([reviewStatus, createdAt])
+  @@index([type, reviewStatus, featuredAt])
   @@map("forum_posts")
 }
 
 // 评论 / 楼中楼回复
 model ForumComment {
-  id         Int      @id @default(autoincrement())
-  postId     Int      @map("post_id")
-  parentId   Int?     @map("parent_id") // 回复某条评论（楼中楼）
-  userId     Int?     @map("user_id")
-  authorName String   @map("author_name") @db.VarChar(50)
-  content    String   @db.Text
-  likeCount  Int      @default(0) @map("like_count")
-  status     Int      @default(1)
+  id           Int      @id @default(autoincrement())
+  postId       Int      @map("post_id")
+  parentId     Int?     @map("parent_id") // 回复某条评论（楼中楼）
+  userId       Int?     @map("user_id")
+  authorName   String   @map("author_name") @db.VarChar(50)
+  content      String   @db.Text
+  likeCount    Int      @default(0) @map("like_count")
+  status       Int      @default(1)
   // 内容平台 P0：命中风险检测（外链 / 联系方式 / 敏感词）的评论先进待审。库默认值 APPROVED 同 ForumPost 的理由
-  reviewStatus String  @default("APPROVED") @map("review_status") @db.VarChar(16) // PENDING | APPROVED | REJECTED
-  createdAt  DateTime @default(now()) @map("created_at")
+  reviewStatus String   @default("APPROVED") @map("review_status") @db.VarChar(16) // PENDING | APPROVED | REJECTED
+  createdAt    DateTime @default(now()) @map("created_at")
 
   post    ForumPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
   user    User?          @relation(fields: [userId], references: [id])
@@ -1378,6 +1392,81 @@ model ForumLike {
   @@index([commentId])
   @@index([userId])
   @@map("forum_likes")
+}
+
+// 提示词（内容平台 P1，设计 §5.1）：ForumPost(type=PROMPT) 的附表，1:1。
+// 模型用 PostTag 关联 kind=MODEL 的 Tag（hub 页按它聚合）；modelLabel 是作者写的具体版本/档位（如「Thinking 模式」）
+model PromptSpec {
+  postId         Int     @id @map("post_id")
+  prompt         String  @db.Text // 提示词全文；[方括号] 里是可替换的变量
+  negativePrompt String? @map("negative_prompt") @db.Text
+  modelLabel     String? @map("model_label") @db.VarChar(60)
+  aspectRatio    String? @map("aspect_ratio") @db.VarChar(16)
+  needsRefImage  Boolean @default(false) @map("needs_ref_image")
+  useCase        String  @map("use_case") @db.VarChar(300) // 一两句：适合做什么
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@map("prompt_specs")
+}
+
+// 策展标签（内容平台 P1，设计 §7.3 / §12.2）：模型 / 主题 / 产品。
+// 只有后台能建，作者只能从已有标签里选——用户自由造标签会造出一堆空的、题文不符的聚合页（百度劲风算法打的就是这个）。
+// 带 intro 的标签就是 hub 页（/prompts/m/{slug}、/prompts/t/{slug}、/guides/p/{slug}）
+model Tag {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique @db.VarChar(60)
+  name        String   @db.VarChar(40)
+  kind        String   @db.VarChar(12) // MODEL | TOPIC | PRODUCT
+  intro       String?  @db.Text // hub 页的站方介绍（Markdown）
+  landingPath String?  @map("landing_path") @db.VarChar(120) // 相关商品落地页，内容页 CTA 用（如 /chongzhi/chatgpt-plus）
+  sortOrder   Int      @default(0) @map("sort_order")
+  status      Int      @default(1)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  posts PostTag[]
+
+  @@index([kind, status, sortOrder])
+  @@map("tags")
+}
+
+model PostTag {
+  postId Int @map("post_id")
+  tagId  Int @map("tag_id")
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+  @@map("post_tags")
+}
+
+// 作者公开主页（内容平台 P1，设计 §4.1 /u/{handle}）。
+// 【为什么不用 /u/{userId}】自增 id 会暴露注册人数，论坛显示名特意用 HMAC 短码也是这个理由（审计 G48）。
+// handle 是随机短码，第一次需要作者链接时懒生成；不建 User 外键（与 media_assets 同理），只加不改 users 表
+model CreatorProfile {
+  userId    Int      @id @map("user_id")
+  handle    String   @unique @db.VarChar(16)
+  bio       String?  @db.VarChar(300)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("creator_profiles")
+}
+
+// 内容互动去重（内容平台 P1）：同一访客、同一内容、同一天的「复制」只计一次。
+// 靠唯一约束保证（插入冲突 = 已计过），不靠先查后写
+model ContentEvent {
+  id        Int      @id @default(autoincrement())
+  postId    Int      @map("post_id")
+  kind      String   @db.VarChar(12) // COPY
+  viewerKey String   @map("viewer_key") @db.VarChar(64)
+  day       Int // YYYYMMDD（上海时间）
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([postId, kind, viewerKey, day])
+  @@map("content_events")
 }
 
 // 上传留痕（内容平台 P0，设计 §10.4 / §12.2）：以前上传只写一行日志、不入库，孤儿图无从清理，

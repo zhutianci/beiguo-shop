@@ -25,9 +25,16 @@ export default function EditPostPage() {
           images: d.data.images || [],
           tags: d.data.tags || [],
           categoryId: d.data.categoryId,
+          path: d.data.path,
           originality: d.data.originality,
           sourceUrl: d.data.sourceUrl,
           aiAssist: d.data.aiAssist,
+          type: d.data.type,
+          tagIds: d.data.tagIds,
+          prompt: d.data.prompt,
+          testedOn: d.data.testedOn,
+          accountTier: d.data.accountTier,
+          excerpt: d.data.excerpt,
         })
         setState('ok')
       })
@@ -38,7 +45,7 @@ export default function EditPostPage() {
     <div className="min-h-screen page-top pb-20">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
       <div className="container relative max-w-3xl">
-        <Link href={`/forum/${id}`} className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm">
+        <Link href={initial?.path || `/forum/${id}`} className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm">
           <ArrowLeft className="w-4 h-4" /> 返回帖子
         </Link>
         <h1 className="text-3xl font-bold mb-6 gradient-text">编辑帖子</h1>

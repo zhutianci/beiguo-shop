@@ -7,7 +7,7 @@
  * 所以正文就在服务端 HTML 里——以前整页 'use client'、正文从被 robots 禁抓的 /api/ 拉，爬虫一个字都看不到。
  * 挂载后再请求一次接口，补上因人而异的部分（我赞过没有、能不能编辑、是不是管理员）并计一次浏览。
  */
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -50,6 +50,8 @@ export interface Detail {
   views: number
   likeCount: number
   commentCount: number
+  /** 作者公开主页（/u/{handle}）；匿名旧帖或取不到时为空 */
+  authorHref?: string | null
   likedByMe: boolean
   canEdit: boolean
   isAdmin: boolean
@@ -66,7 +68,31 @@ export interface CommentPage {
   totalPages: number
 }
 
-export function PostDetail({ initialPost, initialComments }: { initialPost: Detail; initialComments: CommentPage }) {
+/**
+ * section：返回链接与编辑地址按内容类型走（论坛 / 提示词 / 教程共用这一个组件）。
+ * topSlot / bottomSlot：服务端渲染好的块（提示词块、出图、相关内容），原样插进正文前后——
+ * 服务端组件可以作为 props 传给客户端组件，它们仍然在服务端渲染。
+ */
+export interface DetailSection {
+  backHref: string
+  backLabel: string
+}
+
+export function PostDetail({
+  initialPost,
+  initialComments,
+  section = { backHref: '/forum', backLabel: '返回论坛' },
+  topSlot,
+  bottomSlot,
+  afterSlot,
+}: {
+  initialPost: Detail
+  initialComments: CommentPage
+  section?: DetailSection
+  topSlot?: ReactNode
+  bottomSlot?: ReactNode
+  afterSlot?: ReactNode
+}) {
   const router = useRouter()
   const id = initialPost.id
   const { user } = useUserStore()
@@ -207,7 +233,7 @@ export function PostDetail({ initialPost, initialComments }: { initialPost: Deta
     if (!confirm('确定删除这篇帖子吗？')) return
     const res = await forumFetch(`/api/forum/posts/${id}`, { method: 'DELETE' })
     const data = await res.json()
-    if (data.success) router.push('/forum')
+    if (data.success) router.push(section.backHref)
     else alert(data.error || '删除失败')
   }
 
@@ -215,7 +241,7 @@ export function PostDetail({ initialPost, initialComments }: { initialPost: Deta
     return (
       <div className="min-h-screen page-top text-center">
         <p className="text-white/50 mb-4">帖子不存在或已被删除</p>
-        <Link href="/forum" className="text-purple-400">返回论坛</Link>
+        <Link href={section.backHref} className="text-purple-400">{section.backLabel}</Link>
       </div>
     )
 
@@ -230,8 +256,8 @@ export function PostDetail({ initialPost, initialComments }: { initialPost: Deta
         只把字号、行高与留白往上提一档。
       */}
       <div className="container relative max-w-3xl">
-        <Link href="/forum" className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm lg:text-[15px]">
-          <ArrowLeft className="w-4 h-4" /> 返回论坛
+        <Link href={section.backHref} className="inline-flex items-center gap-2 text-white/50 hover:text-white mb-6 text-sm lg:text-[15px]">
+          <ArrowLeft className="w-4 h-4" /> {section.backLabel}
         </Link>
 
         <ReviewBanner post={post} />
@@ -260,9 +286,14 @@ export function PostDetail({ initialPost, initialComments }: { initialPost: Deta
             <span className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white">
               {post.authorName.slice(0, 1)}
             </span>
-            <span className="text-white/70">{post.authorName}</span>
+            {post.authorHref ? (
+              <Link href={post.authorHref} className="text-white/70 hover:text-white">{post.authorName}</Link>
+            ) : (
+              <span className="text-white/70">{post.authorName}</span>
+            )}
             {post.isMember && <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />}
-            <span>· {timeAgo(post.createdAt)}</span>
+            {/* 相对时间在服务端与浏览器各算一次，跨过分钟边界会不一致：这里的差异是预期内的 */}
+            <span suppressHydrationWarning>· {timeAgo(post.createdAt)}</span>
             <span className="inline-flex items-center gap-1">· <Eye className="w-3.5 h-3.5" />{post.views}</span>
           </div>
 
@@ -270,6 +301,7 @@ export function PostDetail({ initialPost, initialComments }: { initialPost: Deta
               .prose-forum 的 font-size/line-height 是 globals.css 里的普通规则，
               写在 @tailwind utilities 之后，同优先级下会按源码顺序压过 lg:text-*，
               所以这里必须用 `!` 才能在桌面端把 15px 提到 16.5px。 */}
+          {topSlot}
           <div
             className="prose-forum text-white/90 lg:!text-[16.5px] lg:!leading-[1.85]"
             dangerouslySetInnerHTML={{ __html: post.html }}
@@ -325,7 +357,10 @@ export function PostDetail({ initialPost, initialComments }: { initialPost: Deta
               )}
             </div>
           )}
+          {bottomSlot}
         </article>
+
+        {afterSlot}
 
         {/* 评论区 */}
         <section className="mt-8 lg:mt-12">

@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   Plus, Pencil, Trash2, Search, Pin, Star, Lock, Eye, EyeOff, ExternalLink, X, MessageCircle, ThumbsUp,
-  CheckCircle2, XCircle, RotateCcw,
+  CheckCircle2, XCircle, RotateCcw, BadgeCheck, Link2,
 } from 'lucide-react'
-import { ORIGINALITY_LABELS, type Originality } from '@/lib/content/policy'
+import { CONTENT_TYPE_LABELS, ORIGINALITY_LABELS, type ContentType, type Originality } from '@/lib/content/policy'
+import { ContentTagsCard } from '@/components/admin/content-tags-card'
 
 interface Category {
   id: number
@@ -37,6 +38,13 @@ interface AdminPost {
   sourceUrl: string | null
   aiAssist: string
   deletedAt: string | null
+  type: string
+  slug: string | null
+  excerpt: string | null
+  path: string
+  verified: boolean
+  tagNames: string[]
+  qualityReason: string | null
   views: number
   likeCount: number
   commentCount: number
@@ -69,6 +77,7 @@ export default function AdminForumPage() {
   const [debouncedKeyword, setDebouncedKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [reviewFilter, setReviewFilter] = useState('')
+  const [typeFilter, setTypeFilter] = useState('')
   const [pendingCounts, setPendingCounts] = useState({ posts: 0, comments: 0 })
   const [comments, setComments] = useState<AdminComment[]>([])
   const [showComments, setShowComments] = useState(false)
@@ -103,6 +112,7 @@ export default function AdminForumPage() {
       if (debouncedKeyword) q.set('keyword', debouncedKeyword)
       if (statusFilter) q.set('status', statusFilter)
       if (reviewFilter) q.set('review', reviewFilter)
+      if (typeFilter) q.set('type', typeFilter)
       const res = await fetch(`/api/admin/forum/posts?${q}`, { signal: controller.signal })
       const data = await res.json()
       if (data.success && abortRef.current === controller) {
@@ -116,7 +126,7 @@ export default function AdminForumPage() {
     } finally {
       if (abortRef.current === controller) setLoading(false)
     }
-  }, [page, debouncedKeyword, statusFilter, reviewFilter])
+  }, [page, debouncedKeyword, statusFilter, reviewFilter, typeFilter])
 
   useEffect(() => {
     loadPosts()
@@ -216,6 +226,18 @@ export default function AdminForumPage() {
     if (data.success) loadPosts()
     else alert(data.error || '操作失败')
   }
+  // 编辑字段：slug（ASCII，决定 URL 后缀）与摘要。用 prompt 输入，够用且不占版面
+  const editSlug = (p: AdminPost) => {
+    const slug = prompt('URL 后缀 slug（小写字母、数字、连字符；留空 = 只用 id）：', p.slug ?? '')
+    if (slug === null) return
+    postAction(p.id, { slug: slug.trim() })
+  }
+  const editExcerpt = (p: AdminPost) => {
+    const excerpt = prompt('摘要（160 字以内，显示在列表与搜索结果里；留空 = 自动截取）：', p.excerpt ?? '')
+    if (excerpt === null) return
+    postAction(p.id, { excerpt: excerpt.trim() })
+  }
+
   const deletePost = async (id: number) => {
     if (!confirm('确定删除该帖子？（软删除，可在「已删除」里恢复）')) return
     const res = await fetch(`/api/admin/forum/posts/${id}`, { method: 'DELETE' })
@@ -276,6 +298,8 @@ export default function AdminForumPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ContentTagsCard />
 
       {/* 待审评论 */}
       <Card>
@@ -365,6 +389,19 @@ export default function AdminForumPage() {
               <option value="deleted">已删除</option>
             </select>
             <select
+              value={typeFilter}
+              onChange={(e) => {
+                setTypeFilter(e.target.value)
+                setPage(1)
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-2 py-2 text-sm text-gray-900"
+            >
+              <option value="">全部类型</option>
+              <option value="DISCUSSION">讨论</option>
+              <option value="PROMPT">提示词</option>
+              <option value="GUIDE">教程</option>
+            </select>
+            <select
               value={reviewFilter}
               onChange={(e) => {
                 setReviewFilter(e.target.value)
@@ -409,6 +446,10 @@ export default function AdminForumPage() {
                           <span className="font-medium truncate">{p.title}</span>
                         </div>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]">
+                          <span className="rounded px-1.5 bg-indigo-50 text-indigo-700">{CONTENT_TYPE_LABELS[p.type as ContentType] ?? p.type}</span>
+                          {p.verified && <span className="rounded px-1.5 bg-emerald-50 text-emerald-700">实测可用</span>}
+                          {p.tagNames.length > 0 && <span className="text-gray-500">{p.tagNames.join(' / ')}</span>}
+                          {p.qualityReason && <span className="text-gray-400" title="总开关打开后也不会被收录的原因">不收录：{p.qualityReason}</span>}
                           <span className={`rounded px-1.5 ${REVIEW_BADGE[p.reviewStatus]?.cls ?? 'bg-gray-100 text-gray-500'}`}>
                             {REVIEW_BADGE[p.reviewStatus]?.text ?? p.reviewStatus}
                           </span>
@@ -428,7 +469,7 @@ export default function AdminForumPage() {
                         <span className="inline-flex items-center gap-0.5"><MessageCircle className="w-3 h-3" />{p.commentCount}</span>
                       </td>
                       <td className="py-2 text-right whitespace-nowrap">
-                        <a href={`/forum/${p.id}`} target="_blank" rel="noreferrer" className="inline-flex items-center text-xs px-1.5 py-1 rounded text-gray-500 hover:bg-gray-100" title="查看">
+                        <a href={p.path} target="_blank" rel="noreferrer" className="inline-flex items-center text-xs px-1.5 py-1 rounded text-gray-500 hover:bg-gray-100" title="查看">
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                         {p.deletedAt ? (
@@ -440,6 +481,13 @@ export default function AdminForumPage() {
                             )}
                             {p.reviewStatus !== 'REJECTED' && (
                               <button onClick={() => postAction(p.id, { reviewStatus: 'REJECTED' })} className="text-xs px-1.5 py-1 rounded text-amber-600 hover:bg-amber-50" title="驳回（需填原因）"><XCircle className="w-3.5 h-3.5" /></button>
+                            )}
+                            {p.type !== 'DISCUSSION' && (
+                              <>
+                                <button onClick={() => postAction(p.id, { verified: !p.verified })} className={`text-xs px-1.5 py-1 rounded hover:bg-gray-100 ${p.verified ? 'text-emerald-600' : 'text-gray-500'}`} title="实测可用（编辑亲自复现成功后再点）"><BadgeCheck className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => editSlug(p)} className="text-xs px-1.5 py-1 rounded text-gray-500 hover:bg-gray-100" title={`URL 后缀：${p.slug || '（未设）'}`}><Link2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => editExcerpt(p)} className="text-xs px-1.5 py-1 rounded text-gray-500 hover:bg-gray-100" title="编辑摘要"><Pencil className="w-3.5 h-3.5" /></button>
+                              </>
                             )}
                           </>
                         )}

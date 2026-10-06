@@ -202,11 +202,27 @@ export interface IndexableInput extends VisibilityInput {
   originality: string
   aiAssist: string
   commentCount: number
+  /** 缺省按 DISCUSSION（P0 的老帖子没有这一列的语义） */
+  type?: string
+  /** PROMPT 专用：提示词全文 */
+  promptText?: string | null
+  /** PROMPT 专用：出图张数（帖子 images） */
+  imageCount?: number
+  /** PROMPT 专用：是否关联了模型标签 */
+  hasModel?: boolean
+  /** GUIDE 专用：作者声明的测试日期 */
+  testedOn?: Date | null
 }
 
-/** P0 阶段的质量门槛：正文 ≥300 字，或已有 ≥3 条回复（设计 §11.1 DISCUSSION 一行）。P1 按内容类型细分 */
-export const MIN_INDEXABLE_CHARS = 300
-export const MIN_INDEXABLE_REPLIES = 3
+/**
+ * 按类型的质量门槛（设计 §11.1）。阈值是我们自己定的，不是官方数字；
+ * 上线后按 Search Console「已抓取 - 尚未编入索引」的比例调。
+ */
+export const MIN_INDEXABLE_CHARS = 300 // DISCUSSION：正文
+export const MIN_INDEXABLE_REPLIES = 3 // DISCUSSION：或者有这么多条回复
+export const MIN_PROMPT_CHARS = 20 // PROMPT：提示词本身
+export const MIN_PROMPT_NOTES = 50 // PROMPT：心得 / 说明（正文）——或者有 ≥2 张出图
+export const MIN_GUIDE_CHARS = 600 // GUIDE：正文（不含代码块）
 
 /** 去掉 Markdown 记号与代码块后的可读字数（中文按字、英文按字符） */
 export function readableLength(md: string): number {
@@ -218,12 +234,102 @@ export function readableLength(md: string): number {
     .replace(/\s+/g, '').length
 }
 
+/** 这一条够不够格（不看总开关、不看审核）：给后台显示「为什么没被收录」也用这个 */
+export function qualityGateReason(p: IndexableInput): string | null {
+  if (p.originality !== 'ORIGINAL_FIRST') return '非原创首发'
+  if (p.aiAssist === 'MAJOR') return '正文主要由 AI 生成'
+  const type = p.type || 'DISCUSSION'
+  if (type === 'PROMPT') {
+    if ((p.promptText || '').trim().length < MIN_PROMPT_CHARS) return `提示词少于 ${MIN_PROMPT_CHARS} 字`
+    if (!p.hasModel) return '没有关联模型'
+    if ((p.imageCount ?? 0) < 1) return '没有出图'
+    if ((p.imageCount ?? 0) < 2 && readableLength(p.content) < MIN_PROMPT_NOTES) return `只有 1 张图时心得需 ≥${MIN_PROMPT_NOTES} 字`
+    return null
+  }
+  if (type === 'GUIDE') {
+    if (!p.testedOn) return '没有测试日期'
+    if (readableLength(p.content) < MIN_GUIDE_CHARS) return `正文少于 ${MIN_GUIDE_CHARS} 字`
+    return null
+  }
+  if (readableLength(p.content) < MIN_INDEXABLE_CHARS && p.commentCount < MIN_INDEXABLE_REPLIES) {
+    return `正文少于 ${MIN_INDEXABLE_CHARS} 字且回复少于 ${MIN_INDEXABLE_REPLIES} 条`
+  }
+  return null
+}
+
 export function isIndexable(p: IndexableInput, open: boolean = INDEXING_OPEN): boolean {
   if (!open) return false
   if (!isPublic(p)) return false
-  if (p.originality !== 'ORIGINAL_FIRST') return false
-  if (p.aiAssist === 'MAJOR') return false
-  return readableLength(p.content) >= MIN_INDEXABLE_CHARS || p.commentCount >= MIN_INDEXABLE_REPLIES
+  return qualityGateReason(p) === null
+}
+
+/**
+ * 聚合页（模型 / 主题 / 产品 hub、列表首页）能不能收录（设计 §7.3）。
+ * 百度劲风算法打「空短聚合页」，Google 也不想要只有两三条链接的标签页：
+ * 要有站方写的介绍，且里面可收录的条目够数。主题页门槛比模型 / 产品 hub 高（主题更碎）。
+ */
+export const MIN_HUB_INTRO_CHARS = 200
+export const MIN_HUB_ITEMS: Record<string, number> = { MODEL: 3, PRODUCT: 3, TOPIC: 8, ROOT: 5 }
+
+export function isHubIndexable(kind: string, introLength: number, indexableItems: number, open: boolean = INDEXING_OPEN): boolean {
+  if (!open) return false
+  if (kind !== 'ROOT' && introLength < MIN_HUB_INTRO_CHARS) return false
+  return indexableItems >= (MIN_HUB_ITEMS[kind] ?? 8)
+}
+
+// ─────────────────────────────── 内容类型与地址（§4） ───────────────────────────────
+
+export const CONTENT_TYPES = ['DISCUSSION', 'PROMPT', 'GUIDE'] as const
+export type ContentType = (typeof CONTENT_TYPES)[number]
+export const CONTENT_TYPE_LABELS: Record<ContentType, string> = { DISCUSSION: '讨论', PROMPT: '提示词', GUIDE: '教程' }
+
+/** 类型对应的栏目根路径 */
+export const SECTION_PATH: Record<ContentType, string> = { DISCUSSION: '/forum', PROMPT: '/prompts', GUIDE: '/guides' }
+
+/** 提示词与教程各自挂在一个专用板块下（forum_posts.category_id 非空）；这两个板块不出现在论坛的板块导航里 */
+export const CONTENT_BOARD_SLUGS: Record<'PROMPT' | 'GUIDE', string> = { PROMPT: 'prompts', GUIDE: 'guides' }
+
+export function asContentType(t: string | null | undefined): ContentType {
+  return (CONTENT_TYPES as readonly string[]).includes(t || '') ? (t as ContentType) : 'DISCUSSION'
+}
+
+/** slug 只允许小写 ASCII、数字、连字符（设计 §4.2：不自动生成拼音） */
+export const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+export function isValidSlug(s: string): boolean {
+  return s.length >= 2 && s.length <= 80 && SLUG_RE.test(s)
+}
+
+/** 规范地址：/prompts/123-some-slug；没有 slug 就是 /prompts/123。URL 永远以 id 为准 */
+export function contentPath(type: string, id: number, slug?: string | null): string {
+  const base = SECTION_PATH[asContentType(type)]
+  return `${base}/${id}${slug ? `-${slug}` : ''}`
+}
+
+/** 解析 "123" / "123-some-slug"；不是这个形状返回 null */
+export function parseIdSlug(raw: string): { id: number; slug: string | null } | null {
+  const m = /^(\d{1,9})(?:-([a-z0-9-]{1,120}))?$/.exec(raw)
+  if (!m) return null
+  const id = Number(m[1])
+  return id > 0 ? { id, slug: m[2] ?? null } : null
+}
+
+export const ACCOUNT_TIERS = ['FREE', 'PLUS', 'PRO', 'TEAM', 'OTHER'] as const
+export type AccountTier = (typeof ACCOUNT_TIERS)[number]
+export const ACCOUNT_TIER_LABELS: Record<AccountTier, string> = {
+  FREE: '免费账号',
+  PLUS: 'Plus',
+  PRO: 'Pro',
+  TEAM: 'Team / 企业',
+  OTHER: '其他',
+}
+
+/** 提示词里的 [变量]：方括号里 1–20 个字、不含换行与方括号 */
+export const PROMPT_VAR_RE = /\[([^\[\]\n]{1,20})\]/g
+
+export function promptVariables(prompt: string): string[] {
+  const out = new Set<string>()
+  for (const m of Array.from(prompt.matchAll(PROMPT_VAR_RE))) out.add(m[1].trim())
+  return Array.from(out).filter(Boolean)
 }
 
 // ─────────────────────────────── 图片地址 ───────────────────────────────
