@@ -7,6 +7,8 @@
  * 原来断言「grep 不到 FAKE_CITIES / 恒返回 null / 接口无 city」的几条改成「弹窗仍在、服务端首帧为空」；
  * 弹窗仍引用 framer-motion，所以外壳闭包里 framer-motion 只允许经它进入（其余外壳组件仍必须不引用），
  * --base 模式「落地页加载的 JS 里没有 framer-motion」降为告警。
+ * 2026-10-07（性能优化）起外壳经 live-order-notification-lazy.tsx 用 next/dynamic（ssr:false）按需加载弹窗：
+ * 组件本体仍逐字不改，framer-motion 成了水合后才取的单独 chunk，--base 的这条恢复为判失败。
  *
  *   npx tsx scripts/check-seo-b.ts                              # 只跑进程内检查（不连库、不起服务）
  *   npx tsx scripts/check-seo-b.ts --base http://localhost:3200 # 再抓一遍服务端 HTML 与页面加载的 JS（next dev / next start 都行）
@@ -16,7 +18,7 @@
  *  1. 成交弹窗保留：组件本体与 /api/orders/recent 仍在；接口仍不 select createdAt
  *  2. LiveOrderNotification 服务端首帧为空（弹窗水合后才出现，不进首帧、不是 LCP）；渠道站不渲染
  *  3. 从 (shop)/layout.tsx 与根 layout.tsx 出发沿 import 走一遍：全站外壳（页头、页脚、客服浮窗与弹窗、公告…）
- *     的依赖闭包里，framer-motion 只经成交弹窗进入。--base 模式再看实际加载的 JS（成交弹窗保留后只告警）
+ *     的依赖闭包里，framer-motion 只经成交弹窗进入，且外壳只能按需加载它。--base 模式再看实际加载的 JS
  *  4. 页头、页脚、首页、客服浮窗 / 弹窗的服务端渲染：没有 opacity:0 / translateY(-100…) 的首帧隐藏（aria-hidden 的装饰元素除外）；
  *     站标是 WebP 且 loading="lazy"（React 不再 preload）；页头 Logo 链接与移动端菜单按钮有可读名称
  *  5. 公告：首访不弹全屏（弹层只能由「查看详情」打开）、沿用 announce_seen_<id>、/jiema/* 让位；渠道站渲染为空
@@ -27,7 +29,7 @@
  *  · 首页服务端 HTML 没有带内容的 opacity:0（FIRST_FRAME_STRICT）；/support、/iptools、/links 还没改，只告警并写明归属的包（FIRST_FRAME_PENDING）
  *  · 大事记详情页的微信缩略图：object-cover + fetchpriority=low，且不被 preload
  *  · /api/orders/recent 的每一项都没有 createdAt（city 随成交弹窗保留）
- *  · 落地页、大事记页加载的 JS 里有没有 framer-motion（成交弹窗保留后预期仍有，只告警）；首页必须能查到——阳性对照
+ *  · 落地页、大事记页首屏加载的 JS 里没有 framer-motion（成交弹窗按需加载）；首页必须能查到——阳性对照
  *
  * 退出码：有任何失败 → 1。
  */
@@ -184,7 +186,13 @@ function chainOf(files: Map<string, string | null>, f: string): string {
   const FM_ALLOWED = new Set(['src/components/live-order-notification.tsx'])
   const fmOther = fm.filter((f) => !FM_ALLOWED.has(path.relative(ROOT, f).replace(/\\/g, '/')))
   ok(fmOther.length === 0, '外壳（(shop)/layout 与根 layout）的依赖闭包里，framer-motion 只经成交弹窗进入', fmOther.map((f) => chainOf(files, f)).join(' ｜ '))
-  if (fm.length > fmOther.length) note('成交弹窗（保留）仍引用 framer-motion：全站共享 JS 里仍会有它，§6.6-5 的包体收益要等弹窗改 CSS 动效后才拿得到')
+  // 2026-10-07 起成交弹窗由 live-order-notification-lazy.tsx 用 next/dynamic（ssr:false）按需加载：组件本体不变，
+  // 但 framer-motion 成了单独的 chunk，不再进外壳的首屏 JS。下面两条守住「外壳只能按需加载它」
+  const layoutSrc = read('src/app/(shop)/layout.tsx')
+  ok(!/from\s+['"]@\/components\/live-order-notification['"]/.test(layoutSrc) && layoutSrc.includes("from '@/components/live-order-notification-lazy'"), '(shop)/layout 不再静态引用成交弹窗，经按需加载的那一层挂载')
+  const lazySrc = read('src/components/live-order-notification-lazy.tsx')
+  ok(/dynamic\(\s*\(\)\s*=>\s*import\('@\/components\/live-order-notification'\)/.test(lazySrc) && /ssr:\s*false/.test(lazySrc) && !/^import[^\n]*live-order-notification'/m.test(lazySrc), '成交弹窗按需加载：next/dynamic + ssr:false，没有静态 import')
+  if (fm.length > fmOther.length) note('成交弹窗（保留）仍引用 framer-motion，但它是按需加载的单独 chunk（水合后才取），不进外壳首屏 JS')
   for (const f of ['src/components/layout/header.tsx', 'src/components/layout/footer.tsx', 'src/components/floating-contact.tsx', 'src/components/contact-modal.tsx', 'src/components/announcement-modal.tsx'])
     ok(!read(f).includes("from 'framer-motion'"), `${f} 不再引用 framer-motion`)
   // 阳性对照：同一个遍历器从首页组件出发必须能找到 framer-motion（home-client 自己在用），否则说明 import 解析失效
@@ -388,8 +396,8 @@ async function htmlChecks() {
   for (const p of ['/chongzhi/chatgpt-plus', '/news', ...(slug ? [slug] : [])]) {
     const r = await framerIn(htmlOf.get(p) || '')
     ok(r.total > 0, `${p}：抓到页面加载的 JS（${r.total} 个）`)
-    // 成交弹窗保留后它把 framer-motion 带进外壳：这里只告警，不判失败
-    if (r.hits.length) note(`${p}：加载的 JS 里仍有 framer-motion（经保留的成交弹窗进入，预期如此）`, r.hits.join(', '))
+    // 2026-10-07 起成交弹窗按需加载（live-order-notification-lazy.tsx），framer-motion 不再进外壳的首屏 JS：判失败而不是告警
+    ok(r.hits.length === 0, `${p}：首屏加载的 JS 里没有 framer-motion（成交弹窗按需加载，水合后才取）`, r.hits.join(', '))
   }
 }
 
