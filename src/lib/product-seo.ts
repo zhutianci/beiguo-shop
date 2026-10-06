@@ -107,12 +107,21 @@ export function productDescription(p: SeoProduct): string {
 }
 
 /**
+ * 商品页描述模板里的开票口径，必须带 6%（设计 docs/SEO-重构/SEO-重构设计.md §9.2-3「写到开票必带 6%」，
+ * 全站统一写「标价不含税，开票另付 6%」）。原来的「税费另付」没写税率，而这句会进商品页的 meta description、
+ * og:description 和 Product JSON-LD。
+ * 6% 写字面量、不 import lib/invoice.ts 的 TAX_RATE：本文件被十几个 layout 与根 not-found 引用（取 SITE_NAME），
+ * 不给它们平白加上 lib/invoice 的 node:crypto 依赖；二者一致由 scripts/check-product-seo.ts 断言。
+ */
+export const PRODUCT_INVOICE_TEXT = '可开增值税发票（标价不含税，开票另付 6%）'
+
+/**
  * 描述模板后半句。事实来源：lib/vmq.ts fulfillOrder（AUTO 发卡、SMS 付款后 acquireForOrder 自动取号、
  * 其余置为处理中等人工）、收银台只有支付宝、lib/invoice.ts TAX_RATE（标价不含税）。
- * 不认识的交付方式（老调用方没传）走中性口径，不替它声称任何交付形式。
+ * 不认识的交付方式（老调用方没传）走中性口径，不替它声称任何交付形式。开票那半句见 PRODUCT_INVOICE_TEXT。
  */
 function deliveryPitch(t: string | null | undefined, accountLike = false): string {
-  const tail = '支付宝付款，可开增值税发票（标价不含税，税费另付）。'
+  const tail = `支付宝付款，${PRODUCT_INVOICE_TEXT}。`
   if (t === 'AUTO' && accountLike) return `付款后自动发放账号信息，无需信用卡，${tail}`
   if (t === 'AUTO') return `${SITE_NAME}卡密自助兑换，无需信用卡，${tail}`
   if (t === 'SMS') return `付款后系统自动取号接码，不发卡密；${tail}`

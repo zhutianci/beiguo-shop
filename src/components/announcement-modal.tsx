@@ -27,6 +27,9 @@ import { Megaphone, AlertTriangle, PartyPopper, X } from 'lucide-react'
  * /jiema/* 底部钉着下单确认条，提示条在那里让位（同 lib/floating-widgets.ts 的做法）。
  *
  * 不用 framer-motion：这个组件挂在每一个前台页面上，入场动效用 globals.css 的 ui-* keyframes（设计 §6.6-5）。
+ *
+ * 挂载点 (shop)/layout.tsx 的注释「买家进入前台任意页面即弹窗展示」已过时，以本文件为准；
+ * 那是营销会话的文件，本包不改，列在设计 §6.6-1「B 包遗留」里随挂载点一起清理。
  */
 
 interface Announcement {

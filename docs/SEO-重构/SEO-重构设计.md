@@ -1234,6 +1234,10 @@ bigolab.com（唯一参与 SEO 的域名；*.bigolab.com 渠道站永远 noindex
    - `api/orders/recent/route.ts` 删掉 `FAKE_CITIES` 和 `city` 字段（`itest-security.ts:276-278` 的「不含 createdAt、id 为序号」断言不受影响）。
    - **不改 `lib/storefront/public.ts` 的 `liveOrders` 开关**：`check-tenant-math.ts:296` 断言「PLATFORM 全开」，改开关会让它失败；也不改 `(shop)/layout.tsx`（营销会话的文件）。挂载点以后和营销会话一起清理。
    - 它也是 framer-motion 留在全站共享包里的原因之一。
+   - **B 包遗留（B 包评审后记录，待清理；和挂载点、`features.liveOrders` 一起做，先和营销、渠道、接码会话约定）**：
+     - **`/api/orders/recent` 仍公开脱敏买家信息**：弹窗下线后它已没有任何前台调用方，却仍对任何人返回本店最近 20 笔成交（脱敏昵称或邮箱、商品名、成交价；主站和渠道 Host 各返回本店数据，route 里没有 `denyOnChannel`）。已没有业务目的，不符合个人信息保护法的最小必要原则（第 6 条；公开处理个人信息另需单独同意，第 25 条）。清理方式：生产环境返回空数组，或只在测试环境响应；同时调整依赖它的断言 `itest-security.ts:276-280`、`itest-tenant/wp2.ts:826`、`itest-tenant/cross-tenant.ts:864`、`itest-wallet-b1-http.ts:194`。route 文件头已写明。
+     - `lib/floating-widgets.ts`（接码会话的文件）的 `hideLiveOrdersOn` 已没有运行时调用方，只剩 `check-jiema-s2b.ts:167` 断言它；文件头注释仍按「弹窗在线」写让位理由。清理挂载点时连同 s2b 那条断言一起删。
+     - `(shop)/layout.tsx:69`（营销会话的文件）公告挂载点的注释「买家进入前台任意页面即弹窗展示」已过时（公告已改底部提示条）。
 2. **公告弹窗改成底部提示条（B 包，P0）**
    - `fixed` 在页面底部、可关闭，只显示公告标题和「查看详情」；点开再用现有弹层展示全文（公告正文最长 5000 字，`lib/announcement.ts:12`）。关闭状态沿用 `announce_seen_*` 这个 localStorage 键。
    - 放底部没有布局偏移，也不用改 layout：放顶部要么压在固定页头上，要么在客户端拉取之后改 `--header-h` 把内容推下去，CLS 会从 0 变差。
@@ -1244,9 +1248,13 @@ bigolab.com（唯一参与 SEO 的域名；*.bigolab.com 渠道站永远 noindex
 3. **首帧可见**：
    - 首页 `home-client.tsx:149-153` 的 `initial={{opacity:0}}` 改成 `initial={false}`，或者只做位移动画。副标题和按钮同样处理 [R1 §16]。
    - header 的 `initial={{ y: -100 }}`（`header.tsx:135`）同样改成 `initial={false}`：现在 SSR 首帧页头在屏幕外。
+   - **首页打字机占位（B 包评审修复）**：hero 是 `min-h-screen` + 垂直居中，副标题里的打字机在手机上随短语折成 1 行或 2 行（375 宽实测副标题 84↔112px），每换一句 H1（LCP 元素）、按钮、查询框、卖点整体上下跳约 13px。实验室 PSI 通常在第一次换句（2.5s）前就结束，看不到；真实用户的 CLS（CrUX）会一直记。已改为打字机那一行按「前缀 + 最长短语」占位（单格 grid + `::before{content:attr(data-reserve)}`，副本不进正文文本），320 / 375 / 768 / 1366 宽走完一整轮 H1 位置不变。评审另报的「约 1.1s 时 hero 容器 0.019 的偏移」来自后台标签页 + dev 模式，本地未复现（后台标签页不产生 layout-shift 记录），上线后看 PSI 与 CrUX 的 CLS。
+   - **/support、/iptools、/links 还没做（B 包评审遗留，归 C 包）**：这三页 index,follow，服务端 HTML 仍有 framer-motion 的 `initial` opacity:0（本地 dev：/support 23 处、/iptools 19 处、/links 2 处），/support 的 H1「购买之后，我们继续陪伴」本身就包在 `style="opacity:0;transform:translateY(20px)"` 里，违反 §3.1「H1 服务端直出、首帧可见」，慢设备上 LCP 要等水合。做法同首页：挂载即播的改 `initial={false}`（或只留位移），`whileInView` 的只留位移、不从透明开始。`check-seo-b.ts --base` 现对这三页告警并注明归属（`FIRST_FRAME_PENDING`），C 包改完把它们挪进 `FIRST_FRAME_STRICT` 变成失败。
 4. **图片**：
    - `gen-brand-assets.py` 额外输出 WebP。header 用 80×80（约 3KB），页脚用 256px 高（约 20KB），并加 `loading="lazy" decoding="async"`，这样 React 就不再把它们自动 preload 到每一页。
    - **新闻详情页**：R2 列出的 LCP 成因是图片 267KiB、宽高比不对 [R2 §3]。改成 WebP，写对 width 和 height；正文里的分类图如果是 LCP 元素，就加 `fetchpriority="high"`，或者挪出首屏。
+     - **B 包实际做法（与上句不同）**：这张分类图不是 LCP 元素，是隐形的微信分享缩略图（`news/[slug]/page.tsx` 的 `news-wx-thumb`）。只加了 `object-cover`（修「宽高比不对」：preflight 的 `max-width:100%` 把它压成 375×315）和 `fetchPriority="low"`（去掉它的 preload），**格式保持 PNG**：它唯一的用途是微信缩略图，微信对 WebP 缩略图的支持没有实测。所以每篇详情页仍会下载这张约 73–83KB 的 PNG。
+     - 「267KiB 的大头是两张 PNG 站标」目前只是估计，没有改后的 PSI 实测。**上线后**对同一篇详情页跑 PSI：「图片传送」里如果这张图仍列着约 80KB，再决定是否实测微信对 WebP 缩略图的支持（实测可行再换 WebP）。本地库没有已发布的大事记，本地验收渲染不到这张图。
    - 静态资源的缓存由 4 小时改为带版本号 + 1 年 immutable [R1 §14][R2 §5 P1-13]。
 5. **framer-motion**：全站挂载、引用了它的组件有 header（`motion.header` 本身，不只是移动菜单）、announcement-modal、floating-contact、contact-modal（页脚和 floating-contact 都用它）、live-order-notification。只改其中一个，共享包的体积不会变。
    - 要做就这几个一起改成 CSS 过渡或 `dynamic()` 懒加载（live-order-notification 随第 1 项下线，announcement-modal 本来就在 B 包里）。
@@ -1513,6 +1521,10 @@ bigolab.com（唯一参与 SEO 的域名；*.bigolab.com 渠道站永远 noindex
   - 首页和页头的服务端 HTML 没有 `opacity:0`、`translateY(-100…)` 这类首帧隐藏
   - （做第 5 项时）bundle analyzer 前后对比，共享包里不再有 framer-motion
 - 风险：站长依赖弹窗发强提醒。提示条保留 pinned 语义，可以回滚。
+- **评审修复与遗留（2026-09-30）**：
+  - 首页打字机那一行按最长短语占位，换句时 H1 不再上下跳（§6.6-3）；打字机里的开票短语改为「可开增值税发票（开票另付 6%）」（§9.2-3）。`check-seo-b` 进程内加了占位与 6% 的断言。
+  - 商品详情页描述模板（`lib/product-seo.ts` 的 `deliveryPitch`：后台说明不足 40 字时拼进 meta description、og:description 与 Product JSON-LD）原来写「标价不含税，税费另付」、没带 6%，已改为「标价不含税，开票另付 6%」，`check-product-seo` 断言它与 `TAX_RATE` 一致。**注意**：本地库没有在售商品，A、B 两包本地 `check-seo-copy` 的「无新增违规」**不覆盖商品详情页**；以上线后 `check-seo-copy --base https://bigolab.com` 为准。届时商品页如果报 invoice-6pct，先看是不是后台写的商品说明（≥40 字时原样使用）里提到开票没带 6%——那是后台内容，请站长在后台改，不是模板。
+  - 新闻详情页缩略图保持 PNG、上线后 PSI 复核（§6.6-4）；`/api/orders/recent`、`floating-widgets.ts`、`(shop)/layout.tsx` 注释的遗留清理见 §6.6-1；/support、/iptools、/links 的首帧隐藏归 C 包（§6.6-3）。
 
 ---
 
@@ -1525,8 +1537,10 @@ bigolab.com（唯一参与 SEO 的域名；*.bigolab.com 渠道站永远 noindex
   - 落地页公共组件加「相关服务」区块（接码链接按开放状态，大事记链接按 features）；claude-zhuce、codex-jiema 的桥接链接（§2.5 锚文本）
   - 大事记详情页按标签映射「广告 · 本站服务」区块（`lib/news/commerce-link.ts`，映射表永不指向 claude-kyc、google-zhanghao；没有兜底）
   - Organization 和 /about 改写（§4.2，按开放状态）；营业执照信息（待站长提供）
+  - **首帧可见补齐**（B 包评审遗留，§6.6-3）：/support、/iptools、/links 去掉 framer-motion 的首帧 opacity:0（挂载即播的改 `initial={false}` 或只留位移，`whileInView` 的只留位移）
 - 文件：
   - `src/app/(shop)/page.tsx`、`home-client.tsx`、`src/components/news-hot-section.tsx`
+  - `src/app/(shop)/support/page.tsx`（接码会话 09-30 刚改过它，动手前先 rebase、和接码会话打招呼）、`src/app/(shop)/iptools/page.tsx`、`src/app/(shop)/links/links-client.tsx`、`scripts/check-seo-b.ts`（三页从 `FIRST_FRAME_PENDING` 挪进 `FIRST_FRAME_STRICT`）
   - `src/components/layout/footer.tsx`、`header.tsx`、`src/components/landing/landing-ui.tsx`
   - `src/lib/news/commerce-link.ts`（新）、`src/app/(shop)/news/[slug]/page.tsx`
   - `src/lib/seo/graph.ts`、`about/layout.tsx`、`about/page.tsx`
@@ -1539,6 +1553,7 @@ bigolab.com（唯一参与 SEO 的域名；*.bigolab.com 渠道站永远 noindex
   - 首页和 /jiema 的服务端 HTML 不出现 Telegram、+86 和国内实名、金融类服务名
   - /jiema*、/news/[slug]、/news/t/* 的 HTML 里没有指向 google-zhanghao、claude-kyc 的 `<a>`
   - Organization 的 description 覆盖各业务（接码按开放状态），不含「代充」，开票带 6%
+  - `check-seo-b.ts --base`：/、/support、/iptools、/links 的服务端 HTML 都没有带内容的 opacity:0（失败级，不再是告警）；/support 的 H1 首帧可见
 - 风险：
   - 首页读接码目录，要加 try 和降级：读不到就不显示这一块，不能让首页 500
   - 首页是 ChatGPT-User 抓得最多的页，改之前存 HTML 快照

@@ -126,8 +126,10 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           不去掉 max-width：600px 宽的绝对定位元素在手机上会撑出横向滚动。
         · 优先级：它看不见，却被 React 自动 preload 进 <head>，和首屏 CSS / JS 抢带宽。fetchPriority="low" 去掉 preload、
           降低下载优先级；不用 loading="lazy"——宁可晚点取，也要保证微信取图时它一定已经加载。
-        · 格式：保持 PNG，不换 WebP。这张图唯一的用途是给微信当分享缩略图，微信对 WebP 缩略图的支持没有实测过；
-          可省的那 267KiB 主要是页头页脚的两张站标（已换 WebP 并 lazy，见 header.tsx / footer.tsx）。
+        · 格式：保持 PNG，不换 WebP（和设计 §6.6-4 原文「改成 WebP」不同，已记进设计 §6.6-4）。这张图唯一的用途是
+          给微信当分享缩略图，微信对 WebP 缩略图的支持没有实测过。可省的那 267KiB 估计大头是页头页脚的两张 PNG 站标
+          （已换 WebP 并 lazy，见 header.tsx / footer.tsx），这张图本身约 73–83KB 仍会下载——这个判断还没有改后的 PSI 实测，
+          上线后对同一篇详情页跑 PSI：「图片传送」里如果它仍列着约 80KB，再决定是否实测微信对 WebP 缩略图的支持。
       */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

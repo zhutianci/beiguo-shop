@@ -13,9 +13,11 @@ import {
   productJsonLd,
   productPath,
   productUrl,
+  PRODUCT_INVOICE_TEXT,
   type SeoProduct,
 } from '../src/lib/product-seo'
 import { indexNowKey } from '../src/lib/indexnow'
+import { TAX_RATE } from '../src/lib/invoice'
 
 let pass = 0
 let fail = 0
@@ -95,8 +97,12 @@ ok('MANUAL 模板不再声称卡密自助兑换', !manual.includes('卡密自助
 ok('未知交付方式不声称任何交付形式', !unknown.includes('卡密') && !unknown.includes('取号'), unknown)
 for (const [name, d] of [['AUTO', auto], ['SMS', sms], ['MANUAL', manual], ['未知', unknown]] as const) {
   ok(`${name} 模板带支付宝与不含税口径`, d.includes('支付宝') && d.includes('不含税'), d)
+  // 设计 docs/SEO-重构/SEO-重构设计.md §9.2-3：写到开票必带 6%（这句会进 meta description、og 与 Product JSON-LD）
+  ok(`${name} 模板写到开票时带税率（开票另付 6%）`, !/开票|发票/.test(d) || /开票另付 6%/.test(d), d)
   ok(`${name} 模板没有「官方」字样`, !d.includes('官方'), d)
 }
+// 模板里的 6% 是字面量（product-seo 不引 lib/invoice 的 node:crypto），这里钉住它和开票实际税率一致
+ok('开票口径里的税率与 lib/invoice.ts 的 TAX_RATE 一致', PRODUCT_INVOICE_TEXT.includes(`开票另付 ${Math.round(TAX_RATE * 100)}%`), PRODUCT_INVOICE_TEXT)
 
 // 线上 id 4 / 8 / 21 的描述是「…无关。。」：简介自带句号时不能再补一个
 ok('简介自带句号时不出现「。。」', !manual.includes('。。'), manual)

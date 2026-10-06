@@ -43,6 +43,12 @@ export interface HomeFeatured {
   categoryName: string | null
 }
 
+/** 首页 hero 副标题第一行：固定前缀 + 打字机轮播的短语（占位逻辑见 JSX 里「打字机那一行先把高度占住」） */
+const HERO_LEAD = '卡密自助兑换，支付宝付款，'
+const HERO_TYPEWRITER = ['无需信用卡', '付款后即时发卡', '可开增值税发票（开票另付 6%）', '未使用卡密长期有效']
+/** 最长的一句（中文字宽近似等宽，按字数取即可；以后改短语不用手动同步占位） */
+const HERO_TYPEWRITER_LONGEST = HERO_TYPEWRITER.reduce((a, b) => (b.length > a.length ? b : a), '')
+
 const features = [
   // 「最快10分钟」是编的，而且对年费档、接码档、KYC 代办都不成立。
   // 换成真的：卡密档付款后即时发放，这句比原来那句还强。
@@ -219,22 +225,35 @@ export default function HomeClient({ stats, featured }: { stats: HomeStats; feat
             >
               {/* 渠道设了首页副标题：整段换成渠道的一句话（不带打字机与服务清单）；没设（含主站）原样 */}
               {brand.heroSubtitle ? brand.heroSubtitle : <>
-              卡密自助兑换，支付宝付款，
-              {/* 手机端轻量模式：轮换的卖点单独占一行（lite:block + 不换行），句子长短变化不再让副标题在一行 / 两行之间跳、
-                  带着下面的按钮和查询框一起上下抖（每次抖动都是整页重排）。最长一句 13 个字，320 宽的屏也放得下 */}
-              <span className="gradient-text-accent lite:block lite:w-fit lite:mx-auto lite:whitespace-nowrap">
-                <Typewriter
-                  texts={['无需信用卡', '付款后即时发卡', '可开增值税发票（税费另付）', '未使用卡密长期有效']}
-                  typeSpeed={150}
-                  deleteSpeed={80}
-                  pauseTime={2500}
-                />
+              {/*
+                【打字机那一行先把高度占住（B 包评审修复，电脑端）】这一行在窄窗口里会随短语折成 1 行或 2 行，
+                而 hero 是 min-h-screen + items-center 垂直居中：每换一句，H1（LCP 元素）、按钮、查询框、卖点整体上下跳，
+                真实用户的 CLS 会一直记这笔账（实验室 PSI 通常在第一次换句之前就结束了，看不到）。
+                做法：这一行改成单格 grid，::before 用 content:attr(data-reserve) 放一份「前缀 + 最长短语」的隐形副本，
+                和真正的打字机叠在同一格，格高 = 两者较高者，任何宽度下都按最长那句占位，换句时高度不变。
+                副本走属性 + 伪元素，不进正文文本（爬虫、读屏读不到重复的字；visibility:hidden 也不进无障碍树）；
+                pr-[3px] 对应打字机光标的宽度。
+                【手机端轻量模式（2026-10-01，main 的做法优先）】触屏设备上不用占位：外层 lite:block、::before lite:hidden，
+                轮换的卖点照 main 单独占一行（lite:block + 不换行），句子长短变化同样不会让副标题跳行。
+                最长一句约 14 个字宽，320 宽的屏也放得下。
+                【开票短语必须带 6%】设计 §9.2-3「写到开票必带 6%」；和全站口径「开票另付 6%」一致（6% 即 lib/invoice.ts 的 TAX_RATE，
+                那个文件引了 node:crypto，客户端组件不能 import，这里写字面量）。
+              */}
+              <span
+                className="grid before:col-start-1 before:row-start-1 before:invisible before:pr-[3px] before:content-[attr(data-reserve)] lite:block lite:before:hidden"
+                data-reserve={`${HERO_LEAD}${HERO_TYPEWRITER_LONGEST}`}
+              >
+                <span className="col-start-1 row-start-1">
+                  {HERO_LEAD}
+                  <span className="gradient-text-accent lite:block lite:w-fit lite:mx-auto lite:whitespace-nowrap">
+                    <Typewriter texts={HERO_TYPEWRITER} typeSpeed={150} deleteSpeed={80} pauseTime={2500} />
+                  </span>
+                </span>
               </span>
-              {/* 上面那行在手机端已是块级、自带换行，这个 <br> 再留着会多出一个空行 */}
-              <br className="lite:hidden" />
               {/* H1 只说宽词，业务的完整面靠这一行列全——漏一项就等于对外少一门生意。
-                  加商品时记得回来补（当前：ChatGPT 三档、Claude 两档、接码、KYC、谷歌账号）。 */}
-              <span className="text-white/40">
+                  加商品时记得回来补（当前：ChatGPT 三档、Claude 两档、接码、KYC、谷歌账号）。
+                  上一行已是块级（grid），这里用 block 另起一行，不再需要 <br>（块后面跟 <br> 会多出一个空行） */}
+              <span className="block text-white/40">
                 ChatGPT Plus / Pro · Claude Pro / Max 5x · 注册接码 · KYC 认证 · 谷歌账号
               </span>
               </>}

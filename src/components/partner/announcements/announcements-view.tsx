@@ -4,8 +4,8 @@
  * 渠道后台「店铺公告」（docs/多渠道分销-渠道品牌与公告.md 第 5 节）：发布只在本店前台弹窗展示的公告。仅 OWNER（settings.write）；
  * 暂停营业时只读。读写 /api/partner/announcements（列表 / 新建）与 /api/partner/announcements/[id]（修改 / 删除）。
  *
- * 前台规则（与主站公告相同）：同一时刻只弹一条——「强提醒」优先，其次最新发布的；普通公告买家看过就不再弹，内容修改后会重新弹；
- * 强提醒每次进入都弹。被平台下架的公告不展示、不能启用。
+ * 前台规则（与主站公告相同）：同一时刻只展示一条——「强提醒」优先，其次最新发布的；普通公告买家看过就不再提示，内容修改后会重新提示；
+ * 强提醒每次进入都提示。SEO 重构 B 包起前台不再全屏弹窗，改为页面底部可关闭提示条（components/announcement-modal.tsx）。被平台下架的公告不展示、不能启用。
  */
 import { useCallback, useEffect, useState } from 'react'
 import { gotoLogin, partnerApi } from '../common/api'
@@ -128,7 +128,7 @@ export function AnnouncementsView({ readOnly }: { readOnly?: boolean }) {
     <div className="space-y-4">
       <PageTitle
         title="店铺公告"
-        desc="发布后在本店前台弹窗展示，只有你的店铺能看到。同一时刻只弹一条：强提醒优先，其次最新发布的。"
+        desc="发布后在本店前台页面底部以提示条展示（只显示标题，点「查看详情」看全文），只有你的店铺能看到。同一时刻只展示一条：强提醒优先，其次最新发布的。"
         extra={
           writable ? (
             <Button variant="primary" onClick={() => setDraft({ ...EMPTY })}>
@@ -243,7 +243,7 @@ export function AnnouncementsView({ readOnly }: { readOnly?: boolean }) {
               </label>
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={draft.pinned} onChange={(e) => setDraft({ ...draft, pinned: e.target.checked })} />
-                强提醒（买家每次进入都弹，不能「不再提示」）
+                强提醒（买家每次进入都出现底部提示条，不能「不再提示」）
               </label>
             </div>
           </div>

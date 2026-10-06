@@ -1,16 +1,22 @@
 /**
- * SEO 重构 · B 包检查：下线假成交弹窗、公告改底部提示条、首帧可见、站标 WebP、framer-motion 移出全站外壳
+ * SEO 重构 · B 包检查：公告改底部提示条、首帧可见、站标 WebP、framer-motion 移出全站外壳（成交弹窗除外）
  * （docs/SEO-重构/SEO-重构设计.md §6.6 第 1–5 项、§8.2 B 包验收）。
+ *
+ * 【成交弹窗保留（站长 2026-09-30 决定，2026-10-06 rebase 时改写本脚本）】§6.6-1「下线假成交弹窗」不做：
+ * live-order-notification.tsx 与 /api/orders/recent 与 origin/main 逐字相同（含 city、示例订单）。
+ * 原来断言「grep 不到 FAKE_CITIES / 恒返回 null / 接口无 city」的几条改成「弹窗仍在、服务端首帧为空」；
+ * 弹窗仍引用 framer-motion，所以外壳闭包里 framer-motion 只允许经它进入（其余外壳组件仍必须不引用），
+ * --base 模式「落地页加载的 JS 里没有 framer-motion」降为告警。
  *
  *   npx tsx scripts/check-seo-b.ts                              # 只跑进程内检查（不连库、不起服务）
  *   npx tsx scripts/check-seo-b.ts --base http://localhost:3200 # 再抓一遍服务端 HTML 与页面加载的 JS（next dev / next start 都行）
  *   npx tsx scripts/check-seo-b.ts --base https://bigolab.com   # 上线后对线上只读抓取（只 GET，不登录）
  *
  * 进程内（不连库）：
- *  1. 源码里 grep 不到 FAKE_CITIES / FALLBACK_ORDERS / getRelativeTime；/api/orders/recent 的源码不再下发 city
- *  2. LiveOrderNotification 恒返回 null（主站、渠道站都渲染为空，也就不发请求）
- *  3. 从 (shop)/layout.tsx 与根 layout.tsx 出发沿 import 走一遍：全站外壳（页头、页脚、客服浮窗与弹窗、公告、成交弹窗…）
- *     的依赖闭包里没有 framer-motion。这是「共享包里不再有 framer-motion」的源码级判据；--base 模式再看实际加载的 JS
+ *  1. 成交弹窗保留：组件本体与 /api/orders/recent 仍在；接口仍不 select createdAt
+ *  2. LiveOrderNotification 服务端首帧为空（弹窗水合后才出现，不进首帧、不是 LCP）；渠道站不渲染
+ *  3. 从 (shop)/layout.tsx 与根 layout.tsx 出发沿 import 走一遍：全站外壳（页头、页脚、客服浮窗与弹窗、公告…）
+ *     的依赖闭包里，framer-motion 只经成交弹窗进入。--base 模式再看实际加载的 JS（成交弹窗保留后只告警）
  *  4. 页头、页脚、首页、客服浮窗 / 弹窗的服务端渲染：没有 opacity:0 / translateY(-100…) 的首帧隐藏（aria-hidden 的装饰元素除外）；
  *     站标是 WebP 且 loading="lazy"（React 不再 preload）；页头 Logo 链接与移动端菜单按钮有可读名称
  *  5. 公告：首访不弹全屏（弹层只能由「查看详情」打开）、沿用 announce_seen_<id>、/jiema/* 让位；渠道站渲染为空
@@ -18,10 +24,10 @@
  *
  * --base 模式（抓首包 HTML，不执行 JS）：
  *  · 每页 <head> 里没有站标的 image preload；页头页脚站标是 WebP；没有 translateY(-100…)
- *  · 首页服务端 HTML 没有带内容的 opacity:0（其他页只告警：/support 等页面的入场动效不属于 B 包）
+ *  · 首页服务端 HTML 没有带内容的 opacity:0（FIRST_FRAME_STRICT）；/support、/iptools、/links 还没改，只告警并写明归属的包（FIRST_FRAME_PENDING）
  *  · 大事记详情页的微信缩略图：object-cover + fetchpriority=low，且不被 preload
- *  · /api/orders/recent 的每一项都没有 city、createdAt
- *  · 落地页、大事记页加载的 JS 里没有 framer-motion；首页（home-client 自己用它）必须能查到——阳性对照，查不到说明判据失效
+ *  · /api/orders/recent 的每一项都没有 createdAt（city 随成交弹窗保留）
+ *  · 落地页、大事记页加载的 JS 里有没有 framer-motion（成交弹窗保留后预期仍有，只告警）；首页必须能查到——阳性对照
  *
  * 退出码：有任何失败 → 1。
  */
@@ -103,15 +109,17 @@ function walkFiles(dir: string, out: string[] = []): string[] {
   return out
 }
 {
-  console.log('\n【1. 假成交数据（§6.6-1）】')
+  console.log('\n【1. 成交弹窗保留（站长 2026-09-30 决定，§6.6-1 不做）】')
+  // 只核对「还在」，不核对逐字内容：与 origin/main 逐字相同由部署说明里的 git diff 保证
   const hits: string[] = []
   for (const f of walkFiles(path.join(ROOT, 'src'))) {
     const s = fs.readFileSync(f, 'utf8')
-    for (const w of ['FAKE_CITIES', 'FALLBACK_ORDERS', 'getRelativeTime', 'LiveOrderNotificationInner']) if (s.includes(w)) hits.push(`${path.relative(ROOT, f)}: ${w}`)
+    if (s.includes('LiveOrderNotificationInner')) hits.push(path.relative(ROOT, f).replace(/\\/g, '/'))
   }
-  ok(hits.length === 0, 'src/ 里 grep 不到 FAKE_CITIES / FALLBACK_ORDERS / getRelativeTime', hits.join('; '))
+  ok(hits.includes('src/components/live-order-notification.tsx'), '成交弹窗组件本体 LiveOrderNotificationInner 仍在', hits.join('; '))
+  ok(read('src/components/live-order-notification.tsx').includes("fetch('/api/orders/recent')"), '成交弹窗仍从 /api/orders/recent 取数')
   const route = read('src/app/api/orders/recent/route.ts').replace(/\/\/.*$/gm, '')
-  ok(!/\bcity\b/.test(route), '/api/orders/recent 源码（去掉注释后）不再出现 city 字段')
+  ok(/\bcity\b/.test(route), '/api/orders/recent 仍下发 city（弹窗显示城市，未改动）')
   ok(!/createdAt\s*:/.test(route.split('select:')[1] || ''), '/api/orders/recent 仍不 select createdAt（itest-security 的断言）')
 }
 
@@ -172,7 +180,13 @@ function chainOf(files: Map<string, string | null>, f: string): string {
   const missing = shell.filter((s) => !files.has(path.join(ROOT, s)))
   ok(missing.length === 0, `依赖闭包覆盖了外壳的 ${shell.length} 个组件（共 ${files.size} 个文件）`, `没走到：${missing.join(', ')}`)
   const fm = [...(bare.get('framer-motion') || []), ...(bare.get('motion') || [])]
-  ok(fm.length === 0, '外壳（(shop)/layout 与根 layout）的依赖闭包里没有 framer-motion', fm.map((f) => chainOf(files, f)).join(' ｜ '))
+  // 成交弹窗保留（站长 2026-09-30 决定）：它仍引用 framer-motion，是外壳里唯一允许的来源
+  const FM_ALLOWED = new Set(['src/components/live-order-notification.tsx'])
+  const fmOther = fm.filter((f) => !FM_ALLOWED.has(path.relative(ROOT, f).replace(/\\/g, '/')))
+  ok(fmOther.length === 0, '外壳（(shop)/layout 与根 layout）的依赖闭包里，framer-motion 只经成交弹窗进入', fmOther.map((f) => chainOf(files, f)).join(' ｜ '))
+  if (fm.length > fmOther.length) note('成交弹窗（保留）仍引用 framer-motion：全站共享 JS 里仍会有它，§6.6-5 的包体收益要等弹窗改 CSS 动效后才拿得到')
+  for (const f of ['src/components/layout/header.tsx', 'src/components/layout/footer.tsx', 'src/components/floating-contact.tsx', 'src/components/contact-modal.tsx', 'src/components/announcement-modal.tsx'])
+    ok(!read(f).includes("from 'framer-motion'"), `${f} 不再引用 framer-motion`)
   // 阳性对照：同一个遍历器从首页组件出发必须能找到 framer-motion（home-client 自己在用），否则说明 import 解析失效
   const home = importClosure(['src/app/(shop)/home-client.tsx'])
   ok((home.bare.get('framer-motion') || []).length > 0, '阳性对照：从 home-client.tsx 出发能找到 framer-motion（遍历器有效）')
@@ -217,6 +231,7 @@ async function ssrChecks() {
   const { StorefrontProvider } = await import('../src/components/storefront-provider')
   const { storefrontFeatures } = await import('../src/lib/storefront/public')
   const { PLATFORM_CONTACT } = await import('../src/lib/contact-base')
+  const { PLATFORM_BRAND } = await import('../src/lib/brand-base')
   const { PathnameContext } = await import('next/dist/shared/lib/hooks-client-context.shared-runtime')
   const { AppRouterContext } = await import('next/dist/shared/lib/app-router-context.shared-runtime')
   const { Header } = await import('../src/components/layout/header')
@@ -227,31 +242,40 @@ async function ssrChecks() {
   const { AnnouncementModal, hideAnnouncementBarOn, ANNOUNCE_BAR_VAR } = await import('../src/components/announcement-modal')
   const HomeClient = (await import('../src/app/(shop)/home-client')).default
   const h = React.createElement
-  const platform = { code: 'main', kind: 'PLATFORM' as const, origin: 'https://bigolab.com', features: storefrontFeatures({ kind: 'PLATFORM' }), contact: { ...PLATFORM_CONTACT } }
-  const channel = { code: 'itl', kind: 'CHANNEL' as const, origin: 'https://itl.bigolab.com', features: storefrontFeatures({ kind: 'CHANNEL' }), contact: { ...PLATFORM_CONTACT } }
+  const platform = { code: 'main', kind: 'PLATFORM' as const, origin: 'https://bigolab.com', features: storefrontFeatures({ kind: 'PLATFORM' }), contact: { ...PLATFORM_CONTACT }, brand: { ...PLATFORM_BRAND } }
+  const channel = { code: 'itl', kind: 'CHANNEL' as const, origin: 'https://itl.bigolab.com', features: storefrontFeatures({ kind: 'CHANNEL' }), contact: { ...PLATFORM_CONTACT }, brand: { ...PLATFORM_BRAND } }
   const router = { push() {}, replace() {}, prefetch() {}, back() {}, forward() {}, refresh() {} }
   const render = (sf: typeof platform | typeof channel, el: React.ReactElement, pathname = '/') =>
     renderToString(h(StorefrontProvider, { value: sf, children: h(AppRouterContext.Provider, { value: router as never }, h(PathnameContext.Provider, { value: pathname }, el)) }))
 
-  console.log('\n【2. 左下角成交弹窗恒为空（§6.6-1）】')
-  ok(LiveOrderNotification() === null, 'LiveOrderNotification() 直接返回 null')
-  ok(render(platform, h(LiveOrderNotification)) === '' && render(channel, h(LiveOrderNotification)) === '', '主站、渠道站都渲染为空（不发 /api/orders/recent 请求）')
-  ok(!read('src/components/live-order-notification.tsx').includes("from 'framer-motion'"), '组件不再引用 framer-motion')
+  console.log('\n【2. 左下角成交弹窗：服务端首帧为空（保留，§6.6-1 不做）】')
+  ok(render(platform, h(LiveOrderNotification)) === '', '主站：服务端渲染为空（弹窗水合后几秒才出现，不进首帧、不会成为 LCP）')
+  ok(render(channel, h(LiveOrderNotification)) === '', '渠道站：不渲染（features.liveOrders 关，行为与 main 相同）')
 
   console.log('\n【4. 首帧可见、站标、可读名称（§6.6-3、§6.6-4、§1.9）】')
   const header = render(platform, h(Header))
   ok(!offscreenHeader(header) && hiddenFirstFrame(header).length === 0, '页头服务端 HTML：没有 translateY(-100…)、没有 opacity:0', hiddenFirstFrame(header).join(' '))
   ok(/<header\b(?![^>]*\sstyle=)/.test(header), '<header> 本身不带内联 style（首帧就在原位）')
-  ok(/<a [^>]*aria-label="贝果科技首页"[^>]*href="\/"|<a [^>]*href="\/"[^>]*aria-label="贝果科技首页"/.test(header), '页头 Logo 链接 aria-label="贝果科技首页"')
+  ok(/<a [^>]*aria-label="贝果科技首页"[^>]*href="\/"|<a [^>]*href="\/"[^>]*aria-label="贝果科技首页"/.test(header), '页头 Logo 链接 aria-label="贝果科技首页"（主站；渠道改名后按站名出）')
   ok(/<button [^>]*aria-label="打开菜单"/.test(header), '移动端菜单按钮有可读名称')
   ok(/<img [^>]*src="\/logo-mark\.webp[^"]*"[^>]*loading="lazy"/.test(header) && !header.includes('logo-mark.png'), '页头站标：logo-mark.webp + loading="lazy"（不再 preload 256px PNG）')
   ok(!header.includes('navbar-indicator'), '导航高亮不再用 framer 的 layoutId')
   const footer = render(platform, h(Footer))
   ok(/<img [^>]*src="\/logo-full\.webp[^"]*"[^>]*width="261"[^>]*height="256"[^>]*loading="lazy"/.test(footer) && !footer.includes('logo-full.png'), '页脚站标：logo-full.webp（261x256）+ loading="lazy"（head 里不再 preload 640px PNG）')
-  const home = render(platform, h(HomeClient, { stats: { totalSales: 12, skuCount: 3 } }))
+  const home = render(platform, h(HomeClient, { stats: { totalSales: 12, skuCount: 3 }, featured: [] }))
   const homeHidden = hiddenFirstFrame(home)
   ok(homeHidden.length === 0, '首页服务端 HTML：没有带内容的 opacity:0（hero 徽标、H1、副标题、按钮、查询框、卖点）', homeHidden.slice(0, 3).join(' '))
   ok(/<h1 [^>]*style="opacity:1;transform:none"|<h1 (?![^>]*style=)/.test(home), '首页 H1 首帧就是最终状态')
+  // B 包评审修复：hero 垂直居中，打字机换句时副标题在手机上 1↔2 行变化，会把 H1 等整块上下推约 13px（真实用户 CLS）。
+  // 现在那一行按「前缀 + 最长短语」占位（::before + data-reserve），这里核对占位用的确实是最长那句
+  const heroSrc = read('src/app/(shop)/home-client.tsx')
+  const heroArr = heroSrc.match(/const HERO_TYPEWRITER = \[([^\]]*)\]/)
+  const heroLead = (heroSrc.match(/const HERO_LEAD = '([^']*)'/) || [])[1] || ''
+  const phrases = heroArr ? Array.from(heroArr[1].matchAll(/'([^']*)'/g)).map((m) => m[1]) : []
+  const longest = phrases.reduce((a, b) => (b.length > a.length ? b : a), '')
+  ok(phrases.length >= 2 && !!heroLead && home.includes(`data-reserve="${heroLead}${longest}"`), `首页 hero 打字机一行按最长短语「${longest}」占位（换句时 H1 不再上下跳）`)
+  ok(/<span class="grid [^"]*before:content-\[attr\(data-reserve\)\]/.test(home) && !/data-reserve="[^"]*"[^>]*>(?:(?!<\/p>)[\s\S])*?<br\/?>/.test(home.split('<h1')[1] || ''), '占位副本走 ::before + 属性（不进正文文本），下一行不再靠 <br> 换行')
+  ok(phrases.length > 0 && phrases.filter((t) => /开票|发票/.test(t)).every((t) => /6\s*%/.test(t)), '打字机里写到开票的短语带 6%（设计 §9.2-3）', phrases.join(' / '))
   const floating = render(platform, h(FloatingContact))
   ok(hiddenFirstFrame(floating).length === 0 && !/transform:scale\(0\)/.test(floating), '右下角客服：服务端 HTML 没有 opacity:0 / scale(0)')
   ok(floating.includes(`var(${ANNOUNCE_BAR_VAR}, 0px)`), `右下角客服的底边距跟随 ${ANNOUNCE_BAR_VAR}（公告提示条出现时上抬）`)
@@ -262,7 +286,7 @@ async function ssrChecks() {
 
   console.log('\n【5. 公告：底部提示条（§6.6-2）】')
   ok(render(platform, h(AnnouncementModal)) === '', '主站：服务端不渲染任何公告（客户端拉到数据后才出现提示条，不会成为首帧 LCP）')
-  ok(render(channel, h(AnnouncementModal)) === '', '渠道站：渲染为空（不发 /api/announcement 请求）')
+  ok(render(channel, h(AnnouncementModal)) === '', '渠道站：服务端同样渲染为空（10-05 起渠道站也挂，客户端只拉本渠道公告）')
   ok(hideAnnouncementBarOn('/jiema') && hideAnnouncementBarOn('/jiema/order/X') && hideAnnouncementBarOn('/jiema/records'), '/jiema/* 让位给下单确认条')
   ok(!hideAnnouncementBarOn('/') && !hideAnnouncementBarOn('/jiemax') && !hideAnnouncementBarOn('/wallet') && !hideAnnouncementBarOn('/chongzhi/chatgpt-plus') && !hideAnnouncementBarOn(null), '其他页面照常显示（含 /wallet、/jiemax 这类前缀相近的路径）')
   const src = read('src/components/announcement-modal.tsx')
@@ -310,9 +334,19 @@ async function framerIn(html: string): Promise<{ hits: string[]; total: number }
   }
   return { hits, total: srcs.size }
 }
+/**
+ * 首帧可见（服务端 HTML 里没有带内容的 opacity:0）：
+ *  · FIRST_FRAME_STRICT：已经改好的页，有就算失败；
+ *  · FIRST_FRAME_PENDING：还没改、已排进施工包的页，只告警并写明归属（B 包评审遗留：这三页 index,follow，
+ *    /support 的 H1 本身就包在 opacity:0 里，违反设计 §3.1「H1 服务端直出、首帧可见」）。
+ *    负责的包改完后把页面从 PENDING 挪进 STRICT（设计 §8.2 C 包「首帧可见补齐」）。
+ */
+const FIRST_FRAME_STRICT = ['/']
+const FIRST_FRAME_PENDING: Record<string, string> = { '/support': 'C', '/iptools': 'C', '/links': 'C' }
+
 async function htmlChecks() {
   console.log(`\n【--base ${BASE}：服务端 HTML】`)
-  const pages = ['/', '/chongzhi', '/chongzhi/chatgpt-plus', '/products', '/news', '/support', '/about']
+  const pages = ['/', '/chongzhi', '/chongzhi/chatgpt-plus', '/products', '/news', '/support', '/iptools', '/links', '/about']
   const newsList = await get(`${BASE}/news`)
   const slug = (newsList.text.match(/href="(\/news\/\d{4}-\d{2}-\d{2}-[0-9a-z]+)"/) || [])[1]
   if (slug) pages.push(slug)
@@ -328,8 +362,9 @@ async function htmlChecks() {
     ok(/<img [^>]*src="\/logo-mark\.webp/.test(html) && /<img [^>]*src="\/logo-full\.webp/.test(html) && !/src="\/logo-(mark|full)\.png/.test(html), `${p}：页头页脚站标是 WebP`)
     ok(!offscreenHeader(html), `${p}：没有 translateY(-100…)（页头首帧在原位）`)
     const hidden = hiddenFirstFrame(html)
-    if (p === '/') ok(hidden.length === 0, '/：服务端 HTML 没有带内容的 opacity:0', hidden.slice(0, 3).join(' '))
-    else if (hidden.length) note(`${p}：还有 ${hidden.length} 处 opacity:0 的入场动效（不在 B 包范围，记录备查）`, hidden[0])
+    if (FIRST_FRAME_STRICT.includes(p)) ok(hidden.length === 0, `${p}：服务端 HTML 没有带内容的 opacity:0`, hidden.slice(0, 3).join(' '))
+    else if (hidden.length && FIRST_FRAME_PENDING[p]) note(`${p}：还有 ${hidden.length} 处 opacity:0 的入场动效（待 ${FIRST_FRAME_PENDING[p]} 包改，改完挪进 FIRST_FRAME_STRICT）`, hidden[0])
+    else if (hidden.length) note(`${p}：还有 ${hidden.length} 处 opacity:0 的入场动效（未排进任何包，请记进设计 §6.6-3）`, hidden[0])
     if (p.startsWith('/news/')) {
       ok(/<img [^>]*class="news-wx-thumb object-cover"/.test(html) && /<img [^>]*fetch[pP]riority="low"[^>]*class="news-wx-thumb/.test(html), `${p}：微信缩略图 object-cover + fetchpriority=low`)
     }
@@ -344,7 +379,7 @@ async function htmlChecks() {
     /* 下面判失败 */
   }
   ok(rc.status === 200 && Array.isArray(list), '/api/orders/recent 返回 200 + 数组', `${rc.status} ${rc.text.slice(0, 120)}`)
-  ok(list.every((x) => !('city' in x) && !('createdAt' in x)), `每一项都没有 city、createdAt（共 ${list.length} 项）`, JSON.stringify(list[0]))
+  ok(list.every((x) => !('createdAt' in x)), `每一项都没有 createdAt（共 ${list.length} 项；city 随成交弹窗保留）`, JSON.stringify(list[0]))
   if (list.length === 0) note('本地库没有已付款的普通订单，/api/orders/recent 为空数组：字段检查是空集，以源码检查为准')
 
   console.log(`\n【--base ${BASE}：页面加载的 JS 里有没有 framer-motion】`)
@@ -352,7 +387,9 @@ async function htmlChecks() {
   ok(pos.hits.length > 0, `阳性对照：首页（home-client 自己用 framer-motion）能查到（${pos.hits.join(', ') || '无'}）`, '查不到说明判据失效，下面的「没有」不可信')
   for (const p of ['/chongzhi/chatgpt-plus', '/news', ...(slug ? [slug] : [])]) {
     const r = await framerIn(htmlOf.get(p) || '')
-    ok(r.total > 0 && r.hits.length === 0, `${p}：加载的 ${r.total} 个 JS 里没有 framer-motion（外壳已不再引用它）`, r.hits.join(', '))
+    ok(r.total > 0, `${p}：抓到页面加载的 JS（${r.total} 个）`)
+    // 成交弹窗保留后它把 framer-motion 带进外壳：这里只告警，不判失败
+    if (r.hits.length) note(`${p}：加载的 JS 里仍有 framer-motion（经保留的成交弹窗进入，预期如此）`, r.hits.join(', '))
   }
 }
 
