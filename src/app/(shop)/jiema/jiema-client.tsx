@@ -7,6 +7,7 @@ import { stockApprox, fmtYuan } from '@/lib/jiema/pricing'
 import type { CatalogCountry, CatalogOperator, CatalogService } from '@/lib/jiema/dto'
 import { cn } from '@/lib/utils'
 import { CheckoutPanel } from './checkout-panel'
+import { jiemaCodeForSlug } from '@/lib/jiema/seo-whitelist'
 
 /**
  * /jiema 的交互部分（docs/短信接码-设计.md §1.4–§1.8、§1.13、§1.14）。
@@ -80,10 +81,16 @@ function isDesktop(): boolean {
   }
 }
 
-/** URL → 选择状态 */
+/**
+ * URL → 选择状态。
+ * 【?svc=<本站 slug>（SEO 批 2 的 AJ，设计 §1.2 第 3 条）】站内公开链接（首页、/jiema 热门服务、充值页的桥接链接）改用本站 slug，
+ * 这里按 lib/jiema/seo-whitelist 映射回上游代码；不在白名单里的 slug 当作没有预选。地址栏里本组件自己写回的仍是 ?s=&c=&op=
+ * （replaceState / pushState，不进服务端 HTML），所以旧分享链接（?s=）、登录回跳、手机 popstate 三条路径都照旧。两个都有时 ?s= 优先。
+ */
 function parseUrl(search: string): { s: string | null; c: number | null; op: string | null; confirm: boolean } {
   const q = new URLSearchParams(search)
-  const s = q.get('s')
+  const sRaw = q.get('s')
+  const s = sRaw && CODE_RE.test(sRaw) ? sRaw : jiemaCodeForSlug(q.get('svc'))
   const cRaw = q.get('c')
   const op = q.get('op')
   return {
