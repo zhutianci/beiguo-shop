@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (rateLimited(`report-h:${user!.id}`, { windowMs: 3_600_000, max: 10 }) || rateLimited(`report-d:${user!.id}`, { windowMs: 86_400_000, max: 30 })) {
       return error('举报太频繁了，请稍后再试', 429)
     }
-    const parsed = schema.safeParse(await request.json().catch(() => null))
+    const parsed = schema.safeParse(await request.json())
     if (!parsed.success) return error(parsed.error.errors[0].message)
     const d = parsed.data
     const targetKey = d.postId ? `p:${d.postId}` : `c:${d.commentId}`
