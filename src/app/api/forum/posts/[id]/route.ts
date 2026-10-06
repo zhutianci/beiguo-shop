@@ -13,7 +13,7 @@ import { FLAG_LABELS, asContentType, canView, contentPath, isForumImageUrl, isPu
 import { declarationShape } from '@/lib/content/schema'
 import { checkTyped, typedShape } from '@/lib/content/write'
 import { notifyContentChanged } from '@/lib/content/indexnow'
-import { dedupText, findNearDuplicate } from '@/lib/content/events'
+import { IMAGE_REUSE_NOTE, dedupText, findImageReuse, findNearDuplicate } from '@/lib/content/events'
 import { simhash } from '@/lib/content/simhash'
 import { notify } from '@/lib/notify'
 
@@ -271,6 +271,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       if (dup && dup.id !== post.remixOfId) {
         next = 'PENDING'
         data.reviewNote = `疑似与 #${dup.id}「${dup.title.slice(0, 40)}」重复（相似度距离 ${dup.distance}），请人工确认`
+      }
+      // 图片查重（P3）：换了图、且新图与别的账号上传过的图字节相同 → 转人工
+      const reuse = level === 9 || d.images === undefined ? null : await findImageReuse(d.images, post.userId)
+      if (reuse) {
+        next = 'PENDING'
+        data.reviewNote = [data.reviewNote, IMAGE_REUSE_NOTE].filter(Boolean).join('；')
       }
       if (next !== post.reviewStatus) {
         data.reviewStatus = next

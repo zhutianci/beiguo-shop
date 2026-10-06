@@ -17,7 +17,12 @@ export async function GET(request: NextRequest) {
       take: 200,
       select: { id: true, type: true, slug: true, title: true, reviewStatus: true, reviewNote: true, status: true, featured: true, likeCount: true, favoriteCount: true, copyCount: true, commentCount: true, createdAt: true },
     })
-    return success({ list: rows.map((r) => ({ ...r, path: contentPath(r.type, r.id, r.slug) })) })
+    // 「带来访问」（P3）：读者从这篇的开通入口点到落地页的人次（按访客每天去重）
+    const cta = rows.length
+      ? await prisma.contentEvent.groupBy({ by: ['postId'], where: { kind: 'CTA', postId: { in: rows.map((r) => r.id) } }, _count: { _all: true } })
+      : []
+    const cm = new Map(cta.map((c) => [c.postId, c._count._all]))
+    return success({ list: rows.map((r) => ({ ...r, path: contentPath(r.type, r.id, r.slug), ctaVisits: cm.get(r.id) ?? 0 })) })
   } catch (err) {
     console.error('Me posts error:', err)
     return error('获取失败')

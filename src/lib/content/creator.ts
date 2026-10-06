@@ -42,3 +42,14 @@ export async function authorHref(userId: number | null): Promise<string | null> 
     return null
   }
 }
+
+/** 认证头衔（P3 创作者认证）：没认证返回 null */
+export async function creatorBadge(userId: number | null): Promise<string | null> {
+  if (!userId) return null
+  try {
+    const p = await prisma.creatorProfile.findUnique({ where: { userId }, select: { certifiedAt: true, certTitle: true } })
+    return p?.certifiedAt ? p.certTitle || '认证创作者' : null
+  } catch {
+    return null
+  }
+}

@@ -12,6 +12,7 @@ import { CONTENT_TYPE_LABELS, ORIGINALITY_LABELS, type ContentType, type Origina
 import { ContentTagsCard } from '@/components/admin/content-tags-card'
 import { ContentReportsCard } from '@/components/admin/content-reports-card'
 import { ContentDigestButton } from '@/components/admin/content-digest-button'
+import { CreatorApplicationsCard, MonthlyAwardsCard, PointsShopCard, SponsorsCard } from '@/components/admin/content-growth-cards'
 
 interface Category {
   id: number
@@ -306,6 +307,12 @@ export default function AdminForumPage() {
       <ContentReportsCard />
 
       <ContentTagsCard />
+
+      {/* 内容平台 P3：增长与变现 */}
+      <CreatorApplicationsCard />
+      <MonthlyAwardsCard />
+      <PointsShopCard />
+      <SponsorsCard />
 
       {/* 待审评论 */}
       <Card>

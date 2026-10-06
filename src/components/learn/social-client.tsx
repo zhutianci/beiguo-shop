@@ -53,6 +53,42 @@ export function FollowButton({ handle, compact = false }: { handle: string; comp
   )
 }
 
+// ─────────────────────────────── 关注合集（P3） ───────────────────────────────
+
+export function CollectionFollowButton({ id }: { id: number }) {
+  const router = useRouter()
+  const [st, setSt] = useState<{ following: boolean; followers: number; isSelf: boolean } | null>(null)
+  useEffect(() => {
+    fetch(`/api/content/collection-follow?id=${id}`)
+      .then((r) => r.json())
+      .then((d) => d.success && setSt(d.data))
+      .catch(() => {})
+  }, [id])
+  if (!st || st.isSelf) return null
+  const toggle = async () => {
+    const prev = st
+    setSt({ ...st, following: !st.following, followers: st.followers + (st.following ? -1 : 1) })
+    const { status, data } = await post('/api/content/collection-follow', { collectionId: id })
+    if (status === 401) return goLogin(router)
+    if (data.success) setSt((s) => (s ? { ...s, ...data.data } : s))
+    else setSt(prev)
+  }
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      title="合集有新内容时通知我"
+      className={`inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-sm transition-all duration-300 ${
+        st.following ? 'border-white/15 text-white/60 hover:text-white' : 'border-white bg-white font-medium text-black'
+      }`}
+    >
+      {st.following ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+      {st.following ? '已关注合集' : '关注合集'}
+      <span className="tabular-nums opacity-60">{st.followers}</span>
+    </button>
+  )
+}
+
 // ─────────────────────────────── 弹层外壳 ───────────────────────────────
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {

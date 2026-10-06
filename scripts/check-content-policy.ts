@@ -32,7 +32,10 @@ import {
 import { parseTestedOn } from '../src/lib/content/write'
 import { simhash, hamming, NEAR_DUP_DISTANCE } from '../src/lib/content/simhash'
 import { levelOf } from '../src/lib/content/points'
-import { renderMarkdown, safeUrl } from '../src/lib/markdown'
+import { renderMarkdown, safeUrl, stripSiteRef } from '../src/lib/markdown'
+import { ctaHref, parseFrom } from '../src/lib/content/cta'
+import { monthKey, monthRange, awardRequestId } from '../src/lib/content/award'
+import { monthStart, optionsSchema, DEFAULT_OPTIONS } from '../src/lib/content/shop'
 import { stripImageMetadata, readExifOrientation, minimalExifApp1 } from '../src/lib/image-meta'
 
 let pass = 0
@@ -304,6 +307,26 @@ ok('太短的文本不算 SimHash', simhash('你好') === null)
 ok('0 积分 = Lv1 新人', levelOf(0).lv === 1 && levelOf(0).name === '新人')
 ok('300 积分 = Lv3 创作者', levelOf(300).lv === 3)
 ok('1500 积分 = Lv5 大师，没有下一级', levelOf(1500).lv === 5 && levelOf(1500).next === null)
+
+console.log('P3：作者内推返现、月度奖、积分兑换')
+ok('CTA 带来源', ctaHref('/chongzhi/chatgpt-plus', 12, null) === '/chongzhi/chatgpt-plus?from=c12')
+ok('CTA 带作者内推码', ctaHref('/chongzhi/chatgpt-plus', 12, 'ab12cd34ef') === '/chongzhi/chatgpt-plus?from=c12&ref=ab12cd34ef')
+ok('落地页已有参数时用 & 拼接', ctaHref('/chongzhi/x?a=1', 3, null) === '/chongzhi/x?a=1&from=c3')
+ok('from 参数解析', parseFrom('c42') === 42 && parseFrom('42') === null && parseFrom('c4x') === null && parseFrom(null) === null)
+ok('正文里站内链接的 ref 被剥掉', stripSiteRef('/products/12?ref=abc') === '/products/12')
+ok('剥 ref 保留其他参数与锚点', stripSiteRef('/products/12?a=1&ref=abc&b=2#x') === '/products/12?a=1&b=2#x')
+ok('bigolab.com 绝对地址同样剥', stripSiteRef('https://www.bigolab.com/chongzhi/plus?ref=abc') === 'https://www.bigolab.com/chongzhi/plus')
+ok('站外链接原样保留', stripSiteRef('https://example.com/?ref=abc') === 'https://example.com/?ref=abc')
+ok('相似域名不当成本站', stripSiteRef('https://bigolab.com.evil.cn/?ref=abc') === 'https://bigolab.com.evil.cn/?ref=abc')
+ok('referrer 之类的参数不误伤', stripSiteRef('/x?referrer=1') === '/x?referrer=1')
+ok('渲染后的正文链接不带 ref', !renderMarkdown('[买](/products/1?ref=zzz)').includes('ref=zzz'))
+ok('月份按上海时间：UTC 10-31 17:00 已是 11 月', monthKey(new Date('2026-10-31T17:00:00Z')) === 202611)
+const mr = monthRange(202612)
+ok('12 月的区间跨年', mr.from.toISOString() === '2026-11-30T16:00:00.000Z' && mr.to.toISOString() === '2026-12-31T16:00:00.000Z')
+ok('发奖请求号：同月同篇相同、换篇不同、32 位 hex', awardRequestId(202610, 5) === awardRequestId(202610, 5) && awardRequestId(202610, 5) !== awardRequestId(202610, 6) && /^[0-9a-f]{32}$/.test(awardRequestId(202610, 5)))
+ok('兑换按上海时间的自然月', monthStart(new Date('2026-10-31T17:00:00Z')).toISOString() === '2026-10-31T16:00:00.000Z')
+ok('默认兑换档位合法', optionsSchema.safeParse(DEFAULT_OPTIONS).success)
+ok('兑换档位拒绝 0 积分', !optionsSchema.safeParse([{ ...DEFAULT_OPTIONS[0], cost: 0 }]).success)
 
 console.log(`\n${pass} 通过，${fail} 失败`)
 if (fail) process.exit(1)

@@ -1335,12 +1335,14 @@ model ForumPost {
   copyCount   Int       @default(0) @map("copy_count") // 提示词被复制次数（按访客每天去重，见 content_events）
 
   // ── 内容平台 P2（2026-10-06）──
-  mediaCredit       String?  @map("media_credit") @db.VarChar(400) // 示例图来源 JSON {by,url,license}；为空 = 作者自己的出图
-  remixOfId         Int?     @map("remix_of_id") // 「同款自」：二创链（设计 §7.4）
-  acceptedCommentId Int?     @map("accepted_comment_id") // 问答：作者采纳的回答
-  simhash           String?  @db.VarChar(16) // 正文 / 提示词的 64 位 SimHash（十六进制），用于查重（设计 §6.2）
-  favoriteCount     Int      @default(0) @map("favorite_count")
-  remixCount        Int      @default(0) @map("remix_count")
+  mediaCredit       String? @map("media_credit") @db.VarChar(400) // 示例图来源 JSON {by,url,license}；为空 = 作者自己的出图
+  remixOfId         Int?    @map("remix_of_id") // 「同款自」：二创链（设计 §7.4）
+  acceptedCommentId Int?    @map("accepted_comment_id") // 问答：作者采纳的回答
+  simhash           String? @db.VarChar(16) // 正文 / 提示词的 64 位 SimHash（十六进制），用于查重（设计 §6.2）
+  favoriteCount     Int     @default(0) @map("favorite_count")
+  remixCount        Int     @default(0) @map("remix_count")
+  // ── 内容平台 P3（2026-10-07）──
+  ctaRefOff         Boolean @default(false) @map("cta_ref_off") // 编辑对单篇关闭「作者内推返现」（设计 §13.1）
 
   category ForumCategory  @relation(fields: [categoryId], references: [id])
   user     User?          @relation(fields: [userId], references: [id])
@@ -1425,14 +1427,14 @@ model PromptSpec {
 // selfPromo = 作者自荐（作者与产品有利益关系）：只能 L2 以上发、每 30 天 1 条、一律人工审核、外链 rel=sponsored、
 // 默认不收录（被精选才放开，见 policy.qualityGateReason），防 Google「站点声誉滥用」与百度细雨算法
 model AppSpec {
-  postId     Int     @id @map("post_id")
-  name       String  @db.VarChar(60)
-  url        String  @db.VarChar(500)
-  pricing    String? @db.VarChar(60) // 免费 / 免费+付费 / 付费 / 开源……
-  platforms  String? @db.VarChar(100) // 网页 / iOS / 安卓 / Windows / 浏览器插件……
-  trialNote  String? @map("trial_note") @db.VarChar(200) // 怎么试用（自荐必填：必须能上手试）
-  selfPromo  Boolean @default(false) @map("self_promo")
-  relation   String? @db.VarChar(16) // 自荐时与产品的关系：AUTHOR | EMPLOYEE | OTHER
+  postId    Int     @id @map("post_id")
+  name      String  @db.VarChar(60)
+  url       String  @db.VarChar(500)
+  pricing   String? @db.VarChar(60) // 免费 / 免费+付费 / 付费 / 开源……
+  platforms String? @db.VarChar(100) // 网页 / iOS / 安卓 / Windows / 浏览器插件……
+  trialNote String? @map("trial_note") @db.VarChar(200) // 怎么试用（自荐必填：必须能上手试）
+  selfPromo Boolean @default(false) @map("self_promo")
+  relation  String? @db.VarChar(16) // 自荐时与产品的关系：AUTHOR | EMPLOYEE | OTHER
 
   post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
 
@@ -1478,12 +1480,17 @@ model PostTag {
 // 【为什么不用 /u/{userId}】自增 id 会暴露注册人数，论坛显示名特意用 HMAC 短码也是这个理由（审计 G48）。
 // handle 是随机短码，第一次需要作者链接时懒生成；不建 User 外键（与 media_assets 同理），只加不改 users 表
 model CreatorProfile {
-  userId    Int      @id @map("user_id")
-  handle    String   @unique @db.VarChar(16)
-  bio       String?  @db.VarChar(300)
-  points    Int      @default(0) // 积分（设计 §8.2）：只由 point_logs 累加，不直接改
-  coBuilder Boolean  @default(false) @map("co_builder") // L3 共建者：站长邀请（设计 §8.1）
-  createdAt DateTime @default(now()) @map("created_at")
+  userId      Int       @id @map("user_id")
+  handle      String    @unique @db.VarChar(16)
+  bio         String?   @db.VarChar(300)
+  points      Int       @default(0) // 积分（设计 §8.2）：只由 point_logs 累加，不直接改
+  coBuilder   Boolean   @default(false) @map("co_builder") // L3 共建者：站长邀请（设计 §8.1）
+  // ── 内容平台 P3（2026-10-07）──
+  // 已兑换掉的积分。可用积分 = points − spent；等级与 L2 判定只看 points（设计 §8.1「等级只升不降」，兑换不掉级）
+  spent       Int       @default(0)
+  certifiedAt DateTime? @map("certified_at") // 创作者认证通过时间（认证 = 徽章 + 视同 L2）
+  certTitle   String?   @map("cert_title") @db.VarChar(40) // 认证头衔，如「AI 绘画创作者」
+  createdAt   DateTime  @default(now()) @map("created_at")
 
   @@map("creator_profiles")
 }
@@ -1563,13 +1570,14 @@ model ContentReport {
 
 // 合集（设计 §7.5）：用户整理的一组内容（自己的或别人的），有自己的公开页 /collections/{id}
 model Collection {
-  id        Int      @id @default(autoincrement())
-  userId    Int      @map("user_id")
-  title     String   @db.VarChar(80)
-  intro     String?  @db.VarChar(500)
-  isPublic  Boolean  @default(true) @map("is_public")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  title      String    @db.VarChar(80)
+  intro      String?   @db.VarChar(500)
+  isPublic   Boolean   @default(true) @map("is_public")
+  notifiedAt DateTime? @map("notified_at") // 上次给关注者发「合集更新」通知的时间（每个合集每天最多一条）
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
   items CollectionItem[]
 
@@ -1589,6 +1597,84 @@ model CollectionItem {
   @@id([collectionId, postId])
   @@index([postId])
   @@map("collection_items")
+}
+
+// ───────────── 内容平台 P3（2026-10-07）：关注合集、积分兑换、月度精选奖、赞助位、创作者认证 ─────────────
+
+model CollectionFollow {
+  userId       Int      @map("user_id")
+  collectionId Int      @map("collection_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@id([userId, collectionId])
+  @@index([collectionId])
+  @@map("collection_follows")
+}
+
+// 积分兑换优惠券（设计 §8.3）：一次兑换 = 一个单张批次（source='POINTS'）+ 一张券，与「下单有奖」同一种做法
+model PointRedemption {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  optionKey String   @map("option_key") @db.VarChar(24)
+  cost      Int
+  couponId  Int?     @map("coupon_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@map("point_redemptions")
+}
+
+// 月度精选奖（设计 §8.3）：发充值余额（不可提现那一格），同一篇同一个月只能发一次
+model MonthlyAward {
+  id          Int      @id @default(autoincrement())
+  month       Int // YYYYMM
+  postId      Int      @map("post_id")
+  userId      Int      @map("user_id")
+  amountCents Int      @map("amount_cents")
+  note        String?  @db.VarChar(200)
+  createdBy   Int      @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([month, postId])
+  @@index([userId])
+  @@map("monthly_awards")
+}
+
+// 赞助位（设计 §9.3）：明确标「赞助」、按期展示；不影响自然排序与精选。站长线下谈好后在后台录入
+model SponsorSlot {
+  id        Int      @id @default(autoincrement())
+  title     String   @db.VarChar(60)
+  blurb     String?  @db.VarChar(160)
+  url       String   @db.VarChar(500)
+  image     String?  @db.VarChar(255)
+  placement String   @default("ALL") @db.VarChar(12) // ALL | LEARN | PROMPTS | GUIDES | APPS
+  startAt   DateTime @map("start_at")
+  endAt     DateTime @map("end_at")
+  active    Boolean  @default(true)
+  clicks    Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([active, endAt])
+  @@map("sponsor_slots")
+}
+
+// 创作者认证申请（设计 §14 P3）：作者提交领域与代表作，站长审核；通过 = 认证徽章 + 视同 L2（先发后审、可发自荐）
+model CreatorApplication {
+  id         Int       @id @default(autoincrement())
+  userId     Int       @map("user_id")
+  field      String    @db.VarChar(40)
+  works      String    @db.VarChar(1000)
+  intro      String    @db.VarChar(500)
+  status     String    @default("PENDING") @db.VarChar(12) // PENDING | APPROVED | REJECTED
+  reviewNote String?   @map("review_note") @db.VarChar(300)
+  reviewedBy Int?      @map("reviewed_by")
+  reviewedAt DateTime? @map("reviewed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@map("creator_applications")
 }
 
 // 内容互动去重（内容平台 P1）：同一访客、同一内容、同一天的「复制」只计一次。

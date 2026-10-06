@@ -6,7 +6,7 @@ import { success, error } from '@/lib/api'
 import { meOrDeny } from '@/lib/content/session'
 import { memberDisplayName } from '@/lib/forum'
 
-// 我关注的作者
+// 我关注的作者，以及关注的合集（P3）
 export async function GET(request: NextRequest) {
   const { user, denied } = await meOrDeny(request, false)
   if (denied) return denied
@@ -24,7 +24,11 @@ export async function GET(request: NextRequest) {
         return u && pf ? { name: memberDisplayName(u.nickname, u.id), handle: pf.handle, points: pf.points } : null
       })
       .filter(Boolean)
-    return success({ list })
+    const cf = await prisma.collectionFollow.findMany({ where: { userId: user!.id }, orderBy: { createdAt: 'desc' }, take: 200, select: { collectionId: true } })
+    const cols = cf.length
+      ? await prisma.collection.findMany({ where: { id: { in: cf.map((c) => c.collectionId) }, isPublic: true }, select: { id: true, title: true, updatedAt: true, _count: { select: { items: true } } } })
+      : []
+    return success({ list, collections: cols.map((c) => ({ id: c.id, title: c.title, count: c._count.items, updatedAt: c.updatedAt })) })
   } catch (err) {
     console.error('Me following error:', err)
     return error('获取失败')

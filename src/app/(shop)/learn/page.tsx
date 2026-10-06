@@ -15,8 +15,10 @@ import {
   PromptMasonry,
   SearchBox,
   SectionHead,
+  SponsorStrip,
   hubHref,
 } from '@/components/learn/ui'
+import { activeSponsors } from '@/lib/content/sponsor'
 
 /**
  * AI 学习平台首页（内容平台改版 2026-10-06）。
@@ -43,7 +45,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function LearnHome() {
-  const d = await learnHomeData()
+  const [d, sponsors] = await Promise.all([learnHomeData(), activeSponsors('LEARN')])
   const models = d.hubs.filter((h) => h.kind === 'MODEL')
   const topics = d.hubs.filter((h) => h.kind === 'TOPIC')
   const products = d.hubs.filter((h) => h.kind === 'PRODUCT')
@@ -147,6 +149,8 @@ export default async function LearnHome() {
           </Link>
         ))}
       </section>
+
+      <SponsorStrip items={sponsors} />
 
       {/* —— 本周最热（按「被复制、被同款、被收藏」排，不按浏览量）—— */}
       {d.hot.length > 0 && (

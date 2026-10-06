@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { memberDisplayName } from '@/lib/forum'
 import { cardsByIds } from '@/lib/content/queries'
 import { SITE_NAME } from '@/lib/product-seo'
+import { CollectionFollowButton } from '@/components/learn/social-client'
 import { Crumbs, Empty, GuideRows, LEARN_HOME, LearnPage, PageHead, PromptMasonry } from '@/components/learn/ui'
 
 /**
@@ -55,11 +56,14 @@ export default async function CollectionPage({ params }: Props) {
         lede={d.c.intro || undefined}
         stats={[{ label: '条内容', value: cards.length }]}
         action={
-          d.ownerHandle ? (
-            <Link href={`/u/${d.ownerHandle}`} className="inline-flex h-10 items-center rounded-full border border-white/15 px-4 text-sm text-white/75 hover:text-white">
-              整理者：{d.ownerName}
-            </Link>
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            {d.c.isPublic && <CollectionFollowButton id={d.c.id} />}
+            {d.ownerHandle && (
+              <Link href={`/u/${d.ownerHandle}`} className="inline-flex h-10 items-center rounded-full border border-white/15 px-4 text-sm text-white/75 hover:text-white">
+                整理者：{d.ownerName}
+              </Link>
+            )}
+          </div>
         }
       />
       {cards.length === 0 ? (

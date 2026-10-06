@@ -88,6 +88,9 @@ export default async function CreatorPage({ params }: Props) {
                 Lv{levelOf(c.profile.points).lv} {levelOf(c.profile.points).name}
               </span>
               {c.profile.coBuilder && <span className="inline-flex h-10 items-center rounded-full bg-amber-300/20 px-4 text-sm text-amber-200">共建者</span>}
+              {c.profile.certifiedAt && (
+                <span className="inline-flex h-10 items-center rounded-full bg-sky-400/15 px-4 text-sm text-sky-200">认证 · {c.profile.certTitle || '创作者'}</span>
+              )}
               <FollowButton handle={c.profile.handle} />
             </div>
           }
@@ -98,7 +101,7 @@ export default async function CreatorPage({ params }: Props) {
             { label: '关注者', value: c.followers },
           ]}
         />
-        <CreatorAdmin handle={c.profile.handle} coBuilder={c.profile.coBuilder} />
+        <CreatorAdmin handle={c.profile.handle} coBuilder={c.profile.coBuilder} certTitle={c.profile.certifiedAt ? c.profile.certTitle || '认证创作者' : null} />
         <div className="space-y-20">
           {c.prompts.total > 0 && (
             <section>

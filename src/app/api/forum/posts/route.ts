@@ -15,7 +15,7 @@ import { checkTyped, typedShape } from '@/lib/content/write'
 import { contentBoardId } from '@/lib/content/tags'
 import { ensureHandle } from '@/lib/content/creator'
 import { notify } from '@/lib/notify'
-import { dedupText, findNearDuplicate, onPublished } from '@/lib/content/events'
+import { IMAGE_REUSE_NOTE, dedupText, findImageReuse, findNearDuplicate, onPublished } from '@/lib/content/events'
 import { simhash } from '@/lib/content/simhash'
 
 // 列表：支持板块筛选、标签、关键词、排序、分页
@@ -177,6 +177,9 @@ export async function POST(request: NextRequest) {
     const text = dedupText({ prompt: d.prompt?.prompt, content: d.content })
     const dup = level === 9 ? null : await findNearDuplicate(type, text)
     if (dup && dup.id !== remixOfId) reviewStatus = 'PENDING'
+    // 图片查重（P3）：与别的账号上传过的图字节相同 → 转人工
+    const reuse = level === 9 ? null : await findImageReuse(d.images, actor.userId)
+    if (reuse) reviewStatus = 'PENDING'
 
     const now = new Date()
     const post = await prisma.forumPost.create({
@@ -232,7 +235,10 @@ export async function POST(request: NextRequest) {
         aiAssist: d.aiAssist ?? 'NONE',
         remixOfId,
         simhash: simhash(text),
-        reviewNote: dup && dup.id !== remixOfId ? `疑似与 #${dup.id}「${dup.title.slice(0, 40)}」重复（相似度距离 ${dup.distance}），请人工确认` : null,
+        reviewNote:
+          [dup && dup.id !== remixOfId ? `疑似与 #${dup.id}「${dup.title.slice(0, 40)}」重复（相似度距离 ${dup.distance}），请人工确认` : null, reuse ? IMAGE_REUSE_NOTE : null]
+            .filter(Boolean)
+            .join('；') || null,
       },
     })
 
@@ -248,7 +254,7 @@ export async function POST(request: NextRequest) {
           { label: '作者', value: authorName },
           {
             label: '原因',
-            value: dup && dup.id !== remixOfId ? `疑似重复 #${dup.id}` : flags.length ? flags.map((f) => FLAG_LABELS[f]).join('、') : '新人内容先审后发',
+            value: dup && dup.id !== remixOfId ? `疑似重复 #${dup.id}` : reuse ? '图片与别的账号相同' : flags.length ? flags.map((f) => FLAG_LABELS[f]).join('、') : '新人内容先审后发',
           },
         ],
         { link: '/admin/forum?review=PENDING', linkText: '去审核' },

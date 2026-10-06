@@ -1,4 +1,5 @@
 import { notFoundOnChannel } from '@/lib/storefront/resolve'
+import { RefCapture } from '@/components/content/ref-capture'
 
 /**
  * 充值落地页（页面带主站价，不能原样给渠道站，设计 11.1）：渠道站关闭（设计 11.2、实施分包 WP1）。
@@ -9,5 +10,11 @@ import { notFoundOnChannel } from '@/lib/storefront/resolve'
  */
 export default async function ChongzhiLayout({ children }: { children: React.ReactNode }) {
   await notFoundOnChannel()
-  return <>{children}</>
+  // RefCapture（内容平台 P3）：记下内容页 CTA 带来的 ref 与来源，不渲染任何东西
+  return (
+    <>
+      <RefCapture />
+      {children}
+    </>
+  )
 }

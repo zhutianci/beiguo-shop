@@ -37,7 +37,7 @@ export function ContentActions({
   favoriteCount?: number
   editHref: string
   backHref: string
-  admin: { reviewStatus: string; status: number; featured: boolean; verified: boolean; typed: boolean }
+  admin: { reviewStatus: string; status: number; featured: boolean; verified: boolean; typed: boolean; ctaRefOff?: boolean }
 }) {
   const router = useRouter()
   const [st, setSt] = useState<State>({ likedByMe: false, likeCount, favoritedByMe: false, favoriteCount, canEdit: false, isAdmin: false })
@@ -192,6 +192,16 @@ export function ContentActions({
           {admin.typed && (
             <button type="button" onClick={() => adminPatch({ verified: !admin.verified })} className={`${adminBtn} ${admin.verified ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/[0.06] text-white/70 hover:bg-white/10'}`}>
               <BadgeCheck className="h-3.5 w-3.5" /> {admin.verified ? '取消实测可用' : '实测可用'}
+            </button>
+          )}
+          {admin.ctaRefOff !== undefined && (
+            <button
+              type="button"
+              title="作者内推返现：L2 以上作者的内容，CTA 会带上作者的内推码"
+              onClick={() => adminPatch({ ctaRefOff: !admin.ctaRefOff })}
+              className={`${adminBtn} ${admin.ctaRefOff ? 'bg-red-400/15 text-red-200' : 'bg-white/[0.06] text-white/70 hover:bg-white/10'}`}
+            >
+              {admin.ctaRefOff ? '恢复作者返现' : '关闭作者返现'}
             </button>
           )}
           <button type="button" onClick={() => adminPatch({ status: admin.status === 1 ? 0 : 1 })} className={`${adminBtn} bg-white/[0.06] text-white/70 hover:bg-white/10`}>

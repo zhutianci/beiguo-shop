@@ -22,6 +22,7 @@ import { couponLabel, parseProductIds } from '@/lib/coupon'
  * 「直发到账户」的批次（一个活动一批，发信前逐人发券，total/claimed 随发券同步 +1）。
  * 默认只列公开批次，否则每中一次奖、每做一场活动列表里就多一行，真正要管的活动会被淹没。
  * ?source=LOTTERY / ?source=CAMPAIGN 单独看后两类。
+ * 'POINTS' 是内容平台「积分兑换」的单张批次（2026-10-07，lib/content/shop.ts），与抽奖券一样一批只发给一个人。
  *
  * 【source 非空 ≠ 抽奖】以前只有抽奖一种系统批次，代码里「source != null」就等于抽奖。
  * 有了 CAMPAIGN 之后，凡是抽奖专属的逻辑（中奖人、按订单号搜）都显式判断 'LOTTERY'；
@@ -31,7 +32,7 @@ import { couponLabel, parseProductIds } from '@/lib/coupon'
 const STATUSES = ['ACTIVE', 'PAUSED', 'ENDED']
 
 /** 列表的来源筛选：'' = 公开领取批次（source IS NULL） */
-const SOURCES = ['', 'LOTTERY', 'CAMPAIGN'] as const
+const SOURCES = ['', 'LOTTERY', 'CAMPAIGN', 'POINTS'] as const
 type SourceFilter = (typeof SOURCES)[number]
 
 /** 短码：只允许小写字母数字与连字符。要进 URL，也要能念得出来 */
@@ -111,11 +112,11 @@ export async function GET(request: NextRequest) {
         { code: { contains: keyword } },
         // 抽奖券的备注是「下单有奖 · 订单 <订单号>」，按订单号能直接搜到那张券；
         // 营销直发券的备注是「营销活动 #<id>」，按活动编号能搜到那一批
-        ...(source === 'LOTTERY' || source === 'CAMPAIGN' ? [{ note: { contains: keyword } }] : []),
+        ...(source === 'LOTTERY' || source === 'CAMPAIGN' || source === 'POINTS' ? [{ note: { contains: keyword } }] : []),
       ]
     }
 
-    const [rows, total, normalCount, lotteryCount, campaignCount] = await Promise.all([
+    const [rows, total, normalCount, lotteryCount, campaignCount, pointsCount] = await Promise.all([
       prisma.coupon.findMany({
         where,
         orderBy: [{ id: 'desc' }],
@@ -126,6 +127,7 @@ export async function GET(request: NextRequest) {
       prisma.coupon.count({ where: { source: null } }),
       prisma.coupon.count({ where: { source: 'LOTTERY' } }),
       prisma.coupon.count({ where: { source: 'CAMPAIGN' } }),
+      prisma.coupon.count({ where: { source: 'POINTS' } }),
     ])
 
     // 每批的核销情况。一次 groupBy 拿全，不在循环里逐个查
@@ -147,7 +149,8 @@ export async function GET(request: NextRequest) {
     // 抽奖券一批只发给一个人：列表里直接给出中奖人，后台不用再去用户表里翻。
     // 只对 LOTTERY：营销直发批次一批发给成百上千人，没有「中奖人」这回事（逐人查也会把这里拖慢）
     const winnerMap = new Map<number, { userId: number; email: string | null; nickname: string | null }>()
-    const lotteryIds = rows.filter((r) => r.source === 'LOTTERY').map((r) => r.id)
+    // 积分兑换券（POINTS）同样一批一人，一并给出兑换人
+    const lotteryIds = rows.filter((r) => r.source === 'LOTTERY' || r.source === 'POINTS').map((r) => r.id)
     if (lotteryIds.length) {
       const grants = await prisma.couponGrant.findMany({
         where: { couponId: { in: lotteryIds } },
@@ -229,7 +232,7 @@ export async function GET(request: NextRequest) {
           source: r.source,
           // 系统发给具体买家的券（抽奖、营销直发）没有领取链接（/coupon/<code> 对它们一律 404），不下发，免得被复制出去
           claimPath: r.source == null ? `/coupon/${r.code}` : null,
-          winner: r.source === 'LOTTERY' ? winnerMap.get(r.id) ?? null : null,
+          winner: r.source === 'LOTTERY' || r.source === 'POINTS' ? winnerMap.get(r.id) ?? null : null,
           // 营销直发：来自哪个活动、已被用掉几张（已发 = claimed，发券与 claimed+1 同事务）
           campaignId: r.source === 'CAMPAIGN' ? campaignByCoupon.get(r.id) ?? null : null,
           usedCount: st.USED || 0,
@@ -241,7 +244,7 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       totalPages: Math.max(Math.ceil(total / pageSize), 1),
-      sourceCounts: { normal: normalCount, lottery: lotteryCount, campaign: campaignCount },
+      sourceCounts: { normal: normalCount, lottery: lotteryCount, campaign: campaignCount, points: pointsCount },
     })
   } catch (err) {
     console.error('List coupons error:', err)

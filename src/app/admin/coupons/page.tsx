@@ -77,7 +77,7 @@ export default function AdminCouponsPage() {
   )
 }
 
-type SourceFilter = '' | 'LOTTERY' | 'CAMPAIGN'
+type SourceFilter = '' | 'LOTTERY' | 'CAMPAIGN' | 'POINTS'
 
 function AdminCouponsInner() {
   const sp = useSearchParams()
@@ -91,9 +91,9 @@ function AdminCouponsInner() {
   // '' = 公开领取批次（默认）；'LOTTERY' = 抽奖发放；'CAMPAIGN' = 营销邮件直发
   const [source, setSource] = useState<SourceFilter>(() => {
     const v = sp.get('source')
-    return v === 'LOTTERY' || v === 'CAMPAIGN' ? v : ''
+    return v === 'LOTTERY' || v === 'CAMPAIGN' || v === 'POINTS' ? v : ''
   })
-  const [sourceCounts, setSourceCounts] = useState<{ normal: number; lottery: number; campaign?: number } | null>(null)
+  const [sourceCounts, setSourceCounts] = useState<{ normal: number; lottery: number; campaign?: number; points?: number } | null>(null)
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [copied, setCopied] = useState<number | null>(null)
@@ -202,6 +202,7 @@ function AdminCouponsInner() {
               <option value="">{`普通领取批次${sourceCounts ? `（${sourceCounts.normal}）` : ''}`}</option>
               <option value="LOTTERY">{`抽奖发放${sourceCounts ? `（${sourceCounts.lottery}）` : ''}`}</option>
               <option value="CAMPAIGN">{`邮件直发${sourceCounts?.campaign != null ? `（${sourceCounts.campaign}）` : ''}`}</option>
+              <option value="POINTS">{`积分兑换${sourceCounts?.points != null ? `（${sourceCounts.points}）` : ''}`}</option>
             </select>
             {source === 'CAMPAIGN' ? (
               <span className="ml-auto text-xs text-gray-400">
@@ -210,6 +211,14 @@ function AdminCouponsInner() {
                   营销推广
                 </Link>
                 的优惠券区块里设置
+              </span>
+            ) : source === 'POINTS' ? (
+              <span className="ml-auto text-xs text-gray-400">
+                作者在学习空间用积分兑换时由系统发放，兑换档位在
+                <Link href="/admin/forum" className="mx-0.5 text-primary-600 hover:underline">
+                  论坛与内容
+                </Link>
+                里设置
               </span>
             ) : source === 'LOTTERY' ? (
               <span className="ml-auto text-xs text-gray-400">
@@ -237,6 +246,8 @@ function AdminCouponsInner() {
                 ? '还没有抽奖发出的券。'
                 : source === 'CAMPAIGN'
                   ? '还没有营销邮件直发的券。'
+                  : source === 'POINTS'
+                    ? '还没有人用积分兑换过券。'
                   : '还没有优惠券，点右上角建一批。'}
             </p>
           ) : (
@@ -246,7 +257,7 @@ function AdminCouponsInner() {
                   <tr className="border-b border-gray-200 text-left text-xs text-gray-500">
                     <th className="px-3 py-2">活动</th>
                     <th className="px-3 py-2">规则</th>
-                    <th className="px-3 py-2">{source === 'LOTTERY' ? '中奖人' : source === 'CAMPAIGN' ? '发放情况' : '领取情况'}</th>
+                    <th className="px-3 py-2">{source === 'LOTTERY' ? '中奖人' : source === 'POINTS' ? '兑换人' : source === 'CAMPAIGN' ? '发放情况' : '领取情况'}</th>
                     <th className="px-3 py-2">核销</th>
                     <th className="px-3 py-2">有效期</th>
                     <th className="px-3 py-2">状态</th>
@@ -256,7 +267,8 @@ function AdminCouponsInner() {
                 <tbody>
                   {list.map((r) => {
                     // 来源显式比较，不再用「source 非空」推断（见文件头）
-                    const fromLottery = r.source === 'LOTTERY'
+                    // 积分兑换券和抽奖券一样一批一人，「中奖人」那一栏显示兑换人
+                    const fromLottery = r.source === 'LOTTERY' || r.source === 'POINTS'
                     const fromCampaign = r.source === 'CAMPAIGN'
                     const systemBatch = r.source != null
                     return (

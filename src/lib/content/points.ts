@@ -16,6 +16,7 @@ export const POINTS = {
   REMIXED: 10, // 被别人「同款」二创
   ACCEPTED: 20, // 回答被采纳
   VIOLATION: -50, // 举报核实
+  AWARDED: 100, // 获得月度精选奖（P3）
 } as const
 export type PointReason = keyof typeof POINTS | 'ADJUST'
 

@@ -512,3 +512,35 @@ export function pageParam(v: string | string[] | undefined): number {
   const n = Number(Array.isArray(v) ? v[0] : v)
   return Number.isInteger(n) && n > 0 ? n : 1
 }
+
+// ─────────────────────────────── 赞助位（P3，设计 §9.3） ───────────────────────────────
+
+/**
+ * 明确标「赞助」的一条横幅，放在筛选条下、内容之前。不混进瀑布流（不冒充内容），
+ * 链接 rel="sponsored nofollow"（Google 对推广链接的要求）。没有在投的赞助时什么都不渲染。
+ */
+export function SponsorStrip({ items }: { items: { id: number; title: string; blurb: string | null; image: string | null; href: string }[] }) {
+  if (!items.length) return null
+  return (
+    <aside aria-label="赞助" className={`mb-10 grid gap-3 ${items.length > 1 ? 'md:grid-cols-2' : ''}`}>
+      {items.map((s) => (
+        <a key={s.id} href={s.href} target="_blank" rel="sponsored nofollow noopener" className="learn-card learn-lift group flex items-center gap-4 p-4">
+          {s.image ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={s.image} alt="" loading="lazy" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
+          ) : (
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-lg font-semibold text-white/70">{s.title.slice(0, 1)}</span>
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-2">
+              <span className="truncate font-medium">{s.title}</span>
+              <span className="shrink-0 rounded-full border border-white/15 px-1.5 py-px text-[10px] leading-4 text-white/45">赞助</span>
+            </span>
+            {s.blurb && <span className="mt-0.5 block truncate text-sm text-white/45">{s.blurb}</span>}
+          </span>
+          <ArrowUpRight className="h-4 w-4 shrink-0 text-white/25 transition-colors group-hover:text-white" />
+        </a>
+      ))}
+    </aside>
+  )
+}

@@ -29,6 +29,8 @@ const patchSchema = z.object({
   slug: z.string().trim().refine((s) => s === '' || isValidSlug(s), 'slug 只能是小写字母、数字和连字符（2–80 位）').optional().nullable(),
   excerpt: z.string().trim().max(160).optional().nullable(),
   verified: z.boolean().optional(),
+  // P3：对单篇关闭「作者内推返现」（设计 §13.1 第三条对策）
+  ctaRefOff: z.boolean().optional(),
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -72,6 +74,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (d.slug !== undefined) data.slug = d.slug || null
     if (d.excerpt !== undefined) data.excerpt = d.excerpt || null
     if (d.verified !== undefined) data.verifiedAt = d.verified ? new Date() : null
+    if (d.ctaRefOff !== undefined) data.ctaRefOff = d.ctaRefOff
     if (Object.keys(data).length === 0) return error('没有可更新的内容')
 
     await prisma.forumPost.update({ where: { id }, data })

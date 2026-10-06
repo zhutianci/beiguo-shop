@@ -116,3 +116,51 @@ export async function findNearDuplicate(type: string, text: string, excludeId?: 
 export function dedupText(p: { prompt?: string | null; content: string }): string {
   return p.prompt && p.prompt.trim() ? p.prompt : p.content
 }
+
+/**
+ * 合集新增了一条内容（P3，设计 §7.5「关注合集的用户在更新时收到站内通知」）。
+ * 每个合集每 20 小时最多通知一次：作者一口气往合集里加十几条时，关注者只收到一条。
+ * 用 notifiedAt 做 CAS（updateMany 带条件），并发加条目也只有一个请求发得出通知。
+ */
+export async function onCollectionUpdated(collectionId: number): Promise<void> {
+  try {
+    const c = await prisma.collection.findUnique({ where: { id: collectionId }, select: { id: true, userId: true, title: true, isPublic: true } })
+    if (!c?.isPublic) return
+    const since = new Date(Date.now() - 20 * 3600_000)
+    const flip = await prisma.collection.updateMany({
+      where: { id: c.id, OR: [{ notifiedAt: null }, { notifiedAt: { lt: since } }] },
+      data: { notifiedAt: new Date() },
+    })
+    if (flip.count !== 1) return
+    const fans = await prisma.collectionFollow.findMany({ where: { collectionId: c.id }, select: { userId: true }, take: 2000 })
+    notifyMany(fans.map((f) => f.userId).filter((id) => id !== c.userId), 'COLLECTION_UPDATED', `你关注的合集「${c.title}」更新了`, `/collections/${c.id}`)
+  } catch (e) {
+    console.error('[content onCollectionUpdated]', e)
+  }
+}
+
+/**
+ * 图片查重（设计 §6.2「上传时存 sha256，同一张图被不同账号重复发布时提示」）：
+ * 帖子里的图，只要有一张与别的账号上传过的图字节完全相同（sha256 一致），或者直接引用了别人上传的地址，就返回那张图。
+ * 调用方据此转人工、在审核备注里写明。只比字节完全相同；改过尺寸、重新压缩的图要靠感知哈希（pHash），留到以后。
+ */
+export async function findImageReuse(images: string[], userId: number | null): Promise<{ url: string; ownerId: number | null } | null> {
+  if (!images.length || !userId) return null
+  try {
+    const mine = await prisma.mediaAsset.findMany({ where: { url: { in: images.slice(0, 9) } }, select: { url: true, sha256: true, userId: true } })
+    const foreign = mine.find((m) => m.userId !== null && m.userId !== userId)
+    if (foreign) return { url: foreign.url, ownerId: foreign.userId }
+    if (!mine.length) return null
+    const other = await prisma.mediaAsset.findFirst({
+      where: { sha256: { in: mine.map((m) => m.sha256) }, AND: [{ userId: { not: null } }, { userId: { not: userId } }] },
+      orderBy: { id: 'asc' },
+      select: { url: true, userId: true },
+    })
+    return other ? { url: other.url, ownerId: other.userId } : null
+  } catch (e) {
+    console.error('[content findImageReuse]', e)
+    return null
+  }
+}
+
+export const IMAGE_REUSE_NOTE = '图片与其他账号上传过的图完全相同，请确认是否为本人出图'

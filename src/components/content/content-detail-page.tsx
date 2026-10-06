@@ -38,7 +38,8 @@ import {
   tagsOf,
   type ContentRow,
 } from '@/lib/content/queries'
-import { authorHref } from '@/lib/content/creator'
+import { authorHref, creatorBadge } from '@/lib/content/creator'
+import { authorRefCode, ctaHref } from '@/lib/content/cta'
 import { LANDINGS } from '@/lib/landing/registry'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
@@ -85,12 +86,12 @@ function modelOf(post: ContentRow) {
   return tagsOf(post, 'MODEL')[0] ?? null
 }
 
-/** 内容页的转化入口：按标签上登记的落地页（设计 §11.6「只在相关处出现」）。没有登记就不出 */
-function ctaOf(post: ContentRow): { href: string; label: string } | null {
+/** 内容页的转化入口：按标签上登记的落地页（设计 §11.6「只在相关处出现」）。没有登记就不出。带来源与作者内推码（lib/content/cta.ts） */
+function ctaOf(post: ContentRow, refCode: string | null): { href: string; label: string } | null {
   const tag = [...tagsOf(post, 'MODEL'), ...tagsOf(post, 'PRODUCT')].find((t) => t.landingPath)
   if (!tag?.landingPath) return null
   const landing = LANDINGS.find((l) => `/chongzhi/${l.slug}` === tag.landingPath)
-  return { href: tag.landingPath, label: landing ? landing.navLabel : '相关订阅' }
+  return { href: ctaHref(tag.landingPath, post.id, refCode), label: landing ? landing.navLabel : '相关订阅' }
 }
 
 function titleFor(post: ContentRow): string {
@@ -208,13 +209,16 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
   ])
   const remixes = JSON.parse(JSON.stringify(await cardsByIds(remixIds.map((r) => r.id))))
 
-  const [comments, href, related, dims] = await Promise.all([
+  const [comments, href, related, dims, refCode, badge] = await Promise.all([
     publicPost
       ? loadCommentPage(post.id, 1, COMMENT_PAGE_SIZE, null)
       : Promise.resolve({ list: [], total: 0, page: 1, pageSize: COMMENT_PAGE_SIZE, totalPages: 1 }),
     authorHref(post.userId),
     publicPost ? relatedContent(post) : Promise.resolve([]),
     dimsFor(images),
+    // 作者内推返现只给公开内容（未公开的页面只有作者和管理员看得到，带 ref 没有意义）
+    publicPost ? authorRefCode(post) : Promise.resolve(null),
+    creatorBadge(post.userId),
   ])
   const initialComments = JSON.parse(JSON.stringify(comments)) as CommentPage
   const authorName = authorNameOf(post)
@@ -235,6 +239,11 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
         </Link>
       ) : (
         <span className="text-white/75">{authorName}</span>
+      )}
+      {badge && (
+        <span title={`贝果认证：${badge}`} className="inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[11px] text-sky-200">
+          <BadgeCheck className="h-3 w-3" /> {badge}
+        </span>
       )}
       {href && <FollowButton handle={href.slice(3)} compact />}
       <MetaDot />
@@ -287,7 +296,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
       favoriteCount={post.favoriteCount}
       editHref={editHref}
       backHref={SECTION_BASE[type]}
-      admin={{ reviewStatus: post.reviewStatus, status: post.status, featured: post.featured, verified: !!post.verifiedAt, typed: type !== 'APP' }}
+      admin={{ reviewStatus: post.reviewStatus, status: post.status, featured: post.featured, verified: !!post.verifiedAt, typed: type !== 'APP', ctaRefOff: post.ctaRefOff }}
     />
   )
 
@@ -378,7 +387,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
                 needsRefImage={post.prompt.needsRefImage}
                 variables={promptVariables(post.prompt.prompt)}
                 copyCount={post.copyCount}
-                cta={ctaOf(post)}
+                cta={ctaOf(post, refCode)}
                 tall
               />
             </div>
@@ -440,7 +449,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
                 needsRefImage={post.prompt.needsRefImage}
                 variables={promptVariables(post.prompt.prompt)}
                 copyCount={post.copyCount}
-                cta={ctaOf(post)}
+                cta={ctaOf(post, refCode)}
               />
               {tagChips}
               {actions}
@@ -471,7 +480,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
 
   // —— 教程 / AI 应用（应用复用教程的阅读布局，正文是「我用它解决了什么」）——
   const toc = tocFromHtml(html)
-  const cta = type === 'APP' ? null : ctaOf(post)
+  const cta = type === 'APP' ? null : ctaOf(post, refCode)
   const app = type === 'APP' ? post.app : null
   // 作者自荐的外链一律 sponsored（Google 对推广链接的要求，设计 §9.2），普通分享是 ugc
   const appRel = app?.selfPromo ? 'sponsored nofollow noopener noreferrer' : 'ugc nofollow noopener noreferrer'

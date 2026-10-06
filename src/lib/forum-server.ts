@@ -36,10 +36,10 @@ export async function trustLevelOf(user: { id: number; role: string }): Promise<
     prisma.user.findUnique({ where: { id: user.id }, select: { createdAt: true } }),
     prisma.forumPost.count({ where: { userId: user.id, reviewStatus: 'APPROVED' } }),
     prisma.forumPost.count({ where: { userId: user.id, reviewStatus: 'APPROVED', featured: true } }),
-    prisma.creatorProfile.findUnique({ where: { userId: user.id }, select: { points: true, coBuilder: true } }),
+    prisma.creatorProfile.findUnique({ where: { userId: user.id }, select: { points: true, coBuilder: true, certifiedAt: true } }),
   ])
-  // 设计 §8.1：3 篇精选，或积分 ≥300，或站长邀请的共建者（L3，审核规则上与 L2 相同）
-  if (profile?.coBuilder || (profile?.points ?? 0) >= L2_MIN_POINTS) return 2
+  // 设计 §8.1：3 篇精选，或积分 ≥300，或站长邀请的共建者（L3，审核规则上与 L2 相同），或通过了创作者认证（P3）
+  if (profile?.coBuilder || profile?.certifiedAt || (profile?.points ?? 0) >= L2_MIN_POINTS) return 2
   return trustLevelFrom({ role: user.role, createdAt: row?.createdAt ?? new Date(), approvedPosts, featuredPosts })
 }
 

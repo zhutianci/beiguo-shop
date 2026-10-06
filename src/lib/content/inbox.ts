@@ -13,6 +13,9 @@ export type InboxKind =
   | 'NEW_FROM_FOLLOWEE' // 关注的作者发布了新内容
   | 'REMIXED' // 有人做了你的提示词的同款
   | 'REPORT_HIDDEN' // 你的内容因多人举报被暂时隐藏
+  | 'AWARDED' // 获得月度精选奖（P3）
+  | 'CERTIFIED' // 创作者认证结果（P3）
+  | 'COLLECTION_UPDATED' // 关注的合集有更新（P3）
 
 export function notifyUser(
   userId: number | null | undefined,

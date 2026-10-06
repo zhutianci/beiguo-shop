@@ -1,13 +1,13 @@
 'use client'
 
 /**
- * 作者页上的管理员操作（内容平台 P2）：设为 / 取消 L3 共建者、手工调整积分。
+ * 作者页上的管理员操作（内容平台 P2）：设为 / 取消 L3 共建者、手工调整积分；P3 加了授予 / 撤销创作者认证。
  * 只有管理员看得到（挂载后问一次 /api/auth/me）；操作走 /api/admin/content/creators（adminGuard）。
  */
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export function CreatorAdmin({ handle, coBuilder }: { handle: string; coBuilder: boolean }) {
+export function CreatorAdmin({ handle, coBuilder, certTitle = null }: { handle: string; coBuilder: boolean; certTitle?: string | null }) {
   const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
   useEffect(() => {
@@ -38,6 +38,20 @@ export function CreatorAdmin({ handle, coBuilder }: { handle: string; coBuilder:
         className="rounded-full bg-white/[0.06] px-3 py-1.5 text-white/70 hover:bg-white/10"
       >
         调整积分
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          if (certTitle) {
+            if (confirm(`撤销「${certTitle}」认证？`)) patch({ certTitle: null })
+            return
+          }
+          const t = (prompt('认证头衔（例如：AI 绘画创作者）：') || '').trim()
+          if (t) patch({ certTitle: t })
+        }}
+        className="rounded-full bg-white/[0.06] px-3 py-1.5 text-white/70 hover:bg-white/10"
+      >
+        {certTitle ? '撤销认证' : '授予认证'}
       </button>
     </div>
   )

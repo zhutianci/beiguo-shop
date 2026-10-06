@@ -15,6 +15,8 @@ const schema = z.object({
   handle: z.string().regex(/^[a-z0-9]{8}$/),
   coBuilder: z.boolean().optional(),
   adjust: z.number().int().min(-10000).max(10000).optional(),
+  // 创作者认证（P3）：给字符串 = 授予 / 改头衔；null = 撤销
+  certTitle: z.string().trim().min(2).max(40).nullable().optional(),
 })
 
 export async function PATCH(request: NextRequest) {
@@ -26,6 +28,12 @@ export async function PATCH(request: NextRequest) {
     const pf = await prisma.creatorProfile.findUnique({ where: { handle: parsed.data.handle } })
     if (!pf) return error('作者不存在', 404)
     if (parsed.data.coBuilder !== undefined) await prisma.creatorProfile.update({ where: { userId: pf.userId }, data: { coBuilder: parsed.data.coBuilder } })
+    if (parsed.data.certTitle !== undefined) {
+      await prisma.creatorProfile.update({
+        where: { userId: pf.userId },
+        data: parsed.data.certTitle === null ? { certifiedAt: null, certTitle: null } : { certifiedAt: pf.certifiedAt ?? new Date(), certTitle: parsed.data.certTitle },
+      })
+    }
     if (parsed.data.adjust) await award(pf.userId, 'ADJUST', Math.floor(Date.now() / 1000), 0, parsed.data.adjust)
     return success({ ok: true }, '已保存')
   } catch (err) {

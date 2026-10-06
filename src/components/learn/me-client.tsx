@@ -2,19 +2,21 @@
 
 /**
  * 我的学习空间（内容平台 P2）：通知 · 收藏 · 合集 · 关注 · 我的投稿 · 积分。
+ * P3 加了「积分兑换」（积分换优惠券）与「创作者」（认证申请、作者内推返现状态）两个页签。
  * 纯客户端页（个人数据，不进搜索引擎）；未登录跳登录页。打开「通知」页签即全部标为已读。
  */
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bell, Bookmark, FolderOpen, PenLine, Sparkles, Trash2, Users } from 'lucide-react'
+import { BadgeCheck, Bell, Bookmark, FolderOpen, Gift, PenLine, Sparkles, Trash2, Users } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { useHydrated } from '@/lib/use-hydrated'
 import { withRedirect } from '@/lib/safe-redirect'
 import { PromptMasonry, GuideRows } from './ui'
 import type { ContentCard } from '@/lib/content/queries'
 
-type Tab = 'inbox' | 'favorites' | 'collections' | 'following' | 'posts'
+type Tab = 'inbox' | 'favorites' | 'collections' | 'following' | 'posts' | 'shop' | 'creator'
+const TABS: Tab[] = ['inbox', 'favorites', 'collections', 'following', 'posts', 'shop', 'creator']
 
 interface Summary {
   unread: number
@@ -60,7 +62,7 @@ export function MeClient() {
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('tab') as Tab | null
-    if (q && ['inbox', 'favorites', 'collections', 'following', 'posts'].includes(q)) setTab(q)
+    if (q && TABS.includes(q)) setTab(q)
   }, [])
 
   const s = summary.data
@@ -70,6 +72,8 @@ export function MeClient() {
     { k: 'collections', t: '合集', icon: FolderOpen },
     { k: 'following', t: '关注', icon: Users, n: s?.following },
     { k: 'posts', t: '我的投稿', icon: PenLine },
+    { k: 'shop', t: '积分兑换', icon: Gift },
+    { k: 'creator', t: '创作者', icon: BadgeCheck },
   ]
 
   return (
@@ -119,9 +123,11 @@ export function MeClient() {
       {tab === 'collections' && <Collections />}
       {tab === 'following' && <Following />}
       {tab === 'posts' && <MyPosts />}
+      {tab === 'shop' && <PointsShop onChange={summary.reload} />}
+      {tab === 'creator' && <Creator />}
 
       <p className="mt-16 text-xs text-white/30">
-        积分怎么来：内容公开 +5、被精选 +50、被收藏 +2、被做同款 +10、回答被采纳 +20；举报核实的违规 −50。积分达到 300 自动成为创作者（发布免审）。
+        积分怎么来：内容公开 +5、被精选 +50、被收藏 +2、被做同款 +10、回答被采纳 +20、获得月度精选奖 +100；举报核实的违规 −50。积分达到 300 自动成为创作者（发布免审）。兑换优惠券只扣可用积分，不影响等级。
       </p>
     </div>
   )
@@ -226,27 +232,47 @@ function Collections() {
 }
 
 function Following() {
-  const { data } = useJson<{ list: { name: string; handle: string; points: number }[] }>('/api/me/following')
+  const { data } = useJson<{ list: { name: string; handle: string; points: number }[]; collections?: { id: number; title: string; count: number }[] }>('/api/me/following')
   if (!data) return <div className="learn-skeleton h-32" />
-  if (!data.list.length) return <p className="text-sm text-white/45">还没有关注作者。关注后，他们发布新内容时你会收到通知。</p>
+  if (!data.list.length && !data.collections?.length) return <p className="text-sm text-white/45">还没有关注作者或合集。关注后，他们发布新内容、合集有更新时你会收到通知。</p>
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {data.list.map((u) => (
-        <Link key={u.handle} href={`/u/${u.handle}`} className="learn-card learn-lift flex items-center gap-3 p-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-400 text-sm font-bold text-black">{u.name.slice(0, 1)}</span>
-          <span className="min-w-0">
-            <span className="block truncate font-medium">{u.name}</span>
-            <span className="block text-xs text-white/40">{u.points} 积分</span>
-          </span>
-        </Link>
-      ))}
+    <div className="space-y-10">
+      {data.collections && data.collections.length > 0 && (
+        <div>
+          <p className="learn-eyebrow mb-3">关注的合集</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {data.collections.map((c) => (
+              <Link key={c.id} href={`/collections/${c.id}`} className="learn-card learn-lift flex items-center gap-3 p-4">
+                <FolderOpen className="h-5 w-5 shrink-0 text-white/50" />
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{c.title}</span>
+                  <span className="block text-xs text-white/40">{c.count} 条</span>
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+      {data.list.length > 0 && (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {data.list.map((u) => (
+            <Link key={u.handle} href={`/u/${u.handle}`} className="learn-card learn-lift flex items-center gap-3 p-4">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-400 text-sm font-bold text-black">{u.name.slice(0, 1)}</span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium">{u.name}</span>
+                <span className="block text-xs text-white/40">{u.points} 积分</span>
+              </span>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 function MyPosts() {
   const { data } = useJson<{
-    list: { id: number; type: string; title: string; path: string; reviewStatus: string; reviewNote: string | null; status: number; featured: boolean; favoriteCount: number; copyCount: number; commentCount: number; createdAt: string }[]
+    list: { id: number; type: string; title: string; path: string; reviewStatus: string; reviewNote: string | null; status: number; featured: boolean; favoriteCount: number; copyCount: number; commentCount: number; ctaVisits?: number; createdAt: string }[]
   }>('/api/me/posts')
   if (!data) return <div className="learn-skeleton h-40" />
   if (!data.list.length) return <p className="text-sm text-white/45">还没有投稿。</p>
@@ -269,11 +295,224 @@ function MyPosts() {
               <span>收藏 {p.favoriteCount}</span>
               {p.type === 'PROMPT' && <span>复制 {p.copyCount}</span>}
               <span>评论 {p.commentCount}</span>
+              {!!p.ctaVisits && <span title="读者从这篇的开通入口点到落地页的人次">带来访问 {p.ctaVisits}</span>}
               <Link href={`/forum/${p.id}/edit`} className="text-white/60 hover:text-white">编辑</Link>
             </div>
           </li>
         )
       })}
     </ul>
+  )
+}
+
+// ─────────────────────────────── 积分兑换（P3） ───────────────────────────────
+
+interface ShopData {
+  points: number
+  available: number
+  usedThisMonth: number
+  monthlyLimit: number
+  options: { key: string; label: string; cost: number; discount: number; minAmount: number; days: number }[]
+  history: { id: number; cost: number; name: string; createdAt: string; endAt: string | null }[]
+}
+
+function PointsShop({ onChange }: { onChange: () => void }) {
+  const { data, reload } = useJson<ShopData>('/api/me/points-shop')
+  const [busy, setBusy] = useState<string | null>(null)
+  const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null)
+  if (!data) return <div className="learn-skeleton h-40" />
+  const left = data.monthlyLimit - data.usedThisMonth
+  const redeem = async (key: string, label: string, cost: number) => {
+    if (!confirm(`用 ${cost} 积分兑换「${label}」？兑换后不能退回积分。`)) return
+    setBusy(key)
+    setMsg(null)
+    try {
+      const res = await fetch('/api/me/points-shop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }) })
+      const d = await res.json()
+      setMsg({ ok: !!d.success, t: d.success ? d.message : d.error || '兑换失败' })
+      if (d.success) {
+        reload()
+        onChange()
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+  return (
+    <div>
+      <div className="mb-8 flex flex-wrap items-end gap-x-10 gap-y-4">
+        <div>
+          <p className="text-xs text-white/40">可用积分</p>
+          <p className="mt-1 text-4xl font-semibold tabular-nums tracking-tight">{data.available}</p>
+        </div>
+        <p className="pb-1 text-sm text-white/45">
+          累计获得 {data.points} · 本月还能兑换 {Math.max(0, left)} 次
+        </p>
+      </div>
+      {msg && <p className={`mb-6 text-sm ${msg.ok ? 'text-emerald-300' : 'text-red-300'}`}>{msg.t}</p>}
+      {!data.options.length ? (
+        <p className="text-sm text-white/45">兑换暂未开放。</p>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {data.options.map((o) => {
+            const short = data.available < o.cost
+            const disabled = short || left <= 0 || busy !== null
+            return (
+              <div key={o.key} className="learn-card flex flex-col gap-4 p-5">
+                <div>
+                  <p className="text-2xl font-semibold tabular-nums">¥{o.discount}</p>
+                  <p className="mt-1 text-sm text-white/70">{o.label}</p>
+                  <p className="mt-1 text-xs text-white/35">
+                    {o.minAmount > 0 ? `订单满 ${o.minAmount} 元可用` : '无门槛'} · 兑换后 {o.days} 天内有效 · 不能与内推价同用
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => redeem(o.key, o.label, o.cost)}
+                  className="mt-auto h-10 rounded-full bg-white text-sm font-semibold text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  {busy === o.key ? '兑换中…' : short ? `需要 ${o.cost} 积分` : `${o.cost} 积分兑换`}
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      {data.history.length > 0 && (
+        <div className="mt-12">
+          <p className="learn-eyebrow mb-3">兑换记录</p>
+          <ul className="divide-y divide-white/[0.07] border-y border-white/[0.07] text-sm">
+            {data.history.map((h) => (
+              <li key={h.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                <span className="text-white/80">{h.name}</span>
+                <span className="text-xs tabular-nums text-white/40">
+                  −{h.cost} 积分 · {new Date(h.createdAt).toLocaleDateString('zh-CN')}
+                  {h.endAt && ` · ${new Date(h.endAt).toLocaleDateString('zh-CN')} 到期`}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <Link href="/coupons" className="mt-3 inline-block text-sm text-white/60 hover:text-white">
+            去「我的优惠券」查看 →
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────── 创作者：认证 + 作者返现（P3） ───────────────────────────────
+
+interface CreatorState {
+  certified: boolean
+  certTitle: string | null
+  works: number
+  minWorks: number
+  latest: { status: string; field: string; reviewNote: string | null; createdAt: string } | null
+  reapplyAt: string | null
+  canApply: boolean
+  level: number
+  hasReferralCode: boolean
+  refActive: boolean
+}
+
+function Creator() {
+  const { data, reload } = useJson<CreatorState>('/api/me/creator-application')
+  const [form, setForm] = useState({ field: '', works: '', intro: '' })
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  if (!data) return <div className="learn-skeleton h-40" />
+  const submit = async () => {
+    setBusy(true)
+    setErr('')
+    try {
+      const res = await fetch('/api/me/creator-application', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
+      const d = await res.json()
+      if (d.success) reload()
+      else setErr(d.error || '提交失败')
+    } finally {
+      setBusy(false)
+    }
+  }
+  const input = 'w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm outline-none focus:border-white/30'
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <section className="learn-card p-6">
+        <p className="learn-eyebrow mb-3">创作者认证</p>
+        {data.certified ? (
+          <>
+            <p className="flex items-center gap-2 text-xl font-semibold">
+              <BadgeCheck className="h-5 w-5 text-sky-300" /> {data.certTitle || '认证创作者'}
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-white/55">你的主页和作品上会显示认证徽章；发布内容免审，可以在 AI 应用区发作者自荐。</p>
+          </>
+        ) : data.latest?.status === 'PENDING' ? (
+          <p className="text-sm leading-relaxed text-white/60">你的申请（{data.latest.field}）正在审核，结果会在「通知」里告诉你。</p>
+        ) : (
+          <>
+            <p className="text-sm leading-relaxed text-white/55">
+              通过认证：作品上显示认证徽章、发布免审、可发作者自荐，开通入口可以带上你的内推码。需要至少 {data.minWorks} 条公开的提示词、教程或应用。
+            </p>
+            {data.latest?.status === 'REJECTED' && (
+              <p className="mt-3 text-sm text-red-200/80">
+                上次申请未通过{data.latest.reviewNote ? `：${data.latest.reviewNote}` : ''}
+                {data.reapplyAt && !data.canApply ? `，${new Date(data.reapplyAt).toLocaleDateString('zh-CN')} 后可以再申请` : ''}
+              </p>
+            )}
+            {data.works < data.minWorks ? (
+              <Link href="/forum/new?type=PROMPT" className="mt-5 inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-black">
+                先去发布作品
+              </Link>
+            ) : data.canApply ? (
+              <div className="mt-5 space-y-3">
+                <input
+                  className={input}
+                  maxLength={40}
+                  placeholder="创作领域，例如：AI 绘画 / 科研绘图 / 短视频脚本"
+                  value={form.field}
+                  onChange={(e) => setForm({ ...form, field: e.target.value })}
+                />
+                <textarea
+                  className={`${input} min-h-[88px]`}
+                  maxLength={1000}
+                  placeholder="代表作链接（站内作品或小红书、B 站、GitHub 等），每行一个"
+                  value={form.works}
+                  onChange={(e) => setForm({ ...form, works: e.target.value })}
+                />
+                <textarea
+                  className={`${input} min-h-[88px]`}
+                  maxLength={500}
+                  placeholder="介绍一下你自己和你打算分享的内容（20 字以上）"
+                  value={form.intro}
+                  onChange={(e) => setForm({ ...form, intro: e.target.value })}
+                />
+                {err && <p className="text-sm text-red-300">{err}</p>}
+                <button type="button" disabled={busy} onClick={submit} className="h-10 rounded-full bg-white px-5 text-sm font-semibold text-black disabled:opacity-40">
+                  {busy ? '提交中…' : '提交申请'}
+                </button>
+              </div>
+            ) : null}
+          </>
+        )}
+      </section>
+
+      <section className="learn-card p-6">
+        <p className="learn-eyebrow mb-3">作者内推返现</p>
+        <p className="text-sm leading-relaxed text-white/55">
+          读者从你内容页上的「开通」入口下单，订单完成后按本站内推规则把返现记到你的可提现余额。入口由系统统一放置，正文里手写的购买链接不会带上你的内推码。
+        </p>
+        <ul className="mt-4 space-y-2 text-sm">
+          <li className={data.level >= 2 ? 'text-emerald-300' : 'text-white/45'}>{data.level >= 2 ? '✓' : '○'} 达到创作者等级（3 篇精选、积分 ≥300 或通过认证）</li>
+          <li className={data.hasReferralCode ? 'text-emerald-300' : 'text-white/45'}>{data.hasReferralCode ? '✓' : '○'} 开通内推码</li>
+        </ul>
+        <p className={`mt-4 text-sm font-medium ${data.refActive ? 'text-emerald-300' : 'text-white/60'}`}>
+          {data.refActive ? '已生效：你的公开内容会带上你的内推码' : '还没生效'}
+        </p>
+        <Link href="/profile/referral" className="mt-4 inline-block text-sm text-white/60 hover:text-white">
+          {data.hasReferralCode ? '查看推广返现与提现 →' : '去开通内推码 →'}
+        </Link>
+      </section>
+    </div>
   )
 }

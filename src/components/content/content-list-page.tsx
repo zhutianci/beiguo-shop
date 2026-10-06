@@ -24,7 +24,8 @@ import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, type Crumb } from '@/lib/seo/graph'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
-import { AppGrid, Crumbs, Empty, FilterBar, GuideFeature, GuideRows, LEARN_HOME, LearnPage, PageHead, Pager, PrimaryAction, PromptMasonry, SearchBox, SortTabs } from '@/components/learn/ui'
+import { AppGrid, Crumbs, Empty, FilterBar, GuideFeature, GuideRows, LEARN_HOME, LearnPage, PageHead, Pager, PrimaryAction, PromptMasonry, SearchBox, SortTabs, SponsorStrip } from '@/components/learn/ui'
+import { activeSponsors } from '@/lib/content/sponsor'
 
 export type ListSort = 'curated' | 'hot' | 'new'
 export function sortParam(v: string | string[] | undefined): ListSort {
@@ -215,7 +216,7 @@ const EYEBROW: Record<HubKind, Record<Section, string>> = {
 export async function ContentListPage({ section, kind, slug, page, sort = 'curated' }: { section: Section; kind: HubKind; slug?: string; page: number; sort?: ListSort }) {
   const r = await resolve(section, kind, slug)
   if (!r) notFound()
-  const [list, s] = await Promise.all([
+  const [list, s, sponsors] = await Promise.all([
     sort === 'hot'
       ? listHot({
           type: section,
@@ -235,6 +236,8 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
           pageSize: PAGE_SIZE[section],
         }),
     stats(r),
+    // 赞助位只在第一页出，自荐区（本身就是推广）不出
+    page === 1 && r.kind !== 'SHOWCASE' ? activeSponsors(section === 'PROMPT' ? 'PROMPTS' : section === 'APP' ? 'APPS' : 'GUIDES') : Promise.resolve([]),
   ])
   if (page > 1 && page > list.totalPages) notFound()
 
@@ -323,6 +326,7 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
           <SortTabs basePath={r.basePath} sort={sort} />
         </div>
         <FilterBar groups={groups} active={active} />
+        <SponsorStrip items={sponsors} />
 
         {list.items.length === 0 ? (
           <Empty
