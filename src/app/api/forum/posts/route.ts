@@ -153,7 +153,8 @@ export async function POST(request: NextRequest) {
 
     const authorName = actor.nickname || '用户'
     const level = await trustLevelOf({ id: actor.userId, role: actor.isAdmin ? 'ADMIN' : 'USER' })
-    const flags = flagsOf(d.title, d.content, d.tags, sourceUrl, d.prompt?.prompt, d.prompt?.useCase, d.excerpt)
+    // 应用卡片的字段也进风险检测（2026-10-07：试用说明 / 价格里塞联系方式以前查不到）
+    const flags = flagsOf(d.title, d.content, d.tags, sourceUrl, d.prompt?.prompt, d.prompt?.useCase, d.excerpt, d.prompt?.negativePrompt, d.app?.name, d.app?.url, d.app?.pricing, d.app?.platforms, d.app?.trialNote)
     let reviewStatus = postReviewOnCreate(level, flags)
 
     // 作者自荐（设计 §9.1 四件套）：L2 创作者以上才能发、每 30 天 1 条、一律人工审核

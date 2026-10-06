@@ -80,6 +80,17 @@ export async function POST(request: NextRequest) {
     if (rateLimited(rateKey, { windowMs: RATE_WINDOW_MS, max: RATE_MAX })) {
       return error('上传过于频繁，请稍后再试', 429)
     }
+    // 每日上限（2026-10-07）：只有 10 分钟 12 张时，一个号一小时能传 360MB，几个小时就把论坛那 90% 配额占满，
+    // 之后所有人（含渠道 logo / 客服二维码）一律 507。管理员不限；按 IP 再兜一层多号轮换
+    if (user?.role !== 'ADMIN') {
+      const DAY = 86_400_000
+      if (
+        (user && rateLimited(`upload-d:u:${user.id}`, { windowMs: DAY, max: 60 })) ||
+        (ip !== 'unknown' && rateLimited(`upload-ipd:${ipKey(ip)}`, { windowMs: DAY, max: 150 }))
+      ) {
+        return error('今天上传的图片已达上限，请明天再试', 429)
+      }
+    }
 
     let form: FormData
     try {

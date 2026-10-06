@@ -30,9 +30,12 @@ const getCollection = cache(async (id: number) => {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const d = await getCollection(Number(params.id))
+  // 非公开合集的标题 / 简介不进 <title> 与 description（2026-10-07：以前页面主体 404、metadata 却照样输出，
+  // 遍历 id 就能读到别人的私密合集名）。主人自己打开时照常显示
+  const visible = !!d && (d.c.isPublic || (await getCurrentUser().catch(() => null))?.id === d.c.userId)
   return {
-    title: d ? `${d.c.title}（合集）- ${SITE_NAME}` : `合集不存在 - ${SITE_NAME}`,
-    description: d?.c.intro ?? undefined,
+    title: d && visible ? `${d.c.title}（合集）- ${SITE_NAME}` : `合集不存在 - ${SITE_NAME}`,
+    description: d && visible ? d.c.intro ?? undefined : undefined,
     robots: { index: false, follow: true },
   }
 }
