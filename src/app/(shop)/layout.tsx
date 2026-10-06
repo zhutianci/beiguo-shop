@@ -2,6 +2,7 @@ import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
 import { FloatingContact } from '@/components/floating-contact'
 import { LiveOrderNotificationLazy } from '@/components/live-order-notification-lazy'
+import { RouteProgress } from '@/components/route-progress'
 import { AnnouncementModal } from '@/components/announcement-modal'
 import { PageViewBeacon } from '@/components/page-view-beacon'
 import { MailLanding } from '@/components/mail-landing'
@@ -71,6 +72,8 @@ export default async function ShopLayout({
   return (
     <div className="shop-shell flex min-h-screen flex-col">
       {redirectOrigin && <PrimaryHostRedirect origin={redirectOrigin} />}
+      {/* 站内跳转的顶部进度条：只在客户端出现，服务端 HTML 里是一个不可见的空条（route-progress.tsx） */}
+      <RouteProgress />
       <Header catalogOpen={catalogOpen} registrationOpen={registrationOpen} jiemaOpen={jiemaOpen} />
       {sf.status === 'SUSPENDED' && <SuspendedBanner />}
       <main className="flex-1">{sf.status === 'TERMINATED' ? <ClosedPageGate>{children}</ClosedPageGate> : children}</main>

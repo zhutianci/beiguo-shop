@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Search, X, ChevronDown, ChevronRight, Globe2, Loader2, ArrowLeft, Eye } from 'lucide-react'
 import { searchServices, searchCountries, effectiveQuery, serviceTokens, toSearchable } from '@/lib/jiema/search'
 import { stockApprox, fmtYuan } from '@/lib/jiema/pricing'
@@ -260,7 +260,13 @@ export function JiemaClient(props: JiemaClientProps) {
   // 目录 DTO 的中文名在 name 里：先转成可搜索的形状（cn = name、pop = 人气顺序），片段预先算好（S1 评审修复：原来中文名搜不到）
   const searchable = useMemo(() => toSearchable(services), [services])
   const tokens = useMemo(() => new Map(searchable.map((s) => [s, serviceTokens(s)] as const)), [searchable])
-  const hits = useMemo(() => (query ? searchServices(query, searchable, { tokens }).map((h) => h.item as CatalogService) : null), [query, searchable, tokens])
+  // 过滤用 useDeferredValue（性能优化 2026-10-07）：输入框每个字立即回显，上千条服务的匹配与列表重排放到空闲时做，
+  // 低端手机上连续打字不再一卡一卡；结果与原来相同，只是晚一帧左右
+  const deferredQuery = useDeferredValue(query)
+  const hits = useMemo(
+    () => (deferredQuery ? searchServices(deferredQuery, searchable, { tokens }).map((h) => h.item as CatalogService) : null),
+    [deferredQuery, searchable, tokens],
+  )
   const hot = useMemo(() => services.filter((s) => s.hot != null && s.code !== anyOther?.code).sort((a, b) => (a.hot ?? 0) - (b.hot ?? 0)), [services, anyOther])
 
   // ---------- 列表高度（虚拟滚动用） ----------
@@ -347,6 +353,7 @@ export function JiemaClient(props: JiemaClientProps) {
     writeSort(v)
   }
   const [cQuery, setCQuery] = useState('')
+  const deferredCQuery = useDeferredValue(cQuery) // 同上：输入立即回显，过滤延后
   useEffect(() => setCQuery(''), [svc])
 
   const payload = cData && cData.code === svc ? cData.data : null
@@ -365,8 +372,8 @@ export function JiemaClient(props: JiemaClientProps) {
       // 最便宜（「推荐」没有上游排序数据时也按价格）
       list.sort((a, b) => tail(a, b) || (a.priceCents ?? 1e9) - (b.priceCents ?? 1e9) || a.id - b.id)
     }
-    return cQuery.trim() ? searchCountries(cQuery, list) : list
-  }, [payload, sort, cQuery])
+    return deferredCQuery.trim() ? searchCountries(deferredCQuery, list) : list
+  }, [payload, sort, deferredCQuery])
   const allOut = !!payload && payload.countries.length > 0 && payload.countries.every((c) => c.level === 'OUT' || !!c.paused)
   const picked = payload?.countries.find((c) => c.id === country) ?? null
   const service = svc ? (byCode.get(svc) ?? null) : null
