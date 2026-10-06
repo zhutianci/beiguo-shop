@@ -76,7 +76,7 @@ export function ImageViewer({ images, title }: { images: ViewerImage[]; title: s
               }`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={im.src} alt="" loading="lazy" className="h-full w-full object-cover" />
+              <img src={im.src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
             </button>
           ))}
         </div>

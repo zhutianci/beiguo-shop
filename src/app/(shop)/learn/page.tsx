@@ -108,7 +108,7 @@ export default async function LearnHome() {
               >
                 {shot?.cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={shot.cover} alt="" className="h-full w-full object-cover" loading={i < 2 ? 'eager' : 'lazy'} />
+                  <img src={shot.cover} alt="" className="h-full w-full object-cover" loading={i < 2 ? 'eager' : 'lazy'} decoding="async" />
                 ) : (
                   <div
                     className="h-full w-full"

@@ -55,7 +55,7 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
               {white ? (
                 <Link href="/" className="inline-flex items-center gap-3 mb-6">
                   {brand.logoUrl ? (
-                    <img src={brand.logoUrl} alt="" width={56} height={56} className="h-14 w-14 rounded-xl object-contain" />
+                    <img src={brand.logoUrl} alt="" width={56} height={56} loading="lazy" decoding="async" className="h-14 w-14 rounded-xl object-contain" />
                   ) : (
                     <span aria-hidden className="h-14 w-14 rounded-2xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-2xl font-bold">
                       {Array.from(brand.name)[0]}
