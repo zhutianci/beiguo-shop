@@ -17,7 +17,6 @@ sources:
   - https://support.claude.com/en/articles/14246112-buy-usage-bundles
   - https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-or-max-plan
   - https://support.claude.com/en/articles/15424964-claude-fable-models-on-your-plan
-  - https://support.claude.com/en/articles/17274727-artifact-usage-promotion
   - https://claude.com/pricing
   - https://code.claude.com/docs/en/costs
   - https://code.claude.com/docs/en/errors
@@ -30,7 +29,6 @@ verify:
   - Free 是否有每周上限：官方 Free 说明只写了「5 小时会话额度」和「可能另有其他限制」，未写每周上限
   - 各套餐每 5 小时 / 每周具体能发多少条消息：官方未公开具体数字
   - 支持文章《Use Claude Code with your Pro or Max plan》仍写「用 /status 查看剩余额度」，Claude Code 文档写的是 /usage，以当前版本为准
-  - 「Artifacts 用量减半」活动只到 2026-10-15，上线时若已过期请删除对应问答
 ---
 
 > 本文根据 Anthropic 官方帮助中心、定价页和 Claude Code 官方文档整理，核对日期 2026-10-07；截图引用自公开发布的教程和高校 IT 帮助文档，并在图下注明出处。额度规则调整较频繁，以 Claude 设置页和帮助中心为准。
@@ -129,9 +127,6 @@ verify:
 
 **Q：Free 每 5 小时能发几条？Pro 呢？**
 官方没有公布具体条数，只说明会随消息长度、附件、对话长度、模型和功能变化，Free 还会随整体需求变化。Max 5x / 20x 的倍数是相对 Pro 的「每次会话额度」而言的。
-
-**Q：最近听说做 Artifacts 能省额度？**
-这是一个限时活动：2026 年 10 月 1 日至 10 月 15 日，Pro、Max、Team 用户在聊天或 Cowork 里创建或编辑 Artifact 后，接下来 10 条消息只按一半计入 5 小时会话额度，不影响每周额度，也不适用于 Claude Code。活动结束后按原规则计算。
 
 ## 参考资料
 

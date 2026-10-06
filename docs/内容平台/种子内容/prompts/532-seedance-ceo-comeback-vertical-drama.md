@@ -26,12 +26,6 @@ source:
   license: MIT
   licenseUrl: https://github.com/ZeroLu/awesome-seedance/blob/main/LICENSE
   changes: 由仓库英文版回译为中文；新郎、丈母娘、协议、信物和两句台词改为变量；"龙王（少主）"统一为"少主"，"黄袍或黑卡"取锦袍；补充【声音】一段
-images:
-  - 532-seedance-ceo-comeback-vertical-drama-1.jpg
-imageCredit:
-  by: "@johnAGI168"
-  url: https://github.com/ZeroLu/awesome-seedance#63-chinese-viral-ceo-drama-style-vertical-format
-  license: MIT
 verify:
   - 示例图是从仓库附带的成片视频（github.com/user-attachments/assets/510355c2-6c53-4587-8f1a-9913a0a54bbb）第 11.3 秒抽取的一帧（镜头三：保镖跪地、管家捧锦袍），不是封面图
   - 在 Seedance 2.0 实测 3 次：中文台词口型、保镖人数是否稳定、直升机风效是否出现

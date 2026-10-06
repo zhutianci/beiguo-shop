@@ -10,7 +10,6 @@ sources:
   - https://support.claude.com/en/articles/17153992-what-are-artifacts-and-how-do-i-use-them
   - https://support.claude.com/en/articles/9547008-share-artifacts
   - https://support.claude.com/en/articles/16923645-get-started-with-claude-docs
-  - https://support.claude.com/en/articles/17274727-artifact-usage-promotion
   - https://support.claude.com/en/articles/12138966-release-notes
   - https://claude.com/features/artifacts
   - https://claude.com/pricing
@@ -19,7 +18,6 @@ sources:
 verify:
   - Free 能否使用 Docs / Slides / Design 模板：帮助中心正文和定价页都写「模板为付费套餐 beta」，但 2026-09-16 发布说明写「包括 Free 在内所有套餐可用」，两处不一致，站长用 Free 账号确认
   - 中文界面里「Output / Artifacts 标签 / Share / Export」等按钮的中文名称，以实际界面为准
-  - 「Artifacts 用量减半」活动只到 2026-10-15，过期后删除对应段落
 ---
 
 > 本文根据 Anthropic 官方帮助中心、发布说明、产品页和 Claude Code 官方文档整理，核对日期 2026-10-07。截图引用自 Claude Code 官方文档和 Anthropic 官方公告配图，图下注明出处。Artifacts 在 2026 年 9 月刚改版，网上较早的教程（「右侧弹出代码窗口」「Publish 发布」）说的多是旧版。
@@ -141,7 +139,7 @@ Claude 什么时候会自动做成 Artifact？官方给的标准：内容比较�
 能在聊天里创建 Artifact；从模板开始、连接应用、存储数据这些按帮助中心说明属于付费套餐功能。
 
 **Q：做 Artifact 会更费额度吗？**
-帮助中心把「生成和使用 Artifacts」列为影响用量的因素之一。另有一个限时活动：2026 年 10 月 1 日至 15 日，Pro、Max、Team 在聊天或 Cowork 里创建或编辑 Artifact 后，接下来 10 条消息只按一半计入 5 小时会话额度（不影响每周额度，不适用于 Claude Code 和旧版 Artifacts）。额度规则详见本站《Claude 使用限制与额度》。
+帮助中心把「生成和使用 Artifacts」列为影响用量的因素之一。额度规则详见本站《Claude 使用限制与额度》。
 
 **Q：打开别人分享的 Artifact 安全吗？**
 官方提醒只打开信任的人分享的 Artifact，把它当作陌生人发来的文件看待；基于别人发布的 Artifact 二次创作时同样如此。
@@ -151,7 +149,6 @@ Claude 什么时候会自动做成 Artifact？官方给的标准：内容比较�
 - What are artifacts and how do I use them?（官方）：https://support.claude.com/en/articles/17153992-what-are-artifacts-and-how-do-i-use-them
 - Share artifacts（官方）：https://support.claude.com/en/articles/9547008-share-artifacts
 - Get started with Claude Docs（官方）：https://support.claude.com/en/articles/16923645-get-started-with-claude-docs
-- Artifact usage promotion（官方）：https://support.claude.com/en/articles/17274727-artifact-usage-promotion
 - Claude 发布说明（2026-09-16 条目）：https://support.claude.com/en/articles/12138966-release-notes
 - Artifacts 产品页：https://claude.com/features/artifacts
 - 套餐对比：https://claude.com/pricing
