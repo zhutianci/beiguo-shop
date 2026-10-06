@@ -58,3 +58,17 @@ docker compose --env-file .env.production up -d --no-deps app
 
 - 镜像：`docker tag beiguo-shop-app:rollback-<旧HEAD> beiguo-shop-app:latest && docker compose --env-file .env.production up -d --no-deps app`
 - 库不用回退：新增的表和列旧代码不读不写。导入的种子内容在旧版里会出现在老论坛列表里——若回滚，后台把这些帖子隐藏即可。
+
+## 上线实录（2026-10-07 凌晨）
+
+| 步骤 | 结果 |
+|---|---|
+| 代码 | 推 main：`1f88ae5..5c5602e`（SEO 批 1 + 内容平台 19 个提交），上线中又补 3 个：`d4e2367` 讨论帖整组不收录、`fedd756` Dockerfile 引擎镜像、`dd5565c` compose 传 CONTENT_INDEXING_OPEN |
+| 回滚标签 | `beiguo-shop-app:rollback-7dc2448`（= 旧镜像 0ead7ccaf65c） |
+| 备份 | `/opt/beiguo/backups/beiguo_shop_20261006_234341_pre-content.sql`，末尾 `Dump completed` |
+| DDL | 预览 13KB、零 DROP：forum_posts / forum_comments 加列、20 张新表、5 个索引、外键；`db push` 成功，阳性对照核实 `checked_on`、`review_status`、`prompt_specs`、`content_order_attributions` 都在 |
+| 构建 | 第一次 00:06 失败在 `npx prisma generate`（直连 binaries.prisma.sh 不通；schema 改了缓存失效要重下引擎）→ Dockerfile 加 `PRISMA_ENGINES_MIRROR` → 00:09–00:32 成功，约 23 分钟（next build 编译 18 分钟，内存很紧但站点全程在线），`[prerender] routes=0`，swappiness 已还原 0；新镜像 `d06eb003023e` |
+| 切换 | 只重建 app，4 秒首页 200；19 个页面 200、不存在地址 404、应用日志无报错 |
+| 导入 | 临时容器（挂 prisma/ 与 forum_uploads 卷，`--publish`，作者 admin@example.com「Nathaniel」）：专题介绍 22、内容 276 条（公开 268 = 提示词 256 + 教程 12；缺图提示词 8 条待审）、图片 224 张 |
+| 收录 | `.env.production` 加 `CONTENT_INDEXING_OPEN=1`（备份 .env.production.bak-indexing-*）；compose 补传该变量后重建 app → robots 挂 `/sitemap-content.xml`，其中 129 个地址；教程页 `index, follow`、标题「（2026-10 更新）」；/forum 仍 noindex |
+| 待站长 | Search Console / Bing 提交 `https://bigolab.com/sitemap-content.xml`；观察 4 周「已抓取 - 尚未编入索引」比例，异常就删掉那行变量、重建 app 整体撤回 |
