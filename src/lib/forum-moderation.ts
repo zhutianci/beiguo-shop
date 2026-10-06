@@ -8,6 +8,7 @@
  * 而且能顺手把历史上漂移的计数纠正回来。
  */
 import { prisma } from './db'
+import { onCommentPublished } from './content/events'
 
 export async function recountComments(postId: number): Promise<number> {
   const n = await prisma.forumComment.count({ where: { postId, status: 1, reviewStatus: 'APPROVED' } })
@@ -30,6 +31,7 @@ export async function setCommentReview(id: number, reviewStatus: 'APPROVED' | 'R
   if (!c) return false
   await prisma.forumComment.update({ where: { id }, data: { reviewStatus } })
   await recountComments(c.postId)
+  if (reviewStatus === 'APPROVED' && c.reviewStatus !== 'APPROVED') void onCommentPublished(c.id)
   if (reviewStatus === 'APPROVED') {
     const post = await prisma.forumPost.findUnique({ where: { id: c.postId }, select: { lastReplyAt: true } })
     if (!post?.lastReplyAt || post.lastReplyAt < c.createdAt) {

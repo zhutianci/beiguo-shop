@@ -89,3 +89,44 @@ verify:
 （正文 1200–2500 字。结构：适用于谁 → 结论先说 → 步骤 → 常见问题 → 参考资料。
  步骤里需要截图的位置写「【截图：……】」占位。不确定的事实写「（待实测）」。）
 ```
+
+---
+
+## 三、第二批（2026-10-06 晚，站长新要求）：提示词库要「非常多、精致、有用」，并扩到文本领域
+
+站长决定：**提示词的版权先不管**；图像 / 视频提示词可以使用来源仓库里作者自带的**示例图**（逐条标注「示例图来源」）。
+仍然不收：越狱 / 破限 / 擦边、真人名人换脸、违法内容、带联系方式的内容。
+
+### 分类（标签 slug 必须来自 src/lib/content/tags.ts 的 DEFAULT_TAGS）
+
+- 模型（每条提示词恰好 1 个）：
+  - 图像：`gpt-image-2` `nano-banana` `midjourney` `jimeng`
+  - 视频：`seedance` `kling` `veo`
+  - 文本：`any-llm`（通用，首选）`gpt` `claude-llm` `gemini-llm` `deepseek`
+- 主题（0–3 个）：
+  - 图像：`id-photo` `portrait` `ecommerce` `poster` `figurine` `old-photo` `comic` `sticker` `ppt` `logo` `illustration` `photography` `interior` `character` `infographic` `photo-edit`
+  - 视频：`product-video` `image-to-video` `cinematic` `short-drama` `motion-graphics`
+  - 文本：`research-data` `research-figure` `paper-writing` `literature` `copywriting` `social-media` `marketing` `video-script` `coding` `data-analysis` `office` `learning` `translation` `product-design` `career`
+
+### 提示词文件的新增字段
+
+```yaml
+images:                       # 图像 / 视频提示词的示例图（视频取封面或关键帧）。文件放在 prisma/seed-assets/，这里只写文件名
+  - 101-cyberpunk-poster-1.jpg
+imageCredit:                  # 示例图来源（页面上显示「示例图来源：xxx」）
+  by: "@原作者"               # 不知道就写仓库名
+  url: https://github.com/...
+  license: CC0
+```
+
+- 示例图：单张 ≤ 1.2MB，jpg / png / webp / gif；文件名 `{编号}-{slug}-{n}.{扩展名}`，全小写 ASCII。下载不了就不写 images（不要写不存在的文件）。
+- 文本提示词（模型为文本类）不需要 images；正文写「使用说明」+「### 示例输出」（自己写一段有代表性的示例输出，标注「示例，仅供参考」）。
+- 图像 / 视频提示词：`prompt` 写**中文改写版**（可直接复制使用，[变量] 标可替换部分）；有英文原版的，在正文里加一节「### 英文原版」放代码块。
+- `imageBrief` 改为选填（有示例图时可省略）。
+
+### 质量标准（「精致、有用」）
+
+- 提示词要具体、结构化：文本类按「角色 / 背景 / 任务 / 约束 / 输出格式」组织，带 [变量]；图像类写清主体、构图、光线、风格、画幅。
+- 标题用人会搜的说法 + 具体效果，例如「科研论文图表配色与排版提示词（Nature 风格）」「小红书爆款笔记标题生成提示词」。
+- useCase 一两句话说清「什么时候用、得到什么」。
+- 正文 120–400 字：怎么填变量、常见坑、怎么迭代追问。

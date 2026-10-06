@@ -38,7 +38,8 @@ const getPost = cache(async (id: number) => {
         category: { select: { name: true, slug: true, icon: true, color: true } },
         user: { select: { nickname: true, avatar: true } },
         prompt: { select: { prompt: true } },
-        postTags: { select: { tag: { select: { kind: true, status: true } } } },
+        app: { select: { selfPromo: true } },
+        postTags: { select: { tag: { select: { kind: true, status: true, facet: true } } } },
       },
     })
   } catch (e) {
@@ -116,6 +117,14 @@ export default async function ForumPostPage({ params }: { params: { id: string }
   const initialComments = JSON.parse(JSON.stringify(comments)) as CommentPage
 
   const authorName = authorOf(post)
+  // 问答（P2）：有被采纳的回答时，结构化数据改用 QAPage（Google：问答为主的帖子用 QAPage）
+  const accepted =
+    publicPost && post.acceptedCommentId
+      ? await prisma.forumComment.findFirst({
+          where: { id: post.acceptedCommentId, postId: post.id, status: 1, reviewStatus: 'APPROVED' },
+          select: { id: true, content: true, authorName: true, userId: true, createdAt: true, likeCount: true, user: { select: { nickname: true } } },
+        })
+      : null
   const initialPost: Detail = {
     id: post.id,
     title: post.title,
@@ -146,7 +155,7 @@ export default async function ForumPostPage({ params }: { params: { id: string }
 
   return (
     <>
-      {publicPost && <JsonLd data={postingJsonLd(post, authorName, initialComments)} />}
+      {publicPost && <JsonLd data={accepted ? qaJsonLd(post, authorName, accepted) : postingJsonLd(post, authorName, initialComments)} />}
       <PostDetail initialPost={initialPost} initialComments={initialComments} />
     </>
   )
@@ -183,5 +192,34 @@ function postingJsonLd(post: PostRow, authorName: string, comments: CommentPage)
       { '@type': 'InteractionCounter', interactionType: 'https://schema.org/CommentAction', userInteractionCount: post.commentCount },
     ],
     ...(comments.list.length ? { comment: comments.list.map(toComment) } : {}),
+  }
+}
+
+/** QAPage：提问 + 被采纳的回答（只放页面上真实可见的内容） */
+function qaJsonLd(
+  post: PostRow,
+  authorName: string,
+  a: { id: number; content: string; authorName: string; userId: number | null; createdAt: Date; likeCount: number; user: { nickname: string | null } | null },
+): Record<string, unknown> {
+  const url = absUrl(`/forum/${post.id}`)
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'QAPage',
+    mainEntity: {
+      '@type': 'Question',
+      name: post.title,
+      text: plainExcerpt(post.content, 3000),
+      answerCount: post.commentCount,
+      datePublished: post.createdAt.toISOString(),
+      author: { '@type': 'Person', name: authorName },
+      acceptedAnswer: {
+        '@type': 'Answer',
+        text: a.content,
+        datePublished: a.createdAt.toISOString(),
+        upvoteCount: a.likeCount,
+        url: `${url}#c-${a.id}`,
+        author: { '@type': 'Person', name: a.userId ? memberDisplayName(a.user?.nickname, a.userId) : a.authorName },
+      },
+    },
   }
 }

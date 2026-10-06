@@ -13,6 +13,8 @@ import { FLAG_LABELS, asContentType, canView, contentPath, isForumImageUrl, isPu
 import { declarationShape } from '@/lib/content/schema'
 import { checkTyped, typedShape } from '@/lib/content/write'
 import { notifyContentChanged } from '@/lib/content/indexnow'
+import { dedupText, findNearDuplicate } from '@/lib/content/events'
+import { simhash } from '@/lib/content/simhash'
 import { notify } from '@/lib/notify'
 
 // 帖子详情（浏览量去重 +1，返回渲染后的 HTML 与点赞状态）
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         category: { select: { name: true, slug: true, icon: true, color: true } },
         user: { select: { nickname: true, avatar: true } },
         prompt: true,
+        app: true,
         postTags: { select: { tagId: true } },
       },
     })
@@ -57,6 +60,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     const canEdit = actor.isAdmin || (!!post.userId && post.userId === actor.userId)
+    // P2：我收藏了没有（收藏须登录，匿名访客恒为 false）
+    const favoritedByMe = actor.userId
+      ? !!(await prisma.favorite.findUnique({ where: { userId_postId: { userId: actor.userId, postId: id } } }))
+      : false
 
     return success({
       id: post.id,
@@ -94,10 +101,28 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             useCase: post.prompt.useCase,
           }
         : null,
+      app: post.app
+        ? {
+            name: post.app.name,
+            url: post.app.url,
+            pricing: post.app.pricing,
+            platforms: post.app.platforms,
+            trialNote: post.app.trialNote,
+            selfPromo: post.app.selfPromo,
+            relation: post.app.relation,
+          }
+        : null,
       tagIds: post.postTags.map((pt) => pt.tagId),
       testedOn: post.testedOn ? post.testedOn.toISOString().slice(0, 10) : null,
       accountTier: post.accountTier,
       excerpt: post.excerpt,
+      favoriteCount: post.favoriteCount,
+      favoritedByMe,
+      acceptedCommentId: post.acceptedCommentId,
+      remixOfId: post.remixOfId,
+      // 提问者（或管理员）可以采纳回答
+      canAccept: actor.isAdmin || (!!post.userId && post.userId === actor.userId),
+      loggedIn: !!actor.userId,
       views: post.views + (counted ? 1 : 0),
       likeCount: post.likeCount,
       commentCount: post.commentCount,
@@ -154,7 +179,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const images = d.images ?? (post.images ? (JSON.parse(post.images) as string[]) : [])
     const typed = await checkTyped(type, d, { full: false, imageCount: images.length, content: d.content ?? post.content })
     if ('error' in typed) return error(typed.error)
-    if (type === 'PROMPT' && d.images !== undefined && d.images.length < 1) return error('提示词至少保留 1 张效果图')
+    if (type === 'PROMPT' && d.images !== undefined && d.images.length < 1) {
+      // 只有图像类必须有图：facet 取本次提交的模型标签，没改标签就取库里的
+      const facet =
+        typed.facet !== undefined
+          ? typed.facet
+          : (await prisma.postTag.findFirst({ where: { postId: id, tag: { kind: 'MODEL' } }, select: { tag: { select: { facet: true } } } }))?.tag.facet
+      if (facet === 'IMAGE') return error('图像类提示词至少保留 1 张效果图')
+    }
 
     const data: any = {}
     if (d.title !== undefined) data.title = d.title
@@ -177,6 +209,21 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         data.prompt = { upsert: { create: pr, update: pr } }
       }
       if (typed.tagIds) data.postTags = { deleteMany: {}, create: typed.tagIds.map((tagId) => ({ tagId })) }
+      if (type === 'APP' && d.app) {
+        // 自荐这个开关发出后不能改（改成「不是自荐」就绕过了自荐的门槛与 sponsored 标注）
+        const was = await prisma.appSpec.findUnique({ where: { postId: id }, select: { selfPromo: true } })
+        if (was && was.selfPromo !== !!d.app.selfPromo && !actor.isAdmin) return error('「作者自荐」发布后不能更改')
+        const ap = {
+          name: d.app.name,
+          url: d.app.url,
+          pricing: d.app.pricing || null,
+          platforms: d.app.platforms || null,
+          trialNote: d.app.trialNote || null,
+          selfPromo: !!d.app.selfPromo,
+          relation: d.app.selfPromo ? d.app.relation ?? 'OTHER' : null,
+        }
+        data.app = { upsert: { create: ap, update: ap } }
+      }
     }
     if (d.categoryId !== undefined && d.categoryId !== post.categoryId && type === 'DISCUSSION') {
       // 换板块与发帖同一套规矩：板块必须存在且启用、公告板块只许管理员。
@@ -217,10 +264,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         d.prompt?.useCase ?? before?.useCase,
         data.excerpt ?? post.excerpt,
       )
-      const next = postReviewOnEdit(level, flags, post.reviewStatus)
+      let next = postReviewOnEdit(level, flags, post.reviewStatus)
+      const text = dedupText({ prompt: d.prompt?.prompt ?? before?.prompt, content: data.content ?? post.content })
+      data.simhash = simhash(text)
+      const dup = level === 9 ? null : await findNearDuplicate(post.type, text, id)
+      if (dup && dup.id !== post.remixOfId) {
+        next = 'PENDING'
+        data.reviewNote = `疑似与 #${dup.id}「${dup.title.slice(0, 40)}」重复（相似度距离 ${dup.distance}），请人工确认`
+      }
       if (next !== post.reviewStatus) {
         data.reviewStatus = next
-        if (next === 'PENDING') data.reviewNote = null
+        if (next === 'PENDING' && !data.reviewNote) data.reviewNote = null
       }
       pending = next === 'PENDING'
       if (pending && post.reviewStatus !== 'PENDING') {

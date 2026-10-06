@@ -10,6 +10,8 @@ import {
 } from 'lucide-react'
 import { CONTENT_TYPE_LABELS, ORIGINALITY_LABELS, type ContentType, type Originality } from '@/lib/content/policy'
 import { ContentTagsCard } from '@/components/admin/content-tags-card'
+import { ContentReportsCard } from '@/components/admin/content-reports-card'
+import { ContentDigestButton } from '@/components/admin/content-digest-button'
 
 interface Category {
   id: number
@@ -299,6 +301,10 @@ export default function AdminForumPage() {
         </CardContent>
       </Card>
 
+      <ContentDigestButton />
+
+      <ContentReportsCard />
+
       <ContentTagsCard />
 
       {/* 待审评论 */}
@@ -400,6 +406,7 @@ export default function AdminForumPage() {
               <option value="DISCUSSION">讨论</option>
               <option value="PROMPT">提示词</option>
               <option value="GUIDE">教程</option>
+              <option value="APP">AI 应用</option>
             </select>
             <select
               value={reviewFilter}

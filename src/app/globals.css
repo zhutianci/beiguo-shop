@@ -595,8 +595,9 @@
 .learn-scroll-x {
   overflow-x: auto;
   scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 24px), transparent);
-  mask-image: linear-gradient(90deg, transparent 0, #000 16px, #000 calc(100% - 24px), transparent);
+  /* 只在右侧淡出（提示还能往右滑）；左侧不淡出，否则第一个胶囊会被吃掉一半 */
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
 }
 .learn-scroll-x::-webkit-scrollbar { display: none; }
 
@@ -617,10 +618,12 @@
 
 /* 吸顶筛选条：不用毛玻璃，近乎不透明的底色（轻量模式下也不透字） */
 .learn-sticky {
-  position: sticky;
-  top: var(--header-h, 7rem);
   z-index: 20;
   background: linear-gradient(180deg, rgba(8, 8, 10, 0.97) 70%, rgba(8, 8, 10, 0));
+}
+/* 只在桌面端吸顶：手机屏幕矮，三行筛选条吸顶会占掉三分之一屏 */
+@media (min-width: 1024px) {
+  .learn-sticky { position: sticky; top: var(--header-h, 7rem); }
 }
 
 /* 入场：只动 transform（首帧可见，见本段开头） */

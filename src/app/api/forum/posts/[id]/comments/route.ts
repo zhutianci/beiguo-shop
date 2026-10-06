@@ -10,6 +10,7 @@ import { denyOnChannel } from '@/lib/storefront/resolve'
 import { flagsOf, forumCrossSite, loadCommentPage, trustLevelOf } from '@/lib/forum-server'
 import { FLAG_LABELS, commentReviewOnCreate, isPublic } from '@/lib/content/policy'
 import { notify } from '@/lib/notify'
+import { onCommentPublished } from '@/lib/content/events'
 
 // 评论列表（楼中楼，两层结构）
 // 顶层评论分页，楼中楼回复跟随其父评论一起返回（不单独分页）。取数与拼装在 lib/forum-server（详情页服务端直出共用）
@@ -109,6 +110,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       data: { commentCount: { increment: 1 }, lastReplyAt: new Date() },
     })
 
+    void onCommentPublished(comment.id)
     return success({ id: comment.id, pending: false }, '评论成功')
   } catch (err) {
     console.error('Create comment error:', err)

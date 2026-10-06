@@ -1,17 +1,19 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowRight, ArrowUpRight, BookOpen, Camera, MessagesSquare, Sparkles } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, BookOpen, Camera, LayoutGrid, MessagesSquare } from 'lucide-react'
 import { countIndexable, learnHomeData } from '@/lib/content/queries'
 import { isHubIndexable } from '@/lib/content/policy'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
 import { siteOrigin } from '@/lib/news/format'
 import {
+  AppGrid,
   GuideFeature,
   GuideRows,
   LearnPage,
   ModelTile,
   PromptMasonry,
+  SearchBox,
   SectionHead,
   hubHref,
 } from '@/components/learn/ui'
@@ -69,7 +71,10 @@ export default async function LearnHome() {
               看教程
             </Link>
           </div>
-          <dl className="mt-12 flex flex-wrap gap-x-10 gap-y-3">
+          <div className="mt-8">
+            <SearchBox />
+          </div>
+          <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-3">
             {[
               { v: d.totals.prompt, l: '条提示词' },
               { v: d.totals.guide, l: '篇教程' },
@@ -128,7 +133,7 @@ export default async function LearnHome() {
           { href: '/prompts', icon: Camera, t: '提示词库', s: '生图与视频，复制即用' },
           { href: '/guides', icon: BookOpen, t: '教程', s: 'ChatGPT / Claude / Codex 实测' },
           { href: '/forum', icon: MessagesSquare, t: '讨论', s: '提问、反馈、经验交流' },
-          { href: '/forum/new?type=PROMPT', icon: Sparkles, t: '投稿', s: '原创首发，优先精选' },
+          { href: '/apps', icon: LayoutGrid, t: 'AI 应用', s: '工具与工作流的真实用法' },
         ].map((x, i) => (
           <Link key={x.href} href={x.href} className="learn-card learn-lift learn-in group flex items-center gap-4 p-5" style={{ animationDelay: `${i * 50}ms` }}>
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/[0.06] text-white/80 transition-colors group-hover:bg-white group-hover:text-black">
@@ -143,11 +148,35 @@ export default async function LearnHome() {
         ))}
       </section>
 
-      {/* —— 精选提示词 —— */}
+      {/* —— 本周最热（按「被复制、被同款、被收藏」排，不按浏览量）—— */}
+      {d.hot.length > 0 && (
+        <section className="mb-24">
+          <SectionHead title="最近最热" desc="按被复制、被做同款、被收藏的次数排，不看浏览量" href="/prompts?sort=hot" />
+          <PromptMasonry items={d.hot} />
+        </section>
+      )}
+
+      {/* —— AI 绘画 —— */}
       {d.prompts.length > 0 && (
         <section className="mb-24">
-          <SectionHead title="精选提示词" desc="作者实测、附出图；高亮的 [变量] 换成你的内容就能用" href="/prompts" />
+          <SectionHead title="AI 绘画提示词" desc="证件照、写真、电商主图、海报、手办、修图……附效果图，[变量] 换成你的内容就能用" href="/prompts/image" />
           <PromptMasonry items={d.prompts} />
+        </section>
+      )}
+
+      {/* —— 文本提示词（科研、写作、文案……）—— */}
+      {d.textPrompts.length > 0 && (
+        <section className="mb-24">
+          <SectionHead title="ChatGPT 提示词" desc="科研数据分析、科研绘图、论文写作、文案、新媒体、编程、职场——结构化模板，附示例输出" href="/prompts/text" />
+          <PromptMasonry items={d.textPrompts} eager={0} />
+        </section>
+      )}
+
+      {/* —— AI 视频 —— */}
+      {d.videoPrompts.length > 0 && (
+        <section className="mb-24">
+          <SectionHead title="AI 视频提示词" desc="Seedance、可灵、Veo：镜头、运镜、节奏写清楚" href="/prompts/video" />
+          <PromptMasonry items={d.videoPrompts} eager={0} />
         </section>
       )}
 
@@ -183,6 +212,14 @@ export default async function LearnHome() {
         </section>
       )}
 
+      {/* —— AI 应用 —— */}
+      {d.apps.length > 0 && (
+        <section className="mb-24">
+          <SectionHead title="AI 应用与工作流" desc="真实用户写的：用它解决了什么、怎么用、值不值" href="/apps" />
+          <AppGrid items={d.apps} />
+        </section>
+      )}
+
       {/* —— 主题 —— */}
       {topics.length > 0 && (
         <section className="mb-24">
@@ -211,7 +248,7 @@ export default async function LearnHome() {
                       {c.name.slice(0, 1)}
                     </span>
                     <span className="flex-1 truncate text-white/80 group-hover:text-white">{c.name}</span>
-                    <span className="text-xs tabular-nums text-white/40">{c.count} 篇</span>
+                    <span className="text-xs tabular-nums text-white/40">{c.points} 积分 · {c.count} 篇</span>
                   </Link>
                 </li>
               ))}

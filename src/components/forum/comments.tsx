@@ -9,7 +9,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ThumbsUp, MessageCircle, Lock, Trash2, Send, CornerDownRight, ShieldCheck } from 'lucide-react'
+import { ThumbsUp, MessageCircle, Lock, Trash2, Send, CornerDownRight, ShieldCheck, Award } from 'lucide-react'
+import { ReportButton } from '@/components/learn/social-client'
 import { forumFetch, timeAgo } from '@/lib/forum-client'
 import { useUserStore } from '@/store/user'
 import { withRedirect } from '@/lib/safe-redirect'
@@ -45,12 +46,15 @@ export function CommentsSection({
   commentCount,
   gate,
   onChanged,
+  qa = false,
 }: {
   postId: number
   initial: CommentPage
   commentCount: number
   gate: CommentGate
   onChanged?: () => void
+  /** 问答模式（论坛讨论帖）：提问者可以把一条顶层回答「采纳」为最佳回答（P2） */
+  qa?: boolean
 }) {
   const { user } = useUserStore()
   // 「以 xxx 评论」只显示昵称，不显示邮箱（公开作者名已不再回落到邮箱，审计 G48）。
@@ -58,6 +62,8 @@ export function CommentsSection({
   const commentAs = user ? (user.nickname && !user.nickname.includes('@') ? user.nickname : '会员（未设置昵称）') : null
   const [comments, setComments] = useState<Comment[]>(initial.list)
   const [count, setCount] = useState(commentCount)
+  const [accepted, setAccepted] = useState<number | null>(null)
+  const [canAccept, setCanAccept] = useState(false)
   useEffect(() => setCount(commentCount), [commentCount])
   // 评论分段加载状态
   const [cPage, setCPage] = useState(initial.page) // 已加载到第几页
@@ -144,6 +150,33 @@ export function CommentsSection({
     onChanged?.()
   }, [postId, onChanged])
 
+  // 问答：采纳状态与「我能不能采纳」（提问者或管理员）
+  useEffect(() => {
+    if (!qa) return
+    forumFetch(`/api/forum/posts/${postId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.success) return
+        setAccepted(d.data.acceptedCommentId ?? null)
+        setCanAccept(!!d.data.canAccept)
+      })
+      .catch(() => {})
+  }, [qa, postId])
+
+  const accept = async (commentId: number | null) => {
+    const res = await fetch(`/api/forum/posts/${postId}/accept`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commentId }),
+    })
+    const d = await res.json().catch(() => ({}))
+    if (d.success) setAccepted(d.data.acceptedCommentId)
+    else alert(d.error || '操作失败')
+  }
+
+  // 被采纳的回答置顶显示
+  const ordered = accepted ? [...comments].sort((a, b) => (a.id === accepted ? -1 : b.id === accepted ? 1 : 0)) : comments
+
   // 挂载后按当前访客重取第 1 页（补点赞状态与删除权限）
   useEffect(() => {
     reloadComments(1)
@@ -151,7 +184,7 @@ export function CommentsSection({
   }, [postId])
 
   return (
-    <section className="mt-8 lg:mt-12">
+    <section id="comments" className="mt-8 lg:mt-12 scroll-mt-32">
           <h2 className="text-lg lg:text-xl font-bold mb-4 lg:mb-5 flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-purple-400" /> {count} 条评论
           </h2>
@@ -173,8 +206,17 @@ export function CommentsSection({
 
           {/* 评论列表 */}
           <div className="space-y-4 mt-6">
-            {comments.map((c) => (
-              <CommentItem key={c.id} comment={c} postId={postId} locked={gate !== 'open'} userName={commentAs} onChange={() => { refreshAfterChange(false); afterChange() }} />
+            {ordered.map((c) => (
+              <CommentItem
+                key={c.id}
+                comment={c}
+                postId={postId}
+                locked={gate !== 'open'}
+                userName={commentAs}
+                onChange={() => { refreshAfterChange(false); afterChange() }}
+                accepted={accepted === c.id}
+                onAccept={qa && canAccept && gate === 'open' ? () => accept(accepted === c.id ? null : c.id) : undefined}
+              />
             ))}
             {comments.length === 0 && !cLoading && <p className="text-center text-white/30 py-8 text-sm">还没有评论，来抢沙发～</p>}
           </div>
@@ -271,8 +313,16 @@ function CommentBox({
 }
 
 function CommentItem({
-  comment, postId, locked, userName, onChange,
-}: { comment: Comment; postId: number; locked: boolean; userName: string | null; onChange: () => void }) {
+  comment, postId, locked, userName, onChange, accepted = false, onAccept,
+}: {
+  comment: Comment
+  postId: number
+  locked: boolean
+  userName: string | null
+  onChange: () => void
+  accepted?: boolean
+  onAccept?: () => void
+}) {
   const [replying, setReplying] = useState(false)
   const [liked, setLiked] = useState(comment.likedByMe)
   const [likeCount, setLikeCount] = useState(comment.likeCount)
@@ -302,7 +352,12 @@ function CommentItem({
   }
 
   return (
-    <div className="glass rounded-2xl p-4 lg:p-5">
+    <div id={`c-${comment.id}`} className={`glass rounded-2xl p-4 lg:p-5 ${accepted ? 'ring-1 ring-emerald-400/50' : ''}`}>
+      {accepted && (
+        <p className="mb-2 inline-flex items-center gap-1 rounded-full bg-emerald-400/15 px-2.5 py-0.5 text-xs text-emerald-200">
+          <Award className="h-3.5 w-3.5" /> 提问者采纳的最佳回答
+        </p>
+      )}
       <div className="flex items-start gap-3">
         <span className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs font-bold text-white shrink-0">
           {comment.authorName.slice(0, 1)}
@@ -326,10 +381,17 @@ function CommentItem({
                 <CornerDownRight className="w-3.5 h-3.5" /> 回复
               </button>
             )}
-            {comment.canDelete && (
+            {onAccept && (
+              <button onClick={onAccept} className={`inline-flex items-center gap-1 hover:text-white ${accepted ? 'text-emerald-300' : ''}`}>
+                <Award className="w-3.5 h-3.5" /> {accepted ? '取消采纳' : '采纳为最佳回答'}
+              </button>
+            )}
+            {comment.canDelete ? (
               <button onClick={del} className="inline-flex items-center gap-1 hover:text-red-400">
                 <Trash2 className="w-3.5 h-3.5" /> 删除
               </button>
+            ) : (
+              <ReportButton commentId={comment.id} small />
             )}
           </div>
 
@@ -401,10 +463,12 @@ function ReplyItem({ reply, onChange }: { reply: Comment; onChange: () => void }
         <button onClick={toggleLike} className={`inline-flex items-center gap-1 hover:text-white ${liked ? 'text-purple-400' : ''}`}>
           <ThumbsUp className="w-3 h-3" /> {likeCount > 0 ? likeCount : '赞'}
         </button>
-        {reply.canDelete && (
+        {reply.canDelete ? (
           <button onClick={del} className="inline-flex items-center gap-1 hover:text-red-400">
             <Trash2 className="w-3 h-3" /> 删除
           </button>
+        ) : (
+          <ReportButton commentId={reply.id} small />
         )}
       </div>
     </div>

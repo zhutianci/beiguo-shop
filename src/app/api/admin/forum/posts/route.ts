@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
         include: {
           category: { select: { name: true, icon: true } },
           prompt: { select: { prompt: true } },
-          postTags: { select: { tag: { select: { name: true, kind: true, status: true } } } },
+          app: { select: { selfPromo: true } },
+          postTags: { select: { tag: { select: { name: true, kind: true, status: true, facet: true } } } },
         },
       }),
       prisma.forumPost.count({ where }),

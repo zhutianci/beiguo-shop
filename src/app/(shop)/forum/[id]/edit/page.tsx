@@ -35,6 +35,7 @@ export default function EditPostPage() {
           testedOn: d.data.testedOn,
           accountTier: d.data.accountTier,
           excerpt: d.data.excerpt,
+          app: d.data.app,
         })
         setState('ok')
       })

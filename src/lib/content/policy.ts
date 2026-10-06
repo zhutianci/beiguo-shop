@@ -210,8 +210,13 @@ export interface IndexableInput extends VisibilityInput {
   imageCount?: number
   /** PROMPT 专用：是否关联了模型标签 */
   hasModel?: boolean
+  /** PROMPT 专用：模型标签的大类 IMAGE | VIDEO | TEXT（见 lib/content/tags.ts 的 Facet） */
+  facet?: string | null
   /** GUIDE 专用：作者声明的测试日期 */
   testedOn?: Date | null
+  /** APP 专用：是否作者自荐 */
+  selfPromo?: boolean
+  featured?: boolean
 }
 
 /**
@@ -223,6 +228,9 @@ export const MIN_INDEXABLE_REPLIES = 3 // DISCUSSION：或者有这么多条回�
 export const MIN_PROMPT_CHARS = 20 // PROMPT：提示词本身
 export const MIN_PROMPT_NOTES = 50 // PROMPT：心得 / 说明（正文）——或者有 ≥2 张出图
 export const MIN_GUIDE_CHARS = 600 // GUIDE：正文（不含代码块）
+export const MIN_APP_CHARS = 200 // APP：「我用它解决了什么」（设计 §5.3）
+export const MIN_TEXT_PROMPT_CHARS = 40 // 文本类提示词：模板本身要够具体
+export const MIN_TEXT_PROMPT_NOTES = 80 // 文本类提示词：使用说明 + 示例输出
 
 /** 去掉 Markdown 记号与代码块后的可读字数（中文按字、英文按字符） */
 export function readableLength(md: string): number {
@@ -240,10 +248,27 @@ export function qualityGateReason(p: IndexableInput): string | null {
   if (p.aiAssist === 'MAJOR') return '正文主要由 AI 生成'
   const type = p.type || 'DISCUSSION'
   if (type === 'PROMPT') {
-    if ((p.promptText || '').trim().length < MIN_PROMPT_CHARS) return `提示词少于 ${MIN_PROMPT_CHARS} 字`
     if (!p.hasModel) return '没有关联模型'
+    // 文本类（科研、文案……）没有出图，靠模板本身与示例输出撑起页面价值
+    if (p.facet === 'TEXT') {
+      if ((p.promptText || '').trim().length < MIN_TEXT_PROMPT_CHARS) return `提示词少于 ${MIN_TEXT_PROMPT_CHARS} 字`
+      if (readableLength(p.content) < MIN_TEXT_PROMPT_NOTES) return `使用说明与示例输出少于 ${MIN_TEXT_PROMPT_NOTES} 字`
+      return null
+    }
+    if ((p.promptText || '').trim().length < MIN_PROMPT_CHARS) return `提示词少于 ${MIN_PROMPT_CHARS} 字`
+    // 视频类：有封面 / 关键帧最好，没有时要有足够的说明（视频本身不在站内托管，设计 §10.4）
+    if (p.facet === 'VIDEO') {
+      if ((p.imageCount ?? 0) < 1 && readableLength(p.content) < MIN_PROMPT_NOTES) return `没有封面时说明需 ≥${MIN_PROMPT_NOTES} 字`
+      return null
+    }
     if ((p.imageCount ?? 0) < 1) return '没有出图'
     if ((p.imageCount ?? 0) < 2 && readableLength(p.content) < MIN_PROMPT_NOTES) return `只有 1 张图时心得需 ≥${MIN_PROMPT_NOTES} 字`
+    return null
+  }
+  if (type === 'APP') {
+    // 作者自荐：默认不收录，被编辑精选（确有教程价值）才放开（设计 §9.2）
+    if (p.selfPromo && !p.featured) return '作者自荐（精选后才收录）'
+    if (readableLength(p.content) < MIN_APP_CHARS) return `「我用它解决了什么」少于 ${MIN_APP_CHARS} 字`
     return null
   }
   if (type === 'GUIDE') {
@@ -279,15 +304,16 @@ export function isHubIndexable(kind: string, introLength: number, indexableItems
 
 // ─────────────────────────────── 内容类型与地址（§4） ───────────────────────────────
 
-export const CONTENT_TYPES = ['DISCUSSION', 'PROMPT', 'GUIDE'] as const
+export const CONTENT_TYPES = ['DISCUSSION', 'PROMPT', 'GUIDE', 'APP'] as const
 export type ContentType = (typeof CONTENT_TYPES)[number]
-export const CONTENT_TYPE_LABELS: Record<ContentType, string> = { DISCUSSION: '讨论', PROMPT: '提示词', GUIDE: '教程' }
+export const CONTENT_TYPE_LABELS: Record<ContentType, string> = { DISCUSSION: '讨论', PROMPT: '提示词', GUIDE: '教程', APP: 'AI 应用' }
 
 /** 类型对应的栏目根路径 */
-export const SECTION_PATH: Record<ContentType, string> = { DISCUSSION: '/forum', PROMPT: '/prompts', GUIDE: '/guides' }
+export const SECTION_PATH: Record<ContentType, string> = { DISCUSSION: '/forum', PROMPT: '/prompts', GUIDE: '/guides', APP: '/apps' }
 
-/** 提示词与教程各自挂在一个专用板块下（forum_posts.category_id 非空）；这两个板块不出现在论坛的板块导航里 */
-export const CONTENT_BOARD_SLUGS: Record<'PROMPT' | 'GUIDE', string> = { PROMPT: 'prompts', GUIDE: 'guides' }
+/** 提示词、教程、应用各自挂在一个专用板块下（forum_posts.category_id 非空）；这些板块不出现在论坛的板块导航里 */
+export type TypedSection = 'PROMPT' | 'GUIDE' | 'APP'
+export const CONTENT_BOARD_SLUGS: Record<TypedSection, string> = { PROMPT: 'prompts', GUIDE: 'guides', APP: 'apps' }
 
 export function asContentType(t: string | null | undefined): ContentType {
   return (CONTENT_TYPES as readonly string[]).includes(t || '') ? (t as ContentType) : 'DISCUSSION'

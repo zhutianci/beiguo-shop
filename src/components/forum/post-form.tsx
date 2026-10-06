@@ -36,7 +36,10 @@ interface TagOption {
   slug: string
   name: string
   kind: 'MODEL' | 'TOPIC' | 'PRODUCT'
+  facet: 'IMAGE' | 'VIDEO' | 'TEXT' | null
 }
+
+const FACET_NAMES = { IMAGE: '图像', VIDEO: '视频', TEXT: '文本（ChatGPT / Claude 等对话模型）' } as const
 
 export interface PostFormInitial {
   type?: string
@@ -60,6 +63,15 @@ export interface PostFormInitial {
   testedOn?: string | null
   accountTier?: string | null
   excerpt?: string | null
+  app?: {
+    name: string
+    url: string
+    pricing: string | null
+    platforms: string | null
+    trialNote: string | null
+    selfPromo: boolean
+    relation: string | null
+  } | null
 }
 
 const inputCls =
@@ -70,7 +82,18 @@ function pick<T extends string>(list: readonly T[], v: string | null | undefined
   return (list as readonly string[]).includes(v ?? '') ? (v as T) : fallback
 }
 
-export function PostForm({ postId, initial, initialType }: { postId?: number; initial?: PostFormInitial; initialType?: string }) {
+export function PostForm({
+  postId,
+  initial,
+  initialType,
+  remixOf,
+}: {
+  postId?: number
+  initial?: PostFormInitial
+  initialType?: string
+  /** 「做同款」：原提示词 id，预填模型、主题与提示词（P2 二创链） */
+  remixOf?: number
+}) {
   const router = useRouter()
   const { user } = useUserStore()
   const hydrated = useHydrated()
@@ -96,12 +119,43 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
   const [testedOn, setTestedOn] = useState(initial?.testedOn ?? '')
   const [accountTier, setAccountTier] = useState<AccountTier | ''>(initial?.accountTier ? pick(ACCOUNT_TIERS, initial.accountTier, 'OTHER') : '')
   const [excerpt, setExcerpt] = useState(initial?.excerpt ?? '')
+  // AI 应用（P2）
+  const [appName, setAppName] = useState(initial?.app?.name ?? '')
+  const [appUrl, setAppUrl] = useState(initial?.app?.url ?? '')
+  const [appPricing, setAppPricing] = useState(initial?.app?.pricing ?? '')
+  const [appPlatforms, setAppPlatforms] = useState(initial?.app?.platforms ?? '')
+  const [appTrial, setAppTrial] = useState(initial?.app?.trialNote ?? '')
+  const [selfPromo, setSelfPromo] = useState(initial?.app?.selfPromo ?? false)
+  const [relation, setRelation] = useState(initial?.app?.relation ?? 'AUTHOR')
   // 原创声明与 AI 辅助披露（内容平台设计 §6.1 / §6.3）：必选，默认值是最常见的情况
   const [originality, setOriginality] = useState<Originality>(pick(ORIGINALITY, initial?.originality, 'ORIGINAL_FIRST'))
   const [sourceUrl, setSourceUrl] = useState(initial?.sourceUrl ?? '')
   const [aiAssist, setAiAssist] = useState<AiAssist>(pick(AI_ASSIST, initial?.aiAssist, 'NONE'))
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [remixTitle, setRemixTitle] = useState<string | null>(null)
+
+  // 做同款：拉原提示词，预填模型 / 主题 / 提示词，标题留给作者改（同款要有自己的出图和心得）
+  useEffect(() => {
+    if (!remixOf || isEdit) return
+    fetch(`/api/forum/posts/${remixOf}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.success || d.data.type !== 'PROMPT') return
+        setType('PROMPT')
+        setRemixTitle(d.data.title)
+        setTagIds(d.data.tagIds || [])
+        if (d.data.prompt) {
+          setPrompt(d.data.prompt.prompt)
+          setUseCase(d.data.prompt.useCase)
+          setModelLabel(d.data.prompt.modelLabel ?? '')
+          setAspectRatio(d.data.prompt.aspectRatio ?? '')
+          setNeedsRefImage(!!d.data.prompt.needsRefImage)
+        }
+      })
+      .catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remixOf])
 
   useEffect(() => {
     fetch('/api/forum/categories')
@@ -136,6 +190,8 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
     })
   }
   const selectedOf = (kind: string) => tagOptions.filter((t) => t.kind === kind && tagIds.includes(t.id))
+  // 选中的模型决定这条提示词是图像 / 视频 / 文本：图像类必须有效果图，文本类不需要图
+  const modelFacet = selectedOf('MODEL')[0]?.facet ?? null
 
   const submit = async () => {
     setErr(null)
@@ -145,10 +201,17 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
       if (!content.trim()) return setErr('内容不能为空')
     }
     if (type === 'PROMPT') {
-      if (images.length < 1) return setErr('请至少上传 1 张你自己用这条提示词生成的效果图')
       if (selectedOf('MODEL').length !== 1) return setErr('请选择 1 个模型')
+      if (modelFacet === 'IMAGE' && images.length < 1) return setErr('请至少上传 1 张你自己用这条提示词生成的效果图')
+      if (modelFacet === 'TEXT' && content.trim().length < 20) return setErr('请写一段使用说明或示例输出')
       if (prompt.trim().length < 10) return setErr('提示词至少 10 个字')
       if (useCase.trim().length < 4) return setErr('请用一两句话写清楚适合做什么')
+    }
+    if (type === 'APP') {
+      if (!appName.trim()) return setErr('请填写应用名称')
+      if (!/^https?:\/\//i.test(appUrl.trim())) return setErr('官网地址需以 http:// 或 https:// 开头')
+      if (content.trim().length < 50) return setErr('请写写「我用它解决了什么」（至少 50 字）')
+      if (selfPromo && !appTrial.trim()) return setErr('作者自荐必须写明怎么试用')
     }
     if (type === 'GUIDE') {
       if (selectedOf('PRODUCT').length < 1) return setErr('请选择教程针对的产品')
@@ -166,6 +229,7 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
         title, content, images, originality, aiAssist,
         sourceUrl: originality === 'ORIGINAL_FIRST' ? '' : sourceUrl.trim(),
         ...(isEdit ? {} : { type }),
+        ...(remixOf && !isEdit && type === 'PROMPT' ? { remixOfId: remixOf } : {}),
       }
       const payload =
         type === 'DISCUSSION'
@@ -176,6 +240,19 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
               testedOn: testedOn || null,
               accountTier: accountTier || null,
               excerpt: excerpt.trim() || null,
+              ...(type === 'APP'
+                ? {
+                    app: {
+                      name: appName.trim(),
+                      url: appUrl.trim(),
+                      pricing: appPricing.trim() || null,
+                      platforms: appPlatforms.trim() || null,
+                      trialNote: appTrial.trim() || null,
+                      selfPromo,
+                      relation: selfPromo ? relation : null,
+                    },
+                  }
+                : {}),
               ...(type === 'PROMPT'
                 ? {
                     prompt: {
@@ -237,7 +314,7 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
       {!isEdit && (
         <div>
           <label className="block text-sm text-white/60 mb-2">发布类型</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {CONTENT_TYPES.map((t) => (
               <button
                 key={t}
@@ -252,11 +329,17 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
               >
                 <div className="font-semibold">{CONTENT_TYPE_LABELS[t]}</div>
                 <div className="text-xs opacity-70 mt-0.5">
-                  {t === 'DISCUSSION' ? '提问、反馈、交流' : t === 'PROMPT' ? '附自己的出图，可复制' : '功能教程、实测、踩坑'}
+                  {t === 'DISCUSSION' ? '提问、反馈、交流' : t === 'PROMPT' ? '可复制的提示词模板' : t === 'APP' ? '应用、工作流、作者自荐' : '功能教程、实测、踩坑'}
                 </div>
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {remixTitle && type === 'PROMPT' && (
+        <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+          正在做「{remixTitle}」的同款：模型和提示词已预填，上传你自己的出图、写下你的改法即可。发布后会出现在原作的「同款作品」里。
         </div>
       )}
 
@@ -274,10 +357,12 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
         </div>
       )}
 
-      {/* 提示词：效果图在前 */}
-      {type === 'PROMPT' && (
+      {/* 提示词：效果图在前（文本类不需要） */}
+      {type === 'PROMPT' && modelFacet !== 'TEXT' && (
         <div>
-          <label className="block text-sm text-white/60 mb-1">效果图（至少 1 张，必须是你自己用这条提示词生成的）</label>
+          <label className="block text-sm text-white/60 mb-1">
+            {modelFacet === 'VIDEO' ? '封面 / 关键帧截图（选填，建议上传）' : '效果图（至少 1 张，必须是你自己用这条提示词生成的）'}
+          </label>
           <p className="text-xs text-white/35 mb-2">第一张是封面。别人的作品请勿上传；需要参考图的提示词，可以把「输入图 → 输出图」都传上来。</p>
           <GalleryInput value={images} onChange={setImages} />
         </div>
@@ -301,13 +386,22 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
       {type === 'PROMPT' && (
         <>
           <div>
-            <label className="block text-sm text-white/60 mb-2">模型（选 1 个）</label>
-            <div className="flex flex-wrap gap-2">
-              {byKind.MODEL.map((t) => (
-                <button key={t.id} type="button" onClick={() => toggleTag(t, true)} className={chip(tagIds.includes(t.id))}>
-                  {t.name}
-                </button>
-              ))}
+            <label className="block text-sm text-white/60 mb-2">模型（选 1 个，决定这是图像、视频还是文本提示词）</label>
+            <div className="space-y-2">
+              {(['IMAGE', 'VIDEO', 'TEXT'] as const).map((f) => {
+                const list = byKind.MODEL.filter((t) => t.facet === f)
+                if (!list.length) return null
+                return (
+                  <div key={f} className="flex flex-wrap items-center gap-2">
+                    <span className="w-full text-xs text-white/35 sm:w-auto sm:min-w-[4rem]">{FACET_NAMES[f]}</span>
+                    {list.map((t) => (
+                      <button key={t.id} type="button" onClick={() => toggleTag(t, true)} className={chip(tagIds.includes(t.id))}>
+                        {t.name}
+                      </button>
+                    ))}
+                  </div>
+                )
+              })}
             </div>
             <input
               value={modelLabel}
@@ -320,7 +414,7 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
           <div>
             <label className="block text-sm text-white/60 mb-2">主题（选填，最多 3 个）</label>
             <div className="flex flex-wrap gap-2">
-              {byKind.TOPIC.map((t) => (
+              {byKind.TOPIC.filter((t) => !modelFacet || !t.facet || t.facet === modelFacet).map((t) => (
                 <button key={t.id} type="button" onClick={() => toggleTag(t)} className={chip(tagIds.includes(t.id))}>
                   {t.name}
                 </button>
@@ -334,7 +428,11 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
               onChange={(e) => setPrompt(e.target.value)}
               rows={6}
               maxLength={5000}
-              placeholder="可替换的部分用 [方括号] 标出来，例如：把 [你的照片] 改成白底证件照，背景换成 [颜色]"
+              placeholder={
+                modelFacet === 'TEXT'
+                  ? '建议按「角色 / 背景 / 任务 / 约束 / 输出格式」写，可替换的部分用 [方括号]，例如：你是一名 [学科] 方向的统计顾问……'
+                  : '可替换的部分用 [方括号] 标出来，例如：把 [你的照片] 改成白底证件照，背景换成 [颜色]'
+              }
               className={`${inputCls} font-mono text-sm resize-y`}
             />
             {variables.length > 0 && <p className="text-xs text-purple-300/80 mt-1">识别到可替换变量：{variables.map((v) => `[${v}]`).join('、')}</p>}
@@ -355,6 +453,45 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
             <textarea value={negativePrompt} onChange={(e) => setNegativePrompt(e.target.value)} rows={2} maxLength={2000} className={`${inputCls} mt-2 font-mono text-sm`} />
           </details>
         </>
+      )}
+
+      {/* AI 应用：基本信息 + 作者自荐披露（设计 §9.1：隔离、披露、可试用） */}
+      {type === 'APP' && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <input value={appName} onChange={(e) => setAppName(e.target.value)} maxLength={60} placeholder="应用名称" className={inputCls} />
+            <input value={appUrl} onChange={(e) => setAppUrl(e.target.value)} maxLength={500} placeholder="官网地址 https://…" className={inputCls} />
+            <input value={appPricing} onChange={(e) => setAppPricing(e.target.value)} maxLength={60} placeholder="价格（选填）：免费 / 免费+付费 / 开源…" className={inputCls} />
+            <input value={appPlatforms} onChange={(e) => setAppPlatforms(e.target.value)} maxLength={100} placeholder="平台（选填）：网页 / iOS / 安卓 / 插件…" className={inputCls} />
+          </div>
+          <input value={appTrial} onChange={(e) => setAppTrial(e.target.value)} maxLength={200} placeholder={selfPromo ? '怎么试用（必填）：免费额度、试用链接或演示' : '怎么试用（选填）'} className={inputCls} />
+          <label className="flex items-start gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70">
+            <input type="checkbox" checked={selfPromo} onChange={(e) => setSelfPromo(e.target.checked)} disabled={isEdit} className="mt-1 h-4 w-4" />
+            <span>
+              这是我自己的 / 我参与的产品（作者自荐）
+              <span className="block text-xs text-white/40">
+                自荐会放在「作者自荐」专区并显式标注，链接标为推广；需要创作者等级、每 30 天 1 条、人工审核。正文请写开发故事、技术选型或真实数据，纯广告不收。
+              </span>
+            </span>
+          </label>
+          {selfPromo && (
+            <select value={relation} onChange={(e) => setRelation(e.target.value)} disabled={isEdit} className={selectCls}>
+              <option value="AUTHOR">我是作者 / 开发者</option>
+              <option value="EMPLOYEE">我在这家公司工作</option>
+              <option value="OTHER">我与该产品有其他利益关系</option>
+            </select>
+          )}
+          <div>
+            <label className="block text-sm text-white/60 mb-2">场景（选填，最多 3 个）</label>
+            <div className="flex flex-wrap gap-2">
+              {byKind.TOPIC.filter((t) => t.facet === 'TEXT' || !t.facet).map((t) => (
+                <button key={t.id} type="button" onClick={() => toggleTag(t)} className={chip(tagIds.includes(t.id))}>
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* 教程：产品与模型 */}
@@ -386,7 +523,13 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
       {/* 正文 */}
       <div>
         <label className="block text-sm text-white/60 mb-2">
-          {type === 'PROMPT' ? '心得与说明（选填：怎么调、失败率、注意事项——写了的提示词更容易被精选）' : '正文'}
+          {type === 'APP'
+            ? '我用它解决了什么（必填：场景、怎么用、效果、优缺点；截图更好）'
+            : type === 'PROMPT'
+            ? modelFacet === 'TEXT'
+              ? '使用说明与示例输出（必填：怎么填变量、怎么追问，再贴一段示例输出）'
+              : '心得与说明（选填：怎么调、失败率、注意事项——写了的提示词更容易被精选）'
+            : '正文'}
         </label>
         {type === 'PROMPT' ? (
           <MarkdownEditor value={content} onChange={setContent} images={noteImages} onImagesChange={setNoteImages} minHeight={140} />
@@ -399,7 +542,7 @@ export function PostForm({ postId, initial, initialType }: { postId?: number; in
       </div>
 
       {/* 测试日期与账号（提示词选填、教程必填） */}
-      {type !== 'DISCUSSION' && (
+      {(type === 'PROMPT' || type === 'GUIDE') && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-sm text-white/60 mb-2">测试日期{type === 'GUIDE' ? '' : '（选填）'}</label>

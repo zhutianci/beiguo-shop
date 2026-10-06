@@ -30,7 +30,7 @@ export async function GET() {
         where: { ...PUBLIC_WHERE, originality: 'ORIGINAL_FIRST' },
         orderBy: { id: 'desc' },
         take: 20000,
-        include: { prompt: { select: { prompt: true } }, postTags: { select: { tag: { select: { kind: true, status: true } } } } },
+        include: { prompt: { select: { prompt: true } }, app: { select: { selfPromo: true } }, postTags: { select: { tag: { select: { kind: true, status: true, facet: true } } } } },
       })
       for (const p of posts) {
         if (!contentIndexable(p)) continue
@@ -54,9 +54,14 @@ export async function GET() {
         const path = t.kind === 'MODEL' ? `/prompts/m/${t.slug}` : t.kind === 'TOPIC' ? `/prompts/t/${t.slug}` : `/guides/p/${t.slug}`
         entries.push(`<url><loc>${xmlEscape(absUrl(path))}</loc></url>`)
       }
-      for (const [type, path] of [['PROMPT', '/prompts'], ['GUIDE', '/guides']] as const) {
+      for (const [type, path] of [['PROMPT', '/prompts'], ['GUIDE', '/guides'], ['APP', '/apps']] as const) {
         const n = posts.filter((p) => p.type === type && indexableIds.has(p.id)).length
         if (isHubIndexable('ROOT', 0, n)) entries.push(`<url><loc>${xmlEscape(absUrl(path))}</loc></url>`)
+      }
+      // 提示词三大类页（/prompts/image|video|text）：与总览同一门槛
+      for (const f of ['IMAGE', 'VIDEO', 'TEXT'] as const) {
+        const n = posts.filter((p) => p.type === 'PROMPT' && indexableIds.has(p.id) && p.postTags.some((pt) => pt.tag.kind === 'MODEL' && pt.tag.facet === f)).length
+        if (isHubIndexable('ROOT', 0, n)) entries.push(`<url><loc>${xmlEscape(absUrl(`/prompts/${f.toLowerCase()}`))}</loc></url>`)
       }
       // 学习平台首页：与 /learn 页面自己的判定一致（提示词 + 教程合计够数）
       const learnN = posts.filter((p) => (p.type === 'PROMPT' || p.type === 'GUIDE') && indexableIds.has(p.id)).length

@@ -37,7 +37,7 @@ const navLinks: NavLink[] = [
   { href: '/news', label: 'AI圈大事记', feature: 'news' },
   { href: '/iptools', label: 'IP工具', feature: 'iptools' },
   // AI 学习平台（内容平台改版 2026-10-06）：取代原来的「论坛」入口；提示词库、教程、讨论、作者页都算在它下面高亮
-  { href: '/learn', label: 'AI学习', feature: 'forum', also: ['/prompts', '/guides', '/forum', '/u'] },
+  { href: '/learn', label: 'AI学习', feature: 'forum', also: ['/prompts', '/guides', '/apps', '/forum', '/u', '/collections'] },
   { href: '/support', label: '客服' },
   { href: '/links', label: '友链', feature: 'links' },
 ]
@@ -80,9 +80,12 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
    * 路由变化时也拉一次：买家刚从订单页出来，红点应该当场清掉。
    */
   const [unread, setUnread] = useState(0)
+  // AI 学习平台的站内通知（被回复、被精选、审核结果……，内容平台 P2）：和客服留言同一个轮询周期一起拉，不另起定时器
+  const [learnUnread, setLearnUnread] = useState(0)
   useEffect(() => {
     if (!user) {
       setUnread(0)
+      setLearnUnread(0)
       return
     }
     let alive = true
@@ -94,6 +97,14 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
           if (alive && d?.success) setUnread(Number(d.data?.messages) || 0)
         })
         .catch(() => {})
+      if (features.forum) {
+        fetch('/api/me/summary')
+          .then((r) => r.json())
+          .then((d) => {
+            if (alive && d?.success) setLearnUnread(Number(d.data?.unread) || 0)
+          })
+          .catch(() => {})
+      }
     }
     pull()
     const id = setInterval(pull, 60_000)
@@ -289,10 +300,11 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                   </Link>
                   <div className="relative group">
                     <button
-                      aria-label="账户菜单"
-                      className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center transition-transform md:hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                      aria-label={learnUnread > 0 ? `账户菜单，学习空间有 ${learnUnread} 条新通知` : '账户菜单'}
+                      className="relative w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center transition-transform md:hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
                     >
                       <User className="w-4 h-4" />
+                      {learnUnread > 0 && <span aria-hidden="true" className="absolute right-0 top-0 h-2.5 w-2.5 rounded-full bg-amber-300 ring-2 ring-black/60" />}
                     </button>
                     {/* 原来只有 group-hover，键盘 Tab 进来菜单不展开；补 focus-within 后键盘可达。
                         lg 上菜单和导航字号一起放大一档，避免头部变大后菜单显得局促。
@@ -304,6 +316,14 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                       <Link href="/profile" className="block px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
                         个人中心
                       </Link>
+                      {features.forum && (
+                        <Link href="/learn/me" className="flex items-center justify-between gap-2 px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
+                          <span>学习空间</span>
+                          {learnUnread > 0 && (
+                            <span className="rounded-full bg-amber-300/20 px-2 py-0.5 text-[11px] font-medium text-amber-200">{learnUnread} 条通知</span>
+                          )}
+                        </Link>
+                      )}
                       <Link href="/orders" className="flex items-center justify-between gap-2 px-4 py-2 text-sm lg:text-[15px] text-white/60 hover:text-white hover:bg-white/5 transition-colors">
                         <span>我的订单</span>
                         {unread > 0 && (

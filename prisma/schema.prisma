@@ -1334,11 +1334,20 @@ model ForumPost {
   accountTier String?   @map("account_tier") @db.VarChar(16) // FREE | PLUS | PRO | TEAM | OTHER
   copyCount   Int       @default(0) @map("copy_count") // 提示词被复制次数（按访客每天去重，见 content_events）
 
+  // ── 内容平台 P2（2026-10-06）──
+  mediaCredit       String?  @map("media_credit") @db.VarChar(400) // 示例图来源 JSON {by,url,license}；为空 = 作者自己的出图
+  remixOfId         Int?     @map("remix_of_id") // 「同款自」：二创链（设计 §7.4）
+  acceptedCommentId Int?     @map("accepted_comment_id") // 问答：作者采纳的回答
+  simhash           String?  @db.VarChar(16) // 正文 / 提示词的 64 位 SimHash（十六进制），用于查重（设计 §6.2）
+  favoriteCount     Int      @default(0) @map("favorite_count")
+  remixCount        Int      @default(0) @map("remix_count")
+
   category ForumCategory  @relation(fields: [categoryId], references: [id])
   user     User?          @relation(fields: [userId], references: [id])
   comments ForumComment[]
   likes    ForumLike[]
   prompt   PromptSpec?
+  app      AppSpec?
   postTags PostTag[]
 
   @@index([categoryId])
@@ -1346,6 +1355,8 @@ model ForumPost {
   @@index([createdAt])
   @@index([reviewStatus, createdAt])
   @@index([type, reviewStatus, featuredAt])
+  @@index([remixOfId])
+  @@index([type, simhash])
   @@map("forum_posts")
 }
 
@@ -1410,6 +1421,25 @@ model PromptSpec {
   @@map("prompt_specs")
 }
 
+// AI 应用分享 / 作者自荐（内容平台 P2，设计 §5.3 / §9）：ForumPost(type=APP) 的附表，1:1。
+// selfPromo = 作者自荐（作者与产品有利益关系）：只能 L2 以上发、每 30 天 1 条、一律人工审核、外链 rel=sponsored、
+// 默认不收录（被精选才放开，见 policy.qualityGateReason），防 Google「站点声誉滥用」与百度细雨算法
+model AppSpec {
+  postId     Int     @id @map("post_id")
+  name       String  @db.VarChar(60)
+  url        String  @db.VarChar(500)
+  pricing    String? @db.VarChar(60) // 免费 / 免费+付费 / 付费 / 开源……
+  platforms  String? @db.VarChar(100) // 网页 / iOS / 安卓 / Windows / 浏览器插件……
+  trialNote  String? @map("trial_note") @db.VarChar(200) // 怎么试用（自荐必填：必须能上手试）
+  selfPromo  Boolean @default(false) @map("self_promo")
+  relation   String? @db.VarChar(16) // 自荐时与产品的关系：AUTHOR | EMPLOYEE | OTHER
+
+  post ForumPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([selfPromo])
+  @@map("app_specs")
+}
+
 // 策展标签（内容平台 P1，设计 §7.3 / §12.2）：模型 / 主题 / 产品。
 // 只有后台能建，作者只能从已有标签里选——用户自由造标签会造出一堆空的、题文不符的聚合页（百度劲风算法打的就是这个）。
 // 带 intro 的标签就是 hub 页（/prompts/m/{slug}、/prompts/t/{slug}、/guides/p/{slug}）
@@ -1418,6 +1448,7 @@ model Tag {
   slug        String   @unique @db.VarChar(60)
   name        String   @db.VarChar(40)
   kind        String   @db.VarChar(12) // MODEL | TOPIC | PRODUCT
+  facet       String?  @db.VarChar(8) // IMAGE | VIDEO | TEXT：提示词三大类（见 src/lib/content/tags.ts 的 Facet）
   intro       String?  @db.Text // hub 页的站方介绍（Markdown）
   landingPath String?  @map("landing_path") @db.VarChar(120) // 相关商品落地页，内容页 CTA 用（如 /chongzhi/chatgpt-plus）
   sortOrder   Int      @default(0) @map("sort_order")
@@ -1450,9 +1481,114 @@ model CreatorProfile {
   userId    Int      @id @map("user_id")
   handle    String   @unique @db.VarChar(16)
   bio       String?  @db.VarChar(300)
+  points    Int      @default(0) // 积分（设计 §8.2）：只由 point_logs 累加，不直接改
+  coBuilder Boolean  @default(false) @map("co_builder") // L3 共建者：站长邀请（设计 §8.1）
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("creator_profiles")
+}
+
+// ───────────── 内容平台 P2（2026-10-06）：收藏、关注、通知、积分、举报、合集 ─────────────
+// 都不建 User / ForumPost 外键（与 media_assets 同理：账号或内容删了，流水与举报记录要能留着追溯），靠应用层保证。
+
+model Favorite {
+  userId    Int      @map("user_id")
+  postId    Int      @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@id([userId, postId])
+  @@index([postId])
+  @@index([userId, createdAt])
+  @@map("favorites")
+}
+
+model Follow {
+  followerId Int      @map("follower_id")
+  followeeId Int      @map("followee_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@id([followerId, followeeId])
+  @@index([followeeId])
+  @@map("follows")
+}
+
+// 站内通知：被回复、被采纳、被精选、审核结果、关注的作者发布了新内容
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  kind      String    @db.VarChar(24) // REPLY | ACCEPTED | FEATURED | REVIEW_OK | REVIEW_REJECT | NEW_FROM_FOLLOWEE | REMIXED | FAVORITED
+  title     String    @db.VarChar(200)
+  body      String?   @db.VarChar(500)
+  link      String?   @db.VarChar(300) // 站内路径
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
+}
+
+// 积分流水（设计 §8.2）。唯一约束 (userId, reason, refId, actorId) 保证同一件事只记一次：
+// 同一篇被精选只 +50 一次；同一个人收藏同一篇只 +2 一次（取消再收藏不重复加）
+model PointLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  delta     Int
+  reason    String   @db.VarChar(24) // APPROVED | FEATURED | FAVORITED | REMIXED | ACCEPTED | VIOLATION | ADJUST
+  refId     Int      @default(0) @map("ref_id")
+  actorId   Int      @default(0) @map("actor_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, reason, refId, actorId])
+  @@index([userId, createdAt])
+  @@map("point_logs")
+}
+
+// 举报（设计 §10.1）：同一人对同一目标只能举报一次（targetKey = "p:12" / "c:5"）
+model ContentReport {
+  id         Int      @id @default(autoincrement())
+  targetKey  String   @map("target_key") @db.VarChar(24)
+  postId     Int?     @map("post_id")
+  commentId  Int?     @map("comment_id")
+  reporterId Int      @map("reporter_id")
+  reason     String   @db.VarChar(24) // SPAM | AD | PLAGIARISM | ILLEGAL | WRONG | OTHER
+  detail     String?  @db.VarChar(300)
+  status     String   @default("OPEN") @db.VarChar(12) // OPEN | HANDLED | DISMISSED
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([reporterId, targetKey])
+  @@index([targetKey, status])
+  @@index([status, createdAt])
+  @@map("content_reports")
+}
+
+// 合集（设计 §7.5）：用户整理的一组内容（自己的或别人的），有自己的公开页 /collections/{id}
+model Collection {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  title     String   @db.VarChar(80)
+  intro     String?  @db.VarChar(500)
+  isPublic  Boolean  @default(true) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  items CollectionItem[]
+
+  @@index([userId])
+  @@map("collections")
+}
+
+model CollectionItem {
+  collectionId Int      @map("collection_id")
+  postId       Int      @map("post_id")
+  note         String?  @db.VarChar(200)
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  collection Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, postId])
+  @@index([postId])
+  @@map("collection_items")
 }
 
 // 内容互动去重（内容平台 P1）：同一访客、同一内容、同一天的「复制」只计一次。

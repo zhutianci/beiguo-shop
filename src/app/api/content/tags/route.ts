@@ -10,7 +10,7 @@ export async function GET() {
   if (channelDenied) return channelDenied
   try {
     const tags = await activeTags()
-    return success(tags.map(({ id, slug, name, kind }) => ({ id, slug, name, kind })))
+    return success(tags.map(({ id, slug, name, kind, facet }) => ({ id, slug, name, kind, facet })))
   } catch (err) {
     console.error('List content tags error:', err)
     return error('获取标签失败')

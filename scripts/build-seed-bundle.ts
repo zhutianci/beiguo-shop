@@ -23,9 +23,13 @@ const yaml = require('js-yaml') as { load: (s: string) => unknown }
 
 const ROOT = path.join(__dirname, '..', 'docs', '内容平台', '种子内容')
 const OUT = path.join(__dirname, '..', 'prisma', 'seed-content.json')
+// 示例图（第二批起）：放在 prisma/seed-assets/，随 prisma/ 一起进生产镜像，导入时复制到上传目录
+const ASSETS = path.join(__dirname, '..', 'prisma', 'seed-assets')
+const warnings: string[] = []
 
 const errors: string[] = []
 const tagKind = new Map(DEFAULT_TAGS.map((t) => [t.slug, t.kind]))
+const tagFacet = new Map(DEFAULT_TAGS.map((t) => [t.slug, t.facet ?? null]))
 
 function read(dir: string) {
   const full = path.join(ROOT, dir)
@@ -75,7 +79,7 @@ const hubs = read('hubs').map(({ file, fm, body }) => {
 // —— 提示词 ——
 const seen = new Set<string>()
 const prompts = read('prompts').map(({ file, fm, body }) => {
-  need(file, fm, ['title', 'slug', 'model', 'useCase', 'prompt', 'imageBrief'])
+  need(file, fm, ['title', 'slug', 'model', 'useCase', 'prompt'])
   if (!isValidSlug(String(fm.slug ?? ''))) errors.push(`${file}: slug 不合法`)
   if (seen.has(`P:${fm.slug}`)) errors.push(`${file}: slug 重复`)
   seen.add(`P:${fm.slug}`)
@@ -84,8 +88,20 @@ const prompts = read('prompts').map(({ file, fm, body }) => {
   const prompt = String(fm.prompt ?? '').trim()
   for (const v of promptVariables(prompt)) if (v.length > 20) errors.push(`${file}: 变量「${v}」过长`)
   const src = fm.source && typeof fm.source === 'object' ? fm.source : null
-  if (src && (!src.url || !src.license)) errors.push(`${file}: 有来源但缺 url 或 license`)
+  if (src && !src.url) errors.push(`${file}: 有来源但缺 url`)
+  const images = list(fm.images)
+  for (const im of images) {
+    if (!/^[a-z0-9][a-z0-9._-]*\.(jpe?g|png|webp|gif)$/.test(im)) errors.push(`${file}: 示例图文件名不合法「${im}」`)
+    else if (!fs.existsSync(path.join(ASSETS, im))) errors.push(`${file}: 示例图不存在 prisma/seed-assets/${im}`)
+    else if (fs.statSync(path.join(ASSETS, im)).size > 1.5 * 1024 * 1024) errors.push(`${file}: 示例图超过 1.5MB「${im}」`)
+  }
+  const facet = tagFacet.get(model[0] ?? '') ?? null
+  if (facet === 'IMAGE' && !images.length) warnings.push(`${file}: 图像类但没有示例图（导入后需补图才能发布）`)
+  const credit = fm.imageCredit && typeof fm.imageCredit === 'object' ? fm.imageCredit : null
   return {
+    facet,
+    images,
+    imageCredit: credit && images.length ? { by: credit.by ? String(credit.by) : null, url: credit.url ? String(credit.url) : null, license: credit.license ? String(credit.license) : null } : null,
     title: String(fm.title),
     slug: String(fm.slug),
     tags: [...model, ...topics],
@@ -97,9 +113,9 @@ const prompts = read('prompts').map(({ file, fm, body }) => {
     useCase: String(fm.useCase),
     content: body,
     source: src
-      ? { url: String(src.url), author: src.author ? String(src.author) : null, repo: src.repo ? String(src.repo) : null, license: String(src.license), changes: src.changes ? String(src.changes) : null }
+      ? { url: String(src.url), author: src.author ? String(src.author) : null, repo: src.repo ? String(src.repo) : null, license: src.license ? String(src.license) : null, changes: src.changes ? String(src.changes) : null }
       : null,
-    imageBrief: String(fm.imageBrief),
+    imageBrief: fm.imageBrief ? String(fm.imageBrief) : null,
     verify: list(fm.verify),
   }
 })
@@ -135,10 +151,15 @@ if (errors.length) {
 
 const bundle = {
   builtAt: new Date().toISOString(),
-  tags: DEFAULT_TAGS.map((t, i) => ({ slug: t.slug, name: t.name, kind: t.kind, landingPath: t.landingPath ?? null, sortOrder: i })),
+  tags: DEFAULT_TAGS.map((t, i) => ({ slug: t.slug, name: t.name, kind: t.kind, facet: t.facet ?? null, landingPath: t.landingPath ?? null, sortOrder: i })),
   hubs,
   prompts,
   guides,
 }
 fs.writeFileSync(OUT, JSON.stringify(bundle, null, 2) + '\n', 'utf8')
-console.log(`已写入 ${path.relative(process.cwd(), OUT)}：专题 ${hubs.length}、提示词 ${prompts.length}、教程 ${guides.length}`)
+const byFacet = (f: string) => prompts.filter((p) => p.facet === f).length
+console.log(
+  `已写入 ${path.relative(process.cwd(), OUT)}：专题 ${hubs.length}、提示词 ${prompts.length}` +
+    `（图像 ${byFacet('IMAGE')} / 视频 ${byFacet('VIDEO')} / 文本 ${byFacet('TEXT')}，带示例图 ${prompts.filter((p) => p.images.length).length}）、教程 ${guides.length}`,
+)
+if (warnings.length) console.log(`提醒 ${warnings.length} 条：\n  ${warnings.join('\n  ')}`)

@@ -1,7 +1,12 @@
 /**
  * 导入种子内容（内容平台改版 2026-10-06）。读 prisma/seed-content.json（由 scripts/build-seed-bundle.ts 生成）。
  *
- *   DATABASE_URL=... npx tsx prisma/import-seed-content.ts --author admin@example.com [--force-intro] [--dry-run]
+ *   DATABASE_URL=... npx tsx prisma/import-seed-content.ts --author admin@example.com [--publish] [--uploads-dir public/uploads] [--force-intro] [--dry-run]
+ *
+ * --publish（第二批起，站长 10-06 要求提示词库上线就要「非常多」）：可以直接公开的提示词建成「已通过」——
+ *   图像类要有示例图；视频类、文本类直接可以。教程仍然一律待审（要实测截图）。
+ * --uploads-dir：上传根目录（本地 public/uploads；生产临时容器里挂载 forum_uploads 卷后传对应路径）。
+ *   示例图复制到 <uploads-dir>/forum/，文件名按内容哈希生成（重复导入不会重复复制），并登记 media_assets（含宽高）。
  *
  * 【放在 prisma/ 的原因】生产镜像只带 prisma/，不带 scripts/ 和 src/（交接文档：运维脚本不能 import src/）。
  * 所以这里只依赖 @prisma/client，标签默认表也从 JSON 里读。
@@ -18,6 +23,7 @@
  */
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
@@ -29,7 +35,7 @@ const arg = (k: string) => {
 }
 
 interface Bundle {
-  tags: { slug: string; name: string; kind: string; landingPath: string | null; sortOrder: number }[]
+  tags: { slug: string; name: string; kind: string; facet: string | null; landingPath: string | null; sortOrder: number }[]
   hubs: { slug: string; intro: string; verify: string[] }[]
   prompts: {
     title: string
@@ -42,9 +48,12 @@ interface Bundle {
     needsRefImage: boolean
     useCase: string
     content: string
-    source: { url: string; author: string | null; repo: string | null; license: string } | null
-    imageBrief: string
+    source: { url: string; author: string | null; repo: string | null; license: string | null } | null
+    imageBrief: string | null
     verify: string[]
+    facet: string | null
+    images: string[]
+    imageCredit: { by: string | null; url: string | null; license: string | null } | null
   }[]
   guides: {
     title: string
@@ -62,10 +71,82 @@ function todo(parts: (string | null | undefined)[]): string {
   return `【种子草稿待办】${parts.filter(Boolean).join('；')}`.slice(0, 500)
 }
 
+/**
+ * 读图片宽高（只看文件头）。与 src/lib/image-meta.ts 的 imageSize 同一套逻辑的精简版——
+ * 这里不能 import src/（理由见文件头），所以抄一份；只服务于种子图，读不出来就留空。
+ */
+function sizeOf(buf: Buffer, ext: string): { width: number; height: number } | null {
+  try {
+    if (ext === 'png') return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) }
+    if (ext === 'gif') return { width: buf.readUInt16LE(6), height: buf.readUInt16LE(8) }
+    if (ext === 'webp') {
+      const cc = buf.subarray(12, 16).toString('latin1')
+      if (cc === 'VP8X') return { width: 1 + buf.readUIntLE(24, 3), height: 1 + buf.readUIntLE(27, 3) }
+      if (cc === 'VP8 ') return { width: buf.readUInt16LE(26) & 0x3fff, height: buf.readUInt16LE(28) & 0x3fff }
+      if (cc === 'VP8L') {
+        const b = buf.readUInt32LE(21)
+        return { width: (b & 0x3fff) + 1, height: ((b >> 14) & 0x3fff) + 1 }
+      }
+      return null
+    }
+    if (ext === 'jpg') {
+      let i = 2
+      while (i + 9 < buf.length) {
+        if (buf[i] !== 0xff) return null
+        const m = buf[i + 1]
+        const len = buf.readUInt16BE(i + 2)
+        if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { width: buf.readUInt16BE(i + 7), height: buf.readUInt16BE(i + 5) }
+        i += 2 + len
+      }
+    }
+  } catch {
+    /* 读不出就算了 */
+  }
+  return null
+}
+
+/** 按文件头判断真实格式（不信扩展名） */
+function sniff(buf: Buffer): string | null {
+  if (buf[0] === 0xff && buf[1] === 0xd8) return 'jpg'
+  if (buf.subarray(0, 4).toString('hex') === '89504e47') return 'png'
+  if (buf.subarray(0, 3).toString('latin1') === 'GIF') return 'gif'
+  if (buf.subarray(0, 4).toString('latin1') === 'RIFF' && buf.subarray(8, 12).toString('latin1') === 'WEBP') return 'webp'
+  return null
+}
+
+/**
+ * 把一张种子图放进上传目录并登记。文件名必须符合 FORUM_IMAGE_URL_RE（src/lib/content/policy.ts）：
+ * `<6–12 位 [0-9a-z]>-<12 位十六进制>.<ext>`，否则作者以后编辑这条内容时会被「图片地址无效」拒掉。
+ * 这里用内容哈希生成，重复导入得到同一个文件名、不重复复制。
+ */
+async function placeImage(file: string, uploadsDir: string, userId: number, dry: boolean): Promise<string | null> {
+  const src = path.join(__dirname, 'seed-assets', file)
+  if (!fs.existsSync(src)) return null
+  const buf = fs.readFileSync(src)
+  const ext = sniff(buf)
+  if (!ext) return null
+  const sha = crypto.createHash('sha256').update(buf).digest('hex')
+  const name = `seed${sha.slice(0, 4)}-${sha.slice(4, 16)}.${ext}`
+  const url = `/uploads/forum/${name}`
+  if (dry) return url
+  const dir = path.join(uploadsDir, 'forum')
+  fs.mkdirSync(dir, { recursive: true })
+  const dest = path.join(dir, name)
+  if (!fs.existsSync(dest)) fs.writeFileSync(dest, buf)
+  if (!(await prisma.mediaAsset.findUnique({ where: { url } }))) {
+    await prisma.mediaAsset.create({
+      data: { userId, scope: 'forum', url, bytes: buf.length, sha256: sha, stripped: false, ...(sizeOf(buf, ext) ?? {}) },
+    })
+  }
+  return url
+}
+
 async function main() {
   const email = arg('--author')
   if (!email) throw new Error('请用 --author 指定作者账号邮箱（站方编辑的真实账号）')
   const dry = flag('--dry-run')
+  const publish = flag('--publish')
+  const uploadsDir = path.resolve(arg('--uploads-dir') || path.join(process.cwd(), 'public', 'uploads'))
   const bundle = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed-content.json'), 'utf8')) as Bundle
 
   const author = await prisma.user.findUnique({ where: { email }, select: { id: true, nickname: true } })
@@ -74,7 +155,8 @@ async function main() {
 
   // 1) 标签与板块
   for (const t of bundle.tags) {
-    if (!dry) await prisma.tag.upsert({ where: { slug: t.slug }, update: {}, create: t })
+    // 已存在的只补 facet（第一批建的标签没有这一列的值）；名称、介绍、落地页以后台为准
+    if (!dry) await prisma.tag.upsert({ where: { slug: t.slug }, update: t.facet ? { facet: t.facet } : {}, create: t })
   }
   const boards = [
     { slug: 'prompts', name: '提示词', description: '可复制、作者实测过的 AI 提示词', icon: '🎨', sortOrder: 90 },
@@ -97,6 +179,7 @@ async function main() {
   // 3) 内容
   let created = 0
   let skipped = 0
+  let published = 0
   const promptBoard = await boardId('prompts')
   const guideBoard = await boardId('guides')
   if (!dry && (!promptBoard || !guideBoard)) throw new Error('内容专用板块不存在')
@@ -106,13 +189,23 @@ async function main() {
       skipped++
       continue
     }
+    const urls: string[] = []
+    for (const im of p.images) {
+      const u = await placeImage(im, uploadsDir, author.id, dry)
+      if (u) urls.push(u)
+    }
+    // 能不能直接公开：图像类要有图；视频、文本类可以
+    const live = publish && (p.facet !== 'IMAGE' || urls.length > 0)
     if (dry) {
       created++
+      if (live) published++
       continue
     }
     await prisma.forumPost.create({
       data: {
         type: 'PROMPT',
+        images: urls.length ? JSON.stringify(urls) : null,
+        mediaCredit: urls.length && p.imageCredit ? JSON.stringify(p.imageCredit) : null,
         slug: p.slug,
         categoryId: promptBoard!,
         userId: author.id,
@@ -121,8 +214,9 @@ async function main() {
         content: p.content,
         tags: '',
         lastReplyAt: new Date(),
-        reviewStatus: 'PENDING',
-        reviewNote: todo([`出图：${p.imageBrief}`, p.verify.length ? `核对：${p.verify.join(' / ')}` : null]),
+        reviewStatus: live ? 'APPROVED' : 'PENDING',
+        reviewedAt: live ? new Date() : null,
+        reviewNote: live ? null : todo([p.imageBrief ? `出图：${p.imageBrief}` : '补效果图', p.verify.length ? `核对：${p.verify.join(' / ')}` : null]),
         originality: p.source ? 'REPOST' : 'ORIGINAL_FIRST',
         sourceUrl: p.source?.url ?? null,
         aiAssist: 'PARTIAL',
@@ -140,6 +234,7 @@ async function main() {
       },
     })
     created++
+    if (live) published++
   }
 
   for (const g of bundle.guides) {
@@ -180,7 +275,9 @@ async function main() {
     created++
   }
 
-  console.log(`${dry ? '[演练] ' : ''}专题介绍写入 ${introWritten} 个；内容新建 ${created} 条、已存在跳过 ${skipped} 条（全部为待审，作者 ${authorName}）`)
+  console.log(
+    `${dry ? '[演练] ' : ''}专题介绍写入 ${introWritten} 个；内容新建 ${created} 条（其中直接公开 ${published} 条，其余待审）、已存在跳过 ${skipped} 条；作者 ${authorName}`,
+  )
 }
 
 main()

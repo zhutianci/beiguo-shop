@@ -9,6 +9,7 @@ import { error } from './api'
 import { memberDisplayName } from './forum'
 import { crossSiteReason, hostnameOf, type HeaderLike } from './same-origin'
 import { contentFlags, trustLevelFrom, type ContentFlag, type TrustLevel } from './content/policy'
+import { L2_MIN_POINTS } from './content/points'
 
 /** 本站域名（风险检测里「站内链接不算外链」用） */
 export function siteHosts(): string[] {
@@ -31,11 +32,14 @@ export function flagsOf(...texts: (string | null | undefined)[]): ContentFlag[] 
  */
 export async function trustLevelOf(user: { id: number; role: string }): Promise<TrustLevel> {
   if (user.role === 'ADMIN') return 9
-  const [row, approvedPosts, featuredPosts] = await Promise.all([
+  const [row, approvedPosts, featuredPosts, profile] = await Promise.all([
     prisma.user.findUnique({ where: { id: user.id }, select: { createdAt: true } }),
     prisma.forumPost.count({ where: { userId: user.id, reviewStatus: 'APPROVED' } }),
     prisma.forumPost.count({ where: { userId: user.id, reviewStatus: 'APPROVED', featured: true } }),
+    prisma.creatorProfile.findUnique({ where: { userId: user.id }, select: { points: true, coBuilder: true } }),
   ])
+  // 设计 §8.1：3 篇精选，或积分 ≥300，或站长邀请的共建者（L3，审核规则上与 L2 相同）
+  if (profile?.coBuilder || (profile?.points ?? 0) >= L2_MIN_POINTS) return 2
   return trustLevelFrom({ role: user.role, createdAt: row?.createdAt ?? new Date(), approvedPosts, featuredPosts })
 }
 

@@ -10,12 +10,16 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { BadgeCheck, Check, CheckCircle2, EyeOff, Link2, Pencil, Star, ThumbsUp, Trash2, XCircle } from 'lucide-react'
+import { BadgeCheck, Bookmark, Check, CheckCircle2, EyeOff, Link2, Pencil, Star, ThumbsUp, Trash2, XCircle } from 'lucide-react'
 import { forumFetch } from '@/lib/forum-client'
+import { withRedirect } from '@/lib/safe-redirect'
+import { CollectButton, ReportButton } from './social-client'
 
 interface State {
   likedByMe: boolean
   likeCount: number
+  favoritedByMe: boolean
+  favoriteCount: number
   canEdit: boolean
   isAdmin: boolean
 }
@@ -23,18 +27,20 @@ interface State {
 export function ContentActions({
   postId,
   likeCount,
+  favoriteCount = 0,
   editHref,
   backHref,
   admin,
 }: {
   postId: number
   likeCount: number
+  favoriteCount?: number
   editHref: string
   backHref: string
   admin: { reviewStatus: string; status: number; featured: boolean; verified: boolean; typed: boolean }
 }) {
   const router = useRouter()
-  const [st, setSt] = useState<State>({ likedByMe: false, likeCount, canEdit: false, isAdmin: false })
+  const [st, setSt] = useState<State>({ likedByMe: false, likeCount, favoritedByMe: false, favoriteCount, canEdit: false, isAdmin: false })
   const [copied, setCopied] = useState(false)
   const busy = useRef(false)
 
@@ -42,7 +48,15 @@ export function ContentActions({
     forumFetch(`/api/forum/posts/${postId}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.success) setSt({ likedByMe: d.data.likedByMe, likeCount: d.data.likeCount, canEdit: d.data.canEdit, isAdmin: d.data.isAdmin })
+        if (d.success)
+          setSt({
+            likedByMe: d.data.likedByMe,
+            likeCount: d.data.likeCount,
+            favoritedByMe: !!d.data.favoritedByMe,
+            favoriteCount: d.data.favoriteCount ?? 0,
+            canEdit: d.data.canEdit,
+            isAdmin: d.data.isAdmin,
+          })
       })
       .catch(() => {})
   }, [postId])
@@ -66,6 +80,21 @@ export function ContentActions({
     } finally {
       busy.current = false
     }
+  }
+
+  // 收藏：须登录（未登录跳登录页）；乐观更新
+  const favorite = async () => {
+    const prev = st
+    setSt({ ...st, favoritedByMe: !st.favoritedByMe, favoriteCount: st.favoriteCount + (st.favoritedByMe ? -1 : 1) })
+    const res = await fetch(`/api/content/${postId}/favorite`, { method: 'POST' })
+    if (res.status === 401) {
+      setSt(prev)
+      router.push(withRedirect('/login', window.location.pathname))
+      return
+    }
+    const data = await res.json().catch(() => ({}))
+    if (data.success) setSt((s) => ({ ...s, favoritedByMe: data.data.favorited, favoriteCount: data.data.favoriteCount }))
+    else setSt(prev)
   }
 
   const share = async () => {
@@ -117,10 +146,21 @@ export function ContentActions({
           <ThumbsUp className={`h-4 w-4 transition-transform duration-300 ${st.likedByMe ? 'scale-110' : ''}`} />
           <span className="tabular-nums">{st.likeCount > 0 ? st.likeCount : '有用'}</span>
         </button>
+        <button
+          type="button"
+          onClick={favorite}
+          aria-pressed={st.favoritedByMe}
+          className={`${pill} ${st.favoritedByMe ? 'border-amber-200 bg-amber-200 text-black' : 'border-white/12 text-white/75 hover:border-white/25 hover:text-white'}`}
+        >
+          <Bookmark className={`h-4 w-4 ${st.favoritedByMe ? 'fill-current' : ''}`} />
+          <span className="tabular-nums">{st.favoritedByMe ? '已收藏' : '收藏'}{st.favoriteCount > 0 ? ` ${st.favoriteCount}` : ''}</span>
+        </button>
+        <CollectButton postId={postId} />
         <button type="button" onClick={share} className={`${pill} border-white/12 text-white/75 hover:border-white/25 hover:text-white`}>
           {copied ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
           {copied ? '链接已复制' : '复制链接'}
         </button>
+        {!st.canEdit && <ReportButton postId={postId} />}
         {st.canEdit && (
           <>
             <Link href={editHref} className={`${pill} border-white/12 text-white/60 hover:text-white`}>

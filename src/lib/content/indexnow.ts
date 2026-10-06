@@ -23,7 +23,7 @@ export function notifyContentChanged(postId: number): void {
     try {
       const p = await prisma.forumPost.findUnique({
         where: { id: postId },
-        include: { prompt: { select: { prompt: true } }, postTags: { select: { tag: { select: { kind: true, status: true } } } } },
+        include: { prompt: { select: { prompt: true } }, app: { select: { selfPromo: true } }, postTags: { select: { tag: { select: { kind: true, status: true, facet: true } } } } },
       })
       if (!p) return
       if (!p.deletedAt && !contentIndexable(p)) return

@@ -15,6 +15,8 @@ import { checkTyped, typedShape } from '@/lib/content/write'
 import { contentBoardId } from '@/lib/content/tags'
 import { ensureHandle } from '@/lib/content/creator'
 import { notify } from '@/lib/notify'
+import { dedupText, findNearDuplicate, onPublished } from '@/lib/content/events'
+import { simhash } from '@/lib/content/simhash'
 
 // 列表：支持板块筛选、标签、关键词、排序、分页
 export async function GET(request: NextRequest) {
@@ -102,6 +104,8 @@ const createSchema = z.object({
   images: z.array(z.string().refine(isForumImageUrl, '图片地址无效，请重新上传')).optional().default([]),
   ...declarationShape,
   ...typedShape,
+  /** 「同款自」：原提示词的 id（只对提示词有效，设计 §7.4） */
+  remixOfId: z.number().int().positive().optional().nullable(),
 })
 
 // 发帖：必须登录（内容平台 P0：关闭匿名发帖，设计 §18 第 2 条）；新人先审后发
@@ -146,7 +150,33 @@ export async function POST(request: NextRequest) {
     const authorName = actor.nickname || '用户'
     const level = await trustLevelOf({ id: actor.userId, role: actor.isAdmin ? 'ADMIN' : 'USER' })
     const flags = flagsOf(d.title, d.content, d.tags, sourceUrl, d.prompt?.prompt, d.prompt?.useCase, d.excerpt)
-    const reviewStatus = postReviewOnCreate(level, flags)
+    let reviewStatus = postReviewOnCreate(level, flags)
+
+    // 作者自荐（设计 §9.1 四件套）：L2 创作者以上才能发、每 30 天 1 条、一律人工审核
+    if (type === 'APP' && d.app?.selfPromo && level !== 9) {
+      if (level < 2) return error('作者自荐需要先成为创作者（3 篇精选或 300 积分），先分享一些对大家有用的内容吧')
+      const recent = await prisma.forumPost.count({
+        where: { userId: actor.userId, type: 'APP', deletedAt: null, createdAt: { gte: new Date(Date.now() - 30 * 86_400_000) }, app: { selfPromo: true } },
+      })
+      if (recent >= 1) return error('作者自荐每 30 天限 1 条')
+      reviewStatus = 'PENDING'
+    }
+
+    // 同款自：原作必须是公开的提示词
+    let remixOfId: number | null = null
+    if (type === 'PROMPT' && d.remixOfId) {
+      const origin = await prisma.forumPost.findFirst({
+        where: { id: d.remixOfId, type: 'PROMPT', status: 1, reviewStatus: 'APPROVED', deletedAt: null },
+        select: { id: true },
+      })
+      if (!origin) return error('「同款自」的原提示词不存在或未公开')
+      remixOfId = origin.id
+    }
+
+    // 查重（设计 §6.2）：与站内已有内容高度相似的，非管理员一律转人工，并在审核备注里写明像哪一条
+    const text = dedupText({ prompt: d.prompt?.prompt, content: d.content })
+    const dup = level === 9 ? null : await findNearDuplicate(type, text)
+    if (dup && dup.id !== remixOfId) reviewStatus = 'PENDING'
 
     const now = new Date()
     const post = await prisma.forumPost.create({
@@ -176,6 +206,21 @@ export async function POST(request: NextRequest) {
               },
             }
           : {}),
+        ...(type === 'APP' && d.app
+          ? {
+              app: {
+                create: {
+                  name: d.app.name,
+                  url: d.app.url,
+                  pricing: d.app.pricing || null,
+                  platforms: d.app.platforms || null,
+                  trialNote: d.app.trialNote || null,
+                  selfPromo: !!d.app.selfPromo,
+                  relation: d.app.selfPromo ? d.app.relation ?? 'OTHER' : null,
+                },
+              },
+            }
+          : {}),
         ...(typed.tagIds?.length ? { postTags: { create: typed.tagIds.map((tagId) => ({ tagId })) } } : {}),
         images: d.images.length ? JSON.stringify(d.images.slice(0, 9)) : null,
         lastReplyAt: now,
@@ -185,6 +230,9 @@ export async function POST(request: NextRequest) {
         originality,
         sourceUrl,
         aiAssist: d.aiAssist ?? 'NONE',
+        remixOfId,
+        simhash: simhash(text),
+        reviewNote: dup && dup.id !== remixOfId ? `疑似与 #${dup.id}「${dup.title.slice(0, 40)}」重复（相似度距离 ${dup.distance}），请人工确认` : null,
       },
     })
 
@@ -198,12 +246,16 @@ export async function POST(request: NextRequest) {
         [
           { label: '标题', value: d.title },
           { label: '作者', value: authorName },
-          { label: '原因', value: flags.length ? flags.map((f) => FLAG_LABELS[f]).join('、') : '新人内容先审后发' },
+          {
+            label: '原因',
+            value: dup && dup.id !== remixOfId ? `疑似重复 #${dup.id}` : flags.length ? flags.map((f) => FLAG_LABELS[f]).join('、') : '新人内容先审后发',
+          },
         ],
         { link: '/admin/forum?review=PENDING', linkText: '去审核' },
       )
       return success({ id: post.id, path, pending: true }, '已提交，审核通过后公开显示（工作日 24 小时内处理）')
     }
+    void onPublished(post.id, { reviewed: false })
     return success({ id: post.id, path, pending: false }, '发布成功')
   } catch (err) {
     console.error('Create forum post error:', err)

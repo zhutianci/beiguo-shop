@@ -119,7 +119,14 @@ export function SectionHead({ title, desc, href, more = '查看全部' }: { titl
  * 吸顶筛选条：横向滚动的胶囊。全部是 <a>（服务端渲染、可抓取），当前项高亮。
  * 不用毛玻璃（手机端轻量模式），底色近乎不透明。
  */
-export function FilterBar({ groups, active }: { groups: { label: string; items: { name: string; href: string; count?: number }[] }[]; active: string }) {
+export function FilterBar({
+  groups,
+  active,
+}: {
+  groups: { label: string; items: { name: string; href: string; count?: number }[] }[]
+  active: string | string[]
+}) {
+  const on = (href: string) => (Array.isArray(active) ? active.includes(href) : active === href)
   const visible = groups.filter((g) => g.items.length)
   if (!visible.length) return null
   return (
@@ -130,7 +137,7 @@ export function FilterBar({ groups, active }: { groups: { label: string; items: 
             <span className="hidden w-8 shrink-0 text-xs text-white/35 sm:block">{g.label}</span>
             <div className="learn-scroll-x -mr-4 flex gap-2 pr-6 lg:mr-0">
               {g.items.map((t) => (
-                <Link key={t.href} href={t.href} data-active={active === t.href} className="learn-chip" scroll={false}>
+                <Link key={t.href} href={t.href} data-active={on(t.href)} className="learn-chip" scroll={false}>
                   {t.name}
                   {typeof t.count === 'number' && <span className="text-[11px] opacity-50 tabular-nums">{t.count}</span>}
                 </Link>
@@ -188,12 +195,67 @@ export function PromptShot({ c, priority = false }: { c: ContentCard; priority?:
   )
 }
 
+/** 领域色：按主题名稳定取一个色相（同一领域的卡片颜色一致，不同领域错开） */
+function hueOf(name: string): number {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360
+  return h
+}
+
+/** 把 [变量] 包成高亮（服务端渲染，React 负责转义） */
+function markVars(text: string) {
+  return text.split(/(\[[^[\]\n]{1,20}\])/g).map((part, i) =>
+    /^\[[^[\]\n]{1,20}\]$/.test(part) ? (
+      <span key={i} className="rounded bg-white/10 px-0.5 text-white/90">{part}</span>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  )
+}
+
+/**
+ * 文本类提示词卡片（科研、文案、编程……没有效果图）：用排版代替图片——
+ * 领域角标 + 标题 + 等宽字体的提示词节选（变量高亮）+ 底部淡出，配一道按领域着色的柔光。
+ */
+export function PromptTextCard({ c }: { c: ContentCard }) {
+  const hue = hueOf(c.topicName ?? c.title)
+  return (
+    <Link
+      href={c.path}
+      className="learn-card learn-lift group block overflow-hidden p-5"
+      style={{ backgroundImage: `radial-gradient(120% 80% at 100% 0%, hsla(${hue}, 70%, 60%, 0.14), transparent 60%)` }}
+    >
+      <div className="mb-3 flex items-center justify-between gap-2 text-[11px]">
+        <span className="rounded-full px-2 py-0.5 font-medium" style={{ color: `hsl(${hue}, 80%, 78%)`, backgroundColor: `hsla(${hue}, 70%, 60%, 0.14)` }}>
+          {c.topicName ?? '文本提示词'}
+        </span>
+        {c.featured && <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 font-semibold text-black"><Star className="h-3 w-3" /> 精选</span>}
+      </div>
+      <h3 className="text-[15.5px] font-semibold leading-snug text-white/95">{c.title}</h3>
+      {c.promptExcerpt && (
+        <div className="relative mt-3 max-h-[7.5rem] overflow-hidden">
+          <p className="font-mono text-[12.5px] leading-[1.7] text-white/50">{markVars(c.promptExcerpt)}</p>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#0b0b0d] to-transparent" />
+        </div>
+      )}
+      <div className="mt-4 flex items-center justify-between text-xs text-white/40">
+        <span className="truncate">{c.modelName ?? '通用大模型'}</span>
+        <span className="inline-flex shrink-0 items-center gap-2 tabular-nums">
+          {c.verified && <BadgeCheck className="h-3.5 w-3.5 text-emerald-400" aria-label="实测可用" />}
+          <span className="inline-flex items-center gap-0.5"><Copy className="h-3 w-3" />{c.copyCount}</span>
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+/** 瀑布流：有图的用图片卡，文本类（或没有封面的）用文字卡 */
 export function PromptMasonry({ items, eager = 4 }: { items: ContentCard[]; eager?: number }) {
   return (
     <div className="learn-masonry">
       {items.map((c, i) => (
         <div key={c.id} className="learn-in" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
-          <PromptShot c={c} priority={i < eager} />
+          {c.facet === 'TEXT' || !c.cover ? <PromptTextCard c={c} /> : <PromptShot c={c} priority={i < eager} />}
         </div>
       ))}
     </div>
@@ -259,6 +321,42 @@ export function GuideRows({ items, start = 1 }: { items: ContentCard[]; start?: 
   )
 }
 
+/**
+ * AI 应用卡片：首字母图标 + 应用名 + 一句话（标题）+ 摘要 + 分类。作者自荐的显式标「作者自荐」（设计 §9.1 披露）。
+ */
+export function AppGrid({ items }: { items: ContentCard[] }) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {items.map((c, i) => {
+        const hue = hueOf(c.appName ?? c.title)
+        return (
+          <Link key={c.id} href={c.path} className="learn-card learn-lift learn-in group flex flex-col p-5" style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}>
+            <div className="mb-4 flex items-center gap-3">
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-lg font-bold"
+                style={{ background: `linear-gradient(135deg, hsl(${hue},70%,60%), hsl(${(hue + 50) % 360},70%,45%))`, color: '#0b0b0d' }}
+              >
+                {(c.appName ?? c.title).slice(0, 1).toUpperCase()}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{c.appName ?? c.title}</p>
+                <p className="text-xs text-white/40">{c.topicName ?? 'AI 应用'}</p>
+              </div>
+              {c.selfPromo && <span className="ml-auto shrink-0 rounded-full border border-amber-300/40 px-2 py-0.5 text-[11px] text-amber-200">作者自荐</span>}
+            </div>
+            <h3 className="text-[15px] font-medium leading-snug text-white/90">{c.title}</h3>
+            <p className="mt-2 line-clamp-2 text-sm text-white/45">{c.excerpt}</p>
+            <div className="mt-auto flex items-center gap-4 pt-4 text-xs text-white/35">
+              <span>{c.authorName}</span>
+              <span className="inline-flex items-center gap-1"><MessageCircle className="h-3 w-3" />{c.commentCount}</span>
+            </div>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
 /** 讨论帖（作者页用）：沿用教程行样式 */
 export const DiscussionRows = GuideRows
 
@@ -301,9 +399,10 @@ export function ModelTile({ t }: { t: HubTile }) {
   )
 }
 
-export function Pager({ basePath, page, totalPages }: { basePath: string; page: number; totalPages: number }) {
+export function Pager({ basePath, page, totalPages, query = '' }: { basePath: string; page: number; totalPages: number; query?: string }) {
   if (totalPages <= 1) return null
-  const href = (n: number) => (n <= 1 ? basePath : `${basePath}?page=${n}`)
+  // query：其他查询参数（如 sort=hot），翻页时保留
+  const href = (n: number) => (n <= 1 ? `${basePath}${query ? `?${query}` : ''}` : `${basePath}?${query ? `${query}&` : ''}page=${n}`)
   const pages: number[] = []
   for (let n = Math.max(1, page - 2); n <= Math.min(totalPages, page + 2); n++) pages.push(n)
   const cls = 'inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm transition-colors'
@@ -319,6 +418,51 @@ export function Pager({ basePath, page, totalPages }: { basePath: string; page: 
       )}
       {page < totalPages && <Link href={href(page + 1)} rel="next" className={`${cls} text-white/60 hover:bg-white/5 hover:text-white`}>下一页</Link>}
     </nav>
+  )
+}
+
+/** 排序切换：精选（默认）/ 最热 / 最新。带 sort 参数的页面不收录（canonical 指回不带参数的地址） */
+export function SortTabs({ basePath, sort }: { basePath: string; sort: 'curated' | 'hot' | 'new' }) {
+  const items = [
+    { k: 'curated', t: '精选', href: basePath },
+    { k: 'hot', t: '最热', href: `${basePath}?sort=hot` },
+    { k: 'new', t: '最新', href: `${basePath}?sort=new` },
+  ] as const
+  return (
+    <div className="inline-flex shrink-0 self-start rounded-full border border-white/10 p-1 text-sm sm:self-auto">
+      {items.map((i) => (
+        <Link
+          key={i.k}
+          href={i.href}
+          scroll={false}
+          className={`whitespace-nowrap rounded-full px-4 py-1.5 transition-colors duration-300 ${sort === i.k ? 'bg-white font-medium text-black' : 'text-white/55 hover:text-white'}`}
+        >
+          {i.t}
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+/** 站内搜索框（GET 到 /learn/search；服务端渲染的普通表单，不依赖 JS） */
+export function SearchBox({ defaultValue = '', placeholder = '搜索提示词、教程，例如：证件照、论文润色、Claude Code' }: { defaultValue?: string; placeholder?: string }) {
+  return (
+    <form action="/learn/search" method="get" role="search" className="group relative w-full max-w-xl">
+      <svg aria-hidden viewBox="0 0 24 24" className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" fill="none" stroke="currentColor" strokeWidth="2">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </svg>
+      <input
+        name="q"
+        defaultValue={defaultValue}
+        maxLength={60}
+        placeholder={placeholder}
+        className="h-12 w-full rounded-full border border-white/10 bg-white/[0.04] pl-11 pr-24 text-[15px] text-white placeholder:text-white/30 outline-none transition-colors focus:border-white/30 focus:bg-white/[0.06]"
+      />
+      <button type="submit" className="absolute right-1.5 top-1/2 h-9 -translate-y-1/2 rounded-full bg-white px-4 text-sm font-semibold text-black">
+        搜索
+      </button>
+    </form>
   )
 }
 

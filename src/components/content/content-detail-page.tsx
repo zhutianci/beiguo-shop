@@ -24,11 +24,13 @@ import {
   parseIdSlug,
   promptVariables,
   type AccountTier,
+  type TypedSection,
 } from '@/lib/content/policy'
 import {
   authorNameOf,
   contentIndexable,
   dimsFor,
+  facetOf,
   getContentPost,
   imagesOf,
   readingMinutes,
@@ -50,17 +52,22 @@ import { ImageViewer } from '@/components/learn/image-viewer-client'
 import { PromptPanel } from '@/components/learn/prompt-panel-client'
 import { ReadingProgress, Toc } from '@/components/learn/reading-client'
 import { ContentActions } from '@/components/learn/actions-client'
+import { FollowButton } from '@/components/learn/social-client'
+import { prisma } from '@/lib/db'
+import { cardsByIds } from '@/lib/content/queries'
+import { Shuffle } from 'lucide-react'
 
 const COMMENT_PAGE_SIZE = 20
 const NOINDEX = { index: false, follow: true, googleBot: { index: false, follow: true } }
 
-const SECTION: Record<'PROMPT' | 'GUIDE', { backHref: string; backLabel: string; name: string }> = {
+const SECTION: Record<TypedSection, { backHref: string; backLabel: string; name: string }> = {
   PROMPT: { backHref: '/prompts', backLabel: '返回提示词库', name: '提示词' },
   GUIDE: { backHref: '/guides', backLabel: '返回教程', name: '教程' },
+  APP: { backHref: '/apps', backLabel: '返回 AI 应用', name: 'AI 应用' },
 }
 
 /** 解析路由参数并处理「走错栏目 / slug 不对」的 308；返回可用的帖子或 null（→ 404） */
-async function resolve(type: 'PROMPT' | 'GUIDE', raw: string): Promise<ContentRow | null> {
+async function resolve(type: TypedSection, raw: string): Promise<ContentRow | null> {
   const parsed = parseIdSlug(decodeURIComponent(raw))
   if (!parsed) return null
   const post = await getContentPost(parsed.id)
@@ -72,7 +79,7 @@ async function resolve(type: 'PROMPT' | 'GUIDE', raw: string): Promise<ContentRo
   return post
 }
 
-const SECTION_BASE: Record<'PROMPT' | 'GUIDE', string> = { PROMPT: '/prompts', GUIDE: '/guides' }
+const SECTION_BASE: Record<TypedSection, string> = { PROMPT: '/prompts', GUIDE: '/guides', APP: '/apps' }
 
 function modelOf(post: ContentRow) {
   return tagsOf(post, 'MODEL')[0] ?? null
@@ -91,6 +98,7 @@ function titleFor(post: ContentRow): string {
     const model = modelOf(post)
     return `${post.title}：${model ? `${model.name} ` : 'AI '}提示词（可复制）- ${SITE_NAME}`
   }
+  if (post.type === 'APP' && post.app) return `${post.app.name} 怎么样：${post.title} - ${SITE_NAME}`
   const month = post.testedOn ? post.testedOn.toISOString().slice(0, 7) : null
   return `${post.title}${month ? `（${month} 实测）` : ''} - ${SITE_NAME}`
 }
@@ -99,7 +107,7 @@ function descriptionFor(post: ContentRow): string {
   return (post.excerpt || post.prompt?.useCase || plainExcerpt(post.content, 110) || post.title).slice(0, 160)
 }
 
-export async function contentDetailMetadata(type: 'PROMPT' | 'GUIDE', raw: string): Promise<Metadata> {
+export async function contentDetailMetadata(type: TypedSection, raw: string): Promise<Metadata> {
   const post = await resolve(type, raw)
   if (!post || !isPublic(post)) return { title: `${SECTION[type].name} - ${SITE_NAME}`, robots: { index: false, follow: false } }
   const url = contentPath(post.type, post.id, post.slug)
@@ -124,12 +132,12 @@ export async function contentDetailMetadata(type: 'PROMPT' | 'GUIDE', raw: strin
   }
 }
 
-function crumbsOf(post: ContentRow, type: 'PROMPT' | 'GUIDE'): Crumb[] {
-  const lead = tagsOf(post, type === 'PROMPT' ? 'MODEL' : 'PRODUCT')[0]
+function crumbsOf(post: ContentRow, type: TypedSection): Crumb[] {
+  const lead = type === 'APP' ? (post.app?.selfPromo ? { name: '作者自荐', path: '/apps/showcase' } : null) : tagsOf(post, type === 'PROMPT' ? 'MODEL' : 'PRODUCT')[0]
   return [
     { name: LEARN_HOME.name, path: LEARN_HOME.path },
-    { name: type === 'PROMPT' ? '提示词库' : '教程', path: SECTION_BASE[type] },
-    ...(lead ? [{ name: lead.name, path: hubHref(lead) }] : []),
+    { name: type === 'PROMPT' ? '提示词库' : type === 'APP' ? 'AI 应用' : '教程', path: SECTION_BASE[type] },
+    ...(lead ? [{ name: lead.name, path: 'path' in lead ? lead.path : hubHref(lead) }] : []),
     { name: post.title },
   ]
 }
@@ -180,7 +188,7 @@ function Originality({ post }: { post: ContentRow }) {
   )
 }
 
-export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE'; raw: string }) {
+export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw: string }) {
   const post = await resolve(type, raw)
   if (!post) notFound()
   const user = await getCurrentUser().catch(() => null)
@@ -189,6 +197,17 @@ export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE
   const publicPost = isPublic(post)
 
   const images = imagesOf(post)
+  // 二创链（P2）：这条是谁的同款；以及谁做了这条的同款
+  const [remixOrigin, remixIds] = await Promise.all([
+    post.remixOfId
+      ? prisma.forumPost.findFirst({ where: { id: post.remixOfId, status: 1, reviewStatus: 'APPROVED', deletedAt: null }, select: { id: true, type: true, slug: true, title: true } })
+      : Promise.resolve(null),
+    publicPost && type === 'PROMPT'
+      ? prisma.forumPost.findMany({ where: { remixOfId: post.id, status: 1, reviewStatus: 'APPROVED', deletedAt: null }, orderBy: { createdAt: 'desc' }, take: 12, select: { id: true } })
+      : Promise.resolve([]),
+  ])
+  const remixes = JSON.parse(JSON.stringify(await cardsByIds(remixIds.map((r) => r.id))))
+
   const [comments, href, related, dims] = await Promise.all([
     publicPost
       ? loadCommentPage(post.id, 1, COMMENT_PAGE_SIZE, null)
@@ -217,6 +236,7 @@ export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE
       ) : (
         <span className="text-white/75">{authorName}</span>
       )}
+      {href && <FollowButton handle={href.slice(3)} compact />}
       <MetaDot />
       <time dateTime={post.createdAt.toISOString()}>{post.createdAt.toISOString().slice(0, 10)}</time>
       <MetaDot />
@@ -264,11 +284,38 @@ export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE
     <ContentActions
       postId={post.id}
       likeCount={post.likeCount}
+      favoriteCount={post.favoriteCount}
       editHref={editHref}
       backHref={SECTION_BASE[type]}
-      admin={{ reviewStatus: post.reviewStatus, status: post.status, featured: post.featured, verified: !!post.verifiedAt, typed: true }}
+      admin={{ reviewStatus: post.reviewStatus, status: post.status, featured: post.featured, verified: !!post.verifiedAt, typed: type !== 'APP' }}
     />
   )
+
+  // 同款：上游（这条改自哪条）与下游（二创墙）
+  const remixFrom = remixOrigin && (
+    <p className="text-[13px] text-white/50">
+      <Shuffle className="mr-1 inline h-3.5 w-3.5" />
+      同款自{' '}
+      <Link href={contentPath(remixOrigin.type, remixOrigin.id, remixOrigin.slug)} className="text-white/80 underline decoration-white/25 underline-offset-2 hover:text-white">
+        {remixOrigin.title}
+      </Link>
+    </p>
+  )
+  const remixWall =
+    type === 'PROMPT' && publicPost ? (
+      <section className="mt-20">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight lg:text-2xl">同款作品{post.remixCount > 0 ? `（${post.remixCount}）` : ''}</h2>
+            <p className="mt-1.5 text-sm text-white/45">用这条提示词做出来的作品；原作者会因此获得积分</p>
+          </div>
+          <Link href={`/forum/new?type=PROMPT&remix=${post.id}`} className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 px-4 text-sm text-white/80 hover:border-white/30 hover:text-white">
+            <Shuffle className="h-4 w-4" /> 做同款
+          </Link>
+        </div>
+        {remixes.length > 0 ? <PromptMasonry items={remixes} eager={0} /> : <p className="text-sm text-white/35">还没有同款，来做第一个。</p>}
+      </section>
+    ) : null
 
   const commentsBlock = (
     <div className="mx-auto mt-20 max-w-3xl">
@@ -280,6 +327,88 @@ export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE
     <JsonLd data={[...(publicPost ? [postingJsonLd(post, authorName, href, initialComments)] : []), breadcrumbJsonLd(crumbs)]} />
   )
 
+  // 示例图来源（来自开源仓库的示例图要署名；为空 = 作者自己的出图）
+  let credit: { by?: string; url?: string; license?: string } | null = null
+  try {
+    credit = post.mediaCredit ? JSON.parse(post.mediaCredit) : null
+  } catch {
+    credit = null
+  }
+  const creditLine = credit && (
+    <p className="mt-3 text-xs text-white/35">
+      示例图来源：
+      {credit.url ? (
+        <a href={credit.url} target="_blank" rel="nofollow noopener noreferrer" className="underline decoration-white/20 underline-offset-2 hover:text-white/70">
+          {credit.by || '原作者'}
+        </a>
+      ) : (
+        credit.by || '原作者'
+      )}
+      {credit.license ? ` · ${credit.license}` : ''}
+    </p>
+  )
+
+  const facet = type === 'PROMPT' ? facetOf(post) : null
+
+  // —— 文本类提示词（科研、文案、编程……）：没有效果图，提示词面板居中加宽，下面是使用说明与示例输出 ——
+  if (type === 'PROMPT' && post.prompt && (facet === 'TEXT' || images.length === 0)) {
+    return (
+      <>
+        {ld}
+        <LearnPage>
+          <Crumbs crumbs={crumbs} />
+          <ReviewNotice post={post} />
+          <div className="mx-auto max-w-4xl">
+            <header className="learn-in space-y-4">
+              <h1 className="text-[28px] font-semibold leading-tight tracking-tight lg:text-[40px]">{post.title}</h1>
+              <p className="text-[16px] leading-relaxed text-white/60 lg:text-[17px]">{post.prompt.useCase}</p>
+              {meta}
+              {tested}
+              {remixFrom}
+            </header>
+            <div className="learn-in mt-8" style={{ animationDelay: '80ms' }}>
+              <PromptPanel
+                postId={post.id}
+                prompt={post.prompt.prompt}
+                negativePrompt={post.prompt.negativePrompt}
+                modelLabel={post.prompt.modelLabel}
+                modelName={model?.name ?? null}
+                modelHref={model ? hubHref(model) : null}
+                aspectRatio={post.prompt.aspectRatio}
+                needsRefImage={post.prompt.needsRefImage}
+                variables={promptVariables(post.prompt.prompt)}
+                copyCount={post.copyCount}
+                cta={ctaOf(post)}
+                tall
+              />
+            </div>
+            <div className="mt-6 space-y-5">
+              {tagChips}
+              {actions}
+            </div>
+            {post.content.trim() && (
+              <section className="mt-16">
+                <h2 className="mb-6 text-2xl font-semibold tracking-tight">使用说明</h2>
+                <div className="prose-forum learn-prose" dangerouslySetInnerHTML={{ __html: html }} />
+              </section>
+            )}
+          </div>
+
+          {remixWall}
+
+          {related.map((g) => (
+            <section key={g.title} className="mt-20">
+              <h2 className="mb-6 text-xl font-semibold tracking-tight lg:text-2xl">{g.title}</h2>
+              <PromptMasonry items={JSON.parse(JSON.stringify(g.items))} eager={0} />
+            </section>
+          ))}
+
+          {commentsBlock}
+        </LearnPage>
+      </>
+    )
+  }
+
   if (type === 'PROMPT' && post.prompt) {
     return (
       <>
@@ -290,6 +419,7 @@ export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE
           <div className="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:gap-12">
             <div className="learn-in">
               <ImageViewer images={images.map((src) => ({ src, w: dims.get(src)?.w ?? null, h: dims.get(src)?.h ?? null }))} title={post.title} />
+              {creditLine}
             </div>
             <aside className="learn-in space-y-6 lg:sticky lg:top-[calc(var(--header-h,7rem)+1.5rem)] lg:self-start" style={{ animationDelay: '80ms' }}>
               <div className="space-y-4">
@@ -297,6 +427,7 @@ export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE
                 <p className="text-[15px] leading-relaxed text-white/60">{post.prompt.useCase}</p>
                 {meta}
                 {tested}
+                {remixFrom}
               </div>
               <PromptPanel
                 postId={post.id}
@@ -323,6 +454,8 @@ export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE
             </section>
           )}
 
+          {remixWall}
+
           {related.map((g) => (
             <section key={g.title} className="mt-20">
               <h2 className="mb-6 text-xl font-semibold tracking-tight lg:text-2xl">{g.title}</h2>
@@ -336,9 +469,49 @@ export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE
     )
   }
 
-  // —— 教程 ——
+  // —— 教程 / AI 应用（应用复用教程的阅读布局，正文是「我用它解决了什么」）——
   const toc = tocFromHtml(html)
-  const cta = ctaOf(post)
+  const cta = type === 'APP' ? null : ctaOf(post)
+  const app = type === 'APP' ? post.app : null
+  // 作者自荐的外链一律 sponsored（Google 对推广链接的要求，设计 §9.2），普通分享是 ugc
+  const appRel = app?.selfPromo ? 'sponsored nofollow noopener noreferrer' : 'ugc nofollow noopener noreferrer'
+  const RELATION: Record<string, string> = { AUTHOR: '作者本人开发', EMPLOYEE: '作者在该公司工作', OTHER: '作者与该产品有其他利益关系' }
+  const appCard = app && (
+    <aside className="learn-card mt-8 grid gap-5 p-6 sm:grid-cols-[1fr_auto] sm:items-center lg:p-7">
+      <div className="min-w-0">
+        <p className="learn-eyebrow mb-2">AI App</p>
+        <p className="text-2xl font-semibold tracking-tight">{app.name}</p>
+        <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/55">
+          {app.pricing && (
+            <div>
+              <dt className="inline text-white/35">价格 </dt>
+              <dd className="inline">{app.pricing}</dd>
+            </div>
+          )}
+          {app.platforms && (
+            <div>
+              <dt className="inline text-white/35">平台 </dt>
+              <dd className="inline">{app.platforms}</dd>
+            </div>
+          )}
+          {app.trialNote && (
+            <div>
+              <dt className="inline text-white/35">试用 </dt>
+              <dd className="inline">{app.trialNote}</dd>
+            </div>
+          )}
+        </dl>
+      </div>
+      <a href={app.url} target="_blank" rel={appRel} className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-black">
+        访问官网 ↗
+      </a>
+    </aside>
+  )
+  const disclosure = app?.selfPromo && (
+    <div className="mt-6 rounded-2xl border border-amber-300/30 bg-amber-300/[0.06] px-5 py-3.5 text-sm text-amber-100">
+      作者自荐 · {RELATION[app.relation ?? 'OTHER'] ?? RELATION.OTHER}。本页内容由作者提供，链接为推广链接，请自行判断。
+    </div>
+  )
   return (
     <>
       {ld}
@@ -356,6 +529,8 @@ export async function ContentDetailPage({ type, raw }: { type: 'PROMPT' | 'GUIDE
           </div>
           <h1 className="text-[30px] font-semibold leading-[1.15] tracking-tight lg:text-[44px]">{post.title}</h1>
           {post.excerpt && <p className="mt-5 text-[16px] leading-relaxed text-white/55 lg:text-[18px]">{post.excerpt}</p>}
+          {disclosure}
+          {appCard}
           <div className="mt-7 space-y-2.5 border-t border-white/[0.08] pt-5">
             {meta}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-white/50">

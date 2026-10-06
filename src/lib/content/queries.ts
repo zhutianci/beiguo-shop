@@ -23,7 +23,8 @@ const DETAIL_INCLUDE = {
   category: { select: { name: true, slug: true, icon: true, color: true } },
   user: { select: { nickname: true, avatar: true } },
   prompt: true,
-  postTags: { include: { tag: { select: { id: true, slug: true, name: true, kind: true, landingPath: true, status: true } } } },
+  app: true,
+  postTags: { include: { tag: { select: { id: true, slug: true, name: true, kind: true, facet: true, landingPath: true, status: true } } } },
 } satisfies Prisma.ForumPostInclude
 
 export type ContentRow = Prisma.ForumPostGetPayload<{ include: typeof DETAIL_INCLUDE }>
@@ -69,14 +70,24 @@ export function toIndexableInput(p: {
   images: string | null
   testedOn: Date | null
   prompt?: { prompt: string } | null
-  postTags?: { tag: { kind: string; status: number } }[]
+  app?: { selfPromo: boolean } | null
+  featured?: boolean
+  postTags?: { tag: { kind: string; status: number; facet?: string | null } }[]
 }): IndexableInput {
+  const model = p.postTags?.find((pt) => pt.tag.kind === 'MODEL' && pt.tag.status === 1)
   return {
     ...p,
     promptText: p.prompt?.prompt ?? null,
     imageCount: imagesOf(p).length,
-    hasModel: !!p.postTags?.some((pt) => pt.tag.kind === 'MODEL' && pt.tag.status === 1),
+    hasModel: !!model,
+    facet: model?.tag.facet ?? null,
+    selfPromo: !!p.app?.selfPromo,
   }
+}
+
+/** 一条提示词属于图像 / 视频 / 文本哪一类：由它的模型标签决定 */
+export function facetOf(p: { postTags: { tag: { kind: string; facet?: string | null; status: number } }[] }): string | null {
+  return p.postTags.find((pt) => pt.tag.kind === 'MODEL' && pt.tag.status === 1)?.tag.facet ?? null
 }
 
 export function contentIndexable(p: Parameters<typeof toIndexableInput>[0], open: boolean = INDEXING_OPEN): boolean {
@@ -94,6 +105,15 @@ export interface ContentCard {
   /** 封面宽高（上传时记录，见 media_assets）；读不到为空，前端按 4:5 兜底 */
   coverW: number | null
   coverH: number | null
+  /** 提示词大类 IMAGE | VIDEO | TEXT（文本类在列表里用文字卡片展示） */
+  facet: string | null
+  /** 文本卡片上的提示词节选 */
+  promptExcerpt: string | null
+  /** 第一个主题标签（文本卡片上的领域角标） */
+  topicName: string | null
+  /** AI 应用：应用名、是否作者自荐（列表上要显示「自荐」标注） */
+  appName: string | null
+  selfPromo: boolean
   modelName: string | null
   tags: { slug: string; name: string; kind: string }[]
   authorName: string
@@ -109,7 +129,8 @@ export interface ContentCard {
 const CARD_INCLUDE = {
   user: { select: { nickname: true } },
   prompt: { select: { useCase: true, prompt: true } },
-  postTags: { include: { tag: { select: { slug: true, name: true, kind: true, status: true } } } },
+  app: { select: { name: true, selfPromo: true } },
+  postTags: { include: { tag: { select: { slug: true, name: true, kind: true, facet: true, status: true } } } },
 } satisfies Prisma.ForumPostInclude
 
 type CardRow = Prisma.ForumPostGetPayload<{ include: typeof CARD_INCLUDE }>
@@ -125,6 +146,11 @@ function toCard(p: CardRow): ContentCard {
     cover: imagesOf(p)[0] ?? null,
     coverW: null,
     coverH: null,
+    facet: tags.find((t) => t.kind === 'MODEL')?.facet ?? null,
+    promptExcerpt: p.prompt?.prompt ? p.prompt.prompt.replace(/\s+/g, ' ').slice(0, 160) : null,
+    topicName: tags.find((t) => t.kind === 'TOPIC')?.name ?? null,
+    appName: p.app?.name ?? null,
+    selfPromo: !!p.app?.selfPromo,
     modelName: tags.find((t) => t.kind === 'MODEL')?.name ?? null,
     tags: tags.map(({ slug, name, kind }) => ({ slug, name, kind })),
     authorName: authorNameOf(p),
@@ -175,7 +201,13 @@ export interface ListResult {
 export async function listContent(opts: {
   type: ContentType
   tagSlug?: string
+  /** 提示词大类：按模型标签的 facet 过滤 */
+  facet?: string
   userId?: number
+  /** curated（默认）：精选在前；new：纯按发布时间 */
+  order?: 'curated' | 'new'
+  /** AI 应用：只看作者自荐（true）/ 只看普通分享（false） */
+  selfPromo?: boolean
   page: number
   pageSize: number
 }): Promise<ListResult> {
@@ -183,12 +215,14 @@ export async function listContent(opts: {
     ...PUBLIC_WHERE,
     type: opts.type,
     ...(opts.tagSlug ? { postTags: { some: { tag: { slug: opts.tagSlug, status: 1 } } } } : {}),
+    ...(opts.facet ? { AND: [{ postTags: { some: { tag: { kind: 'MODEL', facet: opts.facet, status: 1 } } } }] } : {}),
     ...(opts.userId ? { userId: opts.userId } : {}),
+    ...(opts.selfPromo !== undefined ? { app: { selfPromo: opts.selfPromo } } : {}),
   }
   const [rows, total] = await Promise.all([
     prisma.forumPost.findMany({
       where,
-      orderBy: LIST_ORDER,
+      orderBy: opts.order === 'new' ? [{ createdAt: 'desc' }, { id: 'desc' }] : LIST_ORDER,
       skip: (opts.page - 1) * opts.pageSize,
       take: opts.pageSize,
       include: CARD_INCLUDE,
@@ -211,8 +245,10 @@ export async function countIndexable(where: Prisma.ForumPostWhereInput): Promise
     select: {
       status: true, reviewStatus: true, deletedAt: true, userId: true, content: true, originality: true, aiAssist: true,
       commentCount: true, type: true, images: true, testedOn: true,
+      featured: true,
       prompt: { select: { prompt: true } },
-      postTags: { select: { tag: { select: { kind: true, status: true } } } },
+      app: { select: { selfPromo: true } },
+      postTags: { select: { tag: { select: { kind: true, status: true, facet: true } } } },
     },
   })
   return rows.filter((r) => contentIndexable(r)).length
@@ -266,8 +302,13 @@ export async function learnHomeData() {
       return fallback
     }
   }
-  const [prompts, guides, totals, tags, creators] = await Promise.all([
-    safe(() => listContent({ type: 'PROMPT', page: 1, pageSize: 12 }), { items: [], total: 0, page: 1, totalPages: 1 } as ListResult),
+  const empty = { items: [], total: 0, page: 1, totalPages: 1 } as ListResult
+  const [prompts, hot, textPrompts, videoPrompts, apps, guides, totals, tags, creators] = await Promise.all([
+    safe(() => listContent({ type: 'PROMPT', facet: 'IMAGE', page: 1, pageSize: 12 }), empty),
+    safe(() => listHot({ type: 'PROMPT', page: 1, pageSize: 8 }), empty),
+    safe(() => listContent({ type: 'PROMPT', facet: 'TEXT', page: 1, pageSize: 9 }), empty),
+    safe(() => listContent({ type: 'PROMPT', facet: 'VIDEO', page: 1, pageSize: 4 }), empty),
+    safe(() => listContent({ type: 'APP', selfPromo: false, page: 1, pageSize: 6 }), empty),
     safe(() => listContent({ type: 'GUIDE', page: 1, pageSize: 7 }), { items: [], total: 0, page: 1, totalPages: 1 } as ListResult),
     safe(
       async () => {
@@ -301,25 +342,22 @@ export async function learnHomeData() {
     ),
     safe(
       async () => {
-        const grouped = await prisma.forumPost.groupBy({
-          by: ['userId'],
-          where: { ...PUBLIC_WHERE, type: { in: ['PROMPT', 'GUIDE'] }, userId: { not: null } },
-          _count: { _all: true },
-          orderBy: { _count: { userId: 'desc' } },
-          take: 6,
-        })
-        const ids = grouped.map((g) => g.userId!).filter(Boolean)
-        const [users, profiles] = await Promise.all([
+        // 创作者榜（P2）：按积分排（积分来自被精选、收藏、同款、采纳，而不是发帖数量）
+        const profiles = await prisma.creatorProfile.findMany({ where: { points: { gt: 0 } }, orderBy: { points: 'desc' }, take: 8 })
+        const ids = profiles.map((p) => p.userId)
+        const [users, counts] = await Promise.all([
           prisma.user.findMany({ where: { id: { in: ids }, status: 1 }, select: { id: true, nickname: true } }),
-          prisma.creatorProfile.findMany({ where: { userId: { in: ids } }, select: { userId: true, handle: true } }),
+          prisma.forumPost.groupBy({ by: ['userId'], where: { ...PUBLIC_WHERE, userId: { in: ids } }, _count: { _all: true } }),
         ])
-        return grouped
-          .map((g) => {
-            const u = users.find((x) => x.id === g.userId)
-            const pf = profiles.find((x) => x.userId === g.userId)
-            return u && pf ? { name: memberDisplayName(u.nickname, u.id), href: `/u/${pf.handle}`, count: g._count._all } : null
+        return profiles
+          .map((pf) => {
+            const u = users.find((x) => x.id === pf.userId)
+            return u
+              ? { name: memberDisplayName(u.nickname, u.id), href: `/u/${pf.handle}`, count: counts.find((c) => c.userId === pf.userId)?._count._all ?? 0, points: pf.points }
+              : null
           })
-          .filter((x): x is { name: string; href: string; count: number } => !!x)
+          .filter((x): x is { name: string; href: string; count: number; points: number } => !!x)
+          .slice(0, 6)
       },
       [],
     ),
@@ -334,5 +372,41 @@ export async function learnHomeData() {
       hasIntro: !!t.intro,
       covers: t.posts.map((pt) => imagesOf(pt.post)[0]).filter((u): u is string => !!u),
     }))
-  return { prompts: prompts.items, guides: guides.items, totals, hubs, creators }
+  return { prompts: prompts.items, hot: hot.items, textPrompts: textPrompts.items, videoPrompts: videoPrompts.items, apps: apps.items, guides: guides.items, totals, hubs, creators }
+}
+
+/** 按给定顺序取一组公开内容的卡片（收藏、合集用）；不公开的静默跳过 */
+export async function cardsByIds(ids: number[]): Promise<ContentCard[]> {
+  if (!ids.length) return []
+  const rows = await prisma.forumPost.findMany({ where: { id: { in: ids }, ...PUBLIC_WHERE }, include: CARD_INCLUDE })
+  const byId = new Map(rows.map((r) => [r.id, toCard(r)]))
+  return withDims(ids.map((id) => byId.get(id)).filter((c): c is ContentCard => !!c))
+}
+
+/**
+ * 热度排序（设计 §7.1）：奖励「被拿去用」而不是「被看到」——
+ *   hot = (复制×3 + 同款×5 + 收藏×2 + 赞 + 评论×2 + 1) / (发布小时数 + 2)^1.2
+ * Prisma 不能按表达式排序，所以取近 180 天的候选（≤1500 条）在内存里算。量级上来后改成定时任务写分数列。
+ */
+export async function listHot(opts: { type: ContentType; facet?: string; tagSlug?: string; selfPromo?: boolean; page: number; pageSize: number }): Promise<ListResult> {
+  const where: Prisma.ForumPostWhereInput = {
+    ...PUBLIC_WHERE,
+    type: opts.type,
+    createdAt: { gte: new Date(Date.now() - 180 * 86_400_000) },
+    ...(opts.tagSlug ? { postTags: { some: { tag: { slug: opts.tagSlug, status: 1 } } } } : {}),
+    ...(opts.facet ? { AND: [{ postTags: { some: { tag: { kind: 'MODEL', facet: opts.facet, status: 1 } } } }] } : {}),
+    ...(opts.selfPromo !== undefined ? { app: { selfPromo: opts.selfPromo } } : {}),
+  }
+  const rows = await prisma.forumPost.findMany({
+    where,
+    take: 1500,
+    select: { id: true, copyCount: true, remixCount: true, favoriteCount: true, likeCount: true, commentCount: true, createdAt: true },
+  })
+  const now = Date.now()
+  const score = (r: (typeof rows)[number]) =>
+    (r.copyCount * 3 + r.remixCount * 5 + r.favoriteCount * 2 + r.likeCount + r.commentCount * 2 + 1) /
+    Math.pow((now - r.createdAt.getTime()) / 3_600_000 + 2, 1.2)
+  const sorted = rows.sort((a, b) => score(b) - score(a))
+  const pageIds = sorted.slice((opts.page - 1) * opts.pageSize, opts.page * opts.pageSize).map((r) => r.id)
+  return { items: await cardsByIds(pageIds), total: sorted.length, page: opts.page, totalPages: Math.max(Math.ceil(sorted.length / opts.pageSize), 1) }
 }

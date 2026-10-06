@@ -114,6 +114,8 @@ function platformRobots(): MetadataRoute.Robots {
           // 稀释真正那条 URL 的权重。canonical 也会指回去，这里是双保险。
           '/*?s=',
           '/*?n=',
+          // 学习平台站内搜索结果页（内容平台 P2）：每个查询词一个新 URL，是劲风算法点名的「站内搜索结果聚合页」
+          '/learn/search',
         ],
       },
     ],

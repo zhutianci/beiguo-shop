@@ -273,6 +273,7 @@ export function PostDetail({
           commentCount={post.commentCount}
           gate={post.reviewStatus !== 'APPROVED' || post.status !== 1 ? 'not-public' : post.locked && !post.isAdmin ? 'locked' : 'open'}
           onChanged={loadPost}
+          qa
         />
 
       </div>

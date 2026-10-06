@@ -6,7 +6,7 @@ import { PostForm } from '@/components/forum/post-form'
 // 不在客户端用 useSearchParams：那要求外面包 Suspense，否则 next build 报错
 export const dynamic = 'force-dynamic'
 
-export default function NewPostPage({ searchParams }: { searchParams: { type?: string } }) {
+export default function NewPostPage({ searchParams }: { searchParams: { type?: string; remix?: string } }) {
   return (
     <div className="min-h-screen page-top pb-20">
       <div className="fixed inset-0 grid-bg pointer-events-none" />
@@ -20,7 +20,10 @@ export default function NewPostPage({ searchParams }: { searchParams: { type?: s
           <span className="gradient-text">发布</span>
           <span className="gradient-text-accent">新内容</span>
         </h1>
-        <PostForm initialType={typeof searchParams.type === 'string' ? searchParams.type : undefined} />
+        <PostForm
+          initialType={typeof searchParams.type === 'string' ? searchParams.type : undefined}
+          remixOf={Number(searchParams.remix) > 0 ? Number(searchParams.remix) : undefined}
+        />
       </div>
     </div>
   )

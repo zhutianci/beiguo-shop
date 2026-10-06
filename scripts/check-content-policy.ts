@@ -30,6 +30,8 @@ import {
   isValidSlug,
 } from '../src/lib/content/policy'
 import { parseTestedOn } from '../src/lib/content/write'
+import { simhash, hamming, NEAR_DUP_DISTANCE } from '../src/lib/content/simhash'
+import { levelOf } from '../src/lib/content/points'
 import { renderMarkdown, safeUrl } from '../src/lib/markdown'
 import { stripImageMetadata, readExifOrientation, minimalExifApp1 } from '../src/lib/image-meta'
 
@@ -276,6 +278,32 @@ ok('测试日期：空 = null', parseTestedOn('', now) === null)
   ok('表格单元格仍然转义 HTML', html.includes('&lt;b&gt;') && !html.includes('<b>x</b>'))
   ok('竖线开头但没有分隔行不当表格', !renderMarkdown('| 只是一行').includes('<table'))
 }
+
+console.log('P2：文本 / 视频 / 应用的收录门槛')
+const textPrompt = { ...promptPost, facet: 'TEXT', imageCount: 0, promptText: '【角色】你是资深统计顾问。【任务】根据 [研究设计] 推荐统计方法并说明前提假设与替代方案。', content: '使用说明与示例输出'.repeat(12) }
+ok('文本提示词不需要出图', qualityGateReason(textPrompt) === null)
+ok('文本提示词说明太短不收录', qualityGateReason({ ...textPrompt, content: '太短' }) !== null)
+ok('文本提示词模板太短不收录', qualityGateReason({ ...textPrompt, promptText: '帮我写个摘要' }) !== null)
+const videoPrompt = { ...promptPost, facet: 'VIDEO', imageCount: 0, content: '' }
+ok('视频提示词无封面且无说明不收录', qualityGateReason(videoPrompt) !== null)
+ok('视频提示词有封面可收录', qualityGateReason({ ...videoPrompt, imageCount: 1 }) === null)
+ok('视频提示词无封面但说明够长可收录', qualityGateReason({ ...videoPrompt, content: '镜头与节奏说明'.repeat(10) }) === null)
+const appPost = { ...idx, type: 'APP', content: '我用它解决了什么'.repeat(30), selfPromo: false }
+ok('应用分享可收录', isIndexable(appPost, true))
+ok('作者自荐未精选不收录', !isIndexable({ ...appPost, selfPromo: true }, true))
+ok('作者自荐被精选可收录', isIndexable({ ...appPost, selfPromo: true, featured: true }, true))
+ok('应用分享太短不收录', !isIndexable({ ...appPost, content: '好用' }, true))
+
+console.log('P2：查重与等级')
+const a = simhash('你是一名资深统计顾问，请根据我的研究设计推荐合适的统计方法并说明理由，同时给出前提假设检验方法')!
+const b = simhash('你是一名资深统计顾问，请根据我的研究设计推荐合适统计方法并说明原因，同时给出前提假设的检验方法')!
+const c = simhash('把这张照片改成白底证件照，保持五官不变，背景纯白，光线均匀，肩部以上居中构图')!
+ok('近似文本判为重复', hamming(a, b) <= NEAR_DUP_DISTANCE, `距离 ${hamming(a, b)}`)
+ok('无关文本不判重复', hamming(a, c) > NEAR_DUP_DISTANCE, `距离 ${hamming(a, c)}`)
+ok('太短的文本不算 SimHash', simhash('你好') === null)
+ok('0 积分 = Lv1 新人', levelOf(0).lv === 1 && levelOf(0).name === '新人')
+ok('300 积分 = Lv3 创作者', levelOf(300).lv === 3)
+ok('1500 积分 = Lv5 大师，没有下一级', levelOf(1500).lv === 5 && levelOf(1500).next === null)
 
 console.log(`\n${pass} 通过，${fail} 失败`)
 if (fail) process.exit(1)

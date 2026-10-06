@@ -11,6 +11,9 @@ import { JsonLd } from '@/lib/seo/jsonld'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
 import { Crumbs, GuideRows, LEARN_HOME, LearnPage, PageHead, PromptMasonry } from '@/components/learn/ui'
+import { FollowButton } from '@/components/learn/social-client'
+import { CreatorAdmin } from '@/components/learn/creator-admin-client'
+import { levelOf } from '@/lib/content/points'
 
 /**
  * 作者公开主页（内容平台 P1，设计 §4.1 / §11.4 ProfilePage）。地址用随机短码，不用 userId（理由见 lib/content/creator.ts）。
@@ -32,7 +35,8 @@ const getCreator = cache(async (handle: string) => {
     listContent({ type: 'DISCUSSION', userId: user.id, page: 1, pageSize: 20 }),
   ])
   if (prompts.total + guides.total + discussions.total === 0) return null
-  return { profile, user, name: memberDisplayName(user.nickname, user.id), prompts, guides, discussions }
+  const followers = await prisma.follow.count({ where: { followeeId: user.id } })
+  return { profile, user, name: memberDisplayName(user.nickname, user.id), prompts, guides, discussions, followers }
 })
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -78,12 +82,23 @@ export default async function CreatorPage({ params }: Props) {
           eyebrow="Creator · 作者"
           title={c.name}
           lede={c.profile.bio || `${c.user.createdAt.getFullYear()} 年加入贝果。`}
+          action={
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-black">
+                Lv{levelOf(c.profile.points).lv} {levelOf(c.profile.points).name}
+              </span>
+              {c.profile.coBuilder && <span className="inline-flex h-10 items-center rounded-full bg-amber-300/20 px-4 text-sm text-amber-200">共建者</span>}
+              <FollowButton handle={c.profile.handle} />
+            </div>
+          }
           stats={[
             { label: '条提示词', value: c.prompts.total },
             { label: '篇教程', value: c.guides.total },
-            { label: '个讨论', value: c.discussions.total },
+            { label: '积分', value: c.profile.points },
+            { label: '关注者', value: c.followers },
           ]}
         />
+        <CreatorAdmin handle={c.profile.handle} coBuilder={c.profile.coBuilder} />
         <div className="space-y-20">
           {c.prompts.total > 0 && (
             <section>

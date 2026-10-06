@@ -23,6 +23,8 @@ export interface PromptPanelProps {
   variables: string[]
   copyCount: number
   cta: { href: string; label: string } | null
+  /** 文本类提示词：面板放在页面主位，提示词区不限高 */
+  tall?: boolean
 }
 
 function highlight(prompt: string) {
@@ -84,13 +86,13 @@ export function PromptPanel(p: PromptPanelProps) {
           </span>
         )}
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1 text-white/70">
-          <ImageIcon className="h-3.5 w-3.5" /> {p.needsRefImage ? '需上传参考图' : '纯文字生成'}
+          <ImageIcon className="h-3.5 w-3.5" /> {p.tall ? '对话模型通用' : p.needsRefImage ? '需上传参考图' : '纯文字生成'}
         </span>
       </div>
 
       <pre
         id={`prompt-${p.postId}`}
-        className="max-h-[42vh] overflow-y-auto whitespace-pre-wrap break-words px-5 py-4 font-mono text-[13.5px] leading-[1.75] text-white/90"
+        className={`${p.tall ? 'max-h-none lg:px-7 lg:py-6 lg:text-[14.5px]' : 'max-h-[42vh] overflow-y-auto'} whitespace-pre-wrap break-words px-5 py-4 font-mono text-[13.5px] leading-[1.75] text-white/90`}
       >
         {highlight(p.prompt)}
       </pre>

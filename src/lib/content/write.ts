@@ -8,6 +8,17 @@ import { z } from 'zod'
 import { prisma } from '../db'
 import { ACCOUNT_TIERS, CONTENT_TYPES, type ContentType } from './policy'
 
+/** AI 应用（设计 §5.3 / §9） */
+export const appSchema = z.object({
+  name: z.string().trim().min(1, '请填写应用名称').max(60),
+  url: z.string().trim().max(500).regex(/^https?:\/\//i, '官网地址需以 http:// 或 https:// 开头'),
+  pricing: z.string().trim().max(60).optional().nullable(),
+  platforms: z.string().trim().max(100).optional().nullable(),
+  trialNote: z.string().trim().max(200).optional().nullable(),
+  selfPromo: z.boolean().optional().default(false),
+  relation: z.enum(['AUTHOR', 'EMPLOYEE', 'OTHER']).optional().nullable(),
+})
+
 export const promptSchema = z.object({
   prompt: z.string().trim().min(10, '提示词至少 10 个字').max(5000, '提示词过长'),
   negativePrompt: z.string().trim().max(2000, '负面提示词过长').optional().nullable(),
@@ -28,6 +39,7 @@ export const typedShape = {
   type: z.enum(CONTENT_TYPES).optional(),
   tagIds: z.array(z.number().int().positive()).max(6, '标签最多 6 个').optional(),
   prompt: promptSchema.optional().nullable(),
+  app: appSchema.optional().nullable(),
   testedOn: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, '测试日期格式不对')
@@ -42,13 +54,15 @@ export interface TypedInput {
   type?: ContentType
   tagIds?: number[]
   prompt?: z.infer<typeof promptSchema> | null
+  app?: z.infer<typeof appSchema> | null
   testedOn?: string | null
   accountTier?: string | null
   excerpt?: string | null
 }
 
 /** 每种内容类型允许的标签种类与数量要求 */
-const TAG_RULES: Record<'PROMPT' | 'GUIDE', { allowed: string[]; required: Record<string, [number, number]> }> = {
+const TAG_RULES: Record<'PROMPT' | 'GUIDE' | 'APP', { allowed: string[]; required: Record<string, [number, number]> }> = {
+  APP: { allowed: ['TOPIC', 'MODEL', 'PRODUCT'], required: { TOPIC: [0, 3], MODEL: [0, 2], PRODUCT: [0, 2] } },
   PROMPT: { allowed: ['MODEL', 'TOPIC'], required: { MODEL: [1, 1], TOPIC: [0, 3] } },
   GUIDE: { allowed: ['PRODUCT', 'MODEL', 'TOPIC'], required: { PRODUCT: [1, 2], MODEL: [0, 2], TOPIC: [0, 2] } },
 }
@@ -71,32 +85,43 @@ export async function checkTyped(
   type: ContentType,
   d: TypedInput,
   ctx: { full: boolean; imageCount: number; content: string },
-): Promise<{ error: string } | { tagIds?: number[]; testedOn?: Date | null }> {
+): Promise<{ error: string } | { tagIds?: number[]; testedOn?: Date | null; facet?: string | null }> {
   if (type === 'DISCUSSION') {
     if (d.prompt || (d.tagIds && d.tagIds.length)) return { error: '讨论帖不需要提示词与策展标签' }
     return {}
   }
 
-  const out: { tagIds?: number[]; testedOn?: Date | null } = {}
+  const out: { tagIds?: number[]; testedOn?: Date | null; facet?: string | null } = {}
 
   if (d.tagIds !== undefined || ctx.full) {
     const ids = Array.from(new Set(d.tagIds ?? []))
-    const tags = ids.length ? await prisma.tag.findMany({ where: { id: { in: ids }, status: 1 }, select: { id: true, kind: true } }) : []
+    const tags = ids.length ? await prisma.tag.findMany({ where: { id: { in: ids }, status: 1 }, select: { id: true, kind: true, facet: true } }) : []
     if (tags.length !== ids.length) return { error: '有标签不存在或已停用，请刷新后重选' }
     const rule = TAG_RULES[type]
-    for (const t of tags) if (!rule.allowed.includes(t.kind)) return { error: `${type === 'PROMPT' ? '提示词' : '教程'}不能用「${KIND_NAMES[t.kind]}」类标签` }
+    for (const t of tags) if (!rule.allowed.includes(t.kind)) return { error: `${type === 'PROMPT' ? '提示词' : type === 'APP' ? 'AI 应用' : '教程'}不能用「${KIND_NAMES[t.kind]}」类标签` }
     for (const [kind, [min, max]] of Object.entries(rule.required)) {
       const n = tags.filter((t) => t.kind === kind).length
       if (n < min) return { error: `请选择${KIND_NAMES[kind]}${min > 1 ? `（至少 ${min} 个）` : ''}` }
       if (n > max) return { error: `${KIND_NAMES[kind]}最多选 ${max} 个` }
     }
     out.tagIds = ids
+    out.facet = tags.find((t) => t.kind === 'MODEL')?.facet ?? null
   }
 
   if (type === 'PROMPT') {
     if (ctx.full && !d.prompt) return { error: '请填写提示词' }
-    // 设计 §5.1：至少 1 张作者自己生成的结果
-    if (ctx.full && ctx.imageCount < 1) return { error: '请至少上传 1 张你自己用这条提示词生成的效果图' }
+    // 设计 §5.1：图像类至少 1 张效果图；视频类封面可选（视频不在站内托管）；文本类（科研、文案……）不需要图
+    if (ctx.full && out.facet === 'IMAGE' && ctx.imageCount < 1) return { error: '请至少上传 1 张你自己用这条提示词生成的效果图' }
+    if (ctx.full && out.facet === 'TEXT' && ctx.content.trim().length < 20) return { error: '请写一段使用说明或示例输出（文本类提示词没有效果图，靠它说明效果）' }
+  }
+
+  if (type === 'APP') {
+    if (ctx.full && !d.app) return { error: '请填写应用名称与官网' }
+    if (ctx.full && ctx.content.trim().length < 50) return { error: '请写写「我用它解决了什么」（至少 50 字，写得越具体越容易被精选）' }
+    if (d.app?.selfPromo) {
+      if (!d.app.relation) return { error: '作者自荐请选择你与这个产品的关系' }
+      if (!d.app.trialNote?.trim()) return { error: '作者自荐必须写明怎么试用（免费额度、试用链接或演示）' }
+    }
   }
 
   if (type === 'GUIDE') {

@@ -7,6 +7,7 @@ import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { isValidSlug } from '@/lib/content/policy'
 import { notifyContentChanged } from '@/lib/content/indexnow'
+import { onFeatured, onPublished, onRejected } from '@/lib/content/events'
 
 /**
  * 后台帖子运营：置顶 / 精华 / 锁帖 / 隐藏 / 审核 / 删除与恢复。
@@ -75,6 +76,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     await prisma.forumPost.update({ where: { id }, data })
     notifyContentChanged(id)
+    // 连带事件（积分、站内通知、二创计数）：只在状态真的变化时触发一次；积分有唯一约束兜底，重复点也不会重复加
+    if (data.reviewStatus === 'APPROVED' && post.reviewStatus !== 'APPROVED') void onPublished(id, { reviewed: true })
+    if (data.reviewStatus === 'REJECTED' && post.reviewStatus !== 'REJECTED') void onRejected(id, data.reviewNote ?? null)
+    if (data.featured === true && !post.featured) void onFeatured(id)
     return success({ id }, '已更新')
   } catch (err) {
     console.error('Admin update post error:', err)
