@@ -1677,6 +1677,18 @@ model CreatorApplication {
   @@map("creator_applications")
 }
 
+// 内容带单归因（P3，设计 §13.2「from=c{id} 归因到内容带来的订单」）：读者从内容页 CTA 进落地页、7 天内在主站下单，记一行。
+// 单独一张表、建单之后再写（失败不影响下单），不往 orders 上加列，也不进建单事务
+model ContentOrderAttribution {
+  orderId   Int      @id @map("order_id")
+  postId    Int      @map("post_id")
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([postId, createdAt])
+  @@map("content_order_attributions")
+}
+
 // 内容互动去重（内容平台 P1）：同一访客、同一内容、同一天的「复制」只计一次。
 // 靠唯一约束保证（插入冲突 = 已计过），不靠先查后写
 model ContentEvent {

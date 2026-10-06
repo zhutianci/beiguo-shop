@@ -444,3 +444,73 @@ export function SponsorsCard() {
     </Shell>
   )
 }
+
+// ─────────────────────────────── 内容带单 ───────────────────────────────
+
+interface Conversion {
+  id: number
+  title: string
+  path: string
+  authorName: string
+  visits: number
+  orders: number
+  amount: number
+}
+
+/** 哪些内容把读者带到了落地页、带来了付款订单（设计 §13.2）。访问按访客每天去重；订单是 7 天内付款的 */
+export function ContentConversionCard() {
+  const [days, setDays] = useState(30)
+  const [list, setList] = useState<Conversion[] | null>(null)
+  const [opened, setOpened] = useState(false)
+  const load = useCallback(async () => {
+    const d = await api(`/api/admin/content/conversion?days=${days}`)
+    if (d.success) setList(d.data.list)
+  }, [days])
+  useEffect(() => {
+    if (opened) load()
+  }, [opened, load])
+  return (
+    <Shell title="内容带单" onOpen={() => setOpened(true)}>
+      <div className="mb-3 flex items-center gap-2 text-xs">
+        {[7, 30, 90].map((d) => (
+          <button key={d} type="button" onClick={() => setDays(d)} className={`rounded-full px-3 py-1 ${days === d ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
+            近 {d} 天
+          </button>
+        ))}
+        <span className="ml-auto text-gray-400">访问 = 从内容页「开通」入口进落地页的人次；订单 = 之后 7 天内付款的</span>
+      </div>
+      {!list ? (
+        <div className="py-6 text-center text-sm text-gray-400">加载中…</div>
+      ) : !list.length ? (
+        <div className="py-6 text-center text-sm text-gray-400">这段时间还没有内容带来访问</div>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs text-gray-500">
+              <th className="py-2">内容</th>
+              <th className="py-2">作者</th>
+              <th className="py-2 text-right">访问</th>
+              <th className="py-2 text-right">订单</th>
+              <th className="py-2 text-right">金额</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((c) => (
+              <tr key={c.id} className="border-b border-gray-100">
+                <td className="py-2 pr-2">
+                  <a href={c.path} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                    {c.title}
+                  </a>
+                </td>
+                <td className="py-2 pr-2 text-gray-600">{c.authorName}</td>
+                <td className="py-2 text-right tabular-nums">{c.visits}</td>
+                <td className="py-2 text-right tabular-nums">{c.orders}</td>
+                <td className="py-2 text-right tabular-nums">¥{c.amount.toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </Shell>
+  )
+}

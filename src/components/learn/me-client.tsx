@@ -272,7 +272,7 @@ function Following() {
 
 function MyPosts() {
   const { data } = useJson<{
-    list: { id: number; type: string; title: string; path: string; reviewStatus: string; reviewNote: string | null; status: number; featured: boolean; favoriteCount: number; copyCount: number; commentCount: number; ctaVisits?: number; createdAt: string }[]
+    list: { id: number; type: string; title: string; path: string; reviewStatus: string; reviewNote: string | null; status: number; featured: boolean; favoriteCount: number; copyCount: number; commentCount: number; ctaVisits?: number; ctaOrders?: number; createdAt: string }[]
   }>('/api/me/posts')
   if (!data) return <div className="learn-skeleton h-40" />
   if (!data.list.length) return <p className="text-sm text-white/45">还没有投稿。</p>
@@ -296,6 +296,7 @@ function MyPosts() {
               {p.type === 'PROMPT' && <span>复制 {p.copyCount}</span>}
               <span>评论 {p.commentCount}</span>
               {!!p.ctaVisits && <span title="读者从这篇的开通入口点到落地页的人次">带来访问 {p.ctaVisits}</span>}
+              {!!p.ctaOrders && <span title="读者从这篇进来、7 天内付款的订单数">带来订单 {p.ctaOrders}</span>}
               <Link href={`/forum/${p.id}/edit`} className="text-white/60 hover:text-white">编辑</Link>
             </div>
           </li>

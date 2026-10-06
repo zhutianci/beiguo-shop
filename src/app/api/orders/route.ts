@@ -39,6 +39,8 @@ import { excludeTopup, isCarrierType } from '@/lib/order-scope'
 import { payableFrom } from '@/lib/order-payable'
 import { botSink } from '@/lib/bot/sink'
 import { bjMinute, yuan } from '@/lib/bot/render'
+import { recordContentAttribution } from '@/lib/content/attribution'
+
 
 const createOrderSchema = z.object({
   // 必须是正整数：小数/负数原本要一路走到 prisma.order.create（Int 列）才炸，
@@ -58,6 +60,8 @@ const createOrderSchema = z.object({
   // 前台只发「支付方式: 支付宝」十来个字；这里给 200 字上限，自己构造超长备注的请求直接拦下
   remark: z.string().max(200, '备注最多 200 字').optional(),
   ref: z.string().trim().optional().nullable(), // 内推码
+  /** 内容带单归因（内容平台 P3）：读者 7 天内从哪条内容的 CTA 进来的。只记录，不影响价格与返现 */
+  fromContent: z.number().int().positive().optional().nullable(),
   /** 要使用的券实例 id（CouponGrant.id）。只对本人有效，服务端会校验归属 */
   couponGrantId: z.number().int().positive().optional().nullable(),
   /**
@@ -714,6 +718,9 @@ export async function POST(request: NextRequest) {
     }
 
     await saveTitleSideEffects(user.id, invoiceIn, invoiceFields)
+
+    // 内容带单归因（fire-and-forget，自己吞异常；只在主站分支，渠道站上面已经 return）
+    if (result.data.fromContent) void recordContentAttribution(order.id, result.data.fromContent, user.id)
 
     // 企业微信通知（fire-and-forget，不 await，通知挂了不能影响下单）
     notifyOrderCreated({

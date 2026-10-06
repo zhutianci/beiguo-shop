@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, CreditCard, ArrowRight, Ticket, FileText, Check, ChevronDown } from 'lucide-react'
 import { useUserStore } from '@/store/user'
-import { getRef } from '@/lib/ref'
+import { getContentFrom, getRef } from '@/lib/ref'
 import { useStorefront } from '@/components/storefront-provider'
 import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
 // 无依赖的纯函数模块，与服务端校验共用同一份规则（lib/invoice.ts 引了 node:crypto，客户端不能引）
@@ -296,6 +296,8 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
           quantity: 1,
           remark: '支付方式: 支付宝',
           ref: referralOn ? getRef() : null,
+          // 内容带单归因（内容平台 P3）：只记录，服务端不据此改价
+          fromContent: getContentFrom(),
           couponGrantId: couponOn ? couponId : null,
           // 勾了才带这一块。服务端据此算税费、存开票草稿，
           // 付款成功后发货与提交开票同时发生（lib/vmq.ts fulfillOrder）
