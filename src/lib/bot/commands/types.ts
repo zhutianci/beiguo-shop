@@ -39,6 +39,11 @@ export interface BotContext {
    * 处理函数查数据必须按它收窄（附录 B 第 2 条）
    */
   scopeTenantId: number | null
+  /**
+   * 谁发的：缺省 admin（登记过的管理员）。agent = iLink 分站绑定里扫码的那个代理（附录 E.5）——不是管理员，
+   * 只能用 AGENT_COMMANDS 里的只读指令，范围恒为本站；此时 admin 是占位（id 0、maxTier 1），不要拿它写审计
+   */
+  actor?: 'admin' | 'agent'
 }
 
 /** 指令结果：回复文本；也可以指定回到另一个会话（例如「创建」新建的会话） */

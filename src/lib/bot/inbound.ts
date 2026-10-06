@@ -18,17 +18,19 @@ import { DEFAULT_BOT_CONFIG, readBotConfig } from './config'
 import { enqueueMany, enqueueReply, sealOutboxText } from './outbox'
 import { kickSender } from './sender'
 import { readBotState } from './state'
-import { findCommand } from './commands'
+import { AGENT_COMMANDS, AGENT_PSEUDO_ADMIN, findCommand } from './commands'
 import { parseCommandText } from './commands/parse'
 import type { BotContext, BotReply, CmdConversation } from './commands/types'
 import type { Inbound } from './types'
 
 const INBOUND_PER_MINUTE = 10
+/** iLink 分站绑定里代理的查询：每个会话每分钟最多几次（日报类要查十几张表） */
+const AGENT_QUERIES_PER_MINUTE = 4
 
-/** iLink 分站绑定里，代理发来消息时的说明（附录 E） */
+/** iLink 分站绑定里，代理发来不认识的话时的说明（附录 E.5；同一会话 6 小时一次） */
 export const ILINK_TENANT_HINT =
-  '👋 收到。这个对话会推送本分站的动态（新订单、留言、开票等）和每天的日报。\n' +
-  '微信规定：超过 24 小时没有回复，推送会暂停；平时回复任意一个字即可继续接收。查询与处理请到渠道后台。'
+  '👋 收到。这个对话会推送本分站的动态（新订单、留言、开票等）和每天的日报；也可以直接发「动态」「待办」「日报」查本站（发「帮助」看全部）。\n' +
+  '微信规定：超过 24 小时没有回复，推送会暂停；平时回复任意一个字即可继续接收。'
 
 function sha256(s: string): string {
   return createHash('sha256').update(s).digest('hex')
@@ -179,6 +181,93 @@ async function handleSystem(m: Inbound, adapter: string): Promise<void> {
   }
 }
 
+/**
+ * iLink 分站绑定里代理发来的消息（附录 E.5）。发送人就是扫码绑定这个分站会话的代理（收消息循环按 ilink_user_id 过滤过）。
+ *  · 只认 AGENT_COMMANDS（只读、T0 / T1，注册表加载时校验），ctx.actor = agent、范围恒为本站；每个会话每分钟最多 4 次；
+ *  · 别的指令回「只有站长能用」；不认识的话 6 小时内第一次回说明（可查什么 + 24 小时规则），之后回「没看懂」；
+ *  · 指令日志照记（admin_id 为空，便于后台看代理查了什么）；回复照常进出队，发送器对分站会话再过一遍黑名单。
+ * 返回是否往出队写了东西
+ */
+async function handleAgent(m: Inbound, adapter: string, conv: { id: number; tenantId: number | null; name: string | null }): Promise<boolean> {
+  const parsed = parseCommandText(m.text)
+  const def = parsed ? findCommand(parsed.name) : undefined
+  const allowed = !!def && AGENT_COMMANDS.includes(def.name) && def.scopes.includes('TENANT')
+  const cmdId = await recordCommand({
+    adapter,
+    msgId: m.msgId,
+    conversationId: conv.id,
+    convExternalId: m.convExternalId,
+    kind: 'MESSAGE',
+    senderWxid: m.senderWxid,
+    adminId: null,
+    name: def?.name ?? parsed?.name ?? null,
+    argsText: allowed && parsed ? parsed.args.join(' ') : null,
+    decision: 'REJECTED',
+  })
+  if (!cmdId) return false // 重复投递：已处理过
+  const say = (text: string) => enqueueReply(conv.id, text, `r:${cmdId}`)
+  if (!def) {
+    const bucket = Math.floor(Date.now() / (6 * 3600_000))
+    const n = await enqueueReply(conv.id, ILINK_TENANT_HINT, `hint:${conv.id}:${bucket}`)
+    if (!n) await say('没看懂，发送「帮助」查看可以查什么')
+    await finish(cmdId, 'IGNORED', parsed ? 'UNKNOWN' : 'EMPTY', null)
+    return true
+  }
+  if (!allowed) {
+    await say(`「${def.name}」只有站长能用。这里可以查：${AGENT_COMMANDS.filter((n) => n !== '帮助').join('、')}（发「帮助」看说明）`)
+    await finish(cmdId, 'REJECTED', 'AGENT_SCOPE', null)
+    return true
+  }
+  if (rateLimited(`botag:${conv.id}`, { windowMs: 60_000, max: AGENT_QUERIES_PER_MINUTE })) {
+    await say('查得太频繁了，请 1 分钟后再试')
+    await finish(cmdId, 'REJECTED', 'RATE', null)
+    return true
+  }
+  const cfgRead = await readBotConfig()
+  const config = cfgRead.ok ? cfgRead.config : DEFAULT_BOT_CONFIG
+  if (config.disabledCommands.includes(def.name)) {
+    await say(`「${def.name}」已在后台临时关闭`)
+    await finish(cmdId, 'REJECTED', 'DISABLED', null)
+    return true
+  }
+  const p = def.parse(parsed!.args)
+  if (!p.ok) {
+    await say(p.usage.replace(/@贝果助手\s*/g, ''))
+    await finish(cmdId, 'REJECTED', 'USAGE', null)
+    return true
+  }
+  const ctx: BotContext = {
+    adapter: adapter as BotContext['adapter'],
+    conv: { id: conv.id, kind: 'TENANT', tenantId: conv.tenantId, allowT3: false, externalId: m.convExternalId, isGroup: false, name: conv.name },
+    admin: { ...AGENT_PSEUDO_ADMIN },
+    actor: 'agent',
+    commandId: cmdId,
+    msgId: m.msgId,
+    senderWxid: m.senderWxid,
+    now: new Date(),
+    config,
+    scopeTenantId: conv.tenantId,
+  }
+  let reply: BotReply
+  try {
+    reply = await def.run(ctx, p.value)
+  } catch (e) {
+    console.error(`[bot] 代理指令「${def.name}」执行出错`, e)
+    await say(`❌「${def.name}」查询出错，请稍后再试`)
+    await finish(cmdId, 'ERROR', 'EXCEPTION', (e as Error)?.message ?? null)
+    return true
+  }
+  // 只读指令不该有这些：有就是名单配错了——不发，记 ERROR
+  if (reply.sensitive || reply.conversationId || reply.extraSendTo || reply.notifyMgmt) {
+    console.error(`[bot] 代理指令「${def.name}」的回复带了敏感内容或别的投递目标，已丢弃`)
+    await finish(cmdId, 'ERROR', 'AGENT_REPLY', null)
+    return true
+  }
+  await say(reply.text)
+  await finish(cmdId, reply.rejected ? 'REJECTED' : 'OK', reply.rejected ?? null, reply.summary ?? null)
+  return true
+}
+
 /** 处理一批入站消息（回调路由与 itest 调用）。不抛 */
 export async function handleInbound(list: Inbound[]): Promise<void> {
   const adapter = adapterName()
@@ -211,14 +300,13 @@ export async function handleInbound(list: Inbound[]): Promise<void> {
 
       // 第 ③ 道闸：发送人是管理员。不是 → 只记一行，不记内容、不回复
       if (!admin || !admin.enabled) {
-        const ignoredId = await recordCommand({ adapter, msgId: m.msgId, conversationId: convActive?.id ?? null, convExternalId: m.convExternalId, kind: 'MESSAGE', senderWxid: m.senderWxid, decision: 'IGNORED', reasonCode: 'NOT_ADMIN' })
-        // 例外：iLink 的分站绑定（附录 E）。收消息循环只放扫码的那个代理的消息进来——不执行指令，但回一句这里是做什么的、
-        // 以及「24 小时不回复会暂停推送」；同一个会话 6 小时内最多回一次（出队按 dedupe_key 去重）
-        if (ignoredId && adapter === 'ilink' && convActive?.kind === 'TENANT' && convActive.status === 'ACTIVE') {
-          const bucket = Math.floor(Date.now() / (6 * 3600_000))
-          const n = await enqueueReply(convActive.id, ILINK_TENANT_HINT, `hint:${convActive.id}:${bucket}`)
-          if (n) touched = true
+        // 例外：iLink 的分站绑定（附录 E.5）。收消息循环只放扫码的那个代理的消息进来——他能用只读的查询指令（AGENT_COMMANDS），
+        // 范围恒为这个会话绑定的分站
+        if (adapter === 'ilink' && convActive?.kind === 'TENANT' && convActive.status === 'ACTIVE' && convActive.tenantId) {
+          if (await handleAgent(m, adapter, convActive)) touched = true
+          continue
         }
+        await recordCommand({ adapter, msgId: m.msgId, conversationId: convActive?.id ?? null, convExternalId: m.convExternalId, kind: 'MESSAGE', senderWxid: m.senderWxid, decision: 'IGNORED', reasonCode: 'NOT_ADMIN' })
         continue
       }
 
@@ -298,7 +386,8 @@ export async function handleInbound(list: Inbound[]): Promise<void> {
       }
       const p = def.parse(parsed!.args)
       if (!p.ok) {
-        await say(p.usage)
+        // iLink 一对一不用 @：用法里的「@贝果助手」去掉
+        await say(adapter === 'ilink' ? p.usage.replace(/@贝果助手\s*/g, '') : p.usage)
         await finish(cmdId, 'REJECTED', 'USAGE', null)
         continue
       }

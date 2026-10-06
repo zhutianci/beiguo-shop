@@ -29,6 +29,13 @@ export function requirePlatformScope(scope: BotScope, what: string): void {
   if (scope.tenantId !== null) throw new Error(`[bot-data] ${what}只在管理群与私聊可用（收到分站范围 ${scope.tenantId}）`)
 }
 
+/** 只给分站用的数据（分站待办等）：必须是合法的分站范围（≥ 2），主站范围直接抛错（fail closed）。返回分站 id */
+export function requireTenantScope(scope: BotScope, what: string): number {
+  const t = scope.tenantId
+  if (t === null || !(Number.isInteger(t) && t >= 2)) throw new Error(`[bot-data] ${what}只接分站范围（收到 ${t}）`)
+  return t
+}
+
 /** 分站范围是否合法：null 或 ≥ 2 的整数（主站 id=1 不是「分站范围」，主站数据只经 null 范围取） */
 export function assertScope(scope: BotScope): void {
   const t = scope.tenantId

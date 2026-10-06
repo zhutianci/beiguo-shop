@@ -18,9 +18,9 @@ import { addBjDays, bjDateKey, bjDateToStart, bjDayStart } from '../../marketing
 import { fromCents } from '../../money'
 import { normalizeBotCode } from '../../product-status'
 import { linkOrigin } from '../config'
-import { dropEmails, maskEmails, oneLine, sanitizeUserText, truncate } from '../mask'
+import { dropEmails, maskEmails, oneLine, sanitizeUserText, tenantBlacklistHit, truncate } from '../mask'
 import { stripBrackets } from '../resolve-site'
-import { bjMinute, fitLines, MAX_MESSAGE_CHARS, yuan } from '../render'
+import { bjMinute, fitLines, MAX_MESSAGE_CHARS, summaryLine, yuan } from '../render'
 import { orderCardsView, type OrderCards } from '../data/cards'
 import { cardIssuesIn, type IssueList } from '../data/issues'
 import { lookupOrders, SUFFIX_LOOKBACK_DAYS, type OrderBrief, type OrderLookupResult, type OrderQuery } from '../data/orders'
@@ -43,6 +43,8 @@ import {
   type SiteInfo,
 } from '../data/sites'
 import { todoSnapshot, type TodoSnapshot } from '../data/todo'
+import { tenantTodoSnapshot, type TenantTodoSnapshot } from '../data/tenant-todo'
+import { recentEvents, type EventRow } from '../data/events'
 import { openUnmatched, type UnmatchedList } from '../data/unmatched'
 import { toHalfWidth } from './parse'
 import type { BotCommandDef, BotContext, BotReply, ParseResult } from './types'
@@ -738,22 +740,109 @@ export const cardCmd: BotCommandDef<{ orderNo: string }> = {
   help: cardHelp,
 }
 
-const todoHelp: Help = { summary: '待人工发货、待开票、未读留言、待退款、售后申请：数量与前几条', usage: '待办' }
+const todoHelp: Help = { summary: '要处理的事：数量与前几条（管理群：待发货、待开票、留言、退款、售后；分站：本站未读留言、售后、自动下架、等发货）', usage: '待办' }
 
 export const todoCmd: BotCommandDef<null> = {
   name: '待办',
   aliases: ['todo'],
-  scopes: ['MGMT', 'DM'],
+  scopes: ['MGMT', 'DM', 'TENANT'],
   tier: 1,
   parse: (args) => (args.length ? { ok: false, usage: usageOf(todoHelp) } : { ok: true, value: null }),
   async run(ctx) {
-    const sc = platformScope(ctx, '📝 待办')
-    if (isReply(sc)) return sc
+    const sc = scopeOf(ctx)
+    if (!sc) return { text: `📝 待办｜${SCOPE_ERROR}`, summary: 'scope' }
+    if (sc.tenantId !== null) {
+      // 分站（附录 E.5）：与渠道后台首页的待办同口径，只看本站
+      const t = await tenantTodoSnapshot(sc, 3)
+      const origin = await channelOriginFor(sc)
+      return { text: renderTenantTodoReply(t, origin), summary: `分站待办 ${t.unread.total + t.afterSales.total + t.delisted.total}` }
+    }
     const s = await todoSnapshot(sc, 5)
     const n = s.manual.total + s.invoice.total + s.message.total + s.refund.total + s.afterSale.total
     return { text: renderTodoReply(s), summary: `待办 ${n}` }
   },
   help: todoHelp,
+}
+
+const DELIST_REASON_LABEL: Readonly<Record<string, string>> = { SUPPLY_ABOVE_RETAIL: '供货价高于零售价', PRODUCT_OFF: '站长已下架', REVOKED: '授权已收回' }
+
+function tenantTodoLines(s: TenantTodoSnapshot, per: number): string[] {
+  const total = s.unread.total + s.afterSales.total + s.delisted.total
+  const lines = [`📝 本站待办｜${total ? `${total} 项要看` : '没有要处理的'}`]
+  const more = (n: number, shown: number) => {
+    if (n > shown) lines.push(`· 另有 ${n - shown} 条，见渠道后台`)
+  }
+  if (s.unread.total) {
+    lines.push(`【未读留言 ${s.unread.total} 条】`)
+    const items = s.unread.items.slice(0, per)
+    items.forEach((i) => lines.push(`· ${i.orderNo} ${short(i.productName, 12)}（${i.unread} 条${i.at ? ` ${bjMinute(i.at)}` : ''}）${i.preview ? ` 买家写：${i.preview}` : ''}`))
+  }
+  if (s.afterSales.total) {
+    lines.push(`【售后申请 ${s.afterSales.total}】（已提交，等站长处理）`)
+    const items = s.afterSales.items.slice(0, per)
+    items.forEach((i) => lines.push(`· ${AFTER_SALE_KIND_LABEL[i.kind] ?? i.kind} ${i.requestNo}${i.orderNo ? ` 订单 ${i.orderNo}` : ''} ${bjMinute(i.at)}`))
+    more(s.afterSales.total, items.length)
+  }
+  if (s.delisted.total) {
+    lines.push(`【被系统下架的商品 ${s.delisted.total}】`)
+    const items = s.delisted.items.slice(0, per)
+    items.forEach((i) => lines.push(`· ${short(i.name, 20)}${i.reason ? `（${DELIST_REASON_LABEL[i.reason] ?? i.reason}）` : ''}`))
+    more(s.delisted.total, items.length)
+  }
+  if (s.awaitingShip.total) lines.push(`⏳ 等站长发货 ${s.awaitingShip.total} 单${s.awaitingShip.oldestPaidAt ? `（最早 ${bjMinute(s.awaitingShip.oldestPaidAt)} 付款）` : ''}`)
+  return lines
+}
+
+/** 分站「待办」的回复：每类先列 3 条，装不下 900 字就 2 条、1 条、只给数 */
+export function renderTenantTodoReply(s: TenantTodoSnapshot, channelOrigin: string | null): string {
+  const tail = channelOrigin ? `渠道后台：${channelOrigin}/partner` : null
+  return fitBest([tenantTodoLines(s, 3), tenantTodoLines(s, 2), tenantTodoLines(s, 1), tenantTodoLines(s, 0)], tail)
+}
+
+const eventsHelp: Help = { summary: '最近 72 小时的动态（新的在前；分站里只看本站）', usage: '动态 [条数]', example: '动态 20' }
+/** 「动态」查多久以前的：iLink 推送窗口关着时 12 小时就过期，72 小时足够对方回来补看 */
+const EVENTS_HOURS = 72
+
+export const eventsCmd: BotCommandDef<{ n: number }> = {
+  name: '动态',
+  aliases: ['最近'],
+  scopes: ['MGMT', 'DM', 'TENANT'],
+  tier: 1,
+  parse: (args) => {
+    if (!args.length) return { ok: true, value: { n: 10 } }
+    const v = args.length === 1 ? Number(toHalfWidth(args[0])) : NaN
+    return Number.isInteger(v) && v >= 1 && v <= 20 ? { ok: true, value: { n: v } } : { ok: false, usage: `${usageOf(eventsHelp)}（条数 1–20）` }
+  },
+  async run(ctx, a) {
+    const sc = scopeOf(ctx)
+    if (!sc) return { text: `🧾 动态｜${SCOPE_ERROR}`, summary: 'scope' }
+    const rows = await recentEvents(sc, { hours: EVENTS_HOURS, limit: a.n }, ctx.now)
+    return { text: renderEventsReply(rows, { tenant: sc.tenantId !== null, now: ctx.now }), summary: `动态 ${rows.length}` }
+  },
+  help: eventsHelp,
+}
+
+/**
+ * 「动态」的回复：一条一行（与合并消息同一种摘要：时间 + 标题 + 第一个值），不是今天的带日期，新的在前。
+ * 分站范围每一行再过一遍分站黑名单（同发送器的最后一道），命中的不显示、只说条数
+ */
+export function renderEventsReply(rows: EventRow[], opt: { tenant: boolean; now: Date }): string {
+  const head = `🧾 最近动态｜${opt.tenant ? '本站' : '主站'}`
+  if (!rows.length) return `${head}\n最近 ${EVENTS_HOURS} 小时没有新动态`
+  const today = bjDateKey(opt.now)
+  const lines: string[] = []
+  let hidden = 0
+  rows.forEach((r) => {
+    const day = bjDateKey(r.createdAt)
+    const line = `· ${day !== today ? `${day.slice(5)} ` : ''}${r.urgent ? '❗' : ''}${summaryLine({ title: r.title, lines: r.lines, link: null, linkText: null }, r.createdAt)}`
+    if (opt.tenant && tenantBlacklistHit(line)) {
+      hidden++
+      return
+    }
+    lines.push(line)
+  })
+  if (hidden) lines.push(`· 另有 ${hidden} 条不适合在这里显示，见渠道后台`)
+  return fitBest([[`${head} ${rows.length} 条`, ...lines]], opt.tenant ? '详情见渠道后台' : null)
 }
 
 const productsHelp: Help = { summary: '可提卡商品：货号、站价、未用卡数与平均成本', usage: '货号' }
@@ -884,6 +973,7 @@ export const QUERY_COMMANDS: readonly BotCommandDef<any>[] = [
   orderCmd,
   cardCmd,
   todoCmd,
+  eventsCmd,
   productsCmd,
   stockCmd,
   profitCmd,

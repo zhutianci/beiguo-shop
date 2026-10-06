@@ -24,6 +24,8 @@ import {
   renderSiteListReply,
   renderStockDetailReply,
   renderTodoReply,
+  renderTenantTodoReply,
+  renderEventsReply,
   renderUnmatchedReply,
   scopeOf,
   usageOf,
@@ -392,16 +394,16 @@ async function main() {
     })
     ok('查询指令之间名字与别名不撞', !dup, dup)
     eq(
-      '十条指令都在',
+      '十一条指令都在',
       QUERY_COMMANDS.map((c) => c.name),
-      ['分站', '订单', '查卡', '待办', '货号', '库存', '利润', '结算', '未匹配', '提卡记录']
+      ['分站', '订单', '查卡', '待办', '动态', '货号', '库存', '利润', '结算', '未匹配', '提卡记录']
     )
     // 其它会话登记的指令名（core / binding 已有；日报与提卡两包在并行写）
     const others = ['帮助', 'help', '菜单', '?', '？', '状态', 'status', '群列表', '绑定列表', '锁定', '紧急锁定', '设为管理群', '设为主站群', '创建', '绑定分站', '绑定', '解绑', '推送', '订阅', '退订', '免打扰', '今日', 'today', '昨日', 'yesterday', '日报', '本周', '本月', '提卡', '发卡', '补货', '导卡', '上架', '下架', '补发', '改价', '认领', 'claim']
     const clash = others.filter((n) => names.has(n.toLowerCase()))
     ok('不与其它指令（含日报、提卡两包的名字）重名', !clash.length, clash.join('、'))
     ok('都是 T1', QUERY_COMMANDS.every((c) => c.tier === 1))
-    ok('只有「订单」能进分站群', QUERY_COMMANDS.filter((c) => c.scopes.includes('TENANT')).map((c) => c.name).join() === '订单')
+    ok('能进分站范围的只有「订单」「待办」「动态」（都按本站收窄）', QUERY_COMMANDS.filter((c) => c.scopes.includes('TENANT')).map((c) => c.name).join() === '订单,待办,动态')
     ok('都不进未登记的群', QUERY_COMMANDS.every((c) => !c.scopes.includes('UNBOUND')))
     ok('都在管理群与私聊可用', QUERY_COMMANDS.every((c) => c.scopes.includes('MGMT') && c.scopes.includes('DM')))
     ok('帮助齐全（summary / usage）', QUERY_COMMANDS.every((c) => !!c.help.summary && !!c.help.usage && !c.help.usage.startsWith('@')))
@@ -436,6 +438,45 @@ async function main() {
     } catch (e) {
       ok('加载 commands/index.ts（注册表）', false, (e as Error).message)
     }
+  }
+
+  console.log('\n分站待办与动态（附录 E.5）：')
+  {
+    const empty = { unread: { total: 0, items: [] }, afterSales: { total: 0, items: [] }, delisted: { total: 0, items: [] }, awaitingShip: { total: 0, oldestPaidAt: null } }
+    const t0 = renderTenantTodoReply(empty, 'https://lulu.bigolab.com')
+    ok('分站待办：没有要处理的、末尾给渠道后台', t0.startsWith('📝 本站待办｜没有要处理的') && t0.endsWith('渠道后台：https://lulu.bigolab.com/partner'), t0)
+    const at = new Date('2026-10-06T02:00:00Z')
+    const full = {
+      unread: { total: 4, items: [{ orderNo: '20261006AAAA1111', productName: 'ChatGPT Plus 月卡', unread: 2, at, preview: '什么时候到账' }] },
+      afterSales: { total: 1, items: [{ requestNo: 'AS261006ABCDEFGH', kind: 'REFUND', orderNo: '20261006BBBB2222', at }] },
+      delisted: { total: 2, items: [{ name: 'Claude Pro', reason: 'SUPPLY_ABOVE_RETAIL' }, { name: 'Gemini', reason: 'PRODUCT_OFF' }] },
+      awaitingShip: { total: 3, oldestPaidAt: at },
+    }
+    const t1 = renderTenantTodoReply(full, 'https://lulu.bigolab.com')
+    ok(
+      '分站待办：各类计数与条目',
+      t1.includes('7 项要看') && t1.includes('【未读留言 4 条】') && t1.includes('买家写：什么时候到账') && t1.includes('【售后申请 1】') && t1.includes('退款 AS261006ABCDEFGH') && t1.includes('供货价高于零售价') && t1.includes('等站长发货 3 单'),
+      t1
+    )
+    ok('分站待办：不带平台后台链接、过得了分站黑名单', !tenantBlacklistHit(t1) && !t1.includes('/admin'))
+    ok('分站待办：不超过 900 字', Array.from(t1).length <= MAX_MESSAGE_CHARS)
+    const now = new Date('2026-10-06T08:00:00Z') // 北京时间 16:00
+    const ev = (id: number, title: string, value: string, hoursAgo: number) => ({
+      id,
+      title,
+      lines: [{ label: '商品', value }],
+      link: '/partner/orders/x',
+      linkText: '查看',
+      category: 'order',
+      urgent: false,
+      createdAt: new Date(now.getTime() - hoursAgo * 3600_000),
+    })
+    const e1 = renderEventsReply([ev(3, '🛒 新订单', 'ChatGPT', 1), ev(2, '💬 新留言', 'buyer@example.com 的问题', 2), ev(1, '🛒 新订单', 'Claude', 30)], { tenant: true, now })
+    ok('动态：标题与条数、今天的只带时间、更早的带日期', e1.startsWith('🧾 最近动态｜本站 3 条') && e1.includes('· 15:00 新订单 ChatGPT') && /· 10-05 \d\d:\d\d 新订单 Claude/.test(e1), e1)
+    ok('动态：分站里命中黑名单的行不显示、只说条数', !e1.includes('example.com') && e1.includes('另有 1 条不适合在这里显示'), e1)
+    ok('动态：只有摘要、没有链接', !/https?:\/\//.test(e1))
+    ok('动态：空', renderEventsReply([], { tenant: true, now }) === '🧾 最近动态｜本站\n最近 72 小时没有新动态')
+    ok('动态：主站范围不过分站黑名单', renderEventsReply([ev(4, '🛒 新订单', 'buyer@example.com', 1)], { tenant: false, now }).includes('buyer@example.com'))
   }
 
   console.log(`\n${fail ? '❌' : '✅'} 通过 ${pass}，失败 ${fail}`)

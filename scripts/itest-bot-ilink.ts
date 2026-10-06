@@ -178,6 +178,7 @@ async function main() {
   const { ILINK_KEY_PREFIX, patchBinding, readBinding } = await import('../src/lib/bot/adapters/ilink-store')
   const { KEEPALIVE_HINT } = await import('../src/lib/bot/adapters/ilink-shared')
   const { parseIlinkJson } = await import('../src/lib/bot/adapters/ilink-api')
+  const { rateClear } = await import('../src/lib/news/rate-limit')
   const { qrSvgDataUrl } = await import('../src/lib/bot/qr-svg')
 
   const evMax = (await prisma.botEvent.aggregate({ _max: { id: true } }))._max.id ?? 0
@@ -190,6 +191,7 @@ async function main() {
   const mainExisted = !!(await prisma.tenant.findUnique({ where: { id: 1 } }))
   if (!mainExisted) await prisma.tenant.create({ data: { id: 1, code: `main${TAG}`.slice(0, 20), kind: 'PLATFORM', name: '主站', status: 'ACTIVE', origin: 'https://bigolab.com' } })
   const tA = await prisma.tenant.create({ data: { code: `${TAG}a`.slice(-20), kind: 'CHANNEL', name: `${TAG}-A`, status: 'ACTIVE', origin: `https://a-${TAG}.test`, brandName: '甲店' } })
+  const tB = await prisma.tenant.create({ data: { code: `${TAG}b`.slice(-20), kind: 'CHANNEL', name: `${TAG}-B`, status: 'ACTIVE', origin: `https://b-${TAG}.test`, brandName: '乙店' } })
   const admin = await prisma.botAdmin.create({ data: { name: `${TAG}-站长`, maxTier: 3 } })
   const handle = (list: Parameters<typeof handleInbound>[0]) => handleInbound(list)
   const onBound = () => ensureIlinkLoops(handle)
@@ -282,10 +284,52 @@ async function main() {
     pushMsg(TOK_B, { from: U_AGENT, text: '你好', ctx: 'b1' })
     ok('代理发消息：回一句说明（含 24 小时规则）', await waitFor(() => sentTo(TOK_B).some((s) => s.text === ILINK_TENANT_HINT && s.ctx === 'b1')))
     pushMsg(TOK_B, { from: U_AGENT, text: '在吗', ctx: 'b2' })
-    await sleep(3000)
-    ok('6 小时内不重复说明', sentTo(TOK_B).filter((s) => s.text === ILINK_TENANT_HINT).length === 1)
+    ok('6 小时内不重复说明，改回「没看懂」', await waitFor(() => sentTo(TOK_B).some((s) => s.text === '没看懂，发送「帮助」查看可以查什么')))
+    ok('说明只发了一次', sentTo(TOK_B).filter((s) => s.text === ILINK_TENANT_HINT).length === 1)
     const agentCmd = await prisma.botCommand.findFirst({ where: { adapter: 'ilink', convExternalId: BOT_B }, orderBy: { id: 'desc' } })
-    ok('代理的消息不执行指令（IGNORED NOT_ADMIN）', agentCmd?.decision === 'IGNORED' && agentCmd.reasonCode === 'NOT_ADMIN')
+    ok('闲聊记 IGNORED / UNKNOWN、不记管理员', agentCmd?.decision === 'IGNORED' && agentCmd.reasonCode === 'UNKNOWN' && agentCmd.adminId === null)
+
+    console.log('\n代理查询（只读、只看本站）')
+    const mkEv = (tenantId: number, title: string, value: string, k: string) =>
+      prisma.botEvent.create({ data: { source: 'direct', type: 'test.ev', category: 'order', tenantId, title, lines: [{ label: '商品', value }], dedupeKey: `${TAG}-ev-${k}`, routedAt: new Date() } })
+    await mkEv(tA.id, '🛒 新订单', `${TAG}甲一`, 'a1')
+    await mkEv(tA.id, '💬 新留言', `${TAG}甲二`, 'a2')
+    await mkEv(tB.id, '🛒 新订单', `${TAG}乙一`, 'b1')
+    await mkEv(1, '🛒 新订单', `${TAG}主站`, 'm1')
+    await prisma.tenantAfterSale.create({ data: { requestNo: `AS${TAG}A`.slice(0, 24), tenantId: tA.id, kind: 'BAN_REQUEST', reason: 'itest' } })
+    await prisma.tenantAfterSale.create({ data: { requestNo: `AS${TAG}B`.slice(0, 24), tenantId: tB.id, kind: 'BAN_REQUEST', reason: 'itest' } })
+    const replyTo = async (text: string, ctx: string, pick: (t: string) => boolean): Promise<string | null> => {
+      const before = sentTo(TOK_B).length
+      pushMsg(TOK_B, { from: U_AGENT, text, ctx })
+      let got: string | null = null
+      await waitFor(() => {
+        const s = sentTo(TOK_B).slice(before).find((x) => pick(x.text))
+        if (s) got = s.text
+        return !!s
+      })
+      return got
+    }
+    const helpA = await replyTo('帮助', 'q1', (t) => t.includes('本站可查'))
+    ok('帮助：只列代理能用的', !!helpA && helpA.includes('动态') && helpA.includes('待办') && helpA.includes('日报') && !helpA.includes('提卡 <') && !helpA.includes('改价 <') && helpA.includes('只有站长能用'), helpA || '')
+    const evA = await replyTo('动态', 'q2', (t) => t.startsWith('🧾 最近动态'))
+    ok('动态：只有本站的两条', !!evA && evA.includes('本站 2 条') && evA.includes(`${TAG}甲一`) && evA.includes(`${TAG}甲二`) && !evA.includes(`${TAG}乙一`) && !evA.includes(`${TAG}主站`), evA || '')
+    const todoA = await replyTo('待办', 'q3', (t) => t.startsWith('📝 本站待办'))
+    ok('待办：只算本站的售后申请', !!todoA && todoA.includes('【售后申请 1】') && todoA.includes(`https://a-${TAG}.test/partner`), todoA || '')
+    const dailyA = await replyTo('日报', 'q4', (t) => t.includes('甲店') || t.includes('乙店'))
+    ok('日报：本站的、不出现别的分站', !!dailyA && dailyA.includes('甲店') && !dailyA.includes('乙店'), (dailyA || '').slice(0, 80))
+    rateClear(`botag:${convB!.id}`)
+    const t3 = await replyTo('提卡 X 1', 'q5', (t) => t.includes('只有站长能用'))
+    ok('提卡：只有站长能用', !!t3 && t3.startsWith('「提卡」只有站长能用'), t3 || '')
+    const usage = await replyTo('动态 abc', 'q6', (t) => t.startsWith('用法'))
+    ok('用法提示不带 @', !!usage && usage.includes('动态 [条数]') && !usage.includes('@'), usage || '')
+    // 入站另有「每个会话每分钟 10 条」的总闸（超了静默丢弃），这里两个都清掉，只测查询的 4 次
+    rateClear(`botag:${convB!.id}`)
+    rateClear(`botin:${BOT_B}`)
+    const beforeRate = sentTo(TOK_B).length
+    for (let i = 0; i < 5; i++) pushMsg(TOK_B, { from: U_AGENT, text: '待办', ctx: `r${i}` })
+    ok('每分钟最多 4 次查询', await waitFor(() => sentTo(TOK_B).slice(beforeRate).some((s) => s.text === '查得太频繁了，请 1 分钟后再试')))
+    const lastOk = await prisma.botCommand.findFirst({ where: { adapter: 'ilink', convExternalId: BOT_B, name: '动态', decision: 'OK' } })
+    ok('查询记进指令日志（admin_id 为空）', !!lastOk && lastOk.adminId === null)
 
     console.log('\n重复绑定、失效、解绑')
     fake.nextScenario = () => ({ ret: 0, status: 'binded_redirect' })
@@ -309,7 +353,8 @@ async function main() {
     await prisma.botAdminIdentity.deleteMany({ where: { adapter: 'ilink', wxid: { startsWith: TAG } } })
     await prisma.botAdmin.deleteMany({ where: { id: admin.id } })
     await prisma.botEvent.deleteMany({ where: { id: { gt: evMax } } })
-    await prisma.tenant.deleteMany({ where: { id: tA.id } })
+    await prisma.tenantAfterSale.deleteMany({ where: { tenantId: { in: [tA.id, tB.id] } } })
+    await prisma.tenant.deleteMany({ where: { id: { in: [tA.id, tB.id] } } })
     if (!mainExisted) await prisma.tenant.deleteMany({ where: { id: 1 } })
     await prisma.setting.deleteMany({ where: { key: { in: [BOT_CONFIG_KEY, BOT_STATE_KEY] } } })
     for (const s of saved) await prisma.setting.create({ data: { key: s.key, value: s.value } })

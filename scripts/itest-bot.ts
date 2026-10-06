@@ -335,8 +335,11 @@ async function main() {
     ok('分站群不能按邮箱查', !te.text.includes(oA.orderNo), te.text)
     const tt = await run(G_A, '今日')
     ok('分站群「今日」只有本站：不出现乙店', tt.c?.decision === 'OK' && !tt.text.includes('乙店'), tt.text)
+    // 附录 E.5：「待办」「动态」在分站范围有本站版（与渠道后台首页的待办同口径），只看本站
     const tq = await run(G_A, '待办')
-    ok('分站群不能用「待办」（只在管理群）', tq.c?.decision === 'REJECTED' && tq.c.reasonCode === 'SCOPE')
+    ok('分站群「待办」是本站版：不出现别站、不带平台后台链接', tq.c?.decision === 'OK' && tq.text.startsWith('📝 本站待办') && !tq.text.includes('乙店') && !tq.text.includes('/admin'), tq.text)
+    const td = await run(G_A, '动态')
+    ok('分站群「动态」只看本站', td.c?.decision === 'OK' && td.text.startsWith('🧾 最近动态｜本站') && !td.text.includes('乙店'), td.text)
   }
 
   console.log('\n日报')
