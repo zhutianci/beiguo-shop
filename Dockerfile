@@ -26,6 +26,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # 生成 Prisma client
+# 引擎走国内镜像（与 db push 临时容器同一个）：schema 一改这层缓存就失效、要重新下载引擎，
+# 直连 binaries.prisma.sh 在服务器上时通时不通（2026-10-07 内容平台上线时构建因此失败一次）
+ENV PRISMA_ENGINES_MIRROR=https://registry.npmmirror.com/-/binary/prisma
 RUN npx prisma generate
 
 ENV NEXT_TELEMETRY_DISABLED 1
