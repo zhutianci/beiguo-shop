@@ -458,7 +458,7 @@ export function JiemaClient(props: JiemaClientProps) {
 
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:gap-5">
         {/* ① 服务 */}
-        <section aria-label="选择服务" className={cn('glass rounded-3xl p-4 sm:p-5', step !== 'service' && 'hidden lg:block')}>
+        <section aria-label="选择服务" className={cn('ui-panel p-4 sm:p-5', step !== 'service' && 'hidden lg:block')}>
           <div className="mb-3 text-sm font-medium text-white/80">① 选择服务</div>
           <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 focus-within:border-cyan-400/50">
             <Search className="h-4 w-4 text-white/40" />
@@ -533,7 +533,7 @@ export function JiemaClient(props: JiemaClientProps) {
         </section>
 
         {/* ② 国家/地区 */}
-        <section aria-label="选择国家/地区" className={cn('glass mt-0 rounded-3xl p-4 sm:p-5 lg:mt-0', step === 'service' && 'hidden lg:block')}>
+        <section aria-label="选择国家/地区" className={cn('ui-panel mt-0 p-4 sm:p-5 lg:mt-0', step === 'service' && 'hidden lg:block')}>
           <div className="mb-3 flex flex-wrap items-center gap-2 text-sm font-medium text-white/80">
             <button onClick={() => back('service')} className="-ml-1 rounded-full p-1 text-white/60 hover:bg-white/10 lg:hidden" aria-label="返回选服务">
               <ArrowLeft className="h-4 w-4" />
@@ -636,7 +636,7 @@ export function JiemaClient(props: JiemaClientProps) {
               <div className="hidden truncate text-xs text-white/45 sm:block">20 分钟有效 · 取号 2 分钟后可换号或取消 · 没收到短信整单退回站内余额（不可提现）</div>
             </div>
             <div className="text-lg font-semibold tabular-nums">{picked.priceCents != null ? `${picked.approx ? '约 ' : ''}${fmtYuan(picked.priceCents)}` : '—'}</div>
-            <button onClick={openConfirm} className="rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-medium">
+            <button onClick={openConfirm} className="ui-btn ui-btn-brand min-h-[40px] rounded-xl px-4 text-sm">
               <span className="lg:hidden">下一步</span>
               <span className="hidden lg:inline">确认订单</span>
             </button>

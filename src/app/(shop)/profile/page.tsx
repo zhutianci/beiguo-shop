@@ -243,7 +243,7 @@ export default function ProfilePage() {
           transition={{ duration: 0.6 }}
           className="mb-12"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/[0.12] bg-white/[0.03] mb-4">
             <Sparkles className="w-4 h-4 text-purple-400" />
             <span className="text-sm text-white/80">个人中心</span>
           </div>
@@ -265,9 +265,9 @@ export default function ProfilePage() {
             className="lg:col-span-1 lg:sticky lg:top-28 lg:self-start"
           >
             <div className="relative">
-              <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-30 blur-md" />
+              <div className="absolute -inset-[1px] bg-gradient-to-r from-purple-500 to-pink-500 rounded-3xl opacity-20 blur-md lite:hidden" />
 
-              <div className="relative glass rounded-3xl p-8 text-center">
+              <div className="relative ui-panel ui-panel-accent p-8 text-center">
                 {/* 头像 */}
                 <div className="relative inline-block mb-4">
                   <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-3xl font-bold mx-auto">
@@ -329,7 +329,7 @@ export default function ProfilePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="glass rounded-3xl p-8"
+              className="ui-panel p-8"
             >
               <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <h2 className="text-xl lg:text-2xl font-bold">账户信息</h2>
@@ -466,7 +466,7 @@ export default function ProfilePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="glass rounded-3xl p-8"
+              className="ui-panel p-8"
             >
               <h2 className="text-xl lg:text-2xl font-bold mb-6">账户统计</h2>
               {/* 此前三个数写死 0 / ¥0 / 0，「活跃订阅」也没有任何数据来源。

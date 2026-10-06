@@ -390,7 +390,7 @@ export default function OrdersPage() {
           transition={{ duration: 0.6 }}
           className="mb-10"
         >
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-white/[0.12] bg-white/[0.03] mb-4">
             <Sparkles className="w-4 h-4 text-purple-400" />
             <span className="text-sm text-white/80">订单管理</span>
           </div>
@@ -472,18 +472,16 @@ export default function OrdersPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="glass rounded-3xl p-16 text-center"
+              className="ui-empty px-6 py-16 sm:p-16"
             >
-              <Package className="w-16 h-16 text-white/20 mx-auto mb-4" />
+              <Package className="w-12 h-12 text-white/25 mx-auto mb-2" strokeWidth={1.5} />
               <h3 className="text-xl font-bold mb-2">
                 {activeFilter === 'all' ? '暂无订单' : '该状态下暂无订单'}
               </h3>
               <p className="text-white/40 mb-8">快去选购心仪的 AI 服务吧</p>
-              <Link href="/products">
-                <button className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full font-medium hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] transition-all">
-                  <ShoppingBag className="w-4 h-4" />
-                  立即选购
-                </button>
+              <Link href="/products" className="ui-btn ui-btn-primary">
+                <ShoppingBag className="w-4 h-4" />
+                立即选购
               </Link>
             </motion.div>
           ) : (
@@ -514,11 +512,11 @@ export default function OrdersPage() {
                     transition={{ duration: 0.4, delay: index * 0.05 }}
                     className="group relative"
                   >
-                    <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-30 blur-md transition-opacity`} />
+                    <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-25 blur-md transition-opacity duration-200 lite:hidden`} />
 
                     {/* 桌面端卡片宽度到 1088px，沿用手机端 p-6 + 14px 正文会让内容浮在中间一条；
                         lg 起加大内边距、图标与标题，把信息「铺开」到实际可用宽度上 */}
-                    <div className="relative glass rounded-2xl p-6 lg:p-7 hover:bg-white/10 transition-colors">
+                    <div className="relative ui-panel rounded-[20px] p-6 lg:p-7 transition-colors duration-200 group-hover:border-white/[0.14]">
                       <div className="flex flex-col md:flex-row md:items-center gap-4 lg:gap-6">
                         <div className={`w-14 h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
                           <Sparkles className="w-7 h-7 lg:w-8 lg:h-8" />
@@ -756,7 +754,7 @@ export default function OrdersPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="mt-12 glass rounded-2xl p-6 text-center"
+            className="mt-12 ui-card p-6 text-center"
           >
             <p className="text-sm text-white/60 mb-3">
               订单遇到问题？联系我们的专属客服
@@ -766,7 +764,7 @@ export default function OrdersPage() {
                 setPanel(null)
                 setContactOpen(true)
               }}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-purple-600 to-pink-600 text-sm font-medium hover:shadow-[0_0_20px_rgba(168,85,247,0.3)] transition-all"
+              className="ui-btn ui-btn-secondary ui-btn-sm px-5"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M8.691 2C4.768 2 1.5 4.65 1.5 7.913c0 1.873 1.075 3.534 2.715 4.642a.522.522 0 01.222.434.677.677 0 01-.027.187l-.352 1.336c-.016.072-.04.144-.04.216 0 .144.117.262.262.262.058 0 .115-.019.166-.047l1.722-.998a.766.766 0 01.4-.115c.077 0 .15.013.222.034a8.49 8.49 0 002.32.317c.207 0 .413-.013.617-.034A4.886 4.886 0 019.5 12.5c0-2.945 2.842-5.336 6.353-5.336.137 0 .272.005.404.013C15.677 4.06 12.477 2 8.691 2z" />

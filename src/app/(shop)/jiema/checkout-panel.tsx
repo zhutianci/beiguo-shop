@@ -441,7 +441,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
           <button
             onClick={askConsent}
             disabled={!p.orderAvailable || submitting || p.priceCents == null}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-5 py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-40"
+            className="ui-btn ui-btn-brand min-h-[48px] w-full rounded-xl px-5 text-base"
           >
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {btnLabel}
@@ -457,7 +457,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
             <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#12121c] p-5">
               <p className="text-sm leading-relaxed text-white/85">{dialog.text}</p>
               <div className="mt-4 flex gap-2">
-                <button onClick={continueDialog} className="flex-1 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 px-4 py-2.5 text-sm font-medium">
+                <button onClick={continueDialog} className="ui-btn ui-btn-brand min-h-[40px] flex-1 rounded-xl px-4 text-sm">
                   {dialog.confirmLabel}
                 </button>
                 <button onClick={() => { setDialog(null); p.onClose() }} className="flex-1 rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white/75 hover:bg-white/10">

@@ -39,7 +39,7 @@ export default async function JiemaPage() {
     const maintenance = v.access === 'MAINTENANCE' || !v.cfg
     return (
       <div className="page-top container max-w-3xl pb-24">
-        <div className="glass rounded-3xl px-6 py-16 text-center sm:px-10">
+        <div className="ui-panel px-6 py-16 text-center sm:px-10">
           {maintenance ? <Wrench className="mx-auto h-8 w-8 text-amber-300" /> : <MessageSquareText className="mx-auto h-8 w-8 text-cyan-300" />}
           <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">{maintenance ? '接码服务维护中，预计很快恢复' : '短信接码即将开放'}</h1>
           <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-white/55">
@@ -129,21 +129,21 @@ export default async function JiemaPage() {
       />
 
       <section className="mt-10 grid gap-4 text-[13px] leading-relaxed text-white/55 sm:grid-cols-3">
-        <div className="glass rounded-2xl p-4">
+        <div className="ui-card p-4 lg:p-5">
           <div className="mb-1.5 flex items-center gap-1.5 font-medium text-white/80">
             <Clock className="h-4 w-4 text-cyan-300" />
             号码怎么用
           </div>
           号码 20 分钟有效。取号 2 分钟后可以换号或取消；收码前可免费换号 {v.cfg.maxReplace} 次，收到验证码后不能再换号或取消。
         </div>
-        <div className="glass rounded-2xl p-4">
+        <div className="ui-card p-4 lg:p-5">
           <div className="mb-1.5 flex items-center gap-1.5 font-medium text-white/80">
             <ShieldCheck className="h-4 w-4 text-emerald-300" />
             没收到短信怎么办
           </div>
           号码到期或你主动取消后，本单整单退回站内余额（含支付宝付的部分）；退回的余额不能提现、不退回支付宝，目前可用于短信接码。
         </div>
-        <div className="glass rounded-2xl p-4">
+        <div className="ui-card p-4 lg:p-5">
           <div className="mb-1.5 flex items-center gap-1.5 font-medium text-white/80">
             <MessageSquareText className="h-4 w-4 text-purple-300" />
             价格与开票
@@ -167,7 +167,7 @@ export default async function JiemaPage() {
         </h2>
         <div className="space-y-2">
           {faqs.map((f) => (
-            <details key={f.q} className="glass group rounded-xl px-4 py-3">
+            <details key={f.q} className="group rounded-xl border border-white/[0.08] bg-white/[0.025] px-4 py-3 transition-colors duration-200 open:border-white/[0.14]">
               <summary className="cursor-pointer list-none text-sm font-medium text-white/80 marker:hidden">{f.q}</summary>
               <p className="mt-2 text-[13px] leading-relaxed text-white/55">{f.a}</p>
             </details>
