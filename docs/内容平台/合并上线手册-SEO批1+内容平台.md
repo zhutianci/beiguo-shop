@@ -51,6 +51,7 @@ docker compose --env-file .env.production up -d --no-deps app
 ## 收录总开关
 
 `CONTENT_INDEXING_OPEN`（`.env.production`，=1 才打开；运行时读，改完只重启 app，不用构建）。
+**docker-compose.yml 的 app `environment:` 里必须列着它**（compose 只传列出的变量；10-07 上线时漏了，补上后才生效）。
 **上线时不设（关）**，等站长确认后再加。关着时内容页全部 `noindex, follow`，`/sitemap-content.xml` 为空、robots 不挂它、IndexNow 不推。
 
 ## 回滚
