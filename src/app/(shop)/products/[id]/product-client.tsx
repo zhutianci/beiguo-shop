@@ -100,8 +100,15 @@ function deliveryPromise(t?: string): { title: string; desc: string } {
 
 export default function ProductDetailClient({
   initialProduct = null,
+  landingCrumbs = null,
   children,
 }: {
+  /**
+   * 主落地页那两级面包屑（SEO 批 2 的 D1a，设计 §1.4、§1.8）：首页 › AI 会员充值 › {主落地页} › 商品名。
+   * 只在主站、且商品直接出现在某个落地页价格表里时由 page.tsx 传；不传（渠道站、没有归属）= 原来的「首页 / 全部商品」，两边逐字不变。
+   * 与 page.tsx 输出的 BreadcrumbList 用同一份数组，两边永远对得上。
+   */
+  landingCrumbs?: { name: string; path: string }[] | null
   /** 外壳查库后传进来的公开定价版本：用于 SSR 直出，顺带免掉首屏那一下「加载中」 */
   initialProduct?: Product | null
   /** 服务端直出的「商品介绍」区（page.tsx 装配），放进左栏、主视觉下面 */
@@ -228,10 +235,23 @@ export default function ProductDetailClient({
           <Link href="/" className="hover:text-white transition-colors">
             首页
           </Link>
-          <span className="text-white/20">/</span>
-          <Link href="/products" className="hover:text-white transition-colors">
-            全部商品
-          </Link>
+          {landingCrumbs && landingCrumbs.length ? (
+            landingCrumbs.map((c) => (
+              <span key={c.path} className="contents">
+                <span className="text-white/20">/</span>
+                <Link href={c.path} className="hover:text-white transition-colors">
+                  {c.name}
+                </Link>
+              </span>
+            ))
+          ) : (
+            <>
+              <span className="text-white/20">/</span>
+              <Link href="/products" className="hover:text-white transition-colors">
+                全部商品
+              </Link>
+            </>
+          )}
           {/* 【这里刻意没有分类那一级】分类是 /products?category=N 这个筛选视图，
               它的 canonical 指回 /products。把它写进层级，页面上可见的面包屑
               就会比 page.tsx 里输出的 BreadcrumbList 多一级，两边对不上——

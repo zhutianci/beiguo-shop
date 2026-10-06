@@ -516,7 +516,9 @@ async function testMetadataRobots(w: World) {
 
   section('W1-6 robots.txt / sitemap.xml')
   const robots = (await import('../../src/app/robots')).default as () => Promise<Json>
-  const sitemap = (await import('../../src/app/sitemap')).default as () => Promise<Json[]>
+  // SEO 批 2 的 G 包（docs/SEO-重构/SEO-重构设计.md §6.2）：app/sitemap.ts 拆成 /sitemap.xml（index）+ /sitemaps/<段>.xml，
+  // 条目在 lib/seo/sitemap-entries.ts。原有断言照旧：渠道为空、主站与 git HEAD 的同一模块逐字相同（基线取不到时跳过）
+  const sitemap = (await import('../../src/lib/seo/sitemap-entries')).allSitemapEntries as () => Promise<Json[]>
   const mr = await withRequest({ host: MAIN_HOST }, () => robots())
   const cr = await withRequest({ host: w.lulu.host }, () => robots())
   const rBase = baselineModule('src/app/robots.ts')
@@ -534,10 +536,10 @@ async function testMetadataRobots(w: World) {
   const cs = await withRequest({ host: w.lulu.host }, () => sitemap())
   check('渠道 sitemap = []', Array.isArray(cs) && cs.length === 0)
   const ms = await withRequest({ host: MAIN_HOST }, () => sitemap())
-  const sBase = baselineModule('src/app/sitemap.ts')
+  const sBase = baselineModule('src/lib/seo/sitemap-entries.ts')
   if (sBase) {
-    const base = (await import(pathToFileURL(sBase).href)) as { default: () => Promise<unknown> }
-    const b = await withRequest({ host: MAIN_HOST }, () => base.default())
+    const base = (await import(pathToFileURL(sBase).href)) as { allSitemapEntries: () => Promise<unknown> }
+    const b = await withRequest({ host: MAIN_HOST }, () => base.allSitemapEntries())
     check('主站 sitemap 与改造前逐字相同', stable(ms) === stable(b), `${(ms as unknown[]).length} vs ${(b as unknown[]).length}`)
   }
 }

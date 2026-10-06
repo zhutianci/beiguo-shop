@@ -1,15 +1,24 @@
 import Link from 'next/link'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import { MessageSquareText, Clock, ShieldCheck, Wrench } from 'lucide-react'
 import { notFoundOnChannel } from '@/lib/storefront/resolve'
 import { jiemaViewer } from '@/lib/jiema/access'
 import { catalogSnapshot } from '@/lib/jiema/catalog'
 import { JIEMA_ORDER_AVAILABLE } from '@/lib/jiema-config-schema'
-import { readWalletConfig, topupOpenFor } from '@/lib/wallet/config'
+import { canUseForJiema, readWalletConfig, topupOpenFor } from '@/lib/wallet/config'
 import { prisma } from '@/lib/db'
 import { jiemaFaqs } from '@/lib/support-faq'
 import { PLATFORM_CONTACT } from '@/lib/contact'
+import type { Metadata } from 'next'
 import { JsonLd } from '@/lib/seo/jsonld'
-import { faqJsonLd } from '@/lib/seo/graph'
+import { breadcrumbJsonLd, faqJsonLd, serviceJsonLd } from '@/lib/seo/graph'
+import { pageOg } from '@/lib/seo/og'
+import { SITE_NAME } from '@/lib/product-seo'
+import { readSmsConfigCached } from '@/lib/jiema/config'
+import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
+import { jiemaPayText } from '@/lib/seo/pillars'
+import { JIEMA_SEO_SERVICES, jiemaSvcHref } from '@/lib/jiema/seo-whitelist'
+import { JiemaHubGuide, JiemaHubServices } from './hub-content'
 import { JIEMA_TERMS_PATH, JIEMA_TERMS_TITLE } from '@/lib/terms/jiema-wallet'
 import { JiemaClient } from './jiema-client'
 import { JiemaActiveBanner } from './active-banner'
@@ -31,6 +40,46 @@ export const dynamic = 'force-dynamic'
  * 数字取当前配置），**只在对全部用户开放时**输出 FAQPage 结构化数据（§1.3；管理员预览时普通访客看不到，不能标记）。
  * 【2026-09-30】规则卡片与页尾链到《短信接码服务条款》全文（/jiema/terms，§8.6）；付款前每一单弹「下单须知与免责声明」在确认面板里。
  */
+/**
+ * 元信息（docs/SEO-重构/SEO-重构设计.md §3.3 /jiema 行、§1.3，批 2 的 AJ）。
+ * 关键词按 Google 下拉实测（docs/SEO-重构/kw7）：短信接码 8、sms接码 9、海外手机号 9（含「海外手机号验证码」）、国外手机号 9（含「国外手机号接收验证码」）、
+ * 接收验证码 10、美国手机号 9（首条就是「美国手机号接收验证码」）。「接码平台」不进 title / H1 / description（B-9）。
+ * canonical 从 layout 挪到这里（固定 /jiema，?s=、?svc= 只是选择状态）；robots 仍由页面组 layout 按开放状态给（fail-closed）。
+ * description 不写日期（价格每 10 分钟在变，写「实时报价」）；付款方式按 canUseForJiema；起价取目录快照里可售服务的最低价（与下单同源），
+ * 取不到就整句不带数字。没开放（即将开放 / 维护中）时页面不宣传服务，description 用不带数字的一句。
+ */
+const TITLE = `短信接码：海外手机号在线接收验证码 - ${SITE_NAME}`
+const DESC_BASE = '选服务、选国家/地区，用海外手机号在线接收短信验证码'
+
+function yuanText(cents: number): string {
+  return (cents / 100).toFixed(2).replace(/\.00$/, '')
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  let description = `${DESC_BASE}，按服务和国家/地区实时报价。没收到短信整单退回站内余额，收码前可免费换号。`
+  try {
+    const cfg = await readSmsConfigCached()
+    if (cfg && jiemaPublicOpen(cfg)) {
+      const [snap, balance] = await Promise.all([catalogSnapshot(cfg), canUseForJiema()])
+      const ok = snap.services.filter((x) => x.level === 'OK' && x.fromCents != null && x.code !== snap.anyOther?.code)
+      const min = ok.reduce<number | null>((m, x) => (m == null || (x.fromCents as number) < m ? (x.fromCents as number) : m), null)
+      const pay = jiemaPayText(balance)
+      description =
+        ok.length > 0 && min != null
+          ? `${DESC_BASE}：${ok.length} 个服务可选，￥${yuanText(min)} 起，实时报价。${pay}付款，没收到短信整单退回站内余额，收码前可免费换号 ${cfg.maxReplace} 次。`
+          : `${DESC_BASE}，按服务和国家/地区实时报价。${pay}付款，没收到短信整单退回站内余额，收码前可免费换号 ${cfg.maxReplace} 次。`
+    }
+  } catch {
+    // 目录或配置读不到：用不带数字的那句，不让 metadata 把页面拖成 500
+  }
+  return {
+    title: TITLE,
+    description,
+    alternates: { canonical: '/jiema' },
+    ...pageOg({ title: TITLE, description, path: '/jiema' }),
+  }
+}
+
 export default async function JiemaPage() {
   await notFoundOnChannel()
   const v = await jiemaViewer()
@@ -76,9 +125,12 @@ export default async function JiemaPage() {
       ? prisma.smsOrder.findFirst({ where: { userId: v.userId }, orderBy: { id: 'desc' }, select: { termsVersion: true, walletTermsVersion: true } }).catch(() => null)
       : Promise.resolve(null),
   ])
-  const hot = snap.services.filter((s) => s.hot != null).sort((a, b) => (a.hot ?? 0) - (b.hot ?? 0)).slice(0, 12)
+  // 常用服务链接只认 SEO 白名单里、目录里也确实有的服务（hotRank 只影响客户端目录排序，§0.3 #34）
+  const known = new Set(snap.services.map((x) => x.code))
   const orderAvailable = JIEMA_ORDER_AVAILABLE && v.cfg.enabled && (v.access === 'OPEN' || v.isAdmin)
   const balancePayOn = !!wallet && wallet.ok && wallet.config.balancePayEnabled
+  // 正文与事实里的付款方式：与 metadata 同一个口径（canUseForJiema = 余额支付开着 && 接码已开放）
+  const balanceForJiema = balancePayOn && v.access === 'OPEN'
   // FAQ（S3）：充值开没开按访客算（对全部用户开放时按普通访客——结构化数据给所有人看；管理员预览按管理员）
   const topupOn = !!wallet && wallet.ok && topupOpenFor(wallet.config, v.access !== 'OPEN' && v.isAdmin)
   const faqs = jiemaFaqs({
@@ -90,28 +142,41 @@ export default async function JiemaPage() {
 
   return (
     <div className="page-top container max-w-6xl pb-44 lg:pb-40">
+      {/* 可见面包屑（与 BreadcrumbList 逐级一致，§1.8） */}
+      <nav aria-label="面包屑" className="mb-4 flex flex-wrap items-center gap-2 text-xs text-white/40">
+        <Link href="/" className="hover:text-white">
+          首页
+        </Link>
+        <span className="text-white/20">/</span>
+        <span className="text-white/60">短信接码</span>
+      </nav>
       <header className="mb-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h1 className="flex items-center gap-2 text-3xl font-bold tracking-tight">
-            <MessageSquareText className="h-7 w-7 text-cyan-300" />
-            短信接码
+          {/* H1 与 title 同一件事（§3.3）：「短信接码：海外手机号在线接收验证码」 */}
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl">
+            <MessageSquareText className="h-7 w-7 shrink-0 text-cyan-300" />
+            <span>
+              短信接码<span className="text-white/45">：</span>
+              <span className="text-white/80">海外手机号在线接收验证码</span>
+            </span>
           </h1>
         </div>
         <p className="mt-2 text-sm leading-relaxed text-white/60">
-          海外手机号在线收验证码 · 没收到短信整单退回余额 · 收码前可免费换号 {v.cfg.maxReplace} 次
+          选服务、选国家/地区，实时报价 · 没收到短信整单退回余额 · 收码前可免费换号 {v.cfg.maxReplace} 次
         </p>
         {/* 进行中订单提示条 + 我的接码记录（登录后才显示，§1.4） */}
         <JiemaActiveBanner />
-        {/* 服务端渲染的热门服务链接（首屏可读、可收录；点了由客户端组件接管选择状态） */}
-        {hot.length > 0 && (
-          <nav aria-label="热门服务" className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/40">
-            {hot.map((s) => (
-              <a key={s.code} href={`/jiema?s=${encodeURIComponent(s.code)}`} className="hover:text-white/70">
-                {s.name}
-              </a>
-            ))}
-          </nav>
-        )}
+        {/*
+          服务端渲染的常用服务链接（首屏可读、可收录；点了由客户端组件接管选择状态）。
+          【SEO 批 2 的 AJ / F1】取 SEO 白名单常量、链接用本站 slug（?svc=），不再按后台 hotRank 直出 ?s=<上游代码>（§0.3 #33、#34）
+        */}
+        <nav aria-label="常用服务" className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/40">
+          {JIEMA_SEO_SERVICES.filter((w) => known.has(w.code)).map((w) => (
+            <a key={w.slug} href={jiemaSvcHref(w.slug)} className="hover:text-white/70">
+              {w.name}
+            </a>
+          ))}
+        </nav>
       </header>
 
       <JiemaClient
@@ -127,6 +192,10 @@ export default async function JiemaPage() {
         balancePayOn={balancePayOn}
         lastTerms={last ? { jiema: last.termsVersion, wallet: last.walletTermsVersion } : null}
       />
+
+      {/* 服务端正文（F1，§1.6）：常用服务起价表 + 用法、价格、退款、合法用途。只在对全部用户开放或管理员预览时渲染（即将开放 / 维护中走上面的卡片） */}
+      <JiemaHubServices services={snap.services} />
+      <JiemaHubGuide maxReplace={v.cfg.maxReplace} payText={jiemaPayText(balanceForJiema)} />
 
       <section className="mt-10 grid gap-4 text-[13px] leading-relaxed text-white/55 sm:grid-cols-3">
         <div className="glass rounded-2xl p-4">
@@ -185,7 +254,23 @@ export default async function JiemaPage() {
           （含免责声明与相关法律条文）。
         </p>
       </section>
-      {v.access === 'OPEN' && <JsonLd data={[faqJsonLd(faqs)]} />}
+      {/* 结构化数据（§4.1 /jiema 行）：BreadcrumbList + FAQPage（只在 OPEN 时）+ Service + 同页 Organization（Service.provider 用 @id 引用它）。
+          不写价格、国家列表（价格每小时在变）。管理员预览时普通访客看不到这一页的内容，不标记 */}
+      {v.access === 'OPEN' && (
+        <JsonLd
+          data={[
+            breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: '短信接码' }]),
+            serviceJsonLd({
+              path: '/jiema',
+              name: '短信接码：海外手机号在线接收验证码',
+              description: `按服务和国家/地区选一个海外手机号，在线接收一次短信验证码；实时报价，${jiemaPayText(balanceForJiema)}付款，没收到短信整单退回站内余额。仅限本人合法注册验证、软件开发测试等合法用途。`,
+              serviceType: '短信验证码接收',
+            }),
+            faqJsonLd(faqs),
+            await siteOrganizationJsonLd(),
+          ]}
+        />
+      )}
     </div>
   )
 }

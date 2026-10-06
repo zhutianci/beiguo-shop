@@ -10,6 +10,7 @@ import { FEATURES_FORMAT_ERROR, isFeaturesJson } from '@/lib/product-intro'
 import { adminGuard } from '@/lib/admin-guard'
 import { isCarrierType } from '@/lib/order-scope'
 import { isBotCodeConflict, notifyProductWithdrawn } from '@/lib/product-status'
+import { onProductSaved } from '@/lib/seo/commerce-push'
 
 const updateProductSchema = z.object({
   categoryId: z.number().optional(),
@@ -119,6 +120,10 @@ export async function PUT(
     if (before && before.status === 1 && product.status !== 1) {
       await notifyProductWithdrawn(product)
     }
+
+    // SEO（批 2 的 G 包，lib/seo/commerce-push.ts）：记 product_edited_<id>（sitemap lastmod 只认它）并推 IndexNow。
+    // 不 await：失败只记日志，不拖慢、不影响保存结果。wasListed 用改之前的状态（没改 status 时就是现状）
+    void onProductSaved(product.id, { wasListed: (before ? before.status : cur?.status) === 1 })
 
     return success(product, '商品更新成功')
   } catch (err) {

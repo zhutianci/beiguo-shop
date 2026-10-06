@@ -3,6 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, CalendarDays } from 'lucide-react'
@@ -21,6 +22,10 @@ import {
   type NewsEventDto,
 } from '@/lib/news/format'
 import { ArchiveList } from './archive-list'
+import { pageOg } from '@/lib/seo/og'
+import { JsonLd } from '@/lib/seo/jsonld'
+import { breadcrumbJsonLd, collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
+import { archiveSeoDescription, archiveSeoTitle } from '@/lib/news/seo-title'
 
 /**
  * 按月归档页。
@@ -48,22 +53,15 @@ export async function generateMetadata({ params }: { params: { month: string } }
   const month = monthOf(params)
   if (!month) return { title: '归档不存在 - AI 圈大事记' }
   const heading = formatMonthHeading(month)
-  const title = `${heading} AI 圈大事记 · 全月归档`
-  const description = `${heading}这一个月里 AI 圈发生的事，按事件聚合到一起：模型发布、产品更新、论文与工具。全部来自公开信源，由 AI 自动整理摘要。`
+  // SEO 批 2（§3.3 月度归档行）：「{YYYY年M月} AI 大事件盘点」（kw7：ai大事件 1，搜索结果页是盘点、周报页型）；不分页，标题全站唯一
+  const title = archiveSeoTitle(heading)
+  const description = archiveSeoDescription(heading)
   return {
     metadataBase: new URL(siteOrigin()),
     title,
     description,
     alternates: { canonical: `/news/archive/${month}` },
-    openGraph: {
-      type: 'website',
-      title,
-      description,
-      url: `/news/archive/${month}`,
-      siteName: '贝果科技',
-      images: [{ url: ogImageForCategory(null), width: 1200, height: 630 }],
-    },
-    twitter: { card: 'summary_large_image', title, description },
+    ...pageOg({ title, description, path: `/news/archive/${month}`, images: [{ url: ogImageForCategory(null), width: 1200, height: 630 }] }),
     // AI 标识的第 4 处法定位置。新增列表页最容易漏的就是这一行
     other: { 'ai-generated': 'true' },
   }
@@ -103,6 +101,10 @@ export default async function NewsArchivePage({ params }: { params: { month: str
     failed = true
   }
 
+  // 没有任何已发布事件的月份（站点上线前、或整月被下线）返回 404，不出一个「0 条」的空页（软 404，§6.8）。
+  // 查询失败不算：库一会儿就回来了，那时照常渲染降级说明（与 /news 同口径）
+  if (!failed && total === 0) notFound()
+
   const heading = formatMonthHeading(month)
 
   return (
@@ -112,13 +114,34 @@ export default async function NewsArchivePage({ params }: { params: { month: str
       <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px] lite-blob" />
 
       <div className="container relative max-w-3xl lg:max-w-5xl">
-        <Link
-          href="/news"
-          className="inline-flex items-center gap-1.5 text-sm text-white/45 transition-colors hover:text-white/80 lg:text-[15px]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          AI 圈大事记
-        </Link>
+        {/* 可见面包屑（§1.8）与 BreadcrumbList、CollectionPage + ItemList（只放服务端直出的那一页条目的 url 和 name） */}
+        <nav aria-label="面包屑" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-white/45 lg:text-[15px]">
+          <Link href="/" className="transition-colors hover:text-white/80">
+            首页
+          </Link>
+          <span className="text-white/20">/</span>
+          <Link href="/news" className="inline-flex items-center gap-1.5 transition-colors hover:text-white/80">
+            <ArrowLeft className="h-4 w-4" />
+            AI 圈大事记
+          </Link>
+          <span className="text-white/20">/</span>
+          <span className="text-white/35">{heading}</span>
+        </nav>
+        {!failed && (
+          <JsonLd
+            data={[
+              breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: 'AI 圈大事记', path: '/news' }, { name: heading }]),
+              ...collectionPageJsonLd({
+                path: `/news/archive/${month}`,
+                name: `${heading} AI 大事件盘点`,
+                description: archiveSeoDescription(heading),
+                items: list.map((e) => ({ path: `/news/${e.slug}`, name: e.headline })),
+              }),
+              webSiteJsonLd(),
+              await siteOrganizationJsonLd(),
+            ]}
+          />
+        )}
 
         <header className="mb-8 mt-5 lg:mb-10 lg:mt-7">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3.5 py-1.5">

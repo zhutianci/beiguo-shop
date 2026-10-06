@@ -3,11 +3,14 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
 import { getLandingProducts, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
+import { LandingFactCard, SUBSCRIPTION_AFTERSALE } from '@/components/seo/fact-card'
+import { RelatedPillars } from '@/components/landing/related-pillars'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import {
   BrandDisclaimer,
@@ -122,7 +125,9 @@ export default async function GrokSuperLandingPage() {
             { name: LANDING_HUB.navLabel, path: LANDING_HUB.path },
             { name: DEF.navLabel },
           ]),
-          faqJsonLd(FAQS),
+          // D1a（§4.1）：FAQPage 带 @id = 页面 URL、dateModified / lastReviewed = 本页 reviewedAt、publisher 指向同页的 Organization
+          faqJsonLd(FAQS, { path: landingPath(DEF.slug), reviewedAt: DEF.reviewedAt }),
+          await siteOrganizationJsonLd(),
           // 这一页列的是档位不是单个商品，所以用 ItemList；
           // Product/Offer 留在 /products/[id]——那才是买家能完成购买的页面
           ...(items.length ? [productItemListJsonLd(items, landingPath(DEF.slug))] : []),
@@ -137,6 +142,18 @@ export default async function GrokSuperLandingPage() {
           { name: DEF.navLabel },
         ]}
         h1={DEF.h1}
+        reviewedAt={DEF.reviewedAt}
+        // D1a（§4.3-1）：H1、导语之后的总结句 + 事实卡；数字取自下面价格表同一份在售快照
+        meta={
+          <LandingFactCard
+            product="Grok（SuperGrok）"
+            count={items.length}
+            low={low}
+            delivery="交付卡密，由你自己在兑换页发起充值"
+            aftersale={SUBSCRIPTION_AFTERSALE}
+            reviewedAt={DEF.reviewedAt}
+          />
+        }
         lede={
           <>
             <p>
@@ -287,6 +304,10 @@ export default async function GrokSuperLandingPage() {
           <FaqList faqs={FAQS} />
         </Section>
 
+        {/* 跨业务桥接（§2.5、C / D1a）：接码按开放状态、学习平台与大事记按 features；只在非 AI 引用页、非对照组 */}
+        <RelatedPillars
+          learn={[{ href: '/guides', anchor: 'AI 使用教程' }]}
+        />
         <RelatedLandings currentSlug={DEF.slug} />
         <BrandDisclaimer />
       </LandingShell>

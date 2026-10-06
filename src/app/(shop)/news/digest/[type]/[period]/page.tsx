@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft, CalendarRange, ChevronRight, ListOrdered } from 'lucide-react'
@@ -9,6 +10,10 @@ import { AiNoticeBlock } from '@/components/news/ai-notice-block'
 import { ShareBar } from '@/components/news/share-bar'
 import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
 import { absUrl, clipDescription } from '@/lib/news/seo'
+import { pageOg } from '@/lib/seo/og'
+import { JsonLd } from '@/lib/seo/jsonld'
+import { breadcrumbJsonLd, collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
+import { digestSeoDescription, digestSeoTitle } from '@/lib/news/seo-title'
 import { dayKey, formatDayHeading, ogImageForCategory, siteOrigin, sourceLabel } from '@/lib/news/format'
 import {
   DIGEST_SLUG,
@@ -49,24 +54,17 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const hit = await load(params).catch(() => null)
   if (!hit) return { title: '内容不存在 - AI 圈大事记' }
   const { digest } = hit
-  const description = clipDescription(
-    digest.intro || `本期收录 ${digest.events.length} 条 AI 行业动态。`
-  )
+  // SEO 批 2（§3.2-H）：<title> 按「AI 日报 YYYY-MM-DD：首条主实体 + 动作等 N 条」拼（只在这里，H1 与库里的 title 不动）；
+  // description 用前三条的主干。og / twitter 走 pageOg（补 og:locale，与 <title> 同一句）
+  const title = digestSeoTitle(digest)
+  const description = clipDescription(digest.events.length ? digestSeoDescription(digest) : digest.intro || `本期收录 ${digest.events.length} 条 AI 行业动态。`)
   const path = `/news/digest/${DIGEST_SLUG[digest.type]}/${digest.period}`
   return {
     metadataBase: new URL(siteOrigin()),
-    title: `${digest.title} - AI 圈大事记`,
+    title,
     description,
     alternates: { canonical: path },
-    openGraph: {
-      type: 'article',
-      title: digest.title,
-      description,
-      url: path,
-      siteName: '贝果科技',
-      images: [{ url: ogImageForCategory(null), width: 1200, height: 630 }],
-    },
-    twitter: { card: 'summary_large_image', title: digest.title, description },
+    ...pageOg({ title, description, path, type: 'article', images: [{ url: ogImageForCategory(null), width: 1200, height: 630 }] }),
     // AI 标识的第 4 处法定位置。新增页面最容易漏这一行
     other: { 'ai-generated': 'true' },
   }
@@ -96,13 +94,38 @@ export default async function DigestPage({ params }: Params) {
       <div className="pointer-events-none fixed left-1/4 top-24 h-[420px] w-[420px] rounded-full bg-purple-500/10 blur-[128px] lite-blob" />
 
       <div className="container relative max-w-3xl">
-        <Link
-          href="/news"
-          className="inline-flex items-center gap-1.5 text-sm text-white/45 transition-colors hover:text-white/80 lg:text-[15px]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          AI 圈大事记
-        </Link>
+        {/* 可见面包屑（§1.8：首页 › AI 圈大事记 › 每日速览 › 日期；「AI 日报」只在 <title> 里，不做栏目名） */}
+        <nav aria-label="面包屑" className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-white/45 lg:text-[15px]">
+          <Link href="/" className="transition-colors hover:text-white/80">
+            首页
+          </Link>
+          <span className="text-white/20">/</span>
+          <Link href="/news" className="inline-flex items-center gap-1.5 transition-colors hover:text-white/80">
+            <ArrowLeft className="h-4 w-4" />
+            AI 圈大事记
+          </Link>
+          <span className="text-white/20">/</span>
+          <span className="text-white/35">
+            {isDaily ? '每日速览' : '每周回顾'} · {formatPeriodLabel(digest)}
+          </span>
+        </nav>
+        <JsonLd
+          data={[
+            breadcrumbJsonLd([
+              { name: '首页', path: '/' },
+              { name: 'AI 圈大事记', path: '/news' },
+              { name: `${isDaily ? '每日速览' : '每周回顾'} · ${formatPeriodLabel(digest)}` },
+            ]),
+            ...collectionPageJsonLd({
+              path: `/news/digest/${DIGEST_SLUG[digest.type]}/${digest.period}`,
+              name: digest.title,
+              description: clipDescription(digest.events.length ? digestSeoDescription(digest) : digest.intro || ''),
+              items: digest.events.map((e) => ({ path: `/news/${e.slug}`, name: e.headline })),
+            }),
+            webSiteJsonLd(),
+            await siteOrganizationJsonLd(),
+          ]}
+        />
 
         <article className="mt-5 lg:mt-7">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-3.5 py-1.5">

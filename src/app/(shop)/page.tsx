@@ -18,6 +18,15 @@ import { getStorefront } from '@/lib/storefront/resolve'
 import { listStorefrontProducts } from '@/lib/pricing'
 import { getCurrentUser } from '@/lib/auth'
 import { brandMetadata, brandShareImages, currentBrand, withBrandName } from '@/lib/storefront/brand-meta'
+import { sitePillars, jiemaPayText, type SitePillars } from '@/lib/seo/pillars'
+import { storefrontCached } from '@/lib/storefront/cache'
+import { hotNewsEvents } from '@/lib/news/hot'
+import { readSmsConfigCached } from '@/lib/jiema/config'
+import { catalogSnapshot } from '@/lib/jiema/catalog'
+import type { CatalogService } from '@/lib/jiema/dto'
+import type { NewsEventDto } from '@/lib/news/format'
+import { HomeBrandFaq, HomeJiemaSection, HomeLearnSection } from '@/components/home/home-pillars'
+import { TAX_RATE } from '@/lib/invoice'
 
 /**
  * 首页标题与描述。
@@ -33,6 +42,8 @@ import { brandMetadata, brandShareImages, currentBrand, withBrandName } from '@/
  * 放到 /chongzhi 那一页去承接。品牌词放最后：搜「贝果科技」的人本来就找得到，
  * 最前面的位置该留给品类词。
  */
+// 【SEO 批 2 起只给渠道站用】主站首页的 title / description 见下面的 homeTitle / homeDescription（按开放状态）。
+// 渠道站整站 noindex，这两句原样保留（渠道白标的 withBrandName 也基于它们），不动渠道站的输出。
 const TITLE = 'ChatGPT Plus / Claude Pro 充值代充 - 卡密自助兑换 - 贝果科技'
 const DESCRIPTION =
   '贝果科技提供 ChatGPT Plus / Pro、Claude Pro / Max 5x 会员充值与代充：卡密自助兑换，无需信用卡，支付宝付款，可开增值税发票。另有 Codex 接码、Claude 注册与 KYC 认证。'
@@ -48,10 +59,42 @@ const metadata: Metadata = {
 }
 
 /**
+ * 主站首页的 title / description（docs/SEO-重构/SEO-重构设计.md §3.3 首页、§0.3 #5，批 2 的 C 包）。
+ *
+ * 【定位】品牌 + 几条业务的分发页：品牌放最前面（百度规范「品牌 - slogan」；「贝果科技」被台湾同名公司占住，加 BigoLab 区分，§9.3），
+ * 不再和 /chongzhi/chatgpt-plus 抢「ChatGPT Plus 充值」，也不和 hub 的「AI 会员价格对比与充值」、/products 的「全部商品与价格」同短语。
+ * 【用词依据】docs/SEO-重构/kw7（2026-10-07 Google 下拉实测）：chatgpt 充值 8、claude 充值 5（09-19 时是 0）、短信接码 8、海外手机号 9；
+ * 「代充」不进 title（零需求词与自称，§3.4）；「会员」只用在 Claude 上（§9.4 #19 默认）；「AI 动态」是描述语、不是要排名的词。
+ * 【按开放状态两个版本】短信接码没对全部用户开放时（灰度期）title、H1、description 都不写它（§3.3、D28）；
+ * 学习平台总开关没开（整组 noindex）时 description 不提它。开票写到就带 6%（§3.1）。
+ * 渠道站不走这里：保持原来那份 metadata（渠道站整站 noindex，白标规则见 generateMetadata）。
+ */
+const INVOICE_TAX_TEXT = `标价不含税，开票另付 ${Math.round(TAX_RATE * 100)}%`
+
+function homeTitle(p: Pick<SitePillars, 'jiema'>): string {
+  return p.jiema ? '贝果科技 BigoLab - ChatGPT/Claude 充值、短信接码、AI 动态' : '贝果科技 BigoLab - ChatGPT/Claude 充值与每日 AI 动态'
+}
+
+function homeDescription(p: Pick<SitePillars, 'jiema' | 'news' | 'learnIndexable'>): string {
+  const parts = [`ChatGPT Plus / Pro、Claude Pro / Max 会员充值：卡密自助兑换，支付宝付款，可开增值税发票（${INVOICE_TAX_TEXT}）`]
+  if (p.jiema) parts.push('短信接码用海外手机号在线接收验证码')
+  const extra = [p.news ? '每日 AI 圈大事记' : null, p.learnIndexable ? '可复制的 AI 提示词与实测教程' : null].filter(Boolean)
+  if (extra.length) parts.push(`另有${extra.join('与')}`)
+  return `${parts.join('；')}。`
+}
+
+/**
  * 渠道白标（docs/多渠道分销-渠道品牌与公告.md）：渠道设了浏览器标题 / 分享摘要就用渠道的，没设则把原文里的「贝果科技」换成渠道站名；
- * 分享图换成渠道 logo。主站与没有白标的渠道原样返回上面的 metadata。
+ * 分享图换成渠道 logo。没有白标的渠道原样返回上面的 metadata（渠道站整站 noindex）。主站按开放状态出新的 title / description。
  */
 export async function generateMetadata(): Promise<Metadata> {
+  const sf = await getStorefront()
+  if (sf && sf.kind === 'PLATFORM') {
+    const p = await sitePillars()
+    const title = homeTitle(p)
+    const description = homeDescription(p)
+    return { title, description, alternates: { canonical: '/' }, ...pageOg({ title, description, path: '/' }) }
+  }
   const brand = await currentBrand()
   if (!brand.seoTitle && !brand.seoDescription) return brandMetadata(metadata)
   const title = brand.seoTitle ?? withBrandName(TITLE, brand)
@@ -68,6 +111,9 @@ export async function generateMetadata(): Promise<Metadata> {
     brand,
   )
 }
+
+/** 首页热点：与 /api/news/hot 同一口径（lib/news/hot.ts），按店面缓存 60 秒（仓库唯一允许的跨请求缓存，设计 §6.6-8 Ha） */
+const cachedHotNews = storefrontCached('home-hot-news', async (_sfId: number) => hotNewsEvents(5), 60_000)
 
 export default async function HomePage() {
   // 店面解析不进 try（设计 4.4 第 7 条）。getLandingProducts 按店面取数：渠道站是本店可售商品与本店售价
@@ -128,6 +174,28 @@ export default async function HomePage() {
   // 而这正是要解决的问题（原来写死 useState(0)，爬虫读到的是「0 个用户」）。
   // 渠道站：与主站同一个合计 —— 全站在售商品 Product.sales 之和（二期 M1，站长要求两站显示同一个总销量），
   // 不是只加本店上架的那几个；skuCount 仍按本店可售商品数。主站分支原样不变。
+  // 主站的业务开放状态与服务端直出区块（C 包，§1.10）。渠道站一概不取：渠道站首页不出大事记、接码、学习平台（W1-9、§6.7）
+  const pillars = channel ? null : await sitePillars()
+  let hotNews: NewsEventDto[] | undefined
+  if (pillars?.news) {
+    try {
+      hotNews = await cachedHotNews(sf.id)
+    } catch (e) {
+      // 取不到就交回客户端自己拉（与改造前相同），不让首页 500
+      console.error('[home] hot news', e)
+    }
+  }
+  let jiemaServices: CatalogService[] | null = null
+  if (pillars?.jiema) {
+    try {
+      const cfg = await readSmsConfigCached()
+      if (cfg) jiemaServices = (await catalogSnapshot(cfg)).services
+    } catch (e) {
+      // 目录读不到：区块照常出入口、不写价格（§1.10：读不到数据不能让首页 500）
+      console.error('[home] jiema catalog', e)
+    }
+  }
+
   const stats = {
     totalSales: channel ? await getPlatformTotalSales() : all.reduce((n, p) => n + (p.sales || 0), 0),
     skuCount: all.length,
@@ -145,13 +213,27 @@ export default async function HomePage() {
           渠道站传 sf.origin，链接必须落在本店域名上（与上面 webSiteJsonLd 同一个口径）。 */}
       <JsonLd
         data={[
-          organizationJsonLd(),
+          // 主站按开放状态写各业务（§4.2）；渠道站保守口径（只写充值），主体两站相同
+          organizationJsonLd(pillars ? { jiema: pillars.jiema, news: pillars.news, learn: pillars.learnIndexable } : {}),
           channel ? webSiteJsonLd(sf.origin) : webSiteJsonLd(),
           ...(featured.length ? [productItemListJsonLd(featured, '/', channel ? sf.origin : undefined)] : []),
         ]}
       />
 
-      <HomeClient stats={stats} featured={featured} />
+      <HomeClient
+        stats={stats}
+        featured={featured}
+        pillars={pillars ? { jiema: pillars.jiema, news: pillars.news } : undefined}
+        hotNews={hotNews}
+        pillarSections={
+          pillars ? (
+            <>
+              {pillars.jiema && <HomeJiemaSection services={jiemaServices} />}
+              {pillars.learn && <HomeLearnSection />}
+            </>
+          ) : undefined
+        }
+      />
 
       {/*
         服务端直出的「按服务找」区块。
@@ -217,6 +299,9 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* 品牌级问答（§1.10 第 6 条，只在主站；不标 FAQPage） */}
+      {pillars && <HomeBrandFaq jiema={pillars.jiema} jiemaPay={jiemaPayText(pillars.jiemaBalancePay)} news={pillars.news} invoiceTaxText={INVOICE_TAX_TEXT} />}
     </>
   )
 }

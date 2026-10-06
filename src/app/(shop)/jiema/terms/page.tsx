@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { LegalPage, LegalSection } from '@/components/legal-page'
 import { SITE_NAME } from '@/lib/product-seo'
+import { pageOg } from '@/lib/seo/og'
 import { notFoundOnChannel, getStorefront } from '@/lib/storefront/resolve'
 import { resolveStoreContact } from '@/lib/contact'
 import { JIEMA_TERMS, JIEMA_TERMS_PATH, JIEMA_TERMS_STRONG, JIEMA_TERMS_TITLE, JIEMA_TERMS_VERSION, WALLET_TERMS_TITLE, WALLET_TERMS_VERSION, walletTermsFor } from '@/lib/terms/jiema-wallet'
@@ -32,6 +33,8 @@ export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: JIEMA_TERMS_PATH },
+  // SEO 批 2 的 AJ：补 og / twitter（原来是根 layout 的兜底分享文案）；robots 仍继承页面组 layout
+  ...pageOg({ title: TITLE, description: DESCRIPTION, path: JIEMA_TERMS_PATH }),
 }
 
 export default async function JiemaTermsPage() {
