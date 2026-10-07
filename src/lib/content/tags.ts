@@ -71,6 +71,11 @@ export const DEFAULT_TAGS: readonly DefaultTag[] = [
   { slug: 'character', name: '角色设计', kind: 'TOPIC', facet: 'IMAGE' },
   { slug: 'infographic', name: '信息图', kind: 'TOPIC', facet: 'IMAGE' },
   { slug: 'photo-edit', name: '修图改图', kind: 'TOPIC', facet: 'IMAGE' },
+  // 10-07 内容扩容（目标 2000 条提示词）补的主题
+  { slug: 'fashion', name: '服装穿搭', kind: 'TOPIC', facet: 'IMAGE' },
+  { slug: 'food', name: '美食摄影', kind: 'TOPIC', facet: 'IMAGE' },
+  { slug: 'wallpaper', name: '壁纸头图', kind: 'TOPIC', facet: 'IMAGE' },
+  { slug: 'game-art', name: '游戏美术', kind: 'TOPIC', facet: 'IMAGE' },
   // 视频
   { slug: 'product-video', name: '产品广告片', kind: 'TOPIC', facet: 'VIDEO' },
   { slug: 'image-to-video', name: '图生视频', kind: 'TOPIC', facet: 'VIDEO' },
@@ -93,12 +98,32 @@ export const DEFAULT_TAGS: readonly DefaultTag[] = [
   { slug: 'translation', name: '翻译润色', kind: 'TOPIC', facet: 'TEXT' },
   { slug: 'product-design', name: '产品与设计', kind: 'TOPIC', facet: 'TEXT' },
   { slug: 'career', name: '求职面试', kind: 'TOPIC', facet: 'TEXT' },
+  // 10-07 内容扩容补的主题
+  { slug: 'legal', name: '法务合同', kind: 'TOPIC', facet: 'TEXT' },
+  { slug: 'finance', name: '财务金融', kind: 'TOPIC', facet: 'TEXT' },
+  { slug: 'teaching', name: '教师备课', kind: 'TOPIC', facet: 'TEXT' },
+  { slug: 'fiction', name: '小说创作', kind: 'TOPIC', facet: 'TEXT' },
+  { slug: 'hr', name: '人力资源', kind: 'TOPIC', facet: 'TEXT' },
+  { slug: 'ecommerce-ops', name: '电商运营', kind: 'TOPIC', facet: 'TEXT' },
+  { slug: 'prompt-engineering', name: '提示词工程', kind: 'TOPIC', facet: 'TEXT' },
+  { slug: 'ai-agent', name: 'AI 智能体', kind: 'TOPIC', facet: 'TEXT' },
+  { slug: 'language-learning', name: '外语学习', kind: 'TOPIC', facet: 'TEXT' },
+  { slug: 'lifestyle', name: '生活助手', kind: 'TOPIC', facet: 'TEXT' },
 
   // ── 产品（教程 hub：/guides/p/{slug}）──
   { slug: 'chatgpt', name: 'ChatGPT', kind: 'PRODUCT', landingPath: '/chongzhi/chatgpt-plus' },
   { slug: 'claude', name: 'Claude', kind: 'PRODUCT', landingPath: '/chongzhi/claude-pro' },
   { slug: 'codex', name: 'Codex', kind: 'PRODUCT', landingPath: '/chongzhi/chatgpt-plus' },
   { slug: 'gemini', name: 'Gemini', kind: 'PRODUCT' },
+  // 10-07 教程扩容（目标 300 篇）补的产品。slug 全表唯一：即梦 / 可灵 / Midjourney / DeepSeek 已是模型标签，
+  // 这类工具的教程挂「其他 AI 工具」+ 对应模型标签
+  { slug: 'grok', name: 'Grok', kind: 'PRODUCT', landingPath: '/chongzhi/grok-super' },
+  { slug: 'cursor', name: 'Cursor', kind: 'PRODUCT' },
+  { slug: 'github-copilot', name: 'GitHub Copilot', kind: 'PRODUCT' },
+  { slug: 'doubao', name: '豆包', kind: 'PRODUCT' },
+  { slug: 'kimi', name: 'Kimi', kind: 'PRODUCT' },
+  { slug: 'qwen', name: '通义千问', kind: 'PRODUCT' },
+  { slug: 'ai-tools', name: '其他 AI 工具', kind: 'PRODUCT' },
 ]
 
 const CONTENT_BOARDS = [
