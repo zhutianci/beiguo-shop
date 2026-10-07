@@ -1314,7 +1314,7 @@ model ForumPost {
   // 只加列、全部带默认值或可空：db push 不需要 --accept-data-loss，存量帖子行为不变。
   // reviewStatus 的库默认值是 APPROVED，是给「加列那一刻的存量行」用的（否则 db push 完、新代码还没上之前，
   // 老帖子会集体变成待审而从前台消失）；新帖由 POST /api/forum/posts 按信任等级**显式**写入，不靠这个默认值。
-  reviewStatus     String    @default("APPROVED") @map("review_status") @db.VarChar(16) // PENDING | APPROVED | REJECTED
+  reviewStatus     String    @default("APPROVED") @map("review_status") @db.VarChar(16) // PENDING | APPROVED | REJECTED | SCHEDULED（10-07：定时放量队列，不公开）
   reviewNote       String?   @map("review_note") @db.VarChar(500) // 驳回 / 待审原因（给作者看）
   reviewedAt       DateTime? @map("reviewed_at")
   originality      String    @default("ORIGINAL_FIRST") @db.VarChar(24) // ORIGINAL_FIRST | ORIGINAL_ELSEWHERE | REPOST
@@ -1344,6 +1344,10 @@ model ForumPost {
   remixCount        Int     @default(0) @map("remix_count")
   // ── 内容平台 P3（2026-10-07）──
   ctaRefOff         Boolean @default(false) @map("cta_ref_off") // 编辑对单篇关闭「作者内推返现」（设计 §13.1）
+  // ── 内容扩容（2026-10-07，docs/内容平台/扩容基础设施-1007.md）：定时放量 ──
+  // 导入 --schedule 的条目建成 reviewStatus=SCHEDULED（与 PENDING 一样不公开），每天由 /api/cron/content-release 按 releaseRank 放出 N 条。
+  releaseRank       Int?      @map("release_rank") // 放量顺序（小的先放）：导入时按「类型 + 大类 + 主题」交错排好，保证每天一批是混合的
+  releasedAt        DateTime? @map("released_at") // 被定时放量（或后台「立即放出」）公开的时间；按上海自然日数它来封顶每天的条数
 
   category ForumCategory  @relation(fields: [categoryId], references: [id])
   user     User?          @relation(fields: [userId], references: [id])
@@ -1360,6 +1364,11 @@ model ForumPost {
   @@index([type, reviewStatus, featuredAt])
   @@index([remixOfId])
   @@index([type, simhash])
+  // 内容扩容（10-07）：列表页 PUBLIC_WHERE + type 的两种排序（最新 / 精选在前）；定时放量取下一批与数今天放了几条
+  @@index([type, status, reviewStatus, createdAt])
+  @@index([type, status, reviewStatus, featured, featuredAt])
+  @@index([reviewStatus, releaseRank])
+  @@index([releasedAt])
   @@map("forum_posts")
 }
 

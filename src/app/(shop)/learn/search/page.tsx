@@ -45,6 +45,8 @@ export default async function LearnSearchPage({ searchParams }: Props) {
           { content: { contains: w } },
           { prompt: { prompt: { contains: w } } },
           { prompt: { useCase: { contains: w } } },
+          // AI 应用按应用名也能搜到（内容扩容 10-07：应用的标题是「X 是什么、怎么用」，但有人只搜名字的英文写法）
+          { app: { name: { contains: w } } },
           { postTags: { some: { tag: { name: { contains: w } } } } },
         ],
       })),

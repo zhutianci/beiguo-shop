@@ -129,23 +129,53 @@ export interface ContentCard {
   createdAt: string
 }
 
-const CARD_INCLUDE = {
+/*
+ * 列表卡片只取卡片要用的列（内容扩容 2026-10-07）：以前是 include，会把每条的 Markdown 正文（教程 1–3 万字符）整段取出来，
+ * 只为在「没有摘要、也没有 useCase」时截 90 个字。两千多条提示词、三百篇教程之后这是列表页最大的一块无用流量。
+ * 现在正文不进列表查询；真缺摘要的少数几条（老的用户投稿）由 toCards 单独补一次查询。
+ */
+const CARD_SELECT = {
+  id: true,
+  type: true,
+  slug: true,
+  title: true,
+  excerpt: true,
+  images: true,
+  userId: true,
+  authorName: true,
+  copyCount: true,
+  likeCount: true,
+  commentCount: true,
+  featured: true,
+  verifiedAt: true,
+  createdAt: true,
   user: { select: { nickname: true } },
   prompt: { select: { useCase: true, prompt: true } },
   app: { select: { name: true, selfPromo: true } },
-  postTags: { include: { tag: { select: { slug: true, name: true, kind: true, facet: true, status: true } } } },
-} satisfies Prisma.ForumPostInclude
+  postTags: { select: { tag: { select: { slug: true, name: true, kind: true, facet: true, status: true } } } },
+} satisfies Prisma.ForumPostSelect
 
-type CardRow = Prisma.ForumPostGetPayload<{ include: typeof CARD_INCLUDE }>
+type CardRow = Prisma.ForumPostGetPayload<{ select: typeof CARD_SELECT }>
 
-function toCard(p: CardRow): ContentCard {
+/** 卡片化；没有摘要也没有 useCase 的，补查一次正文截摘要（只查这几条） */
+async function toCards(rows: CardRow[]): Promise<ContentCard[]> {
+  const need = rows.filter((r) => !r.excerpt && !r.prompt?.useCase).map((r) => r.id)
+  const fallback = new Map<number, string>()
+  if (need.length) {
+    const extra = await prisma.forumPost.findMany({ where: { id: { in: need } }, select: { id: true, content: true } })
+    for (const e of extra) fallback.set(e.id, plainExcerpt(e.content, 90))
+  }
+  return rows.map((r) => toCard(r, fallback.get(r.id) ?? ''))
+}
+
+function toCard(p: CardRow, fallbackExcerpt = ''): ContentCard {
   const tags = p.postTags.map((pt) => pt.tag).filter((t) => t.status === 1)
   return {
     id: p.id,
     type: p.type,
     path: contentPath(p.type, p.id, p.slug),
     title: p.title,
-    excerpt: p.excerpt || p.prompt?.useCase || plainExcerpt(p.content, 90),
+    excerpt: p.excerpt || p.prompt?.useCase || fallbackExcerpt,
     cover: imagesOf(p)[0] ?? null,
     coverW: null,
     coverH: null,
@@ -228,33 +258,49 @@ export async function listContent(opts: {
       orderBy: opts.order === 'new' ? [{ createdAt: 'desc' }, { id: 'desc' }] : LIST_ORDER,
       skip: (opts.page - 1) * opts.pageSize,
       take: opts.pageSize,
-      include: CARD_INCLUDE,
+      select: CARD_SELECT,
     }),
     prisma.forumPost.count({ where }),
   ])
-  return { items: await withDims(rows.map(toCard)), total, page: opts.page, totalPages: Math.max(Math.ceil(total / opts.pageSize), 1) }
+  return { items: await withDims(await toCards(rows)), total, page: opts.page, totalPages: Math.max(Math.ceil(total / opts.pageSize), 1) }
 }
 
 /**
  * 某个集合里「可收录」的条数（hub 能不能收录看它，policy.isHubIndexable）。
- * 闸门要看正文与附表，只能取出来逐条算；量级是一个 hub 几十到几百条，取上限 1000 足够。
- * 总开关关着时直接返回 0，不查库。
+ * 闸门要看正文与附表，只能取出来逐条算；最多看 1000 条。总开关关着时直接返回 0，不查库。
+ *
+ * atLeast（内容扩容 10-07）：调用方只关心「够不够门槛」（hub 门槛 3–8 条、作者页 1 条）时传它——
+ * 按 id 倒序分批取，数到 atLeast 就停，返回值封顶为 atLeast。以前每个 hub 都把最多 1000 条正文整段取出来，
+ * 提示词两千多条之后 /prompts 一次就是几 MB。
  */
-export async function countIndexable(where: Prisma.ForumPostWhereInput): Promise<number> {
+export async function countIndexable(where: Prisma.ForumPostWhereInput, atLeast = 1000): Promise<number> {
   if (!INDEXING_OPEN) return 0
-  const rows = await prisma.forumPost.findMany({
-    where: { ...PUBLIC_WHERE, originality: 'ORIGINAL_FIRST', ...where },
-    take: 1000,
-    select: {
-      status: true, reviewStatus: true, deletedAt: true, userId: true, content: true, originality: true, aiAssist: true,
-      commentCount: true, type: true, images: true, testedOn: true, checkedOn: true,
-      featured: true,
-      prompt: { select: { prompt: true } },
-      app: { select: { selfPromo: true } },
-      postTags: { select: { tag: { select: { kind: true, status: true, facet: true } } } },
-    },
-  })
-  return rows.filter((r) => contentIndexable(r)).length
+  const MAX_SCAN = 1000
+  const batch = atLeast <= 10 ? 40 : 200
+  let n = 0
+  let scanned = 0
+  let cursor: number | null = null
+  while (scanned < MAX_SCAN && n < atLeast) {
+    const rows: (Parameters<typeof contentIndexable>[0] & { id: number })[] = await prisma.forumPost.findMany({
+      where: { AND: [{ ...PUBLIC_WHERE, originality: 'ORIGINAL_FIRST' }, where, ...(cursor ? [{ id: { lt: cursor } }] : [])] },
+      orderBy: { id: 'desc' },
+      take: Math.min(batch, MAX_SCAN - scanned),
+      select: {
+        id: true,
+        status: true, reviewStatus: true, deletedAt: true, userId: true, content: true, originality: true, aiAssist: true,
+        commentCount: true, type: true, images: true, testedOn: true, checkedOn: true,
+        featured: true,
+        prompt: { select: { prompt: true } },
+        app: { select: { selfPromo: true } },
+        postTags: { select: { tag: { select: { kind: true, status: true, facet: true } } } },
+      },
+    })
+    for (const r of rows) if (contentIndexable(r)) n++
+    scanned += rows.length
+    if (rows.length < batch) break
+    cursor = rows[rows.length - 1].id
+  }
+  return Math.min(n, atLeast)
 }
 
 /*
@@ -268,11 +314,11 @@ export async function countIndexable(where: Prisma.ForumPostWhereInput): Promise
  */
 const countIndexableShared = storefrontCached(
   'content-indexable',
-  (_sfId: number, where: Prisma.ForumPostWhereInput) => countIndexable(where),
+  (_sfId: number, where: Prisma.ForumPostWhereInput, atLeast: number) => countIndexable(where, atLeast),
   5 * 60_000,
 )
-export function countIndexableCached(where: Prisma.ForumPostWhereInput): Promise<number> {
-  return countIndexableShared(PLATFORM_TENANT_ID, where)
+export function countIndexableCached(where: Prisma.ForumPostWhereInput, atLeast = 1000): Promise<number> {
+  return countIndexableShared(PLATFORM_TENANT_ID, where, atLeast)
 }
 
 /** 详情页底部的相关内容（设计 §5.1 第 6 点：作者的更多 / 同主题其他模型 / 同模型相关主题） */
@@ -284,9 +330,9 @@ export async function relatedContent(p: ContentRow, limit = 6): Promise<{ title:
       where: { ...PUBLIC_WHERE, type: p.type, id: { notIn: Array.from(seen) }, ...where },
       orderBy: LIST_ORDER,
       take: limit,
-      include: CARD_INCLUDE,
+      select: CARD_SELECT,
     })
-    const items = await withDims(rows.map(toCard))
+    const items = await withDims(await toCards(rows))
     items.forEach((i) => seen.add(i.id))
     if (items.length) groups.push({ title, items })
   }
@@ -351,12 +397,6 @@ export async function learnHomeData() {
             kind: true,
             intro: true,
             _count: { select: { posts: { where: { post: PUBLIC_WHERE } } } },
-            posts: {
-              where: { post: { ...PUBLIC_WHERE, type: 'PROMPT' } },
-              take: 3,
-              orderBy: { post: { createdAt: 'desc' } },
-              select: { post: { select: { images: true } } },
-            },
           },
         }),
       [],
@@ -383,6 +423,7 @@ export async function learnHomeData() {
       [],
     ),
   ])
+  const covers = await safe(() => hubCovers(), new Map<string, string[]>())
   const hubs = tags
     .filter((t) => t._count.posts > 0)
     .map((t) => ({
@@ -391,23 +432,52 @@ export async function learnHomeData() {
       kind: t.kind,
       count: t._count.posts,
       hasIntro: !!t.intro,
-      covers: t.posts.map((pt) => imagesOf(pt.post)[0]).filter((u): u is string => !!u),
+      covers: covers.get(t.slug) ?? [],
     }))
   return { prompts: prompts.items, hot: hot.items, textPrompts: textPrompts.items, videoPrompts: videoPrompts.items, apps: apps.items, guides: guides.items, totals, hubs, creators }
+}
+
+/**
+ * /learn 各专题卡片上的封面（每个标签最多 3 张、最新的在前）。一次取最近 600 条带图的公开提示词，在内存里分给各标签——
+ * 以前是每个标签一个嵌套 take 3（Prisma 的嵌套分页会把所有关联行取回来再截），提示词两千多条后要取回几千行。
+ * 很久没有新图的冷门标签可能因此没有封面，卡片照常显示（封面只是装饰）。
+ */
+async function hubCovers(): Promise<Map<string, string[]>> {
+  const rows = await prisma.forumPost.findMany({
+    where: { ...PUBLIC_WHERE, type: 'PROMPT', images: { not: null } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: 600,
+    select: { images: true, postTags: { select: { tag: { select: { slug: true } } } } },
+  })
+  const m = new Map<string, string[]>()
+  for (const r of rows) {
+    const cover = imagesOf(r)[0]
+    if (!cover) continue
+    for (const pt of r.postTags) {
+      const list = m.get(pt.tag.slug) ?? []
+      if (list.length < 3) {
+        list.push(cover)
+        m.set(pt.tag.slug, list)
+      }
+    }
+  }
+  return m
 }
 
 /** 按给定顺序取一组公开内容的卡片（收藏、合集用）；不公开的静默跳过 */
 export async function cardsByIds(ids: number[]): Promise<ContentCard[]> {
   if (!ids.length) return []
-  const rows = await prisma.forumPost.findMany({ where: { id: { in: ids }, ...PUBLIC_WHERE }, include: CARD_INCLUDE })
-  const byId = new Map(rows.map((r) => [r.id, toCard(r)]))
+  const rows = await prisma.forumPost.findMany({ where: { id: { in: ids }, ...PUBLIC_WHERE }, select: CARD_SELECT })
+  const byId = new Map((await toCards(rows)).map((c) => [c.id, c]))
   return withDims(ids.map((id) => byId.get(id)).filter((c): c is ContentCard => !!c))
 }
 
 /**
  * 热度排序（设计 §7.1）：奖励「被拿去用」而不是「被看到」——
  *   hot = (复制×3 + 同款×5 + 收藏×2 + 赞 + 评论×2 + 1) / (发布小时数 + 2)^1.2
- * Prisma 不能按表达式排序，所以取近 180 天的候选（≤1500 条）在内存里算。量级上来后改成定时任务写分数列。
+ * Prisma 不能按表达式排序，所以取近 180 天的候选在内存里算（只取 7 个整数列，3000 条也只是几十 KB）。
+ * 内容扩容（10-07）：候选按发布时间倒序取（以前没有 orderBy，超过上限时丢掉的是哪些不确定）、上限 1500 → 3000。
+ * 量级再上来后改成定时任务写分数列。
  */
 export async function listHot(opts: { type: ContentType; facet?: string; tagSlug?: string; selfPromo?: boolean; page: number; pageSize: number }): Promise<ListResult> {
   const where: Prisma.ForumPostWhereInput = {
@@ -420,7 +490,8 @@ export async function listHot(opts: { type: ContentType; facet?: string; tagSlug
   }
   const rows = await prisma.forumPost.findMany({
     where,
-    take: 1500,
+    orderBy: { createdAt: 'desc' },
+    take: 3000,
     select: { id: true, copyCount: true, remixCount: true, favoriteCount: true, likeCount: true, commentCount: true, createdAt: true },
   })
   const now = Date.now()

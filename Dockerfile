@@ -86,6 +86,8 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# prisma/seed-assets（种子示例图，几百 MB）被 .dockerignore 排除、不进镜像：导入在临时容器里挂宿主机的 $PWD/prisma 跑
+# （docs/内容平台/扩容基础设施-1007.md §5）。运行时只需要 schema 与 seed/backfill 脚本
 COPY --from=builder /app/prisma ./prisma
 # 批量开票用的税局官方模板。**必须显式 COPY**：standalone 的文件追踪只看 import/require
 # 的依赖图，fs.readFile 读的文件它一无所知，不写这一行镜像里就没有，

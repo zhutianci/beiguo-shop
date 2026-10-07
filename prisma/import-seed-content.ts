@@ -1,7 +1,15 @@
 /**
  * 导入种子内容（内容平台改版 2026-10-06）。读 prisma/seed-content.json（由 scripts/build-seed-bundle.ts 生成）。
  *
- *   DATABASE_URL=... npx tsx prisma/import-seed-content.ts --author admin@example.com [--publish] [--uploads-dir public/uploads] [--force-intro] [--refresh-guides] [--dry-run]
+ *   DATABASE_URL=... npx tsx prisma/import-seed-content.ts --author admin@example.com [--publish | --schedule] [--uploads-dir public/uploads] [--force-intro] [--refresh-guides] [--refresh-apps] [--dry-run]
+ *
+ * --schedule（内容扩容 10-07，docs/内容平台/扩容基础设施-1007.md）：与 --publish 同一个「能不能公开」的判定，
+ *   但够格的条目不立即公开，而是建成 reviewStatus=SCHEDULED（定时放量队列，与待审一样不公开），
+ *   之后每天由 /api/cron/content-release 放出 CONTENT_RELEASE_PER_DAY 条（默认 40）。
+ *   导入结束时把队列里**全部** SCHEDULED 条目按「类型 + 大类 + 主题」交错重排（release_rank，算法见 prisma/release-order.ts），
+ *   保证每天一批都是混合的。--publish 与 --schedule 不能同时用。
+ * AI 应用（apps/，10-07）：type=APP + app_specs，原创首发、AI 部分辅助、非自荐；没有截图占位的随 --publish / --schedule 公开 / 排队。
+ * --refresh-apps：同 --refresh-guides，已导入的种子应用按新版重写（只动 --author 自己发的）。
  *
  * --publish（第二批起，站长 10-06 要求提示词库上线就要「非常多」）：可以直接公开的提示词建成「已通过」——
  *   图像类要有示例图；视频类、文本类直接可以。教程：站方据官方文档整理完（有 checkedOn、没有截图占位）的直接公开，其余待审。
@@ -26,6 +34,7 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { PrismaClient } from '@prisma/client'
+import { bucketOf, releaseOrder } from './release-order'
 
 const prisma = new PrismaClient()
 const args = process.argv.slice(2)
@@ -55,6 +64,21 @@ interface Bundle {
     facet: string | null
     images: string[]
     imageCredit: { by: string | null; url: string | null; license: string | null } | null
+  }[]
+  apps?: {
+    title: string
+    slug: string
+    name: string
+    url: string
+    pricing: string
+    platforms: string
+    trialNote: string | null
+    tags: string[]
+    excerpt: string
+    checkedOn: string
+    content: string
+    images: string[]
+    sources: string[]
   }[]
   guides: {
     title: string
@@ -151,8 +175,30 @@ async function main() {
   if (!email) throw new Error('请用 --author 指定作者账号邮箱（站方编辑的真实账号）')
   const dry = flag('--dry-run')
   const publish = flag('--publish')
+  const schedule = flag('--schedule')
+  if (publish && schedule) throw new Error('--publish 与 --schedule 只能选一个')
+  // 够格的条目建成什么状态：--publish 立即公开；--schedule 进定时放量队列；都不带 = 一律待审
+  const liveStatus = publish ? 'APPROVED' : 'SCHEDULED'
+  const canGoLive = publish || schedule
   const uploadsDir = path.resolve(arg('--uploads-dir') || path.join(process.cwd(), 'public', 'uploads'))
-  const bundle = JSON.parse(fs.readFileSync(path.join(__dirname, 'seed-content.json'), 'utf8')) as Bundle
+  // --bundle 只给测试用（读临时编译出来的样例包）；正式导入一律读 prisma/seed-content.json
+  const bundle = JSON.parse(fs.readFileSync(path.resolve(arg('--bundle') || path.join(__dirname, 'seed-content.json')), 'utf8')) as Bundle
+
+  // 示例图 / 插图必须都在 prisma/seed-assets/（内容扩容 10-07：生产镜像不再带这个目录，见 .dockerignore）。
+  // 在 app 容器里直接跑、或临时容器没挂宿主机的 $PWD/prisma 时，这里会缺一大片——缺图的提示词会变成待审、教程插图行会被删掉，
+  // 而且不报错。所以缺图直接停手；确实要跳过缺的图时加 --allow-missing-images。
+  const referenced = new Set<string>([
+    ...bundle.prompts.flatMap((p) => p.images),
+    ...bundle.guides.flatMap((g) => g.images ?? []),
+    ...(bundle.apps ?? []).flatMap((a) => a.images),
+  ])
+  const missing = Array.from(referenced).filter((f) => !fs.existsSync(path.join(__dirname, 'seed-assets', f)))
+  if (missing.length && !flag('--allow-missing-images')) {
+    throw new Error(
+      `种子包引用的 ${referenced.size} 张图里有 ${missing.length} 张不在 ${path.join(__dirname, 'seed-assets')}（例如 ${missing.slice(0, 3).join('、')}）。` +
+        '生产镜像不带 seed-assets：请在临时容器里挂宿主机仓库的 $PWD/prisma 再跑（docs/内容平台/扩容基础设施-1007.md）；确实要跳过缺的图加 --allow-missing-images',
+    )
+  }
 
   const author = await prisma.user.findUnique({ where: { email }, select: { id: true, nickname: true } })
   if (!author) throw new Error(`找不到账号 ${email}`)
@@ -166,6 +212,8 @@ async function main() {
   const boards = [
     { slug: 'prompts', name: '提示词', description: '可复制、作者实测过的 AI 提示词', icon: '🎨', sortOrder: 90 },
     { slug: 'guides', name: '教程', description: 'ChatGPT / Claude 等的功能教程与使用技巧', icon: '📘', sortOrder: 91 },
+    // 与 src/lib/content/tags.ts 的 CONTENT_BOARDS 一致
+    { slug: 'apps', name: 'AI 应用', description: 'AI 应用与工作流分享、作者自荐', icon: '🧩', sortOrder: 92 },
   ]
   for (const b of boards) if (!dry) await prisma.forumCategory.upsert({ where: { slug: b.slug }, update: {}, create: b })
   const tagId = new Map((await prisma.tag.findMany({ select: { id: true, slug: true } })).map((t) => [t.slug, t.id]))
@@ -187,10 +235,22 @@ async function main() {
   let published = 0
   const promptBoard = await boardId('prompts')
   const guideBoard = await boardId('guides')
-  if (!dry && (!promptBoard || !guideBoard)) throw new Error('内容专用板块不存在')
+  const appBoard = await boardId('apps')
+  if (!dry && (!promptBoard || !guideBoard || !appBoard)) throw new Error('内容专用板块不存在')
+  const apps = bundle.apps ?? []
+
+  // 已存在的（类型 + slug）一次查出来（内容扩容：两千多条逐条 findFirst 太慢）。含已删除的：删掉的不重新导入
+  const existingRows = await prisma.forumPost.findMany({
+    where: { type: { in: ['PROMPT', 'GUIDE', 'APP'] }, slug: { not: null } },
+    select: { id: true, type: true, slug: true, userId: true, reviewStatus: true },
+  })
+  const existing = new Map(existingRows.map((r) => [`${r.type}:${r.slug}`, r]))
+  const statusOf = (live: boolean, prev?: { reviewStatus: string }) =>
+    // 刷新已公开的条目时不把它撤回队列；其余按本次模式
+    live ? (prev?.reviewStatus === 'APPROVED' ? 'APPROVED' : liveStatus) : 'PENDING'
 
   for (const p of bundle.prompts) {
-    if (await prisma.forumPost.findFirst({ where: { type: 'PROMPT', slug: p.slug }, select: { id: true } })) {
+    if (existing.has(`PROMPT:${p.slug}`)) {
       skipped++
       continue
     }
@@ -199,8 +259,8 @@ async function main() {
       const u = await placeImage(im, uploadsDir, author.id, dry)
       if (u) urls.push(u)
     }
-    // 能不能直接公开：图像类要有图；视频、文本类可以
-    const live = publish && (p.facet !== 'IMAGE' || urls.length > 0)
+    // 能不能直接公开（或进定时队列）：图像类要有图；视频、文本类可以
+    const live = canGoLive && (p.facet !== 'IMAGE' || urls.length > 0)
     if (dry) {
       created++
       if (live) published++
@@ -219,8 +279,8 @@ async function main() {
         content: p.content,
         tags: '',
         lastReplyAt: new Date(),
-        reviewStatus: live ? 'APPROVED' : 'PENDING',
-        reviewedAt: live ? new Date() : null,
+        reviewStatus: statusOf(live),
+        reviewedAt: statusOf(live) === 'APPROVED' ? new Date() : null,
         reviewNote: live ? null : todo([p.imageBrief ? `出图：${p.imageBrief}` : '补效果图', p.verify.length ? `核对：${p.verify.join(' / ')}` : null]),
         originality: p.source ? 'REPOST' : 'ORIGINAL_FIRST',
         sourceUrl: p.source?.url ?? null,
@@ -242,16 +302,10 @@ async function main() {
     if (live) published++
   }
 
-  for (const g of bundle.guides) {
-    const existing = await prisma.forumPost.findFirst({ where: { type: 'GUIDE', slug: g.slug }, select: { id: true, userId: true, reviewStatus: true } })
-    // --refresh-guides：种子教程改版后（换成官方资料与截图）刷新已导入的那几篇——只动导入账号自己发的、还没被改成别的作者的
-    if (existing && !(flag('--refresh-guides') && existing.userId === author.id)) {
-      skipped++
-      continue
-    }
-    // 正文插图：seed:文件名 → 复制进上传目录后的地址；找不到的整行去掉（不留坏图）
-    let content = g.content
-    for (const im of g.images ?? []) {
+  // 正文插图：seed:文件名 → 复制进上传目录后的地址；找不到的整行去掉（不留坏图）。教程与应用共用
+  const placeBodyImages = async (body: string, images: string[]) => {
+    let content = body
+    for (const im of images) {
       const u = await placeImage(im, uploadsDir, author.id, dry)
       content = u
         ? content.split(`(seed:${im})`).join(`(${u})`)
@@ -260,9 +314,20 @@ async function main() {
             .filter((line) => !line.includes(`(seed:${im})`))
             .join('\n')
     }
+    return content
+  }
+
+  for (const g of bundle.guides) {
+    const prev = existing.get(`GUIDE:${g.slug}`)
+    // --refresh-guides：种子教程改版后（换成官方资料与截图）刷新已导入的那几篇——只动导入账号自己发的、还没被改成别的作者的
+    if (prev && !(flag('--refresh-guides') && prev.userId === author.id)) {
+      skipped++
+      continue
+    }
+    const content = await placeBodyImages(g.content, g.images ?? [])
     const checkedOn = g.checkedOn ? new Date(`${g.checkedOn}T00:00:00Z`) : null
-    // 站方据官方文档整理完、没有截图占位的，可以随 --publish 直接公开；否则待审
-    const live = publish && !!checkedOn && !/【截图[:：]/.test(content)
+    // 站方据官方文档整理完、没有截图占位的，可以随 --publish 直接公开（--schedule 则进队列）；否则待审
+    const live = canGoLive && !!checkedOn && !/【截图[:：]/.test(content)
     if (dry) {
       created++
       if (live) published++
@@ -274,8 +339,8 @@ async function main() {
       excerpt: g.excerpt.slice(0, 300),
       accountTier: g.accountTier,
       checkedOn,
-      reviewStatus: live ? 'APPROVED' : 'PENDING',
-      reviewedAt: live ? new Date() : null,
+      reviewStatus: statusOf(live, prev),
+      reviewedAt: statusOf(live, prev) === 'APPROVED' ? new Date() : null,
       reviewNote: live
         ? null
         : todo([
@@ -284,8 +349,8 @@ async function main() {
             checkedOn ? null : '实测后填测试日期',
           ]),
     }
-    if (existing) {
-      await prisma.forumPost.update({ where: { id: existing.id }, data: { ...data, contentUpdatedAt: new Date() } })
+    if (prev) {
+      await prisma.forumPost.update({ where: { id: prev.id }, data: { ...data, contentUpdatedAt: new Date() } })
     } else {
       await prisma.forumPost.create({
         data: {
@@ -309,9 +374,92 @@ async function main() {
     if (live) published++
   }
 
+  // —— AI 应用（10-07）——
+  for (const a of apps) {
+    const prev = existing.get(`APP:${a.slug}`)
+    if (prev && !(flag('--refresh-apps') && prev.userId === author.id)) {
+      skipped++
+      continue
+    }
+    const content = await placeBodyImages(a.content, a.images)
+    const checkedOn = new Date(`${a.checkedOn}T00:00:00Z`)
+    // checkedOn 在编译时已是必填；有截图占位的先待审
+    const live = canGoLive && !/【截图[:：]/.test(content)
+    if (dry) {
+      created++
+      if (live) published++
+      continue
+    }
+    const spec = { name: a.name, url: a.url, pricing: a.pricing, platforms: a.platforms, trialNote: a.trialNote, selfPromo: false, relation: null }
+    const data = {
+      title: a.title,
+      content,
+      excerpt: a.excerpt.slice(0, 300),
+      checkedOn,
+      reviewStatus: statusOf(live, prev),
+      reviewedAt: statusOf(live, prev) === 'APPROVED' ? new Date() : null,
+      reviewNote: live ? null : todo(['正文还有【截图】占位：补图后再审']),
+    }
+    if (prev) {
+      await prisma.forumPost.update({
+        where: { id: prev.id },
+        data: { ...data, contentUpdatedAt: new Date(), app: { upsert: { create: spec, update: spec } } },
+      })
+    } else {
+      await prisma.forumPost.create({
+        data: {
+          ...data,
+          type: 'APP',
+          slug: a.slug,
+          categoryId: appBoard!,
+          userId: author.id,
+          authorName,
+          testedOn: null,
+          tags: '',
+          lastReplyAt: new Date(),
+          originality: 'ORIGINAL_FIRST',
+          aiAssist: 'PARTIAL',
+          app: { create: spec },
+          postTags: { create: a.tags.map((s) => tagId.get(s)).filter((x): x is number => !!x).map((id) => ({ tagId: id })) },
+        },
+      })
+    }
+    created++
+    if (live) published++
+  }
+
+  // 4) 定时放量队列整队重排（--schedule；新旧 SCHEDULED 条目一起交错）
+  let queued = 0
+  if (schedule && !dry) queued = await rerankScheduled()
+
+  const liveWord = schedule ? '进入定时放量队列' : '直接公开'
   console.log(
-    `${dry ? '[演练] ' : ''}专题介绍写入 ${introWritten} 个；内容新建 ${created} 条（其中直接公开 ${published} 条，其余待审）、已存在跳过 ${skipped} 条；作者 ${authorName}`,
+    `${dry ? '[演练] ' : ''}专题介绍写入 ${introWritten} 个；内容新建 / 刷新 ${created} 条（其中${liveWord} ${published} 条，其余待审）、已存在跳过 ${skipped} 条；作者 ${authorName}` +
+      (schedule && !dry ? `；队列现有 ${queued} 条，已按类型 / 大类 / 主题交错重排` : ''),
   )
+}
+
+/**
+ * 给全部 SCHEDULED 条目重写 release_rank（1 起）。分桶：类型 | 模型大类 | 第一个主题（教程取第一个产品），
+ * 「第一个」按标签 id 取最小的（导入时标签的先后没有存，取一个确定的即可）。只更新顺序变了的行。
+ */
+async function rerankScheduled(): Promise<number> {
+  const rows = await prisma.forumPost.findMany({
+    where: { reviewStatus: 'SCHEDULED', deletedAt: null },
+    select: { id: true, type: true, slug: true, releaseRank: true, postTags: { select: { tag: { select: { id: true, kind: true, facet: true, slug: true } } } } },
+  })
+  const items = rows.map((r) => {
+    const tags = r.postTags.map((pt) => pt.tag).sort((a, b) => a.id - b.id)
+    const facet = tags.find((t) => t.kind === 'MODEL')?.facet ?? null
+    const first = tags.find((t) => t.kind === (r.type === 'GUIDE' ? 'PRODUCT' : 'TOPIC'))?.slug ?? null
+    return { key: `${r.type}:${r.slug ?? r.id}`, bucket: bucketOf(r.type, facet, first), id: r.id, rank: r.releaseRank }
+  })
+  const ordered = releaseOrder(items)
+  const changes = ordered.map((it, i) => ({ id: it.id, rank: i + 1, old: it.rank })).filter((c) => c.rank !== c.old)
+  for (let i = 0; i < changes.length; i += 200) {
+    await prisma.$transaction(changes.slice(i, i + 200).map((c) => prisma.forumPost.update({ where: { id: c.id }, data: { releaseRank: c.rank } })))
+  }
+  return rows.length
 }
 
 main()

@@ -39,3 +39,8 @@ Dockerfile
 
 # 本地开发时上传的图片（线上在 forum_uploads 卷里，镜像里只需要空目录，Dockerfile 自己 mkdir）
 public/uploads
+
+# 种子内容的示例图（内容扩容 10-07，docs/内容平台/扩容基础设施-1007.md §5）：会涨到几百 MB，运行时代码从不读它——
+# 只有导入脚本 prisma/import-seed-content.ts 读，而导入是在临时容器里跑、挂的是宿主机仓库的 $PWD/prisma（不是镜像里的 prisma/）。
+# 不排除的话每次构建要把它们传进 builder、再随 COPY prisma 进运行镜像，每个保留的回滚镜像各占一份。
+prisma/seed-assets

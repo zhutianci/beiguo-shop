@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const pageSize = Math.min(parseInt(searchParams.get('pageSize') || '30'), 100)
     const keyword = searchParams.get('keyword')?.trim()
     const status = searchParams.get('status') // '0' | '1' | 'deleted' | null(全部未删除)
-    const review = searchParams.get('review') // PENDING | APPROVED | REJECTED | null(全部)
+    const review = searchParams.get('review') // PENDING | APPROVED | REJECTED | SCHEDULED | null(全部)
     const type = searchParams.get('type') // DISCUSSION | PROMPT | GUIDE | null(全部)
 
     const where: any = { deletedAt: null }
@@ -31,7 +32,12 @@ export async function GET(request: NextRequest) {
       prisma.forumPost.findMany({
         where,
         // 待审队列按提交先后处理（先来先审）；其余按置顶 + 新到旧
-        orderBy: review === 'PENDING' ? [{ createdAt: 'asc' }] : [{ pinned: 'desc' }, { createdAt: 'desc' }],
+        // 定时发布队列按放出顺序（release_rank）排：第一页就是接下来几天要公开的
+        orderBy: (review === 'PENDING'
+          ? [{ createdAt: 'asc' }]
+          : review === 'SCHEDULED'
+            ? [{ releaseRank: 'asc' }, { id: 'asc' }]
+            : [{ pinned: 'desc' }, { createdAt: 'desc' }]) as Prisma.ForumPostOrderByWithRelationInput[],
         skip: (page - 1) * pageSize,
         take: pageSize,
         include: {
@@ -74,6 +80,7 @@ export async function GET(request: NextRequest) {
       likeCount: p.likeCount,
       commentCount: p.commentCount,
       createdAt: p.createdAt,
+      releaseRank: p.releaseRank,
     }))
 
     return success({

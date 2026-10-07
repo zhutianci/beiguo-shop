@@ -114,6 +114,8 @@ services:
       - INDEXNOW_KEY
       # 内容平台收录总开关（src/lib/content/policy.ts）：=1 才打开；不设 = 关（内容页全 noindex、内容 sitemap 为空、IndexNow 不推）
       - CONTENT_INDEXING_OPEN
+      # 内容定时放量每天放几条（src/lib/content/release.ts）：不设 = 40；0 = 暂停。改完只重启 app
+      - CONTENT_RELEASE_PER_DAY
       # 薄新闻页（没有全文层的）是否加 noindex。默认开启，设成 0 才关闭。
       # 详见 src/lib/news/thin.ts：97% 的站点 URL 是每小时批量产出的
       # 147 字 AI 摘要页，这组特征正对着 Google 的 scaled content abuse，

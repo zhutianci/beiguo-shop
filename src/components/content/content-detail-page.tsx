@@ -99,7 +99,8 @@ function titleFor(post: ContentRow): string {
     const model = modelOf(post)
     return `${post.title}：${model ? `${model.name} ` : 'AI '}提示词（可复制）- ${SITE_NAME}`
   }
-  if (post.type === 'APP' && post.app) return `${post.app.name} 怎么样：${post.title} - ${SITE_NAME}`
+  // 标题里已经有应用名（站方整理的「X 是什么、怎么用」）就不再前缀「X 怎么样：」，免得重复
+  if (post.type === 'APP' && post.app) return `${post.title.includes(post.app.name) ? post.title : `${post.app.name} 怎么样：${post.title}`} - ${SITE_NAME}`
   // 亲测写「实测」；站方据官方文档整理的只写「更新」，不冒充实测
   if (post.testedOn) return `${post.title}（${post.testedOn.toISOString().slice(0, 7)} 实测）- ${SITE_NAME}`
   if (post.checkedOn) return `${post.title}（${post.checkedOn.toISOString().slice(0, 7)} 更新）- ${SITE_NAME}`
@@ -162,6 +163,14 @@ function ReviewNotice({ post }: { post: ContentRow }) {
       <div className="mb-8 flex items-start gap-3 rounded-2xl border border-amber-300/25 bg-amber-300/[0.07] px-5 py-4 text-sm text-amber-100">
         <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
         <span>审核中：目前只有你自己能看到，审核通过后公开（工作日 24 小时内处理）。</span>
+      </div>
+    )
+  }
+  if (post.reviewStatus === 'SCHEDULED') {
+    return (
+      <div className="mb-8 flex items-start gap-3 rounded-2xl border border-sky-300/25 bg-sky-300/[0.07] px-5 py-4 text-sm text-sky-100">
+        <Clock3 className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>定时发布队列中：目前只有作者和管理员能看到，按队列顺序自动公开（管理员可在后台提前放出）。</span>
       </div>
     )
   }

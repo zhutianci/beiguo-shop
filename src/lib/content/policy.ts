@@ -9,8 +9,15 @@
 
 // ─────────────────────────────── 枚举 ───────────────────────────────
 
-export const REVIEW_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const
+/**
+ * SCHEDULED（内容扩容 10-07）：定时放量队列。站方批量导入的内容先排队、每天由 /api/cron/content-release 放出一批
+ * （一次放出上千个新页面有被判成规模化内容滥用的风险，见 docs/内容平台/扩容基础设施-1007.md）。
+ * 对外与 PENDING 完全一样：不公开、不进列表 / 计数 / sitemap / IndexNow——全站的「公开」口径都是 reviewStatus === 'APPROVED'
+ * （isPublic、queries.PUBLIC_WHERE），所以新状态天然是不公开的，不需要在各处单独排除。
+ */
+export const REVIEW_STATUSES = ['PENDING', 'APPROVED', 'REJECTED', 'SCHEDULED'] as const
 export type ReviewStatus = (typeof REVIEW_STATUSES)[number]
+export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = { PENDING: '待审', APPROVED: '已通过', REJECTED: '已驳回', SCHEDULED: '定时发布' }
 
 /** 原创声明（设计 §6.1）。只有 ORIGINAL_FIRST 能进精选、拿激励、被收录 */
 export const ORIGINALITY = ['ORIGINAL_FIRST', 'ORIGINAL_ELSEWHERE', 'REPOST'] as const
@@ -144,6 +151,8 @@ export function postReviewOnCreate(level: TrustLevel, flags: readonly ContentFla
  */
 export function postReviewOnEdit(level: TrustLevel, flags: readonly ContentFlag[], current: string): ReviewStatus {
   if (level === 9) return current === 'REJECTED' ? 'PENDING' : (current as ReviewStatus)
+  // 定时放量队列里的条目：改完仍在队列里（不能因为改了一下就提前公开）；命中风险的转人工
+  if (current === 'SCHEDULED') return level === 2 && !flags.includes('contact') && !flags.includes('sensitive') ? 'SCHEDULED' : 'PENDING'
   if (level === 2) {
     if (flags.includes('contact') || flags.includes('sensitive')) return 'PENDING'
     return current === 'REJECTED' ? 'PENDING' : 'APPROVED'
@@ -311,6 +320,26 @@ export function isHubIndexable(kind: string, introLength: number, indexableItems
   if (!open) return false
   if (kind !== 'ROOT' && introLength < MIN_HUB_INTRO_CHARS) return false
   return indexableItems >= (MIN_HUB_ITEMS[kind] ?? 8)
+}
+
+// ─────────────────────────────── 定时放量（内容扩容 10-07，lib/content/release.ts） ───────────────────────────────
+
+export const DEFAULT_RELEASE_PER_DAY = 40
+
+/** CONTENT_RELEASE_PER_DAY：空 / 非法 → 默认 40；0 = 暂停；上限 500 */
+export function releasePerDay(raw: string | undefined = process.env.CONTENT_RELEASE_PER_DAY): number {
+  const s = (raw ?? '').trim()
+  if (!s) return DEFAULT_RELEASE_PER_DAY
+  const n = Number(s)
+  if (!Number.isInteger(n) || n < 0) return DEFAULT_RELEASE_PER_DAY
+  return Math.min(n, 500)
+}
+
+/** 上海时间（UTC+8，无夏令时）当天 0 点对应的 UTC 时刻：每天放量的上限按这个自然日数 */
+export function shanghaiDayStart(now: Date = new Date()): Date {
+  const OFFSET = 8 * 3_600_000
+  const local = now.getTime() + OFFSET
+  return new Date(local - (local % 86_400_000) - OFFSET)
 }
 
 // ─────────────────────────────── 内容类型与地址（§4） ───────────────────────────────

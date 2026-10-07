@@ -16,7 +16,7 @@ import { notFound } from 'next/navigation'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { renderMarkdown } from '@/lib/markdown'
-import { isHubIndexable, readableLength } from '@/lib/content/policy'
+import { MIN_HUB_ITEMS, isHubIndexable, readableLength } from '@/lib/content/policy'
 import { PUBLIC_WHERE, countIndexableCached, listContent, listHot } from '@/lib/content/queries'
 import { FACET_LABELS, FACET_PATH, FACETS, ensureContentDefaults, type Facet } from '@/lib/content/tags'
 import { SITE_NAME } from '@/lib/product-seo'
@@ -171,7 +171,8 @@ const stats = cache(async (r: Resolved) => {
     prisma.forumPost.count({ where }),
     prisma.forumPost.findFirst({ where, orderBy: { createdAt: 'desc' }, select: { createdAt: true } }),
     // 可收录条数要把正文逐条取出来算，是这一页最重的查询；只决定 robots，跨请求缓存 5 分钟（countIndexableCached 注释）
-    countIndexableCached(tagWhere(r)),
+    // 只要知道够不够门槛：数到门槛条数就停（countIndexable 的 atLeast）
+    countIndexableCached(tagWhere(r), MIN_HUB_ITEMS[r.kind === 'FACET' ? 'ROOT' : r.kind] ?? 8),
   ])
   return { total, latest: latest?.createdAt ?? null, indexable }
 })
@@ -229,6 +230,19 @@ const EYEBROW: Record<HubKind, Record<Section, string>> = {
   PRODUCT: { PROMPT: 'Product · 产品专题', GUIDE: 'Product · 产品专题', APP: '' },
 }
 
+/** 筛选条只列「至少有一条公开内容」的标签，并带条数（免得把人领进空页） */
+function navTagsOf(section: 'PROMPT' | 'GUIDE') {
+  return prisma.tag.findMany({
+    where: {
+      status: 1,
+      kind: section === 'PROMPT' ? { in: ['MODEL', 'TOPIC'] } : 'PRODUCT',
+      posts: { some: { post: { ...PUBLIC_WHERE, type: section } } },
+    },
+    orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
+    select: { slug: true, name: true, kind: true, facet: true, _count: { select: { posts: { where: { post: { ...PUBLIC_WHERE, type: section } } } } } },
+  })
+}
+
 export async function ContentListPage({ section, kind, slug, page, sort = 'curated' }: { section: Section; kind: HubKind; slug?: string; page: number; sort?: ListSort }) {
   const r = await resolve(section, kind, slug)
   if (!r) notFound()
@@ -256,15 +270,10 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
     page === 1 && r.kind !== 'SHOWCASE' ? activeSponsors(section === 'PROMPT' ? 'PROMPTS' : section === 'APP' ? 'APPS' : 'GUIDES') : Promise.resolve([]),
     // 下面两项与列表互不依赖，并进同一批（性能优化 2026-10-07：原来在列表之后再串行查两轮）
     // 筛选条只列「至少有一条公开内容」的标签，并带条数（免得把人领进空页）
-    prisma.tag.findMany({
-      where: {
-        status: 1,
-        kind: section === 'PROMPT' ? { in: ['MODEL', 'TOPIC'] } : section === 'APP' ? 'TOPIC' : 'PRODUCT',
-        posts: { some: { post: { ...PUBLIC_WHERE, type: section } } },
-      },
-      orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
-      select: { slug: true, name: true, kind: true, facet: true, _count: { select: { posts: { where: { post: { ...PUBLIC_WHERE, type: section } } } } } },
-    }),
+    // AI 应用的筛选条只有「应用分享 / 作者自荐」两项，不用标签：不查（内容扩容 10-07：省掉 /apps 每次一趟按标签计数）
+    section === 'APP'
+      ? Promise.resolve([] as Awaited<ReturnType<typeof navTagsOf>>)
+      : navTagsOf(section),
     // 三大类各有多少条（类型那一行的条数）
     section === 'PROMPT'
       ? Promise.all(
@@ -280,7 +289,13 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
   const hrefOf = (t: { slug: string; kind: string }) =>
     t.kind === 'MODEL' ? `/prompts/m/${t.slug}` : t.kind === 'TOPIC' ? `/prompts/t/${t.slug}` : `/guides/p/${t.slug}`
   const root = ROOT[section]
-  const chip = (t: (typeof navTags)[number]) => ({ name: t.name, href: hrefOf(t), count: t._count.posts })
+  // 总览页（不限大类）的主题有五十个：展开面板里按图像 / 视频 / 文本分组（FilterBar 超过 14 个自动收起）
+  const chip = (t: (typeof navTags)[number]) => ({
+    name: t.name,
+    href: hrefOf(t),
+    count: t._count.posts,
+    ...(!scope && t.kind === 'TOPIC' && t.facet ? { section: FACET_LABELS[t.facet as Facet] } : {}),
+  })
   const inScope = (t: (typeof navTags)[number]) => !scope || t.facet === scope
   const groups =
     section === 'PROMPT'

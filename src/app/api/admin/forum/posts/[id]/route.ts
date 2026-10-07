@@ -62,6 +62,14 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       data.reviewStatus = d.reviewStatus
       data.reviewNote = d.reviewStatus === 'APPROVED' ? null : d.reviewNote?.trim() || null
       data.reviewedAt = new Date()
+      // 定时放量队列里的条目被手动通过 = 提前放出：与 cron 放量同一套时间口径（lib/content/release.ts），
+      // 发布时间记成现在、计入今天的放量条数
+      if (post.reviewStatus === 'SCHEDULED' && d.reviewStatus === 'APPROVED') {
+        data.createdAt = data.reviewedAt
+        data.releasedAt = data.reviewedAt
+        data.lastReplyAt = data.reviewedAt
+        data.contentUpdatedAt = null
+      }
     }
     if (d.featured !== undefined) {
       // 精选只给已过审的：否则「加精」会让一篇待审帖以精华身份出现在作者等级计算里

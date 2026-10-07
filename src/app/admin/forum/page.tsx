@@ -12,6 +12,7 @@ import { CONTENT_TYPE_LABELS, ORIGINALITY_LABELS, type ContentType, type Origina
 import { ContentTagsCard } from '@/components/admin/content-tags-card'
 import { ContentReportsCard } from '@/components/admin/content-reports-card'
 import { ContentDigestButton } from '@/components/admin/content-digest-button'
+import { ContentReleaseCard } from '@/components/admin/content-release-card'
 import { ContentConversionCard, CreatorApplicationsCard, MonthlyAwardsCard, PointsShopCard, SponsorsCard } from '@/components/admin/content-growth-cards'
 
 interface Category {
@@ -52,6 +53,7 @@ interface AdminPost {
   likeCount: number
   commentCount: number
   createdAt: string
+  releaseRank?: number | null
 }
 interface AdminComment {
   id: number
@@ -69,6 +71,7 @@ const REVIEW_BADGE: Record<string, { text: string; cls: string }> = {
   PENDING: { text: '待审', cls: 'bg-amber-100 text-amber-700' },
   APPROVED: { text: '已通过', cls: 'bg-green-100 text-green-700' },
   REJECTED: { text: '已驳回', cls: 'bg-red-100 text-red-700' },
+  SCHEDULED: { text: '定时发布', cls: 'bg-sky-100 text-sky-700' },
 }
 
 
@@ -164,7 +167,7 @@ export default function AdminForumPage() {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search)
     const review = q.get('review')
-    if (review === 'PENDING' || review === 'APPROVED' || review === 'REJECTED') setReviewFilter(review)
+    if (review === 'PENDING' || review === 'APPROVED' || review === 'REJECTED' || review === 'SCHEDULED') setReviewFilter(review)
     if (q.get('tab') === 'comments') setShowComments(true)
   }, [])
 
@@ -304,6 +307,14 @@ export default function AdminForumPage() {
 
       <ContentDigestButton />
 
+      <ContentReleaseCard
+        onShowQueue={() => {
+          setReviewFilter('SCHEDULED')
+          setPage(1)
+        }}
+        onReleased={() => loadPosts()}
+      />
+
       <ContentReportsCard />
 
       <ContentTagsCard />
@@ -428,6 +439,7 @@ export default function AdminForumPage() {
               <option value="PENDING">待审（先到先审）</option>
               <option value="APPROVED">已通过</option>
               <option value="REJECTED">已驳回</option>
+              <option value="SCHEDULED">定时发布队列（按放出顺序）</option>
             </select>
             <Button variant="outline" onClick={loadPosts}>
               <Search className="w-4 h-4 mr-1" /> 刷新
@@ -467,6 +479,7 @@ export default function AdminForumPage() {
                           {p.qualityReason && <span className="text-gray-400" title="总开关打开后也不会被收录的原因">不收录：{p.qualityReason}</span>}
                           <span className={`rounded px-1.5 ${REVIEW_BADGE[p.reviewStatus]?.cls ?? 'bg-gray-100 text-gray-500'}`}>
                             {REVIEW_BADGE[p.reviewStatus]?.text ?? p.reviewStatus}
+                            {p.reviewStatus === 'SCHEDULED' && p.releaseRank != null && ` · 序号 ${p.releaseRank}`}
                           </span>
                           <span className="rounded px-1.5 bg-gray-100 text-gray-600">
                             {ORIGINALITY_LABELS[p.originality as Originality] ?? p.originality}
