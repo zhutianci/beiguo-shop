@@ -24,12 +24,6 @@ source:
   license: CC BY 4.0
   licenseUrl: https://creativecommons.org/licenses/by/4.0/
   changes: "英文原文译为中文；品牌、墨镜款式和两句台词改为变量"
-images:
-  - 3615-veo-sunglasses-street-try-on-selfie-1.jpg
-imageCredit:
-  by: "LichAmnesia/awesome-ad-video-prompts"
-  url: https://github.com/LichAmnesia/awesome-ad-video-prompts/blob/main/images/try-on-eyewear-street-spin.png
-  license: CC BY 4.0
 verify:
   - Veo 3.1 实测 3 次：180 度转身时脸部与镜框是否稳定
   - 中文台词的口型与发音是否自然

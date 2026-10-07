@@ -23,12 +23,6 @@ source:
   license: CC BY 4.0
   licenseUrl: https://creativecommons.org/licenses/by/4.0/
   changes: "英文原文译为中文；产品外观、液体颜色改为变量；负面提示词写成名词短语"
-images:
-  - 3610-veo-pov-skincare-dropper-morning-1.jpg
-imageCredit:
-  by: "LichAmnesia/awesome-ad-video-prompts"
-  url: https://github.com/LichAmnesia/awesome-ad-video-prompts/blob/main/images/pov-morning-skincare-drop.png
-  license: CC BY 4.0
 verify:
   - Veo 3.1 实测 3 次，记录第一视角下双手的数量和形态是否正确
   - 示例图是仓库提供的 AI 关键帧图（虚构人物，已转 JPG 压缩）

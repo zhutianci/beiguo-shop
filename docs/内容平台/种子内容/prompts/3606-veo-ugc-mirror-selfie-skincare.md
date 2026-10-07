@@ -23,12 +23,6 @@ source:
   license: CC BY 4.0
   licenseUrl: https://creativecommons.org/licenses/by/4.0/
   changes: "英文原文译为中文；产品与台词改为变量；台词改为中性的主观感受，不涉及功效"
-images:
-  - 3606-veo-ugc-mirror-selfie-skincare-1.jpg
-imageCredit:
-  by: "LichAmnesia/awesome-ad-video-prompts"
-  url: https://github.com/LichAmnesia/awesome-ad-video-prompts/blob/main/images/bathroom-mirror-skincare-truth.png
-  license: CC BY 4.0
 verify:
   - 在 Veo 3.1 实测 3 次，记录中文台词的口型与发音是否自然（必要时改用英文台词）
   - 镜中倒影与手机的对应关系是否穿帮
