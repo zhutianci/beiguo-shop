@@ -9,7 +9,7 @@ trialNote: 免费账号每天补充 100 积分（有累计上限，用完总额�
 products: [ai-tools]
 models: []
 topics: [ai-agent, ppt, research-data]
-excerpt: Genspark 是美国 AI 初创公司推出的「一体化 AI 工作台」：最早是生成 Sparkpage 的 AI 搜索引擎，现在用超级智能体（Super Agent）一句话做研究、生成幻灯片、表格、文档、网页和视频。本文讲清各档积分与注意事项。
+excerpt: Genspark 是一款「一体化 AI 工作台」：最早是生成 Sparkpage 的 AI 搜索引擎，现在用超级智能体（Super Agent）一句话做研究、生成幻灯片、表格、文档、网页和视频。本文讲清各档积分与注意事项。
 checkedOn: 2026-10-07
 sources:
   - https://www.genspark.ai/
@@ -24,7 +24,7 @@ sources:
 
 ## 是什么
 
-Genspark 由 genspark inc 开发，创始团队来自百度，总部在美国帕洛阿尔托。2024 年它以 AI 搜索引擎身份亮相：每次提问不是返回链接，而是生成一页叫「Sparkpage」的综合页面。
+Genspark 由 genspark inc 开发。2024 年它以 AI 搜索引擎身份亮相：每次提问不是返回链接，而是生成一页叫「Sparkpage」的综合页面。
 
 此后产品快速转向智能体：2025 年推出「超级智能体」（Super Agent），2026 年 7 月发布「AI Workspace 6.0」，加入跨邮件、会议、文档的长期记忆层 SecondBrain、AI 邮箱 GenMail、人与智能体同在的团队聊天 GenTeam 等。官网现在的定位是「一体化 AI 工作台」，搜索只是其中一项能力。
 

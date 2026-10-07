@@ -9,7 +9,7 @@ trialNote: 免费账号可用普通搜索，每天 5 次 Pro Search；更强模�
 products: [ai-tools]
 models: []
 topics: [research-data, learning, office]
-excerpt: Perplexity 是美国公司做的 AI 搜索引擎：用一句话提问，它联网查资料、整理成带编号引用的答案，还能做深度研究、生成文件和报告。本文讲清免费版能做什么、Pro 和 Max 的区别与注意事项。
+excerpt: Perplexity 是一款 AI 搜索引擎：用一句话提问，它联网查资料、整理成带编号引用的答案，还能做深度研究、生成文件和报告。本文讲清免费版能做什么、Pro 和 Max 的区别与注意事项。
 checkedOn: 2026-10-07
 sources:
   - https://www.perplexity.ai/
@@ -24,7 +24,7 @@ sources:
 
 ## 是什么
 
-Perplexity 由美国 Perplexity AI, Inc. 开发，2022 年底上线，是最早把「搜索引擎 + 大模型」做成主流产品的公司之一。它的核心体验是：你像聊天一样提问，它先联网检索，再把多个网页的信息整理成一段回答，每句话后面标上来源编号，点开就能看到原网页。
+Perplexity 由 Perplexity AI, Inc. 开发，是把「搜索引擎 + 大模型」做成主流产品的代表之一。它的核心体验是：你像聊天一样提问，它先联网检索，再把多个网页的信息整理成一段回答，每句话后面标上来源编号，点开就能看到原网页。
 
 它本身不绑定某一家模型：付费用户可以在 OpenAI、Anthropic、Google 等公司的多款前沿模型之间切换，官方帮助中心列出的 Pro 可用模型会随新模型发布更新。2026 年它还推出了能自己拆解任务、连续工作的「Computer」智能体，以及独立的 AI 浏览器 Comet（本站另有条目）。
 
@@ -48,10 +48,10 @@ Perplexity 由美国 Perplexity AI, Inc. 开发，2022 年底上线，是最早�
 
 ## 免费与付费
 
-| 方案 | 价格（官网帮助中心 / App Store，2026-10 查询） | 主要差别 |
+| 方案 | 价格（官网帮助中心，2026-10 查询） | 主要差别 |
 | --- | --- | --- |
 | 免费 | 0 | 普通搜索，每天 5 次 Pro Search，文件上传有限 |
-| Pro | 20 美元 / 月 | 大量 Pro Search、多款高级模型可选、引用更多、可用 Create 生成文件和应用，每周含一定 Computer 用量 |
+| Pro | 付费（以官网为准） | 大量 Pro Search、多款高级模型可选、引用更多、可用 Create 生成文件和应用，每周含一定 Computer 用量 |
 | Max | 200 美元 / 月或 2000 美元 / 年 | 最新前沿模型优先使用、Computer 每月 10,000 积分、Research 用量更高、优先支持 |
 | Enterprise Pro / Max | 按席位 | 团队管理、数据不用于训练等企业条款 |
 

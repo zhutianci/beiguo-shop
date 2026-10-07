@@ -23,7 +23,7 @@ sources:
 
 ## 是什么
 
-硅基流动（SiliconFlow）是一家总部在北京的 AI 基础设施公司，主营大模型推理云服务。它的核心产品 **SiliconCloud** 是一个大模型 API 平台：把 DeepSeek、GLM、千问、Kimi、MiniMax 等主流开源和国产模型部署好，开发者注册后用一个 API Key 就能调用，不用自己买 GPU、搭推理服务。
+硅基流动（SiliconFlow）是一家 AI 基础设施公司，主营大模型推理云服务。它的核心产品 **SiliconCloud** 是一个大模型 API 平台：把 DeepSeek、GLM、千问、Kimi、MiniMax 等主流开源和国产模型部署好，开发者注册后用一个 API Key 就能调用，不用自己买 GPU、搭推理服务。
 
 平台接口与 OpenAI 格式兼容，接口地址为 `https://api.siliconflow.cn/v1`，很多国内的 AI 客户端、编程工具都内置了硅基流动作为模型来源。除了公有云 API，它也提供预留实例、推理加速和私有化部署等企业服务。
 

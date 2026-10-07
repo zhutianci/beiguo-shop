@@ -9,7 +9,7 @@ trialNote: 免费版含少量 Agent 额度、部分模型、不限次数的 Tab 
 products: [ai-tools]
 models: []
 topics: [coding, ai-agent]
-excerpt: "Windsurf 被 Cognition 收购后，于 2026 年 6 月 2 日更名为 Devin Desktop：一个兼容 VS Code 的完整 IDE，加上统一管理本地和云端多个编程智能体的“指挥中心”，原 Windsurf 设置和计划自动沿用。"
+excerpt: "Windsurf 归入 Cognition 旗下后，于 2026 年 6 月 2 日更名为 Devin Desktop：一个兼容 VS Code 的完整 IDE，加上统一管理本地和云端多个编程智能体的“指挥中心”，原 Windsurf 设置和计划自动沿用。"
 checkedOn: 2026-10-07
 sources:
   - https://devin.ai/blog/windsurf-is-now-devin-desktop
@@ -22,7 +22,7 @@ sources:
 
 ## 是什么
 
-如果你在找 Windsurf：它已经改名了。Windsurf 原本是 Codeium 公司推出的 AI 代码编辑器，2025 年被开发 AI 软件工程师 Devin 的 Cognition 公司收购。2026 年 6 月 2 日，Cognition 通过一次自动更新把 Windsurf 正式更名为 **Devin Desktop**，现在访问 windsurf.com 会跳转到 devin.ai/desktop。
+如果你在找 Windsurf：它已经改名了。Windsurf 原本是 Codeium 团队推出的 AI 代码编辑器（官方文档里的配置路径仍沿用 codeium 命名），后来归入开发 AI 软件工程师 Devin 的 Cognition 公司旗下。2026 年 6 月 2 日，Cognition 通过一次自动更新把 Windsurf 正式更名为 **Devin Desktop**，现在访问 windsurf.com 会跳转到 devin.ai/desktop。
 
 官方 FAQ 说明，Devin Desktop 还是原来那个编辑器，功能不变：扩展、快捷键、LSP 和工作流都与 Windsurf 和 VS Code 向后兼容，原有设置、规则会自动迁移，个人计划和价格不变。变化在于默认界面换成了“Agent 指挥中心（Agent Command Center）”——用看板视图统一管理本地和云端的多个智能体。原 Windsurf 的本地智能体 Cascade 被新的 **Devin Local** 取代（官方称 token 效率最多提升约 30%，并支持子智能体和沙箱），旧版 Cascade 只保留到 2026 年 7 月。
 
@@ -53,7 +53,7 @@ sources:
 
 ## 免费与付费
 
-官网定价页（2026-10 查询）：
+官网定价页（月付价格，2026-10 查询）：
 
 | 档位 | 价格 | 主要区别 |
 | --- | --- | --- |

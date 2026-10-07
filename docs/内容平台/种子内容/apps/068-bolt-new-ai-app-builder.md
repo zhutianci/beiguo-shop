@@ -24,7 +24,7 @@ sources:
 
 Bolt.new（官网也常简称 Bolt）是 StackBlitz 公司推出的 AI 网站与应用生成器。StackBlitz 以“在浏览器里运行完整 Node.js 环境”的 WebContainers 技术出名，Bolt 正是建立在这项技术上：你不用安装任何东西，打开网页、用对话描述需求，Bolt 就在浏览器里写代码、装依赖、运行并实时预览。
 
-Bolt 现在主打“编程智能体 + 一体化后端”：提供 Standard（所有用户）和 Max（Pro 用户）两种 Bolt Agent，由 Bolt 在后台按任务自动选择模型（官方博客提到 Claude Sonnet、Opus 等模型在 Bolt 中上线）；配套的 Bolt Cloud 提供托管、数据库、用户认证、SEO 和自定义域名。2026 年 9 月 14 日至 10 月 14 日，还有一个基于开源模型（GLM、Kimi、DeepSeek 等）的 Bolt Forge 智能体作为研究预览开放。
+Bolt 现在主打“编程智能体 + 一体化后端”：提供 Standard（所有用户）和 Max（Pro 用户）两种 Bolt Agent，由 Bolt 在后台按任务自动选择模型（官方博客提到 Claude Sonnet、Opus 等模型在 Bolt 中上线）；配套的 Bolt Cloud 提供托管、数据库、用户认证、SEO 和自定义域名。
 
 **和同类的区别**：Bolt 的特色是“浏览器内真实运行环境 + 自带后端”，并且能从 Figma 设计稿、GitHub 仓库或幻灯片模板起步；v0 更偏前端和 Vercel 部署，Lovable 偏向零代码完整产品与团队协作，Replit 则是更完整的云端 IDE。
 
@@ -80,5 +80,4 @@ Bolt 现在主打“编程智能体 + 一体化后端”：提供 Standard（所
 
 - **token 消耗**：官方 FAQ 说明，大部分 token 用于把项目文件同步给 AI，项目越大每条消息越贵；可以先用 Plan 模式想清楚再动手。
 - **顺延规则**：付费 token 只顺延一个月，且需要保持订阅才能使用顺延的 token。
-- **研究预览**：Bolt Forge 是限时研究预览，结束后是否保留以官方公告为准。
 - **上线前把关**：AI 生成的登录、支付、数据库权限等代码要仔细检查，避免数据泄露；同时阅读官网的服务条款与可接受使用政策。

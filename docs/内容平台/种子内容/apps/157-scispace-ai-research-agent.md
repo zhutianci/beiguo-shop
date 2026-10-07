@@ -9,7 +9,7 @@ trialNote: Basic 免费版每月 100 积分可用于 SciSpace Agent；智能体�
 products: [ai-tools]
 models: []
 topics: [literature, paper-writing, research-figure]
-excerpt: SciSpace（原 Typeset）是面向科研的 AI 平台：和 PDF 论文对话、做文献综述、抽取数据、生成图表和初稿，还有能串联 150 多种学术工具的 SciSpace Agent。本文整理功能、积分制收费和使用注意。
+excerpt: SciSpace 是面向科研的 AI 平台：和 PDF 论文对话、做文献综述、抽取数据、生成图表和初稿，还有能串联 150 多种学术工具的 SciSpace Agent。本文整理功能、积分制收费和使用注意。
 checkedOn: 2026-10-07
 sources:
   - https://scispace.com/
@@ -22,7 +22,7 @@ sources:
 
 ## 是什么
 
-SciSpace 是美国 PubGenius 公司的科研 AI 平台，早年叫 Typeset，以论文排版和「论文阅读 Copilot」起家，现在定位为「从查找、分析到写作」的一站式文献工具，官网称有 960 多万研究者使用。
+SciSpace 是 PubGenius 公司（官网页脚署名）的科研 AI 平台，现在定位为「从查找、分析到写作」的一站式文献工具，官网称有 960 多万研究者使用。
 
 2026 年它的核心是 **SciSpace Agent**：一个科研智能体，官方介绍它把 150 多种学术工具串在一起，你用一句话描述任务（找论文、总结、写初稿、画图），它自己拆解步骤去做。此外还有面向生物医药的 Biomedical Agent。
 

@@ -56,8 +56,8 @@ JetBrains AI 以 **AI Credits** 计量，官方说明 1 个 Credit 约等于 1 �
 | 档位 | 价格 | 每 30 天额度 |
 |---|---|---|
 | AI Free | 免费 | 3 Credits（不可加购） |
-| AI Pro | 10 美元/月起 | 10 Credits 起 |
-| AI Ultimate | 30 美元/月起 | 35 Credits 起 |
+| AI Pro | 付费（以官网为准） | 10 Credits 起 |
+| AI Ultimate | 付费（以官网为准） | 35 Credits 起 |
 | AI Enterprise | 面向组织，价格以官网为准 | 不低于 AI Ultimate |
 
 不同订阅类型（个人 / 组织、月付 / 年付）价格不同，以官网为准。**AI Pro 已包含在 All Products Pack 和 dotUltimate 订阅中**，不另收费。付费档可加购 Credits，有效期 12 个月。Junie 官网还推出了始终免费的「Junie Lite」。

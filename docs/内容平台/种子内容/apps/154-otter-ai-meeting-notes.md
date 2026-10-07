@@ -9,7 +9,7 @@ trialNote: 免费 Basic 每月 300 分钟转写、单次最长 30 分钟，可�
 products: [ai-tools]
 models: []
 topics: [office, language-learning]
-excerpt: Otter.ai 是美国的 AI 会议记录工具：自动加入 Zoom、Teams、Google Meet 会议做实时转写和纪要，支持英、西、法、德、日和简体中文。本文整理免费版额度、各档差异和隐私注意事项。
+excerpt: Otter.ai 是一款 AI 会议记录工具：自动加入 Zoom、Teams、Google Meet 会议做实时转写和纪要，支持英、西、法、德、日和简体中文。本文整理免费版额度、各档差异和隐私注意事项。
 checkedOn: 2026-10-07
 sources:
   - https://otter.ai/
@@ -22,7 +22,7 @@ sources:
 
 ## 是什么
 
-Otter.ai 是美国 Otter.ai 公司（前身叫 AISense）的 AI 会议记录产品，现在官网把它定位为「AI 会议智能体（Otter Meeting Agent）」。它最早以英文语音实时转写出名，如今能自动加入线上会议、边开边记、会后生成摘要和待办，还能跨多场会议提问检索。
+Otter.ai 是一款 AI 会议记录产品，现在官网把它定位为「AI 会议智能体（Otter Meeting Agent）」。它最早以英文语音实时转写出名，如今能自动加入线上会议、边开边记、会后生成摘要和待办，还能跨多场会议提问检索。
 
 转写语言方面，定价页写明支持**英语、西班牙语、法语、德语、日语和简体中文**；日语实时转写是 2025 年 11 月新增的。整体上它的强项仍是英文会议。
 

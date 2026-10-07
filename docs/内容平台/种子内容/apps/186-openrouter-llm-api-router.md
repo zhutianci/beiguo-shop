@@ -9,7 +9,7 @@ trialNote: 免费模型未充值时每天可调用 50 次，累计充值满 10 �
 products: [ai-tools]
 models: []
 topics: [coding]
-excerpt: "OpenRouter 是美国公司运营的大模型 API 聚合平台，用一个 OpenAI 兼容接口和一份余额调用 GPT、Claude、Gemini、DeepSeek 等数百个模型。"
+excerpt: "OpenRouter 是一个大模型 API 聚合平台，用一个 OpenAI 兼容接口和一份余额调用 GPT、Claude、Gemini、DeepSeek 等数百个模型。"
 checkedOn: 2026-10-07
 sources:
   - https://openrouter.ai/
@@ -22,7 +22,7 @@ sources:
 
 ## 是什么
 
-OpenRouter 是一个**大模型 API 聚合平台**，运营方是 OpenRouter, Inc.，服务条款注明公司地址在美国纽约。它把 OpenAI、Anthropic、Google、DeepSeek、Meta、Mistral、阿里千问等众多厂商的模型统一到一个接口后面：你只需要一个 API Key、一份余额，就能切换调用数百个模型，不用分别去各家注册和充值。
+OpenRouter 是一个**大模型 API 聚合平台**，运营方是 OpenRouter, Inc.。它把 OpenAI、Anthropic、Google、DeepSeek、Meta、Mistral、阿里千问等众多厂商的模型统一到一个接口后面：你只需要一个 API Key、一份余额，就能切换调用数百个模型，不用分别去各家注册和充值。
 
 它的接口与 OpenAI 的 Chat Completions 格式兼容，原本用 OpenAI SDK 写的代码，改一下 base URL 和模型名就能接入。很多编程工具、聊天客户端也直接内置了 OpenRouter 选项。
 

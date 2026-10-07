@@ -16,14 +16,13 @@ sources:
   - https://cursor.com/docs/models
   - https://cursor.com/blog/joining-spacex
   - https://cursor.com/docs/account/regions
-  - https://techcrunch.com/2026/08/15/spacex-officially-closes-its-cursor-acquisition/
 ---
 
 > 本文根据 Cursor 官网、定价页、官方文档和官方博客整理，资料核对于 2026-10-07。功能和价格变化快，以官网为准。
 
 ## 是什么
 
-Cursor 是美国公司 Anysphere 开发的 AI 代码编辑器，界面和操作习惯沿用 VS Code，所以 VS Code 用户能直接上手。SpaceX 对 Anysphere 的收购流程始于 2026 年 4 月，8 月正式完成，Cursor 现在是 SpaceX 旗下（与 xAI 合并后的 SpaceXAI 部门）的子公司，官方博客称产品使命不变。
+Cursor 是 Anysphere 公司开发的 AI 代码编辑器，界面和操作习惯沿用 VS Code，所以 VS Code 用户能直接上手。据官方博客（2026-08-14），SpaceX 对 Cursor 的收购流程始于 2026 年 4 月、现已正式完成，双方在 SpaceXAI 的合作下共同训练模型；官方博客称产品使命不变。
 
 现在的 Cursor 早就不只是“带补全的编辑器”，官网的定位是“编程智能体”：同一个 Agent 可以在桌面 IDE、命令行（Cursor CLI）、云端虚拟机（Cloud Agents）和 iOS App 里运行。模型方面，Cursor 自家的 Composer 2.5 和 SpaceXAI 的 Grok 4.7 / 4.6 / 4.5 属于“Cursor Models”额度池，另外也能选 Anthropic Claude、Google Gemini、OpenAI GPT 等第三方模型，按 API 价计入“Other Models”额度池。
 
@@ -54,7 +53,7 @@ Cursor 是美国公司 Anysphere 开发的 AI 代码编辑器，界面和操作�
 
 ## 免费与付费
 
-个人档位（官网定价页，2026-10 查询）：
+个人档位（官网定价页月付价格，2026-10 查询）：
 
 | 档位 | 价格 | 主要区别 |
 | --- | --- | --- |
@@ -63,7 +62,7 @@ Cursor 是美国公司 Anysphere 开发的 AI 代码编辑器，界面和操作�
 | Pro+ | 60 美元/月 | 官方推荐给每天重度用 Agent 的人 |
 | Ultra | 200 美元/月 | 面向 Agent 重度用户 |
 
-团队版 Teams 为 40 美元/人/月，含集中计费、团队隐私模式、SSO 等；Enterprise 价格需联系销售。每个付费档都包含一定的模型用量，用完后可开启按量计费。官方 FAQ 明确说 Cursor 订阅只在 cursor.com 直接销售，不授权任何经销商。
+团队版 Teams 为 40 美元/人/月（月付），含集中计费、团队隐私模式、SSO 等；Enterprise 价格需联系销售。每个付费档都包含一定的模型用量，用完后可开启按量计费。官方 FAQ 明确说 Cursor 订阅只在 cursor.com 直接销售，不授权任何经销商。
 
 ## 适合谁 / 不适合谁
 
@@ -79,7 +78,7 @@ Cursor 是美国公司 Anysphere 开发的 AI 代码编辑器，界面和操作�
 
 ## 注意事项
 
-- **模型供应变化**：据媒体报道，OpenAI 计划于 2026 年 11 月 12 日停止向 Cursor 提供模型，届时 GPT 系列可能从 Cursor 下架；Anthropic 方面表示会继续支持 Claude 在 Cursor 中使用。选择模型前请看客户端里的实际列表。
+- **模型列表会变**：可用的第三方模型随合作关系和版本调整，选择模型前请看客户端里的实际列表和官方模型文档。
 - **地区限制**：官方文档说明，部分模型提供方有地区限制，某些模型在你所在地区可能不可用；具体以 Anthropic、OpenAI、Google 各自的支持地区列表为准。
 - **隐私**：在设置里开启 Privacy Mode（团队可由管理员统一开启）后，官方承诺代码数据不会被 Cursor 或模型提供方用于训练。
 - **AI 改动要审查**：Agent 能执行终端命令，建议在 Git 仓库中使用、改动前先提交，重要代码务必人工审查和跑测试。
