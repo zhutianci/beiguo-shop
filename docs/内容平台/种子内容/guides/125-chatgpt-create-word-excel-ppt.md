@@ -16,7 +16,7 @@ sources:
   - https://help.openai.com/en/articles/6825453-chatgpt-release-notes
 verify:
   - 普通对话（非 Work）里能否直接生成 .docx / .pptx 文件，官方未给出按套餐的明确说明，正文只写 Work 流程和写作块下载
-  - 「下载失败」没有专门的官方排查文章，正文排查步骤来自通用错误排查和文件库文章
+  - 「下载失败」的排查步骤来自通用错误排查文章（Download failed / File Not Found 一节）和文件库文章
   - 「@Documents / @Spreadsheets / @Presentations」「Template Creator」等入口名称以实际界面为准
 ---
 
@@ -101,7 +101,7 @@ verify:
 3. **是不是桌面本地任务**：本地生成的文件在你电脑的项目文件夹里，网页和手机上看不到。
 4. **刷新、换浏览器**：按官方通用错误排查——刷新页面、清缓存或用无痕窗口、停用浏览器扩展、换浏览器或网络，并去 [status.openai.com](https://status.openai.com/) 看是否有故障。
 5. **存储满了**：文件库有存储上限（Free 500MB / Go 4GB / Plus 20GB / Pro 100GB），在 **设置 → 存储** 查看，删掉不用的文件。
-6. **请它重新生成**：在同一对话里说「请重新生成下载链接」或「再导出一次 .docx」。
+6. **请它重新生成**：官方错误排查文章提到，对话里 ChatGPT 生成的文件链接**很快会过期**，出现「Download failed / File Not Found」时，在同一对话里说「请重新生成下载链接」或「再导出一次 .docx」；文件大小也要在 512 MB 以内。
 
 ## 常见问题
 
