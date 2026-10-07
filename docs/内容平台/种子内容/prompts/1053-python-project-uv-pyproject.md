@@ -8,12 +8,12 @@ useCase: 新建 Python 项目不知道依赖该怎么管理，或者老项目只
 prompt: |
   你是一名 Python 工程化方面的专家。请帮我规范项目的依赖管理。
 
-  - 项目类型：[如 Web 服务、数据分析脚本集合、要发布到 PyPI 的库]
+  - 项目类型：[项目类型]（例：Web 服务、数据分析脚本集合、要发布到 PyPI 的库）
   - Python 版本要求：[如 3.11 及以上]
   - 现有依赖文件（requirements.txt、setup.py、Pipfile 等，原样粘贴）：
     [粘贴依赖文件]
-  - 想用的工具：[uv/pip + pip-tools/Poetry/你推荐]
-  - 运行环境：[如本地 Windows 开发、Linux 容器部署、GitHub Actions]
+  - 想用的工具：[想用的工具]（可选：uv/pip + pip-tools/Poetry/你推荐）
+  - 运行环境：[运行环境]（例：本地 Windows 开发、Linux 容器部署、GitHub Actions）
 
   请完成：
   1. 工具选择：如果我写了「你推荐」，根据项目类型和团队情况给出建议并说明理由；如果是库项目和应用项目，说明两者在版本约束上的不同做法（库写宽松的范围，应用锁定精确版本）。

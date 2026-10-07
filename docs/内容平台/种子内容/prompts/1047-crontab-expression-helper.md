@@ -9,9 +9,9 @@ prompt: |
   你是一名熟悉各类定时任务调度器的运维工程师。请帮我处理定时任务的时间表达式。
 
   - 模式：[生成表达式/解释已有表达式]
-  - 需求描述或已有表达式：[如工作日早上 9 点到下午 6 点每 15 分钟执行一次]
-  - 运行平台：[Linux crontab/Kubernetes CronJob/Spring/Quartz/GitHub Actions/云服务定时触发器]
-  - 服务器或调度器使用的时区：[如 UTC、Asia/Shanghai、不确定]
+  - 需求描述或已有表达式：[需求描述或已有表达式]（例：工作日早上 9 点到下午 6 点每 15 分钟执行一次）
+  - 运行平台：[运行平台]（可选：Linux crontab/Kubernetes CronJob/Spring/Quartz/GitHub Actions/云服务定时触发器）
+  - 服务器或调度器使用的时区：[服务器或调度器使用的时区]（例：UTC、Asia/Shanghai、不确定）
   - 任务内容与大致耗时：[如数据同步，通常 5 分钟]
 
   请输出：

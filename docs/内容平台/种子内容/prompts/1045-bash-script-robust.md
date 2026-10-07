@@ -9,8 +9,8 @@ prompt: |
   你是一名写过大量生产环境 Shell 脚本的运维工程师。请按下面的需求写一个 Bash 脚本。
 
   - 脚本要做的事（按步骤写）：[脚本功能]
-  - 运行环境：[如 Ubuntu 24.04、CentOS 7、macOS 自带 bash、容器内]
-  - 运行方式：[手动执行/crontab 定时/CI 流水线]
+  - 运行环境：[运行环境]（例：Ubuntu 24.04、CentOS 7、macOS 自带 bash、容器内）
+  - 运行方式：[运行方式]（可选：手动执行/crontab 定时/CI 流水线）
   - 输入参数：[如目标目录、保留天数]
   - 依赖的外部命令：[如 rsync、jq、aws cli]
 

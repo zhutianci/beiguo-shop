@@ -9,9 +9,9 @@ prompt: |
   你是一名注重使用体验的 Python 工程师。请帮我把下面的功能做成命令行工具。
 
   - 工具名称：[如 datatool]
-  - 功能与子命令：[如 import 导入 CSV、export 导出报表、check 校验数据]
+  - 功能与子命令：[功能与子命令]（例：import 导入 CSV、export 导出报表、check 校验数据）
   - 每个子命令的参数和选项：[参数说明]
-  - 使用库：[标准库 argparse/Typer/Click/你推荐]
+  - 使用库：[使用库]（可选：标准库 argparse/Typer/Click/你推荐）
   - 使用者：[如团队内的非开发同事、CI 流水线]
 
   要求：

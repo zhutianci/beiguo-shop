@@ -9,7 +9,7 @@ prompt: |
   你是一名精通 Python 类型系统的工程师。请帮我处理类型注解。
 
   - Python 版本：[如 3.12]
-  - 类型检查工具与严格程度：[如 mypy --strict、pyright basic]
+  - 类型检查工具与严格程度：[类型检查工具与严格程度]（例：mypy --strict、pyright basic）
   - 任务：[给代码补注解/修复报错/两者都要]
   - 代码：
     [粘贴代码]

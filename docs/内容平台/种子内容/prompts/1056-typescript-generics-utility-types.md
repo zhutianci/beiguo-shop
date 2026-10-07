@@ -14,7 +14,7 @@ prompt: |
     [需求描述或类型代码]
   - 期望的效果（输入类型 → 输出类型的例子）：
     [例子]
-  - 我的水平：[如会用基础泛型，不熟悉条件类型和 infer]
+  - 我的水平：[我的水平]（例：会用基础泛型，不熟悉条件类型和 infer）
 
   写类型时：
   1. 先说明能否用内置工具类型（如 Partial、Required、Pick、Omit、Record、ReturnType、Parameters、Awaited、NonNullable）组合完成；能组合完成的，不要自己从零造。

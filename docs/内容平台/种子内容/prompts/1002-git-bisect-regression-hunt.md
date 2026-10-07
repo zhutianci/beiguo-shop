@@ -14,7 +14,7 @@ prompt: |
   - 确定有问题的版本：[通常是当前分支]
   - 怎么判断好坏：[手动操作步骤或测试命令]
   - 项目的构建 / 依赖安装方式：[如 npm ci、mvn package]
-  - 操作系统与 shell：[如 macOS zsh、Windows Git Bash]
+  - 操作系统与 shell：[操作系统与 shell]（例：macOS zsh、Windows Git Bash）
 
   请给出：
   1. 完整命令序列：从开始、标记好坏、每轮测试，到结束后回到原分支。说明每条命令的作用。

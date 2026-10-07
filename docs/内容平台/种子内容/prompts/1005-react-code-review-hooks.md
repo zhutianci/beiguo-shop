@@ -10,7 +10,7 @@ prompt: |
 
   背景：
   - React 版本与框架：[如 React 19 + Next.js]
-  - 状态管理方式：[如 useState、Redux、Zustand]
+  - 状态管理方式：[状态管理方式]（例：useState、Redux、Zustand）
   - 用户反馈的问题：[如输入框打字卡顿，没有就写无]
   - 组件代码（包括它用到的自定义 hook）：
     [粘贴代码]

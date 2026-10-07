@@ -8,8 +8,8 @@ useCase: merge 或 rebase 时冲突了，冲突块又多又看不懂、不敢随
 prompt: |
   我在合并代码时遇到冲突，请帮我分析并解决。
 
-  - 操作：[merge/rebase/cherry-pick]
-  - 当前分支与合入分支：[如当前 feature/coupon，合入 main]
+  - 操作：[操作]（可选：merge/rebase/cherry-pick）
+  - 当前分支与合入分支：[当前分支与合入分支]（例：当前 feature/coupon，合入 main）
   - 冲突文件和冲突内容（包含冲突标记的原文）：
     [粘贴冲突内容]
   - 双方相关的提交信息（可以用 git log 查到）：
