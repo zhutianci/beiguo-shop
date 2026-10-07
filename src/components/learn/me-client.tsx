@@ -33,8 +33,9 @@ const REVIEW_LABEL: Record<string, { t: string; c: string }> = {
   PENDING: { t: '审核中', c: 'text-amber-200 bg-amber-300/15' },
   APPROVED: { t: '已公开', c: 'text-emerald-200 bg-emerald-400/15' },
   REJECTED: { t: '未通过', c: 'text-red-200 bg-red-400/15' },
+  SCHEDULED: { t: '定时发布', c: 'text-sky-200 bg-sky-400/15' },
 }
-const TYPE_LABEL: Record<string, string> = { PROMPT: '提示词', GUIDE: '教程', DISCUSSION: '讨论' }
+const TYPE_LABEL: Record<string, string> = { PROMPT: '提示词', GUIDE: '教程', APP: 'AI 应用', DISCUSSION: '讨论' }
 
 function useJson<T>(url: string | null) {
   const [data, setData] = useState<T | null>(null)

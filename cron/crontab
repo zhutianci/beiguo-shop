@@ -103,3 +103,8 @@
 * * * * * curl -fsS --max-time 55 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/bot-tick" >> /var/log/cron.log 2>&1
 # 每天 00:01 日报：统计刚结束的北京时间自然日，主站管理群一份、每个分站群一份，00:02 起逐群错峰发出；重跑只补缺。POST + x-cron-secret 头
 1 0 * * * curl -fsS --max-time 240 -X POST -H "x-cron-secret: $(cat /run/cron_secret)" http://app:3000/api/cron/bot-daily >> /var/log/cron.log 2>&1
+
+# ---------- AI 学习内容定时放量（docs/内容平台/扩容基础设施-1007.md）----------
+# 每天 10:00：把定时队列（review_status=SCHEDULED）里的下一批公开，每天条数 CONTENT_RELEASE_PER_DAY（默认 40，0 = 暂停）。
+# GET + x-cron-secret 头。按上海自然日封顶，同一天重复调用只补足差额（手工补跑安全）；队列空时几条查询就返回。
+0 10 * * * curl -fsS --max-time 120 -H "x-cron-secret: $(cat /run/cron_secret)" "http://app:3000/api/cron/content-release" >> /var/log/cron.log 2>&1
