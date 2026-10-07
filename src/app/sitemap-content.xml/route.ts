@@ -13,7 +13,15 @@ import { PUBLIC_WHERE, contentIndexable, imagesOf } from '@/lib/content/queries'
  * sitemap 里绝不能出现一个页面自己说 noindex 的 URL。总开关 INDEXING_OPEN 关着时输出空的 urlset。
  * 提示词带 image:image 扩展（效果图是这类页面在 Google 图片里被找到的主要途径，设计 §11.4）。
  * lastmod 取实质修改时间（content_updated_at），没有就取发布时间——不用 updated_at（点赞、浏览都会碰它，是假新鲜度）。
+ * 定时放量（10-07）放出的条目发布时间就是放出的那一刻（lib/content/release.ts 把 created_at 改成放出时间），lastmod 自然是放出时间。
+ *
+ * 【规模】内容扩容后约 2,400 提示词 + 300 教程 + 150 应用：一次查询取齐闸门要的列与标签（不再按 id 列表二次查 post_tags），
+ * hub 条数在内存里用 Map 数；正文要参与闸门（可读字数）只能取出来，约几 MB、每小时最多被抓一次（Cache-Control 1 小时）。
+ * 协议上限一个 sitemap 50,000 个地址 / 50MB（未压缩）：离上限很远，这里仍设硬上限 MAX_URLS，超了只告警不输出超出的部分；
+ * 真到那个量级时改成 sitemap index 分段（sitemap.xml 已经是 index，见 SEO 批 2）。
  */
+const MAX_URLS = 45_000
+const MAX_BYTES = 45 * 1024 * 1024
 function xmlEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 }
@@ -29,11 +37,18 @@ export async function GET() {
       const posts = await prisma.forumPost.findMany({
         where: { ...PUBLIC_WHERE, originality: 'ORIGINAL_FIRST' },
         orderBy: { id: 'desc' },
-        take: 20000,
-        include: { prompt: { select: { prompt: true } }, app: { select: { selfPromo: true } }, postTags: { select: { tag: { select: { kind: true, status: true, facet: true } } } } },
+        take: MAX_URLS,
+        select: {
+          id: true, type: true, slug: true, status: true, reviewStatus: true, deletedAt: true, userId: true, content: true,
+          originality: true, aiAssist: true, commentCount: true, images: true, testedOn: true, checkedOn: true, featured: true,
+          createdAt: true, contentUpdatedAt: true,
+          prompt: { select: { prompt: true } },
+          app: { select: { selfPromo: true } },
+          postTags: { select: { tagId: true, tag: { select: { kind: true, status: true, facet: true } } } },
+        },
       })
-      for (const p of posts) {
-        if (!contentIndexable(p)) continue
+      const indexable = posts.filter((p) => contentIndexable(p))
+      for (const p of indexable) {
         const lastmod = (p.contentUpdatedAt ?? p.createdAt).toISOString()
         const images = p.type === 'PROMPT' ? imagesOf(p).slice(0, 9) : []
         entries.push(
@@ -45,26 +60,27 @@ export async function GET() {
 
       // hub 页：同一个门槛（介绍够长、可收录条目够数）
       const tags = await prisma.tag.findMany({ where: { status: 1 }, select: { id: true, slug: true, kind: true, intro: true } })
-      const indexableIds = new Set(posts.filter((p) => contentIndexable(p)).map((p) => p.id))
-      const links = await prisma.postTag.findMany({ where: { postId: { in: Array.from(indexableIds) } }, select: { tagId: true, post: { select: { type: true } } } })
+      // 每个标签在它那一栏（产品 → 教程，模型 / 主题 → 提示词）里有几条可收录的
+      const perTag = new Map<string, number>()
+      for (const p of indexable) for (const pt of p.postTags) perTag.set(`${pt.tagId}:${p.type}`, (perTag.get(`${pt.tagId}:${p.type}`) ?? 0) + 1)
       for (const t of tags) {
         const sectionType = t.kind === 'PRODUCT' ? 'GUIDE' : 'PROMPT'
-        const n = links.filter((l) => l.tagId === t.id && l.post.type === sectionType).length
+        const n = perTag.get(`${t.id}:${sectionType}`) ?? 0
         if (!isHubIndexable(t.kind, readableLength(t.intro ?? ''), n)) continue
         const path = t.kind === 'MODEL' ? `/prompts/m/${t.slug}` : t.kind === 'TOPIC' ? `/prompts/t/${t.slug}` : `/guides/p/${t.slug}`
         entries.push(`<url><loc>${xmlEscape(absUrl(path))}</loc></url>`)
       }
       for (const [type, path] of [['PROMPT', '/prompts'], ['GUIDE', '/guides'], ['APP', '/apps']] as const) {
-        const n = posts.filter((p) => p.type === type && indexableIds.has(p.id)).length
+        const n = indexable.filter((p) => p.type === type).length
         if (isHubIndexable('ROOT', 0, n)) entries.push(`<url><loc>${xmlEscape(absUrl(path))}</loc></url>`)
       }
       // 提示词三大类页（/prompts/image|video|text）：与总览同一门槛
       for (const f of ['IMAGE', 'VIDEO', 'TEXT'] as const) {
-        const n = posts.filter((p) => p.type === 'PROMPT' && indexableIds.has(p.id) && p.postTags.some((pt) => pt.tag.kind === 'MODEL' && pt.tag.facet === f)).length
+        const n = indexable.filter((p) => p.type === 'PROMPT' && p.postTags.some((pt) => pt.tag.kind === 'MODEL' && pt.tag.facet === f)).length
         if (isHubIndexable('ROOT', 0, n)) entries.push(`<url><loc>${xmlEscape(absUrl(`/prompts/${f.toLowerCase()}`))}</loc></url>`)
       }
       // 学习平台首页：与 /learn 页面自己的判定一致（提示词 + 教程合计够数）
-      const learnN = posts.filter((p) => (p.type === 'PROMPT' || p.type === 'GUIDE') && indexableIds.has(p.id)).length
+      const learnN = indexable.filter((p) => p.type === 'PROMPT' || p.type === 'GUIDE').length
       if (isHubIndexable('ROOT', 0, learnN)) entries.push(`<url><loc>${xmlEscape(absUrl('/learn'))}</loc></url>`)
     } catch (e) {
       // 库挂了就给空 sitemap，不给 500（爬虫对 500 的 sitemap 会降低抓取频率）
@@ -72,7 +88,13 @@ export async function GET() {
     }
   }
 
-  return new Response(`${head}\n${entries.join('\n')}\n</urlset>\n`, {
+  if (entries.length > MAX_URLS) {
+    console.warn(`[sitemap-content] ${entries.length} 个地址超过 ${MAX_URLS}，只输出前 ${MAX_URLS} 个：该改成分段 sitemap 了`)
+    entries.length = MAX_URLS
+  }
+  const body = `${head}\n${entries.join('\n')}\n</urlset>\n`
+  if (body.length > MAX_BYTES) console.warn(`[sitemap-content] 约 ${Math.round(body.length / 1048576)}MB，接近协议上限 50MB：该改成分段 sitemap 了`)
+  return new Response(body, {
     headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },
   })
 }

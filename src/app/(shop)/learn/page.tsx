@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, ArrowUpRight, BookOpen, Camera, LayoutGrid, MessagesSquare } from 'lucide-react'
 import { countIndexableCached, learnHomeData } from '@/lib/content/queries'
-import { isHubIndexable } from '@/lib/content/policy'
+import { MIN_HUB_ITEMS, isHubIndexable } from '@/lib/content/policy'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { siteOrigin } from '@/lib/news/format'
@@ -35,7 +35,7 @@ const DESCRIPTION = 'ChatGPT、Claude、GPT-Image、Nano Banana、Seedance 等�
 
 export async function generateMetadata(): Promise<Metadata> {
   // 与 /sitemap-content.xml 同一个口径：按「可收录」的提示词 + 教程条数算，不按公开条数（跨请求缓存 5 分钟，见 countIndexableCached）
-  const indexable = isHubIndexable('ROOT', 0, await countIndexableCached({ type: { in: ['PROMPT', 'GUIDE'] } }))
+  const indexable = isHubIndexable('ROOT', 0, await countIndexableCached({ type: { in: ['PROMPT', 'GUIDE'] } }, MIN_HUB_ITEMS.ROOT))
   return {
     metadataBase: new URL(siteOrigin()),
     title: TITLE,

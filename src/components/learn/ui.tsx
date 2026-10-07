@@ -119,32 +119,78 @@ export function SectionHead({ title, desc, href, more = '查看全部' }: { titl
  * 吸顶筛选条：横向滚动的胶囊。全部是 <a>（服务端渲染、可抓取），当前项高亮。
  * 不用毛玻璃（手机端轻量模式），底色近乎不透明。
  */
+export interface FilterItem {
+  name: string
+  href: string
+  count?: number
+  /** 展开面板里的小标题（例如主题按 图像 / 视频 / 文本 分组）；不填就不分组 */
+  section?: string
+}
+
+/**
+ * 一行超过这么多个胶囊就收起（内容扩容 10-07：主题标签涨到 50 个，一行横向滑动找不到想要的）：
+ * 行内只留条数最多的 FILTER_ROW_KEEP 个（当前选中的一定在内），其余放进行尾「全部 N 个」展开的面板，面板按 section 分组。
+ * 用原生 <details>，服务端组件、不依赖 JS；key 带上当前选中项，换了筛选（客户端跳转）面板自动收起。
+ */
+const FILTER_COLLAPSE_AT = 14
+const FILTER_ROW_KEEP = 10
+
 export function FilterBar({
   groups,
   active,
 }: {
-  groups: { label: string; items: { name: string; href: string; count?: number }[] }[]
+  groups: { label: string; items: FilterItem[] }[]
   active: string | string[]
 }) {
   const on = (href: string) => (Array.isArray(active) ? active.includes(href) : active === href)
   const visible = groups.filter((g) => g.items.length)
   if (!visible.length) return null
+  const chip = (t: FilterItem) => (
+    <Link key={t.href} href={t.href} data-active={on(t.href)} className="learn-chip" scroll={false}>
+      {t.name}
+      {typeof t.count === 'number' && <span className="text-[11px] opacity-50 tabular-nums">{t.count}</span>}
+    </Link>
+  )
   return (
     <div className="learn-sticky -mx-4 mb-8 px-4 pb-4 pt-2 lg:-mx-0 lg:px-0">
       <div className="space-y-2.5">
-        {visible.map((g) => (
-          <div key={g.label} className="flex items-center gap-3">
-            <span className="hidden w-8 shrink-0 text-xs text-white/35 sm:block">{g.label}</span>
-            <div className="learn-scroll-x -mr-4 flex gap-2 pr-6 lg:mr-0">
-              {g.items.map((t) => (
-                <Link key={t.href} href={t.href} data-active={on(t.href)} className="learn-chip" scroll={false}>
-                  {t.name}
-                  {typeof t.count === 'number' && <span className="text-[11px] opacity-50 tabular-nums">{t.count}</span>}
-                </Link>
-              ))}
+        {visible.map((g) => {
+          const collapse = g.items.length > FILTER_COLLAPSE_AT
+          // 行内：条数最多的若干个，保持原顺序；当前选中的不在里面就补进去
+          const keep = collapse
+            ? new Set(
+                [...g.items]
+                  .sort((a, b) => (b.count ?? Infinity) - (a.count ?? Infinity))
+                  .slice(0, FILTER_ROW_KEEP)
+                  .concat(g.items.filter((t) => on(t.href)))
+                  .map((t) => t.href),
+              )
+            : null
+          const row = keep ? g.items.filter((t) => keep.has(t.href)) : g.items
+          const sections = Array.from(new Set(g.items.map((t) => t.section ?? '')))
+          return (
+            <div key={g.label} className="relative flex items-center gap-3">
+              <span className="hidden w-8 shrink-0 text-xs text-white/35 sm:block">{g.label}</span>
+              <div className="learn-scroll-x -mr-4 flex min-w-0 flex-1 gap-2 pr-6 lg:mr-0">{row.map(chip)}</div>
+              {collapse && (
+                <details key={`${g.label}:${g.items.filter((t) => on(t.href)).map((t) => t.href).join(',')}`} className="group shrink-0">
+                  <summary className="learn-chip cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+                    全部 {g.items.length} 个
+                    <span className="text-[10px] opacity-60 transition-transform group-open:rotate-180">▾</span>
+                  </summary>
+                  <div className="absolute left-0 right-0 top-full z-30 mt-2 max-h-[60vh] overflow-y-auto rounded-[20px] border border-white/10 bg-[#101013] p-4 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)] lg:p-5">
+                    {sections.map((sec) => (
+                      <div key={sec || '-'} className="mb-3 last:mb-0">
+                        {sec && <p className="mb-2 text-xs text-white/40">{sec}</p>}
+                        <div className="flex flex-wrap gap-2">{g.items.filter((t) => (t.section ?? '') === sec).map(chip)}</div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              )}
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -406,9 +452,18 @@ export function Pager({ basePath, page, totalPages, query = '' }: { basePath: st
   const pages: number[] = []
   for (let n = Math.max(1, page - 2); n <= Math.min(totalPages, page + 2); n++) pages.push(n)
   const cls = 'inline-flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm transition-colors'
+  // 内容扩容（10-07）：提示词上百页时补首页 / 末页入口，深页不必一页页点过去
+  const gap = <span className="px-1 text-sm text-white/30">…</span>
+  const edge = (n: number) => (
+    <Link key={n} href={href(n)} className={`${cls} text-white/60 hover:bg-white/5 hover:text-white`}>
+      {n}
+    </Link>
+  )
   return (
-    <nav aria-label="分页" className="mt-14 flex items-center justify-center gap-1.5">
+    <nav aria-label="分页" className="mt-14 flex flex-wrap items-center justify-center gap-1.5">
       {page > 1 && <Link href={href(page - 1)} rel="prev" className={`${cls} text-white/60 hover:bg-white/5 hover:text-white`}>上一页</Link>}
+      {pages[0] > 1 && edge(1)}
+      {pages[0] > 2 && gap}
       {pages.map((n) =>
         n === page ? (
           <span key={n} aria-current="page" className={`${cls} bg-white font-semibold text-black`}>{n}</span>
@@ -416,6 +471,8 @@ export function Pager({ basePath, page, totalPages, query = '' }: { basePath: st
           <Link key={n} href={href(n)} className={`${cls} text-white/60 hover:bg-white/5 hover:text-white`}>{n}</Link>
         ),
       )}
+      {pages[pages.length - 1] < totalPages - 1 && gap}
+      {pages[pages.length - 1] < totalPages && edge(totalPages)}
       {page < totalPages && <Link href={href(page + 1)} rel="next" className={`${cls} text-white/60 hover:bg-white/5 hover:text-white`}>下一页</Link>}
     </nav>
   )

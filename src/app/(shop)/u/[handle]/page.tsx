@@ -42,7 +42,7 @@ const getCreator = cache(async (handle: string) => {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const c = await getCreator(params.handle)
   if (!c) return { title: `作者不存在 - ${SITE_NAME}`, robots: { index: false, follow: false } }
-  const indexable = (await countIndexable({ userId: c.user.id })) > 0
+  const indexable = (await countIndexable({ userId: c.user.id }, 1)) > 0
   const title = `${c.name}的 AI 提示词与教程 - ${SITE_NAME}`
   const description = c.profile.bio || `${c.name} 在贝果分享的 ${c.prompts.total} 条提示词、${c.guides.total} 篇教程。`
   return {
