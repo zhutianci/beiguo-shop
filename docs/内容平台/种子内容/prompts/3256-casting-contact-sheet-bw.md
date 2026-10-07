@@ -1,5 +1,5 @@
 ---
-title: AI写真提示词：黑白模特试镜四宫格，同一人四种表情和角度的胶片接触印样（gpt-image-2）
+title: 角色设定提示词：黑白模特试镜四宫格，同一人四种表情和角度的胶片接触印样（gpt-image-2）
 slug: casting-contact-sheet-bw
 model: gpt-image-2
 topics: [fashion, portrait]

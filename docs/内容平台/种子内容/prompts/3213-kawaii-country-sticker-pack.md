@@ -30,7 +30,7 @@ imageCredit:
   url: https://github.com/wuyoscar/GPT-Image2-Skill/blob/main/docs/more-illustration-styles/kawaii-sticker-pack-mexico.png
   license: MIT
 verify:
-  - 示例图右上角辣酱瓶上印有真实品牌字样，展示前考虑裁切或打码，或换一张自出图
+  - 示例图右上角原有一张印着真实辣酱品牌字样的贴纸，本站版本已用底色遮盖（原图见仓库）；如需完整版请自出图
   - 确认原帖仍可访问、作者未另行声明保留权利
   - 页面署名需保留"Copyright (c) 2026 Wuyoscar, MIT License"及许可证链接
 ---
