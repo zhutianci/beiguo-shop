@@ -4,7 +4,7 @@ slug: chatgpt-network-error
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 提示「A network error occurred」「An error occurred while connecting to the websocket」，或者长回答写到一半断掉？本文按官方帮助中心讲清这类连接错误的原因、个人用户的排查步骤、公司网络需要放行哪些域名和 WebSocket，以及语音、上传、Mac 客户端证书报错的处理。
+excerpt: ChatGPT 提示 A network error occurred 或 websocket 连接错误、长回答写到一半断掉？本文按官方帮助中心讲清原因、个人排查步骤，以及公司网络需要放行的域名、WebSocket 和语音端口。
 checkedOn: 2026-10-07
 sources:
   - https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages

@@ -4,7 +4,7 @@ slug: chatgpt-login-problems
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 登不上？最常见的是用错了登录方式、邮箱验证码没收到、浏览器验证死循环或密码忘了。本文按官方帮助中心逐一讲清「Wrong authentication method」「There is already a user with email」等报错的原因、验证码收不到的处理、密码重置方法，以及账号被停用时该怎么做。
+excerpt: ChatGPT 登不上？多半是登录方式不对、验证码没收到、浏览器验证死循环或忘了密码。本文按官方帮助中心逐一讲清常见登录报错的原因、验证码与密码重置的处理，以及账号被停用时怎么办。
 checkedOn: 2026-10-07
 sources:
   - https://help.openai.com/en/articles/7426629-why-cant-i-log-in-to-chatgpt

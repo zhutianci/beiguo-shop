@@ -4,7 +4,7 @@ slug: chatgpt-something-went-wrong
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 弹出「Something went wrong」「There was an error generating a response」「There was a problem preparing your chat」或安卓提示检查 Google Play？本文按官方错误排查文章逐条解释这几种报错的含义，并给出从快到慢的排查顺序和联系客服前要准备的信息。
+excerpt: ChatGPT 弹出 Something went wrong、There was an error generating a response，或安卓登录报错？本文按官方错误排查文章解释几种报错的含义，给出从快到慢的排查顺序和联系客服前要准备的信息。
 checkedOn: 2026-10-07
 sources:
   - https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages
