@@ -9,6 +9,8 @@
  *  - Markdown 的 safeUrl 不再放行 //evil.com 与 /\evil.com，外链 rel 带 ugc
  *  - 帖子 images 只收本站论坛上传地址
  *  - 图片去元数据：JPEG 删 EXIF 但保留方向、PNG 删文本块、WebP 删 EXIF 块并清标志位；坏图原样返回
+ *  - 内容扩容（10-07）：定时放量队列 SCHEDULED 对外不可见、不收录，改完不提前公开；放量顺序交错；
+ *    AI 应用种子文件的编译校验（拿 scripts/fixtures/seed-apps/ 的好 / 坏样例跑 build-seed-bundle，**会起一个子进程**）
  */
 import {
   trustLevelFrom,
@@ -28,7 +30,16 @@ import {
   contentPath,
   promptVariables,
   isValidSlug,
+  REVIEW_STATUSES,
+  releasePerDay,
+  shanghaiDayStart,
+  MIN_APP_CHARS,
 } from '../src/lib/content/policy'
+import { releaseOrder, bucketOf, fnv1a } from '../prisma/release-order'
+import { spawnSync } from 'child_process'
+import fs from 'fs'
+import os from 'os'
+import path from 'path'
 import { parseTestedOn } from '../src/lib/content/write'
 import { simhash, hamming, NEAR_DUP_DISTANCE } from '../src/lib/content/simhash'
 import { levelOf } from '../src/lib/content/points'
@@ -329,6 +340,103 @@ ok('发奖请求号：同月同篇相同、换篇不同、32 位 hex', awardRequ
 ok('兑换按上海时间的自然月', monthStart(new Date('2026-10-31T17:00:00Z')).toISOString() === '2026-10-31T16:00:00.000Z')
 ok('默认兑换档位合法', optionsSchema.safeParse(DEFAULT_OPTIONS).success)
 ok('兑换档位拒绝 0 积分', !optionsSchema.safeParse([{ ...DEFAULT_OPTIONS[0], cost: 0 }]).success)
+
+console.log('内容扩容：定时放量（SCHEDULED）')
+ok('SCHEDULED 是合法审核状态', (REVIEW_STATUSES as readonly string[]).includes('SCHEDULED'))
+const sched = { status: 1, reviewStatus: 'SCHEDULED', deletedAt: null, userId: 7 }
+ok('定时队列里的不公开', !isPublic(sched))
+ok('定时队列：作者能看', canView(sched, { userId: 7, isAdmin: false }))
+ok('定时队列：管理员能看', canView(sched, { userId: null, isAdmin: true }))
+ok('定时队列：路人看不到', !canView(sched, { userId: 8, isAdmin: false }) && !canView(sched, { userId: null, isAdmin: false }))
+ok('定时队列：开关打开也不收录（应用）', !isIndexable({ ...appPost, reviewStatus: 'SCHEDULED' }, true))
+ok('定时队列：开关打开也不收录（教程）', !isIndexable({ ...idx, type: 'GUIDE', checkedOn: now, content: '步骤说明'.repeat(200), reviewStatus: 'SCHEDULED' }, true))
+ok('定时队列：同一条通过后可收录（对照）', isIndexable({ ...idx, type: 'GUIDE', checkedOn: now, content: '步骤说明'.repeat(200) }, true))
+ok('管理员改队列里的条目：仍在队列', postReviewOnEdit(9, [], 'SCHEDULED') === 'SCHEDULED')
+ok('创作者改队列里的条目：仍在队列（不提前公开）', postReviewOnEdit(2, [], 'SCHEDULED') === 'SCHEDULED')
+ok('创作者改队列里的条目命中联系方式：转待审', postReviewOnEdit(2, ['contact'], 'SCHEDULED') === 'PENDING')
+ok('新人改队列里的条目：转待审', postReviewOnEdit(0, [], 'SCHEDULED') === 'PENDING')
+ok('每天条数：不设 = 40', releasePerDay(undefined) === 40 && releasePerDay('') === 40)
+ok('每天条数：0 = 暂停', releasePerDay('0') === 0)
+ok('每天条数：非法值回默认、上限 500', releasePerDay('abc') === 40 && releasePerDay('-3') === 40 && releasePerDay('2.5') === 40 && releasePerDay('9999') === 500)
+ok('上海自然日：UTC 10-07 15:59 仍是 10-07', shanghaiDayStart(new Date('2026-10-07T15:59:00Z')).toISOString() === '2026-10-06T16:00:00.000Z')
+ok('上海自然日：UTC 10-07 16:00 已是 10-08', shanghaiDayStart(new Date('2026-10-07T16:00:00Z')).toISOString() === '2026-10-07T16:00:00.000Z')
+
+console.log('内容扩容：放量顺序交错')
+// 模拟这次扩容的量级：文本 / 图像 / 视频提示词按主题分桶、教程按产品、应用按主题
+const fake: { key: string; bucket: string; type: string }[] = []
+const addN = (type: string, facet: string | null, topic: string, n: number) => {
+  for (let i = 0; i < n; i++) fake.push({ key: `${type}:${facet}-${topic}-${i}`, bucket: bucketOf(type, facet, topic), type })
+}
+for (let t = 0; t < 25; t++) addN('PROMPT', 'TEXT', `text${t}`, 40)
+for (let t = 0; t < 20; t++) addN('PROMPT', 'IMAGE', `img${t}`, 25)
+for (let t = 0; t < 5; t++) addN('PROMPT', 'VIDEO', `vid${t}`, 20)
+for (let t = 0; t < 11; t++) addN('GUIDE', null, `prod${t}`, t === 0 ? 80 : 20)
+for (let t = 0; t < 10; t++) addN('APP', null, `topic${t}`, 15)
+const order = releaseOrder(fake)
+ok('不丢不重', order.length === fake.length && new Set(order.map((x) => x.key)).size === fake.length)
+ok('确定性：同样的输入同样的顺序', JSON.stringify(releaseOrder(fake).map((x) => x.key)) === JSON.stringify(order.map((x) => x.key)))
+ok('确定性：输入顺序打乱结果不变', JSON.stringify(releaseOrder([...fake].reverse()).map((x) => x.key)) === JSON.stringify(order.map((x) => x.key)))
+const share = (type: string) => fake.filter((x) => x.type === type).length / fake.length
+let worstType = 0
+let worstBucket = 0
+let minBuckets = Infinity
+for (let d = 0; d + 40 <= order.length; d += 40) {
+  const day = order.slice(d, d + 40)
+  for (const type of ['PROMPT', 'GUIDE', 'APP']) worstType = Math.max(worstType, Math.abs(day.filter((x) => x.type === type).length - 40 * share(type)))
+  const per = new Map<string, number>()
+  for (const x of day) per.set(x.bucket, (per.get(x.bucket) ?? 0) + 1)
+  worstBucket = Math.max(worstBucket, ...Array.from(per.values()))
+  minBuckets = Math.min(minBuckets, per.size)
+}
+ok('每天 40 条里三种类型都按比例（误差 ≤ 1.5 条）', worstType <= 1.5, `最大偏差 ${worstType.toFixed(2)}`)
+ok('每天 40 条里同一个主题桶至多 2 条', worstBucket <= 2, `最多 ${worstBucket}`)
+ok('每天 40 条至少覆盖 35 个不同的桶', minBuckets >= 35, `最少 ${minBuckets}`)
+ok('FNV-1a 已知值', fnv1a('') === 0x811c9dc5 && fnv1a('a') === 0xe40c292c)
+
+console.log('内容扩容：AI 应用种子文件')
+const seedApp = { status: 1, reviewStatus: 'APPROVED', deletedAt: null, userId: 1, type: 'APP', originality: 'ORIGINAL_FIRST', aiAssist: 'PARTIAL', commentCount: 0, selfPromo: false, checkedOn: now }
+ok('种子应用（原创首发 + AI 部分辅助 + 非自荐 + 正文够长）过 APP 门槛', qualityGateReason({ ...seedApp, content: '是什么能做什么怎么上手'.repeat(25) }) === null)
+ok(`种子应用正文少于 ${MIN_APP_CHARS} 字不过门槛`, qualityGateReason({ ...seedApp, content: '是什么'.repeat(20) }) !== null)
+{
+  const tsxCli = path.join(__dirname, '..', 'node_modules', 'tsx', 'dist', 'cli.mjs')
+  const builder = path.join(__dirname, 'build-seed-bundle.ts')
+  const fx = path.join(__dirname, 'fixtures', 'seed-apps')
+  const out = path.join(os.tmpdir(), `seed-apps-check-${process.pid}.json`)
+  const run = (dir: string) => spawnSync(process.execPath, [tsxCli, builder, '--root', path.join(fx, dir), '--out', out], { encoding: 'utf8' })
+  const good = run('good')
+  ok('好样例编译通过', good.status === 0, (good.stderr || good.stdout).slice(0, 400))
+  if (good.status === 0) {
+    const b = JSON.parse(fs.readFileSync(out, 'utf8')) as { apps: { slug: string; tags: string[]; checkedOn: string; images: string[]; trialNote: string | null; url: string }[] }
+    const a1 = b.apps.find((a) => a.slug === 'fixture-search')
+    const a2 = b.apps.find((a) => a.slug === 'fixture-notes')
+    ok('编译出 2 个应用', b.apps.length === 2)
+    ok('标签按 产品 / 模型 / 主题 合并', JSON.stringify(a1?.tags) === JSON.stringify(['any-llm', 'office', 'research-data']) && JSON.stringify(a2?.tags) === JSON.stringify(['chatgpt', 'office']))
+    ok('YAML 日期转成 YYYY-MM-DD', a1?.checkedOn === '2026-10-07')
+    ok('正文插图 seed: 被识别', JSON.stringify(a1?.images) === JSON.stringify(['01-id-photo-change-background-1.jpg']))
+    ok('没写 trialNote 时为 null', a2?.trialNote === null)
+    fs.rmSync(out, { force: true })
+  }
+  const bad = run('bad')
+  const msg = bad.stderr || ''
+  ok('坏样例编译失败（非零退出）', bad.status === 1)
+  for (const [what, needle] of [
+    ['不认识的字段', '不认识的字段「topic」'],
+    ['slug 不合法', 'b01-bad-fields.md: slug 不合法'],
+    ['name 超长', 'name 超过 60 字'],
+    ['官网不是 https', 'url 必须是 https'],
+    ['日期格式', 'checkedOn 要写成 YYYY-MM-DD'],
+    ['未来日期', 'checkedOn 是未来的日期'],
+    ['sources 不是链接', 'sources 里有不是链接'],
+    ['sources 为空', 'sources 至少写一个'],
+    ['标签种类不对', '「gpt-image-2」不是 PRODUCT 标签'],
+    ['主题超过 3 个', 'TOPIC 标签应为 0–3 个'],
+    ['正文太短', `少于 ${MIN_APP_CHARS}`],
+    ['联系方式', '疑似联系方式'],
+    ['缺必填', '缺少 name'],
+    ['插图不存在', '插图不存在 prisma/seed-assets/does-not-exist.png'],
+  ] as const) ok(`坏样例报出：${what}`, msg.includes(needle))
+  ok('坏样例不写出文件', !fs.existsSync(out))
+}
 
 console.log(`\n${pass} 通过，${fail} 失败`)
 if (fail) process.exit(1)
