@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { sourceSiteCodes } from '@/lib/content/source-site'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { CONTENT_TYPES, REVIEW_STATUSES, contentPath, qualityGateReason } from '@/lib/content/policy'
@@ -52,10 +53,13 @@ export async function GET(request: NextRequest) {
       prisma.forumComment.count({ where: { reviewStatus: 'PENDING' } }),
     ])
 
+    // 内容模块下放：渠道站上发的帖标出来源站（主站发的为 null）
+    const sites = await sourceSiteCodes(rows.map((p) => p.sourceTenantId))
     const list = rows.map((p) => ({
       id: p.id,
       title: p.title,
       authorName: p.authorName,
+      sourceSite: sites.get(p.sourceTenantId) ?? null,
       isMember: !!p.userId,
       category: p.category,
       pinned: p.pinned,

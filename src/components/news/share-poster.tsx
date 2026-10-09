@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Download, Image as ImageIcon, Link2, Loader2, Share2, X } from 'lucide-react'
 import { POSTER_H, POSTER_W, paintPoster } from '@/lib/news/poster'
 import {
@@ -11,6 +11,8 @@ import {
   reportNewsShare,
   withChannel,
 } from '@/lib/news/share'
+import { AUTHOR_NAME } from '@/lib/news/constants'
+import { useStorefront } from '@/components/storefront-provider'
 
 /**
  * 分享海报：前端 Canvas 画一张竖版长图。绘制逻辑在 lib/news/poster.ts，
@@ -43,6 +45,15 @@ interface Props {
 }
 
 export function SharePoster(props: Props) {
+  // 渠道站（内容模块下放）：海报上的站名、整理者、域名跟着渠道走；主站不传，poster.ts 画原样
+  const sf = useStorefront()
+  const site = useMemo(
+    () =>
+      sf.kind === 'CHANNEL' && sf.origin
+        ? { name: sf.brand.name, author: sf.brand.custom ? AUTHOR_NAME.split('贝果科技').join(sf.brand.name) : AUTHOR_NAME, host: hostOf(sf.origin) }
+        : undefined,
+    [sf.kind, sf.origin, sf.brand.name, sf.brand.custom],
+  )
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [dataUrl, setDataUrl] = useState<string | null>(null)
@@ -74,6 +85,7 @@ export function SharePoster(props: Props) {
         sources: props.sources,
         happenedAt: props.happenedAt,
         url: withChannel(props.url, 'poster'),
+        site,
       })
 
       // toDataURL 在 canvas 被污染时抛 SecurityError。本组件不画任何外部图片，
@@ -99,7 +111,7 @@ export function SharePoster(props: Props) {
     } finally {
       setBusy(false)
     }
-  }, [props])
+  }, [props, site])
 
   /** 第二次点击：必须保持同步，中间不能出现 await，否则 Safari 会因失去激活态拒绝 */
   const shareImage = () => {
@@ -244,4 +256,12 @@ export function SharePoster(props: Props) {
       )}
     </>
   )
+}
+
+function hostOf(origin: string): string {
+  try {
+    return new URL(origin).host
+  } catch {
+    return origin
+  }
 }

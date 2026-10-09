@@ -27,6 +27,8 @@ interface Category {
   postCount: number
 }
 interface AdminPost {
+  /** 内容模块下放：渠道站上发的帖标出渠道代号；主站为 null */
+  sourceSite?: string | null
   id: number
   title: string
   authorName: string
@@ -56,6 +58,7 @@ interface AdminPost {
   releaseRank?: number | null
 }
 interface AdminComment {
+  sourceSite?: string | null
   id: number
   postId: number
   postTitle: string
@@ -349,7 +352,7 @@ export default function AdminForumPage() {
                   <div key={c.id} className="rounded-lg border p-3 text-sm text-gray-800">
                     <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
                       <span>
-                        {c.authorName} · 评论于{' '}
+                        {c.authorName}{c.sourceSite && <span className="ml-1 rounded bg-sky-100 px-1 text-xs text-sky-700">来自 {c.sourceSite}</span>} · 评论于{' '}
                         <a href={`/forum/${c.postId}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{c.postTitle}</a>
                       </span>
                       <span>{new Date(c.createdAt).toLocaleString('zh-CN')}</span>
@@ -489,7 +492,7 @@ export default function AdminForumPage() {
                           {p.reviewNote && <span className="text-gray-400 truncate" title={p.reviewNote}>原因：{p.reviewNote}</span>}
                         </div>
                       </td>
-                      <td className="py-2 pr-3">{p.authorName}{!p.isMember && <span className="text-xs text-gray-400">·匿名</span>}</td>
+                      <td className="py-2 pr-3">{p.authorName}{!p.isMember && <span className="text-xs text-gray-400">·匿名</span>}{p.sourceSite && <span className="ml-1 rounded bg-sky-100 px-1 text-xs text-sky-700">来自 {p.sourceSite}</span>}</td>
                       <td className="py-2 pr-3 text-xs">{p.category?.icon} {p.category?.name}</td>
                       <td className="py-2 pr-3 text-xs text-gray-500 whitespace-nowrap">
                         <span className="inline-flex items-center gap-0.5 mr-2"><Eye className="w-3 h-3" />{p.views}</span>

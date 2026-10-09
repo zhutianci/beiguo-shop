@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { SITE_NAME } from '@/lib/product-seo'
 import { pageOg } from '@/lib/seo/og'
-import { notFoundOnChannel } from '@/lib/storefront/resolve'
+import { notFoundUnlessModule } from '@/lib/storefront/resolve'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
 
 /**
  * 论坛列表页。详情页 /forum/[id] 是用户发的内容，标题各不相同才有意义，
@@ -19,7 +20,7 @@ const DESCRIPTION =
  * 结果是除父页外全部被搜索引擎丢弃——与根 layout 不写 canonical 是同一条理由，
  * 只是换了一个层级重演。canonical 只能由「确实是那条地址」的页面自己声明。
  */
-export const metadata: Metadata = {
+const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   /*
@@ -35,6 +36,11 @@ export const metadata: Metadata = {
 // 渠道分站（设计 11.2、实施分包 WP1）：本模块在渠道站关闭，渠道 Host 上整组页面 404（第一行、不包进 try）。
 // 主站（含休眠期的任何 Host）照常渲染；接口层另有 denyOnChannel 与 nginx 白名单兜底
 export default async function ForumLayout({ children }: { children: React.ReactNode }) {
-  await notFoundOnChannel()
+  await notFoundUnlessModule('learn')
   return <>{children}</>
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(): Promise<Metadata> {
+  return moduleMetadata(metadata)
 }

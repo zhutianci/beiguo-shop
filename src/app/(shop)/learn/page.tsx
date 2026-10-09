@@ -19,6 +19,9 @@ import {
   hubHref,
 } from '@/components/learn/ui'
 import { activeSponsors } from '@/lib/content/sponsor'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
+import { currentBrand } from '@/lib/storefront/brand-meta'
+import { isWhiteLabel } from '@/lib/brand-base'
 
 /**
  * AI 学习平台首页（内容平台改版 2026-10-06）。
@@ -33,7 +36,7 @@ export const dynamic = 'force-dynamic'
 const TITLE = `AI 学习：AI 提示词库与 Claude、ChatGPT 使用教程 - ${SITE_NAME}`
 const DESCRIPTION = 'ChatGPT、Claude、GPT-Image、Nano Banana、Seedance 等工具的实测教程与可复制提示词，每条附效果图、模型和测试日期。'
 
-export async function generateMetadata(): Promise<Metadata> {
+async function pageMetadata(): Promise<Metadata> {
   // 与 /sitemap-content.xml 同一个口径：按「可收录」的提示词 + 教程条数算，不按公开条数（跨请求缓存 5 分钟，见 countIndexableCached）
   const indexable = isHubIndexable('ROOT', 0, await countIndexableCached({ type: { in: ['PROMPT', 'GUIDE'] } }, MIN_HUB_ITEMS.ROOT))
   return {
@@ -48,6 +51,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function LearnHome() {
+  // 白标渠道（内容模块下放）：眉题不写 Bigo；主站与没改名的渠道原样
+  const eyebrow = isWhiteLabel(await currentBrand()) ? 'AI Learning · AI 学习平台' : 'Bigo AI Learning · AI 学习平台'
   const [d, sponsors] = await Promise.all([learnHomeData(), activeSponsors('LEARN')])
   const models = d.hubs.filter((h) => h.kind === 'MODEL')
   const topics = d.hubs.filter((h) => h.kind === 'TOPIC')
@@ -59,7 +64,7 @@ export default async function LearnHome() {
       {/* —— 首屏 —— */}
       <section className="learn-in grid items-center gap-12 pb-16 pt-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:pb-24 lg:pt-10">
         <div>
-          <p className="learn-eyebrow mb-6">Bigo AI Learning · AI 学习平台</p>
+          <p className="learn-eyebrow mb-6">{eyebrow}</p>
           <h1 className="learn-display">
             学会用 AI，
             <br />
@@ -281,4 +286,9 @@ export default async function LearnHome() {
       </section>
     </LearnPage>
   )
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(): Promise<Metadata> {
+  return moduleMetadata(await pageMetadata())
 }

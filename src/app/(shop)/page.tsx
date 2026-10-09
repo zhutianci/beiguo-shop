@@ -14,7 +14,7 @@ import { getLandingProducts, getPlatformTotalSales, inStock, lowestPrice, matchP
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import HomeClient from './home-client'
 import { pageOg } from '@/lib/seo/og'
-import { getStorefront } from '@/lib/storefront/resolve'
+import { getStorefront, moduleOpen } from '@/lib/storefront/resolve'
 import { listStorefrontProducts } from '@/lib/pricing'
 import { getCurrentUser } from '@/lib/auth'
 import { brandMetadata, brandShareImages, currentBrand, withBrandName } from '@/lib/storefront/brand-meta'
@@ -176,8 +176,11 @@ export default async function HomePage() {
   // 不是只加本店上架的那几个；skuCount 仍按本店可售商品数。主站分支原样不变。
   // 主站的业务开放状态与服务端直出区块（C 包，§1.10）。渠道站一概不取：渠道站首页不出大事记、接码、学习平台（W1-9、§6.7）
   const pillars = channel ? null : await sitePillars()
+  // 内容模块下放（docs/多渠道分销-内容模块下放.md）：超管授权且渠道上架后，渠道首页也出大事记热点（服务端直出）与 AI 学习入口。
+  // 主站不走这里（pillars 照旧）。moduleOpen 不包进 try
+  const channelModules = channel ? { news: await moduleOpen('news'), learn: await moduleOpen('learn') } : null
   let hotNews: NewsEventDto[] | undefined
-  if (pillars?.news) {
+  if (pillars?.news || channelModules?.news) {
     try {
       hotNews = await cachedHotNews(sf.id)
     } catch (e) {
@@ -231,6 +234,8 @@ export default async function HomePage() {
               {pillars.jiema && <HomeJiemaSection services={jiemaServices} />}
               {pillars.learn && <HomeLearnSection />}
             </>
+          ) : channelModules?.learn ? (
+            <HomeLearnSection />
           ) : undefined
         }
       />

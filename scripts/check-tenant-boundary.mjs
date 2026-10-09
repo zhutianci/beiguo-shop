@@ -304,6 +304,8 @@ const RULE1_ALLOW = [
   'src/lib/contact-base',
   // 渠道品牌与公告：店面品牌的常量 / 类型 / 格式校验（同 contact-base：零依赖纯函数；设置页做即时格式提示用）
   'src/lib/brand-base',
+  // 内容模块下放：模块名、说明、类型（零依赖纯常量，不查库；设置页「内容模块」卡片用）。精确到文件
+  'src/lib/storefront/modules',
   'src/lib/api',
   'src/lib/utils',
   'next/*',

@@ -21,7 +21,7 @@ import { PUBLIC_WHERE, countIndexableCached, listContent, listHot } from '@/lib/
 import { FACET_LABELS, FACET_PATH, FACETS, ensureContentDefaults, type Facet } from '@/lib/content/tags'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
-import { JsonLd } from '@/lib/seo/jsonld'
+import { PlatformJsonLd } from '@/components/seo/platform-json-ld'
 import { breadcrumbJsonLd, type Crumb } from '@/lib/seo/graph'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
@@ -326,7 +326,7 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
 
   return (
     <>
-      <JsonLd data={[breadcrumbJsonLd(r.crumbs), ...(list.items.length ? [itemList] : [])]} />
+      <PlatformJsonLd data={[breadcrumbJsonLd(r.crumbs), ...(list.items.length ? [itemList] : [])]} />
       <LearnPage>
         <Crumbs crumbs={r.crumbs} />
         <PageHead

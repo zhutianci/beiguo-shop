@@ -22,6 +22,7 @@ for (const k of ['ALIYUN_ACCESS_KEY_ID', 'ALIYUN_ACCESS_KEY_SECRET', 'ALIYUN_DM_
 if (!process.env.VMQ_KEY) process.env.VMQ_KEY = 'itest-x8-vmq-key'
 
 import * as React from 'react'
+import ReactDefault from 'react'
 import Module from 'module'
 import { execFileSync, spawnSync } from 'child_process'
 import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'fs'
@@ -52,6 +53,10 @@ import {
 
 // 页面 / 布局模块的最小替身（同 wp1）：tsx 按经典 JSX 运行时编译，需要全局 React；css 与 next/font 换成空对象
 ;(globalThis as unknown as { React: typeof React }).React = React
+// React.cache 只在 Next 的 react-server 构建里有；遍历加载的路由会间接加载内容平台 lib/content/queries.ts（模块顶层调 cache）。
+// 替身挂在 CJS 的 module.exports 上（命名空间 import 是副本，挂上去无效）
+const ReactMut = ReactDefault as unknown as { cache?: <T>(fn: T) => T }
+if (typeof ReactMut.cache !== 'function') ReactMut.cache = <T,>(fn: T) => fn
 const Mod = Module as unknown as { _load: (r: string, p: unknown, m: boolean) => unknown }
 const origLoad = Mod._load
 Mod._load = function (request: string, parent: unknown, isMain: boolean) {
@@ -309,6 +314,9 @@ const TEMPLATES: Record<string, Tpl> = {
   'POST /api/partner/announcements': { body: () => ({ title: 'itest-x8 公告', body: 'x', enabled: false }) },
   'PUT /api/partner/announcements/[announcementNo]': { params: (k) => ({ announcementNo: k.announcementNo }), body: () => ({ title: 'itest-x8 公告', body: 'x', enabled: false }), key: 'announcementNo' },
   'DELETE /api/partner/announcements/[announcementNo]': { params: (k) => ({ announcementNo: k.announcementNo }), key: 'announcementNo' },
+  // 内容模块下放（docs/多渠道分销-内容模块下放.md）：不按编号寻址；没授权的模块 PUT 409
+  'GET /api/partner/settings/modules': {},
+  'PUT /api/partner/settings/modules': { body: () => ({ module: 'iptools', on: false }) },
 }
 
 interface PartnerRoute {
@@ -1007,6 +1015,10 @@ const CLOSED_RE = [
   // 本脚本开头清掉了这个开关，所以应用层仍按关闭模块断言；nginx 白名单已放行它，nginx 层按 GATED_OPEN_RE 核对
   /^track\/view$/,
   /^upload$/,
+  // 内容模块下放（docs/多渠道分销-内容模块下放.md）：forum / news / upload 与下面的 content、me 按渠道授权开关（默认不授权）。
+  // 本脚本的渠道都没授权，应用层仍按关闭模块断言（授权后的行为由 mods-modules 覆盖）；nginx 层按 GATED_OPEN_RE 核对放行
+  /^content(\/|$)/,
+  /^me(\/|$)/,
   /^mkt(\/|$)/,
   /^invoice-requests(\/|$)/,
   /^finance(\/|$)/,
@@ -1026,7 +1038,7 @@ const OPEN_RE = /^(auth|products|categories|orders|pay\/vmq\/(create|status)|rec
  * nginx 渠道 /api 白名单已放行、应用层另有开关的路由（docs/微信机器人-设计.md §6.5）：nginx 层按「放行」核对，
  * 应用层仍归 CLOSED（开关关着时 404，见上面 CLOSED_RE 里 track/view 的说明）。开关正式打开后挪进 OPEN_RE、从 CLOSED_RE 删掉。
  */
-const GATED_OPEN_RE = /^track\/view$/
+const GATED_OPEN_RE = /^(track\/view$|(news|content|forum|me|upload)(\/|$))/
 /** 主会话 D3：这两个路由待加 denyOnChannel（P0 前置新增、第 13 节无归属） */
 /** 主会话 D3：P0 前置新增的两条绑定验证路由，集成阶段补了 denyOnChannel()（原「待集成」项） */
 const D3_ROUTES = new Set(['account/bindings/send-code', 'account/bindings/verify'])

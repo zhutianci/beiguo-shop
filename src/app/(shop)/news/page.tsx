@@ -23,8 +23,9 @@ import {
 } from '@/lib/news/format'
 import { DIGEST_SLUG, formatPeriodLabel, listDigests } from '@/lib/news/digest'
 import { NewsStream } from './news-stream'
-import { JsonLd } from '@/lib/seo/jsonld'
 import { collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
+import { PlatformJsonLd } from '@/components/seo/platform-json-ld'
 
 /** 与 /api/news/list 共用，不要在这里写死数字（见 format.ts 的注释） */
 const PAGE_SIZE = NEWS_PAGE_SIZE
@@ -38,7 +39,7 @@ const HIGHLIGHT_TAKE = 6
 const TITLE = '今日 AI 热点：模型发布、产品更新与开源工具 - AI 圈大事记'
 const DESC = '按事件聚合的 AI 行业动态与每日 AI 资讯速览：OpenAI、Anthropic、Google 等的模型发布、产品更新、论文与开源工具。AI 依据公开信源整理摘要，每条附原文链接。'
 
-export const metadata: Metadata = {
+const metadata: Metadata = {
   // 自指 canonical：/news 会被带 ?s= / ?n= 分享出去，也会被 sitemap 提交，
   // 没有它就是 sitemap 里唯一一条不声明规范地址的 URL
   alternates: { canonical: '/news' },
@@ -191,7 +192,7 @@ export default async function NewsPage() {
       {/* CollectionPage + ItemList（只放 url 和 name，§4.1）：列的是服务端直出的那一页时间流，与页面上看得到的一致；
           不用 NewsMediaOrganization / NewsArticle（R5 §1.3）。isPartOf、publisher 引用的 WebSite、Organization 同页输出 */}
       {!dbFailed && (
-        <JsonLd
+        <PlatformJsonLd
           data={[
             ...collectionPageJsonLd({
               path: '/news',
@@ -324,4 +325,9 @@ export default async function NewsPage() {
       </div>
     </div>
   )
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(): Promise<Metadata> {
+  return moduleMetadata(metadata)
 }

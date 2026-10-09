@@ -14,7 +14,6 @@ import { ShareBar } from '@/components/news/share-bar'
 import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
 import { clipDescription, newsUrl } from '@/lib/news/seo'
 import { commerceLinksForTags } from '@/lib/news/commerce-link'
-import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd } from '@/lib/seo/graph'
 import { OG_SITE } from '@/lib/seo/og'
 import { shouldNoindexEvent } from '@/lib/news/thin'
@@ -31,6 +30,10 @@ import {
   toEventDto,
 } from '@/lib/news/format'
 import { ViewBeacon } from './detail-client'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
+import { PlatformJsonLd, PlatformOnly } from '@/components/seo/platform-json-ld'
+import { channelUrl } from '@/lib/storefront/channel-url'
+import { getStorefront, moduleOpen } from '@/lib/storefront/resolve'
 
 /**
  * generateMetadata 与页面主体会各查一次库，用 React cache 去重（同一次请求内只打一次 MySQL）。
@@ -52,7 +55,7 @@ const getEvent = cache(async (slug: string) => {
   }
 })
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+async function pageMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   const row = await getEvent(params.slug)
   if (!row) return { title: '内容不存在 - AI 圈大事记' }
 
@@ -92,18 +95,23 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 }
 
 export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
+  // 店面不包进 try（resolve.ts 文件头第 7 条）；layout 已经按模块开关挡过，这里只用来换分享地址、决定导流入口
+  const sf = await getStorefront()
+  const learnOpen = await moduleOpen('learn')
   const row = await getEvent(params.slug)
   if (!row) notFound()
 
   const ev = toEventDto(row)
   const image = ogImageForCategory(ev.category)
-  // 绝对地址统一走 seo.ts 的 newsUrl，别在这里再拼一次域名——换域名时最容易漏改的就是这种散落拼接
-  const shareUrl = newsUrl(ev.slug)
+  // 绝对地址统一走 seo.ts 的 newsUrl，别在这里再拼一次域名——换域名时最容易漏改的就是这种散落拼接。
+  // 渠道站（内容模块下放）：分享出去的是渠道自己的地址，顾客扫码回到渠道站（channelUrl 只换域名，路径同 newsUrl）
+  const shareUrl = channelUrl(sf, newsUrl(ev.slug))
   const detail = parseDetail(row.detail)
   // 这条事件里有没有来自第三方线索的信源。有才标注、才回链 —— 授权条件是「用了要标」，
   // 没用还标等于对读者虚构一个来源。
   const lead = ev.sources.find((s) => s.leadVia)
-  const commerce = commerceLinksForTags(ev.tags)
+  // 「广告 · 本站服务」指向主站充值落地页，渠道站没有这些页面：渠道站不出（站长 10-10：分站上去掉）
+  const commerce = sf?.kind === 'PLATFORM' ? commerceLinksForTags(ev.tags) : []
 
   // 相关事件：同分类的近期条目。查询失败不能拖垮正文
   let related: { slug: string; headline: string; happenedAt: Date; aiScore: number }[] = []
@@ -425,6 +433,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
         </div>
 
         {/* ============ 讨论导流：本页不设评论区，也不提供任何用户可输入的 AI 入口（SKILL.md §1.1） ============ */}
+        {learnOpen && (
         <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
           <Link
             href="/forum"
@@ -435,6 +444,7 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
             <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
+        )}
 
         {/*
           ============ 广告 · 本站服务（docs/SEO-重构/SEO-重构设计.md §0.3 #31、§7.4，A 包）============
@@ -473,20 +483,22 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
       </div>
 
       {/* 结构化数据：类型是 Article 而不是 NewsArticle，理由见 lib/news/seo.ts 文件头 */}
-      <ArticleJsonLd
-        slug={ev.slug}
-        headline={ev.headline}
-        summary={ev.summary}
-        category={ev.category}
-        tags={ev.tags}
-        happenedAt={ev.happenedAt}
-        publishedAt={row.publishedAt}
-        reviewedAt={row.reviewedAt}
-        sources={ev.sources.map((s) => ({ title: s.title, url: s.url, sourceName: s.name }))}
-      />
+      <PlatformOnly>
+        <ArticleJsonLd
+          slug={ev.slug}
+          headline={ev.headline}
+          summary={ev.summary}
+          category={ev.category}
+          tags={ev.tags}
+          happenedAt={ev.happenedAt}
+          publishedAt={row.publishedAt}
+          reviewedAt={row.reviewedAt}
+          sources={ev.sources.map((s) => ({ title: s.title, url: s.url, sourceName: s.name }))}
+        />
+      </PlatformOnly>
       {/* 面包屑 + 同页 Organization（Article.publisher 带 @id 引用它，§3.2-I、§4.1：被引用的节点同页输出）。
           这两块都不含「广告 · 本站服务」区块的任何内容 */}
-      <JsonLd
+      <PlatformJsonLd
         data={[
           breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: 'AI 圈大事记', path: '/news' }, { name: ev.headline }]),
           await siteOrganizationJsonLd(),
@@ -495,4 +507,9 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
       <ViewBeacon eventId={ev.id} />
     </div>
   )
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
+  return moduleMetadata(await pageMetadata(props))
 }

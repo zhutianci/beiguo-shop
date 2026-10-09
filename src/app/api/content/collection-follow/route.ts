@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { meOrDeny } from '@/lib/content/session'
 
 // 关注合集（P3，设计 §7.5）：合集新增内容时收到站内通知。GET ?id= 查状态与关注数；POST {collectionId} 切换。
@@ -16,7 +16,7 @@ async function target(id: number) {
 }
 
 export async function GET(request: NextRequest) {
-  const channelDenied = await denyOnChannel()
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const t = await target(Number(new URL(request.url).searchParams.get('id')))
   if (!t) return error('合集不存在', 404)
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const channelDenied = await denyOnChannel()
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const { user, denied } = await meOrDeny(request, true)
   if (denied) return denied

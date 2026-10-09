@@ -24,6 +24,7 @@ for (const k of ['WECOM_WEBHOOK_URL', 'ORDER_MSG_WEBHOOK_URL', 'ALIYUN_ACCESS_KE
 if (!process.env.VMQ_KEY) process.env.VMQ_KEY = 'itest-wp7-vmq-key'
 
 import { readdirSync, readFileSync } from 'fs'
+import React from 'react'
 import path from 'path'
 import { Prisma } from '@prisma/client'
 import {
@@ -49,6 +50,10 @@ import {
 } from './_harness'
 import { TENANT_NOTICE_KINDS } from '../../src/lib/tenant/types'
 import { deduct, yuan } from '../../src/components/partner/common/format'
+
+// React.cache 只在 Next 的 react-server 构建里有；被导入的路由间接加载内容平台 lib/content/queries.ts，它在模块顶层调用 cache（同 mods-brand 的替身）
+const ReactMut = React as unknown as { cache?: <T>(fn: T) => T }
+if (typeof ReactMut.cache !== 'function') ReactMut.cache = <T,>(fn: T) => fn
 
 type Json = any // eslint-disable-line @typescript-eslint/no-explicit-any
 

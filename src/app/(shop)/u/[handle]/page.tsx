@@ -7,13 +7,16 @@ import { isHandle } from '@/lib/content/creator'
 import { countIndexable, listContent } from '@/lib/content/queries'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
-import { JsonLd } from '@/lib/seo/jsonld'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
 import { Crumbs, GuideRows, LEARN_HOME, LearnPage, PageHead, PromptMasonry } from '@/components/learn/ui'
 import { FollowButton } from '@/components/learn/social-client'
 import { CreatorAdmin } from '@/components/learn/creator-admin-client'
 import { levelOf } from '@/lib/content/points'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
+import { currentBrand } from '@/lib/storefront/brand-meta'
+import type { StoreBrand } from '@/lib/brand-base'
+import { PlatformJsonLd } from '@/components/seo/platform-json-ld'
 
 /**
  * 作者公开主页（内容平台 P1，设计 §4.1 / §11.4 ProfilePage）。地址用随机短码，不用 userId（理由见 lib/content/creator.ts）。
@@ -39,12 +42,14 @@ const getCreator = cache(async (handle: string) => {
   return { profile, user, name: memberDisplayName(user.nickname, user.id), prompts, guides, discussions, followers }
 })
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+async function pageMetadata({ params }: Props): Promise<Metadata> {
   const c = await getCreator(params.handle)
   if (!c) return { title: `作者不存在 - ${SITE_NAME}`, robots: { index: false, follow: false } }
   const indexable = (await countIndexable({ userId: c.user.id }, 1)) > 0
   const title = `${c.name}的 AI 提示词与教程 - ${SITE_NAME}`
-  const description = c.profile.bio || `${c.name} 在贝果分享的 ${c.prompts.total} 条提示词、${c.guides.total} 篇教程。`
+  // 白标渠道（内容模块下放）：「贝果」换成渠道站名
+  const site = siteShortName(await currentBrand())
+  const description = c.profile.bio || `${c.name} 在${site}分享的 ${c.prompts.total} 条提示词、${c.guides.total} 篇教程。`
   return {
     metadataBase: new URL(siteOrigin()),
     title,
@@ -57,6 +62,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CreatorPage({ params }: Props) {
   const c = await getCreator(params.handle)
+  const site = siteShortName(await currentBrand())
   if (!c) notFound()
   const url = absUrl(`/u/${c.profile.handle}`)
   const total = c.prompts.total + c.guides.total + c.discussions.total
@@ -75,13 +81,13 @@ export default async function CreatorPage({ params }: Props) {
   }
   return (
     <>
-      <JsonLd data={profileLd} />
+      <PlatformJsonLd data={profileLd} />
       <LearnPage>
         <Crumbs crumbs={[{ name: LEARN_HOME.name, path: LEARN_HOME.path }, { name: '作者' }, { name: c.name }]} />
         <PageHead
           eyebrow="Creator · 作者"
           title={c.name}
-          lede={c.profile.bio || `${c.user.createdAt.getFullYear()} 年加入贝果。`}
+          lede={c.profile.bio || `${c.user.createdAt.getFullYear()} 年加入${site}。`}
           action={
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex h-10 items-center rounded-full bg-white px-4 text-sm font-semibold text-black">
@@ -125,4 +131,14 @@ export default async function CreatorPage({ params }: Props) {
       </LearnPage>
     </>
   )
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
+  return moduleMetadata(await pageMetadata(props))
+}
+
+/** 「在贝果分享」「加入贝果」里的站名：主站与没改名的渠道是「贝果」，改了名的渠道是渠道站名 */
+function siteShortName(brand: StoreBrand): string {
+  return brand.custom ? brand.name : '贝果'
 }

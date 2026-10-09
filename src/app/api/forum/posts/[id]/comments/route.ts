@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { resolveActor } from '@/lib/forum'
 import { forumWriteGate } from '@/lib/forum-throttle'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule, getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
 import { flagsOf, forumCrossSite, loadCommentPage, trustLevelOf } from '@/lib/forum-server'
 import { FLAG_LABELS, commentReviewOnCreate, isPublic } from '@/lib/content/policy'
 import { notify } from '@/lib/notify'
@@ -15,8 +15,8 @@ import { onCommentPublished } from '@/lib/content/events'
 // 评论列表（楼中楼，两层结构）
 // 顶层评论分页，楼中楼回复跟随其父评论一起返回（不单独分页）。取数与拼装在 lib/forum-server（详情页服务端直出共用）
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
+  // 渠道分站：本模块渠道站默认关闭，超管授权且渠道上架才开（docs/多渠道分销-内容模块下放.md）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   try {
     const id = parseInt(params.id)
@@ -41,9 +41,11 @@ const createSchema = z.object({
 
 // 发表评论：必须登录（内容平台 P0 关闭匿名评论）；命中风险检测的进待审，其余即发即显
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
+  // 渠道分站：本模块渠道站默认关闭，超管授权且渠道上架才开（docs/多渠道分销-内容模块下放.md）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
+  // 来源站（内容模块下放）：渠道发的帖 / 评论在后台审核时显示来源。getStorefront 不包进 try
+  const sourceTenantId = (await getStorefront())?.id ?? PLATFORM_TENANT_ID
   const crossSite = forumCrossSite(request.headers)
   if (crossSite) return crossSite
   try {
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         parentId: d.parentId || null,
         userId: actor.userId,
         authorName: authorName.slice(0, 50),
+        sourceTenantId,
         content: d.content,
         reviewStatus,
       },

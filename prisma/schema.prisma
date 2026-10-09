@@ -1341,18 +1341,20 @@ model ForumPost {
   copyCount   Int       @default(0) @map("copy_count") // 提示词被复制次数（按访客每天去重，见 content_events）
 
   // ── 内容平台 P2（2026-10-06）──
-  mediaCredit       String? @map("media_credit") @db.VarChar(400) // 示例图来源 JSON {by,url,license}；为空 = 作者自己的出图
-  remixOfId         Int?    @map("remix_of_id") // 「同款自」：二创链（设计 §7.4）
-  acceptedCommentId Int?    @map("accepted_comment_id") // 问答：作者采纳的回答
-  simhash           String? @db.VarChar(16) // 正文 / 提示词的 64 位 SimHash（十六进制），用于查重（设计 §6.2）
-  favoriteCount     Int     @default(0) @map("favorite_count")
-  remixCount        Int     @default(0) @map("remix_count")
+  mediaCredit       String?   @map("media_credit") @db.VarChar(400) // 示例图来源 JSON {by,url,license}；为空 = 作者自己的出图
+  remixOfId         Int?      @map("remix_of_id") // 「同款自」：二创链（设计 §7.4）
+  acceptedCommentId Int?      @map("accepted_comment_id") // 问答：作者采纳的回答
+  simhash           String?   @db.VarChar(16) // 正文 / 提示词的 64 位 SimHash（十六进制），用于查重（设计 §6.2）
+  favoriteCount     Int       @default(0) @map("favorite_count")
+  remixCount        Int       @default(0) @map("remix_count")
   // ── 内容平台 P3（2026-10-07）──
-  ctaRefOff         Boolean @default(false) @map("cta_ref_off") // 编辑对单篇关闭「作者内推返现」（设计 §13.1）
+  ctaRefOff         Boolean   @default(false) @map("cta_ref_off") // 编辑对单篇关闭「作者内推返现」（设计 §13.1）
   // ── 内容扩容（2026-10-07，docs/内容平台/扩容基础设施-1007.md）：定时放量 ──
   // 导入 --schedule 的条目建成 reviewStatus=SCHEDULED（与 PENDING 一样不公开），每天由 /api/cron/content-release 按 releaseRank 放出 N 条。
   releaseRank       Int?      @map("release_rank") // 放量顺序（小的先放）：导入时按「类型 + 大类 + 主题」交错排好，保证每天一批是混合的
   releasedAt        DateTime? @map("released_at") // 被定时放量（或后台「立即放出」）公开的时间；按上海自然日数它来封顶每天的条数
+  // ── 内容模块下放（2026-10-10）：在哪个店面发的（1 = 主站；渠道 id）。不建外键，只用于后台审核时显示来源站 ──
+  sourceTenantId    Int       @default(1) @map("source_tenant_id")
 
   category ForumCategory  @relation(fields: [categoryId], references: [id])
   user     User?          @relation(fields: [userId], references: [id])
@@ -1379,17 +1381,18 @@ model ForumPost {
 
 // 评论 / 楼中楼回复
 model ForumComment {
-  id           Int      @id @default(autoincrement())
-  postId       Int      @map("post_id")
-  parentId     Int?     @map("parent_id") // 回复某条评论（楼中楼）
-  userId       Int?     @map("user_id")
-  authorName   String   @map("author_name") @db.VarChar(50)
-  content      String   @db.Text
-  likeCount    Int      @default(0) @map("like_count")
-  status       Int      @default(1)
+  id             Int      @id @default(autoincrement())
+  postId         Int      @map("post_id")
+  parentId       Int?     @map("parent_id") // 回复某条评论（楼中楼）
+  userId         Int?     @map("user_id")
+  authorName     String   @map("author_name") @db.VarChar(50)
+  content        String   @db.Text
+  likeCount      Int      @default(0) @map("like_count")
+  status         Int      @default(1)
   // 内容平台 P0：命中风险检测（外链 / 联系方式 / 敏感词）的评论先进待审。库默认值 APPROVED 同 ForumPost 的理由
-  reviewStatus String   @default("APPROVED") @map("review_status") @db.VarChar(16) // PENDING | APPROVED | REJECTED
-  createdAt    DateTime @default(now()) @map("created_at")
+  reviewStatus   String   @default("APPROVED") @map("review_status") @db.VarChar(16) // PENDING | APPROVED | REJECTED
+  sourceTenantId Int      @default(1) @map("source_tenant_id") // 内容模块下放（2026-10-10）：在哪个店面发的（1 = 主站），后台显示来源站
+  createdAt      DateTime @default(now()) @map("created_at")
 
   post    ForumPost      @relation(fields: [postId], references: [id], onDelete: Cascade)
   user    User?          @relation(fields: [userId], references: [id])
@@ -2314,6 +2317,14 @@ model Tenant {
   seoTitle              String?   @map("seo_title") @db.VarChar(120) // 浏览器标题，≤40 字
   seoDescription        String?   @map("seo_description") @db.VarChar(360) // 分享摘要，≤120 字
   brandLocked           Boolean   @default(false) @map("brand_locked") // 超管禁止渠道再改品牌（已有值保留，超管可一键恢复默认）
+  // —— 内容模块下放（docs/多渠道分销-内容模块下放.md）：AI学习 / AI圈大事记 / IP工具 ——
+  // *Granted 超管授权（默认不授权）；*On 渠道自己上架 / 下架（默认上架）。前台生效 = 授权 && 上架
+  modLearnGranted       Boolean   @default(false) @map("mod_learn_granted")
+  modLearnOn            Boolean   @default(true) @map("mod_learn_on")
+  modNewsGranted        Boolean   @default(false) @map("mod_news_granted")
+  modNewsOn             Boolean   @default(true) @map("mod_news_on")
+  modIptoolsGranted     Boolean   @default(false) @map("mod_iptools_granted")
+  modIptoolsOn          Boolean   @default(true) @map("mod_iptools_on")
   createdAt             DateTime  @default(now()) @map("created_at")
   updatedAt             DateTime? @updatedAt @map("updated_at")
 

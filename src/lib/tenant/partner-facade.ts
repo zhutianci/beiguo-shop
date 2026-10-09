@@ -771,3 +771,6 @@ export {
   updateTenantAnnouncement,
   type TenantAnnouncementDTO,
 } from './announcements'
+
+// 内容模块下放（docs/多渠道分销-内容模块下放.md）：实现在 tenant/content-modules.ts，这里只做再导出（规则 3）
+export { listTenantModules, setTenantModuleOn, TenantModuleError } from './content-modules'

@@ -306,8 +306,9 @@ export async function countIndexable(where: Prisma.ForumPostWhereInput, atLeast 
 /*
  * countIndexable 的跨请求缓存（性能优化 2026-10-07）。它要把最多 1000 条帖子的正文、提示词全文取出来逐条判定，
  * 是 /learn、/prompts、/guides 及各专题页每次请求里最重的一次查询，而它只决定这一页的 robots 是否 noindex。
- *  · 为什么能跨请求缓存：结果只取决于公开内容本身，与登录用户、店面都无关——内容平台只在主站开放（这些路由的 layout 都
- *    notFoundOnChannel），所以键固定用主站的店面 id；走全仓唯一允许的跨请求缓存 storefrontCached（边界检查第 9 条）。
+ *  · 为什么能跨请求缓存：结果只取决于公开内容本身，与登录用户、店面都无关（内容全站共用一份：2026-10-10 内容模块下放到
+ *    渠道站后，渠道站读到的也是同一批公开内容，渠道站整站 noindex、这个数在渠道站不影响任何输出），所以键固定用主站的店面 id；
+ *    走全仓唯一允许的跨请求缓存 storefrontCached（边界检查第 9 条）。
  *  · 为什么能接受 5 分钟的滞后：新内容过审后，专题页从 noindex 变成可收录最多晚 5 分钟，爬虫本来就是按天回访；
  *    下线内容同理。条数、标题等展示数据不走这里，照常实时。
  *  · /u/[handle] 作者页仍直接调 countIndexable（按作者、量小）。

@@ -9,6 +9,7 @@ import { cardsByIds } from '@/lib/content/queries'
 import { SITE_NAME } from '@/lib/product-seo'
 import { CollectionFollowButton } from '@/components/learn/social-client'
 import { Crumbs, Empty, GuideRows, LEARN_HOME, LearnPage, PageHead, PromptMasonry } from '@/components/learn/ui'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
 
 /**
  * 合集公开页（内容平台 P2，设计 §7.5）。用户整理的一组内容（自己的或别人的）。
@@ -28,7 +29,7 @@ const getCollection = cache(async (id: number) => {
   return { c, ownerName: owner ? memberDisplayName(owner.nickname, owner.id) : '会员', ownerHandle: handle?.handle ?? null }
 })
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+async function pageMetadata({ params }: Props): Promise<Metadata> {
   const d = await getCollection(Number(params.id))
   // 非公开合集的标题 / 简介不进 <title> 与 description（2026-10-07：以前页面主体 404、metadata 却照样输出，
   // 遍历 id 就能读到别人的私密合集名）。主人自己打开时照常显示
@@ -79,4 +80,9 @@ export default async function CollectionPage({ params }: Props) {
       )}
     </LearnPage>
   )
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
+  return moduleMetadata(await pageMetadata(props))
 }
