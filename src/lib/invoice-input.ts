@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { prisma } from './db'
 import { normalizeTaxNumber, TAX_NUMBER_MAX_LEN } from './invoice'
 import { BillingError, type BuyerInvoiceFields } from './order-billing'
+import { DEFAULT_INVOICE_ITEM, INVOICE_ITEM_KEYS } from './invoice-items'
 
 /**
  * 开票抬头的输入层：校验 → 归一化 → 落成 BuyerInvoiceFields。
@@ -13,6 +14,21 @@ import { BillingError, type BuyerInvoiceFields } from './order-billing'
  * 【为什么不放在 route.ts 里】Next 的 route.ts 只允许导出 HTTP handler 和少数配置项，
  * 多导出一个 schema 会让 next build 报「不是合法的 Route export」（见交接文档第六节）。
  */
+
+/**
+ * 发票 / 收据项目（lib/invoice-items.ts 里的 key）。
+ *
+ * 【可选，缺省按技术咨询服务】与「是否展示字眼」的必选不同：上线瞬间还开着旧页面的买家
+ * 提交时不带这个字段，照旧按原来的固定项目开出来，不能被拦下。null / 空串同样视为没选。
+ * 不在清单里的值直接报错 —— 绝不能把一个认不出来的 key 静默写进库、导出时再悄悄回落。
+ */
+export const invoiceItemField = z.preprocess(
+  (v) => (v === null || v === '' ? undefined : v),
+  z
+    .enum(INVOICE_ITEM_KEYS, { errorMap: () => ({ message: '发票项目不在可选范围内，请刷新页面后重新选择' }) })
+    .optional()
+    .default(DEFAULT_INVOICE_ITEM)
+)
 
 /** 抬头字段的公共形状（不含 externalOrderId / accountEmail 这类路径相关的东西） */
 export const invoiceFieldsSchema = z.object({
@@ -26,6 +42,7 @@ export const invoiceFieldsSchema = z.object({
   // 必选：发票内容是否展示 ChatGPT/Claude 等字眼。
   // 用 boolean 而非 optional，缺失时 zod 会直接报「请选择…」，不允许静默默认。
   showAiWording: z.boolean({ required_error: '请选择发票中是否展示 ChatGPT/Claude 相关字眼' }),
+  invoiceItem: invoiceItemField,
 })
 
 /**
@@ -76,6 +93,7 @@ export function normalizeInvoiceFields(d: RawInvoiceFields): BuyerInvoiceFields 
     bankAccount: d.bankAccount?.trim() || null,
     email: d.email.trim().toLowerCase(),
     showAiWording: d.showAiWording,
+    invoiceItem: d.invoiceItem,
   }
 }
 

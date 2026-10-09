@@ -51,6 +51,8 @@ export interface AdminInvoiceRow {
   email: string | null
   /** 买家申请时的必选项；历史发票与管理员凭空建的记录为 null，前端显示「—」 */
   showAiWording: boolean | null
+  /** 发票项目 key（lib/invoice-items.ts）；NULL = 功能上线前的发票 / 空壳记录，按技术咨询服务开 */
+  invoiceItem: string | null
   sellingPrice: number | null
   invoiceAmount: number | null
   taxFee: number | null
@@ -145,6 +147,7 @@ export function buildRow(o: ExternalOrder, iv: Invoice | null): AdminInvoiceRow 
     bankAccount: iv?.bankAccount ?? null,
     email: iv?.email ?? null,
     showAiWording: iv?.showAiWording ?? null,
+    invoiceItem: iv?.invoiceItem ?? null,
     sellingPrice,
     invoiceAmount,
     taxFee,
@@ -187,6 +190,7 @@ export function buildManualRow(iv: Invoice): AdminInvoiceRow {
     bankAccount: iv.bankAccount,
     email: iv.email,
     showAiWording: iv.showAiWording,
+    invoiceItem: iv.invoiceItem,
     sellingPrice: num(iv.sellingPrice),
     invoiceAmount: num(iv.invoiceAmount),
     taxFee: num(iv.taxFee),

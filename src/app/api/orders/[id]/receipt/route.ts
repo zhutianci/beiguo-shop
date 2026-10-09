@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
+import { invoiceItemField } from '@/lib/invoice-input'
 import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized, notFound } from '@/lib/api'
@@ -20,6 +21,8 @@ const schema = z.object({
   // 必选、无默认：与发票同一口径。不展示 → 收据「项目」一栏只印「技术咨询服务」。
   // 收据一笔订单只能开一次、开完改不了，所以不能替买家默认成任何一边
   showAiWording: z.boolean({ required_error: '请选择收据中是否展示 ChatGPT/Claude 相关字眼' }),
+  // 收据项目（可选，缺省 = 技术咨询服务；与发票同一份清单）
+  invoiceItem: invoiceItemField,
 })
 
 // 买家从「我的订单」直接申请收据（无需邮箱查询）
@@ -97,6 +100,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const result = await submitReceiptForExternalOrder(ext.id, parsed.data.payerTitle, {
       paidInvoiceAmount: paidInvoice?.invoiceAmount ?? null,
       showAiWording: parsed.data.showAiWording,
+      invoiceItem: parsed.data.invoiceItem,
     })
     return success(result, '收据已生成')
   } catch (err) {

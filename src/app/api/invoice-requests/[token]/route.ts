@@ -110,6 +110,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       taxNumber: fields.taxNumber,
       invoiceAmount: r.invoiceAmount,
       showAiWording: fields.showAiWording,
+      invoiceItem: fields.invoiceItem,
       email: fields.email,
     })
 

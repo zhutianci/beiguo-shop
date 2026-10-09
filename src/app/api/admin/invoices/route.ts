@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { createManualInvoice, BillingError } from '@/lib/order-invoice'
+import { invoiceItemField } from '@/lib/invoice-input'
 import { buildAdminInvoiceRows, type AdminInvoiceRowSource } from '@/lib/admin-invoice-row'
 import { adminOrResponse, parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 
@@ -277,6 +278,7 @@ const manualSchema = z.object({
   subscriptionType: z.string().trim().max(100).optional().nullable(),
   account: z.string().trim().max(255).optional().nullable(),
   showAiWording: z.boolean().optional().default(false),
+  invoiceItem: invoiceItemField,
   status: z.enum(['SUBMITTED', 'ISSUED']).optional().default('SUBMITTED'),
 })
 
@@ -301,6 +303,7 @@ export async function POST(request: NextRequest) {
       subscriptionType: d.subscriptionType || '技术咨询服务',
       account: d.account,
       showAiWording: d.showAiWording,
+      invoiceItem: d.invoiceItem,
       status: d.status,
     })
     return success(r, d.status === 'ISSUED' ? '已录入（标记为已开具）' : '已录入，将进入待开清单')

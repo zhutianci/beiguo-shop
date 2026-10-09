@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client'
 import { prisma } from './db'
+import { DEFAULT_INVOICE_ITEM, isInvoiceItemKey, type InvoiceItemKey } from './invoice-items'
 import { isCarrierType, CARRIER_NO_INVOICE_MSG } from './order-scope'
 // 叶子依赖：billing-link 只依赖 db（不 import order-link，否则 order-link → 本文件 → billing-link → order-link 成环）
 import { billingTenantFields, CrossTenantBillingError } from './tenant/billing-link'
@@ -96,6 +97,11 @@ export interface BuyerInvoiceFields {
   email: string
   /** 发票内容是否展示 ChatGPT/Claude 等字眼（买家申请时必选，无默认值） */
   showAiWording: boolean
+  /**
+   * 发票项目（lib/invoice-items.ts 的 key）。买家入口经 normalizeInvoiceFields 必定给出一个合法 key；
+   * 可空只为兼容上线前存下的下单草稿 —— NULL 落库，导出时按「技术咨询服务」开，与原来一致
+   */
+  invoiceItem?: InvoiceItemKey | null
 }
 
 // 买家从「我的订单」申请发票/收据时，为该订单生成/复用一条背书 ExternalOrder，
@@ -216,6 +222,8 @@ export function parseOrderInvoiceDraft(raw: string | null | undefined): OrderInv
       bankAccount: d.bankAccount ? String(d.bankAccount) : null,
       email: String(d.email),
       showAiWording: d.showAiWording,
+      // 上线前存下的草稿没有这个键；认不出来的值同样当没选（NULL = 按技术咨询服务开），履约路径不抛
+      invoiceItem: isInvoiceItemKey(d.invoiceItem) ? d.invoiceItem : null,
       taxFee: Number(d.taxFee) || 0,
     }
   } catch {
@@ -312,6 +320,7 @@ export async function materializeOrderInvoice(o: PaidOrderForInvoice) {
         bankAccount: draft.bankAccount,
         email: draft.email,
         showAiWording: draft.showAiWording,
+        invoiceItem: draft.invoiceItem ?? null,
         sellingPrice: price,
         invoiceAmount,
         taxFee,
@@ -438,6 +447,7 @@ async function settlePrepaid(
             bankAccount: fields.bankAccount || null,
             email: fields.email,
             showAiWording: fields.showAiWording,
+            invoiceItem: fields.invoiceItem ?? null,
           },
         })
         .catch((e) => console.error('[invoice] 更新已提交发票的抬头失败', shopOrderId, e))
@@ -460,6 +470,8 @@ export interface ManualInvoiceInput {
   /** 开票内容/项目，对应发票的「规格型号」列（仅在 showAiWording=true 时展示） */
   subscriptionType: string
   showAiWording: boolean
+  /** 发票项目（表二「项目名称」+「税收编码」）。缺省 = 技术咨询服务 */
+  invoiceItem?: InvoiceItemKey | null
   /** 客户标识，展示在后台列表的「账户」列；留空则用邮箱兜底 */
   account?: string | null
   /** SUBMITTED 进待开清单（默认）/ ISSUED 只做存档 */
@@ -519,6 +531,7 @@ export async function createManualInvoice(
       bankAccount: input.bankAccount?.trim() || null,
       email: input.email?.trim().toLowerCase() || null,
       showAiWording: input.showAiWording,
+      invoiceItem: input.invoiceItem ?? DEFAULT_INVOICE_ITEM,
       sellingPrice: sellCents / 100,
       invoiceAmount: invoiceCents / 100,
       taxFee: (invoiceCents - sellCents) / 100,

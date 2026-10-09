@@ -221,7 +221,7 @@ model Order {
   // 单卡售价分摊(splitAmount)、内推返现、后台流水与利润的基准，折进去这些会全部虚高。
   // 税费单独放这一列，收银台收 amount + invoiceTaxFee 一笔。
   invoiceTaxFee  Decimal?       @map("invoice_tax_fee") @db.Decimal(10, 2)
-  // 开票信息草稿（JSON 快照：title/taxNumber/address/phone/bankName/bankAccount/email/showAiWording）。
+  // 开票信息草稿（JSON 快照：title/taxNumber/address/phone/bankName/bankAccount/email/showAiWording/invoiceItem）。
   // 【刻意不在下单时就建 Invoice 行】那样要先建 ExternalOrder，而未付款的订单混进
   // external_orders 会被到期提醒扫到（lib/reminder.ts 按 expireDate 查），给没付钱的人发续费提醒。
   // 草稿在付款履约时才落成真正的 Invoice，见 lib/order-billing.ts 的 materializeOrderInvoice。
@@ -1116,6 +1116,9 @@ model Invoice {
   // 买家申请时必选：发票内容是否展示 ChatGPT/Claude 等字眼。
   // 可空而非 default(true)：历史发票与管理员凭空建的空壳记录应显示「-」，不能误标成买家已选择展示。
   showAiWording    Boolean?  @map("show_ai_wording")
+  // 发票项目（买家开票时自选，key 见 lib/invoice-items.ts）：决定批量导出表二的「项目名称」与
+  // 「商品和服务税收编码」。NULL = 功能上线前的历史发票 / 没选过，按「技术咨询服务」开，与原来一致
+  invoiceItem      String?   @map("invoice_item") @db.VarChar(20)
   // 状态：UNAPPLIED 未开发票 / AWAIT_PAY 待支付税费 / SUBMITTED 已提交开票 / ISSUED 已开具 / CANNOT 不可开据
   status           String    @default("UNAPPLIED") @db.VarChar(20)
   // 税费支付
@@ -1225,6 +1228,8 @@ model Receipt {
   // false → 「项目」一栏印「技术咨询服务」；true → 与原来一致（订阅类型 + 会员订阅）。
   // 可空而非 default(true)：历史收据与手动开具（DIY）的收据没有做过这个选择，按原样展示
   showAiWording    Boolean?  @map("show_ai_wording")
+  // 收据项目（与 Invoice.invoiceItem 同一份清单）。NULL = 历史收据 / DIY，「项目」一栏按原样
+  invoiceItem      String?   @map("invoice_item") @db.VarChar(20)
   // ---- 渠道分站（设计 5.5）：与 Invoice 同口径 ----
   tenantId         Int       @default(1) @map("tenant_id")
   shopOrderId      Int?      @map("shop_order_id")

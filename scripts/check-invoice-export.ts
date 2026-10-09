@@ -37,6 +37,8 @@ import {
   数量_1,
   type ExportInvoice,
 } from '../src/lib/invoice-export'
+import { INVOICE_ITEMS, normalizeInvoiceItem } from '../src/lib/invoice-items'
+import { receiptProjectLabel } from '../src/lib/receipt'
 
 let pass = 0
 let fail = 0
@@ -174,6 +176,45 @@ const weird = itemRow({ ...full, showAiWording: true, subscriptionType: 'Codex�
 eq('认不出商品时 D 空', weird[ITEM_COL.规格型号], '')
 eq('认不出商品时 E 也空', weird[ITEM_COL.单位], '')
 eq('认不出商品时 F 也空', weird[ITEM_COL.数量], '')
+
+console.log('\n【表二：买家自选发票项目 → 项目名称 + 税收编码成对】')
+// 逐字取自站长给的清单（2026-10-09）。编码错一位税局整批退回，所以这里写死原文对照，不引常量
+const EXPECT_ITEMS: [string, string, string][] = [
+  ['TECH_CONSULT', '技术咨询服务', '3040102000000000000'],
+  ['INFO_SYSTEM', '信息系统服务', '3040203000000000000'],
+  ['SOFTWARE', '软件服务费', '3040201990000000000'],
+  ['SERVICE', '服务费', '3040203000000000000'],
+  ['TEST', '测试费', '3040201040000000000'],
+]
+eq('清单共 5 项', INVOICE_ITEMS.length, 5)
+for (const [key, name, code] of EXPECT_ITEMS) {
+  const r = itemRow({ ...full, invoiceItem: key })
+  eq(`${key} B 项目名称`, r[ITEM_COL.项目名称], name)
+  eq(`${key} C 税收编码`, r[ITEM_COL.税收编码], code)
+  eq(`${key} 编码 19 位纯数字`, /^\d{19}$/.test(r[ITEM_COL.税收编码]), true)
+  eq(`${key} 不影响规格型号`, r[ITEM_COL.规格型号], 'Claude pro会员订阅')
+}
+eq('invoiceItem=null（历史发票）= 技术咨询服务', itemRow({ ...full, invoiceItem: null })[ITEM_COL.项目名称], '技术咨询服务')
+eq('invoiceItem=null 编码 = 原固定值', itemRow({ ...full, invoiceItem: null })[ITEM_COL.税收编码], '3040102000000000000')
+eq('认不出来的 key 回落默认', itemRow({ ...full, invoiceItem: 'BOGUS' })[ITEM_COL.税收编码], '3040102000000000000')
+const sw = itemRow({ ...full, invoiceItem: 'SOFTWARE', showAiWording: false })
+eq('不展示 + 软件服务费：项目名称', sw[ITEM_COL.项目名称], '软件服务费')
+eq('不展示 + 软件服务费：规格型号空', sw[ITEM_COL.规格型号], '')
+
+console.log('\n【入参归一化】')
+eq('缺省 → 默认', normalizeInvoiceItem(undefined), 'TECH_CONSULT')
+eq('空串 → 默认', normalizeInvoiceItem(''), 'TECH_CONSULT')
+eq('合法 key 原样', normalizeInvoiceItem('TEST'), 'TEST')
+eq('非法 key → null', normalizeInvoiceItem('技术咨询服务'), null)
+
+console.log('\n【收据「项目」一栏】')
+eq('历史收据（NULL 项目）不展示 = 原样', receiptProjectLabel('Claude Pro', false, null), '技术咨询服务')
+eq('历史收据（NULL 项目）展示 = 原样', receiptProjectLabel('Claude Pro', true, null), 'Claude Pro 会员订阅')
+eq('历史收据 showAiWording=null = 原样', receiptProjectLabel('Claude Pro', null, null), 'Claude Pro 会员订阅')
+eq('DIY 收据不印', receiptProjectLabel(null, null, null), null)
+eq('选了软件服务费 + 不展示', receiptProjectLabel('Claude Pro', false, 'SOFTWARE'), '软件服务费')
+eq('选了软件服务费 + 展示', receiptProjectLabel('Claude Pro', true, 'SOFTWARE'), '软件服务费（Claude Pro 会员订阅）')
+eq('默认项目 + 展示', receiptProjectLabel('Claude Pro', true, 'TECH_CONSULT'), '技术咨询服务（Claude Pro 会员订阅）')
 
 console.log('\n【xlsx 行拼装】')
 eq('A 列', colName(0), 'A')

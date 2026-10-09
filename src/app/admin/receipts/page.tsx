@@ -19,6 +19,10 @@ interface Receipt {
   subscriptionType: string | null
   /** 买家申请时选的「是否展示 ChatGPT/Claude 字眼」；null = 历史收据 / DIY 收据 */
   showAiWording?: boolean | null
+  /** 买家选的收据项目 key（NULL = 历史 / DIY） */
+  invoiceItem?: string | null
+  /** 收据「项目」一栏最终印的文案（服务端按 lib/receipt.receiptProjectLabel 算好） */
+  project?: string | null
   payerTitle: string
   payee: string
   amount: number
@@ -203,14 +207,19 @@ export default function AdminReceiptsPage() {
                           <td className="py-2 pr-3 font-mono text-xs">{r.claudeAccount || '—'}</td>
                           <td className="py-2 pr-3 text-xs">
                             {r.subscriptionType || (r.itemCount > 0 ? `自定义 ${r.itemCount} 项` : '—')}
-                            {/* 收据上实际印的是「技术咨询服务」而不是上面的订阅类型，给管理员一个提示 */}
+                            {/* 收据上实际印的是所选项目（默认「技术咨询服务」）而不是上面的订阅类型，给管理员一个提示 */}
                             {r.showAiWording === false && (
                               <span
                                 className="ml-1.5 inline-flex rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700"
-                                title="买家选择不展示 ChatGPT/Claude 字眼：收据「项目」一栏印「技术咨询服务」"
+                                title={`买家选择不展示 ChatGPT/Claude 字眼：收据「项目」一栏印「${r.project || '技术咨询服务'}」`}
                               >
                                 不展示字眼
                               </span>
+                            )}
+                            {r.invoiceItem && (
+                              <div className="mt-0.5 text-[11px] text-gray-500" title="收据「项目」一栏实际印的内容">
+                                印：{r.project}
+                              </div>
                             )}
                           </td>
                           <td className="py-2 pr-3">¥{r.amount.toFixed(2)}</td>

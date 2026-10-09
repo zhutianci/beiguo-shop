@@ -31,7 +31,7 @@ export async function GET(_request: NextRequest, { params }: { params: { token: 
       // 「项目」一栏的最终文案由服务端决定（与发票导出同一口径，见 lib/receipt.ts）：
       // 买家选了不展示字眼 → 「技术咨询服务」；历史收据（NULL）与 DIY 收据按原样。
       // 前端只管渲染，不自己拼，免得两处口径漂移
-      project: receiptProjectLabel(r.subscriptionType, r.showAiWording),
+      project: receiptProjectLabel(r.subscriptionType, r.showAiWording, r.invoiceItem),
       showAiWording: r.showAiWording,
       orderStartDate: r.orderStartDate,
       orderExpireDate: r.orderExpireDate,

@@ -34,6 +34,8 @@ import { useStorefront } from '@/components/storefront-provider'
 // 只取类型：lib/lottery 间接引用了 prisma 与 node crypto，值导入会被打进前端包
 import type { BuyerLotteryView } from '@/lib/lottery'
 // 短信接码单在「我的订单」里的显示规则（纯函数，零依赖；docs/短信接码-设计.md §6.6 第 27 条）
+import { InvoiceItemSelect } from '@/components/invoice-item-select'
+import { DEFAULT_INVOICE_ITEM, invoiceItemName, type InvoiceItemKey } from '@/lib/invoice-items'
 import { jiemaOrderCard, jiemaAmountLines, orderAmountText, type JiemaCard } from '@/lib/jiema/ui'
 
 interface Order {
@@ -1369,6 +1371,8 @@ function InvoiceModal({
   const [email, setEmail] = useState(defaultEmail || '')
   // 必选项：发票中是否展示 ChatGPT/Claude 相关字眼。null = 尚未选择（不给默认值，强制买家表态）
   const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
+  // 发票项目：默认技术咨询服务（= 可选之前的固定值）
+  const [invoiceItem, setInvoiceItem] = useState<InvoiceItemKey>(DEFAULT_INVOICE_ITEM)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -1444,6 +1448,7 @@ function InvoiceModal({
           bankAccount: bankAccount.trim() || null,
           email: email.trim(),
           showAiWording,
+          invoiceItem,
           titleId,
           saveTitle: titleId === null && saveTitle,
         }),
@@ -1577,6 +1582,8 @@ function InvoiceModal({
               ))}
             </div>
           </div>
+
+          <InvoiceItemSelect className="sm:col-span-2" value={invoiceItem} onChange={setInvoiceItem} />
         </div>
 
         {authed && titleId === null && (
@@ -1631,6 +1638,8 @@ function ReceiptModal({
   // 必选项：收据中是否展示 ChatGPT/Claude 相关字眼（与发票同一口径）。
   // null = 尚未选择 —— 收据只能开一次、开完改不了，不能替买家默认成任何一边
   const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
+  // 收据项目：与发票同一份清单，默认技术咨询服务
+  const [invoiceItem, setInvoiceItem] = useState<InvoiceItemKey>(DEFAULT_INVOICE_ITEM)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -1643,7 +1652,7 @@ function ReceiptModal({
       const res = await fetch(`/api/orders/${order.id}/receipt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payerTitle: payerTitle.trim(), showAiWording }),
+        body: JSON.stringify({ payerTitle: payerTitle.trim(), showAiWording, invoiceItem }),
       })
       const data = await res.json()
       if (data.success && data.data?.token) {
@@ -1704,6 +1713,8 @@ function ReceiptModal({
           />
         </div>
 
+        <InvoiceItemSelect className="mt-4" label="收据项目" value={invoiceItem} onChange={setInvoiceItem} />
+
         {/* 必选：收据「项目」一栏是否展示 AI 平台字眼。说明里直接写出会印成什么，免得买家猜 */}
         <div className="mt-4">
           <label className="block text-xs text-white/50 mb-1.5">
@@ -1711,8 +1722,8 @@ function ReceiptModal({
           </label>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { v: true, label: '展示', desc: `项目印「${order.productName} 会员订阅」` },
-              { v: false, label: '不展示', desc: '项目只印「技术咨询服务」' },
+              { v: true, label: '展示', desc: `项目印「${invoiceItemName(invoiceItem)}（${order.productName} 会员订阅）」` },
+              { v: false, label: '不展示', desc: `项目只印「${invoiceItemName(invoiceItem)}」` },
             ].map((opt) => (
               <button
                 key={String(opt.v)}
