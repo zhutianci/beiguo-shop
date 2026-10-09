@@ -220,6 +220,18 @@ export function parseCard(d: Record<string, unknown> | null, cdk: string): SysbL
 
   const cdkStatus = String(row.cdk_status || '').trim().toLowerCase()
   if (!cdkStatus) return null // 没有状态 = 这条通道不认识这张卡
+  /*
+   * 【no_order 等于「什么都没查到」，绝不能判成「待核对」】2026-10-09 修。
+   * 上游约 10-01 起把「查不到订单」从 {"results":[]} 改成了
+   *   {"backend":"autosub","cdk_status":"unknown","order":null,"lookup_status":"no_order"}
+   * 而且**随便编一个不存在的卡密也是这一行**（实测 ZZZZ-NOT-A-REAL-CARD-0000）。
+   * 原来这里把它判成 UNCONFIRMED → check() 只回「上游正在核对」、永远不出表单，
+   * 于是所有 autosub 的卡（Pro 100 / 200 / 500）全部充不了；
+   * 而且查卡在这一条通道就「命中」停下，iOS 通道根本轮不到去查。
+   * 当作没查到返回 null，让流程按商品名兜底并继续查其它通道 —— 与改版前 results:[] 的走向一致。
+   */
+  if (String(row.lookup_status || '').trim().toLowerCase() === 'no_order') return null
+  if (cdkStatus === 'unknown' && !row.order) return null
 
   const planName = firstString(row.product_name)
   // backend 跟着卡走，决定这张卡付卡该走 V1 还是 V2
