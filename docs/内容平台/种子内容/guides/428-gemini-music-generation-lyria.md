@@ -58,6 +58,9 @@ verify:
    - **曲风**；
 7. 提交，等待生成。
 
+![官方配图：创建音乐的输入框，下方有 Length（长度）、Vocals（人声）、Genre（曲风）三个下拉选项，人声里可选 Vocals on 或 Instrumental（纯音乐）](seed:g428-create-music-options.jpg)
+*图片来源：[Google 官方 Lyria 音乐生成介绍页](https://gemini.google/overview/music-generation/)*
+
 官方介绍页还提到「模板库」：选一首模板曲目，改掉细节，让 Gemini 生成你自己的版本，适合不知道怎么描述风格的人。
 
 **官方示例**：

@@ -12,6 +12,7 @@ sources:
   - https://gemini.google/subscriptions/
   - https://support.google.com/gemini/answer/13278892
   - https://support.google.com/gemini/answer/14579026
+  - https://gemini.google/overview/gemini-live/
 verify:
   - Gemini Live 是否已支持网页版 / 电脑版：帮助中心写「目前不在 Gemini 网页版提供」
   - Live 中的个性化（记忆、关联应用信息）目前标注为「仅美国、英语」
@@ -96,6 +97,9 @@ verify:
 
 Live 对话中可以让 Gemini 帮你做一些事，比如把活动加进日历、查附近的餐厅。帮助中心列出的可用应用和服务包括：Google 日历、Google Keep、Google Tasks、Google Workspace、Google Home、Google 航班、Google 酒店、购物、YouTube、YouTube Music、Spotify、图片生成，以及三星、小米、OPPO、vivo、荣耀、一加等品牌自带的日历和备忘类应用。Gemini 还会自动使用 Google 地图上的公开信息。
 
+![官方配图：Gemini Live 对话中把活动加进 Google 日历后的界面，底部一排是摄像头、屏幕共享、麦克风等控制按钮](seed:g404-live-controls-calendar.jpg)
+*图片来源：[Google 官方 Gemini Live 介绍页](https://gemini.google/overview/gemini-live/)*
+
 - 个人账号：如果要用的应用还没连接，先到「关联应用」设置里打开（见本站《Gemini 关联应用怎么设置》），再回到 Live 重说一遍；
 - 工作 / 学校账号：目前只有 Google 日历、Keep、Tasks 能在 Live 里用，且需要管理员开启；
 - **撤销操作**：Live 在前台时，点「撤销（Undo）」或直接让 Gemini 撤销；Live 在后台时暂时不能撤销，需要到对应应用里手动改。三星应用的操作暂不支持撤销。
@@ -141,3 +145,4 @@ Live 对话中可以让 Gemini 帮你做一些事，比如把活动加进日历�
 - Google AI 订阅方案：https://gemini.google/subscriptions/
 - Manage & delete your activity in Gemini Apps：https://support.google.com/gemini/answer/13278892
 - Gemini mobile app availability：https://support.google.com/gemini/answer/14579026
+- 截图来源：https://gemini.google/overview/gemini-live/

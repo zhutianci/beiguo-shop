@@ -11,6 +11,7 @@ sources:
   - https://support.google.com/gemini/answer/16275805
   - https://support.google.com/gemini/answer/13743730
   - https://support.google.com/gemini/answer/18560919
+  - https://gemini.google/overview/storybook/
 verify:
   - Storybook 目前以 Gem 的形式出现在侧边栏；Gems 将在 2026 年 11 月起对个人账号停止支持，届时 Storybook 的入口如何变化官方未说明
   - 故事书的每日生成次数官方未单独公布，受账号整体用量额度约束
@@ -58,6 +59,9 @@ Create a storybook about 一只害怕打雷的小刺猬，在朋友的帮助下�
 2. 点输入框下方出现的「创建故事书（Create a storybook）」。
 
 适合把孩子的画、家庭旅行照片、宠物照片做成故事。上传照片的注意事项见第五节。
+
+![官方示例：Storybook 生成的一本故事书封面（填色画风格），封面下方是书名](seed:g427-storybook-cover-example.jpg)
+*图片来源：[Google 官方 Gemini Storybook 介绍页](https://gemini.google/overview/storybook/)*
 
 ## 二、把故事写得更合心意
 
@@ -128,3 +132,4 @@ Storybook 没有复杂的参数，效果主要靠描述。可以在提示里交�
 - Gemini Apps limits & upgrades for Google AI subscribers（功能对比表）：https://support.google.com/gemini/answer/16275805
 - Share your chats from Gemini Apps：https://support.google.com/gemini/answer/13743730
 - About the transition from Gems to skills：https://support.google.com/gemini/answer/18560919
+- 截图来源：https://gemini.google/overview/storybook/

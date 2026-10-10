@@ -13,6 +13,7 @@ sources:
   - https://support.google.com/gemini/answer/13666746
   - https://support.google.com/gemini/answer/18560919
   - https://support.google.com/gemini/answer/16279220
+  - https://gemini.google/overview/canvas/
 verify:
   - Canvas 入口：帮助中心写在输入框下方「Add Files > Canvas」，界面曾多次调整（早期在「工具」菜单），以实际为准
   - 「Select & ask」「Add Gemini features」「Suggest edits」等按钮的中文名称以实际界面为准
@@ -61,6 +62,9 @@ verify:
 
 选中文字后还可以点「建议修改（Suggest edits）」，让 Gemini 主动提出改法。
 
+![官方配图：右侧 Canvas 面板里的演讲提纲，高亮部分是 Gemini 给出修改建议的段落，旁边的卡片可以逐条「Apply（应用）」；左侧是对话区（早期界面，输入框下方直接有 Canvas 按钮）](seed:g417-canvas-doc-suggest-edits.jpg)
+*图片来源：[Google 官方 Gemini Canvas 介绍页](https://gemini.google/overview/canvas/)*
+
 **一键调整**：面板里有两个快捷按钮——
 
 - 「调整长度（Change length）」：选择想要的篇幅；
@@ -89,6 +93,9 @@ Deep Research 的报告也是在 Canvas 里打开的，所以同样可以用这�
 ## 四、用 Canvas 做网页和小应用
 
 提出需求后，Gemini 会写出代码并在 Canvas 里直接运行出预览。之后可以这样迭代：
+
+![官方配图：用 Canvas 生成的「冒泡排序可视化」小应用，带播放、重置、调速等控件，可以直接在预览里操作](seed:g417-canvas-app-example.jpg)
+*图片来源：[Google 官方 Gemini Canvas 介绍页](https://gemini.google/overview/canvas/)*
 
 - **用对话改**：在输入框里说「把按钮改成蓝色」「加一个导出 CSV 的功能」，Gemini 会更新代码，改动自动保存；
 - **看和改代码**：面板右上角点「代码（Code）」，可以直接编辑；
@@ -160,3 +167,4 @@ Deep Research 的报告也是在 Canvas 里打开的，所以同样可以用这�
 - Find & manage your recent chats in Gemini Apps（删除对话的影响）：https://support.google.com/gemini/answer/13666746
 - About the transition from Gems to skills（技能暂不支持的功能）：https://support.google.com/gemini/answer/18560919
 - Learn about responses from Gemini Apps：https://support.google.com/gemini/answer/16279220
+- 截图来源：https://gemini.google/overview/canvas/

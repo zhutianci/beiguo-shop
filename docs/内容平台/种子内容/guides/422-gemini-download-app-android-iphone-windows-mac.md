@@ -13,6 +13,7 @@ sources:
   - https://support.google.com/gemini/answer/17011627
   - https://support.google.com/gemini/answer/16938321
   - https://support.google.com/gemini/answer/14579631
+  - https://gemini.google/desktop/
 verify:
   - Windows 版下载页 gemini.google/desktop、Mac 版下载页 gemini.google/mac 的可用地区官方未单独列出
   - Mac 版的 Speak to Window 功能标注为逐步推出
@@ -111,6 +112,9 @@ verify:
 - **语音两种方式**：点麦克风听写提问；或用「Speak to Window」——按住 **fn** 键说话、松开即提交，Gemini 会结合当前窗口和你选中的内容，把结果直接写到你正在用的应用里（例如选中会议记录，让它在 Gmail 窗口里起草邮件）。按 Esc 可以中止。这个功能在逐步推出；
 - Mac 版还支持 Gemini Spark 和技能（需要相应订阅，见本站《Gemini Spark 是什么》）。
 
+![官方配图：桌面版 Gemini 的唤出快捷键——macOS 为 Option + 空格，Windows 为 Alt + 空格](seed:g422-desktop-shortcuts.jpg)
+*图片来源：[Google 官方 Gemini 桌面版下载页](https://gemini.google/desktop/)*
+
 ## 五、搜不到、装不上的官方原因
 
 1. **地区不在名单里**：手机 App 的可用国家和地区比网页版少（官方写 150 多个国家），安卓和 iPhone 还各有一份名单；
@@ -143,3 +147,4 @@ verify:
 - Use the Gemini app on Mac：https://support.google.com/gemini/answer/17011627
 - Manage or delete the Gemini app on your Android device：https://support.google.com/gemini/answer/16938321
 - What you can do with your Gemini mobile app：https://support.google.com/gemini/answer/14579631
+- 截图来源：https://gemini.google/desktop/
