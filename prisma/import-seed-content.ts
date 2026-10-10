@@ -434,11 +434,49 @@ async function main() {
   let queued = 0
   if (schedule && !dry) queued = await rerankScheduled()
 
+  // 5) 站内链接：种子正文里写的是 [标题](/guides/{slug})，而站内地址是 /guides/{id}-{slug}（id 导入后才知道）。
+  //    每次导入结束都把这位作者名下正文里的「只有 slug」链接换成真实地址（已导入的旧文也一起纠正）
+  const linksFixed = dry ? 0 : await fixInternalLinks(author.id)
+  if (linksFixed) console.log(`站内链接：${linksFixed} 篇正文里的 slug 链接已换成带 id 的地址`)
+
   const liveWord = schedule ? '进入定时放量队列' : '直接公开'
   console.log(
     `${dry ? '[演练] ' : ''}专题介绍写入 ${introWritten} 个；内容新建 / 刷新 ${created} 条（其中${liveWord} ${published} 条，其余待审）、已存在跳过 ${skipped} 条；作者 ${authorName}` +
       (schedule && !dry ? `；队列现有 ${queued} 条，已按类型 / 大类 / 主题交错重排` : ''),
   )
+}
+
+const LINK_SECTIONS: Record<string, string> = { guides: 'GUIDE', prompts: 'PROMPT', apps: 'APP' }
+/** 这些是真实存在的列表页，不是内容 slug：/prompts/text、/apps/showcase 等原样保留 */
+const RESERVED_SEGMENTS = new Set(['image', 'video', 'text', 'showcase', 'm', 't', 'p'])
+
+/**
+ * 把正文里 `](/guides/{slug})`、`](/prompts/{slug})`、`](/apps/{slug})` 换成 `/{段}/{id}-{slug}`。
+ * 找不到目标的去掉链接、保留文字（不留死链）。只改 content，不动更新时间。返回改了几篇。
+ */
+async function fixInternalLinks(authorId: number): Promise<number> {
+  const targets = await prisma.forumPost.findMany({
+    where: { type: { in: ['GUIDE', 'PROMPT', 'APP'] }, slug: { not: null }, deletedAt: null },
+    select: { id: true, type: true, slug: true },
+  })
+  const idOf = new Map(targets.map((t) => [`${t.type}:${t.slug}`, t.id]))
+  const posts = await prisma.forumPost.findMany({
+    where: { userId: authorId, deletedAt: null, OR: [{ content: { contains: '](/guides/' } }, { content: { contains: '](/prompts/' } }, { content: { contains: '](/apps/' } }] },
+    select: { id: true, content: true },
+  })
+  let changed = 0
+  for (const post of posts) {
+    const next = post.content.replace(/\[([^\]\n]*)\]\(\/(guides|prompts|apps)\/([a-z][a-z0-9-]*)\)/g, (all, text: string, sec: string, slug: string) => {
+      if (RESERVED_SEGMENTS.has(slug)) return all
+      const id = idOf.get(`${LINK_SECTIONS[sec]}:${slug}`)
+      return id ? `[${text}](/${sec}/${id}-${slug})` : text
+    })
+    if (next !== post.content) {
+      await prisma.forumPost.update({ where: { id: post.id }, data: { content: next } })
+      changed++
+    }
+  }
+  return changed
 }
 
 /**

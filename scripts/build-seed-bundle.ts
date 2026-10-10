@@ -234,6 +234,26 @@ const apps = read('apps').map(({ file, fm, body }) => {
   }
 })
 
+// 站内链接校验：正文里 [..](/guides/{slug}) 这类「只有 slug」的链接，导入时会换成 /guides/{id}-{slug}；
+// 指向不存在的 slug 就是死链，这里直接报错
+{
+  const known: Record<string, Set<string>> = {
+    guides: new Set(guides.map((g) => g.slug)),
+    prompts: new Set(prompts.map((p) => p.slug)),
+    apps: new Set(apps.map((a) => a.slug)),
+  }
+  const reserved = new Set(['image', 'video', 'text', 'showcase', 'm', 't', 'p'])
+  const scan = (kind: string, slug: string, body: string) => {
+    for (const m of Array.from(body.matchAll(/\]\(\/(guides|prompts|apps)\/([a-z][a-z0-9-]*)\)/g))) {
+      if (reserved.has(m[2])) continue
+      if (!known[m[1]].has(m[2])) errors.push(`${kind}/${slug}: 站内链接指向不存在的 /${m[1]}/${m[2]}`)
+    }
+  }
+  for (const g of guides) scan('guides', g.slug, g.content)
+  for (const p of prompts) scan('prompts', p.slug, p.content)
+  for (const a of apps) scan('apps', a.slug, a.content)
+}
+
 if (errors.length) {
   console.error(`校验失败 ${errors.length} 处：\n  ${errors.join('\n  ')}`)
   process.exit(1)

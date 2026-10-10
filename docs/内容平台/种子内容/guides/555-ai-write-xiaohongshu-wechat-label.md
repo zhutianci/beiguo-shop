@@ -1,6 +1,6 @@
 ---
 title: AI 写小红书、公众号内容的流程，以及 AI 生成内容怎么标识（标识办法要点）
-slug: ai-generated-content-label-rules
+slug: ai-write-xiaohongshu-wechat-label
 products: [ai-tools, chatgpt]
 models: []
 accountTier: FREE
