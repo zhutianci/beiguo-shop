@@ -9,7 +9,7 @@ trialNote: "npx skills add addyosmani/web-quality-skills"
 products: [claude, codex]
 models: [any-llm]
 topics: [agent-skills, coding, product-design]
-excerpt: "Web Quality Skills 是 Addy Osmani 开源的 6 个 Agent Skills：以实测为先，结合 Lighthouse、Chrome DevTools、真实用户数据和 WCAG 2.2，帮智能体审计并优化网页的性能、核心网页指标、无障碍、SEO 和最佳实践。"
+excerpt: "Web Quality Skills 是 Addy Osmani 开源的 6 个 Agent Skills：以测量为先，结合 Lighthouse、Chrome DevTools、真实用户数据和 WCAG 2.2，帮智能体审计并优化网页的性能、核心网页指标、无障碍、SEO 和最佳实践。"
 checkedOn: 2026-10-11
 sources:
   - https://github.com/addyosmani/web-quality-skills
@@ -32,7 +32,7 @@ README 用一句话区分了它和界面规范类技能：界面规范告诉你*
 
 - `web-quality-audit`：以证据为依据的综合评审，覆盖 Lighthouse 的各个类别和源码层面；
 - `performance`：实地数据加实验室测量、性能追踪，以及加载和运行时的修复；
-- `core-web-vitals`：针对 LCP、INP、CLS 的实测诊断与优化；
+- `core-web-vitals`：针对 LCP、INP、CLS 的测量、诊断与优化；
 - `accessibility`：WCAG 合规、读屏器支持、键盘导航；
 - `seo`：可抓取性、结构化数据等搜索优化；
 - `best-practices`：安全、现代接口和代码质量模式。

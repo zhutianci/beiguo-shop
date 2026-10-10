@@ -9,7 +9,7 @@ trialNote: "npx skills@latest add emilkowalski/skills --skill animation-vocabula
 products: [claude, cursor]
 models: [any-llm]
 topics: [agent-skills, coding, product-design]
-excerpt: "animation-vocabulary 是 emilkowalski/skills 里的反查词典技能：你用大白话描述一个网页动效，它从十二类、九十多条术语的词表里找出准确叫法，相近的词会并列对比，找不到就明说是近似，方便你再去向 AI 或设计师提需求。"
+excerpt: "animation-vocabulary 是 emilkowalski/skills 里的反查词典技能：你用大白话描述一个网页动效，它从分成十二类的术语词表里找出准确叫法，相近的词会并列对比，找不到就明说是近似，方便你再去向 AI 或设计师提需求。"
 checkedOn: 2026-10-11
 sources:
   - https://github.com/emilkowalski/skills/tree/main/skills/animation-vocabulary
