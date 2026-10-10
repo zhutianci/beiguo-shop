@@ -16,3 +16,13 @@
 | 407-aliyun-bailian-model-studio.md | 阿里云百炼 | https://help.aliyun.com/zh/model-studio/what-is-model-studio<br>https://www.aliyun.com/product/bailian | — |
 | 408-volcengine-ark-doubao-api.md | 火山方舟 | https://docs.volcengine.com/docs/ark/product-overview?lang=zh<br>https://www.volcengine.com/product/ark | — |
 | 409-tencent-yuanqi-agent-platform.md | 腾讯元器 | https://yuanqi.tencent.com/<br>https://yuanqi.tencent.com/guide/yuanqi-introduction<br>https://yuanqi.tencent.com/guide/publish-agent-api-token-explanation | — |
+| 410-lindy-ai-teammate-slack.md | Lindy | https://www.lindy.ai/<br>https://www.lindy.ai/pricing | — |
+| 412-crewai-multi-agent-framework.md | CrewAI | https://github.com/crewAIInc/crewAI<br>https://docs.crewai.com/ | — |
+| 413-langgraph-stateful-agent-framework.md | LangGraph | https://github.com/langchain-ai/langgraph<br>https://docs.langchain.com/oss/python/langgraph/overview | — |
+| 414-autogen-microsoft-agent-framework.md | AutoGen | https://github.com/microsoft/autogen<br>https://github.com/microsoft/agent-framework | — |
+| 415-open-webui-self-hosted-ai-chat.md | Open WebUI | https://github.com/open-webui/open-webui<br>https://docs.openwebui.com/ | — |
+| 416-cherry-studio-desktop-llm-client.md | Cherry Studio | https://github.com/CherryHQ/cherry-studio<br>https://www.cherry-ai.com/ | — |
+| 417-chatbox-ai-cross-platform-client.md | Chatbox | https://chatboxai.app/en<br>https://chatboxai.app/pricing.md | — |
+| 418-lobehub-lobechat-agent-workspace.md | LobeHub（原 LobeChat） | https://github.com/lobehub/lobehub<br>https://lobehub.com/ | — |
+| 419-anythingllm-local-document-chat.md | AnythingLLM | https://anythingllm.com/<br>https://github.com/Mintplex-Labs/anything-llm | — |
+| 420-jan-open-source-local-chatgpt.md | Jan | https://www.jan.ai/<br>https://github.com/janhq/jan | — |
