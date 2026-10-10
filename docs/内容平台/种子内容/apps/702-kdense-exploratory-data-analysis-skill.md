@@ -1,7 +1,7 @@
 ---
 title: "exploratory-data-analysis skill 是什么、怎么安装使用：K-Dense 的科研数据探索 Skill（本地、有边界的 EDA）"
 slug: kdense-exploratory-data-analysis-skill
-name: exploratory-data-analysis（K-Dense-AI/scientific-agent-skills）
+name: exploratory-data-analysis（K-Dense-AI 科研技能库）
 url: https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/exploratory-data-analysis
 pricing: "开源免费（MIT）"
 platforms: "Claude Code / Codex / Cursor / Gemini CLI 等支持 Agent Skills 的工具"
