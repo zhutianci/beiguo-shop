@@ -197,7 +197,7 @@ const apps = read('apps').map(({ file, fm, body }) => {
   else if (host) appUrls.set(host, file)
   const checkedOn = dateStr(fm.checkedOn)
   if (checkedOn && !/^\d{4}-\d{2}-\d{2}$/.test(checkedOn)) errors.push(`${file}: checkedOn 要写成 YYYY-MM-DD`)
-  else if (checkedOn && checkedOn > new Date().toISOString().slice(0, 10)) errors.push(`${file}: checkedOn 是未来的日期`)
+  else if (checkedOn && checkedOn > new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10) /* 按北京时间算「今天」：用 UTC 的话早上 8 点前当天日期会被判成未来 */) errors.push(`${file}: checkedOn 是未来的日期`)
   const sources = list(fm.sources)
   if (!sources.length) errors.push(`${file}: sources 至少写一个参考链接（官方优先）`)
   for (const s of sources) if (!/^https?:\/\/\S+$/.test(s)) errors.push(`${file}: sources 里有不是链接的「${s}」`)

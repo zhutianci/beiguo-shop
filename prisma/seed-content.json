@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-10T18:31:27.308Z",
+  "builtAt": "2026-10-10T18:40:56.427Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -67344,6 +67344,1988 @@
         "https://docs.nvidia.com/skills/",
         "https://code.claude.com/docs/en/skills",
         "https://agentskills.io/home"
+      ]
+    },
+    {
+      "title": "扣子（Coze）是什么、怎么用：字节跳动的 AI 办公 Agent 与扣子编程、套餐说明",
+      "slug": "coze-kouzi-agent-workspace",
+      "name": "扣子（Coze）",
+      "url": "https://www.coze.cn/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / Windows / macOS / iOS / 安卓",
+      "trialNote": "个人免费版可直接注册使用，付费套餐按月发放积分",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "office"
+      ],
+      "excerpt": "扣子（Coze）是字节跳动旗下的 AI Agent 办公平台：把写报告、做 PPT、数据分析、做视频等任务交给 Agent 完成，另有面向开发的扣子编程、扣子罗盘和开源版本。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据扣子官网首页、订阅套餐页和官方文档入口整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\n扣子（Coze）是字节跳动旗下的 AI Agent 平台，官网页脚的运营主体为北京春田知韵科技有限公司。很多人对它的印象还停留在「零代码搭聊天机器人」，但现在官网的定位已经变成「职场 AI 伙伴」：你说清楚想完成什么，Agent 带着资料和工具把事情一步步做出来。\n\n目前官网把产品分成几块：\n\n- **扣子**：面向个人和团队的办公 Agent，有网页版、桌面端（Windows / macOS）和手机 App（iOS / 安卓），多端数据同步；\n- **扣子编程**：用自然语言对话开发智能体、工作流、网页应用和移动应用，并一键部署；\n- **扣子罗盘**：面向开发者的调试、观测类工具；\n- **扣子开源**：开源版本，可自行部署。\n\n## 能做什么\n\n- **交付成果型任务**：写报告、做 PPT、做表格和数据分析、平面设计、播客、把脚本做成短视频等，官网演示的都是「交代任务—拿到文件」的流程。\n- **给 Agent 配设备**：可以授权 Agent 使用你的电脑处理本地文件，也可以给它分配云端服务器，或配一台云手机去操作 App。\n- **定时任务**：把任务放进日程，Agent 到点在云端自己开工，电脑和手机离线也不影响。\n- **会议旁听**：手机 App 的「旁听」可识别多人发言、生成纪要，会后继续追问。\n- **在聊天软件里使用**：官网展示了在飞书和微信里直接给扣子派任务。\n- **云盘**：资料、过程文件和成果在本地、云端和手机之间同步。\n\n## 怎么上手\n\n1. 打开 coze.cn，注册或登录（可直接用网页版，也可以下载桌面端 / App）。\n2. 在输入框里把任务说完整：目标、材料、输出格式、截止要求。\n3. 等 Agent 规划并执行，过程中可以追加指令；完成后下载成果文件。\n4. 想做应用或工作流，进入「扣子编程」，用对话描述需求再逐步修改。\n\n可以这样开始：\n\n```text\n我上传了 3 份竞品介绍 PDF。请对比它们的定价、目标用户和核心功能，做成一份 10 页以内的 PPT，最后一页给出我们可以差异化的 3 个方向。\n```\n\n## 免费与付费\n\n官网订阅页列出的个人套餐（包月标价，2026-10 查询）：\n\n| 套餐 | 月价 | 每月积分 |\n| --- | --- | --- |\n| 个人免费版 | 0 元 | — |\n| 个人进阶版 | 39.9 元 | 3 万 |\n| 个人高阶版 | 99 元 | 9.9 万 |\n| 个人旗舰版 | 199 元 | 19.9 万 |\n| 个人尊享版 | 999 元 | 99.9 万 |\n\n团队版按席位计费（142 元 / 283 元 / 1399 元每席位每月三档），企业版 980 元起。页面上另有首月优惠价和包年折扣，实际金额以结算页为准。付费后的主要差别是积分量、自定义模型、视频生成排队通道、去品牌水印、云盘容量和项目协作人数。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想把「整理资料—出文档 / PPT / 视频」这类成套工作交给 AI 的职场人和自媒体作者；\n- 不写代码但想搭一个内部小工具或智能体的运营、产品同学；\n- 已经在用飞书、剪映等字节系产品的团队。\n\n**不适合：**\n- 只想简单问答的人，直接用豆包等聊天助手更省事；\n- 对数据出境、私有化有硬性要求的企业，需要先评估企业版或开源版；\n- 希望完全免费跑大量视频、PPT 任务的用户——这类任务消耗积分较快。\n\n## 注意事项\n\n- **认准官网域名**：本文核对的是国内站 coze.cn；搜索结果里其他域名的同名站点，账号与功能是否相通以官方说明为准。\n- **积分是核心计量**：不同任务消耗差别很大，开始大任务前先看一下预计消耗。\n- **授权电脑要谨慎**：让 Agent 操作本地文件前，确认工作目录范围，重要文件先备份。\n- **产品形态变化快**：老教程里提到的「Bot 商店」「扣子空间」等入口可能已经调整，以当前官网为准。",
+      "images": [],
+      "sources": [
+        "https://www.coze.cn/overview",
+        "https://code.coze.cn/subscription-paywall",
+        "https://docs.coze.cn/"
+      ]
+    },
+    {
+      "title": "Dify 是什么、是哪个公司的：开源 LLM 应用开发平台的云端版与自部署入门",
+      "slug": "dify-llm-app-platform",
+      "name": "Dify",
+      "url": "https://dify.ai/",
+      "pricing": "开源自部署免费 / 云端免费+付费",
+      "platforms": "网页（Dify Cloud）/ Docker 自部署 / API",
+      "trialNote": "Dify Cloud 的 Sandbox 免费档含 200 条消息额度；社区版可免费自部署",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding"
+      ],
+      "excerpt": "Dify 是开源的 LLM 应用开发平台，用可视化画布搭工作流、RAG 知识库和智能体，并自带 API 与日志监控。可用官方云端版，也可以用 Docker 部署在自己的服务器上。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Dify 官网定价页、官方 GitHub 仓库 README 与官方文档整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nDify 是一个开源的 LLM 应用开发平台，仓库为 langgenius/dify（GitHub 星标约 15.8 万）。它把搭一个 AI 应用需要的几件事——提示词编排、工作流、知识库检索（RAG）、智能体、模型管理、日志与监控——放进同一个网页后台，目标是让应用从原型走到生产环境。\n\n和扣子、腾讯元器这类「平台托管」的产品相比，Dify 的特点是**可以完整自部署**：代码、数据和模型密钥都在自己的服务器上，所以在企业内部知识库、客服机器人这类场景里很常见。\n\n## 能做什么\n\n- **工作流**：在可视化画布上拖节点、连线，搭建并测试多步骤的 AI 流程。\n- **模型接入**：对接众多闭源与开源模型、自托管模型以及兼容 OpenAI 接口的服务，可随时切换。\n- **Prompt IDE**：编写提示词、对比不同模型的表现，给聊天应用加上语音等能力。\n- **RAG 管线**：从文档导入、文本提取到检索的完整流程，支持常见文档格式。\n- **Agent**：带沙箱的自主智能体，可挂载技能、工具、MCP 服务器或自定义 API。\n- **LLMOps**：查看日志与性能，用线上数据持续改提示词、数据集和模型。\n- **后端即服务**：每个应用都自带 API，方便接进自己的业务系统。\n\n## 怎么上手\n\n**云端版**：打开 dify.ai 注册，进入工作区后新建应用，选「聊天助手 / 工作流 / Agent」之一，配置模型密钥即可。\n\n**自部署**（README 给出的最低配置为 2 核 CPU、4 GiB 内存）：\n\n```bash\ngit clone https://github.com/langgenius/dify.git\ncd dify/docker\ncp .env.example .env\ndocker compose up -d\n```\n\n启动后在浏览器打开 `http://localhost/install` 完成初始化。需要 Docker 和 Docker Compose v2.24.0 及以上。\n\n## 免费与付费\n\n官网定价页（年付价格，不含税，2026-10 查询）：\n\n| 方案 | 价格 | 主要额度 |\n| --- | --- | --- |\n| Sandbox | 免费 | 200 条消息额度、1 名成员、5 个应用 |\n| Professional | 590 美元/工作区/年 | 每月 5,000 条消息额度、3 名成员、50 个应用 |\n| Team | 1,590 美元/工作区/年 | 每月 10,000 条消息额度、50 名成员、200 个应用 |\n\n页面注明年付比月付省 17%，月付金额以结算页为准。自部署方面，Community 社区版免费（单工作区），Enterprise 企业版需联系销售。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 要给公司搭内部知识库问答、客服机器人、审批或内容流程的开发者与技术团队；\n- 需要数据留在自己服务器上的企业；\n- 想系统学习 RAG 与 Agent 应用搭建的学习者。\n\n**不适合：**\n- 完全不想碰服务器、也不想管模型密钥的普通用户；\n- 只需要一个聊天窗口的人，用现成的聊天助手即可；\n- 打算把 Dify 改造后对外提供服务的团队——开源许可带有附加条件，动手前要先读 LICENSE 或咨询商业授权。\n\n## 注意事项\n\n- **许可证不是纯 Apache 2.0**：Dify Open Source License 基于 Apache 2.0 并附加了条件，商用前请阅读仓库里的 LICENSE。\n- **模型费用另算**：Dify 本身不含模型调用费，消息额度用完或自部署时都要自备模型 API 密钥或本地模型。\n- **自部署要自己负责安全**：及时升级版本，不要把管理后台直接暴露在公网。\n- **版本迭代快**：升级前先看官方 Release 说明并备份数据库和存储卷。",
+      "images": [],
+      "sources": [
+        "https://dify.ai/pricing",
+        "https://github.com/langgenius/dify",
+        "https://docs.dify.ai/"
+      ]
+    },
+    {
+      "title": "n8n 是什么、怎么用：可自部署的 AI 工作流自动化工具入门与官网定价",
+      "slug": "n8n-workflow-automation-ai",
+      "name": "n8n",
+      "url": "https://n8n.io/",
+      "pricing": "自部署社区版免费 / 云端付费",
+      "platforms": "网页（n8n Cloud）/ Docker 自部署 / API",
+      "trialNote": "云端版可免费试用（含 1,000 次执行，无需信用卡）；社区版可免费自部署",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "office",
+        "coding"
+      ],
+      "excerpt": "n8n 是可自部署的工作流自动化平台，用节点画布把各种应用、API 和大模型串起来，既能做传统自动化，也能搭多步骤 AI 智能体。社区版可免费自托管，官方也提供云端版。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 n8n 官网定价页、官方 GitHub 仓库 README 与官方文档整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nn8n 是一个工作流自动化平台，仓库 n8n-io/n8n 在 GitHub 上约有 20.7 万星标。它的界面是一张节点画布：每个节点代表一个触发器、一个应用操作或一段代码，把节点连起来就是一条自动运行的流程。官方现在把它定位为「搭建 AI 智能体与工作流自动化」的平台，既有可视化操作，又允许在流程里写代码。\n\n它和 Zapier、Make 的最大区别是**可以自托管**：把 n8n 跑在自己的服务器上，数据不经过第三方，执行次数也不按条收费。\n\n## 能做什么\n\n- **连接应用与 API**：README 写明有 1500 多个集成和 9,000 多个模板，没有现成节点时可以用 HTTP 请求节点调用任意接口。\n- **AI 原生流程**：用自己的数据、模型和工具搭多步骤智能体，可接 OpenAI、Anthropic、Google 或开源模型，换模型不用重搭流程。\n- **写代码**：在流程里插入 JavaScript 或 Python，引入 npm 包。\n- **触发方式**：定时、Webhook、应用事件、聊天消息等。\n- **企业能力**：自托管、基于角色的权限、审计日志等。\n\n## 怎么上手\n\n**想先试试**：在 n8n.io 注册云端试用，从模板库挑一个接近需求的模板改。\n\n**自部署**（README 提供的 Docker 方式）：\n\n```bash\ndocker volume create n8n_data\ndocker run -it --rm --name n8n -p 5678:5678 -v n8n_data:/home/node/.n8n docker.n8n.io/n8nio/n8n\n```\n\n然后在浏览器打开 `http://localhost:5678`。第一个流程建议做简单的：「定时触发 → 抓取一个 RSS → 让大模型总结 → 发到邮箱或群」。\n\n## 免费与付费\n\n官网定价页（欧元，按年付折算的月价，2026-10 查询）：\n\n| 方案 | 价格 | 每月执行次数 | 托管方式 |\n| --- | --- | --- | --- |\n| Starter | 20 欧元/月 | 2,500 | n8n 托管 |\n| Pro | 50 欧元/月 | 10,000 | n8n 托管 |\n| Business | 667 欧元/月 | 40,000 | 仅自托管 |\n| Enterprise | 联系销售 | 定制 | 托管或自托管 |\n\n月付价格以结算页为准。**Community Edition 社区版免费**，从 GitHub 获取后自行部署。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 有一点技术基础、想把重复的跨系统操作自动化的运营、增长和开发人员；\n- 需要把数据留在内网的团队；\n- 想用可视化方式搭 AI 智能体、又希望随时能写代码兜底的人。\n\n**不适合：**\n- 完全没有技术背景、也不想了解 API 和 JSON 的用户，上手会比 Zapier 吃力；\n- 不愿意维护服务器又嫌云端版贵的个人；\n- 想把 n8n 嵌进自己产品里对外收费的公司——需要先确认许可范围。\n\n## 注意事项\n\n- **不是传统意义的开源许可**：n8n 采用 fair-code 模式，使用 Sustainable Use License 与 n8n Enterprise License，源码可见、可自托管，但商业再分发有限制。\n- **凭据安全**：流程里会保存各平台的密钥，自部署务必开启访问控制、做好备份并及时更新版本。\n- **模型费用另算**：AI 节点调用的大模型按各家 API 计费。\n- **按执行次数计费**：云端版以「一次流程执行」计数，高频触发的流程要估算好用量。",
+      "images": [],
+      "sources": [
+        "https://n8n.io/pricing/",
+        "https://github.com/n8n-io/n8n",
+        "https://docs.n8n.io/"
+      ]
+    },
+    {
+      "title": "Zapier 是什么、怎么用：自动化平台里的 AI Agents、Copilot 与 MCP 功能和定价",
+      "slug": "zapier-ai-automation-agents",
+      "name": "Zapier",
+      "url": "https://zapier.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / API / MCP",
+      "trialNote": "Free 档每月 100 个任务，含基础版 Agents 与 MCP",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "office"
+      ],
+      "excerpt": "Zapier 是老牌的无代码自动化平台，用「触发—动作」把上千款应用连起来。近年加入了 Agents、Chatbots、Copilot 和 MCP 等 AI 功能，适合不写代码的人把重复工作自动化。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Zapier 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nZapier 是一款无代码自动化平台。最基本的单位叫 Zap：一个「触发器」加若干「动作」，比如「表单收到新提交 → 在表格里加一行 → 给团队群发通知」。它的优势在于支持的应用数量多、配置门槛低，不需要自己部署任何东西。\n\n在 AI 方面，Zapier 现在不只是「在流程里调用一下大模型」，而是提供了一组产品：\n\n- **Agents**：用自然语言描述职责，让智能体跨应用完成任务；\n- **Chatbots**：搭建面向客户或内部的聊天机器人；\n- **Copilot**：用对话的方式帮你搭建和修改 Zap；\n- **MCP**：让 Claude、ChatGPT 等 AI 客户端通过 MCP 调用 Zapier 连接的应用；\n- **AI by Zapier**：在 Zap 里插入一步大模型处理（付费档提供）；\n- **Tables / Forms**：配套的数据表和表单，表格支持 AI 字段。\n\n## 怎么上手\n\n1. 在 zapier.com 注册免费账号。\n2. 新建一个 Zap，可以直接在 Copilot 里用一句话描述需求，让它生成草稿。\n3. 选择触发应用并授权账号，再添加动作步骤，逐步测试。\n4. 发布后在历史记录里查看每次运行的结果和报错。\n\n可以这样描述给 Copilot：\n\n```text\nWhen a new row is added to my Google Sheet \"Leads\", summarize the \"Notes\" column with AI in one sentence and send it to the #sales channel in Slack.\n```\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）。付费档按每月任务量分档，下面是各档的起步价：\n\n| 方案 | 年付折合每月 | 月付 | 起步任务量 |\n| --- | --- | --- | --- |\n| Free | 0 | 0 | 100 个/月 |\n| Professional | 19.99 美元起 | 29.99 美元起 | 750 个/月 |\n| Team | 69 美元起 | 103.50 美元起 | 2,000 个/月 |\n| Enterprise | 联系销售 | — | 定制 |\n\nAI 相关额度单独计算：Free 档 Agents 每月 400 次活动、含 2 个 Chatbot、Copilot 有每日消息上限；Professional 档 Agents 每月 1,500 次活动、Copilot 不限。Agents 与 Chatbots 的更高用量是独立的加购项，不从任务额度里扣。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 主要使用海外 SaaS（Google Workspace、Slack、HubSpot、Notion 等）的个人和团队；\n- 不写代码、希望几分钟内搭好自动化的运营、销售和行政人员；\n- 想让 AI 助手通过 MCP 操作自己常用应用的用户。\n\n**不适合：**\n- 主要用国内应用（飞书、钉钉、企业微信等）的团队，可连接的国内应用有限；\n- 任务量很大又在意成本的场景，按任务计费会比自托管的 n8n 贵；\n- 需要数据不出内网的企业。\n\n## 注意事项\n\n- **任务怎么算**：每个成功执行的动作步骤算一个任务，多步骤流程消耗更快；任务额度按月重置，年付也不累积。\n- **授权范围**：Zap 和 Agent 会拿到你授权应用的访问权限，建议用专门的服务账号，并定期清理不用的连接。\n- **AI 结果需抽查**：让 Agent 自动发邮件、改数据之前，先加人工确认步骤。\n- **界面以英文为主**，支持的付款方式以官网结算页为准。",
+      "images": [],
+      "sources": [
+        "https://zapier.com/pricing",
+        "https://zapier.com/"
+      ]
+    },
+    {
+      "title": "Make 自动化平台是什么、怎么用：可视化工作流、AI Agents 与官网定价",
+      "slug": "make-visual-automation-ai-agents",
+      "name": "Make",
+      "url": "https://www.make.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / API",
+      "trialNote": "Free 档每月 1,000 积分，不限使用时长",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "office"
+      ],
+      "excerpt": "Make（原 Integromat）是可视化的自动化平台，用拖拽的方式把应用、API 和 AI 步骤连成流程。它提供 AI Agents、AI Toolkit 等功能，按积分计费，免费档每月 1,000 积分。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Make 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nMake 是一款无代码 / 低代码自动化平台，早年叫 Integromat，后来改名为 Make。它的流程叫「场景」（Scenario）：在画布上把一个个圆形模块连起来，数据从左往右流动，中间可以分支、循环、过滤和做错误处理。相比 Zapier 的线性步骤，Make 的画布更适合表达复杂逻辑。\n\n## 能做什么\n\n- **连接应用**：内置大量应用模块，也可以用 HTTP 模块调用任意 API。\n- **Make AI Agents**（定价页标注为 beta）：在 Make 里创建和管理智能体，可以使用 Make 提供的模型，也可以填自己的大模型密钥；所有档位可用。\n- **Make AI Toolkit**：在流程里插入总结、分类、提取等 AI 步骤，所有档位可用。\n- **其他 AI 能力**：定价页还列出了 Maia by Make、AI 应用、MCP server、AI Content Extractor、AI Web Search（beta）等，具体哪些档位包含以官网为准。\n- **Make Code App**：在流程里运行代码，按执行时间折算积分。\n\n## 怎么上手\n\n1. 在 make.com 注册免费账号。\n2. 新建一个场景，添加第一个模块作为触发器（如「表格新增一行」「收到 Webhook」）。\n3. 继续添加动作模块并授权对应账号，点「Run once」逐步测试，观察每个模块的输入输出气泡。\n4. 测试通过后打开调度开关，设置运行频率。\n\n第一个场景可以做这样一条：新邮件到达 → 用 AI 模块判断是否为询价 → 是的话写入表格并通知到聊天群。\n\n## 免费与付费\n\n官网定价页（美元，月付，对应每月 10,000 积分的起步档，2026-10 查询）：\n\n| 方案 | 月价 | 每月积分 |\n| --- | --- | --- |\n| Free | 0 | 1,000 |\n| Core | 12 美元 | 10,000 起 |\n| Pro | 21 美元 | 10,000 起 |\n| Teams | 38 美元 | 10,000 起 |\n| Enterprise | 联系销售 | 定制 |\n\n付费档可以用滑块选择更高的积分量，价格随之上涨；页面写明年付可省 15% 或更多，具体金额以结算页为准。Free 档没有使用期限。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 流程里有分支、循环、数据转换等较复杂逻辑的自动化需求；\n- 想用图形方式看清数据怎么流动的运营和业务人员；\n- 需要在自动化里穿插 AI 处理、但不想自己维护服务器的小团队。\n\n**不适合：**\n- 只需要两三步简单联动的人，Zapier 上手更快；\n- 需要自托管、数据不出内网的企业，可考虑 n8n；\n- 主要使用国内应用的团队，现成模块有限，需要自己对接 API。\n\n## 注意事项\n\n- **积分怎么扣**：定价页说明积分按「模块动作」计，流程里每执行一个模块动作就消耗积分，循环处理大量数据时消耗很快，先用小数据量测试。\n- **AI 用量**：使用 Make 提供的模型会额外消耗积分，用自己的密钥则由模型厂商计费。\n- **错误处理要配置**：给关键模块加上错误处理路线，否则一次失败可能让场景停用。\n- **改名说明**：搜「Integromat」找到的老教程界面与现在差别较大，以当前官网文档为准。",
+      "images": [],
+      "sources": [
+        "https://www.make.com/en/pricing",
+        "https://www.make.com/en"
+      ]
+    },
+    {
+      "title": "Flowith 是什么、官网怎么用：画布式 AI 创作工作台与 Neo Agent、套餐价格",
+      "slug": "flowith-canvas-agent-workspace",
+      "name": "Flowith",
+      "url": "https://flowith.io/",
+      "pricing": "免费+付费",
+      "platforms": "网页",
+      "trialNote": "Starter 免费版每月 300 积分，可用模型有限",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "illustration",
+        "office"
+      ],
+      "excerpt": "Flowith 是画布式的 AI 创作工作台：在一张无限画布上发起对话、生成图像和视频、做幻灯片和网页，并可调用 Neo Agent 执行多步骤任务，聚合了 40 多款主流模型。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Flowith 官网首页与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nFlowith 官网给自己的定位是「Agentic Workspace」。和常见的一问一答聊天框不同，它的主界面是一张**画布**（官方叫 Flow）：每次提问、每个生成结果都是画布上的一个节点，可以从任意节点分叉出新的方向、把几个结果放在一起对比，适合发散式地推进一个想法。\n\n官网首页显示，同一个输入框可以切换「对话、图像、视频、幻灯片、网页、Neo Agent」几种模式；侧边栏有画布管理、媒体历史、**知识花园**（把自己的资料整理成可检索的知识库）和知识市集。模型方面走的是聚合路线，页面上列出了 Seedream 5.0、Nano Banana 系列、GPT Image 2 / 2.5、Grok Image 2.0、Seedance 2.5、Kling 等图像和视频模型，定价页称可用 40 多款模型。\n\n## 能做什么\n\n- **画布式对话**：分支提问、并排比较不同模型的回答。\n- **图像与视频生成**：在同一处切换多家模型，支持批量生成。\n- **成品类输出**：幻灯片、网页。\n- **Neo Agent**：把多步骤任务交给智能体规划执行。\n- **小应用**：首页列出了背景移除、照片重打光、高清放大、裁切改尺寸、社媒配图、壁纸生成等一键工具。\n- **知识花园**：上传资料后在创作中引用。\n\n## 怎么上手\n\n1. 打开 flowith.io，用邮箱等方式注册（界面可切换中文）。\n2. 新建一个 Flow，在底部输入框选好模式和模型，输入需求。\n3. 对满意的节点继续追问，对不满意的节点换模型重新生成，或从上一步分叉。\n4. 需要长任务时切到 Neo Agent，把目标、素材和交付格式写清楚。\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）：\n\n| 方案 | 月付标价 | 年付折合每月 | 每月积分 |\n| --- | --- | --- | --- |\n| Starter | 0 | 0 | 300 |\n| Pro | 19.90 美元 | 17.91 美元 | 20,000 |\n| Ultimate | 49.90 美元 | 44.91 美元 | 50,000 |\n| Infinite | 499.90 美元 | 399.92 美元 | 500,000 |\n\n付费档还附带一定金额的「免费生成」权益；Ultimate 和 Infinite 含「无限权益包」（部分模型在限定天数内不限量）。这些权益的模型名单和天数调整频繁，以定价页当前显示为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 做方案、策划、视觉探索时喜欢「铺开来比较」的创作者和产品经理；\n- 想在一个账号里试用多家图像、视频模型的人；\n- 需要把资料沉淀成知识库再反复调用的研究型用户。\n\n**不适合：**\n- 只想快速问一句话的人，画布反而多一步操作；\n- 只认准某一家模型、已经订阅其官方会员的用户；\n- 需要桌面离线使用的场景——它是纯在线的网页产品。\n\n## 注意事项\n\n- **积分消耗因模型而异**：视频和高分辨率图像消耗远高于文字，生成前留意提示的消耗。\n- **聚合模型的可用性会变**：某个模型是否可用、是否打折取决于平台当期配置。\n- **生成内容的版权与商用**：除了 Flowith 的条款，还要遵守对应模型提供方的使用政策。\n- 上传到知识花园的资料存储在云端，敏感文件请谨慎。",
+      "images": [],
+      "sources": [
+        "https://flowith.io/",
+        "https://flowith.io/pricing/"
+      ]
+    },
+    {
+      "title": "FastGPT 是什么、官网与使用教程：开源知识库问答与 AI Agent 搭建平台",
+      "slug": "fastgpt-knowledge-base-agent",
+      "name": "FastGPT",
+      "url": "https://fastgpt.cn/",
+      "pricing": "开源自部署 / 云服务与商业版以官网为准",
+      "platforms": "网页（云服务）/ Docker 自部署 / API",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding"
+      ],
+      "excerpt": "FastGPT 是开源的知识库问答与 AI Agent 搭建平台，提供可视化工作流、混合检索知识库、模型管理和免登录分享页，可用 Docker 自部署，也有官方云服务和商业版。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 FastGPT 官网与官方 GitHub 仓库 README 整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nFastGPT 是一个基于大模型的知识库平台和 AI Agent 构建工具，仓库为 labring/FastGPT（GitHub 星标约 2.98 万），官网页脚的版权方为广州环际云计算有限公司。官网现在的口号是「构建安全、可控的企业级 AI Agent」。\n\n它最常见的用法是**企业知识库问答**：把产品手册、制度文档、常见问题导进去，配置好检索和回答流程，再通过分享链接、网页嵌入或 API 给员工、客户使用。\n\n## 能做什么\n\n- **应用编排**：可视化工作流，支持对话工作流与插件工作流、Agent 技能、双向 MCP，以及辅助生成工作流。\n- **知识库**：支持 TXT、MD、PDF、DOCX、CSV、XLSX 等多种文件，可从网址导入，提供混合检索与重排，也能对接外部 API 知识库。\n- **调试**：知识库搜索测试、完整调用链日志、应用评测和调试模式，方便排查「为什么答错」。\n- **模型管理**：兼容多种模型，带调试与审计能力。\n- **运营**：免登录分享页、iframe 嵌入、对话记录查看与标注。\n- **权限**：官网介绍企业场景下支持 SSO 与基于角色的权限。\n\n## 怎么上手\n\n**先体验**：在官网进入云服务注册（README 中海外云服务地址为 fastgpt.io，国内入口见官网），新建一个知识库、上传几份文档，再建一个「知识库问答」应用绑定它。\n\n**自部署**：README 给出的方式是运行官方安装脚本拉取配置文件，然后：\n\n```bash\ndocker compose up -d\n```\n\n启动后访问 `http://localhost:3000`。也可以在 Sealos 上一键部署。部署后需要自己配置模型（对话模型、向量模型、重排模型）。\n\n## 免费与付费\n\n- **开源版**：按 FastGPT Open Source License 免费使用，可自部署。\n- **云服务**：按套餐与用量收费，具体档位和价格以官网定价页为准。\n- **商业版**：功能更多并带技术支持，需联系官方获取报价。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想给公司做内部知识库问答、售前售后客服机器人的技术团队；\n- 需要把数据留在自己服务器上的企业；\n- 想看清检索过程、精细调优回答效果的开发者。\n\n**不适合：**\n- 没有任何技术人员、也不想碰 Docker 的小团队，可先用云服务或其他托管平台；\n- 只需要个人聊天助手的用户；\n- 想把它直接当成 SaaS 转售的公司，这不在开源许可允许的范围内。\n\n## 注意事项\n\n- **许可证限制**：README 写明代码可作为后台服务商用，但**不允许用它提供 SaaS 服务**；其他商业用途需保留版权信息，或购买商业授权。\n- **效果取决于数据**：文档切分、清洗质量直接影响回答准确率，上线前用真实问题做搜索测试。\n- **模型成本另算**：自部署时对话、向量化、重排都要消耗模型额度。\n- **分享页的访问控制**：免登录分享方便，但要注意知识库里是否有不宜公开的内容。",
+      "images": [],
+      "sources": [
+        "https://fastgpt.cn/",
+        "https://github.com/labring/FastGPT"
+      ]
+    },
+    {
+      "title": "阿里云百炼是什么、怎么用：大模型服务平台的 API 调用、应用搭建与 Coding Plan",
+      "slug": "aliyun-bailian-model-studio",
+      "name": "阿里云百炼",
+      "url": "https://www.aliyun.com/product/bailian",
+      "pricing": "按量付费，新用户有免费额度",
+      "platforms": "网页控制台 / API",
+      "trialNote": "新用户在北京地域有专属的新人免费额度，用于体验模型调用",
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "阿里云百炼是阿里云的一站式大模型开发与应用平台，可调用千问全系列以及 DeepSeek、Kimi、GLM 等第三方模型，接口兼容 OpenAI，并提供智能体、工作流、知识库和 Coding Plan。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据阿里云帮助中心《什么是阿里云百炼》等官方文档整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\n阿里云百炼（英文名 Model Studio）是阿里云的大模型服务平台。官方文档的说法是「一站式大模型开发与应用平台，集成千问及主流第三方模型」。对开发者来说，它就是**调用千问（Qwen）系列模型 API 的官方入口**；对不写代码的人来说，它也提供可视化的应用搭建。\n\n## 能做什么\n\n- **模型调用**：提供兼容 OpenAI 的 API。已有的 OpenAI 代码迁移过来，通常只需要改 API Key、base_url 和模型名三处。\n- **模型种类**：千问全系列，以及 DeepSeek、Kimi、GLM 等第三方模型；覆盖文本生成、视觉理解、图像与视频生成、语音和向量等能力。\n- **应用构建**：用可视化方式创建智能体和工作流应用，也支持把 Python 项目以高代码方式部署成后端服务。\n- **知识库（RAG）**：接入私有数据和专业领域知识。\n- **插件与 MCP**：通过插件和 MCP 调用外部服务。\n- **Coding Plan**：固定月费、按月提供请求额度，用于在各类 AI 编程工具里接入模型。\n\n## 怎么上手\n\n1. 用阿里云账号登录百炼控制台，按提示开通服务（部分功能需要完成实名认证）。\n2. 在控制台创建 API Key。\n3. 在模型广场选一个模型，先在线体验，再复制示例代码。\n4. 用 OpenAI SDK 调用时，把 base_url 换成百炼文档给出的兼容地址，模型名换成文档里的模型标识。\n\n```python\nfrom openai import OpenAI\nclient = OpenAI(api_key=\"你的百炼 API Key\", base_url=\"文档给出的兼容地址\")\nresp = client.chat.completions.create(model=\"文档中的模型名\", messages=[{\"role\": \"user\", \"content\": \"你好\"}])\nprint(resp.choices[0].message.content)\n```\n\n## 免费与付费\n\n- **新人免费额度**：官方文档说明，新用户在北京地域有专属免费额度。未认证用户额度用完后无法继续调用，需认证并充值；已认证用户额度用完后会**自动转为按量付费**。\n- **按量付费**：按各模型的输入、输出 Token 单价计费，价格见官方模型价格页。\n- **Coding Plan**：固定月费的订阅，具体档位与价格以官网为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 需要在国内合规地调用千问等模型的开发者和企业；\n- 已经在用阿里云、希望账单和权限统一管理的团队；\n- 想用 Coding Plan 给 AI 编程工具接国产模型的开发者。\n\n**不适合：**\n- 只想聊天的普通用户，直接用千问 App 即可；\n- 不想管 API、密钥和账单的非技术用户；\n- 需要调用 GPT、Claude、Gemini 等海外闭源模型的场景，百炼不提供这些模型。\n\n## 注意事项\n\n- **防止意外扣费**：已认证账号在免费额度用完后会直接按量计费，官方提供「免费额度用完即停」开关，建议第一时间打开。\n- **地域不通用**：文档列出的地域有华北2（北京）、美国（弗吉尼亚）、新加坡、德国（法兰克福）、日本（东京）和中国香港，各地域的 Base URL 与 API Key 互不通用。\n- **密钥别写进代码仓库**：用环境变量保存 API Key，泄露后及时在控制台作废。\n- **模型版本更新快**：示例里的模型名会过期，以文档的模型列表为准。",
+      "images": [],
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/what-is-model-studio",
+        "https://www.aliyun.com/product/bailian"
+      ]
+    },
+    {
+      "title": "火山方舟是什么、怎么用：豆包大模型 API 平台、Coding Plan 与 Agent Plan 入门",
+      "slug": "volcengine-ark-doubao-api",
+      "name": "火山方舟",
+      "url": "https://www.volcengine.com/product/ark",
+      "pricing": "按量付费 / 订阅计划，以官网为准",
+      "platforms": "网页控制台 / API",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "火山方舟是火山引擎的大模型服务平台，是调用豆包 Seed 系列、Seedream 生图、Seedance 视频等模型 API 的官方入口，支持 OpenAI SDK 接入，并提供 Coding Plan、Agent Plan 和 Managed Agents。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据火山引擎文档中心《火山方舟 · 产品简介》整理（该页最近更新时间为 2026-10-09），资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\n火山方舟是字节跳动旗下云服务品牌「火山引擎」的大模型服务平台，运营主体为北京火山引擎科技有限公司。简单说，**豆包 App 背后的那些模型，开发者要通过 API 调用，就是在火山方舟上开通**。平台同时上架了第三方模型，文档的模型栏目里能看到 DeepSeek 系列。\n\n## 能做什么\n\n官方产品简介页列出的能力：\n\n- **文本与多模态**：深度思考、图片理解、视频理解、文档（PDF）理解、联网搜索、函数调用。\n- **生成类模型**：视频生成（文档首页推荐 Doubao Seedance 2.5）、图片生成（Doubao Seedream 5.0 pro）、3D 生成。\n- **Coding 与 Agent 模型**：文档介绍 Doubao Seed Evolving 是面向 Coding 和 Agent 的模型，按周迭代。\n- **推理方式**：在线推理（常规 / 低延迟 / 低优先级 / TPM 保障包 / 模型单元）和批量推理。\n- **进阶能力**：上下文缓存、续写模式、视觉定位、文件输入、云部署 MCP、GUI Agent 能力。\n- **训练与评测**：模型精调、模型评测、数据集管理。\n- **Managed Agents**：定义 Agent、配置运行环境、委派任务并管理上下文；文档提供了把旧的零代码应用迁移过来的说明。\n- **订阅计划**：文档中心单列了「火山方舟 Coding Plan」和「火山方舟 Agent Plan」两个栏目。\n\n## 怎么上手\n\n1. 注册火山引擎账号并完成实名认证，进入火山方舟控制台。\n2. 在控制台创建 API Key，开通要用的模型。\n3. 按文档的快速入门调用。官方示例使用的接入地址是 `https://ark.cn-beijing.volces.com/api/v3`，提供 Python、Curl、Go、Java 示例，也可以直接用 OpenAI SDK。\n\n```python\nimport os\nfrom arkruntime import Ark\n\nclient = Ark(base_url=\"https://ark.cn-beijing.volces.com/api/v3\", api_key=os.getenv(\"ARK_API_KEY\"))\nresponse = client.responses.create(model=\"文档模型列表中的模型 ID\", input=\"hello\")\nprint(response)\n```\n\n## 免费与付费\n\n- **按量计费**：按模型的 Token 或生成量计费，单价见文档的「模型价格」页。\n- **Coding Plan / Agent Plan**：面向编程工具和智能体场景的订阅计划，档位与价格以官方订阅页为准。\n- **节省计划**：文档中心另有「节省计划」栏目，适合用量稳定的企业。\n- 新用户是否有免费额度、额度多少，以控制台当前显示为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想在自己产品里接入豆包文本、生图、视频模型的开发者；\n- 做视频、图像生成类应用，需要 Seedance、Seedream 官方 API 的团队；\n- 想给 AI 编程工具配一个国产模型订阅的开发者。\n\n**不适合：**\n- 只想聊天或偶尔生成几张图的普通用户，用豆包、即梦等 App 更直接；\n- 不熟悉 API、密钥管理的非技术用户；\n- 需要海外闭源模型的场景。\n\n## 注意事项\n\n- **模型 ID 带日期后缀**：调用时必须写完整的模型 ID，旧版本会按计划下线，留意官方的模型生命周期公告。\n- **控制用量**：视频生成、批量推理费用较高，先设置好预算与告警。\n- **密钥安全**：API Key 用环境变量保存，不要提交到代码仓库。\n- **生成内容合规**：图片、视频生成受平台内容安全策略约束，商用前阅读服务条款。",
+      "images": [],
+      "sources": [
+        "https://docs.volcengine.com/docs/ark/product-overview?lang=zh",
+        "https://www.volcengine.com/product/ark"
+      ]
+    },
+    {
+      "title": "腾讯元器是什么、怎么用：零代码创建智能体并发布到微信公众号、企业微信",
+      "slug": "tencent-yuanqi-agent-platform",
+      "name": "腾讯元器",
+      "url": "https://yuanqi.tencent.com/",
+      "pricing": "免费（API 调用有月度额度）",
+      "platforms": "网页 / 微信生态内发布",
+      "trialNote": "官方文档称每月提供 100 万 token 的模型调用额度，多个腾讯系渠道内不限 token",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "social-media"
+      ],
+      "excerpt": "腾讯元器是腾讯官方的智能体创建与分发平台，主打零代码、零基础：用提示词、知识库、插件和工作流搭好智能体后，可发布到微信公众号、服务号、微信客服、企业微信等渠道。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据腾讯元器官网与官方帮助中心（操作指南、API 额度说明）整理，资料核对于 2026-10-11。功能和额度变化快，以官网为准。\n\n## 是什么\n\n腾讯元器是腾讯推出的智能体创作与分发平台，官网标题写的是「腾讯官方智能体平台」。它的卖点很明确：**不用写代码，就能做出一个可以挂在微信公众号、微信客服里的 AI 助手**。对已经在运营公众号的个人和商家来说，这是把历史文章变成「可对话的知识库」最省事的路径之一。\n\n平台做过一次大改版，帮助中心有专门的《从旧版元器迁移智能体到新版元器》说明，网上的老教程可能对不上现在的界面。\n\n## 能做什么\n\n- **搭建智能体**：写设定和提示词，选择模型，配置开场白与示例问题。\n- **知识库**：上传文档，或一键拉取公众号历史群发文章作为知识库。\n- **工作流**：用可视化方式编排多步骤流程。\n- **插件广场**：使用官方和第三方插件，也可以自己创建；支持接入 MCP 插件，帮助中心提到了微信支付 MCP 插件。\n- **多智能体协作**：帮助中心提供多智能体应用的协作技巧。\n- **发布渠道**：腾讯元器自身、微信公众号 / 服务号、微信客服、企业微信、应用宝，以及小米应用商店、荣耀 YOYO 智能体平台等。\n- **API**：把智能体发布成 API 服务，接入自己的系统。\n\n## 怎么上手\n\n1. 打开 yuanqi.tencent.com，登录后点「新建我的智能体」。\n2. 写清楚智能体的身份、能回答什么、不回答什么。\n3. 添加知识库：上传资料，或授权公众号拉取历史文章。\n4. 在右侧预览窗口反复提问测试，按帮助中心的《对话效果调优技巧》调整。\n5. 在「发布」里选择渠道，按指引完成公众号或企业微信的授权绑定。\n\n## 免费与付费\n\n官方《API 额度说明》（更新于 2025-12-29）写明：新元器每月提供 100 万 token 的模型调用额度，后续会提供 API 调用 token 的购买；在元器网页端、元宝小程序、微信客服、微信公众号、微信服务号、企业微信等渠道内使用**不限 token**。也就是说，在腾讯自家渠道里用目前不收费，额度限制主要针对 API 调用。之后是否调整以官方公告为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 公众号、服务号运营者，想给粉丝一个能回答常见问题的 AI 助手；\n- 用微信客服、企业微信接待客户的小商家；\n- 没有开发资源、想零成本试水智能体的个人。\n\n**不适合：**\n- 主要阵地在抖音、小红书、飞书等非腾讯生态的团队；\n- 需要复杂业务逻辑、深度定制界面的产品，建议用 Dify 等开发平台；\n- 对模型选择有特殊要求的开发者。\n\n## 注意事项\n\n- **发布到元宝的规则有变**：帮助中心有《发布到元宝渠道变更说明》通知，发布前先看最新说明。\n- **审核**：发布到公开渠道的智能体需要通过平台审核，名称、头像和回答内容要符合规范。\n- **知识库内容自查**：导入公众号文章时，注意过期信息和不宜对外的内容。\n- **API 额度**：在「系统管理—调用统计」里可以查看剩余额度，超出后的处理方式以官方说明为准。",
+      "images": [],
+      "sources": [
+        "https://yuanqi.tencent.com/",
+        "https://yuanqi.tencent.com/guide/yuanqi-introduction",
+        "https://yuanqi.tencent.com/guide/publish-agent-api-token-explanation"
+      ]
+    },
+    {
+      "title": "Lindy AI 是什么：在 Slack 里干活的 AI 队友，功能介绍、上手方法与定价",
+      "slug": "lindy-ai-teammate-slack",
+      "name": "Lindy",
+      "url": "https://www.lindy.ai/",
+      "pricing": "免费试用额度+付费",
+      "platforms": "网页 / Slack / iMessage / Gmail / Chrome 扩展",
+      "trialNote": "注册送 50 美元额度，无需信用卡，额度 7 天内有效",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "office"
+      ],
+      "excerpt": "Lindy 是一款面向团队的 AI 队友：接入 Slack、Gmail、Notion、HubSpot 等 1,500 多个工具，替你查资料、整理收件箱、写会议纪要、跑定时例行任务，按积分计费。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Lindy 官网首页与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nLindy 是一款海外的 AI 智能体产品，官网的定位很直接：一个**加入你团队的 AI 队友**——连接你们在用的工具，学习团队的工作方式，然后真的把任务做完，而不只是给建议。主要的使用入口是 Slack：管理员把 Lindy 装进工作区后，成员像 @ 同事一样给它派活。\n\n## 能做什么\n\n官网列举的典型任务：\n\n- 在团队资料和各个工具里**找答案**；\n- **做演示文稿**、拉报表；\n- **调查问题**，比如追一条客户反馈的来龙去脉；\n- **管理收件箱**、写会议纪要；\n- 定时执行的**例行事务**；\n- 帮你**补看频道**里错过的讨论。\n\n入口除了 Slack，还有 iMessage、Gmail 和浏览器（Chrome 扩展）。集成方面官网写的是 Gmail、Slack、Notion、HubSpot 以及「另外 1,500 多个」，并支持 MCP。\n\n## 怎么上手\n\n1. 在 lindy.ai 注册，领取试用额度（无需绑卡）。\n2. 由 Slack 工作区管理员安装 Lindy，官网称几分钟可以完成。\n3. 授权它需要访问的工具（邮箱、日历、文档、CRM 等）。\n4. 在 Slack 里直接用自然语言派任务，先从低风险的查询类任务开始。\n\n```text\n@Lindy 把上周 #support 频道里提到「退款」的对话整理成一张表：客户、问题、当前状态、负责人。\n```\n\n## 免费与付费\n\n定价页按「活跃用户」计费（美元，2026-10 查询）：\n\n| 方案 | 价格 | 额度 |\n| --- | --- | --- |\n| Free | 0 | 50 美元试用额度，7 天有效，无需信用卡 |\n| Team | 49.99 美元/用户/月 | 5,000 积分，团队共享；加购 10 美元 / 1,000 积分 |\n| Enterprise | 联系销售 | 定制，含 SSO、审计日志等 |\n\n官网首页同时写着「付费方案 29.99 美元/用户/月起」，与定价页标价不同，可能对应不同的计费周期或档位，实际金额以结算页为准。定价页给出的消耗参考：日常提问 2–250 积分，深度任务 250–1,000，大型构建 1,000–2,500。新加入的 Slack 成员有 7 天免费试用再开始计费。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 以 Slack 为主要沟通工具的海外团队或出海团队；\n- 销售、客服、运营里大量「查一下、汇总一下、定期发一下」的重复工作；\n- 想要开箱即用、不想自己搭工作流的团队。\n\n**不适合：**\n- 不用 Slack、主要用飞书或钉钉的团队；\n- 个人轻度使用——按席位加积分的定价对个人不划算；\n- 需要完全可控、可自托管的场景，可以看 n8n、Dify。\n\n## 注意事项\n\n- **权限给多少**：它能读写你授权的邮箱、文档和 CRM，建议按最小权限授权，涉及发送邮件、修改数据的动作先保留人工确认。\n- **合规声明**：官网称符合 SOC 2 Type II、GDPR、HIPAA、PIPEDA，数据传输和存储加密，且不用于训练模型；企业采购前仍应索取正式文件核对。\n- **积分消耗不固定**：复杂任务一次可能用掉上千积分，先观察几天的实际消耗再决定席位数。\n- 界面与客服以英文为主。",
+      "images": [],
+      "sources": [
+        "https://www.lindy.ai/",
+        "https://www.lindy.ai/pricing"
+      ]
+    },
+    {
+      "title": "CrewAI 是什么、怎么用：开源多智能体框架的 Crews 与 Flows 入门教程",
+      "slug": "crewai-multi-agent-framework",
+      "name": "CrewAI",
+      "url": "https://www.crewai.com/",
+      "pricing": "开源免费（MIT）/ 企业平台另计",
+      "platforms": "Python 库 / 命令行 / 云平台（CrewAI AMP）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding"
+      ],
+      "excerpt": "CrewAI 是 MIT 许可的开源 Python 多智能体框架：用「角色、目标、任务」定义一组协作的智能体（Crew），再用事件驱动的 Flows 编排流程，适合想用代码搭 Agent 应用的开发者。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 CrewAI 官方 GitHub 仓库 README 与官方文档整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nCrewAI 是一个开源的 Python 框架，用来搭建多智能体工作流，仓库 crewAIInc/crewAI 在 GitHub 上约有 5.95 万星标，采用 MIT 许可。README 对它的描述是：同时提供高层抽象和底层 API、面向生产环境的多智能体框架。\n\n它最容易理解的地方在于「拟人化」的建模方式——你像组建一个小团队那样写代码：谁是研究员、谁是撰稿人、各自的目标是什么、要完成哪些任务、产出交给谁。\n\n## 核心概念\n\n- **Agent（智能体）**：由角色（role）、目标（goal）、背景设定（backstory）、所用模型和工具定义。\n- **Task（任务）**：包含任务描述、期望输出，以及指派给哪个智能体。\n- **Crew（团队）**：一组按角色分工、自主协作的智能体。\n- **Flow（流程）**：事件驱动的工作流，带状态管理和条件分支，可以在其中调用 Crew——适合需要精确控制步骤的生产场景。\n\n简单记：想让智能体**自己商量着干**用 Crew，想**按固定流程走**用 Flow，两者可以嵌套。\n\n## 怎么上手\n\nREADME 要求 Python 版本不低于 3.10、低于 3.14。先安装命令行工具：\n\n```bash\nuv tool install crewai\ncrewai create crew my_project\n```\n\n脚手架会生成项目结构，其中 `agents.yaml` 写智能体的角色与目标，`tasks.yaml` 写任务，`crew.py` 把它们组装起来。填好模型的 API Key 后在项目目录运行 `crewai run`。建议第一个项目只放两个智能体（如「资料搜集」和「报告撰写」），跑通后再加角色。\n\n## 免费与付费\n\n- **开源框架**：MIT 许可，免费使用和商用。\n- **CrewAI AMP Suite**：官方的商业平台，提供托管部署、可观测性、治理、安全和企业支持；README 提到其中的 Crew Control Plane 可以免费试用，价格以官网为准。\n- **模型费用**：框架本身不含模型，调用哪家的模型就按哪家计费。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 会 Python、想用代码而不是拖拽画布搭 Agent 应用的开发者；\n- 任务可以清晰拆成几个角色分工的场景：调研写作、数据整理、内容审核流水线等；\n- 想了解多智能体协作模式的学习者。\n\n**不适合：**\n- 不写代码的用户，扣子、Dify 这类可视化平台更合适；\n- 只需要单个智能体加几个工具的简单场景，直接用模型厂商的 SDK 更轻；\n- 需要对每一步状态做极细粒度控制的复杂系统，可以对比 LangGraph。\n\n## 注意事项\n\n- **成本容易失控**：多个智能体来回对话会成倍消耗 Token，开发阶段先用便宜的模型并限制最大迭代次数。\n- **结果不稳定是常态**：同样的输入可能走出不同的协作路径，关键环节要加校验或改用 Flow 固定流程。\n- **版本变化快**：API 在迭代中，网上的老教程可能跑不通，以官方文档的当前版本为准。\n- **工具权限**：给智能体挂载能执行代码、访问文件或发请求的工具时，要在隔离环境里运行。",
+      "images": [],
+      "sources": [
+        "https://github.com/crewAIInc/crewAI",
+        "https://docs.crewai.com/"
+      ]
+    },
+    {
+      "title": "LangGraph 是什么：有状态 AI 智能体编排框架的入门教程与适用场景",
+      "slug": "langgraph-stateful-agent-framework",
+      "name": "LangGraph",
+      "url": "https://www.langchain.com/langgraph",
+      "pricing": "开源免费（MIT）/ 部署平台另计",
+      "platforms": "Python 库 / JavaScript 库",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding"
+      ],
+      "excerpt": "LangGraph 是 LangChain 团队开源的底层智能体编排框架，用「图」来描述长时间运行、有状态的 Agent，自带持久化执行、人工介入和记忆能力，采用 MIT 许可。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 LangGraph 官方 GitHub 仓库 README 与官方文档整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nLangGraph 是 LangChain 团队维护的开源框架，仓库 langchain-ai/langgraph 约有 4.3 万星标，MIT 许可。README 给它的定义是：用于构建、管理和部署**长时间运行、有状态的智能体**的底层编排框架。\n\n「底层」是关键词。它不替你决定智能体长什么样，而是给你一套搭积木的基本件：把流程画成一张图，节点是一步操作（调模型、调工具、跑一段函数），边决定下一步去哪，所有节点共享一份可持久化的状态。\n\n## 核心能力\n\nREADME 列出的三项主要好处：\n\n- **持久化执行（Durable execution）**：智能体中途失败后可以从断点恢复，而不是从头再来，适合跑几分钟到几天的长任务。\n- **人工介入（Human-in-the-loop）**：执行过程中可以暂停，让人检查并修改智能体的状态后再继续——审批、纠错类流程都靠它。\n- **记忆（Memory）**：既有单次会话内的短期工作记忆，也有跨会话的长期记忆。\n\n配套生态：与 LangChain 的集成和组件配合使用；用 LangSmith 做评测与可观测；用 LangSmith Deployment 部署。README 还提到 Deep Agents，是构建在 LangGraph 之上的更高层封装。除了 Python 版，也有 JavaScript / TypeScript 版本的 LangGraph.js。\n\n## 怎么上手\n\n```bash\npip install -U langgraph\n```\n\n学习顺序建议：\n\n1. 先跑通官方文档的快速开始，理解 State、Node、Edge 三个概念；\n2. 给图加一个工具调用节点和条件边，做出最基本的「思考—调工具—再思考」循环；\n3. 加上 checkpointer，体验中断后恢复；\n4. 最后再接 LangSmith 看每一步的输入输出。\n\n如果只是想快速得到一个能用的智能体，官方也提供预构建的高层接口，不必从空白的图开始。\n\n## 免费与付费\n\n- **LangGraph 框架本身**：MIT 许可，免费。\n- **LangSmith 与 LangSmith Deployment**：LangChain 公司的商业产品，有免费额度和付费方案，价格以官网为准。\n- **模型费用**：按你接入的模型厂商计费。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 要把智能体做成正式产品、需要可恢复、可审计、可人工干预的工程团队；\n- 流程里有复杂分支、循环、多智能体协作的系统；\n- 已经在用 LangChain 生态的开发者。\n\n**不适合：**\n- 编程新手或只想做个演示的人，抽象层次偏底层，学习成本不低；\n- 不写代码的用户；\n- 一次调用就能解决的简单任务，上图编排属于过度设计。\n\n## 注意事项\n\n- **和 LangChain 的关系**：LangGraph 可以单独使用，不强制依赖 LangChain 的链式写法，但两者文档和概念交叉较多，初学容易混。\n- **命名有调整**：部署平台在官方仓库里现在叫 LangSmith Deployment，老资料里出现的其他名称以当前官方文档为准。\n- **状态设计要先想清楚**：状态结构一旦上线再改，已有的检查点可能不兼容。\n- **持久化需要存储后端**：生产环境要配置数据库来保存检查点，并考虑其中是否含敏感数据。",
+      "images": [],
+      "sources": [
+        "https://github.com/langchain-ai/langgraph",
+        "https://docs.langchain.com/oss/python/langgraph/overview"
+      ]
+    },
+    {
+      "title": "AutoGen 是什么、现在还能用吗：微软多智能体框架已进入维护模式，继任者是 Microsoft Agent Framework",
+      "slug": "autogen-microsoft-agent-framework",
+      "name": "AutoGen",
+      "url": "https://github.com/microsoft/autogen",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Python 库 / AutoGen Studio（本地网页界面）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding"
+      ],
+      "excerpt": "AutoGen 是微软开源的多智能体应用框架，包含 Core、AgentChat、Extensions 和无代码界面 AutoGen Studio。官方仓库已声明它进入维护模式，新项目建议转向继任者 Microsoft Agent Framework。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据微软官方 GitHub 仓库 microsoft/autogen 的 README 整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 先说结论\n\nAutoGen 现在**仍然可以安装和使用，但已经进入维护模式**。官方 README 明确写着它「不会再获得新功能或增强」，并说明 Microsoft Agent Framework（MAF）是 AutoGen 面向企业的继任者，新用户被引导到那边。所以：\n\n- 维护老项目、学习多智能体的经典思路——AutoGen 依然有参考价值；\n- 开新项目——优先看 Microsoft Agent Framework，或 LangGraph、CrewAI 等仍在活跃开发的框架。\n\n## 是什么\n\nAutoGen 是微软开源的框架，用来构建可以自主行动、也可以与人协作的多智能体 AI 应用。仓库约有 6.13 万星标；代码采用 MIT 许可，文档采用 CC-BY-4.0。它最广为人知的模式是「让几个智能体互相对话来解决问题」，例如一个负责写代码、一个负责执行和反馈。\n\n## 组成部分\n\n- **Core API**：底层的消息传递、事件驱动智能体，以及本地和分布式运行时。\n- **AgentChat API**：在 Core 之上更简单、带有默认设计的一层，用于快速做原型。\n- **Extensions API**：官方和第三方扩展，包括各家模型的客户端。\n- **AutoGen Studio**：无代码的图形界面，用来拼装和测试多智能体流程。\n- **AutoGen Bench**：评测基准套件。\n\n## 怎么上手\n\n需要 Python 3.10 及以上：\n\n```bash\npip install -U \"autogen-agentchat\" \"autogen-ext[openai]\"\n```\n\n之后按 README 的示例创建一个 `AssistantAgent`，传入模型客户端和任务即可。想先不写代码体验，可以安装并启动 AutoGen Studio，在浏览器里拖拽组合智能体。\n\n注意：网上大量教程基于早期的 0.2 版本（`pyautogen` 包、`UserProxyAgent` 写法），与后来重写的版本接口差异很大，照抄容易报错，先确认教程对应的版本。\n\n## 免费与付费\n\n框架完全免费开源。费用来自你调用的模型 API；如果让智能体执行代码，还要准备隔离的运行环境。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 已有 AutoGen 项目需要继续维护的团队；\n- 想通过可运行的例子理解「多智能体对话」这一经典范式的学习者和研究者；\n- 想用 AutoGen Studio 快速搭个演示的人。\n\n**不适合：**\n- 准备启动新的生产项目的团队——官方已不再为它增加新功能；\n- 不写代码的用户；\n- 需要长期官方路线图保障的企业应用。\n\n## 注意事项\n\n- **迁移**：官方为 AutoGen 用户提供了迁移到 Microsoft Agent Framework 的说明，动手前先读 MAF 仓库的文档。\n- **代码执行风险**：让智能体自动执行它生成的代码时，务必放在 Docker 等沙箱里，不要直接在主机上跑。\n- **对话轮数要设上限**：多智能体互相对话可能陷入循环，持续消耗 Token。\n- **认准官方仓库**：社区里有名称相近的分支项目，本文说的是 microsoft/autogen。",
+      "images": [],
+      "sources": [
+        "https://github.com/microsoft/autogen",
+        "https://github.com/microsoft/agent-framework"
+      ]
+    },
+    {
+      "title": "Open WebUI 是什么、安装教程：给 Ollama 和各家 API 配一个自托管的中文聊天界面",
+      "slug": "open-webui-self-hosted-ai-chat",
+      "name": "Open WebUI",
+      "url": "https://openwebui.com/",
+      "pricing": "自部署免费 / 企业版联系销售",
+      "platforms": "Docker / Python（pip）/ 浏览器访问",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Open WebUI 是可自托管、能完全离线运行的 AI 聊天平台，支持 Ollama 和兼容 OpenAI 的接口，自带知识库检索、联网搜索、多用户权限和插件体系，一条 Docker 命令即可安装。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Open WebUI 官方 GitHub 仓库 README 与官方文档整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nOpen WebUI 是一个自托管的 AI 平台，仓库 open-webui/open-webui 约有 15.4 万星标。README 称它可扩展、功能丰富，并且可以完全离线运行。通俗地说，它给你一个**长得像 ChatGPT 的网页界面**，后面接什么模型由你决定：本机用 Ollama 跑的开源模型，或者任何兼容 OpenAI 接口的云端服务，都可以混着用。\n\n很多人装完 Ollama 之后只有一个命令行窗口，第二步通常就是装 Open WebUI——有了它，家里人或同事打开浏览器就能用同一套本地模型。\n\n## 能做什么\n\n- **多模型对话**：同时接入本地与云端模型，在对话里切换。\n- **知识库检索（RAG）**：上传文档后在提问时引用，README 提到支持 9 种向量数据库。\n- **联网搜索**：可配置多家搜索服务。\n- **多用户与权限**：基于角色的访问控制和用户组，适合家庭、团队共用一台机器。\n- **插件体系**：Filters、Actions、Pipes、Tools、Skills，以及 MCP 和 OpenAPI 工具服务器。\n- **其他**：图像生成、语音和视频通话、笔记、频道、持久记忆。\n\n## 怎么上手\n\n**Docker 方式**（推荐）：\n\n```bash\ndocker run -d -p 3000:8080 -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main\n```\n\n浏览器打开 `http://localhost:3000`，第一个注册的账号会成为管理员。\n\n**pip 方式**：\n\n```bash\npip install open-webui\nopen-webui serve\n```\n\n访问 `http://localhost:8080`。进入后在管理设置里填 Ollama 地址，或添加兼容 OpenAI 的接口地址和密钥，模型列表就会出现。界面语言可以在设置里切换为简体中文。\n\n## 免费与付费\n\n自行部署免费。官方另有 Enterprise 企业方案，需联系销售，价格以官网为准。模型的费用取决于你接的是本地模型（只花电费和硬件）还是云端 API（按各家计费）。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 已经在用 Ollama、想要图形界面的个人用户；\n- 想给家庭或小团队搭一个共用 AI 入口、统一管理密钥和权限的人；\n- 需要数据不出内网的小型组织。\n\n**不适合：**\n- 不想接触 Docker 或命令行的用户，可以看 Cherry Studio、Chatbox、LM Studio 这类桌面软件；\n- 只有一个人、只用云端 API 的轻度用户，桌面客户端更省事；\n- 需要原厂应用里特有功能（如官方的深度研究、语音模式）的人。\n\n## 注意事项\n\n- **许可证带品牌条款**：当前代码采用 Open WebUI License，要求保留「Open WebUI」品牌标识；早期贡献保留各自原有许可，详见仓库的 LICENSE_HISTORY。想改名换标再分发，需要先确认许可范围。\n- **不要裸奔在公网**：对外开放时务必启用登录、HTTPS，并关闭自由注册。\n- **数据卷要备份**：对话、用户和知识库都在 `open-webui` 数据卷里，升级镜像前先备份。\n- **插件会执行代码**：只安装可信来源的 Tools 和 Functions。",
+      "images": [],
+      "sources": [
+        "https://github.com/open-webui/open-webui",
+        "https://docs.openwebui.com/"
+      ]
+    },
+    {
+      "title": "Cherry Studio 是什么、官网下载与使用：一个客户端接入多家大模型 API 和本地模型",
+      "slug": "cherry-studio-desktop-llm-client",
+      "name": "Cherry Studio",
+      "url": "https://www.cherry-ai.com/",
+      "pricing": "社区版免费开源（AGPL-3.0）/ 企业版付费",
+      "platforms": "Windows / macOS / Linux",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "office",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Cherry Studio 是开源的桌面 AI 客户端，一个界面里接入 OpenAI、Gemini、Anthropic 等云端模型和 Ollama、LM Studio 本地模型，内置 300 多个预设助手，支持多模型同时回答与 MCP。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Cherry Studio 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nCherry Studio 是一款开源的桌面 AI 客户端，仓库 CherryHQ/cherry-studio 约有 5.25 万星标，支持 Windows、macOS 和 Linux。它本身**不提供模型**，而是一个「万能遥控器」：你把各家模型服务的 API Key 填进去，就能在同一个窗口里和不同模型对话，对话记录保存在自己的电脑上。\n\n对国内用户来说，它流行的原因主要是中文界面完善、对国产模型服务商的预置支持多、上手不需要命令行。\n\n## 能做什么\n\n- **接入多家模型**：主流云端大模型（OpenAI、Gemini、Anthropic 等）、各类 AI 网页服务，以及通过 Ollama、LM Studio 运行的本地模型。\n- **预设助手**：内置 300 多个预配置助手，也可以自己创建。\n- **多模型同时对话**：同一个问题发给几个模型，并排比较回答。\n- **文件处理**：支持文本、图片、Office 文件和 PDF。\n- **数据管理**：WebDAV 文件管理与备份，方便在几台电脑之间同步。\n- **其他**：Mermaid 图表渲染、MCP 服务器支持、明暗主题。\n\n## 怎么上手\n\n1. 从官网或 GitHub Releases 下载对应系统的安装包并安装。\n2. 打开「设置—模型服务」，选一个服务商，填入 API Key，点检查确认连通。\n3. 在模型列表里勾选要用的模型。\n4. 回到对话页，在顶部选择模型开始提问；想做对比时在输入框旁添加多个模型。\n5. 需要本地模型时，先装好 Ollama 并拉取模型，再在 Cherry Studio 里启用 Ollama 服务商。\n\n第一次用可以这样测试密钥是否正常：\n\n```text\n用一句话说明你是哪家公司的哪个模型，然后用表格列出三种适合你处理的任务。\n```\n\n## 免费与付费\n\n- **社区版**：免费，采用 AGPL-3.0 许可。\n- **企业版**：可私有化部署，提供集中的模型管理、员工管理、共享知识库、权限控制和数据备份，按买断或订阅销售，价格需联系官方。\n- **模型费用**：由你所用的模型服务商收取，Cherry Studio 社区版不加价。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 手里有多家模型 API Key、想统一管理和对比的用户；\n- 希望聊天记录留在本地、又不想折腾 Docker 的人；\n- 需要给不同工作场景配置不同助手的重度使用者。\n\n**不适合：**\n- 没有 API Key、也不想了解 API 是什么的新手——直接用各家官方 App 更简单；\n- 需要手机端随时使用的人（核对到的官方 README 只列出桌面三大系统）；\n- 需要多人协作、统一权限的团队，应评估企业版或 Open WebUI。\n\n## 注意事项\n\n- **AGPL 的商用边界**：README 说明满足 AGPL 全部条款即可商用；如果需要闭源集成或二次分发，要联系官方获取商业授权。\n- **API Key 保存在本机**：换电脑或重装系统前先备份；不要使用来历不明的「共享密钥」。\n- **按量计费要留意**：多模型同时回答会让每个问题的花费成倍增加。\n- **认准官方渠道下载**：只从官网和官方 GitHub 仓库获取安装包。",
+      "images": [],
+      "sources": [
+        "https://github.com/CherryHQ/cherry-studio",
+        "https://www.cherry-ai.com/"
+      ]
+    },
+    {
+      "title": "Chatbox 是什么、官网下载：全平台 AI 客户端怎么用，自带 API Key 与 Chatbox AI 订阅的区别",
+      "slug": "chatbox-ai-cross-platform-client",
+      "name": "Chatbox",
+      "url": "https://chatboxai.app/",
+      "pricing": "应用免费（自备 API Key）/ Chatbox AI 订阅可选",
+      "platforms": "Windows / macOS / Linux / iOS / 安卓 / 网页",
+      "trialNote": "应用本身免费；Chatbox AI 托管服务的免费档每天 10,000 点数",
+      "tags": [
+        "ai-tools",
+        "office",
+        "coding"
+      ],
+      "excerpt": "Chatbox 是覆盖电脑、手机和网页的 AI 客户端，可以填自己的 API Key 连接 OpenAI、Gemini、Anthropic、DeepSeek 等模型，也可以订阅官方的 Chatbox AI 服务免配置使用。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Chatbox 官网与官方定价说明整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nChatbox（官网称 Chatbox AI）是一款跨平台的 AI 客户端。和只做桌面端的同类工具相比，它的特点是**平台最全**：Windows、macOS、Linux、iOS、安卓和网页版都有，适合想在电脑和手机上用同一个工具的人。\n\n它有两种用法，新手最容易搞混：\n\n- **自带 API Key**：应用免费，你填入自己在各模型厂商申请的密钥，费用由厂商按量收取；\n- **Chatbox AI 订阅**：付费给 Chatbox，由它提供模型额度，不用自己申请和配置密钥。\n\n## 能做什么\n\n- **多模型对话**：官网列出的服务商包括 OpenAI、Google Gemini、Anthropic、DeepSeek、xAI、Mistral，以及 OpenRouter、AWS Bedrock 等聚合与云平台。\n- **读文件**：理解文档、图片、代码等文件内容。\n- **联网搜索与网页浏览**：实时获取信息。\n- **AI 绘图**：在对话里生成图片。\n- **排版渲染**：Markdown 与 LaTeX 公式。\n- **桌面端知识库**：用私有文档建立知识库。\n- **Agent 模式**：代码执行、技能、MCP 服务器、知识库选择；订阅用户还有集成的 MCP 服务。\n\n## 怎么上手\n\n1. 在官网下载对应平台的版本，或直接打开网页版。\n2. 首次打开会让你选择模型来源：选「Chatbox AI」需要登录并订阅；选其他服务商则填入 API Key 和（如有需要）接口地址。\n3. 新建对话，选模型开始使用。\n4. 在设置里可以调整默认模型、字体、语言（支持中文界面）等。\n\n## 免费与付费\n\n应用在各平台免费，使用自己的 API Key 不需要向 Chatbox 付费。Chatbox AI 托管服务的价格（官方定价说明，美元，2026-10 查询）：\n\n| 方案 | 年付折合每月 | 月付 | 每月点数 | 图片 |\n| --- | --- | --- | --- | --- |\n| 免费档 | 0 | 0 | 每天 10,000 点 | 最多 5 张 |\n| Lite | 3.50 美元 | 3.99 美元 | 200 万 | 25 张 |\n| Pro | 16.70 美元 | 19.99 美元 | 1,200 万 | 100 张 |\n| Pro+ | 33.33 美元 | 39.99 美元 | 3,000 万 | 200 张 |\n\n高级模型仅 Pro 和 Pro+ 可用；Pro 起包含文档对话、集成 MCP 服务和知识库处理等功能。Lite 可在最多 5 台设备上使用。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想在手机和电脑上用同一个 AI 客户端的人；\n- 已有 API Key、想要一个简洁好用的界面的开发者和进阶用户；\n- 不想折腾密钥、愿意付一份订阅同时用多家模型的人。\n\n**不适合：**\n- 重度依赖某一家官方应用独有功能的用户；\n- 需要团队统一管理账号和权限的企业场景；\n- 对「点数」这种间接计量不放心、希望按 Token 明细对账的用户——这种情况用自己的 API Key 更清楚。\n\n## 注意事项\n\n- **两种模式的账单分开**：自带密钥产生的费用在模型厂商那边，订阅费在 Chatbox 这边，别重复付费。\n- **点数消耗因模型而异**：同样一段对话，用高级模型扣得更多。\n- **密钥安全**：API Key 存在设备本地，不要在不信任的设备上登录或粘贴密钥。\n- **下载渠道**：只从官网和官方应用商店页面安装，警惕同名山寨应用。",
+      "images": [],
+      "sources": [
+        "https://chatboxai.app/en",
+        "https://chatboxai.app/pricing.md"
+      ]
+    },
+    {
+      "title": "LobeHub（原 LobeChat）是什么：开源 AI 智能体工作台的网页版、Docker 部署与使用",
+      "slug": "lobehub-lobechat-agent-workspace",
+      "name": "LobeHub（原 LobeChat）",
+      "url": "https://lobehub.com/",
+      "pricing": "开源自部署 / 官方云服务以官网为准",
+      "platforms": "网页 / Docker 自部署 / Vercel 等一键部署",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "office",
+        "coding"
+      ],
+      "excerpt": "LobeHub 就是很多人熟悉的 LobeChat，现在定位为管理一组 AI 智能体的开源工作台：创建智能体、组成智能体群组、定时运行、接入上万个 MCP 工具，可用官方云端版或 Docker 自部署。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 LobeHub 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\n如果你搜的是 LobeChat，找到这里没有错：这个项目的 GitHub 仓库现在是 lobehub/lobehub（约 8.31 万星标），仓库里的包名仍保留着 `lobe-chat` 字样。它早期以「界面好看的开源 ChatGPT 替代界面」出名，现在 README 的定位已经升级——把自己描述为一个「Chief Agent Operator」：帮你**招募、调度并汇报一整支 AI 智能体团队**。\n\n## 能做什么\n\nREADME 把功能分成四块：\n\n- **Operator（统一运营）**：在一个地方管理所有智能体，并通过 IM 网关在聊天软件里和它们对话。\n- **Create（创建）**：Agent Builder 可以根据一句描述生成智能体；可接入多家模型，以及一万多个兼容 MCP 的工具和插件。\n- **Collaborate（协作）**：智能体群组、共享页面、定时运行、项目和工作区。\n- **Evolve（成长）**：结构化、用户可编辑的个人记忆，让智能体越用越了解你。\n\n## 怎么上手\n\n**直接用云端版**：打开 app.lobehub.com 注册登录即可，适合先体验。\n\n**自部署**：\n\n- Docker 镜像部署；\n- 一键部署到 Vercel、Zeabur、Sealos、RepoCloud、阿里云等平台。\n\nREADME 的环境变量表里把 `OPENAI_API_KEY` 列为必填项；接其他模型服务商时按文档添加对应变量。部署完成后，在设置里配置模型服务、创建第一个智能体，再试着把两三个智能体放进一个群组里协作。\n\n## 免费与付费\n\n- **自部署**：按 LobeHub Community License 使用，模型费用自理。\n- **官方云服务**：有免费与付费方案，具体价格和额度以官网为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想要一个颜值高、功能全的自托管 AI 界面的个人和小团队；\n- 需要同时维护很多「专用智能体」（写作、翻译、代码审查、客服话术等）的重度用户；\n- 想体验多智能体群组协作、MCP 工具生态的尝鲜者。\n\n**不适合：**\n- 只想要一个最简单聊天窗口的人，功能较多会显得复杂；\n- 完全不想部署、也不想注册新平台的用户；\n- 对许可证有严格开源要求的企业——需要先读清楚社区许可的条款。\n\n## 注意事项\n\n- **许可证要看原文**：README 写的是 LobeHub Community License，而仓库页面的徽章显示 Apache 2.0，二者表述不一致，商用或二次开发前请阅读仓库中的 LICENSE 文件。\n- **改名带来的教程差异**：以 LobeChat 为名的老教程在界面、环境变量上可能与当前版本不同。\n- **自部署的访问保护**：公开部署时要设置访问密码或登录鉴权，否则别人可以消耗你的 API 额度。\n- **MCP 工具的权限**：第三方工具可能读取你传入的数据，只启用可信来源。",
+      "images": [],
+      "sources": [
+        "https://github.com/lobehub/lobehub",
+        "https://lobehub.com/"
+      ]
+    },
+    {
+      "title": "AnythingLLM 是什么、下载与使用教程：在自己电脑上搭本地知识库问答",
+      "slug": "anythingllm-local-document-chat",
+      "name": "AnythingLLM",
+      "url": "https://anythingllm.com/",
+      "pricing": "桌面版免费开源（MIT）/ 云端版以官网为准",
+      "platforms": "Windows / macOS / Linux / Docker / 云端 / 安卓",
+      "trialNote": "桌面版免费，无需注册账号",
+      "tags": [
+        "ai-tools",
+        "office",
+        "ai-agent"
+      ],
+      "excerpt": "AnythingLLM 是 MIT 许可的开源本地 AI 助手：把文档拖进去就能在自己电脑上做知识库问答，还带网页抓取与搜索、智能体技能和本地会议转写，桌面版免费、无需账号。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 AnythingLLM 官网与官方 GitHub 仓库整理，资料核对于 2026-10-11。功能变化快，以官网为准。\n\n## 是什么\n\nAnythingLLM 是一款开源的本地 AI 应用，代码托管在 GitHub 的 Mintplex-Labs 组织下，官网称星标超过 6.6 万，采用 MIT 许可。官网的介绍是：一个完全运行在你电脑上的私人 AI 助手，不需要账号、不需要 API Key、没有 Token 限制。\n\n它在同类工具里的定位是**「开箱即用的本地知识库」**：模型运行、文档解析、向量检索这些原本要分别安装配置的东西，它装好就带齐了。\n\n## 能做什么\n\n- **文档问答**：和自己的文件对话，处理过程在本地完成。\n- **网页抓取与搜索**：把网页内容纳入回答。\n- **动态模型选择**：既可以用内置的本地模型，也可以连接其他本地或云端模型服务。\n- **智能体与自定义技能**：让助手调用工具完成多步骤任务，支持后台任务。\n- **会议助手**：在本机转写并总结会议，不需要往会议里拉机器人。\n- **输入增强**：官网列出了听写、自动补全等功能。\n\n## 怎么上手\n\n1. 在 anythingllm.com 下载桌面版（Windows / macOS / Linux）。\n2. 首次启动时选择模型来源——用默认的本地模型最省事，电脑配置一般的话选小一点的模型。\n3. 新建一个工作区（Workspace），把 PDF、Word、TXT 等文件拖进去，等待向量化完成。\n4. 在工作区里提问，回答下方会显示引用的文档片段。\n\n可以这样验证效果：\n\n```text\n根据我上传的员工手册，年假是怎么计算的？请引用原文所在的章节，如果手册里没有写，就直接说没有。\n```\n\n需要多人共用时，改用 Docker 部署的版本，它支持多用户；团队协作也可以选官方云端版。手机端目前有安卓版。\n\n## 免费与付费\n\n- **桌面版 / Docker 自部署**：免费、开源（MIT）。\n- **云端版**：面向团队协作的托管服务，价格以官网为准。\n- 如果连接的是云端大模型 API，模型费用由对应厂商收取。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 手里有一批不方便上传到云端的资料（合同、内部文档、研究笔记），想在本地问答的人；\n- 想体验本地 RAG、但不愿意自己拼装组件的非开发者；\n- 需要给小团队搭一个内部文档助手的技术负责人（用 Docker 版）。\n\n**不适合：**\n- 电脑内存小、没有独立显卡又想要高质量回答的用户——本地小模型的效果有限；\n- 需要处理海量文档并做精细检索调优的企业场景；\n- 只是日常聊天，不涉及自有文档的人。\n\n## 注意事项\n\n- **本地不等于万无一失**：一旦在设置里接入云端模型，提问内容和检索到的文档片段就会发给对应服务商。\n- **回答质量取决于文档质量**：扫描件、复杂表格解析效果较差，重要结论要对照原文核实。\n- **硬件占用**：向量化和本地推理会占用较多内存与磁盘，文档多时注意空间。\n- **会议转写的合规**：录音与转写前先征得与会者同意。",
+      "images": [],
+      "sources": [
+        "https://anythingllm.com/",
+        "https://github.com/Mintplex-Labs/anything-llm"
+      ]
+    },
+    {
+      "title": "Jan AI 是什么、怎么用：开源、可离线运行的本地大模型桌面应用",
+      "slug": "jan-open-source-local-chatgpt",
+      "name": "Jan",
+      "url": "https://www.jan.ai/",
+      "pricing": "免费开源（Apache-2.0）",
+      "platforms": "Windows / macOS / Linux",
+      "trialNote": "完全免费；连接云端模型时按对应厂商计费",
+      "tags": [
+        "ai-tools",
+        "coding",
+        "office"
+      ],
+      "excerpt": "Jan 是 Apache-2.0 许可的开源桌面应用，可在电脑上离线运行 Llama、Gemma、Qwen 等开源模型，也能连接 OpenAI、Anthropic 等云端服务，并提供兼容 OpenAI 的本地接口和 MCP 支持。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Jan 官网与官方 GitHub 仓库 README 整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nJan 是一款开源的桌面 AI 应用，官网把它定位成「开源的 ChatGPT 替代品」，口号是「运行任何模型，按你的方式」。项目由 Menlo Research 开发，仓库 janhq/jan 约有 4.49 万星标，采用 Apache-2.0 许可；官网称累计下载超过 600 万次。\n\n它的核心卖点是**可以完全离线**：模型下载到本机后，断网也能对话，内容不离开电脑。\n\n## 能做什么\n\n- **本地模型**：从 Hugging Face 下载并运行 Llama、Gemma、Qwen、GPT-oss 等开源模型，底层基于 llama.cpp。\n- **云端模型**：也可以填密钥连接 OpenAI、Anthropic、Mistral、Groq、MiniMax 等服务商，本地与云端在同一个界面切换。\n- **自定义助手**：为不同用途设置不同的指令和参数。\n- **本地 API 服务**：在 `localhost:1337` 提供兼容 OpenAI 的接口，其他程序可以把 Jan 当作本地模型后端。\n- **MCP**：支持 Model Context Protocol，让模型调用外部工具。\n\n官网还展示了 Jan Agent 等产品方向，以及标注为「即将推出」的跨对话记忆功能。\n\n## 怎么上手\n\n1. 在 jan.ai 或 GitHub Releases 下载安装包。系统要求：Windows 10 及以上、macOS 13.6 及以上，或 Linux；也可以从 Microsoft Store、Flathub 安装。\n2. 打开后进入模型库（Hub），挑一个与电脑内存相称的模型下载。\n3. 下载完成后新建对话，选择该模型即可开始。\n4. 想给其他程序用，在设置里启动本地 API 服务。\n\nREADME 给出的内存参考（macOS）：运行 3B 参数量的模型建议 8GB 内存，7B 建议 16GB，13B 建议 32GB。\n\n## 免费与付费\n\nJan 本身免费、开源，没有订阅。成本只有两种：本地运行时的硬件和电费；连接云端模型时由对应厂商按量收取的 API 费用。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 看重隐私、希望对话内容留在本机的用户；\n- 想体验开源模型、又更喜欢图形界面而不是命令行的人；\n- 需要一个本地的、兼容 OpenAI 接口的模型服务来做开发测试的开发者。\n\n**不适合：**\n- 电脑配置较低（8GB 以下内存）的用户，本地模型体验会比较吃力；\n- 追求顶级闭源模型效果、又不想自己申请 API Key 的人；\n- 需要知识库、多用户协作等更重功能的团队，可以对比 AnythingLLM、Open WebUI。\n\n## 注意事项\n\n- **和 Ollama、LM Studio 的区别**：三者都能在本地跑模型。Ollama 以命令行和后台服务为主；LM Studio 是功能细致的桌面软件；Jan 则是 Apache-2.0 许可的开源图形界面应用。\n- **模型许可证各不相同**：Jan 开源不代表模型可以随意商用，下载前看模型页的许可说明。\n- **磁盘空间**：单个模型文件通常为数 GB，多下几个就会占满硬盘。\n- **本地接口别暴露到公网**：默认只在本机使用，对外开放前要加访问控制。",
+      "images": [],
+      "sources": [
+        "https://www.jan.ai/",
+        "https://github.com/janhq/jan"
+      ]
+    },
+    {
+      "title": "Langflow 是什么、怎么用：拖拽搭建 AI 智能体与工作流的开源可视化工具安装教程",
+      "slug": "langflow-visual-agent-builder",
+      "name": "Langflow",
+      "url": "https://www.langflow.org/",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Python（pip / uv）/ Docker / Windows 与 macOS 桌面版",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding"
+      ],
+      "excerpt": "Langflow 是 MIT 许可的开源可视化工具，用拖拽节点的方式搭建并部署 AI 智能体和工作流，内置交互式测试台，可一键发布成 API 或 MCP 服务器，支持主流大模型和向量数据库，并有桌面版。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Langflow 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nLangflow 是一个用来搭建和部署 AI 智能体与工作流的开源工具，仓库 langflow-ai/langflow 在 GitHub 上约有 15.5 万星标，采用 MIT 许可。它的界面是一张画布：把「提示词」「模型」「知识库检索」「工具」这些组件拖上去，用线连起来，就得到一个可以运行的流程。\n\n和 Dify 相比，Langflow 更偏**开发者的原型工具**：每个组件背后都是可以打开修改的 Python 代码，搭好的流程可以直接变成接口被别的程序调用。\n\n## 能做什么\n\nREADME 列出的主要功能：\n\n- **可视化搭建**：拖拽组件，快速试验不同的流程结构；\n- **Python 定制**：任何组件都可以用 Python 改写或新建；\n- **交互式 Playground**：在界面里一步步测试，查看每个节点的输入输出；\n- **多智能体编排**：管理多个智能体之间的对话与检索；\n- **多种部署形态**：把流程发布为 API、作为 MCP 服务器供其他 AI 客户端调用，或导出为 JSON；\n- **可观测性集成**：对接常见的追踪与监控工具；\n- **广泛兼容**：支持主流大模型、向量数据库和各类 AI 工具。\n\n## 怎么上手\n\n**桌面版**：Langflow Desktop 提供 Windows 和 macOS 版本，下载安装即可，不需要自己配 Python 环境，适合第一次尝试。\n\n**命令行安装**（需要 Python 3.10 到 3.14，官方推荐用 uv）：\n\n```bash\nuv pip install langflow -U\nuv run langflow run\n```\n\n**Docker**：\n\n```bash\ndocker run -p 7860:7860 langflowai/langflow:latest\n```\n\n启动后在浏览器打开 `http://localhost:7860`。建议从内置模板开始，例如「基础提示词」「文档问答」「简单智能体」，填入模型的 API Key 后先跑通，再替换成自己的数据和工具。\n\n## 免费与付费\n\nLangflow 本身免费开源。运行时的花费来自你接入的模型 API、向量数据库和服务器。官方是否提供托管的云服务及其价格，以官网为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想快速验证一个 RAG 或智能体想法的开发者；\n- 希望既能拖拽又能随时改代码的技术团队；\n- 需要把流程以 API 或 MCP 的形式嵌入现有系统的人。\n\n**不适合：**\n- 完全不想接触 Python 和 API Key 的非技术用户；\n- 需要成熟的多租户、权限、运营后台的企业级应用（要自己补很多东西）；\n- 只需要一个聊天界面的人。\n\n## 注意事项\n\n- **对外提供服务前要加鉴权**：不要把没有保护的 Langflow 实例直接暴露在公网，并及时升级到最新版本以获得安全修复。\n- **自定义组件会执行代码**：只导入可信来源的流程文件和组件。\n- **版本升级可能带来组件不兼容**：升级前导出流程备份。\n- **模型与数据库的费用自理**，长时间运行的智能体注意设置调用上限。",
+      "images": [],
+      "sources": [
+        "https://github.com/langflow-ai/langflow",
+        "https://www.langflow.org/"
+      ]
+    },
+    {
+      "title": "RAGFlow 是什么、部署教程：擅长解析复杂文档的开源 RAG 知识库引擎",
+      "slug": "ragflow-document-rag-engine",
+      "name": "RAGFlow",
+      "url": "https://ragflow.io/",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Docker 自部署 / 浏览器访问 / API",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding",
+        "literature"
+      ],
+      "excerpt": "RAGFlow 是 Apache-2.0 许可的开源检索增强生成（RAG）引擎，强项是对复杂格式文档的深度解析、模板化切分和带出处的引用回答，并融合了智能体能力，用 Docker Compose 自部署。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 RAGFlow 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nRAGFlow 是一个开源的检索增强生成（RAG）引擎，仓库 infiniflow/ragflow 约有 9.2 万星标，采用 Apache-2.0 许可。README 的定位是：把 RAG 与智能体能力结合起来，为大模型提供高质量的上下文。\n\n做过知识库问答的人都知道，效果差往往不是模型的问题，而是**文档没解析好**——扫描版 PDF、带表格的报告、多栏排版的论文，被粗暴地按字数切开后，检索回来的都是残缺的片段。RAGFlow 就是专门在这一步下功夫的项目。\n\n## 核心能力\n\n- **深度文档理解**：针对复杂格式的文档提取结构化内容，尽量保留表格、标题层级和版面信息；\n- **模板化切分**：按文档类型（如论文、手册、问答对、表格等）选择不同的切分模板，而不是一刀切；\n- **有据可查的引用**：回答时标出依据的原文片段，方便核对、减少幻觉；\n- **智能体式检索**：支持多步推理的检索流程，而不是只检索一次；\n- **接口**：提供 API，便于接入自己的业务系统。\n\n## 怎么上手\n\nREADME 给出的推荐配置：4 核 CPU、16 GB 内存、50 GB 可用磁盘；Docker 版本不低于 24.0.0，Docker Compose 不低于 v2.26.1。\n\n```bash\ngit clone https://github.com/infiniflow/ragflow.git\ncd ragflow/docker\ndocker compose -f docker-compose.yml up -d\n```\n\nREADME 建议先切换到指定的发布版本标签再启动（核对时示例使用的是 `v1.0.0-rc1`），具体以当前 README 为准。启动完成后：\n\n1. 浏览器访问服务器地址，注册第一个账号；\n2. 在设置里配置模型（对话模型、向量模型等）的 API Key；\n3. 新建知识库，上传文档，选择合适的切分模板，等待解析；\n4. 打开解析结果检查切片质量，再创建对话助手绑定该知识库测试。\n\n## 免费与付费\n\n开源版免费，可自行部署和商用（遵守 Apache-2.0）。成本在于服务器资源和模型调用。官方是否提供托管云服务或企业支持及其价格，以官网为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 文档类型复杂（扫描件、报表、论文、合同）的企业知识库项目；\n- 对回答的可追溯性要求高、需要显示出处的场景；\n- 有运维能力、希望完全自托管的技术团队。\n\n**不适合：**\n- 服务器资源紧张的个人用户——它比轻量的知识库工具吃资源；\n- 文档都是干净的纯文本、只想快速搭个问答的场景，FastGPT、AnythingLLM 等更省事；\n- 没有任何 Docker 经验的用户。\n\n## 注意事项\n\n- **解析很耗资源和时间**：大批量文档首次入库可能需要较长时间，先用少量文档调好切分模板再批量导入。\n- **镜像体积大**：首次拉取需要稳定的网络和足够的磁盘空间。\n- **切分模板选错效果会很差**：表格类文档用表格模板、问答对用问答模板。\n- **对外开放前加固**：修改默认配置、限制注册，并做好数据卷备份。",
+      "images": [],
+      "sources": [
+        "https://github.com/infiniflow/ragflow",
+        "https://ragflow.io/"
+      ]
+    },
+    {
+      "title": "MaxKB 是什么、Docker 部署与默认密码：开源企业级智能体与知识库问答平台",
+      "slug": "maxkb-enterprise-agent-platform",
+      "name": "MaxKB",
+      "url": "https://maxkb.cn/",
+      "pricing": "开源版免费（GPL-3.0）/ 其他版本以官网为准",
+      "platforms": "Docker 自部署 / 浏览器访问",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding"
+      ],
+      "excerpt": "MaxKB（Max Knowledge Brain）是 GPL-3.0 许可的开源企业级智能体平台，提供知识库 RAG、工作流引擎、MCP 工具调用和多模态输入输出，支持私有与公有大模型，一条 Docker 命令即可启动。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 MaxKB 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nMaxKB 的全称是 Max Knowledge Brain，README 把它定义为构建企业级智能体的开源平台，仓库 1Panel-dev/MaxKB 约有 2.29 万星标，采用 GPL-3.0 许可。它在国内企业和政务、教育单位里比较常见，原因很实际：**安装简单、界面中文、能直接接国产模型**，适合想在内网里快速搭一个知识库问答助手的团队。\n\n## 能做什么\n\nREADME 列出的能力：\n\n- **RAG 管线**：上传文档或自动爬取网页，自动完成文本切分和向量化；\n- **工作流引擎**：内置函数库，可以编排复杂的业务流程，并支持调用 MCP 工具；\n- **零代码嵌入**：把问答助手嵌入到第三方业务系统里，不需要改造原系统；\n- **模型支持**：私有部署的模型（如 DeepSeek、Llama、Qwen）和公有模型（如 OpenAI、Claude、Gemini、MiniMax）都能接；\n- **多模态**：原生支持文本、图片、音频、视频的输入输出。\n\n## 怎么上手\n\nREADME 提供的启动命令：\n\n```bash\ndocker run -d --name=maxkb --restart=always -p 8080:8080 -v ~/.maxkb:/opt/maxkb 1panel/maxkb\n```\n\n启动后访问 `http://服务器地址:8080`，用 README 写明的默认账号登录：用户名 `admin`，密码 `MaxKB@123..`。**登录后第一件事就是修改默认密码。**\n\n接下来：\n\n1. 在「模型设置」里添加模型供应商和 API Key（或本地模型地址）；\n2. 创建知识库，上传文档或填入要爬取的网址；\n3. 创建应用，关联知识库和模型，在调试窗口里测试；\n4. 通过分享链接或嵌入代码把助手放到业务系统中。\n\n## 免费与付费\n\n开源版免费，遵守 GPL-3.0 许可即可使用。官方是否提供功能更多的专业版 / 企业版及其价格，以官网为准。模型调用和服务器成本自理。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 需要在内网私有化部署知识库问答的企业、学校和机构；\n- 运维资源有限、希望一条命令就能跑起来的小团队；\n- 想把 AI 问答嵌进现有 OA、客服、官网系统的开发者。\n\n**不适合：**\n- 想把它改造成闭源商业产品再分发的公司——GPL-3.0 有开源传染性要求，需先评估许可或咨询官方商业授权；\n- 只需要个人聊天助手的用户；\n- 文档解析要求极高（大量扫描件、复杂表格）的场景，可以对比 RAGFlow。\n\n## 注意事项\n\n- **务必改掉默认密码**：默认账号密码是公开信息，搜索下拉里就有「MaxKB 默认密码」「MaxKB 漏洞」这样的查询，说明暴露在公网的实例是被重点扫描的对象。\n- **不要直接暴露在公网**：需要外部访问时放在反向代理之后，开启 HTTPS 并限制来源。\n- **及时升级**：关注官方的版本和安全公告。\n- **数据卷备份**：知识库和配置保存在挂载目录 `~/.maxkb`，升级前先备份。",
+      "images": [],
+      "sources": [
+        "https://github.com/1Panel-dev/MaxKB",
+        "https://maxkb.cn/"
+      ]
+    },
+    {
+      "title": "LibreChat 是什么、部署教程：聚合多家模型、支持多用户登录的开源自托管 AI 聊天平台",
+      "slug": "librechat-self-hosted-multi-provider",
+      "name": "LibreChat",
+      "url": "https://www.librechat.ai/",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Docker 自部署 / 浏览器访问",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding",
+        "office"
+      ],
+      "excerpt": "LibreChat 是 MIT 许可的开源自托管 AI 聊天平台，在一个界面里接入 Anthropic、OpenAI、Google、AWS Bedrock、Azure 和 Ollama 本地模型，带智能体、MCP、代码解释器、Artifacts 和多用户登录。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 LibreChat 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nLibreChat 是一个开源、自托管的 AI 聊天平台，仓库 danny-avila/LibreChat 约有 4.55 万星标，采用 MIT 许可。它的目标可以概括为：**把各家官方聊天应用里好用的功能，做成一个你自己部署、接自己密钥的统一版本**。\n\n和 Open WebUI 相比，两者定位接近。LibreChat 的特点是对各大云厂商接口的支持很全，功能上紧跟官方应用（智能体、代码执行、可渲染的成品预览），并且有比较完整的多用户认证方案，适合给一个团队或公司内部使用。\n\n## 能做什么\n\nREADME 列出的主要功能：\n\n- **多家模型**：Anthropic、AWS Bedrock、OpenAI、Azure OpenAI、Google、Vertex AI，以及 Ollama 等本地方案；\n- **AI 智能体**：创建带指令和工具的智能体；\n- **MCP 工具**：通过 Model Context Protocol 接入外部工具；\n- **Code Interpreter**：在沙箱里运行多种编程语言的代码；\n- **Artifacts**：在对话旁直接渲染 React 组件、HTML 页面和 Mermaid 图表；\n- **多用户**：支持 OAuth2、LDAP 和邮箱登录。\n\n## 怎么上手\n\n1. 准备一台装好 Docker 的服务器或电脑，克隆仓库。\n2. 复制环境变量示例文件并填写（各家模型的 API Key、登录方式等）。\n3. 用仓库提供的 Docker Compose 文件启动：\n\n```bash\ndocker compose up -d\n```\n\n4. 浏览器访问对应端口，注册账号后在界面顶部选择模型开始使用。\n5. 不想自己管服务器的，README 也提供了 Railway、Zeabur、Sealos 的一键部署入口。\n\n给团队使用时，建议先配置好登录方式（如公司的单点登录或限制邮箱域名），再把地址发给同事。\n\n## 免费与付费\n\nLibreChat 完全免费开源（MIT），可以商用和二次开发。实际花费是服务器，以及你填入的各家模型 API 的用量费。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想给团队提供统一 AI 入口、集中管理密钥和账号的技术负责人；\n- 公司的模型资源在 AWS Bedrock、Azure、Vertex AI 等云平台上的团队；\n- 想在自托管环境里使用代码解释器、Artifacts 等进阶功能的人。\n\n**不适合：**\n- 不熟悉 Docker 和环境变量配置的个人用户，桌面客户端（Cherry Studio、Chatbox）更简单；\n- 只使用本地模型、追求最简安装的人，Open WebUI 与 Ollama 的搭配更直接；\n- 没有人维护服务器的团队。\n\n## 注意事项\n\n- **关闭公开注册**：对外可访问的实例如果允许任何人注册，你的 API 额度就可能被别人用掉。\n- **API Key 写在环境变量里**，注意文件权限和备份的保管。\n- **代码解释器的运行环境**：确认沙箱服务的部署方式与费用，以官方文档为准。\n- **升级前读发布说明**：配置项时有调整，升级后对照新版示例文件检查。",
+      "images": [],
+      "sources": [
+        "https://github.com/danny-avila/LibreChat",
+        "https://www.librechat.ai/"
+      ]
+    },
+    {
+      "title": "NextChat（ChatGPT-Next-Web）是什么、怎么部署：一键搭建自己的 AI 聊天网页，全平台客户端",
+      "slug": "nextchat-chatgpt-next-web",
+      "name": "NextChat",
+      "url": "https://github.com/ChatGPTNextWeb/NextChat",
+      "pricing": "开源免费（MIT）",
+      "platforms": "网页（PWA）/ Windows / macOS / Linux / iOS / 安卓",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "office"
+      ],
+      "excerpt": "NextChat 即原来的 ChatGPT-Next-Web，是 MIT 许可的开源 AI 聊天客户端，主打零配置：填入自己的 API Key 就能用 GPT、Claude、Gemini、DeepSeek 等模型，可一键部署到 Vercel 或用 Docker 自托管。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 NextChat 官方 GitHub 仓库 README 整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nNextChat 就是很多人熟悉的 ChatGPT-Next-Web——仓库现在位于 ChatGPTNextWeb/NextChat，约有 8.88 万星标、5.89 万次复刻（fork），采用 MIT 许可。README 把它称为「零配置的 AI 聊天助手」。\n\n它流行起来的原因是**部署门槛极低**：不需要服务器，点一下按钮就能把一个属于自己的聊天网页部署到 Vercel 上，填入 API Key 即可使用。极高的复刻数也说明了这一点——大量用户都是这样拥有了自己的第一个 AI 聊天页面。\n\n## 能做什么\n\n- **多模型**：README 列出支持 GPT、Claude、Gemini、DeepSeek 等；\n- **全平台**：网页（可作为 PWA 安装到桌面或手机主屏）、Windows / macOS / Linux 桌面版，以及 iOS 和安卓；\n- **排版渲染**：Markdown、LaTeX 公式、Mermaid 图表；\n- **体验细节**：流式输出、深色模式、多语言界面；\n- **预设与面具**：把常用的角色设定和提示词保存起来复用。\n\n对话数据默认保存在浏览器本地，不经过第三方服务器（除了你所调用的模型接口）。\n\n## 怎么上手\n\n**方式一：一键部署到 Vercel**\n\n1. 准备一个模型服务的 API Key。\n2. 在仓库 README 里点击 Vercel 部署按钮，按提示登录并创建项目。\n3. 填写环境变量：`OPENAI_API_KEY`（README 标注为必填）；`CODE`（选填，访问密码，可用英文逗号分隔设置多个）。\n4. 部署完成后访问分配的网址，输入访问密码开始使用。\n\n**方式二：Docker 自托管**，按 README 的 `docker run` 示例传入同样的环境变量。\n\n**方式三：只用客户端**，直接下载桌面版，在设置里填自己的 API Key 和接口地址。\n\n## 免费与付费\n\n项目本身免费开源。部署到 Vercel 可以使用其免费额度（以 Vercel 的规则为准），模型调用费由你使用的模型服务商收取。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想要一个轻量、好看、可以随手分享给家人朋友的 AI 聊天页面的人；\n- 已经有 API Key、只需要一个简洁界面的用户；\n- 想学习如何部署一个前端项目的新手。\n\n**不适合：**\n- 需要知识库、多用户权限、智能体等更重功能的团队，可以看 Open WebUI、LibreChat、LobeHub；\n- 不知道 API Key 是什么、也不想了解的用户；\n- 需要长期稳定的官方支持的企业场景。\n\n## 注意事项\n\n- **一定要设置访问密码**：不设 `CODE` 就公开部署，等于把你的 API 额度送给所有知道网址的人。\n- **不要使用来历不明的「免费密钥」或第三方接口地址**，有泄露对话内容和被盗刷的风险。\n- **及时同步上游更新**：一键部署的项目不会自动更新，旧版本可能存在已修复的安全问题，README 有开启自动同步的说明。\n- **维护节奏**：核对时仓库页面未显示最近一次提交的时间，使用前自行查看近期更新是否活跃。",
+      "images": [],
+      "sources": [
+        "https://github.com/ChatGPTNextWeb/NextChat"
+      ]
+    },
+    {
+      "title": "Activepieces 是什么、怎么用：可自部署的开源自动化平台（Zapier 替代），AI 智能体与 MCP",
+      "slug": "activepieces-open-source-automation",
+      "name": "Activepieces",
+      "url": "https://www.activepieces.com/",
+      "pricing": "社区版开源免费（MIT）/ 云端与企业版以官网为准",
+      "platforms": "网页 / Docker 自部署",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "office",
+        "coding"
+      ],
+      "excerpt": "Activepieces 是开源的 AI 自动化平台，定位为 Zapier 的开源替代：可视化搭建工作流和 AI 智能体，集成（称为 pieces）用 TypeScript 编写，其中 280 多个可作为 MCP 服务器使用，社区版以 MIT 许可发布。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Activepieces 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nActivepieces 是一个开源的自动化平台，仓库 activepieces/activepieces 约有 2.5 万星标，README 直接把自己称为「开源的 Zapier 替代品」。和 Zapier 一样，它用「触发器 + 一连串动作」的方式把不同应用连起来；不同的是，你可以把它**部署在自己的服务器上**，流程和数据都留在自己手里。\n\n如果已经了解 n8n，可以这样比较：两者都能自托管，n8n 的画布更自由、更偏技术用户；Activepieces 的流程是自上而下的步骤式，界面更接近 Zapier，对非技术人员更友好，社区版采用的是标准的 MIT 开源许可。\n\n## 能做什么\n\n- **工作流搭建**：循环、分支、自动重试、HTTP 请求步骤、可引入 NPM 包的代码步骤，流程有版本管理；\n- **AI 智能体**：在流程里加入能自主调用工具的智能体步骤；\n- **Pieces（集成）**：每个集成是一个用 TypeScript 写的 npm 包，README 称已有 200 多个，可以自己开发并贡献；\n- **MCP**：README 的功能列表写明 280 多个 pieces 可以作为 MCP 服务器使用（仓库简介处的说法是约 400 个 MCP 服务器，两处数字不一致，以当前仓库为准）——也就是说，你可以让 Claude、Cursor 等支持 MCP 的客户端通过它操作这些应用。\n\n## 怎么上手\n\n**云端试用**：在官网注册，直接在浏览器里搭第一个流程。\n\n**自部署**：仓库提供了 Dockerfile 和 docker-compose 文件，克隆后按官方文档配置环境变量并启动：\n\n```bash\ngit clone https://github.com/activepieces/activepieces.git\ncd activepieces\ndocker compose up -d\n```\n\n第一个流程建议做简单的：选一个定时或 Webhook 触发器 → 加一步 AI 处理（总结或分类）→ 把结果发到邮箱或表格。跑通后再逐步加分支和重试。\n\n## 免费与付费\n\n- **Community Edition**：MIT 许可，免费自托管；\n- **企业功能**：采用商业许可，需要付费；\n- **官方云服务**：有免费与付费方案，价格和额度以官网定价页为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想要 Zapier 式的易用界面，又希望能自托管的团队；\n- 有前端 / TypeScript 能力、想为内部系统自己写集成的开发者；\n- 想把一批常用应用以 MCP 的形式提供给 AI 助手使用的人。\n\n**不适合：**\n- 需要对接大量冷门海外应用的用户——现成集成的数量少于 Zapier；\n- 主要使用国内办公软件的团队，多数集成需要自己开发；\n- 没有人维护服务器、又不想用云端版的团队。\n\n## 注意事项\n\n- **社区版与企业版的边界**：权限、审计、单点登录等功能通常在企业版，选型前对照官方的功能对比。\n- **凭据安全**：流程里保存着各个应用的授权，自托管要做好加密密钥的保管和备份。\n- **通过 MCP 开放能力时控制范围**：只暴露需要的 pieces 和动作，避免 AI 助手获得过大的操作权限。\n- **AI 步骤的模型费用自理**。",
+      "images": [],
+      "sources": [
+        "https://github.com/activepieces/activepieces",
+        "https://www.activepieces.com/"
+      ]
+    },
+    {
+      "title": "Tripo AI 是什么、怎么用：文字和图片生成 3D 模型的 Tripo Studio 与官网定价",
+      "slug": "tripo-ai-3d-model-generator",
+      "name": "Tripo AI",
+      "url": "https://www.tripo3d.ai/",
+      "pricing": "免费+付费",
+      "platforms": "网页（Tripo Studio）/ API",
+      "trialNote": "Free 档每月 200 积分（约 13 个模型），生成结果公开且仅限非商用",
+      "tags": [
+        "ai-tools",
+        "figurine",
+        "game-art",
+        "product-design"
+      ],
+      "excerpt": "Tripo AI 是用文字或图片生成 3D 模型的在线工具，主打 Tripo Studio 工作台：生成、分割、重拓扑、贴图一条龙，免费档每月 200 积分，付费档可商用并支持批量生成。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Tripo AI 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nTripo AI 是一款 AI 3D 生成工具：输入一段文字描述或上传一张图片，几十秒到几分钟内得到一个带贴图的三维模型。它的主产品叫 **Tripo Studio**，在浏览器里完成从生成到后期处理的整个流程。官网当前的宣传点包括「2 秒生成可用于游戏的资产」「8K 贴图」和用于更好控制的「智能分割」。\n\nAI 生成的 3D 模型目前更适合做**概念原型、游戏道具、手办打样、电商展示**这类用途，要进入正式的影视或 3A 游戏管线通常还需要人工修整。\n\n## 能做什么\n\n- **文生 3D / 图生 3D**：单张图即可生成；付费档支持多视图生成 3D，形体更准确。\n- **贴图生成与编辑**：免费档最高 4K，Max 档可无限使用 8K 贴图。\n- **重拓扑（Retopology）**：把生成的高面数网格整理成更规整的布线。\n- **智能分割**：把模型拆成可单独编辑的部件。\n- **批量生成**：付费档一次提交多个任务，Pro 档 10 个并发，Max 档 100 个并发。\n- **DCC Bridge**：与三维软件之间传递模型（付费档）。\n- **图像生成**：先生成参考图再转 3D。\n\n## 怎么上手\n\n1. 打开 tripo3d.ai，点「Try Tripo Studio」注册登录。\n2. 选择文字或图片输入。图片建议用主体完整、背景干净、正面或四分之三视角的图。\n3. 等待生成后在预览里旋转检查，问题大的直接重新生成。\n4. 需要的话做贴图细化、分割或重拓扑，再导出到你的三维软件或切片软件。\n\n文字提示词可以这样写：\n\n```text\na small stylized treasure chest, wooden planks with iron bands, slightly open lid, game prop, clean silhouette\n```\n\n## 免费与付费\n\n官网定价页（美元，年付折合的月价，2026-10 查询）：\n\n| 方案 | 价格 | 每月积分 | 说明 |\n| --- | --- | --- | --- |\n| Free | 0 | 200（约 13 个模型） | 1 个并发；模型公开、仅限非商用 |\n| Pro | 20 美元/月（按年收 240 美元） | 3,000（约 200 个模型） | 模型私有、可商用，10 个并发，批量生成 |\n| Max | 90 美元/月（按年收 1,080 美元） | 25,000（约 1,660 个模型） | 100 个并发，8K 贴图不限量，永久编辑历史 |\n\n另有面向团队和工作室的 Team 方案。月付价格更高，以定价页的 Monthly 选项为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 独立游戏开发者、需要大量道具和场景小物的美术；\n- 3D 打印爱好者、潮玩与手办设计的前期打样；\n- 电商、AR 展示需要快速出三维素材的团队。\n\n**不适合：**\n- 需要精确尺寸和工程公差的工业设计、机械零件；\n- 对布线、UV 有严格规范的高端影视角色制作；\n- 想免费商用的人——免费档明确是非商用且模型公开。\n\n## 注意事项\n\n- **免费档的模型是公开的**：别上传未公开的产品图或有保密要求的设计。\n- **版权**：用别人的角色、品牌形象的图片去生成 3D，同样有侵权风险。\n- **积分估算**：贴图细化、重拓扑等后处理也消耗积分，「约多少个模型」只是基础生成的估算。\n- **导出前检查**：留意模型的面数、是否有破面和内部多余结构，打印前先在切片软件里修复。",
+      "images": [],
+      "sources": [
+        "https://www.tripo3d.ai/pricing",
+        "https://www.tripo3d.ai/"
+      ]
+    },
+    {
+      "title": "Meshy AI 是什么、怎么用：文生 3D、图生 3D、AI 贴图与自动绑定的 3D 工具箱",
+      "slug": "meshy-ai-3d-toolbox",
+      "name": "Meshy",
+      "url": "https://www.meshy.ai/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / API / Blender、Unity 等插件",
+      "trialNote": "免费档每月 100 积分，无需信用卡；生成的资产按 CC BY 4.0 授权",
+      "tags": [
+        "ai-tools",
+        "figurine",
+        "game-art",
+        "product-design"
+      ],
+      "excerpt": "Meshy 是面向 3D 美术、游戏开发者和 3D 打印爱好者的 AI 3D 工具箱，提供文生 3D、图生 3D、AI 贴图、自动骨骼绑定与动画，可导出 FBX、GLB、STL 等格式，并有 Blender、Unity 插件。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Meshy 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nMeshy 是一套生成式 AI 的 3D 工具箱，官网说明它面向 3D 美术、游戏开发者和 3D 打印爱好者。和只做「一键出模型」的工具相比，它的功能链条更长：从生成模型，到给已有模型重新上贴图，再到给角色自动绑定骨骼、套用动画，都在同一个网站里完成。\n\n## 能做什么\n\n- **Text to 3D（文生 3D）**：用文字描述生成模型。\n- **Image to 3D（图生 3D）**：上传图片生成模型。\n- **AI Texturing（AI 贴图）**：给你自己上传的模型生成贴图，支持上传 FBX、OBJ、STL、glTF、GLB。\n- **AI Auto Rigging（自动绑定）**：给人形等角色自动加骨骼。\n- **Animation（动画）**：为绑定好的角色套用动作。\n- **导出格式**：文生 3D 与图生 3D 的结果可下载为 FBX、OBJ、USDZ、GLB、STL 或 BLEND。\n- **插件与集成**：官方 FAQ 提到 Blender 和 Unity 插件，网站还列出了 Bambu Studio、Creality Print、OrcaSlicer、Unreal Engine 等集成，对做 3D 打印的人很方便。\n\n## 怎么上手\n\n1. 在 meshy.ai 注册免费账号（不需要信用卡）。\n2. 进入工作台选择 Text to 3D 或 Image to 3D，输入提示词或上传图片。\n3. 先看预览结果，满意后再做细化和贴图。\n4. 角色类模型可以继续做自动绑定和动画。\n5. 按用途选择导出格式：游戏引擎常用 FBX / GLB，3D 打印用 STL。\n\n## 免费与付费\n\n官网有 Free、Pro、Studio、Enterprise 四档。核对时定价页的价格卡片未能完整显示金额，这里只写页面明确的权益，**具体价格以官网定价页为准**：\n\n- **Free**：每月 100 积分，每月 1 日（UTC 0 点）重置；生成的资产按 **CC BY 4.0** 授权，可以商用但必须署名；排队优先级低于付费用户。\n- **Pro**：每月 1,000 积分（不累积到下月）；资产完全私有、归你所有；含 API 访问，官网称生成速度更快，最多 10 个并发任务。\n- 页面显示新用户首月月付或年付有折扣，属于促销，不是长期标价。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 需要快速产出道具、角色原型的独立游戏团队；\n- 已经有模型、只想让 AI 帮忙上贴图的美术；\n- 用拓竹、创想三维等切片软件的 3D 打印玩家。\n\n**不适合：**\n- 需要精确工程尺寸的工业建模；\n- 对拓扑和 UV 要求严格、不接受后期修整的正式项目；\n- 不愿意署名又想商用免费档成果的用户——那需要升级付费档。\n\n## 注意事项\n\n- **免费档授权要看清**：CC BY 4.0 意味着别人也能看到并在署名前提下使用你的免费生成结果，保密内容不要用免费档做。\n- **积分不结转**：当月没用完的订阅积分不会累积。\n- **自动绑定有适用范围**：对标准人形效果较好，异形生物、复杂服饰常需要手动调整。\n- **版权**：不要用受保护的角色或他人作品的图片生成后商用。",
+      "images": [],
+      "sources": [
+        "https://www.meshy.ai/pricing",
+        "https://www.meshy.ai/"
+      ]
+    },
+    {
+      "title": "腾讯混元3D 是什么、怎么用：官网在线生成 3D 模型与开源版本地部署要求",
+      "slug": "tencent-hunyuan3d-ai-modeling",
+      "name": "腾讯混元3D",
+      "url": "https://3d.hunyuan.tencent.com/",
+      "pricing": "在线版额度以官网为准 / 开源模型可本地部署",
+      "platforms": "网页 / 开源模型（本地部署）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "figurine",
+        "game-art",
+        "product-design"
+      ],
+      "excerpt": "腾讯混元3D 是腾讯的 AI 3D 生成产品：官网登录后可在线把图片生成带 PBR 贴图的 3D 模型；同时在 GitHub 开源了 Hunyuan3D 2.1 的完整权重与训练代码，可本地部署。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据腾讯混元3D 官网与官方 GitHub 仓库 Tencent-Hunyuan/Hunyuan3D-2.1 的 README 整理，资料核对于 2026-10-11。在线版的功能与额度需登录后查看，以官网为准。\n\n## 是什么\n\n腾讯混元3D 是腾讯混元大模型家族里负责 3D 生成的产品。它有两种形态，适合的人群完全不同：\n\n- **在线版**：打开 3d.hunyuan.tencent.com 登录后直接在浏览器里生成，不需要显卡，适合设计师和普通用户；\n- **开源版**：腾讯在 GitHub 的 Tencent-Hunyuan 组织下开源了多个版本的模型。本文核对的 Hunyuan3D 2.1 仓库（约 4,200 星标）称其公开了完整的模型权重和训练代码，可用于微调，适合开发者和研究者。\n\n## 能做什么\n\n以开源的 Hunyuan3D 2.1 为例，README 介绍它是一套 3D 资产创作系统，由两部分组成：\n\n- **Hunyuan3D-Shape-v2-1**（约 33 亿参数）：从图片生成三维形体；\n- **Hunyuan3D-Paint-v2-1**（约 20 亿参数）：为形体合成贴图，采用基于物理的渲染（PBR）材质，在不同光照下更真实。\n\n在线版在此基础上提供图形化操作。官网登录页之外的具体功能模块（如文生 3D、多视图输入、专业工作台等）需要登录后才能看到，这里不逐项罗列，以登录后的实际界面为准。\n\n腾讯还开源了面向「3D 世界 / 场景」生成的 HunyuanWorld 系列，与单个物体的 Hunyuan3D 是不同的项目。\n\n## 怎么上手\n\n**在线使用：**\n\n1. 打开官网，按页面提示登录并阅读服务协议。\n2. 上传一张主体清晰、背景简单的图片（或按界面提示输入文字）。\n3. 生成后在预览中旋转检查，再选择需要的格式导出。\n\n**本地部署（开发者）：**\n\n1. 准备带大显存显卡的机器。README 给出的显存参考：只生成形体约 10 GB，只生成贴图约 21 GB，两者一起约 29 GB。\n2. 按仓库 README 克隆代码、安装依赖并下载权重。\n3. 运行仓库提供的示例脚本或 Gradio 界面。\n\n## 免费与付费\n\n- **在线版**：免费额度和付费规则以登录后页面显示为准，本文不引用第三方转述的次数。\n- **开源版**：模型可下载使用，但**许可条款请以仓库中的 LICENSE 为准**，其中对使用地区、商用等可能有限制，商用前务必阅读原文。\n- **API**：企业接入方式与价格以腾讯官方说明为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想用中文界面、国内网络直接访问的 3D 生成用户；\n- 游戏、电商、文创行业做前期原型的设计师；\n- 想在自己的显卡上跑开源 3D 模型、做二次开发的开发者。\n\n**不适合：**\n- 显存不足 10 GB 又想本地跑的用户；\n- 需要精确尺寸的工程建模；\n- 期望生成结果不经修整直接进入高标准生产管线的团队。\n\n## 注意事项\n\n- **版本很多，别装错**：仓库按版本分开（2.0、2.1 等），不同版本的依赖和权重不通用，教程要对应版本。\n- **开源不等于随意商用**：README 页面只给出了 License 链接，具体条款务必打开原文阅读。\n- **输入图决定上限**：遮挡多、透视夸张或背景杂乱的图片容易生成变形的模型。\n- **内容合规**：官网登录页提示「所有内容均由 AI 生成仅供参考」，不要上传他人肖像或受保护的形象。",
+      "images": [],
+      "sources": [
+        "https://3d.hunyuan.tencent.com/",
+        "https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1"
+      ]
+    },
+    {
+      "title": "Rodin AI（Hyper3D）是什么、怎么用：图片和文字生成 3D 模型，支持 3D ControlNet 与局部编辑",
+      "slug": "hyper3d-rodin-ai-3d-generator",
+      "name": "Hyper3D Rodin",
+      "url": "https://hyper3d.ai/",
+      "pricing": "免费试用+订阅，价格以官网为准",
+      "platforms": "网页 / API / Blender、Unity、Unreal 等插件",
+      "trialNote": "官网提供 7 天免费试用",
+      "tags": [
+        "ai-tools",
+        "figurine",
+        "game-art",
+        "product-design"
+      ],
+      "excerpt": "Hyper3D Rodin 是 Deemos 公司的 AI 3D 生成器，可从图片或文字生成 3D 资产，特色是 3D ControlNet（用包围盒、体素、点云约束形体）、局部编辑和智能低面数优化，并有多款三维软件插件。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Hyper3D 官网整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nRodin 是 Deemos Corporation 推出的 AI 3D 模型生成器，产品网站叫 Hyper3D，所以搜索时会同时看到「Rodin AI」「Hyper3D」两个名字，指的是同一个产品。它可以根据文字提示或图片生成 3D 资产，官网当前的生成模型选项显示为 Gen-2.5。\n\n在一众 AI 3D 工具里，Rodin 的特点是**可控性**：不只是「给图出模型」，还允许你用粗略的三维形状去约束结果。\n\n## 能做什么\n\n- **Image to 3D / Text to 3D**：图片或文字生成模型。\n- **3D ControlNet**：用包围盒（Bounding Box）、体素（Voxel）或点云（Point Cloud）作为引导，控制生成模型的比例和大致形体——比如规定「这个角色必须是这样的高矮胖瘦」。\n- **Partial Edit（局部编辑）**：只改模型的一部分，其余保持不变。\n- **Smart Low-Poly（智能低面数）**：把模型优化成面数更低的版本，方便进游戏引擎。\n- **免费重试**：对不满意的结果可以重新生成。\n- **导出格式**：STL、FBX、OBJ、GLB、GLTF、USDZ。\n- **API 与插件**：提供 API，以及 Blender、Unity、Unreal、Godot、Maya、3DS Max 插件。\n\n## 怎么上手\n\n1. 打开 hyper3d.ai 注册登录。\n2. 选择图片或文字输入；图片生成时可以上传多张不同角度的图以提高准确度。\n3. 需要控制比例时，打开 ControlNet，先摆一个包围盒或导入一个粗模作为引导。\n4. 生成后预览，按需要做局部编辑或低面数优化。\n5. 选择格式导出，或通过插件直接送进三维软件。\n\n## 免费与付费\n\n官网提供 7 天免费试用和订阅方案，并有单独的定价页；核对时页面未直接展示各档金额，**具体价格与积分数量以官网定价页为准**。API 另行计费。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 对模型比例和形体有明确要求、希望 AI 「按框生成」的游戏和动画美术；\n- 需要把生成结果直接送进 Blender、Maya、Unreal 等软件继续制作的团队；\n- 想通过 API 把 3D 生成集成进自己产品的开发者。\n\n**不适合：**\n- 只想偶尔玩一下、希望长期免费的用户；\n- 需要参数化、可精确修改尺寸的 CAD 类建模；\n- 完全没有三维软件基础、也不打算学习的人——ControlNet、低面数这些功能需要一点基础概念。\n\n## 注意事项\n\n- **名字别搞混**：Rodin 是产品 / 模型名，Hyper3D 是网站名，Deemos 是公司名；认准 hyper3d.ai。\n- **商用授权**：不同订阅档对生成资产的私有性和商用权利规定不同，购买前看清条款。\n- **输入素材的版权**：用他人作品或受保护角色的图片生成模型，风险由使用者承担。\n- **生成结果仍需检查**：留意破面、贴图接缝和内部多余面，尤其是要 3D 打印时。",
+      "images": [],
+      "sources": [
+        "https://hyper3d.ai/"
+      ]
+    },
+    {
+      "title": "Clipdrop 是什么、怎么用：抠图、去水印文字、扩图、重打光和高清放大的在线 AI 修图工具",
+      "slug": "clipdrop-ai-image-tools",
+      "name": "Clipdrop",
+      "url": "https://clipdrop.co/",
+      "pricing": "免费+付费（Pro 价格以官网为准）",
+      "platforms": "网页 / API",
+      "trialNote": "免费版多数工具每 24 小时可用 20 次（文字移除 50 次）",
+      "tags": [
+        "ai-tools",
+        "photo-edit",
+        "ecommerce",
+        "photography"
+      ],
+      "excerpt": "Clipdrop 是一组在线 AI 图像工具：抠图、清除杂物、去除文字、扩图、换背景、重打光、高清放大和文生图，打开网页就能用，免费版多数工具每天可用 20 次。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Clipdrop 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nClipdrop 是一个在线的 AI 图像处理工具集，官网自称「视觉创作平台」。它没有复杂的图层和面板，而是把常见的修图需求拆成一个个单独的小工具：进去、上传图片、点一下、下载。对不会用 Photoshop 的人来说，这是处理「帮我把背景去掉」「把这行字抹掉」这类小活最快的方式之一。\n\n关于归属：官网页脚的版权方写的是 InitML，而客服邮箱和招聘链接使用的是 jasper.ai 域名，搜索下拉里也有「Clipdrop by Jasper」的说法。归属关系以官网当前说明为准。\n\n## 能做什么\n\n官网定价页列出的工具：\n\n- **Background Removal**：一键抠图。\n- **Cleanup**：涂抹掉画面里的路人、杂物、瑕疵。\n- **Text Remover**：去掉图片上的文字。\n- **Uncrop**：向外扩展画面，改变构图比例。\n- **Replace Background**：把主体换到新的背景里。\n- **Relight**：给照片重新打光。\n- **Image Upscaler**：高清放大，免费版 2 倍，Pro 最高 16 倍。\n- **Text to image**：文字生成图片。\n- **Universal resizer**：一次性改成各平台常用尺寸。\n\n## 怎么上手\n\n1. 打开 clipdrop.co，在工具列表里点进需要的工具。\n2. 上传或拖入图片。\n3. 根据工具做一步操作：比如 Cleanup 用画笔涂掉不要的部分，Uncrop 选择目标比例。\n4. 预览后下载结果。大部分工具不注册也能试，登录后可以看到用量。\n\n一个常见的电商流程：先用 Background Removal 抠出商品 → Replace Background 换成场景背景 → Relight 统一光线 → Image Upscaler 放大到平台要求的尺寸。\n\n## 免费与付费\n\n- **免费版**：定价页显示 Background Removal、2 倍 Upscaler、Cleanup、Relight 每 24 小时各 20 次，Text Remover 50 次；Text to image、Uncrop、Replace Background 未标注次数上限。\n- **Pro**：免排队、各工具提供高分辨率版本，多数工具每 24 小时 1,000 次，放大最高 16 倍，并有免费试用。核对时页面未显示 Pro 的具体金额，**价格以官网定价页为准**。\n- **API**：按用量计费，价格与文档单独列出。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 电商卖家、自媒体作者日常处理商品图和配图；\n- 不会专业修图软件、只想快速解决单个问题的人；\n- 想把抠图、清除等能力通过 API 接进自己应用的开发者。\n\n**不适合：**\n- 需要精细控制图层、蒙版和色彩管理的专业修图；\n- 要一次处理上千张图片的批量任务（应使用 API 或专门的批处理工具）；\n- 希望使用中文界面和国内支付方式的用户，可以看美图、稿定等国内工具。\n\n## 注意事项\n\n- **去文字、清除功能不要用来抹掉他人作品的署名或版权标识**，这可能构成侵权。\n- **免费版分辨率有限**，要印刷或大尺寸展示需要高分辨率版本。\n- **隐私**：图片会上传到服务器处理，含个人信息或未公开的商品图请先评估。\n- **AI 扩图和重打光属于生成内容**，细节可能与真实场景不符，用于商品展示时注意不要造成误导。",
+      "images": [],
+      "sources": [
+        "https://clipdrop.co/pricing",
+        "https://clipdrop.co/"
+      ]
+    },
+    {
+      "title": "Upscayl 官网下载与使用：免费开源的 AI 图片无损放大软件（Windows / Mac / Linux）",
+      "slug": "upscayl-open-source-image-upscaler",
+      "name": "Upscayl",
+      "url": "https://upscayl.org/",
+      "pricing": "免费开源（AGPL-3.0）",
+      "platforms": "Windows / macOS / Linux",
+      "trialNote": "桌面版完全免费，在本机离线处理",
+      "tags": [
+        "ai-tools",
+        "photo-edit",
+        "old-photo",
+        "wallpaper"
+      ],
+      "excerpt": "Upscayl 是免费开源的 AI 图片放大软件，支持 Windows、macOS 和 Linux，基于 Real-ESRGAN 模型在本机离线把低分辨率图片放大变清晰，需要支持 Vulkan 的显卡。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Upscayl 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nUpscayl 是一款免费、开源的 AI 图片放大工具，仓库 upscayl/upscayl 约有 5.04 万星标，采用 AGPL-3.0 许可。它做的事情很单纯：把小图、糊图放大成更高分辨率，同时尽量保持清晰。\n\n它和在线放大网站最大的区别是**全部在你自己的电脑上完成**：图片不上传、没有次数限制、不用注册、也没有水印。底层使用 Real-ESRGAN 系列模型，通过一个基于 Vulkan 的后端（upscayl-ncnn，同样以 AGPLv3 开源）运行。\n\n## 能做什么\n\n- **单张放大**：选图、选模型、点放大。\n- **批量放大**：选择整个文件夹一次处理。\n- **多种模型**：内置面向照片、数字绘画、动漫等不同内容的模型，可按图片类型选择。\n- **自定义模型**：支持加载社区训练的其他兼容模型。\n- **输出设置**：选择放大倍数、输出格式和保存位置。\n\n常见用途：老照片翻新前的放大、AI 生成图放大到壁纸或印刷尺寸、网上找到的小尺寸素材补救、商品图放大。\n\n## 怎么上手\n\n1. 安装：\n   - **Windows**：从官网或 GitHub Releases 下载 EXE 安装包；\n   - **macOS**：Mac App Store、Releases 页的 DMG，或 `brew install --cask upscayl`；\n   - **Linux**：Flathub、AppImage、AUR 或 Snap。\n2. 打开软件，第一步选择图片（或切到批量模式选择文件夹）。\n3. 第二步选择模型：真实照片用通用照片模型，插画和动漫用对应的模型。\n4. 第三步设置输出文件夹，点「Upscayl」开始，处理完成后可以左右拖动对比前后效果。\n\n## 免费与付费\n\n桌面软件完全免费开源，在本机处理不限次数。本文介绍的是免费的桌面版；官网如提供其他付费的在线服务，以官网说明为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 经常需要把图片放大、又不想把图片上传到第三方网站的人；\n- 设计师、摄影爱好者、AI 绘画玩家；\n- 需要批量处理一整个文件夹的用户。\n\n**不适合：**\n- 电脑没有支持 Vulkan 的显卡——README 明确写了需要 Vulkan 兼容的 GPU，很多集成显卡不受支持；\n- 指望它「凭空还原」严重模糊或失焦照片细节的用户，AI 放大是推测补全，不是真实还原；\n- 需要抠图、调色等综合修图功能的人，它只做放大这一件事。\n\n## 注意事项\n\n- **AI 放大会「脑补」**：人脸、文字、细密纹理可能被改得与原图不同，证件、证据类图片不要使用放大后的版本。\n- **大图很吃显存和时间**：显卡较弱时先用小图测试，批量任务可以挂着慢慢跑。\n- **只从官方渠道下载**：官网、官方 GitHub 仓库或系统应用商店。\n- **AGPL 许可**：把它集成进自己的软件再分发时，需要遵守 AGPL-3.0 的开源义务。",
+      "images": [],
+      "sources": [
+        "https://github.com/upscayl/upscayl",
+        "https://upscayl.org/"
+      ]
+    },
+    {
+      "title": "Pixelcut 是什么、怎么用：AI 抠图、高清放大、商品图与广告素材生成工具及定价",
+      "slug": "pixelcut-ai-photo-editor",
+      "name": "Pixelcut",
+      "url": "https://www.pixelcut.ai/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / iOS / 安卓 / API",
+      "trialNote": "免费版可用抠图和放大（次数有限），导出无水印",
+      "tags": [
+        "ai-tools",
+        "photo-edit",
+        "ecommerce",
+        "product-video"
+      ],
+      "excerpt": "Pixelcut 是面向电商和社媒内容的 AI 图像视频编辑工具：抠图、高清放大、魔法消除、换背景、AI 商品摄影、AI 广告和批量编辑，网页与手机端都能用，免费版导出无水印。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Pixelcut 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nPixelcut 是一个 AI 驱动的图片与视频编辑平台。它的出发点是**卖货和发社媒**：帮小商家、个体卖家和内容创作者不请摄影师、不学专业软件，也能做出干净的商品图和广告素材。搜索下拉里出现最多的是它的「upscaler」（高清放大），这也是很多人第一次接触它的入口。\n\n## 能做什么\n\n官网列出的工具：\n\n- **Background Remover**：图片抠图；另有 **Video Background Remover** 给视频去背景。\n- **Image Upscaler**：把图片放大变清晰。\n- **Magic Eraser**：涂抹消除画面中不要的东西。\n- **Change Background / Generative Fill / Uncrop**：换背景、局部生成填充、向外扩图。\n- **AI Product Photography**：把抠出来的商品放进 AI 生成的场景里。\n- **AI Ads**：生成广告素材。\n- **AI Image Generator / AI Video Generator**：文字生成图片和视频。\n- **Bulk Image Editor**：批量处理多张图片。\n- **API**：供开发者调用；官网还列出了「Pixelcut for Claude」集成。\n\n## 怎么上手\n\n1. 打开 pixelcut.ai（或下载 iOS / 安卓 App），在工具列表里选一个，比如 Image Upscaler。\n2. 上传图片，等待处理。\n3. 预览对比，满意后下载。\n4. 做商品图时的常见顺序：抠图 → AI 商品摄影选场景 → 需要时用 Magic Eraser 修掉瑕疵 → 放大到平台要求的尺寸。\n\n## 免费与付费\n\n官网定价页（美元，按年付折合的月价，年付比月付省 20%，2026-10 查询）：\n\n| 方案 | 年付折合每月 | 月付标价 |\n| --- | --- | --- |\n| Free | 0 | 0 |\n| Pro | 8 美元 | 10 美元 |\n| Business | 24 美元 | 30 美元 |\n\n免费版的抠图和放大次数有限，但导出不带水印。付费档提高用量并解锁更多功能，各档具体额度以定价页为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 跨境电商卖家、独立站店主，需要大量白底图和场景图；\n- 经常在手机上处理图片的社媒运营；\n- 想用 API 批量抠图、放大的开发者。\n\n**不适合：**\n- 需要中文界面和国内支付方式的用户，可以对比美图、稿定、Photoroom 等；\n- 要做精细合成和专业调色的设计师；\n- 只是偶尔放大一两张图的人，免费的开源工具 Upscayl 也能满足。\n\n## 注意事项\n\n- **AI 场景图要如实**：商品摄影的场景是生成的，注意不要让配件、尺寸、材质看起来与实物不符，以免引发售后纠纷。\n- **放大不等于还原**：细节是模型推测出来的，文字和人脸可能失真。\n- **上传的图片在云端处理**：未发布的新品图请评估保密需求。\n- **订阅自动续费**：在手机应用商店里订阅和在网页订阅的管理入口不同，取消时到对应渠道操作。",
+      "images": [],
+      "sources": [
+        "https://www.pixelcut.ai/pricing",
+        "https://www.pixelcut.ai/"
+      ]
+    },
+    {
+      "title": "即时设计是什么、官网怎么用：国产在线 UI 设计协作工具与它的 AI 功能",
+      "slug": "jsdesign-jishi-sheji-ui-tool",
+      "name": "即时设计",
+      "url": "https://js.design/",
+      "pricing": "免费使用，团队与私有化以官网为准",
+      "platforms": "网页 / macOS / Windows / Linux / iOS / 安卓 / 微信小程序",
+      "trialNote": "官网标注可免费注册使用",
+      "tags": [
+        "ai-tools",
+        "product-design",
+        "illustration"
+      ],
+      "excerpt": "即时设计是国产的在线 UI 设计协作工具，可云端编辑、多人实时协同，支持导入 Figma、Sketch、XD 文件，并通过插件和 A1.art 图像生成平台提供 AI 翻译、文字识别与 AI 生图能力。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据即时设计官网首页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\n即时设计（js.design）是一款国产的专业 UI 设计工具，官网的介绍是「可云端编辑的专业级 UI 设计工具，为中国设计师量身打造」，还有一句更直白的定位：「Windows 也能用的协作版 Sketch」。它和 Figma 属于同一类产品——文件存在云端，浏览器里打开就能画，多个人可以同时编辑同一份设计稿。\n\n官网写明支持网页端、macOS、Windows、Linux、iOS、安卓和微信小程序，登录方式包括微信和飞书。\n\n## 能做什么\n\n**设计与协作（主体功能）：**\n\n- **实时协同**：多位设计师同时创作；产品经理评审、评论；研发查看实时更新的设计稿，获取切图、标注和代码样式。\n- **文件迁移**：导入 Figma、Sketch、XD 等格式，也能导出 Sketch 文件。\n- **组件系统与原型交互**：把设计图做成可点击的高保真交互演示。\n- **资源社区**：官网称有数千款设计资源、设计规范和 Mockup 可直接使用，另有插件广场。\n- **数据安全**：自动保存、历史记录、可保存离线文件；提供私有化部署咨询。\n\n**AI 相关：**\n\n- 官网首页有「AI 设计纪元」板块，入口指向 **A1.art**——官方介绍为 AI 图像生成应用平台，一张图或一个词即可生成图像，可免费体验。\n- 插件广场里有 AI 类插件，例如首页展示的「快速翻译」（文本和提示词中英互译，标注免费）和「标签识别」（识别图片中的文字并生成可编辑的文字图层，支持横排竖排）。\n\n需要说明的是：即时设计的核心仍然是设计协作工具，AI 是辅助能力。如果你要的是「一句话生成整套界面」，请以官网当前实际提供的功能为准，不要只看第三方文章的描述。\n\n## 怎么上手\n\n1. 打开 js.design，用微信或飞书扫码注册登录。\n2. 新建文件，或从资源社区复制一份模板、设计规范开始。\n3. 已有 Figma / Sketch 文件的，用导入功能迁移过来。\n4. 点右上角分享，邀请同事协作或给研发发只读链接看标注。\n5. 在插件广场搜索并运行需要的 AI 插件。\n\n## 免费与付费\n\n官网首页多处标注「免费使用」，个人注册即可使用。团队版的成员数、项目数限制和价格，以及私有化部署的报价，核对时未在首页列出，以官网定价页或销售沟通为准。A1.art 的生成额度同样以其页面为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 国内的 UI / UX 设计师和产研团队，尤其是使用 Windows 的成员较多的团队；\n- 想从 Sketch、XD 迁到在线协作工具的团队；\n- 学习界面设计的学生，中文资源和社区模板多。\n\n**不适合：**\n- 已经深度使用 Figma 及其插件生态、团队也都能顺畅访问的公司；\n- 主要需求是 AI 直接生成界面或网页代码的人；\n- 做印刷品、复杂插画的设计师，应使用矢量或位图类专业软件。\n\n## 注意事项\n\n- **导入不是百分之百还原**：复杂的自动布局、特殊字体和插件生成的内容，迁移后要逐页检查。\n- **字体版权**：商用设计稿里使用的字体要自行确认授权。\n- **分享链接的权限**：对外分享前确认是「可查看」还是「可编辑」，离职成员要及时移出团队。\n- **AI 生成图片的版权与合规**由使用者负责，商用前阅读对应平台的条款。",
+      "images": [],
+      "sources": [
+        "https://js.design/"
+      ]
+    },
+    {
+      "title": "InvokeAI 是什么、怎么安装：带统一画布的开源 AI 绘画工具，支持 SDXL 与 FLUX",
+      "slug": "invokeai-stable-diffusion-canvas",
+      "name": "InvokeAI",
+      "url": "https://github.com/invoke-ai/InvokeAI",
+      "pricing": "开源免费",
+      "platforms": "Windows / macOS / Linux（本地部署，浏览器界面）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "illustration",
+        "photo-edit",
+        "game-art"
+      ],
+      "excerpt": "InvokeAI 是免费开源的本地 AI 绘画工具，提供面向创作的网页界面：统一画布可做局部重绘和扩图，另有节点工作流、模型管理和图库，支持 SD 1.5、SDXL、FLUX、SD 3.5 等模型，用官方启动器安装。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 InvokeAI 官方 GitHub 仓库 README 整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nInvokeAI 是一款本地运行的 AI 图像创作工具，README 称它是面向 Stable Diffusion 系列模型的「创作引擎」，仓库 invoke-ai/InvokeAI 约有 2.85 万星标，主体采用 Apache-2.0 许可（仓库另含其他几种许可的组件），可免费使用。\n\n本地 AI 绘画界有三款常被放在一起比较的工具：Stable Diffusion WebUI 像一块功能齐全的控制面板，ComfyUI 是节点连线的工作流，而 InvokeAI 的侧重点是**画布**——它的界面更像一款修图 / 绘画软件，适合「生成一张图，然后在上面反复改」的创作方式。\n\n## 能做什么\n\nREADME 列出的功能：\n\n- **统一画布（Unified Canvas）**：在同一块画布上做局部重绘（inpainting）、向外扩图（outpainting），配合画笔工具涂改；\n- **节点工作流**：需要可复用、可定制的流程时，用节点方式搭建；\n- **模型管理器**：下载、导入和切换模型；\n- **图库与看板**：按项目整理生成的图片；\n- **其他**：文本嵌入（embedding）支持、图像放大、基于 SAM / SAM2 的物体分割（点一下选中物体）。\n\n**支持的模型**：SD 1.5、SD 2.0、SDXL、多个 FLUX 版本，以及 SD 3.5、Qwen Image 等；另有一些通过 API 调用的模型选项。\n\n## 怎么上手\n\n1. 在仓库的 Releases 页面下载官方启动器（Launcher）。\n2. 运行启动器，按提示选择安装位置，它会自动准备运行环境并安装 InvokeAI。\n3. 启动后浏览器会打开本地界面，先在模型管理器里安装一个入门模型。\n4. 在生成页输入提示词出第一张图，然后把图发送到画布，试试涂抹局部重绘和向外扩图。\n\n硬件方面 README 只写了需要「兼容的硬件」，没有列出具体数字。一般来说，本地跑这些模型需要显存较充足的独立显卡，FLUX 等大模型的要求更高，具体以官方文档的硬件说明为准。\n\n## 免费与付费\n\nInvokeAI 免费开源，本地使用没有次数限制，成本是显卡和电费。README 提到这个项目是多款商业产品的基础，但没有点名，是否有官方的付费托管版本以官网为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 习惯在画布上反复修改、合成的插画师和设计师；\n- 觉得 ComfyUI 的节点太复杂、又希望比 WebUI 更有「创作软件」手感的人；\n- 想在本地离线使用 SDXL、FLUX 的用户。\n\n**不适合：**\n- 没有独立显卡的电脑；\n- 追求最新社区节点和最快支持新模型的进阶玩家，ComfyUI 的生态更大；\n- 只想输入一句话在线出图的新手。\n\n## 注意事项\n\n- **模型许可各不相同**：软件免费不代表模型可以随意商用，FLUX、SD 3.5 等各有许可条款，用前核对。\n- **只从官方仓库下载启动器**，模型文件优先选择 safetensors 格式并从可信来源获取。\n- **磁盘空间**：每个模型数 GB 到十几 GB，留足空间。\n- **仓库包含多种许可的组件**，做二次开发或再分发前阅读 LICENSE 文件。",
+      "images": [],
+      "sources": [
+        "https://github.com/invoke-ai/InvokeAI"
+      ]
+    },
+    {
+      "title": "Hedra AI 是什么、怎么用：AI 视频创作平台的 Creative Studio、Hedra Agent 与官网定价",
+      "slug": "hedra-ai-character-video",
+      "name": "Hedra",
+      "url": "https://www.hedra.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / API / MCP",
+      "trialNote": "官网定价页标题注明有免费方案，无需信用卡",
+      "tags": [
+        "ai-tools",
+        "image-to-video",
+        "character",
+        "short-drama"
+      ],
+      "excerpt": "Hedra 是 AI 视觉内容生成平台，提供 Creative Studio 创作台、能规划并执行多步骤图像视频音频任务的 Hedra Agent，以及开发者 API 和 MCP 服务；付费方案按月发放积分并含商用授权。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Hedra 官网首页与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nHedra 是一家做视觉生成模型的公司，官网的自我介绍是：构建能「生成、感知并预测视觉世界」的模型，以及把这些模型跑在生产环境里的平台。不少创作者是因为它的角色说话视频（给一张角色图和一段声音，生成角色对着镜头讲话的片段）知道它的；现在官网展示的范围更大，覆盖图像、视频和音频的整套生成流程。\n\n## 有哪些产品\n\n官网当前列出的几块：\n\n- **Creative Studio**：面向创作者的在线创作台，定价页的各档方案对应的就是它；\n- **Hedra Agent**：一个创作智能体，能规划并执行多步骤的图像、视频和音频工作——你描述想要的成片，它把任务拆开逐步生成；\n- **Developer API**：当前为 API v3，采用异步的生成任务方式，并提供模型目录；定价页称它为各家主流模型提供统一的推理入口；\n- **Hedra MCP server**：让开发者把视觉生成能力接入自己的应用和智能体；\n- **Enterprise**：企业方案。\n\n## 怎么上手\n\n1. 在 hedra.com 注册并进入 Creative Studio。\n2. 准备素材：角色或产品图片、台词或音频、参考画面。\n3. 选择生成类型和模型，提交任务后等待结果；视频类任务需要排队，付费档速度更快。\n4. 想省事可以把整体需求交给 Hedra Agent，让它分步骤完成，再对不满意的环节单独重做。\n5. 下载素材，在剪辑软件里合成、加字幕。\n\n做角色口播类内容时，图片用正面、五官清晰的角色图，台词写成口语化的短句、每段十几秒以内，成功率更高。\n\n## 免费与付费\n\n官网定价页的月付方案（美元，2026-10 查询）：\n\n| 方案 | 价格 | 每月积分 | 说明 |\n| --- | --- | --- | --- |\n| Basic | 20 美元/月 | 2,000 | 可商用，生成速度较慢 |\n| Pro | 50 美元/月 | 7,200 | 可商用，生成更快 |\n| Teams | 75 美元/月 | 14,400 | 最快的生成速度，团队功能 |\n| Ultra | 100 美元/月 | 18,000 起 | 可选更高额度，最高每月 57,600 积分 |\n| Enterprise | 联系销售 | 定制 | — |\n\n定价页标题提到有免费方案且不需要信用卡，但没有写明免费积分的数量，以注册后显示为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 做角色类短视频、虚拟形象口播、动画短片的创作者；\n- 想把音频内容做成有画面的视频的人；\n- 需要通过 API 或 MCP 在产品里集成图像、视频生成的开发团队。\n\n**不适合：**\n- 需要长时间、多镜头连贯叙事的成片——目前仍以片段生成为主，要靠后期拼接；\n- 想要标准化企业培训视频的团队，HeyGen、Synthesia 这类数字人平台的模板和多语言流程更成熟；\n- 希望长期免费大量生成的用户。\n\n## 注意事项\n\n- **肖像与声音授权**：不要使用未经本人同意的真人照片或声音；他人作品中的角色同样有侵权风险。\n- **AI 生成内容标识**：在国内平台发布时，按平台规则添加 AI 生成标识。\n- **积分消耗与时长、分辨率和所选模型有关**，生成前留意提示的消耗。\n- **商用范围**以所购方案的条款为准；平台接入的第三方模型还可能有各自的限制。",
+      "images": [],
+      "sources": [
+        "https://www.hedra.com/pricing",
+        "https://www.hedra.com/"
+      ]
+    },
+    {
+      "title": "D-ID 是什么、怎么用：AI 数字人视频、视频翻译与可视化 AI Agent 平台",
+      "slug": "d-id-ai-avatar-video-agents",
+      "name": "D-ID",
+      "url": "https://www.d-id.com/",
+      "pricing": "免费试用+付费，价格以官网为准",
+      "platforms": "网页（Creative Reality Studio）/ API",
+      "trialNote": "提供免费试用；试用生成的视频带全屏水印",
+      "tags": [
+        "ai-tools",
+        "image-to-video",
+        "product-video",
+        "marketing"
+      ],
+      "excerpt": "D-ID 是 AI 数字人视频平台，提供 AI 视频生成、AI 数字人、视频翻译和可实时对话的可视化 AI Agent，并开放 API。套餐按视频分钟数计量，试用版和 Lite 版视频带水印。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 D-ID 官网与 Studio 定价说明页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nD-ID 是一家做 AI 数字人的公司，产品围绕**数字人视频**展开。它的在线创作工具叫 Creative Reality Studio：选一个数字人形象，输入文案或上传音频，生成一段有人出镜讲解的视频，不需要摄像机和演员。\n\n## 能做什么\n\n官网产品栏列出的能力：\n\n- **AI Video Generator**：文案加数字人，生成讲解视频；\n- **AI Avatars**：可选用的数字人形象；\n- **Video Translate**：把已有视频翻译成其他语言并匹配口型；\n- **Visual AI Agents**：有形象、能实时对话的 AI 智能体，可以放在网站上做接待、答疑；\n- **Agentic Videos**：带交互能力的视频形式；\n- **API**：把上述能力接入自己的产品，官网提供开发者文档。\n\n## 怎么上手\n\n1. 在 d-id.com 点击「Start Free Trial」进入 Studio 并注册。\n2. 新建视频，选择一个数字人形象。\n3. 输入讲稿，选择语言和声音；也可以上传自己录好的音频。\n4. 生成并预览，确认口型、停顿和读音。\n5. 下载或分享。需要多语言版本时，用视频翻译功能处理成品。\n\n讲稿建议按「一屏一个要点」来写，每段不要太长；数字、英文缩写等容易读错的地方，可以改成读音更明确的写法。\n\n## 免费与付费\n\nD-ID 的 Studio 套餐按**视频分钟数**计量。定价说明页写明的规则：\n\n- 视频时长按 15 秒向上取整计入用量；\n- 分钟数每月重置，**不结转**到下个月；\n- 通过 API 生成的视频与网页端共用同一份额度；\n- **水印**：试用版和 Lite 档的视频带 D-ID 水印，其中试用版是全屏水印。\n\n各档的具体金额和每月分钟数，核对时在说明页未直接列出，**以官网 Studio 定价页为准**。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 需要批量制作产品讲解、培训、营销视频的企业；\n- 想把一条视频本地化成多种语言的出海团队；\n- 想在官网放一个「能说话的数字人客服」的公司，或通过 API 做集成的开发者。\n\n**不适合：**\n- 追求电影感、剧情表演的创作者，可以看 Hedra、Runway 等；\n- 只做一两条视频的个人，试用版有水印，付费后才方便对外使用；\n- 以中文为主、需要国内平台模板和发布流程的短视频运营。\n\n## 注意事项\n\n- **肖像授权**：用真人照片或视频生成数字人，必须获得本人明确同意；不要冒用他人形象。\n- **按 15 秒取整**：多条很短的视频比一条长视频更耗额度，规划好再生成。\n- **标注 AI 生成**：对外发布时遵守所在平台和地区关于合成内容标识的规定。\n- **API 与网页共用额度**，团队里多人同时使用时注意分配。",
+      "images": [],
+      "sources": [
+        "https://www.d-id.com/pricing/studio/",
+        "https://www.d-id.com/"
+      ]
+    },
+    {
+      "title": "Kapwing 是什么、怎么用：在线视频剪辑工具的 AI 字幕、翻译配音与免费版限制",
+      "slug": "kapwing-online-ai-video-editor",
+      "name": "Kapwing",
+      "url": "https://www.kapwing.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页",
+      "trialNote": "免费版含 10 积分，导出带水印，单个视频最长 4 分钟、720p，5 GB 存储",
+      "tags": [
+        "ai-tools",
+        "video-script",
+        "social-media",
+        "marketing"
+      ],
+      "excerpt": "Kapwing 是在浏览器里使用的在线视频、GIF、图片和音频编辑平台，AI 功能包括自动字幕、字幕翻译、配音、AI 视频生成和自动 B-roll。免费版可用但带水印，Pro 年付每人每月 16 美元。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Kapwing 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nKapwing 是一个在线的内容编辑平台，官网说明可以用来创作和编辑视频、GIF、图片和音频，用户既有个人创作者也有团队。它不需要安装软件，打开浏览器就能剪，项目保存在云端，团队成员可以共享素材和工程。\n\n在一众在线剪辑工具里，Kapwing 的 AI 功能集中在**「把一条视频改造成适合不同平台、不同语言的版本」**：加字幕、翻译、配音、补画面。\n\n## 能做什么\n\n官网定价页列出的 AI 功能：\n\n- **自动字幕**：识别语音生成字幕，可以调整样式；\n- **字幕翻译**：把字幕翻译成其他语言；\n- **配音（Dubbing）**：生成其他语言的配音版本；\n- **AI 视频生成**：根据文字描述生成视频；\n- **自动 B-roll**：根据内容自动补充辅助画面。\n\n这些功能通过**积分**计量，例如自动字幕和配音按处理的分钟数扣积分。基础的剪辑功能（裁剪、拼接、调整尺寸、加文字和音乐）不消耗积分。\n\n## 怎么上手\n\n1. 打开 kapwing.com 注册，新建项目并上传视频（也可以粘贴视频链接）。\n2. 在时间轴上完成基础剪辑。\n3. 打开字幕面板，选择语言，自动生成字幕并逐句校对。\n4. 需要外语版本时，使用翻译或配音功能。\n5. 选择目标平台的画面比例（竖屏、方形、横屏），导出。\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）：\n\n| 方案 | 年付折合每月 | 月付 | 积分 | 说明 |\n| --- | --- | --- | --- | --- |\n| Free | 0 | 0 | 10 | 导出不限次数但带水印；视频最长 4 分钟；720p；5 GB 存储 |\n| Pro | 16 美元/成员 | 24 美元/成员 | 每月 1,000 | 订阅自动续费 |\n| Business | 50 美元/成员 | 64 美元/成员 | 每月 4,000 | 订阅自动续费 |\n| Enterprise | 联系销售 | — | 定制 | — |\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 做海外社交媒体内容、需要快速加字幕和出多语言版本的创作者与营销团队；\n- 不想安装剪辑软件、换电脑也能继续编辑的人；\n- 需要多人共用素材库和工程的小团队。\n\n**不适合：**\n- 做抖音、小红书等国内平台内容的创作者，剪映的模板和生态更贴合，且免费功能更多；\n- 需要长视频、4K、复杂调色与特效的专业剪辑；\n- 网络上传速度慢的用户——大文件上传和云端渲染都依赖网络。\n\n## 注意事项\n\n- **免费版有水印和 4 分钟上限**，只适合试用和很短的片段。\n- **积分消耗看时长**：给长视频做字幕和配音很快会用完当月积分。\n- **AI 字幕和翻译需要校对**，专有名词和口语化表达容易出错。\n- **AI 配音与生成素材的商用范围**以服务条款为准；为他人声音做配音克隆前需取得授权。",
+      "images": [],
+      "sources": [
+        "https://www.kapwing.com/pricing",
+        "https://www.kapwing.com/"
+      ]
+    },
+    {
+      "title": "Speechify 是什么、怎么用：把文章、PDF、网页读给你听的 AI 朗读工具与定价",
+      "slug": "speechify-text-to-speech-reader",
+      "name": "Speechify",
+      "url": "https://speechify.com/",
+      "pricing": "免费+付费",
+      "platforms": "iPhone / iPad / 安卓 / Chrome 扩展 / Edge 扩展 / 网页 / Mac / Windows",
+      "trialNote": "免费版提供 10 个机械感较强的声音，语速最高 1.5 倍",
+      "tags": [
+        "ai-tools",
+        "learning",
+        "language-learning",
+        "lifestyle"
+      ],
+      "excerpt": "Speechify 是文本转语音朗读工具，把网页、PDF、文档甚至拍下来的纸质书读给你听。Premium 提供 1000 多个自然声音、60 多种语言、最高 5 倍速、扫描朗读和 AI 摘要，全平台可用。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Speechify 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nSpeechify 是一款「听书式」的阅读工具：你给它任何文字——网页文章、PDF、电子邮件、Word 文档——它用接近真人的声音读出来，同时高亮正在读的句子。它常被用来在通勤、做家务、运动时「听」完那些一直没时间看的长文，对阅读吃力或眼睛容易疲劳的人也很有帮助。\n\n官网现在也把它描述为不止朗读：还包括语音输入（voice typing）和语音 AI 助手。\n\n## 能做什么\n\n- **朗读各种来源的文字**：网页、PDF、文档；可连接 Google Drive、Dropbox、OneDrive 直接读网盘里的文件（Premium）。\n- **Scan & Listen（扫描朗读）**：用手机拍下纸质书或讲义，识别文字后朗读（Premium）。\n- **声音与语言**：Premium 提供 1000 多个自然声音、60 多种语言。\n- **变速**：免费版最高 1.5 倍，Premium 最高 5 倍。\n- **AI 摘要与问答**：对正在读的内容生成摘要、提问（Premium）。\n- **其他**：定价页还列出语音输入、AI 播客和语音 AI 助手。\n\n## 怎么上手\n\n1. 手机上下载 Speechify App，或在电脑上安装 Chrome / Edge 扩展，也可以用网页版。\n2. 导入内容：粘贴链接、上传 PDF，或在浏览器里打开文章后点扩展的播放按钮。\n3. 选择声音和语速。刚开始用正常语速，适应后逐步提到 1.5 倍、2 倍。\n4. 同一个账号下，手机和电脑的阅读进度会同步。\n\n学英语的一个用法：打开英文文章，边听边看高亮的句子，听不清的地方降速重听。\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）：\n\n| 方案 | 价格 | 主要内容 |\n| --- | --- | --- |\n| Free | 0 | 仅朗读功能，10 个机械感的声音，语速最高 1.5 倍 |\n| Premium | 29 美元/月（月付） | 1000 多个自然声音、60 多种语言、最高 5 倍速、扫描朗读、AI 摘要与问答、网盘集成等 |\n\n页面标注年付可「省 60%」，但没有直接列出年付金额，以结算页为准。通过手机应用商店订阅的价格可能与官网不同。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 阅读量大、想利用碎片时间「听」资料的学生和职场人；\n- 有阅读障碍、视力疲劳，或更习惯听觉学习的人；\n- 用听读结合的方式练外语的学习者。\n\n**不适合：**\n- 只是偶尔听一篇文章的人——手机和浏览器自带的朗读功能已经够用；\n- 需要给视频做配音、导出商用音频的创作者，那是配音工具（如 ElevenLabs、魔音工坊）的范围；\n- 主要读中文内容的用户，建议先用免费版确认中文声音的自然度是否符合预期。\n\n## 注意事项\n\n- **月付价格不低**：先试免费版，确定会长期使用再考虑年付。\n- **朗读音频的用途**：个人收听没问题，把生成的音频用于公开发布或商用前要看服务条款。\n- **版权**：只导入你有权阅读的内容，不要用它批量转制并传播受版权保护的书籍。\n- **订阅管理**：在哪个渠道订阅（官网或应用商店）就在哪里取消。",
+      "images": [],
+      "sources": [
+        "https://speechify.com/pricing/",
+        "https://speechify.com/"
+      ]
+    },
+    {
+      "title": "Whisper 语音识别模型是什么、怎么用：OpenAI 开源模型的本地安装、模型大小与显存要求",
+      "slug": "openai-whisper-speech-recognition",
+      "name": "Whisper（OpenAI 开源语音识别）",
+      "url": "https://github.com/openai/whisper",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Python / 命令行（Windows / macOS / Linux）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "video-script",
+        "language-learning"
+      ],
+      "excerpt": "Whisper 是 OpenAI 以 MIT 许可开源的通用语音识别模型，支持多语言转写、语音翻译和语种识别，提供 tiny 到 large 以及 turbo 多种大小，可用一条 pip 命令安装后在本机离线转写音频。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 OpenAI 官方 GitHub 仓库 openai/whisper 的 README 整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nWhisper 是 OpenAI 开源的通用语音识别模型，仓库 openai/whisper 约有 11 万星标，代码和模型权重以 MIT 许可发布。它能做三件事：**多语言语音转文字、把其他语言的语音翻译成英文、识别音频是哪种语言**。\n\n它的意义在于，把接近商用水准的语音识别变成了任何人都能在自己电脑上免费运行的东西。现在市面上很多字幕工具、会议记录软件、桌面转写应用，底层用的就是 Whisper 或它的加速版本。\n\n## 模型怎么选\n\nREADME 给出的模型规格：\n\n| 模型 | 参数量 | 大约需要的显存 |\n| --- | --- | --- |\n| tiny | 3,900 万 | 1 GB |\n| base | 7,400 万 | 1 GB |\n| small | 2.44 亿 | 2 GB |\n| medium | 7.69 亿 | 5 GB |\n| large | 15.5 亿 | 10 GB |\n| turbo | 8.09 亿 | 6 GB |\n\n简单原则：模型越大越准、越慢。转写中文建议从 medium 或 turbo 起步；turbo 是 large 的加速优化版本，速度快很多，但 README 说明它不适合用于翻译任务。没有显卡也能用 CPU 跑，只是比较慢。\n\n## 怎么上手\n\n先安装 Python 和 ffmpeg，然后：\n\n```bash\npip install -U openai-whisper\nwhisper 录音.mp3 --model turbo\n```\n\n运行后会在当前目录生成文本和带时间轴的字幕文件。常用参数：\n\n- `--language Chinese`：指定语言，省掉自动检测，也能减少误判；\n- `--task translate`：把非英语语音直接翻译成英文文本；\n- `--model medium`：更换模型大小。\n\n不想碰命令行的话，可以用基于 Whisper 的图形界面软件，例如开源的 Buzz。\n\n## 免费与付费\n\n开源版完全免费，在本机运行不产生调用费。OpenAI 另有按时长计费的语音转写 API，那是独立的云服务，价格以 OpenAI 官方定价为准；本文介绍的是本地运行的开源模型。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 需要给视频加字幕、整理访谈和课程录音的创作者与学生；\n- 录音内容敏感、不想上传到云端的用户；\n- 要在自己的产品里集成离线语音识别的开发者。\n\n**不适合：**\n- 需要实时同声字幕的场景——原版 Whisper 面向的是录音文件的离线转写；\n- 需要自动区分说话人的会议记录，原版不带这个功能；\n- 完全不想安装环境的用户，在线转写服务或成品软件更省事。\n\n## 注意事项\n\n- **会出现「幻听」**：在静音、音乐或噪音段落，模型可能生成原音频里没有的句子，重要内容要对照录音校对。\n- **不同语言的准确率差别很大**，README 说明性能因语言而异；方言、口音重、多人同时说话时错误率明显上升。\n- **专有名词容易错**：人名、术语可以用初始提示参数给模型一些上下文。\n- **录音要合法合规**：转写前确认已获得被录音者的同意。",
+      "images": [],
+      "sources": [
+        "https://github.com/openai/whisper"
+      ]
+    },
+    {
+      "title": "Buzz 是什么、怎么下载使用：基于 Whisper 的免费开源离线语音转文字桌面软件",
+      "slug": "buzz-whisper-desktop-transcription",
+      "name": "Buzz",
+      "url": "https://github.com/chidiwilliams/buzz",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Windows / macOS / Linux",
+      "trialNote": "完全免费，在本机离线转写",
+      "tags": [
+        "ai-tools",
+        "video-script",
+        "office",
+        "language-learning"
+      ],
+      "excerpt": "Buzz 是 MIT 许可的开源桌面软件，用 OpenAI 的 Whisper 在本机离线转写和翻译音频：支持音视频文件、YouTube 链接和麦克风实时转写，可识别说话人，导出 TXT、SRT、VTT 字幕。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Buzz 官方 GitHub 仓库 README 整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nBuzz 是一款给 Whisper 套上图形界面的桌面软件，仓库 chidiwilliams/buzz 约有 2.19 万星标，采用 MIT 许可。Whisper 是 OpenAI 开源的语音识别模型，效果很好，但原版要装 Python、敲命令行；Buzz 把这些都包起来，下载、安装、把文件拖进去，就能得到文字稿和字幕。\n\n转写在你的电脑上**离线完成**，音频不会上传到任何服务器——这是它相对各种在线转写网站最大的优势。\n\n## 能做什么\n\nREADME 列出的功能：\n\n- **转写音视频文件**：常见的音频和视频格式都可以直接导入；\n- **YouTube 链接**：粘贴链接后下载并转写；\n- **麦克风实时转写**：边说边出文字；\n- **翻译**：把语音内容翻译输出；\n- **说话人识别**：区分不同的发言者；\n- **导出**：TXT 纯文本，以及 SRT、VTT 字幕文件；\n- **进阶功能**：监视文件夹（放进去的文件自动转写）、命令行接口和插件系统。\n\n## 怎么上手\n\n1. 安装：\n   - **Windows**：下载安装程序；\n   - **macOS**：下载 .dmg；\n   - **Linux**：Flatpak、Snap 或 AppImage；\n   - 也可以用 `pip install buzz-captions` 安装。\n   README 说明安装包托管在 SourceForge，从仓库 README 里的链接进入最稳妥。\n2. 打开软件，把音频或视频文件拖入窗口。\n3. 选择模型大小和语言。中文内容建议明确指定语言；电脑配置一般就选小一档的模型。\n4. 首次使用某个模型时会自动下载，之后即可离线使用。\n5. 转写完成后在界面里校对，再导出为需要的格式。\n\n做视频字幕的常用流程：导出 SRT → 在剪映等剪辑软件里导入字幕 → 逐句校对错别字和断句。\n\n## 免费与付费\n\nGitHub 上的版本完全免费开源，没有时长和次数限制。应用商店中如有收费的同名版本，以其页面说明为准；本文介绍的是官方仓库提供的免费版本。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 经常要把访谈、网课、会议录音整理成文字的学生、记者、研究者；\n- 需要给视频加字幕的创作者；\n- 录音内容敏感、不能上传到云端的用户。\n\n**不适合：**\n- 电脑配置低又想快速转写很长的音频——大模型在没有显卡的机器上会很慢；\n- 需要多人协作编辑文稿、自动生成会议纪要和待办的团队，飞书妙记、通义听悟这类云端产品更合适；\n- 需要长期稳定的实时同传字幕的专业场景。\n\n## 注意事项\n\n- **转写结果必须校对**：同音字、人名、专业术语是高发错误，静音或有背景音乐的段落可能出现凭空生成的句子。\n- **模型文件较大**：每个模型从几十 MB 到几 GB 不等，下载需要稳定的网络。\n- **下载 YouTube 内容**前，确认你有权使用该视频的音频。\n- **录音合规**：转写他人谈话前应取得对方同意。",
+      "images": [],
+      "sources": [
+        "https://github.com/chidiwilliams/buzz"
+      ]
+    },
+    {
+      "title": "Notta 是什么、怎么用：AI 语音转文字与会议纪要工具，免费版时长限制与官网定价",
+      "slug": "notta-ai-transcription-meeting-notes",
+      "name": "Notta",
+      "url": "https://www.notta.ai/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / 手机 App / 桌面端 / Chrome 扩展 / Notta Memo 硬件",
+      "trialNote": "免费版每月 120 分钟转写，单次对话最长 3 分钟，每月 10 次 AI 摘要",
+      "tags": [
+        "ai-tools",
+        "office",
+        "learning",
+        "language-learning"
+      ],
+      "excerpt": "Notta 是 AI 语音转文字和会议纪要服务，可录制 Zoom、Teams、Google Meet、Webex 会议并生成文字稿、AI 摘要和翻译，支持免机器人入会的桌面录制。免费版每月 120 分钟，但单次最长 3 分钟。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Notta 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nNotta 是一款 AI 转写和会议记录工具：把会议、访谈、课程的语音变成带时间轴的文字稿，再由 AI 提炼成摘要和要点。它覆盖的入口比较全——网页、手机 App、桌面端、Chrome 扩展，官网还列出了一款名为 Notta Memo 的录音硬件。\n\n和国内用户熟悉的飞书妙记、通义听悟、讯飞听见相比，Notta 的定位相近，主要面向使用 Zoom、Teams、Google Meet 等海外会议软件，以及有英语、日语等多语言转写需求的用户。\n\n## 能做什么\n\n- **实时与文件转写**：边录边出文字，或上传音视频文件转写；\n- **会议录制**：支持 Zoom、Microsoft Teams、Google Meet 和 Webex；\n- **免机器人录制**：用桌面端直接录制会议声音，不需要让一个「记录机器人」加入会议；\n- **AI 摘要**：自动生成会议纪要、要点和待办；\n- **翻译**：把转写内容翻译成其他语言，可生成双语对照；\n- **自定义词汇**：添加专有名词提高识别准确率（定价页注明该功能覆盖英语和日语）。\n\n## 怎么上手\n\n1. 在 notta.ai 注册，网页端可以直接开始录音或上传文件。\n2. 开线上会议时：连接日历让它自动加入，或粘贴会议链接；不想让机器人入会的，安装桌面端使用免机器人录制。\n3. 会后打开记录，核对文字稿，查看 AI 摘要。\n4. 把纪要导出或分享给与会者。\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）：\n\n| 方案 | 价格 | 转写额度 | 其他 |\n| --- | --- | --- | --- |\n| Free | 0 | 每月 120 分钟，**单次最长 3 分钟** | 1 个席位，每月 50 次上传、10 次 AI 摘要 |\n| Pro | 8.17 美元/月（按年付 97.99 美元） | 每月 1,800 分钟，单次最长 5 小时 | — |\n| Business | 16.67 美元/月（按年付 199.99 美元） | 转写不限 | 每月 200 次 AI 摘要 |\n| Enterprise | 联系销售 | 定制 | 51 席起 |\n\n月付价格以官网切换后显示的为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 经常开 Zoom、Teams、Google Meet 跨国会议的职场人；\n- 需要英语、日语等外语访谈和课程转写的学生、研究者、记者；\n- 不希望会议里出现录音机器人的人。\n\n**不适合：**\n- 主要用腾讯会议、飞书、钉钉开中文会议的团队——用各平台自带的纪要功能更顺；\n- 想靠免费版记录完整会议的人，单次 3 分钟的限制基本只能试用；\n- 内容高度敏感、不能上传云端的场合，可以考虑本地运行的 Whisper 类工具。\n\n## 注意事项\n\n- **免费版的关键限制是单次时长**，不是每月总量，别被「120 分钟」误导。\n- **录音前告知并取得同意**：不同地区对会议录音有法律要求，免机器人录制时尤其要主动说明。\n- **转写和摘要都要复核**：数字、人名、决策结论以录音为准。\n- **中文识别效果**建议先用免费额度试一段自己的真实录音再决定是否付费。",
+      "images": [],
+      "sources": [
+        "https://www.notta.ai/en/pricing",
+        "https://www.notta.ai/en"
+      ]
+    },
+    {
+      "title": "Wordtune 是什么、怎么用：AI 英文改写润色工具的功能、免费次数与官网定价",
+      "slug": "wordtune-ai-rewriting-assistant",
+      "name": "Wordtune",
+      "url": "https://www.wordtune.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / Chrome 扩展 / Edge 扩展 / iOS",
+      "trialNote": "Basic 免费档每天 10 次改写与 AI 建议、每月 3 次 AI 摘要，拼写语法检查不限",
+      "tags": [
+        "ai-tools",
+        "translation",
+        "copywriting",
+        "paper-writing"
+      ],
+      "excerpt": "Wordtune 是 AI21 Labs 推出的 AI 写作助手，擅长英文句子的改写与润色：换说法、调语气、缩短扩写，另有语法检查、长文与视频摘要和 AI 文本人性化改写，免费档每天 10 次改写。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Wordtune 官网与方案页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nWordtune 是 AI21 Labs 推出的 AI 写作助手。它的核心功能很聚焦：**你写一句英文，它给出几种更好的说法让你挑**。和「帮你从零生成一篇文章」的工具不同，Wordtune 假设你已经有想表达的内容，只是不确定英文写得地道不地道、语气合不合适。\n\n所以它特别适合英语非母语的使用者——写英文邮件、论文、求职信时，把自己拼出来的句子交给它改一遍。\n\n## 能做什么\n\n官网列出的功能：\n\n- **改写（Rewrite / Paraphrase）**：对选中的句子给出多个改写版本；\n- **语法与拼写检查**：免费档也不限次数；\n- **AI 写作建议**：续写、举例、补充论据等；\n- **阅读与摘要**：对长文本或视频生成摘要，帮助快速读完材料；\n- **AI 文本人性化改写**：让明显带有机器味的文字读起来更自然。\n\n改写时通常可以选择更正式、更口语、缩短或扩写等方向。\n\n## 怎么上手\n\n1. 在 wordtune.com 注册免费账号。\n2. 安装 Chrome 或 Edge 扩展，之后在 Gmail、Google Docs、领英等网页的输入框里都能唤出它；也可以直接用官网的编辑器。\n3. 选中一句话，点击改写，在给出的几个版本里挑一个替换。\n4. 手机上可以安装 Wordtune for iOS。\n\n一个实用的练习方法：不要整段替换，而是对比它的改写和自己的原句，看它改了哪些搭配和句式，时间长了自己的英文表达也会进步。\n\n## 免费与付费\n\n官网方案页（美元，2026-10 查询）：\n\n| 方案 | 月付 | 年付折合每月 | 每日改写与 AI 建议 | 每月 AI 摘要 |\n| --- | --- | --- | --- | --- |\n| Basic | 0 | 0 | 10 次 | 3 次 |\n| Advanced | 6.99 美元 | 4.89 美元 | 30 次 | 15 次 |\n| Unlimited | 9.99 美元 | 6.99 美元 | 不限 | 不限 |\n\n三个档位的拼写和语法检查都不限次数；Unlimited 另含优先客服。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 需要经常写英文邮件、报告、论文的非英语母语者；\n- 想让句子更简洁、更正式或更友好的职场写作者；\n- 备考英语写作、想看「同一句话的多种地道说法」的学习者。\n\n**不适合：**\n- 主要写中文的人——它的强项是英文；\n- 需要从主题直接生成整篇营销文案的用户；\n- 对学术诚信有严格要求的场合，如果规定不允许使用 AI 改写工具，就不要用。\n\n## 注意事项\n\n- **学术使用要守规矩**：很多学校和期刊要求声明 AI 工具的使用情况，「人性化改写」不应被用来规避 AI 检测或掩盖抄袭。\n- **改写可能改变意思**：尤其是专业术语和数据描述，替换前确认含义没变。\n- **免费次数按天重置**，重度使用再考虑付费。\n- **隐私**：扩展会读取你在网页输入框里的文字，涉及机密内容的页面可以临时关闭扩展。",
+      "images": [],
+      "sources": [
+        "https://www.wordtune.com/plans",
+        "https://www.wordtune.com/"
+      ]
+    },
+    {
+      "title": "Copy.ai 是什么、怎么用：从 AI 文案工具到销售与营销自动化平台，功能与定价",
+      "slug": "copy-ai-gtm-platform",
+      "name": "Copy.ai",
+      "url": "https://www.copy.ai/",
+      "pricing": "付费（可免费试用）",
+      "platforms": "网页",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "copywriting",
+        "marketing"
+      ],
+      "excerpt": "Copy.ai 早期是 AI 营销文案生成器，现在定位为面向销售和市场团队的 GTM AI 平台，提供 AI 工作流、数据表、动作和品牌语气；面向个人的是 Chat 方案，更高档位按工作流额度面向企业。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Copy.ai 官网与价格页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\n很多教程里的 Copy.ai 还是那个「输入产品名，一键生成广告语和社媒文案」的小工具。现在的 Copy.ai 已经变了：官网把自己定位为 **GTM AI 平台**（GTM 即 Go-to-Market，指销售、市场、客户成功这些面向市场的团队），重心从「写一段文案」转到了「把一整套销售和营销流程自动化」。\n\n如果你只是想找一个便宜的文案生成器，先看清楚它现在的方案是否符合预期。\n\n## 能做什么\n\n官网价格页列出的核心模块：\n\n- **Chat**：面向文案和内容的对话式写作，不限字数和项目数；\n- **Workflows（工作流）**：把多步骤任务做成自动流程，例如「拿到一条线索 → 调研公司 → 生成个性化开发信 → 写入 CRM」；\n- **Tables（数据表）**：对成批的线索、客户、关键词逐行运行 AI 处理；\n- **Actions（动作）**：工作流里可复用的处理步骤；\n- **Brand Voice（品牌语气）**：让输出保持公司的口吻和用词。\n\n## 怎么上手\n\n1. 在 copy.ai 注册，页面有「Try for free」的试用入口。\n2. 个人或小团队从 Chat 开始：设定品牌语气，上传几段你们以往的文案作为参考。\n3. 需要批量化时再看工作流：从模板库挑一个接近的流程，替换成自己的输入和输出字段。\n4. 先用少量数据跑通，再连接 CRM 等外部系统。\n\n## 免费与付费\n\n官网价格页（美元，2026-10 查询）：\n\n| 方案 | 价格 | 主要内容 |\n| --- | --- | --- |\n| Chat | 月付 29 美元/月；年付 24 美元/月（年收 288 美元） | 5 个席位，对话字数和项目不限 |\n| Growth | 1,000 美元/月（按年收 12,000 美元） | 75 个席位，每月 2 万工作流额度 |\n| Expansion | 2,000 美元/月（按年收 24,000 美元） | 150 个席位，每月 4.5 万工作流额度 |\n| Scale | 3,000 美元/月（按年收 36,000 美元） | 200 个席位，每月 7.5 万工作流额度 |\n| Enterprise | 联系销售 | 定制 |\n\n价格页没有列出长期免费的方案，只有试用入口。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 有销售开发、内容营销团队，想把调研、写信、内容分发流程自动化的 B2B 公司；\n- 需要统一品牌口吻、多人共用一套文案工具的小团队（Chat 方案）；\n- 主要面向英语市场的出海团队。\n\n**不适合：**\n- 只想免费生成几条文案的个人用户；\n- 主要写中文内容、面向国内平台的运营，国内的写作工具和通用聊天助手更合适；\n- 预算有限的初创团队——工作流相关的档位起步价较高。\n\n## 注意事项\n\n- **老教程不适用**：以前常被提到的免费版额度和「几十种文案模板」的界面，与现在的产品差别很大。\n- **Chat 方案是按团队定价**（含 5 个席位），一个人用也是这个价格。\n- **自动发信要合规**：批量生成并发送营销邮件，需遵守收件人所在地区关于商业邮件的法规，并保留人工审核。\n- **事实核对**：AI 生成的公司调研、数据引用可能有误，发给客户前务必核实。",
+      "images": [],
+      "sources": [
+        "https://www.copy.ai/prices",
+        "https://www.copy.ai/"
+      ]
+    },
+    {
+      "title": "Rytr 是什么、怎么用：低价 AI 写作助手的模板、语气设置与免费额度",
+      "slug": "rytr-ai-writing-assistant",
+      "name": "Rytr",
+      "url": "https://rytr.me/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / Chrome 扩展",
+      "trialNote": "免费版每月 10,000 字符，无需信用卡，含 40 多种用途模板和 20 多种语气",
+      "tags": [
+        "ai-tools",
+        "copywriting",
+        "social-media",
+        "marketing"
+      ],
+      "excerpt": "Rytr 是价格亲民的 AI 写作助手，提供 40 多种文案用途模板和 20 多种语气，可以根据写作样本学习你的口吻，带抄袭检测和 Chrome 扩展；免费版每月 10,000 字符。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Rytr 官网整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nRytr 是一款 AI 写作助手，主打「简单、便宜」。它的界面基本就是一张表单：选语言、选语气、选用途（比如博客大纲、商品描述、邮件、社媒帖子），填几个关键词，点生成。相比功能越来越重的营销平台，Rytr 一直保持着轻量的文案生成器形态。\n\n官网现在强调的一个特点是**模仿你的语气**：提供一段你自己写的文字作为样本，它生成的内容会尽量贴近你的写法。\n\n## 能做什么\n\n- **40 多种用途模板**：博客选题与大纲、段落扩写、商品描述、广告文案、邮件、社媒文案、视频描述等；\n- **20 多种语气**：正式、幽默、热情、说服性等，免费版即可使用；\n- **个人语气**：根据写作样本生成专属语气，付费档提供；\n- **多语言**：Premium 档支持 40 多种语言；\n- **抄袭检测**：付费档每月含一定次数；\n- **Chrome 扩展**：在邮箱、社交平台等网页里直接调用。\n\n## 怎么上手\n\n1. 在 rytr.me 注册（免费版不需要信用卡）。\n2. 选择语言和语气，再选一个用途模板。\n3. 按模板提示输入关键信息，例如商品名、卖点、目标人群。\n4. 生成后在编辑器里选中某一段，可以让它改写、扩写、缩短或续写。\n5. 把满意的结果存进文档，方便以后复用。\n\n输入信息越具体，结果越可用。例如商品描述模板里不要只写「保温杯」，而是写：\n\n```text\n316 不锈钢保温杯，500ml，保温 12 小时，一键开盖，适合通勤和办公室，主打轻和不漏水\n```\n\n## 免费与付费\n\n官网价格（美元，按月折算，2026-10 查询）：\n\n| 方案 | 价格 | 主要内容 |\n| --- | --- | --- |\n| Free | 0 | 每月 10,000 字符，40 多种用途，20 多种语气，Chrome 扩展 |\n| Unlimited | 7.50 美元/月 | 生成不限量，1 个个人语气，每月 50 次抄袭检测 |\n| Premium | 24.16 美元/月 | 5 个个人语气，更高的单次输入上限，40 多种语言，每月 100 次抄袭检测 |\n\n页面显示的是折合月价，对应的计费周期（月付或年付）以结算页为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 预算有限、需要大量短文案的个体商家、自由职业者和小团队；\n- 写英文商品描述、广告语、邮件的跨境卖家；\n- 不想研究提示词、喜欢「选模板填空」的用户。\n\n**不适合：**\n- 写长篇深度文章或需要联网查资料的人；\n- 主要写中文的用户——多语言支持在最高档，且中文效果建议先用免费额度试；\n- 已经订阅通用聊天助手的人，后者基本能覆盖这些用途。\n\n## 注意事项\n\n- **按字符计量**：免费版的 10,000 字符指生成内容的字符数，写几篇短文就可能用完。\n- **内容需要事实核对**：模板生成的数据、功效类说法可能不准确，电商和广告文案尤其要避免夸大和绝对化用语。\n- **抄袭检测不是原创保证**：通过检测只说明没有明显重合，不代表可以免责。\n- **搜索时注意拼写**：是 Rytr（rytr.me），不要进到名称相近的其他网站。",
+      "images": [],
+      "sources": [
+        "https://rytr.me/"
+      ]
+    },
+    {
+      "title": "Paperpal 是什么、怎么用：面向科研论文的 AI 英文润色、查重与投稿前检查工具",
+      "slug": "paperpal-academic-writing-ai",
+      "name": "Paperpal",
+      "url": "https://paperpal.com/",
+      "pricing": "免费+付费，价格以官网为准",
+      "platforms": "网页 / Word 插件 / Chrome 扩展 / Edge 扩展（支持 Google Docs、Overleaf）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "paper-writing",
+        "translation",
+        "literature"
+      ],
+      "excerpt": "Paperpal 是 Cactus Communications（Editage 母公司）推出的学术写作 AI 工具，提供论文语言润色、改写、翻译、文献查找与引用、查重、AI 检测和投稿前检查，可在 Word、Google Docs、Overleaf 中使用。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Paperpal 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nPaperpal 是专门为学术写作做的 AI 工具，出自科研出版服务公司 Cactus Communications，官网带有其旗下论文润色品牌 Editage（意得辑）的标识。和通用的语法检查工具相比，它的定位是「懂论文」：给出的修改建议遵循学术写作的惯例，功能也围绕写论文、改论文、投稿这条线来设计。\n\n## 能做什么\n\n官网列出的功能可以分成三组：\n\n**写作与改写**\n\n- AI 写作助手、改写（Paraphraser）、句子重写；\n- 翻译：把其他语言的草稿转成学术英语；\n- 写作模板。\n\n**文献与引用**\n\n- 与 PDF 对话、文本摘要；\n- AI 文献查找（Reference Finder）；\n- 引用生成器。\n\n**检查**\n\n- 语法检查与 AI 校对；\n- 查重（Plagiarism Checker）；\n- AI 内容检测；\n- 参考文献检查；\n- 投稿前检查（Submission Readiness）：对照期刊常见要求检查稿件是否齐备。\n\n## 怎么上手\n\n1. 在 paperpal.com 注册，可以直接用网页版编辑器。\n2. 习惯在 Word 里写的，安装 MS Word 插件；用 Google Docs 或 Overleaf 的，安装 Chrome / Edge 扩展。\n3. 打开稿件，侧边栏会逐条列出语言建议，逐条接受或忽略。\n4. 对表达别扭的句子用改写功能，选择更学术或更简洁的版本。\n5. 投稿前跑一遍查重和投稿前检查。\n\n建议的使用顺序是：先自己把内容和逻辑写完整，再用 Paperpal 处理语言；不要反过来让 AI 生成内容再去「润色成自己的」。\n\n## 免费与付费\n\nPaperpal 可以免费注册使用，另有付费订阅。核对时定价页没有显示具体金额、计费周期和免费额度，**价格与额度以官网定价页为准**。高校和机构可以联系销售获取全机构授权与试用。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 用英文写期刊论文、学位论文的研究生和科研人员；\n- 英语非母语、希望在投稿前自查语言问题的作者；\n- 在 Overleaf 里用 LaTeX 写作、需要语言检查的理工科用户。\n\n**不适合：**\n- 写中文论文的场景；\n- 写营销文案、日常邮件的普通用户，通用写作工具更合适；\n- 需要人工母语编辑深度修改并出具润色证明的投稿——那是人工润色服务的范围。\n\n## 注意事项\n\n- **遵守学校和期刊的 AI 使用规定**：很多期刊要求在稿件中声明使用过的 AI 工具，且 AI 不能列为作者。\n- **AI 找的文献要逐条核对**：确认文献真实存在、内容确实支持你的论述，再写进参考文献。\n- **查重结果仅供参考**：不同查重系统的数据库不同，学校或期刊以其指定系统为准。\n- **未发表稿件的保密**：上传前阅读官网的数据与隐私说明，涉及保密项目的内容先咨询导师或单位。",
+      "images": [],
+      "sources": [
+        "https://paperpal.com/pricing",
+        "https://paperpal.com/"
+      ]
+    },
+    {
+      "title": "Readwise Reader 是什么、费用多少：稍后读 + RSS + PDF 阅读器，内置 Ghostreader AI 阅读助手",
+      "slug": "readwise-reader-ghostreader",
+      "name": "Readwise Reader",
+      "url": "https://readwise.io/read",
+      "pricing": "付费订阅（30 天免费试用）",
+      "platforms": "网页 / iOS / 安卓 / Mac / Windows / Chrome、Firefox、Safari 扩展",
+      "trialNote": "30 天免费试用",
+      "tags": [
+        "ai-tools",
+        "literature",
+        "learning",
+        "office"
+      ],
+      "excerpt": "Readwise Reader 是面向重度阅读者的一体化阅读应用：把文章、RSS、PDF、EPUB、YouTube 字幕、邮件通讯和推文串收进一处，边读边划线批注，内置 AI 助手 Ghostreader 可提问、释义和简化难懂的段落。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Readwise 官网的 Reader 介绍页与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nReadwise Reader 是 Readwise 推出的阅读应用，官网说它是「为认真的读者准备的」，定位为比 Instapaper、Pocket 这类经典「稍后读」工具更强、更灵活的版本。它想解决的问题是：要读的东西散落在浏览器标签页、邮箱、RSS 阅读器、PDF 文件夹和视频网站里——Reader 把它们全部收进同一个收件箱，用同一套划线和批注方式处理。\n\nReader 包含在 Readwise 的订阅里，不单独出售。\n\n## 能做什么\n\n**支持的内容类型**（官网列出）：\n\n- 网页文章；\n- RSS 订阅；\n- PDF 与 EPUB；\n- YouTube 视频（带字幕文本，可以对着字幕划线）；\n- 邮件通讯（Newsletter）；\n- Twitter / X 推文串。\n\n**阅读与笔记**：划线、批注是核心功能；内容跨设备同步，支持离线阅读。\n\n**Ghostreader（AI 阅读助手）**：在阅读过程中随时调用，官网介绍它可以回答关于文章的问题、解释术语、把晦涩的段落讲得更容易理解。\n\n## 怎么上手\n\n1. 在 readwise.io 注册，开始 30 天免费试用。\n2. 安装浏览器扩展（Chrome、Firefox、Safari）和手机 App，电脑上也可以装 Mac / Windows 客户端。\n3. 看到想读的文章，点扩展保存；把常看的博客添加为 RSS 源；把 PDF 拖进来。\n4. 阅读时选中文字即可划线、写批注；遇到不懂的地方，选中后唤出 Ghostreader 提问。\n5. 划线内容会汇总到 Readwise，可再同步到你的笔记软件。\n\n读英文长文时的一个用法：选中一个复杂段落，让 Ghostreader 用更简单的语言重述，再对照原文理解。\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）：\n\n| 方案 | 价格 | 说明 |\n| --- | --- | --- |\n| Readwise Lite | 5.59 美元/月（按年付） | 精简版 |\n| Readwise（完整版） | 年付 9.99 美元/月（结算时一次收取 119.88 美元）；月付 12.99 美元/月 | **包含 Reader** |\n\n免费试用 30 天。Lite 档是否包含 Reader 及具体差别，以定价页说明为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 阅读量大、来源杂（文章、论文、通讯、视频都看）的研究者、写作者和知识工作者；\n- 习惯划线做笔记，并且在用 Obsidian、Notion 等笔记工具的人；\n- 大量阅读英文材料、希望有 AI 帮忙理解的读者。\n\n**不适合：**\n- 只是偶尔存几篇文章的轻度用户，浏览器自带的阅读列表就够用；\n- 主要阅读微信公众号等国内封闭平台内容的人——这些内容的保存和解析效果需要自己试；\n- 不接受订阅制的用户。\n\n## 注意事项\n\n- **没有长期免费版**：试用结束后需要订阅才能继续使用完整功能。\n- **AI 解释可能有偏差**：涉及专业概念时，把 Ghostreader 的说法当作理解的辅助而不是结论。\n- **版权**：保存的文章仅供个人阅读，不要批量转存并对外分发付费内容。\n- **导出与备份**：定期确认划线能导出，避免被单一工具锁定。",
+      "images": [],
+      "sources": [
+        "https://readwise.io/read",
+        "https://readwise.io/pricing"
+      ]
+    },
+    {
+      "title": "彩云小译是什么、网页版怎么用：文档翻译、网页双语对照与浏览器插件",
+      "slug": "caiyun-xiaoyi-ai-translator",
+      "name": "彩云小译",
+      "url": "https://fanyi.caiyunapp.com/",
+      "pricing": "免费+会员，价格以官网为准",
+      "platforms": "网页 / 浏览器插件 / 移动应用 / API",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "translation",
+        "literature",
+        "language-learning"
+      ],
+      "excerpt": "彩云小译是国产 AI 翻译工具，提供文字翻译、文档翻译、PDF 链接翻译、图片翻译和图文翻译，支持双语对照、译文调整、添加术语和多模型模式，另有浏览器插件、手机应用和翻译 API。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据彩云小译官网网页版整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\n彩云小译是一款国产 AI 翻译产品，官网域名与「彩云天气」同属 caiyunapp.com。它在国内用户里比较知名的用法有两个：一是**翻译整份文档**，二是装上**浏览器插件**后把外文网页变成中外文对照的双语页面，读英文资料时可以一眼对照原文。\n\n## 能做什么\n\n官网网页版当前提供的功能入口：\n\n- **文字翻译**：粘贴文本即时翻译，可自动识别源语言；\n- **文档翻译**：上传文档整篇翻译；\n- **PDF 链接**：直接粘贴一个 PDF 的网址进行翻译，适合读在线论文；\n- **图片翻译 / 图文翻译**：识别图片里的文字并翻译；\n- **译文调整**：对结果不满意时让它换一种译法或风格；\n- **添加术语**：维护自己的术语库，保证专有名词前后译法一致；\n- **多模型模式**：用多个模型翻译同一段内容，对比着看；\n- **浏览器插件**：网页翻译与双语对照；\n- **移动应用**；\n- **翻译 API**：给开发者把翻译能力接入自己的产品。\n\n## 怎么上手\n\n1. 打开 fanyi.caiyunapp.com，注册并登录。\n2. 短文本直接粘贴到文字翻译框。\n3. 长文档点「文档翻译」上传；在线 PDF 用「PDF 链接」粘贴网址。\n4. 经常读外文网页的，从官网的「浏览器插件」入口安装扩展，打开外文网页后点击插件图标，页面会变成原文与译文逐段对照。\n5. 翻译专业资料前，先在「添加术语」里录入本领域的固定译法。\n\n## 免费与付费\n\n可以免费使用基础的文字翻译；文档翻译的页数、字数额度以及会员权益和价格，核对时未在首页直接列出，**以登录后的会员页面为准**。翻译 API 另行计费，见官方的 API 说明。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 需要读英文论文、技术文档、海外资讯的学生和研究人员；\n- 想要网页双语对照、边读边学的外语学习者；\n- 翻译时需要统一术语的专业领域使用者。\n\n**不适合：**\n- 合同、专利、医疗等需要承担法律责任的正式翻译——机器翻译只能作参考，需要专业译员审校；\n- 需要翻译小语种文学作品并保留文风的场景；\n- 已经在用沉浸式翻译等同类插件并且满意的人，功能有不少重合。\n\n## 注意事项\n\n- **机器翻译会出错**：数字、否定句、专业术语和长难句是高发区，重要内容对照原文检查。\n- **文档格式**：复杂排版（多栏、公式、表格）的文档翻译后可能有错位，下载后检查。\n- **隐私**：上传的文档会在云端处理，未公开的论文稿、合同和内部资料请谨慎。\n- **多模型模式是用来对比的**：几种译法不一致的地方，往往就是需要人工判断的地方。",
+      "images": [],
+      "sources": [
+        "https://fanyi.caiyunapp.com/"
+      ]
+    },
+    {
+      "title": "Miro AI 是什么、有哪些功能：在线白板里的 AI 生成图表、总结、工作流与官网定价",
+      "slug": "miro-ai-whiteboard",
+      "name": "Miro AI",
+      "url": "https://miro.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / Windows / macOS / iOS / 安卓",
+      "trialNote": "Free 档含 3 个可编辑白板和每月 10 个 AI 积分的试用",
+      "tags": [
+        "ai-tools",
+        "office",
+        "product-design"
+      ],
+      "excerpt": "Miro 是在线协作白板，Miro AI 可以在白板上生成图表、表格和总结，给便利贴自动聚类，运行 AI 工作流与智能体，还能把截图、代码或提示词变成可交互原型，按 AI 积分计量。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Miro 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nMiro 是一款在线协作白板：一张可以无限延伸的画布，团队成员同时在上面贴便利贴、画流程图、做头脑风暴、排产品路线图。Miro AI 是内置在白板里的一组 AI 功能，不需要单独安装，按「AI 积分」消耗。\n\n它的 AI 不是另开一个聊天窗口，而是**直接对画布上的内容动手**——选中一堆便利贴让它归类，选中一段需求让它画成流程图，这种「就地加工」是它和通用聊天助手的主要区别。\n\n## 能做什么\n\n官网定价页列出的 Miro AI 能力：\n\n- **生成图表**：根据文字描述生成流程图等图示；\n- **生成表格与总结**：把白板上零散的内容整理成表格，或总结成要点；\n- **便利贴聚类**：头脑风暴后自动按主题分组；\n- **AI 工作流与智能体**：把多步骤的处理串成流程自动执行（官网产品名为 Flows）；\n- **交互原型**：根据截图、HTML、代码或提示词生成可点击的原型。\n\n## 怎么上手\n\n1. 在 miro.com 注册，新建一个白板。\n2. 先把素材放上去：会议记录、用户反馈、需求列表都可以直接粘贴成便利贴。\n3. 框选相关内容，在弹出的工具条里选择 AI 操作（聚类、总结、生成图表等）。\n4. 对生成结果直接在画布上修改，它们是普通的白板对象，不是图片。\n\n一个常见用法：把二三十条用户反馈粘成便利贴 → 让 AI 聚类 → 对每个分组生成一句话总结 → 再让它据此画一张问题优先级的表格。\n\n## 免费与付费\n\n官网定价页（美元，按成员计费，年付价格，2026-10 查询）：\n\n| 方案 | 价格 | AI 积分 |\n| --- | --- | --- |\n| Free | 0 | 试用额度（FAQ 写明每月 10 个） |\n| Starter | 8 美元/成员/月 | 每成员每月 25 个 |\n| Business | 20 美元/成员/月 | 每成员每月 50 个 |\n| Enterprise | 联系销售（30 人起） | 每月 2,500 个起，共享 |\n\n年付比月付省 20%，Starter 和 Business 也可以用信用卡按月付。Free 档只有 3 个可编辑白板。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 经常做头脑风暴、用户研究整理、流程梳理的产品、设计和咨询团队；\n- 已经在用 Miro、想减少「整理便利贴」这类体力活的人；\n- 需要把想法快速变成图示或原型拿去讨论的远程团队。\n\n**不适合：**\n- 只需要个人思维导图或简单流程图的用户，Xmind、ProcessOn 等更轻；\n- AI 用量大的人——每月几十个积分并不多；\n- 团队成员访问海外服务不稳定的情况。\n\n## 注意事项\n\n- **AI 积分按成员、按月计**，不同操作消耗不同，用完需等下月或升级。\n- **白板内容可能含敏感信息**：企业使用前确认管理员是否开启了 AI 功能及数据处理政策。\n- **生成的图表要校对**：流程分支、数据关系可能被简化或弄错。\n- 界面支持多语言，中文内容的生成效果建议先小范围试用。",
+      "images": [],
+      "sources": [
+        "https://miro.com/pricing/",
+        "https://miro.com/ai/"
+      ]
+    },
+    {
+      "title": "Whimsical AI 是什么、怎么用：一句话生成流程图、思维导图和线框图的在线工具",
+      "slug": "whimsical-ai-flowchart-mindmap",
+      "name": "Whimsical",
+      "url": "https://whimsical.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / Windows / macOS / iOS / 安卓",
+      "trialNote": "Free 档每位成员含 10 个 AI 积分",
+      "tags": [
+        "ai-tools",
+        "office",
+        "product-design"
+      ],
+      "excerpt": "Whimsical 是简洁的在线图表与文档协作工具，AI 功能可以根据一句提示生成结构化的流程图、展开思维导图分支，以及生成可编辑的线框图，免费档每位成员含 10 个 AI 积分。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Whimsical 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nWhimsical 是一款在线的可视化协作工具，把流程图、思维导图、线框图和文档放在同一个工作区里。它一向以「画得快、默认就好看」著称：连线自动对齐、配色统一，不需要像传统绘图软件那样反复调整样式。\n\nAI 功能是在这个基础上加的「起草」能力：你给一句话，它先搭出一个结构，你再在上面改。\n\n## 能做什么\n\n官网定价页列出的三项 AI 功能：\n\n- **AI Flowcharts（AI 流程图）**：根据一条提示生成结构化的流程图；\n- **AI Mind Maps（AI 思维导图）**：把一个想法展开成带分支的思维导图；\n- **AI Wireframes（AI 线框图）**：根据文字提示生成可编辑的线框图和页面流程。\n\n生成的都是 Whimsical 的原生对象，可以继续拖动、改文字、加节点，而不是一张不能改的图片。\n\n## 怎么上手\n\n1. 在 whimsical.com 注册，新建一个画板。\n2. 选择要创建的类型（流程图、思维导图或线框图），打开 AI 生成入口。\n3. 用一句话说清楚要画什么，例如：\n\n```text\n用户在电商 App 申请退货的完整流程：提交申请、商家审核、寄回商品、仓库验货、退款，包含审核不通过和验货不通过两个分支。\n```\n\n4. 检查生成的结构，补上遗漏的分支，调整文字后分享给同事评论。\n\n对思维导图，可以选中某个节点让 AI 继续往下展开子节点。\n\n## 免费与付费\n\n官网定价页（美元，按编辑者计费，年付价格，2026-10 查询）：\n\n| 方案 | 价格 |\n| --- | --- |\n| Free | 0 |\n| Pro | 10 美元/编辑者/月 |\n| Business | 20 美元/编辑者/月 |\n\nFree 档每位成员含 10 个 AI 积分；任何档位都可以单独加购 AI 积分。付费档各含多少积分、月付价格是多少，定价页的默认视图没有列出，以官网为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 产品经理、设计师、工程师画流程、理思路、出低保真原型；\n- 讨厌在绘图软件里调样式、希望快速得到一张「能看」的图的人；\n- 需要把图和说明文档放在一起给团队看的场景。\n\n**不适合：**\n- 需要高保真界面设计的设计师（应使用 Figma 等设计工具）；\n- 需要 UML、网络拓扑等专业图形库的工程制图；\n- 主要用中文、且希望有本地化模板和国内登录方式的团队，可以看 ProcessOn、Xmind。\n\n## 注意事项\n\n- **AI 积分很少**：免费档的 10 个积分只够体验，日常使用需要付费或加购。\n- **AI 生成的是初稿**：业务规则里的例外分支经常被漏掉，一定要对照真实流程检查。\n- **提示词用中文也可以**，但生成结果的措辞可能偏直译，按需润色。\n- **分享权限**：对外分享链接前确认是只读还是可编辑。",
+      "images": [],
+      "sources": [
+        "https://whimsical.com/pricing",
+        "https://whimsical.com/"
+      ]
+    },
+    {
+      "title": "Xmind AI 是什么、怎么用：一句话生成思维导图，AI 点数与官网价格说明",
+      "slug": "xmind-ai-mind-mapping",
+      "name": "Xmind AI",
+      "url": "https://xmind.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / Windows / macOS / Linux / iOS / 安卓",
+      "trialNote": "免费版含 50 个 AI 点数供试用，最多 10 个在线导图",
+      "tags": [
+        "ai-tools",
+        "office",
+        "learning"
+      ],
+      "excerpt": "Xmind 是老牌思维导图软件，Xmind AI 可以把一句话或一段文字变成思维导图，并做总结、扩展想法和优化结构。免费版含 50 个 AI 点数，Premium 每月 500 个，全平台可用。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Xmind 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nXmind 是使用很广的思维导图软件，覆盖电脑、手机和网页。Xmind AI 是它加入的 AI 能力：不用从中心主题开始一个个敲节点，给一句话或贴一段文字，就能得到一张结构化的导图初稿。搜索里常见的「Xmind AI 点数」指的就是使用这些 AI 功能时消耗的额度。\n\n## 能做什么\n\n官网定价页列出的 AI 功能：\n\n- **文字转导图（text-to-map）**：输入主题或粘贴一段文字，生成思维导图；\n- **总结**：把内容较多的导图或文本提炼成要点；\n- **扩展想法**：选中一个节点，让 AI 往下补充子主题；\n- **优化导图**：调整结构和表述，让层级更清晰。\n\n非 AI 的部分同样完整：多种结构（逻辑图、鱼骨图、时间轴等）、演示模式 Pitch、甘特图（Premium）、多人协作、导出 PNG / SVG / PDF / Markdown / Office 格式。\n\n## 怎么上手\n\n1. 在 xmind.com 注册，使用网页版或下载客户端。\n2. 新建导图时选择 AI 生成，输入主题，例如：\n\n```text\n为一场 30 人的公司年会做策划，按「目标、预算、流程、分工、风险」展开到三级。\n```\n\n3. 得到初稿后删掉不需要的分支，选中想深入的节点用「扩展」继续生成。\n4. 用演示模式讲解，或导出为图片、PDF 分享。\n\n读书笔记、课程提纲、会议纪要都适合先让 AI 出骨架，再自己补细节。\n\n## 免费与付费\n\n官网定价页的个人方案（美元，页面显示的折合月价，2026-10 查询）：\n\n| 方案 | 价格 | 主要内容 |\n| --- | --- | --- |\n| Free | 0 | 最多 10 个在线导图，3 天版本历史，Pitch 限 5 页，50 个 AI 点数试用 |\n| Pro | 4.92 美元/月 | 最多 50 个在线导图，Pitch 不限页，导出无水印，50 个 AI 点数 |\n| Premium | 8.25 美元/月 | 协作导图不限，30 天版本历史，甘特图，每月 500 个 AI 点数 |\n\n页面提供月付 / 年付切换，年付最多省 50%，7 天免费试用只适用于年付订阅。一个订阅可在最多 5 台电脑和 5 台移动设备上使用。不同地区的定价和支付方式可能不同，以你打开官网时显示的为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 学生做读书笔记、知识梳理，职场人做方案提纲和会议整理；\n- 已经在用 Xmind、想省掉搭骨架时间的老用户；\n- 需要在手机、平板、电脑之间同步导图的人。\n\n**不适合：**\n- 需要画复杂流程图、泳道图、架构图的人（应选流程图工具）；\n- AI 用量很大的用户——Pro 档的点数与免费版相同，要多用需选 Premium；\n- 只是偶尔画一张简单导图的人，免费版或其他免费工具就够。\n\n## 注意事项\n\n- **AI 点数用完即止**：不同操作消耗的点数不同，生成大型导图前先想好提纲，避免反复重来。\n- **AI 给的是框架**：具体数字、事实和专业结论要自己核实。\n- **敏感内容**：使用 AI 功能时文本会发送到云端处理，机密资料请谨慎。\n- **版本区别**：网上教程里的 Xmind 8、Xmind ZEN 等是旧版本名称，界面与现在不同。",
+      "images": [],
+      "sources": [
+        "https://xmind.com/pricing",
+        "https://xmind.com/"
+      ]
+    },
+    {
+      "title": "Airtable AI 是什么：在多维表格里用 AI 搭业务应用、部署智能体，功能与定价",
+      "slug": "airtable-ai-app-building",
+      "name": "Airtable AI",
+      "url": "https://www.airtable.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页 / Windows / macOS / iOS / 安卓",
+      "trialNote": "Free 档面向个人和小团队的轻量使用",
+      "tags": [
+        "ai-tools",
+        "office",
+        "data-analysis",
+        "ai-agent"
+      ],
+      "excerpt": "Airtable 是把表格和数据库结合起来的无代码平台，现在主打 AI：用自然语言搭建业务应用、在应用里部署 AI 智能体，并把 AI 嵌进各个工作流，按可编辑成员计费。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Airtable 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nAirtable 可以理解成「长得像表格的数据库」：每一行是一条记录，每一列有明确的类型（单选、附件、关联到另一张表等），同一份数据可以切换成看板、日历、甘特图、表单等视图。国内的飞书多维表格、钉钉 AI 表格属于同一类产品。\n\n这两年 Airtable 把自己重新定位为 AI 应用平台，定价页上把 AI 能力归为三类：\n\n- **AI App Building**：不写代码，用描述的方式搭建定制的业务应用；\n- **AI Agents**：在应用内部署智能体，自动处理记录；\n- **Airtable AI**：把 AI 嵌入到各个工作流环节，例如对每条记录做分类、摘要、提取、翻译、生成文案。\n\n## 典型用法\n\n- **内容与营销管理**：一张表管理选题，AI 字段自动为每篇生成摘要、标签和多平台文案。\n- **用户反馈整理**：导入反馈后，AI 自动判断情绪、归类问题、提取功能需求。\n- **销售线索处理**：智能体根据线索信息做初筛和补全，再分配给负责人。\n- **内部工具**：描述「我需要一个设备借用登记系统」，由 AI 生成表结构、界面和自动化。\n\n## 怎么上手\n\n1. 在 airtable.com 注册，新建一个 Base（一个数据库）。\n2. 可以从模板开始，也可以用 AI 应用搭建入口描述你的业务场景，让它生成初始结构。\n3. 导入已有的 Excel / CSV 数据。\n4. 添加一个 AI 字段，写清楚让它根据哪几列做什么，例如「根据『反馈内容』列，判断属于：功能建议 / 故障 / 咨询 / 其他」。\n5. 先在几条记录上测试，再应用到全表。\n\n## 免费与付费\n\n官网定价页（美元，按用户计费，年付价格，2026-10 查询）：\n\n| 方案 | 价格 |\n| --- | --- |\n| Free | 0，面向个人、很小的团队或轻量需求 |\n| Team | 20 美元/用户/月 |\n| Business | 45 美元/用户/月 |\n| Enterprise Scale | 联系销售 |\n\nTeam 和 Business 只对至少在一个 Base 上有编辑权限的用户收费；只读协作者、表单提交和分享链接不收费。各档包含的 AI 额度核对时未在定价页列出，以官网说明为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 用表格管理项目、内容、客户，但 Excel 已经不够用的运营和业务团队；\n- 想不靠开发就搭出内部小系统的中小团队；\n- 需要对大量记录批量做 AI 处理（分类、摘要、提取）的场景。\n\n**不适合：**\n- 主要需求是复杂计算和财务建模的人，传统电子表格更合适；\n- 国内团队如果协作都在飞书、钉钉里，用它们自带的多维表格集成更顺；\n- 数据量极大、需要真正数据库性能的系统。\n\n## 注意事项\n\n- **按可编辑成员计费**，人多时成本上升很快，把只需要看的人设为只读。\n- **AI 处理按额度计**，对几万行数据跑 AI 字段前先小范围试算消耗。\n- **AI 分类结果要抽查**，尤其是用于自动化流转时，建议保留人工复核的状态列。\n- **数据合规**：客户信息等敏感数据使用 AI 功能前，确认企业的数据处理要求。",
+      "images": [],
+      "sources": [
+        "https://www.airtable.com/pricing",
+        "https://www.airtable.com/"
+      ]
+    },
+    {
+      "title": "Loom AI 是什么、怎么用：录屏后自动生成标题、摘要和章节，功能与定价",
+      "slug": "loom-ai-screen-recording",
+      "name": "Loom AI",
+      "url": "https://www.loom.com/",
+      "pricing": "免费+付费（AI 需 Business + AI 档）",
+      "platforms": "网页 / Chrome 扩展 / Windows / macOS / iOS / 安卓",
+      "trialNote": "Starter 免费档每人最多 25 个视频，单次录屏 5 分钟，画质最高 720p",
+      "tags": [
+        "ai-tools",
+        "office",
+        "video-script"
+      ],
+      "excerpt": "Loom 是 Atlassian 旗下的录屏与异步视频沟通工具，Loom AI 能在录完后自动生成标题、摘要、章节和待办，去除口头语和静音片段，并生成会议纪要，包含在 Business + AI 及以上方案。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Loom 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nLoom 是一款录屏工具，更准确地说是「异步视频沟通」工具：录一段屏幕加摄像头的讲解，录完立刻得到一个分享链接，对方点开就能看、能评论，不用约会议。Loom 已被 Atlassian 收购，定价页说明两家公司的系统正在整合。\n\nLoom AI 是它的付费 AI 功能，目标是把「录完之后的整理工作」自动化——视频的标题、简介、时间轴这些本来没人愿意写的东西，由 AI 补齐。\n\n## 能做什么\n\n定价页列出的 Loom AI 功能：\n\n- **Auto Titles / Auto Summaries**：自动生成标题和内容摘要；\n- **Auto Chapters**：自动划分章节，观看者可以跳到感兴趣的部分；\n- **Filler Word Removal**：去掉「嗯」「那个」这类口头语；\n- **Silence Removal**：剪掉长时间的停顿；\n- **Auto CTA**：自动添加行动号召按钮；\n- **Auto Tasks**：从视频内容里提取待办事项；\n- **Auto Meeting Notes and Recaps**：自动生成会议纪要和回顾。\n\n## 怎么上手\n\n1. 在 loom.com 注册，安装 Chrome 扩展或桌面客户端。\n2. 点击录制，选择录「屏幕 + 摄像头」「仅屏幕」或「仅摄像头」。\n3. 讲完后停止，视频自动上传并生成链接。\n4. 订阅了含 AI 的方案后，标题、摘要、章节会自动出现在视频页，可以手动修改。\n5. 把链接发到聊天群、邮件或项目管理工具里。\n\n适合用 Loom 代替开会的情况：演示一个 bug 怎么复现、给同事讲解一份方案、给客户做产品讲解、新人培训。\n\n## 免费与付费\n\n官网定价页（美元，按用户计费，2026-10 查询）：\n\n| 方案 | 价格 | 说明 |\n| --- | --- | --- |\n| Starter | 0 | 每人最多 25 个视频，单次录屏 5 分钟，画质最高 720p |\n| Business | 18 美元/用户/月 | 取消录制限制，不含 AI |\n| Business + AI | 24 美元/用户/月 | 包含全部 Loom AI 功能 |\n| Enterprise | 联系销售 | 包含 Loom AI 和企业管理功能 |\n\n可以月付或年付，页面写明年付最多省 17%，年付具体金额以结算页为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 远程或跨时区团队，想用视频留言减少会议；\n- 经常要做演示、培训、Bug 反馈的产品、客服、研发人员；\n- 录完懒得写说明、希望 AI 自动补全信息的人。\n\n**不适合：**\n- 需要精细剪辑、加字幕特效、做成品视频的创作者（应使用剪映等剪辑软件）；\n- 只想免费录长视频的用户——免费档有 5 分钟和 25 个视频的限制；\n- 主要说中文的团队，AI 摘要和口头语识别对中文的效果建议先试用再决定是否付费。\n\n## 注意事项\n\n- **AI 功能不在普通 Business 档里**，购买前看清是不是「Business + AI」。\n- **分享链接的可见范围**：默认设置下拿到链接的人可能都能看，涉及内部信息时改成仅限团队成员或设置密码。\n- **录屏前关掉无关窗口和通知**，避免把聊天记录、密钥等录进去。\n- **与 Atlassian 账号的整合**仍在进行，登录方式和计费入口以官网当前说明为准。",
+      "images": [],
+      "sources": [
+        "https://www.loom.com/pricing",
+        "https://www.loom.com/"
+      ]
+    },
+    {
+      "title": "Clipchamp 是什么、怎么用：微软的免费在线视频剪辑工具，AI 字幕、AI 配音与会员区别",
+      "slug": "clipchamp-microsoft-video-editor",
+      "name": "Microsoft Clipchamp",
+      "url": "https://clipchamp.com/",
+      "pricing": "免费+付费（Premium 含于 Microsoft 365 个人版 / 家庭版）",
+      "platforms": "网页 / Windows 应用",
+      "trialNote": "免费版可导出 1080p 且无水印，含 AI 字幕、AI 配音和静音移除",
+      "tags": [
+        "ai-tools",
+        "video-script",
+        "social-media",
+        "office"
+      ],
+      "excerpt": "Clipchamp 是微软的在线视频剪辑工具，有网页版和 Windows 应用。免费版即可无水印导出 1080p，并提供 AI 字幕、AI 配音和静音移除；4K 导出和高级素材属于 Premium，随 Microsoft 365 个人版和家庭版提供。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Clipchamp 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nClipchamp 是微软旗下的视频剪辑工具。很多 Windows 用户是在电脑里看到这个应用才知道它的——它是微软官方的软件，不是捆绑的第三方程序。它有两种用法：在浏览器里直接打开网页版（不需要下载），或者使用 Windows 应用，用个人 Microsoft 账号登录。\n\n它的定位是**轻量、够用**：时间轴剪辑、模板、素材库和几项实用的 AI 功能，适合做工作汇报视频、课程录屏、社交媒体短片，而不是专业影视后期。\n\n## 能做什么\n\n官网定价页列出的功能：\n\n- **基础剪辑**：裁剪、分割、旋转、调整画面尺寸；\n- **AI 字幕**：自动识别语音生成字幕；\n- **AI 配音**：把文字转成旁白语音；\n- **静音移除**：自动找出并删除长时间停顿；\n- **素材库**：免版税的视频、音乐和图片素材；\n- **Premium 增加**：4K 导出、高级素材、高级滤镜与特效、品牌套件（统一的 Logo、字体和配色）。\n\n官网说明免费版和 Premium 都提供 AI 视频与音频编辑工具；完整的高级功能和「AI 视频创作」在工作场景下需要 Copilot 许可。\n\n## 怎么上手\n\n1. 打开 clipchamp.com 或 Windows 里的 Clipchamp 应用，用个人 Microsoft 账号登录。\n2. 新建视频，把素材拖进媒体库，再拖到时间轴上。\n3. 剪掉多余部分；在侧边栏打开字幕功能，选择语言后自动生成字幕并校对。\n4. 需要旁白时，用文字转语音输入文案、选择声音。\n5. 点击导出，选择 1080p（免费）或更高分辨率。\n\n## 免费与付费\n\n- **免费版**：视频数量不限，导出最高 1080p、**没有水印**，包含 AI 字幕、AI 配音和静音移除。\n- **Premium**：4K 导出、高级素材与特效、品牌套件。定价页没有单独列出金额，而是说明 Premium **包含在 Microsoft 365 个人版和家庭版**订阅中。\n- **工作 / 学校账号**：部分商业版和教育版许可包含标准的工作版 Clipchamp，功能与个人版不完全相同。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 用 Windows、偶尔需要剪视频的上班族、老师和学生；\n- 已经订阅 Microsoft 365 个人版或家庭版、想把附带权益用起来的人；\n- 需要快速给视频加字幕和旁白的内容作者。\n\n**不适合：**\n- 做抖音、小红书等国内平台内容的创作者，剪映的模板、特效和发布流程更贴合；\n- 需要多机位、调色、复杂特效的专业剪辑；\n- 网络环境较差的用户——网页版对网络和浏览器性能有要求。\n\n## 注意事项\n\n- **账号类型不同功能不同**：个人账号和工作 / 学校账号是两套版本，教程要看对版本。\n- **素材授权**：库里的素材分免费和高级，高级素材需要 Premium 才能导出。\n- **AI 字幕要校对**：专有名词、中英混说容易识别错。\n- **AI 配音的使用范围**：用于商业视频前，查看微软的服务条款。\n- **项目与媒体的保存位置**：留意素材是保存在本机还是云端，换电脑前确认已备份。",
+      "images": [],
+      "sources": [
+        "https://clipchamp.com/en/pricing/",
+        "https://clipchamp.com/en/"
+      ]
+    },
+    {
+      "title": "ProcessOn AI 是什么、怎么用：国产在线流程图与思维导图工具的 AI 生成功能",
+      "slug": "processon-ai-online-diagram",
+      "name": "ProcessOn",
+      "url": "https://www.processon.com/",
+      "pricing": "免费+会员，价格以官网为准",
+      "platforms": "网页 / PC 客户端 / App / 小程序 / 企业微信版 / 飞书版 / 钉钉版",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "office",
+        "learning",
+        "product-design"
+      ],
+      "excerpt": "ProcessOn 是国产在线作图工具，支持流程图、泳道图、思维导图、UML、架构图、ER 图等，多人实时协作、云端存储。AI 功能可快速生成思维导图，可选会议提纲、SWOT 分析等类型。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 ProcessOn 官网整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nProcessOn 是一款在线作图工具，运营方为北京大麦地信息技术有限公司。打开浏览器就能画图，文件存在云端，支持多人实时协作。它在国内职场和校园里用得很普遍：写方案要配流程图、做汇报要画架构图、备考要整理思维导图，很多人的第一反应就是打开它。\n\n## 能做什么\n\n**图形类型**（官网列出）：\n\n- 流程图、泳道图；\n- 思维导图；\n- UML、ER 图、架构图；\n- 甘特图、鱼骨图等。\n\n**AI 功能**：官网介绍可以用 AI 快速生成思维导图，并且可以选择生成的类型，例如标准思维导图、会议提纲、SWOT 分析等——也就是说它不只是把一句话拆成树状结构，还会按你选的框架来组织内容。\n\n**协作与平台**：多人实时协作、云端存储；除网页版外，还有 PC 客户端、App、小程序，以及嵌在企业微信、飞书、钉钉里的版本，方便在办公软件里直接打开。\n\n## 怎么上手\n\n1. 打开 processon.com 注册登录。\n2. 新建文件时选择图形类型；要用 AI 就选择 AI 生成入口。\n3. 输入主题并选择类型，例如选「SWOT 分析」后输入：\n\n```text\n一家社区咖啡店准备上线外卖和会员小程序\n```\n\n4. 得到初稿后直接在画布上增删节点、调整层级和样式。\n5. 通过链接分享给同事协作，或导出为图片、PDF 等格式放进文档和 PPT。\n\n不想从零开始时，也可以在模板社区里找同类型的图，克隆后修改。\n\n## 免费与付费\n\n可以免费注册使用，会员可使用更多功能与额度。官网有「价格」入口，但首页没有列出具体金额与计费周期，AI 功能的可用次数也未写明，**均以官网价格页为准**。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 需要画流程图、架构图、泳道图的产品、研发和运营人员；\n- 用思维导图整理知识点的学生和备考人群；\n- 团队都在用企业微信、飞书或钉钉，希望在里面直接协作画图的公司。\n\n**不适合：**\n- 做高保真界面设计的设计师；\n- 需要离线使用、文件必须只存在本地的场景；\n- 期望 AI 直接生成复杂技术架构图并保证正确的人——AI 目前主要用于思维导图类的起草。\n\n## 注意事项\n\n- **AI 生成的是提纲级内容**：SWOT、会议提纲里的具体论点要结合真实情况改写，不要原样用于正式报告。\n- **公开与私密**：发布到模板社区的文件是公开的，含公司内部信息的图注意设置为私密。\n- **重要文件及时导出备份**：免费版与会员在文件数量、导出等方面的差别以官网价格页为准。\n- **认准官网**：通过官网或办公平台的官方应用市场进入，避免山寨站点。",
+      "images": [],
+      "sources": [
+        "https://www.processon.com/"
+      ]
+    },
+    {
+      "title": "Rows 是什么、怎么用：自带 AI 分析师和数据集成的在线电子表格与官网定价",
+      "slug": "rows-ai-spreadsheet",
+      "name": "Rows",
+      "url": "https://rows.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页",
+      "trialNote": "Free 档每月 5 次 AI 任务、500 次单元格数据补全任务",
+      "tags": [
+        "ai-tools",
+        "data-analysis",
+        "office",
+        "marketing"
+      ],
+      "excerpt": "Rows 是面向团队的在线电子表格，能通过集成直接拉取广告、分析、CRM 等业务数据，并内置 AI 分析师：用自然语言提问、生成图表，或从 PDF 和图片里提取数据。官网显示它已加入 Superhuman。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Rows 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nRows 是一款在线电子表格，官网称它为「给团队用的一体化表格」。它和 Excel、Google 表格的操作方式相似，但多了两样东西：\n\n- **数据集成**：直接连接各种在线服务，把业务数据导入表格里的「数据表」（Data Tables），并且可以定时自动更新，不用每次手动导出再粘贴；\n- **AI 分析师**：用自然语言向表格提问。\n\n官网定价页注明 Rows 已加入 Superhuman。\n\n## 能做什么\n\n- **AI Analyst**：用一句话让它汇总、透视、找趋势、画图表，例如「按月统计各渠道的花费和转化，并指出环比变化最大的渠道」。每条消息计为 1 次 AI 任务。\n- **AI Vision**：上传 PDF 或图片，把里面的表格和数字提取成可编辑的数据。每个文件计 1 次 AI 任务。\n- **单元格数据补全**：对一列数据逐行调用 AI 或外部数据源做分类、提取、补全。\n- **自动化数据表**：付费档可以每天、甚至每分钟自动刷新集成数据。\n- **API**：通过接口读写表格。\n\n## 怎么上手\n\n1. 在 rows.com 注册，新建一张表格，或导入已有的 CSV / Excel 文件。\n2. 需要外部数据时，在集成里连接对应账号，选择要导入的报表。\n3. 打开 AI 分析师面板，直接用自然语言提问；它会生成结果表或图表并插入到表格中。\n4. 把做好的表格分享给同事或访客查看。\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）：\n\n| 方案 | 月付 | 年付折合每月 | 主要额度 |\n| --- | --- | --- | --- |\n| Free | 0 | 0 | 每月 5 次 AI 任务；手动导入数据表；10 个集成账号；3 位访客；每月 500 次单元格补全任务和 500 次 API 调用 |\n| Plus | 8 美元/用户 | 6 美元/用户 | 每月 200 次 AI 任务；数据表每日自动更新；10 位访客 |\n| Pro | 79 美元 + 8 美元/用户 | 59 美元 + 6 美元/用户 | 每月 1,000 次 AI 任务；分钟级自动化；100 个集成账号；200 位访客 |\n| Enterprise | 联系销售 | — | 定制 |\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 每周要从多个平台拉数据做报表的市场、增长和运营人员；\n- 会用表格但不想写复杂公式和透视表的人；\n- 需要把纸质单据、PDF 报表里的数字录入表格的场景。\n\n**不适合：**\n- 主要使用国内平台数据的团队，现成的集成以海外服务为主；\n- 需要 VBA 宏、复杂财务模型的重度 Excel 用户；\n- AI 用量大的个人——免费档每月只有 5 次 AI 任务。\n\n## 注意事项\n\n- **AI 任务按次计**，每问一句扣一次，尽量把问题一次说完整。\n- **AI 结果要核对**：让它展示用到的公式或步骤，抽查几行原始数据。\n- **数据授权**：连接广告、CRM 等账号时只授予必要权限，离职成员及时移除。\n- **归属变化**：产品已并入 Superhuman 旗下，账号体系和计费方式后续可能调整，以官网公告为准。",
+      "images": [],
+      "sources": [
+        "https://rows.com/pricing",
+        "https://rows.com/"
+      ]
+    },
+    {
+      "title": "Hex 是什么：带 AI Agent 的协作式数据分析笔记本与数据应用平台，功能与定价",
+      "slug": "hex-ai-analytics-notebook",
+      "name": "Hex",
+      "url": "https://hex.tech/",
+      "pricing": "免费+付费",
+      "platforms": "网页",
+      "trialNote": "Community 档免费，面向个人爱好者和小项目，含 Hex agent 试用；学生和教师可免费使用 Professional",
+      "tags": [
+        "ai-tools",
+        "data-analysis",
+        "research-data",
+        "coding"
+      ],
+      "excerpt": "Hex 是面向数据团队的 AI 分析平台：在协作式笔记本里混用 SQL、Python 和无代码单元做分析，由 Hex agent 协助写查询和画图，再发布成交互式数据应用，业务人员可用 Threads 对话式自助取数。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Hex 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。这是一款面向数据团队的专业工具，本文只做简要介绍。\n\n## 是什么\n\nHex 是一个在线的数据分析工作平台，官网现在的定位是「AI 分析平台」。它的基础形态是**协作式笔记本**：像 Jupyter 一样一格一格地写，但同一个笔记本里可以混用 SQL、Python 和图表、输入控件等无代码单元，直接连接公司的数据仓库，多人同时编辑。做完的分析可以一键发布成带筛选器的交互式数据应用，给不写代码的同事使用。\n\n## 能做什么\n\n官网列出的三块核心能力：\n\n- **智能体笔记本（agentic notebooks）**：Hex agent 根据你的描述写 SQL 和 Python、生成图表、解释和修正报错；\n- **Threads（对话式自助分析）**：业务人员用自然语言提问，在数据团队设定好的数据范围内直接得到答案；\n- **交互式数据应用**：把笔记本发布成看板或小工具，支持定时运行（Team 及以上）。\n\n## 怎么上手\n\n1. 在 hex.tech 注册 Community 免费账号。\n2. 新建项目，上传一个 CSV 文件，或配置数据库 / 数据仓库连接。\n3. 新建 SQL 单元查询数据，再用图表单元可视化；不熟悉语法时让 Hex agent 根据需求生成。\n4. 把关键图表和说明拖进应用布局，发布并分享链接。\n\n## 免费与付费\n\n官网定价页（美元，按编辑者按月计费，2026-10 查询）：\n\n| 方案 | 价格 | 主要内容 |\n| --- | --- | --- |\n| Community | 免费 | 面向爱好者和小项目，含 Hex agent 试用 |\n| Professional | 36 美元/编辑者/月 | 含 Hex agent 与标准额度，最多发布 5 个应用 |\n| Team | 75 美元/编辑者/月 | 更多额度，应用发布不限，定时运行；有 14 天免费试用 |\n| Enterprise | 联系销售 | 审计日志、SSO、自带密钥（BYOK）和专属支持 |\n\n学生和教育工作者可以免费使用 Professional。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 有数据仓库、数据分析师和数据科学家协作的公司；\n- 既写 SQL 又写 Python、希望在一个地方完成取数、分析和分享的人；\n- 想让业务同事自助查数、减少临时取数需求的数据团队。\n\n**不适合：**\n- 只有几张 Excel 要处理的普通办公用户，表格类 AI 工具更直接；\n- 数据不允许连接海外云服务的企业；\n- 没有任何 SQL 或 Python 基础、也没有数据团队支持的个人。\n\n## 注意事项\n\n- **按「编辑者」收费**：只查看应用的同事通常不占编辑者席位，规划好角色能省不少钱。\n- **数据库权限**：连接数据仓库时使用只读、最小权限的专用账号。\n- **AI 生成的查询要审核**：指标口径、表关联条件可能与公司定义不一致，关键报表需要人工复核。\n- **额度**：Hex agent 的使用按额度计，重度使用前了解各档的额度差异。",
+      "images": [],
+      "sources": [
+        "https://hex.tech/pricing/",
+        "https://hex.tech/"
+      ]
+    },
+    {
+      "title": "Quadratic 是什么、怎么用：单元格里能写 Python 和 SQL 的 AI 电子表格与官网定价",
+      "slug": "quadratic-ai-spreadsheet-python",
+      "name": "Quadratic",
+      "url": "https://www.quadratichq.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页",
+      "trialNote": "Free 个人档可用，AI 用量、分享、文件数和数据连接有限",
+      "tags": [
+        "ai-tools",
+        "data-analysis",
+        "research-data",
+        "coding"
+      ],
+      "excerpt": "Quadratic 是 AI 电子表格：除了常规公式，单元格里还能直接运行 Python、SQL 和 JavaScript，内置 AI 帮你做分析、画图、从 PDF 提取数据和做调研。Pro 档每月含 20 美元 AI 额度。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Quadratic 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nQuadratic 是一款在浏览器里运行的电子表格，它的想法是把「表格」和「代码笔记本」合二为一：界面是你熟悉的行和列，但一个单元格里可以放一段 **Python、SQL 或 JavaScript**，运行结果（一张表、一个图）直接铺在表格里，其他单元格可以继续引用。\n\n再加上内置的 AI 之后，它变成了一种新的用法：你用自然语言说要分析什么，AI 替你写代码并在表格里执行，过程和结果都留在表上，可以检查、可以改。\n\n## 能做什么\n\n- **多语言单元格**：公式、Python、SQL、JavaScript 混用；\n- **AI 分析**：描述需求，AI 生成代码、清洗数据、做统计；\n- **AI 图表**：一句话生成可视化；\n- **从 PDF 提取数据**：把报告、对账单里的表格变成可计算的数据；\n- **AI 调研**：让 AI 联网查资料并把结果整理进表格；\n- **数据连接**：连接数据库等数据源，用 SQL 直接查询（免费档连接数有限）；\n- **多人协作与分享**。\n\n## 怎么上手\n\n1. 在 quadratichq.com 注册并新建一个表格文件。\n2. 导入 CSV / Excel，或直接粘贴数据。\n3. 打开 AI 面板，说明要做什么，例如：\n\n```text\nA 到 F 列是订单明细。请按月份和品类汇总销售额，画一张堆叠柱状图，并在旁边列出同比增长最快的三个品类。\n```\n\n4. AI 会在表格里插入代码单元并运行。点开单元格可以看到它写的 Python，按需修改。\n5. 想自己写时，在任意单元格按提示选择语言，直接写代码引用表格里的区域。\n\n## 免费与付费\n\n官网定价页（美元，按用户、年付折合的月价，2026-10 查询）：\n\n| 方案 | 价格 | 主要内容 |\n| --- | --- | --- |\n| Free（个人） | 0 | AI 用量有限；分享、文件数和连接数有限 |\n| Pro | 18 美元/用户/月 | 每月含 20 美元 AI 额度，可用更多模型，分享、文件和连接不限 |\n| Business | 36 美元/用户/月 | 每月含 40 美元 AI 额度，可按需加购 AI 额度 |\n| Enterprise | 联系销售 | 定制 |\n\n页面提供月付选项，但没有列出月付金额，以结算页为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 会一点 Python 或 SQL、觉得 Excel 公式不够用的数据分析师、研究人员和工程师；\n- 不会写代码、但希望 AI 写出的分析过程是透明可查的人；\n- 需要把数据库查询结果和手工数据放在一张表里对照的场景。\n\n**不适合：**\n- 只做简单记账、排班的普通表格用户；\n- 需要离线使用或与同事通过 Excel 文件来回传的团队；\n- 依赖 Excel 特有功能（VBA、Power Query、复杂的数据透视表格式）的工作流。\n\n## 注意事项\n\n- **AI 额度按金额计**：选用的模型越强、数据量越大，消耗越快。\n- **代码结果仍需验证**：AI 可能误解列的含义，先在小样本上核对。\n- **敏感数据**：表格内容和你发给 AI 的数据会在云端处理，涉及客户信息或财务数据前确认合规要求。\n- **导出**：需要交付给他人时，确认导出格式里代码单元的结果是否保留为静态值。",
+      "images": [],
+      "sources": [
+        "https://www.quadratichq.com/pricing",
+        "https://www.quadratichq.com/"
+      ]
+    },
+    {
+      "title": "Julius AI 是什么、怎么用：上传表格就能对话分析数据、出图表和报告的 AI 工具与定价",
+      "slug": "julius-ai-data-analyst",
+      "name": "Julius",
+      "url": "https://julius.ai/",
+      "pricing": "免费+付费",
+      "platforms": "网页",
+      "trialNote": "Free 档可免费开始使用，面向想体验 AI 分析与创作的个人",
+      "tags": [
+        "ai-tools",
+        "data-analysis",
+        "research-data",
+        "office"
+      ],
+      "excerpt": "Julius 是对话式的 AI 数据分析工作台：上传表格或连接 Google Drive，用自然语言提问，它写代码完成清洗、统计和可视化，并能生成演示文稿、报告和网页。付费档按年发放积分。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Julius 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nJulius 是一款面向非程序员的 AI 数据分析工具。使用方式很直白：把 Excel、CSV 等数据文件传上去，然后像和分析师聊天一样提问——「哪个地区的退货率最高」「把销售额按周画成折线图」「这两组数据的差异显著吗」。它在后台写代码、运行，把图表和结论返回给你。\n\n官网现在把它称为「你的 AI 工作台」，范围从数据分析扩展到了**成果产出**：演示文稿、报告、网页，以及图像和视频。\n\n## 能做什么\n\n- **数据清洗与整理**：合并多张表、处理缺失值、调整格式；\n- **统计分析**：描述统计、分组对比、相关与回归等常见分析；\n- **可视化**：生成各类图表，付费档图表数量不限并可导出；\n- **生成成果**：把分析结果做成演示文稿、报告或网页；\n- **数据连接**：Free 档即包含 Google Drive 数据连接器；\n- **模型选择**：付费档可使用各家前沿模型，更高档位有更大的上下文窗口，能处理更大的数据和更长的对话。\n\n## 怎么上手\n\n1. 在 julius.ai 注册，新建对话并上传数据文件。\n2. 先让它「概览」数据：有哪些列、各列含义、有没有缺失和异常。\n3. 一次问一个明确的问题，例如：\n\n```text\n按「渠道」分组，计算每个渠道近三个月的订单数、客单价和复购率，用表格展示，并指出表现最差的渠道。\n```\n\n4. 检查它给出的图表和计算步骤，有疑问就让它解释用了什么方法。\n5. 满意后让它汇总成一份报告或几页演示文稿并导出。\n\n## 免费与付费\n\n官网定价页（美元，默认显示年付视图，年付比月付省 20%，2026-10 查询）：\n\n| 方案 | 年付视图下的月价 | 积分 | 主要内容 |\n| --- | --- | --- | --- |\n| Free | 0 | — | 可创建演示文稿、报告、网页、图像和视频，含 Google Drive 连接器 |\n| Plus | 16 美元 | 每年 24,000，另有每日刷新积分 | 1 个席位，可用前沿模型，可导出成果，图表不限 |\n| Pro | 37 美元 | 每年 60,000 | 更强的模型，更大的上下文窗口，优先邮件支持 |\n| Max | 166 美元 | 每年 300,000 | 面向重度用户，最强模型与最大上下文 |\n\n月付价格以页面切换到 Monthly 后显示的为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 需要分析数据但不会写代码的运营、市场、产品、财务人员；\n- 写论文、做课程作业需要基础统计和图表的学生；\n- 想快速从一份数据得到「可汇报的结论和图」的人。\n\n**不适合：**\n- 数据不能上传到第三方云服务的场景；\n- 需要直接对接企业数据仓库、做长期报表体系的数据团队，Hex 这类平台更合适；\n- 想找中文界面和国内支付方式的用户，可以看 ChatExcel 等国内工具。\n\n## 注意事项\n\n- **结论要复核**：AI 可能选错统计方法或误解字段含义，重要结论让它展示计算过程，并抽查原始数据。\n- **不要上传含个人隐私或商业机密的数据**，或先做脱敏。\n- **积分按年发放**：年付方案的积分是全年总量，注意别在前几个月用完。\n- **医疗、金融等专业结论**不能只依赖工具输出，需要专业人员判断。",
+      "images": [],
+      "sources": [
+        "https://julius.ai/pricing",
+        "https://julius.ai/"
+      ]
+    },
+    {
+      "title": "ChatExcel 是什么、官网怎么用：用对话处理 Excel 表格数据的国产 AI 工具（元空 ChatExcel）",
+      "slug": "chatexcel-yuankong-ai-table",
+      "name": "元空 ChatExcel",
+      "url": "https://www.chatexcel.com/",
+      "pricing": "免费体验+套餐，价格以官网为准",
+      "platforms": "网页",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "data-analysis",
+        "office",
+        "finance"
+      ],
+      "excerpt": "元空 ChatExcel 是国产的对话式表格处理工具：上传 Excel 后用中文下指令，完成跨表关联、数据核对、统计分析并生成报告和图表，另有 AI PPT、AI Word 和按行业划分的智能体。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据元空 ChatExcel 官网工作台页面整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nChatExcel 是一款用「聊天」来处理表格的国产 AI 工具，官网现在的全称是**元空 ChatExcel**，标题写的是「AI 处理表格数据与生成 PPT」。它解决的是很多人的日常痛点：表格里的活儿不难，但公式记不住、透视表不会做、几张表对来对去很花时间。在 ChatExcel 里，把文件传上去，用一句中文说清楚要什么就行。\n\n## 能做什么\n\n官网工作台首页展示的功能和案例：\n\n- **AI Excel-Max**：核心的表格处理能力。官方案例包括银行流水核查（筛查异常数据、核对收支逻辑）、投资核算审核（跨表关联引用、逻辑复核、保留公式）、多 Sheet 的人力报表诊断、订单跟踪、进销存分析等；\n- **生成报告与看板**：案例里的产出形式有 Word 报告、多格式分析报告、HTML 交互仪表盘、Markdown 摘要；\n- **AI PPT / AI Word**：把分析结果或主题做成演示文稿、文档；\n- **行业智能体**：按财务会计、投资分析、人力行政、生产制造、电商运营、销售管理、营销推广、教育培训、快递物流、出口贸易、科研实验等行业划分的预设场景；\n- **压缩包分析**：一次上传多份文件一起处理。\n\n## 怎么上手\n\n1. 打开 chatexcel.com，注册或登录。\n2. 在「想让我帮你做什么」的输入框里上传 Excel 文件。\n3. 用具体的话描述需求，例如：\n\n```text\n这是 1—6 月的销售明细和一张客户信息表。请按客户编号把两张表关联起来，统计每个省份每月的销售额和订单数，找出连续两个月下滑的省份，并生成一份带图表的分析报告。\n```\n\n4. 查看结果表和说明，继续追问或让它调整；确认无误后下载文件或报告。\n5. 不知道怎么描述时，先点开官方案例，照着类似场景改。\n\n## 免费与付费\n\n可以注册后体验，更多用量通过购买套餐获得；官网首页有邀请好友返佣的活动入口。套餐档位、价格和免费额度核对时未在首页列出，**以官网套餐页为准**。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 每天和 Excel 打交道的财务、人事、运营、销售助理等岗位；\n- 需要做对账、核对、多表合并，但不熟悉函数和透视表的人；\n- 想要中文界面、国内直接访问的表格 AI 工具的用户。\n\n**不适合：**\n- 表格里有不能外传的客户隐私、薪酬或涉密数据的情况；\n- 需要在本地 Excel 里实时联动公式和宏的重度用户；\n- 对结果零容错、又没有时间复核的正式财务结算。\n\n## 注意事项\n\n- **上传前脱敏**：姓名、手机号、证件号、银行账号等敏感字段先删除或打码。\n- **结果必须复核**：对账、核算类结果至少抽查几行原始数据；官方案例里的「股价走势分析」「投资价值分析」只是功能演示，不构成投资建议。\n- **描述要具体**：说清楚用哪几列、怎么分组、输出成什么格式，返工更少。\n- **认准官网域名**，警惕名称相近的仿冒站点。",
+      "images": [],
+      "sources": [
+        "https://www.chatexcel.com/"
+      ]
+    },
+    {
+      "title": "Intercom Fin 是什么：按解决结果收费的 AI 客服 Agent，功能、接入方式与价格",
+      "slug": "intercom-fin-ai-agent",
+      "name": "Fin（Intercom）",
+      "url": "https://fin.ai/",
+      "pricing": "按结果付费",
+      "platforms": "网页后台 / 在线聊天、邮件、短信、WhatsApp、社交渠道、电话",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "ecommerce-ops",
+        "marketing"
+      ],
+      "excerpt": "Fin 是 Intercom 推出的 AI 客服智能体，7×24 小时回答并解决客户问题，可配合 Intercom 使用，也可以接在 Salesforce、HubSpot 等现有客服系统上，按每个结果 0.99 美元计费。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Fin 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。这是一款面向企业的客服产品，本文只做简要介绍。\n\n## 是什么\n\nFin 是客服软件公司 Intercom 推出的 AI 客服智能体（AI Agent）。它的任务不是「辅助人工客服打字」，而是**直接面对客户，把问题解决掉**：读取企业的帮助文档和知识库，理解客户的问题，给出答案；需要时按预设流程执行操作，解决不了再转给人工。官网强调它 7×24 小时在线。\n\n在 AI 客服这个品类里，Fin 最有代表性的是它的**收费方式**——不按席位、不按对话数，而是按「结果」收费。\n\n## 能做什么\n\n- **多渠道接待**：在线聊天、邮件、短信、WhatsApp 和社交渠道；电话通过 Fin Voice 提供；\n- **基于企业知识回答**：帮助中心文章、内部文档、历史对话等；\n- **转人工**：无法解决时把对话和上下文交给人工客服；\n- **独立使用或配合 Intercom**：定价页列出可对接的客服系统包括 Intercom、Salesforce、HubSpot、Freshworks、Dixa、Front、Zoho、Sprinklr 和 Gorgias。\n\n## 怎么上手\n\n1. 在 fin.ai 注册或预约演示。\n2. 选择接入方式：已有客服系统的选独立方案，把 Fin 接在现有系统上；没有的可以直接用 Intercom 套件。\n3. 导入知识来源（帮助中心、文档、网站）。\n4. 在测试环境里用真实的历史问题验证回答质量，补充缺失的文档。\n5. 先在一个渠道、部分流量上线，观察解决率和转人工的情况，再逐步放量。\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）：\n\n- **独立方案**（接在现有客服系统上）：每个结果 0.99 美元，每月最低 50 个结果；\n- **配合 Intercom 使用**：每个结果 0.99 美元，另加客服席位费每席每月 29 美元；\n- **线索资格判定（Qualification）**：每个 9.99 美元；\n- **Fin Voice**：定制报价。\n\n「结果」如何认定（例如客户确认问题已解决、或对话结束后未再追问）有具体规则，签约前请读清官网定义。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 客服咨询量大、重复问题多、帮助文档比较完善的 SaaS 和电商企业；\n- 面向海外客户、主要用英语等语言服务的团队；\n- 想按效果付费、不想为没解决问题的对话买单的公司。\n\n**不适合：**\n- 主要通过微信、抖音、淘宝等国内渠道服务客户的企业，应选择国内客服系统；\n- 知识库几乎空白的团队——AI 的回答质量取决于文档质量；\n- 咨询量很小的小商家，人工处理更划算。\n\n## 注意事项\n\n- **先把文档写好**：过期、互相矛盾的帮助文章会直接变成错误回答。\n- **设置兜底规则**：涉及退款、赔付、账号安全等敏感事项，保留人工确认。\n- **费用随解决量增长**：解决率越高账单越高，测算时与人工成本对比。\n- **数据合规**：客户对话含个人信息，确认数据处理协议与所在地区法规的要求。",
+      "images": [],
+      "sources": [
+        "https://fin.ai/pricing",
+        "https://fin.ai/"
+      ]
+    },
+    {
+      "title": "Zendesk AI 是什么：客服系统里的 AI Agent 与 Copilot，功能和按自动解决量计费的价格",
+      "slug": "zendesk-ai-agents-copilot",
+      "name": "Zendesk AI",
+      "url": "https://www.zendesk.com/",
+      "pricing": "付费（按客服席位 + 自动解决量）",
+      "platforms": "网页后台 / 多渠道客服",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "ecommerce-ops"
+      ],
+      "excerpt": "Zendesk 是国际主流的客服工单系统，AI 分两部分：直接答复客户的 AI Agent（各套餐均含，按自动解决量计费）和辅助人工客服的 Copilot 附加包。Suite Team 年付每席每月 55 美元。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Zendesk 官网定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。这是一款面向企业的客服产品，本文只做简要介绍。\n\n## 是什么\n\nZendesk 是一套客服与工单管理系统：把邮件、在线聊天、电话、社交媒体等渠道的客户咨询汇总到一个后台，分配给客服处理并跟踪进度。它在海外企业里使用很广，出海公司搭建客服体系时常会遇到它。\n\nZendesk 的 AI 能力分成两个方向，购买前要分清：\n\n- **AI Agent（AI 智能体）**：直接面向客户，自动回答并解决问题；\n- **Copilot**：面向人工客服，在他们处理工单时给出建议回复、总结和操作提示。\n\n## 怎么计费\n\n官网定价页（美元，2026-10 查询）：\n\n| 套餐 | 年付（每席每月） | 月付（每席每月） |\n| --- | --- | --- |\n| Suite Team | 55 美元 | 69 美元 |\n| Suite Professional | 115 美元 | 149 美元 |\n| Suite Enterprise + Copilot | 联系销售 | — |\n\n**AI Agent** 包含在所有 Suite 和 Support 套餐中，按「自动解决」（Automated Resolution，AR）计费——只统计没有转给人工、由 AI 独立解决的请求：\n\n- Suite Team 每席每月含 5 个 AR，Suite Professional 含 10 个；\n- 超出部分：承诺用量每个 1.50 美元，按量付费每个 2.00 美元。\n\n**Copilot** 是附加包：每席每月 50 美元（年付），可加在 Professional 及以上套餐；在 Professional 上 Copilot 的使用按每席每月 5 次合并计算。\n\n## 怎么上手\n\n1. 在 zendesk.com 申请试用，创建工作区。\n2. 接入渠道（邮箱、网站聊天窗口等），导入或撰写帮助中心文章。\n3. 开启 AI Agent，让它基于帮助中心回答常见问题，并设置转人工的条件。\n4. 在后台查看自动解决量和客户满意度，持续补充知识库。\n5. 人工客服团队较大时，再评估是否加购 Copilot。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 面向海外客户、需要多渠道统一工单管理的企业；\n- 客服团队有一定规模、需要报表和流程自动化的公司；\n- 已经在用 Zendesk、想在现有系统里启用 AI 的团队。\n\n**不适合：**\n- 主要通过国内社交和电商平台服务客户的商家；\n- 只有一两个人处理咨询的小团队，按席位加 AI 用量的成本偏高；\n- 只想给网站加一个简单问答机器人的场景，可以用更轻的工具。\n\n## 注意事项\n\n- **套餐自带的 AR 很少**：每席每月 5 到 10 个只够试用，正式使用要按超出单价估算预算。\n- **AR 的统计口径**：只计算未升级到人工的已解决请求，具体判定规则以官方定义为准。\n- **Copilot 与 AI Agent 是两笔钱**，不要混在一起比较。\n- **知识库质量决定效果**，上线前清理过期文章。\n- **客户数据合规**：涉及跨境数据处理时，确认数据中心位置与合同条款。",
+      "images": [],
+      "sources": [
+        "https://www.zendesk.com/pricing/",
+        "https://www.zendesk.com/"
+      ]
+    },
+    {
+      "title": "美洽是什么：国产在线客服系统的大模型获客机器人、智能客服机器人与 AI 语音客服",
+      "slug": "meiqia-ai-customer-service",
+      "name": "美洽",
+      "url": "https://www.meiqia.com/",
+      "pricing": "付费（可免费试用，价格需咨询）",
+      "platforms": "网页工作台 / Windows / macOS / iOS / 安卓",
+      "trialNote": "官网提供免费试用和预约演示",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "ecommerce-ops",
+        "marketing"
+      ],
+      "excerpt": "美洽是成都美洽网络科技有限公司的全渠道在线客服系统，AI 产品包括大模型获客机器人、智能客服机器人和 AI 语音客服，支持网页工作台、电脑客户端和手机 App，可通过 API、挂件或 iframe 接入。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据美洽官网整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。这是一款面向企业的客服产品，本文只做简要介绍。\n\n## 是什么\n\n美洽是一套国产的在线客服系统，运营方为成都美洽网络科技有限公司，官网称有超过 40 万家企业在使用。它的基本功能是把企业各个渠道来的访客咨询集中到一个工作台，由客服统一接待；在此之上，这两年叠加了基于大模型的 AI 产品。\n\n对国内企业来说，它和 Intercom、Zendesk 这类海外客服系统的区别主要在渠道适配和服务方式：面向国内的网站、App 和营销投放场景，中文界面与本地化的销售、售后支持。\n\n## AI 产品\n\n官网列出的几类：\n\n- **大模型获客机器人**：放在官网或投放落地页上，主动接待访客、了解需求并引导留下联系方式，侧重营销获客；\n- **智能客服机器人**：回答常见问题，分担人工客服的重复咨询；\n- **AI 语音客服**：处理电话场景的咨询；\n- **AI Agent**：官网另有 AI Agent 相关的产品页面。\n\n基础的客服能力包括：全渠道在线客服、多种消息类型、网页端工作台、Mac / Windows 客户端和 iOS / 安卓 App；接入方式有开放 API、网页挂件（widget）和 iframe 嵌入。\n\n## 怎么上手\n\n1. 在 meiqia.com 申请免费试用或预约演示。\n2. 创建工作台，把接待挂件的代码放到网站上，或按文档接入 App 等其他渠道。\n3. 配置机器人：导入常见问题和产品资料，设置开场白、留资话术和转人工规则。\n4. 用内部账号模拟访客测试，重点检查答非所问和该转人工时没有转的情况。\n5. 上线后定期查看对话记录，补充知识和优化话术。\n\n## 免费与付费\n\n官网没有公开价格，提供免费试用和演示预约，具体套餐与报价需要联系销售。采购前建议问清：按席位还是按对话量计费、机器人与人工席位是否分开收费、大模型调用是否另计。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 有官网、落地页，靠线上咨询获客的服务类、B2B、电商等国内企业；\n- 咨询量大、重复问题多，希望用机器人分担压力的客服团队；\n- 需要中文界面和本地化服务支持的公司。\n\n**不适合：**\n- 主要面向海外客户、需要 WhatsApp 等海外渠道深度支持的团队；\n- 咨询量很小的个体商家；\n- 需要完全私有化、数据不出内网而又没有相应预算的机构（是否支持私有部署需向官方确认）。\n\n## 注意事项\n\n- **留资要合规**：获客机器人收集访客手机号等信息时，需明确告知用途并取得同意，遵守个人信息保护相关法规。\n- **机器人话术别过度承诺**：涉及价格、效果、售后政策的回答要以正式规定为准，避免引发纠纷。\n- **知识库要持续维护**，活动、价格变动后及时更新。\n- **试用时用真实问题测**：拿历史对话里的高频问题来验证，比看演示更可靠。",
+      "images": [],
+      "sources": [
+        "https://www.meiqia.com/"
+      ]
+    },
+    {
+      "title": "Botpress 是什么、怎么用：搭建并部署 AI 客服与对话智能体的平台，免费版与定价",
+      "slug": "botpress-ai-agent-platform",
+      "name": "Botpress",
+      "url": "https://botpress.com/",
+      "pricing": "免费+付费",
+      "platforms": "网页（Studio）/ 网页聊天、WhatsApp、Slack 等渠道",
+      "trialNote": "Free 档每月 100 次对话、3 个席位、3 个 AI 智能体，无超额费用",
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "ecommerce-ops",
+        "marketing"
+      ],
+      "excerpt": "Botpress 是搭建和部署 AI 智能体的平台，提供可视化的 Studio 和客服工作台 Desk，可把智能体发布到网页聊天、WhatsApp、Slack 等渠道。免费档每月 100 次对话，付费档内含 AI 用量。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Botpress 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nBotpress 是一个 AI 智能体平台，用来搭建并部署面向客户或内部员工的对话式智能体。最典型的用途是**客服机器人**：把产品文档和常见问题交给它，放到官网的聊天窗口或 WhatsApp 上自动应答，处理不了再转人工。\n\n它在这个品类里的特点是「可视化 + 可编程」并重：不写代码可以用流程画布和知识库搭出一个可用的机器人，开发者也可以在节点里写代码、调用自己的接口。\n\n## 能做什么\n\n- **Studio**：可视化的搭建环境，配置知识库、对话流程、工具调用；\n- **Desk**：客服工作台，用于人工接管和处理对话；\n- **多渠道发布**：定价页列出的渠道有网页聊天（Webchat）、WhatsApp 和 Slack；语音渠道仅 Enterprise 提供；\n- **数据与存储**：内置表格、向量存储和文件存储，免费档分别为 1,000 行、100MB 和 100MB；\n- **AI 用量内含**：每次对话包含 0.10 美元的 AI 用量。\n\n## 怎么上手\n\n1. 在 botpress.com 注册免费账号，创建一个智能体。\n2. 在知识库里添加资料：上传文档，或填入网站地址让它抓取。\n3. 写清楚指令：它是谁、能回答什么、哪些情况要转人工。\n4. 在内置的模拟器里测试对话。\n5. 发布到网页聊天：把生成的代码片段贴到你的网站；或按指引连接 WhatsApp、Slack。\n\n## 免费与付费\n\n官网定价页（美元，年付视图，年付比月付省 20%，2026-10 查询）：\n\n| 方案 | 价格 | 每月对话数 | 说明 |\n| --- | --- | --- | --- |\n| Free | 0 | 100 | 3 个席位、3 个 AI 智能体，不产生超额费用 |\n| Plus | 150 美元/月（按年付） | 250 | 含 25 美元 AI 用量 |\n| Team | 750 美元/月（按年付） | 1,500 | 含 150 美元 AI 用量 |\n| Enterprise | 联系销售 | 定制 | 含语音渠道等 |\n\n月付价格以页面切换后显示的为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 面向海外客户、需要在网站和 WhatsApp 上自动应答的企业；\n- 想先用免费档验证「AI 客服能不能解决我们的问题」的小团队；\n- 有开发能力、需要把机器人接入自有系统的公司。\n\n**不适合：**\n- 主要通过国内社交平台和电商平台服务客户的商家；\n- 对话量大但预算有限的团队——付费档按对话数分级，量大时成本不低；\n- 只需要内部知识库问答的场景，自托管的开源方案可能更经济。\n\n## 注意事项\n\n- **按「对话」计量**：一次对话的定义和超额的处理方式以官网说明为准，上线前估算每月的对话量。\n- **AI 用量可能超出内含额度**：使用更贵的模型或对话很长时，每次对话 0.10 美元的额度可能不够。\n- **知识库要持续更新**，过期信息会直接变成错误回答。\n- **客户数据合规**：涉及个人信息时确认数据存储位置和处理协议。",
+      "images": [],
+      "sources": [
+        "https://botpress.com/pricing",
+        "https://botpress.com/"
+      ]
+    },
+    {
+      "title": "Khanmigo 是什么、怎么用：可汗学院的 AI 辅导老师，教师免费，学生与家长价格说明",
+      "slug": "khanmigo-khan-academy-ai-tutor",
+      "name": "Khanmigo",
+      "url": "https://www.khanmigo.ai/",
+      "pricing": "教师免费 / 学习者与家长付费",
+      "platforms": "网页（Khan Academy 账号）",
+      "trialNote": "教师可免费注册使用",
+      "tags": [
+        "ai-tools",
+        "learning",
+        "teaching"
+      ],
+      "excerpt": "Khanmigo 是可汗学院（Khan Academy）推出的 AI 辅导工具：对学生做引导式答疑、写作和辩论练习、编程反馈；对教师提供备课、出题、评分标准等工具。教师免费，学习者和家长每月 4 美元。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Khanmigo 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nKhanmigo 是非营利教育机构可汗学院（Khan Academy）推出的 AI 工具。它和通用聊天机器人最大的区别在于**教学方式**：学生问一道题，它不直接给答案，而是像一位有耐心的老师那样反问、给提示、让学生自己走到答案。这种设计是为了避免「拿 AI 抄作业」，把 AI 变成辅导而不是代写。\n\n它面向三类人：学习者、家长，以及教师。\n\n## 能做什么\n\n官网定价页列出的功能：\n\n**对学习者**\n\n- 个性化辅导：结合可汗学院的课程内容答疑；\n- 引导式写作练习和辩论练习；\n- 职业规划方面的指导；\n- 对编程作业给出反馈。\n\n**对家长**\n\n- 包含学习者的全部功能；\n- 把孩子添加到自己的账户下；\n- 查看孩子与 AI 的互动记录；\n- 出现需要关注的内容时收到提醒。\n\n**对教师**\n\n- 备课与教案设计；\n- 学生作业情况的汇总；\n- 生成评分标准（rubric）和课堂小测（exit ticket）；\n- 保留对话历史。\n\n## 怎么上手\n\n1. 打开 khanmigo.ai，用可汗学院账号登录或注册，选择身份（学习者 / 家长 / 教师）。\n2. 教师直接免费开通；学习者和家长需要订阅。\n3. 学生在做可汗学院的练习或看课程时，可以随时唤出 Khanmigo 提问。\n4. 教师从工具列表里选一个，例如「生成教案」，输入年级、科目和知识点。\n\n## 免费与付费\n\n官网定价页（美元，不含销售税，2026-10 查询）：\n\n| 身份 | 价格 |\n| --- | --- |\n| 教师 | 免费 |\n| 学习者 | 4 美元/月，或 44 美元/年 |\n| 家长 / 家庭 | 4 美元/月，或 44 美元/年 |\n| 学区 | 按需报价 |\n\n定价页没有写明可使用的国家和地区以及年龄要求，注册前请查看官网的可用性与条款说明。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 正在用可汗学院自学数学、科学、编程的学生；\n- 想了解孩子怎么使用 AI、希望有家长监督功能的家庭；\n- 用英文授课或教国际课程的教师，备课工具免费。\n\n**不适合：**\n- 需要中文讲解、对应国内教材和考纲的学生——内容与界面以英文为主；\n- 只想快速拿到答案的人，它的设计就是不直接给答案；\n- 所在地区无法注册或付款的用户。\n\n## 注意事项\n\n- **AI 也会算错**：数学推导和事实性内容偶尔出错，遇到与课本不一致的地方以教材和老师为准。\n- **未成年人使用**：建议在家长或教师知情的前提下使用，并留意官方的年龄与监护人同意要求。\n- **教师工具生成的教案是初稿**，需要结合学情和课程标准修改。\n- **订阅渠道**：只在官网订阅，注意是否自动续费。",
+      "images": [],
+      "sources": [
+        "https://www.khanmigo.ai/pricing",
+        "https://www.khanmigo.ai/"
+      ]
+    },
+    {
+      "title": "Photomath 是什么、怎么用：拍照解数学题并给出分步讲解的 App，免费版与付费版区别",
+      "slug": "photomath-scan-math-solver",
+      "name": "Photomath",
+      "url": "https://photomath.com/",
+      "pricing": "免费+付费",
+      "platforms": "iOS / 安卓",
+      "trialNote": "Basic 基础版免费，可扫描题目并查看解答",
+      "tags": [
+        "ai-tools",
+        "learning",
+        "teaching"
+      ],
+      "excerpt": "Photomath 是拍照解数学题的手机应用：用摄像头扫描题目或用内置计算器输入，得到答案和分步讲解，覆盖从小学算术到大学微积分。基础版免费，付费版每月 9.99 美元或每年 69.99 美元。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Photomath 官网整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nPhotomath 是一款数学学习 App，用法简单到只有一步：**把手机摄像头对准一道数学题**。它识别出题目——印刷体和手写体都可以，官网说明也支持应用题——然后给出解答，并把解题过程一步一步展开讲解。部分题目会提供多种解法。\n\n它不是通用的聊天机器人，只做数学这一件事，所以在「识别公式」和「步骤规范」上比让聊天助手看图解题更稳定。\n\n## 能做什么\n\n- **扫描解题**：拍照识别算式和应用题；\n- **智能计算器**：不方便拍照时手动输入算式；\n- **分步讲解**：每一步做了什么变形、为什么这么做；\n- **多种解法**：同一道题给出不同的方法供对比；\n- **覆盖范围**：官网列出从小学到大学的数学内容，包括代数、几何、三角、统计和微积分。\n\n## 怎么上手\n\n1. 在 App Store 或 Google Play 下载 Photomath。\n2. 打开 App，把题目放进取景框，保持光线充足、题目完整。\n3. 识别有误时，点开题目手动修改，或改用计算器输入。\n4. 先自己做一遍，再对照它的步骤找出自己错在哪一步——这是它最有价值的用法。\n\n## 免费与付费\n\n官网显示的价格（美元，2026-10 查询）：\n\n| 方案 | 价格 |\n| --- | --- |\n| Basic | 0 |\n| 付费版 | 9.99 美元/月，或 69.99 美元/年 |\n\n免费版可以扫描题目并得到解答；付费版提供更详细的讲解等进阶内容，两者的具体差别以 App 内说明为准。应用商店里显示的本地货币价格可能与官网美元价不同。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 自学或做作业时卡在某一步、身边没人可问的中学生和大学生；\n- 想检查孩子作业、但自己已经忘了解法的家长；\n- 需要快速验证计算结果的人。\n\n**不适合：**\n- 想拿它直接抄答案的学生——那样学不到东西，考试时也用不了；\n- 需要证明题、开放性探究题讲解的场景，它擅长的是计算与求解；\n- 需要对应国内教材的解题格式和书写规范时，它的步骤写法可能与老师的要求不同。\n\n## 注意事项\n\n- **步骤格式因地而异**：国外教材的书写习惯、符号（如小数点和乘号的写法）与国内不完全一样，考试答题以老师要求为准。\n- **识别错误会导致答案全错**：先确认它识别出的题目和原题一致。\n- **界面语言**：App 支持多种语言，中文支持情况以应用商店页面为准。\n- **订阅在应用商店里管理**，不需要时记得取消自动续费。",
+      "images": [],
+      "sources": [
+        "https://photomath.com/"
+      ]
+    },
+    {
+      "title": "Brave Leo 是什么、怎么用：Brave 浏览器内置的隐私 AI 助手，可接本地模型",
+      "slug": "brave-leo-browser-ai-assistant",
+      "name": "Brave Leo",
+      "url": "https://brave.com/leo/",
+      "pricing": "免费 / Premium 付费（价格以官网为准）",
+      "platforms": "Windows / macOS / Linux / 安卓 / iOS（Brave 浏览器内）",
+      "trialNote": "免费使用，无需注册账号",
+      "tags": [
+        "ai-tools",
+        "office",
+        "learning"
+      ],
+      "excerpt": "Leo 是 Brave 浏览器内置的 AI 助手，可总结网页、PDF 和 Google 文档，与任意标签页对话、按主题整理标签页，并支持接入自己的本地或远程模型。免费使用无需账号，官方称不保留也不用聊天内容训练。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Brave 官网的 Leo 介绍页整理，资料核对于 2026-10-11。功能变化快，以官网为准。\n\n## 是什么\n\nLeo 是 Brave 浏览器自带的 AI 助手，装好 Brave 就有，不需要另外安装扩展。Brave 本身是一款以拦截广告和追踪、保护隐私为卖点的浏览器，Leo 延续了同样的思路：**免费使用不需要注册账号**，官方表示不保留、不分享聊天内容，也不拿去训练模型。\n\n## 能做什么\n\n官网介绍页列出的功能：\n\n- **总结与问答**：总结当前网页、PDF、Google 文档和表格，并针对内容提问；\n- **与任意标签页对话**：把打开的标签页作为上下文；\n- **整理标签页**：按主题给一堆标签页分组；\n- **结合 Brave Search**：用搜索结果增强回答的时效性；\n- **写作与翻译**：生成内容、翻译、帮忙看代码；\n- **记忆与临时聊天**：可以跨对话记住你的偏好，也可以开不留痕的临时聊天；聊天历史保存在本地；\n- **自带模型（BYOM）**：接入你自己的本地模型或远程模型接口。\n\n模型方面，官网列出了 Mixtral、Anthropic 的 Claude 和 Meta 的 Llama 等，免费版和 Premium 可用的版本不同。\n\n## 怎么上手\n\n1. 在 brave.com 下载并安装 Brave 浏览器（桌面端支持 macOS、Windows、Linux，手机端支持安卓和 iOS）。\n2. 打开任意网页，点击地址栏或侧边栏里的 Leo 图标。\n3. 直接提问，例如「用五条要点总结这篇文章，并列出作者没有回答的问题」。\n4. 想换模型，在 Leo 面板的模型菜单里选择；想接本地模型，先用 Ollama 等工具在本机运行模型，再到设置里的 Leo 选项中添加自定义模型地址。\n\n## 免费与付费\n\n- **免费**：可直接使用，无需账号。\n- **Leo Premium**：提供更多模型和更快的响应。介绍页没有列出 Premium 的价格与计费周期，以官网订阅页为准。\n- **自带模型**：使用自己的本地模型不产生订阅费；接入远程接口则按对应服务商计费。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 已经在用或愿意换用 Brave 浏览器的人；\n- 在意隐私、不想为了用 AI 再注册一个账号的用户；\n- 想让浏览器 AI 助手使用本机模型的本地模型玩家。\n\n**不适合：**\n- 不打算更换浏览器的人——Leo 只在 Brave 里；\n- 需要最强模型做长篇写作、复杂推理的重度用户；\n- 想让 AI 自动操作网页、替你完成多步骤任务的人，那属于 Comet、Dia 这类智能体浏览器的方向。\n\n## 注意事项\n\n- **总结会把页面内容发给模型**：虽然官方承诺不保留，处理公司内网页面、含隐私的文档时仍要谨慎；用本地模型可以避免外发。\n- **模型名单会更新**，以浏览器里实际显示的为准。\n- **总结可能遗漏或误读**，重要内容回到原文核对。\n- **Brave 的其他功能**（如加密货币相关的奖励机制）与 Leo 无关，不用可以在设置里关闭。",
+      "images": [],
+      "sources": [
+        "https://brave.com/leo/"
+      ]
+    },
+    {
+      "title": "Opera AI（原 Aria）是什么、怎么用：Opera 浏览器内置的免费 AI，免登录、可生成图片",
+      "slug": "opera-ai-aria-browser",
+      "name": "Opera AI（原 Aria）",
+      "url": "https://www.opera.com/features/browser-ai",
+      "pricing": "免费",
+      "platforms": "Opera 桌面浏览器（其他平台以官网为准）",
+      "trialNote": "免费使用，无需登录或注册",
+      "tags": [
+        "ai-tools",
+        "office",
+        "learning"
+      ],
+      "excerpt": "Opera AI 是 Opera 浏览器内置的免费 AI 助手，官网称结合了 OpenAI 和 Google 的模型，能理解当前页面或标签页组的内容，做问答、总结、比较和内容生成，并提供免费的 AI 生图，无需登录。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Opera 官网的浏览器 AI 功能页整理，资料核对于 2026-10-11。功能变化快，以官网为准。\n\n## 是什么\n\nOpera 是一款历史很长的浏览器，这几年把内置 AI 作为主要卖点。很多教程里把它的 AI 助手叫作 **Aria**；现在官网功能页上的名称是 **Opera AI**，本次核对时页面上已经看不到 Aria 这个名字。两者指的是同一个位置的功能：浏览器侧边栏和页面里随时可以唤出的 AI。\n\n官网的说明是：Opera AI 结合了 OpenAI 和 Google 的模型，**免费，不需要登录或注册**。\n\n## 能做什么\n\n官网功能页列出的能力：\n\n- **聊天与问答**：回答问题、比较不同选项、生成内容；\n- **理解当前页面**：它知道你正在看的页面，或者一组标签页的内容，所以提问可以很短，比如「这几款哪个更值得买」；\n- **总结**：总结网页和文档；\n- **免费 AI 生图**：直接在浏览器里用文字生成图片；\n- **解数学题**；\n- **侧边栏接入其他助手**：可以把 ChatGPT、Gemini 添加到侧边栏，和 Opera AI 并排使用。\n\n## 怎么上手\n\n1. 在 opera.com 下载安装 Opera 桌面浏览器。\n2. 打开侧边栏里的 AI 入口，直接输入问题即可，不需要账号。\n3. 浏览网页时唤出它，让它基于当前页面回答，例如「提炼这篇评测的优缺点」。\n4. 打开几个商品页或几篇资料后，把它们放进一个标签页组，再让它做对比。\n5. 需要图片时，直接描述画面让它生成。\n\n## 免费与付费\n\nOpera AI 本身免费，官网写明无需登录或注册。侧边栏里添加的 ChatGPT、Gemini 等属于各自的服务，是否收费按它们自己的规则。\n\nOpera 另有一款名为 Opera Neon 的浏览器产品，在官网导航里单独列出，定位与收费方式不同，不在本文范围内，以官网介绍为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想要一个打开就能用、不用注册的免费 AI 助手的人；\n- 经常需要总结网页、比较多个页面内容的用户；\n- 本来就用 Opera，或不介意多装一个浏览器的人。\n\n**不适合：**\n- 不想更换浏览器的用户；\n- 需要选择具体模型、上传大量文件做深度分析的重度使用者；\n- 对数据处理位置有合规要求的企业场景。\n\n## 注意事项\n\n- **名称变化**：搜索「Opera Aria 怎么用」得到的老教程，入口位置和名称可能与当前版本不同。\n- **页面内容会被发送去处理**：让它读取页面前，留意页面上是否有个人信息或内部资料。\n- **功能页只提到了桌面版的安装**，手机版 Opera 的 AI 功能是否一致，以对应应用商店页面和官网为准。\n- **生成图片的使用范围**：商用前查看 Opera 的服务条款。\n- **回答的时效与准确性**仍需自己判断，重要信息请核对原始来源。",
+      "images": [],
+      "sources": [
+        "https://www.opera.com/features/browser-ai"
+      ]
+    },
+    {
+      "title": "Kagi 是什么、值不值得付费：无广告的订阅制搜索引擎与 Kagi Assistant AI 助手",
+      "slug": "kagi-search-assistant",
+      "name": "Kagi",
+      "url": "https://kagi.com/",
+      "pricing": "付费订阅（有免费试用额度）",
+      "platforms": "网页（可设为浏览器默认搜索引擎）",
+      "trialNote": "Trial 免费试用含 100 次搜索和 100 次 Assistant 对话",
+      "tags": [
+        "ai-tools",
+        "office",
+        "learning"
+      ],
+      "excerpt": "Kagi 是由用户付费支撑的搜索引擎：没有广告、不追踪用户。订阅各档都包含 AI 助手 Kagi Assistant，Ultimate 档提供研究模式和旗舰模型。可先用 100 次搜索的免费试用。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Kagi 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nKagi 是一个**收费的搜索引擎**。它的逻辑和主流搜索正好相反：不靠广告赚钱，而是向用户收订阅费，官网写明没有广告、没有追踪、不接受广告资金。因为不需要把广告位卖给出价高的网站，搜索结果页很干净，排序也不受广告影响。\n\n对习惯了免费搜索的人来说，「搜索还要花钱」听起来奇怪。Kagi 的用户大多是每天大量查资料的开发者、研究者和写作者，他们愿意为省下的筛选时间付费。\n\n## 能做什么\n\n- **搜索**：无广告的网页、图片、视频、新闻搜索；\n- **个性化排序**：把信任的网站调高、把内容农场调低或直接屏蔽（这是 Kagi 最受老用户喜欢的功能之一）；\n- **Kagi Assistant**：内置的 AI 助手，可以结合搜索结果回答问题。定价页说明 Starter 和 Professional 档包含 Quick 模式，Ultimate 档包含 Research（研究）模式和旗舰模型；\n- **配套工具**：页面摘要、翻译等小工具。\n\n## 怎么上手\n\n1. 在 kagi.com 注册，自动获得免费试用额度。\n2. 把 Kagi 设为浏览器的默认搜索引擎（安装官方扩展最方便）。\n3. 像平时一样搜索；遇到质量差的网站，点结果旁的菜单把它降权或屏蔽。\n4. 需要 AI 回答时切到 Assistant，它会引用搜索到的来源。\n5. 试用额度用完前，评估一下自己每月大概搜多少次，再决定订阅哪一档。\n\n## 免费与付费\n\n官网定价页（美元，月付，另加销售税；年付九折，2026-10 查询）：\n\n| 方案 | 价格 | 搜索次数 | AI |\n| --- | --- | --- | --- |\n| Trial | 免费 | 共 100 次 | 100 次 Assistant 对话 |\n| Starter | 5 美元/月 | 每月 300 次 | Assistant（Quick 模式） |\n| Professional | 10 美元/月 | 不限 | Assistant（Quick 模式） |\n| Ultimate | 25 美元/月 | 不限 | Research 模式与旗舰模型 |\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 每天重度使用搜索、厌倦广告和低质量聚合站的专业用户；\n- 希望自己掌控搜索结果排序的人；\n- 想把「搜索 + 多家 AI 模型」合成一个订阅的用户（Ultimate 档）。\n\n**不适合：**\n- 主要搜中文内容、依赖国内站内信息的用户——中文网页的覆盖和排序建议先用试用额度亲自体验；\n- 搜索频率不高的普通用户，免费搜索引擎加免费 AI 助手已经够用；\n- 所在网络环境无法稳定访问它的人。\n\n## 注意事项\n\n- **Starter 档有次数上限**：每月 300 次，平均一天 10 次，重度用户很快用完。\n- **价格不含税**，实际扣款金额以结算页为准。\n- **AI 回答仍需核对来源**：Assistant 会给出引用，重要信息点进原文确认。\n- **隐私**：虽然官方承诺不追踪，账号本身与付款信息仍是实名关联的，介意的话查看官网的隐私说明。",
+      "images": [],
+      "sources": [
+        "https://kagi.com/pricing",
+        "https://kagi.com/"
+      ]
+    },
+    {
+      "title": "Aider 是什么、怎么用：终端里的开源 AI 结对编程工具安装与入门教程",
+      "slug": "aider-terminal-ai-pair-programming",
+      "name": "Aider",
+      "url": "https://aider.chat/",
+      "pricing": "开源免费（Apache-2.0），模型费用自理",
+      "platforms": "命令行（Windows / macOS / Linux）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Aider 是 Apache-2.0 许可的开源命令行 AI 结对编程工具：在终端里对话改代码，自动生成 Git 提交，能为整个代码库建立地图，支持 100 多种语言，可接云端或本地模型。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Aider 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nAider 是一个在终端里运行的开源 AI 结对编程工具，仓库 Aider-AI/aider 约有 4.95 万星标，采用 Apache-2.0 许可。你在项目目录里启动它，用自然语言说要改什么，它直接修改本地文件，并把每次改动提交成一条 Git 记录。新项目和已有代码库都能用。\n\n在 Claude Code、Codex CLI 这些厂商自家的命令行工具出现之前，Aider 就已经是「终端 AI 编程」的代表作。它的不同之处在于**不绑定任何一家模型**：填哪家的 API Key 就用哪家，也可以接本地模型。\n\n## 能做什么\n\n- **Git 集成**：每次修改自动提交，并写好提交信息；不满意可以用 Git 撤销或对比。\n- **代码库地图（repo map）**：为整个仓库建立结构索引，让模型在大项目里也知道该改哪里。\n- **多语言**：支持 Python、JavaScript、Rust、Go、C++ 等 100 多种语言。\n- **语音写代码**：用说话的方式提出功能、测试或修复需求。\n- **Lint 与测试**：每次修改后自动跑检查和测试，发现问题让模型接着修。\n- **多种模型**：README 列举了 Claude、DeepSeek、OpenAI 等系列，也可以连接本地模型。\n\n## 怎么上手\n\n```bash\npython -m pip install aider-install\naider-install\n```\n\n然后进入你的 Git 项目目录，带上模型和密钥启动（具体参数以官方文档为准）：\n\n```bash\ncd 你的项目\naider --model 模型名 --api-key 服务商=你的密钥\n```\n\n进入对话后：\n\n1. 用 `/add 文件路径` 把要修改的文件加入会话；\n2. 直接描述需求，例如「给 parse_date 函数补上对空字符串的处理，并加一条单元测试」；\n3. 看它给出的修改和提交记录，有问题用 `/undo` 撤回上一次提交。\n\n## 免费与付费\n\nAider 本身免费开源，没有订阅。花费来自你所用模型的 API 账单；用本地模型则没有调用费。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 习惯终端和 Git 工作流的开发者；\n- 想自由切换模型、或只想用按量付费 API 而不买订阅的人；\n- 需要在服务器、远程终端等没有图形界面的环境里用 AI 改代码的场景。\n\n**不适合：**\n- 不熟悉命令行和 Git 的新手；\n- 想要图形化 diff、内联补全等编辑器体验的人，Cursor、Copilot 更合适；\n- 需要云端并行跑多个长任务的团队。\n\n## 注意事项\n\n- **一定在 Git 仓库里用**：自动提交是它的安全网，改动前先把自己的工作区提交干净。\n- **控制上下文**：只把相关文件加进会话，文件越多 Token 花得越快。\n- **留意账单**：大仓库加上高价模型，一次长对话可能花掉不少钱。\n- **README 里推荐的模型名单可能滞后**于各家的最新版本，选型时结合官方文档和自己的测试。\n- **代码仍需人工审查**：自动跑通测试不代表逻辑正确。",
+      "images": [],
+      "sources": [
+        "https://github.com/Aider-AI/aider",
+        "https://aider.chat/"
+      ]
+    },
+    {
+      "title": "Zed 编辑器怎么样、怎么用：高性能开源代码编辑器的 AI 功能与官网定价",
+      "slug": "zed-editor-ai-agent",
+      "name": "Zed",
+      "url": "https://zed.dev/",
+      "pricing": "免费+付费",
+      "platforms": "macOS / Linux / Windows",
+      "trialNote": "Personal 档永久免费，含 2,000 次已采纳的编辑预测，可无限使用自己的 API Key",
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Zed 是主打速度和多人协作的开源代码编辑器，内置 AI 编辑预测和智能体，可接入 Claude Agent、Codex CLI 等外部智能体，也能用自己的 API Key 或 Ollama；个人版永久免费。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Zed 官网、定价页与官方 GitHub 仓库整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nZed 是一款开源的代码编辑器，官网的介绍是「快速、开源、支持多人协作」。它不是基于 VS Code 改的，而是从头写的原生应用，所以启动、打开大文件、滚动和输入的响应速度是它最常被提到的优点。\n\nAI 方面，Zed 的思路比较开放：既提供自家托管的模型和编辑预测，也让你**用自己的 API Key**，还可以把其他厂商的命令行智能体接进编辑器里当面板用。\n\n## 能做什么\n\n- **编辑预测（Edit Predictions）**：边写边预测下一处修改，按 Tab 采纳。\n- **内置智能体**：在侧边面板用自然语言让 AI 读代码、跨文件修改。\n- **外部智能体**：官网提到可以使用 Claude Agent、Codex CLI 等外部智能体。\n- **自带密钥**：支持 Anthropic、OpenAI、Google AI、Ollama 等服务商，用自己的 Key 不经过 Zed 计费。\n- **多人协作**：共享项目、实时共同编辑。\n- **编辑器本体**：语法高亮、语言服务器、Git 集成、终端、扩展等。\n\n## 怎么上手\n\n1. 在 zed.dev 下载安装包并安装。\n2. 打开一个项目文件夹。\n3. 登录 Zed 账号可以使用托管模型和编辑预测；不想登录也可以在设置里填入自己的 API Key，或指向本机的 Ollama。\n4. 打开智能体面板，先让它解释项目结构，再交给它一个小改动。\n5. 界面语言、主题和按键习惯在设置里调整；从 VS Code 迁移的用户可以启用相应的按键映射。\n\n## 免费与付费\n\n官网定价页（美元，月付，2026-10 查询）：\n\n| 方案 | 价格 | 包含内容 |\n| --- | --- | --- |\n| Personal | 永久免费 | 2,000 次已采纳的编辑预测；用自己的 API Key 或外部智能体不限量 |\n| Pro | 10 美元/月 | 编辑预测不限量；含 5 美元的模型用量，超出部分按 API 标价加 10% 计费 |\n| Business | 30 美元/席位/月 | 在 Pro 基础上增加组织级模型策略、数据治理、统一费用视图和基于角色的权限 |\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 觉得基于 Electron 的编辑器不够流畅、追求响应速度的开发者；\n- 想自由组合「编辑器 + 自己的模型密钥 / 本地模型 / 外部智能体」的人；\n- 需要实时结对编程的小团队。\n\n**不适合：**\n- 重度依赖 VS Code 特定扩展的用户，Zed 的扩展生态规模较小；\n- 希望一个订阅包揽大量顶级模型用量的人——Pro 档自带的模型额度不多；\n- 需要完整中文界面的用户，下载前先确认当前版本的本地化情况。\n\n## 注意事项\n\n- **用量计费方式**：Pro 档超出赠送额度后按 API 标价上浮 10% 计费，重度使用建议直接填自己的密钥对比成本。\n- **编辑预测会发送代码上下文**：涉及保密代码时，查看官方的隐私与数据设置。\n- **外部智能体各自计费**：接入的第三方智能体按其自身的订阅或 API 规则收费。\n- **版本更新频繁**：AI 相关的设置项和面板位置变化较快，以当前官方文档为准。",
+      "images": [],
+      "sources": [
+        "https://zed.dev/pricing",
+        "https://zed.dev/",
+        "https://github.com/zed-industries/zed"
+      ]
+    },
+    {
+      "title": "Warp 终端是什么、怎么用：带编程智能体的现代终端下载、教程与官网定价",
+      "slug": "warp-agentic-terminal",
+      "name": "Warp",
+      "url": "https://www.warp.dev/",
+      "pricing": "免费+付费",
+      "platforms": "macOS / Linux / Windows",
+      "trialNote": "Free 档含核心终端与 Agent CLI，可自带模型推理，超出部分按量付费",
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Warp 是面向智能体编程的现代终端，内置编程智能体（Warp Agent CLI），并提供运行成批编程智能体的 Warp Factories，支持 macOS、Linux 和 Windows，免费档可自带模型。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Warp 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nWarp 最初是一款「更好用的终端」，现在官网把它定位为**面向智能体编程的现代终端**。它包含三样东西：\n\n- **终端本体**：命令分块显示、像编辑器一样的输入区、命令补全和历史搜索；\n- **编程智能体**：官网称为 Warp Agent CLI，在终端里用自然语言让它读代码、执行命令、修改文件；\n- **Warp Factories**：在软件开发各环节里运行成批编程智能体的服务，面向团队。\n\n支持的系统：macOS 10.14 及以上；Linux（.deb、.rpm、AppImage、Arch，x64 与 ARM64）；Windows 10 / 11（x64 与 ARM64）。\n\n## 能做什么\n\n- **用自然语言操作终端**：不记得命令时直接描述要做的事，由智能体给出并执行命令。\n- **在终端里改代码**：智能体读取项目、提出修改并展示 diff。\n- **云端智能体**：把任务放到云端运行（免费档数量有限）。\n- **自带模型推理**：免费档即可接入自己的模型推理；Business 档支持自带 API Key 和自定义推理端点。\n- **团队能力**：共享命令和工作流、统一计费与管理。\n\n## 怎么上手\n\n1. 在 warp.dev 下载对应系统的安装包。\n2. 首次打开按提示登录（部分功能需要账号）。\n3. 像普通终端一样使用；需要 AI 时在输入区切换到智能体模式，或直接用自然语言输入。\n4. 让智能体执行会改动系统或文件的命令前，先看清它要运行的内容再确认。\n\n试试这样问：\n\n```text\n查看当前目录下占用空间最大的 10 个文件夹，并按大小排序输出。\n```\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）：\n\n| 方案 | 月付 | 年付折合每月 | 主要内容 |\n| --- | --- | --- | --- |\n| Free | 0 | 0 | 核心终端、Agent CLI、有限的云端智能体与云端会话存储，可自带推理，额外用量按量付费 |\n| Build | 20 美元 | 18 美元 | 每月含 20 美元的智能体用量（按 API 价计） |\n| Max | 200 美元 | 180 美元 | 每月含 200 美元的智能体用量 |\n| Business | 50 美元/人 | 45 美元/人 | 最多 25 席；每席每月含 20 美元用量；自带 API Key 与自定义端点 |\n| Enterprise | 联系销售 | — | 定制 |\n\nWarp Factories 单独计价：按量付费档 0 月费、用量在 API 价基础上加 20%；Build 档 20 美元/月、用量按 API 价。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 每天大量使用命令行的开发者、运维和数据工程师；\n- 记不住复杂命令、希望用自然语言驱动终端的人；\n- 想在终端里统一使用编程智能体的团队。\n\n**不适合：**\n- 只想要一个轻量、无需登录的传统终端的用户；\n- 在严格隔离的内网环境工作、不能连接外部服务的场景；\n- 已经订阅其他编程智能体、不想再多付一份用量费的人（可只用免费档的终端功能）。\n\n## 注意事项\n\n- **命令是真的会执行**：让智能体自动执行命令前检查内容，尤其是删除、覆盖、权限相关的操作。\n- **用量按 API 价折算**：套餐里的「20 美元用量」花得多快取决于你选的模型。\n- **数据与隐私**：终端输出可能包含密钥和内部信息，使用 AI 功能前查看官方的数据处理说明和脱敏设置。\n- **界面以英文为主**，中文显示与输入法兼容性以当前版本为准。",
+      "images": [],
+      "sources": [
+        "https://www.warp.dev/pricing",
+        "https://www.warp.dev/"
+      ]
+    },
+    {
+      "title": "Augment Code 是什么、怎么用、价格多少：面向大型代码库的 AI 编程平台",
+      "slug": "augment-code-ai-coding-platform",
+      "name": "Augment Code",
+      "url": "https://www.augmentcode.com/",
+      "pricing": "付费（按套餐含用量）",
+      "platforms": "命令行 / 云端智能体 / GitHub 代码审查（其他客户端以官网为准）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Augment Code 是面向生产级大型代码库的 AI 编程平台，核心是理解整个仓库的 Context Engine，并提供命令行工具、云端智能体和 GitHub PR 代码审查，按套餐内含的美元用量计费。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Augment Code 官网与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nAugment Code 是一个 AI 编程平台，官网强调它是为**生产规模的代码库**而建的。它的差异化卖点叫 **Context Engine**（上下文引擎）：对整个仓库乃至多个仓库建立索引和理解，让智能体在几十万、上百万行的老项目里也能找对位置、沿用已有的写法，而不是只看当前打开的几个文件。\n\n## 能做什么\n\n官网当前列出的产品：\n\n- **Context Engine**：代码库级别的上下文检索，是其他能力的基础。\n- **CLI**：在终端里使用的编程智能体。\n- **Cloud Agents**：把任务交给云端智能体异步完成。\n- **Software Factory**：面向团队的自动化软件生产流程。\n- **Code Review**：对 GitHub 上的 Pull Request 做 AI 代码审查，定价页说明所有套餐都包含。\n\n## 怎么上手\n\n1. 在 augmentcode.com 注册并选择套餐。\n2. 按官方文档安装命令行工具（或官网当前提供的其他客户端），登录账号。\n3. 打开项目，等待 Context Engine 完成首次索引（大仓库需要一些时间）。\n4. 先用提问验证它对代码库的理解，例如「订单状态是在哪些地方被修改的」，再交给它具体的改动任务。\n5. 需要自动审查时，在 GitHub 上安装并授权它的应用。\n\n## 免费与付费\n\n官网定价页（美元，月付，统一价格、不按席位另收，2026-10 查询）：\n\n| 方案 | 价格 | 包含用量 | 席位上限 |\n| --- | --- | --- | --- |\n| Standard | 20 美元/月 | 20 美元用量 | 最多 50 席 |\n| Business | 100 美元/月 | 100 美元用量 | 最多 50 席 |\n| Enterprise | 联系销售 | 定制用量与加购 | 不限 |\n\n用量以美元计量，涵盖大模型调用、Context Engine 和计算资源。套餐用量用完后可以按量加购，加购额度自购买起 12 个月内有效。免费试用的具体条件核对时未在定价页写明，以官网为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 代码库庞大、历史包袱重、模块之间依赖复杂的工程团队；\n- 希望把 AI 代码审查接进 GitHub 流程的团队；\n- 觉得通用编程助手「不懂我们项目」的资深开发者。\n\n**不适合：**\n- 做小型个人项目或学习编程的人，通用工具的免费档就够用；\n- 希望长期免费使用的用户；\n- 代码不允许离开内网、又没有企业版预算的团队。\n\n## 注意事项\n\n- **用量制要算账**：同样的月费，选的模型越贵、任务越长，用量消耗越快；先用小任务观察消耗速度。\n- **代码会被索引**：使用前确认公司是否允许把代码发送给第三方服务，并查看官方的安全与合规文档。\n- **产品线调整较多**：老资料里的功能名和套餐名可能与现在不同，以官网当前页面为准。\n- **审查建议仅供参考**：AI 审查不能替代人工评审和测试。",
+      "images": [],
+      "sources": [
+        "https://www.augmentcode.com/pricing",
+        "https://www.augmentcode.com/"
+      ]
+    },
+    {
+      "title": "LangSmith 是什么、怎么用：LLM 应用的追踪、评测与部署平台及定价",
+      "slug": "langsmith-llm-observability-eval",
+      "name": "LangSmith",
+      "url": "https://www.langchain.com/langsmith",
+      "pricing": "免费+付费",
+      "platforms": "网页 / SDK / API / 企业可自托管",
+      "trialNote": "Developer 档免费，含 1 个席位和每月最多 5,000 条基础追踪",
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent",
+        "prompt-engineering"
+      ],
+      "excerpt": "LangSmith 是 LangChain 公司的 LLM 应用工程平台：记录每次调用的完整追踪，做线上线下评测、提示词管理和智能体部署。免费的 Developer 档每月含 5,000 条基础追踪。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 LangChain 官网的 LangSmith 介绍与定价页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nLangSmith 是 LangChain 公司的商业平台，解决的是 LLM 应用上线之后最头疼的问题：**它为什么这样回答？改了提示词之后是变好还是变坏了？** 它把应用的每一次运行记录成一条「追踪」（trace），里面能看到每一步调用了什么模型、传了什么内容、用了多少 Token、花了多长时间。\n\n需要澄清一点：LangSmith 并不要求你的应用必须用 LangChain 或 LangGraph 来写，通过 SDK 或 OpenTelemetry 也可以接入其他框架写的应用。\n\n## 能做什么\n\n官网定价页列出的能力：\n\n- **可观测性**：追踪、监控和洞察，定位出错或变慢的环节。\n- **评测**：线上与线下评测、标注队列，用数据集回归测试每次改动。\n- **提示词**：Prompt Hub 与 Playground，管理版本、对比不同模型的输出。\n- **部署**：把智能体部署上线（Plus 及以上可用 Deployment）。\n- **其他**：页面还列出了 Engine、Sandboxes 和 LLM Gateway 等组件。\n\n## 怎么上手\n\n1. 在官网注册，创建 API Key。\n2. 在应用的环境变量里配置 LangSmith 的密钥并开启追踪（具体变量名以官方文档为准）。\n3. 运行一次你的应用，回到网页就能看到对应的追踪。\n4. 把几条典型输入保存成数据集，写一个评测器，之后每次改提示词或换模型都跑一遍对比。\n\n## 免费与付费\n\n官网定价页（美元，2026-10 查询）：\n\n| 方案 | 价格 | 主要内容 |\n| --- | --- | --- |\n| Developer | 0 美元/席位/月，超出按量付费 | 1 个席位，每月最多 5,000 条基础追踪，社区支持 |\n| Plus | 39 美元/席位/月，超出按量付费 | 席位不限，每月最多 10,000 条基础追踪，可用 Deployment 与 Engine |\n| Enterprise | 联系销售 | 自托管与混合部署、自定义 SSO、SLA |\n\n席位费每月 1 日结算，追踪用量按月后付；Enterprise 按年预付。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 已经有 LLM 应用或智能体在跑、需要排查问题和持续优化的开发团队；\n- 想把「改提示词」从凭感觉变成有评测数据支撑的人；\n- 使用 LangChain / LangGraph 的团队，接入成本最低。\n\n**不适合：**\n- 只是用聊天工具、没有自己开发应用的用户；\n- 数据完全不能出内网、又没有企业版预算的团队，可以考虑开源的自托管替代品；\n- 还在做一次性演示的项目，暂时用不到完整的观测和评测。\n\n## 注意事项\n\n- **追踪里有真实数据**：用户输入、检索到的文档片段都会被记录，上线前配置好脱敏和数据保留期。\n- **用量别超预期**：高流量应用的追踪数增长很快，可以设置采样率。\n- **追踪分类型计费**：定价页用的是「基础追踪」的口径，延长保留等情况另计，以官网说明为准。\n- **与 LangGraph 的关系**：LangGraph 是开源框架，LangSmith 是配套的商业平台，两者可以分开使用。",
+      "images": [],
+      "sources": [
+        "https://www.langchain.com/pricing",
+        "https://www.langchain.com/langsmith"
+      ]
+    },
+    {
+      "title": "Langfuse 是什么、怎么用：开源 LLM 应用追踪、提示词管理与评测平台，和 LangSmith 的区别",
+      "slug": "langfuse-open-source-llm-observability",
+      "name": "Langfuse",
+      "url": "https://langfuse.com/",
+      "pricing": "开源自部署免费 / 云端有免费档",
+      "platforms": "网页 / SDK / Docker、Kubernetes 自部署",
+      "trialNote": "Langfuse Cloud 有免费档，无需信用卡",
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent",
+        "prompt-engineering"
+      ],
+      "excerpt": "Langfuse 是开源的 LLM 工程平台，用于开发、监控、评测和调试 AI 应用：调用追踪、提示词管理、评测、数据集和 Playground 一应俱全，可自托管，也有带免费档的云端版。2026 年 1 月起属于 ClickHouse。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Langfuse 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。\n\n## 是什么\n\nLangfuse 是一个开源的 LLM 工程平台，仓库 langfuse/langfuse 约有 3.56 万星标。README 的定位是帮助团队开发、监控、评测和调试 AI 应用。README 同时写明：**Langfuse 自 2026 年 1 月起成为 ClickHouse 的一部分**。\n\n很多人是在对比「LangSmith 和 Langfuse」时认识它的。两者做的事情相近——都是记录 LLM 应用每一步发生了什么、管理提示词、跑评测。最大的区别是 Langfuse **开源且可以完整自托管**，不绑定特定的开发框架。\n\n## 能做什么\n\nREADME 列出的功能：\n\n- **应用追踪（Tracing）**：记录每次请求里的模型调用、检索、工具调用，看到输入输出、耗时和成本；\n- **提示词管理**：集中存放提示词，做版本管理和协作，改提示词不必改代码发版；\n- **评测**：支持 LLM 充当评审（LLM-as-a-judge）、代码评测器和用户反馈；\n- **数据集**：把典型用例存为测试集，用于回归测试；\n- **Playground**：在线调试提示词和模型参数。\n\n## 怎么上手\n\n**云端版**：在官网注册 Langfuse Cloud（有免费档，不需要信用卡），创建项目后拿到公钥和私钥，在应用里安装 SDK 并配置密钥，运行一次应用就能在后台看到追踪。\n\n**自托管**（README 列出的方式）：\n\n- 本机或单台虚拟机：Docker Compose；\n- Kubernetes：Helm；\n- 云平台：AWS、Azure、GCP 的 Terraform 模板。\n\n```bash\ngit clone https://github.com/langfuse/langfuse.git\ncd langfuse\ndocker compose up\n```\n\n接入后建议先做两件事：给追踪打上用户和会话标识，方便按用户排查；把线上表现差的几条请求存入数据集，作为之后改动的回归用例。\n\n## 免费与付费\n\n- **自托管**：核心功能以 MIT 许可开源（仓库中的 `ee` 目录除外，属于企业功能）；\n- **Langfuse Cloud**：有免费档，付费档按用量和功能分级，价格以官网定价页为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 已经有 LLM 应用上线、需要排查问题和控制成本的开发团队；\n- 要求数据留在自己基础设施里的公司；\n- 不想被某个开发框架绑定、希望观测层保持中立的团队。\n\n**不适合：**\n- 没有自己开发 AI 应用的普通用户；\n- 只做一次性演示的项目；\n- 不愿意运维数据库等组件、又不能使用云端版的团队——自托管需要一定的运维投入。\n\n## 注意事项\n\n- **追踪里含真实用户数据**：配置脱敏规则和保留期限，自托管也要做好访问控制。\n- **`ee` 目录不是 MIT**：需要企业功能时确认许可条款。\n- **自托管的资源需求**：生产规模部署依赖多个存储组件，容量规划见官方文档。\n- **归属变化**：并入 ClickHouse 后的产品路线和定价以官方公告为准。",
+      "images": [],
+      "sources": [
+        "https://github.com/langfuse/langfuse",
+        "https://langfuse.com/"
+      ]
+    },
+    {
+      "title": "OpenCode 是什么、怎么安装：开源的终端 AI 编程智能体与桌面版入门",
+      "slug": "opencode-open-source-coding-agent",
+      "name": "OpenCode",
+      "url": "https://opencode.ai/",
+      "pricing": "开源免费（MIT），模型费用自理",
+      "platforms": "命令行（macOS / Linux / Windows）/ 桌面应用（测试版）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "OpenCode 是 MIT 许可的开源 AI 编程智能体，在终端里以交互界面运行，内置 build 和 plan 两种智能体，另有测试版桌面应用，GitHub 星标超过 21 万，可通过 npm、Homebrew 等多种方式安装。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 OpenCode 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nOpenCode 是一个开源的 AI 编程智能体，仓库现在位于 anomalyco/opencode（约 21.25 万星标、2.84 万次复刻），采用 MIT 许可。它和 Claude Code、Codex CLI 属于同一类工具——在终端里启动，用自然语言让它读代码、改文件、运行命令——区别在于它是社区驱动的开源项目，不属于某一家模型厂商。\n\n## 核心设计\n\nREADME 介绍了它的智能体分工：\n\n- **build**：默认智能体，拥有完整权限，可以修改文件、执行命令，用于实际开发；\n- **plan**：只读的规划智能体，只分析代码、给出方案，不动任何文件——适合先看清楚再动手，或在不熟悉的代码库里探索；\n- **general**：一个通用的子智能体，在对话里用 `@general` 调用，处理需要多步搜索的复杂问题。\n\n界面是终端里的交互式界面（TUI）；此外还有一个处于测试阶段的桌面应用，支持 macOS、Windows 和 Linux。\n\n## 怎么上手\n\nREADME 提供了很多安装方式，常用的几种：\n\n```bash\n# 安装脚本\ncurl -fsSL https://opencode.ai/install | bash\n\n# npm\nnpm i -g opencode-ai@latest\n\n# macOS / Linux 的 Homebrew\nbrew install opencode\n```\n\nWindows 用户还可以用 Scoop 或 Chocolatey。安装后：\n\n1. 进入项目目录，运行 `opencode`；\n2. 按提示配置模型服务（登录或填入 API Key，支持的服务商以官方文档为准）；\n3. 先切到 plan 智能体，让它说明项目结构和改动方案；\n4. 确认方案后切回 build 执行，逐步检查它的修改。\n\n## 免费与付费\n\nOpenCode 本身免费开源。使用成本取决于你接入的模型：按 API 用量付费，或使用你已有的订阅。搜索下拉里常见的「OpenCode Zen」「OpenCode Go」是官方围绕模型用量提供的付费服务，具体内容和价格以官网为准，本文未逐项核对。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 习惯终端、希望工具本身开源可审计的开发者；\n- 想自由选择模型、不被单一厂商绑定的人；\n- 喜欢「先规划、后执行」工作方式的工程师。\n\n**不适合：**\n- 不熟悉命令行的初学者；\n- 想要编辑器内联补全和图形化 diff 的人，Cursor 等 IDE 类产品更合适；\n- 需要厂商级服务支持和合规承诺的企业采购。\n\n## 注意事项\n\n- **build 智能体权限很大**：在 Git 仓库里使用，改动前提交干净，危险命令执行前仔细看确认提示。\n- **认准仓库**：项目经历过组织和仓库地址的调整，网上还有名称相同的其他项目，以官网 opencode.ai 指向的仓库为准。\n- **模型费用**：长对话和大仓库会消耗大量 Token，留意账单。\n- **桌面版仍是测试版**，稳定性不如命令行版本。",
+      "images": [],
+      "sources": [
+        "https://github.com/anomalyco/opencode",
+        "https://opencode.ai/"
+      ]
+    },
+    {
+      "title": "goose AI Agent 是什么、怎么用：Linux 基金会旗下的开源本地 AI 智能体（桌面版与命令行）",
+      "slug": "goose-open-source-ai-agent",
+      "name": "goose",
+      "url": "https://github.com/aaif-goose/goose",
+      "pricing": "开源免费（Apache-2.0），模型费用自理",
+      "platforms": "macOS / Linux / Windows 桌面应用 / 命令行 / API",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "ai-agent",
+        "coding"
+      ],
+      "excerpt": "goose 是 Apache-2.0 许可的开源 AI 智能体，在本机运行，可处理编程、调研、写作和自动化任务。有桌面应用和命令行两种形态，支持 15 家以上模型服务商，并通过 MCP 连接 70 多个扩展。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 goose 官方 GitHub 仓库 README 整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\ngoose 是一个开源的 AI 智能体，用 Rust 编写，采用 Apache-2.0 许可，仓库约有 5.51 万星标。README 的介绍是：在你本机运行，能处理编程、调研、写作和自动化等各类任务。\n\n关于归属：这个项目最初由 Block 公司开源（老教程里的仓库地址是 block/goose），现在仓库位于 **aaif-goose/goose**，README 写明 goose 是 Linux 基金会旗下 Agentic AI Foundation（AAIF）的一部分。访问旧地址会跳转到新仓库。\n\n它和 Claude Code、OpenCode 这类编程智能体的差别在于**定位更通用**：除了写代码，也被用来整理文件、跑脚本、做资料收集，而且同时提供图形界面，不要求用户熟悉终端。\n\n## 能做什么\n\n- **两种使用形态**：桌面应用（macOS、Linux、Windows）和终端里的命令行工具；另外提供可嵌入其他程序的 API；\n- **模型自由**：支持 15 家以上的模型服务商，README 列举了 Anthropic、OpenAI、Google，以及用 Ollama 运行的本地模型；\n- **MCP 扩展**：通过 Model Context Protocol 连接 70 多个扩展，让智能体操作开发工具、浏览器、文档、数据库等外部系统；\n- **本地执行**：读写文件、运行命令都发生在你的机器上。\n\n## 怎么上手\n\n1. 在仓库的 Releases 页面或官方文档中下载桌面应用安装包；习惯终端的，运行 README 提供的命令行安装脚本。\n2. 首次启动时选择模型服务商并填入 API Key（或指向本机的 Ollama）。\n3. 选择一个工作目录，用自然语言下达任务，例如：\n\n```text\n把这个文件夹里所有 CSV 的表头统一成英文小写下划线格式，生成一份改动清单，先给我看方案，确认后再执行。\n```\n\n4. 在扩展设置里按需启用 MCP 扩展，比如访问代码托管平台或浏览器自动化。\n\n## 免费与付费\n\ngoose 完全免费开源。花费只来自模型：按所选服务商的 API 用量计费；用本地模型则没有调用费，但效果取决于模型能力和电脑配置。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想要一个不绑定厂商、可审计源码的通用智能体的开发者和技术爱好者；\n- 希望用图形界面体验「让 AI 在自己电脑上干活」的人；\n- 想用 MCP 把智能体接进自己工作流的团队。\n\n**不适合：**\n- 不愿意自己准备模型 API Key 的用户；\n- 需要云端并行执行、手机上查看进度等托管能力的人；\n- 对本机文件安全非常敏感、又不打算花时间配置权限的用户。\n\n## 注意事项\n\n- **它真的会改文件、跑命令**：先在测试目录里试用，重要数据提前备份，执行破坏性操作前要求它先给方案。\n- **扩展权限**：每启用一个 MCP 扩展，就多给了智能体一类能力，只开需要的。\n- **本地小模型的工具调用能力有限**，复杂任务容易失败，建议先用能力较强的云端模型跑通流程。\n- **仓库迁移**：旧教程里的安装地址可能已变化，以当前仓库 README 为准。",
+      "images": [],
+      "sources": [
+        "https://github.com/aaif-goose/goose"
+      ]
+    },
+    {
+      "title": "Kilo Code 是什么、怎么样：支持 VS Code、JetBrains 和命令行的开源 AI 编程智能体",
+      "slug": "kilo-code-open-source-coding-agent",
+      "name": "Kilo Code",
+      "url": "https://kilo.ai/",
+      "pricing": "开源免费（MIT），模型按服务商原价、零加价",
+      "platforms": "VS Code / JetBrains / 命令行 / 网页（Cloud Agent）",
+      "trialNote": "官方称无需自备 API Key 即可开始使用",
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Kilo Code 是 MIT 许可的开源 AI 编程智能体，可在 VS Code、JetBrains IDE 和命令行中使用，支持跨文件生成代码、内联补全、终端与浏览器操作，可在 500 多个模型之间切换，官方承诺模型按原价零加价。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Kilo Code 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nKilo Code 是一个开源的 AI 编程智能体，仓库 Kilo-Org/kilocode 约有 2.75 万星标，采用 MIT 许可。它属于 Cline 这一脉的「编辑器内智能体」：装成 IDE 插件后，在侧边栏里用自然语言描述任务，它来读代码、改文件、跑命令。\n\n对正在找同类工具的人，有一条背景值得知道：同类的 Roo Code 已于 2026 年 5 月停止维护、仓库归档（其仓库页面把 Cline 等列为替代选择），选型时可以把它从候选里划掉。\n\n## 能做什么\n\nREADME 列出的能力：\n\n- **跨文件生成与修改代码**；\n- **内联自动补全**：边写边提示，不只是对话式智能体；\n- **自检**：完成后检查自己的修改；\n- **操作终端和浏览器**：运行命令、打开页面验证效果；\n- **模型切换**：可在 500 多个模型之间选择，并且可以在任务中途更换；\n- **多个运行位置**：VS Code、JetBrains 系列 IDE、命令行；\n- **Cloud Agent 与自动代码审查**：把任务放到网页端的云端智能体执行，并对代码改动做自动审查。\n\n## 怎么上手\n\n1. 在 VS Code 扩展市场或 JetBrains 插件市场搜索 Kilo Code 安装；命令行版按 README 说明安装。\n2. 登录 Kilo 账号。官方说明开始使用不需要自备 API Key；也可以在设置里填入自己的模型密钥。\n3. 打开项目，在侧边栏的对话框里描述任务。\n4. 它会列出计划并在执行每一步前请求许可；熟悉后可以对读取文件等低风险操作开启自动批准。\n5. 任务完成后查看 diff，再决定是否保留。\n\n## 免费与付费\n\n- **软件本身**：开源免费。\n- **模型费用**：README 的说法是「开源、定价公开」，你支付的是模型服务商的价格，**Kilo 不加价**；使用自己的 API Key 时直接由服务商计费。\n- 团队与企业功能、云端智能体的收费方式，以官网为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想在现有的 VS Code 或 JetBrains 里使用智能体、不愿换编辑器的开发者；\n- 希望自由选择模型并且清楚每一笔花费的人；\n- 原 Roo Code 用户寻找仍在维护的替代品。\n\n**不适合：**\n- 想要固定月费、不操心用量的人——按量计费的账单会随使用强度波动；\n- 完全没有编程基础的用户；\n- 需要厂商提供合规承诺与专属支持的大型企业（可咨询其企业方案）。\n\n## 注意事项\n\n- **按量计费要设上限**：让智能体长时间自主运行、选用高价模型时花费增长很快，建议设置预算提醒。\n- **自动批准要谨慎**：不要对执行命令、删除文件这类操作开启无条件自动批准。\n- **代码会发送给模型服务商**：公司代码使用前确认合规要求。\n- **在 Git 仓库里使用**，改动前先提交，便于回滚。",
+      "images": [],
+      "sources": [
+        "https://github.com/Kilo-Org/kilocode",
+        "https://kilo.ai/"
+      ]
+    },
+    {
+      "title": "LlamaIndex 是什么、和 LangChain 有什么区别：面向私有数据的 RAG 与智能体开发框架入门",
+      "slug": "llamaindex-data-agent-framework",
+      "name": "LlamaIndex",
+      "url": "https://www.llamaindex.ai/",
+      "pricing": "开源免费（MIT）/ 商业产品另计",
+      "platforms": "Python 库（另有 TypeScript 版本）",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "LlamaIndex 是 MIT 许可的开源框架，用于把大模型和你自己的数据连接起来构建智能体应用：数据连接器、索引、检索器、查询引擎、智能体和 Workflows，同名公司另有 LlamaParse 等商业产品。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 LlamaIndex 官方 GitHub 仓库 README 与官网整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nLlamaIndex 是一个开源的开发框架，由同名公司 LlamaIndex 开发，仓库 run-llama/llama_index 约有 5.25 万星标，采用 MIT 许可。README 现在的定位是「构建智能体应用的框架」，而它最初出名、至今最擅长的事情是 **RAG（检索增强生成）**：让大模型基于你自己的文档、数据库、知识库来回答问题。\n\n## 核心组件\n\nREADME 列出的几类模块，正好对应一条 RAG 流水线：\n\n- **数据连接器（Data connectors）**：从 PDF、网页、数据库、各类 SaaS 里把数据读进来；\n- **索引（Indexes）**：把数据组织成便于检索的结构，最常见的是向量索引；\n- **检索器（Retrievers）**：根据问题找出相关片段；\n- **查询引擎（Query engines）**：把检索到的内容和问题一起交给模型生成答案；\n- **智能体（Agents）**：让模型自主决定调用哪些工具和数据源；\n- **Workflows**：用事件驱动的方式编排多步骤、多智能体的流程。\n\n## 和 LangChain 的区别\n\n这是搜索里最常见的问题。简单的区分方式：\n\n- **LlamaIndex 从「数据」出发**：在文档解析、切分、索引和检索策略上提供的现成方案更多、更细；\n- **LangChain / LangGraph 从「流程」出发**：在通用的组件拼装、有状态的智能体编排上更突出。\n\n两者并不互斥，功能有相当多的重叠，也可以混用。主要做知识库问答的，可以先看 LlamaIndex；主要做复杂智能体流程的，可以先看 LangGraph。\n\n## 怎么上手\n\n```bash\npip install llama-index\n```\n\n这是包含常用集成的入门包；想自己挑选集成，可以只装 `llama-index-core` 再按需安装模型和向量库的集成包。\n\n学习路径建议：\n\n1. 跑通官方的入门示例：读取一个文件夹里的文档 → 建向量索引 → 提问；\n2. 换成自己的文档，观察回答引用了哪些片段；\n3. 调整切分大小、检索条数，体会它们对答案质量的影响；\n4. 再学习智能体和 Workflows。\n\n## 免费与付费\n\n- **开源框架**：免费，MIT 许可。\n- **商业产品**：README 提到 LlamaParse（面向文档解析、提取、索引和切分的文档智能体平台）和 LlamaAgents，属于公司的付费服务，价格以官网为准。\n- **模型与向量数据库的费用**自理。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 会 Python、要做知识库问答或文档类智能体的开发者；\n- 需要深入调优检索效果的团队；\n- 想系统理解 RAG 各个环节的学习者。\n\n**不适合：**\n- 不写代码的用户，Dify、FastGPT、RAGFlow 等带界面的平台更合适；\n- 一次性的小需求，直接把文档丢给聊天助手更快；\n- 追求接口长期稳定的团队需要注意它的版本迭代较快。\n\n## 注意事项\n\n- **包结构拆得很细**：核心包和各类集成包分开安装，照着旧教程导入时常遇到模块找不到的问题，以当前官方文档为准。\n- **默认配置只是起点**：切分方式和检索参数要根据自己的文档调。\n- **解析质量决定上限**：扫描件、复杂表格需要专门的解析方案。\n- **数据外发**：建索引时会把文档内容发给向量模型服务，敏感数据可以改用本地模型。",
+      "images": [],
+      "sources": [
+        "https://github.com/run-llama/llama_index",
+        "https://www.llamaindex.ai/"
+      ]
+    },
+    {
+      "title": "Together AI 是什么公司、是做什么的：开源模型推理、微调与 GPU 集群云平台",
+      "slug": "together-ai-open-model-cloud",
+      "name": "Together AI",
+      "url": "https://www.together.ai/",
+      "pricing": "按量付费",
+      "platforms": "网页控制台 / API",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding"
+      ],
+      "excerpt": "Together AI 是面向开发者的 AI 云平台，提供开源与第三方模型的无服务器推理、专属推理端点、微调和 GPU 集群，文本模型按每百万 Token 计费，接口兼容 OpenAI。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Together AI 官网与定价页整理，资料核对于 2026-10-11。模型与价格变化快，以官网为准。\n\n## 是什么\n\nTogether AI 是一家做 AI 基础设施的公司，定位是「运行和定制 AI 模型的平台」。和 OpenAI、Anthropic 这类只卖自家模型的厂商不同，它主要托管**开源模型和第三方模型**：你不需要自己买显卡、部署服务，调一个 API 就能用上这些模型，按用量付费。\n\n国内搜索它的人不少是在找工作或了解公司背景；如果你是开发者，更值得关心的是它能帮你省掉哪些运维工作。\n\n## 提供什么\n\n官网定价页把产品分成四类：\n\n- **Serverless Inference（无服务器推理）**：按用量调用现成模型，覆盖对话、视觉、图像、音频、视频、向量等类型；\n- **Dedicated Inference（专属推理）**：单租户的 GPU 端点，按 GPU 小时计费，适合流量稳定、要求延迟可控的业务；\n- **Fine-Tuning（微调）**：LoRA 微调和全量微调，按每百万 Token 计费；\n- **GPU Clusters（GPU 集群）**：按需或预留的 GPU 算力，按小时计费，用于自己训练模型。\n\n## 怎么上手\n\n1. 在 together.ai 注册账号，进入控制台创建 API Key。\n2. 在模型库里选模型，先在 Playground 里试效果。\n3. 用官方 SDK 或 OpenAI SDK 调用——把 base_url 换成 Together 的接口地址、模型名换成模型库里的标识即可（具体地址以官方文档为准）。\n4. 用量稳定后，再评估是否换成专属端点。\n\n## 免费与付费\n\n无服务器推理的文本模型按每百万 Token（输入 / 输出）计价。定价页上的几个例子（美元，2026-10 查询）：\n\n| 模型 | 输入 | 输出 |\n| --- | --- | --- |\n| MiniMax M3 | 0.30 | 1.20 |\n| GLM-5.3-Flash | 0.15 | 0.50 |\n| gpt-oss-120B | 0.15 | 0.60 |\n\n页面有「Start for free」入口，但没有写明新账号的赠送额度，以注册后控制台显示为准。专属端点、微调和 GPU 集群各有单独的价目。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想在产品里使用开源模型、又不想自己运维 GPU 的开发团队；\n- 需要对开源模型做微调并直接托管上线的团队；\n- 做模型对比评测、需要一个入口调用多种开源模型的研究者。\n\n**不适合：**\n- 只想聊天、不写代码的普通用户；\n- 只用 GPT、Claude、Gemini 等闭源旗舰模型的团队，直接用原厂 API 即可；\n- 要求数据必须留在中国境内的业务，应选择国内云厂商的模型服务。\n\n## 注意事项\n\n- **同名模型，不同平台表现可能不同**：量化方式、上下文长度、是否支持工具调用，各托管平台不完全一致，上线前自己测。\n- **模型会上下架**：开源模型更新快，平台会淘汰旧模型，代码里不要把模型名写死在多处。\n- **计费单位要看清**：图像、视频、音频模型不是按 Token 计费。\n- **访问与支付**：需要能使用其服务的网络环境和支持的付款方式，以官网为准。",
+      "images": [],
+      "sources": [
+        "https://www.together.ai/pricing",
+        "https://www.together.ai/"
+      ]
+    },
+    {
+      "title": "Fireworks AI 是做什么的：开源模型推理与微调平台的产品、计费方式和适用场景",
+      "slug": "fireworks-ai-inference-platform",
+      "name": "Fireworks AI",
+      "url": "https://fireworks.ai/",
+      "pricing": "按量付费（预付费）",
+      "platforms": "网页控制台 / API",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding"
+      ],
+      "excerpt": "Fireworks AI 是面向开发者的开源模型推理平台，提供按 Token 计费的无服务器推理、按 GPU 秒计费的按需部署和模型微调，采用预付费的用量制，可设置每月消费上限。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Fireworks AI 官网与定价页整理，资料核对于 2026-10-11。模型与价格变化快，以官网为准。\n\n## 是什么\n\nFireworks AI 是一家提供模型推理服务的公司，主要售卖**开源模型的 API 访问**。它和 Together AI、Groq 等属于同一类「推理云」：帮你把开源模型部署好、优化好速度，你按用量付费调用。对开发者来说，选这类平台通常是为了三件事——比自建便宜、比自建快、不用管运维。\n\n## 提供什么\n\n官网定价页分成三块：\n\n- **Serverless Inference（无服务器推理）**：按 Token 计费，分别统计输入、输出和缓存命中的 Token；采用预付费的用量制，可以开启自动充值，也可以设置每月消费上限。\n- **On-Demand Deployments（按需部署）**：给你独占的 GPU，按 GPU 秒计费，启动不额外收费。定价页举例：H100 80 GB 为每小时 8.00 美元。\n- **Training（训练 / 微调）**：托管的 LoRA 监督微调，16B 参数以内的模型为每百万训练 Token 0.50 美元。\n\n向量模型的示例价格：1.5 亿参数以内的嵌入模型每百万输入 Token 0.008 美元。各对话模型的具体单价见官网模型库。\n\n## 怎么上手\n\n1. 在 fireworks.ai 注册，进入控制台充值并创建 API Key。\n2. 在模型库里挑选模型，用 Playground 测试。\n3. 使用官方 SDK 或兼容 OpenAI 的接口调用（接口地址和模型标识以官方文档为准）。\n4. 先设置好每月消费上限，再接入正式流量。\n\n## 免费与付费\n\n全部按用量计费，没有固定月费的个人订阅。定价页没有写明新账号的赠送额度，是否有试用金以注册后控制台显示为准。企业客户可以联系销售谈预留容量和折扣。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 在产品里大量调用开源模型、对响应速度和成本敏感的开发团队；\n- 需要把自己微调后的模型托管上线的团队；\n- 流量波动大、想先用无服务器模式起步，再平滑切到独占 GPU 的项目。\n\n**不适合：**\n- 不写代码的普通用户；\n- 只需要闭源旗舰模型的团队；\n- 数据必须境内存储处理的业务。\n\n## 注意事项\n\n- **预付费模式**：余额用完请求会失败，生产环境要配置自动充值或余额告警，同时设好消费上限防止异常流量。\n- **缓存 Token 单独计价**：合理利用提示词缓存可以明显降低成本。\n- **独占部署按秒计费但不会自动消失**：不用时记得缩容或删除部署。\n- **同一模型在不同平台的表现有差异**：上下文长度、工具调用支持、量化精度都要自己验证。\n- 搜索结果里关于公司估值、招聘的信息不属于本文范围，以官方公告为准。",
+      "images": [],
+      "sources": [
+        "https://fireworks.ai/pricing",
+        "https://fireworks.ai/"
+      ]
+    },
+    {
+      "title": "Replicate 是什么、怎么用：一行代码调用开源 AI 模型的 API 平台与计费方式",
+      "slug": "replicate-run-ml-models-api",
+      "name": "Replicate",
+      "url": "https://replicate.com/",
+      "pricing": "按量付费",
+      "platforms": "网页 / API",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "illustration"
+      ],
+      "excerpt": "Replicate 是运行机器学习模型的云平台，托管了数千个社区贡献的开源模型，用 API 即可调用图像、视频、语音、文本等模型，按运行时间或按产出计费，也能用 Cog 部署自己的模型。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Replicate 官网与定价页整理，资料核对于 2026-10-11。模型与价格变化快，以官网为准。\n\n## 是什么\n\nReplicate 是一个「运行机器学习模型」的平台。它托管了数千个社区贡献的开源模型，也有一部分闭源的商业模型。每个模型都有自己的页面：上面是一个可以直接填参数试用的表单，下面是对应的 API 调用代码。\n\n它最受欢迎的场景是**图像、视频、音频这类生成模型**：新模型在开源社区一出来，往往很快就有人打包上传到 Replicate，开发者不用配环境、不用找显卡就能试用和集成。\n\n## 能做什么\n\n- **调用现成模型**：文生图、图生视频、语音合成、语音识别、放大修复、大语言模型等。\n- **部署自己的模型**：用官方开源的打包工具 Cog 把模型封装后推送上去，得到一个可伸缩的 API。\n- **微调**：对部分模型做微调并托管。\n- **私有模型与专属硬件**：私有模型多数运行在独占硬件上。\n\n## 怎么上手\n\n1. 在 replicate.com 注册并登录。\n2. 在模型页的网页表单里先试几次，确认效果。\n3. 在账户设置里创建 API Token，复制模型页给出的示例代码（提供 Python、Node.js、HTTP 等写法）。\n4. 生成类任务通常是异步的：提交后拿到一个预测 ID，轮询或用 Webhook 获取结果。\n\n## 免费与付费\n\n没有月费，按用量计费，有两种计价方式（官网定价页，美元，2026-10 查询）：\n\n- **按运行时间**：大多数公开模型按秒计费，单价取决于硬件。例如小型 CPU 为每秒 0.000025 美元，Nvidia H100 GPU 为每秒 0.001525 美元。\n- **按输入输出**：部分模型按产出计价。定价页的例子：flux-1.1-pro 每张图 0.04 美元，flux-dev 每张图 0.025 美元，wan-2.1-i2v-480p 每秒视频 0.09 美元。\n\n私有模型运行在独占硬件上时，启动、空闲和运行时间都计费；快速启动的微调模型只按实际运行时间计费。大用量可以通过企业合同获得折扣。定价页没有写明免费额度。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想快速把开源生成模型接进自己产品或工作流的开发者；\n- 需要尝试大量不同模型来做选型的团队；\n- 有自己的模型、想省掉部署和扩缩容工作的人。\n\n**不适合：**\n- 不写代码、只想在线生成图片的用户，各种成品应用更合适；\n- 调用量巨大且固定的业务，长期看自建或包 GPU 可能更便宜；\n- 对延迟极其敏感的实时应用——冷启动可能需要等待。\n\n## 注意事项\n\n- **冷启动**：不常用的模型第一次调用需要加载，时间可能较长，按时间计费的模型这段也可能计入。\n- **社区模型质量参差**：上传者不同，维护状况不一，生产使用前固定模型版本号。\n- **模型许可证**：每个模型的许可不同，有的禁止商用，接入前看模型页。\n- **输出文件不会永久保存**：生成结果的链接有有效期，拿到后尽快转存到自己的存储。",
+      "images": [],
+      "sources": [
+        "https://replicate.com/pricing",
+        "https://replicate.com/"
+      ]
+    },
+    {
+      "title": "fal.ai 是什么、怎么用：图像、视频、语音生成模型的 API 平台与计费方式",
+      "slug": "fal-ai-generative-media-api",
+      "name": "fal",
+      "url": "https://fal.ai/",
+      "pricing": "按量付费",
+      "platforms": "网页 / API",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "image-to-video",
+        "illustration"
+      ],
+      "excerpt": "fal 是专注生成式媒体的开发者平台，通过 API 提供视频、图像、音频和 3D 生成模型，按产出计费；同时出租 GPU 算力供自定义部署，适合做 AI 图像视频类应用的团队。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 fal 官网与定价页整理，资料核对于 2026-10-11。模型与价格变化快，以官网为准。\n\n## 是什么\n\nfal 是一个**生成式媒体平台**：把市面上主流的视频、图像、音频和 3D 生成模型做成统一的、按次付费的 API。很多 AI 修图、AI 视频类的应用和网站，后台调用的就是这类平台，而不是自己部署模型。\n\n和 Replicate 相比，fal 更聚焦在媒体生成这一类，并强调推理速度；和各模型的官方 API 相比，它的好处是一个账号、一套接口就能切换不同厂商的模型。\n\n## 提供什么\n\n官网定价页列出的产品：\n\n- **Model APIs**：按产出单位计费的模型接口；\n- **Serverless & Compute**：无服务器部署自己的模型，或直接租用 GPU；\n- **Enterprise**：企业方案。\n\n## 怎么上手\n\n1. 在 fal.ai 注册并登录，在模型库里找到要用的模型。\n2. 每个模型页都有在线试用区和参数说明，先在网页上试效果。\n3. 创建 API Key，按模型页的示例代码调用（提供 JavaScript、Python 等客户端）。\n4. 视频等耗时任务使用队列模式：提交请求，之后轮询状态或用 Webhook 接收结果。\n\n## 免费与付费\n\n模型 API 按产出计费。定价页上的例子（美元，2026-10 查询）：\n\n| 模型 | 计费 |\n| --- | --- |\n| H3 Max 文生视频 | 每秒视频 0.05 美元 |\n| Nano Banana 2 | 每张图 0.08 美元 |\n| ElevenLabs TTS Multilingual v2 | 每 1,000 字符 0.10 美元 |\n\nGPU 算力按小时计费，页面写明 H100 最低 2.49 美元/小时起，其他规格的标价在 4.00 至 12.99 美元/小时之间。定价页没有提到免费额度，新账号是否有试用金以注册后显示为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 开发 AI 图片、视频、配音类应用的团队和独立开发者；\n- 需要在多个视频 / 图像模型之间做 A/B 对比的产品；\n- 用 ComfyUI、自动化工具搭工作流，需要通过 API 调用云端模型的创作者。\n\n**不适合：**\n- 不写代码、只想生成内容的用户——直接用各模型的官方应用；\n- 主要需求是文本大模型的团队；\n- 预算固定、希望包月不限量的个人创作者。\n\n## 注意事项\n\n- **视频很贵**：按秒计费的视频模型，一条十几秒的高规格视频就可能花掉不少钱，批量跑之前先小量测试。\n- **同一个模型有多个变体**：标准版、快速版、不同分辨率的单价不同，调用前看清模型标识。\n- **内容与版权责任**：平台只提供接口，生成内容的合规和商用授权取决于各模型提供方的条款。\n- **结果文件要自己保存**：返回的文件链接不保证长期有效。",
+      "images": [],
+      "sources": [
+        "https://fal.ai/pricing",
+        "https://fal.ai/"
+      ]
+    },
+    {
+      "title": "Amazon Bedrock 是什么：AWS 上调用多家基础模型、搭建智能体的托管平台简介",
+      "slug": "amazon-bedrock-foundation-models",
+      "name": "Amazon Bedrock",
+      "url": "https://aws.amazon.com/bedrock/",
+      "pricing": "按量付费，以 AWS 官网为准",
+      "platforms": "AWS 控制台 / API / SDK",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Amazon Bedrock 是 AWS 的生成式 AI 托管平台，在一个服务里提供来自多家公司的数百个基础模型，并配套 AgentCore、知识库、Guardrails 护栏、模型蒸馏和提示词缓存等能力。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 AWS 官网的 Amazon Bedrock 产品页整理，资料核对于 2026-10-11。功能和价格变化快，以 AWS 官网为准。这是一款面向企业和开发者的云服务，本文只做简要介绍。\n\n## 是什么\n\nAmazon Bedrock 是亚马逊云科技（AWS）的生成式 AI 平台，官网的定位是「在生产规模上构建生成式 AI 应用和智能体」。它的核心价值是**用一个 AWS 账号、一套权限和账单体系，调用来自多家 AI 公司的基础模型**——产品页称可访问数百个模型，并提供评测工具按效果和成本对比。\n\n对已经把业务放在 AWS 上的公司来说，用 Bedrock 调模型的好处主要不是便宜，而是合规和集成：数据留在自己的云环境里，权限、审计、网络隔离沿用现有的 AWS 体系。\n\n## 主要能力\n\n产品页列出的几类功能：\n\n- **AgentCore**：用任意框架和模型构建、连接并优化智能体的一组服务。\n- **智能体开发**：包括由 OpenAI 提供技术支持的 Amazon Bedrock Managed Agents。\n- **定制**：Knowledge Bases（知识库 / RAG）、Bedrock Data Automation、提示词工程和微调。\n- **Guardrails（护栏）**：拦截有害内容，并用自动推理检查来减少幻觉。\n- **成本优化**：模型蒸馏、提示词缓存和智能提示词路由。\n- **调用方式**：产品页说明支持实时和批量两种处理方式。\n\n## 怎么上手\n\n1. 注册 AWS 账号并登录控制台，进入 Amazon Bedrock。\n2. 选择区域，在模型目录里查看可用模型（部分模型需要先申请或同意提供方条款）。\n3. 在控制台的 Playground 里试用。\n4. 通过 AWS SDK 或 Bedrock 的 API 在代码里调用，权限用 IAM 管理。\n\n## 免费与付费\n\nBedrock 按用量计费，不同模型、不同调用方式的单价不同，详见 AWS 官方定价页。除了模型调用费，知识库、护栏、智能体运行等功能也各自计费，估算成本时要一并考虑。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 业务已经在 AWS 上、需要在统一的安全与合规框架内使用大模型的企业；\n- 想在多家模型之间灵活切换、避免绑定单一厂商的技术团队；\n- 需要把 RAG、护栏、智能体做成正式生产系统的开发者。\n\n**不适合：**\n- 个人用户和只想聊天的人；\n- 不熟悉云服务（IAM、区域、配额）的初学者——上手门槛明显高于直接用模型厂商的 API；\n- 没有 AWS 账号或所在地区无法使用相应服务的用户。\n\n## 注意事项\n\n- **模型可用性因区域而异**：同一个模型不是在所有区域都提供，新模型上线时间也可能晚于原厂。\n- **配额**：新账号的调用配额通常较低，上生产前要提前申请提升。\n- **账单要设告警**：智能体和知识库会间接产生多项费用，建议开启预算告警。\n- **中国区说明**：AWS 中国区域与全球区域是分开运营的，可用的服务和模型不同，以对应区域的官方说明为准。",
+      "images": [],
+      "sources": [
+        "https://aws.amazon.com/bedrock/",
+        "https://aws.amazon.com/bedrock/pricing/"
+      ]
+    },
+    {
+      "title": "Microsoft Foundry（原 Azure AI Foundry / Azure AI Studio）是什么：微软的 AI 应用与智能体开发平台",
+      "slug": "microsoft-foundry-azure-ai",
+      "name": "Microsoft Foundry（原 Azure AI Foundry）",
+      "url": "https://azure.microsoft.com/en-us/products/ai-foundry",
+      "pricing": "按量付费，以 Azure 官网为准",
+      "platforms": "网页门户 / API / SDK",
+      "trialNote": "官网说明无需 Azure 账号即可浏览探索，构建智能体需要 Azure 订阅",
+      "tags": [
+        "ai-tools",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Microsoft Foundry 是微软 Azure 上构建、接地和治理 AI 应用与智能体的统一平台，前身为 Azure AI Studio，可访问 11,000 多个模型，包含 Foundry Models、Agent Service、Foundry IQ 等组件。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据微软 Azure 官网的 Microsoft Foundry 产品页整理，资料核对于 2026-10-11。功能和价格变化快，以官网为准。这是一款面向企业和开发者的云服务，本文只做简要介绍。\n\n## 是什么\n\nMicrosoft Foundry 是微软在 Azure 上的 AI 开发平台，官网的定义是「构建、接地并治理 AI 应用和智能体的统一平台」。名字改过几次：官网 FAQ 说明它的前身是 **Azure AI Studio**，之后以 Azure AI Foundry 的名字为人熟知，现在产品页的名称是 Microsoft Foundry——搜这几个名字找到的是同一条产品线。\n\n如果你的公司用的是微软体系（Azure、Microsoft 365、Entra ID），Foundry 就是在这套体系里合规使用大模型的官方入口，其中也包括通过 Azure 提供的 OpenAI 模型。\n\n## 主要组成\n\n产品页列出的组件：\n\n- **Foundry Models**：模型目录。官网称可访问 11,000 多个模型，提供方包括 OpenAI、Anthropic、Meta、Google、xAI 和 Hugging Face 等。\n- **Foundry Agent Service**：创建并规模化运行智能体的服务。\n- **Foundry Tools**：OCR、翻译、语音等现成的 AI 能力。\n- **Foundry IQ**：让智能体基于企业自己的数据作答的「接地」能力。\n- **Foundry Control Plane**：治理与监控，统一管理模型、智能体和策略。\n\n## 怎么上手\n\n1. 打开 Foundry 门户，可以先不登录 Azure 账号浏览模型目录。\n2. 要真正构建和部署，需要有 Azure 订阅；在门户里创建项目和资源。\n3. 从模型目录部署一个模型，在 Playground 里测试。\n4. 用官方 SDK 或 REST API 接入应用；需要智能体时使用 Agent Service 配置工具和数据源。\n\n## 免费与付费\n\n官网的说法是「灵活的、按用量计费」：各项服务按各自的计费模型单独收费，可以用 Azure 定价计算器估算。浏览和探索门户不需要付费；模型调用、智能体运行、检索和存储等会产生费用。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 已经使用 Azure 和微软企业服务的公司；\n- 需要在企业合规框架内调用 OpenAI 等模型、并统一做权限和审计的团队；\n- 要把智能体做成可治理、可监控的正式系统的开发者。\n\n**不适合：**\n- 个人用户、学生的日常使用；\n- 没有云平台经验的初学者，概念（订阅、资源组、部署、配额）较多；\n- 只需要一个模型 API、不需要企业治理能力的小项目。\n\n## 注意事项\n\n- **名称与文档在迁移中**：很多文档和教程仍写 Azure AI Foundry 或 Azure AI Studio，门户入口和菜单以当前官网为准。\n- **模型可用性看区域和订阅类型**：不是所有模型在所有区域都能部署，部分模型需要申请。\n- **配额与限流**：新订阅的默认配额较低。\n- **成本由多项组成**：除了 Token 费用，还有检索、存储、监控等费用，建议设置预算告警。\n- **Azure 中国区域**与全球 Azure 是分开运营的，可用服务不同，以对应区域的官方说明为准。",
+      "images": [],
+      "sources": [
+        "https://azure.microsoft.com/en-us/products/ai-foundry",
+        "https://learn.microsoft.com/en-us/azure/ai-foundry/"
+      ]
+    },
+    {
+      "title": "Kimi 开放平台（Moonshot AI）是什么、怎么用：Kimi 模型 API 的接入方式与计费说明",
+      "slug": "kimi-open-platform-moonshot-api",
+      "name": "Kimi 开放平台",
+      "url": "https://platform.kimi.com/",
+      "pricing": "按量付费，价格以官网为准",
+      "platforms": "网页控制台 / API",
+      "trialNote": null,
+      "tags": [
+        "kimi",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "Kimi 开放平台是 Moonshot AI 面向开发者的 API 服务，提供旗舰模型 kimi-k3（最高 1M 上下文、原生视觉理解）和 kimi-k2.6 等，接口包括 Chat Completions、Responses 和兼容 Anthropic 的 Messages，按 Token 计费。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Kimi 开放平台官方文档的介绍页整理，资料核对于 2026-10-11。模型与价格变化快，以官网为准。这是面向开发者的 API 平台，本文只做简要介绍；想直接聊天请使用 Kimi 应用。\n\n## 是什么\n\nKimi 开放平台是月之暗面（Moonshot AI）的开发者平台，提供基于其自研模型的 API 服务。它和 Kimi 聊天应用是两回事：**应用是给人用的，开放平台是给程序调用的**，账号体系和计费都分开。\n\n平台的域名已经从 platform.moonshot.cn 迁移到 **platform.kimi.com**，访问旧地址会自动跳转，老教程里的链接和接口地址要注意核对。\n\n## 提供什么\n\n官方文档介绍页列出的内容：\n\n- **kimi-k3**：当前的旗舰模型，支持最高 1M token 的上下文，并具备原生的视觉理解能力；\n- **kimi-k2.6**：支持文本、图片、视频输入，可以在思考模式和非思考模式之间切换；\n- **三种接口**：\n  - Chat Completions：最常见的对话补全接口；\n  - Responses；\n  - Messages：兼容 Anthropic 的消息格式。\n\n兼容 Anthropic 格式的接口意味着，原本为 Claude 写的客户端和一些编程智能体工具，改一下地址和密钥就可能接入 Kimi 的模型，具体配置方法以官方文档为准。\n\n## 怎么上手\n\n1. 打开 platform.kimi.com，注册并登录控制台。\n2. 完成平台要求的认证，充值或领取可用额度（以控制台显示为准）。\n3. 创建 API Key，妥善保存。\n4. 按文档的快速开始调用：选择接口类型，填入文档给出的接口地址、模型名和你的密钥。\n\n```python\n# 伪代码示意，接口地址与模型名以官方文档为准\nclient = SomeSDK(api_key=\"你的 API Key\", base_url=\"文档给出的接口地址\")\nreply = client.chat(model=\"kimi-k3\", messages=[{\"role\": \"user\", \"content\": \"你好\"}])\n```\n\n## 免费与付费\n\n平台按用量计费：文档说明按**请求的输入 Token 加上实际生成的 Token** 计算。各模型的单价、新用户是否有赠送额度、是否有面向编程工具的订阅套餐，介绍页没有写明，以官网的价格页和控制台为准。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想在自己的产品里接入 Kimi 模型的开发者；\n- 需要超长上下文处理长文档、大代码库的应用；\n- 想给支持自定义接口的编程工具配置国产模型的用户。\n\n**不适合：**\n- 只想聊天、写作、读文件的普通用户，直接用 Kimi 应用；\n- 不了解 API、密钥和计费概念的非技术用户；\n- 需要其他厂商模型的场景，这里只提供 Moonshot 自家的模型。\n\n## 注意事项\n\n- **域名迁移**：以 platform.kimi.com 为准，第三方教程里的旧地址可能失效。\n- **长上下文很贵**：1M 上下文不代表每次都该塞满，输入越长费用越高，善用缓存和检索。\n- **密钥安全**：不要把 API Key 写进前端代码或公开仓库。\n- **模型名会更新**，旧型号会按计划下线，留意官方公告。",
+      "images": [],
+      "sources": [
+        "https://platform.kimi.com/docs/introduction"
+      ]
+    },
+    {
+      "title": "llama.cpp 是什么、怎么用：本地运行 GGUF 大模型的开源推理引擎，llama-server 自带网页界面",
+      "slug": "llama-cpp-local-llm-inference",
+      "name": "llama.cpp",
+      "url": "https://github.com/ggml-org/llama.cpp",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Windows / macOS / Linux / Docker / 命令行",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding"
+      ],
+      "excerpt": "llama.cpp 是用 C/C++ 编写的开源大模型推理引擎，使用 GGUF 模型格式和量化技术，让普通电脑也能跑大模型。自带 llama-cli 和 llama-server（兼容 OpenAI 的接口加内置网页界面）。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 llama.cpp 官方 GitHub 仓库 README 整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nllama.cpp 是一个用 C/C++ 实现的大模型推理项目，仓库 ggml-org/llama.cpp 约有 13.07 万星标，采用 MIT 许可，构建在 ggml 张量库之上。README 对它的描述只有一句：「LLM inference in C/C++」。\n\n它的地位可以这样理解：**Ollama、LM Studio、Jan、GPT4All 这些本地模型软件，底层很多都在用它或它的衍生实现**。直接用 llama.cpp 的好处是最新、最轻、参数最全；代价是要自己敲命令。\n\n## 核心概念\n\n- **GGUF**：llama.cpp 使用的模型文件格式。在 Hugging Face 上看到文件名以 `.gguf` 结尾的模型，就是给它（以及兼容它的软件）用的。\n- **量化**：把模型权重从高精度压缩到 1.5 到 8 比特不等。常见的 4 比特量化能把体积和内存占用降到原来的几分之一，质量损失有限——这是「笔记本也能跑大模型」的关键。\n- **硬件后端**：支持 CUDA（NVIDIA）、HIP（AMD）、Metal（Apple）、Vulkan、SYCL、OpenCL、WebGPU 等，没有显卡也能用 CPU 跑。\n\n## 主要工具\n\n- **llama-cli**：命令行对话工具，可以直接从 Hugging Face 拉取模型运行。\n- **llama-server**：一个轻量的 HTTP 服务，提供**兼容 OpenAI 的 API**，并**自带网页聊天界面**——很多人在找的「llama.cpp 前端」，其实装好就有。\n\n## 怎么上手\n\n1. 安装：README 提供了安装脚本（curl 或 PowerShell）、Docker 镜像、Releases 页的预编译包，也可以从源码编译。新手建议直接下载对应系统和显卡的预编译包。\n2. 启动服务并加载一个模型（从 Hugging Face 自动下载）：\n\n```bash\nllama-server -hf 组织名/模型仓库名-GGUF\n```\n\n3. 浏览器打开 `http://localhost:8080`，就能在自带的网页界面里对话。\n4. 其他程序把 OpenAI 接口地址指向 `http://localhost:8080/v1` 即可调用。\n\n模型怎么选：先看自己显存或内存有多大，选量化后文件体积小于可用显存的版本；不确定时从 4 比特量化（文件名里带 Q4）的小模型试起。\n\n## 免费与付费\n\n完全免费开源，没有任何付费版本。成本只有硬件、电费和下载模型的流量。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想用最少的依赖在本地或服务器上跑模型的开发者；\n- 需要精细控制上下文长度、GPU 层数、采样参数的进阶用户；\n- 在树莓派、旧电脑、无显卡服务器等受限环境里部署模型的人。\n\n**不适合：**\n- 不想碰命令行的用户——选 LM Studio、Jan 这类图形界面软件；\n- 想「一条命令自动管理模型」的人，Ollama 更省心；\n- 需要高并发、多显卡服务大量用户的生产环境，vLLM 这类服务框架更合适。\n\n## 注意事项\n\n- **更新非常快**：命令行参数时有变化，老教程里的可执行文件名（如早期的 `main`）已经改掉，以当前 README 为准。\n- **下载对版本**：预编译包分 CPU、CUDA、Vulkan 等多种，下错了要么跑不起来，要么用不上显卡。\n- **模型许可证独立于软件**：llama.cpp 是 MIT，但每个模型有自己的许可，商用前逐个核对。\n- **服务不要直接暴露到公网**：需要远程访问时加上 API Key 参数和反向代理。",
+      "images": [],
+      "sources": [
+        "https://github.com/ggml-org/llama.cpp"
+      ]
+    },
+    {
+      "title": "text-generation-webui（oobabooga，现名 textgen）是什么：本地大模型网页界面的安装与使用",
+      "slug": "text-generation-webui-textgen",
+      "name": "text-generation-webui（现名 textgen）",
+      "url": "https://github.com/oobabooga/textgen",
+      "pricing": "开源免费（AGPL-3.0）",
+      "platforms": "Windows / macOS / Linux / Docker",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding",
+        "fiction"
+      ],
+      "excerpt": "text-generation-webui 是 oobabooga 开发的本地大模型界面，仓库现已更名为 textgen。支持 llama.cpp、Transformers、ExLlamaV3 等多种后端，带对话、笔记本、LoRA 训练和兼容 OpenAI 的接口。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据官方 GitHub 仓库 oobabooga/textgen 的 README 整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\n很多教程里说的「oobabooga」「text-generation-webui」「TGW」都是同一个项目。它的 GitHub 仓库现在名为 **oobabooga/textgen**（约 4.77 万星标，AGPL-3.0 许可），旧地址会跳转到新仓库。README 把它描述为一款运行本地大模型的开源桌面应用，强调「100% 私密」、没有遥测。\n\n它在本地模型圈子里的定位类似 Stable Diffusion WebUI 之于 AI 绘画：**功能最全、可调参数最多的「瑞士军刀」**，尤其受喜欢折腾模型、写长篇故事和角色对话的用户欢迎。\n\n## 能做什么\n\n- **三种对话模式**：chat、instruct、chat-instruct，适配不同类型的模型和玩法。\n- **Notebook 标签页**：不走对话格式的自由续写，适合写作。\n- **多种后端**：llama.cpp、ik_llama.cpp、Transformers、ExLlamaV3、TensorRT-LLM，可以加载 GGUF、原始权重、EXL3 等格式。\n- **多模态与附件**：图片输入（视觉模型）、文本 / PDF / docx 附件。\n- **图像生成**：用 diffusers 模型出图。\n- **LoRA 训练**：在界面里微调模型。\n- **工具调用**：支持 MCP 服务器。\n- **扩展机制**：安装社区扩展增加功能。\n- **API**：兼容 OpenAI 和 Anthropic 风格的 Chat、Completions、Messages 接口。\n\n## 怎么上手\n\nREADME 提供了几种安装方式，按省事程度排序：\n\n1. **便携版（Portable builds）**：Linux、Windows、macOS 都有，下载解压后直接运行，不需要配置 Python 环境——新手首选，主要用于 GGUF 模型。\n2. **一键安装脚本**：克隆仓库后运行对应系统的启动脚本，自动创建环境并安装依赖，可使用全部后端。\n3. **手动 venv / Conda / Docker**：给需要自定义环境的用户。\n\n启动后在浏览器打开提示的本地地址，进入 Model 标签页下载或选择模型并加载，再回到 Chat 标签页开始对话。\n\n## 免费与付费\n\n完全免费开源，没有付费版。花费只在硬件上。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 想尝试各种模型格式和加载方式的本地模型玩家；\n- 需要细调采样参数、提示模板的进阶用户和小说、角色扮演创作者；\n- 想在本地做 LoRA 微调实验的学习者。\n\n**不适合：**\n- 只想「下载就能聊」的新手，LM Studio、Jan 更直观；\n- 没有独立显卡且内存较小的电脑；\n- 需要多用户账号体系和权限管理的团队场景，应看 Open WebUI。\n\n## 注意事项\n\n- **改名后的教程差异**：以 text-generation-webui 为名的老教程，在启动脚本名、目录结构和后端选项上可能与现在不同。\n- **后端与模型格式要匹配**：GGUF 用 llama.cpp，EXL3 用 ExLlamaV3，选错会加载失败。\n- **扩展会执行代码**：只装可信来源的扩展。\n- **AGPL 许可**：修改后对外提供网络服务，需要按 AGPL-3.0 公开对应源码。\n- **模型内容与许可自负**：下载的社区模型质量和许可参差不齐，使用前看模型页说明。",
+      "images": [],
+      "sources": [
+        "https://github.com/oobabooga/textgen"
+      ]
+    },
+    {
+      "title": "vLLM 是什么、怎么用：高吞吐的开源大模型推理与部署框架入门",
+      "slug": "vllm-llm-serving-engine",
+      "name": "vLLM",
+      "url": "https://github.com/vllm-project/vllm",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Linux 服务器 / Docker / Python 库",
+      "trialNote": null,
+      "tags": [
+        "ai-tools",
+        "coding"
+      ],
+      "excerpt": "vLLM 是起源于加州大学伯克利分校的开源大模型推理与服务框架，凭借 PagedAttention 和连续批处理实现高吞吐，自带兼容 OpenAI 的 API 服务，是自建模型服务的常用选择。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 vLLM 官方 GitHub 仓库 README 与官方文档整理，资料核对于 2026-10-11。开源项目变化快，以官方仓库为准。\n\n## 是什么\n\nvLLM 是一个用于大模型**推理和服务**的开源库，仓库 vllm-project/vllm 约有 9.35 万星标，采用 Apache-2.0 许可。它起源于加州大学伯克利分校的 Sky Computing Lab，README 称现在由来自众多高校和公司的两千多名贡献者共同维护。\n\n如果说 Ollama、llama.cpp 解决的是「在我自己的电脑上跑起来」，vLLM 解决的就是「**在服务器显卡上同时服务很多人**」。公司内部搭一个共享的模型服务、给应用提供稳定的模型后端，通常会用到它。\n\n## 核心能力\n\n- **PagedAttention**：高效管理注意力计算所需的显存，是它高吞吐的基础。\n- **连续批处理（Continuous batching）**：把不同时间到达的请求动态拼在一起推理，显著提高显卡利用率。\n- **前缀缓存、量化、推测解码**：进一步降低延迟和成本。\n- **兼容 OpenAI 的 API 服务**：启动后现有的 OpenAI 客户端代码改个地址就能用。\n- **硬件支持**：NVIDIA、AMD、Intel 的 GPU，x86、ARM、PowerPC 的 CPU，并通过硬件插件支持 Google TPU、Apple Silicon 等。\n\n## 怎么上手\n\n准备一台带显卡的 Linux 机器：\n\n```bash\nuv pip install vllm\nvllm serve 组织名/模型名\n```\n\n第二条命令会从 Hugging Face 下载模型并在本机 8000 端口启动服务，然后就可以用 OpenAI SDK 调用：\n\n```python\nfrom openai import OpenAI\nclient = OpenAI(base_url=\"http://localhost:8000/v1\", api_key=\"EMPTY\")\nprint(client.chat.completions.create(model=\"组织名/模型名\", messages=[{\"role\": \"user\", \"content\": \"你好\"}]).choices[0].message.content)\n```\n\n生产部署一般使用官方 Docker 镜像，并按文档调整显存占用比例、最大上下文长度、并发数等参数。\n\n## 免费与付费\n\n框架完全免费。成本是 GPU 服务器——自购或租用云主机，以及运维人力。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 要在公司内部或自己产品里自建模型服务的后端和算法工程师；\n- 有多用户并发需求、希望把显卡利用率压到最高的团队；\n- 需要部署自己微调的开源模型的场景。\n\n**不适合：**\n- 只想在个人电脑上和模型聊天的用户，Ollama、LM Studio 简单得多；\n- 没有独立显卡的机器；\n- 不想承担运维工作的小团队，直接用推理云平台的 API 更省事。\n\n## 注意事项\n\n- **显存默认会被占满**：vLLM 启动时会预先占用大部分显存，同一张卡上要跑别的程序需要手动调低占用比例。\n- **模型格式**：主要加载 Hugging Face 格式的权重，和 llama.cpp 常用的 GGUF 量化文件不是一回事。\n- **对外服务要加鉴权**：启动时设置 API Key，并放在网关或反向代理之后。\n- **版本与驱动匹配**：CUDA、显卡驱动和 vLLM 版本要对应，优先用官方镜像减少环境问题。\n- **模型许可证各自独立**，商用前核对。",
+      "images": [],
+      "sources": [
+        "https://github.com/vllm-project/vllm",
+        "https://docs.vllm.ai/"
       ]
     }
   ]
