@@ -31,6 +31,7 @@
 | 423-maxkb-enterprise-agent-platform.md | MaxKB | https://github.com/1Panel-dev/MaxKB<br>https://maxkb.cn/ | — |
 | 424-librechat-self-hosted-multi-provider.md | LibreChat | https://github.com/danny-avila/LibreChat<br>https://www.librechat.ai/ | — |
 | 425-nextchat-chatgpt-next-web.md | NextChat | https://github.com/ChatGPTNextWeb/NextChat | — |
+| 426-activepieces-open-source-automation.md | Activepieces | https://github.com/activepieces/activepieces<br>https://www.activepieces.com/ | — |
 | 430-tripo-ai-3d-model-generator.md | Tripo AI | https://www.tripo3d.ai/pricing<br>https://www.tripo3d.ai/ | — |
 | 431-meshy-ai-3d-toolbox.md | Meshy | https://www.meshy.ai/pricing<br>https://www.meshy.ai/ | — |
 | 432-tencent-hunyuan3d-ai-modeling.md | 腾讯混元3D | https://3d.hunyuan.tencent.com/<br>https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1 | — |
@@ -42,9 +43,11 @@
 | 438-invokeai-stable-diffusion-canvas.md | InvokeAI | https://github.com/invoke-ai/InvokeAI | — |
 | 450-hedra-ai-character-video.md | Hedra | https://www.hedra.com/pricing<br>https://www.hedra.com/ | — |
 | 451-d-id-ai-avatar-video-agents.md | D-ID | https://www.d-id.com/pricing/studio/<br>https://www.d-id.com/ | — |
+| 452-kapwing-online-ai-video-editor.md | Kapwing | https://www.kapwing.com/pricing<br>https://www.kapwing.com/ | — |
 | 460-speechify-text-to-speech-reader.md | Speechify | https://speechify.com/pricing/<br>https://speechify.com/ | — |
 | 461-openai-whisper-speech-recognition.md | Whisper（OpenAI 开源语音识别） | https://github.com/openai/whisper | — |
 | 462-buzz-whisper-desktop-transcription.md | Buzz | https://github.com/chidiwilliams/buzz | — |
+| 463-notta-ai-transcription-meeting-notes.md | Notta | https://www.notta.ai/en/pricing<br>https://www.notta.ai/en | — |
 | 470-wordtune-ai-rewriting-assistant.md | Wordtune | https://www.wordtune.com/plans<br>https://www.wordtune.com/ | — |
 | 471-copy-ai-gtm-platform.md | Copy.ai | https://www.copy.ai/prices<br>https://www.copy.ai/ | — |
 | 472-rytr-ai-writing-assistant.md | Rytr | https://rytr.me/ | — |
@@ -66,6 +69,7 @@
 | 525-intercom-fin-ai-agent.md | Fin（Intercom） | https://fin.ai/pricing<br>https://fin.ai/ | — |
 | 526-zendesk-ai-agents-copilot.md | Zendesk AI | https://www.zendesk.com/pricing/<br>https://www.zendesk.com/ | — |
 | 527-meiqia-ai-customer-service.md | 美洽 | https://www.meiqia.com/ | — |
+| 528-botpress-ai-agent-platform.md | Botpress | https://botpress.com/pricing<br>https://botpress.com/ | — |
 | 530-khanmigo-khan-academy-ai-tutor.md | Khanmigo | https://www.khanmigo.ai/pricing<br>https://www.khanmigo.ai/ | — |
 | 531-photomath-scan-math-solver.md | Photomath | https://photomath.com/ | — |
 | 540-brave-leo-browser-ai-assistant.md | Brave Leo | https://brave.com/leo/ | — |
@@ -80,12 +84,14 @@
 | 556-opencode-open-source-coding-agent.md | OpenCode | https://github.com/anomalyco/opencode<br>https://opencode.ai/ | — |
 | 557-goose-open-source-ai-agent.md | goose | https://github.com/aaif-goose/goose | — |
 | 558-kilo-code-open-source-coding-agent.md | Kilo Code | https://github.com/Kilo-Org/kilocode<br>https://kilo.ai/ | — |
+| 559-llamaindex-data-agent-framework.md | LlamaIndex | https://github.com/run-llama/llama_index<br>https://www.llamaindex.ai/ | — |
 | 570-together-ai-open-model-cloud.md | Together AI | https://www.together.ai/pricing<br>https://www.together.ai/ | — |
 | 571-fireworks-ai-inference-platform.md | Fireworks AI | https://fireworks.ai/pricing<br>https://fireworks.ai/ | — |
 | 572-replicate-run-ml-models-api.md | Replicate | https://replicate.com/pricing<br>https://replicate.com/ | — |
 | 573-fal-ai-generative-media-api.md | fal | https://fal.ai/pricing<br>https://fal.ai/ | — |
 | 575-amazon-bedrock-foundation-models.md | Amazon Bedrock | https://aws.amazon.com/bedrock/<br>https://aws.amazon.com/bedrock/pricing/ | — |
 | 576-microsoft-foundry-azure-ai.md | Microsoft Foundry（原 Azure AI Foundry） | https://azure.microsoft.com/en-us/products/ai-foundry<br>https://learn.microsoft.com/en-us/azure/ai-foundry/ | — |
+| 578-kimi-open-platform-moonshot-api.md | Kimi 开放平台 | https://platform.kimi.com/docs/introduction | — |
 | 585-llama-cpp-local-llm-inference.md | llama.cpp | https://github.com/ggml-org/llama.cpp | — |
 | 586-text-generation-webui-textgen.md | text-generation-webui（现名 textgen） | https://github.com/oobabooga/textgen | — |
 | 587-vllm-llm-serving-engine.md | vLLM | https://github.com/vllm-project/vllm<br>https://docs.vllm.ai/ | — |
