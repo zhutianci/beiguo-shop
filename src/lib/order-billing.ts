@@ -109,6 +109,7 @@ export async function submitInvoiceForExternalOrder(
     bankAccount: d.bankAccount || null,
     email,
     showAiWording: d.showAiWording,
+    invoiceItem: d.invoiceItem ?? null,
     sellingPrice: price,
     invoiceAmount,
     taxFee,
@@ -186,6 +187,8 @@ export async function submitReceiptForExternalOrder(
     paidInvoiceAmount?: number | null
     /** 收据上是否展示 ChatGPT/Claude 字眼（买家申请时必选，与发票同一口径）。不展示 → 项目印「技术咨询服务」 */
     showAiWording?: boolean | null
+    /** 收据项目（lib/invoice-items.ts 的 key）。不展示字眼时「项目」印它的名称；缺省 = 技术咨询服务 */
+    invoiceItem?: string | null
   } = {}
 ) {
   const order = await prisma.externalOrder.findUnique({ where: { id: externalOrderId } })
@@ -232,6 +235,7 @@ export async function submitReceiptForExternalOrder(
       amount,
       source: 'BUYER',
       showAiWording: opts.showAiWording ?? null,
+      invoiceItem: opts.invoiceItem ?? null,
     },
   })
 

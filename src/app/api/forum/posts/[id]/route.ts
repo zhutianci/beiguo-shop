@@ -7,7 +7,7 @@ import { success, error } from '@/lib/api'
 import { renderMarkdown } from '@/lib/markdown'
 import { resolveActor, normalizeTags, memberDisplayName } from '@/lib/forum'
 import { forumViewCounted } from '@/lib/forum-throttle'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { flagsOf, forumCrossSite, trustLevelOf } from '@/lib/forum-server'
 import { FLAG_LABELS, asContentType, canView, contentPath, isForumImageUrl, isPublic, postReviewOnEdit } from '@/lib/content/policy'
 import { declarationShape } from '@/lib/content/schema'
@@ -19,8 +19,8 @@ import { notify } from '@/lib/notify'
 
 // 帖子详情（浏览量去重 +1，返回渲染后的 HTML 与点赞状态）
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
+  // 渠道分站：本模块渠道站默认关闭，超管授权且渠道上架才开（docs/多渠道分销-内容模块下放.md）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   try {
     const id = parseInt(params.id)
@@ -153,8 +153,8 @@ const patchSchema = z.object({
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
+  // 渠道分站：本模块渠道站默认关闭，超管授权且渠道上架才开（docs/多渠道分销-内容模块下放.md）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const crossSite = forumCrossSite(request.headers)
   if (crossSite) return crossSite
@@ -332,8 +332,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
+  // 渠道分站：本模块渠道站默认关闭，超管授权且渠道上架才开（docs/多渠道分销-内容模块下放.md）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const crossSite = forumCrossSite(request.headers)
   if (crossSite) return crossSite

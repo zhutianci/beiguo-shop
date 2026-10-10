@@ -61,6 +61,8 @@ const origLoad = Mod._load
 Mod._load = function (request: string, parent: unknown, isMain: boolean) {
   if (request.endsWith('.css')) return {}
   if (request === 'next/font/google') return { Inter: () => ({ className: 'inter' }) }
+  // 商品详情底部的「相关内容」是 async 服务端组件（内容平台 P1），renderToString 渲染不了；基线与工作区同样替成空，不影响逐字比较
+  if (request.endsWith('/content/related-for-product')) return { RelatedContentForProduct: () => null }
   return origLoad.call(this, request, parent, isMain)
 }
 

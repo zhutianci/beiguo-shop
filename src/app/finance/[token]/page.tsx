@@ -24,6 +24,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
+import { DEFAULT_INVOICE_ITEM, invoiceItemName } from '@/lib/invoice-items'
 
 interface Invoice {
   id: number
@@ -36,6 +37,8 @@ interface Invoice {
   bankAccount: string | null
   email: string | null
   showAiWording: boolean | null
+  /** 发票项目 key；NULL = 功能上线前的发票，按技术咨询服务 */
+  invoiceItem?: string | null
   subscriptionType: string
   claudeAccount: string | null
   sellingPrice: number | null
@@ -276,6 +279,15 @@ export default function FinanceDeskPage() {
                     )}
                     <span className="rounded-full bg-white/5 border border-white/10 px-2 py-0.5 text-white/55">
                       {iv.subscriptionType}
+                    </span>
+                    <span
+                      className={`rounded-full border px-2 py-0.5 ${
+                        iv.invoiceItem && iv.invoiceItem !== DEFAULT_INVOICE_ITEM
+                          ? 'bg-violet-500/12 border-violet-500/30 text-violet-300'
+                          : 'bg-white/5 border-white/10 text-white/50'
+                      }`}
+                    >
+                      项目：{invoiceItemName(iv.invoiceItem)}
                     </span>
                     <span
                       className={`rounded-full border px-2 py-0.5 ${

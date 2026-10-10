@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Search, Eye, X, Download, Plus, AlertCircle, Link2, Copy, Check } from 'lucide-react'
 import { normalizeTaxNumber, TAX_NUMBER_MAX_LEN } from '@/lib/tax-number'
+import { DEFAULT_INVOICE_ITEM, INVOICE_ITEMS, invoiceItemOf, type InvoiceItemKey } from '@/lib/invoice-items'
 
 interface InvoiceRow {
   /** 手动录入的站外发票没有订单，这里是 null */
@@ -28,6 +29,8 @@ interface InvoiceRow {
   bankAccount: string | null
   email: string | null
   showAiWording: boolean | null
+  /** 发票项目 key；NULL = 功能上线前的发票 / 空壳记录，按技术咨询服务开 */
+  invoiceItem: string | null
   sellingPrice: number | null
   invoiceAmount: number | null
   taxFee: number | null
@@ -620,6 +623,12 @@ function InvoicesInner() {
                   '发票展示 ChatGPT/Claude 字眼',
                   detail.showAiWording == null ? '—（申请前的历史记录）' : detail.showAiWording ? '展示' : '不展示',
                 ],
+                [
+                  '发票项目',
+                  `${invoiceItemOf(detail.invoiceItem).name}（${invoiceItemOf(detail.invoiceItem).taxCode}）${
+                    detail.invoiceItem ? '' : ' · 未选择，按默认'
+                  }`,
+                ],
                 ['地址', detail.address || '-'],
                 ['电话', detail.phone || '-'],
                 ['开户行', detail.bankName || '-'],
@@ -755,6 +764,7 @@ function ManualInvoiceModal({
     account: '',
   })
   const [showAiWording, setShowAiWording] = useState(false)
+  const [invoiceItem, setInvoiceItem] = useState<InvoiceItemKey>(DEFAULT_INVOICE_ITEM)
   const [status, setStatus] = useState<'SUBMITTED' | 'ISSUED'>('SUBMITTED')
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -795,6 +805,7 @@ function ManualInvoiceModal({
           subscriptionType: f.subscriptionType.trim() || null,
           account: f.account.trim() || null,
           showAiWording,
+          invoiceItem,
           status,
         }),
       })
@@ -886,7 +897,22 @@ function ManualInvoiceModal({
           {field('接收邮箱', 'email', { type: 'email', placeholder: '选填，标记已开具时给客户发通知用' })}
           {field('客户标识', 'account', { placeholder: '选填，显示在列表「账户」列' })}
           <div className="sm:col-span-2">
-            {field('开票内容', 'subscriptionType', { placeholder: '留空则按默认「技术咨询服务」开具' })}
+            {field('开票内容', 'subscriptionType', { placeholder: '选「展示」时印在规格型号上；留空则写「技术咨询服务」' })}
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs text-gray-500">发票项目（项目名称 + 税收编码）</label>
+            <select
+              value={invoiceItem}
+              onChange={(e) => setInvoiceItem(e.target.value as InvoiceItemKey)}
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
+            >
+              {INVOICE_ITEMS.map((it, i) => (
+                <option key={it.key} value={it.key}>
+                  {it.name}（{it.taxCode}）{i === 0 ? '· 默认' : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
@@ -896,7 +922,7 @@ function ManualInvoiceModal({
               onChange={(e) => setShowAiWording(e.target.value === '1')}
               className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900"
             >
-              <option value="0">不展示（只开「技术咨询服务」）</option>
+              <option value="0">不展示（只开「{invoiceItemOf(invoiceItem).name}」）</option>
               <option value="1">展示（规格型号写开票内容）</option>
             </select>
           </div>
@@ -1192,7 +1218,7 @@ function InvoiceLinkModal({ onClose, onCreated }: { onClose: () => void; onCreat
                   maxLength={100}
                   placeholder="例如 ChatGPT Plus 会员"
                 />
-                <p className="mt-1 text-xs text-gray-400">客户选择「展示字眼」时印在规格型号上；选「不展示」则只印「技术咨询服务」</p>
+                <p className="mt-1 text-xs text-gray-400">客户选择「展示字眼」时印在规格型号上；选「不展示」则只印客户在链接里自选的发票项目（默认「技术咨询服务」）</p>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>

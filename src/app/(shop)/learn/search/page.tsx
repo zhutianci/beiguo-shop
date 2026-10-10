@@ -6,6 +6,7 @@ import { searchThrottled } from '@/lib/search-throttle'
 import { PUBLIC_WHERE, cardsByIds } from '@/lib/content/queries'
 import { SITE_NAME } from '@/lib/product-seo'
 import { Crumbs, Empty, GuideRows, LEARN_HOME, LearnPage, PromptMasonry, SearchBox } from '@/components/learn/ui'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
 
 /**
  * 学习平台站内搜索（内容平台 P2）。
@@ -23,7 +24,7 @@ function queryOf(v: string | string[] | undefined): string {
   return (Array.isArray(v) ? v[0] : v || '').trim().slice(0, 60)
 }
 
-export function generateMetadata({ searchParams }: Props): Metadata {
+function pageMetadata({ searchParams }: Props): Metadata {
   const q = queryOf(searchParams.q)
   return { title: `${q ? `搜索「${q}」` : '搜索'} - AI 学习 - ${SITE_NAME}`, robots: { index: false, follow: true } }
 }
@@ -97,4 +98,9 @@ export default async function LearnSearchPage({ searchParams }: Props) {
       </div>
     </LearnPage>
   )
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
+  return moduleMetadata(await pageMetadata(props))
 }

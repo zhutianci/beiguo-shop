@@ -64,6 +64,7 @@ const SELECT = {
   bankAccount: true,
   email: true,
   showAiWording: true,
+  invoiceItem: true,
   subscriptionType: true,
   claudeAccount: true,
   orderStartDate: true,

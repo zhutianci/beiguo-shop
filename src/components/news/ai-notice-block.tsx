@@ -1,4 +1,5 @@
 import { AI_NOTICE, AUTHOR_NAME } from '@/lib/news/constants'
+import { currentBrand, withBrandName } from '@/lib/storefront/brand-meta'
 
 /**
  * AI 聚合说明条。
@@ -11,8 +12,11 @@ import { AI_NOTICE, AUTHOR_NAME } from '@/lib/news/constants'
  *
  * 【文案本身不要在这里改】AI_NOTICE 还被分享海报用着（poster.ts 里硬裁 2 行），
  * 改长了会在海报上被省略号截断，等于法定标识残缺。要改先看它的全部消费者。
+ *
+ * 【渠道站】内容模块下放（docs/多渠道分销-内容模块下放.md）后，改了站名的渠道把整理者里的「贝果科技」换成渠道站名
+ * （与分享海报同一口径）；主站与没改名的渠道逐字不变。Server Component（读当前店面），只给服务端页面用。
  */
-export function AiNoticeBlock({
+export async function AiNoticeBlock({
   className = '',
   /** 线索来源标注。有第三方帮我们发现选题时必须标注并回链（授权条件） */
   leadNote,
@@ -20,6 +24,7 @@ export function AiNoticeBlock({
   className?: string
   leadNote?: React.ReactNode
 }) {
+  const author = withBrandName(AUTHOR_NAME, await currentBrand())
   return (
     <div
       className={`flex gap-2.5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 lg:px-5 lg:py-3.5 ${className}`}
@@ -29,7 +34,7 @@ export function AiNoticeBlock({
       </span>
       <div className="text-[13px] leading-relaxed text-white/50 lg:text-sm">
         <p>
-          {AI_NOTICE}整理者：{AUTHOR_NAME}。
+          {AI_NOTICE}整理者：{author}。
         </p>
         {leadNote ? <p className="mt-1.5 text-white/40">{leadNote}</p> : null}
       </div>

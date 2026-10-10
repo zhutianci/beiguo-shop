@@ -34,6 +34,7 @@ import type {
   PartnerInvoiceDTO,
   PartnerListingDTO,
   PartnerMessageRow,
+  PartnerModuleDTO,
   PartnerNoticeEmailSaveResult,
   PartnerNoticeRow,
   PartnerNoticeTransportDTO,
@@ -599,6 +600,8 @@ const ANNOUNCEMENT_KEYS = dtoKeys<PartnerAnnouncementDTO>()(
   ['announcementNo', 'title', 'body', 'level', 'enabled', 'pinned', 'blocked', 'startAt', 'endAt', 'createdAt', 'updatedAt', 'live'] as const,
   true,
 )
+/** 内容模块下放（docs/多渠道分销-内容模块下放.md） */
+const MODULE_KEYS = dtoKeys<PartnerModuleDTO>()(['module', 'label', 'granted', 'on', 'live'] as const, true)
 type NoticeEmailSaveKeys = keyof Extract<PartnerNoticeEmailSaveResult, { ok: true }> | keyof Extract<PartnerNoticeEmailSaveResult, { ok: false }>
 const NOTICE_EMAIL_SAVE_KEYS: readonly NoticeEmailSaveKeys[] = ['ok', 'noticeEmail', 'reason']
 
@@ -627,6 +630,8 @@ const ENVELOPE_KEYS = [
   'transport', 'contact', 'needCode', 'sent',
   // 渠道品牌与公告：品牌卡片外层、公告单条外层（列表用通用的 rows）、删除结果
   'brand', 'row', 'ok',
+  // 内容模块下放：模块列表外层
+  'modules',
 ] as const
 
 /**
@@ -664,6 +669,7 @@ export const PARTNER_ALLOWED_KEYS: ReadonlySet<string> = new Set<string>([
   ...CONTACT_KEYS,
   ...BRAND_KEYS,
   ...ANNOUNCEMENT_KEYS,
+  ...MODULE_KEYS,
   ...NOTICE_EMAIL_SAVE_KEYS,
   ...ENVELOPE_KEYS,
   ...TENANT_NOTICE_KINDS,

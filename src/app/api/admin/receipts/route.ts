@@ -6,6 +6,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { createManualReceipt, parseReceiptItems, BillingError } from '@/lib/order-billing'
+import { receiptProjectLabel } from '@/lib/receipt'
 import { adminGuard } from '@/lib/admin-guard'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest) {
       subscriptionType: r.subscriptionType,
       // 买家申请时的选择：false = 收据「项目」只印「技术咨询服务」；null = 历史收据 / DIY，按原样
       showAiWording: r.showAiWording,
+      // 买家选的收据项目（NULL = 历史 / DIY）与最终印在「项目」一栏的文案
+      invoiceItem: r.invoiceItem,
+      project: receiptProjectLabel(r.subscriptionType, r.showAiWording, r.invoiceItem),
       payerTitle: r.payerTitle,
       payee: r.payee,
       amount: Number(r.amount),

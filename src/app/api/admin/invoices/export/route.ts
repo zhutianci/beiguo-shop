@@ -50,6 +50,8 @@ const SELECT = {
   bankAccount: true,
   email: true,
   showAiWording: true,
+  // 表二「项目名称 + 税收编码」按它取（lib/invoice-export.itemRow）
+  invoiceItem: true,
   subscriptionType: true,
   invoiceAmount: true,
   // 手动录入的发票规格型号直接用原文，不走商品名清洗（见 lib/invoice-export.itemRow）

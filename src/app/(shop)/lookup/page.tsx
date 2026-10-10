@@ -7,6 +7,8 @@ import { Search, Mail, Sparkles, Package, CheckCircle, Clock, Calendar, BellRing
 import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
 import { emailProofHeaders, saveEmailProof, clearEmailProof } from '@/lib/email-proof-client'
 import { useHydrated } from '@/lib/use-hydrated'
+import { InvoiceItemSelect } from '@/components/invoice-item-select'
+import { DEFAULT_INVOICE_ITEM, invoiceItemName, type InvoiceItemKey } from '@/lib/invoice-items'
 
 interface ExternalOrder {
   id: number
@@ -824,6 +826,8 @@ function InvoiceModal({
   const [email, setEmail] = useState(defaultEmail || order.claudeAccount)
   // 必选项：发票中是否展示 ChatGPT/Claude 相关字眼。null = 尚未选择
   const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
+  // 发票项目：默认技术咨询服务（= 可选之前的固定值）
+  const [invoiceItem, setInvoiceItem] = useState<InvoiceItemKey>(DEFAULT_INVOICE_ITEM)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -896,6 +900,7 @@ function InvoiceModal({
           bankAccount: bankAccount.trim() || null,
           email: email.trim(),
           showAiWording,
+          invoiceItem,
           titleId,
           // 未登录时服务端会忽略这个字段（存抬头需要身份）
           saveTitle: titleId === null && saveTitle,
@@ -1053,6 +1058,8 @@ function InvoiceModal({
               ))}
             </div>
           </div>
+
+          <InvoiceItemSelect className="sm:col-span-2" value={invoiceItem} onChange={setInvoiceItem} />
         </div>
 
         {/* 【按真实登录态判断，不是按「有没有存过抬头」】已登录但一条都没存的人
@@ -1101,6 +1108,8 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
   // 必选项：收据中是否展示 ChatGPT/Claude 相关字眼（与发票同一口径）。
   // null = 尚未选择 —— 收据只能开一次、开完改不了，不能替买家默认成任何一边
   const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
+  // 收据项目：与发票同一份清单，默认技术咨询服务
+  const [invoiceItem, setInvoiceItem] = useState<InvoiceItemKey>(DEFAULT_INVOICE_ITEM)
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr] = useState<string | null>(null)
 
@@ -1119,6 +1128,7 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
           // 归属凭证：证明调用方知道该订单的账户邮箱
           accountEmail: order.claudeAccount,
           showAiWording,
+          invoiceItem,
         }),
       })
       const data = await res.json()
@@ -1187,6 +1197,8 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
           />
         </div>
 
+        <InvoiceItemSelect className="mt-4" label="收据项目" value={invoiceItem} onChange={setInvoiceItem} />
+
         {/* 必选：收据「项目」一栏是否展示 AI 平台字眼。说明里直接写出会印成什么，免得买家猜 */}
         <div className="mt-4">
           <label className="block text-xs text-white/50 mb-1.5">
@@ -1194,8 +1206,8 @@ function ReceiptModal({ order, onClose }: { order: ExternalOrder; onClose: () =>
           </label>
           <div className="grid grid-cols-2 gap-2">
             {[
-              { v: true, label: '展示', desc: `项目印「${order.subscriptionType} 会员订阅」` },
-              { v: false, label: '不展示', desc: '项目只印「技术咨询服务」' },
+              { v: true, label: '展示', desc: `项目印「${invoiceItemName(invoiceItem)}（${order.subscriptionType} 会员订阅）」` },
+              { v: false, label: '不展示', desc: `项目只印「${invoiceItemName(invoiceItem)}」` },
             ].map((opt) => (
               <button
                 key={String(opt.v)}

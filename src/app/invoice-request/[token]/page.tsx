@@ -20,6 +20,8 @@ import { AlertCircle, CheckCircle2, ChevronDown, Clock, FileText, Loader2, XCirc
 import { normalizeTaxNumber, TAX_NUMBER_MAX_LEN } from '@/lib/tax-number'
 import { maskEmail } from '@/lib/mask'
 import { useStorefront } from '@/components/storefront-provider'
+import { InvoiceItemSelect } from '@/components/invoice-item-select'
+import { DEFAULT_INVOICE_ITEM, invoiceItemName, type InvoiceItemKey } from '@/lib/invoice-items'
 
 interface Submitted {
   title: string | null
@@ -27,6 +29,8 @@ interface Submitted {
   /** 服务端已打码 */
   email: string
   showAiWording: boolean | null
+  /** 发票项目名称（旧接口没有这个字段） */
+  invoiceItemName?: string
   invoiceNo: string
   /** 发票状态：SUBMITTED 待开 / ISSUED 已开 / CANNOT 不可开 */
   status: string
@@ -84,6 +88,8 @@ export default function InvoiceRequestPage() {
   const [email, setEmail] = useState('')
   // 必选、无默认：发票上印不印 ChatGPT/Claude 字眼，只能客户自己表态
   const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
+  // 发票项目：客户自选，默认技术咨询服务（= 可选之前的固定值）
+  const [invoiceItem, setInvoiceItem] = useState<InvoiceItemKey>(DEFAULT_INVOICE_ITEM)
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
   const [bankName, setBankName] = useState('')
@@ -147,6 +153,7 @@ export default function InvoiceRequestPage() {
           taxNumber: taxNumber.trim(),
           email: email.trim(),
           showAiWording,
+          invoiceItem,
           address: address.trim() || null,
           phone: phone.trim() || null,
           bankName: bankName.trim() || null,
@@ -160,6 +167,7 @@ export default function InvoiceRequestPage() {
           taxNumber: cleanTax,
           email: maskEmail(email.trim().toLowerCase()),
           showAiWording,
+          invoiceItemName: invoiceItemName(invoiceItem),
           invoiceNo: d.data.invoiceNo,
           status: 'SUBMITTED',
         })
@@ -236,6 +244,7 @@ export default function InvoiceRequestPage() {
               <SummaryRow label="抬头" value={receipt.title || '—'} />
               {receipt.taxNumber && <SummaryRow label="税号" value={<span className="font-mono">{receipt.taxNumber}</span>} />}
               <SummaryRow label="接收邮箱" value={receipt.email} />
+              {receipt.invoiceItemName && <SummaryRow label="发票项目" value={receipt.invoiceItemName} />}
               {receipt.showAiWording != null && (
                 // 标签刻意写短：375px 宽时长标签会把值挤成三行
                 <SummaryRow
@@ -245,7 +254,7 @@ export default function InvoiceRequestPage() {
                       ? view.subscriptionType
                         ? `展示（规格型号印：${view.subscriptionType}）`
                         : '展示'
-                      : '不展示（只印「技术咨询服务」）'
+                      : `不展示（只印「${receipt.invoiceItemName || '技术咨询服务'}」）`
                   }
                 />
               )}
@@ -346,6 +355,8 @@ export default function InvoiceRequestPage() {
             />
           </Field>
 
+          <InvoiceItemSelect theme="light" value={invoiceItem} onChange={setInvoiceItem} />
+
           <div>
             <div id="ai-wording-label" className="mb-1.5 text-sm font-medium text-gray-700">
               是否在发票中展示 ChatGPT/Claude 等字眼<span className="ml-0.5 text-red-500">*</span>
@@ -353,7 +364,7 @@ export default function InvoiceRequestPage() {
             <div role="radiogroup" aria-labelledby="ai-wording-label" className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               {[
                 { v: true, label: '展示', desc: showDesc },
-                { v: false, label: '不展示', desc: '发票项目只印「技术咨询服务」' },
+                { v: false, label: '不展示', desc: `发票项目只印「${invoiceItemName(invoiceItem)}」` },
               ].map((opt) => {
                 const on = showAiWording === opt.v
                 return (

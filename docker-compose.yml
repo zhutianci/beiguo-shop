@@ -94,6 +94,10 @@ services:
       # Git、日志或截图里」。所以值写在 .env.production 里，仓库里只有这个名字。
       # 没配时兑换页会提示「充值服务暂未配置」，不会把请求发出去。
       - SYSB_API_TOKEN
+      # 2026-10-09 迁到「卡冲 / iOS 专用」方案后，旧代理身份的 Token：**只用于查旧单，绝不下单**。
+      # 新 Token 是另一个代理身份，查不到旧单（404），而 404 会被当成「没下过单、可以再下」——
+      # 不留它，旧身份下还在跑的单就可能在同一张卡上被重下一次。见 providers/sysb.ts legacyToken()。
+      - SYSB_API_TOKEN_LEGACY
       # 领券 IP/设备限领哈希的盐（lib/coupon.ts claimHash）。不设 = 沿用 JWT_SECRET，与原来一致；
       # 轮换 JWT_SECRET 时把旧值写进这里，进行中的券批次限领记录才不会被清零
       - COUPON_CLAIM_SALT

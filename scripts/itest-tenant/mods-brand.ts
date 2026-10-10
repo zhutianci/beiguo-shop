@@ -268,8 +268,8 @@ async function main() {
         support: await import('../../src/app/(shop)/support/layout'),
         products: await import('../../src/app/(shop)/products/page'),
       }
-      eq('页头', render(platformPub, h(B.header.Header)), render(platformPub, h(N.header.Header)), ['贝果科技', '/logo-mark.png?v=3'])
-      eq('页脚', render(platformPub, h(B.footer.Footer)), render(platformPub, h(N.footer.Footer)), ['/logo-full.png?v=3', '贝果科技（益阳市赫山区必高科技有限公司）提供'])
+      eq('页头', render(platformPub, h(B.header.Header)), render(platformPub, h(N.header.Header)), ['贝果科技', '/logo-mark.webp?v=3'])
+      eq('页脚', render(platformPub, h(B.footer.Footer)), render(platformPub, h(N.footer.Footer)), ['/logo-full.webp?v=3', '贝果科技（益阳市赫山区必高科技有限公司）提供'])
       check('主站页脚没有经营主体小字（不是白标）', !render(platformPub, h(N.footer.Footer)).includes(OPERATOR_LINE))
       eq('浮动客服（展开）', opened(() => render(platformPub, h(B.floating.FloatingContact))), opened(() => render(platformPub, h(N.floating.FloatingContact))), ['贝果科技专属客服为你服务'])
       eq('筹备页', render(platformPub, h(B.closed.DraftClosedPage)), render(platformPub, h(N.closed.DraftClosedPage)), ['贝果科技'])
@@ -628,7 +628,7 @@ async function main() {
       await prisma.tenantDomain.create({ data: { tenantId: dRow.id, host: `${dCode}.bigolab.com`, isPrimary: true, status: 1 } })
       const tD = { id: dRow.id, code: dCode, host: `${dCode}.bigolab.com`, origin: `https://${dCode}.bigolab.com` }
       tenants.push(tD)
-      await prisma.tenantAnnouncement.create({ data: { tenantId: tD.id, announcementNo: 'D' + noA1.slice(1), title: '筹备期公告', content: 'x', enabled: true } })
+      await prisma.tenantAnnouncement.create({ data: { tenantId: tD.id, announcementNo: (noA1[0] === 'D' ? 'E' : 'D') + noA1.slice(1), title: '筹备期公告', content: 'x', enabled: true } })
       const d = await live(tD.host)
       check('筹备中的渠道：不给公告（null）', d.status === 200 && d.json?.data === null)
       await prisma.tenantAnnouncement.deleteMany({ where: { tenantId: tD.id } })

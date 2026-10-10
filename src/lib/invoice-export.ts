@@ -1,4 +1,5 @@
 import { normalizeTaxNumber } from './invoice'
+import { INVOICE_ITEMS, invoiceItemOf } from './invoice-items'
 
 /**
  * 批量开票导出：把「待开发票」写进税局官方的批量导入模板。
@@ -54,8 +55,12 @@ export const 是否含税_是 = '是'
 export const 展示购买方信息 = '展示地址、电话、开户银行及银行账号'
 export const 销售方开户行 = '工行益阳桃花仑支行'
 export const 销售方银行账号 = '1912021009200394667'
-export const 项目名称 = '技术咨询服务'
-export const 税收编码 = '3040102000000000000'
+/**
+ * 默认项目（= 发票项目可选之前的固定值）。实际写哪一项按每张发票的 invoiceItem 取，
+ * 见 lib/invoice-items.ts；invoiceItem 为 NULL 的历史发票就是这一项
+ */
+export const 项目名称: string = INVOICE_ITEMS[0].name
+export const 税收编码: string = INVOICE_ITEMS[0].taxCode
 export const 税率 = '0.01'
 export const 单位_月 = '月'
 export const 数量_1 = '1'
@@ -126,6 +131,8 @@ export interface ExportInvoice {
   bankAccount?: string | null
   email?: string | null
   showAiWording?: boolean | null
+  /** 发票项目 key（lib/invoice-items.ts）；NULL / 认不出来 = 技术咨询服务 */
+  invoiceItem?: string | null
   subscriptionType?: string | null
   invoiceAmount?: unknown // Prisma Decimal | number | string | null
 }
@@ -168,10 +175,12 @@ export function baseRow(inv: ExportInvoice): string[] {
 export function itemRow(inv: ExportInvoice): string[] {
   const r = blank(ITEM_COL_COUNT)
   r[ITEM_COL.流水号] = inv.invoiceNo
-  r[ITEM_COL.项目名称] = 项目名称
-  r[ITEM_COL.税收编码] = 税收编码
+  // 名称与编码必须成对取自同一项 —— 名称是买家选的、编码却是默认的，税局按编码认项目，票就开错了
+  const item = invoiceItemOf(inv.invoiceItem)
+  r[ITEM_COL.项目名称] = item.name
+  r[ITEM_COL.税收编码] = item.taxCode
 
-  // 买家选了「不展示」就三列全空，发票上只剩「技术咨询服务」，看不出买的是什么
+  // 买家选了「不展示」就三列全空，发票上只剩项目名称（如「技术咨询服务」），看不出买的是什么
   if (inv.showAiWording === true) {
     /*
      * 【手动录入的直接用原文，不过 specModel】specModel 里有一道

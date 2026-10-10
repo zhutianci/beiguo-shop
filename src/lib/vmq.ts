@@ -1988,6 +1988,7 @@ async function pushInvoiceReady(invoiceId: number) {
       title: invoice.title || '—',
       taxNumber: invoice.taxNumber,
       showAiWording: invoice.showAiWording,
+      invoiceItem: invoice.invoiceItem,
       subscriptionType: invoice.subscriptionType,
       invoiceAmount: invoice.invoiceAmount,
       taxFee: invoice.taxFee,

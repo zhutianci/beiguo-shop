@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { success, error } from '@/lib/api'
 import { hotNewsEvents } from '@/lib/news/hot'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 
 /**
  * 首页「AI 圈今日热点」区块用的公开读接口。
@@ -21,8 +21,8 @@ const querySchema = z.object({
 })
 
 export async function GET(request: NextRequest) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
+  // 渠道分站：本模块渠道站默认关闭，超管授权且渠道上架才开（docs/多渠道分销-内容模块下放.md）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyUnlessModule('news')
   if (channelDenied) return channelDenied
   const parsed = querySchema.safeParse(Object.fromEntries(request.nextUrl.searchParams))
   if (!parsed.success) {
