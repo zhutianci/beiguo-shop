@@ -80,12 +80,14 @@
 | 872-chroma-open-source-vector-database.md | Chroma | https://github.com/chroma-core/chroma | — |
 | 873-docling-document-parsing-toolkit.md | Docling | https://github.com/docling-project/docling | — |
 | 874-promptfoo-llm-eval-red-teaming.md | promptfoo | https://github.com/promptfoo/promptfoo | — |
+| 875-wolfram-alpha-computational-answers.md | Wolfram|Alpha | https://www.wolframalpha.com/pro/pricing<br>https://www.wolframalpha.com/ | — |
 | 876-clickup-brain-ai-workspace.md | ClickUp Brain | https://clickup.com/brain | — |
 | 877-base44-ai-no-code-app-builder.md | Base44 | https://base44.com/pricing<br>https://base44.com/ | — |
 | 878-glean-enterprise-ai-search.md | Glean | https://www.glean.com/ | — |
 | 879-milvus-open-source-vector-database.md | Milvus | https://github.com/milvus-io/milvus | — |
 | 880-weaviate-vector-database-hybrid-search.md | Weaviate | https://github.com/weaviate/weaviate | — |
 | 881-haystack-llm-orchestration-framework.md | Haystack | https://github.com/deepset-ai/haystack | — |
+| 882-humata-pdf-ai-document-chat.md | Humata | https://www.humata.ai/pricing<br>https://www.humata.ai/ | — |
 | 883-pydantic-ai-python-agent-framework.md | Pydantic AI | https://github.com/pydantic/pydantic-ai | — |
 | 884-vercel-ai-sdk-typescript-toolkit.md | Vercel AI SDK | https://github.com/vercel/ai | — |
 | 885-openai-agents-sdk-multi-agent.md | OpenAI Agents SDK | https://github.com/openai/openai-agents-python | — |
@@ -96,6 +98,13 @@
 | 890-arize-phoenix-llm-observability.md | Arize Phoenix | https://github.com/Arize-ai/phoenix | — |
 | 891-braintrust-ai-evals-observability.md | Braintrust | https://www.braintrust.dev/pricing<br>https://www.braintrust.dev/ | — |
 | 892-pieces-long-term-memory-developers.md | Pieces | https://pieces.app/pricing<br>https://pieces.app/ | — |
+| 893-zoom-ai-companion-zoommate.md | ZoomMate（原 Zoom AI Companion） | https://www.zoom.com/en/products/ai-assistant/ | — |
+| 894-slack-ai-summaries-slackbot.md | Slack AI | https://slack.com/features/ai | — |
+| 895-gitlab-duo-agent-platform.md | GitLab Duo Agent Platform | https://about.gitlab.com/gitlab-duo/ | — |
+| 896-deepgram-speech-ai-api.md | Deepgram | https://deepgram.com/pricing<br>https://deepgram.com/ | — |
+| 897-assemblyai-speech-to-text-api.md | AssemblyAI | https://www.assemblyai.com/pricing<br>https://www.assemblyai.com/ | — |
+| 898-languagetool-multilingual-grammar-checker.md | LanguageTool | https://languagetool.org/premium_new<br>https://languagetool.org/ | — |
+| 899-elsa-speak-ai-english-speaking.md | ELSA Speak | https://elsaspeak.com/en/ | — |
 
 ## 核对方法与口径
 
@@ -119,6 +128,7 @@
 - **Topaz Labs**：产品名简化为 Topaz Photo / Video / Gigapixel，定价页只见订阅。
 - **Relume**：relume.io 301 跳转 relume.ai。
 - **Semrush**：页脚出现 Adobe 标识；**Reclaim.ai**：Logo 带「from Dropbox」；**Tavily**：Logo 带「by Nebius」；**Base44**：页脚版权为 Wix.com Ltd.；**promptfoo**：README 称已并入 OpenAI 并保持开源；**Jina AI**：页脚版权为 Elastic；**Durable**：durable.co 301 跳转 durable.com。
+- **Zoom AI Companion**：官网产品页正文已统一称 ZoomMate（网址仍为 ai-assistant），标题保留用户常搜的旧名并在正文解释。
 - **Apple Intelligence / Galaxy AI**：依据美国官网页面写成，未涉及中国大陆市场的可用情况。
 
 ## 核对后没有收录的产品
@@ -136,6 +146,7 @@
 | Xcode 编程智能 | 官方页面只有三句概述（多家模型、Agent Client Protocol、MCP），不足以写成合格条目 |
 | Kittl | 定价页各档金额与额度均未显示，且功能信息较薄 |
 | Remini / Khroma / Quizlet / Supermaven / Sweep / Obsidian 与 Logseq 的 AI 插件生态 / Subtitle Edit / Observable AI / Qdrant | 未进入核对或抓取超时（Qdrant 504）；其中插件生态类没有可核对的单一官方页面 |
+| Atlassian Rovo | 官方页面正文被截断，只读到一句定位，功能与计费均未取到 |
 | Lex | 定价页写明不再接受新客户（老账号仍可用） |
 | Letta（原 MemGPT）/ DSPy | 官方 README 抓到的功能说明过于简略（Letta 现以 Letta Code 终端应用为主，DSPy 未读到核心概念说明），不足以写出不靠记忆的条目 |
 | Murf | 定价页正文为空（上一批同样失败） |
