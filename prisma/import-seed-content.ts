@@ -1,7 +1,7 @@
 /**
  * 导入种子内容（内容平台改版 2026-10-06）。读 prisma/seed-content.json（由 scripts/build-seed-bundle.ts 生成）。
  *
- *   DATABASE_URL=... npx tsx prisma/import-seed-content.ts --author admin@example.com [--publish | --schedule] [--uploads-dir public/uploads] [--force-intro] [--refresh-guides] [--refresh-apps] [--dry-run]
+ *   DATABASE_URL=... npx tsx prisma/import-seed-content.ts --author admin@example.com [--publish | --schedule] [--uploads-dir public/uploads] [--force-intro] [--refresh-guides [--only-slugs a,b]] [--refresh-apps] [--dry-run]
  *
  * --schedule（内容扩容 10-07，docs/内容平台/扩容基础设施-1007.md）：与 --publish 同一个「能不能公开」的判定，
  *   但够格的条目不立即公开，而是建成 reviewStatus=SCHEDULED（定时放量队列，与待审一样不公开），
@@ -245,6 +245,8 @@ async function main() {
     select: { id: true, type: true, slug: true, userId: true, reviewStatus: true },
   })
   const existing = new Map(existingRows.map((r) => [`${r.type}:${r.slug}`, r]))
+  // --only-slugs a,b：配合 --refresh-guides，只刷新点名的几篇（没改过的教程不动，免得白白刷新它们的更新时间）
+  const onlySlugs = arg('--only-slugs') ? new Set(arg('--only-slugs')!.split(',').map((x) => x.trim()).filter(Boolean)) : null
   const statusOf = (live: boolean, prev?: { reviewStatus: string }) =>
     // 刷新已公开的条目时不把它撤回队列；其余按本次模式
     live ? (prev?.reviewStatus === 'APPROVED' ? 'APPROVED' : liveStatus) : 'PENDING'
@@ -320,7 +322,7 @@ async function main() {
   for (const g of bundle.guides) {
     const prev = existing.get(`GUIDE:${g.slug}`)
     // --refresh-guides：种子教程改版后（换成官方资料与截图）刷新已导入的那几篇——只动导入账号自己发的、还没被改成别的作者的
-    if (prev && !(flag('--refresh-guides') && prev.userId === author.id)) {
+    if (prev && !(flag('--refresh-guides') && prev.userId === author.id && (!onlySlugs || onlySlugs.has(g.slug)))) {
       skipped++
       continue
     }
