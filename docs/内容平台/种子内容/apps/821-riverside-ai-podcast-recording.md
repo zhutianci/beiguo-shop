@@ -1,5 +1,5 @@
 ---
-title: "Riverside 是什么、怎么用、价格多少：远程录播客和访谈视频的 AI 录制剪辑平台"
+title: "Riverside 是什么、怎么用、免费吗：远程录播客和访谈视频的 AI 录制剪辑平台"
 slug: riverside-ai-podcast-recording
 name: Riverside
 url: https://riverside.com/
@@ -15,7 +15,7 @@ sources:
   - https://riverside.com/pricing
   - https://riverside.com/
 verify:
-  - "抓取到的定价页带有「staging 版本、可能不是最新」的提示，且 Webinar 档的年付金额与月价对不上；正文只写了 Free / Pro / Grow 三档，请站长打开 riverside.com/pricing 复核"
+  - "抓取到的定价页带有「staging 版本、可能不是最新」的提示，协调者复核时已去掉各档金额，只保留方案差异"
 ---
 
 > 本文根据 Riverside 官网定价页整理，资料核对于 2026-10-11。套餐价格请以官网定价页当前显示为准。
@@ -49,16 +49,16 @@ Riverside 是一个面向播客主、访谈节目和企业内容团队的远程�
 
 ## 免费与付费
 
-定价页（美元，按年计费，2026-10 查询）：
+定价页列出的方案（2026-10 查询）：
 
-| 方案 | 价格 | 要点 |
-| --- | --- | --- |
-| Free | 0 | 一次性 2 小时多轨录制；最高 720p、44.1kHz 音频；带 Riverside 水印；单轨录制与剪辑不限量 |
-| Pro | 24 美元/月（按年收取 288 美元） | 转写不限量、Magic Audio、切片与节目说明 |
-| Grow | 34 美元/月（按年收取 408 美元） | 1080p 直播、社交定时发布 |
-| Business | 联系销售 | — |
+| 方案 | 要点 |
+| --- | --- |
+| Free | 一次性 2 小时多轨录制；最高 720p、44.1kHz 音频；带 Riverside 水印；单轨录制与剪辑不限量 |
+| Pro | 转写不限量、Magic Audio、切片与节目说明 |
+| Grow | 1080p 直播、社交定时发布 |
+| Business | 联系销售 |
 
-页面称年付最多可省 20%，月付价格与 Webinar 档请以官网为准。
+页面称年付最多可省 20%。各档金额调整较频繁，请以官网定价页当前显示为准。
 
 ## 适合谁 / 不适合谁
 
