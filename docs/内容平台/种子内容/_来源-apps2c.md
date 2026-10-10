@@ -83,13 +83,26 @@
 | 876-clickup-brain-ai-workspace.md | ClickUp Brain | https://clickup.com/brain | — |
 | 877-base44-ai-no-code-app-builder.md | Base44 | https://base44.com/pricing<br>https://base44.com/ | — |
 | 878-glean-enterprise-ai-search.md | Glean | https://www.glean.com/ | — |
+| 879-milvus-open-source-vector-database.md | Milvus | https://github.com/milvus-io/milvus | — |
+| 880-weaviate-vector-database-hybrid-search.md | Weaviate | https://github.com/weaviate/weaviate | — |
+| 881-haystack-llm-orchestration-framework.md | Haystack | https://github.com/deepset-ai/haystack | — |
+| 883-pydantic-ai-python-agent-framework.md | Pydantic AI | https://github.com/pydantic/pydantic-ai | — |
+| 884-vercel-ai-sdk-typescript-toolkit.md | Vercel AI SDK | https://github.com/vercel/ai | — |
+| 885-openai-agents-sdk-multi-agent.md | OpenAI Agents SDK | https://github.com/openai/openai-agents-python | — |
+| 886-moises-ai-music-practice-stems.md | Moises | https://moises.ai/pricing/<br>https://moises.ai/ | — |
+| 887-durable-ai-website-builder.md | Durable | https://durable.com/pricing | — |
+| 888-jina-ai-reader-embeddings-reranker.md | Jina AI | https://jina.ai/ | — |
+| 889-mastra-typescript-agent-framework.md | Mastra | https://github.com/mastra-ai/mastra | — |
+| 890-arize-phoenix-llm-observability.md | Arize Phoenix | https://github.com/Arize-ai/phoenix | — |
+| 891-braintrust-ai-evals-observability.md | Braintrust | https://www.braintrust.dev/pricing<br>https://www.braintrust.dev/ | — |
+| 892-pieces-long-term-memory-developers.md | Pieces | https://pieces.app/pricing<br>https://pieces.app/ | — |
 
 ## 核对方法与口径
 
 - 逐个产品在 2026-10-11 抓取官方页面（官网首页 / 定价页 / 官方文档 / 官方 GitHub 仓库）核对：是否仍在运营、定位、平台、免费与付费、改名与合并情况。抓取时要求「只依据本页内容、页面没有的写未说明」，正文里的功能名、命令、额度、价格都出自当日抓到的页面。
 - 价格只写官方页面当时显示的金额与计费周期；页面未显示或显示不清的（VEED、Fotor 付费档、Postman AI 额度、Brilliant 个人订阅、Shortwave 个人档、Glean、Supabase、Motion 等）一律写「以官网为准」。个别定价页同一档显示两个数字、未逐一标注月付 / 年付的（Fathom、Krisp、Soundraw、Jenni AI），按页面的「年付省 X%」提示理解，并在该条目的 `verify:` 里注明。
 - 部分定价页按访问地区显示欧元（tl;dv、Pitch、AIVA），正文按抓到的币种写并在 `verify:` 注明。
-- 安装命令只在官方 README / 文档原样给出时才写入（Mem0、Browser Use、MinerU、Chroma、Docling、promptfoo）；其余条目的上手步骤写成不依赖具体按钮名的通用流程，并注明以官方文档为准。
+- 安装命令只在官方 README / 文档原样给出时才写入（Mem0、Browser Use、MinerU、Chroma、Docling、promptfoo、Milvus、Weaviate、Haystack、Pydantic AI、Vercel AI SDK、OpenAI Agents SDK、Mastra、Arize Phoenix）；其余条目的上手步骤写成不依赖具体按钮名的通用流程，并注明以官方文档为准。
 - GitHub 星标数取自核对当日仓库页面，写成约数。
 - 标题里的问法用 Google 下拉建议核对过产品词是否有搜索需求（如「coderabbit 使用」「read ai 是什么」「read ai 会议记录」「veed是什么」「pictory 免费 / 教学」「fathom ai 中文」「runpod教程」「raycast ai功能」「plus ai ppt」等）。
 - 没有配截图。
@@ -105,7 +118,7 @@
 - **CodeRabbit**：Pro / Pro Plus 更名为 Essentials / Team。
 - **Topaz Labs**：产品名简化为 Topaz Photo / Video / Gigapixel，定价页只见订阅。
 - **Relume**：relume.io 301 跳转 relume.ai。
-- **Semrush**：页脚出现 Adobe 标识；**Reclaim.ai**：Logo 带「from Dropbox」；**Tavily**：Logo 带「by Nebius」；**Base44**：页脚版权为 Wix.com Ltd.；**promptfoo**：README 称已并入 OpenAI 并保持开源。
+- **Semrush**：页脚出现 Adobe 标识；**Reclaim.ai**：Logo 带「from Dropbox」；**Tavily**：Logo 带「by Nebius」；**Base44**：页脚版权为 Wix.com Ltd.；**promptfoo**：README 称已并入 OpenAI 并保持开源；**Jina AI**：页脚版权为 Elastic；**Durable**：durable.co 301 跳转 durable.com。
 - **Apple Intelligence / Galaxy AI**：依据美国官网页面写成，未涉及中国大陆市场的可用情况。
 
 ## 核对后没有收录的产品
@@ -123,4 +136,7 @@
 | Xcode 编程智能 | 官方页面只有三句概述（多家模型、Agent Client Protocol、MCP），不足以写成合格条目 |
 | Kittl | 定价页各档金额与额度均未显示，且功能信息较薄 |
 | Remini / Khroma / Quizlet / Supermaven / Sweep / Obsidian 与 Logseq 的 AI 插件生态 / Subtitle Edit / Observable AI / Qdrant | 未进入核对或抓取超时（Qdrant 504）；其中插件生态类没有可核对的单一官方页面 |
+| Lex | 定价页写明不再接受新客户（老账号仍可用） |
+| Letta（原 MemGPT）/ DSPy | 官方 README 抓到的功能说明过于简略（Letta 现以 Letta Code 终端应用为主，DSPy 未读到核心概念说明），不足以写出不靠记忆的条目 |
+| Murf | 定价页正文为空（上一批同样失败） |
 | JetBrains Junie、腾讯云 CodeBuddy 等 | 库中已有条目（076、075），不重复 |
