@@ -39,9 +39,12 @@
 | 435-upscayl-open-source-image-upscaler.md | Upscayl | https://github.com/upscayl/upscayl<br>https://upscayl.org/ | — |
 | 436-pixelcut-ai-photo-editor.md | Pixelcut | https://www.pixelcut.ai/pricing<br>https://www.pixelcut.ai/ | — |
 | 437-jsdesign-jishi-sheji-ui-tool.md | 即时设计 | https://js.design/ | — |
+| 438-invokeai-stable-diffusion-canvas.md | InvokeAI | https://github.com/invoke-ai/InvokeAI | — |
 | 450-hedra-ai-character-video.md | Hedra | https://www.hedra.com/pricing<br>https://www.hedra.com/ | — |
 | 451-d-id-ai-avatar-video-agents.md | D-ID | https://www.d-id.com/pricing/studio/<br>https://www.d-id.com/ | — |
 | 460-speechify-text-to-speech-reader.md | Speechify | https://speechify.com/pricing/<br>https://speechify.com/ | — |
+| 461-openai-whisper-speech-recognition.md | Whisper（OpenAI 开源语音识别） | https://github.com/openai/whisper | — |
+| 462-buzz-whisper-desktop-transcription.md | Buzz | https://github.com/chidiwilliams/buzz | — |
 | 470-wordtune-ai-rewriting-assistant.md | Wordtune | https://www.wordtune.com/plans<br>https://www.wordtune.com/ | — |
 | 471-copy-ai-gtm-platform.md | Copy.ai | https://www.copy.ai/prices<br>https://www.copy.ai/ | — |
 | 472-rytr-ai-writing-assistant.md | Rytr | https://rytr.me/ | — |
@@ -75,6 +78,8 @@
 | 554-langsmith-llm-observability-eval.md | LangSmith | https://www.langchain.com/pricing<br>https://www.langchain.com/langsmith | — |
 | 555-langfuse-open-source-llm-observability.md | Langfuse | https://github.com/langfuse/langfuse<br>https://langfuse.com/ | — |
 | 556-opencode-open-source-coding-agent.md | OpenCode | https://github.com/anomalyco/opencode<br>https://opencode.ai/ | — |
+| 557-goose-open-source-ai-agent.md | goose | https://github.com/aaif-goose/goose | — |
+| 558-kilo-code-open-source-coding-agent.md | Kilo Code | https://github.com/Kilo-Org/kilocode<br>https://kilo.ai/ | — |
 | 570-together-ai-open-model-cloud.md | Together AI | https://www.together.ai/pricing<br>https://www.together.ai/ | — |
 | 571-fireworks-ai-inference-platform.md | Fireworks AI | https://fireworks.ai/pricing<br>https://fireworks.ai/ | — |
 | 572-replicate-run-ml-models-api.md | Replicate | https://replicate.com/pricing<br>https://replicate.com/ | — |
@@ -84,3 +89,30 @@
 | 585-llama-cpp-local-llm-inference.md | llama.cpp | https://github.com/ggml-org/llama.cpp | — |
 | 586-text-generation-webui-textgen.md | text-generation-webui（现名 textgen） | https://github.com/oobabooga/textgen | — |
 | 587-vllm-llm-serving-engine.md | vLLM | https://github.com/vllm-project/vllm<br>https://docs.vllm.ai/ | — |
+
+## 核对方法与口径
+
+- 逐个产品在 2026-10-11 打开官方页面（官网 / 定价页 / 帮助中心 / 官方 GitHub 仓库）核对：是否仍在运营、定位、平台、免费与付费。纯前端渲染、抓不到正文的站点（扣子、Flowith、火山方舟、腾讯元器、Tripo、即时设计、彩云小译、ChatExcel、Julius 等）用浏览器实际打开后读取页面文字。
+- 价格只写官方定价页当时显示的金额与计费周期；页面未显示金额的（Meshy、Rodin、Clipdrop Pro、D-ID、Paperpal、FastGPT 云服务、ProcessOn、即时设计、彩云小译、ChatExcel、美洽、Brave Leo Premium 等）一律写「以官网为准」。
+- GitHub 星标数取自核对当日仓库页面，写成约数。
+- 标题里的问法用 Google 下拉建议核对过（如「dify是什么 / dify 是哪个公司的」「maxkb 默认密码」「xmind ai点数」「zed编辑器怎么样」「warp 终端 教程」「chatbox 官网」「langsmith和langfuse」「readwise reader 费用」）。
+- 个别条目的 `verify:` 字段记录了未能在官方页面逐字核对、留给站长复核的点（Make 的原名 Integromat、Hedra 的角色口型定位、Opera AI 与 Aria 的更名）。
+
+## 核对后没有收录的产品
+
+| 产品 | 原因 |
+| --- | --- |
+| remove.bg | 官网公告：抠图功能并入 Canva，独立网站自 2026-12-01（CET 9:00）起停用，积分同日到期 |
+| Tome | tome.app 返回 404，无法确认仍在运营 |
+| Continue（continuedev/continue） | 官方仓库注明不再积极维护、对所有用户只读（最终版 2.0.0） |
+| Roo Code | 官方仓库 2026-05-15 归档，扩展同日停止服务 |
+| Flowise | 官方仓库 2026-08-13 归档为只读 |
+| GPT4All | 官方 README 展示的最新发布仍是 2024-07 的 V3.0.0，维护状态存疑 |
+| Relevance AI | 定价页只剩 Enterprise「联系销售」，无可核对的公开方案 |
+| You.com | 官网已改为面向开发者的「Real-Time Web Data Layer for AI」搜索 API，未见面向个人的聊天产品介绍 |
+| Vertex AI | Google Cloud 产品页标题已变为「Gemini platform」，正文未能抓取，命名与现状未能核实 |
+| Groq / Cerebras | 定价页未显示套餐与模型单价（Groq 页面改为 neocloud 定位），可核对信息不足 |
+| Tabnine / Phind / Scholarcy / Quizlet / Writefull / Murf / Sourcegraph Amp | 官方页面返回 403 / 404 / 502 或正文为空，本次无法核对 |
+| Microsoft Designer / Duolingo Max / 腾讯文档 AI / 幕布 / 腾讯交互翻译 | 页面正文抓不到或官网未体现 AI 功能，信息不足以写出合格条目 |
+| LiteLLM | 属于 API 网关，容易与「中转」类内容混淆，按任务范围不收 |
+| Supermaven / Sweep 等 | 未进入核对（已知被收购或转型，优先级低） |
