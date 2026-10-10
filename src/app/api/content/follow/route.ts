@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { meOrDeny } from '@/lib/content/session'
 import { isHandle } from '@/lib/content/creator'
 
@@ -16,7 +16,7 @@ async function target(handle: string | null) {
 }
 
 export async function GET(request: NextRequest) {
-  const channelDenied = await denyOnChannel()
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const t = await target(new URL(request.url).searchParams.get('handle'))
   if (!t) return error('作者不存在', 404)
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const channelDenied = await denyOnChannel()
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const { user, denied } = await meOrDeny(request, true)
   if (denied) return denied

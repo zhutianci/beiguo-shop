@@ -27,6 +27,11 @@
       "count": 11
     },
     {
+      "package": "MODS-MODULES",
+      "file": "scripts/itest-tenant/routes/mods-modules.json",
+      "count": 4
+    },
+    {
       "package": "MODS-P2",
       "file": "scripts/itest-tenant/routes/mods-p2.json",
       "count": 4
@@ -349,6 +354,22 @@
       "file": "src/app/api/admin/tenants/[id]/members/route.ts",
       "guard": "adminGuard",
       "key": "tenantId+userId"
+    },
+    {
+      "package": "MODS-MODULES",
+      "method": "GET",
+      "path": "/api/admin/tenants/[id]/modules",
+      "file": "src/app/api/admin/tenants/[id]/modules/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
+    },
+    {
+      "package": "MODS-MODULES",
+      "method": "POST",
+      "path": "/api/admin/tenants/[id]/modules",
+      "file": "src/app/api/admin/tenants/[id]/modules/route.ts",
+      "guard": "adminGuard",
+      "key": "tenantId"
     },
     {
       "package": "WP5",
@@ -941,6 +962,27 @@
       "method": "DELETE",
       "path": "/api/partner/settings/contact-qr",
       "file": "src/app/api/partner/settings/contact-qr/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": false,
+      "rate": "30/min"
+    },
+    {
+      "package": "MODS-MODULES",
+      "method": "GET",
+      "path": "/api/partner/settings/modules",
+      "file": "src/app/api/partner/settings/modules/route.ts",
+      "guard": "partnerRoute",
+      "perm": "settings.write",
+      "key": null,
+      "readOnlySafe": true
+    },
+    {
+      "package": "MODS-MODULES",
+      "method": "PUT",
+      "path": "/api/partner/settings/modules",
+      "file": "src/app/api/partner/settings/modules/route.ts",
       "guard": "partnerRoute",
       "perm": "settings.write",
       "key": null,

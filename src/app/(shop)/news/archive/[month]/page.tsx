@@ -23,9 +23,10 @@ import {
 } from '@/lib/news/format'
 import { ArchiveList } from './archive-list'
 import { pageOg } from '@/lib/seo/og'
-import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 import { archiveSeoDescription, archiveSeoTitle } from '@/lib/news/seo-title'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
+import { PlatformJsonLd } from '@/components/seo/platform-json-ld'
 
 /**
  * 按月归档页。
@@ -49,7 +50,7 @@ function monthOf(params: { month: string }): string | null {
   return ARCHIVE_MONTH_RE.test(m) ? m : null
 }
 
-export async function generateMetadata({ params }: { params: { month: string } }): Promise<Metadata> {
+async function pageMetadata({ params }: { params: { month: string } }): Promise<Metadata> {
   const month = monthOf(params)
   if (!month) return { title: '归档不存在 - AI 圈大事记' }
   const heading = formatMonthHeading(month)
@@ -128,7 +129,7 @@ export default async function NewsArchivePage({ params }: { params: { month: str
           <span className="text-white/35">{heading}</span>
         </nav>
         {!failed && (
-          <JsonLd
+          <PlatformJsonLd
             data={[
               breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: 'AI 圈大事记', path: '/news' }, { name: heading }]),
               ...collectionPageJsonLd({
@@ -179,4 +180,9 @@ export default async function NewsArchivePage({ params }: { params: { month: str
       </div>
     </div>
   )
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
+  return moduleMetadata(await pageMetadata(props))
 }

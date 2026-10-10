@@ -19,6 +19,14 @@
  * 所以下单前先读回这张卡上次的订单号：有就直接查，**不重新下单**。
  *
  * 【三】manual_review 必须停止自动处理，不重提交。
+ *
+ * ================== 2026-10-09 接入方案迁移 ==================
+ * 上游把我们从旧方案（access_profile=standard，integration_ready=false）迁到
+ * 「卡冲 / iOS 专用」方案（gpt1_ios）。新 Token 是另一个代理身份、只开通
+ * chatgpt_card + chatgpt_ios（没有 claude_ios）。旧 Token 留在 SYSB_API_TOKEN_LEGACY，
+ * **只用于查旧单**（见 legacyToken）。旧方案下 Pro 卡付单 10-01 起连续以
+ * SERVICE_UNAVAILABLE 失败，那是旧方案路由的问题，不是我们的代码能修的。
+ * 同一版文档新增的 result_confirmed / reason_code 等字段的用法见 toResult()。
  */
 import crypto from 'crypto'
 import {
@@ -45,6 +53,19 @@ function token(): string {
   return t
 }
 
+/**
+ * 旧代理身份的 Token，**只用来查旧订单，绝不用来下单**。
+ *
+ * 【为什么换了 Token 还要留着旧的】2026-10-09 上游把我们迁到「卡冲 / iOS 专用」方案，
+ * 新 Token 是**另一个代理身份**（partner_name 都不一样）。文档原文：
+ * 「只包含当前代理的订单」—— 新 Token 查旧单必然 ORDER_NOT_FOUND，
+ * 而 activate() 对 404 的处置是「上游没有这笔单，可以正常下单」。
+ * 不留旧 Token，任何一笔旧身份下还在跑的单都会被当成没下过、在同一张卡上再下一单。
+ */
+function legacyToken(): string {
+  return (process.env.SYSB_API_TOKEN_LEGACY || '').trim()
+}
+
 export function sysbConfigured(): boolean {
   return !!(process.env.SYSB_API_TOKEN || '').trim()
 }
@@ -53,7 +74,13 @@ interface UpstreamBody {
   ok?: boolean
   request_id?: string
   data?: Record<string, unknown>
-  error?: { code?: string; message?: string; retryable?: boolean }
+  error?: {
+    code?: string
+    message?: string
+    retryable?: boolean
+    next_action?: string
+    retry_after_seconds?: number
+  }
 }
 
 /** 上游错误码 → 我们自己的文案。**不透传上游 message**，那里面带对方品牌与内部术语 */
@@ -77,7 +104,29 @@ const ERRORS: Record<string, string> = {
   ORDER_WORKER_OFFLINE: '充值服务正在维护，请稍后再试',
   ORDER_QUEUE_BUSY: '充值队列繁忙，请稍后再试',
   ORDER_FAILED: '充值未完成，请联系客服处理',
+  // 2026-10-09 版文档新增
+  PRODUCT_NOT_ALLOWED: '该充值渠道暂未开通，请联系客服',
+  CDK_INVALID: '这张卡密无法用于该充值渠道，请联系客服核对',
 }
+
+/**
+ * failure.reason_code（2026-10-09 版新增的安全失败分类）→ 我们的文案。
+ * 文档：「分类不代表可以重充」，所以能不能再提交由 RETRIABLE_REASONS 单独决定。
+ */
+const FAILURE_REASONS: Record<string, string> = {
+  CREDENTIAL_INVALID: '账号登录资料没有通过验证（可能已过期或复制不完整），请重新复制一份完整的 Session 再提交',
+  CDK_UNAVAILABLE: '这张卡密暂时不可用，请联系客服并提供卡密',
+  QUEUE_EXPIRED: '充值排队超时，本次没有完成，可以稍后重新提交一次',
+  PERMISSION_REVOKED: '充值渠道权限异常，请联系客服',
+  SERVICE_UNAVAILABLE: '充值服务这次没有完成请求，可以稍后重新提交一次；多次失败请联系客服',
+  ORDER_FAILED: '充值未完成，请联系客服处理',
+}
+
+/**
+ * 买家能自己补救、值得再提交一次的失败。其余（卡不可用、权限停用、未分类）都转人工 ——
+ * 让买家对着同一堵墙反复提交，最后还是一张工单。
+ */
+const RETRIABLE_REASONS = new Set(['CREDENTIAL_INVALID', 'QUEUE_EXPIRED', 'SERVICE_UNAVAILABLE'])
 
 /** 这些错误重试没有意义，必须走人工 */
 const TERMINAL_ERRORS = new Set([
@@ -88,6 +137,9 @@ const TERMINAL_ERRORS = new Set([
   'ORDER_ID_INVALID',
   'ROUTE_NOT_FOUND',
   'METHOD_NOT_ALLOWED',
+  // 文档：「联系平台核实充值类型、权限或卡密，不要更换产品代码反复尝试」
+  'PRODUCT_NOT_ALLOWED',
+  'CDK_INVALID',
 ])
 
 function copy(code: string | undefined, fallback: string): string {
@@ -97,14 +149,16 @@ function copy(code: string | undefined, fallback: string): string {
 async function call(
   method: 'GET' | 'POST',
   path: string,
-  body?: unknown
+  body?: unknown,
+  /** 默认用当前 Token；只有 queryOrder 回查旧单时才传旧 Token */
+  bearer?: string
 ): Promise<{ status: number; body: UpstreamBody; retryAfter?: number }> {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), TIMEOUT_MS)
   try {
     const res = await fetch(`${BASE}${path}`, {
       method,
-      headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${bearer || token()}`, 'Content-Type': 'application/json' },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: ac.signal,
       // 与 lib/news/feed.ts 同一个理由：裸 fetch 会被 Next 的磁盘数据缓存冻住。
@@ -131,6 +185,26 @@ async function call(
   } finally {
     clearTimeout(timer)
   }
+}
+
+/**
+ * 查一笔我们下过的单。当前身份查不到（404）时，用旧身份再查一次 —— 理由见 legacyToken()。
+ * 旧身份也 404 才算「上游真的没有这笔单」。
+ */
+async function queryOrder(ref: string): Promise<{ status: number; body: UpstreamBody; retryAfter?: number }> {
+  const path = `/orders/${encodeURIComponent(ref)}`
+  const q = await call('GET', path)
+  const legacy = legacyToken()
+  if (q.status !== 404 || !legacy || legacy === token()) return q
+  return call('GET', path, undefined, legacy)
+}
+
+/** 限流时的等待秒数：Retry-After 头与 error.retry_after_seconds 取大的（文档要求），且不低于 15 秒 */
+function backoffSeconds(res: { body: UpstreamBody; retryAfter?: number }): number {
+  const fromBody = Number(res.body.error?.retry_after_seconds)
+  const hinted = Math.max(res.retryAfter || 0, Number.isFinite(fromBody) ? fromBody : 0)
+  // 上游两处都没给就按文档示例退避 60 秒
+  return hinted > 0 ? Math.max(15, hinted) : 60
 }
 
 const AUTH_SESSION_FIELD: RedeemField = {
@@ -174,16 +248,11 @@ const VARIANTS: RedeemVariant[] = [
     code: 'chatgpt_ios',
     label: 'ChatGPT iOS 充值',
     hint: 'iOS 通道的 PLUS / 5X / 20X 卡密',
-    fields: [
-      AUTH_SESSION_FIELD,
-      {
-        name: 'overwrite',
-        kind: 'toggle',
-        label: '覆盖账号已有的订阅',
-        help: '仅当账号已有订阅、且你确认要覆盖时才勾选。不确定就别勾。',
-        required: false,
-      },
-    ],
+    /*
+     * 【不再提供「覆盖订阅」开关】2026-10-09 版文档：「普通接入不传 overwrite，保持默认不覆盖」，
+     * 请求字段也收窄成固定的四个。继续发这个字段就是在文档之外调用。
+     */
+    fields: [AUTH_SESSION_FIELD],
     guide: GPT_GUIDE('iOS 充值').steps,
     guideIntro: GPT_GUIDE('iOS 充值').intro,
   },
@@ -434,18 +503,31 @@ const ORDER_ID_RE = /^[A-Za-z0-9._:-]{8,64}$/
 interface OrderData {
   order_id?: string
   status?: string
+  /** 【不能拿它当停止查单的依据】manual_review 为兼容旧接入也是 final=true */
   final?: boolean
   message?: string
   next_poll_seconds?: number
-  failure?: { code?: string; message?: string; retryable?: boolean }
+  failure?: { code?: string; message?: string; retryable?: boolean; reason_code?: string }
+  /** 2026-10-09 版新增：已确定成功或失败（不代表卡密可再用、也不代表已退款） */
+  result_confirmed?: boolean
+  follow_up_required?: boolean
+  next_action?: string
+  resubmit_allowed?: boolean
+  cdk_state?: string
 }
 
-/** 上游订单状态 → 我们的结果 */
+/**
+ * 上游订单状态 → 我们的结果。
+ *
+ * 判定口径照 2026-10-09 版文档：**只有 status=succeeded 才算成功**；
+ * ok:true、HTTP 200/202、final:true 都不能单独作为成功依据。
+ */
 function toResult(d: OrderData, requestId: string | undefined, orderRef: string): RedeemActivateResult {
   const status = d.status || ''
   const nextPoll = typeof d.next_poll_seconds === 'number' ? Math.max(15, d.next_poll_seconds) : 15
 
-  if (status === 'succeeded') {
+  // result_confirmed 是新字段，旧单可能没有；只有上游明说「未确定」时才不认这个成功
+  if (status === 'succeeded' && d.result_confirmed !== false) {
     return { state: 'COMPLETED', message: '充值成功', retriable: false, requestId, orderRef }
   }
   if (status === 'pending' || status === 'processing') {
@@ -480,17 +562,33 @@ function toResult(d: OrderData, requestId: string | undefined, orderRef: string)
     }
   }
   if (status === 'failed') {
+    /*
+     * 优先看新的 reason_code（它比 failure.code 细）；没有再退回 failure.code。
+     * failure.retryable 在 openapi 里恒为 false，不能拿来判断，见 activate() 里的说明。
+     */
+    const reason = (d.failure?.reason_code || '').trim().toUpperCase()
     const code = d.failure?.code
     return {
       state: 'ERROR',
-      message: copy(code, '充值未完成，请联系客服处理'),
-      // 上游说可重试才让重试；它没说就当作不可重试，避免买家反复撞同一堵墙
-      retriable: d.failure?.retryable === true,
+      message: FAILURE_REASONS[reason] || copy(code, '充值未完成，请联系客服处理'),
+      retriable: RETRIABLE_REASONS.has(reason),
       requestId,
       orderRef,
     }
   }
-  return { state: 'ERROR', message: '充值状态未知，请联系客服', retriable: false, requestId, orderRef }
+  /*
+   * 【未知状态不能当失败】文档：「遇到未知订单状态不能自行按失败处理」「禁止自动重充」。
+   * 给 PROCESSING + 可重试，「重试」在这里只是再查一次原单；
+   * activate() 只在 status==='failed' 时才会换单号重下，未知状态永远走不到那一步。
+   */
+  return {
+    state: 'PROCESSING',
+    message: '暂时无法确认这笔充值的结果，请稍后在本页点「查询结果」。不要重复提交；长时间没有结果请联系客服',
+    retryAfter: Math.max(60, nextPoll),
+    retriable: true,
+    requestId,
+    orderRef,
+  }
 }
 
 export const sysb: RedeemProvider = {
@@ -519,6 +617,8 @@ export const sysb: RedeemProvider = {
      * 在别处充掉的卡由下面那一步（V1 只读查询）负责。
      */
     const prevRef = ctx?.loadOrderRef ? await ctx.loadOrderRef() : null
+    /** 本站上一笔 V2 单失败的原因（来自 reason_code），出表单时提示给买家 */
+    let lastFailure: string | null = null
     /*
      * 【只有 V2 自己下的单才拿去查 V2】我们的 V2 订单号一律是 BG- 开头（buildOrderId），
      * 而卡付走 V1 时存下来的是上游的 TASK00027056 这种。
@@ -528,11 +628,11 @@ export const sysb: RedeemProvider = {
      * V1 的单由下面那一步（只读查卡）负责，它本来就能查到真实状态。
      */
     if (prevRef && prevRef.startsWith('BG-')) {
-      const q = await call('GET', `/orders/${encodeURIComponent(prevRef)}`)
+      const q = await queryOrder(prevRef)
       if (q.status === 200 && q.body.ok) {
         const d = (q.body.data || {}) as OrderData
         const status = d.status || ''
-        if (status === 'succeeded') {
+        if (status === 'succeeded' && d.result_confirmed !== false) {
           return {
             state: 'COMPLETED',
             message: '这张卡密已经充值成功，无需重复提交',
@@ -576,7 +676,22 @@ export const sysb: RedeemProvider = {
             requestId: q.body.request_id,
           }
         }
+        if (status !== 'failed') {
+          /*
+           * 文档没列出的状态（或 succeeded 但 result_confirmed=false）：
+           * 「遇到未知订单状态不能自行按失败处理」—— 不出表单，让买家稍后再查。
+           */
+          return {
+            state: 'PROCESSING',
+            message: '暂时无法确认这张卡密上一笔充值的结果，请稍后再点「查询」。不要重复提交；长时间没有结果请联系客服',
+            fields: [],
+            cooldownSeconds: 60,
+            requestId: q.body.request_id,
+          }
+        }
         // failed：卡可能还能再充一次（上游会自己判），所以继续往下走、正常出表单
+        const reason = (d.failure?.reason_code || '').trim().toUpperCase()
+        if (FAILURE_REASONS[reason]) lastFailure = `上一笔没有成功：${FAILURE_REASONS[reason]}`
       }
       // 404 或查询失败：当作没充过，继续正常流程
     }
@@ -608,7 +723,9 @@ export const sysb: RedeemProvider = {
         { level: 'unstable' as const, text: `上一笔没有成功：${hit.failureReason}` }
       : hit?.status === 'RETRYABLE'
         ? { level: 'unstable' as const, text: '上一笔充值没有成功，但这张卡密没有被消耗，可以重新提交一次。' }
-        : null
+        : lastFailure
+          ? { level: 'unstable' as const, text: lastFailure }
+          : null
 
     const [acct, prods] = await Promise.all([call('GET', '/account'), call('GET', '/products')])
 
@@ -844,7 +961,7 @@ export const sysb: RedeemProvider = {
     let retrySalt: string | undefined
     const prev = loadOrderRef ? await loadOrderRef() : null
     if (prev) {
-      const q = await call('GET', `/orders/${encodeURIComponent(prev)}`)
+      const q = await queryOrder(prev)
       if (q.status === 200 && q.body.ok) {
         const d = (q.body.data || {}) as OrderData
         const r = toResult(d, q.body.request_id, prev)
@@ -957,9 +1074,8 @@ export const sysb: RedeemProvider = {
       throw new RedeemError('兑换服务异常，请联系客服', 'ERROR', false)
     }
 
+    // 2026-10-09 版文档：只传这四个字段，不要额外传 price / plan / channel / overwrite 等
     const payload: Record<string, unknown> = { order_id: orderId, product, cdk, credential }
-    // overwrite 只有 chatgpt_ios 认；省略与显式 false 等价，所以只在勾选时才带上
-    if (product === 'chatgpt_ios' && (values.overwrite || '').trim() === '1') payload.overwrite = true
 
     // 先把订单号落库再发请求：万一 POST 超时，下次进来才知道要去查哪一单
     if (saveOrderRef) await saveOrderRef(orderId)
@@ -983,18 +1099,22 @@ export const sysb: RedeemProvider = {
         return out
       }
     }
-    if (res.status === 429) {
+    const code = res.body.error?.code
+    /*
+     * 限流 / 队列忙 / 接单服务离线：文档要求按 Retry-After 退避后**同单同内容**重发。
+     * 买家下次点提交时会先查原单（404）→ 用同样的内容算出同一个 order_id 重发，正好满足这条。
+     */
+    if (res.status === 429 || code === 'RATE_LIMITED' || code === 'ORDER_QUEUE_BUSY' || code === 'ORDER_WORKER_OFFLINE') {
       return {
         state: 'COOLDOWN',
-        message: '当前充值人数较多，请稍后再试',
-        retryAfter: res.retryAfter || 60,
+        message: copy(code, '当前充值人数较多，请稍后再试'),
+        retryAfter: backoffSeconds(res),
         retriable: true,
         requestId: res.body.request_id,
         orderRef: orderId,
       }
     }
 
-    const code = res.body.error?.code
     return {
       state: 'ERROR',
       message: copy(code, '提交失败，请稍后再试或联系客服'),
@@ -1018,4 +1138,7 @@ export const __test = {
   decideCardRoute,
   MAX_ORDER_ATTEMPTS,
   fmtTime,
+  FAILURE_REASONS,
+  RETRIABLE_REASONS,
+  backoffSeconds,
 }

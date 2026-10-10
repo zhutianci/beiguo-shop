@@ -1,0 +1,10 @@
+{
+  "package": "MODS-MODULES",
+  "note": "内容模块下放（docs/多渠道分销-内容模块下放.md）。渠道后台：settings.write（仅 OWNER），写接口 SUSPENDED 时只读；只能上架 / 下架超管已授权的模块（未授权 409）。超管：按渠道授权 / 收回 AI学习、AI圈大事记、IP工具。",
+  "routes": [
+    {"method": "GET", "path": "/api/partner/settings/modules", "file": "src/app/api/partner/settings/modules/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": true},
+    {"method": "PUT", "path": "/api/partner/settings/modules", "file": "src/app/api/partner/settings/modules/route.ts", "guard": "partnerRoute", "perm": "settings.write", "key": null, "readOnlySafe": false, "rate": "30/min"},
+    {"method": "GET", "path": "/api/admin/tenants/[id]/modules", "file": "src/app/api/admin/tenants/[id]/modules/route.ts", "guard": "adminGuard", "key": "tenantId"},
+    {"method": "POST", "path": "/api/admin/tenants/[id]/modules", "file": "src/app/api/admin/tenants/[id]/modules/route.ts", "guard": "adminGuard", "key": "tenantId"}
+  ]
+}

@@ -26,6 +26,7 @@
  * 不在这里验证（需要起应用或浏览器）：W1-7 prerender-manifest、W1-9 浏览器网络面板、W1-15 两个客户端页面的 HTTP 状态码。
  */
 import * as React from 'react'
+import ReactDefault from 'react'
 import Module from 'module'
 import { execFileSync } from 'child_process'
 import { mkdtempSync, readdirSync, statSync, writeFileSync } from 'fs'
@@ -64,6 +65,10 @@ import {
 // 只影响本测试进程。
 // ---------------------------------------------------------------------------
 ;(globalThis as unknown as { React: typeof React }).React = React
+// React.cache 只在 Next 的 react-server 构建里有；内容平台的 lib/content/queries.ts 在模块顶层调用它（同 mods-brand 的替身）
+// 注意：本文件是 import * as React（命名空间副本），替身要挂在 CJS 的 module.exports 上（ReactDefault）
+const ReactMut = ReactDefault as unknown as { cache?: <T>(fn: T) => T }
+if (typeof ReactMut.cache !== 'function') ReactMut.cache = <T,>(fn: T) => fn
 const Mod = Module as unknown as { _load: (r: string, p: unknown, m: boolean) => unknown }
 const origLoad = Mod._load
 Mod._load = function (request: string, parent: unknown, isMain: boolean) {
@@ -636,7 +641,7 @@ async function testClientRender() {
     const inner = h(AppRouterContext.Provider, { value: router as never }, h(PathnameContext.Provider, { value: '/' }, el))
     return renderToString(sf ? h(StorefrontProvider, { value: sf, children: inner }) : inner)
   }
-  const CLOSED_HREFS = ['href="/chongzhi', 'href="/news', 'href="/iptools', 'href="/forum', 'href="/links', 'href="/lookup', 'href="/profile/referral', 'href="/wallet', 'href="/coupons', 'href="/vip', 'href="/jiema']
+  const CLOSED_HREFS = ['href="/chongzhi', 'href="/news', 'href="/iptools', 'href="/forum', 'href="/learn', 'href="/links', 'href="/lookup', 'href="/profile/referral', 'href="/wallet', 'href="/coupons', 'href="/vip', 'href="/jiema']
   const hits = (html: string) => CLOSED_HREFS.filter((x) => html.includes(x))
 
   section('W1-9（进程内）渠道站页头、页脚、首页不出现关闭模块入口')
@@ -650,7 +655,8 @@ async function testClientRender() {
   const hn = render(null, h(Header))
   check('渠道页头：无新闻 / 论坛 / 友链 / IP 工具 / 充值 / 推荐有奖 / 钱包', hits(hc).length === 0, hits(hc).join(','))
   check('渲染的是已登录页头（有个人菜单）', hc.includes('href="/profile"') && hm.includes('href="/profile"'))
-  check('主站页头：入口齐全（含推荐有奖、钱包）', ['href="/chongzhi', 'href="/news', 'href="/iptools', 'href="/forum', 'href="/links', 'href="/profile/referral', 'href="/wallet'].every((x) => hm.includes(x)))
+  // 10-07 起导航「论坛」改为「AI学习」（/learn），/forum 不再直接出现在页头
+  check('主站页头：入口齐全（含推荐有奖、钱包）', ['href="/chongzhi', 'href="/news', 'href="/iptools', 'href="/learn', 'href="/links', 'href="/profile/referral', 'href="/wallet'].every((x) => hm.includes(x)))
   check('没有 Provider（改造前的渲染环境）与主站 Provider 渲染结果相同', hn === hm)
   initial.user = null
   const fc = render(channel, h(Footer))

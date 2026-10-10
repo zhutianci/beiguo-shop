@@ -11,10 +11,11 @@ import { contentIndexable } from '@/lib/content/queries'
 import { authorHref } from '@/lib/content/creator'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE } from '@/lib/seo/og'
-import { JsonLd } from '@/lib/seo/jsonld'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
 import { PostDetail, type CommentPage, type Detail } from '@/components/forum/post-detail'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
+import { PlatformJsonLd } from '@/components/seo/platform-json-ld'
 
 /**
  * 帖子详情的服务端外壳（内容平台 P0，设计 §11.2）。
@@ -66,7 +67,7 @@ function imagesOf(p: PostRow): string[] {
 
 const NOINDEX = { index: false, follow: true, googleBot: { index: false, follow: true } }
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+async function pageMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const post = await getPost(Number(params.id))
   // 提示词 / 教程的规范地址不在 /forum 下（页面本体会 308 过去，这里只给一个不收录的兜底）
   if (post && post.type !== 'DISCUSSION') return { robots: { index: false, follow: true } }
@@ -155,7 +156,7 @@ export default async function ForumPostPage({ params }: { params: { id: string }
 
   return (
     <>
-      {publicPost && <JsonLd data={accepted ? qaJsonLd(post, authorName, accepted) : postingJsonLd(post, authorName, initialComments)} />}
+      {publicPost && <PlatformJsonLd data={accepted ? qaJsonLd(post, authorName, accepted) : postingJsonLd(post, authorName, initialComments)} />}
       <PostDetail initialPost={initialPost} initialComments={initialComments} />
     </>
   )
@@ -222,4 +223,9 @@ function qaJsonLd(
       },
     },
   }
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
+  return moduleMetadata(await pageMetadata(props))
 }

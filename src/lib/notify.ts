@@ -16,6 +16,7 @@
 
 import { quickReplyUrl } from './quick-reply'
 import { botSink } from './bot/sink'
+import { invoiceItemName } from './invoice-items'
 
 export type NotifyEvent =
   | 'order.created'
@@ -415,6 +416,7 @@ export function notifyInvoiceReady(p: {
   title: string
   taxNumber: string | null
   showAiWording: boolean | null
+  invoiceItem?: string | null
   subscriptionType: string
   invoiceAmount: unknown
   taxFee: unknown
@@ -433,6 +435,7 @@ export function notifyInvoiceReady(p: {
       value: p.showAiWording == null ? '未选择' : p.showAiWording ? '展示' : '不展示',
       color: p.showAiWording === false ? 'warning' : undefined,
     },
+    { label: '发票项目', value: invoiceItemName(p.invoiceItem) },
     { label: '商品', value: p.subscriptionType },
     { label: '开票金额（含税）', value: money(p.invoiceAmount), color: 'warning' },
     { label: '已付税费', value: money(p.taxFee) },
@@ -663,6 +666,7 @@ export function notifyInvoiceRequestSubmitted(p: {
   taxNumber: string
   invoiceAmount: unknown
   showAiWording: boolean
+  invoiceItem?: string | null
   email: string
 }): void {
   notify(
@@ -674,9 +678,10 @@ export function notifyInvoiceRequestSubmitted(p: {
       { label: '税号', value: plainify(p.taxNumber, 64) },
       {
         label: '展示 ChatGPT/Claude 字眼',
-        value: p.showAiWording ? '展示' : '不展示（只开「技术咨询服务」）',
+        value: p.showAiWording ? '展示' : `不展示（只开「${invoiceItemName(p.invoiceItem)}」）`,
         color: p.showAiWording ? undefined : 'warning',
       },
+      { label: '发票项目', value: invoiceItemName(p.invoiceItem) },
       { label: '开票金额（含税）', value: money(p.invoiceAmount), color: 'warning' },
       { label: '接收邮箱', value: plainUrl(p.email, 120) },
       { label: '提交时间', value: fmtTime(new Date()) },

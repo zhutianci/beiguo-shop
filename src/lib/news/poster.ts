@@ -30,6 +30,11 @@ export interface PosterData {
   happenedAt?: string | null
   /** 二维码扫出来的地址（应当已带渠道标记 ?s=p） */
   url: string
+  /**
+   * 渠道站（docs/多渠道分销-内容模块下放.md）：顶部站名、整理者、兜底文案里的域名。缺省 = 主站原样
+   * （贝果科技 / AUTHOR_NAME / bigolab.com），主站海报逐像素不变
+   */
+  site?: { name: string; author: string; host: string }
 }
 
 const FONT_STACK = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif'
@@ -165,7 +170,7 @@ export function paintPoster(ctx: CanvasRenderingContext2D, p: PosterData): void 
   // ---- 顶部：站点标识 + AI 徽章（法定标识第一处） ----
   ctx.fillStyle = 'rgba(255,255,255,0.72)'
   ctx.font = font(26, 600)
-  ctx.fillText('贝果科技 · AI圈大事记', PAD, 70)
+  ctx.fillText(`${p.site?.name ?? '贝果科技'} · AI圈大事记`, PAD, 70)
 
   ctx.font = font(24, 700)
   const badgeW = ctx.measureText(AI_BADGE).width + 36
@@ -293,7 +298,7 @@ export function paintPoster(ctx: CanvasRenderingContext2D, p: PosterData): void 
     // 走不到这里（URL 远短于版本 10 的容量），留个兜底免得底部开天窗
     ctx.fillStyle = 'rgba(255,255,255,0.5)'
     ctx.font = font(22, 400)
-    ctx.fillText('访问 bigolab.com', qrX - 20, qrY + 76)
+    ctx.fillText(`访问 ${p.site?.host ?? 'bigolab.com'}`, qrX - 20, qrY + 76)
   }
 
   ctx.fillStyle = 'rgba(255,255,255,0.9)'
@@ -304,7 +309,7 @@ export function paintPoster(ctx: CanvasRenderingContext2D, p: PosterData): void 
   ctx.fillText('查看全文与全部信源原文', PAD, FOOT_TOP + 84)
   ctx.fillStyle = 'rgba(255,255,255,0.35)'
   ctx.font = font(22, 400)
-  ctx.fillText(AUTHOR_NAME, PAD, FOOT_TOP + 126)
+  ctx.fillText(p.site?.author ?? AUTHOR_NAME, PAD, FOOT_TOP + 126)
 
   // 底部脚注：海报上 AI 标识的第二处，整段不截断——截半句的法定告知等于没告知
   ctx.fillStyle = 'rgba(255,255,255,0.32)'

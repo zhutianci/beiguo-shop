@@ -35,6 +35,7 @@ import { error } from '../api'
 import { siteOrigin } from '../news/format'
 import { PLATFORM_CONTACT, resolveStoreContact, type StoreContact, type TenantContactRow } from '../contact-base'
 import { PLATFORM_BRAND, resolveStoreBrand, type StoreBrand, type TenantBrandRow } from '../brand-base'
+import { ALL_MODULES, resolveStoreModules, type ContentModule, type StoreModules, type TenantModuleRow } from './modules'
 import { channelHostSuffix, channelsEnabled, hostStrict, isChannelCandidateHost, isCustomHostShape, normalizeHost, platformHosts } from './hosts'
 import { ALERT_THROTTLE_MS, domainHealthKey, isDomainHealthStale, isDomainHealthy, parseDomainHealth } from './domain-health'
 import { alertPlatform } from '../tenant/platform-alert'
@@ -69,6 +70,11 @@ export interface Storefront {
    * （src/lib/brand-base.ts resolveStoreBrand）。公开数据，toPublicStorefront 显式映射给客户端。
    */
   brand: StoreBrand
+  /**
+   * 内容模块（docs/多渠道分销-内容模块下放.md）：主站 = 全开（常量）；渠道 = 超管授权 && 渠道上架（modules.ts resolveStoreModules）。
+   * 公开数据：只经 storefrontFeatures 折算成 features.forum / news / iptools 给客户端，本身不进 toPublicStorefront。
+   */
+  modules: StoreModules
 }
 export const PLATFORM_TENANT_ID = 1
 
@@ -77,7 +83,7 @@ const TENANT_STATUSES: ReadonlySet<string> = new Set(['DRAFT', 'ACTIVE', 'SUSPEN
 /** 主站店面：常量，不查库（主站分支零依赖新表） */
 export function platformStorefront(): Storefront {
   const origin = siteOrigin()
-  return { id: PLATFORM_TENANT_ID, code: 'main', kind: 'PLATFORM', status: 'ACTIVE', origin, canonicalHost: hostOfOrigin(origin), contact: { ...PLATFORM_CONTACT }, brand: { ...PLATFORM_BRAND } }
+  return { id: PLATFORM_TENANT_ID, code: 'main', kind: 'PLATFORM', status: 'ACTIVE', origin, canonicalHost: hostOfOrigin(origin), contact: { ...PLATFORM_CONTACT }, brand: { ...PLATFORM_BRAND }, modules: { ...ALL_MODULES } }
 }
 
 /** origin 的规范化主机名；解析失败返回 ''（调用方把 '' 当成「不知道主域名」，一律不跳转） */
@@ -95,7 +101,7 @@ function hostOfOrigin(origin: string): string {
 // （设计 W0-2 / W0-3）。生产代码从不调用 setStorefrontDbForTest。
 // ---------------------------------------------------------------------------
 /** tenants 行里店面用到的列。support* 四列可缺省：itest 注入的假库（wp0 countingDb）只 select 前五列，缺省按「未设置」回退主站 */
-type TenantStorefrontRow = { id: number; code: string; kind: string; status: string; origin: string } & TenantContactRow & TenantBrandRow
+type TenantStorefrontRow = { id: number; code: string; kind: string; status: string; origin: string } & TenantContactRow & TenantBrandRow & TenantModuleRow
 
 interface StorefrontDb {
   findDomain(host: string): Promise<{ tenantId: number; status: number } | null>
@@ -140,6 +146,13 @@ const realDb: StorefrontDb = {
         heroSubtitle: true,
         seoTitle: true,
         seoDescription: true,
+        // 内容模块六列（内容模块下放）：同一次主键查询
+        modLearnGranted: true,
+        modLearnOn: true,
+        modNewsGranted: true,
+        modNewsOn: true,
+        modIptoolsGranted: true,
+        modIptoolsOn: true,
       },
     }),
   loadPrimaryGate: async (tenantId) => {
@@ -350,6 +363,7 @@ async function toChannelStorefront(t: TenantStorefrontRow): Promise<Storefront |
     // 回退规则的唯一实现（微信号 + 二维码成组回退；邮箱、服务时间各自回退；库里不合规的值按未设置处理）
     contact: resolveStoreContact(t),
     brand: resolveStoreBrand(t),
+    modules: resolveStoreModules(t),
   }
 }
 
@@ -484,6 +498,27 @@ export async function denyOnChannel(): Promise<Response | null> {
   const sf = await getStorefront()
   if (sf && sf.kind === 'PLATFORM') return null
   return error('资源不存在', 404)
+}
+
+/**
+ * 内容模块（docs/多渠道分销-内容模块下放.md）在当前店面是否开放：主站恒开；渠道要求授权 && 上架，且店面在营业或暂停营业
+ * （筹备中 / 已停业的渠道一律不开：筹备期前台本来就只给预览账号看商品，停业后只留订单查询）。没有店面 → false。
+ */
+export async function moduleOpen(m: ContentModule): Promise<boolean> {
+  const sf = await getStorefront()
+  if (!sf) return false
+  if (sf.kind === 'PLATFORM') return true
+  return (sf.status === 'ACTIVE' || sf.status === 'SUSPENDED') && sf.modules?.[m] === true
+}
+
+/** 内容模块 API 第一行：`const d = await denyUnlessModule('learn'); if (d) return d`（不要包进 try）。主站放行，渠道未开 → 404 JSON */
+export async function denyUnlessModule(m: ContentModule): Promise<Response | null> {
+  return (await moduleOpen(m)) ? null : error('资源不存在', 404)
+}
+
+/** 内容模块 page / layout 第一行：渠道未开 → notFound()（不要包进 try） */
+export async function notFoundUnlessModule(m: ContentModule): Promise<void> {
+  if (!(await moduleOpen(m))) notFound()
 }
 
 /** 关闭模块的 page / layout 第一行：渠道 Host → notFound()（不要包进 try） */

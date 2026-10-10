@@ -7,7 +7,7 @@ import { success, error } from '@/lib/api'
 import { plainExcerpt } from '@/lib/markdown'
 import { resolveActor, normalizeTags, memberDisplayName } from '@/lib/forum'
 import { forumWriteGate } from '@/lib/forum-throttle'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule, getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
 import { flagsOf, forumCrossSite, trustLevelOf } from '@/lib/forum-server'
 import { FLAG_LABELS, contentPath, isForumImageUrl, postReviewOnCreate } from '@/lib/content/policy'
 import { declarationShape } from '@/lib/content/schema'
@@ -21,8 +21,8 @@ import { searchThrottled } from '@/lib/search-throttle'
 
 // 列表：支持板块筛选、标签、关键词、排序、分页
 export async function GET(request: NextRequest) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
+  // 渠道分站：本模块渠道站默认关闭，超管授权且渠道上架才开（docs/多渠道分销-内容模块下放.md）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   try {
     const { searchParams } = new URL(request.url)
@@ -114,9 +114,11 @@ const createSchema = z.object({
 
 // 发帖：必须登录（内容平台 P0：关闭匿名发帖，设计 §18 第 2 条）；新人先审后发
 export async function POST(request: NextRequest) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
+  // 渠道分站：本模块渠道站默认关闭，超管授权且渠道上架才开（docs/多渠道分销-内容模块下放.md）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
+  // 来源站（内容模块下放）：渠道发的帖 / 评论在后台审核时显示来源。getStorefront 不包进 try
+  const sourceTenantId = (await getStorefront())?.id ?? PLATFORM_TENANT_ID
   const crossSite = forumCrossSite(request.headers)
   if (crossSite) return crossSite
   try {
@@ -193,6 +195,7 @@ export async function POST(request: NextRequest) {
         categoryId,
         userId: actor.userId,
         authorName: authorName.slice(0, 50),
+        sourceTenantId,
         title: d.title,
         content: d.content,
         // 提示词 / 教程用策展标签（post_tags），不用自由标签

@@ -2,14 +2,14 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { ipKey } from '@/lib/auth-throttle'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 
 // 赞助位点击：计数后 302 到后台登记的地址。只认在投期内的；过期或下架的回到学习平台首页
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   // 内容平台只在主站开放
-  const channelDenied = await denyOnChannel()
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const id = parseInt(params.id)
   const now = new Date()

@@ -16,6 +16,7 @@ import { prisma } from './db'
 import { TAX_RATE } from './invoice'
 import { BillingError, createManualInvoice } from './order-invoice'
 import { maskEmail } from './mask'
+import { invoiceItemName } from './invoice-items'
 import type { BuyerInvoiceFields } from './order-invoice'
 
 export type InvoiceRequestStatus = 'PENDING' | 'SUBMITTED' | 'CANCELLED'
@@ -100,11 +101,20 @@ export async function publicInvoiceRequestView(token: string) {
   const r = await prisma.invoiceRequest.findUnique({ where: { token } })
   if (!r) return null
   const amount = Number(r.invoiceAmount)
-  let submitted: { title: string | null; taxNumber: string | null; email: string; showAiWording: boolean | null; invoiceNo: string; status: string } | null = null
+  let submitted: {
+    title: string | null
+    taxNumber: string | null
+    email: string
+    showAiWording: boolean | null
+    /** 发票项目名称（已按 NULL → 技术咨询服务 回落） */
+    invoiceItemName: string
+    invoiceNo: string
+    status: string
+  } | null = null
   if (r.status === 'SUBMITTED' && r.invoiceId) {
     const inv = await prisma.invoice.findUnique({
       where: { id: r.invoiceId },
-      select: { title: true, taxNumber: true, email: true, showAiWording: true, invoiceNo: true, status: true },
+      select: { title: true, taxNumber: true, email: true, showAiWording: true, invoiceItem: true, invoiceNo: true, status: true },
     })
     if (inv) {
       submitted = {
@@ -112,6 +122,7 @@ export async function publicInvoiceRequestView(token: string) {
         taxNumber: inv.taxNumber,
         email: maskEmail(inv.email),
         showAiWording: inv.showAiWording,
+        invoiceItemName: invoiceItemName(inv.invoiceItem),
         invoiceNo: inv.invoiceNo,
         status: inv.status,
       }
@@ -167,6 +178,7 @@ export async function submitInvoiceRequest(token: string, fields: BuyerInvoiceFi
         subscriptionType: r.subscriptionType || '技术咨询服务',
         account: r.account || null,
         showAiWording: fields.showAiWording,
+        invoiceItem: fields.invoiceItem,
         status: 'SUBMITTED',
       },
       tx

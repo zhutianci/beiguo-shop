@@ -40,10 +40,11 @@ import {
 } from '@/lib/content/queries'
 import { authorHref, creatorBadge } from '@/lib/content/creator'
 import { authorRefCode, ctaHref } from '@/lib/content/cta'
+import { getStorefront } from '@/lib/storefront/resolve'
 import { LANDINGS } from '@/lib/landing/registry'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
-import { JsonLd } from '@/lib/seo/jsonld'
+import { PlatformJsonLd } from '@/components/seo/platform-json-ld'
 import { breadcrumbJsonLd, type Crumb } from '@/lib/seo/graph'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
@@ -211,6 +212,12 @@ function Originality({ post }: { post: ContentRow }) {
 }
 
 export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw: string }) {
+  // 渠道站（docs/多渠道分销-内容模块下放.md）：转化入口指向主站充值落地页（渠道站没有），连同作者内推返现一起不出（站长 10-10）；
+  // 白标渠道的认证徽章提示不写「贝果」。getStorefront 不包进 try
+  const sf = await getStorefront()
+  const onPlatform = sf?.kind === 'PLATFORM'
+  const ctaFor = (p: ContentRow, ref: string | null) => (onPlatform ? ctaOf(p, ref) : null)
+  const certifiedBy = sf?.brand.custom ? '认证作者' : '贝果认证'
   // 登录态与帖子互不依赖，一起查（性能优化 2026-10-07：原来是先查帖子、再查登录态，两次往返串行）
   const [post, user] = await Promise.all([resolve(type, raw), getCurrentUser().catch(() => null)])
   if (!post) notFound()
@@ -240,7 +247,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
     publicPost ? relatedContent(post) : Promise.resolve([]),
     dimsFor(images),
     // 作者内推返现只给公开内容（未公开的页面只有作者和管理员看得到，带 ref 没有意义）
-    publicPost ? authorRefCode(post) : Promise.resolve(null),
+    publicPost && onPlatform ? authorRefCode(post) : Promise.resolve(null),
     creatorBadge(post.userId),
   ])
   const remixes = JSON.parse(JSON.stringify(remixCards))
@@ -265,7 +272,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
         <span className="text-white/75">{authorName}</span>
       )}
       {badge && (
-        <span title={`贝果认证：${badge}`} className="inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[11px] text-sky-200">
+        <span title={`${certifiedBy}：${badge}`} className="inline-flex items-center gap-1 rounded-full bg-sky-400/15 px-2 py-0.5 text-[11px] text-sky-200">
           <BadgeCheck className="h-3 w-3" /> {badge}
         </span>
       )}
@@ -362,7 +369,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
   )
 
   const ld = (
-    <JsonLd data={[...(publicPost ? [postingJsonLd(post, authorName, href, initialComments)] : []), breadcrumbJsonLd(crumbs)]} />
+    <PlatformJsonLd data={[...(publicPost ? [postingJsonLd(post, authorName, href, initialComments)] : []), breadcrumbJsonLd(crumbs)]} />
   )
 
   // 示例图来源（来自开源仓库的示例图要署名；为空 = 作者自己的出图）
@@ -416,7 +423,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
                 needsRefImage={post.prompt.needsRefImage}
                 variables={promptVariables(post.prompt.prompt)}
                 copyCount={post.copyCount}
-                cta={ctaOf(post, refCode)}
+                cta={ctaFor(post, refCode)}
                 tall
               />
             </div>
@@ -478,7 +485,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
                 needsRefImage={post.prompt.needsRefImage}
                 variables={promptVariables(post.prompt.prompt)}
                 copyCount={post.copyCount}
-                cta={ctaOf(post, refCode)}
+                cta={ctaFor(post, refCode)}
               />
               {tagChips}
               {actions}
@@ -509,7 +516,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
 
   // —— 教程 / AI 应用（应用复用教程的阅读布局，正文是「我用它解决了什么」）——
   const toc = tocFromHtml(html)
-  const cta = type === 'APP' ? null : ctaOf(post, refCode)
+  const cta = type === 'APP' ? null : ctaFor(post, refCode)
   const app = type === 'APP' ? post.app : null
   // 作者自荐的外链一律 sponsored（Google 对推广链接的要求，设计 §9.2），普通分享是 ugc
   const appRel = app?.selfPromo ? 'sponsored nofollow noopener noreferrer' : 'ugc nofollow noopener noreferrer'

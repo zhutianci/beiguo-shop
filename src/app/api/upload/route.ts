@@ -8,7 +8,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { CONTACT_QR_MAX_BYTES, sniffImage, storeContactQr, storeUpload } from '@/lib/upload-store'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { ipKey } from '@/lib/auth-throttle'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { crossSiteReason } from '@/lib/same-origin'
 import { imageSize, stripImageMetadata } from '@/lib/image-meta'
 import { prisma } from '@/lib/db'
@@ -51,8 +51,8 @@ const CONTACT_TYPES: ReadonlySet<string> = new Set(['image/jpeg', 'image/png', '
 
 // 图片上传：保存到 public/uploads/<scope>，返回可访问 URL
 export async function POST(request: NextRequest) {
-  // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
-  const channelDenied = await denyOnChannel()
+  // 渠道分站：本模块渠道站默认关闭，超管授权且渠道上架才开（docs/多渠道分销-内容模块下放.md）。第一行、不包进 try；主站（含休眠期任何 Host）放行
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   // 同源校验（lib/same-origin，审计 G09）：上传是浏览器发起、带登录 cookie、会写盘的接口，
   // 兄弟子域的 simple POST（multipart 不触发预检）能借 Lax cookie 往 public 目录写文件、吃掉配额

@@ -8,7 +8,7 @@ import { success, error } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { ipKey } from '@/lib/auth-throttle'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { forumCrossSite } from '@/lib/forum-server'
 import { PUBLIC_WHERE } from '@/lib/content/queries'
 
@@ -20,7 +20,7 @@ import { PUBLIC_WHERE } from '@/lib/content/queries'
  * 复制计数将来要进热门排序与作者积分（P2），所以这里宁可少计，不能被刷。
  */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const channelDenied = await denyOnChannel()
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const crossSite = forumCrossSite(request.headers)
   if (crossSite) return crossSite

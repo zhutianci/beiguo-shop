@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { meOrDeny } from '@/lib/content/session'
 import { award } from '@/lib/content/points'
 import { notifyUser } from '@/lib/content/inbox'
@@ -18,7 +18,7 @@ import { rateLimited } from '@/lib/news/rate-limit'
  * 规则见 lib/content/anti-farm）。改采纳对象照常生效，只是不再加分。采纳后详情页的结构化数据从 DiscussionForumPosting 换成 QAPage。
  */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const channelDenied = await denyOnChannel()
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const { user, denied } = await meOrDeny(request, true)
   if (denied) return denied

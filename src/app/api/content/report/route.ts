@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { meOrDeny } from '@/lib/content/session'
 import { notify } from '@/lib/notify'
 import { notifyUser } from '@/lib/content/inbox'
@@ -33,7 +33,7 @@ const schema = z
   .refine((d) => !!d.postId !== !!d.commentId, '请指定举报对象')
 
 export async function POST(request: NextRequest) {
-  const channelDenied = await denyOnChannel()
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const { user, denied } = await meOrDeny(request, true)
   if (denied) return denied

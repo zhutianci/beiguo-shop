@@ -59,6 +59,9 @@ export const ACTION_TEXT: Record<string, string> = {
   'tenant.brand_reset': '平台恢复默认品牌',
   'tenant.brand_lock': '平台锁定 / 解锁品牌设置',
   'tenant.announcement_block': '平台下架 / 恢复公告',
+  // 内容模块下放（docs/多渠道分销-内容模块下放.md）
+  'settings.module': '上架 / 下架内容模块',
+  'tenant.module_grant': '平台开通 / 收回内容模块',
   'member.join': '成员加入',
   // 终审第 2 轮补齐：凡以本渠道 tenantId 写审计的 action 都要有中文名（wp7「操作日志文案全覆盖」静态检查兜底），
   // 否则页面回退成英文代码

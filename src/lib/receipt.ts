@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { invoiceItemName } from './invoice-items'
 
 // 收款人（固定）
 export const PAYEE = '益阳市赫山区必高科技有限公司'
@@ -24,8 +25,19 @@ export { rmbCapital } from './rmb'
  */
 export const RECEIPT_NEUTRAL_PROJECT = '技术咨询服务'
 
-export function receiptProjectLabel(subscriptionType: string | null, showAiWording: boolean | null): string | null {
-  if (showAiWording === false) return RECEIPT_NEUTRAL_PROJECT
+/**
+ * 加上买家自选的收据项目（invoiceItem，与发票同一份清单 lib/invoice-items.ts）之后：
+ *   不展示字眼 → 只印所选项目名称（没选过的 NULL → 技术咨询服务，与原来一致）
+ *   展示字眼   → 选过项目：「<项目>（<订阅类型> 会员订阅）」，与发票「项目名称 + 规格型号」同构；
+ *                没选过（NULL，功能上线前的收据）→ 与原来逐字一致
+ */
+export function receiptProjectLabel(
+  subscriptionType: string | null,
+  showAiWording: boolean | null,
+  invoiceItem: string | null = null
+): string | null {
+  if (showAiWording === false) return invoiceItem ? invoiceItemName(invoiceItem) : RECEIPT_NEUTRAL_PROJECT
   const t = (subscriptionType || '').trim()
-  return t ? `${t} 会员订阅` : null
+  if (!t) return invoiceItem ? invoiceItemName(invoiceItem) : null
+  return invoiceItem ? `${invoiceItemName(invoiceItem)}（${t} 会员订阅）` : `${t} 会员订阅`
 }

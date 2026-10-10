@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { denyOnChannel } from '@/lib/storefront/resolve'
+import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { meOrDeny } from '@/lib/content/session'
 import { PUBLIC_WHERE } from '@/lib/content/queries'
 import { award } from '@/lib/content/points'
@@ -13,7 +13,7 @@ import { rateLimited } from '@/lib/news/rate-limit'
 
 // 收藏 / 取消收藏（切换）。收藏数按口径重数；被收藏给作者 +2 积分（同一收藏者对同一篇只算一次，取消再收藏不重复加）
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const channelDenied = await denyOnChannel()
+  const channelDenied = await denyUnlessModule('learn')
   if (channelDenied) return channelDenied
   const { user, denied } = await meOrDeny(request, true)
   if (denied) return denied

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
+import { sourceSiteCodes } from '@/lib/content/source-site'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { REVIEW_STATUSES } from '@/lib/content/policy'
@@ -32,8 +33,11 @@ export async function GET(request: NextRequest) {
       prisma.forumComment.count({ where }),
     ])
 
+    // 内容模块下放：渠道站上发的评论标出来源站
+    const sites = await sourceSiteCodes(rows.map((c) => c.sourceTenantId))
     return success({
       list: rows.map((c) => ({
+        sourceSite: sites.get(c.sourceTenantId) ?? null,
         id: c.id,
         postId: c.postId,
         postTitle: c.post.title,

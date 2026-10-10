@@ -52,6 +52,8 @@ export interface InvoiceBrief {
   bankAccount: string | null
   email: string | null
   showAiWording: boolean | null
+  /** 发票项目 key（lib/invoice-items.ts）；NULL = 功能上线前的发票，按技术咨询服务 */
+  invoiceItem: string | null
   sellingPrice: number | null
   invoiceAmount: number | null
   taxFee: number | null
@@ -82,6 +84,7 @@ const INVOICE_SELECT = {
   bankAccount: true,
   email: true,
   showAiWording: true,
+  invoiceItem: true,
   sellingPrice: true,
   invoiceAmount: true,
   taxFee: true,
@@ -107,6 +110,7 @@ type InvoiceRow = {
   bankAccount: string | null
   email: string | null
   showAiWording: boolean | null
+  invoiceItem: string | null
   sellingPrice: unknown
   invoiceAmount: unknown
   taxFee: unknown
@@ -142,6 +146,7 @@ function toBrief(r: InvoiceRow): InvoiceBrief {
     bankAccount: r.bankAccount,
     email: r.email,
     showAiWording: r.showAiWording,
+    invoiceItem: r.invoiceItem,
     sellingPrice: num(r.sellingPrice),
     invoiceAmount: num(r.invoiceAmount),
     taxFee: num(r.taxFee),

@@ -9,10 +9,13 @@
  * 【features 只控制显示，不是权限】渠道站营销与内容模块的真正拦截全在服务端（denyOnChannel / notFoundOnChannel /
  * 下单接口拒券、忽略 ref），这里关掉的只是入口（acg「券开关只有前台在看」的教训，T12 遍历验证）。
  * CHANNEL 恒为全关、PLATFORM 恒为全开，**不读任何 JSON 配置**（设计 7.6：不存在 Tenant.features）。
+ * 例外（docs/多渠道分销-内容模块下放.md）：forum（AI学习）/ news / iptools 三个内容模块在渠道按 sf.modules 打开
+ * （超管授权 && 渠道上架，tenants 上的布尔列；服务端拦截同样按它：moduleOpen / denyUnlessModule / notFoundUnlessModule）。
  */
 import type { Storefront, StorefrontKind } from './resolve'
 import { PLATFORM_CONTACT, type StoreContact } from '../contact-base'
 import { PLATFORM_BRAND, type StoreBrand } from '../brand-base'
+import type { StoreModules } from './modules'
 
 export type { StorefrontKind } from './resolve'
 
@@ -91,9 +94,20 @@ const ALL_OFF: StorefrontFeatures = Object.freeze({
   jiema: false,
 })
 
-/** PLATFORM 全开；CHANNEL 与 null（没有店面）全关。返回新对象，调用方改了也不影响常量 */
-export function storefrontFeatures(sf: { kind: StorefrontKind } | null): StorefrontFeatures {
-  return { ...(sf && sf.kind === 'PLATFORM' ? ALL_ON : ALL_OFF) }
+/**
+ * PLATFORM 全开；CHANNEL 与 null（没有店面）全关，只有三个内容模块按 sf.modules 打开（与 resolve.ts moduleOpen 同一口径：
+ * 筹备中 / 已停业不开）。返回新对象，调用方改了也不影响常量
+ */
+export function storefrontFeatures(sf: { kind: StorefrontKind; status?: string; modules?: StoreModules } | null): StorefrontFeatures {
+  if (sf && sf.kind === 'PLATFORM') return { ...ALL_ON }
+  const out = { ...ALL_OFF }
+  const m = sf?.modules
+  if (m && (sf.status === 'ACTIVE' || sf.status === 'SUSPENDED')) {
+    out.forum = m.learn === true
+    out.news = m.news === true
+    out.iptools = m.iptools === true
+  }
+  return out
 }
 
 /**

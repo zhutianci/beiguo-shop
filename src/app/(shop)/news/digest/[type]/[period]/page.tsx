@@ -11,7 +11,6 @@ import { ShareBar } from '@/components/news/share-bar'
 import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
 import { absUrl, clipDescription } from '@/lib/news/seo'
 import { pageOg } from '@/lib/seo/og'
-import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 import { digestSeoDescription, digestSeoTitle } from '@/lib/news/seo-title'
 import { dayKey, formatDayHeading, ogImageForCategory, siteOrigin, sourceLabel } from '@/lib/news/format'
@@ -23,6 +22,10 @@ import {
   parseDigestType,
   type DigestDto,
 } from '@/lib/news/digest'
+import { moduleMetadata } from '@/lib/storefront/module-meta'
+import { PlatformJsonLd } from '@/components/seo/platform-json-ld'
+import { channelUrl } from '@/lib/storefront/channel-url'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 /**
  * 日报 / 周报详情页。
@@ -50,7 +53,7 @@ async function load(params: Params['params']) {
   return digest ? { type, digest } : null
 }
 
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
+async function pageMetadata({ params }: Params): Promise<Metadata> {
   const hit = await load(params).catch(() => null)
   if (!hit) return { title: '内容不存在 - AI 圈大事记' }
   const { digest } = hit
@@ -84,7 +87,8 @@ export default async function DigestPage({ params }: Params) {
     console.error('[news/digest list]', e)
   }
 
-  const shareUrl = absUrl(`/news/digest/${DIGEST_SLUG[digest.type]}/${digest.period}`)
+  // 渠道站（内容模块下放）：分享地址换成渠道自己的域名。getStorefront 不包进 try
+  const shareUrl = channelUrl(await getStorefront(), absUrl(`/news/digest/${DIGEST_SLUG[digest.type]}/${digest.period}`))
   const isDaily = type === 'DAILY'
 
   return (
@@ -109,7 +113,7 @@ export default async function DigestPage({ params }: Params) {
             {isDaily ? '每日速览' : '每周回顾'} · {formatPeriodLabel(digest)}
           </span>
         </nav>
-        <JsonLd
+        <PlatformJsonLd
           data={[
             breadcrumbJsonLd([
               { name: '首页', path: '/' },
@@ -286,4 +290,9 @@ function PeriodSwitcher({
       </p>
     </nav>
   )
+}
+
+// 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
+export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
+  return moduleMetadata(await pageMetadata(props))
 }

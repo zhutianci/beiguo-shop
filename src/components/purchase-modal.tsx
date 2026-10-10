@@ -10,6 +10,8 @@ import { useStorefront } from '@/components/storefront-provider'
 import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/components/invoice-title-picker'
 // 无依赖的纯函数模块，与服务端校验共用同一份规则（lib/invoice.ts 引了 node:crypto，客户端不能引）
 import { normalizeTaxNumber, TAX_NUMBER_MAX_LEN } from '@/lib/tax-number'
+import { InvoiceItemSelect } from '@/components/invoice-item-select'
+import { DEFAULT_INVOICE_ITEM, type InvoiceItemKey } from '@/lib/invoice-items'
 
 /** 税点。与服务端 lib/invoice.ts 的 TAX_RATE 必须一致，这里只用于展示 */
 const TAX_RATE = 0.06
@@ -89,6 +91,8 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   const [form, setForm] = useState({ ...EMPTY_FORM })
   /** 发票中是否展示 ChatGPT/Claude 字眼。null = 还没选，不给默认值 */
   const [showAiWording, setShowAiWording] = useState<boolean | null>(null)
+  /** 发票项目（表二「项目名称 + 税收编码」）。默认技术咨询服务 = 可选之前的固定值 */
+  const [invoiceItem, setInvoiceItem] = useState<InvoiceItemKey>(DEFAULT_INVOICE_ITEM)
   const [saveTitle, setSaveTitle] = useState(true)
   /*
    * 地址/电话/开户行/卡号默认折叠。
@@ -311,6 +315,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 bankAccount: form.bankAccount.trim() || null,
                 email: form.email.trim(),
                 showAiWording,
+                invoiceItem,
                 titleId,
                 saveTitle: titleId === null && saveTitle,
               }
@@ -556,6 +561,15 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                             ))}
                           </div>
                         </div>
+
+                        <InvoiceItemSelect
+                          className="sm:col-span-2"
+                          value={invoiceItem}
+                          onChange={(v) => {
+                            touched.current = true
+                            setInvoiceItem(v)
+                          }}
+                        />
 
                         {/* 选填四项默认收起：只有需要在票面展示购买方信息的公司才用得到 */}
                         {showMoreFields ? (

@@ -4,12 +4,15 @@
  * 我的学习空间（内容平台 P2）：通知 · 收藏 · 合集 · 关注 · 我的投稿 · 积分。
  * P3 加了「积分兑换」（积分换优惠券）与「创作者」（认证申请、作者内推返现状态）两个页签。
  * 纯客户端页（个人数据，不进搜索引擎）；未登录跳登录页。打开「通知」页签即全部标为已读。
+ * 渠道站（docs/多渠道分销-内容模块下放.md）：积分照攒，但「积分兑换」（换的是主站优惠券）与「作者内推返现」只在主站，
+ * 按 features.coupon / features.referral 隐藏（渠道站恒关；接口层 /api/me/points-shop 在渠道站也是 404）。
  */
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { BadgeCheck, Bell, Bookmark, FolderOpen, Gift, PenLine, Sparkles, Trash2, Users } from 'lucide-react'
 import { useUserStore } from '@/store/user'
+import { useStorefront } from '@/components/storefront-provider'
 import { useHydrated } from '@/lib/use-hydrated'
 import { withRedirect } from '@/lib/safe-redirect'
 import { PromptMasonry, GuideRows } from './ui'
@@ -54,6 +57,7 @@ export function MeClient() {
   const router = useRouter()
   const hydrated = useHydrated()
   const { user } = useUserStore()
+  const { features } = useStorefront()
   const [tab, setTab] = useState<Tab>('inbox')
   const summary = useJson<Summary & { loggedIn: boolean }>('/api/me/summary')
 
@@ -63,8 +67,8 @@ export function MeClient() {
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get('tab') as Tab | null
-    if (q && TABS.includes(q)) setTab(q)
-  }, [])
+    if (q && TABS.includes(q) && (q !== 'shop' || features.coupon)) setTab(q)
+  }, [features.coupon])
 
   const s = summary.data
   const tabs: { k: Tab; t: string; icon: typeof Bell; n?: number }[] = [
@@ -75,7 +79,7 @@ export function MeClient() {
     { k: 'posts', t: '我的投稿', icon: PenLine },
     { k: 'shop', t: '积分兑换', icon: Gift },
     { k: 'creator', t: '创作者', icon: BadgeCheck },
-  ]
+  ].filter((t) => t.k !== 'shop' || features.coupon) as { k: Tab; t: string; icon: typeof Bell; n?: number }[]
 
   return (
     <div>
@@ -124,7 +128,7 @@ export function MeClient() {
       {tab === 'collections' && <Collections />}
       {tab === 'following' && <Following />}
       {tab === 'posts' && <MyPosts />}
-      {tab === 'shop' && <PointsShop onChange={summary.reload} />}
+      {tab === 'shop' && features.coupon && <PointsShop onChange={summary.reload} />}
       {tab === 'creator' && <Creator />}
 
       <p className="mt-16 text-xs text-white/30">
@@ -420,6 +424,7 @@ interface CreatorState {
 }
 
 function Creator() {
+  const { features } = useStorefront()
   const { data, reload } = useJson<CreatorState>('/api/me/creator-application')
   const [form, setForm] = useState({ field: '', works: '', intro: '' })
   const [busy, setBusy] = useState(false)
@@ -499,6 +504,7 @@ function Creator() {
         )}
       </section>
 
+      {features.referral && (
       <section className="learn-card p-6">
         <p className="learn-eyebrow mb-3">作者内推返现</p>
         <p className="text-sm leading-relaxed text-white/55">
@@ -515,6 +521,7 @@ function Creator() {
           {data.hasReferralCode ? '查看推广返现与提现 →' : '去开通内推码 →'}
         </Link>
       </section>
+      )}
     </div>
   )
 }

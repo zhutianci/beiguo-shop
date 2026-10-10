@@ -714,6 +714,19 @@ async function main() {
       const LATER_COLS = ['balance_logs.biz_key', 'balance_logs.topup_after_cents', 'balance_logs.topup_delta_cents', 'users.topup_cents', 'products.bot_code', 'page_views.tenant_id', 'visitors.tenant_id']
       const LATER_INDEXES = ['page_views_tenant_id_day_key_idx', 'visitors_tenant_id_first_seen_idx']
       const LATER_FKS = ['tenant_announcements.tenant_id->tenants']
+      // 内容平台（docs/内容平台/，10-07 上线）的 20 张新表、forum_posts / forum_comments 的新列与索引、5 条外键；
+      // 发票项目可选（docs/发票项目可选-部署说明.md）的 invoices / receipts.invoice_item；
+      // 内容模块下放（docs/多渠道分销-内容模块下放.md 第 1 节）的 forum_posts / forum_comments.source_tenant_id（tenants 的 6 个模块列在 CREATE TABLE 里，不单列）。
+      // 这些包各自有 DDL 闸门，这里只扣掉、不替它们验收（之前一直没登记，W0-9 在 main 上就是红的）
+      LATER_TABLES.push(
+        'app_specs', 'collection_follows', 'collection_items', 'collections', 'content_events', 'content_order_attributions', 'content_reports', 'creator_applications',
+        'creator_profiles', 'favorites', 'follows', 'media_assets', 'monthly_awards', 'notifications', 'point_logs', 'point_redemptions', 'post_tags', 'prompt_specs',
+        'sponsor_slots', 'tags',
+      )
+      const LATER_COL_TABLES = ['forum_posts', 'forum_comments']
+      LATER_COLS.push('invoices.invoice_item', 'receipts.invoice_item')
+      const LATER_INDEX_TABLES = ['forum_posts', 'forum_comments']
+      LATER_FKS.push('app_specs.post_id->forum_posts', 'collection_items.collection_id->collections', 'post_tags.post_id->forum_posts', 'post_tags.tag_id->tags', 'prompt_specs.post_id->forum_posts')
       const created = Array.from(sql.matchAll(/CREATE TABLE `([a-z_]+)`/g)).map((m) => m[1]).filter((t) => !LATER_TABLES.includes(t)).sort()
       const wantTables = [
         'audit_events', 'tenant_after_sales', 'tenant_customers', 'tenant_domains', 'tenant_invites', 'tenant_ledger_entries', 'tenant_listings',
@@ -730,7 +743,7 @@ async function main() {
         const c = /^ADD COLUMN `([a-z_]+)` (.*?)[,;]?$/.exec(body)
         if (c && table) addCols.push(`${table}.${c[1]} ${c[2]}`)
       }
-      const colNames = addCols.map((x) => x.split(' ')[0]).filter((c) => !LATER_COLS.includes(c)).sort()
+      const colNames = addCols.map((x) => x.split(' ')[0]).filter((c) => !LATER_COLS.includes(c) && !LATER_COL_TABLES.includes(c.split('.')[0])).sort()
       const wantCols = [
         'external_orders.tenant_id',
         'invoices.shop_order_id', 'invoices.tenant_id',
@@ -745,7 +758,7 @@ async function main() {
       ].sort()
       check('现有表新增列恰为设计 5.4 / 5.6 清单（Order 22 列）', JSON.stringify(colNames) === JSON.stringify(wantCols), colNames.join(','))
       check('新增列全部「可空」或「NOT NULL DEFAULT」', addCols.every((x) => / NULL$/.test(x) || /NOT NULL DEFAULT /.test(x)), addCols.filter((x) => !(/ NULL$/.test(x) || /NOT NULL DEFAULT /.test(x))).join(' | '))
-      const idx = Array.from(sql.matchAll(/^CREATE INDEX `([a-z_]+)` ON `([a-z_]+)`/gm)).filter((m) => !LATER_INDEXES.includes(m[1])).map((m) => m[2]).sort()
+      const idx = Array.from(sql.matchAll(/^CREATE INDEX `([a-z_]+)` ON `([a-z_]+)`/gm)).filter((m) => !LATER_INDEXES.includes(m[1]) && !LATER_INDEX_TABLES.includes(m[2])).map((m) => m[2]).sort()
       const wantIdx = ['external_orders', 'invoices', 'invoices', 'orders', 'orders', 'orders', 'orders', 'receipts', 'receipts'].sort()
       check('现有表新增索引：orders 4、invoices 2、receipts 2、external_orders 1', JSON.stringify(idx) === JSON.stringify(wantIdx), idx.join(','))
       const fks = Array.from(sql.matchAll(/ALTER TABLE `([a-z_]+)` ADD CONSTRAINT `[a-z_]+` FOREIGN KEY \(`([a-z_]+)`\) REFERENCES `([a-z_]+)`/g)).map((m) => `${m[1]}.${m[2]}->${m[3]}`).filter((f) => !LATER_FKS.includes(f)).sort()

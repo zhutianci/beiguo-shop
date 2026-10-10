@@ -387,6 +387,18 @@ export interface PartnerContactDTO {
  * 渠道品牌（docs/多渠道分销-渠道品牌与公告.md）：渠道自己填的原值（未设为 null，不做回退）。
  * brandLogoUrl 只会是 /uploads/brand/<名>.(png|jpg|webp)。locked = 超管禁止修改（设置页只读）。
  */
+/**
+ * 内容模块（docs/多渠道分销-内容模块下放.md）：超管授权、渠道上架、前台是否生效（授权 && 上架 && 店铺营业或暂停营业）。
+ * module 取值 learn | news | iptools（src/lib/storefront/modules.ts）
+ */
+export interface PartnerModuleDTO {
+  module: 'learn' | 'news' | 'iptools'
+  label: string
+  granted: boolean
+  on: boolean
+  live: boolean
+}
+
 export interface PartnerBrandDTO {
   brandName: string | null
   brandLogoUrl: string | null

@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { isValidContactQrUrl } from '@/lib/contact-base'
 import { BrandCard } from './tenant-brand'
+import { ModulesCard } from './tenant-modules'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -120,6 +121,7 @@ export default function TenantDetail({ id }: { id: string }) {
         <NoticeTransportCard d={data} />
       </div>
       <BrandCard id={id} onDone={done} />
+      <ModulesCard id={id} onDone={done} />
       <MemberCard d={data} onDone={done} id={id} />
     </div>
   )
