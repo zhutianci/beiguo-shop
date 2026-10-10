@@ -5,7 +5,7 @@ products: [chatgpt]
 models: []
 accountTier: TEAM
 excerpt: ChatGPT Skills（技能）能把一套固定做法打包，让 ChatGPT 每次都按同样流程完成任务。本文讲清哪些套餐能用、在哪找、几种创建方式、怎么用 @ 调用，以及适合做成技能的场景。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-10
 sources:
   - https://help.openai.com/en/articles/20001066-skills-in-chatgpt
   - https://help.openai.com/en/articles/20001256-plugins-in-chatgpt-and-codex
@@ -107,6 +107,13 @@ sources:
 - **数据报表解读**：固定先看哪些指标、怎么写结论。
 
 写技能时，一次只做一件事，描述里写清「什么时候用、什么时候不用」，把关键用途写在描述开头，附一两个好的示例输出，效果最好。
+
+## 2026-10-10 更新
+
+- **OpenAI 的示例仓库换了地方**：`openai/skills` 的 README 已标注弃用，官方示例转到 `openai/plugins`；自己写的技能，官方建议做成「只含技能的插件」。
+- **Codex 的技能目录**：官方文档现在写的用户级目录是 `$HOME/.agents/skills`（项目内是 `.agents/skills`），不少旧教程写的 `~/.codex/skills` 已不是文档里的位置，以官方文档为准。
+- **ChatGPT 与 Codex 共用插件目录**：按 OpenAI 文档，两边看到的是同一个插件目录，Codex CLI 里用 `/plugins` 打开。
+- **想找现成的技能库**：本站整理了讨论和使用较多的 Skill 库，每个都有介绍、安装命令和注意事项，见 [Skill 库](/skills)。第三方技能可以运行脚本、读取文件，安装前先看清来源和内容。
 
 ## 常见问题
 

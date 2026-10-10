@@ -5,7 +5,7 @@ products: [claude]
 models: []
 accountTier: PLUS
 excerpt: 一篇讲清 Claude Skills（技能）：它和提示词有什么不同，在 claude.ai 网页版和 Claude Code 里分别怎么开启、上传、安装，官方仓库里有哪些值得先装的技能，以及装第三方技能的安全注意事项。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-10
 sources:
   - https://support.claude.com/en/articles/12512180-using-skills-in-claude
   - https://support.claude.com/en/articles/14328846-browse-skills-connectors-and-plugins-in-one-directory
@@ -117,6 +117,13 @@ description: 按团队固定格式写周报。当用户要求写周报、总结�
 | theme-factory | 给幻灯片、文档、网页套用预设主题（配色与字体） |
 
 许可证提示：仓库里的示例技能大多是 Apache-2.0 开源；docx / pdf / pptx / xlsx 四个文档技能是「源码可见」，不是开源许可，不要拿去二次分发。官方 README 也说明，这些技能主要用于演示和学习，实际在 Claude 里的表现可能和仓库里的实现不同。
+
+## 2026-10-10 更新
+
+- **官方市场可以直接装**：`skill-creator`、`frontend-design` 等已进 Anthropic 官方插件市场，在 Claude Code 里可以直接 `/plugin install skill-creator@claude-plugins-official`，不必先添加 `anthropics/skills` 市场。
+- **Claude Code 新增的两个命令**：`/reload-skills`（重新加载技能）、`/skill-doctor`（检查技能为什么没生效）；claude.ai 的技能同步到 Claude Code 需要较新的版本（官方文档写的是 v2.1.273 及以上）。
+- **上传到 claude.ai 的 SKILL.md 字段有限制**：官方文档写明只接受 name、description、license、compatibility、metadata、allowed-tools 这几个字段，多写会报错。
+- **更多技能库**：除了官方仓库，社区里还有 Superpowers 等使用很广的 Skill 库，本站逐个整理了介绍、安装命令和注意事项，见 [Skill 库](/skills)。第三方技能可以运行脚本、读取文件，安装前先看清来源和内容。
 
 ## 常见问题
 
