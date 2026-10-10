@@ -12,9 +12,10 @@ sources:
   - https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers
   - https://help.openai.com/en/articles/20001053-what-to-expect-when-models-change
   - https://help.openai.com/en/articles/9624314-model-release-notes
+  - https://learn.chatgpt.com/docs/pricing
   - https://help.openai.com/en/articles/6825453-chatgpt-release-notes
 verify:
-  - 协调者提供「GPT-5.5 将于 2026-10-14 退役」，但帮助中心的模型发布说明里尚未查到对应条目，正文只写「旧模型会陆续退役」
+  - GPT-5.5 于 2026-10-14 从 ChatGPT、Work 和 Codex 退役的日期来自官方 Codex 定价页（learn.chatgpt.com/docs/pricing）顶部公告，帮助中心的模型发布说明里尚无对应条目
   - 截图是 2026-06-10 发布说明里的选择器，之后选择器又改为 GPT-5.6 的 Thinking 滑块，实际界面可能不同
   - Business 设置里仍有「Higher intelligence（更高智能）」开关，Plus / Pro 已移除，中文名称以界面为准
 ---
@@ -86,7 +87,7 @@ verify:
 | GPT-6 Astra | 新一代旗舰，擅长编程、研究、电脑操作 | Chat 中以「GPT-6 Pro」形式提供给 Pro 100 / 200、Business、Enterprise；Plus 在 Work 和 Codex 中可用 |
 | GPT-6 Sol / 6.1 Sol / GPT-6 Luna | Work 和 Codex 专用模型 | 仅 Work、Codex |
 
-旧模型会陆续退役（例如 GPT-4o、GPT-4.5、o3 已经下线）。官方说明模型更替时，之前的对话会延续到新模型上；如果你习惯旧模型的语气，可以用个性和自定义指令调整，见 [/guides/chatgpt-custom-instructions](/guides/chatgpt-custom-instructions)。
+旧模型会陆续退役（例如 GPT-4o、GPT-4.5、o3 已经下线；官方 Codex 定价页公告 GPT-5.5 将于 2026 年 10 月 14 日从 ChatGPT、Work 和 Codex 的所有套餐退役，API 不受影响）。官方说明模型更替时，之前的对话会延续到新模型上；如果你习惯旧模型的语气，可以用个性和自定义指令调整，见 [/guides/chatgpt-custom-instructions](/guides/chatgpt-custom-instructions)。
 
 ## 常见问题
 
@@ -109,4 +110,5 @@ Free 和 Go 不包含 Sol；付费用户先确认登录的是正确账号；公�
 - OpenAI 帮助中心：About ChatGPT Pro tiers — https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers
 - OpenAI 帮助中心：What to expect when models change — https://help.openai.com/en/articles/20001053-what-to-expect-when-models-change
 - OpenAI 帮助中心：Model Release Notes — https://help.openai.com/en/articles/9624314-model-release-notes
+- Codex 官方定价页（GPT-5.5 退役公告）— https://learn.chatgpt.com/docs/pricing
 - ChatGPT Release Notes（2026-06-10 选择器简化、2026-08-06 GPT-5.6、2026-09-14 停止自动切换）— https://help.openai.com/en/articles/6825453-chatgpt-release-notes
