@@ -34,6 +34,17 @@
 | 435-upscayl-open-source-image-upscaler.md | Upscayl | https://github.com/upscayl/upscayl<br>https://upscayl.org/ | — |
 | 436-pixelcut-ai-photo-editor.md | Pixelcut | https://www.pixelcut.ai/pricing<br>https://www.pixelcut.ai/ | — |
 | 437-jsdesign-jishi-sheji-ui-tool.md | 即时设计 | https://js.design/ | — |
+| 470-wordtune-ai-rewriting-assistant.md | Wordtune | https://www.wordtune.com/plans<br>https://www.wordtune.com/ | — |
+| 471-copy-ai-gtm-platform.md | Copy.ai | https://www.copy.ai/prices<br>https://www.copy.ai/ | — |
+| 472-rytr-ai-writing-assistant.md | Rytr | https://rytr.me/ | — |
+| 473-paperpal-academic-writing-ai.md | Paperpal | https://paperpal.com/pricing<br>https://paperpal.com/ | — |
+| 490-miro-ai-whiteboard.md | Miro AI | https://miro.com/pricing/<br>https://miro.com/ai/ | — |
+| 491-whimsical-ai-flowchart-mindmap.md | Whimsical | https://whimsical.com/pricing<br>https://whimsical.com/ | — |
+| 492-xmind-ai-mind-mapping.md | Xmind AI | https://xmind.com/pricing<br>https://xmind.com/ | — |
+| 493-airtable-ai-app-building.md | Airtable AI | https://www.airtable.com/pricing<br>https://www.airtable.com/ | — |
+| 494-loom-ai-screen-recording.md | Loom AI | https://www.loom.com/pricing<br>https://www.loom.com/ | — |
+| 495-clipchamp-microsoft-video-editor.md | Microsoft Clipchamp | https://clipchamp.com/en/pricing/<br>https://clipchamp.com/en/ | — |
+| 497-processon-ai-online-diagram.md | ProcessOn | https://www.processon.com/ | — |
 | 550-aider-terminal-ai-pair-programming.md | Aider | https://github.com/Aider-AI/aider<br>https://aider.chat/ | — |
 | 551-zed-editor-ai-agent.md | Zed | https://zed.dev/pricing<br>https://zed.dev/<br>https://github.com/zed-industries/zed | — |
 | 552-warp-agentic-terminal.md | Warp | https://www.warp.dev/pricing<br>https://www.warp.dev/ | — |
