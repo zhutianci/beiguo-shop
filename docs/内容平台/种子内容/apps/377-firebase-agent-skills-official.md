@@ -9,7 +9,7 @@ trialNote: "npx skills add firebase/skills"
 products: [gemini, claude]
 models: [any-llm]
 topics: [agent-skills, coding]
-excerpt: "firebase/agent-skills 是 Firebase 官方的 Agent Skills：帮助编程智能体正确使用 Firebase 的认证、Firestore、Hosting、App Hosting、Data Connect、Crashlytics、Remote Config 与 Genkit，并带一个安全规则审计技能。"
+excerpt: "firebase/agent-skills 是 Firebase 官方的 Agent Skills：帮助编程智能体正确使用 Firebase 的认证、Firestore、Hosting、Data Connect、Crashlytics 与 Genkit，并带一个安全规则审计技能。"
 checkedOn: 2026-10-11
 sources:
   - https://github.com/firebase/agent-skills
