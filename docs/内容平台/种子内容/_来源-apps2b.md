@@ -26,6 +26,11 @@
 | 418-lobehub-lobechat-agent-workspace.md | LobeHub（原 LobeChat） | https://github.com/lobehub/lobehub<br>https://lobehub.com/ | — |
 | 419-anythingllm-local-document-chat.md | AnythingLLM | https://anythingllm.com/<br>https://github.com/Mintplex-Labs/anything-llm | — |
 | 420-jan-open-source-local-chatgpt.md | Jan | https://www.jan.ai/<br>https://github.com/janhq/jan | — |
+| 421-langflow-visual-agent-builder.md | Langflow | https://github.com/langflow-ai/langflow<br>https://www.langflow.org/ | — |
+| 422-ragflow-document-rag-engine.md | RAGFlow | https://github.com/infiniflow/ragflow<br>https://ragflow.io/ | — |
+| 423-maxkb-enterprise-agent-platform.md | MaxKB | https://github.com/1Panel-dev/MaxKB<br>https://maxkb.cn/ | — |
+| 424-librechat-self-hosted-multi-provider.md | LibreChat | https://github.com/danny-avila/LibreChat<br>https://www.librechat.ai/ | — |
+| 425-nextchat-chatgpt-next-web.md | NextChat | https://github.com/ChatGPTNextWeb/NextChat | — |
 | 430-tripo-ai-3d-model-generator.md | Tripo AI | https://www.tripo3d.ai/pricing<br>https://www.tripo3d.ai/ | — |
 | 431-meshy-ai-3d-toolbox.md | Meshy | https://www.meshy.ai/pricing<br>https://www.meshy.ai/ | — |
 | 432-tencent-hunyuan3d-ai-modeling.md | 腾讯混元3D | https://3d.hunyuan.tencent.com/<br>https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1 | — |
@@ -68,6 +73,8 @@
 | 552-warp-agentic-terminal.md | Warp | https://www.warp.dev/pricing<br>https://www.warp.dev/ | — |
 | 553-augment-code-ai-coding-platform.md | Augment Code | https://www.augmentcode.com/pricing<br>https://www.augmentcode.com/ | — |
 | 554-langsmith-llm-observability-eval.md | LangSmith | https://www.langchain.com/pricing<br>https://www.langchain.com/langsmith | — |
+| 555-langfuse-open-source-llm-observability.md | Langfuse | https://github.com/langfuse/langfuse<br>https://langfuse.com/ | — |
+| 556-opencode-open-source-coding-agent.md | OpenCode | https://github.com/anomalyco/opencode<br>https://opencode.ai/ | — |
 | 570-together-ai-open-model-cloud.md | Together AI | https://www.together.ai/pricing<br>https://www.together.ai/ | — |
 | 571-fireworks-ai-inference-platform.md | Fireworks AI | https://fireworks.ai/pricing<br>https://fireworks.ai/ | — |
 | 572-replicate-run-ml-models-api.md | Replicate | https://replicate.com/pricing<br>https://replicate.com/ | — |
