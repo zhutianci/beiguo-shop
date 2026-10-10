@@ -34,10 +34,15 @@
 | 435-upscayl-open-source-image-upscaler.md | Upscayl | https://github.com/upscayl/upscayl<br>https://upscayl.org/ | — |
 | 436-pixelcut-ai-photo-editor.md | Pixelcut | https://www.pixelcut.ai/pricing<br>https://www.pixelcut.ai/ | — |
 | 437-jsdesign-jishi-sheji-ui-tool.md | 即时设计 | https://js.design/ | — |
+| 450-hedra-ai-character-video.md | Hedra | https://www.hedra.com/pricing<br>https://www.hedra.com/ | — |
+| 451-d-id-ai-avatar-video-agents.md | D-ID | https://www.d-id.com/pricing/studio/<br>https://www.d-id.com/ | — |
+| 460-speechify-text-to-speech-reader.md | Speechify | https://speechify.com/pricing/<br>https://speechify.com/ | — |
 | 470-wordtune-ai-rewriting-assistant.md | Wordtune | https://www.wordtune.com/plans<br>https://www.wordtune.com/ | — |
 | 471-copy-ai-gtm-platform.md | Copy.ai | https://www.copy.ai/prices<br>https://www.copy.ai/ | — |
 | 472-rytr-ai-writing-assistant.md | Rytr | https://rytr.me/ | — |
 | 473-paperpal-academic-writing-ai.md | Paperpal | https://paperpal.com/pricing<br>https://paperpal.com/ | — |
+| 474-readwise-reader-ghostreader.md | Readwise Reader | https://readwise.io/read<br>https://readwise.io/pricing | — |
+| 480-caiyun-xiaoyi-ai-translator.md | 彩云小译 | https://fanyi.caiyunapp.com/ | — |
 | 490-miro-ai-whiteboard.md | Miro AI | https://miro.com/pricing/<br>https://miro.com/ai/ | — |
 | 491-whimsical-ai-flowchart-mindmap.md | Whimsical | https://whimsical.com/pricing<br>https://whimsical.com/ | — |
 | 492-xmind-ai-mind-mapping.md | Xmind AI | https://xmind.com/pricing<br>https://xmind.com/ | — |
@@ -45,6 +50,19 @@
 | 494-loom-ai-screen-recording.md | Loom AI | https://www.loom.com/pricing<br>https://www.loom.com/ | — |
 | 495-clipchamp-microsoft-video-editor.md | Microsoft Clipchamp | https://clipchamp.com/en/pricing/<br>https://clipchamp.com/en/ | — |
 | 497-processon-ai-online-diagram.md | ProcessOn | https://www.processon.com/ | — |
+| 515-rows-ai-spreadsheet.md | Rows | https://rows.com/pricing<br>https://rows.com/ | — |
+| 516-hex-ai-analytics-notebook.md | Hex | https://hex.tech/pricing/<br>https://hex.tech/ | — |
+| 517-quadratic-ai-spreadsheet-python.md | Quadratic | https://www.quadratichq.com/pricing<br>https://www.quadratichq.com/ | — |
+| 518-julius-ai-data-analyst.md | Julius | https://julius.ai/pricing<br>https://julius.ai/ | — |
+| 519-chatexcel-yuankong-ai-table.md | 元空 ChatExcel | https://www.chatexcel.com/ | — |
+| 525-intercom-fin-ai-agent.md | Fin（Intercom） | https://fin.ai/pricing<br>https://fin.ai/ | — |
+| 526-zendesk-ai-agents-copilot.md | Zendesk AI | https://www.zendesk.com/pricing/<br>https://www.zendesk.com/ | — |
+| 527-meiqia-ai-customer-service.md | 美洽 | https://www.meiqia.com/ | — |
+| 530-khanmigo-khan-academy-ai-tutor.md | Khanmigo | https://www.khanmigo.ai/pricing<br>https://www.khanmigo.ai/ | — |
+| 531-photomath-scan-math-solver.md | Photomath | https://photomath.com/ | — |
+| 540-brave-leo-browser-ai-assistant.md | Brave Leo | https://brave.com/leo/ | — |
+| 541-opera-ai-aria-browser.md | Opera AI（原 Aria） | https://www.opera.com/features/browser-ai | — |
+| 542-kagi-search-assistant.md | Kagi | https://kagi.com/pricing<br>https://kagi.com/ | — |
 | 550-aider-terminal-ai-pair-programming.md | Aider | https://github.com/Aider-AI/aider<br>https://aider.chat/ | — |
 | 551-zed-editor-ai-agent.md | Zed | https://zed.dev/pricing<br>https://zed.dev/<br>https://github.com/zed-industries/zed | — |
 | 552-warp-agentic-terminal.md | Warp | https://www.warp.dev/pricing<br>https://www.warp.dev/ | — |
