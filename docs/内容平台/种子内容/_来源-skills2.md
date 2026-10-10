@@ -1,6 +1,6 @@
 # 来源登记 · skills2（Skill 库第二批，2026-10-11）
 
-本批共 106 条：(a) 新增 Skill 库条目 14 条（编号 360–399），(b) 大型库里的单个 Skill 条目 92 条（编号 600–799）。全部挂 `agent-skills` 标签，`checkedOn: 2026-10-11`，未配图。
+本批共 145 条：(a) 新增 Skill 库条目 23 条（编号 360–399），(b) 大型库里的单个 Skill 条目 122 条（编号 600–799）。全部挂 `agent-skills` 标签，`checkedOn: 2026-10-11`，未配图。
 
 ## 资料与取数方式
 
@@ -32,6 +32,18 @@
 - `JimLiu/baoyu-skills` 的 `baoyu-danger-*` 系列，以及 `baoyu-post-to-x`、`baoyu-post-to-wechat` 等靠浏览器登录态自动发帖的技能：按任务要求与排除标准不收。
 - trailofbits/skills 里偏漏洞利用、模糊测试靶场、APK 扫描等方向的技能：只选防御性审计类。
 - skills.sh 榜单上有、但仓库当前目录树里已不存在的旧技能名（如 marketingskills 的 `page-cro`、`paid-ads`、`email-sequence` 等 v2 改名前的名字）：不写。
+- `openai/skills` 的单个技能（gh-fix-ci、playwright、figma-implement-design 等）：站内已有条目注明该仓库已标注弃用、官方转向 openai/plugins，按「弃用的不写」未收。
+- 已收录库里本批没有展开单个技能的：Impeccable、Taste Skill、gstack、ECC、wshobson/agents、Khazix Skills、github/awesome-copilot、HyperFrames、microsoft/azure-skills、larksuite/cli 的其余技能，以及 K-Dense 的各学科专用技能（rdkit、scanpy、biopython 等）——可作为下一批候选，本批为保证质量未继续铺开。
+
+## 需要协调者留意
+
+- `checkedOn: 2026-10-11` 与校验脚本的 UTC 日期判断（见上）。
+- 部分条目按既有应用条目的做法挂了图像 / 视频大类下的主题标签（`ppt`、`poster`、`illustration`、`sticker`、`comic`、`infographic`、`wallpaper`、`motion-graphics`），如不希望 Skill 条目出现在这些标签下可统一改掉。
+- `firebase/agent-skills`：GitHub 仓库名与 README 安装命令里的 `firebase/skills` 不一致（后者可用，疑为改名后的跳转），条目里已说明。
+- trailofbits 条目的 `trialNote` 第二条命令是 `/plugin menu`（README 的写法是进菜单选插件，没有给出 Claude Code 下逐个插件的 install 命令）。
+- huggingface 条目的 `trialNote` 为 `hf skills add <技能名>`（README 原文 `hf skills add <skill-name>`），需要先装 `hf` 命令行。
+- 单个 Skill 条目的正文开头统一带一行「skills.sh 安装量 + 所在仓库 Star」，数字均为 2026-10-11 当天取数；后续如批量更新日期，这一行要同步。
+- 「详见本站《…》」引用的是 300–355 既有条目的标题全文，既有条目改标题时需同步。
 
 ## (a) 新增 Skill 库条目
 
@@ -51,6 +63,15 @@
 | 371-understand-anything-codebase-knowledge-graph.md | Understand Anything（Egonex-AI） | 开源免费（MIT） | 85832 Star，最近推送 2026-10-10 | https://github.com/Egonex-AI/Understand-Anything |
 | 372-diagram-design-editorial-svg-skill.md | Diagram Design（cathrynlavery/diagram-design） | 开源免费（MIT） | 48694 Star，最近推送 2026-10-10 | https://github.com/cathrynlavery/diagram-design |
 | 373-huashu-design-html-design-skill.md | Huashu Design（花叔 / alchaincyf/huashu-design） | 开源免费（MIT，2026-05-14 起个人与商用均免费） | 24781 Star，最近推送 2026-09-22 | https://github.com/alchaincyf/huashu-design |
+| 374-stripe-ai-agent-skills-official.md | stripe/ai（Stripe 官方 Agent Skills 与 AI 工具） | 开源免费（MIT）；Stripe 支付服务按其费率计费 | 1865 Star / 353 Fork，最近推送 2026-10-10；skills.sh 榜单 stripe-best-practices 约 9.3 万次安装（2026-10-11） | https://github.com/stripe/ai |
+| 375-getsentry-skills-sentry-engineering.md | getsentry/skills（Sentry 团队的工程技能） | 开源免费（Apache-2.0） | 1045 Star / 53 Fork，最近推送 2026-10-09 | https://github.com/getsentry/skills |
+| 376-microsoft-azure-skills-plugin.md | microsoft/azure-skills（Azure Skills 插件） | 开源免费（MIT）；Azure 资源按微软云计费 | 1555 Star / 254 Fork，最近推送 2026-10-09；skills.sh 榜单 azure-diagnostics 约 55.1 万次安装（2026-10-11） | https://github.com/microsoft/azure-skills |
+| 377-firebase-agent-skills-official.md | firebase/agent-skills（Firebase 官方技能） | 开源免费（Apache-2.0）；Firebase 服务按其套餐计费 | 464 Star / 102 Fork，最近推送 2026-10-10；skills.sh 榜单 firebase-basics 约 16.8 万次安装（2026-10-11） | https://github.com/firebase/agent-skills |
+| 378-gws-google-workspace-cli-skills.md | gws（googleworkspace/cli） | 开源免费（Apache-2.0）；非 Google 官方支持产品 | 31286 Star / 1861 Fork，最近推送 2026-10-06；skills.sh 榜单 gws-gmail 约 7.9 万次安装（2026-10-11） | https://github.com/googleworkspace/cli |
+| 379-emilkowalski-skills-animation-design.md | emilkowalski/skills（Emil Kowalski 的设计与动效技能） | 开源免费（GitHub 标注 MIT） | 44996 Star / 2557 Fork，最近推送 2026-10-02；skills.sh 榜单 emil-design-eng 约 33.9 万次安装（2026-10-11） | https://github.com/emilkowalski/skills |
+| 380-i-have-adhd-skill-concise-output.md | i-have-adhd（ayghri/i-have-adhd） | 开源免费（MIT） | 56264 Star / 3211 Fork，最近推送 2026-10-06 | https://github.com/ayghri/i-have-adhd |
+| 381-drawio-skill-agents365-diagrams.md | drawio-skill（Agents365-ai/drawio-skill） | 开源免费（MIT） | 10051 Star / 707 Fork，最近推送 2026-10-02 | https://github.com/Agents365-ai/drawio-skill |
+| 382-superpowers-zh-chinese-edition.md | superpowers-zh（Superpowers 中文增强版） | 开源免费（MIT） | 8291 Star / 769 Fork，最近推送 2026-10-08 | https://github.com/jnMetaCode/superpowers-zh |
 
 ## (b) 单个 Skill 条目
 
@@ -148,3 +169,33 @@
 | 689-addyosmani-security-and-hardening-skill.md | security-and-hardening（addyosmani/agent-skills） | addyosmani/agent-skills | 开源免费（MIT） | skills.sh 55851；仓库 104398 Star | https://github.com/addyosmani/agent-skills/tree/main/skills/security-and-hardening |
 | 690-addyosmani-frontend-ui-engineering-skill.md | frontend-ui-engineering（addyosmani/agent-skills） | addyosmani/agent-skills | 开源免费（MIT） | skills.sh 54193；仓库 104398 Star | https://github.com/addyosmani/agent-skills/tree/main/skills/frontend-ui-engineering |
 | 691-addyosmani-performance-optimization-skill.md | performance-optimization（addyosmani/agent-skills） | addyosmani/agent-skills | 开源免费（MIT） | 仓库 104398 Star | https://github.com/addyosmani/agent-skills/tree/main/skills/performance-optimization |
+| 692-trailofbits-differential-review-skill.md | differential-review（trailofbits/skills） | trailofbits/skills | 免费（CC BY-SA 4.0，署名并以相同方式共享） | 仓库 7462 Star | https://github.com/trailofbits/skills/tree/main/plugins/differential-review/skills/differential-review |
+| 693-trailofbits-modern-python-skill.md | modern-python（trailofbits/skills） | trailofbits/skills | 免费（CC BY-SA 4.0，署名并以相同方式共享） | 仓库 7462 Star | https://github.com/trailofbits/skills/tree/main/plugins/modern-python/skills/modern-python |
+| 694-trailofbits-property-based-testing-skill.md | property-based-testing（trailofbits/skills） | trailofbits/skills | 免费（CC BY-SA 4.0，署名并以相同方式共享） | 仓库 7462 Star | https://github.com/trailofbits/skills/tree/main/plugins/property-based-testing/skills/property-based-testing |
+| 695-trailofbits-sharp-edges-skill.md | sharp-edges（trailofbits/skills） | trailofbits/skills | 免费（CC BY-SA 4.0，署名并以相同方式共享） | 仓库 7462 Star | https://github.com/trailofbits/skills/tree/main/plugins/sharp-edges/skills/sharp-edges |
+| 696-trailofbits-semgrep-skill.md | semgrep（trailofbits/skills） | trailofbits/skills | 免费（CC BY-SA 4.0）；Semgrep 本体另有其许可与可选的 Pro 版 | 仓库 7462 Star | https://github.com/trailofbits/skills/tree/main/plugins/static-analysis/skills/semgrep |
+| 697-trailofbits-supply-chain-risk-auditor-skill.md | supply-chain-risk-auditor（trailofbits/skills） | trailofbits/skills | 免费（CC BY-SA 4.0，署名并以相同方式共享） | 仓库 7462 Star | https://github.com/trailofbits/skills/tree/main/plugins/supply-chain-risk-auditor/skills/supply-chain-risk-auditor |
+| 698-kdense-scientific-writing-skill.md | scientific-writing（K-Dense-AI/scientific-agent-skills） | K-Dense-AI/scientific-agent-skills | 开源免费（MIT） | 仓库 48284 Star | https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/scientific-writing |
+| 699-kdense-literature-review-skill.md | literature-review（K-Dense-AI/scientific-agent-skills） | K-Dense-AI/scientific-agent-skills | 开源免费（MIT） | 仓库 48284 Star | https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/literature-review |
+| 700-kdense-statistical-analysis-skill.md | statistical-analysis（K-Dense-AI/scientific-agent-skills） | K-Dense-AI/scientific-agent-skills | 开源免费（MIT） | 仓库 48284 Star | https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/statistical-analysis |
+| 701-kdense-scientific-visualization-skill.md | scientific-visualization（K-Dense-AI/scientific-agent-skills） | K-Dense-AI/scientific-agent-skills | 开源免费（MIT） | 仓库 48284 Star | https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/scientific-visualization |
+| 702-kdense-exploratory-data-analysis-skill.md | exploratory-data-analysis（K-Dense-AI 科研技能库） | K-Dense-AI/scientific-agent-skills | 开源免费（MIT） | 仓库 48284 Star | https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/exploratory-data-analysis |
+| 703-kdense-peer-review-skill.md | peer-review（K-Dense-AI/scientific-agent-skills） | K-Dense-AI/scientific-agent-skills | 开源免费（MIT） | 仓库 48284 Star | https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/peer-review |
+| 704-pm-skills-pre-mortem-skill.md | pre-mortem（phuryn/pm-skills） | phuryn/pm-skills | 开源免费（MIT） | 仓库 26868 Star | https://github.com/phuryn/pm-skills/tree/main/pm-execution/skills/pre-mortem |
+| 705-pm-skills-prioritization-frameworks-skill.md | prioritization-frameworks（phuryn/pm-skills） | phuryn/pm-skills | 开源免费（MIT） | 仓库 26868 Star | https://github.com/phuryn/pm-skills/tree/main/pm-execution/skills/prioritization-frameworks |
+| 706-pm-skills-north-star-metric-skill.md | north-star-metric（phuryn/pm-skills） | phuryn/pm-skills | 开源免费（MIT） | 仓库 26868 Star | https://github.com/phuryn/pm-skills/tree/main/pm-marketing-growth/skills/north-star-metric |
+| 707-pm-skills-interview-script-skill.md | interview-script（phuryn/pm-skills） | phuryn/pm-skills | 开源免费（MIT） | 仓库 26868 Star | https://github.com/phuryn/pm-skills/tree/main/pm-product-discovery/skills/interview-script |
+| 708-pm-skills-opportunity-solution-tree-skill.md | opportunity-solution-tree（phuryn/pm-skills） | phuryn/pm-skills | 开源免费（MIT） | 仓库 26868 Star | https://github.com/phuryn/pm-skills/tree/main/pm-product-discovery/skills/opportunity-solution-tree |
+| 709-baoyu-xhs-images-skill.md | baoyu-xhs-images（JimLiu/baoyu-skills） | JimLiu/baoyu-skills | 开源免费（MIT）；生图需所用工具的生图能力或自备 API Key | 仓库 26521 Star | https://github.com/JimLiu/baoyu-skills/tree/main/skills/baoyu-xhs-images |
+| 710-baoyu-infographic-skill.md | baoyu-infographic（JimLiu/baoyu-skills） | JimLiu/baoyu-skills | 开源免费（MIT）；生图需所用工具的生图能力或自备 API Key | 仓库 26521 Star | https://github.com/JimLiu/baoyu-skills/tree/main/skills/baoyu-infographic |
+| 711-baoyu-cover-image-skill.md | baoyu-cover-image（JimLiu/baoyu-skills） | JimLiu/baoyu-skills | 开源免费（MIT）；生图需所用工具的生图能力或自备 API Key | 仓库 26521 Star | https://github.com/JimLiu/baoyu-skills/tree/main/skills/baoyu-cover-image |
+| 712-baoyu-slide-deck-skill.md | baoyu-slide-deck（JimLiu/baoyu-skills） | JimLiu/baoyu-skills | 开源免费（MIT）；生图需所用工具的生图能力或自备 API Key | 仓库 26521 Star | https://github.com/JimLiu/baoyu-skills/tree/main/skills/baoyu-slide-deck |
+| 713-baoyu-comic-skill.md | baoyu-comic（JimLiu/baoyu-skills） | JimLiu/baoyu-skills | 开源免费（MIT）；生图需所用工具的生图能力或自备 API Key | 仓库 26521 Star | https://github.com/JimLiu/baoyu-skills/tree/main/skills/baoyu-comic |
+| 714-baoyu-translate-skill.md | baoyu-translate（JimLiu/baoyu-skills） | JimLiu/baoyu-skills | 开源免费（MIT） | 仓库 26521 Star | https://github.com/JimLiu/baoyu-skills/tree/main/skills/baoyu-translate |
+| 715-vercel-find-skills-skill.md | find-skills（vercel-labs/skills） | vercel-labs/skills | 开源免费（MIT） | skills.sh 3782574；仓库 33644 Star | https://github.com/vercel-labs/skills/tree/main/skills/find-skills |
+| 716-lark-doc-skill-feishu.md | lark-doc（larksuite/cli） | larksuite/cli | 开源免费（MIT）；调用飞书开放平台须遵守其协议 | skills.sh 466533；仓库 17610 Star | https://github.com/larksuite/cli/tree/main/skills/lark-doc |
+| 717-lark-base-skill-feishu-bitable.md | lark-base（larksuite/cli） | larksuite/cli | 开源免费（MIT）；调用飞书开放平台须遵守其协议 | skills.sh 464302；仓库 17610 Star | https://github.com/larksuite/cli/tree/main/skills/lark-base |
+| 718-lark-im-skill-feishu-messaging.md | lark-im（larksuite/cli） | larksuite/cli | 开源免费（MIT）；调用飞书开放平台须遵守其协议 | skills.sh 461244；仓库 17610 Star | https://github.com/larksuite/cli/tree/main/skills/lark-im |
+| 719-google-gemini-api-skill-agent-platform.md | gemini-api（google/skills） | google/skills | 开源免费（Apache-2.0）；云资源按 Google Cloud 计费 | 仓库 21102 Star | https://github.com/google/skills/tree/main/skills/cloud/gemini-api |
+| 720-google-bigquery-basics-skill.md | bigquery-basics（google/skills） | google/skills | 开源免费（Apache-2.0）；云资源按 Google Cloud 计费 | 仓库 21102 Star | https://github.com/google/skills/tree/main/skills/cloud/bigquery-basics |
+| 721-google-cloud-run-basics-skill.md | cloud-run-basics（google/skills） | google/skills | 开源免费（Apache-2.0）；云资源按 Google Cloud 计费 | 仓库 21102 Star | https://github.com/google/skills/tree/main/skills/cloud/cloud-run-basics |
