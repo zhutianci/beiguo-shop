@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-10T17:45:29.696Z",
+  "builtAt": "2026-10-10T18:16:20.346Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -60670,6 +60670,723 @@
         "官方 Quickstart 的 REST 示例带有 Api-Revision 请求头（值为 2026-05-20），而 Interactions 迁移说明写 2026-06-08 之后该请求头已被忽略；API key 页的 REST 示例不带这个请求头。正文示例未带",
         "兼容页个别示例（extra_body 一节）把 base_url 写成 https://generativelanguage.googleapis.com/v1beta/，与页面开头的 /v1beta/openai/ 不同，正文以页面开头的写法为准"
       ]
+    },
+    {
+      "title": "DeepSeek怎么用：网页版与手机App入门（深度思考、智能搜索、上传文件）",
+      "slug": "deepseek-how-to-use",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek怎么用？本文从官方入口和登录方式讲起，说清输入框里的「深度思考」「智能搜索」和上传附件各管什么，历史对话怎么改名、置顶、分享和导出，以及手机上使用的注意点。",
+      "content": "## 适用于谁\n\n- 搜「deepseek怎么用」「deepseek网页版登录入口」「deepseek 怎么用 手机上」，第一次打开 DeepSeek 的人；\n- 用过一阵，但没弄清「深度思考」「智能搜索」和上传文件之间关系的人。\n\n本文根据 DeepSeek 官方常见问题、网页版界面文案、App Store 页面与官方更新日志整理，资料核对于 2026-10-11。DeepSeek 的界面改得比较勤，**菜单名和入口以你实际看到的为准**。\n\n## 结论先说\n\n1. **官方入口只有两个**：网页版 chat.deepseek.com，和手机上的「DeepSeek - AI 智能助手」App（开发者是杭州深度求索人工智能基础技术研究有限公司）。App Store 页面写明可免费使用，核对时没有列出内购项目。\n2. **输入框下方两个开关最常用**：「深度思考」让模型先推理再回答，「智能搜索」让模型先联网查资料再回答。\n3. **搜索和文件不能同时用**：界面提示「联网搜索不支持上传文件」，要读文件就先关搜索。\n4. **聊天记录在你自己手里**：网页版可以一次导出全部历史对话；删除的对话恢复不了。\n\n## 步骤\n\n### 1. 找到官方入口并登录\n\n- **网页版**：浏览器打开 chat.deepseek.com；\n- **手机**：在应用商店搜「DeepSeek」，认准开发者名称。iPhone 需要 iOS 15.0 或更高版本（App Store 页面，2026-10-11 核对）。网页版里也有「扫码下载 DeepSeek App」的入口。\n\n登录方式有手机号验证码、微信、密码登录等。官方常见问题里有两条容易踩的限制：\n\n- 微信登录暂不支持海外 IP 地址使用；\n- Google 登录暂不支持大陆地区 IP 地址使用。\n\n收不到验证码时，官方给的排查顺序是：核对手机号或邮箱 → 看是否停机、没信号 → 检查短信 / 邮箱拦截 → 短时间内发太多次就等一会儿再试。\n\n### 2. 发出第一个问题\n\n登录后直接在输入框里打字、回车发送即可。几个基础操作：\n\n- **改问题**：对已发出的提问可以修改后重新生成，改过之后会形成「分支」，提问或回答下方出现数字箭头，点它可以在不同版本之间切换。官方常见问题提到，有人以为「对话不见了」，其实内容在另一个分支里；\n- **重新生成**：对回答不满意可以重新生成；修改和重新生成的次数都有上限，超了界面会提示；\n- **换话题就开新对话**：一个对话里消息太多会提示「消息数量达到上限，请开启新对话」，内容太长会提示「超出字数限制」。\n\n### 3. 打开「深度思考」\n\n输入框下方的 **深度思考** 开关，界面说明是「先思考后回答，解决推理问题」。打开后模型会先展示一段思考过程，再给最终答案，适合数学题、逻辑分析、方案比较、复杂代码这类需要一步步推的任务；随手问个定义、润色一句话不必开。\n\nApp 在 2026 年 9 月的更新说明里写到「新模型上线，快速、专家、识图模式合并升级」，并支持思考过程自动折叠。也就是说，更早版本里分开的几种模式已经合并，你现在看到的模式选项可能和旧教程不一样，以实际界面为准。更细的用法见《DeepSeek 深度思考和联网搜索怎么用》。\n\n### 4. 打开「智能搜索」\n\n问新闻、价格、政策、软件新版本这类「最近才有答案」的问题时，打开 **智能搜索**。回答里会带搜索到的网页，可以点开核对原文。\n\n两点注意：\n\n- 搜索开着的时候不能带文件，界面会提示「请先删除文件再开启联网搜索」；\n- 遇到「联网搜索暂不可用」「搜索过于频繁，请稍后再试」，一般等一会儿或关掉搜索先问即可。\n\n### 5. 上传文件和图片\n\n点输入框旁的附件按钮，或者直接把文件拖进页面。界面文案写明支持 PDF、DOC、XLSX、PPT、图片、文本、代码等格式，单个对话可上传的文件数量和单个文件大小都有上限（上限数字显示在上传按钮的提示里，以界面为准）。\n\n上传文档后可以这样问：\n\n```\n请先用 5 句话概括这份文档的结论，再列出其中提到的所有数字和对应页码，\n最后指出 3 处你认为论证不充分的地方。\n```\n\n格式限制、上传失败的原因见《DeepSeek 上传文件与识图怎么用》。\n\n### 6. 管理历史对话\n\n官方常见问题给出的入口（网页端点对话旁的「…」菜单，App 端长按对话）：\n\n- **重命名 / 置顶 / 删除**：都在这个菜单里。删除的对话无法恢复；\n- **分享**：可以把对话生成链接或图片分享出去，回答下方也有「分享」按钮；\n- **导出全部对话**：只能在网页端做，路径是「设置」→「数据管理」→「导出所有历史对话」。导出文件包含账号信息和所有历史对话，下载链接有效期 7 天。\n\n手机和网页内容不同步时，网页端刷新页面，App 端在历史对话侧边栏下拉刷新。\n\n## 常见问题\n\n**Q：DeepSeek 网页版和 App 有区别吗？**\n同一个账号，对话会同步。导出全部历史对话目前只在网页端有入口；找不到某个功能时，官方的建议通常是先把 App 更新到最新版本。\n\n**Q：DeepSeek 要付费吗？**\nApp Store 页面的应用介绍写的是可免费体验，核对时未列出内购项目。需要付费的是面向开发者的 API（按 token 计费），和聊天产品是两回事，见《DeepSeek API Key 怎么获取》。\n\n**Q：提示「服务器繁忙，请稍后再试」怎么办？**\n这是高峰期的常见提示，稍等后重试即可，排查方法见《DeepSeek 服务器繁忙怎么办》。\n\n**Q：提示「当前设备运行环境异常」是什么意思？**\n官方解释是系统检测到当前 IP 地址或手机号可能存在安全风险，按提示更换使用环境再试。\n\n**Q：别人用过我的电脑，账号里出现了不是我问的内容？**\n到「设置」→「账号管理」里选「登出所有设备」，再用「忘记密码」重置密码。\n\n## 参考资料\n\n- DeepSeek 网页版 — https://chat.deepseek.com/\n- DeepSeek 官方常见问题（登录、使用引导、对话问题）— https://static.deepseek.com/faq/index.html?lang=zh\n- App Store：DeepSeek - AI 智能助手（版本记录）— https://apps.apple.com/cn/app/deepseek/id6737597349\n- DeepSeek API 文档 · 更新日志 — https://api-docs.deepseek.com/zh-cn/updates",
+      "sources": [
+        "https://chat.deepseek.com/",
+        "https://static.deepseek.com/faq/index.html?lang=zh",
+        "https://apps.apple.com/cn/app/deepseek/id6737597349",
+        "https://api-docs.deepseek.com/zh-cn/updates"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "DeepSeek深度思考和联网搜索怎么用、有什么区别（附「联网搜索暂不可用」排查）",
+      "slug": "deepseek-deep-thinking-web-search",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 的「深度思考」和「智能搜索」分别解决什么问题、能不能一起开？本文讲清两者的区别、适合的场景和提问写法，以及「联网搜索暂不可用」「搜索过于频繁」等提示的处理办法。",
+      "content": "## 适用于谁\n\n- 搜「deepseek 深度思考」「deepseek 深度思考 联网搜索 区别」，不确定什么时候该开哪个开关的人；\n- 遇到「deepseek 联网搜索暂不可用」「联网搜索不可用」，不知道是不是自己操作问题的人。\n\n本文根据 DeepSeek 官网与网页版界面文案、官方 API 文档整理，资料核对于 2026-10-11，入口名称以实际界面为准。\n\n## 结论先说\n\n1. **深度思考管「想得深」，智能搜索管「知道得新」**。前者让模型先推理再回答，后者让模型先上网查资料再回答，两件事互不替代。\n2. **需要推理又需要新资料时可以两个都开**，代价是更慢。\n3. **搜索和上传文件互斥**：界面提示「联网搜索不支持上传文件」，想让它读文件就先关搜索。\n4. **次数上限官方没有公布**。聊天产品里深度思考和搜索每天能用多少次，官方页面没有给数字；高峰期可能遇到繁忙或「搜索过于频繁」的提示。\n\n## 两个开关分别是什么\n\n| | 深度思考 | 智能搜索（联网搜索） |\n| --- | --- | --- |\n| 界面说明 | 「先思考后回答，解决推理问题」 | 先搜索网页，再基于搜索结果回答 |\n| 回答里多出什么 | 一段可展开 / 折叠的思考过程 | 「搜索到 N 个网页」和可点开的来源 |\n| 解决的问题 | 推理链条长、容易算错想错 | 模型训练数据里没有的新信息 |\n| 代价 | 等待时间更长 | 依赖搜索结果质量，来源可能不权威 |\n\n关于深度思考，官方 API 文档能帮助理解它的原理：当前的 DeepSeek 模型在同一个模型里同时支持「思考模式」和「非思考模式」，思考模式下模型会先输出一段思维链，再输出最终回答。也就是说，开关切换的是模型的工作方式。App 2026 年 9 月的更新说明提到「支持思考过程自动折叠」，所以思考内容默认可能是收起的，点开才能看到。\n\n## 步骤\n\n### 1. 判断这个问题该开哪个\n\n- **只开深度思考**：数学和逻辑题、代码排错、方案利弊分析、需要多步推导的计划。例如「三种还款方式哪种总利息最少，把计算过程列出来」；\n- **只开智能搜索**：查事实、查最新情况。例如「某软件最新版本改了什么」「某地最近出台的某项政策内容」；\n- **两个都开**：需要先查资料再做判断。例如「对比今年发布的三款某类产品，结合我的预算给出建议」；\n- **都不开**：改写、翻译、润色、起标题这类不需要推理也不需要新信息的任务，直接问更快。\n\n### 2. 深度思考：把条件一次给全\n\n思考模式的强项是推理，前提是条件完整。建议按「目标 + 已知条件 + 限制 + 输出格式」来写：\n\n```\n目标：帮我决定这个月先还哪笔贷款。\n已知：A 贷款余额 3 万、年利率 4.2%；B 贷款余额 1.2 万、年利率 7.8%；本月可额外还 5000 元。\n限制：两笔都不能逾期，每笔最低还款分别是 1500 和 800。\n输出：先给结论，再列计算过程，最后说明这个结论在什么情况下会变。\n```\n\n读思考过程的用处是**查它在哪一步想岔了**：发现前提理解错了，就直接指出那一步让它重来，比整段重问有效。\n\n### 3. 智能搜索：写清时间和范围，回头核对来源\n\n搜索模式下，问题里最好带上时间和范围：\n\n```\n搜索 2026 年以来关于「个人所得税专项附加扣除」的官方调整，只采用政府网站和权威媒体的信息，\n按时间顺序列出，每条后面标注来源。\n```\n\n回答出来后点开来源看原文——模型是在归纳搜到的网页，网页本身不准，结论也会跟着错。涉及钱、法律、健康的信息，以官方原文为准。\n\n### 4. 想读文件时先关搜索\n\n上传了附件再去开搜索，界面会提示「请先删除文件再开启联网搜索」；反过来，开着搜索时不能带文件。需要「文件内容 + 最新资料」结合时，可以分两步：先开搜索让它整理资料，再开一个新对话上传文件，把上一步的要点贴进去一起问。\n\n## 常见问题\n\n**Q：提示「联网搜索暂不可用」怎么办？**\n这是服务端的提示，通常和高峰期负载或搜索服务临时不可用有关。可以稍后再试；急用时先关掉搜索直接问，并提醒自己答案可能不是最新的。\n\n**Q：提示「搜索过于频繁，请稍后再试」？**\n短时间内搜索请求太多触发了限制，等一会儿再用。官方没有公布具体的次数上限。\n\n**Q：「未搜索到合适的内容」是什么意思？**\n这次没搜到可用的网页。换一种问法、加上更具体的关键词（产品全名、年份、地区）再试。\n\n**Q：开了深度思考，回答反而更慢更啰嗦？**\n这是思考模式的正常代价。简单问题关掉它；需要它时在问题里写明「先给结论，再给不超过 5 条理由」，可以控制最终回答的长度。\n\n**Q：深度思考是不是换成了更强的模型？**\n按官方 API 文档的说明，思考与非思考是同一模型的两种模式。聊天产品里具体用的是哪个模型版本，以官方公告和界面说明为准。\n\n**Q：通过 API 也能用深度思考和搜索吗？**\n思考模式可以，API 里默认就是开启的，并且可以调思考强度；聊天产品里的智能搜索是产品功能，API 的用法见《DeepSeek API 怎么用》。\n\n## 参考资料\n\n- DeepSeek 官网（首页列出「深度思考」「智能搜索」）— https://www.deepseek.com/\n- DeepSeek 网页版 — https://chat.deepseek.com/\n- DeepSeek API 文档：思考模式 — https://api-docs.deepseek.com/zh-cn/guides/thinking_mode\n- DeepSeek API 文档：模型与价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- App Store：DeepSeek - AI 智能助手（版本记录）— https://apps.apple.com/cn/app/deepseek/id6737597349",
+      "sources": [
+        "https://chat.deepseek.com/",
+        "https://www.deepseek.com/",
+        "https://api-docs.deepseek.com/zh-cn/guides/thinking_mode",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://apps.apple.com/cn/app/deepseek/id6737597349"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "DeepSeek上传文件与识图怎么用：支持格式、限制和上传失败的原因",
+      "slug": "deepseek-upload-file-image",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 能上传哪些文件、图片是「识图」还是只提取文字、上传失败是什么原因？本文按官方界面提示和常见问题讲清支持格式、数量与大小限制、读长文档的提问方法和常见报错。",
+      "content": "## 适用于谁\n\n- 搜「deepseek 上传文件」「deepseek 上传文件 限制大小」「deepseek 识图模式」，想让 DeepSeek 读 PDF、表格或图片的人；\n- 文件传不上去、传上去了却说「未提取到文字」的人。\n\n本文根据 DeepSeek 网页版界面提示、官方常见问题、App Store 版本记录和官方 API 文档整理，资料核对于 2026-10-11。\n\n## 结论先说\n\n1. **支持的格式很多**：界面提示写的是「支持 PDF、DOC、XLSX、PPT、图片、文本、代码等」。\n2. **文档是「提取文字」来读的**。上传按钮的提示里有「仅识别文字」的说明，所以扫描件、纯图片型 PDF 里如果抽不出文字，就会失败。\n3. **图片能不能真正「看图」取决于版本**：App 在 2026 年 6 月加入「识图模式」，9 月更新说明写「快速、专家、识图模式合并升级」；同月发布的 DeepSeek-V4.1-Flash 模型具备原生视觉理解能力。你当前看到的是「只提取文字」还是「能看懂画面」，以上传按钮旁的提示为准。\n4. **上传文件时不能开联网搜索**，两者互斥。\n\n## 步骤\n\n### 1. 上传：点附件按钮或直接拖拽\n\n网页版可以点输入框旁的附件按钮，也可以把文件直接拖进页面（界面提示「文件和图片拖动到此处即可上传」）。上传后会显示「解析中」，解析完成才能发送。\n\n数量和大小限制显示在上传按钮的悬停提示里，格式是「最多 × 个，每个 × MB」。核对时网页版的提示文案里还有一条「每个对话可上传 50 个文件」。这些数字可能随版本调整，以你界面上的提示为准。\n\n### 2. 读文档：先让它交代读到了什么\n\n文档较长时，界面可能提示「DeepSeek 只能阅读全部文件的 ×%」，意思是内容超出了模型一次能读的长度，后面的部分没有读到。所以第一步先确认它读全了没有：\n\n```\n这份文件一共有几个章节？请列出章节标题，并告诉我你读到了哪里。\n```\n\n确认之后再问具体问题，并要求标注出处：\n\n```\n基于这份合同，列出所有涉及付款时间和违约金的条款，逐条写明所在章节和原文关键句，\n不要补充文件里没有的内容。\n```\n\n文件太长读不全时，把它拆成几个文件分别上传分别问，或者只上传相关章节。\n\n### 3. 读表格：说清你要哪种结果\n\nXLSX 这类表格是按文字内容读入的。让它算数时，最好要求列出计算口径，方便你回头核对：\n\n```\n这是 1–9 月的销售表。按「区域」汇总销售额，给出占比和环比变化，\n用表格输出，并写明你用了哪几列、怎么算的。\n```\n\n数字很多、结果很重要时，用 Excel 自己复算一遍关键数字。\n\n### 4. 传图片：看清是「识图」还是「提取文字」\n\n- 上传按钮提示「仅识别文字」时，图片会被当作文字来源处理：截图、拍下来的文档、带字的海报没问题，纯风景照这类没有文字的图会失败。官方常见问题列出的图片失败原因之一就是「系统未从图片中检测到可提取的文字」；\n- 界面出现识图相关的入口或提示时，才可以问「图里是什么」「这张图表说明了什么趋势」这类需要理解画面的问题。\n\nAPI 文档对视觉能力的说明可以作参考：`deepseek-flash` 模型支持输入图片，可用于描述图片、识别截图文字、分析图表，支持 JPEG、PNG、GIF、WebP 格式。聊天产品里的具体表现以实际界面为准。\n\n### 5. 需要联网时的做法\n\n文件和搜索不能同时用：带着文件去开搜索会提示「请先删除文件再开启联网搜索」。需要两者结合时，先在一个对话里让它读文件、输出要点，再新开一个对话打开搜索，把要点贴进去继续问。\n\n## 常见问题\n\n**Q：图片上传失败是什么原因？**\n官方常见问题列了四种：图片格式暂不支持；系统未从图片中检测到可提取的文字；图片大小超过上传限制；图片内容不符合平台使用规范。\n\n**Q：提示「上传的文件包含暂未支持的文件格式」？**\n把文件转成界面列出的格式再传，例如把 Pages、Numbers、WPS 专有格式另存为 PDF、DOCX、XLSX。\n\n**Q：选择文件后没有任何反应？**\n官方的说法是先检查当前网络环境——公司或学校的内部网络可能限制了文件上传，换个网络再试。\n\n**Q：提示「未提取到文字」或「解析失败」？**\n多见于扫描版 PDF、加密文档和纯图片文件。先用 OCR 工具把扫描件转成可复制文字的 PDF，或者把内容复制成文本再发。\n\n**Q：提示「图片或文件可能违反使用规范」？**\n内容触发了平台的内容规则，换一份不含敏感内容的文件；涉及他人隐私的材料不要上传。\n\n**Q：上传的文件别人能看到吗？**\n分享对话时，界面提示「分享中的文件不支持展示」，即分享出去的链接里不展示你上传的文件本身。数据如何存储和使用，以 DeepSeek 的隐私政策为准；合同、证件这类敏感文件建议先打码再传。\n\n## 参考资料\n\n- DeepSeek 网页版（上传提示文案）— https://chat.deepseek.com/\n- DeepSeek 官方常见问题（对话问题：图片上传失败、选择文件后无响应）— https://static.deepseek.com/faq/index.html?lang=zh\n- App Store：DeepSeek - AI 智能助手（版本记录）— https://apps.apple.com/cn/app/deepseek/id6737597349\n- DeepSeek API 文档：图像理解 — https://api-docs.deepseek.com/zh-cn/guides/vision\n- DeepSeek 新闻：DeepSeek-V4.1-Flash 发布（2026-09-10）— https://api-docs.deepseek.com/zh-cn/news/news260910",
+      "sources": [
+        "https://chat.deepseek.com/",
+        "https://static.deepseek.com/faq/index.html?lang=zh",
+        "https://apps.apple.com/cn/app/deepseek/id6737597349",
+        "https://api-docs.deepseek.com/zh-cn/guides/vision",
+        "https://api-docs.deepseek.com/zh-cn/news/news260910"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "DeepSeek API Key怎么获取：申请、充值、余额查询与泄漏处理",
+      "slug": "deepseek-api-key",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek API Key 在哪里申请、要不要实名、怎么充值和查余额、Key 泄漏了怎么办？本文按官方开放平台文档和常见问题，一步步讲清从创建 Key 到看用量、开发票、退款的完整流程。",
+      "content": "## 适用于谁\n\n- 搜「deepseek api key 怎么获取」「deepseek api key 申请」「deepseek 充值入口」「deepseek余额查询」的开发者和想把 DeepSeek 接进第三方工具的人；\n- 已经有 Key，但遇到 401、402 报错或担心 Key 泄漏的人。\n\n本文根据 DeepSeek 开放平台官方文档和常见问题整理，资料核对于 2026-10-11。\n\n## 结论先说\n\n1. **API Key 只在官方开放平台 platform.deepseek.com 创建**，和聊天用的 chat.deepseek.com 是两套入口；聊天产品免费，不等于 API 免费。\n2. **API 按 token 计费，先充值后使用**。在线充值需要先完成实名认证，支持支付宝和微信。\n3. **充值余额不会过期，未消费的金额可以退款**（官方常见问题原话的意思）。\n4. **Key 要当密码保管**。泄漏后立刻在平台删除并新建，官方提醒不要把 Key 暴露在浏览器或其他客户端代码里。\n5. 不要用来路不明的「共享 Key」：别人能看到你的请求内容，Key 也随时可能失效。\n\n## 步骤\n\n### 1. 注册并登录开放平台\n\n浏览器打开 platform.deepseek.com，登录后左侧能看到 API Keys、用量、充值等页面（名称以实际界面为准）。\n\n### 2. 创建 API Key\n\n进入 API Keys 页面（platform.deepseek.com/api_keys），点「创建 API key」，起一个能看出用途的名字，例如 `blog-summary-prod`、`local-test`。创建后**马上复制保存**到密码管理器或环境变量里——出于安全考虑，这类平台通常不会再次完整显示 Key，以页面提示为准。\n\n建议一个用途一个 Key：哪个泄漏了就删哪个，也方便分开看用量。\n\n### 3. 完成实名认证并充值\n\n官方常见问题写明的两种充值方式：\n\n- **在线充值**：完成实名认证后，在充值页面用支付宝或微信支付，充值结果可在账单页面查询；\n- **对公汇款**：仅支持企业用户（暂时只对 +86 手机号注册的用户开放），完成企业实名认证后向专属汇款账号打款，汇款方户名要和实名认证名称一致，到账后一般 10 分钟到 1 小时内自动入账。\n\n个人认证和企业认证在权益和功能上目前没有差异，区别只在认证材料和流程；个人认证可以改成企业认证，反过来不行。\n\n充多少合适：价格是按百万 token 计的，先充一笔小额试用即可，具体单价见官方「模型与价格」页（价格会调整，官方保留修改权利）。\n\n### 4. 查余额和用量\n\n- **余额**：在开放平台的充值 / 账单相关页面查看。扣费规则是「费用 = token 消耗量 × 模型单价」，同时有赠送余额和充值余额时，优先扣赠送余额；\n- **分 Key 看用量**：进入用量页面，在「时间维度」里选时间范围，在「API Key」菜单里选要查的 Key；也可以点「导出」下载压缩包，里面有按 Key 统计的 CSV 明细。\n\n### 5. 把 Key 配到程序或工具里\n\n官方文档给出的接入参数：\n\n| 参数 | 值 |\n| --- | --- |\n| base_url（OpenAI 格式） | `https://api.deepseek.com` |\n| base_url（Anthropic 格式） | `https://api.deepseek.com/anthropic` |\n| model | `deepseek-flash` 或 `deepseek-v4-pro` |\n\n推荐用环境变量保存 Key，不要写进代码和 Git 仓库：\n\n```bash\n# macOS / Linux\nexport DEEPSEEK_API_KEY=\"你的 Key\"\n```\n\n```powershell\n# Windows PowerShell\n$env:DEEPSEEK_API_KEY=\"你的 Key\"\n```\n\n调用示例见《DeepSeek API 怎么用》。\n\n### 6. Key 泄漏了怎么办\n\n官方给的处理步骤：登录开放平台进入 API Keys 页面 → 找到泄漏的 Key，点「回收箱」图标 → 在确认框里点「删除」。看到「API Key 已删除」的提示即表示该 Key 立即失效，之后尽快创建新 Key 换到你的应用里。\n\n## 常见问题\n\n**Q：调用返回 401？**\n官方错误码说明：401 是认证失败，API Key 错误。检查是否复制完整、是否多了空格、请求头是否是 `Authorization: Bearer <Key>`。\n\n**Q：调用返回 402？**\n账号余额不足，去充值页面充值后再试。\n\n**Q：DeepSeek API 有免费额度吗？**\n是否赠送余额、赠多少，官方页面没有固定说明，以你登录开放平台后看到的余额为准。\n\n**Q：充了钱但余额不对？**\n官方的解释是通常充到了另一个账号上：试试用 Google 或邮箱方式登录看看；或者到支付宝 / 微信的订单详情页，在「商品」条目下查对应的充值账号。注销后重新注册的账号和旧账号互相独立，旧余额不能在新账号使用。\n\n**Q：能开发票、能退款吗？**\n可以。在账单页面点「发票管理」提交申请，支持按消耗金额或按充值金额开票，电子发票发到你填的邮箱；在线支付的未消费金额可以在「退款管理」里自助退款。已开票或开票中的金额要先作废发票才能退。\n\n**Q：有没有并发更高的套餐？**\n官方说明目前是统一收费标准，没有分级套餐；需要更高并发可以提交扩容工单，扩容不额外收费。\n\n## 参考资料\n\n- DeepSeek 开放平台 · API Keys — https://platform.deepseek.com/api_keys\n- DeepSeek API 文档：首次调用 API — https://api-docs.deepseek.com/zh-cn/\n- DeepSeek API 文档：模型与价格（扣费规则）— https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：错误码 — https://api-docs.deepseek.com/zh-cn/quick_start/error_codes\n- DeepSeek 官方常见问题（API 相关：充值、余额、发票、Key 泄漏、分 Key 用量）— https://static.deepseek.com/faq/index.html?lang=zh#/category/4",
+      "sources": [
+        "https://platform.deepseek.com/api_keys",
+        "https://api-docs.deepseek.com/zh-cn/",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
+        "https://static.deepseek.com/faq/index.html?lang=zh#/category/4"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "DeepSeek API怎么用：Python调用、思考模式、价格与常见报错",
+      "slug": "deepseek-api-python-quickstart",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek API 怎么用？本文按官方文档讲清 base_url 与模型名、用 OpenAI SDK 发出第一个请求、思考模式和流式输出怎么开关、分时段价格怎么算，以及 400、401、402、429、503 等报错的处理。",
+      "content": "## 适用于谁\n\n- 搜「deepseek api 怎么用」「deepseek api 价格」，已经拿到 API Key、想跑通第一段代码的人；\n- 从旧教程照抄 `deepseek-chat`、`deepseek-reasoner` 发现对不上的人。\n\n本文根据 DeepSeek 官方 API 文档整理，资料核对于 2026-10-11。还没有 Key 的话先看《DeepSeek API Key 怎么获取》。\n\n## 结论先说\n\n1. **DeepSeek API 兼容 OpenAI 和 Anthropic 两种格式**，装好 OpenAI SDK、把 `base_url` 换成 `https://api.deepseek.com` 就能调用。\n2. **当前模型名是 `deepseek-flash` 和 `deepseek-v4-pro`**。官方更新日志写明，旧名字 `deepseek-chat`、`deepseek-reasoner` 原定于 2026-07-24 停用，旧教程里的写法要换掉。\n3. **思考模式默认开启**，不需要推理的简单任务可以关掉，回答更快。\n4. **价格分高峰和空闲两个时段**，空闲时段是高峰价格的一半。\n\n## 步骤\n\n### 1. 安装 SDK 并设置 Key\n\n```bash\npip3 install openai\nexport DEEPSEEK_API_KEY=\"你的 Key\"      # Windows PowerShell 用 $env:DEEPSEEK_API_KEY=\"你的 Key\"\n```\n\n### 2. 发出第一个请求\n\n下面的写法与官方「首次调用 API」示例一致：\n\n```python\nimport os\nfrom openai import OpenAI\n\nclient = OpenAI(\n    api_key=os.environ.get(\"DEEPSEEK_API_KEY\"),\n    base_url=\"https://api.deepseek.com\",\n)\n\nresponse = client.chat.completions.create(\n    model=\"deepseek-flash\",\n    messages=[\n        {\"role\": \"system\", \"content\": \"你是一个严谨的助手，回答使用简体中文。\"},\n        {\"role\": \"user\", \"content\": \"用三句话解释什么是 token。\"},\n    ],\n    stream=False,\n)\n\nprint(response.choices[0].message.content)\nprint(response.usage)   # 这次请求实际消耗的 token\n```\n\n关于 token，官方给的粗略换算是：1 个中文字符约 0.6 个 token，1 个英文字符约 0.3 个 token，实际以返回结果里的 `usage` 为准。\n\n### 3. 选模型\n\n官方「模型与价格」页（2026-10-11 核对）列出的两个模型：\n\n| | deepseek-flash | deepseek-v4-pro |\n| --- | --- | --- |\n| 模型版本 | DeepSeek-V4.1-Flash | DeepSeek-V4-Pro-0813 |\n| 上下文长度 | 1M | 1M |\n| 最大输出 | 384K | 384K |\n| 图像理解 | 支持 | 不支持 |\n| 并发限制 | 2500 | 500 |\n\n两者都支持 JSON Output、Tool Calls、Responses API 和 Anthropic API 格式。官方 2026-09-10 的发布说明称 V4.1 Flash 在性能、费用、速度上已全面超过 V4 Pro，因此新项目一般直接用 `deepseek-flash`。更新日志随后说明，2026-09-14 之后继续提供 `deepseek-v4-pro` 的调用服务、计费方式不变，如有变动会另行通知。\n\n### 4. 开关思考模式\n\n思考模式默认开启，默认强度为 `high`。用 OpenAI SDK 时，`thinking` 参数要放在 `extra_body` 里：\n\n```python\nresponse = client.chat.completions.create(\n    model=\"deepseek-flash\",\n    messages=[{\"role\": \"user\", \"content\": \"9.11 和 9.8 哪个大？说明理由。\"}],\n    reasoning_effort=\"high\",                       # low / high / max\n    extra_body={\"thinking\": {\"type\": \"enabled\"}},  # 关闭写 \"disabled\"\n)\n\nprint(response.choices[0].message.reasoning_content)  # 思考过程\nprint(response.choices[0].message.content)            # 最终回答\n```\n\n官方文档里几条容易踩的规则：\n\n- 思考模式下 `temperature`、`presence_penalty`、`frequency_penalty` 不生效（传了不报错，但没有作用）；\n- 多轮对话如果**没有**用工具调用，历史轮次的 `reasoning_content` 不需要回传；如果请求里带了 `tools`，历史的 `reasoning_content` 必须完整回传，否则返回 400。\n\n### 5. 流式输出\n\n把 `stream` 设为 `True`，逐块读取：\n\n```python\nstream = client.chat.completions.create(\n    model=\"deepseek-flash\",\n    messages=[{\"role\": \"user\", \"content\": \"写一首关于秋天的四行诗\"}],\n    stream=True,\n)\nfor chunk in stream:\n    delta = chunk.choices[0].delta\n    if getattr(delta, \"content\", None):\n        print(delta.content, end=\"\", flush=True)\n```\n\n等待期间服务器会发保活内容：非流式请求持续返回空行，流式请求返回 `: keep-alive` 注释。用官方 SDK 时不用管；自己解析 HTTP 响应就要跳过它们。请求发出 10 分钟后仍未开始推理，服务器会关闭连接。\n\n### 6. 算一下要花多少钱\n\n官方价格（元 / 百万 token，2026-10-11 核对，官方声明价格可能变动）：\n\n| | deepseek-flash 空闲 / 高峰 | deepseek-v4-pro 空闲 / 高峰 |\n| --- | --- | --- |\n| 输入（缓存命中） | 0.02 / 0.04 | 0.15 / 0.30 |\n| 输入（缓存未命中） | 1 / 2 | 4.5 / 9.0 |\n| 输出 | 4 / 8 | 13.5 / 27.0 |\n\n高峰时段是北京时间周一至周五（不含法定节假日）9:00–12:00、14:00–18:00，其余时间（含周末和节假日全天）都是空闲时段。批量任务放到晚上或周末跑，费用减半。\n\n## 常见问题\n\n**Q：报错码分别是什么意思？**\n按官方错误码表：400 请求体格式错误；401 API Key 错误；402 余额不足；422 请求参数错误；429 请求速率达到上限；500 服务器内部故障；503 服务器繁忙（负载过高，稍后重试）。\n\n**Q：429 怎么处理？**\n限速按账号计算，与用几个 Key 无关：一个请求从发出到响应完成算一个并发，超过上限就返回 429。做法是降低并发、加上带退避的重试；确实需要更高并发可以向官方提交扩容工单。\n\n**Q：旧代码里的 `deepseek-chat` 还能用吗？**\n官方更新日志写的是这两个旧名字原定 2026-07-24 停用。直接改成 `deepseek-flash`，需要推理就用思考模式参数控制。\n\n**Q：能在 Cursor、Claude Code 这类工具里用吗？**\n可以。支持自定义 OpenAI 兼容接口的工具填上面的 base_url 和 Key 即可；Claude Code 的官方接法见《DeepSeek 接入 Claude Code 教程》。\n\n**Q：API 能联网搜索吗？**\nAPI 里没有聊天产品那样的「智能搜索」开关。官方文档说明，通过 Anthropic 兼容接口在 Claude Code 中可以直接使用由 DeepSeek 提供的 Web Search 工具（搜索结果的总结会额外消耗 token）；其他场景可以用工具调用（Tool Calls）接入你自己的搜索服务，具体以官方文档为准。\n\n## 参考资料\n\n- DeepSeek API 文档：首次调用 API — https://api-docs.deepseek.com/zh-cn/\n- 模型与价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- 思考模式 — https://api-docs.deepseek.com/zh-cn/guides/thinking_mode\n- Token 用量计算 — https://api-docs.deepseek.com/zh-cn/quick_start/token_usage\n- 限速与隔离 — https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit\n- 错误码 — https://api-docs.deepseek.com/zh-cn/quick_start/error_codes\n- 更新日志 — https://api-docs.deepseek.com/zh-cn/updates",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/guides/thinking_mode",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/token_usage",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
+        "https://api-docs.deepseek.com/zh-cn/updates"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "DeepSeek服务器繁忙怎么办：「请稍后再试」的原因与6个解决方法",
+      "slug": "deepseek-server-busy",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 一直显示「服务器繁忙，请稍后再试」怎么办？本文说明这个提示的含义，给出查服务状态、错峰、缩短对话、区分其他相似提示等 6 个处理办法，并说明 API 的 503 和 429 应该怎么处理。",
+      "content": "## 适用于谁\n\n- 搜「deepseek服务器繁忙」「deepseek 服务器繁忙 请稍后再试」「deepseek一直服务器繁忙怎么办」的人；\n- 用 API 时遇到 503、429，想知道是自己的问题还是官方问题的开发者。\n\n本文根据 DeepSeek 网页版提示文案、官方服务状态页和 API 文档整理，资料核对于 2026-10-11。\n\n## 结论先说\n\n1. **「服务器繁忙」是服务端负载过高的提示，不是你的账号出了问题**。官方 API 错误码表对 503 的解释就是「服务器负载过高」，处理办法是「请稍后重试」。\n2. **没有哪种本地设置能让它立刻恢复**。清缓存、重装 App 对服务端排队没有帮助；有用的做法是等一等、错开高峰、减少单次请求的负担。\n3. **先分清提示**：「服务器繁忙」「连续访问次数过多」「网络异常」是三回事，处理方式不同。\n4. 需要稳定调用的场景（批量处理、接进自己的工具）用官方 API，并自己做好重试。\n\n## 步骤\n\n### 1. 先看清是哪种提示\n\n| 界面提示 | 含义 | 处理 |\n| --- | --- | --- |\n| 服务器繁忙，请稍后再试 | 服务端负载高 | 等待后重试，见下文 |\n| 连续访问次数过多，请休息一会儿 | 你这边短时间请求太多 | 停几分钟再用，别连续点重新生成 |\n| 搜索过于频繁，请稍后再试 / 联网搜索暂不可用 | 搜索功能受限或暂不可用 | 关掉智能搜索先问，稍后再开 |\n| 消息未能发送，请检查网络 / 网络异常 | 本地网络问题 | 换网络、刷新页面 |\n| 消息数量达到上限，请开启新对话 | 当前对话太长 | 新建对话 |\n\n### 2. 查官方服务状态页\n\n打开 status.deepseek.com（官方 API 文档里的「API 服务状态」链接指向这里），看当前有没有正在处理的故障或性能下降。页面显示有故障时，除了等待没有别的办法；显示正常但你仍然繁忙，多半是高峰期排队，继续看下面几步。\n\n### 3. 等一下再点重试，不要连点\n\n出现繁忙提示后，隔几十秒到几分钟再点重试。连续快速重试不仅没用，还可能触发「连续访问次数过多」的限制。\n\n### 4. 错开高峰时段\n\n官方没有公布聊天产品的高峰时间表。可以参考 API 的定价规则：官方把北京时间工作日 9:00–12:00、14:00–18:00 定为「高峰时段」，其余时间为空闲时段并半价——这说明工作日白天是用量最集中的时候。不急的任务放到中午、晚上或周末做，成功率通常更高。\n\n### 5. 减轻单次请求的负担\n\n- **简单问题关掉深度思考和智能搜索**：这两个功能都会让一次回答的计算量和耗时增加；\n- **长对话换新对话**：把前面的结论总结成几句话，贴到新对话里继续；\n- **大任务拆小**：一次让它写一万字，不如分章节多次生成，中途失败的损失也小。\n\n### 6. 换端试试，并保持 App 为最新版本\n\n网页版繁忙时试试 App，或者反过来。两端共用同一个账号，对话会同步。官方常见问题多次提到，功能异常时先把 App 更新到最新版本。\n\n## 用 API 时遇到 503 / 429\n\n官方错误码表（2026-10-11 核对）：\n\n- **503 服务器繁忙**：服务器负载过高，稍后重试；\n- **500 服务器故障**：服务器内部故障，等待后重试，持续出现可联系官方；\n- **429 请求速率达到上限**：是你的并发超了，不是服务器忙。并发限制按账号计算，`deepseek-flash` 为 2500、`deepseek-v4-pro` 为 500。\n\n推荐的写法是带退避的重试，只对 429、500、503 重试，对 400、401、402 这类自己的错误不重试：\n\n```python\nimport time\nfrom openai import OpenAI, APIStatusError\n\nclient = OpenAI(api_key=\"你的 Key\", base_url=\"https://api.deepseek.com\")\n\ndef ask(messages, retries=5):\n    for i in range(retries):\n        try:\n            return client.chat.completions.create(model=\"deepseek-flash\", messages=messages)\n        except APIStatusError as e:\n            if e.status_code in (429, 500, 503) and i < retries - 1:\n                time.sleep(2 ** i)      # 1、2、4、8 秒\n                continue\n            raise\n```\n\n另外，官方文档说明请求在等待期间连接会保持（非流式持续返回空行，流式返回 keep-alive 注释），10 分钟后仍未开始推理才会断开。所以高峰期「很久没反应」不一定是失败，客户端超时时间别设得太短。\n\n## 常见问题\n\n**Q：服务器繁忙要等多久？**\n官方没有给出时间。短时拥堵一般几分钟内缓解；如果状态页显示有故障，就以状态页的恢复通知为准。\n\n**Q：是不是我的账号被限制了？**\n账号被停用时的提示是「你的账号已被临时停用」，和繁忙提示不同。繁忙提示对所有人一样。\n\n**Q：付费能不能避免繁忙？**\n聊天产品核对时没有付费档位。API 是按量付费的独立服务，官方说明没有「限速更高的套餐」，有更高并发需求可以提交扩容工单，扩容不额外收费。\n\n**Q：本地部署能彻底解决吗？**\n本地运行的是开源权重的小尺寸模型，不排队，但效果和官方在线模型不是一回事，见《DeepSeek 本地部署教程》。\n\n## 参考资料\n\n- DeepSeek 服务状态页 — https://status.deepseek.com/\n- DeepSeek API 文档：错误码 — https://api-docs.deepseek.com/zh-cn/quick_start/error_codes\n- DeepSeek API 文档：限速与隔离 — https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit\n- DeepSeek API 文档：模型与价格（高峰 / 空闲时段定义）— https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek 官方常见问题 — https://static.deepseek.com/faq/index.html?lang=zh\n- DeepSeek 网页版（提示文案）— https://chat.deepseek.com/",
+      "sources": [
+        "https://chat.deepseek.com/",
+        "https://status.deepseek.com/",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://static.deepseek.com/faq/index.html?lang=zh"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "DeepSeek本地部署教程：用Ollama运行DeepSeek-R1（硬件要求、命令与常见问题）",
+      "slug": "deepseek-local-deploy-ollama",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 本地部署怎么做、要什么配置？本文按 Ollama 官方模型页讲清 DeepSeek-R1 各尺寸的体积与选择、安装和运行命令、上下文长度设置、本地 API 调用，以及本地版和官方在线版的差别。",
+      "content": "## 适用于谁\n\n- 搜「deepseek 本地部署」「deepseek本地部署教程」「deepseek 本地部署硬件要求」「deepseek ollama 本地部署」的人；\n- 想离线使用、或者不想把内部资料发到云端，愿意接受效果打折的人。\n\n本文根据 Ollama 官方模型库页面、Ollama 官方文档和 DeepSeek 官方公告整理，资料核对于 2026-10-11。\n\n## 结论先说\n\n1. **个人电脑上能跑的是「蒸馏小模型」，不是官方在线版**。Ollama 模型库里 `deepseek-r1` 提供 1.5b 到 671b 多个尺寸，小尺寸是用 DeepSeek-R1 的推理数据在其他开源小模型上蒸馏出来的，能力和网页版差距明显。\n2. **选尺寸先看体积**：模型文件从 1.1GB 到 404GB 不等，内存或显存要装得下模型还得留余量。\n3. **三步就能跑起来**：装 Ollama → `ollama run deepseek-r1` → 在终端里对话。\n4. **本地部署只解决「离线、不排队、数据不出本机」**，不会带来联网搜索，也不会比在线版更聪明。\n\n## 先弄清：你下载的是什么\n\nOllama 模型页（2026-10-11 核对）列出的 `deepseek-r1` 各标签：\n\n| 标签 | 文件体积 | 上下文窗口 | 说明 |\n| --- | --- | --- | --- |\n| deepseek-r1:1.5b | 1.1GB | 128K | 最小，能跑但能力有限 |\n| deepseek-r1:7b | 4.7GB | 128K | |\n| deepseek-r1:8b | 5.2GB | 128K | 默认标签（latest） |\n| deepseek-r1:14b | 9.0GB | 128K | |\n| deepseek-r1:32b | 20GB | 128K | |\n| deepseek-r1:70b | 43GB | 128K | |\n| deepseek-r1:671b | 404GB | 160K | 完整版，个人设备基本无法运行 |\n\n模型页说明，默认的 8b 是 DeepSeek-R1-0528-Qwen3-8B，即在 Qwen3 8B 上蒸馏的版本；只有 671b 才是完整的 DeepSeek-R1。\n\n另外两点容易混淆：\n\n- Ollama 上还能搜到 `deepseek-v4.1-flash`、`deepseek-v4-pro`，它们带的是 **cloud** 标记，是通过 Ollama 云端调用的在线模型，不会下载到你的电脑上运行；\n- DeepSeek 官方 2026-09-10 的公告说 V4.1 Flash 的权重已在 Hugging Face 开源，但那是一个 552B 参数的大模型，面向有大规模算力的机构，不是个人电脑的选项。\n\n## 硬件怎么估\n\nOllama 的模型页只给了文件体积，没有给每个尺寸的最低配置表。可以按这个思路估算：\n\n- **模型要整个装进内存或显存**，所以可用显存（或没有独显时的内存）要大于文件体积，并给上下文留出余量；\n- **有独立显卡时看显存**：比如 8GB 显存适合 7b / 8b 这一档，24GB 显存可以试 32b（20GB）；\n- **装不进显存就会分一部分到 CPU 跑**，能用但明显变慢。运行 `ollama ps` 可以看到 `PROCESSOR` 一列，显示「100% GPU」说明完全在显卡上；\n- **硬盘**至少留出模型体积的空间。\n\n拿不准就从默认的 8b 开始，够快再往上换。\n\n## 步骤\n\n### 1. 安装 Ollama\n\n到 Ollama 官网下载页下载 macOS、Windows 或 Linux 版本并安装。安装后可以直接打开桌面应用，也可以在终端里使用 `ollama` 命令。\n\n### 2. 下载并运行模型\n\n```bash\nollama run deepseek-r1          # 默认 8b，约 5.2GB\nollama run deepseek-r1:14b      # 指定尺寸\n```\n\n第一次运行会自动下载，完成后出现输入提示符，直接打字提问。输入 `/bye` 退出。以后想更新到新版本，运行 `ollama pull deepseek-r1`。\n\nR1 是推理模型，回答前会先输出一段思考过程，这是正常现象。\n\n### 3. 调整上下文长度\n\nOllama 文档说明，默认上下文长度按显存自动决定：显存小于 24GiB 时是 4k，24–48GiB 时 32k，48GiB 以上 256k。4k 很容易不够用——长文档读一半就「忘了前面」，多半是这个原因。\n\n调整方法：在 Ollama 桌面应用的设置里拖动上下文长度滑块，或者启动服务时设置环境变量：\n\n```bash\nOLLAMA_CONTEXT_LENGTH=32000 ollama serve\n```\n\n上下文越大占用显存越多。官方建议联网搜索、Agent、编程工具这类任务至少设到 64000，前提是硬件撑得住。\n\n### 4. 用本地 API 接到其他工具\n\nOllama 运行后会在本机 11434 端口提供接口，模型页给的调用示例：\n\n```bash\ncurl http://localhost:11434/api/chat \\\n  -d '{\n    \"model\": \"deepseek-r1\",\n    \"messages\": [{\"role\": \"user\", \"content\": \"你好\"}]\n  }'\n```\n\n支持自定义接口地址的聊天客户端、笔记插件、编程工具，把地址指向本机这个端口即可。\n\n## 常见问题\n\n**Q：本地版和网页版 DeepSeek 一样吗？**\n不一样。网页版 / App 用的是官方在线的最新模型，还带联网搜索和文件解析；本地小尺寸是蒸馏模型，适合简单问答、改写、离线场景，复杂推理和长文写作差距明显。\n\n**Q：没有独立显卡能跑吗？**\n能，用 CPU 和内存跑，速度慢。选 1.5b 或 7b / 8b，并确保内存明显大于模型体积。\n\n**Q：下载很慢或中断怎么办？**\n重新执行同一条 `ollama run` 或 `ollama pull` 命令继续即可；换个时间段或网络再试。\n\n**Q：本地部署能联网搜索吗？**\n模型本身不能联网。需要搜索能力得靠外层工具（带搜索功能的客户端或 Agent 框架）调用，具体看所用工具的说明。\n\n**Q：本地模型是不是「没有限制」？**\n不是。模型的安全训练在权重里，本地运行不会改变这一点；本文也不提供任何规避内容安全机制的方法。\n\n**Q：公司想私有化部署完整版怎么办？**\n完整尺寸的模型需要服务器级的多卡算力，属于工程项目。先评估是否直接用官方 API 更划算，见《DeepSeek API 怎么用》。\n\n## 参考资料\n\n- Ollama 模型库：deepseek-r1 — https://ollama.com/library/deepseek-r1\n- Ollama 模型搜索：deepseek — https://ollama.com/search?q=deepseek\n- Ollama 文档：Quickstart — https://docs.ollama.com/quickstart\n- Ollama 文档：Context length — https://docs.ollama.com/context-length\n- DeepSeek 新闻：DeepSeek-V4.1-Flash 发布（2026-09-10）— https://api-docs.deepseek.com/zh-cn/news/news260910",
+      "sources": [
+        "https://ollama.com/library/deepseek-r1",
+        "https://ollama.com/search?q=deepseek",
+        "https://docs.ollama.com/quickstart",
+        "https://docs.ollama.com/context-length",
+        "https://api-docs.deepseek.com/zh-cn/news/news260910"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "DeepSeek接入Claude Code教程：环境变量配置、模型映射与常见问题",
+      "slug": "deepseek-claude-code-setup",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "claude",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "想在 Claude Code 里用 DeepSeek 模型？本文按 DeepSeek 官方接入文档讲清安装、各系统的环境变量写法、模型名映射规则、Web Search 的额外费用，以及连不上、401 等常见问题。",
+      "content": "## 适用于谁\n\n- 搜「deepseek 接入 claude code」「deepseek接入claude」，想用 DeepSeek 的 API 驱动 Claude Code 这个终端编程工具的开发者；\n- 已经照着旧教程配过，但模型名对不上或报错的人。\n\n本文根据 DeepSeek 官方「接入 Claude Code」文档整理，资料核对于 2026-10-11。这是 DeepSeek 一侧提供的兼容接口用法，Claude Code 本身的功能说明见《Claude Code 入门》。\n\n## 结论先说\n\n1. **原理是把 Claude Code 的请求地址换成 DeepSeek 的 Anthropic 兼容接口** `https://api.deepseek.com/anthropic`，用 DeepSeek 的 API Key 认证。\n2. **只需要设置几个环境变量**，不用改 Claude Code 的任何文件。\n3. **费用走 DeepSeek 开放平台的余额**，按 token 计费，和 Claude 订阅无关。\n4. **效果取决于模型**：换成 DeepSeek 后，写代码的水平是 DeepSeek 模型的水平，工具本身的权限、命令、插件机制不变。\n\n## 步骤\n\n### 1. 准备：Key 和 Claude Code\n\n- 在 DeepSeek 开放平台创建 API Key 并保证有余额，见《DeepSeek API Key 怎么获取》；\n- 还没装 Claude Code 的话，官方文档的装法是：先装 Node.js 18 及以上（Windows 还需要 Git for Windows），然后执行\n\n```bash\nnpm install -g @anthropic-ai/claude-code\nclaude --version      # 能显示版本号就是装好了\n```\n\n### 2. 配置环境变量\n\n**macOS / Linux**（在终端里执行，或写进 `~/.zshrc`、`~/.bashrc`）：\n\n```bash\nexport ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic\nexport ANTHROPIC_AUTH_TOKEN=<你的 DeepSeek API Key>\nexport ANTHROPIC_MODEL=deepseek-flash[1m]\nexport ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek-flash[1m]\nexport ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek-flash[1m]\nexport ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek-flash\nexport CLAUDE_CODE_SUBAGENT_MODEL=deepseek-flash\nexport CLAUDE_CODE_EFFORT_LEVEL=max\nexport CLAUDE_CODE_AUTO_COMPACT_WINDOW=786432\n```\n\n**Windows PowerShell**：\n\n```powershell\n$env:ANTHROPIC_BASE_URL=\"https://api.deepseek.com/anthropic\"\n$env:ANTHROPIC_AUTH_TOKEN=\"<你的 DeepSeek API Key>\"\n$env:ANTHROPIC_MODEL=\"deepseek-flash[1m]\"\n$env:ANTHROPIC_DEFAULT_OPUS_MODEL=\"deepseek-flash[1m]\"\n$env:ANTHROPIC_DEFAULT_SONNET_MODEL=\"deepseek-flash[1m]\"\n$env:ANTHROPIC_DEFAULT_HAIKU_MODEL=\"deepseek-flash\"\n$env:CLAUDE_CODE_SUBAGENT_MODEL=\"deepseek-flash\"\n$env:CLAUDE_CODE_EFFORT_LEVEL=\"max\"\n$env:CLAUDE_CODE_AUTO_COMPACT_WINDOW=\"786432\"\n```\n\n这些变量各自的作用：\n\n- `ANTHROPIC_BASE_URL`、`ANTHROPIC_AUTH_TOKEN`：请求发到哪里、用哪个 Key；\n- `ANTHROPIC_MODEL` 和三个 `DEFAULT_*_MODEL`：Claude Code 内部会按任务轻重选不同档位的模型，这里把每个档位都指到 DeepSeek 的模型上。模型名后的 `[1m]` 是官方文档给的写法，对应 1M 上下文；\n- `CLAUDE_CODE_SUBAGENT_MODEL`：子代理用的模型；\n- `CLAUDE_CODE_EFFORT_LEVEL`：思考强度；\n- `CLAUDE_CODE_AUTO_COMPACT_WINDOW`：对话多长时自动压缩上下文。\n\n在 PowerShell 里用 `$env:` 设置的变量只对当前窗口有效，关掉窗口就没了；想长期生效，可以写进 PowerShell 的配置文件或系统的用户环境变量。\n\n### 3. 进入项目目录启动\n\n```bash\ncd /path/to/my-project\nclaude\n```\n\n启动后先问一个简单问题（比如「这个项目是做什么的」）确认能正常返回，再开始真正的任务。\n\n### 4. 了解模型名映射\n\n官方文档说明，使用 Claude Code 或 Claude Desktop App 时，DeepSeek 会对传入的 Claude 模型名做映射：\n\n- `claude-opus` 开头的模型名 → `deepseek-v4-pro`，按 V4 Pro 的价格计费；\n- `claude-haiku`、`claude-sonnet` 开头的模型名 → `deepseek-flash`。\n\n所以如果你没有像上面那样把各档位都显式指到 `deepseek-flash`，在工具里切到 Opus 档时，实际用的是价格更高的 `deepseek-v4-pro`。想控制成本，就按第 2 步把变量配全。\n\n### 5. Web Search 会额外计费\n\n官方文档说明，DeepSeek API 原生支持 Claude Code 里的 Web Search：模型判断需要搜索时会调用搜索工具，并通过 DeepSeek 提供的接口完成搜索。搜索结果需要再用模型总结，因此会产生额外的 token 费用。不想花这部分钱，就在提问时说明「不要联网搜索」，或者在权限设置里不允许该工具。\n\n## 常见问题\n\n**Q：启动后提示认证失败（401）？**\nKey 写错或没生效。用 `echo $ANTHROPIC_AUTH_TOKEN`（PowerShell 用 `echo $env:ANTHROPIC_AUTH_TOKEN`）确认变量存在；检查有没有把尖括号一起写进去。\n\n**Q：提示余额不足（402）？**\nDeepSeek 开放平台余额用完了，充值后重试。Agent 类工具消耗 token 很快，建议定期在平台的用量页面查看。\n\n**Q：怎么省钱？**\n三个办法：各档位都指向 `deepseek-flash`；把批量任务放到空闲时段（官方定价里空闲时段是高峰价格的一半）；让上下文尽量复用——缓存命中的输入价格远低于未命中。\n\n**Q：怎么切回原来的 Claude 账号？**\n删掉这些环境变量（`unset ANTHROPIC_BASE_URL` 等，或开一个没有设置过的新终端）再启动即可。\n\n**Q：Claude Code 的功能在 DeepSeek 下都能用吗？**\nDeepSeek 的 Anthropic 兼容接口文档列出了支持和不支持的字段，并非全部一致（例如部分服务端工具类型不支持）。常规的读写文件、执行命令、工具调用可以用，个别依赖 Anthropic 专有能力的功能以实际表现和官方兼容性表为准。\n\n**Q：除了 Claude Code 还能接哪些工具？**\nDeepSeek 文档的「接入 Agent 工具」一栏还列了 Codex、OpenCode、OpenClaw、Hermes、Qoder 等，各有单独的接入页面。\n\n## 参考资料\n\n- DeepSeek API 文档：接入 Claude Code — https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code\n- DeepSeek API 文档：Anthropic API 兼容说明 — https://api-docs.deepseek.com/zh-cn/guides/anthropic_api\n- DeepSeek API 文档：模型与价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：错误码 — https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code",
+        "https://api-docs.deepseek.com/zh-cn/guides/anthropic_api",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "DeepSeek导出对话记录、删除历史与注销账号怎么操作",
+      "slug": "deepseek-export-delete-history",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 的对话记录怎么导出、历史记录怎么删除、删了还能恢复吗、账号怎么注销？本文按官方常见问题列出网页端和 App 端的具体入口，以及换手机号、登出所有设备等账号操作。",
+      "content": "## 适用于谁\n\n- 搜「deepseek导出对话记录」「deepseek 历史记录 删除」「deepseek 账号注销」的人；\n- 想备份重要对话，或者换手机号、担心账号被别人登录的人。\n\n本文根据 DeepSeek 官方常见问题和网页版界面文案整理，资料核对于 2026-10-11，入口名称以实际界面为准。\n\n## 结论先说\n\n1. **导出全部对话只能在网页端做**：「设置」→「数据管理」→「导出所有历史对话」，下载链接 7 天内有效。\n2. **单条对话可以分享成链接或图片**，适合只留存某一次问答。\n3. **删除不可恢复**：官方明确写了「已删除的对话无法恢复」。\n4. **注销账号会清空全部对话**，开放平台里没用完的 API 余额也视为放弃，注销前先处理余额。\n\n## 步骤\n\n### 1. 导出全部历史对话（网页端）\n\n1. 浏览器打开 chat.deepseek.com 并登录；\n2. 进入「设置」→「数据管理」→「导出所有历史对话」；\n3. 等待生成。官方提示导出可能需要一些时间，生成的下载链接有效期为 7 天，过期需要重新导出。\n\n导出的文件里包含你的账号信息和所有历史对话，所以文件本身也要妥善保存，不要直接转发给别人。App 里没有这个入口时，换到电脑浏览器操作。\n\n### 2. 只保存某一条对话\n\n- **网页端**：在历史对话列表里点对话旁的「…」菜单选「分享」，或者点回复下方的「分享」按钮、页面右上角的「分享」按钮；\n- **App 端**：长按模型的回复选「分享」，或点回复下方的「分享」按钮。\n\n分享可以生成链接或图片。几个细节：\n\n- 分享出去的内容里不展示你上传的文件；\n- 删除对话后，由这条对话生成的分享链接也会失效；\n- 内容很长时不要用手机滚动截屏，官方提到部分机型不适配，推荐直接用分享功能；\n- 回答里的表格支持复制和下载（App 2026 年 5 月的更新说明里写了「支持表格复制、下载及全屏预览」），代码块可以直接复制。\n\n### 3. 重命名、置顶，方便以后找\n\n对话多了以后，与其全部导出，不如把重要的整理好：\n\n- **网页端**：点对话旁的「…」菜单，选「重命名」或「置顶」；\n- **App 端**：长按对话，选「重命名」或「置顶」。\n\n置顶数量有上限，超过时界面会提示。网页版还支持按内容搜索历史对话（搜索框的提示文字是「搜索对话内容...」）。\n\n### 4. 删除历史对话\n\n- **删除单条**：网页端点「…」→「删除」；App 端长按对话→「删除」；\n- **清空全部**：设置里有删除所有对话的选项（具体位置以实际界面为准），确认框会提示「删除后，所有对话都将被清空且无法找回」。\n\n删除前想清楚——官方常见问题对「能否恢复已删除的对话」的回答只有一句：已删除的对话无法恢复。需要留底的先按第 1 步导出。\n\n### 5. 账号安全：登出所有设备、改密码\n\n在公共电脑或别人的手机上登录过，或者发现账号里出现了不是自己问的内容，官方建议：\n\n1. 进入「设置」→「账号管理」→「登出所有设备」；\n2. 回到登录界面，选「密码登录」→「忘记密码」，按指引重置密码。\n\n### 6. 换绑手机号、微信\n\n- **手机号**：原号码还能收短信的，在「设置」→「账号管理」里自助变更，新号码必须没有注册过 DeepSeek（或原账号已注销）；原号码已停机的，需要填写官方的「账号改绑 / 解绑申请」表单并核验身份，官方说明大部分申请的审核用时为 7 个工作日，结果通过邮箱通知；\n- **微信**：在「账号管理」里先解绑当前微信，再绑定新的；\n- **邮箱**：官方说明目前不支持直接更换已绑定的邮箱。\n\n### 7. 注销账号\n\n路径是「设置」→「账号管理」→「注销账号」。注销前注意官方的两条提示：\n\n- 账号下所有对话记录会被永久清空；\n- 开放平台账户里尚未消费的余额将视为自愿放弃。有余额的先去开放平台申请退款或用完，再注销。\n\n找不到注销入口时，把 App 升级到最新版本再看。\n\n## 常见问题\n\n**Q：对话不见了，是被删了吗？**\n先别急。官方给了两个排查方向：一是内容可能在「对话分支」里——修改过提问后会产生分支，点提问或回答下方的数字箭头切换查看；二是多端同步延迟，网页端刷新页面，App 端在历史对话侧边栏下拉刷新。\n\n**Q：手机和电脑上的记录不一样？**\n同上，手动刷新一次。两端用的是同一个账号的同一份记录。\n\n**Q：历史对话打不开、加载不出来？**\n检查网络；对话特别长时，换到网页端或性能更好的设备上查看。\n\n**Q：注销后用同一个手机号重新注册，以前的记录和余额还在吗？**\n不在。官方说明注销后重新注册的新旧账号相互独立，原账号的余额不能在新账号使用。\n\n**Q：导出的文件是什么格式、怎么打开？**\n官方常见问题没有说明具体格式。下载后是一个文件包，按其中的说明或用常见文本 / 浏览器工具查看，以实际下载内容为准。\n\n## 参考资料\n\n- DeepSeek 官方常见问题（使用引导：重命名、置顶、删除、分享、导出、换绑、登出所有设备、注销；对话问题）— https://static.deepseek.com/faq/index.html?lang=zh\n- DeepSeek 网页版 — https://chat.deepseek.com/",
+      "sources": [
+        "https://static.deepseek.com/faq/index.html?lang=zh",
+        "https://chat.deepseek.com/"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "豆包电脑版怎么用：官方下载、和网页版有什么区别、「工作」模式入门",
+      "slug": "doubao-desktop-vs-web",
+      "checkedOn": "2026-10-11",
+      "images": [
+        "g469-doubao-web-home.jpg"
+      ],
+      "tags": [
+        "doubao"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "豆包电脑版在哪下载、和网页版有什么区别、该用哪个？本文按豆包官网页面讲清官方下载入口、登录方式、输入框里的技能入口、「对话」与「工作」两种模式的区别，以及订阅相关信息去哪看。",
+      "content": "## 适用于谁\n\n- 搜「豆包电脑版下载官网」「豆包电脑版和网页版有什么区别」「豆包电脑版怎么用」「豆包网页版登录」的人；\n- 平时只在手机上用豆包，想在电脑上写文档、做 PPT、处理表格的人。\n\n本文根据豆包官网的下载页、网页版首页和 App Store 页面整理，资料核对于 2026-10-11。豆包更新很快，**入口名称以你实际看到的界面为准**。\n\n## 结论先说\n\n1. **官方入口**：网页版是 doubao.com/chat，电脑版在 doubao.com/download/desktop 下载，运营方是北京春田知韵科技有限公司（字节跳动旗下）。不要从来路不明的下载站装。\n2. **只是聊天、查资料、生成图片：网页版就够了**，不用安装。\n3. **电脑版多出来的是「操作本机」的能力**：官网介绍的「工作」模式可以在本地电脑上协助处理事务、操作电脑与浏览器，这类事只有装了客户端才做得了。\n4. **部分能力属于付费订阅**。App Store 页面列出了订阅套餐，官网下载页也写着限时领取订阅权益的活动；具体权益和价格以官方购买页为准。\n\n## 网页版和电脑版的区别\n\n| | 网页版 | 电脑版（桌面客户端） |\n| --- | --- | --- |\n| 入口 | 浏览器打开 doubao.com/chat | 官网下载安装 |\n| 安装 | 不需要 | 需要 |\n| 对话、写作、生图等基础功能 | 有 | 有 |\n| 操作本地电脑与浏览器 | 浏览器环境受限 | 官网介绍的重点能力 |\n| 适合 | 临时用、公司电脑不便装软件 | 天天用、想让它处理本机文件和多步骤任务 |\n\n官网下载页对电脑版的描述是让 AI 从「问答助手」变成「干活搭子」，列出的能力包括：\n\n- **交付成品**：从一个想法出发写文档、做表格、做 PPT、生成图片、制作视频、搭网页；\n- **操作电脑与浏览器**：在不影响你正常使用电脑的情况下操作虚拟桌面完成任务，过程可以实时查看，也可以随时暂停或接管；\n- **AI 编辑**：在文档、PPT、网页里选中想改的位置，让它只改那一处；\n- **接入飞书**：基于飞书里的会议结论、群聊、文档来完成总结和方案（面向企业场景）。\n\n## 步骤\n\n### 1. 先用网页版熟悉一遍\n\n浏览器打开 doubao.com/chat。不登录也能看到首页，但发送消息或点任何功能都会要求登录。核对时的登录方式有：手机号登录、飞书账号一键登录、抖音一键登录，以及用豆包或飞书 App 扫码登录。\n\n![豆包网页版首页（未登录状态）：左侧是「新工作任务」「新对话」，中间可切换「对话 / 工作」，输入框下方是 PPT 生成、图像生成、帮我写作、视频生成、录音转写、音乐生成等入口](seed:g469-doubao-web-home.jpg)\n*图片来源：[豆包网页版 doubao.com/chat](https://www.doubao.com/chat/)，截取于 2026-10-11*\n\n页面上的几个区域：\n\n- **左侧栏**：「新工作任务」「新对话」和历史记录；「更多」里还有「AI 创作」等入口；\n- **中间的「对话 / 工作」切换**：对话是一问一答；工作是把一件事交给它分步完成；\n- **输入框下方的技能入口**：PPT 生成、图像生成、帮我写作、视频生成、录音转写、音乐生成，以及「更多」；\n- **输入框右侧**：模型 / 模式选择（核对时默认显示「豆包 快速」）和语音输入按钮。\n\n### 2. 下载并安装电脑版\n\n1. 打开 doubao.com/download/desktop，点「下载豆包桌面版」；\n2. 运行安装包，按提示完成安装；\n3. 用和网页版相同的账号登录，历史对话会跟着账号走。\n\n网页版右上角也有「下载电脑版」的按钮，指向同一个官方下载页。\n\n### 3. 「对话」里把话说具体\n\n日常提问直接在「对话」里发。想让结果可用，说清三件事：给谁看、要什么形式、有什么限制。\n\n```\n帮我写一份给部门同事的通知：下周三下午 2 点到 4 点系统升级，期间无法提交报销。\n语气正式但不生硬，不超过 150 字，最后提醒大家提前提交。\n```\n\n需要特定产出时先点对应的技能入口再描述需求，例如点「PPT 生成」后输入主题和页数，点「帮我写作」后选文体。\n\n### 4. 用「工作」模式交办多步骤任务\n\n「工作」适合「目标明确、步骤多」的事，比如「把这个文件夹里的 12 份周报汇总成一张表，再写一页总结」。交办时建议写清：\n\n```\n目标：把桌面「周报」文件夹里的周报汇总成一份月度总结。\n材料：文件夹里的 12 个 Word 文件。\n要求：按项目归类，每个项目列进展、风险、下月计划；输出一份 Word 和一张汇总表。\n注意：不要修改原文件；遇到看不懂的缩写先列出来问我。\n```\n\n官网说明操作过程可以实时查看，需要时可以暂停或接管。**让 AI 操作本机时，建议先在不重要的文件上试**，涉及删除、发送、付款这类不可撤销的动作，自己确认后再执行。\n\n### 5. 订阅信息去哪看\n\nApp Store 页面（2026-10-11 核对）显示豆包 App 本身免费、含 App 内购买，内购项目里有按月和按年的订阅套餐以及创作额度包，例如其中的标准套餐连续包月标价为 68 元。不同档位的权益、电脑版与手机端是否通用、活动赠送的订阅时长，都以豆包官方的订阅页面和购买时的说明为准，本文不逐项列出。\n\n## 常见问题\n\n**Q：豆包电脑版支持 Mac 吗？**\n下载页会按你当前的系统显示下载按钮（核对时在 Windows 电脑上显示的是 Windows 版）。Mac 版是否提供，以你在 Mac 上打开官方下载页看到的为准。\n\n**Q：电脑版和手机 App 的记录互通吗？**\n用同一个账号登录即可同步对话记录。本机文件类的工作任务产物保存在电脑上。\n\n**Q：公司电脑不让装软件怎么办？**\n直接用网页版。需要操作本机文件的任务，把文件上传到对话里处理。\n\n**Q：豆包网页版怎么删除对话？**\n登录后在左侧历史记录里对某条对话打开菜单进行删除，以实际界面为准。\n\n**Q：以前的「智能体」入口找不到了？**\n豆包的产品形态调整较多，核对时网页版首页以「对话 / 工作」和技能入口为主。某项功能是否保留，以官方公告和当前界面为准。\n\n## 参考资料\n\n- 豆包官网：下载豆包客户端 — https://www.doubao.com/download/desktop\n- 豆包网页版 — https://www.doubao.com/chat/\n- App Store：豆包 - 生活工作 AI 助手 — https://apps.apple.com/cn/app/id6459478672",
+      "sources": [
+        "https://www.doubao.com/download/desktop",
+        "https://www.doubao.com/chat/",
+        "https://apps.apple.com/cn/app/id6459478672"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "豆包生图怎么用：图像生成入口、提示词写法与改图指令",
+      "slug": "doubao-image-generation",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "doubao"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "豆包生图怎么用、提示词怎么写、图生图和改图怎么下指令？本文讲清豆包「图像生成」的入口，并按火山引擎 Seedream 官方提示词指南整理文生图、改图、参考图、组图的写法和常见问题。",
+      "content": "## 适用于谁\n\n- 搜「豆包生图怎么用」「豆包生图提示词」「豆包生图指令」「豆包图生图怎么用」「豆包p图指令」的人；\n- 用豆包出过图，但总是「差一点」——文字乱、改图把别的地方也改了、系列图风格不统一的人。\n\n本文根据豆包官网页面和火山引擎 Seedream 官方提示词指南整理，资料核对于 2026-10-11。提示词写法来自模型官方指南，对豆包里的图像生成同样适用；入口名称以实际界面为准。\n\n## 结论先说\n\n1. **入口**：网页版和电脑版在输入框下方点「图像生成」；手机 App 里也可以直接在对话中说「帮我画……」，或使用「豆包 P 图」相关功能（以 App 实际界面为准）。\n2. **背后是字节跳动的 Seedream 系列生图模型**。豆包官网下载页提到客户端「依托专业版 Seedream 5.0 生图」。\n3. **提示词用连贯的自然语言写「主体 + 行为 + 环境」**，比堆一串关键词效果好——这是官方指南的第一条建议。\n4. **要出现在图里的文字放进双引号**；改图时写清「改什么 + 什么保持不变」。\n5. **次数和额度官方没有公布固定数字**，以 App 内显示为准；生成的图片带有 AI 生成标识，本文不提供去除标识的方法。\n\n## 步骤\n\n### 1. 找到入口，先出一张\n\n1. 打开 doubao.com/chat 登录，点输入框下方的 **图像生成**；\n2. 输入描述，选择比例等参数（可选项以界面为准）；\n3. 发送，等待出图；不满意就在同一个对话里继续说怎么改。\n\n### 2. 文生图：一句完整的话胜过一串词\n\n官方指南给的对比很直观：\n\n- 推荐：`一个穿着华丽服装的女孩，撑着遮阳伞走在林荫道上，莫奈油画风格。`\n- 不推荐：`一个女孩，撑伞，林荫街道，油画般的细腻笔触。`\n\n可以套这个结构：\n\n```\n[主体是谁 / 是什么] + [在做什么] + [在什么环境里]，\n[风格]，[色彩 / 光线]，[构图 / 画幅]\n```\n\n例如：\n\n```\n一只柴犬戴着黄色安全帽坐在工地的木箱上啃骨头，背景是傍晚的脚手架和夕阳，\n写实摄影风格，暖色逆光，浅景深，竖版构图\n```\n\n官方还提醒两点：新版模型理解能力强，**简洁精确的描述通常优于重复堆叠华丽辞藻**；有明确用途时把用途写出来，比如「设计一个游戏公司的 logo」「做一张小红书封面」，模型会按该类型的常见版式来出。\n\n### 3. 图里要有字：放进双引号\n\n```\n生成一张咖啡店开业海报，标题为\"周末见\"，副标题为\"全场第二杯半价\"，\n手绘插画风格，奶油色背景\n```\n\n官方指南明确建议把要生成的文字内容放在双引号里，可以提高文字渲染的准确度。字越少越稳；出现错字时把那行字单独再强调一次重新生成。\n\n### 4. 改图：说清改哪里、哪里不变\n\n上传一张图（或直接对刚生成的图）下指令。官方把改图分成增加、删除、替换、修改四类，写法都是「简洁明确地指出对象 + 变化」：\n\n- 增加：`给图中女生增加银色耳线和项链`\n- 删除：`去掉女生的帽子`\n- 替换：`把最大的那个面包人换成牛角包形象，保持动作和表情不变`\n- 修改：`把三个机器人改成透明水晶材质，颜色从左到右分别为红、黄、绿`\n\n两条关键规则：\n\n- **不要用「它」「这个」这类指代模糊的词**。官方的例子是把「让它穿上粉色衣服」改成「让图中最高的那只熊猫穿上粉色的京剧服饰并戴上头饰，并保持动作不变」；\n- **想让其余部分不动，就明说**「其他内容保持不变」。\n\n画面复杂、文字说不清位置时，可以先在图上用箭头、线框或涂鸦标出位置，再写「把红框位置的标题放大」「在红色涂抹处放一台电视」。\n\n### 5. 参考图：指明「参考什么」和「生成什么」\n\n想保持同一个角色、同一种风格或同一款产品，上传参考图，并在提示词里写清两部分：\n\n```\n参考图中的线性简约风格，设计 9 个应用图标：音乐、天气、日历、相机、聊天、\n地图、闹钟、购物车、笔记本，保持一致的配色\n```\n\n多张图一起用时逐张点名：`让图一的人物穿上图二的服装`、`参考图二的风格，对图一进行风格转换`。\n\n上传真人照片只用本人或已获授权的照片。\n\n### 6. 一次出一套：组图\n\n需要分镜、表情包、成套物料时，在提示词里写「一系列」「一套」「组图」，或直接写数量：\n\n```\n参考这个 LOGO，做一套户外运动品牌的视觉物料，品牌名为\"GREEN\"，\n包括包装袋、帽子、卡片、手环，绿色主色调，简约现代\n```\n\n官方说明模型支持生成角色连贯、风格统一的图像序列。\n\n## 常见问题\n\n**Q：豆包生图是免费的吗？次数用完了怎么办？**\n豆包 App 可免费使用，App Store 页面同时列出了订阅套餐和创作额度包。每天能生成多少张，官方没有公布固定数字，以 App 内提示为准；额度用完可以等待刷新，或按官方页面的说明选择订阅。\n\n**Q：生成的图片有水印 / AI 标识，能去掉吗？**\n标识是按国家网信办等四部门《人工智能生成合成内容标识办法》（2025-09-01 起施行）添加的，办法禁止恶意删除、篡改、伪造、隐匿标识。本文不提供去除方法；对外发布 AI 图片时应保留标识，详见《AI 生成内容标识规定》。\n\n**Q：生成的人手、文字总出错？**\n减少画面里的元素，文字用双引号并缩短；人物改成半身或让手自然下垂。局部有问题用改图指令单独修，不必整张重来。\n\n**Q：提示「无法生成」？**\n多半是描述或上传的图片触发了内容规则，比如涉及真实人物、未成年人不当内容、知名 IP 角色等。换成原创角色和中性描述再试。\n\n**Q：豆包生图和即梦有什么关系？**\n两者都是字节跳动旗下产品，图片模型同属 Seedream 系列。即梦是专门的创作工具，参数和模型选择更细，见《即梦AI怎么用》；豆包胜在对话式修改方便。\n\n## 参考资料\n\n- 豆包网页版（图像生成入口）— https://www.doubao.com/chat/\n- 豆包官网：下载豆包客户端（Seedream 5.0 相关描述）— https://www.doubao.com/download/desktop\n- 火山引擎：Seedream 4.0-5.0 提示词指南 — https://docs.volcengine.com/docs/82379/1829186\n- App Store：豆包 - 生活工作 AI 助手 — https://apps.apple.com/cn/app/id6459478672\n- 国家网信办：《人工智能生成合成内容标识办法》— https://www.cac.gov.cn/2025-03/14/c_1743654684782215.htm",
+      "sources": [
+        "https://www.doubao.com/chat/",
+        "https://www.doubao.com/download/desktop",
+        "https://docs.volcengine.com/docs/82379/1829186",
+        "https://apps.apple.com/cn/app/id6459478672",
+        "https://www.cac.gov.cn/2025-03/14/c_1743654684782215.htm"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "豆包生成视频怎么用：入口、提示词写法、图生视频与次数额度说明",
+      "slug": "doubao-video-generation",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "doubao",
+        "seedance"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "豆包怎么生成视频、提示词怎么写、图生视频怎么做、是不是免费？本文讲清豆包「视频生成」的入口，按 Seedance 官方提示词指南整理文生视频和图生视频的写法，并说明次数额度和 AI 标识的官方口径。",
+      "content": "## 适用于谁\n\n- 搜「豆包生成视频提示词」「豆包图生视频怎么用」「豆包生成视频是免费的吗」「豆包生成视频次数」的人；\n- 想用豆包把一句话或一张图变成短视频，但出来的画面乱动、不听指挥的人。\n\n本文根据豆包官网页面、App Store 页面、字节跳动 Seed 官方博客和火山引擎 Seedance 官方文档整理，资料核对于 2026-10-11。入口名称以实际界面为准。\n\n## 结论先说\n\n1. **入口**：网页版 / 电脑版在输入框下方点「视频生成」；手机 App 里在对话中发起，或使用图片动起来一类的功能（以实际界面为准）。\n2. **用的是字节跳动的 Seedance 系列视频模型**。App Store 页面的应用介绍写明图片和视频生成基于 Seedance 模型，Seed 官方博客也说明 Seedance 2.0 可在豆包 App 中使用，官网下载页提到客户端支持「专业版 Seedance 2.5」。\n3. **提示词写「主体 + 动作 + 场景 + 镜头」**，一个镜头只安排一种运镜，动作写具体。\n4. **图生视频更可控**：先有一张满意的图，再让它动起来。\n5. **次数和额度没有官方固定数字**；生成的视频带 AI 生成标识，本文不提供去除方法。\n\n## 步骤\n\n### 1. 找到入口\n\n1. 打开 doubao.com/chat 并登录，点输入框下方的 **视频生成**；\n2. 输入文字描述，或先上传一张图片再描述希望它怎么动；\n3. 选择比例、时长等参数（可选项因模型和账号而异，以界面为准），发送后等待生成。\n\n视频生成比出图慢得多，高峰期需要排队，这是正常现象。\n\n### 2. 文生视频：按「谁、做什么、在哪、镜头怎么动」写\n\nSeedance 官方提示词建议的核心是**把动作和镜头写具体**。可以套这个结构：\n\n```\n[主体] + [具体动作] + [场景 / 环境]，[镜头运动]，[光线 / 氛围 / 风格]\n```\n\n例如：\n\n```\n一只橘猫从窗台跳到书桌上，碰倒了一支铅笔，铅笔滚到桌边停住；\n室内下午的自然光；固定机位，中景；画面安静温馨，写实风格\n```\n\n对照检查三点：\n\n- **动作可被看见**：「很开心」不如「咧嘴笑着原地跳了两下」；\n- **一个镜头一种运镜**。官方提示词指南提醒，同一镜头里同时要求推、拉、摇、移会让画面不稳定。想要多个镜头，就按「镜头 1 / 镜头 2 / 镜头 3」分开写；\n- **不要塞太多主体**。一条短视频里主角一两个，背景元素点到为止。\n\n### 3. 图生视频：让图「动起来」而不是「重画一遍」\n\n上传图片后，提示词只需要写**变化的部分**——图里已经有的外观不用再描述一遍：\n\n```\n女孩缓缓转头看向镜头并微笑，头发被微风吹动；背景的树叶轻轻摇晃；\n镜头缓慢向前推进\n```\n\n官方文档给的两条建议：\n\n- 图生视频尽量上传**高清图片**，图片质量对结果影响很大；\n- 输入图片的宽高比和输出视频的宽高比不一致时，可能出现画面被拉伸、压缩的「跳变」。所以先把图裁成目标比例（竖屏 9:16、横屏 16:9）再上传。\n\n一个稳妥的流程：先用豆包的「图像生成」做出满意的首帧（见《豆包生图怎么用》），再拿这张图生成视频。\n\n### 4. 台词、声音和字幕\n\nSeedance 2.x 能生成带声音的视频。按官方提示词指南的写法：\n\n- 人物要说的话放进花括号，例如 `她抬头说：{今天天气真好}`；\n- 不想要字幕，就在提示词末尾加一句「保持无字幕」。\n\n具体模型是否支持音频，以你在豆包里实际选到的模型为准。\n\n### 5. 不满意时怎么改\n\n- **动作不对**：把动作拆得更细，写清先后顺序（「先……然后……最后……」）；\n- **人物变形**：减少大幅度动作，改成半身或中景；图生视频换一张更清晰、正面的图；\n- **镜头乱晃**：明确写「固定机位」；\n- **想保留开头和结尾**：用首帧 + 尾帧的方式生成过渡，写法见《即梦首尾帧怎么用》。豆包里是否提供首尾帧入口以界面为准，没有的话可以到即梦里做。\n\n## 常见问题\n\n**Q：豆包生成视频是免费的吗？每天几次？**\n豆包 App 本身免费。App Store 页面同时列出了订阅套餐和「创作额度包」这类内购项目，说明视频这类高消耗功能存在额度。免费用户每天能生成几条、订阅后有多少额度，官方没有公布固定数字，以 App 内的提示和官方订阅页面为准。\n\n**Q：生成的视频有「AI生成」标识，能去掉吗？**\n标识是按《人工智能生成合成内容标识办法》（2025-09-01 起施行）添加的，办法禁止恶意删除、篡改、伪造、隐匿标识，本文不提供去除方法。发布到短视频平台时，按平台要求勾选或声明内容由 AI 生成，详见《AI 生成内容标识规定》。\n\n**Q：可以上传真人照片生成视频吗？**\n只用本人或已获授权的照片。Seedance 2.0 发布时官方说明暂不支持直接用真人人脸做参考，用 AI 生成的人物或动漫形象更顺利；当前规则以界面提示为准。\n\n**Q：最长能生成多少秒？**\n取决于模型。火山引擎文档写明 Seedance 2.0 支持的输出时长为 4～15 秒，Seedance 2.5 发布时官方介绍单段最长 30 秒；豆包里实际可选的时长以界面为准。更长的片子用多段拼接。\n\n**Q：豆包和即梦生成视频有什么区别？**\n模型同源，都是 Seedance 系列。即梦是专门的创作工具，「全能参考」、首尾帧、智能多帧等方式更全，见《Seedance 2.0 怎么用》；豆包适合随手生成和对话式修改。\n\n**Q：提示生成失败或内容不合规？**\n检查提示词和图片里是否有真实人物、知名 IP 角色、暴力等内容，换成原创角色和中性描述再试。\n\n## 参考资料\n\n- 豆包网页版（视频生成入口）— https://www.doubao.com/chat/\n- 豆包官网：下载豆包客户端 — https://www.doubao.com/download/desktop\n- App Store：豆包 - 生活工作 AI 助手 — https://apps.apple.com/cn/app/id6459478672\n- 字节跳动 Seed：Seedance 2.0 正式发布 — https://seed.bytedance.com/zh/blog/seedance-2-0-%E6%AD%A3%E5%BC%8F%E5%8F%91%E5%B8%83\n- 火山引擎：Doubao Seedance 2.0 系列提示词指南 — https://www.volcengine.com/docs/82379/2222480\n- 火山引擎：视频生成教程（图生视频、提示词建议）— https://www.volcengine.com/docs/82379/2298881\n- 国家网信办：《人工智能生成合成内容标识办法》— https://www.cac.gov.cn/2025-03/14/c_1743654684782215.htm",
+      "sources": [
+        "https://www.doubao.com/chat/",
+        "https://www.doubao.com/download/desktop",
+        "https://apps.apple.com/cn/app/id6459478672",
+        "https://seed.bytedance.com/zh/blog/seedance-2-0-%E6%AD%A3%E5%BC%8F%E5%8F%91%E5%B8%83",
+        "https://www.volcengine.com/docs/82379/2222480",
+        "https://www.volcengine.com/docs/82379/2298881",
+        "https://www.cac.gov.cn/2025-03/14/c_1743654684782215.htm"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "Kimi怎么用：K3 与 K2.6 怎么选、思考强度、上传文件与 Agent 任务入门",
+      "slug": "kimi-how-to-use",
+      "checkedOn": "2026-10-11",
+      "images": [
+        "g472-kimi-web-home.jpg"
+      ],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Kimi怎么用？本文按 Kimi 官方帮助中心讲清网页版和 App 的入口、K2.6 / K3 / K3 集群三个模型和「标准、进阶、极致」思考强度怎么选、上传文件的限制，以及 PPT、深度研究等 Agent 任务从哪里开始。",
+      "content": "## 适用于谁\n\n- 搜「kimi怎么用」「kimi k3 怎么用」「kimi模型选择」，第一次用 Kimi 或很久没用、发现界面大变样的人；\n- 不知道 K2.6、K3、K3 集群和「标准 / 进阶 / 极致」该怎么选的人。\n\n本文根据 Kimi 官方帮助中心和 kimi.com 首页整理，资料核对于 2026-10-11，入口名称以实际界面为准。\n\n## 结论先说\n\n1. **官方入口是 kimi.com**（月之暗面出品），网页直接用；手机有 App；电脑上另有桌面端。\n2. **「对话」和「Agent」已经合并**：同一个输入框既能聊天，也能交办做 PPT、写报告、搭网站这类任务，输入框的提示语就是「尽管问，或做个 Agent 任务」。\n3. **不用手动开联网**。官方说明 Kimi 会根据问题自己判断要不要搜索。\n4. **模型怎么选**：日常问答用 K2.6，要它直接产出文件或做多步任务用 K3，海量搜索和批量处理用 K3 集群。\n5. **用量按额度算**，三个模型都消耗额度，思考强度越高消耗越多。\n\n## 步骤\n\n### 1. 打开并登录\n\n浏览器打开 kimi.com。不登录可以看到首页，登录后才会同步历史会话。手机在应用商店下载 Kimi App；首页右上角有「下载桌面端」。\n\n![Kimi 网页版首页（未登录状态）：输入框提示「尽管问，或做个 Agent 任务...」，右下可切换思考强度，下方是 PPT、深度研究、文档、构建应用、表格、设计等入口](seed:g472-kimi-web-home.jpg)\n*图片来源：[Kimi 官网 kimi.com](https://www.kimi.com/)，截取于 2026-10-11*\n\n界面上的几个位置（网页版）：\n\n- **输入框左下的「+」**：上传文件、图片，选择插件、技能；\n- **输入框右侧**：模型和思考强度的切换；\n- **输入框下方**：选择项目、插件，以及 PPT、深度研究、文档、构建应用、表格、设计等快捷入口；\n- **左侧栏**：新建会话、我的 Kimi、插件、定时任务、灵感库、项目和历史会话；\n- **左下角头像**：设置、会员计划、语言、用户反馈。\n\n### 2. 选模型和思考强度\n\n官方帮助中心给出的三个模型：\n\n| 模型 | 思考强度 | 适合 | 说明 |\n| --- | --- | --- | --- |\n| K2.6 | 标准 / 进阶 | 快速问答、日常对话 | 响应更快；只输出文本内容（例如 PPT 大纲、文档正文、代码） |\n| K3 | 标准 / 进阶 / 极致 | 复杂对话、写文档、做 PPT 和表格、多步任务 | 综合能力最强，可以直接产出 .pptx、.docx、.xlsx、.pdf 等可编辑文件 |\n| K3 集群 | 标准 / 进阶 / 极致 | 海量搜索、批量处理、超长文写作 | 多个子智能体并行处理大规模任务 |\n\n思考强度的取舍很直接：强度越高推理越充分，结果通常更好，但消耗的额度也更多。官方建议想省额度、求速度选「标准」，复杂分析和难题再选「进阶」或「极致」。\n\n以前单独的「思考模式」开关已经不再区分，思考能力通过「模型 + 思考强度」来体现。\n\n### 3. 像聊天一样提问\n\n直接输入问题发送即可。两个官方给出的使用建议：\n\n- **换话题就新建会话**。会话轮次太多（比如超过 50 轮）时，早期内容可能被「遗忘」；官方建议超过 20 轮后主动让它总结一下关键信息；\n- **需要最新信息不用特别说明**，Kimi 会自动联网，并在回答里给出可溯源的来源。\n\nKimi 内置了几个不需要配置的工具：联网搜索、访问指定网址、图片搜索、运行 Python 代码做数据分析和画图、记忆。所以你可以直接贴一个链接让它读，或者丢一份数据让它算。\n\n### 4. 上传文件\n\n点输入框的「+」上传（手机端还可以选照片、本地文件或微信文件）。官方说明的限制：\n\n- 支持 PDF、Word、Excel、PPT、图片、TXT、视频等常见格式；\n- 单个文件不超过 100MB，单次最多 50 个文件。\n\n读长文档的方法和注意事项见《Kimi 上传文件读长文档》。\n\n### 5. 交办一个 Agent 任务\n\n想要的不是一段回答而是一个成品时，点输入框下方对应的入口再描述需求：\n\n- **PPT**：输入主题或上传资料，生成可编辑的演示文稿，见《Kimi PPT 助手怎么用》；\n- **深度研究**：自动搜索上百个网页，产出带引用的长报告，见《Kimi 深度研究怎么用》；\n- **文档 / 表格**：生成和处理 Word、Excel 类文件；\n- **构建应用**：用对话搭建网页或小应用并部署；\n- **图片、视频、音频生成**：点「+」→「插件」，选择对应功能后在 K3 下使用。\n\n交办任务时把「目标、材料、交付形式」说清楚：\n\n```\n目标：给新入职的销售同事做一份产品培训材料。\n材料：我上传的产品手册和价格表。\n交付：一份 15 页左右的 PPT，每页不超过 4 个要点；再给一页常见客户问题与回答。\n```\n\n### 6. 用好记忆、项目和常用语\n\n- **记忆空间**：Kimi 会保存你的偏好并参考过往聊天，管理方法见帮助中心的「记忆空间」文章；\n- **项目**：把同一件事的资料和会话放在一起，记忆和资料按项目隔离；\n- **常用语**：把反复使用的提示词保存下来，一键调用；\n- **定时任务**：让它按时间自动执行，比如每天早上整理某个主题的新闻。\n\n## 常见问题\n\n**Q：Kimi 是免费的吗？**\n可以免费使用，但模型和 Agent 任务都按额度计费，官方帮助中心提到每月有一定的免费额度；额度用完或需要更高权益时可以订阅会员，档位和价格见官方会员计划页面。\n\n**Q：K3 的 100 万 token 上下文人人都能用吗？**\n不是。官方说明 K3 的 100 万 token 上下文需要最高档会员权益；K2.6 单轮上下文约 128K token（约 5–6 万汉字）。\n\n**Q：Kimi 能生成图片和视频吗？**\n能，通过插件。官方说明需要先在「+」→「插件」里选择创意设计类功能，并在 K3 下使用。\n\n**Q：Kimi 能操作我的电脑吗？**\n普通对话和 Agent 任务没有操作电脑的权限。官方说明只有在 Kimi Work（桌面端的本地 Agent）里主动安装并开启相应插件后才可以。\n\n**Q：怎么切换界面语言？**\n「设置」→「通用」→「语言」，官方说明支持 13 种语言。\n\n**Q：回答跑偏了怎么办？**\n先看是不是会话太长，新建会话把要点贴进去重问；复杂问题把思考强度调到「进阶」；要它产出文件时确认选的是 K3。\n\n## 参考资料\n\n- Kimi 官网 — https://www.kimi.com/\n- Kimi 帮助中心：新手入门 · 概览 — https://www.kimi.com/help/new-user-guide/overview\n- Kimi 帮助中心：Agentic 会话 — https://www.kimi.com/help/new-user-guide/agentic-chat\n- Kimi 帮助中心：模型与模式选择 — https://www.kimi.com/help/others/model-mode-selection\n- Kimi 帮助中心：Kimi 能做什么 — https://www.kimi.com/help/others/capability",
+      "sources": [
+        "https://www.kimi.com/",
+        "https://www.kimi.com/help/new-user-guide/overview",
+        "https://www.kimi.com/help/new-user-guide/agentic-chat",
+        "https://www.kimi.com/help/others/model-mode-selection",
+        "https://www.kimi.com/help/others/capability"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "Kimi PPT助手怎么用：一键生成PPT、用自己的模板、下载与常见问题",
+      "slug": "kimi-ppt-assistant",
+      "checkedOn": "2026-10-11",
+      "images": [
+        "g473-kimi-ppt-entry.jpg"
+      ],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Kimi PPT 助手怎么用、怎么用自己的模板、生成后怎么改和下载？本文按 Kimi 官方帮助中心讲清入口、三种输入方式、智能布局与经典模板两种模式的区别、上传 PPTX 模板的做法，以及任务中断、打不开等问题的官方处理办法。",
+      "content": "## 适用于谁\n\n- 搜「kimi ppt助手」「kimi ppt怎么用」「怎么用kimi生成ppt」「kimi ppt怎么用自己的模板」的学生和职场人；\n- 生成到一半中断、下载后打不开，想知道官方怎么处理的人。\n\n本文根据 Kimi 官方帮助中心的三篇 PPT 文章和 kimi.com/slides 页面整理，资料核对于 2026-10-11，入口名称以实际界面为准。\n\n## 结论先说\n\n1. **入口**：网页版直接打开 kimi.com/slides，或在首页输入框下方点「PPT」；App 里点输入框下方工具栏的「PPT」。\n2. **三种开头方式**：一句话主题、粘贴一段文字、上传一份文档（支持 PDF、Word、PPTX、Excel、TXT、图片）。\n3. **两种生成模式**：「智能布局」设计感强、耗时 5–10 分钟；「经典模板」版式稳定、耗时 3–5 分钟。\n4. **能用自己的模板**：在自定义里上传 PPTX 文件并描述需求即可。\n5. **生成的是可编辑的 .pptx**，可以在线修改，也可以下载后用 PowerPoint、WPS、Keynote 继续改。\n\n## 步骤\n\n### 1. 进入 PPT 助手\n\n打开 kimi.com/slides 并登录。页面上方是输入框（提示「输入你想创作的 PPT 主题」），下方是模板区。\n\n![Kimi PPT 助手页面（未登录状态）：输入框左侧可选风格，下方按「全部 / 自定义 / 工作汇报 / 金融投资 / 宣传推广 / 学术研究 / 战略咨询」分类列出模板](seed:g473-kimi-ppt-entry.jpg)\n*图片来源：[Kimi PPT 助手 kimi.com/slides](https://www.kimi.com/slides)，截取于 2026-10-11*\n\n### 2. 选一种方式给内容\n\n- **只有主题**：直接输入，例如「新能源汽车出海趋势分析」。Kimi 会自己搜索资料并撰写，官方说明引用的文字和数据会经过信息源校验；\n- **已有文字稿**：把讲稿、会议纪要、文章粘贴进去；\n- **已有文档**：点「+」上传 PDF、Word、Excel 等文件，让它按文档内容来做。\n\n主题越具体越好。把听众、页数、重点一起写上：\n\n```\n主题：2026 年第三季度华东区销售复盘\n听众：公司管理层，10 分钟汇报\n页数：12 页左右\n结构：整体业绩 → 分产品线 → 分城市 → 问题与原因 → 下季度计划\n要求：每页一个结论性标题；数据用图表呈现；语言简练\n```\n\n有准确数据时一定要自己提供（上传表格或直接写数字），不要让它凭搜索去猜你公司的数字。\n\n### 3. 选模式和模板\n\n官方帮助中心介绍了两种创作模式：\n\n| | 智能布局模式 | 经典模板模式 |\n| --- | --- | --- |\n| 怎么设计 | 由 Kimi 自主设计每页的布局和样式 | 在预制的精美模板里填充内容 |\n| 适合 | 追求个性化设计；数据、图片等非文本内容多 | 文字内容多；要快速出稿、版式稳定 |\n| 预计耗时 | 5–10 分钟 | 3–5 分钟 |\n\n操作上，在模板区按场景（工作汇报、金融投资、宣传推广、学术研究、战略咨询等）挑一个模板，点「做同款」即按该样式生成；也可以选「自由风格」并挑配色，让它自由发挥。场景和模板的名称会更新，以页面为准。\n\n### 4. 用自己的模板\n\n公司有统一模板、学校有答辩模板时：\n\n1. 在模板区切到「自定义」；\n2. 上传你的 PPTX 文件；\n3. 在输入框里描述内容需求后发送。\n\n官方说明使用自定义模板时不需要再选场景或官方模板。此外还支持「一键还原参考图」——上传一张你喜欢的 PPT 页面截图，让它参考这个样式来做。\n\n### 5. 预览、修改\n\n生成完成后对话里会出现 PPT 卡片，点击进入预览和编辑页面：\n\n- **在线改**：直接修改文字、调整内容；\n- **让 Kimi 改**：回到对话里说「第 5 页改成对比表格」「整体换成深色配色」「把第 3、4 页合并」；\n- **在线放映**：支持直接预览放映。\n\n逐页检查两样东西：数字和引用是否准确，图表是否和文字结论一致。\n\n### 6. 下载和分享\n\n- **网页版**：在 PPT 编辑界面点右上角「下载」；\n- **App**：生成后点「导出」，可以分享到微信等应用。\n\n下载的是可编辑的 .pptx 文件，用 Microsoft PowerPoint、WPS 或 Keynote 打开。\n\n## 常见问题\n\n**Q：Kimi 做 PPT 要钱吗？**\n官方帮助中心的说法是每月有一定的免费额度，不付费也能体验完整功能；PPT 任务会消耗额度，用完后等额度刷新或订阅会员。具体额度以「我的订阅」里显示的为准。\n\n**Q：生成到一半中断了？**\n官方给的办法是点击下方右侧的继续按钮，模型会接着把 PPT 做完。\n\n**Q：显示「任务已取消」？**\n通常是生成失败。新建一个对话，用相同的指令重新生成。\n\n**Q：点 PPT 卡片进不去编辑页，或预览空白、样式错乱？**\n先刷新页面；不行就清除浏览器缓存，或换用最新版的 Chrome、Edge、Safari，也可以开无痕模式排除浏览器插件的干扰。还可以在手机 App 或另一台电脑上登录同一账号查看。\n\n**Q：下载的文件打不开，或者是 0KB？**\n确认用支持 .pptx 的软件打开，旧版办公软件可能不兼容，建议升级。文件为 0KB 或损坏一般是生成过程异常，新建对话重新生成。\n\n**Q：K2.6 能直接出 PPT 文件吗？**\n按官方的模型说明，K2.6 只输出文本内容（比如 PPT 大纲），直接产出 .pptx 文件需要 K3。PPT 助手页面核对时默认使用的就是 K3。\n\n**Q：遇到问题怎么反馈？**\n在结果下方点「👎」，或在 PPT 结果页右下角的菜单里找到「用户反馈」中的 PPT 专属反馈入口；反馈时附上浏览器和系统版本、截图和操作步骤。\n\n## 参考资料\n\n- Kimi PPT 助手 — https://www.kimi.com/slides\n- Kimi 帮助中心：Kimi PPT — https://www.kimi.com/help/ppt/ppt-overview\n- Kimi 帮助中心：如何选择 PPT 创作模式 — https://www.kimi.com/help/ppt/ppt-creation-mode\n- Kimi 帮助中心：PPT 常见问题与排查 — https://www.kimi.com/help/ppt/ppt-troubleshooting",
+      "sources": [
+        "https://www.kimi.com/slides",
+        "https://www.kimi.com/help/ppt/ppt-overview",
+        "https://www.kimi.com/help/ppt/ppt-creation-mode",
+        "https://www.kimi.com/help/ppt/ppt-troubleshooting"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "Kimi深度研究怎么用：提问写法、澄清环节、报告导出与额度说明",
+      "slug": "kimi-deep-research",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Kimi 深度研究怎么用、要等多久、额度怎么扣、报告怎么导出？本文按 Kimi 官方帮助中心讲清入口和五个步骤、提问与澄清怎么写才不跑偏、两种报告的导出方式，以及卡住、扣额度等常见问题的官方说法。",
+      "content": "## 适用于谁\n\n- 搜「kimi 深度研究」「kimi深度研究怎么用」「kimi深度研究额度用完了怎么办」的人；\n- 要写行业研究、课题综述、竞品调研，想让 AI 先跑一遍资料的人。\n\n本文根据 Kimi 官方帮助中心的深度研究文章和 kimi.com/deep-research 页面整理，资料核对于 2026-10-11。\n\n## 结论先说\n\n1. **入口**：网页版打开 kimi.com/deep-research，或在首页输入框下方点「深度研究」；App 里在工具栏切换到深度研究。\n2. **一次研究通常要 10–25 分钟**，期间可以离开页面，任务在后台跑，完成后有通知。\n3. **产出两份东西**：一份带内嵌引用的长篇文字报告，一份可交互、可分享的可视化网页报告。\n4. **额度消耗大**：官方给的参考是一次约消耗 5–10% 的月度额度（以 Moderato 套餐为参考）。任务一旦启动，中途停止也算已消耗。\n5. **不适合简单问题**。一句话能答的事用普通会话更快。\n\n## 它到底做了什么\n\n官方介绍，深度研究由 Kimi 自研的研究模型驱动，自己完成从规划到交付的全过程。帮助中心给了一组平均数据，可以帮你理解它和「联网搜索一下」的差别：\n\n- 澄清意图后平均进行 23 步推理；\n- 平均规划 74 个关键词，找到 206 个网址，从中筛出质量最高的约 3.2% 来用；\n- 文字报告平均万字以上，平均引用约 26 个信源，引用内嵌在正文里，点击可以跳到原文并高亮对应段落。\n\n## 步骤\n\n### 1. 写一个边界清楚的问题\n\n官方的建议是限定时间范围、地域范围和来源类型；范围太大的问题拆成几个子问题分别研究。对比一下：\n\n- 模糊：`研究一下新能源汽车`\n- 清楚：\n\n```\n研究 2023 年至今中国新能源乘用车在东南亚市场的出口情况：\n1. 各年出口量和主要目的国；\n2. 主要车企的本地化建厂进展；\n3. 当地关税和补贴政策的变化；\n资料优先采用政府统计、行业协会和上市公司公告，媒体报道作为补充。\n```\n\n官方同时提醒：问题过长或表意不清会导致方向偏差，所以写清边界即可，不要把背景故事全塞进去。\n\n### 2. 认真回答澄清问题\n\n发送后，Kimi 通常会先反问几个问题来确认方向。这一步决定了后面二十分钟花在哪里：\n\n- 回答要**简洁、指向明确**，官方说明回复过长或偏离原问题可能让研究跑偏；\n- 把**不需要的方向**直接说出来，例如「不需要技术原理部分」「不看 2022 年以前的数据」；\n- 没有特别要求时，可以点「做个全面的研究」跳过。\n\n### 3. 等它跑完\n\n研究过程中可以实时看到它用了哪些检索关键词、怎么推理、访问了哪些网址。两条官方提醒：\n\n- 界面长时间没刷新不代表中断。可以刷新页面，或者先去做别的，稍后回来；\n- **不要点「停止输出」**。任务启动后算力即被占用，主动停止或关闭页面都视为已消耗额度。\n\n### 4. 读报告：先核对引用\n\n研究完成后得到两份成果：\n\n- **深度研究报告**：长篇文字，适合精读和引用；\n- **可视化报告**：网页形式，有结构化排版和思维导图，适合快速浏览和分享给别人。\n\n读的时候抽查关键结论的引用——点开内嵌的引用标记，看原文是否真的支持这句话。用在论文、投资、对外发布的内容里的数字，必须回到原始来源核对。\n\n### 5. 导出和分享\n\n- **文字报告**：点右上角「下载」或「复制」，可导出 PDF、Word；\n- **可视化报告**：点「预览」→「分享」→「复制链接」得到公开分享链接；在浏览器中打开后可以「另存为」保存成 HTML 或 PDF；也可以在代码模式下复制 HTML 源码。\n\n### 6. 接着往下做\n\n报告出来后可以在同一个会话里继续：\n\n```\n基于这份报告，把「政策变化」一章单独展开成 1500 字，并列出还缺哪些数据。\n```\n\n官方说明研究模型的上下文长度为 128K token，单次输出通常在 8K–16K token 左右；报告没写完时，回复「继续」或要求它分章节生成。想把结论做成汇报材料，可以把报告交给 PPT 助手，见《Kimi PPT 助手怎么用》。\n\n## 适合与不适合\n\n官方列出的适用场景：投资分析、行业研究、学术课题、战略规划这类专业研究；法规梳理、多来源信息汇总；教学准备和前沿领域梳理。\n\n官方明确说不适合的：创意写作（网文、剧本、歌词）；娱乐类问题（排盘、运势、取名、预测彩票号码）；固定模板类产出（简历、固定格式表单、可编辑 PPT）。\n\n## 常见问题\n\n**Q：深度研究卡住、一直没结果？**\n通常需要 10–25 分钟。先刷新页面；还没有就检查网络后继续等，也可以离开会话稍后回来。\n\n**Q：研究方向跑偏了怎么办？**\n官方的处理方式：点页面底部「👎」说明问题类型和偏差，平台会在 1–3 个工作日内核查，属实的自动退还本次额度。下次提问时限定时间、地域和来源类型，并在澄清环节说明不要的方向。\n\n**Q：任务失败了还扣额度吗？**\n官方说明：因工具调用失败等原因导致任务失败、没有返回有效结果的，不扣额度（自动返还）。但自己主动停止的任务按已消耗处理。\n\n**Q：额度用完了怎么办？**\n深度研究和其他会员功能共用一个额度池，按实际 token 消耗扣除，按计费周期刷新。可以在「我的」→「设置」→「订阅」里查看剩余额度；用完后等刷新，或按官方会员计划页面升级。\n\n**Q：能指定只用某些来源吗？**\n可以在问题里写明来源类型偏好（如「只采用官方统计和上市公司公告」）。它会尽量遵循，但不保证百分之百，读报告时仍要看引用来源。\n\n## 参考资料\n\n- Kimi 深度研究 — https://www.kimi.com/deep-research\n- Kimi 帮助中心：深度研究介绍 — https://www.kimi.com/help/deep-research/deep-research-overview\n- Kimi 帮助中心：深度研究常见问题 — https://www.kimi.com/help/deep-research/deep-research-faq",
+      "sources": [
+        "https://www.kimi.com/deep-research",
+        "https://www.kimi.com/help/deep-research/deep-research-overview",
+        "https://www.kimi.com/help/deep-research/deep-research-faq"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "Kimi上传文件读长文档：格式与大小限制、读论文和总结PDF的提问方法",
+      "slug": "kimi-long-document-reading",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Kimi 上传文件有什么限制、能读多长的文档、怎么让它读论文和总结 PDF 不漏不编？本文按 Kimi 官方帮助中心讲清支持格式、100MB 与 50 个文件的上限、K2.6 与 K3 的上下文差别，并给出可直接套用的提问模板。",
+      "content": "## 适用于谁\n\n- 搜「kimi 上传文件限制」「kimi读论文」「kimi总结文献指令」的学生、研究人员和要啃长报告的职场人；\n- 遇到「只能阅读全部文件的 ×%，请删减后发送」这类提示，不知道怎么办的人。\n\n本文根据 Kimi 官方帮助中心整理，资料核对于 2026-10-11，入口名称以实际界面为准。\n\n## 结论先说\n\n1. **能传什么**：PDF、Word、Excel、PPT、图片、TXT、视频等常见格式；也可以直接给网址或公众号文章链接让它读。\n2. **能传多大**：官方说明单个文件不超过 100MB，单次最多 50 个文件。\n3. **能读多长取决于模型**：K2.6 单轮上下文约 128K token（约 5–6 万汉字）；K3 提供 100 万 token 上下文，但需要最高档会员权益。文件加起来超过上下文，后面的内容就读不到。\n4. **读得准的关键是提问方式**：先确认它读到了哪里，再分块问，要求标出处。\n\n## 步骤\n\n### 1. 上传文件\n\n- **网页版**：点输入框的「+」，选择文件或图片；\n- **手机 App**：点输入框的「+」，可以选照片、本地文件或微信文件。微信里收到的文档可以直接从这里选，不用先另存。\n\n多份文件可以一次传上去（单次最多 50 个）。只需要其中一两份时就别全传——无关内容会占用上下文，还会分散它的注意力。\n\n### 2. 先估算能不能一次读完\n\n官方给的换算：K2.6 的 128K token 大约相当于 5–6 万汉字。可以这样粗估：\n\n| 材料 | 大致字数 | K2.6 能否一次读完 |\n| --- | --- | --- |\n| 一篇期刊论文（10–20 页） | 1–2 万字 | 可以 |\n| 一份行业报告（50 页） | 3–5 万字 | 接近上限 |\n| 一本书（300 页） | 15 万字以上 | 不行，需要拆分或用更大的上下文 |\n\n超出时界面会提示只能阅读文件的一部分。这时有三个办法：\n\n- **只传需要的章节**（用 PDF 工具拆分）；\n- **分批读**：一次传一部分，每部分让它输出摘要，最后把几份摘要合起来再问；\n- **换 K3 并使用更大的上下文**（按官方说明，100 万 token 上下文属于最高档会员权益）。\n\n### 3. 第一问：让它交代读到了什么\n\n不要一上来就问结论。先发：\n\n```\n请列出这份文件的章节结构（标题 + 起止页码），并告诉我你完整读到了哪一章。\n如果有读不到的部分，请明确说明。\n```\n\n这一步能及时发现「只读了前半本」的情况，避免它拿前半部分的内容回答关于全书的问题。\n\n### 4. 读论文的提问模板\n\n```\n请按下面的结构总结这篇论文，每一点都注明所在章节或页码：\n1. 研究问题：作者想解决什么问题，为什么重要；\n2. 方法：数据来源、样本量、核心方法或模型；\n3. 主要结果：列出 3–5 个关键发现，带上具体数字；\n4. 局限：作者自己承认的局限，以及你认为还存在的问题；\n5. 与我的课题的关系：我的课题是 [一句话描述]，这篇论文哪些部分可以引用。\n不要补充论文里没有的内容；不确定的地方写「原文未说明」。\n```\n\n读完后继续追问细节比重新总结更有效，例如「第 3 条里的效应量是怎么算的，把相关公式和表格位置指给我」。\n\n### 5. 多份文献一起比较\n\n一次上传几篇相关论文后：\n\n```\n把这 5 篇文献做成对比表：列为「研究问题、数据与样本、方法、主要结论、局限」，\n行为每篇文献（用第一作者 + 年份标识）。表格后用 200 字说明它们的共识与分歧。\n```\n\n注意核对它有没有把 A 文献的结论安到 B 文献头上——多文档对比是最容易张冠李戴的场景，关键数字回到原文确认。\n\n### 6. 表格、图片和视频\n\n- **Excel 表格**：Kimi 内置了运行 Python 的工具，可以直接让它「按月汇总并画折线图」，并要求它说明计算口径；\n- **图片**：截图、拍照的文档、图表都可以传，问「这张图说明了什么趋势」；\n- **视频**：官方说明支持上传视频，单个不超过 100M。\n\n### 7. 让它读网页\n\n官方说明 Kimi 内置访问指定网址的工具，支持普通网页和公众号文章链接。直接把链接贴进去并说明要它做什么：\n\n```\n读一下这篇文章：[链接]\n用 5 条要点概括，并指出其中哪些说法没有给出数据来源。\n```\n\n需要登录才能看的页面它读不到，把内容复制出来或存成 PDF 再传。\n\n## 常见问题\n\n**Q：提示只能阅读全部文件的百分之几？**\n文件内容超过了当前模型的上下文长度。按上面第 2 步处理：删减、分批，或使用更大上下文的模型。\n\n**Q：扫描版 PDF 能读吗？**\n图片类内容 Kimi 可以识别，但扫描质量差、手写体、复杂表格容易出错。重要文件先用 OCR 工具转成可复制文字的版本更稳妥。\n\n**Q：聊着聊着它忘了文件前面的内容？**\n会话轮次太多时早期内容可能被压缩。官方建议超过 20 轮后主动让它总结关键信息；也可以新建会话重新上传文件，并把之前的结论贴进去。\n\n**Q：上传的文件安全吗？**\n数据如何使用以 Kimi 的隐私政策和帮助中心「数据使用」说明为准。合同、证件、未公开的研究数据等敏感材料，上传前先确认是否符合你所在单位的规定，必要时打码。\n\n**Q：它总结的内容能直接用在论文里吗？**\n不要直接用。AI 的总结可能有遗漏或错误，页面底部也有「内容由 AI 生成，请仔细甄别」的提示。把它当成帮你快速定位的工具，引用时回到原文。\n\n## 参考资料\n\n- Kimi 帮助中心：Kimi 能做什么（文件上传限制、上下文长度）— https://www.kimi.com/help/others/capability\n- Kimi 帮助中心：模型与模式选择 — https://www.kimi.com/help/others/model-mode-selection\n- Kimi 帮助中心：Agentic 会话（内置工具、支持的输入类型）— https://www.kimi.com/help/new-user-guide/agentic-chat\n- Kimi 帮助中心：新手入门 · 概览 — https://www.kimi.com/help/new-user-guide/overview",
+      "sources": [
+        "https://www.kimi.com/help/others/capability",
+        "https://www.kimi.com/help/others/model-mode-selection",
+        "https://www.kimi.com/help/new-user-guide/agentic-chat",
+        "https://www.kimi.com/help/new-user-guide/overview"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "Kimi API怎么用：API Key获取、Python调用、K3价格与429报错处理",
+      "slug": "kimi-api-key-quickstart",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Kimi API Key 在哪里获取、怎么用 Python 调用 K3、价格怎么算、429 和 401 报错怎么办？本文按 Kimi API 开放平台官方文档讲清注册认证、创建 Key、base_url 与模型名、计费规则和常见错误排查。",
+      "content": "## 适用于谁\n\n- 搜「kimi api key 获取」「kimi api 开放平台」「kimi api 价格」「kimi k3 api」的开发者；\n- 买了 Kimi 会员，想知道能不能拿会员额度调 API 的人；\n- 调用时遇到 401、429、model_not_found 的人。\n\n本文根据 Kimi API 开放平台官方文档和 Kimi 帮助中心的 API 文章整理，资料核对于 2026-10-11。\n\n## 结论先说\n\n1. **API 开放平台是 platform.kimi.com**（原 platform.moonshot.cn 已跳转到这里），和聊天用的 kimi.com 账号体系、计费都是分开的。\n2. **API 只按量计费，没有订阅制**。Kimi 会员的额度不能拿来调开放平台的 API；Kimi Code 的 Key 和开放平台的 Key 也不通用。\n3. **接口兼容 OpenAI SDK**：`base_url` 填 `https://api.moonshot.cn/v1`，模型名填 `kimi-k3` 等。\n4. **国内站和国际站互相隔离**：platform.kimi.com 对应 `api.moonshot.cn`，platform.kimi.ai 对应 `api.moonshot.ai`，账户和 Key 不能混用。\n5. 新用户认证后有 15 元代金券，但官方写明**代金券不能用于 Kimi K3**，用 K3 需要先充值。\n\n## 步骤\n\n### 1. 注册并完成实名认证\n\n打开 platform.kimi.com 登录。在用户中心完成实名认证：\n\n- **个人认证**：按页面提示完成实名；\n- **企业认证**：需要企业名称、同名银行账号和统一社会信用代码，平台会向企业账户打一笔随机小额款项，由财务确认金额后填回。\n\n官方说明认证后可以获得更高的速率限制、开发票等权益；个人可以转企业（余额和用量保留），企业不能转个人。使用国内手机号注册的新用户，完成实名认证后赠送 15 元代金券，有效期 3 个月，扣费时优先使用。\n\n### 2. 创建 API Key\n\n进入控制台的 API Keys 页面，创建并复制密钥，存到环境变量里（官方示例用的变量名是 `MOONSHOT_API_KEY`）：\n\n```bash\nexport MOONSHOT_API_KEY=\"你的 Key\"      # Windows PowerShell：$env:MOONSHOT_API_KEY=\"你的 Key\"\n```\n\n不要把 Key 写进代码或提交到 Git 仓库。\n\n### 3. 发出第一个请求\n\n官方快速开始要求 Python 3.8 及以上，并安装 1.0 以上版本的 openai 库：\n\n```bash\npip install --upgrade 'openai>=1.0'\n```\n\n```python\nimport os\nfrom openai import OpenAI\n\nclient = OpenAI(\n    api_key=os.environ[\"MOONSHOT_API_KEY\"],\n    base_url=\"https://api.moonshot.cn/v1\",\n)\n\ncompletion = client.chat.completions.create(\n    model=\"kimi-k3\",\n    messages=[\n        {\"role\": \"system\", \"content\": \"你是一个严谨的中文助手。\"},\n        {\"role\": \"user\", \"content\": \"用三句话介绍一下什么是上下文缓存。\"},\n    ],\n)\n\nprint(completion.choices[0].message.content)\n```\n\n### 4. 选模型\n\n官方价格页（2026-10-11 核对）列出的模型和价格，单位为元 / 百万 token：\n\n| model id | 上下文 | 输入（缓存命中） | 输入（未命中） | 输出 |\n| --- | --- | --- | --- | --- |\n| kimi-k3 | 1,048,576 | 2.00 | 20.00 | 100.00 |\n| kimi-k2.7-code | 262,144 | 1.30 | 6.50 | 27.00 |\n| kimi-k2.7-code-highspeed | 262,144 | 2.60 | 13.00 | 54.00 |\n| kimi-k2.6 | 262,144 | 1.10 | 6.50 | 27.00 |\n\n怎么选：官方文档把 `kimi-k3` 作为默认推荐；编程场景有专门的 `kimi-k2.7-code` 系列；对成本敏感的通用任务用 `kimi-k2.6`。价格可能调整，以官方价格页为准。\n\nK3 的推理强度通过请求顶层的 `reasoning_effort` 设置，可选 `low`、`high`、`max`，**默认是 `max`**。简单任务记得调低，否则又慢又贵：\n\n```python\ncompletion = client.chat.completions.create(\n    model=\"kimi-k3\",\n    reasoning_effort=\"low\",\n    messages=[{\"role\": \"user\", \"content\": \"把这句话翻译成英文：今天天气不错。\"}],\n)\n```\n\n### 5. 弄清计费规则\n\n- **按 token 计费**，输入和输出都收费；官方给的粗略换算是 1 个 token 约 1.5–2 个汉字；\n- **缓存**：命中缓存的输入按「缓存命中」价格计，便宜一个数量级。K3 另有缓存写入费用（按 5 分钟和 1 小时两档）；\n- **文件**：上传文件并抽取出的内容作为输入传给模型时，按输入计费；文件内容抽取和存储目前限时免费；\n- **SDK 自动重试会多花钱**：官方提醒 OpenAI SDK 默认对 408、409、429 和 5xx 自动重试 2 次，一次调用可能变成 2–3 次请求。\n\n### 6. 了解限速\n\n限速有并发、RPM（每分钟请求数）、TPM（每分钟 token 数）、TPD（每天 token 数）四个维度，任意一个先到就触发。几条官方规则：\n\n- 限速等级和**账户累计充值金额**挂钩，充得越多等级越高；各等级的具体数字在控制台查看；\n- 限速按**用户**计算而不是按 Key，所有模型共享；\n- 网关判断限速时用的是「请求 token 数 + `max_completion_tokens`」，而不是实际生成量。所以把 `max_completion_tokens` 设得过大，会更容易触发限速。\n\n## 常见问题\n\n**Q：返回 401 invalid_authentication_error？**\n官方的说法是通常 Key 用错了平台：开放平台的 Key 和 Kimi Code 的 Key 不通用，国内站和国际站也互相隔离。核对 Key 的来源和 `base_url` 是否属于同一个站点。\n\n**Q：返回 model_not_found？**\n多半是没有设置 `base_url`，请求被发到了 OpenAI 的服务器。补上 `base_url` 即可。也可以用同一个 Key 调用 `GET /v1/models` 看看目标模型在不在列表里。\n\n**Q：返回 429 怎么办？**\n先看错误类型，三种情况处理不同：\n\n- `engine_overloaded_error`：服务节点负载高。按响应里的 `Retry-After` 等待，降低并发、指数退避重试；充值不能解决这个问题；\n- `rate_limit_reached_error`：触发了你的限速。降低频率，或通过充值提升等级；\n- `exceeded_current_quota_error`：余额不足、欠费或代金券失效，充值后重试。\n\n**Q：经常超时或连接断开？**\n开启流式输出（`stream=True`），并检查 SDK 和代理的超时设置，避免长时间没有数据返回被网关断开。\n\n**Q：Kimi 会员能当 API 用吗？**\n不能。开放平台 API 是按量计费的独立产品；会员额度用于 kimi.com 和 Kimi Code 等产品。\n\n**Q：客户端没收到结果，为什么也扣费了？**\n官方说明客户端没显示结果不代表请求失败，服务端可能已经完成并计费。可以在控制台的用量看板和计费明细里按 `request_id` 逐条核对。\n\n**Q：API 账号能注销吗？**\n官方帮助中心写的是不支持账号注销；手机号可以换绑，但新手机号不能注册过开放平台或 Kimi 智能助手。\n\n## 参考资料\n\n- Kimi API 开放平台：快速开始 — https://platform.kimi.com/docs/intro\n- Kimi API 开放平台：模型推理价格说明 — https://platform.kimi.com/docs/pricing/chat\n- Kimi 帮助中心：API 账号与认证 — https://www.kimi.com/help/kimi-api/api-account-and-auth\n- Kimi 帮助中心：API 免费体验（代金券）— https://www.kimi.com/help/kimi-api/api-free-trial\n- Kimi 帮助中心：API 限速 — https://www.kimi.com/help/kimi-api/api-rate-limits\n- Kimi 帮助中心：API 调用常见问题 — https://www.kimi.com/help/kimi-api/api-troubleshooting",
+      "sources": [
+        "https://platform.kimi.com/docs/intro",
+        "https://platform.kimi.com/docs/pricing/chat",
+        "https://www.kimi.com/help/kimi-api/api-account-and-auth",
+        "https://www.kimi.com/help/kimi-api/api-free-trial",
+        "https://www.kimi.com/help/kimi-api/api-rate-limits",
+        "https://www.kimi.com/help/kimi-api/api-troubleshooting"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "Kimi浏览器插件怎么用：安装、侧边栏对话与让AI操作网页",
+      "slug": "kimi-browser-extension",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Kimi 浏览器插件（原 Kimi WebBridge）在哪下载、怎么安装、能做什么？本文按官方帮助中心讲清 Chrome / Edge 安装、侧边栏对话与本地 Agent 远程控制两种用法、把操作存成技能和常见故障处理。",
+      "content": "## 适用于谁\n\n- 搜「kimi浏览器插件」「kimi浏览器插件下载」「kimi浏览器插件chrome」「kimi浏览器助手插件」的人；\n- 想让 AI 帮忙在网页上比价、填表、扒数据，或者想把每天重复的网页操作自动化的人。\n\n本文根据 Kimi 官方帮助中心「Kimi 浏览器扩展」的四篇文章整理，资料核对于 2026-10-11，入口名称以实际界面为准。\n\n## 结论先说\n\n1. **它现在的正式名字是「Kimi 浏览器扩展」**，原名 Kimi WebBridge，商店里的条目名称仍是 Kimi WebBridge。\n2. **支持 Chrome 和 Edge**，系统为 macOS 或 Windows；从 Chrome Web Store 或 Edge Add-ons 官方商店安装。\n3. **两种用法**：点工具栏图标在浏览器侧边栏里直接对话；或者由 Kimi Work、Kimi Code、Claude Code 等本地 Agent 远程驱动它去操作网页。\n4. **它用的是你浏览器里已有的登录状态**。官方说明所有执行在本地完成，登录态和网页内容不会离开你的设备。\n5. 如果你印象里的 Kimi 插件是网页总结、划词这类阅读助手，要注意帮助中心现在介绍的重点是**替你操作网页**：打开页面、点击、填表、截图、提取数据。\n\n## 步骤\n\n### 1. 安装扩展\n\n**从官方商店安装（推荐）**\n\n- Chrome：在 Chrome Web Store 搜索并安装 Kimi WebBridge；\n- Edge：在 Edge Add-ons 搜索并安装 Kimi WebBridge。\n\n**打不开商店时手动安装**（官方给的步骤）\n\n1. 到 Kimi 浏览器扩展的官网页面下载安装包并解压；\n2. 在地址栏打开扩展管理页：Chrome 输入 `chrome://extensions/`，Edge 输入 `edge://extensions/`；\n3. 打开「开发者模式」（Chrome 的开关在页面右上角，Edge 在左下角）；\n4. 点「加载已解压的扩展程序」，选中解压出来的文件夹；\n5. 把扩展固定到浏览器工具栏，方便以后点开。\n\n只从官方商店或 Kimi 官网获取安装包。提示「无法从该网站添加应用」时，说明来源不对，回到上面两种官方方式。\n\n### 2. 用法一：在侧边栏里直接对话\n\n1. 点浏览器工具栏上的 Kimi 图标，展开侧边栏；\n2. 登录 Kimi 账号；\n3. 直接说你要它在当前网页上做什么。\n\n官方列出的可执行操作有：打开指定网址、点击按钮和链接、填写表单、截图、读取页面的文字和表格。可以这样下指令：\n\n```\n把这个页面里的产品表格提取出来，整理成可以粘贴进 Excel 的格式，保留价格和规格两列。\n```\n\n```\n比较这三个标签页里同一款耳机的价格和用户评价，告诉我差别在哪。\n```\n\n涉及提交订单、付款、发送消息这类不可撤销的动作，让它做到「填好但不提交」，最后一步自己确认再点。\n\n### 3. 用法二：让本地 Agent 远程控制\n\n想把网页操作编进更长的任务里（比如「查资料 → 整理成表格 → 写报告」），可以让桌面端的 Agent 驱动扩展。\n\n**搭配 Kimi Work**（官方步骤）\n\n1. 从官网下载 Kimi 桌面端并切换到 Work 模式；\n2. 在插件市场里找到并安装「Kimi 浏览器扩展」；\n3. 之后在 Kimi Work 或浏览器侧边栏里发送指令都可以。\n\n**搭配其他本地 Agent**\n\n官方说明支持 Claude Code、Codex、Cursor、Kimi Code 等所有本地 Agent，配置方式相同：在 Agent 里发送帮助中心提供的安装指令（一条 curl 命令），Agent 会按你的操作系统自动完成安装，连接成功后就能下达网页任务。指令内容以帮助中心页面为准，不要运行来路不明的脚本。\n\n### 4. 把重复操作存成「技能」\n\n这是它区别于普通网页助手的地方。官方帮助中心给了三种方式（在侧边栏里选择，或输入 `/` 调出）：\n\n- **把操作录成技能**：你手动做一遍有固定步骤的操作（比如每天从后台导出数据），它录下来，之后一句话重放；\n- **把网页变成技能**：让它分析你常用的网站（数据看板、内部系统）的结构，封装成可调用的技能；\n- **把会话存成技能**：一次对话里已经跑通的流程，保存下来以后复用。\n\n保存后的技能通过输入 `/` 调用。\n\n### 5. 几个适合的任务\n\n官方举的例子可以直接照着改：\n\n- **比价**：「比较三个平台上这款耳机的价格和用户评价，告诉我哪个更值得买」；\n- **租房筛选**：「在几个平台找离地铁站近、月租五千以内的两居室，并按通勤时间排序」；\n- **文献调研**：「搜索近三年关于某主题的论文，整理成综述表格」；\n- **出行规划**：「比较下周末去杭州的机票和酒店，并列出三天行程和预算」。\n\n## 常见问题\n\n**Q：会不会泄露我的登录信息？**\n官方的回答是不会：所有执行在本地完成，登录态和网页内容不会离开设备，Agent 只能拿到被授权的操作结果。即便如此，网银、支付这类高敏感页面建议不要交给任何自动化工具操作。\n\n**Q：扩展显示「未连接」？**\n先确认扩展已安装。用 Kimi 桌面版的，重启桌面版后重试；用其他本地 Agent 的，在 Agent 里重新发送安装指令，运行后重启该 Agent。\n\n**Q：提示与 Chrome 不兼容，点击、截图等操作失败？**\n官方说多半是和其他插件冲突，尤其是爬虫、网站助手、录屏和 AI 辅助类插件。先关掉其他插件只留它，重启浏览器，再逐个开启找出冲突的那个。\n\n**Q：操作偶尔失败是怎么回事？**\n网页结构复杂或内容是动态加载的时候容易失败。把指令拆简单一些，或者让它先截图确认页面状态再操作。\n\n**Q：能在多台电脑上用吗？**\n可以，每台电脑都要单独安装和配置。\n\n**Q：支持 Safari、Firefox 吗？**\n官方写的是目前支持 Chrome 和 Edge，建议用最新版本。\n\n**Q：用它要钱吗？**\n帮助中心的这几篇文章没有单独说明收费。侧边栏对话需要登录 Kimi 账号，Kimi 的模型和 Agent 任务按额度计费，见《Kimi 会员怎么选》。\n\n## 参考资料\n\n- Kimi 帮助中心：Kimi 浏览器扩展 · 产品介绍 — https://www.kimi.com/help/kimi-webbridge/kimi-webbridge-introduction\n- Kimi 帮助中心：Kimi 浏览器扩展 · 使用步骤与工作原理 — https://www.kimi.com/help/kimi-webbridge/kimi-webbridge-how-it-works\n- Kimi 帮助中心：Kimi 浏览器扩展 · 使用案例 — https://www.kimi.com/help/kimi-webbridge/kimi-webbridge-use-cases\n- Kimi 帮助中心：Kimi 浏览器扩展 · 常见问题 — https://www.kimi.com/help/kimi-webbridge/kimi-webbridge-faq",
+      "sources": [
+        "https://www.kimi.com/help/kimi-webbridge/kimi-webbridge-introduction",
+        "https://www.kimi.com/help/kimi-webbridge/kimi-webbridge-how-it-works",
+        "https://www.kimi.com/help/kimi-webbridge/kimi-webbridge-use-cases",
+        "https://www.kimi.com/help/kimi-webbridge/kimi-webbridge-faq"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "可灵AI怎么用：网页版入口、文生视频、图片生成与灵感值入门",
+      "slug": "kling-ai-how-to",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "kling"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "可灵AI怎么用？本文从网页版和 App 入口讲起，说清 AI 视频、AI 图片各在哪里，文生视频怎么选模型、分辨率和时长，提示词按官方公式怎么写，以及灵感值怎么扣、失败退不退这些新手最常问的事。",
+      "content": "## 适用于谁\n\n- 搜「可灵怎么用」「可灵ai怎么用」「可灵ai网页版」「怎么用可灵做视频」，第一次打开可灵不知道从哪下手的人；\n- 想用可灵做短视频或图片，但分不清模型、分辨率、灵感值这些选项的人。\n\n本文根据可灵官网的快速入门文档、开放平台文档、灵感值规则和网页版的界面说明文字整理，资料核对于 2026-10-11。可灵更新很快，文中的菜单名、模型名**一切以你实际看到的界面为准**。\n\n## 结论先说\n\n1. **网页版地址是 klingai.com**（旧地址 klingai.kuaishou.com 会跳转过来），手机上有「可灵AI」App。按《可灵AI用户服务协议》，可灵由北京快手科技有限公司及其关联公司提供。\n2. **主入口就两个：AI 视频和 AI 图片**。视频里再分文生视频、图生视频（含首尾帧），其余对口型、数字人、视频延长等在「全部工具」里。\n3. **每次生成先选模型，再写描述，再定分辨率和时长**。官方给的文生视频提示词公式是：主体 + 运动 + 场景，再按需加镜头语言、光影和氛围。\n4. **生成消耗灵感值**。官方规则写明：点击生成时扣除，生成失败退回；具体每次扣多少，看提交按钮旁的提示。\n\n## 步骤\n\n### 1. 打开网页版或 App 并登录\n\n电脑浏览器打开 klingai.com 并登录，进入创作平台（地址栏是 klingai.com/app）；手机在应用商店搜「可灵AI」（App Store 页面显示开发者为 Beijing Kwai Technology Co., Ltd.）。官网的说明是 App 与 Web 端资产互通，两边生成的内容都能看到。\n\n灵感值规则里写着「仅限绑定快手账号的用户」获得和使用灵感值，所以登录后账号会和快手账号体系关联。面向海外的站点是 kling.ai，本文只讲国内站。\n\n### 2. 认识几个入口\n\n按核对时的界面文字，创作平台里常用的是这几项（以实际界面为准）：\n\n- **AI 视频**：文生视频、图生视频、首尾帧都在这里；\n- **AI 图片**：文生图和带参考图的生图、改图；\n- **全部工具**：对口型、数字人、视频延长、AI 音效、AI 试衣、特效等单项功能；\n- **资产**：生成过和上传过的素材；\n- **主体库**：把角色或物品存成「主体」，之后反复调用，保持形象一致；\n- **创意圈**：别人的公开作品，可以参考提示词。\n\n### 3. 做第一条文生视频\n\n1. 进入「AI 视频」，先选模型。核对时页面里能看到视频 3.0、视频 3.0 Omni、视频 2.6、视频 O1 等名称，具体有哪些以列表为准；\n2. 在创意描述里写提示词（写法见下一步）；\n3. 选分辨率、时长和画面比例；\n4. 看一眼提交按钮旁显示的灵感值消耗，再点生成。\n\n几个参数的含义：\n\n- **分辨率**：界面的说明是「720p：生成速度更快」「1080p：画面质量更佳」，视频 3.0 系列另有 4K；\n- **时长**：按可灵开放平台的视频能力地图（2026-05-19 更新），3.0 系列为 3～15 秒，2.6 与 O1 为 3～10 秒，2.5 Turbo 为 5 秒或 10 秒；网页端可选项以界面为准；\n- **比例**：官方文档列出的是 16:9、9:16、1:1；\n- **不希望呈现的内容**：可选的负面描述框，界面给的例子是「模糊、变形、低质量」这类词。\n\n界面里还有「AI 润色」开关：开启时模型会自动优化你的描述；关闭后严格按你的原文生成，官方提示这时需要写得更细。\n\n### 4. 按官方公式写提示词\n\n可灵官方文生视频指南给的公式：\n\n```\n提示词 = 主体（主体描述）+ 主体运动 + 场景（场景描述）+（镜头语言 + 光影 + 氛围）\n```\n\n括号里的是可选项，最基本的是**主体、运动、场景**三样。官方用的例子是从「一只大熊猫在咖啡厅里看书」一步步加细节，可以照这个思路写成：\n\n```\n中景，背景虚化，氛围光。一只戴黑框眼镜的大熊猫坐在咖啡厅靠窗的位置看书，\n书放在桌上，旁边一杯咖啡冒着热气，电影感调色\n```\n\n官方的几条提醒：用简单的词和句子；内容控制在几秒内能演完的范围；模型对数量不敏感，「沙滩上有 10 只小狗」这种很难数对；球的弹跳、高空抛物这类复杂物理运动目前不容易做好。\n\n### 5. 图片生成\n\n进入「AI 图片」，直接描述画面即可出图；也可以上传参考图做改图、多图融合或风格变换（界面说明里写的是可上传多张参考图，上限以界面为准）。官方图片指南给的参考图要求是 JPG / PNG 格式、不超过 10MB、尺寸不小于 300px。\n\n出图后可以点「生成视频」，这张图会被直接带到图生视频里当首帧。先出图、再让图动起来，是可灵里最常见的做法，详见《可灵图生视频怎么用》和《可灵首尾帧怎么用》。\n\n### 6. 弄清灵感值\n\n按官网《「灵感值」规则说明》（核对于 2026-10-11）：\n\n- 灵感值是用来兑换平台功能使用权的虚拟道具，生成动作发生时扣除，**生成失败会退回**；\n- 来源有会员权益、活动赠送和购买等几类，有效期各不相同：会员按月发放的灵感值自发放日起 1 个月有效，购买的灵感值自充值日起 2 年有效；\n- 消耗时先用快到期的；\n- 购买的标准定价为 1 元 = 10 灵感值，且不支持退款或提现。\n\n会员有哪些档位、每档送多少灵感值、各模型每次扣多少，变化频繁，以官网会员页和提交前的提示为准，本文不列。\n\n## 常见问题\n\n**Q：可灵AI是哪个公司的？**\n快手。用户服务协议的签约主体是北京快手科技有限公司及其关联公司。\n\n**Q：可灵是免费的吗？**\n生成要消耗灵感值。免费账号能拿到多少灵感值、能用哪些模型和分辨率，官方调整过不止一次，以登录后看到的账户页和会员页为准。\n\n**Q：网页版和 App 有什么区别？**\n同一个账号，资产互通。页面文字显示部分功能在手机浏览器里不可用，会提示改用电脑浏览器或 App；新功能两端上线时间也可能不同。\n\n**Q：提示词用中文可以吗？**\n可以。界面里的输入提示和开放平台文档的示例都是中文。\n\n**Q：生成很慢或者一直排队怎么办？**\n排队时长和当前人数、账号身份有关，界面会显示是否在排队。先确认任务没有失败（失败会退回灵感值），再决定等待还是换个时段。\n\n**Q：想让镜头动起来怎么写？**\n见《可灵运镜提示词怎么写》；通用的运镜术语对照见《AI视频运镜提示词》。\n\n## 参考资料\n\n- 可灵 AI 创作平台 — https://klingai.com/app\n- 可灵 AI 快速入门（官方教程目录）— https://klingai.com/quickstart\n- 可灵官方：Text-to-Video 提示词指南 — https://klingai.com/quickstart/text-to-video-prompt-guide\n- 可灵官方：VIDEO 3.0 模型使用指南 — https://klingai.com/quickstart/klingai-video-3-model-user-guide\n- 可灵官方：AI 图片使用须知 — https://klingai.com/quickstart/ai-image-generation-guide\n- 可灵开放平台：视频能力地图 — https://klingai.com/document-api/guides/capability-map/video\n- 「灵感值」规则说明 — https://klingai.com/docs/point-policy\n- 「可灵AI」用户服务协议 — https://klingai.com/docs/user-policy\n- App Store：可灵AI — https://apps.apple.com/cn/app/id6670396916",
+      "sources": [
+        "https://klingai.com/app",
+        "https://klingai.com/quickstart",
+        "https://klingai.com/quickstart/text-to-video-prompt-guide",
+        "https://klingai.com/quickstart/klingai-video-3-model-user-guide",
+        "https://klingai.com/quickstart/ai-image-generation-guide",
+        "https://klingai.com/document-api/guides/capability-map/video",
+        "https://klingai.com/docs/point-policy",
+        "https://klingai.com/docs/user-policy",
+        "https://apps.apple.com/cn/app/id6670396916"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "可灵图生视频怎么用：上传图片、提示词公式、参数设置与常见失败",
+      "slug": "kling-image-to-video",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "kling"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "可灵图生视频怎么用？本文讲清入口在哪、图片有什么格式和尺寸要求、官方「主体 + 运动」提示词公式怎么套，分辨率、时长、创意相关性这些参数怎么选，以及画面不动、突然切镜、上传失败的原因。",
+      "content": "## 适用于谁\n\n- 搜「可灵图生视频」「可灵图生视频教程」「可灵图生视频提示词」，想让一张照片或一张 AI 图动起来的人；\n- 试过几次，结果要么画面几乎不动、要么突然换了个镜头，不知道问题出在哪的人。\n\n本文根据可灵官方的 Image-to-Video 指南、VIDEO 3.0 使用指南、开放平台图生视频接口文档和网页版界面说明文字整理，资料核对于 2026-10-11。接口文档里的限制是给开发者看的，网页端通常一致但不保证完全相同，**以你上传时界面的提示为准**。\n\n## 结论先说\n\n1. **入口在「AI 视频」里的图生视频**：上传一张图当首帧，再写一句描述；也可以在「AI 图片」出图后直接点「生成视频」。\n2. **提示词只要写「谁 + 怎么动」**。官方公式是：主体 + 运动，背景 + 运动。场景已经在图里了，不用再描述一遍。\n3. **描述要贴着图写**。官方提醒：描述和图片差得太远，模型容易直接切到另一个镜头。\n4. **尾帧、运动笔刷、运镜控制是三选一**，接口文档写明不能同时使用。\n\n## 步骤\n\n### 1. 准备一张合格的图\n\n可灵开放平台图生视频接口对图片的要求是：\n\n- 格式：JPG / JPEG / PNG；\n- 大小：不超过 10MB；\n- 尺寸：宽和高都不小于 300px；\n- 宽高比：在 1:2.5 到 2.5:1 之间，太细长的图会被拒。\n\n除了硬性要求，选图时还可以注意两点：主体清楚、留出动作空间（比如要让人物抬手，手不要贴着画面边缘）；用自己拍的、自己生成的或已获授权的图，上传真人照片前确认是本人或已取得同意。\n\n### 2. 上传并选模型\n\n1. 打开 klingai.com 进入创作平台，选「AI 视频」，切到图生视频；\n2. 点「添加首帧图」上传图片（界面文字，以实际为准）；\n3. 选模型。各模型支持的功能不同，按可灵开放平台的视频能力地图（2026-05-19 更新）：视频 3.0 和 3.0 Omni 支持多镜头、首尾帧、主体控制和音画同出；视频 2.6 支持首尾帧和音画同出，但不支持多镜头。网页端能选哪些以列表为准。\n\n### 3. 按「主体 + 运动」写提示词\n\n官方给图生视频的公式：\n\n```\n提示词 = 主体 + 运动，背景 + 运动 ……\n```\n\n有几个主体就依次写几句。官方举的例子很说明问题：想让一幅肖像画里的人戴上墨镜，只写「戴上墨镜」，模型不知道是谁戴、怎么戴，往往按自己的理解生成，甚至把画当成展品，做一个平移镜头——这也是照片容易生成「静态视频」的原因。改成「画中的女士用手戴上墨镜」，再加一句「背景出现一束光」，模型就容易照做。\n\n可以直接套用的写法：\n\n```\n小猫抬起右爪去够飘落的雪花，尾巴轻轻摆动，背景的雪持续落下\n```\n\n```\n模特微笑着转头看向镜头，头发被风吹起，背景的树叶轻微晃动\n```\n\n官方的几条提示：\n\n- 用简单的词和句子，不要写得很绕；\n- 动作要符合物理规律，最好是图里「本来就可能发生」的动作；\n- 描述和图片差别太大，可能引发镜头切换；\n- 球的弹跳、高空抛物这类复杂物理运动目前不容易做好。\n\n想加镜头运动，直接写进提示词即可，写法见《可灵运镜提示词怎么写》。\n\n### 4. 设置参数\n\n- **分辨率 / 模式**：接口文档把生成模式分为标准（720P，性价比高）、高品质（1080P，质量更好）和 4K 三档；界面上的说明是「720p：生成速度更快」「1080p：画面质量更佳」；\n- **时长**：视频 3.0 系列 3～15 秒，2.6 与 O1 为 3～10 秒（能力地图注明这两款部分情况下只有 5 秒和 10 秒），2.5 Turbo 为 5 秒或 10 秒；\n- **创意想象力 / 创意相关性**：对应接口里的自由度参数，取值 0 到 1，值越大越贴近你的提示词，值越小模型越自由发挥。文档注明 2.x 系列模型不支持这个参数，界面上没有这个滑杆属于正常情况；\n- **不希望呈现的内容**：负面描述框，可留空。接口文档的建议是，优先在正向提示词里用否定句把不要的东西说清楚；\n- **声音**：支持音画同出的模型可以同时生成声音。能力地图注明视频 2.6 在 720P 下只支持无声视频。\n\n设置好后，看清提交按钮旁的灵感值消耗再生成。\n\n### 5. 进阶：绑定主体、多镜头、延长\n\n- **绑定主体**：视频 3.0 的官方指南介绍，上传首帧后可以再绑定主体库里的主体，用来在推拉摇移时稳住角色长相。接口文档写的上限是 3 个参考主体；\n- **多镜头**：视频 3.0 可以打开多镜头开关，让模型自动安排分镜，或用自定义分镜逐个填写每个镜头的内容和时长。接口文档写明最多 6 个分镜，各分镜时长之和要等于总时长；多镜头模式下不能再用首尾帧；\n- **视频延长**：官方「视频延长」指南介绍，生成后的视频可以继续延长，分自动延长和自定义创意延长两种，自定义时提示词要延续原视频里的主体和动作。哪些模型的视频能延长、每次延长几秒，以界面为准。\n\n## 常见问题\n\n**Q：生成的视频几乎不动，像在拍一张照片？**\n多半是提示词只写了结果、没写「谁在做什么」。按「主体 + 运动」补全；如果图本身是画作、海报、截图，在提示词里明确写主体的动作，避免模型把它当成一张要展示的图。\n\n**Q：视频中途突然换了个画面？**\n官方指南的解释是描述和图片偏离太大时容易触发切镜。把动作改成从当前画面能自然发生的，或者拆成两段分别生成。\n\n**Q：上传图片失败？**\n对照第 1 步检查格式、大小、尺寸和宽高比。超长截图、WebP 或 HEIC 格式的图，先转成 JPG 或 PNG 再传。\n\n**Q：同时想用尾帧和运镜控制，为什么一选另一个就没了？**\n接口文档写明尾帧、运动笔刷、运镜控制三者只能选一个，界面上也会提示互斥。镜头运动可以改为写在提示词里。\n\n**Q：提示「未通过审核」或生成失败？**\n前者是内容规则问题，换掉可能有问题的图或描述后再试；后者按灵感值规则会退回本次消耗。本文不提供绕过审核的办法。\n\n**Q：第一次用可灵，入口都找不到？**\n先看《可灵AI怎么用》；通用的图生视频提示词思路见《图生视频提示词怎么写》。\n\n## 参考资料\n\n- 可灵 AI 创作平台 — https://klingai.com/app\n- 可灵官方：Image-to-Video 指南（提示词公式与提示）— https://klingai.com/quickstart/image-to-video-guide\n- 可灵官方：VIDEO 3.0 模型使用指南（多镜头、绑定主体）— https://klingai.com/quickstart/klingai-video-3-model-user-guide\n- 可灵官方：视频延长指南 — https://klingai.com/quickstart/ai-video-extension\n- 可灵开放平台：图生视频接口文档（图片要求、参数互斥）— https://klingai.com/document-api/apiReference/model/imageToVideo\n- 可灵开放平台：视频能力地图 — https://klingai.com/document-api/guides/capability-map/video\n- 「灵感值」规则说明 — https://klingai.com/docs/point-policy",
+      "sources": [
+        "https://klingai.com/app",
+        "https://klingai.com/quickstart/image-to-video-guide",
+        "https://klingai.com/quickstart/klingai-video-3-model-user-guide",
+        "https://klingai.com/quickstart/ai-video-extension",
+        "https://klingai.com/document-api/apiReference/model/imageToVideo",
+        "https://klingai.com/document-api/guides/capability-map/video",
+        "https://klingai.com/docs/point-policy"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "可灵首尾帧怎么用：是什么意思、入口在哪、哪些模型支持、提示词怎么写",
+      "slug": "kling-first-last-frame",
+      "checkedOn": "2026-10-11",
+      "images": [
+        "g485-kling-start-end-kitten.jpg"
+      ],
+      "tags": [
+        "ai-tools",
+        "kling"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "可灵的首尾帧是什么意思、怎么用？本文讲清首尾帧入口、哪些模型和分辨率支持、两张图怎么选、过渡提示词怎么写，以及尾帧为什么和运镜控制、运动笔刷、多镜头不能一起用，画面跳切时怎么调整。",
+      "content": "## 适用于谁\n\n- 搜「可灵首尾帧」「可灵的首尾帧是什么意思」「可灵首尾帧提示词」「可灵首尾帧功能」的人；\n- 想用两张图做变装、转场、物体变形这类「从 A 到 B」的视频，或者想让视频精确停在某个画面上的人；\n- 发现加了尾帧后有些选项自动变了、用不了了，想知道原因的人。\n\n本文根据可灵官方的 Start and End Frames 指南、开放平台图生视频接口文档、视频能力地图和网页版界面说明文字整理，资料核对于 2026-10-11。界面以你实际看到的为准。\n\n## 结论先说\n\n1. **首尾帧 = 你给开头和结尾两张图，可灵生成中间的过渡**。它不是单独的功能页，而是图生视频里的一个选项：先传首帧，再加一张尾帧。\n2. **不是所有模型都支持**。按官方视频能力地图（2026-05-19 更新），视频 3.0、3.0 Omni、O1、2.6、2.5 Turbo 支持首尾帧，其中 2.6 和 2.5 Turbo 只在 1080P 下支持；3.0 Turbo 不支持。\n3. **两张图越像越稳**。官方原话的意思是：尽量选主题相同、画面相近的两张图，差别太大容易变成切镜头。\n4. **尾帧和运镜控制、运动笔刷三选一**，多镜头模式下也不能设首尾帧。\n\n## 步骤\n\n### 1. 找到入口\n\n1. 打开 klingai.com 进入创作平台，选「AI 视频」，切到图生视频；\n2. 选一个支持首尾帧的模型；\n3. 先上传首帧图，再点添加尾帧的位置上传第二张图。官方指南的描述是在图生视频功能区点「增加尾帧」，界面文字还提示可以把已上传的首帧交换到尾帧位置（按钮名称以实际界面为准）。\n\n注意两点：按能力地图，目前各模型都**不支持只传尾帧**，界面会提示「请上传首帧图」；在视频 3.0 Omni 这类多模态输入框里，首尾帧和参考图、主体是放在同一个输入区里选择用途的。\n\n### 2. 准备两张图\n\n![可灵官方首尾帧指南里的示例：两张主体相同、姿势略有变化的小猫图片，分别作为首帧和尾帧](seed:g485-kling-start-end-kitten.jpg)\n*图片来源：[可灵 AI 官方快速入门 · Start and End Frames](https://klingai.com/quickstart/ai-video-start-end-frames)*\n\n上图是官方指南用的例子：同一只小猫、同一个雪景，只是姿势和角度变了。选图可以照这个标准：\n\n- **同主体、同场景、同风格**。官方指南提到很多用户的做法是：先用可灵的图片生成做出几张相近的图，从里面挑两张当首尾帧；\n- **格式和大小**：接口文档要求 JPG / JPEG / PNG，不超过 10MB，宽高不小于 300px；\n- **比例一致**。官方文档没有给出两张图比例不同时的处理规则，稳妥的做法是先把两张图裁成同一比例再上传；\n- 用自己拍的、自己生成的或已获授权的图。\n\n### 3. 写过渡提示词\n\n界面给首尾帧输入框的说明是：用文字描述**场景过渡、运镜轨迹或角色动作**。也就是告诉模型「怎么从第一张变到第二张」。接口文档里的示例只有一句：\n\n```\n镜头拉远，女生微笑\n```\n\n可以按「主体怎么动 + 镜头怎么动 + 中间发生什么」来写：\n\n```\n小猫放下左爪，抬头看向右上方飘落的雪花，镜头缓慢向右环绕小半圈\n```\n\n```\n同一位女孩原地转身，外套从米色大衣自然变为红色羽绒服，镜头固定，背景保持不变\n```\n\n写的时候注意：\n\n- **只写一个主要变化**。时长只有几秒，变装、换景、运镜全塞进去，模型多半用一次硬切解决；\n- **两张图差别大时，补一个「中间环节」**，比如被一阵烟雾遮住、走过一扇门、镜头先推到某个物体再拉开；\n- 提示词上限，接口文档写的是 2500 个字符，足够用，不必写长。\n\n### 4. 选参数并生成\n\n加了尾帧后，可选项会比普通图生视频少，界面会自动调整并弹提示。按能力地图和界面文字，常见的限制有：\n\n- 视频 2.6：首尾帧只支持 1080P，且只能生成无声视频；\n- 视频 2.5 Turbo：首尾帧只支持 1080P；\n- 部分模型加尾帧后不能选较长的时长，界面会自动切回较短档；\n- 音画同步、动作控制等功能和尾帧不兼容时，界面会提示「暂不支持尾帧」或「仅支持首帧图」。\n\n确认灵感值消耗后生成。不满意就改提示词重新生成，或者换一张更接近首帧的尾帧。\n\n## 哪些功能不能和尾帧一起用\n\n| 功能 | 能否与尾帧同时使用 | 依据 |\n| --- | --- | --- |\n| 运镜控制（含大师运镜） | 不能，三选一 | 接口文档：尾帧、运动笔刷、运镜控制不能同时使用 |\n| 运动笔刷 | 不能，三选一 | 同上 |\n| 多镜头 / 自定义分镜 | 不能 | 接口文档：开启多镜头时不支持设定首尾帧 |\n| 动作控制 | 不能 | 界面提示：动作控制目前仅支持首帧图 |\n| 提示词里写镜头运动 | 可以 | 运镜写进文字描述不受上述限制 |\n\n## 常见问题\n\n**Q：可灵的首尾帧是什么意思？**\n把两张图分别当作视频的第一帧和最后一帧，中间的画面由模型补出来。适合变装、转场、物体变化，也适合需要视频精确停在某个构图上的情况。\n\n**Q：可灵只能用首尾帧吗？**\n不是。只传一张首帧就是普通的图生视频，尾帧是可选的；不传图就是文生视频。想让角色在多个镜头里保持一致，还可以用主体库。\n\n**Q：为什么找不到添加尾帧的地方？**\n先看模型：3.0 Turbo 不支持首尾帧，2.6 和 2.5 Turbo 要切到 1080P。再看有没有开着多镜头、运镜控制或运动笔刷，它们和尾帧互斥。\n\n**Q：生成的视频中间「啪」地切了一下？**\n两张图差别太大。换成更接近的两张图，或在提示词里补上中间环节；实在差得远，就拆成两段，各自用首尾帧生成后再剪到一起。\n\n**Q：想做更长的连续视频怎么办？**\n通用做法是把上一段的最后一帧当作下一段的首帧接着生成，再用剪辑软件拼起来。即梦里的同类用法见《即梦首尾帧怎么用》。\n\n**Q：过渡提示词里的镜头术语怎么写？**\n见《可灵运镜提示词怎么写》和《AI视频运镜提示词》。\n\n## 参考资料\n\n- 可灵 AI 创作平台 — https://klingai.com/app\n- 可灵官方：Start and End Frames 指南 — https://klingai.com/quickstart/ai-video-start-end-frames\n- 可灵官方：Image-to-Video 指南 — https://klingai.com/quickstart/image-to-video-guide\n- 可灵开放平台：图生视频接口文档（尾帧要求、参数互斥、示例）— https://klingai.com/document-api/apiReference/model/imageToVideo\n- 可灵开放平台：文生视频接口文档（多镜头与首尾帧互斥的说明）— https://klingai.com/document-api/apiReference/model/textToVideo\n- 可灵开放平台：视频能力地图（各模型首尾帧支持情况）— https://klingai.com/document-api/guides/capability-map/video",
+      "sources": [
+        "https://klingai.com/app",
+        "https://klingai.com/quickstart/ai-video-start-end-frames",
+        "https://klingai.com/quickstart/image-to-video-guide",
+        "https://klingai.com/document-api/apiReference/model/imageToVideo",
+        "https://klingai.com/document-api/apiReference/model/textToVideo",
+        "https://klingai.com/document-api/guides/capability-map/video"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "可灵运镜提示词怎么写：官方提示词公式、运镜控制与大师运镜、负面提示词",
+      "slug": "kling-camera-movement-prompts",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "kling"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "可灵运镜提示词怎么写？本文按可灵官方文档整理：文生视频提示词公式、镜头语言和运镜控制的区别、六种基础运镜与四种大师运镜各是什么、新模型里怎么把运镜和分镜写进提示词，以及负面提示词该填什么。",
+      "content": "## 适用于谁\n\n- 搜「可灵运镜提示词」「可灵 运镜控制」「可灵 运镜技巧」「可灵提示词」「可灵负面提示词」的人；\n- 用可灵生成的视频镜头要么不动、要么乱动，想知道官方到底支持哪些运镜的人；\n- 想用视频 3.0 做多镜头短片，不清楚分镜该怎么写的人。\n\n本文根据可灵官方的 Text-to-Video 提示词指南、Camera Movement 指南、VIDEO 3.0 使用指南和开放平台接口文档整理，资料核对于 2026-10-11。只写官方文档里有的内容；界面上的按钮名称以实际为准。\n\n## 结论先说\n\n1. **官方提示词公式**：主体（主体描述）+ 主体运动 + 场景（场景描述）+（镜头语言 + 光影 + 氛围），括号里是可选项。\n2. **「镜头语言」和「运镜控制」是两回事**。镜头语言是景别、角度、焦段这些，写在提示词里；运镜控制是一个单独的参数面板，用来指定镜头往哪个方向动、动多少。\n3. **运镜控制面板有 6 种基础运镜和 4 种大师运镜**，一次只能选一种，而且只在部分模型下出现。\n4. **用视频 3.0 这类新模型时，运镜直接写进提示词**，还可以按「镜头 1、镜头 2……」写分镜。\n5. **负面提示词是可选的**。接口文档的建议是优先在正向提示词里用否定句说明不要什么。\n\n## 一、官方提示词公式\n\n```\n提示词 = 主体（主体描述）+ 主体运动 + 场景（场景描述）+（镜头语言 + 光影 + 氛围）\n```\n\n各部分官方的解释，归纳如下：\n\n| 部分 | 写什么 | 例子 |\n| --- | --- | --- |\n| 主体 + 主体描述 | 人、动物、物体，以及外貌、服饰、姿态等细节，用几个短句列出 | 一只戴黑框眼镜的大熊猫 |\n| 主体运动 | 在做什么，动作要简单到几秒内能完成 | 低头翻书 |\n| 场景 + 场景描述 | 所处环境，前景和背景，不用写太满 | 咖啡厅靠窗的位置，桌上一杯冒热气的咖啡 |\n| 镜头语言（可选） | 超广角、背景虚化、特写、长焦、仰拍、俯拍、航拍、景深等 | 中景，背景虚化 |\n| 光影（可选） | 环境光、晨光、夕阳、光影交错、丁达尔效应、人造光等 | 氛围光 |\n| 氛围（可选） | 想要的整体情绪和质感 | 电影感调色 |\n\n最基本的三样是主体、运动、场景。图生视频更简单，官方公式是「主体 + 运动，背景 + 运动」，因为场景已经在图里了，详见《可灵图生视频怎么用》。\n\n## 二、运镜控制面板：6 种基础运镜 + 4 种大师运镜\n\n官方 Camera Movement 指南的说法是：运镜控制用「绝对指令」控制画面里的镜头运动，并通过调整位移参数来选择幅度。下面的中文名称取自开放平台接口文档：\n\n| 类型 | 镜头怎么动 | 参数方向 |\n| --- | --- | --- |\n| 水平运镜 | 镜头左右平移 | 负值向左，正值向右 |\n| 垂直运镜 | 镜头上下平移 | 负值向下，正值向上 |\n| 水平摇镜 | 机位不动，镜头左右转 | 负值向左转，正值向右转 |\n| 垂直摇镜 | 机位不动，镜头上下转 | 负值向下，正值向上 |\n| 旋转运镜 | 画面绕镜头轴线滚转 | 负值逆时针，正值顺时针 |\n| 变焦（推进 / 拉远） | 改变焦距，视野变小或变大 | 负值视野变小，正值视野变大 |\n\n接口文档写明：这六项的取值范围都是 -10 到 10，**六选一**，一次只能有一项不为 0。\n\n四种大师运镜是预设好的组合动作，不需要调参数：\n\n| 大师运镜 | 效果 |\n| --- | --- |\n| 左旋推进 | 先向左旋转，再向前推进 |\n| 右旋推进 | 先向右旋转，再向前推进 |\n| 推进上移 | 镜头前进并上仰 |\n| 下移拉远 | 镜头下压并后退 |\n\n使用时要知道的限制：\n\n- **只在部分模型下可用**。界面的提示文字写的是运镜控制仅支持早期的 1.0 模型；官方视频能力地图（2026-05-19 更新）列出的现行模型里没有这一项。所以选了较新的模型后看不到这个面板是正常的，改用下一节的办法；\n- **和尾帧、运动笔刷三选一**，接口文档写明三者不能同时使用；\n- **不指定也可以**。界面说明是：未指定运镜方式时，模型会根据图片或描述智能匹配。\n\n## 三、新模型：把运镜写进提示词\n\nVIDEO 3.0 官方指南里的示例提示词，镜头运动都是直接用文字写的。从这些示例里可以归纳出三种写法。\n\n**1. 一句话里交代镜头**\n\n```\n低角度跟拍，镜头跟在骑手身后向前推进，摩托雪橇驶入雪原深处，\n镜头逐渐升高，露出两侧被雪覆盖的森林\n```\n\n**2. 长镜头按时间点写。** 官方 15 秒长镜头的示例用的是「第 4 秒……第 8 秒……第 12 秒……」这种结构，每个时间点写清镜头和人物各做什么：\n\n```\n一个不剪辑的长镜头。开场超广角横向跟拍，女孩在月光下的草坪上奔跑；\n第 4 秒，镜头随她加速前移；第 8 秒，镜头推到中景并绕到她正前方；\n最后 3 秒，镜头继续向前，她的身影逐渐占满画面\n```\n\n**3. 多镜头按「镜头 N」写。** 视频 3.0 有多镜头开关：打开后模型自动安排分镜；再点自定义分镜，可以逐个填写每个镜头的内容和时长。官方示例的格式是：\n\n```\n镜头 1，司机的侧面中景，手持感；\n镜头 2，方向盘上双手的特写；\n镜头 3，副驾驶座位上一张旧照片的特写\n```\n\n接口文档给的限制是最多 6 个分镜，各分镜时长之和等于视频总时长。\n\n官方 Text-to-Video 指南的示例里出现过的镜头写法，可以直接借用：航拍、第一人称视角高速飞行、镜头缓慢向前推进、环绕镜头、对称构图、运动模糊。更完整的中英文运镜术语表见《AI视频运镜提示词》。\n\n## 四、负面提示词怎么填\n\n网页端的负面输入框叫「不希望呈现的内容」，界面给的例子是模糊、变形、低质量、扭曲、拼贴、标志这类词。使用上注意三点：\n\n- 它是可选项，留空也能生成；\n- 接口文档的建议是：**优先在正向提示词里用否定句补充**，比如「画面中没有文字和水印标志，人物不看镜头」；\n- 负面词只管「不要出现什么」，管不了「动作做错了」。动作不对，要回去改主体运动那一句。\n\n另外还有一个相关的参数：创意相关性（接口里叫自由度，取值 0 到 1），值越大越严格按提示词来。文档注明 2.x 系列模型不支持这个参数。\n\n## 常见问题\n\n**Q：写了运镜，镜头还是不动？**\n先确认提示词里有没有明确的「镜头 + 方向 + 速度」，比如「镜头缓慢向左平移」。图生视频里如果只写了镜头、没写主体动作，模型有时会两头都不做，补上「主体 + 运动」。\n\n**Q：镜头乱晃、一条视频里换了好几种运镜？**\n一条几秒的视频只保留一个主要运镜。需要多个镜头时，用视频 3.0 的多镜头或自定义分镜，而不是把所有运镜塞进一句话。\n\n**Q：想让镜头完全固定怎么写？**\n在提示词里写「固定机位，镜头不动」。支持运动笔刷的模型，界面还提示可以用静态笔刷涂抹需要保持静止的区域。\n\n**Q：「AI 润色」要不要开？**\n界面说明是：开启时模型会自动优化你的描述；关闭后严格按原文生成，需要你把描述写得更细。想精确控制镜头时可以试试关闭后对比。\n\n**Q：提示词里的数量、文字能控制吗？**\n官方提醒模型对数字不敏感，「10 只小狗」这类很难数对。分屏可以用「4 个机位，分别表现春夏秋冬」这种写法。\n\n## 参考资料\n\n- 可灵官方：Text-to-Video 提示词指南（提示词公式、示例与提示）— https://klingai.com/quickstart/text-to-video-prompt-guide\n- 可灵官方：Camera Movement 指南（6 种基础运镜、4 种大师运镜）— https://klingai.com/quickstart/ai-camera-control-guide\n- 可灵官方：VIDEO 3.0 模型使用指南（多镜头、自定义分镜、长镜头示例）— https://klingai.com/quickstart/klingai-video-3-model-user-guide\n- 可灵官方：Image-to-Video 指南 — https://klingai.com/quickstart/image-to-video-guide\n- 可灵开放平台：图生视频接口文档（运镜参数、负向提示词、参数互斥）— https://klingai.com/document-api/apiReference/model/imageToVideo\n- 可灵开放平台：视频能力地图 — https://klingai.com/document-api/guides/capability-map/video",
+      "sources": [
+        "https://klingai.com/quickstart/text-to-video-prompt-guide",
+        "https://klingai.com/quickstart/ai-camera-control-guide",
+        "https://klingai.com/quickstart/klingai-video-3-model-user-guide",
+        "https://klingai.com/quickstart/image-to-video-guide",
+        "https://klingai.com/document-api/apiReference/model/imageToVideo",
+        "https://klingai.com/document-api/guides/capability-map/video"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "可灵和即梦哪个好用？出品方、模型、功能入口与计费方式对比",
+      "slug": "kling-vs-jimeng",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools",
+        "kling",
+        "jimeng"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "可灵和即梦哪个好用、有什么区别？本文只对比官方可核实的事实：出品方、网页和 App 入口、图片与视频模型系列、首尾帧和多素材参考等功能入口、灵感值与积分的计费方式，并给出按需求怎么选的思路。",
+      "content": "## 适用于谁\n\n- 搜「可灵和即梦哪个好用」「可灵和即梦对比」「即梦和可灵对比」，想在两个国产 AI 视频工具里选一个先上手的人；\n- 两个都听说过，但分不清它们分别是谁家的、用的是什么模型、怎么计费的人。\n\n本文只对比**官方页面和文档里能核实的事实**，资料核对于 2026-10-11；即梦部分沿用本站即梦系列教程核对过的官方资料（核对于 2026-10-07）。我们没有做画质评测，不下「谁效果更好」的结论——画面好坏和题材、提示词、当期模型版本关系很大，最可靠的办法是文末的「同题对比」。\n\n## 结论先说\n\n1. **出品方不同**：可灵来自快手，即梦来自字节跳动旗下。两者都是网页版 + App，都能做图片和视频。\n2. **模型体系不同**：可灵用自家的可灵视频 / 图片模型（如视频 3.0、3.0 Omni）；即梦的视频主要是 Seedance 系列、图片主要是 Seedream 系列。\n3. **基础功能大体重合**：文生视频、图生视频、首尾帧、多素材参考、带声音的视频、数字人与对口型，两边都有，只是入口叫法和具体上限不同。\n4. **计费都是「点数」制**：可灵叫灵感值，即梦叫积分，都是每次生成按模型和参数扣除；价格和会员档位各自以官网为准。\n5. **怎么选**：看你更需要哪项具体能力（见第 2 步），再用同一个题目在两边各做一次。\n\n## 步骤\n\n### 1. 先看事实对比表\n\n| 对比项 | 可灵 AI | 即梦 AI |\n| --- | --- | --- |\n| 出品方 | 快手（用户协议主体为北京快手科技有限公司及其关联公司） | 字节跳动旗下（由深圳市脸萌科技有限公司运营） |\n| 网页版 | klingai.com | jimeng.jianying.com |\n| 手机 App | 可灵AI | 即梦AI |\n| 视频模型 | 可灵视频系列：视频 3.0、3.0 Omni、2.6、O1 等 | Seedance 系列：2.5、2.0 等，另有少量第三方模型 |\n| 图片模型 | 可灵图片系列（图片 3.0、图片 O1 等） | Seedream 系列 |\n| 官方文档给出的单段时长 | 3.0 系列 3～15 秒；另有视频延长功能 | Seedance 2.0 为 4～15 秒；Seedance 2.5 单段最长 30 秒 |\n| 首尾帧 | 有。在图生视频里添加尾帧，是否可用随模型和分辨率变化 | 有。视频生成里选「首尾帧」方式，是否可用随模型变化 |\n| 多素材参考 | 主体库 + 3.0 Omni 的多模态输入（图片、视频、主体，用 @ 调用） | 「全能参考」（图片、视频、音频）+ 主体（@名称） |\n| 多镜头 | 视频 3.0 的多镜头 / 自定义分镜（接口文档写最多 6 个分镜） | Seedance 2.x 官方介绍支持生成多镜头视频，另有「智能多帧」 |\n| 视频带声音 | 2.6 与 3.0 系列支持音画同出 | Seedance 2.x 支持生成带声音的视频 |\n| 运镜 | 写进提示词；部分早期模型另有运镜控制面板 | 写进提示词 |\n| 数字人 / 对口型 | 对口型、数字人、动作控制 | 数字人、对口型、动作模仿 |\n| 计费单位 | 灵感值；规则写明生成失败退回 | 积分；页面提示失败的任务返还 |\n| 开发者接口 | 可灵开放平台 | 模型通过火山引擎提供 |\n\n表中的模型名和功能名都以核对时的官方页面为准，两家更新都很快，**以你实际看到的界面为准**。上限类的数字（参考素材数量、分辨率档位等）各模型不同，表里没有逐一列出。\n\n### 2. 按需求选\n\n不谈画质，只看官方写明的能力差异：\n\n- **单段想要更长**：官方文档里，Seedance 2.5 单段最长 30 秒；可灵 3.0 系列单段最长 15 秒，更长的内容靠视频延长或多段拼接；\n- **想精确安排每个分镜**：可灵视频 3.0 的自定义分镜可以逐个填写镜头内容和时长；即梦可以在提示词里写分镜，或用智能多帧按图片顺序串镜头；\n- **手里素材很多，想一次全丢进去当参考**：两边都支持图片、视频等多种参考。即梦的全能参考把上限写得很明确（Seedance 2.5 为 30 张图、10 段视频、10 段音频）；可灵这边看 3.0 Omni 输入框和主体库的提示；\n- **同一个角色要反复出场**：两边都有「主体」功能，都是先建主体、再用 @ 调用。可灵的主体库 3.0 还能从视频里提取角色的外观和音色；\n- **要高分辨率成片**：可灵官方页面写明视频 3.0 系列支持 4K；即梦各模型可选的分辨率以界面为准；\n- **只想先免费试试**：两家的免费额度和限制都调整过多次，登录后看账户页和会员页最准，本文不列数字。\n\n如果需求里这几项都不突出，那就选你更顺手的那个界面——两者的基本操作都是「选模型 → 写描述 → 设参数 → 生成」。\n\n### 3. 用「同题对比」自己判断\n\n花十几分钟做一次，比看任何评测都可靠：\n\n1. 准备一张首帧图（自己拍的或 AI 生成的）和一句提示词，例如「女孩转身看向镜头，头发被风吹起，镜头缓慢推近」；\n2. 在两边都选图生视频，时长和分辨率尽量设成一样；\n3. 各生成 2～3 次，重点看四件事：人物有没有变形、动作是否按描述做了、镜头是否按描述动了、每次结果是否稳定；\n4. 记下各自扣了多少点数、等了多久。\n\n做完你就知道，对你常做的题材来说哪个更合适。\n\n## 常见问题\n\n**Q：可灵和即梦哪个好用？**\n没有通用答案。两者基础功能重合度很高，差异主要在单段时长、分镜方式、参考素材上限这些具体能力上（见上表），画面风格则要靠同题对比自己看。\n\n**Q：可灵和即梦分别是哪个公司的？**\n可灵是快手的，即梦是字节跳动旗下的。\n\n**Q：两个都要开会员吗？**\n不必。先用各自的免费额度按第 3 步做对比，确定常用哪个再决定。会员价格和权益以两家官网为准。\n\n**Q：提示词能通用吗？**\n基本能。两边都支持中文，「主体 + 动作 + 场景 + 镜头」的写法都适用；即梦全能参考里引用素材的写法（图片1、视频1）和可灵用 @ 调用主体的写法是各自专有的，不能照搬。\n\n**Q：还有别的选择吗？**\n同类的国产工具还有海螺 AI、Vidu 等，见《海螺AI怎么用》和《Vidu怎么用》。\n\n**Q：想分别学两个工具，从哪篇看起？**\n可灵看《可灵AI怎么用》《可灵图生视频怎么用》《可灵首尾帧怎么用》；即梦看《即梦AI怎么用》《即梦首尾帧怎么用》《Seedance 2.0 怎么用》。\n\n## 参考资料\n\n- 可灵 AI 创作平台 — https://klingai.com/app\n- 可灵 AI 快速入门 — https://klingai.com/quickstart\n- 可灵官方：VIDEO 3.0 模型使用指南 — https://klingai.com/quickstart/klingai-video-3-model-user-guide\n- 可灵开放平台：视频能力地图 — https://klingai.com/document-api/guides/capability-map/video\n- 可灵「灵感值」规则说明 — https://klingai.com/docs/point-policy\n- 「可灵AI」用户服务协议 — https://klingai.com/docs/user-policy\n- 即梦AI网页版 — https://jimeng.jianying.com/ai-tool/home\n- 即梦AI用户服务协议 — https://lf9-cdn-tos.draftstatic.com/obj/ies-hotsoon-draft/vco/17620dba-f821-4a18-85f9-b8b11f73304a.html\n- 字节跳动 Seed：Seedance 2.0 正式发布 — https://seed.bytedance.com/zh/blog/seedance-2-0-%E6%AD%A3%E5%BC%8F%E5%8F%91%E5%B8%83\n- 字节跳动 Seed：Seedance 2.5 — https://seed.bytedance.com/zh/seedance2_5\n- 火山引擎：Doubao Seedance 2.0 系列教程 — https://www.volcengine.com/docs/82379/2291680\n- 火山引擎：Doubao Seedance 2.5 教程 — https://www.volcengine.com/docs/82379/2607688",
+      "sources": [
+        "https://klingai.com/app",
+        "https://klingai.com/quickstart",
+        "https://klingai.com/quickstart/klingai-video-3-model-user-guide",
+        "https://klingai.com/document-api/guides/capability-map/video",
+        "https://klingai.com/docs/point-policy",
+        "https://klingai.com/docs/user-policy",
+        "https://jimeng.jianying.com/ai-tool/home",
+        "https://lf9-cdn-tos.draftstatic.com/obj/ies-hotsoon-draft/vco/17620dba-f821-4a18-85f9-b8b11f73304a.html",
+        "https://seed.bytedance.com/zh/blog/seedance-2-0-%E6%AD%A3%E5%BC%8F%E5%8F%91%E5%B8%83",
+        "https://seed.bytedance.com/zh/seedance2_5",
+        "https://www.volcengine.com/docs/82379/2291680",
+        "https://www.volcengine.com/docs/82379/2607688"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "海螺AI怎么用：海螺视频入口、文生视频、图生视频、首尾帧与主体参考入门",
+      "slug": "hailuo-ai-how-to",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "海螺AI怎么用？本文从 hailuoai.com 的入口讲起，说清海螺视频是哪家公司的、文生视频和图生视频怎么做、首帧尾帧怎么传、运镜指令怎么插、主体参考和全能参考是什么，以及贝壳怎么扣、失败退不退。",
+      "content": "## 适用于谁\n\n- 搜「海螺ai怎么用」「海螺ai视频」「海螺ai图生视频教程」「海螺ai是哪个公司的」，第一次打开海螺不知道从哪开始的人；\n- 用过可灵、即梦，想再试一个国产 AI 视频工具的人。\n\n本文根据海螺 AI 官网（hailuoai.com）的页面说明文字和 MiniMax 开放平台的视频生成文档整理，资料核对于 2026-10-11。起草时没有登录查看完整的创作界面，界面相关的说法取自官网页面里的说明和提示文字，**菜单名、模型名以你实际看到的界面为准**；开放平台文档里的参数限制是给开发者的，网页端可能略有不同。\n\n## 结论先说\n\n1. **官网是 hailuoai.com**，打开后是「海螺视频」创作站，出品方是 MiniMax；手机上有海螺 AI App。\n2. **做视频有三种给素材的方式**：只写文字（文生视频）；上传首帧、尾帧或首尾帧（图生视频）；用参考图、参考视频、参考音频做「全能参考」。另有针对人物的「主体参考」。\n3. **先选模型再创作**。核对时官网主推 MiniMax H3，此外还有 Hailuo 2.3、Hailuo 02 等，不同模型支持的功能不一样。\n4. **运镜可以用指令控制**。除了自然语言，海螺支持在提示词里插入 [推进]、[左摇] 这样的运镜指令。\n5. **生成消耗贝壳**，页面提示生成失败会退还。价格和会员档位以官网为准。\n\n## 步骤\n\n### 1. 打开官网，认识入口\n\n浏览器打开 hailuoai.com 并登录。按核对时的页面文字，顶部和首页有这些入口（以实际界面为准）：\n\n- **创作视频 / 创作图片**：两个主入口；\n- **视频、图片、音频**：对应三类生成能力；\n- **模板**：上传照片套用现成玩法的特效模板；\n- **资产**：生成过的内容；\n- **工具**、**海螺 Agent**：单项小工具，以及用对话和画布方式做多镜头长视频的 Agent。\n\n官网底部的介绍写明：MiniMax 成立于 2021 年 12 月，基于自研大模型推出了海螺 AI、星野等应用。所以搜「海螺ai是哪个公司的」，答案是 MiniMax。\n\n### 2. 文生视频：一段文字出片\n\n1. 进入「创作视频」，选模型；\n2. 在输入框里描述画面。官网给的示例是「一个孩子在公园里放风筝，金色阳光，镜头上移」——**主体 + 动作 + 环境 + 镜头**；\n3. 选分辨率、时长和比例后生成。\n\n可选的时长和分辨率跟模型有关。MiniMax 开放平台文档给出的规格是：\n\n| 模型 | 分辨率 | 时长 |\n| --- | --- | --- |\n| MiniMax H3 | 768P / 2K | 4～15 秒 |\n| Hailuo 2.3、Hailuo 02 | 768P | 6 秒或 10 秒 |\n| Hailuo 2.3、Hailuo 02 | 1080P | 6 秒 |\n\n网页端能选哪些档位以界面为准。输入框附近有提示词优化的开关（页面文字是「启用优化」「自动优化」）；开放平台文档说明这个优化默认开启，关掉可以更精确地按你的原文生成。\n\n### 3. 图生视频：首帧、尾帧、首尾帧\n\n官网的说明是「支持首帧、尾帧、首尾帧三种图生视频方式」：\n\n- **只传首帧**：让一张图动起来，最常用；\n- **只传尾帧**：指定视频结束在哪个画面；\n- **首尾帧都传**：生成从第一张到第二张的过渡，输入框的提示是「描述两帧之间如何过渡」。\n\n要注意的几条（来自页面提示和接口文档）：\n\n- 两张图比例不同时，尾帧会按首帧的比例自动裁切，生成的视频尺寸跟随首帧；\n- 不是所有模型和分辨率都支持尾帧，界面会提示「该模型暂不支持首尾帧」或「512p 不支持尾帧」，按提示切换即可；\n- 开放平台对图片的要求是：JPG、JPEG、PNG、WebP 格式，小于 20MB，短边大于 300px，长宽比在 2:5 到 5:2 之间。\n\n提示词只需要写图里的主体怎么动，通用写法见《图生视频提示词怎么写》。\n\n### 4. 用运镜指令控制镜头\n\n官网的说明是「可以通过自然语言 / 运镜指令，增加对视频的运镜控制」，并且可以在文本的多个位置用光标插入运镜指令。开放平台文档列出了 15 种指令：\n\n| 类别 | 指令 |\n| --- | --- |\n| 左右移 | [左移]、[右移] |\n| 左右摇 | [左摇]、[右摇] |\n| 推拉 | [推进]、[拉远] |\n| 升降 | [上升]、[下降] |\n| 上下摇 | [上摇]、[下摇] |\n| 变焦 | [变焦推近]、[变焦拉远] |\n| 其他 | [晃动]、[跟随]、[固定] |\n\n用法规则：\n\n- **组合运镜**：同一个方括号里写多个指令会同时生效，如 [左摇,上升]，文档建议不超过 3 个；\n- **顺序运镜**：前后出现的指令依次生效，如「……[推进]，然后……[拉远]」；\n- 也可以直接用自然语言写镜头，但文档说明用标准指令响应更准确。\n\n示例：\n\n```\n清晨的湖边，一位老人坐在木船上收网，薄雾贴着水面流动 [拉远]，\n随后镜头转向远处的雪山 [右摇,上升]\n```\n\n文档注明支持指令语法的是 Hailuo 2.3、Hailuo 02 和带 Director 字样的模型；H3 的文档也提到可以在关键描述后加运镜指令。界面里没有插入按钮时，说明当前模型或模式不支持。\n\n### 5. 主体参考与全能参考\n\n- **主体参考**：上传人物照片，让生成的视频保持同一张脸。页面对照片的要求是每张仅一人、正面看向镜头、面部无遮挡。开放平台对应的 S2V-01 模型目前只支持单个主体、类型为人物面部。使用前要同意《主体参考功能使用须知》，其中要求你对上传的肖像享有权利或已取得授权——只用本人或已获同意的照片；\n- **全能参考**：官网的说明是「支持文字、图片、音频、视频等多种方式参考生成视频」，用来参考角色、动作、镜头、风格或声音。MiniMax H3 的文档给的上限是图片不超过 9 张、视频不超过 3 段、音频不超过 3 段，合计不超过 12 个文件。页面提示参考视频需要使用 H3，且不能和首尾帧同时使用。\n\n### 6. 贝壳、下载与内容规则\n\n- **贝壳**：国内站的点数叫贝壳，每次生成按模型、分辨率和时长扣除。页面提示「生成失败，扣除的贝壳已退还」，会员贝壳按月重置，奖励贝壳有有效期。具体每次扣多少、会员有哪些档位，以官网会员页为准，本文不列；\n- **下载与标识**：使用须知写明平台有权在输出内容中添加标识和水印；\n- **内容规则**：提示「该内容违反社区规范，请更换提示词重新生成」时，换掉可能有问题的描述或图片再试。本文不提供绕过审核的办法。\n\n## 常见问题\n\n**Q：海螺 AI 是哪个公司的？**\nMiniMax。视频模型在开放平台上的名字是 MiniMax-Hailuo 系列和 MiniMax H3。\n\n**Q：海螺 AI 免费吗？**\n生成消耗贝壳。新用户和免费账号能拿到多少、能用哪些模型，官方会调整，以登录后的账户页和会员页为准。\n\n**Q：找不到尾帧 / 运镜指令的入口？**\n多半是当前模型或分辨率不支持。页面在切换模型时会提示「所选模型不支持尾帧和运镜，切换后相关输入会被移除」，换回支持的模型即可。\n\n**Q：提示词写中文可以吗？能写多长？**\n可以写中文。开放平台文档里，Hailuo 系列的提示词上限是 2000 字符，H3 是 7000 字符；实际上把主体、动作、场景、镜头写清楚，几十到一两百字就够了。\n\n**Q：海螺和可灵、即梦怎么选？**\n三者基础功能相近。可以用同一张首帧和同一句提示词各生成一次再比较，方法见《可灵和即梦哪个好用》。\n\n## 参考资料\n\n- 海螺 AI 官网（海螺视频）— https://hailuoai.com/\n- MiniMax 开放平台：视频生成指南（MiniMax H3 规格与输入条件）— https://platform.minimaxi.com/docs/guides/video-generation\n- MiniMax 开放平台：文生视频接口（运镜指令、时长与分辨率）— https://platform.minimaxi.com/docs/api-reference/video-generation-t2v\n- MiniMax 开放平台：图生视频接口（图片要求）— https://platform.minimaxi.com/docs/api-reference/video-generation-i2v\n- MiniMax 开放平台：首尾帧生成视频接口 — https://platform.minimaxi.com/docs/api-reference/video-generation-fl2v\n- MiniMax 开放平台：主体参考视频生成接口 — https://platform.minimaxi.com/docs/api-reference/video-generation-s2v\n- MiniMax 开放平台：模型发布记录 — https://platform.minimaxi.com/docs/release-notes/models",
+      "sources": [
+        "https://hailuoai.com/",
+        "https://platform.minimaxi.com/docs/guides/video-generation",
+        "https://platform.minimaxi.com/docs/api-reference/video-generation-t2v",
+        "https://platform.minimaxi.com/docs/api-reference/video-generation-i2v",
+        "https://platform.minimaxi.com/docs/api-reference/video-generation-fl2v",
+        "https://platform.minimaxi.com/docs/api-reference/video-generation-s2v",
+        "https://platform.minimaxi.com/docs/release-notes/models"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "Vidu怎么用：官网入口、文生视频、图生视频、参考生视频与首尾帧入门",
+      "slug": "vidu-how-to",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Vidu怎么用？本文从 vidu.cn 官网入口讲起，说清 Vidu 是哪个公司的、文生视频和图生视频怎么做、首尾帧两张图有什么要求、Vidu 特色的「参考生视频」和主体库怎么用，以及模型、时长、积分和闲时模式这些常见疑问。",
+      "content": "## 适用于谁\n\n- 搜「vidu怎么用」「vidu ai 教学」「vidu 是哪个公司的」「vidu 参考生视频」，第一次用 Vidu 的人；\n- 想让同一个角色在多条视频里长得一样，听说 Vidu 的「参考生视频」适合做这件事的人。\n\n本文根据 Vidu 官网（vidu.cn）的页面说明文字和 Vidu 开放平台文档整理，资料核对于 2026-10-11。起草时没有登录查看完整的创作界面，界面相关的说法取自官网页面里的说明和提示文字，**菜单名、模型名以你实际看到的界面为准**；开放平台文档里的参数限制是给开发者的，网页端可能略有不同。\n\n## 结论先说\n\n1. **官网是 vidu.cn**，另有 Vidu App。官网介绍 Vidu 是北京生数科技股份有限公司联合清华大学发布的视频大模型。\n2. **视频有三种做法**：文生视频（只写文字）、图生视频（一张首帧，或首帧加尾帧）、参考生视频（给几张参考图，让里面的人和物出现在新视频里）。\n3. **参考生视频是 Vidu 的特色**：不用先做首帧图，上传角色、物品、场景的参考图，再用文字描述剧情，就能生成主体一致的视频；常用的角色可以存进主体库。\n4. **模型按 Q 系列区分**：核对时官网主推 Vidu Q4 和 Q3，各模型支持的功能、时长和清晰度不同。\n5. **生成消耗积分**，页面提示生成失败积分退回；价格和套餐以官网为准。\n\n## 步骤\n\n### 1. 打开官网，进入创作页\n\n浏览器打开 vidu.cn，点「立即体验」或「去创作」并登录。按核对时的页面文字，「产品功能」下列出了这些入口（以实际界面为准）：\n\n- **参考生视频、图生视频、文生视频**：三种视频生成方式；\n- **参考生图、文生图片**：图片生成；\n- **Vidu Agent**：从一句话到完整作品的智能创作助手；\n- **AI 工具、AI 模版**：单项工具和一键套用的特效模板。\n\n手机上可以下载 Vidu App，官网的介绍是「一站式协同创作 App」。\n\n### 2. 文生视频\n\n选「文生视频」，在输入框里描述画面，再设置时长、分辨率、比例等参数后生成。提示词写清四样东西：谁、在做什么、在哪里、镜头怎么拍。\n\n```\n雨后的老街，一个撑着红伞的女孩从远处走来，路面积水映出霓虹灯，\n镜头低机位缓慢后退，电影感\n```\n\n开放平台的介绍里提到，Vidu 的文生视频除了通用风格，还专门优化了动漫风格。想要动画效果，可以在提示词里直接写明画风。\n\n### 3. 图生视频与首尾帧\n\n选「图生视频」，上传一张图作为**首帧**；界面上的第二个位置是「**尾帧（可选）**」，传了就是首尾帧模式，Vidu 会生成从第一张到第二张的过渡。\n\n- 图片格式：开放平台文档写的是 PNG、JPEG、JPG、WebP，单张不超过 50MB；\n- 首尾帧两张图要「差不多大」：文档要求两张图的分辨率相近，比值在 0.8 到 1.25 之间；\n- 官网的建议是使用清晰度高、主体明确、光线良好的图片，提示词保持简洁聚焦，避免画面跳动；图片模糊，生成的视频也会不清晰；\n- 提示词只写画面里的东西怎么动、镜头怎么动。\n\n按开放平台的模型地图，首尾帧不是每个模型都有：Q3 系列里的 Pro 和 Turbo 支持，Q4 预览版标注为暂不支持。在网页端选了尾帧后如果模型被自动切换，就是这个原因。\n\n### 4. 参考生视频：让角色保持一致\n\n这是很多人用 Vidu 的原因。它的逻辑是：**你给「演员」和「道具」，Vidu 负责拍**。\n\n1. 选「参考生视频」；\n2. 上传参考图。官网功能说明写的是 1～7 张，可以是自己的图，也可以从素材库里选；开放平台文档里，Q4 预览版的上限是 15 张图，还可以加最多 3 段参考音频；\n3. 写提示词，说明每个参考分别是什么、在视频里做什么；\n4. 设置比例、时长、分辨率后生成。\n\n官网首页展示的参考生视频提示词，结构值得照着学：先声明「以参考图中的某某为唯一主体，保持面部、服装、道具一致」，再写总时长和比例，然后按时间段写镜头——\n\n```\n以参考图中的宇航员为唯一主体，保持面部、宇航服和头盔的一致性。10 秒，16:9，电影感。\n0–3 秒：头盔面罩特写，面罩上映出星光。\n3–7 秒：切到侧面中景，宇航员沿着舱壁缓慢向前移动。\n7–10 秒：切到正面远景，宇航员朝镜头挥手。不新增其他人物和字幕。\n```\n\n**主体库**：经常要用的角色、物品或场景，可以创建成「主体」。页面的提示是上传一个人物、物体或场景的 1～3 张图片来创建，并可以「保存到主体库」方便下次使用；之后在提示词里用 @ 加名称调用。上传真人照片前，确认是本人或已取得授权。\n\n### 5. 选模型和参数\n\n按 Vidu 开放平台的模型地图（核对于 2026-10-11）：\n\n| 模型系列 | 清晰度 | 时长 | 支持的生成方式 |\n| --- | --- | --- | --- |\n| Vidu Q4（预览版） | 540p 到 4K | 3～16 秒 | 图生视频、参考生视频 |\n| Vidu Q3 | 540p 到 1080p（部分为 720p 起） | 多数为 1～16 秒 | 按具体型号分别支持文生、图生、首尾帧、参考生视频 |\n| Vidu Q2 | 540p 到 1080p | 1～10 秒 | 按具体型号分别支持 |\n| Vidu Q1 | 1080p | 5 秒 | 文生、图生、首尾帧、参考生视频 |\n\n这是开放平台的规格，网页端的可选项和叫法（比如专业版、快速版）以界面为准。文档还说明 Q3、Q4 支持音画同出，即生成时直接带上台词和音效，可以在参数里开关。\n\n其他常见参数：**运动幅度**控制画面动得多不多；**数量**决定一次生成几条。\n\n### 6. 积分、闲时模式与下载\n\n- **积分**：每次生成按模型、时长、清晰度消耗积分。页面提示「生成失败，积分已退回」，取消任务同样退回；\n- **闲时模式**：页面的说明是任务在流量低峰时执行，排队更久但不消耗积分；能不能用、每天能提交多少，以界面和套餐说明为准；\n- **下载**：下载选项里有带水印和无水印两种，各自是否可选以界面和套餐说明为准；\n- 套餐价格和每档权益变化快，本文不列，以官网「订阅套餐」页为准。\n\n## 常见问题\n\n**Q：Vidu 是哪个公司的？**\n生数科技。官网写明 Vidu 由北京生数科技股份有限公司联合清华大学发布。\n\n**Q：参考生视频和图生视频有什么区别？**\n图生视频是把你上传的那张图当作第一帧，视频从这个画面开始动；参考生视频只是「参考」图里的人和物，构图和场景由提示词重新安排，所以同一组参考图可以拍出很多不同的镜头。\n\n**Q：Vidu 免费吗？**\n官网说明提供免费体验，具体的生成次数、分辨率和高级功能因方案而异。以登录后的账户页为准。\n\n**Q：还能做什么？**\n开放平台的功能清单里还有对口型、数字人、视频延长、智能多帧（用多张关键帧续写长视频）、智能超清等。网页端的对应入口以「AI 工具」里的实际列表为准。\n\n**Q：和可灵、即梦怎么选？**\n三者基础功能相近，Vidu 的参考生视频和主体库是它着重介绍的能力。可以用同一组素材各试一次，对比方法见《可灵和即梦哪个好用》；另一个同类工具见《海螺AI怎么用》。\n\n## 参考资料\n\n- Vidu 官网 — https://www.vidu.cn/\n- Vidu 开放平台：平台介绍 — https://platform.vidu.cn/docs/overview/introduction\n- Vidu 开放平台：模型地图 — https://platform.vidu.cn/docs/overview/model-map\n- Vidu 开放平台：功能清单 — https://platform.vidu.cn/docs/overview/function-list\n- Vidu 开放平台：常见问题 — https://platform.vidu.cn/docs/overview/faq\n- Vidu 开放平台：参考生视频接口（Q4 预览版）— https://platform.vidu.cn/docs/api-reference/video-models/vidu-q4-preview/reference-to-video\n- Vidu 开放平台：首尾帧生视频接口（Q3）— https://platform.vidu.cn/docs/api-reference/video-models/vidu-q3/start-end-to-video",
+      "sources": [
+        "https://www.vidu.cn/",
+        "https://platform.vidu.cn/docs/overview/introduction",
+        "https://platform.vidu.cn/docs/overview/model-map",
+        "https://platform.vidu.cn/docs/overview/function-list",
+        "https://platform.vidu.cn/docs/overview/faq",
+        "https://platform.vidu.cn/docs/api-reference/video-models/vidu-q4-preview/reference-to-video",
+        "https://platform.vidu.cn/docs/api-reference/video-models/vidu-q3/start-end-to-video"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "腾讯元宝怎么用：网页版入口、电脑版下载、登录方式与常用功能上手",
+      "slug": "tencent-yuanbao-how-to",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "腾讯元宝怎么用、网页版入口在哪、电脑版怎么装？本文按元宝官网和 App Store 官方页面讲清三种登录方式、网页版界面、搜索问答、读文档、拍题、录音转写、图片视频创作等功能从哪开始，以及模式选择的注意点。",
+      "content": "## 适用于谁\n\n- 搜「腾讯元宝怎么用」「腾讯元宝网页版入口」「腾讯元宝电脑版下载」的人；\n- 平时在微信里刷到过元宝，想弄清它除了聊天还能干什么的人。\n\n本文根据元宝官网网页版（未登录状态下可见的界面）和 App Store 官方页面整理，资料核对于 2026-10-11。元宝登录后才能使用，登录后的界面本文没有逐项核对，**菜单名和入口以你实际看到的为准**。\n\n## 结论先说\n\n1. **官方入口**：网页版 yuanbao.tencent.com；手机 App 叫「元宝」（App Store 名称为「元宝-腾讯全能AI助手」，提供者是腾讯科技（深圳）有限公司）；电脑版在网页版右上角的「安装电脑版」或下载中心获取。\n2. **必须登录才能提问**。网页版支持微信扫码、手机号、QQ 三种登录方式。\n3. **它的特点是接了腾讯生态**：官方介绍联网搜索会用到微信公众号、视频号等信源，还能联动微信、腾讯文档等。\n4. **App 免费，核对时 App Store 页面没有列出内购项目**。\n5. 复杂任务用「专家模式」。App 更新说明提到新模型处理复杂任务仅支持专家模式。\n\n## 步骤\n\n### 1. 打开并登录\n\n**网页版**：浏览器打开 yuanbao.tencent.com，页面会弹出登录窗口：\n\n- **微信**：用微信扫二维码；\n- **手机**：手机号加验证码；\n- **QQ**：QQ 登录。\n\n页面提示扫码即视为已阅读并同意用户服务协议和隐私协议，登录前可以点开看一下。未登录时输入框显示「请登录后输入内容」。\n\n**手机 App**：应用商店搜索「元宝」，认准腾讯出品。iPhone 需要 iOS 15.0 或更高版本。\n\n**电脑版**：网页版右上角有「安装电脑版」，左下角有「前往下载中心」，按提示下载安装即可，不要从第三方下载站获取。\n\n### 2. 认识网页版界面\n\n未登录状态下能看到的布局：\n\n- **左侧栏**：搜索（搜历史对话）、「元宝」（对话主界面）、「AI 创作」、「全部收藏」；\n- **中间**：欢迎语和「你可以这样问」的示例；\n- **底部输入框**：右侧有「+」按钮用来添加文件等内容。\n\n### 3. 搜索问答：让它带上来源\n\n直接提问即可，需要最新信息时它会联网。官方介绍的卖点是可以搜到微信公众号、视频号等腾讯生态里的内容，所以查公众号文章里才有的信息（政策解读、行业观点、活动通知）时比较占优势。\n\n提问时写明范围和要求：\n\n```\n搜索近三个月关于「灵活就业人员社保缴费」的政策解读，优先采用政府部门公众号和权威媒体，\n按「变化点、对谁有影响、怎么办理」三部分整理，每条后面给出来源。\n```\n\n回答里的来源点开核对一下再用。公众号文章的质量参差不齐，涉及政策、医疗、理财的内容以官方原文为准。\n\n### 4. 读文档\n\n点输入框的「+」上传文件。App Store 页面的官方介绍写明「文档精读助手，可识别 36 种文件类型」，更新说明里还提到文件支持一键导出为 PDF、DOCX 等常用格式并直接分享给微信好友，以及导出到腾讯文档。\n\n官方介绍还提到与微信、腾讯文档等生态联动，手机上处理微信里收到的文件会更顺手，具体入口以 App 内的实际选项为准。\n\n读长文档时先确认它读全了：\n\n```\n先列出这份文件的章节标题，再用 200 字概括核心结论，最后列出文中所有的时间节点和金额。\n```\n\n### 5. 学习类：拍题、精讲\n\n官方介绍的学习功能有：\n\n- **拍题答疑**：拍照或截图搜题，多学科覆盖；\n- **AI 精讲**：拍题或输入文字后，用动态板书加语音讲解一步步讲题。更新说明提到精讲支持历史记录和倍速播放。\n\n给孩子用的时候，建议让它「先给思路，不要直接给答案」。\n\n### 6. 办公类：录音转写、写作、代码\n\n- **AI 录音笔**：官方介绍为「转写翻译不限时，精准总结录音内容」；近期更新增加了边录边拍的「图片记录」，录音、画面、文字自动关联。开会录音前先征得与会者同意；\n- **写作**：报告、文案、总结都可以让它起草；\n- **代码**：官方介绍代码能力支持 Python、C++ 等语言的运行。\n\n### 7. 创作类：图片和视频\n\n左侧「AI 创作」和对话里都可以发起。官方介绍包括：一句话 P 图、AI 绘图、让图片动起来、AI 生成视频。提示词写法可以参考《AI绘画提示词怎么写》；生成内容会带 AI 标识，对外发布时的要求见《AI 生成内容标识规定》。\n\n### 8. 选对模式\n\nApp 更新说明（2026 年 9 月）提到接入了新的 Hy4 preview 模型，Agent 能力升级，并注明处理复杂任务仅支持专家模式；同月还在专家模式里接入了旅游助手等场景助手。因此：\n\n- 日常问答、闲聊：默认模式即可；\n- 多步骤的复杂任务（做行程、写长报告、综合多方资料分析）：切到专家模式。\n\n模式的名称和位置以实际界面为准。\n\n## 常见问题\n\n**Q：腾讯元宝要付费吗？**\nApp Store 页面显示应用免费，核对时没有列出内购项目。个别功能是否有次数限制，以 App 内提示为准。\n\n**Q：元宝里能用 DeepSeek 吗？**\nApp Store 页面的用户评价里有人提到元宝同时提供混元和 DeepSeek 模型，但当前官方介绍正文没有逐一列出模型名，近期更新说明里提到的是 Hy 系列新模型。现在能选哪些模型，以你在输入框附近看到的模型选项为准。\n\n**Q：网页版、电脑版、手机 App 记录互通吗？**\n用同一个账号登录即可同步。注意微信登录、QQ 登录、手机号登录如果没有绑定在一起，可能是不同的账号，换端时用同一种方式登录。\n\n**Q：元宝派是什么？**\nApp Store 的介绍里提到「元宝派」开启公测，是可以和朋友一起玩的 AI 互动玩法，具体以 App 内说明为准。\n\n**Q：提示无法使用或一直加载？**\n先检查网络并刷新；网页版换用最新版 Chrome 或 Edge；App 更新到最新版本。仍有问题通过 App 内的反馈入口提交。\n\n**Q：上传的文件会被别人看到吗？**\n数据的使用方式以元宝的用户服务协议和隐私协议为准。合同、证件等敏感文件上传前先打码，单位内部资料按单位规定处理。\n\n## 参考资料\n\n- 元宝官网（网页版）— https://yuanbao.tencent.com/\n- App Store：元宝-腾讯全能AI助手（应用介绍与版本记录）— https://apps.apple.com/cn/app/id6480446430",
+      "sources": [
+        "https://yuanbao.tencent.com/",
+        "https://apps.apple.com/cn/app/id6480446430"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "文心一言网页版怎么用：改名「文心」后的入口、对话与工作任务、PPT生成",
+      "slug": "wenxin-how-to",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "文心一言现在叫什么、网页版入口在哪、怎么用？本文按百度文心官网和 App Store 官方页面讲清「文心」的新入口、对话与工作两种模式、图片生成和帮我写作、任务托管与 AIPPT、知识库和定时任务从哪开始。",
+      "content": "## 适用于谁\n\n- 搜「文心一言网页版」「文心一言使用教程」「文心助手是什么」「文心ppt生成」的人；\n- 以前用过文心一言，现在打开发现名字和界面都变了的人。\n\n本文根据百度文心官网网页版（未登录状态下可见的界面）和 App Store 官方页面整理，资料核对于 2026-10-11。登录后的界面没有逐项核对，**入口名称以你实际看到的为准**。\n\n## 结论先说\n\n1. **原来的「文心一言」现在叫「文心」**：App Store 上的名称是「文心 - 百度旗下全能AI助手」，网页版标题是「百度文心助手」。老地址 yiyan.baidu.com 会跳转到 wenxin.baidu.com。\n2. **界面分「对话」和「工作」两种用法**：对话是一问一答；工作是把一件事交给它自动规划、分步完成并交付成果，官方叫「任务托管」。\n3. **输入框下方有常用入口**：模式选择、图片生成、帮我写作和「更多」。\n4. **左侧栏多了几个长期功能**：新工作任务、定时任务、知识库、收藏夹。\n5. **App 免费，含内购**。App Store 页面列出的内购项目是不同面额的「能量值」，具体哪些功能消耗能量值以 App 内说明为准。\n\n## 步骤\n\n### 1. 打开并登录\n\n- **网页版**：浏览器打开 wenxin.baidu.com（输入 yiyan.baidu.com 也会跳过去），点右上角「登录」，按登录页提示用百度账号登录。未登录可以看到首页，登录后才会同步历史对话；\n- **手机 App**：应用商店搜索「文心」，开发者是百度。iPhone 需要 iOS 13.0 或更高版本。\n\n### 2. 认识界面\n\n网页版首页的布局（2026-10-11 核对）：\n\n- **左侧栏**：新对话、新工作任务、定时任务、知识库、收藏夹，下面是对话历史；\n- **中间上方**：「对话 / 工作」切换；\n- **输入框下方**：模式选择（默认显示「快速」，点开有「快速回答」「工作任务」等选项，以及模型的「自动 / 快速」等选择）、图片生成、帮我写作、更多；\n- **输入框右侧**：语音输入和添加文件的「+」按钮；\n- **下方**：推荐的示例问题，点一下就能发出去。\n\n### 3. 「对话」：日常提问\n\n直接输入问题发送。App Store 的官方介绍提到支持文字、语音、图片、视频、文档等多种输入方式，所以可以拍照提问、上传文档提问。\n\n想让回答可用，写清对象、用途和格式：\n\n```\n帮我写一份社区重阳节活动的通知，面向 60 岁以上的居民，\n包含时间、地点、活动内容和报名方式四部分，语言亲切，不超过 200 字，字号适合打印张贴。\n```\n\n### 4. 「帮我写作」和「图片生成」\n\n- **帮我写作**：官方介绍可以撰写、改写、润色汇报材料、讲话稿、工作总结、教案等，并提供丰富模板。点入口后选文体，再给主题和要点；\n- **图片生成**：一句话生成图片；App 里还有一键 P 图、让图片动起来、一句话生成视频等玩法（官方称「魔法创作」）。\n\n写作类任务把素材给足——你提供的事实越多，它「编」的空间越小。成稿里的数据、引文、人名要自己核对。\n\n### 5. 「工作」：把整件事交给它\n\n切到「工作」，或点左侧「新工作任务」。按官方介绍，任务托管会自动搜集资料、分析处理、编排内容，最后交付结构完整、可直接使用的成果，比如市场分析报告、汇报 PPT、数据整理和可视化图表。App 2026 年 9 月的更新说明写的是：新增「工作」Tab，支持 PPT 生成、文档格式转换、深入研究、投资分析等能力。\n\n交办时说清目标、材料和交付物：\n\n```\n目标：做一份「社区咖啡店开业首月经营分析」。\n材料：我上传的销售流水表（Excel）。\n交付：一份 3 页以内的分析报告（含日销售趋势图、畅销品排行、三条改进建议），再给一份 8 页的汇报 PPT。\n```\n\n这类任务比一问一答耗时更长。拿到成果后重点核对数字是否和原始表格一致。\n\n### 6. 生成 PPT\n\n官方介绍的 AIPPT：输入一个主题即可自动生成完整 PPT，可以定制篇幅和目标受众，支持中英双语，内置上百个场景模板。实际操作时：\n\n1. 在「工作」里选择 PPT 生成，或在对话里直接说「帮我做一份关于……的 PPT」；\n2. 说明页数、受众、语言；\n3. 生成后检查每页内容，再导出修改。\n\n导出格式和可编辑程度以实际界面为准。\n\n### 7. 知识库和定时任务\n\n左侧栏的这两个入口，从名称看用途是：\n\n- **知识库**：存放自己的资料，让它基于这些资料回答，适合反复查阅的制度文件、课程资料、产品手册；\n- **定时任务**：让它按设定的时间自动执行，比如每天早上整理某个主题的资讯。\n\n两者的具体用法、容量和数量上限，官方页面在未登录状态下没有展示，以登录后的说明为准。\n\n### 8. 手机上的两个特色功能\n\nApp Store 的官方介绍里提到：\n\n- **视频通话**：实时对话，能识别河南话、东北话、粤语等方言并用方言回复；\n- **打通微信**：聊天记录里的文件可以直接同步上传，不用再去找「下载的文件在哪」。\n\n## 常见问题\n\n**Q：文心一言是不是没了？**\n没有，是改名了。产品现在叫「文心」，网页版叫「百度文心助手」，原网址会自动跳转。\n\n**Q：文心要付费吗？**\nApp 免费下载使用，App Store 页面显示含 App 内购买，内购项目是「能量值」。哪些功能免费、哪些消耗能量值，以 App 内的说明为准，本文不列。\n\n**Q：用的是什么模型？**\n百度的文心大模型系列。当前具体版本在官方页面未登录状态下没有标注，输入框的模型选项里可以看到可选的模型或模式。\n\n**Q：「快速」和「工作任务」有什么区别？**\n从选项名称和官方介绍看，「快速」对应即时回答，「工作任务」对应多步骤的任务托管。简单问题用前者，要交付成品时用后者。\n\n**Q：文心和文心一格、文心智能体平台是一回事吗？**\n不是同一个产品。本文只讲对话助手「文心」；其他产品以各自官网为准。\n\n**Q：有问题怎么反馈？**\nApp Store 页面给的路径是 App 内「我」→「设置」→「帮助 / 反馈」。\n\n## 参考资料\n\n- 百度文心助手（网页版）— https://wenxin.baidu.com/\n- 原文心一言地址（跳转）— https://yiyan.baidu.com/\n- App Store：文心 - 百度旗下全能AI助手（应用介绍与版本记录）— https://apps.apple.com/cn/app/id6446882473",
+      "sources": [
+        "https://wenxin.baidu.com/",
+        "https://yiyan.baidu.com/",
+        "https://apps.apple.com/cn/app/id6446882473"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "智谱清言API怎么用：GLM API Key获取、免费模型与Python调用",
+      "slug": "zhipu-glm-api-quickstart",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "智谱清言的 API 怎么用？本文按智谱 AI 开放文档讲清在开放平台创建 API Key、用官方 SDK 发出第一个请求、GLM-5.3 等模型怎么选、哪些模型免费、深度思考参数怎么写，以及 401、429 等报错的处理。",
+      "content": "## 适用于谁\n\n- 搜「智谱清言的api怎么用」「智谱清言api」「智谱 api key」的开发者和想把 GLM 模型接进自己工具的人；\n- 想找一个有免费模型可以练手的国内大模型 API 的人。\n\n本文根据智谱 AI 开放文档（docs.bigmodel.cn）整理，资料核对于 2026-10-11。\n\n## 结论先说\n\n1. **「智谱清言」是面向普通用户的聊天产品，API 在另一个地方**：智谱开放平台 open.bigmodel.cn（bigmodel.cn），模型系列叫 GLM。\n2. **三步跑通**：注册开放平台 → 在个人中心的 API Keys 页面创建 Key → 装官方 SDK `zai-sdk` 调用。\n3. **有免费模型**。官方模型概览把 GLM-4.7-Flash、GLM-4.5-Flash 等标注为免费文本模型，适合练手和轻量任务。\n4. **旗舰模型是 GLM-5.3**，上下文 1M、最大输出 128K；它的深度思考是强制开启的，传「关闭」会报错。\n5. 价格、免费额度和限速会调整，以官方价格页和控制台为准。\n\n## 步骤\n\n### 1. 注册并创建 API Key\n\n1. 打开智谱开放平台 open.bigmodel.cn，点右上角「注册 / 登录」；\n2. 登录后进入个人中心的 **API Keys** 页面（bigmodel.cn/usercenter/proj-mgmt/apikeys），创建一个新的 Key；\n3. 立刻复制保存。官方文档提醒不要把 Key 泄露给他人，建议放在环境变量或配置文件里，不要写死在代码中。\n\n```bash\nexport ZHIPU_API_KEY=\"你的 Key\"        # Windows PowerShell：$env:ZHIPU_API_KEY=\"你的 Key\"\n```\n\n### 2. 安装官方 SDK，发出第一个请求\n\n```bash\npip install zai-sdk\n```\n\n```python\nimport os\nfrom zai import ZhipuAiClient\n\nclient = ZhipuAiClient(api_key=os.environ[\"ZHIPU_API_KEY\"])\n\nresp = client.chat.completions.create(\n    model=\"glm-5.3\",\n    messages=[\n        {\"role\": \"system\", \"content\": \"你是一个严谨的中文助手。\"},\n        {\"role\": \"user\", \"content\": \"用三句话解释什么是大模型的上下文长度。\"},\n    ],\n)\nprint(resp.choices[0].message.content)\n```\n\n旧项目里用的 `zhipuai` 包仍然可以安装，官方文档把它列为旧版 Python SDK，新项目用 `zai-sdk`。\n\n不想装 SDK 时直接发 HTTP 请求：接口地址是 `https://open.bigmodel.cn/api/paas/v4/chat/completions`，请求头带 `Authorization: Bearer <你的 Key>`，请求体里写 `model` 和 `messages`，格式与常见的对话补全接口一致。\n\n### 3. 选模型\n\n官方模型概览（2026-10-11 核对）里常用的文本模型：\n\n| 模型 | 定位 | 上下文 / 最大输出 | 是否免费 |\n| --- | --- | --- | --- |\n| GLM-5.3 | 旗舰，编程与智能体能力强 | 1M / 128K | 否 |\n| GLM-5.2 | 复杂长程任务 | 1M / 128K | 否 |\n| GLM-4.7 | 通用对话、推理与智能体 | 200K / 128K | 否 |\n| GLM-4.7-FlashX | 轻量高速 | 200K / 128K | 否 |\n| GLM-4.7-Flash | 免费文本模型 | 200K / 128K | 是 |\n| GLM-4.5-Flash | 免费文本模型 | 128K / 96K | 是 |\n\n除了文本模型，开放平台还有视觉理解（如 GLM-5.3-Flash、免费的 GLM-4.6V-Flash）、图像生成（GLM-Image、CogView 系列）、视频生成（CogVideoX 系列）和语音模型，调用方式见各模型的文档页。\n\n选择思路：先用免费的 Flash 模型把流程跑通；效果不够再换 GLM-4.7 或 GLM-5.3；批量、低延迟的任务看 FlashX。请求里的 `model` 字段写小写的模型名（如 `glm-5.3`、`glm-4.7-flash`），确切写法以各模型文档页为准。\n\n### 4. 控制深度思考\n\nGLM-4.5 及以上的模型支持深度思考，通过请求里的 `thinking` 参数控制：\n\n```python\nresp = client.chat.completions.create(\n    model=\"glm-4.5-flash\",\n    messages=[{\"role\": \"user\", \"content\": \"把下面这句话翻译成英文：今天天气不错。\"}],\n    thinking={\"type\": \"disabled\"},     # 开启写 \"enabled\"\n)\n```\n\n官方文档里几条必须知道的规则：\n\n- 默认是开启的；思考过程在 `reasoning_content` 字段里返回，最终回答在 `content`；\n- **GLM-5.3、GLM-5.3-Flash、GLM-4.7 是强制思考的模型**，其中官方明确写了 GLM-5.3 和 GLM-5.3-Flash 传 `disabled` 会报错；\n- GLM-5.2、GLM-5.1、GLM-5、GLM-4.6、GLM-4.5 等会自动判断要不要思考；\n- 思考会增加响应时间并消耗额外 token。事实查询、简单翻译这类任务，用能关闭思考的模型更省。\n\nGLM-5.2 及以上还支持 `reasoning_effort` 参数，默认 `max`；GLM-5.3 系列可选 `max`、`high`、`low`。\n\n### 5. 流式输出\n\n把 `stream` 设为 `True`，边生成边读取，配合深度思考可以实时看到思考过程：\n\n```python\nstream = client.chat.completions.create(\n    model=\"glm-5.3\",\n    messages=[{\"role\": \"user\", \"content\": \"写一段 100 字的产品介绍\"}],\n    stream=True,\n)\nfor chunk in stream:\n    delta = chunk.choices[0].delta\n    if getattr(delta, \"reasoning_content\", None):\n        print(delta.reasoning_content, end=\"\")\n    if getattr(delta, \"content\", None):\n        print(delta.content, end=\"\")\n```\n\n## 常见问题\n\n**Q：智谱清言 App 的会员能用来调 API 吗？**\n不能混用。智谱清言是聊天产品，API 在开放平台单独计费、单独管理 Key。\n\n**Q：报 401？**\n官方错误码说明：Key 无效或已过期。检查是否复制完整、环境变量是否生效。\n\n**Q：报 429？**\n请求频率超限。降低并发，加上带退避的重试；官方建议对 429 和 500 实现重试机制。\n\n**Q：报 400？**\n请求参数错误。最常见的是模型名写错，或者对强制思考的模型传了关闭思考的参数。\n\n**Q：免费模型有什么限制？**\n官方模型概览把它们标注为免费模型；免费模型一般会有并发和速率方面的限制，具体规则以控制台和官方价格页为准。用于生产环境前先评估稳定性。\n\n**Q：能用 OpenAI 的 SDK 调吗？**\n智谱的接口格式与 OpenAI 的对话补全接口相近，很多支持自定义接口地址的工具可以直接接入。兼容方式和接口地址的确切写法以开放文档的兼容说明为准。\n\n**Q：用 GLM 做编程助手（接入 Claude Code 等）怎么配？**\n官方有单独的 GLM Coding Plan 和专属端点，文档提醒要按对应教程配置，不要直接套用普通接口地址。\n\n## 参考资料\n\n- 智谱 AI 开放文档：快速开始 — https://docs.bigmodel.cn/cn/guide/start/quick-start\n- 智谱 AI 开放文档：模型概览 — https://docs.bigmodel.cn/cn/guide/start/model-overview\n- 智谱 AI 开放文档：深度思考 — https://docs.bigmodel.cn/cn/guide/capabilities/thinking\n- 智谱开放平台：API Keys — https://bigmodel.cn/usercenter/proj-mgmt/apikeys",
+      "sources": [
+        "https://docs.bigmodel.cn/cn/guide/start/quick-start",
+        "https://docs.bigmodel.cn/cn/guide/start/model-overview",
+        "https://docs.bigmodel.cn/cn/guide/capabilities/thinking",
+        "https://bigmodel.cn/usercenter/proj-mgmt/apikeys"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "讯飞星火怎么用：网页版入口、对话与工作模式、求职和论文助手上手",
+      "slug": "xunfei-spark-how-to",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "讯飞星火怎么用？本文按讯飞星火官网和 App Store 官方页面讲清网页版入口与四种登录方式、对话和工作两种模式、解题答疑 / 文本翻译 / 图像生成 / 科研助手 / 求职助手等入口怎么用，以及做 PPT 该去哪个产品。",
+      "content": "## 适用于谁\n\n- 搜「讯飞星火怎么用」「怎么用讯飞星火做ppt」的学生和职场人；\n- 想用它改简历、练面试、读论文、做翻译的人。\n\n本文根据讯飞星火官网网页版（未登录状态下可见的界面）和 App Store 官方页面整理，资料核对于 2026-10-11。登录后的界面没有逐项核对，**入口名称以你实际看到的为准**。\n\n## 结论先说\n\n1. **官方入口**：网页版 xinghuo.xfyun.cn；手机 App 叫「讯飞星火」（科大讯飞出品）；网页版上有「下载电脑版」。\n2. **界面分「对话」和「工作」**：对话是一问一答，工作是把多步骤的事交给它完成。App 在 2026 年 8 月底的更新说明里写的是「全新上线工作助理，全面优化记忆能力」。\n3. **输入框下方有场景入口**：自动、解题答疑、文本翻译、图像生成、科研助手、求职助手。\n4. **两个差异化场景是求职和论文**。App Store 的副标题就是科研论文、求职面试相关的关键词。\n5. **做 PPT 用的是另一个产品「讯飞智文」**（zhiwen.xfyun.cn，官方标题为「AI 在线生成 PPT、Word」）。\n\n## 步骤\n\n### 1. 打开并登录\n\n浏览器打开 xinghuo.xfyun.cn。未登录能看到首页，点「登录 / 注册」后有四种方式：\n\n- 手机号验证码登录；\n- 账号密码登录；\n- 微信扫码登录；\n- 用星火 App 扫码登录。\n\n登录前需要勾选同意用户协议和隐私政策，建议点开看一下。手机端在应用商店搜索「讯飞星火」，iPhone 需要 iOS 15.0 或更高版本。\n\n### 2. 认识界面\n\n- **左侧**：「新工作任务」「新对话」和历史记录；\n- **中间上方**：「对话 / 工作」切换；\n- **输入框下方**：模式与场景入口——自动、解题答疑、文本翻译、图像生成、科研助手、求职助手；\n- **下方**：示例问题，点一下即可发送。\n\n不确定选哪个入口时用「自动」，让它自己判断；有明确场景时点对应入口，回答的格式会更贴合。\n\n### 3. 日常对话\n\n直接提问。按 App Store 的官方介绍，星火在这些方面有专门能力：\n\n- **推理**：把数学题、编程任务拆成步骤来解；\n- **写作**：提供 60 多种写作风格，覆盖社交平台笔记、会议纪要、视频脚本、营销方案等；\n- **翻译**：支持 130 多种语言；\n- **语音交互**：支持多种情感、风格和方言，说话时可以打断。\n\n### 4. 解题答疑和文本翻译\n\n- **解题答疑**：把题目文字或照片发给它。想真正学会的话，加一句「先讲思路和用到的知识点，再给步骤，最后我自己算答案」；\n- **文本翻译**：贴入原文并说明用途，例如：\n\n```\n把下面这段话翻译成英文，用于给海外客户的正式邮件，语气礼貌、简洁，专有名词保留原文：\n[粘贴内容]\n```\n\n### 5. 求职助手\n\nApp Store 的官方介绍把求职做成了一条龙：聚合招聘信息、按岗位生成定制简历并提供模板、一键投递、虚拟人一对一模拟面试。使用建议：\n\n1. 先把真实经历用自己的话写一遍交给它，让它按目标岗位改写和排版——不要让它凭空编经历；\n2. 把目标岗位的职位描述贴进去，让它指出简历里缺的关键词；\n3. 用模拟面试练「自我介绍」「离职原因」「项目难点」这几道必问题，再让它点评。\n\n求职助手含付费订阅：App Store 页面的内购列表里是「讯飞星火求职助手」的包月、包季等项目，哪些功能需要订阅、价格多少，以购买页为准。\n\n### 6. 科研助手（论文场景）\n\n官方介绍覆盖选题、开题、文献研读、学术搜索、文本润色、逻辑审查和 AIGC 检测。几条使用原则：\n\n- 让它**帮你读和改**，不要让它替你写：上传文献让它总结方法和结论，贴入自己的段落让它润色、查逻辑漏洞；\n- 它给出的参考文献要逐条到数据库里核实，确认真实存在；\n- 学校对 AI 使用有规定的，以学校要求为准。\n\n### 7. 图像生成\n\n点「图像生成」后描述画面即可。官方介绍还支持生成虚拟人视频。提示词写法可以参考《AI绘画提示词怎么写》；生成内容对外发布时的标识要求见《AI 生成内容标识规定》。\n\n### 8. 想做 PPT：去讯飞智文\n\n讯飞的 PPT 生成在独立产品「讯飞智文」里，网址 zhiwen.xfyun.cn，官方定位是 AI 在线生成 PPT 和 Word。讯飞智文的页面本文未能逐项核对，具体的模板、导出格式和收费以其官网为准。只想快速出一份可编辑的 PPT，也可以看《Kimi PPT 助手怎么用》。\n\n## 常见问题\n\n**Q：讯飞星火是免费的吗？**\nApp 免费下载使用。App Store 页面显示含 App 内购买，核对时列出的内购项目都是「求职助手」的订阅；其他功能是否有次数限制，以 App 内提示为准。\n\n**Q：用的是什么模型？**\nApp Store 的官方介绍提到的是「星火 X2」，并说明模型基于国产算力训练。\n\n**Q：电脑上必须装客户端吗？**\n不用，网页版可以直接使用；需要时可以从网页上的「下载电脑版」获取客户端。\n\n**Q：它给的医疗、法律建议能直接用吗？**\n不能。官方介绍里也带有相关免责说明。这类问题把它当作整理信息、准备提问清单的工具，结论以专业人士为准。\n\n**Q：和其他国产助手比有什么不同？**\n从官方介绍看，它在求职、学术论文和语音交互上投入较多。日常问答各家差别不大，按你最常用的场景选。\n\n## 参考资料\n\n- 讯飞星火网页版 — https://xinghuo.xfyun.cn/desk\n- App Store：讯飞星火-懂你的AI助手（应用介绍、版本记录、内购项目）— https://apps.apple.com/cn/app/id6449919551\n- 讯飞智文（AI 在线生成 PPT、Word）— https://zhiwen.xfyun.cn/",
+      "sources": [
+        "https://xinghuo.xfyun.cn/desk",
+        "https://apps.apple.com/cn/app/id6449919551",
+        "https://zhiwen.xfyun.cn/"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "秘塔AI搜索怎么用：简洁、深入、深度研究三种模式与学术、文库搜索",
+      "slug": "metaso-ai-search-how-to",
+      "checkedOn": "2026-10-11",
+      "images": [
+        "g494-metaso-web-home.jpg"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "秘塔 AI 搜索怎么用、三种搜索模式有什么区别、怎么搜论文和报告？本文按秘塔官网和 App Store 官方页面讲清网页版界面、简洁 / 深入 / 深度研究的选择、全网 / 学术 / 文库 / 播客等搜索范围、上传文件、导出结果和提问写法。",
+      "content": "## 适用于谁\n\n- 搜「秘塔ai搜索怎么用」「秘塔搜索官网」「秘塔搜索网页版入口」的人；\n- 查资料时受够了广告和营销号，想要一个直接给答案并带来源的搜索工具的人；\n- 写论文、做行业研究，需要找文献和研报的学生和职场人。\n\n本文根据秘塔 AI 搜索官网网页版（未登录状态下可见的界面）和 App Store 官方页面整理，资料核对于 2026-10-11，入口名称以实际界面为准。\n\n## 结论先说\n\n1. **官方入口是 metaso.cn**，由上海秘塔网络科技有限公司运营；手机有同名 App，官网左下角有「手机端」入口。\n2. **它是「搜索 + 归纳」**：官方介绍会给出直接、结构化的答案并附引用来源，还能自动生成大纲、脑图和相关人物 / 事件表格。主打「没有广告，直达结果」。\n3. **搜索强度三档**：简洁、深入、深度研究。越往后越慢，也越全面。\n4. **搜索范围可切换**：全网、文库、学术、播客等。找论文切学术，找研报和课件切文库。\n5. **App 免费，含内购**。App Store 页面列出了会员和积分等内购项目，具体权益以官方页面为准。\n\n## 步骤\n\n### 1. 打开网页版\n\n浏览器打开 metaso.cn。未登录也能看到完整的首页，左上角是「登录 / 注册」。\n\n![秘塔 AI 搜索网页版首页（未登录状态）：输入框上方是学点啥、视频生成、幻灯片、上传文件、API 等入口，输入框左下可切换搜索范围，下方是简洁 / 深入 / 深度研究三种模式](seed:g494-metaso-web-home.jpg)\n*图片来源：[秘塔 AI 搜索 metaso.cn](https://metaso.cn/)，截取于 2026-10-11*\n\n界面上的几个区域：\n\n- **左侧栏**：主页、专题、今天学点啥、书架、设为默认、历史记录；\n- **输入框上方**：学点啥、视频生成、幻灯片、上传文件、API，右侧「…」里还有事实核验等功能；\n- **输入框左下**：搜索范围（默认「全网」）；\n- **输入框下方**：简洁、深入、深度研究三个模式。\n\n输入框的提示写着：回车发送，Shift + 回车换行，输入「/」打开自定义技能。\n\n### 2. 选搜索强度\n\n| 模式 | 适合 | 特点 |\n| --- | --- | --- |\n| 简洁 | 查一个事实、一个定义、一个数字 | 最快，答案短 |\n| 深入 | 需要背景、多角度说明的问题 | 更长、更结构化，带大纲和脑图等整理形式 |\n| 深度研究 | 开放性、需要多步推理和大量资料的课题 | 最慢，会进行更多轮搜索和分析 |\n\n日常用「深入」就够；只想确认一个事实用「简洁」；写报告前的摸底用「深度研究」。\n\n### 3. 选搜索范围\n\n点输入框左下的「全网」切换。按官方介绍和界面选项：\n\n- **全网**：普通网页搜索，覆盖面最广；\n- **学术**：来源聚焦专业期刊和学术数据库，会直接给出论文摘要等关键信息，并提供规范格式的参考文献；官方介绍还可以自行配置中英文数据库；\n- **文库**：搜索全网文档——行业研究报告、学术论文、学习课件等，支持查看和下载；\n- **播客**：在播客内容里搜索；\n- 列表里还有图片等其他范围，以实际界面为准。\n\n### 4. 把问题问清楚\n\n搜索类工具的提问要点是**给限定条件**：\n\n```\n2024 年以来中国 60 岁以上人口的数量和占比变化，只采用国家统计局和政府公报的数据，\n按年份列表，并注明每个数字的出处。\n```\n\n```\n（学术范围）近五年关于「间歇性禁食对二型糖尿病患者血糖控制」的随机对照试验，\n列出样本量、干预方式、主要结论，按发表年份排序。\n```\n\n答案出来后做两件事：点开引用看原文是否支持这句话；对关键数字换一个来源交叉核对。\n\n### 5. 追问和整理\n\n- **追问**：结果页一般可以继续提问，接着上一轮往下查；\n- **看结构**：深入模式的结果通常带大纲、脑图和相关事件 / 组织 / 人物表格，用来快速把握全貌；\n- **导出**：官方介绍支持一键复制和导出搜索结果，可导出 Word、PDF 文档，也可以转到秘塔写作猫继续编辑。\n\n### 6. 上传文件、幻灯片和「学点啥」\n\n输入框上方的这几个入口，官方页面在未登录状态下只展示了名称，下面是从名称和官方介绍能确定的部分：\n\n- **上传文件**：让它基于你上传的文档来回答问题。App Store 的内购项目里有「知识库额度」，说明长期存放资料有额度概念，具体以登录后的说明为准；\n- **幻灯片**：生成演示文稿的入口；\n- **学点啥 / 今天学点啥**：偏学习场景的入口，适合想系统了解一个主题的时候试试；\n- **视频生成**：首页横幅提示其视频生成已支持 30 秒，属于创作功能；是否消耗积分以页面提示为准。\n\n这几项的具体操作以登录后的界面为准。\n\n### 7. 开发者：搜索 API\n\n首页的「API」入口进入开放平台，页面显示提供搜索、读取网页、问答三类接口，并已支持 MCP 协议，可以把秘塔的搜索能力接到自己的应用或 AI 助手里。使用前需要在该页面创建 API Key，计费方式以页面说明为准。\n\n## 常见问题\n\n**Q：秘塔 AI 搜索是免费的吗？**\n基础搜索可以免费使用。App Store 页面显示应用免费、含 App 内购买，内购项目包括月度 / 年度会员、积分、知识库额度和搜索额度等。免费用户每天能用多少次深入或深度研究，官方页面在未登录状态下没有写明，以登录后的提示为准。\n\n**Q：秘塔是哪家公司的？**\n上海秘塔网络科技有限公司，它还做了写作工具「秘塔写作猫」。\n\n**Q：和直接问聊天类 AI 有什么区别？**\n秘塔以搜索为核心，每个答案都基于实时搜到的资料并标出来源；聊天类 AI 更擅长写作、改写和推理。查事实、找资料用搜索，加工内容用聊天助手，两者配合用。\n\n**Q：搜到的内容可以直接引用吗？**\n引用时回到原始来源（论文、报告、官方网页），不要把 AI 的归纳当作出处。学术范围给出的参考文献条目也要逐条核对是否真实存在、信息是否准确。\n\n**Q：怎么把秘塔设成浏览器默认搜索？**\n左侧栏有「设为默认」入口，点开后按页面提示操作。\n\n**Q：结果不准或跑题怎么办？**\n加上时间、地域、来源类型等限定词重搜；换到更合适的搜索范围（比如找论文别用全网）；复杂问题拆成几个小问题分别搜。\n\n## 参考资料\n\n- 秘塔 AI 搜索官网 — https://metaso.cn/\n- App Store：秘塔AI搜索（应用介绍与内购项目）— https://apps.apple.com/cn/app/id6478196963\n- 秘塔 AI 搜索开放平台（API）— https://metaso.cn/search-api/playground",
+      "sources": [
+        "https://metaso.cn/",
+        "https://apps.apple.com/cn/app/id6478196963",
+        "https://metaso.cn/search-api/playground"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "AI生成内容标识规定：创作者发布AI图片和视频要不要标注、怎么标",
+      "slug": "ai-generated-content-label-rules",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "用 AI 生成的图片、视频、文章发到网上需要标注吗？本文按《人工智能生成合成内容标识办法》逐条讲清显式标识和隐式标识是什么、创作者发布时的声明义务、平台会怎么提示，以及哪些做法是明确禁止的。",
+      "content": "## 适用于谁\n\n- 搜「ai生成内容标识规定」「ai生成的图片需要标注吗」「人工智能生成合成内容标识办法」的自媒体作者、电商运营、设计师；\n- 用即梦、豆包、可灵等工具做了图和视频，准备发到短视频或社交平台的人；\n- 想知道「AI生成」水印能不能去掉的人。\n\n本文根据国家互联网信息办公室等四部门印发的《人工智能生成合成内容标识办法》原文整理，资料核对于 2026-10-11。本文是对规定的通俗说明，不构成法律意见；具体到某个平台怎么操作，以该平台的规则和页面提示为准。\n\n## 结论先说\n\n1. **需要标**。《办法》自 2025 年 9 月 1 日起施行，第十条要求：用户通过网络平台发布 AI 生成合成内容时，应当主动声明并使用平台提供的标识功能。\n2. **标识有两种**：你看得见的「显式标识」（图上的「AI生成」字样、视频角标、平台的提示条），和藏在文件里的「隐式标识」（元数据、数字水印）。\n3. **加标识主要是 AI 工具和平台的义务**，创作者的义务是两件事：发布时如实声明；不要破坏标识。\n4. **明确禁止**：恶意删除、篡改、伪造、隐匿标识；为他人提供做这些事的工具或服务。\n5. 工具里申请「无水印下载」不等于免除义务——没有明水印的内容，发布时更要主动声明。\n\n## 先看懂两种标识\n\n| | 显式标识 | 隐式标识 |\n| --- | --- | --- |\n| 定义（第三条） | 在内容或交互界面中，以文字、声音、图形等方式呈现，用户能明显感知 | 通过技术措施加在文件数据里，不易被用户明显感知 |\n| 常见样子 | 图片角落的「AI生成」、视频开头和播放区周边的提示、文章开头或结尾的说明 | 文件元数据里的生成属性、服务提供者名称或编码、内容编号；数字水印 |\n| 谁来加 | 生成服务的提供者；平台在内容周边加提示 | 生成服务的提供者；平台补充传播信息 |\n\n第四条对不同内容怎么加显式标识有具体要求：\n\n- **文本**：在起始、末尾或中间适当位置加文字提示或通用符号提示；\n- **音频**：在起始、末尾或中间适当位置加语音提示或节奏提示；\n- **图片**：在适当位置加显著的提示标识；\n- **视频**：在起始画面和播放周边的适当位置加显著提示，末尾和中间也可以加；\n- **虚拟场景**：在起始画面的适当位置加显著提示。\n\n同一条还规定，服务提供者提供下载、复制、导出功能时，要确保文件里含有符合要求的显式标识。这就是为什么你从各家 AI 工具下载的图片和视频默认带着「AI生成」字样。\n\n## 创作者要做的事\n\n### 1. 发布时主动声明\n\n在抖音、小红书、B 站、微信视频号、微博等平台发布 AI 生成或 AI 深度合成的内容时，在发布页找到「内容由 AI 生成」「作者声明」一类的选项并勾选（各平台名称和位置不同，以发布页为准）。这是第十条写明的用户义务，也是平台按第六条必须提供的功能。\n\n哪些内容算：按第三条的定义，是利用人工智能技术生成、合成的文本、图片、音频、视频、虚拟场景等信息。纯 AI 生成的图和视频、AI 换脸换声、AI 写的文章都在其中。只是用 AI 调了色、去了噪点这类辅助处理，是否需要声明《办法》没有逐项列举，拿不准时声明更稳妥。\n\n### 2. 保留工具自带的标识\n\n从 AI 工具下载的文件保持原样上传即可，不要为了「好看」裁掉角标、用工具抹掉水印、清除文件元数据。第十条明确禁止恶意删除、篡改、伪造、隐匿标识。\n\n### 3. 用了「无水印」版本，更要声明\n\n第九条允许服务提供者应用户申请提供**没有显式标识**的内容，前提是通过用户协议明确用户的标识义务和使用责任，并且依法留存相关日志不少于六个月。换句话说：\n\n- 你拿到的无明水印文件，是在「你承诺自己负责标识」的前提下给你的；\n- 文件里的隐式标识仍然存在；\n- 对外发布时要用平台的声明功能补上标识。\n\n各工具的官方入口怎么用，可参考《即梦怎么去水印》里对「AI生成水印设置」的说明。\n\n### 4. 商业使用时在素材和合同里留痕\n\n给客户交付 AI 生成的图片、视频时，在交付说明里写明「本素材由 AI 生成」，并提醒对方发布时履行声明义务。保留生成记录（提示词、生成时间、所用工具），发生争议时可以说明来源。\n\n## 平台会怎么处理你的内容\n\n第六条规定了传播平台的三种处理方式，了解它可以解释你看到的各种提示条：\n\n1. **检测到文件元数据里有隐式标识**：平台在内容周边加显著提示，明确告诉公众这是生成合成内容；\n2. **没检测到隐式标识，但你声明了**：平台提示公众该内容「可能」为生成合成内容；\n3. **没有隐式标识、你也没声明，但平台发现了显式标识或其他生成痕迹**：平台可以识别为「疑似」生成合成内容并加提示。\n\n所以即使你不声明，平台也可能给内容打上「疑似 AI 生成」的提示；而如实声明的内容，展示上更可控。\n\n## 常见问题\n\n**Q：AI 生成的图片必须带水印吗？**\n对公众发布时必须让人能明显知道这是 AI 生成的——可以是图上的显式标识，也可以是平台在内容周边加的提示（前提是你做了声明或文件带隐式标识）。只发给朋友、自己留存不在「通过网络信息内容传播服务发布」的范围内，但也不要去破坏文件里的标识。\n\n**Q：能把「AI生成」水印去掉吗？**\n不能用裁剪、涂抹、第三方工具等方式去除。《办法》禁止恶意删除、篡改、隐匿标识，也禁止为他人提供这类工具或服务。正当的途径只有一个：在 AI 工具官方提供的功能里按协议申请不含显式标识的文件，并在发布时自行声明。\n\n**Q：AI 写的文章、文案要标吗？**\n文本同样在适用范围内。平台有声明选项就勾选；没有的话，在文首或文末注明「本文由 AI 辅助生成」是稳妥的做法。\n\n**Q：我只是用 AI 做了封面，正文和视频是自己拍的，要声明吗？**\n《办法》没有按「占比」给出豁免。封面是 AI 生成的，按平台的声明功能如实勾选即可；平台允许补充说明时，写明「封面由 AI 生成」。\n\n**Q：不标会怎样？**\n第十三条规定，违反本办法的由网信、电信、公安、广播电视等主管部门依据职责，按有关法律法规处理。平台也可能按自己的社区规则对未声明的内容作出处理，具体看各平台规则。\n\n**Q：这个规定管 AI 工具还是管我？**\n主要管服务提供者（生成工具和传播平台），第四条到第九条都是它们的义务；直接针对用户的是第十条——主动声明、使用标识功能、不破坏标识。\n\n**Q：有配套的技术标准吗？**\n有。与《办法》配套的强制性国家标准《网络安全技术 人工智能生成合成内容标识方法》同步实施，规定了标识的具体样式和元数据格式，主要面向工具和平台的开发者。\n\n## 参考资料\n\n- 国家互联网信息办公室、工业和信息化部、公安部、国家广播电视总局：关于印发《人工智能生成合成内容标识办法》的通知（国信办通字〔2025〕2号，2025-09-01 起施行）— https://www.cac.gov.cn/2025-03/14/c_1743654684782215.htm",
+      "sources": [
+        "https://www.cac.gov.cn/2025-03/14/c_1743654684782215.htm"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "Kimi会员怎么选：四档价格与权益、额度怎么算、怎么取消自动续费",
+      "slug": "kimi-membership-plans",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Kimi 会员多少钱、四个档位差在哪、额度是怎么扣的、用完了怎么办、自动续费怎么取消？本文按 Kimi 官方帮助中心的会员文章整理价格与权益对比、额度消耗参考、查看用量和各渠道取消续费的路径。",
+      "content": "## 适用于谁\n\n- 搜「kimi会员价格」「kimi会员多少钱」「kimi 会员 额度」的人；\n- 已经订阅，想知道额度为什么掉得快、用完了怎么办、怎么关掉自动续费的人。\n\n本文根据 Kimi 官方帮助中心「会员订阅」栏目的文章整理，价格和权益核对于 2026-10-11。**价格和权益随时可能调整，下单前以 kimi.com 会员计划页面显示的为准。**\n\n## 结论先说\n\n1. **四个档位**：Andante、Moderato、Allegretto、Allegro，官方帮助中心列出的连续包月价格分别是 49、99、199、699 元（2026-10-11 核对），连续包年另有优惠。\n2. **所有会员功能共用一个额度池**，按实际 token 消耗扣除；一个功能把额度用光，其他功能也用不了。\n3. **额度按月刷新，不累计**。权益有效期是订阅生效起 30 天，没用完的到期清零。\n4. **取消自动续费要去当初付款的渠道操作**，取消后当期权益保留到到期日。\n5. 官方说明付费服务属于虚拟服务，开通后不可退费或转让（法律另有规定的除外），所以先从低档位试起。\n6. **档位名称可能正在调整**：Kimi Code 的官方文档里已经出现「老套餐」（Andante 等）和「新套餐」（Go、Plus、Pro 等）两套说法。你下单时看到的名称和价格如果与本文不同，以会员计划页面为准。\n\n## 四档怎么选\n\n官方帮助中心列出的主要差别（2026-10-11 核对）：\n\n| | Andante | Moderato | Allegretto | Allegro |\n| --- | --- | --- | --- | --- |\n| 连续包月 | 49 元 | 99 元 | 199 元 | 699 元 |\n| 官方定位 | 日常使用 | 效率升级 | 专业优选 | 全能尊享 |\n| Agent 额度 | 基础档 | 2 倍 | 4 倍 | 10 倍 |\n| Agent 集群 | 无 | 有 | 有 | 有 |\n| 目标模式、专属 Kimi Claw | 无 | 无 | 有 | 有 |\n| 百万 token 超长对话 | 无 | 无 | 无 | 有 |\n| 定时任务 / 小组件任务 | 各 6 个 | 各 10 个 | 各 15 个 | 各 20 个 |\n\n四档都包含：Office 文件处理、深度研究、网站部署、Kimi Code 可调用和精选插件。\n\n选择思路：\n\n- **偶尔做个 PPT、跑一两次深度研究**：从 Andante 开始，不够再升；\n- **每周都要出报告、做 PPT**：Moderato；\n- **重度使用 Agent、要用目标模式或 Kimi Claw**：Allegretto；\n- **需要 K3 的 100 万 token 上下文**（整本书、大型代码库一次读完）：只有 Allegro 提供。\n\n升级不亏：官方说明升级时会按当前会员剩余天数折算，新权益立即生效。\n\n## 额度是怎么扣的\n\n- **共用额度池**：网站部署、深度研究、PPT、Kimi Code、Kimi Work、Kimi Claw、K3 和 K3 集群都从同一个池子里扣；在会话入口用 K2.6 对话同样计费；\n- **按 token 扣**：任务越复杂、思考强度越高，消耗越多；\n- **Kimi Code 另有限额**：5 小时和每周两个限额，只作用于 Kimi Code。\n\n官方给的消耗参考（占月度额度的比例；其中深度研究一项官方注明以 Moderato 套餐为参考）：\n\n| 任务 | 大约消耗 |\n| --- | --- |\n| 一份简单的 PPT | 1–2% |\n| 一次深度研究 | 5–10% |\n| 一次编写代码的任务 | 0.5–2% |\n| 几百字的问答 | 几百到一千 token |\n\n省额度的办法：简单问题把思考强度调到「标准」；不需要产出文件时不必用 K3；深度研究启动前把问题想清楚，中途停止的任务也算消耗。\n\n## 步骤\n\n### 1. 查看用量\n\n- **网页版**：左下角头像 → 设置 → 订阅；\n- **App**：我的 → 会员计划 → 订阅。\n\n可以看到剩余额度百分比、下次刷新时间和最近的使用明细。官方提醒明细可能有短暂延迟，以当前额度显示为准。\n\n### 2. 额度用完了怎么办\n\n进行中的任务可以正常完成，新任务会提示额度不足。官方给了四个选择：\n\n1. 等待按月刷新；\n2. 升级到更高档位；\n3. 购买「加油包」，开启后按实际用量付费，不用等刷新；\n4. 参加官方活动获取赠送额度。\n\n### 3. 购买和升级\n\n打开 kimi.com，点左下角头像 → 会员计划，选择档位完成支付。请只在 Kimi 官方页面或官方 App 内购买。\n\n### 4. 取消自动续费\n\n可以随时取消，取消后当前计费周期内权益仍然有效，到期后不再扣费。在哪里付的款就在哪里取消：\n\n- **Kimi 内**：登录 →「设置」→「订阅管理」→「取消自动续费」或「管理订阅」→ 确认；\n- **微信支付**：「我」→「服务」→「钱包」→ 右上角「账单」→ 搜索「月之暗面」→「管理扣费服务」→ 选择对应项目 →「关闭扣费服务」；\n- **支付宝**：「我的」→「设置」→「支付设置」→「免密支付 / 自动扣款」→ 找到「Kimi 会员」→「关闭服务」；\n- **iPhone（Apple ID 订阅）**：「设置」→ 顶部 Apple ID 头像 →「订阅」→ 找到 Kimi →「取消订阅」；\n- **Mac App Store**：打开 App Store → 左下角头像 →「账户设置」→「订阅」里找到 Kimi →「管理」→「取消订阅」。\n\n不确定当初走的哪个渠道时，翻一下支付宝、微信和 App Store 的扣款记录。\n\n### 5. 开发票\n\nkimi.com → 左下角头像 → 设置 → 订阅 → 账单 → 开发票。发票邮箱填错了，可以在订阅界面点对应订单的「已开票」，更新邮箱后重新发送。\n\n## 常见问题\n\n**Q：不开会员能用吗？**\n能。免费也可以对话和体验 Agent 功能，官方帮助中心提到每月有一定的免费额度，只是量少，具体数字页面没有给出。\n\n**Q：会员额度能当 API 用吗？**\n不能。开放平台 API 是单独的按量计费产品，见《Kimi API 怎么用》。\n\n**Q：这个月没用完的额度能留到下个月吗？**\n不能，到期清零。\n\n**Q：开通后能退款吗？**\n官方说明付费服务属于虚拟服务，成功开通后不可退费或转让，除非法律另有规定。有扣费争议按帮助中心「支付相关问题」里的方式联系官方。\n\n**Q：未成年人可以购买吗？**\n官方要求未满 18 周岁的用户在监护人指导下阅读协议，并经监护人同意后才能购买。\n\n**Q：K3 一定要开会员吗？**\nK3 按额度计费，有额度就能用；但 100 万 token 的超长上下文只在最高档 Allegro 提供。\n\n## 参考资料\n\n- Kimi 帮助中心：会员订阅 · 权益介绍 — https://www.kimi.com/help/membership/membership-overview\n- Kimi 帮助中心：会员订阅 · 价格与权益 — https://www.kimi.com/help/membership/membership-pricing\n- Kimi 帮助中心：会员订阅 · 取消自动续费 — https://www.kimi.com/help/membership/membership-cancel-subscription\n- Kimi 帮助中心：模型与模式选择 — https://www.kimi.com/help/others/model-mode-selection",
+      "sources": [
+        "https://www.kimi.com/help/membership/membership-overview",
+        "https://www.kimi.com/help/membership/membership-pricing",
+        "https://www.kimi.com/help/membership/membership-cancel-subscription",
+        "https://www.kimi.com/help/others/model-mode-selection"
+      ],
+      "screenshots": [],
+      "verify": []
+    },
+    {
+      "title": "Kimi Code怎么用：CLI安装、登录、常用命令与额度规则",
+      "slug": "kimi-code-cli-getting-started",
+      "checkedOn": "2026-10-11",
+      "images": [],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Kimi Code 是什么、CLI 怎么安装和登录、额度怎么算？本文按官方文档讲清三种产品形态、各系统安装命令、/login 两种登录方式、常用斜杠命令与快捷键、5 小时窗口与月额度规则和常见报错。",
+      "content": "## 适用于谁\n\n- 搜「kimi code」「kimi code cli」「kimi code 官网」「kimi code 额度」的开发者；\n- 已经是 Kimi 会员，想把额度用在写代码上的人；\n- 安装或登录时遇到「No models available」等报错的人。\n\n本文根据 Kimi Code 官方文档整理，资料核对于 2026-10-11。命令均来自官方文档，执行前建议对照官方页面确认没有变化。\n\n## 结论先说\n\n1. **Kimi Code 是 Kimi 会员权益里面向开发者的编程服务**，有三种官方形态：桌面端（Desktop）、终端工具（CLI）和 VS Code 扩展；会员还可以创建 API Key，把模型接到 Claude Code、OpenCode、Codex 等第三方工具里。\n2. **CLI 一条命令安装**，脚本安装不需要预装 Node.js；Windows 需要先装 Git for Windows。\n3. **登录有两种**：用 Kimi 账号走 OAuth（消耗会员额度），或填 Kimi 开放平台的 API Key（按量计费）。两套 Key 和接口地址不通用。\n4. **改文件和执行命令前默认会问你**，只读操作自动执行。\n5. **额度是共享的**：CLI、VS Code、桌面端和第三方工具的请求计入同一套配额，另有 5 小时滚动窗口限流和月总额度。\n\n## 步骤\n\n### 1. 确认环境\n\n- **Windows**：先安装 Git for Windows，CLI 要用其中的 Git Bash。Git Bash 不在标准路径时，把环境变量 `KIMI_SHELL_PATH` 设为 `bash.exe` 的绝对路径；\n- **Node.js**：只有用 npm 或 pnpm 安装时才需要，要求 22.19.0 或更高版本（`node --version` 查看）；\n- **终端**：CLI 是全交互式界面，官方建议用支持真彩色的现代终端。\n\n### 2. 安装\n\n**脚本安装（官方推荐）**\n\nmacOS / Linux：\n\n```sh\ncurl -fsSL https://code.kimi.com/kimi-code/install.sh | bash\n```\n\nWindows（PowerShell）：\n\n```powershell\nirm https://code.kimi.com/kimi-code/install.ps1 | iex\n```\n\n**用 npm 或 pnpm 安装**\n\n```sh\nnpm install -g @moonshot-ai/kimi-code\n# 或\npnpm add -g @moonshot-ai/kimi-code\n```\n\n装完运行 `kimi --version`，能显示版本号就是成功了。\n\n### 3. 启动并登录\n\n```sh\ncd your-project\nkimi\n```\n\n在交互界面里输入 `/login`，从平台选择器里选一种：\n\n- **Kimi Code（OAuth）**：按提示在任意设备上打开链接、登录 Kimi 账号并输入验证码完成授权。用的是会员里的 Kimi Code 额度；\n- **Kimi Platform API 密钥**：填入在 platform.kimi.com（国内）或 platform.kimi.ai（海外）创建的 Key，按开放平台的价格按量计费。\n\n退出登录用 `/logout`。想接入其他厂商的模型，官方说明可以编辑 `~/.kimi-code/config.toml` 配置。\n\n### 4. 交办第一个任务\n\n直接用自然语言说要做什么：\n\n```\n介绍一下这个项目的目录结构，重点说明入口文件和数据库相关的代码在哪里。\n```\n\n```\n在 src/utils 里新增一个把日期格式化成「2026-10-11 周日」的函数，并补充单元测试。\n```\n\nCLI 会自己读取和搜索相关文件，并在过程中说明每一步在做什么。**只读操作默认自动执行；修改文件或运行 Shell 命令前，默认会先征求你的确认**——认真看一眼它要改什么、要跑什么命令再批准，尤其是删除、安装依赖、数据库相关的命令。\n\n不想进交互界面，只执行一条指令：\n\n```sh\nkimi -p \"检查这个仓库里有没有未使用的依赖，列出来但不要删除\"\n```\n\n接着上一次的会话继续：`kimi -c`。\n\n### 5. 记住这些命令和快捷键\n\n| 斜杠命令 | 作用 |\n| --- | --- |\n| `/help` | 打开命令和快捷键面板 |\n| `/new` | 开新会话，清空当前上下文 |\n| `/sessions` | 浏览并恢复历史会话 |\n| `/model` | 切换模型 |\n| `/compact` | 手动压缩上下文，释放 token |\n| `/fork` | 派生当前会话的独立副本 |\n| `/usage` | 查看配额和会员状态 |\n| `/exit` | 退出 |\n\n快捷键：`Esc` 中断输出或关闭弹窗；`Shift-Tab` 切换 Plan 模式（先出方案再动手）；`Ctrl-S` 在输出中途插入消息；`Ctrl-O` 折叠或展开工具输出。退出也可以连按两次 `Ctrl-C`，或在输入框为空时按 `Ctrl-D`。\n\n### 6. 选模型\n\n官方文档列出的模型 ID（用 `/model` 切换）：\n\n| Model ID | 说明 |\n| --- | --- |\n| `k3` | K3 旗舰模型，最高支持 100 万上下文，适合大型代码库和多文件重构 |\n| `k3-256k` | K3 的 256K 上下文版，消耗较低，适合日常开发 |\n| `kimi-for-coding` | K2.8 Preview，最高 1M 上下文 |\n| `kimi-for-coding-highspeed` | K2.7 Code 高速版，推理速度快 |\n\n不同模型对应不同的会员档位。日常开发用消耗较低的版本，遇到大范围重构再切到 `k3`。\n\n### 7. 弄清额度规则\n\n按官方「会员权益」文档：\n\n- **同一套配额**：CLI、VS Code 扩展、桌面端和第三方工具的请求都计入同一额度，所有登录设备和 API Key 共享；\n- **5 小时滚动窗口**：请求过于频繁会触发限流，窗口滚动后自动恢复；\n- **月总额度**：用完后 Kimi Code 额度冻结，等月额度重置或升级订阅；\n- **加油包**：订阅额度耗尽后可以按实际用量付费继续用，可设置每月消费上限。官方写明的充值规则是单次最低 25 元、每日最多 10 次，余额不过期，一般不可退款；\n- **设备**：超过 30 天不活跃的设备会自动解绑，重新 `/login` 即可。\n\n随时用 `/usage` 看剩余配额。官方文档里同时出现了「老套餐」和「新套餐」两套档位名称，哪个档位能用哪些模型、是否包含 1M 上下文，以官方会员权益页面当前的表格为准。\n\n### 8. 升级和卸载\n\n- 升级：在终端运行 `kimi upgrade`，或 `npm install -g @moonshot-ai/kimi-code@latest`；\n- 卸载：脚本安装的删除 `kimi` 可执行文件；npm 安装的运行 `npm uninstall -g @moonshot-ai/kimi-code`。\n\n## 常见问题\n\n**Q：`/login` 后提示「No models available for the selected platform」？**\n官方给的原因：API 密钥无效或过期，或者无法访问对应的接口地址；另外接口地址必须和密钥所属平台匹配。Kimi Code 国内地址是 `https://api.kimi.com/coding/`，开放平台国内地址是 `https://api.moonshot.cn/v1`，两者的 Key 不能混用。\n\n**Q：提示会员过期或配额用尽？**\n用 `/usage` 确认状态。限流等 5 小时窗口滚动；月额度用完则等重置、升级，或开启加油包。\n\n**Q：粘贴图片失败，提示当前模型不支持图片输入？**\n换一个支持图片输入的模型，并确认剪贴板里是图片本身而不是图片的文件路径。\n\n**Q：macOS 第一次运行特别慢？**\n官方说明是系统的 Gatekeeper 首次检查导致，之后会恢复正常。\n\n**Q：可以把 Kimi Code 的 Key 用在别的工具里吗？**\n可以，官方文档提供了 Claude Code、OpenCode、Codex 等工具的接入页面，接口同时兼容 OpenAI 和 Anthropic 协议。注意官方提醒：篡改客户端标识（User-Agent）可能导致会员权益被暂停，按官方文档的方式配置即可。\n\n**Q：VS Code 扩展提示找不到 CLI 或未打开工作区？**\n先在 VS Code 里打开一个文件夹；找不到 CLI 时手动安装 Kimi Code CLI，并在设置里配置 `kimi.executablePath`。可以通过命令「Kimi Code: Show Logs」查看错误日志。\n\n**Q：它和 Claude Code 是什么关系？**\n两个独立的产品，用法相似（终端里的编程 Agent）。Kimi Code 用的是 Kimi 的模型和会员额度。Claude Code 的入门见《Claude Code 中文入门教程》。\n\n## 参考资料\n\n- Kimi Code 文档：产品概览 — https://www.kimi.com/coding/docs/\n- Kimi Code CLI：开始使用 — https://www.kimi.com/coding/docs/kimi-code-cli/guides/getting-started.html\n- Kimi Code：会员权益 — https://www.kimi.com/coding/docs/kimi-code/membership.html\n- Kimi Code：常见问题 — https://www.kimi.com/coding/docs/kimi-code/faq.html",
+      "sources": [
+        "https://www.kimi.com/coding/docs/",
+        "https://www.kimi.com/coding/docs/kimi-code-cli/guides/getting-started.html",
+        "https://www.kimi.com/coding/docs/kimi-code/membership.html",
+        "https://www.kimi.com/coding/docs/kimi-code/faq.html"
+      ],
+      "screenshots": [],
+      "verify": []
     }
   ],
   "apps": [
