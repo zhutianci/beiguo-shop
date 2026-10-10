@@ -5,7 +5,7 @@ products: [cursor]
 models: []
 topics: [ai-agent]
 accountTier: FREE
-excerpt: Cursor 的 Skills 怎么配置、放在哪、怎么安装？按 Cursor 官方文档讲清项目级与用户级技能目录（含兼容 .claude 和 .codex 的目录）、SKILL.md 的字段、自动与手动调用、用 paths 限定范围、从 GitHub 安装的方式，以及用 /migrate-to-skills 把旧规则和命令转成技能。
+excerpt: Cursor 的 Skills 怎么配置、放在哪？按官方文档讲清项目级与用户级技能目录（兼容 .claude 和 .codex）、SKILL.md 字段、自动与手动调用、用 paths 限定范围、从 GitHub 安装，以及用 /migrate-to-skills 迁移旧规则。
 checkedOn: 2026-10-11
 sources:
   - https://cursor.com/docs/skills

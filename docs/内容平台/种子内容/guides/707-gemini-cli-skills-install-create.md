@@ -5,7 +5,7 @@ products: [gemini]
 models: []
 topics: [ai-agent]
 accountTier: FREE
-excerpt: Gemini CLI 的 Skills 怎么安装和使用？按官方文档讲清四层技能来源与优先级、~/.gemini/skills 与 .agents/skills 两套目录、会话里的 /skills 命令和终端里的 gemini skills install、激活时的确认步骤，以及用内置 skill-creator 或手写创建技能。
+excerpt: Gemini CLI 的 Skills 怎么安装和使用？按官方文档讲清四层技能来源与优先级、.gemini/skills 与 .agents/skills 两套目录、/skills 命令和 gemini skills install、激活时的确认步骤，以及怎么创建技能。
 checkedOn: 2026-10-11
 sources:
   - https://geminicli.com/docs/cli/skills

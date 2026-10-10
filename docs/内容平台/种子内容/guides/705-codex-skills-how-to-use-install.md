@@ -5,7 +5,7 @@ products: [codex, chatgpt]
 models: []
 topics: [ai-agent]
 accountTier: PLUS
-excerpt: Codex 的 Skills 怎么安装、放哪个目录、怎么触发？按 OpenAI 官方文档讲清 .agents/skills 的六个扫描位置、用 $ 显式调用与按描述隐式调用、内置的 skill-creator 和 skill-installer、agents/openai.yaml 的作用，以及在 config.toml 里停用某个技能。
+excerpt: Codex 的 Skills 怎么安装、放哪个目录、怎么触发？按 OpenAI 官方文档讲清 .agents/skills 的扫描位置、用 $ 显式调用与按描述隐式调用、内置的 skill-creator 和 skill-installer，以及在 config.toml 里停用某个技能。
 checkedOn: 2026-10-11
 sources:
   - https://learn.chatgpt.com/docs/build-skills
