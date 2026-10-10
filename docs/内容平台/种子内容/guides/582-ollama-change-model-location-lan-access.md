@@ -4,7 +4,7 @@ slug: ollama-change-model-location-lan-access
 products: [ai-tools]
 models: []
 accountTier: FREE
-excerpt: Ollama 模型默认下在系统盘，怎么改到 D 盘？怎么让局域网里的其他电脑访问？本文按官方文档讲清 OLLAMA_MODELS、OLLAMA_HOST、OLLAMA_ORIGINS 等环境变量的含义，以及 Windows、macOS、Linux 各自的设置步骤。
+excerpt: Ollama 模型默认下在系统盘，怎么改到 D 盘？怎么让局域网其他电脑访问？本文按官方文档讲清 OLLAMA_MODELS、OLLAMA_HOST 等环境变量的含义，以及 Windows、macOS、Linux 的设置步骤。
 checkedOn: 2026-10-11
 sources:
   - https://docs.ollama.com/faq

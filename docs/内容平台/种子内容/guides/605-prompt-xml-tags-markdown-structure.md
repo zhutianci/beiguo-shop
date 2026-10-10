@@ -4,7 +4,7 @@ slug: prompt-xml-tags-markdown-structure
 products: [claude, chatgpt]
 models: []
 accountTier: FREE
-excerpt: 提示词里的 XML 标签是什么、有什么用？本文按 Anthropic、OpenAI、Google 官方文档讲清为什么要给提示词分区、标签和 Markdown 标题各适合做什么、标签怎么命名和嵌套、怎么让模型把输出也放进标签里，并附一份通用模板。
+excerpt: 提示词里的 XML 标签有什么用？本文按 Anthropic、OpenAI、Google 官方文档讲清为什么要给提示词分区、标签和 Markdown 标题各适合做什么、标签怎么命名和嵌套，并附通用模板。
 checkedOn: 2026-10-11
 sources:
   - https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices

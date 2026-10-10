@@ -4,7 +4,7 @@ slug: llm-json-structured-output-reliable
 products: [chatgpt, claude]
 models: []
 accountTier: OTHER
-excerpt: 怎么让大模型稳定输出 JSON？本文按 OpenAI 和 Anthropic 官方文档讲清三种做法的可靠程度：只靠提示词、JSON 模式、结构化输出（Structured Outputs），两家的参数写法、Schema 限制、拒答与截断这两种仍会出错的情况，以及聊天界面里的替代办法。
+excerpt: 怎么让大模型稳定输出 JSON？本文按 OpenAI 和 Anthropic 官方文档讲清只靠提示词、JSON 模式、结构化输出三种做法的可靠程度，两家的写法与 Schema 限制，以及拒答和截断两种例外。
 checkedOn: 2026-10-11
 sources:
   - https://developers.openai.com/api/docs/guides/structured-outputs

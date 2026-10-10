@@ -4,7 +4,7 @@ slug: reduce-ai-hallucination-official-tips
 products: [claude, gemini]
 models: []
 accountTier: FREE
-excerpt: AI 幻觉怎么解决？本文整理 Anthropic、Google、OpenAI 官方文档给出的做法：允许它说不知道、先引用原文再回答、逐条核对引用、联网与代码执行、只用给定资料，并附可直接复制的提示词。官方同时说明这些方法能减少但不能根除幻觉。
+excerpt: AI 幻觉怎么解决？本文整理 Anthropic、Google、OpenAI 官方文档的做法：允许说不知道、先引用原文再回答、逐条核对、联网与代码执行、只用给定资料，并附可复制的提示词。官方同时说明幻觉无法根除。
 checkedOn: 2026-10-11
 sources:
   - https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-hallucinations

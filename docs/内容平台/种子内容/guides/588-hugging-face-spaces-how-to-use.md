@@ -4,7 +4,7 @@ slug: hugging-face-spaces-how-to-use
 products: [ai-tools]
 models: []
 accountTier: FREE
-excerpt: Hugging Face Spaces 是什么、怎么用、免费吗？本文按官方文档讲清怎么找到并试用别人的 Space、ZeroGPU 每天的免费额度、怎么复制一个 Space 到自己名下、创建 Space 需要什么账号，以及硬件、休眠和密钥管理的规则。
+excerpt: Hugging Face Spaces 是什么、免费吗？本文按官方文档讲清怎么试用别人的 Space、ZeroGPU 每日免费额度、怎么复制一个 Space、创建 Space 需要什么账号，以及硬件、休眠和密钥管理规则。
 checkedOn: 2026-10-11
 sources:
   - https://huggingface.co/docs/hub/spaces-overview

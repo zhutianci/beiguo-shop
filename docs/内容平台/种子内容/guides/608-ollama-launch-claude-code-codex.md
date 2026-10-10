@@ -4,7 +4,7 @@ slug: ollama-launch-claude-code-codex
 products: [ai-tools]
 models: []
 accountTier: FREE
-excerpt: 怎么让 Claude Code、Codex 用上 Ollama 里的本地模型或云端模型？本文按 Ollama 官方文档讲清 ollama launch claude / codex 的用法、手动设置环境变量的写法、为什么上下文至少要 64k、脚本里怎么无交互运行，以及报错时先查什么。
+excerpt: 怎么让 Claude Code、Codex 用上 Ollama 的本地或云端模型？本文按 Ollama 官方文档讲清 ollama launch 的用法、手动设置环境变量、上下文为什么至少要 64k，以及报错时先查什么。
 checkedOn: 2026-10-11
 sources:
   - https://docs.ollama.com/integrations/claude-code

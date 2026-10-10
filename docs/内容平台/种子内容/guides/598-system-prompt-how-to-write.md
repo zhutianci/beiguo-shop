@@ -4,7 +4,7 @@ slug: system-prompt-how-to-write
 products: [chatgpt, claude]
 models: []
 accountTier: FREE
-excerpt: 系统提示词（system prompt）怎么写、和用户提示词有什么区别？本文把 OpenAI、Anthropic、Google 三家官方文档里关于系统提示词的建议放在一起：优先级怎么算、该写哪四部分、为什么要解释原因，并给出一份可直接改写的模板。
+excerpt: 系统提示词怎么写、和用户提示词有什么区别？本文汇总 OpenAI、Anthropic、Google 官方文档的建议：优先级怎么算、该写哪四部分、为什么要解释原因，并给出一份可直接改写的模板。
 checkedOn: 2026-10-11
 sources:
   - https://developers.openai.com/api/docs/guides/prompt-engineering
@@ -129,7 +129,7 @@ Google 文档的建议：关键的行为约束、角色定义和输出格式要�
 核心原则通用，细节有差别。OpenAI 文档说明，推理模型和普通 GPT 模型的最佳写法不同：前者只给高层目标效果就很好，后者更需要精确的指令；并建议在生产环境固定模型版本、建立评测，换模型时重新测试。
 
 **Q：在 ChatGPT、Claude 的聊天界面里怎么用上这些？**
-对应的入口是 ChatGPT 的自定义指令和项目说明、Claude 的项目说明等，见站内《ChatGPT 自定义指令怎么设置》和《Claude Projects 教程》。站内提示词库（/prompts）里的提示词，很多可以直接放进去当系统提示词用。
+对应的入口是 ChatGPT 的自定义指令和项目说明、Claude 的项目说明等，见站内《ChatGPT 自定义指令怎么设置》和《Claude Projects 怎么用》。站内提示词库（/prompts）里的提示词，很多可以直接放进去当系统提示词用。
 
 ## 参考资料
 

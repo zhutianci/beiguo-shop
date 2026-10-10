@@ -4,7 +4,7 @@ slug: prompt-chaining-how-to
 products: [claude, gemini]
 models: []
 accountTier: FREE
-excerpt: 提示词链是什么、什么时候该把一个大提示词拆开？本文按 Anthropic 和 Google 官方文档讲清三种拆法（拆指令、串成链、分块聚合）、最常用的「起草 → 审查 → 修改」自我纠错链、每一步之间怎么传递内容，以及现在的模型哪些情况已经不需要拆。
+excerpt: 提示词链是什么、什么时候该把大提示词拆开？本文按 Anthropic 和 Google 官方文档讲清拆指令、串成链、分块聚合三种拆法，最常用的「起草 → 审查 → 修改」链，以及哪些情况不必拆。
 checkedOn: 2026-10-11
 sources:
   - https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices

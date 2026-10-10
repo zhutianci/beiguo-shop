@@ -4,7 +4,7 @@ slug: dify-docker-compose-self-host
 products: [ai-tools]
 models: []
 accountTier: FREE
-excerpt: Dify 怎么本地部署？本文按官方自部署文档给出最低配置、三条命令启动 Docker Compose、哪些容器该是什么状态、从 /install 初始化管理员，以及改环境变量、升级、克隆报错「Remote branch null not found」的处理。
+excerpt: Dify 怎么本地部署？本文按官方自部署文档给出最低配置、三条命令启动 Docker Compose、各容器应有的状态、从 /install 初始化管理员，以及改端口、升级和克隆报错的处理。
 checkedOn: 2026-10-11
 sources:
   - https://docs.dify.ai/zh/self-host/deploy/quick-start/docker-compose

@@ -4,7 +4,7 @@ slug: ollama-how-to-use-install-commands
 products: [ai-tools]
 models: []
 accountTier: FREE
-excerpt: Ollama怎么用？本文按 Ollama 官方文档讲清三个系统的安装方式和系统要求、第一条 ollama run 命令、pull / ls / ps / stop / rm 等常用命令各管什么，以及怎么看模型有没有跑在显卡上、怎么升级和卸载。
+excerpt: Ollama怎么用？本文按 Ollama 官方文档讲清三个系统的安装方式和系统要求、第一条 ollama run 命令、pull / ls / ps / stop / rm 等常用命令的作用，以及怎么看模型是否跑在显卡上、怎么升级和卸载。
 checkedOn: 2026-10-11
 sources:
   - https://docs.ollama.com/quickstart

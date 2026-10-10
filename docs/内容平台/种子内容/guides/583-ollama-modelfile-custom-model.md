@@ -4,7 +4,7 @@ slug: ollama-modelfile-custom-model
 products: [ai-tools]
 models: []
 accountTier: FREE
-excerpt: Ollama Modelfile 怎么写？本文按官方文档讲清 FROM、PARAMETER、SYSTEM、MESSAGE 等指令的用法，给出「固定系统提示词」「调大上下文」「导入本地 GGUF 文件」三个可直接照抄的例子，以及常见报错的原因。
+excerpt: Ollama Modelfile 怎么写？本文按官方文档讲清 FROM、PARAMETER、SYSTEM、MESSAGE 等指令，给出固定系统提示词、调大上下文、导入本地 GGUF 三个可照抄的例子，以及常见报错原因。
 checkedOn: 2026-10-11
 sources:
   - https://docs.ollama.com/modelfile

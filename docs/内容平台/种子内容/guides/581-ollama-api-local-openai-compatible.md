@@ -4,7 +4,7 @@ slug: ollama-api-local-openai-compatible
 products: [ai-tools]
 models: []
 accountTier: FREE
-excerpt: Ollama API 怎么调用、地址是什么、要不要 API Key？本文按官方文档讲清本地接口地址 localhost:11434、原生接口与 OpenAI 兼容接口两种写法、Python 示例、keep_alive 与上下文长度怎么设，以及连不上时的排查。
+excerpt: Ollama API 怎么调用、要不要 API Key？本文按官方文档讲清本地接口地址 localhost:11434、原生接口与 OpenAI 兼容接口两种写法、Python 示例、keep_alive 与上下文设置，以及连不上的排查。
 checkedOn: 2026-10-11
 sources:
   - https://docs.ollama.com/api/introduction

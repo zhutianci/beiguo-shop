@@ -4,7 +4,7 @@ slug: few-shot-prompting-examples
 products: [claude, gemini]
 models: []
 accountTier: FREE
-excerpt: 少样本提示（few-shot prompting）是什么、例子该给几个？本文汇总 Anthropic、Google、OpenAI 官方文档的说法：为什么示例比文字描述管用、3–5 个的建议从哪来、示例要相关多样且格式一致，以及推理模型什么时候可以不给例子。
+excerpt: 少样本提示（few-shot）是什么、例子该给几个？本文汇总 Anthropic、Google、OpenAI 官方文档：示例为什么管用、3–5 个的建议从哪来、怎么挑怎么排版，以及推理模型什么时候可以不给例子。
 checkedOn: 2026-10-11
 sources:
   - https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices
