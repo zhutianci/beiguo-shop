@@ -9,6 +9,7 @@ import type { ReactNode } from 'react'
 import { ArrowRight, ArrowUpRight, BadgeCheck, Clock, Copy, MessageCircle, Star } from 'lucide-react'
 import type { Crumb } from '@/lib/seo/graph'
 import type { ContentCard } from '@/lib/content/queries'
+import { SKILLS_PATH, SKILL_TAG_SLUG } from '@/lib/content/skill-lib'
 
 export const LEARN_HOME = { name: 'AI 学习', path: '/learn' }
 
@@ -64,7 +65,13 @@ export function PageHead({
         <div className="max-w-3xl">
           <h1 className="learn-display">
             {title}
-            {accent && <span className="learn-accent-text"> {accent}</span>}
+            {/* 强调词整体换行（inline-block）：放不下时整个落到下一行，不从中间断开 */}
+            {accent && (
+              <>
+                {' '}
+                <span className="learn-accent-text inline-block">{accent}</span>
+              </>
+            )}
           </h1>
           {lede && <p className="mt-5 text-[15px] lg:text-[17px] leading-relaxed text-white/55">{lede}</p>}
         </div>
@@ -242,7 +249,7 @@ export function PromptShot({ c, priority = false }: { c: ContentCard; priority?:
 }
 
 /** 领域色：按主题名稳定取一个色相（同一领域的卡片颜色一致，不同领域错开） */
-function hueOf(name: string): number {
+export function hueOf(name: string): number {
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360
   return h
@@ -417,6 +424,8 @@ export interface HubTile {
 }
 
 export function hubHref(t: { kind: string; slug: string }): string {
+  // 「Skill 库」标签的聚合页是 /skills 目录，不是提示词主题页（lib/content/skill-lib.ts）
+  if (t.slug === SKILL_TAG_SLUG) return SKILLS_PATH
   return t.kind === 'MODEL' ? `/prompts/m/${t.slug}` : t.kind === 'TOPIC' ? `/prompts/t/${t.slug}` : `/guides/p/${t.slug}`
 }
 

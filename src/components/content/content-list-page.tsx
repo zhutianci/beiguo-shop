@@ -17,7 +17,8 @@ import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { renderMarkdown } from '@/lib/markdown'
 import { MIN_HUB_ITEMS, isHubIndexable, readableLength } from '@/lib/content/policy'
-import { PUBLIC_WHERE, countIndexableCached, listContent, listHot } from '@/lib/content/queries'
+import { NOT_SKILL_WHERE, PUBLIC_WHERE, countIndexableCached, listContent, listHot } from '@/lib/content/queries'
+import { SKILL_TAG_SLUG } from '@/lib/content/skill-lib'
 import { FACET_LABELS, FACET_PATH, FACETS, ensureContentDefaults, type Facet } from '@/lib/content/tags'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
@@ -26,6 +27,7 @@ import { breadcrumbJsonLd, type Crumb } from '@/lib/seo/graph'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
 import { AppGrid, Crumbs, Empty, FilterBar, GuideFeature, GuideRows, LEARN_HOME, LearnPage, PageHead, Pager, PrimaryAction, PromptMasonry, SearchBox, SortTabs, SponsorStrip } from '@/components/learn/ui'
+import { DirectoryCrossLink, SkillsHint } from '@/components/learn/skills-ui'
 import { activeSponsors } from '@/lib/content/sponsor'
 
 export type ListSort = 'curated' | 'hot' | 'new'
@@ -157,8 +159,8 @@ const FACET_HEAD: Record<Facet, { h1: string; lede: string; title: string }> = {
 function tagWhere(r: Resolved): Prisma.ForumPostWhereInput {
   return {
     type: r.section,
-    // AI 应用：作者自荐与普通分享分开放（设计 §9.1「隔离」）
-    ...(r.section === 'APP' && r.kind === 'ROOT' ? { app: { selfPromo: false } } : {}),
+    // AI 应用：作者自荐与普通分享分开放（设计 §9.1「隔离」）；Skill 库单独在 /skills，这里不列（2026-10-10）
+    ...(r.section === 'APP' && r.kind === 'ROOT' ? { app: { selfPromo: false }, ...NOT_SKILL_WHERE } : {}),
     ...(r.kind === 'SHOWCASE' ? { app: { selfPromo: true } } : {}),
     ...(r.tag ? { postTags: { some: { tagId: r.tag.id } } } : {}),
     ...(r.kind === 'FACET' && r.facet ? { AND: [{ postTags: { some: { tag: { kind: 'MODEL', facet: r.facet, status: 1 } } } }] } : {}),
@@ -236,6 +238,8 @@ function navTagsOf(section: 'PROMPT' | 'GUIDE') {
     where: {
       status: 1,
       kind: section === 'PROMPT' ? { in: ['MODEL', 'TOPIC'] } : 'PRODUCT',
+      // 「Skill 库」标签只挂在 AI 应用上、聚合页是 /skills：即使有提示词误挂了它，也不让它出现在提示词的筛选条里
+      slug: { not: SKILL_TAG_SLUG },
       posts: { some: { post: { ...PUBLIC_WHERE, type: section } } },
     },
     orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }],
@@ -253,6 +257,7 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
           tagSlug: r.tag?.slug,
           facet: r.kind === 'FACET' ? r.facet ?? undefined : undefined,
           selfPromo: section === 'APP' ? r.kind === 'SHOWCASE' : undefined,
+          excludeSkills: section === 'APP' && r.kind === 'ROOT',
           page,
           pageSize: PAGE_SIZE[section],
         })
@@ -261,6 +266,7 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
           tagSlug: r.tag?.slug,
           facet: r.kind === 'FACET' ? r.facet ?? undefined : undefined,
           selfPromo: section === 'APP' ? r.kind === 'SHOWCASE' : undefined,
+          excludeSkills: section === 'APP' && r.kind === 'ROOT',
           order: sort,
           page,
           pageSize: PAGE_SIZE[section],
@@ -357,6 +363,8 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
         </div>
         <FilterBar groups={groups} active={active} />
         <SponsorStrip items={sponsors} />
+        {/* 与 Skill 库目录互相指路（2026-10-10）：/apps 上是一张醒目的卡片，提示词库 / 教程总览上是一行小字；只在总览第一页出 */}
+        {r.kind === 'ROOT' && page === 1 && (section === 'APP' ? <DirectoryCrossLink to="skills" /> : <SkillsHint from={section === 'PROMPT' ? 'prompts' : 'guides'} />)}
 
         {list.items.length === 0 ? (
           <Empty

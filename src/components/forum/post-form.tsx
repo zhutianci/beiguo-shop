@@ -19,6 +19,7 @@ import { forumFetch } from '@/lib/forum-client'
 import { useUserStore } from '@/store/user'
 import { useHydrated } from '@/lib/use-hydrated'
 import { withRedirect } from '@/lib/safe-redirect'
+import { SKILL_TAG_SLUG } from '@/lib/content/skill-lib'
 import {
   ACCOUNT_TIERS, ACCOUNT_TIER_LABELS, AI_ASSIST, AI_ASSIST_LABELS, CONTENT_TYPES, CONTENT_TYPE_LABELS, ORIGINALITY,
   ORIGINALITY_LABELS, promptVariables, type AccountTier, type AiAssist, type ContentType, type Originality,
@@ -416,7 +417,8 @@ export function PostForm({
           <div>
             <label className="block text-sm text-white/60 mb-2">主题（选填，最多 3 个）</label>
             <div className="flex flex-wrap gap-2">
-              {byKind.TOPIC.filter((t) => !modelFacet || !t.facet || t.facet === modelFacet).map((t) => (
+              {/* 「Skill 库」只用于 AI 应用（/skills 目录按它取数），提示词的主题里不列 */}
+              {byKind.TOPIC.filter((t) => t.slug !== SKILL_TAG_SLUG && (!modelFacet || !t.facet || t.facet === modelFacet)).map((t) => (
                 <button key={t.id} type="button" onClick={() => toggleTag(t)} className={chip(tagIds.includes(t.id))}>
                   {t.name}
                 </button>

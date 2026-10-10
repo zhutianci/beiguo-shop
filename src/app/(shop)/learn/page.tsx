@@ -19,6 +19,9 @@ import {
   hubHref,
 } from '@/components/learn/ui'
 import { activeSponsors } from '@/lib/content/sponsor'
+import { SKILL_TAG_SLUG } from '@/lib/content/skill-lib'
+import { skillLibraryPreview } from '@/lib/content/skills'
+import { SkillRows } from '@/components/learn/skills-ui'
 import { moduleMetadata } from '@/lib/storefront/module-meta'
 import { currentBrand } from '@/lib/storefront/brand-meta'
 import { isWhiteLabel } from '@/lib/brand-base'
@@ -53,9 +56,18 @@ async function pageMetadata(): Promise<Metadata> {
 export default async function LearnHome() {
   // 白标渠道（内容模块下放）：眉题不写 Bigo；主站与没改名的渠道原样
   const eyebrow = isWhiteLabel(await currentBrand()) ? 'AI Learning · AI 学习平台' : 'Bigo AI Learning · AI 学习平台'
-  const [d, sponsors] = await Promise.all([learnHomeData(), activeSponsors('LEARN')])
+  const [d, sponsors, skills] = await Promise.all([
+    learnHomeData(),
+    activeSponsors('LEARN'),
+    // Skill 库区块（2026-10-10）：前 4 个库 + 总数；查不出来就不出这一块（同 learnHomeData 的降级做法）
+    skillLibraryPreview(4).catch((e) => {
+      console.error('[learn home skills]', e)
+      return { items: [], total: 0 }
+    }),
+  ])
   const models = d.hubs.filter((h) => h.kind === 'MODEL')
-  const topics = d.hubs.filter((h) => h.kind === 'TOPIC')
+  // 「Skill 库」是挂在 AI 应用上的主题标签，有自己的区块与目录页，不混进「按场景找」的提示词主题里
+  const topics = d.hubs.filter((h) => h.kind === 'TOPIC' && h.slug !== SKILL_TAG_SLUG)
   const products = d.hubs.filter((h) => h.kind === 'PRODUCT')
   const heroShots = d.prompts.filter((p) => p.cover).slice(0, 5)
 
@@ -159,6 +171,30 @@ export default async function LearnHome() {
       </section>
 
       <SponsorStrip items={sponsors} />
+
+      {/* —— Skill 库（2026-10-10）：放在提示词各区块之前；一个库都没公开时整块不出 —— */}
+      {skills.total > 0 && (
+        <section className="mb-24">
+          <div className="learn-card grid gap-8 p-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:items-center lg:gap-12 lg:p-9">
+            <div>
+              <p className="learn-eyebrow mb-4">Agent Skills · Skill 库</p>
+              <h2 className="text-2xl font-semibold tracking-tight lg:text-3xl">给 Claude Code、Codex 装上现成的技能包</h2>
+              <p className="mt-4 text-[15px] leading-relaxed text-white/55">
+                Skill 是带 SKILL.md 的文件夹，AI 用得上时按需加载。这里整理了值得装的 Skill 库，每个都写明适用平台、许可和安装命令。
+              </p>
+              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <Link href="/skills" className="group inline-flex h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-black transition-transform duration-300 hover:-translate-y-0.5">
+                  浏览 Skill 库 <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+                </Link>
+                <span className="text-sm text-white/45">
+                  已收录 <span className="font-semibold tabular-nums text-white/80">{skills.total}</span> 个库
+                </span>
+              </div>
+            </div>
+            <SkillRows items={skills.items} />
+          </div>
+        </section>
+      )}
 
       {/* —— 本周最热（按「被复制、被同款、被收藏」排，不按浏览量）—— */}
       {d.hot.length > 0 && (

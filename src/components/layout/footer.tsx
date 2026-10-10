@@ -188,6 +188,12 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
                         AI 使用教程
                       </Link>
                     </li>
+                    {/* Skill 库目录（2026-10-10）：AI 学习的第四个 hub，同样从每一页点得到 */}
+                    <li>
+                      <Link href="/skills" className="text-white/40 hover:text-white text-sm lg:text-[15px] transition-colors">
+                        Skill 库
+                      </Link>
+                    </li>
                   </>
                 )}
                 {features.iptools && (

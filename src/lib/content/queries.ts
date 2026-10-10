@@ -18,8 +18,18 @@ import {
   type ContentType,
   type IndexableInput,
 } from './policy'
+import { SKILL_TAG_SLUG } from './skill-lib'
 
 export const PUBLIC_WHERE = { status: 1, reviewStatus: 'APPROVED', deletedAt: null } as const
+
+/**
+ * Skill 库（/skills，2026-10-10）：挂了 agent-skills 标签、非作者自荐的 AI 应用（规则见 lib/content/skill-lib.ts）。
+ * /skills 用 SKILL_WHERE 取；/apps、学习首页的应用区块、普通应用的「相关内容」用 NOT_SKILL_WHERE 把它们排除——两个目录各管各的。
+ * 标签被后台停用（status=0）时两个条件一起失效：这些条目回到 /apps，/skills 变空（不会两边都找不到）。
+ */
+const HAS_SKILL_TAG = { postTags: { some: { tag: { slug: SKILL_TAG_SLUG, status: 1 } } } } satisfies Prisma.ForumPostWhereInput
+export const SKILL_WHERE = { type: 'APP', app: { selfPromo: false }, ...HAS_SKILL_TAG } satisfies Prisma.ForumPostWhereInput
+export const NOT_SKILL_WHERE = { NOT: HAS_SKILL_TAG } satisfies Prisma.ForumPostWhereInput
 
 const DETAIL_INCLUDE = {
   category: { select: { name: true, slug: true, icon: true, color: true } },
@@ -57,6 +67,11 @@ export function authorNameOf(p: { userId: number | null; authorName: string; use
 
 export function tagsOf(p: ContentRow, kind?: string) {
   return p.postTags.map((pt) => pt.tag).filter((t) => t.status === 1 && (!kind || t.kind === kind))
+}
+
+/** 这条是不是 Skill 库（详情页的面包屑 / 标题 / 安装命令区块、相关内容都按它分支；规则见 skill-lib.isSkillLibrary） */
+export function isSkillRow(p: ContentRow): boolean {
+  return p.type === 'APP' && !p.app?.selfPromo && tagsOf(p).some((t) => t.slug === SKILL_TAG_SLUG)
 }
 
 export function toIndexableInput(p: {
@@ -241,6 +256,8 @@ export async function listContent(opts: {
   order?: 'curated' | 'new'
   /** AI 应用：只看作者自荐（true）/ 只看普通分享（false） */
   selfPromo?: boolean
+  /** AI 应用：不列 Skill 库（它们在 /skills） */
+  excludeSkills?: boolean
   page: number
   pageSize: number
 }): Promise<ListResult> {
@@ -251,6 +268,7 @@ export async function listContent(opts: {
     ...(opts.facet ? { AND: [{ postTags: { some: { tag: { kind: 'MODEL', facet: opts.facet, status: 1 } } } }] } : {}),
     ...(opts.userId ? { userId: opts.userId } : {}),
     ...(opts.selfPromo !== undefined ? { app: { selfPromo: opts.selfPromo } } : {}),
+    ...(opts.excludeSkills ? NOT_SKILL_WHERE : {}),
   }
   const [rows, total] = await Promise.all([
     prisma.forumPost.findMany({
@@ -326,9 +344,11 @@ export function countIndexableCached(where: Prisma.ForumPostWhereInput, atLeast 
 export async function relatedContent(p: ContentRow, limit = 6): Promise<{ title: string; items: ContentCard[] }[]> {
   const groups: { title: string; items: ContentCard[] }[] = []
   const seen = new Set<number>([p.id])
+  // Skill 库的相关内容只有「其他 Skill 库」；普通应用的相关内容里不混进 Skill 库（两个目录各管各的）
+  const skill = isSkillRow(p)
   const take = async (title: string, where: Prisma.ForumPostWhereInput) => {
     const rows = await prisma.forumPost.findMany({
-      where: { ...PUBLIC_WHERE, type: p.type, id: { notIn: Array.from(seen) }, ...where },
+      where: { ...PUBLIC_WHERE, type: p.type, id: { notIn: Array.from(seen) }, ...(p.type === 'APP' && !skill ? { AND: [NOT_SKILL_WHERE] } : {}), ...where },
       orderBy: LIST_ORDER,
       take: limit,
       select: CARD_SELECT,
@@ -340,6 +360,10 @@ export async function relatedContent(p: ContentRow, limit = 6): Promise<{ title:
   const models = tagsOf(p, 'MODEL').map((t) => t.id)
   const topics = tagsOf(p, 'TOPIC').map((t) => t.id)
   const products = tagsOf(p, 'PRODUCT').map((t) => t.id)
+  if (skill) {
+    await take('其他 Skill 库', { app: { selfPromo: false }, ...HAS_SKILL_TAG })
+    return groups
+  }
   if (p.userId) await take(`${authorNameOf(p)} 的更多内容`, { userId: p.userId })
   if (topics.length) {
     await take('同主题', {
@@ -376,7 +400,7 @@ export async function learnHomeData() {
     safe(() => listHot({ type: 'PROMPT', page: 1, pageSize: 8 }), empty),
     safe(() => listContent({ type: 'PROMPT', facet: 'TEXT', page: 1, pageSize: 9 }), empty),
     safe(() => listContent({ type: 'PROMPT', facet: 'VIDEO', page: 1, pageSize: 4 }), empty),
-    safe(() => listContent({ type: 'APP', selfPromo: false, page: 1, pageSize: 6 }), empty),
+    safe(() => listContent({ type: 'APP', selfPromo: false, excludeSkills: true, page: 1, pageSize: 6 }), empty),
     safe(() => listContent({ type: 'GUIDE', page: 1, pageSize: 7 }), { items: [], total: 0, page: 1, totalPages: 1 } as ListResult),
     safe(
       async () => {
@@ -480,7 +504,7 @@ export async function cardsByIds(ids: number[]): Promise<ContentCard[]> {
  * 内容扩容（10-07）：候选按发布时间倒序取（以前没有 orderBy，超过上限时丢掉的是哪些不确定）、上限 1500 → 3000。
  * 量级再上来后改成定时任务写分数列。
  */
-export async function listHot(opts: { type: ContentType; facet?: string; tagSlug?: string; selfPromo?: boolean; page: number; pageSize: number }): Promise<ListResult> {
+export async function listHot(opts: { type: ContentType; facet?: string; tagSlug?: string; selfPromo?: boolean; excludeSkills?: boolean; page: number; pageSize: number }): Promise<ListResult> {
   const where: Prisma.ForumPostWhereInput = {
     ...PUBLIC_WHERE,
     type: opts.type,
@@ -488,6 +512,7 @@ export async function listHot(opts: { type: ContentType; facet?: string; tagSlug
     ...(opts.tagSlug ? { postTags: { some: { tag: { slug: opts.tagSlug, status: 1 } } } } : {}),
     ...(opts.facet ? { AND: [{ postTags: { some: { tag: { kind: 'MODEL', facet: opts.facet, status: 1 } } } }] } : {}),
     ...(opts.selfPromo !== undefined ? { app: { selfPromo: opts.selfPromo } } : {}),
+    ...(opts.excludeSkills ? NOT_SKILL_WHERE : {}),
   }
   const rows = await prisma.forumPost.findMany({
     where,

@@ -33,11 +33,14 @@ import {
   facetOf,
   getContentPost,
   imagesOf,
+  isSkillRow,
   readingMinutes,
   relatedContent,
   tagsOf,
   type ContentRow,
 } from '@/lib/content/queries'
+import { SKILLS_NAME, SKILLS_PATH, parseInstall, repoLabelOf } from '@/lib/content/skill-lib'
+import { InstallCommand } from '@/components/learn/skills-ui'
 import { authorHref, creatorBadge } from '@/lib/content/creator'
 import { authorRefCode, ctaHref } from '@/lib/content/cta'
 import { getStorefront } from '@/lib/storefront/resolve'
@@ -100,6 +103,8 @@ function titleFor(post: ContentRow): string {
     const model = modelOf(post)
     return `${post.title}：${model ? `${model.name} ` : 'AI '}提示词（可复制）- ${SITE_NAME}`
   }
+  // Skill 库（2026-10-10）：不套「X 怎么样：」这种应用点评的句式——标题里有库名就原样用，没有就「库名：标题」
+  if (post.type === 'APP' && post.app && isSkillRow(post)) return `${post.title.includes(post.app.name) ? post.title : `${post.app.name}：${post.title}`} - ${SITE_NAME}`
   // 标题里已经有应用名（站方整理的「X 是什么、怎么用」）就不再前缀「X 怎么样：」，免得重复
   if (post.type === 'APP' && post.app) return `${post.title.includes(post.app.name) ? post.title : `${post.app.name} 怎么样：${post.title}`} - ${SITE_NAME}`
   // 亲测写「实测」；站方据官方文档整理的只写「更新」，不冒充实测
@@ -148,6 +153,8 @@ export async function contentDetailMetadata(type: TypedSection, raw: string): Pr
 }
 
 function crumbsOf(post: ContentRow, type: TypedSection): Crumb[] {
+  // Skill 库：首页 → AI 学习 → Skill 库 → 当前（它的上一级是 /skills 目录，不是 /apps）
+  if (isSkillRow(post)) return [{ name: '首页', path: '/' }, { name: LEARN_HOME.name, path: LEARN_HOME.path }, { name: SKILLS_NAME, path: SKILLS_PATH }, { name: post.title }]
   const lead = type === 'APP' ? (post.app?.selfPromo ? { name: '作者自荐', path: '/apps/showcase' } : null) : tagsOf(post, type === 'PROMPT' ? 'MODEL' : 'PRODUCT')[0]
   return [
     { name: LEARN_HOME.name, path: LEARN_HOME.path },
@@ -258,6 +265,8 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
   const gate = !publicPost ? 'not-public' : post.locked && !isAdmin ? 'locked' : 'open'
   const editHref = `/forum/${post.id}/edit`
   const model = modelOf(post)
+  // Skill 库（挂了 agent-skills 标签的应用）：面包屑、应用卡片、安装命令区块、相关内容按 Skill 库出（lib/content/skill-lib.ts）
+  const skill = isSkillRow(post)
 
   const meta = (
     <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13px] text-white/45">
@@ -331,7 +340,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
       likeCount={post.likeCount}
       favoriteCount={post.favoriteCount}
       editHref={editHref}
-      backHref={SECTION_BASE[type]}
+      backHref={skill ? SKILLS_PATH : SECTION_BASE[type]}
       admin={{ reviewStatus: post.reviewStatus, status: post.status, featured: post.featured, verified: !!post.verifiedAt, typed: type !== 'APP', ctaRefOff: post.ctaRefOff }}
     />
   )
@@ -524,22 +533,23 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
   const appCard = app && (
     <aside className="learn-card mt-8 grid gap-5 p-6 sm:grid-cols-[1fr_auto] sm:items-center lg:p-7">
       <div className="min-w-0">
-        <p className="learn-eyebrow mb-2">AI App</p>
+        <p className="learn-eyebrow mb-2">{skill ? 'Agent Skills · Skill 库' : 'AI App'}</p>
         <p className="text-2xl font-semibold tracking-tight">{app.name}</p>
         <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/55">
           {app.pricing && (
             <div>
-              <dt className="inline text-white/35">价格 </dt>
+              <dt className="inline text-white/35">{skill ? '许可 ' : '价格 '}</dt>
               <dd className="inline">{app.pricing}</dd>
             </div>
           )}
           {app.platforms && (
             <div>
-              <dt className="inline text-white/35">平台 </dt>
+              <dt className="inline text-white/35">{skill ? '适用 ' : '平台 '}</dt>
               <dd className="inline">{app.platforms}</dd>
             </div>
           )}
-          {app.trialNote && (
+          {/* Skill 库的 trialNote 是安装命令，单独放进下面可复制的区块 */}
+          {app.trialNote && !skill && (
             <div>
               <dt className="inline text-white/35">试用 </dt>
               <dd className="inline">{app.trialNote}</dd>
@@ -548,10 +558,11 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
         </dl>
       </div>
       <a href={app.url} target="_blank" rel={appRel} className="inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-black">
-        访问官网 ↗
+        {skill ? `打开${/^[A-Za-z]/.test(repoLabelOf(app.url)) ? ' ' : ''}${repoLabelOf(app.url)} ↗` : '访问官网 ↗'}
       </a>
     </aside>
   )
+  const installBlock = skill && app ? <InstallCommand install={parseInstall(app.trialNote)} variant="block" id={`skill-cmd-${post.id}`} /> : null
   const disclosure = app?.selfPromo && (
     <div className="mt-6 rounded-2xl border border-amber-300/30 bg-amber-300/[0.06] px-5 py-3.5 text-sm text-amber-100">
       作者自荐 · {RELATION[app.relation ?? 'OTHER'] ?? RELATION.OTHER}。本页内容由作者提供，链接为推广链接，请自行判断。
@@ -576,6 +587,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
           {post.excerpt && <p className="mt-5 text-[16px] leading-relaxed text-white/55 lg:text-[18px]">{post.excerpt}</p>}
           {disclosure}
           {appCard}
+          {installBlock}
           <div className="mt-7 space-y-2.5 border-t border-white/[0.08] pt-5">
             {meta}
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-white/50">
@@ -611,6 +623,13 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
             <GuideRows items={JSON.parse(JSON.stringify(g.items))} />
           </section>
         ))}
+        {skill && (
+          <p className="mx-auto mt-8 max-w-3xl text-sm lg:mx-0 lg:max-w-[720px]">
+            <Link href={SKILLS_PATH} className="font-medium text-white/85 underline decoration-white/25 underline-offset-4 hover:text-white">
+              查看全部 Skill 库 →
+            </Link>
+          </p>
+        )}
 
         <div className="lg:max-w-[720px]">{commentsBlock}</div>
       </LearnPage>

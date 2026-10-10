@@ -5,6 +5,7 @@ import { absUrl } from '@/lib/news/seo'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { INDEXING_OPEN, contentPath, isHubIndexable, readableLength } from '@/lib/content/policy'
 import { PUBLIC_WHERE, contentIndexable, imagesOf } from '@/lib/content/queries'
+import { SKILLS_PATH, SKILL_TAG_SLUG, isSkillLibrary } from '@/lib/content/skill-lib'
 
 /**
  * 内容平台的 sitemap（设计 §11.5），与主 sitemap.xml 分开：内容量会长，而且它的收录规则完全不同。
@@ -44,10 +45,13 @@ export async function GET() {
           createdAt: true, contentUpdatedAt: true,
           prompt: { select: { prompt: true } },
           app: { select: { selfPromo: true } },
-          postTags: { select: { tagId: true, tag: { select: { kind: true, status: true, facet: true } } } },
+          postTags: { select: { tagId: true, tag: { select: { slug: true, kind: true, status: true, facet: true } } } },
         },
       })
       const indexable = posts.filter((p) => contentIndexable(p))
+      // Skill 库（2026-10-10）：挂了 agent-skills 标签、非自荐的应用。它们列在 /skills，不列在 /apps（与两个页面自己的取数口径一致）
+      const isSkill = (p: (typeof posts)[number]) =>
+        isSkillLibrary({ type: p.type, selfPromo: !!p.app?.selfPromo, tagSlugs: p.postTags.filter((pt) => pt.tag.status === 1).map((pt) => pt.tag.slug) })
       for (const p of indexable) {
         const lastmod = (p.contentUpdatedAt ?? p.createdAt).toISOString()
         const images = p.type === 'PROMPT' ? imagesOf(p).slice(0, 9) : []
@@ -64,6 +68,8 @@ export async function GET() {
       const perTag = new Map<string, number>()
       for (const p of indexable) for (const pt of p.postTags) perTag.set(`${pt.tagId}:${p.type}`, (perTag.get(`${pt.tagId}:${p.type}`) ?? 0) + 1)
       for (const t of tags) {
+        // 「Skill 库」标签的聚合页是 /skills（下面单独判），/prompts/t/agent-skills 是 308，不进 sitemap
+        if (t.slug === SKILL_TAG_SLUG) continue
         const sectionType = t.kind === 'PRODUCT' ? 'GUIDE' : 'PROMPT'
         const n = perTag.get(`${t.id}:${sectionType}`) ?? 0
         if (!isHubIndexable(t.kind, readableLength(t.intro ?? ''), n)) continue
@@ -71,9 +77,12 @@ export async function GET() {
         entries.push(`<url><loc>${xmlEscape(absUrl(path))}</loc></url>`)
       }
       for (const [type, path] of [['PROMPT', '/prompts'], ['GUIDE', '/guides'], ['APP', '/apps']] as const) {
-        const n = indexable.filter((p) => p.type === type).length
+        // /apps 总览只列普通分享：不含作者自荐（在 /apps/showcase，不收录）、不含 Skill 库——与页面自己的 robots 判定同一批条目
+        const n = indexable.filter((p) => p.type === type && (type !== 'APP' || (!p.app?.selfPromo && !isSkill(p)))).length
         if (isHubIndexable('ROOT', 0, n)) entries.push(`<url><loc>${xmlEscape(absUrl(path))}</loc></url>`)
       }
+      // Skill 库目录：同一个 ROOT 门槛（可收录的库够数才进 sitemap；不够时页面自己是 noindex,follow）
+      if (isHubIndexable('ROOT', 0, indexable.filter(isSkill).length)) entries.push(`<url><loc>${xmlEscape(absUrl(SKILLS_PATH))}</loc></url>`)
       // 提示词三大类页（/prompts/image|video|text）：与总览同一门槛
       for (const f of ['IMAGE', 'VIDEO', 'TEXT'] as const) {
         const n = indexable.filter((p) => p.type === 'PROMPT' && p.postTags.some((pt) => pt.tag.kind === 'MODEL' && pt.tag.facet === f)).length

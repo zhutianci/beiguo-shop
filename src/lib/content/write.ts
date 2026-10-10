@@ -7,6 +7,7 @@
 import { z } from 'zod'
 import { prisma } from '../db'
 import { ACCOUNT_TIERS, CONTENT_TYPES, type ContentType } from './policy'
+import { SKILL_TAG_SLUG } from './skill-lib'
 
 /** AI 应用（设计 §5.3 / §9） */
 export const appSchema = z.object({
@@ -95,8 +96,10 @@ export async function checkTyped(
 
   if (d.tagIds !== undefined || ctx.full) {
     const ids = Array.from(new Set(d.tagIds ?? []))
-    const tags = ids.length ? await prisma.tag.findMany({ where: { id: { in: ids }, status: 1 }, select: { id: true, kind: true, facet: true } }) : []
+    const tags = ids.length ? await prisma.tag.findMany({ where: { id: { in: ids }, status: 1 }, select: { id: true, slug: true, kind: true, facet: true } }) : []
     if (tags.length !== ids.length) return { error: '有标签不存在或已停用，请刷新后重选' }
+    // 「Skill 库」标签只能挂在 AI 应用上：/skills 目录按「应用 + 这个标签」取数，提示词 / 教程挂了它哪儿也不会列出来
+    if (type !== 'APP' && tags.some((t) => t.slug === SKILL_TAG_SLUG)) return { error: '「Skill 库」标签只用于 AI 应用' }
     const rule = TAG_RULES[type]
     for (const t of tags) if (!rule.allowed.includes(t.kind)) return { error: `${type === 'PROMPT' ? '提示词' : type === 'APP' ? 'AI 应用' : '教程'}不能用「${KIND_NAMES[t.kind]}」类标签` }
     for (const [kind, [min, max]] of Object.entries(rule.required)) {

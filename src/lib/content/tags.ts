@@ -109,6 +109,13 @@ export const DEFAULT_TAGS: readonly DefaultTag[] = [
   { slug: 'ai-agent', name: 'AI 智能体', kind: 'TOPIC', facet: 'TEXT' },
   { slug: 'language-learning', name: '外语学习', kind: 'TOPIC', facet: 'TEXT' },
   { slug: 'lifestyle', name: '生活助手', kind: 'TOPIC', facet: 'TEXT' },
+  /*
+   * Skill 库（2026-10-10，docs/内容平台/Skill库-1010.md）：挂在 AI 应用上，/skills 目录按它取数（lib/content/skill-lib.ts）。
+   * 【刻意不给 facet】它不是提示词的主题：没有 facet 就进不了 /prompts/image|video|text 三个大类页的主题行；
+   * 提示词总览的筛选条另在 content-list-page 的 navTagsOf 里按 slug 排除，发帖表单的提示词主题里也不列它，
+   * 提示词 / 教程挂这个标签会被 write.checkTyped 拒绝。它的 hub 地址是 /skills（ui.hubHref），/prompts/t/agent-skills 308 过去。
+   */
+  { slug: 'agent-skills', name: 'Skill 库', kind: 'TOPIC' },
 
   // ── 产品（教程 hub：/guides/p/{slug}）──
   { slug: 'chatgpt', name: 'ChatGPT', kind: 'PRODUCT', landingPath: '/chongzhi/chatgpt-plus' },
