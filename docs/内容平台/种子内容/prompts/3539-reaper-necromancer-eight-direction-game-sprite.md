@@ -1,5 +1,5 @@
 ---
-title: "ai游戏素材生成提示词：一句话生成 8 个朝向的 2D 角色素材，镰刀死灵法师示例（gpt-image-2）"
+title: "ai游戏素材生成提示词：一句话生成 8 朝向 2D 角色素材，死灵法师示例（gpt-image-2）"
 slug: reaper-necromancer-eight-direction-game-sprite
 model: gpt-image-2
 topics: [game-art, character]

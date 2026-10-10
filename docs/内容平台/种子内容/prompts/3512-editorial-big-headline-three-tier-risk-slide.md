@@ -1,5 +1,5 @@
 ---
-title: "ppt提示词：极简编辑风观点页，超大黑体结论 + 三行分级说明 + 右侧小对比图（gpt-image-2）"
+title: "ppt提示词：极简编辑风观点页，超大黑体结论 + 三行分级说明（gpt-image-2）"
 slug: editorial-big-headline-three-tier-risk-slide
 model: gpt-image-2
 topics: [ppt, infographic]

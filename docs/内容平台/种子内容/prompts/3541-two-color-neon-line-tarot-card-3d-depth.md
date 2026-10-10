@@ -1,5 +1,5 @@
 ---
-title: "ai海报设计提示词：只用两种颜色的霓虹线描塔罗牌，前进色与后退色做出裸眼 3D 层次（Nano Banana）"
+title: "ai海报设计提示词：双色霓虹线描塔罗牌，前进色与后退色做出 3D 层次（Nano Banana）"
 slug: two-color-neon-line-tarot-card-3d-depth
 model: nano-banana
 topics: [poster, illustration]

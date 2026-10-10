@@ -1,5 +1,5 @@
 ---
-title: "ai表情包制作提示词：参考图人物变 24 格 Q 版头像表情，手写短语 + 彩色底块（Nano Banana）"
+title: "ai表情包制作提示词：参考图人物变 24 格 Q 版头像表情（Nano Banana）"
 slug: photo-to-24-grid-chibi-emoji-portraits
 model: nano-banana
 topics: [sticker, portrait, photo-edit]

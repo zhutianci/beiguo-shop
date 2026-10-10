@@ -1,5 +1,5 @@
 ---
-title: "ai游戏素材生成提示词：日式 RPG Boss 战画面，巨蟹光束 + 三人小队 + 完整战斗 UI（gpt-image-2）"
+title: "ai游戏素材生成提示词：日式 RPG Boss 战画面，巨蟹光束 + 战斗 UI（gpt-image-2）"
 slug: jrpg-boss-battle-screen-giant-crab-hud
 model: gpt-image-2
 topics: [game-art, illustration]

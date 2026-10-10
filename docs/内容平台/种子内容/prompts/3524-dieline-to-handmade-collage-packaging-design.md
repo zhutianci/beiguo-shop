@@ -1,5 +1,5 @@
 ---
-title: "ai包装设计提示词：上传刀版图生成手工拼贴风包装展开图，粗黑体大字 + 黑白剪影（gpt-image-2）"
+title: "ai包装设计提示词：上传刀版图生成手工拼贴风包装展开图（gpt-image-2）"
 slug: dieline-to-handmade-collage-packaging-design
 model: gpt-image-2
 topics: [ecommerce, illustration, poster]

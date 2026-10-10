@@ -1,5 +1,5 @@
 ---
-title: "ai网页设计提示词：轻奢品牌电商首页长图样机，首屏大图 + 品类四宫格 + 品牌故事（gpt-image-2）"
+title: "ai网页设计提示词：轻奢品牌电商首页长图样机，首屏大图 + 品类四宫格（gpt-image-2）"
 slug: luxury-brand-ecommerce-homepage-long-mockup
 model: gpt-image-2
 topics: [ecommerce, poster]

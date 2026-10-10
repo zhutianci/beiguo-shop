@@ -1,5 +1,5 @@
 ---
-title: "室内设计提示词：等轴测复古小厨房 3D 微缩模型，奶油色冰箱 + 木橱柜的娃娃屋（gpt-image-2）"
+title: "室内设计提示词：等轴测复古小厨房 3D 微缩模型，娃娃屋质感（gpt-image-2）"
 slug: isometric-retro-kitchen-dollhouse-diorama
 model: gpt-image-2
 topics: [interior, figurine, illustration]

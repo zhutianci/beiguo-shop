@@ -1,5 +1,5 @@
 ---
-title: "ai贴纸设计提示词：软萌盆栽仙人掌单枚贴纸，粗描边 + 白色切边的 Q 版吉祥物（gpt-image-2）"
+title: "ai贴纸设计提示词：软萌盆栽仙人掌单枚贴纸，粗描边 + 白色切边（gpt-image-2）"
 slug: kawaii-potted-cactus-die-cut-sticker
 model: gpt-image-2
 topics: [sticker, illustration, logo]
