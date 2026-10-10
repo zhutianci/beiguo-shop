@@ -1,5 +1,5 @@
 ---
-title: AI 幻觉怎么解决：减少 AI 一本正经胡说八道的官方方法（提示词写法与核对流程）
+title: 减少 AI 幻觉的提示词写法：允许说不知道、先引用原文再回答、逐条核对（官方做法整理）
 slug: reduce-ai-hallucination-official-tips
 products: [claude, gemini]
 models: []
