@@ -4,7 +4,7 @@ slug: deepseek-claude-code-setup
 products: [ai-tools, claude]
 models: [deepseek]
 accountTier: OTHER
-excerpt: 想在 Claude Code 里用 DeepSeek 模型？本文按 DeepSeek 官方接入文档讲清安装、macOS / Linux / Windows 的环境变量写法、模型名映射规则、Web Search 的额外费用，以及连不上、401 等常见问题。
+excerpt: 想在 Claude Code 里用 DeepSeek 模型？本文按 DeepSeek 官方接入文档讲清安装、各系统的环境变量写法、模型名映射规则、Web Search 的额外费用，以及连不上、401 等常见问题。
 checkedOn: 2026-10-11
 sources:
   - https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code

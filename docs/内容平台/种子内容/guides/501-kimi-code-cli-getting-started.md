@@ -4,7 +4,7 @@ slug: kimi-code-cli-getting-started
 products: [kimi]
 models: []
 accountTier: OTHER
-excerpt: Kimi Code 是什么、CLI 怎么安装和登录、有哪些常用命令、额度怎么算？本文按 Kimi Code 官方文档讲清三种产品形态、macOS / Linux / Windows 的安装命令、/login 两种登录方式、斜杠命令与快捷键、5 小时窗口与月额度规则和常见报错。
+excerpt: Kimi Code 是什么、CLI 怎么安装和登录、额度怎么算？本文按官方文档讲清三种产品形态、各系统安装命令、/login 两种登录方式、常用斜杠命令与快捷键、5 小时窗口与月额度规则和常见报错。
 checkedOn: 2026-10-11
 sources:
   - https://www.kimi.com/coding/docs/

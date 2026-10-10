@@ -4,7 +4,7 @@ slug: kimi-browser-extension
 products: [kimi]
 models: []
 accountTier: FREE
-excerpt: Kimi 浏览器插件（原 Kimi WebBridge）在哪下载、怎么安装、能做什么？本文按 Kimi 官方帮助中心讲清 Chrome / Edge 的安装方法、侧边栏对话和本地 Agent 远程控制两种用法、把重复操作存成技能，以及未连接、不兼容等问题的处理。
+excerpt: Kimi 浏览器插件（原 Kimi WebBridge）在哪下载、怎么安装、能做什么？本文按官方帮助中心讲清 Chrome / Edge 安装、侧边栏对话与本地 Agent 远程控制两种用法、把操作存成技能和常见故障处理。
 checkedOn: 2026-10-11
 sources:
   - https://www.kimi.com/help/kimi-webbridge/kimi-webbridge-introduction
