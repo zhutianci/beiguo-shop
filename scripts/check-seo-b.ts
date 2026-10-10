@@ -351,12 +351,13 @@ async function framerIn(html: string): Promise<{ hits: string[]; total: number }
  */
 // SEO 批 2 的 C 包：/support、/iptools、/links 的首帧隐藏 main 09-30 / 10-06 已改掉（initial={false}，whileInView 只留位移），
 // 本批核对三页服务端 HTML 均无带内容的 opacity:0，挪进 STRICT（有就失败）；PENDING 留空，以后有新的待改页再登记
-const FIRST_FRAME_STRICT = ['/', '/support', '/iptools', '/links']
+// /skills（Skill 库目录，10-10）：新页面直接进 STRICT；另查 H1 在服务端 HTML 里（学习平台不加 loading.tsx：流式响应会把 H1 挡在后面）
+const FIRST_FRAME_STRICT = ['/', '/support', '/iptools', '/links', '/skills']
 const FIRST_FRAME_PENDING: Record<string, string> = {}
 
 async function htmlChecks() {
   console.log(`\n【--base ${BASE}：服务端 HTML】`)
-  const pages = ['/', '/chongzhi', '/chongzhi/chatgpt-plus', '/products', '/news', '/support', '/iptools', '/links', '/about']
+  const pages = ['/', '/chongzhi', '/chongzhi/chatgpt-plus', '/products', '/news', '/support', '/iptools', '/links', '/about', '/skills']
   const newsList = await get(`${BASE}/news`)
   const slug = (newsList.text.match(/href="(\/news\/\d{4}-\d{2}-\d{2}-[0-9a-z]+)"/) || [])[1]
   if (slug) pages.push(slug)
@@ -375,6 +376,7 @@ async function htmlChecks() {
     if (FIRST_FRAME_STRICT.includes(p)) ok(hidden.length === 0, `${p}：服务端 HTML 没有带内容的 opacity:0`, hidden.slice(0, 3).join(' '))
     else if (hidden.length && FIRST_FRAME_PENDING[p]) note(`${p}：还有 ${hidden.length} 处 opacity:0 的入场动效（待 ${FIRST_FRAME_PENDING[p]} 包改，改完挪进 FIRST_FRAME_STRICT）`, hidden[0])
     else if (hidden.length) note(`${p}：还有 ${hidden.length} 处 opacity:0 的入场动效（未排进任何包，请记进设计 §6.6-3）`, hidden[0])
+    if (p === '/skills') ok(/<h1[^>]*>[\s\S]*?Claude Skills[\s\S]*?<\/h1>/.test(html), `${p}：H1 在服务端 HTML 里（没有被 loading 边界挡住）`)
     if (p.startsWith('/news/')) {
       ok(/<img [^>]*class="news-wx-thumb object-cover"/.test(html) && /<img [^>]*fetch[pP]riority="low"[^>]*class="news-wx-thumb/.test(html), `${p}：微信缩略图 object-cover + fetchpriority=low`)
     }

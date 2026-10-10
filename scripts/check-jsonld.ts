@@ -19,7 +19,8 @@
  *  · Product / Offer 只出现在 /products/<id>；全站没有 NewsArticle 一类（大事记不做新闻定性，SKILL.md §1）；
  *  · 渠道站不在这里查（渠道站整站 noindex，Product 等不输出，由 itest-tenant 管）。
  * 抓哪些页：/sitemap.xml（index 时逐个读子地图，另读 /sitemap-content.xml）里除大事记详情、商品、学习平台单条之外全查，
- * 那三类各抽 6 条；外加 /jiema、/news。只发 GET，线上是 1.8G 小机，逐页串行。
+ * 那三类各抽 6 条；外加 /jiema、/news、/skills、/apps。只发 GET，线上是 1.8G 小机，逐页串行。
+ *  · /skills（Skill 库目录）必须有 CollectionPage + BreadcrumbList（首页 › AI 学习 › Skill 库）；有条目时 ItemList 的每一项名称都在可见文字里、地址是应用详情。
  */
 import { escapeJsonLd } from '../src/lib/seo/jsonld'
 
@@ -139,6 +140,35 @@ function jsonLdProblems(path: string, html: string): string[] {
   return problems
 }
 
+/** /skills 的逐页期望（Skill 库目录，10-10）：CollectionPage + BreadcrumbList 三级；有 ItemList 时每一项的名称都看得见、地址都是应用详情 */
+function skillsPageProblems(html: string): string[] {
+  const problems: string[] = []
+  const nodes: unknown[] = []
+  for (const m of Array.from(html.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g))) {
+    try {
+      nodes.push(JSON.parse(m[1]))
+    } catch {
+      /* 解析失败已由 jsonLdProblems 报 */
+    }
+  }
+  const all: Node[] = []
+  walk(nodes, (o) => all.push(o))
+  const of = (t: string) => all.filter((o) => typesOf(o).includes(t))
+  if (of('CollectionPage').length !== 1) problems.push(`CollectionPage 应恰好 1 个（实际 ${of('CollectionPage').length}）`)
+  const crumbs = of('BreadcrumbList')[0]
+  const names = crumbs && Array.isArray(crumbs.itemListElement) ? (crumbs.itemListElement as Node[]).map((x) => String(x.name)) : []
+  if (names.join(' › ') !== '首页 › AI 学习 › Skill 库') problems.push(`面包屑应为「首页 › AI 学习 › Skill 库」（实际 ${names.join(' › ') || '无'}）`)
+  const text = visibleText(html)
+  for (const list of of('ItemList')) {
+    for (const it of Array.isArray(list.itemListElement) ? (list.itemListElement as Node[]) : []) {
+      const name = String(it.name ?? '')
+      if (name && !text.includes(decode(name).replace(/\s+/g, ''))) problems.push(`ItemList「${name}」不在页面可见文字里`)
+      if (!/\/apps\/\d+/.test(String(it.url ?? ''))) problems.push(`ItemList「${name}」的地址不是应用详情：${String(it.url)}`)
+    }
+  }
+  return problems
+}
+
 async function fetchText(p: string): Promise<{ status: number; text: string }> {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), 120_000)
@@ -191,7 +221,8 @@ async function crawl() {
   const products = all.filter((p) => /^\/products\/\d+$/.test(p))
   const items = all.filter((p) => /^\/(prompts|guides|apps)\/\d+/.test(p))
   const rest = all.filter((p) => !events.includes(p) && !products.includes(p) && !items.includes(p))
-  const targets = Array.from(new Set([...rest, ...events.slice(0, 6), ...products.slice(0, 6), ...items.slice(0, 6), '/jiema', '/news']))
+  // /skills、/apps：Skill 库目录与应用目录（10-10）。条目不够收录门槛时不在 sitemap 里，这里固定查
+  const targets = Array.from(new Set([...rest, ...events.slice(0, 6), ...products.slice(0, 6), ...items.slice(0, 6), '/jiema', '/news', '/skills', '/apps']))
   let pages = 0
   let ldPages = 0
   for (const p of targets) {
@@ -203,6 +234,7 @@ async function crawl() {
     pages++
     if (r.text.includes('application/ld+json')) ldPages++
     const probs = jsonLdProblems(p, r.text)
+    if (p === '/skills') probs.push(...skillsPageProblems(r.text))
     assert(`${p}：结构化数据与页面一致、没有悬空 @id`, probs.length === 0, probs.slice(0, 5).join('；'))
   }
   console.log(`  共查 ${pages} 页，其中 ${ldPages} 页有结构化数据`)

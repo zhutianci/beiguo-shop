@@ -11,6 +11,8 @@
  *  - 图片去元数据：JPEG 删 EXIF 但保留方向、PNG 删文本块、WebP 删 EXIF 块并清标志位；坏图原样返回
  *  - 内容扩容（10-07）：定时放量队列 SCHEDULED 对外不可见、不收录，改完不提前公开；放量顺序交错；
  *    AI 应用种子文件的编译校验（拿 scripts/fixtures/seed-apps/ 的好 / 坏样例跑 build-seed-bundle，**会起一个子进程**）
+ *  - Skill 库目录（10-10）：什么算 Skill 库、平台分组、安装命令的识别、/skills 的收录门槛（ROOT），
+ *    以及 scripts/fixtures/seed-apps/skills/ 的三个 Skill 库样例能按内容约定编译（agent-skills 是合法的 TOPIC 标签、没有 facet）
  */
 import {
   trustLevelFrom,
@@ -48,6 +50,16 @@ import { ctaHref, parseFrom } from '../src/lib/content/cta'
 import { monthKey, monthRange, awardRequestId } from '../src/lib/content/award'
 import { monthStart, optionsSchema, DEFAULT_OPTIONS } from '../src/lib/content/shop'
 import { stripImageMetadata, readExifOrientation, minimalExifApp1 } from '../src/lib/image-meta'
+import {
+  SKILL_TAG_SLUG,
+  SKILLS_PATH,
+  SKILL_PAGE_SIZE,
+  isSkillLibrary,
+  skillPlatformsOf,
+  skillPlatformParam,
+  parseInstall,
+  repoLabelOf,
+} from '../src/lib/content/skill-lib'
 
 let pass = 0
 let fail = 0
@@ -436,6 +448,68 @@ ok(`种子应用正文少于 ${MIN_APP_CHARS} 字不过门槛`, qualityGateReaso
     ['插图不存在', '插图不存在 prisma/seed-assets/does-not-exist.png'],
   ] as const) ok(`坏样例报出：${what}`, msg.includes(needle))
   ok('坏样例不写出文件', !fs.existsSync(out))
+}
+
+console.log('Skill 库目录（/skills）')
+const eq = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+ok('目录地址与标签 slug', SKILLS_PATH === '/skills' && SKILL_TAG_SLUG === 'agent-skills' && SKILL_PAGE_SIZE === 24)
+ok('应用 + agent-skills 标签 = Skill 库', isSkillLibrary({ type: 'APP', selfPromo: false, tagSlugs: ['claude', 'agent-skills', 'coding'] }))
+ok('没挂标签的应用不是', !isSkillLibrary({ type: 'APP', selfPromo: false, tagSlugs: ['claude', 'coding'] }))
+ok('作者自荐的不进目录（留在 /apps/showcase）', !isSkillLibrary({ type: 'APP', selfPromo: true, tagSlugs: ['agent-skills'] }))
+ok('提示词 / 教程挂了标签也不是', !isSkillLibrary({ type: 'PROMPT', selfPromo: false, tagSlugs: ['agent-skills'] }) && !isSkillLibrary({ type: 'GUIDE', selfPromo: false, tagSlugs: ['agent-skills'] }))
+// 收录：与 /apps 同一个 ROOT 门槛；条目本身走 APP 的质量门槛
+ok('/skills：4 个可收录的库不够', !isHubIndexable('ROOT', 0, 4, true))
+ok('/skills：5 个可收录的库 → 收录', isHubIndexable('ROOT', 0, 5, true))
+ok('/skills：总开关关着不收录', !isHubIndexable('ROOT', 0, 50, false))
+ok('种子 Skill 库条目（应用）过 APP 门槛', isIndexable({ ...seedApp, content: '是什么包含哪些怎么安装怎么用适合谁注意事项'.repeat(12) }, true))
+// 平台分组
+ok('平台：约定里的写法 → Claude Code / claude.ai / Codex', eq(skillPlatformsOf('Claude Code / claude.ai / Claude API / Codex'), ['claude-code', 'claude-ai', 'codex']))
+ok('平台：只写 Claude Code', eq(skillPlatformsOf('Claude Code'), ['claude-code']))
+ok('平台：Claude API 不归到 claude.ai', eq(skillPlatformsOf('Claude Code / Claude API'), ['claude-code']))
+ok('平台：Claude 桌面版 / 单写 Claude → claude.ai', eq(skillPlatformsOf('Claude 桌面版'), ['claude-ai']) && eq(skillPlatformsOf('Claude、Codex'), ['claude-ai', 'codex']))
+ok('平台：点名三家以上 → 另归通用', eq(skillPlatformsOf('Claude Code / Codex / Cursor / Gemini CLI'), ['claude-code', 'codex', 'general']))
+ok('平台：Claude Code + claude.ai + Codex 只有两家，不算通用', !skillPlatformsOf('Claude Code / claude.ai / Codex').includes('general'))
+ok('平台：明说通用', eq(skillPlatformsOf('通用（任意支持 Agent Skills 的工具）'), ['general']) && skillPlatformsOf('Claude Code / 兼容 Agent Skills 标准的 Agent').includes('general'))
+ok('平台：只有别家（Cursor）→ 通用，免得哪个筛选都找不到', eq(skillPlatformsOf('Cursor'), ['general']))
+ok('平台：认不出时退到产品标签', eq(skillPlatformsOf('命令行', ['claude']), ['claude-code']) && eq(skillPlatformsOf('', ['codex']), ['codex']) && eq(skillPlatformsOf(null, []), ['general']))
+ok('平台：文字能认时不看标签', eq(skillPlatformsOf('Codex', ['claude']), ['codex']))
+ok('平台参数：只认四个值', skillPlatformParam('claude-code') === 'claude-code' && skillPlatformParam(['codex', 'x']) === 'codex' && skillPlatformParam('Claude') === null && skillPlatformParam(undefined) === null)
+// 安装命令
+ok('命令：整句是斜杠命令', eq(parseInstall('/plugin marketplace add anthropics/skills'), { commands: ['/plugin marketplace add anthropics/skills'], note: null }))
+ok('命令：npx / git clone', parseInstall('npx skills add vercel-labs/agent-skills').commands.length === 1 && parseInstall('git clone https://github.com/a/b ~/.claude/skills/b').commands.length === 1)
+ok('命令：开头的 $ 去掉', eq(parseInstall('$ npx skills add a/b').commands, ['npx skills add a/b']))
+ok(
+  '命令：两段反引号 = 两条，连接词不留',
+  eq(parseInstall('`/plugin marketplace add o/m` 然后 `/plugin install s@m`'), { commands: ['/plugin marketplace add o/m', '/plugin install s@m'], note: null }),
+)
+ok(
+  '命令：反引号之外的说明保留',
+  eq(parseInstall('在 Claude Code 会话里输入 `/plugin marketplace add a/b`'), { commands: ['/plugin marketplace add a/b'], note: '在 Claude Code 会话里输入' }),
+)
+ok('命令：命令后跟中文说明 → 切开', eq(parseInstall('npx skills add a/b（需要 Node 18 以上）'), { commands: ['npx skills add a/b'], note: '需要 Node 18 以上' }))
+ok('命令：不是命令的整句当上手方式', eq(parseInstall('在 claude.ai 的 Customize → Skills 里上传 ZIP'), { commands: [], note: '在 claude.ai 的 Customize → Skills 里上传 ZIP' }))
+ok('命令：以「Claude」开头的中文句子不误判成 claude 命令', parseInstall('Claude 桌面版里打开设置后上传').commands.length === 0)
+ok('命令：空 = 什么都不显示', eq(parseInstall(null), { commands: [], note: null }) && eq(parseInstall('  '), { commands: [], note: null }))
+ok('外链文案：GitHub 仓库 / 项目主页（不写「官网」）', repoLabelOf('https://github.com/anthropics/skills') === 'GitHub 仓库' && repoLabelOf('https://skills.sh/') === '项目主页' && repoLabelOf('not a url') === '项目主页')
+{
+  const tsxCli = path.join(__dirname, '..', 'node_modules', 'tsx', 'dist', 'cli.mjs')
+  const out = path.join(os.tmpdir(), `seed-skills-check-${process.pid}.json`)
+  const r = spawnSync(process.execPath, [tsxCli, path.join(__dirname, 'build-seed-bundle.ts'), '--root', path.join(__dirname, 'fixtures', 'seed-apps', 'skills'), '--out', out], { encoding: 'utf8' })
+  ok('Skill 库样例编译通过（agent-skills 是合法的 TOPIC 标签）', r.status === 0, (r.stderr || r.stdout).slice(0, 400))
+  if (r.status === 0) {
+    const b = JSON.parse(fs.readFileSync(out, 'utf8')) as {
+      tags: { slug: string; kind: string; facet: string | null }[]
+      apps: { slug: string; tags: string[]; platforms: string; trialNote: string | null; url: string }[]
+    }
+    const tag = b.tags.find((t) => t.slug === SKILL_TAG_SLUG)
+    ok('默认标签里有 agent-skills：TOPIC、没有 facet（不进提示词三大类的筛选条）', !!tag && tag.kind === 'TOPIC' && tag.facet === null)
+    ok('三个样例都挂了 agent-skills', b.apps.length === 3 && b.apps.every((a) => a.tags.includes(SKILL_TAG_SLUG)))
+    const by = (slug: string) => b.apps.find((a) => a.slug === slug)!
+    ok('样例 1：一条斜杠命令、三个平台', eq(parseInstall(by('fixture-org-skills').trialNote).commands, ['/plugin marketplace add fixture-org/skills']) && eq(skillPlatformsOf(by('fixture-org-skills').platforms), ['claude-code', 'claude-ai', 'codex']))
+    ok('样例 2：两条命令、归通用', parseInstall(by('fixture-superkit').trialNote).commands.length === 2 && skillPlatformsOf(by('fixture-superkit').platforms).includes('general'))
+    ok('样例 3：不是命令、只在 claude.ai、外链不是仓库', parseInstall(by('fixture-office-skills').trialNote).commands.length === 0 && eq(skillPlatformsOf(by('fixture-office-skills').platforms), ['claude-ai']) && repoLabelOf(by('fixture-office-skills').url) === '项目主页')
+    fs.rmSync(out, { force: true })
+  }
 }
 
 console.log(`\n${pass} 通过，${fail} 失败`)

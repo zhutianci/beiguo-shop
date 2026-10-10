@@ -247,7 +247,7 @@ function kindOf(p: string): PageKind {
   if (p === '/lookup') return 'lookup'
   // AI 学习平台（内容平台，SEO 批 2 起纳入）：单条内容的标题是作者写的（同 LLM 标题，只抽样告警），hub 与总览是站点模板
   if (/^\/(prompts|guides|apps)\/\d+(-|$)/.test(p) || p.startsWith('/u/') || p.startsWith('/collections/')) return 'learn-item'
-  if (/^\/(learn|prompts|guides|apps)(\/|$)/.test(p)) return 'learn'
+  if (/^\/(learn|prompts|guides|apps|skills)(\/|$)/.test(p)) return 'learn'
   return 'other'
 }
 
@@ -806,7 +806,7 @@ async function crawl(violations: Violation[]): Promise<{ pages: Page[]; locs: st
   ])
   const inSitemap = new Set(locs)
   // 不在 sitemap 里、但要查的：索引规则（/forum、/games、/lookup）、接码开放状态（/jiema）、404
-  const fixed = ['/', '/chongzhi', '/products', '/news', '/about', '/support', '/terms', '/privacy', '/links', '/iptools', '/forum', '/games', '/lookup', '/jiema', '/jiema/terms', '/learn', '/prompts', '/guides', PROBE_404]
+  const fixed = ['/', '/chongzhi', '/products', '/news', '/about', '/support', '/terms', '/privacy', '/links', '/iptools', '/forum', '/games', '/lookup', '/jiema', '/jiema/terms', '/learn', '/prompts', '/guides', '/apps', '/skills', PROBE_404]
   for (const f of fixed) sampled.add(f)
   let targets = Array.from(sampled)
   if (ONLY.length) targets = targets.filter((p) => ONLY.includes(p) || p === '/jiema')
