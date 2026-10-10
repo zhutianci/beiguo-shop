@@ -26,3 +26,13 @@
 | 418-lobehub-lobechat-agent-workspace.md | LobeHub（原 LobeChat） | https://github.com/lobehub/lobehub<br>https://lobehub.com/ | — |
 | 419-anythingllm-local-document-chat.md | AnythingLLM | https://anythingllm.com/<br>https://github.com/Mintplex-Labs/anything-llm | — |
 | 420-jan-open-source-local-chatgpt.md | Jan | https://www.jan.ai/<br>https://github.com/janhq/jan | — |
+| 430-tripo-ai-3d-model-generator.md | Tripo AI | https://www.tripo3d.ai/pricing<br>https://www.tripo3d.ai/ | — |
+| 431-meshy-ai-3d-toolbox.md | Meshy | https://www.meshy.ai/pricing<br>https://www.meshy.ai/ | — |
+| 432-tencent-hunyuan3d-ai-modeling.md | 腾讯混元3D | https://3d.hunyuan.tencent.com/<br>https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1 | — |
+| 433-hyper3d-rodin-ai-3d-generator.md | Hyper3D Rodin | https://hyper3d.ai/ | — |
+| 434-clipdrop-ai-image-tools.md | Clipdrop | https://clipdrop.co/pricing<br>https://clipdrop.co/ | — |
+| 435-upscayl-open-source-image-upscaler.md | Upscayl | https://github.com/upscayl/upscayl<br>https://upscayl.org/ | — |
+| 436-pixelcut-ai-photo-editor.md | Pixelcut | https://www.pixelcut.ai/pricing<br>https://www.pixelcut.ai/ | — |
+| 437-jsdesign-jishi-sheji-ui-tool.md | 即时设计 | https://js.design/ | — |
+| 585-llama-cpp-local-llm-inference.md | llama.cpp | https://github.com/ggml-org/llama.cpp | — |
+| 586-text-generation-webui-textgen.md | text-generation-webui（现名 textgen） | https://github.com/oobabooga/textgen | — |
