@@ -199,3 +199,129 @@
 | 719-google-gemini-api-skill-agent-platform.md | gemini-api（google/skills） | google/skills | 开源免费（Apache-2.0）；云资源按 Google Cloud 计费 | 仓库 21102 Star | https://github.com/google/skills/tree/main/skills/cloud/gemini-api |
 | 720-google-bigquery-basics-skill.md | bigquery-basics（google/skills） | google/skills | 开源免费（Apache-2.0）；云资源按 Google Cloud 计费 | 仓库 21102 Star | https://github.com/google/skills/tree/main/skills/cloud/bigquery-basics |
 | 721-google-cloud-run-basics-skill.md | cloud-run-basics（google/skills） | google/skills | 开源免费（Apache-2.0）；云资源按 Google Cloud 计费 | 仓库 21102 Star | https://github.com/google/skills/tree/main/skills/cloud/cloud-run-basics |
+
+---
+
+# 第三批 · skills3（2026-10-11，分支 exp/skills2）
+
+本批共 60 条：(a) 新增 Skill 库条目 8 条（编号 383–390），(b) 已收录库里此前没有展开的单个 Skill 条目 52 条（编号 722–773）。全部挂 `agent-skills` 标签，`checkedOn: 2026-10-11`，未配图。写法与取数口径沿用上文第二批：
+
+- 每个单个 Skill 条目的正文都是读了该技能自己的 SKILL.md（frontmatter、正文小节、目录内脚本与参考文件清单）之后用自己的话写的；安装命令原样取自各仓库 README。`--skill <name>` 的写法以 README 自己给出的为先（taste-skill、wshobson/agents、addyosmani/agent-skills、expo/skills、googleworkspace/cli、brag 的 README 都直接给了单装写法），README 没给的才按 vercel-labs/skills（skills CLI）文档的 `--skill` 参数写，并在正文里说明。
+- **Star / Fork / 最近推送 / 许可证**：2026-10-11 通过 GitHub 搜索 API 取数。**skills.sh 安装量**：2026-10-11 重新抓取 skills.sh 首页榜单内嵌数据（前 600 条）。榜单安装量包含整库安装带来的计数，正文均注明日期；榜单前 600 条里没有的技能（gstack、ECC、Khazix、Sentry、K-Dense、knowledge-work-plugins 的技能，以及本批写的 addyosmani 三个技能、expo-native-ui）只写所在仓库的 Star。
+- **选库**：2026-10-11 用 GitHub 搜索 API 按 Star 重查了 `claude-skills`（>3000）、`agent-skills`（>3000）、`claude-code-skills`（>2000）、`codex-skills`（>1500）四个 topic，再结合 skills.sh 榜单按来源汇总的安装量。
+- **标题**：沿用「X skill 是什么、怎么安装使用：…」。2026-10-11 用 Google 下拉建议抽样：`taste skill`、`design-taste-frontend`、`emil-design-eng`、`hyperframes`、`azure skills`、`lark-sheets`、`gsap skill`、`shadcn skill`、`playwright-cli skill`、`prompt-master skill`、`stitch skills`、`claude-seo`、`agents-cli`、`skill-scanner`、`strategic-compact`、`continuous-learning-v2`、`typescript-advanced-types`、`expo skills`、`brag skill` 有「skill / github / 安装 / 使用 / claude / codex」类联想；`product-launch-video skill`、`lark-calendar skill`、`iterate-pr skill`、`rdkit skill` 等为 0 条联想，这些条目用描述式标题。
+- 校验：`npx tsx scripts/build-seed-bundle.ts` 零错误（AI 应用 475 条）。
+
+## 没有收录的候选与原因（第三批）
+
+**库：**
+
+- `Yuan1z0825/nature-skills`（47149 Star，Apache-2.0，Nature 风格论文写作与科研绘图）：README 第 1.2 节是自营的 GPT / Claude 充值与成品账号业务，并附充值卡网站和客服二维码，属于 AI 账号转售项目，按规则整库不收、不引用。
+- `thedotmack/claude-mem`、`nexu-io/open-design`、`code-yeongyu/oh-my-openagent`、`nanocoai/nanoclaw`、`topoteretes/cognee`、`alibaba/open-code-review` 等：本体是应用 / 记忆插件 / 智能体框架，不是技能库（与第二批口径一致）。
+- `titanwings/distilly`、`jangviktor-web/nihaixia`、`JuneYaooo/nihaisha-nishi-tcm`：「蒸馏某个人」类，后两个还涉及中医诊疗内容且无许可证，不收。
+- `SnailSploit/Claude-Red`、`elementalsouls/Claude-BugHunter`、`ljagiello/ctf-skills`、`morluto/rea`、`useosint/skills`（skills.sh）：进攻性安全 / 逆向 / 针对个人的信息检索方向，不收。
+- `browser-act/skills`、`feder-cr/invisible_dots`、`citrolabs/ego-lite`、`antibrow/anti-detect-browser-skills`、`liarjsdev/liarjs-skills`、`gosom/google-maps-scraper`、`ScrapeCreators/social-media-research-skills`、`firecrawl/cli`、`scrapegraphai/just-scrape`、`teng-lin/notebooklm-py`：反检测 / 抓取 / 借登录态访问第三方服务，不收。
+- skills.sh 榜单上的 `prime-skills/runcomfy-agent-skills`、`101-skills/superpowers`、`magentosh/superpowers`、`qu-skills/superpowers`、`skills-shell/superpowers`、`its-a-skill-issue/superpowers`、`bankai-skills/superpowers`、`flowkit-labs/skills`、`lllllllama/rigorpilot-skills`、`gencraft-labs/skills`、`autonnel/autonnel-skills` 等：安装量异常整齐、与知名项目撞名或含社交平台自动化，无法核实维护者，不收。
+- `prisma/skills`（68 Star）、`get-convex/agent-skills`（64 Star）、`neondatabase/agent-skills`（100 Star）、`makenotion/skills`（173 Star）、`mastra-ai/skills`（95 Star，API 未识别许可证）、`currents-dev/playwright-best-practices-skill`（395 Star）：官方或半官方出品，skills.sh 安装量不低，但 GitHub 关注度仍低，沿用第二批口径未单列，可作为下一批候选。
+- `better-auth/skills`、`anbeime/skill`、`irinabuht12-oss/marketing-skills`、`travisvn/awesome-claude-skills`：API 未识别出许可证。`deanpeters/Product-Manager-Skills`、`geekjourneyx/md2wechat-skill`、`vercel/ai`（ai-sdk 技能）：许可证为 NOASSERTION，本批未进一步核对，未收。
+- `higgsfield-ai/skills`（1252 Star，MIT）：技能围绕其付费生图 / 生视频服务，且含人物形象定制类功能，未收。
+- `Orchestra-Research/AI-Research-SKILLs`（13424 Star，最近推送 2026-06-16）、`wanshuiyin/Auto-claude-code-research-in-sleep`（17240 Star）、`Vincentwei1021/video-shotcraft`（11161 Star）、`ningzimu/codex-ppt-skill`（6660 Star）、`zenstory-ai/oh-story-claudecode`（7411 Star）、`AgriciDaniel/claude-ads`、`wondelai/skills`、`Weizhena/Deep-Research-skills`：有热度、许可证明确，本批为保证每条都读过原文未继续铺开，可作为下一批候选（oh-story 自述含「扫榜」，需先确认是否涉及抓取）。
+
+**单个技能：**
+
+- `pbakaus/impeccable`：仓库当前只剩 `impeccable` 一个技能（polish / critique / audit 等已并成它的子命令，原独立技能目录不存在），与站内库条目重复，未写。skills.sh 榜单上的 polish、critique 等属于旧技能名。
+- `nextlevelbuilder/ui-ux-pro-max-skill`：主技能 `ui-ux-pro-max` 与站内库条目重复；仓库里另外的 banner-design、brand、design-system、slides、ui-styling 没有安装量数据，未写。
+- `garrytan/gstack`：只写了不依赖浏览器登录态的 `/office-hours`、`/plan-ceo-review`、`/retro`。`/browse`、`/scrape`、`/setup-browser-cookies`、`/pair-agent`、`/qa`（依赖其浏览器）按要求不写；`/investigate`（与 superpowers 的 systematic-debugging 同用途）、`/review`（与已收录的代码评审类技能同用途）按「跨库重复只留一条」未写；`/cso` 含运行时扫描，未写。
+- `larksuite/cli`：`lark-minutes` 现在只是兼容旧名称的转发入口（正文只有一句交由 lark-meeting 处理），按「弃用 / 路由类不写」跳过；`lark-shared`、`lark-skill-maker`、`lark-openapi-explorer` 属于公共 / 工具类，未写。
+- `getsentry/skills`：`find-bugs`、`code-review`、`security-review` 与已收录的评审类技能用途重复，未写；选了 `iterate-pr`、`skill-scanner`、`agents-md`。
+- `googleworkspace/cli`：`gws-gmail-send` 等单动作小技能、`persona-*`、`recipe-*` 内容很薄，只在父技能条目里提及；`gws-shared` 属于公共前置。
+- `heygen-com/hyperframes`：路由技能 `hyperframes` 和 `hyperframes-cli`、`hyperframes-core` 等领域技能不单列；`website-to-video`、`website-to-hyperframes` 在当前目录树的 `skills/` 下已不存在。
+- `expo/skills`：skills.sh 上的 `building-native-ui`、`expo-tailwind-setup` 是旧技能名，当前目录树里对应的是 `expo-native-ui` 等；`expo-native-ui` 条目因此没有写安装量。
+- `anthropics/knowledge-work-plugins`：`interview-prep`（1.4KB）、`process-doc`（2.5KB）等过薄的技能未写，选了正文较完整的 campaign-plan、incident-response、draft-response、build-dashboard。
+- `addyosmani/agent-skills`：`planning-and-task-breakdown`（与 superpowers writing-plans 同用途）、`test-driven-development`、`debugging-and-error-recovery`（第二批已说明）未写。
+- `K-Dense-AI/scientific-agent-skills`：各学科技能在 skills.sh 榜单前 600 里都没有记录，「真实使用量」无从逐个核实，只挑了面向面较广的 rdkit、scanpy、citation-management 三个，热度只写仓库 Star。
+
+## 需要协调者留意（第三批）
+
+- **校验器误伤 `uvx`**：`build-seed-bundle` 的联系方式正则把 `uvx google-agents-cli` 里 `vx` 加后面的包名当成了联系方式。google/agents-cli 的 README 安装命令正是这一句加 `setup`；条目 385 的 `trialNote` 因此改用 README 的另一条官方命令 `npx skills add google/agents-cli`，正文里把前者写成等价的 `uv tool run google-agents-cli setup`（uvx 是 `uv tool run` 的别名）。以后若放宽正则，可以改回原文。
+- 条目 383（shadcn skill）、384（playwright-cli）、388（Prompt Master）、390（/brag）是「单个技能自成一库」，按第二批 i-have-adhd、drawio-skill 的做法放在库编号段。383 的 `url` 指向 `shadcn-ui/ui` 仓库里的 `skills/shadcn` 目录，安装命令 `npx skills add shadcn/ui` 取自官方文档的 Skills 页。
+- 条目 388（Prompt Master）的 `trialNote` 不是命令（README 推荐在 claude.ai 上传 ZIP），按内容约定的第三种写法显示为「上手方式」。
+- gstack 三条与 HyperFrames 四条沿用父库的整库安装命令作 `trialNote`（这两个库都不支持、也不建议单装）；gstack 的安装会下载 Chromium，条目里已说明。gstack 带可选遥测（README 称默认关闭），三条的「注意事项」都写了。google/agents-cli 默认开启使用信号上报，条目 385 的「注意事项」照 README 写明了记录内容与可关闭。
+- Khazix 两条的 `trialNote` 不是 shell 命令（把技能目录链接交给智能体），与父库条目写法一致。
+- taste-skill 四条：仓库文件夹名与技能安装名不同（如 `skills/taste-skill` 对应 `design-taste-frontend`），`name` 用的是安装名，`url` 指向文件夹，正文里都注明了。
+- K-Dense 的 rdkit、scanpy 两条 `pricing` 写的是「技能标注 BSD-3-Clause；仓库整体 MIT」（技能 frontmatter 的 license 字段与仓库许可不同）。
+- emilkowalski/skills 四条的 `pricing` 沿用父库的「GitHub 标注 MIT」（README 无 License 小节）。
+- Stripe 两条没有写具体的 API / SDK 版本号（SKILL.md 里的版本号是生成时的快照，会变）。
+- 条目 387（Claude SEO）与已收录的 marketingskills `seo-audit` 用途相近，但一个是整套插件、一个是单个技能，正文里互相指了路；如觉得重复可只留其一。
+- 部分条目挂了 `product-video`、`motion-graphics`、`video-script` 标签（HyperFrames 的创作技能与 /brag），同第二批的提醒：不希望 Skill 条目出现在这些标签下可统一改掉。
+- 正文长度：单个 Skill 条目的可读字数在 1220–1570 之间（含开头的资料说明行和安装小节，这两部分约占 300 字）；超过 1500 的有 8 条，均未超过 1600。
+
+## (a) 第三批新增 Skill 库条目
+
+| 文件 | 名称 | 许可（pricing 字段） | 热度依据（2026-10-11） | 链接 |
+| --- | --- | --- | --- | --- |
+| 383-shadcn-ui-skill-official.md | shadcn skill（shadcn/ui 官方 Skill） | 开源免费（MIT） | 所在仓库 shadcn-ui/ui 125267 Star / 12740 Fork，最近推送 2026-10-10；skills.sh 榜单 shadcn/ui 来源下 shadcn 约 27.1 万次安装（2026-10-11） | https://github.com/shadcn-ui/ui/tree/main/skills/shadcn |
+| 384-playwright-cli-microsoft-skills.md | playwright-cli（microsoft/playwright-cli） | 开源免费（Apache-2.0） | 13910 Star / 769 Fork，最近推送 2026-09-28；skills.sh 榜单 playwright-cli 约 18.0 万次安装（2026-10-11） | https://github.com/microsoft/playwright-cli |
+| 385-google-agents-cli-adk-skills.md | agents-cli（google/agents-cli） | 开源免费（Apache-2.0）；部署到 Google Cloud 的资源按其计费 | 6068 Star / 692 Fork，最近推送 2026-10-06；skills.sh 榜单 google-agents-cli-adk-code 等 7 个技能各约 48.6 万次安装（2026-10-11） | https://github.com/google/agents-cli |
+| 386-stitch-skills-google-labs-design.md | Stitch Skills（google-labs-code/stitch-skills） | 开源免费（Apache-2.0）；非 Google 官方支持产品，需配合 Stitch 使用 | 8463 Star / 1108 Fork，最近推送 2026-08-17；skills.sh 榜单 design-md 约 6.3 万次安装（2026-10-11） | https://github.com/google-labs-code/stitch-skills |
+| 387-claude-seo-agricidaniel-skill.md | Claude SEO（AgriciDaniel/claude-seo） | 开源免费（MIT）；可选的第三方数据接口另计 | 18657 Star / 2734 Fork，最近推送 2026-10-04 | https://github.com/AgriciDaniel/claude-seo |
+| 388-prompt-master-claude-skill.md | Prompt Master（nidhinjs/prompt-master） | 开源免费（MIT） | 14262 Star / 1653 Fork，最近推送 2026-08-24 | https://github.com/nidhinjs/prompt-master |
+| 389-web-quality-skills-addyosmani.md | Web Quality Skills（addyosmani/web-quality-skills） | 开源免费（MIT） | 2922 Star / 254 Fork，最近推送 2026-08-24；skills.sh 榜单 accessibility 约 6.0 万次安装（2026-10-11） | https://github.com/addyosmani/web-quality-skills |
+| 390-brag-launch-video-skill.md | /brag（latent-spaces/brag） | 开源免费（MIT）；作者另有代做视频的在线服务 | 14938 Star / 1085 Fork，最近推送 2026-10-09 | https://github.com/latent-spaces/brag |
+
+## (b) 第三批单个 Skill 条目
+
+| 文件 | 名称 | 所属库 | 许可（pricing 字段） | 热度依据（2026-10-11） | 技能目录 |
+| --- | --- | --- | --- | --- | --- |
+| 722-taste-design-taste-frontend-skill.md | design-taste-frontend（Leonxlnx/taste-skill） | Leonxlnx/taste-skill | 开源免费（MIT） | skills.sh 588241；仓库 94378 Star | https://github.com/Leonxlnx/taste-skill/tree/main/skills/taste-skill |
+| 723-taste-redesign-existing-projects-skill.md | redesign-existing-projects（Leonxlnx/taste-skill） | Leonxlnx/taste-skill | 开源免费（MIT） | skills.sh 424798；仓库 94378 Star | https://github.com/Leonxlnx/taste-skill/tree/main/skills/redesign-skill |
+| 724-taste-minimalist-ui-skill.md | minimalist-ui（Leonxlnx/taste-skill） | Leonxlnx/taste-skill | 开源免费（MIT） | skills.sh 393804；仓库 94378 Star | https://github.com/Leonxlnx/taste-skill/tree/main/skills/minimalist-skill |
+| 725-taste-full-output-enforcement-skill.md | full-output-enforcement（Leonxlnx/taste-skill） | Leonxlnx/taste-skill | 开源免费（MIT） | skills.sh 375497；仓库 94378 Star | https://github.com/Leonxlnx/taste-skill/tree/main/skills/output-skill |
+| 726-emil-design-eng-skill.md | emil-design-eng（emilkowalski/skills） | emilkowalski/skills | 开源免费（GitHub 标注 MIT） | skills.sh 339698；仓库 45003 Star | https://github.com/emilkowalski/skills/tree/main/skills/emil-design-eng |
+| 727-emil-review-animations-skill.md | review-animations（emilkowalski/skills） | emilkowalski/skills | 开源免费（GitHub 标注 MIT） | skills.sh 214739；仓库 45003 Star | https://github.com/emilkowalski/skills/tree/main/skills/review-animations |
+| 728-emil-apple-design-skill.md | apple-design（emilkowalski/skills） | emilkowalski/skills | 开源免费（GitHub 标注 MIT） | skills.sh 200000；仓库 45003 Star | https://github.com/emilkowalski/skills/tree/main/skills/apple-design |
+| 729-gstack-office-hours-skill.md | office-hours（garrytan/gstack） | garrytan/gstack | 开源免费（MIT） | 仓库 135820 Star | https://github.com/garrytan/gstack/tree/main/office-hours |
+| 730-gstack-plan-ceo-review-skill.md | plan-ceo-review（garrytan/gstack） | garrytan/gstack | 开源免费（MIT） | 仓库 135820 Star | https://github.com/garrytan/gstack/tree/main/plan-ceo-review |
+| 731-gstack-retro-weekly-retrospective-skill.md | retro（garrytan/gstack） | garrytan/gstack | 开源免费（MIT） | 仓库 135820 Star | https://github.com/garrytan/gstack/tree/main/retro |
+| 732-hyperframes-product-launch-video-skill.md | product-launch-video（heygen-com/hyperframes） | heygen-com/hyperframes | 开源免费（Apache-2.0）；无按次渲染费用 | skills.sh 423455；仓库 60274 Star | https://github.com/heygen-com/hyperframes/tree/main/skills/product-launch-video |
+| 733-hyperframes-faceless-explainer-skill.md | faceless-explainer（heygen-com/hyperframes） | heygen-com/hyperframes | 开源免费（Apache-2.0）；无按次渲染费用 | skills.sh 410955；仓库 60274 Star | https://github.com/heygen-com/hyperframes/tree/main/skills/faceless-explainer |
+| 734-hyperframes-pr-to-video-skill.md | pr-to-video（heygen-com/hyperframes） | heygen-com/hyperframes | 开源免费（Apache-2.0）；无按次渲染费用 | skills.sh 357503；仓库 60274 Star | https://github.com/heygen-com/hyperframes/tree/main/skills/pr-to-video |
+| 735-hyperframes-music-to-video-skill.md | music-to-video（heygen-com/hyperframes） | heygen-com/hyperframes | 开源免费（Apache-2.0）；无按次渲染费用 | skills.sh 338887；仓库 60274 Star | https://github.com/heygen-com/hyperframes/tree/main/skills/music-to-video |
+| 736-azure-prepare-skill-azd.md | azure-prepare（microsoft/azure-skills） | microsoft/azure-skills | 开源免费（MIT）；Azure 资源按微软云计费 | skills.sh 550357；仓库 1555 Star | https://github.com/microsoft/azure-skills/tree/main/skills/azure-prepare |
+| 737-azure-deploy-skill-azd-up.md | azure-deploy（microsoft/azure-skills） | microsoft/azure-skills | 开源免费（MIT）；Azure 资源按微软云计费 | skills.sh 549983；仓库 1555 Star | https://github.com/microsoft/azure-skills/tree/main/skills/azure-deploy |
+| 738-azure-diagnostics-skill-troubleshooting.md | azure-diagnostics（microsoft/azure-skills） | microsoft/azure-skills | 开源免费（MIT）；Azure 资源按微软云计费 | skills.sh 550840；仓库 1555 Star | https://github.com/microsoft/azure-skills/tree/main/skills/azure-diagnostics |
+| 739-azure-resource-visualizer-skill.md | azure-resource-visualizer（microsoft/azure-skills） | microsoft/azure-skills | 开源免费（MIT）；Azure 资源按微软云计费 | skills.sh 548260；仓库 1555 Star | https://github.com/microsoft/azure-skills/tree/main/skills/azure-resource-visualizer |
+| 740-lark-sheets-skill-feishu-spreadsheet.md | lark-sheets（larksuite/cli） | larksuite/cli | 开源免费（MIT）；调用飞书开放平台须遵守其协议 | skills.sh 460608；仓库 17610 Star | https://github.com/larksuite/cli/tree/main/skills/lark-sheets |
+| 741-lark-calendar-skill-feishu.md | lark-calendar（larksuite/cli） | larksuite/cli | 开源免费（MIT）；调用飞书开放平台须遵守其协议 | skills.sh 457432；仓库 17610 Star | https://github.com/larksuite/cli/tree/main/skills/lark-calendar |
+| 742-lark-task-skill-feishu-todo.md | lark-task（larksuite/cli） | larksuite/cli | 开源免费（MIT）；调用飞书开放平台须遵守其协议 | skills.sh 458322；仓库 17610 Star | https://github.com/larksuite/cli/tree/main/skills/lark-task |
+| 743-lark-wiki-skill-feishu-knowledge-base.md | lark-wiki（larksuite/cli） | larksuite/cli | 开源免费（MIT）；调用飞书开放平台须遵守其协议 | skills.sh 460011；仓库 17610 Star | https://github.com/larksuite/cli/tree/main/skills/lark-wiki |
+| 744-lark-drive-skill-feishu-cloud-space.md | lark-drive（larksuite/cli） | larksuite/cli | 开源免费（MIT）；调用飞书开放平台须遵守其协议 | skills.sh 461130；仓库 17610 Star | https://github.com/larksuite/cli/tree/main/skills/lark-drive |
+| 745-gws-gmail-skill-google-workspace-cli.md | gws-gmail（googleworkspace/cli） | googleworkspace/cli | 开源免费（Apache-2.0）；非 Google 官方支持产品 | skills.sh 79441；仓库 31286 Star | https://github.com/googleworkspace/cli/tree/main/skills/gws-gmail |
+| 746-gws-drive-skill-google-workspace-cli.md | gws-drive（googleworkspace/cli） | googleworkspace/cli | 开源免费（Apache-2.0）；非 Google 官方支持产品 | skills.sh 72329；仓库 31286 Star | https://github.com/googleworkspace/cli/tree/main/skills/gws-drive |
+| 747-gws-calendar-skill-google-workspace-cli.md | gws-calendar（googleworkspace/cli） | googleworkspace/cli | 开源免费（Apache-2.0）；非 Google 官方支持产品 | skills.sh 59093；仓库 31286 Star | https://github.com/googleworkspace/cli/tree/main/skills/gws-calendar |
+| 748-stripe-best-practices-skill.md | stripe-best-practices（stripe/ai） | stripe/ai | 开源免费（MIT）；Stripe 支付服务按其费率计费 | skills.sh 93346；仓库 1865 Star | https://github.com/stripe/ai/tree/main/skills/stripe-best-practices |
+| 749-stripe-upgrade-stripe-skill.md | upgrade-stripe（stripe/ai） | stripe/ai | 开源免费（MIT）；Stripe 支付服务按其费率计费 | skills.sh 70575；仓库 1865 Star | https://github.com/stripe/ai/tree/main/skills/upgrade-stripe |
+| 750-sentry-iterate-pr-skill.md | iterate-pr（getsentry/skills） | getsentry/skills | 开源免费（Apache-2.0） | 仓库 1045 Star | https://github.com/getsentry/skills/tree/main/skills/iterate-pr |
+| 751-sentry-skill-scanner-skill.md | skill-scanner（getsentry/skills） | getsentry/skills | 开源免费（Apache-2.0） | 仓库 1045 Star | https://github.com/getsentry/skills/tree/main/skills/skill-scanner |
+| 752-sentry-agents-md-skill.md | agents-md（getsentry/skills） | getsentry/skills | 开源免费（Apache-2.0） | 仓库 1045 Star | https://github.com/getsentry/skills/tree/main/skills/agents-md |
+| 753-expo-dev-client-skill.md | expo-dev-client（expo/skills） | expo/skills | 开源免费（MIT）；部分技能对应付费的 EAS 云服务 | skills.sh 65781；仓库 2686 Star | https://github.com/expo/skills/tree/main/plugins/expo/skills/expo-dev-client |
+| 754-expo-native-ui-skill.md | expo-native-ui（expo/skills） | expo/skills | 开源免费（MIT）；部分技能对应付费的 EAS 云服务 | 仓库 2686 Star | https://github.com/expo/skills/tree/main/plugins/expo/skills/expo-native-ui |
+| 755-gsap-core-skill.md | gsap-core（greensock/gsap-skills） | greensock/gsap-skills | 开源免费（MIT）；GSAP 及全部插件现已免费 | skills.sh 65651；仓库 16136 Star | https://github.com/greensock/gsap-skills/tree/main/skills/gsap-core |
+| 756-gsap-scrolltrigger-skill.md | gsap-scrolltrigger（greensock/gsap-skills） | greensock/gsap-skills | 开源免费（MIT）；GSAP 及全部插件现已免费 | skills.sh 63214；仓库 16136 Star | https://github.com/greensock/gsap-skills/tree/main/skills/gsap-scrolltrigger |
+| 757-ecc-strategic-compact-skill.md | strategic-compact（affaan-m/ECC） | affaan-m/ECC | 开源免费（MIT） | 仓库 276385 Star | https://github.com/affaan-m/ECC/tree/main/skills/strategic-compact |
+| 758-ecc-continuous-learning-v2-skill.md | continuous-learning-v2（affaan-m/ECC） | affaan-m/ECC | 开源免费（MIT） | 仓库 276385 Star | https://github.com/affaan-m/ECC/tree/main/skills/continuous-learning-v2 |
+| 759-wshobson-typescript-advanced-types-skill.md | typescript-advanced-types（wshobson/agents） | wshobson/agents | 开源免费（MIT） | skills.sh 85778；仓库 40327 Star | https://github.com/wshobson/agents/tree/main/plugins/javascript-typescript/skills/typescript-advanced-types |
+| 760-wshobson-tailwind-design-system-skill.md | tailwind-design-system（wshobson/agents） | wshobson/agents | 开源免费（MIT） | skills.sh 67958；仓库 40327 Star | https://github.com/wshobson/agents/tree/main/plugins/frontend-mobile-development/skills/tailwind-design-system |
+| 761-khazix-hv-analysis-skill.md | hv-analysis（KKKKhazix/khazix-skills） | KKKKhazix/khazix-skills | 开源免费（MIT） | 仓库 21287 Star | https://github.com/KKKKhazix/khazix-skills/tree/main/hv-analysis |
+| 762-khazix-neat-freak-skill.md | neat-freak（KKKKhazix/khazix-skills） | KKKKhazix/khazix-skills | 开源免费（MIT） | 仓库 21287 Star | https://github.com/KKKKhazix/khazix-skills/tree/main/neat-freak |
+| 763-kdense-rdkit-skill.md | rdkit（K-Dense-AI/scientific-agent-skills） | K-Dense-AI/scientific-agent-skills | 开源免费（技能标注 BSD-3-Clause；仓库整体 MIT） | 仓库 48286 Star | https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/rdkit |
+| 764-kdense-scanpy-skill.md | scanpy（K-Dense-AI/scientific-agent-skills） | K-Dense-AI/scientific-agent-skills | 开源免费（技能标注 BSD-3-Clause；仓库整体 MIT） | 仓库 48286 Star | https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/scanpy |
+| 765-kdense-citation-management-skill.md | citation-management（K-Dense-AI/scientific-agent-skills） | K-Dense-AI/scientific-agent-skills | 开源免费（MIT） | 仓库 48286 Star | https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/citation-management |
+| 766-anthropic-marketing-campaign-plan-skill.md | campaign-plan（anthropics/knowledge-work-plugins） | anthropics/knowledge-work-plugins | 开源免费（Apache-2.0） | 仓库 28704 Star | https://github.com/anthropics/knowledge-work-plugins/tree/main/marketing/skills/campaign-plan |
+| 767-anthropic-engineering-incident-response-skill.md | incident-response（anthropics/knowledge-work-plugins） | anthropics/knowledge-work-plugins | 开源免费（Apache-2.0） | 仓库 28704 Star | https://github.com/anthropics/knowledge-work-plugins/tree/main/engineering/skills/incident-response |
+| 768-anthropic-support-draft-response-skill.md | draft-response（anthropics/knowledge-work-plugins） | anthropics/knowledge-work-plugins | 开源免费（Apache-2.0） | 仓库 28704 Star | https://github.com/anthropics/knowledge-work-plugins/tree/main/customer-support/skills/draft-response |
+| 769-anthropic-data-build-dashboard-skill.md | build-dashboard（anthropics/knowledge-work-plugins） | anthropics/knowledge-work-plugins | 开源免费（Apache-2.0） | 仓库 28704 Star | https://github.com/anthropics/knowledge-work-plugins/tree/main/data/skills/build-dashboard |
+| 770-addyosmani-incremental-implementation-skill.md | incremental-implementation（addyosmani/agent-skills） | addyosmani/agent-skills | 开源免费（MIT） | 仓库 104422 Star | https://github.com/addyosmani/agent-skills/tree/main/skills/incremental-implementation |
+| 771-addyosmani-source-driven-development-skill.md | source-driven-development（addyosmani/agent-skills） | addyosmani/agent-skills | 开源免费（MIT） | 仓库 104422 Star | https://github.com/addyosmani/agent-skills/tree/main/skills/source-driven-development |
+| 772-addyosmani-shipping-and-launch-skill.md | shipping-and-launch（addyosmani/agent-skills） | addyosmani/agent-skills | 开源免费（MIT） | 仓库 104422 Star | https://github.com/addyosmani/agent-skills/tree/main/skills/shipping-and-launch |
+| 773-emil-animation-vocabulary-skill.md | animation-vocabulary（emilkowalski/skills） | emilkowalski/skills | 开源免费（GitHub 标注 MIT） | skills.sh 200675；仓库 45003 Star | https://github.com/emilkowalski/skills/tree/main/skills/animation-vocabulary |
