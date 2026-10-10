@@ -512,5 +512,17 @@ ok('外链文案：GitHub 仓库 / 项目主页（不写「官网」）', repoLa
   }
 }
 
+
+// —— 站内链接：未公开目标只留文字（10-11）——
+{
+  const { stripLinksExcept, linkedContentIds } = require('../src/lib/content/link-strip') as typeof import('../src/lib/content/link-strip')
+  const md = '见[《A》](/guides/12-a-slug)、[《B》](/prompts/34-b)、[C](/apps/56)，以及[列表](/prompts/text) 和 [外链](https://example.com/guides/78-x)。'
+  ok('站内链接：识别出 3 个内容 id', linkedContentIds(md).sort().join() === '12,34,56')
+  const out = stripLinksExcept(md, new Set([12]))
+  ok('站内链接：已公开的保留链接', out.includes('[《A》](/guides/12-a-slug)'))
+  ok('站内链接：未公开的只留文字', out.includes('、《B》、C，') && !out.includes('/prompts/34') && !out.includes('/apps/56'))
+  ok('站内链接：列表页与外链不动', out.includes('[列表](/prompts/text)') && out.includes('[外链](https://example.com/guides/78-x)'))
+}
+
 console.log(`\n${pass} 通过，${fail} 失败`)
 if (fail) process.exit(1)

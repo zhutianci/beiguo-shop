@@ -15,6 +15,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import { BadgeCheck, CalendarCheck2, Clock3, EyeOff, UserRound, XCircle } from 'lucide-react'
 import { getCurrentUser } from '@/lib/auth'
 import { renderMarkdown, plainExcerpt, tocFromHtml } from '@/lib/markdown'
+import { dropUnpublishedLinks } from '@/lib/content/internal-links'
 import { loadCommentPage } from '@/lib/forum-server'
 import {
   ACCOUNT_TIER_LABELS,
@@ -261,7 +262,8 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
   const initialComments = JSON.parse(JSON.stringify(comments)) as CommentPage
   const authorName = authorNameOf(post)
   const crumbs = crumbsOf(post, type)
-  const html = renderMarkdown(post.content)
+  // 指向还没公开内容的站内链接只留文字（lib/content/internal-links.ts）
+  const html = renderMarkdown(await dropUnpublishedLinks(post.content))
   const gate = !publicPost ? 'not-public' : post.locked && !isAdmin ? 'locked' : 'open'
   const editHref = `/forum/${post.id}/edit`
   const model = modelOf(post)
