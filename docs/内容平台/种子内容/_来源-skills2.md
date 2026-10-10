@@ -8,7 +8,7 @@
 - **Star / Fork / 最近推送 / 许可证**：2026-10-11 通过 GitHub 搜索 API（`api.github.com/search/repositories`）取数；许可证以 API 的 `license.spdx_id` 与 README 的 License 小节为准，技能目录内另有 LICENSE 的以其为准（anthropics/skills 的四个文档技能为 Proprietary / 源码可见）。
 - **skills.sh 安装量**：2026-10-11 抓取 skills.sh 首页榜单内嵌数据（前 600 条，字段 `source` / `skillId` / `installs`）。榜单安装量包含整库安装带来的计数，正文里均注明日期且只作热度参考。榜单上没有的技能（如 knowledge-work-plugins、trailofbits、K-Dense、pm-skills 的技能）不写安装量，只写所在仓库的 Star。
 - **标题**：技能名 + 「skill 是什么 / 怎么安装使用」的问法，2026-10-11 用 Google 下拉建议抽样验证（`suggestqueries.google.com`，如 `frontend-design skill`、`skill-creator`、`claude pptx skill`、`claude pdf skill`、`mcp-builder`、`webapp-testing skill`、`superpowers brainstorming`、`systematic-debugging`、`grill-me skill`、`subagent-driven-development` 等均有「是什么 / 安装 / 使用 / github」类联想）；没有单独验证的冷门技能统一用「X skill 是什么、怎么安装使用」的描述式标题。
-- 校验：`npx tsx scripts/build-seed-bundle.ts`。注意该脚本用 UTC 日期判断 `checkedOn` 是否「未来」，北京时间 2026-10-11 08:00 之前运行会对本批全部条目报「checkedOn 是未来的日期」，属时区原因，其余校验项均通过。
+- 校验：`npx tsx scripts/build-seed-bundle.ts`。本分支基于的旧版脚本用 UTC 日期判断 `checkedOn` 是否「未来」，北京时间 2026-10-11 08:00 之前运行会对本批全部条目报「checkedOn 是未来的日期」（仅此一类报错，其余校验项均通过）；release/opt-1007 的 651f20d 已把该判断改为按北京时间，合并后不再出现。
 
 ## 没有收录的候选与原因
 
@@ -37,7 +37,7 @@
 
 ## 需要协调者留意
 
-- `checkedOn: 2026-10-11` 与校验脚本的 UTC 日期判断（见上）。
+- `checkedOn: 2026-10-11` 与旧版校验脚本的 UTC 日期判断（见上，release/opt-1007 已修）。
 - 部分条目按既有应用条目的做法挂了图像 / 视频大类下的主题标签（`ppt`、`poster`、`illustration`、`sticker`、`comic`、`infographic`、`wallpaper`、`motion-graphics`），如不希望 Skill 条目出现在这些标签下可统一改掉。
 - `firebase/agent-skills`：GitHub 仓库名与 README 安装命令里的 `firebase/skills` 不一致（后者可用，疑为改名后的跳转），条目里已说明。
 - trailofbits 条目的 `trialNote` 第二条命令是 `/plugin menu`（README 的写法是进菜单选插件，没有给出 Claude Code 下逐个插件的 install 命令）。
