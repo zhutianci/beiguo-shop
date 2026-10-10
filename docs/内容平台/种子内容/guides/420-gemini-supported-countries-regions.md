@@ -108,7 +108,7 @@ verify:
 | 自定义关联应用（MCP） | 须在美国，仅英语 |
 | 从其他 AI 平台导入记忆和对话 | 不在欧洲经济区、瑞士、英国提供 |
 | Live 对话中的个性化 | 仅美国、英语 |
-| Chrome 中的 Gemini | 仅在已开放的国家提供，见本站《Chrome 里的 Gemini 怎么用》 |
+| Chrome 中的 Gemini | 仅在已开放的国家提供，见本站《Gemini in Chrome 怎么开启》 |
 
 另外，官方订阅页的捆绑权益（YouTube Premium、Google Home Premium 等）也因国家而异。
 

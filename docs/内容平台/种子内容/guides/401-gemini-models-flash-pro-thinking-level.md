@@ -11,10 +11,11 @@ sources:
   - https://support.google.com/gemini/answer/16275805
   - https://support.google.com/gemini/answer/16345172
   - https://support.google.com/gemini/answer/13275745
+  - https://gemini.google/subscriptions/
 verify:
   - 思考等级的名称：「About Gemini models」页写 Low / Medium / High（不选默认 Low），「limits & upgrades」页写 Standard / Extended / Deep Think，两处不同，以实际界面为准
   - 手动切换模型的条件：「About Gemini models」写需要 Google AI 方案，「Use Gemini Apps」只写需要登录
-  - 帮助中心称当前为「Gemini 3」系列，界面上显示的具体版本号以实际为准
+  - 各档可用的模型版本：帮助中心表格写四档都能用 Flash-Lite / Flash / Pro（Gemini 3 系列）；订阅页写免费 3.5 Flash-Lite、AI Plus 3.6 Flash + 3.1 Pro、AI Pro / Ultra 3.8 Flash + 3.1 Pro，两处不一致
 ---
 
 > 本文根据 Google 官方 Gemini 帮助中心整理，核对日期 2026-10-10。官方注明「模型名称、版本和可用性可能变化」，以你在界面上看到的为准。本文讲的是 Gemini App（gemini.google.com 和手机 App）里的模型，不是开发者 API 的模型列表。
@@ -41,7 +42,7 @@ verify:
 | Gemini Flash | 更强，在速度和推理之间取平衡 | 大多数问题，从简单到较复杂 |
 | Gemini Pro | 最先进的模型，擅长复杂数学和编程，对文本、文件、图片、视频理解更深，在编程和学习方面有较大提升 | 难题、长文档分析、写代码；回答一般比其他模型慢 |
 
-帮助中心的「模型可用性」表里，无订阅、AI Plus、AI Pro、AI Ultra 四档对三个模型都标的是「可用」。区别主要在**额度**（付费档是无订阅的 2 倍、4 倍，Ultra 更高）和**上下文窗口**（无订阅 32k token，AI Plus 128k，AI Pro / Ultra 100 万 token），详见本站《Gemini 怎么看额度》和《Gemini 会员有什么区别》。
+帮助中心的「模型可用性」表里，无订阅、AI Plus、AI Pro、AI Ultra 四档对三个模型都标的是「可用」。而官方订阅页（美国版）写得更具体：免费档列的是「3.5 Flash-Lite」，AI Plus 列的是「3.6 Flash」和「3.1 Pro」，AI Pro 和 Ultra 列的是「3.8 Flash」和「3.1 Pro」。两处说法并不完全一致，版本号也会随发布更新，以你在模型菜单里实际看到的为准。区别主要在**额度**（付费档是无订阅的 2 倍、4 倍，Ultra 更高）和**上下文窗口**（无订阅 32k token，AI Plus 128k，AI Pro / Ultra 100 万 token），详见本站《Gemini 怎么看额度》和《Gemini 会员有什么区别》。
 
 ## 二、自动选择模型
 
@@ -79,7 +80,7 @@ Deep Think 是 Gemini 最高一档的推理能力，官方描述为「最大程�
 - **限制**：到达用量上限后 Deep Think 会暂时不可用，等额度刷新；
 - 官方把它标为**实验性功能**，可能随时调整或暂停。
 
-Deep Think 和 Deep Research 不是一回事：前者是「想得更深」的回答模式，后者是会联网读大量资料、产出带引用报告的研究功能（见本站《Gemini Deep Research 怎么用》）。
+Deep Think 和 Deep Research 不是一回事：前者是「想得更深」的回答模式，后者是会联网读大量资料、产出带引用报告的研究功能（见本站《Gemini Deep Research 不见了怎么办》）。
 
 ## 五、怎么选（按官方定位整理）
 
@@ -103,7 +104,7 @@ Pro 和更高的思考等级本来就更慢，这是官方明确说明的。日�
 有 Google AI 方案的用户会自动改用 Flash-Lite 继续对话；也可以等 5 小时刷新，或升级更高档的方案。
 
 **Q：Gemini App 里的模型和 API 里的模型一样吗？**
-名字同属 Gemini 家族，但 API 有自己的一套模型 ID、限额和计费，见本站《Gemini API 免费额度与速率限制》等开发者教程。
+名字同属 Gemini 家族，但 API 有自己的一套模型 ID、限额和计费，见本站《Gemini API 免费额度是多少》等开发者教程。
 
 ## 参考资料
 
@@ -111,3 +112,4 @@ Pro 和更高的思考等级本来就更慢，这是官方明确说明的。日�
 - Gemini Apps limits & upgrades for Google AI subscribers：https://support.google.com/gemini/answer/16275805
 - Use Deep Think in Gemini Apps：https://support.google.com/gemini/answer/16345172
 - Use Gemini Apps：https://support.google.com/gemini/answer/13275745
+- Google AI 订阅方案（各档列出的模型版本）：https://gemini.google/subscriptions/

@@ -134,7 +134,7 @@ verify:
 ## 常见问题
 
 **Q：Spark 和 ChatGPT、Claude 的代理功能是一类东西吗？**
-定位相近：都是把多步骤的事交给 AI 自己执行。各家的能力边界和条件不同，本站另有《ChatGPT Work 和 Codex 有什么区别》《Claude Cowork 怎么用》可以对照。
+定位相近：都是把多步骤的事交给 AI 自己执行。各家的能力边界和条件不同，本站另有《ChatGPT Work 和 Codex 有什么区别》《Claude Cowork 是什么、怎么用》可以对照。
 
 **Q：免费或 AI Plus 能用吗？**
 不能。帮助中心写明需要 Google AI Pro 或 Ultra。

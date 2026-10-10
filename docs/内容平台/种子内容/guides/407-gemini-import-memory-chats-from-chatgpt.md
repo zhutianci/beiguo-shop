@@ -64,7 +64,7 @@ verify:
 - **ChatGPT**：左下角用户名 →「Settings」→「Data controls」→「Export data」旁点「Export」→「Confirm Export」；
 - **Claude**：左下角用户名 →「Settings」→「Privacy」→「Export data」旁点「Export」→ 选择要导出的时间范围 →「Export」。
 
-导出后，原平台会把下载链接发到你在那个平台注册的邮箱。更详细的导出说明见本站《ChatGPT 聊天记录怎么导出》和《Claude 聊天记录怎么导出》。
+导出后，原平台会把下载链接发到你在那个平台注册的邮箱。更详细的导出说明见本站《ChatGPT 聊天记录怎么导出》和《Claude 导出聊天记录》。
 
 **第二步：上传到 Gemini**
 

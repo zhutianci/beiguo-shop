@@ -158,7 +158,7 @@ Mac 版的做法基本相同，只是改为在笔记本或对话上点右键。
 帮助中心列出的条件里没有订阅要求；来源数量等上限随方案不同。
 
 **Q：对应 ChatGPT、Claude 的什么功能？**
-定位接近「项目（Projects）」，可对照本站《ChatGPT 项目（Projects）》和《Claude Projects》相关教程。
+定位接近「项目（Projects）」，可对照本站《ChatGPT 项目功能有什么用、怎么用》和《Claude Projects 怎么用》。
 
 ## 参考资料
 
