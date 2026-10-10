@@ -34,5 +34,17 @@
 | 435-upscayl-open-source-image-upscaler.md | Upscayl | https://github.com/upscayl/upscayl<br>https://upscayl.org/ | — |
 | 436-pixelcut-ai-photo-editor.md | Pixelcut | https://www.pixelcut.ai/pricing<br>https://www.pixelcut.ai/ | — |
 | 437-jsdesign-jishi-sheji-ui-tool.md | 即时设计 | https://js.design/ | — |
+| 550-aider-terminal-ai-pair-programming.md | Aider | https://github.com/Aider-AI/aider<br>https://aider.chat/ | — |
+| 551-zed-editor-ai-agent.md | Zed | https://zed.dev/pricing<br>https://zed.dev/<br>https://github.com/zed-industries/zed | — |
+| 552-warp-agentic-terminal.md | Warp | https://www.warp.dev/pricing<br>https://www.warp.dev/ | — |
+| 553-augment-code-ai-coding-platform.md | Augment Code | https://www.augmentcode.com/pricing<br>https://www.augmentcode.com/ | — |
+| 554-langsmith-llm-observability-eval.md | LangSmith | https://www.langchain.com/pricing<br>https://www.langchain.com/langsmith | — |
+| 570-together-ai-open-model-cloud.md | Together AI | https://www.together.ai/pricing<br>https://www.together.ai/ | — |
+| 571-fireworks-ai-inference-platform.md | Fireworks AI | https://fireworks.ai/pricing<br>https://fireworks.ai/ | — |
+| 572-replicate-run-ml-models-api.md | Replicate | https://replicate.com/pricing<br>https://replicate.com/ | — |
+| 573-fal-ai-generative-media-api.md | fal | https://fal.ai/pricing<br>https://fal.ai/ | — |
+| 575-amazon-bedrock-foundation-models.md | Amazon Bedrock | https://aws.amazon.com/bedrock/<br>https://aws.amazon.com/bedrock/pricing/ | — |
+| 576-microsoft-foundry-azure-ai.md | Microsoft Foundry（原 Azure AI Foundry） | https://azure.microsoft.com/en-us/products/ai-foundry<br>https://learn.microsoft.com/en-us/azure/ai-foundry/ | — |
 | 585-llama-cpp-local-llm-inference.md | llama.cpp | https://github.com/ggml-org/llama.cpp | — |
 | 586-text-generation-webui-textgen.md | text-generation-webui（现名 textgen） | https://github.com/oobabooga/textgen | — |
+| 587-vllm-llm-serving-engine.md | vLLM | https://github.com/vllm-project/vllm<br>https://docs.vllm.ai/ | — |
