@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-10T19:39:37.225Z",
+  "builtAt": "2026-10-10T19:40:33.941Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -72614,6 +72614,214 @@
       ]
     },
     {
+      "title": "shadcn skill 是什么、怎么安装使用：shadcn/ui 官方 Skill，让 Claude Code / Cursor 按你项目的配置写对组件",
+      "slug": "shadcn-ui-skill-official",
+      "name": "shadcn skill（shadcn/ui 官方 Skill）",
+      "url": "https://github.com/shadcn-ui/ui/tree/main/skills/shadcn",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor 等支持 Agent Skills 的智能体（npx skills 安装）",
+      "trialNote": "npx skills add shadcn/ui",
+      "tags": [
+        "claude",
+        "cursor",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "shadcn skill 是 shadcn/ui 官方出的 Agent Skill：自动读取项目的 components.json 和 shadcn info 输出，让智能体知道你的框架、别名、已装组件和图标库，再按正确的 CLI 命令与组合规则查找、安装和定制组件。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 shadcn-ui/ui 仓库里该技能的 SKILL.md 与官方文档的 Skills 页面整理，资料核对于 2026-10-11。截至当日，GitHub 显示 shadcn-ui/ui 约 12.5 万 Star；skills.sh 榜单上该技能在 shadcn/ui 来源下累计安装约 27.1 万次。内容随仓库更新，以官方文档为准。\n\n## 是什么\n\nshadcn/ui 不是一个装进 `node_modules` 的组件库，而是一套「把组件源码复制进你项目」的分发方式，由 CLI 负责添加和更新。正因为代码在你自己的仓库里，每个项目的情况都不一样：用的是哪个框架、路径别名怎么配、底层用 Radix 还是别的基础库、图标库是哪个、已经装了哪些组件。大模型不知道这些，就容易写出导入路径不对、组件没装、接口对不上的代码。\n\n官方的 shadcn skill 就是来补这块信息的。文档页的说法是：它给 AI 助手提供「了解你项目」的 shadcn/ui 上下文，装好之后，助手知道怎么用符合你项目的接口和模式去查找、安装、组合和定制组件。\n\n## 包含哪些内容\n\n它是单个技能，文档列出了五块知识：\n\n- **项目上下文**：每次交互时运行 `shadcn info --json`，取得项目配置——框架、Tailwind 版本、别名、基础库（`base`、`radix` 或 `aria`）、图标库、已安装的组件和解析后的文件路径。\n- **CLI 命令**：`init`、`add`、`search`、`view`、`docs`、`diff`、`info`、`build` 的完整参考，包括各参数、试运行模式、智能合并流程、预设和模板。\n- **主题与定制**：CSS 变量、OKLCH 颜色、暗色模式、自定义颜色、圆角和组件变体，同时覆盖 Tailwind v3 和 v4。\n- **编写注册表**：怎么构建和发布自己的组件注册表，包括 `registry.json` 的格式、条目类型、依赖、构建和托管。\n- **MCP 服务**：shadcn MCP 服务的配置和工具，用来搜索、浏览和安装各注册表里的组件。\n\n工作方式分四步：在项目里发现 `components.json` 时激活；运行 `shadcn info --json` 把配置注入上下文；按 shadcn/ui 的组合规则写代码（例如表单用 `FieldGroup`、选项组用 `ToggleGroup`、使用语义化颜色）；生成代码前先用 `shadcn docs`、`shadcn search` 或 MCP 工具查到组件及其文档。\n\n## 怎么安装\n\n官方文档给的命令：\n\n```bash\nnpx skills add shadcn/ui\n```\n\n它把技能装进当前项目，之后助手在处理 shadcn/ui 组件时会自动加载。项目里需要先有 `components.json`（也就是已经执行过 `shadcn init`）。\n\n## 怎么用\n\n文档里的示例提示：\n\n- 「加一个带邮箱和密码字段的登录表单」；\n- 「做一个仪表盘，有侧边栏、统计卡片和数据表格」；\n- 「从 @tailark 加一个首屏区块」——从第三方注册表取组件；\n- 「切换到某个预设」。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 已经在用 shadcn/ui、并用 Claude Code、Cursor 等写前端的开发者；\n- 维护自家组件注册表的团队。\n\n**不适合：**\n- 没有使用 shadcn/ui 的项目——它不是通用的界面设计技能；\n- 想让 AI 负责审美方向的场景，它只保证组件用得对，好不好看要配合设计类技能。\n\n## 注意事项\n\n- **许可**：shadcn-ui/ui 仓库为 MIT。\n- **会执行命令**：技能会运行 `shadcn info`，添加组件时会往项目里写入文件并安装依赖，改动前可以用 CLI 的试运行或 `diff` 先看。SKILL.md 的 `allowed-tools` 只放行 shadcn CLI 的命令；`user-invocable: false` 表示它由模型按需自动加载，不作为斜杠命令出现。\n- **第三方注册表**：从非官方注册表安装的组件等同于引入第三方代码，来源要自己把关。\n- **与 MCP 的关系**：技能提供知识和规则，MCP 服务提供查询和安装的工具，两者可以同时用。\n- skills.sh 上 `shadcn/ui` 与 `shadcn-ui/ui` 两个来源名都有记录，指向的是同一个官方仓库；另有不少第三方的同名技能，安装时认准官方命令。",
+      "images": [],
+      "sources": [
+        "https://github.com/shadcn-ui/ui/tree/main/skills/shadcn",
+        "https://github.com/shadcn-ui/ui",
+        "https://ui.shadcn.com/docs/skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "playwright-cli 是什么、怎么安装使用：微软官方的 Playwright 命令行 + Skills，让编程智能体省着 token 操作浏览器",
+      "slug": "playwright-cli-microsoft-skills",
+      "name": "playwright-cli（microsoft/playwright-cli）",
+      "url": "https://github.com/microsoft/playwright-cli",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Claude Code / GitHub Copilot 等编程智能体；命令行需 Node.js 18+",
+      "trialNote": "\"`npm install -g @playwright/cli@latest` 然后 `playwright-cli install --skills`\"",
+      "tags": [
+        "claude",
+        "github-copilot",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "playwright-cli 是微软 Playwright 团队出的命令行工具，自带 Agent Skills：智能体通过一条条简短命令打开页面、点击、输入、截图和取页面快照，不必把庞大的工具定义和无障碍树塞进上下文，适合测试与调试网页。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 microsoft/playwright-cli 仓库 README 整理，资料核对于 2026-10-11。截至当日，GitHub 显示该仓库约 1.4 万 Star、769 Fork，最近一次推送在 2026-09-28；skills.sh 榜单上 playwright-cli 技能累计安装约 18.0 万次。命令以仓库 README 为准。\n\n## 是什么\n\nPlaywright 是微软开源的浏览器自动化框架。让智能体操作浏览器，此前常见的做法是接 Playwright MCP；playwright-cli 是同一个团队给出的另一条路：把浏览器操作做成命令行，再配上一份技能说明，让智能体像敲普通命令一样驱动浏览器。\n\nREADME 开头专门对比了两者。**CLI + Skills** 更省 token：不用把很大的工具定义和冗长的页面无障碍树加载进模型上下文，智能体通过简短、专用的命令行动，适合既要操作浏览器、又要在有限的上下文里兼顾大型代码库和测试的编程智能体。**MCP** 仍适合需要持久状态、对页面结构反复推理的场景，如探索式自动化、自愈测试和长时间自主运行的流程。README 的结论是：用编程智能体的话，CLI 是更合适的选择。\n\n## 包含哪些内容\n\n这个仓库对外只有一个技能（skills.sh 上名为 `playwright-cli`），背后是一整套命令。README 按类别列出：\n\n- **核心操作**：打开页面、点击、输入、勾选、截图等；\n- **导航、键盘、鼠标**；\n- **另存为**：把页面保存成 PDF 等；\n- **标签页**管理；\n- **存储**：Cookie、LocalStorage、SessionStorage 的读写；\n- **模拟**（设备、环境）与**网络**；\n- **开发者工具**相关命令；\n- **快照**：取页面或单个元素的结构快照，可限制深度、带上元素的位置框，也可以在大快照里按文本或正则搜索；\n- **元素定位**：先取带引用编号的快照，再用引用操作；也支持 CSS 选择器、角色定位和测试标识。\n\n**会话**方面：默认无头运行，加 `--headed` 可以看到浏览器窗口；浏览器配置默认只在内存里，同一会话的多次调用之间保留 Cookie 和存储，关闭后丢失，加 `--persistent` 才写入磁盘；用 `-s=名称` 可以给不同项目开各自的浏览器实例。\n\n## 怎么安装\n\n需要 Node.js 18 或更高版本。命令来自 README：\n\n```bash\nnpm install -g @playwright/cli@latest\nplaywright-cli install --skills\n```\n\n第一条装命令行，第二条把技能装到本机，Claude Code、GitHub Copilot 等会使用本地安装的技能。README 还提到「不装技能」的用法：直接告诉智能体用 `playwright-cli`，并让它先看 `playwright-cli --help`。\n\n## 怎么用\n\n- README 的演示：「用 playwright 技能测试 https://demo.playwright.dev/todomvc/ ，把成功和失败的场景都截图」。\n- 「启动本地开发服务器，打开登录页，用测试账号走一遍登录流程，看控制台有没有报错」。\n- 「打开这个页面，取表单区域的快照，告诉我提交按钮为什么点不了」。\n\n你也可以自己手动敲同样的命令，看智能体在做什么。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 用 Claude Code、Copilot 等做前端开发，想让智能体自己验证页面行为的人；\n- 觉得浏览器类 MCP 太占上下文的人。\n\n**不适合：**\n- 需要长时间保持浏览器状态、反复分析页面结构的自主流程，README 建议这类场景继续用 MCP；\n- 想写成可维护的自动化测试套件的需求——那应该直接写 Playwright 测试代码，CLI 更偏交互式的探索和调试。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **会在本机启动浏览器并访问网页**（默认无头）：用它访问的页面内容会进入模型上下文，网页上的文字可能包含诱导智能体的指令，访问不可信站点时要留意。\n- **登录态**：持久化会话会把 Cookie 写到磁盘。在自己的应用上用测试账号没问题；不要让智能体带着你的真实账号登录态去操作第三方网站。\n- 只对你有权测试的站点使用，遵守目标网站的服务条款。",
+      "images": [],
+      "sources": [
+        "https://github.com/microsoft/playwright-cli",
+        "https://skills.sh/",
+        "https://playwright.dev/"
+      ]
+    },
+    {
+      "title": "agents-cli 是什么、怎么安装使用：Google 官方的智能体开发 CLI 与 7 个 Skills（用 ADK 搭建、评测、部署 Agent）",
+      "slug": "google-agents-cli-adk-skills",
+      "name": "agents-cli（google/agents-cli）",
+      "url": "https://github.com/google/agents-cli",
+      "pricing": "开源免费（Apache-2.0）；部署到 Google Cloud 的资源按其计费",
+      "platforms": "Antigravity CLI / Claude Code / Codex 等编程智能体；需 Python 3.11+、uv、Node.js",
+      "trialNote": "npx skills add google/agents-cli（只装技能；连同 CLI 一起装见正文）",
+      "tags": [
+        "gemini",
+        "claude",
+        "gemini-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "agents-cli 是 Google 开源的命令行工具和 7 个配套 Agent Skills：让 Claude Code、Codex、Antigravity 等编程智能体学会用 ADK 搭建智能体项目、做评测、部署到 Google Cloud 并注册到 Gemini Enterprise。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 google/agents-cli 仓库 README 整理，资料核对于 2026-10-11。截至当日，GitHub 显示该仓库约 6068 Star、692 Fork，最近一次推送在 2026-10-06；skills.sh 榜单上它的 7 个技能累计安装各约 48.6 万次（含整库安装的计数）。命令与技能以仓库为准。\n\n## 是什么\n\nagents-cli 的全称是「Agents CLI in Agent Platform」，README 的一句话介绍是：用于在 Gemini Enterprise Agent Platform 上构建智能体的 CLI 和技能。它的定位写在常见问题里——它不是 Claude Code、Codex 的替代品，而是**给编程智能体用的工具**：提供命令和技能，让你的编程智能体更擅长在 Google Cloud 上构建、评测和部署基于 ADK 的智能体。ADK 是 Google 的智能体开发框架，agents-cli 则把「从建项目到上线」这一整条线交给编程智能体来操作。\n\nREADME 还回答了一个常被问到的问题：需不需要 Google Cloud？本地开发（创建、运行、评测）不需要，用 AI Studio 的 API Key 就能在本地跑 Gemini；部署和云端功能才需要。\n\n## 包含哪些 Skill\n\nREADME 列出 7 个技能：\n\n- `google-agents-cli-workflow`：开发生命周期、代码保护规则、模型选择；\n- `google-agents-cli-adk-code`：ADK 的 Python 接口——智能体、工具、编排、回调、状态；\n- `google-agents-cli-scaffold`：项目脚手架，对应 `create`、`enhance`、`upgrade`；\n- `google-agents-cli-eval`：评测方法——指标、数据集、用大模型当评委、自适应评分标准；\n- `google-agents-cli-deploy`：部署——Agent Runtime、Cloud Run、GKE、CI/CD、密钥管理；\n- `google-agents-cli-publish`：注册到 Gemini Enterprise；\n- `google-agents-cli-observability`：可观测性——Cloud Trace、日志和第三方集成。\n\n对应的主要命令有 `agents-cli create <名称>`（新建项目）、`agents-cli eval run`（在评测集上运行并打分）、`agents-cli deploy`（部署到 Google Cloud）、`agents-cli publish gemini-enterprise`、`agents-cli login`（用 Google Cloud 或 AI Studio 认证），以及给已有项目补上部署和 CI/CD 的 `agents-cli scaffold enhance`。\n\n## 怎么安装\n\n前置条件是 Python 3.11 以上、uv 和 Node.js。README 给了两种装法。\n\n只装技能，其余让编程智能体自己处理：\n\n```bash\nnpx skills add google/agents-cli\n```\n\n连同命令行一起装：README 的写法是用 uv 的一次性运行器（uvx）执行 PyPI 包 `google-agents-cli` 的 `setup` 子命令，等价的完整写法是：\n\n```bash\nuv tool run google-agents-cli setup\n```\n\n它会把 CLI 和技能一起装进你的编程智能体。\n\n## 怎么用\n\n装好后打开你常用的编程智能体，直接提需求：\n\n- README 的示例：「用 agents-cli 做一个把啰嗦文字压缩成简短技术短句的智能体」；\n- 「给这个智能体写一组评测用例，跑一遍并告诉我哪些没过」；\n- 「给现有的 ADK 项目加上部署到 Cloud Run 的配置和 CI」。\n\n不用编程智能体也可以：CLI 本身能独立使用，所有命令都可以在终端里直接运行。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 打算用 Google 的 ADK 和 Gemini 做智能体的开发者；\n- 已经在 Google Cloud 上、想把评测和部署流程标准化的团队。\n\n**不适合：**\n- 用其他框架（如 LangGraph、CrewAI）或不打算上 Google Cloud 的项目；\n- 只想找通用编程技能的人，这套技能的内容全部围绕 Google 的技术栈。\n\n## 注意事项\n\n- **许可**：GitHub 标注 Apache-2.0；仓库另有服务条款一节。\n- **遥测**：README 说明默认每次命令调用会发出一条使用信号，写入你自己的 Google Cloud 项目的日志，只记录命令名、退出码、错误类别、耗时、版本和操作系统等元数据，不含文件内容和参数；写日志的请求头里还带有供 Google 做使用分析的版本、系统和命令名信息。README 提供了关闭它的环境变量。\n- **费用**：部署会在你的 Google Cloud 账号下创建计费资源，模型调用按 Gemini 的价格计费。\n- **凭据**：登录用的是你的 Google Cloud 或 AI Studio 身份；部署技能的内容涵盖密钥管理，API Key 不要写进仓库。\n- 国内网络访问 Google 服务受限，使用前确认网络与账号条件。",
+      "images": [],
+      "sources": [
+        "https://github.com/google/agents-cli",
+        "https://skills.sh/",
+        "https://adk.dev/",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "Stitch Skills 是什么、怎么安装使用：配合 Google Stitch 的设计 Skills（文字生成界面、DESIGN.md、设计转 React）",
+      "slug": "stitch-skills-google-labs-design",
+      "name": "Stitch Skills（google-labs-code/stitch-skills）",
+      "url": "https://github.com/google-labs-code/stitch-skills",
+      "pricing": "开源免费（Apache-2.0）；非 Google 官方支持产品，需配合 Stitch 使用",
+      "platforms": "Codex / Antigravity / Gemini CLI / Claude Code / Cursor / OpenCode（手动安装）",
+      "trialNote": "npx plugins add google-labs-code/stitch-skills --scope project --target claude-code",
+      "tags": [
+        "gemini",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "product-design",
+        "coding"
+      ],
+      "excerpt": "Stitch Skills 是 Google Labs 开源的一组 Agent Skills，分设计、构建、工具三个插件，配合 Stitch MCP 服务使用：让智能体在 Stitch 里生成和修改界面、提取与管理 DESIGN.md 设计规范，并把设计稿转成 React 等代码。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 google-labs-code/stitch-skills 仓库 README 整理，资料核对于 2026-10-11。截至当日，GitHub 显示该仓库约 8463 Star、1108 Fork，最近一次推送在 2026-08-17；skills.sh 榜单上其中的 design-md 技能累计安装约 6.3 万次。技能清单以仓库为准。\n\n## 是什么\n\nStitch 是 Google Labs 的 AI 界面设计工具：用文字或图片生成界面设计稿。Stitch Skills 是围绕它的一组 Agent Skills 和插件，README 说它遵循 Agent Skills 开放标准，兼容 Codex、Antigravity、Gemini CLI、Claude Code、Cursor 等编程智能体，OpenCode 需要手动安装。\n\n它解决的是「设计工具」和「写代码的智能体」之间的衔接：让智能体直接在 Stitch 里出图、改图、管理设计规范，再把结果变成项目里的组件代码。这些技能都依赖 **Stitch MCP 服务**——README 把它列为前置条件，要先按 Stitch 文档完成 MCP 的注册和认证。\n\n## 包含哪些 Skill\n\nREADME 分三个插件列出：\n\n**设计（`stitch-design`）**\n- `code-to-design`：把前端代码（React、Vue 等）转成 Stitch 里的设计；\n- `generate-design`：用文字或图片生成新界面、编辑已有界面、生成设计变体；\n- `manage-design-system`：管理设计系统，上传 DESIGN.md 并把主题应用到各个界面；\n- `extract-design-md`：直接从前端源码里提取出一份完整的 DESIGN.md；\n- `extract-static-html`：从运行中的网页应用提取自包含的静态 HTML；\n- `upload-to-stitch`：把本地图片、设计稿、HTML 上传到 Stitch 项目。\n\n**构建（`stitch-build`）**\n- `react-components`：把 Stitch 的界面转成 React 组件体系，带自动校验；\n- `react-native`：转成 React Native 组件；\n- `remotion`：用 Remotion 为 Stitch 项目生成走查视频；\n- `shadcn-ui`：集成和使用 shadcn/ui 组件的指导；\n- `react-vite-dashboard`：把界面转成 React 加 Vite 的仪表盘。\n\n**工具（`stitch-utilities`）**\n- `design-md`：分析 Stitch 项目，生成语义化描述的 DESIGN.md；\n- `enhance-prompt`：把含糊的界面想法改写成更适合 Stitch 的提示词；\n- `stitch-loop`：从一句话出发生成完整的多页网站，并自动校验；\n- `taste-design`：生成强调高质感、避免千篇一律的 DESIGN.md。\n\n## 怎么安装\n\nREADME 推荐以插件方式安装。Claude Code（装到当前项目）：\n\n```bash\nnpx plugins add google-labs-code/stitch-skills --scope project --target claude-code\n```\n\nCursor 把后半段换成 `--scope workspace --target cursor`。Codex 用 `codex plugin marketplace add google-labs-code/stitch-skills --ref main` 添加市场后，按需安装 `stitch-design`、`stitch-build`、`stitch-utilities`。只想挑几个技能，README 也给了 `npx skills add google-labs-code/stitch-skills`。OpenCode 需要手动把技能文件夹复制到 `.opencode/skills/` 并自行配置 MCP。\n\n## 怎么用\n\nREADME 的示例提示：\n\n- 「给一个约会灵感类的手机应用做一个浏览页」——`generate-design`；\n- 「扫描 `/src`，把设计系统提取到 `.stitch/DESIGN.md`」——`extract-design-md`；\n- 「把 Stitch 项目里的所有界面转成 React 组件」——`react-components`；\n- 「优化这句提示词：做一个设置页」——`enhance-prompt`。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 已经在用 Stitch 出设计稿、想打通到代码的前端开发者和独立开发者；\n- 想用 DESIGN.md 这种文本化设计规范约束 AI 输出的团队。\n\n**不适合：**\n- 不用 Stitch 的人——绝大多数技能离开 Stitch MCP 无法工作；\n- 设计流程以 Figma 为核心的团队。\n\n## 注意事项\n\n- **许可**：Apache-2.0。README 声明这不是 Google 官方支持的产品。\n- **需要 Google 账号和 Stitch 的访问条件**：Stitch 属于 Google Labs 的实验性产品，可用地区、额度与条款以其官网为准，国内网络访问受限。\n- **会上传内容**：`code-to-design`、`upload-to-stitch` 等技能会把你的前端代码或页面快照传到 Stitch，涉及未公开的产品时先确认是否合适。\n- **技能命名**：部分技能的名字带 `stitch::` 前缀，README 提到某些工具（如 OpenCode）要求改成短横线命名后才能加载。",
+      "images": [],
+      "sources": [
+        "https://github.com/google-labs-code/stitch-skills",
+        "https://stitch.withgoogle.com/docs/mcp/setup/",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "Claude SEO 是什么、怎么安装使用：Claude Code 里的 SEO 审计插件（/seo audit、Schema、AI 搜索优化）",
+      "slug": "claude-seo-agricidaniel-skill",
+      "name": "Claude SEO（AgriciDaniel/claude-seo）",
+      "url": "https://github.com/AgriciDaniel/claude-seo",
+      "pricing": "开源免费（MIT）；可选的第三方数据接口另计",
+      "platforms": "Claude Code（插件，需 1.0.33 以上）；需 Python 3.10+",
+      "trialNote": "\"`/plugin marketplace add AgriciDaniel/claude-seo` 然后 `/plugin install claude-seo@agricidaniel-claude-seo`\"",
+      "tags": [
+        "claude",
+        "claude-llm",
+        "agent-skills",
+        "marketing",
+        "coding"
+      ],
+      "excerpt": "Claude SEO 是面向 Claude Code 的开源 SEO 分析插件：26 个子技能加 19 个专职子智能体并行工作，覆盖技术 SEO、内容质量、结构化数据、AI 搜索优化、本地与电商 SEO，一条 /seo audit 命令产出带优先级的行动计划。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 AgriciDaniel/claude-seo 仓库 README 整理，资料核对于 2026-10-11。截至当日，GitHub 显示该仓库约 1.9 万 Star、2734 Fork，最近一次推送在 2026-10-04。命令数量和功能更新较快，以仓库为准。\n\n## 是什么\n\nClaude SEO 是一个装在 Claude Code 里的 SEO 分析插件。README 的定义：它并行运行 26 个子技能和 19 个专职子智能体，覆盖技术 SEO、内容质量（E-E-A-T）、Schema.org 结构化数据、AI 搜索优化（GEO）、本地 SEO、电商和多语言 SEO；每次审计都产出一份按优先级排列的行动计划，建议以 Google 的一手指南为依据。\n\n它强调三点：一是面向 AI 搜索，检查内容被 AI 引用的可能性、`llms.txt`、页面对智能体是否友好等；二是并行执行，整站审计最多同时派出十几个专职子智能体；三是「可证伪」——每条建议都附带它所依据的观察、依赖关系、「怎么知道这条建议失败了」的检验方法和一个先行指标，而不是空泛的最佳实践清单。\n\nREADME 提到这个技能有两个版本：公开的开源版（MIT，本条目介绍的就是它），以及一个面向付费社区成员、提前体验新功能的私有镜像。\n\n## 包含哪些命令\n\nREADME 称共有 34 个可调用的 `/seo` 命令，摘主要的：\n\n- `/seo audit <网址>`：整站审计，并行分派子智能体；\n- `/seo page <网址>`：单页深度分析；\n- `/seo technical <网址>`：九个类别的技术 SEO 审计；\n- `/seo content <网址>`：E-E-A-T 与内容质量；`/seo content-brief <主题>`：内容大纲；\n- `/seo schema <网址>`：检测、校验并生成结构化数据；\n- `/seo geo <网址>`：面向 AI 概览与生成式搜索的优化；`/seo agentic <网址>`：对智能体的可访问程度；\n- `/seo sitemap`、`/seo images`、`/seo hreflang`：站点地图、图片、多语言标注；\n- `/seo plan <类型>`：按 SaaS、本地、电商、内容站等类型做策略规划；\n- `/seo local`、`/seo ecommerce`、`/seo programmatic`；\n- `/seo google`：接入 Search Console、PageSpeed、CrUX、GA4 等 Google 官方接口；\n- `/seo drift`：用本地 SQLite 快照监控 SEO 指标的漂移；\n- `/seo setup`、`/seo doctor`：创建隔离的 Python 运行环境并检查是否就绪。\n\n另有几个可选的扩展（需各自安装并配置对应服务的账号），用于接入第三方排名数据、必应站长工具和 AI 生图。\n\n## 怎么安装\n\n在 Claude Code 里（命令来自 README，要求 Claude Code 1.0.33 以上）：\n\n```text\n/plugin marketplace add AgriciDaniel/claude-seo\n/plugin install claude-seo@agricidaniel-claude-seo\n```\n\n之后运行 `/seo setup` 建立 Python 运行环境。README 也提供了克隆仓库后手动安装的方式，以及 Windows 的 PowerShell 安装说明。\n\n## 怎么用\n\n- 「/seo audit https://example.com」——整站体检，得到评分和按优先级排序的问题；\n- 「/seo schema https://example.com/product/123」——检查并补全结构化数据；\n- 「/seo geo https://example.com/blog/post」——看这篇文章在 AI 搜索里被引用的条件是否具备。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 负责公司官网或内容站 SEO 的人，想在请顾问之前先自查；\n- 同时维护多个站点的代理团队和自由顾问。\n\n**不适合：**\n- 主要做百度等国内搜索引擎优化的站点——它的依据是 Google 的指南和接口；\n- 只想改几处标题描述的小需求，装一整套插件偏重，站内已收录的 marketingskills 的 `seo-audit` 技能更轻。\n\n## 注意事项\n\n- **许可**：MIT。README 称插件本身不含遥测。\n- **会联网抓取你指定的网址**：README 说明免费使用时默认不调用第三方接口，但审计必然要访问目标页面；只审计你有权处理的网站，竞品分析类命令注意遵守对方站点的条款。\n- **用量**：README 写明部分需要判断力的子智能体使用更高规格的模型，一次完整的 `/seo audit` 消耗不小。\n- **本机环境**：需要 Python 3.10 以上；渲染单页应用和截图要另装 Playwright 的 Chromium，安装脚本会询问。\n- **局限**：README 自己列了两条——重度依赖客户端渲染的页面可能出现噪声结果；不接入 Google 接口凭据时拿不到真实用户数据和实时收录状态。\n- 接入 Google 接口需要你自己的凭据，按最小权限配置。",
+      "images": [],
+      "sources": [
+        "https://github.com/AgriciDaniel/claude-seo",
+        "https://github.com/AgriciDaniel/claude-seo/blob/main/docs/COMMANDS.md"
+      ]
+    },
+    {
+      "title": "Prompt Master 是什么、怎么安装使用：帮你给任何 AI 工具写提示词的 Claude Skill",
+      "slug": "prompt-master-claude-skill",
+      "name": "Prompt Master（nidhinjs/prompt-master）",
+      "url": "https://github.com/nidhinjs/prompt-master",
+      "pricing": "开源免费（MIT）",
+      "platforms": "claude.ai（上传 ZIP，作者推荐）/ Claude Code",
+      "trialNote": "下载仓库 ZIP 后，在 claude.ai 的 Customize → Skills → Upload a Skill 上传",
+      "tags": [
+        "claude",
+        "chatgpt",
+        "any-llm",
+        "agent-skills",
+        "prompt-engineering",
+        "ai-agent"
+      ],
+      "excerpt": "Prompt Master 是一个开源的 Claude Skill：先识别提示词要给哪个 AI 工具用，再从九个维度提取意图，最多追问三个问题，自动套用合适的提示词结构，为 Cursor、Claude Code、Midjourney 等写出精炼的提示词。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 nidhinjs/prompt-master 仓库 README 整理，资料核对于 2026-10-11。截至当日，GitHub 显示该仓库约 1.4 万 Star、1653 Fork，最近一次推送在 2026-08-24。支持的工具和模型清单随版本更新，以仓库为准。\n\n## 是什么\n\nPrompt Master 的用途很单纯：你用大白话说想让某个 AI 工具做什么，它替你把这句话写成一条针对那个工具的提示词。README 的口号是「每个词都要承重」——它瞄准的问题是多数人用 AI 的方式：写个含糊的提示词，结果不对，改一次，再改一次，第四次才得到想要的。作者的看法是，多数「提示词生成器」只会把提示词变长，而它要做的是变准。\n\nREADME 列的适用工具很广：Claude、ChatGPT、Codex、Gemini、Grok 等对话模型，Cursor、Claude Code、Copilot、Windsurf 等编程工具，Midjourney、Stable Diffusion、ComfyUI 等图像工具，以及视频、语音和自动化类工具。\n\n## 它怎么工作\n\n它是单个技能，每次请求走一条固定流程：\n\n1. **识别目标工具**，不动声色地切换到对应的写法；\n2. **提取九个维度的意图**：任务、输入、输出、约束、背景、受众、记忆、成功标准、示例；\n3. **追问**：关键信息缺失时才问，最多三个问题；\n4. **选结构**：从 13 种提示词模板里自动挑一种，不向你展示框架的名字。模板包括适合快速单次任务的 RTF、适合专业文档的 CO-STAR、适合多步骤项目的 RISEN，给代码编辑类工具用的「文件范围」模板，给自主智能体用的「ReAct 加停止条件」，给生图工具用的视觉描述模板、参考图编辑模板、ComfyUI 模板，以及用来拆解和改写已有提示词的「反编译」模板；\n5. **只用效果可靠的技巧**：角色设定、少量示例、XML 结构标签、防编造的依据约束、可审计的推理。README 明确排除了一些它认为容易产生不可预测结果的方法。\n\n另有两块内容：一份 **37 种「浪费额度」的写法**清单，每条配修改前后的对比，例如「帮我看看代码」这种含糊的动词、一条提示词里塞两个任务、没有完成标准；以及**记忆块**——对话有历史时，它会把之前做过的决定提炼出来放在提示词开头，避免新的提示词与先前的结论矛盾。\n\n## 怎么安装\n\nREADME 推荐的方式是在 claude.ai 网页版上传：\n\n1. 把仓库下载为 ZIP；\n2. 进入 claude.ai 的侧边栏 → Customize → Skills → Upload a Skill，上传这个 ZIP。\n\n也可以克隆到 Claude Code 的技能目录（README 标注为不太推荐的方式）：\n\n```bash\ngit clone https://github.com/nidhinjs/prompt-master.git ~/.claude/skills/prompt-master\n```\n\n## 怎么用\n\nREADME 的示例：\n\n- 「给 Cursor 写一条提示词，让它重构我的认证模块」；\n- 「我要让 Claude Code 搭一个 REST 接口——需要知道什么就问我」；\n- 「这是我给模型写的一条很烂的提示词，帮我改」；\n- 「生成一条 Midjourney 提示词：夜晚的赛博朋克城市」；\n- 或者输入 `/prompt-master` 后再描述需求。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 同时用好几种 AI 工具、不想逐个研究各家提示词写法的人；\n- 想学提示词怎么写的新手——对照它改写前后的差别很直观。\n\n**不适合：**\n- 已经有成熟提示词模板的团队；\n- 期待它保证效果的人。它输出的是「更可能一次到位」的提示词，最终结果仍取决于目标工具和模型。\n\n## 注意事项\n\n- **许可**：MIT。\n- **不带脚本、不联网**：一份说明文字加参考内容。\n- **宣传语要打折听**：README 里「零浪费」这类说法是作者的表述，没有独立的评测数据支撑。\n- **模型清单会过时**：它内置了各家工具和模型的写法偏好，上游发新版后需要更新技能；README 的版本记录里能看到最近一次刷新的范围。\n- 不要让它帮你写用来规避平台内容规则的提示词，生成的内容仍要遵守各工具的使用政策。",
+      "images": [],
+      "sources": [
+        "https://github.com/nidhinjs/prompt-master",
+        "https://github.com/nidhinjs/prompt-master/blob/main/SKILL.md"
+      ]
+    },
+    {
+      "title": "Web Quality Skills 是什么、怎么安装使用：Addy Osmani 的网页质量 Skills（Lighthouse、Core Web Vitals、无障碍、SEO）",
+      "slug": "web-quality-skills-addyosmani",
+      "name": "Web Quality Skills（addyosmani/web-quality-skills）",
+      "url": "https://github.com/addyosmani/web-quality-skills",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Gemini CLI / Cursor 等支持 Agent Skills 的智能体",
+      "trialNote": "npx skills add addyosmani/web-quality-skills",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "Web Quality Skills 是 Addy Osmani 开源的 6 个 Agent Skills：以测量为先，结合 Lighthouse、Chrome DevTools、真实用户数据和 WCAG 2.2，帮智能体审计并优化网页的性能、核心网页指标、无障碍、SEO 和最佳实践。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 addyosmani/web-quality-skills 仓库 README 整理，资料核对于 2026-10-11。截至当日，GitHub 显示该仓库约 2922 Star、254 Fork，最近一次推送在 2026-08-24；skills.sh 榜单上其中的 accessibility 技能累计安装约 6.0 万次。README 自述为非官方项目。\n\n## 是什么\n\nAddy Osmani 是在 Google 工作多年的知名工程师和技术作者，长期写网页性能方面的内容；站内已收录他的另一个工程流程技能库 addyosmani/agent-skills。Web Quality Skills 是他单独开的一个小库，README 的定位是：一组（非官方的）以测量为先的 Agent Skills，用 Google Lighthouse、面向智能体的 Chrome DevTools、Core Web Vitals、WCAG 和搜索指南来优化网页项目，不限框架——React、Vue、Angular、Svelte、Next.js、Nuxt、Astro 或纯 HTML 都适用。\n\nREADME 用一句话区分了它和界面规范类技能：界面规范告诉你**做什么**，这组技能告诉你怎么把它做得快、可访问、对搜索引擎友好。\n\n## 包含哪些 Skill\n\n共 6 个：\n\n- `web-quality-audit`：以证据为依据的综合评审，覆盖 Lighthouse 的各个类别和源码层面；\n- `performance`：实地数据加实验室测量、性能追踪，以及加载和运行时的修复；\n- `core-web-vitals`：针对 LCP、INP、CLS 的测量、诊断与优化；\n- `accessibility`：WCAG 合规、读屏器支持、键盘导航；\n- `seo`：可抓取性、结构化数据等搜索优化；\n- `best-practices`：安全、现代接口和代码质量模式。\n\n它的**测量模型**把四种证据分得很清楚：CrUX 的实地数据（真实 Chrome 用户近期的体验）、站点自己的真实用户监控、DevTools 追踪或 Lighthouse 的实验室运行（一次受控的浏览器会话里发生了什么、为什么）、静态源码检查（页面跑不起来时可能有什么问题）。\n\n阈值参考里列了核心网页指标的标准：LCP 不超过 2.5 秒、INP 不超过 200 毫秒、CLS 不超过 0.1 算「良好」，并注明这是按真实用户数据的第 75 百分位评估的，不是对单次实验室运行的要求。\n\n## 怎么安装\n\nREADME 的命令：\n\n```bash\nnpx skills add addyosmani/web-quality-skills\n```\n\nClaude Code 也可以用插件：`/plugin marketplace add addyosmani/web-quality-skills` 后 `/plugin install web-quality-skills@addy-web-quality-skills`，技能会带上命名空间（如 `/web-quality-skills:performance`）。Codex 用 `codex plugin marketplace add addyosmani/web-quality-skills`，Gemini CLI 用 `gemini extensions install https://github.com/addyosmani/web-quality-skills`。\n\n**可选的 Chrome DevTools 集成**：智能体接了 Chrome DevTools MCP 时，技能会优先用它做性能追踪和 Lighthouse 审计，读取渲染后的无障碍快照、控制台消息和网络请求。没接也能用，会退回到 Lighthouse 命令行、PageSpeed Insights 与 CrUX 工具、手动检查和静态分析。\n\n## 怎么用\n\nREADME 给的触发说法：\n\n- 「审计我的网站」「检查网页质量」——`web-quality-audit`；\n- 「改善核心网页指标」「修 LCP」「降低 CLS」——`core-web-vitals`；\n- 「做一次 WCAG 审计」——`accessibility`；\n- 「优化 SEO」「修一下 meta 标签」——`seo`。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 前端开发者在上线前做性能和无障碍自查；\n- 想让智能体「先测量、再动手」而不是凭印象优化的团队。\n\n**不适合：**\n- 非网页项目；\n- 想要营销层面的 SEO 策略（关键词、内容规划）的人，它的 `seo` 技能偏技术侧。\n\n## 注意事项\n\n- **许可**：MIT。README 标明是非官方项目，不代表 Google。\n- **实地数据的前提**：CrUX 只收录流量达到一定规模的站点，小站可能查不到，只能依赖实验室数据。\n- **会运行审计工具并访问你指定的网址**；接入 DevTools MCP 后，智能体可以读取页面的网络请求和控制台内容，注意不要在带敏感登录态的浏览器里对线上后台做审计。\n- 实验室分数会随机器和网络波动，以多次运行和真实用户数据为准。",
+      "images": [],
+      "sources": [
+        "https://github.com/addyosmani/web-quality-skills",
+        "https://skills.sh/",
+        "https://github.com/ChromeDevTools/chrome-devtools-mcp",
+        "https://web.dev/articles/vitals"
+      ]
+    },
+    {
+      "title": "/brag 是什么、怎么安装使用：一条命令把刚做完的项目变成发布短视频的 Skill",
+      "slug": "brag-launch-video-skill",
+      "name": "/brag（latent-spaces/brag）",
+      "url": "https://github.com/latent-spaces/brag",
+      "pricing": "开源免费（MIT）；作者另有代做视频的在线服务",
+      "platforms": "Claude Code / Codex（插件）；Cursor、Copilot、Gemini CLI、opencode 等用 skills CLI",
+      "trialNote": "\"`/plugin marketplace add latent-spaces/brag` 然后 `/plugin install brag@brag`\"",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "product-video",
+        "marketing"
+      ],
+      "excerpt": "/brag 是一个开源 Agent Skill：在项目目录里运行，它读懂你做了什么、定下讲述角度和语气，再交给 HyperFrames 生成一段带音乐、动效和分享文案的发布短视频，产出 brag.mp4 和配套文案。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 latent-spaces/brag 仓库 README 整理，资料核对于 2026-10-11。截至当日，GitHub 显示该仓库约 1.5 万 Star、1085 Fork，最近一次推送在 2026-10-09。命令和版本以仓库为准。\n\n## 是什么\n\n`/brag` 的口号是「东西做出来了，现在去炫耀」。它面向的是独立开发者最常跳过的一步：项目做完了，却懒得做一段像样的发布视频。README 的介绍是：一个把你做的项目变成可分享的发布短视频的智能体技能，音乐、动效和分享文案都包括，一条命令，由 HyperFrames 驱动。\n\n分工写得很清楚：`/brag` 负责「故事」——从什么角度讲这个产品、用什么语气、展示哪几个瞬间；然后把一份聚焦的简报交给 HyperFrames（HeyGen 开源的「写 HTML、出视频」框架，站内已有介绍）去搭建、对时和渲染。\n\n## 包含哪些内容\n\n仓库里有两个技能：\n\n- **`/brag`**：经典流程，依赖 HyperFrames，技能目录里带参考文件以及打包好的音乐和音效；\n- **`/brag-slim`**：精简版，单文件技能，不依赖 HyperFrames、不带打包素材，沿用同样的创作规则。README 说在 Opus 5.5 上，`/brag` 会自动切换到精简版，想保留经典流程可以运行 `/brag --full`。\n\n产出是一个 `brag-output/` 文件夹，里面有方案、构图简报、分享文案和渲染好的 `brag.mp4`。旁白默认关闭，需要时显式开启，开启后通过 HyperFrames 使用本地语音引擎 Kokoro。\n\n仓库里还有一组虚构的产品网站，用作效果基准。\n\n## 怎么安装\n\n**Claude Code**（命令来自 README）：\n\n```text\n/plugin marketplace add latent-spaces/brag\n/plugin install brag@brag\n```\n\n**Codex**：`codex plugin marketplace add latent-spaces/brag` 后 `codex plugin add brag@brag`。\n\n**其他智能体**用 skills CLI：\n\n```bash\nnpx skills add https://github.com/latent-spaces/brag --skill brag\n```\n\n加 `-g` 是全局安装。只要精简版就把 `--skill brag` 换成 `--skill brag-slim`。\n\n环境要求：Node.js 22 以上、`PATH` 里有 FFmpeg、能运行 HyperFrames 命令行（可用 `npx hyperframes doctor` 检查）。\n\n## 怎么用\n\n在项目目录里对智能体说：\n\n- 「/brag」——让它自己决定角度；\n- 「/brag，语气克制一点，重点展示导入功能」——指定语气和重点；\n- 需要旁白时按 README 的写法显式开启。\n\n拿到视频后，文件夹里的分享文案可以直接配着发。\n\n## 适合谁 / 不适合谁\n\n**适合：**\n- 独立开发者、黑客松参赛者、开源项目作者，需要一段二十秒左右的发布视频；\n- 想了解 HyperFrames 能做出什么效果的人。\n\n**不适合：**\n- 需要真人出镜、实拍或品牌级精修的宣传片；\n- 对视频内容有严格品牌规范的团队——它的风格由技能内置的创作规则决定。\n\n## 注意事项\n\n- **许可**：GitHub 标注 MIT。\n- **素材版权**：经典版内置的音乐和音效来自第三方（README 的致谢里列出了来源），用于商业宣传前确认其授权范围；自己换配乐更稳妥。\n- **本机渲染**：需要 Node、FFmpeg 和无头浏览器，渲染吃 CPU。\n- **作者的在线服务**：README 提到另有一个网站可以代你运行 `/brag`，属于作者的独立服务，费用与条款以其官网为准；技能本身免费开源。\n- 视频里展示的是你项目的界面和文案，公开发布前检查有没有测试数据或内部信息入镜。",
+      "images": [],
+      "sources": [
+        "https://github.com/latent-spaces/brag",
+        "https://github.com/heygen-com/hyperframes",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
       "title": "扣子（Coze）是什么、怎么用：字节跳动的 AI 办公 Agent 与扣子编程、套餐说明",
       "slug": "coze-kouzi-agent-workspace",
       "name": "扣子（Coze）",
@@ -77721,6 +77929,1349 @@
         "https://github.com/google/skills/tree/main/skills/cloud/cloud-run-basics",
         "https://github.com/google/skills",
         "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "design-taste-frontend skill 是什么、怎么安装使用：Taste Skill 的主技能，用三个「旋钮」管住 AI 的前端审美",
+      "slug": "taste-design-taste-frontend-skill",
+      "name": "design-taste-frontend（Leonxlnx/taste-skill）",
+      "url": "https://github.com/Leonxlnx/taste-skill/tree/main/skills/taste-skill",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor 等（npx skills 安装或手动复制 SKILL.md）",
+      "trialNote": "npx skills add https://github.com/Leonxlnx/taste-skill --skill \"design-taste-frontend\"",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "design-taste-frontend 是 Taste Skill 库的主技能：先读懂需求并用一句话说出设计判断，再用版式变化、动效强度、信息密度三个旋钮约束落地页、作品集和改版页面，交付前逐项自查「AI 味」。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Leonxlnx/taste-skill 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 58.8 万次；所在仓库 Leonxlnx/taste-skill 在 GitHub 约 9.4 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nTaste Skill 库里安装量最高的就是这一个，文件夹叫 `taste-skill`，安装名是 `design-taste-frontend`。`description` 把范围说得很窄：给落地页、作品集和改版用的「反套路」前端技能，让智能体读懂需求、推断合适的设计方向，交出不像模板的界面。SKILL.md 开头就划了界线——不做后台仪表盘、数据表格和多步骤的产品界面。\n\n它的做法分三层：\n\n- **先读需求**：从页面类型、你用的形容词（「极简」「像 Linear」「高级感」）、给的参考链接、受众和已有品牌素材里推断方向，动手前先输出一句「设计判断」；需求模糊就只问一个问题。面向公共部门、强监管行业、无障碍优先的受众时，这些约束压过审美偏好。\n- **三个旋钮**：`DESIGN_VARIANCE`（1 是完全对称，10 是艺术化的混乱）、`MOTION_INTENSITY`（1 静止，10 电影感）、`VISUAL_DENSITY`（1 像画廊一样留白，10 像驾驶舱一样密）。默认 8 / 6 / 4，技能里有一张表把「极简、克制」「高端消费品牌」「实验、Awwwards 风」等说法换算成数值。不用改文件，在对话里说就能调。\n- **硬约束**：默认技术栈与依赖核对、字体和配色的纠偏、暗色模式规则、一长串「AI 痕迹」禁用清单（霓虹外发光、纯黑背景、渐变大标题、默认用 Inter 等），以及交付前必须过一遍的检查表。\n\n## 怎么安装\n\n仓库 README 给出的单独安装写法（`--skill` 后面跟的是技能的安装名，不是文件夹名；这个技能在仓库里的文件夹是 `skills/taste-skill`，安装名是 `design-taste-frontend`）：\n\n```bash\nnpx skills add https://github.com/Leonxlnx/taste-skill --skill \"design-taste-frontend\"\n```\n\n去掉 `--skill` 就是整库安装。不想用命令行，也可以把该文件夹里的 SKILL.md 直接复制到项目里，或贴进对话当作长期指令。\n\n仓库整体介绍和其他安装方式，详见本站《Taste Skill 是什么、怎么安装使用：让 AI 写前端不再千篇一律的设计 Skill（taste-skill）》。\n\n## 怎么用\n\n- 「给一款面向设计师的字体管理工具做落地页，风格克制、像 Linear」——它会先报出设计判断和三个旋钮的取值，再写代码。\n- 「动效收一点，MOTION 调到 3；信息再密一些」——直接在对话里改旋钮。\n- 「这是我们现有的官网，保留品牌色做一次改版」——走技能里的改版流程，先审计再动手。\n\n## 适合谁 / 局限\n\n适合用 Claude Code、Codex、Cursor 做营销页和个人站、又总是得到同一种「AI 风」页面的人。局限：SKILL.md 很长（近九万字符），加载后会占掉不少上下文；它明确不管后台和数据密集型界面；默认技术栈是 React / Next.js、Tailwind v4 和 Motion 动画库，项目用别的框架时要先说明。仓库里还留着旧版 `design-taste-frontend-v1`，两者不要同时装。\n\n## 注意事项\n\n- **许可**：MIT。\n- **不带脚本**：纯说明文字。但它会让智能体安装字体、动画库等依赖，技能自己也要求先核对依赖是否存在，装之前看一眼它要加什么。\n- 它规定的「禁用清单」带有作者的审美立场，和团队现有设计规范冲突时，应当明确告诉它以规范为准。",
+      "images": [],
+      "sources": [
+        "https://github.com/Leonxlnx/taste-skill/tree/main/skills/taste-skill",
+        "https://github.com/Leonxlnx/taste-skill",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "redesign-existing-projects skill 是什么、怎么安装使用：不重写代码，把现有网站从「模板感」改到精致",
+      "slug": "taste-redesign-existing-projects-skill",
+      "name": "redesign-existing-projects（Leonxlnx/taste-skill）",
+      "url": "https://github.com/Leonxlnx/taste-skill/tree/main/skills/redesign-skill",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor 等（npx skills 安装或手动复制 SKILL.md）",
+      "trialNote": "npx skills add https://github.com/Leonxlnx/taste-skill --skill \"redesign-existing-projects\"",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "redesign-existing-projects 是 Taste Skill 库里的改版技能：按「扫描 → 诊断 → 修复」三步审计现有网站或应用的字体、配色、布局、交互状态和文案，在原有技术栈上做针对性升级，不推倒重写。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Leonxlnx/taste-skill 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 42.5 万次；所在仓库 Leonxlnx/taste-skill 在 GitHub 约 9.4 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n从零做页面和改造旧页面是两件事：旧项目有既定的框架、样式写法和功能，最怕智能体一上来就整页重写。redesign-existing-projects（仓库文件夹名 `redesign-skill`）只管改版。`description`：把已有网站和应用升级到更高质感；审计当前设计、找出常见的 AI 生成痕迹，应用高标准的设计规范而不破坏功能，任何 CSS 框架或原生 CSS 都适用。\n\n流程固定为三步：**扫描**（读代码库，确认框架、样式方案和现有设计模式）、**诊断**（照审计清单逐项列出问题）、**修复**（在现有技术栈里做针对性升级，明确要求不从头重写）。\n\n审计清单是这个技能的主体，覆盖字体、颜色与表面、布局、交互与状态、文案内容、组件模式、图标、代码质量，还有一节专讲 AI 常漏掉的东西。条目写得很具体，例如：全站只有 Inter、正文一行太宽（建议约 65 个字符）、只用了 400 和 700 两种字重、背景用纯黑 `#000000`、强调色饱和度过高、标题末行孤字。后面是字体、布局、动效、表面四类升级手法，以及「先修什么」的优先级。\n\n## 怎么安装\n\n仓库 README 给出的单独安装写法（`--skill` 后面跟的是技能的安装名，不是文件夹名；这个技能在仓库里的文件夹是 `skills/redesign-skill`，安装名是 `redesign-existing-projects`）：\n\n```bash\nnpx skills add https://github.com/Leonxlnx/taste-skill --skill \"redesign-existing-projects\"\n```\n\n去掉 `--skill` 就是整库安装。不想用命令行，也可以把该文件夹里的 SKILL.md 直接复制到项目里，或贴进对话当作长期指令。\n\n仓库整体介绍和其他安装方式，详见本站《Taste Skill 是什么、怎么安装使用：让 AI 写前端不再千篇一律的设计 Skill（taste-skill）》。\n\n## 怎么用\n\n在要改版的项目目录里启动智能体：\n\n- 「用 redesign 技能审计这个项目的首页，先把问题列出来，别动代码」——先看诊断清单再决定改哪些。\n- 「按优先级修前五项，保持现有的 Tailwind 配置和组件结构」。\n- 「只处理字体和间距，颜色不要动，我们有品牌规范」。\n\n先要诊断、再分批修，比一句「帮我变好看」可控得多，也方便逐次提交和回滚。\n\n## 适合谁 / 局限\n\n适合手里有一个能跑但「一眼模板」的项目、想在不重构的前提下提升质感的开发者。它只读代码不看渲染结果，改完的实际效果要你自己在浏览器里确认；审计标准偏向当下流行的精致风格（特定的几款字体、偏灰的深色背景），不一定适合所有品牌；后台管理类界面收益有限。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会直接改你的样式和组件代码**：建议先提交一次干净的版本，或在单独的分支上做。\n- 它推荐更换字体时可能引入外部字体服务，国内访问和字体授权要自己确认。",
+      "images": [],
+      "sources": [
+        "https://github.com/Leonxlnx/taste-skill/tree/main/skills/redesign-skill",
+        "https://github.com/Leonxlnx/taste-skill",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "minimalist-ui skill 是什么、怎么安装使用：让 AI 做出「文档感」极简界面的 Taste Skill 风格包",
+      "slug": "taste-minimalist-ui-skill",
+      "name": "minimalist-ui（Leonxlnx/taste-skill）",
+      "url": "https://github.com/Leonxlnx/taste-skill/tree/main/skills/minimalist-skill",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor 等（npx skills 安装或手动复制 SKILL.md）",
+      "trialNote": "npx skills add https://github.com/Leonxlnx/taste-skill --skill \"minimalist-ui\"",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "minimalist-ui 是 Taste Skill 库里的一个风格技能：暖调单色配色、强烈的字体对比、扁平的便当格布局和低饱和点缀色，明确禁用渐变、重阴影和几款被用滥的字体与图标库。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Leonxlnx/taste-skill 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 39.4 万次；所在仓库 Leonxlnx/taste-skill 在 GitHub 约 9.4 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nTaste Skill 的主技能负责「别做成模板」，minimalist-ui（仓库文件夹名 `minimalist-skill`）则是一份具体的风格处方。`description` 只有一句：干净的编辑风界面，暖调单色配色、字体对比、扁平的便当格（bento grid）、柔和的粉彩色；不用渐变，不用重阴影。SKILL.md 自称一套「高级实用极简」规程，目标是那种像一份排版考究的文档的网页界面。\n\n内容按规程书的写法组织：\n\n- **绝对禁止项**：不用 Inter、Roboto、Open Sans；不用 Lucide、Feather 这类细线图标库；不用 Tailwind 默认的重投影，阴影要么几乎没有，要么极淡极散。\n- **配色、字体与组件规范**：白色或暖白背景配炭黑文字（正文不用纯黑），点缀色只取低饱和的粉彩；标题与正文用反差明显的字体搭配；卡片、按钮、标签一律扁平，细边框、小圆角；展示软件界面时用带三个浅灰圆点的简洁窗口框。\n- **图标与图片**：图标建议 Phosphor（粗体或填充）或 Radix；插画为单色线描加一块粉彩色块；照片降饱和、偏暖。\n- **动效**：只允许很轻的微动效。\n- **执行规程**：按步骤落地并自查。\n\n## 怎么安装\n\n仓库 README 给出的单独安装写法（`--skill` 后面跟的是技能的安装名，不是文件夹名；这个技能在仓库里的文件夹是 `skills/minimalist-skill`，安装名是 `minimalist-ui`）：\n\n```bash\nnpx skills add https://github.com/Leonxlnx/taste-skill --skill \"minimalist-ui\"\n```\n\n去掉 `--skill` 就是整库安装。不想用命令行，也可以把该文件夹里的 SKILL.md 直接复制到项目里，或贴进对话当作长期指令。\n\n仓库整体介绍和其他安装方式，详见本站《Taste Skill 是什么、怎么安装使用：让 AI 写前端不再千篇一律的设计 Skill（taste-skill）》。\n\n## 怎么用\n\n- 「用 minimalist-ui 的风格给我的笔记应用做一个定价页」。\n- 「把这个文档站首页改成极简编辑风，功能区用便当格排」。\n- 和主技能搭配：让 `design-taste-frontend` 负责读需求和自查，再指定「视觉语言按 minimalist-ui」。\n\n## 适合谁 / 局限\n\n适合做工具类产品官网、文档站、个人主页，想要安静克制的版面的人。它是一种固定风格，不是通用设计能力：需要强烈品牌色、活泼插画或者数据密集的后台时不合适。同库还有 `industrial-brutalist-ui`、`high-end-visual-design` 等别的风格包，一次只用一种，混着装容易互相打架。\n\n## 注意事项\n\n- **许可**：MIT。\n- **不带脚本**：纯说明文字。\n- 它禁用的字体和图标库恰好是很多项目的默认选择，套用到已有项目时等于要求替换依赖，先评估改动范围；商用字体的授权需自行确认。",
+      "images": [],
+      "sources": [
+        "https://github.com/Leonxlnx/taste-skill/tree/main/skills/minimalist-skill",
+        "https://github.com/Leonxlnx/taste-skill",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "full-output-enforcement skill 是什么、怎么安装使用：不让 AI 用「其余代码省略」糊弄你",
+      "slug": "taste-full-output-enforcement-skill",
+      "name": "full-output-enforcement（Leonxlnx/taste-skill）",
+      "url": "https://github.com/Leonxlnx/taste-skill/tree/main/skills/output-skill",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor 等（npx skills 安装或手动复制 SKILL.md）",
+      "trialNote": "npx skills add https://github.com/Leonxlnx/taste-skill --skill \"full-output-enforcement\"",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "prompt-engineering"
+      ],
+      "excerpt": "full-output-enforcement 是 Taste Skill 库里的输出约束技能：禁止用省略注释、骨架和「其余同理」代替实际内容，要求先数清交付物、逐个写全、交付前核对数量，输出太长时在干净的断点处分段续写。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 Leonxlnx/taste-skill 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 37.5 万次；所在仓库 Leonxlnx/taste-skill 在 GitHub 约 9.4 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n让模型输出一个完整文件，中间却冒出一行「// 其余代码不变」，或者五个组件只写了两个、剩下的「以此类推」——这是长输出里最常见的偷懒方式。full-output-enforcement（仓库文件夹名 `output-skill`）专治这个。`description`：覆盖大模型默认的截断行为，强制完整生成代码，禁止占位写法，并干净地处理因长度上限导致的分段；适用于任何要求详尽、不删节输出的任务。\n\n全文很短，只有四块：\n\n- **基线**：把每个任务当成生产任务，不完整的输出就是坏的输出；要完整文件就给完整文件，要五个组件就给五个。\n- **禁用写法**：代码块里的 `// ...`、`// rest of code`、`// TODO`、单独的省略号；正文里的「需要的话我可以继续」「为了简洁」「其余同理」；还有结构上的捷径——要完整实现却只给骨架、只写开头结尾跳过中间、用一个例子加一句描述代替重复逻辑。\n- **执行过程**：先数清一共要交付几样东西并锁定这个数；逐个完整生成；输出前回到原始请求核对数量。\n- **长输出处理**：接近长度上限时不压缩、不跳到结尾，写到一个干净的断点（函数、文件或小节结束）就停，并按固定格式注明进度；你说「继续」，它从断点原样接上。\n\n## 怎么安装\n\n仓库 README 给出的单独安装写法（`--skill` 后面跟的是技能的安装名，不是文件夹名；这个技能在仓库里的文件夹是 `skills/output-skill`，安装名是 `full-output-enforcement`）：\n\n```bash\nnpx skills add https://github.com/Leonxlnx/taste-skill --skill \"full-output-enforcement\"\n```\n\n去掉 `--skill` 就是整库安装。不想用命令行，也可以把该文件夹里的 SKILL.md 直接复制到项目里，或贴进对话当作长期指令。\n\n仓库整体介绍和其他安装方式，详见本站《Taste Skill 是什么、怎么安装使用：让 AI 写前端不再千篇一律的设计 Skill（taste-skill）》。\n\n因为内容短，直接把 SKILL.md 贴进 ChatGPT、Claude 的自定义指令里也能用。\n\n## 怎么用\n\n- 「把这个 800 行的文件按新接口完整改写一遍，不要省略任何部分」。\n- 「生成全部 12 个接口的测试用例」——它会先确认数量，再逐个写完。\n- 输出被截断时回一句「继续」。\n\n## 适合谁 / 局限\n\n适合经常让模型输出整份文件、长文档或批量内容的人。它解决的是「模型主动偷懒」，解决不了硬性的单次输出上限——超长内容仍然要分几轮；在按量计费的环境里，完整输出意味着更多的输出 token。日常问答不需要它，开着反而会让回答变啰嗦。在 Claude Code 这类能直接改文件的工具里，用编辑操作改局部往往比整份重写更合适。\n\n## 注意事项\n\n- **许可**：MIT。\n- **不带脚本、不联网**，只是一份约束说明。\n- 安装量数字来自 skills.sh，包含整库安装带来的计数。",
+      "images": [],
+      "sources": [
+        "https://github.com/Leonxlnx/taste-skill/tree/main/skills/output-skill",
+        "https://github.com/Leonxlnx/taste-skill",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "emil-design-eng skill 是什么、怎么安装使用：把 Emil Kowalski 的界面打磨标准交给 AI（动效时长、缓动、按压反馈）",
+      "slug": "emil-design-eng-skill",
+      "name": "emil-design-eng（emilkowalski/skills）",
+      "url": "https://github.com/emilkowalski/skills/tree/main/skills/emil-design-eng",
+      "pricing": "开源免费（GitHub 标注 MIT）",
+      "platforms": "Claude Code / Codex / Cursor 等支持 Agent Skills 的智能体",
+      "trialNote": "npx skills@latest add emilkowalski/skills --skill emil-design-eng",
+      "tags": [
+        "claude",
+        "cursor",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "emil-design-eng 是 emilkowalski/skills 里安装量最高的技能：把 Emil Kowalski 关于界面打磨、组件设计和动效取舍的经验写成决策框架，评审界面代码时固定输出「改前 / 改后 / 原因」对照表。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 emilkowalski/skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 34.0 万次；所在仓库 emilkowalski/skills 在 GitHub 约 4.5 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nEmil Kowalski 是 Sonner、Vaul 等组件库的作者，以界面细节和动效见长。这个技能把他的设计工程方法写给智能体。`description`：编码了 Emil Kowalski 在界面打磨、组件设计、动效决策，以及那些让软件「用着舒服」的隐形细节上的理念。\n\n内容大致四块：\n\n- **核心理念**：品味是练出来的；用户注意不到的细节会累积成整体质感；好看本身是杠杆。\n- **动效决策框架**：写动画前按顺序回答四个问题。先问该不该动——一天触发上百次的操作（快捷键、命令面板开合）一律不加动画，一天几十次的要大幅减弱，偶尔出现的弹窗抽屉用标准动画，首次引导这类少见场景才可以加点趣味。再问目的、缓动曲线和时长，技能给了一张时长表：按钮按压反馈 100–160 毫秒，提示与小浮层 125–200，下拉 150–250，弹窗抽屉 200–500，界面动画总体控制在 300 毫秒以内。\n- **弹簧动画**：何时用、怎么配、为什么可打断。\n- **组件原则**：按钮要有按压反馈；不要从 `scale(0)` 开始出现；浮层从触发点展开；第二个提示气泡跳过延迟等。\n\n它还规定了评审格式：必须用一张「改前 / 改后 / 原因」三列表格，一行一个问题。\n\n## 怎么安装\n\n仓库 README 的安装命令是 `npx skills@latest add emilkowalski/skills`（整库，安装时可在选择器里勾选）。只装这一个，按 skills CLI 文档加 `--skill` 参数：\n\n```bash\nnpx skills@latest add emilkowalski/skills --skill emil-design-eng\n```\n\n装好后技能进入所选智能体的技能目录，按 `description` 自动触发，也可以用 `/emil-design-eng` 手动调用。\n\n仓库整体介绍和其他安装方式，详见本站《emilkowalski/skills 是什么、怎么安装：Emil Kowalski 的界面动效与设计 Skills（让 AI 做的动画不再生硬）》。\n\n## 怎么用\n\n- 「用 emil-design-eng 评审这个下拉菜单组件的动画」——得到对照表，例如把 `transition: all 300ms` 改成只过渡 `transform` 的 200 毫秒缓出。\n- 「这个命令面板要不要加开合动画？」——它按使用频率给判断。\n- 「给这个按钮补上按压态和合适的缓动」。\n\nSKILL.md 规定，不带问题直接调用时它只回一句就绪说明，等你提问。\n\n## 适合谁 / 局限\n\n适合写 React 与 CSS 界面、想把「能用」提升到「顺手」的前端工程师，以及没有专职动效设计师的小团队。它讲的是网页端的交互细节，不涉及整体视觉风格和信息架构；规则带着作者鲜明的取向（偏快、偏克制），做营销页的大动画时未必适用。同库的 `review-animations` 是专门的动效评审，`animate` 负责动手实现，可以搭配。\n\n## 注意事项\n\n- **许可**：GitHub 标注为 MIT。\n- **不带脚本**：纯说明文字，约两万七千字符。\n- 内容是作者个人方法的整理，更系统的讲解在他的付费课程 animations.dev，技能本身免费。",
+      "images": [],
+      "sources": [
+        "https://github.com/emilkowalski/skills/tree/main/skills/emil-design-eng",
+        "https://github.com/emilkowalski/skills",
+        "https://github.com/vercel-labs/skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "review-animations skill 是什么、怎么安装使用：按十条硬标准给前端动效代码挑毛病",
+      "slug": "emil-review-animations-skill",
+      "name": "review-animations（emilkowalski/skills）",
+      "url": "https://github.com/emilkowalski/skills/tree/main/skills/review-animations",
+      "pricing": "开源免费（GitHub 标注 MIT）",
+      "platforms": "Claude Code / Codex / Cursor 等支持 Agent Skills 的智能体",
+      "trialNote": "npx skills@latest add emilkowalski/skills --skill review-animations",
+      "tags": [
+        "claude",
+        "cursor",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "review-animations 是 emilkowalski/skills 里的动效评审技能：只评审动画与过渡代码，对照十条不可妥协的标准（是否该动、缓动、300 毫秒内、起点、可打断、只动 GPU 属性等），输出问题对照表和分级结论。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 emilkowalski/skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 21.5 万次；所在仓库 emilkowalski/skills 在 GitHub 约 4.5 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n动画「能跑」和「感觉对」之间差得很远，而一般的代码评审不看这个。review-animations 只做一件事：评审动效代码。`description`：对照源自 Emil Kowalski 设计工程理念的高标准评审动画与运动代码，默认挑问题，通过要靠挣。SKILL.md 明确它不写功能、不修无关的 bug、不看非动效代码；让它做通用评审，它会拒绝并请你换别的技能。\n\n核心是**十条不可妥协的标准**，每条违反都算一个问题：\n\n1. 动得有理由——说得出为什么要动；\n2. 与出现频率相称——键盘触发和一天上百次的操作不加动画；\n3. 进出场用缓出或更强的自定义曲线，界面上用缓入直接判不通过；\n4. 界面动画在 300 毫秒以内；\n5. 起点与物理直觉正确——浮层从触发点展开，不从 `scale(0)` 出现；\n6. 高频或手势驱动的动效必须可打断；\n7. 只动 `transform` 和 `opacity`；\n8. 尊重「减少动态效果」的系统设置，悬停动画只给有鼠标的设备；\n9. 进场和退场的节奏有意不对称；\n10. 和组件性格、产品整体一致。\n\n另有一张「见到就标」的清单（`transition: all`、对快捷键加动画等）和修复方案的优先顺序。输出固定两部分：一张「改前 / 改后 / 原因」表，加按影响分级的结论。精确的曲线、时长和弹簧参数放在同目录的 `STANDARDS.md` 里，需要时才读。\n\n## 怎么安装\n\n仓库 README 的安装命令是 `npx skills@latest add emilkowalski/skills`（整库，安装时可在选择器里勾选）。只装这一个，按 skills CLI 文档加 `--skill` 参数：\n\n```bash\nnpx skills@latest add emilkowalski/skills --skill review-animations\n```\n\n装好后技能进入所选智能体的技能目录，按 `description` 自动触发，也可以用 `/review-animations` 手动调用。\n\n仓库整体介绍和其他安装方式，详见本站《emilkowalski/skills 是什么、怎么安装：Emil Kowalski 的界面动效与设计 Skills（让 AI 做的动画不再生硬）》。\n\n这个技能的 frontmatter 设了 `disable-model-invocation: true`，不会自动触发，要用 `/review-animations` 手动调用。\n\n## 怎么用\n\n- 「/review-animations 看一下这个分支里改动的动画」。\n- 「评审 `Toast.tsx` 的进出场，告诉我哪些必须改」。\n- 「这个抽屉组件用了关键帧动画，按你的标准有什么问题」。\n\n## 适合谁 / 局限\n\n适合在合并前想给动效把一道关的前端团队，也适合自学动效的人拿来对照自己的代码。它读的是代码而不是运行效果，掉帧、手感这类问题只能据写法推断；标准偏严、偏克制，营销页上有意为之的长动画会被它标出来，需要你自己判断哪些是例外。\n\n## 注意事项\n\n- **许可**：GitHub 标注为 MIT。\n- **只读不改**：它给出修改建议，不直接动你的代码。\n- 标准出自作者个人的方法论，并非行业规范，团队可以按自己的设计语言取舍。",
+      "images": [],
+      "sources": [
+        "https://github.com/emilkowalski/skills/tree/main/skills/review-animations",
+        "https://github.com/emilkowalski/skills",
+        "https://github.com/vercel-labs/skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "apple-design skill 是什么、怎么安装使用：把苹果的流畅交互原则搬到网页（弹簧、手势、可打断过渡）",
+      "slug": "emil-apple-design-skill",
+      "name": "apple-design（emilkowalski/skills）",
+      "url": "https://github.com/emilkowalski/skills/tree/main/skills/apple-design",
+      "pricing": "开源免费（GitHub 标注 MIT）",
+      "platforms": "Claude Code / Codex / Cursor 等支持 Agent Skills 的智能体",
+      "trialNote": "npx skills@latest add emilkowalski/skills --skill apple-design",
+      "tags": [
+        "claude",
+        "cursor",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "apple-design 是 emilkowalski/skills 里的一个技能：把苹果 WWDC 设计讲座里的流畅界面方法翻译成网页技术，讲响应、一比一跟手、可打断、弹簧、橡皮筋边界、材质与排版，以及八条设计原则。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 emilkowalski/skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 20.0 万次；所在仓库 emilkowalski/skills 在 GitHub 约 4.5 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n很多人想让网页「像 iOS 一样顺」，却只学到毛玻璃和圆角。apple-design 讲的是背后的交互原理。`description`：苹果做界面设计和流畅、带物理感的运动的方法，翻译给网页用；在构建或评审手势驱动的界面、弹簧动画、拖拽 / 滑动 / 底部弹层、惯性与可打断过渡、半透明材质与层次、排版、减少动态效果，以及苹果风格界面背后的设计基础时使用。\n\nSKILL.md 说明知识来源是苹果的 WWDC 设计讲座（主要是 2018 年的《Designing Fluid Interfaces》），并换成了 CSS、Pointer Events、`requestAnimationFrame` 和 Motion 这类弹簧库的写法。贯穿全文的一句话：运动从屏幕上的当前值出发、继承用户的速度、把惯性向前投射，并且随时可以被抓住和反转，界面才有活的感觉。\n\n分节依次是：消灭响应延迟；一比一的直接操控；可打断（被称为最重要的一条）；用弹簧描述行为而不是写死动画；空间一致性；朝手势方向给提示；橡皮筋式的软边界；手势细节；逐帧流畅度；材质与层次；动效配合声音与触感；减少动态效果与无障碍；排版（视觉尺寸、字距、行距）；八条设计原则（目的、掌控感、责任、熟悉感、灵活、简洁而非极简、工艺、愉悦）；最后是流程和速查表。\n\n## 怎么安装\n\n仓库 README 的安装命令是 `npx skills@latest add emilkowalski/skills`（整库，安装时可在选择器里勾选）。只装这一个，按 skills CLI 文档加 `--skill` 参数：\n\n```bash\nnpx skills@latest add emilkowalski/skills --skill apple-design\n```\n\n装好后技能进入所选智能体的技能目录，按 `description` 自动触发，也可以用 `/apple-design` 手动调用。\n\n仓库整体介绍和其他安装方式，详见本站《emilkowalski/skills 是什么、怎么安装：Emil Kowalski 的界面动效与设计 Skills（让 AI 做的动画不再生硬）》。\n\n## 怎么用\n\n- 「做一个可以下拉关闭的底部弹层，拖动要跟手，松手后按速度决定回弹还是关闭」。\n- 「这个轮播在滑到尽头时很生硬，按苹果的做法加橡皮筋效果」。\n- 「评审这个拖拽排序的实现，哪里不可打断」。\n\n不带问题直接调用时，它按 SKILL.md 的规定只回一句就绪说明。\n\n## 适合谁 / 局限\n\n适合做移动端网页、PWA 和手势交互较多的 Web 应用的前端开发者。局限：它讲的是网页上的近似实现，系统级的触感反馈、原生滚动物理在浏览器里做不到完全一致；做原生 iOS 应用应以苹果官方的人机界面指南为准。偏展示型的静态页面用不上这么重的交互。\n\n## 注意事项\n\n- **许可**：GitHub 标注为 MIT。\n- **非苹果官方内容**：是作者对公开讲座的整理和转译，文中引用的讲座内容以苹果官方发布为准。\n- **不带脚本**：纯说明文字；实现时通常要引入弹簧动画库，按项目情况取舍。",
+      "images": [],
+      "sources": [
+        "https://github.com/emilkowalski/skills/tree/main/skills/apple-design",
+        "https://github.com/emilkowalski/skills",
+        "https://github.com/vercel-labs/skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "gstack /office-hours 是什么、怎么安装使用：写代码前先过一遍 YC 式的六个逼问",
+      "slug": "gstack-office-hours-skill",
+      "name": "office-hours（garrytan/gstack）",
+      "url": "https://github.com/garrytan/gstack/tree/main/office-hours",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code（完整支持）；Codex、Cursor、OpenCode 等用 --host 安装（实验性）",
+      "trialNote": "git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup",
+      "tags": [
+        "claude",
+        "codex",
+        "claude-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "/office-hours 是 gstack 的起点技能：创业模式用六个逼问检验需求是否真实、切口够不够窄，构建者模式做设计向的头脑风暴；挑战前提、给出两到三个实现方案，只产出一份设计文档，不写任何代码。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 garrytan/gstack 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 garrytan/gstack 在 GitHub 约 13.6 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\ngstack 把 Claude Code 分成十几个「岗位」，README 建议从 `/office-hours` 开始。它模仿的是 Y Combinator 的 Office Hours：合伙人不帮你写代码，只追问你到底在解决什么问题。SKILL.md 给它定了一条硬规矩——不调用任何实现类技能、不写代码、不搭项目，唯一的产出是一份设计文档。\n\n它分两种模式：\n\n- **创业模式**（做公司或在公司内部做新业务）：六个逼问——需求是否真实存在、用户现在怎么凑合、最迫切需要它的具体是谁、最窄的切入点是什么、你观察到了什么意外、它是否顺应未来趋势。配套的还有「不许奉承」规则和几种反驳套路。\n- **构建者模式**（副业、黑客松、学习、开源）：换成设计伙伴的口吻，用发散式的问题帮你把点子做得更有意思。聊着聊着提到客户、收入、融资，它会切到创业模式。\n\n两种模式之后流程一致：先翻本项目已有的设计文档看有没有重叠；**挑战前提**（这是不是对的问题、什么都不做会怎样、现有代码能复用什么、新产物用户怎么拿到）；**给两到三个方案**，其中必须有一个最小可行版和一个理想架构版；最后写成设计文档，供后续的 `/plan-ceo-review`、`/plan-eng-review` 使用。\n\n## 怎么安装\n\n`/office-hours` 不单独发布，随 gstack 整套安装。README 的要求是先装好 Claude Code、Git 和 Bun（Windows 另需 Node.js），然后：\n\n```bash\ngit clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup\n```\n\n`./setup` 默认只给 Claude Code 装；其他智能体用 `./setup --host codex`（或 `--host auto`），README 把这些标为实验性支持，技能名会带 `gstack-` 前缀。注意整套安装还会编译工具、下载一份 Chromium 供它的浏览器类技能使用，这部分和 `/office-hours` 无关，但会占磁盘。\n\n仓库整体介绍和其他安装方式，详见本站《gstack 是什么、怎么安装和使用：YC 总裁 Garry Tan 的 Claude Code Skills 工作流》。\n\n## 怎么用\n\n- 「/office-hours 我想做一个帮独立开发者自动回复用户邮件的工具」。\n- 「这个功能值得做吗？帮我想清楚」——技能的触发词包括 brainstorm this、is this worth building、help me think through。\n- 「周末黑客松想做点好玩的，方向是本地知识库」——走构建者模式。\n\n它一次只问一个问题，认真回答比催它出方案有用。\n\n## 适合谁 / 局限\n\n适合独立开发者和小团队在动手前逼自己把问题想清楚，尤其是容易「先写了再说」的人。局限：追问基于你的口头回答，它没有真实的用户数据，结论的质量取决于你答得多诚实；整个技能很长（主文件九万多字符，另有按需读取的分节文件），一次会话消耗的上下文不小；风格直接，不适合只想被肯定的时候用。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会写文件**：设计文档和会话记录保存在 `~/.gstack/` 下的项目目录，多次会话之间可以互相引用。\n- **会联网**：调研环节会做网页检索，技能要求把检索结果当作不可信内容对待。\n- **遥测**：README 说明使用数据上报默认关闭，首次运行会询问，随时可用 `gstack-config set telemetry off` 关掉。",
+      "images": [],
+      "sources": [
+        "https://github.com/garrytan/gstack/tree/main/office-hours",
+        "https://github.com/garrytan/gstack"
+      ]
+    },
+    {
+      "title": "gstack /plan-ceo-review 是什么、怎么安装使用：用创始人视角重审计划，四种模式定范围",
+      "slug": "gstack-plan-ceo-review-skill",
+      "name": "plan-ceo-review（garrytan/gstack）",
+      "url": "https://github.com/garrytan/gstack/tree/main/plan-ceo-review",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code（完整支持）；Codex、Cursor、OpenCode 等用 --host 安装（实验性）",
+      "trialNote": "git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup",
+      "tags": [
+        "claude",
+        "codex",
+        "claude-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "/plan-ceo-review 是 gstack 的「CEO / 创始人」评审技能：只评审计划不改代码，先挑战前提、盘点可复用的现有代码，再在扩张、选择性扩张、守住范围、收缩四种模式里定下范围，每一处范围变动都要你批准。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 garrytan/gstack 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 garrytan/gstack 在 GitHub 约 13.6 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n工程评审问「这样做对不对」，`/plan-ceo-review` 问的是「该不该做成这样」。README 对它的定位是 CEO / 创始人：重新想问题，找出藏在需求里的「十星产品」。SKILL.md 写明它只做评审，不改代码、不动手实现。\n\n核心是**四种模式**：\n\n- **SCOPE EXPANSION（扩张）**：往理想形态想，追求「两倍投入、十倍效果」，积极建议加东西；\n- **SELECTIVE EXPANSION（选择性扩张）**：先把现有范围做扎实，再把每个可扩张点的收益、工作量和风险中立地摆出来，由你挑；\n- **HOLD SCOPE（守住范围）**：范围不动，把失败路径、边界情况、错误处理、测试和可观测性查透；\n- **SCOPE REDUCTION（收缩）**：提出最小可行内核，砍什么要你同意。\n\n模式可以由你指定，也可以让它推荐：计划涉及的文件改动超过 15 个时建议收缩；全新的产品或系统建议扩张，加能力建议选择性扩张，修复与重构建议守住范围。\n\n评审从「第 0 步」开始：挑战前提、盘点现有代码能撬动什么、描绘理想状态、列备选方案、选模式。之后按章节逐项过，带着一组首要原则——例如不允许静默失败，每类错误都要说清触发条件、处理方式、用户看到什么、怎么测试。在扩张类模式下，结论会存成一份 CEO 计划文档，被接受的范围写进计划，暂缓的进 TODOS，拒绝的列为「不在范围内」。\n\n## 怎么安装\n\n`/plan-ceo-review` 不单独发布，随 gstack 整套安装。README 的要求是先装好 Claude Code、Git 和 Bun（Windows 另需 Node.js），然后：\n\n```bash\ngit clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup\n```\n\n`./setup` 默认只给 Claude Code 装；其他智能体用 `./setup --host codex`（或 `--host auto`），README 把这些标为实验性支持，技能名会带 `gstack-` 前缀。注意整套安装还会编译工具、下载一份 Chromium 供它的浏览器类技能使用，这部分和 `/plan-ceo-review` 无关，但会占磁盘。\n\n仓库整体介绍和其他安装方式，详见本站《gstack 是什么、怎么安装和使用：YC 总裁 Garry Tan 的 Claude Code Skills 工作流》。\n\n## 怎么用\n\n先让智能体出一份实现计划（或先跑 `/office-hours` 得到设计文档），然后：\n\n- 「/plan-ceo-review 这份计划是不是想小了？」——触发词还有 think bigger、expand scope、strategy review。\n- 「守住范围，帮我把这份计划的失败路径查一遍」——指定 HOLD SCOPE。\n- 「这个需求两周做不完，砍到最小能上线的版本」——指定收缩。\n\n## 适合谁 / 局限\n\n适合自己既当产品又当工程的独立开发者，在计划阶段需要有人唱反调时使用。局限：它判断「更好的产品」靠的是模型的推理和网页检索，不了解你的用户、预算和排期，扩张模式给的建议容易超出实际资源，采纳前要自己权衡；流程长、提问多，小改动不值得走一遍。\n\n## 注意事项\n\n- **许可**：MIT。\n- **只读代码**：允许的工具里没有编辑和写文件，结论通过内置的 Bash 步骤保存到 `~/.gstack/` 下的项目目录。\n- **带钩子**：frontmatter 里注册了一个在 Bash 调用后运行的钩子脚本，用于模式交接；装之前可以在仓库里看一眼它的内容。\n- **遥测**：默认关闭，可用 `gstack-config set telemetry off` 确认。",
+      "images": [],
+      "sources": [
+        "https://github.com/garrytan/gstack/tree/main/plan-ceo-review",
+        "https://github.com/garrytan/gstack"
+      ]
+    },
+    {
+      "title": "gstack /retro 是什么、怎么安装使用：从 git 提交记录生成每周工程复盘",
+      "slug": "gstack-retro-weekly-retrospective-skill",
+      "name": "retro（garrytan/gstack）",
+      "url": "https://github.com/garrytan/gstack/tree/main/retro",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code（完整支持）；Codex、Cursor、OpenCode 等用 --host 安装（实验性）",
+      "trialNote": "git clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup",
+      "tags": [
+        "claude",
+        "codex",
+        "claude-llm",
+        "agent-skills",
+        "coding",
+        "office"
+      ],
+      "excerpt": "/retro 是 gstack 的工程复盘技能：分析一段时间内的提交历史，统计提交时段、工作时段、改动热点、PR 大小和连续交付天数，按成员给出亮点与改进点，并把每次复盘存档用于前后对比。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 garrytan/gstack 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 garrytan/gstack 在 GitHub 约 13.6 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n周会上被问到「这周做了什么」，多数人靠回忆。`/retro` 让智能体直接去读 git 历史。`description`：每周工程复盘；分析提交历史、工作模式和代码质量指标，带持久化的历史与趋势跟踪；能识别团队，按人拆分贡献，给出表扬和成长空间。README 把它对应的角色叫作工程经理。\n\nSKILL.md 列出了它的调用方式：\n\n- `/retro`：默认最近 7 天；`/retro 24h`、`/retro 14d`、`/retro 30d` 指定窗口；\n- `/retro compare`：和紧挨着的上一个同长度窗口对比；\n- `/retro global`：跨项目复盘，汇总本机各个 AI 编程工具下的项目，不要求当前目录是 git 仓库。\n\n一次复盘的步骤很细：先拉取远端，用一条命令采集指标；然后计算提交的时间分布、推断工作时段、按类型拆分提交、找出改动热点文件、统计 PR 大小分布，评出专注度和「本周最佳交付」；逐个成员分析；窗口不少于 14 天时做周环比；统计连续交付的天数；还有一份「捷径债务」台账，扫描代码里留下的临时方案。最后读入以前的复盘做比较，存一份 JSON 快照，再写成叙述性的总结。\n\n几条规则值得知道：分析的是远端默认分支而不是本地可能过期的 main；时间按你的本地时区显示；合并提交被当作 PR 的边界；这段时间没有提交会直说，并建议换个窗口。\n\n## 怎么安装\n\n`/retro` 不单独发布，随 gstack 整套安装。README 的要求是先装好 Claude Code、Git 和 Bun（Windows 另需 Node.js），然后：\n\n```bash\ngit clone --single-branch --depth 1 https://github.com/garrytan/gstack.git ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup\n```\n\n`./setup` 默认只给 Claude Code 装；其他智能体用 `./setup --host codex`（或 `--host auto`），README 把这些标为实验性支持，技能名会带 `gstack-` 前缀。注意整套安装还会编译工具、下载一份 Chromium 供它的浏览器类技能使用，这部分和 `/retro` 无关，但会占磁盘。\n\n仓库整体介绍和其他安装方式，详见本站《gstack 是什么、怎么安装和使用：YC 总裁 Garry Tan 的 Claude Code Skills 工作流》。\n\n## 怎么用\n\n在项目仓库里：\n\n- 「/retro」——出最近一周的复盘。\n- 「/retro compare 14d」——最近两周和之前两周比。\n- 「/retro global」——看自己这一周在所有项目上的投入和切换情况。\n\n## 适合谁 / 局限\n\n适合小团队的技术负责人做周报和迭代回顾的底稿，也适合独立开发者回看自己的节奏。局限很明确：它只能看到进了 git 的东西，评审、讨论、排查问题这些不产生提交的工作不会被统计；按人拆分贡献和「每小时代码行数」这类指标容易被误读，适合做回顾的引子，不适合当绩效依据；提交信息写得随意，分类也会跟着不准。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会执行命令**：运行 `git fetch` 和仓库自带的指标脚本；复盘快照存在项目的 `.context/retros/`，全局模式存在 `~/.gstack/retros/`。\n- **涉及同事的数据**：报告里有按人的统计，往外发之前想清楚是否合适。\n- **遥测**：默认关闭，README 说明即使开启也不上传代码、路径和仓库名。",
+      "images": [],
+      "sources": [
+        "https://github.com/garrytan/gstack/tree/main/retro",
+        "https://github.com/garrytan/gstack"
+      ]
+    },
+    {
+      "title": "product-launch-video skill 是什么、怎么安装使用：给一个网址，让智能体做出产品发布视频（HyperFrames）",
+      "slug": "hyperframes-product-launch-video-skill",
+      "name": "product-launch-video（heygen-com/hyperframes）",
+      "url": "https://github.com/heygen-com/hyperframes/tree/main/skills/product-launch-video",
+      "pricing": "开源免费（Apache-2.0）；无按次渲染费用",
+      "platforms": "Claude Code（插件）/ Codex / Cursor / Copilot / Gemini CLI 等",
+      "trialNote": "`claude plugin marketplace add heygen-com/hyperframes` 然后 `claude plugin install hyperframes@hyperframes`",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "product-video",
+        "marketing"
+      ],
+      "excerpt": "product-launch-video 是 HyperFrames 的创作流程技能：从产品网址、粘贴的脚本或简报出发，抓取页面素材和品牌信息，定设计系统、写分镜与旁白、逐帧生成 HTML 画面并渲染成 MP4，关键节点等你确认。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 heygen-com/hyperframes 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 42.3 万次；所在仓库 heygen-com/hyperframes 在 GitHub 约 6.0 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nHyperFrames 用 HTML 写视频，这个技能负责「产品宣传片」这一种片型的完整生产线。`description`：把产品或营销网址、粘贴的脚本或简报变成产品发布 / 宣传视频——SaaS 宣传、功能亮相、产品演示、应用和公司发布；用户想推广、发布或展示一个产品时使用，是任何商业网址的默认去向，网站导览也归它。\n\nSKILL.md 把智能体设定为「总导演」，在 `videos/` 下的项目目录里按步骤推进，每步过了检查才能进下一步：\n\n0. **准备**：读入口技能 `/hyperframes` 写好的 `BRIEF.md`，建项目；\n1. **采集素材**：给了网址就运行 `npx hyperframes capture` 抓取页面截图、文字和品牌信号；给的是脚本就原样存下；\n2. **设计系统**：从采集结果定颜色、字体和版式；\n3. **分镜与脚本**：写 `STORYBOARD.md` 和旁白稿，这一步等你确认；\n4. **音频**：后台生成旁白、逐词时间轴和背景音乐；\n5. **画面设计与逐帧构建**：每一帧派一个子智能体去写 HTML；\n6. **收尾**：加转场、跑检查、给你预览，批准后渲染成 MP4。\n\n目录里有三十多个文件：剪辑手法目录、动效语言、叙事设计、视觉设计四份参考，以及组装、音频、字幕、逐帧打包等脚本。\n\n## 怎么安装\n\n`product-launch-video` 是 HyperFrames 技能包里的一个创作流程，不建议单独装：它要调用同包里的 CLI、动画、媒体等领域技能。Claude Code 用插件（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add heygen-com/hyperframes\nclaude plugin install hyperframes@hyperframes\n```\n\n其他智能体用 `npx skills add heygen-com/hyperframes`，README 说在选择器里只勾「Core Skills」一组即可，路由技能 `/hyperframes` 会在需要时把 `product-launch-video` 这类流程按需装上。渲染需要本机有 Node、Chrome 和 FFmpeg。\n\n仓库整体介绍和其他安装方式，详见本站《HyperFrames 是什么、怎么安装使用：HeyGen 开源的「写 HTML、出视频」框架与 Agent Skills》。\n\n## 怎么用\n\n- 「给 https://example.com 做一支 30 秒的产品发布视频，竖版」。\n- 「这是我们新功能的介绍文案，按原文做旁白，做成 45 秒的功能亮相片」。\n- 「把官网做成一段网站导览，按页面原样展示，不要旁白」。\n\n不确定该走哪条流程时直接说需求，由 `/hyperframes` 分流。\n\n## 适合谁 / 局限\n\n适合没有视频团队、想快速出一版发布视频的独立开发者和小公司。局限：画面来自网页截图加动态排版，不是实拍也不是文生视频；流程长、要派多个子智能体，耗时和用量都不低；成片仍然需要人把关节奏与文案。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **会联网抓取你给的网址**，只对你有权使用的网站和素材这样做。\n- **旁白与配乐**：默认走 HeyGen 的音频接口，需要 HeyGen 账号凭据（存在 `~/.heygen`），费用与条款以 HeyGen 官网为准；SKILL.md 提到也可以换成本地语音引擎 Kokoro，或在分镜里写 `music: none` 做无配乐版本。\n- 技能开头会建议运行 `npx hyperframes skills update product-launch-video` 保持最新，执行前会先问你。",
+      "images": [],
+      "sources": [
+        "https://github.com/heygen-com/hyperframes/tree/main/skills/product-launch-video",
+        "https://github.com/heygen-com/hyperframes",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "faceless-explainer skill 是什么、怎么安装使用：把一篇文章做成不出镜的讲解视频（HyperFrames）",
+      "slug": "hyperframes-faceless-explainer-skill",
+      "name": "faceless-explainer（heygen-com/hyperframes）",
+      "url": "https://github.com/heygen-com/hyperframes/tree/main/skills/faceless-explainer",
+      "pricing": "开源免费（Apache-2.0）；无按次渲染费用",
+      "platforms": "Claude Code（插件）/ Codex / Cursor / Copilot / Gemini CLI 等",
+      "trialNote": "`claude plugin marketplace add heygen-com/hyperframes` 然后 `claude plugin install hyperframes@hyperframes`",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "motion-graphics",
+        "video-script"
+      ],
+      "excerpt": "faceless-explainer 是 HyperFrames 的创作流程技能：输入文章、笔记、主题或简报，没有网站和实拍素材，画面全部按场景用文字排版、抽象图形、示意图和数据可视化现做，配旁白后渲染成讲解视频。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 heygen-com/hyperframes 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 41.1 万次；所在仓库 heygen-com/hyperframes 在 GitHub 约 6.0 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n「不出镜讲解视频」指的是没有真人、没有实拍，靠文字动画和图形把一件事讲明白的片子。`description`：把任意文本——一篇文章、笔记、一个主题、一份简报——变成不出镜的讲解视频；没有网站或素材可抓，所以画面按场景现做（文字排版、抽象图形、示意图、数据可视化）；用于主题讲解、概念拆解、操作教程、清单类内容。从网站出发的视频不归它，归 `product-launch-video`。\n\n和产品宣传片流程相比，最大的区别在第 1 步：这里**没有采集**，只有一份简报。SKILL.md 强调「faceless」意味着后面每一个画面都是凭空设计的，没有可盘点的真实素材。其余步骤结构相同：选设计系统 → 规划一条「教学式」的叙事线并写分镜与旁白稿（等你确认）→ 后台生成音频 → 设计每一帧的画面 → 每帧派一个子智能体构建 → 收尾检查、预览、渲染。\n\n目录里带着叙事设计、视觉设计、动效语言和剪辑手法四份参考，以及组装、音频、字幕和逐帧打包的脚本。设计和动效的具体规则不写在这个技能里，而是放在同包的 `hyperframes-animation`、`hyperframes-creative` 等领域技能中，由它按需调用。\n\n## 怎么安装\n\n`faceless-explainer` 是 HyperFrames 技能包里的一个创作流程，不建议单独装：它要调用同包里的 CLI、动画、媒体等领域技能。Claude Code 用插件（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add heygen-com/hyperframes\nclaude plugin install hyperframes@hyperframes\n```\n\n其他智能体用 `npx skills add heygen-com/hyperframes`，README 说在选择器里只勾「Core Skills」一组即可，路由技能 `/hyperframes` 会在需要时把 `faceless-explainer` 这类流程按需装上。渲染需要本机有 Node、Chrome 和 FFmpeg。\n\n仓库整体介绍和其他安装方式，详见本站《HyperFrames 是什么、怎么安装使用：HeyGen 开源的「写 HTML、出视频」框架与 Agent Skills》。\n\n## 怎么用\n\n- 「把这篇关于向量数据库原理的文章做成 60 秒的讲解视频」，后面贴上文章。\n- 「用三个要点讲清楚什么是复利，面向中学生，画面多用图表」。\n- 「把这份产品更新说明做成清单式的短视频，共五条，每条八秒」。\n\n分镜出来后是修改成本最低的时候：对结构、措辞和时长不满意，在这一步提，比渲染完再改省得多。\n\n## 适合谁 / 局限\n\n适合知识类内容的作者、课程制作者和需要把文档转成短视频的团队。局限：画面风格是动态排版和矢量图形，做不出人物、实景和电影感镜头；讲解是否准确取决于你给的文本，它不替你核实事实；每帧一个子智能体，长视频的用量和等待时间都会明显增加。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **旁白与配乐**：默认使用 HeyGen 的音频接口（凭据在 `~/.heygen`），SKILL.md 也提到本地语音引擎 Kokoro 作为替代；配乐从 HeyGen 的音乐库检索，发布到各平台前自行确认授权范围。\n- **本机渲染**：需要 Node、Chrome 和 FFmpeg。\n- 用别人的文章做视频，改编与发布的版权问题需要自己处理。",
+      "images": [],
+      "sources": [
+        "https://github.com/heygen-com/hyperframes/tree/main/skills/faceless-explainer",
+        "https://github.com/heygen-com/hyperframes",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "pr-to-video skill 是什么、怎么安装使用：把一个 GitHub PR 做成代码改动讲解视频（HyperFrames）",
+      "slug": "hyperframes-pr-to-video-skill",
+      "name": "pr-to-video（heygen-com/hyperframes）",
+      "url": "https://github.com/heygen-com/hyperframes/tree/main/skills/pr-to-video",
+      "pricing": "开源免费（Apache-2.0）；无按次渲染费用",
+      "platforms": "Claude Code（插件）/ Codex / Cursor / Copilot / Gemini CLI 等",
+      "trialNote": "`claude plugin marketplace add heygen-com/hyperframes` 然后 `claude plugin install hyperframes@hyperframes`",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "motion-graphics",
+        "coding"
+      ],
+      "excerpt": "pr-to-video 是 HyperFrames 的创作流程技能：读取一个 GitHub Pull Request 的 diff、提交和文件，规划成更新日志、功能亮相、修复或重构讲解视频，片尾带贡献者致谢，逐帧生成后渲染成 MP4。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 heygen-com/hyperframes 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 35.8 万次；所在仓库 heygen-com/hyperframes 在 GitHub 约 6.0 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n发版时配一段小视频讲清楚「这次改了什么」，效果比一段文字好，但很少有人有空做。pr-to-video 把这件事交给智能体。`description`：把一个 GitHub Pull Request（PR 链接、`owner/repo#N`，或已检出仓库里的「这个 PR」）变成代码改动讲解视频——更新日志、功能亮相、修复或重构讲解，素材是 diff、提交和文件；输入是代码改动而不是网站。\n\n流程和其他 HyperFrames 创作技能同构，区别在数据来源：\n\n- **读入 PR**：脚本 `fetch-pr.mjs` 通过 GitHub 官方命令行 `gh` 拉取 PR 信息，分页补全文件列表（大 PR 不会在一百个文件处截断），只写出 `capture/pr.json` 和 `capture/diff.patch`；另一个脚本尽力下载贡献者头像，用于片尾致谢。SKILL.md 明确：拉取失败（未登录、找不到、私有仓库）就报错停下，**不许编造 PR 内容**。过关条件是能用一句话说清这个 PR 改了什么。\n- **设计系统**：采用预设的「代码编辑风」版式，目录里多了一份讲代码画面语汇的参考文件。\n- **分镜与脚本 → 音频 → 画面设计 → 逐帧构建 → 收尾渲染**，分镜和最终渲染等你确认；构建阶段派出数量受限的一组子智能体。\n\nSKILL.md 还规定工作目录在仓库之外单独解析，默认不往你的代码仓库里写东西。\n\n## 怎么安装\n\n`pr-to-video` 是 HyperFrames 技能包里的一个创作流程，不建议单独装：它要调用同包里的 CLI、动画、媒体等领域技能。Claude Code 用插件（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add heygen-com/hyperframes\nclaude plugin install hyperframes@hyperframes\n```\n\n其他智能体用 `npx skills add heygen-com/hyperframes`，README 说在选择器里只勾「Core Skills」一组即可，路由技能 `/hyperframes` 会在需要时把 `pr-to-video` 这类流程按需装上。渲染需要本机有 Node、Chrome 和 FFmpeg。\n\n仓库整体介绍和其他安装方式，详见本站《HyperFrames 是什么、怎么安装使用：HeyGen 开源的「写 HTML、出视频」框架与 Agent Skills》。\n\n## 怎么用\n\n- 「把 https://github.com/owner/repo/pull/123 做成 40 秒的更新说明视频」。\n- 在已检出该分支的仓库里：「给这个 PR 做一段功能演示视频，重点讲新增的导出功能」。\n- 「这是一次重构，没有用户可见的变化，做成面向团队内部的讲解，突出前后结构对比」。\n\n## 适合谁 / 局限\n\n适合开源项目维护者做发版动态、开发者关系团队做更新内容，也适合团队内部同步较大的改动。局限：画面是代码片段和文字动效，不会演示真实的产品界面；PR 描述和提交信息写得含糊，视频也讲不清；改动特别大的 PR 需要你指定重点，否则容易面面俱到。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **依赖 `gh` 命令行并使用你的 GitHub 登录状态**：能读到你有权限访问的私有仓库，对外发布前确认视频里没有不该公开的代码。\n- **会展示贡献者的头像和名字**：公开发布前确认合适。\n- **旁白与配乐**默认使用 HeyGen 的音频接口，也可换本地语音引擎；渲染需要 Node、Chrome 和 FFmpeg。",
+      "images": [],
+      "sources": [
+        "https://github.com/heygen-com/hyperframes/tree/main/skills/pr-to-video",
+        "https://github.com/heygen-com/hyperframes",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "music-to-video skill 是什么、怎么安装使用：让画面卡着节拍走的音乐视频流程（HyperFrames）",
+      "slug": "hyperframes-music-to-video-skill",
+      "name": "music-to-video（heygen-com/hyperframes）",
+      "url": "https://github.com/heygen-com/hyperframes/tree/main/skills/music-to-video",
+      "pricing": "开源免费（Apache-2.0）；无按次渲染费用",
+      "platforms": "Claude Code（插件）/ Codex / Cursor / Copilot / Gemini CLI 等",
+      "trialNote": "`claude plugin marketplace add heygen-com/hyperframes` 然后 `claude plugin install hyperframes@hyperframes`",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "motion-graphics",
+        "video-script"
+      ],
+      "excerpt": "music-to-video 是 HyperFrames 的创作流程技能：以一段音乐为主线，先用脚本分析节拍和能量变化，再按节拍网格排帧，做成歌词视频、照片幻灯或动感宣传片；没有任何素材也能只靠文字动效成片。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 heygen-com/hyperframes 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 33.9 万次；所在仓库 heygen-com/hyperframes 在 GitHub 约 6.0 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n卡点视频的难处在于画面切换要落在节拍上，手工对齐很费时间。music-to-video 让音乐来决定一切节奏。`description`：把一段音乐（音频文件、要提取音轨的视频，或按情绪描述生成的曲子）变成与节拍同步的视频——歌词视频、幻灯片或动感宣传片；音乐驱动所有节奏，用户提供的图片和视频都剪到同一套节拍网格上，完整的视频可以零素材。带旁白的片子不归它。\n\nSKILL.md 开头讲了贯穿全程的两个想法，第一个是「只有一个分析器，并且信任它」：`analyze-beatgrid.py` 是唯一的节拍分析工具，不许再用别的工具或凭感觉重新量节拍。它读一遍曲子，写出 `audiomap.json`：能量段落、起音点、鼓点滚奏、静音段、硬停顿、关键时刻、乐句、速度与网格、总时长。\n\n步骤：\n\n0. 确定音乐来源、建项目、登记你提供的图片和视频；\n1. 分析音乐；\n2. 搭帧骨架——只定结构；\n3. 填写逐帧计划，等你确认；\n4. 按计划构建，每帧派一个子智能体；\n5. 组装；\n6. 检查并渲染，渲染前再问你一次。\n\n技能说明它为快节奏、强节拍的配乐做过调校，舒缓的曲子也能用，只是按乐句而不是按拍切。目录里有一百六十多个文件，大部分是「动效基元」的示例场景（3D 卡片翻转、流场背景等），供各帧取用。\n\n## 怎么安装\n\n`music-to-video` 是 HyperFrames 技能包里的一个创作流程，不建议单独装：它要调用同包里的 CLI、动画、媒体等领域技能。Claude Code 用插件（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add heygen-com/hyperframes\nclaude plugin install hyperframes@hyperframes\n```\n\n其他智能体用 `npx skills add heygen-com/hyperframes`，README 说在选择器里只勾「Core Skills」一组即可，路由技能 `/hyperframes` 会在需要时把 `music-to-video` 这类流程按需装上。渲染需要本机有 Node、Chrome 和 FFmpeg。\n\n仓库整体介绍和其他安装方式，详见本站《HyperFrames 是什么、怎么安装使用：HeyGen 开源的「写 HTML、出视频」框架与 Agent Skills》。\n\n## 怎么用\n\n- 「用这首 `track.mp3` 做一支 20 秒的卡点宣传片，文字用我们的三句口号」。\n- 「把这 12 张活动照片配上这段音乐做成幻灯片，切换踩在重拍上」。\n- 「给这首歌做歌词视频」——需要提供歌词文本，或让它调用同包的 `media-use` 转写。\n\n## 适合谁 / 局限\n\n适合做活动回顾、产品预热短片、歌词视频的人。局限：没有旁白，信息量靠画面上的字；节拍分析依赖 Python 环境，需要 `librosa`、`numpy`、`soundfile` 三个库；曲子节奏不明显时卡点效果会打折扣。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **音乐版权**：用自己的曲子或有授权的音乐；让它按情绪找配乐时走的是 HeyGen 的音乐库，需要登录凭据，授权范围以 HeyGen 的条款为准。SKILL.md 要求不把密钥写进仓库里的 `.env`。\n- **会运行脚本**：Python 分析脚本和若干 Node 脚本在本机执行；渲染需要 Node、Chrome 和 FFmpeg。",
+      "images": [],
+      "sources": [
+        "https://github.com/heygen-com/hyperframes/tree/main/skills/music-to-video",
+        "https://github.com/heygen-com/hyperframes",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "azure-prepare skill 是什么、怎么安装使用：部署到 Azure 之前，先让智能体写计划、生成 Bicep / Terraform",
+      "slug": "azure-prepare-skill-azd",
+      "name": "azure-prepare（microsoft/azure-skills）",
+      "url": "https://github.com/microsoft/azure-skills/tree/main/skills/azure-prepare",
+      "pricing": "开源免费（MIT）；Azure 资源按微软云计费",
+      "platforms": "GitHub Copilot / Claude Code / Gemini CLI / Cursor / Codex CLI",
+      "trialNote": "`/plugin marketplace add microsoft/azure-skills` 然后 `/plugin install azure@azure-skills`",
+      "tags": [
+        "github-copilot",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "azure-prepare 是微软 Azure Skills 插件里的准备技能：面向 Azure Developer CLI（azd）流程，先在项目里写出 .azure/deployment-plan.md 并等你批准，再生成 azure.yaml、基础设施代码和 Dockerfile。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 microsoft/azure-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 55.0 万次；所在仓库 microsoft/azure-skills 在 GitHub 约 1555 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n微软把「把应用部署到 Azure」拆成三个技能接力：`azure-prepare` → `azure-validate` → `azure-deploy`。prepare 是第一棒，只做准备，不执行部署。`description`：为基于 azd 的 Azure 项目做部署准备，生成 `azure.yaml`、基础设施代码（Bicep / Terraform）和 Dockerfile；只在用户明确要用 azd、或项目里已经有 `azure.yaml` 时使用。非 azd 的部署、只传代码的 Python App Service 部署、跨云迁移各有别的技能。\n\nSKILL.md 自称是这件事的权威流程，要求逐条照做。几条规则：\n\n- **先写计划**：第一个动作就是在工作区根目录写出 `.azure/deployment-plan.md` 的骨架，随分析逐步填满；后面的 validate 和 deploy 都依赖这个文件。\n- **先批准再动手**：计划给你看过、同意之后才生成任何文件。\n- 订阅和区域必须向你确认；破坏性操作必须先问；不许删除你的项目目录，给已有项目加功能时只改现有文件。\n\n两个阶段各有步骤表。**规划**：分析工作区（新建、修改还是现代化改造）→ 收集需求（规模、预算）→ 扫描代码库 → 选「配方」（默认 AZD，也可以是 Azure CLI、Bicep 或 Terraform）→ 规划架构，把组件映射到 Azure 服务 → 定稿并提交给你。**执行**：研究各组件 → 确认 Azure 上下文与资源配额 → 生成基础设施和配置文件 → 安全加固 → 功能验证 → 把计划状态改成「待验证」，交给 `azure-validate`。\n\n## 怎么安装\n\n`azure-prepare` 随微软的 Azure 插件一起安装，插件同时配置好 Azure MCP Server。Claude Code 里（命令来自仓库 README）：\n\n```text\n/plugin marketplace add microsoft/azure-skills\n/plugin install azure@azure-skills\n```\n\nGemini CLI 用 `gemini extensions install https://github.com/microsoft/azure-skills`，Codex 用 `codex plugin marketplace add microsoft/azure-skills`；GitHub Copilot 的装法见 README。真正操作云资源前，本机要装好 Azure CLI（`az`）并登录，部署类场景还要 Azure Developer CLI（`azd`）。\n\n仓库整体介绍和其他安装方式，详见本站《azure-skills 是什么、怎么安装：微软官方 Azure Skills 插件（技能 + Azure MCP Server，让智能体真正操作 Azure）》。\n\n## 怎么用\n\n- 「把这个 Next.js 加 Postgres 的项目准备好，用 azd 部署到 Azure」。\n- 「给现有项目加一个定时触发的 Azure Function，更新部署计划」。\n- 「基础设施用 Terraform 写，区域选东亚」。\n\n## 适合谁 / 局限\n\n适合已经决定用 Azure、想省掉手写 Bicep 和 `azure.yaml` 的开发者。它只覆盖 azd 这条路线；生成的架构和规格是按通用实践选的，成本要自己核算；生成的基础设施代码应当像别人提交的代码一样评审后再用。\n\n## 注意事项\n\n- **许可**：MIT（frontmatter 标注，作者 Microsoft）。\n- **会写文件**：计划文件、`azure.yaml`、`infra/` 目录和 Dockerfile 都写进你的项目，建议在分支上进行。\n- **会查询你的 Azure 订阅**：通过插件配置的 Azure MCP Server 和本机的 `az` / `azd` 登录状态；这一步本身不创建资源，后续部署产生的费用按微软云计费。",
+      "images": [],
+      "sources": [
+        "https://github.com/microsoft/azure-skills/tree/main/skills/azure-prepare",
+        "https://github.com/microsoft/azure-skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "azure-deploy skill 是什么、怎么安装使用：让智能体执行 azd up / terraform apply，并带上部署前检查",
+      "slug": "azure-deploy-skill-azd-up",
+      "name": "azure-deploy（microsoft/azure-skills）",
+      "url": "https://github.com/microsoft/azure-skills/tree/main/skills/azure-deploy",
+      "pricing": "开源免费（MIT）；Azure 资源按微软云计费",
+      "platforms": "GitHub Copilot / Claude Code / Gemini CLI / Cursor / Codex CLI",
+      "trialNote": "`/plugin marketplace add microsoft/azure-skills` 然后 `/plugin install azure@azure-skills`",
+      "tags": [
+        "github-copilot",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "azure-deploy 是微软 Azure Skills 插件里的部署执行技能：只对已经准备并验证过的项目运行 azd up、azd deploy、terraform apply 和 az deployment，带部署前检查清单、错误恢复、权限核对和结果验证。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 microsoft/azure-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 55.0 万次；所在仓库 microsoft/azure-skills 在 GitHub 约 1555 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n这是「准备 → 验证 → 部署」三段流程的最后一棒。`description`：为**已经准备好**的应用执行 Azure 部署——项目里已有 `.azure/deployment-plan.md` 和基础设施文件；运行 `azd up`、`azd deploy`、`terraform apply` 和 `az deployment`，内置错误恢复。用户说「创建并部署」「新建应用」时不该用它，那是 `azure-prepare` 的事。\n\nSKILL.md 开头是一段强制的前置检查：计划文件必须存在，并且状态必须是 `Validated`。它特别禁止智能体自己把状态改成已验证——只有 `azure-validate` 在真正跑过检查后才能写这个状态，跳过验证「只会导致部署失败」。\n\n步骤表共十步：\n\n1. 读计划，确认状态和验证证据；\n2. 完成部署前检查清单；\n3. 按计划里的配方类型加载对应做法（azd、Azure CLI 等各有一套）；\n4. 权限健康检查——例如容器应用通过托管身份拉取镜像时，先预配资源，确认拉取镜像的角色已经生效；\n5. 执行部署；\n6. 部署后配置（如数据库的托管身份、数据迁移）；\n7. 出错时查该配方的错误对照表；\n8. 确认部署完成、端点可访问；\n9. 到 Azure 上查询实际分配的角色是否正确够用；\n10. 把访问地址以完整的 `https://` 链接报告给你。\n\n规则里还有一条：破坏性操作必须先征得你的同意。\n\n## 怎么安装\n\n`azure-deploy` 随微软的 Azure 插件一起安装，插件同时配置好 Azure MCP Server。Claude Code 里（命令来自仓库 README）：\n\n```text\n/plugin marketplace add microsoft/azure-skills\n/plugin install azure@azure-skills\n```\n\nGemini CLI 用 `gemini extensions install https://github.com/microsoft/azure-skills`，Codex 用 `codex plugin marketplace add microsoft/azure-skills`；GitHub Copilot 的装法见 README。真正操作云资源前，本机要装好 Azure CLI（`az`）并登录，部署类场景还要 Azure Developer CLI（`azd`）。\n\n仓库整体介绍和其他安装方式，详见本站《azure-skills 是什么、怎么安装：微软官方 Azure Skills 插件（技能 + Azure MCP Server，让智能体真正操作 Azure）》。\n\n## 怎么用\n\n在跑过 prepare 和 validate 的项目里：\n\n- 「执行部署」「run azd up」——触发词包括 push to production、go live、ship it。\n- 「代码改了，只更新应用，不动基础设施」——对应 `azd deploy`。\n- 「部署失败了，按错误信息排查后重试」。\n\n如果它发现没有计划文件或状态不对，会停下来让你先走前两步，这是设计如此。\n\n## 适合谁 / 局限\n\n适合希望部署过程有固定检查点的团队，而不是让智能体凭印象敲命令。局限：它只负责执行，应用和基础设施的设计问题要回到 prepare 阶段解决；自动的错误恢复只覆盖参考文件里列出的常见情况；生产环境是否允许智能体直接发布，应当由团队自己的发布流程决定，稳妥的做法是先用于开发和测试环境。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会真实创建和修改云资源**：这一步开始产生 Azure 费用，执行前确认订阅、区域和资源组；不再需要的环境记得清理。\n- **使用本机的 `az` / `azd` 登录身份**，权限等同于你本人；建议用权限受限的账号或服务主体，而不是订阅所有者。\n- 部署可能包含数据库迁移等不易回退的操作，重要环境先做备份。",
+      "images": [],
+      "sources": [
+        "https://github.com/microsoft/azure-skills/tree/main/skills/azure-deploy",
+        "https://github.com/microsoft/azure-skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "azure-diagnostics skill 是什么、怎么安装使用：让智能体按流程排查 Azure 线上故障（App Service、容器应用、AKS）",
+      "slug": "azure-diagnostics-skill-troubleshooting",
+      "name": "azure-diagnostics（microsoft/azure-skills）",
+      "url": "https://github.com/microsoft/azure-skills/tree/main/skills/azure-diagnostics",
+      "pricing": "开源免费（MIT）；Azure 资源按微软云计费",
+      "platforms": "GitHub Copilot / Claude Code / Gemini CLI / Cursor / Codex CLI",
+      "trialNote": "`/plugin marketplace add microsoft/azure-skills` 然后 `/plugin install azure@azure-skills`",
+      "tags": [
+        "github-copilot",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "azure-diagnostics 是微软 Azure Skills 插件里的排障技能：用 AppLens、Azure Monitor 和资源健康状态，按「症状 → 资源健康 → 日志 → 指标 → 近期变更」的顺序排查 App Service、容器应用、Functions、AKS、虚拟机和消息服务的问题。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 microsoft/azure-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 55.1 万次；所在仓库 microsoft/azure-skills 在 GitHub 约 1555 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n线上出问题时，最容易犯的错是一头扎进日志。azure-diagnostics 给智能体定了一个固定的排查顺序。`description`：使用 AppLens、Azure Monitor、资源健康状态和安全的分诊流程调试 Azure 上的生产问题。触发场景列了一长串：App Service 高 CPU 和部署失败、容器应用 503 或目标端口不匹配、Functions 的遥测在改配置后消失、AKS 的 Pod 挂起和崩溃循环、虚拟机远程桌面或 SSH 连不上、Event Hubs 与 Service Bus 的连接和消息锁问题等。\n\n**快速诊断流程**五步：确认症状 → 查资源健康（Azure 自己是否正常）→ 看日志 → 分析指标 → 调查近期变更。\n\n规则里有几条体现了「安全分诊」：\n\n- 先用你已经提供的证据。如果你要求只基于证据分析、或不允许访问线上环境，它就不查询也不修改 Azure，只从给定的日志、指标和时间线推断，并说明哪些是假设。\n- 有 AppLens（通过 Azure MCP 提供的诊断工具）时优先用它。\n\n按服务分了排障指南：容器应用（镜像拉取失败、冷启动、健康探针、端口不匹配）、App Service（高 CPU、部署失败、崩溃、响应慢、证书与自定义域名）、Functions、AKS、虚拟机连接、消息服务。目录里有五十多个文件，含常用的日志查询语句，以及给 AKS、App Service、容器应用采集证据用的 PowerShell 和 Bash 脚本。\n\n## 怎么安装\n\n`azure-diagnostics` 随微软的 Azure 插件一起安装，插件同时配置好 Azure MCP Server。Claude Code 里（命令来自仓库 README）：\n\n```text\n/plugin marketplace add microsoft/azure-skills\n/plugin install azure@azure-skills\n```\n\nGemini CLI 用 `gemini extensions install https://github.com/microsoft/azure-skills`，Codex 用 `codex plugin marketplace add microsoft/azure-skills`；GitHub Copilot 的装法见 README。真正操作云资源前，本机要装好 Azure CLI（`az`）并登录，部署类场景还要 Azure Developer CLI（`azd`）。\n\n仓库整体介绍和其他安装方式，详见本站《azure-skills 是什么、怎么安装：微软官方 Azure Skills 插件（技能 + Azure MCP Server，让智能体真正操作 Azure）》。\n\n## 怎么用\n\n- 「我的容器应用一直返回 503，帮我排查」。\n- 「昨晚改了连接字符串之后 Function 的遥测就没了，这是日志和时间线，只基于这些分析，不要动线上」。\n- 「AKS 上有几个 Pod 一直 Pending，查原因」。\n\n## 适合谁 / 局限\n\n适合在 Azure 上跑服务、又没有专职运维的开发团队，值班时拿来做第一轮排查。局限：能查到什么取决于你的账号权限和资源是否接了日志与监控，没开 Application Insights 的应用能看的很少；它给的是诊断和修复建议，根因涉及业务代码时仍要回到代码里查。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会读取线上环境的日志和配置**：日志里可能有用户数据和密钥片段，注意这些内容会进入模型上下文；处理敏感系统时用它的「仅证据」模式，或用只读权限的身份登录。\n- **目录里的诊断脚本会在本机执行** `az`、`kubectl` 等命令，运行前可以先看一遍脚本内容。\n- 重置虚拟机密码、修改网络规则这类修复动作会改动线上资源，让它先说明打算做什么，确认后再执行。",
+      "images": [],
+      "sources": [
+        "https://github.com/microsoft/azure-skills/tree/main/skills/azure-diagnostics",
+        "https://github.com/microsoft/azure-skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "azure-resource-visualizer skill 是什么、怎么安装使用：把 Azure 资源组画成 Mermaid 架构图",
+      "slug": "azure-resource-visualizer-skill",
+      "name": "azure-resource-visualizer（microsoft/azure-skills）",
+      "url": "https://github.com/microsoft/azure-skills/tree/main/skills/azure-resource-visualizer",
+      "pricing": "开源免费（MIT）；Azure 资源按微软云计费",
+      "platforms": "GitHub Copilot / Claude Code / Gemini CLI / Cursor / Codex CLI",
+      "trialNote": "`/plugin marketplace add microsoft/azure-skills` 然后 `/plugin install azure@azure-skills`",
+      "tags": [
+        "github-copilot",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "azure-resource-visualizer 是微软 Azure Skills 插件里的架构图技能：读取一个 Azure 资源组里的全部资源，分析网络、身份和依赖关系，生成带资源清单和 Mermaid 架构图的 Markdown 文档。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 microsoft/azure-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 54.8 万次；所在仓库 microsoft/azure-skills 在 GitHub 约 1555 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n接手别人留下的 Azure 环境，第一件事是弄清「这些资源之间是什么关系」，门户里一个个点开看很慢。这个技能让智能体替你读一遍再画出来。`description`：分析 Azure 资源组，生成详细的 Mermaid 架构图，展示各个资源之间的关系；触发说法包括创建架构图、可视化 Azure 资源、分析资源组、绘制资源拓扑。\n\nSKILL.md 规定了四步流程：\n\n1. **选资源组**：你没指定时，列出可用的资源组和所在区域，编号让你选，等你回答后再继续。\n2. **发现与分析**：查询资源组里的全部资源，逐个记录名称与类型、规格档位、区域、关键配置、网络设置（虚拟网络、子网、私有终结点）、身份与访问（托管身份、角色分配）和依赖关系；跨订阅的批量盘点用 Azure Resource Graph 查询，目录里有一份查询写法参考。\n3. **构图**：把网络连接、数据流向、身份关系等画成 Mermaid 图。\n4. **写文件**：按模板生成 `[资源组名]-architecture.md`，包含标题信息、两三段架构概述、资源清单表、完整的 Mermaid 图、关键连接与数据流说明，以及观察到的问题和建议。\n\n后面还有质量标准、边界情况处理和 Mermaid 语法规范，目录里附了一份示例图和一份文档模板。它优先使用 Azure MCP 工具，没有相应工具时退回到 `az` 命令行。\n\n## 怎么安装\n\n`azure-resource-visualizer` 随微软的 Azure 插件一起安装，插件同时配置好 Azure MCP Server。Claude Code 里（命令来自仓库 README）：\n\n```text\n/plugin marketplace add microsoft/azure-skills\n/plugin install azure@azure-skills\n```\n\nGemini CLI 用 `gemini extensions install https://github.com/microsoft/azure-skills`，Codex 用 `codex plugin marketplace add microsoft/azure-skills`；GitHub Copilot 的装法见 README。真正操作云资源前，本机要装好 Azure CLI（`az`）并登录，部署类场景还要 Azure Developer CLI（`azd`）。\n\n仓库整体介绍和其他安装方式，详见本站《azure-skills 是什么、怎么安装：微软官方 Azure Skills 插件（技能 + Azure MCP Server，让智能体真正操作 Azure）》。\n\n## 怎么用\n\n- 「把资源组 `rg-prod-web` 画成架构图」。\n- 「我不确定有哪些资源组，先列出来让我选」。\n- 「重点标出哪些资源走私有终结点、哪些暴露在公网」。\n\n生成的 Markdown 可以直接放进仓库的文档目录，GitHub 等平台能直接渲染其中的 Mermaid 图。\n\n## 适合谁 / 局限\n\n适合接手存量环境的工程师、写架构文档和做安全评审前想先有一张全景图的人。局限：图是按资源配置推断的关系，应用层面的调用（比如代码里写死的某个接口地址）它看不到；资源很多的资源组画出来会很拥挤，需要你要求按层或按子系统拆开；它反映的是查询那一刻的状态，环境变了要重新生成。\n\n## 注意事项\n\n- **许可**：MIT。\n- **只读操作**：流程里是查询和写本地 Markdown 文件，不修改云资源；用只读权限（如读取者角色）的身份登录就够了。\n- **输出里有资源名称、网络结构等内部信息**，对外分享前先脱敏。\n- 资源配置会进入模型上下文，涉及敏感环境时按公司的规定处理。",
+      "images": [],
+      "sources": [
+        "https://github.com/microsoft/azure-skills/tree/main/skills/azure-resource-visualizer",
+        "https://github.com/microsoft/azure-skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "lark-sheets skill 是什么、怎么安装使用：让 Claude Code 等智能体读写飞书电子表格（公式、图表、透视表）",
+      "slug": "lark-sheets-skill-feishu-spreadsheet",
+      "name": "lark-sheets（larksuite/cli）",
+      "url": "https://github.com/larksuite/cli/tree/main/skills/lark-sheets",
+      "pricing": "开源免费（MIT）；调用飞书开放平台须遵守其协议",
+      "platforms": "命令行（需 Node.js）；技能供 Claude Code、Codex、Cursor 等使用",
+      "trialNote": "npx @larksuite/cli@latest install",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "office",
+        "data-analysis"
+      ],
+      "excerpt": "lark-sheets 是飞书官方 CLI 自带的电子表格技能：让智能体创建和编辑飞书表格，读写单元格与公式、排序筛选、做图表和透视表、条件格式，并支持本地 Excel / CSV 的导入导出，附一套「最小改动」的编辑准则。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 larksuite/cli 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 46.1 万次；所在仓库 larksuite/cli 在 GitHub 约 1.8 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n让智能体改表格，最怕两件事：把原来的格式弄乱，以及把该是公式的地方写成一个死数字。lark-sheets 的大部分篇幅都在防这两件事。`description`（原文是中文）：飞书电子表格，创建和操作电子表格；支持工作表与行列结构、单元格读写（值、公式、样式、批注、单元格图片）、区域复制移动排序填充、查找替换、批量更新，图表、透视表、条件格式、筛选器、下拉列表、迷你图、浮动图片的创建与维护，以及公式校验、历史版本回滚、本地 Excel / CSV 与飞书表格的导入导出；创建或编辑表格、统计汇总与可视化、公式计算（含 Excel 公式迁移）、财务建模时使用。多维表格不归它，走 `lark-base`。\n\nSKILL.md 开头是一张「场景 → 命令」速查表，每行对应一份必须先读的参考文件：读数据用 `+csv-get` 或 `+cells-get`，写数据按类型分 `+csv-put`、`+table-put`、`+cells-set`，排序用 `+range-sort`，画图用 `+chart-create-basic` 等。\n\n接着是七条**编辑准则**，摘几条：\n\n- **最小改动**：你没点名要删、要改名的，已有的工作表一张不动；\n- **公式闭环**：能推导的值要写成引用其他单元格的公式，不许先在外面算好再把数字填进去；\n- **完整继承样式**：新增行列要延续原表的字体、对齐、底色和边框；\n- **原子操作**：排序、删除用专门的命令，不许「读出来改完再整块覆盖」；\n- **产物可核对**：你点名的表名、表头、口径逐字保留，没做到的要逐项说明。\n\n目录里有近三十份参考文件，包括公式翻译、公式校验和历史版本。\n\n## 怎么安装\n\n`lark-sheets` 依赖飞书官方命令行工具 `lark-cli`，技能随 CLI 的安装向导一起装好（命令来自仓库 README）：\n\n```bash\nnpx @larksuite/cli@latest install\n```\n\n它会安装 CLI 和配套技能；之后按 README 依次运行 `lark-cli config init`（配置飞书应用）和 `lark-cli auth login --recommend`（完成授权）。只想补装技能，可以用 `npx skills add larksuite/cli -y -g`。这组技能都要求本机有 `lark-cli` 命令，认证与权限处理统一由公共技能 `lark-shared` 负责，两者要一起装上。\n\n仓库整体介绍和其他安装方式，详见本站《飞书 CLI（lark-cli）是什么、怎么安装：飞书官方命令行工具与 Agent Skills，让 AI 智能体操作飞书》。\n\n## 怎么用\n\n- 「把这个飞书表格（贴链接）按销售额降序排，再加一个各区域占比的饼图」。\n- 「把本地的 `q3.xlsx` 导入成飞书表格，保留公式」。\n- 「在这张预算表后面加一列同比增长，用公式，样式和前面的列一致」。\n\n## 适合谁 / 局限\n\n适合日常在飞书表格里做报表、台账和预算的团队。局限：复杂的版式调整和大批量写入要分多步执行，速度不如手工拖拽直观；它能访问的范围受你授权的飞书身份和应用权限限制；涉及重要数据时，让它先说明打算怎么改再执行。\n\n## 注意事项\n\n- **许可**：MIT；调用飞书开放平台须遵守其协议。\n- **会真实修改线上表格**：技能支持历史版本回滚，但动手前给关键表格留个副本更稳妥。\n- **需要飞书应用凭据和授权**：由 `lark-cli` 在本机管理；表格内容会进入模型上下文，敏感数据注意范围。",
+      "images": [],
+      "sources": [
+        "https://github.com/larksuite/cli/tree/main/skills/lark-sheets",
+        "https://github.com/larksuite/cli",
+        "https://github.com/larksuite/cli/blob/HEAD/README.zh.md"
+      ]
+    },
+    {
+      "title": "lark-calendar skill 是什么、怎么安装使用：让智能体查飞书日程、约会议、订会议室",
+      "slug": "lark-calendar-skill-feishu",
+      "name": "lark-calendar（larksuite/cli）",
+      "url": "https://github.com/larksuite/cli/tree/main/skills/lark-calendar",
+      "pricing": "开源免费（MIT）；调用飞书开放平台须遵守其协议",
+      "platforms": "命令行（需 Node.js）；技能供 Claude Code、Codex、Cursor 等使用",
+      "trialNote": "npx @larksuite/cli@latest install",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "office",
+        "ai-agent"
+      ],
+      "excerpt": "lark-calendar 是飞书官方 CLI 自带的日历技能：查看和搜索日程、创建与修改日程、管理参会人、查询忙闲并推荐时段、查找和预定会议室，并规定了时间推断与会议室预定的操作规范。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 larksuite/cli 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 45.7 万次；所在仓库 larksuite/cli 在 GitHub 约 1.8 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n「帮我约小王小李下周找个都有空的时间开一小时会，订个会议室」——这句话背后是查忙闲、选时段、找会议室、建日程、发邀请五件事。lark-calendar 把它们接到飞书日历上。`description`（原文是中文）：飞书日历，管理日历日程和会议室；查看 / 搜索日程、创建 / 更新日程、管理参会人、查询忙闲和推荐时段、预定会议室。查过去的视频会议记录走 `lark-meeting`，待办任务走 `lark-task`。\n\nSKILL.md 列出的快捷命令包括：`+agenda`（看日程安排，默认今天）、`+get`、`+search-event`（按关键词、时间范围和参会人搜索）、`+create`、`+update`、`+delete`、`+freebusy`（查忙闲）、`+suggestion`（综合工作时间、忙碌区间和休息时间推荐时段）、`+room-find`（找可用会议室）、`+rsvp`（接受 / 拒绝 / 待定）。\n\n几条值得注意的规范：\n\n- **身份**：管自己的日程用用户身份（默认），应用机器人自己创建的日程才用机器人身份。\n- **时间推断**：周一是一周的第一天；「明天」指一整天，不要自行缩小范围；不能预约已经完全过去的时间。\n- **会议室**：凡是预定或查询会议室，都要先走专门的排期流程；`+room-find` 只接受确定的时间块，你没说具体时间时必须先用 `+suggestion` 拿到可用时段，严禁猜一个时间去查。\n- **重复日程**：修改或删除时必须指明作用范围。\n- **写操作反馈**：创建、更新之后直接按返回结果告诉你，不为「确认是否生效」再查一遍。\n\n## 怎么安装\n\n`lark-calendar` 依赖飞书官方命令行工具 `lark-cli`，技能随 CLI 的安装向导一起装好（命令来自仓库 README）：\n\n```bash\nnpx @larksuite/cli@latest install\n```\n\n它会安装 CLI 和配套技能；之后按 README 依次运行 `lark-cli config init`（配置飞书应用）和 `lark-cli auth login --recommend`（完成授权）。只想补装技能，可以用 `npx skills add larksuite/cli -y -g`。这组技能都要求本机有 `lark-cli` 命令，认证与权限处理统一由公共技能 `lark-shared` 负责，两者要一起装上。\n\n仓库整体介绍和其他安装方式，详见本站《飞书 CLI（lark-cli）是什么、怎么安装：飞书官方命令行工具与 Agent Skills，让 AI 智能体操作飞书》。\n\n## 怎么用\n\n- 「我明天有哪些会？」\n- 「约张三、李四下周二下午开一小时评审，找个三个人都有空的时间，再订一间会议室」。\n- 「把周四的周会往后挪半小时，只改这一次」。\n\n## 适合谁 / 局限\n\n适合用飞书办公、经常要协调多人时间的人，也适合把「排会」接进自己的智能体工作流。局限：能看到谁的忙闲、能订哪些会议室，取决于企业的权限设置和应用授权；口头说的时间有歧义时它会按规范推断，重要会议最好给出明确的日期和时刻。\n\n## 注意事项\n\n- **许可**：MIT；调用飞书开放平台须遵守其协议。\n- **会真实创建日程并向参会人发出邀请**：发出去的邀请同事会收到通知，建议先让它复述一遍时间、参会人和会议室再执行。\n- **需要飞书应用凭据和用户授权**，由 `lark-cli` 在本机管理；日程内容会进入模型上下文。",
+      "images": [],
+      "sources": [
+        "https://github.com/larksuite/cli/tree/main/skills/lark-calendar",
+        "https://github.com/larksuite/cli",
+        "https://github.com/larksuite/cli/blob/HEAD/README.zh.md"
+      ]
+    },
+    {
+      "title": "lark-task skill 是什么、怎么安装使用：让智能体创建和跟进飞书任务、清单与子任务",
+      "slug": "lark-task-skill-feishu-todo",
+      "name": "lark-task（larksuite/cli）",
+      "url": "https://github.com/larksuite/cli/tree/main/skills/lark-task",
+      "pricing": "开源免费（MIT）；调用飞书开放平台须遵守其协议",
+      "platforms": "命令行（需 Node.js）；技能供 Claude Code、Codex、Cursor 等使用",
+      "trialNote": "npx @larksuite/cli@latest install",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "office",
+        "ai-agent"
+      ],
+      "excerpt": "lark-task 是飞书官方 CLI 自带的任务技能：创建待办、查看和更新任务状态、拆分子任务、组织任务清单、分配负责人、设置提醒和上传附件，并要求智能体先确认命令真实存在再执行。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 larksuite/cli 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 45.8 万次；所在仓库 larksuite/cli 在 GitHub 约 1.8 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n会议结束后的待办散落在聊天记录里是常态。lark-task 让智能体把它们落进飞书任务。`description`（原文是中文）：飞书任务，管理任务、清单和任务智能体；创建待办任务、查看和更新任务状态、拆分子任务、组织任务清单、分配协作成员、上传任务附件，以及注册或注销任务智能体、写入智能体任务记录。\n\n快捷命令覆盖了日常操作：`+create`（建任务）、`+update`、`+complete` / `+reopen`（完成 / 重新打开）、`+assign`（分配或移除成员）、`+followers`（关注人）、`+reminder`（提醒）、`+comment`（评论）、`+set-ancestor`（设置父任务）、`+get-my-tasks`（分配给我的任务）、`+get-related-tasks`（与我相关的任务）、`+search`、`+upload-attachment`，以及清单相关的 `+tasklist-create`、`+tasklist-search`、`+tasklist-task-add`、`+tasklist-members`。\n\nSKILL.md 最靠前的一节叫「命令选择与渐进式发现」，是为了防止智能体瞎编命令：\n\n1. 先把你的意图和快捷命令表精确匹配；\n2. 对不上，或不确定当前版本是否支持，就运行 `lark-cli task --help`，以实际输出为准；\n3. 仍没有匹配的快捷命令时，改用原生的资源方法，先查参数结构再调用；\n4. 遇到「未知子命令」的报错必须停止猜测，回到第 2 步。\n\n还有两处细节：飞书任务里的「分组」对应的是 sections，「任务清单」对应 tasklists，归属不明时先问清楚再查；找任务时，有关键词才用搜索，只有范围条件（如「今年已完成的」）时走列表查询。末尾附有各操作需要的权限表。\n\n## 怎么安装\n\n`lark-task` 依赖飞书官方命令行工具 `lark-cli`，技能随 CLI 的安装向导一起装好（命令来自仓库 README）：\n\n```bash\nnpx @larksuite/cli@latest install\n```\n\n它会安装 CLI 和配套技能；之后按 README 依次运行 `lark-cli config init`（配置飞书应用）和 `lark-cli auth login --recommend`（完成授权）。只想补装技能，可以用 `npx skills add larksuite/cli -y -g`。这组技能都要求本机有 `lark-cli` 命令，认证与权限处理统一由公共技能 `lark-shared` 负责，两者要一起装上。\n\n仓库整体介绍和其他安装方式，详见本站《飞书 CLI（lark-cli）是什么、怎么安装：飞书官方命令行工具与 Agent Skills，让 AI 智能体操作飞书》。\n\n## 怎么用\n\n- 「把这份会议纪要里的行动项建成飞书任务，负责人按纪要里写的分配，截止日期都设到周五」。\n- 「我这周还有哪些没完成的任务？」\n- 「给『官网改版』清单加三个子任务，并提醒我周三跟进」。\n\n## 适合谁 / 局限\n\n适合用飞书任务管理团队待办的人，尤其是想把「纪要 → 待办」这一步自动化的场景；和 `lark-doc`、`lark-im` 搭配能串成完整流程。局限：它只管飞书任务，不管飞书项目等其他产品；分配给别人的任务对方会收到通知，批量创建前先让它列出清单确认；可见和可改的范围受授权与权限限制。\n\n## 注意事项\n\n- **许可**：MIT；调用飞书开放平台须遵守其协议。\n- **会真实创建、修改任务并通知相关人**。\n- **需要飞书应用凭据和授权**，由 `lark-cli` 在本机管理；任务内容会进入模型上下文。\n- 「任务智能体」相关的注册与写入属于进阶能力，普通使用不需要碰。",
+      "images": [],
+      "sources": [
+        "https://github.com/larksuite/cli/tree/main/skills/lark-task",
+        "https://github.com/larksuite/cli",
+        "https://github.com/larksuite/cli/blob/HEAD/README.zh.md"
+      ]
+    },
+    {
+      "title": "lark-wiki skill 是什么、怎么安装使用：让智能体管理飞书知识库的空间、节点和成员",
+      "slug": "lark-wiki-skill-feishu-knowledge-base",
+      "name": "lark-wiki（larksuite/cli）",
+      "url": "https://github.com/larksuite/cli/tree/main/skills/lark-wiki",
+      "pricing": "开源免费（MIT）；调用飞书开放平台须遵守其协议",
+      "platforms": "命令行（需 Node.js）；技能供 Claude Code、Codex、Cursor 等使用",
+      "trialNote": "npx @larksuite/cli@latest install",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "office",
+        "ai-agent"
+      ],
+      "excerpt": "lark-wiki 是飞书官方 CLI 自带的知识库技能：创建和查询知识空间、列出与移动节点、复制文档节点、管理空间成员，并规定优先用用户身份、整理类需求转交 lark-drive 的统一工作流。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 larksuite/cli 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 46.0 万次；所在仓库 larksuite/cli 在 GitHub 约 1.8 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n飞书知识库的结构是「知识空间 → 节点树」，文档、表格都挂在节点上。lark-wiki 管的是这棵树本身，不管文档里面的内容。`description`（原文是中文）：飞书知识库，管理知识空间、空间成员和文档节点；创建和查询知识空间、查看和管理空间成员、管理节点层级结构、在知识库中组织文档和快捷方式。往节点下上传文件走 `lark-drive`，编辑文档、表格内容分别走 `lark-doc`、`lark-sheets`、`lark-base`。\n\n快捷命令：`+space-list`、`+space-create`、`+delete-space`（空间的列出、创建、删除）；`+node-list`、`+node-get`、`+node-create`、`+node-copy`、`+node-delete`（节点操作）；`+move`（移动节点，或把云空间里的文档移进知识库）、`+move-to-drive`（把节点移出知识库）；`+member-add`、`+member-remove`、`+member-list`（成员管理）。\n\nSKILL.md 里有几条容易踩坑的规定：\n\n- **优先用用户身份**：知识空间属于用户的个人资源。命令的身份参数默认是自动判断，不写时常被解析成应用身份，列出来的就成了应用所属的空间而不是你的，所以要显式写 `--as user`。\n- **成员管理的硬限制**：应用身份不能按部门添加空间成员，这是官方限制。遇到这种组合，技能要求直接说明此路不通，不许先试错，也不许悄悄换成用户身份。\n- **整理类需求要转交**：按主题搜集资料归到某个节点下，或者盘点、重构知识库目录，不能只靠遍历节点，必须先读 `lark-drive` 的工作流文档，用云空间的全量搜索召回，再出移动计划并在写入前确认。\n- **移出知识库**会改变文档的归属和权限继承，执行前要确认源节点和目标位置。\n\n## 怎么安装\n\n`lark-wiki` 依赖飞书官方命令行工具 `lark-cli`，技能随 CLI 的安装向导一起装好（命令来自仓库 README）：\n\n```bash\nnpx @larksuite/cli@latest install\n```\n\n它会安装 CLI 和配套技能；之后按 README 依次运行 `lark-cli config init`（配置飞书应用）和 `lark-cli auth login --recommend`（完成授权）。只想补装技能，可以用 `npx skills add larksuite/cli -y -g`。这组技能都要求本机有 `lark-cli` 命令，认证与权限处理统一由公共技能 `lark-shared` 负责，两者要一起装上。\n\n仓库整体介绍和其他安装方式，详见本站《飞书 CLI（lark-cli）是什么、怎么安装：飞书官方命令行工具与 Agent Skills，让 AI 智能体操作飞书》。\n\n## 怎么用\n\n- 「列出我能访问的知识空间，再看看『产品文档』空间的一级目录」。\n- 「在『研发规范』空间的『后端』节点下新建一篇文档节点，标题是接口命名约定」。\n- 「把张三加为这个知识空间的成员，只读」。\n\n## 适合谁 / 局限\n\n适合负责维护团队知识库的人：建空间、搬目录、管成员这类重复操作交给智能体。局限：它不读写文档正文；大规模重组目录会牵涉很多文档的权限继承，应当先让它输出方案、小范围试过再全量执行；能操作的范围受你在各空间里的角色限制。\n\n## 注意事项\n\n- **许可**：MIT；调用飞书开放平台须遵守其协议。\n- **删除空间、删除节点、移动节点都是高风险写操作**，确认清楚再执行，重要内容先备份。\n- **需要飞书应用凭据和用户授权**，由 `lark-cli` 在本机管理。",
+      "images": [],
+      "sources": [
+        "https://github.com/larksuite/cli/tree/main/skills/lark-wiki",
+        "https://github.com/larksuite/cli",
+        "https://github.com/larksuite/cli/blob/HEAD/README.zh.md"
+      ]
+    },
+    {
+      "title": "lark-drive skill 是什么、怎么安装使用：让智能体管理飞书云空间（上传下载、导入导出、评论与权限）",
+      "slug": "lark-drive-skill-feishu-cloud-space",
+      "name": "lark-drive（larksuite/cli）",
+      "url": "https://github.com/larksuite/cli/tree/main/skills/lark-drive",
+      "pricing": "开源免费（MIT）；调用飞书开放平台须遵守其协议",
+      "platforms": "命令行（需 Node.js）；技能供 Claude Code、Codex、Cursor 等使用",
+      "trialNote": "npx @larksuite/cli@latest install",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "office",
+        "ai-agent"
+      ],
+      "excerpt": "lark-drive 是飞书官方 CLI 自带的云空间技能：搜索云文档、上传下载文件、建文件夹、复制移动、本地目录同步，把 Word / Markdown / Excel / PPTX 导入成在线文档，并处理评论、权限和历史版本。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 larksuite/cli 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 46.1 万次；所在仓库 larksuite/cli 在 GitHub 约 1.8 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n飞书的「云空间」也叫云盘、我的空间，是所有在线文档和文件的存放处。lark-drive 管的是文件这一层：找到、搬动、导入导出、谁能看。`description`（原文是中文）：飞书云空间，管理文件和文件夹，包含上传 / 下载、创建文件夹、复制 / 移动 / 删除、查看元数据、评论 / 权限 / 订阅、标题、版本、文档密级标签和本地文件导入；整理云盘目录、处理云空间链接、判断链接类型，或把 Word、Markdown、Excel、CSV、PPTX 导入成在线文档、表格、多维表格、幻灯片时使用。文档内容编辑、表内数据操作、知识库节点管理分别走别的技能。\n\n快捷命令有三十来个，按用途分：\n\n- **找与看**：`+search`（搜索文档、知识库、表格、文件夹）、`+inspect`（识别一个链接的类型、真实标识和标题）、`+preview`；\n- **传与同步**：`+upload`、`+download`、`+create-folder`，以及 `+status`、`+pull`、`+push`、`+sync`（比较并同步本地目录与云端文件夹）；\n- **整理**：`+copy`、`+move`、`+create-shortcut`；\n- **格式转换**：`+import`（本地文件转在线文档）、`+export`（在线文档导出为本地文件）；\n- **评论**：添加、列出、解决、恢复评论，以及回复和表情回应；\n- **版本**：查看、下载、回滚、删除历史版本。\n\nSKILL.md 开头有两条分流规则值得记住：把本地 Excel 或 CSV 导入成多维表格，要用 `drive +import --type bitable`，不要先切去 `lark-base`；复制在线文档要用 `+copy`，不要「导出再导入」或「读出正文再新建」来模拟。对删除、公开权限修改、转移所有者、版本回滚、批量移动覆盖这些高风险写操作，技能要求同时满足几项条件才能执行。\n\n## 怎么安装\n\n`lark-drive` 依赖飞书官方命令行工具 `lark-cli`，技能随 CLI 的安装向导一起装好（命令来自仓库 README）：\n\n```bash\nnpx @larksuite/cli@latest install\n```\n\n它会安装 CLI 和配套技能；之后按 README 依次运行 `lark-cli config init`（配置飞书应用）和 `lark-cli auth login --recommend`（完成授权）。只想补装技能，可以用 `npx skills add larksuite/cli -y -g`。这组技能都要求本机有 `lark-cli` 命令，认证与权限处理统一由公共技能 `lark-shared` 负责，两者要一起装上。\n\n仓库整体介绍和其他安装方式，详见本站《飞书 CLI（lark-cli）是什么、怎么安装：飞书官方命令行工具与 Agent Skills，让 AI 智能体操作飞书》。\n\n## 怎么用\n\n- 「在云空间里搜标题带『复盘』的文档，列出最近十篇」。\n- 「把 `docs/` 目录下的 Markdown 文件导入成飞书文档，放进『项目资料』文件夹」。\n- 「把这篇文档（贴链接）里未解决的评论整理成一张表」。\n\n## 适合谁 / 局限\n\n适合要批量整理云盘、把本地资料迁进飞书，或者想让智能体处理文档评论的团队。局限：导入转换的还原度取决于飞书自身的导入能力，复杂排版可能走样；双向同步涉及覆盖，先用 `+status` 看差异再决定；它不编辑文档正文。\n\n## 注意事项\n\n- **许可**：MIT；调用飞书开放平台须遵守其协议。\n- **会上传本机文件、下载云端文件**：确认上传的目录里没有不该进公司云盘的东西。\n- **权限和删除类操作影响他人访问**，执行前让它复述目标和范围。\n- **需要飞书应用凭据和用户授权**，由 `lark-cli` 在本机管理。",
+      "images": [],
+      "sources": [
+        "https://github.com/larksuite/cli/tree/main/skills/lark-drive",
+        "https://github.com/larksuite/cli",
+        "https://github.com/larksuite/cli/blob/HEAD/README.zh.md"
+      ]
+    },
+    {
+      "title": "gws-gmail skill 是什么、怎么安装使用：让 Claude Code、Gemini CLI 用命令行收发和整理 Gmail",
+      "slug": "gws-gmail-skill-google-workspace-cli",
+      "name": "gws-gmail（googleworkspace/cli）",
+      "url": "https://github.com/googleworkspace/cli/tree/main/skills/gws-gmail",
+      "pricing": "开源免费（Apache-2.0）；非 Google 官方支持产品",
+      "platforms": "命令行 gws（Node.js 18+ 或预编译二进制）；技能供 Claude Code、Gemini CLI 等使用",
+      "trialNote": "`npm install -g @googleworkspace/cli` 然后 `npx skills add https://github.com/googleworkspace/cli/tree/main/skills/gws-gmail`",
+      "tags": [
+        "gemini",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "office",
+        "ai-agent"
+      ],
+      "excerpt": "gws-gmail 是 Google Workspace CLI（gws）配套的 Gmail 技能：教智能体用 gws gmail 命令查看未读摘要、读信、回复、转发、发信和管理标签，调用任何接口前先查参数结构，写操作前先向你确认。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 googleworkspace/cli 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 7.9 万次；所在仓库 googleworkspace/cli 在 GitHub 约 3.1 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\ngws 是一个把 Google Workspace 各项服务接口包成命令行的工具，它的技能大多很薄：告诉智能体有哪些命令、怎么查参数，具体细节让智能体运行时自己用 `--help` 去查。gws-gmail 就是这样一份 Gmail 的索引。`description` 只有一句：Gmail——发送、阅读和管理邮件。\n\nSKILL.md 分三块：\n\n- **辅助命令**（`+` 开头，是对常见动作的封装，各自还有一个同名的小技能）：`+triage` 显示未读收件箱摘要（发件人、主题、日期）；`+read` 读取一封邮件并提取正文或邮件头；`+send` 发信；`+reply`、`+reply-all` 回复并自动处理会话归属；`+forward` 转发；`+watch` 监听新邮件并以逐行 JSON 的形式流式输出。\n- **接口资源**：`users` 下的草稿、历史记录、标签、邮件、设置、会话等，对应 Gmail 接口的原生方法。\n- **发现命令**：调用任何接口方法之前，先用 `gws gmail --help` 浏览资源和方法，再用 `gws schema gmail.<资源>.<方法>` 查看必填参数、类型和默认值。\n\n开头的前置要求是先读公共技能 `gws-shared`，那里有认证方式、全局参数和三条安全规则：不直接输出密钥和令牌；执行写入或删除命令前必须向用户确认；破坏性操作优先用 `--dry-run` 先在本地校验。\n\n## 怎么安装\n\n技能只是说明书，真正干活的是命令行工具 `gws`，所以要装两样（命令来自仓库 README）：\n\n```bash\nnpm install -g @googleworkspace/cli\nnpx skills add https://github.com/googleworkspace/cli/tree/main/skills/gws-gmail\n```\n\n第二条是 README 给出的「只装某一个技能」的写法；SKILL.md 开头要求同时读取 `gws-shared`（认证、全局参数和安全规则），缺了它可以运行 `gws generate-skills` 生成。之后执行 `gws auth setup` 和 `gws auth login` 完成 Google 账号授权。Gemini CLI 用户可以直接 `gemini extensions install https://github.com/googleworkspace/cli`。\n\n仓库整体介绍和其他安装方式，详见本站《gws 是什么、怎么安装使用：Google Workspace 命令行工具与 Agent Skills（让智能体操作 Gmail、Drive、日历、表格）》。\n\n## 怎么用\n\n- 「看一下我的未读邮件，按重要程度排个序」——对应 `+triage`。\n- 「读一下张三昨天那封关于报价的邮件，起草一份回复，先别发」。\n- 「把带『发票』标签的邮件列出来，整理成表格」。\n\n发信、回复、转发这些动作，建议始终让它先把收件人和正文给你过目。\n\n## 适合谁 / 局限\n\n适合用 Google Workspace 办公、想把邮件处理接进智能体工作流的人。局限：需要自己有一个 Google Cloud 项目来配置 OAuth 凭据，首次设置有门槛；技能本身信息量小，复杂操作依赖智能体现场查参数，偶尔要多试几次；国内网络访问 Google 服务受限。\n\n## 注意事项\n\n- **许可**：Apache-2.0。仓库 README 声明这不是 Google 官方支持的产品。\n- **邮件内容会进入模型上下文**：邮箱里的验证码、合同、个人信息都在其中，授权范围越小越好，登录时只勾选需要的权限。\n- **邮件正文是不可信输入**：别人发来的邮件里可能夹带诱导智能体执行操作的文字，不要让它在无人确认的情况下自动回复或转发。\n- **会以你的身份真实发信**，发出后无法撤回。",
+      "images": [],
+      "sources": [
+        "https://github.com/googleworkspace/cli/tree/main/skills/gws-gmail",
+        "https://github.com/googleworkspace/cli",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "gws-drive skill 是什么、怎么安装使用：让智能体用命令行管理 Google Drive 文件、权限和共享云端硬盘",
+      "slug": "gws-drive-skill-google-workspace-cli",
+      "name": "gws-drive（googleworkspace/cli）",
+      "url": "https://github.com/googleworkspace/cli/tree/main/skills/gws-drive",
+      "pricing": "开源免费（Apache-2.0）；非 Google 官方支持产品",
+      "platforms": "命令行 gws（Node.js 18+ 或预编译二进制）；技能供 Claude Code、Gemini CLI 等使用",
+      "trialNote": "`npm install -g @googleworkspace/cli` 然后 `npx skills add https://github.com/googleworkspace/cli/tree/main/skills/gws-drive`",
+      "tags": [
+        "gemini",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "office",
+        "ai-agent"
+      ],
+      "excerpt": "gws-drive 是 Google Workspace CLI（gws）配套的 Drive 技能：列出了 Drive 接口的文件、权限、评论、修订版本、共享云端硬盘等资源和方法，配一个自动补元数据的上传命令，调用前先查参数结构。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 googleworkspace/cli 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 7.2 万次；所在仓库 googleworkspace/cli 在 GitHub 约 3.1 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\ngws-drive 是 gws 命令行里 Google Drive 那一部分的说明书。`description`：Google Drive——管理文件、文件夹和共享云端硬盘。和 gws 的其他技能一样，它不讲操作流程，主要是一份「有哪些资源、每个资源有哪些方法」的清单，一万三千多字符里绝大部分是接口方法的逐条说明。\n\n内容结构：\n\n- **辅助命令**只有一个：`+upload`，上传文件并自动填好元数据。\n- **接口资源**十几类：`files`（文件与文件夹的创建、复制、导出、列出、更新、删除等）、`permissions`（谁能访问）、`comments` 与 `replies`（评论和回复）、`revisions`（修订版本）、`drives`（共享云端硬盘）、`changes`（变更记录）、`accessproposals`（访问申请的查看与审批）、`approvals`、`about`（账户与容量信息）等。每个方法带一句说明，不少还附了 Google 开发者文档的链接。\n- **发现命令**：先 `gws drive --help` 浏览，再用 `gws schema drive.<资源>.<方法>` 看参数。\n\n通用的调用格式在公共技能 `gws-shared` 里：`gws <服务> <资源> <方法>`，查询参数用 `--params` 传 JSON，请求体用 `--json`，下载用 `-o` 指定保存路径，`--page-all` 自动翻页。那里的安全规则同样适用：写入和删除前先确认，破坏性操作优先 `--dry-run`。\n\n## 怎么安装\n\n技能只是说明书，真正干活的是命令行工具 `gws`，所以要装两样（命令来自仓库 README）：\n\n```bash\nnpm install -g @googleworkspace/cli\nnpx skills add https://github.com/googleworkspace/cli/tree/main/skills/gws-drive\n```\n\n第二条是 README 给出的「只装某一个技能」的写法；SKILL.md 开头要求同时读取 `gws-shared`（认证、全局参数和安全规则），缺了它可以运行 `gws generate-skills` 生成。之后执行 `gws auth setup` 和 `gws auth login` 完成 Google 账号授权。Gemini CLI 用户可以直接 `gemini extensions install https://github.com/googleworkspace/cli`。\n\n仓库整体介绍和其他安装方式，详见本站《gws 是什么、怎么安装使用：Google Workspace 命令行工具与 Agent Skills（让智能体操作 Gmail、Drive、日历、表格）》。\n\n## 怎么用\n\n- 「列出我云端硬盘里最近一周修改过的文档」。\n- 「把 `report.pdf` 上传到『季度汇报』文件夹」——对应 `+upload`。\n- 「查一下这个文件夹对外共享给了哪些人，列成表，先不要改权限」。\n\n仓库里另有一批以 `recipe-` 开头的「配方」技能，把常见任务写成了现成步骤，例如找出占空间的大文件、批量下载文件夹、整理文件夹，可以按需加装。\n\n## 适合谁 / 局限\n\n适合要批量整理 Drive、做权限盘点或把文件操作写进自动化流程的人。局限：技能只是接口索引，「先查什么再改什么」要靠你的指令和智能体自己摸索；Drive 的搜索语法和字段选择有学习成本；需要自备 Google Cloud 项目完成 OAuth 配置。\n\n## 注意事项\n\n- **许可**：Apache-2.0；README 声明非 Google 官方支持产品。\n- **权限与删除操作影响他人**：改共享设置、删除文件这类动作务必先看它打算执行的命令。\n- **文件内容和文件名会进入模型上下文**，授权时只给需要的范围。\n- 上传的是本机文件，确认路径无误。",
+      "images": [],
+      "sources": [
+        "https://github.com/googleworkspace/cli/tree/main/skills/gws-drive",
+        "https://github.com/googleworkspace/cli",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "gws-calendar skill 是什么、怎么安装使用：让智能体用命令行查看和创建 Google 日历日程",
+      "slug": "gws-calendar-skill-google-workspace-cli",
+      "name": "gws-calendar（googleworkspace/cli）",
+      "url": "https://github.com/googleworkspace/cli/tree/main/skills/gws-calendar",
+      "pricing": "开源免费（Apache-2.0）；非 Google 官方支持产品",
+      "platforms": "命令行 gws（Node.js 18+ 或预编译二进制）；技能供 Claude Code、Gemini CLI 等使用",
+      "trialNote": "`npm install -g @googleworkspace/cli` 然后 `npx skills add https://github.com/googleworkspace/cli/tree/main/skills/gws-calendar`",
+      "tags": [
+        "gemini",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "office",
+        "ai-agent"
+      ],
+      "excerpt": "gws-calendar 是 Google Workspace CLI（gws）配套的日历技能：提供查看近期日程和新建日程两个快捷命令，并列出日历、日程、忙闲查询、访问控制等接口资源，调用前先查参数结构，写操作先确认。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 googleworkspace/cli 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 5.9 万次；所在仓库 googleworkspace/cli 在 GitHub 约 3.1 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n`description`：Google Calendar——管理日历和日程。它是 gws 命令行日历部分的索引，篇幅不长（四千多字符），结构和同系列技能一致。\n\n- **辅助命令**两个：`+agenda` 显示所有日历上即将到来的日程；`+insert` 新建一个日程。\n- **接口资源**：`events`（日程的增删改查、移动、快速添加等）、`calendars`（日历本身）、`calendarList`（你的日历列表）、`freebusy`（忙闲查询）、`acl`（日历的访问控制规则）、`settings`、`colors`、`channels`（变更通知）。\n- **发现命令**：`gws calendar --help` 看资源和方法，`gws schema calendar.<资源>.<方法>` 看参数。\n\n有一个方法值得特别小心：`calendars` 下的 `clear` 会清空主日历，SKILL.md 的说明写得很直白——这个操作会删除账户主日历上的全部日程。公共技能 `gws-shared` 的安全规则在这里很有必要：执行写入或删除命令前必须向用户确认，破坏性操作优先加 `--dry-run`。\n\n仓库里还有几个围绕日历的「配方」技能，如找共同空闲时间、安排每周日程、改期会议、预留专注时间，以及一个把「会前准备」串起来的工作流技能，可以和这个基础技能一起装。\n\n## 怎么安装\n\n技能只是说明书，真正干活的是命令行工具 `gws`，所以要装两样（命令来自仓库 README）：\n\n```bash\nnpm install -g @googleworkspace/cli\nnpx skills add https://github.com/googleworkspace/cli/tree/main/skills/gws-calendar\n```\n\n第二条是 README 给出的「只装某一个技能」的写法；SKILL.md 开头要求同时读取 `gws-shared`（认证、全局参数和安全规则），缺了它可以运行 `gws generate-skills` 生成。之后执行 `gws auth setup` 和 `gws auth login` 完成 Google 账号授权。Gemini CLI 用户可以直接 `gemini extensions install https://github.com/googleworkspace/cli`。\n\n仓库整体介绍和其他安装方式，详见本站《gws 是什么、怎么安装使用：Google Workspace 命令行工具与 Agent Skills（让智能体操作 Gmail、Drive、日历、表格）》。\n\n## 怎么用\n\n- 「我今天和明天有哪些安排？」——对应 `+agenda`。\n- 「周五下午三点建一个一小时的日程，标题是季度复盘，邀请这两个邮箱」。\n- 「查一下我和这三位同事下周共同的空闲时段」——走 `freebusy` 查询。\n\n## 适合谁 / 局限\n\n适合用 Google 日历、想让智能体代为查询和排期的人。局限：只有两个封装好的快捷命令，其他操作要智能体自己拼接口参数；时区、重复日程这些细节容易出错，重要日程建好后自己看一眼；首次使用需要配置 Google Cloud 项目和 OAuth。\n\n## 注意事项\n\n- **许可**：Apache-2.0；README 声明非 Google 官方支持产品。\n- **创建日程会向受邀人发送邀请**，执行前确认时间和人员。\n- **删除与清空操作不可恢复**，尤其是 `clear`。\n- 日程里的会议链接、参会人邮箱会进入模型上下文。",
+      "images": [],
+      "sources": [
+        "https://github.com/googleworkspace/cli/tree/main/skills/gws-calendar",
+        "https://github.com/googleworkspace/cli",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "stripe-best-practices skill 是什么、怎么安装使用：Stripe 官方的支付接入决策指南（给 Claude Code / Codex 用）",
+      "slug": "stripe-best-practices-skill",
+      "name": "stripe-best-practices（stripe/ai）",
+      "url": "https://github.com/stripe/ai/tree/main/skills/stripe-best-practices",
+      "pricing": "开源免费（MIT）；Stripe 支付服务按其费率计费",
+      "platforms": "Claude Code / Codex / Cursor（插件）；其他智能体用 npx skills",
+      "trialNote": "claude plugin install stripe@claude-plugins-official",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding"
+      ],
+      "excerpt": "stripe-best-practices 是 Stripe 官方技能：帮智能体在接入支付时选对接口（Checkout Sessions、订阅、Connect、税务等），内置当前最新的 API 版本号和几条容易出错的硬规则，如不要把 Webhook 当成可选项。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 stripe/ai 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 9.3 万次；所在仓库 stripe/ai 在 GitHub 约 1865 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n大模型写 Stripe 接入代码，常见的问题是照着几年前的教程写：用已经不推荐的接口、全局设置密钥、把发货逻辑写在支付成功的跳转页里。stripe-best-practices 由 Stripe 官方维护，用来把智能体拉回当前的推荐做法。`description`：在开发与测试环境规划、接口选择（Checkout Sessions 还是 PaymentIntents）、Connect 平台搭建、账单与订阅、税务、Treasury、从已弃用接口迁移以及安全实践（密钥管理、密钥权限、Webhook、OAuth）上指导 Stripe 集成决策；规划、构建、修改、测试或评审任何 Stripe 集成时使用。\n\nSKILL.md 开头直接给出当前最新的 API 版本和各语言 SDK 的最新版本号，要求默认使用最新版；这部分随仓库更新。接着是几条默认立场：新集成用独立的沙盒环境而不是账户共用的测试模式；推荐受限密钥（`rk_` 前缀）而不是完整权限的密钥。\n\n主体是一张**集成路由表**：一次性收款用 Checkout Sessions；需要内嵌的自定义表单用 Checkout Sessions 加 Payment Element；保存支付方式用 Setup Intents；平台与市场用 Accounts v2；订阅用 Billing 接口加 Checkout Sessions；税务合规用 Stripe Tax 加登记接口，等等。\n\n然后是**关键规则**，例如：开启自动计税前先确认已有有效的税务登记，否则以为在收税其实没收；除线下终端外不要传 `payment_method_types`，让动态支付方式生效；不要把 Webhook 说成可选项，履约逻辑应放在 Webhook 处理函数里而不是成功页；初始化客户端实例来调用，不用已弃用的全局密钥写法。目录里有账单、Connect、支付、安全、税务、Treasury 六份参考。\n\n## 怎么安装\n\n`stripe-best-practices` 随 Stripe 官方插件安装（命令来自仓库 README）：\n\n```bash\nclaude plugin install stripe@claude-plugins-official\n```\n\nCodex 用 `codex plugin add stripe@openai-curated`，Cursor 里输入 `/add-plugin stripe`。其他智能体可以用 `npx skills add https://docs.stripe.com` 手动安装；README 提醒手动装的技能不会自动更新，需要时运行 `npx skills update -y`。\n\n仓库整体介绍和其他安装方式，详见本站《stripe/ai 是什么、怎么安装：Stripe 官方 Agent Skills 与 MCP（让 Claude Code / Codex 按最新实践接入支付）》。\n\n## 怎么用\n\n- 「给这个 SaaS 加按月订阅，带 14 天试用」——它会先按路由表选接口，再写代码。\n- 「评审现有的支付代码，有没有用到已弃用的写法」。\n- 「我们要做一个撮合平台，卖家收款、平台抽成，应该用什么方案」。\n\n## 适合谁 / 局限\n\n适合用 Stripe 收款的出海产品和独立开发者。局限：它是决策指引，不替代 Stripe 文档；合规、税务登记这类事需要你在 Stripe 后台和当地实际办理；Stripe 对开户地区和主体有要求，能否开通与技能无关。\n\n## 注意事项\n\n- **许可**：MIT；Stripe 服务按其费率收费。\n- **涉及真实资金**：开发和测试一律在沙盒里进行，SKILL.md 也建议优先使用权限受限的密钥；不要把任何密钥贴进对话或提交到仓库。\n- 技能里写的版本号是生成时的快照，以 Stripe 官方文档为准。",
+      "images": [],
+      "sources": [
+        "https://github.com/stripe/ai/tree/main/skills/stripe-best-practices",
+        "https://github.com/stripe/ai",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "upgrade-stripe skill 是什么、怎么安装使用：让智能体按清单升级 Stripe API 版本和 SDK",
+      "slug": "stripe-upgrade-stripe-skill",
+      "name": "upgrade-stripe（stripe/ai）",
+      "url": "https://github.com/stripe/ai/tree/main/skills/upgrade-stripe",
+      "pricing": "开源免费（MIT）；Stripe 支付服务按其费率计费",
+      "platforms": "Claude Code / Codex / Cursor（插件）；其他智能体用 npx skills",
+      "trialNote": "claude plugin install stripe@claude-plugins-official",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding"
+      ],
+      "excerpt": "upgrade-stripe 是 Stripe 官方的升级技能：指导智能体选定目标 API 版本、核对项目里每一处版本设定，依次升级服务端 SDK、Webhook 端点、Stripe.js 和移动端 SDK，并用请求头先行测试新版本。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 stripe/ai 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 7.1 万次；所在仓库 stripe/ai 在 GitHub 约 1865 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nStripe 的 API 按日期发布版本，账户、SDK、每个 Webhook 端点各自可以钉在不同的版本上，升级时漏掉一处就可能出现「接口返回的结构变了，回调还是旧结构」这类问题。`description`：升级 Stripe API 版本、Webhook 端点、服务端 SDK、Stripe.js 和移动端 SDK 的指南。\n\nSKILL.md 先讲**怎么确定目标版本**：你指定了就用你的；否则去 Stripe 文档查当前版本。技能里带了一个「兜底版本号」，同时写明它只是生成技能那天的快照——新的稳定版每月发布，快照超过一个月大概率已经过时，只在访问不了文档时使用，并且不许猜测更新的版本号。动手前要把目标版本和项目里每一处版本设定逐一对比：客户端配置、单次请求的覆盖、Webhook 端点；没有明确要求时不把任何一处往旧版本改，也不把稳定版改成预览版；没能联网核实就要如实说明「是否最新尚未确认」。\n\n接着分章节解释：\n\n- **版本机制与变更类型**；\n- **服务端 SDK**：Ruby、Python、Node 这类动态类型语言可以在配置里覆盖 API 版本；Java、Go、.NET 这类强类型语言的 SDK 版本与 API 版本绑定，要选对应的 SDK 版本；\n- **Stripe.js**：如何加载带版本的脚本、与 API 版本的配对、从 v3 迁移；\n- **移动端 SDK**：iOS、Android、React Native 及其与后端的兼容；\n- **Webhook**：区分快照事件和精简事件，后者的负载不带版本，换 API 版本时不用动。\n\n最后是九步**升级清单**（看变更日志 → 看升级指南 → 更新 SDK → 改客户端里的版本参数 → 用 `Stripe-Version` 请求头测试 → 逐个检查事件接收端点 → 更新 Stripe.js → 更新移动端 SDK → 存储对象 ID 的字段留足长度）。\n\n## 怎么安装\n\n`upgrade-stripe` 随 Stripe 官方插件安装（命令来自仓库 README）：\n\n```bash\nclaude plugin install stripe@claude-plugins-official\n```\n\nCodex 用 `codex plugin add stripe@openai-curated`，Cursor 里输入 `/add-plugin stripe`。其他智能体可以用 `npx skills add https://docs.stripe.com` 手动安装；README 提醒手动装的技能不会自动更新，需要时运行 `npx skills update -y`。\n\n仓库整体介绍和其他安装方式，详见本站《stripe/ai 是什么、怎么安装：Stripe 官方 Agent Skills 与 MCP（让 Claude Code / Codex 按最新实践接入支付）》。\n\n## 怎么用\n\n- 「把这个项目的 Stripe 升级到当前最新的 API 版本，先列出所有钉了版本的地方」。\n- 「只升级 Node SDK 的大版本，告诉我有哪些破坏性变更会影响现有代码」。\n- 「检查我们的 Webhook 端点分别是什么版本，哪些需要跟着升」。\n\n## 适合谁 / 局限\n\n适合维护着一套跑了几年的 Stripe 集成的团队。局限：它给流程和注意点，具体哪些字段变了仍要对照官方变更日志；涉及支付的升级必须在沙盒里完整回归，智能体改完代码不等于升级完成。\n\n## 注意事项\n\n- **许可**：MIT。\n- **在测试环境里升级和验证**，确认无误再动生产配置；Webhook 端点的版本改动会立刻影响回调负载。\n- 不要让它凭印象填版本号，以它查到的官方页面为准。",
+      "images": [],
+      "sources": [
+        "https://github.com/stripe/ai/tree/main/skills/upgrade-stripe",
+        "https://github.com/stripe/ai",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "iterate-pr skill 是什么、怎么安装使用：让智能体盯着 PR，把 CI 修到通过、把评审意见处理完",
+      "slug": "sentry-iterate-pr-skill",
+      "name": "iterate-pr（getsentry/skills）",
+      "url": "https://github.com/getsentry/skills/tree/main/skills/iterate-pr",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Claude Code（插件）；Cursor / Cline / GitHub Copilot 等用 npx skills",
+      "trialNote": "`claude plugin marketplace add getsentry/skills` 然后 `claude plugin install sentry-skills@sentry-skills`",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "iterate-pr 是 Sentry 工程团队开源的技能：围绕一个 PR 循环执行「拉取评审反馈 → 查 CI → 修复 → 本地验证 → 提交推送 → 继续监控」，高、中优先级意见直接修，低优先级的问你，只剩人工审批时停下汇报。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 getsentry/skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 getsentry/skills 在 GitHub 约 1045 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n提了 PR 之后的半小时往往很碎：等 CI、看哪个检查挂了、改、再等、再回评审意见。iterate-pr 把这段循环交给智能体。`description`：持续迭代一个 PR，直到可处理的 CI 检查通过、高和中优先级的评审反馈得到处理；用于 PR 的 CI 失败、评审反馈或「刷绿」循环；不等待人工批准、草稿状态或合并门禁。\n\n目录里带四个 Python 脚本（用 `uv run` 执行）：\n\n- `fetch_pr_checks.py`：取 CI 检查状态和失败日志片段，输出 JSON；\n- `fetch_pr_feedback.py`：把评审反馈分成 `high`、`medium`、`low`、`bot`、`resolved` 五个桶；\n- `monitor_pr_checks.py`：监控检查直到出结果，返回「全部通过」「有失败」「没有注册任何检查」「被评审门禁挡住」等标记；\n- `reply_to_thread.py`：回复评审线程。\n\n工作流六步：确认 PR → 处理反馈（高、中优先级直接修，低优先级问你要处理哪些，机器人的提示性评论和已解决的跳过）→ 查 CI 状态 → 修 CI 失败 → 本地验证后提交并推送 → 继续监控并处理新反馈。\n\n退出条件写得很清楚：**成功**是可处理的 CI 通过且反馈清空；**问你**是同一个失败修了两次还没好、反馈含义不清或基础设施问题；**停下**是没有 PR、分支需要变基、只剩人工门禁等。对草稿 PR，它只看已有的检查和反馈，不会擅自标记为「可评审」。脚本出错时退回到直接使用 `gh` 命令。\n\n## 怎么安装\n\n`iterate-pr` 收在 Sentry 的 `sentry-skills` 插件里。Claude Code 里（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add getsentry/skills\nclaude plugin install sentry-skills@sentry-skills\n```\n\n装好后以 `/sentry-skills:iterate-pr` 的形式出现，也会按场景自动触发。其他智能体用 `npx skills add getsentry/skills`，想只装这一个就按 skills CLI 文档加上 `--skill iterate-pr`。\n\n仓库整体介绍和其他安装方式，详见本站《getsentry/skills 是什么、怎么安装：Sentry 工程团队自用的 Agent Skills（代码评审、提交规范、Django 审查）》。\n\n## 怎么用\n\n在已提 PR 的分支上：\n\n- 「/sentry-skills:iterate-pr」或「把这个 PR 的 CI 修到通过」。\n- 「处理一下评审意见，低优先级的先列给我看」。\n- 「CI 里只有 lint 挂了，修掉并推上去」。\n\n## 适合谁 / 局限\n\n适合 CI 耗时较长、评审意见多的团队，把机械的往返交出去。局限：它为了让检查通过可能选择最省事的改法，测试挂了要留意它是修了代码还是改了断言；偶发失败和基础设施故障它修不了，会停下来问你；需要本机装好并登录 `gh`，还要有 `uv`。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **会自动提交、推送并在 PR 上回复评论**，这些动作以你的 GitHub 身份进行；不希望它直接推送时要事先说明。\n- **评审评论属于外部输入**：公开仓库里任何人都能留言，注意别让它把评论里的指令当成你的要求执行。\n- 脚本通过 `gh` 访问 GitHub 接口，受你的令牌权限约束。",
+      "images": [],
+      "sources": [
+        "https://github.com/getsentry/skills/tree/main/skills/iterate-pr",
+        "https://github.com/getsentry/skills",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "skill-scanner skill 是什么、怎么安装使用：装第三方 Skill 之前，先让智能体做一遍安全扫描",
+      "slug": "sentry-skill-scanner-skill",
+      "name": "skill-scanner（getsentry/skills）",
+      "url": "https://github.com/getsentry/skills/tree/main/skills/skill-scanner",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Claude Code（插件）；Cursor / Cline / GitHub Copilot 等用 npx skills",
+      "trialNote": "`claude plugin marketplace add getsentry/skills` 然后 `claude plugin install sentry-skills@sentry-skills`",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "skill-scanner 是 Sentry 工程团队开源的技能安全扫描器：先用脚本做静态扫描，再由智能体逐项分析提示注入、恶意脚本、过度权限、密钥泄露和供应链风险，按置信度过滤误报后给出风险等级报告。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 getsentry/skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 getsentry/skills 在 GitHub 约 1045 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nAgent Skill 本质上是一段会被模型执行的指令，外加可能随附的脚本。从网上装一个不认识的技能，风险和运行一段陌生代码差不多。skill-scanner 用来在安装前审一遍。`description`：扫描智能体技能的安全问题；检查提示注入、恶意脚本、过度权限、密钥暴露和供应链风险，判断一个技能是否可以安全安装。\n\n它是「脚本 + 判断」两段式。随附的 `scan_skill.py`（用 `uv` 运行）做确定性的模式匹配，输出 JSON：发现项、出现的链接、目录结构和各严重级别的数量。SKILL.md 强调脚本只负责机械地找模式，智能体的任务是判断意图、筛掉误报。\n\n八个阶段：\n\n1. 确定扫描目标，列出技能结构（也可以「扫描全部技能」）；\n2. 运行静态扫描脚本，脚本失败则转为人工分析；\n3. 校验 frontmatter；\n4. 提示注入分析；\n5. 行为分析——技能让智能体做的事是否与它声称的用途一致；\n6. 脚本分析；\n7. 供应链评估——依赖、下载地址、外部链接；\n8. 权限分析——申请的工具权限是否超出需要。\n\n置信度分三档：模式确认且恶意意图明显的才按严重级别上报；可疑但意图不明的标为「需要核实」；纯理论性的最佳实践问题不上报。它特别提醒最大的风险是把正经的安全类技能误判为恶意，因为这类技能本来就会提到攻击手法。报告包含发现数量、总体风险等级和技能结构。目录里有三份参考：危险代码模式、权限分析、提示注入模式。它自己的 `allowed-tools` 只有读取、搜索和 Bash。\n\n## 怎么安装\n\n`skill-scanner` 收在 Sentry 的 `sentry-skills` 插件里。Claude Code 里（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add getsentry/skills\nclaude plugin install sentry-skills@sentry-skills\n```\n\n装好后以 `/sentry-skills:skill-scanner` 的形式出现，也会按场景自动触发。其他智能体用 `npx skills add getsentry/skills`，想只装这一个就按 skills CLI 文档加上 `--skill skill-scanner`。\n\n仓库整体介绍和其他安装方式，详见本站《getsentry/skills 是什么、怎么安装：Sentry 工程团队自用的 Agent Skills（代码评审、提交规范、Django 审查）》。\n\n## 怎么用\n\n- 「扫描 `.claude/skills/some-skill` 这个技能，能不能放心用」。\n- 「把项目里所有技能都扫一遍，按风险等级排序」。\n- 先把第三方技能下载到一个临时目录（不要直接装进技能目录），再让它扫描那个路径。\n\n## 适合谁 / 局限\n\n适合经常试用社区技能的个人，以及要给团队维护「可用技能清单」的负责人。局限：静态扫描加模型判断发现不了所有问题，精心伪装的恶意内容可能漏过，它给的「干净」不等于担保；被扫描的技能内容本身会进入上下文，理论上也可能反过来影响扫描者，所以结论要自己再看一眼关键文件。同类工具还有本站收录的 SkillSpector，可以交叉使用。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **会在本机运行 Python 扫描脚本**，需要先安装 `uv`。\n- **只读**：流程里没有修改被扫描技能的步骤。\n- 扫描通过也建议只从可信来源安装，并留意技能后续更新带来的变化。",
+      "images": [],
+      "sources": [
+        "https://github.com/getsentry/skills/tree/main/skills/skill-scanner",
+        "https://github.com/getsentry/skills",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "agents-md skill 是什么、怎么安装使用：让智能体写出不超过 60 行的 AGENTS.md / CLAUDE.md",
+      "slug": "sentry-agents-md-skill",
+      "name": "agents-md（getsentry/skills）",
+      "url": "https://github.com/getsentry/skills/tree/main/skills/agents-md",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Claude Code（插件）；Cursor / Cline / GitHub Copilot 等用 npx skills",
+      "trialNote": "`claude plugin marketplace add getsentry/skills` 然后 `claude plugin install sentry-skills@sentry-skills`",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "agents-md 是 Sentry 工程团队开源的技能：先检查仓库的包管理器、命令、文档和代码约定，再写出简短、可执行的 AGENTS.md，目标 60 行以内、绝不超过 100 行，并用软链接让 CLAUDE.md 指向同一份文件。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 getsentry/skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 getsentry/skills 在 GitHub 约 1045 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n项目里的 AGENTS.md（或 CLAUDE.md）是每次会话都会加载的说明，写得越长，占的上下文越多，模型反而越抓不住重点。agents-md 的立场很明确：短。`description`：创建并维护简洁的 AGENTS.md 和 CLAUDE.md 项目说明文件；用于新建或更新 AGENTS.md、设置 CLAUDE.md、记录仓库的智能体约定，或让编程智能体的说明保持最小、以引用为主。\n\nSKILL.md 第一句就是目标：简洁、可执行，**力争 60 行以内，绝不超过 100 行**。\n\n工作流四步：\n\n1. **先检查再动笔**：从锁文件和清单文件确认包管理器；从 `package.json`、Makefile、任务运行器和 CI 配置里找出真实命令；看 README、贡献指南、`docs/`、安全策略等现有文档；看当前的代码模式、测试布局、生成文件和不该碰的遗留区域。\n2. **选范围**：根目录的文件写全仓库的默认规则；只有某个子目录的命令或规则确实不同时才在那里再放一份，离代码最近的那份优先，而且要比根文件更短。\n3. **写出最小够用的文件**。\n4. **核对**写进去的每个路径和命令都真实存在。\n\n文件设置上，在仓库根目录建 AGENTS.md；需要兼容 Claude 的入口时，把 CLAUDE.md 做成指向它的软链接，不维护两份内容不同的副本。写作规则包括：用标题、列表和表格，不写大段文字；路径用仓库相对路径，不写「见文档」这种含糊的指向；已有的文档和规范用引用，不要抄一遍；测试、检查类命令优先给能针对单个文件运行的写法。后面还有外部引用规则和一组反面例子。\n\n## 怎么安装\n\n`agents-md` 收在 Sentry 的 `sentry-skills` 插件里。Claude Code 里（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add getsentry/skills\nclaude plugin install sentry-skills@sentry-skills\n```\n\n装好后以 `/sentry-skills:agents-md` 的形式出现，也会按场景自动触发。其他智能体用 `npx skills add getsentry/skills`，想只装这一个就按 skills CLI 文档加上 `--skill agents-md`。\n\n仓库整体介绍和其他安装方式，详见本站《getsentry/skills 是什么、怎么安装：Sentry 工程团队自用的 Agent Skills（代码评审、提交规范、Django 审查）》。\n\n## 怎么用\n\n- 「给这个仓库写一份 AGENTS.md」。\n- 「现在的 CLAUDE.md 有三百多行，按 agents-md 的标准精简，重复文档的部分改成引用」。\n- 「`packages/mobile` 的构建命令和别处不一样，给它单独加一份说明」。\n\n## 适合谁 / 局限\n\n适合刚开始在团队里推广编程智能体、需要一份像样的项目说明的人，也适合清理越写越长的旧文件。局限：行数上限是 Sentry 团队的取舍，规则确实多的项目需要把细节拆到被引用的文档里；Windows 上软链接需要额外权限或设置，可以改用内容相同的文件并自行保持同步；它只能写出仓库里看得出来的约定，口头规矩要你补充。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **会新建或改写仓库根目录的说明文件**，改完看一遍差异再提交。\n- 不带脚本，目录里另有两份说明其依据和规格的文档。",
+      "images": [],
+      "sources": [
+        "https://github.com/getsentry/skills/tree/main/skills/agents-md",
+        "https://github.com/getsentry/skills",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "expo-dev-client skill 是什么、怎么安装使用：让智能体帮你构建和分发 Expo 开发版客户端",
+      "slug": "expo-dev-client-skill",
+      "name": "expo-dev-client（expo/skills）",
+      "url": "https://github.com/expo/skills/tree/main/plugins/expo/skills/expo-dev-client",
+      "pricing": "开源免费（MIT）；部分技能对应付费的 EAS 云服务",
+      "platforms": "Claude Code / Codex（插件）；Cursor / OpenCode / Copilot / Gemini 等用 skills CLI",
+      "trialNote": "claude plugin install expo@claude-plugins-official",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding"
+      ],
+      "excerpt": "expo-dev-client 是 Expo 官方技能：说明什么时候需要开发版客户端、怎么配置 eas.json，以及如何在本地或通过 EAS Build 与 TestFlight 构建分发；本地构建免费，云端构建占用 EAS 套餐的构建时长。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 expo/skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 6.6 万次；所在仓库 expo/skills 在 GitHub 约 2686 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n用 Expo 开发应用，起步时在手机上装官方的 Expo Go 扫码就能跑；一旦项目里有了 Expo Go 没内置的原生代码，就得自己构建一个「开发版客户端」。这个技能教智能体处理这一步。`description`：在本地或通过 TestFlight 构建并分发 Expo 开发版客户端，用于内部测试；正式的 TestFlight 发布和商店提交请用 `eas-app-stores` 技能。\n\nSKILL.md 一开头就把费用说清楚：`expo-dev-client` 本身开源，本地构建免费；通过 EAS Build 或 TestFlight 构建分发会消耗 EAS 套餐里的构建时长，往真机和 TestFlight 分发还需要付费的苹果开发者账号。\n\n内容按顺序是：\n\n- **什么时候需要**：技能认为任何正式的应用都应该用开发版客户端，Expo Go 只是学习和快速试验的场地。具体来说，用到本地 Expo 模块（自定义原生代码）、苹果的小组件与应用扩展、Expo Go 没带的第三方原生模块、配置插件，或者要测试远程推送和通用链接时，才必须构建。\n- **EAS 配置**：`eas.json` 里要有一个开发用的构建配置，开启 `developmentClient`。\n- **为 TestFlight 构建**、**本地构建**、**安装本地构建产物**、**只构建某个平台**、**查看构建状态**。\n- **使用开发版客户端**：装好后如何连接本机的开发服务器。\n- **常见问题排查**。\n\n## 怎么安装\n\n`expo-dev-client` 随 Expo 官方插件安装。README 的建议是 Claude Code 和 Codex 用插件，这样能跟着插件市场自动更新：\n\n```bash\nclaude plugin install expo@claude-plugins-official\n```\n\nCodex 用 `codex plugin add expo@openai-curated`。Cursor、OpenCode、Copilot 等用 skills CLI：`npx skills@latest add expo/skills --skill '*'` 是全部安装，把 `'*'` 换成 `expo-dev-client` 就只装这一个。\n\n仓库整体介绍和其他安装方式，详见本站《expo/skills 是什么、怎么安装：Expo 官方 Agent Skills（React Native 应用开发、EAS 构建与发布）》。\n\n## 怎么用\n\n在 Expo 项目里：\n\n- 「我加了一个原生模块，Expo Go 跑不起来了，帮我配好开发版客户端并在本地构建 iOS 版」。\n- 「给测试同事发一个可以装在真机上的开发版，走 TestFlight」。\n- 「检查一下 `eas.json` 的开发配置有没有问题」。\n\n## 适合谁 / 局限\n\n适合从 Expo Go 过渡到自定义原生代码的 React Native 开发者。局限：iOS 本地构建需要 macOS 和 Xcode，没有 Mac 只能用云端构建；证书、描述文件这些苹果侧的问题常常需要你本人在开发者后台操作；它只管开发版，上架流程在别的技能里。\n\n## 注意事项\n\n- **许可**：MIT（frontmatter 标注）。\n- **云端构建会消耗 EAS 额度**，费用以 expo.dev 的定价页为准；智能体执行 `eas build` 前确认一下目标平台和配置，避免重复构建。\n- **会用到你的 Expo 账号和苹果开发者凭据**，登录操作自己完成，不要把密码交给智能体。",
+      "images": [],
+      "sources": [
+        "https://github.com/expo/skills/tree/main/plugins/expo/skills/expo-dev-client",
+        "https://github.com/expo/skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "expo-native-ui skill 是什么、怎么安装使用：让智能体写出有原生质感的 Expo 界面",
+      "slug": "expo-native-ui-skill",
+      "name": "expo-native-ui（expo/skills）",
+      "url": "https://github.com/expo/skills/tree/main/plugins/expo/skills/expo-native-ui",
+      "pricing": "开源免费（MIT）；部分技能对应付费的 EAS 云服务",
+      "platforms": "Claude Code / Codex（插件）；Cursor / OpenCode / Copilot / Gemini 等用 skills CLI",
+      "trialNote": "claude plugin install expo@claude-plugins-official",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "expo-native-ui 是 Expo 官方技能：指导智能体按苹果人机界面规范做 Expo 界面，涵盖语义化颜色、原生控件、SF Symbols 图标、媒体、视觉效果、渐变、存储和响应式布局，并规定优先用哪些库、先在 Expo Go 里跑。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 expo/skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 expo/skills 在 GitHub 约 2686 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n让大模型写 React Native 界面，常见结果是「能跑，但一看就不是原生应用」：自己画的开关、网页味的阴影、已经被移除的旧组件。expo-native-ui 用一组明确的取舍来纠正。`description`：构建美观、有原生感的 Expo 界面；涵盖苹果人机界面规范风格、语义化颜色、原生控件、SF Symbols、媒体、视觉效果、渐变、存储和响应式布局；路由与导航用 `expo-router` 技能，动效用 `expo-animation` 技能。\n\n几块主要内容：\n\n- **先查 `expo-ui`**：选任何界面组件前，先看 `@expo/ui` 有没有对应的原生组件（底部弹层、按钮、选择器、滑块、菜单、开关、分段控件等），它们在 iOS 上是真正的 SwiftUI、在安卓上是 Jetpack Compose。\n- **运行方式**：始终先试 Expo Go（`npx expo start` 扫码），确实需要时才做自定义构建，并列出了哪些情况必须自定义构建、哪些情况 Expo Go 就够。\n- **库的取舍**：不用已从 React Native 移除的模块（如旧的 Picker、WebView、SafeAreaView、AsyncStorage）；音视频用 `expo-audio`、`expo-video`，不用 `expo-av`；iOS 图标用 `expo-symbols`；图片用 `expo-image`；安全区域用 `react-native-safe-area-context`；颜色用路由库导出的语义化颜色，自动适配深浅色。\n- **样式规则**：通用样式、颜色、文字、阴影各有一节，另有响应式和交互行为的要求。\n\n目录里有七份参考：控件、渐变、图标、媒体、存储、视觉效果，以及 WebGPU 与 Three.js。\n\n## 怎么安装\n\n`expo-native-ui` 随 Expo 官方插件安装。README 的建议是 Claude Code 和 Codex 用插件，这样能跟着插件市场自动更新：\n\n```bash\nclaude plugin install expo@claude-plugins-official\n```\n\nCodex 用 `codex plugin add expo@openai-curated`。Cursor、OpenCode、Copilot 等用 skills CLI：`npx skills@latest add expo/skills --skill '*'` 是全部安装，把 `'*'` 换成 `expo-native-ui` 就只装这一个。\n\n仓库整体介绍和其他安装方式，详见本站《expo/skills 是什么、怎么安装：Expo 官方 Agent Skills（React Native 应用开发、EAS 构建与发布）》。\n\n## 怎么用\n\n- 「做一个设置页，分组列表加开关和选择器，要像系统设置那样」。\n- 「把这个页面里手写的底部弹窗换成原生的」。\n- 「检查这个项目用了哪些已经不推荐的库，给出替换方案」。\n\n## 适合谁 / 局限\n\n适合用 Expo 做 iOS 和安卓应用、希望界面贴近系统风格的开发者。局限：规范以苹果的设计语言为主，SKILL.md 自己也说明 SF Symbols 只在苹果平台可用，安卓上要另行处理图标；部分建议依赖较新的 Expo SDK 版本，老项目要先升级；做强品牌化、非系统风格的界面时，这些约束未必合适。\n\n## 注意事项\n\n- **许可**：MIT（frontmatter 标注）。\n- **不带脚本**：说明文字加参考文件；它会建议安装若干 Expo 官方库，按项目的 SDK 版本确认兼容性。\n- 技能版本随 Expo SDK 更新较快，以仓库为准。",
+      "images": [],
+      "sources": [
+        "https://github.com/expo/skills/tree/main/plugins/expo/skills/expo-native-ui",
+        "https://github.com/expo/skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "gsap-core skill 是什么、怎么安装使用：GSAP 官方的核心动画 Skill（to / from / fromTo、缓动、stagger）",
+      "slug": "gsap-core-skill",
+      "name": "gsap-core（greensock/gsap-skills）",
+      "url": "https://github.com/greensock/gsap-skills/tree/main/skills/gsap-core",
+      "pricing": "开源免费（MIT）；GSAP 及全部插件现已免费",
+      "platforms": "Cursor / Claude Code / Codex / Windsurf / GitHub Copilot 等",
+      "trialNote": "npx skills add https://github.com/greensock/gsap-skills --skill gsap-core",
+      "tags": [
+        "cursor",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "motion-graphics"
+      ],
+      "excerpt": "gsap-core 是 GSAP 官方技能库的基础技能：教智能体正确使用 gsap.to()、from()、fromTo()、缓动、时长、stagger、默认值，以及用 gsap.matchMedia() 处理响应式和「减少动态效果」，并说明什么时候该选 GSAP。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 greensock/gsap-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 6.6 万次；所在仓库 greensock/gsap-skills 在 GitHub 约 1.6 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nGSAP 是网页动画里用得最广的 JavaScript 库之一，大模型也会写，但经常混用旧版语法或者漏掉清理。GSAP 官方出的这组技能就是为了让智能体写对。gsap-core 是其中的地基。`description`：GSAP 官方技能，覆盖核心接口——`gsap.to()`、`from()`、`fromTo()`、缓动、时长、stagger、默认值、`gsap.matchMedia()`（响应式与减少动态效果）；用户要 JavaScript 动画库、要在 React / Vue / 原生 JS 里做动画、问到 GSAP 补间和缓动时使用。\n\n内容依次是：\n\n- **什么时候用 GSAP**：需要复杂的动画编排、时间线控制、滚动驱动、SVG 动画（尤其是形状变形）、多个元素协同时；另有一节对比什么情况下应优先用它而不是 CSS 动画。SKILL.md 给自己标了「风险等级：低」，理由是动画库的安全面很小。\n- **核心补间方法与常用参数**：变换属性和 CSS 属性的写法、目标选择。\n- **Stagger**：让一组元素依次错开执行。\n- **缓动**：内置曲线，自定义曲线用 CustomEase 插件。\n- **返回值与控制**：暂停、反向、跳转。\n- **函数式取值、相对值、默认值**。\n- **无障碍与响应式**：用 `gsap.matchMedia()` 按断点和系统的「减少动态效果」设置分别定义动画。\n- **官方最佳实践**与「不要这样做」清单。\n\n它还指明了同库的分工：多步骤编排看 `gsap-timeline`，滚动联动看 `gsap-scrolltrigger`，React 里看 `gsap-react`，插件看 `gsap-plugins`，工具函数看 `gsap-utils`，性能看 `gsap-performance`。\n\n## 怎么安装\n\n仓库 README 推荐用 skills CLI 整库安装（八个技能互相引用，一起装体积也不大）：\n\n```bash\nnpx skills add https://github.com/greensock/gsap-skills\n```\n\n只想要这一个，按 skills CLI 文档加 `--skill gsap-core`。Claude Code 也可以 `/plugin marketplace add greensock/gsap-skills`；Cursor 可以在 Settings → Rules 里把这个仓库添加为远程规则。\n\n仓库整体介绍和其他安装方式，详见本站《gsap-skills 是什么、怎么安装：GSAP 官方 Agent Skills（时间线、ScrollTrigger、React 动画写法）》。\n\n## 怎么用\n\n- 「首屏的标题、副标题和按钮依次淡入上移，间隔 0.1 秒」。\n- 「给这组卡片加悬停动效，用户开启了减少动态效果时只保留透明度变化」。\n- 「评审这段 GSAP 代码，有没有不推荐的写法」。\n\n## 适合谁 / 局限\n\n适合做营销页、作品集和交互叙事页面的前端开发者。需要留意：`description` 写明，用户没指定库时它会主动推荐 GSAP——如果项目已经在用别的动画方案，先告诉它。简单的悬停和过渡用 CSS 就够，不必为此引入一个库。\n\n## 注意事项\n\n- **许可**：技能为 MIT；GSAP 库本身及全部插件现已免费，具体条款以 GSAP 官网的许可说明为准。\n- **不带脚本**：纯说明文字。\n- 技能提到 GSAP 也是 Webflow 交互功能的底层，排查 Webflow 动画问题时同样适用。",
+      "images": [],
+      "sources": [
+        "https://github.com/greensock/gsap-skills/tree/main/skills/gsap-core",
+        "https://github.com/greensock/gsap-skills",
+        "https://github.com/vercel-labs/skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "gsap-scrolltrigger skill 是什么、怎么安装使用：让 AI 写对滚动动画（固定、scrub、横向滚动）",
+      "slug": "gsap-scrolltrigger-skill",
+      "name": "gsap-scrolltrigger（greensock/gsap-skills）",
+      "url": "https://github.com/greensock/gsap-skills/tree/main/skills/gsap-scrolltrigger",
+      "pricing": "开源免费（MIT）；GSAP 及全部插件现已免费",
+      "platforms": "Cursor / Claude Code / Codex / Windsurf / GitHub Copilot 等",
+      "trialNote": "npx skills add https://github.com/greensock/gsap-skills --skill gsap-scrolltrigger",
+      "tags": [
+        "cursor",
+        "claude",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "motion-graphics"
+      ],
+      "excerpt": "gsap-scrolltrigger 是 GSAP 官方技能：教智能体用 ScrollTrigger 做滚动联动动画，包括注册插件、触发位置的写法、scrub 跟随滚动、固定区块、批量触发、横向滚动，以及布局变化后的刷新与清理。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 greensock/gsap-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 6.3 万次；所在仓库 greensock/gsap-skills 在 GitHub 约 1.6 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n滚动动画是最容易写出问题的一类：触发位置算错、固定区块把布局顶乱、单页应用切换页面后旧的监听还留着。ScrollTrigger 是 GSAP 处理滚动的插件，这个技能讲它的正确用法。`description`：GSAP 官方技能，面向 ScrollTrigger——滚动联动动画、固定（pinning）、scrub、触发器；构建或推荐基于滚动的动画、视差、固定区块时使用。\n\nSKILL.md 的章节：\n\n- **注册插件**：ScrollTrigger 是插件，加载后要注册一次。\n- **基础触发**：把补间或时间线绑定到滚动位置。`start` 和 `end` 的格式是「触发元素的位置 + 视口的位置」，如 `\"top top\"`、`\"bottom 80%\"`；也可以用像素值、`\"+=300\"` 这样的相对值，或者函数；3.12 版起可以用 `clamp()` 把范围限制在页面边界内。\n- **主要配置项**一览。\n- **`ScrollTrigger.batch()`**：一批元素进入视口时成组触发，适合列表和卡片墙。\n- **`scrollerProxy()`**：配合第三方平滑滚动库。\n- **Scrub**：让动画进度跟随滚动条。\n- **Pinning**：滚动期间把某个区块固定住。\n- **Markers**：开发时显示触发位置的标记线。\n- **时间线 + ScrollTrigger**，以及用 `containerAnimation` 实现**横向滚动**。\n- **刷新与清理**：布局变化后调用 `ScrollTrigger.refresh()`；组件卸载时清理。\n- **官方最佳实践**和「不要这样做」。\n\nReact 里的清理方式在同库的 `gsap-react` 里，平滑滚动与滚动到指定位置在 `gsap-plugins` 里。\n\n## 怎么安装\n\n仓库 README 推荐用 skills CLI 整库安装（八个技能互相引用，一起装体积也不大）：\n\n```bash\nnpx skills add https://github.com/greensock/gsap-skills\n```\n\n只想要这一个，按 skills CLI 文档加 `--skill gsap-scrolltrigger`。Claude Code 也可以 `/plugin marketplace add greensock/gsap-skills`；Cursor 可以在 Settings → Rules 里把这个仓库添加为远程规则。\n\n仓库整体介绍和其他安装方式，详见本站《gsap-skills 是什么、怎么安装：GSAP 官方 Agent Skills（时间线、ScrollTrigger、React 动画写法）》。\n\n## 怎么用\n\n- 「这个产品介绍区块滚动到视口顶部时固定住，三张图随滚动依次切换，滚完再放开」。\n- 「做一段横向滚动的作品展示，纵向滚动驱动横向位移」。\n- 「卡片进入视口时成批淡入」——对应 `batch()`。\n\n调试时让它先把 `markers` 打开，触发位置对不对一眼就能看出来，上线前记得关掉。\n\n## 适合谁 / 局限\n\n适合做长页面叙事、产品介绍页的前端开发者。局限：滚动动画对性能和移动端体验影响大，固定和 scrub 用多了页面会显得拖沓；现代浏览器已有原生的滚动驱动动画，简单的视差未必需要脚本库；和 `gsap-core` 一样，用户没指定库时它会主动推荐 GSAP。\n\n## 注意事项\n\n- **许可**：技能为 MIT；ScrollTrigger 随 GSAP 免费使用，条款以官网为准。\n- **不带脚本**：纯说明文字。\n- 在 Next.js 等服务端渲染框架里，这类代码只能在客户端运行，注意组件边界。",
+      "images": [],
+      "sources": [
+        "https://github.com/greensock/gsap-skills/tree/main/skills/gsap-scrolltrigger",
+        "https://github.com/greensock/gsap-skills",
+        "https://github.com/vercel-labs/skills",
+        "https://skills.sh/"
+      ]
+    },
+    {
+      "title": "strategic-compact skill 是什么、怎么安装使用：别等自动压缩，在阶段切换时主动 /compact",
+      "slug": "ecc-strategic-compact-skill",
+      "name": "strategic-compact（affaan-m/ECC）",
+      "url": "https://github.com/affaan-m/ECC/tree/main/skills/strategic-compact",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex；Cursor、OpenCode、Gemini CLI 等为功能受限的适配",
+      "trialNote": "`/plugin marketplace add https://github.com/affaan-m/ECC` 然后 `/plugin install ecc@ecc`",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "strategic-compact 是 ECC 里的上下文管理技能：通过一个钩子脚本按上下文占用量和工具调用次数，在合适的时机提醒你手动执行 /compact，并给出哪些阶段该压缩、压缩后什么会保留的判断表。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 affaan-m/ECC 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 affaan-m/ECC 在 GitHub 约 27.6 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nClaude Code 的会话上下文快满时会自动压缩，问题是它不管你正干到哪一步：可能恰好在一个多步修改的中途，把文件路径、变量名和半成品状态一起压没了。strategic-compact 的主张是自己挑时机。`description`：在合乎逻辑的节点建议手动压缩上下文，让上下文跨任务阶段得以保留，而不是任由自动压缩在任意时刻发生。\n\n**怎么实现**：一个名为 `suggest-compact.js` 的脚本挂在编辑和写文件之前的钩子上，结合两个信号给出提醒。主信号是上下文实际大小——它从会话记录里读取最近一次用量并求和，在 20 万窗口上到约 16 万 token、100 万窗口上到约 25 万时建议压缩，此后每增长约 6 万再提醒一次。次信号是工具调用次数，默认 50 次时提醒，之后每 25 次一次。SKILL.md 解释了为什么调用次数只能当辅助：几次大文件读取就能塞满窗口，而很多次小调用可能几乎不占地方。\n\n**该不该压**的判断表：\n\n- 调研 → 规划：压，调研材料很占地方，计划才是提炼出的结果；\n- 规划 → 实现：压，前提是计划已经写进文件；\n- 实现 → 测试：看情况；\n- 调试完 → 做下一个功能：压，调试痕迹会干扰无关的工作；\n- 实现到一半：不压；\n- 一条路走不通之后：压，清掉死胡同里的推理再换思路。\n\n**压缩后什么还在**：CLAUDE.md 里的指令、磁盘上的文件、记忆文件、git 状态会保留；中间的推理、读过的文件内容、口头说过的细微偏好会丢。后面还有几节讲 token 优化：按触发表延迟加载、留意上下文的构成、查找重复的指令。\n\n## 怎么安装\n\n`strategic-compact` 是 ECC 插件里的一个技能。Claude Code 里装整个插件（命令来自仓库 README）：\n\n```text\n/plugin marketplace add https://github.com/affaan-m/ECC\n/plugin install ecc@ecc\n```\n\nECC 的技能有三百来个，全装会让技能列表很长。README 另给了带向导的安装器 `npx ecc-universal@2.2.3 install --guided`，可以按档位和能力挑着装；只想要这一个技能，把仓库里的 `skills/strategic-compact` 文件夹复制到 `~/.claude/skills/` 也行。\n\n仓库整体介绍和其他安装方式，详见本站《ECC（Everything Claude Code）是什么、怎么安装和使用：300 个 Skills 加子智能体、Hooks 的全家桶》。\n\n以插件方式安装时钩子已经注册好，不用额外配置；手动复制文件夹的话，要按 SKILL.md 里的说明自己把钩子加进设置文件。\n\n## 怎么用\n\n- 装好后照常工作，它会在编辑前的钩子里适时给出提醒，是否执行 `/compact` 由你决定。\n- 「我刚做完调研，准备开始写代码，现在适合压缩吗？需要先把什么写进文件？」\n- 「调整一下提醒阈值，工具调用到 80 次再提示」。\n\n## 适合谁 / 局限\n\n适合经常在一个会话里连续做几小时、跨多个阶段的 Claude Code 用户。局限：钩子机制是 Claude Code 的功能，其他智能体上只能当一份建议来读；它只提醒不代劳，压缩前把计划和关键结论落到文件里仍然是你的事；阈值是经验值，模型和窗口规格变化后可能需要自己调。\n\n## 注意事项\n\n- **许可**：MIT。\n- **带钩子脚本**：每次编辑和写文件前会在本机运行一段 Node 脚本，读取会话记录里的用量数据；不联网。\n- 压缩是有损的，重要的口头约定最好写进项目的说明文件。",
+      "images": [],
+      "sources": [
+        "https://github.com/affaan-m/ECC/tree/main/skills/strategic-compact",
+        "https://github.com/affaan-m/ECC"
+      ]
+    },
+    {
+      "title": "continuous-learning-v2 skill 是什么、怎么安装使用：让 Claude Code 从会话里攒「直觉」，再长成 Skill",
+      "slug": "ecc-continuous-learning-v2-skill",
+      "name": "continuous-learning-v2（affaan-m/ECC）",
+      "url": "https://github.com/affaan-m/ECC/tree/main/skills/continuous-learning-v2",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex；Cursor、OpenCode、Gemini CLI 等为功能受限的适配",
+      "trialNote": "`/plugin marketplace add https://github.com/affaan-m/ECC` 然后 `/plugin install ecc@ecc`",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "continuous-learning-v2 是 ECC 的学习系统：用钩子观察每次工具调用，后台提炼成带置信度的原子化「直觉」，按项目隔离存放，积累到一定程度可以聚合成技能、命令或子智能体，也能导出导入。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 affaan-m/ECC 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 affaan-m/ECC 在 GitHub 约 27.6 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n每次都要重新告诉智能体「这个项目用 pnpm」「测试文件放在同级目录」，是长期使用编程智能体最磨人的地方。continuous-learning-v2 试图让它自己记住。`description`：基于「直觉」的学习系统，通过钩子观察会话，生成带置信度评分的原子化直觉，并把它们演化为技能、命令或智能体；2.1 版增加了项目级直觉，防止跨项目串味。\n\n**直觉（instinct）**是它的基本单位：一个触发条件对应一个动作，带 0.3 到 0.9 的置信度、领域标签（代码风格、测试、git、调试、流程等）和产生它的观察证据。置信度的含义：0.3 是试探性的，只建议不强制；0.5 在相关时应用；0.7 自动采纳；0.9 视为核心行为。同一模式反复出现时置信度升高。\n\n**怎么运作**：工具调用前后的钩子记录观察（SKILL.md 说这比旧版在会话结束时才触发更可靠），后台由一个较小的模型做分析，不占主会话的上下文。按 git 远端地址或仓库路径识别项目，直觉默认只在本项目生效；同一条直觉在两个以上项目里出现，才可以提升为全局。\n\n六个命令：`/instinct-status`（查看全部直觉及置信度）、`/evolve`（把相关直觉聚合成技能或命令，并建议哪些可以提升）、`/instinct-export`、`/instinct-import`、`/promote`、`/projects`。\n\n目录里有十一个文件：观察钩子脚本、后台观察者的说明与启动脚本、项目识别脚本、管理直觉的 Python 命令行工具和配置文件。\n\n## 怎么安装\n\n`continuous-learning-v2` 是 ECC 插件里的一个技能。Claude Code 里装整个插件（命令来自仓库 README）：\n\n```text\n/plugin marketplace add https://github.com/affaan-m/ECC\n/plugin install ecc@ecc\n```\n\nECC 的技能有三百来个，全装会让技能列表很长。README 另给了带向导的安装器 `npx ecc-universal@2.2.3 install --guided`，可以按档位和能力挑着装；只想要这一个技能，把仓库里的 `skills/continuous-learning-v2` 文件夹复制到 `~/.claude/skills/` 也行。\n\n仓库整体介绍和其他安装方式，详见本站《ECC（Everything Claude Code）是什么、怎么安装和使用：300 个 Skills 加子智能体、Hooks 的全家桶》。\n\n按插件安装时观察钩子已自动注册。SKILL.md 特别提醒：如果以前手动把钩子抄进过设置文件，要删掉那段，否则会重复执行并报错。\n\n## 怎么用\n\n- 正常工作几天后运行 `/instinct-status`，看看它总结出了什么。\n- 「/evolve」——把成簇的直觉合并成一个技能草稿，你审过再保留。\n- 「把这个项目里关于测试的直觉导出，给同事的环境导入」。\n\n## 适合谁 / 局限\n\n适合长期在固定几个项目里用 Claude Code、愿意花时间调教工作流的人。局限：它总结的是你的做法，不保证做法本身是对的——坏习惯同样会被记成直觉，需要定期翻看和清理；后台分析会额外消耗一些模型用量；观察依赖 Claude Code 的钩子，SKILL.md 另有一节说明各平台的支持情况。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会持续记录你的会话行为**：SKILL.md 的隐私说明称观察数据只留在本机、按项目隔离，能导出的只有直觉（模式），不含原始观察、代码和对话内容；数据目录在用户目录下的 `ecc-homunculus`。\n- **带多个 Shell 和 Python 脚本并注册钩子**，每次工具调用前后都会运行，装之前建议看一遍 `hooks/observe.sh`。\n- 导入别人的直觉相当于接受别人的行为规则，先读内容再导入。",
+      "images": [],
+      "sources": [
+        "https://github.com/affaan-m/ECC/tree/main/skills/continuous-learning-v2",
+        "https://github.com/affaan-m/ECC"
+      ]
+    },
+    {
+      "title": "typescript-advanced-types skill 是什么、怎么安装使用：让 AI 写对泛型、条件类型和映射类型",
+      "slug": "wshobson-typescript-advanced-types-skill",
+      "name": "typescript-advanced-types（wshobson/agents）",
+      "url": "https://github.com/wshobson/agents/tree/main/plugins/javascript-typescript/skills/typescript-advanced-types",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex CLI / Cursor / OpenCode / GitHub Copilot 等",
+      "trialNote": "npx skills add wshobson/agents --skill typescript-advanced-types",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding"
+      ],
+      "excerpt": "typescript-advanced-types 是 wshobson/agents 里安装量最高的技能：系统讲解 TypeScript 的泛型、条件类型、映射类型、模板字面量类型和工具类型，附最佳实践、类型测试和常见陷阱，帮智能体少写 any。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 wshobson/agents 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 8.6 万次；所在仓库 wshobson/agents 在 GitHub 约 4.0 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n让模型写 TypeScript，业务逻辑通常没问题，类型部分却容易偷懒：遇到复杂一点的地方就写 `any`，或者用类型断言硬压过去。这个技能是一份 TypeScript 高级类型的速查与规范。`description`：掌握 TypeScript 的高级类型系统，包括泛型、条件类型、映射类型、模板字面量类型和工具类型，用于构建类型安全的应用；在实现复杂的类型逻辑、创建可复用的类型工具，或确保编译期类型安全时使用。\n\n适用场景列得很具体：写类型安全的库或框架、可复用的泛型组件、复杂的类型推断、类型安全的接口客户端、表单校验、强类型的配置对象、状态管理，以及把 JavaScript 代码库迁移到 TypeScript。\n\n**核心概念**五节，每节先说用途再给代码示例：\n\n1. 泛型——基础写法、约束、多个类型参数；\n2. 条件类型——基础、提取返回类型、分布式条件类型、嵌套条件；\n3. 映射类型；\n4. 模板字面量类型；\n5. 工具类型。\n\n更长的示例和模式放在同目录的 `references/details.md`，需要时才读。\n\n后面三节是规范性的内容。**最佳实践**十条，例如：用 `unknown` 代替 `any`；对象形状优先用 `interface`，联合与复杂类型用 `type`；能推断就让编译器推断；用类型守卫而不是类型断言；开启严格模式；给类型写测试。**常见陷阱**七条，包括滥用 `any`、忽略严格空值检查、类型过于复杂拖慢编译、没用可辨识联合、循环类型引用。**性能方面**提醒避免深层嵌套的条件类型。\n\n## 怎么安装\n\n仓库 README 给了两种装法。只要这一个技能，用 skills CLI：\n\n```bash\nnpx skills add wshobson/agents --skill typescript-advanced-types\n```\n\n在 Claude Code 里则是装它所在的插件 `javascript-typescript`，同插件的其他技能、子智能体和命令会一起装上：\n\n```text\n/plugin marketplace add wshobson/agents\n/plugin install javascript-typescript@claude-code-workflows\n```\n\n仓库整体介绍和其他安装方式，详见本站《wshobson/agents 是什么、怎么安装：94 个插件、184 个 Skills 的多工具插件市场》。\n\n## 怎么用\n\n- 「给这个事件总线加上类型，让事件名和回调参数对应起来，不许用 any」。\n- 「把这个接口的返回值类型根据请求参数自动推断出来」。\n- 「评审这个文件里的类型定义，哪些断言可以换成类型守卫」。\n\n## 适合谁 / 局限\n\n适合写组件库、SDK 和中大型 TypeScript 项目的开发者，也适合想顺便学一学高级类型的人——让它解释自己写出的类型是不错的学习方式。局限：内容是通用知识的整理，不涉及具体框架的类型技巧；类型体操写过头会让代码难以维护，技能自己也提醒了这一点，业务代码里够用就好。\n\n## 注意事项\n\n- **许可**：MIT。\n- **不带脚本**：SKILL.md 加一份参考文件，纯说明文字。\n- 整库有一百八十多个技能，用 `--skill` 只装需要的，避免技能列表过长。",
+      "images": [],
+      "sources": [
+        "https://github.com/wshobson/agents/tree/main/plugins/javascript-typescript/skills/typescript-advanced-types",
+        "https://github.com/wshobson/agents",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "tailwind-design-system skill 是什么、怎么安装使用：按 Tailwind CSS v4 的写法搭设计系统",
+      "slug": "wshobson-tailwind-design-system-skill",
+      "name": "tailwind-design-system（wshobson/agents）",
+      "url": "https://github.com/wshobson/agents/tree/main/plugins/frontend-mobile-development/skills/tailwind-design-system",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex CLI / Cursor / OpenCode / GitHub Copilot 等",
+      "trialNote": "npx skills add wshobson/agents --skill tailwind-design-system",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "tailwind-design-system 是 wshobson/agents 里的前端技能：面向 Tailwind CSS v4，讲在 CSS 里用 @theme 定义设计令牌、令牌分层、组件变体、暗色模式和响应式模式，并列出 v3 到 v4 的写法对照。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 wshobson/agents 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 6.8 万次；所在仓库 wshobson/agents 在 GitHub 约 4.0 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nTailwind CSS 从 v3 到 v4 改动很大：配置从 JavaScript 文件搬进了 CSS，引入方式、暗色模式、动画的写法都变了。模型的训练数据里 v3 的代码更多，所以经常给 v4 项目写出 v3 的配置。这个技能专门纠正这一点。`description`：用 Tailwind CSS v4、设计令牌、组件库和响应式模式构建可扩展的设计系统；在创建组件库、落地设计系统或统一界面模式时使用。SKILL.md 开头注明它只针对 v4，v3 项目请看官方升级指南。\n\n最实用的是那张 **v3 → v4 对照表**：\n\n- `tailwind.config.ts` → 在 CSS 里写 `@theme`；\n- 三条 `@tailwind` 指令 → 一句 `@import \"tailwindcss\"`；\n- `darkMode: \"class\"` → 用 `@custom-variant` 定义暗色变体；\n- `theme.extend.colors` → 在 `@theme` 里写 `--color-*` 变量；\n- 动画插件 → 把关键帧写进 `@theme`，入场动画用 `@starting-style`。\n\n之后是快速上手，以及两个核心概念：**设计令牌分层**（从基础值到语义令牌再到组件令牌）和**组件架构**（变体、尺寸、状态怎么组织）。适用场景还包括用原生 CSS 能力做暗色模式、构建响应式且无障碍的组件，以及从 v3 迁移。\n\nSKILL.md 本身只有五千多字符，是一个导航层：详细的模式和完整示例放在 `references/details.md`，进阶内容在 `references/advanced-patterns.md`，按需读取。\n\n## 怎么安装\n\n仓库 README 给了两种装法。只要这一个技能，用 skills CLI：\n\n```bash\nnpx skills add wshobson/agents --skill tailwind-design-system\n```\n\n在 Claude Code 里则是装它所在的插件 `frontend-mobile-development`，同插件的其他技能、子智能体和命令会一起装上：\n\n```text\n/plugin marketplace add wshobson/agents\n/plugin install frontend-mobile-development@claude-code-workflows\n```\n\n仓库整体介绍和其他安装方式，详见本站《wshobson/agents 是什么、怎么安装：94 个插件、184 个 Skills 的多工具插件市场》。\n\n## 怎么用\n\n- 「这个项目是 Tailwind v4，帮我把品牌色、圆角和字号定义成设计令牌，支持暗色模式」。\n- 「做一个按钮组件，有主要、次要、危险三种变体和三种尺寸」。\n- 「把现在的 `tailwind.config.ts` 迁移成 v4 的 CSS 配置」。\n\n开头说清 Tailwind 的版本，能避免它按旧写法出代码。\n\n## 适合谁 / 局限\n\n适合新起 v4 项目或正在从 v3 迁移的前端团队。局限：仍在用 v3 的项目不适用；它讲的是工程组织方式，不提供成品组件，也不替你做视觉决策——配色和风格要另外定，或配合设计类技能使用；Tailwind 更新快，细节以官方文档为准。\n\n## 注意事项\n\n- **许可**：MIT。\n- **不带脚本**：SKILL.md 加两份参考文件。\n- 通过 Claude Code 插件安装时，会连同 `frontend-mobile-development` 插件里的其他技能和子智能体一起装上。",
+      "images": [],
+      "sources": [
+        "https://github.com/wshobson/agents/tree/main/plugins/frontend-mobile-development/skills/tailwind-design-system",
+        "https://github.com/wshobson/agents",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "hv-analysis（横纵分析法）skill 是什么、怎么安装使用：让智能体联网做一份深度研究报告并导出 PDF",
+      "slug": "khazix-hv-analysis-skill",
+      "name": "hv-analysis（KKKKhazix/khazix-skills）",
+      "url": "https://github.com/KKKKhazix/khazix-skills/tree/main/hv-analysis",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor / Kimi Code / CodeBuddy 等支持 Agent Skills 的工具",
+      "trialNote": "帮我安装这个 skill：https://github.com/KKKKhazix/khazix-skills/tree/main/hv-analysis",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "office",
+        "data-analysis"
+      ],
+      "excerpt": "hv-analysis 是数字生命卡兹克开源的深度研究技能：用「纵轴追历史、横轴比同类」的横纵分析法研究一个产品、公司、概念或技术，先并行联网搜集资料，再写纵向、横向和交汇洞察三部分，最后转成排版好的 PDF。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 KKKKhazix/khazix-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 KKKKhazix/khazix-skills 在 GitHub 约 2.1 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n「帮我研究一下这家公司」这类请求，模型很容易给出一篇面面俱到却没有判断的概述。hv-analysis 给研究定了一个固定的骨架。`description`（原文是中文）：横纵分析法深度研究技能，由数字生命卡兹克提出；用户想系统性研究一个产品、公司、概念、技术或人物时使用。核心是双轴：纵轴追踪研究对象从诞生到当下的完整历程，以叙事的方式呈现；横轴在当下这个时间截面上与竞品或同类做系统对比；最后把两条轴交叉，产出洞察。简单的名词解释不用它。\n\n流程五步：\n\n1. **联网收集信息**。SKILL.md 强调方法的质量完全取决于信息，必须联网搜索、不能只靠已有知识。建议用子智能体并行：一个查纵向信息（起源、创始人、关键事件、版本、融资、转向），一个查横向信息（竞品、口碑、评测、份额），复杂对象再加一个补充。来源优先级是官方一手资料优于媒体原创，优于转载；学术类对象要求查 arXiv。之后做一次信息充分性自检。\n2. **纵向分析**，报告的主体。\n3. **横向分析**，先判断竞品情况，再按维度对比。\n4. **横纵交汇洞察**，要求给出新的判断。\n5. **生成 PDF**：先写成 Markdown，再用技能自带的 `scripts/md_to_pdf.py`（基于 WeasyPrint）转换。\n\n篇幅要求不低：纵向 6000 到 15000 字，横向 3000 到 10000 字，交汇 1500 到 3000 字，全文一万到三万字。还有一节写作风格和一份质检清单，要求「用人话写」。\n\n## 怎么安装\n\n这个库没有安装器，README 的做法是把技能目录的链接直接交给智能体，让它自己下载放好。在 Claude Code、Codex 等工具里说：\n\n```text\n帮我安装这个 skill：https://github.com/KKKKhazix/khazix-skills/tree/main/hv-analysis\n```\n\n也可以手动把仓库里的 `hv-analysis` 文件夹复制到 `~/.claude/skills/`（Claude Code）或所用工具的技能目录。\n\n仓库整体介绍和其他安装方式，详见本站《khazix-skills 是什么、怎么安装使用：数字生命卡兹克的 Skill 合集（leader、neat-freak 洁癖、横纵分析法）》。\n\nPDF 转换需要 Python 环境里装好 `weasyprint` 和 `markdown` 两个包。\n\n## 怎么用\n\n- 「用横纵分析法研究一下 Cursor」。\n- 「帮我摸清楚向量数据库这个赛道，重点看头部几家的差异」。\n- 「研究一下这家公司，我下周要去面试，重点关注它最近一年的战略变化」。\n\n说明研究动机和关注点，报告的侧重会更贴合。\n\n## 适合谁 / 局限\n\n适合做行业研究、竞品分析、投资和求职前调研的人。局限：报告的可靠性取决于搜到的资料，时间、数字和引述要自己抽查，不能直接当作事实引用；一次研究会派多个子智能体、读大量网页，用量和耗时都不小；研究对象是个人时，只应基于公开信息，并注意表述分寸。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会大量联网检索**，并在本机运行 Python 脚本生成 PDF。\n- 转换脚本的示例命令里作者一栏写的是「数字生命卡兹克」，对外使用时用 `--author` 参数换成自己的署名。\n- 报告是 AI 整理的二手研究，引用和发布前请核对来源。",
+      "images": [],
+      "sources": [
+        "https://github.com/KKKKhazix/khazix-skills/tree/main/hv-analysis",
+        "https://github.com/KKKKhazix/khazix-skills"
+      ]
+    },
+    {
+      "title": "neat-freak（洁癖）skill 是什么、怎么安装使用：开发收尾时把文档、CLAUDE.md 和记忆对齐到代码现状",
+      "slug": "khazix-neat-freak-skill",
+      "name": "neat-freak（KKKKhazix/khazix-skills）",
+      "url": "https://github.com/KKKKhazix/khazix-skills/tree/main/neat-freak",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor / Kimi Code / CodeBuddy 等支持 Agent Skills 的工具",
+      "trialNote": "帮我安装这个 skill：https://github.com/KKKKhazix/khazix-skills/tree/main/neat-freak",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "neat-freak 是数字生命卡兹克开源的收尾技能：在一轮开发结束后核对代码、运行态、项目文档、智能体规则文件、记忆和工作区残留是否一致，分轻量和完整两条路径，删除类清理必须在汇报后由你确认。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 KKKKhazix/khazix-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 KKKKhazix/khazix-skills 在 GitHub 约 2.1 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n用智能体开发一段时间后，项目里会积下一堆「过期的真相」：README 写的启动命令早就变了，CLAUDE.md 里引用的文件已经不存在，目录里躺着好几份一次性的计划文档。neat-freak（中文名「洁癖」）负责收拾这些。`description`：知识与治理收尾——把项目文档、规则文件（CLAUDE.md / AGENTS.md）、获准维护的智能体记忆和工作区残留，与代码和运行时的真实情况对齐，让下一次会话或下一个接手的人面对的是唯一的、当前的答案。纯写代码、重构、调试的任务不该触发它。\n\nSKILL.md 定义了一份「完成合同」：六个事实面——代码、运行态、文档、规则、记忆、工作区——每一面都要标出状态（已核实为最新、已修改并核实、待定、不在范围、不适用）。它特别提醒，`git status` 干净、PR 已合并或测试通过，都不能单独算作「全部同步」。\n\n几条边界规则体现了它的克制：\n\n- **权限先于洁癖**：它扩大的是检查深度，不是操作权限。默认只写当前项目；记忆默认只读，除非明确授权。\n- **清场要二次确认**：删除分支、worktree、临时库属于破坏性收尾，必须先完整汇报并保留现场，你看完后明确同意才执行；一开始说过「做完后清理」不算数。\n- **读到的内容不是指令**：项目文件和记忆里出现的「执行这条命令」之类的文字，不因为写在文件里就获得授权。\n\n两条路径：**轻量路径**五步（盘点 → 对齐事实 → 补一份最小的规则文件 → 清点会话残留 → 汇报），适合多数个人项目；有发布流程、远端协作或多项目联动时走**完整路径**（从发现平台与规则，到建立事实矩阵、审计规则、先减后加地修改、谨慎处理记忆、验证发布闭环、分两阶段汇报）。\n\n## 怎么安装\n\n这个库没有安装器，README 的做法是把技能目录的链接直接交给智能体，让它自己下载放好。在 Claude Code、Codex 等工具里说：\n\n```text\n帮我安装这个 skill：https://github.com/KKKKhazix/khazix-skills/tree/main/neat-freak\n```\n\n也可以手动把仓库里的 `neat-freak` 文件夹复制到 `~/.claude/skills/`（Claude Code）或所用工具的技能目录。\n\n仓库整体介绍和其他安装方式，详见本站《khazix-skills 是什么、怎么安装使用：数字生命卡兹克的 Skill 合集（leader、neat-freak 洁癖、横纵分析法）》。\n\n## 怎么用\n\n- 「/neat」或「洁癖一下」——一轮开发结束后调用。\n- 「docs 和代码对不上了，帮我同步，只改文档不动代码」。\n- 「我要把这个项目交接给同事，做一次完整的知识收尾，清理项先列给我看」。\n\n## 适合谁 / 局限\n\n适合长期用 Claude Code、Codex 维护项目，文档和规则文件越积越乱的人。局限：「运行态」这一面需要它能访问真实的服务或页面，访问不到时只能标为待定；它判断哪些文件是残留靠的是命名和上下文，删除清单务必自己过一遍；完整路径步骤多，小项目用轻量路径就够。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会修改文档和规则文件**，在你确认后还可能删除文件、分支和 worktree；建议在干净的提交点之后运行。\n- 目录里有一个 Bash 盘点脚本（`scripts/audit-inventory.sh`）和一批评测用的夹具文件；没有 Bash 时技能要求手工做等价的检查。",
+      "images": [],
+      "sources": [
+        "https://github.com/KKKKhazix/khazix-skills/tree/main/neat-freak",
+        "https://github.com/KKKKhazix/khazix-skills"
+      ]
+    },
+    {
+      "title": "rdkit skill 是什么、怎么安装使用：让 Claude Code 用 RDKit 做化学信息学（SMILES、描述符、子结构搜索）",
+      "slug": "kdense-rdkit-skill",
+      "name": "rdkit（K-Dense-AI/scientific-agent-skills）",
+      "url": "https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/rdkit",
+      "pricing": "开源免费（技能标注 BSD-3-Clause；仓库整体 MIT）",
+      "platforms": "Claude Code / Codex / Cursor / Gemini CLI 等支持 Agent Skills 的工具",
+      "trialNote": "npx skills add K-Dense-AI/scientific-agent-skills --skill rdkit",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "research-data",
+        "coding"
+      ],
+      "excerpt": "rdkit 是 K-Dense 科研技能库里的化学信息学技能：指导智能体用 RDKit 解析 SMILES / SDF、计算分子量与 LogP 等描述符、生成指纹、做子结构与相似性搜索、生成 2D / 3D 构象和处理反应，附三个可直接运行的脚本。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 K-Dense-AI/scientific-agent-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 K-Dense-AI/scientific-agent-skills 在 GitHub 约 4.8 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\nRDKit 是药物化学和计算化学里最常用的开源工具库，接口很多、坑也不少。这个技能让智能体按经过核对的方式使用它。`description`：用于精细分子操控的化学信息学工具包——SMILES / SDF 解析、描述符（分子量、LogP、极性表面积）、指纹、子结构搜索、2D / 3D 生成、相似性、反应；标准流程想要更简单的接口可以用 datamol（RDKit 的封装），需要高级控制、自定义净化或专门算法时用 rdkit。\n\nSKILL.md 的结构：\n\n- **概述与版本基线**：技能写明了它核对所依据的 RDKit 稳定版本和核对日期，并解释了包名的变迁——现在 PyPI 上的包名是 `rdkit`，`rdkit-pypi` 是旧名，只在维护老环境时才该出现。\n- **安装**：往现有环境里装用 `uv`；需要可复现的化学环境、尤其是和其他编译型科学计算包混用时，仍然推荐上游建议的 conda-forge；不要把两种来源的 RDKit 装进同一个环境。\n- **核心能力**：读写分子结构、描述符计算、指纹、子结构搜索、化学反应、坐标生成和分子可视化。\n- **保持化学含义**：一节专门提醒处理分子时不要破坏其化学意义。\n- **常见陷阱**。\n\n目录里有十个文件：接口参考、核心能力、描述符参考、SMARTS 模式、工作流与最佳实践等参考文件，以及三个脚本——计算分子性质、相似性搜索、子结构过滤。frontmatter 的 `compatibility` 说明：装好之后不需要任何凭据，也不需要联网。\n\n## 怎么安装\n\n仓库 README 的安装方式是 skills CLI。这个库有一百七十多个技能，建议用 CLI 文档里的 `--skill` 参数只装需要的：\n\n```bash\nnpx skills add K-Dense-AI/scientific-agent-skills --skill rdkit\n```\n\n也可以把整个仓库克隆到 `~/.agents/skills/scientific-agent-skills`（用户级）或项目的 `.agents/skills/` 下。\n\n仓库整体介绍和其他安装方式，详见本站《Scientific Agent Skills 是什么、怎么安装使用：K-Dense 的科研 Skill 库（生信、化学、数据分析、科研写作）》。\n\nRDKit 本身要另外装进你的 Python 环境，技能只是使用说明和脚本。\n\n## 怎么用\n\n- 「读入 `compounds.sdf`，算出每个分子的分子量、LogP 和极性表面积，存成 CSV」。\n- 「在这批分子里找出含磺酰胺基团的，用 SMARTS 匹配」。\n- 「以这个 SMILES 为参照，按 Tanimoto 相似度给库里的分子排序，取前 20 个」。\n\n## 适合谁 / 局限\n\n适合做药物发现、化学数据清洗的研究生和工程师，尤其是会化学但不常写代码的人。局限：它保证的是工具用法正确，化学结论仍然要懂行的人判断；计算出的性质是经验模型的估计值，不能替代实验；大规模的库筛选要考虑运行时间和内存。\n\n## 注意事项\n\n- **许可**：该技能的 frontmatter 标注 BSD-3-Clause（与 RDKit 本身的许可一致），所在仓库整体为 MIT。\n- **会在本机执行 Python 脚本**并读写你指定的数据文件；`allowed-tools` 为读、写、编辑和 Bash。\n- 未公开的化合物结构会进入模型上下文，涉及保密项目时注意所用模型服务的数据条款。",
+      "images": [],
+      "sources": [
+        "https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/rdkit",
+        "https://github.com/K-Dense-AI/scientific-agent-skills",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "scanpy skill 是什么、怎么安装使用：让智能体跑单细胞 RNA-seq 分析流程（质控、聚类、UMAP、标记基因）",
+      "slug": "kdense-scanpy-skill",
+      "name": "scanpy（K-Dense-AI/scientific-agent-skills）",
+      "url": "https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/scanpy",
+      "pricing": "开源免费（技能标注 BSD-3-Clause；仓库整体 MIT）",
+      "platforms": "Claude Code / Codex / Cursor / Gemini CLI 等支持 Agent Skills 的工具",
+      "trialNote": "npx skills add K-Dense-AI/scientific-agent-skills --skill scanpy",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "research-data",
+        "data-analysis"
+      ],
+      "excerpt": "scanpy 是 K-Dense 科研技能库里的单细胞分析技能：指导智能体用 Scanpy 完成质控、归一化、高变基因筛选、PCA / UMAP、聚类、标记基因排序和可视化，并支持把 Seurat 等 R 对象转成 h5ad，附一组分步脚本。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 K-Dense-AI/scientific-agent-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 K-Dense-AI/scientific-agent-skills 在 GitHub 约 4.8 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n单细胞转录组分析的标准流程步骤固定，但每一步都有容易用错的地方：拿归一化之后的数据当原始计数、聚类参数随手一填、把探索性的标记基因当成定论。scanpy 技能把这条流程和它的前提条件一起交给智能体。`description`：执行 Scanpy 单细胞 RNA-seq 的质控、归一化、高变基因选择、PCA / UMAP / t-SNE、聚类、探索性的标记基因排序、伪批量数据准备、可视化，以及把 Seurat 或 SingleCellExperiment 的 RDS 文件转换为 h5ad；适用于成熟的探索性单细胞流程，要求明确计数和表达量的来源。scvi-tools 模型和 AnnData 格式细节由配套的其他技能覆盖。\n\nSKILL.md 的要点：\n\n- **版本基线**：写明所针对的 Scanpy 版本和核对日期，并说明这一版要求 Python 3.12 以上。它还坦白了一点：技能里的合成数据测试验证的是数据与接口的约定，不代表生物学上的正确性。\n- **安装**：用 `uv` 安装带 `leiden` 附加依赖的版本，脚本里明确选用 igraph 实现的聚类；想复现就把版本钉死。超大数据集可以配合 Dask，需要 GPU 加速则另用 rapids-singlecell。\n- **R 对象**：输入是 Seurat 等 R 原生对象时，先用 R 工具转成 `.h5ad`。\n- **表示与推断的约定**：这是最长的一节，规定每一步该用哪一层数据（原始计数还是归一化后的表达量），以及哪些结论只能算探索性的。\n\n目录里有二十多个文件：分析模板、细胞类型映射和基因特征的示例配置，标准流程、绘图指南、R 互操作等参考文件，以及查看数据、聚类、找标记基因、批次校正、注释、格式转换、绘图等脚本。\n\n## 怎么安装\n\n仓库 README 的安装方式是 skills CLI。这个库有一百七十多个技能，建议用 CLI 文档里的 `--skill` 参数只装需要的：\n\n```bash\nnpx skills add K-Dense-AI/scientific-agent-skills --skill scanpy\n```\n\n也可以把整个仓库克隆到 `~/.agents/skills/scientific-agent-skills`（用户级）或项目的 `.agents/skills/` 下。\n\n仓库整体介绍和其他安装方式，详见本站《Scientific Agent Skills 是什么、怎么安装使用：K-Dense 的科研 Skill 库（生信、化学、数据分析、科研写作）》。\n\nScanpy 及其依赖要另外装进你的 Python 环境。\n\n## 怎么用\n\n- 「对 `pbmc.h5ad` 做标准流程：质控、归一化、选高变基因、降维、Leiden 聚类，画 UMAP」。\n- 「先检查这个文件里存的是原始计数还是处理过的数据，再决定从哪一步开始」。\n- 「把同事给的 Seurat 的 `.rds` 文件转成 h5ad」。\n\n## 适合谁 / 局限\n\n适合刚接触单细胞分析的生物学研究生，以及想把重复流程自动化的生信工程师。局限：细胞类型注释、差异分析结论这类需要生物学判断的环节，它只能给出探索性的结果，发表前必须由懂这个体系的人复核；数据大时对内存要求高；参数没有放之四海皆准的取值，需要结合数据调整。\n\n## 注意事项\n\n- **许可**：该技能标注 BSD-3-Clause，所在仓库整体为 MIT。\n- **在本机运行 Python 脚本**，`compatibility` 写明本地分析不需要凭据和网络；R 对象转换需要另装 R。\n- 人类样本的测序数据可能受伦理与数据管理规定约束，交给云端模型处理前确认合规。",
+      "images": [],
+      "sources": [
+        "https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/scanpy",
+        "https://github.com/K-Dense-AI/scientific-agent-skills",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "citation-management skill 是什么、怎么安装使用：让智能体查文献、核对引用并生成 BibTeX",
+      "slug": "kdense-citation-management-skill",
+      "name": "citation-management（K-Dense-AI/scientific-agent-skills）",
+      "url": "https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/citation-management",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor / Gemini CLI 等支持 Agent Skills 的工具",
+      "trialNote": "npx skills add K-Dense-AI/scientific-agent-skills --skill citation-management",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "paper-writing",
+        "literature"
+      ],
+      "excerpt": "citation-management 是 K-Dense 科研技能库里的引用管理技能：检索 OpenAlex、PubMed 和 Google Scholar，从 CrossRef 等来源提取准确的元数据，把 DOI、PMID、arXiv 编号转成规范的 BibTeX，并逐条验证已有引用是否属实。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 K-Dense-AI/scientific-agent-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 K-Dense-AI/scientific-agent-skills 在 GitHub 约 4.8 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n让大模型写论文，最危险的不是文笔，而是参考文献：作者、年份、期刊看着像模像样，其实根本不存在。citation-management 的思路是不让模型凭记忆写引用，一切以数据库查到的为准。`description`：面向学术研究的全面引用管理——检索 OpenAlex、PubMed 和 Google Scholar，提取准确的元数据，验证引用，生成格式规范的 BibTeX 条目；在需要找论文、核实引用信息、把 DOI 转成 BibTeX 或确保参考文献准确时使用。\n\n核心流程分几个阶段：\n\n1. **发现与检索**：按主题或线索在学术数据库里找论文，可以找某个领域的高被引文献。\n2. **元数据提取**：通过 DOI、PMID 或 arXiv 编号，从 CrossRef、PubMed、arXiv 等来源取回作者、标题、期刊、年份等完整信息；必要时再从网页补全。\n3. **BibTeX 格式化**：生成并清理条目，统一格式，检查重复。\n4. **引用验证**：核对已有的参考文献列表是否与真实出版物一致。\n5. **融入写作流程**：与同库的 `literature-review`、`scientific-writing`、`venue-templates` 配合。\n\n目录里有二十多个文件：BibTeX 模板和引用检查清单；接口约定、最佳实践、BibTeX 格式、引用验证、Google Scholar 与 PubMed 检索、检索策略等参考文件；以及 DOI 转 BibTeX、提取元数据等 Python 脚本。\n\nfrontmatter 的 `compatibility` 把依赖交代得很清楚：需要 Python 3.9 以上和 `requests`，Google Scholar 检索另需 `scholarly`；需要访问 OpenAlex、CrossRef、NCBI、doi.org、arXiv、DataCite 这些站点。四个环境变量都是可选的：NCBI 的邮箱和密钥、OpenAlex 的邮箱和密钥，用来表明身份或提高调用额度。SKILL.md 另有一节说明这些凭据会被发送到哪里。\n\n## 怎么安装\n\n仓库 README 的安装方式是 skills CLI。这个库有一百七十多个技能，建议用 CLI 文档里的 `--skill` 参数只装需要的：\n\n```bash\nnpx skills add K-Dense-AI/scientific-agent-skills --skill citation-management\n```\n\n也可以把整个仓库克隆到 `~/.agents/skills/scientific-agent-skills`（用户级）或项目的 `.agents/skills/` 下。\n\n仓库整体介绍和其他安装方式，详见本站《Scientific Agent Skills 是什么、怎么安装使用：K-Dense 的科研 Skill 库（生信、化学、数据分析、科研写作）》。\n\n## 怎么用\n\n- 「把这十个 DOI 转成 BibTeX，键名用『第一作者姓 + 年份』」。\n- 「核对 `refs.bib` 里的每一条，标出查不到的、信息对不上的和重复的」。\n- 「找近五年关于 RAG 评测的高被引论文，给我带 DOI 的清单」。\n\n## 适合谁 / 局限\n\n适合写论文、学位论文和综述的研究者，尤其适合拿来检查由 AI 起草的稿件里的参考文献。局限：只能验证文献是否存在、信息是否一致，判断不了「这篇文献是否真的支持你那句话」，这一步必须自己读原文；Google Scholar 没有官方接口，检索不稳定；中文数据库（如知网）不在覆盖范围内。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会联网调用多个学术数据库的公开接口**，并在本机运行 Python 脚本；请遵守各数据库的使用频率要求。\n- 密钥只通过环境变量提供，不要写进稿件仓库。",
+      "images": [],
+      "sources": [
+        "https://github.com/K-Dense-AI/scientific-agent-skills/tree/main/skills/citation-management",
+        "https://github.com/K-Dense-AI/scientific-agent-skills",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "campaign-plan skill 是什么、怎么安装使用：让 Claude 把一个营销目标写成完整的活动方案和内容日历",
+      "slug": "anthropic-marketing-campaign-plan-skill",
+      "name": "campaign-plan（anthropics/knowledge-work-plugins）",
+      "url": "https://github.com/anthropics/knowledge-work-plugins/tree/main/marketing/skills/campaign-plan",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Claude Cowork / Claude Code",
+      "trialNote": "`claude plugin marketplace add anthropics/knowledge-work-plugins` 然后 `claude plugin install marketing@knowledge-work-plugins`",
+      "tags": [
+        "claude",
+        "claude-llm",
+        "agent-skills",
+        "marketing",
+        "office"
+      ],
+      "excerpt": "campaign-plan 是 Anthropic 开源的 marketing 插件里的技能：先问清目标、受众、时间和预算，再生成包含概述、受众、核心信息、渠道策略、逐周内容日历、内容清单、成功指标、预算分配和风险的十段式营销活动简报。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 anthropics/knowledge-work-plugins 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 anthropics/knowledge-work-plugins 在 GitHub 约 2.9 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n「下个月要推新功能，出个方案」——这种任务最费时间的不是想法，而是把想法排成一份别人能照着执行的文档。campaign-plan 给 Claude 一套固定的方案结构。`description`：生成完整的营销活动简报，包含目标、受众、信息、渠道策略、内容日历和成功指标；在策划产品发布、获客推广或品牌认知活动，需要带依赖关系的逐周内容日历，或者要把一个营销目标转成结构化、可执行的计划时使用。\n\n**先收集输入**。缺了就先问，不硬编：活动目标（拉新、提升认知、发布产品、获取线索、召回流失用户等）、目标受众、时间线和固定日期、预算范围（可选；没有就出一份不依赖预算的方案，并标出哪里会受预算影响），以及产品、差异点、历史活动效果、品牌约束、地域等补充信息。\n\n**简报十个部分**：\n\n1. 活动概述——名称建议、一句话摘要、一个具体可衡量的主目标；\n2. 目标受众；\n3. 核心信息；\n4. 渠道策略——每个渠道说明为什么适合、内容形式、投入程度，按自有、赢得、付费渠道分类考虑；\n5. 内容日历——按周（短期活动按天）列出产出什么、发在哪、里程碑，以及内容之间的依赖，例如「落地页必须先上线，付费广告才能开投」；\n6. 需要制作的内容清单；\n7. 成功指标；\n8. 预算分配（给了预算才有）；\n9. 风险与应对；\n10. 下一步。\n\n后半部分是策划参考：目标—受众—信息—渠道—衡量的框架、渠道选择指南、内容日历的排法、预算分配思路，以及不同活动类型该看哪些指标。\n\n## 怎么安装\n\n`campaign-plan` 属于 anthropics/knowledge-work-plugins 的 `marketing` 插件，随插件一起安装。Claude Code 里（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add anthropics/knowledge-work-plugins\nclaude plugin install marketing@knowledge-work-plugins\n```\n\nClaude Cowork 用户在 claude.com/plugins 页面安装同名插件。装好后技能会在相关场景自动触发，也可以用斜杠命令 `/marketing:campaign-plan` 手动调用。\n\n仓库整体介绍和其他安装方式，详见本站《knowledge-work-plugins 是什么、怎么安装：Anthropic 开源的 11 个岗位插件（销售 / 法务 / 财务 / 数据）》。\n\n## 怎么用\n\n- 「/campaign-plan 下个月上线团队协作功能，目标是让现有免费用户升级」。\n- 「预算五万，六周时间，面向中小电商卖家做一轮获客，出方案」。\n- 「把这份方案的内容日历单独拉成表格，标出每项的负责人和依赖」。\n\nSKILL.md 开头提示：文中带 `~~` 的占位符代表可连接的外部工具，没有连接时它按你提供的信息工作。\n\n## 适合谁 / 局限\n\n适合小团队的市场负责人和身兼营销的创业者，用来快速出第一版方案。局限：渠道建议以海外常见渠道为框架，做国内市场要自己换成对应的平台；它不知道你的真实投放数据，指标目标和预算比例只是起点；方案写得再完整，也替代不了对受众的实际了解。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **不带脚本**：只有一份 SKILL.md；是否读取外部数据取决于你给插件连接了哪些工具。\n- 生成的方案属于草稿，对外承诺的日期和数字要经过内部确认。",
+      "images": [],
+      "sources": [
+        "https://github.com/anthropics/knowledge-work-plugins/tree/main/marketing/skills/campaign-plan",
+        "https://github.com/anthropics/knowledge-work-plugins",
+        "https://claude.com/plugins/"
+      ]
+    },
+    {
+      "title": "incident-response skill 是什么、怎么安装使用：线上出故障时，让 Claude 帮你定级、写通报和复盘",
+      "slug": "anthropic-engineering-incident-response-skill",
+      "name": "incident-response（anthropics/knowledge-work-plugins）",
+      "url": "https://github.com/anthropics/knowledge-work-plugins/tree/main/engineering/skills/incident-response",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Claude Cowork / Claude Code",
+      "trialNote": "`claude plugin marketplace add anthropics/knowledge-work-plugins` 然后 `claude plugin install engineering@knowledge-work-plugins`",
+      "tags": [
+        "claude",
+        "claude-llm",
+        "agent-skills",
+        "coding",
+        "office"
+      ],
+      "excerpt": "incident-response 是 Anthropic 开源的 engineering 插件里的技能：把一次线上事故分成分诊、沟通、缓解、复盘四个阶段，提供 SEV1–SEV4 的定级标准、状态通报模板和不追究个人责任的复盘文档结构。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 anthropics/knowledge-work-plugins 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 anthropics/knowledge-work-plugins 在 GitHub 约 2.9 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n线上故障时最缺的是脑力：一边排查，一边还得定级、拉人、给上级和客户写通报，事后再补复盘。incident-response 把后面这些「文书工作」的结构准备好了。`description`：运行一套事故响应流程——分诊、沟通、撰写复盘；在「我们出事故了」「生产环境挂了」、需要给告警定级、事故中途要发状态更新，或解决后写无责复盘时使用。\n\n三种调用方式：\n\n- `/incident-response new [描述]`：开始一个新事故；\n- `/incident-response update [状态]`：发一次状态更新；\n- `/incident-response postmortem`：根据事故数据生成复盘。\n\n不指定时，它会先问事故处在哪个阶段。\n\n流程四个阶段：**分诊**（评估严重级别、确认受影响的系统和用户、分配事故指挥、对外沟通、处置等角色）→ **沟通**（起草内部状态通报，必要时起草客户通知，建立作战群和更新节奏）→ **缓解**（记录采取的措施、维护时间线、确认恢复）→ **复盘**（无责复盘文档、重建时间线、用「五个为什么」做根因分析、带负责人的行动项）。\n\n**定级表**：SEV1 是服务不可用、全部用户受影响，立即全员响应；SEV2 是主要功能受损、大量用户受影响，15 分钟内响应；SEV3 是次要功能问题，1 小时内；SEV4 是外观类或低影响问题，下一个工作日。\n\n沟通上的要求是按固定节奏给出清楚、基于事实的更新，每次都包含：发生了什么、谁受影响、正在做什么、下次更新是什么时候。几条提示也很实在：信息不全也要立刻开始写；只写已知的、做过的和接下来要做的，不猜测；复盘对事不对人。\n\n## 怎么安装\n\n`incident-response` 属于 anthropics/knowledge-work-plugins 的 `engineering` 插件，随插件一起安装。Claude Code 里（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add anthropics/knowledge-work-plugins\nclaude plugin install engineering@knowledge-work-plugins\n```\n\nClaude Cowork 用户在 claude.com/plugins 页面安装同名插件。装好后技能会在相关场景自动触发，也可以用斜杠命令 `/engineering:incident-response` 手动调用。\n\n仓库整体介绍和其他安装方式，详见本站《knowledge-work-plugins 是什么、怎么安装：Anthropic 开源的 11 个岗位插件（销售 / 法务 / 财务 / 数据）》。\n\n## 怎么用\n\n- 「/incident-response new 支付回调从十分钟前开始大量超时」。\n- 「/incident-response update 已回滚上一个版本，错误率在下降」。\n- 「/incident-response postmortem」，然后把时间线和聊天记录贴给它。\n\n## 适合谁 / 局限\n\n适合还没有成型事故流程的小团队，拿它当模板和记录员；也适合值班的人在压力下保证通报不漏项。局限：它不替你排查故障——定位和修复还得靠人和监控；定级标准是通用版，应当按自己的业务调整；连接了监控、事故管理或聊天工具时它才能自动拉取告警、创建事故单和发群消息，否则只产出文字。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **不带脚本**；连接事故管理工具后，它可以创建或更新事故并呼叫值班人员——这类会打扰到人的动作，先确认再让它执行。\n- 给客户的通知涉及对外口径和合同承诺，发出前应由负责人审阅。\n- 事故材料里常含内部系统信息和用户数据，注意贴给模型的范围。",
+      "images": [],
+      "sources": [
+        "https://github.com/anthropics/knowledge-work-plugins/tree/main/engineering/skills/incident-response",
+        "https://github.com/anthropics/knowledge-work-plugins",
+        "https://claude.com/plugins/"
+      ]
+    },
+    {
+      "title": "draft-response skill 是什么、怎么安装使用：让 Claude 按场景起草给客户的回复（报障、拒绝需求、账单问题）",
+      "slug": "anthropic-support-draft-response-skill",
+      "name": "draft-response（anthropics/knowledge-work-plugins）",
+      "url": "https://github.com/anthropics/knowledge-work-plugins/tree/main/customer-support/skills/draft-response",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Claude Cowork / Claude Code",
+      "trialNote": "`claude plugin marketplace add anthropics/knowledge-work-plugins` 然后 `claude plugin install customer-support@knowledge-work-plugins`",
+      "tags": [
+        "claude",
+        "claude-llm",
+        "agent-skills",
+        "office",
+        "copywriting"
+      ],
+      "excerpt": "draft-response 是 Anthropic 开源的 customer-support 插件里的技能：先判断客户、情境、紧急程度、渠道和关系阶段，再起草面向客户的回复，交稿前自查语气、承诺和口径，并附常见场景模板与跟进节奏。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 anthropics/knowledge-work-plugins 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 anthropics/knowledge-work-plugins 在 GitHub 约 2.9 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n给客户回信难在分寸：功能延期怎么说、明确不做的需求怎么拒、故障期间怎么安抚又不乱承诺。draft-response 让 Claude 先判断情境再下笔。`description`：起草针对具体情境和客户关系的专业客户回复；在回答产品问题、回应升级投诉或故障、传达延期或「不予修复」这类坏消息、婉拒功能需求，或回复账单问题时使用。\n\n**工作流五步**：\n\n1. **理解情境**：客户是谁；属于哪类情况（提问、问题、升级、公告、谈判、坏消息、好消息、跟进）；多紧急、对方已经等了多久；走什么渠道（邮件、工单、聊天，正式程度随之调整）；关系处在什么阶段（新客户、老客户、已经不满）；对方是什么层级（一线使用者、经理、高管、技术或业务人员）。\n2. **调研背景**：连接了邮件、聊天、客户管理系统等工具时，查之前的往来、做过的承诺、内部对这位客户的讨论和类似情况的处理方式。\n3. **起草**。\n4. **质量检查**：语气是否合适；有没有超出授权的承诺；有没有泄露不该对外说的产品规划；对过往沟通的引用是否准确；下一步和责任人是否清楚；深浅是否适合对方层级；长度是否适合渠道。\n5. **提供改写选项**。\n\n后面是一套**沟通准则**。七条核心原则：先共情、直截了当、诚实不夸大、具体、敢于担责（说「我们」而不是「系统」）、每次回复都有明确的下一步、情绪上与客户同步。另有回复结构、长度建议、语气光谱、按关系阶段调整语气和写作规则。\n\n还有五个**常见场景模板**：确认收到缺陷报告、确认账单或账户问题、回复不会做的功能需求、故障或事故通报、长时间无回音后的跟进。最后是跟进节奏和何时该升级处理。\n\n## 怎么安装\n\n`draft-response` 属于 anthropics/knowledge-work-plugins 的 `customer-support` 插件，随插件一起安装。Claude Code 里（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add anthropics/knowledge-work-plugins\nclaude plugin install customer-support@knowledge-work-plugins\n```\n\nClaude Cowork 用户在 claude.com/plugins 页面安装同名插件。装好后技能会在相关场景自动触发，也可以用斜杠命令 `/customer-support:draft-response` 手动调用。\n\n仓库整体介绍和其他安装方式，详见本站《knowledge-work-plugins 是什么、怎么安装：Anthropic 开源的 11 个岗位插件（销售 / 法务 / 财务 / 数据）》。\n\n## 怎么用\n\nSKILL.md 自带的例子：\n\n- 「/draft-response 某客户问新的仪表盘功能什么时候上线」。\n- 「/draft-response 客户升级投诉——他们的集成已经中断两天」。\n- 「/draft-response 回复一个我们不打算做的功能需求」。\n\n补充上之前的往来和你能给出的承诺范围，稿子会更可用。\n\n## 适合谁 / 局限\n\n适合客服、客户成功和小公司里兼做客服的创始人。局限：模板和语气以英文商务沟通为底色，中文回复需要自己把握称呼和客气程度；它不知道你们的真实排期和政策，凡是涉及日期、赔偿、退款的句子都要人工确认；没有连接邮件和客户系统时，背景只能靠你提供。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **只起草，不发送**：把稿子发出去仍由你来做。\n- **客户信息会进入模型上下文**，按公司的数据规定处理；不要贴入不必要的个人信息。",
+      "images": [],
+      "sources": [
+        "https://github.com/anthropics/knowledge-work-plugins/tree/main/customer-support/skills/draft-response",
+        "https://github.com/anthropics/knowledge-work-plugins",
+        "https://claude.com/plugins/"
+      ]
+    },
+    {
+      "title": "build-dashboard skill 是什么、怎么安装使用：让 Claude 生成一个双击就能打开的 HTML 数据看板",
+      "slug": "anthropic-data-build-dashboard-skill",
+      "name": "build-dashboard（anthropics/knowledge-work-plugins）",
+      "url": "https://github.com/anthropics/knowledge-work-plugins/tree/main/data/skills/build-dashboard",
+      "pricing": "开源免费（Apache-2.0）",
+      "platforms": "Claude Cowork / Claude Code",
+      "trialNote": "`claude plugin marketplace add anthropics/knowledge-work-plugins` 然后 `claude plugin install data@knowledge-work-plugins`",
+      "tags": [
+        "claude",
+        "claude-llm",
+        "agent-skills",
+        "data-analysis",
+        "office"
+      ],
+      "excerpt": "build-dashboard 是 Anthropic 开源的 data 插件里的技能：把查询结果、粘贴的数据或 CSV 做成单个自包含的 HTML 交互看板，包含指标卡、图表、筛选器和明细表，图表用 Chart.js，数据以 JSON 内嵌，无需服务器。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 anthropics/knowledge-work-plugins 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 anthropics/knowledge-work-plugins 在 GitHub 约 2.9 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n想给老板或团队看一组数据，搭 BI 工具太重，截图贴表格又太糙。build-dashboard 走中间路线：让 Claude 直接写出一个 HTML 文件，浏览器打开就是带筛选的交互看板。`description`：构建带图表、筛选器和表格的交互式 HTML 看板；在做带指标卡的管理层概览、把查询结果变成可分享的自包含报告、做团队监控快照，或需要在一个可用浏览器打开的文件里放多张带筛选的图表时使用。SKILL.md 强调成品不需要服务器，也不需要安装依赖。\n\n**工作流**：\n\n1. **弄清需求**：用途（管理层概览、运营监控、深入分析、团队汇报）、受众、最重要的指标、要按哪些维度筛选、数据从哪来。\n2. **准备数据**：连接了数据仓库就查询后把结果内嵌进 HTML；数据是粘贴或上传的，就先解析清洗再内嵌；只有描述没有数据时，生成一份符合结构的示例数据，并在看板上注明是示例，同时说明如何换成真实数据。\n3. **设计布局**：顶部二到四张指标卡放关键数字，中间一到三张图表展示趋势和构成，底部可选一张明细表，筛选器视复杂度放在页头或侧栏。\n4. **生成 HTML**：单个自包含文件。\n5. **实现各类图表**：统一使用 Chart.js，各种图表类型有对应的写法。\n\n这份 SKILL.md 有两万五千多字符，后面相当篇幅在讲性能：数据量大时先做**预聚合**，以及图表和页面元素的性能注意点；最后是示例和提示。\n\n## 怎么安装\n\n`build-dashboard` 属于 anthropics/knowledge-work-plugins 的 `data` 插件，随插件一起安装。Claude Code 里（命令来自仓库 README）：\n\n```bash\nclaude plugin marketplace add anthropics/knowledge-work-plugins\nclaude plugin install data@knowledge-work-plugins\n```\n\nClaude Cowork 用户在 claude.com/plugins 页面安装同名插件。装好后技能会在相关场景自动触发，也可以用斜杠命令 `/data:build-dashboard` 手动调用。\n\n仓库整体介绍和其他安装方式，详见本站《knowledge-work-plugins 是什么、怎么安装：Anthropic 开源的 11 个岗位插件（销售 / 法务 / 财务 / 数据）》。\n\n## 怎么用\n\n- 「/build-dashboard 用这份 CSV 做一个销售概览，按地区和月份筛选」。\n- 「把刚才那条查询的结果做成看板，顶部放收入、订单数、客单价三张卡」。\n- 「先用示例数据做一版让我看布局，结构是：日期、渠道、花费、转化数」。\n\n## 适合谁 / 局限\n\n适合数据分析师、运营和需要快速出一版可交互汇报材料的人。局限：数据是内嵌的静态快照，不会自动刷新，要更新就重新生成；数据量很大时文件会变重，所以技能要求先聚合；它是一次性产物，替代不了需要权限管理和定时更新的正式 BI 系统。\n\n## 注意事项\n\n- **许可**：Apache-2.0。\n- **图表库从公共 CDN 加载**：生成的页面引用 jsDelivr 上的 Chart.js，打开时需要能访问该 CDN；内网或离线环境要让它改成本地引用。\n- **数据明文写在文件里**：把 HTML 发给别人等于把底层数据一起发出去，分享前确认里面没有不该外传的明细。\n- 用示例数据生成的看板会带标注，替换成真实数据后记得去掉并核对数字。",
+      "images": [],
+      "sources": [
+        "https://github.com/anthropics/knowledge-work-plugins/tree/main/data/skills/build-dashboard",
+        "https://github.com/anthropics/knowledge-work-plugins",
+        "https://claude.com/plugins/"
+      ]
+    },
+    {
+      "title": "incremental-implementation skill 是什么、怎么安装使用：让 AI 一小片一小片地改代码，每片都能跑",
+      "slug": "addyosmani-incremental-implementation-skill",
+      "name": "incremental-implementation（addyosmani/agent-skills）",
+      "url": "https://github.com/addyosmani/agent-skills/tree/main/skills/incremental-implementation",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor / Gemini CLI / OpenCode / Copilot 等",
+      "trialNote": "npx skills add addyosmani/agent-skills --skill incremental-implementation",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "incremental-implementation 是 addyosmani/agent-skills 里的执行纪律技能：要求智能体把改动切成薄的、可验证的切片，按「实现 → 测试 → 验证 → 提交」循环推进，并遵守先求简单、不越界、保持可编译等规则。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 addyosmani/agent-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 addyosmani/agent-skills 在 GitHub 约 10.4 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n编程智能体的一个通病是「一口气写完」：一次改十几个文件，最后发现跑不起来，也分不清是哪一步出的错。incremental-implementation 规定了另一种节奏。`description`：以薄的、可验证的切片增量交付改动；在实现任何涉及多个文件的功能或改动、从计划里领取下一个任务、用功能开关逐步放出改动、正准备一次写大量代码，或任务大到没法一步落地时使用。\n\n**增量循环**五步：实现最小的一块完整功能 → 跑测试（没有就先写一个）→ 验证这一片确实可用 → 提交 → 进入下一片，接着往前走而不是推倒重来。SKILL.md 给了一个经验信号：在测试之前想写超过一百行左右的代码时，就该切片了。\n\n**三种切法**：\n\n- **纵向切片**（首选）：每一片都打通一条从界面到数据的完整路径，做完就能用；\n- **契约先行**：前后端要并行开发时，先定接口再各自实现；\n- **风险先行**：先做最没把握的那一块，失败了也是在投入更多之前发现。\n\n**实施规则**从 0 号开始编号：\n\n- 规则 0，简单优先——先写最朴素、明显正确的版本；三行相似的代码好过一个过早的抽象。\n- 规则 0.5，范围纪律——只碰任务需要的地方；不顺手「清理」旁边的代码，不整理没在改的文件里的导入，不删自己没看懂的注释，不加规格里没有的功能。发现值得改的地方就记下来，不动手。\n- 规则 1，一次只做一件事。\n- 规则 2，保持可编译——每一片之后项目都能构建、已有测试都通过。\n- 规则 3，没做完的功能放在功能开关后面。\n- 规则 4，安全的默认值。\n- 规则 5，便于回滚。\n\n之后是与智能体协作的要点、每片的检查清单，以及这个库每个技能都有的「常见的自我开脱」「危险信号」「验证」三节。\n\n## 怎么安装\n\n仓库 README 给出了单独安装某个技能的写法：\n\n```bash\nnpx skills add addyosmani/agent-skills --skill incremental-implementation\n```\n\n想整套安装，Claude Code 用 `/plugin marketplace add addyosmani/agent-skills` 加 `/plugin install agent-skills@addy-agent-skills`，Codex 用 `codex plugin marketplace add addyosmani/agent-skills` 加 `codex plugin add agent-skills@agent-skills`。README 提示，插件安装遇到 SSH 权限报错时改用仓库的 HTTPS 地址。\n\n仓库整体介绍和其他安装方式，详见本站《addyosmani/agent-skills 是什么、怎么安装：Addy Osmani 的 25 个生产级工程 Skills（/spec、/plan、/build）》。\n\n## 怎么用\n\n- 「按 incremental-implementation 的方式实现这份计划，每完成一片就停下来让我看」。\n- 「这个重构涉及二十多个文件，先告诉我你打算怎么切」。\n- 整套安装后，它通常由 `/build` 命令在实现阶段带出来。\n\n## 适合谁 / 局限\n\n适合让智能体做中等以上规模改动的人，尤其是被「改完一大堆却跑不起来」折腾过的。局限：切片越细，测试和提交的次数越多，速度会慢一些；项目没有测试时，「验证」只能靠构建和手工检查，效果打折扣；单文件的小修改用不着它，SKILL.md 自己也这么说。\n\n## 注意事项\n\n- **许可**：MIT。\n- **不带脚本**：纯说明文字。\n- **会频繁提交**：如果你对提交历史有要求，事先说明提交信息的规范，或让它在独立分支上工作，合并前再整理。",
+      "images": [],
+      "sources": [
+        "https://github.com/addyosmani/agent-skills/tree/main/skills/incremental-implementation",
+        "https://github.com/addyosmani/agent-skills",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "source-driven-development skill 是什么、怎么安装使用：要求 AI 先查官方文档再写代码，并标明出处",
+      "slug": "addyosmani-source-driven-development-skill",
+      "name": "source-driven-development（addyosmani/agent-skills）",
+      "url": "https://github.com/addyosmani/agent-skills/tree/main/skills/source-driven-development",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor / Gemini CLI / OpenCode / Copilot 等",
+      "trialNote": "npx skills add addyosmani/agent-skills --skill source-driven-development",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "source-driven-development 是 addyosmani/agent-skills 里的技能：要求智能体先从依赖文件确认技术栈和版本，再去抓对应功能的官方文档页面，按文档里的写法实现并给出引用，不凭训练记忆写框架相关的代码。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 addyosmani/agent-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 addyosmani/agent-skills 在 GitHub 约 10.4 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n模型的知识有截止日期，而框架每年都在变：它很有把握写出来的那段代码，可能用的是两个大版本之前的写法。source-driven-development 的要求只有一句——凡是和具体框架相关的决定，都要有官方文档作依据。`description`：让每个实现决策都立足于官方文档；在想先对照官方文档核实做法再实现，或想要有权威出处、不含过时模式的代码时使用。\n\n**流程四步**：\n\n1. **识别技术栈和版本**：读项目的依赖文件，确认用到的框架和确切版本，并明确说出来；版本缺失或有歧义就问用户，不许猜，因为版本决定了哪种写法才是对的。\n2. **获取官方文档**：抓的是所实现功能对应的那一页，不是首页，也不是整站。来源有明确的权威顺序：官方文档第一，官方博客和更新日志第二，网页标准参考（如 MDN）第三，浏览器与运行时的兼容性数据第四。问答网站的回答、博客教程（哪怕很有名）、AI 生成的文档摘要，以及模型自己的训练数据，都不能当作首要依据。官方来源之间互相矛盾时，要把分歧告诉用户。\n3. **按文档里的模式实现**。\n4. **标注出处**，让用户可以自己去核对。\n\n其中有一小节专讲**检索安全**：抓回来的文档页是不可信输入，它只在「这个框架怎么用」上有权威，无权决定智能体接下来做什么；只提取接口定义、示例代码、弃用警告和版本说明，其余忽略。\n\n技能也划出了不必使用的情形：与版本无关的改动（改变量名、修错别字、挪文件）、各版本通用的纯逻辑，以及用户明说要快不要核实的时候。\n\n## 怎么安装\n\n仓库 README 给出了单独安装某个技能的写法：\n\n```bash\nnpx skills add addyosmani/agent-skills --skill source-driven-development\n```\n\n想整套安装，Claude Code 用 `/plugin marketplace add addyosmani/agent-skills` 加 `/plugin install agent-skills@addy-agent-skills`，Codex 用 `codex plugin marketplace add addyosmani/agent-skills` 加 `codex plugin add agent-skills@agent-skills`。README 提示，插件安装遇到 SSH 权限报错时改用仓库的 HTTPS 地址。\n\n仓库整体介绍和其他安装方式，详见本站《addyosmani/agent-skills 是什么、怎么安装：Addy Osmani 的 25 个生产级工程 Skills（/spec、/plan、/build）》。\n\n## 怎么用\n\n- 「用 source-driven-development 的方式，给这个 Next.js 项目加表单提交，写法以当前版本的官方文档为准，给出链接」。\n- 「这段数据获取代码是不是过时的写法？对照官方文档检查」。\n- 「搭一个认证的样板，每个关键做法后面标明依据的是哪一页文档」。\n\n## 适合谁 / 局限\n\n适合使用更新频繁的框架、或者要写会被全项目照抄的样板代码的团队。局限：需要智能体能联网取文档，离线环境里无从谈起；查文档会多花时间和 token，小改动不划算；官方文档本身也可能滞后或有错，出处只保证可追溯，不保证绝对正确。\n\n## 注意事项\n\n- **许可**：MIT。\n- **会联网抓取文档页面**；不带脚本。\n- 核对它给的链接是否真的指向官方域名，以及引用的内容是否与页面一致——标了出处不等于出处属实。",
+      "images": [],
+      "sources": [
+        "https://github.com/addyosmani/agent-skills/tree/main/skills/source-driven-development",
+        "https://github.com/addyosmani/agent-skills",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "shipping-and-launch skill 是什么、怎么安装使用：上线前检查清单、灰度放量阈值和回滚策略",
+      "slug": "addyosmani-shipping-and-launch-skill",
+      "name": "shipping-and-launch（addyosmani/agent-skills）",
+      "url": "https://github.com/addyosmani/agent-skills/tree/main/skills/shipping-and-launch",
+      "pricing": "开源免费（MIT）",
+      "platforms": "Claude Code / Codex / Cursor / Gemini CLI / OpenCode / Copilot 等",
+      "trialNote": "npx skills add addyosmani/agent-skills --skill shipping-and-launch",
+      "tags": [
+        "claude",
+        "codex",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "ai-agent"
+      ],
+      "excerpt": "shipping-and-launch 是 addyosmani/agent-skills 里的发布技能：给出覆盖代码质量、安全、性能、无障碍、基础设施和文档的上线前清单，以及功能开关策略、分阶段放量的判断阈值、监控项和回滚方案。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 addyosmani/agent-skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。所在仓库 addyosmani/agent-skills 在 GitHub 约 10.4 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n「代码写完了」和「可以上线了」之间隔着一长串事情，独立开发者和小团队最容易在这里漏项。shipping-and-launch 把这串事情列成清单交给智能体。`description`：为生产发布做准备；在准备部署到生产环境、想知道上线前要具备什么、需要上线前检查清单、搭建监控、规划分阶段放量或需要回滚策略时使用。SKILL.md 的立场是：每次发布都应该可回退、可观测、渐进进行。\n\n**上线前清单**分六类：\n\n- 代码质量——测试全过、构建无警告、检查与类型校验通过、代码已评审、没有遗留的调试输出；\n- 安全——代码和版本库里没有密钥、依赖审计没有高危漏洞、输入有校验、鉴权到位、安全响应头已配置、认证接口有限流、跨域只允许指定来源；\n- 性能——核心网页指标达到「良好」、关键路径没有 N+1 查询、图片已优化；\n- 无障碍；\n- 基础设施；\n- 文档。\n\n**放量与回滚**是这个技能里最具体的部分。它给了一张判断表，按指标决定继续放量、暂停排查还是回滚：\n\n- 错误率：与基线相差 10% 以内继续；高出 10% 到一倍暂停；超过基线两倍回滚。\n- P95 延迟：高出 20% 以内继续；20% 到 50% 暂停；超过 50% 回滚。\n- 前端脚本错误：没有新错误类型继续；新错误出现在超过千分之一的会话里就回滚。\n- 业务指标：下降超过 5% 回滚。\n\n另外列出应当立即回滚的情形：用户反馈激增、发现数据完整性问题、发现安全漏洞。其余章节讲功能开关策略、该监控什么、错误上报、上线后的验证、用错误预算作发布闸门，以及回滚方案本身。\n\n## 怎么安装\n\n仓库 README 给出了单独安装某个技能的写法：\n\n```bash\nnpx skills add addyosmani/agent-skills --skill shipping-and-launch\n```\n\n想整套安装，Claude Code 用 `/plugin marketplace add addyosmani/agent-skills` 加 `/plugin install agent-skills@addy-agent-skills`，Codex 用 `codex plugin marketplace add addyosmani/agent-skills` 加 `codex plugin add agent-skills@agent-skills`。README 提示，插件安装遇到 SSH 权限报错时改用仓库的 HTTPS 地址。\n\n仓库整体介绍和其他安装方式，详见本站《addyosmani/agent-skills 是什么、怎么安装：Addy Osmani 的 25 个生产级工程 Skills（/spec、/plan、/build）》。\n\n## 怎么用\n\n- 「这个版本准备周四上线，按 shipping-and-launch 过一遍检查清单，告诉我哪些还没满足」。\n- 「给这次数据库迁移设计一个分阶段放量和回滚方案」。\n- 整套安装后对应 `/ship` 命令。\n\n让它逐项给出证据（跑了什么命令、结果如何），比只打勾可信。\n\n## 适合谁 / 局限\n\n适合没有专职运维和发布流程的小团队，拿它当上线前的最后一道自查。局限：清单偏 Web 应用，移动端、桌面端或数据类项目要自行增减；阈值是经验值，流量小的产品上统计波动很大，照搬容易误判；它只能检查代码仓库里看得到的东西，线上配置和监控是否真的生效需要你去确认。\n\n## 注意事项\n\n- **许可**：MIT。\n- **不带脚本**：纯说明文字；执行检查时会运行项目自己的测试、构建和依赖审计命令。\n- 是否允许智能体执行实际的部署命令，由团队的发布规范决定；这个技能本身只负责准备和核对。",
+      "images": [],
+      "sources": [
+        "https://github.com/addyosmani/agent-skills/tree/main/skills/shipping-and-launch",
+        "https://github.com/addyosmani/agent-skills",
+        "https://github.com/vercel-labs/skills"
+      ]
+    },
+    {
+      "title": "animation-vocabulary skill 是什么、怎么安装使用：说不出动效叫什么？让 AI 帮你把「那个弹一下的效果」对上术语",
+      "slug": "emil-animation-vocabulary-skill",
+      "name": "animation-vocabulary（emilkowalski/skills）",
+      "url": "https://github.com/emilkowalski/skills/tree/main/skills/animation-vocabulary",
+      "pricing": "开源免费（GitHub 标注 MIT）",
+      "platforms": "Claude Code / Codex / Cursor 等支持 Agent Skills 的智能体",
+      "trialNote": "npx skills@latest add emilkowalski/skills --skill animation-vocabulary",
+      "tags": [
+        "claude",
+        "cursor",
+        "any-llm",
+        "agent-skills",
+        "coding",
+        "product-design"
+      ],
+      "excerpt": "animation-vocabulary 是 emilkowalski/skills 里的反查词典技能：你用大白话描述一个网页动效，它从分成十二类的术语词表里找出准确叫法，相近的词会并列对比，找不到就明说是近似，方便你再去向 AI 或设计师提需求。",
+      "checkedOn": "2026-10-11",
+      "content": "> 本文根据 emilkowalski/skills 仓库里该技能的 SKILL.md 与仓库 README 整理，资料核对于 2026-10-11。skills.sh 榜单当日显示该技能累计安装约 20.1 万次；所在仓库 emilkowalski/skills 在 GitHub 约 4.5 万 Star（同日数据）。技能内容会随仓库更新，以仓库为准。\n\n## 这个 Skill 做什么\n\n让 AI 做动效，卡住的往往不是技术，而是不知道那个效果叫什么：「点按钮后浮层像是从按钮里长出来的」「滚到头还能再拉一点然后弹回去」。说不出名字，就只能反复描述、反复返工。animation-vocabulary 是一本反查词典。`description`：把对网页动画或运动效果的含糊描述变成准确的术语（例如「浮层打开时弹一下的那个」对应 Pop in，「iOS 那种橡皮筋滚动」对应 Rubber-banding）；用户问「这个叫什么」，或描述了一个效果却不知道名字、想要一个能拿去向 AI 或设计师提需求的词时使用。它只负责命名，不负责设计和实现。\n\nSKILL.md 给智能体定了五条做法：\n\n1. 读意图而不是抓关键词——用户描述的是看到的和感觉到的，不是技术名；\n2. 词表里的释义原样引用，不改写；\n3. 相近的词要对比着讲，比如裁剪路径与遮罩、弹入与回弹、共享元素过渡与布局动画；\n4. 没有完全对应的词时，给出最接近的并明说是近似，或者用词表里的词组合描述，例如「这是一组缩放进场加上依次错开」；\n5. 只在这份词表内回答，确实没有就说没有，不编新词。\n\n输出格式也是固定的：术语加一句释义；有多个可能时，最匹配的放前面，再列一两个备选并说明区别。\n\n词表分十二类：进场与退场、编排与时序、移动与变换、状态之间的过渡、滚动相关、反馈与交互、缓动、弹簧动画、循环与环境动效、打磨与特效、性能、应当了解的原则。\n\n## 怎么安装\n\n仓库 README 的安装命令是 `npx skills@latest add emilkowalski/skills`（整库，安装时可在选择器里勾选）。只装这一个，按 skills CLI 文档加 `--skill` 参数：\n\n```bash\nnpx skills@latest add emilkowalski/skills --skill animation-vocabulary\n```\n\n装好后技能进入所选智能体的技能目录，按 `description` 自动触发，也可以用 `/animation-vocabulary` 手动调用。\n\n仓库整体介绍和其他安装方式，详见本站《emilkowalski/skills 是什么、怎么安装：Emil Kowalski 的界面动效与设计 Skills（让 AI 做的动画不再生硬）》。\n\n## 怎么用\n\nSKILL.md 自带的两个例子：\n\n- 「浮层看起来是从你点的按钮里长出来，而不是从自己中间放大，这叫什么？」——答案是 Origin-aware animation（感知起点的动画）。\n- 「一张图变成另一张图的那种效果」——首选 Morph（形变），并提示如果只是原地交叠淡入淡出，那叫 Crossfade。\n\n问到名字之后，把术语直接写进给智能体的需求里，例如「卡片列表用 stagger 依次进场」，比描述半天更准。不带问题直接调用时，它只回一句就绪说明。\n\n## 适合谁 / 局限\n\n适合产品经理、设计师和不常写动效的开发者，在向 AI 或同事提需求前先把词找对；也适合学前端动效的人当术语表翻。局限：术语以英文为准，中文圈的叫法并不统一，沟通时最好中英文一起写；它只管叫什么，不解释怎么实现——实现可以交给同库的 `animate` 或 `emil-design-eng`；词表之外的冷门效果它会如实说没有。\n\n## 注意事项\n\n- **许可**：GitHub 标注为 MIT。\n- **不带脚本、不联网**：一份一万三千多字符的说明加词表。\n- 词表反映的是作者的归类方式，个别术语在不同团队里含义略有出入，以实际效果为准。",
+      "images": [],
+      "sources": [
+        "https://github.com/emilkowalski/skills/tree/main/skills/animation-vocabulary",
+        "https://github.com/emilkowalski/skills",
+        "https://github.com/vercel-labs/skills",
+        "https://skills.sh/"
       ]
     }
   ]
