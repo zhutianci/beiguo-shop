@@ -16,7 +16,7 @@ import { fetchArticles } from './extract'
 import { SEED_SOURCES, relayUrl, relayConfigured } from './sources'
 import { AIHOT_HEADERS, AIHOT_LEAD_VIA, aihotFetchUrl, parseAihotLeads } from './aihot'
 import { CATEGORIES, CATEGORY_SLUGS, TOPIC_BLOCKLIST, TAG_WHITELIST } from './constants'
-import { computeScore, overlapRatio, unsupportedNumbers, needsReview, forbiddenHit, blocklistHit } from './score'
+import { computeScore, overlapRatio, unsupportedNumbers, needsReview, forbiddenHit, blocklistHit, sharedRun, copiedStats } from './score'
 
 // ============ 通用常量与小工具 ============
 
@@ -81,21 +81,6 @@ function pickTags(text: string, entities: string[]): string {
     if (hit.length >= 5) break
   }
   return hit.join(',')
-}
-
-/**
- * 连续 N 字重合检测。overlapRatio 用的是 2-gram 集合相似度，抓不住
- * 「整句照抄但整体改写率不高」的情况，这里补一道连续片段的硬检查。
- */
-function sharedRun(summary: string, materials: string, n = 20): string | null {
-  const a = summary.replace(/\s+/g, '')
-  const b = materials.replace(/\s+/g, '')
-  if (a.length < n || b.length < n) return null
-  for (let i = 0; i + n <= a.length; i++) {
-    const g = a.slice(i, i + n)
-    if (b.includes(g)) return g
-  }
-  return null
 }
 
 /**
@@ -1204,13 +1189,25 @@ const COMPOSE_SYSTEM = [
 /** detail 的段数与字数边界。校验不过就丢掉 detail，事件本身照常发布 */
 const DETAIL_MIN_SECTIONS = 2
 const DETAIL_MAX_SECTIONS = 4
-const DETAIL_MIN_CHARS = 400
+/** 2026-10-12：400 → 300。原文本身只有八九百字的快讯，写出 370 来字的两段是正常篇幅，不该整块丢掉 */
+const DETAIL_MIN_CHARS = 300
 const DETAIL_MAX_CHARS = 1600
 const DETAIL_HEADING_MAX = 20
-/** detail 与原文的连续重合阈值：比 summary 的 20 字更严，因为篇幅长、照抄的空间也大 */
+/** 写给模型看的要求：连续这么多字不得与原文重合（提示词里的数，比下面真正拦截的口径更严） */
 const DETAIL_RUN_CHARS = 18
+/**
+ * 真正拦截的口径（2026-10-12，见 score.ts copiedStats 的说明）：
+ * 逐字重合的最长一段达到 DETAIL_COPY_RUN 字 = 搬了一整句；逐字重合占全文超过 DETAIL_COPY_RATIO = 大面积搬运。
+ * 两条任一命中就退回。只看以中文为主的重合段，英文专有名词不算。
+ */
+const DETAIL_COPY_RUN = 30
+const DETAIL_COPY_RATIO = 0.25
 /** 瞬时失败重试上限，超过转 SKIP —— 防止某条事件每轮都来烧一次钱 */
 const DETAIL_MAX_TRIES = 3
+/** 抓到的正文达到这个长度，就认为素材足够写全文层 */
+const DETAIL_RICH_BODY = 600
+/** 每轮结果里带几条退回原因（进 cron 日志，排查「为什么没有全文」用） */
+const DETAIL_REASON_KEEP = 6
 
 export interface DetailSection {
   heading: string
@@ -1233,6 +1230,9 @@ function normalizeDetail(
     .map((s) => ({ heading: clip(toStr(s?.heading), DETAIL_HEADING_MAX), body: toStr(s?.body).trim() }))
     .filter((s) => s.heading && s.body.length >= 40)
     .slice(0, DETAIL_MAX_SECTIONS)
+  // 写长了就从末尾去掉整段，而不是整篇作废（前面几段本身是完整的）；去到只剩两段还超就照旧退回
+  const sum = () => list.reduce((n, s) => n + s.body.length, 0)
+  while (list.length > DETAIL_MIN_SECTIONS && sum() > DETAIL_MAX_CHARS) list.pop()
 
   // 模型明确表示材料不够（返回空数组）不是错误，是它按要求做了正确的事
   if (!list.length) return { sections: [], reject: null }
@@ -1244,8 +1244,13 @@ function normalizeDetail(
 
   const text = list.map((s) => `${s.heading}\n${s.body}`).join('\n')
   // 抄袭防线：篇幅一长，「与原文连续 N 字重合」比重合率更能抓到整段搬运
-  const run = sharedRun(text, materials, DETAIL_RUN_CHARS)
-  if (run) return { sections: [], reject: `与原文连续 ${DETAIL_RUN_CHARS} 字重合：「${clip(run, 20)}」` }
+  const copied = copiedStats(text, materials)
+  if (copied.longest.length >= DETAIL_COPY_RUN) {
+    return { sections: [], reject: `与原文连续 ${copied.longest.length} 字重合：「${clip(copied.longest, 30)}」` }
+  }
+  if (copied.ratio > DETAIL_COPY_RATIO) {
+    return { sections: [], reject: `约 ${Math.round(copied.ratio * 100)}% 的内容与原文逐字重合，最长一段：「${clip(copied.longest, 30)}」` }
+  }
   // 幻觉防线：detail 里的数字同样必须在材料里找得到
   const bad = unsupportedNumbers(text, materials)
   if (bad.length) return { sections: [], reject: `含原文未出现的数字：${bad.slice(0, 3).join('、')}` }
@@ -1296,6 +1301,8 @@ async function eventMaterials(eventId: number): Promise<{
   hasFeed: boolean
   /** 是否真有可写的素材（有正文，或有超过一句话的 description）。见下方注释 */
   hasMaterial: boolean
+  /** 素材够不够撑起全文层：至少一份材料抓到了 600 字以上的正文。够的话模型交白卷要重写，不算「材料不足」 */
+  rich: boolean
 }> {
   const items = await prisma.newsItem.findMany({
     where: { eventId },
@@ -1369,6 +1376,7 @@ async function eventMaterials(eventId: number): Promise<{
     minConfidence: confidences.length ? Math.min(...confidences) : 1,
     hasFeed: items.some((i) => i.source.role !== 'signal'),
     hasMaterial,
+    rich: materials.some((m) => (m.body?.length ?? 0) >= DETAIL_RICH_BODY),
   }
 }
 
@@ -1420,6 +1428,10 @@ export interface ComposeResult {
   detailed: number
   /** detail 校验不过被丢弃的条数（事件本身照常发布） */
   detailRejected: number
+  /** 其中带着退回原因重写后通过的条数 */
+  detailRetried?: number
+  /** 最近几条退回原因 */
+  detailReasons?: string[]
   /** 因为墙钟到点提前收工 */
   timedOut?: boolean
   error?: string
@@ -1541,8 +1553,12 @@ export async function compose(): Promise<ComposeResult> {
 
       // 全文层。校验不过就只丢这一块，事件本身照常发布 —— 详情页退回「只有摘要」，
       // 与改造前逐像素一致，没有半成品可言，所以**不进 needsReview 队列**。
-      const det = normalizeDetail(r.data.detail, mat.text)
-      if (det.reject) res.detailRejected++
+      const det = await detailOrRetry(r.data.detail, mat)
+      if (det.reason) {
+        res.detailRejected++
+        res.detailReasons = [...(res.detailReasons ?? []), clip(det.reason, 60)].slice(-DETAIL_REASON_KEEP)
+      }
+      if (det.retried && det.sections.length) res.detailRetried = (res.detailRetried ?? 0) + 1
       if (det.sections.length) res.detailed++
 
       const tags = pickTags(`${headline} ${summary}`, facts.map((f) => f.text))
@@ -1558,9 +1574,11 @@ export async function compose(): Promise<ComposeResult> {
           whyItMatters: whyItMatters || null,
           facts: facts.length ? JSON.stringify(facts) : null,
           detail: det.sections.length ? serializeDetail(det.sections) : null,
-          // 有内容就 DONE；没写出来（材料不够或校验不过）就 SKIP —— 都是内容性结论，不再重试。
-          // 只有**瞬时失败**（超时/限流/5xx，走下面的 catch）才留着下轮重来。
-          detailState: det.sections.length ? 'DONE' : 'SKIP',
+          // 有内容就 DONE；材料确实不够就 SKIP（内容性结论，不再重试）。
+          // 材料够、只是这一稿（含重写的那一稿）没过校验的，留 RAW 交给独立的 detail 段再写，
+          // 最多 DETAIL_MAX_TRIES 次 —— 2026-10-12 之前这里一律 SKIP，三分之二的事件因此永远没有全文。
+          detailState: det.sections.length ? 'DONE' : det.again ? 'RAW' : 'SKIP',
+          detailTries: det.sections.length || !det.again ? 0 : 1,
           tags: tags || null,
           aiScore,
           status: 'PUBLISHED',
@@ -1606,11 +1624,11 @@ const DETAIL_BACKFILL_ON = process.env.NEWS_DETAIL_BACKFILL === '1'
  * 线上待补 125 条，给 2 的时候一轮只出 1 条，照那个速度要跑几个月。
  * 给 8 配 4 分钟墙钟：单条约 10-15s（抓原文 + 一次写作调用），跑得完还有余量。
  */
-const DETAIL_BACKFILL_TAKE = 8
+const DETAIL_BACKFILL_TAKE = 12
 /** 本段自己的墙钟。crontab 给它单独一条任务，--max-time 540 仍是硬上限 */
 const DETAIL_DEADLINE_MS = 4 * 60000
 /** 只在当日预算用掉不到这个比例时才补 —— 回填永远排在当天的新闻后面 */
-const DETAIL_BACKFILL_BUDGET_RATIO = 0.4
+const DETAIL_BACKFILL_BUDGET_RATIO = 0.6
 
 /**
  * 给已发布但还没有全文层的老事件补写 detail。
@@ -1628,6 +1646,10 @@ export interface DetailResult {
   filled: number
   /** 校验不过被丢弃 */
   rejected: number
+  /** 其中带着退回原因重写后通过的条数 */
+  retried?: number
+  /** 最近几条退回原因 */
+  reasons?: string[]
   /** 素材不足直接判 SKIP */
   skipped: number
   /** 还有多少条已发布事件没有全文 */
@@ -1678,8 +1700,8 @@ export async function composeDetails(): Promise<DetailResult> {
       detailState: 'RAW',
       detailTries: { lt: DETAIL_MAX_TRIES },
     },
-    // 先补热门的：读得最多的页面最值得有全文
-    orderBy: [{ sourceCount: 'desc' }, { aiScore: 'desc' }, { happenedAt: 'desc' }],
+    // 先补新的：当天的新闻读的人最多，存量从近到远慢慢补
+    orderBy: [{ happenedAt: 'desc' }, { id: 'desc' }],
     take: DETAIL_BACKFILL_TAKE,
     select: { id: true, detailTries: true },
   })
@@ -1709,16 +1731,22 @@ export async function composeDetails(): Promise<DetailResult> {
         temperature: 0.3,
       })
 
-      const det = normalizeDetail(r.data.detail, mat.text)
-      if (det.reject) res.rejected++
+      const det = await detailOrRetry(r.data.detail, mat)
+      if (det.reason) {
+        res.rejected++
+        res.reasons = [...(res.reasons ?? []), clip(det.reason, 60)].slice(-DETAIL_REASON_KEEP)
+      }
+      if (det.retried && det.sections.length) res.retried = (res.retried ?? 0) + 1
       if (det.sections.length) res.filled++
       else res.skipped++
+      const tries = ev.detailTries + 1
       await prisma.newsEvent.update({
         where: { id: ev.id },
         data: {
           detail: det.sections.length ? serializeDetail(det.sections) : null,
-          detailState: det.sections.length ? 'DONE' : 'SKIP',
-          detailTries: { increment: 1 },
+          // 材料够但没过校验的留 RAW，下一轮再写，写满 DETAIL_MAX_TRIES 次才放弃
+          detailState: det.sections.length ? 'DONE' : det.again && tries < DETAIL_MAX_TRIES ? 'RAW' : 'SKIP',
+          detailTries: tries,
         },
       })
     } catch (e) {
@@ -1744,6 +1772,107 @@ export async function composeDetails(): Promise<DetailResult> {
   })
   console.log('[news/detail]', JSON.stringify(res))
   return res
+}
+
+/**
+ * 全文层的「校验 + 带原因重写一次」。compose 与 detail 两段共用。
+ *
+ * 【为什么要重写而不是直接丢】2026-10-12 用线上素材实验：16 条里 12 条的全文第一稿过不了校验，
+ * 而退回原因几乎都是一句话就能改掉的（某一句和原文连着重合了十几个字、自己算了个百分点差、少写了几十字）。
+ * 原来的做法是整块丢弃并永久标 SKIP，结果线上约三分之二的事件没有全文。
+ * 现在把退回原因原样告诉模型再写一次；第二稿仍不过就交回调用方决定（留 RAW 下轮再写，或材料不足判 SKIP）。
+ * 校验规则本身不放松：第二稿走的还是同一个 normalizeDetail。
+ *
+ * 返回：sections 为空时，again=true 表示「材料够、值得下轮再写」，false 表示「材料不足，别再试」。
+ * reason 是第一稿的退回原因（没有被退回就是 null），只用于统计与日志。
+ */
+async function detailOrRetry(
+  raw: { heading: string; body: string }[] | null | undefined,
+  mat: { text: string; materials: Material[]; rich: boolean }
+): Promise<{ sections: DetailSection[]; reason: string | null; retried: boolean; again: boolean }> {
+  const first = normalizeDetail(raw, mat.text)
+  if (first.sections.length) return { sections: first.sections, reason: null, retried: false, again: false }
+  // 模型交了白卷：素材薄就是「材料不足」的正确回答；素材明明够，就当作退回处理
+  const reason = first.reject ?? (mat.rich ? '材料里有完整正文，却没有写全文层' : null)
+  if (!reason) return { sections: [], reason: null, retried: false, again: false }
+  try {
+    // 照抄类的退回，把原因告诉模型没有用：材料是中文时它两稿、三稿都还是整句搬（实验里最长搬了 243 个字）。
+    // 改成两步：先把材料整理成转述过的要点，再只凭要点写 —— 写稿那一步根本看不到原文，也就无从照搬。
+    // 校验仍然拿成稿和**原始材料**比，数字、照抄、禁词、黑名单一条不少。
+    const user = /重合/.test(reason) ? await detailFromPoints(mat) : null
+    const r = await llmJson({
+      stage: 'compose',
+      system: DETAIL_ONLY_SYSTEM,
+      user:
+        user ??
+        [
+          `以下是同一件事的 ${mat.materials.length} 份材料：`,
+          '',
+          mat.text,
+          '',
+          `【上一稿被退回，原因：${reason}】`,
+          '请针对这个原因重写全文层，其余硬约束照旧：',
+          '· 被指出的数字若材料里没有（包括你自己加减乘除算出来的），删掉或改回材料里的原始数字；',
+          `· 篇幅不够时，把材料里还没写到的细节补进来，至少 2 段、总字数 ${DETAIL_MIN_CHARS + 100} 字以上，但不许编。`,
+        ].join('\n'),
+      schema: detailOnlySchema,
+      write: true,
+      maxTokens: 1800,
+      temperature: 0.3,
+    })
+    const second = normalizeDetail(r.data.detail, mat.text)
+    return { sections: second.sections, reason, retried: true, again: !second.sections.length }
+  } catch (e) {
+    // 预算用尽 / 供应商不可用这类致命错误交给调用方的循环去处理；这里只负责「这一条没写成」
+    if (isFatalLlmError(e)) throw e
+    return { sections: [], reason, retried: true, again: true }
+  }
+}
+
+const pointsSchema = z.object({ points: z.array(z.string().max(400)).nullish() })
+
+/** 两步改写的第一步：把材料整理成转述过的事实要点 */
+const POINTS_SYSTEM = [
+  '你是资料整理员。把给定材料里的事实整理成要点清单，供另一位撰写员写稿用。只依据材料，不使用外部知识。',
+  '',
+  '要求：',
+  '1. 列 8 到 16 条要点，每条一个事实，不超过 30 个字。',
+  '2. 每条都用你自己的话转述，不要照抄原句；数字、版本号、人名、公司名、产品名保持原样。',
+  '3. 覆盖：谁做了什么、具体做法、关键数字、与什么对比、适用范围与限制、时间安排。',
+  '4. 不写评价和推测；材料涉及监管立法、出口管制、制裁、裁员、政治人物的部分略过。',
+  '',
+  '输出 json，形如 {"points":["要点一","要点二"]}，不要任何解释文字。',
+].join('\n')
+
+/** 要点太少撑不起两段全文，不值得再花一次写作调用 */
+const POINTS_MIN = 5
+
+/**
+ * 两步改写：返回第二步（写稿）要用的 user 内容；要点不够时返回 null，调用方退回普通重写。
+ * 第一步用便宜的判断模型就够（只是抽取与转述）。
+ */
+async function detailFromPoints(mat: { text: string; materials: Material[] }): Promise<string | null> {
+  const p = await llmJson({
+    stage: 'compose',
+    system: POINTS_SYSTEM,
+    user: `材料如下：\n\n${mat.text}`,
+    schema: pointsSchema,
+    maxTokens: 900,
+    temperature: 0.2,
+  })
+  const points = (p.data.points ?? [])
+    .map((x) => clip(toStr(x).trim(), 60))
+    .filter(Boolean)
+    .slice(0, 16)
+  if (points.length < POINTS_MIN) return null
+  return [
+    '以下是同一件事的要点（已经是转述过的事实清单，不是原文）：',
+    '',
+    ...points.map((x) => `· ${x}`),
+    '',
+    '只依据这些要点写全文层：按逻辑重新组织成段，不要逐条罗列。',
+    '正文里不要出现「要点」「材料」「清单」这类指代写作素材的词；要点里没有的信息直接不写，也不要写「未提及」「没有说明」。',
+  ].join('\n')
 }
 
 const detailOnlySchema = z.object({

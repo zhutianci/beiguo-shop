@@ -87,19 +87,150 @@ export function overlapRatio(summary: string, materials: string): number {
 /**
  * 数字回查：摘要里出现的数字/版本号，必须能在原材料里找到。
  * 能力边界见 SKILL.md §7——它拦不住实体关系颠倒，不能宣称零幻觉。
+ *
+ * 【2026-10-12 补两类等价写法】英文材料写成中文时，数字的「字面」会变而「数值」不变，
+ * 原来只比字面，把这两类全判成了「材料里没有的数字」（全文层被整块丢弃的头号原因之一）：
+ *   ① 数量级换算：1.3 million → 130 万、1 billion → 10 亿、$500M → 5 亿美元；
+ *   ② 月份：October 30th → 10 月 30 日。
+ * 自己算出来的数（两个百分比相减得到的「提升 15.4 个百分点」）仍然算材料里没有 —— 那确实是材料里没有的数字。
  */
+const CN_UNITS: [string, number][] = [
+  ['万亿', 1e12], ['千亿', 1e11], ['百亿', 1e10], ['十亿', 1e9], ['亿', 1e8],
+  ['千万', 1e7], ['百万', 1e6], ['十万', 1e5], ['万', 1e4], ['千', 1e3],
+]
+const EN_UNITS: Record<string, number> = {
+  thousand: 1e3, k: 1e3, million: 1e6, mn: 1e6, m: 1e6, billion: 1e9, bn: 1e9, b: 1e9, trillion: 1e12, tn: 1e12, t: 1e12,
+}
+const EN_WORD_NUM: Record<string, number> = {
+  a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  half: 0.5, hundred: 100,
+}
+const EN_MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+
+/** 材料里所有「带数量级的数」换算成的绝对值（英文 million / billion / k / M / B，中文 万 / 亿 …） */
+function magnitudesIn(materials: string): number[] {
+  const out: number[] = []
+  const s = materials.replace(/[,，]/g, '')
+  const en = /(\d+(?:\.\d+)?|\b(?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|half)\b)[\s-]*(?:a\s+)?(hundred\s+)?(thousand|million|billion|trillion|mn|bn|tn|k|m|b|t)\b/gi
+  let m: RegExpExecArray | null
+  while ((m = en.exec(s))) {
+    const head = m[1].toLowerCase()
+    const base = /^\d/.test(head) ? Number(head) : EN_WORD_NUM[head]
+    const unit = EN_UNITS[m[3].toLowerCase()]
+    if (base == null || !unit) continue
+    out.push(base * (m[2] ? 100 : 1) * unit)
+  }
+  const cn = /(\d+(?:\.\d+)?)\s*(万亿|千亿|百亿|十亿|亿|千万|百万|十万|万|千)/g
+  while ((m = cn.exec(s))) {
+    const unit = CN_UNITS.find(([u]) => u === m![2])
+    if (unit) out.push(Number(m[1]) * unit[1])
+  }
+  return out
+}
+
+function sameValue(a: number, b: number): boolean {
+  return Math.abs(a - b) <= Math.max(Math.abs(a), Math.abs(b)) * 1e-6
+}
+
 export function unsupportedNumbers(summary: string, materials: string): string[] {
   const norm = (s: string) => s.replace(/[,，\s]/g, '')
   const mat = norm(materials)
-  const found = summary.match(/\d+(?:\.\d+)?%?/g) || []
+  const matLower = materials.toLowerCase()
+  let mags: number[] | null = null
   const bad: string[] = []
-  for (const raw of found) {
+  const re = /\d+(?:\.\d+)?%?/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(summary))) {
+    const raw = m[0]
     const n = norm(raw)
     // 一位数与年份太容易巧合，不作为判据
     if (n.replace(/[.%]/g, '').length <= 1) continue
-    if (!mat.includes(n)) bad.push(raw)
+    if (mat.includes(n)) continue
+    const tail = summary.slice(m.index + raw.length, m.index + raw.length + 4).replace(/^\s+/, '')
+    // ② 月份：10 月 ←→ October / Oct
+    if (/^月/.test(tail) && /^\d{1,2}$/.test(n)) {
+      const name = EN_MONTHS[Number(n) - 1]
+      if (name && new RegExp(`\\b${name}`, 'i').test(matLower)) continue
+    }
+    // ① 数量级换算：130 万 ←→ 1.3 million
+    if (!raw.endsWith('%')) {
+      const unit = CN_UNITS.find(([u]) => tail.startsWith(u))
+      if (unit) {
+        if (!mags) mags = magnitudesIn(materials)
+        const value = Number(n) * unit[1]
+        if (mags.some((v) => sameValue(v, value))) continue
+      }
+    }
+    bad.push(raw)
   }
   return Array.from(new Set(bad))
+}
+
+/**
+ * 连续 N 字重合检测（照抄防线）。overlapRatio 用的是 2-gram 集合相似度，抓不住
+ * 「整句照抄但整体改写率不高」的情况，这里补一道连续片段的硬检查。
+ *
+ * 【只认以中文为主的片段】比较前会去掉空白，所以英文专有名词一长就必然「连续重合」：
+ * Andreessen Horowitz、TechCrunch Disrupt 2026、GLM-5.3-Highspeed、论文标题、安装命令……
+ * 这些本来就应该原样写，不是照抄。2026-10-12 用线上素材实验，被这一条丢掉的全文里大半是这种误判。
+ * 所以一个窗口里中日韩文字不到一半就不算数；中文材料的整句搬运（一半以上是汉字）照样拦得住。
+ */
+export function sharedRun(text: string, materials: string, n = 20): string | null {
+  const a = text.replace(/\s+/g, '')
+  const b = materials.replace(/\s+/g, '')
+  if (a.length < n || b.length < n) return null
+  const isCjk = (c: string) => /[\u3400-\u9fff]/.test(c)
+  let cjk = 0
+  for (let i = 0; i < n; i++) if (isCjk(a[i])) cjk++
+  for (let i = 0; i + n <= a.length; i++) {
+    if (i > 0) {
+      if (isCjk(a[i - 1])) cjk--
+      if (isCjk(a[i + n - 1])) cjk++
+    }
+    if (cjk * 2 < n) continue
+    const g = a.slice(i, i + n)
+    if (b.includes(g)) return g
+  }
+  return null
+}
+
+/**
+ * 长文（全文层）的照抄度量：最长的一段逐字重合有多长、逐字重合的内容占全文多少。
+ *
+ * 【为什么长文不能沿用「连续 N 字」一刀切】摘要只有两百来字，连续 20 字重合基本就是抄了一句。
+ * 全文层有六百到一千多字，材料又是中文时，职位名单（「Agent 评测工程师、LLM 算法工程师」）、
+ * 文件与产品的全称（《关于进一步加强……的通知》）、带单位的指标句，本来就该原样写，随手就超过 18 个字。
+ * 2026-10-12 用线上素材实验：中文来源的 4 条全文，写两稿都过不了「连续 18 字」，等于中文新闻永远没有全文。
+ * 真正要拦的是两件事：**整句搬运**（最长重合段）和**大面积搬运**（重合占比），所以分开量。
+ *
+ * 口径与 sharedRun 一致：比较前去空白；只统计以中文为主的重合段（英文专有名词不算）。
+ * minRun 以下的短重合不计入占比 —— 十来个字以内的重合在同一件事的两种写法里是常态。
+ */
+export function copiedStats(text: string, materials: string, minRun = 12): { longest: string; ratio: number } {
+  const a = text.replace(/\s+/g, '')
+  const b = materials.replace(/\s+/g, '')
+  if (a.length < minRun || b.length < minRun) return { longest: '', ratio: 0 }
+  const isCjk = (c: string) => /[㐀-鿿]/.test(c)
+  let longest = ''
+  let covered = 0
+  let i = 0
+  while (i + minRun <= a.length) {
+    if (!b.includes(a.slice(i, i + minRun))) {
+      i++
+      continue
+    }
+    let len = minRun
+    while (i + len < a.length && b.includes(a.slice(i, i + len + 1))) len++
+    const run = a.slice(i, i + len)
+    let cjk = 0
+    for (const c of run) if (isCjk(c)) cjk++
+    if (cjk * 2 >= run.length) {
+      covered += len
+      if (len > longest.length) longest = run
+    }
+    i += len
+  }
+  return { longest, ratio: covered / a.length }
 }
 
 /**
