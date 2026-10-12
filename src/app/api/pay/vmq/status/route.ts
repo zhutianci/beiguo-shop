@@ -7,6 +7,7 @@ import { closeExpired, VMQ_TIMEOUT_MIN } from '@/lib/vmq'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { tenantOrigin } from '@/lib/storefront/origin'
 import { channelsEnabled } from '@/lib/storefront/hosts'
+import { currentPayQrUrl } from '@/lib/pay-qr'
 
 /**
  * 收款单属于哪个站：按 VmqOrder.bizType / bizId 反查订单或税费发票的 tenantId（设计 4.5）。
@@ -92,6 +93,9 @@ export async function GET(request: NextRequest) {
       createdAt: o.createdAt,
       timeoutMin: VMQ_TIMEOUT_MIN,
       payDate: o.payDate,
+      // 收银台显示哪一张收款码（后台「收款监控 → 收款码」可切换，3 秒内生效）。null = 配置读坏，收银台不显示收款码。
+      // 只在待支付时给：已支付 / 已过期的页面不展示收款码
+      ...(o.state === 0 ? { qrUrl: await currentPayQrUrl() } : {}),
       ...(carrierExtra ?? {}),
     })
   } catch (err) {

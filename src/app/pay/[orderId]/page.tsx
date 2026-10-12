@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useStorefront } from '@/components/storefront-provider'
 import { ContactModal } from '@/components/contact-modal'
 import { safeNext } from '@/lib/pay-next'
+import { BUILTIN_QR_URL, isCashierQrUrl } from '@/lib/pay-qr-base'
 
 interface PayInfo {
   orderId: string
@@ -17,6 +18,8 @@ interface PayInfo {
   createdAt: string
   timeoutMin: number
   payDate: string | null
+  /** 待支付时：当前生效的收款码地址；null = 收款码暂不可用；缺省（旧接口）= 内置码 */
+  qrUrl?: string | null
   /** 载体单（docs/短信接码-设计.md §6.6 第 13 条）：付款成功后去哪、过期页用专用文案、组合单已用余额抵扣的部分（分） */
   next?: string
   carrier?: 'SMS_POOL' | 'TOPUP'
@@ -27,8 +30,7 @@ function centsText(c: number): string {
   return `¥${Math.floor(c / 100)}.${String(c % 100).padStart(2, '0')}`
 }
 
-// 收款码图片：把你的支付宝个人收款码图片放到 public/vmq-alipay-qr.png
-const QR_IMG = '/vmq-alipay-qr.png'
+// 收款码图片由状态接口给出（后台「收款监控 → 收款码」可上传多张并切换）；接口没给时用镜像自带的 public/vmq-alipay-qr.png
 
 /**
  * 状态接口在「这张收款单属于别的站」时只回 { redirectOrigin }（设计 4.5）。
@@ -56,6 +58,8 @@ export default function VmqCashierPage() {
   const [state, setState] = useState<'loading' | 'pending' | 'paid' | 'expired' | 'notfound'>('loading')
   const [remain, setRemain] = useState<number>(0)
   const [qrOk, setQrOk] = useState(true)
+  // 只认内置码或 uploads/payqr 下的地址；接口明确给了 null（配置读坏）就不显示任何收款码
+  const qrSrc = info?.qrUrl === undefined ? BUILTIN_QR_URL : isCashierQrUrl(info.qrUrl) ? info.qrUrl : null
   const [contactOpen, setContactOpen] = useState(false)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -96,6 +100,11 @@ export default function VmqCashierPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId])
+
+  // 后台切换了收款码：换成新图后重新判断能否加载
+  useEffect(() => {
+    setQrOk(true)
+  }, [qrSrc])
 
   // 倒计时
   useEffect(() => {
@@ -215,14 +224,14 @@ export default function VmqCashierPage() {
 
             <div className="flex justify-center mb-5">
               <div className="p-3 rounded-xl border border-gray-200">
-                {qrOk ? (
+                {qrOk && qrSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={QR_IMG} alt="支付宝收款码" onError={() => setQrOk(false)} className="w-56 h-56 object-contain" />
+                  <img key={qrSrc} src={qrSrc} alt="支付宝收款码" onError={() => setQrOk(false)} className="w-56 h-56 object-contain" />
                 ) : (
                   <div className="w-56 h-56 flex items-center justify-center text-center text-xs text-gray-400 px-4">
-                    未配置收款码图片
+                    收款码暂时无法显示
                     <br />
-                    （请将收款码放到 public/vmq-alipay-qr.png）
+                    请稍后刷新，或联系客服
                   </div>
                 )}
               </div>

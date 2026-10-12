@@ -16,6 +16,7 @@ import crypto from 'crypto'
 import type { Prisma } from '@prisma/client'
 import { CONTACT_QR_URL_RE } from './contact-base'
 import { BRAND_LOGO_URL_RE } from './brand-base'
+import { PAY_QR_URL_RE } from './pay-qr-base'
 import { prisma } from './db'
 
 // 上传目录总量上限：磁盘被写满会连带打挂同机的 MySQL，这是最要命的失败模式。
@@ -52,6 +53,7 @@ const STORE_SCOPES: Record<string, string> = {
   mail: 'mail', // 营销邮件里的图片（后台录入，邮件里引用绝对 URL）
   brand: 'brand', // 渠道站标（渠道品牌与公告：渠道站长在设置中心上传；读写两端都校验 BRAND_LOGO_URL_RE）
   contact: 'contact', // 店面客服二维码（二期改动 4.4：渠道站长在设置中心上传、超管经 /api/upload scope=contact 上传）
+  payqr: 'payqr', // 收银台收款码（只有超管经 /api/admin/vmq/qr 上传；读写两端都校验 PAY_QR_URL_RE）
 }
 
 export function isStoreScope(scope: string): boolean {
@@ -358,4 +360,47 @@ export async function releaseBrandUpload(url: string | null | undefined): Promis
   const refs = await prisma.tenant.count({ where: { brandLogoUrl: url } })
   if (refs > 0) return false
   return deleteBrandUpload(url)
+}
+
+// ------------------------------ 收银台收款码（lib/pay-qr.ts） ------------------------------
+
+/** 收款码单文件上限 2MB（与客服二维码同一口径） */
+export const PAY_QR_MAX_BYTES = 2 * 1024 * 1024
+
+/**
+ * 校验并落盘一张收款码：≤ 2MB；按文件头只收 png / jpg / webp；文件名随机生成，返回的 url 必然匹配 PAY_QR_URL_RE。
+ * 调用方（api/admin/vmq/qr）负责鉴权、限频与写配置。
+ */
+export async function storePayQr(bytes: Buffer): Promise<ContactQrStoreResult> {
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > PAY_QR_MAX_BYTES) return { ok: false, reason: 'size' }
+  const ext = sniffImage(bytes)
+  if (ext !== 'png' && ext !== 'jpg' && ext !== 'webp') return { ok: false, reason: 'type' }
+  const r = await storeUpload('payqr', bytes, ext)
+  if (!r.ok) return { ok: false, reason: r.reason }
+  if (!PAY_QR_URL_RE.test(r.url)) throw new Error(`upload-store: 收款码地址不符合约定格式 ${r.url}`)
+  return { ok: true, url: r.url }
+}
+
+/**
+ * 删除一张收款码文件：只删 public/uploads/payqr/ 下、匹配 PAY_QR_URL_RE 的单个文件（同 deleteContactUpload 的防护）。
+ * 「这张已经不在配置里、也不是当前生效的」由调用方（lib/pay-qr.ts）保证：只传刚从配置里移除的那一张的地址。
+ */
+export async function deletePayQrUpload(url: string | null | undefined): Promise<boolean> {
+  if (typeof url !== 'string' || !PAY_QR_URL_RE.test(url)) return false
+  const dir = path.join(uploadRoot(), STORE_SCOPES.payqr)
+  const name = url.slice('/uploads/payqr/'.length)
+  const full = path.resolve(dir, name)
+  if (path.dirname(full) !== path.resolve(dir) || path.basename(full) !== name) return false
+  return serialized(async () => {
+    try {
+      const st = await stat(full)
+      if (!st.isFile()) return false
+      await unlink(full)
+      if (cachedBytes >= 0) cachedBytes = Math.max(0, cachedBytes - st.size)
+      return true
+    } catch (e) {
+      if ((e as { code?: string })?.code !== 'ENOENT') console.error('[upload] 删除收款码失败', url, (e as Error)?.message || e)
+      return false
+    }
+  })
 }

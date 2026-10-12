@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { RefreshCw, Copy, CheckCircle2, AlertTriangle, Inbox, Info } from 'lucide-react'
+import { PayQrCard } from './pay-qr-card'
 
 interface RecentOrder {
   id: number
@@ -430,12 +431,15 @@ export default function AdminVmqPage() {
                 <div>· 支付宝里开「支付助手 → 接收付款消息提醒」，保证到账消息进系统通知栏。</div>
                 <div>· 把 支付宝 + SmsForwarder 加入后台白名单、关省电优化，避免通知被系统杀掉。</div>
                 <div>· 配好后先用 App 的「测试」发一条，下方「最近一次通知转发」应出现记录。</div>
-                <div>· 收款码图片放在 <code>public/vmq-alipay-qr.png</code>，收银台直接展示。</div>
+                <div>· 收款码在下方「收款码（支付宝）」里上传、切换；没上传过时用镜像自带的 <code>public/vmq-alipay-qr.png</code>。</div>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* 收款码：上传多张、一键切换（接口 /api/admin/vmq/qr） */}
+      <PayQrCard />
 
       {/* 金额识别规则 */}
       <Card>

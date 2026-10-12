@@ -38,6 +38,7 @@ export type NotifyEvent =
   | 'payment.fulfill_failed'
   | 'payment.duplicate'
   | 'vmq.unmatched'
+  | 'vmq.qr_changed'
   // 钱包（docs/短信接码-设计.md §6.6 第 7 条）
   | 'wallet.alert'
   | 'wallet.topup'
@@ -76,6 +77,8 @@ const EVENT_LABELS: Record<NotifyEvent, { emoji: string; title: string }> = {
   'payment.fulfill_failed': { emoji: '🚨', title: '到账后履约失败' },
   'payment.duplicate': { emoji: '🚨', title: '疑似重复付款（需人工退款）' },
   'vmq.unmatched': { emoji: '🚨', title: '收款已到账但未匹配订单' },
+  // 收银台收款码被切换 / 新增 / 删除 —— 这决定买家的钱付给谁，默认必须推：不是站长本人操作的要第一时间发现
+  'vmq.qr_changed': { emoji: '🔐', title: '收款码变更' },
   // 对账不一致、预扣卡住、退款或释放连续失败、配置读坏、自动退入知会 —— 默认必须推（余额是真金白银的预收款负债）
   'wallet.alert': { emoji: '🚨', title: '余额告警' },
   // 可选事件：充值到账知会。默认不推（见 OPT_IN_EVENTS），要推就在 NOTIFY_EVENTS 白名单里显式写上
@@ -815,4 +818,23 @@ export function notifyVmqUnmatched(p: {
     link: '/admin/vmq',
     extraTitle: dup ? p.outTradeNo || '需人工退款' : '需人工核实',
   })
+}
+
+/**
+ * 收银台收款码变更（后台「收款监控 → 收款码」）。切换 / 新增 / 删除 / 重置都推：
+ * 收款码决定买家的钱付给谁，不是站长本人做的操作必须能第一时间看到。
+ * 注意：生产若配置了 NOTIFY_EVENTS 白名单，需包含 vmq.qr_changed 才会推送。
+ */
+export function notifyPayQrChanged(p: { action: '切换' | '新增' | '删除' | '重置'; detail: string; adminId: number | null; ip?: string | null }): void {
+  notify(
+    'vmq.qr_changed',
+    [
+      { label: '操作', value: p.action, color: p.action === '切换' || p.action === '重置' ? 'warning' : undefined },
+      { label: '内容', value: p.detail },
+      { label: '管理员', value: p.adminId ? `#${p.adminId}` : '—' },
+      ...(p.ip ? [{ label: 'IP', value: p.ip }] : []),
+      { label: '提醒', value: '不是你本人操作的话：立刻到后台切回正确的收款码，并修改管理员密码' },
+    ],
+    { link: '/admin/vmq', extraTitle: p.action }
+  )
 }

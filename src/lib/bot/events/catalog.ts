@@ -46,6 +46,7 @@ export const NOTIFY_EVENT_DEFS: Readonly<Record<NotifyEvent, EventDef>> = Object
   'payment.fulfill_failed': { category: 'money_alert', defaultOn: true, urgent: true, emoji: '🚨' },
   'payment.duplicate': { category: 'money_alert', defaultOn: true, urgent: true, emoji: '🚨' },
   'vmq.unmatched': { category: 'money_alert', defaultOn: true, urgent: true, emoji: '🚨' },
+  'vmq.qr_changed': { category: 'security', defaultOn: true, urgent: true, emoji: '🔐' },
   'wallet.alert': { category: 'money_alert', defaultOn: true, urgent: true, emoji: '🚨' },
   // 现有推送里它是 opt-in（默认不推），机器人沿用
   'wallet.topup': { category: 'ops', defaultOn: false, emoji: '💳', userTextLabels: ['用户', '买家'] },
