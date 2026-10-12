@@ -22,6 +22,7 @@
  *   · 金额冷却 + 重复推送归档；未匹配到账逐条留存、可标记已处理
  *   · 每人同时挂着的待付款收款单计数
  */
+import crypto from 'crypto'
 import { PrismaClient, Prisma } from '@prisma/client'
 
 const url = process.env.DATABASE_URL || ''
@@ -90,6 +91,13 @@ async function main() {
 
   // 新增用例建的东西，finally 里统一清
   const startMs = Date.now()
+  // 本次跑登记的「通知身份」行（lib/vmq registerNotice），结束时删掉
+  const noticeKeys: string[] = []
+  const noticeKey = (raw: string) => {
+    const k = `vmq_seen:${crypto.createHash('sha256').update(raw).digest('hex').slice(0, 32)}`
+    noticeKeys.push(k)
+    return k
+  }
   const createdVmqIds: number[] = []
   const createdInvoiceIds: number[] = []
   const extraUserIds: number[] = []
@@ -420,6 +428,59 @@ async function main() {
       ok('标记已处理', !!(await vmq.listUnmatched(30)).find((u) => u.key === hit[0].key)?.handledAt)
     }
 
+    console.log('\n【手机重发同一条通知（原文带手机端时间）】')
+    {
+      // 线上原文的样子：末尾是 SmsForwarder 记下的通知时间，手机重发时一字不变
+      const stamped = (amount: string, tag: string) =>
+        `com.eg.android.AlipayGphone\n已转入余额\n你已成功收款${amount}元（新顾客消费）\nUID：${TAG}${tag}\n2026-10-12 09:36:56 已转入余额 com.eg.android.AlipayGphone`
+      const unmatchedOf = async (price: string) => (await vmq.listUnmatched(60)).filter((u) => u.price === price)
+
+      // ① 首次到账匹配成功；之后同一条通知再来（哪怕同金额又有了新的待支付单）一律忽略
+      const p1 = P(B + 31)
+      const o1 = await order({ amount: D(p1) })
+      const v1 = await vmq.createOrGetVmqOrder({ bizType: 'order', bizId: o1.id, outTradeNo: o1.orderNo, price: p1 })
+      const raw1 = stamped(p1.toFixed(2), 'a')
+      noticeKey(raw1)
+      ok('首次到账：匹配成功', P(v1.reallyPrice) === p1 && (await vmq.markPaidByAmount(p1.toFixed(2), 2, raw1)) === true)
+      const before = (await unmatchedOf(p1.toFixed(2))).length
+      // 模拟「冷却期过后同金额分给了新订单」：直接建一张同金额的待支付收款单
+      const o1b = await order({ amount: D(p1) })
+      const v1b = await prisma.vmqOrder.create({ data: { orderId: `${TAG}rs1${seq}`, bizType: 'order', bizId: o1b.id, outTradeNo: o1b.orderNo, price: D(p1), reallyPrice: D(p1), state: 0 } })
+      ok('同一条通知重发：不匹配', (await vmq.markPaidByAmount(p1.toFixed(2), 2, raw1)) === false)
+      ok('  …同金额的新待支付单没有被标成已支付', (await prisma.vmqOrder.findUnique({ where: { id: v1b.id } }))?.state === 0 &&
+        (await prisma.order.findUnique({ where: { id: o1b.id } }))?.payStatus === 'UNPAID')
+      ok('  …不进待处理（没有新增条目）', (await unmatchedOf(p1.toFixed(2))).length === before)
+      const diag = (await vmq.getDiag()) as { lastResend?: { price?: string } | null }
+      ok('  …后台诊断记下「最近一次忽略的手机重发」', diag.lastResend?.price === p1.toFixed(2))
+      // 同金额、手机端时间不同（真的又付了一笔）→ 是另一条通知，照常匹配那张新单
+      const raw1c = raw1.replace('09:36:56', '09:52:10')
+      noticeKey(raw1c)
+      ok('同金额但手机端时间不同：是新到账，照常匹配', (await vmq.markPaidByAmount(p1.toFixed(2), 2, raw1c)) === true &&
+        (await prisma.vmqOrder.findUnique({ where: { id: v1b.id } }))?.state === 1)
+
+      // ② 首次那一趟没处理完（抛错回了 500）→ 手机重试照常匹配首次之前就建好的收款单
+      const p2 = P(B + 33)
+      const o2 = await order({ amount: D(p2) })
+      const v2 = await prisma.vmqOrder.create({
+        data: { orderId: `${TAG}rs2${seq}`, bizType: 'order', bizId: o2.id, outTradeNo: o2.orderNo, price: D(p2), reallyPrice: D(p2), state: 0, createdAt: new Date(Date.now() - 10 * 60_000) },
+      })
+      const raw2 = stamped(p2.toFixed(2), 'b')
+      await prisma.setting.create({ data: { key: noticeKey(raw2), value: JSON.stringify({ at: Date.now() - 5 * 60_000, done: false }) } })
+      ok('首次没处理完、手机重试：照常匹配', (await vmq.markPaidByAmount(p2.toFixed(2), 2, raw2)) === true &&
+        (await prisma.vmqOrder.findUnique({ where: { id: v2.id } }))?.state === 1)
+      ok('  …之后再重发：忽略', (await vmq.markPaidByAmount(p2.toFixed(2), 2, raw2)) === false)
+
+      // ③ 首次没处理完，但同金额的待支付单是首次收到之后才建的 → 不可能是这笔钱的单，不匹配、转人工
+      const p3 = P(B + 35)
+      const raw3 = stamped(p3.toFixed(2), 'c')
+      await prisma.setting.create({ data: { key: noticeKey(raw3), value: JSON.stringify({ at: Date.now() - 5 * 60_000, done: false }) } })
+      const o3 = await order({ amount: D(p3) })
+      const v3 = await prisma.vmqOrder.create({ data: { orderId: `${TAG}rs3${seq}`, bizType: 'order', bizId: o3.id, outTradeNo: o3.orderNo, price: D(p3), reallyPrice: D(p3), state: 0 } })
+      ok('首次没处理完、待支付单是之后才建的：不匹配', (await vmq.markPaidByAmount(p3.toFixed(2), 2, raw3)) === false &&
+        (await prisma.vmqOrder.findUnique({ where: { id: v3.id } }))?.state === 0)
+      ok('  …进待处理（no_pending_match、标了重复转发）', (await unmatchedOf(p3.toFixed(2))).some((u) => u.reason === 'no_pending_match' && !u.handledAt && u.repeatForward === true))
+    }
+
     console.log('\n【每人同时挂着的待付款收款单计数】')
     {
       const u = await prisma.user.create({ data: { email: `${TAG}-cap@test.local`, passwordHash: 'x' } })
@@ -497,6 +558,7 @@ async function main() {
     })
     await prisma.setting.deleteMany({ where: { key: { in: vrows.map((v) => `vmqrec:${v.id}`) } } })
     await prisma.setting.deleteMany({ where: { key: { startsWith: 'vmq_unmatched:', gte: `vmq_unmatched:${startMs}` } } })
+    await prisma.setting.deleteMany({ where: { key: { in: noticeKeys } } })
     await prisma.vmqOrder.deleteMany({ where: { id: { in: vrows.map((v) => v.id) } } })
     await prisma.invoice.deleteMany({ where: { id: { in: createdInvoiceIds } } })
     if (autoProductId) await prisma.cardKey.deleteMany({ where: { productId: autoProductId } })

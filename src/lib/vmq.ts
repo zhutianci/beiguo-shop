@@ -581,11 +581,37 @@ export async function markPaidByAmount(price: string, type: number, raw?: string
   // 记录最近一次到账推送（用于后台诊断「监控端确实在推送」）
   await setSetting('vmq_lastpay', JSON.stringify({ price, type, cents, at: Date.now() }))
   // 必须在匹配之前查并登记：重复转发往往在第一次还在履约时就到了
-  const repeatForward = await seenRawRecently(raw)
+  const notice = await registerNotice(raw)
+  const prior = notice?.prior ?? null
+  if (prior?.done) {
+    // 同一条通知（原文连手机端时间都一样）此前已经处理完：这次是手机重发，不是新到账。不匹配、不进待处理、不推送
+    console.warn(`[vmq] 到账 ${price} 是同一条通知的重发（首次收到于 ${new Date(prior.at).toISOString()}，已处理），忽略`)
+    await setSetting('vmq_lastresend', JSON.stringify({ price, type, cents, firstAt: prior.at, at: Date.now(), raw: rawShort })).catch((e) =>
+      console.error('[vmq] 写 vmq_lastresend 失败', e)
+    )
+    return false
+  }
+  const repeatForward = prior ? true : await seenRawRecently(raw)
+  // 首次那一趟没处理完（还在履约 / 抛错回了 500）：照常走匹配，但只认首次收到之前就建好的收款单
+  const matched = await matchArrival(price, type, cents, rawShort, repeatForward, prior ? prior.at : null)
+  // 抛错不会走到这里 → 标记保持「未处理完」，手机的重试仍会照常匹配
+  if (notice) await markNoticeDone(notice.key, prior ? prior.at : notice.at)
+  return matched
+}
 
+async function matchArrival(
+  price: string,
+  type: number,
+  cents: number,
+  rawShort: string | undefined,
+  repeatForward: boolean,
+  createdBefore: number | null
+): Promise<boolean> {
   // 取该渠道所有待支付单，按 cents 精确匹配（避免浮点误差）
   const pendings = await prisma.vmqOrder.findMany({ where: { state: 0, type } })
-  const hits = pendings.filter((o) => centsOf(o.reallyPrice) === cents)
+  const hits = pendings.filter(
+    (o) => centsOf(o.reallyPrice) === cents && (createdBefore === null || o.createdAt.getTime() < createdBefore)
+  )
   if (hits.length > 1) {
     /*
      * 【同一金额同时命中多张待支付单】金额锁本该保证不会出现，但锁一旦出过岔子（历史数据、人工改库），
@@ -701,6 +727,69 @@ export async function markPaidByAmount(price: string, type: number, raw?: string
  */
 const RECENT_RAW_KEY = 'vmq_recentraw'
 const REPEAT_FORWARD_MS = 60_000
+
+/*
+ * 【同一条通知的身份 = 原文（含手机端时间）】线上原文（2026-10-12）长这样：
+ *   「…你已成功收款135.00元（新顾客消费）\nUID：10297\n2026-10-12 09:36:56 …」
+ * 末尾是 SmsForwarder 记下的通知时间，手机重发同一条通知时一字不变。实测手机会在几秒到几分钟后把同一条通知再发 1~2 次
+ * （多半是没收到应答后的重试），上面 1 分钟的窗口认不出来 → 每次都当成「疑似重复付款」吵醒站长；更糟的是重发若晚于金额冷却期，
+ * 会把刚好同金额的新订单标成已支付。
+ * 所以原文带「年-月-日 时:分:秒」的，每条通知按原文摘要占一行 setting（key 唯一 → 先到的那次是首次）：
+ *   · 首次那一趟已处理完（done）→ 之后再来的一律是重发：不匹配、不进待处理、不推送；
+ *   · 首次那一趟没处理完（并发 / 抛错回了 500 等手机重试）→ 照常匹配，但只认首次收到之前就建好的收款单。
+ * 同一秒、同金额、同「新 / 老顾客」的两笔真实到账才会撞原文：同金额同时只有一张待支付单，买家也做不到一秒内付两次。
+ * 原文不带时间（手机端换了模板）的不走这里，仍按上面 1 分钟的规则。登记读写失败按「首次到达」处理（退回没有这条规则时的行为）。
+ */
+const NOTICE_PREFIX = 'vmq_seen:' // + 32 hex = 41，Setting.key 是 VarChar(50)
+const NOTICE_KEEP_MS = 7 * 24 * 3600_000
+const NOTICE_SWEEP_EVERY_MS = 6 * 3600_000
+const NOTICE_OPEN_MARK = '"done":false'
+const RAW_TIME_RE = /20\d{2}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/
+let lastNoticeSweepAt = 0
+
+/** null：原文不带时间或登记失败（不按身份判重）；prior 非空：这条通知此前收到过 */
+async function registerNotice(raw?: string): Promise<{ key: string; at: number; prior: { at: number; done: boolean } | null } | null> {
+  if (!raw || !RAW_TIME_RE.test(raw)) return null
+  const key = NOTICE_PREFIX + crypto.createHash('sha256').update(raw).digest('hex').slice(0, 32)
+  const at = Date.now()
+  const read = async () => {
+    const row = await prisma.setting.findUnique({ where: { key } })
+    if (!row) return null
+    const v = JSON.parse(row.value) as { at?: unknown; done?: unknown }
+    if (typeof v.at !== 'number') throw new Error(`通知身份 ${key} 已损坏`)
+    return { at: v.at, done: v.done === true }
+  }
+  try {
+    // 先查再建：直接 create 撞唯一键会被 Prisma 打一行 error 日志
+    let prior = await read()
+    if (!prior) {
+      try {
+        await prisma.setting.create({ data: { key, value: JSON.stringify({ at, done: false }) } })
+      } catch (e) {
+        if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')) throw e
+        prior = await read() // 两次几乎同时到：输的一方按重发处理
+        if (!prior) throw e
+      }
+    }
+    if (!prior && at - lastNoticeSweepAt > NOTICE_SWEEP_EVERY_MS) {
+      lastNoticeSweepAt = at
+      prisma.setting
+        .deleteMany({ where: { key: { startsWith: NOTICE_PREFIX }, createdAt: { lt: new Date(at - NOTICE_KEEP_MS) } } })
+        .catch((e) => console.error('[vmq] 清理过期通知身份失败', e))
+    }
+    return { key, at, prior }
+  } catch (e) {
+    console.error('[vmq] 通知身份登记失败（本次按首次到达处理）', e)
+    return null
+  }
+}
+
+/** 这条通知已处理完（匹配成功，或已进待处理并推送）。失败只记日志：之后的重发会走「没处理完」那条更保守的路 */
+async function markNoticeDone(key: string, at: number): Promise<void> {
+  await prisma.setting
+    .updateMany({ where: { key, value: { contains: NOTICE_OPEN_MARK } }, data: { value: JSON.stringify({ at, done: true }) } })
+    .catch((e) => console.error('[vmq] 通知身份标记已处理失败', key, e))
+}
 
 async function seenRawRecently(raw?: string): Promise<boolean> {
   if (!raw) return false
@@ -1249,10 +1338,11 @@ export async function recentVmqOrders(limit = 15) {
 }
 
 export async function getDiag() {
-  const [lastpay, lastunmatched, lastwebhook] = await Promise.all([
+  const [lastpay, lastunmatched, lastwebhook, lastresend] = await Promise.all([
     getSetting('vmq_lastpay'),
     getSetting('vmq_lastunmatched'),
     getSetting('vmq_lastwebhook'),
+    getSetting('vmq_lastresend'),
   ])
   const safe = (s: string | null) => {
     if (!s) return null
@@ -1266,6 +1356,8 @@ export async function getDiag() {
     lastPush: safe(lastpay),
     lastUnmatched: safe(lastunmatched),
     lastWebhook: safe(lastwebhook),
+    // 最近一次被忽略的手机重发（同一条通知此前已处理过，见 registerNotice）
+    lastResend: safe(lastresend),
   }
 }
 

@@ -162,6 +162,8 @@ interface VmqConfig {
       type: number
       at: number
     } | null
+    /** 最近一次被忽略的手机重发（同一条通知此前已处理过） */
+    lastResend?: { price: string; type: number; firstAt: number; at: number } | null
   }
 }
 
@@ -524,6 +526,12 @@ export default function AdminVmqPage() {
             ) : (
               <div className="text-gray-400">
                 尚未从任何通知里取到金额。若支付后这里一直为空，多为通知权限 / 支付助手提醒未开，或通知文案不含「你已成功收款X元」强信号。
+              </div>
+            )}
+            {diag?.lastResend && (
+              <div className="mt-1 text-xs text-gray-400">
+                最近一次忽略的手机重发：¥{diag.lastResend.price} · {fmt(new Date(diag.lastResend.at).toISOString())}
+                （同一条通知首次收到于 {fmt(new Date(diag.lastResend.firstAt).toISOString())}，不是新到账）
               </div>
             )}
           </div>
