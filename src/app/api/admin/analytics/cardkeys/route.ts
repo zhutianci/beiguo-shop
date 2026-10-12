@@ -7,16 +7,16 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { round2 } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
-import { settledReferralCents } from '@/lib/referral-report'
+import { profitCounted, settledReferralCents } from '@/lib/referral-report'
 import { sourceMap, sourceOf } from '@/lib/admin/source-site'
 
 /**
  * 卡密数据分析：数据源 = CardKey 表（网站自助下单自动发货 + 外部站调库存 API 领卡），
  * 口径 status='USED' 且 usedAt 落在区间内（usedAt = 发出时间，createdAt = 导入时间，勿混用）。
  *
- * 【利润 = 卡差价 − 已结算内推返现】CardKey.profit 只是卡差价（售价 − 成本），内推单还要付给推广人一笔返现
- * （已进余额、可提现的真钱）。这里按所属订单读 ReferralReward(SETTLED)、按张分摊后扣掉，
- * 列本身不改（口径说明见 lib/referral-report.ts）。外部站发的卡没有 orderId，不受影响。
+ * 【利润 = 卡差价，不扣内推返现】（2026-10-12 口径，见 lib/referral-report.ts）内推单的已结算返现按张分摊后
+ * 只汇总成「待返现」列出来，不从利润里扣。外部站发的卡没有 orderId，不受影响。
+ * 【已取消 / 已退款订单的卡】不计流水与利润（voidCards 单列张数）；张数与成本照常计——卡确实发出去了。
  *
  * 【绝不解密】统计只读 productId / orderId / usedAt / cost / soldPrice / profit / externalRef 七列，
  * 不碰 content，也不调用 decryptCardContent —— 一次解密上千张卡会把接口拖垮。
@@ -73,14 +73,16 @@ type Bucket = {
   cards: number
   cost: number
   revenue: number
-  /** 已扣内推返现 */
+  /** 卡差价，不扣内推返现 */
   profit: number
-  /** 从利润里扣掉的内推返现 */
+  /** 待返现：已结算的内推返现，只列出、不从利润里扣 */
   referral: number
   /** 利润未知（profit IS NULL）的张数，区别于「利润为 0」 */
   unknownProfitCards: number
+  /** 所属订单已取消 / 已退款、不计流水与利润的张数 */
+  voidCards: number
 }
-const newBucket = (): Bucket => ({ cards: 0, cost: 0, revenue: 0, profit: 0, referral: 0, unknownProfitCards: 0 })
+const newBucket = (): Bucket => ({ cards: 0, cost: 0, revenue: 0, profit: 0, referral: 0, unknownProfitCards: 0, voidCards: 0 })
 const sealBucket = (b: Bucket) => ({
   cards: b.cards,
   cost: round2(b.cost),
@@ -88,6 +90,7 @@ const sealBucket = (b: Bucket) => ({
   profit: round2(b.profit),
   referral: round2(b.referral),
   unknownProfitCards: b.unknownProfitCards,
+  voidCards: b.voidCards,
 })
 
 export async function GET(request: NextRequest) {
@@ -162,9 +165,14 @@ export async function GET(request: NextRequest) {
     // 来源站（设计 8.3、12.2）：本站订单发的卡按订单的 tenantId 分组。渠道单的 soldPrice 是进货价分摊，
     // 所以渠道那一组的 revenue = 站长按进货价的收入（不是买家付给渠道的售价），与订单营收分开看
     const tenantOfOrder = new Map<number, number>()
+    // 所属订单已取消 / 已退款的卡：不计流水与利润（查不到订单的按正常计，与原来一致）
+    const voidOrders = new Set<number>()
     if (oids.length) {
-      const os = await prisma.order.findMany({ where: { id: { in: oids } }, select: { id: true, tenantId: true } })
-      for (const o of os) tenantOfOrder.set(o.id, o.tenantId)
+      const os = await prisma.order.findMany({ where: { id: { in: oids } }, select: { id: true, tenantId: true, payStatus: true, deliveryStatus: true } })
+      for (const o of os) {
+        tenantOfOrder.set(o.id, o.tenantId)
+        if (!profitCounted(o)) voidOrders.add(o.id)
+      }
     }
     const cardReferral = (oid: number | null): number => {
       if (oid == null) return 0
@@ -190,16 +198,20 @@ export async function GET(request: NextRequest) {
       const revenue = dec(r.soldPrice)
       const profit = dec(r.profit)
       const isExternal = !!r.externalRef
-      const referral = profit != null ? cardReferral(r.orderId) : 0
+      const referral = cardReferral(r.orderId)
+      const isVoid = r.orderId != null && voidOrders.has(r.orderId)
 
       const apply = (b: Bucket) => {
         b.cards++
         b.cost += cost
+        b.referral += referral
+        if (isVoid) {
+          b.voidCards++
+          return
+        }
         if (revenue != null) b.revenue += revenue
-        if (profit != null) {
-          b.profit += profit - referral
-          b.referral += referral
-        } else b.unknownProfitCards++
+        if (profit != null) b.profit += profit
+        else b.unknownProfitCards++
       }
 
       apply(totals)
@@ -271,9 +283,10 @@ export async function GET(request: NextRequest) {
         cards: t.cards,
         cost: t.cost,
         revenue: t.revenue,
-        profit: t.profit, // 已扣内推返现
-        referral: t.referral,
-        // 毛利率 = 已知利润（已扣返现）/ 已知流水
+        profit: t.profit, // 卡差价，不扣内推返现；已取消订单的卡不计
+        referral: t.referral, // 待返现
+        voidCards: t.voidCards,
+        // 毛利率 = 已知利润 / 已知流水
         profitMargin: t.revenue > 0 ? round2((t.profit / t.revenue) * 100) : 0,
         // 利润未知的张数（profit IS NULL），其中外部站发卡的部分单列
         unknownProfitCards: t.unknownProfitCards,

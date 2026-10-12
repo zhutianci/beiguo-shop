@@ -4,10 +4,10 @@
  * 【成交】paid_at 在窗口内、pay_status ∈ (PAID, REFUNDED)（含之后退款的单，与日报同口径）；不含接码与充值两种载体单
  *  （它们没有卡密利润，接码利润看接码日报）。提卡单照常计入（§8.7）。成交额 = Σ amount（不含税；渠道单是渠道售价）。
  * 【利润】与后台订单列表合计同一组条件（src/app/api/admin/orders/route.ts）：
- *  · 主站单 = 所发卡（status = USED）的 Σ card_keys.profit，减去这些有卡订单已结算（SETTLED）的内推返现；profit 为 NULL 的卡不累加，
- *    单列「利润未知」的单数；
+ *  · 主站单 = 所发卡（status = USED）的 Σ card_keys.profit，**不扣内推返现**、**已取消 / 已退款的单不计**（2026-10-12 口径，
+ *    见 lib/referral-report.ts）；profit 为 NULL 的卡不累加，单列「利润未知」的单数；
  *  · 渠道单 = 站长利润（进货净额 − 成本，lib/admin/channel-profit 的 channelProfit，与后台列表同一个批量函数）；成本未登记的单列「未知」。
- * 【不把订单拉回 Node】主站单的卡密利润与返现在数据库里按商品聚合（走 (pay_status, paid_at) 与 card_keys.order_id 索引）；
+ * 【不把订单拉回 Node】主站单的卡密利润在数据库里按商品聚合（走 (pay_status, paid_at) 与 card_keys.order_id 索引）；
  *  只有渠道单要逐单套公式，按行取回（渠道单量小；超过 CHANNEL_ROWS_CAP 就不算渠道利润并如实标出，不给错数）。
  */
 import { Prisma } from '@prisma/client'
@@ -30,7 +30,7 @@ export interface ProductProfit {
   quantity: number
   /** 成交额（分） */
   amountCents: number
-  /** 主站单卡密利润（已扣返现，分）；这个商品没有发过卡的主站单为 null */
+  /** 主站单卡密利润（卡差价，不扣返现；已取消的单不计，分）；这个商品没有发过卡的主站单为 null */
   mainProfitCents: number | null
   /** 渠道单站长利润（分）；没有算得出的渠道单为 null */
   channelProfitCents: number | null
@@ -64,7 +64,7 @@ export async function profitByProduct(scope: BotScope, w: TimeWindow, productId:
   if (!groups.length) return { rows: [], channelTruncated: false }
   const pids = groups.map((g) => g.productId)
   const pidList = Prisma.join(pids)
-  const [products, cardRows, refRows, chRows] = await Promise.all([
+  const [products, cardRows, chRows] = await Promise.all([
     prisma.product.findMany({ where: { id: { in: pids } }, select: { id: true, name: true, botCode: true, deliveryType: true } }),
     prisma.$queryRaw<Array<{ pid: number; profit: unknown; unknown_orders: unknown }>>`
       SELECT o.product_id AS pid,
@@ -73,20 +73,9 @@ export async function profitByProduct(scope: BotScope, w: TimeWindow, productId:
         FROM orders o
         JOIN card_keys c ON c.order_id = o.id AND c.status = 'USED'
        WHERE o.tenant_id = ${PLATFORM_TENANT_ID}
-         AND o.pay_status IN ('PAID', 'REFUNDED')
+         AND o.pay_status = 'PAID' AND o.delivery_status <> 'CANCELLED'
          AND o.paid_at >= ${w.from} AND o.paid_at < ${w.to}
          AND o.product_id IN (${pidList})
-       GROUP BY o.product_id`,
-    // 只扣「有卡的单」的返现：人工发货单本来就没有卡密利润，扣了会凭空出负数（与后台列表同一条规则）
-    prisma.$queryRaw<Array<{ pid: number; ref: unknown }>>`
-      SELECT o.product_id AS pid, SUM(r.amount) AS ref
-        FROM orders o
-        JOIN referral_rewards r ON r.order_id = o.id AND r.status = 'SETTLED'
-       WHERE o.tenant_id = ${PLATFORM_TENANT_ID}
-         AND o.pay_status IN ('PAID', 'REFUNDED')
-         AND o.paid_at >= ${w.from} AND o.paid_at < ${w.to}
-         AND o.product_id IN (${pidList})
-         AND EXISTS (SELECT 1 FROM card_keys c WHERE c.order_id = o.id AND c.status = 'USED')
        GROUP BY o.product_id`,
     prisma.order.findMany({
       where: { ...paidInWindow, productId: { in: pids }, tenantId: { not: PLATFORM_TENANT_ID } },
@@ -100,7 +89,6 @@ export async function profitByProduct(scope: BotScope, w: TimeWindow, productId:
 
   const productOf = new Map(products.map((p) => [p.id, p]))
   const cardOf = new Map(cardRows.map((r) => [Number(r.pid), r]))
-  const refOf = new Map(refRows.map((r) => [Number(r.pid), centsOrNull(r.ref) ?? 0]))
   const chAgg = new Map<number, { sum: number; known: number; unknown: number }>()
   if (!channelTruncated) {
     chRows.forEach((o) => {
@@ -118,7 +106,7 @@ export async function profitByProduct(scope: BotScope, w: TimeWindow, productId:
   const rows = groups.map((g): ProductProfit => {
     const p = productOf.get(g.productId)
     const card = cardOf.get(g.productId)
-    const mainProfitCents = card ? (centsOrNull(card.profit) ?? 0) - (refOf.get(g.productId) ?? 0) : null
+    const mainProfitCents = card ? centsOrNull(card.profit) ?? 0 : null
     const ch = chAgg.get(g.productId)
     const channelProfitCents = ch && ch.known > 0 ? ch.sum : null
     const profitCents = mainProfitCents === null && channelProfitCents === null ? null : (mainProfitCents ?? 0) + (channelProfitCents ?? 0)

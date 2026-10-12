@@ -17,7 +17,7 @@
 import { prisma } from '../../db'
 import { addBjDays, bjDateKey } from '../../marketing/time'
 import { excludeTopup } from '../../order-scope'
-import { settledReferralCents } from '../../referral-report'
+import { profitCounted, settledReferralCents } from '../../referral-report'
 import { summarizeFinance } from '../../jiema/report'
 import { CHANNEL_PROFIT_ORDER_SELECT, channelProfitMap } from '../../admin/channel-profit-batch'
 import { NOT_MANUAL_DELIVERY } from '../data/todo'
@@ -55,31 +55,34 @@ function capWarn(what: string, n: number): void {
 }
 
 /**
- * 利润 · 卡密利润：窗口内付款的主站单所发卡（status = USED）的 Σ card_keys.profit，扣这些单已结算的内推返现——
- * 与后台订单列表合计同一组条件（admin/orders/route.ts 合计部分：只数 USED 卡；profit IS NULL 的卡 SUM 不计；
- * 只对「有卡的单」扣 settledReferralCents）。有 profit IS NULL 的卡的单数单列（「另有 N 单利润未知」）。
+ * 利润 · 卡密利润：窗口内付款的主站单所发卡（status = USED）的 Σ card_keys.profit——
+ * 与后台订单列表合计同一组条件（admin/orders/route.ts 合计部分，口径见 lib/referral-report.ts）：只数 USED 卡；
+ * profit IS NULL 的卡 SUM 不计；**不扣内推返现**（referralCents 只用来标「待返现」）；**已取消 / 已退款的单不计**（profitCounted）。
+ * 有 profit IS NULL 的卡的单数单列（「另有 N 单利润未知」）。
  */
-async function cardProfit(w: ReportSpan): Promise<{ cents: number; unknownOrders: number }> {
-  const orders = await prisma.order.findMany({ where: paidWhere(MAIN_TENANT_ID, w), select: { id: true }, orderBy: { id: 'asc' }, take: MAX_ROWS })
+async function cardProfit(w: ReportSpan): Promise<{ cents: number; unknownOrders: number; referralCents: number }> {
+  const orders = await prisma.order.findMany({
+    where: paidWhere(MAIN_TENANT_ID, w),
+    select: { id: true, payStatus: true, deliveryStatus: true },
+    orderBy: { id: 'asc' },
+    take: MAX_ROWS,
+  })
   capWarn('卡密利润的订单', orders.length)
-  const ids = orders.map((o) => o.id)
+  const ids = orders.filter(profitCounted).map((o) => o.id)
   let profitCents = 0
   let unknownOrders = 0
-  const cardOrderIds: number[] = []
   for (let i = 0; i < ids.length; i += ID_CHUNK) {
     const chunk = ids.slice(i, i + ID_CHUNK)
-    const [agg, withCards, nullProfit] = await Promise.all([
+    const [agg, nullProfit] = await Promise.all([
       prisma.cardKey.aggregate({ where: { orderId: { in: chunk }, status: 'USED' }, _sum: { profit: true } }),
-      prisma.cardKey.groupBy({ by: ['orderId'], where: { orderId: { in: chunk }, status: 'USED' }, _count: { _all: true } }),
       prisma.cardKey.groupBy({ by: ['orderId'], where: { orderId: { in: chunk }, status: 'USED', profit: null }, _count: { _all: true } }),
     ])
     profitCents += centsOf(agg._sum.profit)
-    for (const g of withCards) if (g.orderId != null) cardOrderIds.push(g.orderId)
     unknownOrders += nullProfit.length
   }
   let refCents = 0
-  if (cardOrderIds.length) (await settledReferralCents(cardOrderIds)).forEach((v) => (refCents += v))
-  return { cents: profitCents - refCents, unknownOrders }
+  if (orders.length) (await settledReferralCents(orders.map((o) => o.id))).forEach((v) => (refCents += v))
+  return { cents: profitCents, unknownOrders, referralCents: refCents }
 }
 
 /**
@@ -314,7 +317,7 @@ export async function collectMainReport(w: ReportWindow, opts: MainReportOptions
     traffic,
     users: { registered, total },
     orders,
-    profit: { cardCents: card.cents, cardUnknownOrders: card.unknownOrders, jiemaCents, channelCents: ch.profitCents, channelUnknownOrders: ch.unknown },
+    profit: { cardCents: card.cents, cardUnknownOrders: card.unknownOrders, cardReferralCents: card.referralCents, jiemaCents, channelCents: ch.profitCents, channelUnknownOrders: ch.unknown },
     top: top.map((t) => ({ name: t.productName, qty: t._sum.quantity ?? 0, amountCents: centsOf(t._sum.amount) })),
     todo,
     lowStock,

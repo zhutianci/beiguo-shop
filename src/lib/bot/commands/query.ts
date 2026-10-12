@@ -479,7 +479,7 @@ export function renderStockDetailReply(p: ProductRef, d: StockDetail): string {
   return fitLines(lines, null)
 }
 
-const PROFIT_NOTE = '口径：按付款时间，含之后退款的单；主站单 = 卡密利润 − 已结算返现，渠道单 = 站长利润；不含接码与充值'
+const PROFIT_NOTE = '口径：按付款时间，含之后退款的单；主站单利润 = 卡差价（不扣返现，已取消 / 已退款的单不计），渠道单 = 站长利润；不含接码与充值'
 
 /** 「利润」的回复：不带货号列成交额前 10 个商品 + 全部商品的合计；带货号给这一个商品的明细 */
 export function renderProfitReply(r: ProfitResult, periodLabel: string, product: ProductRef | null): string {

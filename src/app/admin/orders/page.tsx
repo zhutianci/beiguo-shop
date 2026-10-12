@@ -30,9 +30,10 @@ interface Order {
   cards?: string[] // 自动发货实际发出的卡密
   unreadCount?: number // 买家发来、商家未读的留言数
   cardCost?: number | null // 卡密成本合计（无卡密订单为 null）
-  cardProfit?: number | null // 卡密利润合计，已扣内推返现（含未知利润的卡时为 null）
-  cardReferral?: number | null // 该单已扣的内推返现（无卡密的单为 null）
+  cardProfit?: number | null // 卡密利润合计 = 卡差价，不扣内推返现（含未知利润的卡、或订单已取消时为 null）
+  cardReferral?: number | null // 该单已结算的内推返现，只标「待返现」、不从利润里扣（没有返现的单为 null）
   cardProfitUnknown?: boolean // 该单存在利润未知的卡（外部站发卡）
+  cardProfitVoid?: boolean // 已取消但发过卡：利润不计
   invoiceTaxFee?: string | number | null // 下单时勾选「同时开发票」预收的税费（不计入 amount）
   cardCount?: number // 仅深链打开时有：不在当前页的订单拿不到卡密明文，只知道发了几张
   // ---- 渠道分站（设计 12.2）----
@@ -240,8 +241,10 @@ interface Totals {
   amount: number
   cost: number | null
   profit: number | null
-  /** 利润合计里已扣掉的内推返现（truncated 时为 null） */
+  /** 待返现合计（已结算的内推返现，只列出、不从利润里扣；truncated 时为 null） */
   referral?: number | null
+  /** 已取消但发过卡、利润不计入合计的主站单数（truncated 时为 null） */
+  voided?: number | null
   truncated: boolean
   // ---- 渠道单拆分（二期 M2，元）：都已含在上面的合计里 ----
   channelOrders?: number
@@ -856,7 +859,14 @@ function OrdersInner() {
                   {totals.profit == null ? '—' : `¥${totals.profit.toFixed(2)}`}
                 </div>
                 {totals.referral != null && totals.referral > 0 && (
-                  <div className="text-[11px] text-green-700/80 mt-0.5">已扣内推返现 ¥{totals.referral.toFixed(2)}</div>
+                  <div className="text-[11px] text-amber-700 mt-0.5" title="已计入推广人余额、等提现时打款的内推返现。只列出，不从利润里扣">
+                    待返现 ¥{totals.referral.toFixed(2)}（未扣除）
+                  </div>
+                )}
+                {totals.voided != null && totals.voided > 0 && (
+                  <div className="text-[11px] text-green-700/80 mt-0.5" title="已取消 / 已退款的订单即使发过卡也不计利润">
+                    已取消 / 已退款 {totals.voided} 单不计
+                  </div>
                 )}
               </div>
               {/* 渠道单拆分：只在筛选范围里有渠道单时出现，筛主站时页面与改动前一致 */}
@@ -994,7 +1004,11 @@ function OrdersInner() {
                         )}
                       </td>
                       <td className="py-4">
-                        {order.cardProfit == null ? (
+                        {order.cardProfitVoid ? (
+                          <span className="text-xs text-gray-400" title="订单已取消，不计利润（即使卡已发出）">
+                            不计
+                          </span>
+                        ) : order.cardProfit == null ? (
                           <span
                             className="text-gray-300"
                             title={
@@ -1008,14 +1022,15 @@ function OrdersInner() {
                         ) : (
                           <span
                             className={order.cardProfit >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}
-                            title={
-                              order.cardReferral
-                                ? `卡差价 − 内推返现 ¥${order.cardReferral.toFixed(2)}`
-                                : '卡差价（售价 − 成本）'
-                            }
+                            title="卡差价（售价 − 成本），不扣内推返现"
                           >
                             ¥{order.cardProfit.toFixed(2)}
                           </span>
+                        )}
+                        {order.cardReferral != null && order.cardReferral > 0 && (
+                          <div className="text-[11px] text-amber-600" title="已计入推广人余额、等提现时打款的内推返现。只标注，不从利润里扣">
+                            待返现 ¥{order.cardReferral.toFixed(2)}
+                          </div>
                         )}
                       </td>
                         </>

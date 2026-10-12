@@ -9,7 +9,7 @@ import { round2 } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
 import { excludeTopup, isCarrierType } from '@/lib/order-scope'
 import { describeTopupRemark } from '@/lib/wallet/topup'
-import { settledReferralCents } from '@/lib/referral-report'
+import { profitCounted, settledReferralCents } from '@/lib/referral-report'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
 // 渠道单站长利润的批量取数：原是本文件的私有函数，微信机器人日报也要用，原样抽到 lib（行为不变）
 import { CHANNEL_PROFIT_ORDER_SELECT, channelProfitMap } from '@/lib/admin/channel-profit-batch'
@@ -127,8 +127,7 @@ export async function GET(request: NextRequest) {
         moneyMap.set(oid, m)
       }
     }
-    // 已结算的内推返现（分）。「利润」列要扣掉它：返现是已经进了推广人余额、可以提现的真钱，
-    // CardKey.profit 只是卡差价（口径说明见 lib/referral-report.ts）
+    // 已结算的内推返现（分）。只在「利润」列旁边标注「待返现」，不从利润里扣（2026-10-12 站长定的口径，见 lib/referral-report.ts）
     const rewardMap = paidIds.length ? await settledReferralCents(paidIds) : new Map<number, number>()
 
     // 统计每张订单「买家发来、商家未读」的留言数，用于列表红点提醒
@@ -165,18 +164,21 @@ export async function GET(request: NextRequest) {
     )
     const list = orders.map((o) => {
       const m = moneyMap.get(o.id)
-      // 只对有卡的单扣返现：人工发货单本来就没有卡密利润（显示 —），扣了会凭空冒出负数
-      const refC = m ? rewardMap.get(o.id) ?? 0 : 0
+      const refC = rewardMap.get(o.id) ?? 0
+      // 已取消的单不计利润，即使卡已经发出去了（profitCounted）；成本照常显示——卡确实发出去了
+      const counted = profitCounted(o)
       return {
         ...o,
         cards: cardMap.get(o.id) || [],
         unreadCount: unreadMap.get(o.id) || 0,
         // 卡密维度的成本/利润；非自动发货订单没有卡密，profit 为 null 表示「无卡密可核算」
         cardCost: m ? m.cost : null,
-        cardProfit: m && !m.hasUnknownProfit ? round2(m.profit - refC / 100) : null,
-        /** 该单已扣的内推返现（元）。无卡密的单为 null */
-        cardReferral: m ? refC / 100 : null,
+        cardProfit: m && !m.hasUnknownProfit && counted ? m.profit : null,
+        /** 该单已结算的内推返现（元），页面标「待返现」，不从利润里扣。没有返现的单为 null */
+        cardReferral: refC > 0 ? refC / 100 : null,
         cardProfitUnknown: m ? m.hasUnknownProfit : false,
+        /** 已取消、但发过卡：利润列显示「不计」 */
+        cardProfitVoid: !!m && !counted,
         // 渠道单：站长利润 = 进货净额 − 成本（分，口径见 lib/admin/channel-profit.ts）。主站单恒为 null，
         // 页面据此分叉：主站单仍用上面的 cardCost / cardProfit，逐字不变
         channelProfit: o.tenantId !== PLATFORM_TENANT_ID ? rowProfit.get(o.id) ?? null : null,
@@ -217,13 +219,15 @@ export async function GET(request: NextRequest) {
     let totalsCost: number | null = null
     let totalsProfit: number | null = null
     let totalsReferral: number | null = null
+    // 已取消、但发过卡的主站单数（它们的卡密利润不计入合计）
+    let totalsVoided: number | null = null
     let totalsTruncated = false
     // 短信接码单的合计（元；已含在 cost / profit 里）。没有接码单时为 null
     let jiemaTotals: { orders: number; cost: number; profit: number; loss: number; estimating: number; notCounted: number } | null = null
     // 渠道单拆分（分）：进货净额、已知成本、利润（只加有成本数据的单），以及成本未登记的单数。truncated 时整体为 null
     let ch: { supplyNet: number; cost: number; profit: number; unknown: number } | null = null
     if (total <= TOTALS_ID_CAP) {
-      const ids = await prisma.order.findMany({ where, select: { id: true, tenantId: true } })
+      const ids = await prisma.order.findMany({ where, select: { id: true, tenantId: true, payStatus: true, deliveryStatus: true } })
       /*
        * 主站单仍按卡密汇总（口径逐字不变）；渠道单改按 channel-profit 公式（二期 M2）。
        * 筛「主站」时 ids 全是主站单，结果与改动前完全相同；筛「全部」时渠道卡密不再按卡上的 profit 计入，
@@ -255,29 +259,31 @@ export async function GET(request: NextRequest) {
       ch = acc
       if (mainIds.length) {
         const idList = mainIds.map((x) => x.id)
-        const [agg, cardOrders] = await Promise.all([
-          prisma.cardKey.aggregate({
-            where: { orderId: { in: idList }, status: 'USED' },
-            _sum: { cost: true, profit: true },
-          }),
-          // 与每单口径一致：只扣「有卡密」的订单的返现
-          prisma.cardKey.findMany({
-            where: { orderId: { in: idList }, status: 'USED' },
-            select: { orderId: true },
-            distinct: ['orderId'],
-          }),
+        // 利润只算「计利润」的单（profitCounted：已取消的不算，即使发过卡）；成本照旧按全部已发卡汇总
+        const countedIds = mainIds.filter(profitCounted).map((x) => x.id)
+        const voidIds = mainIds.filter((x) => !profitCounted(x)).map((x) => x.id)
+        const [costAgg, profitAgg, voidCards, refMap] = await Promise.all([
+          prisma.cardKey.aggregate({ where: { orderId: { in: idList }, status: 'USED' }, _sum: { cost: true } }),
+          countedIds.length
+            ? prisma.cardKey.aggregate({ where: { orderId: { in: countedIds }, status: 'USED' }, _sum: { profit: true } })
+            : null,
+          voidIds.length
+            ? prisma.cardKey.findMany({ where: { orderId: { in: voidIds }, status: 'USED' }, select: { orderId: true }, distinct: ['orderId'] })
+            : [],
+          // 待返现合计 = 这些单已结算的内推返现（与每行的「待返现」标注同一份），只列出、不从利润里扣
+          settledReferralCents(idList),
         ])
-        const cardOrderIds = cardOrders.map((c) => c.orderId).filter((x): x is number => x != null)
-        const refMap = cardOrderIds.length ? await settledReferralCents(cardOrderIds) : new Map<number, number>()
         let refCents = 0
         refMap.forEach((v) => (refCents += v))
         totalsReferral = refCents / 100
-        totalsCost = round2(Number(agg._sum.cost ?? 0))
-        totalsProfit = round2(Number(agg._sum.profit ?? 0) - totalsReferral)
+        totalsVoided = voidCards.length
+        totalsCost = round2(Number(costAgg._sum.cost ?? 0))
+        totalsProfit = round2(Number(profitAgg?._sum.profit ?? 0))
       } else {
         totalsCost = 0
         totalsProfit = 0
         totalsReferral = 0
+        totalsVoided = 0
       }
       // 成本 / 利润合计 = 主站（卡密）+ 渠道（公式，只含有成本数据的单）。没有渠道单时加 0，主站数字不变
       totalsCost = round2(totalsCost + acc.cost / 100)
@@ -309,8 +315,9 @@ export async function GET(request: NextRequest) {
         orders: amountAgg._count._all,
         amount: round2(Number(amountAgg._sum.amount ?? 0)),
         cost: totalsCost,
-        profit: totalsProfit, // 已扣内推返现
-        referral: totalsReferral, // 已扣掉的内推返现合计（truncated 时为 null）
+        profit: totalsProfit, // 不扣内推返现；已取消的单不计
+        referral: totalsReferral, // 待返现合计（已结算的内推返现，只列出、不从利润里扣；truncated 时为 null）
+        voided: totalsVoided, // 已取消但发过卡、利润不计入合计的主站单数（truncated 时为 null）
         truncated: totalsTruncated, // true = 结果集过大，未统计成本/利润，请缩小筛选范围
         // 渠道单拆分（二期 M2，元）。channelOrders / channelAmount 不受 truncated 影响；其余 truncated 时为 null
         channelOrders: channelAmountAgg._count._all,

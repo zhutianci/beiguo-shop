@@ -290,6 +290,12 @@ console.log('\n主站日报（附录 A 的数字，两条，逐字）：')
   ok('指令回复超长截断并注明', reply.includes('……（其余见后台）'))
   ok('补看历史的说明在最后一行', reply.endsWith(MAIN_HISTORY_NOTE))
   ok('不是补看就没有说明', !renderMainReply(mainFixture()).includes('补看历史'))
+
+  // 待返现（2026-10-12 口径）：只在卡密利润后面标出来，不从利润里扣；没有返现就不出现
+  const rf = mainFixture()
+  rf.profit = { ...rf.profit, cardReferralCents: 1500 }
+  ok('有待返现：卡密利润后面标「待返现 … 未扣」，利润数字不变', renderMainDaily(rf)[0].includes('【利润】卡密 ¥620.00（待返现 ¥15.00 未扣）（另 2 单利润未知）· 接码'), renderMainDaily(rf)[0])
+  ok('没有待返现：不出现这几个字', !renderMainDaily(mainFixture())[0].includes('待返现'))
   // 截断落在不同位置也不超 900 字（fitLines 追加的「……（其余见后台）」不在它自己的预算里，回复先让出了 10 个字）
   let worst = 0
   for (let k = 0; k <= 40; k++) {

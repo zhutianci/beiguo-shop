@@ -9,11 +9,13 @@ interface Bucket {
   cards: number
   cost: number
   revenue: number
-  /** 已扣已结算的内推返现（卡差价 − 返现） */
+  /** 卡差价，不扣内推返现；已取消订单的卡不计 */
   profit: number
-  /** 从利润里扣掉的内推返现（旧接口没有这个字段） */
+  /** 待返现：已结算的内推返现，只列出、不从利润里扣 */
   referral?: number
   unknownProfitCards: number
+  /** 所属订单已取消 / 已退款、不计流水与利润的张数 */
+  voidCards?: number
 }
 interface DailyRow extends Bucket {
   date: string
@@ -28,6 +30,7 @@ interface Totals {
   revenue: number
   profit: number
   referral?: number
+  voidCards?: number
   profitMargin: number
   unknownProfitCards: number
   externalUnknownProfitCards: number
@@ -180,7 +183,8 @@ export default function CardKeyAnalytics() {
       value: t ? money(t.profit) : '--',
       sub: t
         ? [
-            (t.referral ?? 0) > 0 ? `已扣内推返现 ${money(t.referral ?? 0)}` : '',
+            (t.referral ?? 0) > 0 ? `待返现 ${money(t.referral ?? 0)}（未扣除）` : '',
+            (t.voidCards ?? 0) > 0 ? `已取消订单的卡 ${t.voidCards} 张不计` : '',
             t.unknownProfitCards > 0 ? `${t.unknownProfitCards} 张利润未知，未计入` : '已知利润全部计入',
           ]
             .filter(Boolean)
@@ -327,7 +331,7 @@ export default function CardKeyAnalytics() {
                       key={d.date}
                       className="flex-1 flex flex-col items-center justify-end group"
                       title={`${d.date}\n卡密 ${d.cards} 张\n成本 ${money(d.cost)}\n流水 ${money(d.revenue)}\n利润 ${money(d.profit)}${
-                        (d.referral ?? 0) > 0 ? `\n（已扣内推返现 ${money(d.referral ?? 0)}）` : ''
+                        (d.referral ?? 0) > 0 ? `\n（待返现 ${money(d.referral ?? 0)}，未扣除）` : ''
                       }${
                         d.unknownProfitCards > 0 ? `\n利润未知 ${d.unknownProfitCards} 张` : ''
                       }`}

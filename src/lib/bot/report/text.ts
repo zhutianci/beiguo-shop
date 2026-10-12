@@ -102,9 +102,11 @@ export interface MainReport {
   users: { registered: number; total: number }
   orders: OrderBlock
   profit: {
-    /** 卡密利润（已扣已结算的内推返现，同后台订单列表合计） */
+    /** 卡密利润（卡差价，不扣内推返现；已取消的单不计。同后台订单列表合计） */
     cardCents: number
     cardUnknownOrders: number
+    /** 待返现：这些单已结算的内推返现，只列出、不从利润里扣 */
+    cardReferralCents?: number
     /** 接码利润（定稿口径，预估） */
     jiemaCents: number
     /** 渠道带来的站长利润 */
@@ -288,7 +290,7 @@ export function mainCoreLines(r: MainReport): string[] {
   const p = r.profit
   out.push(
     `【利润】${joinItems([
-      `卡密 ${money(p.cardCents)}${p.cardUnknownOrders > 0 ? `（另 ${count(p.cardUnknownOrders)} 单利润未知）` : ''}`,
+      `卡密 ${money(p.cardCents)}${(p.cardReferralCents ?? 0) > 0 ? `（待返现 ${money(p.cardReferralCents ?? 0)} 未扣）` : ''}${p.cardUnknownOrders > 0 ? `（另 ${count(p.cardUnknownOrders)} 单利润未知）` : ''}`,
       `接码 ${money(p.jiemaCents)}（预估）`,
       `渠道带来 ${money(p.channelCents)}${p.channelUnknownOrders > 0 ? `（另 ${count(p.channelUnknownOrders)} 单未知）` : ''}`,
     ])}`
