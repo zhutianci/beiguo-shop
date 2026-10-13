@@ -31,6 +31,9 @@ verify:
 4. **统一管理**：**Settings（设置）→ Data controls（数据控制）→ Shared links（共享链接）→ Manage（管理）**，可以逐条删除或全部删除。
 5. **链接不能设置有效期、不能指定只给某个人看**。不需要了就删掉。
 
+![ChatGPT 个人账号分享链接和工作区分享链接的区别](seed:g106-personal-vs-workspace.png)
+*图：本站根据 [OpenAI 帮助中心：Sharing conversations and scheduled tasks in ChatGPT](https://help.openai.com/en/articles/7925741-sharing-conversations-and-scheduled-tasks-in-chatgpt) 整理的示意图*
+
 ## 步骤
 
 ### 1. 分享整段对话或单条回答
@@ -40,6 +43,9 @@ verify:
 3. 检查预览里的全部内容，确认没有不想公开的信息；
 4. 点 **Create link** 或 **Copy link**；
 5. 把链接发给对方。手机上会弹出系统的分享面板。
+
+![ChatGPT 分享整段对话或单条回答的五个步骤](seed:g106-share-steps.png)
+*图：本站根据 [OpenAI 帮助中心：Sharing conversations and scheduled tasks in ChatGPT](https://help.openai.com/en/articles/7925741-sharing-conversations-and-scheduled-tasks-in-chatgpt) 整理的示意图*
 
 分享单条回答时，链接可以只包含那一条，而不是整段对话。还在生成中的回答，要等生成完才会出现在分享内容里。
 
@@ -66,6 +72,9 @@ verify:
 - **对方继续聊**：对方在你的分享基础上继续对话，会在他自己的账号里生成一份独立的私人对话，你看不到，也不会影响你的原对话。
 
 官方明确提醒：分享内容里不要包含健康信息、财务信息、密码、账号号码等敏感个人信息。
+
+![分享 ChatGPT 对话链接前要检查的五件事](seed:g106-share-checklist.png)
+*图：本站根据 [OpenAI 帮助中心：Sharing conversations and scheduled tasks in ChatGPT](https://help.openai.com/en/articles/7925741-sharing-conversations-and-scheduled-tasks-in-chatgpt) 整理的示意图*
 
 ## 删除后会怎样
 

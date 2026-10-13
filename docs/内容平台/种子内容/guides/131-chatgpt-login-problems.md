@@ -123,6 +123,9 @@ Cookie 同意弹窗、Cookie 管理插件有时也会挡住登录按钮，接受
 
 提示「You do not have an account because it has been deleted or deactivated」：
 
+![登录时的报错页面：You do not have an account because it has been deleted or deactivated](seed:g131-deleted-or-deactivated.png)
+*图片来源：[OpenAI 帮助中心：Deleting your ChatGPT account](https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account)*
+
 - **自己删除的**：无法恢复，30 天后可以用同一邮箱重新注册（前提是彻底删除而非停用），见 [/guides/chatgpt-delete-account](/guides/chatgpt-delete-account)；
 - **被停用的**：去邮箱（含垃圾箱）找 OpenAI 发来的邮件，里面会说明原因和下一步，例如未完成身份或年龄验证，按邮件说明完成验证；认为是误判的，联系客服并附上相关邮件。等待 30 天不会让停用的账号恢复。
 

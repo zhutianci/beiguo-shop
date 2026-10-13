@@ -50,6 +50,9 @@ verify:
 
 **关闭**：把输入框里的 Study 标记删掉——光标放在它旁边按退格键，或点它的 ×。
 
+![ChatGPT 学习模式在网页版、iOS、安卓上分别怎么开启和关闭](seed:g121-turn-on.png)
+*图：本站根据 [OpenAI 帮助中心：Using study mode in ChatGPT](https://help.openai.com/en/articles/11780217-using-study-mode-in-chatgpt) 整理的示意图*
+
 ### 2. 第一条消息写清楚这几件事
 
 官方建议在第一条消息里说明：
@@ -60,6 +63,9 @@ verify:
 - 已经懂了哪些，哪怕只有一点；
 - 截止日期或考试形式；
 - 相关资料（笔记、讲义、PDF、题目照片）。
+
+![用 ChatGPT 学习模式时第一条消息要写清楚的六件事](seed:g121-first-message.png)
+*图：本站根据 [OpenAI 帮助中心：Using study mode in ChatGPT](https://help.openai.com/en/articles/11780217-using-study-mode-in-chatgpt) 整理的示意图*
 
 可以直接套用这几个模板：
 
@@ -111,6 +117,9 @@ verify:
 3. **手机 / 电脑 App**：更新到最新版，彻底关闭再打开，必要时退出重新登录；
 4. **网页版**：强制刷新，清除 chatgpt.com 的网站数据，或用无痕窗口并停用浏览器扩展（尤其是广告拦截、脚本拦截类），也可以换个网络试试；
 5. 还是不行，联系客服，附上设备、App 版本、浏览器、你在哪里找的，以及截图。
+
+![ChatGPT 学习模式找不到时的五步排查顺序](seed:g121-not-found.png)
+*图：本站根据 [OpenAI 帮助中心：Using study mode in ChatGPT](https://help.openai.com/en/articles/11780217-using-study-mode-in-chatgpt) 整理的示意图*
 
 另外两种情况：使用「青少年版」的账号，家长可能设置了 **Study hours（学习时段）**，到点新对话会自动进入学习模式；部分 Edu 学校工作区由管理员强制开启学习模式，这时不显示 Study 选择器。
 

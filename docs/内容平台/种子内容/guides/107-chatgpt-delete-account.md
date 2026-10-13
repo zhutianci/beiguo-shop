@@ -43,6 +43,9 @@ verify:
 5. **检查广告账号**：如果同一邮箱还用来管理 OpenAI 的广告账户，删号可能导致你无法再管理它，而且正在投放的广告不一定会自动暂停。先暂停或结束投放，并确保有其他有权限的人能访问。
 6. **公司账号不能自助删除**：Business、Enterprise、Edu、ChatGPT for Healthcare 工作区的账号要找所在组织处理。
 
+![删除 ChatGPT 账号前的六项检查清单](seed:g107-before-delete.png)
+*图：本站根据 [OpenAI 帮助中心：Deleting your ChatGPT account](https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account) 整理的示意图*
+
 ## 步骤
 
 ### 方法一：在网页版删除
@@ -53,6 +56,9 @@ verify:
 4. 在 **Delete account（删除账户）** 旁点 **Delete（删除）**；
 5. 按提示输入账号邮箱或手机号，并输入 `DELETE`；
 6. 点 **Permanently delete my account（永久删除我的账户）**。
+
+![在 ChatGPT 网页版删除账号的六个步骤](seed:g107-delete-steps.png)
+*图：本站根据 [OpenAI 帮助中心：Deleting your ChatGPT account](https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account) 整理的示意图*
 
 手机 App 里也能删除，官方为 iOS 和 Android 分别写了操作说明。
 
@@ -82,6 +88,9 @@ verify:
 | 删掉某段对话 | 单独删除或归档那段对话 |
 | 清掉 ChatGPT 记住的内容 | 在 **设置 → 个性化** 里管理记忆 |
 
+![五种不用删除 ChatGPT 账号也能解决的情况](seed:g107-no-need-to-delete.png)
+*图：本站根据 [OpenAI 帮助中心：Deleting your ChatGPT account](https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account) 整理的示意图*
+
 官方特别提醒：**删号并不能让你更换登录方式**。
 
 ## 常见问题
@@ -91,6 +100,9 @@ verify:
 
 **Q：登录时提示「You do not have an account because it has been deleted or deactivated」？**
 意思是这个邮箱对应的账号已被删除或停用。自己删的，无法恢复；不是自己删的，去邮箱找关于停用、年龄验证或违规的通知邮件。被停用的账号等 30 天也不会恢复。
+
+![登录时的报错页面：You do not have an account because it has been deleted or deactivated](seed:g107-deleted-or-deactivated.png)
+*图片来源：[OpenAI 帮助中心：Deleting your ChatGPT account](https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account)*
 
 **Q：手机号能重复用吗？**
 注册 ChatGPT 不需要手机号验证；但在 API 平台生成第一个 API 密钥时需要。一个手机号最多为 3 个账号验证首个 API 密钥，删号不会重置这个次数。
