@@ -1,331 +1,454 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+/**
+ * 后台外壳（控制台改版 2026-10-13）：可折叠侧栏 + 面包屑顶栏 + 命令面板 + 待办中心 + 用户菜单 + 全局消息提示。
+ *
+ * 这是各家管理控制台通用的那一套布局（Ant Design Pro 的 ProLayout、云厂商控制台都是它），照搬范式而不是自创：
+ *  · 侧栏：电脑上可收成只剩图标的窄栏（记在本机，下次进来还是上次的样子）；小屏上变成抽屉，点左上角按钮滑出、点遮罩或选完菜单收回。
+ *    原来侧栏是固定 256px 且不可收起，手机上内容区只剩半屏，基本没法用。
+ *  · 顶栏：左边是「分组 / 页面」面包屑（回答「我在哪」），右边是搜索（Ctrl K）、待办、打开前台、账号菜单。
+ *  · 待办中心：待发货、未回复留言、待开票、渠道售后、接码售后五个数，一个接口（/api/admin/todo）每 60 秒拉一次；
+ *    侧栏对应菜单上的红点用同一份数据。
+ *  · 导航清单在 components/admin/shell/nav.ts，侧栏、面包屑、命令面板共用。
+ *
+ * 没有引入组件库：生产机构建内存已到极限（部署说明各节），外壳连同全局规范（globals.css「后台控制台规范」一节）都用现有 Tailwind 写。
+ */
+
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { Bell, ChevronDown, ChevronRight, ExternalLink, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search, UserRound, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { RouteProgress } from '@/components/route-progress'
-import {
-  LayoutDashboard,
-  Package,
-  FolderTree,
-  ShoppingCart,
-  Users,
-  Settings,
-  LogOut,
-  FileUp,
-  BellRing,
-  MessagesSquare,
-  Receipt,
-  Stamp,
-  QrCode,
-  KeyRound,
-  Gift,
-  Share2,
-  Newspaper,
-  Ticket,
-  Link2,
-  BarChart3,
-  PartyPopper,
-  Megaphone,
-  Store,
-  LifeBuoy,
-  Scale,
-  ScrollText,
-  PieChart,
-  Wallet,
-  MessageSquareText,
-  Bot,
-} from 'lucide-react'
+import { AdminToaster } from '@/components/admin/shell/toaster'
+import { CommandPalette } from '@/components/admin/shell/command-palette'
+import { flatNavItems, matchesPath, navGroups, type NavItem } from '@/components/admin/shell/nav'
+import { useUserStore } from '@/store/user'
 
-type NavItem = {
-  href: string
-  label: string
-  icon: typeof LayoutDashboard
-  /**
-   * 菜单右侧的待办数（红点）：渠道售后申请（多渠道设计 8.4「超管售后申请列表红点」）；
-   * 短信接码的售后申请待处理数（docs/短信接码-设计.md §8.5「后台『售后申请』有红点」，S3）
-   */
-  badge?: 'afterSales' | 'jiemaComplaints'
+interface Todo {
+  processing: number
+  unreplied: number
+  invoices: number
+  afterSales: number
+  jiemaComplaints: number
+}
+const EMPTY_TODO: Todo = { processing: 0, unreplied: 0, invoices: 0, afterSales: 0, jiemaComplaints: 0 }
+
+/** 菜单红点上的数：订单 = 待发货 + 未回复留言（都是「这张订单等你处理」） */
+function badgeCount(badge: NavItem['badge'], t: Todo): number {
+  if (badge === 'orders') return t.processing + t.unreplied
+  if (badge === 'invoices') return t.invoices
+  if (badge === 'afterSales') return t.afterSales
+  if (badge === 'jiemaComplaints') return t.jiemaComplaints
+  return 0
 }
 
-type NavGroup = {
-  group: string
-  items: NavItem[]
+const COLLAPSE_KEY = 'admin:nav-collapsed'
+const RECENT_KEY = 'admin:recent'
+
+function readLocal(key: string): string | null {
+  try {
+    return localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+function writeLocal(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    /* 存储不可用：只是不记住，不影响使用 */
+  }
 }
 
-/**
- * 侧边栏按「业务对象」分组，而不是按页面新旧或使用频率分组。
- *
- * 18 个菜单平铺时，找一个入口要从头扫到尾；分组之后眼睛先定位到一个业务域（4~5 个组标题），
- * 再在组内 2~4 项里挑，扫描成本从 O(18) 降到 O(7)+O(4)。
- * 之所以按业务对象切，是因为站长的心智是「我现在要处理订单的事 / 要处理钱的事」，
- * 而不是「我要用那个上周新加的功能」。
- *
- * 新增菜单往哪放：先问这个页面操作的主体是什么——
- *   看数据不改数据 → 概览；商品/卡密库存 → 商品与卡密；一笔交易的生命周期 → 订单与营销；
- *   钱的进出与凭证 → 财务；人 → 客户；对外展示的内容 → 内容；只有站长自己会碰 → 系统。
- * 判断不了就放「系统」，不要新开一组：组数超过 8 个，分组本身又变成了噪音。
- */
-const navGroups: NavGroup[] = [
-  {
-    // 只读的决策面板放最上面：每天第一眼看的是「昨天怎么样」，而不是某个具体表单
-    group: '概览',
-    items: [
-      { href: '/admin', label: '仪表盘', icon: LayoutDashboard },
-      { href: '/admin/analytics/traffic', label: '流量分析', icon: BarChart3 },
-    ],
-  },
-  {
-    // 外部发卡本质是卡密的出库渠道，跟着卡密走，不跟着订单走
-    group: '商品与卡密',
-    items: [
-      { href: '/admin/products', label: '商品管理', icon: Package },
-      { href: '/admin/cardkeys', label: '卡密管理', icon: KeyRound },
-      { href: '/admin/categories', label: '分类管理', icon: FolderTree },
-      { href: '/admin/dispenses', label: '外部发卡', icon: Share2 },
-    ],
-  },
-  {
-    // 优惠券、下单有奖和内推都是「促成一笔订单」的手段，和订单放一起才能连着看转化
-    group: '订单与营销',
-    items: [
-      { href: '/admin/orders', label: '订单管理', icon: ShoppingCart },
-      // 短信接码（docs/短信接码-设计.md §6.6 第 23 条：放「订单与营销」组）：概览、定价、目录、设置；S2 起接码订单与成本利润也在这里
-      { href: '/admin/jiema', label: '短信接码', icon: MessageSquareText, badge: 'jiemaComplaints' },
-      { href: '/admin/external-orders', label: '订单导入', icon: FileUp },
-      { href: '/admin/coupons', label: '优惠券', icon: Ticket },
-      // 紧挨着优惠券：抽中的券就是优惠券系统里的单张批次
-      { href: '/admin/lottery', label: '抽奖管理', icon: PartyPopper },
-      { href: '/admin/referrals', label: '内推管理', icon: Gift },
-    ],
-  },
-  {
-    // 收款监控放在发票/收据之前：钱有没有到账是高频动作，开票是低频的售后动作
-    group: '财务',
-    items: [
-      { href: '/admin/vmq', label: '收款监控', icon: QrCode },
-      { href: '/admin/invoices', label: '发票管理', icon: Receipt },
-      { href: '/admin/receipts', label: '收据管理', icon: Stamp },
-    ],
-  },
-  {
-    // 到期提醒操作的对象是「某个用户的订阅要到期了」，所以归到客户而不是订单
-    group: '客户',
-    items: [
-      { href: '/admin/users', label: '用户管理', icon: Users },
-      // 余额是「某个用户欠 / 被欠多少钱」，跟着人走（docs/短信接码-设计.md §6.6 第 6 条：不新开组）
-      { href: '/admin/wallet', label: '余额与充值', icon: Wallet },
-      { href: '/admin/reminders', label: '到期提醒', icon: BellRing },
-      // 营销邮件的对象是「一群用户」（按条件筛人、管订阅与退订），不是某张订单，所以跟用户放一起；
-      // 它和「到期提醒」都是往用户邮箱发信，挨着放便于对照两类邮件
-      { href: '/admin/marketing', label: '营销推广', icon: Megaphone },
-    ],
-  },
-  {
-    // 这三项的共同点是产出对外可见的页面内容（同时也是 SEO 的抓手）
-    group: '内容',
-    items: [
-      { href: '/admin/news', label: 'AI大事记', icon: Newspaper },
-      { href: '/admin/forum', label: '论坛管理', icon: MessagesSquare },
-      { href: '/admin/links', label: '友链与招商', icon: Link2 },
-    ],
-  },
-  {
-    // 渠道分站（WP5，设计 12.2）：渠道的开通、进货价、结算都是「和某个渠道之间的事」，自成一组；
-    // 售后申请是渠道发起、站长处理的工单，跟着渠道走而不是跟着订单走（主站订单没有售后申请）。
-    // 页面在休眠期（CHANNELS_ENABLED 未设置）也能打开，只是空态——菜单多出这一组是发布说明里写明的可感知变化（实施分包 8.6）。
-    group: '渠道',
-    items: [
-      { href: '/admin/tenants', label: '渠道管理', icon: Store },
-      { href: '/admin/tenants/overview', label: '运营概览', icon: PieChart },
-      { href: '/admin/after-sales', label: '售后申请', icon: LifeBuoy, badge: 'afterSales' },
-      { href: '/admin/tenants/reconcile', label: '对账自检', icon: Scale },
-    ],
-  },
-  {
-    group: '系统',
-    items: [
-      { href: '/admin/settings', label: '系统设置', icon: Settings },
-      // 审计日志只有站长自己看（含渠道操作、平台对渠道的操作、越权拒绝），归「系统」
-      { href: '/admin/audit', label: '审计日志', icon: ScrollText },
-      // 微信机器人（docs/微信机器人-设计.md §14）：登录小号、群绑定、管理员、锁定解锁都只有站长自己碰，归不了类，放「系统」
-      { href: '/admin/bot', label: '微信机器人', icon: Bot },
-    ],
-  },
-]
-
-// 顶部标题要按「最长匹配」取，不能取第一个命中的：
-// /admin/analytics/traffic 这类多级路径如果将来出现父级菜单，前缀匹配会先命中父级，标题就错了。
-const flatNavItems = navGroups.flatMap((g) => g.items)
-
-function matchesPath(href: string, pathname: string) {
-  // /admin 是所有后台路径的前缀，只能精确匹配，否则它会永远处于选中态
-  if (href === '/admin') return pathname === '/admin'
-  return pathname === href || pathname.startsWith(href + '/')
-}
-
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { user, logout } = useUserStore()
 
-  /*
-   * 售后申请待处理数（设计 8.4：渠道发起售后后超管列表要有红点）。复用列表接口的 pendingTotal（pageSize=1），
-   * 进后台时、每 60 秒、以及切回这个标签页时各拉一次；标签页在后台时不拉。休眠期没有渠道、恒为 0，不显示任何东西。
-   * 失败静默：红点只是提醒，拉不到不影响后台其它功能。
-   *
-   * 【不再每次切页面都拉】（2026-10-13）原来依赖 pathname：每点一次菜单就多发两个请求（各自是好几条查询），
-   * 正好和新页面自己的数据请求抢这台机器上仅有的几个数据库连接，页面的数反而出得更慢。红点晚一分钟更新没有任何影响。
-   */
-  const [afterSalesPending, setAfterSalesPending] = useState(0)
-  // 短信接码售后申请待处理数（S3）：同一个节奏拉 /api/admin/jiema/complaints 的 pendingTotal；拉不到静默
-  const [jiemaComplaintsPending, setJiemaComplaintsPending] = useState(0)
+  // 电脑端：侧栏是否收成窄栏（本机记忆）。首帧按展开渲染，挂载后再读——服务端不知道本机的选择
+  const [collapsed, setCollapsed] = useState(false)
+  // 小屏：抽屉是否打开
+  const [drawer, setDrawer] = useState(false)
+  const [palette, setPalette] = useState(false)
+  const [menu, setMenu] = useState<'todo' | 'user' | null>(null)
+  const [recent, setRecent] = useState<string[]>([])
+  const [todo, setTodo] = useState<Todo>(EMPTY_TODO)
+
   useEffect(() => {
-    let alive = true
-    const load = () => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
-      fetch('/api/admin/after-sales?status=PENDING&pageSize=1')
-        .then((r) => r.json())
-        .then((d) => {
-          if (alive && d?.success) setAfterSalesPending(Number(d.data?.pendingTotal) || 0)
-        })
-        .catch(() => {})
-      fetch('/api/admin/jiema/complaints?state=PENDING&pageSize=1')
-        .then((r) => r.json())
-        .then((d) => {
-          if (alive && d?.success) setJiemaComplaintsPending(Number(d.data?.pendingTotal) || 0)
-        })
-        .catch(() => {})
-    }
-    load()
-    const t = setInterval(load, 60_000)
-    document.addEventListener('visibilitychange', load)
-    return () => {
-      alive = false
-      clearInterval(t)
-      document.removeEventListener('visibilitychange', load)
+    setCollapsed(readLocal(COLLAPSE_KEY) === '1')
+    try {
+      const r = JSON.parse(readLocal(RECENT_KEY) || '[]')
+      if (Array.isArray(r)) setRecent(r.filter((x) => typeof x === 'string').slice(0, 6))
+    } catch {
+      /* 记录坏了就当没有 */
     }
   }, [])
+
+  const toggleCollapsed = () =>
+    setCollapsed((c) => {
+      writeLocal(COLLAPSE_KEY, c ? '0' : '1')
+      return !c
+    })
 
   const currentItem = flatNavItems.reduce<NavItem | null>((best, item) => {
     if (!matchesPath(item.href, pathname)) return best
     return !best || item.href.length > best.href.length ? item : best
   }, null)
+  const currentGroup = currentItem ? navGroups.find((g) => g.items.includes(currentItem)) : null
+
+  // 换页：收起抽屉与下拉；把当前页记进「最近访问」（命令面板用）
+  const currentHref = currentItem?.href
+  useEffect(() => {
+    setDrawer(false)
+    setMenu(null)
+    if (!currentHref) return
+    setRecent((list) => {
+      const next = [currentHref, ...list.filter((h) => h !== currentHref)].slice(0, 6)
+      writeLocal(RECENT_KEY, JSON.stringify(next))
+      return next
+    })
+  }, [pathname, currentHref])
+
+  /*
+   * 待办计数：进后台时、每 60 秒、切回这个标签页时各拉一次；标签页在后台时不拉。失败静默（红点只是提醒）。
+   * 不随页面切换重拉：那样每点一次菜单都多一个请求，和新页面自己的数据请求抢数据库连接。
+   */
+  const loadTodo = useCallback(() => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return
+    fetch('/api/admin/todo')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.success) setTodo({ ...EMPTY_TODO, ...d.data })
+      })
+      .catch(() => {})
+  }, [])
+  useEffect(() => {
+    loadTodo()
+    const t = setInterval(loadTodo, 60_000)
+    document.addEventListener('visibilitychange', loadTodo)
+    return () => {
+      clearInterval(t)
+      document.removeEventListener('visibilitychange', loadTodo)
+    }
+  }, [loadTodo])
+
+  // Ctrl K / ⌘K 呼出命令面板（输入框里也生效：这是「去别处」的快捷键，不是文本编辑键）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setMenu(null)
+        setPalette((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  const todoItems: { label: string; desc: string; count: number; href: string }[] = [
+    { label: '待发货 / 处理中', desc: '已付款、还没完成的订单', count: todo.processing, href: '/admin/orders?status=PROCESSING' },
+    { label: '买家留言未回复', desc: '订单里有没读的买家留言', count: todo.unreplied, href: '/admin/orders?unreplied=1' },
+    { label: '待开具发票', desc: '买家已提交、等开票', count: todo.invoices, href: '/admin/invoices' },
+    { label: '渠道售后申请', desc: '渠道发起、等你处理', count: todo.afterSales, href: '/admin/after-sales' },
+    { label: '接码售后', desc: '短信接码的售后申请', count: todo.jiemaComplaints, href: '/admin/jiema' },
+  ]
+  const todoTotal = todoItems.reduce((s, t) => s + t.count, 0)
+
+  const accountName = user?.nickname || user?.email || '管理员'
+
+  const sidebar = (narrow: boolean) => (
+    <>
+      <div className={cn('flex h-14 shrink-0 items-center border-b border-gray-100', narrow ? 'justify-center px-0' : 'px-4')}>
+        <Link href="/admin" className="flex min-w-0 items-center gap-2.5" title="贝果科技 · 管理后台">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 text-sm font-bold text-white shadow-sm">
+            贝
+          </span>
+          {!narrow && (
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-[15px] font-semibold text-gray-900">贝果科技</span>
+              <span className="block text-[11px] text-gray-400">管理控制台</span>
+            </span>
+          )}
+        </Link>
+      </div>
+
+      {/* 搜索入口放在侧栏最上面：比滚着找菜单快 */}
+      <div className={cn('shrink-0 pt-3', narrow ? 'px-2' : 'px-3')}>
+        <button
+          onClick={() => setPalette(true)}
+          title="搜索功能（Ctrl K）"
+          className={cn(
+            'flex h-9 w-full items-center rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-400 transition-colors hover:border-gray-300 hover:bg-white hover:text-gray-600',
+            narrow ? 'justify-center' : 'gap-2 px-3'
+          )}
+        >
+          <Search className="h-4 w-4 shrink-0" />
+          {!narrow && (
+            <>
+              <span className="flex-1 text-left">搜索功能…</span>
+              <kbd className="rounded border border-gray-200 bg-white px-1.5 text-[10px] text-gray-400">Ctrl K</kbd>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* 分组多、总高度超过一屏，导航区自己滚动，底部的操作不被挤出去 */}
+      <nav className={cn('admin-scroll flex-1 overflow-y-auto py-3', narrow ? 'px-2' : 'px-3')} aria-label="后台导航">
+        {navGroups.map((group, gi) => {
+          const groupActive = group.items.some((item) => matchesPath(item.href, pathname))
+          return (
+            <div key={group.group} className="mb-3 last:mb-0">
+              {/* 组标题不可点、不折叠：后台是高频操作界面，折叠意味着每次跳转多一次展开。窄栏下用一条分隔线代替标题 */}
+              {narrow ? (
+                gi > 0 && <div className="mx-2 mb-3 border-t border-gray-100" />
+              ) : (
+                <div className={cn('px-3 pb-1 pt-1 text-[11px] font-medium tracking-wider', groupActive ? 'text-primary-600' : 'text-gray-400')}>{group.group}</div>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  // 只高亮「最长匹配」的那一项：/admin/tenants/overview 同时命中 /admin/tenants 与它自己
+                  const isActive = currentItem?.href === item.href
+                  const n = badgeCount(item.badge, todo)
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      title={narrow ? item.label : undefined}
+                      aria-current={isActive ? 'page' : undefined}
+                      className={cn(
+                        'group relative flex h-9 items-center rounded-lg text-sm transition-colors',
+                        narrow ? 'justify-center' : 'gap-3 px-3',
+                        isActive ? 'bg-primary-50 font-medium text-primary-700' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                      )}
+                    >
+                      <item.icon className={cn('h-[18px] w-[18px] shrink-0', isActive ? 'text-primary-600' : 'text-gray-400 group-hover:text-gray-600')} />
+                      {!narrow && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+                      {n > 0 &&
+                        (narrow ? (
+                          <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" aria-label={`${n} 项待处理`} />
+                        ) : (
+                          <span className="rounded-full bg-red-500 px-1.5 text-[11px] font-semibold leading-5 text-white" aria-label={`${n} 项待处理`}>
+                            {n > 99 ? '99+' : n}
+                          </span>
+                        ))}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </nav>
+    </>
+  )
 
   return (
-    <div className="admin-area flex min-h-screen bg-[#f4f5f7]">
+    <div className="admin-area min-h-screen bg-[#f5f6f8]">
       {/* 点菜单后 150ms 还没切过去，就在顶上走一条细进度条（与前台同一个组件，只用 transform / opacity） */}
       <RouteProgress />
-      {/* 侧边栏 */}
-      <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
-        {/* Logo */}
-        <div className="flex h-16 shrink-0 items-center border-b border-gray-200 px-6">
-          <Link href="/admin" className="flex items-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 text-white font-bold shadow-sm">
-              贝
-            </div>
-            <span className="text-lg font-bold text-gray-900">贝果科技 · 管理后台</span>
-          </Link>
-        </div>
+      <AdminToaster />
+      <CommandPalette open={palette} onClose={() => setPalette(false)} recent={recent} />
 
-        {/*
-          导航菜单。
-          加上分组标题后总高度超过一屏（尤其是笔记本 768px 高度），所以这里必须能独立滚动，
-          否则底部「返回前台」会被挤出可视区域。
-        */}
-        <nav className="flex-1 overflow-y-auto p-4">
-          {navGroups.map((group) => {
-            const groupActive = group.items.some((item) => matchesPath(item.href, pathname))
-            return (
-              <div key={group.group} className="mb-4 last:mb-0">
-                {/*
-                  组标题是纯文本不可点击、也不做折叠：
-                  后台是高频操作界面，折叠意味着每次跳转都多一次展开，比多扫几行更费事。
-                  当前页所在的组标题变主色，用来快速定位「我现在在哪一块」。
-                */}
-                <div
-                  className={cn(
-                    'px-4 pb-1.5 pt-1 text-[11px] font-semibold uppercase tracking-widest',
-                    groupActive ? 'text-primary-600' : 'text-gray-400'
-                  )}
-                >
-                  {group.group}
-                </div>
-                <div className="space-y-1">
-                  {group.items.map((item) => {
-                    // 只高亮「最长匹配」的那一项：/admin/tenants/overview 同时命中 /admin/tenants 与 /admin/tenants/overview，
-                    // 两项一起亮会让人分不清在哪一页（原有菜单项没有父子路径，这个改动对它们没有影响）
-                    const isActive = currentItem?.href === item.href
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={cn(
-                          'relative flex items-center space-x-3 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-                          isActive
-                            ? 'bg-primary-50 text-primary-700 before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-primary-600'
-                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                        )}
-                      >
-                        <item.icon className="h-5 w-5 shrink-0" />
-                        <span>{item.label}</span>
-                        {item.badge === 'jiemaComplaints' && jiemaComplaintsPending > 0 && (
-                          <span
-                            className="ml-auto rounded-full bg-red-500 px-1.5 text-[11px] font-semibold leading-5 text-white"
-                            aria-label={`${jiemaComplaintsPending} 条接码售后待处理`}
-                          >
-                            {jiemaComplaintsPending > 99 ? '99+' : jiemaComplaintsPending}
-                          </span>
-                        )}
-                        {item.badge === 'afterSales' && afterSalesPending > 0 && (
-                          <span
-                            className="ml-auto rounded-full bg-red-500 px-1.5 text-[11px] font-semibold leading-5 text-white"
-                            aria-label={`${afterSalesPending} 个待处理`}
-                          >
-                            {afterSalesPending > 99 ? '99+' : afterSalesPending}
-                          </span>
-                        )}
-                      </Link>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </nav>
-
-        {/* 底部 */}
-        <div className="shrink-0 border-t border-gray-200 p-4">
-          <Link
-            href="/"
-            className="flex items-center space-x-3 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+      {/* 电脑端侧栏：固定在左侧，可收成窄栏 */}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-gray-200/80 bg-white transition-[width] duration-200 lg:flex',
+          collapsed ? 'w-16' : 'w-60'
+        )}
+      >
+        {sidebar(collapsed)}
+        <div className={cn('shrink-0 border-t border-gray-100 py-2', collapsed ? 'px-2' : 'px-3')}>
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? '展开侧栏' : '收起侧栏'}
+            className={cn('flex h-9 w-full items-center rounded-lg text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900', collapsed ? 'justify-center' : 'gap-3 px-3')}
           >
-            <LogOut className="h-5 w-5" />
-            <span>返回前台</span>
-          </Link>
+            {collapsed ? <PanelLeftOpen className="h-[18px] w-[18px]" /> : <PanelLeftClose className="h-[18px] w-[18px]" />}
+            {!collapsed && <span>收起侧栏</span>}
+          </button>
         </div>
       </aside>
 
-      {/* 主内容区 */}
-      <div className="ml-64 min-w-0 flex-1">
-        {/* 顶部栏 */}
-        <header className="sticky top-0 z-30 h-16 border-b border-gray-200/80 bg-white/85 backdrop-blur">
-          <div className="flex h-full items-center justify-between px-6">
-            <h1 className="text-lg font-semibold text-gray-900">
-              {currentItem?.label || '管理后台'}
-            </h1>
-            <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-500">管理员</span>
+      {/* 小屏抽屉 */}
+      {drawer && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="导航菜单">
+          <div className="absolute inset-0 bg-gray-900/45" onClick={() => setDrawer(false)} />
+          <aside className="admin-drawer absolute inset-y-0 left-0 flex w-[272px] max-w-[84vw] flex-col bg-white shadow-2xl">
+            <button
+              onClick={() => setDrawer(false)}
+              className="absolute right-2 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              aria-label="关闭菜单"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {sidebar(false)}
+          </aside>
+        </div>
+      )}
+
+      <div className={cn('min-w-0 transition-[padding] duration-200', collapsed ? 'lg:pl-16' : 'lg:pl-60')}>
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-gray-200/80 bg-white/90 px-3 backdrop-blur sm:px-5">
+          <button
+            onClick={() => setDrawer(true)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 lg:hidden"
+            aria-label="打开菜单"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+
+          {/* 面包屑：分组 / 页面。分组不是页面，不可点 */}
+          <nav className="flex min-w-0 items-center gap-1.5 text-sm" aria-label="当前位置">
+            {currentGroup && (
+              <>
+                <span className="hidden shrink-0 text-gray-400 sm:inline">{currentGroup.group}</span>
+                <ChevronRight className="hidden h-3.5 w-3.5 shrink-0 text-gray-300 sm:inline" />
+              </>
+            )}
+            <h1 className="truncate text-[15px] font-semibold text-gray-900">{currentItem?.label || '管理后台'}</h1>
+          </nav>
+
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
+            <button
+              onClick={() => setPalette(true)}
+              className="flex h-9 items-center gap-2 rounded-lg px-2.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+              title="搜索功能、订单号、邮箱（Ctrl K）"
+            >
+              <Search className="h-[18px] w-[18px]" />
+              <span className="hidden xl:inline">搜索</span>
+              <kbd className="hidden rounded border border-gray-200 bg-gray-50 px-1.5 text-[10px] text-gray-400 xl:inline">Ctrl K</kbd>
+            </button>
+
+            {/* 待办中心 */}
+            <div className="relative">
+              <button
+                onClick={() => setMenu((m) => (m === 'todo' ? null : 'todo'))}
+                className="relative flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                aria-haspopup="true"
+                aria-expanded={menu === 'todo'}
+                title={todoTotal > 0 ? `${todoTotal} 项待办` : '待办'}
+              >
+                <Bell className="h-[18px] w-[18px]" />
+                {todoTotal > 0 && (
+                  <span className="absolute right-1 top-1 min-w-[16px] rounded-full bg-red-500 px-1 text-center text-[10px] font-semibold leading-4 text-white ring-2 ring-white">
+                    {todoTotal > 99 ? '99+' : todoTotal}
+                  </span>
+                )}
+              </button>
+              {menu === 'todo' && (
+                <Popover onClose={() => setMenu(null)} className="w-[300px]">
+                  <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+                    <span className="text-sm font-semibold text-gray-900">待办</span>
+                    <span className="text-xs text-gray-400">{todoTotal > 0 ? `共 ${todoTotal} 项` : '都处理完了'}</span>
+                  </div>
+                  <div className="p-1.5">
+                    {todoItems.map((t) => (
+                      <Link key={t.label} href={t.href} className="flex items-center gap-3 rounded-lg px-2.5 py-2 hover:bg-gray-50">
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm text-gray-800">{t.label}</span>
+                          <span className="block truncate text-xs text-gray-400">{t.desc}</span>
+                        </span>
+                        <span
+                          className={cn(
+                            'min-w-[26px] rounded-full px-2 py-0.5 text-center text-xs font-semibold tabular-nums',
+                            t.count > 0 ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-400'
+                          )}
+                        >
+                          {t.count}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </Popover>
+              )}
+            </div>
+
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener"
+              className="hidden h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm text-gray-500 hover:bg-gray-100 hover:text-gray-900 sm:flex"
+              title="在新标签页打开前台"
+            >
+              <ExternalLink className="h-4 w-4" />
+              <span className="hidden md:inline">前台</span>
+            </a>
+
+            {/* 账号菜单 */}
+            <div className="relative">
+              <button
+                onClick={() => setMenu((m) => (m === 'user' ? null : 'user'))}
+                className="flex h-9 items-center gap-2 rounded-lg pl-1.5 pr-2 hover:bg-gray-100"
+                aria-haspopup="true"
+                aria-expanded={menu === 'user'}
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-xs font-semibold text-white">
+                  {accountName.slice(0, 1).toUpperCase()}
+                </span>
+                <span className="hidden max-w-[140px] truncate text-sm text-gray-700 md:inline">{accountName}</span>
+                <ChevronDown className="hidden h-3.5 w-3.5 text-gray-400 md:inline" />
+              </button>
+              {menu === 'user' && (
+                <Popover onClose={() => setMenu(null)} className="w-56">
+                  <div className="border-b border-gray-100 px-4 py-3">
+                    <div className="truncate text-sm font-medium text-gray-900">{accountName}</div>
+                    <div className="mt-0.5 truncate text-xs text-gray-400">{user?.email || '管理员'}</div>
+                  </div>
+                  <div className="p-1.5 text-sm text-gray-700">
+                    <Link href="/profile" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-gray-50">
+                      <UserRound className="h-4 w-4 text-gray-400" />
+                      个人中心
+                    </Link>
+                    <Link href="/" className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-gray-50">
+                      <ExternalLink className="h-4 w-4 text-gray-400" />
+                      返回前台
+                    </Link>
+                    <button
+                      onClick={() => {
+                        logout()
+                        window.location.href = '/login'
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-rose-600 hover:bg-rose-50"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      退出登录
+                    </button>
+                  </div>
+                </Popover>
+              )}
             </div>
           </div>
         </header>
 
-        {/* 页面内容 */}
-        <main className="p-6">{children}</main>
+        <main className="p-3 sm:p-5 lg:p-6">{children}</main>
       </div>
+    </div>
+  )
+}
+
+/** 顶栏下拉：点外面 / 按 Esc 关闭 */
+function Popover({ children, onClose, className }: { children: React.ReactNode; onClose: () => void; className?: string }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      // 点的是触发按钮自己（在 ref 的父级里）：交给按钮的 onClick 去切换，这里不抢着关
+      if (ref.current && !ref.current.parentElement?.contains(e.target as Node)) onClose()
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+  return (
+    <div
+      ref={ref}
+      className={cn('admin-pop absolute right-0 top-11 z-50 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-[0_20px_48px_-16px_rgba(15,23,42,0.3)]', className)}
+    >
+      {children}
     </div>
   )
 }

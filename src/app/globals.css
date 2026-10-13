@@ -1130,3 +1130,144 @@
   from { transform: scaleX(1); }
   to { transform: scaleX(0); }
 }
+
+/* ============ 后台控制台规范（控制台改版 2026-10-13） ============
+ * 后台 40 个页面、两万多行，各自手写表格、输入框和弹窗。这里不逐页改，而是给 .admin-area 定一套基线：
+ * 页面没写的属性由这里补上（表头底色、单元格间距、聚焦描边、滚动条、弹窗入场），页面写了工具类的照页面的走。
+ *
+ * 【选择器一律包在 :where() 里】:where 的优先级是 0，于是这些规则只相当于「标签选择器」那么弱，
+ * 任何一个 Tailwind 工具类（.px-2、.bg-red-50 …）都能盖过它——不会出现「全局规范把某一页的特殊样式冲掉」。
+ * 只有带状态的几条（:focus、:hover）会比单个工具类高一级，那正是想要的。
+ * 只作用于后台：前台（.shop-shell）与渠道后台不受影响。
+ */
+.admin-area {
+  font-size: 14px;
+  accent-color: #0284c7;
+  -webkit-font-smoothing: antialiased;
+}
+.admin-area ::selection {
+  background-color: rgba(14, 165, 233, 0.22);
+  color: inherit;
+}
+
+/* 滚动条：细、浅色（原来继承全站深色方案，侧栏里是一条黑色粗滚动条） */
+.admin-area,
+.admin-area * {
+  scrollbar-width: thin;
+  scrollbar-color: #cfd4dc transparent;
+}
+.admin-area ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.admin-area ::-webkit-scrollbar-thumb {
+  background: #cfd4dc;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.admin-area ::-webkit-scrollbar-thumb:hover {
+  background: #aab1bc;
+  background-clip: content-box;
+}
+.admin-area ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---- 表格：表头一条浅灰底、不折行；单元格统一留白；行悬停高亮；数字等宽对齐 ---- */
+:where(.admin-area table) {
+  font-variant-numeric: tabular-nums;
+}
+:where(.admin-area thead th) {
+  padding: 10px 12px;
+  background-color: #f7f8fa;
+  color: #6b7280;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+:where(.admin-area thead th:first-child) {
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+}
+:where(.admin-area thead th:last-child) {
+  border-top-right-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+:where(.admin-area tbody td) {
+  padding: 10px 12px;
+}
+:where(.admin-area tbody tr) {
+  transition: background-color 0.12s ease;
+}
+:where(.admin-area tbody tr):hover {
+  background-color: #f8fafc;
+}
+/* 表格里的状态标签不折行：窄屏下「待支付」被挤成一个字一行，比横向滚动难看得多 */
+:where(.admin-area td span[class*='rounded']) {
+  white-space: nowrap;
+}
+
+/* 小屏：单元格里的中文不在字与字之间断开（否则「张小三」「待支付」被挤成一个字一行），让表格横向滚动。
+   只在小屏生效：电脑上长备注照常折行，不把表格撑宽 */
+@media (max-width: 1023px) {
+  :where(.admin-area :is(th, td)) {
+    word-break: keep-all;
+  }
+}
+
+/* ---- 表单控件：统一的聚焦描边（各页面手写的输入框原来只有浏览器默认的黑框） ---- */
+:where(.admin-area :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']), select, textarea):not(.admin-bare)) {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+:where(.admin-area :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file'], [type='color']), select, textarea):not(.admin-bare)):focus {
+  outline: none;
+  border-color: #0ea5e9;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.16);
+}
+:where(.admin-area :is(input, select, textarea)):disabled {
+  cursor: not-allowed;
+}
+/* 键盘走到按钮 / 链接上时有清楚的焦点环；鼠标点击不出现 */
+:where(.admin-area :is(button, a, summary, [role='tab'])):focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+/* ---- 入场动效：弹窗、下拉、抽屉、消息条。只动 transform / opacity，160ms 以内 ---- */
+@keyframes admin-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+@keyframes admin-drawer-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@keyframes admin-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+/* 各页面手写的弹窗：遮罩层（fixed inset-0）里那块白底面板 */
+:where(.admin-area .fixed.inset-0 > [class*='bg-white']),
+.admin-pop {
+  animation: admin-pop-in 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.admin-area .admin-drawer {
+  animation: admin-drawer-in 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.admin-toast {
+  animation: admin-toast-in 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.admin-area .fixed.inset-0 > [class*='bg-white']),
+  .admin-pop,
+  .admin-area .admin-drawer,
+  .admin-toast {
+    animation: none;
+  }
+}
