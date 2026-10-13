@@ -33,6 +33,9 @@ verify:
 4. **留下使用记录**：官方建议教师可以让学生分享 ChatGPT 对话链接，作为使用 AI 的过程记录——你也可以主动这样做，在需要时说明 AI 参与了哪些环节。
 5. **遵守规则优先**：学校、导师、期刊对 AI 使用的规定不同，有的要求声明，有的禁止，先查清楚。
 
+![用 ChatGPT 辅助写论文必须知道的五件事](seed:g126-must-know.png)
+*图：本站根据 [OpenAI 帮助中心：Does ChatGPT tell the truth?](https://help.openai.com/en/articles/8313428-does-chatgpt-tell-the-truth) 整理的示意图*
+
 ## 哪些环节适合用
 
 | 环节 | 适合程度 | 怎么用 |
@@ -46,7 +49,13 @@ verify:
 | 数据分析 | 谨慎 | 可以辅助写代码、解释方法，结果自己复核 |
 | 模拟审稿 | 适合 | 让它从审稿人角度挑毛病 |
 
+![写论文的八个环节里哪些适合用 ChatGPT、哪些要谨慎](seed:g126-where-to-use.png)
+*图：本站整理的示意图（环节划分为本站编写，风险事实依据 [OpenAI 帮助中心：Does ChatGPT tell the truth?](https://help.openai.com/en/articles/8313428-does-chatgpt-tell-the-truth)）*
+
 ## 步骤：一套稳妥的辅助流程
+
+![用 ChatGPT 辅助写论文的五步流程：自己写核心内容、检查逻辑、润色、找文献、自查](seed:g126-workflow.png)
+*图：本站整理的示意图（写作流程为本站编写，风险事实依据 [OpenAI 帮助中心：Does ChatGPT tell the truth?](https://help.openai.com/en/articles/8313428-does-chatgpt-tell-the-truth)）*
 
 ### 1. 先自己写出核心内容
 

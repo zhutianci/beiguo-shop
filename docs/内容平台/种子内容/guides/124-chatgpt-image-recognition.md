@@ -41,6 +41,9 @@ verify:
 - **手机**：点 **+** 选照片或直接拍照。iOS 长按 **+** 会弹出最近的照片。
 - 同一个对话里可以随时追加新图片，换个角度继续问。
 
+![在电脑和手机上给 ChatGPT 发图片的方式，以及支持的格式和大小限制](seed:g124-how-to-attach.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Image Inputs FAQ](https://help.openai.com/en/articles/8400551-chatgpt-image-inputs-faq) 整理的示意图*
+
 ### 2. 把问题问具体
 
 只发一张图说「看看」，回答往往很泛。告诉它**这是什么、你想知道什么、要什么格式**：
@@ -77,6 +80,9 @@ verify:
 | 全景、鱼眼照片乱 | 对全景和鱼眼图处理较差 | 换普通视角的照片 |
 | 不认识文件名里的信息 | 不读取原始文件名和元数据，图片分析前会被缩放 | 把需要的信息写在提问里 |
 
+![ChatGPT 看错图片时的七种情况和对应处理办法](seed:g124-misread-fixes.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Image Inputs FAQ](https://help.openai.com/en/articles/8400551-chatgpt-image-inputs-faq) 整理的示意图*
+
 此外，图片本身模糊或有歧义时，它会尽力解读，但准确率会下降。
 
 ## 能传视频吗
@@ -90,6 +96,9 @@ verify:
 - **医学影像**：官方明确说模型不适合解读 CT 等专业医学影像，不能用于医疗建议。可以让它帮你整理「想问医生的问题」，诊断请找医生。
 - **重要信息要核对**：官方说明模型在某些情况下会生成错误的描述。发票金额、证件号码、合同条款等，识别结果一定和原图对照。
 - **隐私**：别随手上传含身份证、银行卡、他人照片等敏感信息的图片；个人套餐的内容可能用于训练（可在数据控制里关闭，见 [/guides/chatgpt-data-controls-privacy](/guides/chatgpt-data-controls-privacy)）。
+
+![给 ChatGPT 发图片前的五条注意事项](seed:g124-before-send.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Image Inputs FAQ](https://help.openai.com/en/articles/8400551-chatgpt-image-inputs-faq) 整理的示意图*
 
 ## 常见问题
 

@@ -5,7 +5,7 @@ products: [chatgpt]
 models: []
 accountTier: FREE
 excerpt: ChatGPT Atlas 浏览器已于 2026 年 8 月 9 日停止运行。本文按官方帮助中心讲清 Atlas 为什么停用、书签和历史记录能否迁移、怎么把书签导入 Chrome，以及现在要用 AI 浏览网页该选新版桌面 App 内置浏览器、云端浏览器还是 Chrome 扩展。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/20001371-evolving-atlas-into-chatgpt-for-browser-based-agentic-work
   - https://help.openai.com/en/articles/20001277-using-the-built-in-browser-in-the-chatgpt-desktop-app
@@ -18,7 +18,7 @@ verify:
   - Chrome 扩展的具体功能（侧边对话、标签页提及、浏览器控制）在各浏览器的支持情况以 learn.chatgpt.com 为准
 ---
 
-> 本文根据 OpenAI 帮助中心《Evolving Atlas into ChatGPT for browser-based agentic work》、内置浏览器文章和发布说明（2026-07-09、2026-08-31）整理，资料核对于 2026-10-07。
+> 本文根据 OpenAI 帮助中心《Evolving Atlas into ChatGPT for browser-based agentic work》、内置浏览器文章和发布说明（2026-07-09、2026-08-31）整理，资料核对于 2026-10-13（官方文章已改名为《ChatGPT Atlas retirement》并重写）。
 
 ## 适用于谁
 
@@ -34,11 +34,16 @@ verify:
 4. **数据**：书签、打开的标签页、浏览历史**都不会自动转移**；书签可以导出为 HTML 再导入 Chrome；Cookie 和登录会话不能导入其他浏览器。
 5. **替代方案**：深度的网页代理任务用**新版 ChatGPT 桌面 App 的内置浏览器**；让任务在后台跑用 **ChatGPT Work 的云端浏览器**；平时在 Chrome 里边看边问用 **ChatGPT 浏览器扩展**（现在也支持 Edge、Brave、Opera、Vivaldi）。
 
+![ChatGPT Atlas 停用后书签、标签页、浏览历史、登录会话和 ChatGPT 对话分别会怎样](seed:g134-atlas-data.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Atlas retirement](https://help.openai.com/en/articles/20001371-evolving-atlas-into-chatgpt-for-browser-based-agentic-work) 整理的示意图*
+
 ## 步骤：迁移 Atlas 里的数据
 
-如果你电脑上的 Atlas 还能打开，按官方方法把书签带走：
+官方文章在 10 月初重写为《ChatGPT Atlas retirement》：现在只讲怎么把**以前导出过**的书签 HTML 文件导入别的浏览器，不需要再打开 Atlas。没来得及导出、又需要里面数据的，官方的说法是联系 OpenAI 客服，但**不保证能恢复**。
 
-### 1. 从 Atlas 导出书签
+### 1. 从 Atlas 导出书签（仅在 Atlas 还能打开时）
+
+下面是停用前官方给出的导出步骤，现行文章已不再列出；Atlas 打不开就直接看下一步。
 
 1. 打开 Atlas；
 2. 打开书签菜单或书签管理器；
@@ -50,14 +55,17 @@ verify:
 1. 打开 Chrome；
 2. 点右上角 **⋮（更多）**；
 3. 选 **书签和清单 → 导入书签和设置**；
-4. 选择刚才导出的 HTML 文件，点 **打开**，再点 **完成**。
+4. 点 **选择文件**，选中以前导出的书签 HTML 文件，点 **打开**，再点 **完成**。
+
+![把以前从 Atlas 导出的书签 HTML 文件导入 Chrome 的四个步骤](seed:g134-import-bookmarks.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Atlas retirement](https://help.openai.com/en/articles/20001371-evolving-atlas-into-chatgpt-for-browser-based-agentic-work) 整理的示意图*
 
 导入的书签可能在一个新的「已导入」文件夹或「其他书签」里，到 Chrome 书签管理器找找。
 
 ### 3. 其他数据
 
 - **打开的标签页**、**浏览历史**：不会自动转移，重要页面要自己加书签或把网址复制到文档里；
-- **Cookie 和密码**：发布说明提到可以把 Cookie 和密码导出到新版 ChatGPT 桌面 App；Cookie 和会话文件属于敏感数据，除非完全信任对方并清楚风险，否则不要分享。登录会话无法导入其他浏览器，需要重新登录。
+- **Cookie 和密码**：发布说明提到可以把 Cookie 和密码导出到新版 ChatGPT 桌面 App；Cookie 和会话文件属于敏感数据，除非完全信任对方并清楚风险，否则不要分享。登录会话无法导入其他浏览器，需要重新登录。官方现行文章补充：以前导出过兼容的密码 CSV 文件的，可以按 Google 密码管理器的导入说明导入，导入成功后**删掉这个 CSV**（里面是明文密码）；找不回的密码走各网站自己的账号找回流程。官方现行文章补充：以前导出过兼容的密码 CSV 文件的，可以按 Google 密码管理器的导入说明导入，导入成功后**删掉这个 CSV**（里面是明文密码）；找不回的密码走各网站自己的账号找回流程。
 
 ## 现在用什么替代
 
@@ -66,6 +74,9 @@ verify:
 | 让 ChatGPT 在网页上一步步完成任务，你在旁边看 | 新版 ChatGPT 桌面 App 的**内置浏览器** | 在 Work 或 Codex 对话里按 ⌘+Shift+B / Ctrl+Shift+B 打开；支持多标签页、下载、登录、标注页面 |
 | 把网页任务交出去，关掉电脑也能继续 | ChatGPT Work 的**云端浏览器** | 在 OpenAI 的远程环境里运行，可后台执行（Plus 及以上） |
 | 在日常的 Chrome 里边浏览边问、提及当前标签页 | **ChatGPT 浏览器扩展** | 支持 Chrome；2026-08-31 起也支持 Edge、Brave、Opera、Vivaldi |
+
+![Atlas 停用后的三种替代方案：桌面 App 内置浏览器、Work 云端浏览器、ChatGPT 浏览器扩展](seed:g134-alternatives.png)
+*图：本站根据 [OpenAI 帮助中心：Using the built-in browser in the ChatGPT desktop app](https://help.openai.com/en/articles/20001277-using-the-built-in-browser-in-the-chatgpt-desktop-app) 整理的示意图*
 
 几点区别：
 
@@ -85,6 +96,12 @@ verify:
 
 **Q：Windows 上有 Atlas 吗？**
 Atlas 已经停用，不要再找安装包。Windows 用户可以用新版 ChatGPT 桌面 App 的内置浏览器，或在 Edge / Chrome 里装 ChatGPT 扩展。
+
+**Q：卸载 Atlas 会取消 ChatGPT 订阅，或者删掉 Atlas 里的数据吗？**
+都不会。官方说明移除 Atlas 不会取消订阅；Atlas 的浏览器记忆和 ChatGPT 的记忆是两回事，删除 ChatGPT 聊天也不会删掉 Atlas 的浏览器记忆、Cookie 等数据，这类请求要走隐私门户或联系客服。
+
+**Q：卸载 Atlas 会取消 ChatGPT 订阅，或者删掉 Atlas 里的数据吗？**
+都不会。官方说明移除 Atlas 不会取消订阅；Atlas 的浏览器记忆和 ChatGPT 的记忆是两回事，删除 ChatGPT 聊天也不会删掉 Atlas 的浏览器记忆、Cookie 等数据，这类请求要走隐私门户或联系客服。
 
 **Q：公司管理员要做什么？**
 官方建议管理员确认成员是否在用 Atlas、转告停用时间、提醒导出书签，并检查工作区是否开放了桌面 App 和浏览器扩展，同时更新内部文档。

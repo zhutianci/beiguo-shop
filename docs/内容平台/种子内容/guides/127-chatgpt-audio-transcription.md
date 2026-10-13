@@ -41,6 +41,9 @@ verify:
 - 如果是视频会议导出的 MP4，确认它是**纯音频**，否则先用剪辑或转换软件导出音频轨；
 - 文件要包含有效、可解码的音频流，损坏或加密的文件会失败。
 
+![向 ChatGPT 上传音频文件前要确认的五件事：套餐、格式、大小、视频文件、时长](seed:g127-before-upload.png)
+*图：本站根据 [OpenAI 帮助中心：Uploading files and audio to ChatGPT](https://help.openai.com/en/articles/8555545-file-uploads-faq) 整理的示意图*
+
 ### 2. 上传并说明需求
 
 像上传文档一样点 **+** 添加音频文件，然后说清楚要什么：
@@ -85,6 +88,9 @@ verify:
 | 音频 | 纪要生成后，音频从你的 Mac 和 OpenAI 服务器上删除，无法回放 |
 | 自动停止 | 合上笔记本盖子、长时间没有声音或单次记录满 4 小时时自动停止 |
 
+![在 Mac 上用 ChatGPT 的 Meetings 插件记录会议的四个步骤](seed:g127-meetings-plugin.png)
+*图：本站根据 [OpenAI 帮助中心：The Meetings plugin in ChatGPT](https://help.openai.com/en/articles/20001546-the-meetings-plugin-in-chatgpt) 整理的示意图*
+
 两个要点：
 
 - **先征得所有参会者同意**。App 里的同意提醒只有你自己看得到，不会替你通知其他人。
@@ -98,6 +104,9 @@ verify:
 | Meetings 插件 | 开会时实时记录 → 纪要和待办 | Mac 桌面 App，Pro / Business（beta） |
 | 语音听写（麦克风按钮） | 把你说的话转成输入框里的文字，发送前可编辑 | 支持听写的设备 |
 | 语音对话（声波按钮） | 和 ChatGPT 用语音实时聊天 | 各套餐，额度不同 |
+
+![上传音频文件、Meetings 插件、语音听写、语音对话四个功能的区别](seed:g127-four-features.png)
+*图：本站根据 [OpenAI 帮助中心：Uploading files and audio to ChatGPT](https://help.openai.com/en/articles/8555545-file-uploads-faq) 整理的示意图*
 
 语音对话见 [/guides/chatgpt-voice-mode](/guides/chatgpt-voice-mode)。
 

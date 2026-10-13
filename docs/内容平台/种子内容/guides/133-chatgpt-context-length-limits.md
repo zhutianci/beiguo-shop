@@ -42,6 +42,9 @@ verify:
 | 推理模型总窗口 | 视情况 | 256K | 256K | 400K |
 | 推理模型可输入估算 | 视情况 | 约 320 页 | 约 320 页 | 约 680 页 |
 
+![ChatGPT Free、Go、Plus、Pro 四档套餐的上下文窗口和可输入页数对比](seed:g133-context-by-plan.png)
+*图：本站根据 [ChatGPT 官方价格页](https://chatgpt.com/pricing) 整理的示意图*
+
 数据来自 ChatGPT 价格页。补充：2026 年 2 月发布说明写明，手动选择 Thinking 时总窗口为 256K token（输入 128K、最大输出 128K）。
 
 **一个 token 大约多少字？** 官方 token 说明里给的是英文的经验值（大约 4 个英文字符一个 token），中文的比例不同、一般更「费」token，所以上表的「页数」只能当量级参考。
@@ -51,6 +54,9 @@ verify:
 1. **输入框粘贴**：超过 1 万字符自动转附件（2026 年 6 月起所有套餐统一为 1 万字符；之前 Plus、Pro、Business 是 5 千字符）。
 2. **上传文件**：文本类文件每个最多 200 万 token、单文件最大 512 MB——文件能传上去，不代表全部内容能同时放进上下文，ChatGPT 会检索相关部分来回答。上传问题见 [/guides/chatgpt-file-upload-failed](/guides/chatgpt-file-upload-failed)。
 3. **单次回答长度**：输出也占窗口；一次要求写很长的内容，容易被截断或压缩。
+
+![ChatGPT 字数限制的三层：输入框粘贴、上传文件、单次回答长度](seed:g133-three-limits.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT release notes](https://help.openai.com/en/articles/6825453-chatgpt-release-notes) 与 [Uploading files and audio to ChatGPT](https://help.openai.com/en/articles/8555545-file-uploads-faq) 整理的示意图*
 
 ## 长对话越聊越「笨」怎么办
 
@@ -62,6 +68,9 @@ verify:
 2. **长期规则写进设置**：语言、格式、身份这类要求写进自定义指令（见 [/guides/chatgpt-custom-instructions](/guides/chatgpt-custom-instructions)）；
 3. **同一主题用项目**：把资料和说明放进项目，项目里的新对话都能引用（见 [/guides/chatgpt-projects](/guides/chatgpt-projects)）；
 4. **需要大窗口时选推理模型**：长文档分析时，付费用户手动选 Medium / High 等思考档位，可用的窗口更大（见 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)）。
+
+![ChatGPT 长对话变慢、遗忘前文时的四个办法](seed:g133-long-chat-fixes.png)
+*图：本站整理的示意图（做法为本站编写，窗口数字依据 [ChatGPT 官方价格页](https://chatgpt.com/pricing)）*
 
 ## 长文档怎么处理
 
