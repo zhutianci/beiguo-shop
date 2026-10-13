@@ -128,6 +128,10 @@ export default function VmqCashierPage() {
     }
   }, [state, info, router, features.lookup])
 
+  // 普通商品单付完款：直接去「我的订单」并打开这一单的发货详情（状态接口给的 next = /orders?paid=<订单号>）
+  const paidDest = safeNext(info?.next) ?? (info?.bizType === 'invoice' && features.lookup ? '/lookup' : '/orders')
+  const toDelivery = paidDest.startsWith('/orders?paid=')
+
   const mmss = (s: number) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
   return (
@@ -153,7 +157,22 @@ export default function VmqCashierPage() {
               </svg>
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-1">支付成功</h2>
-            <p className="text-gray-500 text-sm">正在跳转...</p>
+            {toDelivery ? (
+              <>
+                {/* 很多买家付完款不知道下一步去哪：这里直接说清楚，并给一个不用等的按钮 */}
+                <p className="text-gray-600 text-sm">正在打开这笔订单的「发货详情」…</p>
+                <p className="mt-3 text-xs leading-relaxed text-gray-500">
+                  卡密、使用说明和「去充值 / 兑换」入口都在发货详情里；
+                  <br />
+                  以后也可以随时到「我的订单」找到这一单。
+                </p>
+                <Link href={paidDest} className="mt-5 inline-flex items-center justify-center rounded-lg bg-[#1677FF] px-6 py-2.5 text-sm font-medium text-white">
+                  立即查看发货详情
+                </Link>
+              </>
+            ) : (
+              <p className="text-gray-500 text-sm">正在跳转...</p>
+            )}
           </div>
         )}
 

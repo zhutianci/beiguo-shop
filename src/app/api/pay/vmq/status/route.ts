@@ -69,9 +69,12 @@ export async function GET(request: NextRequest) {
      *   carrier：过期页用专用文案（它们关了就不能重新发起，不能 router.back()）；
      *   balancePart：组合单已用余额抵扣的部分（HELD / CAPTURED 预扣合计，分）；
      *   released（S2，接码单）：这张单的预扣已经退回（RELEASED）——过期页据此写「预扣的余额已退回」，没用过余额的单不写（B1 实施偏差）。
-     * 普通订单多一次按主键的查询、不多给任何字段；税费单不查。两者响应与原来逐字相同。
+     * 普通订单多一次按主键的查询，只多给 next（见下，2026-10-13）；税费单不查、响应与原来逐字相同。
      */
     let carrierExtra: { next: string; carrier: 'SMS_POOL' | 'TOPUP'; balancePart: number; released?: boolean } | null = null
+    // 普通商品单（2026-10-13）：付款成功后去「我的订单」并自动打开这一单的发货详情（卡密与「去充值 / 兑换」入口在那里）。
+    // 只多给 next 一项；订单号本来就会在跳转后的订单页上显示给买家本人，收款单号不可枚举
+    let plainNext: { next: string } | null = null
     if (o.bizType === 'order') {
       const ord = await prisma.order.findUnique({ where: { id: o.bizId }, select: { orderNo: true, product: { select: { deliveryType: true } } } })
       const dt = ord?.product.deliveryType
@@ -80,7 +83,7 @@ export async function GET(request: NextRequest) {
         const h = await prisma.balanceHold.findUnique({ where: { orderId: o.bizId }, select: { topupCents: true, cashCents: true, state: true } })
         const part = h && (h.state === 'HELD' || h.state === 'CAPTURED') ? h.topupCents + h.cashCents : 0
         carrierExtra = { next: `/jiema/order/${ord.orderNo}`, carrier: 'SMS_POOL', balancePart: part, released: h?.state === 'RELEASED' }
-      }
+      } else if (ord) plainNext = { next: `/orders?paid=${ord.orderNo}` }
     }
 
     return success({
@@ -96,7 +99,7 @@ export async function GET(request: NextRequest) {
       // 收银台显示哪一张收款码（后台「收款监控 → 收款码」可切换，3 秒内生效）。null = 配置读坏，收银台不显示收款码。
       // 只在待支付时给：已支付 / 已过期的页面不展示收款码
       ...(o.state === 0 ? { qrUrl: await currentPayQrUrl() } : {}),
-      ...(carrierExtra ?? {}),
+      ...(carrierExtra ?? plainNext ?? {}),
     })
   } catch (err) {
     console.error('Vmq status error:', err)

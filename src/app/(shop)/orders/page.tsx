@@ -197,6 +197,34 @@ const getStatusConfig = (payStatus: string, deliveryStatus: string) => {
   }
 }
 
+/**
+ * 一张订单的卡密与兑换入口（订单卡片和「发货详情」共用一份判断，两处的按钮永远指向同一个地方）。
+ *
+ * 【站内兑换地址是相对路径，不能只认 http(s)】服务端会把走站内兑换的卡返回成 /redeem/<平台>?cdk=...，
+ * 只认 http(s) 的话会把它整个滤掉，表现就是「有卡密但没有兑换按钮」。
+ * 兑换入口优先级：卡密自带（站内兑换页或本批外链）→ 商品级默认外链。
+ */
+function redeemEntry(order: Order) {
+  // 兼容：新接口返回 cardItems（带每张卡的专属兑换地址），旧数据只有 cards: string[]
+  const cardRows: { secret: string; redeemUrl: string | null; inSite?: boolean }[] =
+    order.cardItems && order.cardItems.length > 0
+      ? order.cardItems
+      : (order.cards || []).map((s) => ({ secret: s, redeemUrl: null }))
+  const isHttp = (u?: string | null) => !!u && /^https?:\/\//i.test(u)
+  const isUsable = (u?: string | null) => isHttp(u) || (!!u && u.startsWith('/'))
+  const fallbackRedeemUrl = isHttp(order.product?.cardRedeemUrl) ? order.product!.cardRedeemUrl! : null
+  const primary = cardRows.find((c) => isUsable(c.redeemUrl))
+  return {
+    cardRows,
+    hasCards: cardRows.length > 0,
+    isUsable,
+    fallbackRedeemUrl,
+    primaryRedeemUrl: primary?.redeemUrl || fallbackRedeemUrl,
+    // 站内兑换在本站打开，外链才新开标签页
+    primaryInSite: !!primary?.inSite,
+  }
+}
+
 function formatDate(date: string) {
   return new Date(date).toLocaleString('zh-CN', {
     year: 'numeric',
@@ -222,7 +250,18 @@ export default function OrdersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const abortRef = useRef<AbortController | null>(null)
   const [contactOpen, setContactOpen] = useState(false)
-  const [panel, setPanel] = useState<{ order: Order; type: PanelType } | null>(null)
+  const [panel, setPanel] = useState<{ order: Order; type: PanelType; justPaid?: boolean } | null>(null)
+  /*
+   * 【付款成功后直接打开这一单的发货详情】（2026-10-13）收银台付完款跳到 /orders?paid=<订单号>。
+   * 以前是回到订单列表就完了：很多买家不知道卡密和「去充值 / 兑换」入口藏在「发货详情」里，付了款不会用。
+   * 这里记下订单号，等列表第一次拉回来后自动打开那一单；随后把地址栏里的参数去掉（刷新、后退都不会再弹一次）。
+   * 用 window.location 读而不是 useSearchParams：后者要求整页包一层 Suspense。
+   */
+  const paidNoRef = useRef<string | null>(null)
+  useEffect(() => {
+    const no = new URLSearchParams(window.location.search).get('paid')
+    if (no && /^[0-9A-Za-z]{8,32}$/.test(no)) paidNoRef.current = no
+  }, [])
   const [payingNo, setPayingNo] = useState<string | null>(null)
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null)
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null)
@@ -258,6 +297,16 @@ export default function OrdersPage() {
         if (data.success) {
           const d = data.data
           setOrders((prev) => (opts?.append ? [...prev, ...d.list] : d.list))
+          if (paidNoRef.current) {
+            const no = paidNoRef.current
+            paidNoRef.current = null
+            window.history.replaceState(null, '', '/orders')
+            const hit = (d.list as Order[]).find((o) => o.orderNo === no)
+            // 接码单有自己的号码页（收银台本来就不会把它带到这里），不弹
+            if (hit && hit.payStatus === 'PAID' && hit.product?.deliveryType !== 'SMS_POOL') {
+              setPanel({ order: hit, type: 'delivery', justPaid: true })
+            }
+          }
           setPage(d.page)
           setTotalPages(d.totalPages || 1)
           setCounts(d.counts)
@@ -506,6 +555,9 @@ export default function OrdersPage() {
                 const gradient = getGradient(order.productId)
                 const paid = order.payStatus === 'PAID'
                 const numberHref = `/jiema/order/${encodeURIComponent(order.orderNo)}`
+                // 已发卡密的单：把「下一步」直接摆在卡片上（卡密已到 ≠ 已充值，很多买家卡在这一步）
+                const entry = redeemEntry(order)
+                const showRedeem = !jc && paid && order.deliveryStatus !== 'CANCELLED' && entry.hasCards
                 return (
                   <motion.div
                     key={order.id}
@@ -623,10 +675,22 @@ export default function OrdersPage() {
                             <span>{jc.hint}</span>
                           </div>
                         )}
-                        {!jc && order.deliveryStatus === 'DELIVERED' && (
+                        {!jc && order.deliveryStatus === 'DELIVERED' && !showRedeem && (
                           <div className="flex items-center gap-2 text-sm lg:text-[15px] text-green-400 mb-3 lg:mb-0">
                             <CheckCircle className="w-4 h-4" />
                             <span>服务已交付</span>
+                          </div>
+                        )}
+                        {showRedeem && order.deliveryStatus === 'DELIVERED' && (
+                          <div className="flex items-start gap-2 text-sm lg:text-[15px] text-emerald-300 mb-3 lg:mb-0">
+                            <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                            <span>
+                              卡密已发放。
+                              <span className="text-white/60">
+                                还没充值的话，点「{entry.primaryRedeemUrl ? '去充值 / 兑换' : '查看卡密'}」
+                                {entry.primaryRedeemUrl ? '把卡密充到你的账号' : '按使用说明完成充值'}
+                              </span>
+                            </span>
                           </div>
                         )}
                         {!jc && order.payStatus === 'PAID' && order.deliveryStatus === 'PROCESSING' && (
@@ -683,9 +747,29 @@ export default function OrdersPage() {
                               <ChevronRight className="w-4 h-4" />
                             </Link>
                           )}
+                          {/* 主按钮：一单一卡且有兑换地址 → 直接去兑换页（站内兑换已带好卡密）；多张卡各有各的地址，进发货详情逐张兑换 */}
+                          {showRedeem &&
+                            (entry.primaryRedeemUrl && entry.cardRows.length === 1 ? (
+                              <a
+                                href={entry.primaryRedeemUrl}
+                                {...(entry.primaryInSite ? {} : { target: '_blank', rel: 'noreferrer noopener' })}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-sm lg:text-[15px] font-semibold hover:brightness-110 transition-[filter]"
+                              >
+                                去充值 / 兑换
+                                <ChevronRight className="w-4 h-4" />
+                              </a>
+                            ) : (
+                              <button
+                                onClick={() => openPanel(order, 'delivery')}
+                                className="inline-flex items-center gap-1.5 px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-sm lg:text-[15px] font-semibold hover:brightness-110 transition-[filter]"
+                              >
+                                {entry.primaryRedeemUrl ? '去充值 / 兑换' : '查看卡密'}
+                                <ChevronRight className="w-4 h-4" />
+                              </button>
+                            ))}
                           <ActionButton
                             icon={Package}
-                            label="发货详情"
+                            label={showRedeem ? '发货详情（卡密）' : '发货详情'}
                             onClick={() => openPanel(order, 'delivery')}
                           />
                           {paid && order.billing && (
@@ -781,8 +865,10 @@ export default function OrdersPage() {
       {panel && panel.type === 'delivery' && (
         <DeliveryPanel
           order={panel.order}
+          justPaid={!!panel.justPaid}
           onClose={() => setPanel(null)}
           onShowBilling={() => setPanel({ order: panel.order, type: 'billing' })}
+          onContact={() => setPanel({ order: panel.order, type: 'chat' })}
         />
       )}
 
@@ -964,40 +1050,138 @@ function InfoRow({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-// 发货详情：订单信息 + 卡密 + 交付信息 + 短信接码
+// 发货详情：（付款成功提示）+ 卡密与充值步骤 + 订单信息 + 交付信息 + 短信接码
 function DeliveryPanel({
   order,
+  justPaid = false,
   onClose,
   onShowBilling,
+  onContact,
 }: {
   order: Order
+  /** 刚从收银台付完款自动打开的：顶部多一条「支付成功」 */
+  justPaid?: boolean
   onClose: () => void
   /** 切到「发票 / 收据」弹窗 */
   onShowBilling: () => void
+  /** 切到这张单的「在线沟通」 */
+  onContact: () => void
 }) {
-  // 兼容：新接口返回 cardItems（带每张卡的专属兑换地址），旧数据只有 cards: string[]
-  const cardRows: { secret: string; redeemUrl: string | null; inSite?: boolean }[] =
-    order.cardItems && order.cardItems.length > 0
-      ? order.cardItems
-      : (order.cards || []).map((s) => ({ secret: s, redeemUrl: null }))
-  const hasCards = cardRows.length > 0
-  /*
-   * 【站内兑换地址是相对路径，不能只认 http(s)】
-   * 服务端现在会把走站内兑换的卡返回成 /redeem/<平台>?cdk=...，
-   * 老的 isHttp 正则会把它整个滤掉，表现就是「有卡密但没有兑换按钮」。
-   */
-  const isHttp = (u?: string | null) => !!u && /^https?:\/\//i.test(u)
-  const isUsable = (u?: string | null) => isHttp(u) || (!!u && u.startsWith('/'))
-  const fallbackRedeemUrl = isHttp(order.product?.cardRedeemUrl) ? order.product!.cardRedeemUrl! : null
-  // 兑换入口优先级：卡密自带（站内兑换页或本批外链）→ 商品级默认外链
-  const primary = cardRows.find((c) => isUsable(c.redeemUrl))
-  const primaryRedeemUrl = primary?.redeemUrl || fallbackRedeemUrl
-  // 站内兑换在本站打开，外链才新开标签页
-  const primaryInSite = !!primary?.inSite
+  const { cardRows, hasCards, isUsable, fallbackRedeemUrl, primaryRedeemUrl, primaryInSite } = redeemEntry(order)
+  const [copied, setCopied] = useState<number | null>(null)
+  const copyCard = (secret: string, i: number) => {
+    navigator.clipboard?.writeText(secret).catch(() => {})
+    setCopied(i)
+    setTimeout(() => setCopied((cur) => (cur === i ? null : cur)), 1600)
+  }
+  const voided = order.deliveryStatus === 'CANCELLED'
   const showHint = !hasCards && !order.deliveryInfo && order.product?.deliveryType !== 'SMS' && order.product?.deliveryType !== 'SMS_POOL'
   return (
     <PanelModal title="发货详情" icon={<Package className="w-5 h-5 text-emerald-400" />} onClose={onClose}>
       <div className="space-y-4 text-sm">
+        {justPaid && !voided && (
+          <div className="flex items-start gap-3 rounded-2xl border border-green-400/30 bg-green-500/10 p-4">
+            <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-green-400" />
+            <div>
+              <div className="font-semibold text-green-200">支付成功</div>
+              <div className="mt-0.5 text-xs leading-relaxed text-white/60">
+                {hasCards
+                  ? '卡密已自动发放，按下面三步完成充值。'
+                  : order.deliveryStatus === 'DELIVERED'
+                    ? '订单已交付，交付内容见下方。'
+                    : order.product?.deliveryType === 'MANUAL'
+                      ? '这是人工服务：客服会尽快与你对接，进度可在这一单的「与客服在线沟通」里跟进。'
+                      : order.product?.deliveryType === 'SMS'
+                        ? '正在为你取号，号码与验证码会显示在下方。'
+                        : '订单正在处理中，发货后内容会显示在这里，并发邮件到你的账号邮箱。'}
+              </div>
+            </div>
+          </div>
+        )}
+        {hasCards && (
+          <div className="rounded-2xl border border-emerald-400/25 bg-emerald-500/[0.06] p-4">
+            {/* 三步指引：卡密到手不等于充值完成，这是买家最常卡住的地方（站长 2026-10-13） */}
+            <div className="mb-3 text-sm font-semibold text-emerald-200">卡密已发放，还差最后一步：把它充到你的账号</div>
+            <ol className="mb-4 space-y-1.5 text-xs text-white/70">
+              {[
+                '复制下面的卡密（点右侧「复制」）',
+                primaryRedeemUrl
+                  ? primaryInSite
+                    ? '点「去充值 / 兑换」打开兑换页，卡密已自动填好'
+                    : '点「去充值 / 兑换」打开兑换页，粘贴卡密'
+                  : order.product?.cardUsage
+                    ? '按下面的「使用说明」找到充值入口，粘贴卡密'
+                    : '到对应平台的充值 / 兑换入口粘贴卡密；不确定在哪里，点下方「联系客服」',
+                '按页面提示填写要充值的账号并确认，完成后即到账',
+              ].map((t, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="mt-px flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-400/20 text-[10px] font-semibold text-emerald-200">
+                    {i + 1}
+                  </span>
+                  <span>{t}</span>
+                </li>
+              ))}
+            </ol>
+            <div className="text-white/50 mb-2 flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-400" /> 卡密（请妥善保管）
+            </div>
+            <div className="space-y-2">
+              {cardRows.map((row, i) => (
+                <div key={i}>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 p-3 rounded-lg bg-white/5 border border-green-500/30 font-mono text-xs break-all">
+                      {row.secret}
+                    </div>
+                    <button
+                      onClick={() => copyCard(row.secret, i)}
+                      className="inline-flex items-center gap-1 px-3 py-2 rounded-lg glass hover:bg-white/10 text-xs whitespace-nowrap"
+                    >
+                      {copied === i ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied === i ? '已复制' : '复制'}
+                    </button>
+                  </div>
+                  {/* 该卡有专属兑换地址且与商品默认不同时，单独给一个入口 */}
+                  {isUsable(row.redeemUrl) && row.redeemUrl !== fallbackRedeemUrl && (
+                    <a
+                      href={row.redeemUrl!}
+                      {...(row.inSite ? {} : { target: '_blank', rel: 'noreferrer noopener' })}
+                      className="mt-1.5 inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
+                    >
+                      {row.inSite ? '在本站兑换这张卡' : '本卡兑换地址'}
+                      <ChevronRight className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* 统一入口：优先用第一张卡的专属地址，没有才回落商品级默认链接 */}
+            {primaryRedeemUrl && (
+              <a
+                href={primaryRedeemUrl}
+                {...(primaryInSite ? {} : { target: '_blank', rel: 'noreferrer noopener' })}
+                className="mt-3 group flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 font-semibold hover:shadow-[0_0_24px_rgba(16,185,129,0.4)] transition-all"
+              >
+                去充值 / 兑换
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </a>
+            )}
+            <p className="text-[11px] text-white/40 mt-2">
+              卡密仅本人可见，会一直保留在这一单里，随时可以回来复制。充值遇到问题？
+              <button type="button" onClick={onContact} className="text-cyan-300/90 hover:underline">
+                联系客服
+              </button>
+            </p>
+            {order.product?.cardUsage && (
+              <div className="mt-3">
+                <div className="text-white/50 mb-1.5 text-sm">使用说明</div>
+                <div className="p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 whitespace-pre-wrap leading-relaxed">
+                  {order.product.cardUsage}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <InfoRow label="订单号" value={<span className="font-mono">{order.orderNo}</span>} />
         <InfoRow label="商品" value={<span className="font-medium">{order.productName}</span>} />
         <InfoRow label="金额" value={<span className="font-bold text-lg">¥{Number(order.amount).toFixed(2)}</span>} />
@@ -1052,62 +1236,6 @@ function DeliveryPanel({
         <InfoRow label="下单时间" value={formatDate(order.createdAt)} />
         {order.paidAt && <InfoRow label="支付时间" value={formatDate(order.paidAt)} />}
         {order.deliveredAt && <InfoRow label="交付时间" value={formatDate(order.deliveredAt)} />}
-
-        {hasCards && (
-          <div>
-            <div className="text-white/50 mb-2 flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-400" /> 卡密（请妥善保管）
-            </div>
-            <div className="space-y-2">
-              {cardRows.map((row, i) => (
-                <div key={i}>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 p-3 rounded-lg bg-white/5 border border-green-500/30 font-mono text-xs break-all">
-                      {row.secret}
-                    </div>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(row.secret)}
-                      className="px-3 py-2 rounded-lg glass hover:bg-white/10 text-xs whitespace-nowrap"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  {/* 该卡有专属兑换地址且与商品默认不同时，单独给一个入口 */}
-                  {isUsable(row.redeemUrl) && row.redeemUrl !== fallbackRedeemUrl && (
-                    <a
-                      href={row.redeemUrl!}
-                      {...(row.inSite ? {} : { target: '_blank', rel: 'noreferrer noopener' })}
-                      className="mt-1.5 inline-flex items-center gap-1 text-xs text-emerald-300 hover:text-emerald-200"
-                    >
-                      {row.inSite ? '在本站兑换这张卡' : '本卡兑换地址'}
-                      <ChevronRight className="w-3 h-3" />
-                    </a>
-                  )}
-                </div>
-              ))}
-            </div>
-            {/* 统一入口：优先用第一张卡的专属地址，没有才回落商品级默认链接 */}
-            {primaryRedeemUrl && (
-              <a
-                href={primaryRedeemUrl}
-                {...(primaryInSite ? {} : { target: '_blank', rel: 'noreferrer noopener' })}
-                className="mt-3 group flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 font-semibold hover:shadow-[0_0_24px_rgba(16,185,129,0.4)] transition-all"
-              >
-                去充值 / 兑换
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </a>
-            )}
-            <p className="text-[11px] text-white/40 mt-2">卡密仅本人可见，请按说明使用；如有问题联系客服。</p>
-            {order.product?.cardUsage && (
-              <div className="mt-3">
-                <div className="text-white/50 mb-1.5 text-sm">使用说明</div>
-                <div className="p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-white/70 whitespace-pre-wrap leading-relaxed">
-                  {order.product.cardUsage}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
 
         {order.deliveryInfo && (
           <div>
