@@ -34,7 +34,6 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       select: {
         productName: true,
-        amount: true,
         user: {
           select: {
             email: true,
@@ -48,7 +47,7 @@ export async function GET() {
       // 不下发订单自增 id：相邻两次拉取的差值就是全站建单量。前端只拿它当 key / 取色，给序号即可
       id: i + 1,
       productName: order.productName,
-      amount: Number(order.amount),
+      // 不下发成交价（站长 2026-10-13）：各人成交价不同（内推专属价 / 优惠券 / 改价），弹窗不再显示价格，接口也就不给
       // 优先用昵称（脱敏），没有就用邮箱（脱敏）
       displayName: order.user.nickname
         ? maskNickname(order.user.nickname)

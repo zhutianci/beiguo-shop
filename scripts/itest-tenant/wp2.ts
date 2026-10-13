@@ -824,7 +824,9 @@ async function main(): Promise<void> {
     const st = await callRoute(R(vmqStatus.GET), { host: M.host, path: `/api/pay/vmq/status?orderId=${vL.orderId}` })
     check('休眠时收银台状态不做跨站跳转（逐字原行为）', st.json?.data?.reallyPrice === 140.01 && st.json?.data?.redirectOrigin === undefined)
     const recent = await callRoute(R(recentRoute.GET), { host: M.host, path: '/api/orders/recent' })
-    check('成交滚动只含主站单', recent.status === 200 && !(recent.json?.data || []).some((x: Json) => Number(x.amount) === 140))
+    // 2026-10-13 起成交滚动不再下发成交价（各人成交价不同，弹窗不显示价格），原来「没有 140 元那一单」的判法已无从区分；
+    // 「只取本店」仍由接口 where 里的 tenantId 保证（代码未动），这里改为断言接口可用且不含金额字段
+    check('成交滚动可用且不下发成交价', recent.status === 200 && Array.isArray(recent.json?.data) && !(recent.json?.data || []).some((x: Json) => 'amount' in x))
     setChannelsMode('observe')
   }
 }

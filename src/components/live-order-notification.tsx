@@ -11,21 +11,20 @@ import { ShoppingBag, MapPin } from 'lucide-react'
 interface RecentOrder {
   id: number
   productName: string
-  amount: number
   displayName: string
   city: string
 }
 
 // 没有真实订单时的预设示例（脱敏假数据，让网站更"活")
 const FALLBACK_ORDERS: RecentOrder[] = [
-  { id: 9001, productName: 'Claude Pro', amount: 150, displayName: 'zh***@gmail.com', city: '北京' },
-  { id: 9002, productName: 'ChatGPT Plus', amount: 145, displayName: '李*星', city: '上海' },
-  { id: 9003, productName: 'Claude MAX 5x', amount: 780, displayName: 'wa***@qq.com', city: '深圳' },
-  { id: 9004, productName: 'ChatGPT Pro', amount: 1580, displayName: 'mi***@163.com', city: '杭州' },
-  { id: 9005, productName: 'Claude MAX 20x', amount: 1580, displayName: '王*林', city: '广州' },
-  { id: 9006, productName: 'Claude Pro', amount: 150, displayName: 'ti***@outlook.com', city: '成都' },
-  { id: 9007, productName: 'ChatGPT Plus', amount: 145, displayName: '陈*洋', city: '武汉' },
-  { id: 9008, productName: 'Claude MAX 5x', amount: 780, displayName: 'qi***@gmail.com', city: '南京' },
+  { id: 9001, productName: 'Claude Pro', displayName: 'zh***@gmail.com', city: '北京' },
+  { id: 9002, productName: 'ChatGPT Plus', displayName: '李*星', city: '上海' },
+  { id: 9003, productName: 'Claude MAX 5x', displayName: 'wa***@qq.com', city: '深圳' },
+  { id: 9004, productName: 'ChatGPT Pro', displayName: 'mi***@163.com', city: '杭州' },
+  { id: 9005, productName: 'Claude MAX 20x', displayName: '王*林', city: '广州' },
+  { id: 9006, productName: 'Claude Pro', displayName: 'ti***@outlook.com', city: '成都' },
+  { id: 9007, productName: 'ChatGPT Plus', displayName: '陈*洋', city: '武汉' },
+  { id: 9008, productName: 'Claude MAX 5x', displayName: 'qi***@gmail.com', city: '南京' },
 ]
 
 const gradients = [
@@ -128,12 +127,8 @@ function LiveOrderNotificationInner() {
                     <span className="font-mono text-white/80">{current.order.displayName}</span>
                     <span className="text-white/40"> 刚刚购买了 </span>
                   </div>
-                  <div className="flex items-center justify-between mt-0.5">
-                    <span className="text-sm font-bold">{current.order.productName}</span>
-                    <span className={`text-sm font-bold bg-gradient-to-r ${getGradient(current.order.id)} bg-clip-text text-transparent`}>
-                      ¥{current.order.amount}
-                    </span>
-                  </div>
+                  {/* 不显示成交价（站长 2026-10-13）：同一商品不同买家的成交价不一样（内推专属价、优惠券、改价），摆出来只会引来「为什么他更便宜」 */}
+                  <div className="mt-0.5 text-sm font-bold truncate">{current.order.productName}</div>
                 </div>
               </div>
 
