@@ -181,9 +181,23 @@ X 账号的取数不要依赖非官方镜像（nitter 类实例已基本全部�
 **summary 与 detail 的分工**：summary 是「一句话讲清发生了什么」（列表卡片用），
 detail 是「把材料里的细节按逻辑铺开」（详情页用）。detail **不是把 summary 拉长**。
 
-**detail 是可丢弃区块**：任何校验不过（段数/字数/连续 18 字重合/数字回查/禁词/黑名单）
+**detail 是可丢弃区块**：任何校验不过（段数/字数/照抄/数字回查/禁词/黑名单）
 就只丢这一块，事件本身照常发布 —— 页面退回「只有摘要」，那是完全合规的状态，
-没有需要人工确认的残留。所以 **detail 的问题不进 `needsReview` 队列**，
+没有需要人工确认的残留。
+
+**但「可丢弃」不等于「丢了就算」（2026-10-12，站长要求每条新闻都要有全文）**：
+第一稿不过会重写一次（`detailOrRetry`）——照抄类走两步改写（先把材料整理成转述过的要点，
+再只凭要点写，写稿那一步看不到原文）；其余带着退回原因重写。仍不过、但素材足够
+（抓到 ≥600 字正文）的留 `detailState='RAW'`，由独立的 detail 段再写，满 3 次才 SKIP。
+只有素材确实不足才直接 SKIP。
+
+**detail 的照抄口径**（`score.ts copiedStats`，只统计以中文为主的重合段）：
+逐字重合的最长一段 ≥ 30 字（搬了一整句）或重合占全文 > 25%（大面积搬运）才退回。
+原来的「连续 18 字」在比较前去空白，英文专有名词、论文标题、文件全称、职位名单必然命中，
+线上约三分之二的事件因此没有全文。§1.1「整段复制原文正文」仍然拦得住；
+提示词里写给模型的要求仍是 18 字（要求比拦截口径严）。
+**数字回查**认两类等价写法：数量级换算（1.3 million ↔ 130 万）和月份（October ↔ 10 月）；
+自己算出来的数仍算「材料里没有」。所以 **detail 的问题不进 `needsReview` 队列**，
 只有 summary 层的问题才进（否则会用一个未标定的长文阈值挤占那 20 条的人工审核名额）。
 
 **没有窗口，但有双车道**：compose 不再限定「只处理 7 天内的事件」——
@@ -281,6 +295,17 @@ interface LlmProvider {
 | 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | 需实测 |
 
 `api.openai.com` 超时不可用，`api.anthropic.com` 返回 403，**均不可作为生产选项**。
+
+**2026-10-12 起生产用 DeepSeek**（`LLM_PROVIDER=deepseek`，模型 `deepseek-flash` = DeepSeek-V4.1-Flash；
+智谱余额用完曾静默停更 4 天）。从 ECS 实测的两个坑：
+
+1. **默认开思考（档位 high）**，推理 token 按输出价计费，还会把 `max_tokens` 烧穿、返回空正文。
+   `LLM_THINKING=disabled` 必须保留（请求体 `thinking: {type: 'disabled'}`，与智谱同一写法）。
+2. **不支持 `response_format: json_schema`**（400 `This response_format type is unavailable now`），`json_object` 正常。
+   而 `llm.ts` 在 400 且带思考参数时会把思考参数去掉重试 —— 对 DeepSeek 等于重新打开思考。
+   目前管线里没有任何调用传 `jsonSchema`，所以不触发；**给 `llmJson` 加 `jsonSchema` 之前先改这段降级逻辑**。
+
+记账单价按官方高峰价填（`LLM_IN_PRICE=200`、`LLM_OUT_PRICE=800`，分 / 百万 token）；工作日 9–12、14–18 点以外半价，账面只会偏高。
 
 ### 5.2 结构化输出的两级降级
 
