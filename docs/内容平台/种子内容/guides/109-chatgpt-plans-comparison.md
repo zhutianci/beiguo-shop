@@ -5,7 +5,7 @@ products: [chatgpt]
 models: []
 accountTier: OTHER
 excerpt: ChatGPT 现在有 Free、Go、Plus、Pro（Pro 100 / 200 / 500）和面向团队的 Business。本文按官方价格页和帮助中心整理各套餐在模型、上下文、Work、Codex、生图、语音等方面的区别，并给出按用途选择的建议。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-13
 sources:
   - https://chatgpt.com/pricing
   - https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq
@@ -16,12 +16,13 @@ sources:
   - https://help.openai.com/en/articles/12642688-using-credits-for-flexible-usage-in-chatgpt-personal-plans
   - https://help.openai.com/en/articles/6825453-chatgpt-release-notes
 verify:
-  - 价格页「定时任务」一栏写 Free 为「No」，但定时任务帮助文章写 Free 和 Go 最多 3 个活跃任务，两者冲突；正文表格未列定时任务
+  - 价格页「定时任务」一栏写 Free 为「No」，但定时任务帮助文章写 Free 和 Go 最多 3 个活跃任务，两者冲突；10-13 正文表格按价格页列出
+  - 10-13：价格页模型一栏已变（Free / Go 为 GPT-6 Luna + GPT-5 Thinking Mini；Plus 的 GPT-6 系列标「有限」、GPT-5.6 系列标「扩展」），帮助中心 Free FAQ 仍写 Free 用 GPT-5.6 Luna，正文以价格页为准并注明冲突
   - 价格页 Plus 写包含「custom GPTs」，Free 套餐 FAQ 又写个人账号（含 Plus / Pro）不能新建 GPT；GPTs 正在计划退役，以官方最新说明为准
   - 价格和各地区本地货币价格未写入正文，上线前如需写价格请以价格页当天为准
 ---
 
-> 本文根据 ChatGPT 官方价格页（chatgpt.com/pricing）和 OpenAI 帮助中心各套餐 FAQ 整理，资料核对于 2026-10-07。套餐内容变化很快，价格请直接看[官方价格页](https://chatgpt.com/pricing)，本文不写具体金额。
+> 本文根据 ChatGPT 官方价格页（chatgpt.com/pricing）和 OpenAI 帮助中心各套餐 FAQ 整理，资料核对于 2026-10-13。套餐内容变化很快，价格请直接看[官方价格页](https://chatgpt.com/pricing)，本文不写具体金额。
 
 ## 适用于谁
 
@@ -31,24 +32,25 @@ verify:
 
 ## 结论先说
 
-1. **日常聊天，Free 就够**：所有套餐的日常文字对话都标注为「无限」（受防滥用规则约束）。Free 默认用 GPT-5.6 Luna，也能点 **Think** 处理难一点的问题。
-2. **Go = 工具额度更多的 Free**：上传、生图、数据分析、语音的额度比 Free 高，上下文更长，但**没有** GPT-5.6 Sol 和 GPT-6 系列，Work 和 Codex 仍是「有限」，可能有广告。
-3. **Plus 是大多数人的分水岭**：开放 GPT-5.6 Sol 的多档思考强度（Work 和 Codex 里还有 GPT-6 系列）、完整的 ChatGPT Work（桌面 / 网页 / 手机）、扩展的 Codex、深度研究、带思考的生图、Sites。
-4. **Pro 适合重度用户**：分 Pro 100、Pro 200、Pro 500 三档，额度依次增加；有 GPT-5.6 Sol Pro、always-on 代理「Dot」、更长的 Work 和 Codex 会话；只有 Pro 500 有 Astra Ultrafast。
+1. **日常聊天，Free 就够**：所有套餐的日常文字对话都标注为「无限」（受防滥用规则约束）。价格页现在把 Free 能用的模型列为 GPT-6 Luna 和 GPT-5 Thinking Mini（帮助中心的 Free FAQ 仍写 GPT-5.6 Luna，以你账号里实际看到的为准），也能点 **Think** 处理难一点的问题。
+2. **Go = 工具额度更多的 Free**：上传、生图、数据分析、语音的额度比 Free 高，上下文更长，但模型和 Free 一样，**没有** Sol、Astra 这些更强的模型，Work 和 Codex 仍是「有限」，可能有广告。
+3. **Plus 是大多数人的分水岭**：开放 GPT-6 Sol、GPT-6.1 Sol、GPT-6 Astra（价格页标「有限」）和 GPT-5.6 系列（标「扩展」）、完整的 ChatGPT Work（桌面 / 网页 / 手机）、扩展的 Codex、深度研究、带思考的生图、Sites。
+4. **Pro 适合重度用户**：分 Pro 100、Pro 200、Pro 500 三档，额度依次增加；GPT-6 系列是「扩展」额度、GPT-5.6 系列标「无限」，有 always-on 代理「Dot」、更长的 Work 和 Codex 会话；只有 Pro 500 有 Ultrafast 模式。
 5. **Business 是团队版**：至少 2 个席位，有管理后台和统一账单，工作区数据默认不用于训练。
 6. **API 不包含在任何 ChatGPT 套餐里**，是单独计费的。
 
 ## 个人套餐对比
 
-下表按官方价格页「Compare features across plans」整理（2026-10-07）。「有限」「扩展」是官方用词，具体次数官方大多不公开。
+下表按官方价格页「Compare features across plans」整理（2026-10-13 查询；模型一栏比 10 月初又变了一轮）。「有限」「扩展」是官方用词，具体次数官方大多不公开。
 
 | 项目 | Free | Go | Plus | Pro |
 | --- | --- | --- | --- | --- |
 | 日常文字对话 | 无限* | 无限* | 无限* | 无限* |
-| GPT-5.6 Luna | ✓ | ✓ | ✓ | 无限* |
-| GPT-5.6 Sol | — | — | ✓ | 无限* |
-| GPT-6 / 6.1 Sol、GPT-6 Astra（Plus 仅在 Work 和 Codex 中） | — | — | ✓ | 扩展 |
-| GPT-5.6 Sol Pro | — | — | — | ✓ |
+| GPT-6 Luna | ✓ | ✓ | 有限 | 扩展 |
+| GPT-6 Sol、GPT-6.1 Sol、GPT-6 Astra | — | — | 有限 | 扩展 |
+| GPT-5.6 Sol、GPT-5.6 Sol Pro、GPT-5.6 Luna | — | — | 扩展 | 无限* |
+| GPT-5.6 Terra | 仅桌面版 Work 和 Codex（有限） | 仅桌面版 Work 和 Codex（有限） | 扩展 | 无限* |
+| GPT-5 Thinking Mini | ✓ | ✓ | 扩展 | 无限* |
 | 旧版模型 | — | — | ✓ | ✓ |
 | Instant 总上下文窗口 | 27K | 54K | 54K | 128K |
 | 推理模型总上下文窗口 | 视情况 | 256K | 256K | 400K |
@@ -58,7 +60,7 @@ verify:
 | 生图 | 有限 | ✓ | ✓ | ✓ |
 | 带思考的生图 | — | — | ✓ | ✓ |
 | 深度研究 | 有限 | 有限 | ✓ | ✓ |
-| 语音 | ✓ | 扩展 | 扩展 | 无限* |
+| 语音 | 有限 | 扩展 | 扩展 | 无限* |
 | 带视频的语音 | — | ✓ | ✓ | ✓ |
 | 记忆 | 有限 | ✓ | 扩展 | 扩展 |
 | 项目 / 共享项目 | ✓ | ✓ | ✓ | ✓ |
@@ -66,10 +68,15 @@ verify:
 | 交互式表格和图表 | — | — | ✓ | ✓ |
 | 开发者模式（beta） | — | — | ✓ | ✓ |
 | Dot（常驻代理） | — | — | — | ✓ |
-| 学习模式、搜索、插件 | ✓ | ✓ | ✓ | ✓ |
+| 插件 | 有限 | ✓ | ✓ | ✓ |
+| 定时任务 | — | ✓ | ✓ | ✓ |
+| 学习模式、搜索 | ✓ | ✓ | ✓ | ✓ |
 | 响应速度 | 视带宽和可用性 | 视带宽和可用性 | 快 | 超快（符合条件的档位） |
 
 \* 官方注明「无限」需合理使用并遵守政策。
+
+![ChatGPT Free、Go、Plus、Pro 四档个人套餐的主要差异对比表](seed:g109-plans-table.png)
+*图：本站根据 [ChatGPT 官方价格页](https://chatgpt.com/pricing) 整理的示意图*
 
 几个容易误会的点：
 
@@ -83,11 +90,14 @@ verify:
 
 - **Pro 100、Pro 200、Pro 500** 都是按月付费，没有年付；
 - Pro 200 的额度多于 Pro 100，Pro 500 最多；
-- 三档里只有 **Pro 500** 能用 GPT-6 Astra 的 **Ultrafast** 模式，Pro 100 / 200 买额外点数也解锁不了；
+- 三档里只有 **Pro 500** 能用 **Ultrafast** 模式（GPT-6 Astra 和 GPT-6.1 Sol），Pro 100 / 200 买额外点数也解锁不了；
 - 额度用完后，Codex、ChatGPT Work、ChatGPT for Word / Excel / PowerPoint 等功能可以用购买的**点数（credits）**继续，但点数不能给所有模型和功能加额度；
-- 「Fast」模式按标准模式 2.5 倍的速度消耗额度，Astra Ultrafast 按 8 倍消耗。
+- 「Fast」模式按标准模式 2.5 倍的速度消耗额度，Ultrafast 按标准模式 8 倍的速度消耗套餐额度。
 
 一般来说，Plus 的额度经常不够、每天大量用 Work 或 Codex 的人才需要考虑 Pro。
+
+![ChatGPT Pro 100、Pro 200、Pro 500 三档的区别](seed:g109-pro-tiers.png)
+*图：本站根据 [OpenAI 帮助中心：About ChatGPT Pro tiers](https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers) 整理的示意图*
 
 ## Business 和个人套餐的区别
 
@@ -109,6 +119,9 @@ Business（原 ChatGPT Team，2025 年 8 月 29 日改名）是自助开通的�
 | 写代码、做研究、要用 Work 交付文档和表格 | Plus |
 | Plus 额度天天用完、重度用 Codex / Work | Pro（从 Pro 100 开始试） |
 | 公司团队使用、需要管理和数据保护 | Business |
+
+![按用途选 ChatGPT 套餐：五种情况对应的建议](seed:g109-which-plan.png)
+*图：本站根据 [ChatGPT 官方价格页](https://chatgpt.com/pricing) 与 OpenAI 帮助中心各套餐说明整理的示意图*
 
 如果选定了 Plus，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。
 

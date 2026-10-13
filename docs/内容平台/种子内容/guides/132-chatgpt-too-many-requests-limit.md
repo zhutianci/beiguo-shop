@@ -5,7 +5,7 @@ products: [chatgpt]
 models: []
 accountTier: FREE
 excerpt: ChatGPT 提示「已达上限」、「Too many requests」或「model is at capacity」时，原因并不相同。本文按官方帮助中心讲清套餐额度怎么算、何时重置、用完后的回退模型和点数，以及临时限制、容量不足时该怎么处理。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq
   - https://help.openai.com/en/articles/20001354-gpt-56-and-gpt-6-pro-in-chatgpt
@@ -20,7 +20,7 @@ verify:
   - 「selected model is at capacity」同样没有专门文章，正文按高峰期容量限制处理
 ---
 
-> 本文根据 OpenAI 帮助中心（Free 套餐 FAQ、GPT-5.6 in ChatGPT、Pro 套餐说明、模型访问受限排查、点数说明、错误排查）和发布说明整理，资料核对于 2026-10-07。
+> 本文根据 OpenAI 帮助中心（Free 套餐 FAQ、GPT-5.6 in ChatGPT、Pro 套餐说明、模型访问受限排查、点数说明、错误排查）和发布说明整理，资料核对于 2026-10-13。
 
 ## 适用于谁
 
@@ -40,6 +40,9 @@ verify:
 | **model is at capacity / 容量不足** | 高峰期该模型资源紧张 | 换一个模型，或稍后再试 |
 | **模型显示但灰色不可选** | 额度用完、工作区权限、账号安全或违规审查 | 看旁边的说明；按下文排查 |
 
+![ChatGPT 四类限制提示的区别：已达上限、Too many requests、容量不足、模型灰色不可选](seed:g132-limit-types.png)
+*图：本站根据 [OpenAI 帮助中心：GPT-6 and other models in ChatGPT](https://help.openai.com/en/articles/20001354-gpt-56-and-gpt-6-pro-in-chatgpt) 整理的示意图*
+
 **客服不能帮你重置额度**。只有你认为计数有误，或到了重置时间仍不能用，才需要联系客服。
 
 ## 一、「已达上限」：套餐额度怎么算
@@ -48,7 +51,7 @@ verify:
 
 - **日常文字对话**：2026 年 8 月起 Free 和 Go 也是「无限」（受防滥用规则约束）；付费套餐同样标注无限。
 - **单独计额的功能**：文件和图片上传、生图、语音、数据分析、深度研究等都有**各自独立**的额度，用完一个不影响其他。
-- **思考档位**：付费用户手动选 Medium、High、Extra High 使用 GPT-5.6 Sol 的思考额度；达到上限后，ChatGPT 可能改用其他可用模型继续。
+- **思考档位**：付费用户手动选 Medium、High、Extra High 时，模型菜单选的是 GPT-6 就用 GPT-6 Sol、明确选了 GPT-5.6 Sol 就用 GPT-5.6 Sol 的思考额度；达到上限后，ChatGPT 可能改用其他可用模型继续。
 - **Pro 模型**：GPT-6 Pro 有额度上限，Pro 订阅也不是无限用。Pro 200 用完 GPT-6 Pro 的每周额度后自动切到 GPT-5.6 Medium；Pro 100 的两个 Pro 模型共用每周额度。
 - **Work、Codex、Office 插件**：Plus 和 Pro 的 Codex、ChatGPT Work、Excel、PowerPoint、Word 共用一份「代理类」额度，和普通聊天分开。
 
@@ -64,6 +67,9 @@ ChatGPT 会提示你达到了哪项限额，并在能提供时显示**重置时�
 2. **换可用选项**：换一个模型或思考档位（比如从 High 切回 Instant）；
 3. **用点数继续**（部分功能）：Plus、Pro 在 Codex、Work、Word、Excel、PowerPoint 用完额度后，可以在 **Settings → Usage（用量）** 购买点数继续；点数不能给所有模型和功能加额度；Free 和 Go 只有小部分用户能买；
 4. **升级套餐**：Free 达到上限后升级到 Plus、Pro 或 Business，额度会重置。套餐区别见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)，需要 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。
+
+![ChatGPT 已达上限后的四种处理办法](seed:g132-limit-options.png)
+*图：本站根据 [OpenAI 帮助中心：GPT-6 and other models in ChatGPT](https://help.openai.com/en/articles/20001354-gpt-56-and-gpt-6-pro-in-chatgpt) 整理的示意图*
 
 ### 用完主模型后的「回退模型」
 
@@ -84,6 +90,9 @@ ChatGPT 会提示你达到了哪项限额，并在能提供时显示**重置时�
 3. 停用会自动操作 ChatGPT 的扩展；
 4. 确认**没有和别人共用账号**——共用账号是官方明确禁止的，也最容易触发限制；必要时改密码、登出所有设备（见 [/guides/chatgpt-account-security-mfa](/guides/chatgpt-account-security-mfa)）；
 5. 一直出现且没有上述情况，联系客服。
+
+![ChatGPT 出现 Too many requests 时的五步处理](seed:g132-too-many-requests.png)
+*图：本站根据 OpenAI 帮助中心 [GPT-6 and other models in ChatGPT](https://help.openai.com/en/articles/20001354-gpt-56-and-gpt-6-pro-in-chatgpt) 等文章整理的示意图*
 
 ## 三、模型「容量不足」或显示为灰色
 
