@@ -183,21 +183,33 @@ export default function AdminVmqPage() {
   const [cfg, setCfg] = useState<VmqConfig | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  // silent：定时刷新不动 loading（否则每 10 秒整页的「加载中」状态都闪一下、依赖它的按钮跟着禁用一瞬）
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const res = await fetch('/api/admin/vmq/config')
       const data = await res.json()
       if (data.success) setCfg(data.data)
+    } catch {
+      /* 定时刷新失败就等下一轮 */
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     load()
-    const id = setInterval(load, 10_000) // 每 10s 刷新转发/收款状态
-    return () => clearInterval(id)
+    // 每 10s 刷新转发/收款状态。标签页在后台时不拉（这个接口一次十几条查询，忘关的标签页会一直打库）；切回来立刻补一次
+    const tick = () => {
+      if (document.visibilityState === 'hidden') return
+      load(true)
+    }
+    const id = setInterval(tick, 10_000)
+    document.addEventListener('visibilitychange', tick)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', tick)
+    }
   }, [load])
 
   const [copiedKey, setCopiedKey] = useState('')
@@ -274,7 +286,7 @@ export default function AdminVmqPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>收款监控状态</CardTitle>
-          <Button variant="outline" size="sm" onClick={load}>
+          <Button variant="outline" size="sm" onClick={() => load()}>
             <RefreshCw className={`w-4 h-4 mr-1 ${loading ? 'animate-spin' : ''}`} /> 刷新
           </Button>
         </CardHeader>

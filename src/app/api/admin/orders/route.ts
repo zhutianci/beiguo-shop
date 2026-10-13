@@ -200,110 +200,137 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // 筛选范围的汇总。成本/利润要按 orderId 汇总卡密，CardKey 与 Order 没有 Prisma 关系，
-    // 只能先取 id 集合再聚合；范围过大时如实返回 truncated 而不是给个错数字。
-    const TOTALS_ID_CAP = 10000
-    // 流水合计不含充值单（充值是预收款、不计营收，docs/短信接码-设计.md D40、§6.6 第 17 条）；列表本身仍列出充值单（后台只读）
-    const amountAgg = await prisma.order.aggregate({
-      where: { AND: [where, excludeTopup()] },
-      _sum: { amount: true },
-      _count: { _all: true },
-    })
-    // 渠道流水（渠道售价之和）：与上面的「流水合计」同一筛选、同一口径（含未付单），是它的子集。
-    // 用 aggregate 算，不受 TOTALS_ID_CAP 限制；筛主站时 where.tenantId=1，这里恒为 0
-    const channelAmountAgg = await prisma.order.aggregate({
-      where: { AND: [where, { tenantId: { not: PLATFORM_TENANT_ID } }] },
-      _sum: { amount: true },
-      _count: { _all: true },
-    })
-    let totalsCost: number | null = null
-    let totalsProfit: number | null = null
-    let totalsReferral: number | null = null
-    // 已取消、但发过卡的主站单数（它们的卡密利润不计入合计）
-    let totalsVoided: number | null = null
-    let totalsTruncated = false
-    // 短信接码单的合计（元；已含在 cost / profit 里）。没有接码单时为 null
-    let jiemaTotals: { orders: number; cost: number; profit: number; loss: number; estimating: number; notCounted: number } | null = null
-    // 渠道单拆分（分）：进货净额、已知成本、利润（只加有成本数据的单），以及成本未登记的单数。truncated 时整体为 null
-    let ch: { supplyNet: number; cost: number; profit: number; unknown: number } | null = null
-    if (total <= TOTALS_ID_CAP) {
-      const ids = await prisma.order.findMany({ where, select: { id: true, tenantId: true, payStatus: true, deliveryStatus: true } })
-      /*
-       * 主站单仍按卡密汇总（口径逐字不变）；渠道单改按 channel-profit 公式（二期 M2）。
-       * 筛「主站」时 ids 全是主站单，结果与改动前完全相同；筛「全部」时渠道卡密不再按卡上的 profit 计入，
-       * 改由下面的渠道公式计入 —— 否则退款后的渠道单会按整份进货价虚增利润。
-       */
-      const mainIds = ids.filter((x) => x.tenantId === PLATFORM_TENANT_ID)
-      const chAll = ids.filter((x) => x.tenantId !== PLATFORM_TENANT_ID).map((x) => x.id)
-      const acc = { supplyNet: 0, cost: 0, profit: 0, unknown: 0 }
-      if (chAll.length) {
-        const chOrders = await prisma.order.findMany({
-          where: { id: { in: chAll }, payStatus: { in: ['PAID', 'REFUNDED'] } },
-          select: CHANNEL_PROFIT_ORDER_SELECT,
-        })
-        const pm = await channelProfitMap(chOrders)
-        pm.forEach((p) => {
-          // 缺快照（历史脏数据）算不出进货净额：计作「未计入」，不编数
-          if (!p) {
-            acc.unknown += 1
-            return
-          }
-          acc.supplyNet += p.supplyNetCents
-          if (p.profitCents == null || p.costCents == null) acc.unknown += 1
-          else {
-            acc.cost += p.costCents
-            acc.profit += p.profitCents
-          }
-        })
-      }
-      ch = acc
-      if (mainIds.length) {
-        const idList = mainIds.map((x) => x.id)
-        // 利润只算「计利润」的单（profitCounted：已取消的不算，即使发过卡）；成本照旧按全部已发卡汇总
-        const countedIds = mainIds.filter(profitCounted).map((x) => x.id)
-        const voidIds = mainIds.filter((x) => !profitCounted(x)).map((x) => x.id)
-        const [costAgg, profitAgg, voidCards, refMap] = await Promise.all([
-          prisma.cardKey.aggregate({ where: { orderId: { in: idList }, status: 'USED' }, _sum: { cost: true } }),
-          countedIds.length
-            ? prisma.cardKey.aggregate({ where: { orderId: { in: countedIds }, status: 'USED' }, _sum: { profit: true } })
-            : null,
-          voidIds.length
-            ? prisma.cardKey.findMany({ where: { orderId: { in: voidIds }, status: 'USED' }, select: { orderId: true }, distinct: ['orderId'] })
-            : [],
-          // 待返现合计 = 这些单已结算的内推返现（与每行的「待返现」标注同一份），只列出、不从利润里扣
-          settledReferralCents(idList),
-        ])
-        let refCents = 0
-        refMap.forEach((v) => (refCents += v))
-        totalsReferral = refCents / 100
-        totalsVoided = voidCards.length
-        totalsCost = round2(Number(costAgg._sum.cost ?? 0))
-        totalsProfit = round2(Number(profitAgg?._sum.profit ?? 0))
-      } else {
-        totalsCost = 0
-        totalsProfit = 0
-        totalsReferral = 0
-        totalsVoided = 0
-      }
-      // 成本 / 利润合计 = 主站（卡密）+ 渠道（公式，只含有成本数据的单）。没有渠道单时加 0，主站数字不变
-      totalsCost = round2(totalsCost + acc.cost / 100)
-      totalsProfit = round2(totalsProfit + acc.profit / 100)
-      // 短信接码单（§6.6 第 28 条）：按 sms_orders 的 Σ costCents / Σ profitCents 并进合计（已取消单落空 = 不计；未定稿的是预估，单独给个数）
-      if (mainIds.length) {
-        const smsRows = await prisma.smsOrder.findMany({
-          where: { orderId: { in: mainIds.map((x) => x.id) } },
-          select: { state: true, priceCents: true, costCents: true, profitCents: true, lossCents: true, costFinal: true },
-        })
-        if (smsRows.length) {
-          const f = listFooter(smsRows)
-          jiemaTotals = { orders: f.orders, cost: f.costCents / 100, profit: f.profitCents / 100, loss: f.lossCents / 100, estimating: f.estimating, notCounted: f.notCounted }
-          totalsCost = round2(totalsCost + f.costCents / 100)
-          totalsProfit = round2(totalsProfit + f.profitCents / 100)
+    /*
+     * 【翻页不重算合计】（2026-10-13）合计只取决于筛选条件，与页码无关；而它是这个接口里最重的一段
+     * （取出筛选范围内全部订单 id，再拿这几千个 id 去卡密 / 返现 / 接码表各聚合一遍）。
+     * 页面在「筛选没变、只是翻页」时带 totals=0，这里整段跳过、返回 totals: null，页面沿用上一份。
+     * 改了筛选、或在弹窗里改过订单之后的刷新不带这个参数，照常重算。
+     */
+    const wantTotals = searchParams.get('totals') !== '0'
+    const computeTotals = async () => {
+      // 筛选范围的汇总。成本/利润要按 orderId 汇总卡密，CardKey 与 Order 没有 Prisma 关系，
+      // 只能先取 id 集合再聚合；范围过大时如实返回 truncated 而不是给个错数字。
+      const TOTALS_ID_CAP = 10000
+      // 流水合计不含充值单（充值是预收款、不计营收，docs/短信接码-设计.md D40、§6.6 第 17 条）；列表本身仍列出充值单（后台只读）
+      const amountAgg = await prisma.order.aggregate({
+        where: { AND: [where, excludeTopup()] },
+        _sum: { amount: true },
+        _count: { _all: true },
+      })
+      // 渠道流水（渠道售价之和）：与上面的「流水合计」同一筛选、同一口径（含未付单），是它的子集。
+      // 用 aggregate 算，不受 TOTALS_ID_CAP 限制；筛主站时 where.tenantId=1，这里恒为 0
+      const channelAmountAgg = await prisma.order.aggregate({
+        where: { AND: [where, { tenantId: { not: PLATFORM_TENANT_ID } }] },
+        _sum: { amount: true },
+        _count: { _all: true },
+      })
+      let totalsCost: number | null = null
+      let totalsProfit: number | null = null
+      let totalsReferral: number | null = null
+      // 已取消、但发过卡的主站单数（它们的卡密利润不计入合计）
+      let totalsVoided: number | null = null
+      let totalsTruncated = false
+      // 短信接码单的合计（元；已含在 cost / profit 里）。没有接码单时为 null
+      let jiemaTotals: { orders: number; cost: number; profit: number; loss: number; estimating: number; notCounted: number } | null = null
+      // 渠道单拆分（分）：进货净额、已知成本、利润（只加有成本数据的单），以及成本未登记的单数。truncated 时整体为 null
+      let ch: { supplyNet: number; cost: number; profit: number; unknown: number } | null = null
+      if (total <= TOTALS_ID_CAP) {
+        const ids = await prisma.order.findMany({ where, select: { id: true, tenantId: true, payStatus: true, deliveryStatus: true } })
+        /*
+         * 主站单仍按卡密汇总（口径逐字不变）；渠道单改按 channel-profit 公式（二期 M2）。
+         * 筛「主站」时 ids 全是主站单，结果与改动前完全相同；筛「全部」时渠道卡密不再按卡上的 profit 计入，
+         * 改由下面的渠道公式计入 —— 否则退款后的渠道单会按整份进货价虚增利润。
+         */
+        const mainIds = ids.filter((x) => x.tenantId === PLATFORM_TENANT_ID)
+        const chAll = ids.filter((x) => x.tenantId !== PLATFORM_TENANT_ID).map((x) => x.id)
+        const acc = { supplyNet: 0, cost: 0, profit: 0, unknown: 0 }
+        if (chAll.length) {
+          const chOrders = await prisma.order.findMany({
+            where: { id: { in: chAll }, payStatus: { in: ['PAID', 'REFUNDED'] } },
+            select: CHANNEL_PROFIT_ORDER_SELECT,
+          })
+          const pm = await channelProfitMap(chOrders)
+          pm.forEach((p) => {
+            // 缺快照（历史脏数据）算不出进货净额：计作「未计入」，不编数
+            if (!p) {
+              acc.unknown += 1
+              return
+            }
+            acc.supplyNet += p.supplyNetCents
+            if (p.profitCents == null || p.costCents == null) acc.unknown += 1
+            else {
+              acc.cost += p.costCents
+              acc.profit += p.profitCents
+            }
+          })
         }
+        ch = acc
+        if (mainIds.length) {
+          const idList = mainIds.map((x) => x.id)
+          // 利润只算「计利润」的单（profitCounted：已取消的不算，即使发过卡）；成本照旧按全部已发卡汇总
+          const countedIds = mainIds.filter(profitCounted).map((x) => x.id)
+          const voidIds = mainIds.filter((x) => !profitCounted(x)).map((x) => x.id)
+          const [costAgg, profitAgg, voidCards, refMap] = await Promise.all([
+            prisma.cardKey.aggregate({ where: { orderId: { in: idList }, status: 'USED' }, _sum: { cost: true } }),
+            countedIds.length
+              ? prisma.cardKey.aggregate({ where: { orderId: { in: countedIds }, status: 'USED' }, _sum: { profit: true } })
+              : null,
+            voidIds.length
+              ? prisma.cardKey.findMany({ where: { orderId: { in: voidIds }, status: 'USED' }, select: { orderId: true }, distinct: ['orderId'] })
+              : [],
+            // 待返现合计 = 这些单已结算的内推返现（与每行的「待返现」标注同一份），只列出、不从利润里扣
+            settledReferralCents(idList),
+          ])
+          let refCents = 0
+          refMap.forEach((v) => (refCents += v))
+          totalsReferral = refCents / 100
+          totalsVoided = voidCards.length
+          totalsCost = round2(Number(costAgg._sum.cost ?? 0))
+          totalsProfit = round2(Number(profitAgg?._sum.profit ?? 0))
+        } else {
+          totalsCost = 0
+          totalsProfit = 0
+          totalsReferral = 0
+          totalsVoided = 0
+        }
+        // 成本 / 利润合计 = 主站（卡密）+ 渠道（公式，只含有成本数据的单）。没有渠道单时加 0，主站数字不变
+        totalsCost = round2(totalsCost + acc.cost / 100)
+        totalsProfit = round2(totalsProfit + acc.profit / 100)
+        // 短信接码单（§6.6 第 28 条）：按 sms_orders 的 Σ costCents / Σ profitCents 并进合计（已取消单落空 = 不计；未定稿的是预估，单独给个数）
+        if (mainIds.length) {
+          const smsRows = await prisma.smsOrder.findMany({
+            where: { orderId: { in: mainIds.map((x) => x.id) } },
+            select: { state: true, priceCents: true, costCents: true, profitCents: true, lossCents: true, costFinal: true },
+          })
+          if (smsRows.length) {
+            const f = listFooter(smsRows)
+            jiemaTotals = { orders: f.orders, cost: f.costCents / 100, profit: f.profitCents / 100, loss: f.lossCents / 100, estimating: f.estimating, notCounted: f.notCounted }
+            totalsCost = round2(totalsCost + f.costCents / 100)
+            totalsProfit = round2(totalsProfit + f.profitCents / 100)
+          }
+        }
+      } else {
+        totalsTruncated = true
       }
-    } else {
-      totalsTruncated = true
+      return {
+          orders: amountAgg._count._all,
+          amount: round2(Number(amountAgg._sum.amount ?? 0)),
+          cost: totalsCost,
+          profit: totalsProfit, // 不扣内推返现；已取消的单不计
+          referral: totalsReferral, // 待返现合计（已结算的内推返现，只列出、不从利润里扣；truncated 时为 null）
+          voided: totalsVoided, // 已取消但发过卡、利润不计入合计的主站单数（truncated 时为 null）
+          truncated: totalsTruncated, // true = 结果集过大，未统计成本/利润，请缩小筛选范围
+          // 渠道单拆分（二期 M2，元）。channelOrders / channelAmount 不受 truncated 影响；其余 truncated 时为 null
+          channelOrders: channelAmountAgg._count._all,
+          channelAmount: round2(Number(channelAmountAgg._sum.amount ?? 0)), // 渠道流水 = 渠道售价之和（已含在 amount 里）
+          channelSupplyNet: ch ? ch.supplyNet / 100 : null, // 渠道进货净额（已付 / 已退款单，扣除退款）
+          channelCost: ch ? ch.cost / 100 : null, // 渠道单已知成本（已含在 cost 里）
+          channelProfit: ch ? ch.profit / 100 : null, // 渠道利润 = 进货净额 − 成本（已含在 profit 里）
+          channelProfitUnknown: ch ? ch.unknown : null, // 成本未登记、未计入渠道利润的单数
+          jiema: jiemaTotals, // 短信接码单：计成本的单数、真实成本、毛利、亏损（已含在 cost / profit 里）、预估中、不计（已取消）
+        }
     }
+    const totals = wantTotals ? await computeTotals() : null
 
     return success({
       list,
@@ -311,23 +338,7 @@ export async function GET(request: NextRequest) {
       page,
       pageSize,
       totalPages: Math.max(Math.ceil(total / pageSize), 1),
-      totals: {
-        orders: amountAgg._count._all,
-        amount: round2(Number(amountAgg._sum.amount ?? 0)),
-        cost: totalsCost,
-        profit: totalsProfit, // 不扣内推返现；已取消的单不计
-        referral: totalsReferral, // 待返现合计（已结算的内推返现，只列出、不从利润里扣；truncated 时为 null）
-        voided: totalsVoided, // 已取消但发过卡、利润不计入合计的主站单数（truncated 时为 null）
-        truncated: totalsTruncated, // true = 结果集过大，未统计成本/利润，请缩小筛选范围
-        // 渠道单拆分（二期 M2，元）。channelOrders / channelAmount 不受 truncated 影响；其余 truncated 时为 null
-        channelOrders: channelAmountAgg._count._all,
-        channelAmount: round2(Number(channelAmountAgg._sum.amount ?? 0)), // 渠道流水 = 渠道售价之和（已含在 amount 里）
-        channelSupplyNet: ch ? ch.supplyNet / 100 : null, // 渠道进货净额（已付 / 已退款单，扣除退款）
-        channelCost: ch ? ch.cost / 100 : null, // 渠道单已知成本（已含在 cost 里）
-        channelProfit: ch ? ch.profit / 100 : null, // 渠道利润 = 进货净额 − 成本（已含在 profit 里）
-        channelProfitUnknown: ch ? ch.unknown : null, // 成本未登记、未计入渠道利润的单数
-        jiema: jiemaTotals, // 短信接码单：计成本的单数、真实成本、毛利、亏损（已含在 cost / profit 里）、预估中、不计（已取消）
-      },
+      totals,
       sites: await siteOptions(),
     })
   } catch (err) {

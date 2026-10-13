@@ -240,6 +240,13 @@ function CardKeysInner() {
     return () => clearTimeout(t)
   }, [search])
 
+  // 「按批次精确筛选」同样防抖：原来每敲一个字就打一次列表接口（8 条并发查询 + 解密整页卡密），请求被前端取消了服务端也照跑
+  const [debouncedBatch, setDebouncedBatch] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedBatch(batchFilter.trim()), 350)
+    return () => clearTimeout(t)
+  }, [batchFilter])
+
   const load = useCallback(async () => {
     if (!productId) {
       setList([])
@@ -259,7 +266,7 @@ function CardKeysInner() {
         pageSize: String(pageSize),
       })
       if (statusFilter) q.set('status', statusFilter)
-      if (batchFilter.trim()) q.set('batch', batchFilter.trim())
+      if (debouncedBatch) q.set('batch', debouncedBatch)
       if (debouncedSearch) q.set('keyword', debouncedSearch)
       if (hasOrder) q.set('hasOrder', hasOrder)
       if (siteFilter) q.set('tenantId', siteFilter)
@@ -280,7 +287,7 @@ function CardKeysInner() {
     } finally {
       if (abortRef.current === controller) setLoading(false)
     }
-  }, [productId, page, pageSize, statusFilter, batchFilter, debouncedSearch, hasOrder, siteFilter, reveal])
+  }, [productId, page, pageSize, statusFilter, debouncedBatch, debouncedSearch, hasOrder, siteFilter, reveal])
 
   useEffect(() => {
     load()

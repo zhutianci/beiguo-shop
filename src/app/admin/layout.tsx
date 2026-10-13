@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { RouteProgress } from '@/components/route-progress'
 import {
   LayoutDashboard,
   Package,
@@ -172,9 +173,12 @@ export default function AdminLayout({
   const pathname = usePathname()
 
   /*
-   * 售后申请待处理数（设计 8.4：渠道发起售后后超管列表要有红点）。复用列表接口的 pendingTotal（pageSize=1，只多两次 count），
-   * 切页面时与每 60 秒各拉一次；标签页在后台时不拉。休眠期没有渠道、恒为 0，不显示任何东西。
+   * 售后申请待处理数（设计 8.4：渠道发起售后后超管列表要有红点）。复用列表接口的 pendingTotal（pageSize=1），
+   * 进后台时、每 60 秒、以及切回这个标签页时各拉一次；标签页在后台时不拉。休眠期没有渠道、恒为 0，不显示任何东西。
    * 失败静默：红点只是提醒，拉不到不影响后台其它功能。
+   *
+   * 【不再每次切页面都拉】（2026-10-13）原来依赖 pathname：每点一次菜单就多发两个请求（各自是好几条查询），
+   * 正好和新页面自己的数据请求抢这台机器上仅有的几个数据库连接，页面的数反而出得更慢。红点晚一分钟更新没有任何影响。
    */
   const [afterSalesPending, setAfterSalesPending] = useState(0)
   // 短信接码售后申请待处理数（S3）：同一个节奏拉 /api/admin/jiema/complaints 的 pendingTotal；拉不到静默
@@ -198,11 +202,13 @@ export default function AdminLayout({
     }
     load()
     const t = setInterval(load, 60_000)
+    document.addEventListener('visibilitychange', load)
     return () => {
       alive = false
       clearInterval(t)
+      document.removeEventListener('visibilitychange', load)
     }
-  }, [pathname])
+  }, [])
 
   const currentItem = flatNavItems.reduce<NavItem | null>((best, item) => {
     if (!matchesPath(item.href, pathname)) return best
@@ -210,13 +216,15 @@ export default function AdminLayout({
   }, null)
 
   return (
-    <div className="admin-area flex min-h-screen bg-gray-100">
+    <div className="admin-area flex min-h-screen bg-[#f4f5f7]">
+      {/* 点菜单后 150ms 还没切过去，就在顶上走一条细进度条（与前台同一个组件，只用 transform / opacity） */}
+      <RouteProgress />
       {/* 侧边栏 */}
       <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
         {/* Logo */}
         <div className="flex h-16 shrink-0 items-center border-b border-gray-200 px-6">
           <Link href="/admin" className="flex items-center space-x-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 text-white font-bold">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary-500 to-primary-700 text-white font-bold shadow-sm">
               贝
             </div>
             <span className="text-lg font-bold text-gray-900">贝果科技 · 管理后台</span>
@@ -256,9 +264,9 @@ export default function AdminLayout({
                         key={item.href}
                         href={item.href}
                         className={cn(
-                          'flex items-center space-x-3 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                          'relative flex items-center space-x-3 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
                           isActive
-                            ? 'bg-primary-50 text-primary-700'
+                            ? 'bg-primary-50 text-primary-700 before:absolute before:inset-y-2 before:left-0 before:w-[3px] before:rounded-full before:bg-primary-600'
                             : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                         )}
                       >
@@ -302,9 +310,9 @@ export default function AdminLayout({
       </aside>
 
       {/* 主内容区 */}
-      <div className="ml-64 flex-1">
+      <div className="ml-64 min-w-0 flex-1">
         {/* 顶部栏 */}
-        <header className="sticky top-0 z-30 h-16 border-b border-gray-200 bg-white">
+        <header className="sticky top-0 z-30 h-16 border-b border-gray-200/80 bg-white/85 backdrop-blur">
           <div className="flex h-full items-center justify-between px-6">
             <h1 className="text-lg font-semibold text-gray-900">
               {currentItem?.label || '管理后台'}

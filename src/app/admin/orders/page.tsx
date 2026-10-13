@@ -408,8 +408,10 @@ function OrdersInner() {
   }
 
   const abortRef = useRef<AbortController | null>(null)
+  /** 手上这份合计对应的筛选条件（不含页码）。只翻页时让接口跳过合计（它是列表接口里最重的一段），沿用这一份 */
+  const totalsKeyRef = useRef<string | null>(null)
 
-  const loadData = async () => {
+  const loadData = async (opts?: { pageOnly?: boolean }) => {
     // 取消上一次仍在进行的请求，避免旧响应后到、覆盖新结果（检索竞态）
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -424,7 +426,11 @@ function OrdersInner() {
       if (toDate) params.set('to', toDate)
       if (categoryId) params.set('categoryId', String(categoryId))
       if (siteFilter) params.set('tenantId', siteFilter)
+      const filterKey = params.toString()
+      // 只有「筛选没变、由翻页触发」才跳过合计；改完订单后的刷新（不带 pageOnly）一律重算
+      const skipTotals = !!opts?.pageOnly && totalsKeyRef.current === filterKey
       params.set('page', String(page))
+      if (skipTotals) params.set('totals', '0')
       const res = await fetch(`/api/admin/orders?${params.toString()}`, { signal: controller.signal })
       const data = await res.json()
       // 仅当本次仍是最新请求时才应用结果
@@ -432,7 +438,10 @@ function OrdersInner() {
         setOrders(data.data.list)
         setTotalPages(data.data.totalPages || 1)
         setTotal(data.data.total || 0)
-        setTotals(data.data.totals || null)
+        if (!skipTotals || data.data.totals) {
+          setTotals(data.data.totals || null)
+          totalsKeyRef.current = data.data.totals ? filterKey : null
+        }
         setSites(data.data.sites || [])
       }
     } catch (e) {
@@ -449,7 +458,7 @@ function OrdersInner() {
   }, [searchTerm])
 
   useEffect(() => {
-    loadData()
+    loadData({ pageOnly: true })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearch, filterStatus, onlyUnreplied, fromDate, toDate, categoryId, siteFilter, page])
 
