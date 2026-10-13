@@ -11,6 +11,7 @@ sources:
   - https://help.openai.com/en/articles/11084440-images-in-chatgpt
   - https://help.openai.com/en/articles/8983778-chat-and-file-retention-in-chatgpt
   - https://help.openai.com/en/articles/10056348-finding-your-chats-projects-and-files-in-chatgpt
+  - https://help.openai.com/en/articles/20001549-getting-started-with-space-in-chatgpt
 verify:
   - 中文界面里 Library 的译名（文件库 / 资料库 / 库）以实际界面为准，本文统一写「文件库（Library）」
   - Recently deleted（最近删除）是否出现，官方写的是「如果你的 Library 包含它」，并非所有账号都有
@@ -33,6 +34,7 @@ verify:
 3. **删对话不等于删文件**：文件库里的文件要到文件库里单独删。
 4. **生成的图片**在 **Images（图片）** 标签下。要从「My images（我的图片）」里删掉一张图，官方的做法是**删除生成它的那条对话**。
 5. **存储空间**（2026-10 查询）：Free 500 MB、Go 4 GB、Plus 和 Business 20 GB、Pro 100 GB。
+6. **侧边栏里没有 Library、只有 Space？** 官方说明：对有 Space 的账号（目前是 Pro、Business、Enterprise），Space 取代了文件库，文件到 Space 里找，见 [/guides/chatgpt-space-pages](/guides/chatgpt-space-pages)。
 
 ## 文件库里有什么
 
@@ -141,3 +143,4 @@ ChatGPT 生成的所有图片都会自动保存在 **Images（图片）** 下，
 - OpenAI 帮助中心：Images in ChatGPT — https://help.openai.com/en/articles/11084440-images-in-chatgpt
 - OpenAI 帮助中心：Chat and file retention in ChatGPT — https://help.openai.com/en/articles/8983778-chat-and-file-retention-in-chatgpt
 - OpenAI 帮助中心：Finding your chats, projects, and files in ChatGPT — https://help.openai.com/en/articles/10056348-finding-your-chats-projects-and-files-in-chatgpt
+- OpenAI 帮助中心：Getting started with Space in ChatGPT — https://help.openai.com/en/articles/20001549-getting-started-with-space-in-chatgpt
