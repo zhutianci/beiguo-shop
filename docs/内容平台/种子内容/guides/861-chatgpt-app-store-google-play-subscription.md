@@ -4,7 +4,7 @@ slug: chatgpt-app-store-google-play-subscription
 products: [chatgpt]
 models: []
 accountTier: PLUS
-excerpt: 在 iPhone 的 App Store 或安卓的 Google Play 里订阅 ChatGPT，订阅归苹果或谷歌管，而且同时绑定应用商店账号和当时登录的 ChatGPT 账号。本文按 OpenAI 帮助中心讲清在 App 里怎么升级、付费后仍显示 Free 怎么恢复购买、「This subscription is associated with another OpenAI account」的含义与处理，以及想换到网页订阅时的正确顺序。
+excerpt: 在 App Store 或 Google Play 订阅 ChatGPT，订阅归苹果或谷歌管。本文按 OpenAI 帮助中心讲清在 App 里怎么升级、付费后仍显示 Free 怎么恢复购买、「associated with another OpenAI account」的含义，以及换网页订阅的顺序。
 checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/7905739-chatgpt-ios-app-upgrading-to-a-paid-subscription

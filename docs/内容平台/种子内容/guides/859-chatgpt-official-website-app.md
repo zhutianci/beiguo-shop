@@ -4,7 +4,7 @@ slug: chatgpt-official-website-app
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 官网网址是 chatgpt.com，开发公司 OpenAI 的官网是 openai.com。本文按 OpenAI 帮助中心列出全部官方域名各自的用途、iPhone / 安卓 / Mac / Windows 官方应用的下载入口和发布者名称、官方邮件域名，并给出一份辨别假冒网站、假冒 App 和假客服的检查清单。
+excerpt: ChatGPT 官网是 chatgpt.com，OpenAI 官网是 openai.com。本文按 OpenAI 帮助中心列出官方域名各自的用途、iPhone、安卓、Mac、Windows 官方应用的下载入口和官方邮件域名，并给出辨别假冒网站、App 和假客服的清单。
 checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/11725090-verifying-communications-from-openai

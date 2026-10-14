@@ -4,7 +4,7 @@ slug: chatgpt-suspicious-activity-alert
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 弹出「Suspicious Activity Alert」可疑活动提醒、登录时突然要验证码或 App 推送确认，是系统在保护账号，不一定代表你做错了什么。本文按 OpenAI 帮助中心讲清触发原因、官方建议的三步（改密码、开两步验证、登出所有设备）、提醒不消失时的排查，以及收到不是自己发起的登录请求该怎么办。
+excerpt: ChatGPT 弹出「Suspicious Activity Alert」可疑活动提醒，或登录时突然要验证码，是系统在保护账号。本文按 OpenAI 帮助中心讲清触发原因、官方建议的三步（改密码、开两步验证、登出所有设备）、提醒不消失时的排查。
 checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/10471992-why-am-i-receiving-a-suspicious-activity-alert

@@ -4,7 +4,7 @@ slug: chatgpt-account-deactivated-appeal
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: 登录 ChatGPT 提示「You do not have an account because it has been deleted or deactivated」，说明账号被自己删除或被官方停用。本文按 OpenAI 帮助中心讲清怎么判断是哪一种、官方列出的五类停用原因、收到警告邮件意味着什么、申诉的三个入口和要写的内容，以及等 30 天有没有用。
+excerpt: 登录 ChatGPT 提示「You do not have an account because it has been deleted or deactivated」，是账号被删除或被停用。本文按 OpenAI 帮助中心讲清怎么区分、官方列的停用原因、收到警告邮件的含义、申诉入口和要写的内容。
 checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/8958977-troubleshooting-deleted-or-deactivated-account-errors

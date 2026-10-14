@@ -4,7 +4,7 @@ slug: chatgpt-invoice-download
 products: [chatgpt]
 models: []
 accountTier: PLUS
-excerpt: ChatGPT Plus、Pro 的发票（Invoice）在哪下载？在网页订阅的，到设置的账单页进入账单门户，在 Invoice History 里下载；在 App Store 或 Google Play 订阅的，发票不在 ChatGPT 里。本文按 OpenAI 帮助中心讲清各渠道的位置、每月扣款日怎么定、发票抬头和税号怎么改，以及找不到发票时的排查。
+excerpt: ChatGPT Plus、Pro 的发票在哪下载？网页订阅的，在设置的账单页进入账单门户，到 Invoice History 里下载；App Store 或 Google Play 订阅的，发票不在 ChatGPT 里。本文讲清各渠道位置、扣款日、发票抬头税号怎么改，以及找不到发票时的排查。
 checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/12356340-how-can-i-find-my-past-chatgpt-invoices
