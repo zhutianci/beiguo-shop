@@ -105,3 +105,6 @@
 - 分工（站长 10-14 定）：选题调研、复核由 Opus 做；成文交给 Sonnet 写手，每写 2 篇提交一次。
 - 10-14 第一批已上线：新教程 9 篇（800–814 中的 9 个编号）直接公开；29 篇老教程补图 89 张（`--refresh-guides --only-slugs`）。
 - 上线方式：新教程 `--publish`（量小、是全站流量最高的品类），不进定时队列。
+- 10-14 下午第二批已上线：A 线 19 篇（815–833，A4「表格复制到 Word」官方无依据跳过）、B 线 24 篇（850–873）直接公开。累计新写 52 篇。
+- B 线还没写的：6 到期时间、7 Plus 与 Pro、8 Selected model is at capacity、9 Error in message stream、10 Some tools are temporarily unavailable、11 代码解释器会话已过期、12 文件下载不了、13 回答消失、18 Windows 安装未完成、22 DeepSeek、23 Copilot、24 Grok（编号 874–889）。
+- 待同步：120「模型怎么选」写于 10-07，官方已改为 GPT-6 取代 Latest（见 818），需按官方现状刷新。
