@@ -35,6 +35,9 @@ verify:
 3. **字数上限**：Free 和 Go 最多 1,500 字符；Plus、Pro、Business、Enterprise、Edu 最多 5,000 字符（2026-07-15 起由 1,500 提高）。
 4. **生效范围**：按发布说明，2025 年 11 月起在个性化里的改动会立即应用到所有聊天，包括已有对话。所有套餐、网页 / 桌面 / iOS / Android 都能用。
 
+![ChatGPT 个性化的三层设置：自定义指令、个性、特征各管什么](seed:g100-three-layers.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Custom Instructions](https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions) 整理的示意图*
+
 ## 步骤
 
 ### 1. 打开自定义指令
@@ -45,6 +48,9 @@ verify:
 2. 选 **Personalization（个性化）**；
 3. 确认 **Enable customization** 已打开；
 4. 在 **Custom Instructions** 输入框里写你的要求，保存。
+
+![在 ChatGPT 网页和桌面版打开自定义指令的四个步骤](seed:g100-open-steps.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Custom Instructions](https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions) 整理的示意图*
 
 **iOS / Android**：在设置里找到 **Customize ChatGPT / Personalization**，同样打开 Enable customization，再填写 Custom Instructions。
 
@@ -110,6 +116,10 @@ verify:
 - **写具体的偏好，不写空泛的话**。「回答要好」没有用，「先给结论、不超过 300 字」才有用。
 - **别塞太多互相冲突的要求**。比如既要「详细」又要「简短」，ChatGPT 只能二选一。
 - **长期不变的写进自定义指令，一次性的写在对话里**。临时任务的要求放进当次提问更清楚。
+
+![写好 ChatGPT 自定义指令的要点清单](seed:g100-writing-tips.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Custom Instructions](https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions) 整理的示意图*
+
 - 更多提问技巧可以看 [/guides/how-to-write-prompts](/guides/how-to-write-prompts)。
 
 ### 5. 检查效果

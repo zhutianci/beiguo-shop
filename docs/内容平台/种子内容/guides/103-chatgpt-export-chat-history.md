@@ -32,6 +32,9 @@ verify:
 4. **已删除的对话导不出来**。导出只能拿到现存的数据。
 5. **不能把记录真正「搬」进另一个账号**，只能把导出的 JSON 文件作为附件上传到新账号的某个对话里当参考。
 
+![导出 ChatGPT 聊天记录前要知道的五件事](seed:g103-before-export.png)
+*图：本站根据 [OpenAI 帮助中心：Exporting your ChatGPT history and data](https://help.openai.com/en/articles/7260999-exporting-your-chatgpt-history-and-data) 整理的示意图*
+
 ## 步骤
 
 ### 方法一：在 ChatGPT 设置里导出
@@ -41,6 +44,9 @@ verify:
 3. 选 **Data controls（数据控制）**；
 4. 在 **Export data（导出数据）** 旁点 **Export（导出）**；
 5. 在确认页点 **Confirm export（确认导出）**。
+
+![在 ChatGPT 设置里导出聊天记录的五个步骤](seed:g103-export-steps.png)
+*图：本站根据 [OpenAI 帮助中心：Exporting your ChatGPT history and data](https://help.openai.com/en/articles/7260999-exporting-your-chatgpt-history-and-data) 整理的示意图*
 
 提交前确认你能收到账号绑定邮箱或手机号的消息，系统可能需要验证你是账号本人。
 
@@ -71,6 +77,9 @@ verify:
 | 链接过期 | 链接只有 24 小时有效，过期后重新申请一次 |
 | 链接打不开 | 确认登录的是发起导出的同一个账号 |
 | 账号登录不了 | 改用隐私门户申请；忘记密码的处理见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems) |
+
+![ChatGPT 导出数据没收到邮件、链接过期或打不开时的处理办法](seed:g103-export-problems.png)
+*图：本站根据 [OpenAI 帮助中心：Exporting your ChatGPT history and data](https://help.openai.com/en/articles/7260999-exporting-your-chatgpt-history-and-data) 整理的示意图*
 
 ## 换账号：能把聊天记录导入新账号吗
 

@@ -5,7 +5,7 @@ products: [chatgpt, claude]
 models: []
 accountTier: PLUS
 excerpt: 不站队、不吹黑：把 ChatGPT 和 Claude 能从官方页面核实的差异（套餐档位、上下文、生图、编程工具、扩展方式）列成一张表，再给出一份你可以自己跑的自测清单，按用途决定开哪个。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-13
 sources:
   - https://claude.com/pricing
   - https://support.claude.com/en/articles/8606394-how-large-is-the-context-window-on-paid-claude-plans
@@ -20,7 +20,7 @@ sources:
   - https://arena.ai/leaderboard
 ---
 
-> 本文只整理两家官方页面能查到的信息（核对日期 2026-10-07），以及有明确出处的第三方公开榜单；我们没有做并排评测，文中不给「谁更强」的结论。
+> 本文只整理两家官方页面能查到的信息（核对日期 2026-10-13），以及有明确出处的第三方公开榜单；我们没有做并排评测，文中不给「谁更强」的结论。
 
 ## 适用于谁
 
@@ -38,12 +38,12 @@ sources:
 
 ## 可核实的差异对照表
 
-> 数据整理于 2026-10-06，来源见「参考资料」。价格、额度、模型名经常调整，本表不列价格，以官网为准。
+> 数据整理于 2026-10-06，2026-10-13 对照两家定价页复核，来源见「参考资料」。价格、额度、模型名经常调整，本表不列价格，以官网为准。
 
 | 对比项 | ChatGPT（OpenAI） | Claude（Anthropic） |
 |---|---|---|
 | 个人 / 团队套餐档位 | Free、Go、Plus、Pro、Business、Edu、Enterprise | Free、Pro、Max（5x / 20x）、Team、Enterprise |
-| 免费版可用模型 | 套餐表列出 GPT-5.6 Luna、GPT-5 Thinking Mini 等；GPT-6 系列从 Plus 起 | Sonnet、Haiku；Opus 从 Pro 起 |
+| 免费版可用模型 | 套餐表列出 GPT-6 Luna、GPT-5 Thinking Mini（GPT-5.6 Terra 仅桌面版 Work 和 Codex 有限使用）；GPT-6 Sol、GPT-6.1 Sol、GPT-6 Astra 和 GPT-5.6 Sol 从 Plus 起 | Sonnet、Haiku；Opus 从 Pro 起 |
 | 对话上下文（官方公布） | 即时模型：Free 27K、Go / Plus 54K、Pro 128K；推理模型：Go / Plus 256K、Pro 400K，Free 写「视情况」（均为含输出的总窗口） | 付费版：Fable 5.1、Opus 5.5 / 5、Sonnet 5.5 / 5 为 1M；Fable 5、Opus 4.6–4.8、Sonnet 4.6 为 500K；其余 200K。定价页对所有套餐写「最高 1M，因模型而异」 |
 | 内置图片生成 | 有；Free 为有限，Go 起可用，「带思考的生图」从 Plus 起 | 无原生生图，模型输出为文本 |
 | 视频生成 | 当前套餐表未列出视频生成；按 The Decoder（2026-03）报道的官方时间表，Sora 独立 App 和 API 分别于 2026-04-26、2026-09-24 关停，ChatGPT 内是否还有视频功能以官方说明为准 | 无 |
@@ -54,6 +54,9 @@ sources:
 | 可复用的扩展方式 | Skills（beta）、Plugins，全套餐可用（创建插件从 Go 起） | Skills（技能，全套餐可用）、Connectors，Claude Code 另有插件 |
 | 浏览器 / 办公软件集成 | 内置浏览器全套餐可用；Excel、Word、PowerPoint、Google Sheets 扩展（Free、Go 有限） | Claude in Chrome、Claude for Microsoft 365：Pro 及以上 |
 | 生成 Word / Excel / PPT 文件 | 套餐表未单独列出这一项，以官网为准 | 「代码执行与文件创建」全套餐可用，官方预置 docx / xlsx / pptx / pdf 技能 |
+
+![ChatGPT 和 Claude 在生图、上下文、编程智能体、深度研究、浏览器集成上的官方可核实差异](seed:g12-diff-table.png)
+*图：本站根据 [ChatGPT 官方价格页](https://chatgpt.com/pricing) 与 [Claude 官方定价页](https://claude.com/pricing) 整理的示意图*
 
 使用前提提醒：两家都只在各自官方支持的国家和地区提供服务，请遵守所在地法律与服务条款。
 
@@ -76,6 +79,9 @@ sources:
 | 中文写作、润色、翻译 | 无硬性差异 | 用自测 1 盲测，自己打分 |
 | 办公文档产出 | 文件生成能力 | 用自测 5 生成同一份 PPT / Excel 比较 |
 
+![按做图、读长资料、写代码、中文写作、办公文档五种用途选择 ChatGPT 还是 Claude 的思路](seed:g12-choose-by-use.png)
+*图：本站整理的示意图（选择框架为本站编写，功能差异依据 [ChatGPT 官方价格页](https://chatgpt.com/pricing) 与 [Claude 官方定价页](https://claude.com/pricing)）*
+
 想开通的话：[/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus) 或 [/chongzhi/claude-pro](/chongzhi/claude-pro)。
 
 ## 自测清单（按自己的需求挑几项）
@@ -89,6 +95,9 @@ sources:
 5. **办公文件**：让两边各生成一份 8 页 PPT 和一张带公式的 Excel，检查能否正常打开、公式是否正确。
 6. **生图**：让 ChatGPT 生成几张指定风格的图片；对 Claude 提同样请求，看它实际如何回应（例如改为给出设计说明或代码绘图）。
 7. **额度体感**：在你常用的强度下连续使用，留意多久出现用量提醒（只记录现象，不要据此推算官方额度）。
+
+![对比 ChatGPT 和 Claude 的七项自测清单](seed:g12-self-test.png)
+*图：本站整理的示意图（自测方法为本站编写）*
 
 ## 常见问题
 

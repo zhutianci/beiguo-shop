@@ -40,6 +40,9 @@ verify:
 - **控制大小**：单个文档最大 512 MB，文本类文件每个最多 200 万 token。超长的书或报告，可以按章节拆开。
 - **手机扫描**：iOS 版 ChatGPT 相机里的 **Scan（扫描）**（2026 年 10 月起逐步推出）可以连拍多页纸质文档，自动合成一个 PDF 再上传。
 
+![让 ChatGPT 读 PDF 之前要检查的五件事：文字层、大小、格式、图表、上传次数](seed:g122-before-upload.png)
+*图：本站根据 [OpenAI 帮助中心：Uploading files and audio to ChatGPT](https://help.openai.com/en/articles/8555545-file-uploads-faq) 整理的示意图*
+
 ### 2. 上传并说明背景
 
 点输入框的 **+** 添加文件，或直接拖进对话框。上传时一起说清楚：**这是什么文件、你是谁、你要拿总结做什么**。同一份文件，给老板看的总结和准备考试的总结完全不同。
@@ -47,6 +50,9 @@ verify:
 ### 3. 先要结构，再要细节
 
 不要一上来就说「总结一下」。推荐分三步：
+
+![用 ChatGPT 总结长文档的四步问法：先要结构、按需深入、针对性提问、核对](seed:g122-ask-in-steps.png)
+*图：本站整理的示意图（提问方法为本站编写，功能事实依据 [OpenAI 帮助中心：Uploading files and audio to ChatGPT](https://help.openai.com/en/articles/8555545-file-uploads-faq)）*
 
 **第一步：摸清结构**
 
@@ -84,6 +90,9 @@ verify:
 | 行业报告 | 「提取所有数据点，做成表格：指标 / 数值 / 时间 / 页码」 |
 | 会议纪要 | 「列出决定事项、待办（负责人、截止时间）和未解决的问题」 |
 | 两份版本对比 | 「对比这两份文件，列出新增、删除和修改的条款」 |
+
+![学术论文、合同、行业报告、会议纪要、两份版本对比五类文件各自推荐的提问方式](seed:g122-ask-by-filetype.png)
+*图：本站整理的示意图（提问方法为本站编写，功能事实依据 [OpenAI 帮助中心：Uploading files and audio to ChatGPT](https://help.openai.com/en/articles/8555545-file-uploads-faq)）*
 
 ## 常见问题
 

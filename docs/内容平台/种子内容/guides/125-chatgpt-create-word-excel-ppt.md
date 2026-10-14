@@ -36,6 +36,9 @@ verify:
 4. **文件去哪了**：云端 Work 生成的文件会保存到侧边栏的**文件库（Library）**；桌面本地任务生成的文件留在本地项目或文件夹，不会自动出现在网页和手机上；**临时聊天里生成的文件不会保存**。
 5. **生成后一定检查**：内容、版式、公式、图表都要过一遍再发出去。
 
+![让 ChatGPT 生成 Word、Excel、PPT 的四种方式分别适合什么情况](seed:g125-which-way.png)
+*图：本站根据 [OpenAI 帮助中心：Creating and editing documents, spreadsheets, and presentations with ChatGPT Work](https://help.openai.com/en/articles/20001278-creating-and-editing-documents-spreadsheets-and-presentations-with-chatgpt-work) 整理的示意图*
+
 ## 步骤：用 ChatGPT Work 生成文件
 
 ### 1. 把需求说完整
@@ -47,6 +50,9 @@ verify:
 3. 输出格式和保存位置；
 4. 哪些东西不能改（公式、版式、语气、品牌、页面顺序、表格结构）；
 5. 先看结果，再提修改。
+
+![用 ChatGPT Work 生成文件时要说清楚的五件事](seed:g125-brief-checklist.png)
+*图：本站根据 [OpenAI 帮助中心：Creating and editing documents, spreadsheets, and presentations with ChatGPT Work](https://help.openai.com/en/articles/20001278-creating-and-editing-documents-spreadsheets-and-presentations-with-chatgpt-work) 整理的示意图*
 
 示例：
 
@@ -102,6 +108,9 @@ verify:
 4. **刷新、换浏览器**：按官方通用错误排查——刷新页面、清缓存或用无痕窗口、停用浏览器扩展、换浏览器或网络，并去 [status.openai.com](https://status.openai.com/) 看是否有故障。
 5. **存储满了**：文件库有存储上限（Free 500MB / Go 4GB / Plus 20GB / Pro 100GB），在 **设置 → 存储** 查看，删掉不用的文件。
 6. **请它重新生成**：官方错误排查文章提到，对话里 ChatGPT 生成的文件链接**很快会过期**，出现「Download failed / File Not Found」时，在同一对话里说「请重新生成下载链接」或「再导出一次 .docx」；文件大小也要在 512 MB 以内。
+
+![ChatGPT 生成的文件找不到或下载不了时的六步排查](seed:g125-file-missing.png)
+*图：本站根据 [OpenAI 帮助中心：Creating and editing documents, spreadsheets, and presentations with ChatGPT Work](https://help.openai.com/en/articles/20001278-creating-and-editing-documents-spreadsheets-and-presentations-with-chatgpt-work) 整理的示意图*
 
 ## 常见问题
 

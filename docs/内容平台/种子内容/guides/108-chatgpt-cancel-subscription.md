@@ -5,7 +5,7 @@ products: [chatgpt]
 models: []
 accountTier: PLUS
 excerpt: ChatGPT Plus / Pro 不想续费了怎么取消？要在哪里买的就在哪里取消。本文按官方帮助中心讲清网页、iPhone、Google Play 和 Business 的取消步骤、要提前多久取消、取消后还能用多久、退款政策，以及重复扣费怎么处理。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/7232927-canceling-your-chatgpt-subscription
   - https://help.openai.com/en/articles/7232895-how-do-i-request-a-refund-for-my-chatgpt-subscription
@@ -16,7 +16,7 @@ verify:
   - iPhone 系统设置的中文路径（设置 → 你的名字 → 订阅）以 iOS 实际界面为准
 ---
 
-> 本文根据 OpenAI 帮助中心（Canceling your ChatGPT subscription、How do I request a refund、How do I avoid being charged twice）整理，资料核对于 2026-10-07。退款规则以官方最新说明为准。
+> 本文根据 OpenAI 帮助中心（Canceling your ChatGPT subscription、How do I request a refund、How do I avoid being charged twice）整理，资料核对于 2026-10-13。退款规则以官方最新说明为准。
 
 ## 适用于谁
 
@@ -33,6 +33,9 @@ verify:
 5. **卸载 App 不会取消订阅**，删除账号也不会取消苹果订阅。
 
 ## 步骤
+
+![ChatGPT 取消订阅：在哪买的就在哪取消，四种情况各自的入口](seed:g108-cancel-where.png)
+*图：本站根据 [OpenAI 帮助中心：Canceling your ChatGPT subscription](https://help.openai.com/en/articles/7232927-canceling-your-chatgpt-subscription) 整理的示意图*
 
 ### 网页版（在 chatgpt.com 订阅的）
 
@@ -72,6 +75,9 @@ verify:
 
 回到当初扣费的平台查看订阅状态，确认已经**不再自动续订**。
 
+![取消 ChatGPT 订阅时要确认的 5 件事](seed:g108-cancel-checklist.png)
+*图：本站根据 [OpenAI 帮助中心：Canceling your ChatGPT subscription](https://help.openai.com/en/articles/7232927-canceling-your-chatgpt-subscription) 整理的示意图*
+
 ## 找不到订阅？先弄清是在哪买的
 
 翻一下付款收据就知道是哪个平台扣的费。注意：
@@ -87,6 +93,9 @@ verify:
 1. 按上面的方法，把苹果、Google Play、chatgpt.com 三处都查一遍；
 2. 决定保留哪一个，把其他的在各自平台取消；
 3. 想从苹果 / 谷歌换到网页订阅，**先取消原平台的订阅**，再在 chatgpt.com 重新订。
+
+![ChatGPT 被重复扣费时的三步处理](seed:g108-double-charge.png)
+*图：本站根据 [OpenAI 帮助中心：How do I avoid being charged twice](https://help.openai.com/en/articles/20001043-how-do-i-avoid-being-charged-twice-if-i-subscribe-to-chatgpt-on-ios-android-and-the-web) 整理的示意图*
 
 还有一个隐蔽情况：苹果续费因付款失败而中断时，订阅并没有被取消，ChatGPT 里可能显示未激活，但苹果会继续尝试扣款。此时如果你在别处新订了一个，之后又更新了苹果的付款方式，苹果可能把旧订阅也恢复续费。避免办法是二选一：要么只更新苹果付款方式、不在别处新订；要么先在苹果那边彻底取消，确认不再续订后再去网页订阅。
 
@@ -110,7 +119,7 @@ verify:
 ## 常见问题
 
 **Q：登录不了账号，怎么取消？**
-网页订阅可以联系 OpenAI 客服，提供账号邮箱、付款卡号**后四位**和最近一次扣费日期（千万不要发完整卡号）。苹果或谷歌的订阅要用对应的商店账号取消，商店账号登不上就找苹果或谷歌恢复。
+网页订阅可以联系 OpenAI 客服。官方要求提供账号或订阅关联的邮箱，再加下面**任意两项**账单信息：付款卡号**后四位**、卡片有效期、订阅的账单地址、最近一次扣费日期（千万不要发完整卡号）。苹果或谷歌的订阅要用对应的商店账号取消，商店账号登不上就找苹果或谷歌恢复。
 
 **Q：取消后又被扣了一次？**
 先看取消时间是否离扣费日不到 24 小时——那样下一期可能已经扣了；再看是否别的账号或平台还有一个订阅。

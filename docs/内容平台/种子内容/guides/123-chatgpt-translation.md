@@ -52,6 +52,9 @@ verify:
 - **「用表格输出：原文 / 译文 / 备注」**——方便逐句校对；
 - **「翻译成简体中文，适合中国大陆读者，不要用台湾用语」**——避免用词地域混杂。
 
+![一条好的 ChatGPT 翻译指令应该写清的六项内容](seed:g123-prompt-checklist.png)
+*图：本站整理的示意图（翻译指令写法为本站编写，功能事实依据 [OpenAI 帮助中心：ChatGPT capabilities overview](https://help.openai.com/en/articles/9260256-chatgpt-capabilities-overview)）*
+
 ### 2. 整篇文档：上传 + 分段
 
 1. 点 **+** 上传 PDF / Word（Google 文档要先导出为 PDF 或 DOCX）；
@@ -68,6 +71,9 @@ verify:
 ```
 
 4. 每段完成后接着说「继续翻译第 2 章」。
+
+![用 ChatGPT 翻译整篇 PDF 或 Word 文档的四个步骤](seed:g123-doc-steps.png)
+*图：本站整理的示意图（翻译流程为本站编写，文件上传事实依据 [OpenAI 帮助中心：Uploading files and audio to ChatGPT](https://help.openai.com/en/articles/8555545-file-uploads-faq)）*
 
 扫描版 PDF 读不出文字时，翻译会出现大量缺漏，先转成可复制文字的版本，见 [/guides/chatgpt-summarize-pdf](/guides/chatgpt-summarize-pdf)。
 
@@ -92,6 +98,9 @@ verify:
 - 检查数字、日期、金额、单位是否原样保留；
 - 问它「哪些句子你不确定」，往往能定位到真正的难点；
 - 最后通读一遍，看是否有它自己「补充」的内容——ChatGPT 有时会顺手润色或加解释，正式文件里要删掉。
+
+![ChatGPT 翻译完成后的四项校对检查](seed:g123-proofread.png)
+*图：本站整理的示意图（校对方法为本站编写，功能事实依据 [OpenAI 帮助中心：ChatGPT capabilities overview](https://help.openai.com/en/articles/9260256-chatgpt-capabilities-overview)）*
 
 ## 其他翻译场景
 

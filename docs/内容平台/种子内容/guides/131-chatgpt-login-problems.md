@@ -37,6 +37,9 @@ verify:
 
 ## 按报错对号入座
 
+![ChatGPT 登录报错对照：六种提示各自的原因和处理办法](seed:g131-login-errors.png)
+*图：本站根据 [OpenAI 帮助中心：Why can't I log in to ChatGPT?](https://help.openai.com/en/articles/7426629-why-cant-i-log-in-to-chatgpt) 整理的示意图*
+
 ### 「Wrong authentication method」/「There is already a user with email…」
 
 原因：你用了和注册时不同的登录方式。不确定当初用的哪种，就在**无痕窗口**里依次试：
@@ -69,6 +72,9 @@ verify:
 | 输错太多次被锁 | 等锁定解除后再获取新验证码，必要时联系客服 |
 | 公司邮箱收不到 | 请邮箱管理员检查拦截规则 |
 
+![ChatGPT 登录验证码收不到、无效、过期、被锁时分别怎么办](seed:g131-otp-code.png)
+*图：本站根据 [OpenAI 帮助中心：Why am I being asked to verify my login?](https://help.openai.com/en/articles/9889414-why-am-i-being-asked-to-verify-my-login) 整理的示意图*
+
 开了推送批准的账号，如果手机上的推送没弹出来：确认手机 App 已登录、通知已开启、网络正常；还不行就在登录页点 **Try with email（改用邮箱）** 收验证码。收到不是自己发起的登录请求，点 **No, deny access（拒绝）**，然后改密码、开启两步验证（见 [/guides/chatgpt-account-security-mfa](/guides/chatgpt-account-security-mfa)）。
 
 ### 卡在「Checking your browser…」验证循环
@@ -99,6 +105,9 @@ Cookie 同意弹窗、Cookie 管理插件有时也会挡住登录按钮，接受
 3. 在密码页点 **Forgot password?**；
 4. 按重置邮件里的说明操作。
 
+![ChatGPT 忘记密码后重置密码的四个步骤](seed:g131-forgot-password.png)
+*图：本站根据 [OpenAI 帮助中心：Resetting or changing your ChatGPT password](https://help.openai.com/en/articles/4936828-resetting-or-changing-your-chatgpt-password) 整理的示意图*
+
 改 ChatGPT 密码会同时改掉整个 OpenAI 账号的密码，API 平台也要用新密码。收不到重置邮件：查垃圾邮件、确认邮箱写对、确认是注册用的那个邮箱。
 
 ## 手机 App 登录问题
@@ -113,6 +122,9 @@ Cookie 同意弹窗、Cookie 管理插件有时也会挡住登录按钮，接受
 ## 账号被停用或删除
 
 提示「You do not have an account because it has been deleted or deactivated」：
+
+![登录时的报错页面：You do not have an account because it has been deleted or deactivated](seed:g131-deleted-or-deactivated.png)
+*图片来源：[OpenAI 帮助中心：Deleting your ChatGPT account](https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account)*
 
 - **自己删除的**：无法恢复，30 天后可以用同一邮箱重新注册（前提是彻底删除而非停用），见 [/guides/chatgpt-delete-account](/guides/chatgpt-delete-account)；
 - **被停用的**：去邮箱（含垃圾箱）找 OpenAI 发来的邮件，里面会说明原因和下一步，例如未完成身份或年龄验证，按邮件说明完成验证；认为是误判的，联系客服并附上相关邮件。等待 30 天不会让停用的账号恢复。

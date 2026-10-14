@@ -5,7 +5,7 @@ products: [chatgpt]
 models: []
 accountTier: TEAM
 excerpt: ChatGPT Business 就是原来的 Team 版。和个人 Plus 比，它多了团队工作区、席位管理、数据默认不训练、公司知识库等，但也有至少 2 席、成员不能自助导出等限制。本文按官方帮助中心逐项对比，并说明 Standard 和 Premium 席位怎么选。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/8792828-chatgpt-business-overview
   - https://help.openai.com/en/articles/12003714-chatgpt-business-models-and-limits
@@ -19,7 +19,7 @@ verify:
   - Business 各模型的消息估算区间官方会随模型调整，正文只引用了 Pro 消息额度和「Premium 为 Standard 5 倍」
 ---
 
-> 本文根据 OpenAI 帮助中心（ChatGPT Business Overview、Models and limits、Managing data sharing and privacy 等）和价格页整理，资料核对于 2026-10-07。价格请以[官方价格页](https://chatgpt.com/pricing)为准。
+> 本文根据 OpenAI 帮助中心（ChatGPT Business Overview、Models and limits、Managing data sharing and privacy 等）和价格页整理，资料核对于 2026-10-13。价格请以[官方价格页](https://chatgpt.com/pricing)为准。
 
 ## 适用于谁
 
@@ -52,11 +52,14 @@ verify:
 | 自助删除账号 | 可以 | 不能，需找组织 |
 | 广告 | 无 | 无 |
 
+![ChatGPT Plus 个人版和 Business 团队版的主要区别对比](seed:g111-plus-vs-business.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Business - Overview](https://help.openai.com/en/articles/8792828-chatgpt-business-overview) 整理的示意图*
+
 ## Business 的模型和额度
 
 据官方「ChatGPT Business models and limits」：
 
-- **Chat 里的模型选择**：Instant、Medium、High、Extra High 都基于 GPT-5.6 Sol，推理强度递增；**Pro** 选项使用 GPT-5.6 Sol Pro 或 GPT-6 Pro（注意这里的「Pro」是模型选项，不是 Premium 席位的别名）。
+- **Chat 里的模型选择**：模型菜单里 GPT-6 取代了原来的 Latest（正在向 Business 工作区逐步开放）：选 GPT-6 时，Instant、Medium、High、Extra High 由 GPT-6 Sol 驱动，推理强度递增；明确选 GPT-5.6 Sol 的仍留在 GPT-5.6。**Pro** 选项在选 GPT-6 时使用 GPT-6 Pro（由 GPT-6 Astra 驱动），GPT-5.6 系列里则是 GPT-5.6 Sol Pro（注意这里的「Pro」是模型选项，不是 Premium 席位的别名）。
 - **Pro 消息额度**：Standard 每月 15 条，Premium 每周 50 条，GPT-6 Pro 和 GPT-5.6 Sol Pro 共用。
 - **「几乎无限」只指 Instant 聊天**，推理、Pro、Work、Codex 都有各自额度。
 - **Work 和 Codex** 有单独的模型选择（GPT-6 Sol、GPT-6.1 Sol、GPT-6 Luna 等），这些模型不能在普通对话里选。
@@ -71,9 +74,15 @@ verify:
 | 5 小时用量窗口 | 有 | 没有 |
 | GPT-6 Astra | 在 Work / Codex 额度内有限使用 | 可用全部额度 |
 
+![ChatGPT Business 的 Standard 席位和 Premium 席位的区别](seed:g111-standard-vs-premium.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Business models and limits](https://help.openai.com/en/articles/12003714-chatgpt-business-models-and-limits) 整理的示意图*
+
 一个工作区可以混搭两种席位（例如 1 个 Standard + 1 个 Premium 也满足最少 2 席）。席位是工作区的「付费容量」，和具体成员分开，所有者可以随时分配、调换。
 
 **建议**：大部分成员只是日常问答、写文档——Standard；少数人重度用 Codex 写代码或让 Work 跑长任务——给他们 Premium。
+
+![个人 Plus、Business Standard、Business Premium 和 Enterprise 分别适合谁](seed:g111-which-one.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Business - Overview](https://help.openai.com/en/articles/8792828-chatgpt-business-overview) 整理的示意图*
 
 ## 隐私与协作的边界
 

@@ -36,6 +36,9 @@ verify:
 4. **ChatGPT Classic 是旧版**，可以继续用，仍会收到模型更新和安全补丁，但 Work、Codex 等新的代理功能只在新版里有。
 5. **桌面版比网页版多的**：可以经你授权使用本地文件和桌面应用、内置浏览器、Codex，以及快捷键随时呼出。
 
+![ChatGPT 桌面版在 Mac、Windows、Linux 上的系统要求](seed:g118-system-requirements.png)
+*图：本站根据 [OpenAI 帮助中心：Moving to the new ChatGPT desktop app](https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app) 整理的示意图*
+
 ## 步骤
 
 ### 1. 下载安装
@@ -60,6 +63,9 @@ verify:
 - **用过 Codex App 的**：照常更新，它会直接变成新版 ChatGPT 桌面 App，原来的 Codex 对话和项目保留，打开时默认进入 Codex。
 - **用过旧版 ChatGPT 桌面 App 的**：按 App 内的提示下载新版，用同一账号登录。新版可能与旧版并存，旧版会改名为 **ChatGPT Classic**。下载页底部也提供了 Classic 版的下载链接。
 
+![从 Codex App、旧版 ChatGPT 桌面 App 升级到新版时各自怎么做](seed:g118-upgrade-cases.png)
+*图：本站根据 [OpenAI 帮助中心：Moving to the new ChatGPT desktop app](https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app) 整理的示意图*
+
 ### 3. 认识新版界面
 
 - 左上角菜单切换 **ChatGPT** 和 **Codex**；
@@ -81,6 +87,9 @@ verify:
 | 内置浏览器 | — | ✓ |
 | 随时呼出的小窗口 | — | ✓ |
 | 免安装、任何电脑都能用 | ✓ | — |
+
+![ChatGPT 网页版和新版桌面 App 的功能区别](seed:g118-desktop-vs-web.png)
+*图：本站根据 [OpenAI 帮助中心：Moving to the new ChatGPT desktop app](https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app) 整理的示意图*
 
 **内置浏览器**：在 Work 或 Codex 对话里，按 Mac 的 ⌘+Shift+B 或 Windows 的 Ctrl+Shift+B 打开。你和 ChatGPT 看到的是同一个页面，它可以开多个标签页、下载文件，需要登录时会等你自己输入。内置浏览器有独立的浏览数据，不使用你的 Chrome 资料；需要用到 Chrome 里已登录的会话时，官方建议用 Chrome 扩展。账号密码只在浏览器页面里输入，**不要发在聊天里**。
 

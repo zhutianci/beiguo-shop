@@ -5,7 +5,7 @@ products: [chatgpt]
 models: []
 accountTier: FREE
 excerpt: ChatGPT 免费版现在用什么模型？聊天有没有次数限制？能不能上传文件、生图、用深度研究？本文按官方 Free 套餐 FAQ 和价格页讲清免费版的模型、功能清单、各工具额度规则、到达上限后的提示和处理办法。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq
   - https://chatgpt.com/pricing
@@ -19,7 +19,7 @@ verify:
   - 截图里的「Get Plus」提示是较早的界面样式
 ---
 
-> 本文根据 OpenAI 帮助中心《ChatGPT Free Tier FAQ》、ChatGPT 价格页和发布说明整理，资料核对于 2026-10-07；截图引用自 OpenAI 帮助中心，为英文界面。
+> 本文根据 OpenAI 帮助中心《ChatGPT Free Tier FAQ》、ChatGPT 价格页和发布说明整理，资料核对于 2026-10-13；截图引用自 OpenAI 帮助中心，为英文界面。
 
 ## 适用于谁
 
@@ -29,20 +29,20 @@ verify:
 
 ## 结论先说
 
-1. **模型**：免费版默认是 **GPT-5.6 Luna**（2026 年 8 月起）。遇到难题点 **Think（思考）**，会多花时间推理。
+1. **模型**：免费版默认是 **GPT-5.6 Luna**（2026 年 8 月起；价格页 10-13 已把 Free 的模型列为 GPT-6 Luna，帮助中心仍写 GPT-5.6 Luna，以账号里看到的为准）。遇到难题点 **Think（思考）**，会多花时间推理。
 2. **日常聊天不限次数**：2026 年 8 月起 Free 的日常文字对话是「无限」的（受防滥用规则约束），以前「聊几条就降级」的情况不再是主要限制。
 3. **工具单独限额**：文件和图片上传、生图、语音、数据分析、深度研究等都有**各自独立**的额度，到了会单独提示，等一段时间恢复。官方不公开具体次数。
 4. **免费版也能用**：联网搜索、上传文件和图片、数据分析、生图、学习模式、项目、插件、文件库（500 MB）、语音、桌面 App 里有限的 Work 和 Codex。
-5. **免费版没有**：GPT-5.6 Sol 和 GPT-6 系列、旧版模型、带思考的生图、Sites、交互式图表、新建 GPT。部分地区可能显示广告。
+5. **免费版没有**：GPT-5.6 Sol、GPT-6 Sol、GPT-6 Astra 这些更强的模型、旧版模型、带思考的生图、Sites、交互式图表、新建 GPT。部分地区可能显示广告。
 
 ## 免费版功能清单
 
-据官方 Free FAQ 和价格页（2026-10-07）：
+据官方 Free FAQ 和价格页（2026-10-13 查询）：
 
 | 功能 | Free 可用情况 |
 | --- | --- |
 | 日常文字对话 | 无限* |
-| 模型 | GPT-5.6 Luna、GPT-5 Thinking Mini；Work / Codex 里有限使用 GPT-5.6 Terra |
+| 模型 | 帮助中心写默认 GPT-5.6 Luna；价格页 10-13 列为 GPT-6 Luna、GPT-5 Thinking Mini；桌面版 Work / Codex 里有限使用 GPT-5.6 Terra |
 | 联网搜索 | 可用 |
 | 上传文件 / 图片 | 有限 |
 | 数据分析 | 有限 |
@@ -52,7 +52,7 @@ verify:
 | 记忆 | 有限 |
 | 项目、共享项目 | 可用 |
 | 文件库（Library） | 500 MB 存储 |
-| 插件（发现和使用） | 可用 |
+| 插件（发现和使用） | 有限 |
 | 学习模式、Health、Finances | 可用（部分功能限地区） |
 | ChatGPT Work | 有限，仅桌面 App |
 | Codex | 有限 |
@@ -61,6 +61,9 @@ verify:
 | 新建 / 发布 GPT | 不可用（个人账号都不能新建，可继续用已有 GPT） |
 
 \* 需合理使用并遵守政策。
+
+![ChatGPT 免费版各项功能的可用情况一览](seed:g112-free-features.png)
+*图：本站根据 [ChatGPT 官方价格页](https://chatgpt.com/pricing) 整理的示意图*
 
 ## 上下文有多长
 
@@ -90,6 +93,9 @@ verify:
 ## 关于广告
 
 部分国家的 Free 和 Go 用户可能看到广告，显示在回答下方并标注赞助，官方称不影响回答内容；临时聊天里不显示广告。可以在 **Settings → Ad Controls** 关闭广告个性化。
+
+![iOS 上的 Ads controls 页面：可以查看广告历史和兴趣、删除广告数据、关闭 Personalize ads](seed:g112-ad-controls.png)
+*图片来源：[OpenAI 帮助中心：Ads in ChatGPT](https://help.openai.com/en/articles/20001047)*
 
 ## 常见问题
 

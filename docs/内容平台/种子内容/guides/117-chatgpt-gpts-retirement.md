@@ -44,6 +44,9 @@ verify:
 | 2026-12-11 | 标准退役日，GPT 和 GPT 页面无法访问 |
 | 2027-02-11 | 获批延期的 Enterprise 工作区退役 |
 
+![ChatGPT 自定义 GPTs 退役时间表：从 2026-09-11 宣布到 2026-12-11 标准退役日](seed:g117-retire-timeline.png)
+*图：本站根据 [OpenAI 帮助中心：Custom GPT retirement and migration FAQ](https://help.openai.com/en/articles/20001519-custom-gpt-retirement-and-migration-faq) 整理的示意图*
+
 官方提醒这些日期可能调整。另外，**判断适用哪个时间表要看 GPT 是在哪个账号或工作区创建的**，而不是你自己用什么套餐——比如在某个 Enterprise 工作区创建的公开 GPT，即使你用个人账号访问，也按那个工作区的时间表退役。
 
 ## 如果你是 GPT 的创作者
@@ -70,6 +73,9 @@ verify:
 | 选定的模型 | **不迁移** |
 | 分享设置 | **不迁移**，新插件默认私有；要公开需要另走插件提交流程 |
 
+![GPT 迁移为插件后，指令、知识文件、应用、自定义动作、模型和分享设置分别会怎样](seed:g117-migrate-result.png)
+*图：本站根据 [OpenAI 帮助中心：Custom GPT retirement and migration FAQ](https://help.openai.com/en/articles/20001519-custom-gpt-retirement-and-migration-faq) 整理的示意图*
+
 迁移后原来的 GPT 在退役前仍能用，但变成**只读**，创作者也不能删除它；以后的修改都在插件里做。
 
 ### 4. 认真测试
@@ -82,6 +88,9 @@ verify:
 - 留意 GPT 页面上的通知和创作者发布的替代方案；
 - 能用原 GPT 不代表自动能用替代插件，切换前确认对方是否分享给你；
 - 插件安装后，在对话里用 **@** 点名，或从 **+ → More** 选择；相关时 ChatGPT 也可能自动调用插件里的技能。插件用法见 [/guides/chatgpt-plugins-connected-apps](/guides/chatgpt-plugins-connected-apps)。
+
+![插件的安装卡片：右侧有 Not now 和 Install 两个按钮（官方示例插件）](seed:g117-plugin-install-card.png)
+*图片来源：[OpenAI 帮助中心：Plugins in ChatGPT](https://help.openai.com/en/articles/20001256-plugins-in-chatgpt)*
 
 ## 退役之前怎么用 GPTs
 

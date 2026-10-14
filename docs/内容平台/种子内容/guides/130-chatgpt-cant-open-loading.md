@@ -38,6 +38,9 @@ verify:
 4. **「Sorry, you have been blocked」**：这是 Cloudflare 的 IP 封锁，官方说明与 IP 被判定为可疑有关（例如 VPN 或高风险地区的 IP），临时封锁一般等一段时间会解除。
 5. **频繁人机验证**：偶尔出现正常；每条消息都要验证，检查网络工具和浏览器扩展，仍然如此就截图（含请求 ID）发给客服。
 
+![ChatGPT 打不开、转圈、变卡、被拦截五种情况分别怎么处理](seed:g130-which-case.png)
+*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT error messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*
+
 ## 一、白屏、一直转圈、加载不出来
 
 按官方「Blank screen, frozen page, or endless loading」一节的顺序：
@@ -50,6 +53,9 @@ verify:
 6. 关闭 VPN、安全 DNS 或其他安全过滤工具；
 7. 换一个网络或设备；
 8. 还不行，收集浏览器控制台日志和带时间戳的 HAR 文件，联系客服。
+
+![ChatGPT 白屏、无限加载时官方给出的八步排查顺序](seed:g130-blank-steps.png)
+*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT error messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*
 
 ## 二、卡在「Thinking…」「Generating…」不动
 
@@ -74,6 +80,9 @@ verify:
 | 对话太长、轮次太多 | 新开对话 |
 | 网络慢、移动数据带宽低 | 测网速，换网络 |
 | 公司网络策略变化 | 联系 IT 管理员 |
+
+![ChatGPT 回答很慢的六种可能原因和对应办法](seed:g130-slow-causes.png)
+*图：本站根据 [OpenAI 帮助中心：Why is my ChatGPT taking so long to respond?](https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond) 整理的示意图*
 
 另外可以**换一个模型并新开对话**，判断问题是某个模型的，还是整个账号的。2026 年 8 月起，网页版改为分段加载长对话，长对话打开会比以前快，但轮次特别多时仍建议新开。
 

@@ -42,6 +42,9 @@ verify:
 
 官方特别提醒安卓用户：要下载 **OpenAI 发布**的版本，才是正版且安全的。第三方应用市场里同名的「ChatGPT」很多并非官方。
 
+![下载 ChatGPT 手机 App 时认准官方版本的检查清单](seed:g119-official-app-check.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT Android App FAQ](https://help.openai.com/en/articles/8142208-chatgpt-android-app-faq) 整理的示意图*
+
 ### 2. 切换模型和思考强度
 
 按官方「GPT-5.6 in ChatGPT」文章（2026-10）：
@@ -57,6 +60,9 @@ verify:
 ### 3. 用相机扫描文档（iOS）
 
 2026 年 10 月 1 日起在 iOS 上逐步推出：打开 ChatGPT 里的相机 → 点 **•••**（更多）菜单 → 选 **Scan（扫描）** → 连续拍多页，ChatGPT 会自动合成一个 PDF，直接附到对话里。适合拍合同、讲义、手写笔记后让它总结或提取要点（读 PDF 的技巧见 [/guides/chatgpt-summarize-pdf](/guides/chatgpt-summarize-pdf)）。
+
+![在 iPhone 的 ChatGPT 里用相机扫描多页文档并合成 PDF 的步骤](seed:g119-scan-steps.png)
+*图：本站根据 [OpenAI 帮助中心：ChatGPT release notes](https://help.openai.com/en/articles/6825453-chatgpt-release-notes) 整理的示意图*
 
 ### 4. 快速发图（iOS）
 
@@ -75,10 +81,17 @@ verify:
 
 - **查看聊天记录**：点左上角菜单打开侧边栏，**Recents（最近）** 里是历史对话；可以用搜索找旧对话。安卓侧边栏最多显示 8 个最近对话。
 - **删除对话**：打开对话 → 右上角 **•••**（安卓是竖排三个点）→ **Delete**。
+
+![安卓 App 里对话右上角菜单：Share、Pin、Archive、Delete 等选项](seed:g119-android-delete-chat.jpg)
+*图片来源：[OpenAI 帮助中心：ChatGPT Android App FAQ](https://help.openai.com/en/articles/8142208-chatgpt-android-app-faq)*
+
 - **关闭震动反馈（iOS）**：设置里关闭 **Haptic feedback**；开启低电量模式或电量低于 20% 时会自动关闭。
 - **查看 App 版本**：iOS 在设置里往下翻；安卓在 **About（关于）** 里看「ChatGPT for Android」版本号。反馈问题时附上版本号。
 - **选中部分文字（安卓）**：长按回答，用系统的选择菜单。回答下方还有复制、朗读、分享、重试等按钮。
 - **导出数据（安卓）**：设置 → **Data Controls** → **Export Data**，下载链接发到注册邮箱，24 小时内有效。
+
+![安卓 App 的 Data controls 页面：点 Export Data 后的确认弹窗，说明下载链接 24 小时后过期](seed:g119-android-export-data.png)
+*图片来源：[OpenAI 帮助中心：ChatGPT Android App FAQ](https://help.openai.com/en/articles/8142208-chatgpt-android-app-faq)*
 
 ## 常见问题
 

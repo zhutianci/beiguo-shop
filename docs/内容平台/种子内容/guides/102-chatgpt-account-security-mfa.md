@@ -49,6 +49,9 @@ verify:
    - **通行密钥**：见下一步。
 4. 设置完成后，**下次登录**时就会要求第二步验证。
 
+![ChatGPT 两步验证可选的四种验证方式及各自怎么设置](seed:g102-mfa-methods.png)
+*图：本站根据 [OpenAI 帮助中心：Managing multi-factor authentication (MFA)](https://help.openai.com/en/articles/7967234-managing-multi-factor-authentication-mfa) 整理的示意图*
+
 建议至少开两种方式，比如「验证器 App + 通行密钥」，一种丢了还能用另一种。启用多种方式时，系统默认先用最安全的那种，但登录时你仍可以选择其他已启用的方式。
 
 ### 2. 添加通行密钥（Passkey）
@@ -93,6 +96,9 @@ API 平台是另一套会话：在 platform.openai.com 的 **Your Profile → Se
 3. 开启 MFA 或通行密钥；
 4. 检查登录方式和安全记录；
 5. 联系 OpenAI 客服（[help.openai.com](https://help.openai.com/) 右下角对话入口）。
+
+![怀疑 ChatGPT 账号被盗时官方建议的五步处理顺序](seed:g102-hacked-steps.png)
+*图：本站根据 [OpenAI 帮助中心：Keeping your OpenAI account secure](https://help.openai.com/en/articles/8304786-keeping-your-openai-account-secure) 整理的示意图*
 
 另外警惕索要账号密码的邮件和链接，先核对发件地址和网址是否来自 OpenAI 官方。
 

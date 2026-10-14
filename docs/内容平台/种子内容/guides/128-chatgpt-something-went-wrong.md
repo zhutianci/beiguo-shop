@@ -44,7 +44,13 @@ verify:
 | We detect suspicious activity / Unusual activity detected | 系统检测到疑似自动化或异常流量 | 重启浏览器、用无痕窗口；确认没有和别人共用账号 |
 | Download failed / File Not Found | 下载 ChatGPT 生成的文件失败 | 文件生成后很快会过期，请它重新生成；文件需小于 512 MB |
 
+![ChatGPT 五种常见报错原文的含义和优先尝试的办法](seed:g128-error-table.png)
+*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT error messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*
+
 ## 排查顺序（从快到慢）
+
+![ChatGPT 出现 Something went wrong 时从快到慢的五步排查顺序](seed:g128-troubleshoot-order.png)
+*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT error messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*
 
 ### 第 1 步：刷新、新对话、看状态
 
@@ -98,6 +104,9 @@ verify:
 - 使用的平台、浏览器或 App 版本；
 - 用的是哪个模型、对话链接或 ID；
 - 问题在多个浏览器、设备、网络上都复现时，录制一份复现过程的 **HAR 文件**和浏览器控制台报错。
+
+![联系 OpenAI 客服前要准备的五样信息](seed:g128-contact-support.png)
+*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT error messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*
 
 ## 常见问题
 
