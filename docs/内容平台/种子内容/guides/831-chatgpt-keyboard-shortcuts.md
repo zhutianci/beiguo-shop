@@ -4,7 +4,7 @@ slug: chatgpt-keyboard-shortcuts
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 有哪些快捷键？官方没有一张完整的表，但在发布说明和帮助文章里写明了几个：Cmd / Ctrl + / 查看完整清单、复制最后一个代码块、Mac 的 Option + Space 聊天栏、Windows 的 Alt + Space 伴随窗口等。本文只收官方写明的，并说明快捷键不灵怎么办。
+excerpt: ChatGPT 有哪些快捷键？官方没有一张完整的表，但在发布说明和帮助文章里写明了几个：Cmd / Ctrl + / 查看完整清单、复制最后一个代码块、Mac 的 Option + Space 聊天栏、Windows 的 Alt + Space 等。本文只收官方写明的，并讲快捷键不灵怎么办。
 checkedOn: 2026-10-14
 sources:
   - https://help.openai.com/en/articles/6825453-chatgpt-release-notes
