@@ -4,7 +4,7 @@ slug: chatgpt-age-verification
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 突然要求年龄验证，或者成年人被划进「ChatGPT for Teens」青少年体验？本文按 OpenAI 帮助中心讲清年龄预测是怎么判断的、在设置的哪里看自己的年龄类别、满 18 岁怎么通过 Persona 验证解除限制、需要什么证件、几条报错的含义，以及官方对证件和自拍数据的处理方式。
+excerpt: ChatGPT 突然要求年龄验证，或成年人被划进「ChatGPT for Teens」青少年体验？本文按 OpenAI 帮助中心讲清年龄预测怎么判断、在哪看年龄类别、满 18 岁怎么通过 Persona 验证解除限制、需要什么证件、几条报错的含义和数据处理方式。
 checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/12652064-age-prediction-in-chatgpt

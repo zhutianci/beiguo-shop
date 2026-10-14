@@ -4,7 +4,7 @@ slug: chatgpt-remove-change-payment-method
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 想删除已保存的信用卡、换一张卡？网页版在 Settings 的 Billing 里，点卡片的 ••• 选 Remove。删除不会取消订阅，要先加新卡再删旧卡。本文按 OpenAI 帮助中心讲清只显示 Edit、取消后卡还在、auto-reload、有未付账单等删不掉的情况，以及 App 订阅的卡去哪改。
+excerpt: ChatGPT 想删除已保存的信用卡、换一张卡？网页版在 Settings 的 Billing 里，点卡片的 ••• 选 Remove。删除不会取消订阅，要先加新卡再删旧卡。本文讲清只显示 Edit、取消后卡还在、auto-reload、有未付账单等删不掉的情况。
 checkedOn: 2026-10-14
 sources:
   - https://help.openai.com/en/articles/12362718-removing-a-payment-method
