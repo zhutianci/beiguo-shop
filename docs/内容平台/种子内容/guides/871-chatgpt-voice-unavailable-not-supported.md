@@ -4,7 +4,7 @@ slug: chatgpt-voice-unavailable-not-supported
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 语音用不了、找不到语音模式，或想在网页上共享屏幕被告知不支持？按 OpenAI 帮助中心，语音有 Live、Advanced、Standard 三种，可用模式取决于套餐、地区、应用版本等；Live 不支持视频和共享屏幕。本文讲清官方列出的原因、麦克风和通话中断的处理，以及各套餐的 Live 用量。
+excerpt: ChatGPT 语音用不了，或想在网页上共享屏幕被告知不支持？按 OpenAI 帮助中心，语音有 Live、Advanced、Standard 三种，可用模式取决于套餐、地区、应用版本等；Live 不支持视频和共享屏幕。本文讲清原因、麦克风和通话中断的处理，以及各套餐用量。
 checkedOn: 2026-10-14
 sources:
   - https://help.openai.com/en/articles/20001274-chatgpt-voice

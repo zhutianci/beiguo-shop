@@ -4,7 +4,7 @@ slug: chatgpt-usage-limits-check-reset
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 额度在哪里看、什么时候重置？按 OpenAI 帮助中心，达到上限时 ChatGPT 会提示是哪项功能并显示重置时间；Free 和 Go 的日常文字聊天无限，文件、生图、语音等各有单独限额；客服不能重置额度。本文讲清哪些操作会消耗额度、Settings 里的 Usage 是什么、升级后额度怎么变。
+excerpt: ChatGPT 额度在哪看、什么时候重置？按 OpenAI 帮助中心，达到上限时会提示是哪项功能并显示重置时间；Free 和 Go 日常文字聊天无限，文件、生图、语音等各有单独限额；客服不能重置额度。本文讲清哪些操作消耗额度、Settings 里的 Usage 是什么。
 checkedOn: 2026-10-14
 sources:
   - https://help.openai.com/en/articles/9275245-chatgpt-free-tier-faq

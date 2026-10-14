@@ -15,6 +15,7 @@ verify:
   - 本文读到的几篇官方文章里，没有出现「降智」这个说法，也没有说过会对个别用户降低模型质量；正文只写了官方明确写过的、可能让人觉得回答变差的情形，没有做因果判断
   - GPT-6 正在分批推出，模型菜单和档位名称变化较快，以官方文章最新版本和账号里实际看到的为准
   - 官方没有说明「一个对话多长算太长」，只建议对话很长或轮次很多时新开对话
+  - ChatGPT 价格页写免费版「GPT-6 文字对话次数不限」，帮助中心《GPT-6 and other models in ChatGPT》写 Free 和 Go 默认模型是 GPT-5.6 Luna（正在成为默认）；两处措辞不同，正文按帮助中心写，Free 实际用哪个模型以界面为准
 ---
 
 > 本文根据 OpenAI 帮助中心《GPT-6 and other models in ChatGPT》《Troubleshooting Model Feature Access Issues》《Troubleshooting ChatGPT Error Messages》等文章整理，资料核对于 2026-10-14。配图为本站整理的示意图，不是界面截图。
