@@ -4,7 +4,7 @@ slug: chatgpt-siri-apple-intelligence-setup
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: iPhone 的 Siri 和写作工具可以调用 ChatGPT。按 OpenAI 帮助中心：设置 → Apple Intelligence 与 Siri → ChatGPT → Set Up，不登录账号也能用；登录后才保存聊天。本文讲设置步骤、看不到选项怎么办、怎么不再每次确认、怎么关闭，附官方截图。
+excerpt: iPhone 的 Siri 和写作工具可以调用 ChatGPT。按 OpenAI 帮助中心：设置 → Apple Intelligence 与 Siri → ChatGPT → Set Up，不登录也能用，登录后才保存聊天。本文讲步骤、看不到选项怎么办、怎么关闭确认和关掉它。
 checkedOn: 2026-10-14
 sources:
   - https://help.openai.com/en/articles/10269382-setting-up-chatgpt-with-apple-intelligence
