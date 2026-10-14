@@ -361,10 +361,31 @@ function OrdersInner() {
   const deepAfterSaleId = parseInt(sp.get('afterSaleId') || '') || null
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
-  const [onlyUnreplied, setOnlyUnreplied] = useState(false)
+  /*
+   * 从别处直达某个筛选（控制台改版 2026-10-13）：顶栏待办中心的「待发货」「未回复留言」、命令面板的「在订单里搜索」
+   * 都是带参数跳过来的——?status=PROCESSING、?unreplied=1、?q=关键词。初值直接取自地址栏（首个请求就是筛好的）；
+   * 已经在本页时再点一次待办，地址栏变了但组件不会重挂，所以下面另有一个 effect 跟着参数同步。
+   */
+  const spQ = (sp.get('q') || '').trim().slice(0, 100)
+  const spStatus = ['PENDING', 'PROCESSING', 'DELIVERED', 'CANCELLED'].includes(sp.get('status') || '') ? (sp.get('status') as string) : ''
+  const spUnreplied = sp.get('unreplied') === '1'
+  const [searchTerm, setSearchTerm] = useState(spQ)
+  const [debouncedSearch, setDebouncedSearch] = useState(spQ)
+  const [filterStatus, setFilterStatus] = useState(spStatus)
+  const [onlyUnreplied, setOnlyUnreplied] = useState(spUnreplied)
+  const spKey = `${spQ}|${spStatus}|${spUnreplied}`
+  const spKeyRef = useRef(spKey)
+  useEffect(() => {
+    if (spKeyRef.current === spKey) return
+    spKeyRef.current = spKey
+    // 只在带了直达参数时覆盖；不带参数（比如关弹窗后去掉 ?orderId）不动管理员手上的筛选
+    if (!spQ && !spStatus && !spUnreplied) return
+    setSearchTerm(spQ)
+    setFilterStatus(spStatus)
+    setOnlyUnreplied(spUnreplied)
+    setPage(1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spKey])
   const [fromDate, setFromDate] = useState('')
   const [toDate, setToDate] = useState('')
   const [categoryId, setCategoryId] = useState(0)

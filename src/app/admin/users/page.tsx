@@ -52,6 +52,12 @@ export default function UsersPage() {
   const [crossSite, setCrossSite] = useState(false)
   const [memberOnly, setMemberOnly] = useState(false)
 
+  // 命令面板「在用户里搜索」带 ?q= 跳过来：挂载后填进搜索框（读 window.location，不用 useSearchParams——那要给整页包 Suspense）
+  useEffect(() => {
+    const q = (new URLSearchParams(window.location.search).get('q') || '').trim().slice(0, 100)
+    if (q) setSearch(q)
+  }, [])
+
   // 搜索防抖
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(search.trim()), 350)
