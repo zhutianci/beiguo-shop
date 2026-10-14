@@ -4,7 +4,7 @@ slug: chatgpt-github-connect
 products: [chatgpt, codex]
 models: []
 accountTier: PLUS
-excerpt: 想让 ChatGPT 读你 GitHub 仓库里的代码和文档？按 OpenAI 帮助中心：在设置 → 插件里选 GitHub，到 GitHub 安装并授权，再选可访问的仓库。它是按需读取、只读，不会建索引，也不能推送代码，写代码要用 Codex。本文讲步骤、仓库不显示怎么查、怎么在 GitHub 里改权限和卸载。
+excerpt: 想让 ChatGPT 读 GitHub 仓库里的代码和文档？按 OpenAI 帮助中心：在设置 → 插件选 GitHub，到 GitHub 安装并选仓库。它按需只读、不能推送代码，写代码要用 Codex。本文讲步骤、仓库不显示怎么查。
 checkedOn: 2026-10-14
 sources:
   - https://help.openai.com/en/articles/11145903-connecting-github-to-chatgpt

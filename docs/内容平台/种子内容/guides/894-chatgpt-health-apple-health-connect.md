@@ -4,7 +4,7 @@ slug: chatgpt-health-apple-health-connect
 products: [chatgpt]
 models: []
 accountTier: FREE
-excerpt: ChatGPT 的 Health 功能能连接 Apple Health 和美国的电子病历，让回答参考你自己的数据。按 OpenAI 帮助中心：目前只向美国 18 岁以上的登录用户开放，支持网页和 iOS；连接步骤、权限设置、怎么断开、数据是否用于训练，本文逐项讲清，并说明找不到 Health 时怎么查。
+excerpt: ChatGPT 的 Health 能连接 Apple Health 和美国电子病历。按 OpenAI 帮助中心：目前只向美国 18 岁以上用户开放，支持网页和 iOS。本文讲连接步骤、权限与隐私设置、怎么断开，以及找不到 Health 怎么查。
 checkedOn: 2026-10-14
 sources:
   - https://help.openai.com/en/articles/20001036-health-in-chatgpt

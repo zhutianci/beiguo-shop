@@ -4,7 +4,7 @@ slug: chatgpt-gmail-google-calendar-connect
 products: [chatgpt]
 models: []
 accountTier: PLUS
-excerpt: 想让 ChatGPT 读你的 Gmail 邮件、查 Google 日历？按 OpenAI 帮助中心：在设置 → 插件里连接，登录要用的 Google 账号并批准权限，再用 @ 提及。本文讲连接步骤、「All permissions are required」等报错怎么办、数据会不会用于训练、怎么断开和到 Google 里移除权限。
+excerpt: 想让 ChatGPT 读 Gmail、查 Google 日历？按 OpenAI 帮助中心：在设置 → 插件连接，选对 Google 账号并批准权限，再用 @ 提及。本文讲步骤、「All permissions are required」等报错、数据是否用于训练，以及怎么断开。
 checkedOn: 2026-10-14
 sources:
   - https://help.openai.com/en/articles/20001494-connecting-and-managing-app-accounts-in-chatgpt
