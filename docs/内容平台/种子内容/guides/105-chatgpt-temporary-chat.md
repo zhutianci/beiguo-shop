@@ -41,6 +41,9 @@ verify:
 3. 在发出第一条消息之前，选好个性化方式；
 4. 正常输入问题。
 
+![新对话顶部的 Temporary（临时）按钮](seed:g105-temporary-button.png)
+*图片来源：[OpenAI 帮助中心：Temporary chat in ChatGPT](https://help.openai.com/en/articles/8914046-temporary-chat-in-chatgpt)*
+
 页面上会提示「这段聊天不会出现在历史记录里」。
 
 ![手机上的临时聊天：页面提示该聊天不会出现在历史记录中，点「Unpersonalized」可在 Personalized 与 Unpersonalized 之间选择（英文界面）](seed:g105-temporary-chat-mobile.png)
@@ -79,6 +82,9 @@ verify:
 | 记忆 | 可读取已有记忆（个性化时），不新建 | 开启记忆时可读取也可新建 |
 | 训练 | 临时期间不用于训练 | 按账号设置 |
 | 保留 | 可能为安全保留最长 30 天 | 按普通对话或工作区保留规则 |
+
+![ChatGPT 临时聊天和普通聊天在历史记录、找回、记忆、训练、保留上的区别](seed:g105-temp-vs-normal.png)
+*图：本站根据 [OpenAI 帮助中心：Temporary chat in ChatGPT](https://help.openai.com/en/articles/8914046-temporary-chat-in-chatgpt) 整理的示意图*
 
 ## 常见问题
 

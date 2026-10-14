@@ -76,6 +76,9 @@ verify:
 - **临时聊天**：只要还是临时状态，就不会用于训练、不进历史、不产生记忆，但为安全目的最多可能保留 30 天；如果你把临时聊天「保存」成普通聊天，它就会按账号设置处理。详见 [/guides/chatgpt-temporary-chat](/guides/chatgpt-temporary-chat)。
 - **记忆是另一回事**：训练开关决定内容能否用于改进模型；记忆决定 ChatGPT 是否记住你的信息来个性化回答。两者互不影响。
 
+![关闭「为所有人改进模型」之后，聊天记录、归档、点赞点踩、临时聊天和记忆分别会怎样](seed:g101-after-opt-out.png)
+*图：本站根据 [OpenAI 帮助中心：How your data is used to improve model performance](https://help.openai.com/en/articles/5722486-how-your-data-is-used-to-improve-model-performance) 整理的示意图*
+
 ## 隐私中心是什么
 
 2026 年 9 月起逐步推出的 **Privacy Center（隐私中心）** 把记忆、个性化广告、位置、临时聊天、已连接应用、两步验证、模型改进、导出 / 删除数据等说明集中到一个地方，每个主题旁边有 **Manage（管理）** 按钮跳到对应设置。打开它本身不会改任何设置。
@@ -93,6 +96,9 @@ verify:
 锁定模式是一个可选的高级安全设置，目的是降低「提示词注入」攻击把你的敏感数据外传的风险。开启后会限制联网能力：网页浏览只能用缓存内容、深度研究和 Agent 类功能被禁用、ChatGPT 不能为数据分析下载文件、一些连接外部服务的应用会被限制。
 
 它**不会**关闭训练，也不改变记忆、文件上传和分享对话。普通用户一般不需要开；经常处理客户资料、公司机密的人可以考虑。个人账号在 **Settings → Security（安全）** 里开启（以账号是否已开放为准）。
+
+![训练开关、隐私中心、锁定模式三个设置各自的作用](seed:g101-three-settings.png)
+*图：本站根据 [OpenAI 帮助中心：Data controls in ChatGPT](https://help.openai.com/en/articles/7730893-data-controls-in-chatgpt) 整理的示意图*
 
 ## 常见问题
 

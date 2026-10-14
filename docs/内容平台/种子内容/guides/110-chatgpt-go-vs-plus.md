@@ -5,7 +5,7 @@ products: [chatgpt]
 models: []
 accountTier: OTHER
 excerpt: ChatGPT Go 是介于 Free 和 Plus 之间的低价套餐。本文按官方帮助中心和价格页讲清 Go 包含什么、和 Plus 差在哪（模型、Work、Codex、Sites、广告）、怎么开通和切换，以及什么人选 Go 就够、什么人应该直接上 Plus。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-13
 sources:
   - https://help.openai.com/en/articles/11989085-what-is-chatgpt-go
   - https://chatgpt.com/pricing
@@ -19,7 +19,7 @@ verify:
   - 「升级套餐」「试用 Go」等中文按钮名以实际界面为准
 ---
 
-> 本文根据 OpenAI 帮助中心（What is ChatGPT Go、What is ChatGPT Plus、Ads in ChatGPT）、ChatGPT 价格页和发布说明整理，资料核对于 2026-10-07；截图引用自 OpenAI 帮助中心，为英文界面。价格以[官方价格页](https://chatgpt.com/pricing)为准。
+> 本文根据 OpenAI 帮助中心（What is ChatGPT Go、What is ChatGPT Plus、Ads in ChatGPT）、ChatGPT 价格页和发布说明整理，资料核对于 2026-10-13；截图引用自 OpenAI 帮助中心，为英文界面。价格以[官方价格页](https://chatgpt.com/pricing)为准。
 
 ## 适用于谁
 
@@ -30,7 +30,7 @@ verify:
 ## 结论先说
 
 1. **Go 是「额度加强版的 Free」**：包含 Free 的全部功能，并提高生图、文件上传、数据分析、语音等工具的额度，上下文（记忆）更长，还能用项目、定时任务、文件库。
-2. **Go 和 Free 用的是同一代主力模型**：都是 GPT-5.6 Luna，点 **Think（思考）** 也是 GPT-5.6 Luna。**Go 不包含 GPT-5.6 Sol，也没有 GPT-6 系列**——这是它和 Plus 最大的差别。
+2. **Go 和 Free 用的是同一代主力模型**：都是 GPT-5.6 Luna，点 **Think（思考）** 也是 GPT-5.6 Luna。**Go 不包含 GPT-5.6 Sol，也没有 GPT-6 Sol、GPT-6 Astra 这些更强的模型**（价格页 10-13 把 Free / Go 的基础模型列为 GPT-6 Luna，帮助中心仍写 GPT-5.6 Luna，以账号里看到的为准）——这是它和 Plus 最大的差别。
 3. **Plus 多出来的是「干活」能力**：完整的 ChatGPT Work（网页、手机、桌面）、扩展的 Codex、完整深度研究、带思考的生图、Sites、交互式图表、开发者模式、旧版模型等。
 4. **广告**：Go 和 Free 可能出现广告（部分地区），Plus 及以上没有广告。
 5. **怎么选**：主要是聊天、改文案、偶尔生图和传文件——Go 够用；写代码、做研究报告、让 AI 端到端交付文档表格——直接选 Plus。
@@ -53,7 +53,7 @@ verify:
 | 项目 | Go | Plus |
 | --- | --- | --- |
 | 日常文字对话 | 无限* | 无限* |
-| 主力模型 | GPT-5.6 Luna（含 Think） | 另有 GPT-5.6 Sol（Instant / Medium / High）；Work 和 Codex 里还有 GPT-6 系列 |
+| 主力模型 | GPT-5.6 Luna（含 Think） | 模型菜单里的 GPT-6（由 GPT-6 Sol 驱动，正向 Plus 逐步开放）和 GPT-5.6 Sol，可选 Instant / Medium / High；Work 和 Codex 里还有 GPT-6 Astra、GPT-6.1 Sol |
 | 旧版模型 | 无 | 有 |
 | 上下文窗口（Instant / 推理） | 54K / 256K | 54K / 256K |
 | ChatGPT Work | 有限（仅桌面 App） | 桌面、网页、手机 |
@@ -64,7 +64,10 @@ verify:
 | 响应速度 | 视带宽和可用性 | 快，高峰期优先 |
 | 广告 | 可能出现 | 无 |
 
-\* 需合理使用并遵守政策。数据来自官方价格页（2026-10-07）。
+\* 需合理使用并遵守政策。数据来自官方价格页（2026-10-13 查询）。
+
+![ChatGPT Go 和 Plus 在 Work、Codex、深度研究、生图、上下文、广告上的区别](seed:g110-go-vs-plus.png)
+*图：本站根据 [ChatGPT 官方价格页](https://chatgpt.com/pricing) 整理的示意图*
 
 一个容易被忽略的点：**Go 和 Plus 的上下文窗口在价格页上是一样的**，所以「能塞多长的文件」并不是两者的主要差别；差别在模型能力、Work 和 Codex。
 
@@ -83,6 +86,9 @@ Go 用户在网页和手机 App 上都能用 **Think**：手机上从输入框 *
 - 广告显示在回答末尾下方，标注「赞助」，官方称广告**不影响** ChatGPT 的回答，也不会把对话内容分享给广告主；
 - 涉及个人健康、心理健康、政治等敏感话题时不会出现广告；临时聊天里不显示广告；未成年账号不显示广告；
 - 可以在 **Settings → Ad Controls（广告控制）** 关闭广告个性化、清除广告数据。
+
+![官方示例：广告显示在回答下方并标注 Ad，点开「About this ad」可以看到赞助方和数据说明（示例品牌为官方虚构）](seed:g110-ad-example.png)
+*图片来源：[OpenAI 帮助中心：Ads in ChatGPT](https://help.openai.com/en/articles/20001047)*
 
 不想看到广告，只能选 Plus 及以上套餐。
 
