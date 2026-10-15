@@ -233,12 +233,17 @@ async function main() {
     ok('提前拿到码也注册不了', r1.data?.success !== true && /暂不支持注册/.test(r1.data?.error || ''), JSON.stringify(r1.data))
     const s2 = await call('POST', '/api/auth/send-code', { body: { email: `z${RUN}@maxxspace.com`, purpose: 'RESET' }, ip: I })
     ok('找回密码不受影响（老用户哪怕用的是一次性邮箱也能找回）', !/暂不支持注册/.test(s2.data?.error || ''), `${s2.status} ${s2.data?.error}`)
+    // 严格白名单（默认）：库里没有 security_email_policy 行也按严格
     const corp = `c${RUN}@transwarp.io`
     await plantCode(corp, 'REGISTER', '246802')
     const r2 = await call('POST', '/api/auth/register', { body: { email: corp, password: PW, code: '246802' }, ip: I })
-    ok('企业邮箱照常注册', r2.data?.success === true, JSON.stringify(r2.data))
-    await prisma.user.deleteMany({ where: { email: corp } })
-    await prisma.emailCode.deleteMany({ where: { email: { in: [em, corp, `x${RUN}@maxxspace.com`, `z${RUN}@maxxspace.com`] } } })
+    ok('严格白名单：没加进信任名单的企业邮箱注册不了', r2.data?.success !== true && /类型暂不支持注册/.test(r2.data?.error || ''), JSON.stringify(r2.data))
+    const qq = `q${RUN}@qq.com`
+    await plantCode(qq, 'REGISTER', '112358')
+    const r3 = await call('POST', '/api/auth/register', { body: { email: qq, password: PW, code: '112358' }, ip: I })
+    ok('主流邮箱照常注册', r3.data?.success === true, JSON.stringify(r3.data))
+    await prisma.user.deleteMany({ where: { email: { in: [corp, qq] } } })
+    await prisma.emailCode.deleteMany({ where: { email: { in: [em, corp, qq, `x${RUN}@maxxspace.com`, `z${RUN}@maxxspace.com`] } } })
   }
 
   // ---------- 管理员二次验证 ----------
@@ -260,11 +265,31 @@ async function main() {
     ok('受信设备再登录只要密码', a3.data?.success === true, JSON.stringify(a3.data))
     const sec = await call('GET', '/api/admin/security', { jar, ip: J })
     ok('后台安全卡片能看到被封的 IP 和安全记录', sec.status === 200 && sec.data?.data?.ipBans?.some((b: { key: string }) => b.key === ip(1)) && sec.data?.data?.events?.length > 0, JSON.stringify(sec.data?.data?.ipBans))
-    const put = await call('PUT', '/api/admin/security', { jar, ip: J, body: { trusted: '', blocked: 'qq.com\nnewspam.example' } })
-    ok('拦截名单里的主流邮箱被剔除', put.data?.data?.blocked === 'newspam.example' && put.data?.message?.includes('qq.com'), JSON.stringify(put.data))
+    ok('默认模式是严格白名单', sec.data?.data?.policy === 'STRICT', String(sec.data?.data?.policy))
+    const put = await call('PUT', '/api/admin/security', {
+      jar,
+      ip: J,
+      body: { policy: 'STRICT', trusted: 'transwarp.io\nmaxxspace.com', blocked: 'qq.com\nnewspam.example' },
+    })
+    ok(
+      '信任名单里的一次性邮箱、拦截名单里的主流邮箱都被剔除',
+      put.data?.data?.trusted === 'transwarp.io' && put.data?.data?.blocked === 'newspam.example' && /maxxspace\.com/.test(put.data?.message || '') && /qq\.com/.test(put.data?.message || ''),
+      JSON.stringify(put.data),
+    )
+    const corp2 = `d${RUN}@transwarp.io`
+    await plantCode(corp2, 'REGISTER', '258025')
+    const c2 = await call('POST', '/api/auth/register', { body: { email: corp2, password: PW, code: '258025' }, ip: ip(15) })
+    ok('后台加进信任名单的企业域名立即能注册', c2.data?.success === true, JSON.stringify(c2.data))
+    await call('PUT', '/api/admin/security', { jar, ip: J, body: { policy: 'TIERED' } })
     const s = await call('POST', '/api/auth/send-code', { body: { email: `n${RUN}@newspam.example`, purpose: 'REGISTER' }, ip: ip(15) })
-    ok('后台新加的拦截域名立即生效', /暂不支持注册/.test(s.data?.error || ''), `${s.status} ${s.data?.error}`)
-    await call('PUT', '/api/admin/security', { jar, ip: J, body: { blocked: '' } })
+    ok('切到分级：后台拦截名单生效', /暂不支持注册/.test(s.data?.error || ''), `${s.status} ${s.data?.error}`)
+    const corp3 = `e${RUN}@pdlaser.cn`
+    await plantCode(corp3, 'REGISTER', '369036')
+    const c3 = await call('POST', '/api/auth/register', { body: { email: corp3, password: PW, code: '369036' }, ip: ip(15) })
+    ok('切到分级：没列名的企业邮箱能注册', c3.data?.success === true, JSON.stringify(c3.data))
+    await call('PUT', '/api/admin/security', { jar, ip: J, body: { policy: 'STRICT', trusted: '', blocked: '' } })
+    await prisma.user.deleteMany({ where: { email: { in: [corp2, corp3] } } })
+    await prisma.emailCode.deleteMany({ where: { email: { in: [corp2, corp3, `n${RUN}@newspam.example`] } } })
     const unban = await call('POST', '/api/admin/security', { jar, ip: J, body: { unbanIp: ip(1) } })
     ok('后台解封 IP', unban.data?.success === true && (await login(mail('nobody'), ip(1))).status !== 429)
 

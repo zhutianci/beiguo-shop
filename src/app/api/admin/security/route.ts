@@ -6,9 +6,12 @@ import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import {
   BLOCKED_EMAIL_DOMAINS_KEY,
+  EMAIL_POLICY_KEY,
   TRUSTED_EMAIL_DOMAINS_KEY,
   TRUSTED_PROVIDERS,
   builtinCounts,
+  currentEmailPolicy,
+  isKnownDisposable,
   parseDomainList,
   resetEmailDomainCache,
 } from '@/lib/security/email-domain'
@@ -16,8 +19,8 @@ import { listIpBans, unbanIp } from '@/lib/security/ip-ban'
 
 /**
  * 后台「安全」卡片（2026-10-15 攻防加固，docs/安全-攻防加固设计-1015.md）：
- *  GET  注册邮箱分级的两份后台名单、当前被封的 IP、最近的安全记录（audit_events 里 sec.* 的行）；
- *  PUT  保存两份名单（{ trusted?, blocked? }，每行一个域名）；
+ *  GET  注册邮箱模式（严格白名单 / 分级）与两份后台名单、当前被封的 IP、最近的安全记录（audit_events 里 sec.* 的行）；
+ *  PUT  保存模式与名单（{ policy?: 'STRICT' | 'TIERED', trusted?, blocked? }，名单每行一个域名）；
  *  POST 解封 IP（{ unbanIp }）。IP 封禁在进程内存里，发版重启本来就会清空。
  * 处理器内再验一次管理员（同 admin/vip/config：middleware 不是唯一守卫）。
  */
@@ -51,6 +54,7 @@ export async function GET() {
       }),
     ])
     return success({
+      policy: await currentEmailPolicy(),
       trusted,
       blocked,
       builtin: builtinCounts(),
@@ -67,10 +71,21 @@ export async function PUT(request: NextRequest) {
   const denied = await guard()
   if (denied) return denied
   try {
-    const body = (await request.json().catch(() => ({}))) as { trusted?: unknown; blocked?: unknown }
-    const out: { trusted?: string; blocked?: string; ignored?: string[] } = {}
+    const body = (await request.json().catch(() => ({}))) as { trusted?: unknown; blocked?: unknown; policy?: unknown }
+    const out: { policy?: string; trusted?: string; blocked?: string; ignored?: string[]; disposable?: string[] } = {}
+    if (body.policy === 'STRICT' || body.policy === 'TIERED') {
+      out.policy = body.policy
+      await prisma.setting.upsert({
+        where: { key: EMAIL_POLICY_KEY },
+        create: { key: EMAIL_POLICY_KEY, value: body.policy },
+        update: { value: body.policy },
+      })
+    }
     if (typeof body.trusted === 'string') {
-      const list = parseDomainList(body.trusted)
+      // 一次性邮箱不能被信任（防误加；10-15 那个人用的就是这类域名），保存时剔除并告诉站长
+      const all = parseDomainList(body.trusted)
+      out.disposable = all.filter((d) => isKnownDisposable(d))
+      const list = all.filter((d) => !isKnownDisposable(d))
       out.trusted = list.join('\n')
       await prisma.setting.upsert({
         where: { key: TRUSTED_EMAIL_DOMAINS_KEY },
@@ -90,7 +105,9 @@ export async function PUT(request: NextRequest) {
       })
     }
     resetEmailDomainCache()
-    const note = out.ignored?.length ? `；主流邮箱不能拦截，已忽略：${out.ignored.join('、')}` : ''
+    const note =
+      (out.ignored?.length ? `；主流邮箱不能拦截，已忽略：${out.ignored.join('、')}` : '') +
+      (out.disposable?.length ? `；一次性邮箱不能信任，已忽略：${out.disposable.join('、')}` : '')
     return success(out, `已保存，立即生效${note}`)
   } catch (err) {
     console.error('Admin security PUT error:', err)

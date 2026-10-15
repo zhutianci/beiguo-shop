@@ -11,7 +11,7 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'check-security-1015-secret-0
 process.env.DATABASE_URL = 'mysql://nobody:nobody@127.0.0.1:1/none'
 
 import { NextRequest } from 'next/server'
-import { classifyDomain, domainOf, parseDomainList, TRUSTED_PROVIDERS } from '../src/lib/security/email-domain'
+import { classifyDomain, domainOf, isKnownDisposable, parseDomainList, parseEmailPolicy, TRUSTED_PROVIDERS } from '../src/lib/security/email-domain'
 import { banIp, ipBlocked, ipKeyBanned, listIpBans, unbanIp } from '../src/lib/security/ip-ban'
 import { countable, recordProbe, resetProbeTracksForTest } from '../src/lib/security/probe'
 import { orderNotifyMode } from '../src/lib/order/create-guard'
@@ -38,23 +38,42 @@ const advance = (ms: number) => {
 const MIN = 60_000
 
 async function main() {
-  console.log('\n注册邮箱分级（lib/security/email-domain）：')
+  console.log('\n注册邮箱：严格白名单（默认，lib/security/email-domain）：')
   {
-    const none = { trusted: new Set<string>(), blocked: new Set<string>() }
-    const tier = (d: string, lists = none) => classifyDomain(d, lists).tier
-    ok('qq.com / 163.com / 139.com / gmail.com / outlook.com 是主流', ['qq.com', '163.com', '139.com', 'gmail.com', 'outlook.com', 'petalmail.com'].every((d) => tier(d) === 'TRUSTED'))
+    const strict = { trusted: new Set<string>(), blocked: new Set<string>() } // 不传 mode = 严格
+    const tier = (d: string, lists: Parameters<typeof classifyDomain>[1] = strict) => classifyDomain(d, lists).tier
+    ok('qq.com / 163.com / 139.com / gmail.com / outlook.com / 华为 是主流', ['qq.com', '163.com', '139.com', 'gmail.com', 'outlook.com', 'petalmail.com'].every((d) => tier(d) === 'TRUSTED'))
     ok('21cn.com 在社区清单里，但主流优先 → 信任', tier('21cn.com') === 'TRUSTED')
-    ok('10-15 攻击者用的两个域名拦截', tier('maxxspace.com') === 'BLOCKED' && tier('guerrillamailblock.com') === 'BLOCKED')
-    ok('上级域命中也拦：a.b.maxxspace.com', tier('a.b.maxxspace.com') === 'BLOCKED')
-    ok('清单外的拼音临时邮箱也拦：linshiyouxiang.com', tier('linshiyouxiang.com') === 'BLOCKED')
+    ok('真正的 .edu.cn / .ac.cn 信任', tier('seu.edu.cn') === 'TRUSTED' && tier('mails.tsinghua.edu.cn') === 'TRUSTED' && tier('sibcb.ac.cn') === 'TRUSTED')
+    ok('一次性邮箱拦截', tier('maxxspace.com') === 'BLOCKED' && tier('guerrillamailblock.com') === 'BLOCKED' && tier('a.b.maxxspace.com') === 'BLOCKED')
+    ok('企业邮箱、免费 / 匿名邮箱不在名单里 → 拦截', ['transwarp.io', 'pdlaser.cn', 'proton.me', 'mail.com', 'gmx.fr', 'holas.uk'].every((d) => tier(d) === 'BLOCKED'))
+    ok('拦截原因标成 POLICY（不是一次性清单命中）', classifyDomain('transwarp.io', strict).source === 'POLICY')
+    ok('仿冒 edu 拦截：haida-edu.cn、edu.979786.xyz', tier('haida-edu.cn') === 'BLOCKED' && tier('edu.979786.xyz') === 'BLOCKED')
+    ok('空 / 畸形域名拦截', tier('') === 'BLOCKED' && tier('localhost') === 'BLOCKED')
+    const withCorp = { trusted: new Set(['transwarp.io', 'acme.cn']), blocked: new Set<string>() }
+    ok('后台信任的企业域名放行（含子域）', tier('transwarp.io', withCorp) === 'TRUSTED' && tier('mail.acme.cn', withCorp) === 'TRUSTED')
+    ok('信任名单之外的企业域名仍拦截', tier('pdlaser.cn', withCorp) === 'BLOCKED')
+  }
+
+  console.log('\n注册邮箱：分级模式（后台可切换）：')
+  {
+    const none = { trusted: new Set<string>(), blocked: new Set<string>(), mode: 'TIERED' as const }
+    const tier = (d: string, lists: Parameters<typeof classifyDomain>[1] = none) => classifyDomain(d, lists).tier
+    ok('主流照常', tier('qq.com') === 'TRUSTED')
+    ok('一次性邮箱拦截（含清单外的拼音临时邮箱）', tier('maxxspace.com') === 'BLOCKED' && tier('linshiyouxiang.com') === 'BLOCKED')
     ok('企业邮箱 / proton / mail.com 落在 OTHER（能注册，新号受限）', ['transwarp.io', 'pdlaser.cn', 'proton.me', 'mail.com'].every((d) => tier(d) === 'OTHER'))
-    ok('真正的 .edu.cn 信任', tier('seu.edu.cn') === 'TRUSTED' && tier('mails.tsinghua.edu.cn') === 'TRUSTED')
-    ok('仿冒 edu 不信任：haida-edu.cn 拦截、edu.979786.xyz 只是 OTHER', tier('haida-edu.cn') === 'BLOCKED' && tier('edu.979786.xyz') === 'OTHER')
-    const admin = { trusted: new Set(['maxxspace.com', 'acme.cn']), blocked: new Set(['qq.com', 'spam.example']) }
-    ok('后台信任能放行清单里的域名', tier('maxxspace.com', admin) === 'TRUSTED' && tier('mail.acme.cn', admin) === 'TRUSTED')
+    ok('仿冒 edu：haida-edu.cn 拦截、edu.979786.xyz 只是 OTHER', tier('haida-edu.cn') === 'BLOCKED' && tier('edu.979786.xyz') === 'OTHER')
+    const admin = { trusted: new Set(['acme.cn']), blocked: new Set(['qq.com', 'spam.example']), mode: 'TIERED' as const }
+    ok('后台信任放行', tier('mail.acme.cn', admin) === 'TRUSTED')
     ok('后台拦截拦不掉主流邮箱（防手滑）', tier('qq.com', admin) === 'TRUSTED')
     ok('后台拦截生效', tier('spam.example', admin) === 'BLOCKED')
     ok('空 / 畸形域名按 OTHER（交给 zod 的邮箱校验）', tier('') === 'OTHER' && tier('localhost') === 'OTHER')
+  }
+
+  console.log('\n注册邮箱：工具函数：')
+  {
+    ok('模式解析：没设 / 写坏一律严格（fail closed）', parseEmailPolicy(null) === 'STRICT' && parseEmailPolicy('xx') === 'STRICT' && parseEmailPolicy('tiered') === 'TIERED')
+    ok('一次性域名识别（后台信任名单保存时剔除用）', isKnownDisposable('maxxspace.com') && isKnownDisposable('x.guerrillamailblock.com') && !isKnownDisposable('transwarp.io'))
     ok('domainOf 取最后一个 @、小写、去尾点', domainOf(' Foo@Bar.COM. ') === 'bar.com' && domainOf('a@b@c.cn') === 'c.cn')
     ok('名单解析：去 @、小写、去重、丢弃非法行', JSON.stringify(parseDomainList('@Foo.COM, bar.cn；baz\nfoo.com  x..y')) === JSON.stringify(['foo.com', 'bar.cn']))
     ok('主流清单不含匿名 / 低门槛邮箱', !['proton.me', 'mail.com', 'gmx.com', 'yandex.com'].some((d) => TRUSTED_PROVIDERS.has(d)))

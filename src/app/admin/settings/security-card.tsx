@@ -21,7 +21,10 @@ interface SecEvent {
   ip: string | null
 }
 
+type Policy = 'STRICT' | 'TIERED'
+
 interface SecData {
+  policy: Policy
   trusted: string
   blocked: string
   builtin: { trusted: number; blocked: number }
@@ -53,6 +56,7 @@ const textareaCls =
 export default function SecurityCard() {
   const [data, setData] = useState<SecData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [policy, setPolicy] = useState<Policy>('STRICT')
   const [trusted, setTrusted] = useState('')
   const [blocked, setBlocked] = useState('')
   const [saving, setSaving] = useState(false)
@@ -66,6 +70,7 @@ export default function SecurityCard() {
       const d = await res.json()
       if (d.success) {
         setData(d.data)
+        setPolicy(d.data.policy)
         setTrusted(d.data.trusted)
         setBlocked(d.data.blocked)
       }
@@ -85,12 +90,13 @@ export default function SecurityCard() {
       const res = await fetch('/api/admin/security', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trusted, blocked }),
+        body: JSON.stringify({ policy, trusted, blocked }),
       })
       const d = await res.json()
       setMsgOk(!!d.success)
       setMsg(d.success ? d.message || '已保存' : d.error || '保存失败')
       if (d.success) {
+        setPolicy((d.data.policy as Policy) ?? policy)
         setTrusted(d.data.trusted ?? trusted)
         setBlocked(d.data.blocked ?? blocked)
       }
@@ -127,27 +133,46 @@ export default function SecurityCard() {
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
-          <h3 className="text-sm font-semibold text-gray-900 mb-1">注册邮箱分级</h3>
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">注册邮箱</h3>
           <p className="text-sm text-gray-500 mb-3">
-            主流邮箱（QQ、163、126、139、189、华为、Gmail、Outlook、iCloud 等 {data?.builtin.trusted ?? '—'} 个）和教育 / 政府域名照常注册；
-            一次性邮箱（内置 {data?.builtin.blocked ?? '—'} 个）不让注册；其余邮箱（企业邮箱等）能注册，但新号头 24 小时内同时只能有 1 笔待付订单。
-            下面两份名单每行一个域名，保存后立即生效，只影响新注册。
+            主流邮箱（QQ、163、126、139、189、华为、Gmail、Outlook、iCloud 等 {data?.builtin.trusted ?? '—'} 个）、教育 / 政府域名和下面「信任」名单里的域名永远能注册。
+            只影响新注册，老用户登录、找回密码不受影响。保存后立即生效。
           </p>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+            {(
+              [
+                { v: 'STRICT', t: '严格白名单', d: '只有上面这些能注册，其余一律提示「该邮箱类型暂不支持注册」' },
+                { v: 'TIERED', t: '分级', d: `一次性邮箱（内置 ${data?.builtin.blocked ?? '—'} 个）与「拦截」名单不让注册；其余能注册，但新号头 24 小时只能有 1 笔待付订单` },
+              ] as { v: Policy; t: string; d: string }[]
+            ).map((o) => (
+              <label
+                key={o.v}
+                className={`flex flex-1 cursor-pointer gap-2 rounded-lg border px-3 py-2 text-sm ${policy === o.v ? 'border-primary-500 bg-primary-50' : 'border-gray-200'}`}
+              >
+                <input type="radio" name="email-policy" className="mt-1" checked={policy === o.v} onChange={() => setPolicy(o.v)} />
+                <span>
+                  <span className="font-medium text-gray-900">{o.t}</span>
+                  <span className="block text-xs text-gray-500">{o.d}</span>
+                </span>
+              </label>
+            ))}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">信任的邮箱域名（如客户的企业邮箱）</label>
-              <textarea value={trusted} onChange={(e) => setTrusted(e.target.value)} rows={5} placeholder={'transwarp.io\nanker-in.com'} className={textareaCls} />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">信任的邮箱域名（客户的企业邮箱等）</label>
+              <textarea value={trusted} onChange={(e) => setTrusted(e.target.value)} rows={6} placeholder={'transwarp.io\nanker-in.com'} className={textareaCls} />
+              <p className="mt-1 text-xs text-gray-400">已知的一次性邮箱填进来不会生效（防误操作）。</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">拦截的邮箱域名（新发现的一次性邮箱）</label>
-              <textarea value={blocked} onChange={(e) => setBlocked(e.target.value)} rows={5} placeholder="maxxspace.com" className={textareaCls} />
-              <p className="mt-1 text-xs text-gray-400">主流邮箱填进来也不会生效（防误操作）。</p>
+            <div className={policy === 'STRICT' ? 'opacity-50' : ''}>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">拦截的邮箱域名（只在「分级」模式下用）</label>
+              <textarea value={blocked} onChange={(e) => setBlocked(e.target.value)} rows={6} placeholder="maxxspace.com" className={textareaCls} />
+              <p className="mt-1 text-xs text-gray-400">严格白名单下不在信任名单里的本来就不能注册；主流邮箱填进来也不会生效。</p>
             </div>
           </div>
           <div className="mt-3 flex items-center justify-end gap-3">
             {msg && <span className={`mr-auto text-sm ${msgOk ? 'text-green-700' : 'text-red-600'}`}>{msg}</span>}
             <Button onClick={save} loading={saving} disabled={loading}>
-              保存名单
+              保存
             </Button>
           </div>
         </div>
