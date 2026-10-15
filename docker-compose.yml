@@ -262,8 +262,11 @@ services:
 
   # Nginx 反向代理：两个监听口，访客 IP 的信任只跟着监听口走（详见 nginx.conf 顶部那段）
   # - 容器 80：cloudflared 经容器网络访问 nginx:80（用户走域名时）。受信任，**不映射到宿主机**
-  # - 容器 8080：宿主机 80 映射到这里，供公网 IP 直连与服务器上 curl http://127.0.0.1 用。
+  # - 容器 8080：宿主机 127.0.0.1:80 映射到这里，只供服务器上 curl http://127.0.0.1 冒烟用。
   #   不信任客户端自带的 CF-Connecting-IP / X-Forwarded-For，一律按 TCP 对端地址算
+  # 【2026-10-15 起只绑本机回环】以前是 "80:8080"（公网 IP 直连）：8080 是 default_server，扫描器按页面标题就能把
+  #   服务器 IP 和 bigolab.com 对上，直打源站就绕开了 Cloudflare 的 WAF / 限速 / DDoS 吸收（docs/安全-攻防加固设计-1015.md 2.1）。
+  #   隧道是出站连接、经容器网络连 nginx:80，域名访问不依赖这个映射。
   # ⚠️ 不要改回 "80:80"：那是把受信任的口开到公网，任何人都能伪造 IP 绕过全站按 IP 的限流。
   # 更新 nginx.conf 或这里的 ports 后都要 up -d --no-deps --force-recreate nginx（reload 不够，见交接文档第二十三节）
   nginx:
@@ -272,7 +275,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     ports:
-      - "80:8080"
+      - "127.0.0.1:80:8080"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # 用户上传的图片直接由 nginx 发（理由见 nginx.conf 里 location /uploads/ 那段：
