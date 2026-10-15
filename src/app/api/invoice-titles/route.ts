@@ -7,12 +7,16 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { BillingError } from '@/lib/order-invoice'
 import { assertTaxNumber, INVOICE_TITLE_LIMIT } from '@/lib/invoice-input'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 /**
  * 发票抬头档案（个人中心「抬头管理」+ 各处开票弹窗的一键带入）。
  *
  * 全部按登录用户归属，任何查询都带 userId —— 抬头里有税号、开户行和银行账号，
  * 绝不能出现「只凭自增 id 就能读到别人那条」的接口（本站以前在 /api/receipts 上踩过这个坑）。
+ *
+ * 【只在主站用（2026-10-15 安全复查）】抬头按用户全局存，渠道站的登录态以前也能读写主站存的抬头（税号、开户行账号）。
+ * 渠道站上：列表恒为空且带 storable:false（前端据此隐藏「保存抬头」），新增 / 修改 / 删除一律拒绝；下单、开票也不再存抬头。
  */
 
 const bodySchema = z.object({
@@ -48,6 +52,9 @@ const ORDER = [
 ]
 
 export async function GET() {
+  const sf = await getStorefront()
+  if (!sf) return error('资源不存在', 404)
+  if (sf.kind !== 'PLATFORM') return success({ list: [], limit: INVOICE_TITLE_LIMIT, storable: false })
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
@@ -58,7 +65,7 @@ export async function GET() {
       select: SELECT,
       take: INVOICE_TITLE_LIMIT,
     })
-    return success({ list, limit: INVOICE_TITLE_LIMIT })
+    return success({ list, limit: INVOICE_TITLE_LIMIT, storable: true })
   } catch (err) {
     console.error('List invoice titles error:', err)
     return error('获取抬头失败')
@@ -66,6 +73,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const sf = await getStorefront()
+  if (!sf || sf.kind !== 'PLATFORM') return error('本站暂不支持保存发票抬头', 403)
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

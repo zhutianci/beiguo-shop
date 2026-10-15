@@ -426,7 +426,7 @@ export default function AdminUserDetailPage() {
         .filter((r) => r.orderCount > 0 || r.member)
         .map((r) => `${r.tenantId === 1 ? '主站' : r.code}：${r.orderCount} 单${r.member ? `，渠道成员（${r.member.role}${r.member.status === 1 ? '' : '，已停用'}）` : ''}`)
       const list = lines.length ? ['', ...lines].join('\n· ') : ''
-      if (!confirm(`全局禁用会影响所有站，该用户将无法在任何站登录下单${lines.length ? '：' : '。'}${list}\n\n确定禁用？`)) return
+      if (!confirm(`全局禁用会影响所有站，该用户将无法在任何站登录下单${lines.length ? '：' : '。'}${list}\n\n禁用会同时取消其未付款订单、释放其占用的收款金额（已付款订单不受影响）。\n\n确定禁用？`)) return
     }
     setSaving(true)
     try {
@@ -454,7 +454,7 @@ export default function AdminUserDetailPage() {
       }
       const saved = data.data as { role: string; status: number; vipLevel: number }
       setForm({ role: saved.role, status: saved.status, vipLevel: saved.vipLevel })
-      alert('权限已更新')
+      alert(data.message && data.message !== '用户更新成功' ? data.message : '权限已更新')
       await load()
     } finally {
       setSaving(false)

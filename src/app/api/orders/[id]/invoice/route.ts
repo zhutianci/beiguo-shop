@@ -67,7 +67,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
      */
     const prepaid = await settlePrepaidOrderInvoice(order.id, fields)
     if (prepaid) {
-      await afterInvoiceSubmitted(user.id, parsed.data, fields)
+      await afterInvoiceSubmitted(user.id, parsed.data, fields, sf.kind)
       return success(
         { alreadyPaid: true },
         '该订单下单时已选择开发票、税费也已随货款付清，无需再次支付；抬头已按本次填写更新'
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     })
 
     const result = await submitInvoiceForExternalOrder(ext.id, fields, { userId: user.id })
-    await afterInvoiceSubmitted(user.id, parsed.data, fields)
+    await afterInvoiceSubmitted(user.id, parsed.data, fields, sf.kind)
     return success(result, '已提交，请支付税费')
   } catch (err) {
     if (err instanceof BillingError) return error(err.message, err.status)

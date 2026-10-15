@@ -8,8 +8,7 @@ import { hasProvider } from '@/lib/redeem/registry'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { decryptCardContent } from '@/lib/cardkey'
-import { countOpenOrderPayments, VMQ_MAX_OPEN_PER_USER, VMQ_TIMEOUT_MIN } from '@/lib/vmq'
-import { rateLimited } from '@/lib/news/rate-limit'
+import { orderCreateGate, orderNotifyMode } from '@/lib/order/create-guard'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { shopOrderSourceKey } from '@/lib/order-billing'
 import { BillingError } from '@/lib/order-invoice'
@@ -19,7 +18,7 @@ import {
   saveInvoiceTitle,
   touchInvoiceTitle,
 } from '@/lib/invoice-input'
-import { notifyOrderCreated } from '@/lib/notify'
+import { notify, notifyOrderCreated } from '@/lib/notify'
 import { quoteOrder, grantUsable, parseProductIds, rejectReason, type GrantState } from '@/lib/coupon'
 import { invoicesByOrderIds, orderIdFromSourceKey, type InvoiceBrief } from '@/lib/order-link'
 import { createEntryIfEligible, getLotteryConfig, lotteryViewsByOrderIds } from '@/lib/lottery-server'
@@ -467,7 +466,7 @@ export async function POST(request: NextRequest) {
       return error(result.error.errors[0].message)
     }
 
-    if (sf.kind === 'CHANNEL') return await createChannelOrder(sf, user, result.data)
+    if (sf.kind === 'CHANNEL') return await createChannelOrder(sf, user, result.data, request.headers)
 
     const { productId, quantity, remark, ref } = result.data
 
@@ -490,20 +489,11 @@ export async function POST(request: NextRequest) {
      * 全站共用（lib/vmq.ts allocateAmount）。一个账号建几十单并各自发起支付，就能把真实买家挤到
      * 「当前下单人数较多」。发起支付那一步（api/pay/vmq/create）有同样的上限和事后复核；
      * 这里先挡一次，免得建出一张付不了的单、还把券锁上。
-     * 两道 return 都必须排在下面优惠券 CAS 抢锁之前（锁券之后不能再有 return）。
-     * 数的是「有效期内的待支付收款单」而不是 UNPAID 订单：没发起过支付的订单永远不会被自动取消，
-     * 数订单的话放弃过订单的正常买家会被永久锁住。
+     * 必须排在下面优惠券 CAS 抢锁之前（锁券之后不能再有 return）。
+     * 2026-10-15 起除了数收款单，还按时间窗数「最近 30 分钟的未付单」、按 IP 限频、新号收紧（lib/order/create-guard.ts）
      */
-    if ((await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) {
-      return error(
-        `你已有 ${VMQ_MAX_OPEN_PER_USER} 笔订单在等待付款，请先在「我的订单」或「余额充值」页完成支付，或等其超时（约 ${VMQ_TIMEOUT_MIN} 分钟）后再下单`,
-        429
-      )
-    }
-    // 防刷单、防企业微信「新订单」刷屏；正常买家 10 分钟不可能下 20 单
-    if (rateLimited(`order-create:${user.id}`, { windowMs: 10 * 60_000, max: 20 })) {
-      return error('下单过于频繁，请稍后再试', 429)
-    }
+    const gate = await orderCreateGate(user.id, request.headers, { channel: false })
+    if (gate) return error(gate.message, gate.status)
 
     /*
      * 内推：通过推广人链接下单，使用其「专属价」，差额作为返现归推广人。
@@ -722,16 +712,21 @@ export async function POST(request: NextRequest) {
     // 内容带单归因（fire-and-forget，自己吞异常；只在主站分支，渠道站上面已经 return）
     if (result.data.fromContent) void recordContentAttribution(order.id, result.data.fromContent, user.id)
 
-    // 企业微信通知（fire-and-forget，不 await，通知挂了不能影响下单）
-    notifyOrderCreated({
-      orderNo: order.orderNo,
-      buyer: user.nickname || user.email || `用户#${user.id}`,
-      productName: product.name,
-      quantity,
-      amount,
-      createdAt: order.createdAt,
-      stock: product.stock,
-    })
+    // 企业微信通知（fire-and-forget，不 await，通知挂了不能影响下单）。同一买家 5 分钟第 3 单起只推一条疑似刷单汇总
+    const notifyMode = orderNotifyMode(user.id)
+    if (notifyMode === 'SEND') {
+      notifyOrderCreated({
+        orderNo: order.orderNo,
+        buyer: user.nickname || user.email || `用户#${user.id}`,
+        productName: product.name,
+        quantity,
+        amount,
+        createdAt: order.createdAt,
+        stock: product.stock,
+      })
+    } else if (notifyMode === 'SUMMARY') {
+      notifyOrderBurst(user, order.orderNo, 'main')
+    }
 
     // 销量在支付完成后再增加。
     // payable 是收银台真正会收的数（货款 + 开票税费），前台据此显示「应付」
@@ -817,7 +812,7 @@ type Buyer = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
  *
  * 顺序（所有可能失败的检查都在事务前；渠道单没有券，所以没有「锁券之后不能 return」的约束）：
  *   1. 店面状态：DRAFT 只放行预览账号（其余 404）；SUSPENDED / TERMINATED 拒绝新下单（已下单的收银台照常可付）
- *   3. 数量 ≤ Tenant.maxOrderQty；本店 20 分钟内未付单 < pendingOrderCap；另沿用主站的每人待付上限与下单频率
+ *   3. 数量 ≤ Tenant.maxOrderQty；与主站同一道下单闸门（lib/order/create-guard.ts）；本店 20 分钟内有未付单的买家人数 < pendingOrderCap
  *   4. 本站拉黑 → 中性文案
  *   5. 带券 → 400；ref 忽略；其余未知字段已被 zod 丢弃（没有余额支付字段，也就无从「选择余额支付」）
  *   6. 事务（全程只用 tx，Dujiao #271）：定价与可售 → 库存预检 → 成员自买判定 → 金额 → 读费率与冻结期
@@ -825,7 +820,12 @@ type Buyer = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>
  *   7. 平台企业微信照发并打「[code]」标签；渠道站内通知不在建单时发（付款时由 WP3 发 ORDER_PAID）
  * 不建抽奖资格；不存券；内推字段恒空。
  */
-async function createChannelOrder(sf: Storefront, user: Buyer, input: z.infer<typeof createOrderSchema>): Promise<Response> {
+async function createChannelOrder(
+  sf: Storefront,
+  user: Buyer,
+  input: z.infer<typeof createOrderSchema>,
+  headers: Headers,
+): Promise<Response> {
   const { productId, quantity, remark } = input
 
   // 1. 店面状态（sf.status 是本请求开始时按主键查库的值；事务里 resolveUnitPrice 会再按最新状态判一次）
@@ -844,18 +844,19 @@ async function createChannelOrder(sf: Storefront, user: Buyer, input: z.infer<ty
 
   // 3. 风控：单笔数量与本店未付单并发上限（防一个店把全站共用的唯一金额槽占满，设计 5.1）
   if (quantity > t.maxOrderQty) return error(`本店单次最多购买 ${t.maxOrderQty} 件`)
-  const pending = await prisma.order.count({
-    where: { tenantId: sf.id, payStatus: 'UNPAID', createdAt: { gt: new Date(Date.now() - PENDING_WINDOW_MS) } },
+  // 每人上限、按 IP 限频、新号收紧（与主站同一道闸门）先于全店上限：刷单的人在这里就被挡住，不占全店名额
+  const gate = await orderCreateGate(user.id, headers, { channel: true })
+  if (gate) return error(gate.message, gate.status)
+  // 全店未付单上限数**人头**而不是单数（2026-10-15）：以前数单数，一个人 6 单、五个小号就能让整个渠道店
+  // 对所有真实买家显示「当前下单人数较多」。本人已有未付单时不占新名额
+  const pendingBuyers = await prisma.order.findMany({
+    where: { tenantId: sf.id, payStatus: 'UNPAID', deliveryStatus: { in: ['PENDING', 'PROCESSING'] }, createdAt: { gt: new Date(Date.now() - PENDING_WINDOW_MS) } },
+    distinct: ['userId'],
+    select: { userId: true },
+    take: t.pendingOrderCap + 1,
   })
-  if (pending >= t.pendingOrderCap) return error('当前下单人数较多，请稍后再试', 429)
-  if ((await countOpenOrderPayments(user.id)) >= VMQ_MAX_OPEN_PER_USER) {
-    return error(
-      `你已有 ${VMQ_MAX_OPEN_PER_USER} 笔订单在等待付款，请先在「我的订单」完成支付，或等其超时（约 ${VMQ_TIMEOUT_MIN} 分钟）后再下单`,
-      429
-    )
-  }
-  if (rateLimited(`order-create:${user.id}`, { windowMs: 10 * 60_000, max: 20 })) {
-    return error('下单过于频繁，请稍后再试', 429)
+  if (pendingBuyers.length >= t.pendingOrderCap && !pendingBuyers.some((b) => b.userId === user.id)) {
+    return error('当前下单人数较多，请稍后再试', 429)
   }
 
   // 4. 本站拉黑（渠道或平台设的都算；只影响本店新下单，取卡、留言照常，T14）。文案中性，不说「被拉黑」
@@ -958,12 +959,14 @@ async function createChannelOrder(sf: Storefront, user: Buyer, input: z.infer<ty
     throw e
   }
 
-  await saveTitleSideEffects(user.id, invoiceIn, invoiceFields)
-
+  // 抬头档案只在主站用（2026-10-15 安全复查，见 api/invoice-titles）：渠道站下单不读也不存
   // 7. 渠道单下单（未付款）不再推站长企业微信（docs/多渠道分销-二期改动.md 3.1）：这是纯通知、站长无须处理；
   //    渠道站长关心的是付款之后（vmq.ts 写 ORDER_PAID 渠道通知）。配置异常 / 快照断言失败仍走上面的 alertPlatform 照推站长
   // 7'. 微信机器人（docs/微信机器人-设计.md §5.2「新增」）：只推该分站自己的群，不推站长企业微信（上面第 7 条不变）
-  emitChannelOrderCreated(sf, created, quantity)
+  // 同一买家 5 分钟第 3 单起不再推渠道群，改推站长一条疑似刷单汇总
+  const notifyMode = orderNotifyMode(user.id)
+  if (notifyMode === 'SEND') emitChannelOrderCreated(sf, created, quantity)
+  else if (notifyMode === 'SUMMARY') notifyOrderBurst(user, created.order.orderNo, sf.code)
 
   return orderCreatedResponse(created.order, {
     productId,
@@ -974,6 +977,21 @@ async function createChannelOrder(sf: Storefront, user: Buyer, input: z.infer<ty
     couponNote: null,
     lotteryEligible: false,
   })
+}
+
+/** 同一买家 5 分钟内第 3 单：推一条安全告警给站长（之后 5 分钟内的新单不再推送） */
+function notifyOrderBurst(user: Buyer, orderNo: string, site: string): void {
+  notify(
+    'security.alert',
+    [
+      { label: '类型', value: '疑似刷单：同一买家 5 分钟内已下 3 单以上' },
+      { label: '账号', value: `#${user.id} ${user.email ?? ''}` },
+      { label: '站点', value: site },
+      { label: '最新订单号', value: orderNo },
+      { label: '说明', value: '5 分钟内该买家的后续新订单不再逐条推送；确认是刷单可在后台禁用该用户（会顺带取消其未付单、释放收款金额）' },
+    ],
+    { link: '/admin/orders', linkText: '后台查看订单' },
+  )
 }
 
 /**

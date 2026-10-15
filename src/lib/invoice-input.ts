@@ -160,9 +160,12 @@ export async function touchInvoiceTitle(userId: number, titleId: number | null |
 export async function afterInvoiceSubmitted(
   userId: number | null | undefined,
   opts: { titleId?: number | null; saveTitle?: boolean },
-  fields: BuyerInvoiceFields
+  fields: BuyerInvoiceFields,
+  storefrontKind: 'PLATFORM' | 'CHANNEL' = 'PLATFORM',
 ) {
   if (!userId) return
+  // 抬头档案只在主站用（2026-10-15 安全复查）：抬头按用户全局存、含税号与开户行账号，渠道站会话不读也不写
+  if (storefrontKind !== 'PLATFORM') return
   try {
     await touchInvoiceTitle(userId, opts.titleId)
     if (opts.saveTitle) await saveInvoiceTitle(userId, fields)

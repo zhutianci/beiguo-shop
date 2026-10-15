@@ -95,6 +95,7 @@ ok('成员改已过审的帖 → 重审', postReviewOnEdit(1, [], 'APPROVED') ==
 ok('创作者改已过审的帖 → 仍通过', postReviewOnEdit(2, [], 'APPROVED') === 'APPROVED')
 ok('创作者改帖加了联系方式 → 重审', postReviewOnEdit(2, ['contact'], 'APPROVED') === 'PENDING')
 ok('被驳回的帖改完 → 回到待审（创作者）', postReviewOnEdit(2, [], 'REJECTED') === 'PENDING')
+ok('待审中的帖改完 → 仍待审（创作者不能靠改一个字自己放行，2026-10-15）', postReviewOnEdit(2, [], 'PENDING') === 'PENDING')
 ok('管理员改已过审的帖 → 保持通过', postReviewOnEdit(9, ['sensitive'], 'APPROVED') === 'APPROVED')
 ok('普通评论即发即显', commentReviewOnCreate(0, []) === 'APPROVED')
 ok('新人评论带外链进待审', commentReviewOnCreate(0, ['link']) === 'PENDING')

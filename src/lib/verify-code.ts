@@ -16,7 +16,8 @@ const MAX_ATTEMPTS_PER_MAIL_DAY = 30
 // LOOKUP：匿名「邮箱查订阅」证明邮箱归属（lib/email-proof.ts）。EmailCode.purpose 是 VarChar(20)，不用改表
 // NOTICE（二期改动 3.2）：渠道站长把「通知邮箱」设成非登录邮箱时证明归属（tenant/partner-facade.ts 发码与校验）。
 //   单独一个用途：码不能拿去注册 / 找回密码，反之亦然；lib/marketing/audience.ts 只认 REGISTER，不受影响
-export type CodePurpose = 'REGISTER' | 'RESET' | 'LOOKUP' | 'NOTICE'
+// ADMIN_LOGIN（2026-10-15）：管理员新设备登录的二次验证（lib/security/admin-2fa.ts）
+export type CodePurpose = 'REGISTER' | 'RESET' | 'LOOKUP' | 'NOTICE' | 'ADMIN_LOGIN'
 export type ConsumeResult = 'OK' | 'INVALID' | 'TOO_MANY'
 
 export function genCode(): string {

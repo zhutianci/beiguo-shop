@@ -7,13 +7,18 @@ import { maskEmail, maskNickname } from '@/lib/mask'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { excludeCarriers } from '@/lib/order-scope'
 import { readBotConfig } from '@/lib/bot/config'
+import { rateLimited } from '@/lib/news/rate-limit'
+import { ipKeyOf } from '@/lib/security/ip-ban'
 
 const FAKE_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京', '西安', '苏州', '重庆', '天津']
 
-export async function GET() {
+export async function GET(request: Request) {
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return error('资源不存在', 404)
+  // 公开接口，每次翻页都会调一次（2026-10-15 安全复查：以前不限流，可以拿来压库）。同一出口每分钟 30 次，正常浏览用不完
+  const ip = ipKeyOf(request.headers)
+  if (ip && rateLimited(`orders-recent:${ip}`, { windowMs: 60_000, max: 30 })) return success([])
   try {
     // 微信机器人「提卡」单不进实时成交（docs/微信机器人-设计.md §8.7）：提卡专用账号的 id 在 bot_config.issueUserId。
     // 配置读不到时不排除（那时机器人也提不了卡），不让成交滚动因此报错

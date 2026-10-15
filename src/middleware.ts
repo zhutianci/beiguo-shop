@@ -33,6 +33,26 @@ function isPartnerPath(pathname: string): boolean {
   return pathname.startsWith('/partner') || pathname.startsWith('/api/partner')
 }
 
+/*
+ * 【普通用户打后台接口 → 改写到计数点（2026-10-15 攻防加固，lib/security/probe.ts）】
+ * middleware 跑在 Edge 运行时、不能查库也不和路由共享内存，自己没法计数和封号；这里不直接回 403 / 404，
+ * 而是改写到 /api/sec-probe/admin-denied，由那边计数后回与原来**逐字相同**的响应。只改写「带着登录态」的拒绝：
+ * 未登录的 401 照旧直接回（站长登录过期后，还开着的后台页会连着打好几个后台接口，不能算探测）。
+ */
+function probeRewrite(request: NextRequest, status: 403 | 404): NextResponse {
+  const url = request.nextUrl.clone()
+  url.pathname = '/api/sec-probe/admin-denied'
+  url.search = ''
+  const h = new Headers(request.headers)
+  h.set('x-probe-status', String(status))
+  h.set('x-probe-path', request.nextUrl.pathname.slice(0, 200))
+  return NextResponse.rewrite(url, { request: { headers: h } })
+}
+
+function hasLoginToken(request: NextRequest): boolean {
+  return !!request.cookies.get('token')?.value || (request.headers.get('authorization') || '').startsWith('Bearer ')
+}
+
 function notFound(pathname: string): NextResponse {
   if (pathname.startsWith('/api/')) {
     return NextResponse.json({ success: false, error: '资源不存在' }, { status: 404 })
@@ -74,7 +94,11 @@ export async function middleware(request: NextRequest) {
   if (channelsEnabled()) {
     const host = normalizeHost(request.headers.get('host'))
     const onPlatformHost = !!host && platformHosts().has(host)
-    if (isAdminPath(pathname) && !onPlatformHost) return notFound(pathname)
+    if (isAdminPath(pathname) && !onPlatformHost) {
+      // 渠道域名上带着登录态打后台接口（10-15 那个人在 tibo.pw 上这么试过几十次）：计数后照样 404
+      if (pathname.startsWith('/api/admin') && hasLoginToken(request)) return probeRewrite(request, 404)
+      return notFound(pathname)
+    }
     if (isPartnerPath(pathname) && onPlatformHost) return notFound(pathname)
   }
 
@@ -122,7 +146,9 @@ export async function middleware(request: NextRequest) {
     }
 
     const payload = await verifyToken(token, key)
-    if (!payload || payload.role !== 'ADMIN') {
+    // 登录了的普通用户：计数后回同样的 403（见 probeRewrite）；token 无效的照旧直接 403
+    if (payload && payload.role !== 'ADMIN') return probeRewrite(request, 403)
+    if (!payload) {
       return NextResponse.json(
         { success: false, error: '无管理员权限' },
         { status: 403 }

@@ -64,7 +64,11 @@ export const AUTH_COOKIE_MAX_AGE = 30 * 24 * 60 * 60 // 30 天
  * 签发登录 token。sf 必填：token 绑定签发它的店面（aud = code、tid = id）。
  * 只在 /api/auth/login、/api/auth/register 两处调用（边界检查）。显式挑字段，调用方多传的东西不会进 token。
  */
-export function signToken(p: { userId: number; email: string; role: string; ep: number }, sf: Pick<Storefront, 'id' | 'code'>): string {
+export function signToken(
+  p: { userId: number; email: string; role: string; ep: number },
+  sf: Pick<Storefront, 'id' | 'code'>,
+  opts?: { expiresInHours?: number },
+): string {
   const secret = getJwtSecret()
   if (!secret) throw new Error('JWT_SECRET 未配置')
   if (!sf || typeof sf.code !== 'string' || !sf.code || !Number.isInteger(sf.id) || sf.id < 1) {
@@ -72,7 +76,8 @@ export function signToken(p: { userId: number; email: string; role: string; ep: 
   }
   const ep = Number.isInteger(p.ep) && p.ep >= 0 ? p.ep : 0
   const payload: JwtPayload = { userId: p.userId, email: p.email, role: p.role, aud: sf.code, tid: sf.id, ep, sv: ep }
-  return jwt.sign(payload, secret, { expiresIn: '30d' })
+  // 管理员 token 由登录接口传入更短的时长（lib/security/admin-2fa.ts adminTokenHours，默认 12 小时）
+  return jwt.sign(payload, secret, { expiresIn: opts?.expiresInHours ? `${opts.expiresInHours}h` : '30d' })
 }
 
 /** 老 token（无 aud）是否仍被主站接受：默认接受；JWT_LEGACY_TOKENS='reject' 时拒绝（上线 30 天后切） */

@@ -14,6 +14,8 @@ import {
 import { sendCodeGate } from '@/lib/auth-throttle'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { authCrossSiteReason } from '@/lib/tenant/same-origin'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
+import { emailDomainBlocked, EMAIL_DOMAIN_BLOCKED_MSG } from '@/lib/security/email-domain'
 
 /*
  * 【渠道分站：邮件里的链接按当前店面 origin（设计 4.5、11.4）】验证码 / 说明信里的「登录」「注册」「找回密码」
@@ -37,6 +39,8 @@ export async function POST(request: NextRequest) {
   if (!sf) return error('资源不存在', 404)
   // 写接口同源校验（设计 4.6 C4；集成阶段补）：挡兄弟子域发起的登录 CSRF。店面解析之后、try 之外
   if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
+  // 被蜜罐封禁的 IP（lib/security/ip-ban.ts）：1 小时内不能登录 / 注册 / 发码，浏览不受影响
+  if (ipBlocked(request.headers)) return error(IP_BLOCKED_MSG, 429)
   // 渠道改了站名：验证码邮件用渠道站名（渠道品牌与公告）
   const mailOpts = sf.kind === 'PLATFORM' ? undefined : sf.brand.custom ? { origin: sf.origin, brand: sf.brand.name } : { origin: sf.origin }
   try {
@@ -52,6 +56,13 @@ export async function POST(request: NextRequest) {
     // RESET 照常：停业站的买家至少 1 年内要能登录看订单、取卡、开票（设计 4.4 TERMINATED），预览买家也可能忘密码
     if (purpose === 'REGISTER' && sf.kind === 'CHANNEL' && (sf.status === 'DRAFT' || sf.status === 'TERMINATED')) {
       return error('本站暂不开放注册', 403)
+    }
+
+    // 一次性邮箱不发注册码（lib/security/email-domain.ts）。只看域名、与是否已注册无关，不构成枚举口；
+    // 放在限流之前：被拒的请求不占这个 IP / 邮箱的发码额度
+    if (purpose === 'REGISTER' && (await emailDomainBlocked(email))) {
+      console.warn('[send-code] 拒绝一次性邮箱注册:', email.slice(email.lastIndexOf('@')))
+      return error(EMAIL_DOMAIN_BLOCKED_MSG)
     }
 
     // 限流放在查用户之前：两类邮箱被同样计数、同样冷却（lib/auth-throttle.ts）

@@ -8,6 +8,7 @@ import { denyOnChannel } from '@/lib/storefront/resolve'
 import { crossSiteReason } from '@/lib/same-origin'
 import { rateLimited } from '@/lib/news/rate-limit'
 import { startTopup, topupPageData } from '@/lib/topup-checkout'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
 
 /**
  * 余额充值（docs/短信接码-设计.md §1.16、§6.4、D35、D36）。只在主站（D11）：第一行 denyOnChannel，不包进 try。
@@ -52,6 +53,7 @@ export async function POST(request: NextRequest) {
   if (channelDenied) return channelDenied
   try {
     if (crossSiteReason(request.headers)) return error('请求来源不正确', 403)
+    if (ipBlocked(request.headers)) return error(IP_BLOCKED_MSG, 429)
     const user = await getCurrentUser()
     if (!user) return unauthorized()
     if (rateLimited(`wallet-topup:${user.id}`, { windowMs: 60_000, max: 3 })) return fail(429, 'RATE', '操作太频繁，请稍后再试')

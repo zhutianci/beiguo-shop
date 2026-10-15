@@ -4,7 +4,7 @@ import { Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowRight, Mail, Lock, Sparkles } from 'lucide-react'
+import { ArrowRight, Mail, Lock, Sparkles, ShieldCheck } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { setToken } from '@/lib/auth-token'
 import { safeRedirect, withRedirect } from '@/lib/safe-redirect'
@@ -34,6 +34,10 @@ function LoginForm() {
     email: '',
     password: '',
   })
+  // 管理员新设备登录：服务端回 needCode 后显示验证码框（lib/security/admin-2fa.ts），普通买家永远不会出现
+  const [needCode, setNeedCode] = useState(false)
+  const [code, setCode] = useState('')
+  const [notice, setNotice] = useState('')
 
   /*
    * 【水合前填的字要接住（首帧可见的配套，2026-10-01）】卡片现在水合前就看得见、能输入（见下方 motion.div 的注释），
@@ -54,8 +58,7 @@ function LoginForm() {
     }
   }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const submit = async (withCode: boolean) => {
     setError('')
     setLoading(true)
 
@@ -63,13 +66,20 @@ function LoginForm() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(withCode ? { ...formData, code: code.trim() } : formData),
       })
 
       const data = await res.json()
 
       if (!data.success) {
         setError(data.error || '登录失败')
+        return
+      }
+
+      if (data.data?.needCode) {
+        setNeedCode(true)
+        setCode('')
+        setNotice(data.message || '已发送验证码到管理员邮箱')
         return
       }
 
@@ -81,6 +91,11 @@ function LoginForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    submit(needCode)
   }
 
   return (
@@ -162,6 +177,36 @@ function LoginForm() {
                 />
               </div>
             </div>
+
+            {needCode && (
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">邮箱验证码</label>
+                {notice && <p className="mb-2 text-xs text-white/50">{notice}</p>}
+                <div className="relative">
+                  <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    className="ui-input rounded-xl pl-12 pr-24 py-3.5 tracking-[0.3em]"
+                    placeholder="6 位数字"
+                    required
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    disabled={loading}
+                    onClick={() => submit(false)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-violet-300 hover:text-violet-200 disabled:opacity-50"
+                  >
+                    重新发送
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="text-right -mt-1">
               <Link href="/forgot-password" className="text-xs text-white/50 hover:text-purple-300 transition-colors">

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import SecurityCard from './security-card'
 import { CheckCircle2, XCircle, RefreshCw, Megaphone, Plus, Pencil, Trash2, X, Eye, EyeOff, Crown, RotateCcw } from 'lucide-react'
 
 // ---------------- 类型 ----------------
@@ -319,6 +320,8 @@ export default function AdminSettingsPage() {
 
       {/* ---------- 会员等级 ---------- */}
       <VipTiersCard />
+
+      <SecurityCard />
 
       {/* ---------- 系统状态 ---------- */}
       <Card>

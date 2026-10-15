@@ -167,6 +167,10 @@ services:
       # 同一出口 IP 一个收款单有效期内最多新建几张收款单（lib/pay-ip-throttle，默认 8，0 = 关闭）
       - VMQ_MAX_NEW_PER_IP
       - ORDER_PAY_WINDOW_MIN
+      # 管理员登录二次验证（lib/security/admin-2fa.ts，2026-10-15）：都不设 = 开启验证码、管理员 token 12 小时。
+      # ADMIN_LOGIN_2FA=0 是应急开关（邮件发不出去、站长又进不了后台时），改 .env.production 后 up -d app 即生效
+      - ADMIN_LOGIN_2FA
+      - ADMIN_TOKEN_HOURS
       # NEXT_PUBLIC_* 构建时若已定义，会被内联进产物（服务端代码也一样），这里改值不生效、仍需重建；
       # 构建时没定义的，才按这里的运行时值走
       - NEXT_PUBLIC_SITE_URL

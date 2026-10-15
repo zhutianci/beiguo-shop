@@ -183,47 +183,7 @@ export async function closeExpired(): Promise<number> {
   let closed = 0
   for (const e of expired) {
     try {
-      const outcome = await prisma.$transaction(async (tx) => {
-        const flip = await tx.vmqOrder.updateMany({ where: { id: e.id, state: 0 }, data: { state: -1 } })
-        if (flip.count !== 1) return { flipped: false, releaseCoupon: false }
-        await tx.vmqLock.deleteMany({ where: { orderId: e.orderId } })
-        if (e.bizType !== 'order') return { flipped: true, releaseCoupon: false }
-        // 商品订单：仅取消仍未支付的，避免误伤已付款订单
-        await tx.order.updateMany({
-          where: { id: e.bizId, payStatus: 'UNPAID', deliveryStatus: { in: ['PENDING', 'PROCESSING'] } },
-          data: { deliveryStatus: 'CANCELLED' },
-        })
-        // 只有订单确实没付款才放券。已付款的单（例如后台手工标了已支付、核销那步又失败了）
-        // 券若还是 LOCKED，交给 sweepStuckCoupons 按「已付款 → 补核销」自愈，不能在这里放回可用
-        const o = await tx.order.findUnique({ where: { id: e.bizId }, select: { payStatus: true } })
-        /*
-         * 【接码组合单：关单与释放预扣同一事务】（docs/短信接码-设计.md §6.6 第 25 条、H3、E38）订单确实是 UNPAID + CANCELLED、
-         * 这张订单没有别的 0/1 收款单、预扣是 HELD 才释放（两格原路加回、RELEASE 流水）。**没有预扣行的订单（所有普通商品、充值单、纯支付宝接码单）
-         * 是空操作**（lockHoldInTx 一次按 order_id 的普通读，返回 null）。释放抛错（预扣被改库成 CAPTURED 之类）→ 整个小事务回滚、收款单仍是 0、
-         * 下一分钟重试（E38）；只有「同单还有别的待付 / 已到账收款单」不回滚（否则两张同时过期的收款单会互相挡住、永远关不掉），
-         * 预扣留给 jiema-tick 在那些收款单结束后释放（advancePending → closePending）。
-         */
-        if (o?.payStatus === 'UNPAID') {
-          if (closeExpiredReleaseFaultForTest) closeExpiredReleaseFaultForTest()
-          try {
-            await releaseInTx(tx, e.bizId, { reason: 'VMQ_EXPIRED' })
-          } catch (err) {
-            if (!(err instanceof HoldReleaseBlocked && err.why === 'HAS_PAYMENT')) throw err
-            console.warn('[vmq] 关单时同单还有待付 / 已到账的收款单，预扣留给 jiema-tick 释放', e.bizId)
-          }
-        }
-        return { flipped: true, releaseCoupon: o?.payStatus === 'UNPAID' }
-      })
-      if (!outcome.flipped) continue
-      closed++
-
-      // 订单超时取消 → 把它占用的券放回去。
-      // 放在事务之后单独做：券释放失败不该让「关闭过期收款单」这件事整个回滚，
-      // 那会导致金额锁一直占着、后面的订单分配不到金额。券卡住只影响一个买家，
-      // 金额锁卡住影响所有人 —— 两害相权。
-      if (outcome.releaseCoupon) {
-        await releaseCouponForOrder(e.bizId).catch((err) => console.error('[coupon] 超时释放失败', e.bizId, err))
-      }
+      if (await closeVmqSlip(e)) closed++
     } catch (err) {
       console.error('[vmq] 关闭过期收款单失败（下一轮重试）', e.orderId, err)
     }
@@ -237,6 +197,58 @@ export async function closeExpired(): Promise<number> {
 
   // 真正由本次关掉的条数（被到账抢先的不算）
   return closed
+}
+
+/**
+ * 关掉一张待支付收款单：翻 -1、删金额锁、取消仍未付款的订单、释放接码预扣与券（同 closeExpired 的单条逻辑）。
+ * 返回 true = 由本次翻成 -1（被到账抢先的返回 false，什么都不做）。抛错 = 小事务已回滚，调用方记日志、下次重试。
+ * 除了超时关单，后台封禁买家（lib/security/ban-user.ts）也用它提前释放该买家占着的唯一金额。
+ */
+export async function closeVmqSlip(
+  e: Pick<VmqOrder, 'id' | 'orderId' | 'bizType' | 'bizId'>,
+  releaseReason = 'VMQ_EXPIRED',
+): Promise<boolean> {
+  const outcome = await prisma.$transaction(async (tx) => {
+    const flip = await tx.vmqOrder.updateMany({ where: { id: e.id, state: 0 }, data: { state: -1 } })
+    if (flip.count !== 1) return { flipped: false, releaseCoupon: false }
+    await tx.vmqLock.deleteMany({ where: { orderId: e.orderId } })
+    if (e.bizType !== 'order') return { flipped: true, releaseCoupon: false }
+    // 商品订单：仅取消仍未支付的，避免误伤已付款订单
+    await tx.order.updateMany({
+      where: { id: e.bizId, payStatus: 'UNPAID', deliveryStatus: { in: ['PENDING', 'PROCESSING'] } },
+      data: { deliveryStatus: 'CANCELLED' },
+    })
+    // 只有订单确实没付款才放券。已付款的单（例如后台手工标了已支付、核销那步又失败了）
+    // 券若还是 LOCKED，交给 sweepStuckCoupons 按「已付款 → 补核销」自愈，不能在这里放回可用
+    const o = await tx.order.findUnique({ where: { id: e.bizId }, select: { payStatus: true } })
+    /*
+     * 【接码组合单：关单与释放预扣同一事务】（docs/短信接码-设计.md §6.6 第 25 条、H3、E38）订单确实是 UNPAID + CANCELLED、
+     * 这张订单没有别的 0/1 收款单、预扣是 HELD 才释放（两格原路加回、RELEASE 流水）。**没有预扣行的订单（所有普通商品、充值单、纯支付宝接码单）
+     * 是空操作**（lockHoldInTx 一次按 order_id 的普通读，返回 null）。释放抛错（预扣被改库成 CAPTURED 之类）→ 整个小事务回滚、收款单仍是 0、
+     * 下一分钟重试（E38）；只有「同单还有别的待付 / 已到账收款单」不回滚（否则两张同时过期的收款单会互相挡住、永远关不掉），
+     * 预扣留给 jiema-tick 在那些收款单结束后释放（advancePending → closePending）。
+     */
+    if (o?.payStatus === 'UNPAID') {
+      if (closeExpiredReleaseFaultForTest) closeExpiredReleaseFaultForTest()
+      try {
+        await releaseInTx(tx, e.bizId, { reason: releaseReason })
+      } catch (err) {
+        if (!(err instanceof HoldReleaseBlocked && err.why === 'HAS_PAYMENT')) throw err
+        console.warn('[vmq] 关单时同单还有待付 / 已到账的收款单，预扣留给 jiema-tick 释放', e.bizId)
+      }
+    }
+    return { flipped: true, releaseCoupon: o?.payStatus === 'UNPAID' }
+  })
+  if (!outcome.flipped) return false
+
+  // 订单超时取消 → 把它占用的券放回去。
+  // 放在事务之后单独做：券释放失败不该让「关闭过期收款单」这件事整个回滚，
+  // 那会导致金额锁一直占着、后面的订单分配不到金额。券卡住只影响一个买家，
+  // 金额锁卡住影响所有人 —— 两害相权。
+  if (outcome.releaseCoupon) {
+    await releaseCouponForOrder(e.bizId).catch((err) => console.error('[coupon] 超时释放失败', e.bizId, err))
+  }
+  return true
 }
 
 // 仅供 itest（§12.2 第 50 条）：在 closeExpired 释放预扣之前注入故障，验证整个小事务回滚、收款单仍是 0

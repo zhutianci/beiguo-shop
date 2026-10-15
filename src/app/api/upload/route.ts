@@ -13,6 +13,7 @@ import { crossSiteReason } from '@/lib/same-origin'
 import { imageSize, stripImageMetadata } from '@/lib/image-meta'
 import { prisma } from '@/lib/db'
 import crypto from 'crypto'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
 
 const MAX_SIZE = 5 * 1024 * 1024 // 单文件 5MB
 // 请求体上限：单文件 5MB + multipart 边界与字段头的开销。nginx 对 /api/upload 另卡 6m（nginx.conf）
@@ -61,6 +62,8 @@ export async function POST(request: NextRequest) {
     console.warn('[upload] 拒绝非同源的上传:', crossSite)
     return error('请求来源不合法，请刷新页面后重试', 403)
   }
+  // 被蜜罐封禁的 IP（lib/security/ip-ban.ts）：10-15 那个人在探测期间反复试上传
+  if (ipBlocked(request.headers)) return error(IP_BLOCKED_MSG, 429)
   try {
     // 先看 Content-Length 再 formData()：formData() 会把整个请求体读进内存，
     // 以前是先读完再看 file.size，一批并发的 20MB 请求就能把 app 顶到 mem_limit。

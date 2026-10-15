@@ -86,10 +86,11 @@ const PURPOSE_LABEL: Record<string, string> = {
   LOOKUP: '订阅查询',
   // 二期改动 3.2：渠道站长把通知邮箱设为非登录邮箱时，先证明归属
   NOTICE: '通知邮箱绑定',
+  ADMIN_LOGIN: '后台登录',
 }
 
 /** 验证码用途（与 lib/verify-code.ts 的 CodePurpose 一致） */
-export type VerifyMailPurpose = 'REGISTER' | 'RESET' | 'LOOKUP' | 'NOTICE'
+export type VerifyMailPurpose = 'REGISTER' | 'RESET' | 'LOOKUP' | 'NOTICE' | 'ADMIN_LOGIN'
 
 // 每封信都拆成「纯渲染 render* + 发送 send*」：scripts/check-transactional-mail.ts 用样例数据渲染，
 // 断言正文不含阿里云禁发内容（微信/QQ/二维码/群/网盘）—— 联系客服一律写「在订单内联系客服」或站内 /support。

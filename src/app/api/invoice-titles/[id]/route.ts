@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized, notFound } from '@/lib/api'
 import { BillingError } from '@/lib/order-invoice'
 import { assertTaxNumber } from '@/lib/invoice-input'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 /**
  * 单条抬头的编辑 / 设为默认 / 删除。
@@ -28,6 +29,9 @@ const patchSchema = z.object({
 })
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  // 抬头档案只在主站用（2026-10-15 安全复查，见 api/invoice-titles）
+  const sf = await getStorefront()
+  if (!sf || sf.kind !== 'PLATFORM') return notFound('抬头不存在')
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()
@@ -70,6 +74,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+  const sf = await getStorefront()
+  if (!sf || sf.kind !== 'PLATFORM') return notFound('抬头不存在')
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

@@ -20,13 +20,15 @@ import { payableCents } from '@/lib/order-payable'
 import { topupAvailability } from '@/lib/topup-checkout'
 import { newPaymentIpLimited, NEW_PAYMENT_IP_MSG } from '@/lib/pay-ip-throttle'
 import { smsCashierGate } from '@/lib/jiema/pay-gate'
+// 付款期限与「过期未付单自动取消」同一个常量（lib/order/abandon.ts）
+import { ORDER_PAY_WINDOW_MIN } from '@/lib/order/abandon'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
 
 const schema = z.object({
   orderNo: z.string().min(1, '缺少订单号'),
 })
 
 /** 从建单（或管理员最后一次改这张单）到「新发起收款」的最长间隔，默认 24 小时；配错时至少 60 分钟 */
-const ORDER_PAY_WINDOW_MIN = Math.max(60, Number(process.env.ORDER_PAY_WINDOW_MIN) || 1440)
 
 // 为商品订单发起 V免签 收款，返回收银台地址
 export async function POST(request: NextRequest) {
@@ -34,6 +36,7 @@ export async function POST(request: NextRequest) {
   const sf = await getStorefront()
   if (!sf) return error('订单不存在', 404)
   try {
+    if (ipBlocked(request.headers)) return error(IP_BLOCKED_MSG, 429)
     const user = await getCurrentUser()
     if (!user) return unauthorized()
 

@@ -86,8 +86,9 @@ export async function GET(request: NextRequest) {
     let listPrice = 0
     let referralUnitPrice: number | null = null
     if (productId) {
-      const product = await prisma.product.findUnique({ where: { id: productId }, select: { price: true } })
-      if (product) listPrice = Number(product.price)
+      // 只认在售商品（2026-10-15 安全复查：以前不看 status，带任意 productId 能读到未上架商品的定价）
+      const product = await prisma.product.findUnique({ where: { id: productId }, select: { price: true, status: true } })
+      if (product && product.status === 1) listPrice = Number(product.price)
 
       if (ref && listPrice > 0) {
         const referrer = await prisma.user.findUnique({

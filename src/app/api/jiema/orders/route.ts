@@ -10,6 +10,7 @@ import { createJiemaOrder } from '@/lib/jiema/order'
 import { jfail, jok } from '@/lib/jiema/buyer-api'
 import { listBuyerRecords } from '@/lib/jiema/records'
 import { parseRecordDays, parseRecordTab, phoneQuery } from '@/lib/jiema/ui'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
 
 /**
  * 短信接码下单（docs/短信接码-设计.md §6.4、T1、§1.8、§1.9）。只在主站：第一行 denyOnChannel，不包进 try（D11、规则 18）。
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
   if (channelDenied) return channelDenied
   try {
     if (crossSiteReason(request.headers)) return jfail(403, 'FORBIDDEN', '请求来源不正确')
+    if (ipBlocked(request.headers)) return jfail(429, 'RATE', IP_BLOCKED_MSG)
     const user = await getCurrentUser()
     if (!user) return jfail(401, 'UNAUTHORIZED', '请先登录')
     if (rateLimited(`jiema-order:${user.id}`, { windowMs: 60_000, max: 5 })) return jfail(429, 'RATE', '操作太频繁，请稍后再试')

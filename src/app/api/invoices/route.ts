@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
      */
     const prepaid = await settlePrepaidInvoiceByExternalOrder(order, fields)
     if (prepaid) {
-      await afterInvoiceSubmitted(user?.id ?? null, d, fields)
+      await afterInvoiceSubmitted(user?.id ?? null, d, fields, sf.kind)
       return success(
         { alreadyPaid: true },
         '该订单下单时已选择开发票、税费也已随货款付清，无需再次支付；抬头已按本次填写更新'
@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
       userId: user?.id ?? null,
     })
     // 匿名流程没有身份，存不了抬头档案；登录用户走这条路时照常能存
-    await afterInvoiceSubmitted(user?.id ?? null, d, fields)
+    await afterInvoiceSubmitted(user?.id ?? null, d, fields, sf.kind)
     return success(result, '已提交，请支付税费')
   } catch (err) {
     if (err instanceof BillingError) return error(err.message, err.status)

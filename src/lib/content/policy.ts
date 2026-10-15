@@ -155,7 +155,9 @@ export function postReviewOnEdit(level: TrustLevel, flags: readonly ContentFlag[
   if (current === 'SCHEDULED') return level === 2 && !flags.includes('contact') && !flags.includes('sensitive') ? 'SCHEDULED' : 'PENDING'
   if (level === 2) {
     if (flags.includes('contact') || flags.includes('sensitive')) return 'PENDING'
-    return current === 'REJECTED' ? 'PENDING' : 'APPROVED'
+    // 待审中的帖子改完仍待审（2026-10-15 安全复查）：以前返回 APPROVED，作者自荐（创建时强制人工审核）、
+    // 疑似重复 / 图片撞车转人工的帖子，创作者随便改一个字就能自己放行，待审队列也不再提醒
+    return current === 'REJECTED' || current === 'PENDING' ? 'PENDING' : 'APPROVED'
   }
   return 'PENDING'
 }

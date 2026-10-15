@@ -83,7 +83,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   /* ---------------- 开发票 ---------------- */
   /** 勾上就按 货款 + 6% 税费 一次付清，付款成功后发货与提交开票同时发生 */
   const [wantInvoice, setWantInvoice] = useState(false)
-  const { titles, loaded: titlesLoaded } = useSavedTitles(!!open && !!user)
+  const { titles, loaded: titlesLoaded, storable: titlesStorable } = useSavedTitles(!!open && !!user)
   /** 买家动过任何一个开票字段后，就不再让迟到的接口结果覆盖他填的内容 */
   const touched = useRef(false)
   /** 选中的已保存抬头 id；null = 手填新抬头 */
@@ -317,7 +317,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                 showAiWording,
                 invoiceItem,
                 titleId,
-                saveTitle: titleId === null && saveTitle,
+                saveTitle: titleId === null && saveTitle && titlesStorable,
               }
             : null,
         }),
@@ -591,7 +591,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                         )}
                       </div>
 
-                      {user && titleId === null && (
+                      {user && titleId === null && titlesStorable && (
                         <button
                           type="button"
                           onClick={() => setSaveTitle((v) => !v)}

@@ -8,7 +8,7 @@ import { resolveActor } from '@/lib/forum'
 import { forumWriteGate } from '@/lib/forum-throttle'
 import { denyUnlessModule, getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
 import { flagsOf, forumCrossSite, loadCommentPage, trustLevelOf } from '@/lib/forum-server'
-import { FLAG_LABELS, commentReviewOnCreate, isPublic } from '@/lib/content/policy'
+import { FLAG_LABELS, canView, commentReviewOnCreate, isPublic } from '@/lib/content/policy'
 import { notify } from '@/lib/notify'
 import { onCommentPublished } from '@/lib/content/events'
 
@@ -22,6 +22,12 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
     const actor = await resolveActor(request)
+    // 帖子本身看不到的，评论也不给（2026-10-15 安全复查：以前按顺序 id 能读到已删除 / 隐藏 / 驳回帖子下的评论与评论者昵称）
+    const post = await prisma.forumPost.findUnique({
+      where: { id },
+      select: { status: true, reviewStatus: true, deletedAt: true, userId: true },
+    })
+    if (!post || !canView(post, actor)) return error('帖子不存在', 404)
 
     const { searchParams } = new URL(request.url)
     const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)

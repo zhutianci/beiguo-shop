@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
+import { cancelOpenOrdersOf } from '@/lib/security/ban-user'
 
 const updateUserSchema = z.object({
   status: z.number().int().min(0).max(1).optional(),
@@ -82,6 +83,18 @@ export async function PUT(
           return tx.user.update({ where: { id: userId }, data, select })
         })
       : await prisma.user.update({ where: { id: userId }, data, select })
+
+    // 禁用 = 封禁（2026-10-15）：顺带取消他名下未付款的订单、关掉待付收款单，释放占着的唯一金额。
+    // 以前只禁号，他已经发起的收款单还会把同价位的金额占满 20 分钟。已付款的订单一概不动
+    if (result.data.status === 0 && current.status === 1 && current.role !== 'ADMIN') {
+      const c = await cancelOpenOrdersOf(userId).catch((e) => {
+        console.error('[admin/users] 禁用后取消未付单失败', userId, e)
+        return null
+      })
+      if (c && c.cancelledOrders > 0) {
+        return success(user, `已禁用，并取消其未付款订单 ${c.cancelledOrders} 笔（释放收款金额 ${c.closedSlips} 个）`)
+      }
+    }
 
     return success(user, '用户更新成功')
   } catch (err) {

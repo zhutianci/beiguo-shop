@@ -5,6 +5,7 @@ import { success, error } from '@/lib/api'
 import { assertCronAuth } from '@/lib/cron-auth'
 import { closeExpired, reconcilePaidVmq } from '@/lib/vmq'
 import { sweepOrphans } from '@/lib/wallet/topup'
+import { cancelAbandonedOrders } from '@/lib/order/abandon'
 
 // 兜底定时清理过期收款单（可由 cron 容器每分钟调用）
 export async function GET(request: NextRequest) {
@@ -27,7 +28,12 @@ export async function GET(request: NextRequest) {
       console.error('[wallet] 充值单兜底清扫失败', e)
       return null
     })
-    return success({ closed, reconcile, topupSweep })
+    // 从没发起过付款、已过付款期限（默认 24 小时）的订单 → 已取消（2026-10-15，lib/order/abandon.ts）。失败不影响上面几步
+    const abandoned = await cancelAbandonedOrders().catch((e) => {
+      console.error('[order] 过期未付订单清理失败', e)
+      return null
+    })
+    return success({ closed, reconcile, topupSweep, abandoned })
   } catch (err) {
     console.error('Vmq close cron error:', err)
     return error('清理失败')

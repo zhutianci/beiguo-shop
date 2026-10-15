@@ -14,6 +14,7 @@ import {
 } from '@/lib/forum-throttle'
 import { denyUnlessModule } from '@/lib/storefront/resolve'
 import { forumCrossSite } from '@/lib/forum-server'
+import { isPublic } from '@/lib/content/policy'
 
 // 评论点赞 / 取消（切换）
 // 审计 G44：匿名去重靠客户端自填的 x-anon-id，换一个值就能再 +1。现在匿名新增赞额外按
@@ -33,8 +34,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const limited = forumLikeGate(request.headers, actor)
     if (limited) return error(limited, 429)
 
-    const comment = await prisma.forumComment.findUnique({ where: { id }, select: { id: true } })
-    if (!comment) return error('评论不存在', 404)
+    // 只能赞看得见的评论（2026-10-15 安全复查：以前不查，可以拿来探测隐藏帖子下的评论是否存在）
+    const comment = await prisma.forumComment.findUnique({
+      where: { id },
+      select: { id: true, status: true, reviewStatus: true, post: { select: { status: true, reviewStatus: true, deletedAt: true, userId: true } } },
+    })
+    if (!comment || comment.status !== 1 || comment.reviewStatus !== 'APPROVED' || !comment.post || !isPublic(comment.post)) {
+      return error('评论不存在', 404)
+    }
 
     const target = 'c' + id
     const lockKey = likeLockKey(actor, target)

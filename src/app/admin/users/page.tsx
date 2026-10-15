@@ -156,7 +156,8 @@ export default function UsersPage() {
           ].filter(Boolean)
         : []
     const impactText = impact.length ? `\n\n全局禁用会影响所有站：\n${impact.join('\n')}` : ''
-    if (!confirm(`确定要${action}该用户吗？${impactText}`)) return
+    const cleanupText = newStatus === 0 ? '\n\n禁用会同时取消该用户未付款的订单、释放其占用的收款金额（已付款的订单不受影响）。' : ''
+    if (!confirm(`确定要${action}该用户吗？${impactText}${cleanupText}`)) return
 
     const res = await fetch(`/api/admin/users/${user.id}`, {
       method: 'PUT',
@@ -169,6 +170,8 @@ export default function UsersPage() {
       alert(data.error || '操作失败')
       return
     }
+    // 禁用会顺带取消其未付款订单（api/admin/users/[id]），取消了几笔在提示里说清楚
+    if (newStatus === 0 && data.message && data.message !== '用户更新成功') alert(data.message)
 
     load()
   }

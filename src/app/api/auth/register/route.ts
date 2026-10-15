@@ -16,6 +16,8 @@ import { getStorefront } from '@/lib/storefront/resolve'
 import { authCrossSiteReason } from '@/lib/tenant/same-origin'
 import { ensureTenantCustomer } from '@/lib/tenant/customer'
 import { emitTenantNotice } from '@/lib/tenant/notice'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
+import { emailDomainBlocked, EMAIL_DOMAIN_BLOCKED_MSG } from '@/lib/security/email-domain'
 
 // eslint-disable-next-line no-control-regex
 const NICK_CTRL_RE = /[\u0000-\u001f\u007f]/g
@@ -40,6 +42,8 @@ export async function POST(request: NextRequest) {
   if (!sf) return error('资源不存在', 404)
   // 写接口同源校验（设计 4.6 C4；集成阶段补）：挡兄弟子域发起的登录 CSRF。店面解析之后、try 之外
   if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
+  // 被蜜罐封禁的 IP（lib/security/ip-ban.ts）：1 小时内不能登录 / 注册 / 发码，浏览不受影响
+  if (ipBlocked(request.headers)) return error(IP_BLOCKED_MSG, 429)
   // 渠道店面 DRAFT（未开业，前台对非预览用户 404）/ TERMINATED（已停业）不开放注册。
   // 否则直接 POST 本接口就能在一个没开张 / 已关门的站建号：写下 registeredTenantId=<该站> 与客户关系行，
   // 还会把此人标成「渠道注册用户」、被主站营销受众排除（lib/marketing/audience.ts）。
@@ -62,6 +66,9 @@ export async function POST(request: NextRequest) {
     // 先验码、后查邮箱：证明邮箱归属之前，响应不能因「是否已注册」而不同（防客户名单枚举）。
     // 以前先查邮箱，随便填个验证码就能一次请求判断一个邮箱是不是本站客户。
     // 已注册的邮箱在发码时收到的是「该邮箱已注册」说明信、拿不到 REGISTER 码，所以这里只会走到「验证码错误」
+    // 一次性邮箱不让注册（与发码同一口径；防的是本版上线前已经拿到手的注册码）
+    if (await emailDomainBlocked(email)) return error(EMAIL_DOMAIN_BLOCKED_MSG)
+
     let emailVerified = false
     if (systemEmailConfigured()) {
       if (!result.data.code) return error('请填写邮箱验证码')

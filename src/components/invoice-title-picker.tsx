@@ -39,6 +39,8 @@ export function useSavedTitles(enabled: boolean) {
   const [titles, setTitles] = useState<SavedTitle[]>([])
   const [loaded, setLoaded] = useState(false)
   const [authed, setAuthed] = useState(false)
+  // 渠道站上抬头档案不可用（api/invoice-titles 回 storable:false）：各处的「保存抬头」开关据此隐藏
+  const [storable, setStorable] = useState(true)
   /*
    * 请求代次。结算弹窗的 enabled 是 `open && user`，开-关-开会连发两次请求，
    * 先发的那次若后到就会用旧列表盖掉新列表 —— 而自动带入默认抬头的 effect
@@ -58,7 +60,10 @@ export function useSavedTitles(enabled: boolean) {
       }
       const d = await res.json()
       if (mine !== gen.current) return
-      setAuthed(!!d?.success)
+      const canStore = !!d?.success && d.data.storable !== false
+      setStorable(canStore)
+      // authed 在各页面里只用来决定「显示保存抬头开关」：渠道站一律不显示
+      setAuthed(canStore)
       setTitles(d?.success ? d.data.list || [] : [])
     } catch {
       if (mine === gen.current) setTitles([])
@@ -76,7 +81,7 @@ export function useSavedTitles(enabled: boolean) {
     }
   }, [enabled, load])
 
-  return { titles, loaded, authed, reload: load }
+  return { titles, loaded, authed, storable, reload: load }
 }
 
 export function InvoiceTitlePicker({

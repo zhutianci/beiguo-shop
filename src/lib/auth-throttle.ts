@@ -22,7 +22,7 @@ const MIN = 60_000
 const HOUR = 60 * MIN
 const DAY = 24 * HOUR
 
-export type CodePurposeKey = 'REGISTER' | 'RESET' | 'LOOKUP'
+export type CodePurposeKey = 'REGISTER' | 'RESET' | 'LOOKUP' | 'ADMIN_LOGIN'
 
 /** IPv6 按 /64 聚合；IPv4 与 IPv4-mapped 原样取 IPv4 */
 export function ipKey(ip: string): string {
@@ -62,6 +62,8 @@ const SEND_GLOBAL: Record<CodePurposeKey, RateRule> = {
   REGISTER: { windowMs: HOUR, max: 120 },
   RESET: { windowMs: HOUR, max: 60 },
   LOOKUP: { windowMs: HOUR, max: 120 },
+  // 管理员二次验证：全站只有一两个管理员，阈值很低也够用
+  ADMIN_LOGIN: { windowMs: HOUR, max: 20 },
 }
 
 export interface SendGate {
