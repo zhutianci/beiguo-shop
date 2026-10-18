@@ -23,7 +23,7 @@
  *   M4 渠道客服信息在前台生效、清空后回退主站、主站不变。
  * 渠道自定义域名（docs/多渠道分销-自定义域名.md 第 6 节；本文件第 14 节）：给 lulu 加 tibo.test 并设为主域名，
  *   用 Host 头打开渠道店面与渠道后台登录页；旧子域名页面挂了跳转组件且目标是 https://tibo.test；邀请链接与邮件 origin 用新域名；
- *   连通校验（契约第 9 节）：.example 设主前经公网校验失败 → 400；应答端签名；cron 两趟真实公网请求失败 → 降级（旧子域名不跳、
+ *   连通校验（契约第 9 节）：.example 设主前经公网校验失败 → 400；应答端签名；cron 三趟真实公网请求失败 → 静默降级、满 2 小时告警（旧子域名不跳、
  *   tibo.test 跳回子域名、邀请链接用子域名、站长群告警）→ 记录恢复后切回；跑完恢复。
  *
  * 测试手段上的两处「快进时间」（生产上靠真实时间流逝）：付款后把两张单的 delivered_at 改到 16 天前（冻结期 15 天）；
@@ -855,7 +855,10 @@ async function phase3(c: P2Ctx) {
     check('失败一趟：旧子域名仍跳到 tibo.test', (await get('/', LULU_HOST)).text.includes(redirectMark(`https://${CUSTOM_HOST}`)))
     const c2 = await cron()
     const i2 = (c2.json?.data?.items ?? []).find((i: Json) => i.host === CUSTOM_HOST)
-    check('cron 第 2 趟：连续失败 → 降级（event=degraded）', c2.status === 200 && i2?.healthy === false && i2?.event === 'degraded', short(c2))
+    check('cron 第 2 趟：仍健康（2026-10-18 起三趟才降级）', c2.status === 200 && i2?.healthy === true && i2?.event === null, short(c2))
+    const c3 = await cron()
+    const i3 = (c3.json?.data?.items ?? []).find((i: Json) => i.host === CUSTOM_HOST)
+    check('cron 第 3 趟：连续失败 → 静默降级（event=null）', c3.status === 200 && i3?.healthy === false && i3?.event === null, short(c3))
     const oldD = await get('/', LULU_HOST)
     check('降级：旧子域名页面不再挂跳转组件（不把买家送去失联的域名）', oldD.status === 200 && !oldD.text.includes('data-primary-host-redirect'), String(oldD.status))
     const cusD = await get('/', CUSTOM_HOST)
@@ -865,7 +868,15 @@ async function phase3(c: P2Ctx) {
     const detD = (await get(`/api/admin/tenants/${LULU_ID}`, MAIN_HOST, admin)).json?.data
     check('降级：渠道详情 primaryHealth 标出不健康；库里的站点地址不动', detD?.primaryHealth?.healthy === false && detD?.tenant?.origin === `https://${CUSTOM_HOST}`, JSON.stringify(detD?.primaryHealth))
     await new Promise((r) => setTimeout(r, 500))
-    check('降级：站长群收到一条告警（带渠道代号与域名）', hooks.slice(hooksBefore).some((x) => x.text.includes(CUSTOM_HOST) && x.text.includes('连续校验失败')), hooks.slice(hooksBefore).map((x) => x.text.slice(0, 60)).join(' | '))
+    check('静默降级：站长群没有告警', !hooks.slice(hooksBefore).some((x) => x.text.includes(CUSTOM_HOST)), hooks.slice(hooksBefore).map((x) => x.text.slice(0, 60)).join(' | '))
+    // 失联满 2 小时（把记录里的 failSince 拨回 2 小时前）→ 下一趟告警
+    const recNow = JSON.parse((await prisma.setting.findUnique({ where: { key: HEALTH_KEY } }))?.value ?? '{}')
+    await prisma.setting.update({ where: { key: HEALTH_KEY }, data: { value: JSON.stringify({ ...recNow, failSince: new Date(Date.now() - 2 * 3_600_000 - 60_000).toISOString() }) } })
+    const c4 = await cron()
+    const i4 = (c4.json?.data?.items ?? []).find((i: Json) => i.host === CUSTOM_HOST)
+    check('失联满 2 小时：event=degraded', c4.status === 200 && i4?.event === 'degraded', short(c4))
+    await new Promise((r) => setTimeout(r, 500))
+    check('失联满 2 小时：站长群收到一条告警（带渠道代号与域名）', hooks.slice(hooksBefore).some((x) => x.text.includes(CUSTOM_HOST) && x.text.includes('无法访问')), hooks.slice(hooksBefore).map((x) => x.text.slice(0, 60)).join(' | '))
     // 恢复：写回新鲜记录（等同于校验通过），经一次域名写触发站点进程的缓存失效
     await prisma.setting.update({ where: { key: HEALTH_KEY }, data: { value: freshHealth() } })
     await dom({ host: LULU_HOST, status: 1 })

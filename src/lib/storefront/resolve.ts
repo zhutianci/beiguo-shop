@@ -278,7 +278,7 @@ function logUnknownHost(host: string | null, mode: 'observe' | 'strict' | 'unreg
 //  · 只在 Tenant.origin 的主机名**不在** CHANNEL_HOST_SUFFIX 之下时才查（lulu、shop 这类子域名渠道一次都不查，行为逐字不变）；
 //  · 每个渠道缓存 30 秒（校验记录 10 分钟才变一次；cron 与后台写完在同一进程 invalidateStorefrontCache() 立即生效）；
 //  · 查库报错照常抛（500），与 findTenant 同一口径——不猜，也不回落主站；
-//  · 不健康只因为「40 分钟没有成功记录」（cron 停了）时，给站长群告警一次（alertStaleOnce，每渠道 6 小时最多一次，不阻塞请求）。
+//  · 不健康只因为「50 分钟没有成功记录」（cron 停了）时，给站长群告警一次（alertStaleOnce，每渠道 6 小时最多一次，不阻塞请求）。
 // ---------------------------------------------------------------------------
 const GATE_TTL_MS = 30_000
 type Gate = { healthy: true } | { healthy: false; fallbackOrigin: string | null }
@@ -288,7 +288,7 @@ const gateLogged = new Map<number, number>()
 const staleAlerted = new Map<number, number>()
 
 /**
- * 定时任务停摆的告警（2026-10-01）：记录属于当前主域名、没降级，只是 40 分钟没有成功记录——说明没人在复验，多半是 cron 停了。
+ * 定时任务停摆的告警（2026-10-01）：记录属于当前主域名、没降级，只是 50 分钟没有成功记录——说明没人在复验，多半是 cron 停了。
  * 这时店面已经安全地降级到子域名，但如果没人发现，客户的域名会一直「莫名其妙」不生效，所以提醒站长一次。
  * 不阻塞请求（不 await）；alertPlatform 本身永不抛，这里再兜一层只记日志。已停业（TERMINATED）的渠道 cron 本来就不再复验，不告警。
  */
@@ -300,7 +300,7 @@ function alertStaleOnce(t: TenantStorefrontRow, host: string, fallback: string |
   if (staleAlerted.size >= HOST_CACHE_MAX) staleAlerted.clear()
   staleAlerted.set(t.id, now)
   const text =
-    `渠道 ${t.code} 的自定义主域名 https://${host} 已超过 40 分钟没有成功的连通校验记录，店面已临时改用${fallback ? ` ${fallback}` : '（没有启用中的子域名，只停止跳转）'}。` +
+    `渠道 ${t.code} 的自定义主域名 https://${host} 已超过 50 分钟没有成功的连通校验记录，店面已临时改用${fallback ? ` ${fallback}` : '（没有启用中的子域名，只停止跳转）'}。` +
     `多半是定时复验停了：请检查 cron 容器（docker ps、docker logs beiguo-cron）是否在跑、crontab 里是否有 tenant-domains 一行，` +
     `以及 POST /api/cron/tenant-domains 是否每 10 分钟返回 200。复验恢复并通过后自动切回。`
   void alertPlatform(text).catch((e) => console.error('[storefront] 校验记录过期告警发送失败', (e as Error)?.message || e))

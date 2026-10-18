@@ -17,7 +17,7 @@
  *   D-7 连通校验（契约第 9 节）：设主前校验（失联 / 3xx / 编造签名 / 换 Host 转发一律 400、什么都不改）；应答端签名与 404；
  *       cron 复验：失败一趟不降级、两趟降级（邮件 / 邀请 / 跳转改用子域名、站内通知一次）、恢复切回；记录过期 / 缺失 / 错 host / 损坏
  *       一律改用子域名；「重新校验」立即恢复；子域名渠道一次都不校验。传输层换成进程内调 /api/domain-check，签名是真代码
- *       2026-10-01 加固：恢复要连续两趟成功；降级 / 恢复告警各自 6 小时节流、仍降级满 6 小时 realert；TERMINATED 不复验不告警；
+ *       2026-10-01 加固：恢复要连续两趟成功；TERMINATED 不复验不告警；2026-10-18：三趟才降级、短时失联静默、满 2 小时才告警、24 小时 realert；
  *       复核：恢复途中（降级中第一趟通过）不 realert；渠道站内通知不节流、只跟状态走（抖动时渠道最新一条通知永远是真实状态）；
  *       cron 条件写入（探测期间记录被改 → 放弃）；没有启用中子域名时只停跳转；渠道推送按钮降级时指向子域名；
  *       记录过期 → 站长群告警一次（节流）；手动重新校验恢复也推「已恢复」；通知与告警只写归类原因
@@ -515,7 +515,7 @@ async function main() {
       check('cron 路由：带密钥 200，本渠道健康', withKey.status === 200 && xi?.ok === true && xi?.healthy === true && xi?.event === null, withKey.text.slice(0, 300))
       check('只有子域名的渠道（lulu 形）一次都不校验', !probe.hosts.includes(L.host) && !probe.hosts.includes(X.host), probe.hosts.join(','))
 
-      // 失联：第一趟失败不降级（滤抖动），第二趟降级
+      // 失联：前两趟失败不降级（滤抖动），第三趟静默降级（2026-10-18 站长：短时失联只切换、不告警不通知；满 2 小时才告警）
       await prisma.tenant.update({ where: { id: X.id }, data: { wecomWebhookEnc: sealText('webhook', `${notice.WECOM_WEBHOOK_PREFIX}itest-dom-${RUN}`) } })
       const ago = (ms: number) => new Date(Date.now() - ms).toISOString()
       const HOUR = 3_600_000
@@ -523,12 +523,17 @@ async function main() {
       const writeRec = (h: import('../../src/lib/storefront/domain-health').DomainHealth) => verify.writeDomainHealth(prisma, X.id, h)
       const run = async () => itemOf(await verify.runDomainHealthCheck())
       const alertsOf = (kw: string) => platformAlerts.filter((a) => a.includes(D.tibo) && a.includes(kw)).length
+      const downTitle = `自定义域名 ${D.tibo} 暂时无法访问`
+      const upTitle = `自定义域名 ${D.tibo} 已恢复`
       setMode('down')
       const r1 = await run()
       check('失联第 1 趟：记一次失败，仍健康、不告警', r1?.ok === false && r1.healthy === true && r1.event === null, JSON.stringify(r1))
-      check('失联第 1 趟：店面仍用自定义主域名', (await origin.tenantOrigin(X.id)) === NEW)
+      check('每趟内部试 3 次（隔 5 秒）', probe.hosts.filter((x) => x === D.tibo).length === 3, probe.hosts.join(','))
       const r2 = await run()
-      check('失联第 2 趟：降级 + 告警（event=degraded）', r2?.ok === false && r2.healthy === false && r2.event === 'degraded', JSON.stringify(r2))
+      check('失联第 2 趟：仍健康、仍用自定义主域名（三趟才降级）', r2?.healthy === true && r2.event === null && (await origin.tenantOrigin(X.id)) === NEW, JSON.stringify(r2))
+      const r3 = await run()
+      check('失联第 3 趟：降级，但静默（event=null、notice=null）', r3?.ok === false && r3.healthy === false && r3.event === null && r3.notice === null, JSON.stringify(r3))
+      check('静默降级：站长群没有告警、渠道没有站内通知', alertsOf('无法访问') === 0 && (await noticeCount(downTitle)) === 0)
       check('降级：tenantOrigin / tenantMailOpts 改用子域名', (await origin.tenantOrigin(X.id)) === SUBO && (await origin.tenantMailOpts(X.id))?.origin === SUBO)
       const inv2 = await admin.createInvite(X.id, mail('dom-invitee2'), 'OWNER', sa.id)
       check('降级：邀请链接改用子域名', inv2.link.startsWith(`${SUBO}/partner/invite/`), inv2.link.slice(0, 80))
@@ -538,109 +543,135 @@ async function main() {
       check('降级：渠道后台布局在自定义域名上 redirectOrigin = 子域名', pgD.kind === 'ok' && pgD.value.redirectOrigin === SUBO, JSON.stringify(pgD))
       check('降级：自定义域名照样解析为该渠道（应答端还在，恢复靠它）', (await resolve.resolveStorefrontForHost(D.tibo))?.id === X.id)
       check('降级：库里的 Tenant.origin 不动', (await prisma.tenant.findUnique({ where: { id: X.id } }))?.origin === NEW)
-      check('降级：渠道收到一条站内通知', (await noticeCount(`自定义域名 ${D.tibo} 暂时无法访问`)) === 1)
       const det = await admin.tenantDetail(X.id)
       check('渠道详情：primaryHealth 标出不健康与原因', det.primaryHealth?.healthy === false && det.primaryHealth.host === D.tibo && !!det.primaryHealth.reason, JSON.stringify(det.primaryHealth))
-      // 通知与告警只写归类原因（契约 9.2）：渠道与站长群看到「解析不到」，看不到 ENOTFOUND；超管详情里有细节
-      const degN = await prisma.tenantNotice.findFirst({ where: { tenantId: X.id, title: `自定义域名 ${D.tibo} 暂时无法访问` } })
-      check('降级通知只写归类原因（解析不到），不写原始错误码', !!degN?.body?.includes('（解析不到）') && !degN.body.includes('ENOTFOUND'), degN?.body ?? '')
-      const degA = platformAlerts.filter((a) => a.includes(D.tibo) && a.includes('连续校验失败'))
-      check('站长群降级告警恰好一条，只写归类原因', degA.length === 1 && degA[0].includes('解析不到') && !degA[0].includes('ENOTFOUND'), degA.join(' | ').slice(0, 300))
       check('超管详情的原因带技术细节（ENOTFOUND）', !!det.primaryHealth?.reason?.includes('解析不到') && !!det.primaryHealth.reason.includes('ENOTFOUND'), String(det.primaryHealth?.reason))
+      const r3b = await run()
+      check('失联不到 2 小时：仍静默', r3b?.event === null && r3b.notice === null && alertsOf('无法访问') === 0, JSON.stringify(r3b))
+      // 失联满 2 小时：站长群一条降级告警 + 渠道一条「暂时无法访问」
+      await writeRec({ ...(await readRec())!, failSince: ago(2 * HOUR + 60_000) })
+      const r4 = await run()
+      check('失联满 2 小时：event=degraded、notice=down', r4?.healthy === false && r4.event === 'degraded' && r4.notice === 'down', JSON.stringify(r4))
+      // 通知与告警只写归类原因（契约 9.2）：渠道与站长群看到「解析不到」，看不到 ENOTFOUND
+      const degN = await prisma.tenantNotice.findFirst({ where: { tenantId: X.id, title: downTitle } })
+      check('降级通知只写归类原因（解析不到），不写原始错误码', !!degN?.body?.includes('（解析不到）') && !degN.body.includes('ENOTFOUND'), degN?.body ?? '')
+      const degA = platformAlerts.filter((a) => a.includes(D.tibo) && a.includes('无法访问'))
+      check('站长群降级告警恰好一条、写明「2 小时以上」，只写归类原因', degA.length === 1 && degA[0].includes('2 小时以上') && degA[0].includes('解析不到') && !degA[0].includes('ENOTFOUND'), degA.join(' | ').slice(0, 300))
       // 渠道推送里的「前往渠道后台」按钮：降级时指向子域名（notice.ts 用 storefrontById，与邮件同源），不把店主带到失联的域名上
       await notice.waitTenantNoticePushesForTest()
       const degP = pushes.find((x) => x.includes('暂时无法访问'))
       check('降级：渠道推送按钮指向子域名、不含自定义域名链接', !!degP && degP.includes(`](${SUBO}/partner/`) && !degP.includes(`${NEW}/partner`), (degP ?? '(没有推送)').slice(0, 300))
-      const r3 = await run()
-      check('仍失联的第 3 趟：不重复告警（6 小时节流）', r3?.healthy === false && r3.event === null && (await noticeCount(`自定义域名 ${D.tibo} 暂时无法访问`)) === 1 && alertsOf('连续校验失败') === 1, JSON.stringify(r3))
+      const r5 = await run()
+      check('告警之后仍失联：不重复告警、不重复通知', r5?.healthy === false && r5.event === null && (await noticeCount(downTitle)) === 1 && alertsOf('无法访问') === 1, JSON.stringify(r5))
 
-      // 恢复：连续两趟成功才切回（2026-10-01：防晚高峰时通时断来回跳），切回时推一次恢复
+      // 恢复：连续两趟成功才切回（防晚高峰时通时断来回跳）；这次失联告警过，切回时推一次恢复
       setMode('route')
-      const r4 = await run()
-      check('恢复第 1 趟：校验通过但仍降级（event=null），仍用子域名', r4?.ok === true && r4.healthy === false && r4.event === null && (await origin.tenantOrigin(X.id)) === SUBO, JSON.stringify(r4))
+      const r6 = await run()
+      check('恢复第 1 趟：校验通过但仍降级（event=null），仍用子域名', r6?.ok === true && r6.healthy === false && r6.event === null && (await origin.tenantOrigin(X.id)) === SUBO, JSON.stringify(r6))
       const detR = await admin.tenantDetail(X.id)
       check('渠道详情：降级中已通过 1 次（down=true、oks=1、fails=0）', detR.primaryHealth?.down === true && detR.primaryHealth.oks === 1 && detR.primaryHealth.fails === 0, JSON.stringify(detR.primaryHealth))
-      const r5 = await run()
-      check('恢复第 2 趟：event=recovered，健康', r5?.ok === true && r5.healthy === true && r5.event === 'recovered', JSON.stringify(r5))
+      const r7 = await run()
+      check('恢复第 2 趟：event=recovered、notice=up，健康', r7?.ok === true && r7.healthy === true && r7.event === 'recovered' && r7.notice === 'up', JSON.stringify(r7))
       check('恢复：tenantOrigin 切回自定义域名、旧子域名重新跳过去', (await origin.tenantOrigin(X.id)) === NEW && (await redirOn(X.host)) === NEW && (await redirOn(D.tibo)) === null)
-      check('恢复：渠道收到恢复通知、站长群一条恢复告警', (await noticeCount(`自定义域名 ${D.tibo} 已恢复`)) === 1 && alertsOf('已恢复') === 1)
+      check('恢复：渠道收到恢复通知、站长群一条恢复告警', (await noticeCount(upTitle)) === 1 && alertsOf('已恢复') === 1)
+      check('完全恢复：failSince 清空', (await readRec())?.failSince === null)
       await notice.waitTenantNoticePushesForTest()
       const upP = pushes.find((x) => x.includes('已恢复'))
       check('恢复：渠道推送按钮指回自定义主域名', !!upP && upP.includes(`](${NEW}/partner/`), (upP ?? '(没有推送)').slice(0, 300))
-      const r6 = await run()
-      check('恢复后再跑：不再告警', r6?.healthy === true && r6.event === null, JSON.stringify(r6))
+      const r8 = await run()
+      check('恢复后再跑：不再告警', r8?.healthy === true && r8.event === null && r8.notice === null, JSON.stringify(r8))
 
-      // 抖动 + 6 小时节流：刚恢复不久又连续失败两趟 → 照样降级（安全优先）；站长群被节流不再告警，
-      // 但渠道上一条通知是「已恢复」，必须再发一条「暂时无法访问」（复核：否则渠道以为店铺还在自定义域名上，实际已改走子域名）
+      // 短时失联（站长 10-18 嫌烦的那种）：降级、恢复都照常自动进行，但站长群与渠道一条都不收
       setMode('down')
-      const alertsBefore = platformAlerts.length
-      const f1 = await run()
-      const f2 = await run()
-      check('抖动：6 小时内再次降级 → 店面照样改用子域名，站长群 event=null', f1?.event === null && f1.notice === null && f2?.healthy === false && f2.event === null && (await origin.tenantOrigin(X.id)) === SUBO, `${JSON.stringify(f1)} ${JSON.stringify(f2)}`)
-      check('抖动：站长群没有新告警', platformAlerts.length === alertsBefore, platformAlerts.slice(alertsBefore).join(' | '))
-      const downN2 = await prisma.tenantNotice.findFirst({ where: { tenantId: X.id, title: `自定义域名 ${D.tibo} 暂时无法访问` }, orderBy: { id: 'desc' } })
-      check(
-        '抖动：渠道收到第二条「暂时无法访问」（notice=down，原因是归类原因），最新一条通知与实际状态一致',
-        f2?.notice === 'down' && (await noticeCount(`自定义域名 ${D.tibo} 暂时无法访问`)) === 2 && !!downN2?.body?.includes('（解析不到）') && (await lastDomainNotice()) === 'down',
-        `${JSON.stringify(f2)} ${downN2?.body}`,
-      )
-      // realert：仍在降级、距上次降级告警 5 小时 → 不提醒；满 6 小时 → 只提醒站长群一次（不再发站内通知）
-      const cur1 = (await readRec())!
-      await writeRec({ ...cur1, downAlertAt: ago(5 * HOUR) })
+      const aQ = platformAlerts.length
+      const nQ = await prisma.tenantNotice.count({ where: { tenantId: X.id } })
+      const q1 = await run()
+      const q2 = await run()
+      const q3 = await run()
+      check('短时失联：第 3 趟静默降级、改用子域名', q3?.healthy === false && [q1, q2, q3].every((x) => x?.event === null && x?.notice === null) && (await origin.tenantOrigin(X.id)) === SUBO, JSON.stringify([q1, q2, q3]))
+      setMode('route')
+      const q4 = await run()
+      const q5 = await run()
+      check('短时失联恢复：静默切回自定义域名', q5?.healthy === true && [q4, q5].every((x) => x?.event === null && x?.notice === null) && (await origin.tenantOrigin(X.id)) === NEW, JSON.stringify([q4, q5]))
+      check('短时失联全程：站长群 0 条、渠道站内通知 0 条，渠道最新一条仍是「已恢复」', platformAlerts.length === aQ && (await prisma.tenantNotice.count({ where: { tenantId: X.id } })) === nQ && (await lastDomainNotice()) === 'up', platformAlerts.slice(aQ).join(' | '))
+
+      // realert：失联告警过、仍失联 → 距上次告警满 24 小时才提醒站长群一次（不再发站内通知）
+      setMode('down')
+      await run()
+      await run()
+      await run()
+      // 拨时间：这次失联从 3 小时前开始，上一次失联的告警在它之前（真实时间里必然如此）
+      await writeRec({ ...(await readRec())!, failSince: ago(3 * HOUR), downAlertAt: ago(4 * HOUR), upAlertAt: ago(3.5 * HOUR) })
+      const d1 = await run()
+      check('第二次长时失联：再告警一次（degraded + down 通知）', d1?.event === 'degraded' && d1.notice === 'down' && (await noticeCount(downTitle)) === 2 && (await lastDomainNotice()) === 'down', JSON.stringify(d1))
+      await writeRec({ ...(await readRec())!, failSince: ago(30 * HOUR), downAlertAt: ago(23 * HOUR) })
       const g1 = await run()
-      check('realert：距上次降级告警 5 小时 → 不提醒', g1?.healthy === false && g1.event === null, JSON.stringify(g1))
-      const cur2 = (await readRec())!
-      await writeRec({ ...cur2, downAlertAt: ago(6 * HOUR + 60_000) })
+      check('realert：距上次告警 23 小时 → 不提醒', g1?.healthy === false && g1.event === null, JSON.stringify(g1))
+      await writeRec({ ...(await readRec())!, failSince: ago(30 * HOUR), downAlertAt: ago(24 * HOUR + 60_000) })
       const beforeRe = platformAlerts.length
       const g2 = await run()
       const reText = platformAlerts.slice(beforeRe).join(' | ')
-      check('realert：满 6 小时 → event=realert，站长群一条「仍未恢复」', g2?.event === 'realert' && reText.includes('仍未恢复') && reText.includes('解析不到') && !reText.includes('ENOTFOUND'), `${JSON.stringify(g2)} ${reText.slice(0, 200)}`)
-      check('realert：渠道已知道在降级，不再发站内通知', g2?.notice === null && (await noticeCount(`自定义域名 ${D.tibo} 暂时无法访问`)) === 2)
+      check('realert：满 24 小时 → event=realert，站长群一条「仍未恢复」', g2?.event === 'realert' && reText.includes('仍未恢复') && reText.includes('24 小时') && reText.includes('解析不到') && !reText.includes('ENOTFOUND'), `${JSON.stringify(g2)} ${reText.slice(0, 200)}`)
+      check('realert：渠道已知道在降级，不再发站内通知', g2?.notice === null && (await noticeCount(downTitle)) === 2)
       const g3 = await run()
-      check('realert 之后下一趟：不再提醒（重新计 6 小时）', g3?.event === null, JSON.stringify(g3))
-      // 恢复途中不 realert（复核）：仍降级、距上次降级告警已满 6 小时，但本趟校验通过（恢复要两趟，down 仍为 true）
-      // → 不推「仍未恢复（未知）」，downAlertAt 不动
-      const cur3 = (await readRec())!
-      const oldDownAt = ago(6 * HOUR + 60_000)
-      await writeRec({ ...cur3, downAlertAt: oldDownAt })
+      check('realert 之后下一趟：不再提醒（重新计 24 小时）', g3?.event === null, JSON.stringify(g3))
+      // 恢复途中不 realert：仍降级、距上次告警已满 24 小时，但本趟校验通过 → 不推「仍未恢复（未知）」，downAlertAt 不动
+      const oldDownAt = ago(24 * HOUR + 60_000)
+      await writeRec({ ...(await readRec())!, downAlertAt: oldDownAt })
       setMode('route')
       const aK = platformAlerts.length
       const k1 = await run()
       const recK1 = await readRec()
       check(
-        '恢复途中：降级满 6 小时后第一趟通过 → event=null、站长群无告警、渠道无通知、downAlertAt 不动，仍用子域名',
+        '恢复途中：第一趟通过 → event=null、站长群无告警、渠道无通知、downAlertAt 不动，仍用子域名',
         k1?.ok === true && k1.healthy === false && k1.event === null && k1.notice === null && platformAlerts.length === aK && recK1?.downAlertAt === oldDownAt && recK1.down === true,
         `${JSON.stringify(k1)} ${platformAlerts.slice(aK).join(' | ').slice(0, 200)}`,
       )
-      // 恢复节流：距上次「已恢复」告警不到 6 小时 → 连续两趟成功照样切回，站长群不推「已恢复」；
-      // 渠道上一条是「暂时无法访问」→ 照样收到「已恢复」（不节流），最新一条与实际状态一致
       const k2 = await run()
-      check('恢复节流：6 小时内第二次恢复 → 切回，站长群 event=null、不再告警', k2?.healthy === true && k2.event === null && alertsOf('已恢复') === 1 && (await origin.tenantOrigin(X.id)) === NEW, JSON.stringify(k2))
-      check('恢复节流：渠道照样收到第二条「已恢复」（notice=up），最新一条通知与实际状态一致', k2?.notice === 'up' && (await noticeCount(`自定义域名 ${D.tibo} 已恢复`)) === 2 && (await lastDomainNotice()) === 'up', JSON.stringify(k2))
+      check('长时失联恢复：切回，站长群「已恢复」、渠道「已恢复」各一条', k2?.healthy === true && k2.event === 'recovered' && k2.notice === 'up' && alertsOf('已恢复') === 2 && (await noticeCount(upTitle)) === 2 && (await lastDomainNotice()) === 'up', JSON.stringify(k2))
       const k3 = await run()
-      check('恢复后再跑：渠道已知道恢复，不重复通知', k3?.healthy === true && k3.event === null && k3.notice === null && (await noticeCount(`自定义域名 ${D.tibo} 已恢复`)) === 2, JSON.stringify(k3))
+      check('恢复后再跑：不重复通知', k3?.healthy === true && k3.event === null && k3.notice === null && (await noticeCount(upTitle)) === 2, JSON.stringify(k3))
 
-      // 纯状态机回放（复核给的场景，10 分钟一趟）：失败 2、通过 2、失败 38、通过 2。
-      // 站长群按 6 小时节流；渠道通知必须一条「暂时无法访问」一条「已恢复」交替，第二次降级（60 分钟）不能漏
+      // 纯状态机回放（10 分钟一趟）：失败 2、通过 2（不降级）；失败 3、通过 2（静默降级与恢复）；失败 20、通过 2（满 2 小时告警）
       {
         let rec: import('../../src/lib/storefront/domain-health').DomainHealth | null = null
         const t0 = Date.now()
-        const seq = [false, false, true, true, ...new Array(38).fill(false), true, true]
+        const seq = [false, false, true, true, false, false, false, true, true, ...new Array(20).fill(false), true, true]
         const evs: string[] = []
         const nts: string[] = []
+        const downs: string[] = []
         seq.forEach((ok, i) => {
           const at = t0 + (i + 1) * 10 * 60_000
+          const wasDown = !!rec?.down
           const o = health.nextDomainHealth(rec, D.tibo, ok ? { ok: true } : { ok: false, reason: '解析不到', detail: 'ENOTFOUND' }, at)
           rec = o.next
           if (o.event) evs.push(`${(i + 1) * 10}m:${o.event}`)
           if (o.notice) nts.push(`${(i + 1) * 10}m:${o.notice}`)
+          if (wasDown !== o.next.down) downs.push(`${(i + 1) * 10}m:${o.next.down ? 'down' : 'up'}`)
         })
-        check('回放：站长群 degraded@20m / recovered@40m / realert@380m / recovered@440m', evs.join(' ') === '20m:degraded 40m:recovered 380m:realert 440m:recovered', evs.join(' '))
-        check('回放：渠道通知 down@20m / up@40m / down@60m / up@440m（交替、不漏第二次降级）', nts.join(' ') === '20m:down 40m:up 60m:down 440m:up', nts.join(' '))
-        // 降级中满 6 小时、本趟通过 → 不 realert（复核：否则刚通过就推「仍未恢复（未知）」）
-        const downRec = { ...verify.freshHealth(D.tibo, new Date(t0 - 7 * HOUR)), fails: 40, oks: 0, down: true, reason: '解析不到', detail: 'ENOTFOUND', downAlertAt: new Date(t0 - 7 * HOUR).toISOString(), told: 'down' as const }
+        check('回放：降级 / 切回照常（70m 降、90m 回、120m 降、310m 回）', downs.join(' ') === '70m:down 90m:up 120m:down 310m:up', downs.join(' '))
+        check('回放：站长群只在满 2 小时时告警一次、恢复一次（220m degraded / 310m recovered）', evs.join(' ') === '220m:degraded 310m:recovered', evs.join(' '))
+        check('回放：渠道通知同样只有 down@220m / up@310m', nts.join(' ') === '220m:down 310m:up', nts.join(' '))
+        // 降级中满 24 小时、本趟通过 → 不 realert（否则刚通过就推「仍未恢复（未知）」）
+        const downRec = {
+          ...verify.freshHealth(D.tibo, new Date(t0 - 30 * HOUR)),
+          fails: 40,
+          oks: 0,
+          down: true,
+          reason: '解析不到',
+          detail: 'ENOTFOUND',
+          failSince: new Date(t0 - 30 * HOUR).toISOString(),
+          downAlertAt: new Date(t0 - 25 * HOUR).toISOString(),
+          told: 'down' as const,
+        }
         const sw = health.nextDomainHealth(downRec, D.tibo, { ok: true }, t0)
-        check('纯函数：降级 + downAlertAt 7 小时前 + 一趟通过 → event=null、notice=null、downAlertAt 不动', sw.event === null && sw.notice === null && sw.next.down === true && sw.next.downAlertAt === downRec.downAlertAt, JSON.stringify(sw))
+        check('纯函数：降级 + 告警 25 小时前 + 一趟通过 → event=null、notice=null、downAlertAt 不动', sw.event === null && sw.notice === null && sw.next.down === true && sw.next.downAlertAt === downRec.downAlertAt, JSON.stringify(sw))
+        const sf = health.nextDomainHealth(downRec, D.tibo, { ok: false, reason: '解析不到', detail: 'ENOTFOUND' }, t0)
+        check('纯函数：同一条记录本趟失败 → realert', sf.event === 'realert', JSON.stringify(sf))
+        // 10-18 之前写的旧记录（没有 failSince）：从下一趟失败起算，不会因为旧数据立刻告警
+        const legacyDown = health.parseDomainHealth(JSON.stringify({ host: D.tibo, okAt: ago(HOUR), checkedAt: ago(0), fails: 2, oks: 0, down: true, reason: '连接失败', detail: '超时', downAlertAt: ago(0), upAlertAt: null, told: 'down' }))!
+        const lf = health.nextDomainHealth(legacyDown, D.tibo, { ok: false, reason: '连接失败', detail: '超时' })
+        check('旧记录没有 failSince：再失败一趟不告警（从此刻起算 2 小时）', legacyDown.failSince === null && lf.event === null && lf.notice === null && !!lf.next.failSince, JSON.stringify(lf))
         // 旧记录（told 上线前写的，没有这个字段）：按两个告警时间戳推断渠道最后听到的是什么；写了 null 就信 null
         const legacy = (d: string | null, u: string | null) =>
           health.parseDomainHealth(JSON.stringify({ host: D.tibo, okAt: null, checkedAt: ago(0), fails: 2, oks: 0, down: true, reason: null, detail: null, downAlertAt: d, upAlertAt: u }))?.told
@@ -669,7 +700,7 @@ async function main() {
 
       // 并发（CAS）：cron 探测期间，校验记录被站长「重新校验」改写 → cron 放弃本次写入，不拿旧计数覆盖新结果
       setMode('down')
-      await writeRec({ ...(await readRec())!, fails: 1, oks: 0, reason: '解析不到', detail: 'ENOTFOUND' }) // 再失败一趟就会降级
+      await writeRec({ ...(await readRec())!, fails: 2, oks: 0, reason: '解析不到', detail: 'ENOTFOUND' }) // 再失败一趟就会降级
       const manual = verify.freshHealth(D.tibo)
       probe.hook = async () => {
         await verify.writeDomainHealth(prisma, X.id, manual)
@@ -710,7 +741,7 @@ async function main() {
       const aS = platformAlerts.length
       check('记录过期（没人复验）→ 改用子域名', (await origin.tenantOrigin(X.id)) === SUBO)
       const staleText = platformAlerts.slice(aS).join(' | ')
-      check('记录过期 → 站长群告警一条，提示检查 cron 容器与 /api/cron/tenant-domains', platformAlerts.length - aS === 1 && staleText.includes('40 分钟') && staleText.includes('cron') && staleText.includes('/api/cron/tenant-domains'), staleText.slice(0, 300))
+      check('记录过期 → 站长群告警一条，提示检查 cron 容器与 /api/cron/tenant-domains', platformAlerts.length - aS === 1 && staleText.includes('50 分钟') && staleText.includes('cron') && staleText.includes('/api/cron/tenant-domains'), staleText.slice(0, 300))
       resolve.invalidateStorefrontCache()
       await origin.tenantOrigin(X.id)
       check('记录过期告警节流：缓存失效后再解析，不重复告警', platformAlerts.length - aS === 1)
@@ -730,8 +761,8 @@ async function main() {
       const reBad = await call('POST', X.id, { action: 'primary', host: D.tibo })
       check('重新校验：仍失联 → 400，仍用子域名', reBad.status === 400 && reBad.json?.reason === 'DOMAIN_NOT_VERIFIED' && (await origin.tenantOrigin(X.id)) === SUBO, reBad.text)
       check('重新校验失败提示（只给超管）带归类原因与细节', String(reBad.json?.error).includes('解析不到') && String(reBad.json?.error).includes('ENOTFOUND'), String(reBad.json?.error))
-      // 造一条「降级中、上次恢复告警已超过 6 小时」的记录：手动恢复应推一次「已恢复」
-      await writeRec({ ...verify.freshHealth(D.tibo, new Date(Date.now() - 30 * 60_000)), fails: 2, oks: 0, down: true, reason: '解析不到', detail: 'ENOTFOUND', downAlertAt: ago(HOUR), upAlertAt: ago(7 * HOUR), told: 'down' })
+      // 造一条「长时失联、已告警过」的记录：手动恢复应推一次「已恢复」
+      await writeRec({ ...verify.freshHealth(D.tibo, new Date(Date.now() - 30 * 60_000)), fails: 3, oks: 0, down: true, reason: '解析不到', detail: 'ENOTFOUND', failSince: ago(3 * HOUR), downAlertAt: ago(HOUR), upAlertAt: ago(7 * HOUR), told: 'down' })
       const upBefore = await noticeCount(`自定义域名 ${D.tibo} 已恢复`)
       const upAlertBefore = alertsOf('已恢复')
       setMode('route')

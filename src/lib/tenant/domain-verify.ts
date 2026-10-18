@@ -8,9 +8,9 @@
  * 所以要把「域名还在我们手里」变成一个持续被验证的事实：
  *  · 设为主域名之前当场校验（admin-tenants.setPrimaryDomain 调 verifyCustomDomain，不通过 400、什么都不改）；
  *  · cron 每 10 分钟复验一次（runDomainHealthCheck，/api/cron/tenant-domains），结果写进 settings（口径见 storefront/domain-health.ts）；
- *  · 连续两趟失败（或 40 分钟没有成功记录）→ 店面解析自动改用子域名：邮件与链接走子域名、旧子域名不再跳走；
- *    同时推平台企业微信告警 + 给渠道一条站内通知；连续两趟成功后自动切回并再推一条（站长群告警各自 6 小时最多一次；
- *    渠道通知不节流、只在状态与渠道上次听到的不一致时发，保证渠道最新一条通知永远是真实状态，见 domain-health.ts 文件头）。
+ *  · 连续三趟失败（或 50 分钟没有成功记录）→ 店面解析自动改用子域名：邮件与链接走子域名、旧子域名不再跳走；
+ *    连续两趟成功后自动切回。切换本身静默；只有连续失联满 2 小时才推平台告警 + 渠道站内通知，恢复时再各推一条
+ *    （2026-10-18，见 domain-health.ts 文件头「静默」）。
  *
  * 【防什么、防不住什么】这套校验防的是**意外失联**：域名过期、客户改了 NS、解析被指到别处——这些都会让签名对不上或连不上。
  * 它**防不住有意作恶的 DNS 控制者**：域名的 DNS 在客户手里，客户可以在自己的 Cloudflare 边缘按路径 / 来源选择性转发
@@ -65,8 +65,11 @@ export const DOMAIN_CHECK_PATH = '/api/domain-check'
 /** nonce 形状：base64url，16–64 字符（平台生成的是 24 字符） */
 export const DOMAIN_CHECK_NONCE_RE = /^[A-Za-z0-9_-]{16,64}$/
 
-const PROBE_TIMEOUT_MS = 8_000
-const PROBE_RETRY_GAP_MS = 3_000
+// 2026-10-18：8 秒 → 15 秒、隔 3 秒 → 5 秒、2 次 → 3 次。阿里云北京到海外 Cloudflare 晚间 TLS 握手常要 5 秒，
+// 8 秒经常整次超时，冤枉客户域名（同一时刻站长自己的子域名也一样慢）
+const PROBE_TIMEOUT_MS = 15_000
+const PROBE_RETRY_GAP_MS = 5_000
+const PROBE_ATTEMPTS = 3
 /** 应答体上限（字节）。真应答不到 100 字节，4 KB 足够宽裕 */
 export const PROBE_MAX_BODY_BYTES = 4_096
 
@@ -364,11 +367,11 @@ async function probeOnce(host: string, code: string): Promise<VerifyResult> {
 }
 
 /**
- * 校验 host 是否接到本站的这个渠道。attempts 次里任一次通过即通过（两次之间隔 3 秒，滤掉 Cloudflare 的瞬时抖动）。
+ * 校验 host 是否接到本站的这个渠道。attempts 次里任一次通过即通过（两次之间隔 5 秒，滤掉 Cloudflare 的瞬时抖动）。
  * 永不抛：本地错误也按失败返回（fail closed）。「指向了非公网地址」不重试（结果不会在 3 秒内变好，也不该再解析一次去碰运气）；
  * 「本站校验出错」也不重试（本站配置问题，3 秒后照样算不出）。
  */
-export async function verifyCustomDomain(rawHost: string, code: string, attempts = 2): Promise<VerifyResult> {
+export async function verifyCustomDomain(rawHost: string, code: string, attempts = PROBE_ATTEMPTS): Promise<VerifyResult> {
   const host = normalizeHost(rawHost)
   if (!host) return fail('dns', '域名格式不对')
   let last: VerifyResult = fail('local', '未校验')
@@ -466,12 +469,16 @@ export async function runDomainHealthCheck(): Promise<{ at: string; items: Domai
     select: { id: true, code: true, origin: true },
   })
   const items: DomainHealthRunItem[] = []
-  for (const t of tenants) {
-    const host = hostOfOrigin(t.origin)
-    if (!host || host.endsWith(suffix)) continue
-    const prevRaw = await readDomainHealthRaw(prisma, t.id)
+  // 先读旧记录、**并行**探测（每个域名最坏约 55 秒，cron 的 curl 只等 120 秒），再逐个提交（条件写入，见 commitIfUnchanged）
+  const targets = tenants.map((t) => ({ t, host: hostOfOrigin(t.origin) })).filter((x): x is { t: (typeof tenants)[number]; host: string } => !!x.host && !x.host.endsWith(suffix))
+  const probed = await Promise.all(
+    targets.map(async ({ t, host }) => {
+      const prevRaw = await readDomainHealthRaw(prisma, t.id)
+      return { t, host, prevRaw, r: await verifyCustomDomain(host, t.code) }
+    }),
+  )
+  for (const { t, host, prevRaw, r } of probed) {
     const prev = parseDomainHealth(prevRaw)
-    const r = await verifyCustomDomain(host, t.code)
     const now = Date.now()
     const { next, event, notice } = nextDomainHealth(prev, host, r.ok ? { ok: true } : { ok: false, reason: r.reason, detail: r.detail }, now)
     const healthy = isDomainHealthy(next, host, now)
@@ -514,8 +521,8 @@ export async function announceDomainEvent(
     await alertPlatform(`渠道 ${code} 的自定义主域名 https://${host} 连通校验已恢复，邮件、链接与跳转已切回该域名`)
   } else if (event) {
     await alertPlatform(
-      `渠道 ${code} 的自定义主域名 https://${host} 连续校验失败（${reason ?? '未知'}）${event === 'realert' ? '，仍未恢复（距上次告警已满 6 小时）' : ''}。` +
-        `已自动改用 ${fallback} 生成邮件与链接、停止向该域名跳转；连续两趟校验通过后自动切回。请确认客户的域名未过期、DNS 服务器仍指向站长的 Cloudflare、隧道路由仍在。`,
+      `渠道 ${code} 的自定义主域名 https://${host} 已连续 2 小时以上无法访问（${reason ?? '未知'}）${event === 'realert' ? '，仍未恢复（距上次告警已满 24 小时）' : ''}。` +
+        `已自动改用 ${fallback} 生成邮件与链接、停止向该域名跳转；恢复后自动切回。请确认客户的域名未过期、DNS 服务器仍指向站长的 Cloudflare、隧道路由仍在。`,
     )
   }
   if (notice === 'up') {

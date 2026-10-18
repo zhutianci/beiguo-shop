@@ -15,31 +15,37 @@
  *
  * 【健康的定义】记录的 host = 当前主域名、没有处于降级状态（down）、最近一次成功在 HEALTH_OK_TTL_MS 以内、连续失败 < 阈值。
  *  · 没有记录 / 记录损坏 / host 对不上 → 不健康（fail closed：宁可暂时用子域名，也不把买家送到没验证过的地方）；
- *  · 降级要**连续两趟**失败（cron 每趟内部已重试一次）：Cloudflare 抖一下不降级；
+ *  · 降级要**连续三趟**失败（cron 每趟内部重试共 3 次、每次等 15 秒）：Cloudflare 抖一下不降级（2026-10-18 由两趟改三趟，见下面「静默」）；
  *  · 恢复同样要**连续两趟**成功（2026-10-01）：晚高峰时通时断的域名不会每 10 分钟在「自定义域名 / 子域名」之间来回跳——
  *    每跳一次，邮件链接与跳转目标就换一次，买家与告警群都受不了。所以用 down 这个「闩」记住降级状态，成功一趟不解除；
- *  · cron 停了（最近成功超过 40 分钟）同样不健康——没人复验，就不能再假定域名还在我们手里（这种不置 down，cron 恢复后一趟成功即切回，
+ *  · cron 停了（最近成功超过 50 分钟）同样不健康——没人复验，就不能再假定域名还在我们手里（这种不置 down，cron 恢复后一趟成功即切回，
  *    因为这不是域名本身出问题；resolve.ts 发现这种情况会给站长群告警一次，提示检查 cron）。
  *
- * 【告警节流】**站长群**的「降级」与「恢复」告警各自 6 小时内最多一次（ALERT_THROTTLE_MS）；仍在降级中、距上次降级告警满 6 小时、
- * 且本趟仍失败，再提醒一次（本趟已通过 = 正在恢复，不发「仍未恢复」）。时间戳记在记录里（downAlertAt / upAlertAt），恢复后也保留，
- * 这样来回抖动时站长群不会反复刷屏。
+ * 【静默：短时失联只切换、不告警】（2026-10-18 站长：「老是弹窗很烦」）实测失败的主因不是客户域名，而是**测量路径本身**：
+ * 校验从阿里云北京经公网绕到海外 Cloudflare 再经隧道回本机，晚间 TLS 握手常要 5 秒、整次超时——连站长自己的子域名
+ * tiboshop.bigolab.com 同一时刻也一样慢。所以：
+ *  · 降级 / 恢复（改用子域名生成链接、停止跳转）照常自动进行，但**不通知任何人**；
+ *  · 只有**连续失联满 2 小时**（failSince 起算，ALERT_AFTER_DOWN_MS）才算真出事：站长群一条「降级」告警 + 渠道一条「暂时无法访问」；
+ *    之后仍失联、且本趟仍失败，站长群每 24 小时提醒一次（DOWN_REALERT_MS）；
+ *  · 「已恢复」只在这次失联告警过时才发（站长群看 downAlertAt ≥ failSince；渠道看 told）。没告警过的失联恢复了，同样静默。
  *
- * 【渠道站内通知不节流，只跟状态走】（2026-10-01 复核）记录里的 told 记住渠道最近一条通知说的是什么（down =「暂时无法访问」、
- * up =「已恢复」）：实际状态与 told 不一致就发一条、改 told，一致就不发。为什么不跟站长群共用 6 小时节流：节流会让渠道最新一条
- * 通知与实际状态相反——降级→恢复（渠道收到「已恢复」）→ 6 小时内再降级（被节流、不通知）→ 渠道以为店铺在自定义域名上，
- * 实际邮件与链接早已改走子域名，要等下次恢复又收到一条「已恢复」。渠道是唯一能去修 DNS 的人，它看到的必须是真实状态。
- * 刷屏的上限由上面的「两趟」滞回兜住：一来一回至少 40 分钟，且每条都是真实的状态变化。
+ * 【渠道站内通知只跟状态走】记录里的 told 记住渠道最近一条通知说的是什么（down =「暂时无法访问」、up =「已恢复」）：
+ * 失联满 2 小时且 told ≠ down → 发「暂时无法访问」；已恢复且 told = down → 发「已恢复」。渠道是唯一能去修 DNS 的人，
+ * 它最新一条通知必须是真实状态（2026-10-01 复核的结论不变，只是加了「满 2 小时」的门槛）。
  */
 
-/** 连续失败多少趟 cron 就降级（每趟内部已重试一次） */
-export const HEALTH_FAIL_THRESHOLD = 2
+/** 连续失败多少趟 cron 就降级（每趟内部共试 3 次） */
+export const HEALTH_FAIL_THRESHOLD = 3
 /** 降级后连续成功多少趟才恢复（防晚高峰抖动来回跳） */
 export const HEALTH_RECOVER_THRESHOLD = 2
-/** 最近一次成功的有效期：cron 每 10 分钟一趟，允许漏跑三趟 */
-export const HEALTH_OK_TTL_MS = 40 * 60_000
-/** 同一域名的降级 / 恢复告警各自的最小间隔；仍未恢复时也按这个间隔再提醒 */
+/** 最近一次成功的有效期：cron 每 10 分钟一趟；降级要连续失败三趟（约 30 分钟），这里留出余量，别让 cron 停摆误报先于降级 */
+export const HEALTH_OK_TTL_MS = 50 * 60_000
+/** resolve.ts「cron 停摆」告警的节流（与域名失联告警无关） */
 export const ALERT_THROTTLE_MS = 6 * 3_600_000
+/** 连续失联满这么久才告警（站长群 + 渠道）；更短的失联只静默切换（见文件头「静默」） */
+export const ALERT_AFTER_DOWN_MS = 2 * 3_600_000
+/** 失联告警之后仍未恢复，站长群隔多久再提醒一次 */
+export const DOWN_REALERT_MS = 24 * 3_600_000
 
 const KEY_PREFIX = 'tenant_domain_health:'
 
@@ -70,6 +76,8 @@ export interface DomainHealth {
   upAlertAt: string | null
   /** 渠道最近一条站内通知说的状态：down =「暂时无法访问」，up =「已恢复」，null = 还没通知过（见文件头「渠道站内通知」） */
   told: DomainTenantNotice | null
+  /** 这次失联从哪一趟开始（ISO）：连续失败的第一趟；降级中通过一趟不清，完全恢复才清为 null。告警门槛从这里算 */
+  failSince: string | null
 }
 
 /** 渠道站内通知：down =「自定义域名暂时无法访问」，up =「已恢复」 */
@@ -121,6 +129,8 @@ export function parseDomainHealth(raw: string | null | undefined): DomainHealth 
     downAlertAt,
     upAlertAt,
     told: parseTold(r, downAlertAt, upAlertAt),
+    // 旧记录（10-18 之前写的）没有 failSince：按 null 读，下一趟失败从那一刻起算（宁可晚告警，也不因旧数据立刻弹）
+    failSince: isoOrNull(r.failSince),
   }
 }
 
@@ -137,6 +147,7 @@ export function serializeDomainHealth(h: DomainHealth): string {
     downAlertAt: h.downAlertAt,
     upAlertAt: h.upAlertAt,
     told: h.told,
+    failSince: h.failSince,
   })
 }
 
@@ -161,29 +172,37 @@ export function isDomainHealthStale(h: DomainHealth | null, host: string, now = 
 export type DomainHealthEvent = 'degraded' | 'recovered' | 'realert'
 export type ProbeOutcome = { ok: true } | { ok: false; reason: string; detail: string | null }
 
-function throttled(at: string | null, now: number): boolean {
-  if (!at) return false
-  const t = Date.parse(at)
-  return Number.isFinite(t) && now - t < ALERT_THROTTLE_MS
+const ms = (iso: string | null): number => (iso ? Date.parse(iso) : NaN)
+
+/** 失联已满告警门槛（down 且 failSince 至今 ≥ 2 小时） */
+function longDown(h: DomainHealth, now: number): boolean {
+  const t = ms(h.failSince)
+  return h.down && Number.isFinite(t) && now - t >= ALERT_AFTER_DOWN_MS
+}
+
+/** 这次失联告警过站长群没有（downAlertAt 不早于 failSince） */
+function alertedThisOutage(h: { downAlertAt: string | null; failSince: string | null }): boolean {
+  const a = ms(h.downAlertAt)
+  const f = ms(h.failSince)
+  return Number.isFinite(a) && Number.isFinite(f) && a >= f
 }
 
 /**
- * 实际状态与渠道最近听到的不一致 → 要补发哪条通知（一致为 null）。只看 down 这个闩：cron 停摆那种「过期」不是域名本身的问题，不通知渠道
+ * 要补发哪条渠道通知（一致为 null）：失联满 2 小时且渠道没听过 → down；已恢复且渠道最后听到的是 down → up。
+ * cron 停摆那种「过期」不是域名本身的问题，不通知渠道
  */
-function tenantNoticeFor(down: boolean, told: DomainTenantNotice | null): DomainTenantNotice | null {
-  if (down) return told === 'down' ? null : 'down'
-  return told === 'down' ? 'up' : null
+function tenantNoticeFor(h: DomainHealth, now: number): DomainTenantNotice | null {
+  if (h.down) return longDown(h, now) && h.told !== 'down' ? 'down' : null
+  return h.told === 'down' ? 'up' : null
 }
 
 /**
  * cron 一趟校验之后的新记录与要发的告警 / 通知（纯函数）。prev 是读到的旧记录（host 不同视为没有）。
- *  · 失败：fails+1、oks 清零；fails 达阈值 → down；
- *  · 成功：fails 清零、oks+1、okAt 刷新；原本 down 的要 oks 达阈值才解除；
- *  · event（站长群，6 小时节流）：刚降级 → degraded；本来就降级、**本趟仍失败**、距上次降级告警 ≥ 6 小时 → realert；
- *    刚从 down 解除且距上次恢复告警 ≥ 6 小时 → recovered。
- *    realert 必须本趟失败：降级中第一趟通过（恢复要两趟）时 down 仍为 true，若照发就会在刚通过的时刻推「仍未恢复（未知）」；
- *    这种情况不告警、downAlertAt 不动（下一趟再失败，照样满 6 小时就提醒）；
- *  · notice（渠道站内通知，不节流）：见 tenantNoticeFor 与文件头。
+ *  · 失败：fails+1、oks 清零、failSince 没有就记本趟；fails 达阈值 → down（静默切子域名）；
+ *  · 成功：fails 清零、oks+1、okAt 刷新；原本 down 的要 oks 达阈值才解除；完全恢复时 failSince 清空；
+ *  · event（站长群）：失联满 2 小时、本趟仍失败、这次失联还没告警过 → degraded；已告警过、本趟仍失败、距上次 ≥ 24 小时 → realert；
+ *    刚从 down 解除且这次失联告警过 → recovered。其余一律 null（短时失联静默）；
+ *  · notice（渠道站内通知）：见 tenantNoticeFor 与文件头。
  */
 export function nextDomainHealth(
   prev: DomainHealth | null,
@@ -199,30 +218,49 @@ export function nextDomainHealth(
   if (r.ok) {
     const oks = (same?.oks ?? 0) + 1
     const down = wasDown && oks < HEALTH_RECOVER_THRESHOLD
-    // 仍在降级中：保留上次失败的原因，超管页面据此显示「已通过 1 次，再通过 1 次切回」
-    next = { ...base, okAt: at, fails: 0, oks, down, reason: down ? (same?.reason ?? null) : null, detail: down ? (same?.detail ?? null) : null }
+    // 仍在降级中：保留上次失败的原因与失联起点，超管页面据此显示「已通过 1 次，再通过 1 次切回」
+    next = {
+      ...base,
+      okAt: at,
+      fails: 0,
+      oks,
+      down,
+      reason: down ? (same?.reason ?? null) : null,
+      detail: down ? (same?.detail ?? null) : null,
+      failSince: down ? (same?.failSince ?? null) : null,
+    }
   } else {
     const fails = (same?.fails ?? 0) + 1
-    next = { ...base, okAt: same?.okAt ?? null, fails, oks: 0, down: wasDown || fails >= HEALTH_FAIL_THRESHOLD, reason: r.reason, detail: r.detail }
+    next = {
+      ...base,
+      okAt: same?.okAt ?? null,
+      fails,
+      oks: 0,
+      down: wasDown || fails >= HEALTH_FAIL_THRESHOLD,
+      reason: r.reason,
+      detail: r.detail,
+      failSince: same?.failSince ?? at,
+    }
   }
   let event: DomainHealthEvent | null = null
   if (next.down) {
-    if (!r.ok && !throttled(next.downAlertAt, now)) {
-      event = wasDown ? 'realert' : 'degraded'
-      next.downAlertAt = at
+    if (!r.ok && longDown(next, now)) {
+      if (!alertedThisOutage(next)) event = 'degraded'
+      else if (now - ms(next.downAlertAt) >= DOWN_REALERT_MS) event = 'realert'
+      if (event) next.downAlertAt = at
     }
-  } else if (wasDown && !throttled(next.upAlertAt, now)) {
+  } else if (wasDown && same && alertedThisOutage(same)) {
     event = 'recovered'
     next.upAlertAt = at
   }
-  const notice = tenantNoticeFor(next.down, next.told)
+  const notice = tenantNoticeFor(next, now)
   if (notice) next.told = notice
   return { next, event, notice }
 }
 
 /**
  * 站长手动校验通过（设为主域名 / 「重新校验」）后的新记录：立即解除降级（站长当场看过结果，不必再等一趟），
- * 同一 host 的告警时间戳保留（节流照旧）。原本 down 且距上次恢复告警 ≥ 6 小时 → event=recovered（站长群）；
+ * 同一 host 的告警时间戳保留。原本 down 且这次失联告警过站长群 → event=recovered（站长群）；
  * 渠道最近听到的是「暂时无法访问」→ notice=up（渠道，不节流，理由同 nextDomainHealth）。
  */
 export function manualVerifiedHealth(
@@ -244,13 +282,14 @@ export function manualVerifiedHealth(
     downAlertAt: same?.downAlertAt ?? null,
     upAlertAt: same?.upAlertAt ?? null,
     told: same?.told ?? null,
+    failSince: null,
   }
   let event: 'recovered' | null = null
-  if (same?.down && !throttled(next.upAlertAt, now)) {
+  if (same?.down && alertedThisOutage(same)) {
     next.upAlertAt = at
     event = 'recovered'
   }
-  const notice = tenantNoticeFor(false, next.told)
+  const notice = tenantNoticeFor(next, now)
   if (notice) next.told = notice
   return { next, event, notice }
 }
