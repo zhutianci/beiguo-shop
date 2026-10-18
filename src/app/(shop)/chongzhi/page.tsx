@@ -141,6 +141,24 @@ export default async function ChongzhiHubPage() {
       listed.push(p)
     })
   )
+  /*
+   * 【更多商品】落地页卡片只覆盖有专门落地页的几条产品线；「商品」里其余在售商品（苹果礼品卡、各类接码等）
+   * 原来在这一页没有入口。没被任何卡片收进去的，按分类各出一张小卡，档位照样逐行链到商品页，
+   * 也一并进 ItemList（它们现在是页面上看得见的商品）。
+   */
+  const otherGroups = new Map<string, LandingProduct[]>()
+  all.forEach((p) => {
+    if (seen.has(p.id)) return
+    seen.add(p.id)
+    listed.push(p)
+    const key = p.categoryName?.trim() || '其他'
+    otherGroups.set(key, [...(otherGroups.get(key) ?? []), p])
+  })
+  const others = Array.from(otherGroups, ([name, items]) => {
+    const available = items.filter(inStock)
+    const pool = available.length ? available : items
+    return { name, items, low: Math.min(...pool.map((p) => p.price)) }
+  })
   const taxPercent = `${Math.round(TAX_RATE * 100)}%`
 
   /*
@@ -326,6 +344,66 @@ export default async function ChongzhiHubPage() {
                 </article>
               )
             })}
+          </div>
+
+          <h3 className="pt-8 text-base font-semibold text-white">更多商品</h3>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2 not-prose">
+            <article className="relative flex flex-col rounded-3xl border border-white/[0.08] bg-white/[0.02] p-5 transition-colors hover:border-white/20 hover:bg-white/[0.04]">
+              <Link href="/jiema" className="font-semibold text-white transition-colors hover:text-purple-300">
+                短信接码服务
+              </Link>
+              <p className="mt-1 text-[13px] leading-relaxed text-white/45">
+                按平台选号码接收注册验证码，按次计费；没收到验证码的，费用自动退回余额。
+              </p>
+              <Link
+                href="/jiema"
+                className="mt-auto inline-flex items-center gap-1 pt-4 text-sm text-purple-400 hover:text-purple-300"
+              >
+                去接码
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </article>
+            {others.map((g) => (
+              <article
+                key={g.name}
+                className="relative flex flex-col rounded-3xl border border-white/[0.08] bg-white/[0.02] p-5 transition-colors hover:border-white/20 hover:bg-white/[0.04]"
+              >
+                <div className="flex items-start gap-3.5">
+                  <ProductThumb
+                    id={g.items[0].id}
+                    name={g.name}
+                    image={(g.items.find((p) => p.image) ?? g.items[0]).image}
+                    size={44}
+                    className="mt-0.5"
+                  />
+                  <span className="min-w-0 flex-1 font-semibold text-white">{g.name}</span>
+                  <span className="shrink-0 whitespace-nowrap text-sm font-semibold tabular-nums text-white/85">
+                    ￥{g.low.toFixed(0)}
+                    <span className="ml-0.5 text-[11px] font-normal text-white/35">起</span>
+                  </span>
+                </div>
+                <ul className="mt-4 border-t border-white/[0.06] pt-2 text-[13px] leading-snug">
+                  {g.items.map((p) => (
+                    <li key={p.id}>
+                      <Link
+                        href={`/products/${p.id}`}
+                        className="-mx-2 flex items-baseline gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/[0.05]"
+                      >
+                        <span className="min-w-0 flex-1 truncate text-white/60">{p.name}</span>
+                        <span className="shrink-0 whitespace-nowrap font-medium tabular-nums text-white/85">
+                          ￥{p.price.toFixed(0)}
+                        </span>
+                        {inStock(p) ? (
+                          <span className="shrink-0 whitespace-nowrap text-[11px] text-emerald-400">有货</span>
+                        ) : (
+                          <span className="shrink-0 whitespace-nowrap text-[11px] text-white/30">补货中</span>
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
           </div>
           <p className="pt-6 text-sm text-white/40">
             想直接看全部商品与价格，去{' '}

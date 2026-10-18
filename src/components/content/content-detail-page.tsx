@@ -91,12 +91,25 @@ function modelOf(post: ContentRow) {
   return tagsOf(post, 'MODEL')[0] ?? null
 }
 
-/** 内容页的转化入口：按标签上登记的落地页（设计 §11.6「只在相关处出现」）。没有登记就不出。带来源与作者内推码（lib/content/cta.ts） */
-function ctaOf(post: ContentRow, refCode: string | null): { href: string; label: string } | null {
-  const tag = [...tagsOf(post, 'MODEL'), ...tagsOf(post, 'PRODUCT')].find((t) => t.landingPath)
-  if (!tag?.landingPath) return null
-  const landing = LANDINGS.find((l) => `/chongzhi/${l.slug}` === tag.landingPath)
-  return { href: ctaHref(tag.landingPath, post.id, refCode), label: landing ? landing.navLabel : '相关订阅' }
+/**
+ * 标签上没登记落地页、但有明确对应商品的（标签行是 DEFAULT_TAGS 首次建表时写进库的，改代码不会回写库里的 landingPath，
+ * 所以补在这里）：用 Gemini 要有谷歌账号。
+ */
+const CTA_BY_SLUG: Record<string, string> = { gemini: '/chongzhi/google-zhanghao' }
+/** 兜底：充值服务总览（/chongzhi 列出全部商品入口） */
+const CTA_HUB = { path: '/chongzhi', label: 'AI 会员充值与全部商品' }
+
+/**
+ * 内容页的转化入口（带来源与作者内推码，lib/content/cta.ts）。
+ * 先按标签上登记的落地页；没有就按 CTA_BY_SLUG；都没有就给充值总览——
+ * 站长 2026-10-18 要求 AI 学习的内容「尽量链接到充值网站」，原来没登记落地页的标签一律不出入口。
+ */
+function ctaOf(post: ContentRow, refCode: string | null): { href: string; label: string } {
+  const tags = [...tagsOf(post, 'MODEL'), ...tagsOf(post, 'PRODUCT')]
+  const path = tags.find((t) => t.landingPath)?.landingPath ?? tags.map((t) => CTA_BY_SLUG[t.slug]).find(Boolean) ?? null
+  if (!path) return { href: ctaHref(CTA_HUB.path, post.id, refCode), label: CTA_HUB.label }
+  const landing = LANDINGS.find((l) => `/chongzhi/${l.slug}` === path)
+  return { href: ctaHref(path, post.id, refCode), label: landing ? landing.navLabel : '相关订阅' }
 }
 
 function titleFor(post: ContentRow): string {
@@ -527,7 +540,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
 
   // —— 教程 / AI 应用（应用复用教程的阅读布局，正文是「我用它解决了什么」）——
   const toc = tocFromHtml(html)
-  const cta = type === 'APP' ? null : ctaFor(post, refCode)
+  const cta = ctaFor(post, refCode)
   const app = type === 'APP' ? post.app : null
   // 作者自荐的外链一律 sponsored（Google 对推广链接的要求，设计 §9.2），普通分享是 ugc
   const appRel = app?.selfPromo ? 'sponsored nofollow noopener noreferrer' : 'ugc nofollow noopener noreferrer'
@@ -615,6 +628,12 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
           <aside className="hidden lg:block">
             <div className="sticky top-[calc(var(--header-h,7rem)+1.5rem)]">
               <Toc items={toc} />
+              {cta && (
+                <Link href={cta.href} className="learn-card mt-6 block px-4 py-3 text-[13px] text-white/65 hover:text-white">
+                  需要开通或续费？
+                  <span className="mt-1 block font-medium text-white">{cta.label} →</span>
+                </Link>
+              )}
             </div>
           </aside>
         </div>
