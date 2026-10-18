@@ -128,6 +128,19 @@ sysc 的代码对买家是**休眠**的：只有库里存在 `redeem_provider='s
 
 下次停 jishi 构建应当拿到 `build_exit=0`；再出现 4 就是**真的**有站点容器挂了。
 
+### 7.2 顺带发现：`build-with-swap.selftest.sh` 本身是坏的（**先存着，不是这次改的**）
+
+在服务器上跑它：**5 通过 / 12 失败**，失败里一片 `退出码 127`（command not found）、
+`cat: /fake/cg/… No such file or directory`。
+拿我改动**之前**那版（`99c5f0d`）跑同一个自测：**同样 5 通过 / 12 失败，一字不差** ——
+所以这是既有问题，不是这次改坏的。
+
+但它意味着一件不太好的事：**`build-with-swap.sh` 会改生产内核参数
+（`vm.swappiness`、buildkit 内存组），而它的自测目前验证不了任何东西。**
+真正能兜住的只有脚本里的 `trap` + `STATE_FILE` + `--restore`，以及每次构建后
+人工确认 `swappiness` 回到 0、没有残留 state（这次都确认过了）。
+值得单独修一轮。
+
 > **磁盘的结论**：别再浪费时间删回滚标签（层共用，删了不释放）。
 > 紧张时直接 `docker builder prune -f`，但它很慢（25 分钟）且期间机器很卡，
 > 要留足时间、别和构建抢。
