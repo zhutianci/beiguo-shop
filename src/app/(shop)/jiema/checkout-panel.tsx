@@ -319,7 +319,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
               <div className="h-10 animate-pulse rounded-xl bg-white/[0.05]" />
             ) : !user ? (
               <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] text-white/60">
-                支付宝付款；登录后可以用站内余额抵扣（余额够时免扫码）。
+                扫码支付（支付宝 / 微信）；登录后可以用站内余额抵扣（余额够时免扫码）。
               </div>
             ) : (
               <>
@@ -361,13 +361,13 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
                       </span>
                       {payWithNow === 'BALANCE' && plan.mode === 'MIXED' && (
                         <span className="mt-1 block text-xs leading-relaxed text-white/55">
-                          余额抵扣 {fmtYuan(plan.balanceCents)}，还需支付宝 {fmtYuan(plan.alipayCents)}。余额部分下单时先预扣；20 分钟内付完支付宝才算成功，超时或取消订单，预扣的余额自动退回。
+                          余额抵扣 {fmtYuan(plan.balanceCents)}，还需扫码支付 {fmtYuan(plan.alipayCents)}。余额部分下单时先预扣；20 分钟内付完扫码支付才算成功，超时或取消订单，预扣的余额自动退回。
                         </span>
                       )}
                     </span>
                   </label>
                 ) : (
-                  <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/45">余额支付暂时维护中，请选择支付宝（已预扣的订单不受影响）</div>
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/45">余额支付暂时维护中，请选择扫码支付（已预扣的订单不受影响）</div>
                 )}
                 <label
                   className={cn(
@@ -384,7 +384,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
                       setPayWith('ALIPAY')
                     }}
                   />
-                  <span className="text-white/85">支付宝 {fmtYuan(price)}</span>
+                  <span className="text-white/85">扫码支付 {fmtYuan(price)}（支付宝 / 微信）</span>
                 </label>
               </>
             )}
@@ -448,7 +448,7 @@ export function CheckoutPanel(p: CheckoutPanelProps) {
           </button>
           <p className="mt-2 flex items-start gap-1 text-[11px] leading-relaxed text-white/45">
             <Info className="mt-0.5 h-3 w-3 shrink-0" />
-            号码 20 分钟有效。没收到短信的，号码到期或你主动取消后，本单整单退回站内余额（含支付宝付的部分）；退回的余额不能提现、不退回支付宝，目前可用于短信接码。
+            号码 20 分钟有效。没收到短信的，号码到期或你主动取消后，本单整单退回站内余额（含扫码支付的部分）；退回的余额不能提现、不原路退回，目前可用于短信接码。
           </p>
         </div>
 

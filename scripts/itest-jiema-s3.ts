@@ -715,8 +715,8 @@ async function main() {
       check('对全部用户开放：分区数据有、结构化数据里有 13 条接码问答（与页面同一份）', open.text.includes(faq13) && open.ld.includes(faq13) && open.ld.includes('刚刚下单了，为什么查询不到订单？'))
       check('  …FAQ 11 用当前 complaintWindowH（24）、FAQ 5 充值没对全部用户开放 → 「即将开放」', open.ld.includes('收到短信后 24 小时内') && open.ld.includes('余额充值即将开放'))
       check(
-        '  …评审修复：FAQ 5「即将开放」版的退回去向与 FAQ 2 一致（余额抵扣回原来那一格、支付宝付的进充值余额），不再说「全部进充值余额」',
-        open.ld.includes('余额抵扣的部分退回原来那一格（充值余额或返现余额），支付宝付的部分退进充值余额，下次下单可以直接抵扣') && !open.ld.includes('退回的钱会进入你的充值余额'),
+        '  …评审修复：FAQ 5「即将开放」版的退回去向与 FAQ 2 一致（余额抵扣回原来那一格、扫码支付的进充值余额），不再说「全部进充值余额」',
+        open.ld.includes('余额抵扣的部分退回原来那一格（充值余额或返现余额），扫码支付的部分退进充值余额，下次下单可以直接抵扣') && !open.ld.includes('退回的钱会进入你的充值余额'),
       )
       const pfOpen = await withRequest({ host: MAIN, token: ru.token }, () => catchNext(() => ProfileLayout({ children: 'x' })))
       const pfCh = await withRequest({ host: lulu.host, token: ru.token }, () => catchNext(() => ProfileLayout({ children: 'x' })))

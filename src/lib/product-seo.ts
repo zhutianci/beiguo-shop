@@ -121,7 +121,7 @@ export const PRODUCT_INVOICE_TEXT = '可开增值税发票（标价不含税，�
  * 不认识的交付方式（老调用方没传）走中性口径，不替它声称任何交付形式。开票那半句见 PRODUCT_INVOICE_TEXT。
  */
 function deliveryPitch(t: string | null | undefined, accountLike = false): string {
-  const tail = `支付宝付款，${PRODUCT_INVOICE_TEXT}。`
+  const tail = `支付宝或微信支付，${PRODUCT_INVOICE_TEXT}。`
   if (t === 'AUTO' && accountLike) return `付款后自动发放账号信息，无需信用卡，${tail}`
   if (t === 'AUTO') return `${SITE_NAME}卡密自助兑换，无需信用卡，${tail}`
   if (t === 'SMS') return `付款后系统自动取号接码，不发卡密；${tail}`

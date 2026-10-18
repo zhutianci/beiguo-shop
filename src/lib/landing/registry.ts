@@ -88,7 +88,7 @@ export const LANDING_HUB = {
   h1: 'AI 会员充值与账号服务',
   title: 'AI 会员充值 - ChatGPT Plus、Claude Pro 代充价格表 - 贝果科技',
   description:
-    'ChatGPT Plus / Pro、Claude Pro / Max 会员充值与代充价格表，另有 Codex 接码、Claude 注册与 KYC 认证。卡密自助兑换，支持支付宝，无需信用卡。',
+    'ChatGPT Plus / Pro、Claude Pro / Max 会员充值与代充价格表，另有 Codex 接码、Claude 注册与 KYC 认证。卡密自助兑换，支持支付宝和微信支付，无需信用卡。',
 }
 
 export const LANDINGS = [
@@ -98,7 +98,7 @@ export const LANDINGS = [
     h1: 'ChatGPT Plus 充值：国内怎么充、多少钱、信用卡被拒怎么办',
     title: 'ChatGPT Plus 怎么充值、多少钱、代充值全指南 - 贝果科技',
     description:
-      'ChatGPT Plus 国内充值全指南：￥135 起，卡密自助兑换，无需信用卡，支持支付宝。含信用卡被拒、付款未获批准、iOS 与信用卡两种充值方式的区别与排查。',
+      'ChatGPT Plus 国内充值全指南：￥135 起，卡密自助兑换，无需信用卡，支持支付宝和微信支付。含信用卡被拒、付款未获批准、iOS 与信用卡两种充值方式的区别与排查。',
     blurb: '国内不用信用卡也能开 Plus。两种充值方式、真实价格、失败排查全在这一页。',
     // 【nameNone 里必须有 'pro'】线上 Pro 5x 的商品名是
     // 「ChatGPT Pro 5x 自助充值 | 信用卡充值（不可覆盖plus）」——名字里带 plus 这个字。
@@ -180,7 +180,7 @@ export const LANDINGS = [
     h1: '谷歌账号购买：成品号是什么、2FA 与辅助邮箱怎么登、买来开 Gemini 要注意什么',
     title: '谷歌账号购买：成品号怎么登录、多少钱 - 贝果科技',
     description:
-      '谷歌账号购买：2020-2025 年注册的成品号 ￥30 起，支持支付宝，付款后即时发货。讲清 2FA 与辅助邮箱两种登录方式怎么分、到手先登录再改密码的顺序、「质保 3 天内首登」到底保什么，以及买号开 Gemini 前该知道的边界。',
+      '谷歌账号购买：2020-2025 年注册的成品号 ￥30 起，支持支付宝和微信支付，付款后即时发货。讲清 2FA 与辅助邮箱两种登录方式怎么分、到手先登录再改密码的顺序、「质保 3 天内首登」到底保什么，以及买号开 Gemini 前该知道的边界。',
     blurb: '买成品号最容易踩的坑是登录方式。2FA 和辅助邮箱怎么分、到手先做什么，这一页讲清。',
     // 【slug 用 zhanghao 不用 youxiang】2026-09-19 实测：`谷歌邮箱购买` 联想数为 0，
     // 而 `谷歌账号购买` 有真实联想并带出三个修饰词。后台商品名叫「谷歌邮箱成品号」，
@@ -196,7 +196,7 @@ export const LANDINGS = [
     h1: 'Grok Super 充值：三档怎么选、国内怎么付钱',
     title: 'Grok Super 充值 - xAI Grok 会员代充多少钱 - 贝果科技',
     description:
-      'xAI Grok Super 会员充值：￥210 起，另有三个月档与 Super Heavy 档。卡密自助兑换，走 iOS 订阅充值，支付宝付款，无需境外支付方式。含三档差别、兑换前必须确认的事与退款口径。',
+      'xAI Grok Super 会员充值：￥210 起，另有三个月档与 Super Heavy 档。卡密自助兑换，走 iOS 订阅充值，支付宝或微信支付，无需境外支付方式。含三档差别、兑换前必须确认的事与退款口径。',
     // 【不要在 blurb 里写死价格】blurb 会出现在 hub、首页和每一页的相关链接里，
     // 而它不走 withLivePrice——原来写的「￥210 到 ￥1688」调一次价就是一句假话。
     // 实时价格看各页的价格表。

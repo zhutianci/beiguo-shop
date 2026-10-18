@@ -108,7 +108,7 @@ function yuan(cents: number): string {
 /** 通过后写给买家的订单留言（与号码页「已退款 · 已退回余额」卡片同一口径：退回余额、不能提现、不退回支付宝） */
 export function approveMessageText(topupCents: number, cashCents: number, note: string | null | undefined): string {
   const parts = [topupCents > 0 ? `充值余额 +${yuan(topupCents)}` : null, cashCents > 0 ? `返现余额 +${yuan(cashCents)}` : null].filter(Boolean)
-  const head = `售后审核通过：本单实付 ${yuan(topupCents + cashCents)} 已整单退回你的余额${parts.length ? `（${parts.join(' · ')}）` : ''}，下次购买可直接抵扣（目前可用于短信接码）；退回的余额不能提现、不退回支付宝。`
+  const head = `售后审核通过：本单实付 ${yuan(topupCents + cashCents)} 已整单退回你的余额${parts.length ? `（${parts.join(' · ')}）` : ''}，下次购买可直接抵扣（目前可用于短信接码）；退回的余额不能提现、不原路退回。`
   const n = (note ?? '').trim()
   return n ? `${head}\n客服备注：${n.slice(0, COMPLAINT_NOTE_MAX)}` : head
 }

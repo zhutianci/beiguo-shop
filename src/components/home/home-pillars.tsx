@@ -125,7 +125,7 @@ export function HomeBrandFaq({ jiema, jiemaPay, news, invoiceTaxText }: { jiema:
       q: '怎么付款，能开发票吗？',
       a: (
         <>
-          充值类商品只收支付宝，登录后下单，可开增值税发票（{invoiceTaxText}），完整说明见
+          充值类商品支持支付宝和微信支付，登录后下单，可开增值税发票（{invoiceTaxText}），完整说明见
           <Link href={LANDING_HUB.path} className="mx-0.5 text-purple-400 hover:text-purple-300">
             AI 会员充值总览
           </Link>

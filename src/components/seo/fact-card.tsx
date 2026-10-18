@@ -70,12 +70,12 @@ export function LandingFactCard({
   const price = priceFact(low)
   const summary =
     count > 0
-      ? `贝果科技目前在售 ${product} 共 ${count} 个档位${low != null ? `，￥${low.toFixed(0)} 起` : ''}；支付宝付款、登录后下单，${delivery}。`
-      : `${product}：支付宝付款、登录后下单，${delivery}。当前价格与库存以下方价格表为准。`
+      ? `贝果科技目前在售 ${product} 共 ${count} 个档位${low != null ? `，￥${low.toFixed(0)} 起` : ''}；支付宝或微信支付、登录后下单，${delivery}。`
+      : `${product}：支付宝或微信支付、登录后下单，${delivery}。当前价格与库存以下方价格表为准。`
   const facts: Fact[] = [
     ...(price ? [price] : []),
     { label: '交付', value: delivery },
-    { label: '付款', value: '支付宝，登录后下单' },
+    { label: '付款', value: '支付宝或微信支付，登录后下单' },
     { label: '开票', value: INVOICE_FACT },
     ...(aftersale ? [{ label: '售后', value: aftersale }] : []),
   ]

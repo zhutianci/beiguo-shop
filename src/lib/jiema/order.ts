@@ -228,7 +228,7 @@ export async function createJiemaOrder(user: { id: number; role?: string | null 
   if (carrierId == null) return bad(503, 'MAINTENANCE', '接码服务维护中，预计很快恢复')
   if (input.payWith === 'BALANCE') {
     const w = await readWalletConfig()
-    if (!w.ok || !w.config.balancePayEnabled) return bad(503, 'BALANCE_PAY_OFF', '余额支付暂时维护中，请选择支付宝')
+    if (!w.ok || !w.config.balancePayEnabled) return bad(503, 'BALANCE_PAY_OFF', '余额支付暂时维护中，请选择扫码支付')
   }
   // 运营商：列表拿得到、里面没有它 → 400；拿不到（服务 / 国家手动下架、不在目录）先不判，交给报价与闸门给 404 / 409 HOLD（§10.2、第 122 条）
   const opMissing = (list: CatalogOperator[]) => !list.some((o) => o.code === input.operator)
@@ -311,7 +311,7 @@ export async function createJiemaOrder(user: { id: number; role?: string | null 
         }
         let useHold = 0
         if (input.payWith === 'BALANCE') {
-          if (holdCents <= 0) throw new OrderTxAbort(bad(409, 'BALANCE_CHANGED', '你的余额已用完，本单改用支付宝支付？', { balanceCents: 0, alipayCents: q.priceCents, suggestPayWith: 'ALIPAY' }))
+          if (holdCents <= 0) throw new OrderTxAbort(bad(409, 'BALANCE_CHANGED', '你的余额已用完，本单改用扫码支付（支付宝 / 微信）？', { balanceCents: 0, alipayCents: q.priceCents, suggestPayWith: 'ALIPAY' }))
           if (input.expectBalanceCents == null || input.expectBalanceCents !== holdCents) {
             throw new OrderTxAbort(bad(409, 'BALANCE_CHANGED', '你的可用余额刚刚变化，请确认新的抵扣金额', { balanceCents: holdCents, alipayCents: q.priceCents - holdCents }))
           }

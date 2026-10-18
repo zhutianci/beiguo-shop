@@ -210,7 +210,7 @@ export default async function JiemaPage() {
             <ShieldCheck className="h-4 w-4 text-emerald-300" />
             没收到短信怎么办
           </div>
-          号码到期或你主动取消后，本单整单退回站内余额（含支付宝付的部分）；退回的余额不能提现、不退回支付宝，目前可用于短信接码。
+          号码到期或你主动取消后，本单整单退回站内余额（含扫码支付的部分）；退回的余额不能提现、不原路退回，目前可用于短信接码。
         </div>
         <div className="ui-card p-4 lg:p-5">
           <div className="mb-1.5 flex items-center gap-1.5 font-medium text-white/80">

@@ -263,7 +263,7 @@ export default function WalletPage() {
                         onClick={() => setHoldsOpen((v) => !v)}
                         className="inline-flex flex-wrap items-center gap-x-1 text-left text-amber-200/90 hover:text-amber-100"
                       >
-                        预扣中 {yuan(data.holdingCents)} · {data.holds.length} 笔接码订单等待支付宝付款，超时自动退回
+                        预扣中 {yuan(data.holdingCents)} · {data.holds.length} 笔接码订单等待扫码支付，超时自动退回
                         {holdsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                       </button>
                       {holdsOpen && (
@@ -349,16 +349,16 @@ export default function WalletPage() {
               <ul className="space-y-1.5 text-[13px] leading-relaxed text-white/50">
                 {jiema ? (
                   <>
-                    <li>· 余额目前可用于支付「短信接码」订单：下单时选「余额抵扣」，不够的部分用支付宝补齐。</li>
+                    <li>· 余额目前可用于支付「短信接码」订单：下单时选「余额抵扣」，不够的部分用扫码支付（支付宝 / 微信）补齐。</li>
                     <li>· 抵扣时先用充值余额，再用返现余额。</li>
-                    <li>· 接码没收到短信（号码到期或你取消）时，整单退回余额：余额抵扣的部分回到原来的那一格，支付宝付的部分进充值余额。</li>
+                    <li>· 接码没收到短信（号码到期或你取消）时，整单退回余额：余额抵扣的部分回到原来的那一格，扫码支付的部分进充值余额。</li>
                   </>
                 ) : (
                   <li>· 余额暂不能直接用于支付订单。</li>
                 )}
                 <li>· 返现余额来自推荐返现：好友通过你的推广链接下单，订单完成后自动入账。</li>
                 {(jiema || data.topupOpen) && <li>· 订单关闭后才到账的付款，会按实收退回充值余额。</li>}
-                <li>· 充值余额不能提现、不退回支付宝；返现余额可以联系客服提现，核实后线下打款。</li>
+                <li>· 充值余额不能提现、不原路退回；返现余额可以联系客服提现，核实后线下打款。</li>
                 <li>· 「待结算返现」是好友已付款、订单尚未完成的返现，完成后自动转入返现余额，不计入上方可用余额。</li>
                 {data.showInvoiceNotice && (
                   <li>

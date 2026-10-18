@@ -45,7 +45,7 @@ export interface HomeFeatured {
 }
 
 /** 首页 hero 副标题第一行：固定前缀 + 打字机轮播的短语（占位逻辑见 JSX 里「打字机那一行先把高度占住」） */
-const HERO_LEAD = '卡密自助兑换，支付宝付款，'
+const HERO_LEAD = '卡密自助兑换，支付宝或微信支付，'
 const HERO_TYPEWRITER = ['无需信用卡', '付款后即时发卡', '可开增值税发票（开票另付 6%）', '未使用卡密长期有效']
 /** 最长的一句（中文字宽近似等宽，按字数取即可；以后改短语不用手动同步占位） */
 const HERO_TYPEWRITER_LONGEST = HERO_TYPEWRITER.reduce((a, b) => (b.length > a.length ? b : a), '')

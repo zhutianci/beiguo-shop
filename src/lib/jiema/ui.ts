@@ -55,15 +55,15 @@ export function effectivePayWith(payWith: PayWith | null, availCents: number, ba
 /** 「确认支付」按钮文案：余额付清写一段、组合写清两段、支付宝全额写一段（§1.8「付款方式的三种显示」） */
 export function payButtonLabel(p: Pick<PayPlan, 'mode' | 'balanceCents' | 'alipayCents'>): string {
   if (p.mode === 'BALANCE') return `确认支付（余额 ${fmtYuan(p.balanceCents)}）`
-  if (p.mode === 'MIXED') return `确认支付：余额 ${fmtYuan(p.balanceCents)} + 支付宝 ${fmtYuan(p.alipayCents)}`
-  return `确认支付（支付宝 ${fmtYuan(p.alipayCents)}）`
+  if (p.mode === 'MIXED') return `确认支付：余额 ${fmtYuan(p.balanceCents)} + 扫码支付 ${fmtYuan(p.alipayCents)}`
+  return `确认支付（扫码支付 ${fmtYuan(p.alipayCents)}）`
 }
 
 /** 付款前免责弹窗底栏的「本单」付款摘要（§8.6）：余额付清 ¥1.70 / 余额 ¥1.20 + 支付宝 ¥0.50 / 支付宝 ¥1.70 */
 export function payPlanSummary(p: Pick<PayPlan, 'mode' | 'balanceCents' | 'alipayCents'>): string {
   if (p.mode === 'BALANCE') return `余额付清 ${fmtYuan(p.balanceCents)}`
-  if (p.mode === 'MIXED') return `余额 ${fmtYuan(p.balanceCents)} + 支付宝 ${fmtYuan(p.alipayCents)}`
-  return `支付宝 ${fmtYuan(p.alipayCents)}`
+  if (p.mode === 'MIXED') return `余额 ${fmtYuan(p.balanceCents)} + 扫码支付 ${fmtYuan(p.alipayCents)}`
+  return `扫码支付 ${fmtYuan(p.alipayCents)}`
 }
 
 /**
@@ -89,11 +89,11 @@ export function changeDialog(
   if (ali == null) return null
   const price = code === 'PRICE_CHANGED' ? num(extra.priceCents) : ctx.oldPriceCents
   if (price == null || price !== bal + ali) return null
-  const split = (b: number, a: number) => (b > 0 && a > 0 ? `余额抵扣 ${fmtYuan(b)} + 支付宝 ${fmtYuan(a)}` : b > 0 ? `余额付清 ${fmtYuan(b)}` : `支付宝 ${fmtYuan(a)}`)
+  const split = (b: number, a: number) => (b > 0 && a > 0 ? `余额抵扣 ${fmtYuan(b)} + 扫码支付 ${fmtYuan(a)}` : b > 0 ? `余额付清 ${fmtYuan(b)}` : `扫码支付 ${fmtYuan(a)}`)
   if (code === 'BALANCE_CHANGED' && extra.suggestPayWith === 'ALIPAY') {
     return {
-      text: `你的余额已用完，本单改用支付宝 ${fmtYuan(price)} 支付？`,
-      confirmLabel: '用支付宝支付',
+      text: `你的余额已用完，本单改用扫码支付 ${fmtYuan(price)}（支付宝 / 微信）？`,
+      confirmLabel: '用扫码支付',
       next: { expectPriceCents: price, payWith: 'ALIPAY', expectBalanceCents: null },
     }
   }
@@ -322,7 +322,7 @@ export function jiemaOrderCard(o: JiemaCardInput): JiemaCard {
     }
     if (j && (j.payMode === 'BALANCE' || j.state !== 'PENDING_PAY')) return { ...base, label: '正在确认付款', hint: '正在确认付款（无需再付），请稍候', tone: 'blue', showGoPay: false }
     const held = !!j && j.payMode === 'MIXED' && j.holdState === 'HELD' && j.holdCents > 0
-    const hint = held ? `余额已预扣 ${fmtYuan(j!.holdCents)}，还需支付宝付款，请在号码页完成` : '请在号码页完成付款'
+    const hint = held ? `余额已预扣 ${fmtYuan(j!.holdCents)}，还需扫码支付，请在号码页完成` : '请在号码页完成付款'
     return { ...base, label: '待支付', hint, tone: 'amber', showGoPay: true }
   }
   if (o.payStatus === 'REFUNDED') {
@@ -356,7 +356,7 @@ export function jiemaAmountLines(o: { amount: number; payable: number; payStatus
   if (o.payStatus === 'UNPAID' && o.deliveryStatus !== 'CANCELLED' && j && j.state === 'PENDING_PAY' && j.holdState === 'HELD' && j.holdCents > 0) {
     lines.push(`余额已预扣 ${fmtYuan(j.holdCents)}`)
     const rest = Math.round(o.payable * 100)
-    if (rest > 0) lines.push(`还需支付宝 ${fmtYuan(rest)}`)
+    if (rest > 0) lines.push(`还需扫码支付 ${fmtYuan(rest)}`)
   }
   return { main: o.amount, lines }
 }
@@ -467,7 +467,7 @@ export function phoneQuery(q: string | null | undefined): { digits: string; like
 
 /** 付款方式的小字（记录页金额旁，§1.11） */
 export function payModeShort(mode: string): string {
-  return mode === 'BALANCE' ? '余额' : mode === 'MIXED' ? '余额 + 支付宝' : '支付宝'
+  return mode === 'BALANCE' ? '余额' : mode === 'MIXED' ? '余额 + 扫码支付' : '扫码支付'
 }
 
 export interface RecordLike {

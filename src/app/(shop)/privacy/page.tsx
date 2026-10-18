@@ -84,7 +84,7 @@ export default async function PrivacyPage() {
           <li>
             <strong className="text-white">支付信息</strong>：付款金额、付款时间与平台流水号。
             <strong className="text-white">我们不接触也不存储你的银行卡号、支付密码或任何支付凭证</strong>，
-            这些信息由支付宝等支付渠道自行处理。
+            这些信息由支付宝、微信支付等支付渠道自行处理。
           </li>
           <li>
             <strong className="text-white">开票信息</strong>：仅在你主动申请开具发票或收据时收集抬头、税号等，
@@ -134,7 +134,7 @@ export default async function PrivacyPage() {
             这类信息只传递给执行该笔充值所必需的那一家。
           </li>
           <li>
-            <strong className="text-white">支付渠道</strong>：支付宝，用于收款与对账。
+            <strong className="text-white">支付渠道</strong>：支付宝、微信支付，用于收款与对账。
           </li>
           <li>
             <strong className="text-white">邮件发送服务</strong>：阿里云邮件推送，用于发送订单、到期提醒与营销邮件

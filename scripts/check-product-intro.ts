@@ -5,7 +5,7 @@
  * 钉住三件事：
  *   1. 每个在售商品都能归到正确的充值落地页（规则与落地页价格表同一套），年费档兜底到 Plus 页；
  *   2. 文案按交付方式分口径——接码（SMS）与人工（MANUAL）商品的介绍里不能出现「会发卡密」的说法；
- *   3. 全站文案红线：不出现「官方」、不承诺「10 分钟」、不提微信支付、税点与支付方式写对。
+ *   3. 全站文案红线：不出现「官方」、不承诺「10 分钟」、税点与支付方式写对（2026-10-18 起支持微信支付：提支付方式就要两种都写）。
  *
  * 夹具取自 2026-09-24 线上 /api/products 的公开字段（商品名、分类、交付方式、价格、库存），
  * 包括后台的原样错别字（分类「Gork」、「信用卡冲」）——规则必须对真实数据成立。
@@ -197,7 +197,9 @@ for (const f of FIX) {
   const t = allText(i)
   ok(`商品 ${f.id} 没有「官方」字样`, !t.includes('官方'), t.split('\n').find((l) => l.includes('官方')))
   ok(`商品 ${f.id} 没有「10 分钟」这类时效承诺`, !/10\s*分钟/.test(t))
-  ok(`商品 ${f.id} 不提微信支付`, !t.includes('微信支付'))
+  // 2026-10-18 起支持微信支付：提到支付宝付款的地方要把微信也写上，不能再写「只支持支付宝」
+  ok(`商品 ${f.id} 不写「只支持 / 仅支持支付宝」`, !/(只|仅)支持支付宝/.test(t))
+  ok(`商品 ${f.id} 提到支付宝就同时提微信`, !t.includes('支付宝') || t.includes('微信'))
   ok(`商品 ${f.id} 不用零需求词当说法`, !/代开|代购|代订阅/.test(t))
   ok(`商品 ${f.id} 不说下单要填邮箱`, !/下单时填|填写.{0,4}邮箱/.test(t))
   ok(`商品 ${f.id} 常见问题 3~5 条`, i.faqs.length >= 3 && i.faqs.length <= 5, String(i.faqs.length))
@@ -208,7 +210,7 @@ const pricing = introOf(16).pricing.join('')
 ok('价格与发票：标价不含税', pricing.includes('不含税'))
 ok('价格与发票：税点 6%（取自 lib/invoice.ts TAX_RATE）', pricing.includes('6%') && pricing.includes('1.06'))
 ok('价格与发票：结算时可随单开票、付款后也可申请', pricing.includes('结算时') && pricing.includes('付款后'))
-ok('价格与发票：只支持支付宝、需要登录', pricing.includes('只支持支付宝') && pricing.includes('登录'))
+ok('价格与发票：支持支付宝和微信支付、需要登录', pricing.includes('支付宝和微信支付') && pricing.includes('登录'))
 ok('客服时间统一 9:00-22:00', allText(introOf(16)).includes('9:00-22:00') && !allText(introOf(16)).includes('7×12'))
 
 // cardUsage 是内部发货说明，绝不能进正文。类型上收不进来，这里再用运行时兜一道

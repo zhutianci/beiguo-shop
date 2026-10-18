@@ -424,7 +424,7 @@ export default function ProductDetailClient({
                       6% 即 lib/invoice.ts 的 TAX_RATE——那个文件 import 了 node:crypto，
                       客户端组件不能直接引，只能在这里写死；改税点时这里要一起改。 */}
                   <p className="mt-3 text-xs leading-relaxed text-white/45">
-                    标价不含税，开票另付 6% · 仅支持支付宝 · 登录后下单
+                    标价不含税，开票另付 6% · 支持支付宝和微信支付 · 登录后下单
                   </p>
 
                   {/* 销量 + 库存。

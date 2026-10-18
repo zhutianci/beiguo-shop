@@ -6,7 +6,7 @@
  * 覆盖：售后申请能不能提交（complaintBlock：状态、退款、收码窗口边界、每单一次）、买家看到的售后状态、号码不支持再次收码（不计入 30 天 2 次）、
  * 30 天通过次数、通过 / 驳回写给买家的留言、上游申诉截止；记录页的 tab 划分（CLOSED 不混进「已退回」）、日期与号码搜索的解析、每行状态文字
  * （纯支付宝的关闭单不写「已退回」）、进行中提示条；客服页 / /jiema 的 13 条 FAQ 与规则一览（数字取配置、开票一句的范围、
- * 「不能提现、不退回支付宝」、不出现上游名称）；原来 8 条客服 FAQ 不变；两个买家 DTO 不泄露成本字段。
+ * 「不能提现、不原路退回」、不出现上游名称）；原来 8 条客服 FAQ 不变；两个买家 DTO 不泄露成本字段。
  */
 import {
   COMPLAINT_REASONS,
@@ -120,7 +120,7 @@ console.log('\n— 通过 / 驳回写给买家的订单留言')
 {
   const a = approveMessageText(122, 50, null)
   ok(a.startsWith('售后审核通过：本单实付 ¥1.72 已整单退回你的余额（充值余额 +¥1.22 · 返现余额 +¥0.50）'), '通过：实付总额与两格拆分', a)
-  ok(a.includes('不能提现、不退回支付宝') && a.includes('下次购买可直接抵扣'), '通过：写明不能提现、不退回支付宝、下次可抵扣')
+  ok(a.includes('不能提现、不原路退回') && a.includes('下次购买可直接抵扣'), '通过：写明不能提现、不原路退回、下次可抵扣')
   ok(!approveMessageText(170, 0, null).includes('返现余额'), '只有充值格时不写返现余额')
   ok(approveMessageText(170, 0, '  已核实  ').endsWith('\n客服备注：已核实'), '通过备注附在最后（去空白）')
   const r = rejectMessageText('  号码已用于注册成功，不属于售后范围  ')
@@ -145,7 +145,7 @@ console.log('\n— 记录页：tab、日期、号码搜索（§1.11）')
   eq(phoneQuery('789'), 'SHORT', '不到 4 位 → SHORT（接口 400）')
   eq(phoneQuery('  '), null, '空 → 不筛')
   eq(phoneQuery("7890%' OR 1=1 --"), { digits: '789011', like: '%789011%' }, '非数字一律丢掉（LIKE 里不会出现 % 以外的通配或引号）')
-  eq([payModeShort('BALANCE'), payModeShort('MIXED'), payModeShort('ALIPAY')], ['余额', '余额 + 支付宝', '支付宝'], '付款方式小字')
+  eq([payModeShort('BALANCE'), payModeShort('MIXED'), payModeShort('ALIPAY')], ['余额', '余额 + 扫码支付', '扫码支付'], '付款方式小字')
 }
 
 console.log('\n— 记录页每行的状态文字、/jiema 进行中提示条（§1.11、§1.4）')
@@ -187,19 +187,19 @@ console.log('\n— 客服页 #jiema 与 /jiema 的 FAQ、规则一览（§8.3；
   eq(f.length, 13, '13 条问答')
   const all = JSON.stringify(f)
   ok(!/hero|herosms/i.test(all), '不出现上游名称')
-  ok(f[12].q === '能开发票或收据吗？' && f[12].a.startsWith('余额充值与短信接码订单（不论用余额还是支付宝付款）暂不支持自助开票，可联系客服开票处理'), 'FAQ 13：开票范围是「余额充值与短信接码订单（不论用余额还是支付宝付款）」')
+  ok(f[12].q === '能开发票或收据吗？' && f[12].a.startsWith('余额充值与短信接码订单（不论用余额还是扫码支付）暂不支持自助开票，可联系客服开票处理'), 'FAQ 13：开票范围是「余额充值与短信接码订单（不论用余额还是扫码支付）」')
   ok(!all.includes('充值与用余额支付的订单') && !all.includes('充值与余额消费'), '没有只覆盖一部分的旧说法（§12.3 第 73 条）')
   ok(f[12].a.includes('充值请加微信客服') && f[12].a.includes('号码页「联系客服」'), 'FAQ 13：接码单在线留言、充值走微信（充值单没有订单留言）')
-  ok(f[1].a.includes('不能提现、不退回支付宝') && f[5].a.includes('不能提现、不退回支付宝'), 'FAQ 2 与 FAQ 6 都写了「不能提现、不退回支付宝」')
+  ok(f[1].a.includes('不能提现、不原路退回') && f[5].a.includes('不能提现、不原路退回'), 'FAQ 2 与 FAQ 6 都写了「不能提现、不原路退回」')
   ok(f[1].a.includes('约 1 小时内到账') && f[1].a.includes('通常 1 分钟内到账'), 'FAQ 2：到账时限与 D3 / E20 一致')
   ok(f[4].a.includes('档位 ¥5 / 10 / 15 / 20 / 50') && f[4].a.includes('目前 ¥1–1,000'), 'FAQ 5：档位与单笔上下限取 wallet_config')
   ok(jiemaFaqs({ ...p, topup: { tiersCents: [1000, 3000], minCents: 500, maxCents: 50_000 } })[4].a.includes('档位 ¥10 / 30') && jiemaFaqs({ ...p, topup: { tiersCents: [1000], minCents: 500, maxCents: 50_000 } })[4].a.includes('目前 ¥5–500'), 'FAQ 5：后台改了档位 / 上下限，文案跟着变')
   ok(jiemaFaqs({ ...p, topup: null })[4].a.startsWith('余额充值即将开放'), 'FAQ 5：充值没开放 → 「即将开放」（不说一件还不存在的事）')
   {
-    // 评审修复：「即将开放」这一版的退回去向必须与 FAQ 2、D4 一致（余额抵扣回原来那一格、支付宝付的进充值余额），不能说「全部进充值余额」
+    // 评审修复：「即将开放」这一版的退回去向必须与 FAQ 2、D4 一致（余额抵扣回原来那一格、扫码支付的进充值余额），不能说「全部进充值余额」
     const closed5 = jiemaFaqs({ ...p, topup: null })[4].a
     ok(
-      closed5.includes('余额抵扣的部分退回原来那一格（充值余额或返现余额）') && closed5.includes('支付宝付的部分退进充值余额') && !/退回的钱会进入你的充值余额/.test(closed5) && f[1].a.includes('余额抵扣的部分退回原来那一格（充值余额或返现余额），支付宝付的部分退进充值余额'),
+      closed5.includes('余额抵扣的部分退回原来那一格（充值余额或返现余额）') && closed5.includes('扫码支付的部分退进充值余额') && !/退回的钱会进入你的充值余额/.test(closed5) && f[1].a.includes('余额抵扣的部分退回原来那一格（充值余额或返现余额），扫码支付的部分退进充值余额'),
       'FAQ 5「即将开放」版：退回去向与 FAQ 2 / D4 同一口径（返现那部分回返现余额，不是全部进充值余额）',
       closed5,
     )
@@ -210,7 +210,7 @@ console.log('\n— 客服页 #jiema 与 /jiema 的 FAQ、规则一览（§8.3；
   ok(f[11].a.includes('9:00–22:00') && f[11].a.includes('能自动确认的，通常到账后几分钟内'), 'FAQ 12：迟到到账的说法与号码页 CLOSED 卡片一致（§12.3 第 119 条）')
   const rules = jiemaSupportRules(p)
   ok(rules.includes('暂不支持开票，可联系客服开票处理') && rules.some((x) => x.includes('免费换号 5 次')) && rules.some((x) => x.includes('收码后 24 小时内')), '规则一览：开票一句、换号次数、售后窗口')
-  ok(rules.some((x) => x.includes('不能提现、不退回支付宝')), '规则一览：退回的余额不能提现、不退回支付宝')
+  ok(rules.some((x) => x.includes('不能提现、不原路退回')), '规则一览：退回的余额不能提现、不原路退回')
   eq(supportFaqs(PLATFORM_CONTACT).length, 8, '原来的 8 条客服 FAQ 不变（接码问答另起一组，不塞进 supportFaqs）')
 }
 

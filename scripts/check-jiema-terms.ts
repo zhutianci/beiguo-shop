@@ -64,9 +64,11 @@ const sha = (v: unknown) => crypto.createHash('sha256').update(JSON.stringify(v)
 const JIEMA_FINGERPRINTS: Record<string, string> = {
   '2026-09-30': 'fc3ef48e5982aa84', // 评审前的草稿（8ebd721），没有上线过
   '2026-10-01': '67543623d79257bd',
+  '2026-10-18': '5eae627a408c3390', // 加微信支付：「支付宝付的部分 / 不退回支付宝」改成「扫码支付的部分 / 不原路退回」
 }
 const WALLET_FINGERPRINTS: Record<string, string> = {
   '2026-09-29': '53123bc3672693a5',
+  '2026-10-18': 'cd193fc50671d4b8', // 加微信支付：充值来源、补齐方式改成「扫码支付（支付宝 / 微信）」
 }
 
 console.log('\n【§8.4 ④ 改一句条款就升版本：正文指纹与版本号登记一致】')
@@ -151,7 +153,7 @@ console.log('\n【免责措辞与用途限制】')
   ok(JIEMA_DISCLAIMER[5].includes('造成你人身损害的责任，以及因平台故意或者重大过失造成你财产损失的责任除外'), '免责声明第 6 条（以实付为限）带民法典第五百零六条的除外')
   const e1 = itemText(sec('enforcement').items[0])
   ok(e1.includes('暂停最长不超过 30 日') && e1.includes('将剩余余额（含充值余额）按原付款途径或者双方协商的方式退还') && JIEMA_DISCLAIMER[4].includes('最长 30 日'), '五.1：暂停余额最长 30 日；核实违法违约终止服务的，剩余余额扣除损失后退还')
-  ok(JIEMA_DISCLAIMER[6].startsWith('重点条款提示') && ['不承担赔偿责任', '你应当赔偿', '封禁账号', '经营者所在地有管辖权的人民法院', '不退回支付宝'].every((k) => JIEMA_DISCLAIMER[6].includes(k)), '红框最后一条「重点条款提示」：退款去向、不赔偿的情形、赔偿义务、暂停余额与封禁、管辖法院')
+  ok(JIEMA_DISCLAIMER[6].startsWith('重点条款提示') && ['不承担赔偿责任', '你应当赔偿', '封禁账号', '经营者所在地有管辖权的人民法院', '不原路退回'].every((k) => JIEMA_DISCLAIMER[6].includes(k)), '红框最后一条「重点条款提示」：退款去向、不赔偿的情形、赔偿义务、暂停余额与封禁、管辖法院')
   ok(all.includes('造成你人身损害的责任') && all.includes('因平台故意或者重大过失造成你财产损失的责任'), '责任限制不排除人身损害与故意 / 重大过失造成的财产损失')
   ok(all.includes('经核实不存在上述情形的，平台恢复服务与余额的使用'), '暂停之后查明没有违法违约的，恢复服务与余额')
   const strongs = [...JIEMA_TERMS_SECTIONS.flatMap((s) => s.items), ...TERMS_MISC].filter(isStrong).map(itemText)
@@ -213,8 +215,8 @@ console.log('\n【ui：409 TERMS 之后怎么办、付款摘要、条款更新�
   ok(termsReaction({ termsVersion: '2026-09-30', walletTermsVersion: '2026-10-01' }, cur) === 'RELOAD', '服务端余额规则更新了 → 刷新页面')
   ok(termsReaction(null, cur) === 'REOPEN' && termsReaction({}, cur) === 'REOPEN', '服务端没带版本 → 重新弹窗')
   ok(payPlanSummary({ mode: 'BALANCE', balanceCents: 170, alipayCents: 0 }) === '余额付清 ¥1.70', '余额付清摘要')
-  ok(payPlanSummary({ mode: 'MIXED', balanceCents: 120, alipayCents: 50 }) === '余额 ¥1.20 + 支付宝 ¥0.50', '组合摘要')
-  ok(payPlanSummary({ mode: 'ALIPAY', balanceCents: 0, alipayCents: 170 }) === '支付宝 ¥1.70', '支付宝摘要')
+  ok(payPlanSummary({ mode: 'MIXED', balanceCents: 120, alipayCents: 50 }) === '余额 ¥1.20 + 扫码支付 ¥0.50', '组合摘要')
+  ok(payPlanSummary({ mode: 'ALIPAY', balanceCents: 0, alipayCents: 170 }) === '扫码支付 ¥1.70', '扫码支付摘要')
   ok(termsChangedSinceLast({ jiema: '2026-09-29', wallet: '2026-09-29' }, cur) && !termsChangedSinceLast(null, cur), '上一单是旧版 → 弹窗提示「条款已更新」；首单不提示')
 }
 

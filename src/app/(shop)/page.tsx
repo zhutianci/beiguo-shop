@@ -46,7 +46,7 @@ import { TAX_RATE } from '@/lib/invoice'
 // 渠道站整站 noindex，这两句原样保留（渠道白标的 withBrandName 也基于它们），不动渠道站的输出。
 const TITLE = 'ChatGPT Plus / Claude Pro 充值代充 - 卡密自助兑换 - 贝果科技'
 const DESCRIPTION =
-  '贝果科技提供 ChatGPT Plus / Pro、Claude Pro / Max 5x 会员充值与代充：卡密自助兑换，无需信用卡，支付宝付款，可开增值税发票。另有 Codex 接码、Claude 注册与 KYC 认证。'
+  '贝果科技提供 ChatGPT Plus / Pro、Claude Pro / Max 5x 会员充值与代充：卡密自助兑换，无需信用卡，支付宝或微信支付，可开增值税发票。另有 Codex 接码、Claude 注册与 KYC 认证。'
 
 const metadata: Metadata = {
   title: TITLE,
@@ -76,7 +76,7 @@ function homeTitle(p: Pick<SitePillars, 'jiema'>): string {
 }
 
 function homeDescription(p: Pick<SitePillars, 'jiema' | 'news' | 'learnIndexable'>): string {
-  const parts = [`ChatGPT Plus / Pro、Claude Pro / Max 会员充值：卡密自助兑换，支付宝付款，可开增值税发票（${INVOICE_TAX_TEXT}）`]
+  const parts = [`ChatGPT Plus / Pro、Claude Pro / Max 会员充值：卡密自助兑换，支付宝或微信支付，可开增值税发票（${INVOICE_TAX_TEXT}）`]
   if (p.jiema) parts.push('短信接码用海外手机号在线接收验证码')
   const extra = [p.news ? '每日 AI 圈大事记' : null, p.learnIndexable ? '可复制的 AI 提示词与实测教程' : null].filter(Boolean)
   if (extra.length) parts.push(`另有${extra.join('与')}`)

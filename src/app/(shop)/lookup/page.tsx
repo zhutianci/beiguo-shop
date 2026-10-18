@@ -1096,7 +1096,7 @@ function InvoiceModal({
           ) : null}
           提交发票并支付税费 ¥{order.taxFee?.toFixed(2)}
         </button>
-        <p className="text-xs text-white/30 text-center mt-2">提交后将跳转支付宝支付 6% 税费，支付完成即提交开票</p>
+        <p className="text-xs text-white/30 text-center mt-2">提交后将跳转收银台，用支付宝或微信支付 6% 税费，支付完成即提交开票</p>
       </motion.div>
     </div>
   )

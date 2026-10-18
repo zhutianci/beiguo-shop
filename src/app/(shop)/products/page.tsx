@@ -82,7 +82,7 @@ const getProducts = cache(async () => {
  */
 const TITLE = `ChatGPT Plus / Claude Pro 充值与购买价格表 - ${SITE_NAME}`
 const DESCRIPTION =
-  'ChatGPT Plus / Pro、Claude Pro / Max 会员充值与购买价格表，另有 Grok Super 充值、Codex 与 Claude 注册接码、谷歌账号。充值类为卡密自助兑换，仅支持支付宝；标价不含税，开票另付 6%。'
+  'ChatGPT Plus / Pro、Claude Pro / Max 会员充值与购买价格表，另有 Grok Super 充值、Codex 与 Claude 注册接码、谷歌账号。充值类为卡密自助兑换，支持支付宝和微信支付；标价不含税，开票另付 6%。'
 
 const metadata: Metadata = {
   title: TITLE,

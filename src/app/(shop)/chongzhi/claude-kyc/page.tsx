@@ -403,7 +403,7 @@ export default async function ClaudeKycLandingPage() {
                 title: '下单并付款',
                 body: (
                   <>
-                    在上面的价格表里点进商品，用支付宝付款。这一项是人工服务，
+                    在上面的价格表里点进商品，用支付宝或微信付款。这一项是人工服务，
                     <strong>付款后不会发卡密</strong>，订单会停在处理中等客服跟你对接。
                   </>
                 ),

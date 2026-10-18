@@ -657,7 +657,7 @@ export default function OrdersPage() {
                               {payingNo === order.orderNo ? (
                                 <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
                               ) : null}
-                              支付宝支付
+                              支付宝或微信支付
                             </button>
                           )}
                         </div>
@@ -711,7 +711,7 @@ export default function OrdersPage() {
                           <div className="mb-3 lg:mb-0">
                             <div className="flex items-center gap-2 text-sm lg:text-[15px] text-yellow-400">
                               <AlertCircle className="w-4 h-4" />
-                              <span>请点击「支付宝支付」完成付款</span>
+                              <span>请点击「支付宝或微信支付」完成付款</span>
                             </div>
                             {/* 这张单有抽奖资格：付款前只提示，不给按钮（服务端也不允许未付款的单抽） */}
                             {sfFeatures.lottery && order.lottery?.state === 'PENDING' && (
@@ -1745,7 +1745,7 @@ function InvoiceModal({
           {submitting ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : null}
           提交发票并支付税费 ¥{b.taxFee.toFixed(2)}
         </button>
-        <p className="text-xs text-white/30 text-center mt-2">提交后将跳转支付宝支付 6% 税费，支付完成即提交开票</p>
+        <p className="text-xs text-white/30 text-center mt-2">提交后将跳转收银台，用支付宝或微信支付 6% 税费，支付完成即提交开票</p>
       </motion.div>
     </div>
   )

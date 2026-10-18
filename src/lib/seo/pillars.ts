@@ -47,7 +47,7 @@ export const sitePillars = cache(async (): Promise<SitePillars> => {
 
 /** 接码的付款方式口径（设计 §3.3 /jiema 行、§4.3 事实卡）：余额可用写「支付宝或站内余额」，否则只写支付宝 */
 export function jiemaPayText(balancePay: boolean): string {
-  return balancePay ? '支付宝或站内余额' : '支付宝'
+  return balancePay ? '扫码支付（支付宝 / 微信）或站内余额' : '扫码支付（支付宝 / 微信）'
 }
 
 /**

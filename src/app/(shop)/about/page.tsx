@@ -39,7 +39,7 @@ export default async function AboutPage() {
 
   const facts = [
     { value: '持照经营', label: '益阳市赫山区必高科技有限公司' },
-    { value: '支付宝', label: '人民币付款，无需境外信用卡' },
+    { value: '支付宝 / 微信', label: '人民币付款，无需境外信用卡' },
     // 限定到「AI 会员充值」：余额充值与短信接码订单暂不支持开票（D37），这一格不能读成全站都能开
     { value: '可开票', label: `AI 会员充值可开增值税发票，${INVOICE_TAX_TEXT}` },
     { value: '规则公开', label: '质保与退款口径写在服务条款里' },
@@ -226,8 +226,8 @@ export default async function AboutPage() {
                 <CreditCard className="mt-1 w-5 h-5 shrink-0 text-purple-300" />
                 <span>
                   <strong className="text-white/90">付款：</strong>
-                  AI 会员充值只收支付宝，人民币付款，登录后下单，不需要境外信用卡。
-                  {jiemaOpen && (jiemaBalancePay ? '短信接码可用支付宝或站内余额付款，余额不够时差额走支付宝。' : '短信接码用支付宝付款。')}
+                  AI 会员充值支持支付宝和微信支付，人民币付款，登录后下单，不需要境外信用卡。
+                  {jiemaOpen && (jiemaBalancePay ? '短信接码可用扫码支付（支付宝 / 微信）或站内余额付款，余额不够时差额走扫码支付。' : '短信接码用扫码支付（支付宝 / 微信）付款。')}
                 </span>
               </p>
               <p className="flex gap-3">
@@ -259,7 +259,7 @@ export default async function AboutPage() {
               {jiemaOpen && (
                 <p>
                   <strong className="text-white/90">短信接码：</strong>
-                  没有收到短信的订单整单退回站内余额，其中支付宝付的部分退入充值余额（不可提现、不退回支付宝）；收到短信即视为交付完成，不支持取消、换号、退款，特殊情况按售后规则人工审核。完整规则见
+                  没有收到短信的订单整单退回站内余额，其中扫码支付的部分退入充值余额（不可提现、不原路退回）；收到短信即视为交付完成，不支持取消、换号、退款，特殊情况按售后规则人工审核。完整规则见
                   <Link href={JIEMA_TERMS_PATH} className="text-purple-300 hover:text-purple-200 underline-offset-4 hover:underline">
                     《{JIEMA_TERMS_TITLE}》
                   </Link>

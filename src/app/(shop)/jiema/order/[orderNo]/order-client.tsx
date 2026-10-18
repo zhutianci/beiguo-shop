@@ -574,13 +574,13 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
               </div>
               {v.pay.mode === 'MIXED' ? (
                 <p className="text-sm leading-relaxed text-white/70">
-                  余额已预扣 {fmtYuan(v.pay.balanceCents)}（充值 {fmtYuan(v.pay.balanceTopupCents)} · 返现 {fmtYuan(v.pay.balanceCashCents)}），还需支付宝{' '}
+                  余额已预扣 {fmtYuan(v.pay.balanceCents)}（充值 {fmtYuan(v.pay.balanceTopupCents)} · 返现 {fmtYuan(v.pay.balanceCashCents)}），还需扫码支付{' '}
                   <b className="text-white">{fmtYuan(v.pay.alipayCents)}</b>
                   {pendingDeadline && <>，请在 <b className="tabular-nums text-amber-200">{fmtCountdown(Date.parse(pendingDeadline) - serverNow)}</b> 内完成</>}；超时或取消订单，预扣的余额自动退回。
                 </p>
               ) : (
                 <p className="text-sm leading-relaxed text-white/70">
-                  支付宝付款 <b className="text-white">{fmtYuan(v.pay.alipayCents)}</b>
+                  扫码支付 <b className="text-white">{fmtYuan(v.pay.alipayCents)}</b>（支付宝 / 微信）
                   {pendingDeadline && <>，请在 <b className="tabular-nums text-amber-200">{fmtCountdown(Date.parse(pendingDeadline) - serverNow)}</b> 内完成</>}。付款后自动跳到这一页分配号码。
                 </p>
               )}
@@ -625,7 +625,7 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
               {busy === 'start' && <Loader2 className="h-4 w-4 animate-spin" />}开始接码
             </button>
             <button
-              onClick={() => confirmThen('取消后整单退回余额（含支付宝付的部分，退进充值余额，不能提现），确定吗？', '取消并退回余额', () => void act('refund-ready'))}
+              onClick={() => confirmThen('取消后整单退回余额（含扫码支付的部分，退进充值余额，不能提现），确定吗？', '取消并退回余额', () => void act('refund-ready'))}
               disabled={!!busy || !v.actions.refundReady}
               className="rounded-xl border border-white/15 px-4 py-2.5 text-sm text-white/75 hover:bg-white/10 disabled:opacity-50"
             >
@@ -753,7 +753,7 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
               换号{canActIn > 0 ? `（${fmtCountdown(canActIn)}）` : ''}
             </button>
             <button
-              onClick={() => confirmThen('取消后号码立即释放，本单整单退回余额（含支付宝付的部分，退进充值余额，不能提现）。确定取消吗？', '取消并退回余额', () => void act('cancel'))}
+              onClick={() => confirmThen('取消后号码立即释放，本单整单退回余额（含扫码支付的部分，退进充值余额，不能提现）。确定取消吗？', '取消并退回余额', () => void act('cancel'))}
               disabled={!!busy || !v.actions.cancel || canActIn > 0}
               className="inline-flex items-center justify-center gap-1.5 rounded-2xl border border-white/15 bg-white/[0.05] px-4 py-3 text-sm hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-45"
             >
@@ -881,7 +881,7 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
               ))}
             </p>
           )}
-          <p className="text-[11px] text-white/40">退回的余额不能提现、不退回支付宝，目前可用于短信接码。</p>
+          <p className="text-[11px] text-white/40">退回的余额不能提现、不原路退回，目前可用于短信接码。</p>
         </section>
       )}
 
@@ -941,7 +941,7 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
       {/* ───── 规则说明 ───── */}
       <section className="space-y-1 rounded-2xl border border-white/10 px-4 py-3 text-xs leading-relaxed text-white/45">
         <p>号码 20 分钟有效；取号 2 分钟后可以换号或取消；收到短信前可免费换号，收到短信后不能换号或取消。</p>
-        <p>没收到短信的，号码到期或你主动取消后，本单整单退回站内余额（含支付宝付的部分）；退回的余额不能提现、不退回支付宝，目前可用于短信接码。</p>
+        <p>没收到短信的，号码到期或你主动取消后，本单整单退回站内余额（含扫码支付的部分）；退回的余额不能提现、不原路退回，目前可用于短信接码。</p>
         {showInvoiceNoticeFor(v.state) && (
           <p>
             暂不支持开票，可
@@ -1009,7 +1009,7 @@ export function JiemaOrderClient({ orderNo }: { orderNo: string }) {
                 <p className="rounded-xl bg-white/[0.04] px-3 py-2 text-white/60">这个号码还能继续收短信：可以先在目标平台重新发送验证码，新短信免费、会自动显示在这一页。</p>
               )}
               <p>
-                收到短信后已经计费，所以不会自动退款；提交后由客服人工审核，审核通过的整单退回余额（退回的余额不能提现、不退回支付宝）。
+                收到短信后已经计费，所以不会自动退款；提交后由客服人工审核，审核通过的整单退回余额（退回的余额不能提现、不原路退回）。
                 {v.complainUntil && (
                   <>
                     请在 <b className="text-white/85">{bjTime(v.complainUntil).slice(5)}</b> 前提交。

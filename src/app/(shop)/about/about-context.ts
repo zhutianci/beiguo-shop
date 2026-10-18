@@ -69,6 +69,6 @@ function joinCn(items: string[]): string {
 export function aboutDescription(ctx: Pick<AboutContext, 'isPlatform' | 'features' | 'jiemaOpen'>): string {
   return (
     `贝果科技（bigolab.com）由益阳市赫山区必高科技有限公司运营，提供 ${joinCn(aboutBusinesses(ctx))}：` +
-    `充值为卡密自助兑换，支付宝付款，可开增值税发票（${INVOICE_TAX_TEXT}）。本页写明经营主体、付款、售后与退款口径。`
+    `充值为卡密自助兑换，支付宝或微信支付，可开增值税发票（${INVOICE_TAX_TEXT}）。本页写明经营主体、付款、售后与退款口径。`
   )
 }

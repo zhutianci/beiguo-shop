@@ -359,7 +359,7 @@ export default async function CodexJiemaLandingPage() {
                 title: '选档位并下单',
                 body: (
                   <>
-                    在上面的价格表里点进对应商品，用支付宝付款。
+                    在上面的价格表里点进对应商品，用支付宝或微信付款。
                     <strong>这一类商品不发卡密</strong>——付款确认后系统会自动为这一单取一个号码。
                   </>
                 ),

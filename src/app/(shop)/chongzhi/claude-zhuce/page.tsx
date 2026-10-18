@@ -518,7 +518,7 @@ export default async function ClaudeZhuceLandingPage() {
                 title: '在价格表里下单',
                 body: (
                   <>
-                    点进对应商品，用支付宝付款。
+                    点进对应商品，用支付宝或微信付款。
                     <strong>这一页的两类商品交付方式不一样</strong>：
                     接码档付款后由系统自动取号，号码和验证码直接显示在订单里，不发卡密；
                     普号档才会发卡密（格式是「账号----密码」），同时发一份到你的账号邮箱。

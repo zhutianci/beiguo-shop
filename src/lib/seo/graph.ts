@@ -61,7 +61,7 @@ export interface OrgPillars {
 const INVOICE_LINE = '可开增值税发票，标价不含税、开票另付 6%'
 
 export function organizationDescription(p: OrgPillars = {}): string {
-  const parts = [`ChatGPT Plus / Pro、Claude Pro / Max 等 AI 订阅充值（卡密自助兑换，支付宝付款，${INVOICE_LINE}）`]
+  const parts = [`ChatGPT Plus / Pro、Claude Pro / Max 等 AI 订阅充值（卡密自助兑换，支付宝或微信支付，${INVOICE_LINE}）`]
   if (p.jiema) parts.push('短信接码（海外手机号在线接收验证码）')
   if (p.news) parts.push('AI 圈大事记（AI 行业动态聚合，AI 自动整理并附原文出处）')
   if (p.learn) parts.push('AI 学习平台（可复制的提示词与实测教程）')

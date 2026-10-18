@@ -66,21 +66,21 @@ console.log('\n【确认面板：付款拆分（§1.8、D32：先充值格、后
   eq(payPlan(170, 500, 0, 'ALIPAY'), { mode: 'ALIPAY', balanceCents: 0, topupCents: 0, cashCents: 0, alipayCents: 170 }, '选支付宝 → 支付宝全额')
   ok(defaultPayWith(120, true) === 'BALANCE' && defaultPayWith(0, true) === 'ALIPAY' && defaultPayWith(120, false) === 'ALIPAY', '默认选中：余额 > 0 且余额支付开 → 余额抵扣，否则支付宝')
   ok(payButtonLabel(payPlan(170, 200, 0, 'BALANCE')) === '确认支付（余额 ¥1.70）', '余额付清的按钮：「确认支付（余额 ¥1.70）」')
-  ok(payButtonLabel(payPlan(170, 70, 50, 'BALANCE')) === '确认支付：余额 ¥1.20 + 支付宝 ¥0.50', '组合的按钮写清两段金额')
-  ok(payButtonLabel(payPlan(170, 0, 0, 'ALIPAY')) === '确认支付（支付宝 ¥1.70）', '支付宝全额的按钮')
+  ok(payButtonLabel(payPlan(170, 70, 50, 'BALANCE')) === '确认支付：余额 ¥1.20 + 扫码支付 ¥0.50', '组合的按钮写清两段金额')
+  ok(payButtonLabel(payPlan(170, 0, 0, 'ALIPAY')) === '确认支付（扫码支付 ¥1.70）', '支付宝全额的按钮')
 }
 
 console.log('\n【409 的一个弹窗（§1.8：价格与拆分一起确认；余额用完时服务端给 suggestPayWith）】')
 {
   const p = changeDialog('PRICE_CHANGED', { oldPriceCents: 170, payWith: 'BALANCE' }, { priceCents: 186, balanceCents: 120, alipayCents: 66 })
-  ok(!!p && p.text === '价格已更新为 ¥1.86（原 ¥1.70）：余额抵扣 ¥1.20 + 支付宝 ¥0.66，是否继续？', 'PRICE_CHANGED：「价格已更新为 ¥1.86（原 ¥1.70）：余额抵扣 ¥1.20 + 支付宝 ¥0.66，是否继续？」', p?.text)
+  ok(!!p && p.text === '价格已更新为 ¥1.86（原 ¥1.70）：余额抵扣 ¥1.20 + 扫码支付 ¥0.66，是否继续？', 'PRICE_CHANGED：「价格已更新为 ¥1.86（原 ¥1.70）：余额抵扣 ¥1.20 + 扫码支付 ¥0.66，是否继续？」', p?.text)
   eq(p?.next, { expectPriceCents: 186, payWith: 'BALANCE', expectBalanceCents: 120 }, '继续时新价与新拆分一起提交（不会再弹第二次）')
   const pa = changeDialog('PRICE_CHANGED', { oldPriceCents: 170, payWith: 'ALIPAY' }, { priceCents: 186, balanceCents: 0, alipayCents: 186 })
-  ok(!!pa && pa.text.includes('支付宝 ¥1.86') && pa.next.payWith === 'ALIPAY' && pa.next.expectBalanceCents === null, '纯支付宝单的价格变化：只写支付宝金额')
+  ok(!!pa && pa.text.includes('扫码支付 ¥1.86') && pa.next.payWith === 'ALIPAY' && pa.next.expectBalanceCents === null, '纯支付宝单的价格变化：只写支付宝金额')
   const b = changeDialog('BALANCE_CHANGED', { oldPriceCents: 170, payWith: 'BALANCE' }, { balanceCents: 80, alipayCents: 90 })
-  ok(!!b && b.text === '你的可用余额刚刚变化：余额抵扣 ¥0.80 + 支付宝 ¥0.90，是否继续？' && b.next.expectBalanceCents === 80, 'BALANCE_CHANGED：「你的可用余额刚刚变化：余额抵扣 ¥0.80 + 支付宝 ¥0.90，是否继续？」', b?.text)
+  ok(!!b && b.text === '你的可用余额刚刚变化：余额抵扣 ¥0.80 + 扫码支付 ¥0.90，是否继续？' && b.next.expectBalanceCents === 80, 'BALANCE_CHANGED：「你的可用余额刚刚变化：余额抵扣 ¥0.80 + 扫码支付 ¥0.90，是否继续？」', b?.text)
   const s = changeDialog('BALANCE_CHANGED', { oldPriceCents: 170, payWith: 'BALANCE' }, { balanceCents: 0, alipayCents: 170, suggestPayWith: 'ALIPAY' })
-  ok(!!s && s.text === '你的余额已用完，本单改用支付宝 ¥1.70 支付？' && s.confirmLabel === '用支付宝支付' && s.next.payWith === 'ALIPAY' && s.next.expectBalanceCents === null, '余额用完 + suggestPayWith → 改用支付宝提交（不带 expectBalanceCents）')
+  ok(!!s && s.text === '你的余额已用完，本单改用扫码支付 ¥1.70（支付宝 / 微信）？' && s.confirmLabel === '用扫码支付' && s.next.payWith === 'ALIPAY' && s.next.expectBalanceCents === null, '余额用完 + suggestPayWith → 改用支付宝提交（不带 expectBalanceCents）')
   ok(changeDialog('PRICE_CHANGED', { oldPriceCents: 170, payWith: 'BALANCE' }, { priceCents: 186, balanceCents: 120, alipayCents: 60 }) === null, '拆分对不上价格（120 + 60 ≠ 186）→ 不弹（前端不自己猜）')
   ok(changeDialog('BALANCE_CHANGED', { oldPriceCents: 170, payWith: 'BALANCE' }, { balanceCents: -1, alipayCents: 171 }) === null, '负数 / 非整数 → 不弹')
   ok(shouldRenewOrderToken(503, 'PAY_BUSY') && shouldRenewOrderToken(429, 'OPEN_PAYMENTS', { released: true }), '服务端建了单又关掉（PAY_BUSY、事后复核超限）→ 换 clientToken')
@@ -310,8 +310,8 @@ console.log('\n【S2b 评审修复：确认面板付款方式（显示与提交�
   )
   eq(
     jiemaAmountLines({ amount: 1.7, payable: 0.5, payStatus: 'UNPAID', deliveryStatus: 'PENDING', jiema: { state: 'PENDING_PAY', payMode: 'MIXED', holdCents: 120, holdState: 'HELD' } }),
-    { main: 1.7, lines: ['余额已预扣 ¥1.20', '还需支付宝 ¥0.50'] },
-    '组合单：订单金额 ¥1.70，「余额已预扣 ¥1.20」「还需支付宝 ¥0.50」分两行',
+    { main: 1.7, lines: ['余额已预扣 ¥1.20', '还需扫码支付 ¥0.50'] },
+    '组合单：订单金额 ¥1.70，「余额已预扣 ¥1.20」「还需扫码支付 ¥0.50」分两行',
   )
   eq(jiemaAmountLines({ amount: 1.7, payable: 1.7, payStatus: 'UNPAID', deliveryStatus: 'PENDING', jiema: { state: 'PENDING_PAY', payMode: 'MIXED', holdCents: 120, holdState: 'RELEASED' } }).lines, [], '预扣不是 HELD → 不写「余额已预扣」')
   const man = jiemaOrderCard({ payStatus: 'UNPAID', deliveryStatus: 'PENDING', jiema: { state: 'MANUAL', payMode: 'MIXED', holdCents: 120, holdState: 'CAPTURED' } })

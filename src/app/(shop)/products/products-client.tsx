@@ -169,7 +169,7 @@ export default function ProductsClient({
               换成买家真正要确认的三件事，每一条页面上都兑现得了 */}
           {/* 「卡密自助兑换」只对充值类成立：接码是付款后自动取号、KYC 是人工对接、账号类发的是账号本身 */}
           <p className="text-white/50 text-base lg:text-lg max-w-2xl mx-auto leading-relaxed">
-            充值类卡密自助兑换，账号不经手；仅支持支付宝，无需境外支付方式；
+            充值类卡密自助兑换，账号不经手；支持支付宝和微信支付，无需境外支付方式；
             <br className="hidden sm:block" />
             标价均为不含税价，需要增值税发票的另付 6% 税费。
           </p>

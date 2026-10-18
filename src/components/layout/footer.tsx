@@ -85,8 +85,8 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
                 {brand.intro
                   ? brand.intro
                   : white
-                    ? `${brand.name}提供 ChatGPT、Claude 等 AI 会员充值与账号服务，支付宝付款，可开增值税发票（标价不含税，开票另付 6% 税费）。`
-                    : '贝果科技（益阳市赫山区必高科技有限公司）提供 ChatGPT、Claude 等 AI 会员充值与账号服务，支付宝付款，可开增值税发票（标价不含税，开票另付 6% 税费）。'}
+                    ? `${brand.name}提供 ChatGPT、Claude 等 AI 会员充值与账号服务，支付宝或微信支付，可开增值税发票（标价不含税，开票另付 6% 税费）。`
+                    : '贝果科技（益阳市赫山区必高科技有限公司）提供 ChatGPT、Claude 等 AI 会员充值与账号服务，支付宝或微信支付，可开增值税发票（标价不含税，开票另付 6% 税费）。'}
               </p>
               <div className="mt-6 lg:mt-8">
                 <button

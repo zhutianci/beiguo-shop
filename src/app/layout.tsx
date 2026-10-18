@@ -36,7 +36,7 @@ const SITE_NAME = '贝果科技'
  */
 const TITLE = '贝果科技 BigoLab - AI 订阅充值与 AI 行业动态'
 const DESCRIPTION =
-  '贝果科技（bigolab.com）提供 ChatGPT、Claude 等 AI 订阅充值：卡密自助兑换，支付宝付款，无需境外信用卡；另有 AI 圈大事记，按事件整理 AI 行业动态并附原文出处。'
+  '贝果科技（bigolab.com）提供 ChatGPT、Claude 等 AI 订阅充值：卡密自助兑换，支付宝或微信支付，无需境外信用卡；另有 AI 圈大事记，按事件整理 AI 行业动态并附原文出处。'
 /*
  * 【渠道站的兜底文案单独一份】上面两句写了主站域名和大事记，而渠道 Host 上大事记（features.news）是关的（/news 404），
  * 域名也不是这家店的地址。渠道站上没写 openGraph 的页面（privatePageMetadata 只给 title / description 的登录、订单、钱包等页，
@@ -44,7 +44,7 @@ const DESCRIPTION =
  * 不写短信接码（渠道站也关着）。渠道站整站 noindex，这里只影响分享卡片（A 包评审修复，itest-tenant/wp1 W1-5 有断言）。
  */
 const CHANNEL_TITLE = '贝果科技 BigoLab - AI 订阅充值'
-const CHANNEL_DESCRIPTION = '贝果科技提供 ChatGPT、Claude 等 AI 订阅充值：卡密自助兑换，支付宝付款，无需境外信用卡。'
+const CHANNEL_DESCRIPTION = '贝果科技提供 ChatGPT、Claude 等 AI 订阅充值：卡密自助兑换，支付宝或微信支付，无需境外信用卡。'
 
 /**
  * 站点级 metadata。子页面（如 /news/[slug] 的 generateMetadata）只需要覆盖

@@ -156,7 +156,7 @@ export default async function JiemaTermsPage() {
       </section>
 
       <LegalSection heading={`附：《${WALLET_TERMS_TITLE}》（版本 ${WALLET_TERMS_VERSION}）`}>
-        <p className="text-white/55">没有收到短信的订单，支付宝付的部分同样退入充值余额，所以不论用哪种付款方式下单，都需要同意这份规则。</p>
+        <p className="text-white/55">没有收到短信的订单，扫码支付的部分同样退入充值余额，所以不论用哪种付款方式下单，都需要同意这份规则。</p>
         <ol className="list-decimal space-y-2 pl-6">
           {walletTermsFor(jiemaBalance).map((t) => (
             <li key={t}>{t}</li>
