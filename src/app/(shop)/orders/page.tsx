@@ -9,9 +9,7 @@ import {
   Search,
   Sparkles,
   Package,
-  Clock,
   CheckCircle,
-  XCircle,
   AlertCircle,
   ChevronRight,
   Copy,
@@ -71,11 +69,12 @@ interface Order {
   jiema?: { state: string; payMode: string; holdCents: number; holdState: string | null } | null
 }
 
-const JIEMA_TONE: Record<JiemaCard['tone'], { color: string; bg: string; border: string; icon: LucideIcon }> = {
-  amber: { color: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/20', icon: AlertCircle },
-  blue: { color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', icon: Clock },
-  gray: { color: 'text-white/40', bg: 'bg-white/5', border: 'border-white/10', icon: XCircle },
-  green: { color: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/20', icon: CheckCircle },
+/* 接码单的四种语气（lib/jiema/ui 给 tone）→ 卡片上小圆点与提示文字的颜色。与下面 getStatusConfig 同一套色 */
+const JIEMA_TONE: Record<JiemaCard['tone'], { color: string }> = {
+  amber: { color: 'text-amber-300' },
+  blue: { color: 'text-sky-400' },
+  gray: { color: 'text-white/40' },
+  green: { color: 'text-emerald-400' },
 }
 
 interface Billing {
@@ -119,82 +118,14 @@ const INVOICE_LABELS: Record<string, string> = {
   CANNOT: '不可开据',
 }
 
-const gradients = [
-  'from-violet-600 to-purple-600',
-  'from-purple-600 to-pink-600',
-  'from-pink-600 to-rose-600',
-  'from-emerald-600 to-teal-600',
-  'from-teal-600 to-cyan-600',
-  'from-cyan-600 to-blue-600',
-  'from-amber-600 to-orange-600',
-]
-
-function getGradient(id: number) {
-  return gradients[id % gradients.length]
-}
-
+/* 订单状态 → 标题旁小圆点的文字与颜色。颜色只用来区分状态，不再有底色与描边 */
 const getStatusConfig = (payStatus: string, deliveryStatus: string) => {
-  if (deliveryStatus === 'CANCELLED') {
-    return {
-      label: '已取消',
-      icon: XCircle,
-      color: 'text-white/40',
-      bg: 'bg-white/5',
-      border: 'border-white/10',
-    }
-  }
-  if (payStatus === 'UNPAID') {
-    return {
-      label: '待支付',
-      icon: AlertCircle,
-      color: 'text-yellow-400',
-      bg: 'bg-yellow-500/10',
-      border: 'border-yellow-500/20',
-    }
-  }
-  if (payStatus === 'REFUNDED') {
-    return {
-      label: '已退款',
-      icon: XCircle,
-      color: 'text-white/40',
-      bg: 'bg-white/5',
-      border: 'border-white/10',
-    }
-  }
-  if (deliveryStatus === 'DELIVERED') {
-    return {
-      label: '已完成',
-      icon: CheckCircle,
-      color: 'text-green-400',
-      bg: 'bg-green-500/10',
-      border: 'border-green-500/20',
-    }
-  }
-  if (deliveryStatus === 'PROCESSING') {
-    return {
-      label: '处理中',
-      icon: Clock,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-      border: 'border-blue-500/20',
-    }
-  }
-  if (deliveryStatus === 'CANCELLED') {
-    return {
-      label: '已取消',
-      icon: XCircle,
-      color: 'text-white/40',
-      bg: 'bg-white/5',
-      border: 'border-white/10',
-    }
-  }
-  return {
-    label: '待处理',
-    icon: Clock,
-    color: 'text-white/60',
-    bg: 'bg-white/5',
-    border: 'border-white/10',
-  }
+  if (deliveryStatus === 'CANCELLED') return { label: '已取消', color: 'text-white/40' }
+  if (payStatus === 'UNPAID') return { label: '待支付', color: 'text-amber-300' }
+  if (payStatus === 'REFUNDED') return { label: '已退款', color: 'text-white/40' }
+  if (deliveryStatus === 'DELIVERED') return { label: '已完成', color: 'text-emerald-400' }
+  if (deliveryStatus === 'PROCESSING') return { label: '处理中', color: 'text-sky-400' }
+  return { label: '待处理', color: 'text-white/55' }
 }
 
 /**
@@ -431,10 +362,10 @@ export default function OrdersPage() {
       <div className="fixed top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
       <div className="fixed bottom-1/4 right-1/4 w-[500px] h-[500px] bg-cyan-500/10 rounded-full blur-[128px] lite-blob pointer-events-none" />
 
-      {/* 订单卡是「一行一条记录」的横向布局，不是正文，行长约束不适用：
-          xl 起把容器从 1024 放宽到 1152，让订单号+时间+金额+按钮排在同一视觉行内，
-          横向空白转成信息密度；再宽就没意义了（右侧金额会离左侧商品名太远） */}
-      <div className="container relative max-w-5xl xl:max-w-6xl">
+      {/* 订单卡是「一行一条记录」的横向布局，不是正文，行长约束不适用，但也不宜再宽：
+          卡片改版后每行只剩「商品 + 状态 ｜ 金额」和「一句提示 ｜ 按钮」，
+          拉到 1152 只会让金额离商品名更远、中间空一大片，所以统一收在 1024 */}
+      <div className="container relative max-w-5xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -551,263 +482,214 @@ export default function OrdersPage() {
                   ? jiemaAmountLines({ amount: Number(order.amount), payable: Number(order.payable), payStatus: order.payStatus, deliveryStatus: order.deliveryStatus, jiema: order.jiema ?? null })
                   : null
                 const status = jc ? { label: jc.label, ...JIEMA_TONE[jc.tone] } : getStatusConfig(order.payStatus, order.deliveryStatus)
-                const JcIcon = jc ? JIEMA_TONE[jc.tone].icon : null
-                const gradient = getGradient(order.productId)
                 const paid = order.payStatus === 'PAID'
                 const numberHref = `/jiema/order/${encodeURIComponent(order.orderNo)}`
                 // 已发卡密的单：把「下一步」直接摆在卡片上（卡密已到 ≠ 已充值，很多买家卡在这一步）
                 const entry = redeemEntry(order)
                 const showRedeem = !jc && paid && order.deliveryStatus !== 'CANCELLED' && entry.hasCards
+                // 多张卡 / 没有兑换地址时，「下一步」本身就是打开发货详情：次要操作里不再重复一个「发货详情」
+                const redeemOpensPanel = showRedeem && (!entry.primaryRedeemUrl || entry.cardRows.length > 1)
+                // 已取消 / 已退款：整张卡压暗，列表里一眼能跳过
+                const dim = order.deliveryStatus === 'CANCELLED' || order.payStatus === 'REFUNDED'
+
+                /*
+                 * 【一张卡最多一句提示】改版前同一张卡上会同时出现「状态胶囊 + 两行状态提示 + 抽奖提示」，
+                 * 说的还都是状态本身。这里只留「买家下一步要做什么」，状态交给标题旁的小圆点，不再重复一遍。
+                 */
+                let hint: ReactNode = null
+                let hintCls = 'text-white/55'
+                if (jc) {
+                  hint = jc.hint
+                  hintCls = JIEMA_TONE[jc.tone].color
+                } else if (showRedeem) {
+                  hint = entry.primaryRedeemUrl ? '卡密已发放，还没充值就点「去充值 / 兑换」' : '卡密已发放，点「查看卡密」按使用说明完成充值'
+                  hintCls = 'text-emerald-300/90'
+                } else if (paid && order.deliveryStatus === 'PROCESSING') {
+                  // 不写死时效：人工服务、接码、卡池不足转人工补发三种情况的耗时完全不同
+                  //（「预计 10 分钟」对哪一种都不成立，交接文档第二十八节清理过同类承诺）
+                  hint =
+                    order.product?.deliveryType === 'SMS'
+                      ? '正在为你取号，号码与验证码在「发货详情」里查看'
+                      : order.product?.deliveryType === 'MANUAL'
+                        ? '客服正在处理，进度可在「联系客服」里跟进'
+                        : '正在处理中（库存补充后由人工补发），补发后会显示在「发货详情」里'
+                  hintCls = 'text-sky-300/90'
+                } else if (order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED') {
+                  // 不再写「请点击『支付宝或微信支付』完成付款」——右边就是那个按钮；只在有抽奖资格时留一句钩子
+                  if (sfFeatures.lottery && order.lottery?.state === 'PENDING') {
+                    hint = (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Gift className="h-3.5 w-3.5 shrink-0 text-red-400" />
+                        付款后可参与「下单有奖」抽红包
+                      </span>
+                    )
+                    hintCls = 'text-amber-200/85'
+                  }
+                } else if (order.deliveryStatus === 'CANCELLED' && order.payStatus === 'UNPAID') {
+                  hint = '订单已超时取消，请重新下单'
+                  hintCls = 'text-white/45'
+                }
+
+                /*
+                 * 票据只写「已经发生的事」：可开发票 / 可开收据是「能做什么」，按钮上已经写着了，
+                 * 再挂两个胶囊就是截图里那排花花绿绿的标签。
+                 */
+                const b = order.billing
+                const billingNote =
+                  b && b.invoiceStatus === 'ISSUED'
+                    ? { label: '发票已开具', cls: 'text-emerald-300/75' }
+                    : b && b.invoiceStatus === 'AWAIT_PAY'
+                      ? { label: '发票待付税费', cls: 'text-amber-300/85' }
+                      : b && b.invoiceStatus === 'SUBMITTED'
+                        ? { label: '发票已提交', cls: 'text-cyan-300/75' }
+                        : b && b.receiptToken
+                          ? { label: '收据已开具', cls: 'text-emerald-300/75' }
+                          : null
+
+                // 次要操作：安静的幽灵按钮（图标 + 小字），只有「下一步」才做成实心主按钮
+                const secondaryActions = [
+                  !redeemOpensPanel && (
+                    <ActionButton key="delivery" icon={Package} label="发货详情" onClick={() => openPanel(order, 'delivery')} />
+                  ),
+                  paid && order.billing && (
+                    <ActionButton key="billing" icon={FileText} label="发票 / 收据" onClick={() => openPanel(order, 'billing')} />
+                  ),
+                  (paid || (jc && jc.showChat)) && (
+                    <ActionButton
+                      key="chat"
+                      icon={MessageSquare}
+                      label="联系客服"
+                      onClick={() => openPanel(order, 'chat')}
+                      badge={order.unreadCount}
+                    />
+                  ),
+                  // 下单有奖：未拆 = 合着的红包，已拆 = 拆开的红包（点开重看结果）
+                  sfFeatures.lottery && paid && order.lottery && order.lottery.state !== 'VOID' && (
+                    <RedPacketButton
+                      key="lottery"
+                      view={order.lottery}
+                      canDraw={!!order.lotteryCanDraw}
+                      onClick={() => setLotteryOrder(order)}
+                    />
+                  ),
+                ].filter(Boolean)
+
+                /* 主按钮：一张卡最多一个。接码单的付款与查号都在号码页（同一个地址，不再并排放两个） */
+                const primaryAction = jc ? (
+                  jc.showGoPay ? (
+                    <PrimaryLink href={numberHref} tone="pay">
+                      去付款（号码页）
+                    </PrimaryLink>
+                  ) : jc.showNumberLink ? (
+                    <PrimaryLink href={numberHref}>查看号码</PrimaryLink>
+                  ) : null
+                ) : showRedeem ? (
+                  // 一单一卡且有兑换地址 → 直接去兑换页（站内兑换已带好卡密）；多张卡各有各的地址，进发货详情逐张兑换
+                  entry.primaryRedeemUrl && entry.cardRows.length === 1 ? (
+                    <PrimaryLink href={entry.primaryRedeemUrl} external={!entry.primaryInSite}>
+                      去充值 / 兑换
+                    </PrimaryLink>
+                  ) : (
+                    <PrimaryButton onClick={() => openPanel(order, 'delivery')}>
+                      {entry.primaryRedeemUrl ? '去充值 / 兑换' : '查看卡密'}
+                    </PrimaryButton>
+                  )
+                ) : order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' ? (
+                  <PrimaryButton tone="pay" loading={payingNo === order.orderNo} onClick={() => handleAlipay(order)}>
+                    支付宝或微信支付
+                  </PrimaryButton>
+                ) : null
+
                 return (
                   <motion.div
                     key={order.id}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: index * 0.05 }}
-                    className="group relative"
+                    transition={{ duration: 0.35, delay: Math.min(index, 6) * 0.04 }}
+                    className="ui-panel rounded-[20px] p-5 transition-colors duration-200 lg:px-7 lg:py-6 lg:hover:border-white/[0.14]"
                   >
-                    <div className={`absolute -inset-[1px] bg-gradient-to-r ${gradient} rounded-2xl opacity-0 group-hover:opacity-25 blur-md transition-opacity duration-200 lite:hidden`} />
-
-                    {/* 桌面端卡片宽度到 1088px，沿用手机端 p-6 + 14px 正文会让内容浮在中间一条；
-                        lg 起加大内边距、图标与标题，把信息「铺开」到实际可用宽度上 */}
-                    <div className="relative ui-panel rounded-[20px] p-6 lg:p-7 transition-colors duration-200 group-hover:border-white/[0.14]">
-                      <div className="flex flex-col md:flex-row md:items-center gap-4 lg:gap-6">
-                        <div className={`w-14 h-14 lg:w-16 lg:h-16 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center flex-shrink-0`}>
-                          <Sparkles className="w-7 h-7 lg:w-8 lg:h-8" />
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 flex-wrap mb-2">
-                            <h3 className="font-bold text-lg lg:text-xl">{order.productName}</h3>
-                            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.bg} ${status.border} border ${status.color}`}>
-                              <status.icon className="w-3 h-3" />
-                              {status.label}
-                            </div>
-                            {!!order.unreadCount && order.unreadCount > 0 && (
-                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-500/15 border border-red-500/30 text-red-400">
-                                <MessageSquare className="w-3 h-3" />
-                                客服新回复 {order.unreadCount}
-                              </div>
-                            )}
-
-                            {/* 发票标识 */}
-                            {order.billing && order.billing.invoiceStatus === 'ISSUED' && (
-                              <BillingChip color="green" label="发票已开具" />
-                            )}
-                            {order.billing && order.billing.invoiceStatus === 'AWAIT_PAY' && (
-                              <BillingChip color="amber" label="发票待付税费" />
-                            )}
-                            {order.billing && order.billing.invoiceStatus === 'SUBMITTED' && (
-                              <BillingChip color="cyan" label="发票已提交" />
-                            )}
-                            {order.billing &&
-                              order.billing.invoiceStatus === 'UNAPPLIED' &&
-                              order.billing.canInvoice &&
-                              !order.billing.invoicePrepaid && <BillingChip color="purple" label="可开发票" />}
-
-                            {/* 收据标识 */}
-                            {order.billing &&
-                              (order.billing.receiptToken ? (
-                                <BillingChip color="green" label="收据已开具" />
-                              ) : order.billing.canReceipt ? (
-                                <BillingChip color="cyan" label="可开收据" />
-                              ) : null)}
-                          </div>
-                          <div className="flex items-center gap-4 lg:gap-6 text-sm text-white/40 flex-wrap">
-                            <div className="flex items-center gap-1">
-                              <span>订单号:</span>
-                              <span className="font-mono text-white/60">{order.orderNo}</span>
-                              <button
-                                onClick={() => copyOrderNo(order.orderNo)}
-                                className="ml-1 p-1 hover:text-white transition-colors"
-                                title="复制订单号"
-                              >
-                                <Copy className="w-3 h-3" />
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {formatDate(order.createdAt)}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between md:justify-end gap-4 lg:gap-6">
-                          <div className="text-right">
-                            <div className="text-2xl lg:text-3xl font-bold">
-                              {/* 接码单大字一律是订单金额；余额预扣与还需支付宝分两行写（jiemaAmountLines） */}
-                              {orderAmountText(Number(jAmount ? jAmount.main : order.payStatus === 'UNPAID' ? order.payable : order.amount), order.product?.deliveryType)}
-                            </div>
-                            {jAmount?.lines.map((l) => (
-                              <div key={l} className="mt-0.5 text-[11px] text-cyan-200/80">
-                                {l}
-                              </div>
-                            ))}
-                            {order.payStatus === 'UNPAID' && order.invoiceTaxFee ? (
-                              <div className="mt-0.5 text-[11px] text-amber-300/80">含发票税费 ¥{order.invoiceTaxFee.toFixed(2)}</div>
-                            ) : null}
-                            <div className="text-xs text-white/40">订单金额</div>
-                          </div>
-                          {!isJiema && order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
-                            <button
-                              onClick={() => handleAlipay(order)}
-                              disabled={payingNo === order.orderNo}
-                              className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg bg-[#1677FF] text-white text-sm lg:text-[15px] font-medium hover:bg-[#0e5fd8] transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 md:whitespace-nowrap"
-                            >
-                              {payingNo === order.orderNo ? (
-                                <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                              ) : null}
-                              支付宝或微信支付
-                            </button>
+                    {/* 第一行：商品名 + 状态 ｜ 金额。状态用「小圆点 + 彩色文字」而不是填充胶囊：
+                        一张卡最多会同时出现状态、未读、票据三条信息，三个实心胶囊排在一起就是截图里那种「花」 */}
+                    <div className="flex items-start gap-4 lg:gap-6">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                          <h3 className={`text-[17px] lg:text-[19px] font-semibold leading-snug tracking-tight ${dim ? 'text-white/65' : ''}`}>
+                            {order.productName}
+                          </h3>
+                          <StatusDot color={status.color} label={status.label} />
+                          {!!order.unreadCount && order.unreadCount > 0 && (
+                            <StatusDot color="text-rose-400" label={`客服新回复 ${order.unreadCount}`} />
                           )}
                         </div>
-                      </div>
 
-                      {/* 状态提示 + 操作按钮（不点开详情，直接分项处理） */}
-                      {/* 状态提示与操作按钮：手机端必须上下堆叠（横向放不下），
-                          但桌面端卡片有 1000px 可用宽，堆叠会白白多占一行、右侧还全是空白。
-                          lg 起改成「左提示 / 右按钮」一行 —— 这就是桌面端信息密度的主要来源。
-                          四个提示互斥（同一时刻最多渲染一个），没有提示时按钮组自然回到左侧 */}
-                      <div className="mt-4 lg:mt-5 pt-4 lg:pt-5 border-t border-white/10 lg:flex lg:items-center lg:justify-between lg:gap-6">
-                        {jc && jc.hint && JcIcon && (
-                          <div className={`mb-3 lg:mb-0 flex items-center gap-2 text-sm lg:text-[15px] ${JIEMA_TONE[jc.tone].color}`}>
-                            <JcIcon className="w-4 h-4" />
-                            <span>{jc.hint}</span>
-                          </div>
-                        )}
-                        {!jc && order.deliveryStatus === 'DELIVERED' && !showRedeem && (
-                          <div className="flex items-center gap-2 text-sm lg:text-[15px] text-green-400 mb-3 lg:mb-0">
-                            <CheckCircle className="w-4 h-4" />
-                            <span>服务已交付</span>
-                          </div>
-                        )}
-                        {showRedeem && order.deliveryStatus === 'DELIVERED' && (
-                          <div className="flex items-start gap-2 text-sm lg:text-[15px] text-emerald-300 mb-3 lg:mb-0">
-                            <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
-                            <span>
-                              卡密已发放。
-                              <span className="text-white/60">
-                                还没充值的话，点「{entry.primaryRedeemUrl ? '去充值 / 兑换' : '查看卡密'}」
-                                {entry.primaryRedeemUrl ? '把卡密充到你的账号' : '按使用说明完成充值'}
-                              </span>
-                            </span>
-                          </div>
-                        )}
-                        {!jc && order.payStatus === 'PAID' && order.deliveryStatus === 'PROCESSING' && (
-                          <div className="flex items-center gap-2 text-sm lg:text-[15px] text-blue-400 mb-3 lg:mb-0">
-                            <Clock className="w-4 h-4" />
-                            {/* 不写死时效：人工服务、接码、卡池不足转人工补发三种情况的耗时完全不同，
-                                「预计 10 分钟」对哪一种都不成立（交接文档第二十八节清理过同类承诺） */}
-                            <span>
-                              {order.product?.deliveryType === 'SMS'
-                                ? '正在为你取号，号码与验证码请在「发货详情」里查看'
-                                : order.product?.deliveryType === 'MANUAL'
-                                  ? '客服正在处理，进度可在「与客服在线沟通」里跟进'
-                                  : '正在处理中（库存补充后会由人工补发），补发后会显示在「发货详情」里'}
-                            </span>
-                          </div>
-                        )}
-                        {!jc && order.payStatus === 'UNPAID' && order.deliveryStatus !== 'CANCELLED' && (
-                          <div className="mb-3 lg:mb-0">
-                            <div className="flex items-center gap-2 text-sm lg:text-[15px] text-yellow-400">
-                              <AlertCircle className="w-4 h-4" />
-                              <span>请点击「支付宝或微信支付」完成付款</span>
-                            </div>
-                            {/* 这张单有抽奖资格：付款前只提示，不给按钮（服务端也不允许未付款的单抽） */}
-                            {sfFeatures.lottery && order.lottery?.state === 'PENDING' && (
-                              <div className="mt-1.5 flex items-center gap-1.5 text-xs lg:text-[13px] text-amber-200/80">
-                                <Gift className="w-3.5 h-3.5 text-red-400" />
-                                <span>付款后可参与「下单有奖」抽红包</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        {!jc && order.deliveryStatus === 'CANCELLED' && order.payStatus === 'UNPAID' && (
-                          <div className="flex items-center gap-2 text-sm lg:text-[15px] text-white/40 mb-3 lg:mb-0">
-                            <XCircle className="w-4 h-4" />
-                            <span>订单已超时取消，请重新下单</span>
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap gap-2 lg:shrink-0">
-                          {jc && jc.showGoPay && (
-                            <Link
-                              href={numberHref}
-                              className="px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg bg-[#1677FF] text-white text-sm lg:text-[15px] font-medium hover:bg-[#0e5fd8] transition-colors flex items-center justify-center gap-1.5 md:whitespace-nowrap"
-                            >
-                              去付款（号码页）
-                            </Link>
-                          )}
-                          {jc && jc.showNumberLink && (
-                            <Link
-                              href={numberHref}
-                              className="inline-flex items-center gap-1.5 px-3 py-2 lg:px-4 lg:py-2.5 rounded-lg glass hover:bg-white/10 text-sm lg:text-[15px] text-cyan-200 transition-colors"
-                            >
-                              查看号码
-                              <ChevronRight className="w-4 h-4" />
-                            </Link>
-                          )}
-                          {/* 主按钮：一单一卡且有兑换地址 → 直接去兑换页（站内兑换已带好卡密）；多张卡各有各的地址，进发货详情逐张兑换 */}
-                          {showRedeem &&
-                            (entry.primaryRedeemUrl && entry.cardRows.length === 1 ? (
-                              <a
-                                href={entry.primaryRedeemUrl}
-                                {...(entry.primaryInSite ? {} : { target: '_blank', rel: 'noreferrer noopener' })}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-sm lg:text-[15px] font-semibold hover:brightness-110 transition-[filter]"
-                              >
-                                去充值 / 兑换
-                                <ChevronRight className="w-4 h-4" />
-                              </a>
-                            ) : (
-                              <button
-                                onClick={() => openPanel(order, 'delivery')}
-                                className="inline-flex items-center gap-1.5 px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 text-sm lg:text-[15px] font-semibold hover:brightness-110 transition-[filter]"
-                              >
-                                {entry.primaryRedeemUrl ? '去充值 / 兑换' : '查看卡密'}
-                                <ChevronRight className="w-4 h-4" />
-                              </button>
-                            ))}
-                          <ActionButton
-                            icon={Package}
-                            label={showRedeem ? '发货详情（卡密）' : '发货详情'}
-                            onClick={() => openPanel(order, 'delivery')}
-                          />
-                          {paid && order.billing && (
-                            <ActionButton
-                              icon={FileText}
-                              label="开具发票 / 收据"
-                              onClick={() => openPanel(order, 'billing')}
-                            />
-                          )}
-                          {(paid || (jc && jc.showChat)) && (
-                            <ActionButton
-                              icon={MessageSquare}
-                              label="与客服在线沟通"
-                              onClick={() => openPanel(order, 'chat')}
-                              badge={order.unreadCount}
-                            />
-                          )}
-                          {/* 下单有奖：未拆 = 合着的红包，已拆 = 拆开的红包（点开重看结果） */}
-                          {sfFeatures.lottery && paid && order.lottery && order.lottery.state !== 'VOID' && (
-                            <RedPacketButton
-                              view={order.lottery}
-                              canDraw={!!order.lotteryCanDraw}
-                              onClick={() => setLotteryOrder(order)}
-                            />
-                          )}
-                        </div>
-                      </div>
-                      {/* 开票提示（D37 清单第 ⑤ 项）：已付款或已取消 / 已退款的接码卡片，在原「开具发票 / 收据」的位置；「联系客服」打开这张单的订单留言 */}
-                      {jc && jc.showInvoiceNotice && (
-                        <p className="mt-3 text-xs text-white/40">
-                          暂不支持开票，可
-                          <button onClick={() => openPanel(order, 'chat')} className="text-cyan-300/90 hover:underline">
-                            联系客服
+                        {/* 元信息一行：订单号（整块可点复制）· 时间 · 票据状态。
+                            分隔点在手机上藏起来，否则换行后行尾会吊着一个「·」 */}
+                        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-white/45">
+                          <button
+                            onClick={() => copyOrderNo(order.orderNo)}
+                            title="复制订单号"
+                            className="group/no inline-flex items-center gap-1.5 font-mono transition-colors hover:text-white/80"
+                          >
+                            {order.orderNo}
+                            <Copy className="h-3 w-3 opacity-50 transition-opacity group-hover/no:opacity-100" />
                           </button>
-                          开票处理
-                        </p>
-                      )}
+                          <span className="hidden text-white/20 sm:inline">·</span>
+                          <span className="tabular-nums">{formatDate(order.createdAt)}</span>
+                          {billingNote && (
+                            <>
+                              <span className="hidden text-white/20 sm:inline">·</span>
+                              <span className={billingNote.cls}>{billingNote.label}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <div className={`text-[22px] lg:text-2xl font-semibold leading-none tabular-nums ${dim ? 'text-white/55' : ''}`}>
+                          {/* 接码单大字一律是订单金额；余额预扣与还需支付宝分两行写（jiemaAmountLines） */}
+                          {orderAmountText(Number(jAmount ? jAmount.main : order.payStatus === 'UNPAID' ? order.payable : order.amount), order.product?.deliveryType)}
+                        </div>
+                        {jAmount?.lines.map((l) => (
+                          <div key={l} className="mt-1.5 text-[11px] leading-tight text-cyan-200/75">
+                            {l}
+                          </div>
+                        ))}
+                        {order.payStatus === 'UNPAID' && order.invoiceTaxFee ? (
+                          <div className="mt-1.5 text-[11px] leading-tight text-amber-300/80">含发票税费 ¥{order.invoiceTaxFee.toFixed(2)}</div>
+                        ) : null}
+                      </div>
                     </div>
+
+                    {/* 第二行：一句提示 + 操作。
+                        手机端竖排（提示 / 次要操作 / 整行主按钮），lg 起排成一行：提示占满中间、按钮靠右。
+                        提示必须是能伸缩的 flex-1 + min-w，按钮组才不会把它挤成一列竖排字（改版前的样子）。
+                        没有提示时放一个等宽占位，各张卡片的按钮才会落在同一条右边线上 */}
+                    {(hint || primaryAction || secondaryActions.length > 0) && (
+                      <div className="mt-4 flex flex-col gap-3 border-t border-white/[0.07] pt-4 lg:mt-5 lg:flex-row lg:flex-wrap lg:items-center lg:justify-end lg:gap-x-6 lg:pt-5">
+                        {hint ? (
+                          <p className={`min-w-[180px] flex-1 text-[13px] leading-relaxed lg:text-sm ${hintCls}`}>{hint}</p>
+                        ) : (
+                          <div className="hidden flex-1 lg:block" />
+                        )}
+
+                        <div className="-ml-2.5 flex flex-wrap items-center gap-0.5 lg:ml-0 lg:shrink-0">
+                          {secondaryActions}
+                        </div>
+
+                        {primaryAction}
+                      </div>
+                    )}
+
+                    {/* 开票提示（D37 清单第 ⑤ 项）：已付款或已取消 / 已退款的接码卡片；「联系客服」打开这张单的订单留言 */}
+                    {jc && jc.showInvoiceNotice && (
+                      <p className="mt-3 text-xs text-white/40">
+                        暂不支持开票，可
+                        <button onClick={() => openPanel(order, 'chat')} className="text-cyan-300/90 hover:underline">
+                          联系客服
+                        </button>
+                        开票处理
+                      </p>
+                    )}
                   </motion.div>
                 )
               })}
@@ -949,23 +831,18 @@ export default function OrdersPage() {
   )
 }
 
-// 订单列表上的票据小标识
-function BillingChip({ color, label }: { color: 'green' | 'amber' | 'cyan' | 'purple'; label: string }) {
-  const cls: Record<string, string> = {
-    green: 'bg-green-500/15 border-green-500/30 text-green-300',
-    amber: 'bg-amber-500/15 border-amber-500/30 text-amber-300',
-    cyan: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300',
-    purple: 'bg-purple-500/15 border-purple-500/30 text-purple-300',
-  }
+// 订单卡片上的状态标：小圆点 + 彩色文字。
+// 一张卡上最多会同时出现「状态 / 客服新回复 / 票据」三条，三个实心胶囊排在一起就是改版前那种花花绿绿的样子。
+function StatusDot({ color, label }: { color: string; label: string }) {
   return (
-    <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${cls[color]}`}>
-      <FileText className="w-3 h-3" />
+    <span className={`inline-flex shrink-0 items-center gap-1.5 text-xs font-medium ${color}`}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
       {label}
-    </div>
+    </span>
   )
 }
 
-// 订单卡片上的操作按钮（发货详情 / 发票收据 / 在线沟通）
+// 订单卡片上的次要操作（发货详情 / 发票收据 / 联系客服）：幽灵按钮，不抢主按钮的视觉
 function ActionButton({
   icon: Icon,
   label,
@@ -980,17 +857,82 @@ function ActionButton({
   return (
     <button
       onClick={onClick}
-      className="relative inline-flex items-center gap-1.5 px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg glass hover:bg-white/10 lg:hover:border-white/25 text-sm lg:text-[15px] font-medium transition-colors"
+      className="relative inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] lg:text-sm font-medium text-white/55 transition-colors hover:bg-white/[0.06] hover:text-white"
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="h-4 w-4" />
       {label}
       {!!badge && badge > 0 && (
-        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+        <span className="absolute right-0.5 top-0.5 flex h-2 w-2">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-          <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
         </span>
       )}
     </button>
+  )
+}
+
+/*
+ * 订单卡片上的主按钮：一张卡最多一个，就是这张单「下一步该做什么」。
+ * 白色药丸 = 下一步（去兑换 / 查看号码，与页头「注册」、学习平台同一个主按钮）；蓝色 = 去付款。
+ * 手机端整行（拇指区），lg 起回到按钮宽度、跟次要操作排在同一行。
+ */
+const PRIMARY_CLS =
+  'inline-flex w-full min-h-[40px] items-center justify-center gap-1 rounded-full px-5 text-sm font-semibold transition-colors lg:w-auto lg:shrink-0'
+const PRIMARY_TONE = {
+  next: 'bg-white text-black hover:bg-white/85',
+  pay: 'bg-[#1677FF] text-white hover:bg-[#0e5fd8]',
+} as const
+
+function PrimaryButton({
+  children,
+  onClick,
+  tone = 'next',
+  loading,
+}: {
+  children: ReactNode
+  onClick: () => void
+  tone?: keyof typeof PRIMARY_TONE
+  loading?: boolean
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={loading}
+      className={`${PRIMARY_CLS} ${PRIMARY_TONE[tone]} disabled:opacity-60`}
+    >
+      {loading ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : null}
+      {children}
+      {tone === 'next' && <ChevronRight className="h-4 w-4" />}
+    </button>
+  )
+}
+
+// 同上，链接版。外链新开标签页；站内兑换页是相对地址，走 Link（会预取）
+function PrimaryLink({
+  href,
+  children,
+  tone = 'next',
+  external,
+}: {
+  href: string
+  children: ReactNode
+  tone?: keyof typeof PRIMARY_TONE
+  external?: boolean
+}) {
+  const cls = `${PRIMARY_CLS} ${PRIMARY_TONE[tone]}`
+  if (external) {
+    return (
+      <a href={href} target="_blank" rel="noreferrer noopener" className={cls}>
+        {children}
+        <ChevronRight className="h-4 w-4" />
+      </a>
+    )
+  }
+  return (
+    <Link href={href} className={cls}>
+      {children}
+      <ChevronRight className="h-4 w-4" />
+    </Link>
   )
 }
 

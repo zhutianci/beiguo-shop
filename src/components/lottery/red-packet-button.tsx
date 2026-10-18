@@ -12,8 +12,8 @@ import type { BuyerLotteryView } from '@/lib/lottery'
  *  · 已抽 → 拆开的红包（深色底 + 红描边），显示「已中奖 / 未中奖」，点开重看结果
  *  · 其它情况（未付款、已取消、资格作废）→ 不渲染，由调用方决定要不要给文字提示
  *
- * 尺寸与同一行的 ActionButton 保持一致（px-4 py-2 / lg:px-5 lg:py-2.5、text-sm / lg:text-[15px]、
- * 16px 图标位、1px 边框），同一行按钮高度不齐会很显眼。
+ * 尺寸跟同一行的幽灵按钮 ActionButton 走（px-3 py-1.5、13px / lg 14px 字、16px 图标位），
+ * 同一行按钮高度不齐会很显眼；2026-10-18 订单卡片改版后那一行整体收小了一档，这里跟着收。
  */
 function RedPacketButtonInner({
   view,
@@ -37,7 +37,7 @@ function RedPacketButtonInner({
           type="button"
           onClick={onClick}
           title="拆红包，看看这一单抽中了什么"
-          className="relative inline-flex items-center gap-1.5 px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg border border-amber-300/40 bg-gradient-to-r from-[#dc2626] to-[#b91c1c] hover:from-[#e53e3e] hover:to-[#c81e1e] shadow-[0_4px_16px_rgba(185,28,28,0.35)] text-sm lg:text-[15px] font-semibold text-amber-50 transition-colors"
+          className="relative inline-flex items-center gap-1.5 rounded-lg border border-amber-300/40 bg-gradient-to-r from-[#dc2626] to-[#b91c1c] px-3 py-1.5 text-[13px] lg:text-sm font-semibold text-amber-50 shadow-[0_4px_16px_rgba(185,28,28,0.3)] transition-colors hover:from-[#e53e3e] hover:to-[#c81e1e]"
         >
           {/* 金色圆章「奖」：红包封面的视觉锚点，和图标位同为 16px，保证与邻居按钮等高 */}
           <span
@@ -64,7 +64,7 @@ function RedPacketButtonInner({
         type="button"
         onClick={onClick}
         title="查看抽奖结果"
-        className="relative inline-flex items-center gap-1.5 px-4 py-2 lg:px-5 lg:py-2.5 rounded-lg border border-red-400/35 bg-red-500/10 hover:bg-red-500/15 lg:hover:border-red-400/50 text-sm lg:text-[15px] font-medium transition-colors"
+        className="relative inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-[13px] lg:text-sm font-medium transition-colors hover:bg-white/[0.06]"
       >
         <MailOpen className={`w-4 h-4 ${won ? 'text-amber-300' : 'text-red-300/70'}`} />
         <span className={won ? 'text-amber-300' : 'text-white/55'}>{won ? '已中奖' : '未中奖'}</span>
