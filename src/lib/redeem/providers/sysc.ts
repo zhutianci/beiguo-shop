@@ -204,6 +204,67 @@ function acctMeta(raw: string): { acct_structure?: string; acct_plan?: string } 
   }
 }
 
+/**
+ * 这个账号现在有没有订阅。有就返回档位名（给文案用），没有/判不出返回 null。
+ *
+ * 【为什么是反向白名单：「不是 free 就算有订阅」】
+ * 付费档位的名字会变也会加（plus / pro / go / pro_lite / pro_max…，
+ * 对方商品列表里就有 GPTgo），列一张付费名单必然漏。而两种错判的代价差着量级：
+ *   · 漏判 → 买家静默损失剩余会员时间，不可恢复，必然是客诉
+ *   · 误判 → 多勾一个确认框
+ * 所以只认 `free` 是免费，其余一概当成「有订阅」。
+ *
+ * 【两个来源都看，但先信 JWT —— 这是实测教训，别改回去】
+ * session 里有两处写着档位：`account.planType` 和 accessToken JWT 里的
+ * `chatgpt_plan_type`。2026-10-19 拿一个真实的已订阅账号对过：
+ *   · session 的 `account.planType`      = "plus"      ← **错的**
+ *   · 同一份 session 的 JWT claim        = "prolite"   ← 对的
+ *   · ChatGPT 官方 accounts/check 接口   = "prolite" / "chatgptprolite"
+ * 也就是说 `account.planType` 会过期/不准，而 JWT 那个claim 是 OpenAI 签过名的。
+ * 所以**档位名以 JWT 为准**（展示给买家的那句话要说对档位）；
+ * 但「是不是付费」两个来源任一命中就算，宁可多问一句，不能漏。
+ *
+ * 【裸 UUID 判不出来，这是已知局限】拿不到 session 就读不到档位，
+ * 只能返回 null 放行。所以这道门**只在 Session 通道有效**，和 sysa 一样。
+ * 真要堵死，就只能不给 uid 这条备选通道 —— 那会把拿不到 session 的买家卡死，不值得。
+ */
+function detectPaidPlan(raw: string): string | null {
+  const v = (raw || '').trim()
+  if (!v || UUID_RE.test(v)) return null
+  let o: Record<string, unknown> | null = null
+  try {
+    o = JSON.parse(v) as Record<string, unknown>
+  } catch {
+    return null
+  }
+  if (!o || typeof o !== 'object') return null
+
+  const paid = (x: unknown): string | null => {
+    const s = String(x ?? '').trim().toLowerCase()
+    if (!s) return null
+    return s === 'free' ? null : s.slice(0, 32)
+  }
+
+  // 先问 JWT —— 它是 OpenAI 签过名的，而 account.planType 实测会不准（见上面的说明）
+  const tok = o.accessToken ?? o.access_token
+  if (typeof tok === 'string' && tok.split('.').length === 3) {
+    const pl = b64urlObj(tok.split('.')[1]) || {}
+    const au = pl['https://api.openai.com/auth']
+    if (au && typeof au === 'object') {
+      const hit = paid((au as Record<string, unknown>).chatgpt_plan_type)
+      if (hit) return hit
+    }
+  }
+  // JWT 读不出来（或说是 free）时再看 account.planType：
+  // 它可能是过期的旧值，但「它说付费」仍然是一条不该忽略的线索
+  const a = (o.account && typeof o.account === 'object' ? o.account : {}) as Record<string, unknown>
+  for (const k of ['planType', 'plan_type', 'plan'] as const) {
+    const hit = paid(a[k])
+    if (hit) return hit
+  }
+  return null
+}
+
 const TEAM_WORDS = ['team', 'business', 'enterprise', 'workspace', 'edu']
 function planIsTeam(v: unknown): string | null {
   const s = String(v ?? '').trim().toLowerCase()
@@ -292,6 +353,34 @@ function fieldsFor(platform: Platform): RedeemField[] {
             '（**不是 user.id**）。此方式无法核对账号归属与订阅状态，填错无法撤回。',
           placeholder: '96eae38f-b751-4079-b116-484bd746c477',
           pattern: UUID_PATTERN,
+          required: false,
+        },
+        /*
+         * 【这道门是我们自己加的，对方协议里没有】
+         * 账号已有订阅时在它上面充值，原有会员的剩余时间很可能作废、也可能直接充不进去。
+         * 不给这个开关，买家一提交就可能静默损失一段已经付过钱的会员时间。
+         *
+         * 【比 sysa 那套好在哪】sysa 是**被动**的：先提交、上游回
+         * account.plan_not_allowed、买家才看到要勾这个框、再提交一次 —— 白费一次尝试。
+         * 我们是**主动**的：从买家粘的 session 里当场读出档位（detectPaidPlan），
+         * 在拿锁和发请求之前就拦下。拦下时卡密一点没动。
+         *
+         * 【只对 Session 通道有效】裸 UUID 读不出档位，见 detectPaidPlan 的说明。
+         *
+         * 【文案不敢把话说满】我们**没有验证过** sysc 收到一个已订阅的号会怎么处理
+         * （覆盖？叠加？拒绝？对方前端根本不检查这个字段，无从推断）。
+         * 所以说「可能作废」而不是「会作废」—— 等拿一张卡在已订阅的号上实测过再改。
+         * 同理，force **不发给对方**：那是个没见过的参数，发过去可能直接 400。
+         * 它只是我们这边的知情同意闸。
+         */
+        {
+          name: 'force',
+          kind: 'toggle',
+          label: '账号已有订阅时，仍然强制充值',
+          help:
+            '只有在提示「这个账号已经有订阅」时才需要勾。在已有订阅的账号上充值，' +
+            '原有会员的剩余时间**可能会作废、也可能充不进去，且不可恢复**。' +
+            '如果你的账号现在没有订阅，不用管这一项。',
           required: false,
         },
       ]
@@ -713,6 +802,24 @@ function pickAccountArgs(platform: Platform, values: Record<string, string>): Ac
       'ERROR'
     )
   }
+
+  /*
+   * 【已有订阅 → 必须勾了强制才放行】见 fieldsFor 里 force 那一项的说明。
+   * 这里 throw 掉的时候：锁没拿、请求没发、卡密一点没动 ——
+   * 因为 activate() 里 pickAccountArgs 排在 claimIrreversible 之前。
+   */
+  const plan = detectPaidPlan(raw)
+  if (plan && (values.force || '').trim() !== '1') {
+    throw new RedeemError(
+      `这个账号现在已经有订阅（档位：${plan}）。充值会**直接覆盖**当前订阅，` +
+        `原有会员的剩余时间会作废，且不可恢复。\n\n` +
+        `如果你确认要继续，请勾选下面的「账号已有订阅时，仍然强制充值」再提交。\n` +
+        `如果不想冒这个风险，请换一个没有订阅的账号，或等当前会员到期后再充。\n\n` +
+        `（**这张卡密没有被消耗**，可以直接重新提交。）`,
+      'ERROR'
+    )
+  }
+
   return { account_id: id, email: extractEmail(raw), ...acctMeta(raw) }
 }
 
@@ -1095,6 +1202,7 @@ export const __test = {
   extractEmail,
   acctMeta,
   teamEvidence,
+  detectPaidPlan,
   normPlatform,
   aspHeaders,
   FAILED_TASKS,

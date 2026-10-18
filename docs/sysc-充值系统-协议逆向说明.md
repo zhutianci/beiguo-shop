@@ -322,6 +322,104 @@ sysc **没有任何幂等键**（§1.1 已说明 `Idempotency-Key` 不可依赖�
 
 ---
 
+## 6.5 已有订阅的号：本地强制门（2026-10-19 加）
+
+**对方已确认：在已有订阅的账号上充值会「直接覆盖」，原有会员的剩余时间作废。**
+对方自己的前端对此没有任何提示，所以这道门必须我们自己加。
+
+### 6.5.1 和 sysa 那套的区别：主动 vs 被动
+
+| | sysa | **sysc（我们的做法）** |
+|---|---|---|
+| 怎么发现 | 先提交 → 上游回 `account.plan_not_allowed` → 买家才看到 | **提交前**从买家粘的 session 里当场读出档位 |
+| 代价 | 白费一次尝试 | 零 |
+| 实现位置 | 上游的错误码 | `detectPaidPlan()` + `pickAccountArgs()` 里 throw |
+
+拦下的位置很关键：`pickAccountArgs` 在 `activate()` 里排在 `claimIrreversible()` **之前**，
+所以不勾框的提交**既不消耗卡密、也不会白占那把 15 分钟的锁**。
+
+sysb 没有这个概念（代码里明确写了不许传 `overwrite` 之类的额外字段）。
+
+### 6.5.2 档位从哪读：**JWT claim 优先，`account.planType` 不可信**
+
+session 里有两处写着档位，**它们会不一致**。2026-10-19 拿一个真实的已订阅账号对过：
+
+| 来源 | 值 | 对不对 |
+|---|---|---|
+| session 的 `account.planType` | `plus` | ❌ **错的** |
+| 同一份 session 的 accessToken JWT `chatgpt_plan_type` | `prolite` | ✅ |
+| ChatGPT 官方 `accounts/check` 的 `subscription_plan` | `chatgptprolite` | ✅ |
+
+所以 `detectPaidPlan()` **先读 JWT**（那是 OpenAI 签过名的），读不出来再退回
+`account.planType`。展示给买家的档位名以 JWT 为准，否则会告诉他一个错的档位。
+「是不是付费」仍然是两个来源任一命中就算 —— 宁可多问一句，不能漏。
+
+### 6.5.3 判据用**反向白名单**：不是 `free` 就算付费
+
+参照站 `b.171mail.com/#/home/chatgpt-sub` 的分类函数是正向匹配：
+
+```js
+includes('plus')→plus, includes('pro')→pro, includes('team')→team,
+includes('enterprise')→enterprise, 其余一律落到 free
+```
+
+于是 **ChatGPT Go 这种付费档位会被它判成「免费计划」** —— 而 Go 是真实在售的
+（对方商品列表里就有 GPTgo，§2）。两种错判的代价差着量级：
+
+- 漏判 → 买家静默损失剩余会员时间，不可恢复，必然是客诉
+- 误判 → 多勾一个确认框
+
+所以我们只认 `free` 是免费，其余一概当「有订阅」。新档位出现时自动被覆盖。
+
+### 6.5.4 已知局限：裸 UUID 读不出档位
+
+买家走 `uid` 备选通道时我们拿不到 session，也就读不出档位，只能放行。
+和 sysa 一样（它的 force 也只对 Session 通道有效）。
+要堵死就只能取消 uid 通道，那会把拿不到 session 的买家卡死，不值得。
+
+`force` **不发给对方** —— 那是个对方协议里没有的参数，发过去可能直接 400。
+它只是我们这边的知情同意闸。
+
+## 6.6 为什么不做「实时查订阅」：**服务器连不上 chatgpt.com**
+
+调研过把判据换成实时查询（参照站就是这么做的，它的后端代为请求）。
+官方端点确实可用，2026-10-19 在**本机**实测：
+
+```
+GET https://chatgpt.com/backend-api/accounts/check/v4-2023-04-27
+Authorization: Bearer <accessToken>
+→ 200，accounts['<account_id>'].entitlement = {
+    has_active_subscription: true,
+    subscription_plan: "chatgptprolite",
+    expires_at: "2026-11-16T17:07:43+00:00",   ← 能算出「还剩多少天」
+    renews_at, cancels_at, billing_period: "monthly",
+    billing_currency: "PHP", is_delinquent: false
+  }
+  accounts['<id>'].last_active_subscription = {
+    purchase_origin_platform: "chatgpt_web",   ← web 还是 iOS 买的
+    will_renew: false, cancellation_outcome: "deactivate"
+  }
+```
+
+（参照站前端展示的 `seats_in_use` / `active_until` / `will_renew` / `is_delinquent` /
+`billing_currency` 这些字段名就是从这里透传的。另外 `/backend-api/subscriptions`
+要带 `account_id` 或 `organization_id`，否则 400；`/backend-api/me` 只有用户信息没有订阅。）
+
+**但我们的 ECS（cn-beijing）根本连不上**：
+
+```
+curl https://chatgpt.com/backend-api/accounts/check/... → curl: (28) Connection timed out (20s)
+curl https://api.ipify.org                             → 同样不通
+```
+
+所以实时查询在生产环境走不通。要做只有一条路：**走 Cloudflare Worker 中继**
+（仓库里已有这个模式：`cloudflare/news-relay.worker.js` + `NEWS_RELAY_URL`）。
+但那意味着把买家的 accessToken 经过多一跳我们自己运维的组件，
+而 §7 第 3 条红线正是「凭据只过路、不留痕」—— 这是个需要单独拍板的取舍，没有顺手做。
+
+**端点本身是未公开的**（搜不到任何官方文档），随时可能改名或下线。
+这也是不把它做成硬依赖的理由之一：现在这套本地判据不依赖任何外部接口。
+
 ## 7. 实现时的红线
 
 1. **不透传对方的 `detail` / `message` 给买家** —— 泄漏货源，而且文案对不上。
