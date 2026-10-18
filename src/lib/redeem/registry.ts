@@ -14,8 +14,9 @@
 import type { RedeemProvider } from './types'
 import { sysa } from './providers/sysa'
 import { sysb } from './providers/sysb'
+import { sysc } from './providers/sysc'
 
-const PROVIDERS: RedeemProvider[] = [sysa, sysb]
+const PROVIDERS: RedeemProvider[] = [sysa, sysb, sysc]
 
 const BY_KEY = new Map<string, RedeemProvider>(PROVIDERS.map((p) => [p.key, p]))
 

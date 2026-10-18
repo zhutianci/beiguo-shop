@@ -235,6 +235,12 @@ export interface RedeemProvider {
     variant?: string
     /** 本站卡密 id。异步下单的平台用它拼出稳定的幂等订单号 */
     cardKeyId?: number
+    /**
+     * 本站商品名。check() 的 ctx 里一直有它，activate 这边原来没有 ——
+     * 结果是 sysc 那种「要把本站商品名映射成上游 product_id」的平台，
+     * 在查询时判得出渠道、提交时却判不出，同一张卡两步结论不一致。
+     */
+    productName?: string
     /** 读回这张卡上一次的上游订单号；没有则返回 null */
     loadOrderRef?: () => Promise<string | null>
     /** 记下本次的上游订单号，供下次续查 */
@@ -250,6 +256,15 @@ export interface RedeemProvider {
      * 拿不到就绝不能继续。
      */
     claimIrreversible?: () => Promise<boolean>
+    /**
+     * 撤销上面那个占位。**只有确认「上游根本没动这张卡」时才允许调**。
+     *
+     * 【没有它会怎样】占位 15 分钟才过期。买家账号 ID 填错、或者上游当场拒了
+     * （卡一点没动），他改对了再提交却被自己的锁挡住，只能干等 15 分钟。
+     * 适配器必须先向上游查一次、确认卡仍未被消耗，才能调这个回调 ——
+     * 查不到这种状态的平台（卡付 V1）不许用它。
+     */
+    releaseIrreversible?: () => Promise<void>
   }): Promise<RedeemActivateResult>
 
   /**

@@ -303,6 +303,23 @@ export async function claimForIrreversibleRedeem(cardKeyId: number): Promise<boo
   return r.count === 1
 }
 
+/**
+ * 撤销占位。**只有在确认「上游根本没动这张卡」时才允许调**。
+ *
+ * 【为什么需要它】占位要 15 分钟才过期。买家账号 ID 填错、或者上游当场 400 拒了，
+ * 卡其实一点没动，但锁已经落下 —— 他改对了再提交，看到的是「15 分钟内有过一次
+ * 提交尝试，已被锁定」。那是一张好卡、一个已经改对的输入，却只能干等 15 分钟。
+ * 这是必然产生工单的体验。
+ *
+ * 【调用方的举证责任】这个函数自己判断不了「卡有没有被消耗」，所以它不做任何检查。
+ * 调用方必须先向上游查一次、确认卡仍是未使用状态，才能调它。
+ * sysc 能这么做是因为它的按卡查状态是权威且实时的（见 providers/sysc.ts）；
+ * 卡付 V1 那条路查不到这种状态，所以**它不许用这个函数**。
+ */
+export async function releaseIrreversibleClaim(cardKeyId: number): Promise<void> {
+  await prisma.cardKey.updateMany({ where: { id: cardKeyId }, data: { redeemLockAt: null } })
+}
+
 /** 把适配器抛出的异常收敛成可展示的结果，避免上游的原始异常泄漏到前端 */
 export function toCheckFailure(e: unknown): RedeemCheckResult {
   if (e instanceof RedeemError) {

@@ -12,6 +12,7 @@ import {
   redeemRateLimited,
   redeemProbeLimited,
   claimForIrreversibleRedeem,
+  releaseIrreversibleClaim,
   countOrderRefs,
   loadOrderRef,
   resolveCard,
@@ -129,6 +130,8 @@ export async function POST(request: NextRequest, { params }: { params: { provide
               values,
               variant,
               cardKeyId: resolved.card.id,
+              /** sysc 要用它把本站商品名映射成上游 product_id（check 那边一直有，这边补齐） */
+              productName: resolved.card.productName,
               /*
                * 异步下单的平台靠这两个回调实现幂等：下单前先读回原订单号去查，
                * 已有未结订单就绝不重新下单。少了它，买家多点一次提交可能被扣两张卡。
@@ -141,6 +144,11 @@ export async function POST(request: NextRequest, { params }: { params: { provide
                * 见 lib/redeem/service.ts 的 claimForIrreversibleRedeem。
                */
               claimIrreversible: () => claimForIrreversibleRedeem(resolved.card.id),
+              /*
+               * 撤销占位。只有能向上游证明「卡没被消耗」的适配器才会用它（sysc）。
+               * 没有它，一次「账号填错被上游当场拒」会把好卡锁住 15 分钟。
+               */
+              releaseIrreversible: () => releaseIrreversibleClaim(resolved.card.id),
             })
     } catch (e) {
       result = toActivateFailure(e)

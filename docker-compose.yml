@@ -110,6 +110,17 @@ services:
       # 打进镜像的，构建之后再改宿主机上的它，容器里读到的还是旧值。
       - SYSB_CARD_V1
       - SYSB_CARD_CLIENT_SITE
+      # 卡密兑换：sysc（对方的「兑换中心」）。**三个都不是密钥** —— 对方的接口完全匿名，
+      # 凭 CDK 本身鉴权，所以这里没有 Token 可配。协议见 docs/sysc-充值系统-协议逆向说明.md。
+      # SYSC_BASE       不设 = https://chuanwen.applelll.com
+      # SYSC_STORE_REF  店铺标识，不设 = chuanwen。**对方给我们单独的子域 / slug 时必须改它**，
+      #                 它决定结价与归属，填错等于拿别人的店铺下单。
+      # SYSC_PRODUCT_MAP 本站商品名 → 对方 product_id 的手工映射，形如 {"GPT Pro 5x 月付":5}。
+      #                 只在对方查卡结果没带 product_name 时才用得上；判不出时适配器**不猜**，
+      #                 直接报「渠道未配置」转人工（猜错就是把 5x 的卡充成 plus）。
+      - SYSC_BASE
+      - SYSC_STORE_REF
+      - SYSC_PRODUCT_MAP
       # SEO：站长平台归属验证 + IndexNow 主动推送
       # 【必须列在这里】--env-file 只负责 compose 文件里的变量替换，
       # 不会自动把变量塞进容器。漏了这三行，.env.production 里配了也等于没配，
