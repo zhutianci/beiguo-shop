@@ -8,7 +8,8 @@ import { AlertTriangle, CheckCircle2, QrCode, Trash2, Upload } from 'lucide-reac
 interface QrItem {
   id: string
   label: string
-  url: string
+  /** 微信那一项「未启用」没有图 */
+  url: string | null
   addedAt: number | null
   builtin: boolean
 }
@@ -36,7 +37,9 @@ function fmtMs(ms: number | null) {
  * 收银台收款码：上传多张、一键切换，切换后收银台 3 秒内换成新码（不用重新构建）。
  * 每个写操作都要再输一次登录密码（接口侧强制），并且会推送「收款码变更」。
  */
-export function PayQrCard() {
+export function PayQrCard({ channel = 'alipay' }: { channel?: 'alipay' | 'wechat' }) {
+  const isWx = channel === 'wechat'
+  const chName = isWx ? '微信' : '支付宝'
   const [data, setData] = useState<QrView | null>(null)
   const [corrupt, setCorrupt] = useState('')
   const [loadErr, setLoadErr] = useState('')
@@ -59,7 +62,7 @@ export function PayQrCard() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/vmq/qr')
+      const res = await fetch(`/api/admin/vmq/qr?channel=${channel}`)
       const j = await res.json()
       if (j.success) {
         setLoadErr('')
@@ -68,7 +71,7 @@ export function PayQrCard() {
     } catch {
       setLoadErr('获取收款码失败')
     }
-  }, [])
+  }, [channel])
 
   useEffect(() => {
     load()
@@ -81,12 +84,13 @@ export function PayQrCard() {
       fd.append('file', p.file)
       fd.append('label', p.label)
       fd.append('password', password)
+      fd.append('channel', channel)
       res = await fetch('/api/admin/vmq/qr', { method: 'POST', body: fd })
     } else {
       res = await fetch('/api/admin/vmq/qr', {
         method: p.kind === 'delete' ? 'DELETE' : 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(p.kind === 'reset' ? { reset: true, password } : { id: p.item.id, password }),
+        body: JSON.stringify(p.kind === 'reset' ? { reset: true, password, channel } : { id: p.item.id, password, channel }),
       })
     }
     const j = await res.json().catch(() => null)
@@ -108,7 +112,7 @@ export function PayQrCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <QrCode className="w-5 h-5" /> 收款码（支付宝）
+          <QrCode className="w-5 h-5" /> 收款码（{chName}）
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -119,9 +123,11 @@ export function PayQrCard() {
             <div className="flex items-center gap-2 font-medium">
               <AlertTriangle className="w-4 h-4" /> {corrupt}
             </div>
-            <div>收银台现在不显示任何收款码，买家无法付款。点下面的按钮恢复为内置收款码，再重新上传。</div>
+            <div>
+              收银台现在不显示{chName}收款码{isWx ? '' : '，买家无法付款'}。点下面的按钮恢复为{isWx ? '「未启用」' : '内置收款码'}，再重新上传。
+            </div>
             <Button size="sm" variant="outline" onClick={() => setPending({ kind: 'reset' })}>
-              恢复为内置收款码
+              {isWx ? '恢复为未启用' : '恢复为内置收款码'}
             </Button>
           </div>
         )}
@@ -129,7 +135,13 @@ export function PayQrCard() {
         {data && (
           <>
             <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-              收银台当前显示：<b>{active?.label ?? '—'}</b>
+              {isWx && data.activeId === 'builtin' ? (
+                <>收银台<b>不显示微信支付</b>（上传一张微信收款码并「设为当前」后开启）</>
+              ) : (
+                <>
+                  收银台当前显示：<b>{active?.label ?? '—'}</b>
+                </>
+              )}
               {data.switchedAt && <span className="text-green-700">（{fmtMs(data.switchedAt)} 切换）</span>}
             </div>
             {msg && <div className="text-sm text-gray-600">{msg}</div>}
@@ -139,10 +151,14 @@ export function PayQrCard() {
                 const on = it.id === data.activeId
                 return (
                   <div key={it.id} className={`rounded-xl border p-3 text-center ${on ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={it.url} alt={it.label} className="mx-auto h-32 w-32 object-contain bg-white rounded" />
+                    {it.url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={it.url} alt={it.label} className="mx-auto h-32 w-32 object-contain bg-white rounded" />
+                    ) : (
+                      <div className="mx-auto flex h-32 w-32 items-center justify-center rounded bg-gray-50 text-xs text-gray-400">不收微信</div>
+                    )}
                     <div className="mt-2 text-sm font-medium text-gray-900 break-all">{it.label}</div>
-                    <div className="text-xs text-gray-400">{it.builtin ? '镜像自带' : `上传于 ${fmtMs(it.addedAt)}`}</div>
+                    <div className="text-xs text-gray-400">{it.builtin ? (isWx ? '收银台不出现微信支付' : '镜像自带') : `上传于 ${fmtMs(it.addedAt)}`}</div>
                     <div className="mt-2 flex items-center justify-center gap-2">
                       {on ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
@@ -151,7 +167,7 @@ export function PayQrCard() {
                       ) : (
                         <>
                           <Button size="sm" onClick={() => setPending({ kind: 'switch', item: it })}>
-                            设为当前
+                            {it.url ? '设为当前' : '停用微信收款'}
                           </Button>
                           {!it.builtin && (
                             <Button size="sm" variant="outline" title="删除" onClick={() => setPending({ kind: 'delete', item: it })}>
@@ -198,7 +214,8 @@ export function PayQrCard() {
 
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900 space-y-1">
               <div className="font-medium">切换前请确认</div>
-              <div>· 新收款码所属支付宝账号所在的手机，已按上面的方式配置 SmsForwarder 转发；否则钱到了但订单不会自动确认。</div>
+              <div>· 新收款码所属{chName}账号所在的手机，已按上面的方式配置 SmsForwarder 转发（{isWx ? '「应用通知 · 微信」规则' : '「应用通知 · 支付宝」规则'}）；否则钱到了但订单不会自动确认。</div>
+              {isWx && <div>· 微信收款码请用「微信收款码 / 赞赏码」里的个人收款码，并确认「微信收款助手」的到账通知能弹出来。</div>}
               <div>· 切换后收银台约 3 秒内换成新码；已经扫了旧码的买家仍会付到旧账号，旧手机还在转发就照常自动确认。</div>
               <div>· 每次切换 / 上传 / 删除都要输入登录密码，并会推送「收款码变更」。收到不是自己操作的推送，立刻切回并改密码。</div>
             </div>
@@ -216,7 +233,7 @@ export function PayQrCard() {
           </>
         )}
 
-        {pending && <PasswordModal pending={pending} onClose={() => setPending(null)} onRun={run} />}
+        {pending && <PasswordModal pending={pending} chName={chName} onClose={() => setPending(null)} onRun={run} />}
       </CardContent>
     </Card>
   )
@@ -224,10 +241,12 @@ export function PayQrCard() {
 
 function PasswordModal({
   pending,
+  chName,
   onClose,
   onRun,
 }: {
   pending: Pending
+  chName: string
   onClose: () => void
   onRun: (p: Pending, password: string) => Promise<string | null>
 }) {
@@ -237,12 +256,14 @@ function PasswordModal({
 
   const title =
     pending.kind === 'switch'
-      ? `把收银台的收款码切换为「${pending.item.label}」`
+      ? pending.item.url
+        ? `把收银台的${chName}收款码切换为「${pending.item.label}」`
+        : `停用${chName}收款（收银台不再出现${chName}支付）`
       : pending.kind === 'delete'
-        ? `删除收款码「${pending.item.label}」`
+        ? `删除${chName}收款码「${pending.item.label}」`
         : pending.kind === 'upload'
-          ? `上传收款码「${pending.label}」`
-          : '恢复为内置收款码（清空已上传的列表）'
+          ? `上传${chName}收款码「${pending.label}」`
+          : `恢复${chName}收款码的初始状态（清空已上传的列表）`
 
   const submit = async () => {
     if (!password || busy) return
@@ -258,12 +279,12 @@ function PasswordModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="text-base font-semibold text-gray-900">{title}</div>
-        {pending.kind === 'switch' && (
+        {pending.kind === 'switch' && pending.item.url && (
           <div className="mt-3 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={pending.item.url} alt={pending.item.label} className="h-24 w-24 object-contain bg-white rounded" />
             <div className="text-xs text-amber-900">
-              确认后，买家的钱将付到<b>这张码</b>对应的支付宝账号。请先核对这张图确实是你自己的收款码。
+              确认后，买家的钱将付到<b>这张码</b>对应的{chName}账号。请先核对这张图确实是你自己的收款码。
             </div>
           </div>
         )}

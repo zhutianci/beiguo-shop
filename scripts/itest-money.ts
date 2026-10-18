@@ -481,6 +481,62 @@ async function main() {
       ok('  …进待处理（no_pending_match、标了重复转发）', (await unmatchedOf(p3.toFixed(2))).some((u) => u.reason === 'no_pending_match' && !u.handledAt && u.repeatForward === true))
     }
 
+    console.log('\n【微信支付：两个渠道共用金额池、按金额匹配、按实际渠道记流水】（2026-10-18）')
+    {
+      const stamp = () => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 19).replace('T', ' ')
+      const aliRaw = (title: string, amount: string, tag: string) =>
+        `com.eg.android.AlipayGphone\n${title}\n你已成功收款${amount}元（新顾客消费）\nUID：${TAG}${tag}\n${stamp()} ${title} com.eg.android.AlipayGphone`
+      const wxRaw = (title: string, amount: string, tag: string) =>
+        `com.tencent.mm\n${title}\n[2条]微信收款助手: 微信支付收款${amount}元(朋友到店)\nUID：${TAG}${tag}\n${stamp()} com.tencent.mm`
+      const ALI = 'com.eg.android.AlipayGphone'
+      const WX = 'com.tencent.mm'
+      const unmatchedOf = async (price: string) => (await vmq.listUnmatched(80)).filter((u) => u.price === price)
+
+      // ① 共用金额池：支付宝单占了 X，同价的微信单必须拿 X+0.01（反过来也一样）
+      const p1 = P(B + 41)
+      const oA = await order({ amount: D(p1) })
+      const vA = await vmq.createOrGetVmqOrder({ bizType: 'order', bizId: oA.id, outTradeNo: oA.orderNo, price: p1, type: 2 })
+      const oW = await order({ amount: D(p1) })
+      const vW = await vmq.createOrGetVmqOrder({ bizType: 'order', bizId: oW.id, outTradeNo: oW.orderNo, price: p1, type: 1 })
+      ok('共用金额池：支付宝单 X、同价微信单 X+0.01', P(vA.reallyPrice) === p1 && P(vW.reallyPrice) === P(p1 + 0.01), `${vA.reallyPrice} / ${vW.reallyPrice}`)
+
+      // ② 买家选的是支付宝、扫的却是微信：按金额照样匹配，收款单与流水记成微信
+      noticeKey(wxRaw('微信收款助手', p1.toFixed(2), 'w1'))
+      const r1 = await vmq.handleWebhookNotify(wxRaw('微信收款助手', p1.toFixed(2), 'w1'), { from: WX })
+      const vA1 = await prisma.vmqOrder.findUnique({ where: { orderId: vA.orderId } })
+      const oA1 = await prisma.order.findUnique({ where: { id: oA.id }, select: { payStatus: true, payMethod: true } })
+      const payA = await prisma.payment.findFirst({ where: { orderId: oA.id }, select: { payMethod: true } })
+      ok('支付宝单被微信到账付清：匹配成功', r1.matched === true && vA1?.state === 1 && oA1?.payStatus === 'PAID', JSON.stringify(r1))
+      ok('  …收款单渠道改成微信、订单与流水记 WECHAT', vA1?.type === 1 && oA1?.payMethod === 'WECHAT' && payA?.payMethod === 'WECHAT', `${vA1?.type} ${oA1?.payMethod} ${payA?.payMethod}`)
+
+      // ③ 10-18 事故原文：支付宝通知标题含「收款助手」，必须判支付宝并匹配上（原来被当成微信、没对上）
+      const amtW = P(vW.reallyPrice).toFixed(2)
+      noticeKey(aliRaw('已转入余额 开启收款助手，首页就能查账>>', amtW, 'a1'))
+      const r2 = await vmq.handleWebhookNotify(aliRaw('已转入余额 开启收款助手，首页就能查账>>', amtW, 'a1'), { from: ALI })
+      const oW1 = await prisma.order.findUnique({ where: { id: oW.id }, select: { payStatus: true, payMethod: true } })
+      ok('标题含「收款助手」的支付宝到账：判支付宝、匹配成功、记 ALIPAY', r2.matched === true && r2.type === 2 && oW1?.payStatus === 'PAID' && oW1?.payMethod === 'ALIPAY', `${JSON.stringify(r2)} ${JSON.stringify(oW1)}`)
+
+      // ④ 伪造：聊天消息冒充 / 没带来源 / 来源是短信 —— 都不匹配，带金额的进待处理（bad_template / untrusted_source）
+      const p4 = P(B + 43)
+      const o4 = await order({ amount: D(p4) })
+      const v4 = await vmq.createOrGetVmqOrder({ bizType: 'order', bizId: o4.id, outTradeNo: o4.orderNo, price: p4 })
+      const amt4 = P(v4.reallyPrice).toFixed(2)
+      const f1 = await vmq.handleWebhookNotify(aliRaw('张三', amt4, 'f1'), { from: ALI })
+      const f2 = await vmq.handleWebhookNotify(wxRaw('李四', amt4, 'f2'), { from: WX })
+      const f3 = await vmq.handleWebhookNotify(aliRaw('已转入余额 x>>', amt4, 'f3'), { from: null })
+      const f4 = await vmq.handleWebhookNotify(aliRaw('已转入余额 x>>', amt4, 'f4'), { from: '10690000' })
+      const o4a = await prisma.order.findUnique({ where: { id: o4.id }, select: { payStatus: true } })
+      ok('聊天消息冒充（支付宝 / 微信）：不匹配', !f1.matched && f1.reason === 'bad_template' && !f2.matched && f2.reason === 'bad_template', `${f1.reason} ${f2.reason}`)
+      ok('没带来源 / 来源是短信：不匹配', !f3.matched && f3.reason === 'untrusted_source' && !f4.matched && f4.reason === 'untrusted_source', `${f3.reason} ${f4.reason}`)
+      ok('  …订单仍是待支付', o4a?.payStatus === 'UNPAID')
+      const un4 = await unmatchedOf(amt4)
+      ok('  …四条都进了待处理（带金额、待人工核实）', un4.filter((u) => !u.handledAt && (u.reason === 'bad_template' || u.reason === 'untrusted_source')).length === 4, JSON.stringify(un4.map((u) => u.reason)))
+      // 真到账照样能付：同一张单随后收到合规的微信通知
+      noticeKey(wxRaw('微信收款助手', amt4, 'w4'))
+      const r4 = await vmq.handleWebhookNotify(wxRaw('微信收款助手', amt4, 'w4'), { from: WX })
+      ok('之后的合规微信到账：照常匹配', r4.matched === true && (await prisma.order.findUnique({ where: { id: o4.id } }))?.payMethod === 'WECHAT')
+    }
+
     console.log('\n【每人同时挂着的待付款收款单计数】')
     {
       const u = await prisma.user.create({ data: { email: `${TAG}-cap@test.local`, passwordHash: 'x' } })

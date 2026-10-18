@@ -29,6 +29,7 @@
  */
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db'
+import { QR_PAY_METHODS, isQrPayMethod } from '../pay-channel'
 import { notify } from '../notify'
 import { centsOf, fmtCents } from './buckets'
 
@@ -216,7 +217,7 @@ async function collect(tx: Prisma.TransactionClient, s: Scope) {
           }
           const hc = h.topupCents + h.cashCents
           const bal = o.payments.filter((p) => p.payMethod === 'BALANCE').map((p) => centsOf(p.amount))
-          const ali = o.payments.filter((p) => p.payMethod === 'ALIPAY').reduce((a, p) => a + centsOf(p.amount), 0)
+          const ali = o.payments.filter((p) => isQrPayMethod(p.payMethod)).reduce((a, p) => a + centsOf(p.amount), 0)
           const rest = centsOf(o.amount) - hc
           if (bal.length !== 1 || bal[0] !== hc) w4.push(`订单 #${o.id} 的 BALANCE 支付行应为 1 行 ${fmtCents(hc)}`)
           if (ali !== Math.max(rest, 0)) w4.push(`订单 #${o.id} 的 ALIPAY 支付行应合计 ${fmtCents(Math.max(rest, 0))}，实际 ${fmtCents(ali)}`)
@@ -328,7 +329,7 @@ async function collect(tx: Prisma.TransactionClient, s: Scope) {
           select: { id: true, type: true, bizKey: true, topupDeltaCents: true, delta: true },
         })
         const lm = new Map(logs.map((l) => [l.bizKey as string, l]))
-        const tradeNos = paid.flatMap((o) => o.payments.filter((p) => p.payMethod === 'ALIPAY' && p.tradeNo).map((p) => p.tradeNo as string))
+        const tradeNos = paid.flatMap((o) => o.payments.filter((p) => isQrPayMethod(p.payMethod) && p.tradeNo).map((p) => p.tradeNo as string))
         const vmqs = tradeNos.length ? await tx.vmqOrder.findMany({ where: { orderId: { in: tradeNos } }, select: { orderId: true, reallyPrice: true, state: true, bizId: true } }) : []
         const vm = new Map(vmqs.map((v) => [v.orderId, v]))
         for (const o of paid) {
@@ -337,7 +338,7 @@ async function collect(tx: Prisma.TransactionClient, s: Scope) {
             bad.push(`充值单 #${o.id} 没有 topup 流水`)
             continue
           }
-          const ali = o.payments.filter((p) => p.payMethod === 'ALIPAY' && p.tradeNo)
+          const ali = o.payments.filter((p) => isQrPayMethod(p.payMethod) && p.tradeNo)
           const v = ali.length === 1 ? vm.get(ali[0].tradeNo as string) : undefined
           if (!v || v.state !== 1 || v.bizId !== o.id) bad.push(`充值单 #${o.id} 找不到让它付款的收款单（ALIPAY 行 tradeNo）`)
           else if (l.topupDeltaCents !== centsOf(v.reallyPrice) || centsOf(l.delta) !== 0) bad.push(`充值单 #${o.id} 入账 ${fmtCents(l.topupDeltaCents)} ≠ 实付 ${fmtCents(centsOf(v.reallyPrice))}`)
@@ -433,7 +434,7 @@ async function collect(tx: Prisma.TransactionClient, s: Scope) {
       }
     }
     for (const part of chunks(voucherChecks)) {
-      const pays = await tx.payment.findMany({ where: { payMethod: 'ALIPAY', tradeNo: { in: part.map((x) => x.vmqOrderId) } }, select: { orderId: true, tradeNo: true } })
+      const pays = await tx.payment.findMany({ where: { payMethod: { in: [...QR_PAY_METHODS] }, tradeNo: { in: part.map((x) => x.vmqOrderId) } }, select: { orderId: true, tradeNo: true } })
       const used = new Set(pays.map((p) => p.tradeNo))
       for (const x of part) if (used.has(x.vmqOrderId)) bad.push(`条目 ${x.entry} 的收款单 ${x.vmqOrderId} 是订单的付款凭证，却又退入了余额`)
     }

@@ -42,13 +42,25 @@ import { inMoneyTx } from './wallet/ledger'
 import { botSink } from './bot/sink'
 import { botEnabledByEnv } from './bot/config'
 import { yuan } from './bot/render'
+import { VMQ_TYPE_ALIPAY as VMQ_TYPE_ALIPAY_, VMQ_TYPE_WECHAT as VMQ_TYPE_WECHAT_, payMethodOfType, typeOfChannel, CHANNEL_LABEL } from './pay-channel'
+import { parseNotice, parseAlipayLoose, normalizeFrom, NOTICE_REJECT_LABELS, type NoticeReject } from './vmq-notice'
 import { findShopOrderForInvoice } from './tenant/billing-link'
 
 // ============ V免签式个人收款（监控收款码到账，按唯一金额匹配） ============
 
 export const VMQ_KEY = process.env.VMQ_KEY || ''
 export const VMQ_TIMEOUT_MIN = parseInt(process.env.VMQ_PAY_TIMEOUT || '20') // 订单有效期（分钟）
-export const VMQ_TYPE_ALIPAY = 2
+// 渠道编号见 lib/pay-channel.ts（1 = 微信、2 = 支付宝）。两个渠道共用一个金额池、到账只按金额匹配
+export const VMQ_TYPE_ALIPAY = VMQ_TYPE_ALIPAY_
+export const VMQ_TYPE_WECHAT = VMQ_TYPE_WECHAT_
+
+/**
+ * 金额锁的 key。两个渠道共用一个金额池：key 固定写成历史格式「<分>-2」，不随渠道变。
+ * 【不能换格式】上线那一刻还挂着的待支付单的锁都是这个格式，换了格式新单会拿到同一个金额、一笔到账对上两张单。
+ */
+function amountLockKey(cents: number): string {
+  return `${cents}-${VMQ_TYPE_ALIPAY_}`
+}
 
 /**
  * 渠道单的平台群标签用租户 code（「[lulu]」）；主站返回 null（消息逐字不变）。
@@ -259,12 +271,13 @@ export function setCloseExpiredReleaseFaultForTest(fn: (() => void) | null): voi
 
 // 冷却中的金额（分）。按 createdAt 取窗口，一个条件覆盖三种结束方式：付款（payDate ≤ createdAt+超时）、
 // 超时关闭（≈ createdAt+超时）、后台作废（更早）—— 每种结束后都至少冷却 COOLDOWN 分钟。
-async function coolingCents(type: number, selfOrderId: string): Promise<Set<number>> {
+// 两个渠道共用一个金额池：冷却也不分渠道（同一个金额刚在支付宝收过，就不能马上分给一张微信单）
+async function coolingCents(selfOrderId: string): Promise<Set<number>> {
   if (VMQ_REUSE_COOLDOWN_MIN <= 0) return new Set()
   const since = new Date(Date.now() - (VMQ_TIMEOUT_MIN + VMQ_REUSE_COOLDOWN_MIN) * 60_000)
   const rows = await prisma.vmqOrder.findMany({
     // 排除自己：改价（updatePendingVmqAmount）时不能被自己的旧金额挡住
-    where: { type, createdAt: { gte: since }, orderId: { not: selfOrderId } },
+    where: { createdAt: { gte: since }, orderId: { not: selfOrderId } },
     select: { reallyPrice: true },
   })
   return new Set(rows.map((r) => centsOf(r.reallyPrice)))
@@ -272,9 +285,9 @@ async function coolingCents(type: number, selfOrderId: string): Promise<Set<numb
 
 // ---- 分配唯一金额并加锁 ----
 // 先预查占用情况避免无谓的唯一约束冲突日志；遇到陈旧锁（占用者已支付/过期、且过了宽限期）自动清理复用
-async function allocateAmount(basePrice: number, type: number, orderId: string): Promise<number> {
+async function allocateAmount(basePrice: number, orderId: string): Promise<number> {
   // 冷却查询失败不能挡下单，退回旧规则（只看待支付锁）
-  const cooling = await coolingCents(type, orderId).catch((e) => {
+  const cooling = await coolingCents(orderId).catch((e) => {
     console.error('[vmq] 冷却金额查询失败，本次只按待支付锁分配', e)
     return new Set<number>()
   })
@@ -286,7 +299,7 @@ async function allocateAmount(basePrice: number, type: number, orderId: string):
         cents += 1
         continue
       }
-      const lockKey = `${cents}-${type}`
+      const lockKey = amountLockKey(cents)
       const existing = await prisma.vmqLock.findUnique({ where: { lockKey } })
       if (existing) {
         // 本单已持有这把锁（改价迁移时新金额恰好是本单手里的金额）→ 直接复用
@@ -318,7 +331,7 @@ async function allocateAmount(basePrice: number, type: number, orderId: string):
         throw e
       }
     }
-    if (avoidCooling) console.warn('[vmq] 50 个候选金额都在冷却期，退回只看待支付锁', basePrice, type)
+    if (avoidCooling) console.warn('[vmq] 50 个候选金额都在冷却期，退回只看待支付锁', basePrice)
   }
   throw new VmqError('当前下单人数较多，请稍后重试')
 }
@@ -364,7 +377,7 @@ export async function createOrGetVmqOrder(params: {
   if (existing) return { ...vmqResult(existing), created: false }
 
   const orderId = genOrderId()
-  const cents = await allocateAmount(params.price, type, orderId) // 先占金额（锁有宽限期，不会被当陈旧锁删）
+  const cents = await allocateAmount(params.price, orderId) // 先占金额（锁有宽限期，不会被当陈旧锁删）；不分渠道
   const reallyPrice = cents / 100
 
   /*
@@ -544,13 +557,13 @@ export async function updatePendingVmqAmount(
    */
   let cents: number
   try {
-    cents = await allocateAmount(newPrice, target.type, target.orderId)
+    cents = await allocateAmount(newPrice, target.orderId)
   } catch (e) {
     // 订单金额已经改了，不能让买家继续按旧价付
     await invalidatePendingVmq(bizType, bizId).catch(() => {})
     throw e
   }
-  const newKey = `${cents}-${target.type}`
+  const newKey = amountLockKey(cents)
   const reallyPrice = cents / 100
 
   let updated: VmqOrder | null
@@ -586,7 +599,8 @@ export async function updatePendingVmqAmount(
 }
 
 // ---- 到账：按金额匹配并标记业务已支付 ----
-// 返回是否匹配到订单。raw 是通知原文，只用于「待人工核实的到账」留痕
+// 返回是否匹配到订单。type = 这笔钱实际从哪个渠道到的（由通知来源 App 判定，lib/vmq-notice.ts）。
+// 金额全站唯一、不分渠道，所以匹配只看金额；匹配上之后收款单记成实际到账的渠道。raw 是通知原文，只用于留痕
 export async function markPaidByAmount(price: string, type: number, raw?: string): Promise<boolean> {
   const cents = centsOf(price)
   const rawShort = raw ? raw.slice(0, 500) : undefined
@@ -619,8 +633,8 @@ async function matchArrival(
   repeatForward: boolean,
   createdBefore: number | null
 ): Promise<boolean> {
-  // 取该渠道所有待支付单，按 cents 精确匹配（避免浮点误差）
-  const pendings = await prisma.vmqOrder.findMany({ where: { state: 0, type } })
+  // 取所有待支付单（不分渠道：两个渠道共用一个金额池），按 cents 精确匹配（避免浮点误差）
+  const pendings = await prisma.vmqOrder.findMany({ where: { state: 0 } })
   const hits = pendings.filter(
     (o) => centsOf(o.reallyPrice) === cents && (createdBefore === null || o.createdAt.getTime() < createdBefore)
   )
@@ -644,7 +658,7 @@ async function matchArrival(
   const target = hits[0]
   if (!target) {
     const pendingList = pendings.map((o) => Number(o.reallyPrice))
-    console.warn(`[vmq] 到账 ${price}(${cents}分) type=${type} 未匹配到待支付订单；当前待支付金额=`, pendingList)
+    console.warn(`[vmq] 到账 ${price}(${cents}分) 渠道=${type === VMQ_TYPE_WECHAT_ ? '微信' : '支付宝'} 未匹配到待支付订单；当前待支付金额=`, pendingList)
     /*
      * 10 分钟内同金额刚到过账：可能是同一条通知被重复转发（第二次到达时收款单已是 1、锁已释放），
      * 也可能是买家扫同一个码付了两次 —— 后者是真钱、要退款，绝不能静默。
@@ -653,7 +667,6 @@ async function matchArrival(
      */
     const recentPaid = await prisma.vmqOrder.findFirst({
       where: {
-        type,
         state: 1,
         payDate: { gte: new Date(Date.now() - 10 * 60_000) },
         reallyPrice: new Prisma.Decimal((cents / 100).toFixed(2)),
@@ -681,7 +694,7 @@ async function matchArrival(
     return false
   }
 
-  const settled = await markPaidVmqOrder(target)
+  const settled = await markPaidVmqOrder(target, type)
   if (settled === 'closed') {
     /*
      * 【到账了、但这张收款单在匹配的一瞬间被关掉了】findMany 时它还是待支付，
@@ -832,7 +845,9 @@ async function seenRawRecently(raw?: string): Promise<boolean> {
  *  - 'duplicate' 翻转成功，但业务单此前已不是待付款（被另一张收款单付过 / 人工标过已付 / 已退款）
  */
 async function markPaidVmqOrder(
-  v: Pick<VmqOrder, 'id' | 'bizType' | 'bizId' | 'orderId' | 'outTradeNo' | 'reallyPrice'>
+  v: Pick<VmqOrder, 'id' | 'bizType' | 'bizId' | 'orderId' | 'outTradeNo' | 'reallyPrice'>,
+  /** 实际到账的渠道（1 微信 / 2 支付宝）；不给就不改收款单上的渠道 */
+  paidType?: number
 ): Promise<'settled' | 'closed' | 'duplicate'> {
   // 原子翻转：state 0→1。并发下（同一笔到账被重复推送）只有一次能成功，
   // 其余 count===0 直接跳过履约，从入口处就避免重复发货。
@@ -840,7 +855,8 @@ async function markPaidVmqOrder(
     // 连同匹配时看到的金额一起钉住：读 pendings 与翻转之间后台改价迁移了这张收款单的话，
     // 买家付的是旧价、单子已是新价，不能照记（终审 2026-09-26）。落空后 state 仍为 0 → 'closed' → 转人工
     where: { id: v.id, state: 0, reallyPrice: v.reallyPrice },
-    data: { state: 1, payDate: new Date() },
+    // type 改成实际到账的渠道（买家在收银台选的是支付宝、扫的却是微信，以到账为准）；fulfillOrder 按它记流水的支付方式
+    data: { state: 1, payDate: new Date(), ...(paidType ? { type: paidType } : {}) },
   })
   if (flip.count !== 1) {
     // 没抢到有两种情况，必须分开：同一笔到账被重复推送（已经是 1，正常，算匹配成功）；
@@ -896,7 +912,8 @@ export type UnmatchedReason =
   | 'ambiguous_match' // 同一金额同时命中多张待支付单
   | 'duplicate_payment' // 记到了收款单，但业务单此前已付款 / 已退款
   | 'ambiguous_amount' // 同一条通知里出现多个不同的到账金额
-  | 'untrusted_source' // 通知带着「成功收款X元」，但来源 App 不是支付宝
+  | 'untrusted_source' // 通知带着到账金额，但来源 App 不是支付宝 / 微信（或没带来源）
+  | 'bad_template' // 金额对，但不在系统到账通知的固定位置上（可能是聊天消息冒充，lib/vmq-notice.ts）
 
 export interface UnmatchedEntry {
   reason: UnmatchedReason
@@ -1323,8 +1340,8 @@ export async function manualComplete(vmqOrderId: number): Promise<void> {
     prisma.vmqLock.deleteMany({ where: { orderId: o.orderId } }),
   ])
   try {
-    // fulfillOrder 自身幂等（原子占单 + 只补缺口），重复调用不会重复发卡/记账
-    if (o.bizType === 'order') await fulfillOrder(o.bizId)
+    // fulfillOrder 自身幂等（原子占单 + 只补缺口），重复调用不会重复发卡/记账。带上收款单：支付方式按它的渠道记
+    if (o.bizType === 'order') await fulfillOrder(o.bizId, { via: 'VMQ', vmqId: o.id })
     else if (o.bizType === 'invoice') await fulfillInvoice(o.bizId)
   } catch (e) {
     console.error('[vmq] 补履约失败', e)
@@ -1344,6 +1361,7 @@ export async function recentVmqOrders(limit = 15) {
     price: Number(o.price),
     reallyPrice: Number(o.reallyPrice),
     state: o.state,
+    type: o.type,
     createdAt: o.createdAt,
     payDate: o.payDate,
   }))
@@ -1374,97 +1392,52 @@ export async function getDiag() {
 }
 
 // ============ SmsForwarder 等「通知转发」Webhook 模式 ============
-// 服务端解析通知文案中的金额（比监控端 App 死文案宽松），按金额匹配订单
+// 判渠道、取金额、核对系统通知格式都在 lib/vmq-notice.ts（纯函数，自检 scripts/check-notice-parse.ts）；这里只管留痕、匹配与告警
 
+/**
+ * @deprecated 只留给旧脚本。渠道已改为**只按通知来源 App 判定**（lib/vmq-notice.ts channelOfSource）：
+ * 原来按文字里有没有「收款助手」判微信，2026-10-18 一笔支付宝到账（标题推广语「开启收款助手」）被当成微信、没匹配上。
+ */
 export function detectChannel(text: string): number {
-  if (/微信|wechat|weixin|tenpay|com\.tencent\.mm|收款助手/i.test(text)) return 1
-  return 2 // 默认支付宝
+  return /(^|\s)com\.tencent\.mm(\s|$)/i.test(text) ? VMQ_TYPE_WECHAT_ : VMQ_TYPE_ALIPAY_
 }
 
-export type AmountReject = 'empty' | 'broadcast_rejected' | 'no_strong_signal' | 'ambiguous' | 'untrusted_source'
+export type AmountReject = NoticeReject
 /** amounts 仅 reason=ambiguous 时带：通知里出现的各个不同金额 */
 export type AmountParse = { ok: true; amount: string } | { ok: false; reason: AmountReject; amounts?: string[] }
 
-// 支付宝收钱码会发两类通知，只有第二类代表「这一笔钱到账了」：
-//   ①「上一笔播报：支付宝到账 1430.00 元。收钱提醒助手正在为您服务」
-//      —— 这是上一笔订单的金额，拿来匹配会把别人的订单标记成已支付，必须拒绝。
-//   ②「已转入余额 可兑1000收款免费额度>> 你已成功收款1430.00元（老顾客消费）」
-//      —— 这才是本次实收金额。
-// 又因为 SmsForwarder 会把 content / org_content / title / from 拼成一长串，同一金额会出现 2~3 次、
-// 且不同来源的文本混在一起，所以只能做「强信号词 + 紧邻金额」的匹配，不能对整串跑宽松正则。
-const STRONG_SIGNAL = /(?:你已成功收款|已成功收款|成功收款)\s*[¥￥]?\s*(\d+(?:\.\d{1,2})?)\s*元/g
-// 播报类关键词：出现在强信号词之前的近距离窗口内，说明这是「上一笔」的回顾而非本次到账
-const BROADCAST_HINT = /上一笔|上笔播报|历史播报|最近一笔/
-
+/** 支付宝通知的宽松取金额（不判来源、不看格式）。只给 scripts/check-amount-parse.ts 与「token 被拒」的告警用，不能拿去匹配订单 */
 export function parseAmountDetailed(text: string): AmountParse {
-  if (!text || !text.trim()) return { ok: false, reason: 'empty' }
-  const t = text.replace(/,/g, '')
-
-  STRONG_SIGNAL.lastIndex = 0
-  let m: RegExpExecArray | null
-  let sawStrong = false
-  let first: string | null = null
-  // 不在第一个命中处返回：收集全部非播报命中，再看它们是不是同一个金额
-  const seen = new Map<number, string>()
-  while ((m = STRONG_SIGNAL.exec(t)) !== null) {
-    sawStrong = true
-    // 强信号词前 24 字内出现「上一笔」之类 → 这一处是播报回顾，跳过继续找下一处
-    if (BROADCAST_HINT.test(t.slice(Math.max(0, m.index - 24), m.index))) continue
-    if (first === null) first = m[1]
-    const c = Math.round(Number(m[1]) * 100)
-    if (!seen.has(c)) seen.set(c, m[1])
-  }
-  // 同一条通知出现两个不同的「本次到账」金额：不是到账模板该有的样子（可能是备注 / 昵称夹带，
-  // 或两笔合并成一条），取第一个可能把钱记到别人的单上 → 转人工。同额不同写法（1430 / 1430.00）照常取用
-  if (seen.size > 1) return { ok: false, reason: 'ambiguous', amounts: Array.from(seen.values()) }
-  if (first !== null) return { ok: true, amount: first }
-
-  // 有强信号但全被播报前缀否掉
-  if (sawStrong) return { ok: false, reason: 'broadcast_rejected' }
-  // 没有强信号，但明显是播报/到账类文案（如「上一笔播报：支付宝到账 1430.00 元」）→ 明确标注原因，
-  // 便于后台区分「被新规则拒了」和「文案没覆盖到」
-  if (BROADCAST_HINT.test(t) || /到账|收钱提醒/.test(t)) return { ok: false, reason: 'broadcast_rejected' }
-  return { ok: false, reason: 'no_strong_signal' }
+  return parseAlipayLoose(text)
 }
 
-/** 兼容旧调用：只要金额字符串 */
+/** 兼容旧调用：只要金额字符串（同上，不能拿去匹配订单） */
 export function parseAmount(text: string): string | null {
-  const r = parseAmountDetailed(text)
+  const r = parseAlipayLoose(text)
   return r.ok ? r.amount : null
 }
 
-export const AMOUNT_REJECT_LABELS: Record<AmountReject, string> = {
-  empty: '空内容',
-  broadcast_rejected: '播报类通知（上一笔金额），已按规则拒绝',
-  no_strong_signal: '未出现「你已成功收款X元」强信号，未取用',
-  ambiguous: '同一条通知出现多个不同的到账金额，未自动取用（请核实后补单）',
-  untrusted_source: '通知来源不是支付宝 App，未取用',
-}
+export const AMOUNT_REJECT_LABELS: Record<AmountReject, string> = NOTICE_REJECT_LABELS
 
-// SmsForwarder 应用通知的 [from] 是包名；2026-06-08 线上原文末尾就是 com.eg.android.AlipayGphone。
-// 比较时统一转小写
-const TRUSTED_NOTIFY_FROM = new Set(['com.eg.android.alipaygphone', '支付宝'])
-function normalizeFrom(v?: string | null): string | null {
-  const s = (v || '').trim()
-  return !s || s === '[from]' ? null : s // 没带、或占位符没被替换 → 视为未知
+/** 渠道编号 → 中文（0 = 来源不明，只出现在没被取用的通知上） */
+export function vmqTypeLabel(t: number): string {
+  return t === VMQ_TYPE_WECHAT_ ? CHANNEL_LABEL.wechat : t === VMQ_TYPE_ALIPAY_ ? CHANNEL_LABEL.alipay : '来源不明'
 }
 
 export async function handleWebhookNotify(
   content: string,
   meta: { from?: string | null } = {}
 ): Promise<{ matched: boolean; amount: string | null; type: number; reason?: AmountReject }> {
-  const type = detectChannel(content) // content 不变 → 渠道判定不变
   /*
-   * 【来源白名单】一旦转发规则放宽（同一 Webhook 通道也挂了短信 / 别的 App），任何人发一条
-   * 「你已成功收款140.00元」的短信就能命中待支付单。from 明确不是支付宝的一律不自动取用。
-   * from 缺失（手机端模板没带 [from]）时按旧行为放行：不能因为模板少一个字段就拦掉全部真实到账。
+   * 【来源必须是支付宝或微信 App】（2026-10-18 起不再「没带 from 就放行」）同一 Webhook 通道一旦也挂了短信 / 别的 App，
+   * 任何人发一条「你已成功收款140.00元」的短信就能命中待支付单。线上支付宝模板一直带着 [from]，微信按同一份模板配。
+   * 渠道 = 来源 App；金额必须出现在系统到账通知的固定位置上（防聊天消息冒充，见 lib/vmq-notice.ts 文件头）。
    */
   const from = normalizeFrom(meta.from)
-  const untrusted = from !== null && !TRUSTED_NOTIFY_FROM.has(from.toLowerCase())
-  const inner = parseAmountDetailed(content)
-  const parsed: AmountParse = untrusted ? { ok: false, reason: 'untrusted_source' } : inner
-  if (from === null) console.warn('[vmq] sms-notify 未带 from，本次跳过来源校验')
-  // 原文保留 1000 字（Setting.value 是 Text，长度不是瓶颈），便于上线初期核对文案
+  const parsed = parseNotice(content, from)
+  // 0 = 来源不明（不会拿去匹配，只用于留痕与后台显示）
+  const type = parsed.channel ? typeOfChannel(parsed.channel) : 0
+  // 原文保留 1000 字（Setting.value 是 Text，长度不是瓶颈），便于核对文案。路由已把 token 从原文里抹掉
   await setSetting(
     'vmq_lastwebhook',
     JSON.stringify({
@@ -1479,23 +1452,23 @@ export async function handleWebhookNotify(
   await touchHeartbeat() // 收到转发即视为监控端仍在工作
   if (!parsed.ok) {
     /*
-     * 播报类 / 营销类通知（每笔到账都会伴随一条「上一笔播报」）不再写进人工队列 —— 原来它们会把
-     * 真正没匹配上的到账记录冲掉。原文和原因已经在上面的 vmq_lastwebhook 里。
-     * 只有「其实带着成功收款X元」的两类（多金额、来源不对）可能是真金白银，进人工队列并推送：
-     * 尤其是来源不对 —— 万一手机端 [from] 换了写法，每一笔真实到账都会落到这里，不能静默。
+     * 播报类 / 营销类 / 普通消息不进人工队列（每笔到账都会伴随一条「上一笔播报」，进队列会把真正没匹配上的到账冲掉），
+     * 原文和原因已经在上面的 vmq_lastwebhook 里。
+     * 带着金额却没取用的三类可能是真金白银，进人工队列并推送：多金额（ambiguous）、来源不对（untrusted_source，
+     * 万一手机端 [from] 换了写法，每一笔真实到账都会落到这里）、格式不对（bad_template，也可能是有人发聊天消息冒充到账）。
      */
-    if (parsed.reason === 'ambiguous' || (parsed.reason === 'untrusted_source' && inner.ok)) {
-      const price = inner.ok ? inner.amount : (inner.amounts || []).join(' / ')
+    const amounts = parsed.amounts ?? []
+    if (amounts.length && (parsed.reason === 'ambiguous' || parsed.reason === 'untrusted_source' || parsed.reason === 'bad_template')) {
       await recordUnmatched({
-        reason: parsed.reason === 'ambiguous' ? 'ambiguous_amount' : 'untrusted_source',
-        price,
+        reason: parsed.reason === 'ambiguous' ? 'ambiguous_amount' : parsed.reason,
+        price: amounts.join(' / '),
         type,
-        cents: inner.ok ? centsOf(inner.amount) : undefined,
+        cents: amounts.length === 1 ? centsOf(amounts[0]) : undefined,
         from,
         raw: content.slice(0, 500),
       })
     }
-    console.warn(`[vmq] 通知未取用 reason=${parsed.reason} raw=${content.slice(0, 200)}`)
+    console.warn(`[vmq] 通知未取用 reason=${parsed.reason} 渠道=${vmqTypeLabel(type)} raw=${content.slice(0, 200)}`)
     return { matched: false, amount: null, type, reason: parsed.reason }
   }
   const matched = await markPaidByAmount(parsed.amount, type, content)
@@ -1538,6 +1511,12 @@ async function allocateCards(
   return claimed
 }
 
+/** 这张收款单记成哪种支付方式（ALIPAY / WECHAT）：按它的渠道（到账时已改成实际到账的渠道）；查不到按支付宝 */
+async function vmqPayMethod(vmqId: number): Promise<'ALIPAY' | 'WECHAT'> {
+  const v = await prisma.vmqOrder.findUnique({ where: { id: vmqId }, select: { type: true } })
+  return payMethodOfType(v?.type)
+}
+
 // 仅供 itest：在载体单付款事务的最后一步（全部写完、提交之前）注入故障，验证「写冲突重试一次」整段重来且只入账一次
 let carrierPayFaultForTest: (() => void) | null = null
 export function setCarrierPayFaultForTest(fn: (() => void) | null): void {
@@ -1571,6 +1550,8 @@ async function fulfillCarrierOrder(
   // 到账那一刻与同一用户的另一笔资金事务（后台调余额、迟到退入）撞上、被 InnoDB 选为死锁牺牲者，就要等 ≥3 分钟对账补做，
   // 还会推一条假的「到账履约失败」。整段可以安全重来：付款 CAS（UNPAID 且未取消）与 topup:<orderId> 这个 bizKey 都是幂等的
   let smsNotMoved: { smsOrderId: number; state: string } | null = null
+  // 扫码收款的支付方式按这张收款单实际到账的渠道记（ALIPAY / WECHAT，lib/pay-channel.ts）；余额付清的没有收款单
+  const qrMethod = via === 'VMQ' ? await vmqPayMethod(opts!.vmqId!) : 'ALIPAY'
   const won = await inMoneyTx(async (tx) => {
     const now = new Date()
     smsNotMoved = null
@@ -1578,8 +1559,8 @@ async function fulfillCarrierOrder(
       where: { id: orderId, payStatus: 'UNPAID', deliveryStatus: { not: 'CANCELLED' } },
       data:
         carrier === 'TOPUP'
-          ? { payStatus: 'PAID', payMethod: 'ALIPAY', paidAt: now, deliveryStatus: 'DELIVERED', deliveredAt: now }
-          : { payStatus: 'PAID', payMethod: via === 'BALANCE' ? 'BALANCE' : 'ALIPAY', paidAt: now, deliveryStatus: 'PROCESSING' },
+          ? { payStatus: 'PAID', payMethod: qrMethod, paidAt: now, deliveryStatus: 'DELIVERED', deliveredAt: now }
+          : { payStatus: 'PAID', payMethod: via === 'BALANCE' ? 'BALANCE' : qrMethod, paidAt: now, deliveryStatus: 'PROCESSING' },
     })
     if (flip.count !== 1) return false
     const cur = await tx.order.findUnique({ where: { id: orderId }, select: { amount: true, userId: true, tenantId: true } })
@@ -1630,7 +1611,7 @@ async function fulfillCarrierOrder(
     if (heldCents > 0) await tx.payment.create({ data: { orderId, payMethod: 'BALANCE', amount: dec(heldCents), status: 1 } })
     if (aliCents > 0) {
       if (!vmqNo) throw new Error(`[vmq] 载体单 #${orderId} 有支付宝部分却没有收款单`)
-      await tx.payment.create({ data: { orderId, payMethod: 'ALIPAY', amount: dec(aliCents), status: 1, tradeNo: vmqNo } })
+      await tx.payment.create({ data: { orderId, payMethod: qrMethod, amount: dec(aliCents), status: 1, tradeNo: vmqNo } })
     }
     if (carrier === 'TOPUP') await creditTopupInTx(tx, { orderId, userId: cur.userId, vmqId: opts!.vmqId! })
     if (carrierPayFaultForTest) carrierPayFaultForTest()
@@ -1674,6 +1655,8 @@ export async function fulfillOrder(orderId: number, opts?: { via?: 'VMQ' | 'BALA
   // 两种系统载体（接码 SMS_POOL / 充值 TOPUP）走单独的付款框架（B1，§6.6 第 10 条）；普通订单下面逐字不变，opts 被忽略
   const carrier = isCarrierType(order0.product.deliveryType) ? order0.product.deliveryType : null
   if (carrier) return fulfillCarrierOrder(orderId, carrier, opts)
+  // 普通订单：带了收款单就按它实际到账的渠道记支付方式；没带（后台「标已付款」之类）按支付宝，与原来一致
+  const qrMethod = opts?.vmqId ? await vmqPayMethod(opts.vmqId) : 'ALIPAY'
 
   // ① 原子占单 + 记账：在一个事务内把订单 UNPAID→PAID，并创建支付流水、增加销量。
   // 只有把状态翻转成功（count===1）的那一次调用是「赢家」，会执行首次记账。
@@ -1681,7 +1664,7 @@ export async function fulfillOrder(orderId: number, opts?: { via?: 'VMQ' | 'BALA
   const won = await prisma.$transaction(async (tx) => {
     const c = await tx.order.updateMany({
       where: { id: orderId, payStatus: 'UNPAID' },
-      data: { payStatus: 'PAID', payMethod: 'ALIPAY', paidAt: new Date() },
+      data: { payStatus: 'PAID', payMethod: qrMethod, paidAt: new Date() },
     })
     if (c.count !== 1) return false
     // 【CAS 成功后在事务内重读】不用事务外读的订单：那次读和翻 PAID 之间若恰好提交了后台改价，
@@ -1693,7 +1676,7 @@ export async function fulfillOrder(orderId: number, opts?: { via?: 'VMQ' | 'BALA
     })
     if (!cur) throw new Error(`订单 ${orderId} 在翻转后不见了`)
     await tx.payment.create({
-      data: { orderId, payMethod: 'ALIPAY', amount: cur.amount, status: 1 },
+      data: { orderId, payMethod: qrMethod, amount: cur.amount, status: 1 },
     })
     await tx.product.update({ where: { id: cur.productId }, data: { sales: { increment: cur.quantity } } })
     /*

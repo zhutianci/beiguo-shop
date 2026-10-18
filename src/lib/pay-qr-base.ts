@@ -1,5 +1,9 @@
 /**
- * 收银台收款码（支付宝）：后台可以存多张、随时切换，切换后收银台立即显示新的一张（不用重新构建镜像）。
+ * 收银台收款码（支付宝 / 微信各一组）：后台可以存多张、随时切换，切换后收银台立即显示新的一张（不用重新构建镜像）。
+ *
+ * 【两个渠道各一行配置】支付宝 key = vmq_payqr（2026-10-12 起就是这一行）、微信 key = vmq_payqr_wechat（2026-10-18 新增），格式相同。
+ *  · 支付宝的 'builtin' = 镜像自带的 public/vmq-alipay-qr.png；
+ *  · 微信没有内置码：'builtin' 表示「未启用」—— 收银台与结算弹窗都不出现微信支付，直到站长上传一张并「设为当前」。
  * 本文件只有格式约定与纯函数（不碰数据库 / 文件），服务端与 scripts/check-pay-qr.ts 共用；读写在 lib/pay-qr.ts。
  *
  * 【存在哪】settings 表一行（key = vmq_payqr），JSON：
@@ -12,9 +16,22 @@
  * 单张条目不合规（地址不符合约定格式等）只丢掉那一张；当前生效的那张被丢掉同样抛错。
  */
 
+import type { PayChannel } from './pay-channel'
+
 export const PAY_QR_SETTING_KEY = 'vmq_payqr'
 export const BUILTIN_QR_ID = 'builtin'
 export const BUILTIN_QR_URL = '/vmq-alipay-qr.png'
+
+/** 每个渠道一行配置 */
+export const PAY_QR_SETTING_KEYS: Record<PayChannel, string> = { alipay: PAY_QR_SETTING_KEY, wechat: 'vmq_payqr_wechat' }
+/** 「builtin」对应的图片：支付宝是镜像自带的码；微信没有（= 未启用） */
+export function builtinQrUrl(channel: PayChannel): string | null {
+  return channel === 'alipay' ? BUILTIN_QR_URL : null
+}
+/** 「builtin」在后台叫什么 */
+export function builtinQrLabel(channel: PayChannel): string {
+  return channel === 'alipay' ? '内置收款码' : '未启用（不收微信）'
+}
 /** 只认服务端生成的文件名（upload-store 的 `<时间36进制>-<12位hex>.<ext>`），不收 gif / svg */
 export const PAY_QR_URL_RE = /^\/uploads\/payqr\/[0-9a-z]+-[0-9a-f]{12}\.(png|jpg|webp)$/
 export const PAY_QR_ID_RE = /^[0-9a-f]{12}$/
@@ -132,17 +149,22 @@ export function parsePayQrState(raw: string | null | undefined): PayQrState {
   }
 }
 
-/** 当前生效的收款码地址（收银台显示的那一张） */
+/** 当前生效的收款码地址（收银台显示的那一张；支付宝） */
 export function activePayQrUrl(s: PayQrState): string {
-  if (s.activeId === BUILTIN_QR_ID) return BUILTIN_QR_URL
+  return activePayQrUrlFor(s, 'alipay') as string
+}
+
+/** 当前生效的收款码地址；null = 这个渠道没启用（只有微信会这样） */
+export function activePayQrUrlFor(s: PayQrState, channel: PayChannel): string | null {
+  if (s.activeId === BUILTIN_QR_ID) return builtinQrUrl(channel)
   const it = s.items.find((i) => i.id === s.activeId)
   if (!it) throw new PayQrError('CORRUPT', '当前生效的收款码不在列表里')
   return it.url
 }
 
-/** 名字（内置码固定叫「内置收款码」；已删掉的显示 id） */
-export function payQrLabel(s: PayQrState, id: string): string {
-  if (id === BUILTIN_QR_ID) return '内置收款码'
+/** 名字（builtin 按渠道叫「内置收款码」/「未启用」；已删掉的显示 id） */
+export function payQrLabel(s: PayQrState, id: string, channel: PayChannel = 'alipay'): string {
+  if (id === BUILTIN_QR_ID) return builtinQrLabel(channel)
   return s.items.find((i) => i.id === id)?.label ?? `已删除（${id}）`
 }
 
@@ -155,17 +177,23 @@ export function addPayQr(s: PayQrState, item: PayQrItem): PayQrState {
 }
 
 /** 切换当前生效的收款码；changed=false 表示本来就是这一张 */
-export function activatePayQr(s: PayQrState, id: string, by: number | null, now: number): { state: PayQrState; changed: boolean } {
+export function activatePayQr(
+  s: PayQrState,
+  id: string,
+  by: number | null,
+  now: number,
+  channel: PayChannel = 'alipay',
+): { state: PayQrState; changed: boolean } {
   if (id !== BUILTIN_QR_ID && !s.items.some((i) => i.id === id)) throw new PayQrError('NOT_FOUND', '这张收款码不存在（可能已被删除）')
   if (s.activeId === id) return { state: s, changed: false }
-  const entry: PayQrSwitch = { at: now, from: s.activeId, to: id, by, fromLabel: payQrLabel(s, s.activeId), toLabel: payQrLabel(s, id) }
+  const entry: PayQrSwitch = { at: now, from: s.activeId, to: id, by, fromLabel: payQrLabel(s, s.activeId, channel), toLabel: payQrLabel(s, id, channel) }
   const history = [...s.history, entry].slice(-PAY_QR_HISTORY_MAX)
   return { state: { ...s, activeId: id, switchedAt: now, history }, changed: true }
 }
 
 /** 删除一张：内置码不能删、正在用的不能删（先切到别的再删）。返回被删的那一张（调用方据此删文件） */
 export function removePayQr(s: PayQrState, id: string): { state: PayQrState; removed: PayQrItem } {
-  if (id === BUILTIN_QR_ID) throw new PayQrError('BUILTIN', '内置收款码不能删除')
+  if (id === BUILTIN_QR_ID) throw new PayQrError('BUILTIN', '这一项不能删除')
   const removed = s.items.find((i) => i.id === id)
   if (!removed) throw new PayQrError('NOT_FOUND', '这张收款码不存在（可能已被删除）')
   if (s.activeId === id) throw new PayQrError('ACTIVE', '这张收款码正在使用，请先切换到另一张再删除')

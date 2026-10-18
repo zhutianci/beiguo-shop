@@ -12,6 +12,7 @@
  */
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db'
+import { QR_PAY_METHODS } from '../pay-channel'
 import { notify } from '../notify'
 import { inMoneyTx } from '../wallet/ledger'
 import { refundInTx, HoldStateError } from '../wallet/hold'
@@ -188,9 +189,9 @@ async function raceOrManual(tx: Tx, smsOrderId: number, fromStates: string[]): P
   throw new RefundNeedsManual('ORDER_NOT_PAID')
 }
 
-/** 支付宝部分核对：ALIPAY 支付流水 tradeNo 所指收款单的 reallyPrice（分）；没有 / 对不上返回 null */
+/** 扫码部分核对：扫码支付流水（ALIPAY / WECHAT）tradeNo 所指收款单的 reallyPrice（分）；没有 / 对不上返回 null */
 async function alipayPaidOf(tx: Tx, orderId: number): Promise<number | null> {
-  const pay = await tx.payment.findFirst({ where: { orderId, payMethod: 'ALIPAY', status: 1 }, select: { tradeNo: true } })
+  const pay = await tx.payment.findFirst({ where: { orderId, payMethod: { in: [...QR_PAY_METHODS] }, status: 1 }, select: { tradeNo: true } })
   if (!pay?.tradeNo) return null
   const v = await tx.vmqOrder.findUnique({ where: { orderId: pay.tradeNo }, select: { reallyPrice: true, bizId: true, state: true } })
   if (!v || v.bizId !== orderId || v.state !== 1) return null

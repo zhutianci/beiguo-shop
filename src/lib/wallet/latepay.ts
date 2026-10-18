@@ -19,6 +19,7 @@
  */
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db'
+import { QR_PAY_METHODS } from '../pay-channel'
 import { notify } from '../notify'
 import { writeAudit } from '../audit'
 import { postInTx, inMoneyTx, isBizKeyConflict } from './ledger'
@@ -119,7 +120,8 @@ export interface VmqRowLite {
 export type UniqueDecision = { ok: true; vmq: VmqRowLite } | { ok: false; why: string }
 
 /**
- * `no_pending_match` 的「数据验证唯一」（§2.7 六个条件，Q14 自动退）。纯函数：rows 是同 type、同金额、
+ * `no_pending_match` 的「数据验证唯一」（§2.7 六个条件，Q14 自动退）。纯函数：rows 是同金额、
+ * （2026-10-18 起不分渠道：支付宝与微信共用一个金额池，lib/pay-channel.ts；下文的「同 type」都按「不分渠道」理解）
  * createdAt ≤ 到账时刻、且 ≥ 到账时刻 − 24 小时 − 2×(超时+冷却) 的全部收款单（任何 bizType、任何状态）。
  *   ① C：state=−1、同 type、reallyPrice=条目金额，C 的订单是主站 SMS_POOL / TOPUP 且 UNPAID + CANCELLED；
  *   ② 冷却开着（cooldownMin>0），且 到账时刻 ≤ C.createdAt + 超时 + 冷却；
@@ -135,7 +137,8 @@ export function decideUniqueClosed(
 ): UniqueDecision {
   // 先认候选 C（①②）：没有候选 = 这笔钱和任何关闭的载体单都对不上（普通到账，与本模块无关）
   const W = (ctx.timeoutMin + Math.max(0, ctx.cooldownMin)) * 60_000
-  const same = rows.filter((r) => r.type === entry.type && r.reallyCents === entry.cents && r.createdAt.getTime() <= entry.at)
+  // 不分渠道：两个渠道共用一个金额池，同额的微信单与支付宝单要一起算唯一
+  const same = rows.filter((r) => r.reallyCents === entry.cents && r.createdAt.getTime() <= entry.at)
   const cands = same.filter(
     (r) =>
       r.state === -1 &&
@@ -212,7 +215,7 @@ async function orderInfo(db: Db, where: { id: number } | { orderNo: string }): P
 
 /** 这张收款单是不是该订单的付款凭证（订单的 ALIPAY 支付流水 tradeNo = 收款单号） */
 async function isVoucher(db: Db, orderId: number, vmqOrderNo: string): Promise<boolean> {
-  return (await db.payment.count({ where: { orderId, payMethod: 'ALIPAY', tradeNo: vmqOrderNo } })) > 0
+  return (await db.payment.count({ where: { orderId, payMethod: { in: [...QR_PAY_METHODS] }, tradeNo: vmqOrderNo } })) > 0
 }
 
 async function vmqByNo(db: Db, vmqOrderNo: string | undefined) {
@@ -446,13 +449,13 @@ async function uniqueClosedFor(entry: LatepayEntry, cents: number, ctx: { timeou
   const select = { id: true, orderId: true, bizType: true, bizId: true, type: true, state: true, reallyPrice: true, createdAt: true } as const
   const [near, closed24] = await Promise.all([
     prisma.vmqOrder.findMany({
-      where: { type: entry.type, reallyPrice: price, createdAt: { gte: new Date(entry.at - 2 * W), lte: at } },
+      where: { reallyPrice: price, createdAt: { gte: new Date(entry.at - 2 * W), lte: at } },
       select,
       orderBy: { createdAt: 'desc' },
       take: UNIQUE_SCAN_LIMIT + 1,
     }),
     prisma.vmqOrder.findMany({
-      where: { type: entry.type, reallyPrice: price, state: -1, createdAt: { gte: new Date(entry.at - 24 * 3600_000), lte: at } },
+      where: { reallyPrice: price, state: -1, createdAt: { gte: new Date(entry.at - 24 * 3600_000), lte: at } },
       select,
       orderBy: { createdAt: 'desc' },
       take: UNIQUE_SCAN_LIMIT + 1,
@@ -671,13 +674,13 @@ async function priorLatepayOf(orderIds: number[]): Promise<{ count: Map<number, 
   return { count, list }
 }
 
-/** 近 24 小时内（到 at + 1 分钟）、同 type、同额、属于主站载体单的收款单（SQL 里直接连订单与商品过滤，不先取同额再筛） */
-async function carrierVmqsNear(type: number, cents: number, at: number, limit: number) {
+/** 近 24 小时内（到 at + 1 分钟）、同额（不分渠道）、属于主站载体单的收款单（SQL 里直接连订单与商品过滤，不先取同额再筛） */
+async function carrierVmqsNear(cents: number, at: number, limit: number) {
   const rows = await prisma.$queryRaw<{ id: number; orderId: string; bizId: number; state: number; createdAt: Date }[]>`
     SELECT v.id AS id, v.order_id AS orderId, v.biz_id AS bizId, v.state AS state, v.created_at AS createdAt
       FROM vmq_orders v JOIN orders o ON o.id = v.biz_id JOIN products p ON p.id = o.product_id
      WHERE v.biz_type = 'order' AND o.tenant_id = 1 AND p.delivery_type IN ('SMS_POOL', 'TOPUP')
-       AND v.type = ${type} AND v.really_price = ${new Prisma.Decimal((cents / 100).toFixed(2))}
+       AND v.really_price = ${new Prisma.Decimal((cents / 100).toFixed(2))}
        AND v.created_at >= ${new Date(at - 24 * 3600_000)} AND v.created_at <= ${new Date(at + 60_000)}
      ORDER BY v.created_at DESC
      LIMIT ${limit}`
@@ -692,7 +695,7 @@ async function carrierVmqsNear(type: number, cents: number, at: number, limit: n
 export async function latepayCandidates(entry: LatepayEntry): Promise<{ list: LatepayCandidate[]; suggest: string | null }> {
   const cents = entryCents(entry)
   const vmqs: { id: number; orderId: string; bizType: string; bizId: number; state: number; createdAt: Date }[] = []
-  if (amountInRange(cents)) vmqs.push(...(await carrierVmqsNear(entry.type, cents, entry.at, 50)))
+  if (amountInRange(cents)) vmqs.push(...(await carrierVmqsNear(cents, entry.at, 50)))
   const hint = await vmqByNo(prisma, entry.vmqOrderId)
   if (hint && hint.bizType === 'order' && !vmqs.some((v) => v.orderId === hint.orderId)) {
     const full = await prisma.vmqOrder.findUnique({ where: { id: hint.id }, select: { id: true, orderId: true, bizType: true, bizId: true, state: true, createdAt: true } })
@@ -798,7 +801,7 @@ export async function carrierFlags(entries: LatepayEntry[]): Promise<boolean[]> 
       if (ids.some((id) => carrierIds.has(id))) flags[i] = true
     })
   }
-  // ② 其余：有没有候选（近 24 小时内同 type 同额的主站载体单收款单）
+  // ② 其余：有没有候选（近 24 小时内同额的主站载体单收款单，不分渠道）
   const rest = entries.flatMap((e, i) => {
     const cents = entryCents(e)
     return !flags[i] && amountInRange(cents) ? [{ e, i, cents }] : []
@@ -815,7 +818,7 @@ export async function carrierFlags(entries: LatepayEntry[]): Promise<boolean[]> 
          AND v.really_price IN (${Prisma.join(decs)})`
     const pts = rows.map((r) => ({ type: Number(r.type), cents: centsOf(String(r.reallyPrice)), t: new Date(r.createdAt).getTime() }))
     for (const x of rest) {
-      if (pts.some((p) => p.type === x.e.type && p.cents === x.cents && p.t >= x.e.at - 24 * 3600_000 && p.t <= x.e.at + 60_000)) flags[x.i] = true
+      if (pts.some((p) => p.cents === x.cents && p.t >= x.e.at - 24 * 3600_000 && p.t <= x.e.at + 60_000)) flags[x.i] = true
     }
   }
   return flags

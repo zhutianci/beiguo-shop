@@ -12,6 +12,7 @@ import { InvoiceTitlePicker, useSavedTitles, type SavedTitle } from '@/component
 import { normalizeTaxNumber, TAX_NUMBER_MAX_LEN } from '@/lib/tax-number'
 import { InvoiceItemSelect } from '@/components/invoice-item-select'
 import { DEFAULT_INVOICE_ITEM, type InvoiceItemKey } from '@/lib/invoice-items'
+import { CHANNEL_LABEL, type PayChannel } from '@/lib/pay-channel'
 
 /** 税点。与服务端 lib/invoice.ts 的 TAX_RATE 必须一致，这里只用于展示 */
 const TAX_RATE = 0.06
@@ -73,6 +74,9 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
   const referralOn = features.referral
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string>('')
+  // 支付方式：微信要站长在后台启用（上传并设为当前收款码）才出现（/api/pay/channels）。到账按金额匹配，选哪个只决定收银台先显示哪张码
+  const [channel, setChannel] = useState<PayChannel>('alipay')
+  const [wechatOn, setWechatOn] = useState(false)
   const [coupons, setCoupons] = useState<UsableCoupon[]>([])
   const [couponId, setCouponId] = useState<number | null>(null)
   /** 不用券时应付多少（服务端算；内推单即专属价） */
@@ -145,6 +149,23 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
       alive = false
     }
   }, [open, product, user, couponOn, referralOn])
+
+  useEffect(() => {
+    if (!open) return
+    let alive = true
+    fetch('/api/pay/channels')
+      .then((r) => r.json())
+      .then((d) => {
+        if (!alive || !d?.success) return
+        const on = !!d.data?.wechat
+        setWechatOn(on)
+        if (!on) setChannel('alipay')
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [open])
 
   useEffect(() => {
     if (open) {
@@ -298,7 +319,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
         body: JSON.stringify({
           productId: product.id,
           quantity: 1,
-          remark: '支付方式: 支付宝',
+          remark: `支付方式: ${CHANNEL_LABEL[channel]}`,
           ref: referralOn ? getRef() : null,
           // 内容带单归因（内容平台 P3）：只记录，服务端不据此改价
           fromContent: getContentFrom(),
@@ -338,7 +359,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
       const payRes = await fetch('/api/pay/vmq/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderNo: data.data.order.orderNo }),
+        body: JSON.stringify({ orderNo: data.data.order.orderNo, channel }),
       })
       const payData = await payRes.json()
       if (payData.success && payData.data?.payUrl) {
@@ -424,7 +445,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
               <div className="relative min-h-0 flex-1 overflow-y-auto px-6 pt-7 pb-4 sm:px-8 sm:pt-8">
                 <div className="mb-5">
                   <h2 className="text-2xl font-bold mb-1">确认订单</h2>
-                  <p className="text-white/50 text-sm">使用支付宝完成支付</p>
+                  <p className="text-white/50 text-sm">{wechatOn ? '支持支付宝和微信支付' : '使用支付宝完成支付'}</p>
                 </div>
 
                 <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 mb-4 sm:p-5">
@@ -672,19 +693,7 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                   </div>
                 )}
 
-                {/* 支付方式：仅支付宝 */}
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-white/5 border border-blue-500/40">
-                  <div className="w-10 h-10 rounded-lg bg-[#1677FF] flex items-center justify-center">
-                    <svg className="w-6 h-6" fill="white" viewBox="0 0 24 24">
-                      <path d="M22.97 17.96c-.83-.27-3.05-.96-5.85-1.97 1.65-2.85 2.39-5.97 1.66-6.6-.83-.71-3.05.45-4.91 1.55-.94-1.36-2.18-2.7-3.6-3.6.93-.5 1.95-.92 2.84-1.16.78-.22 1.56-.27 2.18-.07.43.14.66.39.66.74 0 .42-.39.96-1.31 1.43-.18.09-.27.31-.18.5.07.13.21.2.36.2.07 0 .14-.02.21-.05 1.13-.59 1.78-1.28 1.94-2.03.12-.61-.07-1.21-.55-1.66-.62-.55-1.64-.83-2.88-.55-1.13.27-2.43.84-3.62 1.55C9.07 5.51 8.04 5 7.04 4.71c-1.36-.4-2.61-.13-3.34.71-1.27 1.43-.5 4.21 1.91 6.84-.36.16-.7.34-1.01.52-1.86 1.09-2.98 2.41-3.13 3.75-.13 1.14.43 2.17 1.55 2.86 1.14.7 2.71.83 4.46.36 1.7-.45 3.55-1.45 5.21-2.81.16.18.32.36.48.52 2.43 2.43 5.55 3.74 7.13 2.16 1.45-1.45.21-3.81-2.07-6.21l3.94-1.59c.18-.07.29-.27.21-.45-.07-.21-.27-.32-.43-.25z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-medium">支付宝</div>
-                    <div className="text-xs text-white/40">安全便捷，支持手机/电脑</div>
-                  </div>
-                </div>
-
+                
               </div>
 
               {/* 底栏：不随主体滚动。买家不管翻到哪里，都能看到要付多少、以及付款按钮 */}
@@ -694,6 +703,49 @@ export function PurchaseModal({ open, onClose, product }: PurchaseModalProps) {
                     {error}
                   </div>
                 )}
+
+                {/*
+                 * 【支付方式放在底栏】原来在主体最底下，开发票、券多的时候要往下滑才看得到。
+                 * 底栏不随主体滚动，和金额、付款按钮在一起，买家不管翻到哪里都能看到、能切换。
+                 */}
+                <div className="mb-3 flex items-center gap-2" role="radiogroup" aria-label="支付方式">
+                  <span className="shrink-0 text-xs text-white/45">支付方式</span>
+                  {(wechatOn ? (['alipay', 'wechat'] as PayChannel[]) : (['alipay'] as PayChannel[])).map((c) => {
+                    const on = c === channel
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => setChannel(c)}
+                        className={`flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors ${
+                          on
+                            ? c === 'wechat'
+                              ? 'border-[#07C160]/70 bg-[#07C160]/15 text-white'
+                              : 'border-[#1677FF]/70 bg-[#1677FF]/15 text-white'
+                            : 'border-white/[0.1] bg-white/[0.03] text-white/55 hover:border-white/25'
+                        }`}
+                      >
+                        {c === 'wechat' ? (
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-[#07C160]">
+                            <svg className="h-3.5 w-3.5" fill="white" viewBox="0 0 24 24">
+                              <path d="M8.69 3.5C4.44 3.5 1 6.36 1 9.9c0 2.03 1.13 3.84 2.9 5.01l-.73 2.2 2.56-1.28c.94.27 1.93.42 2.96.42.29 0 .57-.01.85-.04a5.6 5.6 0 0 1-.25-1.65c0-3.39 3.27-6.13 7.3-6.13.27 0 .53.01.8.04C16.69 5.6 13.02 3.5 8.69 3.5Zm-2.6 3.3a1.03 1.03 0 1 1 0 2.06 1.03 1.03 0 0 1 0-2.06Zm5.2 0a1.03 1.03 0 1 1 0 2.06 1.03 1.03 0 0 1 0-2.06Zm4.3 2.92c-3.5 0-6.34 2.36-6.34 5.27s2.84 5.27 6.34 5.27c.73 0 1.43-.1 2.08-.29l2.11 1.06-.6-1.82C20.85 18.25 22 16.66 22 14.99c0-2.91-2.9-5.27-6.41-5.27Zm-2.15 2.66a.86.86 0 1 1 0 1.72.86.86 0 0 1 0-1.72Zm4.3 0a.86.86 0 1 1 0 1.72.86.86 0 0 1 0-1.72Z" />
+                            </svg>
+                          </span>
+                        ) : (
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-[#1677FF]">
+                            <svg className="h-3.5 w-3.5" fill="white" viewBox="0 0 24 24">
+                              <path d="M22.97 17.96c-.83-.27-3.05-.96-5.85-1.97 1.65-2.85 2.39-5.97 1.66-6.6-.83-.71-3.05.45-4.91 1.55-.94-1.36-2.18-2.7-3.6-3.6.93-.5 1.95-.92 2.84-1.16.78-.22 1.56-.27 2.18-.07.43.14.66.39.66.74 0 .42-.39.96-1.31 1.43-.18.09-.27.31-.18.5.07.13.21.2.36.2.07 0 .14-.02.21-.05 1.13-.59 1.78-1.28 1.94-2.03.12-.61-.07-1.21-.55-1.66-.62-.55-1.64-.83-2.88-.55-1.13.27-2.43.84-3.62 1.55C9.07 5.51 8.04 5 7.04 4.71c-1.36-.4-2.61-.13-3.34.71-1.27 1.43-.5 4.21 1.91 6.84-.36.16-.7.34-1.01.52-1.86 1.09-2.98 2.41-3.13 3.75-.13 1.14.43 2.17 1.55 2.86 1.14.7 2.71.83 4.46.36 1.7-.45 3.55-1.45 5.21-2.81.16.18.32.36.48.52 2.43 2.43 5.55 3.74 7.13 2.16 1.45-1.45.21-3.81-2.07-6.21l3.94-1.59c.18-.07.29-.27.21-.45-.07-.21-.27-.32-.43-.25z" />
+                            </svg>
+                          </span>
+                        )}
+                        {CHANNEL_LABEL[c]}
+                        {on && <Check className="h-3.5 w-3.5 text-white/80" />}
+                      </button>
+                    )
+                  })}
+                </div>
 
                 <button
                   onClick={handleConfirmPay}

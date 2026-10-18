@@ -26,6 +26,12 @@ export async function GET(request: NextRequest) {
     // SmsForwarder（通知转发）Webhook 配置
     const origin = appUrl || (host ? `https://${host}` : '')
     const webhookToken = process.env.VMQ_WEBHOOK_TOKEN || VMQ_KEY
+    // token 轮换的状态（api/pay/sms-notify 的规则）：没设新 token = legacy；设了且还认旧的 = transition
+    const tokenMode: 'primary' | 'transition' | 'legacy' = !process.env.VMQ_WEBHOOK_TOKEN
+      ? 'legacy'
+      : process.env.VMQ_WEBHOOK_ACCEPT_LEGACY === '1'
+        ? 'transition'
+        : 'primary'
     const webhookUrl = origin ? `${origin}/api/pay/sms-notify` : '/api/pay/sms-notify'
     // SmsForwarder 用 [xxx] 占位符：[content]=通知内容(含金额)、[from]=来源、[org_content]=原始内容
     const webhookBody = JSON.stringify(
@@ -35,11 +41,12 @@ export async function GET(request: NextRequest) {
     )
 
     // 最近一次收到转发的时间 + 收款统计
-    const [lastHeartS, pendingCount, paidCount, lastPaid] = await Promise.all([
+    const [lastHeartS, pendingCount, paidCount, lastPaid, legacyAtS] = await Promise.all([
       prisma.setting.findUnique({ where: { key: 'vmq_lastheart' } }),
       prisma.vmqOrder.count({ where: { state: 0 } }),
       prisma.vmqOrder.count({ where: { state: 1 } }),
       prisma.vmqOrder.findFirst({ where: { state: 1 }, orderBy: { payDate: 'desc' }, select: { payDate: true } }),
+      prisma.setting.findUnique({ where: { key: 'vmq_legacy_token_at' }, select: { value: true } }),
     ])
     const lastNotify = lastHeartS ? Number(lastHeartS.value) : 0
     // SmsForwarder 没有心跳，只有真实到账才会刷新时间戳，所以这里用 24 小时窗口表示「近期有转发进来」，
@@ -66,6 +73,8 @@ export async function GET(request: NextRequest) {
       webhookUrl,
       webhookToken,
       webhookBody,
+      tokenMode,
+      legacyTokenAt: legacyAtS ? Number(legacyAtS.value) || null : null,
       configured: !!VMQ_KEY,
       host,
       timeoutMin: VMQ_TIMEOUT_MIN,

@@ -74,11 +74,27 @@ async function main() {
   const stillUnpaid = await prisma.order.findUnique({ where: { orderNo }, select: { payStatus: true } })
   ok('被拒的通知不改订单', stillUnpaid?.payStatus === 'UNPAID')
 
-  // 正常到账：与后台生成的 SmsForwarder 配置同形（POST JSON，token 在 body）
+  // 线上真实原文的格式（SmsForwarder [content]：包名 / 标题 / 正文 / UID / 时间），lib/vmq-notice.ts 只认这种系统到账通知
+  const stamp = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 19).replace('T', ' ')
+  const aliNotice = (title: string, amount: string) =>
+    `com.eg.android.AlipayGphone
+${title}
+你已成功收款${amount}元（新顾客消费）
+UID：10297
+${stamp} ${title} com.eg.android.AlipayGphone`
+
+  // 冒充：聊天消息（标题是对方昵称）、没带来源 —— 都不能改订单
+  const fake1 = await call('POST', '/api/pay/sms-notify', { token: TOKEN, from: 'com.eg.android.AlipayGphone', content: aliNotice('张三', String(really)) })
+  const fake2 = await call('POST', '/api/pay/sms-notify', { token: TOKEN, content: aliNotice('已转入余额 查看今天有多少新老顾客>>', String(really)) })
+  const fake3 = await call('POST', '/api/pay/sms-notify', { token: TOKEN, from: 'com.eg.android.AlipayGphone', content: `支付宝 你已成功收款${really}元。` })
+  const afterFake = await prisma.order.findUnique({ where: { orderNo }, select: { payStatus: true } })
+  ok('聊天消息冒充 / 没带来源 / 不是系统通知格式：都不改订单', fake1.status === 200 && fake2.status === 200 && fake3.status === 200 && afterFake?.payStatus === 'UNPAID', JSON.stringify(afterFake))
+
+  // 正常到账：与后台生成的 SmsForwarder 配置同形（POST JSON，token 在 body）。标题用 10-18 出过事的那条推广语（含「收款助手」）
   const good = await call('POST', '/api/pay/sms-notify', {
     token: TOKEN,
     from: 'com.eg.android.AlipayGphone',
-    content: `支付宝 你已成功收款${really}元。`,
+    content: aliNotice('已转入余额 开启收款助手，首页就能查账>>', String(really)),
   })
   ok('到账通知被接受', good.status === 200, `${good.status} ${JSON.stringify(good.data)}`)
 
@@ -95,7 +111,7 @@ async function main() {
   const mine = (list.data?.data?.list || list.data?.data?.orders || []).find((x: any) => x.orderNo === orderNo)
   ok('我的订单里能看到卡密', !!mine && JSON.stringify(mine).includes(secret), JSON.stringify(mine)?.slice(0, 300))
 
-  const again = await call('POST', '/api/pay/sms-notify', { token: TOKEN, from: 'com.eg.android.AlipayGphone', content: `支付宝 你已成功收款${really}元。` })
+  const again = await call('POST', '/api/pay/sms-notify', { token: TOKEN, from: 'com.eg.android.AlipayGphone', content: aliNotice('已转入余额 开启收款助手，首页就能查账>>', String(really)) })
   const cards = await prisma.cardKey.count({ where: { productId: product.id, status: 'USED' } })
   ok('重复推送不会重复发卡', cards === 1 && again.status === 200, `${again.status} cards=${cards}`)
 

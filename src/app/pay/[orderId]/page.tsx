@@ -7,6 +7,7 @@ import { useStorefront } from '@/components/storefront-provider'
 import { ContactModal } from '@/components/contact-modal'
 import { safeNext } from '@/lib/pay-next'
 import { BUILTIN_QR_URL, isCashierQrUrl } from '@/lib/pay-qr-base'
+import { CHANNEL_APP, CHANNEL_LABEL, PAY_CHANNELS, channelOfType, parseChannel, type PayChannel } from '@/lib/pay-channel'
 
 interface PayInfo {
   orderId: string
@@ -18,8 +19,10 @@ interface PayInfo {
   createdAt: string
   timeoutMin: number
   payDate: string | null
-  /** 待支付时：当前生效的收款码地址；null = 收款码暂不可用；缺省（旧接口）= 内置码 */
+  /** 待支付时：当前生效的支付宝收款码地址；null = 暂不可用；缺省（旧接口）= 内置码 */
   qrUrl?: string | null
+  /** 待支付时：两个渠道各自的收款码（null = 这个渠道没启用 / 暂不可用）。旧接口没有这一项 */
+  qrUrls?: Partial<Record<PayChannel, string | null>>
   /** 载体单（docs/短信接码-设计.md §6.6 第 13 条）：付款成功后去哪、过期页用专用文案、组合单已用余额抵扣的部分（分） */
   next?: string
   carrier?: 'SMS_POOL' | 'TOPUP'
@@ -30,7 +33,20 @@ function centsText(c: number): string {
   return `¥${Math.floor(c / 100)}.${String(c % 100).padStart(2, '0')}`
 }
 
-// 收款码图片由状态接口给出（后台「收款监控 → 收款码」可上传多张并切换）；接口没给时用镜像自带的 public/vmq-alipay-qr.png
+// 收款码图片由状态接口给出（后台「收款监控 → 收款码」按渠道上传、切换）；接口没给时用镜像自带的 public/vmq-alipay-qr.png
+// 两个渠道共用同一个唯一金额：买家在这里随时切换支付宝 / 微信，付哪个都按金额自动确认（lib/pay-channel.ts）
+
+const ALIPAY_ICON = (cls: string) => (
+  <svg className={cls} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M22.97 17.96c-.83-.27-3.05-.96-5.85-1.97 1.65-2.85 2.39-5.97 1.66-6.6-.83-.71-3.05.45-4.91 1.55-.94-1.36-2.18-2.7-3.6-3.6.93-.5 1.95-.92 2.84-1.16.78-.22 1.56-.27 2.18-.07.43.14.66.39.66.74 0 .42-.39.96-1.31 1.43-.18.09-.27.31-.18.5.07.13.21.2.36.2.07 0 .14-.02.21-.05 1.13-.59 1.78-1.28 1.94-2.03.12-.61-.07-1.21-.55-1.66-.62-.55-1.64-.83-2.88-.55-1.13.27-2.43.84-3.62 1.55C9.07 5.51 8.04 5 7.04 4.71c-1.36-.4-2.61-.13-3.34.71-1.27 1.43-.5 4.21 1.91 6.84-.36.16-.7.34-1.01.52-1.86 1.09-2.98 2.41-3.13 3.75-.13 1.14.43 2.17 1.55 2.86 1.14.7 2.71.83 4.46.36 1.7-.45 3.55-1.45 5.21-2.81.16.18.32.36.48.52 2.43 2.43 5.55 3.74 7.13 2.16 1.45-1.45.21-3.81-2.07-6.21l3.94-1.59c.18-.07.29-.27.21-.45-.07-.21-.27-.32-.43-.25z" />
+  </svg>
+)
+const WECHAT_ICON = (cls: string) => (
+  <svg className={cls} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M8.69 3.5C4.44 3.5 1 6.36 1 9.9c0 2.03 1.13 3.84 2.9 5.01l-.73 2.2 2.56-1.28c.94.27 1.93.42 2.96.42.29 0 .57-.01.85-.04a5.6 5.6 0 0 1-.25-1.65c0-3.39 3.27-6.13 7.3-6.13.27 0 .53.01.8.04C16.69 5.6 13.02 3.5 8.69 3.5Zm-2.6 3.3a1.03 1.03 0 1 1 0 2.06 1.03 1.03 0 0 1 0-2.06Zm5.2 0a1.03 1.03 0 1 1 0 2.06 1.03 1.03 0 0 1 0-2.06Zm4.3 2.92c-3.5 0-6.34 2.36-6.34 5.27s2.84 5.27 6.34 5.27c.73 0 1.43-.1 2.08-.29l2.11 1.06-.6-1.82C20.85 18.25 22 16.66 22 14.99c0-2.91-2.9-5.27-6.41-5.27Zm-2.15 2.66a.86.86 0 1 1 0 1.72.86.86 0 0 1 0-1.72Zm4.3 0a.86.86 0 1 1 0 1.72.86.86 0 0 1 0-1.72Z" />
+  </svg>
+)
+const CHANNEL_COLOR: Record<PayChannel, string> = { alipay: '#1677FF', wechat: '#07C160' }
 
 /**
  * 状态接口在「这张收款单属于别的站」时只回 { redirectOrigin }（设计 4.5）。
@@ -58,8 +74,28 @@ export default function VmqCashierPage() {
   const [state, setState] = useState<'loading' | 'pending' | 'paid' | 'expired' | 'notfound'>('loading')
   const [remain, setRemain] = useState<number>(0)
   const [qrOk, setQrOk] = useState(true)
-  // 只认内置码或 uploads/payqr 下的地址；接口明确给了 null（配置读坏）就不显示任何收款码
-  const qrSrc = info?.qrUrl === undefined ? BUILTIN_QR_URL : isCashierQrUrl(info.qrUrl) ? info.qrUrl : null
+  // 每个渠道的收款码：只认内置码或 uploads/payqr 下的地址；null = 这个渠道不可用。旧接口只有 qrUrl（支付宝）
+  const urlOf = (c: PayChannel): string | null => {
+    if (!info) return null
+    if (info.qrUrls) {
+      const u = info.qrUrls[c]
+      return isCashierQrUrl(u) ? u : null
+    }
+    if (c !== 'alipay') return null
+    return info.qrUrl === undefined ? BUILTIN_QR_URL : isCashierQrUrl(info.qrUrl) ? info.qrUrl : null
+  }
+  const available = PAY_CHANNELS.filter((c) => urlOf(c) !== null)
+  // 买家手动选过就按他选的；否则按结算时选的（?ch=）或收款单上记的渠道；那个渠道不可用时退到第一个可用的
+  const [picked, setPicked] = useState<PayChannel | null>(null)
+  // 结算弹窗选的渠道走地址栏 ?ch=（不用 useSearchParams：免得整页要包 Suspense）
+  const [chParam, setChParam] = useState<PayChannel | null>(null)
+  useEffect(() => {
+    setChParam(parseChannel(new URLSearchParams(window.location.search).get('ch')))
+  }, [])
+  const preferred: PayChannel = picked ?? chParam ?? channelOfType(info?.type)
+  const channel: PayChannel = available.includes(preferred) ? preferred : available[0] ?? 'alipay'
+  const qrSrc = urlOf(channel)
+  const app = CHANNEL_APP[channel]
   const [contactOpen, setContactOpen] = useState(false)
   const timer = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -138,11 +174,9 @@ export default function VmqCashierPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
         <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 text-[#1677FF] font-semibold">
-            <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M22.97 17.96c-.83-.27-3.05-.96-5.85-1.97 1.65-2.85 2.39-5.97 1.66-6.6-.83-.71-3.05.45-4.91 1.55-.94-1.36-2.18-2.7-3.6-3.6.93-.5 1.95-.92 2.84-1.16.78-.22 1.56-.27 2.18-.07.43.14.66.39.66.74 0 .42-.39.96-1.31 1.43-.18.09-.27.31-.18.5.07.13.21.2.36.2.07 0 .14-.02.21-.05 1.13-.59 1.78-1.28 1.94-2.03.12-.61-.07-1.21-.55-1.66-.62-.55-1.64-.83-2.88-.55-1.13.27-2.43.84-3.62 1.55C9.07 5.51 8.04 5 7.04 4.71c-1.36-.4-2.61-.13-3.34.71-1.27 1.43-.5 4.21 1.91 6.84-.36.16-.7.34-1.01.52-1.86 1.09-2.98 2.41-3.13 3.75-.13 1.14.43 2.17 1.55 2.86 1.14.7 2.71.83 4.46.36 1.7-.45 3.55-1.45 5.21-2.81.16.18.32.36.48.52 2.43 2.43 5.55 3.74 7.13 2.16 1.45-1.45.21-3.81-2.07-6.21l3.94-1.59c.18-.07.29-.27.21-.45-.07-.21-.27-.32-.43-.25z" />
-            </svg>
-            支付宝扫码支付
+          <div className="inline-flex items-center gap-2 font-semibold" style={{ color: CHANNEL_COLOR[channel] }}>
+            {channel === 'wechat' ? WECHAT_ICON('w-6 h-6') : ALIPAY_ICON('w-6 h-6')}
+            {CHANNEL_LABEL[channel]}扫码支付
           </div>
         </div>
 
@@ -217,7 +251,7 @@ export default function VmqCashierPage() {
           <>
             {/* 金额（放大强调） */}
             <div className="text-center mb-4">
-              <div className="text-sm text-gray-500 mb-2">请用支付宝<strong className="text-red-600">精确支付以下金额</strong></div>
+              <div className="text-sm text-gray-500 mb-2">请用{app}<strong className="text-red-600">精确支付以下金额</strong></div>
               <div className="inline-flex items-baseline gap-1 rounded-2xl bg-red-50 border-2 border-red-200 px-8 py-4">
                 <span className="text-2xl font-bold text-red-500">¥</span>
                 <span className="text-6xl font-extrabold text-red-600 tracking-tight tabular-nums">{info.reallyPrice.toFixed(2)}</span>
@@ -227,7 +261,7 @@ export default function VmqCashierPage() {
               )}
               {(info.balancePart ?? 0) > 0 && (
                 <div className="text-xs text-gray-500 mt-1">
-                  已用余额抵扣 {centsText(info.balancePart ?? 0)}，本次支付宝支付 ¥{info.reallyPrice.toFixed(2)}
+                  已用余额抵扣 {centsText(info.balancePart ?? 0)}，本次扫码支付 ¥{info.reallyPrice.toFixed(2)}
                 </div>
               )}
             </div>
@@ -241,11 +275,36 @@ export default function VmqCashierPage() {
               </div>
             </div>
 
+            {/* 支付方式：两个渠道都开着才出现切换；金额不变，付哪个都自动确认 */}
+            {available.length > 1 && (
+              <div className="mb-4 grid grid-cols-2 gap-2" role="tablist" aria-label="支付方式">
+                {available.map((c) => {
+                  const on = c === channel
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => setPicked(c)}
+                      className={`flex items-center justify-center gap-2 rounded-xl border-2 py-2.5 text-sm font-medium transition-colors ${
+                        on ? 'text-white' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                      style={on ? { backgroundColor: CHANNEL_COLOR[c], borderColor: CHANNEL_COLOR[c] } : undefined}
+                    >
+                      {c === 'wechat' ? WECHAT_ICON('w-5 h-5') : ALIPAY_ICON('w-5 h-5')}
+                      {CHANNEL_LABEL[c]}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+
             <div className="flex justify-center mb-5">
               <div className="p-3 rounded-xl border border-gray-200">
                 {qrOk && qrSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={qrSrc} src={qrSrc} alt="支付宝收款码" onError={() => setQrOk(false)} className="w-56 h-56 object-contain" />
+                  <img key={qrSrc} src={qrSrc} alt={`${CHANNEL_LABEL[channel]}收款码`} onError={() => setQrOk(false)} className="w-56 h-56 object-contain" />
                 ) : (
                   <div className="w-56 h-56 flex items-center justify-center text-center text-xs text-gray-400 px-4">
                     收款码暂时无法显示
@@ -268,9 +327,10 @@ export default function VmqCashierPage() {
             </div>
 
             <ol className="text-xs text-gray-500 space-y-1 bg-gray-50 rounded-lg p-4">
-              <li>1. 打开支付宝「扫一扫」，扫描上方收款码</li>
+              <li>1. 打开{app}「扫一扫」，扫描上方收款码</li>
               <li>2. <span className="text-red-500 font-medium">务必</span>输入金额 <span className="font-semibold text-gray-900">¥{info.reallyPrice.toFixed(2)}</span>（与上方完全一致）后付款</li>
               <li>3. 付款成功本页面会自动跳转，无需手动操作</li>
+              {available.length > 1 && <li>想换一种方式付？点上面的「{CHANNEL_LABEL[channel === 'alipay' ? 'wechat' : 'alipay']}」，金额不变，只付一次即可</li>}
             </ol>
 
             <p className="mt-4 text-center text-[11px] text-gray-400">

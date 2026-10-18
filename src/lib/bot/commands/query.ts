@@ -567,7 +567,9 @@ function unmatchedReasonText(reason: string, repeatForward: boolean): string {
     case 'ambiguous_amount':
       return '一条通知里有多个金额，没有自动取用'
     case 'untrusted_source':
-      return '通知来源不是支付宝 App，没有自动取用'
+      return '通知来源不是支付宝 / 微信 App，没有自动取用'
+    case 'bad_template':
+      return '不是系统到账通知的格式（可能是聊天消息冒充），没有自动取用'
     default:
       return short(reason, 30) || '原因未知'
   }

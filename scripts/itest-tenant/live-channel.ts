@@ -219,7 +219,11 @@ async function payOrder(orderNo: string, token: string): Promise<{ really: strin
   const pay = await post('/api/pay/vmq/create', LULU_HOST, token, { orderNo })
   const really = String(pay.json?.data?.reallyPrice ?? '')
   if (!pay.json?.success || !really) return { really, ok: false }
-  const n = await post('/api/pay/sms-notify', MAIN_HOST, null, { token: VMQ_TOKEN, from: 'com.eg.android.AlipayGphone', content: `支付宝 你已成功收款${really}元。` })
+  const n = await post('/api/pay/sms-notify', MAIN_HOST, null, { token: VMQ_TOKEN, from: 'com.eg.android.AlipayGphone', content: `com.eg.android.AlipayGphone
+已转入余额 查看今天有多少新老顾客>>
+你已成功收款${really}元（新顾客消费）
+UID：10297
+${new Date().toISOString()}` })
   if (n.status !== 200) return { really, ok: false }
   for (let i = 0; i < 30; i++) {
     const o = await prisma.order.findUnique({ where: { orderNo }, select: { payStatus: true, deliveryStatus: true, settleState: true } })
@@ -531,7 +535,11 @@ async function payOnly(orderNo: string, token: string): Promise<boolean> {
   const pay = await post('/api/pay/vmq/create', LULU_HOST, token, { orderNo })
   const really = String(pay.json?.data?.reallyPrice ?? '')
   if (!pay.json?.success || !really) return false
-  const n = await post('/api/pay/sms-notify', MAIN_HOST, null, { token: VMQ_TOKEN, from: 'com.eg.android.AlipayGphone', content: `支付宝 你已成功收款${really}元。` })
+  const n = await post('/api/pay/sms-notify', MAIN_HOST, null, { token: VMQ_TOKEN, from: 'com.eg.android.AlipayGphone', content: `com.eg.android.AlipayGphone
+已转入余额 查看今天有多少新老顾客>>
+你已成功收款${really}元（新顾客消费）
+UID：10297
+${new Date().toISOString()}` })
   if (n.status !== 200) return false
   for (let i = 0; i < 30; i++) {
     const o = await prisma.order.findUnique({ where: { orderNo }, select: { payStatus: true, settleState: true } })

@@ -23,9 +23,13 @@ import { smsCashierGate } from '@/lib/jiema/pay-gate'
 // 付款期限与「过期未付单自动取消」同一个常量（lib/order/abandon.ts）
 import { ORDER_PAY_WINDOW_MIN } from '@/lib/order/abandon'
 import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
+import { currentPayQrUrl } from '@/lib/pay-qr'
+import { VMQ_TYPE_ALIPAY, VMQ_TYPE_WECHAT } from '@/lib/pay-channel'
 
 const schema = z.object({
   orderNo: z.string().min(1, '缺少订单号'),
+  // 结算弹窗里选的支付方式（只决定收银台先显示哪张码；到账按金额匹配、不分渠道）。不带 = 支付宝
+  channel: z.enum(['alipay', 'wechat']).optional(),
 })
 
 /** 从建单（或管理员最后一次改这张单）到「新发起收款」的最长间隔，默认 24 小时；配错时至少 60 分钟 */
@@ -163,11 +167,14 @@ export async function POST(request: NextRequest) {
     // （0 元仍交给 createOrGetVmqOrder 报「金额必须大于 0」，与原来同一句）
     const payable = ((await payableCents(prisma, order.id)) ?? 0) / 100
 
+    // 选了微信但站长还没启用微信收款（或刚停用）→ 按支付宝，收银台照常可付
+    const wechat = parsed.data.channel === 'wechat' && !!(await currentPayQrUrl('wechat'))
     const vmq = await createOrGetVmqOrder({
       bizType: 'order',
       bizId: order.id,
       outTradeNo: order.orderNo,
       price: payable,
+      type: wechat ? VMQ_TYPE_WECHAT : VMQ_TYPE_ALIPAY,
     })
 
     // 【事后复核】预检和分配之间不是原子的，并发的一批请求会一起通过预检。分配完再数一次，超了就作废自己这张：
@@ -180,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
 
     return success({
-      payUrl: `/pay/${vmq.orderId}`,
+      payUrl: `/pay/${vmq.orderId}${wechat ? '?ch=wechat' : ''}`,
       orderId: vmq.orderId,
       reallyPrice: vmq.reallyPrice,
       goodsAmount: Number(order.amount),

@@ -67,6 +67,8 @@ services:
       - VMQ_KEY=${VMQ_KEY}
       - VMQ_PAY_TIMEOUT=${VMQ_PAY_TIMEOUT}
       - VMQ_WEBHOOK_TOKEN=${VMQ_WEBHOOK_TOKEN}
+      # 收款回调 token 轮换的过渡开关（api/pay/sms-notify）：=1 时旧的 VMQ_KEY 也还认；两台手机都换成新 token 后删掉。裸变量名：改 .env.production 后 up -d 即生效
+      - VMQ_WEBHOOK_ACCEPT_LEGACY
       # 卡密加密密钥（自动发货；务必设置且勿丢失，丢失则已存卡密无法解密）
       - CARDKEY_SECRET=${CARDKEY_SECRET}
       # 短信接码 hero-sms

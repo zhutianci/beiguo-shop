@@ -111,7 +111,11 @@ console.log('\n[第 117 条] 迟到付款「数据验证唯一」（六个条件
   ok(!decideUniqueClosed(entry, [{ ...C, order: { ...closedCarrier, deliveryStatus: 'PENDING' } }], ctx).ok, '① C 的订单没关（UNPAID 未取消）：不自动')
   ok(!decideUniqueClosed(entry, [{ ...C, order: { ...closedCarrier, payStatus: 'PAID', deliveryStatus: 'DELIVERED' } }], ctx).ok, '① C 的订单已付款：不自动')
   ok(!decideUniqueClosed(entry, [{ ...C, bizType: 'invoice', order: null }], ctx).ok, '① C 是发票税费收款单：不自动')
-  ok(!decideUniqueClosed(entry, [{ ...C, type: 1 }], ctx).ok, '① C 的渠道 type 不同：不自动')
+  // 2026-10-18 起两个渠道共用一个金额池（lib/pay-channel.ts）：支付宝关单的钱从微信付进来，照样是这张单的钱
+  ok(decideUniqueClosed({ ...entry, type: 1 }, [C], ctx).ok, '① 到账渠道（微信）与 C 的渠道（支付宝）不同：照样认（共用金额池）')
+  const wxTwin: VmqRowLite = { ...C, id: 11, orderId: 'VW', type: 1, state: 1, createdAt: new Date(created.getTime() + 2 * MIN) }
+  const twin = decideUniqueClosed(entry, [C, wxTwin], ctx)
+  ok(!twin.ok && twin.why === 'WINDOW_NOT_UNIQUE', '③ 窗口内还有一张同额的微信收款单：不唯一，不自动（不分渠道一起算）')
   ok(!decideUniqueClosed(entry, [{ ...C, reallyCents: 1204 }], ctx).ok, '① C 的金额不同：不自动')
   // ② 冷却
   const offCd = decideUniqueClosed({ ...entry, at: created.getTime() + 5 * MIN }, [C], { timeoutMin: T, cooldownMin: 0 })
@@ -217,7 +221,7 @@ console.log('\n[《余额与充值规则》正文（§8.4）]')
   const all = WALLET_TERMS.join('\n')
   ok(WALLET_TERMS.length === 5, '五条')
   ok(/^\d{4}-\d{2}-\d{2}$/.test(WALLET_TERMS_VERSION), `版本号是日期 ${WALLET_TERMS_VERSION}`)
-  ok(all.includes('余额充值与短信接码订单（不论用余额还是支付宝付款）暂不支持自助开票，可联系客服开票处理'), '开票一句覆盖全部接码单（不是只限「充值与余额消费」）')
+  ok(all.includes('余额充值与短信接码订单（不论用余额还是扫码支付）暂不支持自助开票，可联系客服开票处理'), '开票一句覆盖全部接码单（不是只限「充值与余额消费」）')
   ok(!all.includes('充值与用余额支付的订单'), '没有只覆盖一部分的说法')
   ok(all.includes('以充值页为准（目前 ¥1–1,000，整数元）') && all.includes('不设充值余额总额上限'), '上下限写「以充值页为准」、不设总额上限')
   ok(!all.includes('原路退回'), '不承诺「原路退回」（Q9）')

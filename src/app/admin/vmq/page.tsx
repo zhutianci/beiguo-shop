@@ -15,19 +15,27 @@ interface RecentOrder {
   price: number
   reallyPrice: number
   state: number
+  /** 1 微信 / 2 支付宝 */
+  type?: number
   createdAt: string
   payDate: string | null
 }
 
-// 与 src/lib/vmq.ts 的 AmountReject 保持一致（前端不 import 服务端模块，这里单独维护一份）
-type AmountReject = 'empty' | 'broadcast_rejected' | 'no_strong_signal' | 'ambiguous' | 'untrusted_source'
+// 与 src/lib/vmq-notice.ts 的 NoticeReject 保持一致（前端不 import 服务端模块，这里单独维护一份）
+type AmountReject = 'empty' | 'broadcast_rejected' | 'no_strong_signal' | 'ambiguous' | 'untrusted_source' | 'bad_template'
 
 const AMOUNT_REJECT_LABELS: Record<AmountReject, string> = {
   empty: '空内容',
   broadcast_rejected: '播报类通知（上一笔金额），已按规则拒绝',
-  no_strong_signal: '未出现「你已成功收款X元」强信号，未取用',
+  no_strong_signal: '不是到账通知（没有「你已成功收款X元」/「微信支付收款X元」），未取用',
   ambiguous: '同一条通知出现多个不同的到账金额，未自动取用（请核实后补单）',
-  untrusted_source: '通知来源不是支付宝 App，未取用',
+  untrusted_source: '通知来源不是支付宝 / 微信 App（或没带 [from]），未取用',
+  bad_template: '金额不在系统到账通知的固定位置上（可能是聊天消息冒充），未自动取用',
+}
+
+/** 收款单 / 通知的渠道（1 微信、2 支付宝、0 来源不明） */
+function typeLabel(t: number | undefined | null): string {
+  return t === 1 ? '微信' : t === 2 ? '支付宝' : '来源不明'
 }
 
 // 与 src/lib/vmq.ts 的 UnmatchedReason / UnmatchedEntry 保持一致
@@ -39,6 +47,7 @@ type UnmatchedReason =
   | 'duplicate_payment'
   | 'ambiguous_amount'
   | 'untrusted_source'
+  | 'bad_template'
 
 interface UnmatchedItem {
   key: string
@@ -109,8 +118,13 @@ function unmatchedText(u: UnmatchedItem): { title: string; hint: string } {
       }
     case 'untrusted_source':
       return {
-        title: `通知带着到账金额，但来源（${u.from || '未知'}）不是支付宝 App，未自动取用`,
-        hint: '若支付宝账单确有这笔，请补单；若手机端刚换过 SmsForwarder 版本 / 模板，每笔到账都会落到这里，请尽快核对 [from]。',
+        title: `通知带着到账金额，但来源（${u.from || '没带 [from]'}）不是支付宝 / 微信 App，未自动取用`,
+        hint: '若支付宝 / 微信账单确有这笔，请补单；若手机端刚换过 SmsForwarder 版本 / 模板，每笔到账都会落到这里，请尽快核对请求体里的 "from": "[from]"。',
+      }
+    case 'bad_template':
+      return {
+        title: `${typeLabel(u.type)}通知里有金额 ¥${u.price}，但不是系统到账通知的格式 —— 可能是有人发聊天消息冒充到账`,
+        hint: '先打开支付宝 / 微信的账单核对：确实收到了才补单；没收到就是伪造，标记已处理即可（建议在手机上关闭陌生人消息）。若是真到账却屡屡落到这里，说明手机端模板变了，请把原文发给开发核对。',
       }
     default:
       return {
@@ -141,6 +155,10 @@ interface VmqConfig {
   webhookUrl: string
   webhookToken: string
   webhookBody: string
+  /** primary = 已设强 token；transition = 新旧都认（过渡期）；legacy = 没设 VMQ_WEBHOOK_TOKEN，只有旧的 VMQ_KEY */
+  tokenMode?: 'primary' | 'transition' | 'legacy'
+  /** 手机端最近一次用旧 token 的时间（毫秒） */
+  legacyTokenAt?: number | null
   diag: {
     lastPush: { price: string; type: number; cents: number; at: number } | null
     lastUnmatched: {
@@ -369,7 +387,8 @@ export default function AdminVmqPage() {
                 >
                   SmsForwarder
                 </a>
-                ，添加「应用通知」监听规则（来源选支付宝），发送通道选 <b>Webhook</b>，按下面填写。金额由服务端解析并按「唯一金额」匹配订单。
+                ，添加<b>两条</b>「应用通知」转发规则：一条来源选<b>支付宝</b>、一条来源选<b>微信</b>，发送通道都选同一个 <b>Webhook</b>，按下面填写（两条规则用同一份请求体）。
+                金额由服务端解析，支付宝和微信共用一个「唯一金额」池，按金额匹配订单。
               </p>
 
               <div>
@@ -396,7 +415,15 @@ export default function AdminVmqPage() {
               </div>
 
               <div>
-                <div className="text-gray-500 mb-1">校验 token（= VMQ_WEBHOOK_TOKEN，留空则复用 VMQ_KEY）</div>
+                <div className="text-gray-500 mb-1">
+                  校验 token（= VMQ_WEBHOOK_TOKEN）
+                  {cfg.tokenMode === 'legacy' && <b className="ml-1 text-red-600">服务器还没设 VMQ_WEBHOOK_TOKEN，正在用旧的 VMQ_KEY —— 请尽快换成强 token</b>}
+                  {cfg.tokenMode === 'transition' && (
+                    <b className="ml-1 text-amber-600">
+                      过渡期：旧 token 仍可用{cfg.legacyTokenAt ? `（最近一次被手机使用：${fmt(new Date(cfg.legacyTokenAt).toISOString())}）` : '（还没被用过）'}，两台手机都换成下面这个之后关掉
+                    </b>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 break-all rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 font-mono">
                     {cfg.webhookToken || '（未配置）'}
@@ -439,19 +466,22 @@ export default function AdminVmqPage() {
 
               <div className="rounded-lg bg-blue-50 border border-blue-100 p-3 text-xs text-blue-800 space-y-1">
                 <div className="font-medium">配置要点</div>
-                <div>· 给 SmsForwarder 开启「通知使用权」，并允许读取支付宝通知。</div>
-                <div>· 支付宝里开「支付助手 → 接收付款消息提醒」，保证到账消息进系统通知栏。</div>
-                <div>· 把 支付宝 + SmsForwarder 加入后台白名单、关省电优化，避免通知被系统杀掉。</div>
-                <div>· 配好后先用 App 的「测试」发一条，下方「最近一次通知转发」应出现记录。</div>
-                <div>· 收款码在下方「收款码（支付宝）」里上传、切换；没上传过时用镜像自带的 <code>public/vmq-alipay-qr.png</code>。</div>
+                <div>· 给 SmsForwarder 开启「通知使用权」，并允许读取支付宝、微信通知。</div>
+                <div>· 支付宝里开「支付助手 → 接收付款消息提醒」；微信里关注「微信收款助手」并打开它的消息通知。保证到账消息进系统通知栏。</div>
+                <div>· 把 支付宝 + 微信 + SmsForwarder 加入后台白名单、关省电优化，避免通知被系统杀掉。</div>
+                <div>· 请求体必须原样用上面的模板：<code>content</code> 填 <code>[content]</code>（开头是包名、带到账时间）、<code>from</code> 填 <code>[from]</code>。服务端只认来源是支付宝 / 微信 App、且格式是系统到账通知的金额。</div>
+                <div>· 防伪造：在支付宝、微信里关闭陌生人消息（或聊天消息的通知预览）。有人发聊天消息冒充「已成功收款」时不会自动确认，会进「待人工核实」并推送。</div>
+                <div>· 配好后先各付一笔小额测试，下方「最近一次通知转发」应出现记录，渠道显示正确。</div>
+                <div>· 收款码在下方按渠道上传、切换；支付宝没上传过时用镜像自带的 <code>public/vmq-alipay-qr.png</code>；微信要上传并「设为当前」后收银台才出现微信支付。</div>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* 收款码：上传多张、一键切换（接口 /api/admin/vmq/qr） */}
-      <PayQrCard />
+      {/* 收款码：支付宝 / 微信各一组，上传多张、一键切换（接口 /api/admin/vmq/qr?channel=） */}
+      <PayQrCard channel="alipay" />
+      <PayQrCard channel="wechat" />
 
       {/* 金额识别规则 */}
       <Card>
@@ -516,7 +546,7 @@ export default function AdminVmqPage() {
                 )}
                 <span className="text-gray-500">
                   {' '}
-                  （{diag.lastWebhook.type === 1 ? '微信' : '支付宝'}）·{' '}
+                  （{typeLabel(diag.lastWebhook.type)}）·{' '}
                   {fmt(new Date(diag.lastWebhook.at).toISOString())}
                 </span>
                 <div
@@ -536,7 +566,7 @@ export default function AdminVmqPage() {
             <div className="text-gray-500 mb-1">最近一次识别到的到账金额</div>
             {diag?.lastPush ? (
               <div className="text-gray-900">
-                ¥{diag.lastPush.price}（{diag.lastPush.type === 1 ? '微信' : '支付宝'}）·{' '}
+                ¥{diag.lastPush.price}（{typeLabel(diag.lastPush.type)}）·{' '}
                 {fmt(new Date(diag.lastPush.at).toISOString())}
               </div>
             ) : (
@@ -577,7 +607,7 @@ export default function AdminVmqPage() {
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 text-amber-900">
                           <div>
-                            收到 <b>¥{u.price}</b>（{u.type === 1 ? '微信' : '支付宝'}）· {fmt(new Date(u.at).toISOString())}
+                            收到 <b>¥{u.price}</b>（{typeLabel(u.type)}）· {fmt(new Date(u.at).toISOString())}
                           </div>
                           <div className="mt-0.5 break-all">{t.title}</div>
                           <div className="text-xs text-amber-700 mt-1">{t.hint}</div>
@@ -639,6 +669,7 @@ export default function AdminVmqPage() {
               <thead>
                 <tr className="border-b text-left text-gray-500 text-xs">
                   <th className="pb-2 pr-3">类型</th>
+                  <th className="pb-2 pr-3">渠道</th>
                   <th className="pb-2 pr-3">业务单号</th>
                   <th className="pb-2 pr-3 text-right">应付</th>
                   <th className="pb-2 pr-3 text-right">实付(唯一)</th>
@@ -651,6 +682,8 @@ export default function AdminVmqPage() {
                 {(cfg?.recent || []).map((o) => (
                   <tr key={o.id} className="border-b hover:bg-gray-50/60">
                     <td className="py-2 pr-3 text-xs">{o.bizType === 'invoice' ? '发票税费' : '商品订单'}</td>
+                    {/* 待支付 / 过期的是买家选的渠道；已支付的是实际到账的渠道 */}
+                    <td className="py-2 pr-3 text-xs">{typeLabel(o.type)}</td>
                     <td className="py-2 pr-3 font-mono text-xs">{o.outTradeNo}</td>
                     <td className="py-2 pr-3 text-right text-gray-500">¥{o.price.toFixed(2)}</td>
                     <td className="py-2 pr-3 text-right font-semibold">¥{o.reallyPrice.toFixed(2)}</td>

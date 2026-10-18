@@ -28,6 +28,7 @@
  */
 import { Prisma } from '@prisma/client'
 import { prisma } from '../db'
+import { QR_PAY_METHODS } from '../pay-channel'
 import { notify } from '../notify'
 import { centsOf, fmtCents } from '../wallet/buckets'
 import { acquireLock, releaseLock, renewLock } from '../marketing/lock'
@@ -266,7 +267,7 @@ async function collectI(tx: Db, s: { now: Date; since: Date; full: boolean }): P
     const msgs = await tx.smsMessage.groupBy({ by: ['smsOrderId'], where: { smsOrderId: { in: soIds } }, _count: { _all: true } })
     const holds = await tx.balanceHold.findMany({ where: { orderId: { in: oids } }, select: { orderId: true, state: true, topupCents: true, cashCents: true } })
     const logs = await tx.balanceLog.findMany({ where: { bizKey: { in: oids.map((id) => `refund:${id}`) } }, select: { bizKey: true, delta: true, topupDeltaCents: true, type: true } })
-    const pays = await tx.payment.findMany({ where: { orderId: { in: oids }, payMethod: 'ALIPAY', status: 1 }, select: { orderId: true, tradeNo: true } })
+    const pays = await tx.payment.findMany({ where: { orderId: { in: oids }, payMethod: { in: [...QR_PAY_METHODS] }, status: 1 }, select: { orderId: true, tradeNo: true } })
     const tradeNos = pays.map((p) => p.tradeNo).filter((t): t is string => !!t)
     const vmqs = tradeNos.length ? await tx.vmqOrder.findMany({ where: { orderId: { in: tradeNos } }, select: { orderId: true, reallyPrice: true, state: true, bizId: true, bizType: true } }) : []
     const om = new Map(ords.map((o) => [o.id, o]))

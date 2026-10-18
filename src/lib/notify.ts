@@ -754,9 +754,10 @@ const UNMATCHED_TEXT: Record<string, string> = {
   ambiguous_match: '同一金额同时命中多张待支付收款单，未自动履约',
   duplicate_payment: '钱记到了这张收款单上，但该单此前已付款/已退款，这笔钱没有产生任何履约',
   ambiguous_amount: '同一条通知里出现多个不同的到账金额，未自动取用',
-  untrusted_source: '通知带着「成功收款」金额，但来源不是支付宝 App，未自动取用（若手机端刚换过版本/模板，每笔到账都会这样，请尽快核对）',
+  untrusted_source: '通知带着到账金额，但来源不是支付宝 / 微信 App（或没带 [from]），未自动取用（若手机端刚换过版本/模板，每笔到账都会这样，请尽快核对）',
+  bad_template: '通知里有金额，但不是系统到账通知的格式（可能是有人发聊天消息冒充到账），未自动取用：先核对账单是否真收到',
   maybe_duplicate:
-    '10 分钟内同金额刚到过一笔、这次没有待支付单可对：可能是买家扫同一个码付了两次（需退款），也可能是通知被重复转发（核对支付宝账单是否真有两笔）',
+    '10 分钟内同金额刚到过一笔、这次没有待支付单可对：可能是买家扫同一个码付了两次（需退款），也可能是通知被重复转发（核对支付宝 / 微信账单是否真有两笔）',
 }
 
 /**
@@ -803,7 +804,7 @@ export function notifyVmqUnmatched(p: {
 }): void {
   const dup = p.reason === 'duplicate_payment'
   const rows: NotifyRow[] = [
-    { label: '到账金额', value: `¥${p.price}（${p.type === 1 ? '微信' : '支付宝'}）`, color: 'warning' },
+    { label: '到账金额', value: `¥${p.price}（${p.type === 1 ? '微信' : p.type === 2 ? '支付宝' : '来源不明'}）`, color: 'warning' },
     { label: '时间', value: fmtTime(new Date(p.at)) },
     { label: '情况', value: UNMATCHED_TEXT[p.reason] || p.reason, color: 'warning' },
   ]
@@ -815,8 +816,8 @@ export function notifyVmqUnmatched(p: {
   rows.push({
     label: '处理',
     value: dup
-      ? '核实支付宝账单后联系买家退款，不要点「补单」；处理完在「收款监控」点「标记已处理」'
-      : '核实支付宝账单后在「收款监控」补单或退款，再点「标记已处理」',
+      ? '核实支付宝 / 微信账单后联系买家退款，不要点「补单」；处理完在「收款监控」点「标记已处理」'
+      : '核实支付宝 / 微信账单后在「收款监控」补单或退款，再点「标记已处理」',
   })
   notify(dup ? 'payment.duplicate' : 'vmq.unmatched', rows, {
     link: '/admin/vmq',
