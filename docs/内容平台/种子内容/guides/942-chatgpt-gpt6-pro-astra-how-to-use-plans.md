@@ -4,7 +4,7 @@ slug: chatgpt-gpt6-pro-astra-how-to-use-plans
 products: [chatgpt]
 models: [gpt]
 accountTier: PRO
-excerpt: GPT-6 Pro（由 GPT-6 Astra 驱动）怎么用、哪些套餐有？按 OpenAI 帮助中心核对：聊天里 Pro 档只给 Pro 100、Pro 200、Business 和 Enterprise；Plus 在 Work 和 Codex 里含 Astra。讲怎么选到、用量上限和官方列出的 Pro 价格。
+excerpt: GPT-6 Pro（Astra）怎么用、哪些套餐有？按 OpenAI 帮助中心核对：聊天里 Pro 档给 Pro 100、Pro 200、Business 和 Enterprise；Plus 在 Work 和 Codex 里含 Astra。讲怎么选到、用量上限和官方 Pro 价格。
 checkedOn: 2026-10-19
 sources:
   - https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt
