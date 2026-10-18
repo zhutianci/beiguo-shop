@@ -94,16 +94,40 @@ sysc 的代码对买家是**休眠**的：只有库里存在 `redeem_provider='s
 | 3 | `recharge_method` 1/2 的语义（我们要的 GPT5x 是 null，暂不影响） |
 | 4 | 已订阅的号强制充值后，对方那边的实际结果（覆盖成功？还是报错？） |
 
-## 七、本次部署实录
+## 七、本次部署实录（2026-10-19 凌晨）
 
 | 项 | 记录 |
 |---|---|
-| 回滚标签 | `rollback-pre-sysc`（镜像 `bb621ebfe8f9`） |
-| 构建前磁盘 | 94%，可用 2.5G（`build-with-swap.sh` 的下限是 2048MB，刚够） |
-| 清理 | 删了 28 个 3 周以上的回滚标签 —— **一点空间都没释放**（层被保留的镜像共用）；`docker image prune` 也是 0B |
-| 构建 | 待填 |
-| 切换 | 待填 |
-| 冒烟 | 待填 |
+| 回滚标签 | `rollback-pre-sysc` = 镜像 `bb621ebfe8f9` |
+| 腾磁盘 | 构建前 94% / 可用 2.5G。**删 28 个 3 周以上的回滚标签释放 0B**（层被保留的镜像共用），`docker image prune` 也是 0B；真正占地方的是 **docker 构建缓存**，`docker builder prune -f` 放出 **12G**（94% → 48%）。耗时约 25 分钟，期间 `docker inspect` 都超时过一次 |
+| 拉代码 | `aafb920` → `99c5f0d` |
+| 构建 | wrapper（停 jishi → build-with-swap → 自动拉回 jishi）01:18:41 → 02:40:33，**82 分钟**（编译阶段占绝大部分，可用内存压到 142MB、全靠 swap）。新镜像 `3ac21fc711a5`；swappiness 已还原 0、无残留 state；jishi 三容器 02:40:41 自动恢复 |
+| 切换 | 02:42:47 确认 0 笔待支付后 `up -d --no-deps app`，app `✓ Ready in 403ms`，nginx→app 200（0.6s） |
+| 冒烟 | `/redeem/sysc` 200；页面上 `applelll` / `chuanwen` / `兑换中心` / `GPT5x` 全为 0，「贝果科技」在；`/redeem/sysa|sysb|sysc` 都 200、`/redeem/sysz` 404（注册表生效）；`check` 接口拿假卡密回的是我们自己的文案而不是 500；后台 providers 接口 401（需鉴权，正常）。外网经 Cloudflare 复验：首页 / `/redeem/sysc` / `/products` 都 200，无上游泄漏 |
 
-> **磁盘是这台机器现在最紧的那根弦。** 删旧标签已经不管用了（层共用），
-> 下次构建前要么扩盘，要么找别的腾空间办法。
+### 7.1 踩到两个坑，都已修进脚本
+
+**坑一：`curl 127.0.0.1:3000` 必然 HTTP 000。** app 容器是 `ports=[3000/tcp]`——
+**暴露但没发布到宿主**，只有 docker 网络内能访问。切换后要验活请走
+`docker exec beiguo-nginx curl http://app:3000/` 或本机 `curl -H "Host: bigolab.com" http://127.0.0.1/`。
+第一次差点误判成「应用没起来」。
+
+**坑二：停 jishi 的构建，`build-with-swap.sh` 的退出码本来是不可读的。**
+它的存活检查里 jishi 的 cloudflared 是**自动发现**的（不在 `ALIVE_CONTAINERS` 里，光改那个挡不住），
+于是停了 jishi 必然命中 `DEAD` 分支 → `exit 4`，而那个 `exit 4` 发生在
+「构建退出码」和「镜像换没换」两个检查**之前**，把它们完全掩掉。
+历史部署实录里把这个 4 记成「预期的」，等于永久屏蔽了这个检查 ——
+真有 `beiguo-app` / `beiguo-db` 被 OOM 杀掉，看到的也是同一个 4。
+
+已修两处：
+
+- `build-with-swap.sh`：自动发现改成 `EXTRA="${EXTRA_CONTAINERS-$(…)}"`，
+  显式传空串才跳过（没传的照旧，老用法行为不变）；`DEAD` 分支现在把
+  `build_code=` 与 `image_changed=` 一起打进日志和 `RESULT` 行
+- `build-stop-jishi.sh`：传 `ALIVE_CONTAINERS="beiguo 四件套" EXTRA_CONTAINERS=""`
+
+下次停 jishi 构建应当拿到 `build_exit=0`；再出现 4 就是**真的**有站点容器挂了。
+
+> **磁盘的结论**：别再浪费时间删回滚标签（层共用，删了不释放）。
+> 紧张时直接 `docker builder prune -f`，但它很慢（25 分钟）且期间机器很卡，
+> 要留足时间、别和构建抢。

@@ -63,9 +63,12 @@ log "可用内存：$(free -m | awk 'NR==2{print $7}')MB"
 # 真有 beiguo-app 或 beiguo-db 在构建期被 OOM 杀掉，我们看到的也是同一个 4，分不出来。
 # 把 jishi-app 从清单里去掉，退出码就重新有意义了：0 是真成功，4 是真的有站点容器挂了。
 # ---------------------------------------------------------------------------------
-log "=== build-with-swap 开始（存活清单已去掉 jishi-app，退出码恢复可读）==="
+log "=== build-with-swap 开始（存活清单只留 beiguo 四件套，退出码恢复可读）==="
 cd "$SHOP" || { log "进不去 $SHOP"; exit 9; }
+# EXTRA_CONTAINERS="" 是必须的：build-with-swap.sh 会**自动发现** jishi 的 cloudflared，
+# 光改 ALIVE_CONTAINERS 挡不住它（2026-10-19 第一次跑就是这么拿到一个假的 exit 4）。
 ALIVE_CONTAINERS="beiguo-app beiguo-db beiguo-nginx beiguo-cloudflared" \
+  EXTRA_CONTAINERS="" \
   sh scripts/ops/build-with-swap.sh >>"$LOG" 2>&1
 rc=$?
 log "build_exit=$rc  （0=成功；4=真的有站点容器不在运行，要立刻查）"

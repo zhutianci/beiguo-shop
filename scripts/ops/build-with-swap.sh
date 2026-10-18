@@ -186,7 +186,11 @@ restore
 # ---------------------------------------------------------------------------------
 DEAD=""
 if [ "${SKIP_ALIVE_CHECK:-}" != "1" ]; then
-  EXTRA=$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep -i 'jishi' | grep -i 'cloudflared' | tr '\n' ' ')
+  # jishi 的 cloudflared 是自动发现的（它不在 ALIVE_CONTAINERS 里，名字也不固定）。
+  # 【可以显式置空】`EXTRA_CONTAINERS=""` 时这里就不发现 —— 给「故意停掉 jishi 腾内存」
+  # 的构建用（scripts/ops/build-stop-jishi.sh）。用 ${VAR-默认} 而不是 ${VAR:-默认}：
+  # 只有显式设成空串才跳过，没设的照旧自动发现，老用法行为一个字不变。
+  EXTRA="${EXTRA_CONTAINERS-$(docker ps -a --format '{{.Names}}' 2>/dev/null | grep -i 'jishi' | grep -i 'cloudflared' | tr '\n' ' ')}"
   for c in $ALIVE_CONTAINERS $EXTRA; do
     st=$(docker inspect -f '{{.State.Running}} {{.State.StartedAt}}' "$c" 2>/dev/null || echo "missing")
     log "容器 $c：$st"
@@ -199,7 +203,13 @@ log "构建后镜像 $IMAGE = ${AFTER:-（无）}"
 
 if [ -n "$DEAD" ]; then
   log "❌ 这些容器不在运行：$DEAD —— 立刻人工查看（dmesg | grep -i oom）"
-  echo "RESULT: FAIL containers-down:$DEAD"
+  # 【构建本身的结论必须一起带出来】2026-10-19 踩到：停了 jishi 的构建会让这个分支
+  # 必然命中，于是 exit 4 发生在下面两个检查**之前** —— 「构建退出码」和
+  # 「镜像到底换没换」被完全掩掉，站长看到的只有一个 4，还得自己手工去比镜像 ID。
+  # 现在把两项结论打进日志和 RESULT 行，exit 码保持 4（容器不在是更紧急的事）。
+  if [ -n "$AFTER" ] && [ "$AFTER" != "$BEFORE" ]; then CHANGED=yes; else CHANGED=no; fi
+  log "（同时）构建退出码=$BUILD_CODE；镜像换了吗=$CHANGED（before=$BEFORE after=${AFTER:-（无）}）"
+  echo "RESULT: FAIL containers-down:$DEAD build_code=$BUILD_CODE image_changed=$CHANGED log=$LOG_FILE"
   exit 4
 fi
 if [ "$BUILD_CODE" != "0" ]; then
