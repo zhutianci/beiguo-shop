@@ -432,7 +432,7 @@ async function main() {
     {
       // 线上原文的样子：末尾是 SmsForwarder 记下的通知时间，手机重发时一字不变
       const stamped = (amount: string, tag: string) =>
-        `com.eg.android.AlipayGphone\n已转入余额\n你已成功收款${amount}元（新顾客消费）\nUID：${TAG}${tag}\n2026-10-12 09:36:56 已转入余额 com.eg.android.AlipayGphone`
+        `com.eg.android.AlipayGphone\n已转入余额\n你已成功收款${amount}元（新顾客消费）\nUID：10297\n2026-10-12 09:36:56 ${TAG}${tag} 已转入余额 com.eg.android.AlipayGphone`
       const unmatchedOf = async (price: string) => (await vmq.listUnmatched(60)).filter((u) => u.price === price)
 
       // ① 首次到账匹配成功；之后同一条通知再来（哪怕同金额又有了新的待支付单）一律忽略
@@ -484,10 +484,11 @@ async function main() {
     console.log('\n【微信支付：两个渠道共用金额池、按金额匹配、按实际渠道记流水】（2026-10-18）')
     {
       const stamp = () => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 19).replace('T', ' ')
-      const aliRaw = (title: string, amount: string, tag: string) =>
-        `com.eg.android.AlipayGphone\n${title}\n你已成功收款${amount}元（新顾客消费）\nUID：${TAG}${tag}\n${stamp()} ${title} com.eg.android.AlipayGphone`
+      // 线上原文的样子（SmsForwarder [content]：包名 / 正文 / 标题 / UID / 时间，路由再拼 org、from）；TAG 放在时间那行，每次运行原文都不同
+      const aliRaw = (text: string, amount: string, tag: string) =>
+        `com.eg.android.AlipayGphone\n${text}\n你已成功收款${amount}元（新顾客消费）\nUID：10297\n${stamp()} ${TAG}${tag} ${text} com.eg.android.AlipayGphone`
       const wxRaw = (title: string, amount: string, tag: string) =>
-        `com.tencent.mm\n${title}\n[2条]微信收款助手: 微信支付收款${amount}元(朋友到店)\nUID：${TAG}${tag}\n${stamp()} com.tencent.mm`
+        `com.tencent.mm\n[2条]微信收款助手: 微信支付收款${amount}元(朋友到店)\n${title}\nUID：10206\n${stamp()} ${TAG}${tag} [2条]微信收款助手: 微信支付收款${amount}元(朋友到店) com.tencent.mm`
       const ALI = 'com.eg.android.AlipayGphone'
       const WX = 'com.tencent.mm'
       const unmatchedOf = async (price: string) => (await vmq.listUnmatched(80)).filter((u) => u.price === price)

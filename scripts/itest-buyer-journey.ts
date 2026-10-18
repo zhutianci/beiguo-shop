@@ -74,7 +74,7 @@ async function main() {
   const stillUnpaid = await prisma.order.findUnique({ where: { orderNo }, select: { payStatus: true } })
   ok('被拒的通知不改订单', stillUnpaid?.payStatus === 'UNPAID')
 
-  // 线上真实原文的格式（SmsForwarder [content]：包名 / 标题 / 正文 / UID / 时间），lib/vmq-notice.ts 只认这种系统到账通知
+  // 线上真实原文的格式（SmsForwarder [content]：包名 / 正文 / 标题 / UID / 时间，正好 5 行），lib/vmq-notice.ts 只认这种系统到账通知
   const stamp = new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 19).replace('T', ' ')
   const aliNotice = (title: string, amount: string) =>
     `com.eg.android.AlipayGphone
