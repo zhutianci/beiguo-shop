@@ -19,6 +19,7 @@ import {
   stripHkPrefix,
   switchHref,
 } from '../src/lib/i18n/lang'
+import { DEFAULT_PLATFORM_HOSTS } from '../src/lib/storefront/hosts'
 
 const require_ = createRequire(__filename)
 const ROOT = path.resolve(__dirname, '..')
@@ -113,6 +114,8 @@ eq('stripHkPrefix', [stripHkPrefix('/zh-hk'), stripHkPrefix('/zh-hk/'), stripHkP
 eq('switchHref 去繁体', switchHref('/products', 'zh-HK'), '/zh-hk/products?hl=zh-hk')
 eq('switchHref 回简体', switchHref('/zh-hk/products', 'zh-CN'), '/products?hl=zh-cn')
 eq('切换链接不被补前缀', proxyMod.isSwitchLink('/products?hl=zh-cn'), true)
+// 转换代理的主站默认名单必须与应用的一致：生产不设 PLATFORM_HOSTS，代理靠它挡住渠道站（10-20 上线时漏过一次）
+eq('代理默认主站名单 = storefront DEFAULT_PLATFORM_HOSTS', proxyMod.DEFAULT_HOSTS, [...DEFAULT_PLATFORM_HOSTS])
 
 // ---------------------------------------------------------------------------
 // 3. 访客识别

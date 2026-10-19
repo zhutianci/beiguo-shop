@@ -20,6 +20,8 @@ const { StringDecoder } = require('string_decoder')
 const { loadDefault } = require('./convert.cjs')
 
 const PREFIX = '/zh-hk'
+/** 主站 Host 默认名单：与 src/lib/storefront/hosts.ts 的 DEFAULT_PLATFORM_HOSTS 逐项相同（scripts/check-zhhk.ts 对照） */
+const DEFAULT_HOSTS = ['bigolab.com', 'www.bigolab.com', 'app', 'localhost', '127.0.0.1']
 const HOP = new Set([
   'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade',
 ])
@@ -663,8 +665,10 @@ function createProxy(opts = {}) {
 function start(opts = {}) {
   const port = Number(opts.port || process.env.ZHHK_PORT || 3001)
   const host = opts.host || process.env.ZHHK_HOST || '0.0.0.0'
-  // 允许繁体版的 Host：ZHHK_HOSTS，没配就用主站白名单 PLATFORM_HOSTS（渠道站暂不提供繁体版；两者都没配 = 不限，只用于本地开发）
-  const hostsEnv = opts.hosts !== undefined ? opts.hosts : process.env.ZHHK_HOSTS || process.env.PLATFORM_HOSTS
+  // 允许繁体版的 Host：ZHHK_HOSTS → PLATFORM_HOSTS → 与 src/lib/storefront/hosts.ts 相同的主站默认名单（渠道站暂不提供繁体版）。
+  // 【不能「都没配 = 不限」】生产上 PLATFORM_HOSTS 本来就不设（应用用内置默认值）：2026-10-20 上线时代理因此对所有 Host 放行，
+  // 渠道站 lulu 的 /zh-hk/ 被转成繁体、还套上了主站的香港版标题（zhhk/policy.json 的 titles）。只有显式传 opts.hosts=null（本地调试）才不限
+  const hostsEnv = opts.hosts !== undefined ? opts.hosts : process.env.ZHHK_HOSTS || process.env.PLATFORM_HOSTS || DEFAULT_HOSTS.join(',')
   const hosts = hostsEnv
     ? new Set(
         String(hostsEnv)
@@ -682,7 +686,7 @@ function start(opts = {}) {
   return server
 }
 
-module.exports = { createProxy, start, isPagePath, isSwitchLink, stripPrefix, hkIndexable, metaSwap, convertJsonText, API_NO_CONVERT }
+module.exports = { createProxy, start, isPagePath, isSwitchLink, stripPrefix, hkIndexable, metaSwap, convertJsonText, API_NO_CONVERT, DEFAULT_HOSTS }
 
 // 本地开发：node zhhk/proxy.cjs --upstream http://127.0.0.1:3000 --port 3101 --dev
 if (require.main === module) {
