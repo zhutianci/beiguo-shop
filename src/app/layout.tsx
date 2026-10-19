@@ -8,6 +8,18 @@ import { getStorefront } from '@/lib/storefront/resolve'
 import { toPublicStorefront } from '@/lib/storefront/public'
 import { initialIconDataUrl, isWhiteLabel, type StoreBrand } from '@/lib/brand-base'
 import { brandShareImages, withBrandName } from '@/lib/storefront/brand-meta'
+import { headers } from 'next/headers'
+import { LangProvider } from '@/components/i18n/lang-provider'
+import { HK_PREFIX, LANG_HEADER, parseLang, zhhkEnabled, type SiteLang } from '@/lib/i18n/lang'
+
+/**
+ * 本次请求是简体还是繁体（香港）版（docs/繁体香港版/设计.md §6.1）。转换代理 zhhk/proxy.cjs 处理 /zh-hk/… 时加请求头 x-bg-lang: zh-HK；
+ * 总开关没开时一律简体（请求头被伪造也不理）。只读请求头、不查库。
+ */
+function requestLang(): SiteLang {
+  if (!zhhkEnabled()) return 'zh-CN'
+  return parseLang(headers().get(LANG_HEADER))
+}
 
 /*
  * 【渠道分站：根布局按请求渲染（设计 4.8）】
@@ -92,9 +104,15 @@ const ICON_VERSION = 3
  * 不输出站长平台验证 meta（那是主站域名的归属证明）。统一品牌下站名、分享图不变。
  * 2026-09-30 起兜底 title / description（含 og、twitter）另用渠道版（CHANNEL_TITLE / CHANNEL_DESCRIPTION，理由见其注释）。
  */
-function siteMetadata(origin: string, isPlatform: boolean): Metadata {
+function siteMetadata(origin: string, isPlatform: boolean, lang: SiteLang = 'zh-CN'): Metadata {
+  const hk = lang === 'zh-HK'
   const base: Metadata = {
-    metadataBase: new URL(origin),
+    /*
+     * 繁体版：metadataBase 带 /zh-hk 路径。Next 解析相对地址时会把 metadataBase 的路径拼在前面
+     * （next/dist/lib/metadata/resolvers/resolve-url.js），于是各页面写的相对 canonical（'/about'）、og:url、分享图
+     * 在繁体页上自动变成 /zh-hk/about —— 63 处 canonical 一处不用改。写成绝对地址的由转换代理兜底补前缀。
+     */
+    metadataBase: new URL(hk ? origin + HK_PREFIX : origin),
     // 刻意不用 title.template：新闻详情页的 <title> 会被微信直接当分享标题读走，
     // 再自动追加一截站名只会把它挤爆。各页面自己写全标题。
     title: TITLE,
@@ -146,7 +164,7 @@ function siteMetadata(origin: string, isPlatform: boolean): Metadata {
     openGraph: {
       type: 'website',
       siteName: SITE_NAME,
-      locale: 'zh_CN',
+      locale: hk ? 'zh_HK' : 'zh_CN',
       // 同样不写 url：继承下去会让所有页面的 og:url 都指向首页，转发链接会点错地方
       title: TITLE,
       description: DESCRIPTION,
@@ -225,7 +243,7 @@ function brandedMetadata(meta: Metadata, brand: StoreBrand): Metadata {
  */
 export async function generateMetadata(): Promise<Metadata> {
   const sf = await getStorefront()
-  if (sf && sf.kind === 'PLATFORM') return siteMetadata(sf.origin, true)
+  if (sf && sf.kind === 'PLATFORM') return siteMetadata(sf.origin, true, requestLang())
   const meta = siteMetadata(sf ? sf.origin : siteOrigin(), false)
   return sf ? brandedMetadata(meta, sf.brand) : meta
 }
@@ -237,8 +255,10 @@ export default async function RootLayout({
 }) {
   // 只把 code / kind / origin / features 交给客户端（toPublicStorefront 显式挑字段），费率、进货价、tenantId 不进 HTML
   const sf = await getStorefront()
+  // 繁体版只在主站提供（渠道站即使带了请求头也按简体渲染）
+  const lang: SiteLang = sf && sf.kind === 'PLATFORM' ? requestLang() : 'zh-CN'
   return (
-    <html lang="zh-CN">
+    <html lang={lang}>
       {/* 百度转码退出声明（百度搜索资源平台的写法）：不许把页面转成它自己的「百度转码页 / site app」
           再呈现给手机用户——转码会丢掉样式与交互，买家看到的就不是我们的页面了。
           必须是 http-equiv：Next 的 metadata.other 只输出 name=，百度不认，所以直接写在 <head> 里，
@@ -249,8 +269,10 @@ export default async function RootLayout({
       </head>
       <body className={inter.variable}>
         <StorefrontProvider value={toPublicStorefront(sf)}>
-          <AuthFetchPatch />
-          {children}
+          <LangProvider lang={lang}>
+            <AuthFetchPatch />
+            {children}
+          </LangProvider>
         </StorefrontProvider>
       </body>
     </html>

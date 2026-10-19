@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+// 去掉 /zh-hk 前缀的版本（繁体页上服务端与浏览器算出同一路径，lib/i18n/navigation.ts）
+import { usePathname } from '@/lib/i18n/navigation'
 import { Menu, X, User, ShoppingBag } from 'lucide-react'
 import { useUserStore } from '@/store/user'
 import { cn } from '@/lib/utils'
 import { useStorefront } from '@/components/storefront-provider'
 import type { StorefrontFeatures } from '@/lib/storefront/public'
+import { LangSwitch } from '@/components/i18n/lang-switch'
 
 // 标签刻意短：桌面导航 7 项，768~900px 之间靠缩短文案 + 收紧间距才不换行。
 //
@@ -59,7 +61,7 @@ function isNavActive(pathname: string, href: string, also: string[] = []) {
  * 默认都是 true：主站恒为 ACTIVE，导航与按钮与原来逐项相同。只控制显示，拦截在服务端。
  * jiemaOpen（短信接码对全部用户开放）默认 false：由前台外壳在服务端读 sms_config 算出（§1.2）。
  */
-export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen = false }: { catalogOpen?: boolean; registrationOpen?: boolean; jiemaOpen?: boolean } = {}) {
+export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen = false, langSwitch = false }: { catalogOpen?: boolean; registrationOpen?: boolean; jiemaOpen?: boolean; langSwitch?: boolean } = {}) {
   const pathname = usePathname()
   const { user, setUser, logout } = useUserStore()
   // 只控制显示；真正的拦截在服务端（denyOnChannel / notFoundOnChannel）
@@ -282,6 +284,9 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
 
             {/* Right Actions：shrink-0 防止 md 段导航变长时把登录/注册挤压换行 */}
             <div className="flex shrink-0 items-center gap-3">
+              {/* 简繁切换（繁体香港版，langSwitch 由前台外壳按总开关与店面给出）：md 段导航已经没有余量，lg 起才放进页头；
+                  手机在菜单里、所有尺寸在页脚底栏都有入口 */}
+              {langSwitch && <LangSwitch className="hidden lg:flex" />}
               {user ? (
                 <>
                   <Link
@@ -421,6 +426,11 @@ export function Header({ catalogOpen = true, registrationOpen = true, jiemaOpen 
                 )
               })}
             </ul>
+            {langSwitch && (
+              <div className="mt-6 rise-in" style={{ animationDelay: '0.28s' }}>
+                <LangSwitch variant="menu" className="w-full" />
+              </div>
+            )}
             {!user && (
               <div className="mt-8 grid grid-cols-2 gap-3 rise-in" style={{ animationDelay: '0.3s' }}>
                 <Link

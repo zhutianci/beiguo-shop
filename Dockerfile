@@ -95,6 +95,9 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/templates ./templates
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+# 繁体香港版的转换代理与词典（docs/繁体香港版/设计.md）：纯 node、零依赖，standalone 的文件追踪不知道它们，必须显式 COPY。
+# 入口 zhhk/entry.cjs 先起代理（ZHHK_ENABLED=1 时）再加载 server.js；不开时与原来的 `node server.js` 完全相同
+COPY --from=builder /app/zhhk ./zhhk
 
 # 论坛图片上传目录（命名卷首次挂载会继承此目录的 nextjs 属主，保证可写）
 RUN mkdir -p ./public/uploads/forum && chown -R nextjs:nodejs ./public/uploads
@@ -116,4 +119,4 @@ EXPOSE 3000
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["node", "zhhk/entry.cjs"]

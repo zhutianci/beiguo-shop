@@ -30,6 +30,11 @@ if (typeof window !== 'undefined' && !(window as unknown as { __authFetchPatched
         if (token && !headers.has('Authorization')) {
           headers.set('Authorization', `Bearer ${token}`)
         }
+        // 繁体香港版（docs/繁体香港版/设计.md §5.3）：繁体页面发出的接口请求带上语言头，nginx 据此交给转换代理，
+        // 返回的 JSON（商品名、提示文案……）转成繁体，与页面一致。<html lang> 由根布局按版本输出
+        if (document.documentElement.lang === 'zh-HK' && !headers.has('x-bg-lang')) {
+          headers.set('x-bg-lang', 'zh-HK')
+        }
         init = { ...init, headers, credentials: init?.credentials || 'include' }
       }
     } catch {

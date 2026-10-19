@@ -36,6 +36,8 @@ services:
     oom_score_adj: 500
     expose:
       - "3000"
+      # 繁体香港版的转换代理（zhhk/proxy.cjs）；只在 docker 网络内给 nginx 用，不发布到宿主
+      - "3001"
     environment:
       # 业务时区。不设时 Node 跑在 UTC，凡是用本地时间算日期的地方（订单号、
       # 会员开通/到期日）都会在北京时间凌晨 0-8 点错一天。
@@ -131,6 +133,13 @@ services:
       - INDEXNOW_KEY
       # 内容平台收录总开关（src/lib/content/policy.ts）：=1 才打开；不设 = 关（内容页全 noindex、内容 sitemap 为空、IndexNow 不推）
       - CONTENT_INDEXING_OPEN
+      # 繁体香港版（docs/繁体香港版/部署说明.md）：
+      #   ZHHK_ENABLED=1 才启动转换代理（3001）并打开前台的简繁切换、自动识别、站点地图 hreflang；不设 = 与改造前完全相同。
+      #   ZHHK_AUTO_SWITCH：首次访问按所在地处理的方式，redirect（默认，自动跳转 + 顶部一键切回）| banner（只提示不跳）| off。
+      #   ZHHK_HOSTS：允许繁体版的 Host，不设则用 PLATFORM_HOSTS（渠道站暂不提供繁体版）。
+      - ZHHK_ENABLED
+      - ZHHK_AUTO_SWITCH
+      - ZHHK_HOSTS
       # 内容定时放量每天放几条（src/lib/content/release.ts）：不设 = 40；0 = 暂停。改完只重启 app
       - CONTENT_RELEASE_PER_DAY
       # 薄新闻页（没有全文层的）是否加 noindex。默认开启，设成 0 才关闭。

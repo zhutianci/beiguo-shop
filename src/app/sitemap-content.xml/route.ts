@@ -27,6 +27,8 @@ function xmlEscape(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
 }
 
+import { withHreflang } from '@/lib/i18n/sitemap-hreflang'
+
 export async function GET() {
   const head = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">'
   const entries: string[] = []
@@ -101,7 +103,8 @@ export async function GET() {
     console.warn(`[sitemap-content] ${entries.length} 个地址超过 ${MAX_URLS}，只输出前 ${MAX_URLS} 个：该改成分段 sitemap 了`)
     entries.length = MAX_URLS
   }
-  const body = `${head}\n${entries.join('\n')}\n</urlset>\n`
+  // 繁体香港版：每个地址展开成简繁两条并互指 hreflang（总开关关着时原样，lib/i18n/sitemap-hreflang.ts）
+  const body = withHreflang(`${head}\n${entries.join('\n')}\n</urlset>\n`)
   if (body.length > MAX_BYTES) console.warn(`[sitemap-content] 约 ${Math.round(body.length / 1048576)}MB，接近协议上限 50MB：该改成分段 sitemap 了`)
   return new Response(body, {
     headers: { 'Content-Type': 'application/xml; charset=utf-8', 'Cache-Control': 'public, max-age=3600' },

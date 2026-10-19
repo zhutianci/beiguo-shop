@@ -1,7 +1,9 @@
 'use client'
 
 import { Suspense, useEffect, useRef, useState } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
+// 去掉 /zh-hk 前缀的版本（繁体页上服务端与浏览器算出同一路径，lib/i18n/navigation.ts）
+import { usePathname } from '@/lib/i18n/navigation'
 
 /*
  * 【路由切换进度条（性能优化 2026-10-07）】

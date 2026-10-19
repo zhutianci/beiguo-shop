@@ -15,6 +15,8 @@ import { storefrontFeatures } from '@/lib/storefront/public'
 import { readSmsConfigCached } from '@/lib/jiema/config'
 import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
 import { trackChannelViewsEnabled } from '@/lib/analytics/channel-views'
+import { zhhkEnabled } from '@/lib/i18n/lang'
+import { LangAutoNotice } from '@/components/i18n/lang-switch'
 
 /*
  * 【渠道分站：前台外壳按店面渲染（设计 4.4、6.7、11.2）】
@@ -61,6 +63,8 @@ export default async function ShopLayout({
   const jiemaOpen = features.jiema && isPlatform && jiemaPublicOpen(await readSmsConfigCached())
   // 流量埋点：主站照旧恒挂；渠道站只在开关打开且店面正常营业时挂（开关没开 = 与改造前相同，渠道站不挂）
   const trackViews = isPlatform || (sf.status === 'ACTIVE' && trackChannelViewsEnabled())
+  // 简繁切换入口（docs/繁体香港版/设计.md §6.4）：总开关开着且是主站才出现；关着时页头页脚与改造前逐字相同
+  const langSwitch = zhhkEnabled() && isPlatform
 
   // shop-shell 只做一件事：把「固定头部有多高」以 --header-h 的形式挂到整棵前台子树上
   // （移动端/md 112px，lg 起 96px，定义见 globals.css）。
@@ -74,10 +78,11 @@ export default async function ShopLayout({
       {redirectOrigin && <PrimaryHostRedirect origin={redirectOrigin} />}
       {/* 站内跳转的顶部进度条：只在客户端出现，服务端 HTML 里是一个不可见的空条（route-progress.tsx） */}
       <RouteProgress />
-      <Header catalogOpen={catalogOpen} registrationOpen={registrationOpen} jiemaOpen={jiemaOpen} />
+      <Header catalogOpen={catalogOpen} registrationOpen={registrationOpen} jiemaOpen={jiemaOpen} langSwitch={langSwitch} />
+      {langSwitch && <LangAutoNotice />}
       {sf.status === 'SUSPENDED' && <SuspendedBanner />}
       <main className="flex-1">{sf.status === 'TERMINATED' ? <ClosedPageGate>{children}</ClosedPageGate> : children}</main>
-      <Footer catalogOpen={catalogOpen} jiemaOpen={jiemaOpen} />
+      <Footer catalogOpen={catalogOpen} jiemaOpen={jiemaOpen} langSwitch={langSwitch} />
       <FloatingContact />
       {/* 成交弹窗按需加载（组件本体不变，只是 framer-motion 不再进全站首屏 JS，见 live-order-notification-lazy.tsx） */}
       {features.liveOrders && <LiveOrderNotificationLazy />}

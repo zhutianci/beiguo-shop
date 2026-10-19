@@ -29,6 +29,16 @@ const nextConfig = {
    * 不要为了开优化去装 sharp，也不要再加 remotePatterns；外站图片一律用原生 <img>。
    */
   images: { unoptimized: true },
+  /*
+   * 【繁体香港版：next/link 换成会加 /zh-hk 前缀的版本】（docs/繁体香港版/设计.md §6.3）
+   * 全仓 `import Link from 'next/link'` 实际拿到 src/lib/i18n/link.tsx：简体页上就是原版 next/link，
+   * 繁体页上把站内页面链接加 /zh-hk 前缀。`$` 表示只匹配这个精确的模块名（link.tsx 自己从 next/dist/client/link 取原版，不受影响）。
+   * 只改 webpack 解析，类型检查仍按真正的 next/link。
+   */
+  webpack(config) {
+    config.resolve.alias = { ...(config.resolve.alias || {}), 'next/link$': require('path').join(__dirname, 'src/lib/i18n/link.tsx') }
+    return config
+  },
 }
 
 module.exports = nextConfig

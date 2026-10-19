@@ -7,6 +7,9 @@ import { getJwtSecret } from './lib/jwt-secret'
 import { channelsEnabled, normalizeHost, platformHosts } from './lib/storefront/hosts'
 // 同上：纯函数，不 import next/* 与 prisma
 import { apiWriteCrossSite } from './lib/api-csrf'
+// 繁体香港版（docs/繁体香港版/设计.md §6）：只 import next/server 与纯函数
+import { langMiddleware } from './lib/i18n/middleware-lang'
+import { zhhkEnabled } from './lib/i18n/lang'
 
 interface JwtPayload {
   userId: number
@@ -75,6 +78,20 @@ function notFound(pathname: string): NextResponse {
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  /*
+   * 【前台页面：简繁版本（繁体香港版，2026-10-19）】matcher 为此加了「所有页面」一项；这一段只处理页面，
+   * 后台、渠道后台、接口原样走下面的老逻辑。ZHHK_ENABLED 没开时直接放行——与没有这一项 matcher 时的行为相同。
+   * 只在主站 Host 上做（渠道站暂不提供繁体版）；规则见 lib/i18n/middleware-lang.ts。
+   */
+  if (!pathname.startsWith('/api/') && !isAdminPath(pathname) && !isPartnerPath(pathname)) {
+    if (!zhhkEnabled()) return NextResponse.next()
+    if (channelsEnabled()) {
+      const host = normalizeHost(request.headers.get('host'))
+      if (!host || !platformHosts().has(host)) return NextResponse.next()
+    }
+    return langMiddleware(request) ?? NextResponse.next()
+  }
 
   /*
    * 【全站 /api 写请求的同源校验（2026-10-07 安全加固）】以前只有后台、论坛、内容平台、上传、充值、接码下单
@@ -161,6 +178,12 @@ export async function middleware(request: NextRequest) {
 
 // matcher 必须是静态常量（Next 在构建期读取），所以固定写死；休眠时 /partner 两项在上面直接放行。
 // '/api/:path*' 只为写请求的同源校验（上面第一段）：其余 /api 在校验后直接放行，不看登录态
+// 第四项（繁体香港版）：所有前台页面——排除 /api、/_next、/_next-hk、后台、上传目录与带扩展名的静态文件
 export const config = {
-  matcher: ['/admin/:path*', '/api/:path*', '/partner/:path*'],
+  matcher: [
+    '/admin/:path*',
+    '/api/:path*',
+    '/partner/:path*',
+    '/((?!api/|_next/|_next-hk/|admin|partner|uploads/|.*\\.[A-Za-z0-9]+$).*)',
+  ],
 }

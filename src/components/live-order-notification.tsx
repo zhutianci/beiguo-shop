@@ -2,7 +2,8 @@
 
 import { useStorefront } from '@/components/storefront-provider'
 import { useState, useEffect, useRef } from 'react'
-import { usePathname } from 'next/navigation'
+// 去掉 /zh-hk 前缀的版本（繁体页上服务端与浏览器算出同一路径，lib/i18n/navigation.ts）
+import { usePathname } from '@/lib/i18n/navigation'
 import { hideLiveOrdersOn } from '@/lib/floating-widgets'
 import { useLite } from '@/lib/use-lite'
 import { motion, AnimatePresence } from 'framer-motion'

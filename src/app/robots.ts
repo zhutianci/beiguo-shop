@@ -5,6 +5,7 @@ import { absUrl } from '@/lib/news/seo'
 import { siteOrigin } from '@/lib/news/format'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { INDEXING_OPEN } from '@/lib/content/policy'
+import { zhhkEnabled } from '@/lib/i18n/lang'
 
 /**
  * robots.txt。
@@ -83,7 +84,7 @@ function platformRobots(): MetadataRoute.Robots {
          *   /lookup/…      → 同上，仍然挡住
          * Google、Bing 都支持 `$` 与最长匹配。渠道站的 robots 不动（channelRobots）。
          */
-        allow: ['/', '/lookup$'],
+        allow: ['/', '/lookup$', ...(zhhkEnabled() ? ['/zh-hk/lookup$'] : [])],
         disallow: [
           '/receipt/', // 带 token 的收据页：收录即泄漏
           '/invoice-request/', // 开票填写链接：令牌即凭证，提交后页面上有抬头税号，同收据页
@@ -116,6 +117,9 @@ function platformRobots(): MetadataRoute.Robots {
           '/*?n=',
           // 学习平台站内搜索结果页（内容平台 P2）：每个查询词一个新 URL，是劲风算法点名的「站内搜索结果聚合页」
           '/learn/search',
+          // 繁体香港版（docs/繁体香港版/设计.md §7.3）：上面各条在 /zh-hk 下的同一页面同样挡住（票据类在繁体版本来就跳回简体原文）；
+          // 简繁切换链接带的 ?hl= 只是一次跳转，不该被当成页面抓
+          ...(zhhkEnabled() ? ['/zh-hk/pay/', '/zh-hk/lookup', '/zh-hk/learn/search', '/*?hl=', '/*&hl='] : []),
         ],
       },
     ],

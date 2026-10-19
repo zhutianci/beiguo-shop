@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 
 import { getStorefront } from '@/lib/storefront/resolve'
 import { XML_HEADERS, isSitemapSegment, sitemapSegmentEntries, urlsetXml } from '@/lib/seo/sitemap-entries'
+import { withHreflang } from '@/lib/i18n/sitemap-hreflang'
 
 /**
  * /sitemaps/<段名>.xml（docs/SEO-重构/SEO-重构设计.md §6.2，批 2 的 G 包）。段名只认白名单（SITEMAP_SEGMENTS），其余 404。
@@ -15,5 +16,6 @@ export async function GET(_req: Request, { params }: { params: { name: string } 
   const m = /^([a-z-]+)\.xml$/.exec(params.name || '')
   if (!sf || sf.kind !== 'PLATFORM' || !m || !isSitemapSegment(m[1])) return new Response('Not Found', { status: 404 })
   const entries = await sitemapSegmentEntries(m[1])
-  return new Response(urlsetXml(entries), { headers: XML_HEADERS })
+  // 繁体香港版：每个地址展开成简繁两条并互指 hreflang（总开关关着时原样，lib/i18n/sitemap-hreflang.ts）
+  return new Response(withHreflang(urlsetXml(entries)), { headers: XML_HEADERS })
 }

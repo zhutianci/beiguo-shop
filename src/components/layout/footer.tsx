@@ -6,12 +6,13 @@ import { ContactModal } from '@/components/contact-modal'
 import { LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
 import { useStorefront } from '@/components/storefront-provider'
 import { isWhiteLabel, OPERATOR_LINE } from '@/lib/brand-base'
+import { LangSwitch } from '@/components/i18n/lang-switch'
 
 /**
  * catalogOpen：渠道店面 TERMINATED 时为 false，去掉整栏「商品」（点进去只是停业页，设计 6.7）；主站恒为 true。
  * jiemaOpen：短信接码对全部用户开放（前台外壳在服务端读 sms_config 算，docs/短信接码-设计.md §1.2、D28）；灰度期不出现入口。
  */
-export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?: boolean; jiemaOpen?: boolean } = {}) {
+export function Footer({ catalogOpen = true, jiemaOpen = false, langSwitch = false }: { catalogOpen?: boolean; jiemaOpen?: boolean; langSwitch?: boolean } = {}) {
   const [contactOpen, setContactOpen] = useState(false)
   /*
    * 渠道分站（设计 11.1、11.2）：页脚品牌、主体与主站完全相同；只把渠道站已关闭模块的入口去掉
@@ -264,6 +265,8 @@ export function Footer({ catalogOpen = true, jiemaOpen = false }: { catalogOpen?
               )}
             </p>
             <div className="flex gap-6 lg:gap-8 text-sm text-white/30">
+              {/* 简繁切换（繁体香港版）：页脚底栏所有尺寸都有，写目标语言自己的名字 */}
+              {langSwitch && <LangSwitch variant="text" />}
               <Link href="/privacy" className="hover:text-white transition-colors">
                 隐私政策
               </Link>

@@ -1,0 +1,33 @@
+{
+  "_说明": "繁体香港版的收录范围与香港版标题（docs/繁体香港版/设计.md §7）。zhhk/proxy.cjs（繁体页 <head>）与 src/lib/i18n/sitemap-hreflang.ts（站点地图）共用这一份，两边口径不会漂移。",
+  "_收录": "不在下面名单里的繁体页面照常可看，但输出 noindex,follow、不进站点地图、不写 hreflang：海量提示词与 AI 新闻是机器转换的，先只放审校过的核心页，观察 4 周再按页面类型放开（设计 §7.1）。简体页面的收录规则完全不受影响。",
+  "indexExact": ["/", "/chongzhi", "/products", "/about", "/support", "/terms", "/privacy", "/jiema", "/learn", "/guides", "/news"],
+  "indexPrefixes": ["/chongzhi/", "/products/", "/guides/", "/jiema/"],
+  "_标题": "香港版标题与描述（键 = 去掉 /zh-hk 的路径）。直接写繁体，代理在转换之后替换 <title>、og:title、twitter:title 与对应描述。依据：2026-10-19 Google 下拉实测（hl=zh-TW&gl=hk）——香港的主词是「訂閱 / 付款」（充值只有 5 条联想、增值几乎都是增值稅），教程类用「教學」。不写「香港官方可用」：ChatGPT、Claude 官方都不支援香港。",
+  "titles": {
+    "/": {
+      "title": "貝果科技 BigoLab - ChatGPT、Claude 訂閱充值與每日 AI 動態"
+    },
+    "/chongzhi": {
+      "title": "AI 會員訂閱充值 - ChatGPT Plus、Claude Pro 價格表 - 貝果科技"
+    },
+    "/chongzhi/chatgpt-plus": {
+      "title": "ChatGPT Plus 如何訂閱、付款與充值，多少錢 - 貝果科技"
+    },
+    "/chongzhi/chatgpt-pro": {
+      "title": "ChatGPT Pro 5x 如何訂閱充值、多少錢、與 Plus 的分別 - 貝果科技"
+    },
+    "/chongzhi/claude-pro": {
+      "title": "Claude Pro 如何訂閱、付款與充值，會員多少錢 - 貝果科技"
+    },
+    "/chongzhi/claude-max": {
+      "title": "Claude Max 5x 如何訂閱充值、多少錢、與 Pro 的分別 - 貝果科技"
+    },
+    "/chongzhi/claude-zhuce": {
+      "title": "Claude 註冊教學：註冊不了、需要電話號碼驗證怎麼辦 - 貝果科技"
+    },
+    "/chongzhi/grok-super": {
+      "title": "Grok Super 如何訂閱充值、多少錢 - 貝果科技"
+    }
+  }
+}
