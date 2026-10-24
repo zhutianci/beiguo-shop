@@ -123,6 +123,11 @@ services:
       - SYSC_BASE
       - SYSC_STORE_REF
       - SYSC_PRODUCT_MAP
+      # 卡密兑换：sysd（对方同一套「兑换中心」的另一家店 niuniu888）。协议与 sysc 完全相同，
+      # 含义同上三行。不设 = https://niuniu888.applelll.com / niuniu888 / 空。见 docs/sysd-接入说明.md。
+      - SYSD_BASE
+      - SYSD_STORE_REF
+      - SYSD_PRODUCT_MAP
       # SEO：站长平台归属验证 + IndexNow 主动推送
       # 【必须列在这里】--env-file 只负责 compose 文件里的变量替换，
       # 不会自动把变量塞进容器。漏了这三行，.env.production 里配了也等于没配，

@@ -1,6 +1,10 @@
 /**
  * 充值平台适配器：sysc（对方的「兑换中心」，chuanwen.applelll.com）。
  *
+ * 【sysd 也用这个文件】对方是多店铺白标系统，niuniu888.applelll.com（sysd）的兑换页
+ * 和 chuanwen 逐字节相同，只差店铺标识 ref。协议逻辑只此一份，按店铺配置生成适配器，
+ * 见文件末尾的 createStore() 与 providers/sysd.ts。
+ *
  * 协议来源：**对方不提供 API 文档，经对方明确授权**，由我们从其兑换中心前端整理。
  * 完整协议见 `docs/sysc-充值系统-协议逆向说明.md` —— 改这个文件之前先读那份文档，
  * 本文件里每一条判定都能在那份文档里找到对应小节。
@@ -43,22 +47,38 @@ import {
   type RedeemState,
 } from '../types'
 
-const BASE = (process.env.SYSC_BASE || 'https://chuanwen.applelll.com').replace(/\/+$/, '')
 /**
- * 店铺标识，每个请求都要带。对方前端是从域名里取的：
- * `chuanwen.applelll.com` → `chuanwen`。
- * **换店铺 / 对方给了我们单独的子域时要改这里**（会影响结价与归属）。
+ * 一家「兑换中心」店铺。
+ *
+ * 【为什么要参数化】对方是一套多店铺的白标系统：同一个前端、同一套协议，按子域分店。
+ * 2026-10-24 接入的 sysd（niuniu888.applelll.com）和 sysc（chuanwen）的兑换页
+ * **逐字节相同**（md5 一致），差别只有店铺标识 ref。所以协议只写这一份，
+ * 每家店一个配置 —— 复制一份适配器，以后对方改协议就得改两遍、漏一遍。
  */
-const REF = (process.env.SYSC_STORE_REF || 'chuanwen').trim()
+export interface StoreConfig {
+  /** 我们的适配器 key（写进 card_keys.redeem_provider，**用了就不能改**） */
+  key: string
+  /** 只在后台下拉里出现的辨识名 */
+  adminLabel: string
+  /** 对方站点根地址 */
+  base: string
+  /**
+   * 店铺标识，每个请求都要带。对方前端是从域名里取的：
+   * `chuanwen.applelll.com` → `chuanwen`。
+   * **换店铺 / 对方给了我们单独的子域时要改这里**（会影响结价与归属）。
+   */
+  ref: string
+  /** 本站商品名 → 对方 product_id 手工映射所在的环境变量名，见 productMap() */
+  productMapEnv: string
+  /** 追踪号前缀，只为排查时把日志串起来，见 activate() 里的 trace */
+  tracePrefix: string
+}
 
 const TIMEOUT_MS = 20_000
 /** 下单后在 activate() 里顺手等一会儿，接住「1 分钟内就好了」的常见情况 */
 const ACTIVATE_WAIT_MS = 18_000
 const ACTIVATE_POLL_MS = 3_000
 
-export function syscConfigured(): boolean {
-  return !!BASE && !!REF
-}
 
 /* ==================== 对方的协议类型 ==================== */
 
@@ -103,6 +123,11 @@ interface SiteProduct {
   sku: string | null
   recharge_method: number | null
   upstream_pool: string | null
+}
+
+interface Store extends StoreConfig {
+  /** 商品清单缓存。**每家店各一份** —— 两家店的清单不一样（niuniu888 只有 6 个商品） */
+  siteCache: { at: number; products: SiteProduct[] } | null
 }
 
 /** 我们认识的平台。对方的 platform 字段只见过这三种 */
@@ -503,13 +528,14 @@ interface RawResult {
 }
 
 async function request(
+  s: Store,
   path: string,
   init: { method: 'GET' | 'POST'; payload?: Record<string, unknown> }
 ): Promise<RawResult> {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), TIMEOUT_MS)
   try {
-    const res = await fetch(`${BASE}${path}`, {
+    const res = await fetch(`${s.base}${path}`, {
       method: init.method,
       headers: init.method === 'POST' ? aspHeaders() : { Accept: 'application/json' },
       body: init.payload ? JSON.stringify(init.payload) : undefined,
@@ -545,27 +571,26 @@ async function request(
 
 /* ==================== 商品清单（带缓存） ==================== */
 
-let siteCache: { at: number; products: SiteProduct[] } | null = null
 const SITE_TTL_MS = 10 * 60_000
 
 /**
  * 拉对方的商品清单。**这是把 product_name 翻译成 product_id / platform 的唯一依据**。
  * 拉不到就返回上一次的缓存（哪怕过期）—— 清单拿不到不该挡住一次正常兑换。
  */
-async function siteProducts(): Promise<SiteProduct[]> {
-  if (siteCache && Date.now() - siteCache.at < SITE_TTL_MS) return siteCache.products
+async function siteProducts(s: Store): Promise<SiteProduct[]> {
+  if (s.siteCache && Date.now() - s.siteCache.at < SITE_TTL_MS) return s.siteCache.products
   try {
-    const r = await request(`/api/store/site?ref=${encodeURIComponent(REF)}`, { method: 'GET' })
+    const r = await request(s, `/api/store/site?ref=${encodeURIComponent(s.ref)}`, { method: 'GET' })
     const list = Array.isArray(r.body.products) ? (r.body.products as SiteProduct[]) : []
     const products = list.filter((p) => typeof p?.product_id === 'number' && typeof p?.name === 'string')
     if (products.length) {
-      siteCache = { at: Date.now(), products }
+      s.siteCache = { at: Date.now(), products }
       return products
     }
   } catch {
     /* 落到下面用旧缓存 */
   }
-  return siteCache?.products ?? []
+  return s.siteCache?.products ?? []
 }
 
 function normPlatform(pf: string | null | undefined): Platform | null {
@@ -580,8 +605,8 @@ function normPlatform(pf: string | null | undefined): Platform | null {
  * 站长在后台导入时，本站商品名 → 对方 product_id 的手工映射。
  * 形如 `{"GPT Pro 5x 月付":5}`。**只在对方的查卡结果没带 product_name 时才用得上**。
  */
-function productMap(): Record<string, number> {
-  const raw = (process.env.SYSC_PRODUCT_MAP || '').trim()
+function productMap(s: Store): Record<string, number> {
+  const raw = (process.env[s.productMapEnv] || '').trim()
   if (!raw) return {}
   try {
     const o = JSON.parse(raw) as Record<string, unknown>
@@ -592,7 +617,7 @@ function productMap(): Record<string, number> {
     }
     return out
   } catch {
-    console.error('[sysc] SYSC_PRODUCT_MAP 不是合法 JSON，已忽略')
+    console.error(`[${s.key}] ${s.productMapEnv} 不是合法 JSON，已忽略`)
     return {}
   }
 }
@@ -609,16 +634,17 @@ interface Resolved {
  *
  * 优先级（从最权威到最兜底）：
  *   1. 对方查卡结果里的 product_name —— 卡本身绑的商品，最可信
- *   2. SYSC_PRODUCT_MAP 里按本站商品名配的死映射
+ *   2. SYSC_PRODUCT_MAP（sysd 是 SYSD_PRODUCT_MAP）里按本站商品名配的死映射
  *   3. 本站商品名与对方商品名做一次保守的包含匹配
  * 三条都不中就返回 null，由调用方报「渠道未配置」转人工 ——
  * **绝不猜一个 product_id 发出去**，猜错就是把 5x 的卡充成 plus。
  */
 async function resolveProduct(
+  s: Store,
   upstreamName: string | null | undefined,
   ourName: string | null | undefined
 ): Promise<Resolved | null> {
-  const products = await siteProducts()
+  const products = await siteProducts(s)
   if (!products.length) return null
 
   const up = (upstreamName || '').trim().toLowerCase()
@@ -630,7 +656,7 @@ async function resolveProduct(
 
   const our = (ourName || '').trim()
   if (our) {
-    const mapped = productMap()[our]
+    const mapped = productMap(s)[our]
     if (mapped) {
       const hit = products.find((p) => p.product_id === mapped)
       const pf = hit ? normPlatform(hit.platform) : null
@@ -706,9 +732,10 @@ function str(v: unknown): string | undefined {
  * 404 + `{"detail":"CDK 无效"}`，而批量接口是 200 + `found:false`。
  * 统一成后者的形状，下游只认一套。
  */
-async function fetchStatus(cdk: string): Promise<StatusBody> {
+async function fetchStatus(s: Store, cdk: string): Promise<StatusBody> {
   const r = await request(
-    `/api/store/redeem/status?ref=${encodeURIComponent(REF)}&cdk=${encodeURIComponent(cdk)}`,
+    s,
+    `/api/store/redeem/status?ref=${encodeURIComponent(s.ref)}&cdk=${encodeURIComponent(cdk)}`,
     { method: 'GET' }
   )
   if (r.status === 404) return { found: false }
@@ -719,12 +746,12 @@ async function fetchStatus(cdk: string): Promise<StatusBody> {
 }
 
 /** 批量查。给对账脚本用，兑换链路不走这里 */
-export async function syscStatusBatch(cdks: string[]): Promise<StatusBody[]> {
+async function statusBatch(s: Store, cdks: string[]): Promise<StatusBody[]> {
   if (!cdks.length) return []
   if (cdks.length > 100) throw new RedeemError('一次最多查 100 张卡密', 'ERROR', false)
-  const r = await request('/api/store/redeem/status-batch', {
+  const r = await request(s, '/api/store/redeem/status-batch', {
     method: 'POST',
-    payload: { ref: REF, cdks },
+    payload: { ref: s.ref, cdks },
   })
   if (r.status !== 200) throw new RedeemError(COPY.unavailable, 'ERROR')
   return Array.isArray(r.body.results) ? (r.body.results as StatusBody[]) : []
@@ -832,11 +859,11 @@ function pickAccountArgs(platform: Platform, values: Record<string, string>): Ac
  * 改成去查状态问真实结果 —— 对方的按卡查状态是权威且实时的，
  * 这是 sysc 比 sysb 好做的地方，代价是绝不能省掉这次查询。
  */
-async function submitOnce(payload: Record<string, unknown>, cdk: string): Promise<
+async function submitOnce(s: Store, payload: Record<string, unknown>, cdk: string): Promise<
   { landed: true; accountId?: string; email?: string } | { landed: false; message: string }
 > {
   try {
-    const r = await request('/api/store/redeem', { method: 'POST', payload })
+    const r = await request(s, '/api/store/redeem', { method: 'POST', payload })
     if (r.status === 200) {
       return { landed: true, accountId: str(r.body.account_id), email: str(r.body.email) }
     }
@@ -845,7 +872,7 @@ async function submitOnce(payload: Record<string, unknown>, cdk: string): Promis
      * **不透传 detail**（那是对方的原文），只落日志。
      */
     const detail = str(r.body.detail)
-    if (detail) console.error(`[sysc] 下单被拒 status=${r.status} detail=${detail}`)
+    if (detail) console.error(`[${s.key}] 下单被拒 status=${r.status} detail=${detail}`)
     if (r.status === 429) return { landed: false, message: COPY.busy }
     if (r.status >= 500) return { landed: false, message: COPY.unavailable }
     return {
@@ -858,7 +885,7 @@ async function submitOnce(payload: Record<string, unknown>, cdk: string): Promis
      * 查出 active 才敢说「没落地」；其余一律当成落地了，交给轮询。
      */
     try {
-      const st = await fetchStatus(cdk)
+      const st = await fetchStatus(s, cdk)
       if (st.found !== false && st.status && st.status !== 'active') {
         return { landed: true, accountId: str(st.redeem_account_id), email: str(st.redeem_email) }
       }
@@ -886,30 +913,31 @@ async function submitOnce(payload: Record<string, unknown>, cdk: string): Promis
  * 也不能在一张可能已经提交出去的卡上放开闸门。
  */
 async function releaseIfUntouched(
+  s: Store,
   cdk: string,
   trace: string,
   release: (() => Promise<void>) | undefined
 ): Promise<void> {
   if (!release) return
   try {
-    const after = await fetchStatus(cdk)
+    const after = await fetchStatus(s, cdk)
     if (after.found !== false && after.status === 'active' && after.task_status !== 'possible_success') {
       await release()
       return
     }
-    console.error(`[sysc] 卡状态不是 active，保留占位 trace=${trace} status=${after.status ?? 'null'}`)
+    console.error(`[${s.key}] 卡状态不是 active，保留占位 trace=${trace} status=${after.status ?? 'null'}`)
   } catch {
-    console.error(`[sysc] 查不动状态，保留占位 trace=${trace}`)
+    console.error(`[${s.key}] 查不动状态，保留占位 trace=${trace}`)
   }
 }
 
 /** 下单后短暂等一会儿，接住「很快就好了」的情况。等不到就返回 null，交给前端轮询 */
-async function waitShortly(cdk: string): Promise<StatusBody | null> {
+async function waitShortly(s: Store, cdk: string): Promise<StatusBody | null> {
   const deadline = Date.now() + ACTIVATE_WAIT_MS
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, ACTIVATE_POLL_MS))
     try {
-      const st = await fetchStatus(cdk)
+      const st = await fetchStatus(s, cdk)
       const c = classify(st)
       if (c.state === 'COMPLETED' || (st.task_status && FAILED_TASKS.has(st.task_status))) return st
       if (st.task_status === 'possible_success') return st
@@ -922,271 +950,310 @@ async function waitShortly(cdk: string): Promise<StatusBody | null> {
 
 /* ==================== 适配器 ==================== */
 
-export const sysc: RedeemProvider = {
-  key: 'sysc',
-  /** 辨识名：只在后台导入卡密的下拉里出现，买家侧永远看不到 */
-  adminLabel: 'C 系统（兑换中心 / chuanwen）',
+function makeProvider(s: Store): RedeemProvider {
+  return {
+    key: s.key,
+    /** 辨识名：只在后台导入卡密的下拉里出现，买家侧永远看不到 */
+    adminLabel: s.adminLabel,
 
-  async check(cdk, ctx): Promise<RedeemCheckResult> {
-    const st = await fetchStatus(cdk)
-    const { state, message } = classify(st)
+    async check(cdk, ctx): Promise<RedeemCheckResult> {
+      const st = await fetchStatus(s, cdk)
+      const { state, message } = classify(st)
 
-    if (state !== 'READY') {
+      if (state !== 'READY') {
+        return {
+          state,
+          message,
+          // 商品名用我们自己的，不回对方的 product_name（那是货源信息）
+          productName: ctx?.productName || undefined,
+          fields: [],
+          account: str(st.redeem_email) || str(st.redeem_account_id),
+          completedAt: str(st.redeemed_at),
+          notice: null,
+        }
+      }
+
+      const resolved = await resolveProduct(s, st.product_name, ctx?.productName)
+      if (!resolved) {
+        /*
+         * 卡是好的、能充，但我们判不出该发哪个 product_id。
+         * **不猜**：猜错就是把 5x 的卡充成 plus。转人工，并在日志里留下线索。
+         */
+        console.error(
+          `[${s.key}] 判不出 product_id：upstream_name=${st.product_name ?? 'null'} our_name=${ctx?.productName ?? 'null'}` +
+            `（在 ${s.productMapEnv} 里补一条映射即可）`
+        )
+        return { state: 'ERROR', message: COPY.unmapped, fields: [], notice: null }
+      }
+
+      const g = guideFor(resolved.platform)
       return {
-        state,
+        state: 'READY',
         message,
-        // 商品名用我们自己的，不回对方的 product_name（那是货源信息）
         productName: ctx?.productName || undefined,
-        fields: [],
-        account: str(st.redeem_email) || str(st.redeem_account_id),
-        completedAt: str(st.redeemed_at),
+        fields: fieldsFor(resolved.platform),
+        guide: g.steps,
+        guideIntro: g.intro,
         notice: null,
       }
-    }
+    },
 
-    const resolved = await resolveProduct(st.product_name, ctx?.productName)
-    if (!resolved) {
+    async activate({
+      cdk,
+      values,
+      cardKeyId,
+      productName,
+      claimIrreversible,
+      releaseIrreversible,
+      saveOrderRef,
+    }): Promise<RedeemActivateResult> {
       /*
-       * 卡是好的、能充，但我们判不出该发哪个 product_id。
-       * **不猜**：猜错就是把 5x 的卡充成 plus。转人工，并在日志里留下线索。
+       * ============ 第一道闸：并发锁 ============
+       * 对方没有幂等键，同一张卡并发提交两次就是两笔真实扣款。
+       * 先读再写挡不住并发，必须靠数据库那条
+       * `WHERE redeem_lock_at IS NULL` 的 UPDATE 来裁决。
        */
-      console.error(
-        `[sysc] 判不出 product_id：upstream_name=${st.product_name ?? 'null'} our_name=${ctx?.productName ?? 'null'}` +
-          '（在 SYSC_PRODUCT_MAP 里补一条映射即可）'
-      )
-      return { state: 'ERROR', message: COPY.unmapped, fields: [], notice: null }
-    }
-
-    const g = guideFor(resolved.platform)
-    return {
-      state: 'READY',
-      message,
-      productName: ctx?.productName || undefined,
-      fields: fieldsFor(resolved.platform),
-      guide: g.steps,
-      guideIntro: g.intro,
-      notice: null,
-    }
-  },
-
-  async activate({
-    cdk,
-    values,
-    cardKeyId,
-    productName,
-    claimIrreversible,
-    releaseIrreversible,
-    saveOrderRef,
-  }): Promise<RedeemActivateResult> {
-    /*
-     * ============ 第一道闸：并发锁 ============
-     * 对方没有幂等键，同一张卡并发提交两次就是两笔真实扣款。
-     * 先读再写挡不住并发，必须靠数据库那条
-     * `WHERE redeem_lock_at IS NULL` 的 UPDATE 来裁决。
-     */
-    if (typeof cardKeyId !== 'number' || !claimIrreversible) {
-      throw new RedeemError('兑换服务异常，请联系客服', 'ERROR', false)
-    }
-
-    /*
-     * ============ 第二道闸：下单前先查状态 ============
-     * 这一步不能省。它同时回答两件事：这张卡现在能不能充、该发哪个 product_id。
-     */
-    const pre = await fetchStatus(cdk)
-    const preState = classify(pre)
-    if (preState.state !== 'READY') {
-      /*
-       * 已完成 / 处理中 / possible_success / 已退回 —— 一律**不提交**。
-       * 抛 RedeemError 让 service.ts 的 toActivateFailure 保住
-       * COMPLETED / PROCESSING 这些状态，别染成红色报错。
-       */
-      throw new RedeemError(preState.message, preState.state, false)
-    }
-
-    const resolved = await resolveProduct(pre.product_name, productName)
-    if (!resolved) {
-      console.error(
-        `[sysc] activate 判不出 product_id：upstream_name=${pre.product_name ?? 'null'} our_name=${productName ?? 'null'}`
-      )
-      throw new RedeemError(COPY.unmapped, 'ERROR', false)
-    }
-
-    // 凭据解析放在拿锁之前：格式不对、Team 号这类情况卡根本没动，不该白占一把锁
-    const args = pickAccountArgs(resolved.platform, values)
-
-    const got = await claimIrreversible()
-    if (!got) {
-      /*
-       * 抢不到锁只能证明「15 分钟内有过一次提交尝试」，**证明不了那次真的提交到了对方**。
-       * 好在上面刚查过状态：卡还是 active 就说明上一次多半没提交成功。
-       */
-      throw new RedeemError(
-        '这张卡密在 15 分钟内有过一次提交尝试，为防止重复扣卡被暂时锁定。' +
-          '**经向充值系统核对，这张卡密仍未被消耗**。请稍等一会儿点「查询」确认，不要直接重复提交。',
-        'PROCESSING',
-        true
-      )
-    }
-
-    /*
-     * 【下单之前先把追踪号落库】对方不给订单号，我们用「卡 id + 账号」
-     * 自己造一个稳定的追踪号，纯粹为了排查时能把日志串起来。
-     * 它**不是**幂等键（对方不认），所以不参与任何去重判断。
-     */
-    const trace = `SC-${cardKeyId}-${crypto
-      .createHash('sha256')
-      .update(`${resolved.productId}|${args.account_id || args.session_key || ''}`)
-      .digest('hex')
-      .slice(0, 10)}`
-    if (saveOrderRef) await saveOrderRef(trace)
-
-    const sent = await submitOnce(
-      {
-        ref: REF,
-        cdk,
-        product_id: resolved.productId,
-        ...(args.account_id ? { account_id: args.account_id } : {}),
-        ...(args.session_key ? { session_key: args.session_key } : {}),
-        ...(args.email ? { email: args.email } : {}),
-        ...(args.acct_structure ? { acct_structure: args.acct_structure } : {}),
-        ...(args.acct_plan ? { acct_plan: args.acct_plan } : {}),
-      },
-      cdk
-    )
-
-    if (!sent.landed) {
-      /*
-       * 上游当场拒了，卡大概率一点没动（最常见：账号 ID 填错、Team 号）。
-       *
-       * 【必须把锁放掉】锁要 15 分钟才过期。不放掉，买家改对了账号再提交
-       * 会被自己的锁挡住、只能干等 —— 一张好卡、一个已经改对的输入，却动不了。
-       *
-       * 【但必须先向上游证明卡没被消耗】这是 releaseIrreversible 的举证责任。
-       * 查不动、或者查出来卡已经不是 active，就**保留锁** —— 宁可让他等 15 分钟，
-       * 也不能在一张可能已经提交出去的卡上放开闸门。
-       */
-      await releaseIfUntouched(cdk, trace, releaseIrreversible)
-      return { state: 'ERROR', message: sent.message, retriable: true, orderRef: trace }
-    }
-
-    // 已受理。顺手等一小会儿，接住「1 分钟内就好了」的常见情况
-    const settled = await waitShortly(cdk)
-    if (settled) {
-      const c = classify(settled)
-      if (c.state === 'COMPLETED') {
-        return {
-          state: 'COMPLETED',
-          message: '充值成功',
-          account: str(settled.redeem_email) || str(settled.redeem_account_id) || sent.email || sent.accountId,
-          completedAt: str(settled.redeemed_at),
-          retriable: false,
-          orderRef: trace,
-        }
+      if (typeof cardKeyId !== 'number' || !claimIrreversible) {
+        throw new RedeemError('兑换服务异常，请联系客服', 'ERROR', false)
       }
-      if (settled.task_status === 'possible_success') {
-        // 不交付、也绝不让他重试
-        return { state: 'PROCESSING', message: COPY.possibleSuccess, retriable: false, orderRef: trace }
-      }
-      if (settled.task_status && FAILED_TASKS.has(settled.task_status)) {
-        if (settled.message) console.error(`[sysc] 充值失败 trace=${trace} upstream_message=${settled.message}`)
+
+      /*
+       * ============ 第二道闸：下单前先查状态 ============
+       * 这一步不能省。它同时回答两件事：这张卡现在能不能充、该发哪个 product_id。
+       */
+      const pre = await fetchStatus(s, cdk)
+      const preState = classify(pre)
+      if (preState.state !== 'READY') {
         /*
-         * 上游失败后会把卡回滚成未使用，所以这里的「可以重新提交」是真的 ——
-         * 但前提是把我们自己的 15 分钟占位也放掉，否则那句话就是在骗买家。
+         * 已完成 / 处理中 / possible_success / 已退回 —— 一律**不提交**。
+         * 抛 RedeemError 让 service.ts 的 toActivateFailure 保住
+         * COMPLETED / PROCESSING 这些状态，别染成红色报错。
          */
-        await releaseIfUntouched(cdk, trace, releaseIrreversible)
-        return { state: 'ERROR', message: COPY.failed, retriable: true, orderRef: trace }
+        throw new RedeemError(preState.message, preState.state, false)
       }
-    }
 
-    return {
-      state: 'PROCESSING',
-      message: COPY.accepted,
-      account: sent.email || sent.accountId,
-      retriable: false,
-      retryAfter: 20,
-      orderRef: trace,
-    }
-  },
-
-  /**
-   * 售后强刷。**只对 Claude 有效** —— 对方那个入口只校验 `sk-` 前缀，
-   * 也只在 Claude 下给出。我们拿的是 GPT 5x，这条路平时用不上。
-   */
-  rebindFields(): RedeemField[] {
-    return [
-      {
-        name: 'session_key',
-        kind: 'session_key',
-        label: 'Claude SessionKey',
-        help: '需要使用**当初充值时那个账号**的 sessionKey，以 sk-ant-sid 开头。',
-        placeholder: 'sk-ant-sid...',
-        pattern: '^(sessionKey=)?sk-ant-sid',
-        required: true,
-        multiline: true,
-      },
-    ]
-  },
-
-  async rebind({ cdk, values }): Promise<RedeemActivateResult> {
-    const sk = (values.session_key || '').trim().replace(/^sessionKey=/, '')
-    if (!sk) throw new RedeemError('请填写 Claude SessionKey', 'ERROR')
-    if (!sk.startsWith('sk-')) throw new RedeemError('SessionKey 格式不对，应以 sk-ant-sid 开头', 'ERROR')
-
-    const r = await request('/api/store/remedy', { method: 'POST', payload: { ref: REF, cdk, session_key: sk } })
-    if (r.status !== 200) {
-      const detail = str(r.body.detail)
-      if (detail) console.error(`[sysc] 强刷被拒 status=${r.status} detail=${detail}`)
-      return {
-        state: 'ERROR',
-        message: r.status === 429 ? COPY.busy : '强刷失败，请稍后再试或联系客服',
-        retriable: r.status !== 400,
-      }
-    }
-    const mission = str(r.body.mission_id)
-    if (!mission) return { state: 'ERROR', message: '强刷失败，请联系客服', retriable: true }
-
-    /*
-     * 对方前端是 2.5 秒一次轮 7.5 分钟。我们不能在一个 HTTP 请求里挂那么久，
-     * 所以只等一小会儿；等不到就告诉买家稍后再提交一次同样的信息查看结果
-     * （retriable:true 是刻意的 —— 续查走的就是同一个入口）。
-     */
-    const deadline = Date.now() + ACTIVATE_WAIT_MS
-    while (Date.now() < deadline) {
-      await new Promise((x) => setTimeout(x, ACTIVATE_POLL_MS))
-      try {
-        const q = await request(
-          `/api/store/remedy/status?ref=${encodeURIComponent(REF)}&id=${encodeURIComponent(mission)}`,
-          { method: 'GET' }
+      const resolved = await resolveProduct(s, pre.product_name, productName)
+      if (!resolved) {
+        console.error(
+          `[${s.key}] activate 判不出 product_id：upstream_name=${pre.product_name ?? 'null'} our_name=${productName ?? 'null'}`
         )
-        const st = str(q.body.status) || ''
-        if (st === 'success') {
-          const redeem = (q.body.redeem || {}) as Record<string, unknown>
-          const exp = str(redeem.expires_date)
+        throw new RedeemError(COPY.unmapped, 'ERROR', false)
+      }
+
+      // 凭据解析放在拿锁之前：格式不对、Team 号这类情况卡根本没动，不该白占一把锁
+      const args = pickAccountArgs(resolved.platform, values)
+
+      const got = await claimIrreversible()
+      if (!got) {
+        /*
+         * 抢不到锁只能证明「15 分钟内有过一次提交尝试」，**证明不了那次真的提交到了对方**。
+         * 好在上面刚查过状态：卡还是 active 就说明上一次多半没提交成功。
+         */
+        throw new RedeemError(
+          '这张卡密在 15 分钟内有过一次提交尝试，为防止重复扣卡被暂时锁定。' +
+            '**经向充值系统核对，这张卡密仍未被消耗**。请稍等一会儿点「查询」确认，不要直接重复提交。',
+          'PROCESSING',
+          true
+        )
+      }
+
+      /*
+       * 【下单之前先把追踪号落库】对方不给订单号，我们用「卡 id + 账号」
+       * 自己造一个稳定的追踪号，纯粹为了排查时能把日志串起来。
+       * 它**不是**幂等键（对方不认），所以不参与任何去重判断。
+       */
+      const trace = `${s.tracePrefix}-${cardKeyId}-${crypto
+        .createHash('sha256')
+        .update(`${resolved.productId}|${args.account_id || args.session_key || ''}`)
+        .digest('hex')
+        .slice(0, 10)}`
+      if (saveOrderRef) await saveOrderRef(trace)
+
+      const sent = await submitOnce(
+        s,
+        {
+          ref: s.ref,
+          cdk,
+          product_id: resolved.productId,
+          ...(args.account_id ? { account_id: args.account_id } : {}),
+          ...(args.session_key ? { session_key: args.session_key } : {}),
+          ...(args.email ? { email: args.email } : {}),
+          ...(args.acct_structure ? { acct_structure: args.acct_structure } : {}),
+          ...(args.acct_plan ? { acct_plan: args.acct_plan } : {}),
+        },
+        cdk
+      )
+
+      if (!sent.landed) {
+        /*
+         * 上游当场拒了，卡大概率一点没动（最常见：账号 ID 填错、Team 号）。
+         *
+         * 【必须把锁放掉】锁要 15 分钟才过期。不放掉，买家改对了账号再提交
+         * 会被自己的锁挡住、只能干等 —— 一张好卡、一个已经改对的输入，却动不了。
+         *
+         * 【但必须先向上游证明卡没被消耗】这是 releaseIrreversible 的举证责任。
+         * 查不动、或者查出来卡已经不是 active，就**保留锁** —— 宁可让他等 15 分钟，
+         * 也不能在一张可能已经提交出去的卡上放开闸门。
+         */
+        await releaseIfUntouched(s, cdk, trace, releaseIrreversible)
+        return { state: 'ERROR', message: sent.message, retriable: true, orderRef: trace }
+      }
+
+      // 已受理。顺手等一小会儿，接住「1 分钟内就好了」的常见情况
+      const settled = await waitShortly(s, cdk)
+      if (settled) {
+        const c = classify(settled)
+        if (c.state === 'COMPLETED') {
           return {
             state: 'COMPLETED',
-            message: `强刷成功，请重新登录账号查看订阅${exp ? `（到期日 ${exp}）` : ''}`,
+            message: '充值成功',
+            account: str(settled.redeem_email) || str(settled.redeem_account_id) || sent.email || sent.accountId,
+            completedAt: str(settled.redeemed_at),
             retriable: false,
-            orderRef: mission,
+            orderRef: trace,
           }
         }
-        if (FAILED_TASKS.has(st)) {
-          const m = str(q.body.message)
-          if (m) console.error(`[sysc] 强刷失败 mission=${mission} upstream_message=${m}`)
-          return { state: 'ERROR', message: '强刷没有成功，请稍后再试或联系客服', retriable: true, orderRef: mission }
+        if (settled.task_status === 'possible_success') {
+          // 不交付、也绝不让他重试
+          return { state: 'PROCESSING', message: COPY.possibleSuccess, retriable: false, orderRef: trace }
         }
-      } catch {
-        /* 查不动就继续等 */
+        if (settled.task_status && FAILED_TASKS.has(settled.task_status)) {
+          if (settled.message) console.error(`[${s.key}] 充值失败 trace=${trace} upstream_message=${settled.message}`)
+          /*
+           * 上游失败后会把卡回滚成未使用，所以这里的「可以重新提交」是真的 ——
+           * 但前提是把我们自己的 15 分钟占位也放掉，否则那句话就是在骗买家。
+           */
+          await releaseIfUntouched(s, cdk, trace, releaseIrreversible)
+          return { state: 'ERROR', message: COPY.failed, retriable: true, orderRef: trace }
+        }
       }
-    }
-    return {
-      state: 'PROCESSING',
-      message: '正在处理，请稍后用同样的信息再提交一次查看结果',
-      retriable: true,
-      retryAfter: 30,
-      orderRef: mission,
-    }
-  },
+
+      return {
+        state: 'PROCESSING',
+        message: COPY.accepted,
+        account: sent.email || sent.accountId,
+        retriable: false,
+        retryAfter: 20,
+        orderRef: trace,
+      }
+    },
+
+    /**
+     * 售后强刷。**只对 Claude 有效** —— 对方那个入口只校验 `sk-` 前缀，
+     * 也只在 Claude 下给出。我们拿的是 GPT 5x，这条路平时用不上。
+     */
+    rebindFields(): RedeemField[] {
+      return [
+        {
+          name: 'session_key',
+          kind: 'session_key',
+          label: 'Claude SessionKey',
+          help: '需要使用**当初充值时那个账号**的 sessionKey，以 sk-ant-sid 开头。',
+          placeholder: 'sk-ant-sid...',
+          pattern: '^(sessionKey=)?sk-ant-sid',
+          required: true,
+          multiline: true,
+        },
+      ]
+    },
+
+    async rebind({ cdk, values }): Promise<RedeemActivateResult> {
+      const sk = (values.session_key || '').trim().replace(/^sessionKey=/, '')
+      if (!sk) throw new RedeemError('请填写 Claude SessionKey', 'ERROR')
+      if (!sk.startsWith('sk-')) throw new RedeemError('SessionKey 格式不对，应以 sk-ant-sid 开头', 'ERROR')
+
+      const r = await request(s, '/api/store/remedy', { method: 'POST', payload: { ref: s.ref, cdk, session_key: sk } })
+      if (r.status !== 200) {
+        const detail = str(r.body.detail)
+        if (detail) console.error(`[${s.key}] 强刷被拒 status=${r.status} detail=${detail}`)
+        return {
+          state: 'ERROR',
+          message: r.status === 429 ? COPY.busy : '强刷失败，请稍后再试或联系客服',
+          retriable: r.status !== 400,
+        }
+      }
+      const mission = str(r.body.mission_id)
+      if (!mission) return { state: 'ERROR', message: '强刷失败，请联系客服', retriable: true }
+
+      /*
+       * 对方前端是 2.5 秒一次轮 7.5 分钟。我们不能在一个 HTTP 请求里挂那么久，
+       * 所以只等一小会儿；等不到就告诉买家稍后再提交一次同样的信息查看结果
+       * （retriable:true 是刻意的 —— 续查走的就是同一个入口）。
+       */
+      const deadline = Date.now() + ACTIVATE_WAIT_MS
+      while (Date.now() < deadline) {
+        await new Promise((x) => setTimeout(x, ACTIVATE_POLL_MS))
+        try {
+          const q = await request(
+            s,
+            `/api/store/remedy/status?ref=${encodeURIComponent(s.ref)}&id=${encodeURIComponent(mission)}`,
+            { method: 'GET' }
+          )
+          const st = str(q.body.status) || ''
+          if (st === 'success') {
+            const redeem = (q.body.redeem || {}) as Record<string, unknown>
+            const exp = str(redeem.expires_date)
+            return {
+              state: 'COMPLETED',
+              message: `强刷成功，请重新登录账号查看订阅${exp ? `（到期日 ${exp}）` : ''}`,
+              retriable: false,
+              orderRef: mission,
+            }
+          }
+          if (FAILED_TASKS.has(st)) {
+            const m = str(q.body.message)
+            if (m) console.error(`[${s.key}] 强刷失败 mission=${mission} upstream_message=${m}`)
+            return { state: 'ERROR', message: '强刷没有成功，请稍后再试或联系客服', retriable: true, orderRef: mission }
+          }
+        } catch {
+          /* 查不动就继续等 */
+        }
+      }
+      return {
+        state: 'PROCESSING',
+        message: '正在处理，请稍后用同样的信息再提交一次查看结果',
+        retriable: true,
+        retryAfter: 30,
+        orderRef: mission,
+      }
+    },
+  }
 }
+
+/**
+ * 按店铺配置造出一个适配器，外加给对账脚本用的批量查询。
+ * **新开一家店 = 一个配置 + 在 registry 注册一行**（sysd.ts 就是这么做的）。
+ */
+export function createStore(cfg: StoreConfig): {
+  config: Readonly<StoreConfig>
+  provider: RedeemProvider
+  /** 批量查（一次最多 100 张）。给对账脚本用，兑换链路不走这里 */
+  statusBatch: (cdks: string[]) => Promise<StatusBody[]>
+} {
+  const s: Store = {
+    ...cfg,
+    base: cfg.base.trim().replace(/\/+$/, ''),
+    ref: cfg.ref.trim(),
+    siteCache: null,
+  }
+  return {
+    config: Object.freeze({ ...cfg, base: s.base, ref: s.ref }),
+    provider: makeProvider(s),
+    statusBatch: (cdks) => statusBatch(s, cdks),
+  }
+}
+
+/** sysc：chuanwen 店。三个环境变量都不用配，见 docs/sysc-接入-部署说明.md 第二节 */
+export const SYSC = createStore({
+  key: 'sysc',
+  adminLabel: 'C 系统（兑换中心 / chuanwen）',
+  base: process.env.SYSC_BASE || 'https://chuanwen.applelll.com',
+  ref: process.env.SYSC_STORE_REF || 'chuanwen',
+  productMapEnv: 'SYSC_PRODUCT_MAP',
+  tracePrefix: 'SC',
+})
+export const sysc: RedeemProvider = SYSC.provider
+export const syscStatusBatch = SYSC.statusBatch
 
 /**
  * 仅供 scripts/check-redeem.ts 使用的内部导出。

@@ -12,12 +12,25 @@
  * 而一个 CLI 开关只会给自己留一个手滑烧卡的口子。
  *
  * 协议见 docs/sysc-充值系统-协议逆向说明.md。
+ *
+ * 【sysd 也用这个脚本】sysd（niuniu888）是同一套协议的另一家店，前面加 STORE=sysd：
+ *   STORE=sysd npx tsx scripts/probe-sysc.ts status <卡密>
+ * 站点与店铺标识直接取适配器自己的配置，保证探针查的就是线上会发请求的那一家。
  */
 import crypto from 'crypto'
-import { sysc, syscStatusBatch, __test } from '../src/lib/redeem/providers/sysc'
+import { SYSC, __test } from '../src/lib/redeem/providers/sysc'
+import { SYSD } from '../src/lib/redeem/providers/sysd'
 
-const BASE = (process.env.SYSC_BASE || 'https://chuanwen.applelll.com').replace(/\/+$/, '')
-const REF = (process.env.SYSC_STORE_REF || 'chuanwen').trim()
+const STORE = (process.env.STORE || 'sysc').trim().toLowerCase()
+const PICKED = (() => {
+  if (STORE === 'sysd') return SYSD
+  if (STORE === 'sysc') return SYSC
+  throw new Error(`STORE 只能是 sysc 或 sysd，收到 ${STORE}`)
+})()
+const BASE = PICKED.config.base
+const REF = PICKED.config.ref
+const sysc = PICKED.provider
+const syscStatusBatch = PICKED.statusBatch
 
 function head(t: string) {
   console.log(`\n${'='.repeat(60)}\n${t}\n${'='.repeat(60)}`)
@@ -263,7 +276,7 @@ async function cmdSkew() {
 
 async function main() {
   const [cmd, arg] = process.argv.slice(2)
-  console.log(`BASE=${BASE}  REF=${REF}`)
+  console.log(`STORE=${PICKED.config.key}  BASE=${BASE}  REF=${REF}`)
   switch (cmd) {
     case 'site':
       return cmdSite()
