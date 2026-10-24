@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { writeAudit } from '@/lib/audit'
 import { adminFail, currentAdminId, failJson, parseIdParam, statementHeadOr404 } from '@/lib/tenant/admin-tenants'
 import { ProofFileError, proofStatementId, removeProof, saveProof, streamProof } from '@/lib/tenant/private-files'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 打款凭证（设计 10.10）：只经这个 adminGuard 接口流式下发，文件在私有目录（不在 /uploads，nginx 发不出去）。
@@ -34,6 +35,9 @@ export async function GET(_req: NextRequest, { params }: { params: { sid: string
 export async function POST(req: NextRequest, { params }: { params: { sid: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const sid = parseIdParam(params.sid)
   if (!sid) return error('结算单不存在', 404)
   const len = Number(req.headers.get('content-length') || '0')

@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { manualComplete, VmqError } from '@/lib/vmq'
 import { adminOrResponse, sourceMap, sourceOf } from '@/lib/admin/source-site'
+import { requireSudo } from '@/lib/security/sudo'
 
 const schema = z.object({ id: z.number().int().positive() })
 
@@ -59,6 +60,9 @@ export async function POST(request: NextRequest) {
   // 路由内再验一次管理员（CVE-2025-29927）：这个接口能凭空把一张收款单记成「已到账」并发货；渠道 Host → 404
   const auth = await adminOrResponse()
   if ('res' in auth) return auth.res
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = await request.json()
     const parsed = schema.safeParse(body)

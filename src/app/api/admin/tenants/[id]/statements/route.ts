@@ -7,6 +7,7 @@ import { error, success } from '@/lib/api'
 import { GENERATE_REASON, adminFail, currentAdminId, failJson, listStatementsAdmin, parseIdParam, payoutHoldText, readJson } from '@/lib/tenant/admin-tenants'
 import { prisma } from '@/lib/db'
 import { generateStatement, scheduledPeriodEnd } from '@/lib/tenant/statement'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 结算单列表 / 生成（设计 10.9）。生成走 WP3 的 generateStatement（锁渠道行、出单前对账、按 eventKey 整组取舍）：
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const id = parseIdParam(params.id)
   if (!id) return error('渠道不存在', 404)
   const body = await readJson(req, schema)

@@ -11,7 +11,9 @@ import { getCurrentUser } from '@/lib/auth'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { emailDigest, hasAccountAccess, readProofDigests } from '@/lib/email-proof'
 import { ipKey } from '@/lib/auth-throttle'
+import { noteAbuse } from '@/lib/security/abuse'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 const querySchema = z.object({
   email: z.string().email('请输入正确的邮箱'),
@@ -19,6 +21,9 @@ const querySchema = z.object({
 
 // 邮箱放 body 而不是 query：query 会整串进 nginx 访问日志
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied
@@ -52,6 +57,7 @@ async function lookup(request: NextRequest, rawEmail: unknown) {
     const rawIp = clientIp(request.headers)
     const ip = rawIp !== 'unknown' ? ipKey(rawIp) : null // IPv6 按 /64 聚合，换地址绕不过
     if (ip && rateLimited(`lookup-ip:${ip}`, { windowMs: 600_000, max: 60 })) {
+      noteAbuse(request.headers, 'AUTH_THROTTLED', '邮箱查订阅')
       return error('查询过于频繁，请稍后再试', 429)
     }
 
@@ -60,6 +66,7 @@ async function lookup(request: NextRequest, rawEmail: unknown) {
       // 按邮箱计数只算「没证明归属」的请求：放在鉴权之前的话，知道邮箱的人刷 30 次
       // 就能让真正的主人（已验证、已登录）也一直看到「查询过于频繁」（终审 2026-09-26）
       if (rateLimited(`lookup-mail:${emailDigest(email)}`, { windowMs: 600_000, max: 30 })) {
+        noteAbuse(request.headers, 'AUTH_THROTTLED', '邮箱查订阅（同一邮箱）')
         return error('查询过于频繁，请稍后再试', 429)
       }
       return NextResponse.json({ success: false, error: '请先验证邮箱', needVerify: true }, { status: 401 })

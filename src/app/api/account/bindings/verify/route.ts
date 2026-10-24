@@ -10,6 +10,7 @@ import { consumeCode } from '@/lib/verify-code'
 import { verifyIpLimited } from '@/lib/auth-throttle'
 import { addProof, proofCookieOptions, PROOF_COOKIE } from '@/lib/email-proof'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 const schema = z.object({
   accountEmail: z.string().email('账户邮箱格式不正确'),
@@ -18,6 +19,9 @@ const schema = z.object({
 
 /** 用验证码完成绑定账户的所有权验证：之后才能看它的订阅记录、设置提醒、在登录状态下为它开票开收据 */
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 渠道分站：账户绑定模块在渠道站关闭（设计 7.6 / 11.2；主会话 D3）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied

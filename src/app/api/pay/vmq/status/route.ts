@@ -8,6 +8,8 @@ import { getStorefront } from '@/lib/storefront/resolve'
 import { tenantOrigin } from '@/lib/storefront/origin'
 import { channelsEnabled } from '@/lib/storefront/hosts'
 import { currentPayQrUrls } from '@/lib/pay-qr'
+import { clientIp, rateFull, rateLimited } from '@/lib/news/rate-limit'
+import { ipKey } from '@/lib/ip-key'
 
 /**
  * 收款单属于哪个站：按 VmqOrder.bizType / bizId 反查订单或税费发票的 tenantId（设计 4.5）。
@@ -25,6 +27,16 @@ async function bizTenantId(bizType: string, bizId: number): Promise<number> {
   return 1
 }
 
+/*
+ * 限流（2026-10-24 第二轮加固）。这个接口匿名可查（见下），以前不限流：
+ *  · 总量：收银台每 3 秒轮询一次 = 每页每分钟 20 次；每 IP 每分钟 120 次 ≈ 同时开 6 个收银台，正常买家碰不到。
+ *  · 查不到的单号：真人只会打开自己刚建的收款单，几乎不会查到不存在的号；每 IP 10 分钟 30 个之后连库都不查，
+ *    挡的是拿脚本枚举收款单号（单号本身已是 96 位随机，见 lib/vmq.ts genOrderId，这层是兜底）。
+ * 被限时收银台页面保持原状、下一轮再查（pay/[orderId]/page.tsx 对 429 不改状态），不会显示「订单不存在」。
+ */
+const ST_RULE = { windowMs: 60_000, max: 120 }
+const MISS_RULE = { windowMs: 10 * 60_000, max: 30 }
+
 // 收银台轮询 / 初始化：返回订单展示信息与支付状态。
 // 【不能加登录校验】/lookup 的匿名开票流程（邮箱证明、不登录）发起的税费收款单也用这个接口轮询。
 export async function GET(request: NextRequest) {
@@ -32,13 +44,22 @@ export async function GET(request: NextRequest) {
   const sf = await getStorefront()
   if (!sf) return error('订单不存在', 404)
   try {
+    const rawIp = clientIp(request.headers)
+    const ip = rawIp === 'unknown' ? null : ipKey(rawIp)
+    if (ip && rateLimited(`vmq-st:${ip}`, ST_RULE)) return error('请求过于频繁，请稍后再试', 429)
+    if (ip && rateFull(`vmq-miss:${ip}`, MISS_RULE)) return error('请求过于频繁，请稍后再试', 429)
+    const miss = () => {
+      if (ip) rateLimited(`vmq-miss:${ip}`, MISS_RULE)
+      return error('订单不存在', 404)
+    }
+
     const orderId = new URL(request.url).searchParams.get('orderId')?.trim()
     if (!orderId) return error('缺少订单号')
     // 列宽 VarChar(40)，超长的不可能存在，不碰数据库
-    if (orderId.length > 40) return error('订单不存在', 404)
+    if (orderId.length > 40) return miss()
 
     let o = await prisma.vmqOrder.findUnique({ where: { orderId } })
-    if (!o) return error('订单不存在', 404)
+    if (!o) return miss()
 
     /*
      * 【跨店面 → 只给 redirectOrigin】（设计 4.5、8.2、W2-9）收款单属于别的站时，不返回金额、状态与时间，

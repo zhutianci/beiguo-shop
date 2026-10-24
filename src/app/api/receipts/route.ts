@@ -15,6 +15,7 @@ import { settlePrepaidInvoiceByExternalOrder, shopOrderSourceKey } from '@/lib/o
 import { invoicesForOrder, orderIdFromSourceKey } from '@/lib/order-link'
 import { readProofDigests } from '@/lib/email-proof'
 import { getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 const schema = z.object({
   externalOrderId: z.number().int().positive('缺少订单'),
@@ -28,6 +29,9 @@ const schema = z.object({
 })
 
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return notFound('订单不存在')

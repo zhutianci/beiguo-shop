@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { adminGuard } from '@/lib/admin-guard'
 import { error, success } from '@/lib/api'
 import { adminFail, currentAdminId, parseIdParam, revealStatementPayee } from '@/lib/tenant/admin-tenants'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 查看结算单快照里的收款账号明文（打款时核对；设计 10.10「收款人以结算单快照为准，不读当前设置」）。
@@ -13,6 +14,9 @@ import { adminFail, currentAdminId, parseIdParam, revealStatementPayee } from '@
 export async function POST(_req: NextRequest, { params }: { params: { sid: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const sid = parseIdParam(params.sid)
   if (!sid) return error('结算单不存在', 404)
   try {

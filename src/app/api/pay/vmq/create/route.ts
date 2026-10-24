@@ -23,8 +23,10 @@ import { smsCashierGate } from '@/lib/jiema/pay-gate'
 // 付款期限与「过期未付单自动取消」同一个常量（lib/order/abandon.ts）
 import { ORDER_PAY_WINDOW_MIN } from '@/lib/order/abandon'
 import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
+import { recordProbe } from '@/lib/security/probe'
 import { currentPayQrUrl } from '@/lib/pay-qr'
 import { VMQ_TYPE_ALIPAY, VMQ_TYPE_WECHAT } from '@/lib/pay-channel'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 const schema = z.object({
   orderNo: z.string().min(1, '缺少订单号'),
@@ -36,6 +38,9 @@ const schema = z.object({
 
 // 为商品订单发起 V免签 收款，返回收银台地址
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return error('订单不存在', 404)
@@ -49,7 +54,11 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return error(parsed.error.errors[0].message)
 
     const order = await prisma.order.findUnique({ where: { orderNo: parsed.data.orderNo } })
-    if (!order || order.userId !== user.id) return error('订单不存在')
+    if (!order || order.userId !== user.id) {
+      // 拿别人的订单号来发起付款 = 越权尝试（lib/security/probe.ts IDOR）；响应照旧
+      if (order) await recordProbe(request, 'IDOR', { path: `order:${order.id}` })
+      return error('订单不存在')
+    }
     // 【店面不符 → 404】（设计 4.5、8.2）订单只能在它下单的那个站付款：收银台、到账后的跳转、邮件链接都按订单的站走。
     // 同一账号拿 lulu 的订单号到主站发起收款（或反过来）一律当不存在，文案与上一行相同
     if (order.tenantId !== sf.id) return error('订单不存在', 404)

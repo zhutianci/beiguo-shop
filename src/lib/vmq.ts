@@ -135,8 +135,9 @@ export function vmqConfigured(): boolean {
 }
 
 export function genOrderId(): string {
-  // 时间 + 随机，保证不可枚举
-  return Date.now().toString() + crypto.randomBytes(4).toString('hex')
+  // 时间 + 随机，保证不可枚举。随机部分 2026-10-24 由 4 字节（32 位）加到 12 字节（96 位）：
+  // 状态接口匿名可查（收银台、匿名开票都靠它），单号是唯一的凭证。总长 13 + 24 = 37，列宽 VarChar(40)
+  return Date.now().toString() + crypto.randomBytes(12).toString('hex')
 }
 
 function centsOf(price: number | string | Prisma.Decimal): number {

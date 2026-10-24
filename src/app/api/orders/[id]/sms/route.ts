@@ -7,9 +7,10 @@ import { success, error, unauthorized, notFound } from '@/lib/api'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { pollActivation, acquireForOrder, SMS_MAX_RETRY, SMS_RETRY_COOLDOWN_SEC } from '@/lib/sms'
 import { rateLimited } from '@/lib/news/rate-limit'
+import { noteForeignOrder } from '@/lib/security/probe'
 
 // 买家拉取本订单接码状态（号码 + 验证码）；缺号时按需补取号，并实时查码/超时取消
-export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return notFound('订单不存在')
@@ -29,7 +30,15 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
         product: { select: { deliveryType: true, smsService: true, smsCountry: true, smsMaxPrice: true } },
       },
     })
-    if (!order) return notFound('订单不存在')
+    if (!order) {
+
+      // 订单存在但属于别人 = 越权尝试，记一次（lib/security/probe.ts IDOR）；响应照旧 404
+
+      await noteForeignOrder(request, user.id, orderId)
+
+      return notFound('订单不存在')
+
+    }
     if (order.payStatus !== 'PAID') return error('订单支付后才有接码信息')
     if (order.product.deliveryType !== 'SMS') return success({ exists: false })
 

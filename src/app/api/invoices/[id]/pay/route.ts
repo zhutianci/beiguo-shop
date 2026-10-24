@@ -11,6 +11,7 @@ import { assertShopOrderBillable, shopOrderIdOfExt } from '@/lib/order-invoice'
 import { readProofDigests } from '@/lib/email-proof'
 import { orderIdFromSourceKey } from '@/lib/order-link'
 import { getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 const schema = z.object({
   // 匿名「邮箱查订阅」流程的归属凭证，与 POST /api/invoices 同一套
@@ -27,6 +28,9 @@ const schema = z.object({
  * 现在与提交发票走同一套归属校验：登录本人 / 已绑定账户 / 匿名需提供正确的账户邮箱。
  */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return error('发票不存在或无权操作', 404)

@@ -11,6 +11,7 @@ import { bjMinute } from '@/lib/bot/render'
 import { kickSender } from '@/lib/bot/sender'
 import { auditSoft, auditStrict, currentActor, readBody } from '@/app/api/admin/bot/_lib/common'
 import type { LockResultDTO } from '@/app/admin/bot/types'
+import { requireSudo } from '@/lib/security/sudo'
 
 /** 锁定状态在「读」与「写」之间变了（有人又锁了一次 / 别处已经解锁）：不能把别人刚加的锁顺手解掉 */
 class LockChanged extends Error {}
@@ -45,6 +46,9 @@ async function noticeMgmt(text: string, dedupeKey: string, now: Date): Promise<v
 export async function POST(request: NextRequest) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = (await readBody(request)) ?? {}
     const expectLockedAt = typeof body.lockedAt === 'string' || body.lockedAt === null ? (body.lockedAt as string | null) : undefined

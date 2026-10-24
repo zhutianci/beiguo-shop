@@ -6,6 +6,10 @@ import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { cancelOpenOrdersOf } from '@/lib/security/ban-user'
+import { requireSudo } from '@/lib/security/sudo'
+import { getCurrentUser } from '@/lib/auth'
+import { writeAudit } from '@/lib/audit'
+import { notify } from '@/lib/notify'
 
 const updateUserSchema = z.object({
   status: z.number().int().min(0).max(1).optional(),
@@ -58,6 +62,15 @@ export async function PUT(
     }
 
     const willPromote = result.data.role === 'ADMIN' && current.role !== 'ADMIN'
+    /*
+     * 【改角色要二次验证 + 留痕 + 推送】（2026-10-24，lib/security/sudo.ts）把小号提成管理员是最隐蔽的持久后门：
+     * 登录态被偷的人提一个自己的号，站长改密码也赶不走他。降级同样要验证（防止被人把站长踢出后台）
+     */
+    const roleChange = result.data.role !== undefined && result.data.role !== current.role
+    if (roleChange) {
+      const sudo = await requireSudo()
+      if (sudo) return sudo
+    }
     // 禁用时顺带让会话版本 +1：否则「禁用后再启用」会让他手里的旧 token 复活
     const data = { ...result.data, ...(result.data.status === 0 ? { sessionEpoch: { increment: 1 } } : {}) }
     const select = { id: true, email: true, nickname: true, status: true, role: true, vipLevel: true } as const
@@ -83,6 +96,29 @@ export async function PUT(
           return tx.user.update({ where: { id: userId }, data, select })
         })
       : await prisma.user.update({ where: { id: userId }, data, select })
+
+    if (roleChange) {
+      const operator = await getCurrentUser().catch(() => null)
+      void writeAudit(null, {
+        actorKind: 'PLATFORM',
+        actorUserId: operator?.id ?? null,
+        action: 'user.role',
+        targetType: 'user',
+        targetId: String(userId),
+        reason: `${current.role} → ${result.data.role}`,
+        req: request,
+      }).catch(() => {})
+      notify(
+        'security.alert',
+        [
+          { label: '类型', value: result.data.role === 'ADMIN' ? '有账号被提升为管理员' : '有管理员被降级' },
+          { label: '账号', value: `#${userId} ${user.email ?? ''}` },
+          { label: '操作人', value: operator?.email ?? '—' },
+          { label: '说明', value: '如果不是你本人操作，立即把它改回去并用「忘记密码」重置你的密码' },
+        ],
+        { link: `/admin/users/${userId}`, linkText: '后台查看该用户' },
+      )
+    }
 
     // 禁用 = 封禁（2026-10-15）：顺带取消他名下未付款的订单、关掉待付收款单，释放占着的唯一金额。
     // 以前只禁号，他已经发起的收款单还会把同价位的金额占满 20 分钟。已付款的订单一概不动

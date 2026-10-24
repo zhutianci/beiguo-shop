@@ -146,6 +146,11 @@ export function validCdkShape(cdk: string): boolean {
  * 单卡那层是防买家对着一张卡狂点（上游本身也有冷却，但我们不该把这些请求都转上去）；
  * 单 IP 那层是防有人拿我们当跳板批量试卡；
  * 全站那层是最后的闸门，上游限流我们的 IP 之前先自己刹车。
+ *
+ * 【全站闸只数「真卡」】（2026-10-24 第二轮加固）以前全站 300 次/分钟在查库之前就扣：
+ * 十几个 IP 拿乱填的卡密轮着刷，每个都不超单 IP 20 次，就能把全站名额占满，真买家兑换一律「人数较多」。
+ * 而乱填的卡密在 resolveCard 就被挡下、根本到不了上游，不该占上游的名额。
+ * 所以全站闸挪进 redeemCardLimited：只有库里确有其卡、马上要打上游的请求才计数。
  */
 export function redeemRateLimited(action: string, cardId: number | null, ip: string): string | null {
   if (cardId !== null) {
@@ -156,19 +161,19 @@ export function redeemRateLimited(action: string, cardId: number | null, ip: str
   if (ip !== 'unknown' && rateLimited(`rd-ip:${ipKey(ip)}`, { windowMs: 60_000, max: 20 })) {
     return '操作过于频繁，请稍后再试'
   }
-  if (rateLimited('rd-all', { windowMs: 60_000, max: 300 })) {
-    return '当前兑换人数较多，请稍后再试'
-  }
   return null
 }
 
 /**
- * 只看单卡那一层。给「查库之前已经用 redeemRateLimited(action, null, ip) 过了 IP / 全站两层」的路由在
- * resolveCard 之后用：再调一次 redeemRateLimited 会把同一个请求在 IP / 全站两层各记两次。
+ * 单卡 + 全站两层（全站只数真卡，理由见上）。给「查库之前已经用 redeemRateLimited(action, null, ip) 过了 IP 那层」的路由在
+ * resolveCard 之后用：再调一次 redeemRateLimited 会把同一个请求在 IP 那层记两次。
  */
 export function redeemCardLimited(action: string, cardId: number): string | null {
   if (rateLimited(`rd:${action}:${cardId}`, { windowMs: 60_000, max: 6 })) {
     return '操作过于频繁，请稍后再试'
+  }
+  if (rateLimited('rd-all', { windowMs: 60_000, max: 300 })) {
+    return '当前兑换人数较多，请稍后再试'
   }
   return null
 }

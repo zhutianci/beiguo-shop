@@ -17,23 +17,17 @@
  * 否则所有人共用一个桶、被一个人打满。IPv6 按 /64 聚合：一户通常分到整段 /64，按单地址限流等于随手绕过。
  */
 import { clientIp, rateLimited, rateClear, type RateRule } from './news/rate-limit'
+// ipKey（IPv6 按 /64 聚合）的实现挪到叶子模块 lib/ip-key.ts（2026-10-24：security/abuse 要被本文件引用，避免循环 import）；
+// 这里保留导出，老调用方不用改
+import { ipKey } from './ip-key'
+import { noteAbuse } from './security/abuse'
+export { ipKey }
 
 const MIN = 60_000
 const HOUR = 60 * MIN
 const DAY = 24 * HOUR
 
 export type CodePurposeKey = 'REGISTER' | 'RESET' | 'LOOKUP' | 'ADMIN_LOGIN'
-
-/** IPv6 按 /64 聚合；IPv4 与 IPv4-mapped 原样取 IPv4 */
-export function ipKey(ip: string): string {
-  if (!ip.includes(':')) return ip
-  if (ip.includes('.')) return ip.slice(ip.lastIndexOf(':') + 1) // ::ffff:1.2.3.4
-  const [head, tail] = ip.toLowerCase().split('::')
-  const h = head ? head.split(':') : []
-  const t = tail ? tail.split(':') : []
-  const groups = tail === undefined ? h : [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t]
-  return groups.slice(0, 4).map((x) => x.replace(/^0+(?=.)/, '')).join(':') + '::/64'
-}
 
 function ipOf(headers: Headers): string | null {
   const ip = clientIp(headers)
@@ -79,17 +73,21 @@ export interface SendGate {
  */
 export function sendCodeGate(headers: Headers, email: string, purpose: CodePurposeKey): SendGate | null {
   const ip = ipOf(headers)
+  // 被拒的每一次都记进 security/abuse（同一 IP 10 分钟被拒 15 次 → 封 1 小时）；下面的全站熔断不算这个 IP 的账
   if (ip && (rateLimited(`vcs-ip:${ip}`, SEND_IP_SHORT) || rateLimited(`vcs-ipd:${ip}`, SEND_IP_DAY))) {
+    noteAbuse(headers, 'AUTH_THROTTLED', `发码 ${purpose}`)
     return { message: '获取验证码过于频繁，请稍后再试' }
   }
   const m = mailKey(email)
   if (rateLimited(`vcs-mail:${purpose}:${m}`, SEND_MAIL_COOLDOWN)) {
+    noteAbuse(headers, 'AUTH_THROTTLED', `发码冷却 ${purpose}`)
     return { message: '验证码发送过于频繁，请 60 秒后再试' }
   }
   if (
     (ip && rateLimited(`vcs-mailipd:${ip}|${m}`, SEND_MAIL_DAY_PER_IP)) ||
     rateLimited(`vcs-maild:${m}`, SEND_MAIL_DAY)
   ) {
+    noteAbuse(headers, 'AUTH_THROTTLED', `发码当日上限 ${purpose}`)
     return { message: '该邮箱今日获取验证码次数过多，请明天再试' }
   }
   if (rateLimited(`vcs-all:${purpose}`, SEND_GLOBAL[purpose])) {
@@ -106,7 +104,10 @@ const VERIFY_IP: RateRule = { windowMs: 10 * MIN, max: 30 }
 /** 按 IP 限制提交验证码的次数（每张码另有 5 次上限，见 lib/verify-code.ts） */
 export function verifyIpLimited(headers: Headers): boolean {
   const ip = ipOf(headers)
-  return !!ip && rateLimited(`vcv-ip:${ip}`, VERIFY_IP)
+  const limited = !!ip && rateLimited(`vcv-ip:${ip}`, VERIFY_IP)
+  // 10-22 那次就是这里：30 次之后每一次都被拒，但 IP 从没被封过
+  if (limited) noteAbuse(headers, 'AUTH_THROTTLED', '校验验证码')
+  return limited
 }
 
 // ---------------- 登录 ----------------
@@ -128,9 +129,13 @@ const LOGIN_MAIL: RateRule = { windowMs: 15 * MIN, max: 100 }
  */
 export function loginThrottle(headers: Headers, email: string): string | null {
   const ip = ipOf(headers)
-  if (ip && rateLimited(`login-ip:${ip}`, LOGIN_IP)) return '登录尝试过于频繁，请 10 分钟后再试'
+  if (ip && rateLimited(`login-ip:${ip}`, LOGIN_IP)) {
+    noteAbuse(headers, 'AUTH_THROTTLED', '登录')
+    return '登录尝试过于频繁，请 10 分钟后再试'
+  }
   const m = mailKey(email)
   if ((ip && rateLimited(`login-mailip:${ip}|${m}`, LOGIN_MAIL_IP)) || rateLimited(`login-mail:${m}`, LOGIN_MAIL)) {
+    noteAbuse(headers, 'AUTH_THROTTLED', '登录（同一账号）')
     return '该账号登录尝试次数过多，请 15 分钟后再试，或通过「忘记密码」重置后立即登录'
   }
   return null

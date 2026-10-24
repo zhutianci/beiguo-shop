@@ -8,6 +8,7 @@ import { adminGuard } from '@/lib/admin-guard'
 import { markUnmatchedHandled, UNMATCHED_KEY_RE, VmqError } from '@/lib/vmq'
 import { readEntry, entryInvolvesCarrier } from '@/lib/wallet/latepay'
 import { writeAudit } from '@/lib/audit'
+import { requireSudo } from '@/lib/security/sudo'
 
 const schema = z.object({
   key: z.string().regex(UNMATCHED_KEY_RE),
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
   // 路由内再验一次管理员（同源 + 查库，见 lib/admin-guard 的注释）
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   let adminId: number
   try {
     adminId = (await requireAdmin()).id

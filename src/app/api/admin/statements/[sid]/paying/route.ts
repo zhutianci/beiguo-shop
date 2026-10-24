@@ -5,6 +5,7 @@ import { adminGuard } from '@/lib/admin-guard'
 import { error, success } from '@/lib/api'
 import { adminFail, currentAdminId, failJson, parseIdParam, payoutHoldText, statementHeadOr404 } from '@/lib/tenant/admin-tenants'
 import { markPaying } from '@/lib/tenant/statement'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 开始打款（认领）：GENERATED / CONFIRMED → PAYING，记认领人与时间（设计 10.9、10.10 人工层防重复打款）。
@@ -14,6 +15,9 @@ import { markPaying } from '@/lib/tenant/statement'
 export async function POST(_req: NextRequest, { params }: { params: { sid: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const sid = parseIdParam(params.sid)
   if (!sid) return error('结算单不存在', 404)
   try {

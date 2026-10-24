@@ -25,6 +25,7 @@ import { accrueOnPaid, applyRefund, defaultLossCents, isTxAbortingError, shortFi
 import { adminOrResponse, closeAfterSale, AfterSaleConflict, REFUND_REASON_TEXT } from '@/lib/admin/source-site'
 import { isCarrierType } from '@/lib/order-scope'
 import { payableCents } from '@/lib/order-payable'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 改价的条件更新没抢到：开头读到的「待支付、未取消」在写入前已经变了（买家刚好付款、或超时关单）。
@@ -199,6 +200,22 @@ export async function PUT(
           : '接码订单请在「短信接码」后台操作（通用订单后台对它只读）',
         409
       )
+    }
+
+    /*
+     * 【动钱的改动要二次验证】（2026-10-24，lib/security/sudo.ts）标已付（含待付单直接改成处理中 / 已完成、填实收）、
+     * 改付款状态、改价、退款、取消已付订单——偷到登录态的人做这些就是白拿货或把钱「退」走。
+     * 只改发货状态 / 交付信息（站长每天的日常）不要求；退款「预览」也不要求。
+     */
+    const d = result.data
+    const refundCommit = !!d.refund && !d.refund.preview
+    const marksPaid =
+      currentOrder.payStatus === 'UNPAID' &&
+      (d.receivedCents !== undefined || d.deliveryStatus === 'PROCESSING' || d.deliveryStatus === 'DELIVERED')
+    const cancelsPaid = currentOrder.payStatus === 'PAID' && d.deliveryStatus === 'CANCELLED' && currentOrder.deliveryStatus !== 'CANCELLED'
+    if ((d.payStatus && d.payStatus !== currentOrder.payStatus) || d.amount !== undefined || refundCommit || marksPaid || cancelsPaid) {
+      const sudo = await requireSudo()
+      if (sudo) return sudo
     }
 
     /*

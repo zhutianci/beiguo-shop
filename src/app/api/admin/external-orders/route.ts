@@ -7,6 +7,7 @@ import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { shopOrderSourceKey } from '@/lib/order-invoice'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, sourceMap, sourceOf } from '@/lib/admin/source-site'
+import { requireSudo } from '@/lib/security/sudo'
 
 export async function GET(request: NextRequest) {
   const denied = await adminGuard()
@@ -82,6 +83,9 @@ export async function GET(request: NextRequest) {
 export async function DELETE() {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     /*
      * 【清空之前先把「这张发票属于哪张站内订单」写进发票的 sourceKey 快照】

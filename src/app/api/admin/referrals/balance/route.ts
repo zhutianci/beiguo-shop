@@ -8,6 +8,7 @@ import { adminGuard } from '@/lib/admin-guard'
 import { getCurrentUser } from '@/lib/auth'
 import { adminAdjust } from '@/lib/wallet/adjust'
 import { centsOf } from '@/lib/wallet/buckets'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 内推管理 →「提现/调整」（旧入口保留，只作用于**返现格** users.balance；docs/短信接码-设计.md §6.6 第 3 条）。
@@ -70,6 +71,9 @@ const adjustSchema = z.object({
 export async function POST(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = await request.json()
     const parsed = adjustSchema.safeParse(body)

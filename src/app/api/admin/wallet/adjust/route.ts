@@ -6,6 +6,7 @@ import { adminGuard } from '@/lib/admin-guard'
 import { success, error } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { adminAdjust, isAdjustKind, REQUEST_ID_RE } from '@/lib/wallet/adjust'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 余额与充值 · 调整（docs/短信接码-设计.md §7.8）。逻辑在 lib/wallet/adjust.ts：
@@ -27,6 +28,9 @@ const schema = z.object({
 export async function POST(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = await request.json().catch(() => null)
     const parsed = schema.safeParse(body)

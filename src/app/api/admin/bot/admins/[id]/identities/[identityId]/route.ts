@@ -6,6 +6,7 @@ import { success, error } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { auditSoft, currentActor, parseId, readBody } from '@/app/api/admin/bot/_lib/common'
 import { toAdminDTO } from '@/app/api/admin/bot/_lib/dto'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 停用 / 启用某个管理员的一个微信身份（docs/微信机器人-设计.md §10、§11.7）：body { enabled: boolean }。
@@ -15,6 +16,9 @@ import { toAdminDTO } from '@/app/api/admin/bot/_lib/dto'
 export async function PATCH(request: NextRequest, { params }: { params: { id: string; identityId: string } }) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const adminId = parseId(params.id)
     const identityId = parseId(params.identityId)

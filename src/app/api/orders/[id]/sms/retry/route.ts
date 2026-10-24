@@ -7,6 +7,8 @@ import { success, error, unauthorized, notFound } from '@/lib/api'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { retryActivation, SMS_MAX_RETRY } from '@/lib/sms'
 import { rateLimited } from '@/lib/news/rate-limit'
+import { noteForeignOrder } from '@/lib/security/probe'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 /**
  * 买家主动换一个接码号码。
@@ -18,7 +20,10 @@ import { rateLimited } from '@/lib/news/rate-limit'
  * 【三道闸在 lib/sms.ts 的 retryActivation 里】次数上限、冷却、只在 WAITING 时可换。
  * 这里只负责身份校验和限流——业务规则不要在路由层再写一遍，两处迟早会打架。
  */
-export async function POST(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return notFound('订单不存在')
@@ -34,7 +39,15 @@ export async function POST(_request: NextRequest, { params }: { params: { id: st
       where: { id: orderId, userId: user.id, tenantId: sf.id },
       select: { userId: true, payStatus: true, product: { select: { deliveryType: true } } },
     })
-    if (!order) return notFound('订单不存在')
+    if (!order) {
+
+      // 订单存在但属于别人 = 越权尝试，记一次（lib/security/probe.ts IDOR）；响应照旧 404
+
+      await noteForeignOrder(request, user.id, orderId)
+
+      return notFound('订单不存在')
+
+    }
     if (order.payStatus !== 'PAID') return error('订单支付后才能换号')
     if (order.product.deliveryType !== 'SMS') return error('该商品不是接码商品')
 

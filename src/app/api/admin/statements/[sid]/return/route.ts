@@ -6,6 +6,7 @@ import { adminGuard } from '@/lib/admin-guard'
 import { error, success } from '@/lib/api'
 import { adminFail, currentAdminId, failJson, parseIdParam, readJson, statementHeadOr404 } from '@/lib/tenant/admin-tenants'
 import { returnStatement } from '@/lib/tenant/statement'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 退回结算单：GENERATED / CONFIRMED / DISPUTED / PAYING → RETURNED（设计 10.9）。金额按纳入明细逐成分转回可结算，
@@ -17,6 +18,9 @@ const schema = z.object({ reason: z.string().trim().min(2).max(255), confirmNotT
 export async function POST(req: NextRequest, { params }: { params: { sid: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const sid = parseIdParam(params.sid)
   if (!sid) return error('结算单不存在', 404)
   const body = await readJson(req, schema)

@@ -10,6 +10,7 @@ import { adapterName, ensureIlinkLoops } from '@/lib/bot/adapters'
 import { handleInbound } from '@/lib/bot/inbound'
 import { cancelIlinkBind, getIlinkBind, startIlinkBind } from '@/lib/bot/ilink-bind'
 import { auditSoft, currentActor, parseId, readBody } from '@/app/api/admin/bot/_lib/common'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 微信绑定（iLink，docs/微信机器人-设计.md 附录 E）：
@@ -22,6 +23,9 @@ import { auditSoft, currentActor, parseId, readBody } from '@/app/api/admin/bot/
 export async function POST(request: NextRequest) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     if (adapterName() !== 'ilink') return error('当前机器人不是 iLink 方式（.env.production 设 BOT_ADAPTER=ilink 后重启 app）', 409)
     if (!cardKeyConfigured()) return error('没有配置 CARDKEY_SECRET，无法加密保存绑定凭据', 503)
@@ -72,6 +76,9 @@ export async function GET(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const id = request.nextUrl.searchParams.get('id') || ''
   if (!/^[0-9a-f]{24}$/.test(id) || !cancelIlinkBind(id)) return error('这次绑定已经结束或不存在', 404)
   return success({ ok: true }, '已取消')

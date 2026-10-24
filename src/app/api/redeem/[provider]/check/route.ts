@@ -16,6 +16,7 @@ import {
   toCheckFailure,
   validCdkShape,
 } from '@/lib/redeem/service'
+import { maskAccount } from '@/lib/redeem/providers/sysb-lookup'
 
 /**
  * 查询卡密状态。公开接口（不需要登录）。
@@ -99,6 +100,9 @@ export async function POST(request: NextRequest, { params }: { params: { provide
      * 需要时从 redeem_logs 里按卡密 id 查。
      */
     const { requestId: _omit, ...pub } = result
+    // 充值到的账号一律打码（2026-10-24 第二轮加固）：查询只要卡密、不要登录，拿到一张别人用过的卡密
+    // 就能看到对方的邮箱。sysb 本来就打码；sysa / sysc 上游回的是原文，在这里统一处理（打码函数幂等，已打过码的不变）
+    if (pub.account) pub.account = maskAccount(pub.account)
     return success(pub)
   } catch (err) {
     console.error('Redeem check error:', err)

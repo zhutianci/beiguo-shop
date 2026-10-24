@@ -223,6 +223,32 @@ interface Detail {
   partnerInvoiceNo: string | null
 }
 
+/** 对账单 CSV：fetch 拿文件再触发下载（导出要二次验证，见按钮处注释）。文件名取响应头，取不到用 statement-<id>.csv */
+async function downloadStatementCsv(sid: number, onMsg: (m: { kind: 'ok' | 'error'; text: string }) => void) {
+  try {
+    const res = await fetch(`/api/admin/statements/${sid}/export`)
+    if (!res.ok) {
+      const d = await res.json().catch(() => null)
+      onMsg({ kind: 'error', text: d?.error || `导出失败（${res.status}）` })
+      return
+    }
+    const blob = await res.blob()
+    const cd = res.headers.get('content-disposition') || ''
+    const m = /filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i.exec(cd)
+    const name = m ? decodeURIComponent(m[1] || m[2]) : `statement-${sid}.csv`
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch {
+    onMsg({ kind: 'error', text: '导出失败（网络错误）' })
+  }
+}
+
 function StatementDialog({ row, onClose, onMsg }: { row: StmtRow; onClose: () => void; onMsg: (m: { kind: 'ok' | 'error'; text: string }) => void }) {
   const { data: d, error } = useApi<Detail>(`/api/admin/statements/${row.id}`)
   const [act, setAct] = useState<null | 'payout' | 'return' | 'bounce' | 'unpaying'>(null)
@@ -306,9 +332,10 @@ function StatementDialog({ row, onClose, onMsg }: { row: StmtRow; onClose: () =>
                 登记退票
               </Button>
             )}
-            <a href={`/api/admin/statements/${d.id}/export`} className="inline-flex items-center rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
+            {/* 走 fetch 再下载（不用 <a href>）：导出要二次验证，后台的拦截器只能接住 fetch 回来的 needSudo（components/admin/sudo-gate.tsx） */}
+            <Button variant="outline" onClick={() => downloadStatementCsv(d.id, onMsg)}>
               导出对账单 CSV
-            </a>
+            </Button>
           </div>
           {act === 'payout' && <PayoutForm d={d} onDone={onMsg} onCancel={() => setAct(null)} />}
           {act === 'unpaying' && <UnpayingForm sid={d.id} onDone={onMsg} onCancel={() => setAct(null)} />}

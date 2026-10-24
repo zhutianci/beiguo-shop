@@ -6,6 +6,7 @@ import { adminGuard } from '@/lib/admin-guard'
 import { error, success } from '@/lib/api'
 import { adminFail, balancesAdmin, currentAdminId, failJson, parseIdParam, readJson } from '@/lib/tenant/admin-tenants'
 import { writeoff } from '@/lib/tenant/ledger'
+import { requireSudo } from '@/lib/security/sudo'
 
 /** 核销负余额（站长承担，必须写原因；设计 10.7 第 4 条）：wo:{requestId}，AVAILABLE MANUAL +x */
 
@@ -18,6 +19,9 @@ const schema = z.object({
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const id = parseIdParam(params.id)
   if (!id) return error('渠道不存在', 404)
   const body = await readJson(req, schema)

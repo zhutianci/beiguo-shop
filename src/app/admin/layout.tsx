@@ -21,6 +21,7 @@ import { Bell, ChevronDown, ChevronRight, ExternalLink, LogOut, Menu, PanelLeftC
 import { cn } from '@/lib/utils'
 import { RouteProgress } from '@/components/route-progress'
 import { AdminToaster } from '@/components/admin/shell/toaster'
+import { SudoGate } from '@/components/admin/sudo-gate'
 import { CommandPalette } from '@/components/admin/shell/command-palette'
 import { flatNavItems, matchesPath, navGroups, type NavItem } from '@/components/admin/shell/nav'
 import { useUserStore } from '@/store/user'
@@ -247,6 +248,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* 点菜单后 150ms 还没切过去，就在顶上走一条细进度条（与前台同一个组件，只用 transform / opacity） */}
       <RouteProgress />
       <AdminToaster />
+      {/* 敏感操作二次验证：后台接口回 needSudo 时弹框要密码、验过自动重放（lib/security/sudo.ts） */}
+      <SudoGate />
       <CommandPalette open={palette} onClose={() => setPalette(false)} recent={recent} />
 
       {/* 电脑端侧栏：固定在左侧，可收成窄栏 */}

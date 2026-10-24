@@ -153,12 +153,16 @@ interface VmqConfig {
   /** 待人工核实的到账（逐条留存，新的在前） */
   unmatched?: UnmatchedItem[]
   webhookUrl: string
-  webhookToken: string
+  /** 请求体模板（不含任何密钥；密钥点「显示密钥」走 /api/admin/vmq/secret） */
   webhookBody: string
   /** primary = 已设强 token；transition = 新旧都认（过渡期）；legacy = 没设 VMQ_WEBHOOK_TOKEN，只有旧的 VMQ_KEY */
   tokenMode?: 'primary' | 'transition' | 'legacy'
+  /** sign = 只认签名；sign+token = 过渡期两种都认；token = 还没设签名密钥 */
+  authMode?: 'sign' | 'sign+token' | 'token'
   /** 手机端最近一次用旧 token 的时间（毫秒） */
   legacyTokenAt?: number | null
+  /** 签名模式开着、手机还在用 token 的最近一次时间（毫秒） */
+  tokenAuthAt?: number | null
   diag: {
     lastPush: { price: string; type: number; cents: number; at: number } | null
     lastUnmatched: {
@@ -231,6 +235,18 @@ export default function AdminVmqPage() {
   }, [load])
 
   const [copiedKey, setCopiedKey] = useState('')
+  // 回调密钥：点「显示密钥」才取（二次验证由后台外壳的 SudoGate 弹框），不跟轮询走
+  const [secrets, setSecrets] = useState<{ secret: string | null; token: string | null } | null>(null)
+  const revealSecrets = async () => {
+    try {
+      const res = await fetch('/api/admin/vmq/secret', { method: 'POST' })
+      const d = await res.json()
+      if (d.success) setSecrets(d.data)
+      else alert(d.error || '获取失败')
+    } catch {
+      alert('网络错误')
+    }
+  }
   const copyText = (text: string, key: string) => {
     navigator.clipboard.writeText(text)
     setCopiedKey(key)
@@ -416,31 +432,54 @@ export default function AdminVmqPage() {
 
               <div>
                 <div className="text-gray-500 mb-1">
-                  校验 token（= VMQ_WEBHOOK_TOKEN）
-                  {cfg.tokenMode === 'legacy' && <b className="ml-1 text-red-600">服务器还没设 VMQ_WEBHOOK_TOKEN，正在用旧的 VMQ_KEY —— 请尽快换成强 token</b>}
-                  {cfg.tokenMode === 'transition' && (
+                  认证方式
+                  {cfg.authMode === 'sign' && <b className="ml-1 text-green-700">签名模式（只认签名，token 已停用）</b>}
+                  {cfg.authMode === 'sign+token' && (
                     <b className="ml-1 text-amber-600">
-                      过渡期：旧 token 仍可用{cfg.legacyTokenAt ? `（最近一次被手机使用：${fmt(new Date(cfg.legacyTokenAt).toISOString())}）` : '（还没被用过）'}，两台手机都换成下面这个之后关掉
+                      过渡期：签名与 token 都认
+                      {cfg.tokenAuthAt ? `（手机最近一次用 token：${fmt(new Date(cfg.tokenAuthAt).toISOString())}）` : '（签名开启后还没有手机用过 token）'}。
+                      两台手机都改成签名后，在服务器 .env.production 加 VMQ_WEBHOOK_ACCEPT_TOKEN=0
                     </b>
                   )}
+                  {cfg.authMode === 'token' && <b className="ml-1 text-amber-600">token 模式：服务器还没设 VMQ_WEBHOOK_SECRET，建议启用签名</b>}
+                  {cfg.tokenMode === 'legacy' && <b className="ml-1 text-red-600">服务器还没设 VMQ_WEBHOOK_TOKEN，正在用旧的 VMQ_KEY —— 请尽快换成强 token</b>}
                 </div>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 break-all rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 font-mono">
-                    {cfg.webhookToken || '（未配置）'}
-                  </code>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!cfg.webhookToken}
-                    onClick={() => copyText(cfg.webhookToken, 'token')}
-                  >
-                    {copiedKey === 'token' ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
+                {/* 密钥不再跟着每 10 秒的轮询发到浏览器（2026-10-24）：点按钮才取，要二次验证 */}
+                {!secrets ? (
+                  <Button variant="outline" size="sm" onClick={revealSecrets}>
+                    显示密钥（需验证身份）
                   </Button>
-                </div>
+                ) : (
+                  <div className="space-y-2">
+                    {secrets.secret && (
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">签名密钥（填进 SmsForwarder → Webhook 的「Secret」）</div>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 break-all rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 font-mono">{secrets.secret}</code>
+                          <Button variant="outline" size="sm" onClick={() => copyText(secrets.secret || '', 'secret')}>
+                            {copiedKey === 'secret' ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {secrets.token && (
+                      <div>
+                        <div className="text-xs text-gray-500 mb-1">
+                          校验 token（= VMQ_WEBHOOK_TOKEN{secrets.secret ? '；过渡期还认，改成签名后不再需要' : ''}）
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 break-all rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 font-mono">{secrets.token}</code>
+                          <Button variant="outline" size="sm" onClick={() => copyText(secrets.token || '', 'token')}>
+                            {copiedKey === 'token' ? <CheckCircle2 className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <button type="button" onClick={() => setSecrets(null)} className="text-xs text-gray-500 hover:underline">
+                      隐藏
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -459,8 +498,18 @@ export default function AdminVmqPage() {
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
                   <code>[content]</code> 是通知内容(含到账金额)、<code>[from]</code> 来源、
-                  <code>[org_content]</code> 原始内容；<code>token</code> 必须等于上面的校验 token。
-                  token 只能放在请求体（或 X-Token 头），<b>不能放在 URL 上</b>（会进访问日志）；请求方式只支持 POST。
+                  <code>[org_content]</code> 原始内容。
+                  {cfg.authMode === 'token' ? (
+                    <>
+                      <code>token</code> 必须等于上面的校验 token。token 只能放在请求体（或 X-Token 头），<b>不能放在 URL 上</b>（会进访问日志）。
+                    </>
+                  ) : (
+                    <>
+                      签名模式：在 SmsForwarder 这个 Webhook 通道的「Secret」里填上面的签名密钥，<code>[timestamp]</code>、<code>[sign]</code>
+                      由 SmsForwarder 每次自动计算（密钥本身不随请求发送）；请求体里<b>不要再写 token</b>。手机时间要准（误差超过 10 分钟会被拒）。
+                    </>
+                  )}
+                  请求方式只支持 POST。
                 </p>
               </div>
 

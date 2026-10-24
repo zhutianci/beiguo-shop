@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { rateLimited } from '@/lib/news/rate-limit'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 /**
  * 买家修改自己的昵称。
@@ -36,6 +37,9 @@ const schema = z.object({
 const SAFE_SELECT = { id: true, email: true, phone: true, nickname: true, avatar: true, role: true } as const
 
 export async function PATCH(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   try {
     const user = await getCurrentUser()
     if (!user) return unauthorized()

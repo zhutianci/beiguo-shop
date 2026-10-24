@@ -15,6 +15,8 @@ import {
 import { settlePrepaidOrderInvoice, shopOrderSourceKey } from '@/lib/order-invoice'
 import { invoicesForOrder } from '@/lib/order-link'
 import { isCarrierType, CARRIER_NO_INVOICE_MSG } from '@/lib/order-scope'
+import { noteForeignOrder } from '@/lib/security/probe'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 const schema = z.object({
   payerTitle: z.string().trim().min(1, '请填写付款人抬头').max(200),
@@ -27,6 +29,9 @@ const schema = z.object({
 
 // 买家从「我的订单」直接申请收据（无需邮箱查询）
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return notFound('订单不存在')
@@ -41,7 +46,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       where: { id: orderId, userId: user.id, tenantId: sf.id },
       include: { user: { select: { email: true, nickname: true } }, product: { select: { deliveryType: true } } },
     })
-    if (!order) return notFound('订单不存在')
+    if (!order) {
+
+      // 订单存在但属于别人 = 越权尝试，记一次（lib/security/probe.ts IDOR）；响应照旧 404
+
+      await noteForeignOrder(request, user.id, orderId)
+
+      return notFound('订单不存在')
+
+    }
     // 余额充值与短信接码订单不支持自助开具收据（docs/短信接码-设计.md D37、§6.6 第 18 条；与发票接口同一句）
     if (isCarrierType(order.product.deliveryType)) return error(CARRIER_NO_INVOICE_MSG, 409)
     if (order.payStatus !== 'PAID') return error('订单支付后才能申请收据')

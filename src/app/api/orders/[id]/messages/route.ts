@@ -10,6 +10,8 @@ import { getStorefront } from '@/lib/storefront/resolve'
 import { emitTenantNotice } from '@/lib/tenant/notice'
 import { jiemaMessageRows } from '@/lib/jiema/support'
 import { rateLimited } from '@/lib/news/rate-limit'
+import { noteForeignOrder } from '@/lib/security/probe'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 /**
  * 本人、本店的订单（设计 8.1「归属一律写进 where」）。别人的单、别的站的单与不存在的单同样返回 null → 404。
@@ -94,7 +96,15 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     if (!orderId) return error('订单无效')
 
     const order = await ownedPaidOrder(orderId, user.id, sf.id)
-    if (!order) return notFound('订单不存在')
+    if (!order) {
+
+      // 订单存在但属于别人 = 越权尝试，记一次（lib/security/probe.ts IDOR）；响应照旧 404
+
+      await noteForeignOrder(request, user.id, orderId)
+
+      return notFound('订单不存在')
+
+    }
     if (!canChat(order)) return error('订单支付后才能咨询')
 
     const sp = new URL(request.url).searchParams
@@ -150,6 +160,9 @@ const sendSchema = z.object({ content: z.string().trim().min(1, '请输入内容
 
 // 买家发送消息
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return notFound('订单不存在')
@@ -160,7 +173,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (!orderId) return error('订单无效')
 
     const order = await ownedPaidOrder(orderId, user.id, sf.id)
-    if (!order) return notFound('订单不存在')
+    if (!order) {
+
+      // 订单存在但属于别人 = 越权尝试，记一次（lib/security/probe.ts IDOR）；响应照旧 404
+
+      await noteForeignOrder(request, user.id, orderId)
+
+      return notFound('订单不存在')
+
+    }
     if (!canChat(order)) return error('订单支付后才能咨询')
 
     const body = await request.json()

@@ -143,15 +143,18 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   const parsed = markSchema.safeParse(body)
   if (!parsed.success) return error(parsed.error.errors[0].message)
 
-  const iv = await prisma.invoice.findUnique({ where: { id: parsed.data.invoiceId }, select: SELECT })
+  const iv = await prisma.invoice.findUnique({ where: { id: parsed.data.invoiceId }, select: { ...SELECT, payStatus: true } })
   if (!iv) return error('发票不存在', 404)
   if (iv.status === 'ISSUED') return error('该发票已标记为已开具，无需重复操作')
   if (iv.status !== 'SUBMITTED') return error(`当前状态为「${iv.status}」，不能直接标记已开具`)
+  // 与 GET 的「待开」同一口径（2026-10-24 第二轮加固）：税费没到账的申请不能标已开具。
+  // 以前只判 status，拿到财务链接的人可以按 id 把任何一张「已提交未付税费」的申请标成已开具、触发给客户的「发票已开」邮件
+  if (iv.payStatus !== 'PAID') return error('这张申请的税费还没到账，不能标记已开具', 409)
 
   const issuedAt = new Date()
   // 条件更新：并发下只有第一次能翻转状态，避免重复发邮件给客户
   const flipped = await prisma.invoice.updateMany({
-    where: { id: iv.id, status: 'SUBMITTED' },
+    where: { id: iv.id, status: 'SUBMITTED', payStatus: 'PAID' },
     data: { status: 'ISSUED', issuedAt },
   })
   if (flipped.count !== 1) return error('该发票状态已被其他人更新，请刷新后查看')

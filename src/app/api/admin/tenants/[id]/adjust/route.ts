@@ -6,6 +6,7 @@ import { adminGuard } from '@/lib/admin-guard'
 import { error, success } from '@/lib/api'
 import { adminFail, balancesAdmin, currentAdminId, parseIdParam, readJson } from '@/lib/tenant/admin-tenants'
 import { adjust } from '@/lib/tenant/ledger'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 超管调账（设计 10.4 ADJUST）：adj:{requestId}，requestId 由弹窗打开时前端生成——同一个 requestId 重复提交只生效一次，
@@ -23,6 +24,9 @@ const schema = z.object({
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const id = parseIdParam(params.id)
   if (!id) return error('渠道不存在', 404)
   const body = await readJson(req, schema)

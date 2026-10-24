@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db'
 import { rateLimited } from '@/lib/news/rate-limit'
 import { auditStrict, currentActor, parseId } from '@/app/api/admin/bot/_lib/common'
 import type { ClaimCodeDTO } from '@/app/admin/bot/types'
+import { requireSudo } from '@/lib/security/sudo'
 
 /** 去掉容易混淆的 0 O 1 I L，剩 31 个字符；8 位 ≈ 40 位熵，10 分钟有效、只能用一次 */
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -36,6 +37,9 @@ function sha256(s: string): string {
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const id = parseId(params.id)
     if (!id) return error('管理员编号不对')

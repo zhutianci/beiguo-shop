@@ -5,11 +5,15 @@ import { adminGuard } from '@/lib/admin-guard'
 import { success, error } from '@/lib/api'
 import { submitIlinkBindCode } from '@/lib/bot/ilink-bind'
 import { readBody } from '@/app/api/admin/bot/_lib/common'
+import { requireSudo } from '@/lib/security/sudo'
 
 /** 微信要求「配对码」时（附录 E）：提交手机微信上显示的数字，下一轮轮询带上 */
 export async function POST(request: NextRequest) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const body = await readBody(request)
   const id = typeof body?.id === 'string' ? body.id : ''
   const code = typeof body?.code === 'string' ? body.code.trim() : ''

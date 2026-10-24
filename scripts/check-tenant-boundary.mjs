@@ -397,6 +397,8 @@ export const RULES = {
   16: '写余额只经过 src/lib/wallet/ledger.ts 的 postInTx、预扣行只经过 hold.ts（短信接码设计 §6.6 第 9 条）',
   17: '依赖方向：lib/wallet/** 不静态 import lib/vmq、lib/jiema；lib/vmq.ts 不静态 import lib/jiema；lib/jiema/** 不 import 旧单品链路 lib/herosms、lib/sms（短信接码设计 §6.1、D18、附录 B 第 6 条）',
   18: '钱包 / 充值 / 接码只在主站：/api/wallet/**、/api/account/wallet、/api/jiema/** 每个 handler 第一句 denyOnChannel()（不包进 try）；(shop)/wallet、(shop)/jiema 页面组的 layout 调 notFoundOnChannel()（短信接码设计 D11、附录 B 第 11 条）',
+  19: 'api/cron 每个 handler 必须 assertCronAuth（docs/安全-第二轮加固-1024.md 2.3）',
+  20: '用登录态的买家写接口必须在路由内做同源校验 crossSiteWrite（docs/安全-第二轮加固-1024.md 2.3）',
 }
 
 /**
@@ -830,7 +832,56 @@ function rule18Tree(files) {
   return out
 }
 
-const PER_FILE_RULES = [ruleImports, rule3Body, rule4, rule5, rule6, rule7, rule8, rule9, rule12, rule13, rule14, rule15, rule16, rule17, rule18]
+// ----------------------------------------------------------------------
+// 规则 19：api/cron 每个 handler 必须调 assertCronAuth(（2026-10-24 第二轮加固，docs/安全-第二轮加固-1024.md 2.3）
+// cron 接口能关单、对账、发营销邮件、跑大事记管线，nginx 对外 404 只是第一层（10-24 实测 /zh-hk/api/cron/* 绕过了这一层），
+// 每个接口自己验密钥才是底线。漏写一个 → 构建失败。同文件一层间接（本地函数里调用）也算。
+// ----------------------------------------------------------------------
+function rule19(ctx) {
+  const { file, code, skel } = ctx
+  if (!/^src\/app\/api\/cron\/.*\/?route\.(ts|js)$/.test(file)) return []
+  const guardRe = /\bassertCronAuth\s*\(/
+  const locals = localFunctionBodies(code, skel)
+  const out = []
+  const hs = exportedHandlers(code, skel)
+  if (!hs.length) out.push(hit(19, file, code, 0, 'cron 接口没有可核对的导出 handler（请用 export async function GET/POST…）', 'handler'))
+  for (const h of hs) {
+    if (guardRe.test(h.body)) continue
+    const called = Array.from(h.body.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)).map((x) => x[1])
+    if (called.some((c) => locals.has(c) && guardRe.test(locals.get(c)))) continue
+    out.push(hit(19, file, code, h.index, `${h.method} 没有 assertCronAuth(`, h.method))
+  }
+  return out
+}
+
+// ----------------------------------------------------------------------
+// 规则 20：用登录态（getCurrentUser）的写 handler 必须在路由内做同源校验（2026-10-24 第二轮加固，lib/security/write-guard.ts）
+// middleware 的全站写请求同源校验是不可信的一层（CVE-2025-29927 一类整个绕过）；后台 / 渠道后台有各自的守卫（规则 4、6），
+// 买家侧的下单、付款、开票、领券、改资料……以前只靠 middleware。认 crossSiteWrite( 与仓库里已有的几种同源校验写法；
+// 只在这个 handler（或它调用的同文件本地函数）里用了 getCurrentUser( 时才要求——没有登录态的接口不存在借身份的问题。
+// 登录在 lib 包装函数里的（jiema/buyer-api 的 runBuyerAction 等）这里看不到，那些包装函数自己第一句就验同源。
+// ----------------------------------------------------------------------
+const RULE20_GUARD = /\b(crossSiteWrite|crossSiteReason|forumCrossSite|isSameOrigin|isSameOriginFromHeaders|authCrossSiteReason|crossOriginReason)\s*\(/
+function rule20(ctx) {
+  const { file, code, skel } = ctx
+  if (!/^src\/app\/api\/.*\/?route\.(ts|js)$/.test(file)) return []
+  if (/^src\/app\/api\/(admin|partner|cron)\//.test(file)) return []
+  const authRe = /\bgetCurrentUser\s*\(/
+  const locals = localFunctionBodies(code, skel)
+  const out = []
+  for (const h of exportedHandlers(code, skel)) {
+    if (!/^(POST|PUT|PATCH|DELETE)$/.test(h.method)) continue
+    // 用骨架（注释、字符串已抹掉）判：注释里写着 crossSiteWrite( 不算
+    const body = skel.slice(h.index, h.index + h.body.length)
+    const called = Array.from(body.matchAll(/\b([A-Za-z_$][\w$]*)\s*\(/g)).map((x) => x[1]).filter((c) => locals.has(c))
+    const uses = (re) => re.test(body) || called.some((c) => re.test(locals.get(c)))
+    if (!uses(authRe) || uses(RULE20_GUARD)) continue
+    out.push(hit(20, file, code, h.index, `${h.method} 用了登录态（getCurrentUser）但路由内没有同源校验：第一句加 crossSiteWrite(request)`, h.method))
+  }
+  return out
+}
+
+const PER_FILE_RULES = [ruleImports, rule3Body, rule4, rule5, rule6, rule7, rule8, rule9, rule12, rule13, rule14, rule15, rule16, rule17, rule18, rule19, rule20]
 
 // 规则 10：partner 路由都要登记
 function partnerRoutesOf(files) {
@@ -1005,6 +1056,9 @@ const POSITIVE = [
   { rule: 18, file: 'src/app/api/wallet/topup/route.ts', src: 'export async function GET(){ const u = await getCurrentUser(); return Response.json(u) }' },
   { rule: 18, file: 'src/app/api/jiema/orders/route.ts', src: 'export async function POST(){ try { const d = await denyOnChannel(); if (d) return d } catch {} return new Response(null) }' },
   { rule: 18, file: 'src/app/(shop)/wallet/topup/page.tsx', src: 'export default function P(){ return null }' },
+  { rule: 19, file: 'src/app/api/cron/x/route.ts', src: "import { closeExpired } from '@/lib/vmq'\nexport async function GET(){ return Response.json(await closeExpired()) }" },
+  // 注释里写着 crossSiteWrite( 不算
+  { rule: 20, file: 'src/app/api/orders/x/route.ts', src: "export async function POST(request: Request){\n  // TODO crossSiteWrite(request)\n  const u = await getCurrentUser()\n  return Response.json({ u })\n}" },
 ]
 
 /** 阴性样例：合法写法不得命中（营销模块的 domain: 对象键、注释里的违规字样、字符串里的括号、tenant/public-no 与 node:crypto 放行等） */
@@ -1031,6 +1085,10 @@ const NEGATIVE = [
   { file: 'src/lib/jiema/upstream.ts', src: "import { parseBalance } from './parse'\nimport { fulfillOrder } from '../vmq'\nimport { x } from './sms-view'\nexport const a = [parseBalance, fulfillOrder, x]" },
   // 规则 18：第一句 denyOnChannel、之后才 try —— 合法
   { file: 'src/app/api/wallet/topup/[orderNo]/route.ts', src: 'export async function GET(){\n  const d = await denyOnChannel()\n  if (d) return d\n  try { return Response.json({}) } catch { return new Response(null) }\n}' },
+  // 规则 19：第一句验 cron 密钥 —— 合法；经同文件本地函数调用也算
+  { file: 'src/app/api/cron/y/route.ts', src: "export async function GET(request: Request) {\n  const auth = assertCronAuth(request)\n  if (!auth.ok) return new Response(null, { status: auth.status })\n  return Response.json({})\n}\nfunction guard(r: Request){ return assertCronAuth(r) }\nexport async function POST(r: Request){ const a = guard(r); return Response.json(a) }" },
+  // 规则 20：写 handler 先验同源再取登录态 —— 合法；GET 用登录态不要求；没有登录态的写接口不要求
+  { file: 'src/app/api/orders/y/route.ts', src: "export async function POST(request: Request){\n  const csrf = crossSiteWrite(request)\n  if (csrf) return csrf\n  const u = await getCurrentUser()\n  return Response.json({ u })\n}\nexport async function GET(){ const u = await getCurrentUser(); return Response.json({ u }) }\nexport async function PUT(){ return Response.json({}) }" },
 ]
 
 export function selfCheck() {

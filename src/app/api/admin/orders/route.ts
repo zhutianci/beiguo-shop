@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { Prisma, DeliveryStatus } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
-import { decryptCardContent } from '@/lib/cardkey'
+import { decryptCardContent, maskSecret } from '@/lib/cardkey'
 import { round2 } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
 import { excludeTopup, isCarrierType } from '@/lib/order-scope'
@@ -169,7 +169,9 @@ export async function GET(request: NextRequest) {
       const counted = profitCounted(o)
       return {
         ...o,
-        cards: cardMap.get(o.id) || [],
+        // 列表只给脱敏后的卡密（2026-10-24）：以前每页 20 张订单的已发卡密明文直接回传，偷到后台登录态翻页就能收割
+        // 买家还没兑换的卡。明文在订单详情里点「显示明文」走 /api/admin/orders/[id]/cards（二次验证 + 限流 + 留痕）
+        cards: (cardMap.get(o.id) || []).map(maskSecret),
         unreadCount: unreadMap.get(o.id) || 0,
         // 卡密维度的成本/利润；非自动发货订单没有卡密，profit 为 null 表示「无卡密可核算」
         cardCost: m ? m.cost : null,

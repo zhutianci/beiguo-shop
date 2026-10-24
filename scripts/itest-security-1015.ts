@@ -266,6 +266,38 @@ async function main() {
     const sec = await call('GET', '/api/admin/security', { jar, ip: J })
     ok('后台安全卡片能看到被封的 IP 和安全记录', sec.status === 200 && sec.data?.data?.ipBans?.some((b: { key: string }) => b.key === ip(1)) && sec.data?.data?.events?.length > 0, JSON.stringify(sec.data?.data?.ipBans))
     ok('默认模式是严格白名单', sec.data?.data?.policy === 'STRICT', String(sec.data?.data?.policy))
+
+    // ---- 2026-10-24 第二轮：后台敏感操作二次验证（lib/security/sudo.ts） ----
+    const vcfg = await call('GET', '/api/admin/vmq/config', { jar, ip: J })
+    ok('收款监控配置不再带回调 token 明文', vcfg.status === 200 && !('webhookToken' in (vcfg.data?.data || {})) && typeof vcfg.data?.data?.authMode === 'string', String(vcfg.status))
+    const reveal0 = await call('GET', `/api/admin/cardkeys?productId=${PRODUCT_ID}&reveal=1&page=1&pageSize=5`, { jar, ip: J })
+    ok('卡密明文：没验证身份 → 403 needSudo', reveal0.status === 403 && reveal0.data?.needSudo === true, `${reveal0.status} ${JSON.stringify(reveal0.data)}`)
+    const put0 = await call('PUT', '/api/admin/security', { jar, ip: J, body: { policy: 'STRICT' } })
+    ok('改安全设置：没验证身份 → 403 needSudo', put0.status === 403 && put0.data?.needSudo === true, `${put0.status} ${JSON.stringify(put0.data)}`)
+    const sbad = await call('POST', '/api/admin/security/sudo', { jar, ip: J, body: { password: 'wrong-password' } })
+    ok('二次验证：密码错不给凭证', sbad.data?.success !== true && !jar.has('adm_sudo'), JSON.stringify(sbad.data))
+    const sok = await call('POST', '/api/admin/security/sudo', { jar, ip: J, body: { password: PW } })
+    ok('二次验证：登录密码对 → 发 10 分钟凭证', sok.data?.success === true && jar.has('adm_sudo'), JSON.stringify(sok.data))
+    const reveal1 = await call('GET', `/api/admin/cardkeys?productId=${PRODUCT_ID}&reveal=1&page=1&pageSize=5`, { jar, ip: J })
+    ok('验证后卡密明文可看', reveal1.status === 200, String(reveal1.status))
+    const ords = await call('GET', '/api/admin/orders?page=1&pageSize=20', { jar, ip: J })
+    const soldCards: string[] = (ords.data?.data?.list || []).flatMap((o: { cards?: string[] }) => o.cards || [])
+    ok('订单列表里的已售卡密是打码的', ords.status === 200 && soldCards.every((c) => !c || c.includes('****')), `${ords.status} ${soldCards.length}`)
+    const noSudo: Jar = new Map(jar)
+    noSudo.delete('adm_sudo')
+    const vs0 = await call('POST', '/api/admin/vmq/secret', { jar: noSudo, ip: J })
+    ok('看收款回调密钥：没验证身份 → 403', vs0.status === 403 && vs0.data?.needSudo === true, String(vs0.status))
+    const vs1 = await call('POST', '/api/admin/vmq/secret', { jar, ip: J })
+    ok('验证后能看回调密钥', vs1.status === 200 && vs1.data?.success === true, String(vs1.status))
+    const pawn = await mkUser(mail('pawn'))
+    const pr0 = await call('PUT', `/api/admin/users/${pawn.id}`, { jar: noSudo, ip: J, body: { role: 'ADMIN' } })
+    ok('提成管理员：没验证身份 → 403、角色不变', pr0.status === 403 && (await prisma.user.findUnique({ where: { id: pawn.id } }))?.role === 'USER', String(pr0.status))
+    const pr1 = await call('PUT', `/api/admin/users/${pawn.id}`, { jar, ip: J, body: { role: 'ADMIN' } })
+    await new Promise((r) => setTimeout(r, 300))
+    const roleEv = await prisma.auditEvent.findFirst({ where: { action: 'user.role', targetId: String(pawn.id) } })
+    ok('验证后可改角色，并写审计 user.role', pr1.data?.success === true && !!roleEv, JSON.stringify(pr1.data))
+    await call('PUT', `/api/admin/users/${pawn.id}`, { jar, ip: J, body: { role: 'USER' } })
+
     const put = await call('PUT', '/api/admin/security', {
       jar,
       ip: J,
@@ -321,6 +353,41 @@ async function main() {
     await prisma.forumLike.deleteMany({ where: { commentId: c.id } })
     await prisma.forumComment.deleteMany({ where: { postId: hidden.id } })
     await prisma.forumPost.deleteMany({ where: { id: hidden.id } })
+  }
+
+  // ---------- 2026-10-24：越权计数（lib/security/probe IDOR） ----------
+  console.log('\n[越权：反复访问别人的订单]')
+  {
+    const prober = await mkUser(mail('idor'), { ageMs: 3 * DAY })
+    const foreign = await prisma.order.findMany({ where: { userId: { not: prober.id } }, select: { id: true }, orderBy: { id: 'desc' }, take: 5 })
+    if (foreign.length < 5) {
+      ok('（跳过：开发库里别人的订单不足 5 张）', true)
+    } else {
+      const P = ip(18)
+      const pj = (await login(prober.email!, P)).jar
+      const first = await call('GET', `/api/orders/${foreign[0].id}/messages`, { jar: pj, ip: P })
+      ok('别人的订单：照样回 404（不暴露订单存在）', first.status === 404, String(first.status))
+      for (const o of foreign.slice(1, 4)) await call('GET', `/api/orders/${o.id}/messages`, { jar: pj, ip: P })
+      ok('4 张不同的别人订单：账号还在', (await prisma.user.findUnique({ where: { id: prober.id } }))?.status === 1)
+      await call('GET', `/api/orders/${foreign[4].id}/messages`, { jar: pj, ip: P })
+      ok('第 5 张：账号自动禁用', (await prisma.user.findUnique({ where: { id: prober.id } }))?.status === 0)
+      ok('…该 IP 登录被拒（429）', (await login(mail('nobody'), P)).status === 429)
+      const own = await mkUser(mail('honest'), { ageMs: 3 * DAY })
+      const oj = (await login(own.email!, ip(21))).jar
+      for (let i = 0; i < 8; i++) await call('GET', `/api/orders/99999999${i}/messages`, { jar: oj, ip: ip(21) })
+      ok('打不存在的订单号不算越权（只数「存在但属于别人」）', (await prisma.user.findUnique({ where: { id: own.id } }))?.status === 1)
+    }
+  }
+
+  // ---------- 2026-10-24：收款单状态接口限流 ----------
+  console.log('\n[收款单状态接口]')
+  {
+    const V = ip(19)
+    const st: number[] = []
+    for (let i = 0; i < 31; i++) st.push((await call('GET', `/api/pay/vmq/status?orderId=nope${RUN}${i}`, { ip: V })).status)
+    ok('查不到的单号前 30 个回 404', st.slice(0, 30).every((s) => s === 404), st.join(','))
+    ok('第 31 个起 429（连库都不查）', st[30] === 429, String(st[30]))
+    ok('别的 IP 不受影响', (await call('GET', `/api/pay/vmq/status?orderId=nope${RUN}x`, { ip: ip(20) })).status === 404)
   }
 
   // ---------- 清理 ----------

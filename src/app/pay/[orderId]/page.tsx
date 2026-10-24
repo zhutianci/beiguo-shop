@@ -102,6 +102,8 @@ export default function VmqCashierPage() {
   const load = async () => {
     try {
       const res = await fetch(`/api/pay/vmq/status?orderId=${encodeURIComponent(orderId)}`)
+      // 被限流（同一网络开了很多收银台）：保持当前状态，下一轮再查，不能显示成「订单不存在」
+      if (res.status === 429) return
       const data = await res.json()
       if (!data.success) {
         setState('notfound')

@@ -5,6 +5,7 @@ import { success, error, notFound } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { resettleFromSnapshot } from '@/lib/tenant/ledger'
 import { adminOrResponse } from '@/lib/admin/source-site'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 按快照补记（设计 8.3；契约见实施分包 7.4）。
@@ -25,6 +26,9 @@ const REASON_TEXT: Record<string, string> = {
 export async function POST(_request: NextRequest, { params }: { params: { id: string } }) {
   const auth = await adminOrResponse()
   if ('res' in auth) return auth.res
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const orderId = parseInt(params.id)
     if (!Number.isSafeInteger(orderId) || orderId <= 0) return notFound('订单不存在')

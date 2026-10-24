@@ -6,6 +6,7 @@ import { adminGuard } from '@/lib/admin-guard'
 import { error, success } from '@/lib/api'
 import { adminFail, currentAdminId, failJson, parseIdParam, readJson, statementHeadOr404 } from '@/lib/tenant/admin-tenants'
 import { registerBounce } from '@/lib/tenant/statement'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 打款退票（设计 10.9 最后一行）：要求结算单 PAID / RECEIVED，且该单累计退票 ≤ 实际打款额；bounce:{流水号} AVAILABLE +amount。
@@ -25,6 +26,9 @@ const FAIL: Record<string, [number, string]> = {
 export async function POST(req: NextRequest, { params }: { params: { sid: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const sid = parseIdParam(params.sid)
   if (!sid) return error('结算单不存在', 404)
   const body = await readJson(req, schema)

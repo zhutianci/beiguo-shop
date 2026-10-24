@@ -91,6 +91,17 @@ export function rateLimited(key: string, rule: RateRule): boolean {
 }
 
 /**
+ * 只看不记：这个 key 在窗口内是否已到上限。给「失败了才计数」的场景在干活之前先判一次用
+ * （例如收款单状态接口：只数「查不到的单号」，到上限后连数据库都不查）。
+ */
+export function rateFull(key: string, rule: RateRule): boolean {
+  const e = scopes.get(scopeOf(key))?.get(key) ?? scopes.get(OVERFLOW_SCOPE)?.get(key)
+  if (!e) return false
+  const now = Date.now()
+  return e.hits.filter((t) => now - t < rule.windowMs).length >= rule.max
+}
+
+/**
  * 删掉某个 key 的计数。给「证明了身份之后解除冷却」用——例如重置密码成功后解除该邮箱的登录冷却，
  * 否则别人故意输错就能把一个真实用户锁在门外。
  */

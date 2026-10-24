@@ -63,6 +63,12 @@ function isWrite(req: Request): boolean {
   return m !== 'GET' && m !== 'HEAD' && m !== 'OPTIONS'
 }
 
+/** 别的站点（含兄弟子域）发起的请求；没有这个头（脚本、老浏览器）不算 —— 只挡浏览器被别的页面驱动的那一类 */
+function crossSiteFetch(req: Request): boolean {
+  const s = (req.headers.get('sec-fetch-site') || '').toLowerCase()
+  return s === 'cross-site' || s === 'same-site'
+}
+
 function ipOf(req: Request): string {
   return clientIp(req.headers)
 }
@@ -107,6 +113,10 @@ export function partnerRoute(
     const sf = await getStorefront() // try 之外
     if (!sf || sf.kind !== 'CHANNEL' || sf.status === 'TERMINATED') return noise(req, 'host')
     if (isWrite(req) && !isSameOrigin(req)) return noise(req, 'csrf')
+    // 读接口也不接受别的站点发起的请求（2026-10-24 第二轮加固）：兄弟子域页面放一个 <img src=".../api/partner/orders/export">，
+    // 浏览器会带上 Lax cookie，看不到数据，但能耗光渠道主每天的导出名额、往审计里灌噪音。
+    // Sec-Fetch-Site 由浏览器自动带、页面脚本改不了；渠道后台自己的页面是 same-origin，地址栏直接打开是 none，都不受影响
+    if (!isWrite(req) && crossSiteFetch(req)) return noise(req, 'csrf-get')
     if (throttled(`partner:${ipOf(req)}`, IP_RATE.max, IP_RATE.windowMs)) return jsonError('请求过于频繁', 429)
 
     const user = await getCurrentUser()

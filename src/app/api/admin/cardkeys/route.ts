@@ -10,8 +10,10 @@ import { writeAudit } from '@/lib/audit'
 import { getCurrentUser } from '@/lib/auth'
 import { adminGuard } from '@/lib/admin-guard'
 import { parseTenantFilter, INVALID_TENANT_FILTER, siteOptions, cardSiteWhere, cardSources } from '@/lib/admin/source-site'
+import { requireSudo } from '@/lib/security/sudo'
+import { cardRevealGate } from '@/lib/security/card-reveal'
 
-// 列表（默认脱敏；reveal=1 返回明文，仅管理员可用，受 middleware 保护）
+// 列表（默认脱敏；reveal=1 返回明文：路由内 adminGuard + 二次验证 + 限流 + 审计，见 cardRevealGate）
 export async function GET(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
@@ -24,6 +26,11 @@ export async function GET(request: NextRequest) {
     const keyword = (searchParams.get('keyword') || '').trim()
     const hasOrder = (searchParams.get('hasOrder') || '').trim() // '1' 已关联订单 | '0' 未关联
     const reveal = searchParams.get('reveal') === '1'
+    // 明文：二次验证 + 限流 + 留痕（lib/security/card-reveal.ts，2026-10-24）。脱敏列表照常
+    if (reveal) {
+      const gate = await cardRevealGate(request, `list:product=${productId}`)
+      if (gate) return gate
+    }
     const page = Math.max(parseInt(searchParams.get('page') || '1') || 1, 1)
     const pageSize = Math.min(Math.max(parseInt(searchParams.get('pageSize') || '50') || 50, 1), 200)
     // 来源站 = 售出订单的站；'stock' = 未售（设计 5.5）。不传 = 全部，where 与原来一致
@@ -125,6 +132,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     if (!cardKeyConfigured()) return error('未配置 CARDKEY_SECRET，无法安全存储卡密', 500)
 

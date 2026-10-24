@@ -10,6 +10,7 @@ import { sendVerifyCodeEmail, systemEmailConfigured } from '@/lib/mail'
 import { sendCodeGate } from '@/lib/auth-throttle'
 import { rateLimited } from '@/lib/news/rate-limit'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 const schema = z.object({ accountEmail: z.string().email('账户邮箱格式不正确') })
 
@@ -18,6 +19,9 @@ const schema = z.object({ accountEmail: z.string().email('账户邮箱格式不�
  * 只对当前用户自己已添加、尚未验证的绑定发，且按用户另限次数，免得被拿来给任意邮箱发信。
  */
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 渠道分站：账户绑定模块在渠道站关闭（设计 7.6 / 11.2；主会话 D3）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied

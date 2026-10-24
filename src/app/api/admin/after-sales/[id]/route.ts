@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { writeAudit } from '@/lib/audit'
 import { adminOrResponse, closeAfterSale, AfterSaleConflict } from '@/lib/admin/source-site'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 处理一条售后申请（设计 8.4；契约见实施分包 7.4）：
@@ -23,6 +24,9 @@ const schema = z.object({
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const auth = await adminOrResponse()
   if ('res' in auth) return auth.res
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const id = parseInt(params.id)
     if (!Number.isSafeInteger(id) || id <= 0) return notFound('售后申请不存在')

@@ -405,6 +405,8 @@ function OrdersInner() {
   const [total, setTotal] = useState(0)
   const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  // 点「显示明文」拿到的卡密（只对当前这一单有效；关弹窗即清掉，不留在页面状态里）
+  const [revealedCards, setRevealedCards] = useState<{ orderId: number; cards: string[] } | null>(null)
   const [deliveryInfo, setDeliveryInfo] = useState('')
   const [deliveryStatus, setDeliveryStatus] = useState('')
   const [amount, setAmount] = useState('')
@@ -562,7 +564,20 @@ function OrdersInner() {
   // 关弹窗时顺手去掉地址栏的 ?orderId=，否则刷新页面会再弹一次
   const closeDetail = () => {
     setShowDetailModal(false)
+    setRevealedCards(null)
     if (deepLinkId) router.replace('/admin/orders', { scroll: false })
+  }
+
+  // 已发卡密明文：二次验证（弹框由后台外壳的 SudoGate 负责）+ 限流 + 留痕，见 /api/admin/orders/[id]/cards
+  const revealCards = async (orderId: number) => {
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/cards`)
+      const d = await res.json()
+      if (d.success) setRevealedCards({ orderId, cards: d.data.cards as string[] })
+      else alert(d.error || '读取失败')
+    } catch {
+      alert('网络错误')
+    }
   }
 
   // 深链：按 id 直接拉明细开弹窗，不依赖这张订单是否在当前列表页
@@ -1254,7 +1269,7 @@ function OrdersInner() {
                       )}
                   </div>
                   <div className="space-y-1.5 rounded-lg bg-gray-50 p-3">
-                    {selectedOrder.cards.map((c, i) => (
+                    {(revealedCards?.orderId === selectedOrder.id ? revealedCards.cards : selectedOrder.cards).map((c, i) => (
                       <div
                         key={i}
                         className="flex items-start gap-2 break-all font-mono text-xs text-gray-800"
@@ -1264,6 +1279,16 @@ function OrdersInner() {
                       </div>
                     ))}
                   </div>
+                  {/* 列表里是脱敏值（2026-10-24）；明文要二次验证，走 /api/admin/orders/[id]/cards */}
+                  {revealedCards?.orderId !== selectedOrder.id && (
+                    <button
+                      type="button"
+                      onClick={() => revealCards(selectedOrder.id)}
+                      className="mt-1.5 text-xs text-primary-600 hover:underline"
+                    >
+                      显示明文
+                    </button>
+                  )}
                 </div>
               )}
 

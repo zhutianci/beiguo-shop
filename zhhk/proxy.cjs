@@ -605,8 +605,14 @@ function createProxy(opts = {}) {
       if (url === PREFIX || url.startsWith(PREFIX + '/') || url.startsWith(PREFIX + '?')) {
         const inner = stripPrefix(url)
         const innerPath = inner.split('?')[0]
-        // 繁体站不提供的：后台等 404；票据类跳回简体原文
-        if (/^\/(?:admin|partner|api\/admin)(?:\/|$)/.test(innerPath)) return sendText(res, 404, 'Not Found')
+        // 繁体站不提供的：后台等 404；票据类跳回简体原文。
+        // /zh-hk/api/** 一律 404（2026-10-24 第二轮加固）：繁体页面的接口请求走 /api/… + x-bg-lang 头，从不带 /zh-hk 前缀；
+        // 不拦的话 /zh-hk/api/cron/*、/zh-hk/api/bot/wxpad/* 会绕过 nginx 对 /api/cron/ 的对外 404（10-24 实测能打到 cron 接口）。
+        // 先解码、合并斜杠再判：/zh-hk//api/x、/zh-hk/%61pi/x 也算（nginx 那边另有一道同样的 location）
+        let normPath = innerPath
+        try { normPath = decodeURIComponent(innerPath) } catch { /* 坏的百分号编码：按原样判 */ }
+        normPath = normPath.replace(/\/{2,}/g, '/')
+        if (/^\/(?:admin|partner|api)(?:\/|$)/i.test(normPath)) return sendText(res, 404, 'Not Found')
         if (HK_BLOCK.test(innerPath)) {
           res.writeHead(302, { location: inner, 'cache-control': 'no-store' })
           return res.end()

@@ -17,6 +17,7 @@ import {
   isTrustedAdminDevice,
   maskEmail,
   noteAdminLogin,
+  noteAdminPasswordFailure,
   signAdminDevice,
 } from '@/lib/security/admin-2fa'
 import { getStorefront } from '@/lib/storefront/resolve'
@@ -70,6 +71,8 @@ export async function POST(request: NextRequest) {
     // 用户不存在时也跑一次同成本的 bcrypt，时延与存在时一致（防枚举）
     const isValid = await verifyPasswordOrDummy(password, user?.passwordHash)
     if (!user || !isValid) {
+      // 管理员账号被猜密码：第 3 次起推告警（响应不变，不暴露这是管理员）
+      if (user && user.role === 'ADMIN') noteAdminPasswordFailure(user, request.headers)
       return error('邮箱或密码错误')
     }
 

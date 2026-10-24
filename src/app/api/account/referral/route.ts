@@ -10,6 +10,7 @@ import { denyOnChannel } from '@/lib/storefront/resolve'
 import { canUseForJiema } from '@/lib/wallet/config'
 import { clawbackCentsOf } from '@/lib/wallet/clawback'
 import { centsOf } from '@/lib/wallet/buckets'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 // GET：内推码 + 收益概览 + 各商品基础价/我的专属价（商品分页）
 export async function GET(request: NextRequest) {
@@ -106,6 +107,9 @@ const saveSchema = z.object({
 
 // POST：保存专属价（须 ≥ 基础售价；空/0 取消）
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied

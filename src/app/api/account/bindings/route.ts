@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db'
 import { success, error, unauthorized } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 // 每个绑定账户展示的最近订单条数
 const RECENT_ORDER_LIMIT = 5
@@ -125,6 +126,9 @@ const createSchema = z.object({
 
 // POST：绑定一个账户邮箱
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied

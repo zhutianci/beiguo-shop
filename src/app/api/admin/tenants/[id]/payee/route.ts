@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { adminGuard } from '@/lib/admin-guard'
 import { error, success } from '@/lib/api'
 import { adminFail, currentAdminId, parseIdParam, readJson, revealPayee, setPayee, tenantDetail } from '@/lib/tenant/admin-tenants'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 渠道收款信息（设计 5.1、10.10）。GET 只给掩码；PUT 录入 / 变更（加密存储、进入 72 小时冷静期、平台群留痕）；
@@ -41,6 +42,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const id = parseIdParam(params.id)
   if (!id) return error('渠道不存在', 404)
   const body = await readJson(req, putSchema)
@@ -57,6 +61,9 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const id = parseIdParam(params.id)
   if (!id) return error('渠道不存在', 404)
   const body = await readJson(req, postSchema)

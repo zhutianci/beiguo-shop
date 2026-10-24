@@ -157,6 +157,14 @@ export async function submitRestock(input: RestockSubmit, ip: string | null, now
       if (!t || t.action !== 'RESTOCK' || t.used_at || t.revoked_at || new Date(t.expires_at).getTime() <= now.getTime()) {
         throw new RestockError('链接已失效（已用过、已作废或已过期），请在群里重新发「@贝果助手 补货」', 410)
       }
+      // 开链接时指定了商品（「补货 GPT Plus」）→ 只能往这个商品里导（2026-10-24 第二轮加固）：
+      // 页面上的商品下拉是锁定的，但请求体里的 productId 是客户端给的，改一下就能把卡密导进别的商品
+      let tp: unknown = t.params
+      if (typeof tp === 'string') { try { tp = JSON.parse(tp) } catch { tp = null } }
+      const bound = productIdOfParams(tp)
+      if (bound !== null && bound !== product.id) {
+        throw new RestockError('这个补货链接只能给开链接时指定的商品补货，请刷新页面后重试', 403)
+      }
       const r = await importCardKeys(tx, {
         productId: product.id,
         content: input.content,

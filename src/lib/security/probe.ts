@@ -20,13 +20,14 @@
  */
 import type { NextRequest } from 'next/server'
 import { verifyToken } from '../auth'
+import { prisma } from '../db'
 import { writeAudit, writeAuditThrottled } from '../audit'
 import { notify } from '../notify'
 import { rateLimited } from '../news/rate-limit'
 import { banIp, ipKeyBanned, ipKeyOf } from './ip-ban'
 import { banUser } from './ban-user'
 
-export type ProbeKind = 'PAY_CALLBACK' | 'ADMIN_DENIED' | 'API_404'
+export type ProbeKind = 'PAY_CALLBACK' | 'ADMIN_DENIED' | 'API_404' | 'IDOR'
 
 const MIN = 60_000
 const WINDOW_MS = 10 * MIN
@@ -37,6 +38,23 @@ export const PROBE_RULES: Record<ProbeKind, { ip: number; user: number; distinct
   PAY_CALLBACK: { ip: 3, user: 3, distinct: false, banUser: true, label: '盲猜支付回调' },
   ADMIN_DENIED: { ip: 0, user: 5, distinct: true, banUser: true, label: '普通用户反复试后台接口' },
   API_404: { ip: 10, user: 0, distinct: true, banUser: false, label: '大量探测不存在的接口' },
+  // 2026-10-24 第二轮加固：登录的买家去取「存在、但属于别人」的订单（改 URL 里的订单号 / id 遍历）。
+  // 真人只会打开自己的订单，不可能碰到别人的单号；10 分钟 5 张不同的别人订单 → 封号 + 封 IP
+  IDOR: { ip: 0, user: 5, distinct: true, banUser: true, label: '反复访问别人的订单（越权尝试）' },
+}
+
+/**
+ * 买家按 id 取订单没取到时调用（只在 404 分支，正常用户几乎不会走到）：订单确实存在但属于别人 → 记一次 IDOR。
+ * 绝不抛错、不改变调用方的响应（照样回 404，不暴露「这个订单号存在」）。
+ */
+export async function noteForeignOrder(req: NextRequest, userId: number, orderId: number): Promise<void> {
+  try {
+    if (!Number.isSafeInteger(orderId) || orderId <= 0) return
+    const o = await prisma.order.findUnique({ where: { id: orderId }, select: { userId: true } })
+    if (o && o.userId !== userId) await recordProbe(req, 'IDOR', { path: `order:${orderId}` })
+  } catch (e) {
+    console.error('[security] noteForeignOrder 失败', (e as Error)?.message)
+  }
 }
 
 interface Track {

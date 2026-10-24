@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { handleWebhookNotify, parseAmount, VMQ_KEY } from '@/lib/vmq'
 import { notify, notifyWebhookRejected } from '@/lib/notify'
+import { noteAbuse } from '@/lib/security/abuse'
+import { createSignVerifier, type SignReject } from '@/lib/security/webhook-sign'
 
 /*
  * SmsForwarder 等「通知转发」App 的 webhook：手机把支付宝 / 微信到账通知 POST 到这里，服务端按金额匹配待支付单。
@@ -18,11 +20,35 @@ import { notify, notifyWebhookRejected } from '@/lib/notify'
  * 【token 轮换】VMQ_WEBHOOK_TOKEN 是正式 token（openssl rand -hex 24）。没设时退回 VMQ_KEY（旧部署）。
  * 设了之后旧的 VMQ_KEY 只在 VMQ_WEBHOOK_ACCEPT_LEGACY=1 时还认（给手机端改配置的过渡期），每次用到都记时间、每小时推一次提醒；
  * 两台手机都改完后把它删掉（改 .env.production 后 `docker compose --env-file .env.production up -d app`，不用重新构建）。
+ *
+ * 【签名模式（2026-10-24 第二轮加固 P2，docs/安全-第二轮加固-1024.md 2.1）】token 是静态的：进过一次日志（10-18 发生过）就永久可用。
+ * SmsForwarder 的 Webhook 自带「Secret」：填了之后请求体里的 [timestamp] / [sign] 占位符被替换成毫秒时间戳与
+ * sign = URL 编码( Base64( HMAC-SHA256(key = secret, msg = timestamp + "\n" + secret) ) )（源码 utils/sender/WebhookUtils.kt）。
+ * secret 本身不再出现在请求里；这里只认 SIGN_WINDOW_MS 内的时间戳，每个签名处理成功后作废（重放无效）。
+ *   VMQ_WEBHOOK_SECRET        签名密钥（openssl rand -hex 24）。设了 = 签名模式可用
+ *   VMQ_WEBHOOK_ACCEPT_TOKEN  设了 SECRET 之后 token 还认不认：默认认（过渡期，每次用到记 vmq_token_auth_at）；两台手机改完后设 0
+ * 【来源地区（P3）】VMQ_WEBHOOK_COUNTRIES=CN（逗号分隔，Cloudflare 的 CF-IPCountry）：不在名单里的一律拒。不设 = 不限。
+ *   收款手机都在大陆运营商网络上（10-24 核对：两台手机分别走电信 IPv6 与移动 IPv4）；手机开了出境 VPN 会被拒，先在这里放开。
+ * 【反复失败封 IP（P4）】token / 签名 / 地区不对的请求记进 security/abuse，同一 IP 10 分钟 5 次 → 封 1 小时并告警。
+ *   **本接口自己不看 IP 封禁**：验过的请求照常处理，配错又改好的收款手机不会因为被封而漏单。
  */
 const PRIMARY = process.env.VMQ_WEBHOOK_TOKEN || ''
 const LEGACY = PRIMARY ? (process.env.VMQ_WEBHOOK_ACCEPT_LEGACY === '1' ? VMQ_KEY : '') : VMQ_KEY
+const SIGN_SECRET = process.env.VMQ_WEBHOOK_SECRET || ''
+const TOKEN_ACCEPTED = !SIGN_SECRET || process.env.VMQ_WEBHOOK_ACCEPT_TOKEN !== '0'
+const COUNTRIES = (process.env.VMQ_WEBHOOK_COUNTRIES || '')
+  .split(',')
+  .map((s) => s.trim().toUpperCase())
+  .filter(Boolean)
 // 所有可能出现在请求里的密钥（抹掉用）：不管认不认，都不能让它进日志
-const ALL_SECRETS = [PRIMARY, VMQ_KEY].filter((s) => s && s.length >= 8)
+const ALL_SECRETS = [PRIMARY, VMQ_KEY, SIGN_SECRET].filter((s) => s && s.length >= 8)
+
+if (SIGN_SECRET && SIGN_SECRET.length < 32) {
+  console.error('[sms-notify] VMQ_WEBHOOK_SECRET 太短（建议 48 位 hex）')
+}
+
+// 签名校验与防重放（算法、窗口、作废规则见 lib/security/webhook-sign.ts）
+const signer = createSignVerifier(SIGN_SECRET)
 
 if (!PRIMARY) {
   console.error('[sms-notify] 未设置 VMQ_WEBHOOK_TOKEN，暂用 VMQ_KEY 校验到账通知。请用 openssl rand -hex 24 生成后写进 .env.production 并同步到手机端')
@@ -34,6 +60,7 @@ const REJECT_ALERT_INTERVAL_MS = 10 * 60_000
 let lastRejectAlertAt = 0
 const LEGACY_ALERT_INTERVAL_MS = 60 * 60_000
 let lastLegacyAlertAt = 0
+let lastTokenAuthWriteAt = 0
 // 正文上限：到账通知只有几百字，超长的直接拒（不解析、不落库）
 const MAX_BODY_CHARS = 20_000
 
@@ -70,24 +97,45 @@ async function handle(req: NextRequest) {
   if (raw.length > MAX_BODY_CHARS) return NextResponse.json({ code: -1, msg: '请求体过大' }, { status: 413 })
 
   // 只认 JSON 对象（后台给的模板）与表单（SmsForwarder 不填请求体时的默认格式）；纯文本 / 其它一律不当正文
+  const FIELD_KEYS = ['token', 'timestamp', 'sign', 'content', 'msg', 'text', 'org', 'org_content', 'title', 'from']
   let fields: Record<string, string> | null = null
   if (raw) {
     try {
       const obj = JSON.parse(raw)
       if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
         fields = {}
-        for (const k of ['token', 'content', 'msg', 'text', 'org', 'org_content', 'title', 'from']) fields[k] = str((obj as Record<string, unknown>)[k])
+        for (const k of FIELD_KEYS) fields[k] = str((obj as Record<string, unknown>)[k])
       }
     } catch {
       if (/^[^{[\s][^\n]*=/.test(raw)) {
         const p = new URLSearchParams(raw)
         fields = {}
-        for (const k of ['token', 'content', 'msg', 'text', 'org', 'org_content', 'title', 'from']) fields[k] = p.get(k) || ''
+        for (const k of FIELD_KEYS) fields[k] = p.get(k) || ''
       }
     }
   }
 
-  const kind = tokenKind(req.headers.get('x-token') || fields?.token || '')
+  // 来源地区（P3）：Cloudflare 填的 CF-IPCountry；没有这个头（服务器本机自测）不拦
+  const country = (req.headers.get('cf-ipcountry') || '').trim().toUpperCase()
+  if (COUNTRIES.length && country && !COUNTRIES.includes(country)) {
+    console.warn('[vmq] sms-notify 来源地区不在名单里，拒绝：', country)
+    noteAbuse(req.headers, 'WEBHOOK_AUTH', `地区 ${country}`)
+    return NextResponse.json({ code: -1, msg: '来源地区不允许' }, { status: 401 })
+  }
+
+  // 认证：签名优先（P2），其次 token（没设签名密钥、或过渡期还认 token 时）
+  let signKey = ''
+  let signReason: SignReject | null = null
+  let signed = false
+  if (SIGN_SECRET && fields && (fields.sign || fields.timestamp)) {
+    const sr = signer.check(fields.timestamp, fields.sign)
+    signReason = sr.reason
+    if (!sr.reason) {
+      signed = true
+      signKey = sr.key
+    }
+  }
+  const kind = signed ? 'primary' : TOKEN_ACCEPTED ? tokenKind(req.headers.get('x-token') || fields?.token || '') : null
   // 正文 = content / msg / text / org / org_content / title，再拼上 from（顺序与原来一致：[content] 在最前，lib/vmq-notice.ts 的格式校验锚在开头）
   const content = fields
     ? redact(['content', 'msg', 'text', 'org', 'org_content', 'title', 'from'].map((k) => fields![k]).filter(Boolean).join(' ').trim())
@@ -96,8 +144,13 @@ async function handle(req: NextRequest) {
   if (!kind) {
     const inQuery = url.searchParams.has('token')
     console.warn(
-      '[vmq] sms-notify token 校验不通过' + (inQuery ? '（token 放在了 URL 上：不支持，请改放 JSON 请求体，并轮换 VMQ_WEBHOOK_TOKEN）' : '')
+      '[vmq] sms-notify 校验不通过' +
+        (signReason ? `（签名：${signReason}）` : '') +
+        (inQuery ? '（token 放在了 URL 上：不支持，请改放 JSON 请求体，并轮换 VMQ_WEBHOOK_TOKEN）' : '')
     )
+    noteAbuse(req.headers, 'WEBHOOK_AUTH', signReason ? `签名 ${signReason}` : 'token 不对')
+    if (signReason === 'replay') return NextResponse.json({ code: -1, msg: '签名已使用' }, { status: 401 })
+    if (signReason === 'stale') return NextResponse.json({ code: -1, msg: '时间戳过期（请检查手机时间）' }, { status: 401 })
     const amount = parseAmount(content)
     if ((inQuery || amount) && Date.now() - lastRejectAlertAt > REJECT_ALERT_INTERVAL_MS) {
       lastRejectAlertAt = Date.now()
@@ -124,12 +177,24 @@ async function handle(req: NextRequest) {
     }
   }
   if (!fields) return NextResponse.json({ code: -1, msg: '请求体须为 JSON（后台「收款监控」有现成模板）' }, { status: 400 })
-  if (!content) return NextResponse.json({ code: -1, msg: '空内容' }, { status: 200 })
+  // 签名模式已开、手机还在用 token：记一下最近时间（后台据此判断两台手机是否都改完），10 分钟最多写一次
+  if (SIGN_SECRET && !signed && Date.now() - lastTokenAuthWriteAt > 10 * 60_000) {
+    lastTokenAuthWriteAt = Date.now()
+    await prisma.setting
+      .upsert({ where: { key: 'vmq_token_auth_at' }, create: { key: 'vmq_token_auth_at', value: String(Date.now()) }, update: { value: String(Date.now()) } })
+      .catch((e) => console.error('[vmq] 记录 token 认证时间失败', e))
+  }
+  if (!content) {
+    if (signed) signer.markUsed(signKey)
+    return NextResponse.json({ code: -1, msg: '空内容' }, { status: 200 })
+  }
 
   // 注意不要给这里包「一律回 200」的整体 catch：到账记到收款单之前的失败（库挂了）要回 500，
   // 让 SmsForwarder 重试；记到收款单之后的失败 lib/vmq.ts 已自行吞掉并告警，不会再抛到这里
   const r = await handleWebhookNotify(content, { from: fields.from })
-  console.log(`[vmq] sms-notify matched=${r.matched} amount=${r.amount} type=${r.type}`)
+  // 处理成功之后才作废签名：处理中途 500 时 SmsForwarder 重试同一签名还能进来
+  if (signed) signer.markUsed(signKey)
+  console.log(`[vmq] sms-notify ${signed ? 'sign' : kind} matched=${r.matched} amount=${r.amount} type=${r.type}`)
   // 始终回 200，便于 SmsForwarder 判定成功
   return NextResponse.json({ code: 1, msg: '成功', matched: r.matched, amount: r.amount })
 }

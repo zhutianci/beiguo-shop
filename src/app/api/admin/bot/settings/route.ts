@@ -15,6 +15,7 @@ import {
 } from '@/lib/bot/config'
 import { auditSoft, currentActor, failFields, intIn, numIn, readBody } from '@/app/api/admin/bot/_lib/common'
 import type { CommandInfoDTO, EditableConfig, SettingsDTO } from '@/app/admin/bot/types'
+import { requireSudo } from '@/lib/security/sudo'
 
 /** 不能关掉的指令：「锁定」是紧急刹车，任何时候都得能用；「帮助」是其余一切指令的入口 */
 const PROTECTED_COMMANDS = new Set(['锁定', '帮助'])
@@ -232,6 +233,9 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = await readBody(request)
     if (!body) return error('请求体不是 JSON 对象')

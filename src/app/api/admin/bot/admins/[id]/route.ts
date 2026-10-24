@@ -6,6 +6,7 @@ import { success, error } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { auditSoft, cleanText, currentActor, intIn, parseId, readBody } from '@/app/api/admin/bot/_lib/common'
 import { toAdminDTO } from '@/app/api/admin/bot/_lib/dto'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 改管理员（docs/微信机器人-设计.md §7.1、§10、§14）：body 里给哪项改哪项——
@@ -18,6 +19,9 @@ import { toAdminDTO } from '@/app/api/admin/bot/_lib/dto'
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const id = parseId(params.id)
     if (!id) return error('管理员编号不对')

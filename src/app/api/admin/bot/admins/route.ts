@@ -6,6 +6,7 @@ import { success, error } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { auditSoft, cleanText, currentActor, intIn, readBody } from '@/app/api/admin/bot/_lib/common'
 import { toAdminDTO, toAdminDTOs } from '@/app/api/admin/bot/_lib/dto'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 管理员列表（docs/微信机器人-设计.md §14「管理员」）：名称、关联的站内账号、最高级别、启用状态、
@@ -31,6 +32,9 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = await readBody(request)
     if (!body) return error('请求体不是 JSON 对象')

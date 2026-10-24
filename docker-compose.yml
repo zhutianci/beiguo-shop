@@ -71,6 +71,12 @@ services:
       - VMQ_WEBHOOK_TOKEN=${VMQ_WEBHOOK_TOKEN}
       # 收款回调 token 轮换的过渡开关（api/pay/sms-notify）：=1 时旧的 VMQ_KEY 也还认；两台手机都换成新 token 后删掉。裸变量名：改 .env.production 后 up -d 即生效
       - VMQ_WEBHOOK_ACCEPT_LEGACY
+      # 收款回调签名（2026-10-24 第二轮加固，api/pay/sms-notify 文件头）：VMQ_WEBHOOK_SECRET 设了 = 签名模式可用
+      # （SmsForwarder Webhook 的 Secret 填它，body 用 [timestamp] / [sign]）；两台手机都改完后 VMQ_WEBHOOK_ACCEPT_TOKEN=0 关掉 token 方式。
+      # VMQ_WEBHOOK_COUNTRIES（如 CN）按 Cloudflare 的 CF-IPCountry 限来源地区，站长 10-24 定为不设。裸变量名：改 .env.production 后 up -d 即生效
+      - VMQ_WEBHOOK_SECRET
+      - VMQ_WEBHOOK_ACCEPT_TOKEN
+      - VMQ_WEBHOOK_COUNTRIES
       # 卡密加密密钥（自动发货；务必设置且勿丢失，丢失则已存卡密无法解密）
       - CARDKEY_SECRET=${CARDKEY_SECRET}
       # 短信接码 hero-sms
@@ -198,6 +204,9 @@ services:
       # ADMIN_LOGIN_2FA=0 是应急开关（邮件发不出去、站长又进不了后台时），改 .env.production 后 up -d app 即生效
       - ADMIN_LOGIN_2FA
       - ADMIN_TOKEN_HOURS
+      # 后台敏感操作二次验证（lib/security/sudo.ts，2026-10-24）：不设 = 开启（看卡密明文、标已付 / 退款、改角色、打款、绑机器人等要再输一次登录密码，10 分钟内免输）。
+      # ADMIN_SUDO=0 是应急开关，改 .env.production 后 up -d app 即生效
+      - ADMIN_SUDO
       # NEXT_PUBLIC_* 构建时若已定义，会被内联进产物（服务端代码也一样），这里改值不生效、仍需重建；
       # 构建时没定义的，才按这里的运行时值走
       - NEXT_PUBLIC_SITE_URL
@@ -315,6 +324,10 @@ services:
       - forum_uploads:/var/www/uploads:ro
       # 渠道站静态停业页（nginx.conf 里 Host 为 closed 时 rewrite 到它，不进应用；设计 4.3、15.6 第 3 层）
       - ./nginx/closed.html:/usr/share/nginx/closed/closed.html:ro
+      # 安全日志（2026-10-24 第二轮加固，nginx.conf 里 $sec_log 那段）：按天一个文件，落在宿主机上，重建 nginx 不丢。
+      # 目录要让容器里的 nginx 用户（uid 101）可写：首次部署 mkdir -p data/nginx-sec && chown 101:101 data/nginx-sec；
+      # 保留 30 天靠宿主机 crontab 里的 find -mtime +30 -delete（docs/安全-第二轮加固-1024.md 部署段）
+      - ./data/nginx-sec:/var/log/nginx/sec
     depends_on:
       - app
     networks:

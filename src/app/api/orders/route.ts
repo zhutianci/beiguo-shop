@@ -39,6 +39,7 @@ import { payableFrom } from '@/lib/order-payable'
 import { botSink } from '@/lib/bot/sink'
 import { bjMinute, yuan } from '@/lib/bot/render'
 import { recordContentAttribution } from '@/lib/content/attribution'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 
 const createOrderSchema = z.object({
@@ -446,6 +447,9 @@ const PENDING_WINDOW_MS = 20 * 60_000
 
 // 创建订单
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 店面解析不进 try（设计 4.4 第 7 条）。null = 该 Host 没有店面（严格期未知 Host、域名停用）→ 404
   const sf = await getStorefront()
   if (!sf) return error('资源不存在', 404)

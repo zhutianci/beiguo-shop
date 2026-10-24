@@ -8,11 +8,15 @@ import { success, error, notFound } from '@/lib/api'
 import { decryptCardContent, syncAutoStock } from '@/lib/cardkey'
 import { round2 } from '@/lib/money'
 import { adminGuard } from '@/lib/admin-guard'
+import { requireSudo } from '@/lib/security/sudo'
+import { cardRevealGate } from '@/lib/security/card-reveal'
 
-// 查看单条明文（管理员）
+// 查看单条明文（管理员）：二次验证 + 限流 + 留痕（lib/security/card-reveal.ts，2026-10-24）
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  const gate = await cardRevealGate(request, `card:${params.id}`)
+  if (gate) return gate
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')
@@ -117,6 +121,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const id = parseInt(params.id)
     if (!id) return error('ID 无效')

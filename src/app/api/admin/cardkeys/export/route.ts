@@ -9,6 +9,7 @@ import { buildXlsx, xlsxTime, type XlsxColumn, type XlsxValue } from '@/lib/xlsx
 import { notifyCardKeyExported } from '@/lib/notify'
 import { clientIp, rateLimited } from '@/lib/news/rate-limit'
 import { adminOrResponse, parseTenantFilter, INVALID_TENANT_FILTER, cardSiteWhere, cardSources } from '@/lib/admin/source-site'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 卡密导出（xlsx）。
@@ -52,6 +53,9 @@ export async function GET(request: NextRequest) {
   //    渠道 Host 上 404（AdminHostError，设计 4.7），其余 403。
   const auth = await adminOrResponse()
   if ('res' in auth) return auth.res
+  // ② 二次验证（2026-10-24）：导出 = 整个卡池的明文，登录态被偷也导不出去（lib/security/sudo.ts）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const operator: { id: number; email: string | null } = { id: auth.user.id, email: auth.user.email }
 
   try {

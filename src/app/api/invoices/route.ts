@@ -20,6 +20,7 @@ import {
   afterInvoiceSubmitted,
 } from '@/lib/invoice-input'
 import { getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 // 抬头字段共用 lib/invoice-input 的定义，本路由只多两样：订单号与匿名归属凭证
 const schema = buyerInvoiceSubmitSchema.extend({
@@ -29,6 +30,9 @@ const schema = buyerInvoiceSubmitSchema.extend({
 })
 
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return notFound('订单不存在')

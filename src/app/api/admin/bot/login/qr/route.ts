@@ -7,6 +7,7 @@ import { rateLimited } from '@/lib/news/rate-limit'
 import { getAdapter } from '@/lib/bot/adapters'
 import { auditSoft, currentActor } from '@/app/api/admin/bot/_lib/common'
 import type { LoginQrDTO } from '@/app/admin/bot/types'
+import { requireSudo } from '@/lib/security/sudo'
 
 /** 登录会话（同进程）：只有先取过二维码，login/progress 才会去问协议服务，见那边的注释 */
 const g = globalThis as unknown as { __botLoginSession?: { startedAt: number; by: number | null } }
@@ -28,6 +29,9 @@ function normalizeQr(raw: string): string | null {
 export async function POST(request: NextRequest) {
   const deny = await adminGuard()
   if (deny) return deny
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const adapter = getAdapter()
     if (!adapter.capabilities.has('login_qr')) return error(`当前适配器（${adapter.name}）不需要扫码登录`, 400)

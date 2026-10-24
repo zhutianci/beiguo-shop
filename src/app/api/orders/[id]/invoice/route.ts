@@ -21,6 +21,8 @@ import {
   normalizeInvoiceFields,
   afterInvoiceSubmitted,
 } from '@/lib/invoice-input'
+import { noteForeignOrder } from '@/lib/security/probe'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 // 字段校验统一在 lib/invoice-input（route.ts 不能导出 handler 以外的东西，
 // 而三个开票入口必须共用同一套规则 —— 尤其是税号去空格，漏一处等于没做）
@@ -28,6 +30,9 @@ const schema = buyerInvoiceSubmitSchema
 
 // 买家从「我的订单」直接申请发票（无需邮箱查询）
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return notFound('订单不存在')
@@ -44,7 +49,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       where: { id: orderId, userId: user.id, tenantId: sf.id },
       include: { user: { select: { email: true, nickname: true } }, product: { select: { deliveryType: true } } },
     })
-    if (!order) return notFound('订单不存在')
+    if (!order) {
+      // 订单存在但属于别人 = 越权尝试，记一次（lib/security/probe.ts IDOR）；响应照旧 404
+      await noteForeignOrder(request, user.id, orderId)
+      return notFound('订单不存在')
+    }
     // 余额充值与短信接码订单（不论用余额还是支付宝付款）不支持自助开票（docs/短信接码-设计.md D37、§6.6 第 18 条；两个接口同一句）。
     // 客服用现有后台工具（手动开票 / 开票填写链接）线下处理，不新建开票流程，也不写 Order.invoiceTaxFee
     if (isCarrierType(order.product.deliveryType)) return error(CARRIER_NO_INVOICE_MSG, 409)

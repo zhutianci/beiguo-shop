@@ -25,28 +25,36 @@ export async function GET(request: NextRequest) {
 
     // SmsForwarder（通知转发）Webhook 配置
     const origin = appUrl || (host ? `https://${host}` : '')
-    const webhookToken = process.env.VMQ_WEBHOOK_TOKEN || VMQ_KEY
     // token 轮换的状态（api/pay/sms-notify 的规则）：没设新 token = legacy；设了且还认旧的 = transition
     const tokenMode: 'primary' | 'transition' | 'legacy' = !process.env.VMQ_WEBHOOK_TOKEN
       ? 'legacy'
       : process.env.VMQ_WEBHOOK_ACCEPT_LEGACY === '1'
         ? 'transition'
         : 'primary'
+    // 签名模式（2026-10-24，api/pay/sms-notify 文件头）：sign = 只认签名；sign+token = 过渡期两种都认；token = 还没设签名密钥
+    const signOn = !!process.env.VMQ_WEBHOOK_SECRET
+    const authMode: 'sign' | 'sign+token' | 'token' = !signOn ? 'token' : process.env.VMQ_WEBHOOK_ACCEPT_TOKEN === '0' ? 'sign' : 'sign+token'
     const webhookUrl = origin ? `${origin}/api/pay/sms-notify` : '/api/pay/sms-notify'
-    // SmsForwarder 用 [xxx] 占位符：[content]=通知内容(含金额)、[from]=来源、[org_content]=原始内容
+    // SmsForwarder 用 [xxx] 占位符：[content]=通知内容(含金额)、[from]=来源、[org_content]=原始内容、
+    // [timestamp]/[sign]=填了 Secret 之后 SmsForwarder 自动算的签名。
+    // 【不再把明文 token 放进这个接口】（2026-10-24）页面每 10 秒轮询它，明文 token 等于一直在浏览器里；
+    // 要看密钥点「显示密钥」，走 POST /api/admin/vmq/secret（二次验证）
     const webhookBody = JSON.stringify(
-      { token: webhookToken, content: '[content]', from: '[from]', org: '[org_content]' },
+      signOn
+        ? { timestamp: '[timestamp]', sign: '[sign]', content: '[content]', from: '[from]', org: '[org_content]' }
+        : { token: '<点「显示密钥」查看>', content: '[content]', from: '[from]', org: '[org_content]' },
       null,
       2
     )
 
     // 最近一次收到转发的时间 + 收款统计
-    const [lastHeartS, pendingCount, paidCount, lastPaid, legacyAtS] = await Promise.all([
+    const [lastHeartS, pendingCount, paidCount, lastPaid, legacyAtS, tokenAuthAtS] = await Promise.all([
       prisma.setting.findUnique({ where: { key: 'vmq_lastheart' } }),
       prisma.vmqOrder.count({ where: { state: 0 } }),
       prisma.vmqOrder.count({ where: { state: 1 } }),
       prisma.vmqOrder.findFirst({ where: { state: 1 }, orderBy: { payDate: 'desc' }, select: { payDate: true } }),
       prisma.setting.findUnique({ where: { key: 'vmq_legacy_token_at' }, select: { value: true } }),
+      prisma.setting.findUnique({ where: { key: 'vmq_token_auth_at' }, select: { value: true } }),
     ])
     const lastNotify = lastHeartS ? Number(lastHeartS.value) : 0
     // SmsForwarder 没有心跳，只有真实到账才会刷新时间戳，所以这里用 24 小时窗口表示「近期有转发进来」，
@@ -71,10 +79,12 @@ export async function GET(request: NextRequest) {
       diag,
       unmatched,
       webhookUrl,
-      webhookToken,
       webhookBody,
       tokenMode,
+      authMode,
       legacyTokenAt: legacyAtS ? Number(legacyAtS.value) || null : null,
+      /** 签名模式开着、手机还在用 token 的最近一次时间（毫秒）：两台手机都改成签名后它就不再更新 */
+      tokenAuthAt: tokenAuthAtS ? Number(tokenAuthAtS.value) || null : null,
       configured: !!VMQ_KEY,
       host,
       timeoutMin: VMQ_TIMEOUT_MIN,

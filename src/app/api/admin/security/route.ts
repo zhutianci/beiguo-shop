@@ -16,6 +16,7 @@ import {
   resetEmailDomainCache,
 } from '@/lib/security/email-domain'
 import { listIpBans, unbanIp } from '@/lib/security/ip-ban'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 后台「安全」卡片（2026-10-15 攻防加固，docs/安全-攻防加固设计-1015.md）：
@@ -70,6 +71,9 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   const denied = await guard()
   if (denied) return denied
+  // 改注册口径 / 解封 IP 也要二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = (await request.json().catch(() => ({}))) as { trusted?: unknown; blocked?: unknown; policy?: unknown }
     const out: { policy?: string; trusted?: string; blocked?: string; ignored?: string[]; disposable?: string[] } = {}
@@ -118,6 +122,9 @@ export async function PUT(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const denied = await guard()
   if (denied) return denied
+  // 改注册口径 / 解封 IP 也要二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   const body = (await request.json().catch(() => ({}))) as { unbanIp?: unknown }
   if (typeof body.unbanIp !== 'string' || !body.unbanIp) return error('缺少 IP')
   unbanIp(body.unbanIp)

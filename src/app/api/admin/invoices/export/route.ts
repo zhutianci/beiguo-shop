@@ -15,6 +15,7 @@ import {
 } from '@/lib/invoice-export'
 import { adminGuard } from '@/lib/admin-guard'
 import { parseTenantFilter, INVALID_TENANT_FILTER } from '@/lib/admin/source-site'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 批量开票导出：把当前所有「待开发票」写进税局官方模板，直接下载。
@@ -61,6 +62,9 @@ const SELECT = {
 export async function GET(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     // 按来源站筛选（设计 12.2）：?tenantId=<id>|all，默认全部；税局模板的列不变（来源站不进模板）
     const site = parseTenantFilter(new URL(request.url).searchParams)

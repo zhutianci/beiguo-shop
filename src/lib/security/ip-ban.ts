@@ -10,7 +10,7 @@
  *
  * 【局限】单容器进程内计数，准；容器重启（每次发版）清零，属于放行方向。条目有上限，满了淘汰最早的。
  */
-import { ipKey } from '../auth-throttle'
+import { ipKey } from '../ip-key'
 import { clientIp } from '../news/rate-limit'
 
 const MAX_ENTRIES = 5000

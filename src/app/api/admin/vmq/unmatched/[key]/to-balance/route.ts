@@ -6,6 +6,7 @@ import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
 import { getCurrentUser } from '@/lib/auth'
 import { readEntry, latepayCandidates, latepayOrderLookup, manualCredit, LatepayError, ENTRY_KEY_RE, LATEPAY_MAX_CENTS, entryCents } from '@/lib/wallet/latepay'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 「退入买家余额」（docs/短信接码-设计.md D41、§2.7、§6.6 第 15 条、附录 B 第 21 条）。第一行 adminGuard，写审计。
@@ -66,6 +67,9 @@ const schema = z.object({
 export async function POST(request: NextRequest, { params }: { params: { key: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 敏感操作二次验证（lib/security/sudo.ts，2026-10-24）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const key = keyOf(params)
     if (!ENTRY_KEY_RE.test(key)) return error('记录不存在', 404)

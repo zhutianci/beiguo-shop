@@ -8,6 +8,7 @@ import { success, error, unauthorized } from '@/lib/api'
 import { BillingError } from '@/lib/order-invoice'
 import { assertTaxNumber, INVOICE_TITLE_LIMIT } from '@/lib/invoice-input'
 import { getStorefront } from '@/lib/storefront/resolve'
+import { crossSiteWrite } from '@/lib/security/write-guard'
 
 /**
  * 发票抬头档案（个人中心「抬头管理」+ 各处开票弹窗的一键带入）。
@@ -73,6 +74,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
+  const csrf = crossSiteWrite(request)
+  if (csrf) return csrf
   const sf = await getStorefront()
   if (!sf || sf.kind !== 'PLATFORM') return error('本站暂不支持保存发票抬头', 403)
   try {
