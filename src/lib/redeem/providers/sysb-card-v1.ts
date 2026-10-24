@@ -46,11 +46,56 @@
  * 【四】requires_duplicate_confirm 绝不自动确认。
  * 那是「该账号 24 小时内已有充值记录」，官网会弹窗让**人**确认。
  * 替买家点这个确认，等于替他决定再花一笔钱。
+ *
+ * ================== 2026-10-24：autosub 的卡也走这里，官网改成 66chong.com ==================
+ *
+ * 【起因】卡#2865（BSB6…DYHN，ChatGPT Plus 信用卡冲）在本站两次提交都在 1 秒内失败，
+ * 买家转去官网 66chong.com 30 秒就充成了。查下来不是这一张卡的问题：
+ *   · 10-15 起上游改版，只读查卡（queryOrder）不带新视图头一律 503 → 查卡结果为 null
+ *     → 卡付单全部落到 V2 `chatgpt_card`；
+ *   · **V2 `chatgpt_card` 自 10-10 起一笔都没成功过**，全是 `CDK_UNAVAILABLE / cdk_state=not_verified`
+ *     秒拒（10-24 上游发了新接入说明之后依旧如此）；同期 V2 `chatgpt_ios` 照常成功；
+ *   · 10-08～10-14 卡付走这里（V1）每天 11～32 单成功。
+ * 所以卡付一律按官网的 V1 SUB 流程走，不再看 backend 分叉到 V2。
+ *
+ * 【官网就是同一套前端换了个域名】66chong.com 与 hongyunai.pro 的页面只差品牌字样，脚本文件逐字相同；
+ * 它的 staff-test-network 脚本把 `/api/v1/sub/<x>` 改写成 `/recharge-api/sub/<x>` 再发（见 V1_ALIAS）。
+ * 官网成交单的 order_query_token 里 site_id=2，就是 66chong 这一站。我们照官网发，见 CARD_ORIGIN。
+ *
+ * 【autosub 与 gpt1 是两条不同的流程，verifyCdk 返回的 backend 决定走哪条】
+ *   gpt1    verify → **precheck（建任务、预留卡，不可逆点）** → redeem          token 发 Session 原文
+ *   autosub verify → precheck（**只读核对账号，不建单**）→ 查本次激活有没有单 → verify(renew) → **redeem（不可逆点）**
+ *                                                                                 token 发 `zstd64:<base64(zstd(Session))>`
+ * autosub 那一段逐行对照官网 official-tools-core 的 confirm 流程（readAutosubActivationOrder → renew → redeem）。
  */
 import crypto from 'crypto'
 import { RedeemError, type RedeemActivateResult } from '../types'
 
-const ORIGIN = 'https://hongyunai.pro'
+/**
+ * 发 V1 请求的站点。默认照官网 66chong.com 发；`SYSB_CARD_ORIGIN=https://hongyunai.pro` 可切回旧站。
+ * 两站是同一个后端（同一张卡在两站 queryOrder 结果一致），差别只在路由写法，见 v1Url()。
+ */
+const CARD_ORIGIN = (process.env.SYSB_CARD_ORIGIN || 'https://66chong.com').trim().replace(/\/+$/, '')
+
+/**
+ * 66chong.com 的路由别名，逐字抄自它的 staff-test-network-0c8fd998463440c0.js 里的 routeMap。
+ * 它不接受 `/api/v1/sub/*`（server 端直接 nginx 404），只认 `/recharge-api/<别名>`。
+ */
+const V1_ALIAS: Record<string, string> = {
+  '/api/v1/sub/verifyCdk': 'sub/verifyCdk',
+  '/api/v1/sub/precheckAccount': 'sub/precheckAccount',
+  '/api/v1/sub/redeem': 'sub/redeem',
+  '/api/v1/sub/redeemResult': 'sub/redeemResult',
+  '/api/v1/sub/queryOrder': 'sub/queryOrder',
+}
+
+/** hongyunai.pro 收原始路径；其它站（66chong）收别名 */
+export function v1Url(path: string, origin: string = CARD_ORIGIN): string {
+  if (/^https:\/\/(www\.)?hongyunai\.pro$/i.test(origin)) return `${origin}${path}`
+  const alias = V1_ALIAS[path]
+  if (!alias) throw new RedeemError('兑换服务异常，请联系客服', 'ERROR', false)
+  return `${origin}/recharge-api/${alias}`
+}
 
 /**
  * 实测耗时 precheck 4.3s / redeem 2.5s。这里给的是上限，不是期望值：
@@ -58,6 +103,13 @@ const ORIGIN = 'https://hongyunai.pro'
  * 三步加起来最坏 55s，仍在一次 HTTP 请求内跑得完。
  */
 const TIMEOUT = { verify: 20_000, precheck: 25_000, redeem: 25_000 } as const
+
+/**
+ * autosub 那条多两步（查单、renew），而且官网给账号核对留了 65 秒、给 redeem 留了 75 秒。
+ * 我们是一次 HTTP 请求跑完，外面是 nginx 90 秒 + Cloudflare 100 秒，所以按总预算分配：
+ * 不可逆点（redeem）之前任何一步超预算都直接停下 —— 那时卡一点没动，让买家再点一次。
+ */
+const AUTOSUB = { precheck: 40_000, query: 10_000, renew: 15_000, redeemMin: 20_000, redeemMax: 45_000, budget: 80_000 } as const
 
 /**
  * gpt1 分支上游要求附带的来源标识。官网发的是 'hongyunai'。
@@ -68,14 +120,74 @@ function clientSite(): string {
   return (process.env.SYSB_CARD_CLIENT_SITE || 'hongyunai').trim()
 }
 
-/** 这条链路是否启用。**默认关闭** —— 必须由站长实测一张卡通过后才打开 */
+/**
+ * 这条链路是否启用。**2026-10-24 起默认开启**（卡付走 V2 自 10-10 起 0 成功，见文件头），
+ * 只有显式 `SYSB_CARD_V1=0` 才关 —— 那是留给上游修好 V2 之后的回退开关。
+ */
 export function cardV1Enabled(): boolean {
-  return (process.env.SYSB_CARD_V1 || '').trim() === '1'
+  return (process.env.SYSB_CARD_V1 || '').trim() !== '0'
 }
 
 /** 官网的 newNonce()：18 字节随机数转 36 位小写十六进制 */
 function newNonce(): string {
   return crypto.randomBytes(18).toString('hex')
+}
+
+/**
+ * 一张卡一个 request_nonce，跨请求不变。
+ *
+ * 【为什么不能每次随机】verifyCdk 会用这个 nonce 在上游给卡做「预留」。官网把它存在
+ * sessionStorage 里一张卡用 24 小时（cardFlowNonce），renew 时也必须用同一个 ——
+ * 源码注释原话：「Reuse the provider reservation nonce; never allocate a new lock just because
+ * an earlier response was lost」。我们是无状态的一次请求，所以从卡密本身确定性地算出来：
+ * 买家刷新页面再提交，拿到的还是同一把预留，而不是被自己上一次的预留锁住。
+ * 格式与官网一致（36 位小写十六进制，满足它的 /^[A-Za-z0-9_-]{22,86}$/）。
+ */
+export function cardNonce(cdk: string): string {
+  return crypto
+    .createHash('sha256')
+    .update(`sysb-card-nonce|${process.env.CARDKEY_SECRET || ''}|${cdk.trim().toUpperCase()}`)
+    .digest('hex')
+    .slice(0, 36)
+}
+
+/**
+ * 把一段字节包成一个合法的 zstd 帧（RFC 8878），**不压缩**，只用 Raw 块。
+ *
+ * 【为什么要自己写】官网 autosub 发的 token 是 `zstd64:` + base64(zstd(Session 原文))
+ * （card-zstd.js 的 hongyunCompressCardToken，level 10）。生产镜像是 Node 20，
+ * zlib 里还没有 zstd（22.15 / 23.8 才加），为它引一个原生或 wasm 依赖不值得：
+ * 解压端只关心帧合不合法，不关心压没压过。Raw 块是标准里最基础的块类型，任何合规解码器都认。
+ *
+ * 【帧头里必须写内容长度】Single_Segment=1 + 4 字节 Frame_Content_Size。
+ * 不写的话，像 python-zstandard 的一次性 decompress() 会直接拒绝（不知道该开多大的缓冲）。
+ * scripts/check-redeem.ts 用 Node 自带的 libzstd 解回来逐字节比对。
+ */
+export function zstdRawFrame(data: Buffer): Buffer {
+  const MAX_BLOCK = 128 * 1024
+  const parts: Buffer[] = []
+  const header = Buffer.alloc(9)
+  header.writeUInt32LE(0xfd2fb528, 0) // Magic_Number
+  header[4] = 0xa0 // Frame_Header_Descriptor：FCS 4 字节（0b10）+ Single_Segment，无校验和、无字典
+  header.writeUInt32LE(data.length, 5) // Frame_Content_Size
+  parts.push(header)
+  let off = 0
+  do {
+    const size = Math.min(MAX_BLOCK, data.length - off)
+    const last = off + size >= data.length ? 1 : 0
+    const bh = (size << 3) | (0 << 1) | last // Block_Size | Block_Type=Raw | Last_Block
+    parts.push(Buffer.from([bh & 0xff, (bh >> 8) & 0xff, (bh >> 16) & 0xff]))
+    parts.push(data.subarray(off, off + size))
+    off += size
+  } while (off < data.length)
+  return Buffer.concat(parts)
+}
+
+/** 官网 hongyunCompressCardToken 的等价物：`zstd64:` + base64(zstd 帧(去掉首尾空白的 UTF-8 原文)) */
+export function cardToken(sessionRaw: string): string {
+  const text = String(sessionRaw || '').trim()
+  if (!text) throw new RedeemError('请粘贴 ChatGPT 账号 Session', 'ERROR')
+  return `zstd64:${zstdRawFrame(Buffer.from(text, 'utf8')).toString('base64')}`
 }
 
 /** 官网的 getClientJourneyID()：'flow_' + UUID，一次兑换会话一个 */
@@ -101,13 +213,13 @@ async function post(path: string, body: unknown, timeoutMs: number): Promise<V1B
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), timeoutMs)
   try {
-    const res = await fetch(`${ORIGIN}${path}`, {
+    const res = await fetch(v1Url(path), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Accept: '*/*',
-        Origin: ORIGIN,
-        Referer: `${ORIGIN}/`,
+        Origin: CARD_ORIGIN,
+        Referer: `${CARD_ORIGIN}/`,
       },
       body: JSON.stringify(body),
       signal: ac.signal,
@@ -332,45 +444,162 @@ export interface CardV1Input {
   cdk: string
   /** 买家粘贴的 AuthSession 原文。**只在内存里，不落库** */
   sessionRaw: string
-  /** 在 precheckAccount 之前调用，用来落「已经要动这张卡了」的不可逆标记 */
+  /**
+   * 落「已经要动这张卡了」的不可逆标记。抢不到要 throw。
+   * gpt1 在 precheckAccount 之前调（那一步就会预留卡），autosub 在查单 / renew / redeem 之前调。
+   */
   markIrreversible: () => Promise<void>
-  /** 记下上游订单号（TASK…），供之后轮询 */
+  /**
+   * 撤销上面那个标记。**只在能证明这张卡没被提交出去时调**：
+   * autosub 在 redeem 之前就停下了，或者上游明说卡已退回（card_returned / unused）。
+   */
+  releaseIrreversible?: () => Promise<void>
+  /** 记下上游订单号（gpt1 是 TASK…，autosub 是 SUB…），供之后轮询 */
   saveOrderRef: (ref: string) => Promise<void>
 }
 
 /**
- * 跑完 verify → precheck → redeem 三步。
+ * verifyCdk 失败 → 我们的话。口径照官网 friendlyCardValidationFailure，
+ * 但**不透传上游原文**（那里面可能有对方术语）。
+ */
+export function verifyFailure(v: V1Body): { message: string; state: 'ERROR' | 'PROCESSING' | 'OUT_OF_STOCK' } {
+  const code = String(v.error_code || '').trim().toUpperCase()
+  const raw = String(v.msg || v.message || v.error || '').trim()
+  const wait = Math.max(0, Math.ceil(Number(v.verification_remaining_seconds || v.retry_after_seconds || v.remaining_seconds || 0)))
+  if (code === 'NO_STOCK') return { state: 'OUT_OF_STOCK', message: '该套餐暂时无库存，本次没有开始充值，卡密没有被消耗。请稍后再试' }
+  if (/LOCK|PROCESS|BUSY|IN_USE/.test(code) || /正在处理|正在核对|被锁定|稍后释放/.test(raw)) {
+    return {
+      state: 'PROCESSING',
+      message: wait > 0 ? `这张卡密正在处理上一笔请求，预计还需 ${wait} 秒，请稍后再试` : '这张卡密正在处理上一笔请求，请稍后再试',
+    }
+  }
+  if (/USED|REDEEMED/.test(code) || /已使用|已兑换/.test(raw)) return { state: 'ERROR', message: '这张卡密已经使用过了，请点「查询」查看充值结果' }
+  if (/DISABLED|STOPPED/.test(code) || /已停用/.test(raw)) return { state: 'ERROR', message: '这张卡密已停用，请联系客服' }
+  if (/NOT_FOUND|INVALID/.test(code) || /不存在|未找到|格式错误/.test(raw)) return { state: 'ERROR', message: '充值系统没有找到这张卡密，请联系客服核对' }
+  return { state: 'ERROR', message: copy(code, '这张卡密暂时无法验证，请稍后重试；多次失败请联系客服') }
+}
+
+/**
+ * autosub 账号核对失败 → 我们的话。
  *
- * 返回 PROCESSING 是正常终点：上游此时是 processing，结果要靠之后轮询
- * queryOrder 得到（sysb-lookup.ts 已经会解析那个响应）。
+ * 【上游这一步常常只给中文、不给 error_code】2026-10-24 实测假 Session 的返回：
+ * `{"code":0,"error":"Token已失效，获取完Token后请不要退出登录，否则会失效",…}`，没有 error_code。
+ * 只看 error_code 的话，买家只能拿到一句「不满足条件」，不知道该重新复制 Session。
+ * 所以先认 error_code / precheck_hint，认不出再按原文里的关键词归类 —— 仍然不透传原文。
+ */
+export function precheckFailure(p: V1Body): string {
+  const hint = (p.precheck_hint && typeof p.precheck_hint === 'object' ? p.precheck_hint : {}) as Record<string, unknown>
+  const byHint =
+    hint.kind === 'account_already_member' ? 'ALREADY_MEMBER' : hint.kind === 'account_processing' ? 'ACCOUNT_PROCESSING' : ''
+  const code = String(p.error_code || byHint).trim().toUpperCase()
+  if (code && ERRORS[code]) return ERRORS[code]
+  const raw = String(p.error || p.message || p.msg || '').trim()
+  if (/失效|过期|expired/i.test(raw)) return ERRORS.TOKEN_EXPIRED
+  if (/已是会员|已经是会员|已有会员|已订阅|already/i.test(raw)) return ERRORS.ALREADY_MEMBER
+  if (/地区|国家|region/i.test(raw)) return ERRORS.UNSUPPORTED_REGION
+  if (/处理中|正在充值/.test(raw)) return ERRORS.ACCOUNT_PROCESSING
+  if (/登录态|登录内容|无效|invalid/i.test(raw)) return ERRORS.LOGIN_CONTENT_INVALID
+  return '当前账号不满足充值条件，请检查后重试'
+}
+
+export type AutosubKind = 'success' | 'safe_retry' | 'consumed_failed' | 'failed' | 'processing' | 'rejected' | 'unknown'
+
+/**
+ * autosub 的 redeem 响应 / 订单 → 结论。逐条照抄官网 autosubReceiptOutcome(fromSubmission) + autosubOrderOutcome：
+ *   · 订单状态说了算（重试中 / 核对中只是过程，不否决终态）
+ *   · 失败里再分：卡已退回（card_returned 或 cdk_status 未使用）→ 可以再提交；
+ *     卡已核销（partial_closed 或 cdk_status 已激活）→ 售后；其余失败 → 售后
+ *   · code≠200 且带了文字 = 上游当场拒了（官网照常显示「充值未成功」）
+ */
+export function classifyAutosub(r: V1Body | null | undefined): { kind: AutosubKind; orderNo?: string } {
+  if (!r || typeof r !== 'object') return { kind: 'unknown' }
+  if (Number(r.code) !== 200) {
+    const text = [r.error, r.message].some((x) => typeof x === 'string' && x.trim())
+    return { kind: text ? 'rejected' : 'unknown' }
+  }
+  const raw = r.order && typeof r.order === 'object' && !Array.isArray(r.order) ? (r.order as Record<string, unknown>) : null
+  const order = raw || (r.status ? { order_no: r.order_no || '', status: r.status, error: r.error } : null)
+  if (!order) return { kind: 'unknown' }
+  const orderNo = String(order.order_no || '').trim() || undefined
+  const status = String(order.status || r.status || '').trim().toLowerCase()
+  const card = String(r.cdk_status || '').trim().toLowerCase()
+  if (['success', 'manual_success', 'completed', 'complete', 'manual_completed'].includes(status)) return { kind: 'success', orderNo }
+  if (['failed', 'failure', 'error', 'cancelled', 'canceled', 'exception', 'partial_closed', 'card_returned'].includes(status)) {
+    if (status === 'card_returned' || ['unused', 'available'].includes(card)) return { kind: 'safe_retry', orderNo }
+    if (status === 'partial_closed' || ['activated', 'redeemed', 'used'].includes(card)) return { kind: 'consumed_failed', orderNo }
+    return { kind: 'failed', orderNo }
+  }
+  if (['processing', 'pending', 'created', 'running', 'retrying', 'queued', 'preparing'].includes(status)) return { kind: 'processing', orderNo }
+  return { kind: 'unknown', orderNo }
+}
+
+/** classifyAutosub 的结论 → 买家看到的结果 */
+function autosubResult(kind: AutosubKind, orderNo: string | undefined, r: V1Body | null): RedeemActivateResult {
+  const orderRef = orderNo || undefined
+  switch (kind) {
+    case 'success':
+      return { state: 'COMPLETED', message: '充值成功', retriable: false, orderRef }
+    case 'safe_retry':
+      return {
+        state: 'ERROR',
+        message: '这一笔没有充值成功，**卡密已经退回、没有被消耗**，可以稍后重新提交一次；多次失败请联系客服',
+        retriable: true,
+        orderRef,
+      }
+    case 'consumed_failed':
+      return { state: 'ERROR', message: '这张卡密已核销，但这一笔充值没有成功。请联系客服并提供卡密，我们会跟进处理', retriable: false, orderRef }
+    case 'failed':
+      return { state: 'ERROR', message: '这一笔充值没有成功，请联系客服并提供卡密核对，不要重复提交', retriable: false, orderRef }
+    case 'rejected':
+      return {
+        state: 'ERROR',
+        message: copy(r?.error_code, '充值系统没有受理这一笔，请稍后在本页点「查询」确认卡密状态，不要连续重复提交'),
+        retriable: false,
+        orderRef,
+      }
+    default:
+      return {
+        state: 'PROCESSING',
+        // 官网成功单从受理到出结果约 30 秒（卡#2865：19:20:55 → 19:21:25）
+        message: '充值已提交，正在处理，通常 30 秒左右出结果。请稍后在本页点「查询」，不要重复提交',
+        retryAfter: 30,
+        retriable: true,
+        orderRef,
+      }
+  }
+}
+
+/**
+ * 跑完官网的卡付流程。verifyCdk 返回的 backend 决定走 gpt1 还是 autosub（见文件头）。
+ *
+ * 返回 PROCESSING 是正常终点：结果要靠之后的只读查卡（sysb-lookup.ts 的 queryOrder）拿到。
  */
 export async function redeemCardV1(input: CardV1Input): Promise<RedeemActivateResult> {
+  const startedAt = Date.now()
   const session = parseSession(input.sessionRaw)
-  const nonce = newNonce()
-  const journeyId = newJourneyId()
-  const site = clientSite()
+  const nonce = cardNonce(input.cdk)
 
-  // ---------- 第一步：验卡，拿 activation_token ----------
+  // ---------- 第一步：验卡，拿 activation_token（会用 nonce 给卡做预留，不会消耗卡） ----------
   const v = await post(
     '/api/v1/sub/verifyCdk',
     { cdk: input.cdk, expected_provider: 'openai', request_nonce: nonce },
     TIMEOUT.verify
   )
   if (Number(v.code) !== 200) {
-    throw new RedeemError(copy(v.error_code, '这张卡密当前无法使用，请联系客服'), 'ERROR', false)
+    const f = verifyFailure(v)
+    throw new RedeemError(f.message, f.state, f.state === 'PROCESSING')
   }
   const activationToken = String(v.activation_token || '')
-  const backend = String(v.backend || 'autosub')
   if (!activationToken) {
     throw new RedeemError('充值服务返回异常，请联系客服', 'ERROR', false)
   }
-  if (backend !== 'gpt1') {
-    /*
-     * 这条链路只为 gpt1 存在。autosub 的卡走 V2 是**实测成功过的**（BG-1759，55 秒），
-     * 不要把它拖进来。
-     */
-    throw new RedeemError('BACKEND_NOT_GPT1', 'ERROR', false)
-  }
+  // 官网的判据：backend 字段，或者 activation_token 带 gpt1 的签名前缀（旧响应可能不带 backend）
+  const isGpt1 = v.backend === 'gpt1' || activationToken.startsWith('hyg1.')
+  if (!isGpt1) return redeemAutosub(input, session, nonce, activationToken, startedAt)
+
+  const journeyId = newJourneyId()
+  const site = clientSite()
+  const backend = 'gpt1'
 
   /*
    * ---------- 越过这条线，卡就可能被消耗 ----------
@@ -449,5 +678,131 @@ export async function redeemCardV1(input: CardV1Input): Promise<RedeemActivateRe
   }
 }
 
+/**
+ * autosub：precheck 只读核对账号 → 查本次激活有没有单 → renew → redeem。
+ *
+ * 【不可逆点只有 redeem 一个】官网源码原话：「AutoSub precheckAccount only verifies the account;
+ * the fixed server route sends non-GPT1 activations to that non-submitting endpoint」。
+ * 所以账号核对失败时卡一点没动，买家改了账号直接再提交就行，不用占那把 15 分钟的锁。
+ */
+async function redeemAutosub(
+  input: CardV1Input,
+  session: { raw: string; email: string; idp: string },
+  nonce: string,
+  activationToken: string,
+  startedAt: number
+): Promise<RedeemActivateResult> {
+  const left = () => AUTOSUB.budget - (Date.now() - startedAt)
+  const notSubmitted = (msg: string) => new RedeemError(`${msg}（本次没有提交充值，卡密没有被消耗）`, 'ERROR', true)
+
+  // ---------- 第二步：只读核对账号（官网 compressCardToken 之后发） ----------
+  const token = cardToken(session.raw)
+  const precheckBody = {
+    token,
+    cdk: input.cdk,
+    activation_token: activationToken,
+    idp: session.idp,
+    force_recharge: false,
+    confirm_duplicate: false,
+  }
+  const p = await post('/api/v1/sub/precheckAccount', precheckBody, Math.min(AUTOSUB.precheck, Math.max(5_000, left())))
+  if (p.requires_duplicate_confirm === true) {
+    // 同 gpt1：重复充值的确认必须由人来做，见 redeemCardV1 里的说明
+    throw new RedeemError(
+      '这个账号在 24 小时内已经有过一次充值记录。为避免重复扣费，本次没有提交，请联系客服确认后再处理',
+      'ERROR',
+      false
+    )
+  }
+  if (Number(p.code) !== 200 || p.eligible !== true) throw notSubmitted(precheckFailure(p))
+  /*
+   * 【上游核对的账号必须就是买家填的那个】官网原样：邮箱对不上就停，
+   * 「返回的充值账号与填写的登录信息不一致，请重新核对」。充错号是不可逆的。
+   */
+  const checkedEmail = typeof p.email === 'string' ? p.email.trim().toLowerCase() : ''
+  if (!checkedEmail) throw notSubmitted('账号核对结果缺少邮箱，请重新提交')
+  if (checkedEmail !== session.email.trim().toLowerCase()) {
+    throw notSubmitted('充值系统核对到的账号与你填写的登录信息不一致，请重新复制 Session 后再提交')
+  }
+  const redeemToken = typeof p.refreshed_token === 'string' && p.refreshed_token ? p.refreshed_token : token
+  const prepareToken = String(p.prepare_token || '')
+
+  if (left() < AUTOSUB.query + AUTOSUB.renew + AUTOSUB.redeemMin) {
+    throw notSubmitted('账号核对用时较长，为避免提交到一半断开，本次先停在这里，请再点一次「提交」')
+  }
+
+  // ---------- 越过这条线就要写了：先占位，挡住同一张卡的并发提交 ----------
+  await input.markIrreversible()
+  /** redeem 之前停下都调它：那时这一次请求根本没碰过写接口，占位可以放掉 */
+  const releaseBeforeSubmit = async () => {
+    if (input.releaseIrreversible) await input.releaseIrreversible().catch(() => undefined)
+  }
+
+  /** renew 之后的 activation_token，redeem 用它 */
+  let renewedToken = ''
+  try {
+    // ---------- 第三步：这次激活下有没有已经建好的单（官网 readAutosubActivationOrder） ----------
+    const q = await post('/api/v1/sub/queryOrder', { cdk: input.cdk, activation_token: activationToken }, AUTOSUB.query)
+    if (Number(q.code) !== 200 || !Object.prototype.hasOwnProperty.call(q, 'order')) {
+      throw notSubmitted('当前兑换记录暂时无法读取，请稍后再提交一次')
+    }
+    if (q.order && typeof q.order === 'object') {
+      // 已经有单了（比如上一次请求在 redeem 之后断开）：不再提交，按它的状态回话
+      const found = classifyAutosub({ ...q, code: 200 })
+      if (found.orderNo) await input.saveOrderRef(found.orderNo)
+      return autosubResult(found.kind === 'unknown' ? 'processing' : found.kind, found.orderNo, q)
+    }
+
+    // ---------- 第四步：用同一个 nonce 续一次激活（官网 confirm 前固定做） ----------
+    const renewed = await post(
+      '/api/v1/sub/verifyCdk',
+      { cdk: input.cdk, expected_provider: 'openai', request_nonce: nonce, renew: true },
+      AUTOSUB.renew
+    )
+    renewedToken = typeof renewed.activation_token === 'string' ? renewed.activation_token : ''
+    if (Number(renewed.code) !== 200 || !renewedToken || (renewed.backend && renewed.backend !== 'autosub')) {
+      throw notSubmitted(verifyFailure(renewed).message)
+    }
+    if (left() < AUTOSUB.redeemMin) throw notSubmitted('处理用时较长，为避免提交到一半断开，本次先停在这里，请再点一次「提交」')
+  } catch (e) {
+    await releaseBeforeSubmit()
+    throw e
+  }
+
+  // ---------- 第五步：确认充值 —— 唯一的不可逆点 ----------
+  const r = await post(
+    '/api/v1/sub/redeem',
+    {
+      token: redeemToken,
+      cdk: input.cdk,
+      activation_token: renewedToken,
+      prepare_token: prepareToken,
+      backend: 'autosub',
+      idp: session.idp,
+      force_recharge: false,
+      confirm_duplicate: false,
+    },
+    Math.min(AUTOSUB.redeemMax, Math.max(AUTOSUB.redeemMin, left()))
+  )
+  const out = classifyAutosub(r)
+  if (out.orderNo) await input.saveOrderRef(out.orderNo)
+  if (out.kind === 'safe_retry') await releaseBeforeSubmit() // 上游明说卡已退回，占位可以放掉
+  return autosubResult(out.kind, out.orderNo, r)
+}
+
 /** 仅供自测使用的内部导出 */
-export const __test = { parseSession, ERRORS, copy, newNonce, newJourneyId, buildCommon, buildRedeemBody }
+export const __test = {
+  parseSession,
+  ERRORS,
+  copy,
+  newNonce,
+  newJourneyId,
+  buildCommon,
+  buildRedeemBody,
+  verifyFailure,
+  precheckFailure,
+  classifyAutosub,
+  autosubResult,
+  AUTOSUB,
+  V1_ALIAS,
+}

@@ -447,59 +447,30 @@ function fromLookup(hit: SysbLookupHit): RedeemCheckResult | null {
 }
 
 /** 卡付单该走哪条路 */
-export type CardRoute = 'v1' | 'v2' | 'block' | 'unknown'
+export type CardRoute = 'v1' | 'v2' | 'block'
 
 /**
- * 决定一张卡该走 V1 还是 V2。**纯函数，为的是能被穷举断言**。
+ * 决定一张卡该走 V1（官网的卡付流程）还是 V2。**纯函数，为的是能被穷举断言**。
  *
- * 站长问的是「改完之后会不会变成只有 Plus 能充、5x 和 iOS 反而坏了」。
- * 这个函数就是那个问题的答案，scripts/check-redeem.ts 里对它做了穷举：
+ *   chatgpt_ios / claude_ios        → 永远 'v2'，**一行分叉逻辑都不进**（V2 iOS 一直正常）
+ *   开关显式关闭（SYSB_CARD_V1=0）  → 永远 'v2'
+ *   chatgpt_card + 只读查卡说卡已不可充 → 'block'，直接把真实状态回给买家
+ *   chatgpt_card 其余情况（含查不到） → 'v1'，gpt1 / autosub 都一样
  *
- *   chatgpt_ios / claude_ios  → 永远 'v2'，**一行分叉逻辑都不进**，零影响
- *   开关关闭                   → 永远 'v2'，等于这次改动不存在
- *   chatgpt_card + autosub     → 'v2'（这条实测能成：BG-1759、BG-1874）
- *   chatgpt_card + gpt1        → 'v1'（这条走 V2 实测 0 成功 / 6 次）
+ * 【2026-10-24 改：autosub 不再落回 V2】原来 autosub 走 V2，理由是 10-09 前后实测成过（BG-1759）。
+ * 但 V2 `chatgpt_card` 自 10-10 起**一笔都没成功过**（全是 CDK_UNAVAILABLE 秒拒），
+ * 而官网（66chong.com）同一张卡走 V1 30 秒成功 —— 卡#2865。见 sysb-card-v1.ts 文件头。
  *
- * 【查不到时必须 'unknown'，绝不能落回 V2】这是一个会重复扣卡的洞：
- * 只读查卡失败会返回 null，而这张卡可能正走在 V1 的半路上。
- * 落回 V2 之后，loadOrderRef 会读到 V1 的 TASK 单号，
- * 拿它打 GET /v2/orders 必然 404，而那段代码对 404 的处置是
- * 「上游没有这笔单，可以正常下单」—— 于是在一张 V1 可能已经扣掉的卡上再下一单。
- * 宁可让买家等一会儿再点一次「查询」，也不能冒这个险。
+ * 【查不到也走 V1】原来查不到要分「走没走过 V1」两种，是怕 V1 的 TASK 单号流进 V2 的查单逻辑。
+ * 现在卡付根本不进 V2，这个洞不存在了；卡到底能不能充，由 V1 的 verifyCdk 当场回答
+ * （已使用 / 处理中都会被它拒掉，见 verifyFailure）。
  */
-export function decideCardRoute(
-  product: string,
-  v1Enabled: boolean,
-  hit: SysbLookupHit | null,
-  /** 这张卡有没有留下过 V1 的单号（TASK…）。有 = 它确实走过 V1 */
-  hasV1Ref: boolean
-): CardRoute {
+export function decideCardRoute(product: string, v1Enabled: boolean, hit: SysbLookupHit | null): CardRoute {
   // 其它通道与开关关闭时，行为与改动前完全一致
   if (product !== 'chatgpt_card' || !v1Enabled) return 'v2'
-
-  if (!hit) {
-    /*
-     * 查不到这张卡的状态。
-     *
-     * 【只有走过 V1 的卡才必须停下】那种情况下落回 V2，loadOrderRef 会读到
-     * V1 的 TASK 单号，拿它打 GET /v2/orders 必然 404，而那段代码对 404 的处置是
-     * 「没下过单，可以正常下单」—— 于是在一张 V1 可能已经扣掉的卡上再下一单。
-     *
-     * 【从没走过 V1 的卡落回 V2 是安全的】V2 有自己的 order_id 幂等，
-     * 不需要这一层保护。
-     *
-     * 【这个区分是踩了坑之后补的】原来写成「查不到就一律拦」，
-     * 而实测发现 **autosub 的「未使用」卡在上游 queryOrder 里根本查不到**
-     * （返回 {"code":200,"results":[]}，要等它有订单之后才出现）。
-     * 一律拦的后果是把本来能充的 Pro 5x 卡全堵死 —— 卡#1907 的买家连试 7 次，
-     * 每次都被挡在门外，而那张卡完全正常。
-     */
-    return hasV1Ref ? 'unknown' : 'v2'
-  }
-
   // 卡已经不是「可充」状态，两条路都不该走，直接把真实状态回给买家
-  if (hit.status !== 'UNUSED' && hit.status !== 'RETRYABLE') return 'block'
-  return hit.backend === 'gpt1' ? 'v1' : 'v2'
+  if (hit && hit.status !== 'UNUSED' && hit.status !== 'RETRYABLE') return 'block'
+  return 'v1'
 }
 
 /**
@@ -921,11 +892,18 @@ export const sysb: RedeemProvider = {
    * 现在 V1 通道已经接上，这条主要是兜底：V1 也失败时买家仍有路可走。
    */
   fallbackFor() {
-    const url = (process.env.SYSB_FALLBACK_URL || 'https://hongyunai.pro/').trim()
+    // 2026-10-24 站长：官方充值网站是 66chong.com（与 hongyunai.pro 同一后端，卡在两边都能查到）
+    const url = (process.env.SYSB_FALLBACK_URL || 'https://66chong.com/').trim()
     if (!url) return null
+    let host = url
+    try {
+      host = new URL(url).host
+    } catch {
+      return null
+    }
     return {
       text: '当前服务器更新中，请到备用充值网站完成充值。你的卡密仍然有效，可直接在该网站使用。',
-      label: '前往 hongyunai.pro 充值',
+      label: `前往 ${host} 充值`,
       url,
     }
   },
@@ -938,6 +916,7 @@ export const sysb: RedeemProvider = {
     loadOrderRef,
     saveOrderRef,
     claimIrreversible,
+    releaseIrreversible,
     countOrderRefs,
   }): Promise<RedeemActivateResult> {
     const product = (variant || '') as Product
@@ -950,41 +929,41 @@ export const sysb: RedeemProvider = {
     }
 
     /*
-     * ============ 卡付 gpt1：改走 V1 三段式 ============
+     * ============ 卡付：走官网的 V1 流程（gpt1 / autosub 都是） ============
      *
-     * 【为什么要分叉】V2 的 chatgpt_card 对 gpt1 的卡实测 0 成功 / 3 失败：
-     * 三笔都是 pending 约 6 分 26 秒、从未进入 processing、失败后连订单都没建出来。
-     * 同一张卡在官网走 V1 是 51 秒成功。详见 sysb-card-v1.ts 的文件头。
+     * 【为什么不走 V2】V2 的 chatgpt_card 自 10-10 起 0 成功（CDK_UNAVAILABLE 秒拒），
+     * 官网 66chong.com 同一张卡 V1 30 秒成功。详见 sysb-card-v1.ts 的文件头与 decideCardRoute。
      *
-     * 【为什么必须放在这里，在 V2 查原单之前】V1 存下来的订单号是 TASK00027056 这种，
+     * 【必须放在 V2 查原单之前】V1 存下来的订单号是 TASK… / SUB… 这种，
      * 拿它去打 GET /v2/orders/{id} 必然 404，而下面那段对 404 的处理是
-     * 「上游没有这笔单，可以正常下单」—— 那就会在一张 V1 已经扣掉的卡上再下一单。
-     * 两套协议的单号绝不能流进对方的查单逻辑。
-     *
-     * 【autosub 不走这里】autosub 的卡走 V2 是实测成功过的（BG-1759，55 秒），
-     * 那条路没坏，不要动它。backend 从只读查卡拿，不额外调写接口。
+     * 「上游没有这笔单，可以正常下单」。两套协议的单号绝不能流进对方的查单逻辑。
      */
     if (product === 'chatgpt_card' && cardV1Enabled()) {
-      const hit = await lookupSysbCard(cdk, 'chatgpt_card')
       /*
-       * V1 存的是上游的 TASK… 单号，V2 存的是我们自己的 BG-… 单号。
-       * 只有前者存在，才说明这张卡确实走过 V1、落回 V2 会有重复扣卡的风险。
+       * 【先看这张卡有没有一笔 V2 单还没了结】10-15 起卡付全落在 V2 上，有些卡留下了 BG- 单。
+       * 那些单几乎都是秒拒，但只要有一笔不是「明确失败」，就不能再从 V1 提交一次 ——
+       * 那可能是第二笔真实扣款。
        */
-      const prevRefForRoute = loadOrderRef ? await loadOrderRef() : null
-      const hasV1Ref = !!prevRefForRoute && !prevRefForRoute.startsWith('BG-')
-      const route = decideCardRoute(product, true, hit, hasV1Ref)
-
-      if (route === 'unknown') {
-        /*
-         * 查不到这张卡的状态就必须停下 —— 见 decideCardRoute 的说明：
-         * 落回 V2 会让 V1 的 TASK 单号撞上 404，被当成「没下过单」而重复提交。
-         */
-        throw new RedeemError(
-          '这张卡密上一次的充值结果还没确认，请稍等一会儿回到本页点「查询」，不要重复提交',
-          'PROCESSING',
-          true
-        )
+      const prevRef = loadOrderRef ? await loadOrderRef() : null
+      if (prevRef && prevRef.startsWith('BG-')) {
+        const q = await queryOrder(prevRef)
+        if (q.status === 200 && q.body.ok) {
+          const d = (q.body.data || {}) as OrderData
+          if (!confirmedFailure(d)) return toResult(d, q.body.request_id, prevRef)
+        } else if (q.status !== 404) {
+          return {
+            state: 'PROCESSING',
+            message: '正在确认上一次的充值结果，请稍后在本页点「查询结果」',
+            retryAfter: backoffSeconds(q),
+            retriable: true,
+            requestId: q.body.request_id,
+            orderRef: prevRef,
+          }
+        }
       }
+
+      const hit = await lookupSysbCard(cdk, 'chatgpt_card')
+      const route = decideCardRoute(product, true, hit)
 
       if (route === 'block' && hit) {
         const blocked = fromLookup(hit)
@@ -997,7 +976,7 @@ export const sysb: RedeemProvider = {
           cdk,
           sessionRaw: values.session_json || '',
           /*
-           * 占位必须发生在 precheckAccount 之前 —— 那一步一成功，上游就预留了卡。
+           * 占位必须发生在第一个写接口之前（gpt1 是 precheckAccount，autosub 是 redeem 之前那几步）。
            * 抢不到说明同一张卡已经有一次提交在路上（或刚崩在半路），
            * 这时候再发一次就是第二笔真实扣款。
            */
@@ -1030,12 +1009,16 @@ export const sysb: RedeemProvider = {
               )
             }
           },
+          /*
+           * 只有 V1 能证明「这一次请求没碰过写接口」或者「上游明说卡已退回」时才会调它
+           * （见 sysb-card-v1.ts 的 redeemAutosub）。gpt1 那条从不调。
+           */
+          releaseIrreversible,
           saveOrderRef: async (ref) => {
             if (saveOrderRef) await saveOrderRef(ref)
           },
         })
       }
-      // route === 'v2'：明确是 autosub，落回下面那条实测能成的老路
     }
 
     /*

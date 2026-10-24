@@ -118,6 +118,9 @@ services:
       # 打进镜像的，构建之后再改宿主机上的它，容器里读到的还是旧值。
       - SYSB_CARD_V1
       - SYSB_CARD_CLIENT_SITE
+      # 卡付 V1 发往哪个站。不设 = https://66chong.com（官网，走 /recharge-api/ 别名）；
+      # 设成 https://hongyunai.pro 可切回旧站原始路径。2026-10-24 起 SYSB_CARD_V1 默认开，只有显式 0 才关。
+      - SYSB_CARD_ORIGIN
       # 卡密兑换：sysc（对方的「兑换中心」）。**三个都不是密钥** —— 对方的接口完全匿名，
       # 凭 CDK 本身鉴权，所以这里没有 Token 可配。协议见 docs/sysc-充值系统-协议逆向说明.md。
       # SYSC_BASE       不设 = https://chuanwen.applelll.com
