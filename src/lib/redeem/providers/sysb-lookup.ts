@@ -141,7 +141,15 @@ const ORIGIN = 'https://hongyunai.pro'
  * 信用卡通道的卡密长相。上游前端里的原版正则，用来决定**先查哪条通道**，
  * 仅仅是排序优化 —— 判断结果始终以上游的回答为准，不以这个正则为准。
  */
-const CARD_PAY_SHAPE = /^(?:PLUS|20X)-[0-9A-F]{16}$|^PLUS-(?:PLUS|20X|PRO20X)-[0-9A-F]{16}$/
+const CARD_PAY_SHAPE = /^(?:PLUS|20X)-[0-9A-F]{16}$|^PLUS-(?:PLUS|20X|PRO20X)-[0-9A-F]{16}$|^[0-9A-Z]{16}$/
+// 最后一段是 2026-10-24 接入说明里的新卡：「信用卡 product=chatgpt_card，卡密为 16 位字母数字」
+
+/**
+ * 卡付通道查询要带的视图头。2026-10-24 实测：不带这个头 queryOrder 一律
+ * 503 ORDER_QUERY_UNAVAILABLE；带上之后才回 200。上游自己的「卡密查询」工具
+ * 就是这么发的（`cardStatusDisplay===true` 且 body 只有 cdks 时加这个头）。
+ */
+const CARD_QUERY_VIEW = 'card-status-v1'
 
 /** 邮箱打码：tangwei104@163.com → tan***@163.com */
 export function maskAccount(raw: unknown): string | undefined {
@@ -169,7 +177,12 @@ function firstString(...vals: unknown[]): string | undefined {
  * 发一次只读查询。
  * **不带 Authorization**（见文件头规则一），失败一律吞掉返回 null。
  */
-async function post(path: string, body: unknown, timeoutMs: number): Promise<Record<string, unknown> | null> {
+async function post(
+  path: string,
+  body: unknown,
+  timeoutMs: number,
+  extraHeaders: Record<string, string> = {}
+): Promise<Record<string, unknown> | null> {
   const ac = new AbortController()
   const timer = setTimeout(() => ac.abort(), timeoutMs)
   try {
@@ -181,6 +194,7 @@ async function post(path: string, body: unknown, timeoutMs: number): Promise<Rec
         // 这几个接口是给自家页面用的，带上来源更像正常调用
         Referer: `${ORIGIN}/`,
         Origin: ORIGIN,
+        ...extraHeaders,
       },
       body: JSON.stringify(body),
       signal: ac.signal,
@@ -218,8 +232,31 @@ export function parseCard(d: Record<string, unknown> | null, cdk: string): SysbL
   const row = item || (d.order ? d : null)
   if (!row) return null
 
-  const cdkStatus = String(row.cdk_status || '').trim().toLowerCase()
+  /*
+   * 【2026-10-24 改版后的视图】带 card-status-v1 头时，每行多出
+   *   card_status_query: { source, display_only, state: 'matched'|'unknown'|…, status? }
+   *   order_lookup: 'unavailable'   order_scope_incomplete: true
+   * cdk_status 是 unknown 时，卡的真实状态在 card_status_query.status 里（state=matched 才可信）。
+   * 上游自己的 getCardQueryDisplay 就是这么取的。
+   */
+  const view = (row.card_status_query && typeof row.card_status_query === 'object'
+    ? row.card_status_query
+    : null) as Record<string, unknown> | null
+  let cdkStatus = String(row.cdk_status || '').trim().toLowerCase()
+  if ((!cdkStatus || cdkStatus === 'unknown') && view && view.state === 'matched') {
+    cdkStatus = String(view.status || '').trim().toLowerCase()
+  }
   if (!cdkStatus) return null // 没有状态 = 这条通道不认识这张卡
+  /*
+   * 【答复不完整时，「未使用」不能当真】上游源码原话：「A partial source answer or an
+   * unresolved order cannot establish reuse」—— 订单那一半没查全时，它自己也不把
+   * unused 当成可以充。我们照办：当作「不知道」，退回按商品名走 V2（V2 有自己的幂等与校验）。
+   */
+  const partial =
+    row.order_scope_incomplete === true ||
+    row.order_lookup === 'unavailable' ||
+    (!!view && view.state !== 'matched')
+  if (partial && !row.order && ['unused', 'available'].includes(cdkStatus)) return null
   /*
    * 【no_order 等于「什么都没查到」，绝不能判成「待核对」】2026-10-09 修。
    * 上游约 10-01 起把「查不到订单」从 {"results":[]} 改成了
@@ -290,6 +327,14 @@ export function parseCard(d: Record<string, unknown> | null, cdk: string): SysbL
   // ④ 还没被用掉
   if (['unused', 'available'].includes(cdkStatus)) {
     return { channel: 'chatgpt_card', status: 'UNUSED', planName, backend }
+  }
+  /*
+   * ⑤' 卡被消耗了，但订单那一半上游这次没给（order_lookup=unavailable）。
+   * 这时**判不出成败** —— 原来会落到下面的 USED_FAILED，对一张可能已经充成功的卡
+   * 说「那一笔没有成功」。归「上游还在核对」：不出表单，让买家稍后再查。
+   */
+  if (consumed && !row.order && partial) {
+    return { channel: 'chatgpt_card', status: 'UNCONFIRMED', planName, backend }
   }
   // ⑤ 卡被消耗了，上游又没说能重来 —— 只能走售后
   if (consumed) return withOrder('USED_FAILED')
@@ -362,7 +407,12 @@ export function parseClaude(d: Record<string, unknown> | null, cdk: string): Sys
 /** 发请求 + 读响应。请求失败时 post 返回 null，各 parse 都把 null 当「查不到」 */
 const LOOKUPS: Record<SysbChannel, (cdk: string) => Promise<SysbLookupHit | null>> = {
   chatgpt_card: async (cdk) =>
-    parseCard(await post('/api/v1/sub/queryOrder', { cdks: [cdk] }, PER_CALL_TIMEOUT.chatgpt_card), cdk),
+    parseCard(
+      await post('/api/v1/sub/queryOrder', { cdks: [cdk] }, PER_CALL_TIMEOUT.chatgpt_card, {
+        'X-Hongyun-Query-View': CARD_QUERY_VIEW,
+      }),
+      cdk
+    ),
   chatgpt_ios: async (cdk) =>
     parseGptIos(await post('/gateway/gpt?action=query', { cdks: cdk }, PER_CALL_TIMEOUT.chatgpt_ios), cdk),
   claude_ios: async (cdk) =>

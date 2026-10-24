@@ -27,6 +27,19 @@
  * **只用于查旧单**（见 legacyToken）。旧方案下 Pro 卡付单 10-01 起连续以
  * SERVICE_UNAVAILABLE 失败，那是旧方案路由的问题，不是我们的代码能修的。
  * 同一版文档新增的 result_confirmed / reason_code 等字段的用法见 toResult()。
+ *
+ * ================== 2026-10-24 按「单文件版」接入说明（api_revision 2026-10-22）再对一遍 ==================
+ * 上游停服升级约两周，升级后发了新的接入说明。Token 不变，四个接口（/account、/products、
+ * POST /orders、GET /orders/{id}）都还在，实测可用。差异只有四处：
+ *   1. **每个请求都要带 `User-Agent: HongyunAPI/1.0`**。不带时 Cloudflare 可能直接回
+ *      403「error code: 1010」（不是 JSON）—— 见 call()。
+ *   2. 只认三种结果：succeeded **且** result_confirmed=true 才算成功；failed **且**
+ *      result_confirmed=true 才算明确失败；其余（含没带 result_confirmed 的）一律继续查原单。
+ *      旧版是「没明说 false 就认」，这次收紧成「明说 true 才认」—— 见 toResult()。
+ *   3. 新增错误码 SERVICE_NOT_READY（与 ORDER_WORKER_OFFLINE / ORDER_QUEUE_BUSY 一样：
+ *      本次没建单，等 Retry-After 后原号原内容重发）和 ORDER_RESULT_UNAVAILABLE（只能继续 GET 原单）。
+ *   4. 明确失败时要把 data.message 给买家看。我们仍然不原样透传（可能带对方术语），
+ *      过一遍 safeUpstreamMessage() 再用。
  */
 import crypto from 'crypto'
 import {
@@ -43,6 +56,11 @@ import { cardV1Enabled, redeemCardV1 } from './sysb-card-v1'
 
 const BASE = 'https://hongyunai.pro/api/v2'
 const TIMEOUT_MS = 30_000
+/**
+ * 上游接入说明原文：「Authorization 与 User-Agent 两个请求头每次都带；User-Agent 固定填写即可」。
+ * Node 的 fetch 默认 UA 是 `node`，会被对方 Cloudflare 按浏览器签名拦掉（403，正文 error code: 1010）。
+ */
+const USER_AGENT = 'HongyunAPI/1.0'
 
 /** 上游产品编码 */
 type Product = 'chatgpt_card' | 'chatgpt_ios' | 'claude_ios'
@@ -107,6 +125,27 @@ const ERRORS: Record<string, string> = {
   // 2026-10-09 版文档新增
   PRODUCT_NOT_ALLOWED: '该充值渠道暂未开通，请联系客服',
   CDK_INVALID: '这张卡密无法用于该充值渠道，请联系客服核对',
+  // 2026-10-24 单文件版接入说明新增
+  SERVICE_NOT_READY: '充值服务正在准备中，请稍后再试',
+  ORDER_RESULT_UNAVAILABLE: '暂时查不到这笔充值的结果，请稍后再点「查询」，不要重复提交',
+}
+
+/**
+ * 这些码出现时上游**没有新建订单**，要等 Retry-After 后用原号、完全相同的内容重发。
+ * 买家下次点提交时会先查原单（404）→ 用同样的内容算出同一个 order_id 重发，正好满足这条。
+ */
+const COOLDOWN_ERRORS = new Set(['RATE_LIMITED', 'ORDER_QUEUE_BUSY', 'ORDER_WORKER_OFFLINE', 'SERVICE_NOT_READY'])
+
+/**
+ * 明确失败时上游给的 data.message。接入说明要求「显示 data.message」，
+ * 但我们的规矩是不透传上游文案（可能带对方品牌、内部术语、甚至链接）。
+ * 折中：短、不含品牌/链接/对方内部术语的才用，否则返回 undefined 让调用方用我们自己的文案。
+ */
+function safeUpstreamMessage(raw: unknown): string | undefined {
+  const s = typeof raw === 'string' ? raw.trim() : ''
+  if (!s || s.length > 120) return undefined
+  if (/hongyun|鸿运|https?:|www\.|\.pro\b|代理|商户|token|key|api|request_id|req_/i.test(s)) return undefined
+  return s
 }
 
 /**
@@ -158,7 +197,11 @@ async function call(
   try {
     const res = await fetch(`${BASE}${path}`, {
       method,
-      headers: { Authorization: `Bearer ${bearer || token()}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${bearer || token()}`,
+        'User-Agent': USER_AGENT,
+        'Content-Type': 'application/json',
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: ac.signal,
       // 与 lib/news/feed.ts 同一个理由：裸 fetch 会被 Next 的磁盘数据缓存冻住。
@@ -171,7 +214,12 @@ async function call(
     try {
       parsed = JSON.parse(text) as UpstreamBody
     } catch {
-      // 网关错误可能是 HTML，不能崩，也不能把原始内容吐给买家
+      /*
+       * 网关错误可能是 HTML，不能崩，也不能把原始内容吐给买家。
+       * 403 + 「error code: 1010」是 Cloudflare 按 UA 拦截，见 USER_AGENT。
+       * 只记状态码和正文前 40 字，正文里不会有我们的 Token。
+       */
+      console.error(`[sysb] 非 JSON 响应 ${method} status=${res.status} body=${text.slice(0, 40).replace(/\s+/g, ' ')}`)
       throw new RedeemError('充值服务暂时不可用，请稍后再试', 'ERROR')
     }
     return { status: res.status, body: parsed, retryAfter: Number.isFinite(ra) && ra > 0 ? ra : undefined }
@@ -517,17 +565,43 @@ interface OrderData {
 }
 
 /**
+ * 上游**明确**判定成功 / 失败了吗。2026-10-24 单文件版接入说明原文：
+ *   1. data.status=succeeded 且 data.result_confirmed=true：充值成功
+ *   2. data.status=failed    且 data.result_confirmed=true：本次明确失败，不自动重充
+ *   3. 其它未确认结果：继续查原单；HTTP 200/202 或 ok=true 本身不等于充值成功
+ *
+ * 【只认 === true，不认「没写」】10-09 版时这个字段刚加，旧单可能没有，所以当时写的是
+ * `!== false`。新版把它列成判定条件本身，再放过「没写」就是在文档之外自己认定结果。
+ */
+function confirmedSuccess(d: OrderData): boolean {
+  return d.status === 'succeeded' && d.result_confirmed === true
+}
+function confirmedFailure(d: OrderData): boolean {
+  return d.status === 'failed' && d.result_confirmed === true
+}
+
+/** 明确失败时给买家看的那句话：细分原因 > 上游 message（过滤后）> 错误码文案 */
+function failureCopy(d: OrderData): string {
+  const reason = (d.failure?.reason_code || '').trim().toUpperCase()
+  return (
+    FAILURE_REASONS[reason] ||
+    safeUpstreamMessage(d.message) ||
+    safeUpstreamMessage(d.failure?.message) ||
+    copy(d.failure?.code, '充值未完成，请联系客服处理')
+  )
+}
+
+/**
  * 上游订单状态 → 我们的结果。
  *
- * 判定口径照 2026-10-09 版文档：**只有 status=succeeded 才算成功**；
- * ok:true、HTTP 200/202、final:true 都不能单独作为成功依据。
+ * 判定口径见 confirmedSuccess / confirmedFailure：ok:true、HTTP 200/202、final:true
+ * 都不能单独作为成功依据。
  */
 function toResult(d: OrderData, requestId: string | undefined, orderRef: string): RedeemActivateResult {
   const status = d.status || ''
   const nextPoll = typeof d.next_poll_seconds === 'number' ? Math.max(15, d.next_poll_seconds) : 15
 
-  // result_confirmed 是新字段，旧单可能没有；只有上游明说「未确定」时才不认这个成功
-  if (status === 'succeeded' && d.result_confirmed !== false) {
+  if (confirmedSuccess(d)) {
     return { state: 'COMPLETED', message: '充值成功', retriable: false, requestId, orderRef }
   }
   if (status === 'pending' || status === 'processing') {
@@ -561,21 +635,24 @@ function toResult(d: OrderData, requestId: string | undefined, orderRef: string)
       orderRef,
     }
   }
-  if (status === 'failed') {
+  if (confirmedFailure(d)) {
     /*
      * 优先看新的 reason_code（它比 failure.code 细）；没有再退回 failure.code。
      * failure.retryable 在 openapi 里恒为 false，不能拿来判断，见 activate() 里的说明。
      */
     const reason = (d.failure?.reason_code || '').trim().toUpperCase()
-    const code = d.failure?.code
     return {
       state: 'ERROR',
-      message: FAILURE_REASONS[reason] || copy(code, '充值未完成，请联系客服处理'),
+      message: failureCopy(d),
       retriable: RETRIABLE_REASONS.has(reason),
       requestId,
       orderRef,
     }
   }
+  /*
+   * status=failed 但 result_confirmed 不是 true：上游自己还没定论。
+   * 落到下面「暂时无法确认」—— 不出重试入口，activate() 也不会因此换号重下。
+   */
   /*
    * 【未知状态不能当失败】文档：「遇到未知订单状态不能自行按失败处理」「禁止自动重充」。
    * 给 PROCESSING + 可重试，「重试」在这里只是再查一次原单；
@@ -632,7 +709,7 @@ export const sysb: RedeemProvider = {
       if (q.status === 200 && q.body.ok) {
         const d = (q.body.data || {}) as OrderData
         const status = d.status || ''
-        if (status === 'succeeded' && d.result_confirmed !== false) {
+        if (confirmedSuccess(d)) {
           return {
             state: 'COMPLETED',
             message: '这张卡密已经充值成功，无需重复提交',
@@ -676,10 +753,10 @@ export const sysb: RedeemProvider = {
             requestId: q.body.request_id,
           }
         }
-        if (status !== 'failed') {
+        if (!confirmedFailure(d)) {
           /*
-           * 文档没列出的状态（或 succeeded 但 result_confirmed=false）：
-           * 「遇到未知订单状态不能自行按失败处理」—— 不出表单，让买家稍后再查。
+           * 文档没列出的状态、或者 succeeded / failed 但 result_confirmed 不是 true：
+           * 「其它未确认结果：继续查原单」—— 不出表单，让买家稍后再查。
            */
           return {
             state: 'PROCESSING',
@@ -689,11 +766,24 @@ export const sysb: RedeemProvider = {
             requestId: q.body.request_id,
           }
         }
-        // failed：卡可能还能再充一次（上游会自己判），所以继续往下走、正常出表单
-        const reason = (d.failure?.reason_code || '').trim().toUpperCase()
-        if (FAILURE_REASONS[reason]) lastFailure = `上一笔没有成功：${FAILURE_REASONS[reason]}`
+        // 明确失败：卡可能还能再充一次（上游会自己判），所以继续往下走、正常出表单
+        lastFailure = `上一笔没有成功：${failureCopy(d)}`
+      } else if (q.status !== 404) {
+        /*
+         * 【查不到原单 ≠ 没充过】接入说明原文：「ORDER_RESULT_UNAVAILABLE：只继续 GET 原单」
+         * 「不能凭 404 认定没充值」。原来这里对任何查询失败都「当作没充过」直接出表单 ——
+         * 买家照着填完再提交，activate() 那边会拦下，但他白填了一遍账号。
+         * 只有 404（上游说没有这笔单）才继续往下走。
+         */
+        return {
+          state: 'PROCESSING',
+          message: copy(q.body.error?.code, '暂时查不到这张卡密上一笔充值的结果，请稍后再点「查询」，不要重复提交'),
+          fields: [],
+          cooldownSeconds: backoffSeconds(q),
+          requestId: q.body.request_id,
+        }
       }
-      // 404 或查询失败：当作没充过，继续正常流程
+      // 404：上游没有这笔单（两个身份都查过），继续正常流程
     }
 
     /*
@@ -988,9 +1078,10 @@ export const sysb: RedeemProvider = {
          * 【卡是否还能用，由下面那道只读查卡守卫把关】它会在真正下单前再问一次上游，
          * 卡已消耗/处理中就直接拦下，根本走不到这里。
          */
-        if (d.status !== 'failed') return r
+        // failed 但 result_confirmed 不是 true 也原样返回：上游没定论之前不换号重下
+        if (!confirmedFailure(d)) return r
         /*
-         * 到这里说明上游已经明确判定这笔单**终结且失败**。
+         * 到这里说明上游已经明确判定这笔单**终结且失败**（status=failed 且 result_confirmed=true）。
          * 记下它的单号当作重试盐 —— 没有这一步，买家用同样的凭据再提交
          * 只会算出同一个 order_id，被上游幂等重放，永远拿回同一条失败。
          */
@@ -1051,6 +1142,16 @@ export const sysb: RedeemProvider = {
       if (!(credential as Record<string, unknown>).accessToken) {
         throw new RedeemError('账号 Session 里缺少 accessToken，请确认复制的是完整内容', 'ERROR')
       }
+      /*
+       * 2026-10-24 接入说明：「信用卡 Session 须保留账号邮箱和非空登录凭证」。
+       * 缺了上游会 400（不扣卡），但在本地拦下能省买家一轮等待，也省一次计次。
+       */
+      if (product === 'chatgpt_card') {
+        const user = (credential as Record<string, unknown>).user as { email?: unknown } | undefined
+        if (typeof user?.email !== 'string' || !user.email.includes('@')) {
+          throw new RedeemError('账号 Session 里缺少账号邮箱（user.email），请回到 session 页面重新复制整段内容', 'ERROR')
+        }
+      }
       credFingerprint = raw
     }
 
@@ -1101,10 +1202,10 @@ export const sysb: RedeemProvider = {
     }
     const code = res.body.error?.code
     /*
-     * 限流 / 队列忙 / 接单服务离线：文档要求按 Retry-After 退避后**同单同内容**重发。
+     * 限流 / 队列忙 / 接单服务离线 / 服务未就绪：文档要求按 Retry-After 退避后**同单同内容**重发。
      * 买家下次点提交时会先查原单（404）→ 用同样的内容算出同一个 order_id 重发，正好满足这条。
      */
-    if (res.status === 429 || code === 'RATE_LIMITED' || code === 'ORDER_QUEUE_BUSY' || code === 'ORDER_WORKER_OFFLINE') {
+    if (res.status === 429 || (code && COOLDOWN_ERRORS.has(code))) {
       return {
         state: 'COOLDOWN',
         message: copy(code, '当前充值人数较多，请稍后再试'),
@@ -1141,4 +1242,9 @@ export const __test = {
   FAILURE_REASONS,
   RETRIABLE_REASONS,
   backoffSeconds,
+  COOLDOWN_ERRORS,
+  USER_AGENT,
+  safeUpstreamMessage,
+  confirmedSuccess,
+  confirmedFailure,
 }
