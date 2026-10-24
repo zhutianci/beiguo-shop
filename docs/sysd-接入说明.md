@@ -109,3 +109,22 @@ STORE=sysd npx tsx scripts/probe-sysc.ts check <测试卡密> "ChatGPT Pro 5x �
 | 1 | 下单（`POST /api/store/redeem`）对 niuniu888 从没跑过 —— 验它必须真扣一张卡 |
 | 2 | 对方有没有 IP 限频 / 要不要报备服务器出口 IP（sysc 也没问到） |
 | 3 | 已有订阅的号强制充值后对方的实际结果（sysc 同样未验） |
+
+## 7. 部署实录（2026-10-24，sysb 修复与 sysd 一起上线）
+
+| 项 | 记录 |
+|---|---|
+| 代码 | 服务器 `e943089` → `c91bb38`（`35c5c0e` sysb + `c91bb38` sysd） |
+| 回滚标签 | `beiguo-shop-app:rollback-pre-sysd` = `e8ccadece356`（上线前镜像） |
+| 环境变量 | `SYSB_CARD_V1` 1 → **0**（站长同意；备份 `.env.production.bak-20261024-142203-pre-cardv1-off`，权限仍 644）。SYSD_* 三个都没配，用默认值 |
+| 顺带生效 | 当天 08:56 有人从 `.env.production` 删了 `VMQ_WEBHOOK_ACCEPT_LEGACY`，但旧镜像里打包的那份 `.env.production` 还带着它；这次重建后容器内两处都没有了（与安全加固的意图一致） |
+| 构建 | 停 jishi 的 wrapper，14:22 → 17:08，**2 小时 46 分钟**（全程换页，可用内存 136~150MB、swap 1.0~1.46G）。`build_exit=0`、`[prerender] routes=0`；告警只有既有的 jose / Edge Runtime 两条；swappiness 两项还原为 0、无残留 state；jishi 17:08 自动拉回 3/3 |
+| 切换 | 17:09:54 确认 0 笔待支付后 `up -d --no-deps app`，新镜像 `508187a31c5b`，4 秒 200，`✓ Ready in 428ms`，繁体代理 3001 正常 |
+| 容器内 | `SYSB_CARD_V1=0`、`SYSB_API_TOKEN` 在；`/app/.env.production` 644 |
+| 冒烟（容器网络） | `/redeem/sysa|sysb|sysc|sysd` 200、`/redeem/sysz` 404；四个兑换页标题都是「贝果科技 · AI会员自助充值系统」、上游标识 0；三家 check 接口拿编造的卡密都回我们自己的文案（不往上游转发） |
+| 冒烟（ECS 出站） | 鸿运 `/account` 带 UA 200（`api_revision 2026-10-22`、worker online、card+ios）；只读查卡带视图头 200；niuniu888 商品清单 200（6 个）、chuanwen 200（16 个）。偶发一次 `fetch failed`，重试即好（10-08 记过的出站连接问题） |
+| 旧单兼容 | 线上 6 笔最近的 `BG-` 单（都是停服期间的失败单）和 2 笔历史成功单都带 `result_confirmed=true` —— 收紧后的判定不影响老卡的展示 |
+| 公网（Cloudflare） | 首页 / 商品 / 四个兑换页 200、`/redeem/sysz` 404、`/zh-hk/` 200、渠道站 `lulu…/zh-hk/` 仍 404；公网 `/redeem/sysd` 无上游标识 |
+
+**并行会话**：17:10:28 安全加固会话在 `203e9c1`（建在 `c91bb38` 之上，含本次改动）上又起了一轮停 jishi 的构建，
+所以 jishi 在 17:10 又被停掉，由那一轮的 wrapper 负责拉回。那一轮切换后 sysb / sysd 仍在。
