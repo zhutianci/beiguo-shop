@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-18T16:36:43.406Z",
+  "builtAt": "2026-10-25T03:48:20.037Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -60501,6 +60501,146 @@
       ]
     },
     {
+      "title": "Claude Opus 和 Sonnet 的区别：Opus 5.5 与 Sonnet 5.5 怎么选",
+      "slug": "claude-opus-vs-sonnet",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1045-opus-vs-sonnet-compare.png",
+        "g1045-opus-vs-sonnet-decide.png"
+      ],
+      "tags": [
+        "claude",
+        "claude-llm"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Claude Opus 和 Sonnet 有什么区别？按官方模型页核对 Opus 5.5 与 Sonnet 5.5 的定位、速度、API 价格、默认 effort，以及免费版、Pro 能用哪个，给出按任务选择的办法。",
+      "content": "> 本文根据 Claude 官方开发者文档（Models overview、Choosing the right model、模型页）、定价页和帮助中心整理，资料核对于 2026-10-24。文中的美元价格是 **API 按量计费**价格（2026-10 查询），订阅用户在 claude.ai 上按套餐用量，不按 token 付费。图为本站整理的示意图。模型更新很快，**以官方页面为准**。\n\n## 适用于谁\n\n- 打开模型菜单，看到 Opus 和 Sonnet 不知道选哪个的人；\n- 在 Claude Code 里想知道「什么时候该切 Opus」的人；\n- 用 API 开发、要在 $4/$20 和 $2/$10 两档价格之间做取舍的人。\n\n四款模型的完整对照、Fable 和 Haiku 的情况，见 [/guides/claude-models-compare](/guides/claude-models-compare)；本文只聚焦 Opus 和 Sonnet 这两个最常被拿来比的。\n\n## 结论先说\n\n1. **官方的分工很清楚**：Opus 5.5「用于长时间运行的智能体编程和知识工作」，Sonnet 5.5 是「速度与智能的最佳组合」。\n2. **Sonnet 更快、更便宜**：官方标注相对延迟 Sonnet「快」、Opus「中等」；API 价格 Sonnet 5.5 是每百万 token 输入 2 美元、输出 10 美元，Opus 5.5 是 4 美元和 20 美元，正好是一半。\n3. **上下文和输出一样**：两者都是 100 万 token 上下文、最大输出 12.8 万 token，知识截止都是 2026 年 6 月。能力上的差别不在这些参数里。\n4. **免费版只有 Sonnet**：按官方定价页，Free 套餐能用 Sonnet 和 Haiku，不能用 Opus；Pro 及以上才有 Opus。需要 Opus 的，可以先看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n5. **拿不准的选法**：日常聊天、写作、分析先用 Sonnet；任务特别长、特别复杂、Sonnet 做不好时再换 Opus。官方还提醒，调推理强度（effort）往往比换模型更管用。\n\n![Opus 5.5 和 Sonnet 5.5 的参数对照](seed:g1045-opus-vs-sonnet-compare.png)\n*图：本站根据 [Claude 官方 Models overview](https://platform.claude.com/docs/en/models/overview) 与 [定价页](https://claude.com/pricing) 整理的示意图*\n\n## 一、官方怎么定位这两个模型\n\n官方模型页的原话大意：\n\n- **Claude Opus 5.5**（API ID `claude-opus-5-5`）：为长时间运行的智能体编程和知识工作设计，2026 年 9 月 22 日发布。\n- **Claude Sonnet 5.5**（API ID `claude-sonnet-5-5`）：速度与智能的最佳组合，2026 年 9 月 28 日发布。\n\n官方的选型矩阵里，对应的使用场景是：\n\n| 你需要 | 官方建议起点 | 官方举的场景 |\n| --- | --- | --- |\n| 复杂的智能体编程和企业工作 | Opus 5.5 | 数小时自主运行的编程智能体、大规模重构、复杂系统工程、视觉密集型工作流、computer use |\n| 日常编程、智能体和企业工作里的速度与能力 | Sonnet 5.5 | 代码生成、数据分析、内容创作、视觉理解、智能体工具调用 |\n\n也就是说，官方没有把 Sonnet 描述成「弱」，而是「日常主力」；Opus 是遇到长链条、高复杂度任务时的选择。官方的选型矩阵里还写着：**大多数工作负载从 Opus 5.5 起步**——这是写给开发者做评测用的建议，因为开发者可以反复测试后再往下换；普通用户在聊天里，不必照搬。\n\n## 二、价格和速度\n\n按官方定价页（API，美元 / 每百万 token，2026-10 查询）：\n\n| | 输入 | 输出 | 缓存读取 |\n| --- | --- | --- | --- |\n| Opus 5.5 | 4 | 20 | 0.20 |\n| Sonnet 5.5 | 2 | 10 | 0.10 |\n\n批量处理（Batch API）两者都是五折。Opus 5.5 另有「快速模式」，官方写的是标准价格的 2 倍、速度最高可提升到约 2.5 倍，只在 API 提供。\n\n这些价格只对 API 用户有意义。如果你用的是 claude.ai 或 Claude Code 的订阅，花的是套餐用量：官方说 Max 套餐里 Fable 模型会比其他模型更快消耗限额，Opus 和 Sonnet 之间的消耗差别官方没有给具体比例，所以**不要期待「Sonnet 一定省多少倍」这种数字**，只能说一般越强的模型、越高的推理强度，越快用完额度。额度怎么看，见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n## 三、推理强度（effort）：同一个模型也能换挡\n\n两个模型都有 effort 设置，但**默认值不一样**（官方 API 默认）：\n\n- Opus 5.5：默认 `medium`；\n- Sonnet 5.5：默认 `high`。\n\nclaude.ai 里设置 effort 的位置：点发送按钮旁的模型名 → Effort，选 Low、Medium、High、Extra high 或 Max。帮助中心的说明是：Low 和 Medium 适合日常任务，更省用量；High 是质量与速度的最佳平衡；Extra high 适合长时间的编程和智能体任务；Max 是最彻底、最慢的。**更高的 effort 会消耗更多 token，更快碰到限额。**\n\n另一个差别在「思考」：官方说 Opus 5.5 的自适应思考**始终开启、不能关**；Sonnet 5.5 默认开启，API 里可以用 `between_tools` 关掉前置思考。对普通聊天用户来说，这意味着两者都会在需要时先想一想，差别主要在速度和额度。\n\n## 四、按任务怎么选\n\n![按任务选 Opus 还是 Sonnet](seed:g1045-opus-vs-sonnet-decide.png)\n*图：本站根据 [Claude 官方 Choosing the right model](https://platform.claude.com/docs/en/about-claude/models/choosing-a-model) 整理的示意图*\n\n- **日常写作、问答、改文档、分析表格**：先用 Sonnet 5.5，速度快；\n- **跑很久的编程任务、整个项目的重构、要自己规划并反复修改的复杂任务**：选 Opus 5.5；\n- **Opus 5.5 调到更高 effort 仍然不行**：官方的下一步是 Fable 5.1，不是继续堆提示词；\n- **想省额度、想要快**：用 Sonnet，或者在同一个模型上把 effort 调低。\n\n在 Claude Code 里切模型、调 effort 的命令见 [/guides/claude-code-switch-model](/guides/claude-code-switch-model)。\n\n## 常见问题\n\n**Q：Opus 一定比 Sonnet 聪明吗？**\n官方没有给出一个「谁更强」的单一结论，而是按场景分工：Opus 面向长时间智能体和复杂工作，Sonnet 面向速度与能力的平衡。具体到你的任务，最可靠的办法是拿同一个任务各跑一次比较。\n\n**Q：免费版能用 Opus 吗？**\n按 2026-10 的官方定价页，不能；Free 可用 Sonnet 和 Haiku。\n\n**Q：Pro 有 Opus 吗？**\n有，Pro 对比表里 Opus 标「Yes」。Pro 和 Max 的区别见 [/guides/claude-pro-vs-max-difference](/guides/claude-pro-vs-max-difference)。\n\n**Q：之前还有 Sonnet 5、Opus 5，现在还能用吗？**\n官方把它们列在「仍可用的旧模型」里。新模型对旧模型的变化见 [/guides/claude-opus-5-5-guide](/guides/claude-opus-5-5-guide) 与 [/guides/claude-sonnet-5-5-guide](/guides/claude-sonnet-5-5-guide)。\n\n## 参考资料\n\n- Claude 官方 Models overview — https://platform.claude.com/docs/en/models/overview\n- Claude 官方 Choosing the right model — https://platform.claude.com/docs/en/about-claude/models/choosing-a-model\n- Claude Opus 5.5 模型页 — https://platform.claude.com/docs/en/models/opus-5-5/overview\n- Claude Sonnet 5.5 模型页 — https://platform.claude.com/docs/en/models/sonnet-5-5/overview\n- Claude 官方定价页 — https://claude.com/pricing\n- Claude 帮助中心：Change the model, effort, and thinking settings — https://support.claude.com/en/articles/8664678-change-the-model-effort-and-thinking-settings",
+      "sources": [
+        "https://platform.claude.com/docs/en/models/overview",
+        "https://platform.claude.com/docs/en/about-claude/models/choosing-a-model",
+        "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+        "https://platform.claude.com/docs/en/models/sonnet-5-5/overview",
+        "https://claude.com/pricing",
+        "https://support.claude.com/en/articles/8664678-change-the-model-effort-and-thinking-settings"
+      ],
+      "screenshots": [],
+      "verify": [
+        "价格、上下文、默认 effort、发布日期取自 2026-10-24 的官方模型页与定价页；Opus 5.5 发布于 2026-09-22，Sonnet 5.5 发布于 2026-09-28，新模型出来后需更新",
+        "「Free 不能用 Opus、能用 Sonnet / Haiku」来自定价页对比表；各套餐每 5 小时能发多少条消息官方未公开，文中不写",
+        "官方说 Fable 5.1 是更强的第三档，本文只在选型一节简单带过，详细对照放在 /guides/claude-models-compare"
+      ]
+    },
+    {
+      "title": "Claude Opus 5.5 是什么、怎么用、API 价格（2026 年 10 月）",
+      "slug": "claude-opus-5-5-guide",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1046-opus-5-5-vs-5.png",
+        "g1046-switch-to-opus-5-5.png"
+      ],
+      "tags": [
+        "claude",
+        "claude-llm"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Claude Opus 5.5 是什么模型？按官方模型页核对发布日期、定位、100 万上下文、API 价格（4 美元 / 20 美元每百万 token）、和 Opus 5 的区别，以及在 claude.ai 里怎么切换、哪些套餐能用。",
+      "content": "> 本文根据 Claude 官方开发者文档中的 Opus 5.5 模型页与「What's new」、定价页和帮助中心整理，资料核对于 2026-10-24。美元价格是 **API 按量计费**价格（2026-10 查询）。图为本站整理的示意图。模型更新很快，**以官方页面为准**。\n\n## 适用于谁\n\n- 搜「claude opus 5.5」「claude opus 5 价格」，想弄清它是什么的人；\n- 已有 Pro 或 Max，想知道 Opus 5.5 在哪里选、要不要调设置的人；\n- 用 API 的开发者，想知道价格和从 Opus 5 迁移要注意什么的人。\n\n## 结论先说\n\n1. **Opus 5.5 是 Claude 当前的主力 Opus 模型**：官方模型页标注「Latest」，2026 年 9 月 22 日发布，定位是「长时间运行的智能体编程和知识工作」。\n2. **规格**：100 万 token 上下文、最大输出 12.8 万 token、文字和图片输入、文字输出、知识截止 2026 年 6 月；API 模型 ID 为 `claude-opus-5-5`。\n3. **API 价格比 Opus 5 便宜**：输入每百万 token 4 美元、输出 20 美元（Opus 5 是 5 美元和 25 美元）；缓存读取 0.20 美元，批量处理五折。\n4. **claude.ai 里怎么用**：点发送按钮旁的模型名选 Opus 5.5。按官方定价页，**免费版没有 Opus**，Pro 和 Max 都有。需要开通的，可以看 [/chongzhi/claude-pro](/chongzhi/claude-pro)；用量大、Claude Code 用得多的，可以看 [/chongzhi/claude-max](/chongzhi/claude-max)。\n5. **注意两处默认值变化**：API 默认 effort 从 Opus 5 的 `high` 变成 `medium`；思考始终开启，不能关。\n\n![Opus 5.5 比 Opus 5 变了什么](seed:g1046-opus-5-5-vs-5.png)\n*图：本站根据 [Claude Opus 5.5 官方模型页](https://platform.claude.com/docs/en/models/opus-5-5/overview) 与 [定价页](https://claude.com/pricing) 整理的示意图*\n\n## 一、Opus 5.5 的官方参数\n\n| 项目 | 官方数据（2026-10 查询） |\n| --- | --- |\n| API 模型 ID | `claude-opus-5-5` |\n| 发布日期 | 2026 年 9 月 22 日 |\n| 上下文窗口 | 100 万 token |\n| 最大输出 | 12.8 万 token（Batch API 加 beta 头可到 30 万） |\n| 输入 / 输出 | 文字和图片 → 文字 |\n| 思考 | 自适应思考，始终开启 |\n| 默认 effort | `medium` |\n| 相对延迟 | 中等 |\n| 知识截止 | 2026 年 6 月 |\n| 退役 | 官方承诺不早于 2027 年 9 月 22 日 |\n\n价格（每百万 token）：输入 4 美元、输出 20 美元、5 分钟缓存写入 5 美元、1 小时缓存写入 8 美元、缓存读取 0.20 美元；Batch API 输入输出五折。另外，Opus 5.5 有「快速模式」：官方定价页写的是标准价格 2 倍、速度最高约 2.5 倍，只在 API 上提供。\n\n官方说它可以在 Claude API、Amazon Bedrock、Google Cloud 上的 Claude 模型服务、Microsoft Foundry、AWS 上的 Claude Platform 使用。\n\n## 二、它擅长什么\n\n官方给出的方向是「长时间运行的智能体编程和知识工作」。在官方的选型矩阵里，Opus 5.5 对应的场景包括：数小时自主运行的编程智能体、大规模重构、复杂系统工程、视觉密集型的工作流和 computer use。官方「What's new」还提到一项行为变化：它读取图表、示意图和截图里的数值比之前**精确得多**，不用工具也能读懂较密的图。\n\n官方也明确：如果 Opus 5.5 在更高 effort 下仍然不够，下一步是 Fable 5.1，那是更强但更慢、更贵的模型。四款模型的对照见 [/guides/claude-models-compare](/guides/claude-models-compare)，Opus 和 Sonnet 怎么选见 [/guides/claude-opus-vs-sonnet](/guides/claude-opus-vs-sonnet)。\n\n## 三、在 claude.ai 里怎么切到 Opus 5.5\n\n![在 claude.ai 里切到 Opus 5.5 的步骤](seed:g1046-switch-to-opus-5-5.png)\n*图：本站根据 [Claude 帮助中心：Change the model, effort, and thinking settings](https://support.claude.com/en/articles/8664678-change-the-model-effort-and-thinking-settings) 整理的示意图*\n\n1. 开一个新对话，或者打开已有对话；\n2. 点发送按钮旁边显示的模型名；\n3. 选 Opus 5.5；菜单里没有，就点「More models」；\n4. 需要时再设 Effort：点模型名，点 Effort，选一个级别（Low、Medium、High、Extra high、Max），菜单会把每个模型的推荐档标成「Default」。\n\n帮助中心还说明：模型、effort 和思考设置**可以在对话中途随时更改，从 Claude 的下一条回复起生效**；在 Enterprise 套餐里，管理员可能关闭某些模型或 effort 级别。**Opus 5.5 和 Fable 5.1 的思考在所有 effort 级别下都是始终开启的**，没有开关。更高的 effort 会消耗更多 token，更快碰到用量限额，额度的规则见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n在 Claude Code 里用 `/model` 切换，见 [/guides/claude-code-switch-model](/guides/claude-code-switch-model)。\n\n## 四、从 Opus 5 迁移到 Opus 5.5（给开发者）\n\n官方「What's new」列出了会让旧代码报错的几处改动，直接改代码前先看一下：\n\n- **思考不能关**：`thinking: {\"type\": \"disabled\"}` 或手动 `budget_tokens` 会返回 400 错误；不传 `thinking` 字段，或传 `adaptive`，效果相同。想要更快更省，调低 effort；\n- **不支持强制工具调用**：`tool_choice` 设为 `any` 或指定某个工具会返回 400 错误；`auto`（默认）和 `none` 可用；需要结构化结果时，官方建议用 `strict: true` 的严格工具调用或结构化输出；\n- **思考块和模型、对话绑定**：思考块会记录是哪个模型产生的，换到不能读取它的模型后，API 会把这些块丢掉（请求不会失败，被丢的块不计费）；\n- **旧的 `computer_20251124` 工具**：在 Claude API 上不再接受，要换成 `computer_toolset_20260801`；\n- **默认 effort 改为 `medium`**：之前是 `high`，需要的话显式设置；\n- **工具调用之间的文字**会放进 `thinking` 块，默认显示设置下文字为空，界面如果要显示这些进度文字，需要设置 `display`。\n\n迁移的第一步只是把模型 ID 从 `claude-opus-5` 改成 `claude-opus-5-5`；完整清单见官方 [Migration guide](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide)。API 的入门见 [/guides/claude-api-python-quickstart](/guides/claude-api-python-quickstart)。\n\n## 常见问题\n\n**Q：Opus 5.5 比 Opus 5 更强吗？**\n官方的口径是 5.5 更便宜（输入和输出价格都降了约两成）并带来了几项行为变化，同一 effort 下它倾向于**想得更多**，尤其在 xhigh 和 max。具体表现因任务而异，官方建议迁移后重新跑一遍自己的 effort 对比。\n\n**Q：我用的是订阅，价格跟我有关吗？**\n没有直接关系。订阅按套餐用量，不按 token 计费；价格是给 API 用户的。\n\n**Q：Pro 够用吗？**\nPro 有 Opus。如果经常碰到限额，可看 [/guides/claude-pro-vs-max-difference](/guides/claude-pro-vs-max-difference)。\n\n**Q：为什么提示里说「Claude 切换了模型」？**\n官方为 Fable 等较强模型配置了安全防护，个别领域的请求可能自动切换到别的模型，详见 [/guides/claude-models-compare](/guides/claude-models-compare)。\n\n## 参考资料\n\n- Claude Opus 5.5 模型页 — https://platform.claude.com/docs/en/models/opus-5-5/overview\n- What's new in Claude Opus 5.5 — https://platform.claude.com/docs/en/models/opus-5-5/whats-new-opus-5-5\n- Claude 官方 Models overview — https://platform.claude.com/docs/en/models/overview\n- Claude 官方定价页 — https://claude.com/pricing\n- Claude 帮助中心：Change the model, effort, and thinking settings — https://support.claude.com/en/articles/8664678-change-the-model-effort-and-thinking-settings",
+      "sources": [
+        "https://platform.claude.com/docs/en/models/opus-5-5/overview",
+        "https://platform.claude.com/docs/en/models/opus-5-5/whats-new-opus-5-5",
+        "https://platform.claude.com/docs/en/models/overview",
+        "https://claude.com/pricing",
+        "https://support.claude.com/en/articles/8664678-change-the-model-effort-and-thinking-settings"
+      ],
+      "screenshots": [],
+      "verify": [
+        "Opus 5.5 发布日期 2026-09-22、API 价格 4/20 美元、缓存读取 0.20 美元、默认 effort medium，均取自 2026-10-24 官方模型页与定价页",
+        "Opus 5 的 5/25 美元、0.50 美元缓存读取取自定价页「Legacy models」表",
+        "「Free 不能用 Opus，Pro / Max 可以」来自定价页对比表；套餐具体用量官方未公开"
+      ]
+    },
+    {
+      "title": "Claude Sonnet 5.5 是什么：能力定位、价格、免费版能用吗（2026 年 10 月）",
+      "slug": "claude-sonnet-5-5-guide",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1047-sonnet-5-5-vs-5.png",
+        "g1047-sonnet-5-5-check.png"
+      ],
+      "tags": [
+        "claude",
+        "claude-llm"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude Sonnet 5.5 是什么模型？按官方模型页核对发布日期（2026-09-28）、速度与智能定位、100 万上下文、API 价格（2 美元 / 10 美元每百万 token）、和 Sonnet 5 的区别，以及免费版能不能用。",
+      "content": "> 本文根据 Claude 官方开发者文档中的 Sonnet 5.5 模型页与「What's new」、定价页整理，资料核对于 2026-10-24。美元价格是 **API 按量计费**价格（2026-10 查询）。图为本站整理的示意图。模型更新很快，**以官方页面为准**。\n\n## 适用于谁\n\n- 搜「claude sonnet 5.5」「claude sonnet 5 价格」，想知道它是什么的人；\n- 用免费版 Claude，想知道自己能不能用上 Sonnet 的人；\n- 用 API 的开发者，从 Sonnet 5 升级到 5.5 要注意什么的人。\n\n## 结论先说\n\n1. **Sonnet 5.5 是当前的主力 Sonnet 模型**：官方标注「Latest」，2026 年 9 月 28 日发布，定位是「速度与智能的最佳组合」。\n2. **规格**：100 万 token 上下文、最大输出 12.8 万 token、文字和图片输入、文字输出、知识截止 2026 年 6 月；API ID 是 `claude-sonnet-5-5`；相对延迟「快」。\n3. **价格不变、缓存更便宜**：API 输入每百万 token 2 美元、输出 10 美元，和 Sonnet 5 相同；缓存读取降到 0.10 美元，是 Sonnet 5 的一半。\n4. **免费版可以用 Sonnet**：官方定价页对比表里，Sonnet / Haiku 在 Free、Pro、Max 上都是「Yes」，只有 Opus 要付费套餐。\n5. **日常用它就够**：官方的选型矩阵把它放在「日常编程、数据分析、内容创作、视觉理解、智能体工具调用」，更长更复杂的任务再看 Opus。对比见 [/guides/claude-opus-vs-sonnet](/guides/claude-opus-vs-sonnet)。\n\n![Sonnet 5.5 比 Sonnet 5 变了什么](seed:g1047-sonnet-5-5-vs-5.png)\n*图：本站根据 [Claude Sonnet 5.5 官方模型页](https://platform.claude.com/docs/en/models/sonnet-5-5/overview) 与 [定价页](https://claude.com/pricing) 整理的示意图*\n\n## 一、Sonnet 5.5 的官方参数\n\n| 项目 | 官方数据（2026-10 查询） |\n| --- | --- |\n| API 模型 ID | `claude-sonnet-5-5` |\n| 发布日期 | 2026 年 9 月 28 日 |\n| 上下文窗口 | 100 万 token |\n| 最大输出 | 12.8 万 token（Batch API 加 beta 头可到 30 万） |\n| 输入 / 输出 | 文字和图片 → 文字 |\n| 思考 | 自适应思考，默认开启 |\n| 默认 effort | `high` |\n| 相对延迟 | 快 |\n| 知识截止 | 2026 年 6 月 |\n| 退役 | 官方承诺不早于 2027 年 9 月 28 日 |\n\n价格（每百万 token）：输入 2 美元、输出 10 美元、5 分钟缓存写入 2.50 美元、1 小时缓存写入 4 美元、缓存读取 0.10 美元；Batch API 五折。\n\n## 二、能用在哪、谁能用\n\n- **claude.ai 网页 / 桌面 / 手机**：在发送按钮旁的模型菜单里选；步骤见 [/guides/claude-opus-5-5-guide](/guides/claude-opus-5-5-guide) 里「怎么切到 Opus 5.5」一节，Sonnet 的位置相同；\n- **套餐**：按官方定价页，Free、Pro、Max 都可以用 Sonnet；Opus 需要 Pro 及以上；Fable 在 Pro 上要用用量额度，Max 最多占每周限额的 50%。套餐对比见 [/guides/claude-plans-free-pro-max](/guides/claude-plans-free-pro-max)；\n- **Claude Code**：用 `/model` 切换，见 [/guides/claude-code-switch-model](/guides/claude-code-switch-model)；\n- **API / 云平台**：Claude API、Amazon Bedrock、Google Cloud 的 Claude 模型服务、Microsoft Foundry、AWS 上的 Claude Platform 都提供。\n\n免费版有使用限额，具体能发多少条官方没有公布数字；额度规则见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。需要更高用量、想用 Opus 的，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 三、effort 怎么设\n\n官方 Sonnet 5.5 的说明里，**effort 的档位重新校准过**：同一个档位出来的思考量和 Sonnet 5 不一样，建议迁移后重新对比。官方给的起点是：\n\n- 一般情况从 `high` 起步（API 默认就是 high）；\n- 做智能体编程、多步工具调用：任务描述清楚的从 `medium` 起，更难、更长的任务提到 `high`；\n- 聊天和对延迟敏感的场景：从 `medium` 或 `low` 起。\n\n在 claude.ai 里设置 effort：点发送按钮旁的模型名 → Effort。官方帮助中心提示：Low 和 Medium 更省用量，更高的 effort 会更快用完额度。\n\n## 四、从 Sonnet 5 迁移到 5.5（给开发者）\n\n![用 Sonnet 5.5 前先确认的 5 件事](seed:g1047-sonnet-5-5-check.png)\n*图：本站根据 [Claude Sonnet 5.5 官方模型页](https://platform.claude.com/docs/en/models/sonnet-5-5/overview) 与 [What's new](https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5) 整理的示意图*\n\n第一步是把模型 ID 从 `claude-sonnet-5` 改成 `claude-sonnet-5-5`。官方列出的需要检查的地方：\n\n1. **关闭前置思考**：原来用 `thinking: {\"type\": \"disabled\"}` 的，5.5 上会返回 400，要改用 `between_tools`；它只能配合 `low`、`medium`、`high` 使用，`xhigh`、`max` 下用它会报 400；\n2. **不支持强制工具调用**：`tool_choice` 设为 `any` 或指定工具会返回 400；用 `auto` 加 `strict: true` 的严格工具调用，或结构化输出；\n3. **保持对话只追加不改写**：编辑了更早的历史后再带上 Sonnet 5.5 的思考块，可能返回 400；\n4. **`temperature`、`top_p`、`top_k`**：设置它们会返回 400 错误；\n5. **旧的 computer use 工具**：`computer_20251124` 在 Claude API 上不再接受，要换成 `computer_toolset_20260801`；\n6. **advisor 工具搭配**：5.5 作执行者时，Opus 4.8、Opus 4.7、Sonnet 5 和 Haiku 5.5 不能作顾问，会返回 400。\n\n另有一项行为变化：工具调用之间较长的说明会放进 `thinking` 块，默认设置下文字为空，需要显示的界面要设置 `display`。官方还说 Sonnet 5.5 的分词器和 Sonnet 5 相同，同样的文字 token 数一样，所以升级不会让同一段文字变贵。API 入门见 [/guides/claude-api-python-quickstart](/guides/claude-api-python-quickstart)；提示词缓存见 [/guides/claude-prompt-caching](/guides/claude-prompt-caching)。\n\n## 常见问题\n\n**Q：Sonnet 5.5 和 Opus 5.5 差在哪？**\n官方定位不同：Sonnet 重速度与能力的平衡，API 价格是 Opus 的一半；Opus 面向长时间智能体编程和复杂工作。详细对照见 [/guides/claude-opus-vs-sonnet](/guides/claude-opus-vs-sonnet)。\n\n**Q：Sonnet 5.5 会让免费版变好吗？**\n官方页面只写了 Sonnet 在 Free 上可用，没有说明免费版菜单里具体是哪一个版本；以你菜单里实际显示的为准。\n\n**Q：Haiku 呢？**\n官方当前的 Haiku 是 Haiku 5.5，定位是高并发、低延迟的任务，API 价格 100K token 以内每百万输入 0.10 美元、输出 0.50 美元。四款对照见 [/guides/claude-models-compare](/guides/claude-models-compare)。\n\n## 参考资料\n\n- Claude Sonnet 5.5 模型页 — https://platform.claude.com/docs/en/models/sonnet-5-5/overview\n- What's new in Claude Sonnet 5.5 — https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5\n- Claude 官方 Models overview — https://platform.claude.com/docs/en/models/overview\n- Claude 官方 Choosing the right model — https://platform.claude.com/docs/en/about-claude/models/choosing-a-model\n- Claude 官方定价页 — https://claude.com/pricing",
+      "sources": [
+        "https://platform.claude.com/docs/en/models/sonnet-5-5/overview",
+        "https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5",
+        "https://platform.claude.com/docs/en/models/overview",
+        "https://platform.claude.com/docs/en/about-claude/models/choosing-a-model",
+        "https://claude.com/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "Sonnet 5.5 发布日期 2026-09-28、API 价格 2/10 美元、缓存读取 0.10 美元、默认 effort high，取自 2026-10-24 官方模型页与定价页",
+        "「Sonnet / Haiku 在 Free 上可用」来自定价页个人套餐对比表；claude.ai 里 Sonnet 5.5 具体何时出现在免费版菜单，官方未写，以实际菜单为准",
+        "Sonnet 5 的 0.20 美元缓存读取、1,024 token 最小缓存取自官方模型页说明与定价页旧模型表"
+      ]
+    },
+    {
+      "title": "Claude 网页版和桌面版的区别：要不要装桌面版、各自能做什么",
+      "slug": "claude-web-vs-desktop-difference",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1048-web-vs-desktop-compare.png",
+        "g1048-desktop-install-steps.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 网页版和桌面版有什么区别？按官方下载页和帮助中心核对：桌面版多了快速唤起、桌面扩展、App 内的 Claude Code 和 Cowork，对话与账号和网页版同步；附系统要求、下载步骤和怎么选。",
+      "content": "> 本文根据 Claude 官方下载页（claude.com/download）与帮助中心《Installing Claude Desktop》、定价页整理，资料核对于 2026-10-24。图为本站整理的示意图。功能更新很快，**以官方页面为准**。\n\n## 适用于谁\n\n- 一直在浏览器里用 Claude，想知道「装桌面版有什么好处」的人；\n- 装了桌面版，想知道它和网页版哪些东西是通的、哪些不一样的人；\n- 想知道桌面版系统要求、有没有 Linux 版的人。\n\n桌面版的完整功能和设置详见 [/guides/claude-desktop-app](/guides/claude-desktop-app)，本文只讲「和网页版比，差在哪」。\n\n## 结论先说\n\n1. **账号和对话是通的**：官方下载页说明，登录后对话、项目、记忆和偏好设置会跨设备同步；桌面版不是另一个账号体系，用同一个账号登录就行。只有**本地的 Cowork 会话**留在本机，不同步。\n2. **桌面版多出来的东西**（官方下载页的描述）：常驻程序坞、能从系统任意位置快速唤起（Quick Entry）；桌面扩展（Desktop extensions），把 Claude 连接到本地文件、浏览器和原生应用；App 内的 Claude Code，可以预览服务、审查本地代码改动、查看 PR 状态；Cowork，把 Claude Code 的智能体能力放进图形界面。\n3. **套餐不是门槛**：官方写明桌面版和手机应用在所有套餐上都能装，只是部分功能（比如 Cowork）需要付费套餐。Free、Pro、Max 都能装桌面版。\n4. **只聊天、写东西、偶尔用**：网页版够用，不用装；**要连本地文件、要快速唤起、要在 App 里跑 Claude Code 或 Cowork**，再装桌面版。\n5. 想要更高用量、用 Claude Code 的，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro) 或 [/chongzhi/claude-max](/chongzhi/claude-max)。\n\n![Claude 网页版和桌面版对照](seed:g1048-web-vs-desktop-compare.png)\n*图：本站根据 [Claude 官方下载页](https://claude.com/download) 与 [帮助中心：Installing Claude Desktop](https://support.claude.com/en/articles/10065433-installing-claude-desktop) 整理的示意图*\n\n## 一、桌面版比网页版多了什么\n\n官方下载页对桌面版的介绍是「All of Claude, in one app」，即「一个应用里装下完整的 Claude」，并强调它能配合你的文件和应用工作。具体列出的内容：\n\n- **快速入口（Quick Entry）**：桌面版常驻程序坞，从系统任意位置都能快速唤起。Mac 上的用法见官方帮助中心；Linux 版官方写明：在 X11 下可用，原生 Wayland 依赖桌面环境的 GlobalShortcuts 接口；\n- **桌面扩展（Desktop extensions）**：帮助中心说明，它们是本地 MCP 服务器的一键安装版，可以连接本地文件、日历、邮件和消息类应用，应用内有精选目录；入口在 **Settings > Desktop app**，点 Extensions 旁边的 **Manage**（旧版界面为 **Settings > Extensions**）。官方强调有代码签名、敏感数据（如 API Key）加密存储和企业策略控制。MCP 配置详见 [/guides/claude-desktop-mcp-config-json](/guides/claude-desktop-mcp-config-json)；\n- **App 内的 Claude Code**：官方下载页写，可以预览服务器、审查本地代码改动、监控 PR 状态。使用方法见 [/guides/claude-code-desktop](/guides/claude-code-desktop)；\n- **Cowork**：帮助中心说明它把 Claude Code 的智能体能力放到图形界面里，不用终端，能直接访问本地文件，处理调研整理、文件归类、文档生成等长任务；代码跑在隔离的虚拟机中，文件访问限于你连接的文件夹。**仅付费套餐**。什么是 Cowork 见 [/guides/claude-cowork](/guides/claude-cowork)；\n- **配合 Claude in Chrome**：开启后，Claude 可以从桌面版操作浏览器——导航、点击、填写表单，见 [/guides/claude-in-chrome](/guides/claude-in-chrome)。\n\n**官方没写的**：下载页对这些桌面能力的描述里，没有逐条说「网页版没有」。比如网页版 claude.ai 也有在云端运行的 Claude Code（见 [/guides/claude-code-web](/guides/claude-code-web)），所以更准确的说法是「桌面版把这些能力放进了本地应用」，而不是「网页版完全没有」。\n\n## 二、两边通用的东西\n\n官方下载页明确的几点：\n\n- **同一个账号，同步**：对话、项目、记忆、偏好设置，登录后在各设备间同步；\n- **网页类连接器**：在网页、桌面、手机上通用；手机上还支持设备自带的应用（如地图、iMessage）；\n- **跨设备接力**：官方举例——在手机上分享任务，让 Claude 在桌面的 Cowork 里开始；或通过 Remote Control 把手机上的任务发到 Claude Code 命令行。\n\n聊天、联网搜索、文件创建、代码执行、记忆、Artifacts 等基础功能，官方定价页把它们列在免费版里，没有区分网页和桌面。\n\n## 三、系统要求和下载\n\n![下载并登录 Claude 桌面版](seed:g1048-desktop-install-steps.png)\n*图：本站根据 [帮助中心：Installing Claude Desktop](https://support.claude.com/en/articles/10065433-installing-claude-desktop) 整理的示意图*\n\n官方帮助中心（2026-10 查询）的要求：\n\n| 系统 | 要求 |\n| --- | --- |\n| macOS | macOS 13（Ventura）及以上 |\n| Windows | Windows 10 及以上 |\n| Linux（beta） | Ubuntu 22.04 LTS 及以上，或 Debian 12 及以上，x64 或 arm64 |\n\n下载步骤：打开官方下载页 claude.ai/download → 选系统，点 Download → 打开下载好的文件完成安装 → 从「应用程序」文件夹（Mac）或开始菜单（Windows）启动 → 用账号登录。官方下载页还列出了 macOS 通用 DMG、Windows x64 和 arm64、Microsoft Store 等入口。\n\n**Linux 版的限制**（官方）：computer use 不可用，语音输入（Dictation）不可用；Linux 上聊天对所有套餐开放，Claude Code 和 Cowork 需要 Pro、Max、Team 或 Enterprise。Linux 版不会自动更新，要通过系统包管理器升级。\n\n安装来源请只用官方页面，不要从第三方站点下载安装包。\n\n## 四、怎么选\n\n- **只用聊天、偶尔用**：网页版，不占电脑、换设备就能登录；\n- **每天用、想一键唤起**：桌面版的快速入口更顺手；\n- **想让 Claude 读写本地文件、整理文件夹**：桌面版的扩展和 Cowork（付费套餐）；\n- **写代码**：桌面版里的 Claude Code，或者终端、VS Code、JetBrains 里的 Claude Code，见 [/guides/claude-code-getting-started](/guides/claude-code-getting-started)；\n- **手机**：手机应用的说明见 [/guides/claude-mobile-app](/guides/claude-mobile-app)。\n\n## 常见问题\n\n**Q：桌面版要付费吗？**\n应用本身免费，所有套餐都能装；部分功能（如 Cowork、Claude Code）需要付费套餐，见 [/guides/claude-plans-free-pro-max](/guides/claude-plans-free-pro-max)。\n\n**Q：桌面版和网页版的用量是分开算的吗？**\n官方没有说分开。用量按账号和套餐计算，额度规则见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n**Q：桌面版登录不了怎么办？**\n先排查账号和网络，见 [/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use)。\n\n**Q：界面能改成中文吗？**\n见 [/guides/claude-set-chinese-language](/guides/claude-set-chinese-language)。\n\n## 参考资料\n\n- Claude 官方下载页 — https://claude.com/download\n- Claude 帮助中心：Installing Claude Desktop — https://support.claude.com/en/articles/10065433-installing-claude-desktop\n- Claude 官方定价页 — https://claude.com/pricing",
+      "sources": [
+        "https://claude.com/download",
+        "https://support.claude.com/en/articles/10065433-installing-claude-desktop",
+        "https://claude.com/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有发布「网页版 vs 桌面版」的完整对比表，本文的差别只列官方下载页和帮助中心明确写到的内容；官方没写的（例如网页版是否也有某项能力），文中标注「官方未写」",
+        "系统要求（macOS 13+、Windows 10+、Linux 为 Ubuntu 22.04+/Debian 12+）取自 2026-10-24 的帮助中心文章；Linux 版标注 beta",
+        "Cowork 官方帮助页标注「仅付费套餐」，另有一篇文章提到 Cowork 可在网页、桌面和手机使用，具体各端范围以官方当天页面为准"
+      ]
+    },
+    {
+      "title": "Claude Code 怎么看历史对话、恢复之前的会话：--continue、--resume 与 /resume",
+      "slug": "claude-code-resume-history",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1049-resume-commands.png",
+        "g1049-session-picker-keys.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Claude Code 怎么看历史对话？按官方文档讲清 claude --continue、--resume、/resume 的区别，会话列表的快捷键，怎么给会话起名、分支、导出，会话存在哪、保留多久，以及找不到会话时怎么办。",
+      "content": "> 本文根据 Claude Code 官方文档《Manage sessions》《Common workflows》整理，资料核对于 2026-10-24。命令和快捷键随版本变化，**以你本机 `claude --help` 和官方文档为准**。图为本站整理的示意图。\n\n## 适用于谁\n\n- 昨天和 Claude Code 聊到一半，今天想接着聊，却不知道怎么回去的人；\n- 误按了 `/clear`，想找回刚才的对话的人；\n- 同时开着好几个任务，想给会话起名字、快速切换的人；\n- 想知道历史对话存在电脑哪里、会保留多久的人。\n\n## 结论先说\n\n1. **每次对话都会自动保存在本机**，不用手动保存。官方说：会话持续写入本地的记录文件，退出或执行 `/clear` 之后都能再回来。\n2. **最常用的两个命令**：`claude --continue`（或 `claude -c`）接上**当前目录里最近的一次**会话；`claude --resume`（或 `claude -r`）打开**会话列表**，自己挑。在已经打开的会话里，输入 `/resume` 同样能打开列表并切换。\n3. **会话是按项目目录分开存的**：默认只显示当前目录（含它的 git worktree）的会话；列表里按 `Ctrl+A` 能看本机所有项目的。\n4. **起名字最省事**：`claude -n auth-refactor` 启动，或会话中输入 `/rename auth-refactor`，之后用 `claude --resume auth-refactor` 直接回去。\n5. **默认保留 30 天**：超过保留期的记录会被清理，要改可以设置 `settings.json` 里的 `cleanupPeriodDays`。\n6. 想让 Claude Code 跑得更久、用量更大，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro) 或 [/chongzhi/claude-max](/chongzhi/claude-max)。\n\n![Claude Code 恢复会话的 5 个入口](seed:g1049-resume-commands.png)\n*图：本站根据 [Claude Code 官方文档：Manage sessions](https://code.claude.com/docs/en/sessions) 整理的示意图*\n\n## 一、恢复会话：几种入口怎么选\n\n官方给出的入口（命令行版）：\n\n| 命令 | 作用 |\n| --- | --- |\n| `claude --continue` | 重新打开**当前目录**里最近的一次会话；如果还没有，会提示 `No conversation found to continue` 并退出 |\n| `claude --resume` | 打开会话选择列表 |\n| `claude --resume <名字>` | 直接恢复你起过名字的会话 |\n| `claude --resume <记录文件路径>` | 恢复保存在那个 `.jsonl` 记录文件里的会话 |\n| `claude --from-pr <编号>` | 打开会话列表，只显示和那个 PR 关联的会话 |\n| `/resume` | 在正在运行的会话里，切换到另一个会话 |\n\n几条实用的补充：\n\n- **名字重复时**：`claude --resume <名字>` 如果有多个同名会话，会打开列表并把名字填进搜索框；在会话里用 `/resume <名字>` 遇到同名会报错，改成不带参数的 `/resume` 再选；\n- **按会话 ID 恢复**：`claude --resume <session-id>` 可以在任意目录执行，Claude Code 会先找当前项目和它的 worktree，再找本机其他项目；找不到会提示 `No conversation found with session ID: ...`；\n- **误按 /clear 了**：官方说 `/clear` 会先保存上一个会话，用 `/resume` 就能找回；\n- **PR 相关的会话**：Claude 用 `gh pr create` 创建 PR 时，会话会自动关联；之后 `claude --from-pr 1234`（换成你的 PR 编号），或者在列表搜索框里粘贴 PR 链接，就能找到当时的会话。\n\n## 二、会话恢复后，哪些东西还在\n\n官方「What a resumed session restores」说明，恢复会话会带回：\n\n- **对话历史**：消息、工具调用和结果；如果会话被压缩过（`/compact`），会从「Conversation compacted」那一行接着，带上压缩摘要和之后的所有消息，压缩前被概括掉的原文不会重新载入；\n- **使用的模型**；用 `--agent` 启动的会话会继续用那个 agent；\n- **权限模式**：用 `claude --continue`、`claude --resume <id 或名字>`（不带 `-p`）恢复时，会恢复会话当时的权限模式；也可以用 `--permission-mode` 覆盖。不过上一次是 `bypassPermissions` 的会话，恢复后**不会自动回到绕过权限**，需要重新用启动参数打开；\n- **没有完成的工具调用**不会重新运行：Claude 会看到它被标记为「被中断」，并被告知先确认它有没有生效再决定要不要重做。\n\n**需要重新传的东西**：`--mcp-config`、`--settings`、`--plugin-dir`、`--fallback-model`、`--add-dir` 这类启动参数不会自动恢复，恢复时要再传一遍；`settings.json` 里的配置每次启动会重新读取，不用重传。上下文满了怎么办见 [/guides/claude-code-context-compact](/guides/claude-code-context-compact)。\n\n### 「Resume this conversation?」弹窗\n\n恢复很长的会话时，可能看到这个弹窗。官方说明：弹窗里的估算，是**这段已保存对话本身**会占用你 5 小时用量上限的比例，不包含你已经用掉的部分；在 Pro 和 Max 套餐上，隔了很久再恢复长对话、或换了模型时会出现。选择方法：\n\n- **Resume**：你接下来的任务还需要这段对话，就选它；\n- **Start a new conversation**：换了个不需要旧对话的任务，就开新的，想回去时再 `/resume`。\n\n额度的算法见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n## 三、会话列表（session picker）怎么用\n\n![会话列表里常用的快捷键](seed:g1049-session-picker-keys.png)\n*图：本站根据 [Claude Code 官方文档：Manage sessions](https://code.claude.com/docs/en/sessions) 整理的示意图*\n\n执行 `claude --resume` 或在会话里输入 `/resume`，会打开列表。官方列出的快捷键：\n\n| 按键 | 作用 |\n| --- | --- |\n| `↑` / `↓` 或 `k` / `j` | 上下移动 |\n| `→` / `←` | 展开或折叠成组的会话 |\n| `Enter` | 恢复当前选中的会话 |\n| `1` 到 `9` | 直接恢复列表中对应位置的会话 |\n| `Space` | 预览会话内容 |\n| `Ctrl+R` | 给选中的会话改名 |\n| `/` 或直接输入字符 | 进入搜索，可以粘贴 PR 链接查找 |\n| `Ctrl+A` | 显示本机所有项目的会话，再按一次返回当前仓库 |\n| `Ctrl+W` | 显示当前仓库所有 worktree 的会话（仅多 worktree 仓库显示） |\n| `Ctrl+B` | 只看当前 git 分支的会话 |\n| `Esc` | 退出列表或搜索 |\n\n每一行显示：会话名（没起名就显示自动生成的标题、摘要或第一条提示词）、距离上次活动的时间、git 分支和文件大小。\n\n**列表里找不到的几种会话**：官方说明，第一条提示词是 `/loop` 的会话，以及用 `claude -p` 或 Agent SDK 创建的会话，不会出现在列表里，也不会被 `--continue` 选中；但你仍然可以用会话 ID 恢复它们。\n\n**从别的项目选会话**：如果会话属于一个不相关的项目，Claude Code 会把 `cd` 加恢复的命令复制到剪贴板，让你到那个目录去执行。\n\n## 四、给会话起名、分支和导出\n\n**起名字**（官方列出的方式）：\n\n- 启动时：`claude -n auth-refactor`；\n- 会话中：`/rename auth-refactor`；\n- 在列表里：选中后按 `Ctrl+R`；\n- 接受 plan 模式的计划时，会按计划自动生成标题（如果你还没起名）。\n\n没起名的会话会有自动生成的标题，由后台的小模型根据第一条提示词概括；这个标题也可以拿来恢复。注意默认的显示名（形如 `my-app-3f`）**不能**用来恢复。\n\n**分支（Branch）**：想换个思路试试、又不想丢掉原来的对话，可以在会话中输入 `/branch 名字`，会复制当前对话并切换过去，原会话原样保留；命令行里用 `claude --continue --fork-session`。更多并行开发的做法见 [/guides/claude-code-worktree](/guides/claude-code-worktree)。\n\n**导出**：在会话中输入 `/export`，可以把当前对话复制到剪贴板，或保存成纯文本文件。如果要用脚本处理，官方建议用 `claude -p --output-format json` 等接口，而不是直接解析记录文件（记录格式是内部的，版本之间会变）。\n\n## 五、会话存在哪、保留多久\n\n- **默认位置**：`~/.claude/projects/<project>/<session-id>.jsonl`，其中 `<project>` 是工作目录路径，把非字母数字字符换成 `-` 后得到的名字；Windows 上 `~` 是你的用户目录；\n- **保留期**：默认 30 天，用 `settings.json` 的 `cleanupPeriodDays` 修改；\n- **移动存储位置**：环境变量 `CLAUDE_CONFIG_DIR`；\n- **不想保存**：对单次非交互运行可以用 `claude -p` 加 `--no-session-persistence`；\n- **想主动删除**：`claude purge` 可以删除某个项目的记录和相关状态。\n\n另外，官方还强调：桌面版、claude.ai/code 和 VS Code 扩展**各有各自的会话列表**；桌面版可以恢复命令行里的会话。桌面版见 [/guides/claude-code-desktop](/guides/claude-code-desktop)，VS Code 见 [/guides/claude-code-vscode](/guides/claude-code-vscode)。\n\n## 常见问题\n\n**Q：`--continue` 和 `--resume` 有什么区别？**\n`--continue` 不问，直接接上当前目录最近的一次；`--resume` 打开列表让你选。\n\n**Q：我换了个目录，`--continue` 找不到之前的会话？**\n会话按项目目录分开存放。回到原目录，或在 `--resume` 列表里按 `Ctrl+A` 看所有项目。\n\n**Q：两个终端同时恢复同一个会话会怎样？**\n官方说明：在两个终端里不分支地恢复同一个会话，两边的消息会交错写进同一份记录；想各走各的，可以用 `--fork-session` 恢复一份副本。\n\n**Q：好几天前的会话找不到了？**\n可能超过了默认 30 天的保留期，被自动清理。需要保留更久，改 `cleanupPeriodDays`。\n\n**Q：Claude Code 刚入门，从哪开始？**\n见 [/guides/claude-code-getting-started](/guides/claude-code-getting-started)，常用命令见 [/guides/claude-code-slash-commands](/guides/claude-code-slash-commands)。\n\n## 参考资料\n\n- Claude Code 官方文档：Manage sessions — https://code.claude.com/docs/en/sessions\n- Claude Code 官方文档：Common workflows（Resume previous conversations）— https://code.claude.com/docs/en/common-workflows\n- Claude Code 官方文档：CLI reference — https://code.claude.com/docs/en/cli-reference",
+      "sources": [
+        "https://code.claude.com/docs/en/sessions",
+        "https://code.claude.com/docs/en/common-workflows",
+        "https://code.claude.com/docs/en/cli-reference"
+      ],
+      "screenshots": [],
+      "verify": [
+        "命令、快捷键、存储路径（~/.claude/projects/<project>/<session-id>.jsonl）、默认 30 天保留期取自 2026-10-24 官方 Manage sessions 页；快捷键和版本号要求随版本变化",
+        "「Resume this conversation?」弹窗的说明取自官方文档，估算值是已保存对话本身占用 5 小时额度的比例",
+        "桌面版、claude.ai/code、VS Code 扩展各有自己的会话列表，本文只讲命令行版"
+      ]
+    },
+    {
       "title": "ChatGPT 临时聊天是什么：会不会保存记录、关掉还能恢复吗",
       "slug": "chatgpt-temporary-chat",
       "checkedOn": "2026-10-07",
@@ -60528,6 +60668,247 @@
       ]
     },
     {
+      "title": "Claude Code 用 Pro、Max 还是 API 划算：订阅登录和按量计费怎么选",
+      "slug": "claude-code-pro-max-or-api",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1050-code-subscription-vs-api.png",
+        "g1050-pro-limit-options.png",
+        "g1050-avoid-api-billing.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Claude Code 怎么付费划算？按官方帮助中心和文档讲清订阅登录（Pro / Max）与 Console API 按量计费的区别、额度用完的几种办法，以及设了 ANTHROPIC_API_KEY 为什么会按 API 扣费。",
+      "content": "> 本文根据 Claude 帮助中心《Using Claude Code with your Pro or Max plan》《Extra usage for paid Claude plans》《How do I pay for my API usage?》和 Claude Code 官方文档《Manage costs effectively》整理，资料核对于 2026-10-24，价格为「2026-10 查询」。图为本站整理的示意图。套餐和计费规则可能调整，**以官方页面为准**。\n\n## 适用于谁\n\n- 想用 Claude Code，在「买 Pro / Max」和「充 API 额度」之间犹豫的人；\n- 已经订阅，却发现 Claude Code 在扣 API 费用的人；\n- 在 Pro 上经常碰到限额，想知道有哪些办法的人。\n\n## 结论先说\n\n1. **两种付费方式是两套系统**：用 Claude 账号登录，Claude Code 的用量**包含在订阅里**，受 5 小时和每周限额约束；用 Claude Console 账号登录，则按 token、按标准 API 价格扣预付额度。\n2. **官方没有说哪个更划算**。官方文档只说明计费方式的差别，没有公布各套餐能发多少条消息，也没有拿订阅和 API 做价格对比。所以能做的判断是：用得少而且零散，看订阅额度够不够；用得很重，对比一下自己一个月的 API 花费和 Max 的月费。\n3. **订阅里 Claude 和 Claude Code 共用限额**：官方说，两者的活动都计入同一份 5 小时和每周限额，在 VS Code、Cursor 等 VS Code 衍生编辑器和 JetBrains 里用 Claude Code 也算在内。\n4. **一个常见的坑**：设置了环境变量 `ANTHROPIC_API_KEY`，Claude Code 会用这个 key，**盖过订阅**，改成按 API 扣费。\n5. 需要开通订阅的，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)；Claude Code 重度使用、总碰到限额的，可以看 [/chongzhi/claude-max](/chongzhi/claude-max)。\n\n![Claude Code：订阅登录和 API 计费对照](seed:g1050-code-subscription-vs-api.png)\n*图：本站根据 [Claude 帮助中心：Using Claude Code with your Pro or Max plan](https://support.claude.com/en/articles/11145838-using-claude-code-with-your-pro-or-max-plan) 与 [Claude Code 官方文档：Manage costs](https://code.claude.com/docs/en/costs) 整理的示意图*\n\n## 一、订阅登录：怎么用、受什么约束\n\n官方步骤：\n\n1. 开通 Pro 或 Max 订阅；\n2. 按快速入门安装 Claude Code；\n3. 用你登录 Claude 时的同一个账号登录。\n\n如果之前用 Console（按量计费）账号登录过，在 Claude Code 里运行 `/login` 切换到订阅账号。如果登录界面没有出现订阅登录选项，官方给的排查顺序是：`/logout` → `claude update` → 彻底重启终端 → 再运行 `claude`，选择正确的账号。入门步骤见 [/guides/claude-code-getting-started](/guides/claude-code-getting-started)。\n\n**用量约束**：Pro 和 Max 都有 **5 小时会话限额**和**每周限额**，Max 另有单独的 Fable 每周限额；快到限额时会收到提醒。官方还提到，如果在 5 小时限额用完时 Claude 正在回答，Claude Code 可能让当前这一步做完，并显示「Usage limit reached · wrapping up」；这个宽限额度很小，也计入每周限额，官方说该功能在逐步推出。各套餐的差别见 [/guides/claude-pro-vs-max-difference](/guides/claude-pro-vs-max-difference)，额度怎么看见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n## 二、Pro 额度不够用，有哪些办法\n\n![Pro 额度不够用时的 4 种办法](seed:g1050-pro-limit-options.png)\n*图：本站根据 [Claude 帮助中心：Using Claude Code with your Pro or Max plan](https://support.claude.com/en/articles/11145838-using-claude-code-with-your-pro-or-max-plan) 整理的示意图*\n\n官方列出的选项（Pro）：\n\n- **经常碰到限额**：升级到 Max 5x；Max 5x 还不够，再看 Max 20x；\n- **开启用量额度（usage credits）**：超出限额后继续用，按标准 API 价格从额度里扣。开启位置：**Settings > Usage**，在 **Usage credits** 部分点 **Enable**，设置支付方式和每月支出上限（也可以选 **Set to unlimited**），点 **Add funds** 充值（预付），可选自动充值。这些额度可用于 Claude 对话和 Claude Code；\n- **换 Console 账号买 API 额度**：适合短期集中冲刺；\n- **等限额重置**。\n\n在 Claude Code 里还可以输入 `/usage-credits` 管理用量额度：Pro 和 Max 订阅用户会被带到 claude.ai 的 **Settings > Usage** 页面，前提是你是用 claude.ai 订阅账号 `/login` 的，用 API key 认证时该命令不可用。\n\n注意：**Max 套餐每月含的 API 额度，不能用在 Claude Code 和 Claude 应用里，包括不能用来抵用量额度**，这是官方明确写的。API 额度的详情见 [/guides/claude-subscription-vs-api](/guides/claude-subscription-vs-api)。\n\n## 三、怎么避免「不小心」扣了 API 费用\n\n![想用订阅额度，先检查 4 件事](seed:g1050-avoid-api-billing.png)\n*图：本站根据 [Claude 帮助中心：Using Claude Code with your Pro or Max plan](https://support.claude.com/en/articles/11145838-using-claude-code-with-your-pro-or-max-plan) 整理的示意图*\n\n官方列出的做法：\n\n- **检查 `ANTHROPIC_API_KEY`**：它会让 Claude Code「使用这个 key，而不是你的 Claude 订阅」，Team、Enterprise 也一样；\n- **只登录订阅账号**：运行 `claude logout`，再 `claude login`，只用 Pro 或 Max 凭据登录，不要添加 Console 凭据，这样到限额时不会再提示用 API 额度；\n- **限额处出现「用 API 额度继续」的选项时，选择拒绝**；也可以等重置，用 `/status` 查看剩余额度；\n- **自动充值（auto-reload）**在 Console 的 Billing 设置里管，不在 Claude Code 里；官方提醒，选择用 API 额度后，如果 Console 开着自动充值，余额低时会自动补充。\n\n## 四、按量计费（API）是怎么扣的\n\n官方 Console 帮助说明：\n\n- 大多数组织**预付额度**（usage credits），额度用于 API、playground 和 Claude Code，按当前价格计；只对成功的调用收费；额度用完就不能再调用，直到再充值；\n- 买额度：用 Admin 或 Billing 角色登录 Console，进入 **Billing** 页，点 **Buy credits**，输入金额确认；可设置自动充值；\n- 购买的额度**自购买日起一年到期，不可延期；所有额度购买不可退款**。\n\nClaude Code 官方文档提到，按 API 计费时，费用因模型、代码库大小和使用方式差别很大；官方给的企业部署统计是约每位开发者每个活跃日 13 美元、每月 150–250 美元，90% 的用户每个活跃日低于 30 美元，这是企业部署的参考，不是个人套餐的价格，也不代表你的花费。官方提醒：`/usage` 里的美元数字是在本机按公开价格估算的，**订阅用户这个数字与账单无关**，权威账单看 Console 的 Usage 页。\n\n## 五、想少用额度，官方给的省法\n\n来自官方「Manage costs」：\n\n- 换任务时用 `/clear` 开新对话，换之前可以先 `/rename`，之后用 `/resume` 回去（见 [/guides/claude-code-resume-history](/guides/claude-code-resume-history)）；\n- 大多数编程任务 Sonnet 够用，Opus 留给复杂的架构决策和多步推理；用 `/model` 切换（见 [/guides/claude-code-switch-model](/guides/claude-code-switch-model)）；\n- 简单任务调低 effort；\n- 用 `/compact` 压缩上下文，见 [/guides/claude-code-context-compact](/guides/claude-code-context-compact)；\n- 关掉不用的 MCP 服务器，提示词写具体些，复杂任务先用 plan 模式（见 [/guides/claude-code-plan-mode](/guides/claude-code-plan-mode)）；\n- 订阅用户在 `/usage` 里能看到用量归因和建议。\n\n官方还提醒：一个开了很久的会话会比你以为的更耗额度，因为每次请求都会带上完整对话；长时间休息后的第一条消息也可能因缓存过期而重新处理全部上下文。\n\n## 常见问题\n\n**Q：我有订阅，为什么 Claude Code 在扣 API 费用？**\n先检查有没有设置 `ANTHROPIC_API_KEY`，再检查是否选择了「用 API 额度继续」，见上文第三节。\n\n**Q：Max 里附带的每月 API 额度能在 Claude Code 里用吗？**\n不能，官方明确写了不能用于 Claude Code 和 Claude 应用。\n\n**Q：Pro 和 Max 在 Claude Code 里有区别吗？**\n官方说两者都包含 Claude Code，区别在用量倍数等，见 [/guides/claude-pro-vs-max-difference](/guides/claude-pro-vs-max-difference)。\n\n## 参考资料\n\n- Claude 帮助中心：Using Claude Code with your Pro or Max plan — https://support.claude.com/en/articles/11145838-using-claude-code-with-your-pro-or-max-plan\n- Claude 帮助中心：Extra usage for paid Claude plans — https://support.claude.com/en/articles/12429409-extra-usage-for-paid-claude-plans\n- Claude 帮助中心：How do I pay for my API usage? — https://support.claude.com/en/articles/8977456-how-do-i-pay-for-my-api-usage\n- Claude Code 官方文档：Manage costs effectively — https://code.claude.com/docs/en/costs\n- Claude 官方定价页 — https://claude.com/pricing",
+      "sources": [
+        "https://support.claude.com/en/articles/11145838-using-claude-code-with-your-pro-or-max-plan",
+        "https://support.claude.com/en/articles/12429409-extra-usage-for-paid-claude-plans",
+        "https://support.claude.com/en/articles/8977456-how-do-i-pay-for-my-api-usage",
+        "https://code.claude.com/docs/en/costs",
+        "https://claude.com/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有给出「订阅和 API 哪个更便宜」的对比结论，也没有公布各套餐的具体消息条数，本文不下「哪个划算」的断言，只给判断方法",
+        "价格取自 2026-10-24 的 claude.com/pricing：Pro 月付 20 美元（年付折合每月 17 美元）、Max 从每月 100 美元起",
+        "官方 costs 页给的企业部署均价（约每位开发者每个活跃日 13 美元、每月 150–250 美元）是企业 API 部署的统计，不适用于个人订阅，文中只作参考并标明来源"
+      ]
+    },
+    {
+      "title": "Claude 订阅和 API 是两回事：Pro / Max 能不能转 API、怎么另外开通",
+      "slug": "claude-subscription-vs-api",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1051-subscription-vs-api.png",
+        "g1051-open-api-steps.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Claude 订阅能转成 API 吗？按官方帮助中心讲清：Pro、Max 订阅和 Claude Console 的 API 是两个产品、分开计费；Max / Team 每月附带的 API 额度怎么领、不能用在哪；API 额度怎么买、多久过期。",
+      "content": "> 本文根据 Claude 帮助中心《I have a paid Claude subscription… can I also use the Claude API?》《How do I pay for my API usage?》《Extra usage for paid Claude plans》和定价页整理，资料核对于 2026-10-24，价格为「2026-10 查询」。图为本站整理的示意图。**以官方页面为准**。\n\n## 适用于谁\n\n- 搜「claude 订阅 转 api」，想把 Pro / Max 订阅直接当 API 用的人；\n- 买了订阅，发现代码里调用 API 还要另外付钱的人；\n- 有 Max 或 Team，不知道「每月 API 额度」怎么用的人。\n\nAPI Key 具体怎么创建，见 [/guides/claude-api-key-console](/guides/claude-api-key-console)，本文只讲「订阅和 API 的关系」。\n\n## 结论先说\n\n1. **订阅不能转成 API**。官方的原话是「Claude API 单独计费」：Pro、Max、Team、Enterprise 是在网页、桌面、手机上使用 Claude 的套餐，Claude Console 是面向开发者的平台，两者是不同的产品，用途不同。订阅提升的是聊天体验，不覆盖 API 调用。\n2. **想两个都用，要分别开通**：官方说需要有一个付费套餐，并且「单独设置 Console 访问」。\n3. **Max 和 Team 附带每月 API 额度**：按官方定价页，Max 每月 100 到 200 美元（对应 5x、20x 两档），Team 最多每月 500 美元；Pro 没有。\n4. **这份额度不能反着用**：官方明确，每月 API 额度不能用在 Claude Code 和 Claude 应用里，包括不能用来抵用量额度（usage credits）。\n5. 想开通 Claude 订阅，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro) 或 [/chongzhi/claude-max](/chongzhi/claude-max)。\n\n![Claude 订阅和 Claude API 的区别](seed:g1051-subscription-vs-api.png)\n*图：本站根据 [Claude 帮助中心](https://support.claude.com/en/articles/9876003-i-have-a-paid-claude-subscription-pro-max-team-can-i-also-use-the-claude-api) 与 [定价页](https://claude.com/pricing) 整理的示意图*\n\n## 一、两个产品分别是什么\n\n官方说明：\n\n- **付费套餐**（Pro、Max、Team、Enterprise）：在 Claude 网页、桌面和手机应用里使用，带来更高用量、高峰期优先访问等；\n- **Claude Console**：Anthropic 的开发者平台，提供 API Key 和对 Claude 模型的访问，用来做应用和集成。\n\n所以「买了 Max，能不能拿订阅去调 API」的答案是：不能直接用。订阅里的消息额度和 API 的 token 额度是两套账。反过来，你也没法用 API 额度去「充订阅」。如果你只是想在 Claude Code 里省钱或补额度，有专门的办法，见 [/guides/claude-code-pro-max-or-api](/guides/claude-code-pro-max-or-api)。\n\n## 二、Max / Team 的每月 API 额度\n\n官方说明：\n\n- Max 和 Team 套餐包含**每月的 Claude API 额度**，需要**把一个 Console 组织关联到你的套餐**才能领取；\n- 每月额度会**先于你购买的额度**被使用；\n- **没用完的每月额度在当前计费周期结束时作废**；\n- 不能用于 Claude Code 和 Claude 应用，包括不能用于用量额度；\n- 如果你的组织走销售开票，超出额度的部分按正常计费。\n\n金额按定价页（2026-10 查询）：Max 5x 每月 100 美元、Max 20x 每月 200 美元，Team 最多每月 500 美元；Pro 不含。具体领取的页面和细则，官方在专门的文章里说明，以官方当天页面为准。Pro 和 Max 的完整对照见 [/guides/claude-pro-vs-max-difference](/guides/claude-pro-vs-max-difference)。\n\n## 三、API 的钱怎么付\n\n![既要聊天又要 API，怎么开通](seed:g1051-open-api-steps.png)\n*图：本站根据 [Claude 帮助中心：How do I pay for my API usage?](https://support.claude.com/en/articles/8977456-how-do-i-pay-for-my-api-usage) 整理的示意图*\n\n官方 Console 付款说明：\n\n- **预付额度**：大多数组织预先购买 usage credits，用于 API、playground 和 Claude Code（Console 登录时），按当前价格计；只对成功的请求收费；额度用完就不能再调用；\n- **买额度**：用 **Admin** 或 **Billing** 角色登录 Console，进入 **Billing** 页，点 **Buy credits**，输入金额确认，额度立即到账；\n- **自动充值**：在 Billing 页的 **Credit balance** 部分点 **Set up auto-reload**，设置「When credit balance reaches」（触发余额）和「Bring credit balance back up to」（目标余额）；\n- **到期与退款**：购买的额度自购买日起**一年到期**，不能延期；**所有额度购买不可退款**；\n- **月度开票**：与 Anthropic 销售签了开票协议的组织，按月收到 Stripe 发票；\n- **支付方式**：官方文章写的是信用卡，发票走 Stripe，没有列出其他方式。\n\nAPI 价格按模型不同，见官方定价页，模型的价格对照见 [/guides/claude-opus-5-5-guide](/guides/claude-opus-5-5-guide) 与 [/guides/claude-sonnet-5-5-guide](/guides/claude-sonnet-5-5-guide)；提示词缓存能降低成本，见 [/guides/claude-prompt-caching](/guides/claude-prompt-caching)；Python 调用入门见 [/guides/claude-api-python-quickstart](/guides/claude-api-python-quickstart)。\n\n## 四、订阅里的「用量额度」不是 API\n\n名字相近容易混淆：订阅用户可以开启**用量额度（usage credits）**，在达到 5 小时、每周限额后继续使用，按标准 API 价格从额度里扣；它在 **Settings > Usage** 里开启，只能用在 Claude 对话和 Claude Code，**不是 API Key 的额度**。官方说它与 Max / Team 的每月 API 额度也是分开的两件事。如果你是通过 iOS 或 Android 应用订阅的，官方说要在 Claude 网页版上启用并购买用量额度。额度的规则见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n## 常见问题\n\n**Q：Pro 能直接拿到 API Key 吗？**\n不能。官方说 Pro 不含 API 用量，要同时用，需要在 Claude Console 另外开通并单独付费。\n\n**Q：为什么买了 Max 还要付 API 费？**\nMax 每月附带的 API 额度有上限，超出部分按 API 价格计费，且用不完当月作废。\n\n**Q：Console 账号和 Claude 账号能共用吗？**\n官方帮助文章没有写明，注册和登录以官方页面提示为准。注册方面的说明见 [/guides/claude-how-to-sign-up](/guides/claude-how-to-sign-up)。\n\n**Q：API 额度买多了能退吗？**\n官方说所有额度购买不可退款，一年后到期。\n\n## 参考资料\n\n- Claude 帮助中心：I have a paid Claude subscription (Pro, Max, Team), can I also use the Claude API? — https://support.claude.com/en/articles/9876003-i-have-a-paid-claude-subscription-pro-max-team-can-i-also-use-the-claude-api\n- Claude 帮助中心：How do I pay for my API usage? — https://support.claude.com/en/articles/8977456-how-do-i-pay-for-my-api-usage\n- Claude 帮助中心：Extra usage for paid Claude plans — https://support.claude.com/en/articles/12429409-extra-usage-for-paid-claude-plans\n- Claude 官方定价页 — https://claude.com/pricing",
+      "sources": [
+        "https://support.claude.com/en/articles/9876003-i-have-a-paid-claude-subscription-pro-max-team-can-i-also-use-the-claude-api",
+        "https://support.claude.com/en/articles/8977456-how-do-i-pay-for-my-api-usage",
+        "https://support.claude.com/en/articles/12429409-extra-usage-for-paid-claude-plans",
+        "https://claude.com/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "「API 单独计费」「Max 与 Team 含每月 API 额度」「该额度不能用于 Claude Code 和 Claude 应用」取自 2026-10-24 的官方帮助中心；金额（Max 每月 100 / 200 美元，Team 最多 500 美元）取自 claude.com/pricing，随时可能调整",
+        "官方帮助文章没有写 Console 账号和 Claude 账号是否共用登录，文中不下结论，以官方注册页面为准",
+        "额度一年到期、不可退款取自官方 Console 付款帮助文；各地区的税费和支付方式官方未在该文展开"
+      ]
+    },
+    {
+      "title": "Claude 支持哪些国家和地区：官方名单、香港和台湾在不在、「不支持」指什么",
+      "slug": "claude-supported-countries-regions",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1052-region-list-highlights.png",
+        "g1052-unsupported-cases.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 支持哪些国家和地区？按 Anthropic 官方 Supported Regions Policy 核对：中国大陆、香港、澳门不在名单里，台湾在；官方说的「不支持」包括所在地、机构注册地和控股方三种情形；名单变化时去哪看最新版本。",
+      "content": "> 本文根据 Anthropic 官方《Supported Regions Policy》（anthropic.com/supported-countries）与帮助中心《Where can I access Claude?》整理，资料核对于 2026-10-24。名单会更新，**请以官方页面为准**；本文只引用官方名单，不涉及也不建议任何绕过地区限制的做法。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「claude 为什么不支持中国」「claude 能在香港用吗」，想先弄清官方规则的人；\n- 想知道自己所在地区、或公司注册地是否在官方名单里的人；\n- 登录或注册时被提示「不可用」，想核对官方依据的人。\n\n登录、注册遇到问题时的逐条排查，见 [/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use) 和 [/guides/claude-how-to-sign-up](/guides/claude-how-to-sign-up)。\n\n## 结论先说\n\n1. **官方的规则是「名单制」**：官方页面写明，**没有列出的地区一律不支持**。判断你能不能用，看名单，而不是看某个网站打得开打不开。\n2. **2026-10-24 核对的名单里**：中国大陆、香港、澳门**没有**列出；台湾（Taiwan）**列出**。新加坡、日本、韩国、马来西亚、泰国、越南、美国、英国、加拿大、澳大利亚等也在名单里。名单一共列有一百多个国家和地区（官方页面按字母顺序从 Albania 排到 Zimbabwe）。\n3. **覆盖范围很广**：官方说明这份政策适用于 Anthropic 自家的应用（Claude.ai、Claude Code、Cowork）、API 和开发者平台，以及通过云平台和授权经销商提供的 Claude 模型。\n4. **「不支持」不只是看人在哪**：官方还把「机构注册地 / 总部所在地」和「谁控股」纳入了规则，见下文第二节。\n5. **名单会变，也有生效日期**：官方页面在 2026-10-24 显示的生效日期是 2026-11-12，具体哪些内容是新增、哪些是沿用，以官方页面的说明为准。我们建议用到时再查一次。\n\n![几个常被问到的地区：在不在官方名单](seed:g1052-region-list-highlights.png)\n*图：本站根据 [Anthropic Supported Regions Policy](https://www.anthropic.com/supported-countries) 整理的示意图（只摘部分地区，完整名单见官方页面）*\n\n## 一、官方名单怎么看\n\n官方名单页的做法是：把支持的国家和地区按英文字母顺序列出来，没有列在里面的，就是不支持。名单里还有一条通则：**某个受支持国家的属地和附属领土也一并支持**，官方举的例子是美国的波多黎各。名单里也有个别带限定条件的条目，例如乌克兰，官方写明克里米亚以及顿涅茨克、赫尔松、卢甘斯克、扎波罗热地区除外。\n\n帮助中心的《Where can I access Claude?》也有一份列表，2026-10-24 抓取到的内容同样是按字母顺序列出的国家和地区，没有额外说明。要核对自己的地区，最稳的办法是**打开官方名单页，在页面里搜索你所在国家或地区的英文名**。\n\n以下是中文读者常问到的几项，来自上述名单（2026-10 查询）：\n\n| 地区 | 是否在名单里 |\n| --- | --- |\n| 中国大陆 | 不在 |\n| 香港 | 不在 |\n| 澳门 | 不在 |\n| 台湾 | 在 |\n| 新加坡、日本、韩国 | 在 |\n| 马来西亚、泰国、越南 | 在 |\n| 美国、英国、加拿大、澳大利亚 | 在 |\n\n## 二、官方说的「不支持」，包括哪几种情况\n\n![官方说「不支持」，指的是哪几种情况](seed:g1052-unsupported-cases.png)\n*图：本站根据 [Anthropic Supported Regions Policy](https://www.anthropic.com/supported-countries) 整理的示意图*\n\n官方页面对名单之外的地区，写了三类情形，都属于不支持：\n\n1. **人当时在名单外的地区**：包括原本属于受支持机构的用户和人员，只要使用时人在不支持的地区，就属于不支持；\n2. **机构的注册地或总部在名单外**：这类机构及其用户、人员不受支持，**即使这些人身处名单内的地区**；\n3. **机构由名单外地区的主体多数持股或控制**：不管是直接还是间接，同样不支持，其用户和人员也一样，即使人身处名单内的地区。\n\n所以对个人来说，第一类最直接；对公司、团队来说，第二、三类同样重要：公司注册在哪里、由谁控股，也会影响能不能使用，而不仅仅是员工当时坐在哪个城市。官方对这些条文的具体适用方式没有在页面里展开，如果你的情况比较特殊（比如跨境团队、控股结构复杂），应该直接向官方确认，而不是自己判断。\n\n## 三、如果我所在的地区不在名单里\n\n本文不提供、也不建议任何绕过地区限制的办法。官方的立场很明确：名单外的地区不能使用，创建账号时就会被拦住（注册要求见 [/guides/claude-how-to-sign-up](/guides/claude-how-to-sign-up)）。合规的选择包括：\n\n- 以官方名单为准，确认自己所在地区的情况；\n- 如果是机构使用，向 Anthropic 官方或授权经销商咨询；\n- 在名单内的地区生活、工作时，用官方支持的方式注册和使用；\n- 如果只是想了解 AI 工具，也可以看看其他模型的本站教程，例如 [/guides/chatgpt-vs-claude](/guides/chatgpt-vs-claude) 里的对比。\n\n## 常见问题\n\n**Q：香港能用 Claude 吗？**\n按 2026-10-24 核对的官方名单，香港没有列出，属于不支持的地区。名单可能变化，请看官方页面。\n\n**Q：台湾能用吗？**\n台湾（Taiwan）在 2026-10-24 的官方名单里。\n\n**Q：名单里有，但网页提示不可用怎么办？**\n先看 [/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use) 的排查步骤。官方帮助中心也写明了账号被停用的申诉渠道，见 [/guides/claude-account-disabled-appeal](/guides/claude-account-disabled-appeal)。\n\n**Q：名单多久更新一次？**\n官方没有给出固定频率，页面上写有生效日期，用到时去看一眼最稳妥。\n\n**Q：Claude Code、API 也受这个名单限制吗？**\n官方说明政策覆盖 Claude.ai、Claude Code、Cowork、API 和开发者平台，以及云平台和授权经销商提供的 Claude 模型。\n\n**Q：想开通 Claude 会员，需要注意什么？**\n先确认自己所在地区在官方名单里。符合条件、需要开通的，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 参考资料\n\n- Anthropic：Supported Regions Policy — https://www.anthropic.com/supported-countries\n- Claude 帮助中心：Where can I access Claude? — https://support.claude.com/en/articles/8461763-where-can-i-access-claude",
+      "sources": [
+        "https://www.anthropic.com/supported-countries",
+        "https://support.claude.com/en/articles/8461763-where-can-i-access-claude"
+      ],
+      "screenshots": [],
+      "verify": [
+        "2026-10-24 核对的官方名单里，中国大陆、香港、澳门没有列出，Taiwan 列出；官方页面标注的生效日期是 2026-11-12，而本站 10-19 的另两篇文章核对的是当时的版本，名单随时可能调整，务必以官方页面为准",
+        "帮助中心《Where can I access Claude》页在 2026-10-24 抓取时，只返回国家列表，没有写到旅行、账号处理等细节，本文不对这些作推断",
+        "本文只列官方名单和官方对「不支持」的定义，不写任何绕过办法"
+      ]
+    },
+    {
+      "title": "Claude 能生成图片吗：官方说不生成照片和插画，但能做图表和交互式图示",
+      "slug": "claude-image-generation",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1053-claude-and-images.png",
+        "g1053-enable-file-creation.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 能生成图片吗？官方帮助中心明确写：Claude 不像生图工具那样生成照片和插画；但能做对话里的图表和交互式图示、PNG 数据图表、SVG 和 Mermaid 图，Claude Design 能做原型和幻灯片。附开启步骤。",
+      "content": "> 本文根据 Claude 帮助中心《Create and edit files with Claude》、Claude Design 产品页、开发者文档 Models overview 整理，资料核对于 2026-10-24。图为本站整理的示意图。功能更新很快，**以官方页面为准**。\n\n## 适用于谁\n\n- 搜「claude 能生成图片吗」「claude 能生图吗」的人；\n- 想让 Claude 画图表、流程图、示意图，不知道能做到什么程度的人；\n- 想知道 Claude 和能直接出图的工具差在哪里的人。\n\n## 结论先说\n\n1. **官方帮助中心明确写了：Claude 不像生图工具那样生成照片或插画。** 官方《Can Claude produce images?》的原意是：Claude 不会像图像生成工具一样生成照片和插画。所以「一句话生成一张照片」不是它的功能。\n2. **Claude 能做的「图」有这几类**（官方写明的）：在对话里用 HTML 和 SVG 做**图表、示意图和交互式图示**（官方标注目前是网页版和桌面版的 beta）；把数据画成**图表并保存为 PNG 文件**；作为 Artifact 生成 **SVG 矢量图**和 **Mermaid 图表**；在 **Claude Design** 里做原型、一页纸、幻灯片。\n3. **看图是另一回事**：官方说所有当前模型都支持**图片输入、文字输出**，帮助中心也写明 Claude 可以查看和分析你上传的图片，也就是能看懂图片、截图、图表，再用文字回答。\n4. 想要真正的「文字生图」，需要别的工具；对比和选择见 [/guides/chatgpt-vs-claude](/guides/chatgpt-vs-claude)。Claude 更适合的是文字、代码、文档、数据分析，选模型见 [/guides/claude-models-compare](/guides/claude-models-compare)。\n5. 想用到文件创建和更高用量，可以看 [/chongzhi/claude-pro](/chongzhi/claude-pro)；免费版也能开启文件创建。\n\n![Claude 和「图片」：能做什么、不能做什么](seed:g1053-claude-and-images.png)\n*图：本站根据 [Claude 帮助中心：Create and edit files with Claude](https://support.claude.com/en/articles/12111783-create-and-edit-files-with-claude) 与 [Claude Design 产品页](https://claude.com/product/claude-design) 整理的示意图*\n\n## 一、官方写明 Claude 能产出什么\n\n官方《Can Claude produce images?》说得很直接：Claude 能在对话里直接构建图表、示意图和交互式图示来帮助你理解，这些用 HTML 和 SVG 做成，你可以互动、追问和要求修改；这项功能目前在网页版和桌面版是 beta，详细见官方《Custom visuals in chat》。而「像生图工具那样生成照片和插画」，官方明确说不是它做的事。\n\n再按帮助中心《Create and edit files with Claude》：\n\n- **Office 和文档**：Excel（.xlsx）、PowerPoint（.pptx）、Word（.docx）和 PDF；\n- **图片文件**：官方描述的图片输出只有一种——**数据可视化，保存为 PNG**；\n- **脚本**：数据分析用的 Python 脚本；\n- **Artifact**：开启文件创建后，Claude 仍然可以生成 HTML 或 React 应用、Markdown 文档、**Mermaid 图表和 SVG**；\n- 上传和下载的单个文件上限为 30MB。\n\n另外，官方说明 Claude 可以在 Excel 模型、报告里加入图表，也能「产出带图表和可视化的报告」。数据分析的完整流程见 [/guides/claude-data-analysis-csv](/guides/claude-data-analysis-csv)；Artifacts 的用法见 [/guides/claude-artifacts](/guides/claude-artifacts)；PPT 见 [/guides/claude-make-ppt-slides](/guides/claude-make-ppt-slides)。\n\n## 二、怎么打开文件创建功能\n\n![打开 Claude 的文件创建功能](seed:g1053-enable-file-creation.png)\n*图：本站根据 [Claude 帮助中心：Create and edit files with Claude](https://support.claude.com/en/articles/12111783-create-and-edit-files-with-claude) 整理的示意图*\n\n官方步骤（网页版、桌面版，Free、Pro、Max）：\n\n1. 进入 **Settings > Capabilities**；\n2. 打开 **Code execution and file creation**，新版设置里这一项叫 **Create and edit files**；\n3. 如果要让 Claude 访问外部数据源，再打开 **Allow network egress**。\n\n手机端：点左侧栏的名字或首字母，选 **Settings**，再选 **Capabilities**，同样切换 **Code execution and file creation**。Team 和 Enterprise 由组织管理员在 **Organization settings > Capabilities** 里统一开关，其中 Team 默认只允许包管理器网络访问，Enterprise 默认关闭网络出口。\n\n开启后，直接对 Claude 说「把这份数据画成折线图」，生成的图表会以 PNG 文件形式给你。具体提示怎么写，可参考 [/guides/claude-how-to-use-beginner](/guides/claude-how-to-use-beginner)。\n\n## 三、Claude Design：做原型和排版，不是「AI 绘画」\n\n官方 Claude Design 产品页的描述是：你描述一个视觉想法，Claude 做出第一版，然后你可以继续修改、分享或交给其他工具。它可以做：\n\n- 一页纸和界面原型，例如把一份提案变成一页纸，或者在写工单之前先画出流程；\n- 可点击的原型，让团队评审；\n- 幻灯片和文档，可导出 PPTX、PDF、HTML；\n- 仪表盘（Dashboards，付费套餐的 beta）。\n\n官方写明 Claude Design、Slides、Docs 在**所有套餐（含免费版）**中包含，Artifact 的使用计入套餐用量限制，做整套幻灯片这类大请求会消耗更多。入口是 claude.ai/artifacts 或 **Start designing** 按钮，独立站点 claude.ai/design 保留到 2026-12-14；在 Claude Code 里可以让 Claude 创建设计，或用 `/design` 命令。\n\n产品页对「接素材」的描述是：通过连接器和 Canva、Adobe Express 等工具配合。这是**连接外部工具来做图**，页面没有说这是 Claude 自己生成图片。连接器的用法见 [/guides/claude-connectors](/guides/claude-connectors)。\n\n## 四、让 Claude 看图：这个能力是明确的\n\n官方 Models overview 写明，所有当前模型都支持文字和图片输入、文字输出，具备视觉能力。你可以上传截图、照片、图表让它描述、解释、提取数据或指出问题。上传文件的格式和大小限制见 [/guides/claude-file-upload-limits](/guides/claude-file-upload-limits)。\n\n## 常见问题\n\n**Q：为什么有人说 Claude 能生图？**\n可能指的是它能生成 SVG、图表、交互式图示或设计稿，这些是官方写明的；但官方帮助中心明确说它不像生图工具那样生成照片和插画。\n\n**Q：SVG 能当图片用吗？**\n可以。SVG 是矢量图，官方把 SVG 列在 Claude 能生成的 Artifact 里，具体用法见 [/guides/claude-artifacts](/guides/claude-artifacts)。\n\n**Q：免费版能画图表吗？**\n官方说明文件创建功能在 Free、Pro、Max 上都能开启。\n\n**Q：能让 Claude 编辑我上传的图片吗？**\n官方文章写的是 Claude 能查看和分析图片、也能创建 PNG 图表，没有写它能对已有照片做修图。\n\n## 参考资料\n\n- Claude 帮助中心：Can Claude produce images? — https://support.claude.com/en/articles/9002504-can-claude-produce-images\n- Claude 帮助中心：Create and edit files with Claude — https://support.claude.com/en/articles/12111783-create-and-edit-files-with-claude\n- Claude Design 产品页 — https://claude.com/product/claude-design\n- Claude 官方 Models overview — https://platform.claude.com/docs/en/models/overview\n- Claude 官方定价页 — https://claude.com/pricing",
+      "sources": [
+        "https://support.claude.com/en/articles/9002504-can-claude-produce-images",
+        "https://support.claude.com/en/articles/12111783-create-and-edit-files-with-claude",
+        "https://claude.com/product/claude-design",
+        "https://platform.claude.com/docs/en/models/overview",
+        "https://claude.com/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "「不生成照片和插画」取自 2026-10-24 官方帮助中心《Can Claude produce images?》的原意（Claude 不像生图工具那样生成照片或插画）；对话里的图表和交互式图示目前是网页版和桌面版的 beta，功能出现变化时需更新",
+        "「所有当前模型支持图片输入、文字输出」取自官方 Models overview",
+        "Claude Design 在所有套餐（含免费版）包含、standalone 站点 claude.ai/design 保留到 2026-12-14，取自产品页；Enterprise 的默认开关日期等细节本文不展开"
+      ]
+    },
+    {
+      "title": "Claude 怎么取消订阅、能退款吗：网页、iOS、Android 取消步骤和退款规则",
+      "slug": "claude-cancel-subscription-refund",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1055-cancel-by-platform.png",
+        "g1055-refund-cases.png",
+        "g1055-refund-request-steps.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Claude Pro / Max 怎么取消订阅？按官方帮助中心讲清网页、iOS、Android 的取消入口，取消什么时候生效，能不能退款（欧洲经济区和英国 14 天、苹果和 Google Play 的特殊规则），以及怎么提交退款申请。",
+      "content": "> 本文根据 Claude 帮助中心《Cancel your Pro or Max subscription》《Request a refund for a paid Claude plan》《Paid plan billing FAQs》整理，资料核对于 2026-10-24。界面名称以官方英文界面为准。图为本站整理的示意图。**规则以官方页面和你下单时显示的为准**。\n\n## 适用于谁\n\n- 想取消 Claude Pro 或 Max 自动续费的人；\n- 不确定是在网页、苹果还是 Google Play 订的，不知道去哪取消的人；\n- 想知道扣了款能不能退、怎么申请的人。\n\n## 结论先说\n\n1. **在哪个平台订的，就在哪个平台取消**：网页（claude.ai 和桌面版）在 Settings > Billing 里取消；iOS 和 Android 应用在 Billing > Manage subscription 里。\n2. **取消不会立刻停用**：官方说取消在**当前计费周期结束时**生效，到期前你仍然可以使用付费套餐。想避免下一期扣款，官方建议**在下次扣费日前至少 24 小时**取消。\n3. **退款不是默认的**：官方总则是所有付款不可退款，除非用户条款规定可退，或法律要求。欧洲经济区和英国的用户购买后 **14 天内**可以申请退款，按已用量折算；其他地区官方没有写通用期限，需要通过退款申请流程判断。\n4. **通过苹果订阅的，要找苹果退款**，Claude 客服无法处理 App Store 的扣款。\n5. 不确定要不要继续订，可以先看 [/guides/claude-pro-vs-max-difference](/guides/claude-pro-vs-max-difference) 和 [/guides/claude-usage-limits](/guides/claude-usage-limits)；以后需要再订，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n![Claude 订阅在哪个平台买，就在哪个平台取消](seed:g1055-cancel-by-platform.png)\n*图：本站根据 [Claude 帮助中心：Cancel your Pro or Max subscription](https://support.claude.com/en/articles/8325617-cancel-your-pro-or-max-subscription) 整理的示意图*\n\n## 一、取消订阅的步骤\n\n**网页（claude.ai）和桌面版**：\n\n1. 在浏览器登录，或打开桌面版；\n2. 点左下角的头像或名字；\n3. 选 **Settings**；\n4. 进入 **Settings > Billing**；\n5. 点 **Cancel** 按钮。\n\n**iOS**：打开 Claude 应用，点右上角头像 → 选 **Billing** → 选 **Manage subscription**，按提示取消。如果已经删除了应用，用苹果官方的订阅管理方式取消。\n\n**Android**：打开 Claude 应用，点右上角头像 → **Billing** → **Manage subscription**，按提示取消。如果已经删除了应用，用 Google Play 的订阅管理方式取消。\n\n不确定自己是哪个渠道订的：回忆一下是在网页付款，还是在应用里用苹果或 Google 账号付款。官方《Paid plan billing FAQs》说明，网页订阅只接受信用卡或借记卡，应用订阅则用苹果或 Google 提供的支付方式。手机端订阅的更多管理说明见 [/guides/claude-mobile-app](/guides/claude-mobile-app)。\n\n## 二、取消之后会怎样\n\n官方文章写明的几点：\n\n- 套餐保留到当前计费周期结束；\n- Max 和 Team 附带的**每月 API 额度**不是购买来的，所以不能退款，到每个计费周期结束时作废；取消或退款之后，**新的每月额度不再发放**，已有额度在到期前仍可使用；API 额度的关系见 [/guides/claude-subscription-vs-api](/guides/claude-subscription-vs-api)。\n\n官方这篇文章**没有写**的：取消之后你的对话数据会怎么处理、之后怎么重新订阅、年付套餐有没有特殊的取消和退款条款。需要确认的，直接查官方帮助中心或联系官方客服，不要自己猜。如果想导出对话，见 [/guides/claude-export-chat-data](/guides/claude-export-chat-data)。\n\n## 三、能不能退款\n\n![想退款，先看你属于哪种情况](seed:g1055-refund-cases.png)\n*图：本站根据 [Claude 帮助中心：Request a refund for a paid Claude plan](https://support.claude.com/en/articles/12386328-request-a-refund-for-a-paid-claude-plan) 整理的示意图*\n\n官方《Request a refund for a paid Claude plan》的要点：\n\n- **总则**：所有付款不可退款，除非用户条款规定可退，或法律要求退款；\n- **欧洲经济区和英国**：购买后 14 天内可以申请退款，选项可能出现在 Settings 里，退款按已用量折算；\n- **其他地区**：官方没有写通用的退款期限，通过退款申请流程检查资格；\n- **从 Pro / Max 升级到 Team**：按未使用的计费期间自动按比例退款，不需要申请，一般在 Team 付款约 24 小时后发出，银行入账可能再多几个工作日；\n- **银行拒付**：已经向银行发起拒付的，在拒付处理期间客服无法退款，要么继续和银行处理，要么撤回拒付后让客服处理。\n\n**苹果（iOS）**：由苹果收款，Claude 客服无法查看和退款。官方给的办法是：用购买时的苹果账号登录 reportaproblem.apple.com → 选「I'd like to」→「Request a refund」→ 选原因 → 选你的 Claude 订阅 → 提交。是否退款由苹果决定。**申请退款不等于取消订阅**，要另外取消，否则还会继续扣款。\n\n**Google Play（Android）**：订阅仍有效时，联系客服由客服核对资格，第一条消息里写清细节；订阅已失效时，用 Google Play 绑定的邮箱或 GPA 订单号（在 Google Play 收据上，形如 GPA.xxxx-xxxx-xxxx-xxxxx）联系客服。退款可能要几天才到账。\n\n**打不开账号**：官方说可以用另一个邮箱联系客服，抄送与那个无法访问的账号相关联的邮箱，要求取消付费套餐并申请退款。\n\n## 四、网页订阅怎么提交退款申请\n\n![网页订阅申请退款的步骤](seed:g1055-refund-request-steps.png)\n*图：本站根据 [Claude 帮助中心：Request a refund for a paid Claude plan](https://support.claude.com/en/articles/12386328-request-a-refund-for-a-paid-claude-plan) 整理的示意图*\n\n1. 登录后点左下角的头像或名字；\n2. 选 **Get help**，打开右侧的消息窗口；\n3. 点 **Send us a message**；\n4. 点 **Accept**，然后选择 **Claude Refund Request**；\n5. 选择退款原因；\n6. 按提示检查是否符合条件；\n7. 符合条件的话，在窗口里继续，取消套餐并办理退款。\n\n## 常见问题\n\n**Q：我取消了，为什么还能用？**\n正常。取消在当前计费周期结束时才生效，期间套餐仍然有效。\n\n**Q：取消之后还会扣款吗？**\n官方建议在下次扣费日前至少 24 小时取消，才能避免下一期扣款。\n\n**Q：账号被封了能退款吗？**\n这是另一类情况，见 [/guides/claude-account-disabled-appeal](/guides/claude-account-disabled-appeal)。\n\n**Q：发票在哪下载？**\n见 [/guides/claude-invoice-receipt-download](/guides/claude-invoice-receipt-download)。\n\n**Q：账单日可以改吗？**\n官方《Paid plan billing FAQs》说不能直接改；可以取消当前订阅后，在你想要的日期重新订阅，开始新的月度周期。\n\n**Q：付了款账号却显示免费版？**\n官方建议先检查是否用了别的邮箱登录，再检查是否因付款失败被降级：看 Settings > Billing 里的付款状态，必要时更新付款方式。\n\n## 参考资料\n\n- Claude 帮助中心：Cancel your Pro or Max subscription — https://support.claude.com/en/articles/8325617-cancel-your-pro-or-max-subscription\n- Claude 帮助中心：Request a refund for a paid Claude plan — https://support.claude.com/en/articles/12386328-request-a-refund-for-a-paid-claude-plan\n- Claude 帮助中心：Paid plan billing FAQs — https://support.claude.com/en/articles/8325618-paid-plan-billing-faqs",
+      "sources": [
+        "https://support.claude.com/en/articles/8325617-cancel-your-pro-or-max-subscription",
+        "https://support.claude.com/en/articles/12386328-request-a-refund-for-a-paid-claude-plan",
+        "https://support.claude.com/en/articles/8325618-paid-plan-billing-faqs"
+      ],
+      "screenshots": [],
+      "verify": [
+        "取消步骤、「周期结束时生效」「下次扣费前至少 24 小时取消」取自 2026-10-24 官方《Cancel your Pro or Max subscription》；该文没有写取消后数据怎么处理、怎么重新订阅、年付的特殊条款，本文也不写",
+        "退款规则取自官方《Request a refund for a paid Claude plan》：总则是付款不可退，除非用户条款规定或法律要求；欧洲经济区和英国 14 天按用量折算；其他地区官方没有写通用期限",
+        "苹果、Google Play 的退款渠道取自同一篇官方文章；各平台的处理时间以平台为准"
+      ]
+    },
+    {
+      "title": "Claude 发票和收据在哪下载：Settings 里的 Invoices、邮件收据和公司抬头",
+      "slug": "claude-invoice-receipt-download",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1056-find-invoice-steps.png",
+        "g1056-invoice-fix-check.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Claude Pro / Max 的发票和收据在哪找？按官方帮助中心讲清：邮箱里的「Your receipt from Anthropic」、Settings > Billing 里的 Invoices、升级和用量额度各有什么发票，以及怎么改公司名、加税号，苹果和 Google 订阅去哪找。",
+      "content": "> 本文根据 Claude 帮助中心《Understanding your Pro or Max plan invoices》《Paid plan billing FAQs》整理，资料核对于 2026-10-24。适用于**网页订阅**的 Pro 和 Max。图为本站整理的示意图。**以官方页面为准**。\n\n## 适用于谁\n\n- 需要报销、对账，想找 Claude 付款凭证的人；\n- 收到「Your receipt from Anthropic」邮件，不知道是什么的人；\n- 想在发票上写公司名、加税号的人。\n\n## 结论先说\n\n1. **两个地方能找到**：一是邮箱，每次扣款后会发到账单邮箱，标题是「Your receipt from Anthropic」；二是 claude.ai 的 **Settings > Billing**，在 **Invoices** 部分点对应发票旁边的 **View**。\n2. **手机订阅不在这里**：通过 iOS 或 Android 应用订阅的，Anthropic 不开发票，由苹果 App Store 或 Google Play 收费，收据在你的应用商店账号里。\n3. **已开出的发票不能改**：官方说已经完成的发票不能编辑，也不会重新开具；账单信息改了只对**之后**的发票生效。\n4. **想写公司名**：添加或更新付款方式时，勾选 **Use a different name on invoices**。\n5. 取消和退款见 [/guides/claude-cancel-subscription-refund](/guides/claude-cancel-subscription-refund)；订阅可以看 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n![在哪里找 Claude 的发票和收据](seed:g1056-find-invoice-steps.png)\n*图：本站根据 [Claude 帮助中心：Paid plan billing FAQs](https://support.claude.com/en/articles/8325618-paid-plan-billing-faqs) 整理的示意图*\n\n## 一、找发票的步骤\n\n**方法一：邮箱**。每次扣款后，Anthropic 会把发票发到你的账单邮箱。在邮箱里搜索标题 **Your receipt from Anthropic** 即可。如果搜不到，检查垃圾邮件，并确认账单邮箱是不是你以为的那个。\n\n**方法二：账号里**。登录 claude.ai，进入 **Settings > Billing**（网址是 claude.ai/settings/billing），找到 **Invoices** 部分，点你要看的发票旁边的 **View**。官方没有写单独的下载按钮，需要保存时用浏览器自己的保存或打印功能即可。\n\n**手机订阅**：iOS 或 Android 订阅的发票和收据在苹果或 Google 的账号里，见 [/guides/claude-mobile-app](/guides/claude-mobile-app)。\n\n## 二、你会收到哪几种发票\n\n官方把它们分成三类：\n\n- **订阅发票**：每次续费（按月或按年）开一张，直到你取消；\n- **套餐变更发票**：中途升级时开，账单周期会重置，升级后立刻开发票，而不是等下次续费；\n- **用量额度收据**：每次购买用量额度（包括自动充值和额度包）各开一张，和订阅分开。所以同一个月里你可能收到**两张**：一张是套餐，一张是额度。用量额度见 [/guides/claude-code-pro-max-or-api](/guides/claude-code-pro-max-or-api)。\n\n官方文章用「invoice」称订阅和变更的扣款，用「receipt」称额度购买，但邮件标题统一写 receipt，官方没有正式区分两者，可以当作基本通用。\n\n## 三、发票上有什么\n\n- **按比例的费用**：中途升级时，收取新套餐一个完整周期的费用，减去旧套餐未使用部分的折算；下次续费收全价；\n- **账户余额**：如果新套餐一个周期的费用低于旧套餐未用完的价值，差额存为账户余额，之后自动抵扣；\n- **税**：按账单地址计算，账单地址来自付款方式里的地址；\n- **应付金额**：发票总额减去已抵扣的余额，就是你的付款方式被扣的金额；\n- **姓名和地址**：取自开票当时的付款方式。\n\nMax 和 Team 的每月 API 额度**不会出现**在套餐发票上，可以在 Claude Console 的 Settings > Billing（platform.claude.com/settings/billing）里看金额和到期日；API 用量不会记到你的 Claude 套餐上。关系见 [/guides/claude-subscription-vs-api](/guides/claude-subscription-vs-api)。\n\n## 四、发票信息要改怎么办\n\n![发票信息有误，先看这 5 点](seed:g1056-invoice-fix-check.png)\n*图：本站根据 [Claude 帮助中心：Understanding your Pro or Max plan invoices](https://support.claude.com/en/articles/16607638-understanding-your-pro-or-max-plan-invoices) 整理的示意图*\n\n- 在 **Settings > Billing** 点付款方式旁边的 **Update**，输入新的信息再点 **Update**，新方式会在下次续费时使用；\n- 想在发票上写公司名：添加或更新付款方式时勾选 **Use a different name on invoices**；\n- 税号或 VAT ID：可以添加到付费账号，具体步骤见官方《Add or update your paid Claude account's tax or VAT ID》；\n- 官方的说明是：已开出的发票改不了，所以要先改好再续费；\n- **换订阅币种**：官方写的流程是，先把套餐设为到期后取消，等当前周期结束，再按你所在地区提供的币种选项重新购买 Pro 或 Max。\n\n**换银行卡**：官方说没有单独的「删除」按钮，更新后新卡成为之后续费的默认方式，旧卡不会再被扣，但可能仍保存在支付处理方那里，想彻底删除要联系官方客服。\n\n## 常见问题\n\n**Q：只有邮件，没有 PDF 吗？**\n官方没有写 PDF 下载。发票在邮件和 Settings > Billing 的 Invoices 里查看。\n\n**Q：能开中国大陆的增值税发票吗？**\n官方帮助中心的相关文章没有提到，本文不作回答，需要的话向官方客服确认。\n\n**Q：为什么这个月有两张收据？**\n一张是订阅，一张是用量额度购买，见上文。\n\n**Q：忘了用的哪个邮箱？**\n邮件发到的是账单邮箱；如果没有，也试试你用过的其他邮箱，官方在「付了款却显示免费版」的排查里也建议先检查是不是用了别的邮箱登录。\n\n## 参考资料\n\n- Claude 帮助中心：Understanding your Pro or Max plan invoices — https://support.claude.com/en/articles/16607638-understanding-your-pro-or-max-plan-invoices\n- Claude 帮助中心：Paid plan billing FAQs — https://support.claude.com/en/articles/8325618-paid-plan-billing-faqs\n- Claude 帮助中心：Add or update your paid Claude account's tax or VAT ID — https://support.claude.com/en/articles/9889408-add-or-update-your-paid-claude-account-s-tax-or-vat-id",
+      "sources": [
+        "https://support.claude.com/en/articles/16607638-understanding-your-pro-or-max-plan-invoices",
+        "https://support.claude.com/en/articles/8325618-paid-plan-billing-faqs",
+        "https://support.claude.com/en/articles/9889408-add-or-update-your-paid-claude-account-s-tax-or-vat-id"
+      ],
+      "screenshots": [],
+      "verify": [
+        "取自 2026-10-24 官方帮助中心；官方在 Invoices 部分只写了点击 View 查看，没有写单独的「下载」按钮，本文不写具体怎么保存为 PDF",
+        "官方说已开出的发票不能修改或重新开具；中国大陆「发票」（增值税发票）官方未提及，本文不涉及",
+        "税号、账单地址、币种的更多细则见官方对应文章，本文只写已核对的要点"
+      ]
+    },
+    {
+      "title": "Claude Team（团队版）和 Pro 的区别：席位、价格、用量和管理功能",
+      "slug": "claude-team-vs-pro",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1057-team-vs-pro.png",
+        "g1057-team-or-pro-decide.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "TEAM",
+      "excerpt": "Claude Team 和 Pro 有什么区别？按官方帮助中心和定价页核对：Team 最少 2 个、最多 150 个席位，标准席位和高级席位的价格和用量倍数，Team 多出的管理、SSO 和企业搜索功能，以及什么情况下 Pro 就够了。",
+      "content": "> 本文根据 Claude 帮助中心《What is the Team plan?》、定价页和 Team 账单文章整理，资料核对于 2026-10-24，价格为「2026-10 查询」，均为美国价格、不含税。图为本站整理的示意图。套餐和价格可能随时调整，**以官方页面和你下单时显示的为准**。\n\n## 适用于谁\n\n- 想知道自己团队该买 Pro 还是 Team 的人；\n- 在 Pro 上多人各买各的，想统一付费和管理的人；\n- 想了解 Team 的席位和用量怎么算的人。\n\nPro 和 Max 的对比见 [/guides/claude-pro-vs-max-difference](/guides/claude-pro-vs-max-difference)，全部套餐的概览见 [/guides/claude-plans-free-pro-max](/guides/claude-plans-free-pro-max)。\n\n## 结论先说\n\n1. **Team 是按席位买的团队套餐**：官方说明最少 2 个成员，最多 150 个席位；超过 150 个要迁移到 Enterprise。每个席位对应一个具体的人，用量不能转让或共享。\n2. **有两种席位，可以混着买**：标准席位（Standard）和高级席位（Premium）。官方建议把高级席位给用量大的人，其他人用标准席位。\n3. **价格**（官方，美国，不含税）：标准席位月付每人每月 25 美元、年付折合每月 20 美元；高级席位月付 125 美元、年付折合 100 美元。\n4. **用量比 Pro 大**：标准席位的单次会话用量是 Pro 的 1.25 倍，高级席位是 6.25 倍（也就是标准席位的 5 倍）。\n5. **功能上的差别主要在管理和身份**：集中管理和账单、支出上限、角色权限、SSO、域名认领、企业搜索等；Claude Code、Cowork、项目这些基础功能，Pro 也有。\n6. **个人使用买 Pro 就够**：Team 最少要 2 个成员。需要开通 Pro 的可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n![Claude Pro 和 Team 的区别](seed:g1057-team-vs-pro.png)\n*图：本站根据 [Claude 帮助中心：What is the Team plan?](https://support.claude.com/en/articles/9266767-what-is-the-team-plan) 与 [定价页](https://claude.com/pricing) 整理的示意图*\n\n## 一、席位和价格\n\n| 席位 | 月付 | 年付（折合每月） | 单次会话用量 |\n| --- | --- | --- | --- |\n| 标准 Standard | 25 美元 / 人 / 月 | 20 美元 | Pro 的 1.25 倍 |\n| 高级 Premium | 125 美元 / 人 / 月 | 100 美元 | Pro 的 6.25 倍 |\n\n官方还写明：每个账号有各自的限额，一个成员用完不影响其他成员；每周限额在每个账号固定的时间重置，不会因为开始使用的日期而变，在 Settings > Usage 里能看到下次重置时间；有「限额重置」权益的成员可以把 5 小时或每周限额恢复为满额。额度机制见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n定价页上 Team 套餐的卡片还写着：包含每月最多 500 美元的共用 API 额度（Team 和 Max 套餐附带的每月 API 额度，见 [/guides/claude-subscription-vs-api](/guides/claude-subscription-vs-api)）。价格、币种、税费因地区而异，具体看 claude.ai/upgrade 显示的。\n\n## 二、Team 比 Pro 多了什么\n\n按官方帮助中心：\n\n- **集中管理**：统一管理访问和账单；\n- **支出控制**：可以在组织和个人两级设置支出上限；\n- **身份和访问管理**：单点登录（SSO）、域名认领（Domain Capture）、即时开通（JIT Provisioning）、基于角色的权限；\n- **企业搜索**：一个自动给所有成员开通的搜索项目，可以搜索 Slack、Microsoft 365 和自定义连接器；\n- **连接器**：Google Drive、Gmail、Google Calendar、GitHub、Microsoft 365、Slack，不用手动上传就能拿到已有文档、邮件、日程和团队沟通里的上下文，连接器的用法见 [/guides/claude-connectors](/guides/claude-connectors)；\n- **用量额度**：所有席位都可以预付用量额度，在达到限额后继续使用。\n\n**两者都有的**：所有可用的模型、Claude Code、Cowork、项目和知识库、优先访问、新功能优先体验。所以官方对差别的概括是：规模、管理和身份控制，而不是「多了几个聊天功能」。Claude Code 的用法见 [/guides/claude-code-getting-started](/guides/claude-code-getting-started)，付费方式见 [/guides/claude-code-pro-max-or-api](/guides/claude-code-pro-max-or-api)。\n\n## 三、怎么选\n\n![Pro 还是 Team：按情况判断](seed:g1057-team-or-pro-decide.png)\n*图：本站根据 [Claude 帮助中心：What is the Team plan?](https://support.claude.com/en/articles/9266767-what-is-the-team-plan) 整理的示意图*\n\n- **只有你一个人用**：Pro，Team 至少要 2 个成员；\n- **多人用、想集中付费和管理**：Team，账单和访问由管理员统一管；\n- **公司要求 SSO 或域名认领**：Team 才有这些；\n- **有人用量很大**：高级席位，或者再买用量额度；\n- **成员超过 150 人**：官方说要迁移到 Enterprise。\n\n另外，官方提到：从 Pro 或 Max 升级到 Team 时，未使用部分会自动按比例退款，一般在 Team 付款约 24 小时后发出，见 [/guides/claude-cancel-subscription-refund](/guides/claude-cancel-subscription-refund)。\n\n## 常见问题\n\n**Q：Team 的席位可以共用吗？**\n不可以。官方说每个席位对应一个具体的人，用量不能转让或共享。\n\n**Q：Team 里的数据会被用来训练模型吗？**\n官方 Team 帮助文章没有展开这一点；定价页的 Team 卡片写的是默认不使用你的内容训练模型。涉及合规的问题请以官方隐私和商业条款为准。\n\n**Q：Team 能开发票吗？**\n官方有专门的《Understanding your Team plan invoices》说明。Pro / Max 发票的找法见 [/guides/claude-invoice-receipt-download](/guides/claude-invoice-receipt-download)。\n\n**Q：Team 里能用 Claude Code 吗？**\n官方说 Team 包含 Pro 的所有功能，其中有 Claude Code。\n\n## 参考资料\n\n- Claude 帮助中心：What is the Team plan? — https://support.claude.com/en/articles/9266767-what-is-the-team-plan\n- Claude 官方定价页 — https://claude.com/pricing\n- Claude 帮助中心：How is my Team plan bill calculated? — https://support.claude.com/en/articles/9267289-how-is-my-team-plan-bill-calculated",
+      "sources": [
+        "https://support.claude.com/en/articles/9266767-what-is-the-team-plan",
+        "https://claude.com/pricing",
+        "https://support.claude.com/en/articles/9267289-how-is-my-team-plan-bill-calculated"
+      ],
+      "screenshots": [],
+      "verify": [
+        "席位数量（2 到 150）、价格（标准席位月付 25 美元 / 年付折合 20 美元；高级席位月付 125 美元 / 年付折合 100 美元，美国、不含税）、用量倍数（标准为 Pro 的 1.25 倍、高级为 6.25 倍）取自 2026-10-24 的官方帮助中心与定价页；价格与税费各地区不同",
+        "官方 Team 帮助文章写 200k 上下文，而定价页对比表写 Pro 等个人套餐「Up to 1M」，两处表述不一致，本文不写 Team 的上下文长度",
+        "官方 Team 帮助文章没有写「数据默认不用于训练」；定价页的 Team 卡片写了默认不用内容训练模型，以官方当天页面为准"
+      ]
+    },
+    {
+      "title": "Claude 教育版和学生优惠：官方到底有没有学生折扣、学校怎么开通",
+      "slug": "claude-education-student-discount",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1058-student-discount-reality.png",
+        "g1058-education-sign-in.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 有学生优惠吗？按官方产品页和帮助中心核对：Claude for Education 是面向院校的全校方案，官方页面没有写个人学生折扣；学校开通后学生用学校邮箱登录；数据由学校管理员管理；官方有免费的学习课程。",
+      "content": "> 本文根据 Claude 教育产品页（claude.com/solutions/education）、帮助中心《Use Claude for Education at your university》《Who owns and manages the data of my Claude for Education account?》和定价页整理，资料核对于 2026-10-24。图为本站整理的示意图。**以官方页面为准**。\n\n## 适用于谁\n\n- 搜「claude 学生优惠」「claude 教育版」，想知道学生有没有折扣的人；\n- 学校可能已经和 Anthropic 合作，不知道怎么登录的人；\n- 老师或管理人员，想了解官方怎么给学校开通的人。\n\n## 结论先说\n\n1. **官方页面没有写面向个人学生的折扣。** 我们核对了教育产品页、帮助中心里教育版相关文章和定价页：教育产品页没有提到学生折扣或学生套餐，定价页只列出了 Education 方案、没有价格。官方对个人的 Pro 和 Max 套餐的说明是：没有常规折扣，客服也不能发一次性折扣或优惠券。\n2. **Claude for Education 是面向院校的方案**：产品页的描述是「面向院校的全校范围方案，包括学生、教师和职员」；申请入口是让学校联系 Anthropic 的 Education 团队。\n3. **学校开通了，学生才能用**：官方帮助中心说，学生和教师用**学校邮箱**在 claude.ai 登录；账号由学校指定的管理员（Primary Owner）管理。\n4. **想省钱，只能看官方活动**：官方说限时活动会在官方渠道公布。\n5. **想自己开通 Pro 的**，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)；用免费版也能用不少功能，见 [/guides/claude-plans-free-pro-max](/guides/claude-plans-free-pro-max)。\n\n![想要「学生优惠」，官方实际怎么说](seed:g1058-student-discount-reality.png)\n*图：本站根据 [Claude 教育产品页](https://claude.com/solutions/education) 与 [帮助中心](https://support.claude.com/en/articles/11139144-use-claude-for-education-at-your-university) 整理的示意图*\n\n## 一、Claude for Education 是什么\n\n官方教育产品页把它定位为面向高等院校的方案：覆盖学生、教师和职员，对象还包括研究人员和管理人员。页面的几个要点：\n\n- **学习模式（Learning mode）**：官方形容它像一位好导师，会通过提问帮助学生自己找到答案，而不是直接给结论；\n- **数据与合规**：页面说它满足高校对学生数据的合规要求，并且只在获得许可时才用数据改进模型；\n- **免费学习资源**：页面列出了 Anthropic Academy 的免费课程，例如面向学生的「AI Fluency for students」；\n- **研究者项目**：另有面向学术和非营利机构研究者的 Scientists 项目，官方写的是「可免费开始」，但这不是学生优惠；\n- **怎么申请**：官方的指引是让院校联系 Education 团队，页面没有写价格，也没有写个人学生入口。\n\n## 二、学校开通后，学生怎么用\n\n![学校开通了教育版，怎么登录](seed:g1058-education-sign-in.png)\n*图：本站根据 [Claude 帮助中心：Use Claude for Education at your university](https://support.claude.com/en/articles/11139144-use-claude-for-education-at-your-university) 整理的示意图*\n\n官方帮助中心给学生和教师的说明：\n\n- **网页**：在 claude.ai 用学校邮箱登录，电脑和手机浏览器都可以；\n- **桌面版**：从 Claude 下载页下载，要求 macOS 13 或更新、Windows 10 或更新，见 [/guides/claude-desktop-app](/guides/claude-desktop-app)；\n- **手机**：iOS 18.0 以上、Android 8.0 以上，用同一个学校账号登录，见 [/guides/claude-mobile-app](/guides/claude-mobile-app)；\n- **同步**：对话在所有平台间同步；\n- **SSO**：由账号的 Primary Owner 或 Owner 设置，登录出问题找学校的支持渠道；\n- **已有个人账号**：如果你已经用学校邮箱注册过个人 Claude 账号，登录时要选用哪一个；数据不会自动迁移，要把旧账号的数据导出，再上传 JSON 文件到新账号，见 [/guides/claude-export-chat-data](/guides/claude-export-chat-data)。\n\n官方列出的功能包括：更大的上下文窗口（可上传数百页文本）、最新模型、项目、更高的用量限额、高峰期优先访问，以及 PDF、DOCX、CSV 等文件上传，见 [/guides/claude-projects-guide](/guides/claude-projects-guide) 和 [/guides/claude-file-upload-limits](/guides/claude-file-upload-limits)。学校可能调整部分功能或加上自己的政策，具体问学校的 IT 部门。官方也提醒要遵守学校的学术诚信规定：Claude 可以帮你理解材料、改进作品，但不应该替你完成本该自己完成的作业。\n\n## 三、教育版的数据归谁管\n\n官方帮助中心《Who owns and manages the data…》写明：\n\n- 学校指定的 Primary Owner 管理你的账号和所有相关数据；\n- 默认关闭的三项：Primary Owner 导出数据、审计日志（Audit Log）、点赞反馈（Thumbs Feedback）；要查看用户数据，Primary Owner 必须联系 Anthropic 支持申请开启；\n- 导出内容可能包括对话、上传的文件和使用模式；\n- 学校决定你能用哪些功能，也可能限制部分功能；\n- 你的使用受 Anthropic 和学校之间的协议约束；在 Anthropic 作为数据处理者的情况下，消费者条款和隐私政策不适用于教育版。\n\n**离开学校后账号和数据怎么办**，官方文章没有写，只说 Primary Owner 可以在必要时移除你的访问权限。请向学校的 Claude for Education 管理员确认，并在毕业前自行导出需要保留的内容。\n\n## 常见问题\n\n**Q：有没有学生版 Pro 的折扣？**\n官方页面没有写。对个人套餐，官方的说法是没有常规折扣，客服不能发一次性折扣或优惠券。\n\n**Q：我的学校有没有开通？**\n官方没有提供公开的学校名单；可以问学校的 IT 或图书馆，或试着用学校邮箱登录 claude.ai。\n\n**Q：教育版的价格是多少？**\n官方没有公开，定价页只列出了 Education 方案、没有价格。\n\n**Q：免费版够学生用吗？**\n免费版包含聊天、联网搜索、文件创建、记忆、Artifacts 等（官方定价页），用量有限制，数字官方没有公布。额度规则见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n## 参考资料\n\n- Claude 教育产品页 — https://claude.com/solutions/education\n- Claude 帮助中心：Use Claude for Education at your university — https://support.claude.com/en/articles/11139144-use-claude-for-education-at-your-university\n- Claude 帮助中心：Who owns and manages the data of my Claude for Education account? — https://support.claude.com/en/articles/11732894-who-owns-and-manages-the-data-of-my-claude-for-education-account\n- Claude 官方定价页 — https://claude.com/pricing",
+      "sources": [
+        "https://claude.com/solutions/education",
+        "https://support.claude.com/en/articles/11139144-use-claude-for-education-at-your-university",
+        "https://support.claude.com/en/articles/11732894-who-owns-and-manages-the-data-of-my-claude-for-education-account",
+        "https://claude.com/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "「官方没有写个人学生折扣」来自 2026-10-24 对教育产品页、教育帮助中心集合页和定价页的核对：这些页面都没有出现面向个人学生的折扣；定价页只列了 Education 方案，没有标价格；这不等于永远没有，以官方当天页面为准",
+        "「个人套餐没有常规折扣、客服不能发一次性折扣或优惠券」引自本站《Claude Pro 和 Max 的区别》所核对的官方 Pro / Max 帮助文章，本次未重新抓取原文",
+        "教育版的具体价格、校方合同条款官方未公开，本文不写"
+      ]
+    },
+    {
+      "title": "Claude 怎么改邮箱、删除账号：官方说不能直接改邮箱，换号和注销的完整步骤",
+      "slug": "claude-change-email-delete-account",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1059-change-email-workaround.png",
+        "g1059-delete-account-entries.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 能改账号邮箱吗？按官方帮助中心：目前不能直接修改，只能取消订阅、导出数据、删除旧账号再用新邮箱注册。附网页、iOS、Android 的删除账号入口，以及有订阅、打不开旧邮箱时怎么办。",
+      "content": "> 本文根据 Claude 帮助中心《How do I change the email address associated with my account?》《Delete your Claude account》整理，资料核对于 2026-10-24。界面名称以官方英文界面为准。图为本站整理的示意图。**以官方页面为准**。\n\n## 适用于谁\n\n- 注册时用了不再使用的邮箱，想换成新邮箱的人；\n- 想彻底删除 Claude 账号的人；\n- 有 Pro 或 Max 订阅，不知道换号前要做什么的人。\n\n隐私设置、删除对话（不是删账号）见 [/guides/claude-privacy-delete-account](/guides/claude-privacy-delete-account)；登录问题见 [/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use)。\n\n## 结论先说\n\n1. **官方说目前不能直接修改账号绑定的邮箱。** 帮助文章的原意是「目前无法更改 Claude 账号关联的邮箱地址」。唯一的办法是用新邮箱创建新账号，把旧账号停用。\n2. **所以换邮箱 = 换号**：有订阅先取消，把需要的数据导出，再删除旧账号，然后用新邮箱注册。\n3. **删除是永久的**：官方说删除后你会失去对话、项目和账号信息，账号无法恢复；要保留内容，先导出（见 [/guides/claude-export-chat-data](/guides/claude-export-chat-data)）。\n4. **有 Pro 或 Max 订阅要先取消**，等当前计费周期结束后再删账号，取消步骤见 [/guides/claude-cancel-subscription-refund](/guides/claude-cancel-subscription-refund)。\n5. **注册时就选一个长期能收信的邮箱**，这是官方给的建议，可以省掉整套流程。新账号需要开通订阅的，可以看 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n![Claude 想换邮箱：官方给的办法](seed:g1059-change-email-workaround.png)\n*图：本站根据 [Claude 帮助中心：How do I change the email address associated with my account?](https://support.claude.com/en/articles/8452276-how-do-i-change-the-email-address-associated-with-my-account) 整理的示意图*\n\n## 一、想换邮箱，官方给的步骤\n\n按官方帮助文章，顺序是：\n\n1. **取消付费套餐（有 Pro 或 Max 的话）**：登录后点左下角的头像或名字，进入 **Settings > Billing**，在 **Cancellation** 部分点 **Cancel**。取消后用到当前周期结束；为避免下一期扣款，官方建议在下次扣费日前至少 24 小时取消；\n2. **解绑手机号（可选）**：如果想用同一个手机号验证新账号，需要联系客服，把号码从旧账号上解绑；\n3. **删除旧账号**：**Settings > Account**，点 **Delete Account**，按提示操作。这是永久的，保存的对话会丢，所以**先导出数据**。如果你看到的不是删除按钮而是 **Contact support**，就联系客服代为删除；\n4. **用新邮箱注册新账号**，注册流程见 [/guides/claude-how-to-sign-up](/guides/claude-how-to-sign-up)。\n\n**打不开旧邮箱怎么办**：官方说可以用另一个你能收信的邮箱联系客服，抄送旧邮箱地址，说明要取消旧邮箱关联的订阅，需要的话让客服把手机号解绑。客服入口见官方《How to get support》。\n\n**官方没有写的**：如果你是用 Google 账号单点登录、Apple 登录，或属于 Team、Enterprise 组织，上面的步骤是否一样，官方这篇文章没有说明。这类情况请直接联系官方客服，不要自己推断。\n\n## 二、怎么删除账号\n\n![Claude 删除账号的入口](seed:g1059-delete-account-entries.png)\n*图：本站根据 [Claude 帮助中心：Delete your Claude account](https://support.claude.com/en/articles/9028421-delete-your-claude-account) 整理的示意图*\n\n官方列出的入口：\n\n**网页（claude.ai）**：点左下角的头像或名字 → **Settings**（或直接 **Settings > Account**）→ **Delete account**，按提示操作。\n\n**iOS**：打开 Claude 应用，点 **Settings**，在 **Account** 部分点 **Profile**，点 **Delete account**，再点 **Delete** 确认。\n\n**Android**：打开 Claude 应用，点左上角的菜单按钮，点左下角的头像，点 **Profile**，在 **Account Actions** 下点 **Delete Account**，再点 **I Understand** 确认。\n\n**有订阅的人**：官方说，Pro 或 Max 要先在账单设置里取消订阅，等当前订阅期结束，订阅失效后再删除账号。通过 iOS 或 Android 订阅的，取消方式见官方《Cancel your Pro or Max subscription》。\n\n**什么情况下要联系客服**：官方说某些情况下必须联系客服才能删除，账号设置里会提示；如果同一个邮箱下有多个账号，联系客服时要说明删哪几个。\n\n## 三、删除之后会怎样\n\n- 你不能再访问对话、项目和账号信息；\n- 官方这篇文章**没有**写处理需要多久、数据最终多久被清除，只链接到数据保留说明，那部分见 [/guides/claude-privacy-delete-account](/guides/claude-privacy-delete-account) 所引用的官方隐私页面；\n- 删除后能不能用同一个邮箱或手机号重新注册，官方文章也没有写；\n- 被封禁的账号有单独的导出和删除入口，见 [/guides/claude-account-disabled-appeal](/guides/claude-account-disabled-appeal)。\n\n## 常见问题\n\n**Q：能不能把旧账号的对话搬到新账号？**\n官方没有提供直接迁移功能。可以先导出旧账号的数据，具体说明见 [/guides/claude-export-chat-data](/guides/claude-export-chat-data)。\n\n**Q：删了账号，订阅会自动取消吗？**\n官方的顺序是先取消订阅再删账号，不要指望删除账号代替取消。\n\n**Q：只想清空聊天记录，要删账号吗？**\n不用，可以单独删除对话，见 [/guides/claude-privacy-delete-account](/guides/claude-privacy-delete-account)。\n\n**Q：删除账号能退款吗？**\n退款规则见 [/guides/claude-cancel-subscription-refund](/guides/claude-cancel-subscription-refund)；官方总则是付款一般不可退。\n\n## 参考资料\n\n- Claude 帮助中心：How do I change the email address associated with my account? — https://support.claude.com/en/articles/8452276-how-do-i-change-the-email-address-associated-with-my-account\n- Claude 帮助中心：Delete your Claude account — https://support.claude.com/en/articles/9028421-delete-your-claude-account\n- Claude 帮助中心：Export your Claude data — https://support.claude.com/en/articles/9450526-export-your-claude-data",
+      "sources": [
+        "https://support.claude.com/en/articles/8452276-how-do-i-change-the-email-address-associated-with-my-account",
+        "https://support.claude.com/en/articles/9028421-delete-your-claude-account",
+        "https://support.claude.com/en/articles/9450526-export-your-claude-data"
+      ],
+      "screenshots": [],
+      "verify": [
+        "「目前不能修改邮箱」取自 2026-10-24 官方帮助文章，措辞是 not possible at this time，之后官方可能开放，以官方当天页面为准",
+        "官方改邮箱文章没有写 Google 单点登录、Apple 登录、Team / Enterprise 账号怎么处理，本文不作推断",
+        "官方删除账号文章没有写处理时限、删除后能否用同一邮箱或手机号重新注册，也没有写组织所有者的限制，本文不写"
+      ]
+    },
+    {
       "title": "ChatGPT 分享对话怎么用：生成分享链接、谁能看到、怎么更新和删除",
       "slug": "chatgpt-share-chat-link",
       "checkedOn": "2026-10-07",
@@ -60551,6 +60932,117 @@
       "screenshots": [],
       "verify": [
         "「分享」「创建链接」「更新链接」「共享链接 → 管理」等中文按钮名以实际界面为准"
+      ]
+    },
+    {
+      "title": "Claude Skills 去哪找、怎么装：官方目录、GitHub 仓库和本站 Skill 库",
+      "slug": "claude-skills-where-to-find",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1060-where-to-find-skills.png",
+        "g1060-browse-skills-steps.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude Skills 去哪里找、怎么安装？按官方帮助中心和官方仓库讲清：claude.ai 的 Customize 目录怎么浏览添加，Claude Code 怎么从 anthropics/skills 安装，自己的技能怎么上传，以及第三方技能的安全提醒，附本站 Skill 库入口。",
+      "content": "> 本文根据 Claude 帮助中心《Browse skills, connectors, and plugins in one directory》《Using skills in Claude》和官方仓库 anthropics/skills 整理，资料核对于 2026-10-24。图为本站整理的示意图。界面和命令可能调整，**以官方页面为准**。\n\n## 适用于谁\n\n- 搜「claude skills 市场」「claude skills 网站」，想知道去哪找技能的人；\n- 不知道 Claude 里的技能目录在哪、怎么添加的人；\n- 在 Claude Code 里想装官方技能的人。\n\n技能是什么、写法和推荐，见 [/guides/claude-skills](/guides/claude-skills)；Claude Code 里技能存放在哪见 [/guides/claude-code-skills-directory-location-priority](/guides/claude-code-skills-directory-location-priority)。\n\n## 结论先说\n\n1. **最省事的入口是 Claude 里自带的官方目录**：官方说它把技能、连接器和插件放在同一个地方浏览和安装。路径是：左侧栏点 **Customize** → 选 **Skills**、**Connectors** 或 **Plugins** 标签 → 打开 **Discover**；技能还可以从 **Customize > Skills** 点 **+**，选 **Browse skills**。\n2. **官方的开源仓库是 GitHub 上的 `anthropics/skills`**：里面有官方整理的示例技能和文档技能（docx、pdf、pptx、xlsx），Claude Code 可以把它当成插件市场添加。\n3. **本站也整理了 Skill 库目录**：按适用平台（Claude Code、claude.ai、Codex 等）列出各个库的介绍、安装命令和注意事项，见 [/skills](/skills)。\n4. **用技能要先开代码执行**：官方说技能需要代码执行环境，免费版、Pro、Max 在 **Settings > Capabilities** 打开 **Code execution and file creation**（新版叫 **Create and edit files**）。\n5. **第三方技能要先审再装**：官方明确提醒有提示注入和数据外泄的风险，只装可信来源的技能。需要更高用量用技能和 Claude Code 的，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n![Claude Skills 去哪找](seed:g1060-where-to-find-skills.png)\n*图：本站根据 [Claude 帮助中心](https://support.claude.com/en/articles/14328846-browse-skills-connectors-and-plugins-in-one-directory) 与 [anthropics/skills 仓库](https://github.com/anthropics/skills) 整理的示意图*\n\n## 一、官方目录：在 Claude 里浏览和添加\n\n![在 Claude 里浏览并添加 Skill](seed:g1060-browse-skills-steps.png)\n*图：本站根据 [Claude 帮助中心：Browse skills, connectors, and plugins in one directory](https://support.claude.com/en/articles/14328846-browse-skills-connectors-and-plugins-in-one-directory) 整理的示意图*\n\n官方步骤：\n\n1. 打开 Claude 或 Claude 桌面版（桌面版见 [/guides/claude-desktop-app](/guides/claude-desktop-app)）；\n2. 点左侧栏的 **Customize**；\n3. 选 **Skills**、**Connectors** 或 **Plugins** 标签，再打开 **Discover**；\n4. 想看技能：**Customize > Skills**，点 **+**，选 **Browse skills**；\n5. 在想要的技能上点 **Add**，它会被加到你的技能列表，**默认开启**，Claude 在用得上时会自动调用；\n6. 想暂停就关掉开关，技能还在目录里，可以再打开。\n\n连接器点 **Connect** 开始授权，见 [/guides/claude-connectors](/guides/claude-connectors)。插件在 **Discover** 里点 **Add**，插件里的技能和命令会出现在网页对话、Cowork，以及用同一账号登录的 Claude Code 会话里；移除时打开插件点 **Remove**。\n\n几点官方说明：\n\n- **目录里的技能是只读的**：只能使用、不能编辑；想改，要下载一份副本，改完后作为你自己的技能上传；\n- 同事直接分享给你的技能和插件，**不会出现在目录里**，而是在你的技能列表或 **Customize > Plugins** 的 **Shared with you** 里；\n- Team 和 Enterprise 有 **Your organization** 标签，列出管理员配置或同事发布给全组织的技能；组织所有者可以在 **Organization settings > Plugins & skills** 的 **Policy** 标签里设置发布方式（**Open** 或 **Requires review**）。\n\n## 二、自己的技能怎么上传\n\n官方《Using skills in Claude》给出的步骤：\n\n1. 按要求的结构做好技能文件夹，文件夹名要和技能名一致，里面必须有技能说明文件；\n2. 打包成 ZIP；\n3. 进入 **Customize > Skills**，点 **+**，再点 **+ Create skill**，选 **Upload a skill**，上传 ZIP；\n4. 技能出现在列表里，可以开关。\n\n自定义技能在你分享之前是私有的；Team 和 Enterprise 可以分享给指定的人或组，或发布到组织。如果没有上传选项，可能是组织所有者关闭了用户创建技能，或你的自定义角色缺少 **Create skills** 权限。ZIP 的大小上限，官方文章没有写。\n\n## 三、Claude Code：从官方仓库安装\n\n`anthropics/skills` 是 Anthropic 的公开仓库，里面有三个顶层文件夹：`skills`（示例技能，分创意设计、开发技术、企业沟通和文档技能几类）、`spec`（Agent Skills 规范）和 `template`（技能模板）。许可方面，仓库首页写明很多技能是 Apache 2.0 开源，而 docx、pdf、pptx、xlsx 这四个文档技能是「源码可见」而不是开源。\n\n在 Claude Code 里（仓库首页的写法）：\n\n```\n/plugin marketplace add anthropics/skills\n/plugin install document-skills@anthropic-agent-skills\n/plugin install example-skills@anthropic-agent-skills\n```\n\n也可以交互式安装：选 **Browse and install plugins**，再选 **anthropic-agent-skills**，选 **document-skills** 或 **example-skills**，点 **Install now**。装好后，在对话里直接提到技能即可，例如「用 PDF 技能提取这个文件里的表单字段」。插件和市场的更多用法见 [/guides/claude-code-plugins-marketplace](/guides/claude-code-plugins-marketplace)。\n\n仓库首页还写明：官方示例技能在付费的 claude.ai 套餐里已经可用；通过 API 也可以使用预置技能和自定义技能。\n\n## 四、安全提醒\n\n官方《Using skills in Claude》写得很直接：\n\n- 主要风险是**提示注入**（诱导 Claude 做你不想做的事）和**数据外泄**（通过恶意的代码包或被注入的数据）；\n- **只从可信来源安装技能**，别人分享给你的技能也要在启用前审阅；\n- 要读技能附带的所有文件，尤其是代码依赖、图片和脚本；留意任何让 Claude 去连接不可信外部网络的指示；\n- 技能可能包含或指示 Claude 安装第三方软件包；\n- 官方仓库首页的免责声明：示例技能只用于演示和教育，Claude 的实际行为可能不同，用于重要任务前要在自己的环境里充分测试。\n\n本站 [/skills](/skills) 里的介绍是站方根据各库的官方仓库和文档整理的，不替你审查代码；第三方技能能运行脚本、读取文件，安装前请自己看清来源和内容。\n\n## 常见问题\n\n**Q：技能市场要付费吗？**\n官方说明技能适用于 Free、Pro、Max、Team 和 Enterprise 套餐，需要开启代码执行；目录本身没有单独收费的说明。\n\n**Q：为什么在目录里看不到同事分享的技能？**\n官方说直接分享的技能不在目录里，在你的技能列表或 Shared with you 里。\n\n**Q：我装了技能，Claude 没用上？**\n技能默认开启，由 Claude 判断何时调用。可以在对话里直接点名要用哪个技能，也可以去 **Customize > Skills** 检查开关。\n\n**Q：技能和插件、MCP 有什么区别？**\n官方的说法：技能是 Claude 可自动使用的指示；插件是可以包含技能和命令的包；连接器是可以连接的服务。MCP 见 [/guides/claude-code-mcp-setup](/guides/claude-code-mcp-setup)。\n\n## 参考资料\n\n- Claude 帮助中心：Browse skills, connectors, and plugins in one directory — https://support.claude.com/en/articles/14328846-browse-skills-connectors-and-plugins-in-one-directory\n- Claude 帮助中心：Using skills in Claude — https://support.claude.com/en/articles/12512180-using-skills-in-claude\n- GitHub：anthropics/skills — https://github.com/anthropics/skills",
+      "sources": [
+        "https://support.claude.com/en/articles/14328846-browse-skills-connectors-and-plugins-in-one-directory",
+        "https://support.claude.com/en/articles/12512180-using-skills-in-claude",
+        "https://github.com/anthropics/skills"
+      ],
+      "screenshots": [],
+      "verify": [
+        "目录入口（Customize > Skills > + > Browse skills）、上传步骤、安全提醒取自 2026-10-24 官方帮助中心；界面名称随版本调整",
+        "anthropics/skills 仓库的安装命令取自仓库首页；官方说仓库里的示例技能仅用于演示和教育，行为可能与示例不同，使用前自行测试",
+        "官方目录文章没有写 Pro、Max 是否有目录限制，也没有写 Anthropic 对目录的审核流程，本文不作推断"
+      ]
+    },
+    {
+      "title": "Claude 能干嘛、适合做什么：按官方产品页看 Claude 的能力和各个入口",
+      "slug": "claude-what-can-it-do",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1061-claude-capabilities-official.png",
+        "g1061-claude-entry-by-task.png"
+      ],
+      "tags": [
+        "claude",
+        "claude-llm"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 能干嘛、适合做什么？只按 Anthropic 官方产品页和模型页整理：写作分析、文件和表格、联网搜索、Claude Code、Cowork、浏览器和 Office 入口，以及官方对模型规格的说明；官方没有解释「为什么强」，本文也不替它解释。",
+      "content": "> 本文根据 Claude 官方产品概览页、下载页、开发者文档 Models overview、帮助中心和 Anthropic 公司页整理，资料核对于 2026-10-24。官方产品页是宣传材料，本文只转述它写明的内容，不做评测，也不下「最强」的结论。图为本站整理的示意图。**以官方页面为准**。\n\n## 适用于谁\n\n- 搜「claude 为什么这么强」「claude 能干嘛」的人；\n- 刚听说 Claude，想知道它适合拿来做什么的人；\n- 不知道 Claude 有哪些入口（网页、桌面、Claude Code 等）的人。\n\n新手入门的操作见 [/guides/claude-how-to-use-beginner](/guides/claude-how-to-use-beginner)。\n\n## 结论先说\n\n1. **官方没有回答「为什么强」。** 我们核对了产品概览页、公司页和模型文档：它们写的是 Claude 能做什么、有哪些入口、规格是多少，没有给出「强在哪个技术原因」的解释，也没有与其他模型的对比评测。所以本文只讲官方写明的能力，不替官方编理由。\n2. **官方对 Claude 的定位是「把任务交给它，而不只是提问」**：能快速回答，也能做长时间、多步骤的任务，生成可编辑的文档、表格和幻灯片。\n3. **官方列出的能力**：联网搜索、连接其他应用、读写文件和文件夹、浏览器操作、电脑操作（beta）、Skills 和插件、自定义连接器和 MCP、记忆、项目和跨对话的持久指令。\n4. **入口很多**：网页、桌面、手机、Claude Code、Cowork、Chrome 扩展、Microsoft 365 和 Google Workspace 插件等，见下文。\n5. **模型规格可以查**：当前主力模型都是 100 万 token 上下文、最大输出 12.8 万 token、支持图片输入，具体见 [/guides/claude-models-compare](/guides/claude-models-compare)。\n6. 想用到更多功能和用量，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n![官方产品页列出的 Claude 能做的事](seed:g1061-claude-capabilities-official.png)\n*图：本站根据 [Claude 官方产品概览页](https://claude.com/product/overview) 整理的示意图*\n\n## 一、官方写明的能力\n\n按官方产品概览页：\n\n- **任务类**：快速回答；长时间、多步骤的任务（官方说你合上电脑后也会继续运行）；并行任务；定时的重复任务；语音交互；\n- **输出类**：Artifacts（可分享的设计、幻灯片和文档），交互式图表和可视化；可编辑的文档、表格和幻灯片；\n- **连接类**：联网搜索、连接其他应用、文件和文件夹访问、浏览器使用、电脑使用（beta）；Skills、插件、自定义连接器和 MCP；\n- **记忆类**：记忆、项目、跨对话的持久指令；\n- **支持的文件**：Word、PDF、Markdown、CSV 等文档，Excel 表格，PowerPoint 演示稿，图片，数据和配置格式，Jupyter notebook，以及大多数编程语言。\n\n官方页面给出的使用场景例子包括：会议待办跟踪和提醒、按主题归类客户反馈、预算重新预测、活动复盘和指标看板、通话准备和 CRM 更新、法律检索和合同批注、符合品牌调性的社交文案和演示稿、对账不同来源的数据。这些是官方宣传里的例子，不代表你的任务一定能达到同样的效果。\n\n官方帮助中心《Get started with Claude》说得更朴素：问题可以简单，比如「怎么挂相框」，也可以是复杂的多步骤项目、分析、创意写作、编程和技术任务；它对英语的训练最充分，在许多其他常见语言上也表现良好，并且有广泛的编程语言知识。\n\n## 二、想做什么，用哪个入口\n\n![想做这件事，用 Claude 的哪个入口](seed:g1061-claude-entry-by-task.png)\n*图：本站根据 [Claude 官方产品概览页](https://claude.com/product/overview) 与 [下载页](https://claude.com/download) 整理的示意图*\n\n官方产品页和下载页列出的入口：\n\n- **Claude（网页、桌面、手机）**：聊天、写作、分析，见 [/guides/claude-web-vs-desktop-difference](/guides/claude-web-vs-desktop-difference) 和 [/guides/claude-mobile-app](/guides/claude-mobile-app)；\n- **Claude Code**：写代码，在桌面、终端、VS Code、JetBrains 等环境里使用，见 [/guides/claude-code-getting-started](/guides/claude-code-getting-started)；\n- **Cowork**：把 Claude Code 的智能体能力放进图形界面，处理文件和长任务，付费套餐可用，见 [/guides/claude-cowork](/guides/claude-cowork)；\n- **Claude in Chrome**：在浏览器里导航、点击、填表，见 [/guides/claude-in-chrome](/guides/claude-in-chrome)；\n- **Claude for Microsoft 365、Claude for Google Workspace**：在办公软件里使用，Excel 见 [/guides/claude-for-excel](/guides/claude-for-excel)；\n- **Claude Platform / API**：开发者调用，也可以通过 Amazon Bedrock、Google Cloud、Microsoft Foundry 使用，见 [/guides/claude-api-key-console](/guides/claude-api-key-console)；\n- 另外还有 Claude Tag（Slack 里使用，Team 和 Enterprise 的 beta）、Claude Duet（研究预览，需要等候名单）、Claude Science 和 Claude Security 等专门产品。\n\n## 三、官方对模型的说明\n\n官方 Models overview 写明：当前模型都支持文字和图片输入、文字输出、多语言、视觉和工具调用；上下文窗口 100 万 token，最大输出 12.8 万 token；官方把 Opus 5.5 作为大多数工作的起点，Fable 5.1 用于最苛刻的推理和长时间智能体任务，Sonnet 5.5 是速度与智能的平衡，Haiku 5.5 面向高并发和低延迟。三款的差别见 [/guides/claude-opus-vs-sonnet](/guides/claude-opus-vs-sonnet)。\n\n官方还提醒了一些边界：**官方帮助中心明确说 Claude 不像生图工具那样生成照片和插画**，见 [/guides/claude-image-generation](/guides/claude-image-generation)；**某些地区不在官方支持名单里**，见 [/guides/claude-supported-countries-regions](/guides/claude-supported-countries-regions)；用量有限额，见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n## 四、关于「安全」的官方说法\n\nAnthropic 公司页把自己描述为「把安全放在前沿的 AI 研究和产品」公司，是一家公益公司；目标是做「可靠、可解释、可引导」的前沿系统；价值观里有「乐于助人、诚实、无害」。官方公司页说得很清楚：这是公司的价值观，页面没有说明 Claude 是怎么训练出来的。产品页上与安全相关的描述则是：权限设置可以让 Claude 先展示计划、等你批准再行动；默认在永久删除文件前会询问；管理员可以按团队设置访问、管理支出上限和工具权限。Claude Code 的权限设置见 [/guides/claude-code-permission-modes](/guides/claude-code-permission-modes)。\n\n## 常见问题\n\n**Q：Claude 比 ChatGPT 强吗？**\n官方没有给出这样的对比，本文也不下结论。两者的区别和选法见 [/guides/chatgpt-vs-claude](/guides/chatgpt-vs-claude)。\n\n**Q：Claude 适合写代码吗？**\n官方有专门的 Claude Code，并把 Opus 5.5 定位为长时间智能体编程。具体表现因任务而异。\n\n**Q：Claude 的知识更新到什么时候？**\n官方模型页写明当前模型的可靠知识截止是 2026 年 6 月；联网搜索可以补充更新的信息，见 [/guides/claude-web-search](/guides/claude-web-search)。\n\n**Q：免费版能用多少功能？**\n官方定价页列出免费版包含聊天、联网搜索、文件创建、代码执行、记忆、Artifacts 等，用量有限制，见 [/guides/claude-plans-free-pro-max](/guides/claude-plans-free-pro-max)。\n\n## 参考资料\n\n- Claude 官方产品概览页 — https://claude.com/product/overview\n- Claude 官方下载页 — https://claude.com/download\n- Claude 官方 Models overview — https://platform.claude.com/docs/en/models/overview\n- Claude 帮助中心：Get started with Claude — https://support.claude.com/en/articles/8114491-get-started-with-claude\n- Anthropic：公司页 — https://www.anthropic.com/company",
+      "sources": [
+        "https://claude.com/product/overview",
+        "https://claude.com/download",
+        "https://platform.claude.com/docs/en/models/overview",
+        "https://support.claude.com/en/articles/8114491-get-started-with-claude",
+        "https://www.anthropic.com/company"
+      ],
+      "screenshots": [],
+      "verify": [
+        "能力清单取自 2026-10-24 官方产品概览页，该页是官方宣传材料，其中部分功能（computer use、Claude Tag、Claude Duet 等）标注 beta 或研究预览，客户评价不是独立评测",
+        "官方没有给出「为什么强」的技术解释，也没有给出与其他模型的跑分对比，本文不写排名、不写「最强」",
+        "Anthropic 公司页的价值观（helpful、honest、harmless）是公司价值观，不是对 Claude 训练方法的说明"
+      ]
+    },
+    {
+      "title": "Claude Code 中文怎么设置、怎么用中文交流：language 设置和 CLAUDE.md",
+      "slug": "claude-code-chinese-language-setting",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1064-claude-code-language-setting.png",
+        "g1064-chinese-method-decide.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Claude Code 怎么让它用中文回答？按官方文档讲清 settings.json 里的 language 设置怎么写、放在哪个文件、怎么确认生效，以及想规定得更细时怎么用 CLAUDE.md；并说明官方文档没有写到的地方。",
+      "content": "> 本文根据 Claude Code 官方文档《Settings files and precedence》《Settings reference》和 Claude 帮助中心整理，资料核对于 2026-10-24。图为本站整理的示意图。设置项随版本变化，**以官方文档为准**。\n\n## 适用于谁\n\n- 用 Claude Code，希望它默认用中文回答、解释代码、写总结的人；\n- 搜「claude code 中文」「claude code 怎么用中文」的人；\n- 想知道 `settings.json` 里有没有语言选项的人。\n\n网页版 Claude 的界面语言和回答语言怎么设，见 [/guides/claude-set-chinese-language](/guides/claude-set-chinese-language)，那是另一套设置，和 Claude Code 无关。\n\n## 结论先说\n\n1. **官方有专门的设置项**：`settings.json` 里的 **`language`**。官方说明它的作用是让 Claude **默认用英文以外的某种语言回答**。\n2. **值怎么写**：字符串，写语言名即可，官方例子是 `\"japanese\"`、`\"spanish\"`、`\"french\"`；官方强调 Claude Code **不会校验**这个值，写错了会原样传给 Claude。中文可以按同样方式写成 `\"chinese\"`。\n3. **可以放在任何设置文件里**：用户、项目、本地或组织管理的设置文件都行。想所有项目都生效，就放用户级的 `~/.claude/settings.json`。\n4. **不设置时**：官方写的默认值是「未设置」，此时会话标题的语言与你对话的语言一致。\n5. **想规定得更细**（比如代码注释、提交信息、文档都用中文）：官方说长期指示用 `CLAUDE.md` 文件写，见 [/guides/claude-md-agents-md](/guides/claude-md-agents-md)。\n6. 需要更高用量跑 Claude Code 的，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n![让 Claude Code 默认用中文回答](seed:g1064-claude-code-language-setting.png)\n*图：本站根据 [Claude Code 官方文档：Settings reference](https://code.claude.com/docs/en/settings-reference) 整理的示意图*\n\n## 一、设置步骤\n\n按官方《Settings files and precedence》：\n\n1. 打开设置文件。用户级的是 `~/.claude/settings.json`，Windows 上 `~` 指 `%USERPROFILE%`，也就是用户目录下的 `.claude` 文件夹。官方说安装 Claude Code 不会自动创建设置文件，没有的话自己新建；\n2. 加上 `language` 一项，例如：\n\n```json\n{\n  \"language\": \"chinese\"\n}\n```\n\n3. 保存。官方说 Claude Code 会监视设置文件，多数修改**不需要重启**就会应用到正在运行的会话；\n4. 在会话里运行 `/status`，**Setting sources** 一行会列出这次加载的设置文件，用来确认你的文件被读到了。\n\n注意两点：设置文件是**严格的 JSON**，`//` 注释或最后一项后面多一个逗号都是语法错误，Claude Code 下次启动会提示 Settings Error；如果文件里已经有别的设置，把 `\"language\"` 加进现有的大括号里，不要新写第二对大括号。设置文件的完整位置和优先级见 [/guides/claude-code-settings-json](/guides/claude-code-settings-json)。\n\n## 二、放在哪个文件，影响谁\n\n官方把设置分成几个范围：\n\n| 范围 | 文件 | 影响谁 |\n| --- | --- | --- |\n| 用户 | `~/.claude/settings.json` | 你在这台电脑上的所有项目 |\n| 共享项目 | `.claude/settings.json` | 在这个文件夹里工作的所有人，提交到 git 后队友也会拿到 |\n| 项目本地 | `.claude/settings.local.json` | 只有你，只在这个项目 |\n\n同一个键在多处出现时，官方的优先级是：组织管理的设置最高，其次命令行 `--settings`，再次项目本地、共享项目，最后是用户设置。所以如果你个人想要中文，团队项目里却设了别的语言，把你的 `language` 放到项目本地文件里即可，不会影响队友。\n\n## 三、想规定得更细：用 CLAUDE.md\n\n![想让 Claude Code 说中文，选哪种办法](seed:g1064-chinese-method-decide.png)\n*图：本站根据 [Claude Code 官方文档：Settings](https://code.claude.com/docs/en/settings) 整理的示意图*\n\n`language` 管的是「默认用什么语言回答」。如果你还想规定别的，比如：\n\n- 代码注释用中文；\n- Git 提交信息用中文；\n- 生成的文档用中文，术语保留英文；\n\n官方的说法是：要给 Claude 长期的指示，用 `CLAUDE.md` 文件，或者启动时加 `--append-system-prompt`。Claude Code 的系统提示本身官方没有公开。`CLAUDE.md` 的写法见 [/guides/claude-md-agents-md](/guides/claude-md-agents-md)，例如在项目根目录的 `CLAUDE.md` 里写上「请用中文回答，代码注释使用中文」这类一两句话的要求。\n\n## 四、官方没有写的\n\n- **终端界面**：官方 language 设置只说回答语言，Claude Code 命令行界面的菜单、提示是否有中文版，文档里没有写，本文不作结论；\n- **效果**：设置之后 Claude 会不会每次都严格用中文，官方没有承诺，需要时可以在 `CLAUDE.md` 里再强调一次；\n- **其他入口**：VS Code、JetBrains 和桌面版的 Claude Code 和终端读取同一批设置文件（官方 Settings 页说明这些入口都读取相同的设置文件），所以这项设置对它们同样适用，见 [/guides/claude-code-vscode](/guides/claude-code-vscode) 和 [/guides/claude-code-desktop](/guides/claude-code-desktop)；云端会话（claude.ai/code）只读取一部分设置，用户级文件不会被读取，见 [/guides/claude-code-web](/guides/claude-code-web)。\n\n## 常见问题\n\n**Q：值写 `chinese` 还是 `中文`？**\n官方只说任意语言名都可以，不做校验，示例用的是英文名。建议用英文名，并在会话里确认效果。\n\n**Q：改了没生效怎么办？**\n先运行 `/status` 看设置文件有没有被加载；再检查 JSON 有没有语法错误；最后看是不是被更高优先级的设置（比如组织管理的设置）覆盖了。\n\n**Q：能只对一次会话生效吗？**\n官方说可以用 `claude --settings '{\"language\": \"chinese\"}'` 这样的方式让设置只在这一次会话里生效，不写入任何文件。\n\n**Q：Claude Code 刚入门怎么学？**\n见 [/guides/claude-code-getting-started](/guides/claude-code-getting-started)。\n\n## 参考资料\n\n- Claude Code 官方文档：Settings files and precedence — https://code.claude.com/docs/en/settings\n- Claude Code 官方文档：Settings reference（language）— https://code.claude.com/docs/en/settings-reference\n- Claude 帮助中心：How to use Claude in your preferred language — https://support.claude.com/en/articles/10769299-how-to-use-claude-in-your-preferred-language",
+      "sources": [
+        "https://code.claude.com/docs/en/settings",
+        "https://code.claude.com/docs/en/settings-reference",
+        "https://support.claude.com/en/articles/10769299-how-to-use-claude-in-your-preferred-language"
+      ],
+      "screenshots": [],
+      "verify": [
+        "language 设置的说明取自 2026-10-24 官方 settings-reference：「让 Claude 默认用英文以外的语言回答」，类型为字符串，任意语言名都可以，Claude Code 不做校验，未设置时会话标题与对话语言一致",
+        "官方文档只讲了回答语言；Claude Code 终端界面本身是否有中文界面、命令输出是否会翻译，官方文档没有写，本文不作结论",
+        "示例里的 \"chinese\" 是按官方「任意语言名」的说法给出的写法，官方示例用的是 japanese；效果以你实际使用为准"
+      ]
+    },
+    {
+      "title": "Claude 订阅用 Google Pay、Apple 内购怎么管理：手机应用订阅的取消、退款和发票",
+      "slug": "claude-app-store-google-play-subscription",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1065-web-vs-app-billing.png",
+        "g1065-app-subscription-who-to-ask.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "在 Claude 手机应用里用苹果或 Google Play 订阅，怎么管理？按官方帮助中心：谁收款、怎么取消、退款找谁、发票在哪、用量额度怎么买；官方没有提到 Google Pay 这个名字，只说支付方式取决于苹果或 Google。",
+      "content": "> 本文根据 Claude 帮助中心的《Paid plan billing FAQs》《Cancel your Pro or Max subscription》《Request a refund for a paid Claude plan》《Understanding your Pro or Max plan invoices》和用量额度、手机应用订阅文章整理，资料核对于 2026-10-24。图为本站整理的示意图。**以官方页面和应用商店显示的为准**。\n\n## 适用于谁\n\n- 在 Claude 手机应用里用苹果内购或 Google Play 订阅，想知道怎么管理的人；\n- 搜「claude 订阅 google pay」，想知道能不能用 Google Pay 付款的人；\n- 手机订阅后想取消、退款、找发票的人。\n\n网页订阅的取消和退款，见 [/guides/claude-cancel-subscription-refund](/guides/claude-cancel-subscription-refund)；发票，见 [/guides/claude-invoice-receipt-download](/guides/claude-invoice-receipt-download)。\n\n## 结论先说\n\n1. **手机应用里的订阅是应用内购买**：官方说明，在 iOS 和 Android 应用里点头像、进设置、点 **Upgrade to Pro**，按提示完成应用内购买。这时收款的是苹果 App Store 或 Google Play，不是 Anthropic。\n2. **关于 Google Pay：官方没有提到这个名字。** 官方只说，网页订阅只接受信用卡或借记卡，应用订阅则使用苹果或 Google 提供的支付方式。你能用什么付款，以 Google Play 结账页显示的为准。\n3. **取消要在订阅的平台上做**：应用里点头像 → **Billing** → **Manage subscription**；如果已经删了应用，用苹果或 Google 官方的订阅管理方式取消。\n4. **退款分渠道**：苹果的扣款 Claude 客服无法退，要向苹果申请；Google Play 的由 Claude 客服核对资格。\n5. **发票和收据由苹果或 Google 开**，不在 Claude 账号里。\n6. 需要新开通、而又想用网页订阅的，可以看本站的 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n![网页订阅和手机应用订阅有什么不同](seed:g1065-web-vs-app-billing.png)\n*图：本站根据 [Claude 帮助中心：Paid plan billing FAQs](https://support.claude.com/en/articles/8325618-paid-plan-billing-faqs) 等整理的示意图*\n\n## 一、怎么在手机应用里订阅\n\n官方的步骤（iOS 和 Android 相同）：\n\n1. 打开 Claude 应用；\n2. 点右上角你的头像或首字母；\n3. 在设置页点 **Upgrade to Pro**；\n4. 按支付提示完成应用内购买。\n\n官方这两篇文章**没有写**价格、具体支付方式，也没有写如何管理、升降级、恢复购买。官方《What is the Pro plan?》只说：价格见 claude.ai/upgrade 或你所在地区应用商店里显示的价格；Pro 在美国是每月 20 美元，各地区价格不同，有的含税、有的结账时加税。官方对 Max 的说明还提到，应用商店里的价格可能与网页订阅价不同，具体见 [/guides/claude-pro-vs-max-difference](/guides/claude-pro-vs-max-difference)。\n\n## 二、怎么取消\n\n![手机订阅出问题，先找谁](seed:g1065-app-subscription-who-to-ask.png)\n*图：本站根据 [Claude 帮助中心](https://support.claude.com/en/articles/8325617-cancel-your-pro-or-max-subscription) 的取消、退款、发票、用量额度文章整理的示意图*\n\n官方《Cancel your Pro or Max subscription》：\n\n- **iOS**：打开 Claude 应用，点右上角头像，选 **Billing**，选 **Manage subscription**，按提示取消；如果已经删了应用，用苹果官方「取消订阅」说明操作；\n- **Android**：同样是头像 → **Billing** → **Manage subscription**；如果已经删了应用，用 Google 官方「在 Google Play 取消、暂停或更改订阅」说明操作；\n- 取消在**当前计费周期结束时**生效，官方建议在下次扣费前至少 24 小时取消。\n\n## 三、怎么退款\n\n官方《Request a refund for a paid Claude plan》：\n\n- **苹果（iOS）**：由苹果处理付款，Claude 客服无法查看或退款。要用购买时的苹果账号登录 reportaproblem.apple.com，选 **I'd like to** → **Request a refund**，选原因，选你的 Claude 订阅，提交。是否退款由苹果决定。**申请退款不等于取消订阅**，要另外取消，否则还会继续扣款；\n- **Google Play（Android）**：订阅仍有效时，联系 Claude 客服，由客服核对资格，首条消息里写清细节；订阅已失效时，用 Google Play 绑定的邮箱，或 GPA 订单号（在 Google Play 收据上，形如 GPA.xxxx-xxxx-xxxx-xxxxx）联系客服。退款可能要几天才到账。\n\n退款的总原则（付款一般不可退，欧洲经济区和英国 14 天内可申请，按用量折算）见 [/guides/claude-cancel-subscription-refund](/guides/claude-cancel-subscription-refund)。\n\n## 四、发票和收据\n\n官方《Understanding your Pro or Max plan invoices》说明：通过 iOS 或 Android 应用订阅的，Anthropic 不开发票，由苹果 App Store 或 Google Play 向你收费，收据在你的应用商店账号里。发票上要不要写公司名、税号，官方没有说明应用商店订阅怎么处理，请向苹果或 Google 确认。\n\n## 五、手机订阅怎么开用量额度\n\n官方《Extra usage / Manage usage credits for paid Claude plans》说明：如果你是通过 iOS 或 Android 应用订阅的，只能在 **Claude 网页版**上启用和购买用量额度，并且要先在网页上添加付款方式。额度怎么算见 [/guides/claude-code-pro-max-or-api](/guides/claude-code-pro-max-or-api) 和 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n## 六、想从应用订阅换成网页订阅\n\n官方没有写「直接迁移」的功能。官方帮助中心写明的相关事实是：账单日不能直接改，可以取消当前订阅后在想要的日期重新订阅；换订阅币种也需要先设为到期取消、等周期结束再重新购买。所以如果想从应用订阅换成网页订阅，思路是：在应用商店取消续费，等当前周期结束，再到网页上重新订阅。具体细节请向官方客服确认。手机应用的其他说明见 [/guides/claude-mobile-app](/guides/claude-mobile-app)。\n\n## 常见问题\n\n**Q：Claude 订阅能用 Google Pay 付款吗？**\n官方页面没有提到 Google Pay。应用订阅走的是 Google Play 的支付，能用什么方式看 Google Play 结账页。\n\n**Q：为什么 App 里的价格和网页不一样？**\n官方说明应用商店价格可能与网页价不同，也受地区和税费影响。\n\n**Q：已经退款了，订阅还在扣吗？**\n苹果的退款申请不会自动取消订阅，要另外取消；官方明确提醒。\n\n**Q：发票哪里下？**\n苹果或 Google 的账号里，不在 Claude 账号里。\n\n## 参考资料\n\n- Claude 帮助中心：Paid plan billing FAQs — https://support.claude.com/en/articles/8325618-paid-plan-billing-faqs\n- Claude 帮助中心：Cancel your Pro or Max subscription — https://support.claude.com/en/articles/8325617-cancel-your-pro-or-max-subscription\n- Claude 帮助中心：Request a refund for a paid Claude plan — https://support.claude.com/en/articles/12386328-request-a-refund-for-a-paid-claude-plan\n- Claude 帮助中心：Understanding your Pro or Max plan invoices — https://support.claude.com/en/articles/16607638-understanding-your-pro-or-max-plan-invoices\n- Claude 帮助中心：Extra usage for paid Claude plans — https://support.claude.com/en/articles/12429409-extra-usage-for-paid-claude-plans",
+      "sources": [
+        "https://support.claude.com/en/articles/8325618-paid-plan-billing-faqs",
+        "https://support.claude.com/en/articles/8325617-cancel-your-pro-or-max-subscription",
+        "https://support.claude.com/en/articles/12386328-request-a-refund-for-a-paid-claude-plan",
+        "https://support.claude.com/en/articles/16607638-understanding-your-pro-or-max-plan-invoices",
+        "https://support.claude.com/en/articles/12429409-manage-usage-credits-for-paid-claude-plans",
+        "https://support.claude.com/en/articles/9612892-how-do-i-sign-up-for-claude-pro-on-claude-for-android",
+        "https://support.claude.com/en/articles/9266495-how-do-i-sign-up-for-claude-pro-on-the-claude-app-for-ios"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方在 Android、iOS 订阅文章里只写了「Upgrade to Pro」后「按提示完成应用内购买」，没有写价格、具体支付方式，也没有出现 Google Pay 这个名字；本文不对「Google Pay 能不能付」作结论，以 Google Play 结账页显示的方式为准",
+        "官方说明手机应用商店的价格可能与网页订阅不同；各地区价格和税费以应用商店结账页为准",
+        "用量额度「手机订阅者只能在网页版启用和购买」取自 Extra usage 官方文章；退款、取消、发票规则取自 2026-10-24 官方帮助中心"
       ]
     },
     {
