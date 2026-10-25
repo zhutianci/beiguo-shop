@@ -104,7 +104,7 @@ verify:
 不是，周用量池见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)。
 
 **Q：Grok 和 ChatGPT、Claude 的 API 价格怎么对比？**
-各家的价格以各自官方价格页为准，本站有专门的对比文章，写好后会在这里链接。
+五家官方价格放在一起的速查见 [/guides/llm-api-price-comparison-official](/guides/llm-api-price-comparison-official)。
 
 ## 参考资料
 
