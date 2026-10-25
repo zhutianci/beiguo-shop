@@ -16,7 +16,7 @@
  * 【IP】clientIp() 取的是 nginx 核实过的地址（nginx.conf 顶部）。拿不到（'unknown'）时跳过 IP 维度，
  * 否则所有人共用一个桶、被一个人打满。IPv6 按 /64 聚合：一户通常分到整段 /64，按单地址限流等于随手绕过。
  */
-import { clientIp, rateLimited, rateClear, type RateRule } from './news/rate-limit'
+import { clientIp, rateFull, rateLimited, rateClear, type RateRule } from './news/rate-limit'
 // ipKey（IPv6 按 /64 聚合）的实现挪到叶子模块 lib/ip-key.ts（2026-10-24：security/abuse 要被本文件引用，避免循环 import）；
 // 这里保留导出，老调用方不用改
 import { ipKey } from './ip-key'
@@ -83,9 +83,12 @@ export function sendCodeGate(headers: Headers, email: string, purpose: CodePurpo
     noteAbuse(headers, 'AUTH_THROTTLED', `发码冷却 ${purpose}`)
     return { message: '验证码发送过于频繁，请 60 秒后再试' }
   }
+  // 管理员新设备验证码的每日额度单独一格（2026-10-25）：以前与找回密码共用，别人刷满这个邮箱的找回密码额度，
+  // 站长当天就收不到新设备验证码
+  const dayKey = purpose === 'ADMIN_LOGIN' ? `vcs-maild:adm:${m}` : `vcs-maild:${m}`
   if (
     (ip && rateLimited(`vcs-mailipd:${ip}|${m}`, SEND_MAIL_DAY_PER_IP)) ||
-    rateLimited(`vcs-maild:${m}`, SEND_MAIL_DAY)
+    rateLimited(dayKey, SEND_MAIL_DAY)
   ) {
     noteAbuse(headers, 'AUTH_THROTTLED', `发码当日上限 ${purpose}`)
     return { message: '该邮箱今日获取验证码次数过多，请明天再试' }
@@ -110,6 +113,27 @@ export function verifyIpLimited(headers: Headers): boolean {
   return limited
 }
 
+// ---------------- 注册成功次数（2026-10-25 第三轮加固） ----------------
+
+// 同一出口 IP（IPv6 按 /64）每天最多成功注册 5 个号：恶意注册换号就是为了绕开「按账号」的风控（新号下单闸门、封号）。
+// 国内移动网络有大规模 NAT，但全站一天注册二三十个，同一出口一天 5 个正常人碰不到
+const REGISTER_IP_DAY: RateRule = { windowMs: DAY, max: 5 }
+
+/** 只看不记：这个 IP 今天成功注册的号是否已到上限 */
+export function registerIpFull(headers: Headers): boolean {
+  const ip = ipOf(headers)
+  if (!ip) return false
+  const full = rateFull(`reg-ip:${ip}`, REGISTER_IP_DAY)
+  if (full) noteAbuse(headers, 'AUTH_THROTTLED', '注册数达上限')
+  return full
+}
+
+/** 注册成功后调用：计一次 */
+export function noteRegisterSuccess(headers: Headers): void {
+  const ip = ipOf(headers)
+  if (ip) rateLimited(`reg-ip:${ip}`, REGISTER_IP_DAY)
+}
+
 // ---------------- 登录 ----------------
 
 // 按 IP：挡单一来源撞库与用 bcrypt 打满 CPU；公司/校园 NAT 共用出口时所有人合计 30 次/10 分钟，正常用不完
@@ -127,12 +151,15 @@ const LOGIN_MAIL: RateRule = { windowMs: 15 * MIN, max: 100 }
  * 所有尝试都计数（不只失败）：只数失败就得「先看后记」，中间隔着 bcrypt 的 await，并发下会超发。
  * 正常用户成功一次就停，用不到 10 次。
  */
-export function loginThrottle(headers: Headers, email: string): string | null {
+export function loginThrottle(headers: Headers, email: string, opts?: { trustedDevice?: boolean }): string | null {
   const ip = ipOf(headers)
   if (ip && rateLimited(`login-ip:${ip}`, LOGIN_IP)) {
     noteAbuse(headers, 'AUTH_THROTTLED', '登录')
     return '登录尝试过于频繁，请 10 分钟后再试'
   }
+  // 带着有效受信设备 cookie（管理员自己常用的浏览器）不看「按邮箱」这一层（2026-10-25）：
+  // 别人从很多 IP 故意输错，能把这个邮箱的按邮箱额度打满，但锁不住站长自己的设备。按 IP 那层照常
+  if (opts?.trustedDevice) return null
   const m = mailKey(email)
   if ((ip && rateLimited(`login-mailip:${ip}|${m}`, LOGIN_MAIL_IP)) || rateLimited(`login-mail:${m}`, LOGIN_MAIL)) {
     noteAbuse(headers, 'AUTH_THROTTLED', '登录（同一账号）')

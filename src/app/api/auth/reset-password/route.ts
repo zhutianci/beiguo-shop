@@ -9,11 +9,17 @@ import { consumeCode } from '@/lib/verify-code'
 import { verifyIpLimited, clearLoginThrottle } from '@/lib/auth-throttle'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { authCrossSiteReason } from '@/lib/tenant/same-origin'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
+import { adminWebResetAllowed, noteAdminResetAttempt } from '@/lib/security/admin-2fa'
+import { passwordProblem } from '@/lib/security/password-policy'
+import { sendPasswordChangedEmail } from '@/lib/mail'
+import { writeAudit } from '@/lib/audit'
+import { powGuard } from '@/lib/security/pow'
 
 const schema = z.object({
   email: z.string().email('请输入有效的邮箱地址'),
   code: z.string().min(4, '请输入验证码'),
-  password: z.string().min(6, '密码长度不能少于6位'),
+  password: z.string().min(8, '密码长度不能少于 8 位').max(128, '密码最长 128 位'),
 })
 
 // 统一失败文案：不存在的邮箱、错码、码被试爆，对外都长一个样（不给枚举新增信号）
@@ -28,11 +34,19 @@ export async function POST(request: NextRequest) {
   if (!sf) return error('资源不存在', 404)
   // 写接口同源校验（设计 4.6 C4；集成阶段补）：挡兄弟子域发起的登录 CSRF。店面解析之后、try 之外
   if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
+  // 被封禁的 IP 不能重置密码（10-25 实测：同一 IP 一天 79 次试重置码，以前这里不看封禁）
+  if (ipBlocked(request.headers)) return error(IP_BLOCKED_MSG, 429)
+  // 无感人机验证（lib/security/pow.ts，2026-10-25）：浏览器先算一道 SHA-256 题，脚本每打一次都要付算力
+  const pow = powGuard(request, 'reset')
+  if (pow) return pow
   try {
     const body = await request.json()
     const parsed = schema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
     const email = parsed.data.email.trim().toLowerCase()
+    // 新密码强度放在验码之前：不合格就别把验证码用掉（lib/security/password-policy.ts）
+    const weak = passwordProblem(parsed.data.password)
+    if (weak) return error(weak)
 
     // 按 IP 限提交次数；每张码另有 5 次上限（lib/verify-code.ts）。
     // 两道都没有时 6 位码可以被穷举，只要知道邮箱就能改掉任何人的密码（含后台管理员）
@@ -42,8 +56,13 @@ export async function POST(request: NextRequest) {
     const r = await consumeCode(email, 'RESET', parsed.data.code)
     if (r !== 'OK') return error(BAD_CODE)
 
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } })
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true, role: true } })
     if (!user) return error(BAD_CODE)
+    // 管理员不能在网页上自助重置（lib/security/admin-2fa.ts adminWebResetAllowed）：发码时就不会给管理员发码，这里是兜底
+    if (user.role === 'ADMIN' && !adminWebResetAllowed()) {
+      noteAdminResetAttempt(user.id, request.headers)
+      return error(BAD_CODE)
+    }
 
     await prisma.user.update({
       where: { id: user.id },
@@ -56,6 +75,9 @@ export async function POST(request: NextRequest) {
     })
     // 证明了邮箱归属：解除该邮箱的登录冷却，别人故意输错锁住的真实用户可以立刻登录
     clearLoginThrottle(email, request.headers)
+    // 通知邮件（2026-10-25）：不是本人操作的能第一时间知道。发不出去不影响重置结果
+    void sendPasswordChangedEmail(email).catch((e) => console.error('[reset-password] 修改通知发送失败', (e as Error)?.message))
+    void writeAudit(null, { actorKind: 'BUYER', actorUserId: user.id, action: 'auth.password_reset', targetType: 'user', targetId: String(user.id), req: request }).catch(() => {})
     return success({ ok: true }, '密码已重置，请用新密码登录')
   } catch (err) {
     console.error('Reset password error:', err)

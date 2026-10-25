@@ -95,6 +95,22 @@ export function countable(headers: Headers): boolean {
   return s !== 'cross-site' && s !== 'same-site'
 }
 
+/**
+ * 这个请求算不算数（2026-10-25 第三轮加固：以前只看 Sec-Fetch-Site，脚本自己带上 `cross-site` 就能绕开全部自动封禁）：
+ *  · 用 Authorization: Bearer 的：一律算——浏览器跨站请求加不了这个头（要过 CORS 预检，本站不放行）；
+ *  · Sec-Fetch-Site: cross-site 却带着登录 cookie、又不是顶层导航：一律算——浏览器跨站发子资源请求不会带 Lax cookie，
+ *    出现这种组合只能是脚本伪造的头；
+ *  · 其余照旧：cross-site / same-site 不算（防恶意网页 / 兄弟子域栽赃访客），same-origin / none / 缺省算。
+ */
+export function countableRequest(req: NextRequest): boolean {
+  const auth = req.headers.get('authorization') || ''
+  if (auth.startsWith('Bearer ')) return true
+  const site = (req.headers.get('sec-fetch-site') || '').toLowerCase()
+  const mode = (req.headers.get('sec-fetch-mode') || '').toLowerCase()
+  if (site === 'cross-site' && req.cookies.get('token')?.value && mode !== 'navigate') return true
+  return countable(req.headers)
+}
+
 /** 只验签名、不查库：拿到 token 里的 userId / role（处置前 banUser 会再查库） */
 function tokenUser(req: NextRequest): { userId: number; role: string } | null {
   let token = req.cookies.get('token')?.value
@@ -124,7 +140,7 @@ function alert(subject: string, rows: { label: string; value: string }[]): void 
  */
 export async function recordProbe(req: NextRequest, kind: ProbeKind, opts?: { path?: string }): Promise<void> {
   try {
-    if (!countable(req.headers)) return
+    const counted = countableRequest(req)
     const rule = PROBE_RULES[kind]
     const now = Date.now()
     // ADMIN_DENIED 是 middleware 改写过来的，原路径由调用方传入
@@ -141,9 +157,11 @@ export async function recordProbe(req: NextRequest, kind: ProbeKind, opts?: { pa
       actorUserId: who?.userId ?? null,
       action: `sec.probe.${kind.toLowerCase()}`,
       result: 'DENIED',
-      reason: `${req.method} ${path}`,
+      reason: `${req.method} ${path}${counted ? '' : '（跨站，不计数）'}`,
       req,
     }).catch(() => {})
+    // 跨站发起的只留痕、不计数（防栽赃，见 countableRequest）
+    if (!counted) return
 
     const ipTrack = ip && rule.ip > 0 ? bump(`${kind}|ip:${ip}`, path, now) : null
     const userTrack = who && rule.user > 0 ? bump(`${kind}|u:${who.userId}`, path, now) : null

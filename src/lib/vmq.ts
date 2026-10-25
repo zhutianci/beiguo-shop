@@ -294,8 +294,13 @@ async function allocateAmount(basePrice: number, orderId: string): Promise<numbe
   })
   // 第一轮避开冷却中的金额；极端高峰下 50 个候选全在冷却时，第二轮退回旧规则 —— 冷却绝不能让买家下不了单
   for (const avoidCooling of cooling.size ? [true, false] : [false]) {
-    let cents = centsOf(basePrice)
-    for (let i = 0; i < 50; i++) {
+    // 【从 +1 分起，永远不分配整数原价】（2026-10-25 第三轮加固）以前第一张单拿到的就是原价 135.00。
+    // 买家手输金额时最常见的错就是抹掉尾差、付整数（线上 10-20 ～ 10-22 待核实里就有好几笔「付 135.00、单是 135.01」）。
+    // 原价那一格谁先下单谁占：攻击者下单占住 135.00，别人付错的 135.00 就会自动记到他的单上、卡密自动发给他
+    // （充值单过期后还会按「迟到付款」自动退进他的余额）。现在整数原价永远不分配，付错的整数金额一律进人工核实。
+    // 尾差范围 1～49 分（49 个候选）：迟到退入的金额上界 LATEPAY_MAX_CENTS = 充值上限 + 49 分依赖这个上限，别改大
+    let cents = centsOf(basePrice) + 1
+    for (let i = 0; i < 49; i++) {
       if (avoidCooling && cooling.has(cents)) {
         cents += 1
         continue
@@ -1321,10 +1326,21 @@ export async function recordCarrierPaid(vmqId: number): Promise<{ recorded: bool
   return { recorded: true, key: got.key }
 }
 
-// 后台手动补单（确认到账）：无视金额/状态，强制标记该 vmq 订单已支付并履约
-export async function manualComplete(vmqOrderId: number): Promise<void> {
+/** 补单占用的交易号（2026-10-25）：与迟到退入的 latepay_trade:* 互查，同一笔支付宝 / 微信交易只能用一次 */
+export const COMPLETE_TRADE_PREFIX = 'vmq_trade:'
+const COMPLETE_TRADE_RE = /^\d{16,32}$/
+
+// 后台手动补单（确认到账）：强制标记该 vmq 订单已支付并履约
+//
+// 【必须填交易号】（2026-10-25 第三轮加固）以前补单只要点一下：聊天消息冒充的「到账」会落进「待人工核实」，
+// 金额又正好对得上攻击者那张单，站长一看像真的就补了，卡密白发。现在没到账过的收款单（state≠1）补单必须填
+// 这笔钱在支付宝 / 微信账单里的交易号（16–32 位数字）——逼着站长去账单里核对一次；交易号全局只能用一次
+// （settings vmq_trade:<号>，与迟到退入的 latepay_trade:<号> 互查），同一笔钱不能给两张单各补一次。
+// 已到账的收款单（state=1）重新履约只补订单缺的部分、不涉及新的钱，不要求交易号。
+export async function manualComplete(vmqOrderId: number, tradeNoRaw?: string | null): Promise<void> {
   const o = await prisma.vmqOrder.findUnique({ where: { id: vmqOrderId } })
   if (!o) throw new VmqError('收款单不存在')
+  const tradeNo = String(tradeNoRaw ?? '').trim()
   /*
    * 【载体单（接码 / 充值）直接拒绝】（D41、§6.6 第 15 条）必须在碰收款单之前：下面是先在一个事务里把收款单无条件置 1、
    * 再调 fulfillOrder，而载体单关了就不复活（付款 CAS 带「未取消」）——放行就会留下「收款单已付、订单已关」的孤儿。
@@ -1335,11 +1351,26 @@ export async function manualComplete(vmqOrderId: number): Promise<void> {
       throw new VmqError('接码 / 充值订单的迟到到账请用「退入买家余额」（收款监控 → 待核实），不能补单')
     }
   }
-  // 管理员强制确认：无条件标记已支付 + 释放金额锁（即使已过期 state=-1 也能补单）
-  await prisma.$transaction([
-    prisma.vmqOrder.update({ where: { id: o.id }, data: { state: 1, payDate: o.payDate ?? new Date() } }),
-    prisma.vmqLock.deleteMany({ where: { orderId: o.orderId } }),
-  ])
+  // 管理员强制确认：标记已支付 + 释放金额锁（即使已过期 state=-1 也能补单）；没到账过的同一事务占交易号
+  if (o.state !== 1) {
+    if (!COMPLETE_TRADE_RE.test(tradeNo)) {
+      throw new VmqError('请填写这笔到账在支付宝 / 微信账单里的交易号（16–32 位数字），核对账单确实收到钱后再补单')
+    }
+    const used = await prisma.setting.findFirst({ where: { key: { in: [`latepay_trade:${tradeNo}`, `${COMPLETE_TRADE_PREFIX}${tradeNo}`] } }, select: { key: true } })
+    if (used) throw new VmqError('这个交易号已经用过（补单或退入余额），同一笔钱不能用两次')
+    try {
+      await prisma.$transaction([
+        prisma.setting.create({ data: { key: `${COMPLETE_TRADE_PREFIX}${tradeNo}`, value: JSON.stringify({ vmqId: o.id, at: Date.now() }) } }),
+        prisma.vmqOrder.update({ where: { id: o.id }, data: { state: 1, payDate: o.payDate ?? new Date() } }),
+        prisma.vmqLock.deleteMany({ where: { orderId: o.orderId } }),
+      ])
+    } catch (e) {
+      if ((e as { code?: string })?.code === 'P2002') throw new VmqError('这个交易号已经用过（补单或退入余额），同一笔钱不能用两次')
+      throw e
+    }
+  } else {
+    await prisma.vmqLock.deleteMany({ where: { orderId: o.orderId } })
+  }
   try {
     // fulfillOrder 自身幂等（原子占单 + 只补缺口），重复调用不会重复发卡/记账。带上收款单：支付方式按它的渠道记
     if (o.bizType === 'order') await fulfillOrder(o.bizId, { via: 'VMQ', vmqId: o.id })

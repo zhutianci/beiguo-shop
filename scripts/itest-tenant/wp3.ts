@@ -241,7 +241,8 @@ async function payInvoiceViaVmq(invoiceId: number): Promise<void> {
   const v = await prisma.vmqOrder.create({
     data: { orderId: `ITV${RUN}${vmqSeq}`, bizType: 'invoice', bizId: invoiceId, outTradeNo: iv.invoiceNo, type: 2, price: iv.taxFee ?? new Prisma.Decimal(0), reallyPrice: iv.taxFee ?? new Prisma.Decimal(0), state: 0 },
   })
-  await V.manualComplete(v.id)
+  // 2026-10-25 起补单必填交易号（16–32 位数字、全局唯一）：按 RUN + 序号编一个
+  await V.manualComplete(v.id, `9${String(Date.now()).slice(-12)}${String(vmqSeq).padStart(5, '0')}`)
 }
 async function postHocInvoice(o: Ord): Promise<number> {
   const full = await prisma.order.findUniqueOrThrow({ where: { id: o.id }, include: { user: true } })

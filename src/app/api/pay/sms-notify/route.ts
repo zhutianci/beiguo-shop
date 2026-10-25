@@ -91,6 +91,16 @@ function str(v: unknown): string {
   return typeof v === 'string' ? v : ''
 }
 
+// 库里的签名占位（settings vmqsig:*）只需活过签名的有效窗口：每小时顺手清一次 1 天前的
+let lastSigPruneAt = 0
+function pruneSigRows(): void {
+  if (Date.now() - lastSigPruneAt < 60 * 60_000) return
+  lastSigPruneAt = Date.now()
+  void prisma.setting
+    .deleteMany({ where: { key: { startsWith: 'vmqsig:' }, createdAt: { lt: new Date(Date.now() - 24 * 60 * 60_000) } } })
+    .catch((e) => console.error('[vmq] 清理签名占位失败', (e as Error)?.message))
+}
+
 async function handle(req: NextRequest) {
   const url = new URL(req.url)
   const raw = await req.text().catch(() => '')
@@ -189,10 +199,38 @@ async function handle(req: NextRequest) {
     return NextResponse.json({ code: -1, msg: '空内容' }, { status: 200 })
   }
 
+  // 【验签即占位】（2026-10-25 第三轮加固）同一个签名并发进来两次，只有先到的那个往下走；
+  // 进程内占位挡并发，库里占位挡「重启后在 10 分钟窗口内重放」（进程内记录随重启清空）
+  const dbSigKey = signed ? `vmqsig:${crypto.createHash('sha256').update(signKey).digest('hex').slice(0, 40)}` : ''
+  if (signed) {
+    if (!signer.claim(signKey)) return NextResponse.json({ code: -1, msg: '签名已使用' }, { status: 401 })
+    try {
+      await prisma.setting.create({ data: { key: dbSigKey, value: String(Date.now()) } })
+    } catch (e) {
+      if ((e as { code?: string })?.code === 'P2002') {
+        // 库里已有：重启前处理过的签名。保持占位，不放开
+        noteAbuse(req.headers, 'WEBHOOK_AUTH', '签名重放')
+        return NextResponse.json({ code: -1, msg: '签名已使用' }, { status: 401 })
+      }
+      signer.release(signKey)
+      throw e // 库挂了：回 500 让手机重试
+    }
+    pruneSigRows()
+  }
+
   // 注意不要给这里包「一律回 200」的整体 catch：到账记到收款单之前的失败（库挂了）要回 500，
   // 让 SmsForwarder 重试；记到收款单之后的失败 lib/vmq.ts 已自行吞掉并告警，不会再抛到这里
-  const r = await handleWebhookNotify(content, { from: fields.from })
-  // 处理成功之后才作废签名：处理中途 500 时 SmsForwarder 重试同一签名还能进来
+  let r: Awaited<ReturnType<typeof handleWebhookNotify>>
+  try {
+    r = await handleWebhookNotify(content, { from: fields.from })
+  } catch (e) {
+    // 处理失败要让 SmsForwarder 重试同一签名：放开两处占位（同一条通知的重复入账另有原文摘要去重兜底）
+    if (signed) {
+      signer.release(signKey)
+      await prisma.setting.deleteMany({ where: { key: dbSigKey } }).catch(() => {})
+    }
+    throw e
+  }
   if (signed) signer.markUsed(signKey)
   console.log(`[vmq] sms-notify ${signed ? 'sign' : kind} matched=${r.matched} amount=${r.amount} type=${r.type}`)
   // 始终回 200，便于 SmsForwarder 判定成功

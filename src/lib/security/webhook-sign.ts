@@ -26,8 +26,16 @@ function safeEqual(a: string, b: string): boolean {
 }
 
 export interface SignVerifier {
-  /** reason = null 表示通过；key 用于处理成功后 markUsed */
+  /** reason = null 表示通过；key 用于 claim / markUsed */
   check(timestamp: string, sign: string, now?: number): { reason: SignReject | null; key: string }
+  /**
+   * 验签通过后**立刻**占住这个签名（2026-10-25 第三轮加固）：返回 false = 已被占用（并发的另一个请求、或已处理过）。
+   * 以前「验签」和「作废」隔着整段处理流程，两个同时到的请求能拿同一个签名各处理一次。
+   * 同步执行，单进程内天然原子；跨重启由路由另写库占位（settings vmqsig:*）。
+   */
+  claim(key: string, now?: number): boolean
+  /** 处理失败（要让手机重试）时放开占位 */
+  release(key: string): void
   markUsed(key: string, now?: number): void
 }
 
@@ -56,6 +64,16 @@ export function createSignVerifier(secret: string, windowMs: number = SIGN_WINDO
       const exp = used.get(key)
       if (exp !== undefined && exp > now) return { reason: 'replay', key }
       return { reason: null, key }
+    },
+    claim(key, now = Date.now()) {
+      if (!key) return false
+      const exp = used.get(key)
+      if (exp !== undefined && exp > now) return false
+      used.set(key, now + 2 * windowMs)
+      return true
+    },
+    release(key) {
+      if (key) used.delete(key)
     },
     markUsed(key, now = Date.now()) {
       if (key) used.set(key, now + 2 * windowMs)

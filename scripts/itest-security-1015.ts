@@ -11,6 +11,7 @@
  */
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { createHash } from 'crypto'
 
 const url = process.env.DATABASE_URL || ''
 const dbName = url.split('/').pop()?.split('?')[0] || ''
@@ -42,9 +43,44 @@ function ok(name: string, cond: boolean, extra = '') {
 }
 
 type Jar = Map<string, string>
-async function call(method: string, path: string, opts: { body?: unknown; jar?: Jar; ip?: string; headers?: Record<string, string> } = {}) {
+
+// 无感人机验证（2026-10-25，lib/security/pow.ts）：这几个接口要先取题、算出 nonce，带 x-pow 头
+const POW_PATHS: Record<string, string> = {
+  '/api/auth/login': 'login',
+  '/api/auth/register': 'register',
+  '/api/auth/send-code': 'send',
+  '/api/auth/reset-password': 'reset',
+  '/api/external-orders/lookup/send-code': 'lookup',
+  '/api/external-orders/lookup/verify': 'lookup',
+}
+function lzBits(buf: Buffer): number {
+  let n = 0
+  for (const b of Array.from(buf)) {
+    if (b === 0) {
+      n += 8
+      continue
+    }
+    return n + Math.clz32(b) - 24
+  }
+  return n
+}
+async function powFor(path: string, ip?: string): Promise<Record<string, string>> {
+  const purpose = POW_PATHS[path]
+  if (!purpose) return {}
+  const r = await fetch(`${BASE}/api/auth/pow?p=${purpose}`, { headers: ip ? { 'cf-connecting-ip': ip } : {} })
+  const j: any = await r.json().catch(() => null)
+  if (!j?.success || j.data?.off) return {}
+  const { challenge, bits } = j.data
+  for (let i = 0; ; i++) {
+    const nonce = i.toString(36)
+    if (lzBits(createHash('sha256').update(`${challenge}.${nonce}`).digest()) >= bits) return { 'x-pow': `${challenge}.${nonce}` }
+  }
+}
+
+async function call(method: string, path: string, opts: { body?: unknown; jar?: Jar; ip?: string; headers?: Record<string, string>; noPow?: boolean } = {}) {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', Origin: BASE, ...(opts.headers || {}) }
   if (opts.ip) headers['cf-connecting-ip'] = opts.ip
+  if (method === 'POST' && !opts.noPow) Object.assign(headers, await powFor(path, opts.ip))
   if (opts.jar && opts.jar.size) headers.Cookie = Array.from(opts.jar.entries()).map(([k, v]) => `${k}=${v}`).join('; ')
   const res = await fetch(BASE + path, { method, headers, body: opts.body === undefined ? undefined : JSON.stringify(opts.body), redirect: 'manual' })
   const setCookies = (res.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.() || []
@@ -298,6 +334,41 @@ async function main() {
     ok('验证后可改角色，并写审计 user.role', pr1.data?.success === true && !!roleEv, JSON.stringify(pr1.data))
     await call('PUT', `/api/admin/users/${pawn.id}`, { jar, ip: J, body: { role: 'USER' } })
 
+    // ---- 2026-10-25 第三轮：管理员会话绑受信设备、token 不进响应体、网页找回密码关闭、补单要交易号、改价要二次验证 ----
+    ok('管理员登录响应体不带 token（不进 localStorage）', a3.data?.data?.token === undefined, JSON.stringify(a3.data?.data))
+    const noDev: Jar = new Map(jar)
+    noDev.delete('adm_dev')
+    const nd2 = await call('GET', '/api/admin/security', { jar: noDev, ip: J })
+    ok('…自带守卫的后台接口同样拒绝（403）', nd2.status === 403, String(nd2.status))
+    const nd = await call('GET', '/api/admin/vmq/config', { jar: noDev, ip: J })
+    ok('后台接口只有登录 token、没有受信设备 cookie → 401 请重新登录', nd.status === 401 && /重新登录/.test(nd.data?.error || ''), `${nd.status} ${JSON.stringify(nd.data)}`)
+    const resetBefore = await prisma.emailCode.count({ where: { email: admin.email!, purpose: 'RESET' } })
+    await call('POST', '/api/auth/send-code', { body: { email: admin.email, purpose: 'RESET' }, ip: ip(23) })
+    ok('管理员网页找回密码：不发重置码', (await prisma.emailCode.count({ where: { email: admin.email!, purpose: 'RESET' } })) === resetBefore)
+    await plantCode(admin.email!, 'RESET', '616161')
+    const rp = await call('POST', '/api/auth/reset-password', { body: { email: admin.email, code: '616161', password: 'NewPass12345' }, ip: ip(23) })
+    const adminRow = await prisma.user.findUnique({ where: { id: admin.id }, select: { passwordHash: true } })
+    ok('管理员就算拿到重置码也改不了密码', rp.data?.success !== true && !(await bcrypt.compare('NewPass12345', adminRow!.passwordHash)), JSON.stringify(rp.data))
+    const vmqo = await prisma.vmqOrder.create({
+      data: { orderId: `ITC${RUN}`, bizType: 'invoice', bizId: 999999999, outTradeNo: `ITC${RUN}`, type: 2, price: 1, reallyPrice: 1.01, state: -1 },
+    })
+    const c0 = await call('POST', '/api/admin/vmq/complete', { jar, ip: J, body: { id: vmqo.id } })
+    ok('补单不填交易号：拒绝', c0.data?.success !== true && /交易号/.test(c0.data?.error || ''), JSON.stringify(c0.data))
+    const tno = `8${Date.now()}${String(OCT).padStart(3, '0')}00`
+    await prisma.setting.create({ data: { key: `latepay_trade:${tno}`, value: 'itest' } })
+    const c1 = await call('POST', '/api/admin/vmq/complete', { jar, ip: J, body: { id: vmqo.id, tradeNo: tno } })
+    ok('交易号已经用来退入过余额：补单拒绝（同一笔钱不能用两次）', c1.data?.success !== true && /已经用过/.test(c1.data?.error || ''), JSON.stringify(c1.data))
+    ok('…收款单状态没被改', (await prisma.vmqOrder.findUnique({ where: { id: vmqo.id } }))?.state === -1)
+    await prisma.setting.deleteMany({ where: { key: `latepay_trade:${tno}` } })
+    await prisma.vmqOrder.delete({ where: { id: vmqo.id } })
+    const prod = await prisma.product.findUnique({ where: { id: PRODUCT_ID }, select: { price: true, stock: true } })
+    const pp = await call('PUT', `/api/admin/products/${PRODUCT_ID}`, { jar: noSudo, ip: J, body: { price: Number(prod!.price) + 1 } })
+    ok('改商品价格要二次验证', pp.status === 403 && pp.data?.needSudo === true, `${pp.status} ${JSON.stringify(pp.data)}`)
+    const pn = await call('PUT', `/api/admin/products/${PRODUCT_ID}`, { jar: noSudo, ip: J, body: { price: Number(prod!.price) } })
+    ok('价格没变（只改展示字段）不用二次验证', pn.data?.success === true, JSON.stringify(pn.data))
+    // 商品保存会按卡密数重算自动发货商品的库存：还原，免得后面的下单用例没货
+    await prisma.product.update({ where: { id: PRODUCT_ID }, data: { stock: prod!.stock } })
+
     const put = await call('PUT', '/api/admin/security', {
       jar,
       ip: J,
@@ -332,7 +403,40 @@ async function main() {
     const dis = await call('PUT', `/api/admin/users/${victim.id}`, { jar, ip: J, body: { status: 0 } })
     const vo = await prisma.order.findMany({ where: { userId: victim.id }, select: { deliveryStatus: true } })
     ok('后台禁用用户：提示里说清取消了几笔、订单已取消', dis.data?.success === true && /取消其未付款订单 1 笔/.test(dis.data?.message || '') && vo[0]?.deliveryStatus === 'CANCELLED', `${dis.data?.message} ${JSON.stringify(vo)}`)
+
+    // 管理员退出 = 所有设备一起退出（2026-10-25）
+    const ep0 = (await prisma.user.findUnique({ where: { id: admin.id }, select: { sessionEpoch: true } }))!.sessionEpoch
+    const stolen: Jar = new Map(jar)
+    await call('POST', '/api/auth/logout', { jar, ip: J })
+    ok('管理员退出：会话版本 +1', (await prisma.user.findUnique({ where: { id: admin.id }, select: { sessionEpoch: true } }))!.sessionEpoch === ep0 + 1)
+    const after = await call('GET', '/api/admin/security', { jar: stolen, ip: J })
+    ok('…退出前复制走的 cookie 随之失效', after.status === 403 || after.status === 401, String(after.status))
   }
+
+  // ---------- 2026-10-25 第三轮：人机验证、别名邮箱、密码强度 ----------
+  console.log('\n[第三轮：人机验证 / 别名邮箱 / 密码强度]')
+  const twinUser = await mkUser(`dot${RUN}x@gmail.com`)
+  {
+    const R = ip(22)
+    const np = await call('POST', '/api/auth/login', { body: { email: mail('nobody'), password: PW }, ip: R, noPow: true })
+    ok('登录不带人机验证：403 并提示刷新', np.status === 403 && np.data?.powRequired === true, `${np.status} ${JSON.stringify(np.data)}`)
+    const ns = await call('POST', '/api/auth/send-code', { body: { email: mail('x'), purpose: 'REGISTER' }, ip: R, noPow: true })
+    ok('发码不带人机验证：403', ns.status === 403 && ns.data?.powRequired === true, String(ns.status))
+    const forged = await call('POST', '/api/auth/login', { body: { email: mail('nobody'), password: PW }, ip: R, noPow: true, headers: { 'x-pow': 'v1.abc.def.1' } })
+    ok('伪造的人机验证头：403', forged.status === 403, String(forged.status))
+    const plus = await call('POST', '/api/auth/send-code', { body: { email: `abc+${RUN}@gmail.com`, purpose: 'REGISTER' }, ip: R })
+    ok('「+」别名邮箱拿不到注册码', /别名邮箱/.test(plus.data?.error || ''), JSON.stringify(plus.data))
+    const twin = `d.ot${RUN}x@gmail.com`
+    await plantCode(twin, 'REGISTER', '424242')
+    const tw = await call('POST', '/api/auth/register', { body: { email: twin, password: PW, code: '424242' }, ip: R })
+    ok('Gmail 加点的同一邮箱：按已注册处理，不多开号', /已被注册/.test(tw.data?.error || '') && !(await prisma.user.findUnique({ where: { email: twin } })), JSON.stringify(tw.data))
+    const weakEmail = `w${RUN}@qq.com`
+    await plantCode(weakEmail, 'REGISTER', '515151')
+    const wk = await call('POST', '/api/auth/register', { body: { email: weakEmail, password: '12345678', code: '515151' }, ip: R })
+    ok('纯数字密码注册不了（验证码不被消耗）', /纯数字/.test(wk.data?.error || '') && (await prisma.emailCode.count({ where: { email: weakEmail, used: false } })) === 1, JSON.stringify(wk.data))
+    await prisma.emailCode.deleteMany({ where: { email: { in: [twin, weakEmail, `abc+${RUN}@gmail.com`] } } })
+  }
+  await prisma.user.deleteMany({ where: { id: twinUser.id } })
 
   // ---------- 社区：看不到的帖子，评论也不给 ----------
   console.log('\n[社区评论可见性]')

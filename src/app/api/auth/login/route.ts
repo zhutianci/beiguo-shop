@@ -12,6 +12,8 @@ import { sendVerifyCodeEmail, systemEmailConfigured } from '@/lib/mail'
 import {
   ADMIN_DEVICE_COOKIE,
   adminDeviceCookieOptions,
+  adminDeviceSignatureValid,
+  adminPasswordLocked,
   adminTokenHours,
   adminTwoFactorEnabled,
   isTrustedAdminDevice,
@@ -23,6 +25,7 @@ import {
 import { getStorefront } from '@/lib/storefront/resolve'
 import { authCrossSiteReason } from '@/lib/tenant/same-origin'
 import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
+import { powGuard } from '@/lib/security/pow'
 
 const loginSchema = z.object({
   email: z.string().email('请输入有效的邮箱地址'),
@@ -44,6 +47,9 @@ export async function POST(request: NextRequest) {
   if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
   // 被蜜罐封禁的 IP（lib/security/ip-ban.ts）：1 小时内不能登录 / 注册 / 发码，浏览不受影响
   if (ipBlocked(request.headers)) return error(IP_BLOCKED_MSG, 429)
+  // 无感人机验证（lib/security/pow.ts，2026-10-25）：浏览器先算一道 SHA-256 题，脚本每打一次都要付算力
+  const pow = powGuard(request, 'login')
+  if (pow) return pow
   try {
     const body = await request.json()
     const result = loginSchema.safeParse(body)
@@ -54,14 +60,22 @@ export async function POST(request: NextRequest) {
 
     const { email, password } = result.data
 
-    // 在查库与 bcrypt 之前限流：挡撞库，也挡拿 bcrypt 打满 CPU（lib/auth-throttle.ts）
-    const blocked = loginThrottle(request.headers, email)
+    // 在查库与 bcrypt 之前限流：挡撞库，也挡拿 bcrypt 打满 CPU（lib/auth-throttle.ts）。
+    // 带有效受信设备 cookie 的（站长常用浏览器）不受「按邮箱」那层限制，别人故意输错锁不住站长
+    const cookieStore = await cookies()
+    const devValue = cookieStore.get(ADMIN_DEVICE_COOKIE)?.value
+    const blocked = loginThrottle(request.headers, email, { trustedDevice: adminDeviceSignatureValid(devValue) })
     if (blocked) return error(blocked, 429)
 
     // 查找用户
     const user = await prisma.user.findUnique({
       where: { email },
     })
+
+    // 管理员被连续猜密码后锁定 30 分钟，只放行受信设备（lib/security/admin-2fa.ts）。文案与普通限流相同，不暴露这是管理员
+    if (user && user.role === 'ADMIN' && adminPasswordLocked(user.id) && !isTrustedAdminDevice(devValue, user.id, user.sessionEpoch)) {
+      return error('该账号登录尝试次数过多，请 15 分钟后再试，或通过「忘记密码」重置后立即登录', 429)
+    }
 
     if (user && user.passwordHash === LEGACY_SEED_HASH) {
       console.warn('[login] 拒绝使用旧种子默认密码的账号 id=', user.id)
@@ -95,7 +109,6 @@ export async function POST(request: NextRequest) {
      */
     const isAdmin = user.role === 'ADMIN' && sf.kind === 'PLATFORM'
     let via: 'PASSWORD' | 'CODE' = 'PASSWORD'
-    const cookieStore = await cookies()
     if (isAdmin && adminTwoFactorEnabled() && systemEmailConfigured() && user.email) {
       const trusted = isTrustedAdminDevice(cookieStore.get(ADMIN_DEVICE_COOKIE)?.value, user.id, user.sessionEpoch)
       if (!trusted) {
@@ -150,8 +163,10 @@ export async function POST(request: NextRequest) {
         avatar: user.avatar,
         role: user.role,
       },
-      // 同时下发 token，供 WebView（如微信）以 Authorization 头兜底鉴权
-      token,
+      // 同时下发 token，供 WebView（如微信）以 Authorization 头兜底鉴权。
+      // 管理员不下发（2026-10-25 第三轮加固）：响应体里的 token 会被前端存进 localStorage，页面上任何一处 XSS 都能读走；
+      // 管理员只用 httpOnly cookie（脚本读不到），而且后台接口还要求配套的受信设备 cookie（lib/auth.ts requireAdmin）
+      token: isAdmin ? undefined : token,
     }, '登录成功')
   } catch (err) {
     console.error('Login error:', err)

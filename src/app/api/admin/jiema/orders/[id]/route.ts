@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { adminGuard } from '@/lib/admin-guard'
+import { requireSudo } from '@/lib/security/sudo'
 import { success, error } from '@/lib/api'
 import { getCurrentUser } from '@/lib/auth'
 import { writeAudit } from '@/lib/audit'
@@ -58,6 +59,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (!Number.isSafeInteger(id) || id <= 0) return error('参数不正确', 400)
     const parsed = schema.safeParse(await request.json().catch(() => null))
     if (!parsed.success) return error(parsed.error.errors[0]?.message || '参数不正确', 400)
+    // 退款 / 迟到到账退入余额 / 补偿换号是动钱的操作：要二次验证（2026-10-25 第三轮加固）
+    if (['refund', 'cancel_refund', 'close_latepay', 'bonus_replace'].includes(parsed.data.action)) {
+      const sudo = await requireSudo()
+      if (sudo) return sudo
+    }
     const admin = await getCurrentUser()
     if (!admin) return error('无管理员权限', 403)
     const before = await jiemaOrderDetailAdmin(id)

@@ -16,6 +16,9 @@ import { invoicesForOrder, orderIdFromSourceKey } from '@/lib/order-link'
 import { readProofDigests } from '@/lib/email-proof'
 import { getStorefront, PLATFORM_TENANT_ID } from '@/lib/storefront/resolve'
 import { crossSiteWrite } from '@/lib/security/write-guard'
+import { recordProbe } from '@/lib/security/probe'
+import { clientIp, rateLimited } from '@/lib/news/rate-limit'
+import { ipKey } from '@/lib/ip-key'
 
 const schema = z.object({
   externalOrderId: z.number().int().positive('缺少订单'),
@@ -35,11 +38,17 @@ export async function POST(request: NextRequest) {
   // 店面解析不进 try（设计 4.4 第 7 条）
   const sf = await getStorefront()
   if (!sf) return notFound('订单不存在')
+  // 按 IP 限频（2026-10-25：线上有人一天打了 50 多次在试别人的订单号）。正常买家一张单开一次收据
+  if (rateLimited(`receipt-ip:${ipKey(clientIp(request.headers))}`, { windowMs: 10 * 60_000, max: 20 })) {
+    return error('操作过于频繁，请稍后再试', 429)
+  }
+  let extId: number | null = null
   try {
     const body = await request.json()
     const parsed = schema.safeParse(body)
     if (!parsed.success) return error(parsed.error.errors[0].message)
     const d = parsed.data
+    extId = d.externalOrderId
 
     const order = await prisma.externalOrder.findUnique({
       where: { id: d.externalOrderId },
@@ -114,7 +123,14 @@ export async function POST(request: NextRequest) {
     })
     return success(result, '收据已生成')
   } catch (err) {
-    if (err instanceof BillingError) return error(err.message, err.status)
+    if (err instanceof BillingError) {
+      // 别人的订单（403）/ 别站的订单（404）：登录了的按越权计数（lib/security/probe.ts IDOR，10 分钟 5 张 → 封号封 IP）
+      if (err.status === 403 || err.status === 404) {
+        const who = await getCurrentUser().catch(() => null)
+        if (who) await recordProbe(request, 'IDOR', { path: `ext:${extId ?? '?'}` })
+      }
+      return error(err.message, err.status)
+    }
     console.error('Create receipt error:', err)
     return error('生成收据失败')
   }

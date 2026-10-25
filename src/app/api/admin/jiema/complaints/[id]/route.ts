@@ -8,6 +8,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { writeAudit } from '@/lib/audit'
 import { approveComplaint, complaintDetailAdmin, logComplaintView, rejectComplaint } from '@/lib/jiema/complaint'
 import { COMPLAINT_NOTE_MAX } from '@/lib/jiema/complaint-rules'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 后台售后申请详情与处理（docs/短信接码-设计.md §7.5、E17、T16）。第一行 adminGuard；处理写审计（jiema.complaint.approve / reject）。
@@ -46,6 +47,9 @@ const schema = z.discriminatedUnion('action', [
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 动钱的后台操作要二次验证（lib/security/sudo.ts，2026-10-25 第三轮补齐）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const id = Number(params.id)
     if (!Number.isSafeInteger(id) || id <= 0) return error('参数不正确', 400)

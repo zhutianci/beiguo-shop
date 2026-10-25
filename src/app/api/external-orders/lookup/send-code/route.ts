@@ -8,6 +8,8 @@ import { createCode, tooFrequent } from '@/lib/verify-code'
 import { sendVerifyCodeEmail, sendNoSubscriptionEmail, systemEmailConfigured } from '@/lib/mail'
 import { sendCodeGate } from '@/lib/auth-throttle'
 import { denyOnChannel } from '@/lib/storefront/resolve'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
+import { powGuard } from '@/lib/security/pow'
 
 const schema = z.object({ email: z.string().email('请输入正确的邮箱') })
 
@@ -19,6 +21,11 @@ const SENT_MSG = '邮件已发送，请查收（含垃圾箱）'
  * 以前这一页只凭邮箱就能查到任何人的全部订阅与收据（2026-09-25 审计 G11）。
  */
 export async function POST(request: NextRequest) {
+  // 被封禁的 IP 不能发码 / 验码（2026-10-25 第三轮加固：以前这几个验证码接口不看封禁，被封的 IP 还能接着试）
+  if (ipBlocked(request.headers)) return Response.json({ success: false, error: IP_BLOCKED_MSG }, { status: 429 })
+  // 无感人机验证（lib/security/pow.ts，2026-10-25）：浏览器先算一道 SHA-256 题，脚本每打一次都要付算力
+  const pow = powGuard(request, 'lookup')
+  if (pow) return pow
   // 渠道分站：本模块在渠道站关闭（设计 7.6 / 11.2，实施分包 WP1）。第一行、不包进 try；主站（含休眠期任何 Host）放行
   const channelDenied = await denyOnChannel()
   if (channelDenied) return channelDenied

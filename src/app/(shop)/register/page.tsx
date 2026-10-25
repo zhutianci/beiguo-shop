@@ -10,6 +10,7 @@ import { setToken } from '@/lib/auth-token'
 import { useStorefront } from '@/components/storefront-provider'
 import { safeRedirect, withRedirect } from '@/lib/safe-redirect'
 import { useHydrated } from '@/lib/use-hydrated'
+import { powHeaders } from '@/lib/pow-client'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -85,7 +86,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch('/api/auth/send-code', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await powHeaders('send')) },
         body: JSON.stringify({ email: formData.email, purpose: 'REGISTER' }),
       })
       const data = await res.json()
@@ -112,8 +113,8 @@ export default function RegisterPage() {
       return
     }
 
-    if (formData.password.length < 6) {
-      setError('密码长度不能少于6位')
+    if (formData.password.length < 8) {
+      setError('密码长度不能少于 8 位')
       return
     }
 
@@ -122,7 +123,7 @@ export default function RegisterPage() {
     try {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await powHeaders('register')) },
         body: JSON.stringify({
           email: formData.email,
           password: formData.password,
@@ -267,7 +268,7 @@ export default function RegisterPage() {
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="ui-input rounded-xl pl-12 pr-4 py-3.5"
-                  placeholder="请输入密码（至少6位）"
+                  placeholder="请输入密码（至少 8 位，字母加数字）"
                   required
                 />
               </div>

@@ -10,11 +10,15 @@ import { apiWriteCrossSite } from './lib/api-csrf'
 // 繁体香港版（docs/繁体香港版/设计.md §6）：只 import next/server 与纯函数
 import { langMiddleware } from './lib/i18n/middleware-lang'
 import { zhhkEnabled } from './lib/i18n/lang'
+// 零依赖的开关口径（与 lib/auth requireAdmin 共用）
+import { adminDeviceRequired, ADMIN_DEVICE_COOKIE_NAME } from './lib/security/admin-device-policy'
 
 interface JwtPayload {
   userId: number
   email: string
   role: string
+  ep?: number
+  sv?: number
 }
 
 async function verifyToken(token: string, key: Uint8Array): Promise<JwtPayload | null> {
@@ -25,6 +29,19 @@ async function verifyToken(token: string, key: Uint8Array): Promise<JwtPayload |
     return payload as unknown as JwtPayload
   } catch {
     return null
+  }
+}
+
+/** 受信设备 cookie 是否与登录 token 同一个管理员、同一个会话版本（只比两张票，不查库） */
+async function deviceMatches(dev: string | undefined, p: JwtPayload, key: Uint8Array): Promise<boolean> {
+  if (!dev) return false
+  try {
+    const { payload } = await jwtVerify(dev, key, { algorithms: ['HS256'] })
+    const d = payload as { k?: unknown; uid?: unknown; ep?: unknown }
+    const ep = typeof p.ep === 'number' ? p.ep : typeof p.sv === 'number' ? p.sv : 0
+    return d.k === 'adm-dev' && d.uid === p.userId && d.ep === ep
+  } catch {
+    return false
   }
 }
 
@@ -150,6 +167,13 @@ export async function middleware(request: NextRequest) {
       const url = new URL('/', request.url)
       url.searchParams.set('error', 'admin_required')
       return NextResponse.redirect(url)
+    }
+    // 管理员会话必须配套受信设备 cookie（lib/security/admin-device-policy.ts，2026-10-25）：没有就回登录页重新验证。
+    // 这里只是让页面体验顺（不可信的一层）；权威判定在每个后台接口的 requireAdmin 里（还会查库比对会话版本）
+    if (adminDeviceRequired() && !(await deviceMatches(request.cookies.get(ADMIN_DEVICE_COOKIE_NAME)?.value, payload, key))) {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(loginUrl)
     }
   }
 

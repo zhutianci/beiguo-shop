@@ -10,7 +10,8 @@ import { notifyUserRegistered } from '@/lib/notify'
 import { consumeCode } from '@/lib/verify-code'
 import { systemEmailConfigured } from '@/lib/mail'
 import { clientIp } from '@/lib/news/rate-limit'
-import { verifyIpLimited } from '@/lib/auth-throttle'
+import { noteRegisterSuccess, registerIpFull, verifyIpLimited } from '@/lib/auth-throttle'
+import { passwordProblem } from '@/lib/security/password-policy'
 import { logRegisterNotice } from '@/lib/marketing/consent'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { authCrossSiteReason } from '@/lib/tenant/same-origin'
@@ -18,13 +19,16 @@ import { ensureTenantCustomer } from '@/lib/tenant/customer'
 import { emitTenantNotice } from '@/lib/tenant/notice'
 import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
 import { emailDomainBlocked, EMAIL_DOMAIN_BLOCKED_MSG } from '@/lib/security/email-domain'
+import { hasSubAddress, SUB_ADDRESS_MSG } from '@/lib/security/email-canonical'
+import { findCanonicalTwin } from '@/lib/security/email-twin'
+import { powGuard } from '@/lib/security/pow'
 
 // eslint-disable-next-line no-control-regex
 const NICK_CTRL_RE = /[\u0000-\u001f\u007f]/g
 
 const registerSchema = z.object({
   email: z.string().email('请输入有效的邮箱地址'),
-  password: z.string().min(6, '密码长度不能少于6位'),
+  password: z.string().min(8, '密码长度不能少于 8 位').max(128, '密码最长 128 位'),
   // 与个人资料页（api/account/profile）同一口径：最多 20 字、不带控制字符。
   // 昵称会原样进企业微信「新用户注册 / 新订单」卡片，换行能伪造整行字段。
   // 选填项绝不能挡住注册：不合规的只清洗 / 截断、不报错（Array.from 按码点截，不会切坏 emoji）。
@@ -44,6 +48,9 @@ export async function POST(request: NextRequest) {
   if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
   // 被蜜罐封禁的 IP（lib/security/ip-ban.ts）：1 小时内不能登录 / 注册 / 发码，浏览不受影响
   if (ipBlocked(request.headers)) return error(IP_BLOCKED_MSG, 429)
+  // 无感人机验证（lib/security/pow.ts，2026-10-25）：浏览器先算一道 SHA-256 题，脚本每打一次都要付算力
+  const pow = powGuard(request, 'register')
+  if (pow) return pow
   // 渠道店面 DRAFT（未开业，前台对非预览用户 404）/ TERMINATED（已停业）不开放注册。
   // 否则直接 POST 本接口就能在一个没开张 / 已关门的站建号：写下 registeredTenantId=<该站> 与客户关系行，
   // 还会把此人标成「渠道注册用户」、被主站营销受众排除（lib/marketing/audience.ts）。
@@ -68,6 +75,13 @@ export async function POST(request: NextRequest) {
     // 已注册的邮箱在发码时收到的是「该邮箱已注册」说明信、拿不到 REGISTER 码，所以这里只会走到「验证码错误」
     // 一次性邮箱不让注册（与发码同一口径；防的是本版上线前已经拿到手的注册码）
     if (await emailDomainBlocked(email)) return error(EMAIL_DOMAIN_BLOCKED_MSG)
+    // 「+」别名邮箱不让注册（与发码同一口径，lib/security/email-canonical.ts）
+    if (hasSubAddress(email)) return error(SUB_ADDRESS_MSG)
+    // 新密码强度（lib/security/password-policy.ts）：放在验码之前，不合格不消耗验证码
+    const weak = passwordProblem(password)
+    if (weak) return error(weak)
+    // 同一 IP 每天最多成功注册 3 个号（2026-10-25；10-15 设计里写了但没实现）。只看、不记：成功建号后才计数
+    if (registerIpFull(request.headers)) return error('这个网络今天注册的账号太多了，请明天再试或联系客服', 429)
 
     let emailVerified = false
     if (systemEmailConfigured()) {
@@ -81,7 +95,9 @@ export async function POST(request: NextRequest) {
     }
 
     // 走到这里：要么验证码对了（已证明是邮箱本人），要么邮件服务没配（本来就防不住），明说没问题
-    const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } })
+    // Gmail 的点 / googlemail 别名与已有账号是同一个收件箱，同样算已注册（不多开号）
+    const existingUser =
+      (await prisma.user.findUnique({ where: { email }, select: { id: true } })) ?? (await findCanonicalTwin(email))
     if (existingUser) {
       return error('该邮箱已被注册，请直接登录')
     }
@@ -115,6 +131,7 @@ export async function POST(request: NextRequest) {
       await ensureTenantCustomer(tx, { tenantId: sf.id, userId: created.id, via: 'REGISTER' })
       return created
     })
+    noteRegisterSuccess(request.headers)
 
     // 生成 token（aud = 当前店面）。
     // 「CHANNEL 店面不给 ADMIN 签发」（设计 4.7）在注册这里天然成立：已存在的邮箱（含管理员）在上面就被

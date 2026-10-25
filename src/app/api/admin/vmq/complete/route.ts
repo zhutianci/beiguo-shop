@@ -7,8 +7,10 @@ import { success, error, notFound } from '@/lib/api'
 import { manualComplete, VmqError } from '@/lib/vmq'
 import { adminOrResponse, sourceMap, sourceOf } from '@/lib/admin/source-site'
 import { requireSudo } from '@/lib/security/sudo'
+import { writeAudit } from '@/lib/audit'
 
-const schema = z.object({ id: z.number().int().positive() })
+// tradeNo：没到账过的收款单补单必填（支付宝 / 微信账单里的交易号，lib/vmq.ts manualComplete）
+const schema = z.object({ id: z.number().int().positive(), tradeNo: z.string().trim().max(40).optional() })
 
 /**
  * 补单确认弹窗要显示的「这张收款单对应哪个站的哪张单」（设计 12.2：补单确认弹窗显示对应订单的来源站）。
@@ -67,7 +69,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const parsed = schema.safeParse(body)
     if (!parsed.success) return error('参数错误')
-    await manualComplete(parsed.data.id)
+    await manualComplete(parsed.data.id, parsed.data.tradeNo)
+    void writeAudit(null, {
+      actorKind: 'PLATFORM',
+      actorUserId: auth.user.id,
+      action: 'vmq.complete',
+      targetType: 'vmq',
+      targetId: String(parsed.data.id),
+      reason: parsed.data.tradeNo ? `交易号 ${parsed.data.tradeNo}` : '已到账单重新履约',
+      req: request,
+    }).catch(() => {})
     return success({ id: parsed.data.id }, '已确认到账并完成履约')
   } catch (err) {
     if (err instanceof VmqError) return error(err.message)

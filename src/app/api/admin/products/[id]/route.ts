@@ -8,6 +8,7 @@ import { success, error, notFound } from '@/lib/api'
 import { syncAutoStock } from '@/lib/cardkey'
 import { FEATURES_FORMAT_ERROR, isFeaturesJson } from '@/lib/product-intro'
 import { adminGuard } from '@/lib/admin-guard'
+import { requireSudo } from '@/lib/security/sudo'
 import { isCarrierType } from '@/lib/order-scope'
 import { isBotCodeConflict, notifyProductWithdrawn } from '@/lib/product-status'
 import { onProductSaved } from '@/lib/seo/commerce-push'
@@ -91,6 +92,28 @@ export async function PUT(
 
     if (!result.success) {
       return error(result.error.errors[0].message)
+    }
+
+    // 【动钱的字段要二次验证】（2026-10-25 第三轮加固）偷到后台登录态的人把商品改成 ¥0.01、改低推广基础价、
+    // 改发货方式 / 对外发卡 SKU / 机器人货号，就能自己下单白拿卡密。名称、描述、库存、排序等展示字段照常不用输密码
+    {
+      const full = await prisma.product.findUnique({
+        where: { id: productId },
+        select: { price: true, referrerBasePrice: true, deliveryType: true, apiSku: true, botCode: true },
+      })
+      const d = result.data
+      const cents = (v: unknown) => (v == null ? null : Math.round(Number(v) * 100))
+      const moneyChanged =
+        !!full &&
+        ((d.price !== undefined && cents(d.price) !== cents(full.price)) ||
+          (d.referrerBasePrice !== undefined && cents(d.referrerBasePrice) !== cents(full.referrerBasePrice)) ||
+          (d.deliveryType !== undefined && d.deliveryType !== full.deliveryType) ||
+          (d.apiSku !== undefined && (d.apiSku || null) !== (full.apiSku || null)) ||
+          (d.botCode !== undefined && (d.botCode ? d.botCode.toUpperCase() : null) !== (full.botCode || null)))
+      if (moneyChanged) {
+        const sudo = await requireSudo()
+        if (sudo) return sudo
+      }
     }
 
     // apiSku：未提交则不动；提交空串则清空为 null（避免唯一约束下多个 '' 冲突）

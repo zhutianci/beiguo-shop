@@ -10,6 +10,7 @@ import { useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { Loader2, Store } from 'lucide-react'
 import { inputCls } from '../common/ui'
+import { powHeaders } from '@/lib/pow-client'
 
 function safeNext(raw: string | null): string {
   if (!raw) return '/partner'
@@ -39,7 +40,7 @@ export function PartnerLoginView({ registerUrl }: { registerUrl?: string | null 
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await powHeaders('login')) },
         credentials: 'same-origin',
         body: JSON.stringify({ email: email.trim(), password }),
       })

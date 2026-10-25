@@ -166,6 +166,48 @@ export async function sendNoAccountEmail(to: string, opts: MailOpts = {}) {
   return sendSystemEmail(to, subject, html, aliasOf(opts))
 }
 
+/**
+ * 管理员账号申请网页找回密码（2026-10-25 第三轮加固）：管理员不能在网页上自助重置（否则管理员邮箱被盗 = 后台被拿走），
+ * 不发码，只发这封说明信（与普通账号时延一致、返回同一句话，不暴露这是管理员账号）。
+ */
+export function renderAdminResetBlockedEmail(opts: MailOpts = {}): RenderedMail {
+  const base = baseOf(opts)
+  const html = layout(
+    '找回密码提醒',
+    `<p>有人（可能是你本人）申请在网页上找回这个账号的密码。</p>
+     <p><strong>这个账号是后台管理员账号，出于安全考虑不能在网页上自助重置密码</strong>，所以没有发送验证码。</p>
+     <p>如果是你本人忘记了密码，请联系技术在服务器上重置；<strong>如果不是你本人操作，说明有人在尝试接管后台</strong>，请尽快检查邮箱账号的安全（改邮箱密码、开启邮箱两步验证）。</p>`,
+    base,
+    supportEmailOf(opts),
+    brandOf(opts)
+  )
+  return { subject: `【${brandOf(opts)}】找回密码提醒`, html }
+}
+
+export async function sendAdminResetBlockedEmail(to: string, opts: MailOpts = {}) {
+  const { subject, html } = renderAdminResetBlockedEmail(opts)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
+}
+
+/** 密码已修改通知（2026-10-25 第三轮加固）：重置成功后发给账号邮箱，不是本人操作的能第一时间知道 */
+export function renderPasswordChangedEmail(opts: MailOpts = {}): RenderedMail {
+  const base = baseOf(opts)
+  const html = layout(
+    '密码已修改',
+    `<p>你的${brandOf(opts)}账号密码刚刚通过邮箱验证码重置成功，所有设备上的登录已同时退出。</p>
+     <p><strong>如果不是你本人操作</strong>：说明你的邮箱可能已被他人登录。请立即修改邮箱密码，然后在本站用「忘记密码」再重置一次，并联系客服。</p>`,
+    base,
+    supportEmailOf(opts),
+    brandOf(opts)
+  )
+  return { subject: `【${brandOf(opts)}】你的账号密码已修改`, html }
+}
+
+export async function sendPasswordChangedEmail(to: string, opts: MailOpts = {}) {
+  const { subject, html } = renderPasswordChangedEmail(opts)
+  return sendSystemEmail(to, subject, html, aliasOf(opts))
+}
+
 /** 「邮箱查订阅」发码时该邮箱没有任何订阅记录：照样发一封信（与有记录时时延一致、返回同一句话），不发码 */
 export function renderNoSubscriptionEmail(opts: MailOpts = {}): RenderedMail {
   const base = baseOf(opts)

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
+import { requireSudo } from '@/lib/security/sudo'
 
 // GET ?userId= ：某推广人各商品的 网站售价/默认基础价/单独基础价
 export async function GET(request: NextRequest) {
@@ -50,6 +51,9 @@ const saveSchema = z.object({
 export async function POST(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 动钱的后台操作要二次验证（lib/security/sudo.ts，2026-10-25 第三轮补齐）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = await request.json()
     const parsed = saveSchema.safeParse(body)

@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db'
 import { success, error, notFound } from '@/lib/api'
 import { requireAdmin } from '@/lib/auth'
 import { couponLabel, parseProductIds } from '@/lib/coupon'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * 优惠券批次管理。
@@ -260,6 +261,9 @@ export async function POST(request: NextRequest) {
   } catch {
     return error('无管理员权限', 403)
   }
+  // 发券 / 改券是动钱的后台操作：要二次验证（lib/security/sudo.ts，2026-10-25 第三轮补齐）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
 
   try {
     const body = await request.json().catch(() => ({}))
@@ -318,6 +322,9 @@ export async function PATCH(request: NextRequest) {
   } catch {
     return error('无管理员权限', 403)
   }
+  // 发券 / 改券是动钱的后台操作：要二次验证（lib/security/sudo.ts，2026-10-25 第三轮补齐）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
 
   try {
     const body = await request.json().catch(() => ({}))

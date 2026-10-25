@@ -210,6 +210,13 @@ services:
       # 后台敏感操作二次验证（lib/security/sudo.ts，2026-10-24）：不设 = 开启（看卡密明文、标已付 / 退款、改角色、打款、绑机器人等要再输一次登录密码，10 分钟内免输）。
       # ADMIN_SUDO=0 是应急开关，改 .env.production 后 up -d app 即生效
       - ADMIN_SUDO
+      # 第三轮加固（2026-10-25，docs/安全-第三轮加固-1025.md）三个应急开关，都不设 = 加固生效：
+      #   ADMIN_DEVICE_BIND=0  管理员会话不再要求配套的受信设备 cookie（lib/security/admin-device-policy.ts）
+      #   ADMIN_WEB_RESET=1    临时允许管理员在网页上用邮箱验证码找回密码（站长忘了密码时用，改完删掉）
+      #   POW_MODE=off         关掉登录 / 注册 / 发码 / 找回密码 / 查订阅的无感人机验证（lib/security/pow.ts）
+      - ADMIN_DEVICE_BIND
+      - ADMIN_WEB_RESET
+      - POW_MODE
       # NEXT_PUBLIC_* 构建时若已定义，会被内联进产物（服务端代码也一样），这里改值不生效、仍需重建；
       # 构建时没定义的，才按这里的运行时值走
       - NEXT_PUBLIC_SITE_URL

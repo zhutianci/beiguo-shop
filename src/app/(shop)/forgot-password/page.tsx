@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, Mail, Lock, ShieldCheck, Sparkles } from 'lucide-react'
+import { powHeaders } from '@/lib/pow-client'
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
@@ -33,7 +34,7 @@ export default function ForgotPasswordPage() {
     try {
       const res = await fetch('/api/auth/send-code', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await powHeaders('send')) },
         body: JSON.stringify({ email: form.email, purpose: 'RESET' }),
       })
       const data = await res.json()
@@ -53,13 +54,13 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (form.password.length < 6) return setError('密码长度不能少于6位')
+    if (form.password.length < 8) return setError('密码长度不能少于 8 位')
     if (form.password !== form.confirm) return setError('两次输入的密码不一致')
     setLoading(true)
     try {
       const res = await fetch('/api/auth/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await powHeaders('reset')) },
         body: JSON.stringify({ email: form.email, code: form.code, password: form.password }),
       })
       const data = await res.json()
@@ -135,7 +136,7 @@ export default function ForgotPasswordPage() {
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30" />
                   <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required
                     className="ui-input rounded-xl pl-12 pr-4 py-3.5"
-                    placeholder="至少6位" />
+                    placeholder="至少 8 位，字母加数字" />
                 </div>
               </div>
 

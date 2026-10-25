@@ -14,7 +14,7 @@
 import { z } from 'zod'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '../db'
-import { requireAdmin } from '../auth'
+import { AdminDeviceError, requireAdmin } from '../auth'
 import { error } from '../api'
 import { writeAudit } from '../audit'
 import { isAdminHostError } from '../tenant/admin-host-error'
@@ -181,6 +181,7 @@ export async function adminOrResponse(): Promise<{ user: AdminUser } | { res: Re
     return { user: await requireAdmin() }
   } catch (e) {
     if (isAdminHostError(e)) return { res: error('资源不存在', 404) }
+    if (e instanceof AdminDeviceError) return { res: error('后台登录已失效，请重新登录', 401) }
     return { res: error('无管理员权限', 403) }
   }
 }

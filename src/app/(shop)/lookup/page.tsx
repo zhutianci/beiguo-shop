@@ -9,6 +9,7 @@ import { emailProofHeaders, saveEmailProof, clearEmailProof } from '@/lib/email-
 import { useHydrated } from '@/lib/use-hydrated'
 import { InvoiceItemSelect } from '@/components/invoice-item-select'
 import { DEFAULT_INVOICE_ITEM, invoiceItemName, type InvoiceItemKey } from '@/lib/invoice-items'
+import { powHeaders } from '@/lib/pow-client'
 
 interface ExternalOrder {
   id: number
@@ -161,7 +162,7 @@ function LookupForm() {
     try {
       const res = await fetch('/api/external-orders/lookup/send-code', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await powHeaders('lookup')) },
         body: JSON.stringify({ email: addr }),
       })
       const data = await res.json()
@@ -208,7 +209,7 @@ function LookupForm() {
     try {
       const res = await fetch('/api/external-orders/lookup/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await powHeaders('lookup')) },
         body: JSON.stringify({ email: addr, code: code.trim() }),
       })
       const data = await res.json()

@@ -7,6 +7,7 @@ import { getJwtSecret } from './jwt-secret'
 import { crossSiteReason } from './same-origin'
 import { getStorefront, type Storefront } from './storefront/resolve'
 import { AdminHostError } from './tenant/admin-host-error'
+import { adminDeviceRequired, ADMIN_DEVICE_COOKIE_NAME } from './security/admin-device-policy'
 
 /*
  * 【渠道分站：登录态按店面隔离（设计 4.6 C3、4.7；实施分包 WP1）】
@@ -264,5 +265,41 @@ export async function requireAdmin() {
   if (!user || user.role !== 'ADMIN') {
     throw new Error('Forbidden')
   }
+  /*
+   * 【管理员会话绑受信设备】（2026-10-25 第三轮加固，lib/security/admin-device-policy.ts）
+   * 光有登录 token 不够：同一浏览器里还必须有这个管理员、这个会话版本签发的 adm_dev。token 被偷到别处用 → 进不来。
+   */
+  if (adminDeviceRequired()) {
+    const row = await prisma.user.findUnique({ where: { id: user.id }, select: { sessionEpoch: true } })
+    const dev = (await cookies()).get(ADMIN_DEVICE_COOKIE_NAME)?.value
+    if (!row || !adminDeviceTokenValid(dev, user.id, row.sessionEpoch)) {
+      console.warn('[requireAdmin] 管理员 token 没有对应的受信设备 cookie，拒绝 uid=%d', user.id)
+      throw new AdminDeviceError()
+    }
+  }
+  // 后台会话在没见过的 IP 上使用 → 告警（偷到 cookie 的人从别处用；fire-and-forget）
+  const reqHeaders = await headers()
+  void import('./security/admin-2fa').then((m) => m.noteAdminRequestIp(user, reqHeaders)).catch(() => {})
   return user
+}
+
+/** 管理员 token 没有配套的受信设备 cookie（adminGuard 映射成 401「请重新登录」） */
+export class AdminDeviceError extends Error {
+  constructor() {
+    super('Forbidden')
+    this.name = 'AdminDeviceError'
+  }
+}
+
+/** adm_dev 的值是否由这个管理员、这个会话版本签发（与 lib/security/admin-2fa.ts isTrustedAdminDevice 同一口径，放这里避免循环 import） */
+function adminDeviceTokenValid(value: string | undefined, userId: number, epoch: number): boolean {
+  if (!value) return false
+  const secret = getJwtSecret()
+  if (!secret) return false
+  try {
+    const p = jwt.verify(value, secret, { algorithms: ['HS256'] }) as { k?: unknown; uid?: unknown; ep?: unknown }
+    return p.k === 'adm-dev' && p.uid === userId && p.ep === epoch
+  } catch {
+    return false
+  }
 }

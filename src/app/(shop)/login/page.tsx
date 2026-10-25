@@ -9,6 +9,7 @@ import { useUserStore } from '@/store/user'
 import { setToken } from '@/lib/auth-token'
 import { safeRedirect, withRedirect } from '@/lib/safe-redirect'
 import { useHydrated } from '@/lib/use-hydrated'
+import { powHeaders } from '@/lib/pow-client'
 
 export default function LoginPage() {
   return (
@@ -65,7 +66,7 @@ function LoginForm() {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(await powHeaders('login')) },
         body: JSON.stringify(withCode ? { ...formData, code: code.trim() } : formData),
       })
 

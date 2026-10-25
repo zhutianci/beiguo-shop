@@ -11,6 +11,7 @@ import { sendCodeGate } from '@/lib/auth-throttle'
 import { rateLimited } from '@/lib/news/rate-limit'
 import { denyOnChannel } from '@/lib/storefront/resolve'
 import { crossSiteWrite } from '@/lib/security/write-guard'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
 
 const schema = z.object({ accountEmail: z.string().email('账户邮箱格式不正确') })
 
@@ -19,6 +20,8 @@ const schema = z.object({ accountEmail: z.string().email('账户邮箱格式不�
  * 只对当前用户自己已添加、尚未验证的绑定发，且按用户另限次数，免得被拿来给任意邮箱发信。
  */
 export async function POST(request: NextRequest) {
+  // 被封禁的 IP 不能发码 / 验码（2026-10-25 第三轮加固：以前这几个验证码接口不看封禁，被封的 IP 还能接着试）
+  if (ipBlocked(request.headers)) return Response.json({ success: false, error: IP_BLOCKED_MSG }, { status: 429 })
   // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
   const csrf = crossSiteWrite(request)
   if (csrf) return csrf

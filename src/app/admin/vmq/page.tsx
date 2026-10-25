@@ -273,10 +273,21 @@ export default function AdminVmqPage() {
         ? '这张收款单已是「已支付」。重新履约只会补做订单还缺的部分（订单仍待支付时改为已付款、自动发货商品补齐卡密），不会重复记账或多发卡。继续？'
         : '确认这笔已到账并完成履约？仅在确实已收到款时操作。')
     if (!confirm(msg)) return
+    // 没到账过的收款单补单必须填交易号（2026-10-25）：逼着先去支付宝 / 微信账单里核对一次，防聊天消息冒充的「到账」
+    let tradeNo: string | undefined
+    if (!paid) {
+      const t = prompt('请填写这笔钱在支付宝 / 微信账单详情里的交易号（「订单号」/「交易单号」，16–32 位数字）。\n在账单里查不到这笔钱就不要补单。')
+      if (t === null) return
+      tradeNo = t.replace(/\s+/g, '')
+      if (!/^\d{16,32}$/.test(tradeNo)) {
+        alert('交易号应为 16–32 位数字')
+        return
+      }
+    }
     const res = await fetch('/api/admin/vmq/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
+      body: JSON.stringify(tradeNo ? { id, tradeNo } : { id }),
     })
     const data = await res.json()
     if (data.success) load()

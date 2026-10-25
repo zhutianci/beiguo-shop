@@ -306,6 +306,9 @@ const RULE1_ALLOW = [
   'src/lib/brand-base',
   // 内容模块下放：模块名、说明、类型（零依赖纯常量，不查库；设置页「内容模块」卡片用）。精确到文件
   'src/lib/storefront/modules',
+  // 无感人机验证的浏览器端（2026-10-25 第三轮加固）：渠道后台登录页取题、在 Web Worker 里算 SHA-256。
+  // 零依赖纯客户端代码（只用 fetch / Worker / Blob），不 import 任何平台模块；精确到文件
+  'src/lib/pow-client',
   'src/lib/api',
   'src/lib/utils',
   'next/*',

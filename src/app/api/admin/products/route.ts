@@ -10,6 +10,7 @@ import { FEATURES_FORMAT_ERROR, isFeaturesJson } from '@/lib/product-intro'
 import { adminGuard } from '@/lib/admin-guard'
 import { isBotCodeConflict } from '@/lib/product-status'
 import { onProductSaved } from '@/lib/seo/commerce-push'
+import { requireSudo } from '@/lib/security/sudo'
 
 const productSchema = z.object({
   categoryId: z.number(),
@@ -109,6 +110,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 动钱的后台操作要二次验证（lib/security/sudo.ts，2026-10-25 第三轮补齐）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = await request.json()
     const result = productSchema.safeParse(body)

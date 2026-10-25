@@ -9,13 +9,18 @@ import {
   sendVerifyCodeEmail,
   sendAccountExistsEmail,
   sendNoAccountEmail,
+  sendAdminResetBlockedEmail,
   systemEmailConfigured,
 } from '@/lib/mail'
+import { adminWebResetAllowed, noteAdminResetAttempt } from '@/lib/security/admin-2fa'
 import { sendCodeGate } from '@/lib/auth-throttle'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { authCrossSiteReason } from '@/lib/tenant/same-origin'
 import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
 import { emailDomainBlocked, EMAIL_DOMAIN_BLOCKED_MSG } from '@/lib/security/email-domain'
+import { hasSubAddress, SUB_ADDRESS_MSG } from '@/lib/security/email-canonical'
+import { findCanonicalTwin } from '@/lib/security/email-twin'
+import { powGuard } from '@/lib/security/pow'
 
 /*
  * 【渠道分站：邮件里的链接按当前店面 origin（设计 4.5、11.4）】验证码 / 说明信里的「登录」「注册」「找回密码」
@@ -41,6 +46,9 @@ export async function POST(request: NextRequest) {
   if (authCrossSiteReason(request, sf.kind)) return error('请求来源异常，请刷新页面后重试', 403)
   // 被蜜罐封禁的 IP（lib/security/ip-ban.ts）：1 小时内不能登录 / 注册 / 发码，浏览不受影响
   if (ipBlocked(request.headers)) return error(IP_BLOCKED_MSG, 429)
+  // 无感人机验证（lib/security/pow.ts，2026-10-25）：浏览器先算一道 SHA-256 题，脚本每打一次都要付算力
+  const pow = powGuard(request, 'send')
+  if (pow) return pow
   // 渠道改了站名：验证码邮件用渠道站名（渠道品牌与公告）
   const mailOpts = sf.kind === 'PLATFORM' ? undefined : sf.brand.custom ? { origin: sf.origin, brand: sf.brand.name } : { origin: sf.origin }
   try {
@@ -64,6 +72,8 @@ export async function POST(request: NextRequest) {
       console.warn('[send-code] 拒绝一次性邮箱注册:', email.slice(email.lastIndexOf('@')))
       return error(EMAIL_DOMAIN_BLOCKED_MSG)
     }
+    // 「+」别名邮箱不发注册码（lib/security/email-canonical.ts：一个邮箱无限开号的口子，10-25 线上恶意注册全是这类）
+    if (purpose === 'REGISTER' && hasSubAddress(email)) return error(SUB_ADDRESS_MSG)
 
     // 限流放在查用户之前：两类邮箱被同样计数、同样冷却（lib/auth-throttle.ts）
     const gate = sendCodeGate(request.headers, email, purpose)
@@ -72,7 +82,10 @@ export async function POST(request: NextRequest) {
       return error(gate.message, 429)
     }
 
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } })
+    // Gmail 的点 / googlemail 别名与已有账号是同一个收件箱：按「已注册」处理（只给这个邮箱发说明信，不多开号）
+    const user =
+      (await prisma.user.findUnique({ where: { email }, select: { id: true, role: true } })) ??
+      (purpose === 'REGISTER' && (await findCanonicalTwin(email)) ? { id: -1, role: 'USER' } : null)
 
     // 每个分支都恰好调用一次发信：时延一致；实情只写在邮箱本人才能看到的信里
     let r: { ok: boolean; detail?: string }
@@ -80,6 +93,11 @@ export async function POST(request: NextRequest) {
       r = await sendAccountExistsEmail(email, mailOpts)
     } else if (purpose === 'RESET' && !user) {
       r = await sendNoAccountEmail(email, mailOpts)
+    } else if (purpose === 'RESET' && user && user.role === 'ADMIN' && !adminWebResetAllowed()) {
+      // 管理员账号不能在网页上自助找回密码（2026-10-25 第三轮加固）：管理员邮箱被盗 ≠ 后台被拿走。
+      // 不发码、只发说明信；推一条安全告警（有人在为管理员账号申请找回密码）
+      r = await sendAdminResetBlockedEmail(email, mailOpts)
+      noteAdminResetAttempt(user.id, request.headers)
     } else {
       // 数据库兜底冷却：容器重启后进程内计数清零时仍然生效
       if (await tooFrequent(email, purpose)) return error(TOO_FREQUENT, 429)

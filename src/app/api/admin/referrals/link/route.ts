@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 import { adminGuard } from '@/lib/admin-guard'
+import { requireSudo } from '@/lib/security/sudo'
 
 const schema = z.object({ userId: z.number().int().positive() })
 
@@ -12,6 +13,9 @@ const schema = z.object({ userId: z.number().int().positive() })
 export async function POST(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 动钱的后台操作要二次验证（lib/security/sudo.ts，2026-10-25 第三轮补齐）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = await request.json()
     const parsed = schema.safeParse(body)

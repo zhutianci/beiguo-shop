@@ -266,6 +266,10 @@ export async function creditInTx(tx: Prisma.TransactionClient, p: CreditInput): 
 
   if (p.mode === 'MANUAL') {
     if (!p.tradeNo || !TRADE_NO_RE.test(p.tradeNo)) throw new LatepayError('TRADE_NO', '请填写支付宝交易号（16–32 位数字）')
+    // 同一笔交易已经拿去「补单」过（lib/vmq.ts manualComplete 的 vmq_trade:<号>）：不能再退入余额（2026-10-25）
+    if (await tx.setting.findUnique({ where: { key: `vmq_trade:${p.tradeNo}` }, select: { id: true } })) {
+      throw new LatepayError('TRADE_USED', '这个交易号已经用来补过单', 409)
+    }
     try {
       await tx.setting.create({ data: { key: `${TRADE_MARK_PREFIX}${p.tradeNo}`, value: p.key } })
     } catch (e) {

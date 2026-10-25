@@ -11,6 +11,8 @@ import { verifyIpLimited } from '@/lib/auth-throttle'
 import { addProof, proofCookieOptions, PROOF_COOKIE } from '@/lib/email-proof'
 import { denyOnChannel } from '@/lib/storefront/resolve'
 import { crossSiteWrite } from '@/lib/security/write-guard'
+import { ipBlocked, IP_BLOCKED_MSG } from '@/lib/security/ip-ban'
+import { powGuard } from '@/lib/security/pow'
 
 const schema = z.object({
   email: z.string().email('请输入正确的邮箱'),
@@ -22,6 +24,11 @@ const schema = z.object({
  * 之后查订阅、开票、付税费、开收据、改提醒都认这张证明，不用再验。
  */
 export async function POST(request: NextRequest) {
+  // 被封禁的 IP 不能发码 / 验码（2026-10-25 第三轮加固：以前这几个验证码接口不看封禁，被封的 IP 还能接着试）
+  if (ipBlocked(request.headers)) return Response.json({ success: false, error: IP_BLOCKED_MSG }, { status: 429 })
+  // 无感人机验证（lib/security/pow.ts，2026-10-25）：浏览器先算一道 SHA-256 题，脚本每打一次都要付算力
+  const pow = powGuard(request, 'lookup')
+  if (pow) return pow
   // 写请求同源校验：路由内自查、不只靠 middleware（lib/security/write-guard.ts，2026-10-24）
   const csrf = crossSiteWrite(request)
   if (csrf) return csrf

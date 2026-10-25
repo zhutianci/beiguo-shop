@@ -14,6 +14,7 @@ import {
   WalletConfigConflict,
   type WalletConfig,
 } from '@/lib/wallet/config'
+import { requireSudo } from '@/lib/security/sudo'
 
 /**
  * wallet_config（docs/短信接码-设计.md §5.3、§7.8 设置）。GET 当前值（读不到给原因）+ 出厂值 + storedVersion；
@@ -45,6 +46,9 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   const denied = await adminGuard()
   if (denied) return denied
+  // 动钱的后台操作要二次验证（lib/security/sudo.ts，2026-10-25 第三轮补齐）
+  const sudo = await requireSudo()
+  if (sudo) return sudo
   try {
     const body = (await request.json().catch(() => null)) as { config?: Partial<WalletConfig>; expectVersion?: unknown; confirmLatepay?: unknown } | null
     if (!body?.config || typeof body.config !== 'object') return error('缺少配置')
