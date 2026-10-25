@@ -17,6 +17,8 @@ import {
 } from '@/lib/security/email-domain'
 import { listIpBans, unbanIp } from '@/lib/security/ip-ban'
 import { requireSudo } from '@/lib/security/sudo'
+import { getCurrentUser } from '@/lib/auth'
+import { EDGE_WHITELIST_KEY, edgeBanEnabled, edgeUnban, listEdgeBans, resetEdgeWhitelistCache } from '@/lib/security/edge-ban'
 
 /**
  * 后台「安全」卡片（2026-10-15 攻防加固，docs/安全-攻防加固设计-1015.md）：
@@ -61,6 +63,8 @@ export async function GET() {
       builtin: builtinCounts(),
       ipBans: listIpBans().sort((a, b) => b.until - a.until),
       events,
+      // Cloudflare 边缘封禁（lib/security/edge-ban.ts，2026-10-25）
+      edge: { enabled: edgeBanEnabled(), bans: await listEdgeBans(), whitelist: await readList(EDGE_WHITELIST_KEY) },
     })
   } catch (err) {
     console.error('Admin security GET error:', err)
@@ -75,7 +79,7 @@ export async function PUT(request: NextRequest) {
   const sudo = await requireSudo()
   if (sudo) return sudo
   try {
-    const body = (await request.json().catch(() => ({}))) as { trusted?: unknown; blocked?: unknown; policy?: unknown }
+    const body = (await request.json().catch(() => ({}))) as { trusted?: unknown; blocked?: unknown; policy?: unknown; edgeWhitelist?: unknown }
     const out: { policy?: string; trusted?: string; blocked?: string; ignored?: string[]; disposable?: string[] } = {}
     if (body.policy === 'STRICT' || body.policy === 'TIERED') {
       out.policy = body.policy
@@ -108,6 +112,21 @@ export async function PUT(request: NextRequest) {
         update: { value: out.blocked },
       })
     }
+    if (typeof body.edgeWhitelist === 'string') {
+      // 边缘封禁白名单：每行一个 IP（IPv6 按 /64 整段生效）；只留像 IP 的行
+      const lines = body.edgeWhitelist
+        .split(/[\s,，;；]+/)
+        .map((s) => s.trim())
+        .filter((s) => /^[0-9a-f.:]+(\/64)?$/i.test(s) && s.length <= 45)
+        .slice(0, 200)
+      await prisma.setting.upsert({
+        where: { key: EDGE_WHITELIST_KEY },
+        create: { key: EDGE_WHITELIST_KEY, value: lines.join('\n') },
+        update: { value: lines.join('\n') },
+      })
+      resetEdgeWhitelistCache()
+      ;(out as Record<string, unknown>).edgeWhitelist = lines.join('\n')
+    }
     resetEmailDomainCache()
     const note =
       (out.ignored?.length ? `；主流邮箱不能拦截，已忽略：${out.ignored.join('、')}` : '') +
@@ -125,7 +144,15 @@ export async function POST(request: NextRequest) {
   // 改注册口径 / 解封 IP 也要二次验证（lib/security/sudo.ts，2026-10-24）
   const sudo = await requireSudo()
   if (sudo) return sudo
-  const body = (await request.json().catch(() => ({}))) as { unbanIp?: unknown }
+  const body = (await request.json().catch(() => ({}))) as { unbanIp?: unknown; edgeUnban?: unknown }
+  // 解除 Cloudflare 边缘封禁（同时解站内封禁）
+  if (typeof body.edgeUnban === 'string' && body.edgeUnban) {
+    const user = await getCurrentUser()
+    const ok = await edgeUnban(body.edgeUnban, `后台手动解封（#${user?.id ?? '?'}）`)
+    unbanIp(body.edgeUnban)
+    if (!ok) return error('解封失败：Cloudflare 接口没有成功，稍后再试或到 Cloudflare 后台「安全性 → WAF → 工具」里手动删除')
+    return success({ edgeBans: await listEdgeBans() }, '已解除边缘封禁')
+  }
   if (typeof body.unbanIp !== 'string' || !body.unbanIp) return error('缺少 IP')
   unbanIp(body.unbanIp)
   return success({ ipBans: listIpBans() }, '已解封')

@@ -18,6 +18,7 @@
 import { clientIp, rateLimited } from '../news/rate-limit'
 import { ipKey } from '../ip-key'
 import { banIp, ipKeyBanned } from './ip-ban'
+import { edgeBan, noteEdgeSignal } from './edge-ban'
 import { writeAudit } from '../audit'
 import { notify } from '../notify'
 
@@ -73,6 +74,11 @@ export function noteAbuse(headers: Headers, kind: AbuseKind, detail: string): bo
 
     const already = ipKeyBanned(ip)
     if (!already) banIp(ip, BAN_MS, kind)
+    // 边缘封禁（lib/security/edge-ban.ts）：回调签名 / 密钥反复错误是高置信度恶意，直接推 Cloudflare（只封境外 IP，见 edgeBan）；
+    // 登录 / 验证码被限流不直接推，只记一次「被站内封过」，一天两次才升级
+    const country = headers.get('cf-ipcountry')
+    if (kind === 'WEBHOOK_AUTH') void edgeBan(ip, 'WEBHOOK_AUTH', `10 分钟内 ${t.hits} 次（${t.details.join('；').slice(0, 80)}）`, country)
+    noteEdgeSignal(ip, 'APP_BAN', kind, country)
     const sample = t.details.join('；')
     console.warn('[security] 反复被拒，封 IP', kind, ip, t.hits, sample)
     void writeAudit(null, {

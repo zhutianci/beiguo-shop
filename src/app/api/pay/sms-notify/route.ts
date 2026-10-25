@@ -7,6 +7,8 @@ import { handleWebhookNotify, parseAmount, VMQ_KEY } from '@/lib/vmq'
 import { notify, notifyWebhookRejected } from '@/lib/notify'
 import { noteAbuse } from '@/lib/security/abuse'
 import { createSignVerifier, type SignReject } from '@/lib/security/webhook-sign'
+import { notePhoneIp } from '@/lib/security/edge-ban'
+import { clientIp } from '@/lib/news/rate-limit'
 
 /*
  * SmsForwarder 等「通知转发」App 的 webhook：手机把支付宝 / 微信到账通知 POST 到这里，服务端按金额匹配待支付单。
@@ -231,7 +233,11 @@ async function handle(req: NextRequest) {
     }
     throw e
   }
-  if (signed) signer.markUsed(signKey)
+  if (signed) {
+    signer.markUsed(signKey)
+    // 收款手机的 IP 永不边缘封禁（lib/security/edge-ban.ts）：签名对了 = 一定是站长的手机
+    notePhoneIp(clientIp(req.headers))
+  }
   console.log(`[vmq] sms-notify ${signed ? 'sign' : kind} matched=${r.matched} amount=${r.amount} type=${r.type}`)
   // 始终回 200，便于 SmsForwarder 判定成功
   return NextResponse.json({ code: 1, msg: '成功', matched: r.matched, amount: r.amount })

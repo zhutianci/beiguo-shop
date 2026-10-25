@@ -6,6 +6,7 @@ import { assertCronAuth } from '@/lib/cron-auth'
 import { closeExpired, reconcilePaidVmq } from '@/lib/vmq'
 import { sweepOrphans } from '@/lib/wallet/topup'
 import { cancelAbandonedOrders } from '@/lib/order/abandon'
+import { expireEdgeBans } from '@/lib/security/edge-ban'
 
 // 兜底定时清理过期收款单（可由 cron 容器每分钟调用）
 export async function GET(request: NextRequest) {
@@ -33,7 +34,13 @@ export async function GET(request: NextRequest) {
       console.error('[order] 过期未付订单清理失败', e)
       return null
     })
-    return success({ closed, reconcile, topupSweep, abandoned })
+    // Cloudflare 边缘封禁：到期解封 + 读 nginx 安全日志数扫描器路径（lib/security/edge-ban.ts，2026-10-25）。
+    // 进程内每 5 分钟真正跑一次；没配 Cloudflare 时什么都不做。不新增 cron 行；失败不影响上面几步
+    const edge = await expireEdgeBans().catch((e) => {
+      console.error('[edge-ban] 定时任务失败', e)
+      return null
+    })
+    return success({ closed, reconcile, topupSweep, abandoned, edge })
   } catch (err) {
     console.error('Vmq close cron error:', err)
     return error('清理失败')

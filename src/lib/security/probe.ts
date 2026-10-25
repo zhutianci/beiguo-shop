@@ -26,6 +26,7 @@ import { notify } from '../notify'
 import { rateLimited } from '../news/rate-limit'
 import { banIp, ipKeyBanned, ipKeyOf } from './ip-ban'
 import { banUser } from './ban-user'
+import { edgeBan, edgeBanEnabled, noteEdgeSignal } from './edge-ban'
 
 export type ProbeKind = 'PAY_CALLBACK' | 'ADMIN_DENIED' | 'API_404' | 'IDOR'
 
@@ -163,6 +164,10 @@ export async function recordProbe(req: NextRequest, kind: ProbeKind, opts?: { pa
     // 跨站发起的只留痕、不计数（防栽赃，见 countableRequest）
     if (!counted) return
 
+    // 边缘封禁的慢层（24 小时累计，lib/security/edge-ban.ts）：每一次算数的探测都记一笔
+    const country = req.headers.get('cf-ipcountry')
+    if (ip) noteEdgeSignal(ip, kind, path, country)
+
     const ipTrack = ip && rule.ip > 0 ? bump(`${kind}|ip:${ip}`, path, now) : null
     const userTrack = who && rule.user > 0 ? bump(`${kind}|u:${who.userId}`, path, now) : null
     const ipHit = !!ipTrack && !ipTrack.acted && score(ipTrack, rule.distinct) >= rule.ip
@@ -176,6 +181,12 @@ export async function recordProbe(req: NextRequest, kind: ProbeKind, opts?: { pa
     if (ip && !ipKeyBanned(ip)) {
       banIp(ip, IP_BAN_MS, kind)
       actions.push('IP 已封 1 小时（只挡登录 / 注册 / 下单 / 付款 / 上传）')
+    }
+    // 快层触发 = 高置信度恶意：同时推到 Cloudflare 边缘整站封禁（lib/security/edge-ban.ts；没配 Cloudflare 时什么都不做）
+    if (ip) {
+      void edgeBan(ip, kind, `10 分钟内 ${t.hits} 次、${t.paths.size} 个不同路径（${samplePaths(t).slice(0, 100)}）`, country)
+      noteEdgeSignal(ip, 'APP_BAN', kind, country)
+      if (edgeBanEnabled()) actions.push('已推到 Cloudflare 边缘封禁（整站不可访问，到期自动解封）')
     }
     let account = who ? `#${who.userId}` : '未登录'
     if (who && rule.banUser && (userHit || ipHit)) {
