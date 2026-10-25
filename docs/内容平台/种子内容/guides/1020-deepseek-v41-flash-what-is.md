@@ -4,7 +4,7 @@ slug: deepseek-v41-flash-what-is
 products: [ai-tools]
 models: [deepseek]
 accountTier: OTHER
-excerpt: DeepSeek V4.1 Flash 是什么？按官方公告与更新日志（2026-10-24 查询）梳理：V4-Flash-0731、V4.1-Flash（9 月 10 日）、V4.1-Flash-1017 的区别，552B 参数 MoE 结构、原生多模态、API 模型名 deepseek-flash 和价格。
+excerpt: DeepSeek V4.1 Flash 是什么？按官方公告与更新日志（2026-10-24 查询）梳理 0731、V4.1、1017 三个版本的区别、552B 参数 MoE 结构、原生多模态，以及 API 模型名 deepseek-flash。
 checkedOn: 2026-10-24
 sources:
   - https://api-docs.deepseek.com/zh-cn/news/news260910
