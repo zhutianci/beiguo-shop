@@ -4,7 +4,7 @@ slug: deepseek-cursor-setup
 products: [cursor, ai-tools]
 models: [deepseek]
 accountTier: OTHER
-excerpt: DeepSeek 能接入 Cursor 吗？按 Cursor 官方「自带 API Key」文档（2026-10-24 查询），官方列出的服务商是 OpenAI、Anthropic、Google、Azure 和 AWS Bedrock，没有 DeepSeek。本文说明官方写了什么、没写什么，并给出在 Cursor 里装 Cline 扩展接 DeepSeek 的步骤和隐私注意点。
+excerpt: DeepSeek 能接入 Cursor 吗？Cursor 官方「自带 Key」文档（2026-10-24 查询）列的服务商里没有 DeepSeek。本文说明官方写了什么，并给出在 Cursor 里装 Cline 扩展接 DeepSeek 的步骤。
 checkedOn: 2026-10-24
 sources:
   - https://cursor.com/docs/settings/api-keys
