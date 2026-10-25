@@ -268,6 +268,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # sysb 两个上游走 Cloudflare 香港节点（2026-10-25，见 docs/sysb-接入说明-2026-10-24.md 第 8 节）。
+    # 【为什么】按正常 DNS，ECS 到这两站都进 Cloudflare 洛杉矶节点（colo=LAX），跨境丢包严重：
+    #   实测约三分之一请求 20 秒没回（TLS 握手卡住），成功的也要 3~15 秒 —— 买家看到的就是
+    #   「无法连接充值服务 / 响应超时」。162.159.128.0/17 这一段从这台 ECS 进的是香港节点（colo=HKG），
+    #   两站 84/84 成功、约 1 秒。证书照常校验（66chong.com 的正式证书），只是换了个 Cloudflare 入口。
+    # 【风险】Cloudflare 哪天不在这段地址上服务这两站、或上游搬离 Cloudflare，充值会全部连不上 ——
+    #   症状与修之前一样，删掉这三行 `up -d --no-deps app` 即可恢复走正常 DNS。
+    #   换地址前在 ECS 上实测：curl --resolve 66chong.com:443:<IP> https://66chong.com/cdn-cgi/trace 看 colo=HKG。
+    extra_hosts:
+      - "66chong.com:162.159.135.42"
+      - "hongyunai.pro:162.159.135.42"
     networks:
       - app-network
 
