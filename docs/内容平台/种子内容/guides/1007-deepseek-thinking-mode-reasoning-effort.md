@@ -4,7 +4,7 @@ slug: deepseek-thinking-mode-reasoning-effort
 products: [ai-tools]
 models: [deepseek]
 accountTier: OTHER
-excerpt: DeepSeek API 怎么开关思考模式、reasoning_effort 的 low / high / max 怎么选、reasoning_content 要不要回传、deepseek-reasoner 还能不能用？按官方思考模式文档与更新日志（2026-10-24 查询）整理，附三种接口写法对照。
+excerpt: DeepSeek API 怎么开关思考模式、reasoning_effort 的 low / high / max 怎么选、reasoning_content 要不要回传、deepseek-reasoner 还能不能用？按官方文档（2026-10-24 查询）整理。
 checkedOn: 2026-10-24
 sources:
   - https://api-docs.deepseek.com/zh-cn/guides/thinking_mode
