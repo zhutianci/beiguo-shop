@@ -109,6 +109,7 @@ wire_api = "responses"
 | 已经习惯 Codex，只想换模型 | Codex + xAI API Key，按 API 单价计费 |
 | 想直接用 Grok 的编程模型，不想折腾配置 | Cursor，订阅自带 |
 | 想用 xAI 自家的命令行 | Grok Build，官方文档里写了安装与自定义模型的方法 |
+| 想对比 Codex、Claude Code、Cursor 和 Gemini 一侧的工具 | 见 [/guides/ai-coding-tools-codex-claude-code-cursor-gemini](/guides/ai-coding-tools-codex-claude-code-cursor-gemini) |
 
 ## 常见问题
 
