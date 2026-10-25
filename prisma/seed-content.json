@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-25T03:48:20.037Z",
+  "builtAt": "2026-10-25T03:56:59.887Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -60387,6 +60387,301 @@
       ]
     },
     {
+      "title": "DeepSeek 能生成图片吗：能识图但不能生图，需要画图时的几种做法",
+      "slug": "deepseek-generate-image",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1000-deepseek-image-decide.png",
+        "g1000-deepseek-modalities-compare.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 能生成图片吗？按官方 API 文档（2026-10-24 查询）：deepseek-flash 能看图，但两个模型的输出都只有文本，没有生图功能。本文说明能做什么、不能做什么，以及要图时怎么办。",
+      "content": "> 本文根据 DeepSeek 官方 API 文档整理，资料核对于 2026-10-24。DeepSeek 更新很快，如果官方之后增加了生图能力，以官方公告为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek能生成图片吗」「deepseek能生图吗」的人；\n- 想让 DeepSeek 帮忙做海报、插画、头像，不知道该不该继续试的人；\n- 想知道「DeepSeek 能识图」和「DeepSeek 能生图」是不是一回事的人。\n\n## 结论先说\n\n1. **不能直接生成图片**。在官方 API 文档里，价格页的功能表只有「图像理解」，没有任何生成图片的项目；「获取模型列表」接口的示例里，`deepseek-flash` 和 `deepseek-v4-pro` 的输出类型（`output_modalities`）都只有 `text`。\n2. **能识图，但只有 deepseek-flash 能**。官方价格页写明：图像理解 deepseek-flash「支持」，deepseek-v4-pro「不支持」。「识图」是把图片当输入、用文字回答；「生图」是输出图片，两件事方向相反。\n3. **需要图的时候**，有三种常见做法：让它写提示词交给生图工具；让它写能画图的代码；换用本来就带生图功能的产品。下面分别说。\n\n![想让 DeepSeek 处理图片，先看这张表](seed:g1000-deepseek-image-decide.png)\n*图：本站根据 [DeepSeek API 文档](https://api-docs.deepseek.com/zh-cn/quick_start/pricing) 整理的示意图*\n\n## 一、官方文档怎么写的\n\n价格页「模型细节」里的功能表，列出了两个模型支持的能力：JSON Output、Tool Calls、Responses API、Anthropic API、对话前缀续写（Beta）、FIM 补全（Beta），以及「图像理解」。其中图像理解一行是 deepseek-flash 支持、deepseek-v4-pro 不支持。表里没有「图像生成」。\n\n「获取模型列表」（`GET /models`）接口的说明里，每个模型有 `input_modalities`（可输入的类型）和 `output_modalities`（可输出的类型）两个字段，示例如下：\n\n![DeepSeek 两个模型的输入与输出类型](seed:g1000-deepseek-modalities-compare.png)\n*图：本站根据 [DeepSeek 官方「获取模型列表」文档](https://api-docs.deepseek.com/zh-cn/api/list-models) 整理的示意图*\n\n也就是说，flash 可以输入文本和图像，输出文本；pro 只能输入文本，输出文本。**两者都不输出图片。**\n\n官方更新日志里提到的多模态，指的都是「看懂图片」：2026-08-21 的 DeepSeek-V4-Flash-Vision-Exp 是「多模态视觉理解模型」，2026-09-10 的 DeepSeek-V4.1-Flash 「原生支持多模态」「具备原生多模态视觉理解能力」。官方在这几处都没有提到图像生成。关于识图的能力和限制，见 [/guides/deepseek-upload-file-image](/guides/deepseek-upload-file-image)。\n\n## 二、需要图片时的三种做法\n\n### 做法 1：让 DeepSeek 写提示词，交给生图工具\n\nDeepSeek 擅长的是文字。你可以让它把一个模糊想法整理成结构清楚的生图提示词，再粘贴到专门的生图产品里。给它的信息越具体越好：\n\n```\n我要做一张公众号头图，主题是「新手第一次用 AI 做表格」。\n请写 3 条中文生图提示词，每条都包含：主体、场景、风格、色调、构图、\n画面里不要出现的元素。风格要求简洁、扁平、偏暖色。\n```\n\n提示词怎么写、有哪些通用结构，见 [/guides/ai-image-prompt-formula](/guides/ai-image-prompt-formula)；用 Gemini 的 Nano Banana 出图见 [/guides/nano-banana-prompt-guide](/guides/nano-banana-prompt-guide)。\n\n### 做法 2：让它写能画图的代码\n\n模型输出的是文字，但文字可以是代码。流程图、组织结构图、时序图可以让它输出 Mermaid 语法；简单的图标、示意图可以让它输出 SVG 或 HTML，再用对应工具或浏览器打开、渲染成图。这是「用代码画图」，不是「生成图片」：线条、方块、文字排版这类规整图形比较合适，写实照片、人像、复杂插画做不了。\n\n```\n请用 Mermaid 画一张流程图：用户注册 → 验证邮箱 → 完善资料 → 进入首页。\n只输出 Mermaid 代码块，不要多余解释。\n```\n\n### 做法 3：换用本身带生图的产品\n\n如果你的需求就是「一句话出一张图」，直接用带生图功能的产品更省事。本站有这些教程可以看：\n\n- ChatGPT 生图：[/guides/gpt-image-2-how-to](/guides/gpt-image-2-how-to)，额度与限制见 [/guides/chatgpt-image-limits](/guides/chatgpt-image-limits)。需要开通 ChatGPT 会员的话，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)；\n- Gemini 生图额度：[/guides/gemini-image-limits](/guides/gemini-image-limits)；\n- 国内产品：豆包 [/guides/doubao-image-generation](/guides/doubao-image-generation)、通义万相 [/guides/tongyi-wanxiang-how-to-prompt](/guides/tongyi-wanxiang-how-to-prompt)。\n\n各家的免费额度和限制会变，以官方页面为准。\n\n## 三、常见误解\n\n**「我在 DeepSeek 里上传了图片，它也回了我，这不就是图片处理吗？」**\n是图片「理解」：它读图后用文字回答，比如描述画面、读出截图里的文字、分析图表。官方图像理解文档写的用途就是「描述图片、识别截图中的文字、分析图表等」。它不会返回一张修改后的图片。\n\n**「它给我返回了一段 `![](https://...)` 的图片链接，是不是生成了图片？」**\n不是。模型可能写出一段看起来像图片链接的文字，链接本身并不对应它生成的文件。官方文档没有任何接口返回图片文件，遇到这种情况请不要当成生图结果。\n\n**「Pro 和 Flash 哪个能生图？」**\n都不能。区别只在识图：Flash 能，Pro 不能。两者的具体差别见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n**「以后会不会支持？」**\n官方在已公开的更新日志和文档里没有提到生图计划，本文不做预测。想第一时间知道，可以看官方更新日志。\n\n## 常见问题\n\n**Q：DeepSeek 能修图、改图吗？**\n修图需要输出一张新图，当前文档里没有这个能力。你可以上传一张图让它给出修改建议（比如构图、配色），再到修图工具里自己改。\n\n**Q：DeepSeek 能看懂图片里的文字吗？**\n用 deepseek-flash 时可以，官方文档把「识别截图中的文字」列为用途之一。图片格式支持 JPEG、PNG、GIF、WebP。\n\n**Q：网页版和 API 的能力一样吗？**\n官方文档里的结论针对 API。网页版 / App 的功能入口以官方页面为准，识图相关见 [/guides/deepseek-upload-file-image](/guides/deepseek-upload-file-image)。\n\n## 参考资料\n\n- DeepSeek API 文档：模型 & 价格（中文）— https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：获取模型列表 — https://api-docs.deepseek.com/zh-cn/api/list-models\n- DeepSeek API 文档：图像理解 — https://api-docs.deepseek.com/zh-cn/guides/vision\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/api/list-models",
+        "https://api-docs.deepseek.com/zh-cn/guides/vision",
+        "https://api-docs.deepseek.com/zh-cn/updates"
+      ],
+      "screenshots": [],
+      "verify": [
+        "结论取自官方 API 文档：价格页功能表只有「图像理解」而没有生图，「获取模型列表」接口的示例里两个模型的 output_modalities 都只有 text；官方没有说明网页版 / App 是否会增加生图功能，本文不预测",
+        "网页版与 App 的界面入口会变，本文不描述网页端的具体按钮，只讲 API 文档能核对的部分",
+        "其他生图产品（ChatGPT 等）的额度与规则以各自官方页面为准，本文只给站内教程链接"
+      ]
+    },
+    {
+      "title": "DeepSeek 能做 PPT 吗：大纲、逐页内容怎么做，.pptx 文件靠什么生成",
+      "slug": "deepseek-make-ppt",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1001-deepseek-ppt-steps.png",
+        "g1001-deepseek-ppt-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 能做 PPT 吗？按官方资料（2026-10-24 查询），模型本身只输出文字，大纲和逐页内容它能写，成品 .pptx 要靠别的工具生成。本文给出四步路线、可直接用的提示词和几种做法的取舍。",
+      "content": "> 本文根据 DeepSeek 官方新闻、API 文档和下载页整理，资料核对于 2026-10-24。DeepSeek 的网页版和客户端更新很快，功能入口以官方页面为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek能做ppt吗」的人；\n- 老板要明天汇报、想让 AI 先出一版的上班族和学生；\n- 试过让 DeepSeek「做个 PPT」，结果只得到一堆文字的人。\n\n## 结论先说\n\n1. **能写 PPT 的内容，不一定能直接给你 .pptx 文件**。官方文档里，`deepseek-flash` 和 `deepseek-v4-pro` 的输出类型都只有文本（见 [/guides/deepseek-generate-image](/guides/deepseek-generate-image) 里对「获取模型列表」接口的说明）。大纲、每页要点、讲稿、配色建议，它都可以写；文件要靠别的软件生成。\n2. **官方展示过「生成 PPT」的能力**，但是放在 Agent 场景里：2026-04-24 的 V4 预览版公告说，V4 针对 Claude Code、OpenClaw、OpenCode、CodeBuddy 等 Agent 产品做了适配，「代码任务、文档生成任务」等表现有提升，并展示了 V4-Pro 在某 Agent 框架下生成的 PPT 内页。也就是说，需要一个能写文件的外层工具，模型负责决定内容和版式。\n3. **官方文档没有写对话页能直接导出 pptx**。如果你在网页版里没看到导出按钮，不必怀疑自己，按下面的路线走即可。\n\n![用 DeepSeek 做 PPT 的 4 步路线](seed:g1001-deepseek-ppt-steps.png)\n*图：本站根据 [DeepSeek 官方 V4 预览版公告](https://api-docs.deepseek.com/zh-cn/news/news260424) 整理的示意图*\n\n## 一、第一步：让 DeepSeek 出大纲\n\n给模型的信息越具体，大纲越能用。至少说清四件事：**主题、听众、页数、希望听众看完做什么**。\n\n```\n我要做一份 10 页的汇报 PPT：《下半年用户增长复盘》。\n听众是部门负责人，每页讲一个观点，总时长 8 分钟。\n请先给出大纲：每页写「页标题 + 一句话结论 + 3 个要点」。\n不要编造具体数字，需要数据的地方用【待补：xxx】标出来。\n```\n\n最后一句很重要：**让它标出需要你补的数据，而不是自己编**。大模型写汇报时很容易顺手补一个「增长 35%」，这种数字没有依据，直接放进 PPT 会出事。通用的提示词写法见 [/guides/how-to-write-prompts](/guides/how-to-write-prompts)。\n\n## 二、第二步：逐页补内容\n\n大纲确认后，再让它逐页展开。一次一页或几页，比一次生成 10 页更容易控制：\n\n```\n按大纲写第 3 页的页面文字：标题不超过 15 个字，正文 3 条，每条不超过 25 个字。\n另外写一段 40 秒的讲稿，以及一句话说明这页适合配什么图表。\n```\n\n如果有自己的数据，把原始数据贴给它，让它只做归纳，不做补充。长表格怎么分段喂给模型，见 [/guides/long-document-prompting-tips](/guides/long-document-prompting-tips)。\n\n## 三、第三步：选一个生成文件的工具\n\n文字有了，下一步是把它变成 .pptx。常见的三种做法：\n\n| 做法 | 适合谁 | 说明 |\n| --- | --- | --- |\n| 复制进 PowerPoint / WPS 自己排版 | 页数不多、要求精细的人 | 最稳，版式完全自己控制 |\n| 用专门的 AI 做 PPT 产品 | 想一键出版式的人 | 把大纲粘进去生成模板，本站有 [/guides/kimi-ppt-assistant](/guides/kimi-ppt-assistant) 和各路线对比 [/guides/ai-make-ppt-routes-compare](/guides/ai-make-ppt-routes-compare) |\n| 用带本地文件读写的 Agent 工具 | 会用命令行 / 桌面工具的人 | 官方下载页写明 DeepSeek Harness 桌面端支持后台运行和本地文件读写，当前版本仍在迭代 |\n\n官方文档里有教程的 Agent 工具接入方法，Claude Code 见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)。用这类工具生成 pptx，本质上是让它写脚本调用 PPT 库来生成文件，生成后务必自己打开检查。\n\n![做 PPT 的需求，对应哪种做法](seed:g1001-deepseek-ppt-decide.png)\n*图：本站根据 [DeepSeek 官方下载页](https://www.deepseek.com/download/) 与公告整理的示意图*\n\n## 四、第四步：人工检查\n\n不管用哪种方式，导出后都要过一遍：\n\n- **数据和引用**：每个数字能追到原始来源吗？「待补」是否都补上了？\n- **事实**：模型可能把相似的事物混淆，专有名词、日期、公司名要自己核对；\n- **版式**：文字有没有溢出、字体有没有缺失、图表是否清晰；\n- **逻辑**：每页的结论连起来能不能讲完一个故事。\n\n## 常见问题\n\n**Q：网页版上传一份文档，能让它直接做成 PPT 吗？**\n上传文件后它可以读文档内容、写出每页文字（上传的格式与限制见 [/guides/deepseek-upload-file-image](/guides/deepseek-upload-file-image)），但官方没有写它会返回 pptx 文件，请用上面第三步的方法生成文件。\n\n**Q：做出来的 PPT 配图怎么办？**\nDeepSeek 不能生成图片。可以让它写每页的配图说明或生图提示词，再到生图工具里出图；图表用表格软件做更准确。\n\n**Q：想用 ChatGPT 或 Claude 做 PPT 呢？**\n本站有对应教程：[/guides/chatgpt-make-ppt-prompts](/guides/chatgpt-make-ppt-prompts)、[/guides/claude-make-ppt-slides](/guides/claude-make-ppt-slides)。需要开通 ChatGPT 会员可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：DeepSeek 网页版怎么用？**\n见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n## 参考资料\n\n- DeepSeek API 文档：DeepSeek-V4 预览版发布（2026-04-24）— https://api-docs.deepseek.com/zh-cn/news/news260424\n- DeepSeek API 文档：获取模型列表 — https://api-docs.deepseek.com/zh-cn/api/list-models\n- DeepSeek 官网：应用下载（Harness 桌面端）— https://www.deepseek.com/download/\n- DeepSeek API 文档：提示库 — https://api-docs.deepseek.com/zh-cn/prompt-library",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/news/news260424",
+        "https://api-docs.deepseek.com/zh-cn/api/list-models",
+        "https://www.deepseek.com/download/",
+        "https://api-docs.deepseek.com/zh-cn/prompt-library"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方 2026-04-24 的 V4 预览版公告写到「在代码任务、文档生成任务等方面表现均有提升」，并展示了 V4-Pro 在某 Agent 框架下生成的 PPT 内页示例；公告没有说是哪个框架，也没有说网页版能直接导出 pptx",
+        "官方下载页写 DeepSeek Harness 桌面端「支持后台运行和本地文件读写」，并注明当前版本仍在持续迭代；本文没有测试它能否生成 pptx，只说明它具备读写本地文件的前提",
+        "官方文档中没有找到网页版 / App 对话页导出 PPT 的说明，本文按「没写」处理，不断言一定没有；界面功能以官方页面为准"
+      ]
+    },
+    {
+      "title": "DeepSeek 写小说怎么下指令：设定卡、分章大纲与长篇续写的提示词模板",
+      "slug": "deepseek-write-novel-prompts",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1002-deepseek-novel-steps.png",
+        "g1002-deepseek-novel-check.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 写小说的指令怎么写？本文给出「设定卡 + 分章大纲 + 逐章续写」的提示词模板，并说明官方文档里与长篇写作有关的事实：多轮对话如何拼接、1M 上下文、384K 最大输出（2026-10 查询）。",
+      "content": "> 本文根据 DeepSeek 官方 API 文档整理，资料核对于 2026-10-24。提示词模板是写法建议，不是官方给的模板。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek写小说指令」「deepseek 写 小说 提示 词」的人；\n- 想用 DeepSeek 连载网文、写短篇、写同人，又总写到一半人设崩了、前后矛盾的人；\n- 不确定一次该让它写多长的人。\n\n## 结论先说\n\n1. **长篇写作的关键是「每次都把设定带上」**。官方文档说明，API 是无状态的，多轮对话要自己把历史消息拼接起来再发给模型（网页版 / 客户端会替你保存对话，但对话太长时同样会有上限）。所以设定写在一张固定的「设定卡」里，每一轮都能看到，比指望它「记住前面」可靠。\n2. **一章一章写，比一次写完更容易控制**。官方价格页写明 1M 上下文、最大输出 384K（2026-10 查询），数字很大，但更长的单次输出意味着更难中途纠偏。\n3. **指令里要同时给：设定、任务、约束、格式**，缺了哪样模型就按自己的习惯补。\n4. **官方没有给「写小说」的专门模板**。官方提示库里与写作相关的是「散文写作」「诗歌创作」「文案大纲生成」「角色扮演（自定义人设）」「角色扮演（情景续写）」等样例，思路可以借鉴。\n\n![用 DeepSeek 写长篇小说的 5 步](seed:g1002-deepseek-novel-steps.png)\n*图：本站根据 [DeepSeek API 多轮对话与上下文文档](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode) 整理的示意图*\n\n## 一、先写设定卡\n\n设定卡是整个项目的「圣经」，每次请求都贴在最前面。下面是一个模板，把括号里的内容换成你自己的：\n\n```\n【设定卡】\n书名：（暂定）\n题材与基调：（例如：现代都市悬疑，克制、冷静）\n叙述视角：（第三人称有限视角，跟随主角）\n主要人物：\n- 林远，32 岁，法医，话少，习惯用数据说话，怕麻烦别人\n- 周岚，28 岁，记者，嘴快心软，与林远是旧同学\n世界观与规则：（时代、地点、不能违反的设定）\n文风：（短句为主，少用形容词，对话占三成；范文见下）\n禁区：不写血腥细节描写，不出现「命运的齿轮」这类套话\n篇幅：每章约 2500 字，共 20 章\n```\n\n设定卡越短越好用，控制在一页之内。人物太多时只写本章会出场的人。设定卡里有哪些必须写的内容，见下图：\n\n![设定卡里至少写这 6 项](seed:g1002-deepseek-novel-check.png)\n*图：本站整理的写作检查清单示意图*\n\n## 二、让它出分章大纲\n\n```\n下面是设定卡。请根据它写一份 20 章的分章大纲：\n每章写「章名 + 一句话梗概 + 本章要埋的伏笔 / 要回收的伏笔」。\n第 1 章要有一个能抓住读者的开场事件；第 10 章左右出现转折；结尾要回收主要伏笔。\n先只给大纲，不要写正文。\n\n【设定卡】……\n```\n\n大纲出来后，**你来改**：删掉不喜欢的情节，调整顺序，再让它输出修订版。大纲是你对故事走向的控制权，不要整份照单全收。\n\n## 三、逐章续写的指令\n\n每写一章，都用同样的结构：\n\n```\n【设定卡】……（贴最新版）\n【本章大纲】第 5 章：……\n【上一章结尾】（贴最后 300 字左右）\n\n请写第 5 章，约 2500 字。\n要求：\n1. 严格遵守设定卡，人物说话方式不变；\n2. 开头自然衔接上一章结尾，不要重复上一章的内容；\n3. 只写本章大纲里的情节，章末留一个悬念，不要提前写后面的章节；\n4. 直接输出正文，不要加说明。\n```\n\n注意「只写本章」这一条：不写，模型常常急着把故事收尾。\n\n## 四、每写完一章做一次小结\n\n让模型把刚写的章节总结成一小段「进度记录」，再并进设定卡：\n\n```\n请根据刚才写的第 5 章，更新设定卡里的「当前进度」：\n人物当前状态、新出现的人物与关系、已经埋下但尚未回收的伏笔、时间线。\n只输出更新后的「当前进度」部分，不超过 300 字。\n```\n\n这样设定卡不会越来越长，而且模型每次看到的都是最新状态。如何分段喂长文档，见 [/guides/long-document-prompting-tips](/guides/long-document-prompting-tips)。\n\n## 五、思考模式要不要开\n\nDeepSeek 的思考模式会在输出最终回答前先产生思维链。官方文档提醒：**思考模式不支持 temperature、presence_penalty、frequency_penalty 参数**，设置了也不会生效（不会报错）。所以如果你通过 API 写作并想靠调 temperature 控制文风的发散程度，需要关闭思考模式（`thinking: {\"type\": \"disabled\"}`）；网页版的开关位置见 [/guides/deepseek-deep-thinking-web-search](/guides/deepseek-deep-thinking-web-search)。写大纲、理清伏笔时开思考模式有用，写正文时是否开，可以两种都试一次，选你喜欢的。\n\n## 六、常见问题\n\n**Q：写到后面人物性格变了怎么办？**\n先检查设定卡有没有贴在请求里；然后把人物的说话习惯写成具体例子（「他从不说『我觉得』，只说『数据显示』」），比形容词有效。必要时把前两章里最有代表性的一段对话附上做示范，见 [/guides/few-shot-prompting-examples](/guides/few-shot-prompting-examples)。\n\n**Q：一次能写多长？**\n官方价格页写最大输出 384K，但这是上限，不是建议。实际使用中按章节写更容易修改；网页版的单次回复长度以界面为准。\n\n**Q：它总是写套话、爱写总结陈词怎么办？**\n在「禁区」里列出具体的词和句式，并明确「章末不要总结，不要抒情升华」。\n\n**Q：和 ChatGPT 写小说有什么区别？**\n本站另有一篇 [/guides/chatgpt-write-novel](/guides/chatgpt-write-novel)，设定卡和分章写作的方法同样适用。\n\n**Q：AI 写的小说能直接发布吗？**\n各平台对 AI 生成内容有自己的规定和标注要求，请以发布平台的规则为准；版权归属也以相关法律和平台协议为准。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：思考模式（多轮对话拼接）— https://api-docs.deepseek.com/zh-cn/guides/thinking_mode\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates\n- DeepSeek-R1-0528 发布公告 — https://api-docs.deepseek.com/zh-cn/news/news250528\n- DeepSeek API 文档：提示库 — https://api-docs.deepseek.com/zh-cn/prompt-library",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/guides/thinking_mode",
+        "https://api-docs.deepseek.com/zh-cn/updates",
+        "https://api-docs.deepseek.com/zh-cn/news/news250528",
+        "https://api-docs.deepseek.com/zh-cn/prompt-library"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方对「写小说」没有专门的使用说明；提示词模板是本文根据官方多轮对话、上下文规则整理的写法建议，不是官方模板，也不保证效果",
+        "官方 2025-05-28 的 R1-0528 公告提到针对议论文、小说、散文进一步优化，能输出篇幅更长、结构更完整的作品；那是当时的旧模型，现在 API 用的是 deepseek-flash / deepseek-v4-pro，官方没有对这两个模型的写作质量给出对比数据，本文不下结论",
+        "价格页写明上下文长度 1M、最大输出 384K（2026-10-24 查询）；实际一次能写多长受网页端 / 客户端的限制影响，以界面为准"
+      ]
+    },
+    {
+      "title": "DeepSeek 写代码怎么样、怎么用：网页对话、编辑器接入与 Agent 工具三种方式",
+      "slug": "deepseek-write-code-how-to",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1003-deepseek-code-ways-compare.png",
+        "g1003-deepseek-code-prompt-check.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 写代码怎么样、怎么用？本文按官方文档（2026-10-24 查询）说明三种用法：网页对话、API 接入编辑器、接入 Agent 工具，列出官方公布的编程评测与它们的测试口径，并给出提问模板和安全注意事项。",
+      "content": "> 本文根据 DeepSeek 官方文档整理，资料核对于 2026-10-24。评测数字是官方自己公布的成绩，仅供参考。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek写代码怎么样」「deepseek 写程式」的人；\n- 想知道 DeepSeek 能不能当日常编程助手、怎么接到编辑器里用的开发者；\n- 刚学编程，想让 AI 帮忙看懂代码、查 bug 的人。\n\n## 结论先说\n\n1. **写代码是 DeepSeek 官方重点宣传的方向**。官方更新日志里，每一次新模型发布都附有编程 / Agent 评测：2026-10-17 的 DeepSeek-V4.1-Flash-1017 公布了 Terminal-Bench 4.0 为 42.3、DeepSWE v1.1 为 77.0 等成绩，并说明前者用 Claude Code 框架测试、后者用 Mini-SWE-V2 框架测试，且「特别针对 DeepSeek Harness、腾讯 CodeBuddy、WorkBuddy 等平台框架进行了优化」。\n2. **「怎么样」没有统一答案**：这些是官方自己的评测，不同框架结果可能不同；你的语言、项目大小、提问方式都会影响效果。官方也没有保证生成的代码一定正确，所以结果要自己运行和审查。\n3. **有三种用法**：网页版 / App 对话、通过 API 接到编辑器工具、通过 Agent 工具让它读整个项目。按你的使用频率选。\n\n![用 DeepSeek 写代码的三种方式](seed:g1003-deepseek-code-ways-compare.png)\n*图：本站根据 [DeepSeek 官方集成文档](https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code) 整理的示意图*\n\n## 一、方式一：网页版 / App 对话\n\n最简单：把代码贴进对话框，说明问题。官方提示库里与代码有关的样例有三类：**代码生成**（让模型生成一段完成特定功能的代码）、**代码改写**（纠错、注释、调优）、**代码解释**（帮助理解代码内容）。网页版的基本用法见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n适合：问概念、写小脚本、改一小段、解释一段看不懂的代码。不适合：改动牵涉很多文件的项目，因为对话框里装不下整个仓库，你得自己挑着贴。\n\n## 二、方式二：API 接到编辑器工具\n\n很多编辑器插件支持「自定义 OpenAI 兼容接口」。填入官方参数即可（价格页给出的参数）：\n\n| 参数 | 值 |\n| --- | --- |\n| Base URL（OpenAI 格式） | `https://api.deepseek.com` |\n| Base URL（Anthropic 格式） | `https://api.deepseek.com/anthropic` |\n| 模型名 | `deepseek-flash` 或 `deepseek-v4-pro` |\n| API Key | 在开放平台创建，见 [/guides/deepseek-api-key](/guides/deepseek-api-key) |\n\n两个模型的上下文长度都是 1M，最大输出 384K；Flash 支持图像输入（可以直接给它看报错截图），Pro 不支持。API 按 token 收费，价格和高峰、空闲时段的区别见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n价格页功能表还写明：**FIM 补全（Beta）仅非思考模式支持**。FIM 是「在光标位置补全」的接口，编辑器里的行内补全会用到；如果你的工具用的是它，需要关闭思考模式。\n\n## 三、方式三：接入 Agent 工具\n\nAgent 工具能读整个项目、运行命令、修改多个文件，适合改动较大的任务。官方文档的「接入 Agent 工具」栏目列出了这些工具的配置方法：Claude Code、Codex、OpenCode、OpenClaw、Hermes、Reasonix、WorkBuddy、Qoder。例如：\n\n- **OpenCode**：官方页说明需升级到 v1.18.30 或更高版本；运行后输入 `/connect`，搜索并选择 deepseek，填入 API Key，再选择 DeepSeek-V4-Flash 模型；\n- **Claude Code**：用环境变量接入，见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)；\n- **Codex**：官方提供一键配置脚本，见 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。\n\n这几类工具各有差别，选择思路见 [/guides/cursor-vs-claude-code-vs-codex](/guides/cursor-vs-claude-code-vs-codex)。\n\n## 四、怎么问，代码才靠谱\n\n多数「写得不好」来自信息没给够。提问前先补齐六件事：\n\n![让 DeepSeek 写代码，提问前补齐 6 件事](seed:g1003-deepseek-code-prompt-check.png)\n*图：本站整理的提问检查清单示意图*\n\n一个能直接套用的模板：\n\n```\n语言和版本：Python 3.12\n任务：读取 orders.csv（列：id, user_id, amount, created_at），\n按月统计每个用户的订单总额，输出为 JSON。\n约束：只能用标准库；文件可能有 100 万行，内存要节省。\n请先说明思路，再给完整代码，最后给两个测试用例。\n```\n\n出错时，把**完整的报错信息和出错的那段代码**一起贴上，并说「我已经试过 XX，没有解决」，避免它重复给你同样的建议。\n\n## 五、使用时的安全注意\n\n- **不要把密钥、密码、客户数据贴进对话框**，也不要把 API Key 写进代码或提交进仓库；\n- **运行前先看一遍**：删除文件、改数据库、联网下载的命令，自己确认后再执行；\n- **Agent 工具有执行权限**，先在测试目录、小项目里试，权限设置的思路见 [/guides/ai-coding-security-secrets-permissions](/guides/ai-coding-security-secrets-permissions)；\n- **重要代码要有测试和审查**，流程见 [/guides/ai-code-review-workflow](/guides/ai-code-review-workflow) 与 [/guides/ai-write-unit-tests-workflow](/guides/ai-write-unit-tests-workflow)。\n\n## 常见问题\n\n**Q：新手能用 DeepSeek 学编程吗？**\n可以让它解释代码、讲概念、出练习题。但要自己动手运行，别只看答案；它的解释也可能出错，重要结论用官方文档核对。\n\n**Q：Flash 和 Pro 写代码选哪个？**\n官方没有写哪个在所有任务上更强，两者的规格和价格见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。可以拿自己的一个典型任务各试几次，再决定。\n\n**Q：一直提示「服务器繁忙」？**\n见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)。\n\n**Q：要不要同时开通别家会员？**\n看你的需求。如果想用 Claude Code 或 Codex 官方模型，可以参考 [/chongzhi/claude-pro](/chongzhi/claude-pro)、[/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates\n- DeepSeek API 文档：DeepSeek-V4.1-Flash-1017 发布 — https://api-docs.deepseek.com/zh-cn/news/news261017\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：提示库 — https://api-docs.deepseek.com/zh-cn/prompt-library\n- DeepSeek API 文档：接入 Claude Code — https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code\n- DeepSeek API 文档：接入 OpenCode — https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/opencode",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/updates",
+        "https://api-docs.deepseek.com/zh-cn/news/news261017",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/prompt-library",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/claude_code",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/opencode"
+      ],
+      "screenshots": [],
+      "verify": [
+        "评测数字取自官方更新日志（2026-10-17 的 V4.1-Flash-1017）：Terminal-Bench 4.0 为 42.3（用 Claude Code 框架测试）、DeepSWE v1.1 为 77.0（用 Mini-SWE-V2 框架测试）；这些是 DeepSeek 自己公布的成绩，框架不同结果可能不同，本文不把它们换算成「比某某强」",
+        "官方集成文档列出的工具名取自官方文档首页的导航；各工具的版本要求（如 OpenCode 需 v1.18.30 以上）以官方集成页为准",
+        "官方没有给出「写代码一定正确」的保证，本文不写实测结论"
+      ]
+    },
+    {
+      "title": "DeepSeek 本地部署硬件要求：各尺寸模型体积、显存与内存怎么估、上下文怎么设",
+      "slug": "deepseek-local-deploy-hardware-requirements",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1004-deepseek-r1-ollama-sizes.png",
+        "g1004-deepseek-ollama-ps-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 本地部署要什么配置？官方没有给最低配置表。本文只用 Ollama 官方给出的数字：R1 各尺寸的文件体积、默认上下文随显存变化的规则、显卡支持范围，教你自己估算，并说明本地小模型与官方在线版的区别。",
+      "content": "> 本文根据 Ollama 官方模型库与文档、DeepSeek 官方公告整理，资料核对于 2026-10-24。**官方没有给出本地部署的最低配置表**，下文的估算方法是整理出来的建议。图为本站整理的示意图。完整的安装与运行命令见 [/guides/deepseek-local-deploy-ollama](/guides/deepseek-local-deploy-ollama)。\n\n## 适用于谁\n\n- 搜「deepseek 本地部署硬件要求」「deepseek 本地 部署 配置 要求」的人；\n- 想知道自己的电脑（显存多大、内存多少）能跑哪个尺寸的人；\n- 准备买显卡、内存之前，想先弄清楚需求的人。\n\n## 结论先说\n\n1. **官方没有给「最低配置」表**。Ollama 模型页只列了每个标签的文件体积和上下文窗口。所以「要什么配置」要自己从体积出发估算。\n2. **个人电脑上能跑的是蒸馏小模型**，不是官方在线版。Ollama 上的 `deepseek-r1` 从 1.5b 到 70b 是用 DeepSeek-R1 的数据在 Qwen、Llama 等基座上蒸馏的；只有 671b 才是完整的 DeepSeek-R1，文件 404GB。\n3. **估算口诀：显存（或内存）要大于文件体积，还要给上下文留余量**。装不下就会有一部分跑在 CPU 上，变慢。\n4. **上下文长度默认由显存决定**：显存不到 24GiB 默认只有 4k，很多「读长文档读到一半忘了」的问题就出在这里。\n\n![DeepSeek-R1 在 Ollama 上的各尺寸体积](seed:g1004-deepseek-r1-ollama-sizes.png)\n*图：本站根据 [Ollama 模型库 deepseek-r1](https://ollama.com/library/deepseek-r1/tags) 整理的示意图*\n\n## 一、各尺寸体积（Ollama 官方标签页）\n\n上图是默认量化版本的体积。同一个尺寸还有不同精度的版本，精度越高体积越大。以标签页列出的两个尺寸为例：\n\n| 尺寸 | q4_K_M（默认） | q8_0 | fp16 |\n| --- | --- | --- | --- |\n| 1.5b | 1.1GB | 1.9GB | 3.6GB |\n| 7b | 4.7GB | 8.1GB | 15GB |\n\n也就是说，同样是 7b，换成 fp16 精度，体积是默认的三倍多。**拿不准就用默认标签**，别一上来追求高精度。\n\n另外两点：\n\n- 默认的 8b（`ollama run deepseek-r1`）是 DeepSeek-R1-0528-Qwen3-8B，在 Qwen3 8B 上蒸馏的版本；\n- Ollama 搜索页里还有 `deepseek-v4.1-flash`、`deepseek-v4-pro`，它们标注的是按 token 计费（带 in / out 价格），是通过 Ollama 云端调用的在线模型，不是下载到本地运行的。\n\n## 二、怎么估算自己的电脑能跑什么\n\n官方没有给公式，下面是一个够用的思路：\n\n1. **有独立显卡**：看显存。可用显存 ≥ 文件体积 + 一些余量（上下文越大余量越多）。比如 8GB 显存可以考虑 7b / 8b（4.7–5.2GB）这一档，12–16GB 可以试 14b（9.0GB），24GB 可以试 32b（20GB），这是根据体积推算的，不是官方保证；\n2. **没有独立显卡**：用内存跑，速度慢。内存要明显大于文件体积，还要留给系统和其他程序；\n3. **多张卡或统一内存（如部分笔记本）**：同样看总的可用容量，具体支持情况看 Ollama 的硬件支持页；\n4. **硬盘**：至少留出文件体积的空间，更新模型时还会再占一份。\n\n![运行后用 ollama ps 看一眼](seed:g1004-deepseek-ollama-ps-decide.png)\n*图：本站根据 [Ollama 官方上下文长度文档](https://docs.ollama.com/context-length) 整理的示意图*\n\n## 三、显卡支持范围\n\nOllama 硬件支持页写明，Nvidia 显卡需要计算能力 5.0 以上、驱动版本 550 及更新；计算能力 5.0 到 6.2 的显卡需要驱动 570 及更新。页面里按计算能力列出了具体型号，比如 RTX 30 / 40 / 50 系列、GTX 10 系列等。AMD 显卡和其他平台的支持范围也在同一页，请以官方页面为准。如果装好后 `ollama ps` 显示 100% CPU，先检查这两点：显卡在不在列表里、驱动够不够新。\n\n## 四、上下文长度怎么设\n\nOllama 官方文档给出的默认值：\n\n- 显存小于 24GiB：4k；\n- 24–48GiB：32k；\n- 48GiB 及以上：256k。\n\n官方还建议，联网搜索、Agent 和编程工具这类任务至少设到 64000。调整方法是在 Ollama 桌面应用设置里拖滑块，或启动服务时设置环境变量：\n\n```bash\nOLLAMA_CONTEXT_LENGTH=64000 ollama serve\n```\n\n官方提醒：**上下文越长，需要的内存越多**。设大之后用 `ollama ps` 看 `PROCESSOR` 一列有没有出现 CPU 的比例，有的话说明装不下了，要减小上下文或换小一档的模型。\n\n## 五、本地版和官方在线版的区别\n\n官方在线版（网页 / App / API）当前是 DeepSeek-V4.1-Flash 和 V4 Pro，上下文 1M，见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。本地能下载的 R1 蒸馏小模型是更早一代的推理模型，能力和在线版有明显差距，也没有官方的联网搜索。本地部署的价值在于离线、数据不出本机、不排队，而不是更强。\n\n如果你只是想要「更好用」，直接用官方在线版更省事，网页版用法见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)，API 见 [/guides/deepseek-api-key](/guides/deepseek-api-key)。\n\n## 常见问题\n\n**Q：16GB 内存、没有独显能跑吗？**\n能跑小尺寸（如 1.5b、7b、8b），速度会慢。体积 5.2GB 的 8b 对 16GB 内存来说是可行的起点，但要留出系统和其他程序的空间。\n\n**Q：想跑完整的 DeepSeek-R1（671b）要什么？**\n官方标签页写的文件体积是 404GB，需要服务器级的大内存或多卡，个人电脑基本做不到。\n\n**Q：下载的模型占多大？**\n就是标签页上的文件体积，例如 deepseek-r1:8b 约 5.2GB。\n\n**Q：还有更小的版本吗？**\n有，1.5b 只有 1.1GB，但能力有限，适合试跑和简单任务。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- Ollama：deepseek-r1 模型库页面及标签页 — https://ollama.com/library/deepseek-r1\n- Ollama 文档：Context length — https://docs.ollama.com/context-length\n- Ollama 文档：Hardware support — https://docs.ollama.com/gpu\n- Ollama：deepseek 搜索结果 — https://ollama.com/search?q=deepseek\n- DeepSeek API 文档：DeepSeek-V4.1-Flash 发布 — https://api-docs.deepseek.com/zh-cn/news/news260910",
+      "sources": [
+        "https://ollama.com/library/deepseek-r1",
+        "https://ollama.com/library/deepseek-r1/tags",
+        "https://docs.ollama.com/context-length",
+        "https://docs.ollama.com/gpu",
+        "https://ollama.com/search?q=deepseek",
+        "https://api-docs.deepseek.com/zh-cn/news/news260910"
+      ],
+      "screenshots": [],
+      "verify": [
+        "体积和上下文窗口取自 Ollama 模型库 deepseek-r1 的标签页（2026-10-24 查询）；Ollama 页面只给文件体积，没有给每个尺寸的最低内存 / 显存配置，下文的估算思路是本文整理的经验性建议，不是官方数字",
+        "默认上下文长度规则（显存小于 24GiB 为 4k，24–48GiB 为 32k，48GiB 及以上为 256k）和「联网搜索、Agent、编程工具至少设到 64000」取自 Ollama 官方文档",
+        "显卡支持范围取自 Ollama 硬件支持页：Nvidia 计算能力 5.0 以上、驱动 550 及更新；计算能力 5.0–6.2 的显卡要驱动 570 及更新；AMD、Apple 等请看官方页",
+        "官方 2026-09-10 公告说 V4.1 Flash 权重已开源，是 552B 参数的 MoE 模型，面向有大规模算力的机构；本文不给它的个人电脑配置，因为官方没有提供"
+      ]
+    },
+    {
+      "title": "DeepSeek API 开放平台怎么充值、怎么查余额和用量：官方常见问题逐项整理",
+      "slug": "deepseek-api-platform-balance-topup",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1005-deepseek-platform-topup-steps.png",
+        "g1005-deepseek-balance-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 开放平台（platform.deepseek.com）怎么充值、怎么查余额、用量和账单、余额会不会过期、能不能退款开票？按官方常见问题和价格页（2026-10-24 查询）整理，并对照 402 报错和余额不对的情形。",
+      "content": "> 本文根据 DeepSeek 官方常见问题、价格页与错误码页整理，资料核对于 2026-10-24。页面、价格可能调整，以官方为准。图为本站整理的示意图。获取 API Key 的步骤见 [/guides/deepseek-api-key](/guides/deepseek-api-key)。\n\n## 适用于谁\n\n- 搜「deepseek api 开放 平台」「deepseek api platform」的人；\n- 已经拿到 Key，却不知道怎么充值、怎么看还剩多少钱的开发者；\n- 调用时遇到 402「余额不足」，或充了值余额却不对的人。\n\n## 结论先说\n\n1. **API 用的是开放平台账号，不是聊天账号**。开放平台网址是 platform.deepseek.com，聊天是 chat.deepseek.com，两边的使用方式和计费不同。聊天产品的用法见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n2. **先充值再用**。官方价格页写明：模型调用费用 = token 消耗量 × 模型单价，费用从充值余额或赠送余额里扣；两者同时有时，**优先扣赠送余额**。\n3. **在线充值要先完成实名认证**（官方常见问题原意）。充值结果可以在账单页面查询。\n4. **充值余额永久有效，不会过期；未消费的金额支持退款**。这是官方常见问题里的说法。\n5. **402 就是余额不足**，官方错误码页的处理办法就是去充值页充值。\n\n![DeepSeek 开放平台充值 4 步](seed:g1005-deepseek-platform-topup-steps.png)\n*图：本站根据 [DeepSeek 官方常见问题](https://static.deepseek.com/faq/index.html?lang=zh) 整理的示意图*\n\n## 一、充值\n\n官方常见问题写了两种充值方式：\n\n- **在线充值**：完成实名认证后，在充值页面（platform.deepseek.com/top_up）用支付方式充值，在账单页面（platform.deepseek.com/transactions）查询结果。中文版写的是支付宝、微信；英文版写的是 PayPal、银行卡、支付宝、微信支付；\n- **对公汇款**：只支持企业用户，暂时只对 +86 手机号注册的用户开放。完成企业实名认证后会得到专属汇款账号；汇款方开户名称要和开放平台实名认证名称一致。款项到账后一般在 10 分钟到 1 小时内自动入账，没到可联系官方。\n\n关于实名认证：官方说明个人认证和企业认证在用户权益和产品功能上目前没有差异，区别是所需材料和流程；个人认证可以改为企业认证，已完成企业认证的不能改回个人。认证失败的常见原因是：同一证件号绑定的账号超过数量限制，或证件号连续输错次数过多被暂时锁定。\n\n充多少合适：价格按百万 token 计，具体单价、高峰与空闲时段的差别见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。官方让用户「依据实际用量按需充值，定期查看价格页」，所以先小额试用再追加比较稳妥。\n\n## 二、查余额、用量和账单\n\n- **余额与充值记录**：登录开放平台，在充值、账单相关页面查看；\n- **按 Key 看用量**：官方给的步骤是：进入用量页面（platform.deepseek.com/usage），在「时间维度」菜单选择时间范围，在「API Key」菜单选中要查的 Key；还可以点「导出」，下载压缩包，里面有两个 CSV 文件，按 Key 统计的明细在其中一个里；\n- **请求返回里的 usage**：每次调用结果的 `usage` 字段会给出这次实际用掉的 token，官方 Token 页说明实际处理的 token 数量以模型返回为准，不同模型分词不同，估算只能参考（大致 1 个中文字符约 0.6 个 token，1 个英文字符约 0.3 个 token）。\n\n## 三、余额不对、扣费不明时\n\n![余额和扣费问题，对照官方说明](seed:g1005-deepseek-balance-decide.png)\n*图：本站根据 [DeepSeek 官方错误码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes) 与常见问题整理的示意图*\n\n「充了值，余额却不对」，官方给的解释是通常充值的账号和当前登录的账号不是同一个，可以这样找：\n\n1. 如果你有 Google 或邮箱登录方式，换那种方式登录，看充值记录在不在；\n2. 打开支付宝或微信里的充值订单详情页，在「商品」条目下查看对应的充值账号；\n3. 如果注销过账号又重新注册，新旧账号相互独立，原账号的余额不能在新账号使用，需要联系官方按指引申请处理。\n\n## 四、退款与发票\n\n- **退款**：未消费金额支持退款。在线支付的，登录开放平台在页面里点「退款管理」自助操作；企业对公转账的需要填写官方的申请表。**已开票或开票中的金额不支持退款**，要退款得先把发票作废；\n- **发票**：登录开放平台，在账单页点「发票管理」，按提示填入开票金额、抬头等信息；电子发票发送到你填写的邮箱。官方说明支持按消耗金额或按充值金额开具，类型有增值税普通发票和专用发票；个人认证可以开个人抬头或公司抬头，企业认证只能开企业认证主体的抬头；票面项目名称为「生产生活服务*技术服务费」，税率 6%（均为官方常见问题原文要点，以实际页面为准）。需要在发票上增加使用明细，可在「备注信息」栏填写；\n- **作废重开**：在「发票管理」→「开票记录」里可以申请作废并重新开具。\n\n## 五、关于限速与并发\n\n不是余额问题却报 429 的，通常是并发或请求频率到了上限。官方限速页写明：并发限制按账号计，不是按 Key 计；deepseek-flash 是 2500，deepseek-v4-pro 是 500；超过会收到 HTTP 429。官方说目前没有分级收费套餐，需要更高并发可提交扩容工单，不额外收费。更多报错的处理见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。\n\n## 常见问题\n\n**Q：余额不足时之前的数据会丢吗？**\n官方文档没有这方面的说明。调用返回 402 时请求不会成功，充值后重试即可。\n\n**Q：Key 泄漏了会被盗刷吗？**\n有这个风险。官方建议立即在 API Keys 页面删除泄漏的 Key，再创建新的，见 [/guides/deepseek-api-key](/guides/deepseek-api-key)。\n\n**Q：网页版聊天要充值吗？**\n网页版不用在开放平台充值；开放平台的余额只对 API 调用生效。\n\n**Q：Python 怎么调用？**\n见 [/guides/deepseek-api-python-quickstart](/guides/deepseek-api-python-quickstart)。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek 官方常见问题 — https://static.deepseek.com/faq/index.html?lang=zh\n- DeepSeek API 文档：模型 & 价格（扣费规则）— https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：错误码 — https://api-docs.deepseek.com/zh-cn/quick_start/error_codes\n- DeepSeek API 文档：限速与隔离 — https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit",
+      "sources": [
+        "https://static.deepseek.com/faq/index.html?lang=zh",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方常见问题页是前端渲染页面，本文引用的条目来自页面加载的文本：中文版写在线充值用支付宝 / 微信，英文版写 PayPal、银行卡、支付宝、微信支付，不同语言版本的支付方式可能不同，请以你登录后看到的充值页为准",
+        "价格与计费规则取自官方价格页（2026-10-24）：扣费时优先扣赠送余额；官方保留调整价格的权利",
+        "官方没有写赠送余额的具体额度，也没有写最低充值金额；本文不写这两项",
+        "开放平台页面的菜单名称可能调整，本文只给出官方页面写明的网址和名称"
+      ]
+    },
+    {
+      "title": "DeepSeek API 报错 400、402、429 怎么办：官方错误码与常见触发原因对照",
+      "slug": "deepseek-api-error-codes",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1006-deepseek-error-codes-decide.png",
+        "g1006-deepseek-400-check.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek API 返回 400、401、402、422、429、500、503 分别是什么意思、怎么处理？按官方错误码页、限速页和各功能文档（2026-10-24 查询）逐项整理，并列出文档里写明会触发 400 的几种情形和空行、超时的原因。",
+      "content": "> 本文根据 DeepSeek 官方 API 文档整理，资料核对于 2026-10-24。错误码和限制可能调整，以官方文档为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek api 报错」「deepseek 402」「deepseek 429」「deepseek 400」的开发者；\n- 在 Cursor、Cline、Cherry Studio 等工具里填了 DeepSeek 的 Key，却一直报错的人；\n- 想弄清「服务器繁忙」和「余额不足」到底差在哪的人。\n\n## 结论先说\n\n1. 官方错误码页一共列了 7 个：**400 格式错误、401 认证失败、402 余额不足、422 参数错误、429 请求速率达到上限、500 服务器故障、503 服务器繁忙**。\n2. **402 就是余额不足**，不是限速也不是服务器问题；**429 是你自己的并发或频率超了**；**500 / 503 才是服务器那边的问题**，官方说等一等再试。\n3. 400 的原因最杂，文档里明确写了几种会触发的情形，见第三节。\n\n![DeepSeek API 报错先看状态码](seed:g1006-deepseek-error-codes-decide.png)\n*图：本站根据 [DeepSeek 官方错误码页](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes) 整理的示意图*\n\n## 一、错误码对照表\n\n| 状态码 | 官方说明的原因 | 官方给的处理办法 |\n| --- | --- | --- |\n| 400 格式错误 | 请求体格式错误 | 根据错误信息提示修改请求体 |\n| 401 认证失败 | API Key 错误，认证失败 | 检查 API Key 是否正确，没有就先创建 |\n| 402 余额不足 | 账号余额不足 | 确认账户余额，去充值页面充值 |\n| 422 参数错误 | 请求体参数错误 | 根据错误信息提示修改相关参数 |\n| 429 请求速率达到上限 | 请求速率或并发达到上限 | 合理规划请求速率，限速详见「限速与隔离」 |\n| 500 服务器故障 | 服务器内部故障 | 等待后重试；一直存在就联系官方 |\n| 503 服务器繁忙 | 服务器负载过高 | 稍后重试 |\n\n## 二、402 与 429 怎么处理\n\n**402**：先去开放平台看余额，充值方法见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。注意充值余额和赠送余额是分开的，扣费时优先扣赠送余额。\n\n**429**：限速页写明，对每个账号，并发限制是 deepseek-flash 2500、deepseek-v4-pro 500。要点：\n\n- 从请求发出到模型响应完成之前，算一个并发；\n- 并发按**账号**计，和用了几个 Key 无关；多开 Key 不会增加额度；\n- 在限度内的请求都会得到响应，超过就收到 HTTP 429；\n- 需要更高并发，可以提交官方的账号扩容申请工单，官方说扩容不增加额外费用。\n\n处理思路：给请求加队列或限流，失败后等待一会儿再重试，别立刻狂重试；批量任务放到空闲时段，价格也更低（见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)）。如果你只是在聊天网页看到「服务器繁忙」，那是网页端的提示，见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)。\n\n另外，Search 和 Fetch 接口有自己的 QPS 限制（官方写 Search 100、Fetch 25），超过也是 429，并且和模型并发互不占用。\n\n## 三、文档里明确会触发 400 的情形\n\n![请求出错时，先查这 5 处](seed:g1006-deepseek-400-check.png)\n*图：本站根据 DeepSeek 官方各功能文档整理的检查清单示意图*\n\n1. **思考模式 + 工具调用没回传 reasoning_content**：官方思考模式文档写明，携带了 tools 参数的请求，在后续所有请求中必须完整回传 `reasoning_content`，即使那一轮没有真的调用工具；没有正确回传，API 会返回 400。最省事的做法是直接把上一次返回的 `message` 整个 append 回 messages；\n2. **图片放错位置**：图像理解文档写明，图片只能出现在 user 消息里，system 或 assistant 消息携带图片会返回 400；\n3. **Anthropic 接口里用了不存在的模型名**：以 claude 开头的模型名会被映射（claude-opus 开头映射到 deepseek-v4-pro，claude-haiku、claude-sonnet 开头映射到 deepseek-flash），不以 claude 开头的未知模型名返回 400；\n4. **Responses API 图片字段冲突**：同时传 `image_url` 和 `file_id`，或两个都不传，都返回 400；\n5. **JSON 格式本身有问题**：请求体不是合法 JSON、字段值类型不对，都属于官方说的「请求体格式错误」。\n\nJSON 输出还有一点：官方说使用 JSON Output 时，API 有概率返回空的 content，建议修改提示词来缓解；同时提示词里必须有「json」字样并给出期望格式的样例，`max_tokens` 要设得够大，防止 JSON 被截断。\n\n## 四、请求「卡住」或一直返回空行\n\n限速页的「请求保活机制」写明：请求发出后有时要等一会儿，这段时间 HTTP 连接会保持，并持续收到内容——非流式请求返回空行，流式请求返回 SSE 的 keep-alive 注释（`: keep-alive`）。这些不影响 JSON 解析，但如果你自己解析响应，要处理这些空行或注释。**如果 10 分钟后请求还没开始推理，服务器会关闭连接。** 所以不是死机，是排队；排得太久就会断。\n\n## 五、在第三方工具里报错怎么办\n\n在 Cursor、Cline、Cherry Studio 等工具里，工具会把 API 的错误原样显示或包装一下。先对照状态码：401 多半是 Key 填错或带了空格；402 去充值；429 降低并发；400 先检查模型名拼写（`deepseek-flash`、`deepseek-v4-pro`）、Base URL 是否是 `https://api.deepseek.com`，以及工具是否在发送官方文档不支持的内容。具体到各工具的设置，见本站对应教程。Key 的创建与保管见 [/guides/deepseek-api-key](/guides/deepseek-api-key)。\n\n## 常见问题\n\n**Q：500 和 503 要重试几次？**\n官方只说等待后重试，没有给次数。建议加指数退避，并设上限；一直不行就去官方状态页（status.deepseek.com）看看。\n\n**Q：Search / Fetch 接口也是这些错误码吗？**\n大体相同，另外有 403（Fetch 被安全策略拒绝）、404（Fetch 没取到可用内容）、408（读取请求体超时）、413（请求体太大）、504（下游超时）。官方说遇到 408、429 或 5xx 要等待后重试，遇到 402 先充值，其他 4xx 不修改请求就不要重试。\n\n**Q：Python 调用的完整示例在哪？**\n见 [/guides/deepseek-api-python-quickstart](/guides/deepseek-api-python-quickstart)。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek API 文档：错误码 — https://api-docs.deepseek.com/zh-cn/quick_start/error_codes\n- DeepSeek API 文档：限速与隔离 — https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit\n- DeepSeek API 文档：思考模式 — https://api-docs.deepseek.com/zh-cn/guides/thinking_mode\n- DeepSeek API 文档：JSON Output — https://api-docs.deepseek.com/zh-cn/guides/json_mode\n- DeepSeek API 文档：图像理解 — https://api-docs.deepseek.com/zh-cn/guides/vision\n- DeepSeek API 文档：使用 Anthropic API — https://api-docs.deepseek.com/zh-cn/guides/anthropic_api\n- DeepSeek API 文档：网页搜索与抓取 — https://api-docs.deepseek.com/zh-cn/guides/search",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/rate_limit",
+        "https://api-docs.deepseek.com/zh-cn/guides/thinking_mode",
+        "https://api-docs.deepseek.com/zh-cn/guides/json_mode",
+        "https://api-docs.deepseek.com/zh-cn/guides/vision",
+        "https://api-docs.deepseek.com/zh-cn/guides/anthropic_api"
+      ],
+      "screenshots": [],
+      "verify": [
+        "七个状态码的含义和处理办法取自官方错误码页（2026-10-24）",
+        "触发 400 的情形分别来自：思考模式文档（携带 tools 的请求，后续请求必须完整回传 reasoning_content，否则返回 400）、图像理解文档（system 或 assistant 消息携带图片返回 400）、Anthropic API 文档（不以 claude 开头的未知模型名返回 400）",
+        "JSON 输出文档写明「API 有概率会返回空的 content」，官方说正在优化，可尝试修改提示词缓解；本文只转述，不保证改提示词一定有效",
+        "请求保活机制取自限速页：10 分钟后仍未开始推理，服务器会关闭连接"
+      ]
+    },
+    {
+      "title": "DeepSeek API 思考模式怎么开：reasoning_effort 三档、reasoning_content 与 deepseek-reasoner 的现状",
+      "slug": "deepseek-thinking-mode-reasoning-effort",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1007-deepseek-thinking-params-compare.png",
+        "g1007-deepseek-effort-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek API 怎么开关思考模式、reasoning_effort 的 low / high / max 怎么选、reasoning_content 要不要回传、deepseek-reasoner 还能不能用？按官方文档（2026-10-24 查询）整理。",
+      "content": "> 本文根据 DeepSeek 官方思考模式文档和更新日志整理，资料核对于 2026-10-24。参数可能调整，以官方文档为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek reasoning effort」「deepseek reasoner」的开发者；\n- 想知道 `deepseek-reasoner` 现在该换成什么的人；\n- 调用时思考内容怎么取、多轮对话要不要回传，搞不清楚的人。\n\n## 结论先说\n\n1. **现在不需要单独的「推理模型」**：`deepseek-flash` 和 `deepseek-v4-pro` 都同时支持思考与非思考模式，**默认开启思考，强度默认 high**。\n2. **强度有三档：low、high、max**。官方 2026-08-13 的更新日志建议：简单任务用 low，日常 Agent 任务用 high，更复杂的任务用 max。\n3. **`deepseek-reasoner` 是旧模型名**。官方 2026-04-24 说它将于 2026-07-24 停用（过渡期内指向 deepseek-v4-flash 的思考模式）；价格页现在只列新名字。新项目请直接用 `deepseek-flash` 并按需开关思考。\n4. **思考模式下 temperature 等采样参数不生效**，不会报错也不起作用；要靠它们控制随机性，请关闭思考模式。\n5. **只要请求带了 tools，就必须把历史的 reasoning_content 完整回传**，否则返回 400。\n\n![三种接口里怎么开关思考和设强度](seed:g1007-deepseek-thinking-params-compare.png)\n*图：本站根据 [DeepSeek 官方思考模式文档](https://api-docs.deepseek.com/zh-cn/guides/thinking_mode) 整理的示意图*\n\n## 一、怎么开、怎么设\n\n官方文档按三种接口给出参数：\n\n| | OpenAI 格式 | Anthropic 格式 | Responses API 格式 |\n| --- | --- | --- | --- |\n| 思考开关 | `{\"thinking\": {\"type\": \"enabled/disabled\"}}` | 同左 | `{\"reasoning\": {\"effort\": \"none/low/high/max\"}}`（none 表示关闭） |\n| 思考强度 | `{\"reasoning_effort\": \"low/high/max\"}` | `{\"output_config\": {\"effort\": \"low/high/max\"}}` | 同上，写在 `reasoning.effort` 里 |\n\n注意几点：\n\n- **默认开启，默认 high**；\n- 在 OpenAI SDK 里用 Chat Completion 时，`thinking` 参数要放进 `extra_body`，而 `reasoning_effort` 是普通参数：\n\n```python\nresponse = client.chat.completions.create(\n    model=\"deepseek-flash\",\n    messages=messages,\n    reasoning_effort=\"high\",\n    extra_body={\"thinking\": {\"type\": \"enabled\"}},\n)\n```\n\n- Anthropic 格式里 `thinking` 被支持，但 `budget_tokens` 会被忽略，`output_config` 只支持 `effort`（Anthropic API 兼容性文档）；\n- 关闭思考的写法是 `{\"thinking\": {\"type\": \"disabled\"}}`（Responses 格式则是 effort 设成 none）。\n\n## 二、传了别的档位名会怎样\n\n官方给了一张映射表，你传的 effort 会被映射到实际档位：\n\n| 请求传入 | 实际映射 |\n| --- | --- |\n| minimal | low |\n| low | low |\n| medium | high |\n| high | high |\n| xhigh | high |\n| max | max |\n| ultra | max |\n\n也就是说，实际只有 low、high、max 三档，其他名字都是别名。这样设计是为了兼容别的工具里常见的档位名。\n\n![思考强度怎么选（官方建议）](seed:g1007-deepseek-effort-decide.png)\n*图：本站根据 [DeepSeek 官方更新日志](https://api-docs.deepseek.com/zh-cn/updates) 整理的示意图*\n\n## 三、思考模式下哪些参数没用\n\n官方文档写明，**思考模式不支持 temperature、presence_penalty、frequency_penalty**，设置了不会报错，但也不会生效（为了兼容已有软件）。`top_p` 的行为因模型而异：\n\n- **deepseek-flash**：只在思考模式下生效，有效范围 0.95–1.0，低于 0.95 按 0.95 处理；非思考模式下恒为 1.0，传入值会被忽略；\n- **deepseek-v4-pro**：思考模式下忽略传入值（携带 tools 时固定为 0.95，否则 1.0）；非思考模式下生效。\n\n## 四、reasoning_content 怎么取、要不要回传\n\n思考模式下，思维链内容通过 `reasoning_content` 返回，和 `content` 同级。后续轮次是否需要回传它，取决于请求有没有带 `tools`：\n\n- **没有带 tools**：`reasoning_content` 不需要回传；即使传了也会被忽略，不会拼进上下文。你只需要把 `content` 放回对话历史；\n- **带了 tools**：历史轮次的 `reasoning_content` **都要回传**，并且会被拼进上下文。官方强调，带了 tools 的请求，在后续所有请求里都必须完整回传，即使那一轮模型没有真的调用工具。没有正确回传，API 返回 400。\n\n最稳妥的写法，是直接把返回的 `message` 整个追加到 messages：\n\n```python\nmessages.append(response.choices[0].message)\n```\n\n这一行等价于手动追加 `content`、`reasoning_content` 和 `tool_calls`。工具调用的更多内容见 [/guides/deepseek-json-output-function-calling](/guides/deepseek-json-output-function-calling)，报错 400 的其他原因见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。\n\n## 五、什么时候该开、什么时候该关\n\n官方没有给「必须开 / 必须关」的规则，下面是根据官方参数说明整理的思路：\n\n- **需要多步推理、写代码、数学、规划**：保持默认开启，从 high 开始；觉得慢或贵，试 low；\n- **简单问答、改写、翻译、分类**：可以关闭思考，响应通常更快、输出更短；\n- **想调 temperature 控制风格**：关闭思考；\n- **JSON 输出 / 工具调用**：两种模式都可以用，但带 tools 时要注意回传。\n\n思考相关的使用技巧，见 [/guides/chain-of-thought-thinking-mode-when-to-use](/guides/chain-of-thought-thinking-mode-when-to-use)；网页版的「深度思考」开关见 [/guides/deepseek-deep-thinking-web-search](/guides/deepseek-deep-thinking-web-search)。\n\n## 常见问题\n\n**Q：`deepseek-reasoner` 还能用吗？**\n官方 2026-04-24 公告说 2026-07-24 停用，当前价格页没有这个名字。建议改成 `deepseek-flash` 并保持思考开启（默认就是）。\n\n**Q：思考内容算钱吗？**\n价格页按输入和输出的总 token 计费，官方没有把思维链单独列出来；Responses API 文档里 usage 会返回 `reasoning_tokens`（思维链 token 数），可用来观察。具体费用以官方价格页为准，见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n**Q：我只想要最终答案，不想要思考内容？**\n读取 `content` 即可，`reasoning_content` 是单独字段，不会混进 `content`。\n\n**Q：Python 完整示例在哪？**\n见 [/guides/deepseek-api-python-quickstart](/guides/deepseek-api-python-quickstart)。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek API 文档：思考模式 — https://api-docs.deepseek.com/zh-cn/guides/thinking_mode\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：使用 Responses API — https://api-docs.deepseek.com/zh-cn/guides/responses_api\n- DeepSeek API 文档：使用 Anthropic API — https://api-docs.deepseek.com/zh-cn/guides/anthropic_api",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/guides/thinking_mode",
+        "https://api-docs.deepseek.com/zh-cn/updates",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/guides/responses_api",
+        "https://api-docs.deepseek.com/zh-cn/guides/anthropic_api"
+      ],
+      "screenshots": [],
+      "verify": [
+        "开关与强度的参数名、默认值、映射表取自官方思考模式文档（2026-10-24）",
+        "deepseek-chat 与 deepseek-reasoner：官方 2026-04-24 的更新说明称这两个旧模型名将于 2026-07-24 停止使用，过渡期内分别指向 deepseek-v4-flash 的非思考与思考模式；当前价格页只列出 deepseek-flash 和 deepseek-v4-pro，没有再提这两个旧名，本文不断言它们现在能否调用，新代码请使用新模型名",
+        "官方没有给出各档位的耗时或 token 消耗数字，也没有给出「哪一档质量更高多少」的数据，本文只转述官方的使用建议"
+      ]
+    },
+    {
+      "title": "DeepSeek API 的 JSON 输出与 Function Calling 怎么用：参数、示例与 strict 模式",
+      "slug": "deepseek-json-output-function-calling",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1008-deepseek-json-vs-tools-compare.png",
+        "g1008-deepseek-tool-calls-steps.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek API 怎么让模型输出合法 JSON、怎么做 Function Calling（工具调用）？按官方 JSON Output 与 Tool Calls 文档（2026-10-24 查询）讲清参数、注意事项、完整调用流程和 strict 模式支持的 Schema，附常见坑。",
+      "content": "> 本文根据 DeepSeek 官方 JSON Output 与 Tool Calls 文档整理，资料核对于 2026-10-24。Beta 功能可能变化，以官方文档为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 想让模型输出可以直接 `json.loads` 的结果，写数据提取、分类、表单解析的开发者；\n- 想让模型调用自己的函数（查天气、查订单、查数据库）的人；\n- 在做 Agent，被「工具调用返回 400」卡住的人。\n\n## 结论先说\n\n1. **两个模型都支持 JSON Output 和 Tool Calls**（官方价格页功能表）。\n2. **JSON Output** 的做法：`response_format` 设为 `{\"type\": \"json_object\"}`，**提示词里必须有「json」字样并给出期望格式的样例**，`max_tokens` 要够大。官方提醒：API 有概率返回空的 `content`，可以尝试修改提示词缓解。\n3. **Tool Calls** 的关键：**模型不会真的执行函数**。它只告诉你「要调哪个函数、参数是什么」，函数由你来写、你来执行，再把结果交回去。\n4. **带 tools 的思考模式**：历史的 `reasoning_content` 必须完整回传，否则 400，见 [/guides/deepseek-thinking-mode-reasoning-effort](/guides/deepseek-thinking-mode-reasoning-effort)。\n\n![JSON Output 与 Tool Calls 怎么选](seed:g1008-deepseek-json-vs-tools-compare.png)\n*图：本站根据 [DeepSeek 官方 JSON Output](https://api-docs.deepseek.com/zh-cn/guides/json_mode) 与 [Tool Calls](https://api-docs.deepseek.com/zh-cn/guides/tool_calls) 文档整理的示意图*\n\n## 一、JSON Output\n\n### 要点（官方注意事项）\n\n- 设置 `response_format={'type': 'json_object'}`；\n- 用户传入的 system 或 user 提示词里**必须含有「json」字样**，并给出希望输出的 JSON 格式样例，来指导模型输出合法 JSON；\n- 合理设置 `max_tokens`，防止 JSON 被中途截断；\n- 可能返回空 `content`，可以尝试修改提示词。\n\n### 官方示例（Python）\n\n```python\nimport json\nfrom openai import OpenAI\n\nclient = OpenAI(api_key=\"<你的 Key>\", base_url=\"https://api.deepseek.com\")\n\nsystem_prompt = \"\"\"\nThe user will provide some exam text. Please parse the \"question\" and \"answer\" and output them in JSON format.\n\nEXAMPLE INPUT:\nWhich is the highest mountain in the world? Mount Everest.\n\nEXAMPLE JSON OUTPUT:\n{\n    \"question\": \"Which is the highest mountain in the world?\",\n    \"answer\": \"Mount Everest\"\n}\n\"\"\"\nuser_prompt = \"Which is the longest river in the world? The Nile River.\"\n\nresponse = client.chat.completions.create(\n    model=\"deepseek-flash\",\n    messages=[{\"role\": \"system\", \"content\": system_prompt},\n              {\"role\": \"user\", \"content\": user_prompt}],\n    response_format={'type': 'json_object'},\n)\nprint(json.loads(response.choices[0].message.content))\n```\n\n模型会输出 `{\"question\": \"Which is the longest river in the world?\", \"answer\": \"The Nile River\"}`。\n\n### 实用建议\n\n- 解析前先判断 `content` 是否为空，为空就重试（可以换个说法再发一次）；\n- 解析失败时记录原始返回，便于排查；\n- 字段多时在样例里把每个字段都写出来，比只写文字描述更稳。更通用的结构化输出做法见 [/guides/llm-json-structured-output-reliable](/guides/llm-json-structured-output-reliable)。\n\n## 二、Function Calling（Tool Calls）\n\n![Function Calling 的 4 个来回](seed:g1008-deepseek-tool-calls-steps.png)\n*图：本站根据 DeepSeek 官方 Tool Calls 文档整理的示意图*\n\n### 官方示例的流程\n\n官方示例以「获取天气」为例：\n\n1. 用户问「杭州现在天气怎么样」，你的请求里带上 `tools`（函数名 `get_weather`，参数 `location`）；\n2. 模型返回 `tool_calls`，内容是调用 `get_weather({location: 'Hangzhou'})`；\n3. 你自己执行 `get_weather`，把结果以 `role: \"tool\"` 的消息（带上 `tool_call_id`）追加到 messages，再请求一次；\n4. 模型返回自然语言，比如「杭州现在的气温是 24°C」。\n\n官方特别注明：**示例里 `get_weather` 的功能要由用户提供，模型本身不执行具体函数。**\n\n非思考模式下，官方示例这样关闭思考：`extra_body={\"thinking\": {\"type\": \"disabled\"}}`。思考模式下同样支持工具调用，模型可以在给出最终答案前多轮思考与调用工具；此时要把含 `reasoning_content` 的整条 `message` 追加回 messages（`messages.append(response.choices[0].message)`）。\n\n### 对话中间插入工具调用\n\n有些 Agent 场景要把「不是模型生成的」工具调用及结果插入对话历史的中间。官方说明：Anthropic API 与 Responses API 支持，也支持在中间插入 system 消息；Chat Completion 接口**不支持**在中间插入工具调用，但支持插入 system 消息。\n\n## 三、strict 模式（Beta）\n\nstrict 模式下，模型输出函数调用时会严格遵循你定义的 JSON Schema，确保输出符合定义。要使用它，需要：\n\n1. 把 `base_url` 设为 `https://api.deepseek.com/beta` 来开启 Beta；\n2. `tools` 列表里**所有 function 都要设置 `strict: true`**；\n3. 服务端会校验你的 Schema，不符合规范或包含不支持的类型会返回错误信息。\n\n官方列出的 strict 模式支持的类型：object、string、number、integer、boolean、array、enum、anyOf。几条限制：\n\n- **object**：所有属性都要设为 `required`，且 `additionalProperties` 必须为 `false`；\n- **string**：支持 `pattern` 和 `format`（email、hostname、ipv4、ipv6、uuid），不支持 `minLength`、`maxLength`；\n- **number / integer**：支持 `const`、`default`、`minimum`、`maximum`、`exclusiveMinimum`、`exclusiveMaximum`、`multipleOf`；\n- **array**：不支持 `minItems`、`maxItems`；\n- 还支持 `enum`、`anyOf`，以及用 `$def` 与 `$ref` 复用和定义递归结构。\n\n## 四、常见坑\n\n| 现象 | 原因与办法 |\n| --- | --- |\n| 解析 JSON 失败，内容被截断 | `max_tokens` 太小，调大 |\n| `content` 是空的 | 官方说有概率发生；换个提示词重试 |\n| 工具调用后第二次请求 400 | 思考模式下没有完整回传 `reasoning_content`（带 tools 的请求，之后所有请求都要回传） |\n| strict 报 Schema 错误 | 检查是否用了不支持的参数（如 minLength）、是否缺 `required` 或 `additionalProperties: false` |\n| 想在 Chat Completion 里中途插入工具调用 | 不支持，改用 Anthropic 或 Responses 接口 |\n\n其他报错的含义见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。\n\n## 常见问题\n\n**Q：JSON Output 和 strict 工具调用是同一回事吗？**\n不是。前者约束的是回答文本的 JSON 合法性；后者约束的是函数调用的参数符合 Schema。\n\n**Q：Claude 的 tool use 能参考吗？**\n概念相同，本站有 [/guides/claude-tool-use-basics](/guides/claude-tool-use-basics)；DeepSeek 的 Anthropic 兼容接口里 `tools`、`tool_choice` 大部分被支持（`disable_parallel_tool_use` 被忽略）。\n\n**Q：Python 完整入门在哪？**\n见 [/guides/deepseek-api-python-quickstart](/guides/deepseek-api-python-quickstart)。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek API 文档：JSON Output — https://api-docs.deepseek.com/zh-cn/guides/json_mode\n- DeepSeek API 文档：Tool Calls — https://api-docs.deepseek.com/zh-cn/guides/tool_calls\n- DeepSeek API 文档：思考模式 — https://api-docs.deepseek.com/zh-cn/guides/thinking_mode\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/guides/json_mode",
+        "https://api-docs.deepseek.com/zh-cn/guides/tool_calls",
+        "https://api-docs.deepseek.com/zh-cn/guides/thinking_mode",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "JSON Output 的使用要点和「可能返回空 content」的说明取自官方 JSON Output 文档（2026-10-24）；官方说正在优化这一问题，本文不预测何时解决",
+        "strict 模式标注为 Beta，需要把 base_url 设为 https://api.deepseek.com/beta；其支持的类型和参数限制取自官方文档，Beta 功能可能变化",
+        "价格页功能表显示 deepseek-flash 与 deepseek-v4-pro 都支持 Json Output 和 Tool Calls"
+      ]
+    },
+    {
+      "title": "DeepSeek 上下文长度与最大输出是多少：1M 上下文、384K 输出，超限会怎样",
+      "slug": "deepseek-context-length-output-limit",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1009-deepseek-context-limits-compare.png",
+        "g1009-deepseek-too-long-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 上下文长度多少、最大输出多少？按官方价格页与模型列表接口（2026-10-24 查询）：deepseek-flash 与 deepseek-v4-pro 的上下文都是 1M、最大输出 384K。本文说明 token 怎么换算、超限的后果、图片与缓存的相关数字。",
+      "content": "> 本文根据 DeepSeek 官方 API 文档整理，资料核对于 2026-10-24。数字可能随模型更新变化，以官方页面和接口返回为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek 上下文长度」「deepseek 最大输出」「deepseek 能处理多长的文档」的人；\n- 想一次性丢一整本书、一个大仓库给它的人；\n- 遇到输出被截断、请求报 400 说太长的开发者。\n\n## 结论先说\n\n1. **上下文长度是 1M，最大输出长度是 384K**。官方价格页的模型细节里，`deepseek-flash` 和 `deepseek-v4-pro` 这两行写的是相同的数字：上下文长度 1M，输出长度最大 384K。\n2. **精确数字**：官方「获取模型列表」接口的示例里，两个模型都是 `context_window` 1048576（输入和输出 token 合计）、`max_output_tokens` 393216（`max_tokens` 可接受的最大值）。\n3. **上下文包括输入和输出合计**：接口文档对 `context_window` 的说明是「输入与输出 token 合计」，所以输入越长，留给输出的空间越少。\n4. **超过限制会报错，而不是自动截断**：Responses API 文档写明，`truncation` 参数不支持，输入超出上下文窗口时返回 400 错误。\n\n![DeepSeek API 的长度与大小上限](seed:g1009-deepseek-context-limits-compare.png)\n*图：本站根据 [DeepSeek 官方价格页](https://api-docs.deepseek.com/zh-cn/quick_start/pricing) 与图像理解文档整理的示意图*\n\n## 一、1M token 大概是多少字\n\ntoken 是模型的计量单位，也是计费单位。官方 Token 用量文档给出的大致换算：\n\n- 1 个英文字符约 0.3 个 token；\n- 1 个中文字符约 0.6 个 token；\n- 但不同模型的分词不同，实际处理的 token 数以返回结果里的 `usage` 为准。\n\n按这个比例粗略估算，1M（约 105 万）token 对应的中文大约是一百多万字符的量级。这只是估算，具体内容里夹杂代码、数字、英文时差别会很大，所以**真要接近上限，务必用 `usage` 或官方提供的离线 tokenizer 去算**。官方文档提供了 tokenizer 压缩包下载，可以在本地离线计算一段文本的 token 用量。\n\n## 二、输出长度：384K 是上限，不是建议\n\n最大输出 384K 说明模型单次回复最多可以很长。几点提醒：\n\n- 设置 `max_tokens` 就是限制这次最多输出多少。**JSON 输出尤其要设够**，官方提醒设置太小会让 JSON 被中途截断，见 [/guides/deepseek-json-output-function-calling](/guides/deepseek-json-output-function-calling)；\n- 思考模式下，思维链也算输出。官方 2025-05-28 的 R1-0528 说明里提到那一代模型的 `max_tokens` 包含思考过程，默认 32K、最大 64K，那是旧模型的规则；现在的上限见价格页，是否包含思维链请以最新官方文档为准；\n- 写长文时，更长不等于更好，分章节写更容易控制，参考 [/guides/deepseek-write-novel-prompts](/guides/deepseek-write-novel-prompts)。\n\n## 三、图片、请求体大小的限制\n\n给 `deepseek-flash` 传图片时，官方图像理解文档给出这些数字：\n\n- 每张图片会自动缩放，**每张图消耗的 token 数有上限，为 1024 个**，比如 2000×2000 和 5000×5000 的图片，缩放后消耗的 token 数相同；\n- 请求体大小限制 48 MiB（内联的 base64 图片计入）；\n- 外部 URL 图片最大 32 MiB，URL 长度最多 8192 个字符，需在 60 秒内下载完成；\n- 通过 Files API 上传、用 `file_id` 引用的图片最大 64 MiB；\n- 单个请求最多 600 张图片；图片最长边最多 8192 像素，一个请求包含 15 张及以上图片时降为 4096 像素；\n- `detail` 设为 `low` 时，图片在推理前缩放到 512×512，更快、更省 token。\n\nDeepSeek-V4 Pro 不支持图像输入。图片相关的更多说明见 [/guides/deepseek-upload-file-image](/guides/deepseek-upload-file-image)。\n\n## 四、长上下文怎么省钱：缓存\n\n官方的「上下文硬盘缓存」对所有用户默认开启。简单说：**后续请求和之前请求的前缀重复的部分，计入「缓存命中」**，单价低很多。命中的前提是前缀被完整匹配：\n\n- 多轮对话里，第二轮请求里包含第一轮请求的全部内容，就能命中第一轮的缓存；\n- 如果第一轮是 A+B，第二轮是 A+C，第二轮没法命中；但系统检测到公共前缀 A 后会把 A 单独缓存，第三轮 A+D 就能命中 A。\n\n所以**把固定的系统提示、长文档放在最前面，把会变化的问题放在最后**，能让缓存命中率更高。命中与未命中的价格见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n![内容太长时怎么办](seed:g1009-deepseek-too-long-decide.png)\n*图：本站根据 DeepSeek 官方 Responses API、硬盘缓存与图像理解文档整理的示意图*\n\n## 常见问题\n\n**Q：1M 上下文是不是意味着可以把整本书丢进去问？**\n容量上可以，但内容越长，响应越慢、费用越高，也更容易出现「中间部分被忽略」的情况。长文档提问的技巧见 [/guides/long-document-prompting-tips](/guides/long-document-prompting-tips)。\n\n**Q：网页版能上传多大的文件、对话能多长？**\n官方没有给统一数字，界面会有提示，见 [/guides/deepseek-upload-file-image](/guides/deepseek-upload-file-image)。\n\n**Q：不同模型的上下文一样吗？**\n价格页上 `deepseek-flash` 和 `deepseek-v4-pro` 相同。别家模型各自不同，比如 ChatGPT 的见 [/guides/chatgpt-context-length-limits](/guides/chatgpt-context-length-limits)。\n\n**Q：输出被截断了怎么办？**\n先看返回的结束原因，再检查 `max_tokens`；JSON 输出被截断时调大它。报错类问题见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：获取模型列表 — https://api-docs.deepseek.com/zh-cn/api/list-models\n- DeepSeek API 文档：Token 用量计算 — https://api-docs.deepseek.com/zh-cn/quick_start/token_usage\n- DeepSeek API 文档：使用 Responses API — https://api-docs.deepseek.com/zh-cn/guides/responses_api\n- DeepSeek API 文档：上下文硬盘缓存 — https://api-docs.deepseek.com/zh-cn/guides/kv_cache\n- DeepSeek API 文档：图像理解 — https://api-docs.deepseek.com/zh-cn/guides/vision\n- DeepSeek-V4 预览版发布公告 — https://api-docs.deepseek.com/zh-cn/news/news260424",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/api/list-models",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/token_usage",
+        "https://api-docs.deepseek.com/zh-cn/guides/responses_api",
+        "https://api-docs.deepseek.com/zh-cn/guides/kv_cache",
+        "https://api-docs.deepseek.com/zh-cn/guides/vision",
+        "https://api-docs.deepseek.com/zh-cn/news/news260424"
+      ],
+      "screenshots": [],
+      "verify": [
+        "1M 与 384K 取自官方价格页；模型列表接口示例给出的精确值为 context_window 1048576、max_output_tokens 393216，是文档示例数据，实际以接口返回为准",
+        "网页版 / App 单次对话能放多少内容、单次回复多长，官方没有给出统一数字，且界面会有自己的提示，本文不写",
+        "「1M 约等于多少字」是按官方 token 换算比例（1 个中文字符约 0.6 个 token）做的粗略估算，不是官方给出的字数",
+        "官方 2026-04-24 公告写「1M 上下文将是 DeepSeek 所有官方服务的标配」；这是当时的说明，本文不据此推断网页端的具体限制"
+      ]
+    },
+    {
       "title": "ChatGPT 隐私设置：怎么关闭「改进模型」训练、数据控制与隐私中心",
       "slug": "chatgpt-data-controls-privacy",
       "checkedOn": "2026-10-07",
@@ -60413,6 +60708,276 @@
       "verify": [
         "「数据控制」「为所有人改进模型」「隐私中心」「安全」等中文菜单名以实际界面为准",
         "隐私中心的可用范围：发布说明写 Free / Go / Plus / Pro，帮助文章写 Free / Go / Plus / Pro / Business，正文按帮助文章"
+      ]
+    },
+    {
+      "title": "DeepSeek 怎么接入 Codex：官方一键脚本与手动改 config.toml 的完整步骤",
+      "slug": "deepseek-codex-setup",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1010-deepseek-codex-steps.png",
+        "g1010-deepseek-codex-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "codex",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 能接入 Codex 吗？能。DeepSeek API 原生支持 Responses API，官方提供了 Codex 一键配置脚本和手动配置方法（2026-10-24 查询）。本文按两家官方文档讲清脚本用法、config.toml 字段、联网搜索限制和切换后历史会话的问题。",
+      "content": "> 本文根据 DeepSeek 官方「接入 Codex」文档和 OpenAI Codex 官方配置文档整理，资料核对于 2026-10-24。脚本、配置字段可能更新，以官方页面为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek怎么接入codex」「deepseek能接入codex吗」「codex怎么接入deepseek」的人；\n- 已经在用 Codex CLI、ChatGPT 桌面端或 VS Code 的 Codex 插件，想换成 DeepSeek 模型的人；\n- 想知道配置文件怎么写、哪些字段有什么用的人。\n\n## 结论先说\n\n1. **能接入，而且官方提供了现成方案**。Codex 通过 Responses API 与模型交互，DeepSeek API 原生支持这种格式（官方 2026-08-13 更新日志写明，并「针对性适配 Codex」）。\n2. **一份配置，所有 Codex 形态通用**：官方页面说，Codex CLI、ChatGPT 桌面端、VS Code 的 Codex 插件共用同一份配置文件，配置一次即可。\n3. **推荐用官方一键脚本**，也可以手动编辑 `~/.codex/config.toml`。\n4. **可选两个模型**：`deepseek-flash`（支持图片输入）和 `deepseek-v4-pro`（Codex 内置联网搜索只有它支持）。\n5. **需要 API Key**：在 DeepSeek 开放平台创建，见 [/guides/deepseek-api-key](/guides/deepseek-api-key)；API 按 token 计费，需要账户有余额，见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。\n\n![DeepSeek 接入 Codex 的 4 步](seed:g1010-deepseek-codex-steps.png)\n*图：本站根据 [DeepSeek 官方「接入 Codex」文档](https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/codex) 整理的示意图*\n\n## 一、准备\n\n- 安装 Codex CLI 或 ChatGPT 桌面端，并**至少运行过一次**，让 `~/.codex` 目录已存在（官方脚本要求）；Codex 的安装与基本用法见 [/guides/codex-getting-started](/guides/codex-getting-started)、[/guides/codex-cli-install-update](/guides/codex-cli-install-update)；\n- 在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 创建 API Key（以 `sk-` 开头），并确保有余额。\n\n## 二、方式一：官方一键脚本（推荐）\n\n官方给出的命令：\n\nmacOS / Linux 在终端执行：\n\n```bash\nbash <(curl -fsSL https://cdn.deepseek.com/api-docs/codex-deepseek-setup.sh)\n```\n\nWindows 在 PowerShell 执行：\n\n```powershell\nirm https://cdn.deepseek.com/api-docs/codex-deepseek-setup.ps1 | iex\n```\n\n**这类「下载后直接执行」的命令有风险**：它来自 DeepSeek 官方文档，但你仍然可以先把脚本下载下来看一遍再运行，只从官方文档页面复制命令。\n\n运行后按菜单选择：\n\n- **第 1 项**：修改 Codex 配置，使用 `deepseek-flash`（同时支持图片输入）；\n- **第 2 项**：使用 `deepseek-v4-pro`；\n- **第 9 项**：恢复默认的 Codex 配置，删除 deepseek 相关配置。\n\n首次运行会提示输入 API Key。官方说脚本会依次：\n\n1. **备份现有配置**：把 `~/.codex/config.toml` 备份到 `~/.codex/backup-deepseek/`，随时可以还原；\n2. **写入模型目录** `~/.codex/models.json`：向 Codex 声明 DeepSeek 模型的元数据（上下文窗口、支持的推理强度档位、工具调用格式等），让 Codex 能像用内置模型一样使用它们；\n3. **修改 `config.toml`**：只改必要字段，新增 `[model_providers.deepseek]`，并在 `[desktop]` 中写入 `enabled-reasoning-efforts`；你原有的 MCP 服务器、项目信任级别等配置保留；若有与 DeepSeek 配置冲突的字段，脚本会删除并逐条打印原因；\n4. **校验**：写入前先校验语法，失败则中止，不修改任何文件。\n\n再次运行脚本可以重新写入配置或恢复默认；重新运行第 1 / 2 项还会补齐新版脚本新增的配置项，并清理旧的 `deepseek-v4-flash` 等条目，只保留 `deepseek-flash` 和 `deepseek-v4-pro`。\n\n## 三、方式二：手动编辑配置\n\n官方手动方案分两步。\n\n**第一步**，创建模型目录文件 `~/.codex/models.json`，内容与脚本写入的一致（包含 `deepseek-flash` 和 `deepseek-v4-pro` 两个模型的元数据，文件较长，请到官方页面展开「models.json 完整内容」复制）。其中 `deepseek-flash` 的 `input_modalities` 含 `image`，Codex 据此判断它能接收图片。\n\n**第二步**，编辑 `~/.codex/config.toml`（没有就新建），加入以下内容，其中 `experimental_bearer_token` 填你的 API Key：\n\n```toml\nmodel = \"deepseek-flash\"\nmodel_provider = \"deepseek\"\npreferred_auth_method = \"apikey\"\nforced_login_method = \"api\"\nmodel_reasoning_effort = \"high\"\nweb_search = \"disabled\"\nshow_raw_agent_reasoning = true\nmodel_catalog_json = \"~/.codex/models.json\"\n\n[model_providers.deepseek]\nname = \"deepseek\"\nbase_url = \"https://api.deepseek.com/\"\nwire_api = \"responses\"\nexperimental_bearer_token = \"<你的 DeepSeek API Key>\"\n\n[desktop]\nenabled-reasoning-efforts = [\"low\", \"medium\", \"high\", \"xhigh\", \"ultra\", \"max\"]\n```\n\n如果 `config.toml` 里已经有 `[desktop]` 段，请把 `enabled-reasoning-efforts` 加到该段里，**不要再新建一个 `[desktop]`**，重复的配置段会让文件不合法。\n\n### 字段是什么意思（官方说明）\n\n| 字段 | 作用 |\n| --- | --- |\n| `model` | 默认使用的模型 |\n| `model_provider` | 使用的提供方，对应 `[model_providers.<id>]` 的 id |\n| `preferred_auth_method`、`forced_login_method` | 用 API Key 认证，跳过 ChatGPT 账号登录 |\n| `model_reasoning_effort` | 推理强度，值越高思考越深、耗时越长 |\n| `web_search` | Codex 内置联网搜索，仅 `deepseek-v4-pro` 支持，设为 `\"live\"` 启用 |\n| `show_raw_agent_reasoning` | 显示原始思考过程，仅 Codex CLI 有效，按 Ctrl + T 展示 |\n| `model_catalog_json` | 自定义模型目录文件路径 |\n| `base_url` / `wire_api` | DeepSeek API 地址 / 通信协议，`\"responses\"` 表示 Responses API |\n| `experimental_bearer_token` | 你的 API Key，直接写在配置里 |\n\n### 关于 API Key 写在配置文件里\n\nDeepSeek 官方示例把 Key 直接写进 `config.toml`。而 Codex 官方文档对自定义提供方的建议是：用 `env_key` 指定一个环境变量名来读取密钥，`experimental_bearer_token`（直接写令牌）被标为不推荐。两种写法的字段含义都在 Codex 官方文档里（`model_providers.<id>.env_key` 与 `experimental_bearer_token`）。如果你想把 Key 放在环境变量里，可以参考 Codex 官方写法自行调整，**但本文没有测试过这种改法**，请先备份配置再试。无论哪种，都**不要把配置文件提交到公开仓库**。\n\n另外 Codex 官方文档提醒：项目级的 `.codex/config.toml` 不能覆盖 `model_provider`、`model_providers` 这类涉及凭据与提供方的设置，所以这些要写在用户级的 `~/.codex/config.toml`。\n\n## 四、联网搜索\n\n官方说明：Codex 内置联网搜索**只在使用 `deepseek-v4-pro` 时可用**。一键脚本默认写入 `web_search = \"disabled\"`；要用，切到 `deepseek-v4-pro`，并把 `web_search` 设为 `\"live\"`：\n\n```toml\nmodel = \"deepseek-v4-pro\"\nweb_search = \"live\"\n```\n\n保存后重启 Codex。搜索由 DeepSeek 在服务端执行，按 Search 接口的计费规则计费（每 1000 次成功请求 5 元；目前在 Codex 等工具中使用时的服务端搜索尚未计费，官方说将自北京时间 2026-11-01 00:00 起按次收费）。\n\n## 五、开始使用与常见情况\n\n- **Codex CLI**：进入项目目录执行 `codex`，启动信息里显示 `model: deepseek-flash` 即生效；\n- **ChatGPT 桌面端**：模型选择器显示「自定义」或「DeepSeek-Flash」之类的名字，都算生效，取决于 ChatGPT 版本；\n- **VS Code 的 Codex 插件**：与 CLI 共用同一份配置，装好插件即可用。\n\n![接入 Codex 后遇到的情况](seed:g1010-deepseek-codex-decide.png)\n*图：本站根据 DeepSeek 官方「接入 Codex」文档整理的示意图*\n\n## 常见问题\n\n**Q：切到 DeepSeek 后以前的对话不见了？**\n官方说明没有删除。Codex 按登录方式分组存放会话：用 ChatGPT 官方订阅产生的会话和用第三方 API（如 DeepSeek）产生的会话属于两组，界面只显示与当前配置匹配的一组。恢复原配置（脚本第 9 项）就能重新看到之前的会话，切换后需要重启 ChatGPT 客户端才会生效。\n\n**Q：用 DeepSeek 还需要 ChatGPT 会员吗？**\n按官方配置，使用 API Key 认证并跳过 ChatGPT 账号登录，计费走 DeepSeek 开放平台。如果你要用的是 Codex 官方模型，需要 ChatGPT 套餐，见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，用量规则见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n**Q：Codex 里配 MCP 还能用吗？**\n官方说脚本会保留你原有的 MCP 服务器配置。MCP 的配置方法见 [/guides/codex-mcp-config](/guides/codex-mcp-config)。\n\n**Q：想在 Claude Code 里用 DeepSeek？**\n见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)。想了解 Codex 与 Claude Code、Cursor 的区别，见 [/guides/cursor-vs-claude-code-vs-codex](/guides/cursor-vs-claude-code-vs-codex)。\n\n**Q：报错 400 / 401 / 402 怎么办？**\n401 多半是 Key 错，402 是余额不足，见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。\n\n## 参考资料\n\n- DeepSeek API 文档：接入 Codex — https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/codex\n- DeepSeek API 文档：使用 Responses API — https://api-docs.deepseek.com/zh-cn/guides/responses_api\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates\n- OpenAI Codex 文档：Advanced configuration — https://developers.openai.com/codex/config-advanced\n- OpenAI Codex 文档：Configuration reference — https://developers.openai.com/codex/config-reference",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/quick_start/agent_integrations/codex",
+        "https://api-docs.deepseek.com/zh-cn/guides/responses_api",
+        "https://api-docs.deepseek.com/zh-cn/updates",
+        "https://developers.openai.com/codex/config-advanced",
+        "https://developers.openai.com/codex/config-reference"
+      ],
+      "screenshots": [],
+      "verify": [
+        "步骤与配置内容取自 DeepSeek 官方「接入 Codex」页面（2026-10-24）；脚本和模型目录 models.json 的内容由官方维护，会随版本更新，本文没有逐行核对脚本，也没有实际运行",
+        "Codex 官方文档（developers.openai.com/codex）说明自定义模型提供方的写法，其中 env_key 是官方推荐的读取密钥方式，experimental_bearer_token 被标注为「discouraged（不推荐）」；DeepSeek 官方示例使用的是后者，本文照实列出两种说法，由读者自己权衡",
+        "Codex 的 config 字段可能随版本调整，以 Codex 官方文档为准；DeepSeek 官方页面要求 Codex 客户端版本不低于 models.json 里的 minimal_client_version（官方示例写 0.144.0）",
+        "本文不涉及 ChatGPT 账号登录官方模型的用法，只讲用 DeepSeek API Key 接入"
+      ]
+    },
+    {
+      "title": "DeepSeek 怎么接入 Cursor：Cursor 官方自带 Key 支持哪些服务商，以及用 Cline 扩展的做法",
+      "slug": "deepseek-cursor-setup",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1011-cursor-byok-providers.png",
+        "g1011-cursor-cline-steps.png"
+      ],
+      "tags": [
+        "cursor",
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 能接入 Cursor 吗？Cursor 官方「自带 Key」文档（2026-10-24 查询）列的服务商里没有 DeepSeek。本文说明官方写了什么，并给出在 Cursor 里装 Cline 扩展接 DeepSeek 的步骤。",
+      "content": "> 本文根据 Cursor 官方文档、Cline 官方文档和 DeepSeek 官方文档整理，资料核对于 2026-10-24。各软件版本更新很快，界面名称以实际为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek怎么接入cursor」的人；\n- 想在 Cursor 里用便宜的模型做补充、不想只依赖 Cursor 内置额度的开发者；\n- 在 Cursor 设置里找不到 DeepSeek 选项，不知道是不是自己没找对的人。\n\n## 结论先说\n\n1. **Cursor 官方文档没有写 DeepSeek 的接入方法**。「自带 API Key」页面列出的服务商只有 OpenAI、Anthropic、Google、Azure OpenAI 和 AWS Bedrock，没有 DeepSeek，所以你在 Cursor 设置里找不到专门的 DeepSeek 选项，并不是你操作有误。\n2. **DeepSeek 官方文档里也没有 Cursor 的接入页面**：官方「接入 Agent 工具」栏目列出的是 Claude Code、Codex、OpenCode、OpenClaw、Hermes、Reasonix、WorkBuddy、Qoder。\n3. **一条有官方文档支撑的路径**：Cline 官方文档说它的 IDE 扩展支持 VS Code、Cursor 等编辑器，并且有专门的 DeepSeek 提供商配置页。也就是说，可以在 Cursor 里安装 Cline 扩展，让 Cline 去调用 DeepSeek。这不是 Cursor 自己在用 DeepSeek，而是另一个扩展在用。\n4. **想要 Cursor 本身的体验**（Tab 补全、内置 Agent），官方说自带 Key 只对聊天模型生效，Tab 补全仍用 Cursor 自己的模型。\n\n![Cursor 官方「自带 Key」支持的服务商](seed:g1011-cursor-byok-providers.png)\n*图：本站根据 [Cursor 官方「Bring your own API key」文档](https://cursor.com/docs/settings/api-keys) 整理的示意图*\n\n## 一、Cursor 官方「自带 Key」怎么写的\n\n官方步骤是：打开 Cursor Settings → Models，找到想用的服务商，把 API Key 粘贴到文本框，点 Save；之后该服务商的模型会出现在模型选择器里。如果 Key 无效或被服务商拒绝，使用该服务商的请求会失败，直到你更新或删除这个 Key。\n\n官方还写了几条重要规则，用自己的 Key 之前最好知道：\n\n- **费用**：个人套餐下，服务商直接按模型成本向你收费，这些请求**不占用** Cursor 的内含额度或预付额度；团队和企业套餐则另有规则；\n- **隐私**：Cursor 的 Zero Data Retention（零数据留存）策略**不适用于**你自己的 Key，你的数据处理遵循所选服务商的隐私政策；\n- **Key 的去向**：官方说 Key 不存储在 Cursor 服务器上，但每次请求都会发送到 Cursor 的后端，因为所有请求都要经过 Cursor 服务器做最终提示词构建，传输加密，请求结束后不保留；\n- **范围**：自带 Key 只对聊天模型生效，Tab 补全继续使用 Cursor 内置模型。\n\nCursor 套餐与用量的整体说明见 [/guides/cursor-usage-limits-plans](/guides/cursor-usage-limits-plans)，模型选择见 [/guides/cursor-model-selection-auto](/guides/cursor-model-selection-auto)。\n\n## 二、在 Cursor 里装 Cline 接 DeepSeek\n\n![在 Cursor 里用 Cline 接 DeepSeek](seed:g1011-cursor-cline-steps.png)\n*图：本站根据 [Cline 官方安装文档](https://docs.cline.bot/getting-started/installing-cline) 与 [DeepSeek 提供商页](https://docs.cline.bot/provider-config/deepseek) 整理的示意图*\n\n### 第 1 步：安装 Cline 扩展\n\nCline 官方文档的 IDE 扩展安装方法：按 `Ctrl/Cmd + Shift + X` 打开扩展面板，搜索 `Cline`，点安装。官方说这个扩展适用于 VS Code、Cursor、Windsurf、VSCodium、Antigravity，JetBrains 另有安装方式。\n\n### 第 2 步：创建 DeepSeek API Key\n\n去 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 注册、创建 Key，并确保账户有余额。Cline 官方提醒：创建后要**立即复制** Key，之后看不到完整内容，要妥善保存。步骤详解见 [/guides/deepseek-api-key](/guides/deepseek-api-key)，充值见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。\n\n### 第 3 步：在 Cline 里选择 DeepSeek\n\nCline 官方的 DeepSeek 配置步骤：\n\n1. 点 Cline 面板里的齿轮图标，打开设置；\n2. 在「API Provider」下拉菜单里选「DeepSeek」；\n3. 把 Key 粘贴到「DeepSeek API Key」字段；\n4. 在「Model」下拉里选你要用的模型。\n\nCline 的「Plan / Act」等工作方式见 [/guides/cline-setup-api-plan-act](/guides/cline-setup-api-plan-act)。如果下拉里没有你想要的模型名，可以改用 Cline 的「OpenAI Compatible」提供商：按 Cline 官方文档，那里需要填 Base URL、API Key 和模型 ID。DeepSeek 官方给的 OpenAI 格式 Base URL 是 `https://api.deepseek.com`，模型名是 `deepseek-flash` 或 `deepseek-v4-pro`（见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)）。这是把两份官方文档的参数对起来的做法，本文没有测试。\n\n## 三、使用时的注意\n\n- **扩展有执行权限**：Cline 这类 Agent 扩展可以读写文件、运行命令，先在测试项目里试，权限设置的思路见 [/guides/ai-coding-security-secrets-permissions](/guides/ai-coding-security-secrets-permissions)；\n- **代码会发给 DeepSeek**：你的代码片段会随请求发送到 DeepSeek 的服务，涉密项目请先看官方隐私政策再决定；\n- **按 token 计费**：Agent 工具容易一次带很多上下文，费用比聊天高，注意看用量，价格见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)；\n- **别重复装多个类似扩展**：同时开多个 AI 扩展可能抢快捷键、抢补全。\n\n## 常见问题\n\n**Q：Cursor 里能用 DeepSeek 模型的 Tab 补全吗？**\n官方说自带 Key 对 Tab 补全不生效，Tab 用 Cursor 内置模型。\n\n**Q：Cursor 本身需要付费吗？**\nCursor 的套餐与用量规则以 Cursor 官网为准，见 [/guides/cursor-usage-limits-plans](/guides/cursor-usage-limits-plans)。\n\n**Q：想换成官方明确支持的方案？**\nDeepSeek 官方明确写了教程的是 Claude Code、Codex、OpenCode 等，见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)、[/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。想比较这几类工具，看 [/guides/cursor-vs-claude-code-vs-codex](/guides/cursor-vs-claude-code-vs-codex)。\n\n**Q：连接失败、一直转圈怎么办？**\n先看 API 报错码，见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)；Cursor 自己的连接问题见 [/guides/cursor-common-errors-connection-failed](/guides/cursor-common-errors-connection-failed)。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- Cursor 文档：Bring your own API key — https://cursor.com/docs/settings/api-keys\n- Cursor：Available models — https://cursor.com/help/models-and-usage/available-models\n- Cline 文档：Installing Cline — https://docs.cline.bot/getting-started/installing-cline\n- Cline 文档：DeepSeek — https://docs.cline.bot/provider-config/deepseek\n- Cline 文档：OpenAI Compatible — https://docs.cline.bot/provider-config/openai-compatible\n- DeepSeek API 文档：接入 Agent 工具（各工具）— https://api-docs.deepseek.com/zh-cn/",
+      "sources": [
+        "https://cursor.com/docs/settings/api-keys",
+        "https://cursor.com/help/models-and-usage/available-models",
+        "https://docs.cline.bot/getting-started/installing-cline",
+        "https://docs.cline.bot/provider-config/deepseek",
+        "https://api-docs.deepseek.com/zh-cn/quick_start"
+      ],
+      "screenshots": [],
+      "verify": [
+        "Cursor 官方「自带 API Key」页面（2026-10-24）列出的服务商只有 OpenAI、Anthropic、Google、Azure OpenAI、AWS Bedrock，没有 DeepSeek；页面也没有写「自定义 Base URL」之类的入口。本文据此只说「官方文档没有写 DeepSeek 的接入方法」，不断言 Cursor 一定无法实现，也不提供未经官方文档支持的设置方式",
+        "Cursor 自带 Key 的规则（个人套餐不占用内含额度、Zero Data Retention 不适用、Key 随每次请求发送到 Cursor 后端但不保存）取自该页面；这些规则针对列出的服务商，是否同样适用于其他方式，本文不推断",
+        "Cline 官方安装文档写明 IDE 扩展支持 VS Code、Cursor、JetBrains、Windsurf、VSCodium、Antigravity；Cline 官方有 DeepSeek 提供商页面。本文没有实际在 Cursor 里安装测试",
+        "Cline 的 DeepSeek 模型下拉菜单里有哪些模型名由 Cline 版本决定，本文不列"
+      ]
+    },
+    {
+      "title": "DeepSeek 接入 VS Code：用 Continue 或 Cline 扩展配置 DeepSeek API 的步骤",
+      "slug": "deepseek-vscode-continue-cline",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1012-vscode-continue-cline-compare.png",
+        "g1012-continue-config-check.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "怎么在 VS Code 里用 DeepSeek？按 Continue 和 Cline 两个扩展各自的官方文档（2026-10-24 查询），讲清安装、config.yaml 或设置界面里怎么填 DeepSeek 的 API Key 和模型名，并说明费用、隐私和权限的注意事项。",
+      "content": "> 本文根据 Continue、Cline 官方文档和 DeepSeek 官方价格页整理，资料核对于 2026-10-24。扩展更新很快，界面名称以实际为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek 接入 vscode」「vscode deepseek 插件」的人；\n- 习惯在 VS Code 里写代码，想用 DeepSeek 做问答、改代码、生成代码的开发者；\n- 不知道 Continue 和 Cline 该选哪个的人。\n\n## 结论先说\n\n1. **VS Code 本身不内置 DeepSeek**，需要装一个支持自定义模型的 AI 扩展。两个有官方 DeepSeek 配置页的扩展是 **Continue** 和 **Cline**。\n2. **两者都是「自带 Key」模式**：你自己在 DeepSeek 开放平台创建 API Key，扩展直接调用 DeepSeek，按 token 计费，见 [/guides/deepseek-api-key](/guides/deepseek-api-key)。\n3. **配置方式不同**：Continue 在配置文件里写一段 `provider: deepseek`；Cline 在设置界面的 API Provider 下拉里选 DeepSeek。\n4. **模型名**：DeepSeek 官方价格页给的是 `deepseek-flash` 和 `deepseek-v4-pro`。\n\n![Continue 和 Cline 接 DeepSeek](seed:g1012-vscode-continue-cline-compare.png)\n*图：本站根据 [Continue](https://docs.continue.dev/customize/model-providers/more/deepseek) 与 [Cline](https://docs.cline.bot/provider-config/deepseek) 官方文档整理的示意图*\n\n## 一、准备\n\n1. 在 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 创建 API Key，并充值（API 没有余额会返回 402，见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)）；\n2. 确认官方参数：OpenAI 格式的 Base URL 是 `https://api.deepseek.com`，模型名 `deepseek-flash`（支持图片输入）或 `deepseek-v4-pro`，两者上下文都是 1M，见 [/guides/deepseek-context-length-output-limit](/guides/deepseek-context-length-output-limit)；\n3. 先看一眼价格，Agent 类扩展一次带的上下文很多，见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n## 二、方式一：Continue\n\n### 安装\n\nContinue 官方安装步骤（VS Code）：到 Visual Studio Marketplace 的 Continue 扩展页点 Install，会在 VS Code 里打开扩展页，再点一次 Install；安装后左侧栏出现 Continue 图标，官方建议把它移到右侧边栏，体验更好。\n\n### 配置 DeepSeek\n\nContinue 官方 DeepSeek 页面给出的配置（YAML）：\n\n```yaml\nname: My Config\nversion: 0.0.1\nschema: v1\n\nmodels:\n  - name: <模型显示名>\n    provider: deepseek\n    model: <模型 ID>\n    apiKey: <你的 DeepSeek API Key>\n```\n\n按 DeepSeek 官方模型名来填：\n\n```yaml\nmodels:\n  - name: DeepSeek Flash\n    provider: deepseek\n    model: deepseek-flash\n    apiKey: <你的 DeepSeek API Key>\n```\n\n![Continue 的 config.yaml 逐项核对](seed:g1012-continue-config-check.png)\n*图：本站根据 Continue 与 DeepSeek 官方文档整理的检查清单示意图*\n\n### 模型角色\n\nContinue 官方文档把模型分成几种「角色」：Chat（对话）、Edit（改写重构）、Apply（应用修改）、Autocomplete（实时补全）、Embedding（向量）、Reranker（重排序）。一个模型可以承担多个角色，也可以给不同角色配不同模型。官方推荐表里，补全一般用小而快的模型。DeepSeek 官方价格页还写明，FIM 补全（Beta）只在非思考模式下支持，如果你打算把 DeepSeek 用于行内补全，需要确认所用扩展调用的是哪种接口，这一点本文没有测试。\n\n## 三、方式二：Cline\n\n### 安装\n\nCline 官方安装文档：按 `Ctrl/Cmd + Shift + X` 打开扩展面板，搜索 `Cline`，点安装。官方说明这个扩展适用于 VS Code、Cursor、Windsurf、VSCodium 和 Antigravity，JetBrains 有单独的安装方式。\n\n### 配置 DeepSeek\n\nCline 官方 DeepSeek 页面的步骤：\n\n1. 点 Cline 面板里的齿轮图标，打开设置；\n2. 在「API Provider」里选「DeepSeek」；\n3. 把 Key 粘贴到「DeepSeek API Key」字段；\n4. 在「Model」下拉里选模型。\n\n官方提醒：在 DeepSeek 平台创建 Key 后要**马上复制保存**，之后看不到完整内容。\n\nCline 的「Plan / Act」等工作方式见 [/guides/cline-setup-api-plan-act](/guides/cline-setup-api-plan-act)。如果下拉里没有你要的模型名，可以改用「OpenAI Compatible」提供商，需要填 Base URL（`https://api.deepseek.com`）、API Key 和模型 ID；这是把两份官方文档对起来的做法，未实测。\n\n## 四、Continue 和 Cline 怎么选\n\n官方文档里没有对两者做优劣评价，下面只按它们各自的定位说：\n\n| | Continue | Cline |\n| --- | --- | --- |\n| 配置 | 在配置文件里写模型，可以给不同角色配不同模型 | 在设置界面里选，上手快 |\n| 官方文档强调 | Chat、Edit、Apply、Autocomplete 等多种角色 | Plan / Act、让 Agent 读写文件和运行命令 |\n| 适合 | 想精细控制每个功能用哪个模型的人 | 想让 AI 直接帮忙改多个文件的人 |\n\n拿不准就先装 Cline 用它的设置界面，几分钟能跑通；需要补全或精细分工再看 Continue。\n\n## 五、使用时的注意\n\n- **费用**：你的 Key，你付费。长上下文、Agent 多轮调用会消耗不少 token；\n- **隐私**：代码会发送到 DeepSeek 服务，涉密代码先看官方隐私政策；\n- **权限**：Agent 扩展可以读写文件、执行命令，先在测试项目里试，见 [/guides/ai-coding-security-secrets-permissions](/guides/ai-coding-security-secrets-permissions)；\n- **Key 安全**：配置文件里有 Key 时，不要提交到公开仓库；\n- **报错**：401 是 Key 错，402 是余额不足，429 是并发过高，见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。\n\n## 常见问题\n\n**Q：GitHub Copilot 里能用 DeepSeek 吗？**\n本文只写了 Continue 和 Cline 两个有官方 DeepSeek 页面的扩展。Copilot 的设置见 [/guides/github-copilot-vscode-setup](/guides/github-copilot-vscode-setup)，本文不涉及。\n\n**Q：Cursor 里呢？**\n见 [/guides/deepseek-cursor-setup](/guides/deepseek-cursor-setup)。\n\n**Q：想让 DeepSeek 在终端里当编程助手？**\n见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup) 和 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)；写代码的整体思路见 [/guides/deepseek-write-code-how-to](/guides/deepseek-write-code-how-to)。\n\n**Q：想改用 Claude 或 ChatGPT 的官方模型？**\n需要 Claude 套餐可看 [/chongzhi/claude-pro](/chongzhi/claude-pro)；Claude Code 的 VS Code 用法见 [/guides/claude-code-vscode](/guides/claude-code-vscode)。\n\n## 参考资料\n\n- Continue 文档：Install — https://docs.continue.dev/ide-extensions/install\n- Continue 文档：DeepSeek — https://docs.continue.dev/customize/model-providers/more/deepseek\n- Continue 文档：Models — https://docs.continue.dev/customize/models\n- Cline 文档：Installing Cline — https://docs.cline.bot/getting-started/installing-cline\n- Cline 文档：DeepSeek — https://docs.cline.bot/provider-config/deepseek\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+      "sources": [
+        "https://docs.continue.dev/ide-extensions/install",
+        "https://docs.continue.dev/customize/model-providers/more/deepseek",
+        "https://docs.continue.dev/customize/models",
+        "https://docs.cline.bot/getting-started/installing-cline",
+        "https://docs.cline.bot/provider-config/deepseek",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "配置字段与步骤取自 Continue、Cline 各自官方文档（2026-10-24）。Continue 官方 DeepSeek 页面的模型字段写的是占位符 MODEL_ID，本文按 DeepSeek 官方价格页把它写成 deepseek-flash 或 deepseek-v4-pro；两个扩展对这两个新模型名的内置支持情况本文没有测试",
+        "Continue 配置文件 config.yaml 的存放位置、如何打开，请看 Continue 官方的配置说明，本文没有逐项核对",
+        "Cline 的 DeepSeek 页面没有列出模型下拉里有哪些模型，本文也不列",
+        "本文没有实际安装测试，不写「实测」"
+      ]
+    },
+    {
+      "title": "DeepSeek 接入 Cherry Studio 和 Chatbox：API Key 填写、模型列表与连通检测步骤",
+      "slug": "deepseek-cherry-studio-chatbox",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1013-cherry-studio-deepseek-steps.png",
+        "g1013-chatbox-cherry-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "怎么在 Cherry Studio、Chatbox 这类桌面客户端里用 DeepSeek？按两款软件官方文档（2026-10-24 查询）整理 API Key、API 地址、获取模型列表和检测连通的步骤，并对照 DeepSeek 官方说明提醒旧模型名与余额问题。",
+      "content": "> 本文根据 Cherry Studio、Chatbox 官方文档和 DeepSeek 官方文档整理，资料核对于 2026-10-24。软件更新很快，按钮名称以你看到的为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「cherry studio deepseek」「chatbox deepseek」「deepseek 客户端」的人；\n- 嫌网页版「服务器繁忙」，想用自己的 API Key 在本地客户端里对话的人；\n- 想在一个客户端里同时管理多个模型服务商的人。\n\n## 结论先说\n\n1. **两款软件都支持「自带 Key」**：你在 DeepSeek 开放平台创建 API Key，填进客户端，请求直接发给 DeepSeek，按 token 计费，见 [/guides/deepseek-api-key](/guides/deepseek-api-key)。\n2. **客户端不是 DeepSeek 官方产品**，Cherry Studio 和 Chatbox 各有各的界面、订阅或授权，它们的授权**不是** DeepSeek 的 API Key（Chatbox 官方在故障排查里专门写了这点）。\n3. **Cherry Studio**：设置 → 模型服务 → deepseek，填 API 密钥，API 地址默认是 `https://api.deepseek.com`，点「获取模型列表」，再点「检测」。\n4. **Chatbox**：左下角设置 → Model Provider → DeepSeek，粘贴 API Key，点 Check，成功即可用。\n5. **模型名**：以软件里「获取模型列表」返回的为准；DeepSeek 官方现用 `deepseek-flash` 和 `deepseek-v4-pro`。\n\n## 一、先准备 API Key 和余额\n\n1. 到 [DeepSeek 开放平台](https://platform.deepseek.com/api_keys) 注册并创建 Key，创建后马上复制保存；\n2. 先充值少量余额，没有余额调用会返回 402，充值步骤见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)；\n3. Key 是密码，不要截图发给别人，也不要贴到公开聊天里。\n\n## 二、Cherry Studio 怎么配\n\n![Cherry 接 DeepSeek 的 5 步](seed:g1013-cherry-studio-deepseek-steps.png)\n*图：本站根据 [Cherry Studio 官方 DeepSeek 页面](https://docs.cherry-ai.com/pre-basic/providers/deepseek) 整理的示意图*\n\nCherry Studio 官方文档的步骤：\n\n1. 打开「设置 → 模型服务」，找到 **deepseek** 服务商，进入详情页；\n2. 在「API 密钥」填入 `sk-...`；\n3. 「API 地址」默认就是 `https://api.deepseek.com`，无需修改；\n4. 点击「获取模型列表」。\n\n官方通用说明（服务商设置页）里还有这些细节：\n\n- **多个 Key 轮询**：一个服务商可以配置多个密钥，按列表从前到后循环使用。可以「快速添加」（多个 Key 用英文逗号隔开），也可以点密钥输入框右侧的钥匙图标进入「API 密钥管理」，每个 Key 是独立条目，可编辑标签、启用或禁用、复制、删除；\n- **添加模型**：点「获取模型列表」拉取该服务商支持的模型，在弹出的「模型管理」里点模型右侧的 `+` 加入你的列表，**只有加入列表的模型才会出现在各处的模型选择器里**；\n- **核对模型 ID**：模型名称下方会显示服务商返回的实际 API 模型 ID，相近名称的模型不会被合并，选之前先核对这行 ID；\n- **连通性检查**：点「检测」，选一个模型测试；配置了多个 Key 时可以选用哪个 Key 检测。失败就检查模型列表里是否有填错或不受支持的模型；\n- **API 地址的特殊写法**：如果服务商的请求路径不是常规的 `/v1/chat/completions`，可以在地址栏填完整地址并以 `#` 结尾，以 `#` 结尾时不再自动拼接版本路径。DeepSeek 用默认地址即可，用不到这条。\n\n**关于「推荐用法」**：Cherry Studio 官方 DeepSeek 页面的表里，写的是 `deepseek-chat`（通用对话）和 `deepseek-reasoner`（数学、代码、复杂推理，输出会带思考块）。这两个是旧模型名，DeepSeek 官方 2026-04-24 的说明是它们将于 2026-07-24 停止使用（过渡期内分别指向 deepseek-v4-flash 的非思考与思考模式），价格页现在只列 `deepseek-flash` 与 `deepseek-v4-pro`。所以别照抄旧表，先点「获取模型列表」看返回了什么，思考模式的开关见 [/guides/deepseek-thinking-mode-reasoning-effort](/guides/deepseek-thinking-mode-reasoning-effort)。\n\n## 三、Chatbox 怎么配\n\nChatbox 官方「DeepSeek Setup」页面的步骤：\n\n1. 打开 Chatbox，点左下角的 **Settings（设置）**；手机端要先点左上角菜单展开侧边栏，再进设置；\n2. 左侧选 **Model Provider（模型服务商）**，找到 **DeepSeek**；\n3. 把 DeepSeek API Key 粘贴到 **API Key** 字段；\n4. 点 **Check（检查）**，连接测试成功就说明配置好了；\n5. 在模型选择器里选一个可用的模型开始对话。\n\n官方说明：上下文长度限制和推理选项取决于所选模型和你的 Chatbox 版本；设置自定义限制前，请查 DeepSeek 当前的模型文档，数字见 [/guides/deepseek-context-length-output-limit](/guides/deepseek-context-length-output-limit)。配置好后，也可以在 Chatbox 的 Work Mode 里使用，包括 AI Agent、代码执行、MCP 服务器、技能、知识库和全局记忆。\n\nChatbox 官方的故障排查原话大意：如果认证失败，请在 DeepSeek API 平台重新创建 Key；**Chatbox AI 的授权不是 DeepSeek 的 API Key**；额度类错误请检查 API 余额；模型不可用时，刷新模型列表。\n\n![配置后出问题，对照这张表](seed:g1013-chatbox-cherry-decide.png)\n*图：本站根据 Chatbox、Cherry Studio 与 DeepSeek 官方文档整理的示意图*\n\n## 四、费用与隐私\n\n- **费用**：DeepSeek 按 token 收费，价格和高峰、空闲时段的区别见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。客户端开了「联网搜索」或「知识库」会让每次请求带更多内容，用量会上升；\n- **隐私**：Chatbox 官方说 BYOK 模式下数据直接发到 AI 服务商而不经过中间服务器；但你的内容仍会发送到 DeepSeek，处理方式以 DeepSeek 官方隐私政策为准；\n- **Key 安全**：客户端会把 Key 存在本机，换电脑、给别人用之前先删掉或在平台上回收旧 Key。\n\n## 常见问题\n\n**Q：网页版 DeepSeek 和用 API Key 的客户端有什么区别？**\n网页版是官方产品，免费使用，见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)；客户端走 API，按 token 计费，要自己管理余额和费用；网页端的「服务器繁忙」提示和 API 的 429 / 503 不是一回事，见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)。\n\n**Q：返回报错怎么看？**\n401、402、429 的含义见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。\n\n**Q：想在编辑器里用 DeepSeek 写代码？**\n见 [/guides/deepseek-vscode-continue-cline](/guides/deepseek-vscode-continue-cline) 和 [/guides/deepseek-cursor-setup](/guides/deepseek-cursor-setup)。\n\n**Q：这些客户端能同时接 ChatGPT 或 Claude 吗？**\n两款软件的官方文档都列有 OpenAI、Anthropic 等服务商，需要对应官方账号或 API Key。如果你需要 ChatGPT 或 Claude 会员，可参考 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)、[/chongzhi/claude-pro](/chongzhi/claude-pro)；会员和 API 是两套计费，别混淆，见 [/guides/chatgpt-subscription-vs-openai-api](/guides/chatgpt-subscription-vs-openai-api)。\n\n## 参考资料\n\n- Cherry Studio 文档：DeepSeek — https://docs.cherry-ai.com/pre-basic/providers/deepseek\n- Cherry Studio 文档：模型服务设置 — https://docs.cherry-ai.com/pre-basic/providers/providers\n- Chatbox 用户指南：DeepSeek Setup — https://chatboxai.app/en/guide/byok/deepseek\n- Chatbox 用户指南：Bring Your Own Key — https://chatboxai.app/en/guide/byok\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates",
+      "sources": [
+        "https://docs.cherry-ai.com/pre-basic/providers/deepseek",
+        "https://docs.cherry-ai.com/pre-basic/providers/providers",
+        "https://chatboxai.app/en/guide/byok/deepseek",
+        "https://chatboxai.app/en/guide/byok",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/updates"
+      ],
+      "screenshots": [],
+      "verify": [
+        "步骤取自 Cherry Studio 与 Chatbox 官方文档（2026-10-24），未实际安装测试；两款软件界面会随版本变化",
+        "Cherry Studio 官方 DeepSeek 页面的「推荐用法」表仍写 deepseek-chat、deepseek-reasoner；DeepSeek 官方 2026-04-24 的更新说明称这两个旧名将于 2026-07-24 停用，价格页现在只列 deepseek-flash 与 deepseek-v4-pro。本文以 DeepSeek 官方为准，并提醒以软件里「获取模型列表」返回的 ID 为准",
+        "Chatbox 官方说其 Chatbox AI 授权不是 DeepSeek 的 API Key；Chatbox 官方文档没有列出具体 DeepSeek 模型名，也没有写上下文限制数字，本文都不列",
+        "Cherry Studio 文档提到的「原生联网」图标与搜索设置本文没有展开，也未验证 DeepSeek 新模型是否带该标记"
+      ]
+    },
+    {
+      "title": "DeepSeek 的 Responses API 与 Anthropic 兼容接口怎么用：Base URL、模型映射与不支持的参数",
+      "slug": "deepseek-responses-api-anthropic-compatible",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1014-deepseek-three-api-formats-compare.png",
+        "g1014-deepseek-compat-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 支持 Responses API 和 Anthropic 接口吗？支持。按官方文档（2026-10-24 查询）讲清两种格式的 Base URL、调用示例、claude 模型名映射，以及哪些参数不支持、会被静默忽略，帮你判断工具能不能接。",
+      "content": "> 本文根据 DeepSeek 官方 Responses API 与 Anthropic API 文档整理，资料核对于 2026-10-24。兼容性细节可能更新，以官方为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek response api」「deepseek responses api」「deepseek anthropic api」的开发者；\n- 手里的工具只支持 OpenAI Responses 格式或 Anthropic 格式，想知道能不能接 DeepSeek 的人；\n- 迁移代码，想知道哪些参数还能用的人。\n\n## 结论先说\n\n1. **DeepSeek 提供三种接口格式**：OpenAI Chat Completions、Responses API、Anthropic Messages。官方价格页功能表里，两个模型对 Responses API 和 Anthropic API 都标「支持」。\n2. **Base URL**：OpenAI 格式和 Responses 格式用 `https://api.deepseek.com`；Anthropic 格式用 `https://api.deepseek.com/anthropic`。\n3. **Responses API 是为 Codex 适配的**：官方 2026-08-13 更新日志说，DeepSeek API 原生支持 OpenAI Responses API 格式，并针对性适配 Codex。\n4. **不支持的参数会被静默忽略**，不会报错。迁移时要逐个核对，不能以为「没报错就生效」。\n\n![DeepSeek 的三种接口格式](seed:g1014-deepseek-three-api-formats-compare.png)\n*图：本站根据 [DeepSeek 官方价格页](https://api-docs.deepseek.com/zh-cn/quick_start/pricing) 整理的示意图*\n\n## 一、Responses API\n\n### 调用示例（官方）\n\n```python\nfrom openai import OpenAI\n\nclient = OpenAI(api_key=\"<你的 DeepSeek API Key>\", base_url=\"https://api.deepseek.com\")\n\nresponse = client.responses.create(\n    model=\"deepseek-flash\",\n    instructions=\"You are a helpful assistant.\",\n    input=\"Hi, how are you?\",\n)\nprint(response.output_text)\n```\n\n流式输出设置 `stream=True`：响应以语义化的 SSE 事件序列返回，每个事件带事件类型和递增的 `sequence_number`；流以 `response.completed`、`response.incomplete` 或 `response.failed` 事件结束，**没有 `data: [DONE]` 消息**。官方列出了完整事件列表，包括输出文本增量、思维链文本增量、函数调用参数增量、服务端 web_search 调用等。\n\n### 图片输入\n\n`deepseek-flash` 支持通过 Responses API 传图片：`input_image` 内容块，用 `image_url`（http(s) 链接或 base64 data URL）或 `file_id`（Files API 上传的图片）二选一。`image_url` 和 `file_id` 都传或都不传会返回 400。图片只允许放在 user / developer 消息里，system 或 assistant 消息里的图片返回 400。限制数字与 Chat Completions 一致，见 [/guides/deepseek-context-length-output-limit](/guides/deepseek-context-length-output-limit)。\n\n### 不支持或被忽略的参数（官方兼容性表）\n\n- **不支持**：`previous_response_id`、`conversation`（接口是**无状态**的，每次请求要自己带完整历史）、`store`（响应里恒为 false）、`background`、`metadata`、`include`、`prompt`、`truncation`（输入超出上下文窗口时返回 400）、`service_tier`、`safety_identifier`、`prompt_cache_key`、`context_management`、`stream_options` 等；\n- **部分支持**：`reasoning` 只支持 `effort`，`summary` 可传入但不生成摘要；`text` 的 `format` 完整支持，`verbosity` 可传入但不生效；\n- **忽略**：`parallel_tool_calls`（并行工具调用始终开启）、`max_tool_calls`；\n- **支持**：`model`、`input`、`instructions`、`stream`、`temperature`（范围 0–2，思考模式下不生效）、`max_output_tokens`、`top_logprobs`、`tools`、`tool_choice`、`user`。\n\n工具方面：`function` 支持；`custom` 仅支持名为 `apply_patch` 的（用于 Codex 兼容），其他名字返回 400；`web_search` 只有 `deepseek-v4-pro` 支持，`deepseek-flash` 下被忽略；`file_search`、`code_interpreter`、`computer_use`、`mcp` 等内置工具被忽略。\n\n思考强度在 Responses 格式里写成 `reasoning.effort`（`none` 表示关闭），详见 [/guides/deepseek-thinking-mode-reasoning-effort](/guides/deepseek-thinking-mode-reasoning-effort)。Codex 的完整接入步骤见 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。OpenAI 自家 Responses API 的用法可对照 [/guides/openai-responses-api](/guides/openai-responses-api)。\n\n## 二、Anthropic 兼容接口\n\n### 配置与调用（官方）\n\n安装 Anthropic SDK（`pip install anthropic`），配置环境变量：\n\n```bash\nexport ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic\nexport ANTHROPIC_API_KEY=${YOUR_API_KEY}\n```\n\n调用：\n\n```python\nimport anthropic\n\nclient = anthropic.Anthropic()\nmessage = client.messages.create(\n    model=\"deepseek-flash\",\n    max_tokens=1000,\n    system=\"You are a helpful assistant.\",\n    messages=[{\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"Hi, how are you?\"}]}],\n)\nprint(message.content)\n```\n\n接入 Claude Code 的步骤见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)。\n\n### Claude 模型名映射\n\n使用 Anthropic API 时，传入的 claude 模型名会被映射：\n\n- `claude-opus` 开头 → `deepseek-v4-pro`（按 V4 Pro 价格计费）；\n- `claude-haiku`、`claude-sonnet` 开头 → `deepseek-flash`；\n- **不以 claude 开头的未知模型名返回 400**。\n\n官方还说，这样映射后，在新版 Claude Desktop 应用的 developer 模式里，可以绕过应用对模型名的限制，只需改 base_url 和 api_key 就能接入 DeepSeek 模型（官方原话大意；具体操作请看官方文档，本文不展开，也没有测试）。\n\n### 兼容性细节（官方）\n\n![兼容接口里要留意的几点](seed:g1014-deepseek-compat-decide.png)\n*图：本站根据 DeepSeek 官方 Responses API 与 Anthropic API 文档整理的示意图*\n\n- **HTTP 头**：`x-api-key` 完全支持；`anthropic-version` 忽略；`anthropic-beta` 在 `/messages` 忽略，但 `source.type` 为 `file` 的图片必须携带 `files-api-2025-04-14`，Files API 端点也必须携带；\n- **字段**：`model` 改用 DeepSeek 模型；`max_tokens`、`stop_sequences`、`stream`、`system` 完全支持；`temperature` 支持（0–2）；`thinking` 支持，但 `budget_tokens` 被忽略；`output_config` 只支持 `effort`；`metadata` 支持 `user_id`；`container`、`mcp_servers`、`service_tier`、`top_k` 忽略；\n- **工具**：`tools` 的 name、input_schema、description 完全支持，`cache_control` 忽略；`tool_choice` 的 none 完全支持，auto、any、tool 支持但 `disable_parallel_tool_use` 被忽略；\n- **内容块**：文本、图片（base64、url、file）、thinking、tool_use、tool_result 支持；`document`、`search_result`、`redacted_thinking`、`code_execution_tool_result`、`mcp_tool_use`、`mcp_tool_result`、`container_upload` 不支持；`cache_control`、`citations` 忽略。\n\n## 三、怎么选格式\n\n官方没有规定该选哪种，下面是按用途的思路：\n\n| 你的情况 | 建议 |\n| --- | --- |\n| 自己写脚本，已用 OpenAI SDK | Chat Completions 格式，改 base_url 和模型名即可 |\n| 工具只支持 Responses（如 Codex） | Responses 格式，按官方 Codex 页面配置 |\n| 工具只支持 Anthropic（如 Claude Code） | Anthropic 格式，Base URL 加 `/anthropic` |\n| 需要多轮对话状态保存 | 三种接口都是无状态的，历史自己维护 |\n\n## 常见问题\n\n**Q：Responses API 能用 `previous_response_id` 接着聊吗？**\n不能。官方明确不支持，要自己把历史消息拼进每次请求的 `input`。\n\n**Q：Anthropic 接口能用 Claude 的文档上传吗？**\n`document` 类型内容块不支持。要读文档，把文字内容放进 text 块里。\n\n**Q：报 400 怎么办？**\n对照 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。Claude 自家的 API 用法见 [/guides/claude-api-key-console](/guides/claude-api-key-console)。\n\n**Q：想用 Claude 或 ChatGPT 官方模型？**\n需要对应的会员或 API，会员可参考 [/chongzhi/claude-pro](/chongzhi/claude-pro)、[/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek API 文档：使用 Responses API — https://api-docs.deepseek.com/zh-cn/guides/responses_api\n- DeepSeek API 文档：使用 Anthropic API — https://api-docs.deepseek.com/zh-cn/guides/anthropic_api\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/guides/responses_api",
+        "https://api-docs.deepseek.com/zh-cn/guides/anthropic_api",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/updates"
+      ],
+      "screenshots": [],
+      "verify": [
+        "调用示例、兼容性表格取自 DeepSeek 官方 Responses API 与 Anthropic API 文档（2026-10-24）；兼容性细节会随版本更新，以官方文档为准",
+        "Responses API 文档写明不支持的参数会被静默忽略、不会报错；这意味着「传了不报错」不等于「生效了」，本文只转述",
+        "Anthropic 接口里 claude-opus 开头的模型名映射到 deepseek-v4-pro 并按 V4 Pro 价格计费、claude-haiku 与 claude-sonnet 开头的映射到 deepseek-flash，取自官方文档；映射规则可能调整",
+        "本文没有实际调用测试"
+      ]
+    },
+    {
+      "title": "DeepSeek 为什么涨价：官方三次价格调整的时间线、官方说明与现在的价格",
+      "slug": "deepseek-price-changes-timeline",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1015-deepseek-price-timeline.png",
+        "g1015-deepseek-save-cost-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek API 为什么涨价？只引官方公告与价格页（2026-10-24 查询）：4 月 V4 定价、8 月 17 日起的峰谷定价、9 月 10 日 Flash 下调，附各时间点的价格表、官方给出的理由和现在怎么省钱。",
+      "content": "> 本文只引用 DeepSeek 官方公告和价格页，资料核对于 2026-10-24。价格可能随时调整。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek为什么涨价」的人；\n- 觉得最近账单变高、想弄清官方到底改了什么的开发者；\n- 想知道现在价格是多少、怎么省的人。\n\n## 结论先说\n\n1. **官方没有用「涨价」这个词**。官方公告里的说法是：2026-08-13 起采用**峰谷定价**，「为了更加合理地调配资源」，空闲时段价格是高峰时段的一半，新价格自北京时间 **2026-08-17 0 点**起生效。\n2. **从价格表看，不同项目有升有降**：以 Flash 为例，8 月 17 日起未命中缓存的输入和输出单价比 4 月的价格表高，缓存命中的单价则更低；9 月 10 日 V4.1 Flash 发布时官方又**下调**了 Flash 价格。\n3. **现在的价格**以官方价格页为准：2026-10-24 查询，Flash 空闲时段输出 4 元 / 百万 token，高峰 8 元；Pro 空闲 13.5 元，高峰 27 元。\n4. **想省钱**：批量任务放空闲时段，价格直接减半。\n\n![API 价格变化（元 / 百万 token）](seed:g1015-deepseek-price-timeline.png)\n*图：本站根据 [DeepSeek 官方公告](https://api-docs.deepseek.com/zh-cn/updates) 与 [价格页](https://api-docs.deepseek.com/zh-cn/quick_start/pricing) 整理的示意图*\n\n## 一、时间线\n\n### 2026-04-24：V4 预览版\n\n官方公告配的价格图里，V4-Pro 为缓存命中 1 元、未命中 12 元、输出 24 元；V4-Flash 为缓存命中 0.2 元、未命中 1 元、输出 2 元（每百万 token），上下文 1M。图下脚注写明：受限于高端算力，目前 Pro 的服务吞吐十分有限，预计下半年昇腾 950 超节点批量上市后，Pro 的价格会大幅下调。\n\n### 2026-08-13：V4 Pro 正式版，宣布峰谷定价\n\n官方更新日志写：随着 V4 全系列正式版上线，将对 API 价格进行更新调整；为更合理地调配资源采用峰谷定价，闲时价格为高峰时段价格的一半，鼓励用户根据实际使用情况调整任务时间；新价格自北京时间 2026 年 8 月 17 日 0 时起生效。公告价格图：\n\n- V4-Flash 空闲时段：缓存命中 0.05 元、未命中 1.5 元、输出 4.5 元；高峰时段 0.10 / 3.0 / 9.0 元；\n- V4-Pro 空闲时段：0.15 / 4.5 / 13.5 元；高峰时段 0.30 / 9.0 / 27.0 元。\n\n高峰时段是北京时间 9:00–12:00 和 14:00–18:00（价格页补充：周一至周五，不含中国法定节假日；周末和法定节假日全天为空闲）。\n\n把这张表和 4 月的价格对比，可以看到变化并不一致：缓存命中的单价下降；Pro 未命中和输出在空闲时段低于 4 月的价格，但高峰时段的输出（27 元）高于 4 月的 24 元；Flash 未命中和输出则高于 4 月的价格。所以「涨价」的感受取决于你主要用哪个模型、什么时段、缓存命中率多高。这是本文对表格的读法，不是官方说法。\n\n### 2026-09-10：V4.1 Flash 发布，Flash 价格下调\n\n官方说明：得益于模型架构的创新，V4.1 Flash 能以更低的成本服务更多用户，因此下调了 Flash 的定价，仍采用峰谷定价；新价格自 2026 年 9 月 10 日 12:00 起生效。公告价格图：空闲时段缓存命中 0.02 元、未命中 1.0 元、输出 4.0 元；高峰时段 0.04 / 2.0 / 8.0 元。\n\n同日的新闻稿还写到：V4.1 Flash 官方评测超过 V4 Pro，计划有序下线 V4 Pro，2026-09-14 12:00 之后访问 `deepseek-v4-pro` 的请求将路由到 V4.1 Flash 并按 Flash 单价计费。但同一天的更新日志又写：为响应用户需求，**2026-09-14 之后继续提供 V4 Pro 的 API 调用，计费方式保持不变**。当前价格页仍列有 `deepseek-v4-pro` 的独立价格，所以以后者为准。\n\n### 2026-10-17：V4.1-Flash-1017\n\n官方更新日志写明：API 调用方式与价格保持不变，仍使用 `deepseek-flash`。同日开放自研搜索 API，Search 与 Fetch 各 5 元 / 千次，目前在 DeepSeek Harness、Claude Code、Codex 中使用时的服务端调用不计费，将于北京时间 2026-11-01 00:00 起按次收取。\n\n## 二、现在的价格（价格页，2026-10-24 查询）\n\n| 项目（每百万 token） | Flash 空闲 | Flash 高峰 | Pro 空闲 | Pro 高峰 |\n| --- | --- | --- | --- | --- |\n| 输入（缓存命中） | 0.02 元 | 0.04 元 | 0.15 元 | 0.30 元 |\n| 输入（缓存未命中） | 1 元 | 2 元 | 4.5 元 | 9.0 元 |\n| 输出 | 4 元 | 8 元 | 13.5 元 | 27.0 元 |\n\n逐项解释和旧模型名的处理见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n## 三、官方文档里的省钱办法\n\n![想少花钱，官方文档里有这些办法](seed:g1015-deepseek-save-cost-decide.png)\n*图：本站根据 DeepSeek 官方价格页与上下文缓存文档整理的示意图*\n\n- **错开高峰**：批量、离线任务放到空闲时段；\n- **用缓存**：官方的上下文硬盘缓存对所有用户默认开启，重复的前缀计入「缓存命中」，单价低得多；把固定的系统提示和长文档放在请求最前面，原理见 [/guides/deepseek-context-length-output-limit](/guides/deepseek-context-length-output-limit)；\n- **按任务选模型**：Flash 各项价格都低于 Pro，Flash 支持图像理解、Pro 不支持；\n- **控制思考强度和输出长度**：思考内容也计入输出 token，简单任务可降低强度或关闭思考，见 [/guides/deepseek-thinking-mode-reasoning-effort](/guides/deepseek-thinking-mode-reasoning-effort)；\n- **按需充值**：官方让用户依据实际用量按需充值，并定期查看价格页。\n\n## 常见问题\n\n**Q：网页版和 App 涨价了吗？**\n上面的价格都是 API 价格。网页版和 App 的使用见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)，本文没有查到网页版收费的相关公告。\n\n**Q：价格以后还会变吗？**\n官方价格页写明保留修改价格的权利，请定期查看。4 月价格图脚注提到的 Pro 降价预期，截至查询时没有看到相关公告。\n\n**Q：怎么确认自己用了多少？**\n开放平台的用量页和每次返回的 `usage`，见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。\n\n**Q：想对比其他家的价格？**\nOpenAI API 见 [/guides/openai-api-pricing-billing](/guides/openai-api-pricing-billing)；ChatGPT 与 DeepSeek 的整体差别见 [/guides/chatgpt-vs-deepseek-difference](/guides/chatgpt-vs-deepseek-difference)。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek-V4 预览版发布（2026-04-24）— https://api-docs.deepseek.com/zh-cn/news/news260424\n- DeepSeek-V4-Pro 正式版上线（2026-08-13）— https://api-docs.deepseek.com/zh-cn/news/news260813\n- DeepSeek-V4.1-Flash 发布（2026-09-10）— https://api-docs.deepseek.com/zh-cn/news/news260910\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/news/news260424",
+        "https://api-docs.deepseek.com/zh-cn/news/news260813",
+        "https://api-docs.deepseek.com/zh-cn/news/news260910",
+        "https://api-docs.deepseek.com/zh-cn/updates",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "04-24、08-17、09-10 三个时间点的价格取自官方公告里的价格图（2026-10-24 逐张查看）；当前价格取自官方价格页。官方保留调整价格的权利，下单前请再看价格页",
+        "「涨了还是降了」是本文把各价格表对比后的读法，不是官方结论；官方对 8 月峰谷定价的说明只有「为了更加合理地调配资源」，没有说是涨价",
+        "官方 2026-04-24 价格图的脚注写：受限于高端算力，Pro 的服务吞吐有限，预计下半年昇腾 950 超节点批量上市后 Pro 价格会大幅下调；这是当时的预期，本文不预测是否兑现",
+        "官方 2026-09-10 的新闻稿曾写计划有序下线 V4 Pro、请求将路由到 V4.1 Flash；同日更新日志又写「决定在 2026 年 9 月 14 日之后继续提供 V4 Pro 的 API 调用服务，计费方式保持不变」。以最新的更新日志和价格页为准"
+      ]
+    },
+    {
+      "title": "DeepSeek 能识别图片吗、多模态现状如何：按官方更新日志梳理识图与「没有生图」的事实",
+      "slug": "deepseek-multimodal-image-recognition",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1016-deepseek-multimodal-timeline.png",
+        "g1016-deepseek-image-input-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 能识别图片吗？为什么早期不支持多模态？按官方更新日志（2026-10-24 查询）梳理：2026 年 8 月出现视觉理解实验模型，9 月 V4.1 Flash 原生支持多模态，Pro 不支持；输出仍只有文本，没有生图。",
+      "content": "> 本文根据 DeepSeek 官方更新日志、公告和 API 文档整理，资料核对于 2026-10-24。功能变化快，以官方页面为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek为什么不支持多模态」「deepseek能识别图片吗」的人；\n- 看到老教程说「DeepSeek 不能识图」，想知道现在是不是变了的人；\n- 想弄清「识图」和「生图」区别的人。\n\n## 结论先说\n\n1. **现在能识图，但只有 `deepseek-flash`**。官方价格页功能表：图像理解 deepseek-flash 支持，deepseek-v4-pro 不支持。\n2. **不是一直能识图**：官方更新日志显示，2026-04-24 的 V4 预览版公告和价格图里没有提图像输入；2026-08-21 才发布实验性的视觉理解模型；2026-09-10 的 V4.1-Flash 起「原生支持多模态」。老教程里「不支持识图」的说法在当时是对的，现在需要更新。\n3. **官方没有解释早期为什么不支持**，所以「为什么」这一问，本文只能给出时间线，不能给原因。\n4. **输出仍然只有文本**：官方文档里所有「多模态」都指「看懂图片」，没有生成图片的功能。生图需求见 [/guides/deepseek-generate-image](/guides/deepseek-generate-image)。\n\n![DeepSeek 识图能力的官方时间线](seed:g1016-deepseek-multimodal-timeline.png)\n*图：本站根据 [DeepSeek 官方更新日志](https://api-docs.deepseek.com/zh-cn/updates) 整理的示意图*\n\n## 一、官方时间线\n\n- **2026-04-24 · V4 预览版**：官方公告介绍 V4-Pro 与 V4-Flash，强调 1M 上下文、Agent 能力，价格图里只有模型名、价格和上下文长度，没有图像相关的内容；\n- **2026-08-21 · DeepSeek-V4-Flash-Vision-Exp**：官方更新日志写，「全新的多模态视觉理解模型」上线，是实验性质的模型，通过 `model='deepseek-v4-flash-vision-exp'` 访问；纯文本能力与 V4-Flash 正式版持平，在需要视觉理解的 Agent 基准上相比 V4-Flash 大幅提升；\n- **2026-09-10 · DeepSeek-V4.1-Flash**：官方公告称它是新模型结构系列中最小尺寸的模型，「具备原生多模态视觉理解能力」；API 里把模型名改成 `deepseek-flash` 即可调用；旧的 V4 Flash 与 V4 Flash Vision Exp 下线，旧模型名暂时路由到 V4.1 Flash；\n- **2026-10-17 · V4.1-Flash-1017**：官方说网页端、App 和 API 的模型同步更新为新版本，API 调用方式和价格不变。\n\n对于网页版和 App，App Store 的版本记录里出现过「支持识图模式」，9 月版本又写「新模型上线，快速、专家、识图模式合并升级」。也就是说，App 上曾经把识图做成一个单独的模式，之后和快速、专家模式合并。具体怎么用，见 [/guides/deepseek-upload-file-image](/guides/deepseek-upload-file-image)。\n\n## 二、现在能让它看图做什么\n\n官方图像理解文档写：`deepseek-flash` 支持在文本之外输入图片，你可以让模型**描述图片、识别截图中的文字、分析图表**等。\n\n- **格式**：JPEG、PNG、GIF、WebP，由文件实际内容判断，不看文件名或声明的类型；\n- **三种传入方式**：base64 内联、外部图片 URL、通过 Files API 上传后用 `file_id` 引用；\n- **限制**：请求体 48 MiB；外部 URL 或 base64 的单张图最大 32 MiB，通过 Files API 的单张最大 64 MiB；单请求最多 600 张；图片最长边最多 8192 像素；\n- **token**：每张图片会自动缩放，消耗的 token 有上限 1024，和图片原始尺寸无关；\n- **位置**：图片只能放在 user 消息里，放进 system 或 assistant 消息会返回 400；\n- **detail**：`low` 把图缩到 512×512，更快更省 token；`high`、`original`、`auto` 保留原图。\n\n数字的汇总见 [/guides/deepseek-context-length-output-limit](/guides/deepseek-context-length-output-limit)。\n\n![想让 DeepSeek 看图，先对照这张表](seed:g1016-deepseek-image-input-decide.png)\n*图：本站根据 [DeepSeek 官方图像理解文档](https://api-docs.deepseek.com/zh-cn/guides/vision) 整理的示意图*\n\n## 三、识图能力的边界\n\n官方文档没有给「识别准确率」这类数字，所以下面是使用上的提醒，不是官方保证：\n\n- **别把重要信息只交给识图**：金额、日期、药品剂量这类内容，识别后要人工核对原图；\n- **截图尽量清晰、裁剪到相关区域**：区域越小，越省 token，也更不容易看错；\n- **提问要具体**：「把表格里第三列的数字抄出来」比「看看这张图」更容易得到可用的结果；\n- **不要上传含隐私的图片**：身份证、银行卡、他人照片等不要上传。\n\n## 四、用 API 传图的最小示例\n\n官方文档的 base64 示例（Python，节选）：\n\n```python\nimport base64\nfrom openai import OpenAI\n\nclient = OpenAI(api_key=\"<你的 Key>\", base_url=\"https://api.deepseek.com\")\nwith open(\"image.jpg\", \"rb\") as f:\n    b64 = base64.b64encode(f.read()).decode(\"utf-8\")\n\nresponse = client.chat.completions.create(\n    model=\"deepseek-flash\",\n    messages=[{\"role\": \"user\", \"content\": [\n        {\"type\": \"text\", \"text\": \"这张图片里有什么？\"},\n        {\"type\": \"image_url\", \"image_url\": {\"url\": f\"data:image/jpeg;base64,{b64}\"}},\n    ]}],\n)\nprint(response.choices[0].message.content)\n```\n\n在 Anthropic 接口和 Responses API 里传图的写法稍有不同，见 [/guides/deepseek-responses-api-anthropic-compatible](/guides/deepseek-responses-api-anthropic-compatible)。API Key 的获取见 [/guides/deepseek-api-key](/guides/deepseek-api-key)。\n\n## 常见问题\n\n**Q：网页版能识别图片吗？**\n官方 App 和网页版近期的更新说明里有识图相关的模式和合并升级，具体入口以官方界面为准，见 [/guides/deepseek-upload-file-image](/guides/deepseek-upload-file-image)。\n\n**Q：Pro 为什么不支持图像？**\n官方价格页只写「不支持」，没有解释原因。要识图请用 `deepseek-flash`，两者对比见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n**Q：DeepSeek 和 ChatGPT 的识图有什么不同？**\nChatGPT 的图片能力见 [/guides/chatgpt-image-recognition](/guides/chatgpt-image-recognition)，整体对比见 [/guides/chatgpt-vs-deepseek-difference](/guides/chatgpt-vs-deepseek-difference)。\n\n**Q：想要能生成图片的产品？**\n可看 [/guides/gpt-image-2-how-to](/guides/gpt-image-2-how-to)，需要开通 ChatGPT 会员见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates\n- DeepSeek-V4.1-Flash 发布公告（2026-09-10）— https://api-docs.deepseek.com/zh-cn/news/news260910\n- DeepSeek API 文档：图像理解 — https://api-docs.deepseek.com/zh-cn/guides/vision\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- App Store：DeepSeek - AI 智能助手（版本记录）— https://apps.apple.com/cn/app/deepseek/id6737597349",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/updates",
+        "https://api-docs.deepseek.com/zh-cn/news/news260910",
+        "https://api-docs.deepseek.com/zh-cn/guides/vision",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://apps.apple.com/cn/app/deepseek/id6737597349"
+      ],
+      "screenshots": [],
+      "verify": [
+        "时间线取自官方更新日志与 2026-09-10 公告；官方没有解释「为什么早期模型不支持图像输入」，本文只列出官方在哪个时间点发布了哪种能力，不做原因推测",
+        "官方更新日志对多模态的表述是「视觉理解」「原生多模态视觉理解能力」；没有任何一处提到生成图片",
+        "App Store 版本记录里能看到「支持识图模式」以及 9 月版本的「快速、专家、识图模式合并升级」；网页版 / App 的具体入口和限制以官方界面为准，本文不描述按钮",
+        "图片限制数字（格式、大小、数量）取自官方图像理解文档（2026-10-24）"
+      ]
+    },
+    {
+      "title": "DeepSeek 手机 App 怎么下载和用：官方安装途径、系统要求与对话管理操作",
+      "slug": "deepseek-mobile-app-guide",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1018-deepseek-app-install-steps.png",
+        "g1018-deepseek-app-chat-manage-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 手机 App 怎么下载、怎么用？按官方下载页、App Store 页面和官方常见问题（2026-10-24 查询）整理：iPhone 与 Android 的官方安装途径、iOS 15.0 要求、对话重命名置顶删除分享的操作，以及同步与登出。",
+      "content": "> 本文根据 DeepSeek 官方下载页、App Store 页面和官方常见问题整理，资料核对于 2026-10-24。App 更新很快，界面以你手机上看到的为准。图为本站整理的示意图。网页版与 App 的功能总览见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n## 适用于谁\n\n- 搜「deepseek 手机 app 怎么用」「deepseek 下载」「deepseek 手机版」的人；\n- 担心下载到假 App、不知道哪个才是官方的人；\n- 装好了，想知道长按能做什么、怎么管理历史对话的人。\n\n## 结论先说\n\n1. **官方 App 的来源是两个**：iPhone / iPad 在 App Store，Android 在官网 deepseek.com 的下载页。官方下载页上有「下载 iOS 版」「下载 Android 版」和 iOS 版二维码。\n2. **iOS 要求 15.0 以上**：App Store 页面写明 iPhone、iPod touch 需要 iOS 15.0 或更高版本，iPad 需要 iPadOS 15.0 或更高版本。\n3. **App 免费下载**。App Store 页面标注「免费」；通过 API 调用另外按 token 计费，见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。\n4. **登录与同步**：同一账号的对话在手机和网页端之间同步；手机号、微信、Google 等登录方式各有限制，见 [/guides/deepseek-register-login-problems](/guides/deepseek-register-login-problems)。\n\n![DeepSeek 手机 App 的官方安装途径](seed:g1018-deepseek-app-install-steps.png)\n*图：本站根据 [DeepSeek 官网下载页](https://www.deepseek.com/download/) 与 [App Store 页面](https://apps.apple.com/cn/app/deepseek/id6737597349) 整理的示意图*\n\n## 一、怎么认出官方 App\n\n- **iPhone / iPad**：在 App Store 搜索 DeepSeek。官方页面上的名称是「DeepSeek - AI 智能助手」，开发者是**杭州深度求索人工智能基础技术研究有限公司**，类别为「效率」，语言支持简体中文和另外 71 种；页面底部有官方的隐私政策链接；\n- **Android**：打开 deepseek.com，进入「应用下载」页，点「下载 Android 版」。官方说明这是 DeepSeek 官方推出的 AI 助手；安装前请确认浏览器地址栏是官网域名，不要从陌生网站、群里发来的链接下载安装包；\n- **电脑端**：官方下载页另有 DeepSeek Harness 桌面端，支持后台运行和本地文件读写，提供 macOS（Apple 芯片，macOS 13 或更高）和 Windows 版本，页面注明当前版本仍在持续迭代。这是面向处理长时间、复杂任务的客户端，和聊天 App 不是同一个产品。\n\n## 二、第一次打开\n\n登录方式有手机号验证码、微信、邮箱和 Google 等（官方常见问题里提到的几种），其中**微信登录暂不支持海外 IP 地址使用，Google 登录暂不支持大陆地区 IP 地址使用**，这是官方写明的服务限制。收不到验证码、「当前设备运行环境异常」等问题的官方说法见 [/guides/deepseek-register-login-problems](/guides/deepseek-register-login-problems)。\n\n登录后直接在输入框里提问即可。App Store 版本记录显示，2026 年 9 月的版本是「新模型上线，快速、专家、识图模式合并升级」，并支持思考过程自动折叠。思考和联网搜索两个开关的区别见 [/guides/deepseek-deep-thinking-web-search](/guides/deepseek-deep-thinking-web-search)，上传图片和文件见 [/guides/deepseek-upload-file-image](/guides/deepseek-upload-file-image)。\n\n## 三、对话管理：官方写明的操作\n\n官方常见问题的「使用引导」里，App 与网页端的操作略有不同：\n\n| 操作 | 网页端 | App 端 |\n| --- | --- | --- |\n| 重命名 | 历史对话列表里点对话旁的「…」菜单，选「重命名」 | 历史对话列表里长按对话，选「重命名」 |\n| 置顶 | 「…」菜单选「置顶」 | 长按对话，选「置顶」 |\n| 删除 | 「…」菜单选「删除」 | 长按对话，选「删除」 |\n| 分享 | 「…」菜单选「分享」，或点回复下方、页面右上角的分享按钮 | 长按模型的回复选「分享」，或点回复下方的分享按钮 |\n\n要点：\n\n- **已删除的对话无法恢复**，官方在常见问题里明确写了；\n- **分享**可以以链接或图片形式；如果找不到入口，官方建议先把 App 更新到最新版本；\n- **滚动截屏**：部分手机机型不适配滚动截屏，官方推荐用「对话分享」功能来保存或分享长内容；\n- **导出全部历史对话**目前在网页端：设置 → 数据管理 → 导出所有历史对话，生成的下载链接有效期 7 天，导出文件包含账号信息和所有历史对话，见 [/guides/deepseek-export-delete-history](/guides/deepseek-export-delete-history)。\n\n![App 里管理对话：长按与菜单](seed:g1018-deepseek-app-chat-manage-decide.png)\n*图：本站根据 DeepSeek 官方常见问题整理的示意图*\n\n## 四、同步、登出与账号安全\n\n- **手机和网页内容不同步**：网页端刷新页面；App 端下拉刷新历史对话侧边栏，再重新进入目标对话；\n- **对话不见了**：先检查内容是不是在对话分支里（点对话下方的数字箭头可以切换不同分支），再试刷新；\n- **登出所有设备**：设置 → 账号管理 → 登出所有设备。如果在公共设备或别人的手机上登录过，官方建议立刻这么做，再用「密码登录」→「忘记密码」重置密码；\n- **注销账号**：设置 → 账号管理 → 注销账号。官方提示：注销后所有对话记录会被永久清空，开放平台里没用完的余额视为自愿放弃，操作前要谨慎；\n- **更换绑定的手机号**：设置 → 账号管理，新手机号需未注册过 DeepSeek，或原账号已注销。\n\n## 五、使用习惯上的几点提醒\n\n- **别在对话里发身份证号、银行卡、密码**；官方有隐私政策，具体处理方式以政策为准；\n- **重要结论要核对**：AI 的回答可能出错，涉及医疗、法律、金融的内容以专业人士和官方信息为准；\n- **提问限制与服务繁忙**：高峰期出现「服务器繁忙」时的排查见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)；\n- **想换更强的工具**：如果你还需要 ChatGPT 或 Claude 的服务，可以看看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)、[/chongzhi/claude-pro](/chongzhi/claude-pro)，两家各自的功能不同，对比见 [/guides/chatgpt-vs-deepseek-difference](/guides/chatgpt-vs-deepseek-difference)。\n\n## 常见问题\n\n**Q：DeepSeek App 要收费吗？**\nApp Store 页面标注免费。官方没有在下载页和 App Store 页面里写应用内订阅的内容；API 另外按 token 计费。\n\n**Q：iPhone 版本太低装不了怎么办？**\nApp Store 页写明要求 iOS 15.0 或更高。低于这个版本可以用手机浏览器打开网页版，入口见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n**Q：App 和网页版功能一样吗？**\n官方常见问题里有些功能（如导出全部历史对话）目前只写了网页端入口。以你实际看到的为准。\n\n**Q：想在手机上调用 API？**\nApp 本身是聊天产品，API 需要 Key 和第三方客户端，见 [/guides/deepseek-cherry-studio-chatbox](/guides/deepseek-cherry-studio-chatbox)。\n\n## 参考资料\n\n- DeepSeek 官网：应用下载 — https://www.deepseek.com/download/\n- App Store：DeepSeek - AI 智能助手 — https://apps.apple.com/cn/app/deepseek/id6737597349\n- DeepSeek 官方常见问题 — https://static.deepseek.com/faq/index.html?lang=zh\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates",
+      "sources": [
+        "https://www.deepseek.com/download/",
+        "https://apps.apple.com/cn/app/deepseek/id6737597349",
+        "https://static.deepseek.com/faq/index.html?lang=zh",
+        "https://api-docs.deepseek.com/zh-cn/updates"
+      ],
+      "screenshots": [],
+      "verify": [
+        "App Store 页面（2026-10-24）：名称「DeepSeek - AI 智能助手」，免费，大小 78.6 MB，要求 iOS / iPadOS 15.0 或更高版本，年龄分级 13+，当前版本号 2.7.1；大小和版本号会随更新变化",
+        "官方下载页提供 iOS 版（App Store）和 Android 版（apk 安装包）的入口；Android 安装包的具体版本、权限请以安装时系统显示为准，本文没有安装测试",
+        "对话管理的操作（长按、「…」菜单、登出所有设备等）取自官方常见问题；App 界面会随版本调整，找不到入口时官方建议先升级到最新版本",
+        "App 里的模式（快速、专家、识图）：App Store 版本记录写「新模型上线，快速、专家、识图模式合并升级」，具体界面以实际为准"
+      ]
+    },
+    {
+      "title": "DeepSeek 怎么注册、登录不了怎么办：验证码、微信与 Google 登录、环境异常和账号停用的官方说法",
+      "slug": "deepseek-register-login-problems",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1019-deepseek-login-problems-decide.png",
+        "g1019-deepseek-account-change-compare.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 怎么注册、登录不了怎么办？按官方常见问题（2026-10-24 查询）逐项整理：收不到验证码、微信 / Google 登录的地区限制、「运行环境异常」、邮箱域名不支持、改绑手机号微信、改密码和账号停用申诉。",
+      "content": "> 本文根据 DeepSeek 官方常见问题整理，资料核对于 2026-10-24。官方规则可能调整，以官方页面为准。本文不提供任何绕过地区限制或风控的方法。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek怎么注册」「deepseek登录不了」「deepseek收不到验证码」的人；\n- 提示「运行环境异常」「账号已被停用」不知道怎么办的人；\n- 想换手机号、换微信绑定，或忘了密码的人。\n\n## 结论先说\n\n1. **官方没有写专门的「注册教程」**，登录页提供的方式以页面为准。官方常见问题涉及的登录方式有：手机号验证码、微信、邮箱、Google，并且有密码登录。\n2. **登录有地区限制**：官方明确写了，微信登录暂不支持海外 IP 地址使用，Google 登录暂不支持大陆地区 IP 地址使用。\n3. **收不到验证码**先排查号码、信号、拦截和发送次数，官方给了一份清单（下文）。\n4. **账号被限制或停用**：官方提供申诉表单，大部分请求 3 个工作日内审核。\n5. 官网（deepseek.com）和网页版（chat.deepseek.com）、App 的入口见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)、[/guides/deepseek-mobile-app-guide](/guides/deepseek-mobile-app-guide)。\n\n![DeepSeek 登录问题，对照官方说法](seed:g1019-deepseek-login-problems-decide.png)\n*图：本站根据 [DeepSeek 官方常见问题](https://static.deepseek.com/faq/index.html?lang=zh) 整理的示意图*\n\n## 一、注册和登录的基本情况\n\n- **入口**：网页版 chat.deepseek.com，或官方 App（App Store 或官网下载页）；\n- **方式**：登录页提供什么就用什么，常见的有手机号加验证码、微信、邮箱、Google。官方常见问题提到，更换绑定手机号时「新的手机号需未注册过 DeepSeek 平台或原账号已注销」，说明一个手机号对应一个账号；\n- **密码登录**：登录界面可以选「密码登录」，忘了可以点「忘记密码」重置。\n\n注意：聊天用的账号和开放平台（platform.deepseek.com，做 API 用）是两个入口，开放平台还要实名认证才能在线充值，见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。\n\n## 二、收不到验证码\n\n官方的说法：验证码发送会有一定延迟，请耐心等待。如果等了一段时间仍收不到短信验证码，按下面排查：\n\n1. 先确认手机号或邮箱输入无误；\n2. 检查手机是否停机、关机或没有信号；\n3. 检查短信或邮箱有没有设置骚扰拦截、屏蔽、过滤，确保验证码没被拦掉；\n4. 如果短时间内发送验证码的次数太多，稍等一会儿再试；\n5. 携号转网的用户，新号码生效可能需要 24 小时；\n6. 以上都确认过，重启手机后再登录 DeepSeek 发送验证码。\n\n## 三、微信、Google 登录的问题\n\n- **微信登录绑定手机号失败**：先检查这个手机号是否已经绑定了别的微信号；如果没有，退出当前流程，重新尝试绑定；\n- **微信登录用不了**：官方说明，由于服务限制，微信登录暂不支持海外 IP 地址使用；\n- **Google 登录用不了**：官方说明，由于服务限制，Google 登录暂不支持大陆地区 IP 地址使用；\n- **邮箱提示「注册失败，暂不支持该邮箱域名注册」**：你的邮箱域名不在支持列表里，官方建议用 Gmail、Outlook、Hotmail、Yahoo 等国际通用邮箱注册。\n\n这些是官方对地区和域名的限制说明。如果你所在地区和登录方式不匹配，请改用官方支持的登录方式；本文不涉及也不建议任何规避的方式。\n\n## 四、「当前设备运行环境异常」\n\n官方说明：这个提示通常意味着系统检测到你当前的 IP 地址或手机号可能存在安全风险，请根据提示，尝试更换环境。官方没有进一步解释具体怎么判定、怎么解除，所以：\n\n- 先检查是不是用了公共网络、公司网络、频繁切换网络，或同一个手机号短时间多次尝试；\n- 换一个正常的网络环境、过一段时间再试；\n- 仍然不行，到官方 App 或页面里的「帮助与反馈」入口联系官方。\n\n## 五、账号相关的操作\n\n![换绑手机号 / 微信 / 邮箱怎么办](seed:g1019-deepseek-account-change-compare.png)\n*图：本站根据 DeepSeek 官方常见问题整理的示意图*\n\n- **修改密码**：先退到登录界面，选「密码登录」，点「忘记密码」，按页面指引重置；\n- **换绑手机号**：原手机号仍能收短信时，设置 → 账号管理自助变更；原手机号已停用时，要填写官方的「账号改绑 / 解绑申请」表单，为保护账号安全，官方会核对身份信息；大部分请求审核约 7 个工作日，结果通过你预留的邮箱通知；\n- **换绑微信**：设置 → 账号管理，先解绑当前微信号，再绑定新的；\n- **换邮箱**：官方说目前暂不支持直接更换已绑定的邮箱；\n- **登出所有设备**：设置 → 账号管理 → 登出所有设备；\n- **注销账号**：设置 → 账号管理 → 注销账号，注销后所有对话记录会被永久清空，开放平台里未消费的余额视为自愿放弃，要谨慎。导出与删除的细节见 [/guides/deepseek-export-delete-history](/guides/deepseek-export-delete-history)。\n\n## 六、账号被停用\n\n提示「你的账号已被临时停用」时，官方的解释是账号可能违反了平台使用规范，触发了系统的停用规则。如果你对此有异议，可以填写官方的「账号停用申诉」表单；官方说大部分请求的审核用时为 3 个工作日，通过后可以立即正常登录和使用。官方页面的提示文案里还有「由于违规次数过多，你的账户已被停用」的说法，所以按平台规范使用，比事后申诉更重要。\n\n## 七、账号安全小提醒\n\n- 在公共电脑或别人的手机上登录后，一定要登出，官方的建议是登出所有设备再改密码；\n- 验证码、密码不要发给任何人；\n- 看到「注册即送」「代注册」「账号出售」之类的信息，请不要相信，账号只在官方入口注册；\n- 网页版的使用见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n## 常见问题\n\n**Q：为什么提示「服务器繁忙」而不是登录问题？**\n那是服务负载问题，不是账号问题，见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)。\n\n**Q：我需要注册开放平台才能用网页版吗？**\n不需要。开放平台是做 API 调用的，见 [/guides/deepseek-api-key](/guides/deepseek-api-key)。\n\n**Q：其他 AI 产品的登录问题？**\nChatGPT 登录问题见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)；Claude 见 [/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use)。需要开通会员可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)、[/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 参考资料\n\n- DeepSeek 官方常见问题 — https://static.deepseek.com/faq/index.html?lang=zh\n- DeepSeek 网页版 — https://chat.deepseek.com/\n- DeepSeek 官网：应用下载 — https://www.deepseek.com/download/",
+      "sources": [
+        "https://static.deepseek.com/faq/index.html?lang=zh",
+        "https://chat.deepseek.com/",
+        "https://www.deepseek.com/download/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "全部处理办法取自官方常见问题页（2026-10-24，页面为前端渲染，文本来自其脚本）；官方没有单独写「注册步骤」，本文只说明登录页提供的方式以页面为准，不编造注册流程",
+        "审核时长（账号改绑 / 解绑申请大多 7 个工作日，账号停用申诉大多 3 个工作日）是官方写的「大部分请求」，不是承诺",
+        "「当前设备运行环境异常」官方只写「请根据提示，尝试更换环境」，没有给具体办法；本文不提供任何绕过地区或风控限制的做法",
+        "手机号、微信、邮箱、Google 登录入口的具体界面以官方为准，本文没有逐一测试"
       ]
     },
     {
@@ -60444,6 +61009,162 @@
         "设置里的安全页面，不同帮助文章分别叫「Security」和「Security and login」，以实际界面为准",
         "配图来自「登出所有设备」帮助文章，是较早的设置界面，新版界面布局可能不同",
         "「高级账号安全」可用范围的帮助文章原文有矛盾（Availability 列表写了企业托管账号，另一篇又说企业账号不可用），正文只写「以设置里是否出现为准」"
+      ]
+    },
+    {
+      "title": "DeepSeek V4.1 Flash 是什么：0731、V4.1、1017 三个版本的区别、结构与怎么调用",
+      "slug": "deepseek-v41-flash-what-is",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1020-deepseek-flash-versions-compare.png",
+        "g1020-deepseek-flash-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek V4.1 Flash 是什么？按官方公告与更新日志（2026-10-24 查询）梳理 0731、V4.1、1017 三个版本的区别、552B 参数 MoE 结构、原生多模态，以及 API 模型名 deepseek-flash。",
+      "content": "> 本文根据 DeepSeek 官方公告、更新日志和价格页整理，资料核对于 2026-10-24。DeepSeek 更新很快，以官方页面为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek v4.1 flash」「deepseek v4 flash 0731」的人；\n- 看到几个相近的版本号、不知道区别的人；\n- 想知道代码里该写哪个模型名的开发者。\n\n## 结论先说\n\n1. **V4.1 Flash 是 DeepSeek 2026-09-10 发布的模型**，官方称它是新模型结构系列中最小尺寸的模型，具备原生多模态视觉理解能力。\n2. **API 里用 `deepseek-flash`**。官方价格页写明，当前版本是 **DeepSeek-V4.1-Flash-1017**（2026-10-17 升级而来）。\n3. **0731 是更早的版本**：2026-07-31 的 V4-Flash 正式版（API 公测，模型名 `deepseek-v4-flash`），已被取代；旧名仍可调用，但对应模型已下线，请求由新版提供服务。\n4. **价格和调用方式没有因为 1017 升级而变**，官方说明仍用 `deepseek-flash` 即可。\n\n![DeepSeek Flash 的三个版本](seed:g1020-deepseek-flash-versions-compare.png)\n*图：本站根据 [DeepSeek 官方更新日志](https://api-docs.deepseek.com/zh-cn/updates) 整理的示意图*\n\n## 一、三个版本分别是什么\n\n### V4-Flash-0731（2026-07-31）\n\n官方更新日志：DeepSeek-V4-Flash 正式版 API 上线公测，模型名 `deepseek-v4-flash`。官方称 Agent 能力大幅增强、基准测试远超 V4-Pro-Preview，并原生支持 Responses API 格式、针对性适配 Codex。关键的一句：**0731 的模型结构、尺寸和 Preview 版本保持一致，仅重新进行了后训练**；这次只升级了 API 接口，Pro 的 API 以及 App / 网页端模型没有改动。\n\n### V4.1-Flash（2026-09-10）\n\n官方公告的核心信息：\n\n- **结构**：552B 参数的 MoE 模型，采用新的 Causal-Encoder-Decoder 结构，输入和输出不对称，输入激活只有 8B，输出激活 16B，官方称成本显著低于已知的同尺寸模型；\n- **更少缓存**：新一代模型大幅减少了 KV Cache 的大小，对 HBM 的需求减少到上一代的 1/4，对 SSD 的需求减少到 1/8；官方在 Agent 场景下，缓存命中的费用占比往往较高，所以压缩 KV Cache 能显著降低成本；\n- **原生多模态**：具备视觉理解能力，API 把模型名改为 `deepseek-flash` 即可调用；\n- **对 Pro 的关系**：官方称 V4.1 Flash 在性能、费用、速度、总用时等指标上全面超越 V4 Pro；同日更新日志说明 V4 Pro 的 API 在 2026-09-14 之后继续提供、计费方式不变；\n- **价格下调**：新价格自 2026-09-10 12:00 起生效，见 [/guides/deepseek-price-changes-timeline](/guides/deepseek-price-changes-timeline)；\n- **合作方**：腾讯的 WorkBuddy、CodeBuddy 和 OpenCode 作为官方合作伙伴，已接入 V4.1 Flash。\n\n官方公布了一组基准成绩，例如 GPQA Diamond 90.9、Codeforces（Rating）3471、Terminal-Bench 2.1 为 90.6、DeepSWE v1.1 为 74.2 等；同时标注了测试口径（如 HLE 括号里的数字仅在纯文本子集上测试）。这些是官方自己的评测，不同框架、不同任务结果不同，建议只当参考。\n\n### V4.1-Flash-1017（2026-10-17）\n\n官方说明：V4.1 Flash 升级到 DeepSeek-V4.1-Flash-1017，网页端、App 与 API 模型同步更新。相比上一版本在各基准测试中取得提升，官方更新日志给出的成绩包括 Terminal-Bench 4.0 为 42.3（用 Claude Code 框架测试）、DeepSWE v1.1 为 77.0（用 Mini-SWE-V2 框架测试）、HLE（不带工具）42.6 等。官方还说：缩短了任务运行时间和输出长度，让用户以更低成本、更快速度完成任务；特别针对 DeepSeek Harness、腾讯 CodeBuddy、WorkBuddy 等平台框架做了优化，建议升级到 DeepSeek Harness 0.2.1-rc.1 及以上版本。\n\n同日还发布了：自研搜索 API（Search 与 Fetch，各 5 元 / 千次），以及模型权重的开源（Hugging Face 与 ModelScope 上有 DeepSeek-V4.1-Flash-1017）。\n\n## 二、API 怎么调用\n\n官方价格页参数：\n\n| 项目 | 内容 |\n| --- | --- |\n| 模型名 | `deepseek-flash` |\n| 当前版本 | DeepSeek-V4.1-Flash-1017 |\n| Base URL | OpenAI 格式 `https://api.deepseek.com`，Anthropic 格式 `https://api.deepseek.com/anthropic` |\n| 上下文 / 输出 | 1M / 最大 384K |\n| 思考模式 | 支持思考与非思考，默认思考 |\n| 图像理解 | 支持（Pro 不支持） |\n| 并发限制 | 2500 |\n\n旧模型名 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 仍可调用，但对应模型已下线，请求由 V4.1-Flash-1017 提供服务，按 Flash 价格计费，官方建议改用 `deepseek-flash`。\n\n![看到这些名字，分别是什么意思](seed:g1020-deepseek-flash-decide.png)\n*图：本站根据 DeepSeek 官方价格页与公告整理的示意图*\n\n- 价格：空闲时段输出 4 元 / 百万 token，高峰 8 元，逐项见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)；\n- 思考模式开关与强度：[/guides/deepseek-thinking-mode-reasoning-effort](/guides/deepseek-thinking-mode-reasoning-effort)；\n- 识图：[/guides/deepseek-multimodal-image-recognition](/guides/deepseek-multimodal-image-recognition)；\n- 上下文与输出上限：[/guides/deepseek-context-length-output-limit](/guides/deepseek-context-length-output-limit)。\n\n## 三、想在本地跑它可以吗\n\n官方公告说权重已在 Hugging Face 开源，并说如果有大规模部署需求且具备相应资源（2k 卡 GPU、有存储集群），欢迎联系官方。也就是说它面向的是有大规模算力的机构，不是个人电脑的选项。个人电脑能跑的是 R1 蒸馏小模型，见 [/guides/deepseek-local-deploy-hardware-requirements](/guides/deepseek-local-deploy-hardware-requirements)。\n\n## 常见问题\n\n**Q：V4.1 Flash 和 V4 Pro 选哪个？**\n官方没有写所有任务都选哪个。官方称 V4.1 Flash 在多项指标上超过 V4 Pro，但 Pro 的 API 仍在提供，且两者在图像理解、并发上限、价格上不同，对比见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n**Q：网页版是不是已经用上了 1017？**\n官方更新说明写网页端与 App 已同步更新到新版。入口见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n**Q：V4 正式版是什么？**\n见 [/guides/deepseek-v4-official-release-changes](/guides/deepseek-v4-official-release-changes)。\n\n**Q：用 Claude Code、Codex 能接它吗？**\n可以，见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)、[/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek-V4.1-Flash 发布（2026-09-10）— https://api-docs.deepseek.com/zh-cn/news/news260910\n- DeepSeek-V4.1-Flash-1017 发布（2026-10-17）— https://api-docs.deepseek.com/zh-cn/news/news261017\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek 官网：V4.1 Flash 新闻稿 — https://www.deepseek.com/news/deepseek-v4-1-flash/",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/news/news260910",
+        "https://api-docs.deepseek.com/zh-cn/news/news261017",
+        "https://api-docs.deepseek.com/zh-cn/updates",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://www.deepseek.com/news/deepseek-v4-1-flash/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "结构、参数、开源信息取自官方 2026-09-10 公告：552B 参数的 MoE 模型，Causal-Encoder-Decoder 结构，输入激活 8B、输出激活 16B；KV Cache 对 HBM 的需求减少到上一代的 1/4、对 SSD 的需求减少到 1/8",
+        "官方称 V4.1 Flash 在性能、费用、速度、总用时等指标上已全面超越 V4 Pro，这是 DeepSeek 自己的评测结论，评测口径见官方公告；本文不下「谁更强」的结论",
+        "基准测试数字来自官方更新日志，且注明了测试框架；DeepSeek 自己公布的成绩，不同框架结果可能不同",
+        "V4-Flash-0731 的说明取自官方 2026-07-31 更新日志；该模型现已下线，旧模型名由新版提供服务"
+      ]
+    },
+    {
+      "title": "DeepSeek V4 正式版有什么变化：从预览版到 V4 Pro 正式版，Agent、Responses API 与峰谷定价",
+      "slug": "deepseek-v4-official-release-changes",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1021-deepseek-v4-release-steps.png",
+        "g1021-deepseek-v4-preview-spec-compare.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek V4 正式版和预览版相比有什么变化？按官方公告与更新日志（2026-10-24 查询）梳理：4 月预览版规格、7 月 Flash 正式版、8 月 13 日 V4 Pro 正式版新增的 Agent 能力、Responses API、三档思考强度和峰谷定价。",
+      "content": "> 本文根据 DeepSeek 官方公告与更新日志整理，资料核对于 2026-10-24。模型更新很快，以官方页面为准。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek v4 正式版」「deepseek v4 pro 正式版」的人；\n- 用过 4 月预览版，想知道正式版改了什么的人；\n- 想弄清「V4」「V4.1」「Pro」「Flash」几个名字关系的人。\n\n## 结论先说\n\n1. **「V4 正式版」是分两步发布的**：2026-07-31 先出 V4-Flash 正式版（API 公测），2026-08-13 再出 **V4-Pro 正式版**（APP、网页端和 API 同步更新）。\n2. **正式版相对预览版的主要变化**（官方更新日志写的）：Agent 能力大幅提升；API 原生支持 OpenAI Responses API 并适配 Codex；思考模式支持 low / high / max 三档强度；API 价格改为峰谷定价（2026-08-17 起生效）。\n3. **网页端 / App 里用新 Pro**：官方说可以选「专家模式」使用 V4 Pro 正式版；预览版规格图里，专家模式对应 Pro、快速模式对应 Flash。\n4. **之后还有 V4.1**：2026-09-10 发布 V4.1 Flash，见 [/guides/deepseek-v41-flash-what-is](/guides/deepseek-v41-flash-what-is)；V4 Pro 的 API 仍在提供。\n\n![V4 从预览版到正式版的节点](seed:g1021-deepseek-v4-release-steps.png)\n*图：本站根据 [DeepSeek 官方更新日志](https://api-docs.deepseek.com/zh-cn/updates) 整理的示意图*\n\n## 一、预览版（2026-04-24）是什么样\n\n官方公告：全新系列 DeepSeek-V4 的预览版上线并同步开源，按大小分两个版本。\n\n![V4 预览版两个模型的规格](seed:g1021-deepseek-v4-preview-spec-compare.png)\n*图：本站根据 [DeepSeek-V4 预览版公告](https://api-docs.deepseek.com/zh-cn/news/news260424) 的规格图整理的示意图*\n\n公告里的要点：\n\n- **百万字超长上下文**：官方说，从现在起 1M 上下文是 DeepSeek 所有官方服务的标配；\n- **新注意力机制**：在 token 维度进行压缩，结合 DSA 稀疏注意力，降低对计算和显存的需求；\n- **针对 Agent 产品适配**：针对 Claude Code、OpenClaw、OpenCode、CodeBuddy 等 Agent 产品做了适配和优化；\n- **API**：同步上线，支持 OpenAI ChatCompletions 接口与 Anthropic 接口，模型名 `deepseek-v4-pro`、`deepseek-v4-flash`；旧模型名 `deepseek-chat`、`deepseek-reasoner` 当时说明将于 2026-07-24 停用；思考模式支持 `reasoning_effort` 设置 high / max；\n- **价格**：公告里 Pro 的价格偏高，并说明受限于高端算力 Pro 服务吞吐有限，预计下半年昇腾 950 超节点批量上市后 Pro 价格会大幅下调。\n\n## 二、正式版相对预览版变了什么\n\n### V4-Flash 正式版（2026-07-31）\n\nAPI 上线公测，模型名 `deepseek-v4-flash`，官方称 Agent 能力大幅增强、基准远超 V4-Pro-Preview；原生支持 Responses API 并适配 Codex；官方说明模型结构、尺寸和 Preview 一致，仅重新做了后训练。这次 Pro 和 App / 网页端没有变化。\n\n### V4-Pro 正式版（2026-08-13）\n\n官方更新日志与公告列出的变化：\n\n1. **Agent 能力大幅提升**：官方称正式版 V4 Pro 极大增强了 Agent 能力，在生产环境中的性能表现提升尤为显著。官方公布的成绩（DeepSeek Harness 极简模式测试）包括：Terminal Bench 2.1 为 87.9、NL2Repo 为 61.5、Cybergym 为 83.3、DeepSWE 为 62.7、Toolathlon-Verified 为 74.1、HLE（不带工具 / 带工具）为 42.7 / 60.0 等；\n2. **原生支持 Responses API**：官方说 DeepSeek API 现已原生支持 OpenAI Responses API 格式，并针对性适配 Codex，可以通过一键配置脚本完成 Codex 的配置，见 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)、[/guides/deepseek-responses-api-anthropic-compatible](/guides/deepseek-responses-api-anthropic-compatible)；\n3. **更灵活的思考强度**：V4-Pro 和 V4-Flash 的思考模式支持 low / high / max 三档，官方建议简单任务用 low，日常 Agent 任务用 high，更复杂的任务用 max，见 [/guides/deepseek-thinking-mode-reasoning-effort](/guides/deepseek-thinking-mode-reasoning-effort)；\n4. **API 价格调整，采用峰谷定价**：闲时价格是高峰时段的一半，鼓励用户调整任务时间，新价格自北京时间 2026-08-17 0 时起生效，价格变化见 [/guides/deepseek-price-changes-timeline](/guides/deepseek-price-changes-timeline)；\n5. **网页端和 App**：用户可以通过「专家模式」使用新的 V4 Pro 正式版；API 模型名不变，仍是 `deepseek-v4-pro`。\n\n## 三、现在的 V4 Pro 和 V4.1 的关系\n\n- **2026-09-10**：V4.1 Flash 发布，原生多模态，模型名改用 `deepseek-flash`。官方新闻稿说，经多方测试 V4.1 Flash 在性能、费用、速度、总用时等指标上已全面超越 V4 Pro，因此计划有序下线 V4 Pro；同日的更新日志又写，为响应用户需求，2026-09-14 之后继续提供 V4 Pro 的 API 调用服务，计费方式保持不变；\n- **现在**（2026-10-24 查询）：官方价格页同时列出 `deepseek-flash`（DeepSeek-V4.1-Flash-1017）和 `deepseek-v4-pro`（DeepSeek-V4-Pro-0813）。Pro 不支持图像理解，并发上限是 500，Flash 是 2500；其他规格相同，见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n## 四、对使用者意味着什么\n\n- **API 用户**：模型名用 `deepseek-flash` 或 `deepseek-v4-pro`；旧的 `deepseek-chat`、`deepseek-reasoner` 官方已宣布停用，新代码不要再用；\n- **网页 / App 用户**：想用新 Pro，选「专家模式」；入口以官方界面为准，见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)；\n- **做 Agent、编程工具的人**：官方在多次更新里强调了对 Claude Code、Codex、OpenCode 等的适配，接入方法见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)；\n- **预算敏感的人**：错开高峰、用缓存、先试 Flash。\n\n## 常见问题\n\n**Q：V4 预览版现在还能用吗？**\n官方价格页现在只列 `deepseek-flash` 和 `deepseek-v4-pro`。旧的 `deepseek-v4-flash` 名字仍可调用，但对应模型已下线，请求由新版提供服务。\n\n**Q：V4 Pro 正式版的版本号是什么？**\n价格页写的当前版本是 DeepSeek-V4-Pro-0813。\n\n**Q：怎么和 ChatGPT、Claude 比？**\n本文不做跨公司比较，因为官方只给出自己的评测口径。想了解整体区别可看 [/guides/chatgpt-vs-deepseek-difference](/guides/chatgpt-vs-deepseek-difference)；需要 ChatGPT 或 Claude 会员见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)、[/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 参考资料\n\n- DeepSeek-V4 预览版发布（2026-04-24）— https://api-docs.deepseek.com/zh-cn/news/news260424\n- DeepSeek-V4-Pro 正式版上线（2026-08-13）— https://api-docs.deepseek.com/zh-cn/news/news260813\n- DeepSeek-V4.1-Flash 发布（2026-09-10）— https://api-docs.deepseek.com/zh-cn/news/news260910\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/news/news260424",
+        "https://api-docs.deepseek.com/zh-cn/news/news260813",
+        "https://api-docs.deepseek.com/zh-cn/updates",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/zh-cn/news/news260910"
+      ],
+      "screenshots": [],
+      "verify": [
+        "预览版规格（参数、激活参数、预训练数据、网页端入口）取自官方 2026-04-24 公告里的规格图；正式版变化取自官方 2026-08-13 公告与更新日志",
+        "基准测试数字是 DeepSeek 自己公布的成绩，官方注明用 DeepSeek Harness 极简模式测试（max 档位、topp=0.95、temperature=1.0），其他框架下结果可能略有不同；本文不与其他公司的模型做比较",
+        "官方没有在公告中写出 V4 Pro 正式版的参数规模变化，本文不写",
+        "2026-09-10 之后 V4.1 Flash 与 V4 Pro 的关系见官方更新日志，本文只作简要说明，不预测未来"
+      ]
+    },
+    {
+      "title": "DeepSeek R1 是什么、什么时候发布、现在还能用吗：从 R1 到 R1-0528 再到 V3.1、V4 的官方脉络",
+      "slug": "deepseek-r1-release-date-still-usable",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1022-deepseek-r1-timeline.png",
+        "g1022-deepseek-r1-use-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek R1 是什么时候发布的、现在还能用吗？按官方公告与更新日志（2026-10-24 查询）梳理：2025 年 1 月 20 日发布 R1，5 月 28 日更新 R1-0528，之后并入 V3.1 的思考模式；API 名 deepseek-reasoner 已预告停用。",
+      "content": "> 本文根据 DeepSeek 官方公告、更新日志和 Ollama 模型库整理，资料核对于 2026-10-24。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek r1发布时间」「deepseek r1 是什么」的人；\n- 看到老教程提到 R1、`deepseek-reasoner`，想知道现在还能不能用的人；\n- 想在本地部署 R1 的人。\n\n## 结论先说\n\n1. **R1 发布于 2025 年 1 月 20 日**。官方公告标题是「DeepSeek-R1 发布」，同步开源模型权重，遵循 MIT License；API 里用 `model='deepseek-reasoner'` 调用；官网与 App 同日更新，开启「深度思考」即可使用。\n2. **R1 在 2025 年 5 月 28 日升级为 R1-0528**，官方称思考更深、推理更强。\n3. **之后 R1 的思考能力被并入统一的模型**：2025-08-21 的 V3.1 起，官方说「一个模型同时支持思考模式与非思考模式」；到 2026 年的 V4 系列，思考与非思考都是同一个模型的两种模式。\n4. **`deepseek-reasoner` 是旧模型名**：官方 2026-04-24 公告说它和 `deepseek-chat` 将于 2026-07-24 停止使用，现在价格页只列 `deepseek-flash` 和 `deepseek-v4-pro`。\n5. **R1 本身没有消失**：开源权重仍在，可以用 Ollama 等工具在本地运行蒸馏版。\n\n![DeepSeek R1 之后的官方时间线](seed:g1022-deepseek-r1-timeline.png)\n*图：本站根据 [DeepSeek 官方更新日志](https://api-docs.deepseek.com/zh-cn/updates) 整理的示意图*\n\n## 一、R1 是什么（2025-01-20）\n\n官方公告的要点：\n\n- **后训练大规模使用强化学习**：官方说在仅有极少标注数据的情况下极大提升了模型推理能力，在数学、代码、自然语言推理等任务上性能「比肩 OpenAI o1 正式版」（官方自己的评测说法）；\n- **开源**：同步开源 DeepSeek-R1-Zero 和 DeepSeek-R1 两个 660B 模型，并通过 R1 的输出蒸馏了 6 个小模型开源，其中 32B 和 70B 在多项能力上对标 OpenAI o1-mini；\n- **许可证**：统一使用 MIT License，完全开源，不限制商用，无需申请；产品协议也明确允许用户利用模型输出、通过模型蒸馏等方式训练其他模型；\n- **API**：上线 API，对用户开放思维链输出，`model='deepseek-reasoner'`；当时的价格是每百万输入 token 1 元（缓存命中）/ 4 元（缓存未命中），输出 16 元。这是 2025 年的价格，不是现在的，现价见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)；\n- **App 与网页**：登录官网或官方 App，打开「深度思考」模式即可。\n\n## 二、R1-0528（2025-05-28）\n\n官方公告说：\n\n- 仍以 2024 年 12 月发布的 DeepSeek V3 Base 作为基座，但后训练投入了更多算力，提升了思维深度；AIME 2025 测试准确率由旧版的 70% 提升到 87.5%，对应每题平均使用的 token 从约 12K 增加到约 23K；\n- **幻觉改善**：在改写润色、总结摘要、阅读理解等场景中，幻觉率降低约 45%–50%（官方评测）；\n- **创意写作**：针对议论文、小说、散文等文体优化，能输出篇幅更长、结构更完整的长篇作品；\n- **工具调用**：支持工具调用（不支持在 thinking 中进行工具调用），API 增加了 Function Calling 和 JSON Output；\n- **max_tokens 含义调整**：当时变为限制单次输出的总长度（包括思考过程），默认 32K，最大 64K，当时上下文长度仍为 64K。这些是旧模型的参数，现在的上限见 [/guides/deepseek-context-length-output-limit](/guides/deepseek-context-length-output-limit)；\n- 还蒸馏了 R1-0528 的思维链，后训练 Qwen3-8B Base，得到 DeepSeek-R1-0528-Qwen3-8B。\n\n## 三、现在还能用吗\n\n**在线使用**：网页版和 App 里的「深度思考」开关仍在，但背后用的是哪个模型，以官方界面和公告为准，不一定是当年的 R1。思考开关与联网搜索的区别见 [/guides/deepseek-deep-thinking-web-search](/guides/deepseek-deep-thinking-web-search)。\n\n**API**：\n\n- 2025-08-21 起，`deepseek-chat` 和 `deepseek-reasoner` 分别对应 V3.1 的非思考模式和思考模式，之后几次升级仍沿用这两个名字；\n- 2026-04-24 的 V4 公告说，这两个名字将于三个月后（2026-07-24）停止使用，在此之前分别指向 `deepseek-v4-flash` 的非思考与思考模式；\n- 现在官方价格页只列 `deepseek-flash` 和 `deepseek-v4-pro`，两者都同时支持思考与非思考，默认开启思考。**新项目请直接用新名字**，思考开关与强度见 [/guides/deepseek-thinking-mode-reasoning-effort](/guides/deepseek-thinking-mode-reasoning-effort)。\n\n![想用 R1，现在该怎么选](seed:g1022-deepseek-r1-use-decide.png)\n*图：本站根据 DeepSeek 官方公告与 Ollama 模型库整理的示意图*\n\n**开源权重**：R1 的权重遵循 MIT License，在 Hugging Face 上提供。Ollama 模型库里 `deepseek-r1` 有 1.5b 到 671b 多个标签，其中默认的 8b 是 R1-0528 蒸馏到 Qwen3 8B 的版本，只有 671b 才是完整的 R1，文件体积 404GB。个人电脑能跑的是蒸馏小模型，配置估算见 [/guides/deepseek-local-deploy-hardware-requirements](/guides/deepseek-local-deploy-hardware-requirements)，命令与步骤见 [/guides/deepseek-local-deploy-ollama](/guides/deepseek-local-deploy-ollama)。\n\n## 四、R1 之后的几个节点\n\n- **2025-08-21 · V3.1**：官方称包含混合推理架构（一个模型同时支持思考和非思考）、更高的思考效率、更强的 Agent 能力；\n- **2026-04-24 · V4 预览版**：1M 上下文，同时支持思考与非思考；\n- **2026 年 7–10 月**：V4-Flash 正式版、V4-Pro 正式版、V4.1 Flash 等，见 [/guides/deepseek-v4-official-release-changes](/guides/deepseek-v4-official-release-changes) 和 [/guides/deepseek-v41-flash-what-is](/guides/deepseek-v41-flash-what-is)。\n\n## 常见问题\n\n**Q：R1 和 V3 是什么关系？**\n官方 R1-0528 公告说它仍使用 2024 年 12 月发布的 DeepSeek V3 Base 作为基座。\n\n**Q：想用 R1 的「思考过程」怎么办？**\n思考模式下，API 通过 `reasoning_content` 返回思维链，见 [/guides/deepseek-thinking-mode-reasoning-effort](/guides/deepseek-thinking-mode-reasoning-effort)。\n\n**Q：R1 和 ChatGPT 的推理模型有什么区别？**\n本文不做跨公司对比；整体区别可看 [/guides/chatgpt-vs-deepseek-difference](/guides/chatgpt-vs-deepseek-difference)。需要 ChatGPT 会员见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：从哪里开始用 DeepSeek？**\n见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n## 参考资料\n\n- DeepSeek-R1 发布（2025-01-20）— https://api-docs.deepseek.com/zh-cn/news/news250120\n- DeepSeek-R1-0528 发布（2025-05-28）— https://api-docs.deepseek.com/zh-cn/news/news250528\n- DeepSeek API 文档：更新日志 — https://api-docs.deepseek.com/zh-cn/updates\n- DeepSeek-V4 预览版发布（2026-04-24）— https://api-docs.deepseek.com/zh-cn/news/news260424\n- DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- Ollama：deepseek-r1 — https://ollama.com/library/deepseek-r1",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/news/news250120",
+        "https://api-docs.deepseek.com/zh-cn/news/news250528",
+        "https://api-docs.deepseek.com/zh-cn/updates",
+        "https://api-docs.deepseek.com/zh-cn/news/news260424",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://ollama.com/library/deepseek-r1"
+      ],
+      "screenshots": [],
+      "verify": [
+        "发布日期和各项说明取自官方公告与更新日志：R1 发布于 2025-01-20，R1-0528 于 2025-05-28，V3.1 于 2025-08-21；官方 2026-04-24 说明 deepseek-chat 与 deepseek-reasoner 将于 2026-07-24 停止使用",
+        "deepseek-reasoner 现在是否仍能调用，官方价格页没有再提这个名字，本文不断言，新代码请使用 deepseek-flash 或 deepseek-v4-pro",
+        "官方公告对 R1 的性能描述（如「性能对标 OpenAI o1 正式版」「AIME 2025 从 70% 提升到 87.5%」）是 DeepSeek 自己的评测，本文只转述，不做比较",
+        "本地运行的 R1 体积取自 Ollama 模型库（2026-10-24），蒸馏小模型与完整 R1 是两回事"
+      ]
+    },
+    {
+      "title": "DeepSeek 提示词怎么写：官方提示库的 13 类场景、官方文档里的硬性规则与可套用模板",
+      "slug": "deepseek-prompt-writing-official-library",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1023-deepseek-official-prompt-library.png",
+        "g1023-deepseek-prompt-checklist.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 提示词怎么写？本文按官方提示库的 13 类场景（2026-10-24 查询）和官方 API 文档里与提示词有关的规则（JSON 输出、多轮对话、system 提示词、前缀续写、思考模式参数），给出六项检查和可套用的模板。",
+      "content": "> 本文根据 DeepSeek 官方提示库和 API 文档整理，资料核对于 2026-10-24。模板是本站写的示例，不是官方模板。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek 提示词」「deepseek 提示词怎么写」的人；\n- 觉得 DeepSeek 回答太泛、不按格式输出的人；\n- 想知道官方提示库有哪些场景、API 里和提示词有关的规则有哪些的开发者。\n\n## 结论先说\n\n1. **官方有一个「提示库」**，列了 13 类样例场景：代码改写、代码解释、代码生成、内容分类、结构化输出、角色扮演（自定义人设）、角色扮演（情景续写）、散文写作、诗歌创作、文案大纲生成、宣传标语生成、模型提示词生成、中英翻译专家。\n2. **官方文档里有几条和提示词直接相关的硬规则**：JSON 输出必须在提示词里写「json」并给样例；API 是无状态的，多轮要自己拼历史；思考模式下 temperature 等参数不生效；对话前缀续写和 FIM 是两种特殊的「写提示词」方式。\n3. **通用写法**：目标、背景、约束、格式四件事说清楚，比堆形容词有用。\n\n![官方提示库里的 13 类样例](seed:g1023-deepseek-official-prompt-library.png)\n*图：本站根据 [DeepSeek 官方提示库](https://api-docs.deepseek.com/zh-cn/prompt-library) 整理的示意图*\n\n## 一、官方提示库的 13 类场景\n\n官方页面对每类的一句话说明：\n\n- **代码改写**：对代码进行修改，实现纠错、注释、调优等；**代码解释**：帮助理解代码内容；**代码生成**：生成完成特定功能的代码；\n- **内容分类**：分析文本内容并自动归类；**结构化输出**：把内容转成 JSON，方便后续程序处理；\n- **角色扮演（自定义人设）**：自定义人设，与用户角色扮演；**角色扮演（情景续写）**：提供一个场景，让模型模拟该场景下的对话；\n- **散文写作**、**诗歌创作**：根据提示词创作；\n- **文案大纲生成**：根据主题生成大纲；**宣传标语生成**：生成贴合商品信息的标语；\n- **模型提示词生成**：根据需求帮助生成高质量提示词；**中英翻译专家**：中英互译。\n\n页面上的具体样例内容需要在官网里查看，本文没有逐条转抄。\n\n## 二、六项检查\n\n![写 DeepSeek 提示词前的 6 个检查](seed:g1023-deepseek-prompt-checklist.png)\n*图：本站根据 DeepSeek 官方 API 文档与通用写法整理的检查清单示意图*\n\n## 三、官方文档里与提示词有关的规则\n\n### JSON 输出\n\n官方 JSON Output 文档：设置 `response_format={'type': 'json_object'}`；用户传入的 system 或 user 提示词里**必须含有「json」字样**，并给出希望模型输出的 JSON 格式样例；合理设置 `max_tokens` 防止被截断；有概率返回空 `content`，可以尝试修改提示词缓解。完整示例见 [/guides/deepseek-json-output-function-calling](/guides/deepseek-json-output-function-calling)。\n\n### 多轮对话\n\n官方多轮对话文档：`/chat/completions` 是「无状态」API，服务端不记录上下文，每次请求要把之前所有对话历史拼好再传。第二轮要把第一轮模型的输出添加到 messages 末尾，再加上新提问。网页版和 App 会替你保存对话，但对话太长时同样会受限。\n\n### system 提示词\n\n官方「获取模型列表」接口的说明里，有一个与 system 提示词相关的字段：在 Anthropic Messages 接口下，`deepseek-flash` 是 `in-history`（可以在对话历史中追加 system 消息，最新一条提供完整的有效提示词并替代此前所有 system 提示词），`deepseek-v4-pro` 是 `leading-only`（只有对话开头的 system 提示词生效，要改提示词需要改开头那条，后续出现的 system 消息不会被视为提示词更新）。另外官方工具调用文档说，Chat Completion 接口支持在对话中间插入 system 消息。如果你的应用需要在对话中途改变角色或规则，要留意这点。system 提示词的写法见 [/guides/system-prompt-how-to-write](/guides/system-prompt-how-to-write)。\n\n### 对话前缀续写（Beta）\n\n官方文档：让 messages 列表里最后一条消息的 `role` 为 `assistant`，并把它的 `prefix` 设为 `True`，模型会接着这个开头补全；需要把 `base_url` 设为 `https://api.deepseek.com/beta`。官方示例把 assistant 开头设为 \"```python\\n\" 来强制模型输出 Python 代码，再设置 `stop=['```']` 避免额外解释。这是一种「用开头约束输出格式」的办法。\n\n### FIM 补全（Beta）\n\n官方文档：FIM（Fill In the Middle）补全让用户提供前缀和可选的后缀，由模型补全中间内容，常用于内容续写、代码补全；最大补全长度 4K；同样需要 `base_url=\"https://api.deepseek.com/beta\"`；价格页写明 FIM 只在非思考模式下支持。\n\n### 思考模式\n\n思考模式不支持 `temperature`、`presence_penalty`、`frequency_penalty`，设置了不报错但不生效。写作类任务想靠温度控制发散程度，请关闭思考模式，见 [/guides/deepseek-thinking-mode-reasoning-effort](/guides/deepseek-thinking-mode-reasoning-effort)。\n\n## 四、可套用的模板\n\n下面是按官方 13 类场景改写的示例，括号里换成你自己的内容。\n\n**代码改写**\n\n```\n下面是一段 Python 代码（Python 3.12）。请：1. 找出可能的 bug 并说明原因；2. 给出修改后的完整代码；3. 给关键行加简短注释。不要改动函数名和参数。\n【代码】……\n```\n\n**内容分类（要求 JSON）**\n\n```\n请把下面的用户反馈分类为 bug / 建议 / 咨询 / 其他，并以 JSON 输出。\n示例输出：{\"category\": \"bug\", \"reason\": \"……\"}\n【反馈】……\n```\n\n**角色扮演（自定义人设）**\n\n```\n你扮演一位（职业），说话风格（描述），知识范围限于（范围）。\n对话中不要跳出角色；遇到不知道的问题就说不确定，不要编造。\n```\n\n**文案大纲**\n\n```\n主题：（……）。读者：（……）。请写一篇 5 个小节的文章大纲，每节给标题和 2 个要点，最后给一句结尾建议。\n```\n\n**宣传标语**\n\n```\n商品：（名称与卖点）。请写 5 条宣传标语，每条不超过 15 个字，风格（……），不要出现夸大功效的词。\n```\n\n**中英翻译**\n\n```\n请把下面的中文翻译成英文，语气（正式 / 口语），保留专有名词原文，不要添加解释。\n【原文】……\n```\n\n更多通用写法见 [/guides/how-to-write-prompts](/guides/how-to-write-prompts)、[/guides/few-shot-prompting-examples](/guides/few-shot-prompting-examples)、[/guides/prompt-xml-tags-markdown-structure](/guides/prompt-xml-tags-markdown-structure)；角色设定是否有用见 [/guides/role-prompting-does-it-work](/guides/role-prompting-does-it-work)。\n\n## 五、几个常见问题的处理\n\n- **回答太泛**：补背景和约束，再给一个期望输出的例子；\n- **不按格式输出**：把格式写成样例，而不是只写形容词；JSON 场景用 JSON Output；\n- **写到一半跑偏**：把任务拆成大纲 → 分段写，每段都带上设定，见 [/guides/deepseek-write-novel-prompts](/guides/deepseek-write-novel-prompts)；\n- **想减少编造**：要求它标注「不确定」，并自己核对关键信息，见 [/guides/reduce-ai-hallucination-official-tips](/guides/reduce-ai-hallucination-official-tips)。\n\n## 常见问题\n\n**Q：有没有官方的「万能提示词」？**\n官方没有。提示库只是一些场景样例。\n\n**Q：思考模式下要不要写「一步一步思考」？**\n官方文档没有这条建议，思考模式本身会先输出思维链；这类提示词技巧见 [/guides/chain-of-thought-thinking-mode-when-to-use](/guides/chain-of-thought-thinking-mode-when-to-use)。\n\n**Q：网页版怎么用？**\n见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- DeepSeek API 文档：提示库 — https://api-docs.deepseek.com/zh-cn/prompt-library\n- DeepSeek API 文档：JSON Output — https://api-docs.deepseek.com/zh-cn/guides/json_mode\n- DeepSeek API 文档：多轮对话 — https://api-docs.deepseek.com/zh-cn/guides/multi_round_chat\n- DeepSeek API 文档：对话前缀续写（Beta）— https://api-docs.deepseek.com/zh-cn/guides/chat_prefix_completion\n- DeepSeek API 文档：FIM 补全（Beta）— https://api-docs.deepseek.com/zh-cn/guides/fim_completion\n- DeepSeek API 文档：获取模型列表 — https://api-docs.deepseek.com/zh-cn/api/list-models\n- DeepSeek API 文档：思考模式 — https://api-docs.deepseek.com/zh-cn/guides/thinking_mode",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/prompt-library",
+        "https://api-docs.deepseek.com/zh-cn/guides/json_mode",
+        "https://api-docs.deepseek.com/zh-cn/guides/multi_round_chat",
+        "https://api-docs.deepseek.com/zh-cn/guides/chat_prefix_completion",
+        "https://api-docs.deepseek.com/zh-cn/api/list-models",
+        "https://api-docs.deepseek.com/zh-cn/guides/thinking_mode"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方提示库页面（2026-10-24）列出 13 类样例的名称与一句话说明，具体的提示词样例内容在页面里是动态加载的，本文没有抓取到，下文的模板是本站按这些场景写的示例，不是官方模板",
+        "「提示词前的 6 项检查」里，JSON 输出、多轮对话无状态、思考模式下 temperature 不生效三项来自官方文档；目标、背景、约束、格式是通用的写法建议，不是官方规定",
+        "官方「获取模型列表」示例里，deepseek-flash 的 system_prompt_update 为 in-history（对话中追加的 system 消息可替代此前的提示词），deepseek-v4-pro 为 leading-only（只有开头的 system 提示词生效）；该字段属于 Anthropic Messages 接口的能力说明，其他接口格式下的表现以官方文档为准",
+        "本文不写「实测效果」"
+      ]
+    },
+    {
+      "title": "DeepSeek 和 Claude 怎么选：按两家官方页面对照入口、套餐、API 规格与价格",
+      "slug": "deepseek-vs-claude-which-to-choose",
+      "checkedOn": "2026-10-24",
+      "images": [
+        "g1024-deepseek-vs-claude-api-compare.png",
+        "g1024-deepseek-vs-claude-decide.png"
+      ],
+      "tags": [
+        "claude",
+        "ai-tools",
+        "deepseek",
+        "claude-llm"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "DeepSeek 和 Claude 怎么选？事实只用两家官方页面（2026-10-24 查询）：使用入口与套餐、API 的上下文、最大输出、图片输入和每百万 token 价格对照，并按用途给出选择思路；不比较谁更强。",
+      "content": "> 本文事实只来自 DeepSeek 与 Claude 的官方页面，资料核对于 2026-10-24，价格随时可能调整。本文不比较两家模型谁更强。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「deepseek 和 claude 怎么选」「deepseek 和 claude 哪个好」的人；\n- 在考虑日常用哪个、写代码用哪个、API 接哪个的人；\n- 想知道两家规格和价格差别在哪的人。\n\n## 结论先说\n\n1. **两家官方都没有给出「谁更强」的直接对比**，各自的评测口径也不同，所以这个问题没有统一答案；下面只对照公开的规格和价格，再按用途给选择思路。\n2. **使用门槛不同**：DeepSeek 的网页版和 App 标注免费，API 按 token 计费；Claude 有 Free、Pro、Max 等个人计划，开发者另有 API 和 Claude Code。\n3. **API 单价差别很大**：按官方价格页，DeepSeek 每百万 token 的价格是几毛到几美元，Claude 在几美元到几十美元；但这只是价格，模型能力、工具生态、稳定性都要用自己的任务去测。\n4. **规格上**：两家当前模型的上下文都是 1M；DeepSeek 最大输出 384K，Claude 的是 128K；Claude 当前模型都支持图片输入，DeepSeek 只有 `deepseek-flash` 支持。\n5. **可以搭配着用**：DeepSeek 官方提供了接入 Claude Code 的文档，见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)。\n\n![API 规格与价格对照（美元 / 百万 token）](seed:g1024-deepseek-vs-claude-api-compare.png)\n*图：本站根据 [DeepSeek 官方英文价格页](https://api-docs.deepseek.com/quick_start/pricing) 与 [Claude 官方模型总览](https://platform.claude.com/docs/en/about-claude/models/overview) 整理的示意图*\n\n## 一、使用入口与套餐\n\n**DeepSeek**\n\n- 网页版 chat.deepseek.com 和官方 App（iOS 在 App Store，Android 在官网下载页），App Store 标注免费，见 [/guides/deepseek-mobile-app-guide](/guides/deepseek-mobile-app-guide)、[/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)；\n- API 在开放平台按 token 计费，充值后使用，见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)；\n- 官方还提供 DeepSeek Harness 桌面端，支持后台运行和本地文件读写，仍在迭代。\n\n**Claude**\n\n- 官网 claude.com/pricing 的个人计划有 Free、Pro、Max：Free 可以聊天、搜索网页、创建文件和运行代码；Pro 在 Free 基础上增加更多用量、Claude Code、Projects 等；Max 标注为可选 Pro 的 5 倍或 20 倍用量、更高的输出上限和高峰期优先访问。具体价格和用量以官方页面为准，用量规则见 [/guides/claude-usage-limits](/guides/claude-usage-limits)，套餐对比见 [/guides/claude-pro-vs-max-difference](/guides/claude-pro-vs-max-difference)、[/guides/claude-plans-free-pro-max](/guides/claude-plans-free-pro-max)；\n- 开发者另有 Claude Platform（API），按 token 计费，见 [/guides/claude-api-key-console](/guides/claude-api-key-console)；\n- 需要开通 Claude Pro，可看 [/chongzhi/claude-pro](/chongzhi/claude-pro)；Claude Code 用得多、需要更高用量，可看 [/chongzhi/claude-max](/chongzhi/claude-max)。\n\n## 二、API 规格与价格逐项\n\n### DeepSeek（官方价格页）\n\n| 项目 | deepseek-flash | deepseek-v4-pro |\n| --- | --- | --- |\n| 当前版本 | DeepSeek-V4.1-Flash-1017 | DeepSeek-V4-Pro-0813 |\n| 上下文 / 最大输出 | 1M / 384K | 1M / 384K |\n| 图像理解 | 支持 | 不支持 |\n| 输入（缓存未命中）每百万 token | 空闲 $0.15 · 高峰 $0.3 | 空闲 $0.66 · 高峰 $1.32 |\n| 输出每百万 token | 空闲 $0.6 · 高峰 $1.2 | 空闲 $1.98 · 高峰 $3.96 |\n| 输入（缓存命中） | 空闲 $0.003 · 高峰 $0.006 | 空闲 $0.022 · 高峰 $0.044 |\n\n人民币价格和高峰、空闲时段的定义见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n### Claude（官方模型总览与定价页）\n\n| 模型 | 官方定位 | 输入 / 输出（每百万 token） |\n| --- | --- | --- |\n| Claude Fable 5.1 | 要求苛刻的推理与长程 Agent 工作 | $10 / $50 |\n| Claude Opus 5.5 | 长时间运行的 Agent 编程与知识工作 | $4 / $20 |\n| Claude Sonnet 5.5 | 速度与智能的最佳组合 | $2 / $10 |\n| Claude Haiku 5.5 | 高吞吐、低延迟任务（分类、抽取、路由） | 起价 $0.10 / $0.50 |\n\n官方总览页写明：所有当前模型都支持文本和图片输入、文本输出，上下文均为 1M，最大输出 128K。官方定价页还列出了提示缓存、批处理等折扣，详见官方页面。Claude 各模型的区别见 [/guides/claude-models-compare](/guides/claude-models-compare)，提示缓存见 [/guides/claude-prompt-caching](/guides/claude-prompt-caching)。\n\n### 怎么看这些价格\n\n- 单价只是一个维度。完成同一任务需要的 token 数、重试次数、模型是否需要更高的思考强度，都会影响真实花费；\n- DeepSeek 有高峰、空闲两档，空闲时段是高峰的一半；\n- 两家都有缓存机制，长文档、固定提示反复使用时能显著降低输入成本。\n\n## 三、按用途的选择思路\n\n![按用途看 DeepSeek 与 Claude](seed:g1024-deepseek-vs-claude-decide.png)\n*图：本站根据两家官方页面整理的示意图*\n\n- **日常聊天、先试用**：两家都可以免费开始。DeepSeek 的使用见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)，Claude 的见 [/guides/claude-how-to-use-beginner](/guides/claude-how-to-use-beginner)；\n- **写代码**：Claude 有官方的 Claude Code，Pro 起包含；DeepSeek 官方在更新里多次强调对 Claude Code、Codex、OpenCode 等工具的适配。要用多大的模型、花多少钱，建议用你自己的项目各跑一次，写代码的思路见 [/guides/deepseek-write-code-how-to](/guides/deepseek-write-code-how-to)；\n- **API 开发、预算敏感**：先用对照表估算，再用小批量真实任务测效果和成本；DeepSeek 提供 OpenAI、Responses 和 Anthropic 三种格式，迁移成本低，见 [/guides/deepseek-responses-api-anthropic-compatible](/guides/deepseek-responses-api-anthropic-compatible)；\n- **需要长输出**：DeepSeek 的最大输出是 384K，Claude 是 128K，但是否需要这么长要看任务；\n- **需要给模型看图**：Claude 当前模型都支持，DeepSeek 要用 `deepseek-flash`，见 [/guides/deepseek-multimodal-image-recognition](/guides/deepseek-multimodal-image-recognition)；\n- **需要联网搜索、Agent、Skills、MCP 等生态**：两家产品形态不同，Claude 的相关教程见 [/guides/claude-web-search](/guides/claude-web-search)、[/guides/mcp-model-context-protocol](/guides/mcp-model-context-protocol)，DeepSeek 的搜索 API 见 [/guides/deepseek-price-changes-timeline](/guides/deepseek-price-changes-timeline) 里的 Search / Fetch 说明。\n\n## 四、选之前的提醒\n\n- **数据与隐私**：两家的隐私政策和数据使用设置不同，涉及敏感内容先看各自官方政策；\n- **地区与账号**：账号注册、支付方式、服务地区以各自官方页面为准；DeepSeek 登录的地区限制见 [/guides/deepseek-register-login-problems](/guides/deepseek-register-login-problems)；\n- **别只看跑分**：官方公布的基准测试口径、框架不同，不能直接横向比较。\n\n## 常见问题\n\n**Q：能不能只用一家？**\n可以。也可以按任务分工：长文档、日常问答用一个，代码任务用另一个。\n\n**Q：DeepSeek 和 ChatGPT 怎么选？**\n见 [/guides/chatgpt-vs-deepseek-difference](/guides/chatgpt-vs-deepseek-difference)；ChatGPT 与 Claude 的对比见 [/guides/chatgpt-vs-claude](/guides/chatgpt-vs-claude)。\n\n**Q：想在 Claude Code 里用 DeepSeek 模型？**\n见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)。\n\n## 参考资料\n\n- DeepSeek API 文档：模型 & 价格（中文）— https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek API 文档：Models & Pricing（英文）— https://api-docs.deepseek.com/quick_start/pricing\n- DeepSeek 官网：应用下载 — https://www.deepseek.com/download/\n- Claude 开发者文档：Models overview — https://platform.claude.com/docs/en/about-claude/models/overview\n- Claude 开发者文档：Pricing — https://platform.claude.com/docs/en/about-claude/pricing\n- Claude 官网：Plans & pricing — https://claude.com/pricing",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://api-docs.deepseek.com/quick_start/pricing",
+        "https://www.deepseek.com/download/",
+        "https://platform.claude.com/docs/en/about-claude/models/overview",
+        "https://platform.claude.com/docs/en/about-claude/pricing",
+        "https://claude.com/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "DeepSeek 美元价格取自官方英文价格页（高峰与空闲两档，英文页注明高峰为 UTC 1:00–4:00 与 6:00–10:00、周一至周五、不含中国法定节假日）；Claude 价格取自官方模型总览与定价页的标准价（Opus 5.5 为 4 / 20 美元，Sonnet 5.5 为 2 / 10 美元，每百万 token）",
+        "Claude 模型总览页写明当前模型都支持文本与图片输入、文本输出；DeepSeek 价格页写明图像理解仅 deepseek-flash 支持",
+        "两家官方页面都没有给出「谁更强」的直接对比，各自公布的评测口径不同，本文不下结论，也不写实测",
+        "Claude 个人套餐的具体价格与用量以 claude.com/pricing 为准，本文不抄价格；用量以官方「usage limits」说明为准",
+        "价格会调整，下单前请再看一次官方页面"
       ]
     },
     {
