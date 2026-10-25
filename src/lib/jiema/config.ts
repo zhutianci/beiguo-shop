@@ -52,14 +52,33 @@ function alertBroken(reason: string, detail: string): void {
 }
 
 /** 读当前配置（每次查库）。四种失败都返回 ok:false 并推 sms.alert（进程内 1 小时节流） */
+/** 连不上库（不是数据本身的问题）：服务器重启时 app 比 MySQL 早起来十几秒，这段时间的读取都会落到这里 */
+function isConnectError(e: unknown): boolean {
+  const err = e as { name?: string; code?: string; errorCode?: string; message?: string }
+  return (
+    err?.name === 'PrismaClientInitializationError' ||
+    ['P1001', 'P1002', 'P1017'].includes(String(err?.code ?? err?.errorCode ?? '')) ||
+    /Can't reach database server/.test(String(err?.message ?? ''))
+  )
+}
+
 export async function readSmsConfig(): Promise<SmsConfigRead> {
-  let raw: string | null
-  try {
-    raw = (await prisma.setting.findUnique({ where: { key: SMS_CONFIG_KEY } }))?.value ?? null
-  } catch (e) {
-    console.error('[jiema] 读取 sms_config 失败', e)
-    alertBroken('ERROR', (e as Error)?.message ?? String(e))
-    return { ok: false, reason: 'ERROR', storedVersion: 0 }
+  let raw: string | null = null
+  // 连不上库时隔 3 秒再试一次（2026-10-26：凌晨打补丁重启服务器，app 比 MySQL 早起来 12 秒，这一下就推了一条误报）。
+  // 重试仍失败才告警；无论如何这次读取都按 fail-closed 处理，语义不变
+  for (let attempt = 0; ; attempt++) {
+    try {
+      raw = (await prisma.setting.findUnique({ where: { key: SMS_CONFIG_KEY } }))?.value ?? null
+      break
+    } catch (e) {
+      if (attempt === 0 && isConnectError(e)) {
+        await new Promise((r) => setTimeout(r, 3000))
+        continue
+      }
+      console.error('[jiema] 读取 sms_config 失败', e)
+      alertBroken('ERROR', (e as Error)?.message ?? String(e))
+      return { ok: false, reason: 'ERROR', storedVersion: 0 }
+    }
   }
   if (raw == null) {
     alertBroken('MISSING', 'settings 里没有 sms_config（部署种子 scripts/ops/jiema-s1-seed.sql 没跑？）；到后台「短信接码 → 设置」点「填入出厂值」再保存一次即可')
