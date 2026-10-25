@@ -63,7 +63,7 @@ Agent 工具能读整个项目、运行命令、修改多个文件，适合改�
 
 - **OpenCode**：官方页说明需升级到 v1.18.30 或更高版本；运行后输入 `/connect`，搜索并选择 deepseek，填入 API Key，再选择 DeepSeek-V4-Flash 模型；
 - **Claude Code**：用环境变量接入，见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)；
-- **Codex**：官方提供一键配置脚本。
+- **Codex**：官方提供一键配置脚本，见 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。
 
 这几类工具各有差别，选择思路见 [/guides/cursor-vs-claude-code-vs-codex](/guides/cursor-vs-claude-code-vs-codex)。
 
