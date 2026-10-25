@@ -73,7 +73,7 @@ verify:
 
 官方 Models overview 写明：当前模型都支持文字和图片输入、文字输出、多语言、视觉和工具调用；上下文窗口 100 万 token，最大输出 12.8 万 token；官方把 Opus 5.5 作为大多数工作的起点，Fable 5.1 用于最苛刻的推理和长时间智能体任务，Sonnet 5.5 是速度与智能的平衡，Haiku 5.5 面向高并发和低延迟。三款的差别见 [/guides/claude-opus-vs-sonnet](/guides/claude-opus-vs-sonnet)。
 
-官方还提醒了一些边界：**官方页面没有写「文字直接生成图片」这项能力**，见 [/guides/claude-image-generation](/guides/claude-image-generation)；**某些地区不在官方支持名单里**，见 [/guides/claude-supported-countries-regions](/guides/claude-supported-countries-regions)；用量有限额，见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。
+官方还提醒了一些边界：**官方帮助中心明确说 Claude 不像生图工具那样生成照片和插画**，见 [/guides/claude-image-generation](/guides/claude-image-generation)；**某些地区不在官方支持名单里**，见 [/guides/claude-supported-countries-regions](/guides/claude-supported-countries-regions)；用量有限额，见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。
 
 ## 四、关于「安全」的官方说法
 
