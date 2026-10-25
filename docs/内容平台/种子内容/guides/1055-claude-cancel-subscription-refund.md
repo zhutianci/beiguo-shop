@@ -101,7 +101,7 @@ verify:
 官方建议在下次扣费日前至少 24 小时取消，才能避免下一期扣款。
 
 **Q：账号被封了能退款吗？**
-这是另一类情况，见 [/guides/claude-account-disabled-appeal](/guides/claude-account-banned-refund)。
+这是另一类情况，见 [/guides/claude-account-disabled-appeal](/guides/claude-account-disabled-appeal)。
 
 **Q：发票在哪下载？**
 见 [/guides/claude-invoice-receipt-download](/guides/claude-invoice-receipt-download)。
