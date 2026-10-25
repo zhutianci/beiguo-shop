@@ -4,7 +4,7 @@ slug: chatgpt-pro-worth-it
 products: [chatgpt]
 models: []
 accountTier: PRO
-excerpt: ChatGPT Pro 值得吗？按官方价格页和 Pro 套餐文章：Pro 从 $100 起分三档，比 Plus 多的是聊天里的 GPT-6 Pro、Extra High 思考档、更长的上下文、更多的 Codex 和 Work 用量，以及 Dot、Space。本文按用途讲谁该看 Pro，谁用 Plus 加点数就够。
+excerpt: ChatGPT Pro 值得吗？按官方价格页：Pro 从 $100 起分三档，比 Plus 多聊天里的 GPT-6 Pro、Extra High 档、更长上下文、更多 Codex 和 Work 用量。按用途讲谁该看 Pro。
 checkedOn: 2026-10-25
 sources:
   - https://chatgpt.com/pricing
