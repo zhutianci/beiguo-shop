@@ -96,6 +96,8 @@ JSON 输出还有一点：官方说使用 JSON Output 时，API 有概率返回�
 **Q：Python 调用的完整示例在哪？**
 见 [/guides/deepseek-api-python-quickstart](/guides/deepseek-api-python-quickstart)。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - DeepSeek API 文档：错误码 — https://api-docs.deepseek.com/zh-cn/quick_start/error_codes

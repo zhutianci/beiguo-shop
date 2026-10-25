@@ -104,6 +104,8 @@ verify:
 **Q：用 Claude Code、Codex 能接它吗？**
 可以，见 [/guides/deepseek-claude-code-setup](/guides/deepseek-claude-code-setup)、[/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - DeepSeek-V4.1-Flash 发布（2026-09-10）— https://api-docs.deepseek.com/zh-cn/news/news260910

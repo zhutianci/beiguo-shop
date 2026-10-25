@@ -96,6 +96,8 @@ DeepSeek-V4 Pro 不支持图像输入。图片相关的更多说明见 [/guides/
 **Q：输出被截断了怎么办？**
 先看返回的结束原因，再检查 `max_tokens`；JSON 输出被截断时调大它。报错类问题见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing

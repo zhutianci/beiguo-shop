@@ -89,6 +89,8 @@ verify:
 **Q：Python 怎么调用？**
 见 [/guides/deepseek-api-python-quickstart](/guides/deepseek-api-python-quickstart)。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - DeepSeek 官方常见问题 — https://static.deepseek.com/faq/index.html?lang=zh

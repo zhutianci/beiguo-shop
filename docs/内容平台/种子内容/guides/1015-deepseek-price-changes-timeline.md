@@ -99,6 +99,8 @@ verify:
 **Q：想对比其他家的价格？**
 OpenAI API 见 [/guides/openai-api-pricing-billing](/guides/openai-api-pricing-billing)；ChatGPT 与 DeepSeek 的整体差别见 [/guides/chatgpt-vs-deepseek-difference](/guides/chatgpt-vs-deepseek-difference)。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - DeepSeek-V4 预览版发布（2026-04-24）— https://api-docs.deepseek.com/zh-cn/news/news260424

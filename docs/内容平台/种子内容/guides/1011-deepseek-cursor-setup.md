@@ -95,6 +95,8 @@ DeepSeek 官方明确写了教程的是 Claude Code、Codex、OpenCode 等，见
 **Q：连接失败、一直转圈怎么办？**
 先看 API 报错码，见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)；Cursor 自己的连接问题见 [/guides/cursor-common-errors-connection-failed](/guides/cursor-common-errors-connection-failed)。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - Cursor 文档：Bring your own API key — https://cursor.com/docs/settings/api-keys

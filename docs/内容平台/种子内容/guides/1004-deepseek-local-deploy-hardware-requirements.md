@@ -106,6 +106,8 @@ OLLAMA_CONTEXT_LENGTH=64000 ollama serve
 **Q：还有更小的版本吗？**
 有，1.5b 只有 1.1GB，但能力有限，适合试跑和简单任务。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - Ollama：deepseek-r1 模型库页面及标签页 — https://ollama.com/library/deepseek-r1

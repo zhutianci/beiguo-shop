@@ -144,6 +144,8 @@ strict 模式下，模型输出函数调用时会严格遵循你定义的 JSON S
 **Q：Python 完整入门在哪？**
 见 [/guides/deepseek-api-python-quickstart](/guides/deepseek-api-python-quickstart)。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - DeepSeek API 文档：JSON Output — https://api-docs.deepseek.com/zh-cn/guides/json_mode

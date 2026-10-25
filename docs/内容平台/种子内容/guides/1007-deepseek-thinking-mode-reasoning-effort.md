@@ -129,6 +129,8 @@ messages.append(response.choices[0].message)
 **Q：Python 完整示例在哪？**
 见 [/guides/deepseek-api-python-quickstart](/guides/deepseek-api-python-quickstart)。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - DeepSeek API 文档：思考模式 — https://api-docs.deepseek.com/zh-cn/guides/thinking_mode

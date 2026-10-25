@@ -146,6 +146,8 @@ verify:
 **Q：网页版怎么用？**
 见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - DeepSeek API 文档：提示库 — https://api-docs.deepseek.com/zh-cn/prompt-library

@@ -124,6 +124,8 @@ DeepSeek 的思考模式会在输出最终回答前先产生思维链。官方�
 **Q：AI 写的小说能直接发布吗？**
 各平台对 AI 生成内容有自己的规定和标注要求，请以发布平台的规则为准；版权归属也以相关法律和平台协议为准。
 
+> 想同时用 ChatGPT、Claude 等海外模型做对比？本站提供 [AI 会员充值](/chongzhi)，ChatGPT 可看 [Plus 充值](/chongzhi/chatgpt-plus)。
+
 ## 参考资料
 
 - DeepSeek API 文档：模型 & 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing
