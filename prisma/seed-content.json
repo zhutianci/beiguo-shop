@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-25T22:19:29.395Z",
+  "builtAt": "2026-10-25T22:29:22.056Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -61168,6 +61168,162 @@
       ]
     },
     {
+      "title": "Grok 能免费用吗：免费版有哪些功能、额度多少、什么时候该付费",
+      "slug": "grok-free-usage-how-much",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1025-grok-free-entry-steps.png",
+        "g1025-grok-free-vs-paid.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Grok 能免费用吗？能。官方页面写明网页、iOS、Android 都可以免费试用，定价页的 Free 档是「有限的聊天请求、有限的代理请求」，没有公布具体次数。本文讲免费入口、Free 和付费档的差别，以及什么情况下值得升级（2026-10 查询）。",
+      "content": "> 本文根据 Grok 官方站（x.ai）的产品页、定价页、docs.x.ai 的 FAQ 和隐私 FAQ 整理，资料核对于 2026-10-25，价格为「2026-10 查询」。免费范围和限额可能随时调整，**以官方页面为准**。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「grok能免费用吗」「grok免费额度多少」的人；\n- 想先试试 Grok，再决定要不要订阅的人；\n- 用着用着提示限额，不确定是免费限制还是别的问题的人。\n\n## 结论先说\n\n1. **能免费用**。官方 x.ai/grok 页面写的是「Free to try on the web and in the apps」，定价页也有一档 Free，月费 0。\n2. **免费额度没有公布具体数字**。定价页 Free 档只写「有限的聊天请求」「有限的代理请求」，官方文档里也找不到每天几条、每周几条这样的数字。所以网上流传的具体次数，官方页面都没有依据。\n3. **免费档和付费周用量是分开的**。官方 FAQ 说，付费用户的周用量用完以后，仍然可以用 Grok 免费档的 Chat 和 Voice 限额，这部分按自己的节奏重置。\n4. **想要更多**：付费档给的是「共享用量池」，Plus 是基础用量，Premium 是 Plus 的 4 倍，Super 15 倍，Ultra 50 倍。需要开通可以看本站 [/chongzhi/grok-super](/chongzhi/grok-super)。\n\n![免费用 Grok 的入口：网页、手机 App、登录方式](seed:g1025-grok-free-entry-steps.png)\n*图：本站根据 [x.ai/grok](https://x.ai/grok) 与 [x.ai/pricing](https://x.ai/pricing) 整理的示意图*\n\n## 一、免费版怎么开始用\n\n官方页面给的上手步骤只有三步：\n\n1. 打开 Grok：网页 grok.com，或 iOS、Android 的 Grok App；\n2. 登录：用 X 账号或邮箱，换设备后对话、设置、订阅状态会同步；\n3. 开始聊天，可以在搜索、推理、语音、图片等模式之间切换。\n\n官方隐私 FAQ 还提到，不登录也可能使用 Grok，但这种情况下你的内容可能被匿名收集，并且在部分地区没有关闭「用于模型训练」的选项。想控制这一点，建议登录后在设置里管理，见 [/guides/grok-memory-custom-instructions-privacy-training](/guides/grok-memory-custom-instructions-privacy-training)。\n\n另外，官方 FAQ 提醒：网页版请用 **grok.com**，并使用 Chrome 或 Chromium 内核浏览器，不要用旧的 grok.x.ai，否则可能缺少 Projects 等功能。\n\n## 二、Free 和付费档差在哪\n\n![Grok Free 与 Plus、Premium 的差别](seed:g1025-grok-free-vs-paid.png)\n*图：本站根据 [Grok 官方定价页](https://x.ai/pricing) 整理的示意图*\n\n| 套餐 | 月费（美元，不含税） | 官方写的用量 |\n| --- | --- | --- |\n| Free | 0 | 有限 |\n| Plus | 8 | 共享用量池（基础） |\n| Premium | 30 | Plus 的 4 倍 |\n| Super | 100 | Plus 的 15 倍 |\n| Ultra | 200 | Plus 的 50 倍 |\n\n几个容易误会的点：\n\n- **付费档是一个「周用量池」**，不是每天固定几条。聊天、图片视频生成、语音、Build 都从同一个池里扣，不同功能每次扣得不一样：官方说一条普通聊天消耗的算力很少，生成高质量视频或跑长时间编程任务则多得多。\n- **官方对「该选哪档」的建议**：新手用 Premium，每天用代理功能的用 Super，重度用户用 Ultra，Plus 更适合只想要 X 创作者权益、AI 用量不多的人。\n- **免费档的图片视频**：生成的图片和视频都会带 Grok 水印，官方明确说没有去除水印的设置。\n\n## 三、什么时候该考虑付费\n\n可以按下面几种情况自己判断：\n\n| 你的情况 | 建议 |\n| --- | --- |\n| 偶尔问几句、查资料 | 先用免费版，够用就不用订 |\n| 经常提示限额，影响正常使用 | 看 Plus 或 Premium |\n| 要稳定地做图片、视频、长时间编程任务 | 官方建议看 Super、Ultra，这类任务耗用量大 |\n| 已经有 X Premium 或 Cursor 订阅 | 先读 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download)，官方说合并订阅是可选的 |\n\n用量怎么看、用完怎么办，见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)。要做图片和视频，可以先看 [/guides/grok-imagine-image-video](/guides/grok-imagine-image-video)。想对比 ChatGPT，见 [/guides/chatgpt-vs-grok-which-to-choose](/guides/chatgpt-vs-grok-which-to-choose)。\n\n## 常见问题\n\n**Q：免费版每天能问几次？**\n官方没有公布。定价页只写「有限」，页面没有数字就不要相信带具体次数的说法。\n\n**Q：免费版能用最新的 Grok 模型吗？**\n官方定价页把「最新 Grok 模型」列在 Premium 档的要点里，Free 档没有列这一项。最新模型是什么，见 [/guides/grok-47-what-is-release](/guides/grok-47-what-is-release)。\n\n**Q：免费用 Grok API 行不行？**\n官方 API 快速入门的第一步是注册 console.x.ai 账号，「然后充值才能开始用 API」。API 单独计费，价格见 [/guides/grok-api-pricing-api-key](/guides/grok-api-pricing-api-key)。\n\n**Q：免费版的对话会被拿去训练吗？**\n官方说你可以在设置里选择是否「Improve the model」，也可以用 Private Chat，详见上面链接的隐私文章。\n\n## 参考资料\n\n- Grok 官方：Grok — https://x.ai/grok\n- Grok 官方：Pricing — https://x.ai/pricing\n- docs.x.ai：Grok FAQ — https://docs.x.ai/grok/faq\n- docs.x.ai：Welcome to Grok — https://docs.x.ai/grok/overview\n- Grok 官方：隐私与使用 FAQ — https://x.ai/legal/faq",
+      "sources": [
+        "https://x.ai/grok",
+        "https://x.ai/pricing",
+        "https://docs.x.ai/grok/faq",
+        "https://docs.x.ai/grok/overview",
+        "https://x.ai/legal/faq"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方定价页 Free 档只写「Limited Chat requests、Limited agent requests」，没有给出每天或每周的具体次数，本文不编数字",
+        "定价页的功能对比表里，Free 列的 Chat、Imagine、Build 标注为 Limited；视频生成、Grok API、Grok Bot 等项在页面上用图标表示，纯文本抓取无法区分打勾与空白，所以表里写「官方未列」，以官方页面为准",
+        "官方隐私 FAQ 写「视所在地区，提供有限的免费使用和付费订阅」，也就是免费范围可能因地区而异；本文不判断中国大陆能否访问，也不写任何访问方法",
+        "官方 FAQ 提到免费档的 Chat 和 Voice 限额与付费周用量是分开的、各自按自己的时间重置，具体重置时间官方没写",
+        "价格为官方定价页的美元标价、不含税，2026-10-25 查询，官方注明可能调整"
+      ]
+    },
+    {
+      "title": "Grok 为什么有限制：每周用量池怎么算、在哪看剩余、用完了怎么办",
+      "slug": "grok-usage-limit-weekly-pool-why",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1026-grok-usage-tab.jpg",
+        "g1026-grok-limit-decide.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Grok 为什么有限制、SuperGrok 上限怎么看？官方现在用「每周共享用量池」：聊天、图片视频、语音、Build 共用一个额度，在 设置 → Usage 查看百分比和重置时间。用完后可以买额外额度、升级或开自动充值（2026-10 查询）。",
+      "content": "> 本文根据 Grok 官方 FAQ、The X Subscription 文档和定价页整理，资料核对于 2026-10-25。限额规则可能调整，**以官方页面和你账号里显示的为准**。本文只讲官方允许的查看和处理方式。\n\n## 适用于谁\n\n- 搜「grok为什么有限制」「grok supergrok 上限」的人；\n- 聊着聊着提示用量用完、不知道什么时候恢复的人；\n- 想知道该买额外额度还是升级套餐的人。\n\n## 结论先说\n\n1. **有限制是正常的**：官方的做法是给每个付费账号一个「每周用量池」，聊天、Imagine（图片视频）、语音、Build 都从同一个池里扣，而不是各自一个每日上限。\n2. **不同功能扣得不一样**：官方说一条聊天消耗很少，高质量视频或长时间编程任务则多得多，所以做视频会比聊天更快用完。\n3. **在哪看**：设置 → Usage，网页和手机都有。会显示已用百分比、按功能（API、Build、Chat、Imagine、Voice）的占比、每周重置的日期时间，以及额外额度余额。\n4. **用完不是死路**：付费功能暂停到下次重置，但可以买额外额度立刻继续、升级到更高档，或者开自动充值。免费档的 Chat 和 Voice 限额还可以继续用。\n5. **长期不够用**：官方说，经常超限的话升级套餐比反复买额外额度更划算，因为额外额度按标准价计算，单次成本高于套餐里包含的用量。需要开通或升级可看 [/chongzhi/grok-super](/chongzhi/grok-super)。\n\n![官方示例：Usage 页显示周限额、按功能占比和额外额度余额](seed:g1026-grok-usage-tab.jpg)\n*图片来源：[docs.x.ai：Grok FAQ](https://docs.x.ai/grok/faq)，为官方示例截图，金额与日期是示例数据*\n\n## 一、周用量池是怎么回事\n\n官方 FAQ 的说明：\n\n- 从 2026 年 6 月起，付费用户改用更简单的系统：不再给聊天、Imagine、语音、Build 各设一个每日上限，而是给一个**共享的每周用量池**，怎么花都行；\n- 以前常见的情况是 Imagine 用完了，聊天还有余量，现在可以集中花在你最常用的功能上；\n- 用量池每周重置，重置时间在设置的 Usage 页显示；\n- The X Subscription 的文档补充：这个池只算官方自家（first-party）模型的用量，在 Grok 和 Cursor 之间共享；Cursor 里的第三方模型（比如 Claude、GPT）不在池里，按另付的额外用量计费。\n\n各档位的池有多大，官方定价页只写倍数：Plus 是基础用量，Premium 是 Plus 的 4 倍，Super 是 15 倍，Ultra 是 50 倍。免费档只写「有限」。各档价格见 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download)。\n\n## 二、怎么看自己还剩多少\n\n1. 打开 Grok（网页或手机 App），进入 **设置（Settings）**；\n2. 点 **Usage**；\n3. 看进度条的已用百分比，下面是按产品的占比，右上角是重置时间；\n4. 如果已在 The X Subscription 下，也可以在 grok.com/dashboard 左侧打开 Usage，Current plan 卡片上也会显示已用量。\n\n## 三、用完之后怎么办\n\n![Grok 用量用完后的几种处理方式](seed:g1026-grok-limit-decide.png)\n*图：本站根据 [docs.x.ai Grok FAQ](https://docs.x.ai/grok/faq) 与 [spending caps 文档](https://docs.x.ai/x-subscription/spending-caps) 整理的示意图*\n\n| 选项 | 官方说明 |\n| --- | --- |\n| 等重置 | 付费功能暂停，直到每周重置；免费档的 Chat、Voice 限额仍可用 |\n| 买额外额度（Extra Usage Credits） | 立即生效，在周用量用完后才开始扣；最低 5 美元；一年后过期；目前只能在网页端买，手机内购「将来提供」 |\n| 升级套餐 | 周用量更大，每次动作成本比额外额度低 |\n| 自动充值（Auto Top Up） | 余额低于你设的值时自动补，可设金额和每月上限，官方说不会自动开启 |\n\n**特别提醒：设月度上限。** 官方文档说明，「月度额外用量上限」和充值余额是两件事：加钱不会提高上限，所以可能出现余额还有、但月度上限到了而被停用的情况；反过来，只设了提醒（alerts）并不会真的停止扣费，要真正封顶必须设月度上限。管理入口在 grok.com/dashboard/billing 的 Additional usage credits 一栏。\n\n## 四、几个常见疑问\n\n**Q：免费版的限制和这个一样吗？**\n不一样。免费档官方只写「有限的聊天和代理请求」，没有公布次数，见 [/guides/grok-free-usage-how-much](/guides/grok-free-usage-how-much)。\n\n**Q：为什么我的视频变成 480p 了？**\n官方 FAQ 说，720p 视频在你达到所在档位的 720p 上限后，会自动降到 480p。视频怎么做见 [/guides/grok-imagine-image-video](/guides/grok-imagine-image-video)。\n\n**Q：提示「升级」但我明明已经订阅了？**\n官方说已订阅就不该出现这类提示，先重启或重装 App、退出重登、清缓存，并确认登录的是购买订阅的账号。\n\n**Q：能不能绕过限制？**\n本文不涉及。官方给的正规办法就是上面几条：等重置、买额度、升级。\n\n## 参考资料\n\n- docs.x.ai：Grok FAQ（Usage & Limits） — https://docs.x.ai/grok/faq\n- docs.x.ai：Usage limits — https://docs.x.ai/x-subscription/usage-limits\n- docs.x.ai：Extra usage credits and top-ups — https://docs.x.ai/x-subscription/extra-usage\n- docs.x.ai：Spending caps — https://docs.x.ai/x-subscription/spending-caps\n- Grok 官方：Pricing — https://x.ai/pricing",
+      "sources": [
+        "https://docs.x.ai/grok/faq",
+        "https://docs.x.ai/x-subscription/usage-limits",
+        "https://docs.x.ai/x-subscription/extra-usage",
+        "https://docs.x.ai/x-subscription/spending-caps",
+        "https://x.ai/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方 FAQ 写「Rolling out in June 2026」，即周用量池是 2026 年 6 月起逐步推出的；是否已覆盖到你的账号，以你设置里有没有 Usage 页为准",
+        "官方没有公布各档位每周的绝对数字，只写倍数（Premium 是 Plus 的 4 倍、Super 15 倍、Ultra 50 倍）和「用量以百分比显示」",
+        "Extra Usage Credits「最低 5 美元」「一年后过期」「目前只能在网页端购买」均来自官方 FAQ 当前版本，可能变化",
+        "官方 FAQ 与 X Subscription 文档的命名略有不同（SuperGrok 周限额 / The X Subscription 共享周用量池），本文两处都引，并按各自页面的说法写",
+        "图片是官方 FAQ 里的示例截图（金额、日期是示例数据），不是真实账号",
+        "本文不写任何绕过或解除限制的方法"
+      ]
+    },
+    {
+      "title": "SuperGrok Heavy 是什么：官方文档里的说法、和现在 Super、Ultra 的关系",
+      "slug": "grok-supergrok-heavy-what-is",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1027-grok-heavy-where-in-docs.png",
+        "g1027-grok-heavy-check-subscription.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "SuperGrok Heavy 是什么？它是 Grok 较早的高档订阅名。官方现行定价页只列 Free、Plus、Premium、Super、Ultra，没有 Heavy；官方文档只在企业许可证、年订阅账单和 Grok Bot 关联里提到它（2026-10 查询）。",
+      "content": "> 本文根据 Grok 官方定价页、FAQ、Grok Business 文档和 Grok Bot 文档整理，资料核对于 2026-10-25。官方现行页面没有给出 Heavy 的价格和用量，**以官方页面和你账号里显示的订阅为准**。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「grok super heavy」「supergrok heavy 是什么」的人；\n- 看到账单或旧文章里的 Heavy，想知道它对应现在哪一档的人；\n- 想知道要不要买 Heavy、现在还能不能买的人。\n\n## 结论先说\n\n1. **现在的官方定价页没有 Heavy**。x.ai/pricing 个人档位只有 Free（0）、Plus（8）、Premium（30）、Super（100）、Ultra（200），单位美元每月、不含税。\n2. **官方没有说 Heavy 对应哪一档**。网上常见「Heavy 就是现在的 Ultra」之类的说法，官方文档里找不到依据，所以这里不下结论。\n3. **官方文档提到 Heavy 的地方有三处**，见下文：年订阅账单、企业许可证、Grok Bot 关联。\n4. **老订阅继续有效**：官方说，已有的 Cursor、SuperGrok、X Premium 订阅，在你切换或取消前，套餐、价格和功能继续不变。\n5. **想要更大的用量**：按现在的官方档位，用量是倍数关系，Premium 是 Plus 的 4 倍，Super 15 倍，Ultra 50 倍。需要开通可看 [/chongzhi/grok-super](/chongzhi/grok-super)。\n\n![官方文档里提到 SuperGrok Heavy 的几处](seed:g1027-grok-heavy-where-in-docs.png)\n*图：本站根据 [x.ai/pricing](https://x.ai/pricing) 与 [docs.x.ai](https://docs.x.ai/grok/faq) 整理的示意图*\n\n## 一、官方哪几处提到了 Heavy\n\n### 1. FAQ：大额账单可能是 Heavy 年订阅\n\ndocs.x.ai 的 Grok FAQ 里有一问：收到一张不认识的大额账单，是不是 API 用量？官方的回答是不一定，**大额意外账单常常是 SuperGrok Heavy 的年订阅，而不是 API 用量**；建议先看购买日期和订阅记录，再带着账单编号联系客服确认，不要急着拒付。\n\n### 2. Grok Business：企业许可证类型\n\nGrok Business（团队、企业版）的许可证管理文档写明，可购买的许可证类型有两种：**SuperGrok**（标准商业访问，更多额度与功能）和 **SuperGrok Heavy**（更高性能，面向高强度工作）。团队工作区还说明，成员享有 SuperGrok 的全部权益，升级后的许可证可用 Heavy。这是团队场景，不是个人订阅。\n\n### 3. Grok Bot：可关联的订阅\n\nGrok Bot 的文档说明，个人的 SuperGrok、SuperGrok Plus 或 SuperGrok Heavy 订阅都可以关联到 Grok Bot 使用；如果同时有 Cursor 和 SuperGrok 订阅，Grok Bot 用额度更多的那个。同一份文档还说明：一旦你切换或注册新的 The X Subscription，Grok Bot 的额度改由新的每周共享用量池提供。\n\n## 二、现在应该看哪一档\n\n现行官方档位：\n\n| 套餐 | 月费（美元，不含税） | 官方写的用量 |\n| --- | --- | --- |\n| Free | 0 | 有限 |\n| Plus | 8 | 共享用量池（基础） |\n| Premium | 30 | Plus 的 4 倍 |\n| Super | 100 | Plus 的 15 倍，高峰期优先模型访问 |\n| Ultra | 200 | Plus 的 50 倍，最早体验新产品和模型 |\n\n官方对档位的选择建议是：新用户用 Premium，每天用代理功能的用 Super，重度用户用 Ultra，Plus 更适合只想要 X 创作者权益的人。订阅怎么选、怎么订，见 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download)；用量怎么算、用完怎么办，见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)。\n\n## 三、如果你账号里有 Heavy 订阅\n\n![怀疑自己有 Heavy 订阅，先查这些地方](seed:g1027-grok-heavy-check-subscription.png)\n*图：本站根据 [Grok FAQ](https://docs.x.ai/grok/faq) 与 [订阅管理文档](https://docs.x.ai/x-subscription/manage) 整理的示意图*\n\n- **先弄清是哪里买的**：官方说订阅绑定在购买时的账号和平台上，网页、苹果、谷歌的管理入口各不相同；\n- **网页订阅**：grok.com 的 Settings → Billing，已合并到新订阅的在 grok.com/dashboard；\n- **要不要切换**：官方说切换是可选的，合并后永久不可撤销，旧订阅会按剩余时间退款；不切换就保持原样；\n- **不想续了**：取消方法见 [/guides/grok-cancel-subscription](/guides/grok-cancel-subscription)。\n\n## 常见问题\n\n**Q：Heavy 现在还能买吗？**\n官方现行定价页没有 Heavy 这一项，新用户看到的是五档个人订阅。官方文档里的老订阅是否还提供新购买，没有写，请以官方页面为准。\n\n**Q：Heavy 比 Super 强多少？**\n官方没有公布 Heavy 的具体用量，所以无法给出倍数。官方只写了现行档位之间的倍数关系。\n\n**Q：Heavy 年订阅被扣款了怎么办？**\n先在购买平台里核对订阅记录，再联系官方客服并提供账单编号。退款规则见 [/guides/grok-cancel-subscription](/guides/grok-cancel-subscription)。\n\n## 参考资料\n\n- Grok 官方：Pricing — https://x.ai/pricing\n- docs.x.ai：Grok FAQ — https://docs.x.ai/grok/faq\n- docs.x.ai：License & User Management — https://docs.x.ai/grok/management\n- docs.x.ai：Grok Bot Overview — https://docs.x.ai/grok-bot/overview\n- docs.x.ai：The X Subscription Pricing — https://docs.x.ai/x-subscription/pricing\n- docs.x.ai：What is The X Subscription? — https://docs.x.ai/x-subscription/overview",
+      "sources": [
+        "https://x.ai/pricing",
+        "https://docs.x.ai/grok/faq",
+        "https://docs.x.ai/grok/management",
+        "https://docs.x.ai/grok-bot/overview",
+        "https://docs.x.ai/x-subscription/pricing",
+        "https://docs.x.ai/x-subscription/overview"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方现行页面没有写「SuperGrok Heavy 对应现在的哪一档」，也没有写 Heavy 的价格和用量；本文不推断 Heavy 等于 Super 或 Ultra，只列官方提到 Heavy 的几处",
+        "官方 FAQ 提到 Heavy 的是「大额意外账单常见原因是 SuperGrok Heavy 年订阅」这一处；官方没有写 Heavy 年费具体是多少",
+        "Grok Business 文档把 Heavy 写作「升级版许可证，面向高强度工作」，属于企业或团队场景，与个人订阅不是同一回事",
+        "官方文档说老订阅（Cursor、SuperGrok、X Premium）继续有效，切换到 The X Subscription 是可选的、切换后永久不可撤销；本文照引，不判断你该不该切换",
+        "官方定价页同时声明订阅只通过官方渠道直接销售，不授权转售；本文不涉及任何非官方渠道"
+      ]
+    },
+    {
+      "title": "Grok API 价格与 API Key 怎么获取：控制台、计费、模型价格和速率档位",
+      "slug": "grok-api-pricing-api-key",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1028-grok-api-key-steps.png",
+        "g1028-grok-api-price-compare.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Grok API 怎么收费、API Key 在哪拿？官方控制台是 console.x.ai，先充值再在 API Keys 页面生成。文本模型 grok-4.7 每百万 tokens 输入 2 美元、输出 6 美元（2026-10 查询），图片视频和工具另有标价，速率档位按累计消费自动升级。",
+      "content": "> 本文根据 xAI 官方开发者文档（docs.x.ai）整理，资料核对于 2026-10-25，价格为「2026-10 查询」。价格和模型会变，**以官方 Pricing 页和控制台显示为准**。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「grok api pricing」「grok api key 怎么获取」的人；\n- 想在自己的程序、Cursor、Codex 里接 Grok 的开发者；\n- 分不清「订阅 Grok」和「用 Grok API」有什么区别的人。\n\n## 结论先说\n\n1. **API Key 在官方控制台 console.x.ai 自助生成**：注册账号、充值 credits、在 API Keys 页面创建。官方明确写要先给账号充值才能开始用 API。\n2. **API 单独计费**。官方定价页的 FAQ 说，付费订阅包含 Grok API 访问，但 API 用量按标准模型价另行计费，不会从订阅的周用量池里扣。订阅的价格和用量见 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download)。\n3. **主力文本模型 grok-4.7**：上下文 500k，输入 2.00、缓存输入 0.50、输出 6.00（美元 / 每 100 万 tokens）；单次请求的提示词达到 200k tokens 及以上时，整条请求按长上下文价计：4.00 / 1.00 / 12.00。\n4. **API 充值不可退**：官方 FAQ 写明 xAI API credits 不可退款，充值前想清楚额度。\n5. **别把 Key 泄露出去**：官方示例把它放进环境变量 `XAI_API_KEY`，不要写进代码仓库。\n\n![获取 Grok API Key 并发出第一个请求的 5 步](seed:g1028-grok-api-key-steps.png)\n*图：本站根据 [docs.x.ai Quickstart](https://docs.x.ai/developers/quickstart) 整理的示意图*\n\n## 一、API Key 怎么拿\n\n官方快速入门的顺序：\n\n1. **注册账号**：打开 console.x.ai 注册，然后给账号充值 credits；\n2. **生成 Key**：在控制台的 API Keys 页面创建，然后导出为环境变量（`export XAI_API_KEY=\"你的 Key\"`），或写进项目的 `.env` 文件；\n3. **装 SDK**：官方给了几种写法，JavaScript 的 `ai` 加 `@ai-sdk/xai`，Python 或 JavaScript 的 `openai`，Python 的 `xai-sdk`；\n4. **发第一个请求**：用 `openai` 库的话，`base_url` 填 `https://api.x.ai/v1`，模型写 `grok-4.7`，走 Responses 接口。\n\n账号默认属于一个「Personal Team」。官方 FAQ 说，团队是 xAI 统计 API 用量、结账和开发票的单位：你可以重命名它，也可以新建团队、邀请成员；管理员能改账单信息和成员，成员不能。\n\n## 二、价格：文本模型\n\n![Grok 主要文本模型 API 价格对比](seed:g1028-grok-api-price-compare.png)\n*图：本站根据 [docs.x.ai Pricing](https://docs.x.ai/developers/pricing) 整理的示意图，单位美元 / 每 100 万 tokens*\n\n官方价格页的文本模型表（括号里是长上下文价，单位同上）：\n\n| 模型 | 上下文 | 输入 | 缓存输入 | 输出 |\n| --- | --- | --- | --- | --- |\n| grok-4.7 | 500k | 2.00（4.00） | 0.50（1.00） | 6.00（12.00） |\n| grok-build-0.1 | 256k | 1.00（2.00） | 0.20（0.40） | 2.00（4.00） |\n| grok-4.6 | 500k | 2.00（4.00） | 0.50（1.00） | 6.00（12.00） |\n| grok-4.3 | 1M | 1.25（2.50） | 0.20（0.40） | 2.50（5.00） |\n\n官方把 grok-4.7 称为「代码和其他一切任务的旗舰模型」，支持智能体式工具调用，推理强度可配置（low、medium、high 默认、xhigh）。官方的选型建议是：音频、图片、视频用对应的专用模型，其余包括代码都用 grok-4.7。\n\n### 几个会影响账单的项目\n\n- **批量 API（Batch）**：grok-4.7 等文本模型有 20% 折扣，大多在 24 小时内完成；\n- **优先处理（Priority）**：官方说按标准价的 2 倍计费，且只有响应里确认 `\"service_tier\": \"priority\"` 才按优先价收；\n- **美国区域端点** `https://us.api.x.ai/v1`：按全球价的 1.1 倍计费，目前只有 grok-4.7 和 grok-4.6；\n- **服务端工具**：Web Search、X Search、代码执行、文件附件检索等按调用次数另计，例如 Web Search 官方标价每 1000 次调用 5 美元；\n- **违规请求**：即使请求被判定违反使用准则，已生成的部分仍然收费；在 Responses API 中生成前就被拦住的，每次收 0.05 美元违规费。\n\n图片、视频、语音模型的单价见 [/guides/grok-imagine-video-15-image-20](/guides/grok-imagine-video-15-image-20)。\n\n## 三、速率限制：按累计消费自动升档\n\n官方 Rate Limits 页面写明：每个团队对每个模型有两个维度的限制，每秒请求数（RPS）和每分钟 tokens（TPM），超出会返回 429。档位由 **2026 年 1 月 1 日以来的累计 API 消费**决定，自动升级、永不降级：\n\n| 档位 | 累计消费门槛 |\n| --- | --- |\n| Tier 0 | 0 美元（默认） |\n| Tier 1 | 50 美元 |\n| Tier 2 | 250 美元 |\n| Tier 3 | 1000 美元 |\n| Tier 4 | 5000 美元 |\n| Enterprise | 联系销售 |\n\n统计口径是通过预付 credits 或已结清发票收到的金额。你团队当前的具体限额，可以在控制台的 Models 页面看。\n\n## 四、常见问题\n\n**Q：订阅了 SuperGrok 或 The X Subscription，API 就免费了吗？**\n不是。官方写的是订阅包含 API 访问权限，用量仍然按标准价单独计费、不占订阅用量池。\n\n**Q：能不能在 Codex 或 Cursor 里用 Grok？**\n可以，见 [/guides/grok-codex-cursor-setup](/guides/grok-codex-cursor-setup)。\n\n**Q：API 和 App 的每周用量是一回事吗？**\n不是，周用量池见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)。\n\n**Q：Grok 和 ChatGPT、Claude 的 API 价格怎么对比？**\n五家官方价格放在一起的速查见 [/guides/llm-api-price-comparison-official](/guides/llm-api-price-comparison-official)。\n\n## 参考资料\n\n- docs.x.ai：Quickstart — https://docs.x.ai/developers/quickstart\n- docs.x.ai：Pricing — https://docs.x.ai/developers/pricing\n- docs.x.ai：Models — https://docs.x.ai/developers/models\n- docs.x.ai：Rate Limits — https://docs.x.ai/developers/rate-limits\n- docs.x.ai：Grok FAQ — https://docs.x.ai/grok/faq\n- Grok 官方：Pricing — https://x.ai/pricing",
+      "sources": [
+        "https://docs.x.ai/developers/quickstart",
+        "https://docs.x.ai/developers/pricing",
+        "https://docs.x.ai/developers/models",
+        "https://docs.x.ai/developers/rate-limits",
+        "https://docs.x.ai/grok/faq",
+        "https://x.ai/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "价格均取自 docs.x.ai/developers/pricing 当次页面（2026-10-25），单位美元；模型清单与价格更新很快，以官方页面为准",
+        "官方 x.ai/pricing 的 FAQ 说，付费订阅包含 Grok API 访问，但 API 用量按标准模型价另行计费，不从订阅的用量池里扣；本文照此写，具体怎么「包含」官方没有展开",
+        "docs.x.ai 的 FAQ 写「API credits are non-refundable」，本文照引",
+        "速率档位的消费门槛来自官方 Rate Limits 页面当次内容，会调整，本文只引档位门槛，不列每个模型的具体数字",
+        "本文不涉及 API Key 的购买、转售、中转或共享，只写官方控制台自助获取的方式"
+      ]
+    },
+    {
+      "title": "Grok Imagine 视频 1.5 与图片 2.0：新版本能做什么、规格和价格有什么变化",
+      "slug": "grok-imagine-video-15-image-20",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1029-grok-imagine-video-models.png",
+        "g1029-grok-imagine-image-models.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Grok Imagine 新模型 video-1.5 和 image-2.0 有什么不同？按官方文档：视频原生 1080p、最长 15 秒、口型同步、最多 14 张参考图；图片支持 2K、质量档和 5 张参考图改图，附 API 标价（2026-10 查询）。",
+      "content": "> 本文根据 xAI 官方开发者文档（docs.x.ai）、产品页和 FAQ 整理，资料核对于 2026-10-25，价格为「2026-10 查询」。模型更新很快，**以官方文档为准**。图为本站整理的示意图。App 内 Imagine 的通用用法见 [/guides/grok-imagine-image-video](/guides/grok-imagine-image-video)。\n\n## 适用于谁\n\n- 搜「grok imagine video 1.5」「grok imagine image 2.0」的人；\n- 想知道新版本比旧版多了什么能力、价格差多少的人；\n- 要在程序里调用 Grok 生图、生视频接口的开发者。\n\n## 结论先说\n\n1. **视频：grok-imagine-video-1.5** 是官方当前列出的最新视频模型。官方描述：能生成口型同步的语音，文生视频和图生视频原生 1080p，最多 14 张参考图和 3 个声音参考，可以指定首帧、尾帧和中间关键帧，单段最长 15 秒。\n2. **还有一个轻量版 video-1.5-lite**：同样 1 到 15 秒、带口型同步音频，1080p 是从 720p 放大得到的，价格明显更低，但不支持参考图、首尾帧、关键帧。\n3. **旧模型 grok-imagine-video 没有被取代**：它仍然是官方列出的唯一支持视频编辑和视频延长的模型，最高 720p。\n4. **图片：grok-imagine-image-2.0** 支持 1K、1.5K、2K 分辨率，质量参数 low、medium、auto，编辑时最多带 5 张参考图，还支持 21:9 和 5:2 的画幅。\n5. **App 里怎么算**：在 Grok 里生成按周用量池扣，见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)；需要订阅可看 [/chongzhi/grok-super](/chongzhi/grok-super)。\n\n## 一、视频：1.5 和旧版、lite 版比\n\n![Grok Imagine 三个视频模型的规格与价格对比](seed:g1029-grok-imagine-video-models.png)\n*图：本站根据 [docs.x.ai Video Overview](https://docs.x.ai/developers/model-capabilities/video/overview) 与 [Pricing](https://docs.x.ai/developers/pricing) 整理的示意图，价格为 API 标价*\n\n官方规格表里值得注意的点：\n\n- **参考图生视频**：video-1.5 最多 14 张参考图，组合限制是 15 秒、720p；旧版最多 7 张、10 秒。参考图用来提供人物、产品、场景，不固定第一帧；\n- **声音参考**：video-1.5 可以给最多 3 个角色指定预设声音，生成口型同步的说话；用自己的音频做声音参考，官方说仅对受信任的合作方按申请开放；\n- **首帧、尾帧、关键帧**：video-1.5 可以设首帧、尾帧和最多 4 个中间关键帧，模型补全中间动作；把同一张图设为首帧和尾帧，可以做循环；\n- **文生视频的做法**：官方 7 月发布说明提到，video-1.5 的文生视频内部是先文生图、再图生视频；\n- **图生视频**：你给的图就是第一帧，输出画幅自动与原图一致；\n- **分辨率、时长、画幅**：480p、720p、1080p；1 到 15 秒（默认 8 秒）；画幅有 1:1、16:9、9:16、4:3、3:4、3:2、2:3、21:9、5:2；\n- **音频**：默认带音轨，可以要求生成无声视频；\n- **接口方式**：异步，提交后用返回的 request_id 轮询，再下载视频。\n\n### 官方 App 里能用到什么\n\n官方 x.ai/grok 页面对 App 里的 Imagine 写的是：文生图、文生视频放在同一个对话里，最高 2K 分辨率、15 秒视频，文生视频 720p。官方 FAQ 还说明：720p 视频在你达到所在档位的 720p 上限后会自动降到 480p；生成的图片和视频都带 Grok 水印，没有去除水印的设置。API 文档里的 1080p 等规格是否在 App 开放，以你界面里实际显示为准。\n\n## 二、图片：image-2.0 的变化\n\n![Grok Imagine 图片模型 2.0 与 1.0 的规格对比](seed:g1029-grok-imagine-image-models.png)\n*图：本站根据 [docs.x.ai Pricing](https://docs.x.ai/developers/pricing) 与 [Imagine 文档](https://docs.x.ai/developers/model-capabilities/images/generation) 整理的示意图*\n\n- **分辨率与质量**：1K（默认）、2K 等；质量参数默认是 auto，官方说目前 auto 在生成时用 low、在编辑时用 medium，按实际用到的质量计费；\n- **一次多张**：每个请求最多生成 10 张；\n- **改图**：8 月起每个请求最多可以带 5 张参考图（原来是 3 张），可以合并主体、迁移风格、组合场景；\n- **画幅**：新增 21:9（电影宽屏）和 5:2（宽横幅）；\n- **旧版退役**：官方发布说明写明，`grok-imagine-image-quality` 将在 2026 年 11 月 2 日退役，之后的请求由 image-2.0 的 low 质量处理，价格更低；`grok-imagine-image`（1.0）不受影响。\n\n## 三、API 价格速查（2026-10 查询）\n\n官方价格页，美元：\n\n| 模型 | 项目 | 价格 |\n| --- | --- | --- |\n| grok-imagine-image-2.0 | 1K / 1.5K / 2K，low | 每张 0.04 / 0.05 / 0.06 |\n| grok-imagine-image-2.0 | 1K / 1.5K / 2K，medium | 每张 0.06 / 0.07 / 0.08 |\n| grok-imagine-image | 1K 或 2K | 每张 0.02 |\n| grok-imagine-video-1.5 | 480p / 720p / 1080p | 每秒 0.08 / 0.14 / 0.25 |\n| grok-imagine-video-1.5-lite | 480p / 720p / 1080p | 每秒 0.02 / 0.03 / 0.14 |\n| grok-imagine-video | 480p / 720p | 每秒 0.05 / 0.07 |\n\n图片编辑按输入图片和输出图片分别计费，输入图每张约 0.01 美元起（image-2.0 与 1.5 视频的输入图价）。具体见官方页面。API Key 怎么拿、其他价格，见 [/guides/grok-api-pricing-api-key](/guides/grok-api-pricing-api-key)。\n\n## 常见问题\n\n**Q：我在 App 里能选到 video-1.5 吗？**\n官方产品页没有写 App 里显示的模型名。以界面为准；本文讲的规格来自开发者文档。\n\n**Q：提示词怎么写？**\n官方文档建议文生视频要描述镜头、运镜、光线和声音；改视频时要说明哪些东西保持不变。更多 App 内的写法见 [/guides/grok-imagine-image-video](/guides/grok-imagine-image-video)。\n\n**Q：视频带水印能去掉吗？**\n官方说没有这个设置，并且去除、修改或遮挡水印违反使用政策。\n\n## 参考资料\n\n- docs.x.ai：Video Overview — https://docs.x.ai/developers/model-capabilities/video/overview\n- docs.x.ai：Imagine Overview — https://docs.x.ai/developers/model-capabilities/imagine\n- docs.x.ai：Image Generation — https://docs.x.ai/developers/model-capabilities/images/generation\n- docs.x.ai：Pricing — https://docs.x.ai/developers/pricing\n- docs.x.ai：Release Notes — https://docs.x.ai/developers/release-notes\n- Grok 官方：Grok — https://x.ai/grok\n- docs.x.ai：Grok FAQ — https://docs.x.ai/grok/faq",
+      "sources": [
+        "https://docs.x.ai/developers/model-capabilities/video/overview",
+        "https://docs.x.ai/developers/model-capabilities/imagine",
+        "https://docs.x.ai/developers/model-capabilities/images/generation",
+        "https://docs.x.ai/developers/pricing",
+        "https://docs.x.ai/developers/release-notes",
+        "https://x.ai/grok",
+        "https://docs.x.ai/grok/faq"
+      ],
+      "screenshots": [],
+      "verify": [
+        "规格与价格取自 xAI 开发者文档（API），grok.com 和手机 App 里提供的分辨率、时长、入口可能与 API 不同；官方产品页对 App 的说法是「最高 2K 图片、15 秒视频，文生视频 720p」，本文把两处分开写",
+        "官方没有公布各订阅档位每周能生成多少张图或多少秒视频，App 里的生成按算力从每周用量池扣",
+        "官方发布说明写明 grok-imagine-image-quality 将在 2026-11-02 退役，请求改由 grok-imagine-image-2.0 的 low 质量处理；这是官方已公布的计划，到期后以官方为准",
+        "「video-1.5 的文生视频内部先生成首帧再转视频」来自官方 7 月发布说明，视频 1.5 参考图 + 15 秒 + 720p 的组合限制来自官方规格表",
+        "生成内容带 Grok 水印、没有去除设置，来自官方 FAQ；本文不涉及去水印",
+        "本站已有的 553 号文章写的是 App 内 Imagine 的通用用法，本文只讲新模型版本的差异"
+      ]
+    },
+    {
       "title": "ChatGPT 聊天记录怎么导出：导出数据步骤、下载链接与迁移到新账号",
       "slug": "chatgpt-export-chat-history",
       "checkedOn": "2026-10-07",
@@ -61192,6 +61348,133 @@
       "verify": [
         "压缩包里除 conversations.json 外还有哪些文件，官方只写「聊天记录和其他相关账号数据」，未逐项列出",
         "「数据控制」「导出数据」「确认导出」等中文菜单名以实际界面为准"
+      ]
+    },
+    {
+      "title": "Grok 记忆、自定义指令与隐私：训练开关、Private Chat、删除对话怎么设置",
+      "slug": "grok-memory-custom-instructions-privacy-training",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1031-grok-web-data-controls.jpg",
+        "g1031-grok-app-data-controls.jpg",
+        "g1031-grok-privacy-checklist.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Grok 的对话会被拿去训练吗？官方说你可以在 设置 → Data 里关闭「Improve the Model」，也可以用右上角幽灵图标的 Private Chat。本文按官方隐私 FAQ 讲训练开关、个性化、删除对话与分享链接，并说明记忆和自定义指令官方公开了什么。",
+      "content": "> 本文根据 Grok 官方隐私与使用 FAQ（x.ai/legal/faq）、产品页和 docs.x.ai 整理，资料核对于 2026-10-25。设置入口可能随版本变化，**以官方页面和你的界面为准**。图为官方示例截图和本站整理的清单。\n\n## 适用于谁\n\n- 搜「grok隐私」「grok怎么关闭训练」「grok删除对话」的人；\n- 想知道 Grok 有没有记忆功能、自定义指令怎么设的人；\n- 担心聊天内容被分享链接泄露的人。\n\n## 结论先说\n\n1. **训练开关**：官方说你可以决定自己的数据是否用于训练 Grok。网页在 **设置 → Data → Improve the Model**，手机 App 在 **设置 → Data Controls → Improve the model**。关闭后，**新的**对话不会被用来训练。\n2. **不想留痕用 Private Chat**：界面右上角的幽灵形状图标。官方说用 Private Chat 时对话不会显示在你的历史里，会在 30 天内从系统删除，且不用于训练。\n3. **个性化**：设置里的 **Personalize Grok using X** 开关，决定是否允许用你的 X 数据（资料、位置、设置、偏好、你账号上可见的帖子）来个性化 Grok。\n4. **记忆和自定义指令**：官方产品页的功能清单里有「跨对话记忆」和「自定义指令」，但公开文档没有写具体怎么开、在哪设，所以这里不编造步骤，见第三节。\n5. **删除**：可删单个对话、删全部对话、删账号，官方说删除后最多需要 30 天才会从系统里彻底清除。\n\n![官方示例：网页版 Settings → Data 页的数据控制项](seed:g1031-grok-web-data-controls.jpg)\n*图片来源：[x.ai 隐私与使用 FAQ](https://x.ai/legal/faq)，官方示例截图；开关状态只是示例*\n\n## 一、怎么设置训练开关和个性化\n\n官方 FAQ 给的路径：\n\n- **网页 grok.com**：Settings → Data，里面有 Improve the Model、Personalize Grok using X、导出账号数据、删除全部对话、删除账号；\n- **手机 App**：Settings → Data Controls，同样有这些项目。\n\n![官方示例：手机 App 的 Data Controls 页](seed:g1031-grok-app-data-controls.jpg)\n*图片来源：[x.ai 隐私与使用 FAQ](https://x.ai/legal/faq)，官方示例截图*\n\n官方写的几条限制：\n\n- 关闭训练后，只影响**之后**的新对话；\n- 即使关闭，你之后主动给回答点评、提交反馈，这些反馈仍可能用于训练；\n- 不登录就用 Grok 时，内容可能被匿名收集，在部分地区（欧盟、英国除外）没有关闭训练的选项；\n- 企业和商业客户的内容不用于改进模型，这是另一套条款；\n- 如果你是在 X 里用 Grok，训练和个性化要去 X 的帮助中心设置。\n\n官方还提醒：为保护隐私，不要在向 Grok 提的问题里放个人或敏感信息。另外官方 FAQ 说明，少量授权人员可能出于改进模型、调查安全事件、满足法律义务等目的查看对话。\n\n## 二、删除对话、导出数据、分享链接\n\n| 想做的事 | 官方给的做法 |\n| --- | --- |\n| 删某一个对话 | 网页：历史页点对话旁的垃圾桶；手机：点头像进历史，长按对话名，选 Delete Conversation |\n| 删全部对话 | 手机：Settings → Data Controls → Delete All Conversations；网页：Settings 里对应按钮 |\n| 删账号 | 同样在设置里；官方 FAQ 另说可在 accounts.x.ai/account 操作，30 天内重新登录并确认可恢复账号 |\n| 导出数据 | Settings 里的 Export Account Data（手机端叫 Export Data） |\n| 看历史 | 网页右上角带搜索的三横线图标；iOS 点左上角头像 |\n| 撤销分享链接 | 登录后打开 grok.com/share-links，点 Remove |\n| 释放文件空间 | 网页 grok.com/files |\n\n关于**分享链接**，官方有个提醒：任何你生成的链接，拿到链接的人都能看；如果你把链接发到社交平台，可能被搜索引擎收录，和其他公开内容一样。不想继续公开，就去 share-links 页面移除。\n\n![Grok 隐私相关设置清单](seed:g1031-grok-privacy-checklist.png)\n*图：本站根据 [x.ai 隐私与使用 FAQ](https://x.ai/legal/faq) 整理的示意图*\n\n## 三、记忆和自定义指令：官方公开了什么\n\n官方 x.ai/grok 页面的功能清单里有两项：\n\n- **Memory across chats**：记住你的偏好和过往对话；\n- **Custom instructions**：按你的风格和需要定制回答。\n\n官方隐私 FAQ 另外说明，你可以通过选择功能（比如不同的人设）、措辞和语气来决定 Grok 怎么回答。\n\n但是，docs.x.ai 的 Grok FAQ 和隐私 FAQ 里**没有**这两项功能的操作步骤，所以我们无法告诉你「点哪里开启」。建议直接在你的 Grok 设置里看看有没有 **Customize** 之类的页面（官方示例截图里设置左侧栏有 Account、Appearance、Customize、Data 四项）。\n\n需要区分：Grok 的编程命令行工具 **Grok Build** 另有「跨会话记忆」功能，官方设置参考写明默认关闭，并提供 `grok memory clear` 命令清除。这是另一个产品，不是聊天里的记忆。\n\n## 四、相关文章\n\n- 免费版和限额见 [/guides/grok-free-usage-how-much](/guides/grok-free-usage-how-much)；\n- 订阅、取消订阅见 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download) 和 [/guides/grok-cancel-subscription](/guides/grok-cancel-subscription)；\n- Grok 和 X 账号关联见 [/guides/grok-how-to-use-x-account-weekly-usage](/guides/grok-how-to-use-x-account-weekly-usage)；\n- 需要开通 Grok 订阅可看 [/chongzhi/grok-super](/chongzhi/grok-super)。\n\n## 参考资料\n\n- Grok 官方：隐私与使用 FAQ — https://x.ai/legal/faq\n- Grok 官方：Grok — https://x.ai/grok\n- docs.x.ai：Grok FAQ — https://docs.x.ai/grok/faq\n- docs.x.ai：Grok Build 设置参考 — https://docs.x.ai/build/settings/reference",
+      "sources": [
+        "https://x.ai/legal/faq",
+        "https://x.ai/grok",
+        "https://docs.x.ai/grok/faq",
+        "https://docs.x.ai/build/settings/reference"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方 x.ai/grok 页面的功能清单里列有「Memory across chats（跨对话记忆）」和「Custom instructions（自定义指令）」，但官方公开文档里没有这两项的操作步骤、入口位置和限制，所以本文不写具体按钮，只写官方说了什么",
+        "官方隐私 FAQ 里的设置路径：手机 App 是 Settings → Data Controls，网页是 Settings → Data；官方示例截图的版本与你的界面可能略有差异",
+        "示例截图里开关的开启或关闭状态只是官方示例，不代表默认值；官方 FAQ 没有写默认是开还是关，请以自己账号里显示的为准",
+        "Private Chat 官方写「where available（视情况提供）」，对话不显示在历史里，并在 30 天内从系统删除；删除对话与账号同样是最多 30 天内删除",
+        "Grok Build 命令行里的跨会话记忆（grok memory clear）是另一个产品，官方设置参考写明默认关闭，本文只作区分提示",
+        "在 X 里使用 Grok 的隐私设置走 X 帮助中心，不在本文范围"
+      ]
+    },
+    {
+      "title": "Grok 怎么取消订阅：网页、苹果、谷歌、X 四种购买渠道分别在哪取消、能不能退款",
+      "slug": "grok-cancel-subscription",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1032-grok-cancel-by-channel.png",
+        "g1032-grok-cancel-web-steps.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Grok 怎么取消订阅？要看当初在哪里买的：网页订阅去 grok.com/dashboard/billing，苹果内购找 Apple，谷歌商店订阅在 Google Play，X 里订阅的在 X 里取消。官方说续费前至少 24 小时取消，退款也按渠道分开处理（2026-10 查询）。",
+      "content": "> 本文根据 Grok 官方 FAQ、The X Subscription 文档和定价页整理，资料核对于 2026-10-25。订阅和退款规则可能调整，**以官方页面和你下单、取消时显示的为准**。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「grok怎么取消订阅」「supergrok怎么退订」的人；\n- 在网页、App Store、Google Play 或 X 里订阅过，不确定该去哪取消的人；\n- 想知道取消后能不能退款的人。\n\n## 结论先说\n\n1. **先确认购买渠道**：订阅记在你当时付款的平台上，哪里买的就在哪里取消。\n2. **网页订阅**：登录 grok.com/dashboard/billing，在 Current plan 卡片的选项里取消。老的 SuperGrok 网页订阅，FAQ 的说法是 grok.com 的 Settings → Billing（或 grok.com/?_s=billing）里点 Manage Subscription。\n3. **苹果 App Store**：Apple 处理这笔交易，取消和退款都找 Apple。\n4. **谷歌 Google Play**：在 Google Play 里取消；退款则由官方处理，用 xAI 退款申请表。\n5. **在 X 里订阅的**：官方说在 X 里订阅 The X Subscription 的，要在 X 里取消。\n6. **时间点**：官方定价页写，取消要在续费前至少 24 小时操作，以免产生额外扣款。\n7. **合并过账号的要注意**：官方说，合并账号是永久的，取消订阅不会拆分账号，也不会恢复你原来的 Cursor、SuperGrok 或 X Premium 订阅。\n\n![Grok 订阅按购买渠道取消](seed:g1032-grok-cancel-by-channel.png)\n*图：本站根据 [docs.x.ai 取消订阅文档](https://docs.x.ai/x-subscription/cancel) 与 [Grok FAQ](https://docs.x.ai/grok/faq) 整理的示意图*\n\n## 一、网页订阅怎么取消\n\n![网页订阅取消的 4 步](seed:g1032-grok-cancel-web-steps.png)\n*图：本站根据 [docs.x.ai：Manage your subscription](https://docs.x.ai/x-subscription/manage) 整理的示意图*\n\n官方文档（已切换到 The X Subscription 的账号）：\n\n1. 用购买订阅的账号登录；\n2. 打开 grok.com/dashboard，进入 **Billing & invoices**（grok.com/dashboard/billing）；\n3. 在 **Current plan** 卡片上打开选项，选择取消，按提示确认。\n\n官方说可以随时取消。同一页面还能做这些事：换档、改付款方式（Payment details）、下载发票（Invoices 标签页）、查看用量（左侧 Usage）。\n\n如果 **Manage Subscription** 按钮点不开，官方 FAQ 的建议是：广告拦截器或其他插件可能挡住了它，换无痕窗口或另一个浏览器试试；仍然不行可以联系客服，由客服转给账单团队处理取消。\n\n## 二、App Store、Google Play 和 X\n\n| 购买渠道 | 取消 | 退款 |\n| --- | --- | --- |\n| 网页（grok.com） | grok.com 账单页自助取消 | 官方处理，提交 xAI 退款申请表，批准后通常 5 到 10 个工作日退回原支付方式 |\n| Apple App Store | 在 Apple 订阅管理里取消 | 向 Apple 申请，Apple 决定 |\n| Google Play | 在 Google Play 里取消 | 官方处理，同样用 xAI 退款申请表 |\n| X（X Premium / The X Subscription） | 在 X 里取消 | X 负责按法律要求处理，可向 X 提交退款申请 |\n\n几点补充：\n\n- 苹果的订阅，官方在合并订阅的文档里写的路径是：iPhone 或 iPad 的 **设置**，点你的名字，点 **订阅**，选对应订阅，再选管理或取消；\n- API 额度（credits）是另一回事，官方 FAQ 明确说 xAI API credits 不可退款；\n- 如果收到一张看不懂的大额账单，官方说不一定是 API 用量，常见原因是 **SuperGrok Heavy 的年订阅**，先看购买日期和订阅记录，再联系客服核实，不要急着发起拒付；\n- 网页买的订阅在 App 里看不到，或者反过来，多半只是登录了不同账号，不一定是重复扣款。\n\n## 三、取消之前想清楚的几件事\n\n1. **取消和降档不一样**：只是嫌贵可以考虑降档，官方说网页降档会在确认前显示变更和下次扣款，苹果降档要到下一个计费周期才生效且当期不退款（法律要求除外）；\n2. **升级**：网页升级到更高档立即生效，苹果要等 Apple 确认后生效；\n3. **合并过账号的**：合并是永久的，取消不会还原；\n4. **重新订阅**：需要时在官方定价页或本站 [/chongzhi/grok-super](/chongzhi/grok-super) 重新开通即可。\n\n订阅有哪几档、怎么订阅见 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download)，用量限制见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)，删除对话和账号见 [/guides/grok-memory-custom-instructions-privacy-training](/guides/grok-memory-custom-instructions-privacy-training)。\n\n## 常见问题\n\n**Q：取消后马上就不能用了吗？**\n官方文档对网页订阅没有逐条写明，请以取消确认页面的提示为准；团队版里官方写明，被取消的席位在当前计费周期结束前仍然有效。\n\n**Q：我提前取消了，能按天退吗？**\n官方 FAQ 只写明了各渠道提交退款的方式，没有承诺按天退款。合并订阅时旧订阅会按剩余时间退款，那是切换场景，不是普通取消。\n\n**Q：取消订阅后账号会被删吗？**\n不会。删除账号是单独的操作，见上面链接的隐私文章。\n\n## 参考资料\n\n- docs.x.ai：Cancel your subscription — https://docs.x.ai/x-subscription/cancel\n- docs.x.ai：Managing The X Subscription — https://docs.x.ai/x-subscription/manage\n- docs.x.ai：Invoices & Refunds — https://docs.x.ai/x-subscription/invoices-and-refunds\n- docs.x.ai：Upgrade or downgrade a subscription — https://docs.x.ai/x-subscription/upgrade-or-downgrade\n- docs.x.ai：Grok FAQ — https://docs.x.ai/grok/faq\n- Grok 官方：Pricing — https://x.ai/pricing",
+      "sources": [
+        "https://docs.x.ai/x-subscription/cancel",
+        "https://docs.x.ai/x-subscription/manage",
+        "https://docs.x.ai/x-subscription/invoices-and-refunds",
+        "https://docs.x.ai/x-subscription/upgrade-or-downgrade",
+        "https://docs.x.ai/grok/faq",
+        "https://x.ai/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档把「The X Subscription（合并订阅）」和老的「SuperGrok」订阅分开写；本文两种都写明，若你没有切换过合并订阅，按老 SuperGrok 的说法走（FAQ），已切换的按 dashboard 的说法走",
+        "苹果取消路径：官方文档只在 Cursor 的 App Store 订阅说明里写了「设置 → 点头像 → 订阅 → 选择对应订阅」，Grok 的取消链接指向 Apple 官方页面，具体按钮以 iOS 系统界面为准",
+        "官方 FAQ 写网页或 Google Play 订阅的退款由官方处理，通过 xAI 退款申请表（accounts.x.ai/refund），批准后通常 5 到 10 个工作日退回原支付方式；到账时间还取决于银行",
+        "定价页写「续费前至少 24 小时取消」，网页取消后是否立即停用还是用到当期结束，官方文档没有逐条写明，请以取消确认页面提示为准",
+        "合并订阅（The X Subscription）一旦完成是永久的，取消订阅不会拆分账号，也不会恢复原来的 Cursor、SuperGrok 或 X Premium 订阅，这是官方文档明确写的",
+        "官方定价页同时声明订阅只通过官方渠道直接销售，不授权任何转售方；本文只讲官方渠道的取消方式"
+      ]
+    },
+    {
+      "title": "Grok 能干嘛、适合做什么：按官方说明看搜索、推理、文件、图片视频、编程和连接器",
+      "slug": "grok-capabilities-what-can-it-do",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1033-grok-features-by-task.png",
+        "g1033-grok-use-with-care.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Grok 能干嘛、适合做什么？按官方说明：聊天写作、实时搜索网页和 X、多代理推理、上传文件分析、Imagine 生成图片视频、编程和连接 Gmail 等外部工具。附各功能的官方限制和使用注意（2026-10 查询）。",
+      "content": "> 本文根据 Grok 官方产品页、docs.x.ai 文档和 FAQ 整理，资料核对于 2026-10-25。功能会持续调整，**以官方页面和你界面里实际有的为准**。本文只摆官方写明的能力和限制，不做横向评测。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「grok能力如何」「grok能干嘛」的人；\n- 刚接触 Grok，想知道它适合拿来做哪些事的人；\n- 在 Grok 和别的 AI 助手之间犹豫，想先看看官方列出了哪些功能的人。\n\n## 结论先说\n\n1. **日常对话与写作**：官方的定位是「适合日常工作的助手」，写作、研究、快速总结。\n2. **实时搜索**：官方说 Grok 会实时搜索网页和 X，并给出带来源的引用，所以问时事类问题比单靠训练数据更合适。\n3. **深度推理与多代理**：难题可以用推理模式，官方还写了 Multi-agent 模式，多个代理并行、各自的推理可审阅，最后合并成一份带引用的回答。\n4. **文件分析**：能上传 PDF、表格、图片、音视频等，做总结、提取、对比、分析。\n5. **图片与视频**：Imagine，官方页面写最高 2K 图片、15 秒视频。\n6. **编程**：官方把 grok-4.7 称作「代码和其他一切任务的旗舰模型」，也有专门的 Grok Build 命令行和 Cursor 里可用，见 [/guides/grok-codex-cursor-setup](/guides/grok-codex-cursor-setup)。\n7. **连接外部工具**：Connectors 对所有 Grok 用户开放，可以连邮箱、网盘、日历。\n8. **官方也说它会出错**：Grok 有时会给出不准确的信息，重要事实请自己核对。\n\n![想做的事对应 Grok 的哪个功能](seed:g1033-grok-features-by-task.png)\n*图：本站根据 [x.ai/grok](https://x.ai/grok) 与 [docs.x.ai](https://docs.x.ai/grok/overview) 整理的示意图*\n\n## 一、官方列出的能力，逐项说\n\n### 聊天、推理与语音\n\n官方产品页的描述：回答里带有可跟随的推理步骤；在同一个对话里生成图片、视频和代码；可以语音对话。官方还说支持 30 多种语言。Grok 怎么用、和 X 账号怎么关联，见 [/guides/grok-how-to-use-x-account-weekly-usage](/guides/grok-how-to-use-x-account-weekly-usage)。\n\n### 搜索\n\n官方说 Grok 会搜索网页和 X 的实时内容，回答附来源，可以追问深挖。深度搜索与多代理的用法见 [/guides/grok-deepsearch-search-multi-agent](/guides/grok-deepsearch-search-multi-agent)。\n\n### 上传文件\n\ndocs.x.ai FAQ 的说明：\n\n- **支持的类型**：文档和数据（PDF、DOCX、TXT、CSV、XLSX、PPTX、HTML、XML、JSON、Markdown、LaTeX、ODT、RTF、代码文件）、图片（JPEG、PNG、WebP、HEIC、BMP，GIF 与 SVG 因平台而异）、音频（MP3、WAV、M4A、OGG、FLAC、AAC）、视频（MP4、MOV）；\n- **大小**：大多数文件单个最大 150 MB；网页一次最多约 100 个文件，安卓 20 个；\n- **能做什么**：综合多个文件、改写摘要、提取数据和表格、分析图表和代码、转写音视频；\n- **限制**：非 PDF 文件里嵌入的图片可能不会被视觉处理；部分音视频的转写质量不稳定；超过 100 页的大 PDF 主要看文字和关键图，建议指明页码或拆分。\n\n### 图片与视频\n\nImagine 在同一个对话里文生图、文生视频，并可以用后续指令修改。官方 FAQ 说明生成内容都带 Grok 水印，没有去除设置。用法见 [/guides/grok-imagine-image-video](/guides/grok-imagine-image-video)，新版本规格见 [/guides/grok-imagine-video-15-image-20](/guides/grok-imagine-video-15-image-20)。\n\n### 编程\n\n官方开发者文档介绍 grok-4.7：500k 上下文、支持函数调用、网页搜索、X 搜索和代码执行等工具，推理强度可调。它是官方编程命令行 Grok Build 的默认模型，也在 Cursor 的所有计划里可用。API 价格见 [/guides/grok-api-pricing-api-key](/guides/grok-api-pricing-api-key)。\n\n### 连接器\n\n官方内置的连接器有 Gmail 与 Google 日历、Google Drive、OneDrive、Outlook 邮件与日历、Microsoft Teams、SharePoint、Salesforce，另有预置的第三方目录。添加方式：打开 grok.com/connectors，点 New Connector，选服务，走 OAuth 登录授权；Grok 只请求需要的权限。团队版需要管理员先在控制台开通连接器。\n\n## 二、使用前先记住的几点\n\n![用 Grok 前先记住这几点](seed:g1033-grok-use-with-care.png)\n*图：本站根据 [x.ai 隐私与使用 FAQ](https://x.ai/legal/faq) 与 [docs.x.ai FAQ](https://docs.x.ai/grok/faq) 整理的示意图*\n\n- 官方 FAQ 明说 Grok 有时会给出不准确或不恰当的信息，用到法律、医疗、财务等重要内容时要自己核实；\n- 训练开关、Private Chat、删除对话在 [/guides/grok-memory-custom-instructions-privacy-training](/guides/grok-memory-custom-instructions-privacy-training)；\n- 付费功能有每周用量池，重度任务消耗更快，见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)；\n- 免费版能用到什么程度见 [/guides/grok-free-usage-how-much](/guides/grok-free-usage-how-much)，需要更多用量可看 [/chongzhi/grok-super](/chongzhi/grok-super)。\n\n## 三、和 ChatGPT 怎么选\n\n本文不比较强弱。如果你已经在用 ChatGPT，想知道两者各自的订阅与功能差别，见 [/guides/chatgpt-vs-grok-which-to-choose](/guides/chatgpt-vs-grok-which-to-choose)；需要 ChatGPT 会员可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 常见问题\n\n**Q：Grok 的最新模型是哪个？**\n见 [/guides/grok-47-what-is-release](/guides/grok-47-what-is-release)。\n\n**Q：Grok 能不能看图片和视频？**\n官方 FAQ 说上传图片、音频、视频都可以，分析图片和图表、转写音视频；音视频质量不稳定，见上文限制。\n\n**Q：Grok 有没有记忆功能？**\n官方产品页的功能清单有「跨对话记忆」，但公开文档没有步骤，详见隐私文章。\n\n## 参考资料\n\n- Grok 官方：Grok — https://x.ai/grok\n- docs.x.ai：Welcome to Grok — https://docs.x.ai/grok/overview\n- docs.x.ai：Grok FAQ — https://docs.x.ai/grok/faq\n- docs.x.ai：Connectors — https://docs.x.ai/grok/connectors\n- docs.x.ai：Grok 4.7 — https://docs.x.ai/developers/grok-4-7\n- Grok 官方：隐私与使用 FAQ — https://x.ai/legal/faq",
+      "sources": [
+        "https://x.ai/grok",
+        "https://docs.x.ai/grok/overview",
+        "https://docs.x.ai/grok/faq",
+        "https://docs.x.ai/grok/connectors",
+        "https://docs.x.ai/developers/grok-4-7",
+        "https://x.ai/legal/faq"
+      ],
+      "screenshots": [],
+      "verify": [
+        "本文只摆官方产品页、文档和 FAQ 写明的能力，不评价「谁更强」，也没有做对比测试；官方宣传语（如「更聪明」「最强」）没有引用",
+        "官方 FAQ 说文件单个最大约 150 MB、网页一次最多约 100 个文件、安卓 20 个，限额可能因平台或订阅有差异，以界面提示为准",
+        "官方产品页写 Imagine 最高 2K 图片、15 秒视频，文生视频 720p；API 文档里的 1080p 规格见 1029 号文章，App 是否开放以界面为准",
+        "官方 x.ai/grok 功能清单还写了 30+ 语言、记忆、自定义指令、Canvas、分享链接等，但记忆和自定义指令没有公开操作步骤，已在隐私文章中说明",
+        "官方没有给出各功能的评测分数，本文不引用 benchmark"
+      ]
+    },
+    {
+      "title": "Grok 怎么接入 Codex 和 Cursor：自定义模型提供方配置，以及订阅里自带的 Cursor",
+      "slug": "grok-codex-cursor-setup",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1034-grok-codex-cursor-decide.png",
+        "g1034-grok-codex-config-steps.png"
+      ],
+      "tags": [
+        "codex",
+        "grok"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Grok 能接入 Codex 吗？能：xAI API 兼容 Responses 接口，在 Codex 的 config.toml 里自定义模型提供方即可；Cursor 则是 Grok 订阅自带的，Plus 起包含 Grok 模型（2026-10 查询）。",
+      "content": "> 本文把 Codex 官方的配置文档、xAI 官方 API 文档和 Cursor 官方文档拼在一起整理，资料核对于 2026-10-25。官方没有专门的「Grok 接入 Codex」页面，**配置字段以 Codex 官方文档为准，本站没有逐项运行验证**。价格为「2026-10 查询」。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「grok怎么接入codex」「grok cursor」的人；\n- 想在 Codex 里换成 Grok 模型的开发者；\n- 已经订阅 Grok、想知道 Cursor 是不是一起送的人。\n\n## 结论先说\n\n1. **Codex 可以接 Grok，走 xAI API Key**。Codex 官方支持「自定义模型提供方」：在 `config.toml` 里写一个提供方，指定 `base_url`、读密钥的环境变量 `env_key`，以及通信协议 `wire_api`。xAI 官方的接口地址是 `https://api.x.ai/v1`，主力模型 `grok-4.7` 支持 Responses 接口，所以字段可以对上。\n2. **这条路按 API 计费**。xAI 定价页的 FAQ 说，API 用量按标准价另行计费，不占订阅的周用量池。API Key 怎么拿、价格多少，见 [/guides/grok-api-pricing-api-key](/guides/grok-api-pricing-api-key)。\n3. **Cursor 是 Grok 订阅自带的**。官方说，新的合并订阅 The X Subscription 把 Grok、Cursor、X 放在一起，Plus 起就包含 Cursor，Cursor 里的 Grok 模型（Grok 4.7、4.6、4.5 和 Composer 2.5）从订阅的共享周用量池里扣。订阅价格和档位见 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download)，要开通可看 [/chongzhi/grok-super](/chongzhi/grok-super)。\n4. **要在 Cursor 里用 Claude、GPT 这类第三方模型**：官方说不包含在订阅里，Premium 起可以按 API 标价用，从预付余额里扣。\n\n![Grok 用在 Codex 还是 Cursor 怎么选](seed:g1034-grok-codex-cursor-decide.png)\n*图：本站根据 [docs.x.ai 订阅文档](https://docs.x.ai/x-subscription/overview) 与 [Cursor 官方文档](https://cursor.com/docs/models-and-pricing) 整理的示意图*\n\n## 一、Codex 接入 Grok\n\n![Codex 接入 Grok 的 4 步](seed:g1034-grok-codex-config-steps.png)\n*图：本站根据 [Codex 配置文档](https://developers.openai.com/codex/config-advanced) 与 [xAI Quickstart](https://docs.x.ai/developers/quickstart) 整理的示意图*\n\n### 1. 先拿 xAI API Key\n\n在 console.x.ai 注册、充值，到 API Keys 页面创建，再把它放进环境变量（官方示例的名字是 `XAI_API_KEY`）。注意官方写明 API 充值不可退款。\n\n### 2. 修改用户级 config.toml\n\nCodex 官方文档的要求：\n\n- 自定义提供方不能占用内置的 id（`openai`、`ollama`、`lmstudio`），自己起个名字，比如 `xai`；\n- 提供方设置要写在**用户级**的 `~/.codex/config.toml`，项目里的 `.codex/config.toml` 不能覆盖 `model_provider` 和 `model_providers`；\n- 读密钥推荐用 `env_key`，直接写令牌的 `experimental_bearer_token` 官方标为不推荐。\n\n按这些字段，配置大致是这样（模型名与地址来自 xAI 官方文档，写法来自 Codex 官方示例）：\n\n```toml\nmodel = \"grok-4.7\"\nmodel_provider = \"xai\"\n\n[model_providers.xai]\nname = \"xAI\"\nbase_url = \"https://api.x.ai/v1\"\nenv_key = \"XAI_API_KEY\"\nwire_api = \"responses\"\n```\n\n字段含义：\n\n| 字段 | 作用 |\n| --- | --- |\n| `model` | 要用的模型名，xAI 官方文档写的是 `grok-4.7` |\n| `model_provider` | 使用哪个提供方，对应 `[model_providers.<id>]` 的 id |\n| `base_url` | xAI API 地址 `https://api.x.ai/v1` |\n| `env_key` | 存放 API Key 的环境变量名 |\n| `wire_api` | 通信协议，Codex 官方参考里的取值是 `responses` |\n\n### 3. 启动并核对\n\n重新启动 Codex，看模型显示是不是 `grok-4.7`，再发一条简单消息确认能正常回复。如果报鉴权错误，先确认环境变量在启动 Codex 的那个终端里确实存在；报模型找不到，核对模型名拼写与你账号可用的模型（控制台的 Models 页面能看）。\n\n### 几个提醒\n\n- **别把 Key 写进仓库**：用 `env_key` 读环境变量就是为了这个；\n- **模型能力以官方为准**：官方说 grok-4.7 上下文 500k，推理强度可配置（low、medium、high、xhigh），具体在 Codex 里怎么选，取决于 Codex 当前版本对自定义提供方的支持，字段可能随版本变化；\n- **费用**：grok-4.7 每百万 tokens 输入 2 美元、缓存输入 0.5 美元、输出 6 美元，提示词达到 200k 以上整条请求按 4 / 1 / 12 美元计（2026-10 查询）；\n- **想用 Codex 官方模型**：需要 ChatGPT 套餐，见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。DeepSeek 接入 Codex 的写法见 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)，两篇思路相同，只是地址和密钥不同。\n\n## 二、Cursor：订阅里自带，也可以单独看用量\n\n官方 X Subscription 文档的要点：\n\n- Grok 和 Cursor 共享一个每周的包含用量池，用 Cursor 自家模型（含 Grok）的用量从这里扣；\n- 第三方模型（Claude、GPT 等）不在池里，按 API 标价从预付余额扣；\n- 订阅是在 grok.com/dashboard 统一管理；\n- Cursor 官方文档给的 Plus 说明：Agent 用 Cursor 自家模型，设置固定（Fast 关闭、effort 为 medium、Grok 4.7 用 256k 上下文），不含 Auto、云端智能体、Bugbot 和第三方模型，也不能用自己的 API Key；Premium 起加上云端智能体、第三方模型等。\n\n所以想在 Cursor 里用 Grok：不需要额外申请接入，订阅后用同一个账号登录即可；想要更多用量，就是升档或买额外额度，见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)。\n\n## 三、怎么选\n\n| 你的情况 | 选择 |\n| --- | --- |\n| 已经习惯 Codex，只想换模型 | Codex + xAI API Key，按 API 单价计费 |\n| 想直接用 Grok 的编程模型，不想折腾配置 | Cursor，订阅自带 |\n| 想用 xAI 自家的命令行 | Grok Build，官方文档里写了安装与自定义模型的方法 |\n| 想对比 Codex、Claude Code、Cursor 和 Gemini 一侧的工具 | 见 [/guides/ai-coding-tools-codex-claude-code-cursor-gemini](/guides/ai-coding-tools-codex-claude-code-cursor-gemini) |\n\n## 常见问题\n\n**Q：Grok 订阅能不能直接当 Codex 的额度用？**\n官方没有这样的说明。订阅的用量池只覆盖官方自家产品（Grok、Cursor）里的 Grok 模型；API 另行计费，Codex 走的是 API。\n\n**Q：接口要用 chat completions 还是 responses？**\nxAI 官方示例用的是 Responses 接口，Codex 官方参考里 wire_api 只列了 `responses`，所以按 responses 配。\n\n**Q：为什么 Cursor 里看不到我要的模型？**\nPlus 档只有 Cursor 自家模型，第三方模型从 Premium 起，以官方文档当前说明为准。\n\n## 参考资料\n\n- OpenAI：Codex 高级配置 — https://developers.openai.com/codex/config-advanced\n- OpenAI：Codex 配置参考 — https://developers.openai.com/codex/config-reference\n- docs.x.ai：Quickstart — https://docs.x.ai/developers/quickstart\n- docs.x.ai：Pricing — https://docs.x.ai/developers/pricing\n- docs.x.ai：What is The X Subscription? — https://docs.x.ai/x-subscription/overview\n- Cursor：Models & Pricing — https://cursor.com/docs/models-and-pricing",
+      "sources": [
+        "https://developers.openai.com/codex/config-advanced",
+        "https://developers.openai.com/codex/config-reference",
+        "https://docs.x.ai/developers/quickstart",
+        "https://docs.x.ai/developers/pricing",
+        "https://docs.x.ai/x-subscription/overview",
+        "https://cursor.com/docs/models-and-pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "Codex 官方没有专门写「接入 Grok」的页面，xAI 官方也没有写「接入 Codex」的页面；本文的配置是把 Codex 官方「自定义模型提供方」字段和 xAI 官方 API 文档的地址、模型名、Responses 接口拼在一起，没有在本站逐项运行验证，实际能否正常使用请以你机器上 Codex 的版本和输出为准",
+        "Codex 官方写：自定义提供方 id 不能用内置的 openai、ollama、lmstudio；项目级 .codex/config.toml 不能覆盖 model_provider、model_providers，只能写在用户级 ~/.codex/config.toml；env_key 是官方推荐的读密钥方式，experimental_bearer_token 标为不推荐",
+        "Codex 官方 config-reference 里 wire_api 的取值只有 responses；xAI 官方说明 grok-4.7 在 Responses API 上可用，且在 Responses API 上总会返回 reasoning.encrypted_content",
+        "xAI 价格取自 docs.x.ai/developers/pricing（2026-10-25），API 用量按标准价单独计费、不占订阅用量池，这是 x.ai/pricing 的 FAQ 里写的",
+        "Cursor 的计划与模型说明取自 cursor.com/docs/models-and-pricing 与 docs.x.ai 的 X Subscription 文档；Plus 档 Cursor 里 Grok 模型用固定设置（Fast 关、effort medium、Grok 4.7 用 256k 上下文），第三方模型从 Premium 起可用，这些细节官方会更新",
+        "Grok Build 是 xAI 自家命令行，官方文档写它支持自定义（BYOK）模型，本文只作为选项提到，不展开"
       ]
     },
     {
@@ -62450,6 +62733,163 @@
       ]
     },
     {
+      "title": "Gemini Ultra 和 Pro 的区别：价格、用量倍数、模型、Flow 点数和额外权益对比",
+      "slug": "gemini-ultra-vs-pro-difference",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1085-gemini-pro-vs-ultra-compare.png",
+        "g1085-gemini-pro-or-ultra-decide.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Gemini Ultra 和 Pro 有什么区别？按官方订阅页：Pro 每月 19.99 美元，用量是免费版的 4 倍；Ultra 99.99 美元起，用量是 Pro 的 5 倍，另有 199.99 美元档是 20 倍。再对比 Flow 点数、存储和权益（2026-10 查询）。",
+      "content": "> 本文根据 Gemini 官方订阅页、帮助中心和更新记录整理，资料核对于 2026-10-25，价格为「2026-10 查询」。订阅价格、额度和可用地区会变，**以官方订阅页和你下单时显示的为准**。免费版、Plus、Pro、Ultra 的全面对比见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)。\n\n## 适用于谁\n\n- 搜「gemini ultra和pro的区别」的人；\n- 在 Google AI Pro 和 Ultra 之间犹豫，想知道多花的钱买到了什么的人；\n- 想确认两档都能不能用最新的 Gemini 4 Argon 的人。\n\n## 结论先说\n\n1. **价格差距大**：官方订阅页，Google AI Pro 每月 19.99 美元；Google AI Ultra 每月 99.99 美元起，页面上还有每月 199.99 美元的更高档。\n2. **用量倍数**：Pro 的 Gemini 用量是免费版的 4 倍；Ultra 在 99.99 美元档是 Pro 的 5 倍，在 199.99 美元档是 Pro 的 20 倍。\n3. **两档都能用 Gemini 4 Argon**：官方写 Pro「Access to Gemini 4 Argon」，Ultra 是「Highest access」，也就是 Ultra 的额度更高，不是 Ultra 才有。\n4. **Flow（视频创作工具）点数**：Pro 1,000 点；Ultra 10,000 或 25,000 点。\n5. **Ultra 才有的权益**：官方订阅页只在 Ultra 下列出 Project Genie、YouTube Premium 个人版（Pro 是 YouTube Premium Lite）、Google Home Premium 的高级档，以及 Tasks in Gemini 等新功能的优先体验。\n6. **怎么选**：用量不够用才是升级到 Ultra 的主要理由。想先用 Argon、Pro 模型，Pro 就包含。需要谷歌账号相关服务可以看本站 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n![Google AI Pro 和 Ultra 的功能与价格对比](seed:g1085-gemini-pro-vs-ultra-compare.png)\n*图：本站根据 [Gemini 官方订阅页](https://gemini.google/subscriptions/) 整理的示意图*\n\n## 一、逐项对比\n\n| 项目 | Google AI Pro | Google AI Ultra |\n| --- | --- | --- |\n| 月费（官方页面美元价） | 19.99 | 99.99 起，另有 199.99 |\n| Gemini 应用用量 | 免费版的 4 倍 | Pro 的 5 倍；199.99 美元档为 20 倍 |\n| 模型 | Gemini 4 Argon、Pro 模型、Flash 模型 | 三者的「最高额度」 |\n| Google Flow 点数 | 1,000 | 10,000 或 25,000 |\n| Google Search（AI 模式） | 更高额度使用 Argon、Nano Banana 等 | 最高额度 |\n| Jules（异步编程智能体） | 更高限额 | 最高限额 |\n| Google Antigravity | 入门级限额 | Ultra 5x：更高；Ultra 20x：最高 |\n| Gemini Notebook | 5 倍 Audio Overviews、笔记本等 | 最高限额与最佳模型能力 |\n| Gemini in Chrome | Chrome auto browse | 最高额度的 auto browse |\n| 云存储 | 5 TB | 20 TB 起 |\n| 其他 | YouTube Premium Lite、Google Home Premium 标准档 | Project Genie、YouTube Premium 个人版、Home Premium 高级档 |\n\n官方页面把 Ultra 的两个价位写在同一栏，没有对应关系的逐条说明，请在下单页确认你选的档位到底带多少点数。\n\n## 二、「用量」到底是什么\n\n官方帮助中心（Gemini Apps limits & feature availability）说明：\n\n- Gemini 应用的用量按**计算量**计算，考虑提示词的复杂度、你用的模型和功能、对话长度；\n- 额度**每 5 小时刷新一次**，直到你触达每周上限；\n- 视频生成比普通聊天更耗额度；\n- 官方没有给出「每天多少条」这样的固定数字。\n\n怎么查自己的用量、什么时候刷新，见 [/guides/gemini-usage-limits-check-reset](/guides/gemini-usage-limits-check-reset)。\n\n![Pro 还是 Ultra：几种常见情况怎么判断](seed:g1085-gemini-pro-or-ultra-decide.png)\n*图：本站根据 [Gemini 官方订阅页](https://gemini.google/subscriptions/) 整理的示意图*\n\n## 三、什么情况下该升级\n\n| 你的情况 | 建议 |\n| --- | --- |\n| 日常聊天、写作、查资料 | 官方没有给次数，先看免费版或 Pro 的用量够不够 |\n| 经常提示用量用完 | 先在 Gemini 里看用量，确实常超再对比 Ultra 的倍数 |\n| 大量做视频 | 对比 Flow 点数：Pro 1,000，Ultra 10,000 或 25,000 |\n| 重度用 Antigravity 做编程 | Ultra 的限额是 5 倍或 20 倍，Pro 是入门级 |\n| 想用最新模型 Gemini 4 Argon | Pro 就包含，Argon 是什么见 [/guides/gemini-4-argon-what-is-release-date](/guides/gemini-4-argon-what-is-release-date) |\n\n注意事项：官方说明订阅用于个人 Google 账号；工作或学校账号看 Workspace 许可。Pro 和 Ultra 都有年龄和地区要求，在欧洲经济区、瑞士、英国使用 Google AI 套餐需要年满 18 岁。\n\n## 常见问题\n\n**Q：Gemini 4 Argon 只有 Ultra 能用吗？**\n不是。官方 2026-10-13 的更新记录写明，Argon 面向 Google AI Pro 和 Ultra 订阅用户。\n\n**Q：Ultra 能不能用在 ChatGPT 或别的产品上？**\n不能，订阅只对应 Google 自家产品。要对比 ChatGPT，见 [/guides/chatgpt-vs-gemini-which-to-choose](/guides/chatgpt-vs-gemini-which-to-choose)。\n\n**Q：学生有优惠吗？**\n官方更新记录写到符合条件的大学生可以获得一年 Google AI Pro（美国）或 Google AI Plus（140 多个国家和地区），详见 [/guides/gemini-student-offer-eligibility-sheerid](/guides/gemini-student-offer-eligibility-sheerid)。\n\n## 参考资料\n\n- Gemini 官方：订阅 — https://gemini.google/subscriptions/\n- Gemini 帮助中心：Gemini Apps limits & feature availability — https://support.google.com/gemini/answer/16275805\n- Gemini 官方：应用更新记录 — https://gemini.google/release-notes/\n- Google 官方博客：Gemini 4 Argon 进入 Gemini 应用 — https://blog.google/innovation-and-ai/products/gemini-app/gemini-4-argon-availability/",
+      "sources": [
+        "https://gemini.google/subscriptions/",
+        "https://support.google.com/gemini/answer/16275805",
+        "https://gemini.google/release-notes/",
+        "https://blog.google/innovation-and-ai/products/gemini-app/gemini-4-argon-availability/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "价格与倍数取自 gemini.google/subscriptions 当次页面（2026-10-25），页面价格为美元，不同国家和地区的价格、可用性可能不同；官方写明 Plus 在 160 多个国家和地区、Pro 在 150 多个、Ultra 在 150 多个可用",
+        "官方页面写 Ultra「起价 99.99 美元每月：用量为 Pro 的 5 倍；199.99 美元每月：用量为 Pro 的 20 倍」，Flow 点数写「10,000 或 25,000」、Antigravity 写「Ultra 5x / Ultra 20x」，但页面没有逐项说明哪个点数对应哪个价位，本文按页面顺序理解为较低档对应 10,000 点和 5 倍，请以下单页面显示为准",
+        "官方对「用量」的定义是按计算量折算（提示词复杂度、所用模型和功能、对话长度），每 5 小时刷新直到周上限，官方没有给出具体消息条数",
+        "Pro 是否包含 Project Genie，订阅页只在 Ultra 下列出，本文写「官方未列」，不判断是否可用",
+        "订阅页写 Plus 带「Gemini in Gmail、Vids 等」，Pro 和 Ultra 带「Gemini in Gmail、Docs、Vids 等」，具体到 Slides、Sheets 的可用范围以官方帮助中心为准",
+        "本站 402 号文章讲免费版、Plus、Pro、Ultra 的全面对比；本文只聚焦 Pro 与 Ultra 的差别，新增了 Gemini 4 Argon 和最新价格"
+      ]
+    },
+    {
+      "title": "Gemini 4 Argon 是什么：发布时间、谁能用、API 怎么调用、价格多少",
+      "slug": "gemini-4-argon-what-is-release-date",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1086-gemini4-argon-timeline.png",
+        "g1086-gemini4-argon-vs-flash.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Gemini 4 / Argon 是什么？官方 2026-09-30 公布 Gemini 4 Argon，10-13 进入 Gemini 应用（Pro、Ultra 订阅）；API 模型代码 gemini-4-argon，引入价到 11 月 30 日为输入 2 美元、输出 10 美元每百万 tokens。",
+      "content": "> 本文根据 Google 官方博客、Gemini 应用更新记录、Gemini API 模型文档和定价页整理，资料核对于 2026-10-25，价格为「2026-10 查询」。模型与价格会变，**以官方页面为准**。图为本站整理的示意图。Gemini 3.5 Pro 为什么没发布，见 [/guides/gemini-35-pro-status-what-to-use](/guides/gemini-35-pro-status-what-to-use)。\n\n## 适用于谁\n\n- 搜「gemini 4 argon」「gemini 4 release date」的人；\n- 想知道 Argon 是不是 Gemini 4、什么时候发布、谁能用的人；\n- 想在 API 里调用 Argon、问价格的开发者。\n\n## 结论先说\n\n1. **Gemini 4 Argon 是官方目前唯一的 Gemini 4 型号**，被称为「旗舰推理模型」，用于复杂软件工程、深度数学与科学问题、自主多步骤智能体，以及最长约 100 万 tokens 的长输出。\n2. **时间线**：2026-09-30 官方博客公布；先向受信任的网络防御者开放；2026-10-13 进入 Gemini 应用，面向 Google AI Pro 和 Ultra 订阅用户。\n3. **谁能在 Gemini 应用里用**：官方订阅页写 Pro 有 Argon 访问，Ultra 是最高额度。订阅差别见 [/guides/gemini-ultra-vs-pro-difference](/guides/gemini-ultra-vs-pro-difference)，需要谷歌账号相关服务可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n4. **API 怎么调**：模型代码 `gemini-4-argon`，只有付费层，没有免费层。\n5. **价格有「引入价」**：到 2026-11-30 为输入 2 美元、输出 10 美元（每百万 tokens）；2026-12-01 起变为 4 美元和 20 美元。\n\n![Gemini 4 Argon 的官方时间线](seed:g1086-gemini4-argon-timeline.png)\n*图：本站根据 [Google 官方博客](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/)、[Gemini 更新记录](https://gemini.google/release-notes/) 与 [API 文档](https://ai.google.dev/gemini-api/docs/latest-model) 整理的示意图*\n\n## 一、官方怎么介绍 Argon\n\n官方博客的核心说法：\n\n- **定位**：为长流程、复杂工作设计，覆盖真实软件工程、法律和金融等企业知识工作，以及网络安全防御；\n- **输出上限**：从此前的 6.4 万 tokens 扩大到 100 万 tokens；官方 API 文档称之为「长输出（long decode）」，输入、思考和输出共用 1,048,576 tokens 的窗口；\n- **分阶段开放**：官方说发布这种级别的能力需要分阶段进行，会先让受信任的测试者反馈，再向开发者、企业和普通用户开放，最先面向付费 API 客户和 Google AI Ultra 订阅用户；\n- **安全措施**：博客列出了防滥用、防提示词注入、监控偏离目标行为、加固系统等措施。\n\n官方 2026-10-13 的 Gemini 应用更新记录说：Argon 从当天起在 Gemini 应用中向 Google AI Pro 和 Ultra 订阅用户全球推出，适合分析复杂财务报告、从零散资料做演示文稿、做交互式 3D 模型等任务。同一天的更新还有 Gemini macOS 应用内置 Google Antigravity，以及新的「Customize」入口。\n\n## 二、API 规格与价格\n\n![Gemini 4 Argon 与 3.8 Flash 的规格和价格对比](seed:g1086-gemini4-argon-vs-flash.png)\n*图：本站根据 [Argon 模型页](https://ai.google.dev/gemini-api/docs/models/gemini-4-argon) 与 [定价页](https://ai.google.dev/gemini-api/docs/pricing) 整理的示意图*\n\n官方模型页：\n\n| 项目 | 内容 |\n| --- | --- |\n| 模型代码 | `gemini-4-argon` |\n| 输入 | 文本、图片、视频、音频、PDF |\n| 输出 | 文本 |\n| 上下文窗口 | 1,048,576 tokens，输入与输出共用 |\n| 最大输出 | 默认同步 65,536；开启长输出最多约 1,048,576 |\n| 默认思考等级 | `medium` |\n| 缓存 | 仅隐式缓存，不支持显式缓存 |\n| 其他 | 支持批量、Flex、Priority 推理；支持代码执行；智能体视频理解已正式可用 |\n\n官方的最小调用示例用的是 Interactions API：`client.interactions.create(model=\"gemini-4-argon\", input=\"...\")`。要让单次回答超过 6.4 万 tokens，官方要求用后台执行（`background=True`），并把 `max_output_tokens` 设得比 65,536 大；服务器分多段续写，最后要把各段 `model_output` 的文本拼起来。\n\n价格（官方定价页，标准档，每百万 tokens，美元）：\n\n| 项目 | 到 2026-11-30 | 从 2026-12-01 |\n| --- | --- | --- |\n| 输入 | 2.00 | 4.00 |\n| 输出（含思考 tokens） | 10.00 | 20.00 |\n| 缓存输入 | 0.10 | 0.20 |\n\n另外，Argon 在定价页的「免费层」一栏写「Not available」。批量、Flex、Priority 档的价格在同一页面，Google 搜索 grounding 每月有 5,000 次免费请求，超出每 1,000 次 14 美元。更多价格见 Gemini API 官方定价页，已有的免费额度与计费文章见 [/guides/gemini-api-free-tier-rate-limits](/guides/gemini-api-free-tier-rate-limits) 和 [/guides/gemini-api-billing-prepay](/guides/gemini-api-billing-prepay)。\n\n## 三、几个容易混的点\n\n- **Argon 不是 3.5 Pro**：官方没有宣布 3.5 Pro 已发布，见开头链接的文章。\n- **应用里的名字**：官方帮助中心把应用内模型档位写成 Flash-Lite、Flash、Pro、Argon，具体能选哪些取决于套餐。\n- **Gemini CLI 用不了 Argon**：官方 Gemini CLI 文档提示，Gemini CLI 没有针对 Argon 优化，要用 Argon 请使用 Antigravity。\n- **和别家模型比**：官方发布的测评分数是 Google 自己的口径，本文不做强弱结论。\n\n## 常见问题\n\n**Q：免费用户能用 Argon 吗？**\n官方订阅页的免费版只写 Flash-Lite 模型；API 免费层也没有 Argon。\n\n**Q：Argon 能生成图片、视频吗？**\n官方模型页写输出只有文本。图片、视频用别的模型：图片见 [/guides/gemini-image-limits](/guides/gemini-image-limits)，视频见 [/guides/gemini-video-generation](/guides/gemini-video-generation)。\n\n**Q：引入价过期后会涨多少？**\n官方定价页写明 2026-12-01 起输入 4 美元、输出 20 美元，是引入价的两倍。\n\n## 参考资料\n\n- Google 官方博客：Gemini 4 Argon — https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/\n- Gemini 官方：应用更新记录 — https://gemini.google/release-notes/\n- Gemini API：Gemini 4 Argon 模型页 — https://ai.google.dev/gemini-api/docs/models/gemini-4-argon\n- Gemini API：最新模型 — https://ai.google.dev/gemini-api/docs/latest-model\n- Gemini API：定价 — https://ai.google.dev/gemini-api/docs/pricing\n- Gemini 官方：订阅 — https://gemini.google/subscriptions/",
+      "sources": [
+        "https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-4-argon/",
+        "https://gemini.google/release-notes/",
+        "https://ai.google.dev/gemini-api/docs/models/gemini-4-argon",
+        "https://ai.google.dev/gemini-api/docs/latest-model",
+        "https://ai.google.dev/gemini-api/docs/pricing",
+        "https://gemini.google/subscriptions/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方博客写 Argon 公布时先向「受信任的网络防御者」开放，并说明采用分阶段方式、会尽快向开发者、企业和普通用户开放；各阶段的具体日期以官方公告为准",
+        "官方更新记录 2026-10-13：Argon 在 Gemini 应用中面向 Google AI Pro 和 Ultra 订阅用户全球推出；Google AI Plus 和免费版官方订阅页没有列 Argon",
+        "价格取自官方定价页：引入价到 2026-11-30，之后输入 4 美元、输出 20 美元（每百万 tokens）；缓存价同样分阶段；官方定价页显示 Argon 没有免费层",
+        "博客里的测评分数（如 DeepSWE v1.1 77.9%）是 Google 自己公布的，本文不转述，更不做对比结论",
+        "官方文档说 Gemini CLI 没有针对 Argon 优化，要用 Argon 请用 Antigravity；本文只转述这条提示",
+        "「Gemini 4」目前官方模型列表里只有 Gemini 4 Argon 一个型号；日期与型号会变，以官方页面为准",
+        "本站 937 号文章已讲 Gemini 3.5 Pro 的官方说法，本文聚焦 Argon 本身"
+      ]
+    },
+    {
+      "title": "Gemini 能做 PPT 吗：在 Google 幻灯片里生成、用 Gemini 应用整理资料、已有 PowerPoint 怎么办",
+      "slug": "gemini-make-ppt-slides",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1087-gemini-ppt-which-way.png",
+        "g1087-gemini-slides-steps.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Gemini 能做 PPT 吗？官方有两条路：在 Google 幻灯片里点 Ask Gemini，可生成幻灯片、图片、摘要并参考 Drive 文件；或在 Gemini 应用里把零散资料整理成演示文稿。官方没有写直接导出 .pptx 的步骤（2026-10 查询）。",
+      "content": "> 本文根据 Google Workspace 官方幻灯片产品页、Gemini in Slides 介绍页、Gemini 应用更新记录和订阅页整理，资料核对于 2026-10-25。功能可用范围随账号类型和套餐变化，**以你账号里实际看到的为准**。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「gemini能做ppt吗」「gemini做ppt」的人；\n- 想让 AI 帮忙搭演示文稿框架、配图的人；\n- 手上有 PowerPoint 文件，想知道能不能用 Gemini 处理的人。\n\n## 结论先说\n\n1. **能，但官方没有「一键生成 .pptx」这个说法**。官方的做法有两条：一是在 **Google 幻灯片** 里直接用 Gemini；二是在 **Gemini 应用**里让它整理资料、写大纲。\n2. **在幻灯片里**：官方说通过 **Ask Gemini 图标**进入，可以创建图片、生成新幻灯片、总结演示文稿，并参考你云端硬盘里的文件生成新的幻灯片。\n3. **在 Gemini 应用里**：官方 2026-10-13 更新记录提到 Gemini 4 Argon 可以「从零散资料做演示文稿」，面向 Google AI Pro 和 Ultra 订阅用户。\n4. **已有 PowerPoint**：官方说幻灯片可以导入 PowerPoint 并转换成 Slides 格式，也可以直接编辑 PowerPoint 文件，原文件保持不变。\n5. **账号类型要留意**：官方 Slides 页注明部分功能只在特定 Google Workspace 商业版和企业版提供。需要谷歌账号相关服务可以看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n![用 Gemini 做 PPT 的几条路怎么选](seed:g1087-gemini-ppt-which-way.png)\n*图：本站根据 [Google 幻灯片官方页](https://workspace.google.com/products/slides/) 与 [Gemini 更新记录](https://gemini.google/release-notes/) 整理的示意图*\n\n## 一、在 Google 幻灯片里用 Gemini\n\n![在 Google 幻灯片里用 Gemini 的 4 步](seed:g1087-gemini-slides-steps.png)\n*图：本站根据 [Google Workspace：Generative AI for presentations](https://workspace.google.com/resources/presentation-ai/) 整理的示意图*\n\n官方的说明很简短：\n\n1. 打开 Google 幻灯片里的演示文稿；\n2. 点 **Ask Gemini** 图标；\n3. 在建议提示里选一个，或自己写提示词；\n4. 生成新幻灯片、生成图片、总结演示文稿，再逐页调整。\n\n官方介绍的能力：\n\n- **生成幻灯片**：用一句简单的提示词，加上你 Drive 里的内容，生成一页新幻灯片；\n- **生成图片**：「Help me visualize」类的提示，可以生成原本不存在的图片；\n- **总结**：快速总结演示文稿的内容；\n- **按角色给的提示词参考**：官方介绍页还按岗位（比如分析师和公关、市场负责人、技术负责人）列了提示词方向，例如为分析师或媒体沟通会做准备、构思内容、向非技术听众讲技术话题。\n\n### 一个提示词写法示例（自拟）\n\n> 我要给部门做 10 分钟的季度汇报，听众是非技术同事。请先给出 6 页的提纲，每页写标题和 3 条要点，最后一页是行动计划。内容基于我 Drive 里的「Q3 汇报草稿」。\n\n先让 Gemini 出提纲，你确认后再让它逐页生成，比一次性要整份演示稿更容易修改。\n\n## 二、在 Gemini 应用里整理资料\n\n官方 2026-10-13 更新记录写到，Gemini 4 Argon 面向 Pro 和 Ultra 订阅用户，可用于分析复杂财务报告、从零散资料做演示文稿、搭交互式 3D 模型等。Argon 的详细说明见 [/guides/gemini-4-argon-what-is-release-date](/guides/gemini-4-argon-what-is-release-date)。\n\n在这条路里，通常的做法是：\n\n1. 把资料（文档、表格、笔记）上传到对话里；\n2. 让 Gemini 按听众和时长写出提纲与逐页文案；\n3. 把内容放进 Google 幻灯片或 PowerPoint 里排版。\n\n官方帮助中心没有给出「Gemini 应用直接导出 .pptx」的步骤，所以别指望一句话得到可直接演讲的文件；排版和配图仍要在幻灯片软件里完成。Gemini 的基本用法见 [/guides/gemini-how-to-use-getting-started](/guides/gemini-how-to-use-getting-started)；Canvas 生成文档和网页的用法见 [/guides/gemini-canvas-docs-apps-web-pages](/guides/gemini-canvas-docs-apps-web-pages)。\n\n## 三、已有 PowerPoint 怎么办\n\n官方 Slides 页的说明：\n\n- 可以导入 Microsoft PowerPoint 或 Canva 演示文稿，使用 Slides 的评论、待办事项和细粒度分享功能；\n- 官方 FAQ：可以把 PowerPoint 转换成 Google 幻灯片格式，也可以直接编辑 PowerPoint 文件，不必先复制，原文件保持不变。\n\n也就是说，可以先把 PowerPoint 导入 Slides，再用 Ask Gemini 总结、补充幻灯片或配图。\n\n## 常见问题\n\n**Q：Gemini 做出来的 PPT 能直接下载吗？**\n官方页面没有写这一步，请在 Google 幻灯片的文件菜单里查看下载格式；本文不引用官方没写的说明。\n\n**Q：免费账号能用 Gemini in Slides 吗？**\n官方页面没有按免费或付费账号逐项说明。Slides 页只写了试用 Gemini for Google Workspace，并注明部分功能仅限部分 Workspace 商业版和企业版；Google AI 套餐对比见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)。\n\n**Q：AI 生成的图片需要注意什么？**\nGemini 生成的图片带有 SynthID 水印，见 [/guides/gemini-image-watermark-synthid](/guides/gemini-image-watermark-synthid)。\n\n**Q：除了 Gemini，还有别的 AI 做 PPT 方式吗？**\nChatGPT、Claude 也能写提纲和文案，选择见 [/guides/chatgpt-vs-gemini-which-to-choose](/guides/chatgpt-vs-gemini-which-to-choose)；需要 ChatGPT 会员可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- Google Workspace：Google 幻灯片 — https://workspace.google.com/products/slides/\n- Google Workspace：Generative AI for presentations — https://workspace.google.com/resources/presentation-ai/\n- Gemini 官方：应用更新记录 — https://gemini.google/release-notes/\n- Gemini 官方：订阅 — https://gemini.google/subscriptions/",
+      "sources": [
+        "https://workspace.google.com/products/slides/",
+        "https://workspace.google.com/resources/presentation-ai/",
+        "https://gemini.google/release-notes/",
+        "https://gemini.google/subscriptions/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方页面写的是「Gemini in Slides 可以：生成新幻灯片、生成图片、总结演示文稿、参考云端硬盘文件生成新幻灯片」，入口是 Ask Gemini 图标；具体按钮位置和界面会随版本变化，本文不写页面截图里没有的细节",
+        "Gemini in Slides 在哪些套餐里可用，官方 Slides 页只写了「试用 Gemini for Google Workspace」，且 Slides 页上标注「部分功能仅在部分 Workspace 商业版和企业版提供」；Google AI 套餐页写 Pro 和 Ultra 带「Gemini in Gmail、Docs、Vids 等」，没有逐项列出 Slides，请以你账号里是否出现 Ask Gemini 图标为准",
+        "官方 2026-10-13 更新记录提到 Gemini 4 Argon 可用于「用零散资料做演示文稿」，面向 Pro 和 Ultra；官方没有给出在 Gemini 应用里生成 .pptx 或 Slides 文件的逐步说明，所以本文不写「一键导出 PPT」",
+        "官方 Slides 页说明可以导入 Microsoft PowerPoint 或 Canva 演示文稿，也可以直接编辑 PowerPoint 文件而不用复制；导出 .pptx 的步骤本文没有取得官方页面依据，不写",
+        "文中的提示词示例为自拟，不是官方模板"
+      ]
+    },
+    {
+      "title": "Gemini CLI 怎么用：安装、登录、常用命令，以及 2026-06-18 之后官方改用 Antigravity CLI",
+      "slug": "gemini-cli-how-to-use-antigravity-cli",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1088-gemini-cli-status-decide.png",
+        "g1088-gemini-cli-quota-table.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Gemini CLI 怎么用？安装用 npm，登录可用 Google 账号、API Key 或 Vertex AI。但官方博客说，个人 Google 账号（免费、AI Pro、Ultra）已于 2026-06-18 停止服务，官方建议改用 Antigravity CLI（2026-10 查询）。",
+      "content": "> 本文根据 Gemini CLI 官方文档、Google 开发者博客和 Antigravity 官方文档整理，资料核对于 2026-10-25。**官方 2026-06-18 对 Gemini CLI 的服务范围做了调整**，下文先说清现状，再讲怎么用。命令与安装方式以官方页面为准，本站没有逐项运行验证。\n\n## 适用于谁\n\n- 搜「gemini cli 如何使用」「gemini cli 怎么安装」的人；\n- 按旧教程装了 Gemini CLI，却登录不了或没有响应的人；\n- 想知道 Gemini CLI 和 Antigravity CLI 是什么关系的人。\n\n## 结论先说\n\n1. **先看你的账号类型**。官方博客（2026-05-19）说，2026-06-18 起，Gemini CLI 对 **Google AI Pro、Ultra 和 Gemini Code Assist 个人版免费用户**不再服务请求。Gemini CLI 文档站页顶也写：免费档和 Google One 用户的 Gemini CLI 已于 2026-06-18 被 Antigravity CLI 取代。\n2. **企业和付费 API 不受影响**：官方说，通过 Gemini Code Assist 标准或企业许可的企业用户，访问不变；Gemini CLI 仍可通过付费的 Gemini API Key 和 Vertex AI（Gemini Enterprise Agent Platform）使用。\n3. **官方建议的替代品是 Antigravity CLI**：官方称它用 Go 编写、更快，支持后台异步多智能体，共用 Antigravity 2.0 的智能体框架，保留 Agent Skills、Hooks、Subagents、扩展（改称插件）。\n4. **想用 Gemini 4 Argon**：官方文档提示 Gemini CLI 没有针对 Argon 优化，请使用 Antigravity。Argon 是什么见 [/guides/gemini-4-argon-what-is-release-date](/guides/gemini-4-argon-what-is-release-date)。\n5. **订阅差别**：Pro 和 Ultra 是 Google 的订阅，见 [/guides/gemini-ultra-vs-pro-difference](/guides/gemini-ultra-vs-pro-difference)；需要谷歌账号相关服务可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n![Gemini CLI 现在还能不能用：按账号类型判断](seed:g1088-gemini-cli-status-decide.png)\n*图：本站根据 [Google 开发者博客](https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli) 与 [Gemini CLI 文档](https://geminicli.com/docs/get-started/installation) 整理的示意图*\n\n## 一、Gemini CLI 怎么装、怎么登录（仍可用的情况）\n\n官方快速入门：\n\n1. 安装：`npm install -g @google/gemini-cli`；\n2. 运行：`gemini`；\n3. 第一次会问「How would you like to authenticate for this project?」，官方说大多数情况选 **Sign in with Google**，选 Google 账号并登录。\n\n官方的认证选择表：\n\n| 用户类型 | 推荐方式 | 是否需要 Google Cloud 项目 |\n| --- | --- | --- |\n| 个人 Google 账号 | Sign in with Google | 一般不需要 |\n| 公司、学校或 Workspace 账号 | Sign in with Google | 需要 |\n| 有 AI Studio 的 Gemini API Key | Use Gemini API Key | 不需要 |\n| Google Cloud Vertex AI 用户 | Vertex AI | 需要 |\n| 无界面（headless）模式 | Gemini API Key 或 Vertex AI | 视方式而定 |\n\n用 API Key 的做法：在 Google AI Studio 获取 Key，设置环境变量 `GEMINI_API_KEY`，启动 `gemini` 后选 **Use Gemini API key**。Key 怎么拿见 [/guides/gemini-api-key](/guides/gemini-api-key)。\n\n## 二、常用命令（官方速查页）\n\n| 命令 | 作用 |\n| --- | --- |\n| `gemini` | 启动交互模式 |\n| `gemini \"问题\"` | 提问并继续交互 |\n| `gemini -p \"问题\"` | 非交互，输出结果后退出 |\n| `gemini` 配合管道 | 把 cat 文件的输出通过管道交给 gemini 处理 |\n| `gemini -i \"问题\"` | 执行提示词后继续交互 |\n| `gemini -r \"latest\"` | 继续最近一次会话 |\n| `gemini update` | 更新到最新版本 |\n| `gemini mcp` / `gemini extensions` | 管理 MCP 服务器、扩展 |\n\n交互模式里常用的斜杠命令包括 `/help`、`/quit`、`/memory reload`（重新加载 GEMINI.md）、`/skills reload`、`/mcp reload`。`/stats model` 可以查看当前会话的 token 用量和各模型的配额。\n\n几个官方参数：`-m` 选模型、`--sandbox` 沙箱运行、`--approval-mode` 设置工具执行审批方式（default、auto_edit、yolo、plan）。项目上下文写在 `GEMINI.md`。Skills 的用法见 [/guides/gemini-cli-skills-install-create](/guides/gemini-cli-skills-install-create)，使用前请先对照本文说明的账号类型限制。\n\n## 三、配额：官方文档里的表\n\n![Gemini CLI 官方配额表（以最新页面为准）](seed:g1088-gemini-cli-quota-table.png)\n*图：本站根据 [Gemini CLI 配额与价格页](https://geminicli.com/docs/resources/quota-and-pricing) 整理的示意图*\n\n官方配额页的主要数字（每用户每日请求上限）：\n\n- Gemini API Key 免费层：250 次，仅 Flash 模型；\n- Google 账号：Code Assist 个人版 1,000 次、Google AI Pro 1,500 次、Google AI Ultra 2,000 次；\n- Workspace：Code Assist 标准版 1,500 次、企业版 2,000 次；\n- 付费 API Key 和 Vertex AI：按用量计费，限额因档位而异。\n\n再次提醒：这张表里的「Google 账号」几行，与官方博客和文档站页顶「个人账号已于 2026-06-18 改用 Antigravity CLI」的说法不一致，请以官方最新页面为准，不要仅凭这张表判断自己还能不能用。免费 API 的限额和计费见 [/guides/gemini-api-free-tier-rate-limits](/guides/gemini-api-free-tier-rate-limits)。\n\n## 四、改用 Antigravity CLI\n\n官方给的安装命令（antigravity.google/download，当前 CLI 版本 v1.4.0）：\n\n- macOS / Linux：`curl -fsSL https://antigravity.google/cli/install.sh | bash`\n- Windows PowerShell：`irm https://antigravity.google/cli/install.ps1 | iex`\n\n启动命令是 `agy`。官方迁移文档说：\n\n- 第一次运行时，如果检测到旧的 Gemini CLI 配置，会弹出清单让你选择迁移哪些内容；\n- 可以用 `agy plugin import gemini` 把旧的扩展转成 Antigravity 插件；\n- `GEMINI.md`、`AGENTS.md` 和全局的 `~/.gemini/GEMINI.md` 照常生效；\n- 技能路径变了：全局从 `~/.gemini/skills/` 变为 `~/.gemini/antigravity-cli/skills/`，项目内从 `.gemini/skills/` 变为 `.agents/skills/`；\n- MCP 配置从 `settings.json` 里拆出来，放进独立的 `mcp_config.json`，远程服务器的地址字段从 `url` 或 `httpUrl` 改为 `serverUrl`。\n\n安装前请先确认你的系统和账号满足官方下载页的要求。\n\n## 常见问题\n\n**Q：我的 Gemini CLI 登录后没有响应，是怎么回事？**\n如果你用的是个人 Google 账号（免费、AI Pro 或 Ultra），按官方说法，该路径已于 2026-06-18 停止服务，建议改用 Antigravity CLI；用 Gemini API Key 或企业许可的另当别论。\n\n**Q：Gemini CLI 能接别的模型或 Codex 吗？**\n官方文档没有这类说明，见 [/guides/gemini-codex-third-party-clients](/guides/gemini-codex-third-party-clients)。\n\n**Q：Gemini CLI 免费吗？**\n官方配额页列的免费层是 API Key 免费层（250 次，仅 Flash）；个人 Google 账号的免费路径见上文说明。\n\n## 参考资料\n\n- Google 开发者博客：Transitioning Gemini CLI to Antigravity CLI — https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli\n- Gemini CLI 文档：快速入门 — https://geminicli.com/docs/get-started\n- Gemini CLI 文档：认证 — https://geminicli.com/docs/get-started/authentication\n- Gemini CLI 文档：CLI 速查 — https://geminicli.com/docs/cli/cli-reference\n- Gemini CLI 文档：配额与价格 — https://geminicli.com/docs/resources/quota-and-pricing\n- Antigravity：Antigravity CLI — https://antigravity.google/blog/introducing-google-antigravity-cli\n- Antigravity：从 Gemini CLI 迁移 — https://antigravity.google/docs/gcli-migration\n- Antigravity：下载 — https://antigravity.google/download",
+      "sources": [
+        "https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli",
+        "https://geminicli.com/docs/get-started",
+        "https://geminicli.com/docs/get-started/authentication",
+        "https://geminicli.com/docs/cli/cli-reference",
+        "https://geminicli.com/docs/resources/quota-and-pricing",
+        "https://antigravity.google/blog/introducing-google-antigravity-cli",
+        "https://antigravity.google/docs/gcli-migration",
+        "https://antigravity.google/download"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方博客（2026-05-19）写：2026-06-18 起，Gemini CLI 和 Gemini Code Assist IDE 扩展将停止为 Google AI Pro、Ultra 以及通过 Gemini Code Assist 个人版免费使用的用户服务请求；企业用户通过 Gemini Code Assist 标准或企业许可、以及付费的 Gemini API Key 的访问不变",
+        "[object Object]",
+        "但同一文档站的「配额与价格」页仍列出 Google AI Pro 每日 1,500 次、Ultra 2,000 次的个人账号配额，与上面两处说法不一致；本文以博客和文档站页顶提示为准，配额表仅作参考，请以官方最新页面为准",
+        "本文的命令和参数取自 Gemini CLI 官方 CLI 速查页；Antigravity CLI 的安装命令取自 antigravity.google/download（macOS / Linux 用 curl，Windows 用 PowerShell），本站没有实际运行",
+        "本站 707 号文章（Gemini CLI Skills）写于 2026-10-11，没有提到上述 6 月 18 日的变化，请注意核对",
+        "官方提示 Antigravity CLI 与 Gemini CLI 没有 1:1 的功能对等，但保留了 Agent Skills、Hooks、Subagents 和扩展（改称插件）"
+      ]
+    },
+    {
+      "title": "Gemini 怎么接入 Codex：官方支持的是文档 MCP 和技能，直接调用 Gemini 模型官方没有这条路",
+      "slug": "gemini-codex-third-party-clients",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1089-gemini-codex-meanings.png",
+        "g1089-gemini-docs-mcp-codex-steps.png"
+      ],
+      "tags": [
+        "gemini",
+        "codex"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Gemini 能接入 Codex 吗？分两种意思：让 Codex 查 Gemini 官方文档、用 Gemini 技能，官方明确支持（codex mcp add 即可）；让 Codex 直接调用 Gemini 模型，官方文档没有这条路，原因是 Codex 只认 responses 协议。",
+      "content": "> 本文根据 Gemini API 官方「Coding agent setup」页、Gemini OpenAI 兼容页和 Codex 官方配置文档整理，资料核对于 2026-10-25。官方没有写「Gemini 模型接入 Codex」的专门页面，下文把能核对的和不能核对的分开写。\n\n## 适用于谁\n\n- 搜「gemini怎么接入codex」的人；\n- 想让 Codex 帮忙写 Gemini API 代码的开发者；\n- 想在 Codex 里直接选 Gemini 模型的人。\n\n## 结论先说\n\n1. **这个问题有两种意思**，答案不同。\n2. **让 Codex 用上 Gemini 的资料：官方明确支持**。Gemini API 官方「Coding agent setup」页说，Gemini 文档 MCP 服务器在 Claude Code、Cursor、OpenAI Codex、VS Code 里都可用，Codex 的加法是 `codex mcp add geminiDocs --url <官方页给出的地址>`，或在 `~/.codex/config.toml` 里写 `[mcp_servers.geminiDocs]`。\n3. **让 Codex 直接调用 Gemini 模型：官方文档里没有这条路**。Codex 官方配置参考里，自定义提供方的 `wire_api` 只有 `responses` 一种取值；而 Gemini 官方 OpenAI 兼容页只写了 chat/completions 等接口，没有 responses。两边对不上，所以本文不提供「填什么 base_url」的写法。\n4. **想在终端里用 Gemini 模型写代码**：官方的产品是 Antigravity CLI，见 [/guides/gemini-cli-how-to-use-antigravity-cli](/guides/gemini-cli-how-to-use-antigravity-cli)。\n5. **想用 Codex 官方模型**：需要 ChatGPT 套餐，见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n![「Gemini 接入 Codex」的几种意思和官方做法](seed:g1089-gemini-codex-meanings.png)\n*图：本站根据 [Gemini API Coding agent setup](https://ai.google.dev/gemini-api/docs/coding-agents) 与 [Codex 配置文档](https://developers.openai.com/codex/config-reference) 整理的示意图*\n\n## 一、官方支持的：给 Codex 加上 Gemini 文档 MCP\n\n官方 Coding agent setup 页列出了几种资源：\n\n| 资源 | 提供什么 | 可用环境（官方写法） |\n| --- | --- | --- |\n| Gemini Agent Skills | 针对具体功能的规则、SDK 写法和辅助脚本，包括 gemini-api-dev、gemini-live-api-dev、gemini-omni-flash-api | 预装在 AI Studio Build；可用 skills.sh、Context7 或托管智能体安装 |\n| Gemini Docs MCP Server | 在线搜索文档（gemini_search_docs）和读取整页文档（gemini_get_doc） | Claude Code、Cursor、OpenAI Codex、VS Code |\n| Gemini API Plugin | 官方技能、文档 MCP 和 API Key 工具的合集 | Antigravity |\n| 机器可读文档 | 干净的 Markdown 页面和 llms.txt 索引 | ai.google.dev/gemini-api/docs 下的所有页面 |\n\n给 Codex 加文档 MCP，官方给了两种写法：\n\n![给 Codex 加 Gemini 文档 MCP 的步骤](seed:g1089-gemini-docs-mcp-codex-steps.png)\n*图：本站根据 [Gemini API Coding agent setup](https://ai.google.dev/gemini-api/docs/coding-agents) 整理的示意图*\n\n1. 命令行：`codex mcp add geminiDocs --url <官方页给出的 MCP 地址>`；\n2. 或编辑用户级 `~/.codex/config.toml`，新增 `[mcp_servers.geminiDocs]`，写入 `url = \"<同一地址>\"`。\n\n这样做之后，Codex 写 Gemini API 代码时可以查官方最新文档，核对请求格式、模型限制和新功能。注意这**不是**让 Codex 的模型换成 Gemini，只是给它多了一个文档查询工具。\n\n官方技能的安装命令（技能仓库为 google-gemini/gemini-skills）：`npx skills add google-gemini/gemini-skills --list` 列出所有技能，`npx skills add google-gemini/gemini-skills --skill <技能名> --global` 全局安装某个技能。其中 gemini-api-dev 教的是用 Interactions API 和官方 SDK 写 Gemini API 应用，也包含迁移旧版 generateContent 代码的内容。\n\n## 二、为什么「直接调 Gemini 模型」官方没有说通\n\nCodex 官方的自定义模型提供方写法（`config.toml`）有 `base_url`、`env_key`、`wire_api` 等字段，参考页里 `wire_api` 的取值只有 `responses`。这意味着 Codex 期望对端提供 Responses 接口。以 xAI 为例，官方 API 就明确支持 Responses，所以能对上，见 [/guides/grok-codex-cursor-setup](/guides/grok-codex-cursor-setup)；DeepSeek 官方也写明支持 Responses API，见 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。\n\nGemini 这边：\n\n- 官方 OpenAI 兼容页给的 `base_url` 是 `https://generativelanguage.googleapis.com/v1beta/openai/`；\n- 页面里的示例涉及聊天补全（chat/completions）、图片生成、嵌入、批量等，没有 responses；\n- Gemini 官方原生的新接口是 Interactions API。\n\n所以按两家官方文档，没有一条受支持的路能把 Codex 的模型直接指向 Gemini。网上有人用第三方转换层或中转，那不属于官方方案，本文不涉及，也不建议把 Google 账号或 API Key 交给不明服务。\n\n## 三、想用 Gemini 写代码，官方的路\n\n| 需求 | 官方做法 |\n| --- | --- |\n| 在终端里用 Gemini 模型 | Antigravity CLI，见 [/guides/gemini-cli-how-to-use-antigravity-cli](/guides/gemini-cli-how-to-use-antigravity-cli) |\n| 在 API 里调用 Gemini | 用 Gemini API Key，见 [/guides/gemini-api-key](/guides/gemini-api-key) 与 [/guides/gemini-api-python-quickstart](/guides/gemini-api-python-quickstart) |\n| 让 AI 编程助手写对 Gemini 代码 | Gemini 文档 MCP 加官方技能（Codex 可用） |\n| 在网页里快速试模型 | Google AI Studio，见 [/guides/google-ai-studio-how-to](/guides/google-ai-studio-how-to) |\n\nGemini 订阅相关见 [/guides/gemini-ultra-vs-pro-difference](/guides/gemini-ultra-vs-pro-difference)，需要谷歌账号相关服务可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n## 常见问题\n\n**Q：Gemini API 的 OpenAI 兼容接口能当通用 OpenAI 接口用吗？**\n官方说明是用 OpenAI 库把 `base_url` 指向 Gemini 的兼容地址，再按 chat/completions 等调用，见 [/guides/gemini-api-base-url-openai-compatible](/guides/gemini-api-base-url-openai-compatible)。是否支持 Codex 需要的 Responses 接口，官方页面没有写。\n\n**Q：有没有让 Codex 用 Gemini 的免费办法？**\n没有官方说明。官方 API 免费层的额度见 [/guides/gemini-api-free-tier-rate-limits](/guides/gemini-api-free-tier-rate-limits)。\n\n**Q：Codex 接别的模型怎么配？**\nDeepSeek 和 Grok 的写法见开头链接的两篇，字段相同，地址和密钥不同。\n\n## 参考资料\n\n- Gemini API：Coding agent setup — https://ai.google.dev/gemini-api/docs/coding-agents\n- Gemini API：OpenAI 兼容 — https://ai.google.dev/gemini-api/docs/openai\n- OpenAI：Codex 高级配置 — https://developers.openai.com/codex/config-advanced\n- OpenAI：Codex 配置参考 — https://developers.openai.com/codex/config-reference\n- Gemini CLI 文档：认证 — https://geminicli.com/docs/get-started/authentication",
+      "sources": [
+        "https://ai.google.dev/gemini-api/docs/coding-agents",
+        "https://ai.google.dev/gemini-api/docs/openai",
+        "https://developers.openai.com/codex/config-advanced",
+        "https://developers.openai.com/codex/config-reference",
+        "https://geminicli.com/docs/get-started/authentication"
+      ],
+      "screenshots": [],
+      "verify": [
+        "「Gemini 文档 MCP 服务器支持 OpenAI Codex」以及 `codex mcp add` 和 config.toml 的两种写法，直接取自 Gemini API 官方文档「Coding agent setup」页（2026-10-25）；服务器地址以该页为准，本文未在本站实际运行验证",
+        "「直接调用 Gemini 模型」为本文的推断，不是官方明确的结论：Codex 官方配置参考里 wire_api 的取值只有 responses；Gemini API 官方 OpenAI 兼容页（2026-10-25）示例和说明只涉及 chat/completions、images/generations、embeddings 和批量，没有出现 responses 接口。两边文档对不上，所以本文说「官方文档没有这条路」，而不是「一定不能」",
+        "官方 Gemini 原生接口现在主推 Interactions API；本文不写非官方的转换、中转或反代方案",
+        "Gemini CLI 的个人账号路径已于 2026-06-18 调整，详见本站《Gemini CLI 怎么用》一文",
+        "Antigravity Plugin 与 Gemini Agent Skills 的可用环境以官方页「Availability」一列为准：Skills 预装在 AI Studio Build，可用 skills.sh、Context7 或托管智能体安装；官方页说明的文档 MCP 在 Claude Code、Cursor、OpenAI Codex、VS Code 中可用"
+      ]
+    },
+    {
       "title": "ChatGPT 套餐对比：Free、Go、Plus、Pro、Business 有什么区别（2026）",
       "slug": "chatgpt-plans-comparison",
       "checkedOn": "2026-10-13",
@@ -62480,6 +62920,333 @@
         "10-13：价格页模型一栏已变（Free / Go 为 GPT-6 Luna + GPT-5 Thinking Mini；Plus 的 GPT-6 系列标「有限」、GPT-5.6 系列标「扩展」），帮助中心 Free FAQ 仍写 Free 用 GPT-5.6 Luna，正文以价格页为准并注明冲突",
         "价格页 Plus 写包含「custom GPTs」，Free 套餐 FAQ 又写个人账号（含 Plus / Pro）不能新建 GPT；GPTs 正在计划退役，以官方最新说明为准",
         "价格和各地区本地货币价格未写入正文，上线前如需写价格请以价格页当天为准"
+      ]
+    },
+    {
+      "title": "Gemini 为什么不好用了：按官方说明对照用量、套餐、功能改版和账号地区，逐条排查",
+      "slug": "gemini-not-working-official-changes",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1090-gemini-not-working-decide.png",
+        "g1090-gemini-troubleshoot-checklist.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Gemini 为什么不好用了？按官方说明排查：用量按计算量计、每 5 小时刷新；Argon 只给 Pro 和 Ultra；Gems 正在改成技能、视频入口改成 Omni、个人账号的 Gemini CLI 已停服。附对号入座表和相关教程（2026-10 查询）。",
+      "content": "> 本文根据 Gemini 帮助中心、应用更新记录、订阅页和 Google 开发者博客整理，资料核对于 2026-10-25。**只写官方明确说过的原因**，不对「变好用还是变难用」做主观判断。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「gemini为什么不好用了」的人；\n- 发现 Gemini 提示用量用完、找不到某个模型或功能、入口变了的人；\n- 想知道从哪里排查的人。\n\n## 结论先说\n\n1. **多数「不好用」来自这五类官方原因**：用量用完、套餐不含某个模型或功能、功能改版换了名字和入口、账号类型不对、地区或年龄不符。\n2. **用量是按计算量算的**：官方帮助中心说，Gemini 应用的限额取决于提示词的复杂度、你用的模型和功能、对话的长度；限额每 5 小时刷新，直到触达每周上限。长对话、复杂任务、视频生成消耗更快。\n3. **能选的模型取决于套餐**：官方订阅页，免费版有 Flash-Lite；Plus 加上 Flash；Pro 有 Gemini 4 Argon、Pro 和 Flash；Ultra 是最高额度。\n4. **官方最近改了几处功能**（见下文）：技能取代 Gems、Omni 取代应用里的 Veo、个人账号的 Gemini CLI 停服、新增 Customize 入口。\n5. **先查报错原文**，再对号入座，不要连续重试。\n\n![Gemini 不好用了：按症状对号入座](seed:g1090-gemini-not-working-decide.png)\n*图：本站根据 [Gemini 帮助中心](https://support.google.com/gemini/answer/16275805) 与 [更新记录](https://gemini.google/release-notes/) 整理的示意图*\n\n## 一、先查这 6 件事\n\n![出问题先查的 6 件事](seed:g1090-gemini-troubleshoot-checklist.png)\n*图：本站根据 [Gemini 帮助中心](https://support.google.com/gemini/answer/16275805) 整理的示意图*\n\n- **账号类型**：官方帮助中心的说明主要针对个人 Google 账号；工作或学校账号的功能和限额按 Workspace 规则；\n- **年龄**：多数国家要年满 13 岁（或当地规定的年龄）；在欧洲经济区、瑞士和英国使用 Google AI 套餐需年满 18 岁；\n- **地区**：所在国家和地区要在官方支持范围内，见 [/guides/gemini-supported-countries-regions](/guides/gemini-supported-countries-regions)；\n- **套餐**：免费、Plus、Pro、Ultra 能用的模型和功能不同，见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra) 和 [/guides/gemini-ultra-vs-pro-difference](/guides/gemini-ultra-vs-pro-difference)；\n- **用量**：怎么查、什么时候刷新，见 [/guides/gemini-usage-limits-check-reset](/guides/gemini-usage-limits-check-reset)；\n- **报错原文**：「出了点问题」类提示见 [/guides/gemini-something-went-wrong-error](/guides/gemini-something-went-wrong-error)；打不开、无法登录见 [/guides/gemini-cant-open-or-sign-in](/guides/gemini-cant-open-or-sign-in)。\n\n## 二、官方最近改过的地方\n\n| 变化 | 官方说法 | 你会遇到的现象 |\n| --- | --- | --- |\n| Gemini 4 Argon（2026-10-13） | 在 Gemini 应用向 Google AI Pro 和 Ultra 订阅用户全球推出 | 免费或 Plus 账号找不到 Argon，见 [/guides/gemini-4-argon-what-is-release-date](/guides/gemini-4-argon-what-is-release-date) |\n| 技能取代 Gems（2026-09-30） | 技能是可复用的指令集，将很快取代 Gems，Gems 会自动迁移成技能 | 「Gems 怎么变了」，技能写法见 [/guides/gemini-skills-how-to-write](/guides/gemini-skills-how-to-write) |\n| Customize 入口（2026-10-13） | 左侧菜单点 Customize，可定制回答方式、连接 40 多个应用和添加技能 | 以前的设置位置变了 |\n| 应用里的视频模型 | 官方帮助中心说 Gemini Omni 取代了应用里的 Veo | 找不到 Veo，见 [/guides/gemini-video-generation](/guides/gemini-video-generation) |\n| Gemini API 的 Veo 3.1 预览版 | 官方说 2026-10-22 已下线，迁移到 Omni Flash | 开发者调用老模型报错 |\n| Gemini CLI 个人账号 | 官方博客说 2026-06-18 起停止服务，建议改用 Antigravity CLI | 终端里没有响应，见 [/guides/gemini-cli-how-to-use-antigravity-cli](/guides/gemini-cli-how-to-use-antigravity-cli) |\n\n## 三、按现象排查\n\n**现象：回答变短、提示用量用完。**\n先看你是不是在做视频、传大文件、很长的对话；这些更耗额度。每 5 小时刷新一次，直到周上限。想要更多额度可以对比套餐倍数：Plus 是免费版的 2 倍，Pro 4 倍，Ultra 是 Pro 的 5 倍或 20 倍。需要谷歌账号相关服务可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n**现象：图片生成不了、被拒绝。**\n见 [/guides/gemini-cant-generate-images](/guides/gemini-cant-generate-images) 与 [/guides/gemini-image-edit-refused](/guides/gemini-image-edit-refused)；图片次数见 [/guides/gemini-image-limits](/guides/gemini-image-limits)。\n\n**现象：模型选项里没有我要的。**\n官方帮助中心把应用里的档位写成 Flash-Lite、Flash、Pro、Argon，具体能选哪些取决于套餐；是否有 3.5 Pro 见 [/guides/gemini-35-pro-status-what-to-use](/guides/gemini-35-pro-status-what-to-use)。\n\n**现象：对话记录不见了。**\n见 [/guides/gemini-delete-chats-recover-missing](/guides/gemini-delete-chats-recover-missing)。\n\n**现象：API 调用报 429 或模型下线。**\n429 见 [/guides/gemini-api-429-resource-exhausted](/guides/gemini-api-429-resource-exhausted)；官方模型页会标注「Shut down」的模型，请迁移到列出的新模型。\n\n## 常见问题\n\n**Q：为什么感觉 Gemini 变笨了？**\n官方没有公开模型质量的实时变化，也没有这类说明。可以先核对是不是用量用完后被切换到较轻的模型，或者对话太长；新开一个对话试试。\n\n**Q：换个 VPN 能解决吗？**\n本文不涉及。官方的做法是按所在地区的支持范围使用。\n\n**Q：和 ChatGPT 比哪个好用？**\n见 [/guides/chatgpt-vs-gemini-which-to-choose](/guides/chatgpt-vs-gemini-which-to-choose)；需要 ChatGPT 会员可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- Gemini 帮助中心：Gemini Apps limits & feature availability — https://support.google.com/gemini/answer/16275805\n- Gemini 官方：应用更新记录 — https://gemini.google/release-notes/\n- Gemini 官方：订阅 — https://gemini.google/subscriptions/\n- Google 开发者博客：Transitioning Gemini CLI to Antigravity CLI — https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli\n- Gemini API：视频生成 — https://ai.google.dev/gemini-api/docs/video",
+      "sources": [
+        "https://support.google.com/gemini/answer/16275805",
+        "https://gemini.google/release-notes/",
+        "https://gemini.google/subscriptions/",
+        "https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli",
+        "https://ai.google.dev/gemini-api/docs/video"
+      ],
+      "screenshots": [],
+      "verify": [
+        "本文不判断「Gemini 变笨了」这类主观感受，只列官方明确写过的原因：用量规则、套餐与模型对应、功能改版和服务范围调整；官方没有公开模型的实时质量波动，不作猜测",
+        "用量规则取自 Gemini 帮助中心「Gemini Apps limits & feature availability」：按计算量，每 5 小时刷新直到周上限；官方没有给固定条数",
+        "Gems 改为技能：官方 2026-09-30 更新记录原话大意是「技能将很快取代 Gems，Gems 消失时会自动迁移」；具体迁移时间官方没写",
+        "「Omni 取代应用里的 Veo」取自本站 323 号文章引用的官方帮助中心；Gemini API 中 Veo 3.1 预览版已于 2026-10-22 下线取自 ai.google.dev 视频文档",
+        "Gemini CLI 个人账号停服取自 Google 开发者博客与 Gemini CLI 文档页顶提示，详见本站《Gemini CLI 怎么用》",
+        "年龄、地区要求取自帮助中心：多数国家 13 岁（或当地规定年龄）以上；欧洲经济区、瑞士、英国使用 Google AI 套餐需年满 18 岁",
+        "本文不写任何绕过地区限制的方法"
+      ]
+    },
+    {
+      "title": "Veo 3.1 官网入口与怎么用：Flow、Gemini 应用和 API 现在各是什么状态",
+      "slug": "veo-31-official-entry-how-to-use",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1091-veo31-entry-decide.png",
+        "g1091-veo31-flow-models.png"
+      ],
+      "tags": [
+        "gemini",
+        "veo"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Veo 3.1 官网在哪、怎么用？模型介绍页是 DeepMind 的 Veo 页面，创作入口是 Google Flow。Flow 里有 Veo 3.1 Lite、Fast、Quality；Gemini 应用的视频已换成 Omni；Gemini API 的 Veo 3.1 预览版 2026-10-22 已下线。",
+      "content": "> 本文根据 Google DeepMind 的 Veo 页面、Flow 官方帮助中心和 Gemini API 官方文档整理，资料核对于 2026-10-25。**Veo 在 Gemini API 里的预览版已于 2026-10-22 下线**，下文按这个时间点说明各入口现状。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「veo 3.1 官网」「veo3 flow」的人；\n- 想用 Veo 3.1 做视频，不知道现在该从哪个入口进的人；\n- 以前用 Gemini API 调 Veo，现在报错下线的开发者。\n\n## 结论先说\n\n1. **官方入口有两个**：模型介绍页是 DeepMind 的 Veo 页面（deepmind.google/models/veo/），页内有「在 Gemini 试用」「在 Google Flow 试用」「用 Veo 构建」三个按钮；实际创作的主要入口是 **Google Flow**（labs.google/fx/tools/flow）。\n2. **Flow 里能选 Veo 3.1**：官方帮助中心写明有 Veo 3.1 的 Lite、Fast、Quality 三档，同时还有 Gemini Omni Flash 1.1。\n3. **Flow 的使用门槛**：年满 18 岁并完成年龄验证；位于支持的地区；订阅 Google AI Plus、Pro 或 Ultra。推荐用 Chrome、Edge 这类 Chromium 内核浏览器。订阅差别见 [/guides/gemini-ultra-vs-pro-difference](/guides/gemini-ultra-vs-pro-difference)，需要谷歌账号相关服务可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n4. **Gemini 应用里的视频**：官方帮助中心说 Gemini Omni 已取代应用里的 Veo，详见 [/guides/gemini-video-generation](/guides/gemini-video-generation)。\n5. **Gemini API**：官方文档写明 Veo 3.1 Preview（三个预览模型）已在 2026-10-22 下线，请迁移到 Gemini Omni Flash（`gemini-omni-1.1-flash`）或通过 Gemini Enterprise Agent Platform 提供的正式版模型。\n\n![Veo 3.1 现在从哪里进](seed:g1091-veo31-entry-decide.png)\n*图：本站根据 [DeepMind Veo 页面](https://deepmind.google/models/veo/)、[Flow 帮助中心](https://support.google.com/flow/answer/16353333) 与 [Gemini API 视频文档](https://ai.google.dev/gemini-api/docs/video) 整理的示意图*\n\n## 一、在 Flow 里用 Veo 3.1\n\n官方 Flow 帮助中心的步骤：\n\n1. 用 Chromium 内核浏览器打开 Google Flow（labs.google/fx/tools/flow）；\n2. 点已有项目或新建项目；\n3. **用 Flow Agent**：在提示框里打开 Agent，详细描述想要的场景，可以让它一次做多个变体；或者**用标准提示框**：描述场景后点模型名，选 **Video**；\n4. 可选：添加参考素材（ingredients）或起止帧；\n5. 选择画幅、输出数量、模型和时长，点 Generate。\n\n官方提示：提示词要具体，写清主体、动作、环境、光线和风格。官方默认模型是 Nano Banana Pro（图片），要生成视频需要点模型名切换到 Video。提示词写法见 [/guides/veo-prompt-guide](/guides/veo-prompt-guide)，Flow 的完整用法见 [/guides/google-flow-how-to](/guides/google-flow-how-to)。\n\n### Flow 里各视频模型支持什么\n\n![Flow 里 Veo 3.1 与 Omni 的功能对比](seed:g1091-veo31-flow-models.png)\n*图：本站根据 [Flow 帮助中心：模型与支持功能](https://support.google.com/flow/answer/16352836) 整理的示意图*\n\n要点（官方页面）：\n\n- **Veo 3.1 Lite**：文生视频 4、6、8 秒；首帧、首尾帧；参考素材仅 8 秒；可延长（仅 8 秒）；不支持视频改视频；\n- **Veo 3.1 Fast**：同样 4、6、8 秒；首帧、首尾帧；参考素材仅 8 秒；不支持延长和视频改视频；\n- **Veo 3.1 Quality**：4、6、8 秒；首帧、首尾帧；不支持参考素材、延长和视频改视频；\n- **Gemini Omni Flash 1.1**：4、6、8、10 秒；首帧、首尾帧、参考素材；支持视频改视频（最长 10 秒）；延长视频「即将推出」；\n- 如果你选了所选模型不支持的功能，Flow 会提示并自动切到兼容的模型；\n- 每次生成的积分以提示框设置里显示的为准，生成失败不扣积分。\n\n## 二、其他入口的现状\n\n| 入口 | 现状（2026-10-25 官方说明） |\n| --- | --- |\n| DeepMind Veo 页面 | 介绍 Veo 3.1，页内提供「在 Gemini 试用」「在 Flow 试用」「用 Veo 构建」按钮 |\n| Gemini 应用 | 官方帮助中心说 Gemini Omni 取代了应用里的 Veo；新建视频走 Omni |\n| Gemini API | Veo 3.1 Preview 三个预览模型 2026-10-22 下线；Gemini Omni Flash 用于视频生成和对话式编辑 |\n| Gemini Enterprise Agent Platform | 官方说有正式版 Veo 模型，具体型号与价格请看企业平台文档 |\n\n官方 Gemini API 文档里的 Veo 3.1 说明（下线前）提到：生成 8 秒视频，720p、1080p 或 4K（Lite 不支持 4K），带原生音频；支持横屏 16:9 和竖屏 9:16；最多 3 张参考图；支持首尾帧插值。这些是旧预览版的规格，现已不能通过 Gemini API 使用。\n\n## 三、水印和使用规范\n\n- Flow 里用 Veo、Omni 或 Nano Banana 生成的内容，官方说都带不可见的 SynthID 水印；\n- 可见水印可以通过头像菜单里的「Visible watermarking」开关控制；印度、韩国、越南的非 Ultra 20x 用户会自动加可见水印；\n- Flow 禁止生成有害、违法或不当内容，对未成年人和上传的人像有保护措施，详见官方「Generative AI Prohibited Use Policy」。\n\n## 常见问题\n\n**Q：Veo 3.1 的官网到底是哪个？**\n官方的模型介绍页是 deepmind.google/models/veo/，创作入口是 Flow；不要在来历不明的「Veo 官网」里输入账号或付款信息。\n\n**Q：免费账号能用 Veo 3.1 吗？**\n官方 Flow 帮助中心写的使用条件是订阅 Google AI Plus、Pro 或 Ultra，或符合条件的 Workspace 套餐。免费用户没有列出。\n\n**Q：之前用 Gemini API 的 Veo，现在怎么办？**\n按官方提示迁移到 Gemini Omni Flash 或企业平台的正式版模型。\n\n**Q：Gemini 为什么找不到 Veo？**\n见 [/guides/gemini-not-working-official-changes](/guides/gemini-not-working-official-changes)。\n\n## 参考资料\n\n- Google DeepMind：Veo — https://deepmind.google/models/veo/\n- Flow 帮助中心：Get started with Google Flow — https://support.google.com/flow/answer/16353333\n- Flow 帮助中心：Models & supported features — https://support.google.com/flow/answer/16352836\n- Flow 帮助中心：Create videos in Google Flow — https://support.google.com/flow/answer/16353334\n- Gemini API：视频生成 — https://ai.google.dev/gemini-api/docs/video\n- Gemini API：Veo 3.1 — https://ai.google.dev/gemini-api/docs/veo",
+      "sources": [
+        "https://deepmind.google/models/veo/",
+        "https://support.google.com/flow/answer/16353333",
+        "https://support.google.com/flow/answer/16352836",
+        "https://support.google.com/flow/answer/16353334",
+        "https://ai.google.dev/gemini-api/docs/video",
+        "https://ai.google.dev/gemini-api/docs/veo"
+      ],
+      "screenshots": [],
+      "verify": [
+        "Flow 的入口地址取自 Flow 帮助中心当次页面（labs.google/fx/tools/flow）；DeepMind 的 Veo 页面上的按钮指向 gemini.google.com/veo、labs.google/flow 和 ai.google.dev 的视频文档，按钮目标可能变化",
+        "Flow 帮助中心写明使用条件：年满 18 岁且完成年龄验证、位于支持地区、订阅 Google AI Plus、Pro 或 Ultra；符合条件的 Workspace 套餐每天有 50 积分；官方推荐用 Chromium 内核浏览器；本文不涉及地区限制的绕过方法",
+        "Flow 模型功能表取自官方「Learn about Google Flow models & supported features」页：该页写 Flow 由多种 Veo 模型驱动，另有 Gemini Omni（标准 720p 与草稿 360p）；各模型的积分价格以产品内设置里显示为准，官方说成本在快速变化",
+        "官方帮助中心说 Gemini Omni 取代 Gemini 应用里的 Veo（本站 323 号文章已引用）；Gemini API 的 Veo 3.1 Preview（三个预览模型）已于 2026-10-22 下线，官方让迁移到 Gemini Omni Flash 或通过 Gemini Enterprise Agent Platform 提供的正式版模型，企业平台上的具体模型与价格本文未核对",
+        "官方说明 Flow 的所有输出都带不可见的 SynthID 水印，可见水印可通过账号菜单里的开关控制，印度、韩国和越南的非 Ultra 20x 用户会自动加可见水印",
+        "本文不写 Veo 的 API 价格（官方 Veo 页已写明预览版下线），也不引用测评对比"
+      ]
+    },
+    {
+      "title": "Gemini API 价格：各模型每百万 tokens 多少钱、免费层和付费层差在哪、引入价什么时候结束",
+      "slug": "gemini-api-price-official",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1092-gemini-api-price-table.png",
+        "g1092-gemini-api-free-or-paid.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Gemini API 价格是多少？按官方定价页：Gemini 4 Argon 引入价输入 2 美元、输出 10 美元（到 11 月 30 日）；3.8 Flash 输入 0.75、输出 3.75；3.5 Flash-Lite 输入 0.30、输出 2.50，每百万 tokens。附免费层区别（2026-10 查询）。",
+      "content": "> 本文根据 Gemini API 官方定价页、模型页和最新模型页整理，资料核对于 2026-10-25，价格为「2026-10 查询」。**价格以官方定价页为准**；部分价格带有结束日期。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「gemini api price」「gemini api 价格」的人；\n- 想比较 Gemini 各模型成本、选便宜够用模型的开发者；\n- 想知道免费层能用哪些模型的人。\n\n## 结论先说\n\n1. **按 tokens 计费**：官方定价页的单位是美元每百万 tokens，输出价包含思考 tokens。\n2. **最便宜的文本模型**：Gemini 3.1 Flash-Lite 输入 0.25 美元、输出 1.50 美元；3.5 Flash-Lite 输入 0.30、输出 2.50；3.8 Flash 与 3.6 Flash 输入 0.75、输出 3.75（均为标准档，到 2026-12-31 的价格）。\n3. **旗舰 Gemini 4 Argon**：引入价输入 2.00、输出 10.00，到 2026-11-30；2026-12-01 起输入 4.00、输出 20.00；没有免费层。Argon 的介绍见 [/guides/gemini-4-argon-what-is-release-date](/guides/gemini-4-argon-what-is-release-date)。\n4. **免费层**：官方说「限量访问部分模型，输入输出 tokens 免费」，AI Studio 免费；但 Argon 和 3.1 Pro 预览版在免费层「不可用」。\n5. **想省钱**：官方写付费层的 Batch API 可降低 50% 成本。Key 怎么拿见 [/guides/gemini-api-key](/guides/gemini-api-key)，限额见 [/guides/gemini-api-free-tier-rate-limits](/guides/gemini-api-free-tier-rate-limits)，充值与支出上限见 [/guides/gemini-api-billing-prepay](/guides/gemini-api-billing-prepay)。\n\n![Gemini API 主要文本模型价格（标准档）](seed:g1092-gemini-api-price-table.png)\n*图：本站根据 [Gemini API 官方定价页](https://ai.google.dev/gemini-api/docs/pricing) 整理的示意图，单位美元 / 每百万 tokens*\n\n## 一、主要文本模型价格（标准档，付费层）\n\n| 模型 | 输入 | 输出（含思考） | 说明 |\n| --- | --- | --- | --- |\n| Gemini 4 Argon | 2.00 | 10.00 | 引入价到 2026-11-30，之后 4.00 / 20.00；无免费层 |\n| Gemini 3.8 Flash | 0.75 | 3.75 | 到 2026-12-31，之后 1.50 / 7.50；有免费层 |\n| Gemini 3.6 Flash | 0.75 | 3.75 | 同上，官方称其为上一代 Flash |\n| Gemini 3.5 Flash-Lite | 0.30 | 2.50 | 面向大批量智能体任务、翻译、简单数据处理；有免费层 |\n| Gemini 3.1 Flash-Lite | 0.25 | 1.50 | 文本、图片、视频输入价；音频 0.50；有免费层 |\n| Gemini 3.1 Pro 预览版 | 2.00 | 12.00 | 提示词 20 万 tokens 以内；超过为 4.00 / 18.00；无免费层 |\n| Gemini 3 Flash 预览版 | 0.50 | 3.00 | 官方称为旧版 Flash；有免费层 |\n| Gemini 2.5 Pro | 1.25 | 10.00 | 20 万 tokens 以内；超过为 2.50 / 15.00；有免费层 |\n| Gemini 2.5 Flash | 0.30 | 2.50 | 音频输入 1.00；有免费层 |\n\n官方把 Argon 称为旗舰推理模型，用于复杂软件工程、深度数学与科学问题、自主智能体和长输出；把 3.8 Flash 称为「最智能的 Flash 模型」，适合长流程软件工程、自主智能体和复杂企业工作流。缓存、批量、Flex 和优先档价格见官方页面。哪些模型已经下线（标注 Shut down），见官方模型页，例如 2.0 Flash 已下线。\n\n## 二、免费层和付费层\n\n![Gemini API 免费层还是付费层怎么选](seed:g1092-gemini-api-free-or-paid.png)\n*图：本站根据 [Gemini API 官方定价页](https://ai.google.dev/gemini-api/docs/pricing) 整理的示意图*\n\n官方定价页对三种层级的描述：\n\n| 层级 | 官方写的内容 |\n| --- | --- |\n| Free | 限量访问部分模型；免费的输入和输出 tokens；Google AI Studio 访问；内容可能被用于改进产品 |\n| Paid | 更高速率限制；可用上下文缓存；Batch API（成本降低 50%）；可用 Google 最先进模型；内容不用于改进产品 |\n| Enterprise | Paid 的全部功能，加专属支持、高级安全与合规、预置吞吐、按用量折扣、MLOps 等，通过 Gemini Enterprise Agent Platform |\n\n另外：\n\n- **Google 搜索 grounding**：Argon、3.8 Flash 等 Gemini 3 及以上模型共享每月 5,000 次免费搜索请求，超出每 1000 次 14 美元；\n- **Google AI Studio 本身免费**：官方说在所有可用地区免费使用；\n- **价格因平台不同**：官方提醒，Gemini Enterprise Agent Platform 上的价格可能与这里的不同；\n- **文档（PDF）计费**：按图片 token 价计算。\n\n## 三、怎么控制成本\n\n1. **先用便宜模型试**：简单分类、翻译、数据处理先从 Flash-Lite 级别试；\n2. **能异步就用 Batch**：官方写 Batch API 成本降低 50%，通常不要求实时返回；\n3. **设支出上限**：见 [/guides/gemini-api-billing-prepay](/guides/gemini-api-billing-prepay)；\n4. **注意提示词长度分档**：3.1 Pro、2.5 Pro 的价格以提示词是否超过 20 万 tokens 分档；\n5. **关注结束日期**：Argon 的引入价到 11 月 30 日，之后涨一倍。\n\n## 常见问题\n\n**Q：Gemini 订阅（Google AI Pro）和 API 是一回事吗？**\n不是。订阅是给 Gemini 应用等产品的，API 单独按 tokens 计费，见 [/guides/gemini-ultra-vs-pro-difference](/guides/gemini-ultra-vs-pro-difference)；需要谷歌账号相关服务可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n**Q：429 报错怎么办？**\n见 [/guides/gemini-api-429-resource-exhausted](/guides/gemini-api-429-resource-exhausted)。\n\n**Q：怎么用 OpenAI 的库调 Gemini？**\n见 [/guides/gemini-api-base-url-openai-compatible](/guides/gemini-api-base-url-openai-compatible)。\n\n**Q：其他家 API 价格呢？**\n五家官方价格放在一起的速查见 [/guides/llm-api-price-comparison-official](/guides/llm-api-price-comparison-official)。\n\n## 参考资料\n\n- Gemini API：定价 — https://ai.google.dev/gemini-api/docs/pricing\n- Gemini API：模型 — https://ai.google.dev/gemini-api/docs/models\n- Gemini API：最新模型 — https://ai.google.dev/gemini-api/docs/latest-model\n- Gemini API：计费说明 — https://ai.google.dev/gemini-api/docs/billing",
+      "sources": [
+        "https://ai.google.dev/gemini-api/docs/pricing",
+        "https://ai.google.dev/gemini-api/docs/models",
+        "https://ai.google.dev/gemini-api/docs/latest-model",
+        "https://ai.google.dev/gemini-api/docs/billing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "价格取自 ai.google.dev/gemini-api/docs/pricing 当次页面（页面更新于 2026-10-22 UTC），单位美元每百万 tokens，只列「标准」档的付费层价格；批量、Flex、优先档的价格在同一页面的其他标签里，本文不逐项列",
+        "页面把各模型的价格表放在模型名下，文本抓取时部分模型名丢失，本文按页面导航顺序和模型简介把价格表对应到模型；若与你在官方页面看到的不符，请以官方页面为准",
+        "Argon 的引入价到 2026-11-30，之后输入 4 美元、输出 20 美元；3.8 Flash 与 3.6 Flash 等的现价写明到 2026-12-31，之后（2027-01-01 起）输入 1.50、输出 7.50；本文只写已标注日期的价格",
+        "3.1 Pro 预览版和 2.5 Pro 的价格按提示词是否超过 20 万 tokens 分档，本文只写 20 万 tokens 以内的价格，超出的见官方页面",
+        "免费层「用于改进产品」「付费层不用于改进产品」取自定价页每个模型表中的「Used to improve our products」一行，各模型不尽相同，请以具体模型表为准",
+        "官方说明 Google AI Studio 在所有可用地区免费使用；API 的限额与计费详情见官方 Billing 页，本站已有免费额度与预付费文章",
+        "图片、视频、语音、音乐、嵌入模型和工具（如 Google 搜索 grounding）也有单独定价，本文不展开"
+      ]
+    },
+    {
+      "title": "AI 会员怎么选：ChatGPT、Claude、Gemini、Grok 四家个人订阅的价位、功能和适合的用途",
+      "slug": "ai-subscription-which-to-choose-four-vendors",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1093-ai-plans-price-compare.png",
+        "g1093-ai-plans-by-use.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "chatgpt"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "AI 会员怎么选？按四家官方定价页：ChatGPT Plus 20 美元、Claude Pro 20 美元（年付折合 17）、Gemini Pro 19.99 美元、Grok Premium 30 美元；高用量档都在 100 美元上下。附按用途挑选的对照表（2026-10 查询）。",
+      "content": "> 本文根据 ChatGPT、Claude、Gemini 和 Grok 四家官方定价页整理，资料核对于 2026-10-25，价格为「2026-10 查询」。订阅价格、额度与可用地区都会变，**以官方页面和你下单时显示的为准**。本文不做「谁更强」的排名，只摆官方写明的价位与功能。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「ai会员怎么选」「chatgpt claude gemini grok 哪个好」的人；\n- 预算有限，只想订一家，想先按用途缩小范围的人；\n- 已经订了一家，想知道别家同价位多了什么的人。\n\n## 结论先说\n\n1. **主力档价位很接近**：ChatGPT Plus 20 美元；Claude Pro 20 美元，年付折合每月 17；Gemini（Google AI Pro）19.99 美元；Grok Premium 30 美元（官方推荐新用户选这一档）。\n2. **高用量档都在 100 美元上下**：ChatGPT Pro 100 美元起；Claude Max 100 美元起；Gemini Ultra 99.99 美元起；Grok Super 100 美元、Ultra 200 美元。\n3. **只有部分家有便宜的入门档**：ChatGPT Go 8 美元；Gemini Plus 4.99 美元；Grok Plus 8 美元；Claude 没有低于 Pro 的付费档。\n4. **用量没法直接比**：各家官方只写「更多」「扩展」或倍数，不给统一口径的次数。要比用量，先到各家产品里看自己的用量页。\n5. **按用途缩小范围**：下面第三节列了一张对照表，依据是各家官方写明的功能。\n\n![四家个人订阅的价位对比](seed:g1093-ai-plans-price-compare.png)\n*图：本站根据 [ChatGPT](https://chatgpt.com/pricing)、[Claude](https://claude.com/pricing)、[Gemini](https://gemini.google/subscriptions/) 和 [Grok](https://x.ai/pricing) 官方定价页整理的示意图，美元每月，不含税*\n\n## 一、四家各自的订阅\n\n### ChatGPT（OpenAI）\n\n| 档位 | 月费（美元） | 官方写的要点 |\n| --- | --- | --- |\n| Free | 0 | 无限文本聊天（受滥用防护限制）、有限的上传、图片、语音、深度研究 |\n| Go | 8 | 更多工具消息、上传、图片、语音，更长记忆；可能包含广告 |\n| Plus | 20 | GPT-6 高级推理模型、更多消息和上传、更精细的图片创作、深度研究、Projects、定时任务、自定义 GPT、更多 Codex 用量 |\n| Pro | 100 起 | 3 档用量可选、Pro 推理模型（GPT-6 Astra）、更长的 Codex 会话、无限且更快的图片创作、最大深度研究 |\n\n需要开通 ChatGPT Plus 可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)；Plus 和 Pro 的差别见 [/guides/chatgpt-plus-vs-pro-tiers](/guides/chatgpt-plus-vs-pro-tiers)，套餐全面对比见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)。\n\n### Claude（Anthropic）\n\n| 档位 | 月费（美元） | 官方写的要点 |\n| --- | --- | --- |\n| Free | 0 | 网页、桌面、手机聊天，联网搜索、创建文件、运行代码，跨对话记忆，连接应用，Artifacts |\n| Pro | 20（年付折合 17） | 含 Claude Code，更多用量，移交与定时任务，Projects，更多 Claude 模型，Claude in Chrome 和 Microsoft 365 |\n| Max | 100 起 | Pro 的全部加 5 倍或 20 倍用量、更高输出上限、高峰期优先访问、每月 100 到 200 美元的 API 额度 |\n\n需要开通可看 [/chongzhi/claude-pro](/chongzhi/claude-pro)，高用量或 Claude Code 重度使用看 [/chongzhi/claude-max](/chongzhi/claude-max)。Pro 与 Max 怎么选见 [/guides/claude-code-pro-max-or-api](/guides/claude-code-pro-max-or-api)；订阅和 API 的区别见 [/guides/claude-subscription-vs-api](/guides/claude-subscription-vs-api)。\n\n### Gemini（Google）\n\n| 档位 | 月费（美元） | 官方写的要点 |\n| --- | --- | --- |\n| Free | 0 | Flash-Lite 模型、图片生成与编辑、Deep Research、Gemini Live、Canvas、15 GB 存储 |\n| Plus | 4.99 | 免费版 2 倍用量、Flash 模型、视频生成、200 点 Flow 点数、400 GB 存储 |\n| Pro | 19.99 | 免费版 4 倍用量、Gemini 4 Argon 与 Pro 模型、1,000 点 Flow 点数、Gemini in Gmail 和 Docs、5 TB 存储 |\n| Ultra | 99.99 起 | Pro 的 5 倍或 20 倍用量、最高模型额度、Project Genie、YouTube Premium 个人版、20 TB 起存储 |\n\n需要谷歌账号相关服务可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)；Pro 与 Ultra 的差别见 [/guides/gemini-ultra-vs-pro-difference](/guides/gemini-ultra-vs-pro-difference)。\n\n### Grok（xAI）\n\n| 档位 | 月费（美元） | 官方写的要点 |\n| --- | --- | --- |\n| Free | 0 | 有限的聊天和代理请求 |\n| Plus | 8 | 共享用量池；Grok 聊天、语音、Imagine、Build、API、Cursor |\n| Premium | 30 | Plus 的 4 倍用量；最新 Grok 模型、更快聊天响应、AI 图片和视频、Grok Bot |\n| Super | 100 | Plus 的 15 倍，高峰期优先访问 |\n| Ultra | 200 | Plus 的 50 倍 |\n\n需要开通可看 [/chongzhi/grok-super](/chongzhi/grok-super)；Grok 的订阅细节见 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download)，免费版能做什么见 [/guides/grok-free-usage-how-much](/guides/grok-free-usage-how-much)。\n\n## 二、官方限制和提醒\n\n- **价格是美元标价、不含税**，实际以下单页面为准；\n- **用量每家算法不同**：Gemini 按计算量折算，每 5 小时刷新、有周上限；Grok 是每周共享用量池；ChatGPT、Claude 官方对 Plus、Pro 都写「有限额」，具体看各自的用量页；\n- **订阅和 API 不是一回事**：几家都是订阅与 API 分开计费，见各家的 API 文章；\n- **Grok 官方声明**订阅只通过官方渠道直接销售，不授权任何转售方。\n\n## 三、按用途挑（本站整理，依据是官方写明的功能）\n\n![按用途挑会员的对照表](seed:g1093-ai-plans-by-use.png)\n*图：本站根据四家官方定价页和产品页整理的示意图*\n\n| 你主要想做的事 | 可以先看的方向 | 官方依据 |\n| --- | --- | --- |\n| 写代码、用命令行智能体 | Claude Pro 起含 Claude Code；ChatGPT Plus 有更多 Codex 用量 | Claude 定价页、ChatGPT 定价页 |\n| 做图、做视频 | ChatGPT 有图片创作；Gemini 有 Flow 点数和视频生成；Grok 有 Imagine | 各家定价页 |\n| Google 生态重度用户 | Gemini Pro：Gmail、Docs 里的 Gemini，加 5 TB 存储 | Gemini 订阅页 |\n| 要实时看 X 上的动态 | Grok：官方说会实时搜索网页和 X | x.ai/grok |\n| 长期固定使用、不想纠结 | 从主力档（约 20 美元）起，用量不够再升 | 四家定价页 |\n\n更细的对比见 [/guides/chatgpt-vs-gemini-which-to-choose](/guides/chatgpt-vs-gemini-which-to-choose)、[/guides/chatgpt-vs-grok-which-to-choose](/guides/chatgpt-vs-grok-which-to-choose) 和 [/guides/deepseek-vs-claude-which-to-choose](/guides/deepseek-vs-claude-which-to-choose)。\n\n## 常见问题\n\n**Q：只能订一家，选哪家？**\n本文不做排名。先想清楚主要用途（见上表），再看官方页面里该用途对应的功能和用量。\n\n**Q：能不能先用免费版比一比？**\n四家都有免费档，功能范围不同：ChatGPT 免费版有无限文本聊天（受限）、Claude 免费版有聊天和联网搜索、Gemini 免费版有 Flash-Lite、Grok 免费版有限量。\n\n**Q：几家的 API 价格怎么比？**\n五家官方价格放在一起的速查见 [/guides/llm-api-price-comparison-official](/guides/llm-api-price-comparison-official)。\n\n## 参考资料\n\n- ChatGPT 官方：Pricing — https://chatgpt.com/pricing\n- Claude 官方：Pricing — https://claude.com/pricing\n- Gemini 官方：订阅 — https://gemini.google/subscriptions/\n- Grok 官方：Pricing — https://x.ai/pricing\n- docs.x.ai：The X Subscription Pricing — https://docs.x.ai/x-subscription/pricing",
+      "sources": [
+        "https://chatgpt.com/pricing",
+        "https://claude.com/pricing",
+        "https://gemini.google/subscriptions/",
+        "https://x.ai/pricing",
+        "https://docs.x.ai/x-subscription/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "价格均为各家官方定价页的美元标价（不含税），2026-10-25 查询：ChatGPT Free 0、Go 8、Plus 20、Pro 100 起；Claude Free 0、Pro 20（年付 200 美元，折合每月 17）、Max 100 起；Gemini Free 0、Plus 4.99、Pro 19.99、Ultra 99.99 起；Grok Free 0、Plus 8、Premium 30、Super 100、Ultra 200",
+        "各家官方都注明价格和套餐可能调整，不同国家和地区的价格、可用性可能不同；ChatGPT Go 官方注明「可能包含广告」",
+        "官方对用量只写倍数或「更多、扩展」，不给统一口径的具体次数，各家的用量无法直接换算比较，本文不做用量排名",
+        "「按用途挑」部分是本站的整理建议，依据是各家官方写明的功能；哪家「更强」没有官方依据，本文不下结论",
+        "Grok 官方定价页同时声明订阅只通过官方渠道直接销售、不授权任何转售方；本文只写官方标价",
+        "Claude 官方定价页写明 Claude Code 随 Pro 与 Max 提供，Free 不含；Claude 目前没有低于 Pro 的付费入门档"
+      ]
+    },
+    {
+      "title": "AI 大模型 API 价格对比：OpenAI、Anthropic、Google、xAI、DeepSeek 官方价格页速查",
+      "slug": "llm-api-price-comparison-official",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1094-llm-api-price-five-vendors.png",
+        "g1094-api-price-read-checklist.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "大模型 API 价格怎么比？取自五家官方价格页（2026-10 查询）：OpenAI gpt-6.1-sol 2/10 美元，Claude Sonnet 5.5 2/10，Gemini 3.8 Flash 0.75/3.75，grok-4.7 2/6，DeepSeek flash 0.3/1.2（每百万）。",
+      "content": "> 本文把五家官方价格页放在一起速查，资料核对于 2026-10-25，价格为「2026-10 查询」。**价格以官方页面为准**，各家都会调整。本文只摆价格，不做「哪家更值」的结论。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「大模型 api 价格对比」「ai api 价格」的人；\n- 要选模型做产品、做批量处理的开发者；\n- 想知道「主力模型」大概花多少钱的人。\n\n## 结论先说\n\n1. **单位统一**：以下都是美元每百万 tokens，输入和输出分开计价。\n2. **主力档价格集中在输入 0.75 到 2 美元、输出 3.75 到 10 美元**：OpenAI gpt-6.1-sol 2 / 10；Claude Sonnet 5.5 2 / 10；Gemini 3.8 Flash 0.75 / 3.75；xAI grok-4.7 2 / 6；DeepSeek flash 高峰 0.30 / 1.20。\n3. **旗舰档差距更大**：OpenAI gpt-6-astra 10 / 50；Claude Fable 5.1 10 / 50；Gemini 4 Argon 引入价 2 / 10；DeepSeek v4-pro 高峰 1.32 / 3.96。\n4. **轻量档最便宜**：OpenAI gpt-6-luna 0.10 / 0.50；Claude Haiku 5.5 0.10 / 0.50（10 万 tokens 以内）；Gemini 3.1 Flash-Lite 0.25 / 1.50。\n5. **有限时价和时段价**：Argon 引入价到 11 月 30 日；DeepSeek 低谷是高峰的一半。\n\n![五家 API 的价格速查](seed:g1094-llm-api-price-five-vendors.png)\n*图：本站根据 [OpenAI](https://platform.openai.com/docs/pricing)、[Anthropic](https://docs.claude.com/en/docs/about-claude/pricing)、[Google](https://ai.google.dev/gemini-api/docs/pricing)、[xAI](https://docs.x.ai/developers/pricing)、[DeepSeek](https://api-docs.deepseek.com/quick_start/pricing) 官方价格页整理的示意图，美元每百万 tokens，档位并非同级对应*\n\n## 一、各家价格表（标准价，短上下文）\n\n### OpenAI\n\n| 模型 | 输入 | 输出 | 缓存输入 |\n| --- | --- | --- | --- |\n| gpt-6-astra | 10.00 | 50.00 | 1.00 |\n| gpt-6.1-sol | 2.00 | 10.00 | 0.10 |\n| gpt-6-sol | 2.00 | 10.00 | 0.20 |\n| gpt-6-luna | 0.10 | 0.50 | 0.01 |\n\n### Anthropic（Claude）\n\n| 模型 | 输入 | 输出 | 官方简介 |\n| --- | --- | --- | --- |\n| Claude Fable 5.1 | 10 | 50 | 面向要求很高的推理和长流程智能体任务 |\n| Claude Opus 5.5 | 4 | 20 | 长时间运行的智能体式编程与知识工作 |\n| Claude Sonnet 5.5 | 2 | 10 | 速度和智能的最佳组合 |\n| Claude Haiku 5.5 | 0.10（10 万 tokens 以内） | 0.50 | 大批量、低延迟任务，如分类、提取、路由 |\n\nHaiku 5.5 的提示词超过 10 万 tokens 时，输入 0.50、输出 2.50。\n\n### Google（Gemini）\n\n| 模型 | 输入 | 输出 | 说明 |\n| --- | --- | --- | --- |\n| Gemini 4 Argon | 2.00 | 10.00 | 引入价到 2026-11-30，之后 4.00 / 20.00；无免费层 |\n| Gemini 3.8 Flash | 0.75 | 3.75 | 到 2026-12-31；有免费层 |\n| Gemini 3.1 Flash-Lite | 0.25 | 1.50 | 有免费层 |\n\n更多模型见 [/guides/gemini-api-price-official](/guides/gemini-api-price-official)。\n\n### xAI（Grok）\n\n| 模型 | 输入 | 输出 | 说明 |\n| --- | --- | --- | --- |\n| grok-4.7 | 2.00 | 6.00 | 提示词 20 万 tokens 以上整条请求按 4.00 / 12.00 |\n| grok-4.3 | 1.25 | 2.50 | 上下文 1M |\n| grok-build-0.1 | 1.00 | 2.00 | 编程模型，256k 上下文 |\n\n细节见 [/guides/grok-api-pricing-api-key](/guides/grok-api-pricing-api-key)。\n\n### DeepSeek\n\n| 模型 | 高峰输入（缓存未命中） | 高峰输出 | 低谷输入 / 输出 |\n| --- | --- | --- | --- |\n| deepseek-flash | 0.30 | 1.20 | 0.15 / 0.60 |\n| deepseek-v4-pro | 1.32 | 3.96 | 0.66 / 1.98 |\n\n官方说低谷价是高峰价的一半，高峰时段为周一到周五 UTC 01:00 到 04:00 和 06:00 到 10:00（中国法定节假日除外）。DeepSeek 的价格变化见 [/guides/deepseek-price-changes-timeline](/guides/deepseek-price-changes-timeline)，开放平台充值见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。\n\n## 二、比价时别漏看的\n\n![比 API 价格时容易漏看的 6 项](seed:g1094-api-price-read-checklist.png)\n*图：本站根据各家官方价格页整理的示意图*\n\n- **长上下文加价**：各家阈值不同（Anthropic 的 Haiku 10 万 tokens、Google 和 xAI 20 万 tokens），超过后整条请求按高价算；\n- **缓存价**：命中缓存的输入价格低得多，写入缓存另有价格，具体见各家价格表；\n- **工具按次收费**：例如 xAI 的 Web Search 官方标价每 1000 次调用 5 美元，Google 搜索 grounding 每月 5,000 次免费后每 1000 次 14 美元；\n- **批量折扣**：Google 官方写 Batch API 降低 50% 成本，xAI 对 grok-4.7 等文本模型的批量折扣是 20%；\n- **模型更新很快**：价格页里会标注已下线（Shut down）的模型，上线前再核对一遍。\n\n## 三、怎么选（只给方向）\n\n| 需求 | 方向 |\n| --- | --- |\n| 分类、提取、路由等大批量简单任务 | 轻量档：gpt-6-luna、Haiku 5.5、3.1 Flash-Lite、deepseek-flash |\n| 通用对话与普通编程 | 主力档，价格区间见上文 |\n| 最难的推理、长流程智能体 | 旗舰档，价格最高，用量大时先小样本测试成本 |\n| 想先免费试 | Gemini API 有免费层（部分模型），见 [/guides/gemini-api-free-tier-rate-limits](/guides/gemini-api-free-tier-rate-limits)；其他家以官方为准 |\n\n订阅和 API 是两回事：ChatGPT、Claude、Gemini、Grok 的会员选择见 [/guides/ai-subscription-which-to-choose-four-vendors](/guides/ai-subscription-which-to-choose-four-vendors)。需要 ChatGPT 或 Claude 会员可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus) 和 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 常见问题\n\n**Q：为什么同样叫「输入 2 美元」，实际账单差很多？**\n因为缓存、长上下文、思考 tokens、工具调用都会改变账单。官方价格表里的输出价通常包含思考 tokens。\n\n**Q：能不能用中转或打折渠道？**\n本文不涉及；官方价格页和官方控制台是唯一的依据。\n\n**Q：国内模型 API 价格呢？**\n本文只取了 DeepSeek 的官方价格页。其他模型请看各家官方文档。\n\n## 参考资料\n\n- OpenAI：API 价格 — https://platform.openai.com/docs/pricing\n- Anthropic：Claude API 价格 — https://docs.claude.com/en/docs/about-claude/pricing\n- Google：Gemini API 价格 — https://ai.google.dev/gemini-api/docs/pricing\n- xAI：API 价格 — https://docs.x.ai/developers/pricing\n- DeepSeek：模型与价格 — https://api-docs.deepseek.com/quick_start/pricing",
+      "sources": [
+        "https://platform.openai.com/docs/pricing",
+        "https://docs.claude.com/en/docs/about-claude/pricing",
+        "https://ai.google.dev/gemini-api/docs/pricing",
+        "https://docs.x.ai/developers/pricing",
+        "https://api-docs.deepseek.com/quick_start/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "全部价格取自五家官方价格页当次内容：OpenAI（页面发布 2026-10-24）、Anthropic、Google（页面更新 2026-10-22）、xAI、DeepSeek（页面发布 2026-10-19），单位美元每百万 tokens；各家价格会调整，请以官方页面为准",
+        "各家的档位并不是同级对应：「旗舰、主力、轻量」是本站按官方模型简介做的粗分，模型能力没有可比的官方口径，本文不做性价比结论",
+        "OpenAI 价格表另有长上下文价、缓存写入价等列，Anthropic 的 Haiku 5.5 按提示词是否超过 10 万 tokens 分两档，Google 的 3.1 Pro 与 2.5 Pro 按是否超过 20 万 tokens 分档，xAI 的 grok-4.7 按 20 万 tokens 分档；本文只列短上下文的标准价",
+        "DeepSeek 价格分高峰和低谷：官方写低谷价是高峰价的一半，高峰时段为周一至周五 UTC 01:00 到 04:00 和 06:00 到 10:00（中国法定节假日除外）；本文列的是高峰价，缓存未命中的输入价",
+        "Google Gemini 4 Argon 的 2 美元与 10 美元是引入价，到 2026-11-30，之后是 4 美元与 20 美元；3.8 Flash 的价格标注到 2026-12-31",
+        "OpenAI 价格表里的模型名取自官方 .md 版价格页；Anthropic 价格页的部分行在文本抓取中缺失字段，本文只引完整的几行；以官方页面为准",
+        "本文不涉及任何 API 中转、转售或第三方折扣渠道，也不涉及 API Key 的购买"
+      ]
+    },
+    {
+      "title": "AI 编程工具怎么选：Codex、Claude Code、Cursor、Antigravity CLI（原 Gemini CLI）按订阅和额度来源对比",
+      "slug": "ai-coding-tools-codex-claude-code-cursor-gemini",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1095-ai-coding-tools-compare.png",
+        "g1095-ai-coding-tools-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "codex"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "AI 编程工具怎么选？按官方说明对比 Codex、Claude Code、Cursor 和 Antigravity CLI：额度分别来自 ChatGPT、Claude、X 订阅和 Google AI 套餐，起步价约 8 到 20 美元每月；Gemini CLI 个人账号路径已停止（2026-10 查询）。",
+      "content": "> 本文按官方定价页和文档整理，资料核对于 2026-10-25，价格为「2026-10 查询」。**只比订阅、额度来源和上手方式，不比代码质量**。详细的功能对比见 [/guides/cursor-vs-claude-code-vs-codex](/guides/cursor-vs-claude-code-vs-codex)。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「ai编程工具怎么选」「codex claude code cursor gemini cli 哪个好」的人；\n- 已经订阅了某家会员，想知道能不能顺带用上它的编程工具的人；\n- 想知道 Gemini CLI 现在的状态的人。\n\n## 结论先说\n\n1. **最省事的看法：谁的会员你已经有。** Codex 随 ChatGPT 套餐提供；Claude Code 随 Claude Pro 和 Max 提供；Cursor 现在属于 The X Subscription（Plus 起含 Cursor 和 Grok 模型）；Antigravity CLI 用 Google AI 套餐的限额。\n2. **起步价都在每月 8 到 20 美元**：Cursor（X 订阅 Plus）8；Claude Pro 20（年付折合 17）；ChatGPT Plus 20；Google AI Pro 19.99。高用量档都在 100 美元上下。\n3. **Gemini CLI 已不是个人账号的官方路径**：官方博客说 2026-06-18 起，个人 Google 账号（免费、AI Pro、Ultra）的 Gemini CLI 不再服务，建议用 Antigravity CLI；企业许可和付费 API Key 的访问不变。详见 [/guides/gemini-cli-how-to-use-antigravity-cli](/guides/gemini-cli-how-to-use-antigravity-cli)。\n4. **都能用自己的 API 吗：因产品而异**。Claude Code 官方写可以用 Anthropic Console 账号或 API Key；Cursor 的第三方模型按 API 标价扣预付余额；Codex 可配置自定义模型提供方，见 [/guides/grok-codex-cursor-setup](/guides/grok-codex-cursor-setup) 和 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。\n5. **需要会员可以看**：ChatGPT Plus [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)；Claude Pro [/chongzhi/claude-pro](/chongzhi/claude-pro)，Claude Code 重度使用 [/chongzhi/claude-max](/chongzhi/claude-max)；Grok 订阅（含 Cursor）[/chongzhi/grok-super](/chongzhi/grok-super)；Google 系 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n![四款 AI 编程工具的额度来源对比](seed:g1095-ai-coding-tools-compare.png)\n*图：本站根据各家官方定价页与文档整理的示意图，美元每月，用量口径不同不可直接比较*\n\n## 一、四款工具各自的情况\n\n### Codex（OpenAI）\n\n- **形态**：官方 CLI 页写的是在终端里检查代码、改文件、运行命令；官方文档还有其他入口，见 [/guides/codex-getting-started](/guides/codex-getting-started)；\n- **安装**：macOS 和 Linux 用安装脚本（`curl -fsSL https://chatgpt.com/codex/install.sh | sh`），也可用 `npm install -g @openai/codex` 或 Homebrew；第一次运行 `codex`，选择 Sign in with ChatGPT 或其他可用登录方式；\n- **额度**：ChatGPT 官方定价页，Free 有「有限的 Codex 访问」，Plus 有「扩展的 Codex 用量」，Pro 有「更长的 Codex 会话」；具体次数见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n### Claude Code（Anthropic）\n\n- **形态**：官方概览页说它可在终端、IDE（VS Code、JetBrains）、桌面 App 和浏览器里使用，各形态共用同一个引擎，CLAUDE.md、设置和 MCP 服务器通用；\n- **安装**：官方推荐原生安装，也可用 Homebrew、WinGet 等；首次使用会提示登录；\n- **额度**：官方定价页写 Claude Code 随 Pro 和 Max 提供，免费版不含；多数形态需要 Claude 订阅或 Anthropic Console 账号，桌面 App 需要付费订阅。Pro、Max 还是 API 见 [/guides/claude-code-pro-max-or-api](/guides/claude-code-pro-max-or-api)。\n\n### Cursor\n\n- **形态**：编辑器，官方文档站还有 Agent、云端智能体、Bugbot、命令行等；\n- **订阅**：Cursor 现在出售的是 The X Subscription 的一部分：Plus 8 美元、Premium 30、Super 100、Ultra 200；Plus 起包含 Cursor 自家模型（Grok 4.7、4.6、4.5 和 Composer 2.5）；\n- **第三方模型**：不含在订阅里，Premium 起可按 API 标价从预付余额里扣，见 [/guides/grok-codex-cursor-setup](/guides/grok-codex-cursor-setup)；套餐与额度细节见 [/guides/cursor-usage-limits-plans](/guides/cursor-usage-limits-plans)。\n\n### Antigravity CLI（Google，替代 Gemini CLI）\n\n- **形态**：终端优先，官方称它是调用、监控和操作 Antigravity 智能体最轻量的方式，支持子智能体并行；\n- **安装**：官方下载页给的命令，macOS / Linux：`curl -fsSL https://antigravity.google/cli/install.sh | bash`；Windows PowerShell：`irm https://antigravity.google/cli/install.ps1 | iex`；\n- **额度**：官方订阅页写 Google AI Pro 有「入门级」的 Antigravity 限额，Ultra 是 5 倍或 20 倍限额；订阅差别见 [/guides/gemini-ultra-vs-pro-difference](/guides/gemini-ultra-vs-pro-difference)。\n\n## 二、按你的情况挑\n\n![按你的情况挑编程工具](seed:g1095-ai-coding-tools-decide.png)\n*图：本站根据各家官方文档整理的示意图*\n\n| 你的情况 | 可以先看 |\n| --- | --- |\n| 已经订阅 ChatGPT | Codex，随套餐提供，先用满再考虑升档 |\n| 已经订阅 Claude Pro 或 Max | Claude Code，随订阅提供 |\n| 习惯在编辑器里写代码 | Cursor，订阅里自带 Grok 等模型 |\n| 已有 Google AI Pro 或 Ultra | Antigravity CLI；不要再按旧教程装 Gemini CLI |\n| 想对比各家功能细节 | [/guides/cursor-vs-claude-code-vs-codex](/guides/cursor-vs-claude-code-vs-codex) |\n\n## 三、选择时要留意\n\n- **额度口径不同**：ChatGPT、Claude 官方只写「扩展」「更多」；Cursor 是共享周用量池；Google 是倍数限额。没有统一的次数可比；\n- **订阅和 API 是两回事**：想按 token 付费要看各家 API 价格，见 [/guides/llm-api-price-comparison-official](/guides/llm-api-price-comparison-official)；\n- **官方产品变化快**：Gemini CLI 的变化就是例子，装之前先看官方文档页顶的提示；\n- **项目规则文件通用性**：AGENTS.md、CLAUDE.md 的写法见 [/guides/agents-md-cross-tool-guide](/guides/agents-md-cross-tool-guide)。\n\n## 常见问题\n\n**Q：只能选一个，选哪个？**\n本文不排名。用你已订阅的那一家的工具，最省钱省事；真要新订阅，按本站 [/guides/ai-subscription-which-to-choose-four-vendors](/guides/ai-subscription-which-to-choose-four-vendors) 里的价位和功能再看。\n\n**Q：Gemini CLI 还能用吗？**\n个人账号路径已停止，企业许可和付费 API Key 仍可用，见上文。\n\n**Q：这些工具能不能互相用对方的模型？**\n部分可以：Cursor 自带 Claude、GPT 等第三方模型（按 API 标价另付）；Codex 能配置别家兼容 Responses 接口的模型。Claude Code 与 Gemini 的互通，官方文档没有说明。\n\n## 参考资料\n\n- ChatGPT 官方：Pricing — https://chatgpt.com/pricing\n- OpenAI：Codex CLI — https://developers.openai.com/codex/cli\n- Claude 官方：Pricing — https://claude.com/pricing\n- Claude Code 文档：Overview — https://code.claude.com/docs/en/overview\n- Cursor 文档：Models & Pricing — https://cursor.com/docs/models-and-pricing\n- Gemini 官方：订阅 — https://gemini.google/subscriptions/\n- Antigravity：CLI — https://antigravity.google/product/antigravity-cli\n- Google 开发者博客：Transitioning Gemini CLI to Antigravity CLI — https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli",
+      "sources": [
+        "https://chatgpt.com/pricing",
+        "https://developers.openai.com/codex/cli",
+        "https://claude.com/pricing",
+        "https://code.claude.com/docs/en/overview",
+        "https://cursor.com/docs/models-and-pricing",
+        "https://gemini.google/subscriptions/",
+        "https://antigravity.google/product/antigravity-cli",
+        "https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli"
+      ],
+      "screenshots": [],
+      "verify": [
+        "本文从「额度从哪来、怎么付费、怎么装」的角度对比，不比较代码质量或速度；各家官方没有可比的评测口径，本文不下谁更强的结论",
+        "起步价取自各家官方定价页的个人订阅月费（美元，不含税，2026-10-25）：ChatGPT Plus 20、Claude Pro 20（年付折合 17）、Cursor 所属的 X 订阅 Plus 8、Google AI Pro 19.99；各家用量口径不同，不能直接比较",
+        "Codex 官方 CLI 页给的安装方式有安装脚本、npm 和 Homebrew；官方没有在该页写 Codex 在 ChatGPT 各套餐的具体次数，ChatGPT 定价页只写 Plus「扩展的 Codex 用量」、Pro「更长的 Codex 会话」、Free「有限的 Codex 访问」",
+        "Claude Code 官方概览页写：多数形态需要 Claude 订阅或 Anthropic Console 账号；设置了 ANTHROPIC_API_KEY 并在提示时批准，就跳过登录；桌面 App 需要付费订阅",
+        "Cursor 的计划与模型取自 cursor.com/docs/models-and-pricing：Plus 起含 Cursor 自家模型（Grok 4.7、4.6、4.5、Composer 2.5），第三方模型从 Premium 起按 API 标价从预付余额扣；Cursor 官方文档站还列有云端智能体、Bugbot 等",
+        "Gemini CLI 现状取自 Google 开发者博客（2026-05-19）与 Gemini CLI 文档页顶提示：2026-06-18 起个人 Google 账号（免费、AI Pro、Ultra）不再服务，官方建议用 Antigravity CLI；企业许可与付费 API Key 的访问不变；本文没有实际运行 Antigravity CLI",
+        "本站 550 号文章已按形态、账号、计费和规则文件对比 Cursor、Claude Code、Codex、GitHub Copilot（2026-10-11），本文补充 2026-10 的订阅变化和 Google 一侧的工具"
+      ]
+    },
+    {
+      "title": "AI 生图工具怎么选：ChatGPT 图片、Gemini（Nano Banana）、Grok Imagine 按官方说明对比额度、水印和 API 价格",
+      "slug": "ai-image-tools-which-to-choose",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1096-ai-image-tools-compare.png",
+        "g1096-ai-image-tools-decide.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "AI 生图工具怎么选？按官方页面对比：ChatGPT 免费版有限、Plus 更精细、Pro 无限；Gemini 免费版就有图片生成与编辑；Grok 带水印；Claude 不生成照片和插画。附 Gemini 和 Grok 的 API 单价（2026-10 查询）。",
+      "content": "> 本文根据 ChatGPT、Gemini、Grok 和 Claude 的官方定价页、帮助中心和 API 价格页整理，资料核对于 2026-10-25，价格为「2026-10 查询」。**不比较出图好不好看**，只摆官方写明的额度、水印和价格。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「ai生图工具怎么选」「哪个ai画图好用」的人；\n- 想知道免费版能不能画图、付费版多了什么的人；\n- 做批量生图、关心 API 价格的开发者。\n\n## 结论先说\n\n1. **三家免费版都能生图，但都有限额**：ChatGPT 免费版「有限的图片创作」；Gemini 免费版有图片生成与编辑（用 Nano Banana）；Grok 免费版有限量的 Imagine。\n2. **付费后的差别**：ChatGPT 从 Go 的「更多」、Plus 的「更复杂、更准确」到 Pro 的「无限且更快」；Gemini Plus 是免费版 2 倍用量，Pro 4 倍，Ultra 更高；Grok 是共享周用量池，Plus 起含 Imagine。\n3. **Claude 不是生图工具**：官方帮助中心说 Claude 不生成照片和插画（能做图表和示意图），见 [/guides/claude-image-generation](/guides/claude-image-generation)。\n4. **水印**：Gemini 生成的图带 SynthID 隐形水印；Grok 生成的图片和视频带 Grok 水印，官方明确没有去除设置。\n5. **API 价格**：Gemini 的 Nano Banana 系列每张约 0.03 到 0.24 美元；Grok 的 Imagine 图片每张 0.02 到 0.08 美元；OpenAI 的图片模型按 token 计价。\n\n![四家生图能力的官方说明对比](seed:g1096-ai-image-tools-compare.png)\n*图：本站根据各家官方定价页与帮助中心整理的示意图*\n\n## 一、各家怎么说\n\n### ChatGPT\n\n官方定价页：Free 有限的图片创作；Go 更多图片创作；Plus 更复杂、更准确的图片创作；Pro 无限且更快的图片创作（无限受滥用防护限制）。额度、失败排查、提示词见 [/guides/chatgpt-image-limits](/guides/chatgpt-image-limits)、[/guides/chatgpt-image-failed](/guides/chatgpt-image-failed) 和 [/guides/chatgpt-image-prompt-commands](/guides/chatgpt-image-prompt-commands)。需要开通可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\nAPI 里，OpenAI 价格页列有 gpt-image 系列模型，按文本和图像 token 分别计价，例如 gpt-image-2 的图像输出是每百万 tokens 30 美元（标准档），具体每张多少钱取决于尺寸和质量，官方提供了计算器。\n\n### Gemini（Nano Banana）\n\n官方订阅页：免费版有图片生成与编辑；Plus 是 2 倍用量，并有更多 Nano Banana 在搜索里的使用；Pro 4 倍；Ultra 更高。次数规则见 [/guides/gemini-image-limits](/guides/gemini-image-limits)，生不出图见 [/guides/gemini-cant-generate-images](/guides/gemini-cant-generate-images)，水印见 [/guides/gemini-image-watermark-synthid](/guides/gemini-image-watermark-synthid)。需要谷歌账号相关服务可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\nAPI 定价页（美元每张，页面折算值）：\n\n| 模型 | 1K | 2K | 4K |\n| --- | --- | --- | --- |\n| Nano Banana 2.1 | 约 0.0336 | 约 0.0504 | 约 0.113 |\n| Nano Banana Pro | 约 0.134 | 约 0.134 | 约 0.24 |\n| Nano Banana 2 Lite | 约 0.0336 | 官方页未列 | 官方页未列 |\n\n### Grok Imagine\n\n官方 x.ai/grok：文生图、文生视频在同一个对话里，最高 2K 图片，可以用后续指令编辑；官方 FAQ 说明所有生成内容带 Grok 水印。API 价格：grok-imagine-image 每张 0.02 美元，grok-imagine-image-2.0 按分辨率和质量每张 0.04 到 0.08 美元，图片编辑的输入图另计。详见 [/guides/grok-imagine-image-video](/guides/grok-imagine-image-video) 和 [/guides/grok-imagine-video-15-image-20](/guides/grok-imagine-video-15-image-20)。需要开通可看 [/chongzhi/grok-super](/chongzhi/grok-super)。\n\n## 二、按需求挑\n\n![按需求挑生图工具](seed:g1096-ai-image-tools-decide.png)\n*图：本站根据各家官方文档整理的示意图*\n\n| 需求 | 可以先看 |\n| --- | --- |\n| 先免费试 | 三家免费版都有生图，额度各家不同且有限，用一两天看够不够 |\n| 在对话里反复改图 | Gemini、Grok 官方写明可编辑；ChatGPT 的改图指令见上面链接的文章 |\n| 做批量或高分辨率 | 看 API：Gemini 有 4K 档，Grok 官方写最高 2K |\n| 在意 AI 标识 | Gemini 有 SynthID，Grok 有 Grok 水印 |\n| 要真实风格照片或插画 | Claude 官方说不生成，选别家 |\n\n## 三、使用时要注意\n\n- **额度口径不同**：ChatGPT 官方只写「有限、更多、无限」；Gemini 按计算量折算，每 5 小时刷新；Grok 是每周共享用量池；\n- **生成内容的使用规则**：各家都有使用政策，不要用于侵犯他人权利或误导性内容；\n- **别信「无水印」承诺**：Grok 官方明确写没有去除水印的设置，去除、修改或遮挡水印违反使用政策；\n- **想对比其他生图或视频工具**：本站另有 [/guides/ai-video-tools-which-to-choose](/guides/ai-video-tools-which-to-choose)。\n\n## 常见问题\n\n**Q：哪个出图最好？**\n官方没有可比的口径，本文不下结论。建议拿同一个提示词在三家免费版里各试几张。\n\n**Q：会员怎么选？**\n见 [/guides/ai-subscription-which-to-choose-four-vendors](/guides/ai-subscription-which-to-choose-four-vendors)。\n\n**Q：Claude 能画图吗？**\n官方说不生成照片和插画，但能做图表、SVG 和 Mermaid 图，见开头链接。\n\n## 参考资料\n\n- ChatGPT 官方：Pricing — https://chatgpt.com/pricing\n- Gemini 官方：订阅 — https://gemini.google/subscriptions/\n- Gemini API：定价 — https://ai.google.dev/gemini-api/docs/pricing\n- Grok 官方：Grok — https://x.ai/grok\n- docs.x.ai：API 价格 — https://docs.x.ai/developers/pricing\n- docs.x.ai：Grok FAQ — https://docs.x.ai/grok/faq\n- OpenAI：API 价格 — https://platform.openai.com/docs/pricing",
+      "sources": [
+        "https://chatgpt.com/pricing",
+        "https://gemini.google/subscriptions/",
+        "https://ai.google.dev/gemini-api/docs/pricing",
+        "https://x.ai/grok",
+        "https://docs.x.ai/developers/pricing",
+        "https://docs.x.ai/grok/faq",
+        "https://platform.openai.com/docs/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "本文只引各家官方写明的功能、额度和价格，不比较出图质量或风格，官方没有可比口径；「按需求挑」部分是本站整理，依据是官方功能描述",
+        "ChatGPT 定价页写：Free「有限的图片创作」、Go「更多图片创作」、Plus「更复杂、更准确的图片创作」、Pro「无限且更快的图片创作」（无限受滥用防护限制）；OpenAI API 价格页的图片模型（如 gpt-image-2）按 token 计价，图片输出每百万 tokens 30 美元（标准档），没有统一的「每张」价格，本文不换算",
+        "Gemini：订阅页写免费版有图片生成与编辑，Plus 为免费版 2 倍用量；API 定价页的图片模型按输出 token 计价并给出折算：Nano Banana 2.1 约 0.0336（1K）、0.0504（2K）、0.113（4K）美元每张；Nano Banana Pro 约 0.134（1K 或 2K）、0.24（4K）美元每张；本文引用的是页面写明的折算值",
+        "Grok：官方 x.ai/grok 写 Imagine 最高 2K 图片；API 价格页 grok-imagine-image 每张 0.02 美元，grok-imagine-image-2.0 按分辨率和质量每张 0.04 到 0.08 美元；官方 FAQ 写明生成的图片和视频带 Grok 水印，没有去除设置",
+        "Claude 官方帮助中心写 Claude 不像生图工具那样生成照片和插画，详见本站 1053 号文章；是否有生图 API，本文没有查到官方说明，不下结论",
+        "Gemini 生成的图片带 SynthID 水印，见本站 331 号文章；ChatGPT 生图的水印或标识，本次没有取得官方页面依据，不写",
+        "本文不涉及 Midjourney、可灵、即梦等其他生图产品，它们的官方信息本次没有核对"
+      ]
+    },
+    {
+      "title": "AI 视频生成工具怎么选：Gemini（Omni、Veo、Flow）和 Grok Imagine 按官方说明对比时长、分辨率和价格",
+      "slug": "ai-video-tools-which-to-choose",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1097-ai-video-tools-compare.png",
+        "g1097-ai-video-tools-decide.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "AI 视频生成工具怎么选？按官方说明对比：Gemini 用 Omni 和 Veo，在 Flow 里单段 4 到 10 秒；Grok Imagine 官方写最长 15 秒，API 最高 1080p；价格分别是 Flow 点数和 Grok 周用量池（2026-10 查询）。",
+      "content": "> 本文根据 Google Flow 帮助中心、Gemini 订阅页与 API 定价页、Grok 官方页面与 API 文档整理，资料核对于 2026-10-25，价格为「2026-10 查询」。**只比官方写明的规格和价格，不比画面质量**。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「ai视频生成工具怎么选」「哪个ai做视频好」的人；\n- 想知道已订阅的会员能不能顺便做视频的人；\n- 要在程序里批量生成视频、关心每秒价格的开发者。\n\n## 结论先说\n\n1. **官方定价页里明确有视频生成的是 Gemini 和 Grok**：Gemini Plus 起可用视频生成，并有 Flow 点数；Grok Plus 起含 Imagine。ChatGPT 和 Claude 的官方定价页没有列视频生成。\n2. **时长**：Flow 里 Veo 3.1 是 4、6、8 秒，Omni Flash 是 4、6、8、10 秒；Grok 官方页写最长 15 秒。\n3. **分辨率**：Flow 的 Omni 标准 720p、草稿 360p；Grok 在 App 里文生视频 720p，API 的 video-1.5 最高 1080p。\n4. **价格方式不同**：Gemini 在应用和 Flow 里用点数和用量，API 里按 token（Omni Flash 折合约每秒 0.10 美元）；Grok 在 App 里是每周共享用量池，API 按秒计价（video-1.5 720p 每秒 0.14 美元）。\n5. **声音**：两家官方都写生成带原生音频，Grok 的 video-1.5 还有口型同步语音。\n\n![Gemini 与 Grok 的视频生成对比](seed:g1097-ai-video-tools-compare.png)\n*图：本站根据 [Flow 帮助中心](https://support.google.com/flow/answer/16352836)、[Gemini API 定价页](https://ai.google.dev/gemini-api/docs/pricing)、[x.ai/grok](https://x.ai/grok) 与 [docs.x.ai](https://docs.x.ai/developers/model-capabilities/video/overview) 整理的示意图*\n\n## 一、Gemini：应用、Flow 和 API\n\n- **订阅门槛**：官方订阅页写 Plus 起有视频生成和 Flow 点数（Plus 200 点、Pro 1,000 点、Ultra 10,000 或 25,000 点）；Flow 要求年满 18 岁并完成年龄验证、位于支持地区、订阅 Plus、Pro 或 Ultra；\n- **模型**：Gemini 应用里视频已换成 Gemini Omni，Flow 里还有 Veo 3.1 Lite、Fast、Quality；Omni Flash 能首尾帧、参考素材和视频改视频；\n- **API**：Gemini Omni Flash 价格见官方定价页（折合约每秒 0.10 美元）；Veo 3.1 预览版 2026-10-22 已下线；\n- 详细用法：[/guides/gemini-video-generation](/guides/gemini-video-generation)、[/guides/google-flow-how-to](/guides/google-flow-how-to)、[/guides/veo-31-official-entry-how-to-use](/guides/veo-31-official-entry-how-to-use)；订阅差别见 [/guides/gemini-ultra-vs-pro-difference](/guides/gemini-ultra-vs-pro-difference)；需要谷歌账号相关服务可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n## 二、Grok Imagine\n\n- **入口和限制**：Grok 网页和 App 里直接生成，官方 x.ai/grok 写文生视频最长 15 秒、720p；官方 FAQ 说 720p 超过档位上限会降到 480p，生成内容带 Grok 水印；\n- **模型**：API 里 grok-imagine-video-1.5 支持 1 到 15 秒、480p 到 1080p，最多 14 张参考图和 3 个声音参考；轻量版 1.5-lite 更便宜但不支持参考图；\n- **价格**：video-1.5 每秒 0.08（480p）、0.14（720p）、0.25（1080p）美元；1.5-lite 每秒 0.02、0.03、0.14 美元；\n- 详细见 [/guides/grok-imagine-video-15-image-20](/guides/grok-imagine-video-15-image-20)、[/guides/grok-imagine-image-video](/guides/grok-imagine-image-video)；需要开通可看 [/chongzhi/grok-super](/chongzhi/grok-super)。\n\n## 三、按需求挑\n\n![按需求挑视频工具](seed:g1097-ai-video-tools-decide.png)\n*图：本站根据各家官方文档整理的示意图*\n\n| 需求 | 可以先看 |\n| --- | --- |\n| 做多镜头短片、反复调整 | Google Flow：分镜编排、首尾帧、参考素材、视频改视频 |\n| 在聊天里顺手做短视频 | Gemini 应用或 Grok 的 Imagine |\n| 更长单段或更高分辨率 | Grok 官方写最长 15 秒；API 的 video-1.5 支持 1080p |\n| 在意成本 | Flow 看点数，Grok 看周用量池，API 按秒或按 token 计价，先小量试 |\n| 想用 ChatGPT 或 Claude 做视频 | 官方定价页没有列视频生成 |\n\n## 四、使用时要注意\n\n- **水印和标识**：Flow 里 Veo、Omni 的输出带不可见的 SynthID 水印；Grok 带可见水印，官方说没有去除设置；\n- **提示词**：描述主体、动作、镜头、光线和声音，见 [/guides/veo-prompt-guide](/guides/veo-prompt-guide) 和 [/guides/image-to-video-prompts](/guides/image-to-video-prompts)；\n- **其他视频工具**：本站另有可灵、即梦、Seedance、Midjourney 视频的教程，见 [/guides/kling-ai-how-to](/guides/kling-ai-how-to)、[/guides/doubao-video-generation](/guides/doubao-video-generation)、[/guides/seedance-2-how-to](/guides/seedance-2-how-to)、[/guides/midjourney-video](/guides/midjourney-video)，价格与规则请看各自官方页面；\n- **生图工具**：见 [/guides/ai-image-tools-which-to-choose](/guides/ai-image-tools-which-to-choose)。\n\n## 常见问题\n\n**Q：哪个视频效果最好？**\n官方没有可比的口径，本文不下结论。建议用同一个提示词在各家试一两条。\n\n**Q：Veo 3.1 还能用吗？**\nFlow 里仍有 Veo 3.1；Gemini 应用里已换成 Omni；Gemini API 的 Veo 3.1 预览版已下线。\n\n**Q：会员怎么选？**\n见 [/guides/ai-subscription-which-to-choose-four-vendors](/guides/ai-subscription-which-to-choose-four-vendors)。\n\n## 参考资料\n\n- Flow 帮助中心：Get started with Google Flow — https://support.google.com/flow/answer/16353333\n- Flow 帮助中心：Models & supported features — https://support.google.com/flow/answer/16352836\n- Gemini 官方：订阅 — https://gemini.google/subscriptions/\n- Gemini API：定价 — https://ai.google.dev/gemini-api/docs/pricing\n- Grok 官方：Grok — https://x.ai/grok\n- docs.x.ai：Video Overview — https://docs.x.ai/developers/model-capabilities/video/overview\n- docs.x.ai：API 价格 — https://docs.x.ai/developers/pricing",
+      "sources": [
+        "https://support.google.com/flow/answer/16353333",
+        "https://support.google.com/flow/answer/16352836",
+        "https://gemini.google/subscriptions/",
+        "https://ai.google.dev/gemini-api/docs/pricing",
+        "https://x.ai/grok",
+        "https://docs.x.ai/developers/model-capabilities/video/overview",
+        "https://docs.x.ai/developers/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "本文只对比官方文档写明的时长、分辨率、入口和价格，不比较画面质量，官方没有可比口径；「按需求挑」部分是本站整理",
+        "Gemini 一侧：Flow 帮助中心写 Veo 3.1 单段 4、6、8 秒，Omni Flash 1.1 为 4、6、8、10 秒，Omni 标准 720p、草稿 360p；Gemini API 定价页写 Omni Flash 视频输出每百万 tokens 17.50 美元，并说明 720p 每秒按 5,792 tokens 计，折合约每秒 0.10 美元；官方说明 Gemini 应用里 Omni 取代了 Veo，Gemini API 的 Veo 3.1 预览版 2026-10-22 已下线",
+        "Grok 一侧：官方 x.ai/grok 写 Imagine 最长 15 秒视频、文生视频 720p；API 文档写 grok-imagine-video-1.5 支持 1 到 15 秒、480p、720p、1080p，价格每秒 0.08、0.14、0.25 美元；官方 FAQ 说生成内容带 Grok 水印、720p 超过档位上限会降到 480p",
+        "ChatGPT 与 Claude 的官方定价页没有列视频生成功能，本文因此不比较；OpenAI API 价格页本次也没有查到视频模型，不排除官方另有产品，请以官方为准",
+        "本文不涉及可灵、即梦、Seedance、Midjourney 视频等产品的官方价格，它们的使用教程见本站其他文章，但价格没有在本次核对"
+      ]
+    },
+    {
+      "title": "AI 智能体是什么、有哪些：官方怎么定义、和普通聊天机器人的区别、ChatGPT、Claude、Gemini、Grok 的现成产品",
+      "slug": "ai-agent-what-is-examples",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1098-ai-agent-parts.png",
+        "g1098-workflow-vs-agent.png",
+        "g1098-ai-agent-which-to-use.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "AI 智能体是什么？OpenAI 官方说它是「独立替你完成任务的系统」，由模型、工具和指令组成；Anthropic 把预先写好步骤的叫工作流，模型自己决定步骤的才叫智能体。附 ChatGPT、Claude、Gemini、Grok 的现成产品和注意事项。",
+      "content": "> 本文根据 OpenAI、Anthropic、Google、xAI 的官方文档整理，资料核对于 2026-10-25。智能体产品和文档更新很快，**以官方页面为准**。本文不评价谁更强，只讲官方怎么定义、有哪些现成产品、使用时要注意什么。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「ai智能体是什么」「ai agent 有哪些」的人；\n- 分不清「智能体」和普通聊天机器人、自动化工作流的人；\n- 想知道有没有现成产品可以直接用的人。\n\n## 结论先说\n\n1. **OpenAI 官方定义**：智能体是「独立替你完成任务的系统」。它用大模型管理工作流的执行并做决策，能判断任务是否完成、必要时纠正自己，失败时可以停下来把控制权交还给你；它能调用各种工具去取资料和执行动作，并始终在明确的护栏内运行。\n2. **不算智能体的**：官方说，只是接入了大模型、但不用它控制流程的应用，比如简单的聊天机器人、单轮问答、情感分类器，都不是智能体。\n3. **Anthropic 的区分**：**工作流**是通过预先写好的代码路径来编排大模型和工具；**智能体**是大模型动态决定自己的流程和工具使用。两者统称「智能体系统」。\n4. **三要素**：OpenAI 官方指南把智能体拆成模型、工具、指令，并强调护栏。\n5. **官方的共同建议**：不要为了用智能体而用。Anthropic 说要先找最简单的方案，只在需要时增加复杂度；OpenAI 说，如果传统的确定性方法够用，就不必做智能体。\n\n![一个智能体由什么组成](seed:g1098-ai-agent-parts.png)\n*图：本站根据 [OpenAI 智能体指南](https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/) 整理的示意图*\n\n## 一、和普通聊天机器人、工作流的区别\n\n![工作流和智能体的区别](seed:g1098-workflow-vs-agent.png)\n*图：本站根据 [Anthropic：Building effective agents](https://www.anthropic.com/engineering/building-effective-agents) 整理的示意图*\n\n| 对比 | 普通聊天 | 工作流 | 智能体 |\n| --- | --- | --- | --- |\n| 谁决定下一步 | 你每次提问 | 预先写好的代码 | 模型自己决定 |\n| 能调用工具 | 一般有限 | 有，按固定顺序 | 有，动态选择 |\n| 适合 | 问答、写作 | 步骤固定的任务 | 开放式、需要判断的任务 |\n| 代价 | 低 | 可预测 | 官方说通常要用延迟和成本换更好的任务表现 |\n\nOpenAI 官方指南建议优先考虑这几类适合用智能体的场景：需要复杂判断的流程（例如客服退款审批）、规则难以维护的系统（例如供应商安全审查）、大量依赖非结构化数据的场景（例如处理保险理赔）。\n\n## 二、现成的智能体产品（官方写了什么）\n\n| 想做的事 | 产品 | 官方说明的要点 |\n| --- | --- | --- |\n| 让 AI 在网页里替你操作 | ChatGPT 的 Agent 模式 | 见站内 [/guides/chatgpt-agent-mode](/guides/chatgpt-agent-mode) |\n| 让 AI 在代码仓库里干活 | Codex、Claude Code、Antigravity CLI | 读代码库、改文件、运行命令；订阅和额度见 [/guides/ai-coding-tools-codex-claude-code-cursor-gemini](/guides/ai-coding-tools-codex-claude-code-cursor-gemini) |\n| 常驻的 AI 同事 | Grok Bot | 官方称每个 Bot 在一台持续运行的云端电脑上工作，有浏览器、文件系统和终端，合上笔记本也能继续；需要用户批准的步骤会回来问你 |\n| 自己开发智能体应用 | OpenAI Agents SDK 与 Agents API、Claude Agent SDK、Gemini 托管智能体与 Antigravity SDK | 各家官方文档提供框架和托管环境 |\n| 不写代码搭智能体 | 扣子等低代码平台 | 见站内 [/guides/coze-create-agent-howto](/guides/coze-create-agent-howto) |\n\n![想用智能体：现成的还是自己搭](seed:g1098-ai-agent-which-to-use.png)\n*图：本站根据各家官方文档整理的示意图*\n\n几个官方的具体说明：\n\n- **Grok Bot**：官方说通过发消息给 Bot 来使用，可以打字、语音；多个 Bot 可以并行、互相传消息、共享上下文；Bot 会记住稳定的偏好、角色背景和过往工作摘要，但重要决定仍应让它去查最新资料而不是依赖记忆；一个站点可能阻止自动化、会话过期或要求人工步骤，这时 Bot 会交给你处理，而不是绕过。包含在 Cursor 的付费个人订阅里，细节见 [/guides/grok-codex-cursor-setup](/guides/grok-codex-cursor-setup)；\n- **Gemini 托管智能体**：官方说一次 API 调用就会开一个 Linux 沙箱，智能体在里面推理、执行代码、管理文件、浏览网页；环境默认有不受限的出站网络访问，可以用白名单限制；按 token 和工具用量付费，一次交互通常消耗 10 万到 300 万 tokens；环境闲置 7 天会被永久删除；\n- **OpenAI**：官方文档把三种运行方式列在一起：Agents API（OpenAI 托管的 Codex 框架，适合长任务）、Agents SDK（在你自己的应用里控制智能体循环）、Responses API（直接调用模型自己搭）；\n- **Claude Code**：官方说它是读代码库、改文件、跑命令并连接开发工具的智能体式编程工具，可在终端、IDE、桌面和网页使用。\n\n## 三、使用智能体要注意\n\n1. **权限最小化**：Gemini 官方文档的建议是给最小权限的服务账号或 API Key，优先用短期令牌，定期轮换，并且只提供愿意完全授权的凭据，因为智能体可能用到它能访问的任何凭据；\n2. **人工把关**：官方都强调，生成的代码、数据转换、配置变更，尤其是会修改数据或操作外部系统的任务，要在上线前人工核对；\n3. **先小任务**：Grok 官方建议第一个任务选一个跨几个工具、有明确终点的真实任务，让 Bot 做完后你审阅、纠正，再把稳定的流程做成技能；\n4. **关注成本**：智能体会进行多轮推理，token 消耗比普通聊天大得多，API 价格见 [/guides/llm-api-price-comparison-official](/guides/llm-api-price-comparison-official)；\n5. **别轻信「全自动赚钱」之类的宣传**：官方文档没有这类承诺。\n\n## 常见问题\n\n**Q：智能体和 MCP、技能是什么关系？**\nMCP 是给模型接工具和数据的标准方式，技能是可复用的指令集，都属于智能体的「工具」与「指令」部分。Codex 的 MCP 配置见 [/guides/codex-mcp-config](/guides/codex-mcp-config)。\n\n**Q：普通人需要自己搭智能体吗？**\n官方的共同建议是先用最简单的方案。多数人直接用现成产品就够了。\n\n**Q：会员怎么选？**\n见 [/guides/ai-subscription-which-to-choose-four-vendors](/guides/ai-subscription-which-to-choose-four-vendors)。\n\n## 参考资料\n\n- OpenAI：A practical guide to building AI agents — https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/\n- Anthropic：Building effective agents — https://www.anthropic.com/engineering/building-effective-agents\n- OpenAI：Agents 文档 — https://platform.openai.com/docs/guides/agents\n- Gemini API：Agents — https://ai.google.dev/gemini-api/docs/agents\n- docs.x.ai：Grok Bot Overview — https://docs.x.ai/grok-bot/overview\n- Claude Code 文档：Overview — https://code.claude.com/docs/en/overview",
+      "sources": [
+        "https://openai.com/business/guides-and-resources/a-practical-guide-to-building-ai-agents/",
+        "https://www.anthropic.com/engineering/building-effective-agents",
+        "https://platform.openai.com/docs/guides/agents",
+        "https://ai.google.dev/gemini-api/docs/agents",
+        "https://docs.x.ai/grok-bot/overview",
+        "https://code.claude.com/docs/en/overview"
+      ],
+      "screenshots": [],
+      "verify": [
+        "「智能体」没有统一的行业定义，本文并列引用了 OpenAI 和 Anthropic 两家官方的说法：OpenAI 指南定义为「独立替你完成任务的系统」，有三要素（模型、工具、指令）并强调护栏；Anthropic 把工作流（预先写好代码路径）和智能体（模型动态决定流程与工具）区分开，统称 agentic systems",
+        "Anthropic 的博客发表于 2024-12-19，页首注明其中的工具现状已有变化，并指向其新的托管智能体（Managed Agents）文档；本文只引用其中关于定义和「先用最简单方案」的建议",
+        "现成产品的介绍只取各家官方页面写明的内容：Grok Bot 取自 docs.x.ai 概览；Gemini 托管智能体取自 Gemini API 智能体文档（一次交互可能消耗 10 万到 300 万 tokens，预览期环境算力不收费，环境闲置 7 天会被删除）；Claude Code 取自官方概览；ChatGPT 的 Agent 模式见本站 03 号文章",
+        "本文不评价各家智能体「谁更聪明」，也不涉及任何智能体项目的收益承诺",
+        "官方文档普遍提醒：智能体可能执行有副作用的操作，输出要人工核对，凭据只给最小权限"
+      ]
+    },
+    {
+      "title": "大模型 API 怎么用：从申请 Key 到第一次调用，OpenAI、Claude、Gemini、Grok、DeepSeek 通用入门",
+      "slug": "llm-api-first-call-key-to-request",
+      "checkedOn": "2026-10-25",
+      "images": [
+        "g1099-api-first-call-steps.png",
+        "g1099-api-vendors-quickstart.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "大模型 API 怎么用？通用流程：在官方控制台开通账号并充值、创建 API Key、放进环境变量、装 SDK 或用 curl 发第一个请求。附 OpenAI、Claude、Gemini、Grok、DeepSeek 官方示例里的变量名、接口地址和模型名（2026-10 查询）。",
+      "content": "> 本文根据 OpenAI、Anthropic、Google、xAI、DeepSeek 的官方快速入门整理，资料核对于 2026-10-25。模型名和价格更新很快，**以官方文档为准**。本文不涉及购买或共享 Key，只讲官方自助开通的流程。图为本站整理的示意图。\n\n## 适用于谁\n\n- 搜「大模型 api 怎么用」「api key 怎么用」的人；\n- 会一点编程、想第一次调用大模型接口的人；\n- 想知道各家官方入门流程有什么共同点和差别的人。\n\n## 结论先说\n\n1. **订阅和 API 是两套东西**：ChatGPT、Claude、Gemini、Grok 的会员用来使用它们的应用；API 要在各家的开发者控制台里单独开通，按 token 计费。会员选择见 [/guides/ai-subscription-which-to-choose-four-vendors](/guides/ai-subscription-which-to-choose-four-vendors)。\n2. **通用流程是五步**：开通开发者账号（多数先充值）、创建 API Key、放进环境变量、装 SDK 或直接发 HTTP 请求、发出第一个请求并核对用量。\n3. **Key 不要写进代码**：几家官方示例都是先把 Key 导出为环境变量（OpenAI 是 `OPENAI_API_KEY`，Anthropic 是 `ANTHROPIC_API_KEY`，xAI 是 `XAI_API_KEY`），SDK 自动读取。\n4. **模型名要用官方当前的**：下表是官方示例里用的模型，随时会更新。\n5. **先小量试**：第一次调用先用最便宜的模型、很短的输入，再看价格和用量，价格见 [/guides/llm-api-price-comparison-official](/guides/llm-api-price-comparison-official)。\n\n![从 Key 到第一次调用的 5 步](seed:g1099-api-first-call-steps.png)\n*图：本站根据各家官方快速入门整理的示意图*\n\n## 一、五家官方快速入门的关键信息\n\n![五家官方快速入门的关键信息](seed:g1099-api-vendors-quickstart.png)\n*图：本站根据各家官方开发者文档整理的示意图*\n\n| 厂商 | 开通与 Key | 环境变量 | 接口 | 示例模型 |\n| --- | --- | --- | --- | --- |\n| OpenAI | 在开发者控制台创建 API Key | `OPENAI_API_KEY` | 官方 SDK，示例用 Responses 接口 | gpt-6-astra |\n| Anthropic | Claude Console 账号加 API Key | `ANTHROPIC_API_KEY` | `https://api.anthropic.com/v1/messages` | claude-opus-5-5 |\n| Google | 在 Google AI Studio 创建 Key | `GEMINI_API_KEY` | Interactions API | gemini-4-argon |\n| xAI | console.x.ai 注册并充值，API Keys 页面创建 | `XAI_API_KEY` | `https://api.x.ai/v1`，Responses 接口 | grok-4.7 |\n| DeepSeek | 开放平台创建 Key（见站内教程） | 示例里自行设置 | OpenAI 格式 `https://api.deepseek.com`，Anthropic 格式 `https://api.deepseek.com/anthropic` | deepseek-flash |\n\n各家 Key 的详细创建步骤见站内教程：[/guides/openai-api-key](/guides/openai-api-key)、[/guides/claude-api-key-console](/guides/claude-api-key-console)、[/guides/gemini-api-key](/guides/gemini-api-key)、[/guides/grok-api-pricing-api-key](/guides/grok-api-pricing-api-key)、[/guides/deepseek-api-key](/guides/deepseek-api-key)。\n\n## 二、第一次调用：官方示例里的写法\n\n### OpenAI（JavaScript）\n\n先导出变量并安装 SDK：\n\n```bash\nexport OPENAI_API_KEY=\"your_api_key_here\"\nnpm install openai\n```\n\n官方示例代码：\n\n```javascript\nimport OpenAI from \"openai\";\nconst client = new OpenAI();\n\nconst response = await client.responses.create({\n  model: \"gpt-6-astra\",\n  input: \"Write a one-sentence bedtime story about a unicorn.\",\n});\n\nconsole.log(response.output_text);\n```\n\nWindows PowerShell 里官方给的导出写法是 `setx OPENAI_API_KEY \"your_api_key_here\"`，之后要重新打开终端才生效。Python 版见 [/guides/openai-api-python-quickstart](/guides/openai-api-python-quickstart)。\n\n### Anthropic（curl）\n\n```bash\nexport ANTHROPIC_API_KEY=\"your-api-key-here\"\n\ncurl https://api.anthropic.com/v1/messages \\\n  -H \"content-type: application/json\" \\\n  -H \"x-api-key: $ANTHROPIC_API_KEY\" \\\n  -H \"anthropic-version: 2023-06-01\" \\\n  -d '{\n    \"model\": \"claude-opus-5-5\",\n    \"max_tokens\": 1000,\n    \"messages\": [{\"role\": \"user\", \"content\": \"Hello, Claude\"}]\n  }'\n```\n\n官方说明返回的是包含助手消息的 JSON，其中有 `usage` 里的输入和输出 token 数。注意 Anthropic 的请求必须带 `max_tokens`。\n\n### Gemini（Python）\n\n官方最新模型页的最小示例（需要已设置 `GEMINI_API_KEY`）：\n\n```python\nfrom google import genai\nclient = genai.Client()\ninteraction = client.interactions.create(\n    model=\"gemini-4-argon\",\n    input=\"Write a haiku about the sea.\"\n)\nprint(interaction.output_text)\n```\n\n注意 gemini-4-argon 没有免费层；想先免费试，可以换成有免费层的模型，价格与免费层见 [/guides/gemini-api-price-official](/guides/gemini-api-price-official) 和 [/guides/gemini-api-free-tier-rate-limits](/guides/gemini-api-free-tier-rate-limits)。Python 入门见 [/guides/gemini-api-python-quickstart](/guides/gemini-api-python-quickstart)。\n\n### xAI（Python，用 OpenAI SDK）\n\n```python\nfrom openai import OpenAI\n\nclient = OpenAI(\n    api_key=\"<YOUR_XAI_API_KEY_HERE>\",   # 实际使用时从环境变量读取\n    base_url=\"https://api.x.ai/v1\",\n)\n\nresponse = client.responses.create(\n    model=\"grok-4.7\",\n    input=\"Say hello in one sentence.\",\n)\nprint(response.output_text)\n```\n\nxAI 的 API 兼容 OpenAI SDK，只要把 `base_url` 换成官方地址。注意示例里的 Key 只是占位，不要把真实 Key 写进代码。\n\n### DeepSeek\n\n官方定价页写明两种兼容格式：OpenAI 格式的接口地址是 `https://api.deepseek.com`，Anthropic 格式是 `https://api.deepseek.com/anthropic`，模型名用 `deepseek-flash` 或 `deepseek-v4-pro`。所以用 OpenAI 的 SDK 时，把 `base_url` 换成 DeepSeek 的地址、`model` 换成 `deepseek-flash` 即可。充值和余额见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。\n\n## 三、第一次调用常见的坑\n\n| 现象 | 常见原因 |\n| --- | --- |\n| 401 或鉴权失败 | 环境变量没设对、终端没重开、Key 复制时多了空格 |\n| 提示余额不足或需要付款 | 多数平台要先充值或开通计费；xAI 官方说要先充值才能用 API |\n| 429 | 请求太快或额度用完，见 [/guides/openai-api-429-error](/guides/openai-api-429-error)、[/guides/gemini-api-429-resource-exhausted](/guides/gemini-api-429-resource-exhausted) |\n| 模型不存在 | 模型名过期，或你的账号没有该模型权限；到官方模型页核对 |\n| 返回被截断 | 输出上限太小；Anthropic 要显式写 `max_tokens` |\n\n## 四、安全和成本\n\n- **Key 等同于付费凭据**：泄露后别人可以消耗你的余额。放环境变量，不要提交到代码仓库，定期轮换；\n- **只信官方渠道**：从各家官方控制台自己创建 Key；官方不授权转售，也别把 Key 交给来历不明的「中转」或共享服务；\n- **设支出上限**：能设预算或上限的平台先设好；\n- **先小量试**：用短输入和便宜模型，核对账单后再放大。\n\n## 常见问题\n\n**Q：订阅了 ChatGPT Plus 或 Claude Pro，API 能直接用吗？**\n不能。订阅和 API 分开计费、分开开通，Claude 的区别见 [/guides/claude-subscription-vs-api](/guides/claude-subscription-vs-api)。需要 ChatGPT 或 Claude 会员可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus) 和 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n**Q：不会写代码能用 API 吗？**\n可以用 Cherry Studio、Chatbox 这类客户端填入 Key，见 [/guides/deepseek-cherry-studio-chatbox](/guides/deepseek-cherry-studio-chatbox)。\n\n**Q：想让 AI 自己调用工具、做多步任务呢？**\n那是智能体，见 [/guides/ai-agent-what-is-examples](/guides/ai-agent-what-is-examples)。\n\n## 参考资料\n\n- OpenAI：Developer quickstart — https://developers.openai.com/api/docs/quickstart\n- Anthropic：Get started with Claude — https://platform.claude.com/docs/en/get-started\n- Gemini API：最新模型 — https://ai.google.dev/gemini-api/docs/latest-model\n- Gemini API：API keys — https://ai.google.dev/gemini-api/docs/api-key\n- xAI：Quickstart — https://docs.x.ai/developers/quickstart\n- DeepSeek：模型与价格 — https://api-docs.deepseek.com/quick_start/pricing",
+      "sources": [
+        "https://developers.openai.com/api/docs/quickstart",
+        "https://platform.claude.com/docs/en/get-started",
+        "https://ai.google.dev/gemini-api/docs/latest-model",
+        "https://ai.google.dev/gemini-api/docs/api-key",
+        "https://docs.x.ai/developers/quickstart",
+        "https://api-docs.deepseek.com/quick_start/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "各家的变量名、接口地址和示例模型取自当次官方快速入门页（2026-10-25），模型名会随版本更新，请以官方文档为准；示例代码的结构和参数取自官方页面，其中的提示词文字为自拟，没有在本站实际运行",
+        "OpenAI 官方示例：导出 OPENAI_API_KEY，官方 SDK 自动从环境读取；JavaScript 示例用 client.responses.create，模型 gpt-6-astra",
+        "[object Object]",
+        "Google 官方示例：API Key 在 Google AI Studio 创建；最新模型页给出的示例用 Interactions API（client.interactions.create），模型 gemini-4-argon（该模型只有付费层）",
+        "xAI 官方示例：在 console.x.ai 注册并充值后在 API Keys 页面创建 Key，导出 XAI_API_KEY，用 OpenAI SDK 时 base_url 填 https://api.x.ai/v1，走 Responses 接口，示例模型 grok-4.7",
+        "DeepSeek 官方定价页写明接口地址（OpenAI 格式）https://api.deepseek.com、Anthropic 格式 https://api.deepseek.com/anthropic，模型名 deepseek-flash、deepseek-v4-pro；API Key 的创建步骤见本站 463 号文章",
+        "本文不涉及 API Key 的购买、转售、共享或中转，也不涉及任何绕过地区限制的方式；Key 等同于付费凭据，泄露后他人可以消耗你的余额"
       ]
     },
     {
