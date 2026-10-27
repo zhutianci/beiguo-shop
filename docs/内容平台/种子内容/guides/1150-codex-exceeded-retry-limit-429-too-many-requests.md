@@ -1,5 +1,5 @@
 ---
-title: Codex 报「exceeded retry limit, last status: 429 Too Many Requests」怎么办：额度、API 密钥与工作区限制的排查顺序
+title: "Codex 报「exceeded retry limit, last status: 429 Too Many Requests」怎么办：额度、API 密钥与工作区限制的排查顺序"
 slug: codex-exceeded-retry-limit-429-too-many-requests
 products: [codex, chatgpt]
 models: []
