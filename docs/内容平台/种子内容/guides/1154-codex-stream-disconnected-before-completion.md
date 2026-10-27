@@ -4,7 +4,7 @@ slug: codex-stream-disconnected-before-completion
 products: [codex, chatgpt]
 models: []
 accountTier: PLUS
-excerpt: Codex 回答到一半报 stream disconnected before completion？官方没有逐字解释这句话，但帮助中心写明 Codex 的流式输出走 wss://chatgpt.com/ 的 WebSocket，被公司网络、代理或 TLS 检查拦掉就会中断。本文按官方资料给出排查顺序和一张对照图。
+excerpt: Codex 回答到一半报 stream disconnected before completion？官方没有逐字解释，但帮助中心写明 Codex 流式输出走 wss://chatgpt.com/ 的 WebSocket，被网络或代理拦掉会中断。本文给出排查顺序。
 checkedOn: 2026-10-27
 sources:
   - https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps

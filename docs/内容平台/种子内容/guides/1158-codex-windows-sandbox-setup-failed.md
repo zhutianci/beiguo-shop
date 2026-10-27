@@ -4,7 +4,7 @@ slug: codex-windows-sandbox-setup-failed
 products: [codex, chatgpt]
 models: []
 accountTier: PLUS
-excerpt: Windows 上 Codex 的沙箱设置失败、命令跑不起来、提示错误 1385 或某些文件夹 Everyone 可写？官方 Windows 沙箱文档列了常见原因和处理：重试管理员批准、请 IT 检查登录权限、清理 Everyone 写权限、必要时用 unelevated。本文逐项整理，并说明三种沙箱实现的区别。
+excerpt: Windows 上 Codex 沙箱设置失败、命令跑不起来、提示错误 1385 或 Everyone 可写？官方文档列了常见原因和处理，本文逐项整理，并说明 mxc、elevated、unelevated 三种实现的区别。
 checkedOn: 2026-10-27
 sources:
   - https://learn.chatgpt.com/docs/windows/windows-sandbox
