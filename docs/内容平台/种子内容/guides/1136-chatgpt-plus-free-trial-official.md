@@ -87,7 +87,7 @@ verify:
 
 ## 五、不想等活动，想直接开通
 
-官方文章写 Plus 是 **$20/月（按月付费）**（2026-10 查询，以你登录后升级页显示的为准）。开通路径（官方）：登录 → 点头像 → **Upgrade Plan** → **Get Plus**，详细步骤见 [/guides/chatgpt-how-to-upgrade-plus-subscribe](/guides/chatgpt-how-to-upgrade-plus-subscribe)。想了解通过本站开通，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。
+官方文章写 Plus 是 **$20/月（按月付费）**（2026-10 查询，以你登录后升级页显示的为准）。开通路径（官方）：登录 → 点头像 → **Upgrade Plan** → **Get Plus**，详细步骤见 [/guides/chatgpt-how-to-upgrade-plus](/guides/chatgpt-how-to-upgrade-plus)。想了解通过本站开通，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。
 
 ## 常见问题
 
