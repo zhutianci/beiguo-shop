@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-27T16:51:06.741Z",
+  "builtAt": "2026-10-27T19:36:25.036Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -65109,6 +65109,110 @@
       ]
     },
     {
+      "title": "ChatGPT 一直卡在联网搜索（Searching the web）怎么办：Search 在哪、搜不了的官方排查，以及搜索也算额度",
+      "slug": "chatgpt-stuck-searching-the-web",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1200-search-decide.png",
+        "g1200-search-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 回答前一直显示联网搜索、迟迟没结果，或找不到 Search 选项？官方搜索文章没有写这个进度提示，但给了 Search 的位置和搜不了时的排查，卡住另有通用步骤。本文按官方顺序整理，并说明搜索会计入额度。",
+      "content": "> 本文根据 OpenAI 帮助中心《Searching the web with ChatGPT》《Troubleshooting ChatGPT Error Messages》整理，资料核对于 2026-10-28。**官方搜索文章没有写「Searching the web」这个进度提示，也没有写搜索卡住怎么办，**所以卡住的部分套用官方对卡在 Thinking、Generating 的通用步骤。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 回答前一直显示联网搜索，迟迟不出结果的人；\n- 找不到 **Search** 选项，或 ChatGPT 说「无法联网搜索」的人；\n- 想知道搜索会不会占额度、结果不准怎么办的人。\n\n## 结论先说\n\n1. **卡住先等 30 到 60 秒**，然后**停止并重新生成**，这是官方对卡在 Thinking、Generating、Working 的通用做法。\n2. **Search 在哪**：ChatGPT 遇到需要最新信息的问题会**自动搜索**。想手动搜，打开对话，点 **View all tools → Search**，再发问题；也可以在输入框输入 **/** 再选 **Search**。\n3. **搜索没生效时**，官方想让你重新生成并带上搜索结果：点重新生成的控件，选 **Try again** 或 **Search the web**（有这个选项时）。\n4. **找不到 Search**：官方的排查是新开对话看工具菜单、更新 App 或改用 chatgpt.com 网页、确认账号和工作区、确认没有用完用量上限；公司账号里要问管理员是否对你的角色开启了网页搜索。\n5. **搜索也算额度**：官方说搜索计入套餐的用量上限，语音对话里的搜索也算。\n6. **搜索结果可能不完整、过时或不准确**，要打开引用的来源自己核对。\n\n![联网搜索卡住：看到什么、对应怎么办](seed:g1200-search-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Searching the web with ChatGPT](https://help.openai.com/en/articles/9237897-searching-the-web-with-chatgpt) 与 [Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、官方怎么说搜索\n\n官方《Searching the web with ChatGPT》：\n\n- **可用范围**：Free、Go、Plus、Pro、Business、Enterprise、Edu 都可以用，没登录的用户也可以；网页、桌面版和手机 App 里都能用；\n- **自动与手动**：需要最新信息时 ChatGPT 可能自动搜索；手动搜索按上面的 **View all tools → Search**，或输入 **/** 选 Search；\n- **引用**：用了搜索的回答可能带引用，点引用打开来源，桌面网页上悬停可以预览；点 **Sources** 可以看引用的来源和其他相关链接；iOS 和 Android 上结果还可能带地图；\n- **局限**：官方明确说结果和引用可能**不完整、过时或不正确**，要打开来源确认，注意发布或更新日期，对准确性要求高时用权威来源；觉得结果不对，可以让 ChatGPT 指定来源、日期或地点再搜一次。\n\n搜索功能的整体用法见 [/guides/chatgpt-search](/guides/chatgpt-search)。\n\n## 二、卡住时的官方通用顺序\n\n官方没有写搜索卡住，但对「Thinking…、Generating…、Working…」或一直转圈有统一做法：\n\n1. **等 30 到 60 秒**，再**停止**并**重新生成**；\n2. **新开一个对话**；\n3. **重新加载页面**；**退出登录再登录**；\n4. **关闭扩展和 VPN**，换浏览器或网络；\n5. **看状态页**：[status.openai.com](https://status.openai.com/)，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n更详细的版本见 [/guides/chatgpt-stuck-thinking-no-result](/guides/chatgpt-stuck-thinking-no-result)。\n\n![联网搜索不工作的官方排查顺序](seed:g1200-search-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Searching the web with ChatGPT](https://help.openai.com/en/articles/9237897-searching-the-web-with-chatgpt) 整理的示意图*\n\n## 三、找不到 Search，或提示无法联网\n\n官方搜索文章的排查：\n\n1. **新开一个对话**，在工具菜单里找 **Search**；\n2. **更新 App**，或在浏览器里用 chatgpt.com 试；\n3. 确认你用的是**想用的账号或工作区**，并且**没有用完用量上限**；\n4. **托管工作区**里，问管理员是否对你的角色开启了网页搜索。\n\n仍然不行，联系官方客服，并告诉对方你的**套餐、设备、App 或浏览器版本和完整的报错原文**，入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 四、搜索占不占额度\n\n官方明确写：**搜索计入你的套餐用量上限**，包括语音对话里的网页搜索。所以额度吃紧时，搜索也会受限。额度怎么看，见 [/guides/chatgpt-usage-limits-check-reset](/guides/chatgpt-usage-limits-check-reset)。想要更多额度，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，具体数字以官方为准。\n\n## 官方没说的\n\n- **搜索要多久算正常**，官方没有给时间；\n- **搜索次数上限**是多少，官方搜索文章没有写数字；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 想对比别家的搜索，可以看 [/guides/claude-web-search](/guides/claude-web-search)。\n\n## 常见问题\n\n**Q：不登录能用搜索吗？**\n官方搜索文章说，没登录的用户也可以使用。不登录使用 ChatGPT 的更多限制见 [/guides/chatgpt-use-without-login](/guides/chatgpt-use-without-login)。\n\n**Q：怎么让它一定去联网？**\n手动用 View all tools → Search，或输入 / 选 Search；回答出来后也可以选重新生成里的 Search the web。\n\n**Q：搜索结果不对怎么办？**\n官方建议打开引用来源核对，并让 ChatGPT 指定来源、日期或地点重新搜索。\n\n**Q：每次搜索都扣额度吗？**\n官方说搜索计入套餐用量上限，没有给出每次的换算。\n\n## 参考资料\n\n- OpenAI 帮助中心：Searching the web with ChatGPT — https://help.openai.com/en/articles/9237897-searching-the-web-with-chatgpt\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+      "sources": [
+        "https://help.openai.com/en/articles/9237897-searching-the-web-with-chatgpt",
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方搜索文章没有描述「Searching the web」这类进度提示，也没有写搜索卡住怎么办；卡住的处理套用官方对 Thinking、Generating 等卡住状态的通用步骤，开头已说明",
+        "官方搜索文章没有写具体的搜索次数上限，只说搜索计入套餐用量上限",
+        "官方搜索文章页面没有给出更新日期",
+        "「先等 30 到 60 秒」来自官方通用报错排查文章"
+      ]
+    },
+    {
+      "title": "ChatGPT 卡在「Analyzing」分析中不动怎么办：官方没写这个提示，按卡住的通用排查和上传文件处理",
+      "slug": "chatgpt-stuck-analyzing",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1201-analyze-decide.png",
+        "g1201-analyze-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 一直显示 Analyzing，分析文件或数据迟迟不出结果？官方帮助中心没有收录这个进度提示，但有卡在 Thinking、Generating 的通用排查和下载类提示的说明。本文按官方顺序整理，并说明哪些官方没说。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Why is my ChatGPT taking so long to respond?》整理，资料核对于 2026-10-28。**官方帮助中心没有收录「Analyzing」这个进度提示，**所以本文只写官方对卡在 Thinking、Generating、Working 的通用排查，没有依据的不编。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 上传了表格、PDF 或数据，ChatGPT 一直显示 **Analyzing**（分析中）的人；\n- 等了很久还不出结果，不知道该不该等的人；\n- 想知道先做哪一步最省事的人。\n\n## 结论先说\n\n1. **官方没有解释 Analyzing。** 它是一类进度提示，官方对同类的卡住状态（Thinking、Generating、Working）有统一做法。\n2. **官方第一步：等 30 到 60 秒**，然后**停止**并**重新生成**。\n3. **接着**：新开对话；重新加载页面或强制刷新；退出登录再登录；关闭扩展和 VPN；换浏览器或网络；看状态页。\n4. **文件相关**：重新生成也不动，可以**新开对话重新上传**，必要时换一个小一点、简单一点的文件试试。文件上传限制和格式，见 [/guides/chatgpt-file-upload-failed](/guides/chatgpt-file-upload-failed)。\n5. **还是不行**，收集 HAR 文件、控制台错误、请求 ID、时间戳和对话链接，联系官方客服。\n\n![Analyzing 不动：看到什么、对应怎么办](seed:g1201-analyze-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Why is my ChatGPT taking so long to respond?](https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond) 整理的示意图*\n\n## 一、官方对「卡住」的通用做法\n\n官方《Troubleshooting ChatGPT Error Messages》写，当 ChatGPT 卡在 **Thinking…、Generating…、Working…** 或一直转圈、响应慢、冻结时：\n\n1. **等 30 到 60 秒**，然后停止并重新生成；\n2. **新开一个对话**；\n3. **重新加载页面**，或强制刷新；\n4. **退出登录再登录**；\n5. **关闭扩展和 VPN**；\n6. **换浏览器或网络**；\n7. **看官方状态页**，确认没有故障。\n\n官方没有说明 Analyzing 具体对应什么阶段，也没有给出分析要等多久。\n\n## 二、分析文件时的处理\n\n文件越大、越复杂，等待越久，这是常识，官方没有给具体数字。可以这样判断和处理：\n\n1. **看有没有进度**：界面有变化就再等等；完全没变化超过官方的 30 到 60 秒线，就停止；\n2. **新开对话，重新上传**，这样能排除原来那个对话本身的问题；\n3. **换一个更小的文件**，或把大表格拆开，看是不是文件本身的原因；\n4. 重新生成时，不要连续点很多次，一次一次地试，才知道哪一步有用；\n5. 想把分析做成 Excel 或表格，见 [/guides/chatgpt-excel-data-analysis](/guides/chatgpt-excel-data-analysis)。\n\n![分析卡住的官方通用顺序：等待、重新生成、新对话、退出重登、关扩展、联系客服](seed:g1201-analyze-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 三、网页上的处理\n\n官方在《Why is my ChatGPT taking so long to respond?》里对「一直加载、Thinking、空白页、冻结」的步骤：\n\n- **强制刷新**（Shift + 刷新），或开启关闭了扩展的**无痕窗口**；\n- **退出登录再登录**，并**清除站点数据**，不只是清缓存；\n- **换一个模型，新开一个对话**，判断是模型的问题还是账号的问题；\n- 仍然持续，**联系客服前先收集诊断信息**。\n\n模型怎么选、能选哪些，见 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)。同一类卡住的其他情形见 [/guides/chatgpt-stuck-thinking-no-result](/guides/chatgpt-stuck-thinking-no-result)。\n\n## 四、联系官方客服\n\n官方要求联系客服前先收集：出问题那次会话的 **HAR 文件**、浏览器**控制台错误**、**请求 ID**、**时间戳**和**对话网址**。再加上文件类型和大小（不要发送敏感内容）。入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)，读状态页见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n## 官方没说的\n\n- **Analyzing 要等多久**，官方没有给时间；\n- **哪些文件更容易卡**，官方没有列；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 想有更宽裕的分析额度，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但套餐不保证分析不卡。\n\n## 常见问题\n\n**Q：Analyzing 能一直等吗？**\n官方的卡住判断线是 30 到 60 秒内没进展就停止重试，没有说分析要等多久。\n\n**Q：只有某一个文件卡？**\n换一个小一点的文件，或新开对话重新上传，判断是不是文件的问题。\n\n**Q：停止后文件还在吗？**\n官方没有说明，建议保留好原文件，必要时重新上传。\n\n**Q：手机上也卡？**\n手机 App 的排查见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Why is my ChatGPT taking so long to respond? — https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「Analyzing」这个进度提示，也没有解释它的含义和卡住的原因；正文套用官方对 Thinking、Generating、Working 卡住的通用步骤，开头已说明",
+        "官方没有给文件类型、大小对分析时长的影响，正文只提醒换小一点的文件试，具体上传限制指向本站上传失败那篇",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 生图一直「Creating image」、卡在 One last tweak 怎么办：官方没写这些进度提示，按卡住排查和额度提示处理",
+      "slug": "chatgpt-image-stuck-creating-image",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1202-image-decide.png",
+        "g1202-image-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 生图一直显示 Creating image，或停在 One last tweak？官方没有收录这些进度文字，但有卡住的通用排查、生图额度提示和下载类说明。本文按官方顺序整理，帮你分清是卡住、额度还是内容问题。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Why is my ChatGPT taking so long to respond?》整理，资料核对于 2026-10-28。**官方没有收录「Creating image」「One last tweak」这类生图进度文字，**本文只写官方对卡住状态的通用排查，没有依据的不编。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 让 ChatGPT 画图，一直停在 **Creating image**（正在生成图片）的人；\n- 看到 **One last tweak** 之类的文字后长时间没有出图的人；\n- 分不清是卡住、额度用完，还是内容被拒的人。\n\n## 结论先说\n\n1. **官方没有解释这些进度文字。** 它们是生图过程中的状态，官方对同类卡住（Thinking、Generating、Working）有通用做法：**先等 30 到 60 秒，再停止并重新生成**。\n2. **先看有没有别的提示**：如果同时出现**额度已用完**，那是额度问题，看恢复时间，见 [/guides/chatgpt-image-limits](/guides/chatgpt-image-limits)；如果提示**内容不合要求**，要改写要求，见 [/guides/chatgpt-image-failed](/guides/chatgpt-image-failed)。\n3. **不要连续点很多次重新生成**，一次一次地试，才知道哪一步有用，也不会白白消耗额度。\n4. 接着按官方顺序：**新开对话** → 强制刷新或退出重登 → 关闭扩展和 VPN → 换浏览器或网络 → 看状态页。\n5. 图出来了但**下载失败**，见 [/guides/chatgpt-network-error-image-download](/guides/chatgpt-network-error-image-download)。\n6. **仍然不行**，联系官方客服，附时间和你的提示词（去掉隐私内容）。\n\n![生图一直 Creating image：对照表](seed:g1202-image-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Why is my ChatGPT taking so long to respond?](https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond) 整理的示意图*\n\n## 一、先分清是哪一种\n\n| 你看到的 | 更可能是 | 看哪篇 |\n| --- | --- | --- |\n| Creating image 很久，没有别的提示 | 卡住 | 本文 |\n| 提示已达生图上限、写明恢复时间 | 额度 | [/guides/chatgpt-image-limits](/guides/chatgpt-image-limits) |\n| 提示无法生成、不符合要求 | 内容被拒或生成失败 | [/guides/chatgpt-image-failed](/guides/chatgpt-image-failed) |\n| 图出来了，下载不了 | 下载或网络 | [/guides/chatgpt-network-error-image-download](/guides/chatgpt-network-error-image-download) |\n\n官方没有给「Creating image」这类文字的含义，所以靠上表按其他提示来判断更可靠。生图的基本用法见 [/guides/chatgpt-image-generation-beginner-guide](/guides/chatgpt-image-generation-beginner-guide)。\n\n## 二、官方的卡住排查顺序\n\n对卡在 Thinking…、Generating…、Working… 或转圈的状态，官方的顺序是：\n\n1. **等 30 到 60 秒**，然后**停止**并**重新生成**；\n2. **新开一个对话**；\n3. **重新加载页面**，或强制刷新；**退出登录再登录**；\n4. **关闭扩展和 VPN**；\n5. **换浏览器或网络**；\n6. **看官方状态页**；\n7. 仍然不行，**联系客服前收集诊断信息**。\n\n官方《Why is my ChatGPT taking so long to respond?》还提到：用 **Shift + 刷新**强制刷新，或开启关闭了扩展的**无痕窗口**；退出登录再登录并**清除站点数据**；换一个模型新开对话，判断是模型还是账号的问题。\n\n![生图卡住的处理顺序：等待、重新生成、看额度、新对话、关扩展、联系客服](seed:g1202-image-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 三、生图本身的几点提醒\n\n- **一次只做一张**：同时要很多张、要求很复杂，更容易久等，这是本文的经验提示，不是官方原话；\n- **提示词里不要夹带大量文字要求**，中文文字的处理见 [/guides/chatgpt-image-chinese-text](/guides/chatgpt-image-chinese-text)；\n- 想用更强的生图，可以看 [/guides/gpt-image-2-how-to](/guides/gpt-image-2-how-to)，提示词写法见 [/guides/chatgpt-image-prompt-commands](/guides/chatgpt-image-prompt-commands)。\n\n## 四、联系官方客服\n\n官方要求联系客服前先收集：出问题那次会话的 **HAR 文件**、浏览器**控制台错误**、**请求 ID**、**时间戳**、**对话网址**。入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。别在提示词里放不想让别人看到的隐私。\n\n## 官方没说的\n\n- **生图要多久算正常**，官方没有给时间；\n- **这些进度文字的含义**，官方没有解释；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 想有更多生图额度，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，具体次数以官方为准。\n\n## 常见问题\n\n**Q：Creating image 一直不动会不会白扣额度？**\n官方没有说明。先看界面有没有额度提示，额度怎么看见 [/guides/chatgpt-usage-limits-check-reset](/guides/chatgpt-usage-limits-check-reset)。\n\n**Q：One last tweak 是什么意思？**\n官方没有解释，字面看是最后调整的进度文字，是否卡住按等 30 到 60 秒的线判断。\n\n**Q：手机上卡？**\n手机 App 的排查见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)。\n\n**Q：怎么确认是不是官方故障？**\n看 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Why is my ChatGPT taking so long to respond? — https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「Creating image」「One last tweak」这类生图进度文字，也没有解释它们的含义；正文套用官方对卡住状态的通用步骤，开头已说明",
+        "官方没有给生图的预期耗时，正文不写具体秒数，只引用官方「先等 30 到 60 秒」的通用判断线",
+        "生图额度和失败原因的细节指向本站另外两篇文章，本文不重复数字",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 工作模式一直「Working」不动怎么办：先看是不是在等你批准，再按官方卡住排查",
+      "slug": "chatgpt-work-stuck-working",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1203-work-decide.png",
+        "g1203-work-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "ChatGPT 的 Work 任务一直显示 Working、没有结果？官方没有专门写这个提示，但 Work 文章说明了任务要你批准重要操作、可以查看进度和改方向，卡住另有通用排查。本文先判断是不是在等你，再按官方顺序处理。",
+      "content": "> 本文根据 OpenAI 帮助中心《ChatGPT Work and Codex》《Scheduled tasks in ChatGPT》《Troubleshooting ChatGPT Error Messages》整理，资料核对于 2026-10-28。**官方没有专门写「Work 一直 Working」，也没有写怎样停止运行中的任务，**本文用官方对批准、进度的说明加通用卡住排查来回答。怎么开始一个 Work 任务见 [/guides/chatgpt-work-how-to-use-steps](/guides/chatgpt-work-how-to-use-steps)。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 在 Work 里下了任务，一直显示 **Working**（工作中）的人；\n- 不知道任务是在跑、在等你，还是卡死了的人；\n- 桌面版里的本地 Work 没有进展的人。\n\n## 结论先说\n\n1. **先看是不是在等你。** 官方说，重要操作要你**批准**；网页和手机上用屏幕上的控件批准或拒绝，**不支持语音批准**。计划任务文章也写了，任务可能需要额外操作，比如批准，才能继续。\n2. **Work 本来就处理更长的多步骤任务**，官方说它最终交付文档、表格、演示文稿、报告或 Site，所以比普通聊天慢是正常的。官方没有给耗时。\n3. **你可以介入**：官方说任务运行时可以**查看进度、回答问题、改变方向、批准重要操作**。\n4. **确实没有任何进展**，按官方对卡住的通用做法：先等 30 到 60 秒，停止并重新生成；新开对话；刷新或退出重登；关闭扩展和 VPN；换浏览器或网络；看状态页。\n5. **桌面版**先更新：官方说桌面版要手动 **Check for Updates**；本地 Work 要看文件夹和应用权限。\n6. **用量**：官方说 Work 与 Codex 使用同一套用量结构，每个任务消耗不同。\n\n![Work 一直 Working：对照表](seed:g1203-work-decide.png)\n*图：本站根据 [OpenAI 帮助中心：ChatGPT Work and Codex](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex) 与 [Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、官方说的几个相关事实\n\n官方《ChatGPT Work and Codex》：\n\n- **Work 与 Chat 的区别**：Chat 做快速问答，Work 做更长、多步骤、交付成品的任务，区别见 [/guides/chatgpt-chat-vs-work-difference](/guides/chatgpt-chat-vs-work-difference)；\n- **云端与本地**：网页和手机上的 Work 在云端运行，不能读你电脑上的文件；桌面版里的 Work 经你允许后可以使用本地文件和桌面应用。本地的 Work 在你的电脑上运行，消息和任务上下文可能存在云端；\n- **批准**：在网页和手机上，用屏幕上的控件批准或拒绝，不支持语音批准；\n- **用量**：Work 与 Codex 用同一套用量结构，用量因任务而异；\n- **计划任务**：可以运行一次、按计划重复、被触发或监控变化，你可以查看进度、回答问题、改变方向、批准重要操作。\n\n## 二、判断：是在跑、在等你，还是卡住\n\n1. **打开任务，看最新一条记录**：有没有向你提问、有没有等待批准的操作；\n2. **有提问或待批准**：回答或批准，任务才会往下走；\n3. **没有任何提问，也没有新的进展**：超过一两分钟，按官方的卡住顺序处理，官方没有给 Work 的专门时间线，30 到 60 秒是官方对一般卡住状态给的判断线。\n\n## 三、官方的卡住排查顺序\n\n1. **等 30 到 60 秒**，然后**停止**并**重新生成**；\n2. **新开一个对话**；\n3. **重新加载页面**，或强制刷新；**退出登录再登录**；\n4. **关闭扩展和 VPN**；\n5. **换浏览器或网络**；\n6. **看官方状态页**，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n桌面版：先**更新**（菜单 → Check for Updates），找不到 Work 或功能异常，也见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)。\n\n![Work 任务不动的处理顺序](seed:g1203-work-steps.png)\n*图：本站根据 [OpenAI 帮助中心：ChatGPT Work and Codex](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex) 整理的示意图*\n\n## 四、用量不够会怎样\n\n官方说 Work 与 Codex 用同一套用量结构，GPT-6 Astra 从套餐的内含额度里扣，Plus 和 Business 标准席位的 Astra 用量有限，用完后可以选用积分。额度够不够，先看 [/guides/chatgpt-usage-limits-check-reset](/guides/chatgpt-usage-limits-check-reset)。套餐的区别见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)，想开通可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，具体额度以官方为准。\n\n## 五、联系官方客服\n\n仍然没有进展，联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。建议带上：任务链接、时间、你的套餐和设备、桌面版或 App 的版本，以及你已经做过的步骤。网页上还可附 HAR 文件和控制台错误。\n\n## 官方没说的\n\n- **Work 任务要多久**，官方没有给时间；\n- **怎样停止运行中的任务**，官方 Work 文章没有写步骤；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 工作区的管理员可以分别管理 Work Cloud、Work Local 和 Codex Local，你没有 Work 时先问管理员。\n\n## 常见问题\n\n**Q：Working 是不是一定卡住了？**\n不一定。Work 处理的是长任务，也可能在等你批准。先看任务里有没有待处理的提问。\n\n**Q：能不能用语音批准？**\n不能，官方说网页和手机上不支持语音批准。\n\n**Q：停止后之前的进度会没吗？**\n官方没有说明，建议先把任务的链接和已有结果保存下来。\n\n**Q：本地 Work 读不到文件？**\n官方说桌面版的 Work 经你允许才能使用本地文件和应用，要看权限设置。\n\n## 参考资料\n\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- OpenAI 帮助中心：Scheduled tasks in ChatGPT — https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+      "sources": [
+        "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+        "https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt",
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有专门写「Work 一直 Working 不动」，也没有写停止运行中任务的步骤；正文套用官方 Work 文章中的批准、查看进度说明和通用卡住排查，开头已说明",
+        "官方 Work 文章没有给任务的预期耗时，也没有写具体任务示例",
+        "官方说 Work 与 Codex 用同一套用量结构，没有给具体额度数字",
+        "官方文章页面没有给出更新日期"
+      ]
+    },
+    {
       "title": "ChatGPT 学习模式怎么用：开启方法、找不到怎么办，配合闪卡和测验复习",
       "slug": "chatgpt-study-mode",
       "checkedOn": "2026-10-07",
@@ -65136,6 +65240,192 @@
       ]
     },
     {
+      "title": "ChatGPT 不登录能用吗：官方说可以直接在 chatgpt.com 使用，但只有一个对话、不保存历史，哪些情况仍要登录",
+      "slug": "chatgpt-use-without-login",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1210-nologin-decide.png",
+        "g1210-nologin-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 不注册、不登录能用吗？官方帮助中心说：在支持的国家和地区，打开 chatgpt.com 直接输入就行，但同一时间只有一个对话、聊天不保存，退出后无法继续。本文讲清能做什么、不能做什么，以及提示要求登录时怎么办。",
+      "content": "> 本文根据 OpenAI 帮助中心《How can I use ChatGPT without an account?》《Searching the web with ChatGPT》整理，资料核对于 2026-10-28。官方对未登录用户的说明很短，没写的部分本文明确标注为官方没说。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 想先试试 ChatGPT，不想注册账号的人；\n- 打开网页后不知道要不要登录的人；\n- 提示「请先登录或注册」的人。\n\n## 结论先说\n\n1. **可以不登录就用。** 官方说，在支持的国家和地区，打开 **chatgpt.com**，在输入框里输入问题就能用，免费。\n2. **同一时间只有一个对话。** 点 **New chat** 开新对话，当前这个对话就**无法再访问**。\n3. **聊天不保存。** 对话只在**当前浏览器的这次会话**里可以访问；**退出登录后无法继续**原来的对话。\n4. **要保存对话、保留历史、在侧边栏看到最近的对话，需要账号。**\n5. **访问可能因地区或网络而异**：官方说，有些用户在发消息前会被要求**登录或注册**。官方没有列出具体国家名单。\n6. **联网搜索**：官方搜索文章写明，没登录的用户也可以使用网页搜索。除此之外，生图、传文件、语音、选模型，官方这篇文章**没有说**未登录时能不能用。\n\n![不登录使用 ChatGPT：官方怎么说](seed:g1210-nologin-decide.png)\n*图：本站根据 [OpenAI 帮助中心：How can I use ChatGPT without an account?](https://help.openai.com/en/articles/9125172-how-can-i-use-chatgpt-without-an-account) 整理的示意图*\n\n## 一、不登录怎么用\n\n官方的流程很简单：\n\n1. 打开 **chatgpt.com**；\n2. 在输入框里输入问题；\n3. 想换个话题，点 **New chat**，注意旧的对话会无法访问；\n4. 用完关闭页面即可，对话不会被保存下来。\n\n![不登录使用 ChatGPT 的官方步骤](seed:g1210-nologin-steps.png)\n*图：本站根据 [OpenAI 帮助中心：How can I use ChatGPT without an account?](https://help.openai.com/en/articles/9125172-how-can-i-use-chatgpt-without-an-account) 整理的示意图*\n\n## 二、不登录有哪些限制\n\n官方明确写的：\n\n- **一次一个对话**，开新对话后旧的不能再看；\n- **不保存历史**，只在当前浏览器、当前会话里能访问；\n- **退出登录**后不能继续；\n- **保存对话和历史需要账号**，侧边栏里看到最近的对话也需要账号。\n\n官方没写的：**能不能生图、传文件、用语音、选模型**，没有说明，以界面实际显示为准。**自定义指令、记忆**这类个性化功能，官方这篇没提，需要账号才有（见 [/guides/chatgpt-custom-instructions](/guides/chatgpt-custom-instructions)）。\n\n## 三、提示要求登录或注册\n\n官方说明：**访问可能因所在地区或网络而异**，一些用户在发消息之前会被要求登录或注册。遇到这种情况：\n\n- 先**登录或注册**，这是官方给出的唯一路径，注册步骤见 [/guides/chatgpt-how-to-sign-up-account](/guides/chatgpt-how-to-sign-up-account)；\n- 提示里写所在地区不受支持，那是官方不支持，见 [/guides/chatgpt-supported-countries](/guides/chatgpt-supported-countries)，官方没有提供绕开的办法，本文也不介绍；\n- 登录有问题（收不到验证码、登录不上），见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n\n## 四、什么时候值得注册\n\n登录后可以：保存聊天、在侧边栏继续以前的对话、使用自定义指令和记忆、使用各套餐对应的功能。各套餐的区别见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)，免费版的限制见 [/guides/chatgpt-free-plan-limits](/guides/chatgpt-free-plan-limits)。想用更多功能，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，价格以官方页面为准。\n\n不想让聊天被保存，登录后也可以用临时聊天，见 [/guides/chatgpt-temporary-chat](/guides/chatgpt-temporary-chat)。\n\n## 五、不登录也打不开怎么办\n\n页面空白、打不开，按通用排查：强制刷新、无痕窗口、关扩展、关 VPN、换网络，见 [/guides/chatgpt-unable-to-load-site](/guides/chatgpt-unable-to-load-site) 和 [/guides/chatgpt-cant-open-loading](/guides/chatgpt-cant-open-loading)。官方有故障时先看状态页，见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n## 官方没说的\n\n- **未登录能用哪些模型**，官方没有写；\n- **未登录的消息数量限制**，官方没有给数字；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 官方没有说未登录用的是不是和登录后的免费版一样的模型。\n\n## 常见问题\n\n**Q：不登录，聊天记录会保存吗？**\n不会，官方说只在当前浏览器的这次会话里可访问，新开对话后旧的就无法访问了。\n\n**Q：能不能在手机上不登录用？**\n官方这篇文章讲的是 chatgpt.com，对手机 App 没有说明。\n\n**Q：不登录能联网搜索吗？**\n官方搜索文章写明，没登录的用户也可以使用网页搜索。\n\n**Q：为什么我被要求登录？**\n官方说访问可能因地区或网络而异，部分用户发消息前会被要求登录或注册。\n\n## 参考资料\n\n- OpenAI 帮助中心：How can I use ChatGPT without an account? — https://help.openai.com/en/articles/9125172-how-can-i-use-chatgpt-without-an-account\n- OpenAI 帮助中心：Searching the web with ChatGPT — https://help.openai.com/en/articles/9237897-searching-the-web-with-chatgpt",
+      "sources": [
+        "https://help.openai.com/en/articles/9125172-how-can-i-use-chatgpt-without-an-account",
+        "https://help.openai.com/en/articles/9237897-searching-the-web-with-chatgpt"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章没有说明未登录时能否生图、上传文件、用语音或选模型，正文不下结论；只有搜索文章写了未登录用户也可以使用网页搜索",
+        "官方文章说访问可能因地区或网络而异，部分用户发消息前会被要求登录或注册；没有列出具体国家名单",
+        "官方文章页面只显示相对的更新时间",
+        "不同时间官方的措辞可能调整（早期版本写欧洲除英国外暂不开放，当前版本写支持的国家包括欧洲和英国），以官方最新页面为准"
+      ]
+    },
+    {
+      "title": "ChatGPT 页面不能往下滚动怎么办：页面卡住、长对话和浏览器问题，官方的冻结页排查",
+      "slug": "chatgpt-cannot-scroll-down",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1212-scroll-decide.png",
+        "g1212-scroll-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 网页往下滚不动、页面像冻住了？官方帮助中心没有专门写滚动问题，但有空白页、冻结页的通用排查：强制刷新、退出重登、清站点数据、关扩展和 VPN。本文按官方顺序整理，并说明长对话的处理。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Why is my ChatGPT taking so long to respond?》《Troubleshooting the ChatGPT mobile app》整理，资料核对于 2026-10-28。**官方没有专门写「页面不能往下滚动」，**本文套用官方对空白页、冻结页的通用排查。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- ChatGPT 网页往下滚没反应、页面像被冻住的人；\n- 长对话里滚动卡顿、滚不到最新内容的人；\n- 只在某个浏览器或手机 App 里滚不动的人。\n\n## 结论先说\n\n1. **官方对冻结页的第一步是强制刷新**，或开一个**无痕窗口**；电脑浏览器里按住 **Shift** 再点刷新。\n2. **接着**：退出登录再登录，并**清除站点数据**；关闭**扩展和内容拦截器**；关闭 **VPN 和安全过滤**；换**浏览器、网络或设备**。\n3. **只在很长的对话里出现**：新开一个对话继续，官方通用步骤里本来就有「新开一个对话」。这是本站的经验：对话越长，网页越容易变卡，见 [/guides/chatgpt-slow-laggy-stuck-long-chat](/guides/chatgpt-slow-laggy-stuck-long-chat)。\n4. **无痕窗口里正常**，说明问题在扩展、缓存或站点数据。\n5. **只有手机 App 滚不动**：关闭再打开 App，更新 App 和系统，在网页上用同一账号对比，仍然不行就卸载重装，见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)。\n6. **都不行**，收集 HAR 文件和控制台错误后联系官方客服。\n\n![页面不能往下滚：对照表](seed:g1212-scroll-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、官方对冻结页的步骤\n\n官方《Troubleshooting ChatGPT Error Messages》对空白页、冻结页、一直加载的处理：\n\n1. **强制刷新**，或强制重新加载应用；\n2. **退出登录再登录**；\n3. **清除站点数据**（官方示例写的是 chat.openai.com，现在官网是 chatgpt.com，两个都清更稳妥）；\n4. **关闭扩展和内容拦截器**；\n5. 试**无痕窗口**，或**换浏览器**；\n6. **关闭 VPN 和安全过滤**；\n7. 仍然持续，**收集日志和 HAR 文件后联系客服**。\n\n官方《Why is my ChatGPT taking so long to respond?》也说明：卡住、空白页、冻结时，用 **Shift + 刷新**做硬刷新，或开启关闭了扩展的无痕窗口；退出登录再登录并清除站点数据，而不只是缓存。\n\n![页面卡住的官方通用顺序：强制刷新、退出重登、关扩展、关 VPN、换浏览器、联系客服](seed:g1212-scroll-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 二、滚不动的几种常见情形\n\n### 1. 对话很长\n\n官方没有写长度阈值。如果只在某个很长的对话里滚不动，**新开一个对话**，把关键内容总结后贴过去继续，通常更稳。上下文长度的限制见 [/guides/chatgpt-context-length-limits](/guides/chatgpt-context-length-limits)。\n\n### 2. 回答正在生成时滚不动\n\n生成过程中页面一直在更新，可能让滚动显得卡。等回答结束，或点**停止**，再滚动。如果一直不结束，按 [/guides/chatgpt-stuck-thinking-no-result](/guides/chatgpt-stuck-thinking-no-result) 处理。\n\n### 3. 只有某个浏览器\n\n先开无痕窗口。无痕里正常，就是原浏览器的扩展或缓存：关闭**脚本拦截、广告拦截、修改页面内容**的扩展，清除站点数据。\n\n### 4. 手机上\n\n官方手机 App 排查的顺序：关闭再打开 → 看状态页 → 更新 App → 更新系统 → 切换 Wi-Fi 与移动数据 → 在网页上登录同一账号对比 → 卸载并从官方应用商店重装。\n\n## 三、联系官方客服\n\n官方要求联系前先收集：**HAR 文件**、浏览器**控制台错误**、**请求 ID**、**时间戳**和**对话网址**。入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。其他页面类问题见 [/guides/chatgpt-unable-to-load-site](/guides/chatgpt-unable-to-load-site) 和 [/guides/chatgpt-cant-open-loading](/guides/chatgpt-cant-open-loading)。\n\n## 官方没说的\n\n- **长对话到底多长会卡**，官方没有给阈值；\n- **滚动失灵的具体原因**，官方没有写；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 想了解套餐，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但它不能解决页面卡住。\n\n## 常见问题\n\n**Q：强制刷新会丢聊天吗？**\n不会，聊天在账号里；但没发送出去的输入内容可能丢，先复制。\n\n**Q：为什么无痕窗口里能滚？**\n无痕窗口默认关闭大部分扩展，也没有旧的缓存和站点数据。\n\n**Q：只有 Safari 滚不动？**\n官方通用步骤里的 Private Relay、VPN、内容拦截器都值得先关一下，再清站点数据。\n\n**Q：对话太长怎么保留内容？**\n可以导出，见 [/guides/chatgpt-export-single-chat-pdf-markdown](/guides/chatgpt-export-single-chat-pdf-markdown)。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Why is my ChatGPT taking so long to respond? — https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond\n- OpenAI 帮助中心：Troubleshooting the ChatGPT mobile app — https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond",
+        "https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有专门写「页面不能往下滚动」，本文套用官方对空白页、冻结页的通用步骤和手机 App 排查，开头已说明",
+        "「长对话更容易卡」是本站的经验提示，官方在这个问题上没有给出长度阈值",
+        "官方文章里站点数据示例写的是 chat.openai.com，现在官网域名是 chatgpt.com，清除时两个都清更稳妥，这是本文建议",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 无法切换模型怎么办：选项灰色、没有 GPT-6、选不到高档位、被自动换掉的官方原因",
+      "slug": "chatgpt-cannot-change-model",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1213-model-decide.png",
+        "g1213-model-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "ChatGPT 模型菜单切换不了？按 OpenAI 帮助中心，选项灰色可能是额度或工作区权限，GPT-6 在分批推出，Plus 没有 Extra High 和 Pro，桌面版要手动检查更新，管理员可限制模型，达到上限时还可能被自动换掉。本文逐项列出。",
+      "content": "> 本文根据 OpenAI 帮助中心《GPT-6 and other models in ChatGPT》《Troubleshooting Model Feature Access Issues》整理，资料核对于 2026-10-28。模型更新很快，请以官方文章和你账号里实际显示的为准。配图为本站整理的示意图，不是界面截图。模型菜单与档位的整体介绍见 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)，找不到新模型见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)。\n\n## 适用于谁\n\n- 打开模型菜单，选项是灰色、点不了的人；\n- 菜单里没有 GPT-6，或选不到 Extra High、Pro 的人；\n- 选了某个模型，回答却显示被换成别的模型的人；\n- 公司或学校账号里选项和别人不一样的人。\n\n## 结论先说\n\n1. **官方没有写分平台的点击步骤**，只写了：打开**模型菜单**，**GPT-6** 在菜单里取代了原来的 **Latest**；用 **Thinking** 滑块设置强度，档位有 Instant、Medium、High、Extra High、Pro。\n2. **选项灰色**：官方说选项旁边有说明，先读。可能是**额度已用完**、**工作区权限**、账号被限制、最近改过套餐等。\n3. **没有 GPT-6**：官方说正在向符合条件的 Pro、Plus、Enterprise、Business 用户**分批推出**，菜单里的名字就叫 **GPT-6**，没有说明就是暂时没开放给你的账号。\n4. **选不到 Extra High 和 Pro**：官方表格里 **Plus 只含 Medium 和 High**；**Pro、Business、Enterprise** 才含 Extra High 和 Pro；**Free 和 Go** 不含 Medium、High、Extra High、Pro，难题用 **Think**。\n5. **桌面版菜单是旧的**：官方说旧版桌面应用不支持新控件，**菜单 → Check for Updates** 手动检查更新，即使刚收到过自动更新提示也要再查。\n6. **公司或学校账号**：官方说管理员可以限制成员能用的模型；Enterprise 在新控件推到工作区之前，可能还看到旧的菜单。\n7. **选了却被换掉**：官方说达到某个模型的上限后，ChatGPT 可能继续用别的可用模型；出于安全原因也可能自动切换。\n\n![无法切换模型：对照表](seed:g1213-model-decide.png)\n*图：本站根据 [OpenAI 帮助中心：GPT-6 and other models in ChatGPT](https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt) 与 [Troubleshooting Model Feature Access Issues](https://help.openai.com/en/articles/10258669-troubleshooting-model-feature-access-issues) 整理的示意图*\n\n## 一、官方怎么说切换模型\n\n官方《GPT-6 and other models in ChatGPT》的要点：\n\n- **入口**：模型菜单。GPT-6 取代了原来的 **Latest**；原来选 Latest 的会转到 GPT-6，强度不变；\n- **思考档位**：**Thinking** 滑块里有 **Instant**（日常问题的快速回答）、**Medium**（标准思考）、**High**（延长思考）、**Extra High**（GPT-6 Sol 的最高档）、**Pro**（难题和长流程）；\n- **其他选项**：**GPT-5.6 Sol**（选了它，对话就留在 GPT-5.6）、**GPT-5.6 Sol Pro**；**GPT-6 Pro**（由 GPT-6 Astra 驱动）在 Pro 100、Pro 200、Business、Enterprise 提供，Enterprise 还要看工作区权限；\n- **Plus 和 Pro 的 Instant 不会自动升档**，对 ChatGPT 说「再想深一点」也不会自动换档，要自己在菜单里选；\n- **Free 和 Go**：默认用 GPT-5.6 Luna，难题选 **Think**，同样是 GPT-5.6 Luna。\n\n![切换模型和思考档位的官方说明](seed:g1213-model-steps.png)\n*图：本站根据 [OpenAI 帮助中心：GPT-6 and other models in ChatGPT](https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt) 整理的示意图*\n\n## 二、选项灰色，原因有哪些\n\n官方《Troubleshooting Model Feature Access Issues》说，你可能看到某个模型或智能选项**仍然显示，但不可用**，官方列的原因：\n\n- **工作区权限**：托管工作区里，模型是否可用取决于工作区设置和基于角色的访问控制；\n- **达到使用上限**：旁边的说明会写已达上限和重置时间，等重置，或选别的选项；\n- **可能违反服务条款**：账号因疑似违规被标记；\n- **安全问题**：多次登录失败、陌生地点登录等可疑活动，可能触发临时降级；\n- **账号变更或维护**：最近改过订阅、套餐或付款信息，更新处理期间功能可能暂时受限。\n\n官方建议的处理：确认在对的工作区、请管理员检查你的访问权限、重设密码并开两步验证（见 [/guides/chatgpt-account-security-mfa](/guides/chatgpt-account-security-mfa)）、过几个小时再试、仍然不行联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 三、达到上限之后会怎样\n\n官方说明：\n\n- 在 **Thinking** 档位达到上限时，ChatGPT 可能继续用另一个可用模型；\n- Pro 200 的 GPT-6 Pro 每周上限用完后，ChatGPT 自动改用 **GPT-5.6 Thinking（Medium）**；Pro 100 上 GPT-6 Pro 和 GPT-5.6 Sol Pro 共用同一份每周额度，换模型不会多出消息；\n- 能显示重置时间时 ChatGPT 会显示；**OpenAI 客服不能重置用量上限**。\n\n额度怎么看见 [/guides/chatgpt-usage-limits-check-reset](/guides/chatgpt-usage-limits-check-reset)。想要更高的档位，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus) 和 [/chongzhi/chatgpt-pro](/chongzhi/chatgpt-pro)，具体包含的档位和额度以官方为准。\n\n## 四、桌面版和手机\n\n- **桌面版**：旧版不支持新控件，改用网页，或 **菜单 → Check for Updates** 手动更新；\n- **手机**：官方说更新到最新版本的 App；\n- 网页上，官方还写了在 **设置**里关闭 **Layout and visuals** 可以减少界面视觉元素。\n\n桌面版更新问题见 [/guides/chatgpt-desktop-app-wont-open-update](/guides/chatgpt-desktop-app-wont-open-update)。\n\n## 官方没说的\n\n- 官方没有写**每个平台上模型菜单具体点哪里**；\n- 灰色选项**多久能恢复**，官方没有给时间；\n- 官方没有说「换地区网络」能解锁模型，本文也不介绍绕开限制的做法；\n- 套餐里的档位和价格会变，以官方升级页和模型菜单为准。\n\n## 常见问题\n\n**Q：Plus 为什么没有 Extra High？**\n官方表格里 Plus 只含 Medium 和 High，不含 Extra High 和 Pro。\n\n**Q：我选了 GPT-6，为什么回答像换了模型？**\n官方说达到上限或出于安全原因，ChatGPT 可能自动切换，对话里会有相应显示。\n\n**Q：公司账号别人能选，我不能？**\n官方说管理员可以按角色限制模型，先问管理员。\n\n**Q：客服能帮我重置上限吗？**\n官方明确说 OpenAI 客服不能重置用量上限。\n\n## 参考资料\n\n- OpenAI 帮助中心：GPT-6 and other models in ChatGPT — https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt\n- OpenAI 帮助中心：Troubleshooting Model Feature Access Issues — https://help.openai.com/en/articles/10258669-troubleshooting-model-feature-access-issues",
+      "sources": [
+        "https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt",
+        "https://help.openai.com/en/articles/10258669-troubleshooting-model-feature-access-issues"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章没有分网页、桌面、手机逐步写模型菜单的点击步骤，只写了菜单内容、Thinking 滑块和各套餐的档位",
+        "套餐可用性表和菜单名称是官方文章当天的写法，模型更新很快，以账号里实际显示的为准",
+        "「模型访问受限」的原因列表来自官方《Troubleshooting Model Feature Access Issues》，官方没有说明每种情况的恢复时间",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 在 Chrome、Safari 里打不开怎么办：无痕窗口、扩展、Private Relay 和站点数据的官方排查",
+      "slug": "chatgpt-not-working-chrome-safari",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1214-browser-decide.png",
+        "g1214-browser-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 只在 Chrome 或 Safari 里打不开？官方没有按浏览器分别写，但有空白页和网络类的通用排查：无痕窗口、清缓存和站点数据、关扩展和内容拦截器、关 VPN 与 Private Relay、换浏览器和网络。本文按官方顺序整理。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Why am I receiving a ‘Suspicious Activity Alert’?》《Network recommendations for ChatGPT errors on web and apps》整理，资料核对于 2026-10-28。**官方没有按浏览器分别写排查，**本文把官方的通用步骤按 Chrome 和 Safari 的情形整理，哪些是官方原话、哪些是本站整理，文中有标注。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- ChatGPT 在 Chrome 里打不开、一直转圈或空白的人；\n- 在 Safari（Mac 或 iPhone）里打不开的人；\n- 换了浏览器就正常，想知道原因的人。\n\n## 结论先说\n\n1. **先开无痕窗口**：无痕窗口默认关闭大部分扩展，能最快判断是不是扩展、缓存的问题。\n2. **官方通用顺序**：强制刷新 → 退出登录再登录并**清除站点数据** → 关闭**扩展和内容拦截器** → 关闭 **VPN 和安全过滤** → 换**浏览器、网络或设备**。\n3. **只有 Chrome 不行**：重点查扩展（脚本拦截、广告拦截、修改页面的）、缓存和站点数据。\n4. **只有 Safari 不行**：重点查 **Private Relay**、VPN 和内容拦截器，再清站点数据。官方把 Private Relay 列在需要关闭的项目里（在可疑活动提醒文章里）。\n5. **换个浏览器就正常**：问题在原浏览器的扩展、缓存或站点数据，不在 ChatGPT 或你的网络。\n6. **所有浏览器都不行**：是网络或设备的问题，关 VPN 和代理、换网络，公司网络请管理员检查。\n\n![Chrome、Safari 打不开：对照表](seed:g1214-browser-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、官方的通用顺序\n\n官方对「页面空白、冻结、一直加载」的步骤：\n\n1. **强制刷新**，或强制重新加载；\n2. **退出登录再重新登录**；\n3. **清除站点数据**；\n4. **关闭扩展和内容拦截器**；\n5. 试**无痕窗口**，或**换浏览器**；\n6. **关闭 VPN 和安全过滤**；\n7. 仍然不行，收集日志和 HAR 文件后联系客服。\n\n官方对 **There was a problem preparing your chat** 的说明是：浏览器扩展或网址拦截器干扰了页面加载，办法是关闭拦截脚本或修改内容的扩展，或换无痕窗口、换浏览器。\n\n## 二、按浏览器的重点\n\n### Chrome\n\n1. **开无痕窗口**登录：能打开，说明是扩展或缓存；\n2. 回到普通窗口，**逐个关闭扩展**，先关**脚本拦截、广告拦截、内容修改**类；\n3. **清除缓存、Cookie 和站点数据**（chatgpt.com 和 chat.openai.com 都清更稳妥）；\n4. 关闭 VPN 和代理。\n\n### Safari（Mac 和 iPhone）\n\n1. **用 Safari 的私密浏览**打开，判断是不是扩展或缓存；\n2. **关闭 Private Relay、VPN** 和内容拦截器，官方在可疑活动提醒文章里，把 Private Relay、VPN、代理、浏览器扩展、自动化工具列为需要关闭的项目；\n3. **清除网站数据**，重新登录；\n4. iPhone 上还可以改用官方 App，手机 App 的排查见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)。\n\n具体菜单位置因系统和浏览器版本而异，官方没有写，以你设备上的实际界面为准。\n\n![浏览器里打不开的官方排查顺序](seed:g1214-browser-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 三、所有浏览器都不行\n\n多半是网络或设备的问题：\n\n- **关闭 VPN、代理和安全过滤**；\n- **换一个网络**，例如手机热点；\n- **公司或学校网络**：请管理员按官方网络建议检查域名放行、WebSocket、TLS 检查，见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)；\n- **看状态页**：[status.openai.com](https://status.openai.com/)，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n## 四、联系官方客服\n\n仍然不行，联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。官方建议带上：账号邮箱、截图、第一次出现的时间（带时区）、浏览器和系统版本，以及 HAR 文件和控制台错误。页面类问题的更多处理见 [/guides/chatgpt-unable-to-load-site](/guides/chatgpt-unable-to-load-site) 和 [/guides/chatgpt-cant-open-loading](/guides/chatgpt-cant-open-loading)。\n\n## 官方没说的\n\n- 官方**没有**写各浏览器的最低版本；\n- 官方**没有**针对 Chrome 或 Safari 的专门步骤，上面的拆分是本站整理；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 如果你所在的地区不在官方支持名单，那是官方不支持，见 [/guides/chatgpt-supported-countries](/guides/chatgpt-supported-countries)。\n\n## 常见问题\n\n**Q：为什么 Edge 或 Firefox 能开，Chrome 不能？**\n通常是 Chrome 里的扩展、缓存或站点数据，按第二节处理。\n\n**Q：清除站点数据会退出登录吗？**\n会，需要重新登录，登录方式见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n\n**Q：Safari 一直转圈怎么办？**\n先关 Private Relay 和 VPN，再清网站数据，仍然不行换浏览器或 App。\n\n**Q：要不要重装浏览器？**\n官方没有这样建议，先按本文顺序做。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Why am I receiving a ‘Suspicious Activity Alert’? — https://help.openai.com/en/articles/10471992-why-am-i-receiving-a-suspicious-activity-alert\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/10471992-why-am-i-receiving-a-suspicious-activity-alert",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有按浏览器（Chrome、Safari）分别写排查，正文是官方通用步骤；按浏览器的拆分是本站整理，开头已说明",
+        "Private Relay 是官方在可疑活动提醒文章里列出需要关闭的项目之一，不是针对 Safari 打不开的专门说明",
+        "官方文章里站点数据示例写的是 chat.openai.com，现在官网是 chatgpt.com，清除时两个都清更稳妥，这是本文建议",
+        "官方没有写各浏览器的最低版本要求"
+      ]
+    },
+    {
+      "title": "ChatGPT 项目（Projects）不见了、加载不出来怎么办：共享项目、文件上限、误删和工作区限制的官方说明",
+      "slug": "chatgpt-projects-missing-not-loading",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1215-projects-decide.png",
+        "g1215-projects-limits.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 侧边栏找不到项目，或项目打不开？官方项目文章没有专门的排查段落，但写了共享项目的位置、文件和协作人数上限、删除是永久的、工作区关闭的功能会在所有项目里关闭。本文逐项整理，并给出通用刷新排查。",
+      "content": "> 本文根据 OpenAI 帮助中心《Projects in ChatGPT》《Troubleshooting ChatGPT Error Messages》整理，资料核对于 2026-10-28。**官方项目文章没有「项目不见了、加载不出来」的专门排查段落，**本文把文章里相关的事实逐项列出，加载类问题套用官方通用排查。配图为本站整理的示意图，不是界面截图。项目的基本用法见 [/guides/chatgpt-projects](/guides/chatgpt-projects)。\n\n## 适用于谁\n\n- 侧边栏里找不到某个项目的人；\n- 别人分享的项目打不开、看不到的人；\n- 项目里某个功能用不了、文件传不上去的人；\n- 担心项目被误删的人。\n\n## 结论先说\n\n1. **官方文章没有写加载失败的专门原因，也没有排查段落**，遇到通用问题，官方让你联系客服。\n2. **先确认账号和工作区**：项目是跟着账号和工作区走的。聊天记录按账号同步的说明见 [/guides/chatgpt-chat-history-sync-devices](/guides/chatgpt-chat-history-sync-devices)。\n3. **共享项目**：用链接加入的共享项目会**固定在你的侧边栏**；官方说，**后来被加入某个群组的人不会收到共享项目的通知，要自己打开共享项目的网址**。\n4. **功能用不了**：官方说，在工作区层面关闭的功能（例如记忆、语音），在**所有项目**里都关闭。\n5. **删除是永久的**：官方说，删除项目会永久移除项目内的聊天、指令和只存在项目里的文件，**无法撤销**；保存在 Library 的文件会保留，成员失去访问权。\n6. **文件传不上**：项目有文件数量上限，且**一次最多上传 10 个文件**，见下表。\n\n![项目不见了或加载不出来：对照表](seed:g1215-projects-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Projects in ChatGPT](https://help.openai.com/en/articles/10169521-projects-in-chatgpt) 整理的示意图*\n\n## 一、官方文章里的相关事实\n\n- **创建**：侧边栏点 **New project**，输入名称，选图标和颜色；\n- **可用范围**：项目面向已登录用户，受套餐和工作区设置影响；分享项目在 Free、Go、Plus、Pro、Business、Enterprise、Edu 的网页和手机上都可用；\n- **数量**：项目数量不限；\n- **共享**：所有者可以设为 **Only those invited**（仅受邀者）或 **Anyone with a link**（任何有链接的人），被邀请的人得到聊天或编辑权限；所有者可以移除成员，成员可以退出，并可选择保留自己聊天的副本；\n- **工作区规则**：管理员可以对整个工作区关闭记忆、语音等工具；基于角色的权限决定谁能创建、谁能分享项目；\n- **任务**：在项目里创建的计划任务读不到项目上传的文件，见 [/guides/chatgpt-scheduled-tasks-missing](/guides/chatgpt-scheduled-tasks-missing)。\n\n官方文章没有写归档项目，也没有写项目在移动端和网页上的其他差别。\n\n## 二、各套餐的文件和协作人数上限\n\n![各套餐的项目文件与协作人数上限](seed:g1215-projects-limits.png)\n*图：本站根据 [OpenAI 帮助中心：Projects in ChatGPT](https://help.openai.com/en/articles/10169521-projects-in-chatgpt) 整理的示意图（2026-10 查询）*\n\n官方写的是：每个项目的文件数 **Free 5 个，Go 和 Plus 25 个，Edu、Pro、Business、Enterprise 40 个**；协作人数 **Free 5 人，Plus 和 Go 10 人，Pro 100 人，工作区项目最多 100 人**；一次最多上传 **10 个文件**。传不上时先看是不是超了。想要更多的文件上限，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，具体数字以官方为准。文件上传的更多问题见 [/guides/chatgpt-file-upload-failed](/guides/chatgpt-file-upload-failed)。\n\n## 三、找不到项目：先查这几处\n\n1. **账号和工作区对不对**：多个账号或工作区时，项目只在创建它的那个里。怎么切换，见 [/guides/chatgpt-switch-account-workspace](/guides/chatgpt-switch-account-workspace)；\n2. **是不是共享项目**：共享项目要通过链接加入，加入后固定在侧边栏。如果是被加入群组，没有通知，要自己打开共享网址；\n3. **是不是被删了**：所有者删除项目后，成员会失去访问权，删除无法撤销；\n4. **是不是管理员限制了**：管理员对工作区的设置和角色权限，会影响你能否创建和分享项目。\n\n## 四、项目加载不出来\n\n官方项目文章没有写。可以套用官方对加载类问题的通用顺序：\n\n1. **刷新页面**，或**强制刷新**；\n2. **退出登录再登录**，清除站点数据；\n3. **关闭扩展和内容拦截器**，试无痕窗口；\n4. **关闭 VPN 和安全过滤**，换浏览器或网络；\n5. 看 [status.openai.com](https://status.openai.com/)，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)；\n6. 仍然不行，联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)，附项目名称、时间、套餐和设备信息。\n\n对话打不开的情况见 [/guides/chatgpt-unable-to-load-conversation](/guides/chatgpt-unable-to-load-conversation)。\n\n## 官方没说的\n\n- 项目**加载失败的具体原因**，官方没有写；\n- **误删的项目能不能找回**，官方明确写的是无法撤销；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 官方没有写项目的归档功能，也没有写移动端的其他差别。\n\n## 常见问题\n\n**Q：删了项目，里面的聊天能找回吗？**\n官方说删除是永久的，无法撤销，项目内的聊天、指令和仅存于项目的文件会被移除。\n\n**Q：Library 里的文件会一起删吗？**\n官方说保存在 Library 的文件会保留。\n\n**Q：别人分享的项目我看不到？**\n先用对方给的链接打开，用链接加入后会固定在侧边栏；被加入群组不会收到通知。\n\n**Q：项目里为什么没有记忆或语音？**\n官方说工作区关闭的功能，在所有项目里都关闭。\n\n## 参考资料\n\n- OpenAI 帮助中心：Projects in ChatGPT — https://help.openai.com/en/articles/10169521-projects-in-chatgpt\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+      "sources": [
+        "https://help.openai.com/en/articles/10169521-projects-in-chatgpt",
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方项目文章没有「项目不见了 / 加载不出来」的排查段落，也没有写项目加载失败的原因；加载类问题套用官方通用的刷新、退出重登排查，开头已说明",
+        "文件数、协作人数上限是官方文章当天的数字，之后可能调整，标注为 2026-10 查询",
+        "官方文章没有写归档项目的功能，正文不写",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 提示「File stream access denied」怎么办：下载文件时的报错，官方没单独说明，按下载类排查",
+      "slug": "chatgpt-file-stream-access-denied",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1216-stream-decide.png",
+        "g1216-stream-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 下载生成的文件时提示 File stream access denied？官方帮助中心没有收录这句话，但有下载类提示的说明：文件过期很快要尽早下载、关 VPN 和代理、自建 GPT 要开 Code Interpreter。本文按官方顺序整理，并说明官方没说的部分。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Troubleshooting the ChatGPT mobile app》《Network recommendations for ChatGPT errors on web and apps》整理，资料核对于 2026-10-28。**官方帮助中心没有收录「File stream access denied」这句话，**本文只写官方对下载类提示和手机 App 的通用排查，没有依据的不编。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 让 ChatGPT 生成 PDF、Word、Excel 或图片，点下载时提示 **File stream access denied**（中文大意：文件流访问被拒绝）的人；\n- 在手机 App 或网页上遇到同样提示的人；\n- 想知道先做哪一步的人。\n\n## 结论先说\n\n1. **官方没有这句话的说明。** 最接近的是官方的下载类提示：**Download failed** 和 **File Not Found**。\n2. **官方对下载类的步骤**：**生成后尽早下载**，因为文件过期很快；**关闭 VPN 或代理**；文件需**小于 512 MB**；**自建 GPT** 里要**开启 Code Interpreter** 并更新这个 GPT。\n3. **过了一阵再点下载**，最可能是文件已经过期：**重新让 ChatGPT 生成一次，立刻保存**。\n4. **手机 App 上**，官方的通用排查：关闭再打开 App、更新 App 和系统、切换网络、在网页上用同一账号对比、卸载后从官方应用商店重装。\n5. **公司网络**：官方在上传失败的建议里点名要放行 **\\*.oaiusercontent.com**，请管理员处理。\n6. **仍然不行**，联系官方客服，附完整提示原文、时间和你已做过的步骤。\n\n![File stream 报错：对照表](seed:g1216-stream-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、官方的下载类步骤\n\n官方《Troubleshooting ChatGPT Error Messages》对 **Download failed** 和 **File Not Found**（下载失败的文件、指向生成文件的链接）：\n\n1. 自建 GPT：**启用 Code Interpreter**，并**更新**这个 GPT；\n2. **生成后尽早下载**，官方说文件**过期很快**；\n3. **关闭 VPN 或代理**；\n4. 文件需**小于 512 MB**。\n\n官方没有写 File stream access denied 属于哪一类，也没有说是不是同一个原因。下面的做法是同一思路：先排除文件过期，再排除网络，再排除环境。\n\n![下载失败的官方通用顺序：重新生成、关 VPN、自建 GPT、换浏览器、手机更新、联系客服](seed:g1216-stream-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Troubleshooting the ChatGPT mobile app](https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app) 整理的示意图*\n\n## 二、按顺序做\n\n### 1. 重新生成，立刻下载\n\n不要点很久以前生成的文件链接。在当前对话里让 ChatGPT **重新生成**，生成好就立刻点下载。想长期保存，下载到本机后再做别的事。生成 Word、Excel、PPT 的方法见 [/guides/chatgpt-create-word-excel-ppt](/guides/chatgpt-create-word-excel-ppt)，对话里的文件在哪找见 [/guides/chatgpt-library-files](/guides/chatgpt-library-files)。\n\n### 2. 排除网络\n\n- **关闭 VPN 或代理**；\n- 关闭网络安全过滤；\n- **换一个网络**，例如手机热点；\n- **换浏览器或开无痕窗口**，关闭扩展。\n\n### 3. 自建 GPT\n\n如果文件是在自建 GPT 里生成的，**检查并开启 Code Interpreter**，并更新这个 GPT，然后重新生成。\n\n### 4. 手机 App\n\n官方《Troubleshooting the ChatGPT mobile app》的顺序：\n\n1. **关闭并重新打开 ChatGPT**；\n2. **看状态页**；\n3. **更新 ChatGPT** 和**设备系统**；\n4. **切换 Wi-Fi 与移动数据**；\n5. 在**网页上登录同一账号**，试着做同一件事，看是否也出错；\n6. 仍然不行，**卸载并从官方应用商店重装**。\n\n网页上能下、手机 App 不能下，说明问题在 App 或这台设备，见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)。\n\n### 5. 公司或学校网络\n\n官方在网络排查文章里，对上传失败的建议是放行 **\\*.oaiusercontent.com**。官方没有专门说下载也适用，但下载失败只在单位网络里出现时，管理员可以先检查它有没有被拦截。更多见 [/guides/chatgpt-network-error-image-download](/guides/chatgpt-network-error-image-download) 和 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)。\n\n## 三、联系官方客服\n\n仍然不行，联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。官方建议带上：账号邮箱、设备型号、系统版本和 App 版本、**完整的错误原文或截图**、发生的日期时间、你做过的步骤，以及在网页或另一台设备上是否也出现。别发密码。\n\n## 官方没说的\n\n- **这句话的含义和原因**，官方没有写；\n- 官方**没有**说它与存储权限、App 缓存有关，也没有写要不要清缓存，本文不替官方添加；\n- **文件具体多久过期**，官方没有给时间；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 想用更多的生成额度，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但开通会员不能解决下载报错。\n\n## 常见问题\n\n**Q：为什么昨天的文件今天下不了？**\n官方说生成的文件过期很快，重新生成并立刻下载。\n\n**Q：PDF、Word、Excel 都下不了？**\n官方没有区分文件格式。按本文顺序做，并试着换一种格式或把内容直接复制出来。\n\n**Q：只有手机下载不了？**\n按手机 App 的官方顺序排查，并在网页上对比。\n\n**Q：能不能让客服直接把文件发给我？**\n官方没有写这种做法，联系客服时描述情况，由客服指导。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Troubleshooting the ChatGPT mobile app — https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「File stream access denied」这句原文，也没有解释它的含义和原因；正文只套用官方对「Download failed」「File Not Found」的下载类步骤和手机 App 的通用排查，开头已说明",
+        "「这句话多出现在手机上下载文件时」是用户报告里的说法，官方没有说明，正文不当结论",
+        "官方没有说「存储权限」或「应用缓存」是原因，正文不写",
+        "官方 512 MB 的限制写在下载类提示的步骤里，官方没有说明具体适用于哪类文件",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 自定义指令模板推荐：10 套可复制的写法，附官方设置路径和字符上限（Free、Go 1500，其他 5000）",
+      "slug": "chatgpt-custom-instructions-templates",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1218-ci-steps.png",
+        "g1218-ci-limits.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 的自定义指令怎么写？官方文章没有给示例，只写了设置路径和字符上限。本文先讲官方的设置步骤与限制，再给 10 套本站自拟、可复制的模板：简洁回答、写作润色、学习辅导、编程、邮件、翻译、资料核对等。",
+      "content": "> 本文根据 OpenAI 帮助中心《Custom Instructions in ChatGPT》整理，资料核对于 2026-10-28。**官方文章没有给示例指令，**第三节的 10 套模板是本站自拟，供你改写，不是官方模板，也不代表实测效果。配图为本站整理的示意图，不是界面截图。自定义指令的整体介绍见 [/guides/chatgpt-custom-instructions](/guides/chatgpt-custom-instructions)。\n\n## 适用于谁\n\n- 想让 ChatGPT 每次都按自己的习惯回答（简短、中文、先给结论）的人；\n- 不知道自定义指令该怎么写的人；\n- 想知道字数上限、怎么关闭的人。\n\n## 结论先说\n\n1. **设置路径**（官方）：网页和桌面版 **设置 → Personalization**；手机 **设置 → Customize ChatGPT**。先打开 **Enable customization**，再在 **Custom Instructions** 里写内容。\n2. **字符上限**：**Free 和 Go 是 1,500 字符**；**Plus、Pro、Business、Enterprise、Education 是 5,000 字符**。所有套餐、所有平台（网页、桌面、iOS、Android）都有这个功能。\n3. **写短、写具体、写可执行的**：Free 和 Go 只有 1,500 字符，下面每套模板都控制在这个范围内，可以直接用。\n4. **关闭**：把 **Enable customization** 关掉，可选再清空文字。\n5. **隐私**：官方说指令不会被分享链接的查看者看到；指令包含在数据导出里；账号删除时，关联的指令在 30 天内删除。**不要在里面写密码、证件号等敏感信息。**\n6. **官方对「是否影响已有对话」的说法不一致**，所以改完后，在**新对话**里观察效果最稳。\n\n![设置自定义指令的官方步骤](seed:g1218-ci-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Custom Instructions in ChatGPT](https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions) 整理的示意图*\n\n![自定义指令的官方限制与说明](seed:g1218-ci-limits.png)\n*图：本站根据 [OpenAI 帮助中心：Custom Instructions in ChatGPT](https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions) 整理的示意图（2026-10 查询）*\n\n## 一、写指令的几条原则（本站经验，不是官方要求）\n\n1. **一条指令只管一件事**：比如「先给结论」「不确定要说明」；\n2. **用动作词**：「用中文回答」「列出三点」比「请专业一些」更容易被执行；\n3. **别互相打架**：一边要「尽量详细」，一边要「尽量简短」，效果会不稳定；\n4. **留出例外**：加一句「我明确要求时，以我的要求为准」；\n5. **定期删**：用一段时间后，把不再需要的条目删掉，免得占字数。\n\n## 二、先看官方的数据处理说明\n\n官方文章写的几点：你可以随时编辑或删除指令，只影响以后的对话；指令不会给分享链接的查看者看到；第三方插件可能收到你指令里的相关信息；指令数据可能用于改进模型，你可以通过官方文章里链接的方式退出，见 [/guides/chatgpt-data-controls-privacy](/guides/chatgpt-data-controls-privacy)；想从以前的聊天里去掉指令的影响，要清除那些对话。官方还说**没有自定义指令的 API**，要类似效果可以用 Chat Completions API 的 system 消息。\n\n## 三、10 套可复制的模板（本站自拟）\n\n下面每套都是纯文字，放进 **Custom Instructions** 里即可，可按需删改。**带 [ ] 的地方请换成你自己的内容。**\n\n### 1. 简洁直接\n\n```\n先给结论，再给理由。\n默认控制在 200 字以内，除非我要求详细。\n不要客套话和重复我的问题。\n我明确要求时，以我的要求为准。\n```\n\n### 2. 中文写作润色\n\n```\n用简体中文回答。\n润色时保留我的原意和语气，只改病句、啰嗦和不通顺的地方。\n先给修改后的版本，再用三条以内列出主要改动。\n不要擅自增加我没写的事实。\n```\n\n### 3. 学习辅导\n\n```\n我在学习[科目]，水平是[初学/进阶]。\n先用最简单的话解释，再给一个生活里的例子。\n讲完后问我一个小问题检查是否理解。\n不要直接给作业答案，先给思路。\n```\n\n### 4. 编程助手\n\n```\n我主要用[语言]，运行环境是[系统/版本]。\n先说明思路，再给可运行的完整代码。\n关键代码加简短注释。\n不确定的版本差异要明确说出来，不要编造不存在的函数。\n```\n\n### 5. 工作邮件与汇报\n\n```\n我的身份是[职位]，对象通常是[同事/客户/领导]。\n邮件和汇报用正式但不生硬的语气，先说结论或请求，再说背景。\n每次给我一版简短的和一版完整的。\n不要使用夸张的形容词。\n```\n\n### 6. 翻译\n\n```\n默认在中文和英文之间互译。\n译文要自然，不要逐字翻译，保留原文的语气。\n遇到专有名词或有歧义的地方，在译文后用一行说明。\n```\n\n### 7. 资料核对与研究\n\n```\n回答事实性问题时，区分「确定的」和「不确定的」。\n不确定时直接说不确定，不要编造来源或数据。\n需要最新信息时，说明需要联网查证。\n给出结论时附上你的依据。\n```\n\n### 8. 比较与决策\n\n```\n我让你比较方案时，用表格列出优缺点。\n最后给出你的倾向和理由，并说明在什么情况下结论会反过来。\n不要只说「看情况」。\n```\n\n### 9. 数据与表格\n\n```\n处理数据时，先说明你的步骤，再给结果。\n表格用 Markdown，列名清楚，数字保留合理的小数位。\n发现数据有缺失或异常，先告诉我，不要自行补全。\n```\n\n### 10. 文案创作（减少「AI 腔」）\n\n```\n写文案时多用具体的细节和短句。\n少用「赋能」「打造」「全方位」这类空泛词。\n每次给我三个不同风格的版本，并各用一句话说明风格。\n```\n\n## 四、用的时候注意\n\n- **字数**：Free 和 Go 上限 1,500 字符，上面的模板每套都远低于上限，**可以叠加 2 到 3 套**，但要检查是否自相矛盾；\n- **效果**：同一套指令在不同模型、不同任务里的效果可能不同，官方也没有承诺必然执行；\n- **和别的功能的关系**：记忆见 [/guides/chatgpt-turn-off-memory](/guides/chatgpt-turn-off-memory)，项目里的指令是另一套，见 [/guides/chatgpt-projects](/guides/chatgpt-projects)；官方文章没有写它们如何叠加；\n- **回答太啰嗦**：见 [/guides/chatgpt-too-wordy-answer-style](/guides/chatgpt-too-wordy-answer-style)；\n- 想要更多额度和更长的指令（5,000 字符），可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，具体以官方为准。\n\n## 官方没说的\n\n- 官方文章**没有给示例**，模板是本站自拟；\n- 官方**没有说**自定义指令与记忆、项目、GPTs 的叠加方式；\n- 官方对指令**是否立即影响已有对话**前后说法不一致；\n\n## 常见问题\n\n**Q：1,500 字符是多少字？**\n官方写的是字符数。中文一个汉字算一个字符，所以大约是 1,500 字以内，具体以输入框的计数为准。\n\n**Q：改了指令，旧对话会变吗？**\n官方说法不一致，建议在新对话里观察。\n\n**Q：可以在里面写我的名字和职业吗？**\n可以写你愿意让模型知道的信息，但不要写密码、证件号、银行卡等敏感信息。\n\n**Q：怎么临时不用？**\n关掉 Enable customization，或者用临时聊天，见 [/guides/chatgpt-temporary-chat](/guides/chatgpt-temporary-chat)。\n\n## 参考资料\n\n- OpenAI 帮助中心：Custom Instructions in ChatGPT — https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions",
+      "sources": [
+        "https://help.openai.com/en/articles/8096356-chatgpt-custom-instructions"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章没有给示例指令，下文 10 套模板是本站自拟，不是官方模板，也没有声称实测效果",
+        "官方文章对自定义指令是否影响已有对话的说法前后不一致：正文一处写「立即应用到所有对话（包括已有对话）」，常见问题一处写「只反映在未来的对话」，本文建议改完后在新对话里观察",
+        "字符上限（Free、Go 1500，其他套餐 5000）和设置路径是官方文章当天的写法",
+        "官方文章没有写自定义指令与记忆、项目、GPTs 如何叠加",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
       "title": "ChatGPT 读 PDF、总结长文档：上传、提问与核对原文的方法",
       "slug": "chatgpt-summarize-pdf",
       "checkedOn": "2026-10-07",
@@ -65160,6 +65450,83 @@
       "verify": [
         "「从文件库添加」「扫描」等中文菜单名以实际界面为准",
         "Enterprise 的 PDF 视觉检索是否扩展到其他套餐，以帮助中心最新说明为准"
+      ]
+    },
+    {
+      "title": "ChatGPT 删掉的账号还能恢复吗：官方说删除是永久的，不能重新激活，聊天无法恢复，邮箱 30 天后可重新注册",
+      "slug": "chatgpt-deleted-account-recover",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1220-recover-decide.png",
+        "g1220-recover-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 账号删了还能恢复吗？OpenAI 帮助中心写得很明确：删除是永久的，已删除的账号无法重新激活，已删除的聊天无法恢复，数据 30 天内清除。本文讲清官方说法、邮箱和手机号能否再注册、订阅要不要先取消，以及登不进去时怎么删。",
+      "content": "> 本文根据 OpenAI 帮助中心《Deleting your ChatGPT account》整理，资料核对于 2026-10-28。官方对恢复的说法很明确，下面照官方写，没有写的部分不替官方编。配图为本站整理的示意图，不是界面截图。怎么删除账号的详细步骤见 [/guides/chatgpt-delete-account](/guides/chatgpt-delete-account)。\n\n## 适用于谁\n\n- 误删了账号，想知道还能不能找回的人；\n- 想删账号，担心反悔后无法恢复的人；\n- 想用同一个邮箱或手机号重新注册的人；\n- 登不进账号，但想把它删掉的人。\n\n## 结论先说\n\n1. **删除是永久的，不能恢复。** 官方原话的意思是：删除 ChatGPT 账号是永久的，**已删除的账号无法重新激活**，**已删除的聊天无法恢复**。\n2. **数据 30 天内清除**：官方说你的数据会在 30 天内删除，法律要求或允许保留更久的除外；已删除的聊天会在 30 天内从系统里清除，除非已经被去标识化并与账号脱钩，或因安全、法律原因必须保留。\n3. **邮箱**：官方说，**完整删除**的账号，30 天后可以重新使用这个邮箱注册；只是**停用**而不是删除的，不行。\n4. **手机号**：官方说，删除不会重置手机号用于 API 验证的限额（最多三个账号）；一般消费者在 30 天后可以用同一个手机号重新注册，**因违规被禁用的账号除外**。\n5. **订阅**：删除账号会取消 ChatGPT 直接计费的订阅，**不会取消 Apple App Store 或 Google Play 的订阅**，要先自己取消。\n6. **登不进去也想删**：到 privacy.openai.com 提交隐私请求，并完成验证。\n\n![删除账号后能恢复吗：官方怎么说](seed:g1220-recover-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Deleting your ChatGPT account](https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account) 整理的示意图*\n\n## 一、官方对「恢复」的说法\n\n官方文章里关于不可逆的几句：\n\n- 删除 ChatGPT 账号是**永久**的；\n- **已删除的账号不能被重新激活**；\n- **已删除的聊天无法恢复**。\n\n官方文章没有写误删后联系客服能否补救，也没有写任何「撤销删除」的入口。所以，**误删后别指望有恢复流程**；能做的是重新注册一个新账号，再决定怎么处理订阅和数据。\n\n## 二、删除之前先做什么\n\n官方的删除路径（网页）：**设置 → Account → Delete account 旁的 Delete**，输入邮箱或手机号，输入 **DELETE**，选 **Permanently delete my account**。手机上在 **设置 → Data controls** 里（iOS 是 Delete account，安卓是 Delete OpenAI account，旧版可能显示 Delete Account）。\n\n删之前建议：\n\n1. **导出聊天记录和数据**，删除后聊天无法恢复，导出见 [/guides/chatgpt-export-chat-history](/guides/chatgpt-export-chat-history)；\n2. **取消订阅**：应用商店的订阅要自己取消，见 [/guides/chatgpt-app-store-google-play-subscription](/guides/chatgpt-app-store-google-play-subscription) 和 [/guides/chatgpt-cancel-subscription](/guides/chatgpt-cancel-subscription)；\n3. **想清楚是删除还是别的办法**：只想少留痕迹，可以关掉记忆、用临时聊天，见 [/guides/chatgpt-turn-off-memory](/guides/chatgpt-turn-off-memory) 和 [/guides/chatgpt-temporary-chat](/guides/chatgpt-temporary-chat)。\n\n![删除账号之前先做的事](seed:g1220-recover-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Deleting your ChatGPT account](https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account) 整理的示意图*\n\n## 三、删除之后：邮箱和手机号\n\n- **邮箱**：官方说，**完整删除**满 **30 天**后，可以重新使用这个邮箱；**仅被停用**的账号不行；\n- **手机号**：官方说，删除**不会重置**手机号在 API 验证上的限额（最多三个账号）；消费者一般在 30 天后可以用同一个手机号重新注册，**因违反政策被禁用的账号除外**。\n\n等待期间，你可以用别的邮箱注册新账号，登录相关问题见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)，注册步骤见 [/guides/chatgpt-how-to-sign-up-account](/guides/chatgpt-how-to-sign-up-account)。\n\n## 四、账号「被停用 / 被封」和「被删除」不是一回事\n\n- **被删除**：你自己（或通过隐私请求）删除，永久、不可恢复；\n- **被停用 / 被封**：官方对违规账号的处理，有申诉渠道，见 [/guides/chatgpt-account-deactivated-appeal](/guides/chatgpt-account-deactivated-appeal) 和 [/guides/chatgpt-account-banned-reasons-usage-policy](/guides/chatgpt-account-banned-reasons-usage-policy)。\n\n如果你的账号是被停用而不是被删除，先走申诉，别去删。\n\n## 五、登不进账号但想删除\n\n官方的路径：打开 **privacy.openai.com**，选 **Make a Privacy Request**，选 **I have a consumer ChatGPT account**，再选 **Delete my ChatGPT account**，完成验证。**你必须能访问账号绑定的邮箱或手机号**；如果两个都访问不了，官方说要联系 OpenAI 客服做所有权审核，客服入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 官方没说的\n\n- **误删后客服能否补救**，官方没有写；\n- **30 天内能否撤销**，官方没有写撤销的办法，只写了账号无法重新激活；\n- 本文不介绍任何绕开限制、批量注册或借用他人账号的做法；\n- 想重新开通会员，可以在新账号上看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，价格以官方页面为准。\n\n## 常见问题\n\n**Q：删了账号，30 天内反悔能撤销吗？**\n官方文章没有写撤销办法，只写了已删除的账号无法重新激活。\n\n**Q：聊天记录能找回吗？**\n不能，官方说已删除的聊天无法恢复。\n\n**Q：同一个邮箱什么时候能重新注册？**\n官方说完整删除满 30 天后可以，仅停用的账号不行。\n\n**Q：我有订阅，直接删账号可以吗？**\nChatGPT 直接计费的订阅会被取消；Apple 和 Google 商店的订阅不会，要先自己取消。\n\n## 参考资料\n\n- OpenAI 帮助中心：Deleting your ChatGPT account — https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account",
+      "sources": [
+        "https://help.openai.com/en/articles/6378407-deleting-your-chatgpt-account"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章的原话是：删除账号是永久的，已删除的账号无法重新激活，无法恢复已删除的聊天；正文照此写，不替官方增加「客服可以帮忙恢复」之类的说法",
+        "官方没有写误删后联系客服是否有补救，正文不写",
+        "邮箱 30 天后可再用的前提是旧账号被完整删除而不是被停用，来自官方文章；手机号的限制也来自官方文章",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 怎么切换账号、切换工作空间：网页版最多同时登录 2 个账号，工作区在头像菜单里选",
+      "slug": "chatgpt-switch-account-workspace",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1221-switch-decide.png",
+        "g1221-switch-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 怎么切换账号和工作区？官方说网页版支持同时登录最多 2 个账号，用账号菜单里的 Add account 添加并切换；工作区则点头像在列表里选。本文讲清两者的区别、哪些内容互不共享，以及手机 App 和公司账号的限制。",
+      "content": "> 本文根据 OpenAI 帮助中心的账号切换文章（《Use multiple accounts with account switching》）和工作区切换文章（编号 8265430）整理，资料核对于 2026-10-28。账号切换是比较新的功能，范围可能调整，请以官方文章和你账号里实际显示的为准。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 有两个 ChatGPT 账号（比如个人和工作），想不用退出就来回切换的人；\n- 同时在多个工作区里的人，想知道怎么换的人；\n- 想知道切换后聊天、订阅会不会合并的人；\n- 手机上找不到切换账号入口的人。\n\n## 结论先说\n\n1. **账号切换和工作区切换是两回事。** 账号切换是在两个**不同的账号**之间换；工作区切换是同一个账号里，在你有权访问的**不同工作区**之间换。\n2. **切换账号只在网页版支持**：官方说**暂不支持 Codex 桌面版和 ChatGPT 原生手机 App**。每个会话**最多同时登录 2 个账号**。\n3. **添加账号**：打开账号菜单，选 **Add account**，登录或新建账号，**不用先退出当前账号**。新建的账号从 **Free** 套餐开始，创建不需要付款。\n4. **切换**：用账号菜单切换，每次只有一个账号处于活动状态，切换立即生效。\n5. **切换工作区**：点右上角的**头像**，在列表里选要进入的工作区名称。\n6. **互不合并**：切换不会移动聊天、不共享记忆和历史、不共享文件、不合并订阅或账单，工作区也各属各的账号。\n\n![切换账号与切换工作区：对照表](seed:g1221-switch-decide.png)\n*图：本站根据 [账号切换文章](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching) 与 [工作区切换文章](https://help.openai.com/en/articles/8265430) 整理的示意图*\n\n## 一、切换账号\n\n官方账号切换文章的要点：\n\n- **范围**：仅 ChatGPT 网页版；原生手机 App 和 Codex 桌面版暂不支持；\n- **上限**：每个会话最多 2 个账号同时登录；你可以创建更多账号，但同一时间只能登录 2 个；\n- **添加**：账号菜单 → **Add account**，登录已有账号或创建新账号，不必退出当前账号；\n- **切换**：账号菜单，立即生效，聊天、记忆、文件和设置都跟着所选账号变；\n- **不共享**：聊天和历史记录、记忆、文件和上传、账单和订阅、工作区，都不会在账号之间合并；\n- **确认当前账号**：不确定在用哪个，看账号菜单里显示的账号。\n\n![在网页上切换账号和工作区的官方步骤](seed:g1221-switch-steps.png)\n*图：本站根据 [账号切换文章](https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching) 与 [工作区切换文章](https://help.openai.com/en/articles/8265430) 整理的示意图*\n\n## 二、切换工作区\n\n官方工作区切换文章：\n\n1. 点 ChatGPT 里的**头像**；\n2. 列表里会出现你可用的工作区，点要进入的**工作区名称**；\n3. 你会进入那个工作区自己的**对话、设置和资源**。官方的原话意思是：切换工作区只是改变你所在的环境，**不会在工作区之间移动或复制数据**。\n\n关于个人工作区与 Enterprise 工作区：两者**完全分开**，可以都保留；Enterprise 工作区由组织管理员控制，里面的对话和文件属于组织，活动遵循组织政策；Enterprise 不提供自助数据导出，想保留个人数据，要在合并前从个人工作区导出；合并**不可撤销**，只复制支持的内容，Sites 不会转移。官方没有写 Team 工作区，也没有写工作区为什么没出现在列表里。\n\n## 三、找不到切换入口\n\n- **手机 App**：官方说原生手机 App 暂不支持账号切换。想同时用两个账号，用手机浏览器打开网页版，或分别登录；\n- **公司或学校的托管工作区**：官方说组织可以控制添加和切换的选项，**看不到就问工作区管理员**；\n- **工作区被停用**：官方说你可能看到横幅，被要求用另一个账号登录或购买新订阅，**ChatGPT 不会自动帮你切换**；\n- **离职或被移除**：官方说如果雇主移除了你的访问，你就失去该账号或工作区及其数据，切换不能保留或转移。\n\n## 四、几个常见需求\n\n- **想把一个账号里的聊天搬到另一个账号**：切换不能做这件事，可以先导出，见 [/guides/chatgpt-export-chat-history](/guides/chatgpt-export-chat-history)；\n- **两个账号的订阅想合并**：官方说订阅和账单不合并；\n- **分不清登录的是哪个账号**：看账号菜单，登录方式（邮箱、Google、Apple）不同可能是不同账号，见 [/guides/chatgpt-account-sharing-multiple-devices](/guides/chatgpt-account-sharing-multiple-devices) 和 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)；\n- **项目、聊天在另一个账号里找不到**：先确认当前账号和工作区，见 [/guides/chatgpt-projects-missing-not-loading](/guides/chatgpt-projects-missing-not-loading) 和 [/guides/chatgpt-chat-history-sync-devices](/guides/chatgpt-chat-history-sync-devices)。\n\n注意：官方对账号的政策是，和别人共用账号凭据可能违规，见 [/guides/chatgpt-account-banned-reasons-usage-policy](/guides/chatgpt-account-banned-reasons-usage-policy)。账号切换是给**你自己的**多个账号用的。想为某个账号开通会员，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 官方没说的\n\n- 官方账号切换文章**没有描述退出登录的行为**；\n- **之后会不会支持手机 App**，官方没有说明；\n- 官方工作区文章**没有写**工作区为什么没出现在列表里；\n- 本文不介绍任何借用、共用他人账号的做法。\n\n## 常见问题\n\n**Q：最多能同时登录几个账号？**\n官方说每个会话最多 2 个。\n\n**Q：新账号要付费吗？**\n官方说新账号从 Free 套餐开始，创建不需要付款。\n\n**Q：切换账号会把聊天合并吗？**\n不会，聊天、记忆、文件、订阅和工作区都各自独立。\n\n**Q：手机上怎么切换？**\n官方说原生手机 App 暂不支持账号切换，可以用手机浏览器的网页版。\n\n## 参考资料\n\n- OpenAI 帮助中心：Use multiple accounts with account switching — https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching\n- OpenAI 帮助中心：Switching between workspaces — https://help.openai.com/en/articles/8265430",
+      "sources": [
+        "https://help.openai.com/en/articles/20001068-use-multiple-accounts-with-account-switching",
+        "https://help.openai.com/en/articles/8265430"
+      ],
+      "screenshots": [],
+      "verify": [
+        "账号切换文章写明目前仅 ChatGPT 网页版支持，原生手机 App 和 Codex 桌面版暂不支持，之后可能调整，以官方最新页面为准",
+        "工作区切换文章标题和 URL 以 8265430 为准，官方文章只比较了个人与 Enterprise 工作区，没有写 Team 工作区，也没有写工作区为什么不出现在列表里",
+        "官方账号切换文章没有描述退出登录时的行为，正文不写",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 宠物（Pets）是什么、怎么关闭和自定义：桌面版、网页版、命令行的官方说明",
+      "slug": "chatgpt-pets-turn-off-customize",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1222-pet-decide.png",
+        "g1222-pet-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 的宠物是可选的动画伙伴，帮你跟踪任务进展，只改外观不影响完成任务的方式。官方文档写了桌面版、网页版、命令行各自的选择和隐藏办法，以及怎么创建自定义宠物。本文按官方文档整理。",
+      "content": "> 本文根据 OpenAI 官方文档站的《Pets in ChatGPT and Codex》整理（learn.chatgpt.com 与 developers.openai.com 的 Pets 页面），资料核对于 2026-10-28。官方帮助中心没有 Pets 的专门文章，功能和命令可能调整，请以官方文档和你账号里实际显示的为准。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 看到 ChatGPT 桌面版出现一只悬浮的小动画，不知道是什么、怎么关的人；\n- 想自己做一个宠物的人；\n- 在网页或命令行里找不到宠物选项的人。\n\n## 结论先说\n\n1. **宠物是什么**：官方说是**可选的动画伙伴**，帮你跟踪任务进展。它出现在哪里、显示什么，取决于你用的界面。**选宠物只改变外观，不影响 ChatGPT 完成任务的方式。**\n2. **桌面版（macOS、Windows）**：头像菜单选 **Pets**，或 **设置 → Pets**；隐藏用：右键宠物选 **Hide**，或命令菜单、设置里的 **Hide pet**，或再输一次 **/pet**。\n3. **网页版**：**设置 → Personalization → Pet → Select pet**，选 **Default** 就是不用宠物。网页版的宠物只出现在支持的 Work 对话里，没有悬浮层。\n4. **命令行（Codex CLI）**：输入 **/pets** 或 **/pet** 打开选择器，输入 **/pets off** 关闭终端宠物。\n5. **Codex IDE 扩展**没有宠物选择器和悬浮层。\n6. **找不到宠物选项**：官方说要看你的账号和工作区是否允许；桌面版先更新应用。\n\n![ChatGPT 宠物：在哪、怎么关](seed:g1222-pet-decide.png)\n*图：本站根据 [OpenAI 官方 Pets 文档](https://learn.chatgpt.com/docs/pets) 整理的示意图*\n\n## 一、宠物出现在哪里\n\n官方文档：\n\n- **桌面版（macOS 和 Windows）**：悬浮的宠物可以停在其他应用窗口上方，带有输入或语音的聊天控件，以及一个活动托盘；\n- **网页版**：宠物出现在支持的 ChatGPT Work 对话里，没有悬浮层、活动托盘或 /pet 命令；\n- **Codex CLI（终端）**：终端里的宠物报告当前 CLI 会话的活动；\n- **Codex IDE 扩展**：没有宠物选择器和悬浮层。\n\n## 二、怎么选、怎么关\n\n### 桌面版\n\n- **选择**：打开头像菜单选 **Pets**（或 **设置 → Pets**），选内置宠物、自定义宠物，或选 **Mini**（只显示聊天控件，不显示宠物）；没有自定义宠物时先点 **Create pet**；\n- **显示与隐藏**：输入 **/pet**，或用命令菜单的 **Show pet**；隐藏：右键宠物选 **Hide**、用命令菜单或 **设置 → Pets** 里的 **Hide pet**、或再输一次 **/pet**。选择和位置会被记住；\n- **快捷键**：macOS 是 **Option+Space**，Windows 是 **Windows+Alt+P**，可以在 **设置 → Keyboard shortcuts** 里改；\n- **大小**：**设置 → Pets → Customize**，调 **Pet size**，**Reset** 恢复默认。\n\n### 网页版\n\n**设置 → Personalization → Pet → Select pet**，选内置宠物，或选 **Default** 表示不用宠物。\n\n### 命令行\n\n**/pets** 或 **/pet** 打开选择器，**/pets 名字** 直接选，**/pets off** 关闭。终端宠物需要 iTerm2 3.6 或更高，或支持 Kitty 图形或 Sixel 的终端，在 tmux 或 Zellij 里不能用。\n\n## 三、桌面版的宠物能做什么\n\n- **移动**：拖动，或用方向键移动，Esc 回到原位；\n- **聊天**：点铅笔图标新开一个聊天，用 **@** 加上下文，用 **$** 选技能，这样开的聊天不属于任何项目；点铃铛图标可以关注对话；\n- **语音**：点语音图标，是否可用见语音文档；\n- **状态**：**Running**（有聊天在工作）、**Needs input**（需要你批准、回答或决定）、**Ready**（聊天完成且有未读）、**Blocked**（聊天失败或遇到系统错误）；优先级是 Needs input、Blocked、Ready、Running；\n- **减弱动态效果**：系统开启了该选项时，宠物显示静态画面而不是动画。\n\n## 四、创建自定义宠物\n\n**桌面版**：\n\n1. 打开 **设置 → Pets**，点 **Create pet**；\n2. 应用会安装内置的 **hatch-pet** 技能、重新加载技能，并新开一个对话；\n3. 描述你想要的宠物并发送；\n4. 任务完成后回到 **设置 → Pets**，点 **Refresh**，再选择新宠物。\n\n桌面版的自定义宠物存在本机，**不会自动同步到网页版**。\n\n**网页版上传**：在同一设置里点 **Upload pet**。文件必须是**透明的 PNG 或 WebP**，尺寸**正好 1536 × 1872 像素**，**不超过 20 MiB**。上传后可以编辑、下载、刷新或删除。\n\n![桌面版自定义宠物的官方步骤](seed:g1222-pet-steps.png)\n*图：本站根据 [OpenAI 官方 Pets 文档](https://learn.chatgpt.com/docs/pets) 整理的示意图*\n\n自己做宠物图时，要遵守官方的内容规则和图片版权要求，见 [/guides/ai-image-copyright-commercial](/guides/ai-image-copyright-commercial)。\n\n## 五、找不到宠物选项\n\n官方说：宠物在**账号和工作区允许**时可用。网页版只有在你的账号和工作区可用时才出现该选项；桌面版里如果没有相关控件，**先更新应用**，再确认工作区是否允许宠物。官方没有列出具体套餐。桌面版的更新方法见 [/guides/chatgpt-desktop-app-wont-open-update](/guides/chatgpt-desktop-app-wont-open-update)，新旧桌面版见 [/guides/chatgpt-desktop-app](/guides/chatgpt-desktop-app)。想用到更多功能，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但官方没有说宠物与套餐挂钩。\n\n## 官方没说的\n\n- **哪些套餐有宠物**，官方文档没有列；\n- 官方**帮助中心没有 Pets 专门文章**，本文依据的是官方文档站的页面；\n- 宠物的内置形象有哪些，官方这篇没有逐一列出；\n- 官方没有写在手机 App 里是否有宠物。\n\n## 常见问题\n\n**Q：宠物会影响 ChatGPT 的回答吗？**\n不会，官方说选宠物只改变外观，不影响完成任务的方式。\n\n**Q：怎么让桌面上的宠物消失？**\n右键宠物选 Hide，或在 设置 → Pets 里点 Hide pet；也可以选 Mini，只显示聊天控件。\n\n**Q：网页版怎么不显示宠物？**\n网页版选 Default 就不用宠物；宠物只出现在支持的 Work 对话里。\n\n**Q：自己做的宠物能同步到网页吗？**\n桌面版自定义宠物存在本机，官方说不会自动同步；网页版可以单独上传符合规格的图。\n\n## 参考资料\n\n- OpenAI 官方文档：Pets in ChatGPT and Codex — https://learn.chatgpt.com/docs/pets\n- OpenAI 开发者文档：Pets — https://developers.openai.com/docs/pets",
+      "sources": [
+        "https://learn.chatgpt.com/docs/pets",
+        "https://developers.openai.com/docs/pets"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档只说「账号和工作区允许时可用」，没有列出具体套餐；网页版选项仅在账号和工作区允许时出现",
+        "官方帮助中心没有 Pets 专门文章，本文的依据是官方文档站（learn.chatgpt.com 与 developers.openai.com）的 Pets 页面",
+        "文档中的快捷键、命令、文件规格（1536 × 1872 像素、20 MiB 以内、透明 PNG 或 WebP）是当天的写法，之后可能调整",
+        "桌面版自定义宠物存在本机，官方说不会自动同步到网页版"
       ]
     },
     {
