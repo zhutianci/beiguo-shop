@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-27T16:16:50.828Z",
+  "builtAt": "2026-10-27T16:25:49.480Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -64133,6 +64133,234 @@
       ]
     },
     {
+      "title": "Codex 报「exceeded retry limit, last status: 429 Too Many Requests」怎么办：额度、API 密钥与工作区限制的排查顺序",
+      "slug": "codex-exceeded-retry-limit-429-too-many-requests",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1150-429-decide.png",
+        "g1150-where-usage.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex 提示 exceeded retry limit, last status 429 Too Many Requests？官方没有单独解释这句话，429 在 HTTP 里表示请求太多。本文按官方文档列出可能相关的情况：套餐额度、API 密钥限额、工作区额度控制，并教你到哪里看用量。",
+      "content": "> 本文根据 Codex 官方文档（Pricing、Authentication、企业用量控制、命令参考）整理，资料核对于 2026-10-27。**官方没有单独解释这条报错**，也没有写它一定表示额度用完。429 是 HTTP 状态码，字面意思是「请求太多」，本文列的是官方文档里与用量限制相关的几种情况。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 Codex 里发消息后弹出 `exceeded retry limit, last status: 429 Too Many Requests`（有时后面跟着 `request id`）的人；\n- 用 ChatGPT 账号登录，或用 API 密钥登录的人；\n- 在公司、学校的 ChatGPT 工作区里用 Codex 的人。\n\n## 结论先说\n\n1. **先去看用量。** 官方的用量页面是 [chatgpt.com/codex/settings/usage](https://chatgpt.com/codex/settings/usage)；在命令行里可以输入 `/status` 看当前会话的用量，输入 `/usage` 看账号的 token 用量。用量页面上有限额和重置时间。\n2. **用量真的见底了**：官方说，在一个进行中的任务里达到限额时，代理仍可能继续完成这一轮；ChatGPT Plus 和 Pro 用户达到上限后可以购买额外的额度继续用，不必升级套餐；也可以改用 API 密钥跑本地对话，用量按标准 API 价格计费。\n3. **用量页面还有余量**：先稍等几分钟再试。反复出现就向官方反馈，并带上报错里的 `request id`。\n4. **你是用 API 密钥登录的**：429 要按 API 自己的速率限制和账户余额去查，见 [/guides/openai-api-429-error](/guides/openai-api-429-error)。\n5. **你在公司或学校的工作区里**：问管理员，工作区的额度控制可能影响计划内的 Codex 用量。\n6. **状态页有 Codex 事件**：等官方恢复，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n![Codex 429：先对照这张表](seed:g1150-429-decide.png)\n*图：本站根据 [Codex 官方文档：Pricing](https://learn.chatgpt.com/docs/pricing) 与 [Authentication](https://learn.chatgpt.com/docs/auth) 整理的示意图*\n\n## 报错原文怎么读\n\n```text\nexceeded retry limit, last status: 429 Too Many Requests, request id: ...\n```\n\n拆开读：**Codex 向服务端发请求，服务端回了 429；Codex 重试了几次，仍然是 429，于是放弃并报错**。`429 Too Many Requests` 是通用的 HTTP 状态码，表示在一段时间内请求太多；服务端用它可以表示不同的限制，所以单看这句话，**分不清是你的套餐额度、API 的速率限制，还是服务端的临时限流**。官方文档没有逐条解释，所以下面用「看用量」把情况分开。\n\n## 一、先去看用量，三个入口\n\n官方 Pricing 页「Where can I see my current usage limits?」写了：当前限额在用量页面可见；在命令行会话里想看剩余限额，用 `/status`。命令参考里另有 `/usage`：查看账号 token 用量，或者使用可兑换的额度重置（可以直接输入 `/usage daily`、`/usage weekly`、`/usage cumulative` 打开对应视图）。官方建议每隔一两周看一次用量页面，了解自己的节奏。\n\n![在哪里看 Codex 还剩多少额度](seed:g1150-where-usage.png)\n*图：本站根据 [Codex 官方文档：Pricing](https://learn.chatgpt.com/docs/pricing) 与命令参考整理的示意图*\n\n## 二、用量页面显示额度用完了\n\n官方 Pricing 页的几条说明（本站转述）：\n\n- 可发送的消息数量取决于所用模型、任务的大小和复杂程度，以及在本地还是云端运行；看起来相似的任务消耗也可能不同，模型选择、上下文、推理、工具调用、检索和缓存都会影响用量，所以提示词长度不是可靠的估算依据；\n- Plus 和标准 Business 的本地消息数是按每五小时估算的，官方强调这只是估算，不是固定的消息上限，以用量页面的限额和重置时间为准；Pro 目前没有五小时限制；\n- 云端任务可能比本地消息消耗更多额度；\n- 图像生成和本地消息、云端对话共用同一类额度，官方写明图像生成消耗额度的速度平均比类似的无图像任务快 3 到 5 倍。\n\n各套餐的具体数字和重置规则，以官方页面和站内文章 [/guides/codex-usage-limits](/guides/codex-usage-limits) 为准。想开通更高的套餐，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus) 或 [/chongzhi/chatgpt-pro](/chongzhi/chatgpt-pro)。\n\n## 三、让额度更耐用的几个官方建议\n\n官方在 Pricing 页「What can I do to make my usage limits last longer?」里给了这些：\n\n- **控制提示词的大小**：指令精确，去掉不必要的上下文；\n- **限制素材**：只给相关的文件，尽量缩小来源或日期范围；\n- **输出匹配需求**：说明受众、格式和长度，把必须做的和可选的分开；\n- **精简 AGENTS.md**：项目较大时，可以把 AGENTS.md 按目录嵌套，控制注入的上下文量；\n- **减少 MCP 服务器**：每个 MCP 服务器都会给你的消息增加上下文、占用更多额度，用不到时关掉，配置方法见 [/guides/codex-mcp-config](/guides/codex-mcp-config)。\n\n## 四、用量页面还有余量，却仍然报 429\n\n这一点官方文档没有说明。需要提醒的是：GitHub 的 [openai/codex](https://github.com/openai/codex/issues) 问题列表里，有用户反馈在用量页面显示还有余量时仍然反复遇到 429，这类问题截至本文核对日仍是未关闭的状态。**这只能说明有这类反馈，不能说明原因**，也不是官方的解释。可以做的是：\n\n1. 稍等几分钟再试，不要连续快速重发；\n2. 到状态页确认 Codex 相关组件没有进行中的事件；\n3. 反复出现就在输入框里输入 `/` 向官方提交反馈，或在 GitHub 查看是否有相同问题，附上 request id 与版本号，不要贴令牌或密钥。\n\n## 五、用 API 密钥登录时\n\n官方认证文档说，用 API 密钥登录后，Codex 用量按标准 API 价格计费，不使用 ChatGPT 套餐里包含的额度；用量遵循的是你的 API 组织的保留和数据共享设置。此时 429 要到 OpenAI Platform 的账户页面查看速率限制和账单，而不是 ChatGPT 的用量页面。API 的 429 是怎么回事，见 [/guides/openai-api-429-error](/guides/openai-api-429-error)。\n\n## 六、在工作区里用 Codex\n\n官方有专门的《ChatGPT usage limits and spend controls》页，写明工作区的额度控制可能影响计划内的 Codex 用量。个人用户看不到工作区的设置，需要问管理员：是否设置了额度或支出限制、你所在的角色能用多少。\n\n## 常见问题\n\n**Q：重试几次都不行，要不要换个模型？**\n官方的省额度建议里提到「用较小的模型、收窄任务范围，往往也能得到有用的结果」，不同模型消耗额度的速度不同，见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n**Q：是不是我的账号被限制了？**\n官方文档没有把 429 和账号限制联系在一起。登录和账号方面的问题见 [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect)。\n\n**Q：ChatGPT 网页聊天正常，只有 Codex 报错？**\n官方的说明是 Work 和 Codex 的用量规则与聊天分开，两者的区别见 [/guides/chatgpt-work-vs-codex](/guides/chatgpt-work-vs-codex)。\n\n## 参考资料\n\n- Codex 官方文档：Pricing — https://learn.chatgpt.com/docs/pricing\n- Codex 官方文档：Authentication — https://learn.chatgpt.com/docs/auth\n- Codex 官方文档：ChatGPT usage limits and spend controls — https://learn.chatgpt.com/docs/enterprise/usage-limits\n- Codex 官方文档：命令参考（/status、/usage）— https://learn.chatgpt.com/docs/developer-commands\n- OpenAI 状态页 — https://status.openai.com/",
+      "sources": [
+        "https://learn.chatgpt.com/docs/pricing",
+        "https://learn.chatgpt.com/docs/auth",
+        "https://learn.chatgpt.com/docs/enterprise/usage-limits",
+        "https://learn.chatgpt.com/docs/developer-commands",
+        "https://status.openai.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有单独解释「exceeded retry limit, last status 429」这句报错，也没有写它一定意味着额度用完；本文只列官方文档里和用量限制、API 计费相关的说法，不对这句报错下结论",
+        "GitHub openai/codex 的公开问题里有用户反馈在用量页面还有余量时也遇到 429，截至核对日仍是未关闭的问题，官方没有给出解释，本文只提示「有这类反馈」",
+        "用量页面网址和 /status、/usage 命令来自官方文档当天的写法，之后可能调整"
+      ]
+    },
+    {
+      "title": "Codex 登录报「Token exchange failed」怎么办：浏览器登录成功却回不到 Codex，设备码、回调端口与公司证书逐项排查",
+      "slug": "codex-token-exchange-failed-login-error",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1151-login-decide.png",
+        "g1151-device-code-steps.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex 登录时浏览器显示成功，回到 Codex 却报 Token exchange failed？官方没有单独解释这条报错，但认证文档给了几条出路：设备码登录、转发 1455 回调端口、设置公司根证书、查看 codex-login.log。本文按官方文档整理排查顺序。",
+      "content": "> 本文根据 Codex 官方文档《Authentication》、环境变量文档和 OpenAI 帮助中心网络建议文章整理，资料核对于 2026-10-27。**官方没有专门解释 Token exchange failed 这条报错**，本文写的是官方文档里「浏览器登录不顺利时」的做法。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 Codex 桌面 App、命令行 CLI 或 IDE 插件里点了登录，浏览器已经显示登录成功，回到 Codex 却提示登录失败、`token_exchange_failed` 的人；\n- 在远程服务器、虚拟机、没有浏览器的环境里装 Codex，登录不了的人；\n- 公司网络、有代理的网络里登录不了的人。\n\n## 结论先说\n\n1. **先换登录方式试一次**：在命令行里运行 `codex login --device-auth`（设备码登录，官方标注 beta）。官方认证文档说，浏览器登录界面可能不好使的两种情况是——在远程或无头环境里运行，以及**你的网络配置阻止了 Codex 用来接收登录令牌的 localhost 回调**；这两种情况官方都推荐设备码。\n2. **设备码选项没有出现**，要先在 ChatGPT 的安全设置（个人账号）里开启设备码登录；工作区账号由管理员在工作区权限里开。\n3. **想继续用浏览器登录、但机器在远程**：先在本机用 `ssh -L 1455:localhost:1455 用户@远程主机` 把回调端口转发过来，再在这个 SSH 会话里运行 `codex login`。\n4. **公司网络有 TLS 代理**：登录前把 `CODEX_CA_CERTIFICATE` 设为公司根证书的 PEM 文件路径。\n5. **还不行**：看 `codex-login.log`，并检查官方状态页 [status.openai.com](https://status.openai.com/)。\n\n![Codex 登录失败：按情况选方案](seed:g1151-login-decide.png)\n*图：本站根据 [Codex 官方文档：Authentication](https://learn.chatgpt.com/docs/auth) 整理的示意图*\n\n## 报错原文怎么读\n\n在公开的问题反馈里能看到这类写法（不同版本、不同平台文字略有差异）：\n\n```text\nLogin failed\ntoken_exchange_failed\nToken exchange failed: error sending request for url (https://auth.openai.com/oauth/token)\n```\n\n按字面意思：**登录的第二步，拿浏览器返回的授权码去换令牌（token）时失败了**。冒号后面的 `error sending request for url` 说明这次请求没有成功发出或没有收到回应。官方认证文档介绍登录流程是：运行登录后会打开浏览器窗口，登录完成后浏览器把凭据返回给 Codex。**这个「返回」靠的是本机的回调端口**（文档里写的默认是 `localhost:1455`），所以回调被网络配置挡住时，官方明确推荐换设备码。至于你这一次具体是哪一环出错，官方文档没有写，本文也不替官方下结论。\n\n## 一、设备码登录：最先试的办法\n\n官方认证文档里的步骤（本站转述）：\n\n1. 在 ChatGPT 安全设置（个人账号）或 ChatGPT 工作区权限（工作区管理员）里**开启设备码登录**；\n2. 在运行 Codex 的终端里，二选一：在交互式登录界面选 **Sign in with Device Code**，或直接运行 `codex login --device-auth`；\n3. 在浏览器打开终端里给出的链接，登录，然后输入一次性代码。\n\n![设备码登录 4 步](seed:g1151-device-code-steps.png)\n*图：本站根据 [Codex 官方文档：Authentication](https://learn.chatgpt.com/docs/auth) 整理的示意图*\n\n官方还说明：如果设备码登录在你的环境里也不能用，就用下面的两个备用办法。\n\n## 二、两个备用办法\n\n### 办法 A：在有浏览器的机器上登录，再复制登录缓存\n\n1. 在能打开浏览器登录的机器上运行 `codex login`；\n2. 确认登录缓存文件 `~/.codex/auth.json` 已生成；\n3. 把它复制到无头机器的同一路径 `~/.codex/auth.json`。\n\n官方给的 SSH 复制写法：\n\n```shell\nssh user@remote 'mkdir -p ~/.codex'\nscp ~/.codex/auth.json user@remote:~/.codex/auth.json\n```\n\n**`auth.json` 里是访问令牌，要当成密码对待**：不要提交到代码仓库，不要贴进工单或聊天。如果你的系统把登录信息存进了系统凭据库而不是这个文件，这个办法可能不适用，存储位置由配置项 `cli_auth_credentials_store` 决定（`file`、`keyring`、`auto`、`ephemeral`）。\n\n### 办法 B：转发 localhost 回调端口\n\n如果本机和远程主机之间能做端口转发，可以继续用标准的浏览器登录：\n\n```shell\nssh -L 1455:localhost:1455 user@remote\n```\n\n然后在这个 SSH 会话里运行 `codex login`，按终端打印的地址在本机浏览器里完成登录。\n\n## 三、有 TLS 代理或私有根证书\n\n公司网络会解密再转发 HTTPS 流量时，Codex 需要信任公司的根证书。官方认证文档「Custom CA bundles」一节：登录之前把 `CODEX_CA_CERTIFICATE` 设为 PEM 证书包路径；没设置时 Codex 退而使用 `SSL_CERT_FILE`；同样的设置对登录、普通 HTTPS 请求和安全 WebSocket 连接都生效。官方环境变量文档也列了这两个变量，并写明 `CODEX_CA_CERTIFICATE` 优先于 `SSL_CERT_FILE`。\n\n```shell\nexport CODEX_CA_CERTIFICATE=/path/to/corporate-root-ca.pem\ncodex login\n```\n\n证书文件要向公司 IT 要。官方文档没有给 Windows PowerShell 的写法，不要把 export 直接粘进 PowerShell。\n\n## 四、网络要放行哪些地址\n\nOpenAI 帮助中心「Network recommendations」文章给 IT 部门列了需要放行的域名，其中包括 `*.auth.openai.com`、`*.chatgpt.com`、`*.openai.com` 等；还写明如果有网页过滤，要确认没有返回意外内容。报错里的地址是 `auth.openai.com` 的话，把这篇官方文章发给 IT 最直接。同一篇文章里的「怎么知道是不是网络的问题」也值得先做：只有你这一台出问题还是整个网络都这样；把电脑切到手机热点后问题是否消失。详细对照见 [/guides/codex-stream-disconnected-before-completion](/guides/codex-stream-disconnected-before-completion)。\n\n## 五、其他会让登录失败的情况\n\n这几条在站内已有文章，不重复展开，见 [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect)：\n\n- 邮箱密码登录的账号，必须先开启多重验证（MFA）才能用 Codex 云端；\n- 之前在 CLI 或插件里退出过登录，需要重新登录，因为 CLI 和插件共用同一份登录缓存；\n- 被工作区管理员用 `forced_login_method`、`forced_chatgpt_workspace_id` 限制了登录方式或工作区，凭据不匹配时 Codex 会登出并退出。\n\n## 六、收集日志再反馈\n\n直接运行 `codex login` 时，Codex 会在日志目录下写一个专门的 `codex-login.log`，官方说它用来排查浏览器登录或设备码登录失败，也是官方支持要登录日志时要的东西。分享日志前先检查，别带上密钥或令牌。可以到 GitHub 的 [openai/codex](https://github.com/openai/codex/issues) 看有没有相同问题。\n\n## 常见问题\n\n**Q：用 API 密钥登录会不会绕过这个问题？**\n官方认证文档说 Codex 支持 ChatGPT 账号和 API 密钥两种登录方式，命令行用 `printenv OPENAI_API_KEY | codex login --with-api-key`。API 密钥按 API 标准价格计费，不使用 ChatGPT 套餐里包含的额度，部分依赖 ChatGPT 工作区的功能会受限。是否适合你，要看自己的需求。\n\n**Q：怎么确认现在登录的是什么？**\n命令行运行 `codex login status`；桌面 App 和 IDE 插件打开个人资料菜单可以看到当前账号或 API 密钥状态。\n\n**Q：登录好了，但额度不够用？**\n见 [/guides/codex-usage-limits](/guides/codex-usage-limits)，想开通 ChatGPT Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：是不是官方服务出问题了？**\n先看状态页，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n## 参考资料\n\n- Codex 官方文档：Authentication — https://learn.chatgpt.com/docs/auth\n- Codex 官方文档：Environment variables — https://learn.chatgpt.com/docs/config-file/environment-variables\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps\n- OpenAI 状态页 — https://status.openai.com/",
+      "sources": [
+        "https://learn.chatgpt.com/docs/auth",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+        "https://learn.chatgpt.com/docs/config-file/environment-variables",
+        "https://status.openai.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有单独解释「Token exchange failed」，本文没有断言它由什么原因造成，只列官方认证文档里「浏览器登录不好使时」的几种做法",
+        "设备码登录官方标注为 beta，是否可用取决于账号设置和工作区权限，界面按钮和设置项名称以实际为准",
+        "报错中出现的 auth.openai.com 属于帮助中心网络建议文章里要放行的 *.auth.openai.com 域名，但官方没有把二者明确对应起来"
+      ]
+    },
+    {
+      "title": "Codex 报错 401 Unauthorized 怎么办：登录状态、API 密钥、自定义模型提供方与 WSL 登录缓存的排查",
+      "slug": "codex-401-unauthorized-error",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1153-401-decide.png",
+        "g1153-relogin-steps.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex 提示 401 Unauthorized，字面意思是服务端不认你的登录凭据。官方没有单独解释这条报错，但认证文档写清了登录方式、缓存位置、API 密钥和自定义提供方的用法。本文按官方文档给出从 codex login status 开始的排查顺序。",
+      "content": "> 本文根据 Codex 官方文档《Authentication》、配置参考、环境变量文档和 Windows 应用文档整理，资料核对于 2026-10-27。**官方没有专门解释 401 这条报错**。401 是通用的 HTTP 状态码，字面意思是「未授权」，一般指服务端没收到有效的登录凭据。本文列的是官方文档里与登录凭据有关的做法。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 Codex 里发消息或启动时看到 `401 Unauthorized`、`unexpected status 401 Unauthorized` 的人；\n- 之前能用，某天开始就报 401 的人；\n- 在 Windows 和 WSL 两边都装了 Codex，一边正常一边报错的人；\n- 自己配置了第三方或公司网关作为模型提供方的人。\n\n## 结论先说\n\n1. **先确认现在登录的是什么。** 命令行运行 `codex login status`，官方说它会显示当前的认证方式。桌面 App 和 IDE 插件在个人资料菜单里能看到当前账号或 API 密钥状态。\n2. **重新登录一次。** `codex logout` 清除当前凭据，再 `codex login` 在浏览器里完成登录。桌面 App 选 **Log out**，再重新登录。\n3. **用 API 密钥的人**，密钥要从 OpenAI 平台的 API 密钥页面获取，并用官方给的写法传入，见下文。\n4. **Windows 和 WSL 两边都装了**，要知道两边的登录缓存默认不共享。\n5. **自己配了模型提供方的人**，401 多半出在 `env_key` 或认证方式的配置上。\n6. **都不行**，看官方状态页，并收集 `codex-login.log` 反馈。\n\n![Codex 401：先对照这张表](seed:g1153-401-decide.png)\n*图：本站根据 [Codex 官方文档：Authentication](https://learn.chatgpt.com/docs/auth) 整理的示意图*\n\n## 报错原文怎么读\n\n```text\nunexpected status 401 Unauthorized\n```\n\n意思是服务端对 Codex 发出的请求回了 401，也就是不接受请求里带的凭据。凭据可能是你的 ChatGPT 登录令牌，也可能是 API 密钥，或者你自己配置的第三方服务的密钥。**所以第一步永远是弄清楚 Codex 用的是哪一种凭据。** GitHub 的 openai/codex 问题列表里有不少以 401 为题的反馈，说明不少人遇到过，但官方文档没有逐条解释。\n\n## 一、确认登录方式，然后重新登录\n\n官方认证文档说，Codex 在使用 OpenAI 模型时支持两种登录方式：用 ChatGPT 账号登录（走订阅），或用 API 密钥登录（按用量计费）。桌面 App、命令行和 IDE 插件都支持这两种；Codex 云端只能用 ChatGPT 登录。\n\n![重新登录 Codex 的 3 步](seed:g1153-relogin-steps.png)\n*图：本站根据 [Codex 官方文档：Authentication](https://learn.chatgpt.com/docs/auth) 整理的示意图*\n\n各入口的官方写法：\n\n| 入口 | 查看当前状态 | 登出 | ChatGPT 登录 |\n| --- | --- | --- | --- |\n| 命令行 | `codex login status` | `codex logout` | `codex login` |\n| 桌面 App | 个人资料菜单 | **Log out** | 登录页点 **Continue to sign in** |\n| IDE 插件 | 个人资料菜单 | **Log out** | 登录页点 **Sign in with ChatGPT** |\n\n官方还写明：登录信息会被缓存并复用，命令行和插件共用同一份；**在其中一个里登出，下次启动命令行或插件就需要重新登录**。ChatGPT 登录的令牌，Codex 在使用中会在到期前自动刷新，正常情况下不需要反复登录。缓存位置是 `~/.codex/auth.json` 或系统的凭据库，具体由 `cli_auth_credentials_store` 决定。`auth.json` 里是访问令牌，要当成密码保管，不要提交、不要贴进聊天。\n\n## 二、用 API 密钥登录时\n\n官方写法（命令行）：从标准输入把密钥交给登录命令。\n\n```shell\nprintenv OPENAI_API_KEY | codex login --with-api-key\n```\n\n桌面 App 在未登录界面选 **Sign in another way**，输入密钥后点 **Continue**；IDE 插件选 **Use API Key**，输入后点 **OK**。API 密钥到 OpenAI 平台的 API 密钥页面获取。官方提醒：API 密钥登录按标准 API 价格计费，不使用 ChatGPT 套餐里包含的额度，依赖 ChatGPT 工作区或云服务的功能会受限。密钥失效、被删除或没有可用的账户余额，都属于要到 OpenAI 平台账户页面去检查的范围，不在 Codex 文档的讨论里。\n\n非交互场景里，官方环境变量文档列了 `CODEX_API_KEY`（给 `codex exec` 等非交互进程提供 API 密钥）和 `CODEX_ACCESS_TOKEN`（给受信任的自动化提供访问令牌，要持久登录就用 `codex login --with-access-token`）。\n\n## 三、Windows 和 WSL 两边的登录缓存不共享\n\n官方 Windows 应用文档写明：Windows 桌面 App 使用和原生 Windows 版 Codex 相同的主目录 `%USERPROFILE%\\.codex`；如果同时在 WSL 里运行命令行，命令行默认用 Linux 的主目录，**不会自动共享配置、登录缓存和会话历史**。想共享，有两个办法：同步两个 `.codex` 目录，或在 WSL 里设置 `CODEX_HOME`：\n\n```bash\nexport CODEX_HOME=/mnt/c/Users/<windows-user>/.codex\n```\n\n写进 `~/.bashrc` 或 `~/.zshrc` 就能对每个终端生效。如果 WSL 里报 401，而 Windows 上正常，先在 WSL 里单独登录一次，或者用上面的办法让两边指向同一目录。\n\n## 四、自己配置了模型提供方\n\n在 `config.toml` 里定义自定义模型提供方后，官方认证文档列了几种认证方式：\n\n- `requires_openai_auth = true`：使用 OpenAI 的认证，之后可以用 ChatGPT 或 API 密钥登录，适用于经过 LLM 代理访问 OpenAI 模型；\n- `env_key = \"环境变量名\"`：从本机名为该变量的环境变量里读取该提供方的 API 密钥；\n- 两者都不设置：Codex 认为该提供方不需要认证，适合本地模型。\n\n官方配置参考还说明：`auth` 命令式认证**不要**与 `env_key`、`experimental_bearer_token` 或 `requires_openai_auth` 混用；直接把令牌写进 `experimental_bearer_token` 是不推荐的，应使用 `env_key`。出 401 时，先确认 `env_key` 指向的环境变量在启动 Codex 的那个终端里确实已设置、值是该服务的有效密钥，再确认没有同时配置多种认证。第三方模型怎么配，见 [/guides/codex-third-party-models-deepseek-gemini-grok](/guides/codex-third-party-models-deepseek-gemini-grok) 和 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。\n\n## 五、管理员限制登录方式或工作区\n\n官方认证文档「Enforce a login method or workspace」一节：在受管环境里，管理员可以用 `forced_login_method` 规定只能用 ChatGPT 登录或只能用 API 密钥登录，用 `forced_chatgpt_workspace_id` 限定工作区。**如果当前凭据与这些限制不符，Codex 会让用户登出并退出。** 遇到这种情况，要换成符合要求的登录方式，具体问管理员。\n\n## 六、仍然不行\n\n- 看 [status.openai.com](https://status.openai.com/)，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)；\n- 命令行直接运行 `codex login` 时会写 `codex-login.log`，官方说明这是官方支持排查登录问题时要的日志；分享前先检查，别带上密钥；\n- 登录方面的更多排查见 [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect) 和 [/guides/codex-token-exchange-failed-login-error](/guides/codex-token-exchange-failed-login-error)。\n\n## 常见问题\n\n**Q：是不是我的 Plus 过期了？**\n订阅状态在 ChatGPT 账号设置里看，套餐区别见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)。官方文档没有把 401 和订阅到期联系在一起。想重新开通可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：重新登录后马上又 401？**\n先 `codex login status` 看实际生效的认证方式，再检查是否有环境变量或配置在覆盖登录，例如自定义提供方的 `env_key`、被管理员强制的登录方式。\n\n**Q：登出会丢对话吗？**\n官方认证文档只说登出会清除当前凭据，没有说会清除会话记录；会话记录保存在 `$CODEX_HOME/sessions`，默认 `~/.codex/sessions`。\n\n## 参考资料\n\n- Codex 官方文档：Authentication — https://learn.chatgpt.com/docs/auth\n- Codex 官方文档：Configuration Reference — https://learn.chatgpt.com/docs/config-file/config-reference\n- Codex 官方文档：Environment variables — https://learn.chatgpt.com/docs/config-file/environment-variables\n- Codex 官方文档：ChatGPT desktop app for Windows — https://learn.chatgpt.com/docs/windows/windows-app\n- OpenAI 状态页 — https://status.openai.com/",
+      "sources": [
+        "https://learn.chatgpt.com/docs/auth",
+        "https://learn.chatgpt.com/docs/config-file/config-reference",
+        "https://learn.chatgpt.com/docs/config-file/environment-variables",
+        "https://learn.chatgpt.com/docs/windows/windows-app",
+        "https://status.openai.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有单独解释「401 Unauthorized」这条报错，本文没有断言它在某一次出现时由哪个原因造成，只列官方认证文档里和凭据有关的做法",
+        "401 在 HTTP 里的含义（凭据缺失或无效）是通用的 HTTP 常识，不是 Codex 文档里的表述",
+        "命令名称和配置项来自官方文档当天的写法，Windows PowerShell 下 printenv 命令是否可用，官方没有说明，文中只照抄官方给的写法"
+      ]
+    },
+    {
+      "title": "Codex 报「stream disconnected before completion」怎么办：连接中途断开的 5 个排查方向（WebSocket、代理证书、状态页）",
+      "slug": "codex-stream-disconnected-before-completion",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1154-disconnect-decide.png",
+        "g1154-network-steps.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex 回答到一半报 stream disconnected before completion？官方没有逐字解释，但帮助中心写明 Codex 流式输出走 wss://chatgpt.com/ 的 WebSocket，被网络或代理拦掉会中断。本文给出排查顺序。",
+      "content": "> 本文根据 OpenAI 帮助中心《Network recommendations for ChatGPT errors on web and apps》、Codex 官方文档（认证、配置参考、排查）整理，资料核对于 2026-10-27。**官方没有专门解释这条报错**，所以本文写的是官方文档里与「连接中途断开」相关的做法，不是官方对这句话的逐字说明。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 Codex（桌面 App、命令行 CLI 或 IDE 插件）里让它干活，回答到一半弹出 `stream disconnected before completion`，任务被打断的人；\n- 只在公司网络、学校网络、有代理的网络里出现这个问题的人；\n- 想知道「是官方服务故障还是我这边网络」的人。\n\n## 结论先说\n\n按下面的顺序试，前两步 1 分钟就能做完：\n\n1. **先看官方状态页** [status.openai.com](https://status.openai.com/)。Codex 相关的组件有进行中的事件，就等官方处理，别折腾自己的电脑。状态页怎么读见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n2. **把电脑切到手机热点再试一次。** 官方在「How do I know my network is the issue」一节写了两个必查项：问题是只在你这台电脑，还是同一网络的同事都这样；以及从公司 WiFi 换成手机热点后错误是否消失。换网络就好了，问题就在原来的网络。\n3. **网络是公司或学校的，就把官方的 WebSocket 要求发给 IT。** 帮助中心写明：ChatGPT 和 Codex 的部分功能除普通 HTTPS 外还用安全 WebSocket；Codex 的模型采样和流式输出用的是 `wss://chatgpt.com/`，需要放行 TCP 443 上的 WebSocket 升级握手。\n4. **有 TLS 检查、SSL 解密或代理的网络**：官方要求确认这些设备没有拦截、改写或提前关闭 WebSocket 握手和随后的长连接。命令行 CLI 如果走公司的 TLS 代理，要设置 `CODEX_CA_CERTIFICATE`。\n5. **都排除后再向官方反馈**，附上日志。\n\n![Codex 连接中断时的对照表：看到什么、怎么办](seed:g1154-disconnect-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Network recommendations](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 与 [Codex 官方文档：Authentication](https://learn.chatgpt.com/docs/auth) 整理的示意图*\n\n## 报错原文怎么读\n\n完整的提示常常是这个形状（后面的地址和原因因人而异）：\n\n```text\nstream disconnected before completion: error sending request for url (...)\n```\n\n按字面意思：**回答是一边生成一边传给你的「流」，这条流在结束之前就断了**。冒号后面如果带 `error sending request for url`，说明请求发出去的环节就失败了。官方文档没有给这句话下定义，GitHub 的 openai/codex 问题列表里能搜到不少以这句开头的反馈，它说明不少人遇到过，但不是官方的解释，下面的步骤只采用官方文档写明的做法。\n\n## 一、先分清：服务问题，还是自己的网络\n\n官方帮助中心的建议是在排查网络前，**先看状态页**有没有系统性的故障。接着做两个对比：\n\n| 检查 | 怎么做 | 说明什么 |\n| --- | --- | --- |\n| 只是我，还是整个网络 | 问问同一网络里的同事是否也断线 | 同网络的人都断，网络策略的嫌疑大 |\n| 公司 WiFi 还是手机热点 | 同一台电脑切换网络再试 | 换网络后恢复，就是原网络的问题 |\n\n![判断是服务问题还是自己的网络，4 步](seed:g1154-network-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Network recommendations](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 整理的示意图*\n\n## 二、公司或学校网络：让 IT 放行什么\n\n帮助中心「WebSocket requirements for ChatGPT and Codex」一节写的要点（文字是本站转述）：\n\n- 如果组织默认阻止 WebSocket 流量，一些功能会卡住、断开，或者没法持续接收更新；\n- 需要放行 **TCP 443** 上的 WebSocket，并确保代理、防火墙或安全网关允许标准的 `Upgrade: websocket` 握手；\n- 对应关系：ChatGPT 对话更新用 `wss://ws.chatgpt.com`，**Codex 的模型采样和流式输出用 `wss://chatgpt.com/`**；\n- 如果防火墙没法按 URL 路径放行，就放行到 `chatgpt.com` 的 443 端口 WebSocket 升级，用于 Codex 流量；\n- 用了 TLS 检查、SSL 解密、网页过滤或强制代理的，要确认它们没有阻止、改写或过早关闭握手和之后的长连接；**如果会话能连上，之后又卡住或断开，要检查 WebSocket 的空闲超时和最大帧或消息大小策略。**\n\n这几条是写给 IT 部门的，个人用户改不了公司的防火墙。把本文和官方文章的链接发给 IT，比自己折腾更快。\n\n## 三、有代理或 TLS 检查：命令行里设置证书\n\n官方认证文档「Custom CA bundles」一节：如果你的网络使用公司的 TLS 代理或私有根证书，在登录前把环境变量 `CODEX_CA_CERTIFICATE` 设为一个 PEM 证书包；没设置时，Codex 会退而使用 `SSL_CERT_FILE`。**同一套自定义 CA 设置会用于登录、普通 HTTPS 请求和安全 WebSocket 连接。** 官方给的写法：\n\n```shell\nexport CODEX_CA_CERTIFICATE=/path/to/corporate-root-ca.pem\ncodex login\n```\n\n证书文件从哪来，要问你们公司的 IT。这条命令是官方原样给出的，Windows PowerShell 的写法官方文档没有给，不要照抄 export。\n\n## 四、用了自定义模型提供方：看重试和空闲超时\n\n如果你在 `config.toml` 里配置了 `model_providers` 下自定义的模型提供方（比如公司网关、第三方服务），官方配置参考里和流式连接有关的字段有：\n\n- `stream_max_retries`：SSE 流式输出被打断后的重试次数，默认 5；\n- `request_max_retries`：对提供方的 HTTP 请求重试次数，默认 4；\n- `stream_idle_timeout_ms`：流式输出的空闲超时，单位毫秒，默认 300000；\n- `supports_websockets`：该提供方是否支持 Responses API 的 WebSocket 传输。\n\n官方的示例配置里把重试次数调到了更大的值（`stream_max_retries = 10`）。这些字段是写给「自己接模型服务」的人的，用 ChatGPT 账号直接登录的普通用户不需要动它们。自定义提供方怎么配，见 [/guides/codex-third-party-models-deepseek-gemini-grok](/guides/codex-third-party-models-deepseek-gemini-grok)。\n\n## 五、任务卡住不动，和「断开」不是一回事\n\n官方排查文档对「卡住」的建议，也适合先自查：\n\n1. 看 Codex 是不是在等你批准某个操作；\n2. 打开终端，运行 `git status` 这样的基本命令，确认环境正常；\n3. 开一个新对话，用更小、更聚焦的提示重新开始。\n\n任务很长、一次要求改很多文件时，连接中断造成的损失也更大，把任务拆小是最省事的办法。\n\n## 六、反馈时带上什么\n\n在输入框里输入 `/` 可以向官方提交反馈，提交后会拿到一个会话 ID。也可以先到 GitHub 的 [openai/codex](https://github.com/openai/codex/issues) 搜有没有相同的问题。官方列出的日志位置：\n\n- 会话记录：`$CODEX_HOME/sessions`，默认是 `~/.codex/sessions`；\n- macOS 应用日志：`~/Library/Logs/com.openai.codex/年/月/日`；\n- 命令行登录日志：直接运行 `codex login` 时会写入单独的 `codex-login.log`。\n\n分享日志之前先自己看一遍，确认里面没有密钥、令牌或项目机密。\n\n## 常见问题\n\n**Q：换了网络就好了，是不是 OpenAI 屏蔽了我的网络？**\n官方文档没有这么说。官方写的是：公司网络上的安全软件可能拦截或改写 WebSocket 流量，需要放行相关域名。是否能用 ChatGPT 取决于所在地区是否在官方支持范围内，见 [/guides/chatgpt-supported-countries](/guides/chatgpt-supported-countries)。\n\n**Q：断了以后要重新开始吗？**\n官方文档没有写这条报错之后会话是否自动续传。发生后先看已有的输出和文件改动，再让 Codex 接着做，或用 `git diff` 查看已经改了什么，见 [/guides/codex-getting-started](/guides/codex-getting-started)。\n\n**Q：是不是额度用完了？**\n额度用完会有明确的额度提示，和这条连接报错不是同一类，额度见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。想开通 ChatGPT Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：登录都有问题怎么办？**\n先看 [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect)。\n\n## 参考资料\n\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps\n- Codex 官方文档：Authentication — https://learn.chatgpt.com/docs/auth\n- Codex 官方文档：Configuration Reference — https://learn.chatgpt.com/docs/config-file/config-reference\n- Codex 官方文档：Troubleshooting — https://learn.chatgpt.com/docs/reference/troubleshooting\n- OpenAI 状态页 — https://status.openai.com/",
+      "sources": [
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+        "https://learn.chatgpt.com/docs/auth",
+        "https://learn.chatgpt.com/docs/config-file/config-reference",
+        "https://learn.chatgpt.com/docs/reference/troubleshooting",
+        "https://status.openai.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有单独解释「stream disconnected before completion」这句报错，本文没有断言它一定由哪个原因造成，只列官方文档里和「流式连接中断」相关的要求与配置项",
+        "stream_max_retries 默认 5、stream_idle_timeout_ms 默认 300000 是官方配置参考里「自定义模型提供方」的字段，只对 model_providers 下自定义的提供方写明，用 ChatGPT 账号登录的默认连接是否适用，官方没有写",
+        "wss://chatgpt.com/ 的放行要求来自帮助中心「Network recommendations」文章，域名清单会更新，以官方文章最新版为准"
+      ]
+    },
+    {
+      "title": "Codex 报「missing environment variable」怎么办：env_key、MCP 环境变量、命令读不到变量的官方配置说明",
+      "slug": "codex-missing-environment-variable",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1155-env-decide.png",
+        "g1155-envkey-steps.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Codex 提示缺少环境变量，多半出在自定义模型提供方的 env_key、MCP 服务器的 env_vars 或 shell_environment_policy 上。官方没有单独解释这条报错，本文按官方配置文档说明每个设置的作用和排查顺序。",
+      "content": "> 本文根据 Codex 官方配置文档（Advanced Configuration、配置参考、环境变量、Config basics）和 MCP 文档整理，资料核对于 2026-10-27。**官方没有单独解释「missing environment variable」这句报错**，本文说明官方配置里和环境变量有关的设置，帮你对号入座。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 `config.toml` 里配置了第三方或公司网关作为模型提供方，启动时提示缺少某个环境变量的人；\n- 配置了 MCP 服务器，提示缺少令牌或密钥的人；\n- 让 Codex 运行命令时，命令读不到自己设置的变量的人；\n- 在脚本或 CI 里跑 `codex exec` 的人。\n\n## 结论先说\n\n1. **报错点名了一个变量名，就去 `config.toml` 里找它。** 自定义模型提供方的密钥来自 `env_key`：官方写法是 `env_key = \"变量名\"`，Codex 会读取本机里这个名字的环境变量。**变量名是你自己在配置里决定的，Codex 没有固定的变量名**，所以要保证配置里写的名字和你设置的变量名完全一致。\n2. **变量要在启动 Codex 的那个环境里存在。** 在一个终端里设置的变量，通常只对那个终端和它启动的程序可见，用别的方式（比如从图标启动桌面 App、IDE）启动的 Codex 不一定能读到。这是环境变量的通用规则，不是 Codex 文档里的特别说明。\n3. **MCP 服务器的变量**用 `env_vars` 声明要转发的变量，令牌变量用 `bearer_token_env_var` 指定名字。\n4. **Codex 运行的命令读不到变量**，看 `shell_environment_policy`，它控制传给被启动命令的环境变量。\n5. **不要把令牌直接写进配置文件**：官方把 `experimental_bearer_token` 标为不推荐，应使用 `env_key`。\n\n![缺少环境变量：对照官方配置](seed:g1155-env-decide.png)\n*图：本站根据 [Codex 官方文档：配置参考](https://learn.chatgpt.com/docs/config-file/config-reference) 与 [环境变量](https://learn.chatgpt.com/docs/config-file/environment-variables) 整理的示意图*\n\n## 一、自定义模型提供方的 env_key\n\n官方认证文档和配置文档里的说法：在 `config.toml` 里定义了自定义模型提供方后，有三种认证方式：\n\n- `requires_openai_auth = true`：使用 OpenAI 的认证，之后用 ChatGPT 或 API 密钥登录，适合经过 LLM 代理访问 OpenAI 模型；\n- `env_key = \"变量名\"`：从本机该名字的环境变量里读取这个提供方的 API 密钥；\n- 两者都不设：Codex 认为提供方不需要认证，适合本地模型。\n\n官方的示例配置里，一个提供方写成这样：\n\n```toml\n[model_providers.mistral]\nname = \"Mistral\"\nbase_url = \"https://api.mistral.ai/v1\"\nenv_key = \"MISTRAL_API_KEY\"\n```\n\n意思是：Codex 向这个提供方发请求时，会去环境里找名为 `MISTRAL_API_KEY` 的变量，找不到就会提示缺少。官方环境变量文档也明确写了：提供方的密钥变量名是你用 `env_key` 自己选的，不是 Codex 固定读取的变量。配置参考里还有一个可选的 `env_key_instructions`，用来写这个密钥怎么获取的提示。\n\n![给自定义提供方设置密钥变量](seed:g1155-envkey-steps.png)\n*图：本站根据 [Codex 官方文档：Advanced Configuration](https://learn.chatgpt.com/docs/config-file/config-advanced) 整理的示意图*\n\n**不要混用认证方式**：官方配置参考写明，命令式认证（`auth` 表，用命令输出令牌）不要和 `env_key`、`experimental_bearer_token`、`requires_openai_auth` 同时使用。第三方模型怎么接入，见 [/guides/codex-third-party-models-deepseek-gemini-grok](/guides/codex-third-party-models-deepseek-gemini-grok) 和 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。\n\n## 二、MCP 服务器的环境变量\n\n官方 MCP 文档里，STDIO 类服务器的几个与环境有关的选项：\n\n- `env`：给服务器设置的环境变量；\n- `env_vars`：允许并转发给服务器的环境变量，可以写变量名，也可以写带来源的对象，官方示例：`env_vars = [\"LOCAL_TOKEN\", { name = \"REMOTE_TOKEN\", source = \"remote\" }]`；\n- HTTP 类服务器还有 `bearer_token_env_var`（放在 `Authorization` 里发送的令牌变量名）和 `env_http_headers`（请求头名到环境变量名的映射，值从环境里取）。\n\n提示缺少 MCP 用的变量时，对照你的 MCP 配置，看它引用了哪个变量名，再确认启动 Codex 的环境里有同名变量。MCP 的完整配置见 [/guides/codex-mcp-config](/guides/codex-mcp-config)。\n\n## 三、命令读不到变量：shell_environment_policy\n\n这是另一种「缺少变量」：Codex 在沙箱里运行命令时，命令里的程序读不到你以为存在的变量。官方说明，`shell_environment_policy` 控制 Codex 传给被启动命令的环境变量：\n\n- `inherit = \"none\"` 从空环境开始，`inherit = \"core\"` 继承一组精简的核心变量；\n- `set = { MY_FLAG = \"1\" }` 显式设置一些值；\n- `[shell_environment_policy.filters]` 用模式（支持 `*` 和 `?`，不区分大小写）排除或只包含某些变量，一旦任何一条用了 `include`，就只保留匹配包含规则的变量，已被排除的变量不会被 `include` 恢复；\n- `ignore_default_excludes` 默认是 `true`，也就是不自动过滤名字里含 `KEY`、`SECRET`、`TOKEN` 的变量，设成 `false` 才会启用这个自动过滤。\n\n所以命令读不到某个变量时：看你的配置里有没有 `inherit = \"none\"`、`include` 规则或排除规则把它挡掉了。官方还写明，旧的 `exclude` 和 `include_only` 数组不要和 `filters` 在同一层配置里同时使用，否则 Codex 会拒绝这种组合。配置文件的位置和优先级见官方 Config basics：命令行参数最高，其次是项目 `.codex/config.toml`（只有信任的项目才加载），再到用户的 `~/.codex/config.toml`。\n\n## 四、脚本、CI 和 CODEX_HOME\n\n官方环境变量文档列的几个：\n\n- `CODEX_API_KEY`：给 `codex exec` 这样的非交互进程提供 API 密钥。官方建议在运行仓库里的受控代码时，只在需要的那一行设置，而不是对整个作业设置；\n- `CODEX_ACCESS_TOKEN`：给受信任的自动化提供访问令牌，要持久登录用 `codex login --with-access-token`；\n- `CODEX_HOME`：Codex 状态的根目录（配置、登录、日志、会话、技能都在这里），默认 `~/.codex`。**如果你设置了它，这个目录必须已经存在**；\n- `RUST_LOG`：控制日志详细程度，排查时可以用，分享日志前注意清除密钥。\n\n## 五、还是不行\n\n- 先看 `~/.codex/config.toml` 里与报错相关的那一段，变量名逐字对照；\n- 在命令行里用 `/debug-config` 看配置层和生效情况；\n- 登录相关的问题见 [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect) 和 [/guides/codex-401-unauthorized-error](/guides/codex-401-unauthorized-error)。\n\n## 常见问题\n\n**Q：为什么 Windows 上设置了变量还是读不到？**\n官方文档没有给 Windows 下设置变量的专门说明。通用的原则是：变量要对启动 Codex 的进程可见。设置之后要重新启动 Codex，必要时重新打开终端。\n\n**Q：密钥写在 config.toml 里行不行？**\n官方把直接写令牌的 `experimental_bearer_token` 标为不推荐，应使用 `env_key`。`config.toml` 里不要放密钥，也不要提交到代码仓库。\n\n**Q：想用 DeepSeek 或别的第三方模型？**\n见 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。\n\n## 参考资料\n\n- Codex 官方文档：Advanced Configuration — https://learn.chatgpt.com/docs/config-file/config-advanced\n- Codex 官方文档：Configuration Reference — https://learn.chatgpt.com/docs/config-file/config-reference\n- Codex 官方文档：Environment variables — https://learn.chatgpt.com/docs/config-file/environment-variables\n- Codex 官方文档：Config basics — https://learn.chatgpt.com/docs/config-file/config-basic\n- Codex 官方文档：Model Context Protocol — https://learn.chatgpt.com/docs/extend/mcp",
+      "sources": [
+        "https://learn.chatgpt.com/docs/config-file/config-advanced",
+        "https://learn.chatgpt.com/docs/config-file/config-reference",
+        "https://learn.chatgpt.com/docs/config-file/environment-variables",
+        "https://learn.chatgpt.com/docs/config-file/config-basic",
+        "https://learn.chatgpt.com/docs/extend/mcp"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有单独解释「missing environment variable」这句报错，也没有给出它的统一原文，本文只说明官方配置里和环境变量有关的几个设置",
+        "官方没有给出各操作系统下设置环境变量的具体写法，本文不写 export、setx 等命令，只说明要在启动 Codex 的环境里设置同名变量",
+        "env_key、env_vars、bearer_token_env_var 等字段名来自官方配置文档当天的写法，之后版本可能调整"
+      ]
+    },
+    {
+      "title": "Codex 找不到 Computer Use 怎么办：插件在哪装、地区限制、macOS 权限与 Windows 前台运行说明",
+      "slug": "codex-computer-use-not-found",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1157-enable-steps.png",
+        "g1157-cu-decide.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "ChatGPT 桌面 App 的 Computer Use 能让 Codex 看屏幕、点鼠标、操作桌面应用，但官方写明它只在支持的地区可用，需要装 Computer Use 插件并开启开关。本文按官方文档讲插件在哪装、macOS 要给哪两个权限、Windows 为什么会占用前台，以及找不到时的排查。",
+      "content": "> 本文根据 Codex 官方文档《Computer Use》《Pricing》《Settings》《Remote connections》整理，资料核对于 2026-10-27。官方没有「找不到 Computer Use」的专门排查页，本文按它的设置流程和权限说明整理。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 ChatGPT 桌面 App 的 Plugins 里找不到 Computer Use 的人；\n- 装了插件，却发现 ChatGPT 看不到或点不了目标应用的人；\n- Windows 上用 Computer Use 时，鼠标被「抢走」，想知道怎么办的人；\n- 想知道 Computer Use 是什么、该不该开的人。\n\n## 结论先说\n\n1. **Computer Use 的官方说明写的是：在支持的地区，在 macOS 和 Windows 的 ChatGPT 桌面 App 里，配合 ChatGPT Work 和 Codex 使用。** 官方 Pricing 的功能可用性表把它标为各套餐「受限」，并加了脚注：功能目前只限特定地区。所在地区不在范围内，它就不会出现，这是官方的限制，不是你哪里设置错了。\n2. **在范围内的话，它是一个插件**：在 App 里选 ChatGPT 并切到 **Work**，或选 **Codex**；打开 **Plugins > Computer Use**，提示时点 **Install plugin**，显示 **Enable** 就点它；把 Computer Use 的服务（MCP server）和技能（skill）两个开关打开，再点 **Try now**。\n3. **macOS 要授权两项**：**屏幕录制**（让 ChatGPT 看到目标应用）和**辅助功能**（让它点击、输入、操作）。\n4. **Windows 上要让目标应用显示在当前活动桌面上。** Windows 上 Computer Use 在前台运行，不能在你继续使用同一个会话时在后台工作。\n5. **看不到、点不了某个应用**：先看系统权限，再看是不是批准了这个应用。\n\n![在桌面 App 里启用 Computer Use](seed:g1157-enable-steps.png)\n*图：本站根据 [Codex 官方文档：Computer Use](https://learn.chatgpt.com/docs/computer-use) 整理的示意图*\n\n## 一、Computer Use 是什么\n\n官方的描述：Computer Use 让 ChatGPT 能看到并操作 macOS 或 Windows 上的图形界面。适合命令行工具或结构化集成不够用的任务，比如检查桌面应用、使用浏览器、改应用设置、处理没有插件可用的数据源，或复现只在图形界面里出现的 bug。官方列的好用场景：测试 macOS 应用、Windows 应用、iOS 模拟器流程；做需要网页浏览器的任务；复现图形界面里的 bug；改需要点击界面的设置；查看没有插件可读的应用里的信息；在 macOS 上一边在后台跑一个限定的任务一边做别的；跑跨多个应用的流程。\n\n官方也提醒：因为它可能影响项目工作区之外的应用和系统状态，要用于**范围明确的任务**，继续之前认真看权限提示。如果应用有专门的插件或 MCP 服务器，数据访问和可重复的操作优先用这种结构化集成；需要视觉检查或操作应用时再用 Computer Use。你在本地开发网页应用，官方建议先用内置浏览器。\n\n## 二、找不到：先看是不是地区限制\n\n官方 Pricing 页的功能可用性表里，Computer Use 在 Plus、Pro、Business、Enterprise 和 API 登录下都标为「受限」，脚注写的是：该功能目前只限特定地区，具体地区限制见各个功能自己的文档。Computer Use 文档开头的写法是「In supported regions」，没有在页面里列出国家名单。所以：\n\n- 在 Plugins 里**根本没有** Computer Use：很可能就是还没对你所在的地区开放，或者账号、工作区设置没有开放，官方没有提供绕过的办法；\n- 工作区账号：管理员可以限制 Computer Use 能访问哪些应用、是否允许保存批准，也可以通过 `requirements.toml` 里的 `[features].computer_use = false` 把它整个关掉，问管理员；\n- 先把 ChatGPT 桌面 App 更新到最新版再看一次，更新方法见 [/guides/chatgpt-desktop-app-wont-open-update](/guides/chatgpt-desktop-app-wont-open-update)。\n\n![找不到或用不了 Computer Use](seed:g1157-cu-decide.png)\n*图：本站根据 [Codex 官方文档：Computer Use](https://learn.chatgpt.com/docs/computer-use) 整理的示意图*\n\n## 三、在 Plugins 里安装和启用\n\n官方步骤（本站转述）：\n\n1. 在 ChatGPT 桌面 App 里选择 ChatGPT 并在切换器里切到 **Work**，或者选 **Codex**；\n2. 打开 **Plugins > Computer Use**，如有提示，点 **Install plugin**；如果显示 **Enable**，点它；\n3. 打开 Computer Use 服务器和技能的开关，然后点 **Try now** 开始；\n4. 再打开 **Settings > Computer use** 查看应用访问。已连接的浏览器控制有一个 **Manage** 按钮；你批准给以后任务使用的应用会出现在 **Always-allowed apps** 里。\n\n启动一个任务：在提示里写 `@Computer` 或 `@应用名`，或直接让 ChatGPT 用 Computer Use，并说清楚要操作的应用、窗口或流程。官方示例：\n\n```text\nOpen @Chrome and verify the checkout page still works after the latest changes.\n```\n\n## 四、macOS 和 Windows 的权限\n\n### macOS\n\n官方写的：需要授予 **Screen Recording**（让 ChatGPT 看到目标应用）和 **Accessibility**（让它点击、输入、导航）。如果 ChatGPT 看不到或控制不了某个应用，打开 **System Settings > Privacy & Security**，检查 **Screen Recording** 和 **Accessibility** 里 **Codex Computer Use** 是否已开启。官方还提到 macOS 有「锁屏使用」（locked use）：需要在 **Settings > Computer Use** 里主动开启，之后在 Mac 锁屏后，已连接设备发起的 Computer Use 任务才能继续。它是有限制的设计，不是通用的远程解锁。\n\n### Windows\n\n官方写的：Windows 上 Computer Use 在**当前活动桌面**上运行，不能在你继续用同一个 Windows 会话时在后台工作，运行时它会移动指针、打字、占用前台。想在你离开时继续跑，要保持设备解锁并联网，可以用手机远程查看进度（见 [/guides/codex-remote-control-ssh-host](/guides/codex-remote-control-ssh-host)），或者在 Windows 虚拟机里运行 ChatGPT 桌面 App，让 Computer Use 接管虚拟机而不是你的主桌面。\n\nWindows 上常驻允许的应用保存在 `$CODEX_HOME/config.toml` 里。官方示例：\n\n```toml\n[computer_use.windows]\nalways_allowed_app_ids = [\"mspaint.exe\"]\n```\n\n要撤销某个已保存的决定，到 **Settings > Computer Use > Always allow** 里移除对应应用。\n\n## 五、应用批准：每次都要点确认？\n\n系统权限和 ChatGPT 里的应用批准是两件事。任务中 ChatGPT 在使用一个应用之前会征求你的许可，你可以选 **Always allow**，以后这个应用就不用再问。可以在设置的 Computer Use 部分把应用从常驻允许列表里移除。官方建议：只对你信任 ChatGPT 自动使用的应用选 **Always allow**；涉及账号、安全、隐私、网络、付款或凭据的设置，要自己在场；任务一旦开始操作错误的窗口就取消。官方还明确说：它不能自动化终端应用或 ChatGPT 本身，也不能以管理员身份认证或批准电脑上的安全与隐私权限提示。\n\n## 常见问题\n\n**Q：Computer Use 要付费吗？**\n官方 Pricing 页的功能可用性表里，各套餐都是「受限」，限制主要是地区。套餐本身的区别见 [/guides/chatgpt-work-vs-codex](/guides/chatgpt-work-vs-codex)；想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：图形界面任务不稳，选什么模型？**\n官方 Computer Use 文档建议：依赖截图或视觉判断的难任务，在模型选择器里有 GPT-6 Astra 时选它，插件设置、系统权限和应用访问控制仍然适用。模型可用性见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)。\n\n**Q：用它会不会泄露屏幕内容？**\n官方说：ChatGPT 能看到屏幕内容、截图，并和窗口、菜单、键盘输入、剪贴板状态交互，应把可见的应用内容、网页、截图和打开的文件都视为任务运行时可能被处理的上下文，ChatGPT 的数据控制设置适用于这些内容，包括 Computer Use 截的图。敏感应用不需要时先关掉。\n\n**Q：它改了文件，审查面板里没显示？**\n官方说：通过桌面应用做的更改，要保存到磁盘并被项目跟踪后才可能出现在审查面板里。\n\n## 参考资料\n\n- Codex 官方文档：Computer Use — https://learn.chatgpt.com/docs/computer-use\n- Codex 官方文档：Pricing（Feature availability）— https://learn.chatgpt.com/docs/pricing\n- Codex 官方文档：Settings — https://learn.chatgpt.com/docs/reference/settings\n- Codex 官方文档：Remote connections — https://learn.chatgpt.com/docs/remote-connections",
+      "sources": [
+        "https://learn.chatgpt.com/docs/computer-use",
+        "https://learn.chatgpt.com/docs/pricing",
+        "https://learn.chatgpt.com/docs/reference/settings",
+        "https://learn.chatgpt.com/docs/remote-connections"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方写明 Computer Use 在支持的地区可用，官方 Pricing 的功能可用性表把它标为各套餐「受限」并加了地区脚注，但没有在这两页里列出具体国家和地区，本文不猜测，以官方文档和你账号里是否显示为准",
+        "插件和设置的名称（Plugins、Computer Use、Install plugin、Enable、Try now、Always allow）来自官方文档当天的写法，实际界面以你的版本为准",
+        "官方没有写「找不到 Computer Use」的统一提示文字，本文按官方的设置流程和权限说明整理排查顺序"
+      ]
+    },
+    {
+      "title": "Codex 沙箱初始化失败怎么办（Windows）：沙箱设置失败、错误 1385、Everyone 可写警告与 MXC、elevated、unelevated 怎么选",
+      "slug": "codex-windows-sandbox-setup-failed",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1158-sandbox-decide.png",
+        "g1158-sandbox-compare.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Windows 上 Codex 沙箱设置失败、命令跑不起来、提示错误 1385 或 Everyone 可写？官方文档列了常见原因和处理，本文逐项整理，并说明 mxc、elevated、unelevated 三种实现的区别。",
+      "content": "> 本文根据 Codex 官方文档《Windows sandbox》《ChatGPT desktop app for Windows》《WSL》整理，资料核对于 2026-10-27。官方没有给出「沙箱初始化失败」的统一报错原文，本文按官方 Troubleshooting 里的几类情况来讲。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 Windows 上用 ChatGPT 桌面 App（Codex 模式）、Codex CLI 或 IDE 插件，沙箱设置过程失败，或设置完命令仍跑不起来的人；\n- 看到 Windows 错误 `1385`，或「某些文件夹 Everyone 可写」警告的人；\n- 在公司电脑上使用，设置被策略拦住的人；\n- 想弄懂 `mxc`、`elevated`、`unelevated` 区别的人。\n\nLinux 和 WSL2 里沙箱启动失败（缺少 bwrap、无法创建用户命名空间）的处理，见 [/guides/codex-permissions-sandbox](/guides/codex-permissions-sandbox)，本文只讲 Windows 原生沙箱。\n\n## 结论先说\n\n1. **先弄清楚自己用的是哪种沙箱。** 官方说 Codex 在 Windows 上有三种实现：`mxc`（在兼容的设备上推荐）、`elevated`（MXC 不可用时的首选后备，需要管理员批准的设置）、`unelevated`（更弱的后备）。\n2. **设置失败，最常见的原因官方列了五条**：管理员或 UAC 提示被拒绝；电脑不允许创建本地用户或组；不允许修改防火墙规则；系统阻止沙箱用户需要的登录权限；公司的其他策略拦住了设置流程。\n3. **个人电脑**：重新运行 `elevated` 沙箱设置，并批准管理员提示。\n4. **公司电脑**：把官方文档发给 IT，问清楚是否允许「创建本地用户和组、配置防火墙、授予沙箱用户登录权限」。\n5. **需要先继续工作**：如果管理策略允许，官方说可以临时用 `unelevated`，但它的隔离更弱。\n6. **要给官方反馈**：发 `CODEX_HOME/.sandbox/sandbox.log`，不要发 `CODEX_HOME/.sandbox-secrets/` 的内容。\n\n![Windows 沙箱出问题：对照官方排查](seed:g1158-sandbox-decide.png)\n*图：本站根据 [Codex 官方文档：Windows sandbox](https://learn.chatgpt.com/docs/windows/windows-sandbox) 整理的示意图*\n\n## 一、三种沙箱实现的区别\n\n官方的描述（本站转述）：\n\n- **mxc**：兼容 Windows 设备上推荐的沙箱。用原生进程隔离，不需要管理员批准的设置、额外的 Windows 账户或本地防火墙规则；\n- **elevated**：MXC 不可用或被禁用时的首选后备。需要管理员批准的设置，沙箱里的命令不以管理员权限运行；它使用专用的低权限沙箱用户、文件系统权限边界、防火墙规则和本地策略修改；\n- **unelevated**：elevated 设置不可用且组织策略允许时的后备。用你当前用户派生的受限令牌和基于 ACL 的文件系统边界；网络隔离比 elevated 弱，不支持「禁止读取路径」。\n\n官方的选择建议：设备和策略支持就用 MXC；否则优先 elevated，unelevated 作为次选。\n\n![Windows 三种沙箱实现怎么选](seed:g1158-sandbox-compare.png)\n*图：本站根据 [Codex 官方文档：Windows sandbox](https://learn.chatgpt.com/docs/windows/windows-sandbox) 整理的示意图*\n\n### MXC 要什么条件\n\n官方写明，桌面 App 会为个人账号在设备支持时自动优先使用 MXC；企业部署或单独使用命令行时，可以在 `config.toml` 里设置：\n\n```toml\n[features]\nprefer_mxc = true\n```\n\n设备需要已具备微软的「Microsoft Execution Containers（MXC）」能力，微软在 Windows 11 24H2（build 26100.9278）和 25H2（build 26200.9278）引入了 MXC 进程隔离。Codex CLI 0.162.0 及以上，官方给了一条不改变已保存沙箱选择的检测命令：\n\n```powershell\ncodex -c windows.sandbox=mxc sandbox --include-managed-config --permission-profile :workspace -- cmd.exe /d /c echo MXC_OK\n$LASTEXITCODE\n```\n\n期望输出是 `MXC_OK` 且退出码为 `0`。官方还提醒：显式选择 `windows.sandbox = \"mxc\"` 时，如果缺少必要的原生能力或被策略阻止，会失败。\n\n## 二、设置失败怎么办\n\n官方 Troubleshooting 里「My legacy sandbox setup failed」一节，列的常见原因：Windows 的 UAC 或管理员提示被拒绝；机器不允许创建本地用户或组；机器不允许修改防火墙规则；机器阻止沙箱用户需要的登录权限；其他企业策略拦住了设置流程。官方给的做法：\n\n1. 重新做一次 `elevated` 沙箱设置，环境允许的话批准管理员提示；\n2. 公司笔记本上被拦住，问 IT 是否允许管理员批准的设置（创建本地用户或组、配置防火墙、授予沙箱用户需要的登录权限）；\n3. 仍失败且管理策略允许，可以在问题排查期间用 `unelevated`。\n\nIT 部门可以在没有本地管理员权限的员工使用前，从提升权限的部署流程里预先配置 elevated 沙箱，官方给的命令是：\n\n```powershell\ncodex sandbox setup --elevated --user 'DOMAIN\\alice' --codex-home 'C:\\Users\\alice\\.codex'\n```\n\n这条命令是写给 IT 的，需要把身份和路径换成对应员工的，个人用户不用执行。\n\n## 三、其他几种常见提示\n\n### 提示「被切换到了 unelevated 沙箱」\n\n官方解释：`unelevated` 可能是配置里选的，也可能是 elevated 设置不可用时的后备。它仍然是沙箱模式，仍有基于 ACL 的文件系统边界，但没有独立的沙箱用户边界，网络隔离更弱。官方说这是有用的后备，不是企业长期的首选配置；受管的公司电脑先查 MXC 兼容性，不行再请 IT 配置 elevated。\n\n### Windows 错误 1385\n\n官方说明：沙箱里的命令报错 `1385`，是 Windows 拒绝了沙箱用户启动命令所需的登录类型。通常意味着 Codex 已经成功创建了沙箱用户，但 Windows 策略仍阻止这些用户启动命令。官方的处理：问 IT 设备策略是否给了 Codex 创建的沙箱用户需要的登录权限；如果只有部分机器或团队有问题，对比组策略或 OU 的差异；需要马上干活可以临时用 `unelevated`；并把 `CODEX_HOME/.sandbox/sandbox.log`、Windows 版本和问题描述发给官方。\n\n### 提示某些文件夹 Everyone 可写\n\n官方说明：Windows 权限对这些文件夹太宽，沙箱没法完整保护它们。处理：看警告里列出的文件夹；在你的环境合适的情况下，移除 `Everyone` 的写权限；然后重启 Codex 或重新运行沙箱设置。不确定怎么改权限的，请 IT 帮忙。\n\n### 沙箱里的命令连不上网\n\n官方说明：有些 Codex 对话是故意在没有外网访问的情况下运行的，取决于权限模式。先确认这次任务是不是本来就应该禁网；预期有网却没有，重启 Codex 再试；反复出现时收集沙箱日志给官方。权限模式怎么选见 [/guides/codex-permissions-sandbox](/guides/codex-permissions-sandbox)。\n\n### 以前正常，后来不行了\n\n官方列的触发情形：移动了仓库或工作区、改了机器权限、改了 Windows 策略等系统配置。官方的处理：重启 Codex；用 MXC 的话重新跑上面的兼容检测并检查有效的网络策略；用 legacy elevated 的话重新做沙箱设置；需要时临时用 `unelevated`；并收集日志。\n\n## 四、IDE 插件装好了没反应\n\n官方 Troubleshooting 还有一条：IDE 插件装好但没反应，可能是系统缺少 C++ 开发工具（Visual Studio Build Tools 的 C++ 工作负载、Microsoft Visual C++ Redistributable x64）。官方给的 winget 命令是 `winget install --id Microsoft.VisualStudio.2022.BuildTools -e`，装完要**完全重启 VS Code**。\n\n## 五、不想用原生沙箱：用 WSL2\n\n官方说，需要 Linux 原生工具链、工作流本来就在 WSL2 里，或原生 Windows 的实现满足不了需求时，可以选 WSL2。在桌面 App 里打开设置，把代理从 Windows 原生切到 WSL，并**重启应用**才生效。WSL1 只支持到 Codex 0.114，从 0.115 起 Linux 沙箱改用 bubblewrap，不再支持 WSL1。Windows 版 App 的下载和安装见 [/guides/codex-windows-app-download-install](/guides/codex-windows-app-download-install)。\n\n## 六、反馈时带什么\n\n官方列的：`CODEX_HOME/.sandbox/sandbox.log`；一句话说明你想做什么；选的是 `mxc`、`elevated` 还是 `unelevated`；App 里显示的错误信息；是否看到 `1385` 或其他 Windows、PowerShell 错误；Windows 的 build 号；是 Windows 11 还是 Windows 10。**不要发**的是 `CODEX_HOME/.sandbox-secrets/` 里的内容。\n\n## 常见问题\n\n**Q：我用的是 Windows 10，行吗？**\n官方的版本表写的是：Windows 11 是推荐；「最新且完全更新的 Windows 10」是尽力而为，实际需要 1809 或更新版本；更老的 Windows 10 不推荐。MXC 另需对应的原生能力，这张表不能说明某台设备是否支持。\n\n**Q：不开沙箱，直接全权限运行行不行？**\n官方明确警告：完全访问模式下 Codex 不限于项目目录，可能做出非预期的破坏性操作导致数据丢失。官方建议保留沙箱边界，用规则做有针对性的例外，见 [/guides/codex-permissions-sandbox](/guides/codex-permissions-sandbox)。\n\n**Q：PowerShell 提示「running scripts is disabled on this system」？**\n这是 PowerShell 执行策略问题，不是沙箱。官方在 Windows 应用文档里写了，常见做法是把执行策略设成 `RemoteSigned`，修改前先看微软的执行策略说明。\n\n**Q：用到 Codex 需要什么套餐？**\nCodex 包含在 ChatGPT 各套餐里，额度不同，见 [/guides/codex-usage-limits](/guides/codex-usage-limits)；想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- Codex 官方文档：Windows sandbox — https://learn.chatgpt.com/docs/windows/windows-sandbox\n- Codex 官方文档：ChatGPT desktop app for Windows — https://learn.chatgpt.com/docs/windows/windows-app\n- Codex 官方文档：WSL — https://learn.chatgpt.com/docs/windows/wsl\n- Codex 官方文档：Agent approvals and security — https://learn.chatgpt.com/docs/agent-approvals-security",
+      "sources": [
+        "https://learn.chatgpt.com/docs/windows/windows-sandbox",
+        "https://learn.chatgpt.com/docs/windows/windows-app",
+        "https://learn.chatgpt.com/docs/windows/wsl",
+        "https://learn.chatgpt.com/docs/agent-approvals-security"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有给出「沙箱初始化失败」这句中文提示的原文，本文用官方 Troubleshooting 一节里的标题和原因来对应，界面上实际显示的文字以你的版本为准",
+        "MXC 需要的 Windows 版本号（24H2 build 26100.9278、25H2 build 26200.9278）和检测命令（要求 Codex CLI 0.162.0 及以上）来自官方文档当天的写法，之后会随更新变化",
+        "官方说桌面 App 会为个人账号在设备支持时自动优先使用 MXC，没有写个人用户如何手动切换，企业和命令行的配置项见正文"
+      ]
+    },
+    {
+      "title": "Codex 远程控制授权失败怎么办、远程 SSH 怎么用：手机配对电脑、Remote Control、连接 SSH 主机的官方步骤",
+      "slug": "codex-remote-control-ssh-host",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1159-mobile-pair-steps.png",
+        "g1159-remote-decide.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "用手机远程控制电脑上的 Codex，配对不成功或授权失败？官方 Remote connections 文档写了配对步骤和五类常见问题，也讲了怎么把桌面 App 连到 SSH 主机、怎么在主机之间交接对话。本文按官方文档整理，并给出一张排查对照图。",
+      "content": "> 本文根据 Codex 官方文档《Remote connections》《Codex on mobile》整理，资料核对于 2026-10-27。**官方没有统一的「授权失败」提示原文**，本文按官方文档里的配对流程和 Troubleshooting 来讲。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 想用手机查看、批准、继续电脑上的 Codex 任务，配对或授权失败的人；\n- 开了远程控制，手机上却看不到电脑，或批准请求不出现的人；\n- 想让桌面 App 连到远程服务器（SSH 主机）上跑 Codex 的人；\n- 想把一个对话在本机和远程主机之间交接的人。\n\n## 结论先说\n\n1. **远程访问的主机必须是运行 ChatGPT 桌面 App 的 Mac 或 Windows 电脑**，并且醒着、联网、登录着同一个 ChatGPT 账号和工作区。官方说明，手机配对必须从桌面 App 里发起，**不能从 Codex CLI 或 IDE 插件设置**。\n2. **配对流程**：电脑端 **Settings > Connections > Control this Mac or PC**，点 **Set up** 或 **Add**，批准远程访问并完成验证 → 手机扫码 → 在 ChatGPT 里确认账号和工作区并完成多重验证、SSO 或通行密钥。\n3. **授权失败或被验证拦住**：先把验证流程走完；用的是工作区账号，要请管理员确认已经开启 **Remote Control** 权限。\n4. **手机上没看到电脑**：确认电脑上 App 在运行、已开 **Allow other devices to connect**、两边账号和工作区相同。\n5. **官方写明 2026 年 6 月 8 日之后没有用过的旧连接需要更新两边 App 并重新配对。**\n6. **连 SSH 主机**是另一回事：在桌面 App 的 **Settings > Connections** 里添加 SSH 主机，主机要事先装好并登录 Codex。\n\n![手机远程控制电脑上的 Codex：4 步](seed:g1159-mobile-pair-steps.png)\n*图：本站根据 [Codex 官方文档：Remote connections](https://learn.chatgpt.com/docs/remote-connections) 整理的示意图*\n\n## 一、配对前要准备什么\n\n官方列的条件（本站转述）：\n\n- 你的 ChatGPT 账号和工作区有 Codex 访问权限；\n- 手机上是最新版 ChatGPT App（iOS 或 Android）。如果在 iOS 上没看到 **Codex**，或旧版里没看到 **Remote**，先更新 ChatGPT；\n- 电脑上是最新版 ChatGPT 桌面 App（macOS 或 Windows），保持唤醒、联网，且登录同一个账号和工作区；\n- 该账号或工作区要求的多重验证、SSO 或通行密钥配置；\n- 用的是 ChatGPT 工作区的话，管理员可能需要先开启 Remote Control 权限。\n\n官方强调：远程访问用的是**被控电脑上的**项目、对话、文件、凭据、权限、插件、Computer Use、浏览器设置和本地工具。手机只是发提示词、批准操作、发后续消息。\n\n## 二、配对步骤\n\n官方的四步（本站转述）：\n\n1. **在电脑上开始**：打开主机上的 ChatGPT 桌面 App，进入 **Settings > Connections > Control this Mac or PC**，点 **Set up** 或 **Add**，批准远程访问，并完成要求的验证；\n2. **扫码**：用手机扫描 App 里显示的二维码，它会打开 ChatGPT 让你完成连接；\n3. **在 ChatGPT 里完成**：确认同一个账号和工作区，完成多重验证、SSO 或通行密钥；成功后，这台电脑会出现在 iOS 的 **Codex**（旧版显示 **Remote**）里；\n4. **检查主机设置**：在电脑 App 的 **Settings > Connections** 管理已连接设备，还能选择是否让电脑保持唤醒、启用 Computer Use、安装 Chrome 扩展。\n\n二维码把**一部手机和一台主机**配对。要控制多台主机，每台都要各配一次。\n\n## 三、连不上、授权失败，对照官方 Troubleshooting\n\n![远程控制连不上：对照官方排查](seed:g1159-remote-decide.png)\n*图：本站根据 [Codex 官方文档：Remote connections](https://learn.chatgpt.com/docs/remote-connections) 整理的示意图*\n\n官方列了五种情况：\n\n- **手机上看不到主机**：确认主机上的桌面 App 正在运行、已开启 **Allow other devices to connect**，两台设备用同一个 ChatGPT 账号和工作区。如果你从 2026 年 6 月 8 日起没用过这个连接，要更新两个 App 并重新配对；\n- **重新登录后 Remote Control 是关的**：退出 ChatGPT 会关闭 **Remote Control**，但**不会删除**已有的设备配对。重新登录后，打开 **Remote Control** 就能恢复之前的连接状态。如果打开后点 **Add** 报错，重启主机上的 ChatGPT 桌面 App 再试；\n- **批准请求没出现**：在 iOS 上打开 **Codex**（旧版是 **Remote**），确认手机和主机账号、工作区一致，重新扫码，或从主机重新开始设置。用工作区的话，请管理员确认已开启 Remote Control；\n- **远程会话断开**：看主机是不是睡眠了、断网了或关了 App，让它保持唤醒并联网；\n- **验证拦住设置**：把设置过程中弹出的账号或工作区验证走完；组织要求 SSO、多重验证或通行密钥的，先完成。仍失败，请工作区管理员确认已开启 Remote Control。\n\n## 四、电脑休眠怎么办\n\n官方说：电脑睡眠、断网或关闭 App，远程访问就会停止，直到恢复。官方的建议是接通电源并在主机连接设置里选择保持唤醒（如可用）。Mac 笔记本在合盖时需要外接显示器才能保持可用，选择 **Sleep** 仍会停止远程访问。Windows 主机上，如果任务用到 Computer Use，要保持会话解锁，因为 Computer Use 在 Windows 上是在前台运行的，见 [/guides/codex-computer-use-not-found](/guides/codex-computer-use-not-found)。\n\n## 五、连接 SSH 主机\n\n这是另一个功能：在桌面 App 里添加 SSH 主机上的远程项目，对话在远程文件系统和 shell 里运行。官方步骤：\n\n1. 把主机写进 SSH 配置，让 Codex 能自动发现。官方的示例：\n\n```text\nHost devbox\n  HostName devbox.example.com\n  User you\n  IdentityFile ~/.ssh/id_ed25519\n```\n\nCodex 会读取 `~/.ssh/config` 里具体的主机别名，用 OpenSSH 解析，忽略只有通配模式的主机。\n\n2. 先在运行 App 的这台机器上确认 `ssh devbox` 能连上；\n3. 在远程主机上**安装并登录 Codex**。App 会通过 SSH、用远程用户的登录 shell 启动远程 Codex app server，所以 `codex` 命令必须在那个 shell 的 `PATH` 里；\n4. 在 App 的 **Settings > Connections** 里添加或启用这台 SSH 主机，再选一个远程项目文件夹。\n\n安全方面官方的要求：保持和日常 SSH 一样的安全预期（可信密钥、最小权限账号、没有无需认证的公网监听）；不要把 app-server 的传输端口直接暴露在共享或公共网络上；要在当前网络之外访问远程机器，用 VPN 或组网工具，而不是把它直接暴露到互联网。\n\n### 在主机之间交接对话（Handoff）\n\n交接会把一个已有的对话及其 Git 状态在本机和已连接的远程主机之间移动。前提：目标主机已连接，并且在目标主机上保存了同一个 Git 仓库的项目（项目是子目录的话，两边要保存同一子目录）。步骤：在 App 里打开对话，在对话底部选当前运行位置，再选目标主机（从远程交接回本机选 **This computer**），确认目标和分支后点 **Hand off**。官方说明：对话正在运行时，交接会中断当前回答；不能交接发出请求的这个对话本身；不支持交接到 Codex 云端环境。\n\n## 常见问题\n\n**Q：Android 和 iOS 都能用吗？**\n官方写的是可以从 iOS 或 Android 上的 ChatGPT 控制主机，具体可用范围随推出批次变化。在 iOS 上入口是 **Codex**，旧版是 **Remote**。\n\n**Q：手机能做什么？**\n官方列的：在主机上的项目里新建或继续对话、发后续指令、批准命令和其他操作、查看输出、改动、测试结果、终端输出和截图、完成时收到通知、在已连接主机之间切换。更详细的手机端说明见官方《Codex on mobile》。\n\n**Q：这和 Work 的「本地电脑访问」是一回事吗？**\n不是。官方文档把「Local computer access with Work Cloud」单独写了：它适用于启用后新建的任务，已有任务保持原来的模式。Work 和 Codex 的区别见 [/guides/chatgpt-work-vs-codex](/guides/chatgpt-work-vs-codex)。\n\n**Q：必须付费吗？**\n官方 Pricing 页写明 Work 和 Codex 包含在各 ChatGPT 套餐里，是否有远程功能取决于推出范围和工作区设置。想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，额度见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n**Q：登录有问题？**\n见 [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect)。\n\n## 参考资料\n\n- Codex 官方文档：Remote connections — https://learn.chatgpt.com/docs/remote-connections\n- Codex 官方文档：Codex on mobile — https://learn.chatgpt.com/docs/mobile\n- Codex 官方文档：Authentication — https://learn.chatgpt.com/docs/auth",
+      "sources": [
+        "https://learn.chatgpt.com/docs/remote-connections",
+        "https://learn.chatgpt.com/docs/mobile",
+        "https://learn.chatgpt.com/docs/auth"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有给出「授权失败」这句提示的统一原文，本文按官方 Troubleshooting 里的五种情况整理",
+        "远程访问目前只支持运行在 macOS 和 Windows 上的 ChatGPT 桌面 App 主机，可用范围会随推出批次变化，以官方文档和你账号里实际显示的为准",
+        "界面名称（Control this Mac or PC、Allow other devices to connect、Codex 或 Remote）来自官方文档当天的写法，实际界面以你的版本为准",
+        "官方写明 2026 年 6 月 8 日之后没有用过的旧连接需要重新配对"
+      ]
+    },
+    {
       "title": "ChatGPT 定时任务怎么设置：每天自动提醒、汇总、监控变化与事件触发",
       "slug": "chatgpt-scheduled-tasks",
       "checkedOn": "2026-10-07",
@@ -64157,6 +64385,34 @@
       "verify": [
         "帮助文章里连接应用的入口有的写「Settings > Apps」，有的写「Settings > Plugins」，以实际界面为准",
         "桌面 App 是否显示「Scheduled」页面取决于版本，官方建议看不到时用网页版"
+      ]
+    },
+    {
+      "title": "Codex Windows 版怎么下载安装：ChatGPT 桌面 App 官方入口、winget 命令、开发工具与 WSL 设置",
+      "slug": "codex-windows-app-download-install",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1166-install-steps.png",
+        "g1166-dev-tools-check.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Windows 上的 Codex 现在是 ChatGPT 桌面 App 里的一个入口。官方给了微软商店下载地址和 winget 安装命令，原生用 PowerShell 加 Windows 沙箱，也可切到 WSL2。本文按官方文档讲安装、登录、建议装的开发工具、管理员运行和常见小问题。",
+      "content": "> 本文根据 Codex 官方文档《ChatGPT desktop app for Windows》《Quickstart》《Windows sandbox》整理，资料核对于 2026-10-27。官方文档里，Windows 上的 Codex 是 **ChatGPT 桌面 App** 的一部分，不是单独的另一个安装包。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 想在 Windows 电脑上装 Codex 桌面 App 的人；\n- 搜「Codex Windows 下载」，不知道官方入口在哪的人；\n- 装好了，不知道还要准备什么工具的人；\n- 想知道 Windows 上是原生运行还是要装 WSL 的人。\n\n## 结论先说\n\n1. **官方入口是 ChatGPT 桌面 App。** 官方 Windows 应用文档给了一个微软商店的下载链接，也给了命令行安装方式：`winget install --id 9PLM9XGG6VKS -s msstore`。\n2. **装好后用 ChatGPT 账号登录**，在新对话里从 ChatGPT 下拉菜单选 **Codex**（做软件开发），或切到 **Work**（做研究、文档、表格等）。\n3. **Windows 上默认原生运行**：代理用 PowerShell 执行命令，并使用 Windows 沙箱；需要 Linux 工具链的话，可以在设置里把代理切换到 WSL2。\n4. **建议同时装 Git。** 官方说没有原生 Windows 的 Git，App 的一些功能用不了，审查面板也靠 Git。\n5. 要让 Codex 用管理员权限执行命令，需要**把 App 本身以管理员身份启动**。\n\n![Windows 上安装并开始用 Codex](seed:g1166-install-steps.png)\n*图：本站根据 [Codex 官方文档：ChatGPT desktop app for Windows](https://learn.chatgpt.com/docs/windows/windows-app) 与 [Quickstart](https://learn.chatgpt.com/docs/quickstart) 整理的示意图*\n\n## 一、下载和安装\n\n官方给了两种方式：\n\n- **下载链接**：Windows 应用文档里的下载入口指向微软商店的安装器（地址形如 `get.microsoft.com/installer/download/9PLM9XGG6VKS`）。点文档里的链接进入，不要从来路不明的网站下载安装包；\n- **命令行**：在 PowerShell 里运行官方给的命令：\n\n```powershell\nwinget install --id 9PLM9XGG6VKS -s msstore\n```\n\n企业需要批量部署和更新的，官方另有《Deploy the Windows app and Codex CLI》文档，支持用 Intune、SCCM 等方式，个人用户不用看。\n\n官方的系统环境说明（来自 Windows 沙箱文档）：Windows 11 是推荐的基线；最新且完全更新的 Windows 10 是尽力而为，实际需要 1809 或更新版本；更老的 Windows 10 不推荐。另外 `winget` 需要可用，缺失时更新 Windows 或安装 Windows 程序包管理器。\n\n## 二、第一次打开：登录并发第一条消息\n\n官方 Quickstart 的桌面端步骤：\n\n1. 安装 ChatGPT 桌面 App；\n2. 打开 App，用 ChatGPT 账号登录。也可以用 API 密钥使用 Codex，但部分功能可能不可用，具体看官方的功能可用性表；\n3. 选择 ChatGPT 工作的位置：开始一个对话、创建项目，或者打开一个文件夹。ChatGPT 可以读取并修改你选的文件夹里的文件；\n4. 开始对话：做软件开发、需要代码库上下文和开发者工具的，在 ChatGPT 下拉菜单里选 **Codex**；做研究、分析或文档、演示文稿、表格等成果的，选 **ChatGPT**，再在新对话页顶部切到 **Work**；\n5. 发第一条消息，说明目标，补充需要的文件或上下文。\n\n登录遇到问题见 [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect)；Work 和 Codex 有什么区别见 [/guides/chatgpt-work-vs-codex](/guides/chatgpt-work-vs-codex)。想用 Codex 又没有付费套餐的，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，各套餐额度见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n## 三、建议准备的开发工具\n\n官方说 Codex 在已装了几种常见开发工具时效果最好：\n\n- **Git**：驱动 App 里的审查面板，让你查看或撤销改动；\n- **Node.js**、**Python**：代理做事常用；\n- **.NET SDK**：想构建 Windows 原生应用时有用；\n- **GitHub CLI**：驱动 App 里与 GitHub 相关的功能。\n\n官方给了一组 winget 命令，可以粘到 App 的集成终端里，也可以让 Codex 自己装：\n\n```powershell\nwinget install --id Git.Git\nwinget install --id OpenJS.NodeJS.LTS\nwinget install --id Python.Python.3.14\nwinget install --id Microsoft.DotNet.SDK.10\nwinget install --id GitHub.cli\n```\n\n装好 GitHub CLI 后，运行 `gh auth login` 才能启用 App 里的 GitHub 功能。需要别的 Python 或 .NET 版本，把包 ID 换成对应版本即可。\n\n![装好后建议准备的开发工具](seed:g1166-dev-tools-check.png)\n*图：本站根据 [Codex 官方文档：ChatGPT desktop app for Windows](https://learn.chatgpt.com/docs/windows/windows-app) 整理的示意图*\n\n## 四、原生运行还是 WSL\n\n官方说明：默认使用 Windows 原生的 Codex 代理，也就是在 PowerShell 里执行命令，并用 [Windows 沙箱](/guides/codex-windows-sandbox-setup-failed)。App 仍然可以通过 `wsl` 命令处理放在 WSL2 里的项目。\n\n- **想添加放在 WSL 里的项目**：点 **Add new project** 或按 `Ctrl+O`，在文件资源管理器里输入 `\\\\wsl$\\`，选发行版和文件夹；\n- **继续用原生代理的话**，官方建议把项目放在 Windows 文件系统里，在 WSL 里通过 `/mnt/<盘符>/...` 访问，比直接打开 WSL 文件系统里的项目更可靠；\n- **想让代理本身跑在 WSL2 里**：打开 **Settings**，把代理从 Windows native 切换到 WSL，并**重启 App**，重启后才生效，项目会保留；\n- 沙箱的实施方式在 Windows 和 WSL 里不同；要应用沙箱保护，在发消息前选择输入框下方的 **Ask for approval**。\n\n集成终端可以单独选择（PowerShell、命令提示符、Git Bash、WSL），只对新终端会话生效，已经打开的终端要重启 App 或新开对话。\n\n## 五、几个官方列的小问题\n\n- **需要管理员权限的命令**：从开始菜单找到 App，选择 **Run as administrator**，Codex 代理会继承这个权限级别；\n- **PowerShell 执行策略阻止命令**：你从没在 PowerShell 里用过 Node.js、`npm` 的话，可能遇到类似 `npm.ps1 cannot be loaded because running scripts is disabled on this system.` 的错误。官方说常见做法是 `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned`，修改前先看微软的执行策略说明；\n- **Git 功能不可用**：没有在 Windows 上原生安装 Git，运行 `winget install Git.Git`；\n- **从 `\\\\wsl$` 打开的项目检测不到 Git**：目前最可靠的办法是把项目放在原生 Windows 盘，再从 WSL 里用 `/mnt/<盘符>/...` 访问；\n- **和 WSL 里的 CLI 共享配置和登录**：Windows App 用 `%USERPROFILE%\\.codex`，WSL 里的 CLI 默认用 Linux 主目录，不共享。办法是同步两个目录，或在 WSL 里设 `export CODEX_HOME=/mnt/c/Users/<windows-user>/.codex`；\n- **沙箱设置失败、错误 1385**：见 [/guides/codex-windows-sandbox-setup-failed](/guides/codex-windows-sandbox-setup-failed)。\n\n## 常见问题\n\n**Q：我只想用命令行，不想装桌面 App？**\nCodex CLI 有单独的安装方式，见 [/guides/codex-cli-install-update](/guides/codex-cli-install-update)；入门总览见 [/guides/codex-getting-started](/guides/codex-getting-started)。\n\n**Q：App 打不开或更新失败？**\nChatGPT 桌面 App 的更新问题见 [/guides/chatgpt-desktop-app-wont-open-update](/guides/chatgpt-desktop-app-wont-open-update)。\n\n**Q：必须付费吗？**\n官方 Pricing 页写明 ChatGPT Work 和 Codex 包含在 Free、Go、Plus、Pro、Business、Edu 或 Enterprise 套餐里，额度不同，以官方页面为准。\n\n**Q：Windows 版有 Linux 版吗？**\n官方文档里另有 Linux 桌面 App 页面，面向 Ubuntu、Debian、Fedora 和 Arch Linux，本文不展开。\n\n## 参考资料\n\n- Codex 官方文档：ChatGPT desktop app for Windows — https://learn.chatgpt.com/docs/windows/windows-app\n- Codex 官方文档：Quickstart — https://learn.chatgpt.com/docs/quickstart\n- Codex 官方文档：Windows sandbox — https://learn.chatgpt.com/docs/windows/windows-sandbox\n- Codex 官方文档：Deploy the Windows app and Codex CLI — https://learn.chatgpt.com/docs/enterprise/windows-deployment",
+      "sources": [
+        "https://learn.chatgpt.com/docs/windows/windows-app",
+        "https://learn.chatgpt.com/docs/quickstart",
+        "https://learn.chatgpt.com/docs/windows/windows-sandbox",
+        "https://learn.chatgpt.com/docs/enterprise/windows-deployment"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档里 Windows 版 Codex 的入口写作 ChatGPT 桌面 App，没有再单列一个叫 Codex App 的独立安装包，本文按官方现状写",
+        "winget 的包 ID 9PLM9XGG6VKS 和下载链接来自官方文档当天的写法，之后可能变化，以官方页面为准",
+        "官方开发工具示例里的 Python 3.14、.NET SDK 10 是示例版本号，实际可换成你需要的版本"
       ]
     },
     {
@@ -64186,6 +64442,63 @@
         "退役日期：FAQ 写所有套餐标准退役日为 2026-12-11（获批延期的 Enterprise 为 2027-02-11）；GPTs 总览文章写「Enterprise 计划 12-11，其他套餐预计跟随同一时间表」，上线前看是否有更新",
         "迁移入口按钮「Migrate to plugin」的中文名称以实际界面为准",
         "价格页 Plus 一栏仍写包含「custom GPTs」，与「个人账号不能新建 GPT」的说法不一致"
+      ]
+    },
+    {
+      "title": "Codex 插件在哪装：桌面 App 的 Plugins 标签、CLI 的 /plugins、IDE 为什么没有，以及插件和技能、MCP 的区别",
+      "slug": "codex-plugins-where-to-install",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1172-install-steps.png",
+        "g1172-surfaces-compare.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex 的插件在 ChatGPT 桌面 App 的 Plugins 标签里装，命令行输入 /plugins，IDE 插件不支持。本文按官方文档讲各入口怎么装、装完怎么用、用 API 密钥登录时有什么限制，以及插件、技能、MCP 服务器的区别。",
+      "content": "> 本文根据 Codex 官方文档《Plugins》《Skills & Plugins》《Build skills》《Authentication》整理，资料核对于 2026-10-27。插件目录的内容会随更新变化，本文只讲装在哪、怎么用。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 想给 Codex 装插件，找不到入口的人；\n- 在 IDE 插件里找不到 Plugins 的人；\n- 搞不清插件、技能（Skills）、MCP 服务器有什么区别的人；\n- 用 API 密钥登录，想知道能不能装插件的人。\n\n## 结论先说\n\n1. **桌面 App**：打开 **Plugins** 标签，搜索或浏览，点进详情，点加号安装；安装后在新对话里就能用。\n2. **命令行（Codex CLI）**：在会话里输入 `/plugins` 打开插件浏览器，从已配置的市场里装；**装完要新开一个会话**才能用它带的技能或工具。\n3. **IDE 插件不支持插件**：官方明确写了，要在桌面 App 或 CLI 里浏览和安装。\n4. 插件**不是单独的东西**：它是一个可安装的包，里面可以有技能、MCP 服务器、浏览器扩展和钩子。\n5. ChatGPT 和 Codex **共用同一个插件目录**，所以网页版和桌面版里能看到同样的公共插件。\n\n![在 ChatGPT 桌面 App 里安装插件](seed:g1172-install-steps.png)\n*图：本站根据 [Codex 官方文档：Plugins](https://learn.chatgpt.com/docs/plugins) 整理的示意图*\n\n## 一、各入口的支持情况\n\n![各入口对插件的支持](seed:g1172-surfaces-compare.png)\n*图：本站根据 [Codex 官方文档：Plugins](https://learn.chatgpt.com/docs/plugins) 整理的示意图*\n\n补充几点官方说明：\n\n- 插件在 **Chat 和 Work** 里通用（ChatGPT 网页、桌面、手机），也在桌面 App 里的 **Codex** 里使用；\n- 标了 **Desktop only**（仅桌面）的插件需要 ChatGPT 桌面 App，在网页上可以浏览，但要打开桌面 App 才能安装和使用，**手机上用不了**；\n- 工作区管理员可以导入并同步一个 GitHub 市场，给团队使用，另有插件管控，个人用户不用管。\n\n## 二、桌面 App 里怎么装\n\n官方的步骤（本站转述）：\n\n1. 在 **Plugins** 标签里搜索或浏览插件，打开详情；\n2. 点加号安装；\n3. 如果插件需要连接 MCP 服务器，按提示连接。有的插件在安装时就要求登录，有的等到第一次使用时才要求；\n4. 安装后**新开一个对话**，让 ChatGPT 或 Codex 使用这个插件。\n\n目录里的标签：**OpenAI**（OpenAI 出品的插件）、**你的工作区名**（工作区提供的）、**Personal**（个人市场，含「Created by me」「Shared with me」），另有单独的 **Installed** 一栏看已装的。\n\n### 怎么用\n\n- **直接描述要做的事**：比如「总结今天未读的 Gmail 邮件」「从 Google Drive 找最新的发布说明」，让 ChatGPT 自己选合适的已装工具；\n- **指定某个插件**：输入 `@` 调用插件或它自带的技能，适合你想明确用哪个的时候。官方说明在 ChatGPT 里技能用 `@`，在 Codex 里用 `$`，见 [/guides/codex-skills-how-to-use-install](/guides/codex-skills-how-to-use-install)。\n\n官方文档点名的一个例子：Apple Messages 插件，在 macOS 的 ChatGPT 桌面 App 里提供，可以读取和搜索本机的 iMessage、短信和 RCS，并通过「信息」App 代你发送；默认只在你批准消息及收件人后才发，当前版本只包含在 Apple Silicon 构建里。\n\n## 三、命令行里怎么装\n\n在 Codex CLI 里输入 `/plugins` 打开插件浏览器。官方说它用于浏览已装和可发现的插件、查看插件的工具、安装建议的插件、管理插件的可用性。装好后要**新开会话**才能使用它的技能和工具。命令参考里 `/plugins` 的说明是「Browse installed and discoverable plugins」。\n\n## 四、插件、技能、MCP 有什么区别\n\n官方《Skills & Plugins》的区分：\n\n| 概念 | 官方说法 |\n| --- | --- |\n| 技能（Skill） | 为某类任务打包的指令和辅助资源，Codex 可在需要时加载 |\n| MCP 服务器 | 把 ChatGPT 和 Codex 连到 GitHub、Slack、Google Drive 等系统的服务，定义工具、负责认证、返回结构化数据 |\n| 插件（Plugin） | 可安装的包，可以包含技能、MCP 服务器、浏览器扩展和生命周期钩子 |\n\n官方的选择建议：只需要一个聚焦任务的可复用指令，用**技能**；想要一个可安装的、能把指令和外部服务组合起来的包，用**插件**。手动配 MCP 见 [/guides/codex-mcp-config](/guides/codex-mcp-config)。钩子（Hooks）是在 Codex 生命周期的指定时刻运行的命令，官方提醒：钩子脚本要在执行环境里存在，在网页上安装插件不会部署这些脚本，并且要先审阅并信任插件钩子再运行。\n\n## 五、用 API 密钥登录时\n\n官方说：用 OpenAI API 密钥登录 Codex，可以在 Codex CLI 和桌面 App 的 Codex 里浏览、安装和管理受支持的 OpenAI 官方精选插件；但**有些插件在 API 密钥登录下不可用**，因为它们的连接流程需要不被支持的 OAuth 能力。用量到 OpenAI 平台的用量页面查看。登录方式的区别见 [/guides/codex-401-unauthorized-error](/guides/codex-401-unauthorized-error)。\n\n## 六、找不到插件怎么办\n\n- 在 IDE 插件里找不到：这是官方设计，IDE 不支持插件，换到桌面 App 或 CLI；\n- 桌面 App 里没有 Plugins 标签：先把 App 更新到最新版，工作区账号还要问管理员是否开放了插件；\n- 装好了没出现在对话里：新开一个对话或新会话，插件带来的技能和工具对新对话生效；\n- 想自己做插件：见官方 Build plugins 文档；站内入门见 [/guides/chatgpt-plugins-connected-apps](/guides/chatgpt-plugins-connected-apps)。\n\n## 常见问题\n\n**Q：插件要付费吗？**\n官方文档没有给插件统一的价格，不同插件连接的外部服务可能有各自的账号要求。Codex 本身包含在 ChatGPT 各套餐里，额度见 [/guides/codex-usage-limits](/guides/codex-usage-limits)，想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：Codex 的技能去哪找？**\n官方说本地技能放在仓库、用户、管理员和系统几类位置，也可以用 `$skill-installer` 安装精选技能，见 [/guides/codex-skills-how-to-use-install](/guides/codex-skills-how-to-use-install)。\n\n**Q：插件会读我的数据吗？**\n官方说插件连接外部服务时，会让你登录并审阅它请求的权限，批准是一个单独的步骤。用之前先读权限提示。\n\n## 参考资料\n\n- Codex 官方文档：Plugins — https://learn.chatgpt.com/docs/plugins\n- Codex 官方文档：Skills & Plugins — https://learn.chatgpt.com/docs/skills-and-plugins\n- Codex 官方文档：Build skills — https://learn.chatgpt.com/docs/build-skills\n- Codex 官方文档：Authentication — https://learn.chatgpt.com/docs/auth",
+      "sources": [
+        "https://learn.chatgpt.com/docs/plugins",
+        "https://learn.chatgpt.com/docs/skills-and-plugins",
+        "https://learn.chatgpt.com/docs/build-skills",
+        "https://learn.chatgpt.com/docs/auth"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方说明目前 ChatGPT 和 Codex 使用同一个通用插件目录，目录分类标签、插件名单和桌面专用插件会随更新变化，以官方文档和你账号里实际显示的为准",
+        "官方说 Apple Messages 插件只在 macOS 的 ChatGPT 桌面 App 提供，且当前版本只包含在 Apple Silicon 构建里，本文只在这一处点名具体插件",
+        "官方没有写 Codex 插件的数量，也没有列完整名单，本文不写数字"
+      ]
+    },
+    {
+      "title": "Codex 常见报错总表：429、401、登录失败、连接中断、缺少环境变量、沙箱、Computer Use、远程控制，看到哪条读哪篇",
+      "slug": "codex-common-errors-summary",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1174-error-decide.png",
+        "g1174-feedback-check.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "把 Codex 最常见的报错和问题汇成一张对照表：429、401、Token exchange failed、stream disconnected、missing environment variable、Windows 沙箱失败、Computer Use 找不到、远程控制连不上，各给一句处理方向并链到详细文章。",
+      "content": "> 本文是索引页，把本站已有的 Codex 排查文章按报错原文汇总，资料核对于 2026-10-27。**官方没有一份统一的 Codex 报错大全**，具体依据见每篇详细文章的「核对说明」。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 Codex 里遇到一条报错，不知道该读哪篇的人；\n- 想先看一眼有哪些常见问题的人。\n\n## 结论先说\n\n1. **先看报错原文是哪一类**：额度和限流、登录和凭据、网络连接、配置、系统和沙箱、功能可用性。\n2. **报错原文一般要原样搜索**，别只记大意。\n3. **先看状态页**，官方有进行中的事件就等恢复，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n4. **官方没有逐条解释的报错**，详细文章里都写明了「官方未单独说明」，并只采用官方文档里写明的做法。\n\n![Codex 报错对照：看到什么，读哪一篇](seed:g1174-error-decide.png)\n*图：本站根据 Codex 官方文档与本站相关文章整理的示意图*\n\n## 一、对照表\n\n| 你看到的 | 大致方向 | 详细文章 |\n| --- | --- | --- |\n| `exceeded retry limit, last status: 429 Too Many Requests` | 先看用量页面和 `/status`，区分套餐额度、API 限额、工作区控制 | [/guides/codex-exceeded-retry-limit-429-too-many-requests](/guides/codex-exceeded-retry-limit-429-too-many-requests) |\n| `Token exchange failed`、`token_exchange_failed` | 浏览器登录成功却回不到 Codex，试设备码登录、回调端口、公司证书 | [/guides/codex-token-exchange-failed-login-error](/guides/codex-token-exchange-failed-login-error) |\n| `401 Unauthorized` | 确认登录方式，重新登录，查 API 密钥、`env_key`、WSL 登录缓存 | [/guides/codex-401-unauthorized-error](/guides/codex-401-unauthorized-error) |\n| `stream disconnected before completion` | 连接中途断开，查状态页、WebSocket、代理和证书 | [/guides/codex-stream-disconnected-before-completion](/guides/codex-stream-disconnected-before-completion) |\n| `missing environment variable` | 对照 `env_key`、MCP 的 `env_vars`、`shell_environment_policy` | [/guides/codex-missing-environment-variable](/guides/codex-missing-environment-variable) |\n| Windows 沙箱设置失败、错误 1385、Everyone 可写 | mxc、elevated、unelevated 三种实现的排查 | [/guides/codex-windows-sandbox-setup-failed](/guides/codex-windows-sandbox-setup-failed) |\n| Linux、WSL2 沙箱启动失败、权限模式怎么选 | bwrap、用户命名空间、审批模式 | [/guides/codex-permissions-sandbox](/guides/codex-permissions-sandbox) |\n| 找不到 Computer Use | 地区限制、插件安装、系统权限 | [/guides/codex-computer-use-not-found](/guides/codex-computer-use-not-found) |\n| 手机远程控制授权失败、SSH 主机 | 账号和工作区一致、重新配对、主机保持唤醒 | [/guides/codex-remote-control-ssh-host](/guides/codex-remote-control-ssh-host) |\n| 登录不了、发不出消息 | ChatGPT 账号还是 API 密钥、MFA、网络 | [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect) |\n| 额度不够、什么时候重置 | 各套餐额度、查看方法、省额度建议 | [/guides/codex-usage-limits](/guides/codex-usage-limits) |\n| Windows 版下载安装 | 桌面 App 官方入口、winget、开发工具 | [/guides/codex-windows-app-download-install](/guides/codex-windows-app-download-install) |\n| 插件在哪装 | 桌面 App 的 Plugins、CLI 的 `/plugins` | [/guides/codex-plugins-where-to-install](/guides/codex-plugins-where-to-install) |\n| CLI 装不上、怎么更新 | 官方安装命令和更新 | [/guides/codex-cli-install-update](/guides/codex-cli-install-update) |\n\n## 二、官方排查文档里的通用做法\n\n官方 Codex Troubleshooting 页里和「卡住」有关的通用建议：\n\n1. 看 Codex 是不是在等你批准某个操作；\n2. 打开终端，运行 `git status` 这类基本命令；\n3. 开一个新对话，用更小、更聚焦的提示重新开始；\n4. 终端卡住：关闭终端面板，用快捷键 Ctrl 加反引号键（`）重新打开，再运行 `pwd` 或 `git status`；仍卡住就等进行中的对话结束后重启 App。\n\n另有几个官方列的小问题：审查面板里出现了 Codex 没改的文件，是因为面板按项目的 Git 状态显示，可以切到 **Last turn** 视图只看上一轮的改动；找不到某个对话，先看侧边栏的筛选（选 **Chronological**）和设置里的 **Archived chats**；在工作树里代码跑不起来，用本地环境的安装脚本或 `.worktreeinclude` 复制被忽略的文件；CLI 有的功能桌面 App 里没有，是因为两者可能带着不同版本的 Codex，用 `codex --version` 对比。\n\n![向官方反馈 Codex 问题前先收集](seed:g1174-feedback-check.png)\n*图：本站根据 [Codex 官方文档：Troubleshooting](https://learn.chatgpt.com/docs/reference/troubleshooting) 整理的示意图*\n\n## 三、向官方反馈\n\n官方给的两条路：在消息输入框里输入 `/` 提交反馈（在已有对话里提交时可以选择是否附上会话，提交后会得到一个会话 ID）；或到 GitHub 的 [openai/codex](https://github.com/openai/codex/issues) 先搜已有问题，再提新问题。日志位置：会话记录 `$CODEX_HOME/sessions`（默认 `~/.codex/sessions`），macOS 应用日志 `~/Library/Logs/com.openai.codex/年/月/日`。分享日志前先检查有没有密钥和令牌。\n\n## 常见问题\n\n**Q：为什么有些报错没有对应的文章？**\n本站只写能在官方文档里找到依据的内容。官方没有说明的报错，要么不写，要么在文章里写明官方未单独解释。\n\n**Q：我的套餐能不能用 Codex？**\n官方 Pricing 页写明 Work 和 Codex 包含在各 ChatGPT 套餐里，额度不同。想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，更高额度看 [/chongzhi/chatgpt-pro](/chongzhi/chatgpt-pro)。\n\n**Q：Codex 刚入门，从哪开始？**\n见 [/guides/codex-getting-started](/guides/codex-getting-started)。\n\n## 参考资料\n\n- Codex 官方文档：Troubleshooting — https://learn.chatgpt.com/docs/reference/troubleshooting\n- Codex 官方文档：Authentication — https://learn.chatgpt.com/docs/auth\n- Codex 官方文档：Windows sandbox — https://learn.chatgpt.com/docs/windows/windows-sandbox\n- Codex 官方文档：Remote connections — https://learn.chatgpt.com/docs/remote-connections\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+      "sources": [
+        "https://learn.chatgpt.com/docs/reference/troubleshooting",
+        "https://learn.chatgpt.com/docs/auth",
+        "https://learn.chatgpt.com/docs/windows/windows-sandbox",
+        "https://learn.chatgpt.com/docs/remote-connections",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有一份「Codex 报错大全」，本文是本站把官方文档里分散的排查说明按报错原文整理成的索引，每条的依据见对应详细文章",
+        "报错原文取自公开的使用反馈和官方文档，不同版本、不同平台的文字可能略有差异",
+        "官方没有逐条解释这些报错，凡是官方未说明的地方，详细文章里都写明了"
       ]
     },
     {
@@ -64220,6 +64533,33 @@
       ]
     },
     {
+      "title": "Gemini 是不是崩了：官方状态页怎么看，Workspace 状态页、AI Studio 状态页分别查什么",
+      "slug": "gemini-down-check-status-page",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1187-pages-compare.png",
+        "g1187-down-decide.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Gemini 打不开先看 Google 官方状态页：Workspace 状态页列有 Gemini、Gemini Notebook 和 Google Sign In，开发者看 AI Studio 状态页。本文讲各页面怎么读、正常时怎么办。",
+      "content": "> 本文根据 Google Workspace Status Dashboard、Google AI Studio 状态页和 Google Cloud 状态页整理，资料核对于 2026-10-27。状态页内容实时变化，下面的描述只用来说明怎么读。**官方没有单独为「Gemini App 个人用户」做一个状态页**，所以本文写的是 Google 现有的几个页面分别看什么。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- Gemini 网页或 App 打不开、发不出消息、一直报错，想知道是不是 Google 的问题的人；\n- 用 Google AI Studio 或 Gemini API 的开发者；\n- 想知道 Gemini、Gemini Notebook、Google 登录是不是同时出问题的人。\n\n## 结论先说\n\n1. **聊天类的 Gemini 先看 [Google Workspace Status Dashboard](https://www.google.com/appsstatus/dashboard/)**。页面服务列表里有 **Gemini**、**Gemini Notebook** 和 **Google Sign In**。没有事件时顶部显示 **No incidents** 并写明最近更新时间。\n2. **官方写明这个页面提供的是 Google Workspace 服务的状态。** 你用的是个人谷歌账号的话，页面是否反映你那边的情况，官方没有说明，所以页面正常不代表你一定正常。\n3. **AI Studio 和 Gemini API 的事件**，看 [aistudio.google.com/status](https://aistudio.google.com/status)，页面列出过去的事件，比如 AI Studio Build 出错、批处理请求超时、计费页出错。\n4. **在 Google Cloud 上用 Gemini 的企业**，另有 [Google Cloud 状态页](https://status.cloud.google.com/)。\n5. **页面显示正常你仍然不行**，按 [/guides/gemini-something-went-wrong-error](/guides/gemini-something-went-wrong-error) 逐项处理；不能登录见 [/guides/gemini-cant-open-or-sign-in](/guides/gemini-cant-open-or-sign-in)。\n\n![Gemini 有哪几个官方状态页](seed:g1187-pages-compare.png)\n*图：本站根据 Google 官方状态页整理的示意图*\n\n## 一、Google Workspace Status Dashboard 怎么读\n\n页面写明，它提供 Google Workspace 服务的状态信息，让你回来查看下面列出的服务状态；如果你遇到的问题没有列在这里，可以联系支持。\n\n- **顶部**：没有事件时写 **No incidents**，下面有 **Last updated time**（最近更新时间，UTC）；\n- **图例**：**Available**（可用）、**Service information**（服务信息）、**Service disruption**（服务中断）、**Service outage**（服务停止）。表格里每个服务一行，最近 8 天（页面当天显示 10 月 20 日到 27 日）每天一格，有问题的日子会用对应的标记显示；\n- **服务列表**：Admin Console、Gmail、Google Docs、Google Drive、Google Meet 等，其中和本文有关的是 **Gemini**、**Gemini Notebook**、**Google Sign In**；\n- **View history / View incident history**：查看事件历史；\n- 页面底部还有 **RSS Feed**、**JSON History** 等订阅和数据入口，方便在出事件时接收通知。\n\n所有时间是 UTC，换成北京时间要加 8 小时。\n\n## 二、AI Studio 状态页怎么读\n\n[aistudio.google.com/status](https://aistudio.google.com/status) 是给用 Google AI Studio 和 Gemini API 的人看的。页面按日期列出 **Past Incidents**，每个事件有标题和几条更新，状态依次是 **Detected（发现）、Identified（已找到原因）、Resolved（已解决）** 等，每条带时间。页面当天能看到的事件例如：\n\n- AI Studio Build 里的应用出现错误或超时（影响创建、打开、运行或部署应用）；\n- 通过 Gemini API 和 AI Studio 创建复刻声音时请求失败，返回 404 的 「Requested entity was not found.」；\n- AI Studio 的计费和付款设置页出错；\n- Gemini API 批处理请求没能在 24 小时内完成。\n\n这些都只是用来说明怎么读，不代表当前状态。接口报 429 等错误，看 [/guides/gemini-api-429-resource-exhausted](/guides/gemini-api-429-resource-exhausted)，那是额度和速率问题，和这个状态页不是一回事。\n\n## 三、对照表：看到什么，怎么办\n\n![Gemini 用不了：状态页之后怎么办](seed:g1187-down-decide.png)\n*图：本站根据 Google 官方状态页整理的示意图*\n\n## 四、状态页正常，但你仍然用不了\n\n按这个顺序排查：\n\n1. **刷新页面或重启 App**，换浏览器、无痕窗口，关掉可能干扰的扩展；\n2. **确认你登录的是哪个谷歌账号**，以及账号是不是个人、工作或学校类型，不同类型可用的功能不同，见 [/guides/gemini-cant-open-or-sign-in](/guides/gemini-cant-open-or-sign-in)；\n3. **提示「不支持所在地区」**不是故障，是官方的支持范围，见 [/guides/gemini-supported-countries-regions](/guides/gemini-supported-countries-regions)；\n4. **回答一半停住或提示用量**，可能是额度问题，见 [/guides/gemini-usage-limits-check-reset](/guides/gemini-usage-limits-check-reset)；\n5. **生图失败**，见 [/guides/gemini-cant-generate-images](/guides/gemini-cant-generate-images)；\n6. 想用更多额度或更高的模型，套餐区别见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)；需要谷歌账号可以看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n## 常见问题\n\n**Q：为什么没有一个专门的 Gemini 状态页？**\n官方有几个按产品分的页面：Workspace 状态页包含 Gemini 和 Gemini Notebook，AI Studio 有自己的状态页，Google Cloud 有云服务状态页。个人用户没有单独的页面，官方也没有解释原因。\n\n**Q：Workspace 状态页写 No incidents，Gemini 却打不开？**\n页面是官方公布的事件，不一定覆盖每个用户的个别情况。先按第四节排查。\n\n**Q：想对比几家 AI 的状态页？**\n见 [/guides/ai-tools-down-which-status-page](/guides/ai-tools-down-which-status-page)。\n\n## 参考资料\n\n- Google Workspace Status Dashboard — https://www.google.com/appsstatus/dashboard/\n- Google AI Studio 状态页 — https://aistudio.google.com/status\n- Google Cloud 状态页 — https://status.cloud.google.com/",
+      "sources": [
+        "https://www.google.com/appsstatus/dashboard/",
+        "https://aistudio.google.com/status",
+        "https://status.cloud.google.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "Google Workspace Status Dashboard 官方写明它提供的是 Google Workspace 服务的状态，个人账号使用的 Gemini 是否在这里体现，页面没有说明，本文不下结论，以页面显示为准",
+        "页面上的服务列表、图例和事件是 2026-10-27 当天读到的内容，官方随时可能调整",
+        "aistudio.google.com/status 页面当天只显示「Past Incidents」历史事件，文中的事件只用于说明怎么读",
+        "Google Cloud 状态页面向云服务，本文只确认它存在、面向谁，没有逐项核对其中 Gemini 或 Vertex AI 的组件名称"
+      ]
+    },
+    {
       "title": "ChatGPT 手机版使用技巧：官方 App 下载、切换模型、相机扫描与常用设置",
       "slug": "chatgpt-mobile-app-tips",
       "checkedOn": "2026-10-07",
@@ -64247,6 +64587,143 @@
       "verify": [
         "手机上模型选择器的具体位置（顶部标题处或输入框旁）随版本变化，官方文章未给出手机端截图",
         "iOS FAQ 写「不支持在 iOS 或网页设置里修改邮箱」，而另一篇修改邮箱文章写部分账号可以修改，以官方最新说明为准"
+      ]
+    },
+    {
+      "title": "DeepSeek 是不是崩了：官方状态页 status.deepseek.com 怎么看，聊天、联网搜索、API 分别看哪一项",
+      "slug": "deepseek-down-check-status-page",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1191-components-compare.png",
+        "g1191-down-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 打不开、一直转圈或报错，先看官方状态页 status.deepseek.com，不用登录。本文讲清页面上对话、上传文件、搜索、V4 Pro 与 V4.1 Flash 接口等服务项各管什么、怎么看历史事件和订阅通知，以及页面显示正常时下一步怎么排查。",
+      "content": "> 本文根据 DeepSeek 官方状态页（status.deepseek.com）整理，资料核对于 2026-10-27。状态页内容实时变化，下面的描述只用来说明怎么读。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- DeepSeek 网页或 App 突然打不开、发不出消息、一直转圈的人；\n- 用 DeepSeek 接口，请求报错或变慢，想知道是不是官方的问题的人；\n- 想在故障时收到通知的人。\n\n## 结论先说\n\n1. **官方状态页是 [status.deepseek.com](https://status.deepseek.com/)**，不用登录。官方 API 文档里的「API 服务状态」链接也指向这里。\n2. 页面顶部在没有故障时显示 **Everything is running smoothly**，下面一句 **All systems are operating as expected**。有问题时这里会变成相应的提示。\n3. 页面把服务分成几项：**对话服务**（含 3 个组件：对话服务、上传文件服务、搜索服务）、**DeepSeek V4 Pro API 服务**、**DeepSeek V4.1 Flash API 服务**、**搜索 API 服务**、**抓取 API 服务**。每一项旁边有对应时间段的可用率。\n4. **有故障就等官方处理**，没有别的办法；**页面显示正常但你仍然不行**，多半是高峰排队、网络或账号问题，见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)。\n5. 想第一时间知道，点页面上的 **Subscribe to updates**。\n\n![DeepSeek 状态页上的服务项](seed:g1191-components-compare.png)\n*图：本站根据 [DeepSeek 状态页](https://status.deepseek.com/) 整理的示意图*\n\n## 一、页面上有什么\n\n打开 status.deepseek.com，从上到下大致是：\n\n- **标题和订阅**：页面名称是 DeepSeek Status，右上角有 **Subscribe to updates**（订阅更新）、**Switch language**（切换语言）和 **Toggle theme**（切换主题）；\n- **总体状态横幅**：无故障时是 Everything is running smoothly；\n- **System status（系统状态）**：按服务项列出，每一项带一个可用率百分比。页面当天显示的统计区间是 2026 年 7 月到 10 月；\n- **Event calendar（事件日历）**：按月显示每一天有没有事件，当月是 2026 年 10 月；\n- **View historical events**：查看历史事件。\n\n### 服务项各管什么\n\n| 服务项 | 大致对应 |\n| --- | --- |\n| 对话服务（Chat Service） | 网页和 App 里的聊天，页面把它分成 3 个组件 |\n| 上传文件服务（File Upload Service） | 在聊天里上传文件、图片 |\n| 搜索服务（Search Service） | 聊天里的联网搜索 |\n| DeepSeek V4 Pro API 服务 | 调用 V4 Pro 的接口 |\n| DeepSeek V4.1 Flash API 服务 | 调用 V4.1 Flash 的接口 |\n| 搜索 API 服务 | 接口里的搜索能力 |\n| 抓取 API 服务 | 接口里的网页抓取能力 |\n\n只有某个功能出问题时，就看对应那一项：聊天能用但联网搜索不行，看「搜索服务」；上传文件失败，看「上传文件服务」。\n\n## 二、读懂可用率和事件日历\n\n- 页面上的 **uptime**（可用率）是一段时间内服务正常运行时间的比例。它是整体统计，不是你个人的体验；\n- **事件日历**里有标记的日子表示当天有过事件，可以点进去看历史事件，了解以前是什么问题、持续了多久；\n- 状态页不会显示每一次个别用户的失败，所以**页面正常也不能完全排除你这边的问题**。\n\n## 三、对照表：看到什么，怎么办\n\n![DeepSeek 打不开：先看这张表](seed:g1191-down-decide.png)\n*图：本站根据 [DeepSeek 状态页](https://status.deepseek.com/) 整理的示意图*\n\n## 四、状态页显示正常，但你仍然不行\n\n按从简单到复杂的顺序：\n\n1. **刷新页面、重新打开 App**，或换一个浏览器、无痕窗口；\n2. **换一个网络对比**，比如手机热点；\n3. 回答一半停住、提示「服务器繁忙，请稍后再试」，看 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)；\n4. 登录、注册相关的问题，看 [/guides/deepseek-register-login-problems](/guides/deepseek-register-login-problems)；\n5. 接口报 400、402、429 等错误码，对照 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)，这些是接口自己的错误说明，和状态页是两回事；\n6. 接口余额不足的错误见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。\n\n## 常见问题\n\n**Q：状态页是中文的吗？**\n页面有 **Switch language**（切换语言）的选项，服务项的名称是中英文一起写的，例如「对话服务（Chat Service）」。\n\n**Q：API 的状态和网页聊天的状态一样吗？**\n不一样。页面把聊天和接口分成不同的服务项，聊天出问题不一定影响接口，反过来也一样。\n\n**Q：官方说的「高峰期」在哪能看到？**\n状态页只记录事件和可用率，不显示实时的排队情况。高峰期排队属于服务器繁忙，处理办法见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)。\n\n**Q：想对比几家 AI 的状态页？**\n见 [/guides/ai-tools-down-which-status-page](/guides/ai-tools-down-which-status-page)。\n\n## 参考资料\n\n- DeepSeek 状态页 — https://status.deepseek.com/\n- DeepSeek API 文档 — https://api-docs.deepseek.com/",
+      "sources": [
+        "https://status.deepseek.com/",
+        "https://api-docs.deepseek.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "服务项名称、数量和「Everything is running smoothly」横幅是 2026-10-27 当天读到的页面，官方随时可能调整",
+        "状态页显示的可用率是页面当天对 2026 年 7 月至 10 月区间的统计，本文不引用具体数字",
+        "官方状态页没有说明手机 App 对应哪一项，本文把 App 聊天归到「对话服务」是本站的理解"
+      ]
+    },
+    {
+      "title": "Claude 是不是崩了：官方状态页 status.claude.com 怎么看，网页、API、Claude Code 分别看哪一项",
+      "slug": "claude-down-check-status-page",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1192-components-compare.png",
+        "g1192-status-decide.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 打不开或一直报错，是官方故障还是自己的问题？官方状态页 status.claude.com 不用登录就能看。本文讲清页面上的 6 个组件各管什么、事件的四种状态怎么读、怎么订阅通知，以及状态页显示正常你仍然报错时该怎么办。",
+      "content": "> 本文根据 Claude 官方状态页（status.claude.com，旧地址 status.anthropic.com 会跳转到这里）整理，资料核对于 2026-10-27。状态页的内容实时变化，下面的例子只用来说明怎么读。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- Claude 突然打不开、发不出消息、回答到一半出错，想知道是官方故障还是自己问题的人；\n- 用 Claude Code、API 的人，想知道该看状态页的哪一项；\n- 想在 Claude 出故障、恢复时收到通知的人。\n\n## 结论先说\n\n1. **官方状态页是 [status.claude.com](https://status.claude.com/)**，不用登录。旧地址 status.anthropic.com 会自动跳到这里。\n2. 页面把服务分成 **6 个组件**：**claude.ai**、**Claude Console (platform.claude.com)**、**Claude API (api.anthropic.com)**、**Claude Code**、**Claude Cowork**、**Claude for Government**。每个组件有自己的状态：Operational（正常）、Degraded Performance（性能下降）、Partial Outage（部分中断）、Major Outage（严重中断）、Maintenance（维护中）。\n3. **出了故障，页面下方「Past Incidents」会列出事件**，按时间倒序，每条事件的更新依次是 **Investigating（调查中）、Identified（已找到原因）、Monitoring（已修复、观察中）、Resolved（已解决）**，每条更新都带 UTC 时间。\n4. **页面有进行中的事件，就等官方处理**，别反复重装或换账号。\n5. **状态页显示正常你仍然报错**，那多半是账号、网络或客户端的问题，按 [/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use) 逐项排查。\n\n![遇到什么问题，看哪个组件](seed:g1192-components-compare.png)\n*图：本站根据 [Claude 状态页](https://status.claude.com/) 整理的示意图*\n\n## 一、页面从上到下是什么\n\n打开 status.claude.com，大致是：\n\n- **顶部**：有进行中的事件时，会在最上面显示最新一条更新，比如「We are investigating elevated errors on requests to Claude Sonnet 5.5」，后面带时间；\n- **组件列表**：6 个组件，每个旁边是当前状态，还有一条近 90 天的可用率条（页面上写的是 Uptime over the past 90 days）；\n- **Subscribe to Updates**：订阅事件通知，页面写明可以用**邮件**（有验证码）或**短信**（要选国家区号）接收，内容是官方创建、更新或解决事件时通知你；\n- **Past Incidents**：往前几天的事件列表，没有事件的日子写 No incidents reported；\n- **View historical uptime**：看历史可用率。\n\n### 6 个组件各管什么\n\n| 组件 | 大致对应 |\n| --- | --- |\n| claude.ai | 网页版聊天（手机 App 对应哪一项，页面没有说明） |\n| Claude Console (platform.claude.com) | 开发者控制台，管理 API 密钥、用量和账单的地方 |\n| Claude API (api.anthropic.com) | 程序调用 Claude 的接口 |\n| Claude Code | 命令行编程工具 |\n| Claude Cowork | 协作办公类功能 |\n| Claude for Government | 面向政府客户的服务 |\n\n自己用的是哪种服务，就盯哪一项。普通聊天用户看 claude.ai；写代码的人看 Claude Code；调接口的人看 Claude API；登录开发者控制台出问题，就看 Claude Console 一项。\n\n## 二、怎么读一条事件\n\n用 2026-10-27 页面上的真实写法举例（只用于说明怎么读）：一条标题写作「Elevated errors for Claude Sonnet 5.5」（Claude Sonnet 5.5 错误率升高）的事件，按时间有这样几条更新：\n\n1. **Investigating**：「我们正在调查对 Claude Sonnet 5.5 请求的错误升高」；\n2. **Monitoring**：「已部署修复，正在观察恢复」；\n3. **Resolved**：「影响 Claude 服务的问题已解决」。\n\n读的时候注意三点：\n\n- **标题里写了模型名**（例如某个 Sonnet、Opus 或 Haiku 型号），说明受影响的主要是这个模型的请求。不一定必须用它的话，可以先换别的模型；各模型怎么选见 [/guides/claude-opus-vs-sonnet](/guides/claude-opus-vs-sonnet)；\n- **有的事件影响时间很短**。官方在「Resolved」的更新里常会写具体的影响时段，如 10 月 25 日的一条写了从 01:08 PT / 08:08 UTC 到 01:29 PT / 08:29 UTC，只有 20 分钟；\n- **注意时间是 UTC**，换成北京时间要加 8 小时。\n\n![Claude 状态页怎么看、怎么办](seed:g1192-status-decide.png)\n*图：本站根据 [Claude 状态页](https://status.claude.com/) 整理的示意图*\n\n## 三、订阅通知\n\n页面上的 **Subscribe to Updates** 打开后可以用邮件订阅，也可以用短信。官方页面写明邮件和短信的通知内容都是事件的创建、更新、解决（短信是创建和解决）。订阅要验证邮箱或手机，邮件会有一次性验证码。订阅是否需要付费、会不会收到营销邮件，状态页没有写，订阅前先看页面上的隐私政策链接。\n\n## 四、状态页正常，我还是用不了\n\n官方状态页反映的是**系统整体**，不是你个人的情况。和 ChatGPT 的状态页一样，页面显示正常不代表每个用户都正常。这时：\n\n1. 刷新页面，换一个浏览器或无痕窗口再试，关掉可能干扰的浏览器扩展；\n2. 换一个网络（比如手机热点）对比；\n3. 登录不了、账号被停用或提示不支持地区，看站内 [/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use)、[/guides/claude-account-disabled-appeal](/guides/claude-account-disabled-appeal) 和 [/guides/claude-supported-countries-regions](/guides/claude-supported-countries-regions)；\n4. 用 Claude Code 的报错见 [/guides/claude-code-common-errors](/guides/claude-code-common-errors)；\n5. 额度用完不是故障，见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。想开通 Claude Pro 可以看 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n想一次对比多家 AI 的状态页，看 [/guides/ai-tools-down-which-status-page](/guides/ai-tools-down-which-status-page)。\n\n## 常见问题\n\n**Q：状态页里没有显示手机 App，怎么判断？**\n官方页面只列了上面 6 个组件。手机 App 和网页都是聊天服务，网页（claude.ai）显示有事件时，手机 App 往往也受影响，但这是本站的理解，不是官方的明确说法。\n\n**Q：旧地址 status.anthropic.com 还能用吗？**\n2026-10-27 核对时，它会自动跳转到 status.claude.com。\n\n**Q：事件写 Resolved 之后我还报错？**\n状态页是整体情况。先刷新、换网络，仍然不行就按第四节排查。\n\n## 参考资料\n\n- Claude 状态页 — https://status.claude.com/\n- Claude 帮助中心 — https://support.claude.com/",
+      "sources": [
+        "https://status.claude.com/",
+        "https://status.anthropic.com/",
+        "https://support.claude.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "组件名称、事件状态词和 90 天可用率说明是 2026-10-27 当天读到的页面，官方随时可能调整",
+        "文中举的 10 月 24 日至 27 日的事件只是用来说明怎么读，不代表当前状态，以你打开页面时看到的为准",
+        "官方状态页没有说明 Claude 手机 App 对应哪个组件，本文只写页面上能看到的组件名称，手机 App 和网页同属聊天服务，归到 claude.ai 一项是本站的理解",
+        "状态页的订阅方式（邮件、短信）按页面当天显示的写法，是否需要验证码、是否收费以页面为准"
+      ]
+    },
+    {
+      "title": "Grok 是不是崩了、打不开怎么办：官方状态页 status.x.ai 怎么看，网页、手机 App、Imagine、API 分别看哪一项",
+      "slug": "grok-down-check-status-page",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1195-status-compare.png",
+        "g1195-down-decide.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Grok 打不开、一直转圈或生图失败，先看官方状态页 status.x.ai，不用登录。本文讲清页面上 Grok、API、Services 几个分组各管什么，History 页怎么看以往事件和持续时间，以及状态页显示正常时下一步怎么排查。",
+      "content": "> 本文根据 xAI 官方状态页（status.x.ai）及其 History 页整理，资料核对于 2026-10-27。状态页内容实时变化，下面的例子只用来说明怎么读。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- Grok 网页、手机 App 或 X 里的 Grok 打不开、发不出消息的人；\n- Grok 生成图片、视频或语音对话出问题的人；\n- 调用 xAI 接口出错，想知道是不是官方故障的人。\n\n## 结论先说\n\n1. **官方状态页是 [status.x.ai](https://status.x.ai/)**，不用登录。没有事件时页面写 **No active incidents**，并说明「我们没有发现任何影响服务的已发布事件」，旁边有 **Updated** 更新时间（UTC）。\n2. 页面按分组列出项目：**Grok**（grok.com、iOS、Android、Grok in X、Imagine、Voice）、**API**（Global api.x.ai、US us.api.x.ai、EU eu-west-1.api.x.ai），还有 **Services**（Console、Docs、Origin、x.ai、Single Sign-On、Admin APIs、Enterprise Dashboard）。\n3. 同一个页面还列了 **Cursor** 分组（iOS、Desktop、Cloud Agents、CLI、Automations、BugBot、Review Agents、Grok Bot、cursor.com）。**用 Cursor 的人看这里的 Cursor 分组**。\n4. **页面顶部的 History** 能看以往事件，每条写明持续多久、影响了哪些项目，时间按 **UTC**。\n5. **没有事件但你仍然用不了**：刷新、换网络、重新登录，再看站内使用说明。\n\n![status.x.ai 上和 Grok 有关的项目](seed:g1195-status-compare.png)\n*图：本站根据 [xAI 状态页](https://status.x.ai/) 整理的示意图*\n\n## 一、页面从上到下是什么\n\n打开 status.x.ai，有两个标签：**Overview**（概览）和 **History**（历史）。概览页：\n\n- **Service Status**（服务状态）：写着当前有没有进行中的事件和更新时间；\n- **Grok**、**Cursor**、**API**、**Services** 几个分组，每组有一个 90 天的状态条（页面写 90 Days）和当前状态，例如 **Operational**；\n- 每个项目都是一个链接，点进去看它的详情；\n- 页面有 **Toggle theme**（切换主题）和 **Subscribe**（订阅）按钮。\n\n### 各项目大致对应\n\n| 你在用的 | 看哪一项 |\n| --- | --- |\n| 网页版 Grok | Grok 分组下的 grok.com |\n| 手机 App | Grok 分组下的 iOS、Android |\n| 在 X 里使用 Grok | Grok in X |\n| 生成图片、视频 | Imagine |\n| 语音对话 | Voice |\n| 调用 xAI 接口 | API 分组下的 Global、US、EU 三个入口 |\n| 控制台、文档、登录 | Services 分组下的 Console、Docs、Single Sign-On |\n\nGrok 的用法和额度见 [/guides/grok-how-to-use-x-account-weekly-usage](/guides/grok-how-to-use-x-account-weekly-usage) 和 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)。\n\n## 二、History 页怎么读\n\n![Grok 打不开：先对照这张表](seed:g1195-down-decide.png)\n*图：本站根据 [xAI 状态页](https://status.x.ai/) 整理的示意图*\n\nHistory 页是按日期倒序的事件列表，每条是「标题 持续时间 影响的项目」。2026-10-27 页面上能看到的写法，例如：\n\n- 「Investigating service outage - Grok models unavailable」（正在调查服务中断，Grok 模型不可用），持续 41 分钟，影响列出了 Grok Bot 和 Cursor 的几个项目；\n- 「Degraded Model Performance」（模型性能下降），持续 1 分钟，影响 Global（api.x.ai）和 CLI；\n- 「Elevated errors for Claude Sonnet 5.5」，影响的是 Cursor 的几个项目。\n\n这些只是用来说明怎么读，不代表当前状态。读的时候注意：\n\n- **事件持续时间可能很短**，几分钟的抖动，状态页上也会留下记录；\n- **看影响了哪些项目**，只在你用的那一项被点名时，才可能和你遇到的问题有关；\n- **时间是 UTC**，换成北京时间要加 8 小时。\n\n## 三、没有事件，Grok 还是打不开\n\n1. **刷新页面、重启 App**，换浏览器或无痕窗口；\n2. **换一个网络**对比，比如手机热点；\n3. **确认登录的是哪个账号**，Grok 可以用 X 账号登录，用不同账号的权益不同，见 [/guides/grok-how-to-use-x-account-weekly-usage](/guides/grok-how-to-use-x-account-weekly-usage)；\n4. **提示额度用完**不是故障，见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)；\n5. 想了解订阅和下载入口，见 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download)，开通 SuperGrok 可以看 [/chongzhi/grok-super](/chongzhi/grok-super)；\n6. 在 Cursor 里调用 Grok 出问题，见 [/guides/cursor-common-errors-connection-failed](/guides/cursor-common-errors-connection-failed)。\n\n## 常见问题\n\n**Q：为什么 Grok 的状态页里有 Cursor？**\n页面把 Cursor 和 Grok 列在同一个状态页里，官方没有在页面上解释原因。2026-10-27 核对时，访问 status.cursor.com 会被跳转到 status.x.ai。\n\n**Q：状态页能订阅吗？**\n页面有 **Subscribe** 按钮，在 Overview 和 History 页都能看到。订阅方式和通知内容以点开后的页面为准。\n\n**Q：想一次对比几家 AI 的状态页？**\n见 [/guides/ai-tools-down-which-status-page](/guides/ai-tools-down-which-status-page)。\n\n## 参考资料\n\n- xAI 状态页 — https://status.x.ai/\n- xAI 状态页 History — https://status.x.ai/history",
+      "sources": [
+        "https://status.x.ai/",
+        "https://status.x.ai/history"
+      ],
+      "screenshots": [],
+      "verify": [
+        "2026-10-27 核对时，status.x.ai 的页面标题显示为 SpaceXSI Status，页面里同时列了 Grok、Cursor、API、Services 几个分组，名称和分组以官方页面当天显示为准",
+        "访问 status.cursor.com 时，核对当天被跳转到了 status.x.ai，官方没有就此作说明，本文只照实写",
+        "文中的 History 事件只用于说明怎么读，不代表当前状态，持续时间和影响的项目以页面为准",
+        "官方页面没有说明 No active incidents 之外的横幅文字，状态词的完整列表也未在页面上看到"
+      ]
+    },
+    {
+      "title": "AI 工具都打不开时怎么判断是谁的问题：ChatGPT、Gemini、Claude、DeepSeek、Grok、Kimi 官方状态页地址汇总",
+      "slug": "ai-tools-down-which-status-page",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1196-status-pages-compare.png",
+        "g1196-who-steps.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "好几个 AI 同时打不开，是你的网络，还是某一家出了故障？本文汇总 ChatGPT、Claude、Gemini、DeepSeek、Grok、Cursor、Kimi、GitHub Copilot 的官方状态页地址，说明各家页面上该看哪一项，以及先判断自己网络、再逐家看状态页的顺序。",
+      "content": "> 本文根据各家官方状态页和 OpenAI 帮助中心《Network recommendations for ChatGPT errors on web and apps》整理，资料核对于 2026-10-27。状态页内容实时变化，本文只写地址和怎么读。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- ChatGPT、Gemini、Claude、DeepSeek 等几个工具同时打不开，不知道是自己的网络还是官方的问题的人；\n- 想把各家官方状态页收藏起来，以后出问题 10 秒内判断的人。\n\n## 结论先说\n\n1. **几个 AI 同时打不开，先怀疑自己的网络**，不是几家同时出故障。先试同一台电脑上的其他普通网站，再把电脑切到手机热点对比。OpenAI 帮助中心就是这样教人判断网络问题的：先看是只有你这一台还是整个网络，再看从公司 WiFi 换成手机热点后问题是否消失。\n2. **然后逐家打开官方状态页**，哪家有进行中的事件，就是哪家的问题。下面有汇总表。\n3. **只有一家出事**，等它恢复，其余照常用；需要时先换另一个工具做眼前的事。\n4. **各家状态页都正常**，换网络、换设备，再查账号、所在地区和客户端版本。\n\n![各家 AI 的官方状态页地址](seed:g1196-status-pages-compare.png)\n*图：本站根据各官方状态页整理的示意图*\n\n## 一、各家官方状态页\n\n| 产品 | 官方状态页 | 要看的项目 | 本站详细说明 |\n| --- | --- | --- | --- |\n| ChatGPT、Codex | [status.openai.com](https://status.openai.com/) | 分 APIs、ChatGPT、Codex 等大类，ChatGPT 下有对话、登录、上传、语音、生图等组件 | [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page) |\n| Claude | [status.claude.com](https://status.claude.com/) | claude.ai、Claude Console、Claude API、Claude Code、Claude Cowork | [/guides/claude-down-check-status-page](/guides/claude-down-check-status-page) |\n| Gemini | [Google Workspace Status Dashboard](https://www.google.com/appsstatus/dashboard/) | Gemini、Gemini Notebook、Google Sign In | [/guides/gemini-down-check-status-page](/guides/gemini-down-check-status-page) |\n| Gemini API、AI Studio | [aistudio.google.com/status](https://aistudio.google.com/status) | 过去的事件列表 | 同上 |\n| DeepSeek | [status.deepseek.com](https://status.deepseek.com/) | 对话服务、V4 Pro API、V4.1 Flash API、搜索与抓取 API | [/guides/deepseek-down-check-status-page](/guides/deepseek-down-check-status-page) |\n| Grok、Cursor | [status.x.ai](https://status.x.ai/) | Grok 分组、Cursor 分组、API、Services | [/guides/grok-down-check-status-page](/guides/grok-down-check-status-page) |\n| Kimi | [status.moonshot.cn](https://status.moonshot.cn/) | Kimi、Kimi Code、Open API | [/guides/kimi-down-busy-check-status-page](/guides/kimi-down-busy-check-status-page) |\n| GitHub Copilot | [www.githubstatus.com](https://www.githubstatus.com/) | Copilot、Copilot AI Model Providers | 见下文 |\n\n几点说明：\n\n- **ChatGPT 和 Codex 在同一个状态页**，页面上有进行中的事件时，会在顶部显示；\n- **Claude 的旧地址 status.anthropic.com** 会自动跳转到 status.claude.com；\n- **Gemini 没有给个人用户单独的状态页**，Workspace 页面上列有 Gemini、Gemini Notebook 和 Google Sign In，该页面写明提供的是 Google Workspace 服务的状态，个人账号的情况是否体现，页面没有说明；开发者另看 AI Studio 状态页；\n- **Grok 和 Cursor 共用 status.x.ai**，页面上是两个不同的分组；核对当天访问 Cursor 的状态页地址，会被带到同一个页面；\n- **GitHub Copilot 看 GitHub 的状态页**，组件里有 **Copilot** 和 **Copilot AI Model Providers** 两项，后者对应 Copilot 背后接入的模型供应方；Copilot 的额度和订阅见 [/guides/github-copilot-free-pro-ai-credits](/guides/github-copilot-free-pro-ai-credits)。\n\n## 二、判断顺序：先自己，再逐家\n\n![几个 AI 都打不开，怎么判断是谁的问题](seed:g1196-who-steps.png)\n*图：本站根据各官方状态页和 [OpenAI 帮助中心：Network recommendations](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 整理的示意图*\n\n1. **先试普通网站**：同一台电脑上，其他普通网站也打不开，就是网络问题，和 AI 无关；\n2. **再切网络**：把电脑从当前 WiFi 切到手机热点；官方帮助中心的这个对比方法，用来判断问题是不是出在公司或家里的网络；\n3. **看是只有你，还是大家都这样**：问问同一个网络的同事或家人，是不是也遇到；\n4. **再看各家状态页**：不要只看一家。几家状态页同时打开，哪个有进行中的事件一目了然；\n5. **都正常**：换设备、换浏览器，更新客户端，再检查账号状态、套餐和所在地区。\n\n## 三、读状态页要注意的三点\n\n- **状态页是整体情况，不是你个人的情况**。官方在 OpenAI 状态页底部就写明，可用率是所有套餐、模型和错误类型汇总的，个别用户的实际体验可能不同；\n- **时间多数是 UTC**，只有 Moonshot 的页面写的是 CST（北京时间）；换算时 UTC 加 8 小时就是北京时间；\n- **事件标题里常写具体的模型或功能**，例如某个模型的错误升高，不一定影响你用的其他功能，先看你用的那一项有没有被点名。\n\n## 四、都正常了还是不行\n\n各家的详细排查，见站内对应的文章：\n\n- ChatGPT：[/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)、[/guides/chatgpt-something-went-wrong](/guides/chatgpt-something-went-wrong)；\n- Claude：[/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use)；\n- Gemini：[/guides/gemini-something-went-wrong-error](/guides/gemini-something-went-wrong-error)、[/guides/gemini-cant-open-or-sign-in](/guides/gemini-cant-open-or-sign-in)；\n- DeepSeek：[/guides/deepseek-server-busy](/guides/deepseek-server-busy)；\n- Codex：[/guides/codex-stream-disconnected-before-completion](/guides/codex-stream-disconnected-before-completion)。\n\n想开通 ChatGPT Plus 或 Claude Pro 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)、[/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 常见问题\n\n**Q：状态页打不开怎么办？**\n如果官方状态页本身也打不开，先看是不是自己网络的问题（普通网站是否正常）。状态页和主服务通常不在同一个系统里，但官方没有就此作说明。\n\n**Q：状态页没事件，但网上很多人都说崩了？**\n状态页只显示官方已经发布的事件，发布有延迟，官方也可能没有发布。你可以再等几分钟，或者看你用的那一项的历史事件。\n\n**Q：能订阅所有状态页的通知吗？**\nOpenAI、Claude、GitHub 的状态页都有订阅入口（邮件、短信等），Google Workspace 状态页有 RSS 和 JSON 数据入口，具体以各页面为准。\n\n## 参考资料\n\n- OpenAI 状态页 — https://status.openai.com/\n- Claude 状态页 — https://status.claude.com/\n- Google Workspace Status Dashboard — https://www.google.com/appsstatus/dashboard/\n- Google AI Studio 状态页 — https://aistudio.google.com/status\n- DeepSeek 状态页 — https://status.deepseek.com/\n- xAI 状态页 — https://status.x.ai/\n- Moonshot AI 状态页 — https://status.moonshot.cn/\n- GitHub 状态页 — https://www.githubstatus.com/\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+      "sources": [
+        "https://status.openai.com/",
+        "https://status.claude.com/",
+        "https://www.google.com/appsstatus/dashboard/",
+        "https://aistudio.google.com/status",
+        "https://status.deepseek.com/",
+        "https://status.x.ai/",
+        "https://status.moonshot.cn/",
+        "https://www.githubstatus.com/",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps"
+      ],
+      "screenshots": [],
+      "verify": [
+        "各状态页的地址、分组和项目名称是 2026-10-27 当天读到的页面，官方随时可能调整，以打开时看到的为准",
+        "Google 没有给个人用户的 Gemini App 单独做状态页，Workspace 状态页是否反映个人账号的情况，页面没有写明",
+        "2026-10-27 核对时，Cursor 的状态页地址 status.cursor.com 被跳转到 status.x.ai，官方没有说明原因",
+        "官方帮助中心的网络对比方法写给 ChatGPT，本文把同样的思路用到其他工具，这是本站的整理，不是各家官方的统一说法"
+      ]
+    },
+    {
+      "title": "Kimi 服务器繁忙、打不开、报错怎么办：官方状态页 status.moonshot.cn 怎么看，网页、Kimi Code、接口分别看哪一项",
+      "slug": "kimi-down-busy-check-status-page",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1199-status-compare.png",
+        "g1199-busy-decide.png"
+      ],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Kimi 提示繁忙、打不开或报错，先看官方状态页 status.moonshot.cn，不用登录。本文讲清页面上 Kimi、Kimi Code、Open API 几个分组各管什么，状态词怎么读，事件时间为什么是北京时间，以及状态页显示正常时怎么办。",
+      "content": "> 本文根据 Moonshot AI 官方状态页（status.moonshot.cn）整理，资料核对于 2026-10-27。**官方没有专门解释 Kimi「服务器繁忙」提示的文章**，本文讲的是状态页怎么读，以及页面显示正常时站内已有的使用说明。状态页内容实时变化，下面的例子只用来说明怎么读。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- Kimi 网页或 App 提示繁忙、一直转圈、发不出消息的人；\n- 用 Kimi Code 编程，响应变慢或报错的人；\n- 调用 Kimi 开放平台接口的开发者，想确认是不是官方的问题。\n\n## 结论先说\n\n1. **官方状态页是 [status.moonshot.cn](https://status.moonshot.cn/)**，页面名称 Moonshot AI Status，不用登录。\n2. 页面分成几组：**Kimi**（Website、API Service、Sign In / Sign Up、File uploads、Search，以及 Model 下的 Vision Model、Thinking Model、Text Model、Research Model、K2 Model）；**Kimi Code**（K3、K2.8 Preview、K2.7 Code Highspeed、Remote Control）；**SaaS**（Open API、Open Platform Portal）。每一组显示近 90 天的可用率。\n3. 状态词有五种：**Operational**（正常）、**Degraded Performance**（性能下降）、**Partial Outage**（部分中断）、**Major Outage**（严重中断）、**Maintenance**（维护）。\n4. **页面上的事件时间标的是 CST（北京时间）**，不用换算。\n5. **全部显示正常但你仍然繁忙**，多半是高峰期排队或你这边的问题，见下面第四节。\n\n![Kimi 状态页上的服务项](seed:g1199-status-compare.png)\n*图：本站根据 [Moonshot AI 状态页](https://status.moonshot.cn/) 整理的示意图*\n\n## 一、页面上有什么\n\n- **分组和服务项**：上面列的 Kimi、Kimi Code、SaaS 三组，每个服务项当前一个状态；\n- **90 天可用率**：每一组有一个「90 days ago 到 Today」的状态条和百分比；\n- **图例**：下方有状态颜色的说明，以及「No downtime recorded on this day」等提示；\n- **Past Incidents**：往前几天的事件，每条事件有 **Investigating**（调查中）、**Resolved**（已解决）等更新，带时间。\n\n### 各项大致对应\n\n| 你在用的 | 看哪一项 |\n| --- | --- |\n| 网页版 Kimi | Kimi 分组下的 Website |\n| 登录注册 | Sign In / Sign Up |\n| 上传文件 | File uploads |\n| 联网搜索 | Search |\n| 不同模型 | Model 下的 Vision、Thinking、Text、Research、K2 |\n| Kimi Code 编程 | Kimi Code 分组下的 K3、K2.8 Preview 等 |\n| 调用开放平台接口 | Open API、Open Platform Portal |\n\nKimi 的基本用法见 [/guides/kimi-how-to-use](/guides/kimi-how-to-use)，Kimi Code 见 [/guides/kimi-k3-coding-plan-kimi-code](/guides/kimi-k3-coding-plan-kimi-code) 和 [/guides/kimi-code-cli-getting-started](/guides/kimi-code-cli-getting-started)。\n\n## 二、怎么读一条事件\n\n用 2026-10-27 页面上的写法举例：一条事件标题写作「K3 部分请求的 TTFT 延迟可能升高」（K3 部分请求的首字延迟可能升高）。**TTFT 指从发出请求到收到第一个字的时间**，延迟升高表示响应变慢，不一定表示打不开。这条事件按时间有：\n\n1. **Investigating**：17:09（CST）开始调查；\n2. **Resolved**：18:19（CST）已解决。\n\n这样的事件，只有用到 K3 的人可能感觉变慢，用别的模型或功能的人不受影响。读事件时先看标题里点名的是哪个服务项或模型。\n\n![Kimi 繁忙或报错：先对照这张表](seed:g1199-busy-decide.png)\n*图：本站根据 [Moonshot AI 状态页](https://status.moonshot.cn/) 整理的示意图*\n\n## 三、官方已有事件时\n\n页面上相应项目显示 **Degraded Performance**、**Partial Outage** 或 **Major Outage**，或有一条还没写 Resolved 的事件，说明官方已经知道，除了等恢复没有别的办法。别反复重装、换账号或重新登录。需要继续干活的话，可以先换一个不受影响的模型或功能。\n\n## 四、状态页显示正常，仍然繁忙或报错\n\n官方状态页反映的是系统整体，不是每个用户的体验，页面正常也不能完全排除你这边的问题。可以这样排：\n\n1. **刷新页面、重启 App**，换浏览器或无痕窗口；\n2. **换网络对比**，比如手机热点；\n3. **高峰期可能排队**：避开工作日白天的高峰，一次不要塞太长的内容，把大任务拆小；这是常见的使用经验，官方没有就「繁忙」提示写过专门的说明；\n4. **上传文件失败**，先看 File uploads 项，再检查文件格式和大小，见 [/guides/kimi-long-document-reading](/guides/kimi-long-document-reading)；\n5. **会员权益问题**，见 [/guides/kimi-membership-plans](/guides/kimi-membership-plans)；\n6. **接口报错**，先看 Open API 一项，再按接口文档里的错误说明排查，API 调用入门见 [/guides/kimi-api-key-quickstart](/guides/kimi-api-key-quickstart)。\n\n想一次对比几家 AI 的状态页，见 [/guides/ai-tools-down-which-status-page](/guides/ai-tools-down-which-status-page)。\n\n## 常见问题\n\n**Q：状态页里的 K2 Model、K3 是什么区别？**\n页面只是列出服务项，没有解释模型之间的区别。模型和套餐的信息见 [/guides/kimi-k3-coding-plan-kimi-code](/guides/kimi-k3-coding-plan-kimi-code)。\n\n**Q：Remote Control 是什么？**\n它是页面上 Kimi Code 分组下的一个服务项，页面没有解释它的含义，也没有说明和其他产品的关系，这里不做猜测。\n\n**Q：状态页能订阅通知吗？**\n页面当天没有看到明确的订阅入口，以你打开页面时看到的为准。\n\n## 参考资料\n\n- Moonshot AI 状态页 — https://status.moonshot.cn/",
+      "sources": [
+        "https://status.moonshot.cn/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有单独写一篇解释 Kimi「服务器繁忙」提示的文章，本文只讲官方状态页怎么读，对繁忙提示本身的原因不下结论",
+        "服务项名称和分组是 2026-10-27 当天读到的页面，官方随时可能调整，K3、K2.8 Preview 等模型项会随产品更新变化",
+        "页面上的事件时间标注为 CST，本文按北京时间理解",
+        "文中的 TTFT 事件只用于说明怎么读，不代表当前状态"
       ]
     },
     {
