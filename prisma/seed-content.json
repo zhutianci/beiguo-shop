@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-27T19:36:25.036Z",
+  "builtAt": "2026-10-27T19:46:03.834Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -65530,6 +65530,111 @@
       ]
     },
     {
+      "title": "ChatGPT 和 Codex 合并了吗、是什么关系：新桌面 App 里的 Chat、Work、Codex 三个入口怎么分",
+      "slug": "chatgpt-and-codex-merged-relationship",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1223-entry-compare.png",
+        "g1223-merge-decide.png"
+      ],
+      "tags": [
+        "chatgpt",
+        "codex"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "ChatGPT 和 Codex 合并了吗？官方的说法是：新的 ChatGPT 桌面 App 把 Chat、Work 和 Codex 放在同一个 App 里，但 Codex 仍是独立视图，历史分开，网页和手机上不能选 Codex。本文按官方帮助中心整理它们的关系和各自的用法。",
+      "content": "> 本文根据 OpenAI 帮助中心《ChatGPT Work and Codex》《Moving to the new ChatGPT desktop app》和 Codex 官方文档《Use ChatGPT》整理，资料核对于 2026-10-28。**官方没有说「合并成一个产品」**，说的是新桌面 App 同时包含三个入口。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 听说 Codex 和 ChatGPT 合并了，想弄清楚到底是什么关系的人；\n- 更新后发现 Codex App 变成了 ChatGPT，不知道有什么变化的人；\n- 在网页或手机上找不到 Codex 的人。\n\n## 结论先说\n\n1. **更准确的说法是：新的 ChatGPT 桌面 App 把 Chat、Work 和 Codex 放在了一起**，支持 macOS 和 Windows。在桌面端从菜单选 **ChatGPT** 或 **Codex**；在 ChatGPT 里用开关选 **Chat** 或 **Work**。\n2. **Codex 仍是独立的视图。** 官方原话的意思是：Codex 的工作流没变，它的历史记录与 ChatGPT 的历史分开。Chat 和 Work 的对话则一起放在 Recents 里。\n3. **三者分工**：Chat 用于提问、搜索、头脑风暴；Work 用于交付文档、表格、演示稿、报告或网站这类成品；Codex 用于软件开发，用本地文件、仓库、终端和开发者工具。\n4. **Codex 在网页和手机上不能选。** 手机 App 里可以通过 **Remote** 标签访问桌面端的 Codex 对话。\n5. **额度**：官方说 Work 沿用和 Codex 相同的使用结构，登录 Codex 用 ChatGPT 账号就用你的 ChatGPT 套餐额度，用自己的 API 密钥就按 API 价格。详见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n![新 ChatGPT 桌面 App 里的三个入口](seed:g1223-entry-compare.png)\n*图：本站根据 [OpenAI 帮助中心：ChatGPT Work and Codex](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex) 整理的示意图*\n\n## 一、你现在用的是哪个 App\n\n官方《Moving to the new ChatGPT desktop app》分三种情况：\n\n![合并了吗：按你现在用的 App 看](seed:g1223-merge-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Moving to the new ChatGPT desktop app](https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app) 整理的示意图*\n\n- **已经在用 Codex App**：照常更新，更新后它就变成新的 ChatGPT 桌面 App，里面有 Chat、Work 和 Codex。原有的 Codex 对话和项目应该保留，更新后的 App 对 Codex 老用户默认打开 Codex，可以在设置里保持 Codex 为默认；\n- **已经在用旧的 ChatGPT 桌面 App**：按 App 内提示下载新 App，用同一个 ChatGPT 账号登录。新 App 可能和旧 App 并存，这时会看到 **ChatGPT**（新 App）和 **ChatGPT Classic**（旧 App）。官方说 Classic 可以继续用，不要求迁移，仍会收到模型更新、缺陷修复和安全补丁，但新的智能体功能可能只在新 App 里；\n- **第一次安装**：下载桌面 App，打开登录。\n\n新旧 App 的详细区别见 [/guides/chatgpt-classic-vs-new-desktop-app](/guides/chatgpt-classic-vs-new-desktop-app)，Windows 版的安装见 [/guides/codex-windows-app-download-install](/guides/codex-windows-app-download-install)。\n\n## 二、Chat、Work、Codex 怎么选\n\n官方《Use ChatGPT》的建议：Chat 用于一问一答或来回讨论；想让 ChatGPT 把更大的任务做到一个可审阅的结果时，在切换器里打开 Work；需要开发者视图或更多技术细节、尤其是做软件开发时，选 Codex。\n\n| 选择 | 适合 | 例子 |\n| --- | --- | --- |\n| Chat | 和 ChatGPT 讨论 | 提问、网页搜索、头脑风暴、起草消息、比较方案 |\n| Work | 定义结果并得到可审阅的成品 | 做演示稿、分析文件、写报告、做项目计划 |\n| Codex | 用开发者工具并看技术细节 | 调试代码、跑测试、审 PR、实现功能 |\n\nWork 和 Codex 的详细区别见 [/guides/chatgpt-work-vs-codex](/guides/chatgpt-work-vs-codex)，Chat 和 Work 的区别见 [/guides/chatgpt-chat-vs-work-difference](/guides/chatgpt-chat-vs-work-difference)，Work 怎么用见 [/guides/chatgpt-work-how-to-use-steps](/guides/chatgpt-work-how-to-use-steps)。\n\n## 三、网页、手机和云端\n\n- **Work** 在网页和手机上在云端运行；在桌面 App 里，Work 还可以在套餐和工作区允许时使用本地文件和桌面应用（需要你授权）。云端的 Work 对话在网页、手机、桌面之间同步；\n- **Codex** 在桌面 App 里用本地文件夹、仓库、终端。**Codex Cloud** 在 OpenAI 托管的电脑上跑编码任务，电脑睡眠时任务也能继续，可以在桌面、网页或手机上开始和继续，见 [/guides/codex-cloud-how-to-use](/guides/codex-cloud-how-to-use)；\n- **远程访问**桌面端的 Codex 对话（手机 Remote 标签）和「在云端环境里跑任务」是两回事，前者不会把桌面对话加到网页或手机的聊天历史里，见 [/guides/codex-remote-control-ssh-host](/guides/codex-remote-control-ssh-host)。\n\n## 四、需要哪个套餐\n\n官方 Pricing 页写明 Work 和 Codex 包含在 ChatGPT 的各个套餐里，用量不同；GPT-6 Astra 在 Plus 套餐里可用于 Work 和 Codex。想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，套餐区别见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)。\n\n## 常见问题\n\n**Q：我找不到 Codex？**\n先确认是在桌面 App 里，网页和手机上没有这个选项。模型和功能的更多排查见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)。\n\n**Q：更新后 Codex 的历史对话会丢吗？**\n官方说原有的 Codex 对话和项目应该保留。\n\n**Q：公司的权限设置会变吗？**\n官方说这次导航更新不会改变工作区现有的访问权限、安全设置、治理控制或费用模式。\n\n## 参考资料\n\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- OpenAI 帮助中心：Moving to the new ChatGPT desktop app — https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app\n- Codex 官方文档：Use ChatGPT — https://learn.chatgpt.com/docs/use-chatgpt",
+      "sources": [
+        "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+        "https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app",
+        "https://learn.chatgpt.com/docs/use-chatgpt"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有用「合并」这个词，本文按官方原话整理成「同一个桌面 App、三个入口」，Codex 仍是独立视图",
+        "官方说明 Codex 在网页和手机上不可选，手机 App 可通过 Remote 标签访问桌面端的 Codex 对话，界面名称以当前版本为准",
+        "帮助中心文章当天显示刚更新过，之后可能调整，以官方最新版为准"
+      ]
+    },
+    {
+      "title": "ChatGPT Business 怎么开通、怎么加成员：席位、角色、邀请和 CSV 批量导入的官方步骤",
+      "slug": "chatgpt-business-sign-up-add-members",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1224-signup-steps.png",
+        "g1224-seats-compare.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "TEAM",
+      "excerpt": "ChatGPT Business（原 Team）怎么开通、怎么邀请同事？官方步骤是登录后选 Business、选席位和计费方式、结账，再到工作区设置的 Members 里邀请。本文按官方帮助中心整理席位、角色和批量导入，价格标注 2026-10 查询。",
+      "content": "> 本文根据 OpenAI 帮助中心《Sign up for ChatGPT Business》《ChatGPT Business overview》《Managing members, seat types, and roles》整理，资料核对于 2026-10-28。价格只写官方页面标明的数字并标 2026-10 查询，以官方定价页为准。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 想给团队开通 ChatGPT Business 的人；\n- 开通后不知道怎么邀请同事、怎么分配席位的人；\n- 想弄清 Business 和原来的 Team 是什么关系的人。\n\n## 结论先说\n\n1. **Business 就是原来的 ChatGPT Team**，2025 年 8 月 29 日改名。\n2. **开通步骤**：在浏览器打开 ChatGPT Business 注册页 → 用要使用的账号登录 → 如果出现套餐选项，选 Business → 核对席位、计费周期、付款信息和总价，完成结账 → 按提示完成设置并邀请队友。\n3. **新建账号至少买 2 个付费席位**（可以是两个 Standard、两个 Premium，或各一个），上限 200 个席位。\n4. **你开通后是工作区所有者（Owner）**，之后可以按角色和席位类型邀请成员。\n5. **席位和成员是两回事**：席位是工作区里的付费容量，所有者买席位后再分配给成员，发出邀请不会买下或预留席位。\n\n![ChatGPT Business 开通 4 步](seed:g1224-signup-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Sign up for ChatGPT Business](https://help.openai.com/en/articles/8980713) 整理的示意图*\n\n## 一、席位类型和价格（2026-10 查询）\n\n![Business 的两种席位](seed:g1224-seats-compare.png)\n*图：本站根据 [OpenAI 帮助中心：ChatGPT Business overview](https://help.openai.com/en/articles/8792828-chatgpt-business-overview) 整理的示意图*\n\n官方说明：Standard 和 Premium 席位都包含 ChatGPT、ChatGPT Work 和 Codex，区别是用量。Premium 的用量是 Standard 的 5 倍，且没有 5 小时用量窗口。一个工作区可以全是 Standard、全是 Premium，或混合。**买更多 Standard 席位不会把你自己的席位升级成 Premium**，要 Premium 就选或申请 Premium 席位。价格会因国家和币种而异，以官方定价页为准。\n\n另外官方提到：超出包含用量后可以用灵活定价购买工作区点数（credits）。Business 订阅**不含 API**，API 单独计费。\n\n## 二、开通后怎么加成员\n\n官方《Managing members, seat types, and roles》的步骤：\n\n1. 进入 Business 工作区；\n2. 打开 **Workspace settings > Members**；\n3. 点 **Invite member**；\n4. 导入 CSV，或手动输入邮箱；\n5. 所有者可以为每个邀请选角色和席位类型；管理员和普通成员只能邀请「成员」角色，用工作区默认席位类型；\n6. 确认默认席位类型（Standard 或 Premium）后发出邀请。\n\n**发出邀请不会买下或预留席位**，席位是否可用在对方接受邀请时才检查。如果请求的席位类型没有了，被邀请人可以点 **Request to join**，由所有者增加席位或购买后再批准。**邀请的人应该是团队里长期的成员**，官方警告：违反服务协议滥用席位分配，可能导致工作区被停用或账号被暂停。\n\n### CSV 批量导入\n\n格式是 `email,role,seat type`，例如：\n\n```text\nuser1@company.com,member,standard\nadmin@company.com,admin,premium\n```\n\n角色可选 member、admin、owner、analytics_viewer；席位类型可选 standard、premium；不区分大小写。角色没写或不认识会按「成员」处理；没写席位类型就用默认值。上传 CSV 不会让你获得额外的邀请权限。\n\n## 三、四种内置角色\n\n| 角色 | 官方说明 |\n| --- | --- |\n| Owner（所有者） | 完全访问，包括账单、身份管理、工作区配置，可邀请其他角色 |\n| Admin（管理员） | 协助管理用户和日常管理任务 |\n| Analytics Viewer | 有限权限，查看工作区信息和分析 |\n| Member（成员） | 完整使用 ChatGPT 并可创建 GPT，没有管理权限 |\n\n只有所有者能改成员角色、更换成员的席位类型、邀请新的管理员或所有者；管理员可以取消邀请、移除用户、设置支出控制。成员可以在席位为 Standard 时申请升级 Premium。\n\n## 四、加入已有工作区，个人账号怎么办\n\n官方说明：如果你的公司已经有 Business 工作区，向所有者要邀请，用收到邀请的邮箱接受。**加入 Business 不会自动迁移你的内容，也不会取消你的个人订阅。** 之后可以选择把个人工作区保持独立，或合并进 Business；合并没有撤销选项，不能把 Business 的内容再移回个人空间。你私人的聊天不会自动被其他成员看到。\n\n## 五、不适合自助 Business 的情况\n\n官方明确：需要发票、采购单、银行转账、电汇、ACH、账期、分期付款、零数据保留、BAA 等销售主导方案的，应使用合同形式的方案，而不是自助 Business。Business 和个人套餐、Enterprise 的对比见 [/guides/chatgpt-business-vs-plus](/guides/chatgpt-business-vs-plus)、[/guides/chatgpt-business-vs-pro](/guides/chatgpt-business-vs-pro)、[/guides/chatgpt-enterprise-vs-business-team](/guides/chatgpt-enterprise-vs-business-team)。\n\n## 常见问题\n\n**Q：只有我一个人，能开 Business 吗？**\n官方要求新账号至少 2 个付费席位，一个人通常更适合个人套餐，见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)；想开通 Plus 可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：Business 里能用 Codex 吗？**\n官方说 Standard 和 Premium 席位都包含 ChatGPT Work 和 Codex，见 [/guides/chatgpt-and-codex-merged-relationship](/guides/chatgpt-and-codex-merged-relationship)。\n\n**Q：工作区因停付被停用了？**\n官方说用所有者账号登录，在个人资料菜单里找到该工作区，如有 **Reactivate workspace** 就按提示操作；另建一个新工作区不会恢复原来的订阅和数据。\n\n## 参考资料\n\n- OpenAI 帮助中心：Sign up for ChatGPT Business — https://help.openai.com/en/articles/8980713\n- OpenAI 帮助中心：ChatGPT Business overview — https://help.openai.com/en/articles/8792828-chatgpt-business-overview\n- OpenAI 帮助中心：Managing members, seat types, and roles in ChatGPT Business — https://help.openai.com/en/articles/8542216",
+      "sources": [
+        "https://help.openai.com/en/articles/8980713",
+        "https://help.openai.com/en/articles/8792828-chatgpt-business-overview",
+        "https://help.openai.com/en/articles/8542216"
+      ],
+      "screenshots": [],
+      "verify": [
+        "价格是官方页面 2026-10 的写法，会因国家和币种不同，Premium 席位也可能调整，以官方定价页为准",
+        "官方帮助中心页面当天显示刚更新过，席位规则有过调整，以最新版为准",
+        "本文没有写支付方式、发票和采购流程，官方说这类需求要走销售渠道的合同方案"
+      ]
+    },
+    {
+      "title": "ChatGPT Business 和 Pro 的区别：一个面向团队、一个面向个人，席位、价格、GPT-6 Pro 额度和数据训练对比",
+      "slug": "chatgpt-business-vs-pro",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1225-biz-pro-compare.png",
+        "g1225-choose-decide.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "TEAM",
+      "excerpt": "ChatGPT Business 和 Pro 怎么选？官方的区别是：Business 是组织用的共享工作区，按席位计费，至少 2 席，数据不用于训练；Pro 是个人订阅，分 100、200、500 三档。本文按官方页面整理，价格标注 2026-10 查询。",
+      "content": "> 本文根据 OpenAI 帮助中心《ChatGPT Business overview》《ChatGPT Business models and limits》《About ChatGPT Pro tiers》整理，资料核对于 2026-10-28。价格和额度写官方页面当天的数字并标 2026-10 查询，以官方定价页为准。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 在 Business 和 Pro 之间犹豫的人；\n- 搞不清「Premium 席位」和「Pro」是不是一回事的人。\n\n## 结论先说\n\n1. **Business 是组织的共享工作区，Pro 是个人订阅。** Business 自助开通，带成员和角色管理、统一账单、用量与支出控制；新建工作区至少 2 个付费席位。\n2. **Premium 席位不等于 Pro。** 官方特别说明：Pro 是一个模型选项，不是 Premium 席位的另一个名字。\n3. **价格（2026-10 官方页面，美元）**：Business Standard 月付 25、年付按月折算 20；Premium 月付 125、年付按月折算 100。Pro 有三档：Pro 100、Pro 200、Pro 500，按月计费。\n4. **GPT-6 Pro**：官方写明在 Pro 100、Pro 200、Business 和 Enterprise 里可用；Business Standard 每月 15 条、Premium 每周 50 条，这两个额度由 GPT-6 Pro 和 GPT-5.6 Sol Pro 共享。\n5. **Ultrafast**：官方说目前在 Pro 里只有 Pro 500 包含，Pro 100、Pro 200 即使购买点数也不能开启。\n6. **数据**：官方说 OpenAI 不会用 Business 工作区的数据训练。\n\n![Business 和 Pro 的官方区别](seed:g1225-biz-pro-compare.png)\n*图：本站根据 [OpenAI 帮助中心](https://help.openai.com/en/articles/8792828-chatgpt-business-overview) 整理的示意图*\n\n## 一、Business：给团队用\n\n官方的概述：Business 是为想要共享 ChatGPT 工作区的团队设计的自助套餐，提供安全协作环境、对前沿模型的充足访问、统一计费、成员角色和访问管理、用量可见性和支出控制，以及按席位类型提供的 ChatGPT 和 Codex 访问。Standard 和 Premium 席位都含 ChatGPT、Work 和 Codex，Premium 的用量是 Standard 的 5 倍，且没有 5 小时用量限制。**Business 不包含 API**，API 单独计费。开通步骤和加成员见 [/guides/chatgpt-business-sign-up-add-members](/guides/chatgpt-business-sign-up-add-members)。\n\n## 二、Pro：给个人用\n\n官方的《About ChatGPT Pro tiers》：Pro 包含 Pro 模型、Codex、深度研究、图像创作、记忆和文件上传。三档 Pro 的区别是用量和 Ultrafast：Pro 200 的用量高于 Pro 100，Pro 500 的包含用量最高。官方还写了 Pro 200 近期的变化：新订阅的 Pro 200 用量会比以前低，月价仍是 200 美元；符合条件的老订阅可以保留旧用量到 2026-10-29。另外，**Pro 的用量限制不会结束订阅**，达到限额后可以换别的可用模型，或等重置，支持团队不能手动重置你的额度。\n\n## 三、怎么选\n\n![Business 还是 Pro：看你的情况](seed:g1225-choose-decide.png)\n*图：本站根据 [OpenAI 帮助中心](https://help.openai.com/en/articles/12003714-chatgpt-business-models-and-limits) 整理的示意图*\n\n- **一个人用**：Business 要求至少 2 个付费席位，更适合先看个人套餐，见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison) 和 [/guides/chatgpt-plus-vs-pro-tiers](/guides/chatgpt-plus-vs-pro-tiers)；想开通 Plus 可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，想开通 Pro 可看 [/chongzhi/chatgpt-pro](/chongzhi/chatgpt-pro)；\n- **给团队统一管理**：Business；\n- **需要发票、采购单、合同流程**：官方说这类要走销售渠道，不是自助 Business；\n- **更大规模或更多控制**：官方建议考虑 Enterprise，见 [/guides/chatgpt-enterprise-vs-business-team](/guides/chatgpt-enterprise-vs-business-team)。\n\n## 四、额度怎么理解\n\n官方对 Business 额度的说明：「几乎无限」的用量适用于 Instant 聊天，并受防滥用保护，**不代表推理、Pro、Work、Codex 等也无限**；GPT-6 Pro 的聊天额度和 Work、Codex 的用量是分开的。Pro 同理：模型额度因档位而异，到限额后该模型可能暂时不可用，ChatGPT 会显示重置时间。Work 和 Codex 的额度机制见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n## 常见问题\n\n**Q：Business 和 Plus 的区别？**\n见 [/guides/chatgpt-business-vs-plus](/guides/chatgpt-business-vs-plus) 和 [/guides/chatgpt-plus-vs-business-personal-view](/guides/chatgpt-plus-vs-business-personal-view)。\n\n**Q：Pro 能共享给同事吗？**\n官方说明共享账号凭据、转售访问权限都是禁止的，违反使用条款可能被限制访问。\n\n**Q：Business 里的 Codex 怎么用？**\n见 [/guides/chatgpt-and-codex-merged-relationship](/guides/chatgpt-and-codex-merged-relationship)。\n\n## 参考资料\n\n- OpenAI 帮助中心：ChatGPT Business overview — https://help.openai.com/en/articles/8792828-chatgpt-business-overview\n- OpenAI 帮助中心：ChatGPT Business models and limits — https://help.openai.com/en/articles/12003714-chatgpt-business-models-and-limits\n- OpenAI 帮助中心：About ChatGPT Pro tiers — https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers",
+      "sources": [
+        "https://help.openai.com/en/articles/8792828-chatgpt-business-overview",
+        "https://help.openai.com/en/articles/12003714-chatgpt-business-models-and-limits",
+        "https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers"
+      ],
+      "screenshots": [],
+      "verify": [
+        "价格和额度是官方页面 2026-10 的写法，官方近期调整过 Pro 200 的用量，Premium 席位也是新近加入，以官方定价页为准",
+        "官方没有写 Pro 的数据训练默认设置，本文只写 Business 官方明确的说法，Pro 的数据控制以账号设置为准",
+        "Business Standard 每月 15 条、Premium 每周 50 条 GPT-6 Pro 消息来自 Business 模型和限额页，这些数字会调整"
+      ]
+    },
+    {
+      "title": "ChatGPT 生图怎么做透明背景：官方怎么说、提示怎么写、没做出来怎么排查，以及 API 的 png 与 webp 要求",
+      "slug": "chatgpt-image-transparent-background",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1229-transparent-steps.png",
+        "g1229-transparent-decide.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 生图能做透明背景吗？官方帮助中心写明 ChatGPT Images 可以按指令让背景透明。本文整理官方步骤、局部编辑方法、提示写法，以及开发者用 API 时必须设置 background 为 transparent 并用 png 或 webp。",
+      "content": "> 本文根据 OpenAI 帮助中心《Images in ChatGPT》、Codex 官方文档《Image generation》和 OpenAI API 图像生成指南整理，资料核对于 2026-10-28。官方对透明背景只写了一句话，本文把相关的官方说明和通用做法分开写。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 想做 Logo、贴纸、图标、素材，需要透明背景图的人；\n- 生成的图背景是白色或有颜色，想去掉的人；\n- 开发者想通过 API 批量生成透明图的人。\n\n## 结论先说\n\n1. **官方说可以。** 帮助中心写明：ChatGPT Images 可以按指令添加文字、添加图中细节，或让背景透明；也可以上传已有图片，描述想要的修改。\n2. **做法**：在对话里描述想要的图，并明确写「透明背景」；或点 **More** 再选 **Images**。生成可能要几分钟，生成期间可以继续使用 ChatGPT。\n3. **不满意就在同一个对话里改。** 官方建议先抓住核心想法，再做小的、有针对性的修改，一次只改一个元素，避免整体构图跑偏。\n4. **改局部**：选中图片，用选择工具框出要改的区域再描述，满意后点 **Save**；也可以不用选择工具，直接在对话里说明。\n5. **官方没有写聊天里下载的文件格式。** 透明背景需要支持透明的格式；API 里官方明确要求用 png 或 webp。\n\n![让 ChatGPT 生成透明背景图](seed:g1229-transparent-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Images in ChatGPT](https://help.openai.com/en/articles/11084440-images-in-chatgpt) 整理的示意图*\n\n## 一、提示怎么写\n\n官方《Image generation》给的写法：一个好的生图提示通常只有一到三句清楚的话，说明图的用途或受众、主体和正在发生的事、场景、构图和风格，必要时加画面比例、光线、颜色、材质，并写明限制条件，包括图里不能出现什么。多用具体的视觉语言，必须保持不变的要求要重复说。\n\n按这个思路写透明背景的提示，例如（本站示例，不是官方原文）：\n\n```text\n为手账贴纸包设计一个可爱的橘猫贴纸，卡通扁平风格，粗描边，主体居中。背景透明，不要任何底色、阴影底板或渐变，不要出现文字。\n```\n\n要点：一次只要一个主体；写清「背景透明」并说明不要底色；风格和构图写具体。\n\n## 二、没做出来怎么办\n\n![透明背景没做出来：对照排查](seed:g1229-transparent-decide.png)\n*图：本站根据官方帮助中心和 API 指南整理的示意图*\n\n- **背景还是有颜色**：在提示里更明确地说透明背景、不要底色，或在对话里直接说「请把背景改成透明」；\n- **边缘有残留**：官方建议用选择工具框出背景区域或描述只改背景，其余保持不变；官方也提示选区不一定精确，修改可能超出所选区域；\n- **图在看图软件里是白底**：这和查看软件有关，换一个支持透明的软件打开；是否真的透明，要看你保存下来的文件格式；\n- **想重新比例**：用 **Aspect ratio** 选择器，或在提示里写画面比例；官方说可以生成任意比例的图；\n- **额度用完了**：生图有单独的额度，见 [/guides/chatgpt-image-limits](/guides/chatgpt-image-limits)；失败原因见 [/guides/chatgpt-image-failed](/guides/chatgpt-image-failed)。\n\n## 三、开发者用 API 怎么做透明背景\n\n官方 API 图像生成指南写明：输出选项里有 **Background**（透明、不透明或自动）；**要透明背景，设置 `background: \"transparent\"`，并使用 `output_format: \"png\"` 或 `\"webp\"`**。官方还写明 `size`、`quality`、`background` 都支持 `auto`，由模型按提示自动选。输出格式默认是 png，也可以要求 jpeg 或 webp；jpeg 更快，但不能保存透明。API 按用量单独计费，和 ChatGPT 订阅额度是两套体系。\n\n在 Codex 里生图时，官方说内置生图用 `gpt-image-2`，计入 Codex 的通用用量，每次生图消耗额度的速度平均比类似的无图任务快 3 到 5 倍；大批量时可以设置 `OPENAI_API_KEY`，让它通过 API 生成，按 API 价格计费。\n\n## 四、相关\n\n- 生图工具的新版本和用法：[/guides/gpt-image-2-how-to](/guides/gpt-image-2-how-to)；\n- 用图片提问和识别：[/guides/chatgpt-image-recognition](/guides/chatgpt-image-recognition)；\n- 想要更高额度可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 常见问题\n\n**Q：所有套餐都能做透明背景吗？**\n官方说 ChatGPT Images 在所有套餐可用，额度不同；「带思考的生图」在 Plus、Pro、Business 提供。\n\n**Q：下载出来是什么格式？**\n官方没有写，以界面为准。需要确定透明格式时，可以用 API 指定 png 或 webp。\n\n**Q：可以用来做商标图吗？**\n本文不涉及版权和商标问题，使用前请自己确认素材的使用范围。\n\n## 参考资料\n\n- OpenAI 帮助中心：Images in ChatGPT — https://help.openai.com/en/articles/11084440-images-in-chatgpt\n- OpenAI API 文档：Image generation — https://developers.openai.com/api/docs/guides/image-generation\n- Codex 官方文档：Image generation — https://learn.chatgpt.com/docs/image-generation",
+      "sources": [
+        "https://help.openai.com/en/articles/11084440-images-in-chatgpt",
+        "https://developers.openai.com/api/docs/guides/image-generation",
+        "https://learn.chatgpt.com/docs/image-generation"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心只写了「可以按指令让背景透明」，没有说明聊天里导出的文件格式，也没有保证每次都成功，本文不断言导出格式",
+        "提示怎么写的例句是本站的使用建议，不是官方原文",
+        "透明背景的 API 设置来自 OpenAI API 图像生成指南当天的写法，不同模型可能有不同限制，以官方文档为准"
+      ]
+    },
+    {
       "title": "ChatGPT 翻译怎么用：整篇文档翻译、翻译指令与术语表",
       "slug": "chatgpt-translation",
       "checkedOn": "2026-10-07",
@@ -65558,6 +65663,226 @@
       ]
     },
     {
+      "title": "Codex VS Code 扩展怎么装、不加载怎么办：侧边栏入口、Windows 缺 C++ 工具、WSL 设置和登录方式",
+      "slug": "codex-vscode-extension-install-not-loading",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1230-install-steps.png",
+        "g1230-notload-decide.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex 的 VS Code 扩展 ID 是 openai.chatgpt，装好后点侧边栏的 Codex 图标，看不到就用命令面板运行 Codex: Open Codex Sidebar。本文按官方文档整理安装、登录、不加载时的排查：Windows 缺 C++ 工具、WSL 设置、启动设置。",
+      "content": "> 本文根据 Codex 官方文档《Codex IDE extension》《IDE extension settings》《Windows sandbox》《Authentication》整理，资料核对于 2026-10-28。官方没有「扩展不加载」的专门排查页，本文按官方入口和设置整理。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 想在 VS Code（或 Cursor、Windsurf）里装 Codex 的人；\n- 装好了但侧边栏没有 Codex，或点了没反应的人；\n- 在 Windows 或 WSL 里用的人。\n\n## 结论先说\n\n1. **官方扩展的 ID 是 `openai.chatgpt`**，VS Code、Cursor、Windsurf 都用这个扩展。\n2. **打开方式**：点侧边栏的 Codex 图标；看不到图标，就打开命令面板，运行 **Codex: Open Codex Sidebar**。\n3. **登录**：未登录界面选 **Sign in with ChatGPT**，或选 **Use API Key**，输入密钥后点 **OK**。\n4. **Windows 上装好但没反应**：官方说可能是系统缺 C++ 开发工具，需要 Visual Studio Build Tools（C++ 工作负载）和 Microsoft Visual C++ Redistributable（x64），装好后**完全重启 VS Code**。\n5. **项目在 WSL 里**：设置 `chatgpt.runCodexInWindowsSubsystemForLinux`，改动会重新加载 VS Code。\n\n![在 VS Code 里装 Codex 扩展](seed:g1230-install-steps.png)\n*图：本站根据 [Codex 官方文档：Codex IDE extension](https://learn.chatgpt.com/docs/codex/ide) 整理的示意图*\n\n## 一、安装和打开\n\n官方步骤：安装或启用 Codex 后，登录，在编辑器里开始对话。VS Code 及兼容的编辑器用 Codex 扩展；Xcode 和 JetBrains IDE 提供各自的集成。\n\n- **Xcode**：打开编码助手，新建对话，选 Codex 作为智能体；\n- **JetBrains**：打开 AI Chat 并选 Codex；\n- 开始第一个对话时，官方建议先在任务前后做 Git 检查点，方便撤销改动。\n\n登录方式的区别（ChatGPT 账号与 API 密钥）见 [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect)；入门总览见 [/guides/codex-getting-started](/guides/codex-getting-started)。\n\n## 二、不加载、没反应，逐项排查\n\n![Codex 扩展不加载：对照排查](seed:g1230-notload-decide.png)\n*图：本站根据 [Codex 官方文档](https://learn.chatgpt.com/docs/developer-settings) 整理的示意图*\n\n### 1. 侧边栏没有图标\n\n官方写明：图标不可见时，用命令面板运行 **Codex: Open Codex Sidebar**。想让每次启动 VS Code 都自动聚焦 Codex 侧边栏，把设置 `chatgpt.openOnStartup` 设为 `true`（默认是 `false`）。设置在 VS Code 里搜索 `@ext:openai.chatgpt` 或设置名即可，也可以在扩展的齿轮图标里选 **Codex Settings > Open config.toml** 打开配置文件。\n\n### 2. Windows 上装好了但没反应\n\n官方《Windows sandbox》里的「IDE extension is installed but unresponsive」：系统可能缺 C++ 开发工具，部分原生依赖需要它。需要装 Visual Studio Build Tools（C++ 工作负载）和 Microsoft Visual C++ Redistributable（x64）。官方给的 winget 命令是 `winget install --id Microsoft.VisualStudio.2022.BuildTools -e`。装完后要**完全重启 VS Code**。沙箱本身的问题见 [/guides/codex-windows-sandbox-setup-failed](/guides/codex-windows-sandbox-setup-failed)。\n\n### 3. 项目在 WSL 里\n\n设置 `chatgpt.runCodexInWindowsSubsystemForLinux`（仅 Windows，默认 `false`）：在 WSL 可用时让 Codex 跑在 WSL 里，适合仓库和工具链在 WSL2 的情况，修改后会重新加载 VS Code。\n\n### 4. 想用插件，但 IDE 里没有\n\n官方明确：IDE 扩展**不支持插件**，要浏览和安装插件，用桌面 App 或命令行，见 [/guides/codex-plugins-where-to-install](/guides/codex-plugins-where-to-install)。\n\n### 5. 其他常用设置\n\n官方列了几个扩展设置：`chatgpt.commentCodeLensEnabled` 在 `TODO` 注释上方显示 CodeLens；`chatgpt.followUpQueueMode` 决定运行中发的消息是排队（`queue`）还是插入当前回合（`steer`）；`chatgpt.composerEnterBehavior` 决定 Enter 是否直接发送；`chatgpt.localeOverride` 设界面语言，留空自动检测；`chatgpt.cliExecutable` 只用于开发，**手动覆盖内置的可执行文件可能让扩展的部分功能失效**。这些 `chatgpt.*` 设置属于扩展，不写进 `config.toml`。\n\n## 三、和桌面 App 同时用\n\n官方说明：桌面 App 和 IDE 扩展在同一项目里打开时，会共享活动对话和编辑器上下文；在 App 输入框打开 **IDE context** 就能让 Codex 用你编辑器里打开的文件。提示「This is open in another app」的情况见 [/guides/codex-vscode-open-in-another-app](/guides/codex-vscode-open-in-another-app)。\n\n## 常见问题\n\n**Q：扩展登录后没有额度？**\n额度按你的 ChatGPT 套餐算，见 [/guides/codex-usage-limits](/guides/codex-usage-limits)；想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：Cursor 里能装吗？**\n官方文档把 Cursor 列在可装扩展的编辑器里，同样用 `openai.chatgpt`。Cursor 自己的功能和 Codex 的对比见 [/guides/cursor-vs-claude-code-vs-codex](/guides/cursor-vs-claude-code-vs-codex)。\n\n**Q：其他报错怎么对照？**\n见 [/guides/codex-common-errors-summary](/guides/codex-common-errors-summary)。\n\n## 参考资料\n\n- Codex 官方文档：Codex IDE extension — https://learn.chatgpt.com/docs/codex/ide\n- Codex 官方文档：IDE extension settings — https://learn.chatgpt.com/docs/developer-settings\n- Codex 官方文档：Windows sandbox — https://learn.chatgpt.com/docs/windows/windows-sandbox\n- Codex 官方文档：Authentication — https://learn.chatgpt.com/docs/auth",
+      "sources": [
+        "https://learn.chatgpt.com/docs/codex/ide",
+        "https://learn.chatgpt.com/docs/developer-settings",
+        "https://learn.chatgpt.com/docs/windows/windows-sandbox",
+        "https://learn.chatgpt.com/docs/auth"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有给出「扩展不加载」的专门排查页，也没有报错原文，本文把官方的入口说明、Windows 扩展无响应说明和设置项整理成排查顺序",
+        "扩展商店里的显示名称官方没有写死，本文用官方给的扩展 ID openai.chatgpt 作为查找依据",
+        "官方说 IDE 扩展不支持插件，JetBrains 和 Xcode 是各自的集成而不是这个扩展"
+      ]
+    },
+    {
+      "title": "Codex VS Code 提示「This is open in another app」怎么办：App 和 IDE 扩展同步对话的官方规则",
+      "slug": "codex-vscode-open-in-another-app",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1231-sync-compare.png",
+        "g1231-open-decide.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex VS Code 扩展提示 This is open in another app？官方没有逐字解释这句话，但文档写明桌面 App 和 IDE 扩展在同一项目里会共享活动对话和编辑器上下文，并支持互相打开对话。本文按官方同步规则整理合理的处理办法。",
+      "content": "> 本文根据 Codex 官方文档《IDE extension settings》《Codex IDE extension》《Troubleshooting》整理，资料核对于 2026-10-28。**官方没有解释「This is open in another app」这句提示**，本文说明官方写明的 App 与 IDE 同步规则，处理办法是在这些规则下的合理做法。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 用 Codex VS Code 扩展，同时开着 ChatGPT 桌面 App，遇到 `This is open in another app` 的人；\n- 想知道桌面 App 和 IDE 扩展怎么共享对话的人。\n\n## 结论先说\n\n1. **字面意思**：`This is open in another app` 是「这个对话已在另一个应用里打开」。官方文档没有这句话，也没有说明触发条件。\n2. **官方写明的同步规则**：当 ChatGPT 桌面 App 和 IDE 扩展在**同一个项目**里打开时，它们共享活动对话和编辑器上下文。两边都用项目来决定要共享哪些对话和上下文。\n3. **可以互相接力**：可以在 IDE 扩展里打开 App 里的对话，也可以在 App 里继续 IDE 里的对话。\n4. **不想互相影响**：在 App 输入框里关闭 **IDE context**，App 的提示就不会带上编辑器里打开的文件。\n5. **合理做法**：同一个对话只在一边继续，另一边先关掉或切到别的对话，避免两边同时操作；确认两边打开的是同一个项目文件夹。\n\n![App 和 IDE 扩展怎么同步](seed:g1231-sync-compare.png)\n*图：本站根据 [Codex 官方文档：IDE extension settings](https://learn.chatgpt.com/docs/developer-settings) 整理的示意图*\n\n## 一、官方的同步说明\n\n官方《IDE extension sync》一节的要点（本站转述）：\n\n- 桌面 App 和 IDE 扩展在同一个项目里时，**共享活动对话和编辑器上下文**；\n- 在 App 输入框打开 **IDE context**，可以让 Codex 使用你当前在编辑器里打开的文件；想让 App 的提示排除这些编辑器内容，就关掉它；\n- 可以从 IDE 扩展里打开 App 的对话，也可以在 App 里继续 IDE 的对话；\n- 两边用同一个项目来决定共享哪些对话和上下文。\n\n另外，官方说明 App 里的 Codex 智能体和 IDE 扩展、CLI 继承同一套配置；MCP 配置放在 `config.toml` 里，所以三个入口共用。\n\n## 二、遇到提示时怎么办\n\n![This is open in another app](seed:g1231-open-decide.png)\n*图：本站根据 Codex 官方文档整理的示意图*\n\n1. **先看是不是同一个对话在两边都开着。** 如果是，先在你想继续的一边接着聊，另一边关掉这个对话或换成别的对话；\n2. **想换到另一边继续**：用官方说的方式，在 IDE 里打开 App 的对话，或在 App 里继续 IDE 的对话，不要两边同时发消息；\n3. **不确定是不是同一个项目**：核对 App 里的项目和 VS Code 打开的文件夹是不是同一个，官方说共享按项目判断；项目在 WSL 里时，Windows 桌面 App 和 WSL 里的 CLI 默认不共享配置、登录缓存和会话历史，见 [/guides/codex-401-unauthorized-error](/guides/codex-401-unauthorized-error)；\n4. **只想各用各的**：关闭 App 输入框里的 IDE context；\n5. **重启 App 和编辑器**，再不行，按官方方式反馈：在输入框输入 `/` 提交反馈，会得到一个会话 ID，也可以到 GitHub 的 openai/codex 先搜相同的问题。\n\n官方《Troubleshooting》里和「卡住」有关的建议也适用：看 Codex 是不是在等你批准某个操作；打开终端运行 `git status` 这样的基本命令；用更小的提示开新对话。\n\n## 三、App 和 IDE，分别什么时候用\n\n- **IDE 扩展**：官方的定位是在代码旁边使用 Codex，把打开的文件和选区带进提示，在编辑器旁审查改动，需要时把长任务交给 Codex 云端；\n- **桌面 App**：管理项目、并行对话、审查结果，见 [/guides/chatgpt-and-codex-merged-relationship](/guides/chatgpt-and-codex-merged-relationship)；\n- 扩展的安装和不加载排查见 [/guides/codex-vscode-extension-install-not-loading](/guides/codex-vscode-extension-install-not-loading)。\n\n## 常见问题\n\n**Q：关掉 IDE context 会影响 IDE 里的对话吗？**\n官方说关掉的是 App 输入框里使用编辑器文件的开关，用来让 App 的提示排除编辑器内容；对 IDE 里自己的对话，官方没有进一步说明。\n\n**Q：对话会丢吗？**\n官方的说法是两边按项目共享活动对话，没有写这个提示意味着对话会丢失。\n\n**Q：其他报错？**\n见 [/guides/codex-common-errors-summary](/guides/codex-common-errors-summary)；额度见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n## 参考资料\n\n- Codex 官方文档：IDE extension settings — https://learn.chatgpt.com/docs/developer-settings\n- Codex 官方文档：Codex IDE extension — https://learn.chatgpt.com/docs/codex/ide\n- Codex 官方文档：Troubleshooting — https://learn.chatgpt.com/docs/reference/troubleshooting",
+      "sources": [
+        "https://learn.chatgpt.com/docs/developer-settings",
+        "https://learn.chatgpt.com/docs/codex/ide",
+        "https://learn.chatgpt.com/docs/reference/troubleshooting"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有出现「This is open in another app」这句提示，也没有解释它出现的条件，本文没有断言原因，只说明官方写明的同步规则，以及在这个规则下的合理做法",
+        "提示的中文意思是这个对话在另一个应用里打开着，本文的处理办法是本站的使用建议，不是官方的专门说明",
+        "具体按钮名称以你使用的版本为准"
+      ]
+    },
+    {
+      "title": "Codex 命令被自动审核拒绝怎么办：Auto-review 是什么、/approve 怎么放行、连续被拒为什么会中断",
+      "slug": "codex-auto-review-denied-command",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1232-denied-decide.png",
+        "g1232-flow-steps.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex 的命令被 Auto-review 自动审核拒绝，不是普通的沙箱报错。官方说明：审核智能体拒绝后，主智能体要改用更安全的做法或停下问你；命令行里可用 /approve 对被拒动作批准重试一次；连续被拒会触发断路器中断回合。",
+      "content": "> 本文根据 Codex 官方文档《Auto-review》《Troubleshooting》整理，资料核对于 2026-10-28。**官方没有这句提示的统一原文**，本文按 Auto-review 文档里的拒绝处理说明整理。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- Codex 的某条命令或操作被自动审核拒绝，任务停下来的人；\n- 在桌面 App 里选了「Approve for me」的人；\n- 想知道自动审核拒绝什么、能不能放行的人。\n\n## 结论先说\n\n1. **Auto-review 是「换了个审批人」，不是新增权限。** 官方说明：它用另一个审核智能体代替人来审批越过沙箱边界的请求；主智能体仍在同一个沙箱里、同样的审批策略和同样的网络、文件限制下工作。\n2. **被拒绝不是普通沙箱错误。** 官方说，Codex 会把审核的理由返回给主智能体，并加一条更强的指令：不要通过变通、间接执行或绕过策略去达到同样的结果；只能用实质上更安全的替代方案，否则就停下来问你。\n3. **连续被拒会中断回合。** 官方对当前开源实现的描述：同一回合内连续被拒 3 次，或最近 50 次审核里累计被拒 10 次，会中断该回合；任何一次未被拒绝会重置连续计数。\n4. **命令行里可以放行一次。** 输入 `/approve`，打开 **Auto-review Denials** 选择器，选一个最近被拒的动作批准重试一次；每个任务最多记录 10 条最近的拒绝。\n5. **`approval_policy = \"never\"` 时没有东西可审**，Auto-review 不起作用。\n\n![命令被自动审核拒绝：对照官方说明](seed:g1232-denied-decide.png)\n*图：本站根据 [Codex 官方文档：Auto-review](https://learn.chatgpt.com/docs/sandboxing/auto-review) 整理的示意图*\n\n## 一、Auto-review 在什么时候触发\n\n官方说明，Auto-review 只在审批是交互式的情况下起作用，比如 `approval_policy = \"on-request\"` 或仍会弹出相关提示的细粒度策略。它评估的是本来会停下来等人的审批请求：\n\n![Auto-review 是怎么工作的](seed:g1232-flow-steps.png)\n*图：本站根据 [Codex 官方文档：Auto-review](https://learn.chatgpt.com/docs/sandboxing/auto-review) 整理的示意图*\n\n- 请求提权的 shell 或执行工具调用；\n- 被当前沙箱或策略挡住的网络请求；\n- 在可写目录之外的文件编辑；\n- 按工具标注或配置需要批准的 MCP 或应用工具调用。\n\n**沙箱里本来就允许的常规操作不会触发审核。** Computer Use 是例外：它的应用批准仍直接问你，不由 Auto-review 代替，见 [/guides/codex-computer-use-not-found](/guides/codex-computer-use-not-found)。\n\n## 二、它会拒绝什么\n\n官方概括 Auto-review 设计上要拦的动作：\n\n- 把私密数据、密钥或凭据发给不可信的目的地；\n- 探测凭据、令牌、Cookie 或会话材料；\n- 大范围或持久的安全削弱；\n- 有重大不可逆损害风险的破坏性操作。\n\n具体策略在开源的 Codex 仓库里，企业可以定制，个人用户也可以在本地配置自己的审核策略。审核智能体能看到精简的对话记录和这次的审批请求，看不到隐藏的推理过程；超时与明确拒绝是分开处理的，超时本身不代表动作不安全。\n\n## 三、被拒绝之后怎么办\n\n1. **先读审核给出的理由。** 它说明了为什么不安全，常常你换一种更窄的做法就能通过，比如只访问需要的目录、不发送敏感内容；\n2. **让 Codex 用更安全的方式重做**，或者你自己手动执行那一步；\n3. **确认确实要放行**，在命令行输入 `/approve`，选中那一条被拒的动作批准重试一次。官方说明这是窄口径的放行：只针对那个具体动作，不覆盖类似的以后动作；只记录给同一上下文的一次重试；重试仍要经过 Auto-review，**如果策略规定用户不能覆盖这一类拒绝，它还会再拒绝**；\n4. **不想要自动审核**：桌面 App 在输入框下方的权限控制里选别的模式，命令行里把 `approvals_reviewer` 改回默认；改变审批策略本身不会改变审核者。组织的托管要求优先于本地设置。\n\n## 四、几个相关的概念\n\n- 桌面 App 里选择 **Approve for me** 才使用自动审核；如果这个模式缺失或灰了，官方的排查是更新 App、检查是否在配置里显式设了 `features.guardian_approval = false`、检查权限配置和审批策略，受管工作区请管理员查允许的模式，见官方《Troubleshooting》；\n- 权限模式怎么选，见 [/guides/codex-permissions-sandbox](/guides/codex-permissions-sandbox)；\n- 在沙箱里命令连不上网等问题，见 [/guides/codex-windows-sandbox-setup-failed](/guides/codex-windows-sandbox-setup-failed)；\n- 其他报错对照见 [/guides/codex-common-errors-summary](/guides/codex-common-errors-summary)。\n\n## 常见问题\n\n**Q：我能让它别再拒绝吗？**\n官方说明 Auto-review 是审核者的替换，不是权限授予，不会扩大可写目录、开启网络或削弱受保护路径；想要更宽的权限要改的是权限配置，并且受组织策略约束。\n\n**Q：风险高的操作可以全权限运行吗？**\n官方警告完全访问模式下 Codex 不限于项目目录，可能做出破坏性操作，建议用 **Approve for me** 而不是全权限。\n\n**Q：想开通 Codex 的更多额度？**\n见 [/guides/codex-usage-limits](/guides/codex-usage-limits)，想开通 Plus 可看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- Codex 官方文档：Auto-review — https://learn.chatgpt.com/docs/sandboxing/auto-review\n- Codex 官方文档：Troubleshooting — https://learn.chatgpt.com/docs/reference/troubleshooting\n- Codex 官方文档：Permissions — https://learn.chatgpt.com/docs/permission-modes",
+      "sources": [
+        "https://learn.chatgpt.com/docs/sandboxing/auto-review",
+        "https://learn.chatgpt.com/docs/reference/troubleshooting",
+        "https://learn.chatgpt.com/docs/permission-modes"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有给出「命令被自动审核拒绝」这句提示的统一原文，本文按官方 Auto-review 文档里的「Denials and failure behavior」整理",
+        "断路器的次数（连续 3 次、最近 50 次里累计 10 次）和 /approve 的细节来自官方文档对「当前开源实现」的说明，之后可能调整",
+        "官方的审核策略写在开源仓库里，本文没有逐条核对，只引用官方概括的拦截类型"
+      ]
+    },
+    {
+      "title": "Codex 命令行常用命令一页看：codex、exec、resume、review、cloud 和会话里的斜杠命令（官方文档列出的）",
+      "slug": "codex-cli-commands-cheatsheet",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1233-cli-compare.png",
+        "g1233-shortcuts-check.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex CLI 有哪些常用命令？本文只写官方命令参考里列出的：codex、exec、resume、review、cloud 等，以及会话里的 /model、/status、/compact、/diff 等斜杠命令和快捷键。",
+      "content": "> 本文根据 Codex 官方文档《Command line options》《Slash commands in Codex CLI》《Non-interactive mode》整理，资料核对于 2026-10-28。只写官方命令参考里列出的命令；选项很多，不在这里逐个展开。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 刚装好 Codex CLI，想知道有哪些命令的人；\n- 想在脚本和 CI 里用 Codex 的人；\n- 想知道会话里斜杠命令和快捷键的人。\n\n## 结论先说\n\n1. **日常只用到三类**：`codex`（交互界面）、`codex exec`（脚本里无人值守地跑）、`codex resume` 或 `codex fork`（接着上次或分叉一个会话）。\n2. **会话里的斜杠命令**最常用的是 `/model`、`/status`、`/compact`、`/diff`、`/review`、`/init`、`/permissions`、`/mcp`。\n3. **想看某个命令的全部选项**，用官方命令参考或命令行里的帮助。\n4. **安装和更新**见 [/guides/codex-cli-install-update](/guides/codex-cli-install-update)，`codex update` 在当前版本支持自更新时检查并应用更新。\n\n![Codex CLI 常用命令](seed:g1233-cli-compare.png)\n*图：本站根据 [Codex 官方文档：Command line options](https://learn.chatgpt.com/docs/developer-commands) 整理的示意图*\n\n## 一、命令行命令\n\n官方命令参考里列出的主要命令（说明是本站转述）：\n\n- **`codex`**：不带子命令时打开交互式终端界面（TUI）。网页搜索默认是缓存模式，用 `--search` 可切到实时浏览；也能附加图片；\n- **`codex exec`**（或简写 `codex e`）：用于脚本或 CI 式的、不需要人工参与就能结束的运行。加 `--json` 得到逐行的 JSON 事件；可以用 `resume` 子命令继续非交互任务。详见 [/guides/codex-getting-started](/guides/codex-getting-started)；\n- **`codex resume`**：按 ID 继续某个交互会话，或继续最近一次；`--last` 默认只在当前工作目录范围内找，加 `--all` 才搜全部；\n- **`codex fork`**：把以前的会话分叉成新对话，默认打开会话选择器，加 `--last` 分叉最近的一个；\n- **`codex review`**：非交互地审查代码，要从 `--uncommitted`、`--base`、`--commit` 或自定义提示中选一个目标，它们互相冲突，见 [/guides/codex-code-review](/guides/codex-code-review)；\n- **`codex login` / `codex logout`**：登录和登出，`codex login status` 看当前认证方式，`codex login --with-api-key` 用 API 密钥，见 [/guides/codex-401-unauthorized-error](/guides/codex-401-unauthorized-error)；\n- **`codex mcp`**：管理 MCP 服务器，OAuth 服务器用 `codex mcp login <名称>`，见 [/guides/codex-mcp-config](/guides/codex-mcp-config)；\n- **`codex plugin`**：管理插件，见 [/guides/codex-plugins-where-to-install](/guides/codex-plugins-where-to-install)；\n- **`codex cloud`**：和云端对话交互。默认打开选择器，`codex cloud exec` 直接提交任务，`codex cloud list` 列最近的对话，加 `--json` 方便脚本，见 [/guides/codex-cloud-how-to-use](/guides/codex-cloud-how-to-use)；\n- **`codex archive` / `unarchive` / `delete`**：归档、恢复和删除保存的会话，见 [/guides/codex-delete-archive-chats](/guides/codex-delete-archive-chats)；\n- **`codex doctor`**：生成本地诊断报告，检查安装、配置、认证、运行时、Git、终端等，提交问题前可以先运行；\n- **`codex features`**：管理保存在 `config.toml` 里的功能开关；\n- **`codex sandbox`**、**`codex execpolicy`**、**`codex app`**、**`codex apply`**、**`codex completion`**：分别用于沙箱、执行策略、桌面 App、应用补丁和 shell 补全，详见官方命令参考。\n\n## 二、会话里的斜杠命令\n\n在交互界面输入 `/` 能看到完整列表。官方列出的常用项：\n\n| 命令 | 官方说明 |\n| --- | --- |\n| `/model` | 选择当前模型（和思考强度），见 [/guides/codex-switch-model-reasoning-effort](/guides/codex-switch-model-reasoning-effort) |\n| `/status` | 显示会话配置和 token 用量 |\n| `/usage` | 查看账号 token 用量，或使用可兑换的额度重置 |\n| `/compact` | 总结可见的对话，释放 token |\n| `/diff` | 显示 Git 差异，含 Git 还没跟踪的文件 |\n| `/review` | 让 Codex 审查你的工作区 |\n| `/init` | 在当前目录生成 AGENTS.md 骨架，见 [/guides/codex-agents-md-how-it-reads](/guides/codex-agents-md-how-it-reads) |\n| `/permissions` | 设置 Codex 不用先问就能做的事 |\n| `/mcp` | 列出已配置的 MCP 工具 |\n| `/plugins`、`/skills` | 浏览插件、浏览并使用技能 |\n| `/new`、`/clear`、`/resume` | 开新对话、清屏并开新对话、从列表继续旧对话 |\n| `/debug-config` | 打印配置层和要求的诊断 |\n\n## 三、快捷操作\n\n![会话里的常用快捷操作](seed:g1233-shortcuts-check.png)\n*图：本站根据 [Codex 官方文档：Command line options](https://learn.chatgpt.com/docs/developer-commands) 整理的示意图*\n\n另外，官方还列了 `Ctrl+R` 搜索提示历史、`Ctrl+O` 或 `/copy` 复制最近完成的输出、`Ctrl+C` 或 `/exit` 关闭会话。\n\n## 常见问题\n\n**Q：命令太多，新手先学哪些？**\n先用 `codex`、`/status`、`/diff`、`/permissions`，其余按需要查。新手第一天的流程见 [/guides/codex-first-day-from-signup-to-first-task](/guides/codex-first-day-from-signup-to-first-task)。\n\n**Q：脚本里怎么提供密钥？**\n官方环境变量文档说明 `CODEX_API_KEY` 用于 `codex exec` 这类非交互进程，建议只在需要的那一行设置，见 [/guides/codex-missing-environment-variable](/guides/codex-missing-environment-variable)。\n\n**Q：额度和报错？**\n见 [/guides/codex-usage-limits](/guides/codex-usage-limits) 和 [/guides/codex-common-errors-summary](/guides/codex-common-errors-summary)。\n\n## 参考资料\n\n- Codex 官方文档：Command line options / Slash commands — https://learn.chatgpt.com/docs/developer-commands\n- Codex 官方文档：Codex CLI — https://learn.chatgpt.com/docs/codex/cli\n- Codex 官方文档：Non-interactive mode — https://learn.chatgpt.com/docs/non-interactive-mode",
+      "sources": [
+        "https://learn.chatgpt.com/docs/developer-commands",
+        "https://learn.chatgpt.com/docs/codex/cli",
+        "https://learn.chatgpt.com/docs/non-interactive-mode"
+      ],
+      "screenshots": [],
+      "verify": [
+        "本文只收录官方命令参考里出现的命令和快捷键，没有逐个展开每个命令的所有选项，选项以 codex --help 和官方命令参考为准",
+        "官方命令随版本变化，部分命令带有「实验性」「测试版」成熟度标记，以官方页面为准",
+        "本文不写官方文档没有给出的命令组合"
+      ]
+    },
+    {
+      "title": "Codex 怎么切换模型和思考强度：命令行 /model、桌面 App 模型选择器、config.toml 默认值与官方选择建议",
+      "slug": "codex-switch-model-reasoning-effort",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1234-switch-steps.png",
+        "g1234-guide-compare.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex 怎么换模型、调思考强度？命令行里输入 /model 回车选择，用 /status 确认；桌面 App 用模型选择器；想固定默认值在 config.toml 里设 model。本文按官方文档整理步骤，并附官方对 Luna、GPT-6.1 Sol、Astra 的选择建议。",
+      "content": "> 本文根据 Codex 官方文档《Slash commands》《Model selection》《Config basics》和 OpenAI 帮助中心《ChatGPT Work and Codex》整理，资料核对于 2026-10-28。模型的可用性随套餐和推出进度变化，选择器里没有的就是你的账号暂时没有。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 想在 Codex 里换模型、调整思考强度的人；\n- 在模型选择器里找不到 GPT-6.1 Sol、Astra 的人；\n- 不知道该用哪个模型、哪个强度的人。\n\n## 结论先说\n\n1. **命令行**：启动 Codex，在输入框输入 `/model` 回车，在弹窗里选模型（官方例子是 `gpt-6-luna`、`gpt-6.1-sol`）；Codex 会在记录里确认新模型，再用 `/status` 核对。\n2. **选择器只显示你账号和工作区能用的模型。** 官方明说：如果 GPT-6.1 Sol 没列出来，就选别的模型。\n3. **桌面 App**：用模型选择器选 **Default** 或指定的模型。Default 把模型和思考强度合在一条滑块上；选了指定模型，再从该模型可用的思考强度里挑。命令行**没有滑块**。\n4. **Codex 会保留你手动选的模型。**\n5. **想固定默认值**：在 `config.toml` 里写 `model = \"gpt-6.1-sol\"`，思考强度用 `model_reasoning_effort = \"medium\"`。\n6. **看不到 Astra**：官方说要把桌面 App 更新到最新，Codex CLI 需要 0.153.0 或更新版本；菜单里点 **Check for Updates**，即使刚自动更新过也要手动检查一次。\n\n![在 Codex 里切换模型](seed:g1234-switch-steps.png)\n*图：本站根据 [Codex 官方文档：Slash commands](https://learn.chatgpt.com/docs/developer-commands) 整理的示意图*\n\n## 一、命令行里切换\n\n官方步骤：\n\n1. 启动 Codex，打开输入框；\n2. 输入 `/model`，按回车；\n3. 从弹窗里选一个模型。\n\n另一个相关命令是 `/fast`：开关当前模型的 Fast 服务档位，再输一次就关掉；官方说明 Fast 档位是按目录提供的，当前模型不提供 Fast 档时 `/fast` 不会显示。想在底部状态栏看到 Fast 状态，用 `/statusline`。命令行其他命令见 [/guides/codex-cli-commands-cheatsheet](/guides/codex-cli-commands-cheatsheet)。\n\n也可以在启动时指定，官方的 `config.toml` 示例：\n\n```toml\nmodel = \"gpt-6.1-sol\"\nmodel_reasoning_effort = \"medium\"\n```\n\n用 `-c` 做一次性覆盖也是官方给的方式，例如 `codex --config model='\"gpt-6.1-sol\"'`（TOML 值要注意引号）。\n\n## 二、桌面 App 里切换\n\n官方帮助中心的说法：用模型选择器选 **Default** 或指定模型；Default 把模型和思考强度合在一条滑块上；选定模型后可以选它的思考强度，具体选项取决于你的套餐和工作区设置。Work 和 Codex 的模型控制是**独立于聊天**的，聊天里的模型选择和用量限制与它们分开。模型可见性的更多排查见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)。\n\n## 三、该选哪个模型和强度\n\n官方《Model selection》的说法：Luna 是最高效的模型，Astra 是最先进、最强的模型；如果不用考虑用量和耗时，可以默认用 Astra；要优化用量，按下面的建议选。\n\n![官方的模型与思考强度建议](seed:g1234-guide-compare.png)\n*图：本站根据 [Codex 官方文档：Model selection](https://learn.chatgpt.com/docs/model-selection) 整理的示意图*\n\n官方还写了几点：\n\n- **GPT-6.1 Terra**：适合基于给定材料的简洁写作、有明确结果的电脑操作任务和范围明确的代码修复；\n- **GPT-6.1 Sol**：适合成本敏感的复杂项目，比如用财务结果做董事会演示稿，或根据产品简报做网站，建议在同一任务上和 Astra 对比质量和成本；\n- **实验方法**：用相同的输入对比不同模型和强度，保留**满足质量要求的最轻设置**；代码和界面要跑回归测试，界面还要在桌面和手机上看渲染结果。\n\n## 四、模型和额度的关系\n\n官方说明：Astra 可能比 GPT-5.6 Sol 消耗额度更快，取决于任务、输入输出大小、思考强度和速度设置。Plus 套餐在 Work 和 Codex 里含有限的 Astra 用量，用完后可选购买点数。GPT-6.1 Sol 在 Work 和 Codex 里默认上下文窗口是 50 万 token；订阅包含的用量下没有额外的长上下文附加费，但更长的对话和任务仍计入使用限额。额度怎么看、怎么省，见 [/guides/codex-usage-limits](/guides/codex-usage-limits)；想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，高额度看 [/chongzhi/chatgpt-pro](/chongzhi/chatgpt-pro)。\n\n## 常见问题\n\n**Q：我在聊天里选了 GPT-6，Codex 里为什么不一样？**\n官方说明 Work 和 Codex 有独立的模型控制，GPT-6.1 Sol、GPT-6.1 Terra 等只在 Work 和 Codex 里，普通聊天不可选。\n\n**Q：用第三方模型行不行？**\n官方有自定义模型提供方的配置，见 [/guides/codex-third-party-models-deepseek-gemini-grok](/guides/codex-third-party-models-deepseek-gemini-grok)。\n\n**Q：切换后额度会变吗？**\n会，不同模型和强度消耗额度的速度不同，以官方页面和用量页为准。\n\n## 参考资料\n\n- Codex 官方文档：Slash commands — https://learn.chatgpt.com/docs/developer-commands\n- Codex 官方文档：Model selection — https://learn.chatgpt.com/docs/model-selection\n- Codex 官方文档：Config basics — https://learn.chatgpt.com/docs/config-file/config-basic\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+      "sources": [
+        "https://learn.chatgpt.com/docs/developer-commands",
+        "https://learn.chatgpt.com/docs/model-selection",
+        "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+        "https://learn.chatgpt.com/docs/config-file/config-basic"
+      ],
+      "screenshots": [],
+      "verify": [
+        "模型的可用性取决于套餐、工作区设置和推出进度，/model 选择器只显示你账号可用的模型，官方明确 GPT-6.1 Sol 在推出中，不是每个账号都有",
+        "官方对 Astra 在 Plus 里的说法是 Work 和 Codex 里包含，其他套餐的额度以官方页面为准，本文不写额度数字",
+        "模型名称和建议来自官方文档当天的写法，之后可能调整"
+      ]
+    },
+    {
+      "title": "Codex Cloud（云端任务）怎么用：创建环境、发布、开始第一个云端任务，以及什么时候该用云端",
+      "slug": "codex-cloud-how-to-use",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1235-cloud-steps.png",
+        "g1235-where-decide.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex Cloud 让编码任务在 OpenAI 托管的电脑上运行，电脑睡眠时也能继续，可在网页、手机、桌面 App 上开始和继续。本文按官方文档整理创建并发布环境、开始第一个任务的步骤，以及云端和本地怎么选。",
+      "content": "> 本文根据 Codex 官方文档《Codex Cloud》《Cloud environments》《Command line options》和 OpenAI 帮助中心《ChatGPT Work and Codex》整理，资料核对于 2026-10-28。官方文档中还有「Codex Cloud (Legacy)」，本文讲新的流程。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 想让编码任务在云端跑、电脑合上也不中断的人；\n- 想在手机上开 Codex 任务的人；\n- 不知道云端和本地该怎么选的人。\n\n## 结论先说\n\n1. **Codex Cloud 在 OpenAI 托管的电脑上运行编码任务**，每个任务有自己的工作区，**电脑睡眠时任务仍可继续**。可在网页、手机或桌面 App 里开始和继续，并审查改动。\n2. **要先有一个「环境」**：包含任务所需的仓库、工具和访问权限。创建并发布环境要在**网页或桌面 App** 上做，手机上只能选已发布的环境。\n3. **云端要用 ChatGPT 账号登录。** 官方认证文档写明 Codex 云端需要 ChatGPT 登录，API 密钥登录不能用。\n4. **完成后** 检查改动和测试结果，请求后续修改，准备好后提交或开 PR。\n5. **云端权限单独管理**：官方说 Codex Cloud 的访问独立于 Work Cloud 和 Codex Local，管理员可单独控制。\n\n![Codex Cloud 开始第一个云端任务](seed:g1235-cloud-steps.png)\n*图：本站根据 [Codex 官方文档：Codex Cloud](https://learn.chatgpt.com/docs/cloud) 整理的示意图*\n\n## 一、第一次使用的步骤\n\n官方步骤（本站转述）：\n\n1. **打开 ChatGPT**，用 ChatGPT 账号登录（网页、手机或桌面 App 均可）；\n2. **创建或选择环境**：在网页或桌面 App 里选 **Work in > Cloud**，打开 **Select environment**；手机上点 **Codex** 选已发布的环境。要新建就用网页或桌面 App，选 **Create environment**；\n3. **让 Codex 准备项目**：选 GitHub 仓库，点 **Get started**，按提示连接 GitHub。Codex 会检查仓库、安装依赖和工具并测试流程，缺访问权限或信息时会向你要；\n4. **审查并发布**：新环境要检查设置和测试结果，保存，点 **Publish**，等到显示 **Environment published**；\n5. **开始任务**：发布后点 **Start a new task**，描述任务并发送；选已有环境的话可以直接开始。\n\n之后可以配置环境、联网访问、环境变量和网络密钥，也可以在 Slack 里发起请求，见官方对应页面。\n\n## 二、云端还是本地\n\n![该用云端，还是本地](seed:g1235-where-decide.png)\n*图：本站根据 [Codex 官方文档：Codex Cloud](https://learn.chatgpt.com/docs/cloud) 整理的示意图*\n\n官方列的「什么时候用 Codex Cloud」：工作需要远程运行；几个任务需要同一套设置（从发布的环境开始，各任务的工作状态互相独立）；工作流需要服务凭据（用网络密钥访问允许的 HTTPS 服务，并限制环境的网络目的地）；想从命令行开始云端工作。本地的 Codex 则用你电脑上的文件、终端和开发工具。\n\n## 三、从命令行用云端\n\n官方命令参考里的 `codex cloud`：默认打开交互式选择器；`codex cloud exec` 直接提交任务；`codex cloud list` 列最近的云端对话，可加 `--json` 方便脚本，输出里包含任务的 URL 和状态。认证和主 CLI 一样；提交失败时 Codex 以非零状态退出。更多命令见 [/guides/codex-cli-commands-cheatsheet](/guides/codex-cli-commands-cheatsheet)。\n\n## 四、和手机、远程访问的区别\n\n官方帮助中心特别说明：**在云端环境里跑任务**和**远程访问桌面端的 Codex 对话**是两回事。后者通过手机 App 的 Remote 标签访问你电脑上的对话，不会把桌面对话加到网页或手机的聊天历史里，见 [/guides/codex-remote-control-ssh-host](/guides/codex-remote-control-ssh-host)。\n\n## 五、套餐和额度\n\n官方 Pricing 页写明 Work 和 Codex 包含在 ChatGPT 各套餐里，云端任务可能比本地消息消耗更多额度，用量见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。ChatGPT 和 Codex 的关系见 [/guides/chatgpt-and-codex-merged-relationship](/guides/chatgpt-and-codex-merged-relationship)。\n\n## 常见问题\n\n**Q：为什么手机上不能建环境？**\n官方写明新建环境用网页或桌面 App，手机上选已发布的环境。\n\n**Q：云端任务里能联网吗？**\n官方有单独的联网访问配置：环境设置里配网络，允许访问的服务要自己限定，详见官方《Cloud environments》。\n\n**Q：在 GitHub 上让 Codex 审查代码？**\n见 [/guides/codex-code-review](/guides/codex-code-review)。\n\n## 参考资料\n\n- Codex 官方文档：Codex Cloud — https://learn.chatgpt.com/docs/cloud\n- Codex 官方文档：Cloud environments — https://learn.chatgpt.com/docs/environments/cloud-environments\n- Codex 官方文档：Command line options — https://learn.chatgpt.com/docs/developer-commands\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+      "sources": [
+        "https://learn.chatgpt.com/docs/cloud",
+        "https://learn.chatgpt.com/docs/environments/cloud-environments",
+        "https://learn.chatgpt.com/docs/developer-commands",
+        "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档同时提到「Codex Cloud」和「Codex Cloud (Legacy)」，Code Review、Security Review 和 Linear、GitHub 集成仍使用后者，本文只讲新的云端任务流程",
+        "云端任务的可用套餐、用量和管理员权限以官方《Using Codex with your ChatGPT plan》为准，本文不写额度数字",
+        "界面按钮名称（Work in、Select environment、Create environment、Publish）来自官方文档当天的写法"
+      ]
+    },
+    {
+      "title": "Codex 怎么读 AGENTS.md：全局和项目的读取顺序、override 文件、32 KiB 上限，以及没生效怎么排查",
+      "slug": "codex-agents-md-how-it-reads",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1237-order-compare.png",
+        "g1237-notwork-decide.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "Codex 在开始工作前会读 AGENTS.md。官方写明读取顺序：先全局（~/.codex），再从项目根逐级走到当前目录，每个目录最多一个文件，后面的覆盖前面的，合并大小默认上限 32 KiB。本文只讲 Codex 的读取规则和排查。",
+      "content": "> 本文根据 Codex 官方文档《Custom instructions with AGENTS.md》和高级配置整理，资料核对于 2026-10-28。只讲 Codex 的读取规则；其他工具怎么读规则文件，见站内跨工具文章。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 写了 AGENTS.md，但不确定 Codex 有没有读、读的是哪个的人；\n- 一个仓库里有多个子项目，想给不同目录设不同规则的人；\n- 规则很长，担心被截断的人。\n\n## 结论先说\n\n1. **Codex 在开始工作前会读 AGENTS.md。** 它在启动时建一条指令链，每次运行建一次（命令行里通常是每次启动会话建一次）。\n2. **读取顺序**：先是**全局**，在 Codex 主目录（默认 `~/.codex`，设了 `CODEX_HOME` 就用那个）里，有 `AGENTS.override.md` 就读它，没有才读 `AGENTS.md`，只用第一个非空的；再是**项目**，从项目根（通常是 Git 根）逐级走到当前目录，每个目录依次找 `AGENTS.override.md`、`AGENTS.md`、`project_doc_fallback_filenames` 里的备用文件名，**每个目录最多包含一个**。\n3. **合并方式**：从根往下拼接，用空行隔开；**离当前目录越近的越靠后，所以优先级越高**。\n4. **大小上限**：Codex 跳过空文件，合并大小到 `project_doc_max_bytes`（默认 32 KiB）就停止添加，需要时调大，或把指令拆到嵌套目录。\n5. **确认读了什么**：官方给的办法是用命令让 Codex 列出它加载的指令来源。\n\n![Codex 读取 AGENTS.md 的顺序](seed:g1237-order-compare.png)\n*图：本站根据 [Codex 官方文档：AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md) 整理的示意图*\n\n## 一、官方的写法示例\n\n**全局**（`~/.codex/AGENTS.md`），官方示例：\n\n```md\n# ~/.codex/AGENTS.md\n## Working agreements\n- Always run `npm test` after modifying JavaScript files.\n- Prefer `pnpm` when installing dependencies.\n- Ask for confirmation before adding new production dependencies.\n```\n\n**项目根**的 `AGENTS.md` 写仓库的基本规范，比如提交 PR 前运行 `npm run lint`；**子目录**需要不同规则时，放一个 `AGENTS.override.md`，例如 `services/payments/AGENTS.override.md` 里写 `make test-payments` 代替 `npm test`。\n\n**验证**，官方给的命令：\n\n```shell\ncodex --cd services/payments --ask-for-approval never \"List the instruction sources you loaded.\"\n```\n\n官方说预期结果是 Codex 先报告全局文件，再是仓库根的 `AGENTS.md`，最后是 payments 的 override。**Codex 走到你当前目录就停止搜索**，所以特殊规则要放在离相关工作最近的位置。\n\n## 二、没生效，逐项排查\n\n![AGENTS.md 没生效：对照排查](seed:g1237-notwork-decide.png)\n*图：本站根据 [Codex 官方文档：AGENTS.md](https://learn.chatgpt.com/docs/agent-configuration/agents-md) 整理的示意图*\n\n- **改了文件没变化**：指令链每次运行只建一次，重启会话再试；\n- **规则被别的覆盖了**：离当前目录近的在后面，优先级更高，检查更深层目录里有没有同名或 override 文件；\n- **后面的内容好像没读到**：合并大小默认 32 KiB，到上限就停，把规则精简、调大 `project_doc_max_bytes` 或拆到嵌套目录；\n- **全局文件没生效**：同目录下有 `AGENTS.override.md` 时只读它，要恢复就删掉 override；\n- **文件是空的**：Codex 会跳过空文件；\n- **工作目录不对**：从项目根逐级走到你**启动 Codex 的目录**，在别的目录启动会读到不同的链。\n\n## 三、生成和维护\n\n在命令行里用 `/init` 可以在当前目录生成 AGENTS.md 骨架，见 [/guides/codex-cli-commands-cheatsheet](/guides/codex-cli-commands-cheatsheet)。官方也建议：项目较大时，用嵌套的 AGENTS.md 控制注入的上下文量，每个文件越大越耗额度，见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n## 四、和其他工具的规则文件\n\nAGENTS.md 是多个编码工具共用的约定，Claude Code 读的是 CLAUDE.md，各工具的写法和读取规则不同，见 [/guides/agents-md-cross-tool-guide](/guides/agents-md-cross-tool-guide) 和 [/guides/claude-md-agents-md](/guides/claude-md-agents-md)。\n\n## 常见问题\n\n**Q：AGENTS.md 里的规则一定会被遵守吗？**\n官方说它是让 Codex 在每个任务开始前有一致的预期，没有写「一定遵守」。重要的约束可以同时写进测试或检查里。\n\n**Q：我可以用别的文件名吗？**\n官方提供 `project_doc_fallback_filenames` 配置备用文件名，详见官方高级配置。\n\n**Q：Codex 新手怎么开始？**\n见 [/guides/codex-first-day-from-signup-to-first-task](/guides/codex-first-day-from-signup-to-first-task)。\n\n## 参考资料\n\n- Codex 官方文档：Custom instructions with AGENTS.md — https://learn.chatgpt.com/docs/agent-configuration/agents-md\n- Codex 官方文档：Advanced Configuration — https://learn.chatgpt.com/docs/config-file/config-advanced\n- Codex 官方文档：Command line options — https://learn.chatgpt.com/docs/developer-commands",
+      "sources": [
+        "https://learn.chatgpt.com/docs/agent-configuration/agents-md",
+        "https://learn.chatgpt.com/docs/config-file/config-advanced",
+        "https://learn.chatgpt.com/docs/developer-commands"
+      ],
+      "screenshots": [],
+      "verify": [
+        "本文只写 Codex 对 AGENTS.md 的读取规则，其他工具（Claude Code 的 CLAUDE.md、Cursor 的规则文件）怎么读，以各自官方文档为准，跨工具用法见站内文章",
+        "project_doc_max_bytes 默认 32 KiB 和 project_doc_fallback_filenames 是官方当天的写法，之后可能调整",
+        "官方没有说明指令链改动后能否热更新，只说每次运行建一次，命令行里通常是每次启动会话一次"
+      ]
+    },
+    {
+      "title": "Codex 新手第一天：从开通到第一个任务，安装、登录、权限、额度和准备清单",
+      "slug": "codex-first-day-from-signup-to-first-task",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1238-day1-steps.png",
+        "g1238-prep-check.png"
+      ],
+      "tags": [
+        "codex",
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "第一次用 Codex 怎么上手？官方的流程是：有 ChatGPT 账号，安装桌面 App、CLI 或 IDE 扩展，登录，选一个项目文件夹，发一个小任务，任务前后用 Git 做检查点。本文按官方文档整理第一天的步骤和准备清单。",
+      "content": "> 本文根据 Codex 官方文档《Quickstart》《Pricing》《Codex IDE extension》《ChatGPT desktop app for Windows》整理，资料核对于 2026-10-28。额度数字不写，以官方页面为准。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 第一次用 Codex，不知道从哪开始的人；\n- 想知道要装什么、开通什么、先做什么任务的人。\n\n## 结论先说\n\n1. **账号**：Codex 用 ChatGPT 账号登录。官方 Pricing 页写明 Work 和 Codex 包含在 Free、Go、Plus、Pro、Business、Edu 或 Enterprise 套餐里，用量因套餐而异。想要更充足的额度可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n2. **入口选一个就行**：ChatGPT 桌面 App（macOS、Windows、Linux）、命令行 CLI、VS Code 等编辑器的扩展。\n3. **登录后选项目**：打开 App、登录，开始一个对话、创建项目或打开一个文件夹，ChatGPT 可以读取并修改你选的文件夹里的文件。\n4. **第一个任务要小**：让它解释代码库、做一个聚焦的改动或帮你调试；任务前后用 Git 创建检查点，方便撤销。\n5. **用 Ask for approval**：官方建议在发消息前选输入框下方的 **Ask for approval**，保持沙箱保护。\n\n![Codex 新手第一天](seed:g1238-day1-steps.png)\n*图：本站根据 [Codex 官方文档：Quickstart](https://learn.chatgpt.com/docs/quickstart) 整理的示意图*\n\n## 一、官方的桌面端步骤\n\n官方 Quickstart 的桌面端流程：\n\n1. **安装 ChatGPT 桌面 App**，选对应操作系统的版本；\n2. **打开 App 并用 ChatGPT 账号登录**，也可以用 API 密钥，但有些功能可能不可用；\n3. **选择 ChatGPT 的工作位置**：开始对话、创建项目，或打开一个文件夹；\n4. **开始对话**：做软件开发、需要代码库上下文和开发者工具的，在 ChatGPT 下拉菜单里选 **Codex**；做研究、文档的选 **Work**；快速提问选 **Chat**；\n5. **发第一条消息**，描述目标，补充需要的文件或上下文。\n\n官方的开发示例提示：「检查这个应用，找出一个影响较大的可用性改进，实现它，更新相关测试，并在手机和桌面上验证结果。」你可以先用更小的任务练手。\n\nWindows 的安装见 [/guides/codex-windows-app-download-install](/guides/codex-windows-app-download-install)，命令行见 [/guides/codex-cli-install-update](/guides/codex-cli-install-update)，在编辑器里用见 [/guides/codex-vscode-extension-install-not-loading](/guides/codex-vscode-extension-install-not-loading)；三者关系见 [/guides/chatgpt-and-codex-merged-relationship](/guides/chatgpt-and-codex-merged-relationship)。\n\n## 二、第一天的准备清单\n\n![第一天开始前的准备清单](seed:g1238-prep-check.png)\n*图：本站根据 [Codex 官方文档](https://learn.chatgpt.com/docs/windows/windows-app) 整理的示意图*\n\n- **Git**：官方说 Git 驱动审查面板，让你查看或撤销改动；没装的话有些功能不可用。Node.js、Python 是代理常用的工具，建议先装；\n- **检查点**：官方在 IDE 说明里建议任务前后创建 Git 检查点；\n- **权限**：官方警告完全访问模式下 Codex 不限于项目目录，可能做出破坏性操作，建议保留沙箱边界，详见 [/guides/codex-permissions-sandbox](/guides/codex-permissions-sandbox)；\n- **额度**：用量页面是 chatgpt.com/codex/settings/usage，命令行里用 `/status` 看当前会话，见 [/guides/codex-usage-limits](/guides/codex-usage-limits)；\n- **AGENTS.md**：在项目根放一个，写清测试和提交约定，见 [/guides/codex-agents-md-how-it-reads](/guides/codex-agents-md-how-it-reads)。\n\n## 三、第一个任务怎么选\n\n官方的 Codex 说明里常见的开头方式：让它**解释代码库**、做**一个聚焦的改动**、或**帮你调试一个问题**。好的第一个任务具备：范围小、有办法验证（比如能跑一个已有的测试）、改动容易撤销。看完改动和测试结果，再决定保留哪些，不满意就在同一个对话里追问。\n\n## 四、遇到问题\n\n- 登录不了：见 [/guides/codex-cannot-sign-in-send-message-connect](/guides/codex-cannot-sign-in-send-message-connect)；\n- 报错对照：见 [/guides/codex-common-errors-summary](/guides/codex-common-errors-summary)；\n- 命令太多：见 [/guides/codex-cli-commands-cheatsheet](/guides/codex-cli-commands-cheatsheet)；\n- 入门的另一篇完整教程：[/guides/codex-getting-started](/guides/codex-getting-started)。\n\n## 常见问题\n\n**Q：必须付费吗？**\n官方说 Free 和 Go 套餐也包含 Codex，但用量有限，Plus、Pro 的用量更多。具体数字以官方页面为准。\n\n**Q：用 API 密钥登录行吗？**\n官方说可以，但按 API 价格计费，部分依赖 ChatGPT 工作区的功能不可用。\n\n**Q：先用桌面 App 还是命令行？**\n看你习惯：想要图形界面和并行对话用桌面 App；习惯终端用 CLI；一直在编辑器里用扩展。\n\n## 参考资料\n\n- Codex 官方文档：Quickstart — https://learn.chatgpt.com/docs/quickstart\n- Codex 官方文档：Pricing — https://learn.chatgpt.com/docs/pricing\n- Codex 官方文档：Codex IDE extension — https://learn.chatgpt.com/docs/codex/ide\n- Codex 官方文档：ChatGPT desktop app for Windows — https://learn.chatgpt.com/docs/windows/windows-app",
+      "sources": [
+        "https://learn.chatgpt.com/docs/quickstart",
+        "https://learn.chatgpt.com/docs/pricing",
+        "https://learn.chatgpt.com/docs/codex/ide",
+        "https://learn.chatgpt.com/docs/windows/windows-app"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方 Pricing 页写明 Work 和 Codex 包含在 Free、Go、Plus、Pro、Business、Edu、Enterprise 套餐里，各套餐用量不同，本文不写额度数字，以官方页面为准",
+        "站内已有《Codex 入门教程》，本文是第一天的操作清单，不重复其中网页版、CLI、IDE 的完整介绍",
+        "准备清单里的「先用 Ask for approval」来自官方 Windows 文档对沙箱保护的说明，其余是本站的建议"
+      ]
+    },
+    {
       "title": "ChatGPT 图片识别怎么用：上传照片、截图提问与识别不准的处理",
       "slug": "chatgpt-image-recognition",
       "checkedOn": "2026-10-07",
@@ -65583,6 +65908,33 @@
       "verify": [
         "官方 FAQ 写「非拉丁文字（如日文、韩文）识别效果较差」，中文是否同样受影响官方未单独说明，正文按「可能受影响」写",
         "图片格式：FAQ 列出 PNG、JPEG、非动态 GIF；WebP 等其他格式未写明"
+      ]
+    },
+    {
+      "title": "ChatGPT Plus 和 Business 怎么选：从个人角度看，一个人用、和同事共用、个人聊天迁移分别怎么办",
+      "slug": "chatgpt-plus-vs-business-personal-view",
+      "checkedOn": "2026-10-28",
+      "images": [
+        "g1241-choose-decide.png",
+        "g1241-plus-biz-compare.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "一个人用选 Plus 还是 Business？官方的区别是：Plus 是个人订阅，Business 是组织的共享工作区，至少 2 个付费席位，数据不用于训练。本文从个人视角整理几种情况怎么选，以及加入 Business 后个人账号和聊天怎么处理。",
+      "content": "> 本文根据 OpenAI 帮助中心《ChatGPT Business overview》《Sign up for ChatGPT Business》《Managing members, seat types, and roles》《ChatGPT Work and Codex》整理，资料核对于 2026-10-28。**官方没有写「个人该怎么选」**，本文是按官方对两个套餐的说明做的对照。价格以官方定价页为准。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 一个人用，在 Plus 和 Business 之间犹豫的人；\n- 公司拉你加入 Business，不知道个人 Plus 怎么办的人；\n- 想知道两者在数据和管理上区别的人。\n\n## 结论先说\n\n1. **一个人用，通常先看 Plus。** Business 是组织的共享工作区，新建账号至少买 2 个付费席位，更适合团队；Plus 是个人订阅。\n2. **要和同事共用、统一管理**，才是 Business 的场景：成员和角色管理、统一账单、用量和支出控制。\n3. **数据**：官方明确 OpenAI 不会用 Business 工作区的数据训练。Plus 的数据用于训练与否看你账号的数据控制设置，见 [/guides/chatgpt-business-vs-plus](/guides/chatgpt-business-vs-plus) 里的对比。\n4. **Work 和 Codex 两边都有。** Business 的 Standard 和 Premium 席位都包含 ChatGPT、Work 和 Codex；官方说 Plus 包含 GPT-6 Astra 在 Work 和 Codex 里的用量。\n5. **都不含 API**，API 单独计费。\n6. **加入公司的 Business 不会自动取消你的个人订阅，也不会自动迁移你的内容。**\n\n![Plus 还是 Business：从个人角度看](seed:g1241-choose-decide.png)\n*图：本站根据 [OpenAI 帮助中心](https://help.openai.com/en/articles/8792828-chatgpt-business-overview) 整理的示意图*\n\n## 一、几点对比\n\n![Plus 和 Business 的几点对比](seed:g1241-plus-biz-compare.png)\n*图：本站根据 [OpenAI 帮助中心](https://help.openai.com/en/articles/8792828-chatgpt-business-overview) 整理的示意图*\n\nBusiness 席位有两种：Standard 和 Premium，都含 ChatGPT、Work、Codex，Premium 的用量是 Standard 的 5 倍且没有 5 小时用量窗口。价格因国家和币种而异，以官方定价页为准；完整的开通步骤和加成员见 [/guides/chatgpt-business-sign-up-add-members](/guides/chatgpt-business-sign-up-add-members)。\n\n## 二、几种个人情况怎么办\n\n### 只有我自己用\n\nBusiness 要求至少 2 个付费席位，一个人通常用不上它的成员管理。套餐区别见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison) 和 [/guides/chatgpt-plus-vs-pro-tiers](/guides/chatgpt-plus-vs-pro-tiers)；想开通 Plus 可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n### 小团队想一起用\n\nBusiness 带角色（所有者、管理员、成员、分析查看者）、统一账单和支出控制，官方说发出邀请不会买下或预留席位，要先买席位再分配，见上面那篇开通文章。\n\n### 公司让我加入 Business，我已经有个人 Plus\n\n官方的说明：\n\n- 向工作区所有者要邀请，**用收到邀请的邮箱接受**；\n- **加入不会自动迁移你的内容，也不会自动取消你的个人订阅**；\n- 之后你可以选择让个人工作区保持独立，或把内容**合并**进 Business；合并**没有撤销选项**，Business 的内容不能再移回个人空间；合并后个人工作区不再出现在工作区切换器里；\n- 其他成员不会自动看到你的私人聊天，你自己选择分享什么；\n- 登录后在网页的个人资料菜单里（手机在侧边栏）选择当前使用的工作区。\n\n合并前先看官方的迁移指南，里面有支持迁移的内容、访问权限变化，以及通过 Apple App Store 和 Google Play 订阅的例外情况。\n\n### 要发票、采购流程\n\n官方明确：需要发票、采购单、银行转账、电汇、账期、零数据保留或 BAA 等的，应使用合同形式的方案，不是自助 Business。更大规模和更多控制，官方建议看 Enterprise，见 [/guides/chatgpt-enterprise-vs-business-team](/guides/chatgpt-enterprise-vs-business-team)。\n\n## 三、Business、Plus、Pro 怎么排\n\n- 个人：Plus（入门）、Pro（高用量，100、200、500 三档），见 [/guides/chatgpt-business-vs-pro](/guides/chatgpt-business-vs-pro)；\n- 团队：Business（Standard、Premium 席位）；\n- 大型组织：Enterprise。\n\n## 常见问题\n\n**Q：Business 里的 Codex 怎么用？**\n见 [/guides/chatgpt-and-codex-merged-relationship](/guides/chatgpt-and-codex-merged-relationship)，额度见 [/guides/codex-usage-limits](/guides/codex-usage-limits)。\n\n**Q：Business 是 Team 吗？**\n是，ChatGPT Team 在 2025 年 8 月 29 日改名为 Business。\n\n**Q：我可以拿个人账号绕开席位限制吗？**\n官方警告：滥用席位分配违反服务协议，可能导致工作区被停用或账号被暂停。邀请的人应是团队里长期的成员。\n\n## 参考资料\n\n- OpenAI 帮助中心：ChatGPT Business overview — https://help.openai.com/en/articles/8792828-chatgpt-business-overview\n- OpenAI 帮助中心：Sign up for ChatGPT Business — https://help.openai.com/en/articles/8980713\n- OpenAI 帮助中心：Managing members, seat types, and roles in ChatGPT Business — https://help.openai.com/en/articles/8542216\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+      "sources": [
+        "https://help.openai.com/en/articles/8792828-chatgpt-business-overview",
+        "https://help.openai.com/en/articles/8980713",
+        "https://help.openai.com/en/articles/8542216",
+        "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有专门写「个人该选 Plus 还是 Business」，本文是按官方对两个套餐的说明做的个人视角对照，不是官方推荐",
+        "价格以官方定价页为准，本文不写价格；官方说 Business 价格因国家和币种而异",
+        "站内已有《Business 和 Plus 的区别》，本文不重复逐项对比，只写个人决策和迁移"
       ]
     },
     {
