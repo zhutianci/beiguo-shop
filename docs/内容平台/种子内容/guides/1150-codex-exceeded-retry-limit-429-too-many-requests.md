@@ -4,7 +4,7 @@ slug: codex-exceeded-retry-limit-429-too-many-requests
 products: [codex, chatgpt]
 models: []
 accountTier: PLUS
-excerpt: Codex 提示 exceeded retry limit, last status: 429 Too Many Requests？官方没有单独解释这句话，429 在 HTTP 里表示请求太多。本文按官方文档列出可能相关的情况：套餐额度、API 密钥限额、工作区额度控制，并教你到哪里看用量。
+excerpt: Codex 提示 exceeded retry limit, last status 429 Too Many Requests？官方没有单独解释这句话，429 在 HTTP 里表示请求太多。本文按官方文档列出可能相关的情况：套餐额度、API 密钥限额、工作区额度控制，并教你到哪里看用量。
 checkedOn: 2026-10-27
 sources:
   - https://learn.chatgpt.com/docs/pricing
@@ -13,7 +13,7 @@ sources:
   - https://learn.chatgpt.com/docs/developer-commands
   - https://status.openai.com/
 verify:
-  - 官方文档没有单独解释「exceeded retry limit, last status: 429」这句报错，也没有写它一定意味着额度用完；本文只列官方文档里和用量限制、API 计费相关的说法，不对这句报错下结论
+  - 官方文档没有单独解释「exceeded retry limit, last status 429」这句报错，也没有写它一定意味着额度用完；本文只列官方文档里和用量限制、API 计费相关的说法，不对这句报错下结论
   - GitHub openai/codex 的公开问题里有用户反馈在用量页面还有余量时也遇到 429，截至核对日仍是未关闭的问题，官方没有给出解释，本文只提示「有这类反馈」
   - 用量页面网址和 /status、/usage 命令来自官方文档当天的写法，之后可能调整
 ---
