@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-25T22:29:22.056Z",
+  "builtAt": "2026-10-27T16:16:50.828Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -63318,6 +63318,252 @@
       ]
     },
     {
+      "title": "ChatGPT 提示「Unusual activity has been detected from your device. Try again later」怎么办：iPhone App 的官方排查步骤",
+      "slug": "chatgpt-unusual-activity-detected-from-your-device",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1100-unusual-decide.png",
+        "g1100-unusual-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "iPhone 上的 ChatGPT 提示 Unusual activity has been detected from your device？官方网络排查文章专门列了这句话：登出重登、卸载重装、关 VPN、更新 App，再不行改 DNS 并带 Safari 截图找客服。本文按官方顺序讲清，并区分网页版的相近提示。",
+      "content": "> 本文根据 OpenAI 帮助中心《Network recommendations for ChatGPT errors on web and apps》《Troubleshooting ChatGPT Error Messages》《Why am I receiving a ‘Suspicious Activity Alert’?》整理，资料核对于 2026-10-27。官方没有写这句话的原因，本文只写官方明确给出的步骤。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 在 iPhone 的 ChatGPT App 里，看到 **Unusual activity has been detected from your device. Try again later**（中文大意：已从你的设备检测到异常活动，请稍后再试）的人；\n- 在网页版看到 We detect suspicious activity、Unusual Activity Detected 等相近提示的人；\n- 想知道这和「Suspicious Activity Alert」可疑活动提醒是不是一回事的人。\n\n## 结论先说\n\n1. **这句原文官方有专门列出**：在《Network recommendations for ChatGPT errors on web and apps》里，它列在 **iOS App** 下面，原文是「Unusual activity has been detected from your device. Try again later」。官方**没有写原因**。\n2. **官方的通用步骤，按顺序**：① 在 App 里**登出再重新登录**；② **卸载 App 再重新安装**；③ **关闭 VPN**；④ 在 App Store **更新到最新版本**。\n3. **还是不行，官方的进阶步骤**：把 iOS 的 **DNS 改成 8.8.8.8 和 8.8.4.4**；再不行，用 Safari 打开 **https://register.appattest.apple.com/**，把页面的**截图**带给官方客服。\n4. **联系客服时要说明**：上面的步骤都做过，用的是最新版 App，已经改过 DNS，并且能提供那张 Safari 截图。\n5. **网页版和电脑端看到的是另一类提示**：官方对 We detect suspicious activity、Unusual Activity Detected 的说明是流量可能像自动化或异常行为，处理见第三节。\n6. **账号里有 Suspicious Activity Alert 横幅**，是账号层面的预防性提醒，见 [/guides/chatgpt-suspicious-activity-alert](/guides/chatgpt-suspicious-activity-alert)。\n\n![「异常活动」提示：iPhone、网页版、账号横幅各自对应的处理](seed:g1100-unusual-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 与 [Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、iPhone App：官方步骤\n\n### 通用步骤\n\n1. **登出**：在 ChatGPT App 里退出登录，再重新登录；\n2. **重装**：卸载 App，再从 App Store 重新安装；\n3. **关闭 VPN**：官方在这条提示下明确列了这一步；\n4. **更新**：到 App Store 把 ChatGPT 更新到最新版本。\n\n### 进阶步骤（前面都做了还出现才用）\n\n1. 把 iPhone 的 **DNS 服务器**改成 **8.8.8.8** 和 **8.8.4.4**（官方原文列的是这两个地址）；\n2. 如果仍然报错，在 **Safari** 里打开 **https://register.appattest.apple.com/**，如果页面打不开，把页面上的提示截图，例如「Safari 无法打开该页面，因为地址无效」这类提示；\n3. 带着这张截图，发起一次官方客服对话。\n\n官方还写了：如果以上都做了仍然出现，请提交客服请求，并**说明你做过每一步**：已是最新版 App、已改过 DNS，并可以提供 Safari 的测试截图。联系官方客服的入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n![iPhone 上的官方排查顺序：登出、重装、关 VPN、更新、改 DNS、Safari 测试](seed:g1100-unusual-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 整理的示意图*\n\n## 二、官方没说的，不要乱猜\n\n- **官方没有写原因**。这句话为什么出现、一般多久恢复，官方文章里都没有；\n- **官方没有说换地区、换网络出口能解决**。本文不介绍绕过地区限制的做法，官方的第一条恰恰是**关 VPN**；\n- **DNS 那一步是进阶步骤**，只在通用步骤做完后使用，改完不管用，可以改回原来的设置；\n- 安卓和电脑端看到这句原文，官方没有单独写，按下一节的通用做法处理。\n\n## 三、网页版和电脑端：相近提示的官方说明\n\n官方《Troubleshooting ChatGPT Error Messages》里有两条相近提示：**We detect suspicious activity** 和 **Unusual Activity Detected**。官方说明：流量可能类似自动化或异常行为。处理顺序是：\n\n1. **关闭 VPN 或代理**；\n2. **重启浏览器或设备**；\n3. 开一个**全新的无痕会话**；\n4. 如果有别人能登录你的账号，**改密码并保护好邮箱**；\n5. 如果你没有使用任何机器人或自动化，**联系官方客服**。\n\n网络环境相关的更多排查，比如公司网络、安全软件、WebSocket 被拦截，见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)；页面一直打不开见 [/guides/chatgpt-cant-open-loading](/guides/chatgpt-cant-open-loading)；通用的「Something went wrong」见 [/guides/chatgpt-something-went-wrong](/guides/chatgpt-something-went-wrong)。\n\n## 四、和「可疑活动提醒」的区别\n\n账号里出现 **Suspicious Activity Alert** 横幅，是**账号层面**的预防性提醒。官方说它往往只是提醒，不一定表示你有不当行为。官方建议的三步是改密码、开两步验证、登出所有设备，**和别人共用账号可能触发**。详细见 [/guides/chatgpt-suspicious-activity-alert](/guides/chatgpt-suspicious-activity-alert)，开两步验证见 [/guides/chatgpt-account-security-mfa](/guides/chatgpt-account-security-mfa)，共用账号的问题见 [/guides/chatgpt-account-sharing-multiple-devices](/guides/chatgpt-account-sharing-multiple-devices)。\n\n## 五、先看看是不是官方的问题\n\n如果许多人同时报错，可能是官方服务出了问题，先看状态页，见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。官方有故障时，等恢复，不要反复卸载重装。\n\n## 常见问题\n\n**Q：这句话是不是说明我的账号被封了？**\n官方没有这样说。官方对相近的账号层面提醒说，它往往只是预防性的，不一定表示你有不当行为。\n\n**Q：iPhone 上要改 DNS 吗？**\n只有在登出再登录、重装、关 VPN、更新都做过之后仍然出现，才是官方的进阶步骤。\n\n**Q：Safari 那一步是干什么的？**\n官方让你用 Safari 打开一个测试网址，把页面显示的结果截图，交给客服，以便判断网络问题。\n\n**Q：安卓上看到同样的话怎么办？**\n官方没有单独写，可以按网页版的通用步骤：关 VPN 和代理、重启、换网络，仍然不行就联系客服。\n\n## 参考资料\n\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Why am I receiving a ‘Suspicious Activity Alert’? — https://help.openai.com/en/articles/10471992-why-am-i-receiving-a-suspicious-activity-alert",
+      "sources": [
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/10471992-why-am-i-receiving-a-suspicious-activity-alert"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方网络排查文章把这句话列在 iOS App 下，并没有说明原因；本文不替官方解释原因",
+        "官方没有给出安卓或电脑端这句原文的专门说明，正文已标明按通用排查处理",
+        "DNS 改成 8.8.8.8 和 8.8.4.4 是官方进阶步骤里写的，具体改法随 iOS 版本略有不同，本文不写点击路径",
+        "官方文章页面只显示相对的更新时间，没有准确日期",
+        "网页版的 We detect suspicious activity、Unusual Activity Detected 来自另一篇官方文章，和 iOS 这句措辞不同"
+      ]
+    },
+    {
+      "title": "ChatGPT 提示「Error submitting message」怎么办：消息发不出去时，按官方通用排查的顺序处理",
+      "slug": "chatgpt-error-submitting-message",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1101-submit-decide.png",
+        "g1101-submit-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "发消息时 ChatGPT 提示 Error submitting message？OpenAI 帮助中心没有为这句话写专门说明，但有生成出错、Something went wrong 的通用排查。本文把官方做法按先后排好，并说明哪些官方没说。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Why is my ChatGPT taking so long to respond?》和 OpenAI 状态页整理，资料核对于 2026-10-27。**官方帮助中心没有为「Error submitting message」这句话写专门说明，**所以本文给的是官方对相近提示的通用排查顺序，没有依据的不编。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 点了发送，ChatGPT 弹出 **Error submitting message**（中文大意：提交消息出错）的人；\n- 消息发出去就失败、输入框里的字还在的人；\n- 想知道先做哪一步最省事的人。\n\n## 结论先说\n\n1. **官方没有这句话的专门说明。** 官方列的相近提示有：**There was an error generating a response**（生成回答时出错）和 **Something went wrong**（出了点问题）。\n2. **先重发，别急着折腾设置。** 官方对「生成回答出错」的说法是：这可能只是一次性失败，先点 **Regenerate**，也就是重新生成。\n3. **按官方顺序做**：刷新页面或新开对话 → 看官方状态页有没有故障 → 清除缓存和 Cookie → 换无痕窗口并关闭扩展 → 关闭 VPN 和安全 DNS → 换一个网络。\n4. **每做一步就重发一次**，不要一口气全改，这样才知道是哪一步起了作用。\n5. **仍然不行，联系官方客服**，并附上 HAR 文件、浏览器控制台错误、时间等。\n\n![Error submitting message：看到什么、对应怎么办的对照表](seed:g1101-submit-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、官方怎么说相近的提示\n\n官方《Troubleshooting ChatGPT Error Messages》里有几条和「消息没发成功」最接近：\n\n- **There was an error generating a response.**：ChatGPT 没能生成回答，可能是一次性失败。官方的办法是点 **Regenerate**；如果一直这样，重启设备，关闭 VPN 和代理，关闭网络安全过滤，或者换浏览器、无痕模式、网络或设备；\n- **Something went wrong.**：官方说这是一个通用错误，可能是临时的服务器问题，也可能是本地环境的问题。办法是刷新或新开对话、看状态页、清除缓存和 Cookie、用无痕窗口、关扩展、关 VPN 和安全 DNS、换网络；\n- **There was a problem preparing your chat.**：官方说是浏览器扩展或网址拦截器干扰了页面加载，办法是关闭拦截脚本或修改内容的扩展，或换无痕窗口、换浏览器。\n\n「Error submitting message」没有出现在这篇官方文章里。更稳妥的理解是：它属于同一类「消息没有成功发出或处理」的错误，官方这几条通用做法都可以照着试，但官方没有确认这句话的具体原因。\n\n## 二、按顺序试\n\n### 第一步：重发，再新开对话\n\n- 先把输入框里的内容复制一份，防止丢失；\n- 点一次发送或 **Regenerate**；\n- 同一个对话反复失败，**新开一个对话**，把内容贴进去再发。很长的对话容易卡，见 [/guides/chatgpt-slow-laggy-stuck-long-chat](/guides/chatgpt-slow-laggy-stuck-long-chat)。\n\n### 第二步：看是不是官方的问题\n\n打开 [status.openai.com](https://status.openai.com/)，看 **ChatGPT** 下的 **Conversations** 等组件有没有事件。有事件就等官方恢复，状态页怎么读见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n### 第三步：处理浏览器\n\n1. **清除缓存和 Cookie**，然后重试；\n2. 开一个**无痕窗口**登录再发，无痕窗口默认关闭大部分扩展；\n3. 无痕里正常，说明问题在扩展或缓存，回到普通窗口，逐个关闭**拦截脚本、广告、修改页面内容**类扩展。\n\n### 第四步：处理网络\n\n- 关闭 **VPN** 和**安全 DNS**，官方把这两项明确列在 Something went wrong 的通用步骤里；\n- 关闭 Web Protect 之类的网络安全过滤；\n- 换一个网络，例如换成手机热点。公司或学校网络的情况见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)。\n\n![官方通用排查的顺序：刷新、状态页、清缓存、无痕窗口、关 VPN、换网络](seed:g1101-submit-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 三、都试过了还不行\n\n官方在卡住和加载类问题的排查里写：如果问题持续，**联系客服之前先收集诊断信息**，包括：\n\n- 出问题那次会话的 **HAR 文件**；\n- 浏览器**开发者控制台**里的错误；\n- 相关的**请求 ID**；\n- **时间戳**；\n- **对话的网址**。\n\n联系官方客服的入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。同类的「Something went wrong」排查见 [/guides/chatgpt-something-went-wrong](/guides/chatgpt-something-went-wrong)，回答写到一半断掉的情况见 [/guides/chatgpt-error-in-message-stream](/guides/chatgpt-error-in-message-stream)。\n\n## 四、官方没说的，不要当结论\n\n- 官方没有写这句话**多久能恢复**，也没有说**和套餐有关**；\n- 官方也没有说「换地区网络就能解决」。本文不介绍任何绕开地区限制的做法，官方通用步骤里反而是让你**关闭** VPN 和代理；\n- 如果同时提示**额度已用完**之类的文字，那是另一回事，见 [/guides/chatgpt-too-many-requests-limit](/guides/chatgpt-too-many-requests-limit)。\n\n## 常见问题\n\n**Q：输入的内容会丢吗？**\n官方没有说明失败时输入框内容是否保留，建议先复制一份再重试。\n\n**Q：这是不是我的账号被限制了？**\n官方没有这样说。账号受限一般有明确提示，见 [/guides/chatgpt-suspicious-activity-alert](/guides/chatgpt-suspicious-activity-alert)。\n\n**Q：只有手机 App 出现怎么办？**\n官方对 App 崩溃或异常的做法是关闭再打开、更新 App 和系统、切换网络，见 [/guides/chatgpt-mobile-app-tips](/guides/chatgpt-mobile-app-tips)。\n\n**Q：要不要买会员？**\n官方没有说开通会员能避免这类错误。想了解套餐，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但它解决不了网络或浏览器问题。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Why is my ChatGPT taking so long to respond? — https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond\n- OpenAI 状态页 — https://status.openai.com/",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond",
+        "https://status.openai.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「Error submitting message」这句原文，也没有说明它的确切含义和原因；正文只引用官方对相近提示（There was an error generating a response、Something went wrong）的通用排查",
+        "「从字面看是消息提交这一步失败」是本文的理解，不是官方解释",
+        "官方文章页面只显示相对的更新时间，没有准确日期",
+        "官方没有说明这句话一般多久恢复"
+      ]
+    },
+    {
+      "title": "ChatGPT 提示「Error in input stream」怎么办：个人自查与公司、学校网络的官方建议",
+      "slug": "chatgpt-error-in-input-stream",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1102-input-decide.png",
+        "g1102-input-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 提示 Error in input stream？官方帮助中心没有收录这句话，但有生成出错的通用排查和网络放行建议。本文分个人自查与单位网络两种情况讲，并与 Error in message stream 那篇互相对照。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Network recommendations for ChatGPT errors on web and apps》和 OpenAI 状态页整理，资料核对于 2026-10-27。**官方帮助中心没有收录「Error in input stream」这句话，**所以本文写的是官方对相近提示的通用排查和网络建议，其余明确标注为官方没说。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 发消息或接收回答时，看到 **Error in input stream** 的人；\n- 只在公司、学校或某个固定网络里出现这个提示的人；\n- 想知道它和 **Error in message stream** 有什么关系的人。\n\n## 结论先说\n\n1. **官方没有收录这句话。** 状态页上出现过名字很像的事件：「ChatGPT errors (Error in message stream)」（2025 年 6 月 11 日，已解决），官方当时是回滚了一次变更后恢复。注意它写的是 **message stream**，不是 input stream。两句话的区别和处理，见 [/guides/chatgpt-error-in-message-stream](/guides/chatgpt-error-in-message-stream)。\n2. **个人网络下**，按官方通用顺序：重发 → 新开对话 → 无痕窗口、关扩展 → 关 VPN、代理和安全过滤 → 换浏览器、网络或设备。\n3. **只在公司或学校网络出现**，更像网络设备中途断开了连接。官方给网络管理员的建议是：放行 OpenAI 的域名，让 **WebSocket** 走 **TCP 443**，检查 TLS 检查、代理、防火墙和**空闲超时**。\n4. **换成手机热点就正常**，基本可以确定问题在原来的网络，把现象告诉管理员。\n5. **都排查过仍然出现**，联系官方客服，附时间和截图。\n\n![Error in input stream：个人网络与单位网络的对照表](seed:g1102-input-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Network recommendations for ChatGPT errors on web and apps](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 整理的示意图*\n\n## 一、个人自查：官方的通用顺序\n\n官方对「生成回答出错」的说明是，这可能是一次性失败，可以先点 **Regenerate**；仍然出现，才往下走。顺序是：\n\n1. **点 Regenerate 或重发**；\n2. **新开一个对话**，把内容贴过去再发；\n3. **换无痕窗口**登录，关闭浏览器扩展，尤其是拦截脚本、修改内容类的；\n4. **关闭 VPN、代理和安全过滤**，官方把这几样列在网络类提示的首要步骤；\n5. **换浏览器、换网络或换设备**，确认问题出在哪一层；\n6. 看 [status.openai.com](https://status.openai.com/)，有事件就等官方恢复，见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n![个人自查的官方通用顺序：重发、新开对话、无痕窗口、关 VPN、换网络、联系客服](seed:g1102-input-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 二、只在公司或学校网络出现：给管理员的官方建议\n\n官方《Network recommendations for ChatGPT errors on web and apps》的要点（以下是官方文章当天的写法）：\n\n- **域名放行**：不要阻拦 OpenAI 和 ChatGPT 的域名，也不要让网页过滤返回意外内容。官方举的例子有 **\\*.openai.com、\\*.chatgpt.com、\\*.oaiusercontent.com**；\n- **WebSocket**：允许 **TCP 443** 上的 WebSocket 流量连到 **wss://ws.chatgpt.com**（Codex 用 chatgpt.com）；确认 **TLS 检查、代理或防火墙**没有阻断或提前关闭这些连接，并检查**空闲超时**；\n- **安全软件和代理**：不要明确拦截 ChatGPT，包括 Cookie 拦截；官方列了常见的网关产品名称，如 Cisco Umbrella、Zscaler、Fortiguard；\n- **隔离网络**：看是只有你的电脑出问题，还是同一网络里别人也有；再用**手机热点**试一次，是否持续。\n\n如果你不是管理员，把上面这几条原样转给管理员，最省事。网络类错误的更多处理见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)。\n\n## 三、官方没说的，不要当结论\n\n- **这句话为什么出现**：官方没有解释，也没有说是不是只在某个套餐、某个地区出现；\n- **多久恢复**：没有给时间；\n- **地区和 VPN**：官方通用步骤是让你**关闭** VPN 和代理，没有说换地区能解决。本文不介绍任何绕开限制的做法；\n- 如果在网页上长对话里出现，也可能是对话太长，见 [/guides/chatgpt-slow-laggy-stuck-long-chat](/guides/chatgpt-slow-laggy-stuck-long-chat)。\n\n## 四、联系官方客服\n\n仍然不行，官方在其他排查文章里建议联系客服时提供：账号邮箱、报错截图、第一次出现的时间（带时区）、设备和浏览器信息，以及 HAR 文件、控制台错误和请求 ID。入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 常见问题\n\n**Q：Error in input stream 和 Error in message stream 是一回事吗？**\n官方没有说它们是同一个错误。官方状态页上出现的是 message stream；input stream 官方没有收录。处理思路相同，见 [/guides/chatgpt-error-in-message-stream](/guides/chatgpt-error-in-message-stream)。\n\n**Q：只在公司 Wi-Fi 下出现，怎么办？**\n先用手机热点验证。热点下正常的话，请管理员按官方网络建议检查域名、WebSocket、TLS 检查和空闲超时。\n\n**Q：我需要改 DNS 吗？**\n这条官方没有给出适用于所有人的建议。官方只在 iOS 的某条特定提示里把 DNS 列为进阶步骤，见 [/guides/chatgpt-unusual-activity-detected-from-your-device](/guides/chatgpt-unusual-activity-detected-from-your-device)。\n\n**Q：买了会员会好吗？**\n官方没有这样说。开通方式见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但网络问题不会因此消失。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps\n- OpenAI 状态页事件（Error in message stream，2025-06-11）— https://status.openai.com/incidents/01JXGAK0HF25FWGFPG613DF5KG",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+        "https://status.openai.com/incidents/01JXGAK0HF25FWGFPG613DF5KG"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「Error in input stream」这句原文，也没有解释它的含义和原因；状态页上出现过的同类事件标题是「Error in message stream」，不是 input stream",
+        "状态页事件发生在 2025-06-11，已解决，不代表当前状态",
+        "「从字面看是消息数据的传输环节出了问题」是本文的理解，不是官方解释",
+        "域名和端口放行建议来自官方网络排查文章当天的写法，官方可能调整",
+        "官方没有说明这句话一般多久恢复"
+      ]
+    },
+    {
+      "title": "ChatGPT 提示「Request failed with status code 403」怎么办：官方没解释数字，能做的网络与浏览器排查",
+      "slug": "chatgpt-request-failed-status-403",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1103-403-decide.png",
+        "g1103-403-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 提示 Request failed with status code 403？官方帮助中心没有逐个解释 HTTP 状态码，也没有收录这句话。本文只写官方有依据的通用排查：状态页、无痕窗口、扩展、VPN 与代理、公司网络放行，并说明哪些官方没说。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Network recommendations for ChatGPT errors on web and apps》和 OpenAI 状态页整理，资料核对于 2026-10-27。**官方没有收录「Request failed with status code 403」这句话，也没有逐个解释 HTTP 状态码，**所以本文只给官方有依据的通用排查，其余明确标注。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 在 ChatGPT 网页、桌面版或某个第三方工具里，看到 **Request failed with status code 403**（中文大意：请求失败，状态码 403）的人；\n- 想知道 403 到底是什么意思、是不是账号被封了的人；\n- 只在某个网络下出现 403 的人。\n\n## 结论先说\n\n1. **官方没有解释 403。** 官方帮助中心列的是报错文字，如 Something went wrong、A network error occurred，没有逐个解释 500、403 这类数字。本文不替官方下结论。\n2. **403 是 HTTP 里的通用状态码**，一般表示服务器拒绝了这次请求，这是网络常识，不是官方对这条提示的解释。它**不等于账号被封**，账号层面的限制一般有明确的提示，见 [/guides/chatgpt-account-deactivated-appeal](/guides/chatgpt-account-deactivated-appeal)。\n3. **官方通用顺序**：先看**状态页** → 换**无痕窗口**、关闭扩展 → 清除缓存和 Cookie → **关闭 VPN、代理和安全过滤** → 换网络或设备。\n4. **公司或学校网络**出现的话，官方建议管理员放行 OpenAI 的域名，并检查 TLS 检查和代理有没有拦截。\n5. **同时出现「Sorry, you have been blocked」**，那是官方列的另一类网络层提示，见 [/guides/chatgpt-cant-open-loading](/guides/chatgpt-cant-open-loading)。\n6. **都不行，联系官方客服**，附时间、截图、设备信息和请求 ID。\n\n![Request failed 403：看到什么、对应怎么办的对照表](seed:g1103-403-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Network recommendations for ChatGPT errors on web and apps](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 整理的示意图*\n\n## 一、先分清：在哪里看到的这句话\n\n- **在 ChatGPT 网页或官方 App 里**：按本文的官方通用排查；\n- **在第三方工具、浏览器插件或脚本里**：这句话多半是那个工具把返回的状态码原样显示出来，工具本身有没有被官方允许访问，官方文章没有说。排查时，先在 ChatGPT 官网正常使用，确认账号和网络本身没问题；\n- **在官方 Codex 里**：官方网络排查文章里，Codex 的连接域名与 chatgpt.com 有关，管理员的放行建议见下面第三节。\n\n## 二、个人自查：官方通用顺序\n\n1. **看官方状态页**：打开 [status.openai.com](https://status.openai.com/)，看对应组件有没有事件，见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。有事件就等恢复；\n2. **换无痕窗口登录再试**，并关闭扩展，特别是拦截脚本、广告、修改页面内容的扩展；\n3. **清除缓存和 Cookie**，然后重试；\n4. **关闭 VPN、代理和网络安全过滤**，官方把这几样列在网络类提示的首要步骤里；\n5. **换一个网络或设备**，例如用手机热点，区分是网络问题还是账号问题；\n6. 仍然不行，进入第四节联系官方客服。\n\n![遇到 403 的处理顺序：记下原文、看状态页、无痕窗口、关 VPN、换网络、联系客服](seed:g1103-403-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 三、只在公司或学校网络出现：给管理员的官方建议\n\n官方《Network recommendations for ChatGPT errors on web and apps》写的几条（官方文章当天的写法）：\n\n- **放行域名**：不要拦截 OpenAI 和 ChatGPT 的域名，官方举例 \\*.openai.com、\\*.chatgpt.com、\\*.oaiusercontent.com；\n- **不要让网页过滤改写内容**：官方说，网页过滤不应返回意外的内容；\n- **安全软件和网关**：不要明确拦截 ChatGPT，包括拦截 Cookie；官方点名的常见产品有 Cisco Umbrella、Zscaler、Fortiguard；\n- **WebSocket**：允许 TCP 443 的 WebSocket 连接到 wss://ws.chatgpt.com；\n- **先隔离**：看是只有你一台机器有问题，还是同一网络的人都有，并用手机热点再试一次。\n\n这些是官方对「连接类错误」的建议，官方没有说它们一定能解决 403。更多网络类处理见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)。\n\n## 四、联系官方客服\n\n官方在排查文章里建议，联系客服前先收集：出问题那次会话的 **HAR 文件**、浏览器**控制台错误**、相关的**请求 ID**、**时间戳**和对话网址。再加上账号邮箱、完整原文截图、设备和浏览器信息。入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 五、官方没说的，别乱试\n\n- **403 的具体原因**：官方没有解释，也没有说是不是只在某些地区出现；\n- **要不要换 IP、换地区**：官方通用步骤是让你**关闭** VPN 和代理，没有说换地区能解决，本文也不介绍绕开地区限制的做法；\n- 如果你所在的地区本来就不在官方支持名单里，那是官方不支持，见 [/guides/chatgpt-supported-countries](/guides/chatgpt-supported-countries)；\n- 同样属于「通用错误」的 Something went wrong，排查见 [/guides/chatgpt-something-went-wrong](/guides/chatgpt-something-went-wrong)。\n\n## 常见问题\n\n**Q：403 是不是账号被封了？**\n官方没有这样说。官方帮助中心也没有解释 403，不能据此判断账号状态。\n\n**Q：只在一台电脑上出现 403？**\n先用无痕窗口、换浏览器、清缓存，再看这台电脑的网络、代理和安全软件，用手机热点对比一次。\n\n**Q：换会员能解决吗？**\n官方没有这样说，开通方式见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但它解决不了网络或浏览器问题。\n\n**Q：我用的是第三方客户端，出现这句？**\n官方文章没有覆盖第三方客户端。先在官网网页版确认账号和网络正常，再向该客户端的作者求助。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps\n- OpenAI 状态页 — https://status.openai.com/",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+        "https://status.openai.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「Request failed with status code 403」这句话，也没有解释 403 这类数字的含义，本文没有对 403 本身下结论",
+        "「403 一般表示被拒绝访问」是 HTTP 通用常识，不是 OpenAI 官方对这条提示的解释，正文只作背景提及",
+        "本站另一篇文章写过的「Sorry, you have been blocked」是官方文章里列的另一类提示，两者是否同源官方没有说",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 提示「Selected model is at capacity. Please try a different model」怎么办：官方状态页怎么说，换模型与排查顺序",
+      "slug": "chatgpt-selected-model-is-at-capacity",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1105-capacity-decide.png",
+        "g1105-capacity-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 提示 Selected model is at capacity？OpenAI 帮助中心没有这句话的专门文章，但官方状态页出现过相关事件，提示本身也建议换模型。本文说明官方有依据的部分、排查顺序，以及哪些官方没说。",
+      "content": "> 本文根据 OpenAI 状态页、帮助中心《Troubleshooting ChatGPT Error Messages》《GPT-6 and other models in ChatGPT》整理，资料核对于 2026-10-27。**官方帮助中心没有为「Selected model is at capacity. Please try a different model」写专门文章，**所以本文只写官方有依据的部分，其余明确标注。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 在 ChatGPT 里发消息，看到 **Selected model is at capacity. Please try a different model**（中文大意：所选模型当前已满，请换一个模型试试）的人；\n- 在 Codex 里也遇到同样提示的人；\n- 想知道这是自己的问题还是官方的问题的人。\n\n## 结论先说\n\n1. **提示本身就是建议**：原文后半句是「Please try a different model」，也就是请**换一个模型**试试。\n2. **官方没有写这句话的专门说明**，也没有写恢复需要多久。我能核实到的官方依据是**状态页**：官方状态页出现过一起事件，更新文字写的是「Limited capacity is causing ChatGPT availability to be reduced」，意思是容量有限导致可用性下降（2026 年 6 月 1 日，影响 Free 用户的 Conversations 组件，约一个小时后恢复）。这不是这句提示的专门事件，只能说明**容量问题在官方状态页上确实会被当成事件公布**。\n3. **多个模型同时报这句话的情况也出现过**：状态页的第三方镜像记录了 2026 年 7 月 9 日的一起事件，标题是「Users are experiencing elevated errors when selecting models」，更新文字写的是用户收到这句提示，影响多个模型，约 58 分钟后恢复。这条来自镜像，没有在官方状态页原页核实，仅供参考。\n4. **处理顺序**：换一个模型 → 稍等一会儿再回原模型 → 看状态页 → 状态页没事就新开对话、刷新、换浏览器或网络 → 仍然不行联系官方客服。\n5. **这不是账号问题**：提示里没有任何账号受限的字样。账号层面的限制一般有明确提示，见 [/guides/chatgpt-suspicious-activity-alert](/guides/chatgpt-suspicious-activity-alert)。\n\n![「模型已满」提示：看到什么、对应怎么办的对照表](seed:g1105-capacity-decide.png)\n*图：本站根据 [OpenAI 状态页](https://status.openai.com/) 的事件与 [Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、先换一个模型\n\n提示让你换模型，就在模型菜单里换一个。你能选哪些，取决于套餐：\n\n- Free 和 Go 用的是 GPT-5.6 Luna，难题选 **Think**；\n- Plus 含 Medium 和 High 档位，不含 Extra High 和 Pro；\n- Pro、Business、Enterprise 含更多档位。\n\n套餐与档位的官方对照见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)，怎么选见 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)。官方在 GPT-6 说明里还写了：达到某个模型的思考额度上限时，ChatGPT 可能继续用另一个可用模型，这是**额度**问题，和本文的**容量**提示不是一回事，额度见 [/guides/chatgpt-usage-limits-check-reset](/guides/chatgpt-usage-limits-check-reset)。\n\n换模型后能发出去，就说明问题出在原来那个模型上，先用别的，**过一阵再切回来**。官方没有写要等多久，本文不编具体时间。\n\n## 二、看看是不是官方的问题\n\n打开 [status.openai.com](https://status.openai.com/)，看 **ChatGPT** 下的 **Conversations** 等组件，Codex 有单独的组件。官方有事件时，每条更新都有时间和进展，怎么读见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n- **有事件**：等官方恢复，状态页上会更新进展；\n- **没有事件**：再按下面的通用排查做。\n\n## 三、状态页没事件，只有你报错\n\n官方《Troubleshooting ChatGPT Error Messages》给的通用排查（针对「Something went wrong」「生成回答出错」这类提示，不是专门针对这一句）：\n\n1. **新开一个对话**，再发一次；\n2. **刷新页面**，或重启 App；\n3. **换一个浏览器，或开无痕窗口**，关闭扩展；\n4. **关闭 VPN 和代理**；\n5. **换一个网络**，例如换成手机热点。\n\n其中前几步见 [/guides/chatgpt-something-went-wrong](/guides/chatgpt-something-went-wrong)，网络相关见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)。\n\n![遇到「模型已满」的处理顺序：换模型、稍等、看状态页、通用排查、联系客服](seed:g1105-capacity-steps.png)\n*图：本站根据 [OpenAI 状态页](https://status.openai.com/) 与 [Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 四、联系官方客服\n\n反复出现、而且状态页上没有对应事件时，联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。官方在其他排查文章里建议附上：账号邮箱、报错的截图、第一次出现的时间（带时区）、设备和浏览器信息。在 Codex 里遇到，也一样说明是在 Codex 里。\n\n## 五、官方没说的，别当成结论\n\n- **为什么偏偏是我**：官方没有说明哪些用户更容易遇到，也没有说和套餐的关系。状态页里确实有一起事件写明影响 Free 用户，但这不代表付费用户不会遇到；\n- **要等多久**：官方没有给时间；\n- **能不能靠换账号、换地区解决**：官方没有这样说，本文也不介绍任何绕开限制的做法；\n- 想要更宽裕的使用，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但套餐不能保证不遇到容量提示。\n\n## 常见问题\n\n**Q：这是不是我的额度用完了？**\n不是。额度用完的提示一般会写明已达上限和重置时间，见 [/guides/chatgpt-too-many-requests-limit](/guides/chatgpt-too-many-requests-limit)。这句提示说的是所选模型当前容量不够。\n\n**Q：为什么换了模型也不行？**\n可能多个模型同时受影响，先看状态页；没有事件的话，按第三节通用排查。\n\n**Q：官方有这句话的说明吗？**\n帮助中心没有专门文章。状态页上有容量相关的事件，提示本身也让你换模型。\n\n## 参考资料\n\n- OpenAI 状态页事件（2026-06-01，Limited capacity）— https://status.openai.com/incidents/01KT204M76EYZYJX7WYG1B2QPH\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：GPT-6 and other models in ChatGPT — https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt",
+      "sources": [
+        "https://status.openai.com/incidents/01KT204M76EYZYJX7WYG1B2QPH",
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有「Selected model is at capacity」这句话的专门文章，本文开头已说明；「容量暂时不够」是根据提示字面和状态页的 Limited capacity 事件做的理解，不是官方对这句话的逐字解释",
+        "状态页 2026-06-01 的事件标题是「Decreased ChatGPT availability for Free users」，更新文字是「Limited capacity is causing ChatGPT availability to be reduced」，它不是这句提示的专门事件",
+        "2026-07-09 那起「多个模型报这句提示」的事件，是从状态页的第三方镜像读到的，没有在官方状态页原页核实，正文已标明",
+        "官方没有写恢复需要多久，正文不写具体分钟数",
+        "页面时间没有标时区"
+      ]
+    },
+    {
+      "title": "ChatGPT 提示「Unable to load site」打不开怎么办：空白页、一直加载的官方通用排查",
+      "slug": "chatgpt-unable-to-load-site",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1106-load-decide.png",
+        "g1106-load-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 提示 Unable to load site，或者页面一片空白？官方帮助中心没有收录这句话，但有空白页、卡住、一直加载的通用步骤：强制刷新、退出重登、清站点数据、关扩展和 VPN。本文按官方顺序排好。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Network recommendations for ChatGPT errors on web and apps》《Why is my ChatGPT taking so long to respond?》整理，资料核对于 2026-10-27。**官方没有收录「Unable to load site」这句话，**本文给的是官方对空白页、卡住和一直加载的通用排查。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 打开 ChatGPT，页面只显示 **Unable to load site**（中文大意：无法加载网站）的人；\n- 页面一片空白、一直转圈、按钮点不动的人；\n- 想知道从哪一步开始排查的人。\n\n## 结论先说\n\n1. **官方没有这句话的专门说明。** 官方有一条针对「**空白页、冻结页、一直加载**」的通用排查，可以直接套用。\n2. **官方顺序**：**强制刷新**（或开无痕窗口）→ **退出登录再登录**并**清除站点数据** → 关闭**扩展和内容拦截器** → 关闭 **VPN 和安全过滤** → 换**浏览器、网络或设备**。\n3. **手机热点能打开、家里或公司不行**，问题在原来的网络，官方建议管理员放行 OpenAI 的域名。\n4. **先看官方状态页**，有事件就等恢复，见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n5. **仍然不行**，收集 HAR 文件和控制台错误后联系官方客服。\n\n![Unable to load site：看到什么、对应怎么办的对照表](seed:g1106-load-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、官方的通用步骤\n\n官方《Troubleshooting ChatGPT Error Messages》对「空白页、冻结页、无尽加载」写的处理（没有指出具体原因）：\n\n1. **强制刷新**，或者强制重新加载；\n2. **退出登录再重新登录**；\n3. **清除 chat.openai.com 的站点数据**（官方文章写的是这个域名）；\n4. **关闭扩展和内容拦截器**；\n5. 试**无痕窗口**，或**换一个浏览器**；\n6. **关闭 VPN 和安全过滤**；\n7. 如果仍然不行，**收集日志和 HAR 文件后联系客服**。\n\n官方在《Why is my ChatGPT taking so long to respond?》里也有相近步骤：用 **Shift + 刷新**做硬刷新，或者开启关闭了扩展的无痕窗口；退出再登录，并清除站点数据，而不只是清缓存；换一个模型再新开对话，判断是模型问题还是整个账号的问题。\n\n## 二、按顺序做\n\n### 1. 强制刷新\n\n电脑浏览器里，按住 **Shift** 再点刷新，或者用无痕窗口重新打开官网。手机 App 里就关闭再打开。\n\n### 2. 退出登录，清站点数据\n\n退出登录后再登录。清除站点数据，官方示例写的是 **chat.openai.com**；现在官网网址是 chatgpt.com，把两个站点的数据都清掉更稳妥（这一条是本文建议，不是官方原话）。注意清除后会退出登录，要记得你的登录方式，见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n\n### 3. 扩展和拦截器\n\n关闭**拦截脚本、广告拦截、修改页面内容**的扩展，特别是对 ChatGPT 页面起作用的。无痕窗口默认关闭大多数扩展，是最快的验证办法。\n\n### 4. 网络\n\n- 关闭 **VPN、代理和安全过滤**；\n- 换一个网络，例如手机热点；\n- 公司或学校网络，请管理员按官方网络建议检查域名放行、WebSocket、TLS 检查等，具体见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)。\n\n![页面打不开的官方排查顺序：强制刷新、退出登录、关扩展、关 VPN、换网络、联系客服](seed:g1106-load-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 三、只有桌面版或手机 App 出现\n\n- 桌面版打不开、更新后打不开，见 [/guides/chatgpt-desktop-app-wont-open-update](/guides/chatgpt-desktop-app-wont-open-update)；\n- 手机 App 的官方做法见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)；\n- 网页版能打开、App 不行，说明问题在 App 本身或它的网络环境，先更新 App，再换网络。\n\n## 四、联系官方客服\n\n官方说，持续出现时，联系客服前先收集：**HAR 文件**、浏览器**控制台错误**、请求 ID、时间戳和相关网址。入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。已有的类似文章：打不开、一直转圈的更多情况见 [/guides/chatgpt-cant-open-loading](/guides/chatgpt-cant-open-loading)。\n\n## 五、官方没说的\n\n- 这句话**具体是网络、浏览器还是服务器的问题**，官方没有说；\n- **要等多久才算打不开**，官方没有给时间；\n- 官方通用步骤里没有「换地区网络」，反而要求**关闭** VPN。本文不介绍绕开地区限制的做法；如果你所在的地区不在官方支持名单，见 [/guides/chatgpt-supported-countries](/guides/chatgpt-supported-countries)。\n\n## 常见问题\n\n**Q：强制刷新是什么意思？**\n在电脑浏览器里按住 Shift 再点刷新，让页面重新从服务器取数据。官方在排查文章里用了这个做法。\n\n**Q：为什么无痕窗口能打开，普通窗口不行？**\n无痕窗口默认关闭大多数扩展，也没有旧缓存。说明问题多半出在扩展、缓存或站点数据，按第二节第 2、3 步处理。\n\n**Q：手机热点能打开，家里 Wi-Fi 不行？**\n说明问题在家里的网络环境，检查路由器、代理、VPN 和安全软件，或联系网络提供方。\n\n**Q：怎么确认是不是官方故障？**\n看 [status.openai.com](https://status.openai.com/)，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps\n- OpenAI 帮助中心：Why is my ChatGPT taking so long to respond? — https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+        "https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「Unable to load site」这句原文，也没有说明它的确切含义；正文只引用官方对「空白页、卡住、一直加载」的通用步骤",
+        "官方文章里的站点数据示例写的是 chat.openai.com，现在官网域名是 chatgpt.com，清除站点数据时两个都清更稳妥，这一条是本文的建议，不是官方原话",
+        "官方文章没有写需要等多久再判断是否打不开",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 提示「Hmm… something went wrong」怎么办：这句原文出现在哪些页面，先做哪一步",
+      "slug": "chatgpt-hmm-something-went-wrong",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1107-hmm-decide.png",
+        "g1107-hmm-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 弹出 Hmm… something went wrong？官方帮助中心收录的是 Something went wrong，没有单独收录这句带 Hmm 的版本。本文按你看到它的位置（聊天页、登录页、付款页）分别给出官方通用排查，并与「Something went wrong」那篇互链。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Why did my ChatGPT Plus or Pro renewal transaction fail?》和 OpenAI 状态页整理，资料核对于 2026-10-27。**官方帮助中心没有单独收录带「Hmm…」的这句话，**收录的是「Something went wrong」，本文把官方的通用排查按你看到它的位置整理。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 看到 **Hmm… something went wrong**（中文大意：嗯……出了点问题）的人；\n- 不确定这句话是服务问题还是自己设备问题的人；\n- 在聊天页、登录页或付款页遇到这句话的人。\n\n## 结论先说\n\n1. **官方收录的是「Something went wrong」**，说明是：这是一个通用错误，可能是临时的服务器问题，也可能是本地环境的问题。带 Hmm 的版本官方没有单独说明，通用排查同样适用。\n2. **官方顺序**：刷新页面或新开对话 → 看状态页 → 清除缓存和 Cookie → 无痕窗口、关扩展 → 关 VPN 和安全 DNS → 换网络。详细的逐条说明见 [/guides/chatgpt-something-went-wrong](/guides/chatgpt-something-went-wrong)。\n3. **在聊天页**：先刷新或新开对话再发。\n4. **在付款或升级页面**：官方没有单独写这句话，可参考官方付款失败的排查：清除缓存和 Cookie、联系银行、核对卡信息、确认国家或地区。\n5. **在登录页**：换无痕窗口、清缓存、关扩展，见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n6. **所有设备上都出现**，先看官方状态页，有事件就等恢复。\n\n![Something went wrong：在不同页面出现时先做哪步](seed:g1107-hmm-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Why did my ChatGPT Plus or Pro renewal transaction fail?](https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail) 整理的示意图*\n\n## 一、官方的原话是什么\n\n官方《Troubleshooting ChatGPT Error Messages》里写：\n\n- **提示**：Something went wrong.\n- **含义**：一个通用错误，**可能表示临时的服务器问题，或本地设置的问题**；\n- **办法**：刷新或新开对话，看状态页有没有故障，清除缓存和 Cookie，用私密窗口，关闭扩展，关闭 VPN 或安全 DNS，或换网络。\n\n带 Hmm 的版本在界面上更口语化，但官方没有给它单独写原因，所以别指望它指向某个具体的故障点，按位置分情况排查更有效。\n\n## 二、按你看到它的位置\n\n### 在聊天页：发消息或打开对话时\n\n1. **刷新页面**，或**新开一个对话**再发；\n2. 看 [status.openai.com](https://status.openai.com/) 的 **Conversations** 等组件，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)；\n3. 同一对话反复失败，多半是这个对话本身的问题，新开对话，很长的对话容易卡，见 [/guides/chatgpt-slow-laggy-stuck-long-chat](/guides/chatgpt-slow-laggy-stuck-long-chat)。\n\n### 在登录页\n\n官方登录排查的思路是：先换**无痕窗口**，清除缓存和 Cookie，关闭扩展；用你注册时的登录方式；看是不是登错了账号。详见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n\n### 在付款或升级页\n\n官方没有说明付款页出现这句话的原因，但官方有一篇关于**续订付款失败**的排查，顺序是：\n\n1. **清除浏览器缓存和 Cookie**，再重试这笔交易；\n2. **联系银行**，确认账户、余额，以及是否因安全原因拦截；\n3. **核对付款信息**、账单地址和有效期；\n4. 确认**你和发卡行所在的国家或地区**都在官方支持范围内；\n5. 仍然不行，**通过聊天窗口联系官方客服**。\n\n付款页专门的排查见 [/guides/chatgpt-payment-something-went-wrong](/guides/chatgpt-payment-something-went-wrong)，支持的付款方式见 [/guides/chatgpt-payment-methods-supported](/guides/chatgpt-payment-methods-supported)。\n\n### 只有一个浏览器出现\n\n换一个浏览器，或在无痕窗口里关闭扩展，官方说脚本拦截、内容修改类扩展常是原因之一。\n\n![官方对 Something went wrong 的排查顺序](seed:g1107-hmm-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 三、官方没说的\n\n- **这句话具体意味着什么**，官方没有写；\n- **一般多久恢复**，官方没有给时间；\n- **是否和套餐、地区有关**，官方没有说，也不要照网上的猜测去换网络环境；官方通用步骤是让你**关闭** VPN 和代理，本文不介绍绕开地区限制的做法；\n- 想看别的报错的处理，可以看 [/guides/chatgpt-network-error](/guides/chatgpt-network-error) 和 [/guides/chatgpt-cant-open-loading](/guides/chatgpt-cant-open-loading)。\n\n## 四、联系官方客服\n\n仍然反复出现，联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。建议带上：原文截图、第一次出现的时间、设备和浏览器信息，以及排查中已经做过的步骤。\n\n## 常见问题\n\n**Q：带 Hmm 的这句和不带 Hmm 的是一回事吗？**\n官方没有说明两者的关系。官方收录的是 Something went wrong，通用排查同样适用。\n\n**Q：在付款页出现，是不是卡有问题？**\n官方没有这样说。可以按官方付款失败的排查检查银行、卡信息和支持地区，见上面的付款页部分。\n\n**Q：刷新有用吗？**\n官方把刷新页面或新开对话列在第一步。\n\n**Q：需要重装 App 吗？**\n手机 App 的官方排查见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)，网页版则按本文的顺序。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Why did my ChatGPT Plus or Pro renewal transaction fail? — https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail\n- OpenAI 状态页 — https://status.openai.com/",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail",
+        "https://status.openai.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录带「Hmm…」的这句原文；收录的是「Something went wrong.」，官方对它的说明是通用错误，可能是临时服务器问题或本地环境问题",
+        "本文按页面位置分情况是本站的整理，官方文章没有按页面位置分类",
+        "付款页的排查来自官方关于续订付款失败的文章，官方没有说明付款页出现这句话的原因",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 订阅付款时提示「Something went wrong」怎么办：先清缓存，再查银行和国家地区，官方的 5 步排查",
+      "slug": "chatgpt-payment-something-went-wrong",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1108-pay-decide.png",
+        "g1108-pay-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "在 ChatGPT 付款页看到 Something went wrong？官方帮助中心没有单独说明付款页的这句话，但有关于付款失败的排查：清缓存和 Cookie、联系银行、核对卡信息、确认国家地区、联系客服。本文按官方顺序整理。",
+      "content": "> 本文根据 OpenAI 帮助中心《Why did my ChatGPT Plus or Pro renewal transaction fail?》《Troubleshooting ChatGPT Error Messages》《What is ChatGPT Go?》整理，资料核对于 2026-10-27。**官方没有单独说明付款页出现「Something went wrong」的原因，**官方关于付款失败的文章标题写的是续订交易，本文把它的排查顺序当作官方对付款失败的通用做法，请注意这一点。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 在 ChatGPT 的升级或付款页面，点了付款，看到 **Something went wrong** 的人；\n- 付款一直不成功，不知道是页面问题还是银行问题的人；\n- 想知道官方推荐的排查顺序的人。\n\n## 结论先说\n\n1. **官方没有单独说明付款页的这句话。** 最接近的官方依据，是付款失败的排查文章，它说付款失败可能源于**安全措施或付款方式本身的问题**。\n2. **官方 5 步顺序**：① 清除浏览器缓存和 Cookie，重试；② 联系银行，确认账户、余额，以及是否因安全原因拦截；③ 核对付款信息、账单地址和有效期；④ 确认你和发卡行所在的国家或地区都被官方支持；⑤ 仍然不行，通过**聊天窗口**联系官方客服。\n3. **先清缓存最省事**：官方列的第一条原因就是缓存数据干扰交易。\n4. **国家或地区是双方的**：官方说，你**或者你的发卡行**任何一方不在支持范围，付款都可能被拒。\n5. **页面本身打不开或卡住**，那属于一般的网页排查：无痕窗口、关闭扩展、换网络，见 [/guides/chatgpt-something-went-wrong](/guides/chatgpt-something-went-wrong)。\n\n![付款时出现 Something went wrong：看到什么、对应怎么办](seed:g1108-pay-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Why did my ChatGPT Plus or Pro renewal transaction fail?](https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail) 整理的示意图*\n\n## 一、官方对付款失败的说明\n\n官方付款失败文章列出的可能原因：\n\n- **浏览器缓存数据**干扰了交易；\n- 银行的**拦截或限制**；\n- **余额不足**；\n- 银行的**安全措施**阻止了这笔交易；\n- 信用卡被拒，可能是**付款信息、账单地址或有效期**不正确；\n- **你或你的发卡行不在支持的国家或地区**。\n\n文章里没有引用「Something went wrong」这句话，只用了 **declined**（被拒）这个词，所以你在付款页看到的这句通用错误，究竟对应哪一种原因，官方没有说。\n\n## 二、按官方顺序排查\n\n### 第一步：清除缓存和 Cookie\n\n清除浏览器缓存和 Cookie，**重新进入升级页再付一次**。清除之后会退出登录，要记得登录方式，见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n\n### 第二步：联系银行\n\n向发卡银行确认三件事：账户有没有问题、余额是否足够、银行有没有**因为安全原因拦截**这笔交易。不少拦截只能银行放开。\n\n### 第三步：核对付款信息\n\n逐项检查：**卡号、有效期、账单地址**。账单地址要和银行预留的一致。\n\n### 第四步：确认国家或地区\n\n确认你所在的国家或地区，以及**发卡行**所在的国家或地区，都在官方支持范围内。官方支持名单见 [/guides/chatgpt-supported-countries](/guides/chatgpt-supported-countries)，付款方式见 [/guides/chatgpt-payment-methods-supported](/guides/chatgpt-payment-methods-supported)。官方说，任意一方在支持范围外，付款都可能被拒，官方没有提供绕过这条限制的办法，本文也不介绍。\n\n### 第五步：联系官方客服\n\n以上都做了还不行，官方指定通过**聊天窗口**联系，入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。建议带上账号邮箱、付款页报错截图、时间和你已经做过的步骤。\n\n![付款失败的官方排查顺序：清缓存、联系银行、核对信息、确认国家地区、联系客服](seed:g1108-pay-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Why did my ChatGPT Plus or Pro renewal transaction fail?](https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail) 整理的示意图*\n\n## 三、如果是在手机应用商店付款\n\n在 App Store 或 Google Play 订阅，付款走的是应用商店的流程，错误也可能来自商店。官方 Go 说明文章里写：在应用商店订阅后，升级可能需要**几分钟**才在 App 里显示，等一下再重启 App。商店订阅的管理见 [/guides/chatgpt-app-store-google-play-subscription](/guides/chatgpt-app-store-google-play-subscription)。\n\n## 四、付款成功但订阅没有出现\n\n- 先等几分钟，刷新页面或重启 App；\n- 确认登录的是付款时的那个账号，见 [/guides/chatgpt-account-sharing-multiple-devices](/guides/chatgpt-account-sharing-multiple-devices)；\n- 账单和发票见 [/guides/chatgpt-invoice-download](/guides/chatgpt-invoice-download)；\n- 被重复扣款或想退款，见 [/guides/chatgpt-refund-request](/guides/chatgpt-refund-request)。\n\n## 五、官方没说的\n\n- 官方**没有**说「Something went wrong」在付款页一定是银行问题；\n- 官方**没有**给出具体的重试等待时间；\n- 官方**没有**推荐用别人的卡、礼品卡或第三方代付渠道，本文也不介绍这类做法。开通会员最稳妥的是在官方升级页，或看本站的开通说明 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，价格和套餐以官方页面为准。\n\n## 常见问题\n\n**Q：为什么清缓存就能行？**\n官方把缓存数据干扰交易列为首要原因，所以它是第一步。\n\n**Q：我的卡能在别处用，为什么这里不行？**\n官方说，可能是银行因安全原因拦截，或你和发卡行所在的国家或地区有一方不在支持范围，先联系银行。\n\n**Q：要不要换浏览器？**\n官方在通用排查里建议过换浏览器，付款页也可以试，无痕窗口里重新付款最方便。\n\n**Q：多次失败会被封号吗？**\n官方文章没有这样说。\n\n## 参考资料\n\n- OpenAI 帮助中心：Why did my ChatGPT Plus or Pro renewal transaction fail? — https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：What is ChatGPT Go? — https://help.openai.com/en/articles/11989085-what-is-chatgpt-go",
+      "sources": [
+        "https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail",
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/11989085-what-is-chatgpt-go"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方付款失败的文章标题是关于「续订」交易失败；首次订阅时在付款页出现 Something went wrong，官方没有单独说明，本文把续订失败的排查当作官方对付款失败的通用做法使用，已在开头说明",
+        "官方付款失败文章没有引用「Something went wrong」这句原文，只用了「declined」一词",
+        "官方 Go 文章写的应用商店订阅可能要几分钟才显示，来自 Go 说明文章，不是付款失败文章",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 下载图片提示 network error 或下载失败怎么办：文件过期快、域名要放行，官方的排查顺序",
+      "slug": "chatgpt-network-error-image-download",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1109-download-decide.png",
+        "g1109-download-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 生成的图片下载不了，提示 network error、Download failed 或 File Not Found？官方说生成的文件过期很快，要尽早下载；网络类还要关 VPN、代理，公司网络需放行 oaiusercontent.com。本文按官方顺序整理。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Network recommendations for ChatGPT errors on web and apps》整理，资料核对于 2026-10-27。**官方没有专门写「下载图片时出现 network error」，**但有下载类提示（Download failed、File Not Found）和网络类提示（A network error occurred）两类说明，本文把它们合并，按官方顺序排好。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- ChatGPT 生成了图片或文件，点下载没反应、提示 **network error** 的人；\n- 看到 **Download failed**、**File Not Found** 的人；\n- 只在公司或学校网络里下载不了的人。\n\n## 结论先说\n\n1. **官方对下载类提示的说明**：生成的文件**过期很快**，要**生成后尽早下载**。过了一会儿再点，可能就是「文件找不到」。\n2. **「A network error occurred」是网络类提示**：官方说是你的设备无法与 OpenAI 服务器建立稳定连接，办法是关闭 **VPN 或代理**、关闭 Web Protect 等**安全过滤**，换浏览器、无痕模式、网络或设备。\n3. **下载类提示还要排除** VPN 和代理，文件大小需要**小于 512 MB**（官方写的）。\n4. **在自建 GPT 里下载失败**：官方说要开启 **Code Interpreter** 并更新这个 GPT。\n5. **公司或学校网络**：官方在上传失败的建议里点名要放行 **\\*.oaiusercontent.com**，请管理员处理。\n6. 图片本身没生成出来，见 [/guides/chatgpt-image-failed](/guides/chatgpt-image-failed)。\n\n![图片下载失败：看到什么、对应怎么办的对照表](seed:g1109-download-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Network recommendations for ChatGPT errors on web and apps](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 整理的示意图*\n\n## 一、先分清是哪一种提示\n\n- **Download failed / File Not Found**：下载类。官方说明针对的是下载失败和指向生成文件的链接失效；\n- **A network error occurred / 连接 websocket 出错**：网络类，设备与服务器的连接不稳定；\n- 如果图片是**一直生成不出来**，而不是下载失败，属于生图问题，见 [/guides/chatgpt-image-failed](/guides/chatgpt-image-failed) 和 [/guides/chatgpt-image-limits](/guides/chatgpt-image-limits)。\n\n## 二、官方的下载类处理\n\n官方《Troubleshooting ChatGPT Error Messages》对 **Download failed** 和 **File Not Found** 的步骤：\n\n1. **自建 GPT**里下载失败：启用 **Code Interpreter**，并**更新**这个 GPT；\n2. **生成后尽早下载**：官方明确说文件过期很快；\n3. **关闭 VPN 或代理**；\n4. 文件需**小于 512 MB**。\n\n所以，如果你是隔了很久才回到这个对话点下载，最可能的就是文件已经过期，重新让 ChatGPT 生成一次，并立刻保存。想在需要时回头找，可以看 [/guides/chatgpt-library-files](/guides/chatgpt-library-files)。\n\n## 三、官方的网络类处理\n\n对 **A network error occurred** 和 **An error occurred while connecting to the websocket**，官方的步骤：\n\n1. **关闭 VPN 或代理**；\n2. **关闭 Web Protect 或其他安全过滤**；\n3. **换一个浏览器**，试**无痕模式**；\n4. **换一个网络**或**换一台设备**。\n\n![图片或文件下载失败的排查顺序：立刻下载、关 VPN、换浏览器、放行域名、换网络、联系客服](seed:g1109-download-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Network recommendations for ChatGPT errors on web and apps](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 整理的示意图*\n\n## 四、公司或学校网络：放行下载用的域名\n\n官方网络排查文章里，关于**上传失败**的建议是：在 VPN 或网络安全层面，放行 **\\*.oaiusercontent.com**。官方文章没有专门说它也适用于图片下载，但名字看起来属于用户内容类的域名，下载失败又只发生在公司网络里时，管理员可以先检查它有没有被拦截，这是本文的推测，不是官方原话。\n\n官方的整体建议还包括：不要阻拦 \\*.openai.com 和 \\*.chatgpt.com，也不要让网页过滤返回意外内容；WebSocket 走 TCP 443，检查 TLS 检查和空闲超时。更多见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)。\n\n## 五、还是不行\n\n1. 看 [status.openai.com](https://status.openai.com/) 有没有事件，见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)；\n2. 换一台设备、一个网络，确认是不是只有这一处出问题；\n3. 联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)，带上完整提示原文、时间、你做过的步骤；\n4. 上传文件时出错，也可以参考 [/guides/chatgpt-file-upload-failed](/guides/chatgpt-file-upload-failed)。\n\n## 官方没说的\n\n- 文件**具体多久过期**，官方没有给时间；\n- 图片是否也适用 **512 MB** 的限制，官方没有说明；\n- 官方通用步骤里是让你**关闭** VPN，没有说换地区网络能解决，本文不介绍绕开地区限制的做法；\n- 想用更多的生图额度，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但开通会员不能解决网络问题。\n\n## 常见问题\n\n**Q：为什么昨天生成的图今天下不了？**\n官方说生成的文件过期很快。重新生成一次并立刻保存。\n\n**Q：电脑能下，手机不能？**\n先看手机网络和 App 版本，再换网络试，手机 App 的排查见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)。\n\n**Q：只在公司网络下载不了？**\n请管理员检查是否拦截了 \\*.oaiusercontent.com，并按官方网络建议放行。\n\n**Q：图片是在自建 GPT 里生成的？**\n官方说自建 GPT 里下载失败，要开启 Code Interpreter 并更新该 GPT。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章把「Download failed」「File Not Found」列为下载类提示，把「A network error occurred」列为网络类提示；「下载图片时的 network error」没有专门说明，本文把两类合并整理，已在开头说明",
+        "官方文章没有说「文件过期很快」具体是多久，正文不写具体时间",
+        "官方 512 MB 的限制写在下载类提示的步骤里，官方没有说明它是否适用于图片",
+        "oaiusercontent.com 放行建议来自官方网络排查文章当天的写法",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
       "title": "ChatGPT Business 和 Plus 区别：原 Team 版有什么不同、适合哪些团队",
       "slug": "chatgpt-business-vs-plus",
       "checkedOn": "2026-10-13",
@@ -63345,6 +63591,222 @@
       "verify": [
         "Business 席位价格因国家和币种不同，正文未写金额",
         "Business 各模型的消息估算区间官方会随模型调整，正文只引用了 Pro 消息额度和「Premium 为 Standard 5 倍」"
+      ]
+    },
+    {
+      "title": "ChatGPT 一直重新连接、一直重连怎么办：网络错误与 WebSocket 连接的官方排查",
+      "slug": "chatgpt-keeps-reconnecting",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1111-reconnect-decide.png",
+        "g1111-reconnect-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 一直提示重新连接，或者反复断线？官方帮助中心没有收录「Reconnecting」这个提示，但有网络错误和 WebSocket 连接错误的排查：关 VPN 和代理、放行 TCP 443 的 WebSocket、检查 TLS 检查与空闲超时。本文按官方顺序整理。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Network recommendations for ChatGPT errors on web and apps》整理，资料核对于 2026-10-27。**官方没有收录「重新连接（Reconnecting）」这个提示，**但有两条同类的网络提示：A network error occurred 和 An error occurred while connecting to the websocket。本文按官方对这两条的处理排序。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- ChatGPT 不停地显示「正在重新连接」，回答出不来的人；\n- 回答写一半断线、又自动重连、反复循环的人；\n- 只在公司、学校或某个固定网络下一直重连的人。\n\n## 结论先说\n\n1. **官方没有「重新连接」这条提示的说明**，但官方有两条相近的：**A network error occurred.** 和 **An error occurred while connecting to the websocket.**，官方的解释是：**你的设备无法与 OpenAI 的服务器建立稳定的连接**。\n2. **官方个人步骤**：关闭 **VPN 或代理** → 关闭 **Web Protect 等安全过滤** → 换**浏览器**、用**无痕模式** → 换**网络**或换**设备**。\n3. **公司或学校网络**：官方建议管理员允许 **TCP 443** 上的 **WebSocket** 连到 **wss://ws.chatgpt.com**，检查 **TLS 检查、代理或防火墙**有没有阻断或提前关闭这些连接，还要查**空闲超时**。\n4. **手机热点下正常**，就说明问题在原来的网络，告诉管理员。\n5. **看状态页**：官方有事件时，多人同时重连。\n6. 仍然不行，联系官方客服。\n\n![一直重新连接：看到什么、对应怎么办](seed:g1111-reconnect-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Network recommendations for ChatGPT errors on web and apps](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 整理的示意图*\n\n## 一、为什么会「一直重连」\n\n官方对网络类提示的说法很简单：设备**无法建立可靠的连接**。ChatGPT 的回答是边生成边传回来的，需要一条持续的连接，**WebSocket** 就是这类长连接。官方网络排查文章专门写了：要**允许 WebSocket**，并确保 TLS 检查、代理或防火墙**不会阻断或提前关闭**连接，同时检查**空闲超时**。\n\n换句话说：官方点名的是「长连接被网络设备中途掐断」这一类问题。具体到你那里是不是这样，官方文章没有逐一对应「重新连接」这句提示，所以这是最可能的方向，不是确诊。\n\n## 二、个人网络：官方步骤\n\n1. **关闭 VPN 或代理**，这是官方对网络类提示的首要步骤；\n2. **关闭 Web Protect 或其他安全过滤**软件；\n3. **换一个浏览器**，或者开**无痕窗口**，排除扩展和缓存；\n4. **换一个网络**，例如手机热点，或**换一台设备**。\n\n如果换了网络就正常，保留这个网络用着，同时去查原网络的路由器、代理、安全软件。\n\n![连接反复中断的官方排查：关 VPN、换浏览器、换网络、检查 WebSocket、检查空闲超时、联系客服](seed:g1111-reconnect-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps](https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps) 整理的示意图*\n\n## 三、公司或学校网络：给管理员的官方建议\n\n以下是官方网络排查文章当天的写法：\n\n- **WebSocket**：允许 TCP 443 上的 WebSocket 流量连到 **wss://ws.chatgpt.com**；Codex 用 chatgpt.com；\n- **TLS 检查、代理、防火墙**：确认它们没有阻断或提前关闭这些连接，并**检查空闲超时**；\n- **域名**：不要拦截 **\\*.openai.com、\\*.chatgpt.com、\\*.oaiusercontent.com**；\n- **安全软件和网关**：不要明确拦截 ChatGPT（包括拦截 Cookie），官方点名的常见产品有 Cisco Umbrella、Zscaler、Fortiguard；\n- **隔离网络**：看是只有你一台机器出问题，还是同一网络里的人都这样，再用**手机热点**对比。\n\n你不是管理员的话，把这几条原样发给管理员即可。更多网络类处理见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)。\n\n## 四、先看是不是官方的问题\n\n打开 [status.openai.com](https://status.openai.com/)，看 **ChatGPT** 下的 **Conversations** 等组件有没有事件。官方有故障时，很多人会同时遇到连接问题，等官方恢复即可，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n## 五、相关的几种情况\n\n- 回答写到一半报错而不是重连，见 [/guides/chatgpt-error-in-message-stream](/guides/chatgpt-error-in-message-stream) 和 [/guides/chatgpt-error-in-input-stream](/guides/chatgpt-error-in-input-stream)；\n- 页面打不开、一直加载，见 [/guides/chatgpt-cant-open-loading](/guides/chatgpt-cant-open-loading)；\n- 长对话变慢、卡住，见 [/guides/chatgpt-slow-laggy-stuck-long-chat](/guides/chatgpt-slow-laggy-stuck-long-chat)；\n- 手机 App 反复断线，先按 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting) 的官方顺序。\n\n## 六、联系官方客服\n\n仍然反复重连，联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。官方建议带上：HAR 文件、浏览器控制台错误、请求 ID、时间戳和对话网址，另外附上你已经做过的步骤，比如「已关 VPN、已换手机热点」。\n\n## 官方没说的\n\n- 「重新连接」**一般多久会恢复**，官方没有给时间；\n- 官方**没有**说它和套餐有关，开通会员不能解决网络层面的断线；想了解套餐可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)；\n- 官方通用步骤让你**关闭** VPN 和代理，没有说换地区网络出口能解决，本文不介绍绕开地区限制的做法。\n\n## 常见问题\n\n**Q：为什么只有长回答才会重连？**\n官方没有专门说明。回答要持续传输，长回答需要连接保持更久，连接被中途断开时更容易出现，这是本文的理解，不是官方原话。\n\n**Q：换了手机热点就好了，是 ChatGPT 的问题吗？**\n说明问题在原来的网络，不在 ChatGPT 本身。\n\n**Q：能不能用 VPN 解决？**\n官方的步骤是先关闭 VPN 和代理，不建议用它来「解决」。\n\n**Q：是不是我用得太频繁了？**\n重连和额度无关。额度用完的提示会写明上限，见 [/guides/chatgpt-too-many-requests-limit](/guides/chatgpt-too-many-requests-limit)。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Network recommendations for ChatGPT errors on web and apps — https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9247338-network-recommendations-for-chatgpt-errors-on-web-and-apps"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「重新连接 / Reconnecting」这个提示；本文把它与官方的「A network error occurred」「An error occurred while connecting to the websocket」同类处理，已在开头说明",
+        "WebSocket 地址和端口来自官方网络排查文章当天的写法，官方可能调整",
+        "官方没有说明「重连」一般多久恢复，也没有给出等待时间",
+        "官方没有说重连是否与套餐有关"
+      ]
+    },
+    {
+      "title": "ChatGPT 一直「正在思考」不出结果怎么办：先等 30 到 60 秒，再停止、重新生成，官方的卡住排查",
+      "slug": "chatgpt-stuck-thinking-no-result",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1112-think-decide.png",
+        "g1112-think-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 一直显示 Thinking…，迟迟没有结果？官方对卡在 Thinking、Generating、Working 的建议是先等 30 到 60 秒，再停止并重新生成，不行再新开对话、退出重登、换模型和网络。本文按官方顺序整理，并说明思考时间长不等于出错。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Why is my ChatGPT taking so long to respond?》《GPT-6 and other models in ChatGPT》整理，资料核对于 2026-10-27。官方没有写 Thinking 卡住的具体原因，本文只给官方的通用排查。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 发出问题后，ChatGPT 一直显示 **Thinking…**（正在思考），迟迟不出字的人；\n- 看到 **Generating…**、**Working…** 或一直转圈的人；\n- 分不清是「它真的在想」还是「卡住了」的人。\n\n## 结论先说\n\n1. **官方的第一步是等 30 到 60 秒**，然后点**停止**，再**重新生成**。官方《Troubleshooting ChatGPT Error Messages》对卡在 Thinking、Generating、Working 或一直转圈的做法，就是这个顺序。\n2. **等不等得下去，看你选的思考档位**：官方的模型菜单里有 Instant、Medium、High、Extra High、Pro 等档位，档位越高，思考越久是合理的。官方没有给每一档的预期时间，所以「等 30 到 60 秒」是官方给的卡住判断线。\n3. **重新生成也卡住**：新开一个对话，或刷新、强制刷新页面；退出登录再登录，清除站点数据。\n4. **判断是模型的问题还是账号的问题**：官方的办法是换一个模型，新开一个对话再试。\n5. **关闭扩展、VPN 和安全过滤，换浏览器或网络**；再看官方状态页有没有事件。\n6. **仍然不行**，收集 HAR 文件、控制台错误、请求 ID、时间戳和对话网址，联系官方客服。\n\n![一直正在思考：等多久、怎么办的对照表](seed:g1112-think-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Why is my ChatGPT taking so long to respond?](https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond) 整理的示意图*\n\n## 一、先判断：是在想，还是卡住了\n\n- **官方的线是 30 到 60 秒**：这段时间内先别动；\n- 如果你选的是 **Medium、High、Extra High、Pro** 这类思考档位，它们本来就是用来处理难题的，花的时间会比 Instant 长。档位含义和各套餐有哪些，见 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)；\n- 超过官方这条线，**界面也没有任何进展**，就按下面的步骤做。官方没有说 Pro 或 Extra High 要等多久，这类长任务以界面是否有进度为准。\n\n## 二、官方的排查顺序\n\n官方对卡在 Thinking、Generating、Working 的做法：\n\n1. **等 30 到 60 秒**，然后**停止**并**重新生成**；\n2. **新开一个对话**；\n3. **重新加载页面**或强制刷新；\n4. **退出登录再登录**；\n5. **关闭扩展和 VPN**；\n6. **换一个浏览器或网络**；\n7. **看官方状态页**。\n\n另外，官方《Why is my ChatGPT taking so long to respond?》写了几条针对「一直加载、显示 Thinking、空白页、冻结」的步骤：\n\n- **强制刷新**（Shift + 刷新），或开启关闭了扩展的**无痕窗口**；\n- **退出登录再登录**，并**清除站点数据**，而不只是缓存；\n- **换一个模型，新开一个对话**，用来判断问题只在某个模型上，还是整个账号都有；\n- 如果仍然持续，**联系客服前先收集诊断信息**。\n\n![卡在 Thinking 的官方排查：等待、重新生成、新对话、退出重登、换浏览器、联系客服](seed:g1112-think-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 三、「只有某个模型卡」怎么办\n\n官方的做法是：**换一个模型，新开一个对话**，看是否也卡。\n\n- 换了模型就正常，说明问题多半在原来那个模型上，先用别的，稍后再回来；\n- 换了模型也卡，说明可能是整个账号、浏览器或网络的问题，继续往下排查；\n- 你能选哪些模型，取决于套餐，见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)；如果提示的是「所选模型已满」，见 [/guides/chatgpt-selected-model-is-at-capacity](/guides/chatgpt-selected-model-is-at-capacity)。\n\n## 四、对话太长也会卡\n\n很长的对话，在网页上容易变慢甚至卡住。官方没有就 Thinking 卡住单独写这一点，但「新开一个对话」本来就在官方步骤里，长对话的处理见 [/guides/chatgpt-slow-laggy-stuck-long-chat](/guides/chatgpt-slow-laggy-stuck-long-chat)，上下文长度的限制见 [/guides/chatgpt-context-length-limits](/guides/chatgpt-context-length-limits)。\n\n## 五、联系官方客服\n\n官方要求联系客服前先收集诊断信息：\n\n- 出问题那次会话的 **HAR 文件**；\n- 浏览器**开发者控制台**里的错误；\n- 相关的**请求 ID**；\n- **时间戳**；\n- **对话的网址**。\n\n入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 官方没说的\n\n- **每个思考档位要等多久**，官方没有给时间；\n- **卡住和套餐的关系**，官方没有说；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 想用更高的思考档位，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，具体包含哪些档位以官方为准。\n\n## 常见问题\n\n**Q：Thinking 可以一直等吗？**\n官方的建议是等 30 到 60 秒后停止并重新生成。高档位思考本来更慢，但界面完全没有进展时，不必无限等。\n\n**Q：点了停止，之前想的内容会没吗？**\n官方没有说明停止后的行为，建议先把你的问题复制一份。\n\n**Q：只有手机卡，电脑正常？**\n手机 App 的官方排查见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)。\n\n**Q：怎么确认是不是官方故障？**\n看 [status.openai.com](https://status.openai.com/)，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Why is my ChatGPT taking so long to respond? — https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond\n- OpenAI 帮助中心：GPT-6 and other models in ChatGPT — https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond",
+        "https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章没有说明「Thinking」卡住的具体原因，只写了通用排查；30 到 60 秒的等待时间来自官方《Troubleshooting ChatGPT Error Messages》",
+        "「高档位思考本来就更慢」是本文基于官方对思考档位的描述（Medium、High、Extra High 等）做的理解，官方没有给各档位的预期耗时",
+        "官方《Why is my ChatGPT taking so long to respond?》里用来对比的模型名是旧模型，本文只引用「换一个模型新开对话来判断」这个做法，不引用具体模型名",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 一直转圈圈、单次回答很慢怎么办：官方列的 7 类原因，缓存、高峰期、扩展、公司网络分别怎么处理",
+      "slug": "chatgpt-slow-spinner-single-answer",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1113-spin-decide.png",
+        "g1113-spin-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "只是某一次回答转圈、特别慢？OpenAI 帮助中心列了七类原因：缓存过期、高峰期、扩展干扰、系统负载、公司网络或 VPN、带宽、模型或账号问题，并给出六步排查。本文按官方顺序讲，和整段对话变慢、页面打不开的文章分开。",
+      "content": "> 本文根据 OpenAI 帮助中心《Why is my ChatGPT taking so long to respond?》《Troubleshooting ChatGPT Error Messages》整理，资料核对于 2026-10-27。本文只讲**某一次回答转圈、很慢**的情况；整段对话越来越卡见 [/guides/chatgpt-slow-laggy-stuck-long-chat](/guides/chatgpt-slow-laggy-stuck-long-chat)，页面打不开见 [/guides/chatgpt-cant-open-loading](/guides/chatgpt-cant-open-loading)。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 发出一个问题后，转圈很久才出结果的人；\n- 原来很快，最近突然变慢的人；\n- 想知道「慢」是自己这边的原因还是官方的原因的人。\n\n## 结论先说\n\n1. **官方列了 7 类可能原因**：① 缓存数据过期；② 高峰期；③ 浏览器扩展；④ 系统负载（开着很多程序和标签页）；⑤ 公司网络或 VPN 的限制；⑥ 带宽（用手机流量可能更慢）；⑦ 模型或账号的问题，可能只影响一个模型，也可能是整个账号。\n2. **官方 6 步排查顺序**：清除浏览器缓存和 Cookie → 看官方状态页 → 换一个浏览器 → 关闭扩展、关掉多余程序和标签页（无痕窗口默认关闭大部分扩展）→ 换设备或网络并做一次网速测试 → 怀疑公司网络或 VPN，就问网络管理员。\n3. **官方对「突然变慢」的判断**：如果之前正常、突然变慢，常常是**缓存数据过期**。\n4. **每天固定时段慢**，可能是**高峰期**，官方把它列为可能原因。\n5. **一直卡住、不出结果**，转到 [/guides/chatgpt-stuck-thinking-no-result](/guides/chatgpt-stuck-thinking-no-result)。\n\n![单次回答转圈：可能的原因与办法](seed:g1113-spin-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Why is my ChatGPT taking so long to respond?](https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond) 整理的示意图*\n\n## 一、七类原因，逐类怎么办\n\n### 1. 缓存数据过期\n\n官方说，在正常使用后突然变慢，常见原因是缓存数据过期。办法：**清除浏览器缓存和 Cookie**。清除后会退出登录，记得登录方式，见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n\n### 2. 高峰期\n\n慢可能呈现**每天的规律**，官方把高峰期列为原因之一。能错开就错开；错不开，换个时间再试。官方没有给出具体的高峰时段。\n\n### 3. 浏览器扩展\n\n**屏蔽脚本、屏蔽广告**的扩展会干扰页面。办法：关闭这些扩展，或开**无痕窗口**，官方说无痕窗口默认会关闭大部分扩展。\n\n### 4. 系统负载\n\n同时开着**很多程序和标签页**，会占用资源。关掉不用的程序和标签页，再试。\n\n### 5. 公司网络或 VPN\n\n官方说，公司网络或 VPN **可能限制访问**。如果你怀疑是这个原因，**问网络管理员**；个人 VPN 先关掉试一次。更多网络类处理见 [/guides/chatgpt-network-error](/guides/chatgpt-network-error)。\n\n### 6. 带宽\n\n官方说**手机移动数据可能更慢**。换成 Wi-Fi，或者换一个网络，并做一次**网速测试**，看是不是只有 ChatGPT 慢。\n\n### 7. 模型或账号问题\n\n问题可能**只影响某一个模型**，也可能**影响整个账号**。官方的办法是**换一个模型，新开一个对话**来判断。你能选哪些模型取决于套餐，见 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)。\n\n## 二、官方的 6 步排查\n\n1. **清除浏览器缓存和 Cookie**；\n2. **查看 OpenAI 状态页**有没有故障或维护，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)；\n3. **换一个浏览器**，判断是不是当前浏览器的问题；\n4. **关闭扩展**，关掉多余程序和标签页，试无痕窗口；\n5. **换设备或网络**，做一次在线网速测试；\n6. 怀疑公司网络或 VPN，**问管理员**。\n\n![回答慢、转圈的官方排查顺序：清缓存、看状态页、换浏览器、关扩展、换网络并测速、问管理员](seed:g1113-spin-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Why is my ChatGPT taking so long to respond?](https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond) 整理的示意图*\n\n## 三、慢和卡住、报错的区别\n\n- **慢**：有进展，但出结果很晚。按本文排查；\n- **卡住**：界面完全没有进展，官方建议先等 30 到 60 秒再停止重新生成，见 [/guides/chatgpt-stuck-thinking-no-result](/guides/chatgpt-stuck-thinking-no-result)；\n- **报错**：出现具体提示，按提示找对应的文章，如 [/guides/chatgpt-something-went-wrong](/guides/chatgpt-something-went-wrong)。\n\n## 四、联系官方客服\n\n仍然持续变慢，官方要求联系客服前先收集诊断信息：HAR 文件、控制台错误、请求 ID、时间戳和对话网址。入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 官方没说的\n\n- **「慢」到什么程度算异常**，官方没有给标准；\n- **高峰期具体是几点**，官方没有写；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能加速，本文不介绍绕开地区限制的做法；\n- 想用更宽裕的使用额度，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但它不保证避开高峰期变慢。\n\n## 常见问题\n\n**Q：为什么今天特别慢？**\n官方列的原因里，缓存过期、高峰期、网络和扩展都可能。先看状态页，再按 6 步排查。\n\n**Q：清缓存会丢聊天记录吗？**\n聊天记录在账号里，清缓存只是清本地数据，需要重新登录。\n\n**Q：手机上慢？**\n官方说移动数据可能更慢。换 Wi-Fi 试，手机 App 的排查见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)。\n\n**Q：用 VPN 会更快吗？**\n官方把 VPN 列为可能的限制因素，通用步骤是先关闭。\n\n## 参考资料\n\n- OpenAI 帮助中心：Why is my ChatGPT taking so long to respond? — https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+      "sources": [
+        "https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond",
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章没有说明各原因出现的概率，也没有给出「慢」的量化标准",
+        "官方没有给出等待多久才算卡住的统一时间，只在 Thinking 卡住的排查里写了先等 30 到 60 秒",
+        "官方文章页面只显示相对的更新时间",
+        "「手机流量可能更慢」是官方原话的意思，没有给具体速度要求"
+      ]
+    },
+    {
+      "title": "ChatGPT 没有反应、没有回应怎么办：网页、手机 App、桌面版分开排查，官方的通用顺序",
+      "slug": "chatgpt-no-response-no-reply",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1114-noresp-decide.png",
+        "g1114-noresp-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "点了发送，ChatGPT 没反应、没有任何回应？官方没有专门写「没有反应」，但网页的卡住与空白页排查、手机 App 的排查可以套用。本文按网页、手机、桌面版分开，给出先做哪一步，并说明官方没说的部分。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting ChatGPT Error Messages》《Troubleshooting the ChatGPT mobile app》《Why is my ChatGPT taking so long to respond?》整理，资料核对于 2026-10-27。**官方没有专门写「没有反应」这个症状，**本文把官方对卡住、空白页的网页排查，以及手机 App 的排查，按你使用的设备分开整理。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 点了发送，一点反应都没有，既没有回答也没有报错的人；\n- 页面能看见，但按钮点不动、输入没反应的人；\n- 手机 App 点了没反应的人。\n\n## 结论先说\n\n1. **先分清是哪种「没反应」**：发出消息后没有回答，用官方的卡住排查；页面空白或点不动，用官方的空白页排查；手机 App 没响应，用官方的 App 排查。\n2. **消息发出去没回答**：官方建议**先等 30 到 60 秒**，再**停止并重新生成**。\n3. **页面空白或点不动**：**强制刷新**，或开**无痕窗口并关闭扩展**；**退出登录再登录**，清除站点数据。\n4. **手机 App 没响应**：**关闭再打开** App → **看状态页** → **更新 App 和系统** → **切换网络** → **在网页上登录同一账号对比** → 仍然不行就**卸载并重装**。\n5. **所有设备都没有反应**，先看官方状态页，有事件就等恢复。\n6. **仍然不行**，联系官方客服，附时间、截图和设备信息。\n\n![ChatGPT 没有反应：先分清是哪种情况](seed:g1114-noresp-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Troubleshooting the ChatGPT mobile app](https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app) 整理的示意图*\n\n## 一、在电脑网页上\n\n### 发出消息后没有回答\n\n官方对卡在 Thinking、Generating、Working 或转圈的做法：\n\n1. **等 30 到 60 秒**，然后**停止**，**重新生成**；\n2. **新开一个对话**；\n3. **重新加载页面**；\n4. **退出登录再登录**；\n5. **关闭扩展和 VPN**，换浏览器或网络；\n6. **看状态页**。\n\n更详细的版本见 [/guides/chatgpt-stuck-thinking-no-result](/guides/chatgpt-stuck-thinking-no-result) 和 [/guides/chatgpt-slow-spinner-single-answer](/guides/chatgpt-slow-spinner-single-answer)。\n\n### 页面空白、点不动\n\n官方对空白页、冻结页、一直加载的步骤：强制刷新，退出登录再登录，**清除站点数据**，**关闭扩展和内容拦截器**，试**无痕窗口**或**换浏览器**，**关闭 VPN 和安全过滤**；仍然不行就收集 HAR 文件和控制台错误后联系客服。详见 [/guides/chatgpt-unable-to-load-site](/guides/chatgpt-unable-to-load-site)。\n\n## 二、在手机 App 上\n\n官方《Troubleshooting the ChatGPT mobile app》对 App 崩溃或没有响应的顺序：\n\n1. **关闭并重新打开 ChatGPT**，再重试刚才的操作；\n2. **看 OpenAI 状态页**；\n3. 安装应用商店里的 **ChatGPT 更新**；\n4. 确认**系统是最新的**；\n5. **切换连接**，例如在 Wi-Fi 和移动数据之间切换；\n6. 在**网页上用同一账号登录**，看问题是不是也出现在网页上；\n7. 仍然持续，**卸载后从官方应用商店重装**。\n\n完整说明，包括要带给客服的信息，见 [/guides/chatgpt-app-crash-troubleshooting](/guides/chatgpt-app-crash-troubleshooting)。\n\n## 三、在桌面版上\n\n官方没有专门针对「桌面版没有反应」的文章。可以先确认桌面版是不是最新版，并用网页版对比：网页正常、桌面版没反应，问题多半在桌面版本身。桌面版打不开、更新失败，见 [/guides/chatgpt-desktop-app-wont-open-update](/guides/chatgpt-desktop-app-wont-open-update)，桌面版的下载和新旧版本区别见 [/guides/chatgpt-desktop-app](/guides/chatgpt-desktop-app)。\n\n![没有反应时的官方通用顺序：等待、刷新、状态页、换网络、网页对比、联系客服](seed:g1114-noresp-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 与 [Troubleshooting the ChatGPT mobile app](https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app) 整理的示意图*\n\n## 四、「没有反应」有时不是故障\n\n- **正在使用高档位思考**：Medium、High、Extra High、Pro 这类档位本来就更慢，见 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)；\n- **额度或访问提示**：如果界面显示额度用完或访问受限，那是提示，不是故障，见 [/guides/chatgpt-too-many-requests-limit](/guides/chatgpt-too-many-requests-limit)。官方还说，重装 App 不会重置用量上限或解除账号限制。\n\n## 五、联系官方客服\n\n官方建议联系客服时提供：账号邮箱、设备型号、系统版本和 App 版本、发生了什么和时间、完整的错误信息或截图、在 Wi-Fi 还是移动数据下出现、在网页或另一台设备上是否也出现。网页上还可以附 HAR 文件和控制台错误。入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 官方没说的\n\n- 「没有反应」**一般多久恢复**，官方没有给时间；\n- 官方**没有**说它与套餐有关；想了解套餐可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但它不能解决设备或网络问题；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 怀疑官方在维护或故障，先看 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n## 常见问题\n\n**Q：没有任何提示，只是没反应，算故障吗？**\n官方没有区分。按官方的卡住排查：先等 30 到 60 秒，再停止并重新生成。\n\n**Q：只有手机没反应，电脑正常？**\n按手机 App 的官方顺序排查，其中「在网页上登录同一账号对比」能快速判断是不是 App 的问题。\n\n**Q：怎么知道是不是官方的问题？**\n看状态页，读法见 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n**Q：重装会让问题彻底解决吗？**\n官方说重装不会重置用量上限、不会改变工作区权限，也不会解除账号限制。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Troubleshooting the ChatGPT mobile app — https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app\n- OpenAI 帮助中心：Why is my ChatGPT taking so long to respond? — https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond",
+      "sources": [
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app",
+        "https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有专门写「没有反应 / 没有回应」这一症状，本文套用官方对卡住、空白页的网页排查，以及手机 App 的排查，开头已说明",
+        "官方文章没有说明「没有反应」一般多久恢复",
+        "桌面版的排查没有官方专门文章，本文只指向本站已有的桌面版文章",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT 手机 App 一直闪退怎么办：官方的 7 步排查、DeviceCheckError 的处理，以及联系客服要带什么",
+      "slug": "chatgpt-app-crash-troubleshooting",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1115-crash-decide.png",
+        "g1115-crash-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 手机 App 闪退、卡死、没有响应？OpenAI 帮助中心有专门的手机 App 排查文章：重开、看状态页、更新、切换网络、网页对照、卸载重装，还写了 DeviceCheckError 的处理和联系客服要带的信息。本文按官方顺序整理。",
+      "content": "> 本文根据 OpenAI 帮助中心《Troubleshooting the ChatGPT mobile app》和 iOS、Android App FAQ 整理，资料核对于 2026-10-27。App 版本和系统菜单会变化，请以官方文章和你设备上的实际界面为准。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- iPhone 或安卓上的 ChatGPT App 一打开就退出、用着用着崩溃的人；\n- App 卡住、没有响应、点了没反应的人；\n- 看到 **DeviceCheckError**，或提示「请检查设备的日期和时间或网络连接」的人；\n- 想知道联系客服要带哪些信息的人。\n\n## 结论先说\n\n1. **官方有专门的手机 App 排查文章，** 崩溃或没有响应的顺序是：**关闭再打开 → 看状态页 → 安装应用商店里的更新 → 确认系统是最新的 → 切换 Wi-Fi 与移动数据 → 在网页上登录同一账号对比 → 仍然不行，卸载并从官方应用商店重装。**\n2. **重装不是万能的**：官方明确写了，重装**不会**重置使用上限、改变工作区权限或解除账号限制。看到的是额度或访问提示，就按提示处理，见 [/guides/chatgpt-usage-limits-check-reset](/guides/chatgpt-usage-limits-check-reset)。\n3. **DeviceCheckError**：官方的处理是核对**日期、时间和时区**（尽量用自动设置）、检查网络、更新 App 和系统，并尝试在浏览器或另一台设备上登录。\n4. **联系客服**时，官方列了一份要带的信息，见第四节。\n5. 如果网页版也有同样的问题，那就不是 App 的问题，先看 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)。\n\n![手机 App 闪退：官方排查对照](seed:g1115-crash-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting the ChatGPT mobile app](https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app) 整理的示意图*\n\n## 一、App 崩溃或没有响应：官方 7 步\n\n官方文章按这个顺序：\n\n1. **关闭并重新打开 ChatGPT**，再重试刚才的操作；\n2. **查看 OpenAI 状态页**，看有没有影响 ChatGPT 的事件；\n3. **安装应用商店里提供的 ChatGPT 更新**；\n4. **确认设备的操作系统是最新的**；\n5. **切换连接**，例如在 Wi-Fi 和移动数据之间切换；\n6. **在网页上用同一账号登录**，看问题是不是也出现在网页上；\n7. 如果问题仍然持续，**卸载 ChatGPT，从官方应用商店重新安装**，用同一账号登录，再试那个功能。\n\n第 6 步很有用：网页上也出问题，就不是 App 的问题；网页正常而 App 不行，才怀疑 App 或这台设备。\n\n![App 崩溃的官方排查顺序：重开、状态页、更新、切换网络、网页对照、重装](seed:g1115-crash-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Troubleshooting the ChatGPT mobile app](https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app) 整理的示意图*\n\n## 二、登录不上\n\n官方对 App 登录失败的步骤：\n\n1. 先在**网页**上用同一账号登录；\n2. 网页能登、App 不行，**卸载并重装 App**；\n3. 用**你最初注册时的登录方式**登录，确认没有登错账号；\n4. 浏览器、Cookie、验证方式和安卓登录的更多检查，见官方的登录排查文章，本站整理见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n\n## 三、DeviceCheckError 与「检查日期时间或网络」\n\n官方文章把它单独列为设备检查类错误，提示可能是「请检查设备的日期和时间，或互联网连接」，并可能包含 **DeviceCheckError**。处理顺序：\n\n1. **核对日期、时间和时区**，能用自动设置就用自动；\n2. **检查网络**，然后关闭再打开 ChatGPT；\n3. **更新 ChatGPT 和操作系统**；\n4. 在浏览器或另一台设备上登录；\n5. 如果设备**已越狱或 root**，官方建议换一台未改动系统的设备试试。\n\n联系客服时，请把**完整的错误信息**一并带上。另外，如果这句话在你那里表现为「Unusual activity has been detected from your device」，那是官方网络排查文章里的另一条 iOS 提示，见 [/guides/chatgpt-unusual-activity-detected-from-your-device](/guides/chatgpt-unusual-activity-detected-from-your-device)。\n\n## 四、联系客服要带什么\n\n官方文章列的信息：\n\n- ChatGPT **账号邮箱**；\n- **设备型号、系统版本和 ChatGPT App 版本**；\n- 发生了什么、**日期时间**和**复现步骤**；\n- **完整的错误信息**、请求 ID 或**截图**；\n- 在 **Wi-Fi、移动数据还是两者**下出现，在**网页或另一台设备**上是否也出现；\n- 登录问题的话，**上一次成功登录的时间**。\n\n**iPhone 或 iPad 崩溃**还要补充：设备**语言**、**第三方键盘**、相关的**辅助功能**设置，以及触发崩溃的具体操作，例如继续一个在网页上开始的对话、使用某个功能、切换网络。官方给的 iOS 路径：设备型号在 **设置 → 通用 → 关于本机 → 型号名称**；键盘在 **设置 → 通用 → 键盘 → 键盘**；辅助功能在 **设置 → 辅助功能**。\n\n别把**密码**发给任何人，截图也别带无关的个人信息。联系入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 五、App 里常见的相关问题\n\n- 手机版的下载和使用技巧见 [/guides/chatgpt-mobile-app-tips](/guides/chatgpt-mobile-app-tips)；\n- 在 App Store 或 Google Play 订阅，订阅状态没变化，见 [/guides/chatgpt-app-store-google-play-subscription](/guides/chatgpt-app-store-google-play-subscription)；\n- 只是回答慢、转圈，不是崩溃，见 [/guides/chatgpt-slow-laggy-stuck-long-chat](/guides/chatgpt-slow-laggy-stuck-long-chat)。\n\n## 官方没说的\n\n- 官方文章**没有**列出各系统版本的最低要求，以应用商店页面为准；\n- **没有**写哪个具体 App 版本有闪退问题；\n- 没有说「清缓存」能解决 App 闪退，本文不替官方添加这一步。\n\n## 常见问题\n\n**Q：重装 App 会丢聊天记录吗？**\n聊天记录在你的账号里，重装后用同一账号登录即可。官方强调重装不会重置用量上限或解除账号限制。\n\n**Q：只有 App 崩溃，网页正常，怎么办？**\n按官方顺序：更新 App 和系统、切换网络、卸载重装，仍然不行再联系客服。\n\n**Q：每次做同一件事就崩溃？**\n记下触发的操作，联系客服时一并说明，官方特别提到了这一点。\n\n**Q：我需要开通会员才能解决吗？**\n官方没有这样说。想了解套餐，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但它不影响 App 是否崩溃。\n\n## 参考资料\n\n- OpenAI 帮助中心：Troubleshooting the ChatGPT mobile app — https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app\n- OpenAI 帮助中心：ChatGPT iOS app FAQ — https://help.openai.com/en/articles/7885016-chatgpt-ios-app-faq\n- OpenAI 帮助中心：ChatGPT Android app FAQ — https://help.openai.com/en/articles/8142208-chatgpt-android-app-faq",
+      "sources": [
+        "https://help.openai.com/en/articles/7910461-troubleshooting-the-chatgpt-mobile-app",
+        "https://help.openai.com/en/articles/7885016-chatgpt-ios-app-faq",
+        "https://help.openai.com/en/articles/8142208-chatgpt-android-app-faq"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章的闪退步骤写得比较通用，没有分安卓和 iOS 逐项展开；安卓部分只给了登录排查的链接",
+        "官方文章没有列各系统版本的最低要求，要求以应用商店页面为准",
+        "官方文章没有提到 Google Play 里「不是最新版」之类的具体提示",
+        "官方文章页面没有给出更新日期",
+        "联系客服要带的 iOS 设置路径是官方文章的写法，不同系统版本菜单可能略有不同"
+      ]
+    },
+    {
+      "title": "ChatGPT 提示「无法加载对话」怎么办：旧对话打不开、找不到时，先查账号、工作区和锁定聊天",
+      "slug": "chatgpt-unable-to-load-conversation",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1116-conv-decide.png",
+        "g1116-conv-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 的某个对话打不开，提示无法加载？官方没有收录这句话，但有聊天记录同步、查找旧对话的说明和卡住加载的通用排查。本文先查账号和工作区、搜索、锁定聊天，再按官方通用步骤处理。",
+      "content": "> 本文根据 OpenAI 帮助中心《How can I view my conversation history in the iOS app?》《Troubleshooting ChatGPT Error Messages》《Why is my ChatGPT taking so long to respond?》整理，资料核对于 2026-10-27。**官方没有收录「无法加载对话」这句话，**本文先用官方的聊天记录说明排除找不到的原因，再套用官方对加载失败、卡住的通用排查。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 侧边栏里看得到某个对话，点开却提示**无法加载**的人；\n- 旧对话找不到的人；\n- 手机和电脑上看到的聊天不一致的人。\n\n## 结论先说\n\n1. **先确认账号和工作区**：官方说聊天记录会在**登录同一账号的设备**之间同步；如果旧聊天不在侧边栏，先确认你在对的**账号和工作区**，再用**搜索**。\n2. **归档的聊天仍能被搜到**；**锁定的聊天**在 **Projects → Locked chats** 里。\n3. **已删除的聊天无法恢复**，这是官方明确写的。\n4. **对话在列表里，但点开加载失败**：按官方对加载失败、卡住的通用排查，**强制刷新**，**退出登录再登录**并**清除站点数据**，**关闭扩展和 VPN**，换浏览器或网络。\n5. **所有对话都加载不了**，先看官方状态页，有事件就等恢复。\n6. **仍然不行**，联系官方客服，附对话网址、时间、HAR 文件和控制台错误。\n\n![无法加载对话：先查这几项](seed:g1116-conv-decide.png)\n*图：本站根据 [OpenAI 帮助中心：How can I view my conversation history in the iOS app?](https://help.openai.com/en/articles/8980299-how-can-i-view-my-conversation-history-in-the-ios-app) 与 [Troubleshooting ChatGPT Error Messages](https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages) 整理的示意图*\n\n## 一、先排除：是不是「找不到」，而不是「加载失败」\n\n官方《How can I view my conversation history in the iOS app?》的要点：\n\n- **聊天记录会在你登录同一账号的设备之间同步**；\n- 手机上，点**菜单图标**打开侧边栏，最近的聊天在最上面，新的在上；\n- **找旧聊天**：先确认你登录的是**对的账号和工作区**，再用**搜索**。**归档的聊天仍然可以被搜到**；\n- **锁定的聊天**出现在 **Projects → Locked chats** 下；\n- **删除**：打开对话，点更多选项（•••），选 **Delete** 并确认。**删除的聊天无法恢复**。\n\n所以，如果你是「想找的旧对话不在侧边栏」，多半是账号或工作区不对，或者对话被归档、锁定，或者被删除了。归档的对话怎么找回，见 [/guides/chatgpt-archived-chats-missing](/guides/chatgpt-archived-chats-missing)。\n\n## 二、对话在列表里，点开加载失败\n\n官方没有这句提示的专门说明，但对「页面卡住、一直加载、空白」有通用步骤：\n\n1. **强制刷新**（Shift + 刷新），或开**无痕窗口**；\n2. **退出登录再登录**，并**清除站点数据**；\n3. **关闭扩展和内容拦截器**；\n4. **关闭 VPN 和安全过滤**；\n5. **换浏览器、换网络或换设备**，在另一台设备上能打开，就说明问题在原设备或原网络；\n6. 看 [status.openai.com](https://status.openai.com/)，有事件就等恢复。\n\n更详细的版本见 [/guides/chatgpt-unable-to-load-site](/guides/chatgpt-unable-to-load-site)。\n\n![对话加载失败的排查顺序：确认账号、搜索、刷新、退出重登、关扩展、联系客服](seed:g1116-conv-steps.png)\n*图：本站根据 [OpenAI 帮助中心：How can I view my conversation history in the iOS app?](https://help.openai.com/en/articles/8980299-how-can-i-view-my-conversation-history-in-the-ios-app) 与 [Why is my ChatGPT taking so long to respond?](https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond) 整理的示意图*\n\n## 三、只有某一个对话打不开\n\n- 很长的对话在网页上容易卡，试着换一台设备或手机 App 打开，长对话的情况见 [/guides/chatgpt-slow-laggy-stuck-long-chat](/guides/chatgpt-slow-laggy-stuck-long-chat)；\n- 想保住这个对话里的内容，可以先试着在另一台设备上打开，把重要内容复制出来。导出整个账号的聊天记录，见 [/guides/chatgpt-export-chat-history](/guides/chatgpt-export-chat-history)；\n- 如果这个对话是在某个**项目**里，先确认你在对的账号和工作区，项目的用法见 [/guides/chatgpt-projects](/guides/chatgpt-projects)。\n\n## 四、手机和电脑上看到的不一样\n\n官方只说了聊天记录会在登录同一账号的设备间同步，没有说明哪些内容可能不同步。如果两边不一致：\n\n1. 确认两边登录的是**同一个账号、同一个工作区**；\n2. **刷新**网页，或**更新** App 后重新打开；\n3. 看状态页；\n4. 仍然不一致，联系官方客服，说明在哪个设备上看得到、哪个看不到。\n\n同步的更多说明见 [/guides/chatgpt-chat-history-sync-devices](/guides/chatgpt-chat-history-sync-devices)。\n\n## 五、联系官方客服\n\n官方在排查文章里建议，联系前先收集：出问题那次会话的 **HAR 文件**、浏览器**控制台错误**、相关的**请求 ID**、**时间戳**和**对话的网址**。入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 官方没说的\n\n- 这句提示的**具体原因**，官方没有写；\n- **哪些内容不同步**，官方没有列；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决，本文不介绍绕开地区限制的做法；\n- 想了解套餐，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但它与对话能否加载无关。\n\n## 常见问题\n\n**Q：对话被删了能找回吗？**\n官方说删除的聊天无法恢复。\n\n**Q：锁定的聊天在哪？**\n在 Projects 下的 Locked chats 里。\n\n**Q：换设备就能打开？**\n说明问题在原设备、浏览器或网络，按第二节处理。\n\n**Q：所有聊天都空了？**\n先确认登录的是不是你的账号、是不是在对的工作区，再看状态页。\n\n## 参考资料\n\n- OpenAI 帮助中心：How can I view my conversation history in the iOS app? — https://help.openai.com/en/articles/8980299-how-can-i-view-my-conversation-history-in-the-ios-app\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages\n- OpenAI 帮助中心：Why is my ChatGPT taking so long to respond? — https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond",
+      "sources": [
+        "https://help.openai.com/en/articles/8980299-how-can-i-view-my-conversation-history-in-the-ios-app",
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+        "https://help.openai.com/en/articles/9047779-why-is-my-chatgpt-taking-so-long-to-respond"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「无法加载对话（Unable to load conversation）」这句话；本文套用官方的聊天记录查找说明和卡住、空白页的通用排查，开头已说明",
+        "聊天记录同步、搜索、锁定聊天的说明来自官方 iOS 查看聊天记录的文章，网页和安卓的菜单名可能略有不同",
+        "官方文章没有说明哪些内容不同步，也没有说明加载失败的具体原因",
+        "官方文章页面没有给出更新日期"
+      ]
+    },
+    {
+      "title": "ChatGPT 付款未获批准怎么办：官方说的 6 类原因，银行、卡信息、国家地区各怎么查",
+      "slug": "chatgpt-payment-not-approved-declined",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1117-declined-decide.png",
+        "g1117-declined-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "ChatGPT 提示付款未获批准、付款被拒？官方没有收录这句原文，官方用的词是 declined，并列出六类可能原因：缓存干扰、银行拦截、余额不足、安全措施、卡信息有误、你或发卡行不在支持范围。本文逐类说明怎么查。",
+      "content": "> 本文根据 OpenAI 帮助中心《Why did my ChatGPT Plus or Pro renewal transaction fail?》和 ChatGPT 支持国家与地区的说明整理，资料核对于 2026-10-27。**官方没有收录「付款未获批准」这句话，**官方用的词是 declined（被拒绝）；官方文章的标题讲的是续订交易，本文把它当作官方对付款失败的通用说明。配图为本站整理的示意图，不是界面截图。付款时出现的 Something went wrong 见 [/guides/chatgpt-payment-something-went-wrong](/guides/chatgpt-payment-something-went-wrong)，本文侧重「被拒」的原因。\n\n## 适用于谁\n\n- 订阅或续订时，提示付款没有通过、未获批准、被拒的人；\n- 不知道是银行问题、卡的问题还是 OpenAI 的问题的人；\n- 想知道官方认可的排查顺序的人。\n\n## 结论先说\n\n1. **官方列了六类可能原因**：① 浏览器**缓存数据**干扰交易；② 银行的**拦截或限制**；③ **余额不足**；④ 银行的**安全措施**阻止了交易；⑤ 卡被拒：**付款信息、账单地址或有效期**有误；⑥ **你或你的发卡行**不在支持的国家或地区。\n2. **官方顺序**：先**清缓存和 Cookie** 重试 → 再**联系银行**（账户问题、余额、安全拦截）→ **核对付款信息**（账单地址、有效期）→ 确认**国家或地区** → 仍不行**通过聊天窗口联系官方客服**。\n3. **多数情况要从银行那边解决**：官方给的原因里，有一半以上是银行侧的。\n4. **别反复刷**：官方没有给出等待时间，也没有说多次失败会怎样，但每次失败都先找原因再试，比连续重试有用。\n5. **支付方式本身是否支持**，见 [/guides/chatgpt-payment-methods-supported](/guides/chatgpt-payment-methods-supported)。\n\n![付款未获批准：看原因对照](seed:g1117-declined-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Why did my ChatGPT Plus or Pro renewal transaction fail?](https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail) 整理的示意图*\n\n## 一、六类原因，逐类怎么查\n\n### 1. 浏览器缓存干扰\n\n官方把它列在最前面，因为最容易自己处理：**清除浏览器缓存和 Cookie**，再重新进入付款页，重试这笔交易。清除之后会退出登录，登录方式见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n\n### 2. 银行拦截或限制\n\n向银行确认卡有没有被限制用于境外或线上支付、有没有被临时冻结。官方的说法是：联系银行，**检查账户问题**。\n\n### 3. 余额不足\n\n信用卡看**可用额度**，借记卡看**账户余额**。官方列了「余额不足」，所以先确认这一点。\n\n### 4. 银行的安全措施\n\n银行可能出于**安全原因**阻止这笔交易。官方建议联系银行，询问是否因安全原因拦截了付款，并请银行放行。\n\n### 5. 卡信息有误\n\n官方说，卡被拒绝，可能是**付款信息、账单地址或有效期**不正确。逐项核对：卡号、有效期、账单地址，账单地址要和银行预留的一致。换卡或改付款方式见 [/guides/chatgpt-remove-change-payment-method](/guides/chatgpt-remove-change-payment-method)。\n\n### 6. 你或你的发卡行不在支持范围\n\n官方说明：**如果你或你的发卡行任何一方在受支持国家或地区之外，付款都可能被拒**。官方文章指向一份完整名单，本站整理见 [/guides/chatgpt-supported-countries](/guides/chatgpt-supported-countries)。这是官方的限制，官方没有提供绕开的办法，本文也不介绍任何换地区、借用他人卡或代付的做法。\n\n![付款被拒的官方排查顺序：清缓存、联系银行、核对信息、确认国家地区、联系客服](seed:g1117-declined-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Why did my ChatGPT Plus or Pro renewal transaction fail?](https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail) 整理的示意图*\n\n## 二、都排除了仍然被拒：联系官方客服\n\n官方的路径：**通过聊天窗口联系官方客服**，入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。建议带上：账号邮箱、付款页提示的完整原文截图、第一次失败的时间（带时区）、使用的付款方式类型（不要发卡号）、你已经做过的步骤。\n\n## 三、续订被拒和首次订阅被拒的区别\n\n官方文章讲的是**续订**交易：Plus 或 Pro 到期自动扣款失败。这种情况下，订阅可能在到期后降级，见 [/guides/chatgpt-plus-cancel-or-expire-what-happens](/guides/chatgpt-plus-cancel-or-expire-what-happens)，续订日期查看见 [/guides/chatgpt-plus-renewal-date-expiry-where-to-check](/guides/chatgpt-plus-renewal-date-expiry-where-to-check)。首次订阅被拒，官方没有另外写，原因和排查可以参考上面六类。\n\n## 四、被扣了钱但订阅没生效\n\n- 先等几分钟，刷新页面或重启 App；\n- 确认登录的是付款的那个账号；\n- 看账单和发票：[/guides/chatgpt-invoice-download](/guides/chatgpt-invoice-download)；\n- 重复扣款或想退款：[/guides/chatgpt-refund-request](/guides/chatgpt-refund-request)。\n\n## 五、官方没说的\n\n- 官方**没有**说明哪类卡一定能用或一定不能用，也没有写 3D Secure、预付卡之类的细则；\n- 官方**没有**给被拒后的等待时间；\n- 也**没有**说被拒多次会有什么后果；\n- 想了解套餐，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)；价格以官方升级页为准，各套餐的官方价格见 [/guides/chatgpt-monthly-price-official-plans](/guides/chatgpt-monthly-price-official-plans)。\n\n## 常见问题\n\n**Q：「付款未获批准」是 OpenAI 拒绝了，还是银行拒绝了？**\n官方没有区分这句话的来源。官方列的六类原因里，多数是银行或卡信息的问题，只有「国家或地区不在支持范围」是官方的限制。\n\n**Q：换一张卡就行吗？**\n可能行，也可能不行：如果是账单地址、有效期或银行拦截的问题，换卡能解决；如果是国家或地区的问题，换卡不一定。\n\n**Q：清缓存真的有用吗？**\n官方把缓存干扰列为第一条可能原因，所以先做。\n\n**Q：失败几次后会被封？**\n官方文章没有这样说。\n\n## 参考资料\n\n- OpenAI 帮助中心：Why did my ChatGPT Plus or Pro renewal transaction fail? — https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail\n- OpenAI 帮助中心：ChatGPT supported countries — https://help.openai.com/en/articles/7947663-chatgpt-supported-countries",
+      "sources": [
+        "https://help.openai.com/en/articles/7242622-why-did-my-chatgpt-plus-or-pro-renewal-transaction-fail",
+        "https://help.openai.com/en/articles/7947663-chatgpt-supported-countries"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「付款未获批准」这一中文提示或对应英文原文，官方文章用的是 declined；本文开头已说明",
+        "官方付款失败文章的标题是关于续订交易，首次订阅被拒时官方没有另写，本文把它当作官方对付款失败的通用说明",
+        "官方没有提到 3D Secure、预付卡或虚拟卡的具体规则，正文不写",
+        "官方没有说明被拒后需要等多久再试",
+        "官方文章页面只显示相对的更新时间"
+      ]
+    },
+    {
+      "title": "ChatGPT Windows 版安装未完成怎么办：官方的安装来源、系统要求、重置步骤和企业部署方式",
+      "slug": "chatgpt-windows-install-not-completed",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1119-win-decide.png",
+        "g1119-win-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT Windows 版安装不了、安装未完成？官方没有收录这条提示，但有 Windows 应用文章：来源是 Microsoft Store，系统要求 Windows 10 17763.0 以上，装好后异常可在设置里重置，企业可用 Intune 或 winget。本文整理，并说明新旧桌面版的区别。",
+      "content": "> 本文根据 OpenAI 帮助中心《Using the ChatGPT Windows app》《Moving to the new ChatGPT desktop app》和 chatgpt.com/download 整理，资料核对于 2026-10-27。**官方没有收录「安装未完成」这条提示，**只有 Windows 应用文章里的来源、系统要求、部署和重置步骤，其余明确标注为官方没说。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 安装 ChatGPT Windows 版时提示安装未完成、装不上的人；\n- 装好了但打不开、运行异常的人；\n- 不确定该装哪个版本（新桌面版还是 ChatGPT Classic）的人。\n\n## 结论先说\n\n1. **官方没有这条提示的说明。** 官方 Windows 应用文章写的是：安装来源是 **Microsoft Store**，在 Store 里打开 ChatGPT 应用页再安装。\n2. **系统要求**（官方 Windows 文章的写法）：**Windows 10（x64 和 arm64）版本 17763.0 或更高**，文章没有提到其他版本。\n3. **企业环境**：官方说可以用 **Microsoft Intune** 等 MDM 或 MAM 工具部署，也可以用 **winget** 命令行安装。\n4. **装好了但异常**：官方给的重置路径是 **设置 → 应用 → 已安装的应用 → ChatGPT 旁边的三个点 → 高级选项 → 重置（Reset）**。\n5. **官方没有写安装失败的具体处理**，其他问题官方让你联系官方客服。\n6. **新旧桌面版**：官方说新的桌面版把 Chat、Work、Codex 合在一起；以前的桌面版如果还在，会显示为 **ChatGPT Classic**。装哪个，见第四节。\n\n![Windows 版安装不顺：看情况对照](seed:g1119-win-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Using the ChatGPT Windows app](https://help.openai.com/en/articles/9982051-using-the-chatgpt-windows-app) 整理的示意图*\n\n## 一、官方写的安装方式\n\n官方 Windows 应用文章：\n\n1. 打开 **Microsoft Store**，进入 ChatGPT 应用页；\n2. **安装**应用；\n3. 组织可以用 **Microsoft Intune** 之类的 MDM、MAM 工具部署，也可以用 **winget** 在命令行安装。官方给的命令是：`winget.exe install --id=9NT1R1C2HH7J --source=msstore --accept-package-agreements --accept-source-agreements --silent`。\n\n文章没有写独立的安装包文件，也没有写安装过程中的错误提示。所以，**安装卡在「未完成」时，官方没有对应的说明**，能做的是先确认来源和系统要求，再重试。\n\n![Windows 版安装与重置的官方步骤](seed:g1119-win-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Using the ChatGPT Windows app](https://help.openai.com/en/articles/9982051-using-the-chatgpt-windows-app) 整理的示意图*\n\n## 二、系统要求\n\n官方 Windows 文章写的是：**Windows 10（x64 和 arm64）版本 17763.0 或更高**。文章里没有提到其他 Windows 版本。\n\n要注意：这篇是较早写的 Windows 应用文章。官方新的《Moving to the new ChatGPT desktop app》没有列出系统要求，所以新版是否仍是这个要求，官方没有说明，请以下载页和 Microsoft Store 页面上的系统要求为准。\n\n## 三、装好了但异常：官方的重置路径\n\n官方文章里，针对应用本身的排查只有「重置」：\n\n1. 打开 Windows **设置**；\n2. 进入 **应用 → 已安装的应用**；\n3. 找到 **ChatGPT**，点它右边的**三个点**；\n4. 选择 **高级选项**；\n5. 点击 **重置（Reset）**。\n\n其他问题，官方让你**联系官方客服**。桌面版打不开、更新后打不开的更多排查，见 [/guides/chatgpt-desktop-app-wont-open-update](/guides/chatgpt-desktop-app-wont-open-update)。重置后需要重新登录，登录问题见 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)。\n\n## 四、装新桌面版，还是 ChatGPT Classic\n\n官方《Moving to the new ChatGPT desktop app》的说法：\n\n- 新的桌面版把 **Chat、Work、Codex** 放在一个应用里，支持 **macOS 和 Windows**；\n- **以前的桌面版**如果仍然安装，会显示为 **ChatGPT Classic**，可以继续用，**不需要迁移**，并继续获得模型更新、问题修复和安全补丁；\n- 已有桌面版的用户，官方让你**按应用内的提示下载新应用**，用同一个账号登录，新应用可能和旧版并存；\n- 官方下载页上有 **ChatGPT Classic** 的 **Mac** 和 **Windows** 链接，下载页的 Windows 链接指向 get.microsoft.com，页面文字没有写 Microsoft Store 字样。\n\n新旧版本的区别见 [/guides/chatgpt-classic-vs-new-desktop-app](/guides/chatgpt-classic-vs-new-desktop-app)，桌面版整体介绍和 Mac 的情况见 [/guides/chatgpt-desktop-app](/guides/chatgpt-desktop-app)。\n\n## 五、实在装不上，先用网页版\n\n桌面版出问题时，网页版同样可以使用，聊天记录跟着账号走，见 [/guides/chatgpt-chat-history-sync-devices](/guides/chatgpt-chat-history-sync-devices)。官方在 macOS 的类似问题里也建议先用网页版，Windows 这篇文章没有专门这样写，这是本文的建议。\n\n## 六、联系官方客服\n\n官方让你联系客服做进一步排查，入口见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。建议带上：完整的提示原文和截图、Windows 版本号、你是从哪里安装的（Microsoft Store 还是别的渠道）、已经做过的步骤。\n\n## 官方没说的\n\n- **安装未完成**的具体原因和处理，官方没有写；\n- 官方**没有**说只有付费用户才能装（较早的 Windows 文章写的是付费套餐用户，与现在的下载页说法不一致），以下载页为准；想了解套餐，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)；\n- 官方只让你从 **Microsoft Store 或官方下载页**安装，不建议也没有写过第三方来源；\n- 官方没有写如何清理旧版残留，本文也不编。\n\n## 常见问题\n\n**Q：装哪个版本？**\n想要 Chat、Work、Codex 合在一起，装新桌面版；想继续用以前的，可以保留 ChatGPT Classic。\n\n**Q：Windows 7 或 8 能装吗？**\n官方文章写的要求是 Windows 10 17763.0 或更高，没有提到更低版本。\n\n**Q：重置会丢聊天记录吗？**\n聊天记录在账号里，重置应用后重新登录即可，官方没有写重置会清除账号数据。\n\n**Q：能通过命令行安装吗？**\n官方给了 winget 的命令，面向企业部署，见第一节。\n\n## 参考资料\n\n- OpenAI 帮助中心：Using the ChatGPT Windows app — https://help.openai.com/en/articles/9982051-using-the-chatgpt-windows-app\n- OpenAI 帮助中心：Moving to the new ChatGPT desktop app — https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app\n- ChatGPT 下载页 — https://chatgpt.com/download/",
+      "sources": [
+        "https://help.openai.com/en/articles/9982051-using-the-chatgpt-windows-app",
+        "https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app",
+        "https://chatgpt.com/download/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有收录「安装未完成」这条提示，也没有写 Microsoft Store 安装失败时的具体错误处理；官方 Windows 文章里只有重置步骤和联系客服，开头已说明",
+        "官方 Windows 应用文章写的是付费用户可用（Plus、Team、Edu、Enterprise），但官方下载页和新桌面版文章的说法不同；套餐要求以你在下载页看到的为准，本文不据此下结论",
+        "官方新桌面版文章没有列出系统要求，本文的 Windows 10 17763.0 来自较早的 Windows 应用文章，是否适用于新桌面版官方没有说明",
+        "下载页上 Windows 的 ChatGPT Classic 链接指向 get.microsoft.com，页面文字没有写 Microsoft Store 字样",
+        "官方文章页面只显示相对的更新时间"
       ]
     },
     {
@@ -63378,6 +63840,85 @@
       ]
     },
     {
+      "title": "ChatGPT 的 GPT-4o 不见了怎么办：2026 年 2 月已下线，旧对话和自建 GPT 现在用什么、还能不能选回来",
+      "slug": "chatgpt-gpt-4o-missing-retired",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1120-gpt4o-decide.png",
+        "g1120-retire-timeline.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 模型菜单里找不到 GPT-4o？按 OpenAI 帮助中心，GPT-4o 等模型已在 2026 年 2 月 13 日从 ChatGPT 下线，4 月 3 日起所有套餐彻底下线。本文列出下线时间表、旧对话和自建 GPT 的去向，以及官方说它在 API 里仍保留。",
+      "content": "> 本文根据 OpenAI 帮助中心《Retiring GPT-4o and other ChatGPT models》和《GPT-6 and other models in ChatGPT》整理，资料核对于 2026-10-27。模型更新很快，请以官方文章和你账号里实际显示的为准。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 打开 ChatGPT，模型菜单里再也找不到 GPT-4o 的人；\n- 以前习惯用 GPT-4o 聊天，发现回答风格变了的人；\n- 自己建的 GPT 原来选的是 GPT-4o，不知道现在跑在哪个模型上的人；\n- 想知道 GPT-4o 还能不能「选回来」的人。\n\n## 结论先说\n\n1. **不是你的账号出了问题，也不是你没有权限，是官方把它下线了。** OpenAI 帮助中心写明：GPT-4o 等模型已在 **2026 年 2 月 13 日**从 ChatGPT 下线。\n2. **一起下线的还有** GPT-4.1、GPT-4.1 mini、OpenAI o4-mini，以及 GPT-5（Instant 和 Thinking，官方说这条之前已经公告过）。\n3. **在 Business、Enterprise、Edu 的自建 GPT 里，GPT-4o 保留到 2026 年 4 月 3 日**，这一天之后，所有套餐都不再有 GPT-4o。\n4. **旧对话没有丢**：官方说用过这些旧模型的对话和项目，会默认转到较新的模型；自建 GPT 会自动换成最接近的新模型。\n5. **ChatGPT 里选不回来**：官方文章没有提供恢复入口。如果你是开发者，官方说这些模型在 **OpenAI API** 里暂时仍保留，将来下线会提前通知。\n6. **语音和生图不受影响**：官方说 ChatGPT Voice 和 ChatGPT Images 这次不变，它们的底层模型虽然和 GPT-4o 相近，但不是同一个文字模型。\n\n![找不到 GPT-4o 时的情况对照：旧对话、自建 GPT、语音生图、API](seed:g1120-gpt4o-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Retiring GPT-4o and other ChatGPT models](https://help.openai.com/en/articles/20001051-retiring-gpt-4o-and-other-chatgpt-models) 整理的示意图*\n\n## 一、下线时间表\n\n官方文章按时间列了几批：\n\n- **2026-02-13**：GPT-4o、GPT-4.1、GPT-4.1 mini、OpenAI o4-mini、GPT-5（Instant 与 Thinking）从 ChatGPT 下线；\n- **2026-02-19**：这是官方写的「保留期截止日」，Enterprise 工作区可以保留 GPT-5 系列到这一天，所有付费用户的 GPT-5 Pro 也保留到这一天；\n- **2026-03-11**：GPT-5.1 Instant、GPT-5.1 Thinking、GPT-5.1 Pro 下线；\n- **2026-04-03**：Business、Enterprise、Edu 客户在自建 GPT 里使用 GPT-4o 的权限到期，此后 GPT-4o 在所有套餐都彻底下线。\n\n![ChatGPT 模型下线时间表：2 月 13 日、2 月 19 日、3 月 11 日、4 月 3 日](seed:g1120-retire-timeline.png)\n*图：本站根据 [OpenAI 帮助中心：Retiring GPT-4o and other ChatGPT models](https://help.openai.com/en/articles/20001051-retiring-gpt-4o-and-other-chatgpt-models) 整理的示意图*\n\n今天是 2026 年 10 月 27 日，上面几个日期都已经过去了。所以如果你现在才发现 GPT-4o 不在，原因就是这个：它不是临时消失，而是**已经正式退出 ChatGPT**。\n\n## 二、旧对话、项目和自建 GPT 现在怎么样\n\n官方的说法很具体：\n\n- 曾经用这些旧模型的**对话和项目**，会默认落到较新的模型上，也就是文章里写的 GPT-5.3 Instant 和 GPT-5.4 Thinking、Pro 的对应版本；\n- 使用旧模型的**自建 GPT**，会自动换成最接近的新版本。\n\n这意味着：\n\n1. 对话记录还在，翻出来继续聊没有问题；\n2. **继续聊下去时，回答会由新模型来写**，所以语气、长短、格式和以前不一样，是正常现象；\n3. 官方只说自建 GPT 会自动换成最接近的新模型，没有说要你重做；但它背后的模型换了，**效果可能和原来不同**，需要的话重新调一下指令，可以参考 [/guides/chatgpt-gpts-retirement](/guides/chatgpt-gpts-retirement)。\n\n要注意：官方这篇文章写的是 2026 年 2 到 4 月的情况，里面提到的 GPT-5.3、GPT-5.4 之后又有了新一代模型。现在模型菜单里有哪些选择，请看 [/guides/chatgpt-gpt6-sol-terra-luna-astra](/guides/chatgpt-gpt6-sol-terra-luna-astra) 和 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)。\n\n## 三、觉得「回答变差了、变冷淡了」怎么办\n\n官方没有就「风格变化」写专门的建议，下面是本站根据官方行为做的整理，不是官方原话：\n\n1. **在对话里直接说明你想要的语气和长度**，比如要简短、要口语化、不要列太多条目。想一劳永逸，可以在设置里写自定义指令，见 [/guides/chatgpt-custom-instructions](/guides/chatgpt-custom-instructions)，回答太啰嗦的处理见 [/guides/chatgpt-too-wordy-answer-style](/guides/chatgpt-too-wordy-answer-style)；\n2. **换思考档位**：模型菜单里有 Instant、Medium、High 等不同档位，输出风格和长度会不同，套餐决定能选哪些档位，见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)；\n3. 觉得质量整体下降，先看 [/guides/chatgpt-answer-quality-dropped](/guides/chatgpt-answer-quality-dropped)。\n\n想用到更高档的模型和更多额度，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。具体每个套餐含哪些档位，以官方页面和模型菜单为准。\n\n## 四、语音和生图是不是也没了\n\n没有。官方在文章里专门说明：**ChatGPT Voice 不变，ChatGPT Images 也不变**。官方给的理由是，它们虽然底层模型和 GPT-4o 相近，但**不是被下线的那个文字模型**。语音功能用不了时见 [/guides/chatgpt-voice-unavailable-not-supported](/guides/chatgpt-voice-unavailable-not-supported)。\n\n## 五、开发者：API 里还能用吗\n\n官方文章写明，这些模型**仍可以通过 OpenAI API 使用**，如果将来要在 API 里下线，官方说会提前通知。注意 ChatGPT 订阅和 API 是两套独立的东西，区别见 [/guides/chatgpt-subscription-vs-openai-api](/guides/chatgpt-subscription-vs-openai-api)。本文不介绍任何第三方「还原旧模型」的工具或镜像站，那些不是官方渠道。\n\n## 常见问题\n\n**Q：我能在设置里把 GPT-4o 开回来吗？**\n官方文章没有提供这样的开关，也没有写 ChatGPT 里有恢复入口。\n\n**Q：GPT-4o 是不是只对我下线了？**\n不是，官方是对所有套餐下线，Business、Enterprise、Edu 的自建 GPT 多保留到 2026 年 4 月 3 日。\n\n**Q：以前和 4o 聊的对话还能看吗？**\n官方说对话和项目会默认转到较新的模型，记录本身不会因为模型下线而消失。\n\n**Q：现在该选哪个模型？**\n看你的套餐和需求，见 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)。模型菜单里没有想要的新模型，见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)。\n\n## 参考资料\n\n- OpenAI 帮助中心：Retiring GPT-4o and other ChatGPT models — https://help.openai.com/en/articles/20001051-retiring-gpt-4o-and-other-chatgpt-models\n- OpenAI 帮助中心：GPT-6 and other models in ChatGPT — https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt",
+      "sources": [
+        "https://help.openai.com/en/articles/20001051-retiring-gpt-4o-and-other-chatgpt-models",
+        "https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章写的替代模型是 GPT-5.3 Instant 和 GPT-5.4 Thinking、Pro，这是文章当时的写法；现在模型菜单里的模型已经更新（GPT-6、GPT-5.6 Sol 等），旧对话实际落到哪个模型以界面为准",
+        "官方文章页面只显示相对的更新时间，没有给出准确日期",
+        "官方没有写 ChatGPT 里有「找回旧模型」的开关，正文只写官方明确说过的内容",
+        "GPT-4o 在 API 里仍可用是官方文章的说法，之后是否下线以官方公告为准"
+      ]
+    },
+    {
+      "title": "ChatGPT 的「任务」（Tasks）不见了怎么办：现在叫 Scheduled，三个入口、任务数量上限和被暂停的原因",
+      "slug": "chatgpt-scheduled-tasks-missing",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1121-tasks-entries.png",
+        "g1121-tasks-missing-decide.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 找不到「任务」入口，或者设好的任务不再运行？官方帮助中心里这个页面叫 Scheduled。本文列出三个入口、各套餐同时开启的任务数量上限，以及任务被暂停或消失的官方原因，和桌面版看不到时的处理办法。",
+      "content": "> 本文根据 OpenAI 帮助中心《Scheduled tasks in ChatGPT》整理，资料核对于 2026-10-27。功能和上限会变动，请以官方文章和你账号里实际显示的为准。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 以前在 ChatGPT 里设过「任务」，现在找不到入口的人；\n- 设好的提醒、定时汇总没有按时出现的人；\n- 想新建任务，却提示数量已满的人；\n- 在桌面版里看不到任务页面的人。\n\n## 结论先说\n\n1. **官方页面名叫 Scheduled（计划任务）**，创建、查看和管理任务都在这里。官方文章的标题和正文仍然用「tasks」这个词，所以你找的「任务」，就是找 Scheduled。\n2. **三个入口**：直接打开 Scheduled 页面；**设置 → Notifications（通知）**里点 **Manage tasks**；在某个对话里点更多选项（•••）选 **See scheduled tasks**。\n3. **桌面版里看不到 Scheduled，就改用网页版**，这是官方给的做法。\n4. **同时开启的任务有上限**：Free 和 Go 是 3 个，Plus 是 5 个，Business 和 Edu 是 10 个，Pro 和 Enterprise 是 15 个（2026-10 查询）。\n5. **任务没跑，多半是被暂停了**：任务处于 inactive、需要你额外操作、创建任务的对话被归档或删除、数量达到上限、连接的应用授权过期，都是官方列出的原因。\n6. **删除对话会暂停对应任务**，而在 Scheduled 里删除任务，不会删除它的对话，这两件事别搞混。\n\n![找到 ChatGPT 任务的入口：Scheduled 页面、设置里的 Manage tasks、对话里的 See scheduled tasks、桌面版改用网页版](seed:g1121-tasks-entries.png)\n*图：本站根据 [OpenAI 帮助中心：Scheduled tasks in ChatGPT](https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt) 整理的示意图*\n\n## 一、哪些套餐有任务\n\n按官方文章：\n\n- **定时任务（Scheduled tasks）**：符合条件的 Free、Go、Plus、Pro、Business、Enterprise、Edu 用户都可以用，具体还要看账号和工作区设置。ChatGPT for Healthcare 的符合条件的工作区也可以；\n- **Free 用户的限制**：可以设一次性任务，或者「每天最多一次」的重复任务，时间用的是「早上、下午、晚上」这种灵活时间段。**每小时一次、指定精确时间，需要符合条件的付费套餐**；\n- **事件触发的任务（Event-triggered）**：需要 **Work**，并且是符合条件的 Plus、Pro、Business、Enterprise 或 Edu 账号，不适用于 Free、Go，也不适用于 FedRAMP 工作区。创建时要先在 **设置 → Apps** 里连接 Gmail、Slack 或 GitHub，然后在 Work 里描述触发的事件。\n\n所以：如果你是 Free，只是看不到每小时或精确时间的选项，这是官方限制，不是故障。Work 是什么、和聊天的区别见 [/guides/chatgpt-chat-vs-work-difference](/guides/chatgpt-chat-vs-work-difference)。想开通套餐，看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，各套餐的区别见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)。\n\n## 二、同时开启的任务上限\n\n官方文章给的活跃任务（active tasks）数量：\n\n| 套餐 | 同时开启的任务数 |\n| --- | --- |\n| Free、Go | 3 |\n| Plus | 5 |\n| Business、Edu | 10 |\n| Pro、Enterprise | 15 |\n| 其他符合条件的套餐 | 取决于账号或工作区 |\n\n以上数字为 2026-10 查询，以官方文章为准。达到上限后，官方的办法是**暂停或删除一个任务，或者等某个任务跑完**。\n\n## 三、任务不见了或没有运行：官方列的原因\n\n官方文章里「任务可能缺失或被暂停」的原因有：\n\n- 任务本身是 **inactive（未激活）**；\n- 任务**需要额外操作**，例如需要你批准；\n- 创建任务的**对话被归档或删除**；\n- 已经**达到活跃任务数量上限**；\n- 任务连接的应用**授权已失效**，去 Scheduled 看看，需要的话重新连接。\n\n另外官方还提到一种情况：连接了财务账号到 ChatGPT Finances 后，可能会自动出现一个「Weekly finances update」任务。你不想要的话，可以在 Scheduled 里暂停或删除，或者在 **设置 → Notifications → Manage tasks** 里处理。\n\n![任务不见了或被暂停时的原因与处理对照](seed:g1121-tasks-missing-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Scheduled tasks in ChatGPT](https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt) 整理的示意图*\n\n## 四、在 Scheduled 页面可以做什么\n\n- 查看、暂停、恢复、编辑、删除任务；\n- 要从对话里编辑或暂停：点任务标题，用弹出的任务面板；\n- **在 Scheduled 里删除任务，不会删除它的对话**；**删除对话则会暂停对应的任务**；\n- 任务**不支持语音对话、GPTs 和锁定的对话**。官方还说，要锁定某个对话，先把和它有关的任务（包括已暂停的）删掉；\n- 在**项目**里创建的任务，**读不到该项目上传的文件**。\n\n## 五、收不到通知\n\n任务能运行，但你收不到提醒，要检查通知设置：\n\n1. 打开 **设置 → Notifications**；\n2. 选 **Push（推送）**、**Email（邮件）**或两个都选；\n3. 浏览器通知：出现提示时选 **Allow（允许）**，浏览器再询问权限时也要同意；\n4. 手机推送：先在支持的 ChatGPT 手机 App 里创建一个任务，并授权通知权限。\n\n## 六、如果真的哪里都找不到\n\n1. 先确认登录的是同一个账号，套餐和任务都是跟着账号走的，见 [/guides/chatgpt-account-sharing-multiple-devices](/guides/chatgpt-account-sharing-multiple-devices)；\n2. 桌面版没有就用网页版，官方的建议；\n3. 用法本身不熟，看 [/guides/chatgpt-scheduled-tasks](/guides/chatgpt-scheduled-tasks)；\n4. 怀疑是服务故障，先看 [/guides/chatgpt-down-check-status-page](/guides/chatgpt-down-check-status-page)；\n5. 仍然不行，联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 常见问题\n\n**Q：我记得是「Tasks」，现在怎么叫 Scheduled？**\n官方文章没有写改名这回事，页面名叫 Scheduled，文章里仍然用 tasks 这个词。找的时候认准 Scheduled 就行。\n\n**Q：任务多了之后新任务建不了？**\n是同时开启的任务数量达到上限，暂停或删除一个，或等某个跑完。\n\n**Q：删除了任务，对话会没吗？**\n不会，官方说在 Scheduled 里删除任务不会删除其对话；但反过来，删除对话会暂停对应的任务。\n\n**Q：Free 能不能设每小时一次的提醒？**\n官方说每小时和精确时间需要符合条件的付费套餐，Free 只能用一次性任务或每天最多一次的灵活时间段。\n\n## 参考资料\n\n- OpenAI 帮助中心：Scheduled tasks in ChatGPT — https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt",
+      "sources": [
+        "https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章没有提到「Tasks」改名为「Scheduled」，只是标题和正文里用 tasks，页面名叫 Scheduled；正文只写「官方页面名是 Scheduled」，不说改过名",
+        "任务数量上限（3、5、10、15）是官方文章当天的数字，之后可能调整，以官方文章为准",
+        "官方文章没有按网页、桌面、手机分别写菜单名，除了「桌面版没有 Scheduled 就改用网页版」这一条",
+        "事件触发的任务需要 Work 与符合条件的付费账号，Work 本身是分批开放的，以账号里实际看到的为准"
+      ]
+    },
+    {
+      "title": "ChatGPT Go 不见了、选不到怎么办：Try Go 在哪、所在地区、订阅后没显示，以及 Go 没有哪些模型档位",
+      "slug": "chatgpt-go-missing-cant-select",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1124-go-missing-decide.png",
+        "g1124-go-levels.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 升级页里找不到 Go，或者订了 Go 之后 App 里没变化？按 OpenAI 帮助中心，订阅入口是头像 → Upgrade Plan → Try Go，Go 只在 ChatGPT 支持的国家提供，应用商店订阅可能要几分钟才显示。本文把原因按顺序排好，并说明 Go 没有哪些档位。",
+      "content": "> 本文根据 OpenAI 帮助中心《What is ChatGPT Go?》和《GPT-6 and other models in ChatGPT》整理，资料核对于 2026-10-27。套餐和价格以官方定价页为准。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 打开升级页，找不到 Go 这个选项的人；\n- 在手机应用商店订了 Go，回到 ChatGPT 里套餐没变的人；\n- 用网页订阅后，账单管理入口缺失的人；\n- 订了 Go，却在模型菜单里找不到 Sol、Medium、High 的人。\n\n## 结论先说\n\n1. **订阅入口**（官方写法）：登录 ChatGPT → 点**头像** → **Upgrade Plan（升级套餐）** → **Try Go**。\n2. **所在地区要在官方支持范围内**：官方说 Go 在**所有 ChatGPT 支持的国家和地区**提供，本地货币计费只在少数国家开放。支持范围见 [/guides/chatgpt-supported-countries](/guides/chatgpt-supported-countries)。\n3. **在 App Store 或 Google Play 订阅**：官方说升级可能需要几分钟才在 App 里显示，等一下，再重启 App。\n4. **在 chatgpt.com 订阅后缺账单控制项**：官方的办法是换一个浏览器，登录同一个账号再试。\n5. **「选不到」有时不是没订成，而是 Go 本来就不含某些档位**：Free 和 Go 不含 Medium、High、Extra High、Pro，也不含 GPT-5.6 Sol，难题用 **Think**（背后是 GPT-5.6 Luna）。\n6. **价格官方没在 Go 文章里写具体数字**，只说以定价页为准、统一用美元结算、可能调整。\n\n![ChatGPT Go 选不到时的原因对照：入口、地区、应用商店延迟、网页订阅、模型档位](seed:g1124-go-missing-decide.png)\n*图：本站根据 [OpenAI 帮助中心：What is ChatGPT Go?](https://help.openai.com/en/articles/11989085-what-is-chatgpt-go) 与 [GPT-6 and other models in ChatGPT](https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt) 整理的示意图*\n\n## 一、按顺序排查\n\n### 第一步：确认入口\n\n1. 登录 ChatGPT（网页或 App）；\n2. 点自己的**头像**；\n3. 选 **Upgrade Plan**；\n4. 在列表里点 **Try Go**。\n\n如果升级页里**根本没有 Go**，先看第二步。想确认自己当前是什么套餐、能怎么变更，看 **设置 → My Plan**，这是官方 Pro 套餐文章里给的入口。各套餐的区别见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)，Go 与 Plus 的比较见 [/guides/chatgpt-go-vs-plus](/guides/chatgpt-go-vs-plus)。\n\n### 第二步：地区\n\n官方原话的意思是：Go 在所有 ChatGPT 支持的国家和地区都可以用，**本地货币计费**只在有限的几个国家提供。也就是说，**所在地不在官方支持名单里，就不会有 Go**，这是官方不支持，不是软件出了问题。本文不介绍任何换地区或绕开限制的做法。\n\n### 第三步：订阅渠道\n\n- **在 iPhone 的 App Store 或安卓的 Google Play 订阅**：官方说，升级可能需要几分钟才显示在 App 里。先等几分钟，再**重启 App**。应用商店订阅的管理见 [/guides/chatgpt-app-store-google-play-subscription](/guides/chatgpt-app-store-google-play-subscription)。\n- **在 chatgpt.com 网页订阅**：如果账单管理的控制项缺失，官方建议**换一个浏览器**登录同一个账号再试。\n- 付款被拒绝的原因见 [/guides/chatgpt-payment-methods-supported](/guides/chatgpt-payment-methods-supported)。\n\n### 第四步：账号\n\n套餐是跟着账号走的。如果你有多个账号，或者用的是邮箱、Google、Apple 不同方式登录，可能登录的并不是当时订阅的那个账号，见 [/guides/chatgpt-account-sharing-multiple-devices](/guides/chatgpt-account-sharing-multiple-devices)。\n\n## 二、订了 Go 却找不到某些模型：这是正常的\n\n官方在 GPT-6 说明文章里有一张套餐表，其中 **Free 和 Go** 的情况是：\n\n- **不包含**思考档位里的 **Medium、High、Extra High、Pro**；\n- 默认用 **GPT-5.6 Luna**，遇到难题可以选 **Think**，用的也是 GPT-5.6 Luna，**不是 Sol**；\n- 官方说 Free 和 Go 的**日常文字对话不限次数**（受滥用防护限制），其他工具有单独的上限；\n- Go 官方文章里还说，Go 在**图片生成、文件上传、数据分析**上的上限比 Free 高。\n\n所以，如果你想选 GPT-5.6 Sol 或更高的思考档位，Go 没有。官方列的 Plus：含 Medium 和 High，不含 Extra High 和 Pro；Pro、Business、Enterprise 都含。\n\n![Free、Go 与 Plus 的思考档位对照：Medium、High、Extra High、Pro、Think](seed:g1124-go-levels.png)\n*图：本站根据 [OpenAI 帮助中心：GPT-6 and other models in ChatGPT](https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt) 与 [What is ChatGPT Go?](https://help.openai.com/en/articles/11989085-what-is-chatgpt-go) 整理的示意图（2026-10 查询）*\n\n模型菜单怎么选，见 [/guides/chatgpt-model-picker-thinking](/guides/chatgpt-model-picker-thinking)；找不到新模型的更多原因见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)。想要更高档的模型，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)；具体价格以官方定价页和你账号里显示的为准。\n\n## 三、价格怎么看\n\n官方 Go 文章没有写具体数字，它的说法是：价格在**定价页**上，**所有购买都以美元计**，官方**可能随时间调整价格**。要看准确价格，登录后在升级页和 **设置 → My Plan** 里看你账号当时显示的价格，不要照别处的截图。Go 里有没有广告，见 [/guides/chatgpt-ads-plans-ad-free-controls](/guides/chatgpt-ads-plans-ad-free-controls)。\n\n## 常见问题\n\n**Q：升级页里为什么没有 Go？**\n可能的原因有：所在地不在官方支持范围；账号不是你以为的那个；应用没更新；刚在应用商店订阅还没显示。先按本文第一节排查。\n\n**Q：在手机上订了，App 里没变？**\n官方说要等几分钟，然后重启 App。\n\n**Q：Go 能用 GPT-5.6 Sol 吗？**\n官方表格里，Free 和 Go 不含 Sol，用的是 GPT-5.6 Luna，难题选 Think。\n\n**Q：Go 有每天的使用次数吗？**\n官方说 Go 的日常文字对话不限次数，其他工具有单独上限，额度查看见 [/guides/chatgpt-usage-limits-check-reset](/guides/chatgpt-usage-limits-check-reset)。\n\n## 参考资料\n\n- OpenAI 帮助中心：What is ChatGPT Go? — https://help.openai.com/en/articles/11989085-what-is-chatgpt-go\n- OpenAI 帮助中心：GPT-6 and other models in ChatGPT — https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt\n- OpenAI 帮助中心：About ChatGPT Pro tiers — https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers",
+      "sources": [
+        "https://help.openai.com/en/articles/11989085-what-is-chatgpt-go",
+        "https://help.openai.com/en/articles/20001354-gpt-6-and-other-models-in-chatgpt",
+        "https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方 Go 文章没有写具体价格，只说价格见定价页、所有购买以美元结算、官方可能调整价格，正文不写 Go 的价格",
+        "官方 Go 文章页面只显示相对的更新时间，没有给出准确日期",
+        "官方 Go 文章里写了「将来可能测试广告」，而本站其他文章记录 Go 已有广告，这一点以官方最新页面和你账号里看到的为准，本文不下结论",
+        "「Go 只在 ChatGPT 支持的国家和地区提供」是官方原话，本文不写任何绕过地区限制的做法",
+        "各套餐的思考档位来自 GPT-6 说明文章当天的表格，之后可能调整"
+      ]
+    },
+    {
       "title": "ChatGPT 怎么设置中文：界面语言、回答语言与语音语言分别在哪改",
       "slug": "chatgpt-language-settings",
       "checkedOn": "2026-10-07",
@@ -63403,6 +63944,115 @@
       ]
     },
     {
+      "title": "ChatGPT 手机和电脑怎么同步聊天记录：登录同一账号就同步，看不到时先查账号、工作区、搜索和锁定聊天",
+      "slug": "chatgpt-chat-history-sync-devices",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1133-sync-decide.png",
+        "g1133-sync-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "ChatGPT 的手机和电脑聊天记录会同步吗？官方说：登录同一账号的设备之间同步聊天记录。本文讲清同步的条件、在手机上找回聊天的步骤，以及某台设备看不到对话时的官方排查，并说明官方没写哪些例外。",
+      "content": "> 本文根据 OpenAI 帮助中心《How can I view my conversation history in the iOS app?》《ChatGPT Work and Codex》《Troubleshooting ChatGPT Error Messages》整理，资料核对于 2026-10-27。官方对同步只写了一句话，下面凡是官方没写的，都明确标注。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 想知道手机和电脑上的 ChatGPT 聊天记录会不会同步的人；\n- 在手机上写的对话，电脑上看不到的人；\n- 想在新设备上继续老对话的人。\n\n## 结论先说\n\n1. **官方的说法**：**你的聊天记录会在你登录同一账号的设备之间同步。** 所以不需要额外开启「同步」，登录同一个账号即可。\n2. **看不到某个对话，先查账号和工作区**：官方说，旧聊天不在侧边栏时，先确认你在对的**账号和工作区**，再用**搜索**。\n3. **归档的聊天仍然能被搜到**；**锁定的聊天**在 **Projects → Locked chats** 里。\n4. **删除的聊天无法恢复**，官方明确写了。\n5. **官方没有列出任何「不同步」的内容**。项目、Codex 本地内容等是否同步，官方这篇文章没有说，别照网上的猜测当结论。\n6. **本地运行的 Work**：官方 Work 文章写的是，本地的 Work 在你的电脑上运行，**但消息和任务上下文可能存储在云端**。\n\n![手机和电脑的聊天记录：看情况对照](seed:g1133-sync-decide.png)\n*图：本站根据 [OpenAI 帮助中心：How can I view my conversation history in the iOS app?](https://help.openai.com/en/articles/8980299-how-can-i-view-my-conversation-history-in-the-ios-app) 整理的示意图*\n\n## 一、同步的条件：同一个账号\n\n官方没有给出需要打开的开关，同步的条件只有一条：**登录同一个账号**。所以先确认两台设备登录的是同一个账号：\n\n- 如果你用邮箱、Google、Apple 不同方式登录过，可能其实是不同的账号，见 [/guides/chatgpt-account-sharing-multiple-devices](/guides/chatgpt-account-sharing-multiple-devices) 和 [/guides/chatgpt-login-problems](/guides/chatgpt-login-problems)；\n- 如果你有工作区（公司或学校）账号，再确认两边选的是**同一个工作区**，官方在查找旧聊天时专门提到了「账号和工作区」。\n\n## 二、在手机上找回聊天记录\n\n官方 iOS 文章的步骤：\n\n1. 打开 ChatGPT，点**菜单图标**（两条横线）打开侧边栏，最近的聊天在最上面，新的在上；\n2. 往下翻，找较早的聊天；\n3. 找不到就用**搜索**，先确认账号和工作区；\n4. **锁定的聊天**去 **Projects → Locked chats**；\n5. 要删除：打开对话，点更多选项（•••），选 **Delete** 并确认，**删除后无法恢复**。\n\n官方这篇是 iOS 文章，网页、安卓和桌面版的菜单名称可能略有差异，以你看到的为准。\n\n![在手机上找回聊天记录：菜单、翻找、搜索、锁定聊天、删除](seed:g1133-sync-steps.png)\n*图：本站根据 [OpenAI 帮助中心：How can I view my conversation history in the iOS app?](https://help.openai.com/en/articles/8980299-how-can-i-view-my-conversation-history-in-the-ios-app) 整理的示意图*\n\n## 三、某台设备上看不到对话\n\n按官方的思路依次排查：\n\n1. **确认账号和工作区**，两边一致；\n2. 用**搜索**找，归档的也能搜到，归档对话的更多情况见 [/guides/chatgpt-archived-chats-missing](/guides/chatgpt-archived-chats-missing)；\n3. **刷新网页**，或**更新 App** 后重新打开；\n4. 对话在列表里但打不开，见 [/guides/chatgpt-unable-to-load-conversation](/guides/chatgpt-unable-to-load-conversation)；\n5. 看 [status.openai.com](https://status.openai.com/)，官方有事件时，同步可能延迟；\n6. 仍然不一致，联系官方客服，说明「在哪台设备上看得到、哪台看不到」，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 四、想保存一份，不依赖同步\n\n官方提供导出账号数据的功能，把聊天记录整体导出，见 [/guides/chatgpt-export-chat-history](/guides/chatgpt-export-chat-history)；只导出单个对话为 PDF 或 Markdown，见 [/guides/chatgpt-export-single-chat-pdf-markdown](/guides/chatgpt-export-single-chat-pdf-markdown)。\n\n## 五、哪些内容可能不是「聊天记录」\n\n官方的同步说明讲的是聊天记录。以下这些，官方这篇文章没有说是否同步，本文不下结论，请以实际表现为准：\n\n- **项目**里的内容，项目用法见 [/guides/chatgpt-projects](/guides/chatgpt-projects)；\n- **Codex** 的会话与本地文件夹；\n- 临时聊天，见 [/guides/chatgpt-temporary-chat](/guides/chatgpt-temporary-chat)，它本来就不保存在聊天历史里（官方对临时聊天的说明）；\n- 本地运行的 **Work**：官方说消息和任务上下文可能存在云端，但本地电脑里的文件和应用本身当然不会跟着同步，见 [/guides/chatgpt-work-how-to-use-steps](/guides/chatgpt-work-how-to-use-steps)。\n\n## 官方没说的\n\n- 同步**多久生效**，官方没有给时间；\n- **哪些内容不同步**，官方没有列；\n- 官方通用步骤让你**关闭** VPN，没有说换地区能解决同步问题，本文不介绍绕开地区限制的做法；\n- 想用更多功能，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，但同步与套餐无关。\n\n## 常见问题\n\n**Q：要开什么设置才同步吗？**\n官方没有提到任何开关，条件是登录同一账号。\n\n**Q：新设备上看不到旧对话？**\n先确认账号和工作区，再用搜索。\n\n**Q：删掉的对话能同步回来吗？**\n不能，官方说删除后无法恢复。\n\n**Q：手机上的对话，电脑上要等多久才出现？**\n官方没有给时间。刷新页面或更新 App，再看状态页。\n\n## 参考资料\n\n- OpenAI 帮助中心：How can I view my conversation history in the iOS app? — https://help.openai.com/en/articles/8980299-how-can-i-view-my-conversation-history-in-the-ios-app\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- OpenAI 帮助中心：Troubleshooting ChatGPT Error Messages — https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages",
+      "sources": [
+        "https://help.openai.com/en/articles/8980299-how-can-i-view-my-conversation-history-in-the-ios-app",
+        "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+        "https://help.openai.com/en/articles/7996703-troubleshooting-chatgpt-error-messages"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方只用一句话说明「聊天记录会在登录同一账号的设备之间同步」，没有列出哪些内容不同步，也没有写项目、Codex、本地文件夹等的同步细节",
+        "官方 Work 文章写的是本地的 Work 在你电脑上运行，但消息和任务上下文可能存储在云端；这不等于所有设备上都能看到本地内容，正文只照原话写",
+        "菜单名称来自官方 iOS 文章，网页、安卓和桌面版的菜单位置可能略有不同",
+        "官方文章页面没有给出更新日期"
+      ]
+    },
+    {
+      "title": "ChatGPT 记忆功能怎么关闭：设置里两个开关的区别、关掉之后聊天记录会不会删、怎么让它忘掉某件事",
+      "slug": "chatgpt-turn-off-memory",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1134-memory-off-steps.png",
+        "g1134-memory-off-decide.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "不想让 ChatGPT 记住你的信息？官方路径是 设置 → Personalization → Memory。里面有两个开关：Reference saved memories 和 Reference chat history，关掉前者会连带关掉后者。本文讲清各开关的作用、关闭后聊天记录是否保留，以及临时聊天的用法。",
+      "content": "> 本文根据 OpenAI 帮助中心《Memory in ChatGPT》整理，资料核对于 2026-10-27。设置项名称会因套餐、地区、平台和账号不同而略有差异，请以你账号里实际显示的为准。配图为本站整理的示意图，不是界面截图。记忆的整体介绍和满了怎么办，见 [/guides/chatgpt-memory-full](/guides/chatgpt-memory-full)，本文只讲关闭。\n\n## 适用于谁\n\n- 不想让 ChatGPT 记住自己的名字、职业、偏好的人；\n- 担心它参考以前的聊天内容来回答的人；\n- 想关掉记忆，又怕把聊天记录弄丢的人；\n- 只想让它忘掉某一件事，不想全关的人。\n\n## 结论先说\n\n1. **官方路径**：**设置（Settings）→ Personalization（个性化）→ Memory（记忆）**。\n2. **有两个开关**：**Reference saved memories（参考已保存的记忆）**和 **Reference chat history（参考聊天历史）**。官方说明：关掉前者，**会同时关掉后者**；后者可以在前者开着的时候单独管理。\n3. **关记忆不会删聊天记录**：官方明确写了，关闭记忆后，你过去的聊天不会被删除。\n4. **关掉开关，也不会删除已经存下来的记忆**：官方说关闭 Reference chat history 不会删除已保存的记忆。想清掉，要另外删（见第三节）。\n5. **只想这一次不被记住**：用**临时聊天（Temporary Chat）**，官方说临时聊天不会创建或更新记忆。\n6. **关闭后重新打开**：官方提醒，再打开时，ChatGPT 可能会根据你还留在历史里的聊天，重新生成被记住的内容。\n7. **设置里找不到这些开关**：官方说记忆的控制项因套餐、地区、平台和工作区设置而不同，可能你的账号暂时还没有。\n\n![关闭 ChatGPT 记忆的步骤：设置、Personalization、Memory、两个开关与删除](seed:g1134-memory-off-steps.png)\n*图：本站根据 [OpenAI 帮助中心：Memory in ChatGPT](https://help.openai.com/en/articles/8590148-memory-in-chatgpt) 整理的示意图*\n\n## 一、两个开关各管什么\n\n### Reference saved memories\n\n意思是「参考已保存的记忆」。官方的说法：关掉它，**同时也会关掉 Reference chat history**。所以想**彻底停用**记忆，关这一个最省事。\n\n### Reference chat history\n\n意思是「参考聊天历史」，也就是让 ChatGPT 从你过去的对话里找线索。官方的说法是：\n\n- 关闭它，会**安排把从过去聊天里记下的信息，在 30 天内从 OpenAI 系统中删除**；\n- 你**原来的聊天仍然留在历史记录里**；\n- 它**不会删除**已保存的记忆（saved memories）。\n\n![记忆怎么关：不同需求对应的做法一览](seed:g1134-memory-off-decide.png)\n*图：本站根据 [OpenAI 帮助中心：Memory in ChatGPT](https://help.openai.com/en/articles/8590148-memory-in-chatgpt) 整理的示意图*\n\n## 二、关掉记忆之后会怎样\n\n官方列出的几点：\n\n- **过去的聊天都在**，记忆是否开启不影响聊天记录；\n- 再次打开记忆时，ChatGPT **可能会重新从还在历史里的聊天中生成**被记住的内容；\n- 官方还说，在极少数**高风险**情形下，会有限度地使用上下文来做安全和防护，这类使用**不会因为你关掉记忆而停止**。\n\n所以，想让某些聊天**永远不被引用**，除了关记忆，还可以把相关的聊天删掉，批量删除见 [/guides/chatgpt-delete-chats-bulk](/guides/chatgpt-delete-chats-bulk)。\n\n## 三、想清掉已经记住的内容\n\n关开关只是「以后不再用」，已经存下的内容要另外处理：\n\n- **删某一条已保存的记忆**：可以直接让 ChatGPT 忘掉，或者在 **Memory 设置里删除**。官方说这样会**停止以后的个性化**，但**不会删掉过去对话里提到过它的地方**；\n- **删除记忆摘要并关闭**：在 **Memory summary（记忆摘要）** 的更多选项（•••）里选 **Delete and turn off memory（删除并关闭记忆）**，会删除摘要里显示的信息并关闭记忆，**不会删除过去的聊天**；\n- **删除聊天不会自动删除由它产生的记忆**，这是官方明确写的，需要的话两处都要删；\n- **删除不是即时的**：官方说删除和更新可能需要时间生效，OpenAI 可能把已删除的已保存记忆的日志保留**最长 30 天**，用于安全和调试。\n\n官方文章没有描述单独的「一键删除全部记忆」控件，所以不要照网上截图找一个官方没提的按钮，以你设置里实际有的为准。\n\n## 四、只有这一次不想被记住：临时聊天\n\n官方对临时聊天的说明：\n\n- 开始前可以选择它是否使用已有的记忆、自定义指令和插件，选 **Unpersonalized（不个性化）**会把这些关掉，开始后**不能改**；\n- **临时聊天不会创建或更新记忆**，即使你的个性化设置是开着的；\n- 你把临时聊天**保存**之后，它会变成普通聊天，之后就按你的个性化设置来。\n\n怎么开、有什么限制，见 [/guides/chatgpt-temporary-chat](/guides/chatgpt-temporary-chat)。除记忆外，还有「自定义指令」也会影响回答，见 [/guides/chatgpt-custom-instructions](/guides/chatgpt-custom-instructions)，数据与隐私相关的开关见 [/guides/chatgpt-data-controls-privacy](/guides/chatgpt-data-controls-privacy)。\n\n## 五、找不到这些开关怎么办\n\n1. 先**更新 App 或刷新网页**，官方说设置项与平台、套餐、地区有关，可能还没有推送到你的账号；\n2. 在工作区（公司、学校）账号里，记忆可能被管理员限制：官方说在 ChatGPT for Healthcare 和 Enterprise 的 Regulated Workspace 里，改进后的记忆**默认关闭**，由工作区所有者或管理员决定是否开放；\n3. 未成年人的关联账号，家长或监护人可以通过家长控制管理部分记忆设置；\n4. 都不是的话，确认登录的是想要的那个账号，见 [/guides/chatgpt-account-sharing-multiple-devices](/guides/chatgpt-account-sharing-multiple-devices)，仍然没有就联系官方客服，见 [/guides/chatgpt-contact-support](/guides/chatgpt-contact-support)。\n\n## 常见问题\n\n**Q：关了记忆，以前的聊天会没吗？**\n不会，官方说过去的聊天不会被删除。\n\n**Q：关了记忆，已经存的记忆就没了吗？**\n不会，关闭开关不会删除已保存的记忆，要在 Memory 设置里删，或用 Delete and turn off memory。\n\n**Q：我只想让它不要再提某件事？**\n直接对 ChatGPT 说忘掉它，或在 Memory 设置里删掉对应那一条。\n\n**Q：关了之后又想开，会怎样？**\n官方说重新打开后，ChatGPT 可能根据还在历史里的聊天重新生成被记住的内容。\n\n## 参考资料\n\n- OpenAI 帮助中心：Memory in ChatGPT — https://help.openai.com/en/articles/8590148-memory-in-chatgpt",
+      "sources": [
+        "https://help.openai.com/en/articles/8590148-memory-in-chatgpt"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章说设置项的名称会因体验、套餐、地区、平台和工作区不同而不同，开关的实际文字以账号里看到的为准",
+        "官方文章没有描述单独的「一键删除全部记忆」按钮，正文只写了官方明确说过的单条删除、Memory summary 的 Delete and turn off memory",
+        "删除后「最长 30 天」是官方对被引用的聊天内容和已删除记忆日志的说法，不是即时删除",
+        "官方文章页面没有给出准确的更新日期"
+      ]
+    },
+    {
+      "title": "ChatGPT 多少钱一个月：Free、Go、Plus、Pro 三档、Business 的官方价格与怎么看自己账号的价格（2026-10 查询）",
+      "slug": "chatgpt-monthly-price-official-plans",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1135-plan-prices.png",
+        "g1135-pro-tiers.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "ChatGPT 一个月多少钱？按 OpenAI 帮助中心，Plus 是 $20/月，Pro 分 $100、$200、$500 三档，Go 官方文章不写金额，Business 和 Enterprise 以定价页和销售为准。本文列出官方写明的价格，并说明哪些套餐官方没给数字。",
+      "content": "> 本文根据 OpenAI 帮助中心《What is ChatGPT Plus?》《About ChatGPT Pro tiers》《What is ChatGPT Go?》和 ChatGPT 定价页整理，资料核对于 2026-10-27（2026-10 查询）。**价格官方可能随时调整，下面只写官方文章里明确写出的数字，没写的就写「官方没给数字」。**配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 想知道 ChatGPT 官方一个月到底多少钱的人；\n- 分不清 Plus、Pro 三档区别，不知道该看哪个价格的人；\n- 想知道 Go、Business 的价格去哪查的人。\n\n## 结论先说\n\n1. **Plus：$20/月，按月付费**（官方 Plus 说明文章的写法）。\n2. **Pro：分三档**，官方 Pro 套餐文章写的是 **Pro 100 为 $100、Pro 200 为 $200、Pro 500 为 $500**，每月，美元。\n3. **Go：官方文章没有写金额**，只说价格见定价页、所有购买都以美元结算、官方可能调整价格。\n4. **Free：免费。**\n5. **Business 和 Enterprise：定价页没有显示金额**。Business 至少 2 个席位，官方 FAQ 说月付和年付都有；Enterprise 需要联系销售，可用发票等付款方式。\n6. **你自己的价格，以升级页为准**：登录后点头像 → Upgrade Plan，或进 **设置 → My Plan** 查看订阅和可选的套餐变更。\n\n![ChatGPT 各套餐官方价格对照：Free、Go、Plus、Pro、Business、Enterprise](seed:g1135-plan-prices.png)\n*图：本站根据 [OpenAI 帮助中心：What is ChatGPT Plus?](https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus)、[About ChatGPT Pro tiers](https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers) 与 [ChatGPT 定价页](https://chatgpt.com/pricing) 整理的示意图（2026-10 查询）*\n\n## 一、各套餐官方写了什么\n\n### Free\n\n免费。定价页的说法是「适合先试用 ChatGPT」。官方说 Free 和 Go 的日常文字对话不限次数（受滥用防护限制），但没有 Medium、High、Extra High、Pro 这些思考档位。额度细节见 [/guides/chatgpt-free-plan-limits](/guides/chatgpt-free-plan-limits)。\n\n### Go\n\n官方 Go 文章**不写金额**。文章的说法是：价格在定价页，所有购买都以**美元**计，官方可能随时间调整价格；Go 在所有 ChatGPT 支持的国家和地区都可以用，**本地货币计费**只在少数国家提供。Go 的详情见 [/guides/chatgpt-go-vs-plus](/guides/chatgpt-go-vs-plus)，选不到 Go 见 [/guides/chatgpt-go-missing-cant-select](/guides/chatgpt-go-missing-cant-select)。\n\n### Plus\n\n官方 Plus 说明文章写的是 **$20/月（按月付费）**，没有写币种代码，也没有写税费怎么算；文章里有一个增值税豁免申请的表单链接，但没有给税率。Plus 的使用额度见 [/guides/chatgpt-plus-usage-limits-overview](/guides/chatgpt-plus-usage-limits-overview)，值不值得买见 [/guides/chatgpt-plus-worth-buying](/guides/chatgpt-plus-worth-buying)。\n\n### Pro：三档\n\n官方 Pro 套餐文章写明：\n\n- **Pro 100：$100/月**，不含 Ultrafast；\n- **Pro 200：$200/月**，不含 Ultrafast，包含的用量比 Pro 100 多；\n- **Pro 500：$500/月**，包含 Ultrafast，三档里包含的用量最高。\n\n三档都包含 Pro 模型、Codex、深度研究、生图、记忆和文件上传。官方还说明了两个**消耗倍率**：Fast 模式用你包含的额度，是标准速度的 **2.5 倍**；Ultrafast（GPT-6 Astra 和 GPT-6.1 Sol）是标准速度的 **8 倍**，用完内含额度后，按积分的 6 倍计。官方强调这是消耗倍率，不是性能保证。定价页对 Pro 的写法是「From」加「3 档」。\n\n![Pro 三档对照：Pro 100、Pro 200、Pro 500 的价格、Ultrafast 与用量](seed:g1135-pro-tiers.png)\n*图：本站根据 [OpenAI 帮助中心：About ChatGPT Pro tiers](https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers) 整理的示意图（2026-10 查询）*\n\nPro 的详细比较和值不值，见 [/guides/chatgpt-plus-vs-pro-tiers](/guides/chatgpt-plus-vs-pro-tiers) 和 [/guides/chatgpt-pro-worth-it](/guides/chatgpt-pro-worth-it)。想看 Pro，可以参考 [/chongzhi/chatgpt-pro](/chongzhi/chatgpt-pro)，具体价格以官方升级页为准。\n\n### Business、Enterprise、Edu\n\n定价页上：\n\n- **Business**：从 **2 个用户**起，FAQ 说有月付，也有年付；没有显示金额；\n- **Enterprise**：需联系销售，可用发票等其他付款方式；\n- **ChatGPT Edu**：官方说是面向大学的「实惠方案」，没有显示金额；\n- 官方还写了两项优惠：**ChatGPT for Teachers**（K–12）对经过验证的美国 K–12 教师，到 **2027 年 6 月**免费；**非营利组织**通过 OpenAI for Nonprofits，Business 或 Enterprise 最多可享 **75%** 折扣。\n\nBusiness 与 Plus 怎么选见 [/guides/chatgpt-business-vs-plus](/guides/chatgpt-business-vs-plus)。\n\n## 二、怎么看自己账号里的价格\n\n1. 登录 ChatGPT，点**头像**；\n2. 选 **Upgrade Plan**，各套餐的价格在这里；\n3. 想看当前订阅和套餐变更，进 **设置 → My Plan**（官方 Pro 套餐文章给的入口）；\n4. 在 Apple 或 Google 渠道订阅的，扣款以对应商店的账单为准，见 [/guides/chatgpt-app-store-google-play-subscription](/guides/chatgpt-app-store-google-play-subscription)；\n5. 已经扣款，想看账单和发票，见 [/guides/chatgpt-invoice-download](/guides/chatgpt-invoice-download)。\n\n**为什么我看到的价格和文章里不一样**：官方说价格可能调整，不同时间、不同渠道可能不同；官方的定价页纯文本里也没有给出具体数字。以你当时在升级页看到的为准，不要照任何旧截图。\n\n## 三、套餐一览：哪个适合谁\n\n套餐之间的功能区别，见 [/guides/chatgpt-plans-comparison](/guides/chatgpt-plans-comparison)；Plus 和 Claude Pro、Gemini 付费版怎么选，见 [/guides/chatgpt-plus-vs-claude-pro-which](/guides/chatgpt-plus-vs-claude-pro-which) 与 [/guides/chatgpt-vs-gemini-paid-plans-which](/guides/chatgpt-vs-gemini-paid-plans-which)。开通方式：官方是登录后在 Upgrade Plan 里选，付款方式见 [/guides/chatgpt-payment-methods-supported](/guides/chatgpt-payment-methods-supported)；想通过本站开通 Plus，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 常见问题\n\n**Q：ChatGPT Plus 一个月多少钱？**\n官方 Plus 说明文章写的是 $20/月（按月付费），2026-10 查询，以升级页为准。\n\n**Q：Pro 是不是只有一个价格？**\n不是，官方文章列了三档：$100、$200、$500。\n\n**Q：Go 多少钱？**\n官方 Go 文章没写金额，只说见定价页，统一美元结算，可能调整。\n\n**Q：有免费试用吗？**\n官方没有常设试用，见 [/guides/chatgpt-plus-free-trial-official](/guides/chatgpt-plus-free-trial-official)。\n\n## 参考资料\n\n- OpenAI 帮助中心：What is ChatGPT Plus? — https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus\n- OpenAI 帮助中心：About ChatGPT Pro tiers — https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers\n- OpenAI 帮助中心：What is ChatGPT Go? — https://help.openai.com/en/articles/11989085-what-is-chatgpt-go\n- ChatGPT 定价页 — https://chatgpt.com/pricing",
+      "sources": [
+        "https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus",
+        "https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers",
+        "https://help.openai.com/en/articles/11989085-what-is-chatgpt-go",
+        "https://chatgpt.com/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "定价页的纯文本里每个套餐只显示「/ month」，没有金额数字；本文的金额来自帮助中心：Plus $20/月（Plus 说明文章）、Pro 100/200/500 三档（Pro 套餐文章）",
+        "Go、Business、Enterprise、Edu 官方文章或定价页没有写金额，正文只写「官方没给数字」",
+        "定价页对 Pro 只写「From」和「3 档」，没用 Pro 100、Pro 200 这些名字；这些名字来自 Pro 套餐文章和 GPT-6 说明文章",
+        "官方 Go 文章写所有购买以美元结算、官方可能调整价格；税费怎么算官方文章没写",
+        "价格会调整，以你登录后升级页和 设置 → My Plan 里看到的为准"
+      ]
+    },
+    {
+      "title": "ChatGPT Plus 有免费试用吗：官方只有限定活动和试用邀请，怎么领、到期会不会自动扣费",
+      "slug": "chatgpt-plus-free-trial-official",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1136-trial-decide.png",
+        "g1136-trial-steps.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "ChatGPT Plus 有没有免费试用？OpenAI 帮助中心没有写「常设」的免费试用，只说官方可能推出限定期限的活动，比如邀请好友试用。本文讲清官方的邀请机制、怎么领取、到期自动续订的规则，以及试用码不能买卖的规定。",
+      "content": "> 本文根据 OpenAI 帮助中心《ChatGPT Promotional Subscriptions/Free Trial Invites FAQ》《What is ChatGPT Plus?》和 ChatGPT 定价页整理，资料核对于 2026-10-27。活动随时变化，请以你账号里和官方邮件里看到的为准。配图为本站整理的示意图，不是界面截图。\n\n## 适用于谁\n\n- 想先试用再决定要不要订阅 Plus 的人；\n- 看到别人说「有试用邀请」，不知道真假的人；\n- 收到了试用链接，不知道怎么用、到期会不会扣费的人。\n\n## 结论先说\n\n1. **官方没有写「常设免费试用」**：Plus 说明文章和定价页都没有提到免费试用。官方只有一篇《促销订阅与免费试用邀请 FAQ》，说的是 OpenAI **可能**推出限定期限的活动。\n2. **机制是邀请**：OpenAI 可能让符合条件的订阅用户，通过**推荐码或链接**邀请亲友，免费试用一段时间的付费套餐。活动细节会通过**邮件或 ChatGPT 内**告诉符合条件的用户。\n3. **不是每个人、每个地区都有**：官方说，并非所有用户或地区都包含在每一次活动里。\n4. **试用多长看活动**，官方举的例子是 3 个月，每个邀请的到期日由 OpenAI 设定，用户改不了。\n5. **到期会自动续订**：官方说试用结束后，会**自动续订为付费订阅**，除非你在到期前取消。取消入口在管理订阅设置里。\n6. **试用码不能买卖**：官方规定码不能被复制、出售或转让，也不能折现。\n\n![免费试用：官方怎么说，有没有常设试用、邀请流程、到期规则、试用码规定](seed:g1136-trial-decide.png)\n*图：本站根据 [OpenAI 帮助中心：ChatGPT Promotional Subscriptions/Free Trial Invites FAQ](https://help.openai.com/en/articles/8381046-chatgpt-promotional-subscriptions-free-trial-invites-faq) 整理的示意图*\n\n## 一、官方到底说了什么\n\n官方文章的核心意思是：\n\n- OpenAI **可能**会让符合条件的用户，邀请朋友和家人**免费试用**一段**限定时长**的付费 ChatGPT 套餐；\n- 邀请通过**推荐码或链接**发送，每人能发的数量有限；\n- 活动的详细信息（邀请数量、试用时长、适用的套餐、被邀请人的限制）会**通过邮件或在 ChatGPT 里**提供给符合条件的用户；\n- 谁能发邀请由 OpenAI 按每次活动决定，官方原话的意思是：并非所有用户或地区都在每次活动范围内。\n\n也就是说，**试用是「活动」，不是「功能」**，没有一个你随时能点开的「免费试用」按钮。想看有没有给你的活动，先看注册邮箱里有没有官方邮件，再看 ChatGPT 里的升级页。定价页（chatgpt.com/pricing）上写的是各个套餐的「每月」价格，没有提免费试用。\n\n## 二、收到试用邀请，怎么领\n\n官方文章写的流程（没有给出具体按钮名）：\n\n1. 打开邀请链接，来自邮件，或者来自分享给你的人；\n2. 登录，或者新注册一个账号；\n3. 查看活动详情；\n4. **接受条款**，试用生效。\n\n几点要注意：\n\n- **被邀请的人一般是新用户或 Free 用户**。如果你已经有套餐，可能没有资格，哪怕你取消过也一样，看具体活动；已有其他套餐的用户，只有活动**明确写了例外**才可以领；\n- **有的活动在领取时要求填付款方式**，你会在领取过程中看到；\n- 在官方活动或邮件里收到的码，就按那份邀请里的链接领取；\n- **每个码只能用一次，不能叠加**，同一个活动里用了多个码，只有第一个生效；\n- 码**不能折现**，也不能兑换成别的积分或额度。\n\n![领取试用邀请的流程：邀请链接、登录、查看详情、接受条款、到期前决定是否取消](seed:g1136-trial-steps.png)\n*图：本站根据 [OpenAI 帮助中心：ChatGPT Promotional Subscriptions/Free Trial Invites FAQ](https://help.openai.com/en/articles/8381046-chatgpt-promotional-subscriptions-free-trial-invites-faq) 整理的示意图*\n\n## 三、试用到期之后\n\n官方说得很明确：试用结束时，**ChatGPT 会自动续订为付费订阅**，除非你先取消。所以：\n\n1. 领了试用，就在手机日历里标一个**到期前几天**的提醒；\n2. 不想继续付费，要在**试用结束之前**，在管理订阅的设置里取消。取消的步骤见 [/guides/chatgpt-cancel-subscription](/guides/chatgpt-cancel-subscription)；\n3. 到期时间和下次扣款日在哪看，见 [/guides/chatgpt-plus-renewal-date-expiry-where-to-check](/guides/chatgpt-plus-renewal-date-expiry-where-to-check)；\n4. 取消后会发生什么，见 [/guides/chatgpt-plus-cancel-or-expire-what-happens](/guides/chatgpt-plus-cancel-or-expire-what-happens)；\n5. 已经被扣费、想申请退款，见 [/guides/chatgpt-refund-request](/guides/chatgpt-refund-request)。\n\n## 四、官方没有的几件事，别被带偏\n\n- **官方没有「生成 Plus 账号」「免费领 Plus」的渠道**。官方的试用只有上面说的邀请机制，并且试用码**不允许买卖、转让**；\n- **学生**可以看官方的教育类优惠，见 [/guides/chatgpt-student-discount-edu](/guides/chatgpt-student-discount-edu)，这是单独的官方途径，不是免费试用；\n- **Free 套餐本身是免费的**，各功能的额度见 [/guides/chatgpt-free-plan-limits](/guides/chatgpt-free-plan-limits)。想先看看 Plus 对你值不值得，可以看 [/guides/chatgpt-plus-worth-buying](/guides/chatgpt-plus-worth-buying)。\n\n## 五、不想等活动，想直接开通\n\n官方文章写 Plus 是 **$20/月（按月付费）**（2026-10 查询，以你登录后升级页显示的为准）。开通路径（官方）：登录 → 点头像 → **Upgrade Plan** → **Get Plus**，详细步骤见 [/guides/chatgpt-how-to-upgrade-plus](/guides/chatgpt-how-to-upgrade-plus)。想了解通过本站开通，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 常见问题\n\n**Q：Plus 现在有免费试用吗？**\n官方文章和定价页都没有写常设试用，只说官方可能推出限定期限的活动。有没有，以你收到的官方邮件和账号里的升级页为准。\n\n**Q：试用到期不取消会怎样？**\n官方说会自动续订为付费订阅。\n\n**Q：我已经订过 Plus，能再领试用吗？**\n官方说已有套餐的用户可能没有资格，除非该活动明确对其开放。\n\n**Q：能把试用码卖给别人吗？**\n不能，官方规定码不能被复制、出售或转让，没有现金价值。\n\n## 参考资料\n\n- OpenAI 帮助中心：ChatGPT Promotional Subscriptions/Free Trial Invites FAQ — https://help.openai.com/en/articles/8381046-chatgpt-promotional-subscriptions-free-trial-invites-faq\n- OpenAI 帮助中心：What is ChatGPT Plus? — https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus\n- ChatGPT 定价页 — https://chatgpt.com/pricing",
+      "sources": [
+        "https://help.openai.com/en/articles/8381046-chatgpt-promotional-subscriptions-free-trial-invites-faq",
+        "https://help.openai.com/en/articles/6950777-what-is-chatgpt-plus",
+        "https://chatgpt.com/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章没有说现在有没有正在进行的免费试用活动，也没有写具体的活动名和日期，正文只写机制和规则",
+        "「3 个月」是官方文章里的举例，不是承诺，具体时长看每次活动",
+        "官方文章没有写具体按钮名，领取步骤按文章的流程描述",
+        "定价页和 Plus 说明文章都没有提到常设的免费试用",
+        "官方文章页面没有给出准确的更新日期"
+      ]
+    },
+    {
       "title": "ChatGPT 搜索怎么用：联网搜索、查看来源与结果不准怎么办",
       "slug": "chatgpt-search",
       "checkedOn": "2026-10-07",
@@ -63425,6 +64075,34 @@
       "verify": [
         "手动开启搜索的入口：帮助文章写「View all tools → Search」或输入「/」选择 Search，新版输入框可能在「+」菜单里，以实际界面为准",
         "「来源」「位置」等中文菜单名以实际界面为准"
+      ]
+    },
+    {
+      "title": "ChatGPT 工作模式（Work）怎么用：网页、手机、桌面版的开启步骤，文件权限、批准操作和用量怎么算",
+      "slug": "chatgpt-work-how-to-use-steps",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1148-work-steps.png",
+        "g1148-chat-work-codex.png"
+      ],
+      "tags": [
+        "chatgpt"
+      ],
+      "accountTier": "PLUS",
+      "excerpt": "ChatGPT 的 Work 怎么开、怎么用？按 OpenAI 帮助中心，网页和手机里选 Work，桌面版从菜单选 ChatGPT 再切换到 Work。本文讲清各平台的开启步骤、能不能读本机文件、怎样批准操作、事件触发任务的限制，以及 Work 的用量和 Chat 有什么不同。",
+      "content": "> 本文根据 OpenAI 帮助中心《ChatGPT Work and Codex》《Scheduled tasks in ChatGPT》整理，资料核对于 2026-10-27。Work 在分批开放，功能和入口变化较快，请以官方文章和你账号里显示的为准。配图为本站整理的示意图，不是界面截图。Work 和 Chat 的区别见 [/guides/chatgpt-chat-vs-work-difference](/guides/chatgpt-chat-vs-work-difference)，本文重点讲具体怎么操作。\n\n## 适用于谁\n\n- 听说 ChatGPT 有 Work，不知道在哪开的人；\n- 想让 ChatGPT 做一份文档、表格或演示文稿的人；\n- 担心 Work 会乱动电脑里文件的人；\n- 想知道 Work 算不算额度、和 Chat 有什么不同的人。\n\n## 结论先说\n\n1. **Work 是处理「更长的多步骤任务」的入口**：官方说它最后交付的是成品，比如文档、表格、演示文稿、报告或 Site。Chat 负责快速问答，Codex 负责写代码。\n2. **网页和手机**：打开 ChatGPT，选 **Work**，新建对话或打开一个项目，加文件和背景信息，然后描述任务。\n3. **桌面版**：从菜单里选 **ChatGPT**，用上方的开关切到 **Work**，新建对话或打开项目，描述你想要的成果；也可以打开本机的一个文件夹。\n4. **读你电脑里的文件，只有桌面版能做到**，并且要你允许；网页和手机上的 Work **不能访问你电脑上的文件**。\n5. **重要操作要你批准**：网页和手机用屏幕上的按钮批准或拒绝，**不支持语音批准**。\n6. **Work 的用量和 Codex 是同一套结构**，不是普通聊天额度，每个任务消耗不同。\n7. **不是所有人都有**：官方说 Work 在网页和手机上面向符合条件的付费套餐，在桌面版里取决于套餐和工作区。\n\n![在 ChatGPT 里开始一个 Work 任务的步骤：网页与手机、桌面版、加文件、描述成果、批准操作](seed:g1148-work-steps.png)\n*图：本站根据 [OpenAI 帮助中心：ChatGPT Work and Codex](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex) 整理的示意图*\n\n## 一、Chat、Work、Codex 分别做什么\n\n官方文章把 ChatGPT 的三种用法这样分：\n\n- **Chat**：快速的对话式帮助、问答、头脑风暴；\n- **Work**：更长、多步骤、最后要交付成品的任务，成品可以是文档、表格、演示文稿、报告或 Site；\n- **Codex**：软件开发，写代码和调试、跑测试、审查改动、处理代码仓库；\n- **Voice（语音）**：给 Work 增加实时语音，网页和手机上用于 Work，桌面版里 Work 和 Codex 都可以用。\n\n![Chat、Work、Codex、Voice 的分工对照表](seed:g1148-chat-work-codex.png)\n*图：本站根据 [OpenAI 帮助中心：ChatGPT Work and Codex](https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex) 整理的示意图*\n\nWork 和 Codex 的更详细比较见 [/guides/chatgpt-work-vs-codex](/guides/chatgpt-work-vs-codex)。\n\n## 二、各平台怎么开始\n\n### 网页或手机\n\n1. 打开 ChatGPT；\n2. 选 **Work**；\n3. 开始一个新对话，或者打开一个项目（项目的用法见 [/guides/chatgpt-projects](/guides/chatgpt-projects)）；\n4. 添加文件和背景信息；\n5. 用文字描述任务。\n\n### 桌面版（macOS、Windows）\n\n1. 打开桌面版，从菜单选择 **ChatGPT**；\n2. 在页面上方的开关里选 **Work**；\n3. 开始新对话或打开项目；\n4. 描述你想要的成果；\n5. 需要的话，打开本机的一个**本地文件夹**。\n\n桌面版的下载和新旧版本区别见 [/guides/chatgpt-desktop-app](/guides/chatgpt-desktop-app) 和 [/guides/chatgpt-classic-vs-new-desktop-app](/guides/chatgpt-classic-vs-new-desktop-app)。**找不到 Work 的话**，先看你的套餐是否包含，再更新桌面版，见 [/guides/chatgpt-cant-find-new-model-gpt-6-codex](/guides/chatgpt-cant-find-new-model-gpt-6-codex)。\n\n### 语音\n\n在 Work 里选 **Voice** 控件，就可以开始一次 Live 对话。网页和手机上，Work 里的语音使用的是你**每天的语音额度（分钟）**，语音功能本身见 [/guides/chatgpt-voice-mode](/guides/chatgpt-voice-mode)。\n\n## 三、Work 能不能读我电脑里的文件\n\n官方文章的说法：\n\n- **桌面版**的 Work，**经你允许**后可以使用**本地文件和桌面应用**；\n- **网页和手机**的 Work 在云端运行，**不能访问你电脑上的文件**；\n- 云端的 Work 在云上运行；本地的 Work 在你的电脑上运行，**但消息和任务上下文可能存在云端**。\n\n所以，需要读本机文件做表格或报告，用桌面版；只想让它基于你上传的文件和网络资料做东西，网页和手机就够了。想让它生成 Word、Excel、PPT，见 [/guides/chatgpt-create-word-excel-ppt](/guides/chatgpt-create-word-excel-ppt)。\n\n## 四、批准重要操作\n\n- 在网页和手机上，Work 要做重要操作时，你用**屏幕上的控件**批准或拒绝；\n- **不支持用语音说「同意」来批准**；\n- 官方在计划任务文章里也写了：任务运行时，你可以查看进度、回答问题、改变方向、批准重要操作。\n\n## 五、计划任务和事件触发任务\n\nWork 里还能设**计划任务**：\n\n- 可以**运行一次**、**按计划重复**、**由触发条件触发**，或者**监控变化**；\n- **事件触发的任务**可以响应已连接应用里的事件，官方举例：新的 Gmail 邮件、Slack 频道的新消息、GitHub 拉取请求的动态；\n- 这类任务**在网页或支持的手机 App 上创建和编辑，不能在桌面版上创建和编辑**；\n- 事件触发任务**不适用于 Free、Go，也不适用于 FedRAMP 工作区**。\n\n计划任务页面在哪、数量上限，见 [/guides/chatgpt-scheduled-tasks-missing](/guides/chatgpt-scheduled-tasks-missing) 和 [/guides/chatgpt-scheduled-tasks](/guides/chatgpt-scheduled-tasks)。\n\n## 六、Work 的用量\n\n官方文章写的是：\n\n- **Work 和 Codex 使用同一套用量结构**；\n- GPT-6 Astra 从套餐的**内含额度**里扣，Plus 和 Business 标准席位的 Astra 用量有限，用完后可以选用积分；\n- **不同任务消耗不同**，官方让你去看 Codex 定价页了解内含用量和积分；\n- 网页和手机上，Work 里的 Voice 用的是你每天的语音分钟额度。\n\n具体额度数字官方文章没有给，也不要照网上的数字理解。额度怎么看见 [/guides/chatgpt-usage-limits-check-reset](/guides/chatgpt-usage-limits-check-reset)。想要更高的套餐，可以看 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus) 和 [/chongzhi/chatgpt-pro](/chongzhi/chatgpt-pro)。\n\n## 七、管理员能管什么\n\n如果你用的是公司或学校的工作区：官方说管理员可以在 **Permissions & roles（权限与角色）**里，**分别**管理 **Work Cloud、Work Local 和 Codex Local**，改 Work 的设置不会改变 Codex Local 的权限；**Chat 在所有配置里都保留**。所以同一个工作区里别人有 Work、你没有，先问管理员。\n\n## 常见问题\n\n**Q：Work 和以前的 Agent 模式是一回事吗？**\n官方 Work 文章没有提到 Agent 模式。本站对 Agent 并入 Work 的说明见 [/guides/chatgpt-agent-mode](/guides/chatgpt-agent-mode)。\n\n**Q：我是 Free，能用 Work 吗？**\n官方文章写的是网页和手机面向符合条件的付费套餐。官方下载页（chatgpt.com/download）写明 Work 在 Plus、Pro、Business、Enterprise 套餐可用。\n\n**Q：手机上的 Work 能读电脑里的文件吗？**\n不能，官方说网页和手机的 Work 不能访问你电脑上的文件。\n\n**Q：能用语音批准操作吗？**\n不能，官方说网页和手机上不支持语音批准。\n\n## 参考资料\n\n- OpenAI 帮助中心：ChatGPT Work and Codex — https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex\n- OpenAI 帮助中心：Scheduled tasks in ChatGPT — https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt",
+      "sources": [
+        "https://help.openai.com/en/articles/20001275-chatgpt-work-and-codex",
+        "https://help.openai.com/en/articles/10291617-scheduled-tasks-in-chatgpt",
+        "https://chatgpt.com/download/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "Work 是分批开放的，官方文章说有些账号可能还看不到；入口位置和菜单以你账号里实际看到的为准",
+        "官方文章没有给出完整的任务示例，也没有写怎样停止正在运行的任务，正文不写这两点",
+        "官方文章页面没有给出更新日期",
+        "官方文章没有提到 Agent 模式；本站把 Agent 并入 Work 的说明见另一篇文章",
+        "用量规则写的是「和 Codex 用同一套结构」，具体额度数字官方文章没给，以 Codex 定价页为准"
       ]
     },
     {
