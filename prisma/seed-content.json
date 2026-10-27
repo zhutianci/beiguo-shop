@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-27T16:25:49.480Z",
+  "builtAt": "2026-10-27T16:51:06.741Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -64502,6 +64502,139 @@
       ]
     },
     {
+      "title": "Gemini 常见报错原文对照表：Can't access this service、Something went wrong、Delete data to upload file 等一次看清",
+      "slug": "gemini-error-messages-table",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1175-error-compare.png",
+        "g1175-error-decide.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Gemini 报错的原文各不相同，处理方向也不同。本文把官方帮助中心写明的提示原文汇成对照表：账号访问、上传文件、限额，各说明含义并链到详细文章。官方没有逐条解释的地方也会写明。",
+      "content": "> 本文根据 Gemini Apps 帮助中心整理，资料核对于 2026-10-27。**官方没有一份统一的 Gemini 报错大全**，只在登录、上传文件、用量限制几个页面里写明了少数提示的含义，本文把它们汇成一张表。官方没写的，本文也没有编。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- Gemini 弹出一条提示，想知道它是什么意思、该读哪篇的人；\n- 想先对照一遍，再决定从哪里排查的人。\n\n## 结论先说\n\n1. **先分时机**：打开或登录时就报错，多半是账号资格；能进去、发消息才报错，看状态页、额度和浏览器；只在上传时报错，看上传限制和存储。\n2. **官方明确写了含义的提示只有几条**：`Can't access this service`、`Something went wrong`（登录阶段）、`Delete data to upload file`、`You've reached your limit for chats with files`、`Your uploads may be too large for the best results`。\n3. **括号里的数字没有公布含义。** 例如「出了点问题 (1152)」，官方没有解释，别信网上的各种说法。\n4. **都排除了就发送反馈**：在网页版点 **Settings & help**，再点 **Send feedback**，输入问题，可以附截图，最后点 **Send**。\n\n![Gemini 常见提示原文对照](seed:g1175-error-compare.png)\n*图：本站根据 [Gemini Apps 帮助中心](https://support.google.com/gemini/answer/13278668) 整理的示意图*\n\n## 一、登录或访问阶段\n\n帮助中心《What you need to sign in to Gemini Apps》写了两条：\n\n- **Can't access this service**：目前可以用的是自己管理的个人谷歌账号，或管理员已开通 Gemini 的工作、学校账号。个人或学校账号须年满 13 岁（或所在国家规定的年龄），工作账号须年满 18 岁。由 Family Link 管理的账号仍不能访问网页版。详见 [/guides/gemini-cant-access-this-service-account](/guides/gemini-cant-access-this-service-account)。\n- **Something went wrong**：在访问或登录网页版时看到它，说明账号此刻无法访问，原因可能包括所在地、年龄、账号类型等，可以稍后再试。官方还说明，会用信号和数据核实账号是否有持续的无滥用记录。详见 [/guides/gemini-something-went-wrong-error](/guides/gemini-something-went-wrong-error)。\n\n## 二、上传文件时\n\n帮助中心《Upload & analyze files in Gemini Apps》的三条：\n\n- **Delete data to upload file**：Gemini 对聊天和上传文件有自己的存储上限，与云端硬盘或 Workspace 的存储无关，满了就不能再传，要先清理；\n- **You've reached your limit for chats with files**：上传和分析文件有滚动限额，过一段时间会重置；\n- **Your uploads may be too large for the best results**：文件太大时回答可能漏掉前后的联系或细节。\n\n完整说明见 [/guides/gemini-cannot-upload-files-images](/guides/gemini-cannot-upload-files-images)。\n\n## 三、额度和长对话\n\n官方说明：使用限额按计算量计，会考虑提示的复杂度、所用模型和功能，以及对话长度，每 5 小时刷新，另有每周上限。有 Google AI 方案的用户用完限额后，对话会继续用 Flash-Lite。额度怎么看见 [/guides/gemini-usage-limits-check-reset](/guides/gemini-usage-limits-check-reset)；回答中途断开见 [/guides/gemini-response-stopped-interrupted](/guides/gemini-response-stopped-interrupted)。\n\n## 四、对照：看到什么，先做什么\n\n![Gemini 报错先看这张表](seed:g1175-error-decide.png)\n*图：本站根据 Gemini Apps 帮助中心整理的示意图*\n\n## 常见问题\n\n**Q：官方状态页有没有 Gemini 的故障信息？**\n有，Workspace 状态页列有 Gemini，开发者另看 AI Studio 状态页，见 [/guides/gemini-down-check-status-page](/guides/gemini-down-check-status-page)。\n\n**Q：一直转圈没有报错怎么办？**\n见 [/guides/gemini-keeps-loading-no-response](/guides/gemini-keeps-loading-no-response)。\n\n**Q：想要更高的额度？**\n套餐区别见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)。\n\n## 参考资料\n\n- Gemini Apps 帮助中心：What you need to sign in to Gemini Apps — https://support.google.com/gemini/answer/13278668\n- Gemini Apps 帮助中心：Upload & analyze files in Gemini Apps — https://support.google.com/gemini/answer/14903178\n- Gemini Apps 帮助中心：Gemini Apps limits & feature availability — https://support.google.com/gemini/answer/16275805\n- Gemini Apps 帮助中心：Send feedback or report a problem — https://support.google.com/gemini/answer/13275746",
+      "sources": [
+        "https://support.google.com/gemini/answer/13278668",
+        "https://support.google.com/gemini/answer/14903178",
+        "https://support.google.com/gemini/answer/16275805",
+        "https://support.google.com/gemini/answer/13275746"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心只公布了少数几条提示的含义，括号里的数字（例如出了点问题后面的编号）没有公布含义，本文不猜测",
+        "对照表是本站按官方页面整理的索引，不是官方统一的报错大全",
+        "提示原文的英文以帮助中心当天的写法为准，中文界面显示的文字可能略有不同"
+      ]
+    },
+    {
+      "title": "Gemini 一直转圈、没反应怎么办：状态页、长对话、额度、浏览器和账号的排查顺序",
+      "slug": "gemini-keeps-loading-no-response",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1176-loading-decide.png",
+        "g1176-loading-steps.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Gemini 一直转圈、发出去没有反应？官方没有专门解释转圈，但帮助中心写明了支持的浏览器、用量限制和长对话更耗资源。本文按官方说明给出排查顺序：状态页、浏览器、新对话、额度、反馈。",
+      "content": "> 本文根据 Gemini Apps 帮助中心和 Google Workspace 状态页整理，资料核对于 2026-10-27。**官方没有专门解释「一直转圈」**，所以本文是把官方里相关的使用条件按排查顺序排列，不是官方对转圈的说明。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- Gemini 发出消息后一直转圈，没有回答的人；\n- 页面能打开，但点什么都没反应的人；\n- 只有某个长对话卡住的人。\n\n## 结论先说\n\n1. **先看官方状态页。** Workspace 状态页列有 Gemini，开发者看 AI Studio 状态页，见 [/guides/gemini-down-check-status-page](/guides/gemini-down-check-status-page)。有事件就等官方恢复。\n2. **用受支持的浏览器。** 官方写明访问 gemini.google.com 需要 Chrome、Safari、Firefox、Opera 或 Edge；更新到最新版再试。\n3. **只有一个长对话转圈，就开新对话。** 官方说明，对话越长，Gemini 要重新读的历史越多，需要更多计算资源。把要点复制到新对话再发。\n4. **看额度。** 限额按计算量算，每 5 小时刷新，另有每周上限，Pro、高思考和 Deep Research 更费额度。\n5. **确认登录的是哪个账号。** 同时登录多个谷歌账号时，看右上角生效的是不是符合条件的那个。\n6. **都不行就发送反馈。**\n\n![Gemini 一直转圈：对照排查](seed:g1176-loading-decide.png)\n*图：本站根据 [Gemini Apps 帮助中心](https://support.google.com/gemini/answer/16275805) 整理的示意图*\n\n## 一、从快到慢的四步\n\n![Gemini 转圈没反应：4 步](seed:g1176-loading-steps.png)\n*图：本站根据 Gemini Apps 帮助中心整理的示意图*\n\n**第一步，看状态页。** 打开 Google Workspace Status Dashboard，看 Gemini 一行最近几天有没有服务中断的标记，顶部写 No incidents 说明官方没有公布事件。注意这个页面写明的是 Workspace 服务的状态，个人账号是否体现，页面没有说明。\n\n**第二步，刷新、换浏览器。** 通用的做法还有：用无痕窗口打开以排除扩展干扰，清除该网站的缓存后重新登录。这是通用网页排错，不是帮助中心的话。\n\n**第三步，开新对话。** 官方《Gemini Apps limits》里把「持续的长对话」列为中等耗额度的类型：需要重新读之前的对话历史，对话越长越耗。所以一个很长的对话卡住，新开一个往往更快。\n\n**第四步，检查额度，再发送反馈。** 官方说明限额可能因容量变化而调整；没有 Google AI 方案的用户，Deep Research 这类更耗资源的功能在高峰期可能暂不可用。额度怎么看见 [/guides/gemini-usage-limits-check-reset](/guides/gemini-usage-limits-check-reset)。\n\n## 二、发送反馈\n\n官方写法：在网页版，点底部的 **Settings & help**，再点 **Send feedback**，输入反馈，可以附上截图，点 **Send**。要先登录。提交时，相关的对话内容会作为反馈的一部分一起发送，所以别在含隐私的对话里提交。\n\n## 三、什么时候不是转圈\n\n- 提示「出了点问题」「无法访问」是账号层面，见 [/guides/gemini-error-messages-table](/guides/gemini-error-messages-table) 和 [/guides/gemini-something-went-wrong-error](/guides/gemini-something-went-wrong-error)；\n- 回答写到一半停住，见 [/guides/gemini-response-stopped-interrupted](/guides/gemini-response-stopped-interrupted)；\n- 手机 App 打不开，见 [/guides/gemini-app-crash-wont-open](/guides/gemini-app-crash-wont-open)。\n\n## 常见问题\n\n**Q：只有 Deep Research 转圈很久？**\n它是耗资源的功能，另见 [/guides/gemini-deep-research-missing-limits](/guides/gemini-deep-research-missing-limits)。\n\n**Q：想要更稳定、更高的额度？**\n有 Google AI 方案的用户限额更高，套餐见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)，需要谷歌账号可以看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n## 参考资料\n\n- Gemini Apps 帮助中心：What you need to sign in to Gemini Apps — https://support.google.com/gemini/answer/13278668\n- Gemini Apps 帮助中心：Gemini Apps limits & feature availability — https://support.google.com/gemini/answer/16275805\n- Gemini Apps 帮助中心：Send feedback or report a problem — https://support.google.com/gemini/answer/13275746\n- Google Workspace Status Dashboard — https://www.google.com/appsstatus/dashboard/",
+      "sources": [
+        "https://support.google.com/gemini/answer/13278668",
+        "https://support.google.com/gemini/answer/16275805",
+        "https://support.google.com/gemini/answer/13275746",
+        "https://www.google.com/appsstatus/dashboard/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有单独解释「一直转圈」，也没有说明转圈的具体原因，本文只列官方帮助中心里和使用条件有关的说法，不对某一次转圈下结论",
+        "无痕窗口、清缓存是通用的网页排错办法，不是 Gemini 帮助中心的内容",
+        "限额每 5 小时刷新、另有每周上限是帮助中心当天的写法，之后可能调整"
+      ]
+    },
+    {
+      "title": "Gemini 回答到一半停了、「此回复已停止」怎么办：用量上限、上下文窗口和高峰期限制的官方说明",
+      "slug": "gemini-response-stopped-interrupted",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1177-stopped-decide.png",
+        "g1177-context-compare.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Gemini 回答写到一半停住或中断？官方没有解释「此回复已停止」这句话，但帮助中心写明了用量上限、上下文窗口按方案不同、高峰期限制三类会影响回答的情况。本文逐项整理，并给出对照图。",
+      "content": "> 本文根据 Gemini Apps 帮助中心《Gemini Apps limits & feature availability》《Upload & analyze files》《Use Deep Think》整理，资料核对于 2026-10-27。**官方没有解释「此回复已停止」这句提示**，本文列的是官方写明会影响回答的几种情况。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- Gemini 的回答写到一半停住，或提示回复已停止的人；\n- 长对话、传了大文件后，回答不完整的人。\n\n## 结论先说\n\n1. **先看是不是限额。** 官方说明使用限额按计算量计，每 5 小时刷新，另有每周上限。有 Google AI 方案的用户到上限后，对话会继续用 Flash-Lite；想要更高限额可以升级方案，或者等限额刷新。\n2. **长对话、大文件看上下文窗口。** 没有方案是 32k tokens，AI Plus 是 128k，AI Pro 和 Ultra 是 1 million；用 Deep Think 时是 192 thousand。超出窗口，官方说回答可能漏掉前面的内容或细节。\n3. **重功能在高峰期可能暂不可用。** 官方说明，没有 AI 方案的用户在需求激增时，Deep Research 这类功能可能暂时用不了；容量变化时，没有方案的用户的限额会先受影响。\n4. **你自己点了停止**，回答就停在当前位置，可以追问「请从刚才停下的地方继续」。这是使用建议，不是官方说明。\n5. **反复出现就发送反馈**：**Settings & help** → **Send feedback**。\n\n![Gemini 回答中断：对照原因](seed:g1177-stopped-decide.png)\n*图：本站根据 [Gemini Apps 帮助中心](https://support.google.com/gemini/answer/16275805) 整理的示意图*\n\n## 一、用量上限\n\n官方《Gemini Apps limits》写明：限额考虑提示的复杂度、所用的模型和功能，以及对话长度；更高级的模型和更高的思考等级更耗额度。到上限后可以做的：有 Google AI 订阅就继续用 Flash-Lite 聊；达到五小时或每周上限，要么升级到更高限额的订阅，要么等模型限额刷新。限额可能因容量约束在不预先通知的情况下调整。具体怎么看额度和重置，见 [/guides/gemini-usage-limits-check-reset](/guides/gemini-usage-limits-check-reset)。\n\n## 二、上下文窗口\n\n官方对上下文窗口的解释：它像 Gemini 的阅读容量，决定一次能同时理解多少内容，更大的窗口能处理更长的提示和对话。官方的例子：1M token 的窗口大约能理解 1,500 页文字或 30,000 行代码。\n\n![上下文窗口按方案不同](seed:g1177-context-compare.png)\n*图：本站根据 [Gemini Apps 帮助中心](https://support.google.com/gemini/answer/16275805) 整理的示意图*\n\n超出窗口会怎样：官方原话的意思是，回答可能没有考虑到你提供的全部内容，或漏掉内容里的联系和细节，尤其是需要关注分散在大文件里很多细节的提示。所以**这更像「回答不完整」而不是「中断」**。处理办法：上传更小、内容更少的文件，或把任务拆开分次问；也可以开新对话，只带上要点。\n\n## 三、其他会影响回答的情况\n\n- **选了更费额度的模型或功能**：Pro、高思考等级、Deep Research、图片视频生成都更耗额度，见 [/guides/gemini-models-flash-pro-thinking-level](/guides/gemini-models-flash-pro-thinking-level)；\n- **网络或页面异常**：刷新、换受支持的浏览器，见 [/guides/gemini-keeps-loading-no-response](/guides/gemini-keeps-loading-no-response)；\n- **官方故障**：看 [/guides/gemini-down-check-status-page](/guides/gemini-down-check-status-page)。\n\n## 四、接着上一次的回答继续\n\n如果回答停住后你想补全，可以这样追问：\n\n```text\n请从你刚才停下的地方继续，不要重复前面已经写过的内容。\n```\n\n长内容更稳妥的做法是先让它列提纲，再按小节分次生成。\n\n## 常见问题\n\n**Q：回答被截断，是不是内容违规？**\n官方文档没有把这个现象和内容规则联系起来，不要自行推断。\n\n**Q：有 AI 方案还是中断？**\n先看是不是到了五小时或每周上限；到上限后会转 Flash-Lite，回答风格可能变化。方案区别见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)。\n\n**Q：想换模型？**\n见 [/guides/gemini-how-to-switch-models](/guides/gemini-how-to-switch-models)。\n\n## 参考资料\n\n- Gemini Apps 帮助中心：Gemini Apps limits & feature availability — https://support.google.com/gemini/answer/16275805\n- Gemini Apps 帮助中心：Upload & analyze files in Gemini Apps — https://support.google.com/gemini/answer/14903178\n- Gemini Apps 帮助中心：Use Deep Think in Gemini Apps — https://support.google.com/gemini/answer/16345172",
+      "sources": [
+        "https://support.google.com/gemini/answer/16275805",
+        "https://support.google.com/gemini/answer/14903178",
+        "https://support.google.com/gemini/answer/16345172",
+        "https://support.google.com/gemini/answer/13275746"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有解释「此回复已停止」这句提示的含义，也没有说明回答中断的统一原因，本文只列官方写明会影响回答的几种情况，不断言某一次中断由哪种造成",
+        "上下文窗口数字（32k、128k、1 million、Deep Think 的 192 thousand）是帮助中心当天的写法，之后可能调整",
+        "点停止之后追问继续，是本站给的使用建议，不是官方说明"
+      ]
+    },
+    {
+      "title": "Gemini 无法上传文件、图片怎么办：Delete data to upload file、文件数量与大小限制、云端硬盘上传的官方说明",
+      "slug": "gemini-cannot-upload-files-images",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1178-upload-decide.png",
+        "g1178-limits-compare.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Gemini 上传不了文件或图片？官方帮助中心写明了上传限制、三条常见提示的含义，以及工作或学校账号从云端硬盘上传需要管理员开启。本文整理限制表、报错对照和清理存储的步骤。",
+      "content": "> 本文根据 Gemini Apps 帮助中心《Upload & analyze files in Gemini Apps》整理，资料核对于 2026-10-27。官方没有专门解释所有上传失败的情形，只列了三条提示和限制表，本文按这些写。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 在 Gemini 里点了上传，文件或图片传不上去的人；\n- 看到 Delete data to upload file 等提示的人；\n- 工作或学校账号想从云端硬盘传文件的人。\n\n## 结论先说\n\n1. **先对照提示原文。** 官方写了三条：`Delete data to upload file`（存储满）、`You've reached your limit for chats with files`（带文件对话的限额）、`Your uploads may be too large for the best results`（文件太大）。\n2. **未登录不能上传。** 官方说明要使用上传功能必须登录 Gemini。\n3. **每条提示最多 10 个文件**，传文件夹时里面每个文件都占名额。视频单个最多 2 GB，其他文件单个最多 100 MB。\n4. **提示分析文件失败**，官方建议重新上传。\n5. **工作或学校账号从云端硬盘上传**，需要工作区管理员开启 Gemini 中的应用访问。\n\n![Gemini 上传文件报错对照](seed:g1178-upload-decide.png)\n*图：本站根据 [Gemini Apps 帮助中心](https://support.google.com/gemini/answer/14903178) 整理的示意图*\n\n## 一、上传限制\n\n官方的限制表（官方注明数量「视可用性」）：\n\n![Gemini 上传限制一览](seed:g1178-limits-compare.png)\n*图：本站根据 [Gemini Apps 帮助中心](https://support.google.com/gemini/answer/14903178) 整理的示意图*\n\n补充：Gemini 支持大多数文件类型；ZIP 里不能有视频或音频；代码文件夹或 GitHub 仓库一次只能加一个。更长的视频和音频需要 Google AI Pro 或 Ultra。\n\n## 二、Delete data to upload file\n\n官方解释：Gemini 对以往活动保存的数据有存储上限，包括聊天和上传过的文件。这个上限与你的 Google 云端硬盘或 Workspace 存储无关。满了就会出现这条提示，要清理空间才能继续上传。\n\n**个人谷歌账号**的清理步骤：\n\n1. 打开 gemini.google.com；\n2. 点 **Settings & help**，再点 **Activity**；\n3. 选择要删除的 Gemini 活动。\n\n官方提示：带视频、照片、云端硬盘文件或 NotebookLM 内容的对话和 Gems 占的空间更大；删除后释放空间可能要几分钟，同样的提示再出现就多删一些活动或 Gems，等几分钟再传。**工作或学校账号**只有 Workspace 管理员能删除活动，要请管理员处理。\n\n## 三、其他两条提示\n\n- **You've reached your limit for chats with files**：上传和分析文件有滚动限额，过一段时间会重置。想传更多可以稍后再试，或升级到 Google AI Pro 或 Ultra 获得更高限额；\n- **Your uploads may be too large for the best results**：文件太大时，回答可能漏掉分散在内容里的细节。官方建议传更小、内容更少的文件，或升级方案获得 1 million token 的上下文窗口，见 [/guides/gemini-response-stopped-interrupted](/guides/gemini-response-stopped-interrupted)。\n\n## 四、从云端硬盘上传、导入代码\n\n- 从云端硬盘添加文件，要先开启 **Keep Activity** 并把 Google Workspace 连接到 Gemini，没连接时会提示连接；\n- 工作或学校账号用云端硬盘，还要管理员开启 Gemini 中的应用访问；\n- 添加代码文件夹：在上传菜单选 **More Uploads** → **Import Code**；加 GitHub 仓库则输入仓库或分支地址。连接应用的设置见 [/guides/gemini-connected-apps-gmail-drive-calendar](/guides/gemini-connected-apps-gmail-drive-calendar)。\n\n## 五、点了没反应，也没有提示\n\n官方没有给这种情况专门的说明。可以做的通用排查：刷新页面，换受支持的浏览器（Chrome、Safari、Firefox、Opera、Edge）；换个网络，公司或学校网络可能限制上传；先看 [/guides/gemini-down-check-status-page](/guides/gemini-down-check-status-page)。图片生成和编辑的额度见 [/guides/gemini-image-limits](/guides/gemini-image-limits)。\n\n## 常见问题\n\n**Q：为什么 Gemini 存储满了，我的 Google 云端硬盘明明有空间？**\n官方明确说这两个存储是独立的。\n\n**Q：想一次传更多、更长的视频？**\nGoogle AI Pro 或 Ultra 的上传总时长更长，套餐见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)。\n\n**Q：其他报错怎么对照？**\n见 [/guides/gemini-error-messages-table](/guides/gemini-error-messages-table)。\n\n## 参考资料\n\n- Gemini Apps 帮助中心：Upload & analyze files in Gemini Apps — https://support.google.com/gemini/answer/14903178\n- Gemini Apps 帮助中心：Gemini Apps limits & feature availability — https://support.google.com/gemini/answer/16275805\n- Gemini Apps 帮助中心：What you need to sign in to Gemini Apps — https://support.google.com/gemini/answer/13278668",
+      "sources": [
+        "https://support.google.com/gemini/answer/14903178",
+        "https://support.google.com/gemini/answer/16275805",
+        "https://support.google.com/gemini/answer/13278668"
+      ],
+      "screenshots": [],
+      "verify": [
+        "上传数量、大小和时长限制是帮助中心当天的写法，官方注明「视可用性」，之后可能调整",
+        "官方没有给出「选了文件没反应」这类无提示情况的专门说明，本文只写通用排查",
+        "删除活动记录后空间释放可能需要几分钟，是官方的说法，具体时间官方没有给出"
+      ]
+    },
+    {
+      "title": "Gemini 语音对话（Live）用不了怎么办：网页版为什么没有、摄像头和屏幕共享自动关闭、锁屏与权限的官方说明",
+      "slug": "gemini-live-not-working",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1179-live-decide.png",
+        "g1179-live-steps.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Gemini Live 找不到入口、摄像头自己关了、共享屏幕失败？官方帮助中心写明 Live 目前不在网页版提供，需要个人账号或有权限的工作账号，共享屏幕要开通知权限，锁屏时不能启动。本文逐项整理。",
+      "content": "> 本文根据 Gemini Apps 帮助中心《Talk naturally with Gemini Live》整理，资料核对于 2026-10-27，依据的是其中 Android 手机和平板的说明，iPhone 的以官方页面对应标签为准。官方没有「Live 用不了」的专门排查页，本文把使用条件和自动关闭规则按问题整理。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 找不到 Gemini Live 入口的人；\n- Live 里摄像头或屏幕共享自己停了的人；\n- 锁屏后 Live 被暂停，或共享屏幕失败的人。\n\n## 结论先说\n\n1. **Live 是手机 App 的功能。** 官方写明：目前 Live 不在 Gemini 网页版和 Google 信息（Google messages）里提供。\n2. **账号要求**：要登录 Gemini；个人谷歌账号，或已有 Gemini 权限的工作、学校账号；年满 13 岁（或所在国家规定的年龄）；还要用最新版 Google 应用。\n3. **Gems 暂时不能用在 Live 里。** 安卓版官方还说明手机 App 暂不支持波斯语。\n4. **摄像头会自动关**：Live 被暂停、离开 Gemini App、锁屏时都会关。暂停后继续，摄像头会自动重新打开；离开 App 或锁屏后不会自动重开。\n5. **共享屏幕要先打开 Gemini Live 的通知权限**；暂停或锁屏时屏幕共享会自动停止，不会自动恢复，要重新共享。\n6. **不能在锁屏时启动 Live**，要先解锁手机。\n\n![Gemini Live 用不了：对照官方说明](seed:g1179-live-decide.png)\n*图：本站根据 [Gemini Apps 帮助中心：Talk naturally with Gemini Live](https://support.google.com/gemini/answer/15274899) 整理的示意图*\n\n## 一、怎么进入 Live\n\n官方步骤（安卓手机和平板）：\n\n![进入 Gemini Live（安卓）](seed:g1179-live-steps.png)\n*图：本站根据 [Gemini Apps 帮助中心：Talk naturally with Gemini Live](https://support.google.com/gemini/answer/15274899) 整理的示意图*\n\n官方说明：打开 Gemini 手机 App，点底部的 **Live** 或向左滑；首次使用按屏幕提示操作；然后开始说话。也可以说「Hey Google, let's talk Live」或「Hey Google, let's talk」。想关麦克风，点 **Hold** 或 **End**。**Mute**（静音）会关麦克风但让 Gemini 继续说话，会话保持，和结束对话不同，结束会关闭会话并给出文字记录。\n\n## 二、什么情况下 Live 用不了\n\n官方「What you need」列的条件：\n\n- 安卓手机或平板；\n- Gemini 手机 App，或把 Gemini 设为手机助手；\n- Live 目前不在网页版和 Google 信息里；\n- 个人谷歌账号，或有 Gemini 权限的工作、学校账号；\n- 最新版 Google 应用；\n- 年满 13 岁（或当地规定年龄）；\n- 要先登录 Gemini。\n\n设备要求（官方《Gemini mobile app availability》）：Android 9 及以上、2 GB 以上内存；不支持 Android Go；不能在安卓工作资料里使用 Gemini 手机 App。手机 App 的可用范围比网页版小，官方写的是「150 多个国家」。设备和 App 的问题另见 [/guides/gemini-app-crash-wont-open](/guides/gemini-app-crash-wont-open)。\n\n## 三、摄像头和屏幕共享自己停了\n\n官方列出了自动关闭的情形：\n\n- **摄像头**：Live 被暂停；离开 Gemini App（回来后不会自动开）；屏幕锁定（解锁后不会自动开）；\n- **屏幕共享**：Live 被暂停或屏幕锁定时自动停止，继续 Live 或解锁后也不会恢复，要重新共享；\n- 共享屏幕的两种方式：在 Live 界面点 **Turn on screen sharing**；或在 App 外用「Hey Google」或触摸打开 Gemini，点 **Share screen with Live**；\n- 停止共享：回到 Gemini App 点 **Turn off screen sharing**，或从屏幕顶部下拉，在「屏幕共享」卡片点 **Stop sharing**。\n\n## 四、后台和锁屏\n\n- 想让 Live 在后台，从屏幕底部上滑；要回到全屏，从顶部下拉点「Live with Gemini」卡片。这要先打开 Gemini Live 的通知；\n- 如果开了「锁屏时使用 Gemini」，锁屏后可继续 Live；没开的话，锁屏时 Live 会被暂停；\n- 锁屏时想退出 Live：展开「Live with Gemini」通知，点 **End Live mode**。\n\n## 常见问题\n\n**Q：Live 怎么用得更好？**\n用法见 [/guides/gemini-live-voice-camera-screen-share](/guides/gemini-live-voice-camera-screen-share)。\n\n**Q：Gemini 的声音或语言不能改？**\n官方说明更改 Gemini 声音的选项在某些语言里不可用，显示语言的设置见 [/guides/gemini-language-settings-chinese](/guides/gemini-language-settings-chinese)。\n\n**Q：整个 Gemini 都打不开？**\n先看 [/guides/gemini-down-check-status-page](/guides/gemini-down-check-status-page)。\n\n## 参考资料\n\n- Gemini Apps 帮助中心：Talk naturally with Gemini Live — https://support.google.com/gemini/answer/15274899\n- Gemini Apps 帮助中心：Gemini mobile app availability — https://support.google.com/gemini/answer/14579026\n- Gemini Apps 帮助中心：What you need to sign in to Gemini Apps — https://support.google.com/gemini/answer/13278668",
+      "sources": [
+        "https://support.google.com/gemini/answer/15274899",
+        "https://support.google.com/gemini/answer/13278668",
+        "https://support.google.com/gemini/answer/14579026"
+      ],
+      "screenshots": [],
+      "verify": [
+        "本文依据的是官方《Talk naturally with Gemini Live》的 Android 手机和平板标签，iPhone 和 iPad 的步骤、按钮名称在官方页面有单独标签，可能不同，以官方为准",
+        "官方没有给出「Live 一点就闪退或没声音」的专门排查，本文只写官方列出的使用条件和自动关闭规则",
+        "「Live 目前不在网页版提供」是官方当天的写法，之后可能变化"
+      ]
+    },
+    {
       "title": "ChatGPT 桌面版下载与安装：Windows、Mac、Linux 系统要求，和网页版有什么区别",
       "slug": "chatgpt-desktop-app",
       "checkedOn": "2026-10-07",
@@ -64533,6 +64666,86 @@
       ]
     },
     {
+      "title": "Gemini App 闪退、打不开怎么办：安卓、Mac、Windows 的官方设备要求、更新方法和工作资料限制",
+      "slug": "gemini-app-crash-wont-open",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1180-app-decide.png",
+        "g1180-requirements-compare.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Gemini App 闪退或打不开，先对照官方设备要求：安卓需要 Android 9 以上和 2 GB 内存，Mac 需要 macOS 15 和 Apple 芯片，Windows 需要 Windows 10 以上。本文整理各端要求、更新方法和不能用的情形。",
+      "content": "> 本文根据 Gemini Apps 帮助中心《Gemini mobile app availability》《Use the Gemini app on Mac》《Use the Gemini app for Windows》整理，资料核对于 2026-10-27。**官方没有「闪退」的专门排查页**，本文把官方的设备要求和更新方法按排查顺序排列。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- Gemini 手机 App 一打开就闪退或打不开的人；\n- Mac 版、Windows 版 Gemini 打不开或功能不正常的人；\n- 想先确认自己的设备够不够条件的人。\n\n## 结论先说\n\n1. **先对照设备要求。** 安卓：Android 9 及以上、2 GB 以上内存，**不支持 Android Go**；Mac：macOS Sequoia 15.0 及以上、Apple 芯片、8 GB 内存、至少 200 MB 空间；Windows：Windows 10 及以上、8 GB 内存、至少 200 MB 空间。\n2. **安卓工作资料里不能用。** 官方写明不能在 Android Work Profile 里访问 Gemini 手机 App。\n3. **先更新。** Mac：打开 App，点顶部菜单 **Gemini** → **Check for Updates**，有更新点 **Install update**；Windows：打开时右下角有更新通知，点 **Restart to update**。官方说 Mac 版过期时部分功能可能不能用。\n4. **账号也要符合**：年龄、账号类型、所在地区，见下文。\n5. **要求都满足仍然不行**，换网络、重启设备，再发送反馈。\n\n![Gemini App 打不开：对照官方要求](seed:g1180-app-decide.png)\n*图：本站根据 [Gemini Apps 帮助中心](https://support.google.com/gemini/answer/14579026) 整理的示意图*\n\n## 一、各端的官方要求\n\n![Gemini 各端官方设备要求](seed:g1180-requirements-compare.png)\n*图：本站根据 Gemini Apps 帮助中心整理的示意图*\n\n补充说明：\n\n- **手机 App**：官方说在 150 多个国家提供，要年满 13 岁（或当地规定年龄），未满 13 岁账号需要家长批准；工作或学校账号要有包含 Gemini 的方案或许可；\n- **Mac 版**：下载地址是 gemini.google/mac，下载 `.dmg` 后拖到「应用程序」文件夹，需要稳定的网络；快捷键默认 `Option + Space`；\n- **Windows 版**：快捷键默认 `Alt + Space`；\n- **网页版**：官方支持的浏览器是 Chrome、Safari、Firefox、Opera 和 Edge。\n\n下载入口和各端安装步骤见 [/guides/gemini-download-app-android-iphone-windows-mac](/guides/gemini-download-app-android-iphone-windows-mac)。\n\n## 二、更新\n\n官方只写了桌面版的更新办法（见结论第 3 条）。手机 App 到应用商店更新，官方没有给出专门步骤。更新后仍闪退，再往下排查。\n\n## 三、账号和地区的条件\n\n- 个人或学校账号年满 13 岁，工作账号年满 18 岁；Family Link 管理的账号目前不能访问网页版；\n- 所在国家或地区要在官方支持名单内，见 [/guides/gemini-supported-countries-regions](/guides/gemini-supported-countries-regions)；\n- 能打开但提示无法使用，见 [/guides/gemini-cant-access-this-service-account](/guides/gemini-cant-access-this-service-account)。\n\n## 四、都满足，还是不行\n\n1. 看官方状态页，见 [/guides/gemini-down-check-status-page](/guides/gemini-down-check-status-page)；\n2. 重启设备、换网络，桌面版需要稳定的网络；\n3. 网页版能用而 App 不能，先改用网页版继续工作；\n4. 发送反馈：网页版的 **Settings & help** → **Send feedback**，可附截图。其他报错对照见 [/guides/gemini-error-messages-table](/guides/gemini-error-messages-table)。\n\n## 常见问题\n\n**Q：我的手机是 Android Go，怎么办？**\n官方写明 Android Go 不支持 Gemini 手机 App，可以改用网页版。\n\n**Q：iPhone 的要求是什么？**\n官方页面有单独的 iPhone 标签，本文没有核对具体版本号，请以官方页面为准。\n\n**Q：Gemini 一直转圈？**\n见 [/guides/gemini-keeps-loading-no-response](/guides/gemini-keeps-loading-no-response)。\n\n## 参考资料\n\n- Gemini Apps 帮助中心：Gemini mobile app availability — https://support.google.com/gemini/answer/14579026\n- Gemini Apps 帮助中心：Use the Gemini app on Mac — https://support.google.com/gemini/answer/17011627\n- Gemini Apps 帮助中心：Use the Gemini app for Windows — https://support.google.com/gemini/answer/18263854\n- Gemini Apps 帮助中心：What you need to sign in to Gemini Apps — https://support.google.com/gemini/answer/13278668",
+      "sources": [
+        "https://support.google.com/gemini/answer/14579026",
+        "https://support.google.com/gemini/answer/17011627",
+        "https://support.google.com/gemini/answer/18263854",
+        "https://support.google.com/gemini/answer/13278668"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有给出「Gemini App 闪退」的专门排查页，本文把官方的设备要求、更新方法、不支持的情形整理成排查清单",
+        "iPhone 和 iPad 的系统版本要求在官方页面的 iPhone 标签里，本文没有核对具体数字，以官方页面为准",
+        "Mac 版和 Windows 版的系统、内存、空间要求是官方当天的写法，之后可能提高"
+      ]
+    },
+    {
+      "title": "Gemini 怎么切换模型：Flash-Lite、Flash、Pro、Argon 的选择步骤、思考等级和自动选择",
+      "slug": "gemini-how-to-switch-models",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1182-switch-steps.png",
+        "g1182-models-compare.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Gemini 网页版怎么手动切换模型？官方步骤是点聊天框底部当前模型再选，需要有 Google AI 方案，带锁图标的要升级。本文按官方说明整理各方案可选模型、思考等级默认值和自动模型选择。",
+      "content": "> 本文根据 Gemini Apps 帮助中心《About Gemini models》整理，资料核对于 2026-10-27，只适用于个人谷歌账号；工作或学校账号的可用模型取决于 Workspace 许可。官方页面里「开关自动选择」和「查看回答用了哪个模型」两节核对时没有显示内容，本文不写这两处的步骤。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 想在 Gemini 里手动换成 Flash、Pro 等模型的人；\n- 找不到模型选项，或模型旁边有锁图标的人；\n- 想知道思考等级 Low、Medium、High 怎么选的人。\n\n## 结论先说\n\n1. **手动切换需要 Google AI 方案**，聊天模式和任务模式都可以切。没有方案的用户，官方写的是「自动选择或 Flash-Lite」。\n2. **步骤**：打开 gemini.google.com → 点聊天框底部当前选中的模型 → 点想用的模型 → （可选）选思考等级。带**锁图标**的模型需要升级到对应方案。\n3. **思考等级不选，默认是 Low。** Low 适合直接的问题，Medium 平衡速度和推理深度，High 用于复杂的多步骤提示。\n4. **选定后会一直用到这个对话结束**，包括你之后回到这个对话。\n5. **更高级的模型和更高的思考等级更耗额度。** 有 AI 方案的用户用完限额后，对话会继续用 Flash-Lite。\n\n![在网页版切换 Gemini 模型](seed:g1182-switch-steps.png)\n*图：本站根据 [Gemini Apps 帮助中心：About Gemini models](https://support.google.com/gemini/answer/18648722) 整理的示意图*\n\n## 一、四个模型的官方定位\n\n- **Gemini Flash-Lite**：又快又省的模型，用于日常问题和轻量任务；\n- **Gemini Flash**：高速且能力均衡，兼顾聊天和任务模式；\n- **Gemini Pro**：高级推理模型，用于复杂提示、复杂编码和深入解决问题；\n- **Gemini Argon**：官方的描述是顶级智能、动态深度推理，面向复杂工作流的最高性能。\n\n## 二、各方案能选哪些\n\n![各方案可选的模型（聊天）](seed:g1182-models-compare.png)\n*图：本站根据 [Gemini Apps 帮助中心：About Gemini models](https://support.google.com/gemini/answer/18648722) 整理的示意图*\n\n任务模式的官方可选项：Google AI Pro 和 Ultra 有 Flash 和 Argon，Plus 和没有方案的用户为「N/A」。官方在表下写明：开启自动模型选择时，Gemini 会为每条提示选合适的模型，多数提示用 Flash-Lite 快速回答，需要更多推理的可能用 Flash 或 Pro；关闭自动选择时，所有回答都用 Flash-Lite（指没有方案的情形，表里带星号的条目）。想了解各方案区别，见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)，模型对比见 [/guides/gemini-models-flash-pro-thinking-level](/guides/gemini-models-flash-pro-thinking-level)。\n\n## 三、自动模型选择\n\n官方说明：自动选择会把提示自动路由到最高效的模型和思考等级，在保证回答质量的同时节省你的额度。手动切换的好处是你想要固定用某个模型，坏处是更费额度。怎么开关自动选择、怎么看一条回答用了哪个模型，官方页面核对时没有显示步骤，请以页面为准。\n\n## 四、找不到模型、模型是灰的\n\n- **带锁图标**：需要升级到对应方案，见 [/guides/gemini-cancel-subscription-google-ai-plan](/guides/gemini-cancel-subscription-google-ai-plan) 里的方案管理，官方的升级入口是网页版 **Settings & help** 里的升级选项；\n- **没有 Google AI 方案**：官方说是自动选择或 Flash-Lite，没有手动切换；\n- **用完限额**：有方案会转 Flash-Lite，额度见 [/guides/gemini-usage-limits-check-reset](/guides/gemini-usage-limits-check-reset)；\n- **工作或学校账号**：取决于 Workspace 许可，问管理员。\n\n## 常见问题\n\n**Q：手机 App 里也能切换吗？**\n本文依据的是官方电脑端的步骤，手机端的步骤官方页面有对应标签，以其为准。\n\n**Q：Deep Think 怎么用？**\n官方说使用 Deep Think 时上下文窗口是 192 thousand tokens，见 [/guides/gemini-response-stopped-interrupted](/guides/gemini-response-stopped-interrupted)。\n\n**Q：回答中途变慢变短？**\n可能是用完限额转了 Flash-Lite，也可能是别的原因，见 [/guides/gemini-keeps-loading-no-response](/guides/gemini-keeps-loading-no-response)。\n\n## 参考资料\n\n- Gemini Apps 帮助中心：About Gemini models — https://support.google.com/gemini/answer/18648722\n- Gemini Apps 帮助中心：Gemini Apps limits & feature availability — https://support.google.com/gemini/answer/16275805\n- Gemini Apps 帮助中心：Manage your Google AI plan from Gemini Apps — https://support.google.com/gemini/answer/14517446",
+      "sources": [
+        "https://support.google.com/gemini/answer/18648722",
+        "https://support.google.com/gemini/answer/16275805",
+        "https://support.google.com/gemini/answer/14517446"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方页面里「怎么开关自动模型选择」「怎么查看某条回答用的模型」两节在核对时内容没有显示，本文不写这两处的操作步骤，以官方页面为准",
+        "各方案可选的模型和任务模式的可选项是官方当天的写法，官方注明可能不经通知调整",
+        "工作或学校账号的模型和功能取决于 Workspace 许可，本文只写个人谷歌账号的情况"
+      ]
+    },
+    {
+      "title": "Gemini Pro 免费试用、学生优惠到期后怎么办：自动转付费、重新验证 SheerID、取消后会失去什么",
+      "slug": "gemini-pro-trial-student-offer-ended",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1186-ended-decide.png",
+        "g1186-lose-compare.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Google AI Pro 学生优惠或试用到期后会怎样？官方说会自动转为正常付费的 Plus 或 Pro，会提前通知；没有按时重新验证 SheerID 会失去优惠。本文按官方帮助中心整理到期规则、取消后失去的内容和第三方订阅的处理。",
+      "content": "> 本文根据 Google One 帮助中心《Google One student offers》和 Gemini Apps 帮助中心《Manage your Google AI plan》整理，资料核对于 2026-10-27。优惠的资格、地区和价格以官方页面为准，本文不写价格。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 用着 Google AI Pro 学生优惠或免费试用，想知道到期后会怎样的人；\n- 不想被自动扣费，想提前取消的人；\n- 想知道取消后还能用什么的人。\n\n## 结论先说\n\n1. **优惠结束会自动转为正常付费。** 官方原话的意思是：学生优惠结束后，你会自动转成常规付费的 Google AI Plus 或 Pro，除非适用法律要求另行取得同意；转换前会提前通知你。\n2. **要继续享受学生价，必须按时重新验证。** 通过 SheerID 领取的学生优惠，通常每 12 个月要重新验证一次，最多连续 4 年；到时会收到邮件。**不重新验证就会失去优惠，并可能按正常价格收费。**\n3. **不想继续付费，就在优惠结束前自己取消。**\n4. **12 个月的免费试用只有美国有**，并且如果从试用升级成付费，之后不能再领这个试用。\n5. **取消后**：你不能再用 Pro 开新对话，也不能继续 Pro 创建的对话，并失去扩容存储等方案带来的好处。\n\n![Gemini 试用或学生优惠到期后](seed:g1186-ended-decide.png)\n*图：本站根据 [Google One 帮助中心：student offers](https://support.google.com/googleone/answer/17422238) 整理的示意图*\n\n## 一、到期时会发生什么\n\n官方「Understand what happens when your offer ends」一节的要点：\n\n- 学生优惠结束，自动转成常规付费的 Google AI Plus 或 Pro；\n- 会在变更前通知你；\n- 12 个月 Pro 试用期间，方案里不含 YouTube Premium Lite 或 YouTube Premium，要等转成付费方案后才有；\n- 学生资格验证需要有效的学校身份，学生优惠的通用条件是：高等教育机构的学生、通过 SheerID 验证、个人谷歌账号并在注册时有有效付款方式。\n\n## 二、重新验证 SheerID\n\n官方说明：领取了 Google AI Pro 学生优惠，或 Google AI Pro 加 YouTube Premium 学生套餐的，通常每 12 个月要通过 SheerID 重新验证，最多连续 4 年。到时间会发邮件。**如果没有重新验证，你会失去优惠，可能被收取正常价格。** 具体资格和验证流程见站内 [/guides/gemini-student-offer-eligibility-sheerid](/guides/gemini-student-offer-eligibility-sheerid)。\n\n## 三、取消后会失去什么\n\n官方《Manage your Google AI plan》写明，Google AI Pro 方案结束后，你将不能使用：\n\n![AI Pro 结束后你会失去什么](seed:g1186-lose-compare.png)\n*图：本站根据 [Gemini Apps 帮助中心：Manage your Google AI plan](https://support.google.com/gemini/answer/14517446) 整理的示意图*\n\n具体：Gemini 里的 Pro（不能用 Pro 开新对话、不能继续 Pro 创建的对话、不能用仅限 Pro 的功能）；Drive、Gmail、照片的扩容存储；Google 专家的直接支持；专属会员权益；Gmail、Docs 等里的 Gemini；YouTube Premium Lite 个人版。**没有方案后的额度**见官方限额页：没有 Google AI 方案时，上下文窗口是 32k tokens，使用限额也更低，见 [/guides/gemini-usage-limits-check-reset](/guides/gemini-usage-limits-check-reset)。\n\n## 四、想换低一档，或取消\n\n官方「Change your plan」的写法：到 Google One 的 **Manage membership** → **Change membership plan**，选新方案；要降级就选「Downgrade options」下的方案，如果没有降级选项，说明你已在最低档；确认价格和详情后选付款方式、点 **Subscribe**。取消的详细步骤见 [/guides/gemini-cancel-subscription-google-ai-plan](/guides/gemini-cancel-subscription-google-ai-plan)。\n\n## 五、其他官方说明\n\n- **通过 Google Play 订阅的**：不用先取消，可以在注册学生优惠时直接切换；\n- **通过第三方合作方订阅的**（Apple App Store、Google Fi、Pixel Pass、运营商）：要先取消原有合作方的方案，才能办学生优惠；\n- **已有 Pro 想换学生优惠**：从 Plus 或 Pro 切到学生 Pro，会立即切换并按比例退还当前周期剩余部分；从 Pro 切到学生试用，则当前周期结束前仍是 Pro；\n- **家庭组成员**不符合条件，除非先退出共享方案。\n\n## 常见问题\n\n**Q：我在中国香港或澳门，能领学生优惠吗？**\n官方通用条件里明确排除了香港、澳门和突尼斯。\n\n**Q：到期了我的聊天记录会丢吗？**\n官方没有写取消后聊天记录会被删除；写的是不能继续用 Pro 创建的对话。\n\n**Q：想再开通 Pro？**\n套餐区别见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)，需要谷歌账号可看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)。\n\n## 参考资料\n\n- Google One 帮助中心：Google One student offers — https://support.google.com/googleone/answer/17422238\n- Gemini Apps 帮助中心：Manage your Google AI plan from Gemini Apps — https://support.google.com/gemini/answer/14517446\n- Gemini Apps 帮助中心：Gemini Apps limits & feature availability — https://support.google.com/gemini/answer/16275805",
+      "sources": [
+        "https://support.google.com/googleone/answer/17422238",
+        "https://support.google.com/gemini/answer/14517446",
+        "https://support.google.com/gemini/answer/16275805"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方说「自动转为付费」有例外：适用法律要求同意的地区除外，具体是哪些地区官方页面没有列出",
+        "官方帮助页里取消方案的具体点击步骤在核对时没有完整显示，本文只写官方明确写出的规则，操作步骤以官方页面为准",
+        "12 个月免费试用仅限美国，其他地区的学生优惠形式和价格以官方页面为准，本文不写价格",
+        "重新验证的间隔写的是「通常每 12 个月、最长连续 4 年」，官方用了「通常」，以收到的邮件为准"
+      ]
+    },
+    {
       "title": "Gemini 是不是崩了：官方状态页怎么看，Workspace 状态页、AI Studio 状态页分别查什么",
       "slug": "gemini-down-check-status-page",
       "checkedOn": "2026-10-27",
@@ -64557,6 +64770,32 @@
         "页面上的服务列表、图例和事件是 2026-10-27 当天读到的内容，官方随时可能调整",
         "aistudio.google.com/status 页面当天只显示「Past Incidents」历史事件，文中的事件只用于说明怎么读",
         "Google Cloud 状态页面向云服务，本文只确认它存在、面向谁，没有逐项核对其中 Gemini 或 Vertex AI 的组件名称"
+      ]
+    },
+    {
+      "title": "Gemini 提示「此账号无法使用」（Can't access this service）怎么办：账号类型、年龄、Family Link 与工作学校账号的官方条件",
+      "slug": "gemini-cant-access-this-service-account",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1189-account-decide.png",
+        "g1189-types-compare.png"
+      ],
+      "tags": [
+        "gemini"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Gemini 提示 Can't access this service，意思是这个账号目前不符合使用条件。官方写明了可用的账号类型、年龄要求和 Family Link 账号不能用。本文按账号类型对照，并给出 Something went wrong 的处理。",
+      "content": "> 本文根据 Gemini Apps 帮助中心《What you need to sign in to Gemini Apps》整理，资料核对于 2026-10-27。官方写的英文提示是 `Can't access this service`，「此账号无法使用」是常见的中文说法，实际界面文字可能不同。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 登录 Gemini 时看到 Can't access this service，或类似「此账号无法使用」的人；\n- 用工作、学校账号，或孩子的 Family Link 账号的人；\n- 想知道自己的账号到底算哪一类的人。\n\n## 结论先说\n\n1. **官方的原话**：目前可以用的是你自己管理的个人谷歌账号，或管理员已开通 Gemini 的工作、学校账号。\n2. **年龄**：个人或学校账号须年满 13 岁（或所在国家规定的年龄）；工作账号须年满 18 岁。\n3. **Family Link 管理的账号仍然不能访问 Gemini 网页版。** Family Link 管理员可以在设置里关闭未满 13 岁用户对 Gemini 的访问。\n4. **工作账号**还要是合格的 Workspace 版本；**学校账号**要学校管理员开启服务。你是 Workspace 管理员的话，官方有「怎么开启 Gemini 访问」的说明。\n5. **另一条提示 Something went wrong**：登录时看到它，说明账号此刻无法访问，原因包括所在地、年龄、账号类型等，可以稍后再试。\n\n![Gemini 账号无法使用：按账号类型看](seed:g1189-account-decide.png)\n*图：本站根据 [Gemini Apps 帮助中心](https://support.google.com/gemini/answer/13278668) 整理的示意图*\n\n## 一、哪些账号能用\n\n![哪些账号能用 Gemini 网页版](seed:g1189-types-compare.png)\n*图：本站根据 [Gemini Apps 帮助中心](https://support.google.com/gemini/answer/13278668) 整理的示意图*\n\n补充：官方还写明，用网页版 gemini.google.com 需要支持的浏览器（Chrome、Safari、Firefox、Opera 或 Edge）。**网页版有一部分功能不用登录就能用**，要用更多功能或保存活动记录才需要登录。网页版支持 70 多种语言、230 多个国家和地区；手机 App 的可用范围不同，官方写的是 150 多个国家。国家和地区的名单见 [/guides/gemini-supported-countries-regions](/guides/gemini-supported-countries-regions)。\n\n## 二、按你的账号类型处理\n\n- **自己管理的个人谷歌账号**：看年龄是否达到要求，再看所在地区是否在官方名单内；\n- **Family Link 账号**：官方没有提供绕过的办法，要等账号不再由 Family Link 管理，或由家长按官方规则处理；\n- **工作账号**：问 Workspace 管理员，你的版本是否包含 Gemini、是否已开启访问；\n- **学校账号**：问学校管理员是否已开启，学校服务由机构的管理员控制；\n- **有多个谷歌账号**：确认你登录的是符合条件的那个，换成你自己管理的个人账号再试。\n\n## 三、提示 Something went wrong 时\n\n官方原话的意思：在访问或登录网页版时看到它，说明你的账号此刻无法访问，原因可能包括所在地、年龄、账号类型等，可以稍后再试。官方还说：为保障服务安全，会用信号和数据核实账号是否有持续的无滥用记录；对 Gemini 这样的 AI 服务，也会努力确认账号背后是真实用户。账号状态本身也可能是原因，官方没有提供自助解除的入口。详细的逐项核对见 [/guides/gemini-something-went-wrong-error](/guides/gemini-something-went-wrong-error) 和 [/guides/gemini-cant-open-or-sign-in](/guides/gemini-cant-open-or-sign-in)。\n\n## 四、仍然不行\n\n1. 稍后再试，并换受支持的浏览器；\n2. 看官方状态页，见 [/guides/gemini-down-check-status-page](/guides/gemini-down-check-status-page)；\n3. 登录后的其他报错对照见 [/guides/gemini-error-messages-table](/guides/gemini-error-messages-table)；\n4. 要用 Google AI 方案的话，官方说在欧洲经济区、瑞士、英国要年满 18 岁，其他多数国家是 13 岁，见 [/guides/gemini-plans-free-plus-pro-ultra](/guides/gemini-plans-free-plus-pro-ultra)。\n\n## 常见问题\n\n**Q：为什么我的个人账号也提示无法使用？**\n官方给的可能原因是所在地、年龄、账号类型等，并说明账号会被核实是否有持续的无滥用记录。具体是哪一条，官方没有逐个账号说明。\n\n**Q：孩子能用吗？**\n官方写的是 Family Link 管理的账号仍不能访问网页版；手机 App 方面，未满 13 岁的账号需要家长批准，见官方《Gemini mobile app availability》。\n\n**Q：需要谷歌账号可以怎么办？**\n可以看 [/chongzhi/google-zhanghao](/chongzhi/google-zhanghao)，账号要由你自己管理并符合官方条件。\n\n## 参考资料\n\n- Gemini Apps 帮助中心：What you need to sign in to Gemini Apps — https://support.google.com/gemini/answer/13278668\n- Gemini Apps 帮助中心：Where you can use the Gemini web app — https://support.google.com/gemini/answer/13575153\n- Gemini Apps 帮助中心：Manage your Google AI plan from Gemini Apps — https://support.google.com/gemini/answer/14517446",
+      "sources": [
+        "https://support.google.com/gemini/answer/13278668",
+        "https://support.google.com/gemini/answer/13575153",
+        "https://support.google.com/gemini/answer/14517446"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有写「此账号无法使用」这句中文提示的原文，本文对应的是帮助中心登录页的 Can't access this service，界面中文文字可能不同",
+        "官方没有说明个别账号被判定为无法访问的具体依据，只说明会用信号和数据核实账号有持续的无滥用记录",
+        "站内已有《Gemini 打不开、无法登录》文章，本文只按账号类型做对照，不重复展开地区名单"
       ]
     },
     {
@@ -64587,6 +64826,33 @@
       "verify": [
         "手机上模型选择器的具体位置（顶部标题处或输入框旁）随版本变化，官方文章未给出手机端截图",
         "iOS FAQ 写「不支持在 iOS 或网页设置里修改邮箱」，而另一篇修改邮箱文章写部分账号可以修改，以官方最新说明为准"
+      ]
+    },
+    {
+      "title": "DeepSeek 除了「服务器繁忙」还有哪些报错：网页版提示对照和 API 错误码 400、401、402、422、429、500、503",
+      "slug": "deepseek-errors-besides-server-busy",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1190-web-decide.png",
+        "g1190-api-compare.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "DeepSeek 报错不只有服务器繁忙。本文把官方常见问题里的网页版提示（上传失败、运行环境异常、账号停用、邮箱域名不支持）和 API 错误码汇成对照表，给出官方的原因和处理，并链到各篇详细文章。",
+      "content": "> 本文根据 DeepSeek 官方常见问题和 API 文档《错误码》整理，资料核对于 2026-10-27。「服务器繁忙」另有专门文章，本文讲它以外的提示。官方没有写的，本文也没有编。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- DeepSeek 弹出的不是「服务器繁忙」，想知道它是什么意思的人；\n- 调接口遇到 400、401、402、429、503 等错误码的人。\n\n## 结论先说\n\n1. **先分网页版还是 API。** 网页版和 App 的提示是中文文案，API 返回的是数字错误码，两张表不通用。\n2. **网页版提示**：上传类（格式不支持、没反应、违反使用规范）、登录类（运行环境异常、账号被停用、邮箱域名不支持）。\n3. **API 错误码**官方列了 7 个：400 格式错误、401 认证失败、402 余额不足、422 参数错误、429 请求速率达到上限、500 服务器故障、503 服务器繁忙。\n4. **有故障先看官方状态页**，见 [/guides/deepseek-down-check-status-page](/guides/deepseek-down-check-status-page)。\n5. **「服务器繁忙」**见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)。\n\n![DeepSeek 网页版提示对照](seed:g1190-web-decide.png)\n*图：本站根据 [DeepSeek 官方常见问题](https://static.deepseek.com/faq/index.html?lang=zh) 整理的示意图*\n\n## 一、网页版和 App 的提示\n\n- **「上传的文件包含暂未支持的文件格式」**：把文件转成界面列出的格式再传，例如把专有格式另存为 PDF、DOCX、XLSX；\n- **选择文件后没有反应**：官方的说法是先检查当前的网络环境，公司或学校的内部网络可能限制上传，换个网络再试；\n- **「图片或文件可能违反使用规范」**：内容触发了平台的内容规则，换一份文件，涉及他人隐私的材料不要传；\n- **图片上传失败**：官方列了四种原因：格式暂不支持、没检测到可提取的文字、大小超过限制、内容不符合使用规范。完整说明见 [/guides/deepseek-upload-file-image](/guides/deepseek-upload-file-image)；\n- **「当前设备运行环境异常」**：官方说这通常意味着系统检测到你当前的 IP 地址或手机号可能存在安全风险，请按提示尝试更换环境。官方没有解释怎么判定和解除，可以先换一个正常的网络、过一段时间再试，仍不行就在官方「帮助与反馈」里联系；\n- **「你的账号已被临时停用」**：账号可能违反了使用规范，触发了停用规则。有异议可以填写官方的账号停用申诉表单，官方说大部分请求 3 个工作日内审核；\n- **邮箱注册提示「注册失败，暂不支持该邮箱域名注册」**：邮箱域名不在支持列表，官方建议用 Gmail、Outlook、Hotmail、Yahoo 等国际通用邮箱。\n\n登录注册方面的完整说明见 [/guides/deepseek-register-login-problems](/guides/deepseek-register-login-problems)。\n\n## 二、API 错误码\n\n![DeepSeek API 错误码](seed:g1190-api-compare.png)\n*图：本站根据 [DeepSeek API 文档：错误码](https://api-docs.deepseek.com/zh-cn/quick_start/error_codes) 整理的示意图*\n\n官方原文的意思：\n\n- **400 格式错误**：请求体格式错误，按错误信息提示修改；\n- **401 认证失败**：API key 错误，检查 key 是否正确，没有就先创建；\n- **402 余额不足**：账号余额不足，确认余额并到充值页面充值，见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)；\n- **422 参数错误**：请求体参数错误，按提示修改参数；\n- **429 请求速率达到上限**：请求速率或并发达到上限，合理规划请求速率，限速规则见官方《限速与隔离》；\n- **500 服务器故障**：服务器内部故障，等待后重试，持续存在就联系官方；\n- **503 服务器繁忙**：服务器负载过高，稍后重试。\n\n这些数字在接口里的更多解释和各参数的坑，见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。\n\n## 三、怎么区分「繁忙」和别的\n\n- 网页版提示里写「服务器繁忙，请稍后再试」，是负载问题，对应 API 里的 503，见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)；\n- 提示里涉及账号、手机号、IP、邮箱，是登录或账号问题，不是繁忙；\n- 提示里涉及文件，是上传问题，先看格式、大小和网络；\n- 在 Claude Code 或 Codex 里用 DeepSeek 报错，多是 API 错误码，先看 401、402、429。\n\n## 常见问题\n\n**Q：「繁忙」时有没有办法？**\n官方在繁忙时的建议是稍后重试，详见站内文章，没有别的办法。\n\n**Q：想知道服务是不是整体出了问题？**\n看 [/guides/deepseek-down-check-status-page](/guides/deepseek-down-check-status-page)。\n\n**Q：网页版怎么用？**\n见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n## 参考资料\n\n- DeepSeek 官方常见问题 — https://static.deepseek.com/faq/index.html?lang=zh\n- DeepSeek API 文档：错误码 — https://api-docs.deepseek.com/zh-cn/quick_start/error_codes\n- DeepSeek 状态页 — https://status.deepseek.com/",
+      "sources": [
+        "https://static.deepseek.com/faq/index.html?lang=zh",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/error_codes",
+        "https://status.deepseek.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方常见问题页是动态页面，本文网页版提示的官方说法沿用站内已核对的文章，提示原文以你界面显示为准",
+        "官方没有解释「当前设备运行环境异常」具体怎么判定，也没有给解除方法，本文只写官方说的方向",
+        "API 错误码表来自官方错误码页当天的写法，官方可能新增或调整"
       ]
     },
     {
@@ -64640,6 +64906,58 @@
         "文中举的 10 月 24 日至 27 日的事件只是用来说明怎么读，不代表当前状态，以你打开页面时看到的为准",
         "官方状态页没有说明 Claude 手机 App 对应哪个组件，本文只写页面上能看到的组件名称，手机 App 和网页同属聊天服务，归到 claude.ai 一项是本站的理解",
         "状态页的订阅方式（邮件、短信）按页面当天显示的写法，是否需要验证码、是否收费以页面为准"
+      ]
+    },
+    {
+      "title": "Claude 提示「Something went wrong」怎么办：限额、消息过长、容量紧张、登录出错的官方报错对照",
+      "slug": "claude-something-went-wrong",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1193-error-decide.png",
+        "g1193-first-steps.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 报 Something went wrong 或别的错误？官方《Troubleshoot Claude error messages》把常见错误分成限额、消息过长、登录出错、容量紧张四类，并给了各自的原文和处理。本文逐项整理，并说明官方没有单独解释笼统的出错提示。",
+      "content": "> 本文根据 Claude 帮助中心《Troubleshoot Claude error messages》和状态页整理，资料核对于 2026-10-27。**官方没有单独解释笼统的「Something went wrong」**，官方列出的是几类有原文的错误，本文照此对照。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- Claude 弹出出错提示，想知道是限额、过长还是官方故障的人；\n- 看到 Due to unexpected capacity constraints 或 length limit 等英文提示的人。\n\n## 结论先说\n\n1. **先读原文。** 官方把常见错误分成四类：限额、消息过长、登录出错、容量紧张。\n2. **限额**：你的方案有 5 小时会话限额和每周限额，部分方案还有单独针对 Fable 的每周限额。接近时会预警 `Approaching session limit` 或 `Approaching weekly limit`；到了会显示 `5-hour limit reached - resets [time]` 或 `You've reached your weekly limit. It resets [day] at [time]`。\n3. **消息过长**：`Your message will exceed the length limit for this chat. Try attaching fewer or smaller files or starting a new conversation.` 要缩短消息。\n4. **容量紧张**：`Due to unexpected capacity constraints, Claude is unable to respond to your message. Please try again soon.` 官方说这不是故障，而是系统在管理高需求，**不会出现在状态页**，几分钟后再试。\n5. **登录出错**：`There was an error logging you in`，关 VPN、关浏览器扩展、清缓存和 Cookie，再看状态页。\n6. **真正的故障**看 [status.claude.com](https://status.claude.com/)，读法见 [/guides/claude-down-check-status-page](/guides/claude-down-check-status-page)。\n\n![Claude 报错：按原文对照](seed:g1193-error-decide.png)\n*图：本站根据 [Claude 帮助中心：Troubleshoot Claude error messages](https://support.claude.com/en/articles/12466728-troubleshoot-claude-error-messages) 整理的示意图*\n\n## 一、限额提示\n\n官方说明：如果没有开启 usage credits，到了限额会看到提示告诉你什么时候能再用。**如果你是付费方案并在 Usage 设置里开启了 usage credits**，到了 5 小时或任一周限额不会停工，请求会切换为按量付费，直到月度消费上限，或余额用完且没开自动充值；此时提示变成「5-hour limit resets [time] - continuing with usage credits」等。限额怎么算、怎么看见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。想开通 Claude Pro 可以看 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 二、消息过长\n\n官方说明：付费方案并开启代码执行时，Claude 会在接近上下文上限时自动总结更早的消息，所以多数人很少遇到这个错误，完整聊天记录仍保留。少数情况（比如第一条消息特别大）还会遇到，官方建议：\n\n- 把内容拆成小块分开处理；\n- 先总结或摘出关键部分再发给 Claude；\n- 先让 Claude 找出内容里最相关的部分；\n- 开一个新对话。\n\n## 三、容量紧张\n\n官方说明，这是整个系统需求很高时的情况。**容量紧张不是宕机**，系统工作正常，只是在管理所有用户的高需求，通常随一天内需求的变化而缓解。看到这条提示，几分钟后再试。官方强调：它不会出现在状态页，因为属于正常的负载管理，而不是技术问题。\n\n## 四、登录出错\n\n官方：看到笼统的登录错误（如 `There was an error logging you in`），试这几步：\n\n1. 确认访问 Claude 时没有使用 VPN；\n2. 关闭已启用的浏览器扩展；\n3. 清除浏览器缓存和 Cookie。\n\n还不行，看状态页有没有进行中的事件。登录的更多提示见 [/guides/claude-login-errors-table](/guides/claude-login-errors-table) 和 [/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use)。\n\n![Claude 报错先做这 4 件事](seed:g1193-first-steps.png)\n*图：本站根据 [Claude 帮助中心：Troubleshoot Claude error messages](https://support.claude.com/en/articles/12466728-troubleshoot-claude-error-messages) 整理的示意图*\n\n## 五、状态页上的故障\n\n官方说明，服务事故是 Claude 对所有或大多数用户不可用或明显变差的情况，这类是真正的技术问题，状态页会实时更新范围、影响和恢复进度，见 [/guides/claude-down-check-status-page](/guides/claude-down-check-status-page)。Claude Code 的报错另见 [/guides/claude-code-common-errors](/guides/claude-code-common-errors)。\n\n## 常见问题\n\n**Q：只写 Something went wrong，没有别的字？**\n官方没有给这句笼统提示单独的解释。按本文顺序：先看有没有明确的限额或长度提示，再看状态页，再按登录出错的几步试，最后到帮助中心联系官方。\n\n**Q：账号被停用的提示？**\n`This organization has been disabled` 等见 [/guides/claude-account-disabled-appeal](/guides/claude-account-disabled-appeal)。\n\n**Q：所在地区不支持？**\n见 [/guides/claude-supported-countries-regions](/guides/claude-supported-countries-regions)。\n\n## 参考资料\n\n- Claude 帮助中心：Troubleshoot Claude error messages — https://support.claude.com/en/articles/12466728-troubleshoot-claude-error-messages\n- Claude 帮助中心：Log in to your Claude account — https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account\n- Claude 状态页 — https://status.claude.com/",
+      "sources": [
+        "https://support.claude.com/en/articles/12466728-troubleshoot-claude-error-messages",
+        "https://status.claude.com/",
+        "https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文章没有单独解释笼统的 Something went wrong 这句提示，本文用官方列出的四类具体错误做对照，不断言它属于哪一类",
+        "提示原文取自官方文章当天的写法，界面文字可能因版本不同略有差异",
+        "容量紧张的提示官方说不会出现在状态页上，所以状态页正常不代表没有这类限制"
+      ]
+    },
+    {
+      "title": "Claude 登录报错对照（账号被停用以外）：There was an error logging you in、收不到登录邮件、验证码、Google 登录的处理",
+      "slug": "claude-login-errors-table",
+      "checkedOn": "2026-10-27",
+      "images": [
+        "g1194-login-decide.png",
+        "g1194-email-steps.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 登录不上，除了账号被停用，还有登录出错、收不到登录邮件、在另一台设备点链接、想设密码、Google 登录异常等情况。本文按官方登录帮助整理各提示的原文和处理，账号被停用另见专门文章。",
+      "content": "> 本文根据 Claude 帮助中心《Log in to your Claude account》和《Troubleshoot Claude error messages》整理，资料核对于 2026-10-27。账号被停用（This organization has been disabled）另有专门文章，本文讲它以外的登录提示。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 登录 Claude 时遇到报错，但不是账号被停用的人；\n- 输入邮箱后收不到登录邮件的人；\n- 想设置密码，或 Google 登录一直出问题的人。\n\n## 结论先说\n\n1. **Claude 有两种登录方式**：Continue with Google，和 Continue with email（发一封登录邮件）。官方说明**目前不能给账号创建专用密码**。\n2. **`There was an error logging you in`**：关闭 VPN，关闭浏览器扩展，清缓存和 Cookie，再看状态页。\n3. **没收到登录邮件**：查垃圾邮件，把 @mail.anthropic.com 加到白名单，几分钟后重试；企业、政府或 .edu 邮箱可能要联系 IT 调整邮件安全设置。\n4. **在另一台设备点了邮件里的链接**：会得到一个验证码，要回到发起登录的那台设备输入。\n5. **提示和手机号有关**：看官方《Verify your phone number》。\n6. **都不行**：看 [status.claude.com](https://status.claude.com/)，有进行中的全系统事故就等恢复。\n\n![Claude 登录报错对照](seed:g1194-login-decide.png)\n*图：本站根据 [Claude 帮助中心：Log in to your Claude account](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account) 整理的示意图*\n\n## 一、邮箱登录的流程\n\n官方的描述（本站转述）：在网页版、桌面 App 或手机 App 打开 Claude，会看到两种登录方式。选 **Continue with email**，输入邮箱，点 **Continue with email**，会收到一封主题为 **Secure link to log in to Claude.ai** 的邮件。\n\n![Claude 邮箱登录流程](seed:g1194-email-steps.png)\n*图：本站根据 [Claude 帮助中心：Log in to your Claude account](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account) 整理的示意图*\n\n- **在同一台设备请求并点链接**：自动进入已登录的账号；\n- **在另一台设备点链接**（比如在电脑浏览器请求，在手机上点邮件链接）：邮件里仍有「Sign in with Claude.ai」链接，点后会生成一个验证码，要在原来请求登录的设备上输入。\n\n选 **Continue with Google** 的话，会打开一个窗口输入谷歌邮箱和密码，点 Next 后登录。\n\n## 二、几种提示和处理\n\n### 1. There was an error logging you in\n\n官方《Troubleshoot Claude error messages》的「Login errors」一节：看到这类笼统的登录错误，（1）确保访问 Claude 时没有用 VPN；（2）关闭已启用的浏览器扩展；（3）清除浏览器缓存和 Cookie。还不行就看状态页有没有进行中的事件。\n\n### 2. 输入邮箱后没有收到登录邮件\n\n官方清单：\n\n- 检查垃圾邮件和垃圾箱里来自 @mail.anthropic.com 的邮件；\n- 检查邮件服务器的隔离邮件；\n- 在邮箱设置里把 @mail.anthropic.com 加入白名单；\n- 过几分钟再试登录。\n\n官方注：企业、政府或 .edu 邮箱的用户可能需要联系 IT，调整邮件安全设置。\n\n### 3. 收到了邮件，但链接或验证码登不上\n\n先记下你看到的错误信息。如果是在创建账号或首次登录时看到和**手机号**有关的提示，看官方《Verify your phone number》。否则看状态页：有进行中的系统性事故，最好等恢复后再继续排查。\n\n### 4. 想给账号设置密码\n\n官方：目前不能创建专用密码。\n\n### 5. Google 登录一直有问题\n\n官方的 FAQ：如果以前用 Google 登录，可以撤销与 Google 账号的连接，只用邮件链接登录；遇到 Google 登录问题时也应该这样处理，清除现有连接后，再试一次 **Continue with Google**。具体点击步骤以官方页面为准。\n\n### 6. 用了 Apple 的「隐藏邮件地址」注册\n\n官方有单独的登录说明，要在另一台设备登录时，需要先找到你注册用的那个隐藏地址，官方页面给了步骤。\n\n### 7. 同一个邮箱有个人和团队账号\n\n官方有切换到另一个账号的步骤，以官方页面为准。想了解个人账号、网页版和桌面版的区别，见 [/guides/claude-web-vs-desktop-difference](/guides/claude-web-vs-desktop-difference)。\n\n## 三、不是登录问题的几种提示\n\n限额、消息过长、容量紧张等对照见 [/guides/claude-something-went-wrong](/guides/claude-something-went-wrong)；地区不支持见 [/guides/claude-supported-countries-regions](/guides/claude-supported-countries-regions)；整体登录排查见 [/guides/claude-cant-login-or-use](/guides/claude-cant-login-or-use)；账号被停用和申诉见 [/guides/claude-account-disabled-appeal](/guides/claude-account-disabled-appeal)。\n\n## 常见问题\n\n**Q：订阅计划能不能在第三方工具里登录？**\n官方说，订阅计划里的用量用于支持原生的 Anthropic 应用（网页、桌面、手机 App 和 Claude Code）；第三方工具首选通过 Claude Console 的 API 密钥认证。具体规则以官方页面为准。\n\n**Q：想开通 Claude Pro？**\n见 [/chongzhi/claude-pro](/chongzhi/claude-pro)，账号注册见 [/guides/claude-how-to-sign-up](/guides/claude-how-to-sign-up)。\n\n**Q：怎么知道 Claude 是不是整体出了故障？**\n见 [/guides/claude-down-check-status-page](/guides/claude-down-check-status-page)。\n\n## 参考资料\n\n- Claude 帮助中心：Log in to your Claude account — https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account\n- Claude 帮助中心：Troubleshoot Claude error messages — https://support.claude.com/en/articles/12466728-troubleshoot-claude-error-messages\n- Claude 状态页 — https://status.claude.com/",
+      "sources": [
+        "https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account",
+        "https://support.claude.com/en/articles/12466728-troubleshoot-claude-error-messages",
+        "https://status.claude.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方登录帮助里「在多个账号间切换」「撤销 Google 授权」「Apple 隐藏邮箱」等处理的具体点击步骤在核对时没有完整显示，本文只写官方明确写出的规则，步骤以官方页面为准",
+        "官方说 Claude 目前不能给账号创建专用密码，是官方当天的写法，之后可能变化",
+        "本文不涉及账号被停用，那一类见站内专门文章，官方也没有给出绕过地区限制的办法"
       ]
     },
     {
