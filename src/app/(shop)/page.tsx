@@ -28,6 +28,7 @@ import type { NewsEventDto } from '@/lib/news/format'
 import { HomeBrandFaq, HomeJiemaSection, HomeLearnSection } from '@/components/home/home-pillars'
 import { TAX_RATE } from '@/lib/invoice'
 import { PortalHome } from '@/components/portal/portal-home'
+import { BusinessBuySection } from '@/components/business/business-buy'
 import { portalSiteName } from '@/lib/portal'
 
 /**
@@ -315,6 +316,9 @@ export default async function HomePage() {
           </div>
         </section>
       )}
+
+      {/* 企业与团队购买（站长 10-29 要求的卖点，只在主站：合同与发票主体是必高科技） */}
+      {pillars && <BusinessBuySection />}
 
       {/* 品牌级问答（§1.10 第 6 条，只在主站；不标 FAQPage） */}
       {pillars && <HomeBrandFaq jiema={pillars.jiema} jiemaPay={jiemaPayText(pillars.jiemaBalancePay)} news={pillars.news} invoiceTaxText={INVOICE_TAX_TEXT} />}

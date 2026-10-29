@@ -20,6 +20,7 @@ import {
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { ProductThumb } from '@/components/products/product-thumb'
 import { TAX_RATE } from '@/lib/invoice'
+import { BUSINESS_HEADING, BusinessBuyBody } from '@/components/business/business-buy'
 
 /**
  * 充值总览页——这一批落地页的 hub。
@@ -124,6 +125,7 @@ const TOC = [
   { id: 'catalog', label: '按服务分类' },
   { id: 'how-it-works', label: '卡密充值是怎么运作的' },
   { id: 'trust', label: '怎么分辨靠不靠谱' },
+  { id: 'business', label: '企业与团队购买' },
   { id: 'faq', label: '常见问题' },
 ]
 
@@ -502,6 +504,10 @@ export default async function ChongzhiHubPage() {
             </Link>
             。
           </p>
+        </Section>
+
+        <Section id="business" heading={BUSINESS_HEADING}>
+          <BusinessBuyBody />
         </Section>
 
         <Section id="faq" heading="常见问题">
