@@ -4,6 +4,7 @@ import { inStock } from './registry'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { listStorefrontProducts } from '@/lib/pricing'
 import { getCurrentUser } from '@/lib/auth'
+import { clearStorefrontCache, storefrontCached } from '@/lib/storefront/cache'
 
 // 匹配与有货判定是纯函数，实现搬到了 registry.ts（理由见那边的注释）。
 // 这里原样导出，已有的 `from '@/lib/landing/products'` 调用方不用改。
@@ -72,6 +73,29 @@ export const getLandingProducts = cache(async (): Promise<LandingProduct[]> => {
  */
 const loadPlatformLandingProducts = cache(async (): Promise<LandingProduct[]> => {
   try {
+    return await cachedPlatformRows(PLATFORM_CACHE_SF)
+  } catch (err) {
+    console.error('Landing products query error:', err)
+    return []
+  }
+})
+
+/**
+ * 跨请求缓存 60 秒（SEO 批 3 的 Ha，设计 §6.6-8 第一步）。教程页起也要取起价（服务卡），
+ * 这条查询从「落地页才查」变成了「自然搜索的每一次访问都查」。
+ * 【只缓存主站分支】渠道站带草稿预览、按店售价，仍走上面的 listStorefrontProducts，不进这里。
+ * 键里的 sfId 固定写主站：这个函数只在 sf.kind === 'PLATFORM' 时被调用，商品与价格是全站同一份。
+ * 【失败不缓存】查询抛错时 storefrontCached 会把这一条删掉，下一次重查；降级成 [] 在外层做，空数组不进缓存。
+ * 后台新建 / 保存 / 删除商品时 clearLandingProductsCache() 主动清，改价、上下架即时生效。
+ */
+const PLATFORM_CACHE_SF = 1
+const LANDING_CACHE_NAME = 'landing-products'
+export function clearLandingProductsCache(): void {
+  clearStorefrontCache(LANDING_CACHE_NAME)
+}
+const cachedPlatformRows = storefrontCached(
+  LANDING_CACHE_NAME,
+  async (_sfId: number): Promise<LandingProduct[]> => {
     const rows = await prisma.product.findMany({
       where: { status: 1 },
       select: {
@@ -99,11 +123,9 @@ const loadPlatformLandingProducts = cache(async (): Promise<LandingProduct[]> =>
       categoryName: p.category?.name ?? null,
       image: p.image ?? null,
     }))
-  } catch (err) {
-    console.error('Landing products query error:', err)
-    return []
-  }
-})
+  },
+  60_000,
+)
 
 /**
  * 全站在售商品的 Product.sales 之和 —— 与主站首页「累计销量」同一口径、同一查询（二期 M1）。

@@ -11,7 +11,7 @@ import { ArrowLeft, ArrowUpRight, ChevronRight, MessagesSquare, ShoppingBag } fr
 import { prisma } from '@/lib/db'
 import { ArticleJsonLd } from '@/components/news/article-jsonld'
 import { ShareBar } from '@/components/news/share-bar'
-import { AI_BADGE, AI_DISCLAIMER } from '@/lib/news/constants'
+import { AI_BADGE, AI_DISCLAIMER, CATEGORY_SLUGS } from '@/lib/news/constants'
 import { clipDescription, newsUrl } from '@/lib/news/seo'
 import { commerceLinksForTags } from '@/lib/news/commerce-link'
 import { breadcrumbJsonLd } from '@/lib/seo/graph'
@@ -102,6 +102,8 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
   if (!row) notFound()
 
   const ev = toEventDto(row)
+  // 分类合法才出面包屑的分类一级（老数据或手工改过的分类不链到 404）
+  const catOk = (CATEGORY_SLUGS as string[]).includes(ev.category)
   const image = ogImageForCategory(ev.category)
   // 绝对地址统一走 seo.ts 的 newsUrl，别在这里再拼一次域名——换域名时最容易漏改的就是这种散落拼接。
   // 渠道站（内容模块下放）：分享出去的是渠道自己的地址，顾客扫码回到渠道站（channelUrl 只换域名，路径同 newsUrl）
@@ -168,8 +170,8 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
         视觉重量才配得上大屏，而不是让文字一路铺到 1400px。
       */}
       <div className="container relative max-w-3xl">
-        {/* 可见面包屑（C 包，§1.8、§3.2-I）：首页 › AI 圈大事记 › 标题，与下面的 BreadcrumbList 逐级一致。
-            分类那一级等 /news/c/* 分类页上线（E1）再加：现在加就是链到一个不存在的地址 */}
+        {/* 可见面包屑（C 包，§1.8、§3.2-I）：首页 › AI 圈大事记 › 分类 › 标题，与下面的 BreadcrumbList 逐级一致。
+            分类一级（批 3 的 E1）只在分类合法时出现，链到 /news/c/{分类} */}
         <nav aria-label="面包屑" className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-white/45 lg:text-[15px]">
           <Link href="/" className="transition-colors hover:text-white/80">
             首页
@@ -180,6 +182,14 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
             AI 圈大事记
           </Link>
           <span className="text-white/20">/</span>
+          {catOk && (
+            <>
+              <Link href={`/news/c/${ev.category}`} className="transition-colors hover:text-white/80">
+                {ev.categoryLabel}
+              </Link>
+              <span className="text-white/20">/</span>
+            </>
+          )}
           <span className="max-w-[14rem] truncate text-white/35 sm:max-w-[22rem]">{ev.headline}</span>
         </nav>
 
@@ -500,7 +510,12 @@ export default async function NewsDetailPage({ params }: { params: { slug: strin
           这两块都不含「广告 · 本站服务」区块的任何内容 */}
       <PlatformJsonLd
         data={[
-          breadcrumbJsonLd([{ name: '首页', path: '/' }, { name: 'AI 圈大事记', path: '/news' }, { name: ev.headline }]),
+          breadcrumbJsonLd([
+            { name: '首页', path: '/' },
+            { name: 'AI 圈大事记', path: '/news' },
+            ...(catOk ? [{ name: ev.categoryLabel, path: `/news/c/${ev.category}` }] : []),
+            { name: ev.headline },
+          ]),
           await siteOrganizationJsonLd(),
         ]}
       />

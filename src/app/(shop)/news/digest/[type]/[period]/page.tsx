@@ -13,7 +13,9 @@ import { absUrl, clipDescription } from '@/lib/news/seo'
 import { pageOg } from '@/lib/seo/og'
 import { breadcrumbJsonLd, collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 import { digestSeoDescription, digestSeoTitle } from '@/lib/news/seo-title'
-import { dayKey, formatDayHeading, ogImageForCategory, siteOrigin, sourceLabel } from '@/lib/news/format'
+import { dayKey, formatDayHeading, ogImageForCategory, parseDetail, siteOrigin, sourceLabel } from '@/lib/news/format'
+import { prisma } from '@/lib/db'
+import { shouldNoindexEvent, thinNoindexEnabled } from '@/lib/news/thin'
 import {
   DIGEST_SLUG,
   formatPeriodLabel,
@@ -90,6 +92,7 @@ export default async function DigestPage({ params }: Params) {
   // 渠道站（内容模块下放）：分享地址换成渠道自己的域名。getStorefront 不包进 try
   const shareUrl = channelUrl(await getStorefront(), absUrl(`/news/digest/${DIGEST_SLUG[digest.type]}/${digest.period}`))
   const isDaily = type === 'DAILY'
+  const more = isDaily ? await dayIndexableEvents(digest.periodStart, new Set(digest.events.map((e) => e.id))) : []
 
   return (
     <div className="min-h-screen pb-20 pt-28 sm:page-top">
@@ -204,6 +207,23 @@ export default async function DigestPage({ params }: Params) {
             </ol>
           )}
 
+          {/* 当天其余可索引条目（批 3 的 E1）：日报榜单只取当天前几条，其余有全文的事件原来没有任何服务端链接能走到 */}
+          {more.length > 0 && (
+            <section className="mt-10">
+              <h2 className="mb-3 text-[15px] font-semibold text-white/75">当天其他动态（{more.length} 条）</h2>
+              <ul className="space-y-1.5 text-[14px]">
+                {more.map((e) => (
+                  <li key={e.id} className="flex gap-2">
+                    <span className="shrink-0 rounded-full bg-purple-500/12 px-1.5 py-0.5 text-[10px] text-purple-200/80">{AI_BADGE}</span>
+                    <Link href={`/news/${e.slug}`} className="text-white/70 hover:text-white">
+                      {e.headline}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {/* 有条目在生成后被下线时如实说明，不假装这一期本来就这么少 */}
           {digest.missing > 0 && (
             <p className="mt-4 text-[12px] text-white/30">
@@ -295,4 +315,25 @@ function PeriodSwitcher({
 // 内容模块下放：渠道站换站名 / 地址 / robots（主站原样返回，lib/storefront/module-meta.ts）
 export async function generateMetadata(props: Parameters<typeof pageMetadata>[0]): Promise<Metadata> {
   return moduleMetadata(await pageMetadata(props))
+}
+
+/**
+ * 当天（北京时间）发生的其余可索引事件：粗筛 detailState='DONE'、精筛 shouldNoindexEvent（与详情页、sitemap 同一谓词）。
+ * 薄页不列：列了就是给爬虫指一批 noindex 的页。查询失败只少这一节，不影响日报正文。
+ */
+async function dayIndexableEvents(day: string, exclude: Set<number>): Promise<{ id: number; slug: string; headline: string }[]> {
+  try {
+    const start = new Date(new Date(`${day}T00:00:00+08:00`).getTime())
+    const end = new Date(start.getTime() + 86400000)
+    const rows = await prisma.newsEvent.findMany({
+      where: { status: 'PUBLISHED', happenedAt: { gte: start, lt: end }, ...(thinNoindexEnabled() ? { detailState: 'DONE' } : {}) },
+      select: { id: true, slug: true, headline: true, detail: true },
+      orderBy: [{ score: 'desc' }, { id: 'desc' }],
+      take: 60,
+    })
+    return rows.filter((r) => !exclude.has(r.id) && !shouldNoindexEvent(parseDetail(r.detail))).map(({ id, slug, headline }) => ({ id, slug, headline }))
+  } catch (e) {
+    console.error('[news/digest more]', e)
+    return []
+  }
 }

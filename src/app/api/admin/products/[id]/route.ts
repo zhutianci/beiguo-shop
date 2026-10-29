@@ -12,6 +12,7 @@ import { requireSudo } from '@/lib/security/sudo'
 import { isCarrierType } from '@/lib/order-scope'
 import { isBotCodeConflict, notifyProductWithdrawn } from '@/lib/product-status'
 import { onProductSaved } from '@/lib/seo/commerce-push'
+import { clearLandingProductsCache } from '@/lib/landing/products'
 
 const updateProductSchema = z.object({
   categoryId: z.number().optional(),
@@ -199,6 +200,7 @@ export async function DELETE(
     await prisma.product.delete({
       where: { id: productId },
     })
+    clearLandingProductsCache()
 
     return success(null, '商品删除成功')
   } catch (err) {

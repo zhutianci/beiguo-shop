@@ -23,6 +23,7 @@ import {
 } from '@/lib/news/format'
 import { DIGEST_SLUG, formatPeriodLabel, listDigests } from '@/lib/news/digest'
 import { NewsStream } from './news-stream'
+import { CategoryNav } from '@/components/news/category-nav'
 import { collectionPageJsonLd, webSiteJsonLd } from '@/lib/seo/graph'
 import { moduleMetadata } from '@/lib/storefront/module-meta'
 import { PlatformJsonLd } from '@/components/seo/platform-json-ld'
@@ -259,6 +260,12 @@ export default async function NewsPage() {
               highlights={{ today, week, fallbackRange }}
               backfills={backfills}
             />
+
+            {/* 分类分页入口（SEO 批 3 的 E1）：服务端 <a>，爬虫从这里走到每个分类的可索引事件 */}
+            <nav aria-label="分类回看" className="mt-12 border-t border-white/10 pt-6 lg:mt-16 lg:pt-8">
+              <h2 className="mb-1 text-sm font-semibold text-white/70 lg:text-[15px]">按分类回看</h2>
+              <CategoryNav className="mt-3" />
+            </nav>
 
             {/*
               ============ 日报 / 周报入口 ============

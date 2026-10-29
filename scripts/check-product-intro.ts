@@ -20,7 +20,7 @@ import {
   type IntroCatalogItem,
   type ProductIntro,
 } from '../src/lib/product-intro'
-import { LANDINGS } from '../src/lib/landing/registry'
+import { findLanding, LANDINGS, matchProducts } from '../src/lib/landing/registry'
 
 let pass = 0
 let fail = 0
@@ -123,8 +123,14 @@ ok(
 )
 ok('未知分类的商品没有落地页', landingForProduct({ name: 'Midjourney 充值', categoryName: '其他' }) === null)
 ok(
-  '每个落地页至少有一个在售商品归到它（否则那一页的价格表是空的）',
-  LANDINGS.every((l) => FIX.some((f) => landingForProduct(f)?.def.slug === l.slug))
+  '每个落地页至少有一个在售商品归到它（否则那一页的价格表是空的）；ownsProducts: false 的页除外',
+  LANDINGS.filter((l) => (l as { ownsProducts?: boolean }).ownsProducts !== false).every((l) => FIX.some((f) => landingForProduct(f)?.def.slug === l.slug))
+)
+// 批 3 的 D2：claude-code 只做 Pro / Max 的摘要，不抢归属——Claude Pro 各档仍归 claude-pro、Max 各档仍归 claude-max
+ok('没有商品归到 claude-code', FIX.every((f) => landingForProduct(f)?.def.slug !== 'claude-code'))
+ok(
+  'claude-code 的匹配规则能匹配到 Pro 与 Max 档（摘要价格不会静默变空）',
+  ['claude-pro', 'claude-max'].every((slug) => FIX.some((f) => landingForProduct(f)?.def.slug === slug && matchProducts([f], findLanding('claude-code').match).length > 0))
 )
 
 console.log('\n【同系列其他档位】')

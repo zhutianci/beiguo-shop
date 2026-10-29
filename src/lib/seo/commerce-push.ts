@@ -3,6 +3,7 @@ import { siteOrigin } from '@/lib/news/format'
 import { absUrl } from '@/lib/news/seo'
 import { indexNowConfigured, submitUrls } from '@/lib/indexnow'
 import { landingForProduct } from '@/lib/product-intro'
+import { clearLandingProductsCache } from '@/lib/landing/products'
 import { landingPath } from '@/lib/landing/registry'
 
 /**
@@ -16,6 +17,8 @@ import { landingPath } from '@/lib/landing/registry'
  * Setting.key 是 VarChar(50)：`product_edited_` + 数字 id 远不到上限。不改表结构。
  */
 export async function onProductSaved(productId: number, opts: { wasListed: boolean }): Promise<void> {
+  // 落地页 / 教程服务卡的商品快照缓存 60 秒（lib/landing/products.ts）：改价、上下架后立刻清掉
+  clearLandingProductsCache()
   try {
     const p = await prisma.product.findUnique({ where: { id: productId }, select: { id: true, name: true, status: true, category: { select: { name: true } } } })
     if (!p) return

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { absUrl } from '@/lib/news/seo'
 import { shouldNoindexEvent, thinNoindexEnabled } from '@/lib/news/thin'
+import { CATEGORY_SLUGS } from '@/lib/news/constants'
 import { parseDetail } from '@/lib/news/format'
 import { LANDING_HUB, LANDING_HUB_REVIEWED_AT, LANDINGS, landingPath } from '@/lib/landing/registry'
 import { getStorefront } from '@/lib/storefront/resolve'
@@ -153,6 +154,23 @@ async function newsHubEntries(): Promise<SitemapEntry[]> {
     console.error('[sitemap] news latest', err)
   }
   out.push({ url: absUrl('/news'), ...(latest ? { lastModified: latest.toISOString() } : {}) })
+
+  // 分类分页第 1 页（批 3 的 E1）：只放有可索引事件的分类，lastmod = 该类最新可索引事件的 max(publishedAt, reviewedAt)。
+  // 第 2 页起不进 sitemap（靠页内 <a> 分页走到），与 /news 不做深分页的口径一致
+  try {
+    const rows = await prisma.newsEvent.groupBy({
+      by: ['category'],
+      where: { status: 'PUBLISHED', ...(thinNoindexEnabled() ? { detailState: 'DONE' } : {}) },
+      _max: { publishedAt: true, reviewedAt: true },
+    })
+    for (const r of rows) {
+      if (!(CATEGORY_SLUGS as string[]).includes(r.category)) continue
+      const lm = maxIso(r._max.publishedAt, r._max.reviewedAt)
+      out.push({ url: absUrl(`/news/c/${r.category}`), ...(lm ? { lastModified: lm } : {}) })
+    }
+  } catch (err) {
+    console.error('[sitemap] news categories', err)
+  }
 
   // 日报 / 周报：最近 60 期（更旧的靠页内「往期」互链走到）
   try {
