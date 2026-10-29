@@ -140,7 +140,8 @@ export function landingForProduct(p: {
   categoryName?: string | null
 }): { def: LandingDef; direct: boolean } | null {
   const m = [asMatchable(p)]
-  const hit = LANDINGS.find((l) => matchProducts(m, l.match).length > 0)
+  // ownsProducts: false 的页（claude-code）只引用别页的商品，不当归属页
+  const hit = LANDINGS.find((l) => (l as LandingDef).ownsProducts !== false && matchProducts(m, l.match).length > 0)
   if (hit) return { def: hit, direct: true }
   const fb = FALLBACK_LANDINGS.find((f) => matchProducts(m, f.match).length > 0)
   if (fb) return { def: findLanding(fb.slug), direct: false }
@@ -413,6 +414,9 @@ interface LandingNote {
  */
 function landingNote(slug: LandingSlug, d: DeliveryKind): LandingNote {
   switch (slug) {
+    // claude-code 不当商品归属页（ownsProducts: false，landingForProduct 不会返回它）；类型上要穷尽，按 Claude Pro 的口径
+    case 'claude-code':
+      return landingNote('claude-pro', d)
     case 'chatgpt-plus':
       return {
         context:

@@ -46,6 +46,8 @@ import { authorHref, creatorBadge } from '@/lib/content/creator'
 import { authorRefCode, ctaHref } from '@/lib/content/cta'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { LANDINGS } from '@/lib/landing/registry'
+import { getLandingProducts } from '@/lib/landing/products'
+import { ServiceCard, serviceCardData, splitForInlineCard, intentSlug, type ServiceCta } from '@/components/content/service-card'
 import { SITE_NAME } from '@/lib/product-seo'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { PlatformJsonLd } from '@/components/seo/platform-json-ld'
@@ -104,12 +106,14 @@ const CTA_HUB = { path: '/chongzhi', label: 'AI 会员充值与全部商品' }
  * 先按标签上登记的落地页；没有就按 CTA_BY_SLUG；都没有就给充值总览——
  * 站长 2026-10-18 要求 AI 学习的内容「尽量链接到充值网站」，原来没登记落地页的标签一律不出入口。
  */
-function ctaOf(post: ContentRow, refCode: string | null): { href: string; label: string } {
+function ctaOf(post: ContentRow, refCode: string | null): ServiceCta {
+  // 2026-10-29：标题意图优先于标签（「Claude Code 额度」去 claude-code，不被 Claude 标签带到 claude-pro），见 service-card.tsx
+  const intent = intentSlug(post.title)
   const tags = [...tagsOf(post, 'MODEL'), ...tagsOf(post, 'PRODUCT')]
-  const path = tags.find((t) => t.landingPath)?.landingPath ?? tags.map((t) => CTA_BY_SLUG[t.slug]).find(Boolean) ?? null
-  if (!path) return { href: ctaHref(CTA_HUB.path, post.id, refCode), label: CTA_HUB.label }
+  const path = (intent ? `/chongzhi/${intent}` : null) ?? tags.find((t) => t.landingPath)?.landingPath ?? tags.map((t) => CTA_BY_SLUG[t.slug]).find(Boolean) ?? null
+  if (!path) return { href: ctaHref(CTA_HUB.path, post.id, refCode), label: CTA_HUB.label, slug: null }
   const landing = LANDINGS.find((l) => `/chongzhi/${l.slug}` === path)
-  return { href: ctaHref(path, post.id, refCode), label: landing ? landing.navLabel : '相关订阅' }
+  return { href: ctaHref(path, post.id, refCode), label: landing ? landing.navLabel : '相关订阅', slug: landing?.slug ?? null }
 }
 
 function titleFor(post: ContentRow): string {
@@ -258,7 +262,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
       : Promise.resolve([] as { id: number }[])
   ).then((ids) => cardsByIds(ids.map((r) => r.id)))
 
-  const [remixOrigin, remixCards, comments, href, related, dims, refCode, badge] = await Promise.all([
+  const [remixOrigin, remixCards, comments, href, related, dims, refCode, badge, landingProducts] = await Promise.all([
     remixOriginP,
     remixCardsP,
     publicPost
@@ -270,6 +274,8 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
     // 作者内推返现只给公开内容（未公开的页面只有作者和管理员看得到，带 ref 没有意义）
     publicPost && onPlatform ? authorRefCode(post) : Promise.resolve(null),
     creatorBadge(post.userId),
+    // 服务卡的实时起价（与落地页价格表同一份快照）；渠道站不出服务卡，不查
+    onPlatform ? getLandingProducts() : Promise.resolve([]),
   ])
   const remixes = JSON.parse(JSON.stringify(remixCards))
   const initialComments = JSON.parse(JSON.stringify(comments)) as CommentPage
@@ -541,6 +547,9 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
   // —— 教程 / AI 应用（应用复用教程的阅读布局，正文是「我用它解决了什么」）——
   const toc = tocFromHtml(html)
   const cta = ctaFor(post, refCode)
+  const card = cta ? serviceCardData(cta, landingProducts) : null
+  // 正文中间那张只给教程：AI 应用 / Skill 库的正文是「我用它解决了什么」，中间插本站服务卡不对题
+  const split = card && type === 'GUIDE' ? splitForInlineCard(html) : null
   const app = type === 'APP' ? post.app : null
   // 作者自荐的外链一律 sponsored（Google 对推广链接的要求，设计 §9.2），普通分享是 ugc
   const appRel = app?.selfPromo ? 'sponsored nofollow noopener noreferrer' : 'ugc nofollow noopener noreferrer'
@@ -614,15 +623,16 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
 
         <div className="mt-12 grid gap-12 lg:grid-cols-[minmax(0,1fr)_220px] xl:gap-20">
           <article id="article-body" className="min-w-0 max-w-[720px]">
-            <div className="prose-forum learn-prose" dangerouslySetInnerHTML={{ __html: html }} />
-            {cta && (
-              <div className="learn-card mt-12 flex flex-wrap items-center justify-between gap-3 px-6 py-5">
-                <span className="text-sm text-white/65">需要开通或续费？</span>
-                <Link href={cta.href} className="text-sm font-medium text-white hover:underline">
-                  {cta.label} →
-                </Link>
-              </div>
+            {split && card ? (
+              <>
+                <div className="prose-forum learn-prose" dangerouslySetInnerHTML={{ __html: split[0] }} />
+                <ServiceCard data={card} variant="inline" />
+                <div className="prose-forum learn-prose" dangerouslySetInnerHTML={{ __html: split[1] }} />
+              </>
+            ) : (
+              <div className="prose-forum learn-prose" dangerouslySetInnerHTML={{ __html: html }} />
             )}
+            {card && <ServiceCard data={card} variant="end" />}
             <div className="mt-10">{actions}</div>
           </article>
           <aside className="hidden lg:block">
@@ -632,6 +642,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
                 <Link href={cta.href} className="learn-card mt-6 block px-4 py-3 text-[13px] text-white/65 hover:text-white">
                   需要开通或续费？
                   <span className="mt-1 block font-medium text-white">{cta.label} →</span>
+                  {card?.low != null && <span className="mt-1 block text-white/45">￥{card.low.toFixed(0)} 起 · 支付宝或微信支付</span>}
                 </Link>
               )}
             </div>

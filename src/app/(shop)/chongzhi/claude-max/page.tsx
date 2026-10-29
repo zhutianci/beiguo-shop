@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 import Link from 'next/link'
-import { getLandingProducts, inStock, lowestPrice, matchProducts, withLivePrice } from '@/lib/landing/products'
+import { getLandingProducts, inStock, lowestPrice, matchProducts, renderPriceTemplate } from '@/lib/landing/products'
 import { REDEEM_ERROR_GROUPS, REDEEM_ERROR_SCOPE, redeemErrorCount } from '@/lib/landing/redeem-errors'
 import { findLanding, LANDING_HUB, landingPath } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
@@ -78,21 +78,24 @@ export async function generateMetadata(): Promise<Metadata> {
   // 【只能取 5x 档的价】原文是「Claude Max 5x 会员充值￥950」，而表里还有 20x。
   // 用整组最低价的话，5x 售罄那天描述就成了「Max 5x 会员充值￥1900」——那是 20x 的价
   // （同 codex 页只替换实体卡那一档价格的做法）。
-  const description = withLivePrice(DEF.description, lowestPrice(items.filter((p) => /5x/i.test(p.name))))
+  // 批 3（D1b）：两档价格都取得到时标题与描述都带价；任一档取不到（售罄且无价、库不可达）整句退回无数字版
+  const prices = { p5: lowestPrice(items.filter((p) => /5x/i.test(p.name))), p20: lowestPrice(items.filter((p) => /20x/i.test(p.name))) }
+  const title = renderPriceTemplate(DEF.titleTemplate, prices) ?? DEF.title
+  const description = renderPriceTemplate(DEF.descriptionTemplate, prices) ?? DEF.description
 
   return {
-    title: DEF.title,
+    title,
     description,
     alternates: { canonical: landingPath(DEF.slug) },
     openGraph: {
       ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
-      title: DEF.title,
+      title,
       description,
       url: landingPath(DEF.slug),
     },
-    twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title: DEF.title, description },
+    twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title, description },
   }
 }
 

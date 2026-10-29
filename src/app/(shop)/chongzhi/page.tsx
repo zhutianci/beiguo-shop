@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
-import { getLandingProducts, inStock, matchProducts, type LandingProduct } from '@/lib/landing/products'
-import { CHATGPT_ANNUAL_MATCH, LANDING_HUB, LANDINGS, landingPath } from '@/lib/landing/registry'
+import { getLandingProducts, inStock, lowestPrice, matchProducts, renderPriceTemplate, type LandingProduct } from '@/lib/landing/products'
+import { CHATGPT_ANNUAL_MATCH, LANDING_HUB, LANDINGS, landingPath, type LandingDef } from '@/lib/landing/registry'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, faqJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
 import {
@@ -45,19 +45,29 @@ import { TAX_RATE } from '@/lib/invoice'
  */
 
 export async function generateMetadata(): Promise<Metadata> {
+  // 批 3（AI 引用页第一步）：只换 title 与 description。四个起价各按对应子页的匹配规则取，
+  // 与子页价格表同源；任一取不到整句退回无数字版（renderPriceTemplate 返回 null）
+  const all = await getLandingProducts()
+  const low = (slug: string) => {
+    const def = LANDINGS.find((l) => l.slug === slug)
+    return def ? lowestPrice(matchProducts(all, def.match)) : null
+  }
+  const description =
+    renderPriceTemplate(LANDING_HUB.descriptionTemplate, { plus: low('chatgpt-plus'), cpro: low('claude-pro'), cmax: low('claude-max'), grok: low('grok-super') }) ??
+    LANDING_HUB.description
   return {
     title: LANDING_HUB.title,
-    description: LANDING_HUB.description,
+    description,
     alternates: { canonical: LANDING_HUB.path },
     openGraph: {
       ...OG_SITE,
       images: OG_IMAGES,
       type: 'website',
       title: LANDING_HUB.title,
-      description: LANDING_HUB.description,
+      description,
       url: LANDING_HUB.path,
     },
-    twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title: LANDING_HUB.title, description: LANDING_HUB.description },
+    twitter: { images: TWITTER_IMAGES, card: 'summary_large_image', title: LANDING_HUB.title, description },
   }
 }
 
@@ -101,6 +111,8 @@ const FAQS: { q: string; a: string }[] = [
  * （Plus 页价格表按 nameNone 排除了它，但价格说明里单独链着它——hub 上也不能让它消失）。
  */
 function cardItems(all: LandingProduct[], l: (typeof LANDINGS)[number]): LandingProduct[] {
+  // ownsProducts: false（claude-code）：档位已经列在 claude-pro / claude-max 卡片下，这张卡只给起价、不重复列行
+  if ((l as LandingDef).ownsProducts === false) return []
   const items = matchProducts(all, l.match)
   if (l.slug !== 'chatgpt-plus') return items
   const ids = new Set(items.map((p) => p.id))
@@ -121,8 +133,10 @@ export default async function ChongzhiHubPage() {
   // 每个子页对应哪些商品、最低价多少，直接在这里算好，卡片上给一个真实的「￥X 起」
   const cards = LANDINGS.map((l) => {
     const items = cardItems(all, l)
-    const available = items.filter(inStock)
-    const pool = available.length ? available : items
+    // 不列档位行的卡（ownsProducts: false）起价照样按它的匹配规则取
+    const priced = items.length ? items : matchProducts(all, l.match)
+    const available = priced.filter(inStock)
+    const pool = available.length ? available : priced
     const low = pool.length ? Math.min(...pool.map((p) => p.price)) : null
     return { def: l, items, low }
   })

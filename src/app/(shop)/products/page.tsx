@@ -12,7 +12,7 @@ import { SITE_NAME } from '@/lib/product-seo'
 import { JsonLd } from '@/lib/seo/jsonld'
 import { breadcrumbJsonLd, productItemListJsonLd } from '@/lib/seo/graph'
 import { Breadcrumbs } from '@/components/landing/landing-ui'
-import { LANDINGS, landingPath, matchProducts } from '@/lib/landing/registry'
+import { LANDINGS, landingPath, matchProducts, type LandingDef } from '@/lib/landing/registry'
 import ProductsClient, { type CategoryGuide } from './products-client'
 import { OG_IMAGES, OG_SITE, TWITTER_IMAGES } from '@/lib/seo/og'
 import { publicStock } from '@/lib/stock-level'
@@ -144,7 +144,7 @@ function guidesByCategory(
   products.forEach((p) => {
     const list = out[p.categoryName] || (out[p.categoryName] = [])
     LANDINGS.forEach((l) => {
-      if (!matchProducts([p], l.match).length) return
+      if ((l as LandingDef).ownsProducts === false || !matchProducts([p], l.match).length) return
       if (list.some((g) => g.href === landingPath(l.slug))) return
       list.push({ href: landingPath(l.slug), label: l.navLabel })
     })

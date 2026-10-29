@@ -156,3 +156,24 @@ export function withLivePrice(
   }
   return description.replace(pattern, `￥${price.toFixed(0)}`)
 }
+
+/**
+ * 把 `{名字}` 占位符换成实时价（SEO 批 3，设计 §3.1 的 renderPriceTemplate）。
+ *
+ * 【任一价格取不到就整句放弃，返回 null】让调用方退回 registry 里那句不带数字的写法。
+ * 只替换取得到的那几个会写出「Max 20x ￥{p20}」这种半截句子发到 SERP 上；
+ * 用 0 或旧价顶上则是一句假话。两种都比「这一句不带数字」糟。
+ */
+export function renderPriceTemplate(template: string | undefined, prices: Record<string, number | null>): string | null {
+  if (!template) return null
+  let missing = false
+  const out = template.replace(/\{(\w+)\}/g, (_, k: string) => {
+    const v = prices[k]
+    if (v == null || !(v > 0)) {
+      missing = true
+      return ''
+    }
+    return v.toFixed(0)
+  })
+  return missing ? null : out
+}

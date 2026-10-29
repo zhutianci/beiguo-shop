@@ -47,10 +47,18 @@ export interface LandingDef {
   /** <title>。30 字符内的部分最要紧，站名放最后 */
   title: string
   description: string
+  /** 带 {占位符} 的标题 / 描述（renderPriceTemplate 填实时价；任一价格取不到就用上面的无数字版） */
+  titleTemplate?: string
+  descriptionTemplate?: string
   /** 一句话，hub 页的卡片摘要 */
   blurb: string
   /** 这一页对应哪些在售商品 */
   match: ProductMatch
+  /**
+   * false = 这一页只引用别的页的商品（摘要 + 链过去），不是它们的归属页：hub 卡片不列档位行、
+   * 商品页面包屑与「相关指南」不指向它。缺省视为 true
+   */
+  ownsProducts?: boolean
   /**
    * 这一页正文最近一次逐条对照代码、商品数据、官方页面核对的日期（SEO 批 2 的 D1a，设计 §1.3、§5.2、§0.3 #21）。
    * **每页一个**：原来全站共用 LANDING_REVIEWED_AT，改一页就等于宣称全部页刚核对过。真的核对过哪一页才改哪一页；
@@ -86,9 +94,15 @@ export const LANDING_HUB = {
   path: LANDING_BASE,
   navLabel: 'AI 会员充值',
   h1: 'AI 会员充值与账号服务',
-  title: 'AI 会员充值 - ChatGPT Plus、Claude Pro 代充价格表 - 贝果科技',
+  // 批 3（D1b，2026-10-29）：去掉「代充」。实测 `ai会员充值` 联想 0、`ai会员 价格对比` 只回显自身，
+  // `ai订阅 价格` 4 条（含「ai订阅价格对比」「ai订阅价格表」）→ 主短语用「AI 订阅价格对比」。
+  // 「会员」只跟 Claude / Grok（claude 会员 10、grok 会员 8；chatgpt 会员不成立）。AI 引用页第一步：只换 title 与 description。
+  title: 'AI 订阅价格对比：ChatGPT、Claude、Grok 多少钱与充值方式 - 贝果科技',
   description:
-    'ChatGPT Plus / Pro、Claude Pro / Max 会员充值与代充价格表，另有 Codex 接码、Claude 注册与 KYC 认证。卡密自助兑换，支持支付宝和微信支付，无需信用卡。',
+    'ChatGPT Plus、Claude Pro / Max、SuperGrok 各档位的本站售价、交付方式与兑换前要确认的事，另有 Codex 接码、Claude 注册与 KYC 认证。卡密自助兑换，支付宝或微信支付，登录后下单，可开增值税发票（标价不含税，开票另付 6%）。',
+  /** 有实时价时用这一句（renderPriceTemplate）；任一价格取不到就退回上面的无数字版 */
+  descriptionTemplate:
+    'ChatGPT Plus ￥{plus} 起、Claude Pro ￥{cpro} 起、Claude Max ￥{cmax} 起、SuperGrok ￥{grok} 起：按档位列出本站售价、交付方式与兑换前要确认的事。卡密自助兑换，支付宝或微信支付，登录后下单，可开增值税发票（标价不含税，开票另付 6%）。',
 }
 
 export const LANDINGS = [
@@ -96,9 +110,10 @@ export const LANDINGS = [
     slug: 'chatgpt-plus',
     navLabel: 'ChatGPT Plus 充值',
     h1: 'ChatGPT Plus 充值：国内怎么充、多少钱、信用卡被拒怎么办',
-    title: 'ChatGPT Plus 怎么充值、多少钱、代充值全指南 - 贝果科技',
+    // 批 3 AI 引用页第一步（只换 title / description）：chatgpt plus 国内 10、购买 10、信用卡 / 价格 / 支付宝 都在联想里
+    title: 'ChatGPT Plus 国内怎么购买：价格、支付宝、信用卡被拒 - 贝果科技',
     description:
-      'ChatGPT Plus 国内充值全指南：￥135 起，卡密自助兑换，无需信用卡，支持支付宝和微信支付。含信用卡被拒、付款未获批准、iOS 与信用卡两种充值方式的区别与排查。',
+      'ChatGPT Plus 国内购买与充值：￥135 起，卡密自助兑换，无需境外信用卡，支付宝或微信支付。讲清信用卡被拒、付款未获批准怎么办，以及 iOS 与信用卡两种充值方式的区别。',
     blurb: '国内不用信用卡也能开 Plus。两种充值方式、真实价格、失败排查全在这一页。',
     // 【nameNone 里必须有 'pro'】线上 Pro 5x 的商品名是
     // 「ChatGPT Pro 5x 自助充值 | 信用卡充值（不可覆盖plus）」——名字里带 plus 这个字。
@@ -109,10 +124,11 @@ export const LANDINGS = [
   {
     slug: 'chatgpt-pro',
     navLabel: 'ChatGPT Pro 充值',
-    h1: 'ChatGPT Pro 5x 充值：价格、与 Plus 的区别、能不能覆盖已有 Plus',
-    title: 'ChatGPT Pro 5x 怎么充值、多少钱、和 Plus 的区别 - 贝果科技',
+    // 批 3（D1b）：`chatgpt pro 充值` 0 条，换「价格 / 5x / 20x / 升级」（chatgpt pro 价格 10、chatgpt pro 含 5x、20x）
+    h1: 'ChatGPT Pro 5x 充值：价格、和 20x 与 Plus 的区别、能不能覆盖已有 Plus',
+    title: 'ChatGPT Pro 价格：5x 与 20x 区别、Plus 怎么升级 - 贝果科技',
     description:
-      'ChatGPT Pro 5x 充值￥720 起，卡密自助兑换。讲清 Pro 与 Plus 的额度差别、信用卡档与 iOS 档能不能覆盖已有 Plus 订阅，以及充值前必须确认的账户状态。',
+      'ChatGPT Pro 5x ￥720 起（人民币），卡密自助兑换，支付宝或微信支付。讲清 Pro 5x、20x 与 Plus 的额度差别，信用卡档与 iOS 档能不能覆盖已有 Plus 订阅，以及充值前必须确认的账户状态。',
     blurb: 'Pro 5x 两个档位的关键差别是「能不能盖掉现有 Plus」。买错了退不了，先看这一页。',
     match: { categoryName: 'ChatGPT', nameAny: ['pro'] },
     reviewedAt: '2026-09-24',
@@ -121,9 +137,10 @@ export const LANDINGS = [
     slug: 'claude-pro',
     navLabel: 'Claude Pro 充值',
     h1: 'Claude Pro 充值：会员价格、iOS 订阅充值怎么用、封号风险说明',
-    title: 'Claude Pro 怎么充值、会员多少钱、代充值指南 - 贝果科技',
+    // 批 3（D1b）：claude 会员 10、claude pro 国内 7；「Pro 与 Max 怎么选」归 claude-max，这里不再写「Pro 升 Max」
+    title: 'Claude Pro 国内怎么买：会员多少钱、iOS 订阅充值 - 贝果科技',
     description:
-      'Claude Pro 会员充值￥145 起，走 iOS 订阅充值无需上号，卡密自助兑换。含兑换前必须核对的两件事、Pro 升 Max 的做法，以及封号不质保的明确边界。',
+      'Claude Pro 会员充值 ￥145 起，走 iOS 订阅充值，无需上号，卡密自助兑换，支付宝或微信支付。含兑换前必须核对的两件事、封号了怎么办，以及封号不质保的明确边界。',
     blurb: 'iOS 订阅充值不用把账号交出去，这是 Claude 侧封号率最低的一种充值方式。',
     match: { categoryName: 'Claude', nameAny: ['pro'], nameNone: ['max'] },
     reviewedAt: '2026-09-24',
@@ -131,10 +148,15 @@ export const LANDINGS = [
   {
     slug: 'claude-max',
     navLabel: 'Claude Max 充值',
-    h1: 'Claude Max 5x 充值：价格、5x 与 20x 的额度差别、兑换前的四项检查',
-    title: 'Claude Max 5x 怎么充值、多少钱、和 Pro 的区别 - 贝果科技',
+    // 批 3（D1b）：claude max 价格 10（含 5x 价格、20x 价格）。价格进标题，写成「充值价」免得被当成官方人民币定价；
+    // 两档价格都取得到时用 titleTemplate / descriptionTemplate（页面里 renderPriceTemplate），否则用下面的无数字版
+    h1: 'Claude Max 充值：5x 与 20x 价格、和 Pro 怎么选、兑换前的四项检查',
+    title: 'Claude Max 充值价格：5x 与 20x 多少钱、和 Pro 怎么选 - 贝果科技',
+    titleTemplate: 'Claude Max 充值价：5x ￥{p5}、20x ￥{p20}，和 Pro 怎么选 - 贝果科技',
     description:
-      'Claude Max 5x 会员充值￥950，苹果订阅原价 125 美元/月。讲清 Pro / Max 5x / Max 20x 的额度差别、什么情况下该上 Max，以及兑换前必须核对的四项账户状态。',
+      'Claude Max 会员充值：Max 5x 与 Max 20x 两档（官方定价以 Anthropic 页面为准）。讲清 Pro、Max 5x、Max 20x 的额度差别，什么情况下该从 Pro 换到 Max，以及兑换前必须核对的四项账户状态。',
+    descriptionTemplate:
+      'Claude Max 会员充值：Max 5x ￥{p5}、Max 20x ￥{p20}（官方定价以 Anthropic 页面为准）。讲清 Pro、Max 5x、Max 20x 的额度差别，什么情况下该从 Pro 换到 Max，以及兑换前必须核对的四项账户状态。',
     blurb: '搜 Max 的人通常已经做过功课，这一页直接给规格对照和兑换前检查清单。',
     match: { categoryName: 'Claude', nameAny: ['max'] },
     reviewedAt: '2026-09-24',
@@ -167,7 +189,8 @@ export const LANDINGS = [
     slug: 'codex-jiema',
     navLabel: 'Codex 接码',
     h1: 'Codex 接码：OpenAI Codex 注册验证码怎么收、美区实体卡与虚拟号的区别',
-    title: 'Codex 接码怎么用、去哪买、美区实体卡验证码 - 贝果科技',
+    // 批 3（D1b）：codex 接码 9、codex 手机号（验证）10；「实体卡」后面紧跟「接码」，免得读成卖实体 SIM 卡
+    title: 'Codex 接码：手机号验证收不到码怎么办、美区实体卡接码 - 贝果科技',
     description:
       'OpenAI Codex 注册要手机验证码怎么办：为什么虚拟号会被拒、美区实体手机卡接码（￥15/次）怎么用、收不到码的排查顺序，以及账号被封之后的替代路径。',
     blurb: 'Codex 注册卡在验证码，多半是号码类型的问题，不是运气问题。',
@@ -193,10 +216,11 @@ export const LANDINGS = [
   {
     slug: 'grok-super',
     navLabel: 'Grok 充值',
-    h1: 'Grok Super 充值：三档怎么选、国内怎么付钱',
-    title: 'Grok Super 充值 - xAI Grok 会员代充多少钱 - 贝果科技',
+    // 批 3（D1b）：grok super 充值 1 条，换 grok 订阅 10、grok 会员 8（含「grok会员充值」）、supergrok 订阅 3
+    h1: 'Grok 会员（SuperGrok）充值：三档怎么选、国内怎么付钱',
+    title: 'Grok 订阅：SuperGrok 会员多少钱、国内怎么开 - 贝果科技',
     description:
-      'xAI Grok Super 会员充值：￥210 起，另有三个月档与 Super Heavy 档。卡密自助兑换，走 iOS 订阅充值，支付宝或微信支付，无需境外支付方式。含三档差别、兑换前必须确认的事与退款口径。',
+      'xAI Grok 会员（SuperGrok）订阅：￥210 起，另有三个月档与 Super Heavy 档。卡密自助兑换，走 iOS 订阅充值，支付宝或微信支付，无需境外支付方式。含三档差别、兑换前必须确认的事与退款口径。',
     // 【不要在 blurb 里写死价格】blurb 会出现在 hub、首页和每一页的相关链接里，
     // 而它不走 withLivePrice——原来写的「￥210 到 ￥1688」调一次价就是一句假话。
     // 实时价格看各页的价格表。
@@ -214,6 +238,22 @@ export const LANDINGS = [
      */
     match: { categoryAny: ['Grok', 'Gork'] },
     reviewedAt: '2026-09-24',
+  },
+  {
+    slug: 'claude-code',
+    navLabel: 'Claude Code 订阅',
+    // 批 3（D2，2026-10-29）：claude code 订阅 9、claude code 价格 10、claude code 额度 3、claude code pro 额度。
+    // title / H1 里不写「Pro 还是 Max」（那一意图归 claude-max）；套餐范围对照 Anthropic 官方页面核实、正文外链
+    h1: 'Claude Code 订阅：Pro 额度够不够用、Max 方案、API 与订阅的区别',
+    title: 'Claude Code 订阅：Pro 额度够用吗、Max 方案与价格 - 贝果科技',
+    description:
+      'Claude Code 随 Claude Pro / Max 订阅提供（以 Anthropic 官方页面为准），Pro ￥145 起。讲清 Pro 的 Claude Code 额度够不够用、Max 各档方案，以及 API 按量付费和订阅的区别。支付宝或微信支付，可开增值税发票（标价不含税，开票另付 6%）。',
+    blurb: 'Claude Code 不单独卖，跟着 Pro / Max 订阅走。额度怎么算、API Key 为什么会让你多花钱，这一页讲清。',
+    // 与 claude-pro、claude-max 同一批商品（只做摘要、不整表复制）。ownsProducts: false ——
+    // 商品页归属、hub 卡片的档位行都不算这一页（landingForProduct 按 LANDINGS 顺序取第一个命中，它排在最后）
+    match: { categoryName: 'Claude', nameAny: ['pro', 'max'], nameNone: ['kyc', '普号', '注册'] },
+    ownsProducts: false,
+    reviewedAt: '2026-10-29',
   },
 ] as const satisfies readonly LandingDef[]
 
