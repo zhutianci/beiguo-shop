@@ -27,6 +27,8 @@ import type { CatalogService } from '@/lib/jiema/dto'
 import type { NewsEventDto } from '@/lib/news/format'
 import { HomeBrandFaq, HomeJiemaSection, HomeLearnSection } from '@/components/home/home-pillars'
 import { TAX_RATE } from '@/lib/invoice'
+import { PortalHome } from '@/components/portal/portal-home'
+import { portalSiteName } from '@/lib/portal'
 
 /**
  * 首页标题与描述。
@@ -89,6 +91,13 @@ function homeDescription(p: Pick<SitePillars, 'jiema' | 'news' | 'learnIndexable
  */
 export async function generateMetadata(): Promise<Metadata> {
   const sf = await getStorefront()
+  // 门户站（docs/门户站-bigoai.md）：标题与描述只讲 AI 学习与大事记；整站 noindex（根布局），这里只影响浏览器标题与分享卡片
+  if (sf && sf.kind === 'PORTAL') {
+    const name = portalSiteName()
+    const title = `${name} - AI 提示词、教程与 AI 行业动态`
+    const description = `${name}：可复制的 AI 提示词、实测教程与应用分享，以及按事件整理、附原文出处的 AI 圈大事记。`
+    return { title, description, alternates: { canonical: '/' }, openGraph: { title, description, siteName: name }, twitter: { title, description } }
+  }
   if (sf && sf.kind === 'PLATFORM') {
     const p = await sitePillars()
     const title = homeTitle(p)
@@ -120,6 +129,8 @@ export default async function HomePage() {
   const sf = await getStorefront()
   // 没有店面的 Host 一律 404（(shop)/layout 已挡过一次），绝不回落成主站首页
   if (!sf) notFound()
+  // 门户站：只有内容入口与大事记热点，不取商品、不出价格
+  if (sf.kind === 'PORTAL') return <PortalHome siteName={portalSiteName()} />
   const channel = sf.kind === 'CHANNEL'
   // 「精选服务」那份列表（下面有注释）与落地页快照互不依赖，一起查（性能优化 2026-10-07：原来是两轮串行）
   const listedP = (async () => {

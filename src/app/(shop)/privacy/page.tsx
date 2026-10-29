@@ -8,6 +8,8 @@ import { getStorefront } from '@/lib/storefront/resolve'
 import { storefrontFeatures } from '@/lib/storefront/public'
 import { resolveStoreContact } from '@/lib/contact'
 import { brandMetadata } from '@/lib/storefront/brand-meta'
+import { PortalPrivacy } from '@/components/portal/portal-pages'
+import { portalFiling, portalSiteName } from '@/lib/portal'
 
 /**
  * 隐私政策。
@@ -48,6 +50,8 @@ const metadata: Metadata = {
 
 /** 渠道改了站名时把标题里的「贝果科技」换掉；主站原样（src/lib/storefront/brand-meta.ts） */
 export async function generateMetadata(): Promise<Metadata> {
+  const sf = await getStorefront()
+  if (sf?.kind === 'PORTAL') return { title: `隐私政策 - ${portalSiteName()}`, description: `${portalSiteName()}隐私政策：本站不注册、不登录、不交易，只记录服务器访问日志。`, alternates: { canonical: '/privacy' } }
   return brandMetadata(metadata)
 }
 
@@ -55,6 +59,8 @@ export default async function PrivacyPage() {
   // 「订阅查询」/lookup 在渠道站关闭（设计 11.1、Q16），渠道站的隐私页不给这个死链，改说「个人中心」。
   // 休眠期 getStorefront 恒为主站（不查库），主站渲染逐字不变
   const sf = await getStorefront()
+  // 门户站（docs/门户站-bigoai.md）：不登录、不交易，隐私政策只写访问日志
+  if (sf?.kind === 'PORTAL') return <PortalPrivacy siteName={portalSiteName()} filing={portalFiling()} />
   const lookupOn = storefrontFeatures(sf).lookup
   // 页脚客服按店面取（二期改动 4.2）；拿不到店面时 (shop)/layout 已 404，这里按主站客服兜底
   const contact = sf ? sf.contact : resolveStoreContact(null)

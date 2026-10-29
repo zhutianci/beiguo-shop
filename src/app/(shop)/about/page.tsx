@@ -7,6 +7,8 @@ import { JsonLd } from '@/lib/seo/jsonld'
 import { ORG_ID } from '@/lib/seo/graph'
 import { absUrl } from '@/lib/news/seo'
 import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
+import { PortalAbout } from '@/components/portal/portal-pages'
+import { portalFiling, portalSiteName } from '@/lib/portal'
 
 /**
  * 关于我们（docs/SEO-重构/SEO-重构设计.md §3.2-J，A 包，2026-09-30 重写）。
@@ -31,6 +33,8 @@ import { siteOrganizationJsonLd } from '@/lib/seo/pillars'
 export default async function AboutPage() {
   const ctx = await aboutContext()
   const { sf, isPlatform, features, jiemaOpen, jiemaBalancePay } = ctx
+  // 门户站（docs/门户站-bigoai.md）：只讲内容站本身，不写充值、付款、开票
+  if (sf?.kind === 'PORTAL') return <PortalAbout siteName={portalSiteName()} filing={portalFiling()} />
   const contact = sf ? sf.contact : resolveStoreContact(null)
   const catalogOpen = !sf || sf.status !== 'TERMINATED'
   const businesses = aboutBusinesses(ctx)

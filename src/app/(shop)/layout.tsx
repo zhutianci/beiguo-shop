@@ -17,6 +17,9 @@ import { jiemaPublicOpen } from '@/lib/jiema-config-schema'
 import { trackChannelViewsEnabled } from '@/lib/analytics/channel-views'
 import { zhhkEnabled } from '@/lib/i18n/lang'
 import { LangAutoNotice } from '@/components/i18n/lang-switch'
+import { PortalHeader } from '@/components/portal/portal-header'
+import { PortalFooter } from '@/components/portal/portal-footer'
+import { portalFiling, portalSiteName } from '@/lib/portal'
 
 /*
  * 【渠道分站：前台外壳按店面渲染（设计 4.4、6.7、11.2）】
@@ -41,6 +44,21 @@ export default async function ShopLayout({
   children: React.ReactNode
 }) {
   const probe = await getStorefront()
+  /*
+   * 门户站（docs/门户站-bigoai.md）：自己的页头页脚，没有客服浮窗、成交弹窗、公告、埋点、推广码——全站只读、不卖货。
+   * 能进来的路径已由 middleware / nginx 的放行名单限定（首页、关于、隐私、AI学习、大事记）。
+   */
+  if (probe?.kind === 'PORTAL') {
+    const siteName = portalSiteName()
+    return (
+      <div className="shop-shell flex min-h-screen flex-col">
+        <RouteProgress />
+        <PortalHeader siteName={siteName} />
+        <main className="flex-1">{children}</main>
+        <PortalFooter siteName={siteName} filing={portalFiling()} />
+      </div>
+    )
+  }
   const userId = probe?.status === 'DRAFT' ? ((await getCurrentUser())?.id ?? null) : null
   /*
    * 筹备期（DRAFT）对非预览访客：整站换成「本站暂停访问」（DraftClosedPage 注释），不渲染 children。

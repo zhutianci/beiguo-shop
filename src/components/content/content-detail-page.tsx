@@ -241,6 +241,8 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
   // 白标渠道的认证徽章提示不写「贝果」。getStorefront 不包进 try
   const sf = await getStorefront()
   const onPlatform = sf?.kind === 'PLATFORM'
+  // 门户站（docs/门户站-bigoai.md）全站只读：不出点赞 / 收藏 / 举报 / 编辑操作条、评论区、「做同款」（写接口在门户站一律 404）
+  const readOnly = sf?.kind === 'PORTAL'
   const ctaFor = (p: ContentRow, ref: string | null) => (onPlatform ? ctaOf(p, ref) : null)
   const certifiedBy = sf?.brand.custom ? '认证作者' : '贝果认证'
   // 登录态与帖子互不依赖，一起查（性能优化 2026-10-07：原来是先查帖子、再查登录态，两次往返串行）
@@ -355,7 +357,7 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
     </div>
   )
 
-  const actions = (
+  const actions = readOnly ? null : (
     <ContentActions
       postId={post.id}
       likeCount={post.likeCount}
@@ -384,15 +386,17 @@ export async function ContentDetailPage({ type, raw }: { type: TypedSection; raw
             <h2 className="text-xl font-semibold tracking-tight lg:text-2xl">同款作品{post.remixCount > 0 ? `（${post.remixCount}）` : ''}</h2>
             <p className="mt-1.5 text-sm text-white/45">用这条提示词做出来的作品；原作者会因此获得积分</p>
           </div>
-          <Link href={`/forum/new?type=PROMPT&remix=${post.id}`} className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 px-4 text-sm text-white/80 hover:border-white/30 hover:text-white">
-            <Shuffle className="h-4 w-4" /> 做同款
-          </Link>
+          {!readOnly && (
+            <Link href={`/forum/new?type=PROMPT&remix=${post.id}`} className="inline-flex h-10 items-center gap-2 rounded-full border border-white/15 px-4 text-sm text-white/80 hover:border-white/30 hover:text-white">
+              <Shuffle className="h-4 w-4" /> 做同款
+            </Link>
+          )}
         </div>
-        {remixes.length > 0 ? <PromptMasonry items={remixes} eager={0} /> : <p className="text-sm text-white/35">还没有同款，来做第一个。</p>}
+        {remixes.length > 0 ? <PromptMasonry items={remixes} eager={0} /> : <p className="text-sm text-white/35">{readOnly ? '还没有同款。' : '还没有同款，来做第一个。'}</p>}
       </section>
     ) : null
 
-  const commentsBlock = (
+  const commentsBlock = readOnly ? null : (
     <div className="mx-auto mt-20 max-w-3xl">
       <CommentsSection postId={post.id} initial={initialComments} commentCount={post.commentCount} gate={gate} />
     </div>

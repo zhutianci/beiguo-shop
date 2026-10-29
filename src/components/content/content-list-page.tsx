@@ -29,6 +29,7 @@ import { siteOrigin } from '@/lib/news/format'
 import { AppGrid, Crumbs, Empty, FilterBar, GuideFeature, GuideRows, LEARN_HOME, LearnPage, PageHead, Pager, PrimaryAction, PromptMasonry, SearchBox, SortTabs, SponsorStrip } from '@/components/learn/ui'
 import { DirectoryCrossLink, SkillsHint } from '@/components/learn/skills-ui'
 import { activeSponsors } from '@/lib/content/sponsor'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 export type ListSort = 'curated' | 'hot' | 'new'
 export function sortParam(v: string | string[] | undefined): ListSort {
@@ -248,6 +249,8 @@ function navTagsOf(section: 'PROMPT' | 'GUIDE') {
 }
 
 export async function ContentListPage({ section, kind, slug, page, sort = 'curated' }: { section: Section; kind: HubKind; slug?: string; page: number; sort?: ListSort }) {
+  // 门户站（docs/门户站-bigoai.md）全站只读：不出「分享 / 写教程」按钮与赞助位。getStorefront 不包进 try
+  const readOnly = (await getStorefront())?.kind === 'PORTAL'
   const r = await resolve(section, kind, slug)
   if (!r) notFound()
   const [list, s, sponsors, navTags, facetCounts] = await Promise.all([
@@ -273,7 +276,7 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
         }),
     stats(r),
     // 赞助位只在第一页出，自荐区（本身就是推广）不出
-    page === 1 && r.kind !== 'SHOWCASE' ? activeSponsors(section === 'PROMPT' ? 'PROMPTS' : section === 'APP' ? 'APPS' : 'GUIDES') : Promise.resolve([]),
+    page === 1 && r.kind !== 'SHOWCASE' && !readOnly ? activeSponsors(section === 'PROMPT' ? 'PROMPTS' : section === 'APP' ? 'APPS' : 'GUIDES') : Promise.resolve([]),
     // 下面两项与列表互不依赖，并进同一批（性能优化 2026-10-07：原来在列表之后再串行查两轮）
     // 筛选条只列「至少有一条公开内容」的标签，并带条数（免得把人领进空页）
     // AI 应用的筛选条只有「应用分享 / 作者自荐」两项，不用标签：不查（内容扩容 10-07：省掉 /apps 每次一趟按标签计数）
@@ -339,7 +342,7 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
           eyebrow={EYEBROW[kind][section]}
           title={r.h1}
           lede={r.lede}
-          action={<PrimaryAction href={newHref}>{section === 'PROMPT' ? '分享提示词' : section === 'APP' ? '分享一个 AI 应用' : '写一篇教程'}</PrimaryAction>}
+          action={readOnly ? undefined : <PrimaryAction href={newHref}>{section === 'PROMPT' ? '分享提示词' : section === 'APP' ? '分享一个 AI 应用' : '写一篇教程'}</PrimaryAction>}
           stats={[
             { label: section === 'PROMPT' ? '条提示词' : section === 'APP' ? '个应用' : '篇教程', value: s.total },
             { label: '最近更新', value: latest },
@@ -367,12 +370,16 @@ export async function ContentListPage({ section, kind, slug, page, sort = 'curat
         {r.kind === 'ROOT' && page === 1 && (section === 'APP' ? <DirectoryCrossLink to="skills" /> : <SkillsHint from={section === 'PROMPT' ? 'prompts' : 'guides'} />)}
 
         {list.items.length === 0 ? (
-          <Empty
-            title="这里还没有内容"
-            desc="原创首发、附自己出图或实测截图的投稿，会优先进入精选。"
-            href={newHref}
-            cta="成为第一个投稿的人"
-          />
+          readOnly ? (
+            <Empty title="这里还没有内容" />
+          ) : (
+            <Empty
+              title="这里还没有内容"
+              desc="原创首发、附自己出图或实测截图的投稿，会优先进入精选。"
+              href={newHref}
+              cta="成为第一个投稿的人"
+            />
+          )
         ) : section === 'PROMPT' ? (
           <PromptMasonry items={list.items} />
         ) : section === 'APP' ? (

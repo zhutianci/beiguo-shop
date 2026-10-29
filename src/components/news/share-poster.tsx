@@ -45,11 +45,11 @@ interface Props {
 }
 
 export function SharePoster(props: Props) {
-  // 渠道站（内容模块下放）：海报上的站名、整理者、域名跟着渠道走；主站不传，poster.ts 画原样
+  // 渠道站（内容模块下放）与门户站：海报上的站名、整理者、域名跟着本站走；主站不传，poster.ts 画原样
   const sf = useStorefront()
   const site = useMemo(
     () =>
-      sf.kind === 'CHANNEL' && sf.origin
+      sf.kind !== 'PLATFORM' && sf.origin
         ? { name: sf.brand.name, author: sf.brand.custom ? AUTHOR_NAME.split('贝果科技').join(sf.brand.name) : AUTHOR_NAME, host: hostOf(sf.origin) }
         : undefined,
     [sf.kind, sf.origin, sf.brand.name, sf.brand.custom],

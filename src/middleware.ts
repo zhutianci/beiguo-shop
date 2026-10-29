@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose'
 // 相对路径、且只引这一个 Edge 安全的模块：lib/auth 会带上 prisma，不能进 middleware
 import { getJwtSecret } from './lib/jwt-secret'
 // 同上：storefront/hosts 是纯函数（不 import prisma / next/headers），主站 Host 白名单与路由内店面解析共用这一份口径
-import { channelsEnabled, normalizeHost, platformHosts } from './lib/storefront/hosts'
+import { channelsEnabled, isPortalHost, normalizeHost, platformHosts, portalAllows } from './lib/storefront/hosts'
 // 同上：纯函数，不 import next/* 与 prisma
 import { apiWriteCrossSite } from './lib/api-csrf'
 // 繁体香港版（docs/繁体香港版/设计.md §6）：只 import next/server 与纯函数
@@ -95,6 +95,15 @@ function notFound(pathname: string): NextResponse {
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  /*
+   * 【门户站（docs/门户站-bigoai.md）】bigoai.cn 只开 AI学习 与 AI圈大事记、全站只读：放行名单以外的页面与接口一律 404，
+   * 写请求一律 404（portalAllows）。放在最前面：门户站不做简繁切换，也不会有后台、渠道后台。
+   * nginx 有同一份名单（第一道），这里是第二道；PORTAL_HOSTS 没配时 isPortalHost 恒为 false，下面逐字照旧。
+   */
+  if (isPortalHost(normalizeHost(request.headers.get('host')))) {
+    return portalAllows(request.method, pathname) ? NextResponse.next() : notFound(pathname)
+  }
 
   /*
    * 【前台页面：简繁版本（繁体香港版，2026-10-19）】matcher 为此加了「所有页面」一项；这一段只处理页面，

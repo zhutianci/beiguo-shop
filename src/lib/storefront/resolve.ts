@@ -36,13 +36,18 @@ import { siteOrigin } from '../news/format'
 import { PLATFORM_CONTACT, resolveStoreContact, type StoreContact, type TenantContactRow } from '../contact-base'
 import { PLATFORM_BRAND, resolveStoreBrand, type StoreBrand, type TenantBrandRow } from '../brand-base'
 import { ALL_MODULES, resolveStoreModules, type ContentModule, type StoreModules, type TenantModuleRow } from './modules'
-import { channelHostSuffix, channelsEnabled, hostStrict, isChannelCandidateHost, isCustomHostShape, normalizeHost, platformHosts } from './hosts'
+import { channelHostSuffix, channelsEnabled, hostStrict, isChannelCandidateHost, isCustomHostShape, isPortalHost, normalizeHost, platformHosts, portalOrigin } from './hosts'
 import { ALERT_THROTTLE_MS, domainHealthKey, isDomainHealthStale, isDomainHealthy, parseDomainHealth } from './domain-health'
 import { alertPlatform } from '../tenant/platform-alert'
 
 export { normalizeHost } from './hosts'
 
-export type StorefrontKind = 'PLATFORM' | 'CHANNEL'
+/**
+ * PORTAL = 门户站（docs/门户站-bigoai.md，bigoai.cn）：只开 AI学习 与 AI圈大事记、全站只读。
+ * 凡是写成 `kind === 'PLATFORM'` 的主站专属功能（充值入口、商品、营销、后台）对它一律不开；
+ * 凡是写成 `kind === 'CHANNEL'` 的渠道专属逻辑（进货价、渠道后台、渠道公告）对它也一律不走——两头都是关着的。
+ */
+export type StorefrontKind = 'PLATFORM' | 'CHANNEL' | 'PORTAL'
 export type TenantStatus = 'DRAFT' | 'ACTIVE' | 'SUSPENDED' | 'TERMINATED'
 export interface Storefront {
   id: number
@@ -84,6 +89,26 @@ const TENANT_STATUSES: ReadonlySet<string> = new Set(['DRAFT', 'ACTIVE', 'SUSPEN
 export function platformStorefront(): Storefront {
   const origin = siteOrigin()
   return { id: PLATFORM_TENANT_ID, code: 'main', kind: 'PLATFORM', status: 'ACTIVE', origin, canonicalHost: hostOfOrigin(origin), contact: { ...PLATFORM_CONTACT }, brand: { ...PLATFORM_BRAND }, modules: { ...ALL_MODULES } }
+}
+
+/**
+ * 门户站店面：常量，不查库。id 用主站的 1——门户站本身不产生订单、帖子等任何写入（middleware 只放行 GET 读接口），
+ * 万一哪条读路径按 sf.id 取数，取到的也是主站的公开内容，不会指向一个不存在的租户。
+ * 品牌、客服沿用主站；内容模块只开 learn 与 news。
+ */
+export function portalStorefront(): Storefront {
+  const origin = portalOrigin() || siteOrigin()
+  return {
+    id: PLATFORM_TENANT_ID,
+    code: 'portal',
+    kind: 'PORTAL',
+    status: 'ACTIVE',
+    origin,
+    canonicalHost: hostOfOrigin(origin),
+    contact: { ...PLATFORM_CONTACT },
+    brand: { ...PLATFORM_BRAND },
+    modules: { learn: true, news: true, iptools: false },
+  }
 }
 
 /** origin 的规范化主机名；解析失败返回 ''（调用方把 '' 当成「不知道主域名」，一律不跳转） */
@@ -369,6 +394,7 @@ async function toChannelStorefront(t: TenantStorefrontRow): Promise<Storefront |
 
 /**
  * 判定顺序（设计 4.4 表格 + docs/多渠道分销-自定义域名.md 第 2 节）：
+ *   门户站 Host（PORTAL_HOSTS）   → 门户站（docs/门户站-bigoai.md），不查库，不受休眠影响
  *   休眠                         → 任何 Host 都是主站，不查库
  *   主站白名单 Host              → 主站，不查库
  *   *.bigolab.com 一级子域       → 查 tenant_domains（见下）
@@ -380,9 +406,11 @@ async function toChannelStorefront(t: TenantStorefrontRow): Promise<Storefront |
  *   查库报错（含自定义域名集合加载失败）→ 抛（500，不回落）
  */
 export async function resolveStorefrontForHost(rawHost: string | null): Promise<Storefront | null> {
+  const host = normalizeHost(rawHost)
+  // 门户站（PORTAL_HOSTS）最先判：与渠道开关无关，不查库。未配置时 isPortalHost 恒为 false，下面逐字照旧
+  if (isPortalHost(host)) return portalStorefront()
   if (!channelsEnabled()) return platformStorefront()
 
-  const host = normalizeHost(rawHost)
   if (host && platformHosts().has(host)) return platformStorefront()
 
   const strict = hostStrict()

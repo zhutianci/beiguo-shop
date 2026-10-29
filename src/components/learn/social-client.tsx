@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Flag, FolderPlus, Plus, UserPlus, X } from 'lucide-react'
 import { withRedirect } from '@/lib/safe-redirect'
+import { useStorefront } from '@/components/storefront-provider'
 
 function goLogin(router: ReturnType<typeof useRouter>) {
   router.push(withRedirect('/login', window.location.pathname))
@@ -20,7 +21,12 @@ async function post(url: string, body?: unknown, method = 'POST') {
 
 // ─────────────────────────────── 关注 ───────────────────────────────
 
-export function FollowButton({ handle, compact = false }: { handle: string; compact?: boolean }) {
+/** 门户站（docs/门户站-bigoai.md）全站只读：关注按钮整个不出（包一层是为了不在 hooks 之前提前 return） */
+export function FollowButton(props: { handle: string; compact?: boolean }) {
+  return useStorefront().kind === 'PORTAL' ? null : <FollowButtonInner {...props} />
+}
+
+function FollowButtonInner({ handle, compact = false }: { handle: string; compact?: boolean }) {
   const router = useRouter()
   const [st, setSt] = useState<{ following: boolean; followers: number; isSelf: boolean } | null>(null)
   useEffect(() => {
@@ -55,7 +61,11 @@ export function FollowButton({ handle, compact = false }: { handle: string; comp
 
 // ─────────────────────────────── 关注合集（P3） ───────────────────────────────
 
-export function CollectionFollowButton({ id }: { id: number }) {
+export function CollectionFollowButton(props: { id: number }) {
+  return useStorefront().kind === 'PORTAL' ? null : <CollectionFollowButtonInner {...props} />
+}
+
+function CollectionFollowButtonInner({ id }: { id: number }) {
   const router = useRouter()
   const [st, setSt] = useState<{ following: boolean; followers: number; isSelf: boolean } | null>(null)
   useEffect(() => {

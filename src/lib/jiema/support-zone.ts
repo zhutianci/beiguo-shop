@@ -21,7 +21,7 @@ export interface JiemaSupportData {
   faqs: FAQItem[]
 }
 
-export async function jiemaSupportData(sf: { kind: 'PLATFORM' | 'CHANNEL'; contact: { hours: string | null } } | null): Promise<JiemaSupportData | null> {
+export async function jiemaSupportData(sf: { kind: 'PLATFORM' | 'CHANNEL' | 'PORTAL'; contact: { hours: string | null } } | null): Promise<JiemaSupportData | null> {
   if (!sf || sf.kind !== 'PLATFORM' || !storefrontFeatures(sf).jiema) return null
   try {
     const cfg = await readSmsConfigCached()

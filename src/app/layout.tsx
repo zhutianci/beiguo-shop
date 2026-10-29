@@ -58,6 +58,13 @@ const DESCRIPTION =
 const CHANNEL_TITLE = '贝果科技 BigoLab - AI 订阅充值'
 const CHANNEL_DESCRIPTION = '贝果科技提供 ChatGPT、Claude 等 AI 订阅充值：卡密自助兑换，支付宝或微信支付，无需境外信用卡。'
 
+/*
+ * 【门户站（docs/门户站-bigoai.md）的兜底文案】门户站只有 AI学习 与 AI圈大事记，不卖货：不提充值、支付、发票。
+ * 内容与主站同源，整站 noindex（同渠道站，siteMetadata 的非主站分支），这里只影响浏览器标题与分享卡片。
+ */
+const PORTAL_TITLE = '贝果科技 - AI 学习与 AI 行业动态'
+const PORTAL_DESCRIPTION = '贝果科技的 AI 学习站：可复制的 AI 提示词、实测教程与应用分享，以及按事件整理、附原文出处的 AI 圈大事记。'
+
 /**
  * 站点级 metadata。子页面（如 /news/[slug] 的 generateMetadata）只需要覆盖
  * title / description / openGraph，其余字段自动继承这里。
@@ -244,6 +251,16 @@ function brandedMetadata(meta: Metadata, brand: StoreBrand): Metadata {
 export async function generateMetadata(): Promise<Metadata> {
   const sf = await getStorefront()
   if (sf && sf.kind === 'PLATFORM') return siteMetadata(sf.origin, true, requestLang())
+  if (sf && sf.kind === 'PORTAL') {
+    const meta = siteMetadata(sf.origin, false)
+    return {
+      ...meta,
+      title: PORTAL_TITLE,
+      description: PORTAL_DESCRIPTION,
+      openGraph: { ...meta.openGraph, title: PORTAL_TITLE, description: PORTAL_DESCRIPTION },
+      twitter: { ...meta.twitter, title: PORTAL_TITLE, description: PORTAL_DESCRIPTION },
+    }
+  }
   const meta = siteMetadata(sf ? sf.origin : siteOrigin(), false)
   return sf ? brandedMetadata(meta, sf.brand) : meta
 }

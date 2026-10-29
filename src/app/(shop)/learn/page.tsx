@@ -25,6 +25,7 @@ import { SkillRows } from '@/components/learn/skills-ui'
 import { moduleMetadata } from '@/lib/storefront/module-meta'
 import { currentBrand } from '@/lib/storefront/brand-meta'
 import { isWhiteLabel } from '@/lib/brand-base'
+import { getStorefront } from '@/lib/storefront/resolve'
 
 /**
  * AI 学习平台首页（内容平台改版 2026-10-06）。
@@ -56,9 +57,11 @@ async function pageMetadata(): Promise<Metadata> {
 export default async function LearnHome() {
   // 白标渠道（内容模块下放）：眉题不写 Bigo；主站与没改名的渠道原样
   const eyebrow = isWhiteLabel(await currentBrand()) ? 'AI Learning · AI 学习平台' : 'Bigo AI Learning · AI 学习平台'
+  // 门户站（docs/门户站-bigoai.md）全站只读：不出讨论区入口、投稿区块与赞助位
+  const readOnly = (await getStorefront())?.kind === 'PORTAL'
   const [d, sponsors, skills] = await Promise.all([
     learnHomeData(),
-    activeSponsors('LEARN'),
+    readOnly ? Promise.resolve([]) : activeSponsors('LEARN'),
     // Skill 库区块（2026-10-10）：前 4 个库 + 总数；查不出来就不出这一块（同 learnHomeData 的降级做法）
     skillLibraryPreview(4).catch((e) => {
       console.error('[learn home skills]', e)
@@ -101,7 +104,7 @@ export default async function LearnHome() {
               { v: d.totals.prompt, l: '条提示词' },
               { v: d.totals.guide, l: '篇教程' },
               { v: d.totals.discussion, l: '个讨论' },
-            ].map((x) => (
+            ].filter((x) => !readOnly || x.l !== '个讨论').map((x) => (
               <div key={x.l} className="flex items-baseline gap-2">
                 <dd className="text-3xl font-semibold tabular-nums">{x.v}</dd>
                 <dt className="text-sm text-white/40">{x.l}</dt>
@@ -156,7 +159,7 @@ export default async function LearnHome() {
           { href: '/guides', icon: BookOpen, t: '教程', s: 'ChatGPT / Claude / Codex 实测' },
           { href: '/forum', icon: MessagesSquare, t: '讨论', s: '提问、反馈、经验交流' },
           { href: '/apps', icon: LayoutGrid, t: 'AI 应用', s: '工具与工作流的真实用法' },
-        ].map((x, i) => (
+        ].filter((x) => !readOnly || x.href !== '/forum').map((x, i) => (
           <Link key={x.href} href={x.href} className="learn-card learn-lift learn-in group flex items-center gap-4 p-5" style={{ animationDelay: `${i * 50}ms` }}>
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/[0.06] text-white/80 transition-colors group-hover:bg-white group-hover:text-black">
               <x.icon className="h-5 w-5" />
@@ -282,7 +285,8 @@ export default async function LearnHome() {
         </section>
       )}
 
-      {/* —— 创作者 + 投稿 —— */}
+      {/* —— 创作者 + 投稿 —— 门户站只读，不出（积分榜与投稿都是社区功能） */}
+      {!readOnly && (
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <div className="learn-card p-7 lg:p-9">
           <p className="learn-eyebrow mb-4">Creators · 创作者</p>
@@ -320,6 +324,7 @@ export default async function LearnHome() {
           </div>
         </div>
       </section>
+      )}
     </LearnPage>
   )
 }

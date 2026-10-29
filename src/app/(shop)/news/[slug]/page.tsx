@@ -97,7 +97,8 @@ async function pageMetadata({ params }: { params: { slug: string } }): Promise<M
 export default async function NewsDetailPage({ params }: { params: { slug: string } }) {
   // 店面不包进 try（resolve.ts 文件头第 7 条）；layout 已经按模块开关挡过，这里只用来换分享地址、决定导流入口
   const sf = await getStorefront()
-  const learnOpen = await moduleOpen('learn')
+  // 门户站（docs/门户站-bigoai.md）没有讨论区（/forum 不放行），不出「去论坛讨论」
+  const learnOpen = (await moduleOpen('learn')) && sf?.kind !== 'PORTAL'
   const row = await getEvent(params.slug)
   if (!row) notFound()
 

@@ -161,7 +161,7 @@ export async function afterInvoiceSubmitted(
   userId: number | null | undefined,
   opts: { titleId?: number | null; saveTitle?: boolean },
   fields: BuyerInvoiceFields,
-  storefrontKind: 'PLATFORM' | 'CHANNEL' = 'PLATFORM',
+  storefrontKind: 'PLATFORM' | 'CHANNEL' | 'PORTAL' = 'PLATFORM',
 ) {
   if (!userId) return
   // 抬头档案只在主站用（2026-10-15 安全复查）：抬头按用户全局存、含税号与开户行账号，渠道站会话不读也不写

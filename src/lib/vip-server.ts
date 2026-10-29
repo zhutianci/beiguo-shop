@@ -86,9 +86,10 @@ export function isPlatformOverview(o: OverviewDTO): o is PlatformOverviewDTO {
  */
 export async function buildAccountOverview(
   user: { id: number; balance?: unknown; vipLevel: number },
-  sf: { id: number; kind: 'PLATFORM' | 'CHANNEL' },
+  sf: { id: number; kind: 'PLATFORM' | 'CHANNEL' | 'PORTAL' },
 ): Promise<OverviewDTO> {
-  if (sf.kind === 'CHANNEL') {
+  // 非主站一律走精简版（门户站本来进不了这个接口，middleware 404；兜底时不给 VIP、券、余额）
+  if (sf.kind !== 'PLATFORM') {
     const paid = await userPaidSpend(user.id, sf.id)
     return { stats: { paidOrderCount: paid.paidCount, totalSpent: paid.spent } }
   }

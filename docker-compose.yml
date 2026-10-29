@@ -154,6 +154,13 @@ services:
       - ZHHK_ENABLED
       - ZHHK_AUTO_SWITCH
       - ZHHK_HOSTS
+      # 门户站（docs/门户站-bigoai.md）：PORTAL_HOSTS 不设 = 没有门户站，任何 Host 行为不变；
+      #   PORTAL_SITE_NAME 必须与 ICP 备案的「网站名称」一致；备案号下来后填 PORTAL_ICP_NO（公安备案号 PORTAL_PSB_NO），改完只重启 app
+      - PORTAL_HOSTS
+      - PORTAL_SITE_NAME
+      - PORTAL_ICP_NO
+      - PORTAL_PSB_NO
+      - PORTAL_EMAIL
       # 内容定时放量每天放几条（src/lib/content/release.ts）：不设 = 40；0 = 暂停。改完只重启 app
       - CONTENT_RELEASE_PER_DAY
       # 薄新闻页（没有全文层的）是否加 noindex。默认开启，设成 0 才关闭。

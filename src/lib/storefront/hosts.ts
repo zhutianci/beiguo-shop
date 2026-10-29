@@ -177,3 +177,67 @@ export function classifyTenantHost(raw: string | null | undefined): TenantHostCl
   if (!isCustomHostShape(host)) return { error: '域名格式不对：至少两段，每段只能用字母、数字与连字符（不能以连字符开头或结尾），顶级域须为字母' }
   return { host, kind: 'CUSTOM' }
 }
+
+// ---------------------------------------------------------------------------
+// 门户站（docs/门户站-bigoai.md）：bigoai.cn 这类已备案的独立域名，只开 AI学习 与 AI圈大事记、全站只读，
+// 不卖货、不登录。与渠道无关：不查 tenants 表、不受 CHANNELS_ENABLED 影响。
+// ---------------------------------------------------------------------------
+
+let cachedPortalRaw: string | undefined
+let cachedPortal: { hosts: ReadonlySet<string>; origin: string } = { hosts: new Set(), origin: '' }
+
+function portalConfig(): { hosts: ReadonlySet<string>; origin: string } {
+  const raw = process.env.PORTAL_HOSTS
+  if (raw !== cachedPortalRaw) {
+    cachedPortalRaw = raw
+    const main = new Set(DEFAULT_PLATFORM_HOSTS)
+    // 写进门户名单的主站 Host 一律丢掉：主站永远不能被当成门户（会把整个主站变成只读 + 404）
+    const list = (raw || '')
+      .split(',')
+      .map((s) => normalizeHost(s))
+      .filter((s): s is string => !!s && !main.has(s) && !platformHosts().has(s))
+    // 第一个就是门户的主域名（metadataBase、站内绝对地址）
+    cachedPortal = { hosts: new Set(list), origin: list.length ? `https://${list[0]}` : '' }
+  }
+  return cachedPortal
+}
+
+/** PORTAL_HOSTS（逗号分隔，第一个是主域名）。未设置 = 没有门户站，任何 Host 的行为与改造前相同 */
+export function portalHosts(): ReadonlySet<string> {
+  return portalConfig().hosts
+}
+
+/** 门户站的 origin（https://<PORTAL_HOSTS 第一个>）；未配置为 '' */
+export function portalOrigin(): string {
+  return portalConfig().origin
+}
+
+/** 规范化后的 Host 是不是门户站 */
+export function isPortalHost(host: string | null | undefined): boolean {
+  return !!host && portalConfig().hosts.has(host)
+}
+
+/*
+ * 门户站上放行的路径（middleware 与 nginx 各一道，其余一律 404）。页面只读：
+ *  · 页面：首页、关于、隐私政策、AI学习的各栏目（提示词 / 教程 / 应用 / 技能 / 合集 / 作者主页 / 搜索）、大事记；
+ *    /learn/me（个人中心）、/forum（讨论区与发帖页）不放行。
+ *  · 接口：只放行 GET，且只限内容与大事记的读取接口；任何写请求（发帖、评论、点赞、登录、下单）一律 404。
+ */
+const PORTAL_PAGE_PREFIXES = ['/learn', '/prompts', '/guides', '/apps', '/skills', '/collections', '/u', '/news']
+const PORTAL_PAGE_EXACT = new Set(['/', '/about', '/privacy'])
+const PORTAL_API_GET_PREFIXES = ['/api/news/hot', '/api/news/list', '/api/content/tags', '/api/forum/categories']
+
+function underPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(prefix + '/')
+}
+
+/** 门户站是否放行这个请求（method 大写）。静态资源（/_next、/uploads、带扩展名的文件）由 middleware 的 matcher 与 nginx 另行放行 */
+export function portalAllows(method: string, pathname: string): boolean {
+  if (pathname.startsWith('/api/')) {
+    if (method !== 'GET' && method !== 'HEAD') return false
+    return PORTAL_API_GET_PREFIXES.some((p) => underPrefix(pathname, p))
+  }
+  if (pathname === '/learn/me' || pathname.startsWith('/learn/me/')) return false
+  if (PORTAL_PAGE_EXACT.has(pathname)) return true
+  return PORTAL_PAGE_PREFIXES.some((p) => underPrefix(pathname, p))
+}

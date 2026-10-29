@@ -79,8 +79,9 @@ export function isSameOrigin(req: Request): boolean {
  *    主站自己的页面发起的请求都是同源，行为不变；缺 Origin 与 Sec-Fetch-Site 的非浏览器请求（itest、curl）照常放行。
  * 返回 null = 放行；字符串 = 拒绝原因（只写日志，不回给客户端）。
  */
-export function authCrossSiteReason(req: Request, kind: 'PLATFORM' | 'CHANNEL'): string | null {
-  const reason = kind === 'CHANNEL' ? crossOriginReason(req.headers, req.method, requestHasBody(req)) : crossSiteReason(req.headers)
+export function authCrossSiteReason(req: Request, kind: 'PLATFORM' | 'CHANNEL' | 'PORTAL'): string | null {
+  // 门户站（docs/门户站-bigoai.md）按渠道的严格规则：它本来就不该有任何写请求（middleware 404），这里只是兜底时不放宽
+  const reason = kind !== 'PLATFORM' ? crossOriginReason(req.headers, req.method, requestHasBody(req)) : crossSiteReason(req.headers)
   if (reason) console.warn(`[auth] 拒绝非同源写请求（${kind}）:`, reason)
   return reason
 }

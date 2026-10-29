@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { pageOg } from '@/lib/seo/og'
 import { aboutContext, aboutDescription } from './about-context'
+import { portalSiteName } from '@/lib/portal'
 
 /**
  * 【为什么 metadata 放在 layout】这一层原本是为了给 'use client' 的 /about 页导出 metadata（客户端组件用不了 generateMetadata）；
@@ -15,7 +16,13 @@ import { aboutContext, aboutDescription } from './about-context'
 const TITLE = '关于我们：贝果科技 BigoLab 的经营主体、付款与售后'
 
 export async function generateMetadata(): Promise<Metadata> {
-  const description = aboutDescription(await aboutContext())
+  const ctx = await aboutContext()
+  // 门户站（docs/门户站-bigoai.md）：不写付款与售后
+  if (ctx.sf?.kind === 'PORTAL') {
+    const name = portalSiteName()
+    return { title: `关于我们 - ${name}`, description: `${name}是益阳市赫山区必高科技有限公司运营的 AI 学习与资讯网站：AI 提示词、教程与 AI 圈大事记。`, alternates: { canonical: '/about' } }
+  }
+  const description = aboutDescription(ctx)
   return {
     title: TITLE,
     description,
