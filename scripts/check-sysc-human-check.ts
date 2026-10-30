@@ -82,6 +82,7 @@ const store = () =>
     productMapEnv: 'TEST_MAP',
     tracePrefix: 'TT',
     fallbackEnv: 'TEST_FALLBACK_URL',
+    apiKeyEnv: 'TEST_API_KEY',
   }).provider
 
 const realCardPosts = () => calls.filter((c) => c.path === '/api/store/redeem' && c.cdk === 'VCK-REAL-CARD-0001').length

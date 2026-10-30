@@ -17,6 +17,10 @@
  * 【sysd 也用这个脚本】sysd（niuniu888）是同一套协议的另一家店，前面加 STORE=sysd：
  *   STORE=sysd npx tsx scripts/probe-sysc.ts status <卡密>
  * 站点与店铺标识直接取适配器自己的配置，保证探针查的就是线上会发请求的那一家。
+ *
+ * 【开放 API】环境变量里有这家店的 Key（SYSC_API_KEY / SYSD_API_KEY）时，site / status / check 都走开放 API：
+ *   SYSC_API_KEY=sk_store_… npx tsx scripts/probe-sysc.ts status <卡密>
+ * Key 只放环境变量，不要写进命令历史以外的任何文件。脚本不打印 Key。
  */
 import crypto from 'crypto'
 import { SYSC, __test } from '../src/lib/redeem/providers/sysc'
@@ -32,6 +36,9 @@ const BASE = PICKED.config.base
 const REF = PICKED.config.ref
 const sysc = PICKED.provider
 const syscStatusBatch = PICKED.statusBatch
+const KEY = (process.env[PICKED.config.apiKeyEnv] || '').trim()
+const OPEN_HEADERS: Record<string, string> = KEY ? { 'X-API-Key': KEY } : {}
+const OPEN = '/api/store/open/v1'
 
 function head(t: string) {
   console.log(`\n${'='.repeat(60)}\n${t}\n${'='.repeat(60)}`)
@@ -39,18 +46,22 @@ function head(t: string) {
 
 async function cmdSite() {
   head(`商品清单  ref=${REF}`)
-  const r = await fetch(`${BASE}/api/store/site?ref=${encodeURIComponent(REF)}`, { cache: 'no-store' })
+  const r = await fetch(KEY ? `${BASE}${OPEN}/products` : `${BASE}/api/store/site?ref=${encodeURIComponent(REF)}`, {
+    cache: 'no-store',
+    headers: OPEN_HEADERS,
+  })
   if (!r.ok) {
     console.error(`HTTP ${r.status}`)
     return
   }
   const d = (await r.json()) as {
+    store?: { slug?: string; brand_name?: string }
     slug?: string
     brand_name?: string
     claude_sessionkey_enabled?: boolean
     products?: { product_id: number; name: string; platform: string; sku: string | null; recharge_method: number | null; upstream_pool: string | null }[]
   }
-  console.log(`slug=${d.slug}  brand=${d.brand_name}  claude_sessionkey=${d.claude_sessionkey_enabled}`)
+  console.log(`slug=${d.slug ?? d.store?.slug}  brand=${d.brand_name ?? d.store?.brand_name}  claude_sessionkey=${d.claude_sessionkey_enabled ?? '-'}`)
   console.log('\nproduct_id | platform | name | sku | recharge_method | pool')
   console.log('-'.repeat(60))
   for (const p of d.products || []) {
@@ -92,8 +103,10 @@ function show(d: Parameters<typeof __test.classify>[0], label: string) {
 async function cmdStatus(cdk: string) {
   head(`单张查询  ref=${REF}`)
   const r = await fetch(
-    `${BASE}/api/store/redeem/status?ref=${encodeURIComponent(REF)}&cdk=${encodeURIComponent(cdk)}`,
-    { cache: 'no-store' }
+    KEY
+      ? `${BASE}${OPEN}/redeem/status?cdk=${encodeURIComponent(cdk)}`
+      : `${BASE}/api/store/redeem/status?ref=${encodeURIComponent(REF)}&cdk=${encodeURIComponent(cdk)}`,
+    { cache: 'no-store', headers: OPEN_HEADERS }
   )
   console.log(`HTTP ${r.status}`)
   const body = (await r.json().catch(() => ({}))) as Record<string, unknown>
@@ -277,7 +290,7 @@ async function cmdSkew() {
 
 async function main() {
   const [cmd, arg] = process.argv.slice(2)
-  console.log(`STORE=${PICKED.config.key}  BASE=${BASE}  REF=${REF}`)
+  console.log(`STORE=${PICKED.config.key}  BASE=${BASE}  REF=${REF}  ${PICKED.openApi() ? '走开放 API' : '走网页接口（没配 Key）'}`)
   switch (cmd) {
     case 'humancheck': {
       const need = await PICKED.humanCheckRequired()

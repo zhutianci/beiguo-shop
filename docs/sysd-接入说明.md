@@ -1,5 +1,8 @@
 # sysd 充值系统 · 接入说明（2026-10-24）
 
+> **2026-10-31 现状：提交被对方的人机校验拦着。** 要让对方发一个 niuniu888 的开放 API Key（店铺级，chuanwen 的不能共用），
+> 配到 `SYSD_API_KEY` 后 `up -d --no-deps app` 就切过去，不用改代码。见 `docs/sysc-充值系统-协议逆向说明.md` 第 9 节。
+
 对方：`niuniu888.applelll.com`（页面标题「兑换中心」），站内代号 **sysd**。
 和 sysc（`chuanwen.applelll.com`）是**同一套多店铺白标系统的另一家店**。
 
