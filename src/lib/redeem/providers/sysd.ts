@@ -25,6 +25,7 @@ export const SYSD = createStore({
   ref: process.env.SYSD_STORE_REF || 'niuniu888',
   productMapEnv: 'SYSD_PRODUCT_MAP',
   tracePrefix: 'SD',
+  fallbackEnv: 'SYSD_FALLBACK_URL',
 })
 
 export const sysd: RedeemProvider = SYSD.provider

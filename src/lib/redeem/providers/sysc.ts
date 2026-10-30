@@ -35,12 +35,21 @@
  * 【四】不透传对方的 detail / message。
  * 那些文案里带对方的术语，透传出去既泄漏货源，买家也看不懂。
  * 全部按机器可读的 status / task_status 走下面的映射表。
+ *
+ * 【五】人机校验（2026-10-30 对方新增）绝不绕过，只如实告诉买家。
+ * 对方给下单 / 强刷接口加了 Cloudflare Turnstile：body 里要带浏览器方框勾选后得到的一次性
+ * `turnstile_token`，而且先于卡密校验（编造的卡也回同一句）。**服务器自己拿不到这个 token**，
+ * 要通只有对方配合（放行我们的服务器 IP，或发专用凭据）。这里只做三件事，见 humanCheckRequired()：
+ *   · 不让买家白填账号：check() 就把这个状态说清楚，不出表单
+ *   · 不误导买家：原来这种拒绝会显示「请核对账号信息」，买家卡#3066 连试 5 次
+ *   · 对方一放行就自动恢复：不用改配置、不用发版
  */
 import crypto from 'crypto'
 import {
   RedeemError,
   type RedeemActivateResult,
   type RedeemCheckResult,
+  type RedeemFallback,
   type RedeemField,
   type RedeemGuideStep,
   type RedeemProvider,
@@ -72,6 +81,11 @@ export interface StoreConfig {
   productMapEnv: string
   /** 追踪号前缀，只为排查时把日志串起来，见 activate() 里的 trace */
   tracePrefix: string
+  /**
+   * 备用充值地址所在的环境变量名。没配就不给买家按钮（默认），配了才出现。
+   * 【默认关】这个按钮会把货源站告诉买家，要不要这么做是站长的决定（types.ts RedeemFallback）。
+   */
+  fallbackEnv: string
 }
 
 const TIMEOUT_MS = 20_000
@@ -127,7 +141,9 @@ interface SiteProduct {
 
 interface Store extends StoreConfig {
   /** 商品清单缓存。**每家店各一份** —— 两家店的清单不一样（niuniu888 只有 6 个商品） */
-  siteCache: { at: number; products: SiteProduct[] } | null
+  siteCache: { at: number; products: SiteProduct[]; siteKey: string } | null
+  /** 上一次判定「这家店现在要不要人机校验」的结果，见 humanCheckRequired() */
+  humanCheck: { at: number; required: boolean } | null
 }
 
 /** 我们认识的平台。对方的 platform 字段只见过这三种 */
@@ -160,7 +176,21 @@ const COPY = {
   busy: '操作过于频繁，请稍后再试',
   unavailable: '充值服务暂时不可用，请稍后再试',
   timeout: '充值服务响应超时，请稍后回到本页查询结果，不要重复提交',
+  humanCheck:
+    '这条充值通道正在升级安全验证，暂时无法在本站提交。**你的卡密有效，没有被消耗**，' +
+    '不需要重新复制账号信息，请联系客服处理。',
 } as const
+
+/**
+ * 对方「人机校验没过」的拒绝文案（2026-10-30 实抓）：
+ *   400 {"detail":"人机校验还没完成,请等方框打上勾再点(网络连不上 Cloudflare 时会一直转)"}
+ * 没有机器码，只能认文字。后面也可能换成「已过期或重复」这类，所以连 token 相关的词一起认。
+ */
+const HUMAN_CHECK_RE = /人机|turnstile|captcha/i
+
+function isHumanCheckRejection(detail: string | undefined): boolean {
+  return !!detail && HUMAN_CHECK_RE.test(detail)
+}
 
 /** 终态失败的 task_status。这几个值出现时，对方已经把卡回滚了 */
 const FAILED_TASKS: ReadonlySet<string> = new Set(['failed', 'internal_error', 'cancelled', 'timeout'])
@@ -530,10 +560,10 @@ interface RawResult {
 async function request(
   s: Store,
   path: string,
-  init: { method: 'GET' | 'POST'; payload?: Record<string, unknown> }
+  init: { method: 'GET' | 'POST'; payload?: Record<string, unknown>; timeoutMs?: number }
 ): Promise<RawResult> {
   const ac = new AbortController()
-  const timer = setTimeout(() => ac.abort(), TIMEOUT_MS)
+  const timer = setTimeout(() => ac.abort(), init.timeoutMs ?? TIMEOUT_MS)
   try {
     const res = await fetch(`${s.base}${path}`, {
       method: init.method,
@@ -584,7 +614,8 @@ async function siteProducts(s: Store): Promise<SiteProduct[]> {
     const list = Array.isArray(r.body.products) ? (r.body.products as SiteProduct[]) : []
     const products = list.filter((p) => typeof p?.product_id === 'number' && typeof p?.name === 'string')
     if (products.length) {
-      s.siteCache = { at: Date.now(), products }
+      const siteKey = typeof r.body.turnstile_site_key === 'string' ? r.body.turnstile_site_key.trim() : ''
+      s.siteCache = { at: Date.now(), products, siteKey }
       return products
     }
   } catch {
@@ -757,6 +788,73 @@ async function statusBatch(s: Store, cdks: string[]): Promise<StatusBody[]> {
   return Array.isArray(r.body.results) ? (r.body.results as StatusBody[]) : []
 }
 
+/* ==================== 人机校验 ==================== */
+
+/** 判定结果缓存多久。要校验时短一点（对方放行后 5 分钟内恢复）；不要时长一点（少发探测） */
+const HUMAN_CHECK_TTL = { required: 5 * 60_000, clear: 30 * 60_000 } as const
+const HUMAN_CHECK_PROBE_TIMEOUT_MS = 8_000
+/** 探测用的卡密。**不可能是真卡**：上游的卡都是 VCK-XXXX-XXXX-XXXX，这个多一段还是全 Z */
+const HUMAN_CHECK_PROBE_CDK = 'ZZZZ-NOT-A-REAL-CARD-0000'
+
+/**
+ * 这家店现在会不会因为人机校验拒绝**我们这台服务器**的提交。
+ *
+ * 【为什么不能只看 turnstile_site_key】那个字段说明对方开了校验，但对方给我们放行之后
+ * （我们的 IP 跳过校验）它照样有值。只看它，放行了我们还以为不通；非要配个开关的话又多一件要记住的事。
+ *
+ * 【所以发一个编造卡密的请求问一下】2026-10-30 实测对方**先验 token、后验卡密**，
+ * 不带 token 发一张假卡：要校验 → 回人机校验那句；已放行 → 回卡密无效。两种都碰不到任何真卡，
+ * 没有副作用。只在 site key 非空、且缓存过期时才发。
+ *
+ * 【问不到就当不需要】超时 / 网关错误不下结论、不缓存，让买家正常走，
+ * 真被拒了 submitOnce 还会接住。不能因为一次网络抖动把通道说成不可用。
+ */
+async function humanCheckRequired(s: Store): Promise<boolean> {
+  await siteProducts(s)
+  if (!s.siteCache?.siteKey) {
+    s.humanCheck = null
+    return false
+  }
+  const c = s.humanCheck
+  if (c && Date.now() - c.at < (c.required ? HUMAN_CHECK_TTL.required : HUMAN_CHECK_TTL.clear)) return c.required
+  try {
+    const r = await request(s, '/api/store/redeem', {
+      method: 'POST',
+      timeoutMs: HUMAN_CHECK_PROBE_TIMEOUT_MS,
+      payload: {
+        ref: s.ref,
+        cdk: HUMAN_CHECK_PROBE_CDK,
+        product_id: s.siteCache.products[0]?.product_id ?? 0,
+        account_id: '00000000-0000-4000-8000-000000000000',
+      },
+    })
+    // 网关错误 / 限流说明不了校验的事，不下结论
+    if (r.status >= 500 || r.status === 429) return false
+    const required = isHumanCheckRejection(str(r.body.detail))
+    s.humanCheck = { at: Date.now(), required }
+    return required
+  } catch {
+    return false
+  }
+}
+
+/** 对方拒了 / 判定为要校验时给买家的结果。备用地址没配就没有按钮 */
+function fallbackOf(s: Store): RedeemFallback | undefined {
+  const url = (process.env[s.fallbackEnv] || '').trim()
+  if (!/^https:\/\//i.test(url)) return undefined
+  let host = ''
+  try {
+    host = new URL(url).host
+  } catch {
+    return undefined
+  }
+  return {
+    text: '本站这条充值通道暂时无法提交。你的卡密有效、没有被消耗，可以直接到下面的网站完成充值。',
+    label: `前往 ${host} 充值`,
+    url,
+  }
+}
+
 /* ==================== 提交参数 ==================== */
 
 interface AccountArgs {
@@ -860,11 +958,13 @@ function pickAccountArgs(platform: Platform, values: Record<string, string>): Ac
  * 这是 sysc 比 sysb 好做的地方，代价是绝不能省掉这次查询。
  */
 async function submitOnce(s: Store, payload: Record<string, unknown>, cdk: string): Promise<
-  { landed: true; accountId?: string; email?: string } | { landed: false; message: string }
+  { landed: true; accountId?: string; email?: string } | { landed: false; message: string; humanCheck?: boolean }
 > {
   try {
     const r = await request(s, '/api/store/redeem', { method: 'POST', payload })
     if (r.status === 200) {
+      // 真实提交被受理，说明这台服务器现在不用过人机校验
+      s.humanCheck = { at: Date.now(), required: false }
       return { landed: true, accountId: str(r.body.account_id), email: str(r.body.email) }
     }
     /*
@@ -873,6 +973,10 @@ async function submitOnce(s: Store, payload: Record<string, unknown>, cdk: strin
      */
     const detail = str(r.body.detail)
     if (detail) console.error(`[${s.key}] 下单被拒 status=${r.status} detail=${detail}`)
+    if (isHumanCheckRejection(detail)) {
+      s.humanCheck = { at: Date.now(), required: true }
+      return { landed: false, message: COPY.humanCheck, humanCheck: true }
+    }
     if (r.status === 429) return { landed: false, message: COPY.busy }
     if (r.status >= 500) return { landed: false, message: COPY.unavailable }
     return {
@@ -986,6 +1090,22 @@ function makeProvider(s: Store): RedeemProvider {
         return { state: 'ERROR', message: COPY.unmapped, fields: [], notice: null }
       }
 
+      /*
+       * 【别让买家白填】卡是好的，但这次提交注定被对方的人机校验拒掉。
+       * 用 COOLDOWN 不用 ERROR：这不是卡或买家的问题，页面上是黄色提示，不是红色报错；
+       * fields 为空所以不出表单。对方放行后最多 5 分钟自动恢复，见 humanCheckRequired()。
+       */
+      if (await humanCheckRequired(s)) {
+        return {
+          state: 'COOLDOWN',
+          message: COPY.humanCheck,
+          productName: ctx?.productName || undefined,
+          fields: [],
+          notice: null,
+          fallback: fallbackOf(s),
+        }
+      }
+
       const g = guideFor(resolved.platform)
       return {
         state: 'READY',
@@ -1043,6 +1163,11 @@ function makeProvider(s: Store): RedeemProvider {
       // 凭据解析放在拿锁之前：格式不对、Team 号这类情况卡根本没动，不该白占一把锁
       const args = pickAccountArgs(resolved.platform, values)
 
+      // 同理：已经知道会被人机校验拒掉，就别占锁、别发一次注定失败的提交
+      if (await humanCheckRequired(s)) {
+        return { state: 'ERROR', message: COPY.humanCheck, retriable: false, fallback: fallbackOf(s) }
+      }
+
       const got = await claimIrreversible()
       if (!got) {
         /*
@@ -1096,6 +1221,10 @@ function makeProvider(s: Store): RedeemProvider {
          * 也不能在一张可能已经提交出去的卡上放开闸门。
          */
         await releaseIfUntouched(s, cdk, trace, releaseIrreversible)
+        if (sent.humanCheck) {
+          // 买家再点多少次都一样，不给重试入口（卡#3066 就是连点了 5 次）
+          return { state: 'ERROR', message: sent.message, retriable: false, orderRef: trace, fallback: fallbackOf(s) }
+        }
         return { state: 'ERROR', message: sent.message, retriable: true, orderRef: trace }
       }
 
@@ -1166,6 +1295,10 @@ function makeProvider(s: Store): RedeemProvider {
       if (r.status !== 200) {
         const detail = str(r.body.detail)
         if (detail) console.error(`[${s.key}] 强刷被拒 status=${r.status} detail=${detail}`)
+        if (isHumanCheckRejection(detail)) {
+          s.humanCheck = { at: Date.now(), required: true }
+          return { state: 'ERROR', message: COPY.humanCheck, retriable: false, fallback: fallbackOf(s) }
+        }
         return {
           state: 'ERROR',
           message: r.status === 429 ? COPY.busy : '强刷失败，请稍后再试或联系客服',
@@ -1229,17 +1362,21 @@ export function createStore(cfg: StoreConfig): {
   provider: RedeemProvider
   /** 批量查（一次最多 100 张）。给对账脚本用，兑换链路不走这里 */
   statusBatch: (cdks: string[]) => Promise<StatusBody[]>
+  /** 这台机器现在提交会不会被人机校验拒。给探针脚本排查用 */
+  humanCheckRequired: () => Promise<boolean>
 } {
   const s: Store = {
     ...cfg,
     base: cfg.base.trim().replace(/\/+$/, ''),
     ref: cfg.ref.trim(),
     siteCache: null,
+    humanCheck: null,
   }
   return {
     config: Object.freeze({ ...cfg, base: s.base, ref: s.ref }),
     provider: makeProvider(s),
     statusBatch: (cdks) => statusBatch(s, cdks),
+    humanCheckRequired: () => humanCheckRequired(s),
   }
 }
 
@@ -1251,6 +1388,7 @@ export const SYSC = createStore({
   ref: process.env.SYSC_STORE_REF || 'chuanwen',
   productMapEnv: 'SYSC_PRODUCT_MAP',
   tracePrefix: 'SC',
+  fallbackEnv: 'SYSC_FALLBACK_URL',
 })
 export const sysc: RedeemProvider = SYSC.provider
 export const syscStatusBatch = SYSC.statusBatch
@@ -1274,4 +1412,7 @@ export const __test = {
   aspHeaders,
   FAILED_TASKS,
   COPY,
+  isHumanCheckRejection,
+  HUMAN_CHECK_TTL,
+  HUMAN_CHECK_PROBE_CDK,
 }

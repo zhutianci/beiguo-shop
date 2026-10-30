@@ -137,6 +137,10 @@ services:
       - SYSD_BASE
       - SYSD_STORE_REF
       - SYSD_PRODUCT_MAP
+      # sysc / sysd 对方要人机校验、本站提交不了时给买家的备用充值地址（https://…）。不设 = 不出按钮、只提示联系客服。
+      # 【设了就等于把货源站告诉买家】要不要这么做由站长决定；只改这两个变量 `up -d --no-deps app` 即可，不用构建。
+      - SYSC_FALLBACK_URL
+      - SYSD_FALLBACK_URL
       # SEO：站长平台归属验证 + IndexNow 主动推送
       # 【必须列在这里】--env-file 只负责 compose 文件里的变量替换，
       # 不会自动把变量塞进容器。漏了这三行，.env.production 里配了也等于没配，

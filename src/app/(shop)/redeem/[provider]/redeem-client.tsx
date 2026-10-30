@@ -62,6 +62,8 @@ interface CheckResult {
   completedAt?: string
   cooldownSeconds?: number
   notice?: { level: string; text: string } | null
+  /** 查卡时就知道本站提交不了时的备用出口。由服务端决定给不给 */
+  fallback?: { text: string; label: string; url: string }
 }
 interface ActivateResult {
   state: string
@@ -400,6 +402,24 @@ export default function RedeemClient({
           )}
 
           {check?.notice && !result && <Banner tone="warn">{check.notice.text}</Banner>}
+
+          {check?.fallback && !result && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <p className="text-sm leading-relaxed text-amber-100">{check.fallback.text}</p>
+              <a
+                href={check.fallback.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 py-3 text-sm font-medium text-white transition-opacity hover:opacity-90"
+              >
+                {check.fallback.label}
+                <ExternalLink className="h-4 w-4" />
+              </a>
+              <p className="mt-2 text-center text-xs text-amber-200/60">
+                卡密：<span className="font-mono">{cdk.trim()}</span>
+              </p>
+            </div>
+          )}
 
           {/*
             渠道选择。只有适配器返回**两条以上** variants 时才出现。
