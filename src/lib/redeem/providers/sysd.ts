@@ -26,6 +26,7 @@ export const SYSD = createStore({
   productMapEnv: 'SYSD_PRODUCT_MAP',
   tracePrefix: 'SD',
   fallbackEnv: 'SYSD_FALLBACK_URL',
+  apiKeyEnv: 'SYSD_API_KEY',
 })
 
 export const sysd: RedeemProvider = SYSD.provider

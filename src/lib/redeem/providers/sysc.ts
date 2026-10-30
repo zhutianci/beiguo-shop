@@ -43,6 +43,26 @@
  *   · 不让买家白填账号：check() 就把这个状态说清楚，不出表单
  *   · 不误导买家：原来这种拒绝会显示「请核对账号信息」，买家卡#3066 连试 5 次
  *   · 对方一放行就自动恢复：不用改配置、不用发版
+ *
+ * ================== 2026-10-31：配了 API Key 就走对方官方的开放 API ==================
+ * 对方给了正式接口（文档 https://pz.maiofa.com/store-apidoc.html，基础路径 /api/store/open/v1，
+ * `X-API-Key` 鉴权，**没有人机校验**）。同一个文件支持两种走法，由环境变量决定（StoreConfig.apiKeyEnv）：
+ *
+ *   配了 Key   开放 API：products / redeem / redeem/status。下单不带 ref、product_id、防重放头
+ *   没配 Key   老的网页接口：/api/store/*，会被上面第五条的人机校验拦住
+ *
+ * 所以 sysd 拿到自己的 Key 后，只要配一个环境变量就切过去，不用改代码。Key 是**店铺级**的，两家不能共用。
+ *
+ * 【开放 API 与网页接口的差别，都是实测过的】
+ *   · 不支持 session_key：body 没有 account_id 直接 400「cdk 与 account_id 均不能为空」。
+ *     所以 Claude 只能填 Organization ID（fieldsFor / pickAccountArgs），也就没有了「扣卡前先查号」那层保护
+ *   · 没有强刷（remedy）：只开放四个动作，所以这种模式下适配器不提供 rebind，兑换页不会出现那个入口
+ *   · 错误是结构化的 `{"detail":{"code","message"}}`；参数校验失败是 FastAPI 的数组，里面的 `input`
+ *     **原样回显请求体**（含买家账号），绝不能进日志，见 detailOf()
+ *   · 重复提交有保护：已用的卡回 409 CDK_USED，处理中回 CDK_RESERVED。不再是「并发两次扣两笔」，
+ *     但拿锁 + 先查状态照旧保留，这两道闸不要拆
+ *   · **卡号无效的提交 10 次 / 10 分钟就封 Key 15 分钟**。下单前先查状态已经挡住了假卡，
+ *     所以开放 API 模式绝不能发编造卡密的探测（humanCheckRequired 第一句就返回）
  */
 import crypto from 'crypto'
 import {
@@ -86,6 +106,11 @@ export interface StoreConfig {
    * 【默认关】这个按钮会把货源站告诉买家，要不要这么做是站长的决定（types.ts RedeemFallback）。
    */
   fallbackEnv: string
+  /**
+   * 对方开放 API 的 Key 所在的环境变量名。**配了就走开放 API，没配走老的网页接口**。
+   * Key 只放服务器的 .env.production，不进仓库、不进日志、不回给买家。
+   */
+  apiKeyEnv: string
 }
 
 const TIMEOUT_MS = 20_000
@@ -176,6 +201,8 @@ const COPY = {
   busy: '操作过于频繁，请稍后再试',
   unavailable: '充值服务暂时不可用，请稍后再试',
   timeout: '充值服务响应超时，请稍后回到本页查询结果，不要重复提交',
+  credential: '充值服务凭据异常，请联系客服',
+  noStock: '这个商品上游暂时缺货，本次没有提交，**卡密没有被消耗**，请稍后再试',
   humanCheck:
     '这条充值通道正在升级安全验证，暂时无法在本站提交。**你的卡密有效，没有被消耗**，' +
     '不需要重新复制账号信息，请联系客服处理。',
@@ -383,7 +410,26 @@ function teamEvidence(raw: string): string | null {
 
 /* ==================== 买家要填什么 ==================== */
 
-function fieldsFor(platform: Platform): RedeemField[] {
+function fieldsFor(platform: Platform, openApi = false): RedeemField[] {
+  /*
+   * 【开放 API 只收 account_id】实测传 session_key 直接 400，所以只剩 Organization ID 这一条路，
+   * 对方的页面指引也是这么写的。这条路扣卡前查不了号，所以把「填错无法撤回」说在前面。
+   */
+  if (platform === 'claude' && openApi) {
+    return [
+      {
+        name: 'uid',
+        kind: 'uuid',
+        label: 'Claude Organization ID',
+        help:
+          '登录 claude.ai 后打开设置页（claude.ai/settings），在账号页面复制 Organization ID。' +
+          '**填错会充到别的账号、无法撤回**，提交前请再核对一遍。',
+        placeholder: '96eae38f-b751-4079-b116-484bd746c477',
+        pattern: UUID_PATTERN,
+        required: true,
+      },
+    ]
+  }
   switch (platform) {
     case 'gpt':
       return [
@@ -480,7 +526,26 @@ function fieldsFor(platform: Platform): RedeemField[] {
   }
 }
 
-function guideFor(platform: Platform): { intro: string; steps: RedeemGuideStep[] } {
+function guideFor(platform: Platform, openApi = false): { intro: string; steps: RedeemGuideStep[] } {
+  if (platform === 'claude' && openApi) {
+    return {
+      intro: '跟着 4 步完成：登录 Claude，到设置页复制 Organization ID 贴进来。',
+      steps: [
+        { title: '确认卡密', detail: '上一步已经查过了，确认上面显示的商品与你购买的一致。' },
+        {
+          title: '登录 Claude',
+          detail: '打开 claude.ai，登录要充值的那个账号。',
+          link: { label: '打开 Claude', url: 'https://claude.ai/' },
+        },
+        {
+          title: '复制 Organization ID',
+          detail: '打开设置页，在账号（Account）页面找到 Organization ID 并复制，形如 96eae38f-xxxx-xxxx-xxxx-xxxxxxxxxxxx。',
+          link: { label: '打开设置页', url: 'https://claude.ai/settings' },
+        },
+        { title: '粘贴并提交', detail: '粘进下面的输入框，核对无误后提交，通常 1-3 分钟到账。' },
+      ],
+    }
+  }
   if (platform === 'gpt') {
     return {
       intro: '跟着 4 步完成：先确认卡密，再登录账号取一段 Session 信息贴进来。',
@@ -552,9 +617,63 @@ function aspHeaders(): Record<string, string> {
   }
 }
 
+/** 开放 API 的基础路径 */
+const OPEN_API = '/api/store/open/v1'
+
+function apiKey(s: Store): string {
+  return (process.env[s.apiKeyEnv] || '').trim()
+}
+/** 这家店走不走开放 API。每次现读环境变量，没有缓存 */
+function useOpenApi(s: Store): boolean {
+  return !!apiKey(s)
+}
+
+function headersFor(s: Store, method: 'GET' | 'POST'): Record<string, string> {
+  const key = apiKey(s)
+  if (key) {
+    return { 'X-API-Key': key, Accept: 'application/json', ...(method === 'POST' ? { 'Content-Type': 'application/json' } : {}) }
+  }
+  return method === 'POST' ? aspHeaders() : { Accept: 'application/json' }
+}
+
 interface RawResult {
   status: number
   body: Record<string, unknown>
+  /** Retry-After 头，或错误体里的 retryAfterSeconds */
+  retryAfter?: number
+}
+
+/**
+ * 读对方的错误。三种形状：
+ *   网页接口   {"detail":"中文"}
+ *   开放 API   {"detail":{"code":"CDK_NOT_FOUND","message":"CDK 无效","retryAfterSeconds":30}}
+ *   参数校验   {"detail":[{"type":"missing","loc":["body","cdk"],"msg":"…","input":{…}}]}（FastAPI）
+ *
+ * 【第三种的 input 绝不能碰】它把整个请求体原样回显，里面有买家的账号和邮箱。只取 loc 和 msg。
+ */
+function detailOf(body: Record<string, unknown>): { code?: string; text?: string; retryAfter?: number } {
+  const d = body.detail
+  if (typeof d === 'string') return { text: d.trim() || undefined }
+  if (Array.isArray(d)) {
+    const text = d
+      .map((x) => {
+        const o = (x && typeof x === 'object' ? x : {}) as { loc?: unknown; msg?: unknown }
+        return `${Array.isArray(o.loc) ? o.loc.join('.') : ''}: ${typeof o.msg === 'string' ? o.msg : ''}`
+      })
+      .join('; ')
+      .slice(0, 200)
+    return { code: 'VALIDATION', text }
+  }
+  if (d && typeof d === 'object') {
+    const o = d as { code?: unknown; message?: unknown; retryAfterSeconds?: unknown }
+    const ra = Number(o.retryAfterSeconds)
+    return {
+      code: typeof o.code === 'string' ? o.code : undefined,
+      text: typeof o.message === 'string' ? o.message : undefined,
+      retryAfter: Number.isFinite(ra) && ra > 0 ? ra : undefined,
+    }
+  }
+  return {}
 }
 
 async function request(
@@ -567,7 +686,7 @@ async function request(
   try {
     const res = await fetch(`${s.base}${path}`, {
       method: init.method,
-      headers: init.method === 'POST' ? aspHeaders() : { Accept: 'application/json' },
+      headers: headersFor(s, init.method),
       body: init.payload ? JSON.stringify(init.payload) : undefined,
       signal: ac.signal,
       /*
@@ -586,10 +705,14 @@ async function request(
       /*
        * Cloudflare 的 5xx 会返回 HTML，限流可能只返回一句话。
        * 不能崩，也不能把对方的原始内容吐给买家。
+       * 记一行状态码和正文开头：Cloudflare 拦截（403 HTML）要靠它认出来。
        */
+      console.error(`[${s.key}] 非 JSON 响应 ${init.method} status=${res.status} body=${text.slice(0, 40).replace(/\s+/g, ' ')}`)
       throw new RedeemError(res.status === 429 ? COPY.busy : COPY.unavailable, 'ERROR')
     }
-    return { status: res.status, body }
+    const raHeader = Number(res.headers.get('Retry-After') || '')
+    const retryAfter = detailOf(body).retryAfter ?? (Number.isFinite(raHeader) && raHeader > 0 ? raHeader : undefined)
+    return { status: res.status, body, retryAfter }
   } catch (e) {
     if (e instanceof RedeemError) throw e
     const msg = e instanceof Error ? e.message : String(e)
@@ -610,7 +733,8 @@ const SITE_TTL_MS = 10 * 60_000
 async function siteProducts(s: Store): Promise<SiteProduct[]> {
   if (s.siteCache && Date.now() - s.siteCache.at < SITE_TTL_MS) return s.siteCache.products
   try {
-    const r = await request(s, `/api/store/site?ref=${encodeURIComponent(s.ref)}`, { method: 'GET' })
+    const path = useOpenApi(s) ? `${OPEN_API}/products` : `/api/store/site?ref=${encodeURIComponent(s.ref)}`
+    const r = await request(s, path, { method: 'GET' })
     const list = Array.isArray(r.body.products) ? (r.body.products as SiteProduct[]) : []
     const products = list.filter((p) => typeof p?.product_id === 'number' && typeof p?.name === 'string')
     if (products.length) {
@@ -653,7 +777,17 @@ function productMap(s: Store): Record<string, number> {
   }
 }
 
+/** 只给开放 API 用的兜底：对方下单不要 product_id，这里判的只是「让买家填哪种账号」 */
+function platformByName(name: string | null | undefined): Platform | null {
+  const n = (name || '').toLowerCase()
+  if (n.includes('claude')) return 'claude'
+  if (n.includes('grok')) return 'grok'
+  if (n.includes('gpt')) return 'gpt'
+  return null
+}
+
 interface Resolved {
+  /** 开放 API 下可能是 0：那边下单不要这个字段 */
   productId: number
   platform: Platform
   /** 展示给买家的商品名。用**我们自己的**商品名，不用对方的 */
@@ -676,7 +810,8 @@ async function resolveProduct(
   ourName: string | null | undefined
 ): Promise<Resolved | null> {
   const products = await siteProducts(s)
-  if (!products.length) return null
+  const openApi = useOpenApi(s)
+  if (!products.length && !openApi) return null
 
   const up = (upstreamName || '').trim().toLowerCase()
   if (up) {
@@ -709,6 +844,14 @@ async function resolveProduct(
       const pf = normPlatform(cands[0].platform)
       if (pf) return { productId: cands[0].product_id, platform: pf, label: our }
     }
+  }
+  /*
+   * 【开放 API 可以按关键词判】它下单不要 product_id，「猜错就把 5x 充成 plus」这个风险不存在 ——
+   * 档位是卡自带的。这里决定的只是表单长什么样。商品下架、清单拉不到时也不该挡住一张好卡。
+   */
+  if (openApi) {
+    const pf = platformByName(upstreamName) || platformByName(ourName)
+    if (pf) return { productId: 0, platform: pf, label: our || undefined }
   }
   return null
 }
@@ -764,12 +907,16 @@ function str(v: unknown): string | undefined {
  * 统一成后者的形状，下游只认一套。
  */
 async function fetchStatus(s: Store, cdk: string): Promise<StatusBody> {
-  const r = await request(
-    s,
-    `/api/store/redeem/status?ref=${encodeURIComponent(s.ref)}&cdk=${encodeURIComponent(cdk)}`,
-    { method: 'GET' }
-  )
+  const openApi = useOpenApi(s)
+  const path = openApi
+    ? `${OPEN_API}/redeem/status?cdk=${encodeURIComponent(cdk)}`
+    : `/api/store/redeem/status?ref=${encodeURIComponent(s.ref)}&cdk=${encodeURIComponent(cdk)}`
+  const r = await request(s, path, { method: 'GET' })
   if (r.status === 404) return { found: false }
+  if (openApi && (r.status === 401 || r.status === 403)) {
+    console.error(`[${s.key}] Key 被拒 status=${r.status} code=${detailOf(r.body).code ?? '-'}`)
+    throw new RedeemError(COPY.credential, 'ERROR', false)
+  }
   if (r.status === 429) throw new RedeemError(COPY.busy, 'ERROR')
   if (r.status >= 500) throw new RedeemError(COPY.unavailable, 'ERROR')
   if (r.status !== 200) throw new RedeemError(COPY.unavailable, 'ERROR')
@@ -780,6 +927,12 @@ async function fetchStatus(s: Store, cdk: string): Promise<StatusBody> {
 async function statusBatch(s: Store, cdks: string[]): Promise<StatusBody[]> {
   if (!cdks.length) return []
   if (cdks.length > 100) throw new RedeemError('一次最多查 100 张卡密', 'ERROR', false)
+  // 开放 API 没有批量接口，逐张查（总量限 120 次 / 分钟，这个函数只有对账脚本用）
+  if (useOpenApi(s)) {
+    const out: StatusBody[] = []
+    for (const cdk of cdks) out.push({ cdk, ...(await fetchStatus(s, cdk)) } as StatusBody)
+    return out
+  }
   const r = await request(s, '/api/store/redeem/status-batch', {
     method: 'POST',
     payload: { ref: s.ref, cdks },
@@ -810,6 +963,11 @@ const HUMAN_CHECK_PROBE_CDK = 'ZZZZ-NOT-A-REAL-CARD-0000'
  * 真被拒了 submitOnce 还会接住。不能因为一次网络抖动把通道说成不可用。
  */
 async function humanCheckRequired(s: Store): Promise<boolean> {
+  /*
+   * 开放 API 没有人机校验。**这一句不能挪到探测后面**：那边卡号无效的提交
+   * 10 次 / 10 分钟就封 Key 15 分钟，编造卡密的探测会把自己封掉。
+   */
+  if (useOpenApi(s)) return false
   await siteProducts(s)
   if (!s.siteCache?.siteKey) {
     s.humanCheck = null
@@ -871,7 +1029,7 @@ interface AccountArgs {
  * 【同时填了只发一个】对方没说清优先级，所以我们自己定：Session / SessionKey 优先。
  * 把两个都发过去、让买家以为 uid 生效而实际用了 session，是最难解释的一类客诉。
  */
-function pickAccountArgs(platform: Platform, values: Record<string, string>): AccountArgs {
+function pickAccountArgs(platform: Platform, values: Record<string, string>, openApi = false): AccountArgs {
   const sk = (values.session_key || '').trim()
   const sj = (values.session_json || '').trim()
   const uid = (values.uid || '').trim()
@@ -882,7 +1040,12 @@ function pickAccountArgs(platform: Platform, values: Record<string, string>): Ac
      * 对方服务端拿 sessionKey 去 claude.ai 查 organization uuid，
      * 号被封 / 风控 / key 失效都会在**扣卡之前**被拦下。
      * 这是唯一一处我们会把凭据本体发给上游的地方，而它换来的是「不会白扣一张卡」。
+     *
+     * 【开放 API 不收 sessionKey】实测直接 400。粘进来的 key 绝不往外发，也不去猜 Organization ID。
      */
+    if (openApi && (sk || /^(sessionKey=)?sk-/.test(uid))) {
+      throw new RedeemError('这里要填的是 Organization ID（在 claude.ai/settings 里），不是 SessionKey（卡密没有被消耗）', 'ERROR')
+    }
     if (sk) {
       if (!/^(sessionKey=)?sk-/.test(sk)) throw new RedeemError('SessionKey 格式不对，应以 sk-ant-sid 开头', 'ERROR')
       return { session_key: sk.replace(/^sessionKey=/, '') }
@@ -892,7 +1055,7 @@ function pickAccountArgs(platform: Platform, values: Record<string, string>): Ac
       if (!UUID_RE.test(id)) throw new RedeemError('Organization ID 格式不正确，应为标准 UUID', 'ERROR')
       return { account_id: id }
     }
-    throw new RedeemError('请填写 Claude SessionKey 或 Organization ID', 'ERROR')
+    throw new RedeemError(openApi ? '请填写 Claude Organization ID' : '请填写 Claude SessionKey 或 Organization ID', 'ERROR')
   }
 
   if (platform === 'grok') {
@@ -951,6 +1114,32 @@ function pickAccountArgs(platform: Platform, values: Record<string, string>): Ac
 /* ==================== 下单 ==================== */
 
 /**
+ * 下单请求体。
+ * 开放 API 只发文档列出的字段（cdk / account_id / email / acct_structure）：
+ * ref 和 product_id 由 Key 与卡自己决定，acct_plan 文档里没有，多发就是在文档之外调用。
+ */
+function redeemPayload(s: Store, cdk: string, productId: number, args: AccountArgs): Record<string, unknown> {
+  if (useOpenApi(s)) {
+    return {
+      cdk,
+      account_id: args.account_id,
+      ...(args.email ? { email: args.email } : {}),
+      ...(args.acct_structure ? { acct_structure: args.acct_structure } : {}),
+    }
+  }
+  return {
+    ref: s.ref,
+    cdk,
+    product_id: productId,
+    ...(args.account_id ? { account_id: args.account_id } : {}),
+    ...(args.session_key ? { session_key: args.session_key } : {}),
+    ...(args.email ? { email: args.email } : {}),
+    ...(args.acct_structure ? { acct_structure: args.acct_structure } : {}),
+    ...(args.acct_plan ? { acct_plan: args.acct_plan } : {}),
+  }
+}
+
+/**
  * 发一次下单请求，并把「超时了不知道有没有落地」这件事处理掉。
  *
  * 【POST 超时绝不重发 POST】对方没有幂等键，重发就是第二笔扣款。
@@ -958,26 +1147,38 @@ function pickAccountArgs(platform: Platform, values: Record<string, string>): Ac
  * 这是 sysc 比 sysb 好做的地方，代价是绝不能省掉这次查询。
  */
 async function submitOnce(s: Store, payload: Record<string, unknown>, cdk: string): Promise<
-  { landed: true; accountId?: string; email?: string } | { landed: false; message: string; humanCheck?: boolean }
+  | { landed: true; accountId?: string; email?: string; taskId?: string }
+  | { landed: false; message: string; humanCheck?: boolean; retriable?: boolean; retryAfter?: number }
 > {
   try {
-    const r = await request(s, '/api/store/redeem', { method: 'POST', payload })
-    if (r.status === 200) {
+    const path = useOpenApi(s) ? `${OPEN_API}/redeem` : '/api/store/redeem'
+    const r = await request(s, path, { method: 'POST', payload })
+    if (r.status === 200 && r.body.ok !== false) {
       // 真实提交被受理，说明这台服务器现在不用过人机校验
       s.humanCheck = { at: Date.now(), required: false }
-      return { landed: true, accountId: str(r.body.account_id), email: str(r.body.email) }
+      return { landed: true, accountId: str(r.body.account_id), email: str(r.body.email), taskId: str(r.body.task_id) }
     }
     /*
      * 非 200 = 对方当场拒了，卡没动。
      * **不透传 detail**（那是对方的原文），只落日志。
      */
-    const detail = str(r.body.detail)
-    if (detail) console.error(`[${s.key}] 下单被拒 status=${r.status} detail=${detail}`)
-    if (isHumanCheckRejection(detail)) {
+    const { code, text } = detailOf(r.body)
+    if (code || text) console.error(`[${s.key}] 下单被拒 status=${r.status} code=${code ?? '-'} detail=${text ?? ''}`)
+    if (isHumanCheckRejection(text)) {
       s.humanCheck = { at: Date.now(), required: true }
       return { landed: false, message: COPY.humanCheck, humanCheck: true }
     }
-    if (r.status === 429) return { landed: false, message: COPY.busy }
+    /*
+     * 【已用 / 处理中都不是「被拒」】这张卡已经有一笔了（别处提交的，或者上一次超时其实落地了）。
+     * 按「已落地」走，让接下来的查状态说真实结果。绝不能告诉买家「卡没被消耗」。
+     */
+    if (code === 'CDK_USED' || code === 'CDK_RESERVED') return { landed: true }
+    if (code === 'CDK_NOT_FOUND') return { landed: false, message: COPY.notFound, retriable: false }
+    if (code === 'NO_STOCK') return { landed: false, message: COPY.noStock, retryAfter: 60 }
+    if (useOpenApi(s) && (r.status === 401 || r.status === 403)) {
+      return { landed: false, message: COPY.credential, retriable: false }
+    }
+    if (r.status === 429) return { landed: false, message: COPY.busy, retryAfter: r.retryAfter }
     if (r.status >= 500) return { landed: false, message: COPY.unavailable }
     return {
       landed: false,
@@ -1055,7 +1256,7 @@ async function waitShortly(s: Store, cdk: string): Promise<StatusBody | null> {
 /* ==================== 适配器 ==================== */
 
 function makeProvider(s: Store): RedeemProvider {
-  return {
+  const provider: RedeemProvider = {
     key: s.key,
     /** 辨识名：只在后台导入卡密的下拉里出现，买家侧永远看不到 */
     adminLabel: s.adminLabel,
@@ -1106,12 +1307,12 @@ function makeProvider(s: Store): RedeemProvider {
         }
       }
 
-      const g = guideFor(resolved.platform)
+      const g = guideFor(resolved.platform, useOpenApi(s))
       return {
         state: 'READY',
         message,
         productName: ctx?.productName || undefined,
-        fields: fieldsFor(resolved.platform),
+        fields: fieldsFor(resolved.platform, useOpenApi(s)),
         guide: g.steps,
         guideIntro: g.intro,
         notice: null,
@@ -1161,7 +1362,7 @@ function makeProvider(s: Store): RedeemProvider {
       }
 
       // 凭据解析放在拿锁之前：格式不对、Team 号这类情况卡根本没动，不该白占一把锁
-      const args = pickAccountArgs(resolved.platform, values)
+      const args = pickAccountArgs(resolved.platform, values, useOpenApi(s))
 
       // 同理：已经知道会被人机校验拒掉，就别占锁、别发一次注定失败的提交
       if (await humanCheckRequired(s)) {
@@ -1194,20 +1395,7 @@ function makeProvider(s: Store): RedeemProvider {
         .slice(0, 10)}`
       if (saveOrderRef) await saveOrderRef(trace)
 
-      const sent = await submitOnce(
-        s,
-        {
-          ref: s.ref,
-          cdk,
-          product_id: resolved.productId,
-          ...(args.account_id ? { account_id: args.account_id } : {}),
-          ...(args.session_key ? { session_key: args.session_key } : {}),
-          ...(args.email ? { email: args.email } : {}),
-          ...(args.acct_structure ? { acct_structure: args.acct_structure } : {}),
-          ...(args.acct_plan ? { acct_plan: args.acct_plan } : {}),
-        },
-        cdk
-      )
+      const sent = await submitOnce(s, redeemPayload(s, cdk, resolved.productId, args), cdk)
 
       if (!sent.landed) {
         /*
@@ -1225,8 +1413,17 @@ function makeProvider(s: Store): RedeemProvider {
           // 买家再点多少次都一样，不给重试入口（卡#3066 就是连点了 5 次）
           return { state: 'ERROR', message: sent.message, retriable: false, orderRef: trace, fallback: fallbackOf(s) }
         }
-        return { state: 'ERROR', message: sent.message, retriable: true, orderRef: trace }
+        return {
+          state: 'ERROR',
+          message: sent.message,
+          retriable: sent.retriable ?? true,
+          retryAfter: sent.retryAfter,
+          orderRef: trace,
+        }
       }
+
+      // 开放 API 会给对方自己的任务号（R2026…），找对方核对时用得上；老接口没有就用我们的追踪号
+      const orderRef = sent.taskId || trace
 
       // 已受理。顺手等一小会儿，接住「1 分钟内就好了」的常见情况
       const settled = await waitShortly(s, cdk)
@@ -1239,12 +1436,12 @@ function makeProvider(s: Store): RedeemProvider {
             account: str(settled.redeem_email) || str(settled.redeem_account_id) || sent.email || sent.accountId,
             completedAt: str(settled.redeemed_at),
             retriable: false,
-            orderRef: trace,
+            orderRef,
           }
         }
         if (settled.task_status === 'possible_success') {
           // 不交付、也绝不让他重试
-          return { state: 'PROCESSING', message: COPY.possibleSuccess, retriable: false, orderRef: trace }
+          return { state: 'PROCESSING', message: COPY.possibleSuccess, retriable: false, orderRef }
         }
         if (settled.task_status && FAILED_TASKS.has(settled.task_status)) {
           if (settled.message) console.error(`[${s.key}] 充值失败 trace=${trace} upstream_message=${settled.message}`)
@@ -1253,7 +1450,7 @@ function makeProvider(s: Store): RedeemProvider {
            * 但前提是把我们自己的 15 分钟占位也放掉，否则那句话就是在骗买家。
            */
           await releaseIfUntouched(s, cdk, trace, releaseIrreversible)
-          return { state: 'ERROR', message: COPY.failed, retriable: true, orderRef: trace }
+          return { state: 'ERROR', message: COPY.failed, retriable: true, orderRef }
         }
       }
 
@@ -1263,7 +1460,7 @@ function makeProvider(s: Store): RedeemProvider {
         account: sent.email || sent.accountId,
         retriable: false,
         retryAfter: 20,
-        orderRef: trace,
+        orderRef,
       }
     },
 
@@ -1351,6 +1548,15 @@ function makeProvider(s: Store): RedeemProvider {
       }
     },
   }
+  /*
+   * 开放 API 只有四个动作，没有强刷；老的 /remedy 又要人机校验，走不通。
+   * 去掉这两个方法，兑换页（page.tsx 看 typeof provider.rebind）就不会出现一个点了必失败的入口。
+   */
+  if (useOpenApi(s)) {
+    delete provider.rebind
+    delete provider.rebindFields
+  }
+  return provider
 }
 
 /**
@@ -1364,6 +1570,8 @@ export function createStore(cfg: StoreConfig): {
   statusBatch: (cdks: string[]) => Promise<StatusBody[]>
   /** 这台机器现在提交会不会被人机校验拒。给探针脚本排查用 */
   humanCheckRequired: () => Promise<boolean>
+  /** 这家店现在走不走开放 API。给探针脚本排查用 */
+  openApi: () => boolean
 } {
   const s: Store = {
     ...cfg,
@@ -1377,6 +1585,7 @@ export function createStore(cfg: StoreConfig): {
     provider: makeProvider(s),
     statusBatch: (cdks) => statusBatch(s, cdks),
     humanCheckRequired: () => humanCheckRequired(s),
+    openApi: () => useOpenApi(s),
   }
 }
 
@@ -1389,6 +1598,7 @@ export const SYSC = createStore({
   productMapEnv: 'SYSC_PRODUCT_MAP',
   tracePrefix: 'SC',
   fallbackEnv: 'SYSC_FALLBACK_URL',
+  apiKeyEnv: 'SYSC_API_KEY',
 })
 export const sysc: RedeemProvider = SYSC.provider
 export const syscStatusBatch = SYSC.statusBatch
@@ -1413,6 +1623,9 @@ export const __test = {
   FAILED_TASKS,
   COPY,
   isHumanCheckRejection,
+  detailOf,
+  platformByName,
+  OPEN_API,
   HUMAN_CHECK_TTL,
   HUMAN_CHECK_PROBE_CDK,
 }

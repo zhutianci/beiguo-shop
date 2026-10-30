@@ -1,5 +1,8 @@
 # sysc 充值系统 · 协议说明（逆向整理，2026-10-19）
 
+> **2026-10-31：对方给了正式 API，sysc 现在走那条，见第 9 节。** 下面第 0~8 节是网页接口的逆向记录，
+> 没配 Key 的店（目前是 sysd）还在走它，而且会被 §6.7 的人机校验拦住。
+
 对方（`chuanwen.applelll.com`，站内代号 **sysc**）不提供 API 文档，**经对方明确授权**，
 由我们自行从其兑换中心前端整理出协议。本文件是唯一的协议依据，
 `src/lib/redeem/providers/sysc.ts` 的实现必须与本文件一致；以后对方改了协议，先改这里。
@@ -461,6 +464,8 @@ curl https://api.ipify.org                             → 同样不通
   结果缓存：要校验 5 分钟、不要 30 分钟；探测超时或 5xx 不下结论，不能因为网络抖动把通道说成不可用。site key 为空（对方关了）不探测
 - 备用按钮：`SYSC_FALLBACK_URL` / `SYSD_FALLBACK_URL`，**默认不设**（设了等于把货源站告诉买家，由站长决定），改它只需 `up -d --no-deps app`
 
+> **后续**：对方没有放行 IP，而是给了正式的开放 API（第 9 节），那边没有人机校验。下面的探测只对没配 Key 的店有意义。
+
 **怎么确认对方放行了**：
 
 ```bash
@@ -540,3 +545,43 @@ npx tsx scripts/check-redeem.ts
 写链路（会真的扣卡）走正规路径，**不要用脚本**：
 后台导入这张卡（充值系统选「C 系统」）→ 打开 `/redeem/sysc` → 提交。
 那条路才完整覆盖了并发锁、「下单前先查状态」、凭据不落库、日志落库这些保护。
+
+## 9. 开放 API（2026-10-31 起 sysc 走这条）
+
+文档：<https://pz.maiofa.com/store-apidoc.html>（`curl` 会被它的 Cloudflare 拦，用浏览器看）。
+基础路径 `https://<店铺域名>/api/store/open/v1`，我们用 `chuanwen.applelll.com`（`pz.maiofa.com` 这个主域名从服务器调同样被拦）。
+鉴权 `X-API-Key: sk_store_…`。**Key 是店铺级的，只放服务器 `.env.production` 的 `SYSC_API_KEY`，不进仓库。**
+配了 Key 适配器就走这里；sysd 要走得让对方再发一个 niuniu888 的 Key，配 `SYSD_API_KEY` 后 `up -d --no-deps app` 即可，不用改代码。
+
+| 接口 | 用途 | 我们怎么用 |
+|---|---|---|
+| `GET /products` | 商品清单（实测 `stock`、`sale_price` 都是 null） | 判该让买家填哪种账号 |
+| `GET /redeem/status?cdk=` | 卡的状态，字段与 §4 相同 | 查卡、下单前确认、下单后轮询。`task_status`：success 成功；failed / internal_error / cancelled / timeout 失败；其余进行中 |
+| `POST /redeem` | 下单，`{cdk, account_id, email?, acct_structure?}`，回 `{ok, status:"redeeming", task_id}` | 只发这几个字段 |
+| `POST /cdk/verify` | 预检，不消费 | **不用**：状态接口已经够了，它还有 30 张 / 10 分钟的限制 |
+
+**2026-10-31 实测（都没有消耗卡：只用编造的卡和已用掉的卡）**：
+
+| 请求 | 结果 |
+|---|---|
+| 没带 Key | 401 `MISSING_API_KEY` |
+| 查已用的卡 | 200，`status=redeemed`，字段齐全 |
+| 查编造的卡 | 404 `CDK_NOT_FOUND` |
+| `POST /redeem`，编造的卡 + `account_id` | 404 `CDK_NOT_FOUND` |
+| `POST /redeem`，**只带 `session_key`** | 400 `BAD_REQUEST`「cdk 与 account_id 均不能为空」 |
+| `POST /redeem`，已用的卡 + `account_id` | 409 `CDK_USED` |
+| `POST /redeem`，缺 cdk | 422，`detail` 是 FastAPI 数组，**`input` 原样回显请求体** |
+
+**和网页接口的差别（都已经反映到代码里，`providers/sysc.ts` 文件头）**：
+
+1. **Claude 只能填 Organization ID**：不收 `session_key`，于是也没有了「扣卡前先查号」那层保护，填错无法撤回，所以表单把这句话说在前面
+2. **没有强刷（remedy）**：这种模式下适配器不提供 `rebind`，兑换页不出现入口。售后走客服
+3. **不带** `ref`、`product_id`、`acct_plan`、`X-ASP-*`：文档之外的字段不发
+4. **重复提交有保护**：409 `CDK_USED` / `CDK_RESERVED`。按「已落地」处理，去查状态，绝不能告诉买家卡没被消耗。拿锁和下单前查状态照旧保留
+5. **限流要当回事**：总量 120 次 / 分钟；**卡号无效的提交 10 次 / 10 分钟封 Key 15 分钟**。下单前先查状态，查不到就不发 POST；`resolveCard` 也挡住了不是本站卖出的卡。这种模式绝不发 §6.7 那个编造卡密的探测
+6. **新卡号格式**：`前缀-8位-8位`，长度 19~26。`validCdkShape` 本来就只限长度和空白，不用改
+
+**本站自测**：`npx tsx scripts/check-sysc-open-api.ts`（109 条，全部打桩，含发出去的字段、Key 与买家账号不进日志、每个错误码的去向、没配 Key 时老接口不变）。
+联调（只读）：`SYSC_API_KEY=… npx tsx scripts/probe-sysc.ts site|status <卡密>|check <卡密> "<本站商品名>"`。
+
+**还没验证**：真实下单（要真扣一张卡）。第一单要盯：`redeem_logs` 里 `order_ref` 应是 `R2026…`；1~3 分钟后状态变 `COMPLETED`。

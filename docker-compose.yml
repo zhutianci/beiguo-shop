@@ -141,6 +141,10 @@ services:
       # 【设了就等于把货源站告诉买家】要不要这么做由站长决定；只改这两个变量 `up -d --no-deps app` 即可，不用构建。
       - SYSC_FALLBACK_URL
       - SYSD_FALLBACK_URL
+      # sysc / sysd 对方官方开放 API 的 Key（店铺级，两家不能共用；**密钥，值只放 .env.production**）。
+      # 配了就走开放 API，没配走老的网页接口（会被人机校验拦）。见 docs/sysc-充值系统-协议逆向说明.md 第 9 节。
+      - SYSC_API_KEY
+      - SYSD_API_KEY
       # SEO：站长平台归属验证 + IndexNow 主动推送
       # 【必须列在这里】--env-file 只负责 compose 文件里的变量替换，
       # 不会自动把变量塞进容器。漏了这三行，.env.production 里配了也等于没配，
