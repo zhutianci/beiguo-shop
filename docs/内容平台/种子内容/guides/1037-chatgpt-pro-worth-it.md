@@ -5,7 +5,7 @@ products: [chatgpt]
 models: []
 accountTier: PRO
 excerpt: ChatGPT Pro 值得吗？按官方价格页：Pro 从 $100 起分三档，比 Plus 多聊天里的 GPT-6 Pro、Extra High 档、更长上下文、更多 Codex 和 Work 用量。按用途讲谁该看 Pro。
-checkedOn: 2026-10-25
+checkedOn: 2026-10-30
 sources:
   - https://chatgpt.com/pricing
   - https://help.openai.com/en/articles/9793128-about-chatgpt-pro-tiers
@@ -16,11 +16,11 @@ sources:
 verify:
   - 官方没有写 Pro 100、200、500 各自的具体消息条数或倍数，也没有给出「比 Plus 多几倍」，正文只引用官方明确写的比较（Pro 200 比 Pro 100 多，Pro 500 最高且含 Ultrafast）
   - 价格页写 Pro「无限且更快的生图、最大的深度研究」并注明受防滥用规则约束；这是价格页的营销描述，具体上限官方未公开
-  - Pro 200 的新订阅用量低于以前：官方写明「不符合祖父条款的新订阅包含更低的用量」，2026-09-22 至 09-29 期间有活跃 Pro 200 订阅的用户可用旧额度到 2026-10-29，之后降为新额度、价格不变；这个日期很快过期，以官方 Pro 套餐文章为准
+  - Pro 200 的额度调整：官方 Pro 套餐文章（2026-10-30 核对）写明「9 月 29 日邮件里宣布的下调已取消」，所有 Pro 200 订阅现在享有同一份（较高的）额度，价格仍是 $200；Pro 100 和 Pro 500 的 Work 与 Codex 额度现在是之前的两倍。文章没有写具体数字，也没有再提 2026-10-29 这个日期，本文不写数字
   - GPT-6 Pro 在 Pro 500 档上是否也在聊天里提供，官方 GPT-6 文章只列了 Pro 100、Pro 200、Business、Enterprise；价格页写 Pro 推理由 GPT-6 Astra 驱动，二者未完全对齐，正文用「Pro 套餐含 GPT-6 Pro」的价格页说法并提示以账号为准
 ---
 
-> 本文根据 chatgpt.com 价格页、OpenAI 帮助中心《About ChatGPT Pro tiers》《GPT-6 and other models in ChatGPT》《Using Credits for Flexible Usage in ChatGPT》等整理，资料核对于 2026-10-25。价格和额度都标「2026-10 查询」，**官方调整很快，以官方页面为准**。本文不替你下「该买」的结论，只讲官方写了什么、适合什么用法。
+> 本文根据 chatgpt.com 价格页、OpenAI 帮助中心《About ChatGPT Pro tiers》《GPT-6 and other models in ChatGPT》《Using Credits for Flexible Usage in ChatGPT》等整理，资料核对于 2026-10-30。价格和额度都标「2026-10 查询」，**官方调整很快，以官方页面为准**。本文不替你下「该买」的结论，只讲官方写了什么、适合什么用法。
 
 ## 适用于谁
 
@@ -92,7 +92,7 @@ verify:
 
 官方没有给「某档比某档多多少倍」的数字，只写了顺序：200 比 100 多，500 最高，且只有 500 含 Ultrafast。一个稳妥的做法：**先从低一档开始**，用一两个月看看实际会不会撞到限额，不够再升。升档、降档在 **Settings → My Plan** 里改。
 
-> 官方有一条和时间有关的说明：新订阅 Pro 200 的内含用量，比以前更低（官方说是为了反映模型效率提高），价格仍是 $200；在 2026-09-22 到 2026-09-29 期间有过活跃 Pro 200 订阅的用户，可以用旧额度到 2026-10-29，之后降为新额度、价格不变。具体以官方 Pro 套餐文章为准。
+> 官方对 Pro 200 额度的说法有变化（2026-10-30 核对）：此前宣布的新订阅 Pro 200 下调额度，官方已经取消，原话大意是「9 月 29 日邮件里宣布的下调已取消」；现在所有 Pro 200 订阅的额度相同，价格不变，已有订阅会自动按更新后的额度，不用等续费，也不用取消重订；Pro 200 也重新开放新订阅。官方还写明，Pro 100 和 Pro 500 的 Work 与 Codex 额度现在是之前的两倍，Plus 不变。文章没有给出具体数字，以官方 Pro 套餐文章和 **Settings > Usage** 为准。
 
 ## 三、买了 Pro 之后要注意
 

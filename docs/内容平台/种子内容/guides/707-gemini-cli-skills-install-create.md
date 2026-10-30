@@ -6,7 +6,7 @@ models: []
 topics: [ai-agent]
 accountTier: FREE
 excerpt: Gemini CLI 的 Skills 怎么安装和使用？按官方文档讲清四层技能来源与优先级、.gemini/skills 与 .agents/skills 两套目录、/skills 命令和 gemini skills install、激活时的确认步骤，以及怎么创建技能。
-checkedOn: 2026-10-11
+checkedOn: 2026-10-30
 sources:
   - https://geminicli.com/docs/cli/skills
   - https://geminicli.com/docs/cli/creating-skills
@@ -14,10 +14,11 @@ sources:
 verify:
   - 官方页面没有写明技能功能的最低版本要求，用不了时先升级 Gemini CLI
   - --path 参数官方只说明用于指定 Git 仓库内技能所在的子目录，没有给出示例
+  - 官方文档页顶写明：「Unpaid tier and Google One users: Gemini CLI was replaced by Antigravity CLI on June 18th, 2026」；页面没有说明哪些账号类型还能继续用 Gemini CLI，也提示 Gemini CLI 没有针对 Gemini 4 Argon 优化、建议用 Antigravity。本文的技能目录、命令仍按官方 Gemini CLI 技能页当天的写法，是否适用于你的账号，以官方说明为准
   - 打包命令 node scripts/package_skill.cjs 出自官方「创建技能」页面，脚本所在位置以官方说明为准
 ---
 
-> 本文根据 Gemini CLI 官方文档《Agent Skills》《Creating Agent Skills》整理，资料核对于 2026-10-11。这里讲的是命令行工具 Gemini CLI 里的技能；Gemini App 里的 Skills（由 Gems 转来）是另一套东西，见[《Gemini Skills 怎么写》](/guides/gemini-skills-how-to-write)。
+> 本文根据 Gemini CLI 官方文档《Agent Skills》《Creating Agent Skills》整理，资料核对于 2026-10-30。**重要变化：** 官方文档页顶写明，免费（unpaid tier）和 Google One 用户的 Gemini CLI 已于 2026 年 6 月 18 日被 Antigravity CLI 取代；官方推荐改用 Antigravity，账号怎么分、怎么迁移见 [/guides/gemini-cli-how-to-use-antigravity-cli](/guides/gemini-cli-how-to-use-antigravity-cli)。下面讲的技能目录和命令，是官方 Gemini CLI 技能页现在仍然写着的内容，适用于仍在使用 Gemini CLI 的账号；哪些账号类型还能继续用，官方技能页没有写明，以官方公告为准。这里讲的是命令行工具 Gemini CLI 里的技能；Gemini App 里的 Skills（由 Gems 转来）是另一套东西，见[《Gemini Skills 怎么写》](/guides/gemini-skills-how-to-write)。
 
 ## 适用于谁
 

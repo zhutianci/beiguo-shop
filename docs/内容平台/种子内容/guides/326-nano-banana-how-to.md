@@ -5,12 +5,13 @@ products: [gemini]
 models: [nano-banana]
 accountTier: FREE
 excerpt: Nano Banana 是 Gemini 里的图像生成与编辑模型。本文按 Google 官方帮助中心讲清入口在哪、免费和付费分别用的是哪个模型、怎么生成、怎么上传照片局部修改、怎么「用 Pro 重做」以及下载分辨率和年龄限制。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-30
 sources:
   - https://support.google.com/gemini/answer/14286560?hl=en
   - https://blog.google/innovation-and-ai/technology/ai/nano-banana-2/
   - https://ai.google.dev/gemini-api/docs/image-generation
   - https://support.google.com/gemini/answer/16275805?hl=en
+  - https://ai.google.dev/gemini-api/docs/models/gemini-nano-banana-2.1
   - https://policies.google.com/terms/generative-ai/use-policy
 ---
 
@@ -20,7 +21,9 @@ sources:
 - 听说 Gemini 改图很强，想上传自己的照片试试换背景、换装、加元素的人；
 - 分不清 Nano Banana、Nano Banana 2、Nano Banana Pro 是什么关系的人（详细对比见《Nano Banana Pro 和 Nano Banana 2 区别》）。
 
-本文根据 Google Gemini 官方帮助中心、官方博客和 Gemini API 文档整理，资料核对于 2026-10-07；界面以你实际看到的为准。
+本文根据 Google Gemini 官方帮助中心、官方博客和 Gemini API 文档整理，资料核对于 2026-10-30；界面以你实际看到的为准。
+
+> **2026-10-30 补充：Nano Banana 2.1。** Gemini API 官方模型页现在列出了稳定版 `gemini-nano-banana-2.1`，页面写明它是「Nano Banana 2 的更新」，是 Nano Banana Pro 的更高效对应版本；官方写的改进包括画面质量与真实感提升且保持 Flash 级速度和成本、修复 2K 与 4K 下超宽或全景比例（1:4、4:1、1:8、8:1）的拼接伪影、文字渲染与信息图排版更准、多轮对话里的角色一致性更好。输出支持 1K、2K、4K（默认 1K），最多 14 张参考图，支持用谷歌网页和图片搜索做依据，思考档位有 minimal、medium（默认）、high 三档。**这页只讲开发者 API，没有写 Gemini App 是否已经换成 2.1**；Gemini App 的官方帮助页（2026-10-30 核对）仍然写的是 Nano Banana 2、2 Lite 和 Pro，没有提到 2.1。所以在 App 里你看到的是哪一个，以界面和官方帮助页为准，下文的步骤按帮助页写法。
 
 ## 结论先说
 
