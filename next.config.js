@@ -30,13 +30,21 @@ const nextConfig = {
    */
   images: { unoptimized: true },
   /*
+   * 【浏览器内路由缓存（2026-10-30）】访问过的页面 60 秒内再进直接用缓存（默认 30 秒），预取的页面最多留 120 秒（默认 300 秒，
+   * 缩短是因为预取现在是完整页面数据，见 src/lib/i18n/link.tsx）。每次点击都要走跨境隧道，这里能省一个来回。
+   * 代价：同一浏览器里最多看到 60 秒前的页面；下单价格以服务端为准，不受影响。
+   */
+  experimental: { staleTimes: { dynamic: 60, static: 120 } },
+  /*
    * 【繁体香港版：next/link 换成会加 /zh-hk 前缀的版本】（docs/繁体香港版/设计.md §6.3）
    * 全仓 `import Link from 'next/link'` 实际拿到 src/lib/i18n/link.tsx：简体页上就是原版 next/link，
    * 繁体页上把站内页面链接加 /zh-hk 前缀。`$` 表示只匹配这个精确的模块名（link.tsx 自己从 next/dist/client/link 取原版，不受影响）。
    * 只改 webpack 解析，类型检查仍按真正的 next/link。
+   * 【这一项必须排在最前面】webpack 按顺序匹配别名，Next 自带的 `next` 排在前面时会先把 next/link 改写成绝对路径，
+   * 这里就匹配不上了——2026-10-30 才发现这个组件此前没进过构建产物（产物里搜不到它的代码）。
    */
   webpack(config) {
-    config.resolve.alias = { ...(config.resolve.alias || {}), 'next/link$': require('path').join(__dirname, 'src/lib/i18n/link.tsx') }
+    config.resolve.alias = { 'next/link$': require('path').join(__dirname, 'src/lib/i18n/link.tsx'), ...(config.resolve.alias || {}) }
     return config
   },
 }
