@@ -424,6 +424,53 @@ curl https://api.ipify.org                             → 同样不通
 **端点本身是未公开的**（搜不到任何官方文档），随时可能改名或下线。
 这也是不把它做成硬依赖的理由之一：现在这套本地判据不依赖任何外部接口。
 
+## 6.7 人机校验：对方 2026-10-30 新增 Cloudflare Turnstile（**sysc、sysd 同时受影响**）
+
+**现象**：卡#3066（`VCK-…-AFTT`，Claude Pro）在本站连提 5 次都显示「充值系统拒绝了本次提交，请核对账号信息」，
+同一张卡在对方页面上 19:35 充成了。我们的日志里对方的原文是：
+
+```
+400 {"detail":"人机校验还没完成,请等方框打上勾再点(网络连不上 Cloudflare 时会一直转)"}
+```
+
+**协议变化**（对方页面 `last-modified: 2026-10-30 09:57 UTC`，与 10-24 版逐行对比，只改了这一处）：
+
+- `GET /api/store/site` 多了 `turnstile_site_key`（chuanwen 与 niuniu888 是同一个 key）
+- `POST /api/store/redeem`、`POST /api/store/remedy` 的 body 要带 `turnstile_token` —— 浏览器里 Cloudflare 方框勾选后得到的
+  **一次性** token。**校验排在卡密之前**：编造的卡也回同一句（这正好可以用来探测，见下）
+- 只读的 `GET /status`、`POST /status-batch` 不受影响，查卡照常
+
+对方代码的注释说 keys 没配时后端 verify 放行，所以这是一个开关，对方可以关，也可以在后端对特定来源放行。
+
+**为什么我们自己解决不了**：token 只有真人的浏览器在对方域名的页面上才拿得到，这道校验就是用来挡服务器直接调接口的。
+打码平台、无头浏览器、代过验证这些**不做**：那是绕过对方的安全措施，对方一收紧就全断，也不是合作方该干的事。
+
+**能走通的路（都要对方配合）**：
+
+| 方案 | 对方要做什么 | 我们要做什么 |
+|---|---|---|
+| **① 放行服务器 IP（推荐）** | 后端 verify 对 `182.92.209.103` 跳过校验 | **什么都不用做**，现有代码直接恢复 |
+| ② 发专用凭据 | 给一个代理商 API Key / 请求头，带了就跳过 | 在 `request()` 里带上，要发版 |
+| ③ 买家在本站勾方框 | 把 `bigolab.com` 加进 Turnstile 的允许域名，并接受这样来的 token | 兑换页渲染方框、转发 token，要发版；买家多一步 |
+
+**我们这边做了什么**（`providers/sysc.ts` 的 `humanCheckRequired()`）：
+
+- `check()` 发现要校验就不出表单，买家不用白填账号；文案说清「卡有效、没被消耗」，不再让他去核对账号
+- `activate()` 不占锁、不发注定失败的提交；万一真被拒了（对方刚开校验）也认得出来，放掉锁、不给重试入口
+- **自动恢复**：site key 非空时，发一张编造的卡（`ZZZZ-NOT-A-REAL-CARD-0000`）探测 —— 回人机校验就是还没放行，回卡密无效就是放行了。
+  结果缓存：要校验 5 分钟、不要 30 分钟；探测超时或 5xx 不下结论，不能因为网络抖动把通道说成不可用。site key 为空（对方关了）不探测
+- 备用按钮：`SYSC_FALLBACK_URL` / `SYSD_FALLBACK_URL`，**默认不设**（设了等于把货源站告诉买家，由站长决定），改它只需 `up -d --no-deps app`
+
+**怎么确认对方放行了**：
+
+```bash
+# 服务器上（必须从 ECS 发，放行的是它的 IP）。要校验回「人机校验」那句，放行了回 CDK 无效
+curl -s -X POST https://chuanwen.applelll.com/api/store/redeem -H 'Content-Type: application/json'   -H "X-ASP-Timestamp: $(date +%s)" -H "X-ASP-Nonce: probe$(date +%s%N)" -H "Idempotency-Key: probe$(date +%s%N)"   -d '{"ref":"chuanwen","cdk":"ZZZZ-NOT-A-REAL-CARD-0000","product_id":5,"account_id":"00000000-0000-4000-8000-000000000000"}'
+# 本机：STORE=sysc|sysd npx tsx scripts/probe-sysc.ts humancheck
+```
+
+自测：`npx tsx scripts/check-sysc-human-check.ts`（42 条，全部打桩）。
+
 ## 7. 实现时的红线
 
 1. **不透传对方的 `detail` / `message` 给买家** —— 泄漏货源，而且文案对不上。
@@ -434,7 +481,8 @@ curl https://api.ipify.org                             → 同样不通
 3. **绝不把整段 session JSON 发给 sysc**，只发剥出来的 UUID + 邮箱。对方前端自己就是这么做的。
 4. **`possible_success` 单独一格**，既不交付也不重充，转人工。
 5. **Team / 企业号本地先拒**（§3.1），省一张卡。
-6. 本站这边 `resolveCard` 那道「必须是我们自己卖出的卡」的闸原样生效 ——
+6. **对方的人机校验不绕过**（§6.7）。
+7. 本站这边 `resolveCard` 那道「必须是我们自己卖出的卡」的闸原样生效 ——
    sysc 的接口完全匿名，我们要是对任意字符串都转发，就成了对方眼里的撞库跳板，
    而对方看到的是**我们服务器的 IP**。
 

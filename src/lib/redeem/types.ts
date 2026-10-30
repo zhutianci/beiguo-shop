@@ -131,6 +131,11 @@ export interface RedeemCheckResult {
   cooldownSeconds?: number
   notice?: RedeemNotice | null
   /**
+   * 查卡时就知道本站提交不了时的备用出口（目前只有 sysc / sysd 的人机校验）。
+   * 由适配器自己决定带不带；买家不用先填一遍账号、被拒之后才看到这条路。
+   */
+  fallback?: RedeemFallback
+  /**
    * 上游的请求追踪号。**只用于排查，不展示给买家**（除非出错时给客服看）。
    * 对接文档明确建议与卡密一起留存。
    */

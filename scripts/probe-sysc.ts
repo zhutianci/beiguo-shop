@@ -5,6 +5,7 @@
  *   npx tsx scripts/probe-sysc.ts status <卡密>         # 查单张（走兑换链路同一个接口）
  *   npx tsx scripts/probe-sysc.ts batch <卡密,卡密,…>   # 批量查，一次最多 100 张
  *   npx tsx scripts/probe-sysc.ts skew                 # 试 X-ASP-Timestamp 能偏多少
+ *   npx tsx scripts/probe-sysc.ts humancheck           # 这台机器提交会不会被人机校验拒（发一张编造的卡，碰不到真卡）
  *
  * 【为什么没有「下单」命令】下单不可逆，会真的扣掉一张卡。
  * 真要走通写链路，请走正规路径：后台导入一张卡 → 打开 /redeem/sysc → 提交。
@@ -278,6 +279,11 @@ async function main() {
   const [cmd, arg] = process.argv.slice(2)
   console.log(`STORE=${PICKED.config.key}  BASE=${BASE}  REF=${REF}`)
   switch (cmd) {
+    case 'humancheck': {
+      const need = await PICKED.humanCheckRequired()
+      console.log(need ? '要人机校验：本站提交会被拒，要对方放行这台机器的 IP' : '不用人机校验：本站可以正常提交')
+      return
+    }
     case 'site':
       return cmdSite()
     case 'dryrun': {
