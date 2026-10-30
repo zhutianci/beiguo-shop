@@ -73,7 +73,6 @@ verify:
 见 [/guides/grok-official-website-entry-desktop-download](/guides/grok-official-website-entry-desktop-download)。
 
 **Q：需要开通 SuperGrok 怎么办？**
-本站有 [Grok 充值页](/chongzhi/grok-super) 可以了解，请结合上一节的官方说明自行判断。
 
 ## 参考资料
 

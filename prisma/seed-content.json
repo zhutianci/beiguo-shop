@@ -1,5 +1,5 @@
 {
-  "builtAt": "2026-10-30T11:50:04.624Z",
+  "builtAt": "2026-10-30T16:30:25.524Z",
   "tags": [
     {
       "slug": "gpt-image-2",
@@ -67481,6 +67481,113 @@
       ]
     },
     {
+      "title": "DeepSeek 官网入口在哪、能下载电脑版吗：网页版、应用下载页、DeepSeek Harness 桌面端和怎么认假下载站",
+      "slug": "deepseek-official-site-web-desktop-download",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1400-official-entries.png",
+        "g1400-download-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "搜「DeepSeek 官网」「DeepSeek 下载电脑版」容易点到仿冒站。官方入口是 deepseek.com，网页版在 chat.deepseek.com；官方下载页现在提供名为 DeepSeek Harness 的桌面端。本文列出各入口，讲清它和聊天网页的区别，以及怎么辨别假冒。",
+      "content": "> 本文根据 DeepSeek 官方网站整理，资料核对于 2026-10-30。官网页面会变，下载地址以你当天在官网看到的为准。配图为本站整理的示意图，不是软件截图。本站不是 DeepSeek 官方，也不提供它的下载。\n\n## 适用于谁\n\n- 搜「deepseek 官网入口网页版」，想确认哪个才是官方地址的人；\n- 搜「deepseek 下载电脑版」，想知道有没有电脑客户端、从哪里下载的人；\n- 担心点到仿冒网站的人。\n\n## 结论先说\n\n1. **官方网站是 [deepseek.com](https://www.deepseek.com/)**。顶部导航里有「DeepSeek 网页版」「API 开放平台」「API 文档」「DeepSeek 应用下载」等入口，从这里进最稳。\n2. **网页版（聊天）是 [chat.deepseek.com](https://chat.deepseek.com/)**，用浏览器打开就能对话，电脑上不装软件也可以用。\n3. **官方「DeepSeek 应用下载」页（deepseek.com/download）现在有 4 项**：macOS（苹果芯片，要求 macOS 13 及以上）、Windows（x64）、iOS（App Store 条目）、Android（官网直接下载安装包）。\n4. 其中电脑版叫 **DeepSeek Harness**，官方介绍它是一个处于预览阶段的开源 agent 工具，面向日常办公、编程、研究、后台任务等。它**不是**把聊天网页原样搬到桌面，所以如果你只想聊天，用网页版就够了。\n5. 官方页面上写着桌面版「仍在持续迭代」，功能和体验还在完善。\n\n![DeepSeek 官方入口一览](seed:g1400-official-entries.png)\n*图：本站根据 [DeepSeek 官网](https://www.deepseek.com/) 整理的示意图*\n\n## 一、各个官方入口是什么\n\n| 入口 | 地址 | 用来干什么 |\n| --- | --- | --- |\n| 官网首页 | www.deepseek.com | 导航、新闻与模型发布说明 |\n| 网页版 | chat.deepseek.com | 浏览器里对话 |\n| 应用下载 | www.deepseek.com/download | 手机 App、桌面端 |\n| API 开放平台 | platform.deepseek.com | 申请 API Key、充值、看用量 |\n| API 文档 | api-docs.deepseek.com | 接口说明、价格 |\n| 服务状态 | status.deepseek.com | 查官方是否在故障 |\n\n官网首页的醒目按钮是「和 DeepSeek 对话」「API 开放平台」「Harness 桌面端」。页面右上角还有一个「获取 APP」的二维码，说明是「扫码下载 DeepSeek App」。\n\n## 二、电脑上怎么用：网页版还是桌面端\n\n**只想聊天、问问题、上传文件：用网页版。** 打开 [chat.deepseek.com](https://chat.deepseek.com/) 登录即可，具体功能见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。登录遇到问题看 [/guides/deepseek-register-login-problems](/guides/deepseek-register-login-problems)。\n\n**想让它在电脑上帮你处理文件、跑脚本、写代码：可以看看 DeepSeek Harness。** 按官方 Harness 页面的介绍，它支持：\n\n- 日常办公：整理资料、分析表格、写文档、做报告；\n- 编程：理解项目、修 bug、做功能、跑测试；\n- 研究：搜索来源、交叉核对并标注出处；\n- 后台任务和定时任务，例如每周自动出周报；\n- 插件，以及 Word、Excel、HTML、代码、PDF、Markdown 等产物的预览。\n\n平台方面，官方页面写的是 **Windows（64 位）** 和 **macOS（苹果芯片）**，另外还可以用 Node.js 通过命令 `npx @deepseek-ai/dsh web` 启动网页界面，或者从 GitHub 源码安装。官方说明它以 MIT 协议开源。\n\n几点要注意：\n\n- 官方页面**没有写** Harness 需不需要账号或 API Key，也没有写它是否收费。想知道使用成本，看 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup) 里的接口计费说明；\n- 官方 API 价格页（2026-10 查询）提到，通过 DeepSeek Harness、Claude Code 或 Codex 发起的服务端工具调用目前免费，**2026 年 11 月 1 日 00:00（北京时间）起开始按次计费**。这属于接口计费，以价格页为准；\n- Mac 版要求苹果芯片和 macOS 13 及以上，**Intel 芯片的 Mac 页面上没有列出**；\n- 官方下载页**没有**列出 Linux 安装包。\n\n### 为什么「没有电脑客户端」的说法不再准确\n\n此前很多文章都说 DeepSeek 没有电脑版，只有网页和手机 App。按 2026-10-30 官网下载页，已经出现了 Windows 和 macOS 的桌面端 DeepSeek Harness。但它的定位是 agent 工具，和你在 chat.deepseek.com 里的聊天界面不是一回事；官方也没有说 Harness 能取代网页版聊天。\n\n## 三、手机端入口\n\n- **iOS**：官网下载页链接到 App Store 里的官方条目，也有二维码；\n- **Android**：下载页提供的是**官网直接下载安装包**，没有链接到 Google Play。\n\n手机版的功能和使用见 [/guides/deepseek-mobile-app-guide](/guides/deepseek-mobile-app-guide)。\n\n## 四、怎么认出假下载站\n\n官方下载页没有写防假冒提示，下面是通用的做法：\n\n1. **从 deepseek.com 顶部导航进**，不要点搜索结果里「DeepSeek 官网下载」的广告或陌生站点；\n2. **看域名**：官方下载地址在 `download.deepseek.com`，聊天在 `chat.deepseek.com`，API 在 `platform.deepseek.com`，都是 deepseek.com 的子域名。域名里多了字符、换了后缀的，不是官方；\n3. **不推荐任何第三方「中文版」「镜像」「破解版」**，本文也不会给出这类链接；\n4. 不在陌生页面输入账号密码、手机验证码；\n5. 已经下载运行过不明程序：先断开登录、改密码并用杀毒软件检查。\n\n![下载 DeepSeek 前先核对](seed:g1400-download-decide.png)\n*图：本站根据 [DeepSeek 官网](https://www.deepseek.com/) 整理的示意图*\n\n## 常见问题\n\n**Q：deepseek.com 和 chat.deepseek.com 有什么区别？**\n前者是官网（介绍、导航、下载），后者是聊天页面。\n\n**Q：打不开官网或网页版怎么办？**\n先看官方状态页，方法见 [/guides/deepseek-down-check-status-page](/guides/deepseek-down-check-status-page)；回答一半卡住、提示服务器繁忙的见 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)。\n\n**Q：想在 Codex、Cursor 里接 DeepSeek 的模型呢？**\n那是接口方式，不需要装桌面端，见 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)、[/guides/deepseek-cursor-setup](/guides/deepseek-cursor-setup)。\n\n**Q：DeepSeek 收费吗？**\n见 [/guides/deepseek-pricing-free-or-paid](/guides/deepseek-pricing-free-or-paid)。需要 ChatGPT、Claude 等会员的话，本站的 [充值页](/chongzhi) 有对应服务。\n\n## 参考资料\n\n- DeepSeek 官网 — https://www.deepseek.com/\n- DeepSeek 应用下载 — https://www.deepseek.com/download/\n- DeepSeek Harness — https://www.deepseek.com/harness/\n- DeepSeek API 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+      "sources": [
+        "https://www.deepseek.com/",
+        "https://www.deepseek.com/download/",
+        "https://www.deepseek.com/harness/",
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing"
+      ],
+      "screenshots": [],
+      "verify": [
+        "下载页和 Harness 页面的内容是 2026-10-30 当天读到的版本，官方随时可能调整平台、版本和下载地址",
+        "官方下载页没有写任何「防假冒」提示，本文关于辨认方法的部分是本站的通用建议",
+        "官方页面没有说明 Harness 是否需要账号或 API Key，本文没有写这一点"
+      ]
+    },
+    {
+      "title": "DeepSeek 收费吗：网页版和 App 免费，API 按 token 收费，收费版和免费版到底差在哪、错峰价怎么算",
+      "slug": "deepseek-pricing-free-or-paid",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1401-chat-vs-api-cost.png",
+        "g1401-cost-decide.png"
+      ],
+      "tags": [
+        "ai-tools",
+        "deepseek"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "搜「DeepSeek 收费吗」「收费版和免费版的区别」，答案要分两种用法：App Store 页面标注免费，官方没有写网页版会员；API 才是按 token 计费，有错峰价。本文按官方价格页（2026-10 查询）把两者分开讲清，并说明余额怎么扣。",
+      "content": "> 本文根据 DeepSeek 官方 API 价格页和 App Store 页面整理，价格为 2026-10 查询，资料核对于 2026-10-30。价格会变，以官方页面为准。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 想知道 DeepSeek 聊天要不要花钱的人；\n- 听说有「收费版」「免费版」，想弄清差别的人；\n- 用 API，想估算费用、想知道什么时候最便宜的人。\n\n## 结论先说\n\n1. **聊天（网页版、App）**：iOS 的 App Store 页面标注「免费」，核对时没有列出内购项目，应用介绍写的是免费体验。**官方站点上没有看到网页版的会员、订阅或「收费版」的说明**，所以「收费版和免费版的区别」并没有官方对照表。\n2. **API（给程序调用的接口）**：需要充值，**按 token 消耗计费**，价格以官方价格页为准，并且分高峰和空闲时段。这是两件事，别混在一起。\n3. 官方价格页写的扣费规则是：模型调用费用等于 token 消耗量乘以模型单价；Search 和 Fetch 按成功请求次数计费；费用从充值余额或赠送余额里扣，**两种余额同时存在时先扣赠送余额**。\n4. 看到有人卖「DeepSeek 会员」之类的东西，官方页面里没有对应说明，付款前先到官网核实。\n\n![DeepSeek：聊天和 API 怎么收费](seed:g1401-chat-vs-api-cost.png)\n*图：本站根据 [DeepSeek API 文档](https://api-docs.deepseek.com/zh-cn/quick_start/pricing) 和 App Store 页面整理的示意图*\n\n## 一、聊天免费，具体是什么意思\n\n- App Store 的「DeepSeek - AI 智能助手」页面标注价格为「免费」，介绍里写着「免费体验与全球领先 AI 模型的互动交流」；\n- 官方没有公布聊天每天能发多少条、有没有隐形的使用额度，所以如果用得很多遇到限制，看 [/guides/deepseek-server-busy](/guides/deepseek-server-busy)；\n- 官方没有说明网页版和 App 的计费方式，这里不替官方猜。\n\n官方入口和下载见 [/guides/deepseek-official-site-web-desktop-download](/guides/deepseek-official-site-web-desktop-download)，功能使用见 [/guides/deepseek-how-to-use](/guides/deepseek-how-to-use)。\n\n## 二、API 按什么收费（2026-10 查询）\n\n官方价格页目前列出两个模型：**deepseek-flash**（版本 DeepSeek-V4.1-Flash-1017）和 **deepseek-v4-pro**（版本 DeepSeek-V4-Pro-0813）。上下文长度都是 1M，最大输出 384K。价格单位是**元 / 百万 tokens**：\n\n| 模型 | 项目 | 空闲时段 | 高峰时段 |\n| --- | --- | --- | --- |\n| deepseek-flash | 输入（缓存命中） | 0.02 | 0.04 |\n| deepseek-flash | 输入（缓存未命中） | 1 | 2 |\n| deepseek-flash | 输出 | 4 | 8 |\n| deepseek-v4-pro | 输入（缓存命中） | 0.15 | 0.30 |\n| deepseek-v4-pro | 输入（缓存未命中） | 4.5 | 9.0 |\n| deepseek-v4-pro | 输出 | 13.5 | 27.0 |\n\n另外，**Search 和 Fetch 各按每 1,000 次成功请求 5 元**计费。旧的模型名 deepseek-v4-flash 和 deepseek-v4-flash-vision-exp 仍然可用，会按 V4.1 Flash 的价格计费。\n\n### 高峰和空闲怎么分\n\n官方脚注写的是：空闲时段价格是高峰时段的一半。**北京时间周一至周五（不含中国法定节假日）9:00–12:00、14:00–18:00 是高峰**，其余时间，包括周末和法定节假日全天，都是空闲时段。\n\n要省钱，能延后的批量任务放在晚上或周末跑。历史价格变化见 [/guides/deepseek-price-changes-timeline](/guides/deepseek-price-changes-timeline)，Flash 和 Pro 的对比见 [/guides/deepseek-v4-pro-vs-flash-api-price](/guides/deepseek-v4-pro-vs-flash-api-price)。\n\n### 余额怎么扣\n\n按官方说明：费用直接从**充值余额或赠送余额**中扣减，两者同时存在时**优先扣赠送余额**。余额不够时接口会报错，处理见 [/guides/deepseek-api-platform-balance-topup](/guides/deepseek-api-platform-balance-topup)。\n\n## 三、对照表：你属于哪种情况\n\n![想知道会不会花钱，看这里](seed:g1401-cost-decide.png)\n*图：本站根据 [DeepSeek API 文档](https://api-docs.deepseek.com/zh-cn/quick_start/pricing) 整理的示意图*\n\n## 常见问题\n\n**Q：有没有「DeepSeek Plus」或 Pro 会员？**\n在官方网站、API 文档和 App Store 页面里没有找到。别把 API 的 deepseek-v4-pro 模型名当成会员档位，它是接口里的一个模型。\n\n**Q：通过 Codex、Claude Code 用 DeepSeek 要钱吗？**\n那是走接口。官方价格页脚注提到，通过 DeepSeek Harness、Claude Code 或 Codex 发起的服务端工具调用目前免费，**北京时间 2026 年 11 月 1 日 0 点起开始按次计费**，具体以官方价格页为准。接入方法见 [/guides/deepseek-codex-setup](/guides/deepseek-codex-setup)。\n\n**Q：想用 ChatGPT、Claude 的付费功能呢？**\n那是另外的产品，本站 [充值页](/chongzhi) 提供 [ChatGPT Plus](/chongzhi/chatgpt-plus)、[Claude Pro](/chongzhi/claude-pro) 等服务，价格以各自官方页面为准。\n\n## 参考资料\n\n- DeepSeek API 价格 — https://api-docs.deepseek.com/zh-cn/quick_start/pricing\n- DeepSeek App（App Store） — https://apps.apple.com/cn/app/deepseek/id6737597349\n- DeepSeek 官网 — https://www.deepseek.com/",
+      "sources": [
+        "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
+        "https://apps.apple.com/cn/app/deepseek/id6737597349",
+        "https://www.deepseek.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方页面没有明确写出「网页版永久免费」，本文只陈述 App Store 页面标注免费、核对时未列内购，这不等于官方承诺",
+        "API 价格、错峰时段、Search 与 Fetch 单价是 2026-10-30 当天读到的官方价格页，官方随时可能调整",
+        "价格页脚注提到 Harness、Claude Code、Codex 的服务端工具调用目前免费并将于 2026-11-01 起计费，以官方页面为准"
+      ]
+    },
+    {
+      "title": "Claude 官网入口在哪、有没有中文版：claude.ai 和 claude.com 分别是什么，怎么认出假冒网站",
+      "slug": "claude-official-website-entry-chinese-version",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1407-official-entries.png",
+        "g1407-chinese-decide.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "搜「Claude 官网入口」「Claude 官网中文版」，先分清 claude.com 是官方站点、claude.ai 是网页版登录入口。官方界面语言列表里没有简体中文，但可以直接用中文对话。本文列出官方入口、下载页和帮助中心，并说明怎么辨别仿冒站。",
+      "content": "> 本文根据 Claude 官方网站和帮助中心整理，资料核对于 2026-10-30。官网会变，以你当天打开看到的为准。配图为本站整理的示意图，不是网页截图。本站不是 Anthropic 官方。\n\n## 适用于谁\n\n- 搜「claude官网入口」「claude官网中文版」，想确认官方地址的人；\n- 想把 Claude 界面改成中文，却找不到选项的人；\n- 担心点到仿冒站、想知道怎么核对的人。\n\n## 结论先说\n\n1. **官方站点是 [claude.com](https://claude.com/)**，里面有产品介绍、定价、下载页和帮助中心入口。\n2. **网页版登录入口是 [claude.ai](https://claude.ai)**。官网上的「Login」指向 claude.ai/login，「Try Claude」指向 claude.ai。\n3. **官方下载页是 [claude.com/download](https://claude.com/download)**；帮助中心是 [support.claude.com](https://support.claude.com/en/)；服务状态在 status.anthropic.com。\n4. **没有单独的「中文官网」**。官网语言选择器当天列出的是英语、日语、德语、法语、韩语、意大利语和西班牙语，没有中文。\n5. **但可以直接用中文聊天**。官方帮助中心写明：Claude 会用你输入的语言回答，不受界面显示语言限制。\n6. **界面语言列表里没有简体中文**：帮助中心列出的界面语言是 11 种（英语、法语、德语、印地语、印尼语、意大利语、日语、韩语、巴西葡萄牙语、拉美西班牙语和西班牙本土西班牙语）。\n\n![Claude 官方入口一览](seed:g1407-official-entries.png)\n*图：本站根据 [Claude 官网](https://claude.com/) 整理的示意图*\n\n## 一、几个官方入口各管什么\n\n| 入口 | 地址 | 说明 |\n| --- | --- | --- |\n| 官方站点 | claude.com | 产品、定价、下载 |\n| 网页版 | claude.ai | 登录后在浏览器里使用 |\n| 下载页 | claude.com/download | 桌面端与 iOS |\n| 帮助中心 | support.claude.com | 官方说明与排查文章 |\n| 服务状态 | status.anthropic.com | 看官方是否故障 |\n\n官网页眉的产品入口有 Claude、Claude Code、Claude Cowork 等。要了解 Claude 能做什么，见 [/guides/claude-what-can-it-do](/guides/claude-what-can-it-do)。\n\n**能不能用，取决于所在地区。** 官方有「Availability」页面列出支持的国家和地区，本站整理见 [/guides/claude-supported-countries-regions](/guides/claude-supported-countries-regions)。\n\n## 二、电脑版和手机版从哪下\n\n官方下载页（2026-10-30）列出：\n\n- **macOS**：桌面应用；\n- **Windows**：x64 和 arm64 两种安装包，另外有 Microsoft Store 条目；\n- **Linux**：Ubuntu 和 Debian 上的测试版；\n- **iOS**：App Store 里的 Claude 应用；\n- **Android**：页面没有给安装包，只提供二维码和 claude.ai/mobile 入口。\n\n桌面版怎么装、有什么功能，见 [/guides/claude-desktop-app](/guides/claude-desktop-app)，和网页版的区别见 [/guides/claude-web-vs-desktop-difference](/guides/claude-web-vs-desktop-difference)。\n\n## 三、想要中文，该怎么做\n\n### 用中文对话：直接打字\n\n不用设置。官方说明里写的是：Claude 会用你使用的语言回应，你可以用任何语言聊天，和界面显示语言无关。\n\n### 改界面语言\n\n按帮助中心的步骤，网页版和桌面版里：点击左下角头像，进入「Language」，选择列表里有的语言，界面会自动更新。**简体中文不在官方列表里**，所以界面按钮目前不能切成简体中文，以后是否增加以官方为准。\n\n### 语音模式有单独的语言设置\n\n官方写明，语音模式的语言和界面语言是分开的，在设置里的语音选项下选择「口语语言」。详见 [/guides/claude-voice-mode](/guides/claude-voice-mode)。\n\n### 帮助文章有中文菜单吗\n\n帮助中心页眉的语言菜单里有简体中文，但那是帮助网站自己的菜单，不属于 Claude 应用界面。部分文章是否有中文翻译，以页面显示为准。\n\n![想要「中文版」时怎么办](seed:g1407-chinese-decide.png)\n*图：本站根据 [Claude 帮助中心](https://support.claude.com/en/articles/10769299-how-to-use-claude-in-your-preferred-language) 整理的示意图*\n\n## 四、怎么认出假冒网站\n\n官方没有专门写过这一点，下面是通用做法：\n\n1. **只认 claude.ai 和 claude.com 两个域名**（以及 support.claude.com 这样的子域名）；\n2. 从 claude.com 顶部的「Login」「Download apps」进入，不点搜索广告里的「Claude 官网中文版」「Claude 免费镜像」；\n3. 不在陌生页面输入账号密码和验证码；\n4. 不推荐任何第三方汉化版、镜像站，本文也不给出这类链接；\n5. 登录遇到问题，看 [/guides/claude-login-errors-table](/guides/claude-login-errors-table)；怀疑官方故障，看 [/guides/claude-down-check-status-page](/guides/claude-down-check-status-page)。\n\n## 常见问题\n\n**Q：claude.ai 和 claude.com 是同一家吗？**\n是。官网 claude.com 上的登录和试用按钮跳转的就是 claude.ai。\n\n**Q：Claude 网页版要收费吗？**\n官方有免费套餐，也有付费套餐，详见 [/guides/claude-pricing-free-or-paid](/guides/claude-pricing-free-or-paid)。\n\n**Q：想开通 Claude Pro 怎么办？**\n本站有 [Claude Pro 充值页](/chongzhi/claude-pro)，套餐区别见 [/guides/claude-plans-free-pro-max](/guides/claude-plans-free-pro-max)。\n\n## 参考资料\n\n- Claude 官网 — https://claude.com/\n- Claude 下载页 — https://claude.com/download\n- 如何用你喜欢的语言使用 Claude（帮助中心） — https://support.claude.com/en/articles/10769299-how-to-use-claude-in-your-preferred-language",
+      "sources": [
+        "https://claude.com/",
+        "https://claude.com/download",
+        "https://support.claude.com/en/articles/10769299-how-to-use-claude-in-your-preferred-language"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官网语言选择器和帮助中心语言列表是 2026-10-30 当天读到的版本，官方随时可能新增语言",
+        "官方没有专门写过「如何辨别仿冒站」，本文第四节的做法是本站的通用建议",
+        "是否能在你所在的地区使用，以 Anthropic 官方的支持地区名单为准，本文不展开"
+      ]
+    },
+    {
+      "title": "Claude 收费吗：免费版能用什么，Pro、Max、Team 官方标价是多少（2026 年 10 月官方定价页）",
+      "slug": "claude-pricing-free-or-paid",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1409-plans-prices.png",
+        "g1409-plan-decide.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude 收费吗？官方有免费套餐，也有付费套餐。按官方定价页（2026-10 查询）：Pro 年付折合 17 美元每月、月付 20 美元，Max 从 100 美元每月起，Team 标准席位年付 20 美元。本文讲清各档标价、税费、手机端价格差异，以及订阅不含 API。",
+      "content": "> 本文根据 Claude 官方定价页和帮助中心整理，价格为 2026-10 查询，资料核对于 2026-10-30。价格以官方页面为准。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 搜「claude收费吗」「claude收费标准」，想先知道要不要花钱的人；\n- 免费版不够用，想知道升级要多少钱的人；\n- 分不清订阅和 API 的人。\n\n## 结论先说\n\n1. **有免费版**，官方定价页写的是「Free for everyone」，标价 0 美元。\n2. **付费套餐（2026-10 查询，美元，不含税）**：\n   - **Pro**：年付折合 **$17 每月**（一次收 $200），月付 **$20**；\n   - **Max**：**$100 每月起**，分 5x 和 20x 两档（帮助中心写的是 Max 5x $100、Max 20x $200）；\n   - **Team**：标准席位年付 $20、月付 $25，高级席位年付 $100、月付 $125，每席位每月，适用 2 到 150 人；\n   - **Enterprise**：官方页面标 US$20 每席位每月，年付，至少 20 个席位，另按 API 价格计用量。\n3. **Claude 订阅不包含 API**，API 单独计费，见 [/guides/claude-subscription-vs-api](/guides/claude-subscription-vs-api)。\n4. 价格页写明**标价不含适用的税**，并说价格和套餐可能调整。\n5. 手机应用内购买的价格**可能和网页订阅不一样**，具体看你所用应用商店里显示的价格。\n\n![Claude 各套餐官方标价](seed:g1409-plans-prices.png)\n*图：本站根据 [Claude 定价页](https://claude.com/pricing) 整理的示意图*\n\n## 一、免费版能做什么\n\n官方定价页列出免费版的功能：网页、桌面和手机上的聊天；联网搜索、创建文件、运行代码；记忆；应用连接器；Artifacts；Claude Design、Slides 和 Docs。\n\n免费版和付费版**用量不同**：定价页对 Pro 和 Max 标了用量星号，说明各付费套餐都有用量限制。具体什么时候重置、怎么看，见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n## 二、付费版比免费版多了什么\n\n按官方定价页：\n\n- **Pro**：在 Free 的基础上增加用量，以及任务交接与定时、Claude Dashboards（测试版）、Claude Science、Projects、更多 Claude 模型、Claude in Chrome 和 Microsoft 365，页面写明「Claude Code included」；\n- **Max**：在 Pro 的基础上是 Pro 用量的 5 倍或 20 倍，更高的输出上限，提前试用新功能，高峰时段优先访问，另有每月 100 到 200 美元的 API 额度；\n- **Team**：包含 Claude Code 和 Cowork、集中计费、SSO、最多每月 500 美元的共享 API 额度；高级席位的用量是标准席位的 5 倍；\n- **Enterprise**：在 Team 之上增加管理员支出限制、基于角色的访问、审计日志等。\n\n各档功能的详细对比，见 [/guides/claude-plans-free-pro-max](/guides/claude-plans-free-pro-max)；Pro 和 Team 怎么选，见 [/guides/claude-team-vs-pro](/guides/claude-team-vs-pro)。\n\n「5x」「20x」指什么：帮助中心写的是相对 Pro 每个会话用量额度的倍数，每 5 小时一个会话限制，另有每周限额。\n\n## 三、对照表：该看哪一档\n\n![该选哪一档，先看这几条](seed:g1409-plan-decide.png)\n*图：本站根据 [Claude 定价页](https://claude.com/pricing) 整理的示意图*\n\n## 四、几个容易搞混的点\n\n- **月付和年付**：Pro 的 $17 是年付折合，月付是 $20；定价页写的是年付一次收 $200；\n- **税费**：标价不含税，实际扣款金额以结账页面为准；\n- **退款**：定价页只写了一点区域性说明，欧洲经济区和英国的客户有 14 天的撤销期。取消和退款的具体做法见 [/guides/claude-cancel-subscription-refund](/guides/claude-cancel-subscription-refund)；\n- **通过应用商店订阅**：手机应用内的价格可能不同，管理方式见 [/guides/claude-app-store-google-play-subscription](/guides/claude-app-store-google-play-subscription)。\n\n## 常见问题\n\n**Q：Claude 免费版有时间限制吗？**\n官方定价页没有写免费版的试用期，只写了「Free for everyone」，用量有限制，见 [/guides/claude-usage-limits](/guides/claude-usage-limits)。\n\n**Q：Claude 的官网入口是哪个？**\n见 [/guides/claude-official-website-entry-chinese-version](/guides/claude-official-website-entry-chinese-version)。\n\n**Q：想开通 Claude Pro 怎么办？**\n可以在官方页面订阅，也可以看本站的 [Claude Pro 充值页](/chongzhi/claude-pro)，价格以各页面显示为准。\n\n## 参考资料\n\n- Claude 定价 — https://claude.com/pricing\n- What is the Max plan?（帮助中心） — https://support.claude.com/en/articles/11049741-what-is-the-max-plan\n- 为什么订阅之外还要单独为 API 付费（帮助中心） — https://support.claude.com/en/articles/9876003-i-have-a-paid-claude-subscription-pro-max-team-or-enterprise-plans-why-do-i-have-to-pay-separately-to-use-the-claude-api-and-console",
+      "sources": [
+        "https://claude.com/pricing",
+        "https://support.claude.com/en/articles/11049741-what-is-the-max-plan",
+        "https://support.claude.com/en/articles/9876003-i-have-a-paid-claude-subscription-pro-max-team-or-enterprise-plans-why-do-i-have-to-pay-separately-to-use-the-claude-api-and-console"
+      ],
+      "screenshots": [],
+      "verify": [
+        "价格是 2026-10-30 当天读到的 claude.com/pricing，以美元标价，官方写明价格不含税并保留调整权利，请以打开页面时的显示为准",
+        "手机应用内购买的价格可能与网页订阅不同，帮助中心只说「可能不同」，没有给数字",
+        "Enterprise 的价格表述较复杂（含最低席位和按量计费），本文只摘要不展开"
+      ]
+    },
+    {
       "title": "Codex 额度与使用限制：Plus / Pro 能用多少、怎么查、什么时候重置、用完怎么办",
       "slug": "codex-usage-limits",
       "checkedOn": "2026-10-07",
@@ -67508,6 +67615,106 @@
         "「Buy an instant reset」（即时重置）的价格和可购买的国家官方未列出，以账号里显示为准",
         "Settings → Usage 的中文界面名称（「设置 → 用量」）未在中文界面核实",
         "Pro 200 老用户沿用旧额度到 2026-10-29，之后改为新额度，新额度具体数字官方未公开"
+      ]
+    },
+    {
+      "title": "Claude 报错 429 rate_limit_error 怎么办：速率限制、加速限制和月度花费上限三种来源，retry-after 怎么看",
+      "slug": "claude-api-error-429-rate-limit",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1410-429-sources.png",
+        "g1410-429-decide.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude API 返回 429 rate_limit_error，不一定是请求太快。按官方错误页和速率限制页（2026-10 查询），429 有速率限制、加速限制、触到档位月度花费上限等来源，处理办法不同。本文讲清怎么看 retry-after 和 error_code，以及 SDK 自动重试的行为。",
+      "content": "> 本文根据 Claude 官方 API 错误页和速率限制页整理，资料核对于 2026-10-30。官方没有单独说明 claude.ai 网页版聊天里出现的 429，本文讲的是 API 返回的 429，在 Claude Code、Cursor 等工具里看到的 429 多半也是它。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 调用 Claude API，返回 HTTP 429、`rate_limit_error` 的开发者；\n- 在 Cursor、Cline 等工具里填了自己的 Claude API Key，工具显示 429 的人；\n- 重试了很多次还是 429，想知道到底是什么限制的人。\n\n## 结论先说\n\n1. 官方错误页对 429 的定义是：你的组织触到了**速率限制**，或用完了所在档位的**月度花费上限**，或触到了 **Claude Code 工作区**的花费限制。\n2. **看响应头 `retry-after`**：有，就等那么多秒再重试，更早重试会失败；**没有**，且错误里带 `enforced_spend_limit_reached`，就是月度花费上限，重试（包括 SDK 自动重试）都会失败，直到下月 1 日 00:00 UTC 或你申请提高。\n3. 官方还提到**加速限制**：组织的用量突然猛增时，也可能收到 429。办法是逐步增加流量、保持稳定。\n4. **你自己设的花费上限**触顶，返回的是 **400**（`invalid_request_error`）而不是 429；调高或取消限额即可。\n5. 官方 SDK 默认会对 429、5xx 和连接错误**自动重试两次**，指数退避，并遵守 `retry-after`。\n\n![429 的几种来源](seed:g1410-429-sources.png)\n*图：本站根据 [Claude API 错误页](https://platform.claude.com/docs/en/api/errors) 和 [速率限制页](https://platform.claude.com/docs/en/api/rate-limits) 整理的示意图*\n\n## 一、速率限制：请求太多或 token 太多\n\n官方说明 Messages API 的速率限制按模型类别分别计算，包括：\n\n- **RPM**：每分钟请求数；\n- **ITPM**：每分钟输入 token 数；\n- **OTPM**：每分钟输出 token 数。\n\n超过其中任何一项就会收到 429，错误信息会说明超的是哪一项。几个值得知道的细节：\n\n- 限制是**按组织**计的，换一个 API Key 不会增加额度；\n- 限制可能在很短的时间窗口里生效：官方举例，每分钟 60 个请求可能按每秒 1 个来执行，所以**突发的并发请求**也会触发；\n- 官方用**令牌桶算法**，容量是持续补充的，不是整点重置；\n- 对大多数模型，**命中缓存读取的输入 token 不计入 ITPM**，所以用好提示词缓存能提高实际吞吐，缓存方法见 [/guides/claude-prompt-caching](/guides/claude-prompt-caching)；\n- `max_tokens` 不影响 OTPM 的计算，OTPM 按实际生成的 token 数算。\n\n响应头里会带当前限额、剩余量和重置时间，名字以 `anthropic-ratelimit-` 开头，可以按 requests、tokens、input-tokens、output-tokens 分别查看；`retry-after` 是还要等的秒数，官方说**不是每个 429 都带它**。\n\n## 二、月度花费上限：重试没有用\n\n官方规则：Start、Build、Scale 三档都有月度花费上限。用到上限后，**API 用量暂停到下月 1 日 00:00 UTC**，期间请求返回 429。\n\n和普通速率限制的区别：\n\n- 错误类型同样是 `rate_limit_error`；\n- **没有 `retry-after` 头**；\n- 消息里写着月度用量阈值并给出恢复时间，`error.details.error_code` 是 `enforced_spend_limit_reached`；\n- 升到更高档位可以恢复，提高上限在控制台的速率限制页发起「Request tier increase」。\n\n具体的档位上限金额，请看官方页面当天的数字，本文不引用。\n\n**自己设置的上限**不一样：在控制台账单页设置的花费上限触顶时，请求返回 **400**，消息以「You have reached your specified API usage limits」开头，调高或移除限额就能恢复。API Key 和控制台的使用见 [/guides/claude-api-key-console](/guides/claude-api-key-console)。\n\n## 三、加速限制：用量突然猛增\n\n官方在错误页和速率限制页都提醒：如果组织的用量**突然大幅上升**，可能因为加速限制收到 429。避免的办法是**逐步增加流量，保持稳定的使用节奏**，比如批量任务从低并发开始慢慢加。官方没有给出加速限制的具体阈值。\n\n## 四、对照表：收到 429 先这样查\n\n![收到 429 先这样查](seed:g1410-429-decide.png)\n*图：本站根据 [Claude API 速率限制页](https://platform.claude.com/docs/en/api/rate-limits) 整理的示意图*\n\n## 五、要更高的额度怎么办\n\n官方提供的途径：\n\n1. 控制台「Rate limits」页里的 **Request tier increase**，可申请更高的速率限制或月度花费上限；\n2. 联系 Anthropic 支持，紧急情况也可以走这里；\n3. 用工作区（Workspace）给不同项目设置更低的限额，避免某个项目占满整个组织的额度。官方说明默认工作区不能设花费上限；\n4. 在控制台的 Usage 页可以看到速率限制的图表，了解自己的峰值和缓存命中率。\n\n## 常见问题\n\n**Q：我已经等了很久还是 429，为什么？**\n先看是不是花费上限：没有 `retry-after` 且 error_code 是 `enforced_spend_limit_reached`，那就不是等几十秒的问题，要等到下月初或申请提高。\n\n**Q：429 和 529 有什么区别？**\n429 是你所在组织的限制，529 是 API 整体过载，见 [/guides/claude-api-error-529-overloaded](/guides/claude-api-error-529-overloaded)。\n\n**Q：Claude Code 里的报错怎么看？**\n常见报错见 [/guides/claude-code-common-errors](/guides/claude-code-common-errors)；订阅额度不是 API 额度，两者区别见 [/guides/claude-subscription-vs-api](/guides/claude-subscription-vs-api)。需要 Claude 订阅的话，本站有 [Claude Pro 充值页](/chongzhi/claude-pro)。\n\n**Q：怎么确认是官方故障？**\n看 [/guides/claude-down-check-status-page](/guides/claude-down-check-status-page)。\n\n## 参考资料\n\n- Claude API 错误 — https://platform.claude.com/docs/en/api/errors\n- Claude API 速率限制 — https://platform.claude.com/docs/en/api/rate-limits",
+      "sources": [
+        "https://platform.claude.com/docs/en/api/errors",
+        "https://platform.claude.com/docs/en/api/rate-limits"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方两页是 2026-10-30 当天读到的版本，限额数值和档位表会随时调整，本文只写机制，不抄具体限额数字",
+        "官方只在 Claude Code 工作区限制处提到 429 可能带 retry-after，其他场景是否带请以实际响应头为准",
+        "官方没有单独说明 claude.ai 网页版聊天里的 429，本文只讲 API；网页版额度问题见站内另一篇"
+      ]
+    },
+    {
+      "title": "Claude 报错 529 overloaded_error 怎么办：API 暂时过载是什么意思，和 429、500、504 怎么区分",
+      "slug": "claude-api-error-529-overloaded",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1411-status-codes.png",
+        "g1411-529-decide.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Claude API 返回 529 overloaded_error，官方的解释是 API 暂时过载，全体用户高峰时都可能遇到，不是你的 Key 或余额出了问题。本文按官方错误页（2026-10 查询）讲清它和 429、500、504 的区别、SDK 怎么自动重试、流式请求中途报错怎么处理。",
+      "content": "> 本文根据 Claude 官方 API 错误页整理，资料核对于 2026-10-30。**官方对 529 的说明很短**：它只写了「API 暂时过载」，没有单独的排查步骤。下面把官方写明的内容和本站的通用做法分开写。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 调用 Claude API，返回 HTTP 529、`overloaded_error` 的开发者；\n- 在 Cursor、Cline、Claude Code 等工具里用 Claude 模型，工具显示 Overloaded 的人。\n\n## 结论先说\n\n1. **529 `overloaded_error` 的官方含义是：API 暂时过载。** 官方补充说明：**API 在全体用户的流量都很高时，就可能出现 529**。\n2. 这是**服务端整体的状况**，和你的 API Key、余额、个人限速都无关。**429 才是你自己的组织触到了限制**，两者要区分，见 [/guides/claude-api-error-429-rate-limit](/guides/claude-api-error-429-rate-limit)。\n3. 官方 SDK 会对**连接错误、速率限制和 5xx 等暂时性失败**自动重试，默认两次，指数退避。官方没有把 529 单独点名，但它属于这类服务端的暂时性失败，以 SDK 实际行为为准。\n4. 官方提到一种相关情形：组织用量突然猛增时，可能因为**加速限制**收到 429。避免办法是逐步增加流量。\n5. 持续出现时，看官方状态页，确认是不是在处理事件：[/guides/claude-down-check-status-page](/guides/claude-down-check-status-page)。\n\n![429、500、504、529 怎么区分](seed:g1411-status-codes.png)\n*图：本站根据 [Claude API 错误页](https://platform.claude.com/docs/en/api/errors) 整理的示意图*\n\n## 一、官方错误码里 529 排在哪\n\n官方错误页列出的 HTTP 错误里，和服务端有关的有三个：\n\n- **500 `api_error`**：Anthropic 系统内部出现意外错误。官方建议用指数退避重试，持续出现就联系支持，并附上请求 ID；\n- **504 `timeout_error`**：请求处理超时。官方建议长请求用流式 Messages API；\n- **529 `overloaded_error`**：API 暂时过载。\n\n另外的 400、401、402、403、404、409、413 是请求或账号本身的问题，**重试没有意义**，要改请求或检查 Key、账单、权限。429 是限速，见上面的链接。\n\n## 二、收到 529 怎么办\n\n### 官方写明的部分\n\n1. **SDK 自动重试**：官方 SDK 默认会对暂时性失败自动重试，指数退避；可以用 `max_retries` 之类的参数调整或关闭；\n2. **流式请求的特殊性**：用 SSE 流式返回时，**错误可能出现在服务端已经返回 200 之后**，这时不按普通的 HTTP 状态码处理，而是看流里的「错误事件」。官方在流式文档里有专门的说明；\n3. **记下请求 ID**：每个响应都带 `request-id` 头，错误响应体里也有 `request_id` 字段。要联系支持时附上它，处理更快。\n\n### 本站的通用做法\n\n官方没有给 529 的专门步骤，下面是通用的工程做法，不是官方保证：\n\n- **别密集地重试**：在失败后拉长间隔再试，不要立刻连发，否则可能让情况更糟，还可能碰到加速限制；\n- **别反复换 Key**：529 不是 Key 的问题；\n- **把能延后的任务排队**：批量任务可以改用官方的 Message Batches API，官方在「长请求」说明里把它列为应对网络不稳的办法；\n- **对用户界面做提示**：如果你做的是产品，给用户一个「服务繁忙，请稍后重试」的提示，并保留请求内容。\n\n![收到 529 怎么办](seed:g1411-529-decide.png)\n*图：本站根据 [Claude API 错误页](https://platform.claude.com/docs/en/api/errors) 整理的示意图*\n\n## 三、在 Cursor、Cline 等工具里看到 Overloaded\n\n这些工具用你的 API Key 调用 Claude，会把 API 返回的错误显示出来或包装一下。看到 Overloaded、529，一般就是上面讲的 API 过载，工具本身没有问题。可以稍等再发一次，或换一个模型试试。\n\n如果显示的是 429、400、401，处理办法不同：401 多半是 Key 填错，400 要检查请求内容，429 看上面的 429 文章。Claude Code 里的常见报错见 [/guides/claude-code-common-errors](/guides/claude-code-common-errors)。\n\n## 常见问题\n\n**Q：529 是我的额度用完了吗？**\n不是。额度和花费上限触顶返回的是 429（或你自己设置的上限返回 400）。529 是 API 整体过载。\n\n**Q：订阅用户（Pro、Max）会遇到 529 吗？**\n官方错误页只讲 API。订阅用户在网页或 Claude Code 里遇到的拥堵提示，官方没有在这个页面里逐条说明；Max 套餐的说明里提到「高峰时段优先访问」，见 [/guides/claude-pricing-free-or-paid](/guides/claude-pricing-free-or-paid)。\n\n**Q：API 和订阅是一回事吗？**\n不是，见 [/guides/claude-subscription-vs-api](/guides/claude-subscription-vs-api)。如需开通 Claude Pro，可看本站 [Claude Pro 充值页](/chongzhi/claude-pro)。\n\n**Q：怎么拿到 API Key？**\n见 [/guides/claude-api-key-console](/guides/claude-api-key-console)。\n\n## 参考资料\n\n- Claude API 错误 — https://platform.claude.com/docs/en/api/errors\n- Claude API 速率限制 — https://platform.claude.com/docs/en/api/rate-limits",
+      "sources": [
+        "https://platform.claude.com/docs/en/api/errors",
+        "https://platform.claude.com/docs/en/api/rate-limits"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方错误页对 529 只写了「API 暂时过载」和「高流量下全体用户都可能遇到」，没有给出持续时间、重试间隔或专门的处理步骤；本文的重试和排查建议里，只有 SDK 自动重试和流式错误事件来自官方，其余是本站的通用做法",
+        "官方 SDK 默认重试次数「两次」是 2026-10-30 当天错误页的说法，以官方为准"
+      ]
+    },
+    {
+      "title": "Claude Code 无法粘贴、无法读取图片怎么办：Ctrl+V 和 Alt+V 的区别，拖放和路径三种放图方法",
+      "slug": "claude-code-cannot-paste-read-images",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1417-add-image-steps.png",
+        "g1417-paste-decide.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "Claude Code 里粘贴不了截图、读不到图片？官方文档给了三种把图放进对话的方法：拖放进窗口、Ctrl+V 粘贴（Windows 和 WSL 用 Alt+V）、直接写图片路径。官方没有为「粘贴失败」单列排查，本文把官方写明的做法和通用排查分开讲。",
+      "content": "> 本文根据 Claude Code 官方文档整理，资料核对于 2026-10-30。**官方没有为「粘贴失败」「无法读取图片」单独写排查说明**，这里把官方写明的放图方法列出来，再给通用的排查顺序。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在终端里用 Claude Code，想让它看一张报错截图或设计稿，却粘贴不上的人；\n- 写了图片路径，Claude 却说读不到的人。\n\n## 结论先说\n\n1. 官方「Work with images」一节写明，把图放进 Claude Code 对话有**三种方法**：\n   - **拖放**：把图片拖进 Claude Code 窗口；\n   - **粘贴**：复制图片后在命令行里按 **`Ctrl+V`**，在 **Windows 和 WSL 上用 `Alt+V`**；\n   - **给路径**：在提问里直接写图片路径，例如 `Analyze this image: /path/to/your/image.png`。\n2. **Windows 和 WSL 先试 `Alt+V`**。快捷键清单见 [/guides/claude-code-keyboard-shortcuts](/guides/claude-code-keyboard-shortcuts)，里面也写了这一条。\n3. 粘贴不行，就**改用拖放或写路径**，这两种方法不依赖剪贴板。\n4. 一次对话里可以放**多张图**；Claude 引用图片时会显示 `[Image #1]` 这样的标记，按住 `Cmd` 点击（Mac）或 `Ctrl` 点击（Windows、Linux）可以用默认的图片查看器打开。\n5. 怀疑安装或设置本身有问题时，运行 `/doctor`；`claude` 完全启动不了，就在 shell 里运行 `claude doctor`。\n\n![在 Claude Code 里放进一张图](seed:g1417-add-image-steps.png)\n*图：本站根据 [Claude Code 官方文档](https://code.claude.com/docs/en/common-workflows) 整理的示意图*\n\n## 一、官方写明的三种方法\n\n### 拖放\n\n直接把图片文件拖进 Claude Code 所在的窗口。如果你是在编辑器自带的终端里用，拖放的效果取决于那个终端是否接收文件，行不通就换另外两种。\n\n### 粘贴\n\n先复制图片（比如截图工具截下来的图），回到 Claude Code 的输入框按快捷键：\n\n- macOS、Linux：`Ctrl+V`；\n- Windows、WSL：`Alt+V`。\n\n官方把 Windows 和 WSL 单独列出，没有解释原因。注意这是粘贴**图片**的快捷键，粘贴文字用你的终端自己的快捷键。\n\n### 给路径\n\n不依赖剪贴板，最稳。把图片保存到本地，提问时写路径，路径可以是相对的也可以是绝对的。输入 `@` 还会弹出路径提示菜单，用 Enter 或 Tab 选中，再按 Enter 发送，这是官方在「引用文件」里写的做法，对文件通用。\n\n## 二、通用排查顺序\n\n官方没有逐条说明，下面按从简单到复杂：\n\n![图片粘贴不上、读不了怎么办](seed:g1417-paste-decide.png)\n*图：本站根据 [Claude Code 官方文档](https://code.claude.com/docs/en/common-workflows) 整理的示意图*\n\n1. **换快捷键**：Windows、WSL 用 `Alt+V`；其他系统用 `Ctrl+V`。\n2. **确认剪贴板里真的是图片**：从截图工具直接复制，或在图片查看器里复制，而不是复制了文件名。\n3. **改用拖放或路径**。\n4. **路径方式读不到**：核对路径拼写、文件是否真的存在、你启动 `claude` 的目录是否是你想的那个。\n5. **提示的是 API 报错而不是找不到图片**：官方有「Error reference」页，429、529 等的说明见本站 [/guides/claude-api-error-429-rate-limit](/guides/claude-api-error-429-rate-limit)、[/guides/claude-api-error-529-overloaded](/guides/claude-api-error-529-overloaded)，其他常见报错见 [/guides/claude-code-common-errors](/guides/claude-code-common-errors)。\n6. **还是不行**：`/doctor` 检查安装和设置；去官方 GitHub 仓库看是否是已知问题，或用 `/feedback` 反馈。\n\n## 三、放图之后怎么问\n\n官方给的几类问法，适合直接套用：\n\n- 「这张截图里的界面元素有哪些？」\n- 「这是报错截图，原因是什么？」\n- 「这是我们现在的数据库表结构，新功能该怎么改？」\n- 「照这个设计稿生成对应的 CSS。」\n\n图片适合用在文字描述不清楚或太啰嗦的时候，比如报错截图、界面设计和流程图。\n\n## 常见问题\n\n**Q：Claude Code 能看视频或 PDF 吗？**\n官方这一节只讲图片。PDF、表格等文件，可以用 `@` 引用，具体限制以官方文档为准。\n\n**Q：网页版 Claude 上传图片失败呢？**\n那是另一个场景，限制见 [/guides/claude-file-upload-limits](/guides/claude-file-upload-limits)。\n\n**Q：还没装好 Claude Code？**\n见 [/guides/claude-code-install-methods-git-npm-official](/guides/claude-code-install-methods-git-npm-official)。需要订阅的话，本站有 [Claude Pro 充值页](/chongzhi/claude-pro)。\n\n## 参考资料\n\n- Claude Code Common workflows（Work with images） — https://code.claude.com/docs/en/common-workflows\n- Claude Code Troubleshooting — https://code.claude.com/docs/en/troubleshooting",
+      "sources": [
+        "https://code.claude.com/docs/en/common-workflows",
+        "https://code.claude.com/docs/en/troubleshooting"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档没有单独说明「粘贴失败」「读不到图片」的原因，本文排查部分除了三种放图方法和 /doctor，其余是本站的通用建议",
+        "官方写的是「Ctrl+V，或在 Windows 和 WSL 上用 Alt+V」，没有说明 Windows 上 Ctrl+V 一定失效",
+        "官方没有在这一页写图片的格式和大小限制，本文不写具体数字"
+      ]
+    },
+    {
+      "title": "Claude Code 官网下载在哪、怎么安装：原生安装、npm、Homebrew、WinGet 怎么选，Windows 要不要装 Git",
+      "slug": "claude-code-install-methods-git-npm-official",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1418-install-methods.png",
+        "g1418-git-decide.png"
+      ],
+      "tags": [
+        "claude"
+      ],
+      "accountTier": "PRO",
+      "excerpt": "搜「Claude Code 官网下载」「为什么要装 Git」「为什么不推荐 npm」，官方文档的答案是：安装说明在 code.claude.com，原生安装标为推荐，npm 要 Node.js 22，Windows 的 Git 是可选的。本文按官方文档逐项说明。",
+      "content": "> 本文根据 Claude Code 官方文档的 Advanced setup 页整理，资料核对于 2026-10-30。官方对「为什么不推荐 npm」没有专门解释，只是把原生安装标成推荐，下面分开写官方说了什么、没说什么。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 搜「claude code 官网下载」「claude code 下载不了」，不知道去哪下载的人；\n- 看到 npm、Homebrew、WinGet 好几种装法，不知道选哪个的人；\n- Windows 用户，不确定要不要装 Git 的人。\n\n## 结论先说\n\n1. **官方安装说明在 [code.claude.com/docs/en/setup](https://code.claude.com/docs/en/setup)**。Claude Code 是在终端里运行的命令行工具，**没有单独的「安装包下载页」**。如果你想要图形界面，官方提供桌面应用，下载页是 [claude.com/download](https://claude.com/download)。\n2. **官方推荐「原生安装」（Native Install）**：macOS、Linux、WSL 用 `curl -fsSL https://claude.ai/install.sh | bash`；Windows PowerShell 用 `irm https://claude.ai/install.ps1 | iex`。原生安装会在后台**自动更新**。\n3. **npm 仍然能用**：`npm install -g @anthropic-ai/claude-code`，要求 **Node.js 22 或更高**。官方说明 npm 包装的是**同一个原生程序**，装好后的 `claude` 运行时并不调用 Node。**官方没有说不推荐 npm**，只是把它放在「高级安装」里。\n4. **Windows 上 Git 是可选的**：官方在不同位置写的是「recommended」和「optional」。没有 Git for Windows，Claude Code 用 PowerShell 执行命令；装了，就用 Git Bash。用 WSL 不需要。\n5. 用 Claude Code 需要 **Pro、Max、Team、Enterprise 或 Console 账号**，官方写明免费版 claude.ai 套餐不包含 Claude Code。\n\n![Claude Code 安装方式对比](seed:g1418-install-methods.png)\n*图：本站根据 [Claude Code 官方文档](https://code.claude.com/docs/en/setup) 整理的示意图*\n\n## 一、系统要求\n\n官方列出的要求（2026-10-30）：\n\n- **系统**：macOS 13.0 及以上；Windows 10 1809 及以上，或 Windows Server 2019 及以上；Ubuntu 20.04 及以上；Debian 10 及以上；Alpine Linux 3.19 及以上；\n- **硬件**：4 GB 以上内存，x64 或 ARM64 处理器；\n- **网络**：需要联网；\n- **Shell**：Bash、Zsh、PowerShell 或 CMD；\n- **地区**：Anthropic 支持的国家和地区。是否支持你所在的地区，见 [/guides/claude-supported-countries-regions](/guides/claude-supported-countries-regions)。\n\n## 二、原生安装怎么做\n\n1. 打开终端。Windows 上提示符是 `PS C:\\` 的是 PowerShell，没有 `PS` 的是 CMD，两种用的命令不一样；\n2. 运行上面对应系统的命令。官方说明下载时**没有进度显示**，等它结束即可；\n3. **新开一个终端窗口**，运行 `claude --version`，能打印版本号就是装好了；\n4. 在项目目录里运行 `claude`，按浏览器里的提示登录。\n\n常见的小坑，官方文档里写明的：\n\n- 在 PowerShell 里运行了 CMD 的命令会提示 `The token '&&' is not a valid statement separator`；反过来在 CMD 里运行 PowerShell 的命令会提示 `'irm' is not recognized`，换对应的命令即可；\n- 提示 `claude` 找不到，是安装目录还没在 PATH 里，官方有「Fix your PATH」的说明，也见本站 [/guides/claude-code-common-errors](/guides/claude-code-common-errors)；\n- 安装命令报 `syntax error near unexpected token '<'`、`403` 等，官方让你去「Troubleshoot installation」页对照错误；\n- 运行 `claude doctor` 可以查看只读的安装和设置诊断。\n\n入门步骤的完整版见 [/guides/claude-code-getting-started](/guides/claude-code-getting-started)。\n\n## 三、Homebrew、WinGet 和 Linux 软件源\n\n官方也提供：\n\n- **Homebrew**：`brew install --cask claude-code`（稳定通道，通常比最新版晚约一周）或 `claude-code@latest`；**不会自动更新**，要手动 `brew upgrade`；\n- **WinGet**：`winget install Anthropic.ClaudeCode`；**不会自动更新**，要手动 `winget upgrade Anthropic.ClaudeCode`；\n- **apt、dnf、apk**：官方提供签名的软件源，更新走系统自己的升级流程。\n\n这几种方式和原生安装的主要区别就是**更新方式**。想省心就用原生安装；公司统一管理软件、习惯用包管理器的，可以选后者。更新、卸载的完整做法见 [/guides/claude-code-update-uninstall](/guides/claude-code-update-uninstall)。\n\n## 四、npm 安装：官方的说法\n\n官方在「Install with npm」里写了这些：\n\n- 需要 **Node.js 22 或更高**；Node 版本较旧时，npm 只会打印 `EBADENGINE` 警告，安装照样完成、`claude` 也能运行，因为程序下载的是不依赖你 Node 的原生程序；\n- **不要用 `sudo npm install -g`**，会引起权限问题和安全风险，遇到权限错误看官方的排查页；\n- 升级用 `npm install -g @anthropic-ai/claude-code@latest`，**避免 `npm update -g`**；\n- 如果 `npm --version` 显示的版本以 12 开头，官方有专门的修复说明，先看那一节；\n- 支持的平台包括 darwin-arm64、darwin-x64、linux-x64、linux-arm64、musl 版的 Linux，以及 win32-x64、win32-arm64；包管理器必须允许可选依赖。\n\n所以「为什么不推荐 npm」在官方文档里的体现，更像是：**原生安装更简单、自动更新更省事，npm 要多一层 Node.js 版本和权限的问题**。官方并没有写得这么直白，这是本站的归纳。\n\n## 五、Windows 要不要装 Git\n\n![Windows 要不要装 Git](seed:g1418-git-decide.png)\n*图：本站根据 [Claude Code 官方文档](https://code.claude.com/docs/en/setup) 整理的示意图*\n\n官方原话大意：\n\n- 在 Windows 原生环境下，**推荐**装 Git for Windows，这样 Claude Code 能用 **Bash 工具**；\n- 没有装的话，Claude Code 用 **PowerShell 工具**执行 shell 命令；\n- 在设置对照表里，Git for Windows 被标为「**可选**」，它提供的 Git Bash 是 Bash 工具和 Monitor 工具需要的；\n- 如果装了 Git 却找不到 Git Bash，在 `settings.json` 的 `env` 里设置 `CLAUDE_CODE_GIT_BASH_PATH`，值是 `bash.exe` 的路径，例如 `C:\\\\Program Files\\\\Git\\\\bin\\\\bash.exe`；\n- WSL 里不需要 Git for Windows。\n\n另外，**这和你的项目要不要用 Git 管理是两回事**。Claude Code 最好在 Git 仓库里用，改坏了方便回退，见 [/guides/claude-code-best-practices](/guides/claude-code-best-practices)。\n\n## 常见问题\n\n**Q：有没有图形界面的安装包？**\n有桌面应用，见 [claude.com/download](https://claude.com/download) 和 [/guides/claude-code-desktop](/guides/claude-code-desktop)。\n\n**Q：免费账号能用 Claude Code 吗？**\n官方 setup 页写明免费版 claude.ai 套餐不包含。套餐和价格见 [/guides/claude-pricing-free-or-paid](/guides/claude-pricing-free-or-paid)，Pro、Max 还是 API 怎么选见 [/guides/claude-code-pro-max-or-api](/guides/claude-code-pro-max-or-api)，开通可看本站 [Claude Pro 充值页](/chongzhi/claude-pro)。\n\n**Q：安装出错了去哪查？**\n先看 [/guides/claude-code-common-errors](/guides/claude-code-common-errors)，再看官方的「Troubleshoot installation and login」。官方说明 `claude` 完全启动不了时，在 shell 里运行 `claude doctor`。\n\n## 参考资料\n\n- Claude Code Advanced setup — https://code.claude.com/docs/en/setup\n- Claude Code Troubleshooting — https://code.claude.com/docs/en/troubleshooting\n- Claude 下载页 — https://claude.com/download",
+      "sources": [
+        "https://code.claude.com/docs/en/setup",
+        "https://code.claude.com/docs/en/troubleshooting",
+        "https://claude.com/download"
+      ],
+      "screenshots": [],
+      "verify": [
+        "安装命令、系统要求和包管理器写法是 2026-10-30 当天读到的 setup 页，官方随时可能调整，请以官方页面为准",
+        "官方没有写「不推荐 npm」，只把原生安装标为 Recommended 并保留 npm 作为高级安装方式；本文据此说明，没有扩大",
+        "各安装方式「是否自动更新」按官方说明摘录，npm 能否自动更新取决于全局目录是否可写"
       ]
     },
     {
@@ -67539,6 +67746,136 @@
       ]
     },
     {
+      "title": "Gemini API 报错 400、403、429、500、503、504 怎么办：官方错误码对照，502 和 error 13 官方没列出时怎么查",
+      "slug": "gemini-api-error-codes-502-error-13",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1423-error-codes.png",
+        "g1423-error-decide.png"
+      ],
+      "tags": [
+        "gemini",
+        "gemini-llm"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Gemini API 报错 400、403、429、500、503、504，哪些该重试，哪些要先改请求或补账单？按官方错误页和排查页（2026-10-30 查询）逐项对照。官方没有列出 502 和 error 13，本文说明遇到这两种时能做什么。",
+      "content": "> 本文根据 Gemini API 官方文档的「API errors」页和「Troubleshooting」页整理，资料核对于 2026-10-30。**官方两页都没有出现 502，也没有出现「error 13」**，这两种在下面单列一节说明。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 调用 Gemini API，返回 HTTP 400、403、429、500、503、504 的开发者；\n- 在 Cursor、Cline、Cherry Studio 等工具里填了 Gemini API Key，看到报错的人；\n- 搜「Gemini 报错 502」「Gemini error 13」的人。\n\n## 结论先说\n\n1. 官方错误页把错误分成三类：**请求本身的问题**（400、401、402、403、404、416 等，改请求或查账号，**重试没用**）、**限流类**（429，等一等再试）、**服务端类**（500、503、504）。\n2. **429 有三种代码**：`rate_limit_exceeded`（每分钟或每秒的请求或 token 超限）、`quota_exceeded`（日配额用完）、`too_many_requests`（短时间请求太多）。前者和后者等待后按指数退避重试，日配额则要等重置或申请提高。429 的详细讲解见 [/guides/gemini-api-429-resource-exhausted](/guides/gemini-api-429-resource-exhausted)。\n3. **500 `api_error`**：服务端意外错误，重试，持续就联系支持。**503 `service_unavailable`**：服务暂时过载或不可用，等待后按指数退避重试。**504 `deadline_exceeded`**：请求没在时限内完成，官方建议去掉或调大客户端的超时设置，让服务端用默认值。\n4. 官方推荐的重试方式：**指数退避，加随机抖动，设置最大重试次数**；官方说明 Python SDK 默认对暂时性错误最多重试四次。\n5. **502 和 error 13 官方页面里没有**。先看官方状态页，确认不是官方故障，再按通用做法处理，见第三节。\n\n![Gemini API 常见错误码速查](seed:g1423-error-codes.png)\n*图：本站根据 [Gemini API 错误页](https://ai.google.dev/gemini-api/docs/api-errors) 整理的示意图*\n\n## 一、请求类错误：重试没有用\n\n| 代码 | HTTP | 含义 | 怎么办 |\n| --- | --- | --- | --- |\n| `invalid_request` | 400 | 请求格式不对或参数无效 | 对照 API 参考检查语法和参数 |\n| `failed_precondition` | 400 | 前提条件不满足，例如账单未开通 | 检查账单状态和账号前提 |\n| `parameter_unknown` | 400 | 请求里有不认识的参数 | 删掉该参数再试 |\n| `authentication` | 401 | API Key 缺失、无效或过期 | 检查 Key |\n| `payment_required` | 402 | 预付费余额用完 | 补充余额或开启自动充值，补充前不要重试 |\n| `permission_denied` | 403 | Key 没有权限，或项目被限制 | 检查权限、所在层级和账单 |\n| `not_found` / `model_not_found` | 404 | 资源或模型不存在 | 检查路径、参数和模型名 |\n| `out_of_range` | 416 | 参数超出有效范围 | 检查取值和限制 |\n\n排查页对 403 的几种情形写得更细：\n\n- **项目被拒绝访问**，或项目状态是 Restricted、Free tier unavailable、Payment needed、Unavailable；\n- **免费层不可用**：关联一个有效的 Cloud Billing 账号；\n- **需要付款**：处理欠费，或在账单页更新付款方式；\n- **Key 泄露或被封**：官方会提示「API key was reported as leaked」，要在 AI Studio 里新建一个 Key。\n\nKey 的创建和保管，可参考 [/guides/gemini-api-python-quickstart](/guides/gemini-api-python-quickstart)。免费层和付费层的额度区别，见 [/guides/gemini-api-free-tier-rate-limits](/guides/gemini-api-free-tier-rate-limits) 和 [/guides/gemini-api-price-official](/guides/gemini-api-price-official)。\n\n## 二、限流和服务端错误：可以重试\n\n| 代码 | HTTP | 含义 | 怎么办 |\n| --- | --- | --- | --- |\n| `rate_limit_exceeded` | 429 | 每分钟或每秒的请求或 token 超限 | 等待后按指数退避重试 |\n| `quota_exceeded` | 429 | 日配额用完 | 等配额重置，或申请提高 |\n| `too_many_requests` | 429 | 短时间内请求太多 | 等待后按指数退避重试 |\n| `api_error` | 500 | 服务端意外错误 | 重试，持续就联系支持 |\n| `service_unavailable` | 503 | 服务暂时过载或宕机 | 等待后按指数退避重试 |\n| `deadline_exceeded` | 504 | 请求在时限内没完成 | 去掉或调大客户端超时 |\n| `unimplemented` | 501 | 该功能或操作不支持 | 检查 API 能力，换支持的功能 |\n| `cancelled` | 499 | 客户端在完成前取消了请求 | 通常是客户端断开，无需处理 |\n\n另外官方页面还列了**内容被拦截**的代码（如 `safety`、`prohibited_content`、`image_safety` 等），官方说法是修改输入后再试；以及**生成错误**（如 `malformed_function_call`、`no_image`）。这些和网络、额度无关，是请求内容或模型输出方面的问题。\n\n## 三、502 和 error 13：官方没写，怎么办\n\n官方的 API 错误页使用 `api_error`、`service_unavailable`、`deadline_exceeded` 这样的小写名称，页面里**没有**502，也**没有**「error 13」。网上常见的 `500 INTERNAL`、`UNAVAILABLE` 这类大写名称，也没有出现在这一页里。所以这两种报错没有官方的逐条解释，建议这样查：\n\n![Gemini API 报错先这样查](seed:g1423-error-decide.png)\n*图：本站根据 [Gemini API 排查页](https://ai.google.dev/gemini-api/docs/troubleshooting) 整理的示意图*\n\n1. **看官方状态页** [aistudio.google.com/status](https://aistudio.google.com/status)，确认是不是官方在处理事件；\n2. 502 在 HTTP 里通常表示网关或中间代理收到了上游的无效响应，所以在你和 Google 之间还有**代理、网关或第三方中转**的话，先绕开它直接请求官方地址试试；\n3. 把它当作暂时性错误处理：**指数退避重试，设置最大次数**；\n4. 用的是**第三方工具或客户端**时，换一个客户端或更新版本再试，并查看工具自己的日志；\n5. 持续出现，保存请求 ID 等信息，向官方反馈。\n\n## 常见问题\n\n**Q：Gemini 网页或 App 里的报错呢？**\n那是另一类，见 [/guides/gemini-error-messages-table](/guides/gemini-error-messages-table) 和 [/guides/gemini-down-check-status-page](/guides/gemini-down-check-status-page)。\n\n**Q：429 是不是一定是我用多了？**\n官方把 429 分成三种代码，只有看到 `quota_exceeded` 才是日配额用完，其他两种是短时间内太快，等一等就好。\n\n**Q：需要 Google 账号怎么办？**\n本站有 [Google 账号相关服务](/chongzhi/google-zhanghao)，具体以页面说明为准。\n\n## 参考资料\n\n- Gemini API 错误 — https://ai.google.dev/gemini-api/docs/api-errors\n- Gemini API 排查 — https://ai.google.dev/gemini-api/docs/troubleshooting\n- Google AI Studio 状态页 — https://aistudio.google.com/status",
+      "sources": [
+        "https://ai.google.dev/gemini-api/docs/api-errors",
+        "https://ai.google.dev/gemini-api/docs/troubleshooting",
+        "https://aistudio.google.com/status"
+      ],
+      "screenshots": [],
+      "verify": [
+        "错误码名称和说明是 2026-10-30 当天读到的官方页面；官方页面里的英文原文这里按意思改写，具体措辞以官方为准",
+        "官方两页都没有出现 502 和「error 13」，本文对这两种的建议是通用做法，不是官方对该错误码的说明",
+        "官方排查页把 400 和 402 都归为不要重试的客户端错误，并提到预付费余额用尽的情形，余额相关规则以官方账单页为准"
+      ]
+    },
+    {
+      "title": "Grok 官网入口在哪、有没有电脑版下载：grok.com、手机 App、Grok in X 和 Grok Bot 分别是什么",
+      "slug": "grok-official-website-entry-desktop-download",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1424-official-entries.png",
+        "g1424-desktop-decide.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "搜「Grok 官网入口」「Grok 下载电脑版」，官方产品页的答案是：网页版是 grok.com，手机有 iOS 和 Android App，在 X 里也能用；没有列出 Grok 聊天的桌面安装包。另有一个叫 Grok Bot 的智能体产品，才有 Linux 安装包。",
+      "content": "> 本文根据 xAI 官方产品页整理，资料核对于 2026-10-30。官方页面会变，以你当天打开看到的为准。配图为本站整理的示意图，不是网页截图。本站不是 xAI 官方。\n\n## 适用于谁\n\n- 搜「grok官网入口」，想确认哪个是官方地址的人；\n- 搜「grok下载电脑版」，想知道有没有 Windows、Mac 客户端的人；\n- 分不清 Grok、Grok in X、Grok Bot 的人。\n\n## 结论先说\n\n1. **官方网页版是 [grok.com](https://grok.com)**。官方产品页写的是：在网页打开 grok.com，或下载 iOS 和 Android App，「Free to try」，免费可以试用。\n2. **手机**：产品页给出了 iOS（App Store）和 Android（Google Play）的 Grok 应用链接。\n3. **在 X 里使用**：官方称为 Grok in X，入口是 x.com/i/grok；在 X 内使用的权益由 X 平台决定。\n4. **没有看到电脑版 Grok 聊天的安装包**：官方产品页的入口列表里没有 Windows 或 Mac 的桌面安装包，用电脑直接打开 grok.com 即可。官方建议在 Chrome 或 Chromium 浏览器里使用 grok.com，不要用 grok.x.ai（见 [/guides/grok-how-to-use-x-account-weekly-usage](/guides/grok-how-to-use-x-account-weekly-usage)）。\n5. 官网另有 **Grok Bot**，是智能体产品，和聊天不是一回事，它的页面提供了 Linux 安装包。\n\n![Grok 官方入口一览](seed:g1424-official-entries.png)\n*图：本站根据 [Grok 官方产品页](https://x.ai/grok) 整理的示意图*\n\n## 一、各入口说明\n\n| 入口 | 地址 | 说明 |\n| --- | --- | --- |\n| 网页版 | grok.com | 登录后在浏览器里使用 |\n| iOS、Android | 应用商店里的 Grok 条目 | 官方产品页提供链接 |\n| Grok in X | x.com/i/grok | 在 X 里使用 Grok |\n| Grok Bot | x.ai/bot | 智能体产品 |\n| 官方状态页 | status.x.ai | 打不开时先看，见 [/guides/grok-down-check-status-page](/guides/grok-down-check-status-page) |\n\n登录、和 X 账号的关系、每周额度这些，在 [/guides/grok-how-to-use-x-account-weekly-usage](/guides/grok-how-to-use-x-account-weekly-usage) 里讲。\n\n## 二、「电脑版」到底有没有\n\n- **聊天**：官方产品页只写了网页和手机 App，**没有列出桌面客户端**。电脑上最直接的做法就是用浏览器打开 grok.com。\n- **Grok Bot**：官方说明它是一组在你的工具里干活的 AI 智能体，在共享的云端电脑上运行。页面提供了 Linux 的安装包（.deb、AppImage 或 .rpm，x64 和 arm64），页面 FAQ 提到可以在 macOS 或 Windows 桌面使用，但没有给出直接的下载链接。想了解它，请直接看官方页面。\n\n所以搜到的「Grok 电脑版下载」，如果不是来自 x.ai 或 grok.com，先不要下载。\n\n## 三、怎么辨别假冒\n\n![想在电脑上用 Grok](seed:g1424-desktop-decide.png)\n*图：本站根据 [Grok 官方产品页](https://x.ai/grok) 整理的示意图*\n\n官方没有写专门的防假冒说明，下面是通用做法：\n\n1. 只认 **grok.com**、**x.ai**、**x.com** 这几个域名；\n2. 应用只从官方产品页给的应用商店链接进入；\n3. 不推荐任何第三方「Grok 中文版」「镜像」「破解版」，本文也不给出这类链接；\n4. 不在陌生页面输入 X 账号、邮箱密码；\n5. 已经运行过不明程序：改密码并用杀毒软件检查。\n\n## 常见问题\n\n**Q：Grok 收费吗？**\n见 [/guides/grok-pricing-free-or-paid](/guides/grok-pricing-free-or-paid)。免费档的功能见 [/guides/grok-free-usage-how-much](/guides/grok-free-usage-how-much)。\n\n**Q：打不开 grok.com 怎么办？**\n先看 [/guides/grok-down-check-status-page](/guides/grok-down-check-status-page)，用量相关的见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)。\n\n**Q：想开通 SuperGrok？**\n本站有 [Grok 充值页](/chongzhi/grok-super)，以页面说明为准；官方的价格页见 [x.ai/pricing](https://x.ai/pricing)。\n\n## 参考资料\n\n- Grok 产品页 — https://x.ai/grok\n- Grok Bot — https://x.ai/bot\n- Welcome to Grok（官方文档） — https://docs.x.ai/grok/overview",
+      "sources": [
+        "https://x.ai/grok",
+        "https://x.ai/bot",
+        "https://docs.x.ai/grok/overview"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方产品页和 Grok Bot 页面是 2026-10-30 当天读到的版本，官方随时可能新增桌面端，请以官网为准",
+        "官方产品页没有明确写「没有电脑版」，只是入口列表里没有桌面安装包；本文据此写「官方页面未列出」",
+        "Grok Bot 页面的 FAQ 提到可以在 macOS 或 Windows 桌面上使用，但页面没有给出对应的下载链接，本文没有写它的具体安装方式"
+      ]
+    },
+    {
+      "title": "Grok 收费吗：免费版能用到什么，Plus、Premium、Super、Ultra 官方标价和区别（2026 年 10 月）",
+      "slug": "grok-pricing-free-or-paid",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1425-plans-prices.png",
+        "g1425-plan-decide.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Grok 收费吗？官方有免费档，也有 Plus、Premium、Super、Ultra 付费档。按官方价格页（2026-10 查询）：Plus 8 美元、Premium 30 美元、Super 100 美元、Ultra 200 美元每月，页面标 $ 但未写币种。本文讲清各档区别、税费和购买渠道。",
+      "content": "> 本文根据 xAI 官方价格页整理，价格为 2026-10 查询，资料核对于 2026-10-30。价格会变，以官方页面为准。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 搜「grok收费吗」「grok收费标准」，想先知道要不要花钱的人；\n- 免费版不够用，想知道各付费档差别的人；\n- 想把 Grok 和 ChatGPT、Claude 的价位放在一起看的人。\n\n## 结论先说\n\n1. **有免费档**：官方写「Free to try」。价格页写的是免费档的聊天和智能体请求**有限量**，具体次数官方没有逐项列出。\n2. **付费档（2026-10 查询，页面标 $，未写明币种，不含税费）**：\n   - **Plus**：$8 每月，页面写共享的用量池，含 Grok API 访问、Cursor；\n   - **Premium**：$30，官方说用量是 Plus 的 4 倍，含 Grok Bot、更快的聊天响应、图像和视频生成、云端智能体；\n   - **Super**：$100，用量是 Plus 的 15 倍，高峰时段优先使用模型；\n   - **Ultra**：$200，用量是 Plus 的 50 倍，是个人用户的最高档；\n   - **Teams**：每人 $30 起，集中计费、SSO、审计日志；**Enterprise**：定制报价。\n3. 官方写明：**价格不含适用的税费**（例如增值税），随时可以取消，**续订前至少 24 小时取消**才能避免再次扣费；价格可能调整。\n4. 订阅里包含 Grok API 访问，但 **API 用量单独按标准模型价格计费**，不占套餐用量池；在 Cursor 里使用第三方模型也需要另外购买，按 API 标价计费。\n5. 老名字 **SuperGrok** 现在对应哪一档，见 [/guides/chatgpt-plus-vs-supergrok-which](/guides/chatgpt-plus-vs-supergrok-which)，Heavy 的说法见 [/guides/grok-supergrok-heavy-what-is](/guides/grok-supergrok-heavy-what-is)。\n\n![Grok 官方价格页的各档位](seed:g1425-plans-prices.png)\n*图：本站根据 [Grok 官方价格页](https://x.ai/pricing) 整理的示意图*\n\n## 一、免费版能做什么\n\n官方产品页只写了「网页和 App 里免费试用」，价格页写免费档是**有限的聊天和智能体请求**，在 X 上可以发帖、回复、关注。具体每个功能的免费次数官方没有列出，详见本站 [/guides/grok-free-usage-how-much](/guides/grok-free-usage-how-much)。\n\n## 二、各付费档的差别\n\n价格页列出的功能（摘要）：\n\n- **Plus**：Grok Chat、语音、Imagine 和 Build；Grok API 访问；Cursor；在 X 上有认证标志、更少的广告等；\n- **Premium**：包含 Plus 的一切，另有 Grok Bot、更快的聊天响应、图像和视频生成、带 AI 代码评审的代码托管、云端智能体和自动化；\n- **Super**：包含 Premium 的一切，另有高峰时段的模型优先访问；\n- **Ultra**：包含 Super 的一切，单个用户的用量上限最大。\n\n用量按倍数写（相对 Plus），官方没有给出具体消息条数；用量怎么算、用完怎么办，见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)。\n\n## 三、怎么选\n\n![Grok 要不要付费，先看这里](seed:g1425-plan-decide.png)\n*图：本站根据 [Grok 官方价格页](https://x.ai/pricing) 整理的示意图*\n\n和其他 AI 订阅放在一起比较，可以看 [/guides/chatgpt-plus-vs-supergrok-which](/guides/chatgpt-plus-vs-supergrok-which)。取消订阅的步骤见 [/guides/grok-cancel-subscription](/guides/grok-cancel-subscription)。\n\n## 四、购买渠道\n\n官方价格页的常见问题写明：订阅**直接通过 X Subscription Corp. 销售**，并提示通过转售商或第三方购买的订阅可能没有得到官方授权，对应账号存在被暂停或终止的风险。自助购买支持主流的信用卡和借记卡；发票和电汇仅限 Enterprise。购买前请自己判断渠道。\n\n## 常见问题\n\n**Q：Grok 官网和下载入口呢？**\n见 [/guides/grok-official-website-entry-desktop-download](/guides/grok-official-website-entry-desktop-download)。\n\n**Q：需要开通 SuperGrok 怎么办？**\n\n## 参考资料\n\n- Grok 价格页 — https://x.ai/pricing\n- Grok 产品页 — https://x.ai/grok\n- Grok Bot — https://x.ai/bot",
+      "sources": [
+        "https://x.ai/pricing",
+        "https://x.ai/grok",
+        "https://x.ai/bot"
+      ],
+      "screenshots": [],
+      "verify": [
+        "价格是 2026-10-30 当天读到的 x.ai/pricing，页面只写 $ 符号、没写币种，也没有年付价格；请以打开页面时的显示为准",
+        "官方写明价格不含税费，并保留调整价格的权利",
+        "「Plus 的 4 倍、15 倍、50 倍」是官方页面的用量倍数说法，具体算法见站内另一篇用量文章，本文不推算实际次数",
+        "旧名字 SuperGrok 与现在 Super 档的对应关系，见站内对比文章；官方现行价格页没有写这一点"
+      ]
+    },
+    {
+      "title": "Grok 提示「无法完成回复」「无法生成此图像」怎么办：官方没逐条解释时，先查用量、状态页再反馈",
+      "slug": "grok-unable-to-complete-response-generate-image",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1427-check-usage-steps.png",
+        "g1427-failure-decide.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Grok 回答到一半提示无法完成回复，或生图提示无法生成此图像，官方 FAQ 没有单独解释这两句。本文按官方说明整理能做的排查：Settings 里的 Usage 用量页、每周额度暂停规则、720p 回落到 480p、状态页，以及怎么向官方反馈。",
+      "content": "> 本文根据 xAI 官方 FAQ 整理，资料核对于 2026-10-31。**官方没有单独解释「无法完成回复」「无法生成此图像」这两句提示**，所以本文不去猜原因，只把官方写明、能用来排查的内容列出来。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 用 Grok 聊天时，回答一半停住，提示「无法完成回复」的人；\n- 用 Grok Imagine 生成图片或视频，提示「无法生成此图像」的人。\n\n## 结论先说\n\n1. **先查用量**：打开网页或手机端的 **Settings → Usage**，官方说明这里会显示已用百分比、按产品（API、Build、Chat、Imagine、Voice）的分项、每周重置的日期时间，以及额外用量额度的余额。\n2. **付费功能有每周共享用量池**，用完后**付费功能会暂停，直到每周额度重置**。不同产品耗用不同：一条聊天消息消耗的算力远少于一段视频或一个长的编程任务，所以聊天还能用、生成视频却失败是可能的。\n3. **免费档的聊天和语音额度是另外计算的**，有自己的重置时间，不受付费池影响。\n4. 用量没问题，就看**官方状态页**，确认是不是官方在处理事件，见 [/guides/grok-down-check-status-page](/guides/grok-down-check-status-page)。\n5. 都排除后，用应用内的 **Report an issue** 反馈，附上账号邮箱、平台（网页、iOS 或 Android）、浏览器或系统、截图或对话分享链接。\n\n![Grok 出错时先查用量](seed:g1427-check-usage-steps.png)\n*图：本站根据 [xAI 官方 FAQ](https://docs.x.ai/grok/faq) 整理的示意图*\n\n## 一、官方写明的用量规则\n\n- 付费档使用**一个共享的每周用量池**，可以在任何 Grok 产品之间随意分配；\n- 达到限额后，付费功能暂停到每周重置；\n- 想继续用，官方给的选项有三个：购买**额外用量额度**、升级到更高档位，或开启**自动充值**；\n- 额外用量额度目前只能在网页上购买，按标准价格计费，每次操作比套餐内含额度更贵；官方建议经常超限的用户直接升级。\n\n每周用量池怎么算、为什么用完得这么快，见 [/guides/grok-usage-limit-weekly-pool-why](/guides/grok-usage-limit-weekly-pool-why)，免费档的功能见 [/guides/grok-free-usage-how-much](/guides/grok-free-usage-how-much)。各档价格见 [/guides/grok-pricing-free-or-paid](/guides/grok-pricing-free-or-paid)。\n\n## 二、生成图片或视频失败时\n\n官方 FAQ 在 Imagine 部分只写了这几点：\n\n- 生成的图片和视频带有 Grok 水印，**没有设置可以去掉**，删除或遮盖水印、来源标记是被使用政策禁止的；\n- **720p 视频在达到所在档位的 720p 上限后，会自动回落到 480p**；\n- 没有给出各档位的图像、视频数量，也没有针对生成失败的排查说明。\n\n所以生成失败时，能做的是：看 Usage 里 Imagine 的占用，稍后重试，换一个简单的提示词再试，用 [/guides/grok-imagine-image-video](/guides/grok-imagine-image-video) 里的方法检查是否遵守了使用规则。如果是内容相关的提示，见 [/guides/grok-content-moderated-try-different-idea](/guides/grok-content-moderated-try-different-idea)。\n\n## 三、对照表\n\n![无法完成回复、无法生成图像](seed:g1427-failure-decide.png)\n*图：本站根据 [xAI 官方 FAQ](https://docs.x.ai/grok/faq) 整理的示意图*\n\n补充几条通用建议，不是官方明确针对这两条提示的说明：\n\n- 回答中断后，可以重新发送，或把问题拆短；\n- 刷新页面、重新打开 App，或换网络再试；\n- 官方说明修复通常每隔几天随更新发布，所以保持 App 和浏览器是最新版本；\n- 官方强调 Bug 报告没有保证的处理时限。\n\n## 四、在 X 里使用 Grok 出问题\n\n官方说明，X 相关的问题要联系 X 的帮助中心（help.x.com）或向 X 上的 @premium 发消息，xAI 的支持渠道不负责 X 的服务。\n\n## 常见问题\n\n**Q：是不是我的账号被限制了？**\n官方 FAQ 没有把这两条提示和账号处罚联系起来。账号被暂停或终止的情形见官方使用政策，页面里没有写详细的申诉流程。\n\n**Q：想升级怎么办？**\n先看 [/guides/grok-pricing-free-or-paid](/guides/grok-pricing-free-or-paid)，需要的话本站有 [Grok 充值页](/chongzhi/grok-super)，请结合官方价格页判断。\n\n## 参考资料\n\n- Grok 官方 FAQ — https://docs.x.ai/grok/faq\n- xAI 可接受使用政策 — https://x.ai/legal/acceptable-use-policy",
+      "sources": [
+        "https://docs.x.ai/grok/faq",
+        "https://x.ai/legal/acceptable-use-policy"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方 FAQ 没有解释「无法完成回复」「无法生成此图像」这两条提示的含义，本文不推测具体原因，只列官方写明的用量、状态和反馈途径",
+        "官方 FAQ 的 Imagine 部分没有给出各档位的图像和视频次数、保存步骤，也没有针对生成失败的排查说明",
+        "状态页地址 status.x.ai 取自站内状态页教程，本次未重新核对其页面内容"
+      ]
+    },
+    {
+      "title": "Grok 提示「内容已管理，请尝试一个不同的想法」是什么意思：官方没解释这句话，使用政策里和生成内容有关的规定",
+      "slug": "grok-content-moderated-try-different-idea",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1428-policy-overview.png",
+        "g1428-prompt-decide.png"
+      ],
+      "tags": [
+        "grok"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Grok 生成图片或视频时提示「内容已管理，请尝试一个不同的想法」，官方 FAQ 没有解释这句话。本文只讲官方使用政策（2026-08-14 版）里和生成内容有关的规定：真实人物、水印与来源标记、违规后果，以及遇到提示后合规的处理方式。",
+      "content": "> 本文根据 xAI 官方使用政策和 FAQ 整理，资料核对于 2026-10-31。**官方没有解释「内容已管理，请尝试一个不同的想法」这句提示**。本文只讲官方写明的使用规定，不推测这句提示的触发条件，也不提供任何让提示消失的方法。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 用 Grok 生成图片或视频，看到这句提示，想知道是什么意思的人；\n- 想先了解官方对生成内容有哪些规定，避免账号出问题的人。\n\n## 结论先说\n\n1. 这句提示字面上是「内容已被管理，请换一个想法」，说明这次请求**没有被处理**。**官方没有说明具体是哪条规则触发的**，也没有单独的解释页。\n2. 官方给出的依据是**可接受使用政策**（页面标注生效日期 2026-08-14）。使用 Grok，包括生成图片和视频，都要遵守它。\n3. 政策里和生成图片、视频直接相关的，主要是**涉及真实人物的几条**，以及**水印和来源标记不能被去掉**。\n4. 提示出现后，合规的做法是：对照政策检查自己的描述，不要反复用同样的内容硬试；确认没有问题但仍然反复出现，可以用应用内的 **Report an issue** 反馈。\n5. 违反政策，账号**可能被处置，最严重会被暂停或终止**。\n\n![官方使用政策里和生成内容有关的部分](seed:g1428-policy-overview.png)\n*图：本站根据 [xAI 可接受使用政策](https://x.ai/legal/acceptable-use-policy) 整理的示意图*\n\n## 一、官方使用政策里，和生成内容有关的要点\n\n以下是对政策的概括，不是原文：\n\n**涉及真实人物**\n\n- 不能冒充真实的人；\n- 不能以诽谤或歪曲事实的方式描绘他人；\n- 不能对真实人物的形象做不当的处理，尤其不能把真人放进不当的情境里。\n\n页面里没有针对图片或视频的其他独立条款。\n\n**水印与来源标记**\n\n- 生成的图片和视频带有 Grok 水印，官方 FAQ 写明**没有设置可以去掉**；\n- 政策禁止删除、修改或规避嵌入的来源信息和水印。\n\n**政策的整体框架**\n\n官方政策把禁止的行为大致分成几类：破坏服务的行为（比如绕过限速或安全防护、抓取或转售输出内容）、造成伤害或滥用的行为（比如侵犯知识产权、侵犯隐私或肖像权、诈骗、诽谤）、违法或受监管的用途，以及需要特别授权才能做的安全相关活动。完整内容请直接看官方页面。\n\n## 二、看到提示后怎么处理\n\n![看到这类提示，先怎么做](seed:g1428-prompt-decide.png)\n*图：本站根据 [xAI 官方 FAQ](https://docs.x.ai/grok/faq) 和使用政策整理的示意图*\n\n1. **看一眼自己的描述**：有没有涉及真实人物、有没有可能冒充、歪曲，或者涉及版权角色、他人隐私；\n2. **把描述改清楚、改成合规的内容再试**。对于创意类内容，用原创的角色和场景通常没有问题；\n3. **只有在确认合规后仍然反复出现时**，才去反馈。反馈时按官方的要求附上账号邮箱、平台、浏览器或系统，以及截图或对话分享链接，**FAQ 写明 Bug 反馈没有保证的处理时限**；\n4. 如果提示和用量有关，先看 Settings → Usage，见 [/guides/grok-unable-to-complete-response-generate-image](/guides/grok-unable-to-complete-response-generate-image)。\n\n生成图像和视频的基本用法和限制，见 [/guides/grok-imagine-image-video](/guides/grok-imagine-image-video)。AI 生成内容的标识规则，可参考 [/guides/ai-generated-content-label-rules](/guides/ai-generated-content-label-rules)。\n\n## 三、账号被处置了怎么办\n\n官方使用政策写明，违规可能导致账号被处置，严重时暂停或终止；涉及儿童性虐待材料的内容会被通报给美国相关机构。**政策页面没有写详细的申诉流程**。官方 FAQ 的帮助部分提供的是应用内「Report an issue」和账单收据邮件回复；X 相关的问题要联系 X 的帮助中心。\n\n## 常见问题\n\n**Q：这句提示是网络问题吗？**\n官方没有这样说明。网络和服务问题的排查见 [/guides/grok-down-check-status-page](/guides/grok-down-check-status-page)。\n\n**Q：付费档会不会就不受限制？**\n官方使用政策适用于所有人，页面里没有写付费用户可以豁免。各档价格见 [/guides/grok-pricing-free-or-paid](/guides/grok-pricing-free-or-paid)，需要的话本站有 [Grok 充值页](/chongzhi/grok-super)。\n\n## 参考资料\n\n- xAI 可接受使用政策 — https://x.ai/legal/acceptable-use-policy\n- Grok 官方 FAQ — https://docs.x.ai/grok/faq",
+      "sources": [
+        "https://x.ai/legal/acceptable-use-policy",
+        "https://docs.x.ai/grok/faq"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方 FAQ 和使用政策都没有出现「内容已管理，请尝试一个不同的想法」这句话，也没有说明什么情况下会触发，本文不推测触发规则",
+        "使用政策是 2026-10-31 当天读到的版本，页面标注的生效日期是 2026-08-14，官方随时可能更新；这里是意思概括，不是原文",
+        "使用政策页面没有写详细的申诉流程，本文不编造"
+      ]
+    },
+    {
       "title": "Codex 怎么配置 MCP：codex mcp add 命令、config.toml 写法与常见问题",
       "slug": "codex-mcp-config",
       "checkedOn": "2026-10-07",
@@ -67562,6 +67899,106 @@
       "verify": [
         "桌面 App「Settings → MCP servers」、IDE 插件齿轮菜单「MCP servers」的中文界面名称未核实",
         "Windows 原生环境下 npx 类 STDIO 服务器的启动问题官方文档没有专门说明，正文只给通用排查思路"
+      ]
+    },
+    {
+      "title": "OpenClaw 是什么、怎么安装：把聊天软件连到 AI 智能体的开源网关，官方安装步骤、Node 版本和常见排查",
+      "slug": "openclaw-what-is-how-to-install",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1433-install-steps.png",
+        "g1433-troubleshoot-decide.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "OpenClaw 是自托管的开源网关，把 Telegram、Slack、WhatsApp 等聊天软件连到 AI 智能体。本文按官方文档（2026-10-31 核对）讲它是什么、需要什么环境、安装和 onboarding 怎么做、怎么装成后台服务和打开面板，以及出问题时官方的排查命令。",
+      "content": "> 本文根据 OpenClaw 官方文档整理，资料核对于 2026-10-31。本文只整理官方写明的内容，不是亲自安装的记录。配图为本站整理的示意图，不是软件截图。本站不是 OpenClaw 官方。\n\n## 适用于谁\n\n- 听说过 OpenClaw，想先弄清楚它是什么的人；\n- 想在自己电脑或服务器上装一个，用聊天软件遥控 AI 智能体的人；\n- 装了之后不知道下一步做什么、出问题不知道怎么查的人。\n\n## 结论先说\n\n1. **OpenClaw 是一个自托管的开源网关**：你在自己的电脑或服务器上运行一个 Gateway 进程，它把 Discord、Signal、Slack、Telegram、WhatsApp 等聊天软件，接到 AI 编程智能体上。官方说明它采用 MIT 协议。\n2. **官方支持的聊天渠道**：Discord、Google Chat、iMessage、Matrix、Microsoft Teams、Signal、Slack、Telegram、WhatsApp 和 Zalo，另外支持 WebChat；Nostr、Twitch 等通过插件提供。\n3. **需要什么**：Node.js（官方推荐 Node 26）和一个模型提供方的 API Key。官方还写到，onboarding 可以复用你已有的 Claude Code 或 Codex CLI 登录。\n4. **安装是一条命令**：macOS、Linux、WSL2 用 `curl -fsSL https://openclaw.ai/install.sh | bash`；Windows PowerShell 用 `iwr -useb https://openclaw.ai/install.ps1 | iex`。脚本会识别系统、必要时安装 Node、安装 OpenClaw，并启动 onboarding。\n5. 装好后用 `openclaw gateway status` 看状态，用 `openclaw dashboard` 打开本地网页面板，默认地址 `http://127.0.0.1:18789/`。\n\n![OpenClaw 安装到能用](seed:g1433-install-steps.png)\n*图：本站根据 [OpenClaw 官方文档](https://docs.openclaw.ai/start/getting-started) 整理的示意图*\n\n## 一、它到底是什么\n\n按官方首页的说法，你运行**一个 Gateway 进程**，它连接你的聊天软件和一个「随时在线」的助手。也就是说：\n\n- 它本身不是一个模型，模型由你选的提供方（需要 API Key）提供，官方说明支持多个模型提供方，也提到可以配置故障切换和本地模型服务；\n- 它运行在**你自己的机器**上，配置文件在 `~/.openclaw/openclaw.json`；\n- 官方说明遥测只有版本检查，并且可以关闭。\n\n如果你想先了解同类的编程智能体，可看 [/guides/claude-code-getting-started](/guides/claude-code-getting-started) 和 [/guides/codex-getting-started](/guides/codex-getting-started)。\n\n## 二、安装前准备\n\n| 项目 | 官方要求 |\n| --- | --- |\n| Node.js | 推荐 Node 26；官方还写了 24.x 的较新补丁版本也可以，具体最低版本两页写法略有不同，见上面的 verify |\n| AI 访问 | 模型提供方的 API Key，或已有的 Claude Code、Codex CLI 登录 |\n| 系统 | macOS、Linux、Windows；Windows 可用 PowerShell 安装脚本，也支持 WSL2，官方还提到原生 Windows 桌面应用是最简单的桌面路径 |\n\n用 `node --version` 看你的版本。安装脚本在需要时会帮你装 Node，所以版本不对也不一定要先手动处理。\n\n## 三、安装和 onboarding\n\n1. 运行对应系统的安装命令。**来源只认官方文档里给出的 openclaw.ai**，不要从别处复制脚本来运行。这种「下载脚本直接运行」的方式本身有风险，运行前可以先在浏览器里打开链接读一遍内容；\n2. 安装脚本会**自动启动 onboarding 向导**。官方写的两条路：\n   - **Quick start**：复用检测到的 AI 访问，用一次真实的请求验证，保存配置并打开网页面板，Gateway 在终端前台运行，按 Ctrl+C 停止；\n   - **Custom setup**：走完整的引导流程。\n   想用逐步的老式向导，运行 `openclaw onboard --classic`；以后想改设置，运行 `openclaw configure`。\n3. 想快速试一下而不装，官方给了 `npx openclaw@latest`。\n\n其他安装方式（npm、pnpm、bun、Docker、Nix、源码）在官方 Install 页。\n\n## 四、装成后台服务、验证和打开面板\n\nQuick start 让 Gateway 留在前台。想让它在后台一直运行：\n\n1. 按 Ctrl+C 停止；\n2. 运行 `openclaw gateway install`。官方说明，这会在 macOS 创建 LaunchAgent，在 Linux 和 WSL2 创建 systemd 用户单元，在原生 Windows 创建计划任务；Windows 上如果创建任务被拒，会退回成当前用户的启动项；\n3. 运行 `openclaw gateway status`，输出应该显示 Gateway 在 **18789 端口**监听；\n4. 运行 `openclaw dashboard`，在浏览器里打开控制面板。能打开，就说明装好了，在聊天框里发一句话，应该能收到 AI 的回复。\n\n## 五、出问题怎么查\n\n![OpenClaw 装完不工作怎么查](seed:g1433-troubleshoot-decide.png)\n*图：本站根据 [OpenClaw 官方文档](https://docs.openclaw.ai/start/getting-started) 整理的示意图*\n\n官方 Getting started 页给了两个命令：\n\n- **`openclaw triage`**：运行只读的健康检查，生成一份**脱敏的诊断提示**，再让你选择交给检测到的编程智能体（Claude Code、Codex CLI 或内置的 OpenClaw 智能体），或者只打印命令。官方写明，你选定智能体之前不会有任何内容离开你的机器，密钥、令牌、原始聊天内容和原始日志不会被包含；\n- **`openclaw doctor`**：自己查看检查结果。\n\n按症状的排查在官方 Troubleshooting 页。\n\n## 六、安全方面要注意什么\n\n官方首页的安全说明提到：\n\n- 限制谁可以给机器人发消息：例如 WhatsApp 的 `channels.whatsapp.allowFrom`，以及群聊里需要被提及才响应的规则；\n- 令牌、允许名单和安全控制记录在官方的 Gateway security 部分；\n- 远程访问在官方的 Web surfaces 和 Tailscale 部分有说明。\n\n因为它能替你执行任务，**别把机器人接到陌生人也能发消息的群里**。给智能体装技能或插件之前，也建议先看看本站 [/guides/agent-skills-security-audit-before-install](/guides/agent-skills-security-audit-before-install)。\n\n## 常见问题\n\n**Q：OpenClaw 收费吗？**\n官方文档只说它是开源的、MIT 协议，没有写价格。模型调用另外计费，取决于你用的模型提供方。想了解 Claude 的价格见 [/guides/claude-pricing-free-or-paid](/guides/claude-pricing-free-or-paid)。\n\n**Q：需要开通 ChatGPT 或 Claude 会员吗？**\n官方写的是要有模型提供方的 API Key，或者复用已有的 Claude Code、Codex CLI 登录。是否要订阅取决于你选哪条路，本站 [充值页](/chongzhi) 提供 ChatGPT、Claude 等服务。\n\n**Q：Windows 怎么装？**\nPowerShell 运行官方给的 `iwr` 命令；也可以走 WSL2，在 WSL2 里的做法和 Linux 一样。\n\n## 参考资料\n\n- OpenClaw 官方文档首页 — https://docs.openclaw.ai/\n- OpenClaw Getting started — https://docs.openclaw.ai/start/getting-started",
+      "sources": [
+        "https://docs.openclaw.ai/",
+        "https://docs.openclaw.ai/start/getting-started"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方文档首页和 Getting started 页对 Node 版本的写法不完全一致（首页写 24.22.1 及以上或 26.12.1 及以上，Getting started 页写 24.16.0 及以上或 26.1.0 及以上，两页都推荐 Node 26），本文两处都列出，以安装页当天显示为准",
+        "命令、端口和配置文件路径是 2026-10-31 当天读到的官方文档，官方随时可能调整",
+        "本文没有安装过，不代表任何实际运行结果；官方没有写费用，模型调用费用取决于你选的模型提供方"
+      ]
+    },
+    {
+      "title": "豆包收费吗：免费版和付费版（标准、加强、高级）有什么区别，怎么买、怎么取消",
+      "slug": "doubao-free-or-paid-plans",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1436-plans-compare.png",
+        "g1436-buy-steps.png"
+      ],
+      "tags": [
+        "doubao"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "豆包能免费用，但有体验额度；付费订阅分标准、加强、高级三档，额度分别是免费版的 5、20、50 倍，高峰期优先使用。本文按豆包工作帮助中心讲清免费版能做什么、三档怎么选、在哪买、怎么取消自动续费和开发票。",
+      "content": "> 本文根据豆包官网下载页和「豆包工作帮助中心」的《自助购买豆包个人订阅》整理，资料核对于 2026-10-30（价格类信息标「2026-10 查询」）。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 搜「豆包收费吗」「豆包收费版和免费版的区别」「豆包会员多少钱」的人；\n- 想知道免费额度用完以后该不该买订阅的人；\n- 买了订阅想改套餐、取消自动续费、开发票的人。\n\n## 结论先说\n\n1. **豆包可以免费用**。免费版有「豆包体验额度」，可以在任务模式下做企业知识问答、深入研究、图片制作、视频生成、生成 AI PPT 和表格等，**有一定的次数或时长限制，用完要等额度恢复**。\n2. **付费叫「豆包订阅」，分标准、加强、高级三档**。官方写明：标准套餐额度是免费版的 5 倍，加强是 20 倍，高级是 50 倍；付费版还享有**高峰期优先使用权**。\n3. **价格官方帮助中心没写具体数字**，每档下面可选不同购买时长，以购买页面显示为准（2026-10 查询）。\n4. 下载页（doubao.com/download/desktop）当天写着「新用户领 30 天免费体验套餐」，在桌面端下载并登录即可，这是活动，是否还在以页面为准。\n5. 入口：在豆包工作桌面端点左下角的**个人头像 > 豆包订阅**，不要在不明网站付款。\n\n![豆包订阅免费版与三档付费版对比](seed:g1436-plans-compare.png)\n*图：本站根据 [豆包工作帮助中心：自助购买豆包个人订阅](https://www.doubao.com/work/docs/zh-cn/articles/672868468340-personal-subscription) 整理的示意图*\n\n## 一、免费版和付费版到底差在哪\n\n| | 免费版 | 付费版（标准 / 加强 / 高级） |\n| --- | --- | --- |\n| 能用的功能 | 体验额度内的任务模式功能 | 包含免费版全部权益 |\n| 额度 | 有一定次数或时长限制 | 更多高级功能额度，按实际消耗扣减 |\n| 高峰期 | 部分功能可能受限 | 优先使用 |\n| 视频生成 | 只有每日免费体验次数，用完不能继续，也不计入付费额度 | 与其余高级功能共用额度 |\n\n要注意两点：\n\n- **服务高峰期，官方为了稳定，免费版部分功能可能受限**，不是账号出了问题；\n- 免费版的视频生成不能靠「等」之外的方式续，想多生成就要升级到标准、加强或高级。\n\n付费并不等于不限量。官方对付费用户设了 **5 小时滚动限额和 7 天滚动限额**，短时间集中高频使用也会触发，升级更高档位可以提高这两个限额。怎么看、用完怎么办，见 [/guides/doubao-quota-used-up-check-usage](/guides/doubao-quota-used-up-check-usage)。\n\n## 二、怎么买\n\n![自助购买豆包个人订阅的步骤](seed:g1436-buy-steps.png)\n*图：本站根据 [豆包工作帮助中心：自助购买豆包个人订阅](https://www.doubao.com/work/docs/zh-cn/articles/672868468340-personal-subscription) 整理的示意图*\n\n1. 在豆包工作桌面端登录需要购买的账号（电脑版从官方下载页获取，见 [/guides/doubao-desktop-vs-web](/guides/doubao-desktop-vs-web)）；\n2. 点击左下角个人头像，选择 **豆包订阅**；也可以用帮助中心里给出的购买链接；\n3. 在标准、加强、高级中选一档，再选购买时长；\n4. 点击 **立即升级**，按页面提示完成支付。\n\n官方还提到：如果你用同一个手机号注册了飞书账号，购买后订阅里的额度可以同时用于豆包功能和飞书的 AI 个人功能（智能纪要、豆包工作伙伴和妙搭）。\n\n## 三、改套餐、取消、开发票\n\n入口都在：个人头像 > **额度状态** > **订阅记录**，点开已购买的套餐，在订阅详情里操作。\n\n| 想做什么 | 官方说明 |\n| --- | --- |\n| 变更套餐 | 点「查看所有方案」，选新套餐并支付 |\n| 升级（连续订阅之间） | 新权益立即生效，首月支付套餐差价；iOS 系统支付的订单以苹果结算规则为准 |\n| 降级（连续订阅之间） | 新权益不立即生效，在当前套餐周期结束后生效，差价不予退还 |\n| 单月 / 单年套餐 | 支持叠加购买 |\n| 取消自动续费 | 买的是连续包月或连续包年时，点「取消订阅」；取消后改为固定周期，到期不再续费 |\n| 重新订阅 | 点「再次订阅」重新购买 |\n| 开发票 | 订阅记录页面底部「发票管理」，在「可开票订单」里勾选订单，点「去开票」 |\n\n## 四、买了还是用不了某个功能？\n\n官方在常见问题里列了四种可能：\n\n1. 当前功能不在你开通的套餐范围内；\n2. 相关功能的额度或次数已经用完（各套餐中不同功能有独立额度和上限）；\n3. 功能仍在逐步开放中；\n4. 页面或账号状态还没刷新，重新登录或刷新后再看。\n\n## 常见问题\n\n**Q：买了订阅为什么还提示余额不足？**\n多半是触发了 5 小时或 7 天滚动限额，或者那个功能的独立额度用完，见 [/guides/doubao-quota-used-up-check-usage](/guides/doubao-quota-used-up-check-usage)。\n\n**Q：豆包和 ChatGPT 的会员是一回事吗？**\n不是，各家独立计费。如果你要用的是 ChatGPT，开通方式见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)；Kimi 的会员档位见 [/guides/kimi-membership-plans](/guides/kimi-membership-plans)。\n\n**Q：豆包生成图片、视频要不要付费？**\n官方写免费版有体验额度可以制作图片、生成视频，但视频只有每日免费体验次数。具体功能说明见 [/guides/doubao-image-generation](/guides/doubao-image-generation) 和 [/guides/doubao-video-generation](/guides/doubao-video-generation)。\n\n## 参考资料\n\n- 豆包工作帮助中心：自助购买豆包个人订阅 — https://www.doubao.com/work/docs/zh-cn/articles/672868468340-personal-subscription\n- 豆包电脑版下载页 — https://www.doubao.com/download/desktop\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://www.doubao.com/work/docs/zh-cn/articles/672868468340-personal-subscription",
+        "https://www.doubao.com/download/desktop"
+      ],
+      "screenshots": [],
+      "verify": [
+        "三档套餐的具体价格官方帮助中心没有写，本文不写数字，以购买页面显示为准",
+        "帮助中心写的是在「豆包工作桌面端」里购买，手机端 App 是否有同样入口官方这篇没说明",
+        "「新用户领 30 天免费体验套餐」是下载页当天的活动文案，随时可能结束"
+      ]
+    },
+    {
+      "title": "豆包额度用完了怎么办：在哪看用量、5 小时和 7 天滚动限额是什么、买了订阅还提示余额不足",
+      "slug": "doubao-quota-used-up-check-usage",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1437-quota-decide.png",
+        "g1437-quota-where.png"
+      ],
+      "tags": [
+        "doubao"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "豆包提示额度用完、次数不够，先到「个人头像 > 额度状态」看用量和重置时间。本文按豆包工作帮助中心讲清免费版与付费版额度的区别、5 小时和 7 天滚动限额、额度怎么消耗、多种额度的扣减顺序，以及买了订阅还用不了时的排查。",
+      "content": "> 本文根据「豆包工作帮助中心」的《自助购买豆包个人订阅》整理，资料核对于 2026-10-30。官方没有公布具体额度数字，下面都不写数字。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 搜「豆包额度用完了怎么办」「豆包额度怎么看」「豆包买了会员还提示余额不足」的人；\n- 用豆包生成 PPT、图片、视频，被提示次数用完的人。\n\n## 结论先说\n\n1. **看用量的地方**：豆包工作桌面端，点左下角**个人头像 > 额度状态**，在 **AI 额度** 模块里能看到消耗进度、用量重置或到期时间。\n2. **免费版**额度用完后，官方说法是「需等待后续额度恢复」；想多用，要升级订阅，见 [/guides/doubao-free-or-paid-plans](/guides/doubao-free-or-paid-plans)。\n3. **付费版也会被限**：官方对付费用户设有 **5 小时滚动限额**（统计最近 5 小时累计消耗）和 **7 天滚动限额**（统计最近 7 天累计消耗）。短时间集中高频使用就容易触发，升级更高档位可以提高这两个限额。\n4. 不同功能有**独立的额度、使用次数和上限**，所以「买了订阅还提示次数用完」是常见情况，不一定是出错。\n\n![豆包额度用完：看到什么，怎么办](seed:g1437-quota-decide.png)\n*图：本站根据 [豆包工作帮助中心：自助购买豆包个人订阅](https://www.doubao.com/work/docs/zh-cn/articles/672868468340-personal-subscription) 整理的示意图*\n\n## 一、在哪看额度\n\n![在哪看豆包额度用了多少](seed:g1437-quota-where.png)\n*图：本站根据 [豆包工作帮助中心：自助购买豆包个人订阅](https://www.doubao.com/work/docs/zh-cn/articles/672868468340-personal-subscription) 整理的示意图*\n\n打开额度状态页后，按你的情况看不同的内容：\n\n- **正在用豆包订阅**：页面显示豆包会员 **5 小时或 7 天的滚动用量**；\n- **同时有飞书 AI 会员和豆包订阅**：在页面里点「会员」标签页，分别查看两边的额度；官方提醒，购买豆包订阅后，使用套餐里的飞书 AI 功能时，也会受 5 小时或 7 天滚动用量限制；\n- **有豆包企业额度**：点页面右上方的「个人」，才能看个人 AI 额度的使用情况；\n- **其他权益**（比如会议加时卡）：点「其他权益」，看用量、来源、重置或到期时间。\n\n## 二、额度是怎么消耗的\n\n官方说明：消耗付费额度时，**以每次任务为单位，按用量计费**。每次任务消耗多少，取决于三件事：\n\n1. **所用模型或工具的类型和级别**，例如搜索图片、查找数据、访问外部接口；\n2. **输入和产出的数量、质量、复杂度**，通常处理视频消耗的额度高于图片，图片高于文本；\n3. **云端运行环境**，例如云端操作文件、访问网页、执行代码。\n\n所以同样发一条消息，写一段话和生成一个视频，消耗差得很远。想省额度，把需要视频、图片的任务留到真正需要时再做。\n\n### 多种额度同时有时的扣减顺序\n\n如果同时有企业额度和个人额度（包含免费额度），官方写明先后顺序是：**企业 AI 付费额度 → 豆包免费额度 → 个人 AI 付费额度**；还有飞书 AI 会员额度的话，上述额度用完后才消耗飞书 AI 会员额度。也就是说，免费额度是先于你自己买的付费额度被用掉的。\n\n## 三、额度用完后能做什么\n\n| 你的情况 | 办法 |\n| --- | --- |\n| 免费版，额度用完 | 等额度恢复；或升级为标准、加强、高级 |\n| 免费版，视频生成不能用 | 官方写免费版视频只有每日免费体验次数，耗尽后无法继续，也不计入付费额度；要继续得升级 |\n| 付费版，被滚动限额限制 | 隔一段时间再用；或升级更高档位 |\n| 想知道什么时候恢复 | 看额度状态页上的「用量重置或到期时间」 |\n\n官方没有公布「恢复需要多久」，也没有提供手动加购额度的说明，不要相信声称能「破解额度」的第三方方法。\n\n## 四、买了订阅，为什么有的功能还是用不了\n\n官方给的四种可能：\n\n1. 该功能不在你开通的套餐范围内；\n2. 该功能的额度或次数已用完；\n3. 功能仍在逐步开放中；\n4. 页面或账号状态没有刷新，退出重新登录后再看。\n\n## 常见问题\n\n**Q：免费额度每天都会恢复吗？**\n官方只写了「使用完后需等待后续额度恢复」，没有说明周期，请以额度状态页显示的重置时间为准。\n\n**Q：额度用完了，别的 AI 能替代吗？**\n如果只是写文案、做总结，可以换用别的产品，比如 [/guides/kimi-how-to-use](/guides/kimi-how-to-use)；如果要用 ChatGPT，开通方式见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：电脑版怎么下？**\n见 [/guides/doubao-desktop-vs-web](/guides/doubao-desktop-vs-web)。\n\n## 参考资料\n\n- 豆包工作帮助中心：自助购买豆包个人订阅 — https://www.doubao.com/work/docs/zh-cn/articles/672868468340-personal-subscription\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://www.doubao.com/work/docs/zh-cn/articles/672868468340-personal-subscription"
+      ],
+      "screenshots": [],
+      "verify": [
+        "帮助中心说的是「豆包工作桌面端」里的额度状态页，豆包手机 App 和网页版的入口是否相同官方这篇没说明",
+        "5 小时、7 天滚动限额的具体数值官方没公布，本文不写数字",
+        "免费额度「何时恢复」官方只写「等待后续额度恢复」，没有给具体时间"
+      ]
+    },
+    {
+      "title": "豆包电脑版报错 STATUS_DLL_NOT_FOUND、无法定位程序输入点 kernel32.dll 怎么办：微软官方对 DLL 缺失的说明与处理",
+      "slug": "doubao-install-status-dll-not-found-kernel32",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1439-dll-decide.png",
+        "g1439-vcredist-steps.png"
+      ],
+      "tags": [
+        "doubao"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "豆包电脑版安装或启动时报 STATUS_DLL_NOT_FOUND 或「无法定位程序输入点 kernel32.dll」，豆包官方没有单独说明。本文按微软官方对该错误码的说明和 Visual C++ 可再发行组件页面，讲清怎么重装、怎么从微软官方装运行库，以及哪些情况应联系豆包官方。",
+      "content": "> **豆包官方没有单独说明这两条报错。** 本文按微软官方的错误码说明和 Visual C++ 可再发行组件页面整理，资料核对于 2026-10-31。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 安装或启动豆包电脑版时，看到 **STATUS_DLL_NOT_FOUND**（也常以 0xC0000135 的形式出现）的人；\n- 看到「**无法定位程序输入点 … 于动态链接库 kernel32.dll 上**」的人。\n\n## 结论先说\n\n1. **STATUS_DLL_NOT_FOUND（0xC0000135）**：微软官方给的说明是「{Unable To Locate Component} 应用程序启动失败，因为找不到某个组件。**重新安装应用程序可能解决此问题**」。也就是应用需要的某个组件（DLL 文件）在你的电脑上找不到。\n2. 很多软件会依赖微软的 **Visual C++ 可再发行组件**。微软页面说明：用微软的 C/C++ 生成工具构建的许多应用都需要这些库，**电脑上要有至少与构建所用版本同样新的版本，位数（x64、x86、ARM64）要与应用匹配**。\n3. 但微软同一页面也提醒：**如果你是想通过更新运行库来修复某个应用，请联系应用供应商获取说明**。所以装运行库只是排查步骤，不一定对豆包有效。\n4. **kernel32.dll 的「无法定位程序输入点」**：官方没有说明原因。微软写明最新的 Visual C++ v14 可再发行组件**仅支持 Windows 10 和 11**（以及 Windows Server 2016 及以上），所以先确认你的系统版本。\n5. **安装包一定要从豆包官方下载**：doubao.com/download/desktop。从来路不明的网站下载的安装包，可能是被改过或不完整的。\n\n![豆包安装报 DLL 错误：对照处理](seed:g1439-dll-decide.png)\n*图：本站根据 [微软：NTSTATUS 值](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55) 与 [Visual C++ 可再发行组件下载](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist) 整理的示意图*\n\n## 一、按顺序做\n\n1. **删掉当前安装包，重新从官方下载**：豆包电脑版的下载页是 doubao.com/download/desktop，页面按钮是「下载豆包桌面版」；入口和电脑版区别见 [/guides/doubao-desktop-vs-web](/guides/doubao-desktop-vs-web)；\n2. **卸载残留，再安装一次**：Windows「设置 → 应用 → 已安装的应用」里如果有豆包，先卸载，再运行新的安装包；\n3. **更新 Windows**：确认系统是 Windows 10 或 11，并装好系统更新；\n4. **安装微软 Visual C++ 可再发行组件**（见下节）；\n5. **重启电脑后再装一次豆包**。\n\n## 二、从微软官方安装 Visual C++ 可再发行组件\n\n![安装微软 Visual C++ 可再发行组件](seed:g1439-vcredist-steps.png)\n*图：本站根据 [微软 Learn：最新受支持的 Visual C++ 可再发行程序包下载](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist) 整理的示意图*\n\n微软页面给出三种版本的永久链接：\n\n| 版本 | 链接 | 说明 |\n| --- | --- | --- |\n| X64 | aka.ms/vc14/vc_redist.x64.exe | 官方写明它同时包含 ARM64 和 X64 二进制文件 |\n| X86 | aka.ms/vc14/vc_redist.x86.exe | 最新支持的 x86 版本 |\n| ARM64 | aka.ms/vc14/vc_redist.arm64.exe | 最新支持的 ARM64 版本 |\n\n大多数电脑装 X64 版本即可。官方说明，这个 v14 版本适用于用 Visual Studio 2017 到 2026 的构建工具生成的应用；Visual Studio 2015 的支持已于 2025 年 10 月 15 日结束。安装运行库本身遇到问题，微软页面指向了专门的故障排除指南。\n\n只从 learn.microsoft.com 页面里的链接下载，不要去「DLL 下载站」单独下载 dll 文件放到系统目录，那样既不被官方认可，也有安全风险。\n\n## 三、还是不行怎么办\n\n- 记下**完整的报错文字、Windows 版本（Win+R 输入 winver 可看）和豆包安装包的下载来源**，通过豆包官方的反馈渠道提交；\n- 如果你只是想先用起来，可以先用网页版 doubao.com/chat，不需要安装；\n- 豆包的订阅与额度问题见 [/guides/doubao-free-or-paid-plans](/guides/doubao-free-or-paid-plans)，更多 AI 会员开通可看 [/chongzhi](/chongzhi)。\n\n## 常见问题\n\n**Q：STATUS_DLL_NOT_FOUND 是病毒吗？**\n不是。这是 Windows 的错误码，微软的说明是应用启动时找不到组件。但如果安装包不是从官方来的，也要先排除这个可能。\n\n**Q：和腾讯元宝的 WebView2 提示有什么区别？**\n那是另一个组件，见 [/guides/yuanbao-webview2-install-failed](/guides/yuanbao-webview2-install-failed)。\n\n## 参考资料\n\n- 微软 Open Specifications：NTSTATUS 值（STATUS_DLL_NOT_FOUND） — https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55\n- 微软 Learn：最新受支持的 Visual C++ 可再发行程序包下载 — https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist\n- 豆包电脑版下载页 — https://www.doubao.com/download/desktop",
+      "sources": [
+        "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-erref/596a1078-e883-4972-9bbc-49e60bebca55",
+        "https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist",
+        "https://www.doubao.com/download/desktop"
+      ],
+      "screenshots": [],
+      "verify": [
+        "豆包官方下载页没有写系统要求和这两条报错的处理，本文不断言豆包缺的是哪个具体文件，只给微软官方对 DLL 缺失的通用说明",
+        "微软 Learn 页面写明：如果是为了修复某个应用而更新 Visual C++ 运行库，应联系应用供应商获取说明，所以安装运行库只是排查步骤，不保证解决",
+        "「kernel32.dll」这条的原因官方没有说明，文中只引用微软对最新运行库支持系统的说明"
       ]
     },
     {
@@ -67593,6 +68030,110 @@
       ]
     },
     {
+      "title": "豆包怎么删除对话记录：单条删除、批量删除、归档的区别，以及删了记录为什么豆包还记得你",
+      "slug": "doubao-delete-chat-history-memory",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1441-delete-decide.png",
+        "g1441-batch-steps.png"
+      ],
+      "tags": [
+        "doubao"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "豆包删对话分两种入口：豆包工作桌面端可单条或批量删除，主应用按隐私政策从对话框里点单个对话删除。本文按官方帮助中心、隐私政策和记忆功能 FAQ，讲清删除与归档的区别、批量删除步骤，以及对话删了记忆还在要另外删。",
+      "content": "> 本文根据豆包工作帮助中心、豆包隐私政策和豆包记忆功能 FAQ 整理，资料核对于 2026-10-30。不同客户端和版本的界面可能不同，**以你实际看到的为准**。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 搜「豆包怎么删除对话记录」「豆包怎么清空聊天记录」「豆包怎么批量删除对话」的人；\n- 在公用电脑上用过豆包，想清理历史的人；\n- 删了对话，却发现豆包还「记得」内容，想弄明白为什么的人。\n\n## 结论先说\n\n1. **主应用**：官方隐私政策写的方法是 **点击对话框 → 点击单个对话 → 删除**。如果这样做不了，可以按政策里的方式联系官方（见文末参考资料）。\n2. **豆包工作桌面端**：鼠标悬停在对话上，点三点图标，选 **删除**，会**彻底清除该对话的所有相关数据，且不可恢复**；不想彻底删就选 **归档对话**，只是从最近对话列表隐藏，不清除数据。\n3. **批量删除**：悬停在对话列表或分组名上 → **历史对话管理** → 右上角图标 → **批量删除对话** → 勾选 → 删除并确认。\n4. **删了聊天记录不等于删了记忆**。豆包的记忆要在 **设置 → 记忆** 里另外处理。\n5. 官方说，不主动删除或注销账号，聊天记录会一直保存。\n\n![豆包删对话：想做什么，怎么操作](seed:g1441-delete-decide.png)\n*图：本站根据 [豆包工作帮助中心：新建和管理对话](https://www.doubao.com/work/docs/zh-cn/articles/628589138051-chats) 和 [记忆功能 FAQ](https://www.doubao.com/legal/memory_faq) 整理的示意图*\n\n## 一、删除、归档有什么区别\n\n| 操作 | 效果 | 能恢复吗 |\n| --- | --- | --- |\n| 归档对话 | 从最近对话列表隐藏，不清除对话数据 | 可以，在已归档里查看（悬停列表名 > 对话筛选 > 已归档，或左下角设置 > 已归档内容） |\n| 删除 | 从列表中删除，彻底清除该对话的所有相关数据 | **不可恢复** |\n\n所以只是不想让别人一眼看到，用归档；确定不要了，再删除。\n\n## 二、单条删除\n\n**豆包工作桌面端**：在对话列表中把鼠标悬停在对话上，点三点图标（也可以在对话详情页点上方中央的对话名称），在更多操作里选 **删除**。\n\n**主应用**：按隐私政策的说明，点击对话框，点开单个对话，选择删除。\n\n## 三、批量删除（豆包工作桌面端）\n\n![豆包工作里批量删除对话](seed:g1441-batch-steps.png)\n*图：本站根据 [豆包工作帮助中心：新建和管理对话](https://www.doubao.com/work/docs/zh-cn/articles/628589138051-chats) 整理的示意图*\n\n1. 鼠标悬停在左侧导航栏下方的对话列表或分组名称上（如「置顶」「项目」「最近」）；\n2. 点右侧图标，选择 **历史对话管理**；\n3. 在页面右上角点图标，选择 **批量删除对话**；\n4. 勾选需要删除的对话，点 **删除**，在弹窗里确认。\n\n删除前先想清楚，**批量删除同样不可恢复**。如果你的对话里有想留的成果（文档、PPT），先另存。\n\n## 四、删了对话，豆包为什么还「记得」\n\n豆包有记忆功能：会把你聊天中提到的兴趣、偏好等整理成记忆，作为以后回答的背景。官方 FAQ 明确说：\n\n- **仅删除聊天记录，不代表删除了豆包在这些聊天中记住的内容**；\n- **仅关闭记忆开关，也不会自动删除已有记忆**，以后重新打开，没删的记忆会再被参考。\n\n想真正清掉，在客户端 **设置 → 记忆** 里操作：\n\n| 想做什么 | 做法 |\n| --- | --- |\n| 删单条记忆 | 在记忆页面左滑单条删除 |\n| 删全部记忆 | 点页面右上角「···」删除全部 |\n| 在聊天里让它忘 | 直接对豆包说「请忘记……」 |\n| 不再记新内容 | 关闭记忆开关（关闭后也不再响应「请记住」） |\n\n两点提醒：记忆删除后，需要一定时间才会停止被参考，不是实时生效；如果你删光记忆但开关仍然开着，豆包还会形成新的记忆。\n\n另外，从聊天中提取的是文本内容，官方说明不包括你上传的图片、文件、链接和视频通话画面。\n\n## 常见问题\n\n**Q：能一键清空所有历史对话吗？**\n官方这几篇文档没有写这个入口。豆包工作桌面端可以用批量删除一次选多条；主应用按隐私政策只写了逐个删除。\n\n**Q：删除后对方的分享链接还能打开吗？**\n官方这几篇文档没有说明，如果你之前分享过对话链接，删除前建议先确认。\n\n**Q：想把对话导出留存？**\n官方这几篇没有写导出方法，需要留存的话，可以先把重要内容复制保存，再删除。\n\n**Q：豆包电脑版和网页版的区别、免费额度？**\n下载入口与电脑版区别见 [/guides/doubao-desktop-vs-web](/guides/doubao-desktop-vs-web)，免费版与订阅的区别见 [/guides/doubao-free-or-paid-plans](/guides/doubao-free-or-paid-plans)；如果你也在用 ChatGPT，会员开通见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- 豆包工作帮助中心：在豆包工作中新建和管理对话 — https://www.doubao.com/work/docs/zh-cn/articles/628589138051-chats\n- 豆包隐私政策（6.2 查阅、复制、更正、补充、删除你的个人信息） — https://www.doubao.com/legal/privacy\n- 豆包记忆功能 FAQ — https://www.doubao.com/legal/memory_faq\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://www.doubao.com/work/docs/zh-cn/articles/628589138051-chats",
+        "https://www.doubao.com/legal/privacy",
+        "https://www.doubao.com/legal/memory_faq"
+      ],
+      "screenshots": [],
+      "verify": [
+        "隐私政策写的路径是「点击对话框 - 点击单个对话 - 删除」，按钮的具体位置以你的客户端版本为准",
+        "「批量删除」「归档」的步骤来自豆包工作帮助中心，豆包主应用是否同样提供，官方这篇没说明",
+        "官方没有写「一键清空全部历史对话」的入口，本文不假设它存在"
+      ]
+    },
+    {
+      "title": "Kimi 额度已用尽怎么办：「加油包」怎么充、怎么开、先扣哪种额度、能不能开发票",
+      "slug": "kimi-extra-usage-pack-quota-used-up",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1444-quota-decide.png",
+        "g1444-extra-steps.png"
+      ],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "Kimi 订阅额度用尽后，可以等月度刷新、升级档位，或开启「加油包」按实际用量继续用。本文按 Kimi 官方帮助中心讲清加油包的充值入口、开关和每月消费上限、不同额度的扣除顺序、充值限制、与 Kimi Code 是否共用，以及开发票。",
+      "content": "> 本文根据 Kimi 帮助中心《加油包：额外用量购买》整理，资料核对于 2026-10-30，价格、限额数字标「2026-10 查询」，官方可能调整。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 搜「Kimi 额度已用尽」「Kimi 加油包是什么」「Kimi 额度不够用怎么办」的人；\n- 订阅了 Kimi 会员，但额度被 Agent、深度研究或 Kimi Code 很快用完的人。\n\n## 结论先说\n\n1. **加油包（Extra Usage）**：订阅额度用尽后，用加油包余额继续发起请求，不用等额度刷新。**只有订阅会员能开启**。\n2. 余额**网页版、浏览器插件、桌面端、移动端与 Kimi Code 之间共享**，充一次全端通用；仅限个人账户，不与团队或企业账户共享。\n3. **按实际用量扣费**，余额以人民币显示。官方说加油包价格近似于 Kimi 开放平台的官方 API 价格，**用量较大时，升级订阅通常更划算**。\n4. 余额**不过期、可叠加**，订阅失效后仍能继续消费，但失效期间无法再充值。\n5. **充值入口**：Kimi 订阅页面滚动到底部的「额度加油包」模块；充值后记得打开「额度加油包」开关。\n\n![Kimi 额度用尽：看到什么，怎么办](seed:g1444-quota-decide.png)\n*图：本站根据 [Kimi 帮助中心：加油包](https://www.kimi.com/help/membership/membership-extra-usage) 整理的示意图*\n\n## 一、怎么充、怎么开\n\n![Kimi 加油包怎么充、怎么开](seed:g1444-extra-steps.png)\n*图：本站根据 [Kimi 帮助中心：加油包](https://www.kimi.com/help/membership/membership-extra-usage) 整理的示意图*\n\n- **主站充值**：打开 Kimi 订阅页面，滚动到底部的「额度加油包」模块，选择充值金额，完成支付；\n- **从 Kimi Code 控制台充值**：当滚动 5 小时额度（或旧套餐的周额度）消耗超过 80% 时，进度条卡片上会出现「加油包购买」按钮，点击会跳到订阅页完成购买；\n- **打开开关**：充值后打开「额度加油包」开关，订阅额度用尽时系统才会自动从余额扣减。关闭开关后余额保留，重新开启即可继续用。**开关管理目前只有网页版支持**，桌面端和手机 App 暂不支持；\n- **每月消费上限**：点模块的「设置」可以开启，默认关闭。设置的金额必须高于单笔最低充值金额（25 元），当月消费达到上限后，系统暂停当月继续消耗加油包。\n\n充值限制（2026-10 查询）：单次最低 25 元，每日最多 10 次、累计 3000 元，余额上限 10000 元。\n\n## 二、先扣哪种额度\n\n官方的规则是：**加油包不过期，所以优先级最低，最后扣**。\n\n| 情形 | 扣除顺序 |\n| --- | --- |\n| 各类额度过期时间相同 | 赠送次数 > 赠送额度 > 订阅或免费额度 > 加油包 |\n| 过期时间不同 | 谁先过期先扣谁，加油包仍排最后 |\n\n还有一点：当你触发了**频控限制**（短时间用得太多），开启加油包后可以直接消耗余额突破频控；没开启时系统会引导你购买。因频控触发的加油包消耗，只扣加油包，不影响会员额度刷新。\n\n## 三、一次大概多少钱\n\n官方只给了「感受量级」的示例：一次简单请求（如推荐一首摇滚歌曲）约 0.03 元，一次复杂的多步任务（如规划一周成都到川西的自驾行程）约 1.6 元。**读取和生成的内容越多、任务越复杂，花费越高**，具体以平台展示为准（2026-10 查询）。\n\n省钱的办法见 [/guides/kimi-membership-plans](/guides/kimi-membership-plans)：简单问题把思考强度调到「标准」，不需要产出文件时不用大模型。\n\n## 四、查余额、开发票\n\n- **查余额与明细**：Kimi 网页或 App 里：设置 → 订阅和发票 → 我的额度；\n- **Kimi Code**：控制台查看余额与用量，命令行里输入 `/usage` 也可以；用法见 [/guides/kimi-code-cli-getting-started](/guides/kimi-code-cli-getting-started)；\n- **开发票**：充值订单可以开，路径是「我的 → 订阅 → 额度和发票 → 账单与发票」，找到对应充值订单点「开发票」，**按单笔充值订单开具**。\n\n## 常见问题\n\n**Q：加油包和 Kimi 开放平台（API）的余额是一个钱包吗？**\n不是。官方在 API 帮助里写明：开放平台、Kimi Code 和 Kimi 会员的余额与 API Key **不互通**；这里的加油包只在 Kimi 网页版、插件、桌面、移动端和 Kimi Code 之间共享。\n\n**Q：企业版能用吗？**\n暂不支持。\n\n**Q：不想充钱，还有什么办法？**\n官方给的四个选择见 [/guides/kimi-membership-plans](/guides/kimi-membership-plans)：等刷新、升级、加油包、参加官方活动。如果你更常用 ChatGPT，会员开通见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：提示「排队」「算力不足」也是额度问题吗？**\n不是，那是高峰期限流，见 [/guides/kimi-queue-busy-compute-shortage](/guides/kimi-queue-busy-compute-shortage)。\n\n## 参考资料\n\n- Kimi 帮助中心：加油包，额外用量购买 — https://www.kimi.com/help/membership/membership-extra-usage\n- Kimi 帮助中心：会员权益概览 — https://www.kimi.com/help/membership/membership-overview\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://www.kimi.com/help/membership/membership-extra-usage",
+        "https://www.kimi.com/help/membership/membership-overview"
+      ],
+      "screenshots": [],
+      "verify": [
+        "充值金额限制（单次最低 25 元、每日最多 10 次、累计 3000 元、余额上限 10000 元）是帮助中心当天的数字，官方可能调整",
+        "帮助中心写明计费示例只是量级参考（约 0.03 元和约 1.6 元），实际以平台为准",
+        "加油包费率官方只说「近似于开放平台 API 价格」「以平台展示为准」，本文不写更具体的单价"
+      ]
+    },
+    {
+      "title": "Kimi 为什么一直排队、算力不足：聊天、网站生成、API 三种「忙」的原因和处理办法",
+      "slug": "kimi-queue-busy-compute-shortage",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1445-busy-decide.png",
+        "g1445-busy-compare.png"
+      ],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Kimi 提示在线人数过多、算力紧张或一直排队，官方说明是高峰期限流，建议等 1 至 2 分钟再试。本文按 Kimi 帮助中心和 API 文档，分聊天、消息发不出去、网站生成排队、API 429 四种情况讲原因和对应办法。",
+      "content": "> 本文根据 Kimi 帮助中心的会话常见问题、网站生成 FAQ 和 Kimi API 开放平台文档整理，资料核对于 2026-10-30。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 搜「Kimi 为什么一直排队」「Kimi 为什么总是算力不足」「Kimi 有点累」的人；\n- 用 Kimi 生成网站、PPT 或调用 API，一直卡住或返回 429 的人。\n\n## 结论先说\n\n1. **聊天里提示在线人数过多、算力资源紧张**：官方说明这是**高峰期限流**，**稍等 1 至 2 分钟再试**。想少等一点，官方提到订阅会员可享受专属算力通道的优先服务。\n2. **消息发不出去、显示红圈**：不是排队，是两种原因之一——触发了对话**频次限制**（官方建议间隔 2 至 3 小时，并控制频次），或**网络状况不佳**（换网络重试）。\n3. **网站生成一直排队**：工作日白天和晚上是高峰，建议错峰；任务卡住超过 10 分钟，先刷新页面。\n4. **API 报 429 且 `error.type` 是 `engine_overloaded_error`**：服务节点负载高，**充值或提升等级不能直接消除**，按响应里的 `Retry-After` 等待、降低并发并指数退避重试。\n5. 想先确认是不是官方在故障，看官方状态页，见 [/guides/kimi-down-busy-check-status-page](/guides/kimi-down-busy-check-status-page)。\n\n![Kimi 一直排队、算力不足：怎么办](seed:g1445-busy-decide.png)\n*图：本站根据 [Kimi 帮助中心：会话常见问题](https://www.kimi.com/help/others/chat-issues) 与 [API 错误码说明](https://platform.kimi.com/docs/api/errors) 整理的示意图*\n\n## 一、聊天界面：高峰期限流\n\n官方在「会话常见问题」里写：当前在线人数过多，算力资源紧张，属于高峰期限流。处理办法很简单：\n\n1. 等 1 至 2 分钟，重新发送；\n2. 不要连续狂点重试，那样只会更容易触发频次限制；\n3. 如果你经常在晚上或工作日白天被卡，可以错开这些时段；\n4. 订阅会员有专属算力通道的优先服务，具体档位和权益见 [/guides/kimi-membership-plans](/guides/kimi-membership-plans)。\n\n注意区分另一条提示：**「换个话题聊聊吧」**不是排队，官方说明这表示当前内容触发了安全策略，直接输入新主题就能重新开始，不用等。\n\n## 二、「对话发送不出去 / 显示红圈」\n\n官方列了两个原因：\n\n| 原因 | 官方建议 |\n| --- | --- |\n| 触发频次限制：Kimi 在一定时间段内有对话上限，短时间频繁发送会被限制 | 间隔 2 至 3 小时再试，控制对话频次 |\n| 网络状况不佳：手机信号弱或网络不稳定 | 切换网络环境后重试 |\n\n如果你的额度其实已经用完，那提示会是额度不足，处理办法见 [/guides/kimi-extra-usage-pack-quota-used-up](/guides/kimi-extra-usage-pack-quota-used-up)。\n\n## 三、网站生成一直排队\n\n![Kimi 三类「忙」的提示，原因不一样](seed:g1445-busy-compare.png)\n*图：本站根据 [Kimi 帮助中心](https://www.kimi.com/help/others/chat-issues)、[网站生成 FAQ](https://www.kimi.com/help/websites/websites-faq) 与 [API 错误码说明](https://platform.kimi.com/docs/api/errors) 整理的示意图*\n\n官方在网站生成 FAQ 里给了三条：\n\n- 高峰期（工作日白天、晚间）可能出现排队，建议错峰使用；\n- 任务卡住超过 10 分钟，可以先刷新网页；\n- 复杂网站建议拆成多个小任务：先出首页，再逐步添加子页面和功能。\n\n如果刷新后仍然不行，官方建议用网页或 App 右下角的「用户反馈」提交，并附上网站链接、浏览器和系统、截图或错误提示文字、原对话的大致时间。\n\n## 四、API 的 429\n\n429 不是单一原因。官方要求先看响应里的 `error.type`：\n\n| error.type | 含义 | 处理 |\n| --- | --- | --- |\n| `engine_overloaded_error` | 服务节点负载较高，如高峰期容量压力 | 按 `Retry-After` 等待、降低并发、指数退避重试；充值或提升 Tier 不能直接消除 |\n| `rate_limit_reached_error` | 触发组织级并发、RPM、TPM 或 TPD 限速 | 降低调用频率，或提升用户等级；TPD 超限次日恢复 |\n| `exceeded_current_quota_error` | 余额不足、欠费或代金券失效 | 先查余额再充值 |\n\n官方还提醒：OpenAI SDK 等客户端默认会自动重试，一次操作可能放大成多次请求并占用限速额度；因 429 中断的请求不会扣费。\n\n## 常见问题\n\n**Q：提示排队是我账号的问题吗？**\n聊天里的提示官方归因于全站高峰，不是账号问题。\n\n**Q：为什么网页能用，Kimi Code 却被限流？**\nKimi Code 有自己的 5 小时滚动额度，规则见 [/guides/kimi-k3-coding-plan-kimi-code](/guides/kimi-k3-coding-plan-kimi-code)。\n\n**Q：Kimi 总是不稳定，有替代吗？**\n可以试试 [/guides/doubao-free-or-paid-plans](/guides/doubao-free-or-paid-plans) 里的豆包，或用 ChatGPT（会员见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)）。\n\n## 参考资料\n\n- Kimi 帮助中心：会话常见问题 — https://www.kimi.com/help/others/chat-issues\n- Kimi 帮助中心：Kimi Websites 常见问题 — https://www.kimi.com/help/websites/websites-faq\n- Kimi API 开放平台：常见错误码说明 — https://platform.kimi.com/docs/api/errors\n- Kimi API 开放平台：问题排查 — https://platform.kimi.com/docs/guide/troubleshooting\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://www.kimi.com/help/others/chat-issues",
+        "https://www.kimi.com/help/websites/websites-faq",
+        "https://platform.kimi.com/docs/api/errors",
+        "https://platform.kimi.com/docs/guide/troubleshooting"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方没有公布高峰期的具体时间段和会员优先通道的具体机制，本文不写",
+        "聊天界面那条提示在官方英文版标题里是「Kimi is a little tired」，中文版标题以你看到的页面为准，本文用官方说明的原文含义",
+        "聊天对话的频次上限官方只写「间隔 2-3 小时」，没有给次数"
+      ]
+    },
+    {
+      "title": "Kimi API 报错 400 怎么办：invalid_request_error、content_filter、Input token length too long 对照表",
+      "slug": "kimi-api-error-400-invalid-request",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1447-400-decide.png",
+        "g1447-codes-compare.png"
+      ],
+      "tags": [
+        "kimi"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "调用 Kimi API 返回 400，官方把它归为「请求错误」，要看 error type 和 message 才知道原因。本文按 Kimi API 开放平台的错误码说明，列出 400 的各种典型情况（内容审查、输入过长、参数错误、文件上传限制）和对应处理，并附 401、403、404、429、504 速查。",
+      "content": "> 本文根据 Kimi API 开放平台的《常见错误码说明》《Chat Completions API》和《问题排查》整理，资料核对于 2026-10-30。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 用 Kimi API 开发，调用时返回 HTTP 400 的人；\n- 在第三方工具里配置了 Kimi，看到 400 想弄清是不是 Kimi 的问题的人。\n\n## 结论先说\n\n1. 官方把 400 定义为**「请求错误」**，**不是一个原因**，要看响应 JSON 里的 `error.type` 和 `message`。\n2. 官方列出的 400 典型情形：`content_filter`（内容审查）、`invalid_request_error`（格式、缺参数、输入过长、文件上传的各种限制）。\n3. 报错时 API 返回包含错误信息的 JSON。**先把完整响应读一遍**，再对照下面的表。\n4. 如果你收到的是 401、404、429，那是别的问题，官方的处理见文末速查表。\n5. 经常和 400 一起出现的坑：把别的产品的 Key 填进开放平台端点、模型名写错。这两类官方分别归到 401/404，不是 400。\n\n![Kimi API 报 400：对照 error type](seed:g1447-400-decide.png)\n*图：本站根据 [Kimi API 开放平台：常见错误码说明](https://platform.kimi.com/docs/api/errors) 整理的示意图*\n\n## 一、400 的典型情形\n\n| error type | 典型 message | 官方的原因与处理 |\n| --- | --- | --- |\n| `content_filter` | The request was rejected because it was considered high risk | 输入或模型输出触发内容安全审查。修改提示词，避免敏感或高风险内容 |\n| `invalid_request_error` | 请求格式错误、缺少必填参数或参数类型非法 | 对照接口文档检查请求体 |\n| `invalid_request_error` | Input token length too long | 输入 Token 数达到或超过模型上下文窗口。缩短输入或换用更大上下文的模型 |\n| `invalid_request_error` | Invalid purpose: xxx, only `file-extract`, `batch`, `batch_output`, `lambda`, `image` and `video` accepted | 文件上传的 purpose 不合法，需是上述取值之一 |\n| `invalid_request_error` | File size is too large, max file size is 100MB, please confirm and re-upload the file | 上传文件超过 100MB。压缩或拆分后重传 |\n| `invalid_request_error` | File size is zero, please confirm and re-upload the file | 上传文件大小为 0。检查文件是否损坏或为空 |\n| `invalid_request_error` | 上传文件总数超过上限 | 删除不再使用的早期文件后重试 |\n\n另外，Chat Completions 文档里有一条：**暂不支持显式缓存断点**，`content` 中出现 `prompt_cache_breakpoint` 时请求会被拒绝（HTTP 400）。如果你是从别的平台迁移过来的代码，检查是否带了这个字段。\n\n## 二、按顺序排查\n\n1. **看 `error.type`**：是 `content_filter` 就是内容问题，是 `invalid_request_error` 再看 message；\n2. **message 里有 token length**：说明输入太长。缩短提示词、去掉重复的历史消息，或换更大上下文的模型；\n3. **是上传文件**：确认 `purpose` 是官方列出的值之一，文件非空、不超过 100MB，早期用不到的文件及时删除；\n4. **message 看不出原因**：对照 [Chat Completions 接口文档](https://platform.kimi.com/docs/api/chat) 逐个检查必填参数和类型（比如数字写成了字符串）；\n5. **用 cURL 直连一次**：官方建议在用第三方 Agent 或 IDE 时，先用相同的 Key、端点和模型直接调用 Kimi API。直连成功但第三方工具仍失败，就去看第三方工具的日志，重点是协议转换、流式响应、超时和自动重试；\n6. **保留 `request_id`、发生时间、客户端版本和脱敏日志**，需要联系支持时用。\n\n## 三、状态码速查\n\n![Kimi API 常见状态码速查](seed:g1447-codes-compare.png)\n*图：本站根据 [Kimi API 开放平台：常见错误码说明](https://platform.kimi.com/docs/api/errors) 整理的示意图*\n\n| 状态码 | 官方归类 | 提示 |\n| --- | --- | --- |\n| 401 | 认证错误 | 先确认 Key 属于正确的平台：中国站 platform.kimi.com 与国际站 platform.kimi.ai 的账户、余额和 Key 完全独立，混用返回 401 |\n| 403 | 权限错误 | API 暂未对当前账号开放，或调用 IP 不在组织白名单内（国际站常见） |\n| 404 | 资源不存在 | 模型不存在或无权访问，检查 model 拼写和账号 tier |\n| 429 | 速率限制或额度不足 | 先看 `error.type` 再决定，见 [/guides/kimi-queue-busy-compute-shortage](/guides/kimi-queue-busy-compute-shortage) |\n| 500 | 服务端错误 | 稍后重试；持续出现就附上 `request_id` 联系支持 |\n| 504 | 网关超时 | 服务端 900 秒无响应，非流式长请求建议改用 `stream: true` |\n\n## 常见问题\n\n**Q：充值后为什么还是报错？**\n先看是哪个状态码。官方特别说明：429 里的 `engine_overloaded_error` 是服务端容量问题，充值不能消除；而 400 与余额无关。\n\n**Q：Kimi API、Kimi Code 和 Kimi 会员的余额与 Key 通用吗？**\n官方写明不互通。Kimi API 开放平台、Kimi Code 和 Kimi 会员的余额与 API Key 相互独立，用错会出现 401 或 404。\n\n**Q：怎么拿 API Key、第一次怎么调用？**\n见 [/guides/kimi-api-key-quickstart](/guides/kimi-api-key-quickstart)。Kimi 网页版的会员额度问题见 [/guides/kimi-extra-usage-pack-quota-used-up](/guides/kimi-extra-usage-pack-quota-used-up)。\n\n**Q：我用 DeepSeek 等其他接口，报错怎么看？**\n各家错误码不同，DeepSeek 的见 [/guides/deepseek-api-error-codes](/guides/deepseek-api-error-codes)。\n\n## 参考资料\n\n- Kimi API 开放平台：常见错误码说明 — https://platform.kimi.com/docs/api/errors\n- Kimi API 开放平台：Chat Completions API — https://platform.kimi.com/docs/api/chat\n- Kimi API 开放平台：问题排查 — https://platform.kimi.com/docs/guide/troubleshooting\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://platform.kimi.com/docs/api/errors",
+        "https://platform.kimi.com/docs/api/chat",
+        "https://platform.kimi.com/docs/guide/troubleshooting"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方错误码页只列了「典型」情形，实际 message 可能有别的写法，以你收到的响应为准",
+        "文件大小、数量上限是官方文档当天的数字，官方可能调整",
+        "本文不涉及 Kimi Code 或第三方工具（CC Switch 等）里的报错，那属于另一条排查链路"
+      ]
+    },
+    {
       "title": "Codex 代码审查怎么用：GitHub PR 里 @codex review、自动审查与本地 /review 命令",
       "slug": "codex-code-review",
       "checkedOn": "2026-10-07",
@@ -67616,6 +68157,33 @@
       "verify": [
         "「Automatic review」「Review trigger」「Personal preferences」等设置项的中文界面名称未核实",
         "Security Review 处于研究预览，各套餐是否可用官方未写清（定价页的 Codex Security 仅标 Enterprise），正文只简单提及"
+      ]
+    },
+    {
+      "title": "腾讯元宝提示无法安装 WebView2 怎么办：从微软官方页面手动安装运行时，附安装错误代码对照",
+      "slug": "yuanbao-webview2-install-failed",
+      "checkedOn": "2026-10-30",
+      "images": [
+        "g1455-webview2-steps.png",
+        "g1455-error-decide.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "安装腾讯元宝电脑版时提示无法安装 WebView2，腾讯官方没有单独说明这条报错。本文按微软官方页面讲清 WebView2 运行时是什么、Windows 11 与 10 是否自带、怎么从微软官方手动安装，以及常见安装错误代码（0x80070005 等）对应的官方处理办法。",
+      "content": "> 腾讯元宝官方没有单独说明「无法安装 WebView2」这条报错。本文按**微软官方**对 WebView2 运行时的说明和安装疑难解答整理，资料核对于 2026-10-30。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 安装腾讯元宝电脑版（或其他需要 WebView2 的软件）时，被提示「无法安装 WebView2」「缺少 WebView2 运行时」的人；\n- 想知道 WebView2 是什么、能不能放心装的人。\n\n## 结论先说\n\n1. **WebView2 运行时是微软提供的组件**，不少桌面软件用它来显示网页内容。**Windows 11 自带**，**绝大多数 Windows 10 设备也已经安装**，只有少数没有——所以你才会被提示。\n2. **只从微软官方下载**：developer.microsoft.com 上的 Microsoft Edge WebView2 页面。不要从第三方「下载站」装，那是常见的捆绑软件来源。\n3. 官方给了两种安装程序：**引导程序（Bootstrapper）**，约 2MB 的小安装程序，联网下载并安装与设备架构匹配的运行时；**独立安装程序（Standalone Installer）**，完整安装包，可离线安装，有 x86、x64、ARM64 三种。\n4. 以**管理员身份**运行安装程序，会装成「每台计算机」；否则是「每用户」。\n5. 装不上时先看**错误代码**，对照下面的表。\n\n![手动安装 WebView2 运行时](seed:g1455-webview2-steps.png)\n*图：本站根据 [微软：Microsoft Edge WebView2 下载页](https://developer.microsoft.com/microsoft-edge/webview2) 与 [分发 WebView2 运行时](https://learn.microsoft.com/zh-cn/microsoft-edge/webview2/concepts/distribution) 整理的示意图*\n\n## 一、先确认是不是真的没装\n\n按微软文档，WebView2 运行时的安装信息记录在注册表里：\n\n- 64 位 Windows：`HKEY_LOCAL_MACHINE\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`（每台计算机）和 `HKEY_CURRENT_USER\\Software\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}`（每用户）；\n- 看里面名为 `pv` 的值，如果两个位置都没有，或值为空、`0.0.0.0`，就表示没有安装运行时。\n\n这是给懂注册表的人看的；普通用户**不用手动改注册表**，直接下官方安装程序装一次即可，装了不会影响其他软件。\n\n## 二、怎么装\n\n1. 在能正常上网的浏览器里，打开微软的 WebView2 页面；\n2. **有网络**：下载「Evergreen 引导程序」，双击运行；\n3. **没网络或引导程序装不上**：下载「Evergreen 独立安装程序」，选与你系统匹配的版本（大多数电脑是 x64）；\n4. 右键安装程序，选择**以管理员身份运行**；\n5. 装完后，重新运行腾讯元宝的安装包。\n\n微软说明，常青（Evergreen）运行时会自动更新，设备上的所有常青应用共用一份，所以只需要装一次。\n\n## 三、装不上：按错误代码对照\n\n微软的支持页面在讲 Microsoft Edge 下载安装问题时给出了一组错误代码，WebView2 官方下载页也明确指向这份指南，用来排查安装问题与错误代码。\n\n![安装失败的错误代码对照](seed:g1455-error-decide.png)\n*图：本站根据 [微软支持：下载、安装和更新 Microsoft Edge 的疑难解答](https://support.microsoft.com/zh-cn/edge/troubleshooting-tips-for-downloading-installing-and-updating-microsoft-edge) 整理的示意图*\n\n| 错误代码 | 官方说明的原因 | 官方给的做法 |\n| --- | --- | --- |\n| 0x80070005 | 权限问题拒绝访问 | 以管理员身份运行；检查 Windows 更新服务是否在运行；必要时暂时停用第三方杀毒后重试 |\n| 0x80070057 | 安装或更新期间参数无效 | 清除 %temp% 里的临时文件，重新下载官方安装程序 |\n| 0x8024001E | 与微软更新服务器的连接失败 | 运行「Windows 更新」疑难解答，重启路由器后重试 |\n| 0x80240016 | 另一个更新正在进行 | 检查并安装待处理的 Windows 更新，重启电脑 |\n| 0x80072EE7 | DNS 问题阻止下载 | 官方建议更换 DNS，并在命令提示符运行 `ipconfig /flushdns` |\n| 0x80072F8F | 日期和时间设置不正确 | 设置 → 时间和语言 → 日期和时间，打开「自动设置时间」，点「立即同步」 |\n| 0x8004xxxx | 安装或更新文件丢失或损坏 | 用一个正常的浏览器重新下载官方安装程序 |\n\n关于**暂时停用杀毒软件**：这是微软官方文档里的一条通用做法，只建议用于你**确定是从微软官方下载**的安装程序，装完立刻恢复保护。\n\n没有错误代码、安装程序点了没反应时，微软的通用建议是：运行 Windows「程序兼容性疑难解答」（设置 → 系统 → 疑难解答 → 其他疑难解答）、确保磁盘空间足够、以管理员身份运行、重启电脑后重试。\n\n## 常见问题\n\n**Q：腾讯元宝到底要不要装 WebView2？**\n提示出现，说明你这次运行的安装程序检测到运行时缺失。腾讯官方没有公开说明元宝的组件依赖，不过 WebView2 是系统组件，装上是安全的。元宝的官方入口与登录方式见 [/guides/tencent-yuanbao-how-to](/guides/tencent-yuanbao-how-to)。\n\n**Q：装了 WebView2 还是打不开元宝？**\n先退出重新安装元宝。如果仍然不行，可以先改用网页版，网页版不依赖这个组件，地址是 yuanbao.tencent.com。\n\n**Q：别的软件也提示这个，能用同样方法吗？**\n可以，WebView2 运行时是系统级共用组件，装一次，所有需要它的软件都能用。\n\n**Q：不想折腾，有没有别的国产 AI？**\n可以看 [/guides/kimi-how-to-use](/guides/kimi-how-to-use) 或 [/guides/doubao-desktop-vs-web](/guides/doubao-desktop-vs-web)；如果你要用 ChatGPT，会员见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- 微软：Microsoft Edge WebView2 — https://developer.microsoft.com/microsoft-edge/webview2\n- 微软 Learn：分发应用和 WebView2 运行时 — https://learn.microsoft.com/zh-cn/microsoft-edge/webview2/concepts/distribution\n- 微软支持：有关下载、安装和更新 Microsoft Edge 的疑难解答提示 — https://support.microsoft.com/zh-cn/edge/troubleshooting-tips-for-downloading-installing-and-updating-microsoft-edge\n- 腾讯元宝官网 — https://yuanbao.tencent.com/\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://developer.microsoft.com/microsoft-edge/webview2",
+        "https://learn.microsoft.com/zh-cn/microsoft-edge/webview2/concepts/distribution",
+        "https://support.microsoft.com/zh-cn/edge/troubleshooting-tips-for-downloading-installing-and-updating-microsoft-edge",
+        "https://yuanbao.tencent.com/"
+      ],
+      "screenshots": [],
+      "verify": [
+        "腾讯元宝官方没有公开说明这条报错，本文只讲微软官方对 WebView2 运行时的说明，不代表腾讯的处理办法",
+        "微软的疑难解答页面讲的是 Microsoft Edge 的下载与安装，WebView2 运行时官方下载页面明确指向它作为安装问题与错误代码的排查指南",
+        "官方页面上的运行时版本号会变化，本文不写具体版本"
       ]
     },
     {
@@ -67643,6 +68211,189 @@
         "地区限制：帮助中心 Codex 文章写 Sites 目前不在欧洲经济区、瑞士、英国提供；2026-07-09 发布说明写的是「公开发布和扩大的测试版」在这些地区上线时不提供，以官方最新说明为准",
         "各套餐的测试期用量上限官方未公布具体数字（产品内显示）",
         "「More → Sites」「Who has access」等中文界面名称未核实"
+      ]
+    },
+    {
+      "title": "智谱 GLM Coding Plan 是什么：Lite、Pro、Max 三档积分额度、5 小时与每周限额、能在哪些工具用、退款和取消",
+      "slug": "glm-coding-plan-credits-limits-faq",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1460-plans-compare.png",
+        "g1460-decide.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "OTHER",
+      "excerpt": "GLM Coding Plan 是智谱推出的编程订阅套餐，按积分计量，设每 5 小时和每周两层上限。本文按智谱开放文档讲清 Lite、Pro、Max 的积分额度、非高峰时段 50% 抵扣、可用模型与工具、哪些场景不能用套餐额度，以及取消续费、退款政策和账号规范。",
+      "content": "> 本文根据智谱开放文档（docs.bigmodel.cn）的 GLM Coding Plan 套餐概览、常见问题、使用须知和老用户权益说明整理，资料核对于 2026-10-31。积分数字和规则以官方页面为准。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 搜「智谱清言 coding plan」「GLM Coding Plan 是什么」「GLM 套餐额度」的人；\n- 在用 Claude Code、Codex 等编程工具，想知道智谱的套餐能不能接进去的人。\n\n## 结论先说\n\n1. **GLM Coding Plan 是智谱的编程订阅套餐**，官方描述为覆盖从代码生成、调试修复到任务自主拆解与交付的全流程，Coding 与 Work 一套搞定。它面向开发者，不是智谱清言（聊天网页）的会员。\n2. **按积分计量**：套餐有 Lite、Pro、Max 三档，每档同时设**每 5 小时**和**每周**两层上限。\n3. **所有套餐支持 GLM-5.3 和 GLM-5.3-Flash**；调用历史模型 GLM-5.2、GLM-5.1 会自动切到 GLM-5.3，调用 GLM-5-Turbo、GLM-4.7 会自动切到 GLM-5.3-Flash。\n4. **只能在官方指定的工具里用套餐额度**。在自己的网站、App、机器人、SaaS 里调用，不享受套餐额度，要用智谱标准 API 并按量计费。\n5. **订阅不支持退款**，取消自动续费要在下一个扣费日**至少 3 天前**操作。价格以订阅页为准（2026-10 查询）。\n\n![GLM Coding Plan 个人套餐额度](seed:g1460-plans-compare.png)\n*图：本站根据 [智谱开放文档：套餐概览](https://docs.bigmodel.cn/cn/coding-plan/overview) 与 [使用须知](https://docs.bigmodel.cn/cn/coding-plan/usage-notes) 整理的示意图*\n\n## 一、额度怎么算\n\n个人套餐额度（2026-10 查询）：\n\n| 套餐 | 5 小时积分 | 每周积分 |\n| --- | --- | --- |\n| Lite | 2,000 | 10,000 |\n| Pro | 12,000 | 60,000 |\n| Max | 28,000 | 140,000 |\n\n**刷新规则**：\n\n- 5 小时积分是动态刷新：请求消耗的积分在 5 小时后恢复；\n- 每周积分：从下单时起，以 7 天为一个周期刷新；\n- 升级套餐后，积分按新档位立即刷新；续费不会重置积分，原有刷新周期不变。\n\n**怎么抵扣**：模型消耗的积分 =（输入 Token × Input 系数 + 缓存命中 Token × Cached Input 系数 + 输出 Token × Output 系数）÷ 10000。官方给的系数里，GLM-5.3 的 Input、Cached Input、Output 分别是 6.9、1.7、24，GLM-5.3-Flash 分别是 2.3、0.56、8；联网搜索、网页读取、开源仓库等 MCP 工具按调用次数乘以 1.2。\n\n**非高峰时段打五折**：非高峰时段内，模型调用按基础积分消耗的 50% 抵扣。官方写明高峰时段是**每周一至周五 14:00 至 18:00（北京时间）**，其余时间是非高峰。官方的老用户公告还说，周末全天按非高峰抵扣。\n\n可以在智谱控制台的「用量统计」里看额度消耗进度。\n\n## 二、能在哪里用\n\n- 套餐仅限在**官方支持的指定工具与产品环境**中使用，官方举的例子包括 ZCode、AutoClaw、Claude Code、Codex、OpenCode、WorkBuddy 等；具体名单以官方「接入工具」页面为准；\n- 套餐**支持 OpenClaw**，但采用次级调度和尽力交付：Coding Agent 任务享有资源抢占优先权，高负载下 OpenClaw 任务会触发排队、限流；\n- 视觉理解、联网搜索、网页读取、开源仓库这些 MCP 工具，所有等级的套餐都支持，并和模型共享套餐额度；\n- 订阅后，按官方接入指南在工具里配置即可使用额度；通用 API 的接入方式不同，见 [/guides/zhipu-glm-api-quickstart](/guides/zhipu-glm-api-quickstart)。\n\n![GLM Coding Plan：用之前想清楚](seed:g1460-decide.png)\n*图：本站根据 [智谱开放文档：常见问题](https://docs.bigmodel.cn/cn/coding-plan/faq) 与 [使用须知](https://docs.bigmodel.cn/cn/coding-plan/usage-notes) 整理的示意图*\n\n## 三、额度用完、并发、共享\n\n- **额度用完**：需要等下一个 5 小时周期恢复，**系统不会继续消耗你的其他资源包或账户余额**；\n- **并发**：与套餐等级相关，基本原则是 Max > Pro > Lite。官方推荐 Lite 同时进行单个项目的开发，Pro 同时 1 至 2 个，Max 2 个以上；低峰期并发权益会动态提升；\n- **不能共享**：套餐为订阅人专享，多人共用一个套餐可能被视为不当使用，官方会限制订阅权益，严重时影响账号。官方还说明，涉及倒卖、中转、套利等严重违规行为，才会执行永久封禁；\n- **额度重置卡**：是官方在活动期间发放的权益，不是标准权益，可在用量统计页面查看；\n- **体验卡**：每张包含 2,000 积分，可用于 GLM-5.3、GLM-5.3-Flash 及相关能力，用完后本次体验结束。\n\n## 四、订阅管理\n\n| 事项 | 官方说明 |\n| --- | --- |\n| 扣费顺序 | 优先赠金余额，其次现金余额，再从绑定的第三方支付方式（如微信、支付宝）扣款 |\n| 取消自动续费 | 套餐概览页取消，**至少在下一个扣费日前 3 天**；取消后当前周期继续有效 |\n| 升级 | 在订阅管理里选「订阅升级」，支付差额，新套餐立即生效 |\n| 退款 | 订阅一经购买即视为确认，**不支持退款**，即使没用完 |\n| 账单 | 财务中心的费用账单，切到费用明细可看不同类型 Token 数和调用次数 |\n\n## 常见问题\n\n**Q：它和智谱清言的会员是一回事吗？**\n官方文档把它定位为「专为大模型调用打造的订阅套餐」，额度只能在指定的编程工具里用，并在智谱开放平台（bigmodel.cn）的控制台管理。智谱清言聊天产品的会员规则，官方这几页没有写，以智谱清言官方页面为准。\n\n**Q：和 Kimi 的编程会员比怎么选？**\n两家的计量方式不同，Kimi 的见 [/guides/kimi-k3-coding-plan-kimi-code](/guides/kimi-k3-coding-plan-kimi-code)，工具之间的对比见 [/guides/ai-coding-tools-codex-claude-code-cursor-gemini](/guides/ai-coding-tools-codex-claude-code-cursor-gemini)。\n\n**Q：我用 ChatGPT 或 Claude 订阅，需要它吗？**\n各家独立计费。ChatGPT 开通见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)，Claude 见 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n**Q：旧版套餐用户怎么办？**\n官方 2026 年 7 月 30 日的公告写明：已订阅用户的权益、额度及计算方式不受影响，可使用到当前周期结束；V1 用户在到期前可按调整前的 V2 价格订阅。详情看官方公告。\n\n## 参考资料\n\n- 智谱开放文档：套餐概览 — https://docs.bigmodel.cn/cn/coding-plan/overview\n- 智谱开放文档：常见问题 — https://docs.bigmodel.cn/cn/coding-plan/faq\n- 智谱开放文档：使用须知 — https://docs.bigmodel.cn/cn/coding-plan/usage-notes\n- 智谱开放文档：老用户权益说明 — https://docs.bigmodel.cn/cn/coding-plan/notice/usage-revision\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://docs.bigmodel.cn/cn/coding-plan/overview",
+        "https://docs.bigmodel.cn/cn/coding-plan/faq",
+        "https://docs.bigmodel.cn/cn/coding-plan/usage-notes",
+        "https://docs.bigmodel.cn/cn/coding-plan/notice/usage-revision"
+      ],
+      "screenshots": [],
+      "verify": [
+        "套餐价格官方文档没有列在这几页，以套餐订阅页（bigmodel.cn/glm-coding）显示为准，本文不写价格",
+        "官方 2026 年 7 月 30 日改为积分制，历史 V1、V2 套餐的额度与价格规则不同，本文只讲新版，老用户权益见官方公告",
+        "积分抵扣系数、模型列表、高峰时段都是文档当天内容，官方可能随时调整"
+      ]
+    },
+    {
+      "title": "Cursor 登录提示「Can't verify the user is human」怎么办：人机验证失败的常见原因，以及登录域名迁移后的放行清单",
+      "slug": "cursor-cant-verify-user-is-human-login",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1462-human-decide.png",
+        "g1462-domains.png"
+      ],
+      "tags": [
+        "cursor"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Cursor 登录时提示无法验证用户为真人，官方帮助中心没有这条报错的专门说明。本文整理官方论坛里反馈的常见情形（拦截人机验证请求、密码管理器自动点继续、换浏览器），并按官方帮助页说明 Cursor 登录页正迁移到 accounts.spacex.ai 与 accounts.x.ai，公司网络需要放行。",
+      "content": "> **官方帮助中心没有单独说明「Can't verify the user is human」这条报错。** 本文把官方论坛里的讨论和官方帮助页的登录域名说明放在一起，资料核对于 2026-10-31。论坛里的做法是用户和社区开发者的反馈，不是官方结论，文中会标出。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 登录 Cursor 时，输入邮箱点「继续」后提示 **Can't verify the user is human. Please try again**（无法验证用户为真人）的人；\n- 在公司、学校网络下登录失败，被 IT 要求提供放行域名的人。\n\n## 结论先说\n\n1. 报错一般出现在**登录页的人机验证**这一步，不是账号被封。官方论坛里的讨论普遍指向「验证请求没有成功完成」。\n2. 论坛里**反复出现的几种情形**：广告拦截、防火墙、杀毒挡住了验证请求；密码管理器自动填充并替你点了「继续」；注重隐私的浏览器（如 Brave）里验证组件加载不出来，换成 Safari 等常规浏览器后成功。\n3. **官方帮助页（2026-10-31 读取）说，Cursor 的登录页正从 authenticator.cursor.sh 迁移到 accounts.spacex.ai 和 accounts.x.ai**，回退到旧页面的做法将于 10 月 30 日退役；如果你的网络有放行名单，需要把新域名加进去。\n4. 都试过仍然不行，向官方反馈，附上系统、Cursor 版本和报错截图。\n\n![Cursor 登录提示无法验证为真人](seed:g1462-human-decide.png)\n*图：本站根据 [Cursor 帮助中心：登录域名](https://cursor.com/help/troubleshooting/sign-in-domains) 与 [Cursor 官方论坛](https://forum.cursor.com/t/can-t-verify-the-user-is-human/28329) 整理的示意图*\n\n## 一、论坛里反馈的常见情形（社区经验）\n\n| 情形 | 论坛里的做法 |\n| --- | --- |\n| 广告拦截、防火墙或杀毒拦住了人机验证 | 关掉拦截或暂时放行，再刷新登录页。有社区开发者建议用浏览器开发者工具的 Network 和 Console 看哪些请求失败 |\n| 密码管理器自动填充并替你点了「继续」 | 社区开发者观察到这样会触发报错，可改成手动输入，或暂时关闭自动提交 |\n| 浏览器里验证组件一直转圈 | 有用户在 Brave 里验证一直转到失败，换 Safari 后成功；换浏览器或无痕窗口试一次 |\n| 使用代理类工具 | 论坛里员工曾反问是否在用 VPN，说明它可能影响验证；本文不提供代理设置方法 |\n\n这些只是「别人遇到过的」，不保证对你有效，也别因此长期关闭杀毒或防火墙，试完记得恢复。\n\n## 二、官方说明：登录域名在迁移\n\n![Cursor 登录要放行的域名](seed:g1462-domains.png)\n*图：本站根据 [Cursor 帮助中心：登录域名](https://cursor.com/help/troubleshooting/sign-in-domains) 整理的示意图*\n\n帮助页的要点：\n\n- 登录页正迁移到 **accounts.spacex.ai** 和 **accounts.x.ai**，取代 authenticator.cursor.sh；\n- Cursor 应用、网站和 SSO 入口继续可用，已登录的会话不会被强制退出；\n- 如果 accounts.spacex.ai 或 accounts.x.ai 被你的网络拦截，登录会回退到旧页面，但官方写明**回退是暂时的，10 月 30 日退役后登录需要这两个域名**；\n- 公司网络用放行名单时，官方推荐用通配（`*.spacex.ai`、`*.x.ai`、`*.grok.com` 等）；不允许通配时，至少放行 accounts.x.ai、accounts.spacex.ai、auth.x.ai、auth.grok.com、auth.grokusercontent.com、auth.grokipedia.com；\n- Cursor 本身需要的域名不变：`.cursor.sh`、`.cursor-cdn.com`、`.cursorapi.com`、`.cursorvm.com`。\n\n个人用户一般不用管这些；如果你是在公司网络里登录失败，把这页发给 IT 就行。网络诊断与代理问题的官方做法见 [/guides/cursor-common-errors-connection-failed](/guides/cursor-common-errors-connection-failed)：在 Cursor Settings 的 Network 里点 Run Diagnostics。\n\n## 三、还是不行怎么办\n\n1. 完全退出 Cursor 再打开，或换到官方网站 cursor.com 的登录入口重试；\n2. 换一个网络对比（比如手机热点），判断是不是当前网络的问题；\n3. 把系统、Cursor 版本（菜单 About Cursor 里可复制）和报错截图整理好，通过官方渠道反馈；\n4. 如果你同时遇到登录后聊天里报 User is unauthorized，是另一类问题，见 [/guides/cursor-user-is-unauthorized-error](/guides/cursor-user-is-unauthorized-error)。\n\n## 常见问题\n\n**Q：这是账号被封了吗？**\n官方没有这样说明。报错出现在登录页的人机验证步骤，更像是验证没有完成。\n\n**Q：Cursor 怎么安装、怎么设置中文？**\n见 [/guides/cursor-install-chinese-setup](/guides/cursor-install-chinese-setup)，请只从 cursor.com/download 下载。\n\n**Q：Cursor 的订阅和额度？**\n见 [/guides/cursor-usage-limits-plans](/guides/cursor-usage-limits-plans)。如果你同时在用 ChatGPT，会员开通见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- Cursor 帮助中心：Which domains does Cursor sign-in need? — https://cursor.com/help/troubleshooting/sign-in-domains\n- Cursor 帮助中心：网络、代理与远程连接 — https://cursor.com/help/troubleshooting/network\n- Cursor 官方论坛：Can't verify the user is human — https://forum.cursor.com/t/can-t-verify-the-user-is-human/28329\n- Cursor 官方论坛：Error: Can't verify the user is human. Please try again — https://forum.cursor.com/t/error-can-t-verify-the-user-is-human-please-try-again/118144\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://cursor.com/help/troubleshooting/sign-in-domains",
+        "https://cursor.com/help/troubleshooting/network",
+        "https://forum.cursor.com/t/can-t-verify-the-user-is-human/28329",
+        "https://forum.cursor.com/t/error-can-t-verify-the-user-is-human-please-try-again/118144"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有这条报错的单独条目，「常见情形」来自官方论坛里用户和社区开发者的讨论，不是官方的正式结论",
+        "官方论坛的讨论多发生在 2024 至 2025 年，当时的登录页是 authenticator.cursor.sh，现在登录页正在迁移，处理办法是否仍然有效以你实际遇到的为准",
+        "登录域名迁移的说明来自帮助页 2026-10-31 读取时的内容，帮助页写回退页将于 10 月 30 日退役，之后的具体表现以官方为准"
+      ]
+    },
+    {
+      "title": "Cursor 报错「User is unauthorized」怎么办：官方员工给的排查顺序，以及怎么取到 Request ID 反馈",
+      "slug": "cursor-user-is-unauthorized-error",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1463-unauth-decide.png",
+        "g1463-requestid-steps.png"
+      ],
+      "tags": [
+        "cursor"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Cursor 里发消息时提示 User is unauthorized，官方帮助中心没有单独说明。本文整理官方论坛里员工的回复：先检查有没有自定义 Base URL、退出重新登录并完全重启，仍不行就用 Report AI Action 取新的 Request ID 反馈；邮箱域名被拦截的情况官方怎么说。",
+      "content": "> **官方帮助中心没有单独说明「User is unauthorized」。** 本文整理官方论坛里 Cursor 员工对这条报错的回复，资料核对于 2026-10-31。论坛回复不是正式文档，具体以你遇到的情况和官方客服的回复为准。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 Cursor 的 Chat、Agent 或 Composer 里发消息时，看到 **Unauthorized request. User is unauthorized**（未授权请求）的人；\n- 已经付费订阅，却突然被这条报错挡住的人。\n\n## 结论先说\n\n1. 报错里常见的格式是 `ERROR_UNAUTHORIZED`，并带一个 Request ID。用户贴出的报错显示 `isRetryable` 为 false，意思是**重试同样的操作通常不会自己好**。\n2. **官方员工 2026 年 1 月给的排查顺序**：\n   - Cursor Settings → Models，检查有没有设置**自定义 Base URL**，有就删掉；\n   - Cursor Settings → General → **Sign Out**，退出再重新登录；\n   - **完全退出并重启** Cursor。\n3. 仍然不行，把 Models 设置页的截图和**新的 Request ID**发给官方。取 ID 的方法见下文。\n4. 官方员工在 2025 年的回复里还提到另一类原因：**账号邮箱的域名在拦截名单里**（官方称是因为某些临时邮箱类域名被滥用）。如果你认为是误拦，官方让你发邮件说明。\n5. 本文不提供绕过这种拦截的办法。\n\n![Cursor：User is unauthorized](seed:g1463-unauth-decide.png)\n*图：本站根据 [Cursor 官方论坛员工回复](https://forum.cursor.com/t/how-to-fix-user-is-unauthorized/149798) 整理的示意图*\n\n## 一、按顺序排查\n\n| 步骤 | 做法 | 出处 |\n| --- | --- | --- |\n| 1 | Cursor Settings → Models，查看是否填了自定义 Base URL（例如接入第三方接口时填的），有就删除 | 官方员工回复 |\n| 2 | Cursor Settings → General → Sign Out，再登录 | 官方员工回复 |\n| 3 | 完全退出 Cursor（macOS 用 Cmd+Q，Windows 和 Linux 从托盘退出）再打开 | 官方员工回复，退出方式与帮助中心安装页一致 |\n| 4 | 仍然报错：取新的 Request ID，连同 Models 设置截图一起反馈 | 官方员工回复 |\n\n如果你是用自己的 API Key 或第三方接口接入的，自定义 Base URL 就是最常见的来源，设置方法与限制见 [/guides/cursor-bring-your-own-api-key-third-party](/guides/cursor-bring-your-own-api-key-third-party)。\n\n## 二、怎么取 Request ID\n\n![拿到 Request ID 再反馈](seed:g1463-requestid-steps.png)\n*图：本站根据 [Cursor 官方论坛员工回复](https://forum.cursor.com/t/how-to-fix-user-is-unauthorized/50494) 整理的示意图*\n\n员工曾回复一位用户：旧的 Request ID 已过期，请重新操作一次并提供新的：\n\n1. 打开命令面板（Mac 是 Cmd+Shift+P，Windows 是 Ctrl+Shift+P）；\n2. 输入 **Report AI Action**；\n3. 选择刚才失败的那次操作；\n4. 复制新的 Request ID。\n\n不要反复发同一个过期的 ID，官方查不到。\n\n## 三、邮箱域名被拦截的情况\n\n2025 年 2 月和 3 月，官方员工在论坛里先后回复过：\n\n- 有账号的邮箱域名在 Cursor 的**拦截名单**里，原因是有用户滥用，官方怀疑那些域名被临时邮箱服务使用；\n- 官方建议用常见、可识别的邮箱注册账号；\n- **已经买了 Pro 却用不了**，可以发邮件到 hi@cursor.com，官方表示会退款；认为是误拦（你的域名并不是临时邮箱）的，也可以发邮件；\n- 官方还说明：**仍在使用临时邮箱服务的，不会为解封做特例**。\n\n需要提醒的是：这只是官方员工对「一部分」报错原因的解释，不能反推所有 User is unauthorized 都是邮箱问题。取消订阅与退款的通用流程见 [/guides/cursor-cancel-subscription-refund](/guides/cursor-cancel-subscription-refund)。\n\n## 常见问题\n\n**Q：我没用临时邮箱，也没设 Base URL，怎么办？**\n先走一遍退出、重启，再按上面取新 Request ID 反馈，让官方根据 ID 去查原因。\n\n**Q：和 Connection failed 是一回事吗？**\n不是。Connection failed 是网络连接问题，处理办法见 [/guides/cursor-common-errors-connection-failed](/guides/cursor-common-errors-connection-failed)；User is unauthorized 是服务端判定你的请求没有授权。\n\n**Q：登录页就过不去？**\n见 [/guides/cursor-cant-verify-user-is-human-login](/guides/cursor-cant-verify-user-is-human-login)。\n\n## 参考资料\n\n- Cursor 官方论坛：How to fix User is unauthorized（2026 年 1 月，员工回复） — https://forum.cursor.com/t/how-to-fix-user-is-unauthorized/149798\n- Cursor 官方论坛：How to fix \"User is unauthorized\"（2025 年，员工回复） — https://forum.cursor.com/t/how-to-fix-user-is-unauthorized/50494\n- Cursor 帮助中心：网络、代理与远程连接 — https://cursor.com/help/troubleshooting/network\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://forum.cursor.com/t/how-to-fix-user-is-unauthorized/149798",
+        "https://forum.cursor.com/t/how-to-fix-user-is-unauthorized/50494",
+        "https://cursor.com/help/troubleshooting/network"
+      ],
+      "screenshots": [],
+      "verify": [
+        "官方帮助中心没有这条报错的单独条目，下面的做法来自官方论坛里 Cursor 员工的回复，不是正式文档",
+        "员工关于「邮箱域名在拦截名单」的说法来自 2025 年 2 月和 3 月的回复，现在的策略是否变化官方没有再说明",
+        "报错 JSON 里的 ERROR_UNAUTHORIZED 与 isRetryable false 是用户贴出的报错内容，含义以官方为准"
+      ]
+    },
+    {
+      "title": "Windows 里的 Copilot 是什么软件、能卸载吗、怎么关闭：卸载路径、Copilot 键和 Win+C 的处理，公司电脑怎么管",
+      "slug": "windows-copilot-uninstall-turn-off",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1466-uninstall-steps.png",
+        "g1466-decide.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Windows 11 新电脑上的 Copilot 是微软的 AI 助手应用，可以卸载。本文按微软官方文档讲清它是什么、卸载路径、不想被 Copilot 键或 Win+C 唤起怎么改、卸载后怎么装回来，以及公司电脑上 IT 管理员的 AppLocker 和 PowerShell 做法。",
+      "content": "> 本文根据微软官方的 Learn 文档和支持页面整理，资料核对于 2026-10-31。微软更新较快，界面名称以你实际看到的为准。配图为本站整理的示意图，不是系统截图。\n\n## 适用于谁\n\n- 搜「Copilot 是什么软件」「Copilot 可以卸载吗」「Windows Copilot 怎么关闭」的人；\n- 总被 Copilot 键或 Win+C 误触发的人；\n- 公司电脑的 IT 管理员。\n\n## 结论先说\n\n1. **它是微软的 AI 助手应用**。官方说明：新的 Windows 11 电脑默认安装 Copilot 应用，可以在任务栏或开始菜单里找到；用 Microsoft 工作或学校账号，或个人 Microsoft 账号登录。\n2. **可以卸载**。官方路径：**设置 → 应用 → 已安装的应用**，找到 Copilot，点右侧三个点，选择**卸载**。\n3. **想卸载后再用**：从 Microsoft Store 免费获取。\n4. **不想被键盘唤起**：Copilot 键或 Windows 键 + C 可以启动 Copilot 应用；官方说可以在 **设置 → 个性化 → 文本输入** 里，通过「在键盘上自定义 Copilot 键」改成别的应用。\n5. 公司电脑：IT 管理员可以用 **AppLocker** 阻止安装或启动，也可以用 **PowerShell** 删除应用（见下文）。\n\n![卸载 Windows 上的 Copilot 应用](seed:g1466-uninstall-steps.png)\n*图：本站根据 [微软 Learn：管理 Windows 上的 Copilot](https://learn.microsoft.com/zh-cn/windows/client-management/manage-windows-copilot) 整理的示意图*\n\n## 一、它到底是什么\n\n微软把 Copilot 做成了一个应用，官方的说明是「将 AI 的强大功能与数据和应用相结合」。在 Windows 上，常见的用法有：\n\n- 在应用里聊天、写作、总结；\n- Copilot 视觉：查看你打开的浏览器、窗口或应用，然后回答问题；\n- Copilot 搜索文件：帮助查找、打开设备上的文件，包括同步到设备的 OneDrive 文件，官方写支持 .docx、.xlsx、.pptx、.txt、.pdf 和 .json；\n- 截图提问、在侧窗格里打开网页内容、帮助调整 Windows 设置。\n\n文件搜索和文件读取是可以关的：在应用里进入 **帐户 → 设置**，找到「文件搜索」和「文件读取」切换设置。如果你担心它读到本机文件，先看这两项，比卸载更温和。\n\n它和 **GitHub Copilot** 是两个产品：后者是写代码用的插件，见 [/guides/github-copilot-vscode-setup](/guides/github-copilot-vscode-setup)。它和 ChatGPT 的区别见 [/guides/chatgpt-vs-microsoft-copilot-difference](/guides/chatgpt-vs-microsoft-copilot-difference)。\n\n## 二、怎么处理\n\n![Windows 的 Copilot：想怎么处理](seed:g1466-decide.png)\n*图：本站根据 [微软 Learn](https://learn.microsoft.com/zh-cn/windows/client-management/manage-windows-copilot) 与 [微软支持](https://support.microsoft.com/zh-cn/microsoft-365-copilot/access-microsoft-365-copilot-on-windows) 整理的示意图*\n\n### 卸载\n\n设置 → 应用 → 已安装的应用 → 找到 Copilot → 三个点 → 卸载。这样你就不会再被应用打扰；想用再从 Microsoft Store 装回来。\n\n### 不想卸载，只想不被误触\n\n- **Copilot 键 / Win+C**：官方说，这两个快捷键可以启动完整应用或较小的「快速视图」，行为可以在应用的 **帐户 → 设置 → 键盘快捷方式** 里配置；\n- **重新映射 Copilot 键**：设置 → 个性化 → 文本输入 → 「在键盘上自定义 Copilot 键」，下拉选项里有搜索、自定义或当前映射的应用。官方提醒，如果应用选取器里没有 Copilot，需要从 Microsoft Store 重新安装；\n- **「Hey Copilot」唤醒词**：官方说明这是可选加入的免提功能，不想用就不开启。\n\n### 公司电脑，IT 管理员\n\n微软给的两种做法：\n\n1. **AppLocker**：在安装 Windows 更新之前配置策略。规则里发行商是 Microsoft Corporation，包名称是 MICROSOFT.COPILOT。启用后，应用没装就阻止安装，已装就阻止启动；\n2. **PowerShell 删除**：以 `Get-AppxPackage -Name \"Microsoft.Copilot\"` 取得完整包名，再用 `Remove-AppxPackage -Package` 删除。\n\n官方还特别提醒：**如果之前没有用组策略阻止，Windows 更新安装后 Copilot 应用会自动启用**，所以想长期禁止，要提前配好策略。个人电脑用户不需要碰这些命令。\n\n## 三、登录时的几个小坑\n\n- 官方说明，Copilot 应用（消费者版）**不支持 Microsoft Entra 账号**，用 Entra 工作或学校账号登录会被重定向到 m365.cloud.microsoft/chat；\n- 个人 Microsoft 账号登录后才能用聊天历史记录、图像创建、更长对话和语音等功能；\n- Windows 应用需要 Microsoft 账号，网页版和移动端可以用 Microsoft 账号、Apple ID 或 Google 账号登录。\n\n## 常见问题\n\n**Q：卸载了会不会影响 Windows 其他功能？**\n官方这几页没有说卸载会影响系统其他功能，只写明它是一个可以卸载的应用。\n\n**Q：卸载后过一段时间又出现了？**\n官方文档提示：之前没有用策略阻止的话，Windows 更新后 Copilot 应用会自动启用。想再卸一次，重走一遍路径即可。\n\n**Q：Copilot 的官方入口和下载？**\n见 [/guides/microsoft-copilot-official-entry-download](/guides/microsoft-copilot-official-entry-download)。\n\n**Q：我想用 ChatGPT 或 Claude？**\n会员开通见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus) 和 [/chongzhi/claude-pro](/chongzhi/claude-pro)。\n\n## 参考资料\n\n- 微软 Learn：管理 Windows 上的 Microsoft Copilot — https://learn.microsoft.com/zh-cn/windows/client-management/manage-windows-copilot\n- 微软支持：访问 Windows 上的 Microsoft Copilot — https://support.microsoft.com/zh-cn/microsoft-365-copilot/access-microsoft-365-copilot-on-windows\n- 微软支持：Microsoft Copilot 入门 — https://support.microsoft.com/zh-cn/microsoft-copilot/getting-started-with-microsoft-copilot\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://learn.microsoft.com/zh-cn/windows/client-management/manage-windows-copilot",
+        "https://support.microsoft.com/zh-cn/microsoft-365-copilot/access-microsoft-365-copilot-on-windows",
+        "https://support.microsoft.com/zh-cn/microsoft-copilot/getting-started-with-microsoft-copilot"
+      ],
+      "screenshots": [],
+      "verify": [
+        "微软官方文档给的是「卸载 Copilot 应用」的路径，没有单独写「隐藏任务栏图标」的步骤，本文不写第三方改注册表或工具的做法",
+        "官方文档说 Windows 更新后 Copilot 应用会自动启用，除非之前用组策略阻止，所以大版本更新后应用可能再次出现，是否会再装回以微软当时的更新说明为准",
+        "文中 PowerShell 命令是微软 Learn 页面给 IT 管理员的原文，普通用户用「设置」卸载即可"
+      ]
+    },
+    {
+      "title": "GitHub Copilot 报错「Language model unavailable」怎么办：VS Code 团队说的头号原因，以及怎么收集诊断信息",
+      "slug": "github-copilot-language-model-unavailable",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1467-lm-decide.png",
+        "g1467-logs-steps.png"
+      ],
+      "tags": [
+        "github-copilot"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "VS Code 里 Copilot Chat 提示 Language model unavailable，官方没有单独说明。本文按 VS Code 团队的说法讲头号原因（公司防火墙没放行新端点）、怎么看 Failed to fetch models、运行 Chat Diagnostics。",
+      "content": "> **官方文档里没有「Language model unavailable」这条报错的单独说明。** 本文整理 VS Code 团队在官方仓库置顶问题里的说法，加上 GitHub 官方的网络排查文档，资料核对于 2026-10-31。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 VS Code 里用 GitHub Copilot Chat，发消息后提示 **Language model unavailable**（语言模型不可用），带红色叉号的人；\n- 代码补全正常、聊天用不了，或者模型选择器里选不了别的模型的人。\n\n## 结论先说\n\n1. VS Code 团队在置顶问题里写：**如果你在公司网络里，先检查防火墙，确认放行了新的 Copilot 端点**。他们称这是这个错误的**头号原因**，此时 Copilot Chat 的输出里会出现 **Failed to fetch models**。\n2. 这条对应的 GitHub 变更是：**基于订阅的网络路由已强制执行**，公司的白名单需要放行对应域名，见下文。\n3. 确定不是网络问题时，团队要求提供：**重载窗口后是否还出现**、**Developer: GitHub Copilot Chat Diagnostics** 的输出、**把日志级别设为 Trace** 后的输出面板内容。\n4. 先看官方状态页 githubstatus.com 有没有 Copilot 的事件，排除官方故障。\n\n![Language model unavailable](seed:g1467-lm-decide.png)\n*图：本站根据 [VS Code 置顶问题](https://github.com/microsoft/vscode/issues/253137) 与 [GitHub Docs](https://docs.github.com/en/copilot/troubleshooting-github-copilot/troubleshooting-network-errors-for-github-copilot) 整理的示意图*\n\n## 一、个人电脑上先做这几步\n\n1. **重新加载窗口**：按 F1，运行 **Developer: Reload Window**（官方帖子里写作 Reload Window），再试一次聊天；\n2. 帖子里有用户反馈**完全重启 VS Code** 后恢复，再次点聊天里的「重试」按钮重复报错，直到重启才消失；这是用户的经历，不是官方保证；\n3. 看看是不是更新 VS Code 或 Copilot 扩展之后才出现，如果是，更新到最新版本再试；\n4. 确认你登录的是有 Copilot 权限的 GitHub 账号，账号与订阅的关系见 [/guides/github-copilot-free-pro-ai-credits](/guides/github-copilot-free-pro-ai-credits)。\n\n## 二、怎么收集诊断信息\n\n![收集 Copilot Chat 的排查信息](seed:g1467-logs-steps.png)\n*图：本站根据 [VS Code 置顶问题](https://github.com/microsoft/vscode/issues/253137) 整理的示意图*\n\nVS Code 团队在帖子里要求提供的内容：\n\n- 按 F1 运行 **Developer: GitHub Copilot Chat Diagnostics**，看输出；\n- 按 F1 运行 **Set Log Level**，选 **Trace**，重载窗口后再试一次，看 Copilot Chat 输出面板或别处是否有错误；\n- 打开输出面板：Ctrl/Cmd + Shift + U，下拉选择 **GitHub Copilot Chat**。如果这里有 `Failed to fetch models`，基本指向网络或企业白名单问题；\n- 需要时还可以抓取网络请求的跟踪记录，帖子里给了说明链接。\n\n把日志发给别人之前，注意删除其中的邮箱、令牌、公司内网地址等信息。\n\n## 三、公司网络：需要放行什么\n\nGitHub 官方的白名单参考说明，公司的防火墙或代理需要允许 Copilot 相关地址，并让用户能够登录 GitHub、访问 Copilot 服务。要点：\n\n- 用 `gh api meta -q '.domains | .website, .copilot'` 查询需要放行的通配域名，另外建议放行 `github.com` 主域；\n- 提供补全与聊天服务的域名包括 `*.githubcopilot.com`，以及按套餐区分的 `*.individual.githubcopilot.com`、`*.business.githubcopilot.com`、`*.enterprise.githubcopilot.com`；\n- 官方特别提醒：**阻止 `*.enterprise.githubcopilot.com` 会同时阻止 Copilot Enterprise 套餐和「Copilot 访问」计费模式两种路径**；是否使用「基于订阅的网络路由」不同，该不该放行某个域名的要求也不同，管理员应按官方说明配置；\n- 每个使用该代理或防火墙的用户，还需要在自己的编辑器里配置网络环境。\n\n个人用户不用管这些，把这页发给 IT 即可。网络、代理、证书类的具体报错对照，见 [/guides/github-copilot-cannot-connect-network-errors](/guides/github-copilot-cannot-connect-network-errors)。\n\n## 常见问题\n\n**Q：代码补全正常，只有聊天不行，是为什么？**\n帖子里就有这样的反馈。官方文档也区分了补全服务和聊天服务的测试地址（后者是 api.githubcopilot.com），所以网络层面可能一个通、一个不通。\n\n**Q：这是我的订阅过期了吗？**\n官方这些页面没有这样说。想确认账号权限与额度，看 [/guides/github-copilot-free-pro-ai-credits](/guides/github-copilot-free-pro-ai-credits)。\n\n**Q：怎么在 VS Code 里装好 Copilot？**\n见 [/guides/github-copilot-vscode-setup](/guides/github-copilot-vscode-setup)。如果你同时用 ChatGPT，会员见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- VS Code 官方仓库：Meta: Language Model Unavailable — https://github.com/microsoft/vscode/issues/253137\n- GitHub Docs：Troubleshooting network errors for GitHub Copilot — https://docs.github.com/en/copilot/troubleshooting-github-copilot/troubleshooting-network-errors-for-github-copilot\n- GitHub Docs：Copilot allowlist reference — https://docs.github.com/en/copilot/reference/copilot-allowlist-reference\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://github.com/microsoft/vscode/issues/253137",
+        "https://docs.github.com/en/copilot/troubleshooting-github-copilot/troubleshooting-network-errors-for-github-copilot",
+        "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference"
+      ],
+      "screenshots": [],
+      "verify": [
+        "GitHub 和 VS Code 的官方文档里没有「Language model unavailable」的单独说明页，本文的做法来自 VS Code 团队成员在官方仓库置顶问题里的说明，以及 GitHub 官方的网络排查与白名单文档",
+        "置顶问题创建于 2024 年 10 月，引用的订阅网络路由强制执行是 2024 年 11 月的变更，现在的细节以 GitHub 官方文档为准",
+        "同一报错也可能由其他原因引起（如更新后的临时状态、账号权限），官方没有穷尽列出"
+      ]
+    },
+    {
+      "title": "GitHub Copilot 提示无法连接到服务怎么办：could not connect to server、ETIMEDOUT、证书错误的官方排查办法",
+      "slug": "github-copilot-cannot-connect-network-errors",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1468-connect-decide.png",
+        "g1468-curl-steps.png"
+      ],
+      "tags": [
+        "github-copilot"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Copilot 提示 could not connect to server、read ETIMEDOUT 或证书错误，多与代理、防火墙有关。本文按 GitHub 官方网络错误排查文档，讲 curl 测连通性、代理与认证限制、证书错误处理和公司网络放行清单。",
+      "content": "> 本文根据 GitHub 官方文档《Troubleshooting network errors for GitHub Copilot》和《Copilot allowlist reference》整理，资料核对于 2026-10-31。说的是编辑器里的 **GitHub Copilot**，不是 Windows 里的 Copilot 应用。配图为本站整理的示意图，不是软件截图。\n\n## 适用于谁\n\n- 在 VS Code、JetBrains 等编辑器里用 GitHub Copilot，提示 **could not connect to server**、**read ETIMEDOUT**、**read ECONNRESET** 的人；\n- 在公司网络下用 Copilot，被证书错误挡住的人。\n\n## 结论先说\n\n1. 官方文档说：如果你在公司设备上、通过 VPN 或 HTTP 代理访问网络，这类网络设置**可能阻止 Copilot 连接 GitHub 的服务器**；防火墙也可能干扰。\n2. 官方推荐先用 **curl 测连通性**：请求 `https://copilot-proxy.githubusercontent.com/_ping`，能连上会收到 **HTTP 200**。Chat 单独有问题，就改测 `https://api.githubcopilot.com/_ping`。\n3. 典型报错：`GitHub Copilot could not connect to server. Extension activation failed: \"read ETIMEDOUT\" or \"read ECONNRESET\"`，官方说**可能由一系列网络问题引起**。\n4. 代理相关三点：代理地址以 **https://** 开头**目前不支持**；需要认证时支持**基本认证**或 **Kerberos**；Copilot 可能**拒绝自定义证书**。\n5. 证书类报错（certificate signature failure、unable to verify the first certificate 等）通常是公司代理拦截并检查加密流量造成的，找 IT 处理。\n\n![Copilot 无法连接：按报错对照](seed:g1468-connect-decide.png)\n*图：本站根据 [GitHub Docs：网络错误排查](https://docs.github.com/en/copilot/troubleshooting-github-copilot/troubleshooting-network-errors-for-github-copilot) 整理的示意图*\n\n## 一、先用 curl 测一下\n\n![用 curl 测一下能不能连上](seed:g1468-curl-steps.png)\n*图：本站根据 [GitHub Docs：网络错误排查](https://docs.github.com/en/copilot/troubleshooting-github-copilot/troubleshooting-network-errors-for-github-copilot) 整理的示意图*\n\n1. 打开命令行；\n2. 运行 `curl --verbose https://copilot-proxy.githubusercontent.com/_ping`，加 `--verbose` 能看到更多信息，方便发给 IT 或 GitHub 支持；\n3. 返回 HTTP 200 说明这条路是通的；\n4. 如果是 Copilot Chat 有问题，用 `https://api.githubcopilot.com/_ping` 再测一次；\n5. 如果你走代理，用 `-x` 指定代理地址再测一次，对比有无代理的差异；\n6. 官方说，如果出现与「证书吊销」相关的错误，可以加 `--insecure` 重试，**但这只用来判断问题出在证书上**，不应作为长期做法。\n\ncurl 帮不上忙的时候，官方建议在编辑器里开启详细日志，把日志给公司 IT 或 GitHub 支持。\n\n## 二、代理问题\n\n官方说明：GitHub Copilot 用自定义代码连接代理，所以**编辑器支持的代理设置不一定被 Copilot 支持**。常见原因：\n\n| 情况 | 官方说明 |\n| --- | --- |\n| 代理 URL 以 `https://` 开头 | 目前不支持 |\n| 代理需要认证 | 支持基本认证或 Kerberos；用 Kerberos 要确保有有效票据且服务主体名称正确 |\n| 自定义证书 | Copilot 可能拒绝，见下节 |\n| 公司代理 | 公司还需要在公司层面为 Copilot 配置代理设置，见白名单参考 |\n\n配置方法官方有单独页面「Configuring network settings for GitHub Copilot」，需要时到那里查看。本文不提供绕过公司网络策略的方法，改代理前请先问 IT。\n\n## 三、证书错误\n\n遇到 certificate signature failure、custom certificate、unable to verify the first certificate 之类的提示，官方给的处理方向：\n\n1. 换一个**不拦截加密连接**的代理；\n2. 如果是公司代理，联系 IT，看能否配置为不拦截；\n3. 确认自定义证书已正确安装到**操作系统的信任库**。官方说明 Copilot 查找证书的方式：Windows 用 win-ca 包，macOS 用 mac-ca 包，Linux 检查标准的 OpenSSL 文件 `/etc/ssl/certs/ca-certificates.crt` 和 `/etc/ssl/certs/ca-bundle.crt`；\n4. 让 Copilot 忽略证书错误：VS Code 里取消 **Proxy Strict SSL**，JetBrains 里选择 **Accept non-trusted certificates automatically**。**官方警告这会带来安全问题，不建议**；\n5. 如果是安全软件监控了加密流量，需要为你的编辑器或 Copilot 扩展配置**例外**，具体方法问安全软件厂商。\n\n## 四、公司网络的放行清单\n\n官方白名单参考里，需要允许的域名包括：`github.com/login/*`（认证）、`api.github.com/copilot_internal/*`、`copilot-proxy.githubusercontent.com`、`origin-tracker.githubusercontent.com`，以及 `*.githubcopilot.com`（若用基于订阅的网络路由，则按套餐用 `*.individual`、`*.business`、`*.enterprise` 对应域名）。推荐用 `gh api meta` 查询通配域名。详细对照见 [/guides/github-copilot-language-model-unavailable](/guides/github-copilot-language-model-unavailable)。\n\n## 常见问题\n\n**Q：个人电脑没有代理，也提示连不上？**\n先看 githubstatus.com 有没有 Copilot 事件，再用 curl 测，通了就重启编辑器；如果是登录问题，在编辑器里重新登录 GitHub 账号。安装与登录步骤见 [/guides/github-copilot-vscode-setup](/guides/github-copilot-vscode-setup)，JetBrains 见 [/guides/github-copilot-jetbrains-idea-plugin](/guides/github-copilot-jetbrains-idea-plugin)。\n\n**Q：这和 Windows 里的 Copilot 是一回事吗？**\n不是。Windows 里的是微软的聊天应用，见 [/guides/microsoft-copilot-official-entry-download](/guides/microsoft-copilot-official-entry-download)。\n\n**Q：想换用别的 AI 编程工具？**\n对比见 [/guides/ai-coding-tools-codex-claude-code-cursor-gemini](/guides/ai-coding-tools-codex-claude-code-cursor-gemini)；ChatGPT 会员见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n## 参考资料\n\n- GitHub Docs：Troubleshooting network errors for GitHub Copilot — https://docs.github.com/en/copilot/troubleshooting-github-copilot/troubleshooting-network-errors-for-github-copilot\n- GitHub Docs：Copilot allowlist reference — https://docs.github.com/en/copilot/reference/copilot-allowlist-reference\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://docs.github.com/en/copilot/troubleshooting-github-copilot/troubleshooting-network-errors-for-github-copilot",
+        "https://docs.github.com/en/copilot/reference/copilot-allowlist-reference"
+      ],
+      "screenshots": [],
+      "verify": [
+        "本文说的是 GitHub Copilot（编辑器插件），不是 Windows 里的 Microsoft Copilot 应用，后者的处理见另一篇",
+        "官方文档把「忽略证书错误」列为一种可选做法，同时警告会带来安全风险，本文不推荐",
+        "官方文档中的 URL、报错原文以文档当天内容为准，GitHub 可能调整"
+      ]
+    },
+    {
+      "title": "Microsoft Copilot 官网入口在哪、怎么下载：网页版、Windows 应用、手机应用和工作账号入口怎么选",
+      "slug": "microsoft-copilot-official-entry-download",
+      "checkedOn": "2026-10-31",
+      "images": [
+        "g1469-entry-compare.png",
+        "g1469-check.png"
+      ],
+      "tags": [
+        "ai-tools"
+      ],
+      "accountTier": "FREE",
+      "excerpt": "Microsoft Copilot 有网页版、Windows 应用、手机应用，工作或学校账号还有单独入口。本文按微软支持页面讲清各入口、各自支持的登录账号、Windows 应用从 Microsoft Store 下载，以及怎么区分微软的 Copilot 和 GitHub Copilot。",
+      "content": "> 本文根据微软官方支持页面和 Learn 文档整理，资料核对于 2026-10-31。入口域名以微软官方页面为准，不推荐任何第三方「Copilot 下载站」。配图为本站整理的示意图，不是网页截图。\n\n## 适用于谁\n\n- 搜「Copilot 官网入口」「Microsoft Copilot 下载」「Copilot 网页版」的人；\n- 找不到 Windows 里的 Copilot 应用，想重新装回来的人；\n- 分不清微软 Copilot、GitHub Copilot 和 Microsoft 365 Copilot 的人。\n\n## 结论先说\n\n1. **个人用，网页版**：官方支持页面给出的入口是 **copilot.cloud.microsoft.com**。网页版、手机和 macOS 上可以用 Microsoft 账号、Apple ID 或 Google 账号登录。\n2. **Windows 应用**：新的 Windows 11 电脑默认已安装，可在任务栏或开始菜单找到；没有就从 **Microsoft Store** 下载（微软页面给的是 Microsoft Store 里的 Copilot 应用页）。**Windows 应用需要 Microsoft 账号**。\n3. **工作或学校账号**：用 **m365.cloud.microsoft/chat**（网页）；还可以在 Microsoft 365 应用、Teams、Outlook 等里使用。\n4. **手机**：微软提供 iOS 和 Android 的 Copilot 移动应用。\n5. 网上很多自称「Copilot 中文版」「免登录」的站点不是微软官方的，不建议使用。\n\n![Microsoft Copilot 官方入口](seed:g1469-entry-compare.png)\n*图：本站根据 [微软支持：Microsoft Copilot 入门](https://support.microsoft.com/zh-cn/microsoft-copilot/getting-started-with-microsoft-copilot) 整理的示意图*\n\n## 一、各入口怎么选\n\n| 你的情况 | 用哪个 | 说明 |\n| --- | --- | --- |\n| 个人，临时用一下 | 网页版 | 不用安装；官方说网页版个人用户可以用 Microsoft、Apple 或 Google 账号登录 |\n| 个人，常用 | Windows 应用 | 可以用 Copilot 键、Windows 键 + C 快速唤起；需要 Microsoft 账号 |\n| 公司或学校给了账号 | m365.cloud.microsoft/chat | 使用工作或学校账号，会用到组织的数据 |\n| 手机上用 | 手机应用 | 微软支持页面里有 iOS 与 Android 的应用说明 |\n\n两种账号的区别，官方的描述是：用工作或学校账号登录时，Copilot 会用组织的数据，例如聊天、电子邮件和文件以及 Web；用个人 Microsoft 账号登录，则用你自己的内容和 Web。\n\n## 二、Windows 应用的下载和使用\n\n1. 先看任务栏和开始菜单有没有 Copilot；\n2. 没有，就打开 **Microsoft Store** 搜索 Copilot，确认开发者是 Microsoft Corporation 后获取；\n3. 装好后打开，用 Microsoft 工作或学校账号或个人账号登录。官方提醒：用 Entra 工作或学校账号登录消费者版应用，会被重定向到 m365.cloud.microsoft/chat；\n4. 想不点图标直接打开：按键盘上的 **Copilot 键**，或 **Windows 键 + C**；\n5. 想卸载或不想被误触，见 [/guides/windows-copilot-uninstall-turn-off](/guides/windows-copilot-uninstall-turn-off)。\n\n![下载 Copilot 前先核对](seed:g1469-check.png)\n*图：本站根据 [微软支持](https://support.microsoft.com/zh-cn/microsoft-365-copilot/access-microsoft-365-copilot-on-windows) 与 [微软 Learn](https://learn.microsoft.com/zh-cn/windows/client-management/manage-windows-copilot) 整理的示意图*\n\n## 三、别和另外两个 Copilot 搞混\n\n- **Microsoft Copilot**：本文讲的这个，是聊天助手；\n- **Microsoft 365 Copilot**：工作场景里和 Word、Excel、Teams 等结合，官方提示用工作账号才有，是否需要许可证以微软说明为准；\n- **GitHub Copilot**：写代码用的插件，装在 VS Code、JetBrains 等编辑器里，见 [/guides/github-copilot-vscode-setup](/guides/github-copilot-vscode-setup)。\n\n## 常见问题\n\n**Q：Copilot 和 ChatGPT 是一回事吗？**\n不是。区别见 [/guides/chatgpt-vs-microsoft-copilot-difference](/guides/chatgpt-vs-microsoft-copilot-difference)。想用 ChatGPT，会员开通见 [/chongzhi/chatgpt-plus](/chongzhi/chatgpt-plus)。\n\n**Q：Copilot 免费吗？**\n微软这几页没有写具体价格和额度，个人版的免费与付费功能，请以应用内显示为准，价格以微软官方页面为准（2026-10 查询）。\n\n**Q：应用里能搜我电脑上的文件吗？**\n官方说 Windows 上的 Copilot 可以帮你查找、打开和询问设备上文件的内容，可以在应用的「帐户 → 设置」里调整「文件搜索」和「文件读取」。\n\n**Q：能用在 Mac 上吗？**\n官方说个人账号可用的方式除了网页版，还包括 Windows、macOS、iOS/iPadOS 和 Android 上的专用应用。\n\n## 参考资料\n\n- 微软支持：Microsoft Copilot 入门 — https://support.microsoft.com/zh-cn/microsoft-copilot/getting-started-with-microsoft-copilot\n- 微软支持：访问 Windows 上的 Microsoft Copilot — https://support.microsoft.com/zh-cn/microsoft-365-copilot/access-microsoft-365-copilot-on-windows\n- 微软 Learn：管理 Windows 上的 Microsoft Copilot — https://learn.microsoft.com/zh-cn/windows/client-management/manage-windows-copilot\n\n更多 AI 会员开通可看 [/chongzhi](/chongzhi)。",
+      "sources": [
+        "https://support.microsoft.com/zh-cn/microsoft-copilot/getting-started-with-microsoft-copilot",
+        "https://support.microsoft.com/zh-cn/microsoft-365-copilot/access-microsoft-365-copilot-on-windows",
+        "https://learn.microsoft.com/zh-cn/windows/client-management/manage-windows-copilot"
+      ],
+      "screenshots": [],
+      "verify": [
+        "微软支持页面上网页版个人入口的写法是 copilot.cloud.microsoft.com，实际访问时可能跳转到别的域名，以浏览器最终显示的微软官方域名为准",
+        "手机应用的具体商店链接官方页面是以文章形式给出的，本文不写商店搜索结果，请从微软支持页面的链接进入",
+        "免费额度和付费订阅的区别本文没有展开，官方这几页没有写价格，以应用内显示为准"
       ]
     },
     {
