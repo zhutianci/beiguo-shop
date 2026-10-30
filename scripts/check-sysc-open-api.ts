@@ -302,6 +302,7 @@ async function main() {
     ['处理中', { status: 'redeeming', task_status: 'processing', product_name: 'GPT5x' }],
     ['可能成功', { status: 'active', task_status: 'possible_success', product_name: 'GPT5x' }],
     ['已退回', { status: 'refunded', task_status: null, product_name: 'GPT5x' }],
+    ['已停用', { status: 'disabled', task_status: null, product_name: 'GPT5x' }],
   ] as const) {
     calls.length = 0
     replies = { status: [{ status: 200, body }] }
@@ -309,6 +310,12 @@ async function main() {
     r = await activate(s.provider, { session_json: session() })
     eq(`${name}：不提交`, posts().length, 0)
   }
+  replies = { status: [{ status: 200, body: { status: 'disabled', task_status: null, product_name: 'GPT5x' } }] }
+  s = mk()
+  const cd = await s.provider.check('VCK-REAL-CARD-0001', {})
+  eq('已停用的卡（实抓 #2994）：作废态', cd.state, 'VOID')
+  eq('已停用的卡：不出表单', cd.fields.length, 0)
+  eq('已停用的卡：文案', cd.message, C.COPY.disabled)
   calls.length = 0
   replies = { status: [err(404, 'CDK_NOT_FOUND', 'CDK 无效')] }
   s = mk()

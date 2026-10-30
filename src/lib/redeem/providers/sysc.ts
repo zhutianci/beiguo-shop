@@ -122,7 +122,7 @@ const ACTIVATE_POLL_MS = 3_000
 /* ==================== 对方的协议类型 ==================== */
 
 /** 卡密本身的状态。**这是「卡有没有被消耗」的权威字段** */
-type CardStatus = 'active' | 'redeeming' | 'redeemed' | 'refunded'
+type CardStatus = 'active' | 'redeeming' | 'redeemed' | 'refunded' | 'disabled'
 /** 本次充值任务的状态 */
 type TaskStatus =
   | 'pending'
@@ -190,6 +190,7 @@ const COPY = {
   redeeming: '正在为你充值，请稍后回到本页查询结果，不要重复提交',
   redeemed: '充值已完成',
   refunded: '该卡密已退回作废，请联系客服',
+  disabled: '该卡密已被停用，无法充值，请联系客服更换',
   possibleSuccess:
     '本次充值需要人工确认：充值已经发起，但系统未能确认权益是否到账。' +
     '**请不要重复提交**（会重复扣费），请联系客服并提供卡密，我们会为你核对。',
@@ -879,6 +880,8 @@ function classify(b: StatusBody): { state: RedeemState; message: string } {
   if (b.found === false) return { state: 'NOT_FOUND', message: COPY.notFound }
   if (st === 'redeemed' || ts === 'success') return { state: 'COMPLETED', message: COPY.redeemed }
   if (st === 'refunded') return { state: 'VOID', message: COPY.refunded }
+  // 2026-10-31 查库存时实测到的值（卡#2994）：对方停用了这张卡，买家再填账号也没用
+  if (st === 'disabled') return { state: 'VOID', message: COPY.disabled }
   // 顺序敏感：见上面的说明，这一条必须在 active 之前
   if (ts === 'possible_success') return { state: 'PROCESSING', message: COPY.possibleSuccess }
   if (st === 'redeeming') return { state: 'PROCESSING', message: COPY.redeeming }
