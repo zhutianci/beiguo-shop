@@ -73,6 +73,7 @@ verify:
 见 [/guides/grok-official-website-entry-desktop-download](/guides/grok-official-website-entry-desktop-download)。
 
 **Q：需要开通 SuperGrok 怎么办？**
+按官方订阅入口开通，档位和价格以官方页面当前显示为准，见 [/guides/grok-how-to-subscribe-download](/guides/grok-how-to-subscribe-download)。
 
 ## 参考资料
 
