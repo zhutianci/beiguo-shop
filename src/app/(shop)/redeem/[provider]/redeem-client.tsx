@@ -91,6 +91,26 @@ const STATE_TONE: Record<string, 'ok' | 'warn' | 'bad' | 'info'> = {
   ERROR: 'bad',
 }
 
+/**
+ * 适配器文案里的 **重点** 渲染成粗体。
+ * 只认这一种标记，其余一律当纯文本：文案里可能带账号相关内容，不走 dangerouslySetInnerHTML。
+ */
+function RichText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/\*\*(.+?)\*\*/g).map((part, i) =>
+        i % 2 ? (
+          <b key={i} className="font-semibold text-white/80">
+            {part}
+          </b>
+        ) : (
+          part
+        )
+      )}
+    </>
+  )
+}
+
 function Banner({ tone, children }: { tone: 'ok' | 'warn' | 'bad' | 'info'; children: React.ReactNode }) {
   const cls = {
     ok: 'bg-emerald-500/10 text-emerald-200 border-emerald-500/30',
@@ -485,7 +505,7 @@ export default function RedeemClient({
                     </span>
                     <div className="min-w-0">
                       <div className="text-xs font-medium text-white/75">{g.title}</div>
-                      <div className="mt-0.5 text-xs leading-relaxed text-white/45">{g.detail}</div>
+                      <div className="mt-0.5 text-xs leading-relaxed text-white/45"><RichText text={g.detail} /></div>
                       {g.link && (
                         <a
                           href={g.link.url}
@@ -524,7 +544,7 @@ export default function RedeemClient({
                     />
                     <span className="min-w-0">
                       <span className="block text-xs font-medium text-amber-200">{f.label}</span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-amber-200/55">{f.help}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-amber-200/55"><RichText text={f.help} /></span>
                     </span>
                   </label>
                 ) : (
@@ -577,7 +597,7 @@ export default function RedeemClient({
                           </span>
                         </div>
                       ))}
-                    <p className="mt-1.5 text-xs leading-relaxed text-white/35">{f.help}</p>
+                    <p className="mt-1.5 text-xs leading-relaxed text-white/35"><RichText text={f.help} /></p>
                   </div>
                 )
               )}
@@ -620,7 +640,7 @@ export default function RedeemClient({
           {pollGaveUp && (
             <div className="rounded-xl border border-white/12 bg-white/[0.04] p-4">
               <p className="text-sm leading-relaxed text-white/70">
-                这一笔等得比平常久。充值可能仍在进行，**请不要重复提交**，点下面的按钮查一下最新状态。
+                这一笔等得比平常久。充值可能仍在进行，<b>请不要重复提交</b>，点下面的按钮查一下最新状态。
               </p>
               <button
                 type="button"
