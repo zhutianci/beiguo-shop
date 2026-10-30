@@ -1,5 +1,5 @@
 ---
-title: ChatGPT 桌面版下载与安装：Windows、Mac、Linux 系统要求，和网页版有什么区别
+title: ChatGPT 电脑版官方下载与安装（桌面版）：Windows、Mac、Linux 系统要求，和网页版有什么区别
 slug: chatgpt-desktop-app
 products: [chatgpt]
 models: []

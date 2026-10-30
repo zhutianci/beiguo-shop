@@ -1,5 +1,5 @@
 ---
-title: ChatGPT 怎么升级 Plus、怎么订阅：网页和 iOS App 的官方步骤，怎么确认已生效，付了款还显示 Free 怎么办
+title: ChatGPT 怎么充值、怎么升级 Plus：网页和 iOS App 的官方步骤，怎么确认已生效，付了款还显示 Free 怎么办
 slug: chatgpt-how-to-upgrade-plus
 products: [chatgpt]
 models: []

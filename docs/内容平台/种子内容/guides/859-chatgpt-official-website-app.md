@@ -1,5 +1,5 @@
 ---
-title: ChatGPT 官网是什么、官方 App 怎么认：官方域名、应用商店入口与防假冒检查清单
+title: ChatGPT 官网入口、网页版登录入口是哪个，官方 App 怎么认：官方域名、应用商店入口与防假冒检查清单
 slug: chatgpt-official-website-app
 products: [chatgpt]
 models: []
