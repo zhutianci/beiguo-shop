@@ -59,7 +59,7 @@ verify:
 - 安装命令报 `syntax error near unexpected token '<'`、`403` 等，官方让你去「Troubleshoot installation」页对照错误；
 - 运行 `claude doctor` 可以查看只读的安装和设置诊断。
 
-入门步骤的完整版见 [/guides/claude-code-getting-started](/guides/09-claude-code-getting-started)。
+入门步骤的完整版见 [/guides/claude-code-getting-started](/guides/claude-code-getting-started)。
 
 ## 三、Homebrew、WinGet 和 Linux 软件源
 
