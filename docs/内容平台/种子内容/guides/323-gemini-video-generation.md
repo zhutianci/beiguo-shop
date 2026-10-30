@@ -5,7 +5,7 @@ products: [gemini]
 models: [veo]
 accountTier: PRO
 excerpt: Gemini 里生成视频现在用的是 Gemini Omni，不再是 Veo。本文按 Google 官方帮助中心讲清谁能用、在哪里点、文字 / 图片 / 视频怎么生成和改视频、时长和比例、下载与 SynthID 水印，以及常见报错原因。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-30
 sources:
   - https://support.google.com/gemini/answer/16126339?hl=en&co=GENIE.Platform%3DDesktop
   - https://gemini.google/overview/video-generation/
@@ -20,11 +20,11 @@ sources:
 - 以前用 Gemini 里的 Veo 做视频，发现名字变成了 Omni 的人；
 - 想用照片做动态视频、或者让 AI 帮忙改一段视频的人。
 
-本文根据 Google 官方帮助中心、Gemini 官网和官方博客整理，资料核对于 2026-10-07；功能随套餐和地区不同，界面以你实际看到的为准。
+本文根据 Google 官方帮助中心、Gemini 官网和官方博客整理，资料核对于 2026-10-30；功能随套餐和地区不同，界面以你实际看到的为准。
 
 ## 结论先说
 
-1. **Gemini App 里的视频模型已换成 Gemini Omni**。官方说明 Gemini Omni 取代了 Gemini App 中的 Veo，当前型号是 **Gemini Omni 1.1 Flash**；Veo 仍在 Google Flow 和开发者 API 中提供（见《Google Flow 怎么用》）。
+1. **Gemini App 里的视频模型已换成 Gemini Omni**。官方说明 Gemini Omni 取代了 Gemini App 中的 Veo，当前型号是 **Gemini Omni 1.1 Flash**；Veo 仍在 Google Flow 中提供（见《Google Flow 怎么用》）。**开发者 API 要注意：** Gemini API 官方弃用页写明，veo-3.1-generate-preview、veo-3.1-fast-generate-preview、veo-3.1-lite-generate-preview 三个预览版的最早关停日期是 **2026-10-22**（今天已过），官方建议改用 `gemini-omni-1.1-flash`；veo-3.0 和 veo-2.0 的稳定版关停日期是 2026-06-30。弃用页没有提到 Flow。
 2. **需要付费套餐**：个人账号必须订阅 Google AI 套餐（官方功能表显示 Plus、Pro、Ultra 可用，免费用户不可用）；目前不对 18 岁以下用户开放。
 3. **能做什么**：文字生成约 10 秒带原生音频的视频；最多用 **5 张图片**做参考；上传 **1 段视频**让它按指令改（部分地区不可用）；在同一对话里多轮修改、延长场景。
 4. **不是按张数限额**：Gemini App 的用量按计算量折算，每 5 小时刷新一次直到周上限，视频生成比普通聊天更耗额度。

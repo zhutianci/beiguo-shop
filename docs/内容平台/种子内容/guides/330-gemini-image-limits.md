@@ -5,13 +5,14 @@ products: [gemini]
 models: [nano-banana]
 accountTier: FREE
 excerpt: Gemini 免费版每天能用 Nano Banana 生成几张图？Pro 和 Ultra 多多少？本文按 Google 官方帮助中心讲清 2026 年起的「按计算量 + 5 小时刷新 + 周上限」规则、各套餐倍数、Pro 重做的限制、在哪查剩余额度以及用完后的办法。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-30
 sources:
   - https://support.google.com/gemini/answer/16275805?hl=en
   - https://support.google.com/gemini/answer/14286560?hl=en
   - https://support.google.com/flow/answer/16526234?hl=en
   - https://blog.google/innovation-and-ai/technology/ai/nano-banana-2/
   - https://gemini.google/release-notes/
+  - https://ai.google.dev/gemini-api/docs/models/gemini-nano-banana-2.1
 ---
 
 ## 适用于谁
@@ -21,6 +22,8 @@ sources:
 - 在考虑要不要订阅 Google AI Plus / Pro / Ultra 的人。
 
 本文根据 Google Gemini 官方帮助中心整理，资料核对于 2026-10-07。官方明确说明限额可能随时调整，下文以官方页面当前写法为准。
+
+> **2026-10-30 补充：** Gemini API 官方模型页已列出稳定版 `gemini-nano-banana-2.1`（Nano Banana 2 的更新版，详见 [/guides/nano-banana-how-to](/guides/nano-banana-how-to)）。该页只讲开发者 API，没有写 Gemini App 是否已经换成 2.1，也没有给出 App 里的额度变化；Gemini App 官方帮助页（2026-10-30 核对）里的生图模型仍然写的是 Nano Banana 2、2 Lite 和 Pro。下面的额度规则、套餐倍数按 2026-10-07 核对的官方页面写法，没有逐项重新核对，以你设置里的 Usage Limits 为准。
 
 ## 结论先说
 

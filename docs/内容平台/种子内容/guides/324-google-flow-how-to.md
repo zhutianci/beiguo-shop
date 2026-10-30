@@ -5,7 +5,7 @@ products: [gemini, ai-tools]
 models: [veo]
 accountTier: PRO
 excerpt: Google Flow 是 Google 的 AI 影视创作工具，可以选 Veo 3.1 或 Gemini Omni 生成视频、用首尾帧和参考素材保持一致，再在 Scenebuilder 里拼成完整片段。本文按官方帮助中心讲清门槛、积分、各模型差异和完整操作。
-checkedOn: 2026-10-07
+checkedOn: 2026-10-30
 sources:
   - https://support.google.com/flow/answer/16353333?hl=en
   - https://support.google.com/flow/answer/16352836?hl=en
@@ -13,6 +13,7 @@ sources:
   - https://support.google.com/flow/answer/16935718?hl=en
   - https://support.google.com/flow/answer/16526234?hl=en
   - https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-omni/
+  - https://ai.google.dev/gemini-api/docs/deprecations
 ---
 
 ## 适用于谁
@@ -29,6 +30,8 @@ sources:
 2. **门槛**：年满 18 岁并完成年龄验证、身处支持的地区、订阅 Google AI Plus / Pro / Ultra（符合条件的 Workspace 套餐每天有 50 积分）。官方明确说明 **VPN 不能让不支持地区的用户使用**。
 3. **按积分计费**：每个模型每次生成消耗不同积分，失败不扣分；在提示框右上角的设置里能看到当前模型的实时价格。
 4. **核心工作流**：先生图做素材 → 用文字 / 首尾帧 / 参考素材（Ingredients）生成镜头 → 编辑或延长 → 在 **Scenebuilder** 里排序剪辑 → 下载。
+
+> **2026-10-30 补充（开发者留意）：** 这里说的是 Flow 产品里的模型。Gemini API 是另一条线：官方弃用页写明 veo-3.1-generate-preview、veo-3.1-fast-generate-preview、veo-3.1-lite-generate-preview 三个预览版的最早关停日期是 2026-10-22（已过），官方建议改用 `gemini-omni-1.1-flash`；弃用页没有提到 Flow，Flow 里还提供哪些模型，以 Flow 官方帮助页面当天的说明为准。
 
 ## 先选模型：Veo 3.1 和 Gemini Omni 有什么不同
 
