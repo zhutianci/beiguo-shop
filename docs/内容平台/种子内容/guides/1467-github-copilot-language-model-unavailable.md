@@ -4,7 +4,7 @@ slug: github-copilot-language-model-unavailable
 products: [github-copilot]
 models: []
 accountTier: FREE
-excerpt: VS Code 里 Copilot Chat 提示 Language model unavailable，官方文档没有单独页面说明。本文按 VS Code 团队在官方仓库置顶问题里的说法讲清头号原因（公司防火墙没放行新端点）、怎么看输出里的 Failed to fetch models、运行 Chat Diagnostics 与调高日志级别，并给出官方网络排查文档的做法。
+excerpt: VS Code 里 Copilot Chat 提示 Language model unavailable，官方没有单独说明。本文按 VS Code 团队的说法讲头号原因（公司防火墙没放行新端点）、怎么看 Failed to fetch models、运行 Chat Diagnostics。
 checkedOn: 2026-10-31
 sources:
   - https://github.com/microsoft/vscode/issues/253137

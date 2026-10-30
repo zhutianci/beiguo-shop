@@ -4,7 +4,7 @@ slug: github-copilot-cannot-connect-network-errors
 products: [github-copilot]
 models: []
 accountTier: FREE
-excerpt: GitHub Copilot 提示 could not connect to server、read ETIMEDOUT、read ECONNRESET 或证书错误，多与代理、防火墙或自定义证书有关。本文按 GitHub 官方「网络错误排查」文档，讲清用 curl 测连通性、代理与认证的限制、证书错误的几种处理，以及公司网络要放行什么。
+excerpt: Copilot 提示 could not connect to server、read ETIMEDOUT 或证书错误，多与代理、防火墙有关。本文按 GitHub 官方网络错误排查文档，讲 curl 测连通性、代理与认证限制、证书错误处理和公司网络放行清单。
 checkedOn: 2026-10-31
 sources:
   - https://docs.github.com/en/copilot/troubleshooting-github-copilot/troubleshooting-network-errors-for-github-copilot
