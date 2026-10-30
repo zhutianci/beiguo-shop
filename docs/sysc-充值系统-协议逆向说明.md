@@ -581,7 +581,70 @@ npx tsx scripts/check-redeem.ts
 5. **限流要当回事**：总量 120 次 / 分钟；**卡号无效的提交 10 次 / 10 分钟封 Key 15 分钟**。下单前先查状态，查不到就不发 POST；`resolveCard` 也挡住了不是本站卖出的卡。这种模式绝不发 §6.7 那个编造卡密的探测
 6. **新卡号格式**：`前缀-8位-8位`，长度 19~26。`validCdkShape` 本来就只限长度和空白，不用改
 
-**本站自测**：`npx tsx scripts/check-sysc-open-api.ts`（109 条，全部打桩，含发出去的字段、Key 与买家账号不进日志、每个错误码的去向、没配 Key 时老接口不变）。
+**本站自测**：`npx tsx scripts/check-sysc-open-api.ts`（113 条，全部打桩，含发出去的字段、Key 与买家账号不进日志、每个错误码的去向、没配 Key 时老接口不变）。
 联调（只读）：`SYSC_API_KEY=… npx tsx scripts/probe-sysc.ts site|status <卡密>|check <卡密> "<本站商品名>"`。
 
 **还没验证**：真实下单（要真扣一张卡）。第一单要盯：`redeem_logs` 里 `order_ref` 应是 `R2026…`；1~3 分钟后状态变 `COMPLETED`。
+
+### 部署实录（2026-10-31）
+
+commit `5b8a5b1`，00:27 开始构建，**01:43 切换**（构建约 76 分钟），镜像 `21d928a97282`，回滚标签 `beiguo-shop-app:rollback-pre-sysc-api`（= `1ecd6f017f91`）。构建完磁盘 87%，还剩 5.1G。
+
+上线后只读验证（都没有提交充值）：
+
+| 项目 | 结果 |
+|---|---|
+| 容器里的 `SYSC_API_KEY` | 已设置；`SYSD_API_KEY` 为空，sysd 仍走老接口、仍被 Turnstile 拦 |
+| `/redeem/sysa`、`sysb`、`sysc`、`sysd` | 200；`/redeem/sysz` 404 |
+| `POST /api/redeem/sysc/check`，已用的 Claude 卡 | `COMPLETED`，商品名和打码账号正确 |
+| 公网 `/redeem/sysc` 用同一张卡 | 页面显示「充值已完成」 |
+| jishi | 3/3 恢复；`vm.swappiness` 和 buildkit 组都回到 0 |
+
+Claude 表单（只填 Organization ID）用打桩的查卡结果在浏览器里看过，提交请求也拦着。真实的 `READY` 响应没看过：我们库里已售的卡都是用掉的，未用的卡 `resolveCard` 又不放行。
+
+**顺手查到的库存问题**：`#2990~#2994`（ChatGPT Pro 5x）对方已 `disabled`，我们还标 `UNUSED`。发卡按 id 升序，下一单 Pro 5x 会先发到它们。真正能用的只有 `#3048~#3050`。
+**被 Turnstile 拦下、还没充上的买家**：`#3067`（订单 3739，Claude）10-30 20:50~21:25 失败 8 次，要让买家重试，这次要填 Organization ID。
+
+**部署脚本模板**（构建和切换放在同一个脱离会话的服务器脚本里，10-24、10-30 两次都是会话先结束、镜像没切）：
+
+```bash
+cd /opt/beiguo/beiguo-shop || exit 9
+D=/tmp/<name>-deploy.log; DONE=/tmp/<name>-deploy.done
+rm -f "$DONE" "$D"
+log() { echo "[$(date '+%F %T')] $*" >> "$D"; }
+finish() { log "RESULT=$1"; echo "$1" > "$DONE"; exit "${2:-0}"; }
+if pgrep -f build-with-swap.sh >/dev/null; then finish ANOTHER_BUILD_RUNNING 8; fi
+git pull --ff-only origin main >> "$D" 2>&1 || finish GIT_PULL_FAILED 7
+git merge-base --is-ancestor <本次必须包含的提交> HEAD || finish WRONG_COMMIT 7
+BEFORE=$(docker image inspect beiguo-shop-app:latest --format '{{.Id}}')
+RUNNING=$(docker inspect beiguo-app --format '{{.Image}}')
+docker tag "$RUNNING" beiguo-shop-app:rollback-pre-<name> || finish TAG_FAILED 7
+LOG=/tmp/<name>-build-wrapper.log sh scripts/ops/build-stop-jishi.sh > /tmp/<name>-build-wrapper.out 2>&1
+RC=$?
+AFTER=$(docker image inspect beiguo-shop-app:latest --format '{{.Id}}')
+[ "$RC" = "0" ] || finish BUILD_FAILED 1
+[ "$AFTER" != "$BEFORE" ] || finish IMAGE_UNCHANGED 1
+set -a; . ./.env.production; set +a
+P=x
+for i in $(seq 1 100); do
+  P=$(docker compose --env-file .env.production exec -T db mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -B beiguo_shop -e "SELECT COUNT(*) FROM vmq_orders WHERE state=0;" 2>/dev/null)
+  [ "$P" = "0" ] && break
+  sleep 15
+done
+[ "$P" = "0" ] || finish NOT_SWITCHED_PENDING 2
+docker compose --env-file .env.production up -d --no-deps app >> "$D" 2>&1
+OK=0
+for i in $(seq 1 60); do
+  c=$(docker exec beiguo-nginx curl -s -o /dev/null -w '%{http_code}' -H 'Host: bigolab.com' http://app:3000/ 2>/dev/null)
+  [ "$c" = "200" ] && { OK=1; break; }
+  sleep 2
+done
+if [ "$OK" != "1" ]; then
+  docker tag beiguo-shop-app:rollback-pre-<name> beiguo-shop-app:latest
+  docker compose --env-file .env.production up -d --no-deps app >> "$D" 2>&1
+  finish ROLLED_BACK 3
+fi
+finish OK 0
+```
+
+本机用 `Get-Content -Raw -Encoding UTF8` 读脚本、把换行转成 LF、base64 传上去，再用 `setsid nohup bash <脚本> &` 启动，读 `.done` 看结果。
