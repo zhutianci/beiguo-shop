@@ -27,12 +27,15 @@ log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
 
 # ---------------------------------------------------------------------------------
 # 拉回 jishi。重试 3 次 —— 构建刚结束时内存还很紧，第一次 up 可能起不来。
+#
+# 【绝不能拉起 jishi-cloudflared】它的 token 与 beiguo-cloudflared 是同一条隧道，两个连接器会分流公网请求，
+# 而它把 nginx:80 解析成 jishi-nginx：bigolab.com 和所有渠道站约一半请求变成吉狮的页面（2026-11-01 00:32 ~ 01:20 事故）。
 # ---------------------------------------------------------------------------------
 restore_jishi() {
   log "=== 恢复 jishi ==="
   i=0
   while [ "$i" -lt 3 ]; do
-    if (cd "$JISHI" && docker compose up -d) >>"$LOG" 2>&1; then
+    if (cd "$JISHI" && docker compose up -d app nginx) >>"$LOG" 2>&1; then
       break
     fi
     i=$((i + 1))
@@ -40,8 +43,8 @@ restore_jishi() {
     sleep 15
   done
   n=$(docker ps --format '{{.Names}}' 2>/dev/null | grep -c '^jishi' || true)
-  log "jishi 在跑的容器数：$n（期望 3）"
-  [ "$n" -lt 3 ] && log "⚠️ jishi 没全起来，**要人工处理**：cd $JISHI && docker compose up -d"
+  log "jishi 在跑的容器数：$n（期望 2：app、nginx）"
+  [ "$n" -lt 2 ] && log "⚠️ jishi 没全起来，**要人工处理**：cd $JISHI && docker compose up -d app nginx"
   return 0
 }
 
