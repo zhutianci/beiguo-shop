@@ -873,11 +873,12 @@ async function testShopShell(w: World) {
   const act = await shell(w.lulu.host)
   const av = act.kind === 'ok' ? act.value : null
   // 2026-10-05 渠道品牌与公告：渠道站也挂公告弹窗（接口只返回本渠道自己的公告，见 mods-brand）
-  check('渠道 ACTIVE：挂公告弹窗；不挂实时成交、埋点、邮件落地；无横幅', !!av && findType(av, AnnouncementModal) && !findType(av, LiveOrderNotification) && !findType(av, PageViewBeacon) && !findType(av, MailLanding) && !findType(av, SuspendedBanner))
+  // 2026-10-31：营业中的渠道站也挂成交弹窗（只展示真实成交，见 api/orders/recent 的渠道分支）
+  check('渠道 ACTIVE：挂公告弹窗、实时成交；不挂埋点、邮件落地；无横幅', !!av && findType(av, AnnouncementModal) && findType(av, LiveOrderNotification) && !findType(av, PageViewBeacon) && !findType(av, MailLanding) && !findType(av, SuspendedBanner))
 
   await prisma.tenant.update({ where: { id: w.lulu.id }, data: { status: 'SUSPENDED' } })
   const sus = await shell(w.lulu.host)
-  check('SUSPENDED：外壳照常、挂暂停营业横幅、页面内容照常', sus.kind === 'ok' && findType(sus.value, SuspendedBanner) && !findType(sus.value, ClosedPageGate))
+  check('SUSPENDED：外壳照常、挂暂停营业横幅、页面内容照常、不挂实时成交', sus.kind === 'ok' && findType(sus.value, SuspendedBanner) && !findType(sus.value, ClosedPageGate) && !findType(sus.value, LiveOrderNotification))
   await prisma.tenant.update({ where: { id: w.lulu.id }, data: { status: 'TERMINATED' } })
   const term = await shell(w.lulu.host)
   check('TERMINATED：外壳照常、挂停业页闸门', term.kind === 'ok' && findType(term.value, ClosedPageGate) && !findType(term.value, SuspendedBanner))

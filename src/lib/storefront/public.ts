@@ -11,6 +11,7 @@
  * CHANNEL 恒为全关、PLATFORM 恒为全开，**不读任何 JSON 配置**（设计 7.6：不存在 Tenant.features）。
  * 例外（docs/多渠道分销-内容模块下放.md）：forum（AI学习）/ news / iptools 三个内容模块在渠道按 sf.modules 打开
  * （超管授权 && 渠道上架，tenants 上的布尔列；服务端拦截同样按它：moduleOpen / denyUnlessModule / notFoundUnlessModule）。
+ * 例外：liveOrders 在营业中（ACTIVE）的渠道打开，见 storefrontFeatures。
  */
 import type { Storefront, StorefrontKind } from './resolve'
 import { PLATFORM_CONTACT, type StoreContact } from '../contact-base'
@@ -107,6 +108,8 @@ export function storefrontFeatures(sf: { kind: StorefrontKind; status?: string; 
     out.news = m.news === true
     out.iptools = m.iptools === true
   }
+  // 成交弹窗（站长 2026-10-31）：营业中的渠道站也挂，只展示真实成交（api/orders/recent 的渠道分支）。暂停、筹备、停业不挂
+  if (sf?.status === 'ACTIVE') out.liveOrders = true
   return out
 }
 

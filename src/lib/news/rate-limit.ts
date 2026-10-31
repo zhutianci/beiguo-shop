@@ -136,3 +136,9 @@ export function clientIp(headers: Headers): string {
     'unknown'
   )
 }
+
+/** 要落库留痕的 IP：取不到时存 NULL，不存 'unknown'；长度与库里的 VarChar(64) 一致 */
+export function storableIp(headers: Headers): string | null {
+  const ip = clientIp(headers)
+  return ip !== 'unknown' ? ip.slice(0, 64) : null
+}

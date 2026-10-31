@@ -14,6 +14,8 @@ model User {
   phone              String?   @unique @db.VarChar(20)
   email              String?   @unique @db.VarChar(100)
   passwordHash       String    @map("password_hash") @db.VarChar(255)
+  // 主站注册时的 IP（2026-10-31）：风控与售后核查，仅后台可见，3 年后清除（api/cron/cleanup）。渠道站注册不记
+  registerIp         String?   @map("register_ip") @db.VarChar(64)
   nickname           String?   @db.VarChar(50)
   avatar             String?   @db.VarChar(255)
   // 返现余额（可提现）：推荐返现、后台调整。含义永远不变，提现只动这一列（docs/短信接码-设计.md D29/D30）
@@ -229,6 +231,10 @@ model Order {
   createdAt      DateTime       @default(now()) @map("created_at")
   updatedAt      DateTime       @updatedAt @map("updated_at")
   paidAt         DateTime?      @map("paid_at")
+  // 主站下单时的 IP（2026-10-31）：风控与售后核查，仅后台可见，3 年后清除（api/cron/cleanup）。渠道单不记
+  createIp       String?        @map("create_ip") @db.VarChar(64)
+  // 下单城市（Cloudflare 按 IP 判断）：渠道站成交弹窗展示，与 createIp 同期清除
+  createCity     String?        @map("create_city") @db.VarChar(64)
   deliveredAt    DateTime?      @map("delivered_at")
 
   // ---- 渠道分站：来源站与下单快照（设计 5.4，权威定义；共 22 列，全部可空或带默认值）----

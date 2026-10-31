@@ -375,7 +375,7 @@ function diffChecksum(a: Map<string, string>, b: Map<string, string>): string[] 
 let ALLOWED: ReadonlySet<string>
 let FORBIDDEN: ReadonlySet<string>
 let CONTEXTUAL: Readonly<Record<string, readonly string[]>>
-const BUYER_FORBIDDEN = ['supplyCents', 'supplyUnitPrice', 'feeRateBp', 'invoiceShareRateBp', 'mainPriceAtOrder', 'tenantId', 'shopOrderId', 'senderRole', 'senderUserId', 'readByTenant']
+const BUYER_FORBIDDEN = ['registerIp', 'createIp', 'createCity', 'supplyCents', 'supplyUnitPrice', 'feeRateBp', 'invoiceShareRateBp', 'mainPriceAtOrder', 'tenantId', 'shopOrderId', 'senderRole', 'senderUserId', 'readByTenant']
 
 interface Captured {
   label: string
@@ -931,6 +931,48 @@ async function t10(w: World, X: Extra) {
   }
   check(`${captured} 个前台响应零禁用键`, badB.length === 0 && captured >= 8, badB.join('；'))
   check('前台价格键的值不是站长价 / 进货价 / zz 的售价（WP2：price 键保留、值是本店售价，改为值扫描）', priceB.length === 0, priceB.join('；'))
+
+  section('T10 渠道站成交弹窗：主站单 + 本店单、只含本店在售商品、不含其他渠道的单；时间地点取自订单')
+  const marks: [{ id: number }, string, number][] = [
+    [w.orders.crossMain, 'ITM-MAIN', w.products.auto],
+    [w.orders.regMainOrder, 'ITM-MAIN-MANUAL', w.products.manual], // zz 只上架了 auto
+    [w.orders.luluAuto, 'ITM-LULU', w.products.auto],
+    [w.orders.zzAuto, 'ITM-ZZ', w.products.auto],
+  ]
+  const saved = await prisma.order.findMany({
+    where: { id: { in: marks.map(([o]) => o.id) } },
+    select: { id: true, productName: true, productId: true, payStatus: true, deliveryStatus: true },
+  })
+  try {
+    for (const [o, productName, productId] of marks) {
+      await prisma.order.update({ where: { id: o.id }, data: { productName, productId, payStatus: 'PAID', deliveryStatus: 'DELIVERED' } })
+    }
+    const recentFn = await handler('orders/recent', 'GET')
+    const { invalidateStorefrontCache } = await import('../../src/lib/storefront/resolve')
+    const names = async (host: string) => {
+      const r = await call(recentFn, { host }, {})
+      const list = (r.json?.data || []) as Record<string, unknown>[]
+      return { names: list.map((x) => String(x.productName)).filter((n) => n.startsWith('ITM-')), list }
+    }
+    const lu = await names(w.lulu.host)
+    const zz = await names(w.zz.host)
+    check('lulu：有主站单、本店单，没有 zz 的单', ['ITM-MAIN', 'ITM-MAIN-MANUAL', 'ITM-LULU'].every((n) => lu.names.includes(n)) && !lu.names.includes('ITM-ZZ'), lu.names.join(','))
+    check('zz：有主站单、本店单；没有 lulu 的单、没有未上架商品的单', ['ITM-MAIN', 'ITM-ZZ'].every((n) => zz.names.includes(n)) && !zz.names.includes('ITM-LULU') && !zz.names.includes('ITM-MAIN-MANUAL'), zz.names.join(','))
+    const extraKeys = lu.list.flatMap((x) => Object.keys(x)).filter((k) => !['id', 'productName', 'displayName', 'city', 'timeLabel'].includes(k))
+    check('只下发约定字段（没有金额、精确时间）', extraKeys.length === 0, extraKeys.join(','))
+    check('买家已打码', lu.list.every((x) => String(x.displayName).includes('*') || x.displayName === '匿名用户'), JSON.stringify(lu.list[0]))
+    await prisma.tenant.update({ where: { id: w.lulu.id }, data: { status: 'SUSPENDED' } })
+    invalidateStorefrontCache()
+    const susp = await names(w.lulu.host)
+    check('暂停营业的渠道：接口返回空', susp.list.length === 0, JSON.stringify(susp.list[0]))
+  } finally {
+    await prisma.tenant.update({ where: { id: w.lulu.id }, data: { status: 'ACTIVE' } })
+    ;(await import('../../src/lib/storefront/resolve')).invalidateStorefrontCache()
+    for (const s of saved) {
+      const { id, ...data } = s
+      await prisma.order.update({ where: { id }, data })
+    }
+  }
   void X
 }
 

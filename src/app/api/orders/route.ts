@@ -8,6 +8,8 @@ import { hasProvider } from '@/lib/redeem/registry'
 import { getCurrentUser } from '@/lib/auth'
 import { success, error, unauthorized } from '@/lib/api'
 import { decryptCardContent } from '@/lib/cardkey'
+import { storableIp } from '@/lib/news/rate-limit'
+import { storableCity } from '@/lib/order/live-feed'
 import { orderCreateGate, orderNotifyMode } from '@/lib/order/create-guard'
 import { calcInvoiceAmounts } from '@/lib/invoice'
 import { shopOrderSourceKey } from '@/lib/order-billing'
@@ -677,6 +679,9 @@ export async function POST(request: NextRequest) {
           couponGrantId,
           couponDiscount,
           originalAmount,
+          // 只记主站下单（站长 2026-10-31）：这里是主站分支，渠道单走 createChannelOrder，不传
+          createIp: storableIp(request.headers),
+          createCity: storableCity(request.headers),
         })
         // 门槛按不含税货款（amount）算：6% 税费是代收的，不是买家在本站的消费
         const eligible = await createEntryIfEligible(tx, lotteryCfg, {

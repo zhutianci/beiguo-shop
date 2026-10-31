@@ -14,7 +14,7 @@ import { hideLiveOrdersOn } from '@/lib/floating-widgets'
  *  · 服务端 HTML 不变：弹窗本来就是水合后几秒才出现（服务端渲染恒为空，check-seo-b 第 2 节），ssr:false 渲染出的也是空；
  *  · 出现时机不变：chunk 走 Cloudflare 缓存，取回后照旧 fetch('/api/orders/recent')、首条延迟 3 秒，此后 8–15 秒一条；
  *  · /jiema/*、/wallet/* 本来就不渲染弹窗（hideLiveOrdersOn），在这里先判一次，这两类页面连 chunk 都不取；
- *    组件本体里同样的判断原样保留，两处结果相同。渠道站由 layout 按 features.liveOrders 不挂这一层，与原来一致。
+ *    组件本体里同样的判断原样保留，两处结果相同。是否挂这一层由 layout 按 features.liveOrders 决定（渠道站营业中才开，2026-10-31）。
  */
 const LiveOrderNotificationChunk = dynamic(
   () => import('@/components/live-order-notification').then((m) => m.LiveOrderNotification),

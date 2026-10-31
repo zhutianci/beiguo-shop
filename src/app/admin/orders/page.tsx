@@ -173,6 +173,7 @@ interface OrderDetail {
     couponDiscount: number | null
     originalAmount: number | null
     createdAt: string
+    createIp: string | null
     paidAt: string | null
     deliveredAt: string | null
   }
@@ -1552,6 +1553,9 @@ function OrderDetailSections({ d }: { d: OrderDetail }) {
 
   return (
     <div className="space-y-3">
+      <Section title="下单信息">
+        <KV k="下单 IP" v={o.createIp || <span className="text-gray-400">未记录</span>} />
+      </Section>
       <Section title="金额明细">
         <KV k="商品标价" v={`${yuan(o.productPrice)} × ${o.quantity}`} />
         <KV k="货款（不含税）" v={yuan(o.amount)} />

@@ -4,7 +4,7 @@ import { NextRequest } from 'next/server'
 import { success, error } from '@/lib/api'
 import { assertCronAuth } from '@/lib/cron-auth'
 import { prisma } from '@/lib/db'
-import { KEEP_EVENT_TYPES } from '@/lib/jiema/consent'
+import { CONSENT_META_RETENTION_DAYS, KEEP_EVENT_TYPES } from '@/lib/jiema/consent'
 import { purgeExpiredConsentMeta } from '@/lib/jiema/consent-purge'
 import { purgeBotTables } from '@/lib/bot/retention'
 
@@ -162,6 +162,11 @@ export async function GET(request: NextRequest) {
 
     // 条款同意记录里到期（自下单之日起 3 年）的 IP 与浏览器标识清成 null，版本与同意时间留着（隐私政策四；lib/jiema/consent-purge.ts）
     const consentMetaCleared = await purgeExpiredConsentMeta(now)
+
+    // 主站注册与下单 IP：保存 3 年，到期清成 NULL，账号与订单本身不动（隐私政策四）
+    const ipCutoff = new Date(now - CONSENT_META_RETENTION_DAYS * 86400000)
+    await prisma.user.updateMany({ where: { registerIp: { not: null }, createdAt: { lt: ipCutoff } }, data: { registerIp: null } })
+    await prisma.order.updateMany({ where: { createIp: { not: null }, createdAt: { lt: ipCutoff } }, data: { createIp: null, createCity: null } })
 
     // 微信机器人的出队、事件、指令日志、补货令牌（lib/bot/retention.ts；docs/微信机器人-设计.md §13）。
     // 单独兜住：机器人表出问题不影响上面那些清理的结果上报

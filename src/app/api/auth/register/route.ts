@@ -9,7 +9,7 @@ import { success, error } from '@/lib/api'
 import { notifyUserRegistered } from '@/lib/notify'
 import { consumeCode } from '@/lib/verify-code'
 import { systemEmailConfigured } from '@/lib/mail'
-import { clientIp } from '@/lib/news/rate-limit'
+import { clientIp, storableIp } from '@/lib/news/rate-limit'
 import { noteRegisterSuccess, registerIpFull, verifyIpLimited } from '@/lib/auth-throttle'
 import { passwordProblem } from '@/lib/security/password-policy'
 import { logRegisterNotice } from '@/lib/marketing/consent'
@@ -118,6 +118,8 @@ export async function POST(request: NextRequest) {
           // 邮件服务未配置时照常注册（不能挡住新客下单），只是不记已验证
           emailVerifiedAt: emailVerified ? new Date() : null,
           registeredTenantId: sf.id,
+          // 只记主站注册（站长 2026-10-31）
+          registerIp: sf.kind === 'PLATFORM' ? storableIp(request.headers) : null,
         },
         select: {
           id: true,

@@ -680,7 +680,7 @@ export const PARTNER_ALLOWED_KEYS: ReadonlySet<string> = new Set<string>([
  * 例外见 PARTNER_CONTEXTUAL_KEYS。deliveryInfo 只允许出现在 /cards 响应（由 T10 按路由判断）。
  */
 export const PARTNER_FORBIDDEN_KEYS: ReadonlySet<string> = new Set<string>([
-  'cost', 'profit', 'passwordHash', 'balance', 'vipLevel', 'registeredTenantId', 'referralCode', 'ip', 'ua', 'userAgent',
+  'cost', 'profit', 'passwordHash', 'balance', 'vipLevel', 'registeredTenantId', 'referralCode', 'ip', 'registerIp', 'createIp', 'createCity', 'ua', 'userAgent',
   'requestId', 'orderRef', 'contentHash', 'content', 'apiSku', 'smsMaxPrice', 'referrerBasePrice', 'activationId', 'raw',
   'eventKey', 'memo', 'operatorId', 'actorUserId', 'diff', 'remark', 'supplyBaseKind', 'supplyBaseCents', 'supplyVersion',
   'updatedBy', 'payoutHoldReason', 'payeeAccountEnc', 'wecomWebhookEnc', 'previewUserIds', 'blockedBy', 'platformNote',

@@ -59,6 +59,9 @@ export interface CreateShopOrderInput {
   couponDiscount?: number | null
   originalAmount?: number | null
   channel?: ChannelOrderSnapshot | null
+  /** 主站下单的买家 IP；渠道单、系统建单不传 */
+  createIp?: string | null
+  createCity?: string | null
 }
 
 /** 建单返回的最小字段（响应与通知够用；不含任何快照列） */
@@ -163,6 +166,8 @@ export async function createShopOrder(tx: Prisma.TransactionClient, input: Creat
     couponGrantId: input.couponGrantId ?? null,
     couponDiscount: input.couponDiscount ?? null,
     originalAmount: input.originalAmount ?? null,
+    createIp: input.createIp ?? null,
+    createCity: input.createCity ?? null,
     ...(c
       ? {
           listingId: c.listingId,

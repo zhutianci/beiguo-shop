@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { prisma } from '@/lib/db'
 import { success, error } from '@/lib/api'
 // 脱敏函数与「推荐有奖」页共用一份，见 lib/mask.ts 顶部说明
-import { maskEmail, maskNickname } from '@/lib/mask'
+import { maskBuyer, maskEmail, maskNickname } from '@/lib/mask'
+import { relativeOrderTime } from '@/lib/order/live-feed'
 import { getStorefront } from '@/lib/storefront/resolve'
 import { excludeCarriers } from '@/lib/order-scope'
 import { readBotConfig } from '@/lib/bot/config'
@@ -11,6 +12,8 @@ import { rateLimited } from '@/lib/news/rate-limit'
 import { ipKeyOf } from '@/lib/security/ip-ban'
 
 const FAKE_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京', '西安', '苏州', '重庆', '天津']
+// 主站的 tenant id（与 lib/admin/source-site.ts 同一约定）
+const PLATFORM_TENANT_ID = 1
 
 export async function GET(request: Request) {
   // 店面解析不进 try（设计 4.4 第 7 条）
@@ -24,8 +27,45 @@ export async function GET(request: Request) {
     // 配置读不到时不排除（那时机器人也提不了卡），不让成交滚动因此报错
     const botCfg = await readBotConfig().catch(() => null)
     const issueUserId = botCfg?.ok ? botCfg.config.issueUserId : null
+
+    /*
+     * 【渠道站】站长 2026-10-31：与主站共享成交滚动。范围 = 主站单 + 本店单，且只取本店在售的商品；
+     * 其他渠道的单不给（渠道之间互为同行）。地点和时间都来自订单本身（lib/order/live-feed.ts），没有记录的城市就不下发。
+     */
+    if (sf.kind === 'CHANNEL') {
+      if (sf.status !== 'ACTIVE') return success([])
+      const listings = await prisma.tenantListing.findMany({
+        where: { tenantId: sf.id, granted: true, status: 1 },
+        select: { productId: true },
+        take: 500,
+      })
+      if (listings.length === 0) return success([])
+      const orders = await prisma.order.findMany({
+        where: {
+          tenantId: { in: [PLATFORM_TENANT_ID, sf.id] },
+          productId: { in: listings.map((l) => l.productId) },
+          payStatus: 'PAID',
+          deliveryStatus: { not: 'CANCELLED' },
+          ...excludeCarriers(),
+          ...(issueUserId ? { userId: { not: issueUserId } } : {}),
+        },
+        take: 20,
+        orderBy: { createdAt: 'desc' },
+        select: { productName: true, createCity: true, createdAt: true, user: { select: { email: true, nickname: true } } },
+      })
+      return success(
+        orders.map((order, i) => ({
+          id: i + 1,
+          productName: order.productName,
+          displayName: maskBuyer(order.user),
+          ...(order.createCity ? { city: order.createCity } : {}),
+          timeLabel: relativeOrderTime(order.createdAt),
+        })),
+      )
+    }
+
     // 取最近 20 条已支付订单（不包含取消的：已付款又取消 = 线下退款，不能再当成交展示）。
-    // 只取本店的：主站的成交滚动不能把渠道单混进来，渠道站（P0 不挂载这个组件）直连接口也拿不到主站的成交（设计 11.1）
+    // 只取本店的：主站的成交滚动不能把渠道单混进来
     const orders = await prisma.order.findMany({
       where: {
         tenantId: sf.id,

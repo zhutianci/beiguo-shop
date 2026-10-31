@@ -31,6 +31,7 @@ interface DetailUser {
   role: string
   status: number
   referralCode: string | null
+  registerIp?: string | null
   createdAt: string
   registeredTenant?: SourceSite
 }
@@ -534,6 +535,7 @@ export default function AdminUserDetailPage() {
                 <span>{user.email || '无邮箱'}</span>
                 {user.phone && <span>{user.phone}</span>}
                 <span>注册于 {fmt(user.createdAt)}</span>
+                {user.registerIp && <span>注册 IP {user.registerIp}</span>}
               </div>
             </div>
           </div>

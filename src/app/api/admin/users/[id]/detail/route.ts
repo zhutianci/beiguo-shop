@@ -76,6 +76,7 @@ export async function GET(
           status: true,
           referralCode: true,
           registeredTenantId: true,
+          registerIp: true,
           createdAt: true,
         },
       }),

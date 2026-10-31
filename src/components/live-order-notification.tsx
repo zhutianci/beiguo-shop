@@ -13,7 +13,9 @@ interface RecentOrder {
   id: number
   productName: string
   displayName: string
-  city: string
+  // 渠道站：有真实记录才有 city，timeLabel 是服务端按成交时间算的
+  city?: string
+  timeLabel?: string
 }
 
 // 没有真实订单时的预设示例（脱敏假数据，让网站更"活")
@@ -52,6 +54,9 @@ function LiveOrderNotificationInner() {
   const indexRef = useRef(0)
   // 手机端轻量模式（2026-10-01，站长要求电脑端不变）：只换底部进度条的实现，见下方进度条处
   const lite = useLite()
+  // 渠道站（站长 2026-10-31）：只轮播接口给的真实成交，时间地点取自订单，不补示例；没有数据就不弹
+  const { kind } = useStorefront()
+  const realOnly = kind === 'CHANNEL'
 
   // 加载订单数据
   useEffect(() => {
@@ -59,12 +64,16 @@ function LiveOrderNotificationInner() {
       .then((r) => r.json())
       .then((data) => {
         const realOrders: RecentOrder[] = data.success && data.data.length > 0 ? data.data : []
+        if (realOnly) {
+          setOrders(realOrders)
+          return
+        }
         // 混合真实订单和示例数据（让总数足够轮播）
         const combined = realOrders.length >= 5 ? realOrders : [...realOrders, ...FALLBACK_ORDERS]
         setOrders(combined)
       })
-      .catch(() => setOrders(FALLBACK_ORDERS))
-  }, [])
+      .catch(() => setOrders(realOnly ? [] : FALLBACK_ORDERS))
+  }, [realOnly])
 
   // 定时弹出通知
   useEffect(() => {
@@ -78,10 +87,26 @@ function LiveOrderNotificationInner() {
     function showNext() {
       const order = orders[indexRef.current % orders.length]
       indexRef.current++
-      setCurrent({ order, relativeTime: getRelativeTime() })
+      setCurrent({ order, relativeTime: order.timeLabel ?? getRelativeTime() })
 
       // 5 秒后隐藏
       setTimeout(() => setCurrent(null), 5000)
+    }
+
+    // 渠道站：每一条之后都重新抽一次 8-15 秒的间隔
+    if (realOnly) {
+      let nextTimer: ReturnType<typeof setTimeout>
+      const scheduleNext = () => {
+        nextTimer = setTimeout(() => {
+          showNext()
+          scheduleNext()
+        }, 8000 + Math.random() * 7000)
+      }
+      scheduleNext()
+      return () => {
+        clearTimeout(firstTimer)
+        clearTimeout(nextTimer)
+      }
     }
 
     // 之后每 8-15 秒随机弹出
@@ -93,7 +118,7 @@ function LiveOrderNotificationInner() {
       clearTimeout(firstTimer)
       clearInterval(interval)
     }
-  }, [orders])
+  }, [orders, realOnly])
 
   return (
     <AnimatePresence>
@@ -118,15 +143,30 @@ function LiveOrderNotificationInner() {
                 </div>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 text-xs text-white/50 mb-1">
-                    <MapPin className="w-3 h-3" />
-                    <span>{current.order.city}</span>
-                    <span className="text-white/20">·</span>
-                    <span>{current.relativeTime}</span>
-                  </div>
+                  {realOnly ? (
+                    <div className="flex items-center gap-1.5 text-xs text-white/50 mb-1">
+                      <span>全平台</span>
+                      {current.order.city && (
+                        <>
+                          <span className="text-white/20">·</span>
+                          <MapPin className="w-3 h-3" />
+                          <span>{current.order.city}</span>
+                        </>
+                      )}
+                      <span className="text-white/20">·</span>
+                      <span>{current.relativeTime}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-xs text-white/50 mb-1">
+                      <MapPin className="w-3 h-3" />
+                      <span>{current.order.city}</span>
+                      <span className="text-white/20">·</span>
+                      <span>{current.relativeTime}</span>
+                    </div>
+                  )}
                   <div className="text-sm">
                     <span className="font-mono text-white/80">{current.order.displayName}</span>
-                    <span className="text-white/40"> 刚刚购买了 </span>
+                    <span className="text-white/40">{realOnly ? ' 购买了 ' : ' 刚刚购买了 '}</span>
                   </div>
                   {/* 不显示成交价（站长 2026-10-13）：同一商品不同买家的成交价不一样（内推专属价、优惠券、改价），摆出来只会引来「为什么他更便宜」 */}
                   <div className="mt-0.5 text-sm font-bold truncate">{current.order.productName}</div>
@@ -159,9 +199,8 @@ function LiveOrderNotificationInner() {
 }
 
 /**
- * 渠道分站（实施分包 WP1）：实时成交在渠道站关闭（设计 11.1：数据是主站成交，会暴露主站单量与价格）。
- * 只控制显示；对应接口在渠道 Host 上服务端 404（denyOnChannel）。组件本体改名为 LiveOrderNotificationInner、原样不动，
- * 由这层按店面决定挂不挂：不渲染就不会发出任何请求（验收 W1-9：渠道站页面零 404 请求）。主站恒为渲染，行为不变。
+ * 按店面决定挂不挂：不渲染就不会发出任何请求。主站恒为渲染；渠道站（站长 2026-10-31 起）营业中才挂，
+ * 数据口径见 api/orders/recent 的渠道分支，展示差异见 realOnly。
  */
 export function LiveOrderNotification() {
   const { features } = useStorefront()

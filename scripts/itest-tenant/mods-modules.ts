@@ -171,6 +171,7 @@ async function main() {
         pubMod.storefrontFeatures({ kind: 'CHANNEL', status, modules: { learn: false, news: false, iptools: false, ...m } })
       const f1 = sf('ACTIVE', { learn: true, news: true, iptools: true })
       check('storefrontFeatures：渠道只开三个内容模块（forum/news/iptools），券、余额、接码等照关', f1.forum && f1.news && f1.iptools && !f1.coupon && !f1.wallet && !f1.jiema && !f1.landing && !f1.referral && !f1.links)
+      check('storefrontFeatures：成交弹窗只在营业中打开', sf('ACTIVE', {}).liveOrders && !sf('SUSPENDED', {}).liveOrders && !sf('DRAFT', {}).liveOrders && !sf('TERMINATED', {}).liveOrders)
       check('storefrontFeatures：暂停营业照开，筹备中 / 已停业不开', sf('SUSPENDED', { news: true }).news && !sf('DRAFT', { news: true }).news && !sf('TERMINATED', { news: true }).news)
       check('storefrontFeatures：主站全开、没有 modules 的渠道全关（旧夹具）', Object.values(pubMod.storefrontFeatures({ kind: 'PLATFORM' })).every(Boolean) && !Object.values(pubMod.storefrontFeatures({ kind: 'CHANNEL' })).some(Boolean))
       check(
